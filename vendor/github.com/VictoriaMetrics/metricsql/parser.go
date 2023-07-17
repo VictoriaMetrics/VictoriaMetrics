@@ -573,6 +573,14 @@ func (p *parser) parseParensExpr() (*parensExpr, error) {
 	if err := p.lex.Next(); err != nil {
 		return nil, err
 	}
+	if len(exprs) == 1 {
+		if be, ok := exprs[0].(*BinaryOpExpr); ok && isKeepMetricNames(p.lex.Token) {
+			if err := p.lex.Next(); err != nil {
+				return nil, err
+			}
+			be.KeepMetricNames = true
+		}
+	}
 	pe := parensExpr(exprs)
 	return &pe, nil
 }
@@ -1632,7 +1640,18 @@ type BinaryOpExpr struct {
 
 // AppendString appends string representation of be to dst and returns the result.
 func (be *BinaryOpExpr) AppendString(dst []byte) []byte {
-	if _, ok := be.Left.(*BinaryOpExpr); ok {
+	if be.KeepMetricNames {
+		dst = append(dst, '(')
+		dst = be.appendStringNoKeepMetricNames(dst)
+		dst = append(dst, ") keep_metric_names"...)
+	} else {
+		dst = be.appendStringNoKeepMetricNames(dst)
+	}
+	return dst
+}
+
+func (be *BinaryOpExpr) appendStringNoKeepMetricNames(dst []byte) []byte {
+	if be.needLeftParens() {
 		dst = appendArgInParens(dst, be.Left)
 	} else {
 		dst = be.Left.AppendString(dst)
@@ -1656,30 +1675,40 @@ func (be *BinaryOpExpr) AppendString(dst []byte) []byte {
 	} else {
 		dst = be.Right.AppendString(dst)
 	}
-	if be.KeepMetricNames {
-		dst = append(dst, " keep_metric_names"...)
-	}
 	return dst
 }
 
+func (be *BinaryOpExpr) needLeftParens() bool {
+	return needBinaryOpArgParens(be.Left)
+}
+
 func (be *BinaryOpExpr) needRightParens() bool {
-	r := be.Right
-	if _, ok := r.(*BinaryOpExpr); ok {
+	if needBinaryOpArgParens(be.Right) {
 		return true
 	}
-	if me, ok := r.(*MetricExpr); ok {
-		metricName := me.getMetricName()
+	switch t := be.Right.(type) {
+	case *MetricExpr:
+		metricName := t.getMetricName()
 		return isReservedBinaryOpIdent(metricName)
-	}
-	if fe, ok := r.(*FuncExpr); ok && isReservedBinaryOpIdent(fe.Name) {
-		return true
-	}
-	if !be.KeepMetricNames {
+	case *FuncExpr:
+		if isReservedBinaryOpIdent(t.Name) {
+			return true
+		}
+		return be.KeepMetricNames
+	default:
 		return false
 	}
-	switch r.(type) {
-	case *FuncExpr:
+}
+
+func needBinaryOpArgParens(arg Expr) bool {
+	switch t := arg.(type) {
+	case *BinaryOpExpr:
 		return true
+	case *RollupExpr:
+		if be, ok := t.Expr.(*BinaryOpExpr); ok && be.KeepMetricNames {
+			return true
+		}
+		return t.Offset != nil || t.At != nil
 	default:
 		return false
 	}
@@ -1708,7 +1737,7 @@ type ModifierExpr struct {
 // AppendString appends string representation of me to dst and returns the result.
 func (me *ModifierExpr) AppendString(dst []byte) []byte {
 	dst = append(dst, me.Op...)
-	dst = append(dst, "("...)
+	dst = append(dst, '(')
 	for i, arg := range me.Args {
 		dst = appendEscapedIdent(dst, arg)
 		if i+1 < len(me.Args) {
