@@ -104,3 +104,21 @@ func TestInitBlackHoleWithNotifierConfig(t *testing.T) {
 		t.Fatalf("expected no notifiers to be returned;but got %v instead", fn())
 	}
 }
+
+func TestInitWithNotifierConfigAndAddr(t *testing.T) {
+	oldConfigPath := *configPath
+	oldAddrs := *addrs
+
+	defer func() {
+		*configPath = oldConfigPath
+		*addrs = oldAddrs
+	}()
+
+	*addrs = flagutil.ArrayString{"127.0.0.1", "127.0.0.2"}
+	*configPath = "/dummy/path"
+
+	_, err := Init(nil, nil, "")
+	if err == nil {
+		t.Fatalf("Expect Init to return error; instead got no error")
+	}
+}
