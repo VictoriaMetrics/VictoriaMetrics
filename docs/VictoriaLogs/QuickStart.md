@@ -1,3 +1,15 @@
+---
+sort: 3
+weight: 3
+title: VictoriaLogs Quick Start
+menu:
+  docs:
+    parent: "victorialogs"
+    weight: 3
+aliases:
+- /VictoriaLogs/QuickStart.html
+---
+
 # VictoriaLogs Quick Start
 
 It is recommended to read [README](https://docs.victoriametrics.com/VictoriaLogs/)
@@ -134,5 +146,3 @@ Here are a Docker-compose demos, which start VictoriaLogs and push logs to it vi
 
 You can use [this Helm chart](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-logs-single/README.md)
 as a demo for running Fluentbit in Kubernetes with VictoriaLogs.
-
-

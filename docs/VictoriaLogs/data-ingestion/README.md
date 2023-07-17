@@ -1,3 +1,14 @@
+---
+sort: 6
+title: Data ingestion
+weight: 6
+menu:
+  docs:
+    identifier: victorialogs-data-ingestion
+    parent: "victorialogs"
+    weight: 6
+---
+
 # Data ingestion
 
 [VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/) can accept logs from the following log collectors:
@@ -57,6 +68,11 @@ The command should return the following response:
 {"_msg":"cannot open file","_stream":"{}","_time":"2023-06-21T04:24:24Z","host.name":"host123"}
 ```
 
+The response by default contains [`_msg`](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field),
+[`_stream`](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#stream-fields) and
+[`_time`](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#time-field) fields plus the explicitly mentioned fields.
+See [these docs](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html#querying-specific-fields) for details.
+
 See also:
 
 - [How to debug data ingestion](#troubleshooting).
@@ -103,6 +119,11 @@ The command should return the following response:
 {"_msg":"oh no!","_stream":"{stream=\"stream1\"}","_time":"2023-06-20T15:32:10.567Z","log.level":"error"}
 ```
 
+The response by default contains [`_msg`](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field),
+[`_stream`](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#stream-fields) and
+[`_time`](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#time-field) fields plus the explicitly mentioned fields.
+See [these docs](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html#querying-specific-fields) for details.
+
 See also:
 
 - [How to debug data ingestion](#troubleshooting).
@@ -142,6 +163,22 @@ VictoriaLogs accepts optional `AccountID` and `ProjectID` headers at [data inges
 These headers may contain the needed tenant to ingest data to. See [multitenancy docs](https://docs.victoriametrics.com/VictoriaLogs/#multitenancy) for details.
 
 ## Troubleshooting
+
+The following command can be used for verifying whether the data is successfully ingested into VictoriaLogs:
+
+```logsql
+curl http://localhost:9428/select/logsql/query -d 'query=*' | head
+```
+
+This command selects all the data ingested into VictoriaLogs via [HTTP query API](https://docs.victoriametrics.com/VictoriaLogs/querying/#http-api)
+using [any value filter](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html#any-value-filter),
+while `head` cancels query execution after reading the first 10 log lines. See [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/#command-line)
+for more details on how `head` integrates with VictoriaLogs.
+
+The response by default contains [`_msg`](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field),
+[`_stream`](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#stream-fields) and
+[`_time`](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#time-field) fields plus the explicitly mentioned fields.
+See [these docs](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html#querying-specific-fields) for details.
 
 VictoriaLogs provides the following command-line flags, which can help debugging data ingestion issues:
 

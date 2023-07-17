@@ -742,6 +742,25 @@ useful in the following scenarios:
 
 If you need to export raw samples from VictoriaMetrics, then take a look at [export APIs](https://docs.victoriametrics.com/#how-to-export-time-series).
 
+### Query latency
+
+By default, Victoria Metrics does not immediately return the recently written samples. Instead, it retrieves the last results
+written prior to the time specified by the `-search.latencyOffset` command-line flag, which has a default offset of 30 seconds.
+This is true for both `query` and `query_range` and may give the impression that data is written to the VM with a 30-second delay.
+
+This flag prevents from non-consistent results due to the fact that only part of the values are scraped in the last scrape interval.
+
+Here is an illustration of a potential problem when `-search.latencyOffset` is set to zero:
+
+<img src="keyConcepts_without_latencyOffset.png" width="1000">
+
+When this flag is set, the VM will return the last metric value collected before the `-search.latencyOffset`
+duration throughout the `-search.latencyOffset` duration:
+
+<img src="keyConcepts_with_latencyOffset.png" width="1000">
+
+It can be overridden on per-query basis via `latency_offset` query arg.
+
 ### MetricsQL
 
 VictoriaMetrics provide a special query language for executing read queries - [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html).
@@ -766,15 +785,15 @@ requests_total{path="/", code="200"}
 requests_total{path="/", code="403"} 
 ```
 
-To select only time series with specific label value specify the matching condition in curly braces:
+To select only time series with specific label value specify the matching filter in curly braces:
 
 ```metricsql
 requests_total{code="200"} 
 ```
 
-The query above will return all time series with the name `requests_total` and `code="200"`. We use the operator `=` to
-match a label value. For negative match use `!=` operator. Filters also support regex matching `=~` for positive
-and `!~` for negative matching:
+The query above returns all time series with the name `requests_total` and label `code="200"`. We use the operator `=` to
+match label value. For negative match use `!=` operator. Filters also support positive regex matching via `=~`
+and negative regex matching via `!~`:
 
 ```metricsql
 requests_total{code=~"2.*"}
@@ -783,23 +802,48 @@ requests_total{code=~"2.*"}
 Filters can also be combined:
 
 ```metricsql
-requests_total{code=~"200|204", path="/home"}
+requests_total{code=~"200", path="/home"}
 ```
 
-The query above will return all time series with a name `requests_total`, status `code` `200` or `204`and `path="/home"`
-.
+The query above returns all time series with `requests_total` name, which simultaneously have labels `code="200"` and `path="/home"`.
 
 #### Filtering by name
 
 Sometimes it is required to return all the time series for multiple metric names. As was mentioned in
-the [data model section](#data-model), the metric name is just an ordinary label with a special name — `__name__`. So
+the [data model section](#data-model), the metric name is just an ordinary label with a special name - `__name__`. So
 filtering by multiple metric names may be performed by applying regexps on metric names:
 
 ```metricsql
 {__name__=~"requests_(error|success)_total"}
 ```
 
-The query above is supposed to return series for two metrics: `requests_error_total` and `requests_success_total`.
+The query above returns series for two metrics: `requests_error_total` and `requests_success_total`.
+
+#### Filtering by multiple "or" filters
+
+[MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) supports selecting time series, which match at least one of multiple "or" filters.
+Such filters must be delimited by `or` inside curly braces. For example, the following query selects time series with
+either `{job="app1",env="prod"}` or `{job="app2",env="dev"}` labels:
+
+```metricsql
+{job="app1",env="prod" or job="app2",env="dev"}
+```
+
+The number of `or` groups can be arbitrary. The number of `,`-delimited label filters per each `or` group can be arbitrary.
+Per-group filters are applied with `and` operation, e.g. they select series simultaneously matching all the filters in the group.
+
+This functionality allows passing the selected series to [rollup functions](https://docs.victoriametrics.com/MetricsQL.html#rollup-functions)
+such as [rate()](https://docs.victoriametrics.com/MetricsQL.html#rate)
+without the need to use [subqueries](https://docs.victoriametrics.com/MetricsQL.html#subqueries):
+
+```metricsql
+rate({job="app1",env="prod" or job="app2",env="dev"}[5m])
+
+```
+
+If you need to select series matching multiple filters for the same label, then it is better from performance PoV
+to use regexp filter `{label=~"value1|...|valueN"}` instead of `{label="value1" or ... or label="valueN"}`.
+
 
 #### Arithmetic operations
 
