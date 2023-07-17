@@ -1,6 +1,6 @@
-//go:build go1.18 && (linux || darwin || freebsd || openbsd || netbsd || solaris)
+//go:build go1.18 && (linux || darwin || dragonfly || freebsd || openbsd || netbsd || solaris || aix)
 // +build go1.18
-// +build linux darwin freebsd openbsd netbsd solaris
+// +build linux darwin dragonfly freebsd openbsd netbsd solaris aix
 
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See License.txt in the project root for license information.

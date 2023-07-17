@@ -25,9 +25,7 @@ import (
 )
 
 // ClientOptions contains the optional parameters when creating a Client.
-type ClientOptions struct {
-	azcore.ClientOptions
-}
+type ClientOptions base.ClientOptions
 
 // Client represents a client to an Azure Storage page blob;
 type Client base.CompositeClient[generated.BlobClient, generated.PageBlobClient]
@@ -37,7 +35,7 @@ type Client base.CompositeClient[generated.BlobClient, generated.PageBlobClient]
 //   - cred - an Azure AD credential, typically obtained via the azidentity module
 //   - options - client options; pass nil to accept the default values
 func NewClient(blobURL string, cred azcore.TokenCredential, options *ClientOptions) (*Client, error) {
-	authPolicy := runtime.NewBearerTokenPolicy(cred, []string{shared.TokenScope}, nil)
+	authPolicy := shared.NewStorageChallengePolicy(cred)
 	conOptions := shared.GetClientOptions(options)
 	conOptions.PerRetryPolicies = append(conOptions.PerRetryPolicies, authPolicy)
 	pl := runtime.NewPipeline(exported.ModuleName, exported.ModuleVersion, runtime.PipelineOptions{}, &conOptions.ClientOptions)
@@ -361,6 +359,12 @@ func (pb *Client) SetTier(ctx context.Context, tier blob.AccessTier, o *blob.Set
 // For more information, see https://docs.microsoft.com/rest/api/storageservices/get-blob-properties.
 func (pb *Client) GetProperties(ctx context.Context, o *blob.GetPropertiesOptions) (blob.GetPropertiesResponse, error) {
 	return pb.BlobClient().GetProperties(ctx, o)
+}
+
+// GetAccountInfo provides account level information
+// For more information, see https://learn.microsoft.com/en-us/rest/api/storageservices/get-account-information?tabs=shared-access-signatures.
+func (pb *Client) GetAccountInfo(ctx context.Context, o *blob.GetAccountInfoOptions) (blob.GetAccountInfoResponse, error) {
+	return pb.BlobClient().GetAccountInfo(ctx, o)
 }
 
 // SetHTTPHeaders changes a blob's HTTP headers.
