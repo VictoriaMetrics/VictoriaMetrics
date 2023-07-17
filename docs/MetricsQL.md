@@ -120,7 +120,7 @@ This error can be fixed by applying `keep_metric_names` modifier to the function
 
 For example:
 - `rate({__name__=~"foo|bar"}) keep_metric_names` leaves `foo` and `bar` metric names in the returned time series.
-- `{__name__=~"foo|bar"} / 10 keep_metric_names` leaves `foo` and `bar` metric names in the returned time series.
+- `({__name__=~"foo|bar"} / 10) keep_metric_names` leaves `foo` and `bar` metric names in the returned time series.
 
 ## MetricsQL functions
 

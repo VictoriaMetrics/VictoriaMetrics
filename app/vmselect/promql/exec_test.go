@@ -3015,7 +3015,7 @@ func TestExecSuccess(t *testing.T) {
 	})
 	t.Run(`vector / scalar keep_metric_names`, func(t *testing.T) {
 		t.Parallel()
-		q := `sort_desc((label_set(time(), "foo", "bar", "__name__", "q1") or label_set(10, "foo", "qwert", "__name__", "q2")) / 2 keep_metric_names)`
+		q := `sort_desc(((label_set(time(), "foo", "bar", "__name__", "q1") or label_set(10, "foo", "qwert", "__name__", "q2")) / 2) keep_metric_names)`
 		r1 := netstorage.Result{
 			MetricName: storage.MetricName{
 				MetricGroup: []byte("q1"),
@@ -3078,7 +3078,7 @@ func TestExecSuccess(t *testing.T) {
 	})
 	t.Run(`scalar * vector keep_metric_names`, func(t *testing.T) {
 		t.Parallel()
-		q := `sort_desc(2 * (label_set(time(), "foo", "bar", "__name__", "q1") or label_set(10, "foo", "qwert", "__name__", "q2")) keep_metric_names)`
+		q := `sort_desc(2 * (label_set(time(), "foo", "bar", "__name__", "q1"), label_set(10, "foo", "qwert", "__name__", "q2")) keep_metric_names)`
 		r1 := netstorage.Result{
 			MetricName: storage.MetricName{
 				MetricGroup: []byte("q1"),
@@ -3130,7 +3130,7 @@ func TestExecSuccess(t *testing.T) {
 	})
 	t.Run(`scalar * on() group_right vector keep_metric_names`, func(t *testing.T) {
 		t.Parallel()
-		q := `sort_desc(2 * on() group_right() (label_set(time(), "foo", "bar", "__name__", "q1") or label_set(10, "foo", "qwert", "__name__", "q2")) keep_metric_names)`
+		q := `sort_desc(2 * on() group_right() (label_set(time(), "foo", "bar", "__name__", "q1"), label_set(10, "foo", "qwert", "__name__", "q2")) keep_metric_names)`
 		r1 := netstorage.Result{
 			MetricName: storage.MetricName{
 				MetricGroup: []byte("q1"),
@@ -3243,11 +3243,10 @@ func TestExecSuccess(t *testing.T) {
 	})
 	t.Run(`vector * on(foo) scalar keep_metric_names`, func(t *testing.T) {
 		t.Parallel()
-		q := `sort_desc(
-			(
+		q := `((
 		          label_set(time(), "foo", "bar", "xx", "yy", "__name__", "q1"),
 			  label_set(10, "foo", "qwert", "__name__", "q2")
-		        ) * on(foo) (label_set(2, "foo","bar","aa","bb", "__name__", "q2")) keep_metric_names)`
+		      ) * on(foo) label_set(2, "foo","bar","aa","bb", "__name__", "q2")) keep_metric_names`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
 			Values:     []float64{2000, 2400, 2800, 3200, 3600, 4000},
@@ -3493,11 +3492,11 @@ func TestExecSuccess(t *testing.T) {
 	})
 	t.Run(`vector + vector partial matching keep_metric_names`, func(t *testing.T) {
 		t.Parallel()
-		q := `sort_desc(
-			(label_set(time(), "t1", "v1", "__name__", "q1") or label_set(10, "t2", "v2", "__name__", "q2"))
-			+
-			(label_set(100, "t1", "v1", "__name__", "q3") or label_set(time(), "t2", "v3")) keep_metric_names
-		)`
+		q := `(
+		  (label_set(time(), "t1", "v1", "__name__", "q1") or label_set(10, "t2", "v2", "__name__", "q2"))
+		    +
+		  (label_set(100, "t1", "v1", "__name__", "q3") or label_set(time(), "t2", "v3"))
+		) keep_metric_names`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
 			Values:     []float64{1100, 1300, 1500, 1700, 1900, 2100},
