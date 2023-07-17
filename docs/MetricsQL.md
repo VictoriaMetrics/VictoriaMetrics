@@ -56,7 +56,7 @@ Feel free [filing a feature request](https://github.com/VictoriaMetrics/Victoria
 This functionality can be evaluated at [VictoriaMetrics playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/)
 or at your own [VictoriaMetrics instance](https://docs.victoriametrics.com/#how-to-start-victoriametrics).
 
-The list of MetricsQL features:
+The list of MetricsQL features on top of PromQL:
 
 * Graphite-compatible filters can be passed via `{__graphite__="foo.*.bar"}` syntax.
   See [these docs](https://docs.victoriametrics.com/#selecting-graphite-metrics).
@@ -70,6 +70,13 @@ The list of MetricsQL features:
 * [Series selectors](https://docs.victoriametrics.com/keyConcepts.html#filtering) accept multiple `or` filters. For example, `{env="prod",job="a" or env="dev",job="b"}`
   selects series with either `{env="prod",job="a"}` or `{env="dev",job="b"}` labels.
   See [these docs](https://docs.victoriametrics.com/keyConcepts.html#filtering-by-multiple-or-filters) for details.
+* Support for `group_left(*)` and `group_right(*)` for copying all the labels from time series on the `one` side
+  of [many-to-one operations](https://prometheus.io/docs/prometheus/latest/querying/operators/#many-to-one-and-one-to-many-vector-matches).
+  The copied label names may clash with the existing label names, so MetricsQL provides an ability to add prefix to the copied metric names
+  via `group_left(*) prefix "..."` syntax.
+  For example, the following query copies all the `namespace`-related labels from `kube_namespace_labels` to `kube_pod_info` series,
+  while adding `ns_` prefix to the copied labels: `kube_pod_info * on(namespace) group_left(*) prefix "ns_" kube_namespace_labels`.
+  Labels from the `on()` list aren't copied.
 * [Aggregate functions](#aggregate-functions) accept arbitrary number of args.
   For example, `avg(q1, q2, q3)` would return the average values for every point across time series returned by `q1`, `q2` and `q3`.
 * [@ modifier](https://prometheus.io/docs/prometheus/latest/querying/basics/#modifier) can be put anywhere in the query.

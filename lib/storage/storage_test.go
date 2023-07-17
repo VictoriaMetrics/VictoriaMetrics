@@ -1197,12 +1197,3 @@ func TestStorageDeleteStaleSnapshots(t *testing.T) {
 		t.Fatalf("cannot remove %q: %s", path, err)
 	}
 }
-
-func containsString(a []string, s string) bool {
-	for i := range a {
-		if a[i] == s {
-			return true
-		}
-	}
-	return false
-}
