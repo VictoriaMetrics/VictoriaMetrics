@@ -93,7 +93,7 @@ absolute path to all .tpl files in root.
 
 	dryRun        = flag.Bool("dryRun", false, "Whether to check only config files without running vmalert. The rules file are validated. The -rule flag must be specified.")
 	unitTest      = flag.Bool("unittest", false, "Used to perform unit testing with given unit testing files")
-	unitTestFiles = flagutil.NewArrayString("unittest.file", `The unit test files, should be used with -unittest=true.
+	unitTestFiles = flagutil.NewArrayString("unittest.file", `The unit test files, must be used with -unittest=true.
 Examples:
  -unittest.file="./unittest/testdata/test1.yaml,./unittest/testdata/test2.yaml.
 `)

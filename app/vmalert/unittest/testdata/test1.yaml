@@ -29,7 +29,7 @@ tests:
   - interval: 1m
     name: "basic test2"
     input_series:
-      - series: 'up{job="prometheus1", instance="localhost:9090"}'
+      - series: 'up{job="vmagent1", instance="localhost:9090"}'
         values: "0+0x1440"
       - series: "test"
         values: "0+1x1440"
@@ -65,13 +65,13 @@ tests:
         alertname: InstanceDown
         exp_alerts:
           - exp_labels:
-              job: prometheus1
+              job: vmagent1
               severity: page
               instance: localhost:9090
               datacenter: dc-123
             exp_annotations:
               summary: "Instance localhost:9090 down"
-              description: "localhost:9090 of job prometheus1 has been down for more than 5 minutes."
+              description: "localhost:9090 of job vmagent1 has been down for more than 5 minutes."
 
       - eval_time: 0
         groupname: group1

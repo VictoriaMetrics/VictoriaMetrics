@@ -101,13 +101,49 @@ func ruleUnitTest(filename string) []error {
 		groupOrderMap[gn] = i
 	}
 
+	testGroups, err := vmalertconfig.Parse(unitTestInp.RuleFiles, nil, true)
+	if err != nil {
+		return []error{fmt.Errorf("failed to parse groups from file: %v", err)}
+	}
+
 	var errs []error
 	for _, t := range unitTestInp.Tests {
-		errs = append(errs, t.test(unitTestInp.EvaluationInterval.Duration(), groupOrderMap, unitTestInp.RuleFiles...)...)
+		if err := verifyTestGroup(t); err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		errs = append(errs, t.test(unitTestInp.EvaluationInterval.Duration(), groupOrderMap, testGroups)...)
 	}
 
 	if len(errs) > 0 {
 		return errs
+	}
+	return nil
+}
+
+func verifyTestGroup(group testGroup) error {
+	var testGroupName string
+	if group.TestGroupName != "" {
+		testGroupName = fmt.Sprintf("testGroupName: %s\n", group.TestGroupName)
+	}
+	for _, at := range group.AlertRuleTests {
+		if at.Alertname == "" {
+			return fmt.Errorf("\n%s    missing required filed \"alertname\"", testGroupName)
+		}
+		if !*disableAlertGroupLabel && at.GroupName == "" {
+			return fmt.Errorf("\n%s    missing required filed \"groupname\" when flag \"disableAlertGroupLabel\" is false", testGroupName)
+		}
+		if at.EvalTime == nil {
+			return fmt.Errorf("\n%s    missing required filed \"eval_time\"", testGroupName)
+		}
+	}
+	for _, et := range group.MetricsqlExprTests {
+		if et.Expr == "" {
+			return fmt.Errorf("\n%s    missing required filed \"expr\"", testGroupName)
+		}
+		if et.EvalTime == nil {
+			return fmt.Errorf("\n%s    missing required filed \"eval_time\"", testGroupName)
+		}
 	}
 	return nil
 }
@@ -208,20 +244,16 @@ func resolveAndGlobFilepaths(baseDir string, utf *unitTestFile) error {
 	return nil
 }
 
-func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]int, ruleFiles ...string) (checkErrs []error) {
+func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]int, testGroups []vmalertconfig.Group) (checkErrs []error) {
 	// set up vmstorage and http server
 	setUp()
 	// tear down vmstorage and clean the data dir
 	defer tearDown()
-	testGroups, err := vmalertconfig.Parse(ruleFiles, nil, true)
-	if err != nil {
-		return []error{fmt.Errorf("failed to parse test group: %v", err)}
-	}
 	// sort group eval order according to given "group_eval_order".
 	sort.Slice(testGroups, func(i, j int) bool {
 		return groupOrderMap[testGroups[i].Name] < groupOrderMap[testGroups[j].Name]
 	})
-	err = unittest.WriteInputSeries(tg.InputSeries, tg.Interval, testStartTime, testPromWriteHTTPPath)
+	err := unittest.WriteInputSeries(tg.InputSeries, tg.Interval, testStartTime, testPromWriteHTTPPath)
 	if err != nil {
 		return []error{err}
 	}
@@ -229,17 +261,6 @@ func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]i
 	alertEvalTimesMap := map[time.Duration]struct{}{}
 	alertExpResultMap := map[time.Duration]map[string]map[string][]unittest.ExpAlert{}
 	for _, at := range tg.AlertRuleTests {
-		if at.GroupName == "" || at.Alertname == "" {
-			var msg string
-			if at.GroupName != "" {
-				msg = fmt.Sprintf(" groupname: %s at %v, missing \"alertname\"", at.GroupName, at.EvalTime.Duration())
-			}
-			if at.Alertname != "" {
-				msg = fmt.Sprintf(" alertname: %s at %v, missing \"groupname\"", at.Alertname, at.EvalTime.Duration())
-			}
-			checkErrs = append(checkErrs, fmt.Errorf("\nfailed to check case%s", msg))
-			continue
-		}
 		alertEvalTimesMap[at.EvalTime.Duration()] = struct{}{}
 		if _, ok := alertExpResultMap[at.EvalTime.Duration()]; !ok {
 			alertExpResultMap[at.EvalTime.Duration()] = make(map[string]map[string][]unittest.ExpAlert)
@@ -303,6 +324,9 @@ func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]i
 			}
 			gotAlertsMap := map[string]map[string]unittest.LabelsAndAnnotations{}
 			for _, g := range groups {
+				if *disableAlertGroupLabel {
+					g.Name = ""
+				}
 				if _, ok := alertExpResultMap[time.Duration(ts.UnixNano())][g.Name]; !ok {
 					continue
 				}
@@ -335,8 +359,11 @@ func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]i
 						if expAlert.ExpLabels == nil {
 							expAlert.ExpLabels = make(map[string]string)
 						}
-						// alertGroupNameLabel/alertNameLabel is added as additional labels in vmalert.
-						expAlert.ExpLabels[alertGroupNameLabel] = groupname
+						// alertGroupNameLabel is added as additional labels when `disableAlertGroupLabel` is false
+						if !*disableAlertGroupLabel {
+							expAlert.ExpLabels[alertGroupNameLabel] = groupname
+						}
+						// alertNameLabel is added as additional labels in vmalert.
 						expAlert.ExpLabels[alertNameLabel] = alertname
 						expAlerts = append(expAlerts, unittest.LabelAndAnnotation{
 							Labels:      datasource.ConvertToLabels(expAlert.ExpLabels),

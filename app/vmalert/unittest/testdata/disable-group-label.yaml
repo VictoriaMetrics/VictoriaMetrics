@@ -18,7 +18,6 @@ tests:
 
     alert_rule_test:
       - eval_time: 2h
-        groupname: group1
         alertname: InstanceDown
         exp_alerts:
           - exp_labels:
@@ -31,14 +30,12 @@ tests:
               description: "localhost:9090 of job vmagent2 has been down for more than 5 minutes."
 
       - eval_time: 0
-        groupname: group1
         alertname: AlwaysFiring
         exp_alerts:
           - exp_labels:
               datacenter: dc-123
 
       - eval_time: 0
-        groupname: group1
         alertname: InstanceDown
         exp_alerts: []
 

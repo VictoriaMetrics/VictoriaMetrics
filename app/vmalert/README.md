@@ -734,13 +734,11 @@ See full description for these flags in `./vmalert -help`.
 
 ## Unit Testing for Rules
 
-You can use `vmalert` to test your rules.
+You can use `vmalert` to test your rules. 
+It will setup an isolated VM instance, simulate the periodic ingestion of samples for several time series, use those series to evaluate recording and alerting rules, and then test whether the firing alerts or metricsql expressions match what was configured as the expected results. 
 
 ```
-# For a single test file.
-./vmalert -unittest=true -unittest.file=<testfile1>
-
-# If you have multiple test files, say test1.yaml,test2.yaml
+# Run vmalert in -unittest and specify one or more test files via -unittest.file cmd-line flag
 ./vmalert -unittest=true -unittest.file=test1.yaml -unittest.file=test2.yaml
 ```
 
@@ -755,9 +753,8 @@ rule_files:
 # How often vmalert checks what alerts are firing
 [ evaluation_interval: <duration> | default = 1m ]
 
-# The order in which group names are listed below will be the order of evaluation of
-# rule groups (at a given evaluation time). The order is guaranteed only for the groups mentioned below.
-# All the groups need not be mentioned below.
+# Groups listed below will be evaluated by order.
+# Not All the groups need not be mentioned, if not, they will be evaluated by define order in rule_files.
 group_eval_order:
   [ - <group_name> ]
 
@@ -770,6 +767,7 @@ tests:
 
 ```
 # Series data
+# vmalert will write those `input_series` by `interval` to VM instance.
 
 # interval between input series data point
 interval: <duration>
@@ -796,35 +794,35 @@ external_labels:
 #### `<series>`
 
 ```
-# This follows the usual series notation '<metric name>{<label name>=<label value>, ...}'
+# series should format as '<metric name>{<label name>=<label value>, ...}'
 # Examples:
 #      series_name{label1="value1", label2="value2"}
 #      go_goroutines{job="prometheus", instance="localhost:9090"}
 series: <string>
 
-# This uses expanding notation.
-# Expanding notation:
+# values support several special equations:
 #     'a+bxc' becomes 'a a+b a+(2*b) a+(3*b) … a+(c*b)'
 #     Read this as series starts at a, then c further samples incrementing by b.
 #     'a-bxc' becomes 'a a-b a-(2*b) a-(3*b) … a-(c*b)'
 #     Read this as series starts at a, then c further samples decrementing by b (or incrementing by negative b).
-# There are special values to indicate missing and stale samples:
 #    '_' represents a missing sample from scrape
-#    'stale' indicates a stale sample
 # Examples:
 #     1. '-2+4x3' becomes '-2 2 6 10' - series starts at -2, then 3 further samples incrementing by 4.
 #     2. ' 1-2x4' becomes '1 -1 -3 -5 -7' - series starts at 1, then 4 further samples decrementing by 2.
 #     3. ' 1x4' becomes '1 1 1 1 1' - shorthand for '1+0x4', series starts at 1, then 4 further samples incrementing by 0.
-#     4. ' 1 _x3 stale' becomes '1 _ _ _ stale' - the missing sample cannot increment, so 3 missing samples are produced by the '_x3' expression.
+#     4. ' 1 _x3' becomes '1 _ _ _ ' - the missing sample cannot increment, so 3 missing samples are produced by the '_x3' expression.
 values: <string>
 ```
 
 #### `<alert_test_case>`
 
-VMAlert by default adds group name and alert name to generated alerts and timeseries. So  you need to specify both `groupname`  and `alertname` under a single `<alert_test_case>`, but no need to add them under `exp_alerts`.
+vmalert by default adds group name and alert name to generated alerts and timeseries. 
+So you will need to specify both `groupname` and `alertname` under a single `<alert_test_case>`, but no need to add them under `exp_alerts`.
+You can also pass `--disableAlertgroupLabel` to prevent adding groupname label, in that case, `groupname` can be missed.
 
 ```
-# The time elapsed from time=0s when the alerts have to be checked.
+# The time elapsed from time=0s when this alerting rule be checked.
+# Means this rule should be firing at this point, or shouldn't be firing if 'exp_alerts' is empty.
 eval_time: <duration>
 
 # Name of the group name to be tested.
@@ -857,7 +855,7 @@ exp_annotations:
 # Expression to evaluate
 expr: <string>
 
-# The time elapsed from time=0s when the expression has to be evaluated.
+# The time elapsed from time=0s when this expression be evaluated.
 eval_time: <duration>
 
 # Expected samples at the given evaluation time.
