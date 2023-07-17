@@ -829,8 +829,11 @@ either `{job="app1",env="prod"}` or `{job="app2",env="dev"}` labels:
 {job="app1",env="prod" or job="app2",env="dev"}
 ```
 
-The number of `or` filters can be arbitrary. This functionality allows passing the selected series
-to [rollup functions](https://docs.victoriametrics.com/MetricsQL.html#rollup-functions) such as [rate()](https://docs.victoriametrics.com/MetricsQL.html#rate)
+The number of `or` groups can be arbitrary. The number of `,`-delimited label filters per each `or` group can be arbitrary.
+Per-group filters are applied with `and` operation, e.g. they select series simultaneously matching all the filters in the group.
+
+This functionality allows passing the selected series to [rollup functions](https://docs.victoriametrics.com/MetricsQL.html#rollup-functions)
+such as [rate()](https://docs.victoriametrics.com/MetricsQL.html#rate)
 without the need to use [subqueries](https://docs.victoriametrics.com/MetricsQL.html#subqueries):
 
 ```metricsql
