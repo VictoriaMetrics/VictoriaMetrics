@@ -343,8 +343,8 @@ func loadCfg(t *testing.T, path []string, validateAnnotations, validateExpressio
 
 func TestUrlValuesToStrings(t *testing.T) {
 	mapQueryParams := map[string][]string{
-		"param1": []string{"param1"},
-		"param2": []string{"anotherparam"},
+		"param1": {"param1"},
+		"param2": {"anotherparam"},
 	}
 	expectedRes := []string{"param1=param1", "param2=anotherparam"}
 	res := urlValuesToStrings(mapQueryParams)
