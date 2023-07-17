@@ -12,13 +12,13 @@ require (
 	// like https://github.com/valyala/fasthttp/commit/996610f021ff45fdc98c2ce7884d5fa4e7f9199b
 	github.com/VictoriaMetrics/fasthttp v1.2.0
 	github.com/VictoriaMetrics/metrics v1.24.0
-	github.com/VictoriaMetrics/metricsql v0.56.2
+	github.com/VictoriaMetrics/metricsql v0.58.2
 	github.com/aws/aws-sdk-go-v2 v1.18.1
 	github.com/aws/aws-sdk-go-v2/config v1.18.27
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.11.71
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.36.0
 	github.com/cespare/xxhash/v2 v2.2.0
-	github.com/cheggaaa/pb/v3 v3.1.2
+	github.com/cheggaaa/pb/v3 v3.1.4
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/snappy v0.0.4
 	github.com/googleapis/gax-go/v2 v2.12.0

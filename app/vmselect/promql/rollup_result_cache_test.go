@@ -41,10 +41,14 @@ func TestRollupResultCache(t *testing.T) {
 		MayCache: true,
 	}
 	me := &metricsql.MetricExpr{
-		LabelFilters: []metricsql.LabelFilter{{
-			Label: "aaa",
-			Value: "xxx",
-		}},
+		LabelFilterss: [][]metricsql.LabelFilter{
+			{
+				{
+					Label: "aaa",
+					Value: "xxx",
+				},
+			},
+		},
 	}
 	fe := &metricsql.FuncExpr{
 		Name: "foo",

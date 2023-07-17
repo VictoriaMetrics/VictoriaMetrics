@@ -524,6 +524,10 @@ The cluster works in the following way when some of `vmstorage` nodes are unavai
   In this case `vmselect` returns an error if at least a single `vmstorage` node is unavailable.
   Another option is to pass `deny_partial_response=1` query arg to requests to `vmselect` nodes.
 
+  `vmselect` also accepts `-replicationFactor=N` command-line flag. This flag instructs `vmselect` to return full response
+  if less than `-replicationFactor` vmstorage nodes are unavailable during querying, since it assumes that the remaining
+  `vmstorage` nodes contain the full data. See [these docs](#replication-and-data-safety) for details.
+
 `vmselect` doesn't serve partial responses for API handlers returning raw datapoints - [`/api/v1/export*` endpoints](https://docs.victoriametrics.com/#how-to-export-time-series), since users usually expect this data is always complete.
 
 Data replication can be used for increasing storage durability. See [these docs](#replication-and-data-safety) for details.
@@ -659,6 +663,8 @@ It is available in the [helm-charts](https://github.com/VictoriaMetrics/helm-cha
 By default, VictoriaMetrics offloads replication to the underlying storage pointed by `-storageDataPath` such as [Google compute persistent disk](https://cloud.google.com/compute/docs/disks#pdspecs), which guarantees data durability. VictoriaMetrics supports application-level replication if replicated durable persistent disks cannot be used for some reason.
 
 The replication can be enabled by passing `-replicationFactor=N` command-line flag to `vminsert`. This instructs `vminsert` to store `N` copies for every ingested sample on `N` distinct `vmstorage` nodes. This guarantees that all the stored data remains available for querying if up to `N-1` `vmstorage` nodes are unavailable.
+
+Passing `-replicationFactor=N` command-line flag to `vmselect` instructs it to not mark responses as `partial` if less than `-replicationFactor` vmstorage nodes are unavailable during the query. See [cluster availability docs](#cluster-availability) for details.
 
 The cluster must contain at least `2*N-1` `vmstorage` nodes, where `N` is replication factor, in order to maintain the given replication factor for newly ingested data when `N-1` of storage nodes are unavailable.
 
@@ -1127,7 +1133,7 @@ Below is the output for `/path/to/vmselect -help`:
      Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/#push-metrics . By default, metrics exposed at /metrics page aren't pushed to any remote storage
      Supports an array of values separated by comma or specified via multiple flags.
   -replicationFactor int
-     How many copies of every time series is available on vmstorage nodes. vmselect cancels responses from the slowest -replicationFactor-1 vmstorage nodes if -replicationFactor is set by assuming it already received complete data. It isn't recommended setting this flag to values other than 1 at vmselect nodes, since it may result in incomplete responses after adding new vmstorage nodes even if the replication is enabled at vminsert nodes (default 1)
+     How many copies of every time series is available on the provided -storageNode nodes. vmselect continues returning full responses when up to replicationFactor-1 vmstorage nodes are temporarily unavailable during querying. See also -search.skipSlowReplicas (default 1)
   -search.cacheTimestampOffset duration
      The maximum duration since the current time for response data, which is always queried from the original raw data, without using the response cache. Increase this value if you see gaps in responses due to time synchronization issues between VictoriaMetrics and data sources (default 5m0s)
   -search.denyPartialResponse
@@ -1207,6 +1213,8 @@ Below is the output for `/path/to/vmselect -help`:
      Optional authKey for resetting rollup cache via /internal/resetRollupResultCache call
   -search.setLookbackToStep
      Whether to fix lookback interval to 'step' query arg value. If set to true, the query model becomes closer to InfluxDB data model. If set to true, then -search.maxLookback and -search.maxStalenessInterval are ignored
+  -search.skipSlowReplicas
+     Whether to skip -replicationFactor - 1 slowest vmstorage nodes during querying. Enabling this setting may improve query speed, but it could also lead to incomplete results if some queried data has less than -replicationFactor copies at vmstorage nodes. Consider enabling this setting only if all the queried data contains -replicationFactor copies in the cluster
   -search.treatDotsAsIsInRegexps
      Whether to treat dots as is in regexp label filters used in queries. For example, foo{bar=~"a.b.c"} will be automatically converted to foo{bar=~"a\\.b\\.c"}, i.e. all the dots in regexp filters will be automatically escaped in order to match only dot char instead of matching any char. Dots in ".+", ".*" and ".{n}" regexps aren't escaped. This option is DEPRECATED in favor of {__graphite__="a.*.c"} syntax for selecting metrics matching the given Graphite metrics filter
   -selectNode array

@@ -1,3 +1,14 @@
+---
+sort: 7
+title: Querying
+weight: 7
+menu:
+  docs:
+    identifier: victorialogs-querying
+    parent: "victorialogs"
+    weight: 7
+---
+
 # Querying
 
 [VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/) can be queried with [LogsQL](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html)
@@ -16,6 +27,11 @@ For example, the following query returns all the log entries with the `error` wo
 ```bash
 curl http://localhost:9428/select/logsql/query -d 'query=error'
 ```
+
+The response by default contains [`_msg`](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field),
+[`_stream`](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#stream-fields) and
+[`_time`](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#time-field) fields plus the explicitly mentioned fields.
+See [these docs](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html#querying-specific-fields) for details.
 
 The `query` argument can be passed either in the request url itself (aka HTTP GET request) or via request body
 with the `x-www-form-urlencoded` encoding (aka HTTP POST request). The HTTP POST is useful for sending long queries

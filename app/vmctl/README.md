@@ -627,7 +627,6 @@ and single-node VictoriaMetrics(`http://localhost:8428`):
 --remote-read-src-addr=http://127.0.0.1:9009/prometheus \
 --remote-read-filter-time-start=2021-10-18T00:00:00Z \
 --remote-read-step-interval=hour \
---remote-read-src-check-alive=false \
 --vm-addr=http://127.0.0.1:8428 \
 --vm-concurrency=6 
 ```
@@ -691,7 +690,6 @@ and single-node VictoriaMetrics(`http://localhost:8428`):
 --remote-read-src-addr=http://127.0.0.1:9009/prometheus \
 --remote-read-filter-time-start=2021-10-18T00:00:00Z \
 --remote-read-step-interval=hour \
---remote-read-src-check-alive=false \
 --remote-read-headers=X-Scope-OrgID:demo \
 --remote-read-use-stream=true \
 --vm-addr=http://127.0.0.1:8428 \
@@ -801,7 +799,12 @@ Or manually specify addresses according to [URL format](https://docs.victoriamet
     --vm-native-src-addr=http://<src-vmselect>:8481/select/0/prometheus
     --vm-native-dst-addr=http://<dst-vminsert>:8480/insert/0/prometheus
     ```
-6. Migration speed can be adjusted via `--vm-concurrency` cmd-line flag, which controls the number of concurrent 
+6. Migrating data from VM cluster which had replication (`-replicationFactor` > 1) enabled won't produce the same amount
+of data copies for the destination database, and will result only in creating duplicates. To remove duplicates,
+destination database need to be configured with `-dedup.minScrapeInterval=1ms`. To restore the replication factor
+the destination `vminsert` component need to be configured with the according `-replicationFactor` value. 
+See more about replication [here](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#replication-and-data-safety).
+7. Migration speed can be adjusted via `--vm-concurrency` cmd-line flag, which controls the number of concurrent 
 workers busy with processing. Please note, that each worker can load up to a single vCPU core on VictoriaMetrics. 
 So try to set it according to allocated CPU resources of your VictoriaMetrics destination installation.
 7. Migration is a backfilling process, so it is recommended to read

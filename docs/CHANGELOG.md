@@ -25,7 +25,11 @@ The following tip changes can be tested by building VictoriaMetrics components f
 ## tip
 
 * SECURITY: upgrade base docker image (alpine) from 3.18.0 to 3.18.2. See [alpine 3.18.2 release notes](https://alpinelinux.org/posts/Alpine-3.15.9-3.16.6-3.17.4-3.18.2-released.html).
+* SECURITY: upgrade Go builder from Go1.20.5 to Go1.20.6. See [the list of issues addressed in Go1.20.6](https://github.com/golang/go/issues?q=milestone%3AGo1.20.6+label%3ACherryPickApproved).
 
+* FEATURE: reduce memory usage by up to 5x for setups with [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate) and long [retention](https://docs.victoriametrics.com/#retention). See [description for this change](https://github.com/VictoriaMetrics/VictoriaMetrics/commit/7094fa38bc207c7bd7330ea8a834310a310ce5e3) for details.
+* FEATURE: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): allow selecting time series matching at least one of multiple `or` filters. For example, `{env="prod",job="a" or env="dev",job="b"}` selects series with either `{env="prod",job="a"}` or `{env="dev",job="b"}` labels. This functionality allows passing the selected series to [rollup functions](https://docs.victoriametrics.com/MetricsQL.html#rollup-functions) without the need to use [subqueries](https://docs.victoriametrics.com/MetricsQL.html#subqueries). See [these docs](https://docs.victoriametrics.com/keyConcepts.html#filtering-by-multiple-or-filters).
+* FEATURE: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): add ability to preserve metric names for binary operation results via `keep_metric_names` modifier. For example, `({__name__=~"foo|bar"} / 10) keep_metric_names` leaves `foo` and `bar` metric names in division results. See [these docs](https://docs.victoriametrics.com/MetricsQL.html#keep_metric_names). This helps to address issues like [this one](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3710).
 * FEATURE: [vmctl](https://docs.victoriametrics.com/vmctl.html): add verbose output for docker installations or when TTY isn't available. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4081).
 * FEATURE: [vmctl](https://docs.victoriametrics.com/vmctl.html): interrupt backoff retries when import process is cancelled. The change makes vmctl more responsive in case of errors during the import. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4442).
 * FEATURE: [vmctl](https://docs.victoriametrics.com/vmctl.html): update backoff policy on retries to reduce probability of overloading for `source` or `destination` databases. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4402).
@@ -49,8 +53,13 @@ The following tip changes can be tested by building VictoriaMetrics components f
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix application routing issues and problems with manual URL changes. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4408).
 * BUGFIX: add validation for invalid [partial RFC3339 timestamp formats](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#timestamp-formats) in query and export APIs.
 * BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl.html): interrupt explore procedure in influx mode if vmctl found no numeric fields.
+* BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl.html): fix panic in case `--remote-read-filter-time-start` flag is not set for remote-read mode. This flag is now required to use remote-read mode. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4553).
+* BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl.html): fix formatting issue, which could add superflouos `s` characters at the end of `samples/s` output during data migration. For example, it could write `samples/ssssss`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4555).
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): use RFC3339 time format in query args instead of unix timestamp for all issued queries to Prometheus-like datasources.
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): correctly calculate evaluation time for rules. Before, there was a low probability for discrepancy between actual time and rules evaluation time if evaluation interval was lower than the execution time for rules within the group.
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): reset evaluation timestamp after modifying group interval. Before, there could have latency on rule evaluation time.
 * BUGFIX: vmselect: fix timestamp alignment for Prometheus querying API if time argument is less than 10m from the beginning of Unix epoch.
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): properly parse binary operations with reserved words on the right side such as `foo + (on{bar="baz"})`. Previously such queries could lead to panic. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4422).
 
 ## [v1.91.3](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.91.3)
 
@@ -67,6 +76,7 @@ Released at 2023-06-30
 * BUGFIX: [storage](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html): prevent from possible crashloop after the migration from versions below `v1.90.0` to newer versions. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4336) for details.
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix a memory leak issue associated with chart updates. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4455).
 * BUGFIX: [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager.html): fix removing storage data dir before restoring from backup.
+* BUGFIX: vmselect: wait for all vmstorage nodes to respond when the `-replicationFactor` flag is set bigger than > 1. Before, vmselect could have [skip waiting for the slowest replicas](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/711) to respond. This could have resulted in issues illustrated [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1207). Now, this optimization is disabled by default and could be re-enabled by passing `-search.skipSlowReplicas` cmd-line flag to vmselect. See more details [here](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4538). 
 
 
 ## [v1.91.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.91.2)
