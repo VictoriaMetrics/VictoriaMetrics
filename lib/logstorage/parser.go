@@ -429,7 +429,7 @@ func parseFilterForPhrase(lex *lexer, phrase, fieldName string) (filter, error) 
 	}
 	switch fieldName {
 	case "_time":
-		return parseTimeFilter(lex)
+		return parseTimeFilterWithOffset(lex)
 	case "_stream":
 		return parseStreamFilter(lex)
 	default:
@@ -800,6 +800,29 @@ func startsWithYear(s string) bool {
 	return c == '-' || c == '+' || c == 'Z' || c == 'z'
 }
 
+func parseTimeFilterWithOffset(lex *lexer) (*timeFilter, error) {
+	tf, err := parseTimeFilter(lex)
+	if err != nil {
+		return nil, err
+	}
+	if !lex.isKeyword("offset") {
+		return tf, nil
+	}
+	if !lex.mustNextToken() {
+		return nil, fmt.Errorf("missing offset for _time filter %s", tf)
+	}
+	s := getCompoundToken(lex)
+	d, err := promutils.ParseDuration(s)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse offset for _time filter %s: %w", tf, err)
+	}
+	offset := int64(d)
+	tf.minTimestamp -= offset
+	tf.maxTimestamp -= offset
+	tf.stringRepr += " offset " + s
+	return tf, nil
+}
+
 func parseTimeFilter(lex *lexer) (*timeFilter, error) {
 	startTimeInclude := false
 	switch {
@@ -809,7 +832,8 @@ func parseTimeFilter(lex *lexer) (*timeFilter, error) {
 		startTimeInclude = false
 	default:
 		s := getCompoundToken(lex)
-		if strings.ToLower(s) == "now" || startsWithYear(s) {
+		sLower := strings.ToLower(s)
+		if sLower == "now" || startsWithYear(s) {
 			// Parse '_time:YYYY-MM-DD', which transforms to '_time:[YYYY-MM-DD, YYYY-MM-DD+1)'
 			t, err := promutils.ParseTimeAt(s, float64(lex.currentTimestamp)/1e9)
 			if err != nil {
