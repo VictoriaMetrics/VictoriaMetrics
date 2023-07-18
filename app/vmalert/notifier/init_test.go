@@ -37,7 +37,33 @@ func TestInit(t *testing.T) {
 	}
 }
 
-func TestInitBlackHole(t *testing.T) {
+func TestInitNegative(t *testing.T) {
+	oldConfigPath := *configPath
+	oldAddrs := *addrs
+	oldBlackHole := *blackHole
+
+	defer func() {
+		*configPath = oldConfigPath
+		*addrs = oldAddrs
+		*blackHole = oldBlackHole
+	}()
+
+	f := func(path, addr string, bh bool) {
+		*configPath = path
+		*addrs = flagutil.ArrayString{addr}
+		*blackHole = bh
+		if _, err := Init(nil, nil, ""); err == nil {
+			t.Fatalf("expected to get error; got nil instead")
+		}
+	}
+
+	// *configPath, *addrs and *blackhole are mutually exclusive
+	f("/dummy/path", "127.0.0.1", false)
+	f("/dummy/path", "", true)
+	f("", "127.0.0.1", true)
+}
+
+func TestBlackHole(t *testing.T) {
 	oldBlackHole := *blackHole
 	defer func() { *blackHole = oldBlackHole }()
 
@@ -50,7 +76,7 @@ func TestInitBlackHole(t *testing.T) {
 
 	nfs := fn()
 	if len(nfs) != 1 {
-		t.Fatalf("expected to get 1 notifiers; got %d", len(nfs))
+		t.Fatalf("expected to get 1 notifier; got %d", len(nfs))
 	}
 
 	targets := GetTargets()
@@ -63,62 +89,5 @@ func TestInitBlackHole(t *testing.T) {
 	nf1 := targets[TargetStatic][0]
 	if nf1.Addr() != "blackhole" {
 		t.Fatalf("expected to get \"blackhole\"; got %q instead", nf1.Addr())
-	}
-}
-
-func TestInitBlackHoleWithNotifierUrl(t *testing.T) {
-	oldAddrs := *addrs
-	oldBlackHole := *blackHole
-	defer func() {
-		*addrs = oldAddrs
-		*blackHole = oldBlackHole
-	}()
-
-	*addrs = flagutil.ArrayString{"127.0.0.1", "127.0.0.2"}
-	*blackHole = true
-
-	_, err := Init(nil, nil, "")
-	if err == nil {
-		t.Fatalf("Expect Init to return error; instead got no error")
-	}
-
-}
-
-func TestInitBlackHoleWithNotifierConfig(t *testing.T) {
-	oldConfigPath := *configPath
-	oldBlackHole := *blackHole
-	defer func() {
-		*configPath = oldConfigPath
-		*blackHole = oldBlackHole
-	}()
-
-	*configPath = "/dummy/path"
-	*blackHole = true
-
-	fn, err := Init(nil, nil, "")
-	if err == nil {
-		t.Fatalf("Expect Init to return error; instead got no error")
-	}
-
-	if fn != nil {
-		t.Fatalf("expected no notifiers to be returned;but got %v instead", fn())
-	}
-}
-
-func TestInitWithNotifierConfigAndAddr(t *testing.T) {
-	oldConfigPath := *configPath
-	oldAddrs := *addrs
-
-	defer func() {
-		*configPath = oldConfigPath
-		*addrs = oldAddrs
-	}()
-
-	*addrs = flagutil.ArrayString{"127.0.0.1", "127.0.0.2"}
-	*configPath = "/dummy/path"
-
-	_, err := Init(nil, nil, "")
-	if err == nil {
-		t.Fatalf("Expect Init to return error; instead got no error")
 	}
 }
