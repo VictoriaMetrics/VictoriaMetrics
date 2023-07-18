@@ -12,7 +12,7 @@ aliases:
 
 # CHANGELOG
 
-The following tip changes can be tested by building VictoriaMetrics components from the latest commits according to the following docs:
+The following `tip` changes can be tested by building VictoriaMetrics components from the latest commits according to the following docs:
 
 * [How to build single-node VictoriaMetrics](https://docs.victoriametrics.com/#how-to-build-from-sources)
 * [How to build cluster version of VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#building-from-sources)
