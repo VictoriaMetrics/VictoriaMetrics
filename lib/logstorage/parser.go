@@ -320,8 +320,6 @@ func parseGenericFilter(lex *lexer, fieldName string) (filter, error) {
 		return parseNotFilter(lex, fieldName)
 	case lex.isKeyword("exact"):
 		return parseExactFilter(lex, fieldName)
-	case lex.isKeyword("exact_prefix"):
-		return parseExactPrefixFilter(lex, fieldName)
 	case lex.isKeyword("i"):
 		return parseAnyCaseFilter(lex, fieldName)
 	case lex.isKeyword("in"):
@@ -431,7 +429,7 @@ func parseFilterForPhrase(lex *lexer, phrase, fieldName string) (filter, error) 
 	}
 	switch fieldName {
 	case "_time":
-		return parseTimeFilter(lex)
+		return parseTimeFilterWithOffset(lex)
 	case "_stream":
 		return parseStreamFilter(lex)
 	default:
@@ -474,6 +472,23 @@ func parseNotFilter(lex *lexer, fieldName string) (filter, error) {
 }
 
 func parseAnyCaseFilter(lex *lexer, fieldName string) (filter, error) {
+	return parseFuncArgMaybePrefix(lex, "i", fieldName, func(phrase string, isPrefixFilter bool) (filter, error) {
+		if isPrefixFilter {
+			f := &anyCasePrefixFilter{
+				fieldName: fieldName,
+				prefix:    phrase,
+			}
+			return f, nil
+		}
+		f := &anyCasePhraseFilter{
+			fieldName: fieldName,
+			phrase:    phrase,
+		}
+		return f, nil
+	})
+}
+
+func parseFuncArgMaybePrefix(lex *lexer, funcName, fieldName string, callback func(arg string, isPrefiFilter bool) (filter, error)) (filter, error) {
 	phrase := lex.token
 	lex.nextToken()
 	if !lex.isKeyword("(") {
@@ -481,33 +496,21 @@ func parseAnyCaseFilter(lex *lexer, fieldName string) (filter, error) {
 		return parseFilterForPhrase(lex, phrase, fieldName)
 	}
 	if !lex.mustNextToken() {
-		return nil, fmt.Errorf("missing arg for i()")
+		return nil, fmt.Errorf("missing arg for %s()", funcName)
 	}
 	phrase = getCompoundFuncArg(lex)
 	isPrefixFilter := false
 	if lex.isKeyword("*") && !lex.isSkippedSpace {
 		isPrefixFilter = true
 		if !lex.mustNextToken() {
-			return nil, fmt.Errorf("missing ')' after i()")
+			return nil, fmt.Errorf("missing ')' after %s()", funcName)
 		}
 	}
 	if !lex.isKeyword(")") {
-		return nil, fmt.Errorf("unexpected token %q instead of ')' in i()", lex.token)
+		return nil, fmt.Errorf("unexpected token %q instead of ')' in %s()", lex.token, funcName)
 	}
 	lex.nextToken()
-
-	if isPrefixFilter {
-		f := &anyCasePrefixFilter{
-			fieldName: fieldName,
-			prefix:    phrase,
-		}
-		return f, nil
-	}
-	f := &anyCasePhraseFilter{
-		fieldName: fieldName,
-		phrase:    phrase,
-	}
-	return f, nil
+	return callback(phrase, isPrefixFilter)
 }
 
 func parseLenRangeFilter(lex *lexer, fieldName string) (filter, error) {
@@ -624,22 +627,19 @@ func parseSequenceFilter(lex *lexer, fieldName string) (filter, error) {
 }
 
 func parseExactFilter(lex *lexer, fieldName string) (filter, error) {
-	return parseFuncArg(lex, fieldName, func(arg string) (filter, error) {
-		ef := &exactFilter{
-			fieldName: fieldName,
-			value:     arg,
+	return parseFuncArgMaybePrefix(lex, "exact", fieldName, func(phrase string, isPrefixFilter bool) (filter, error) {
+		if isPrefixFilter {
+			f := &exactPrefixFilter{
+				fieldName: fieldName,
+				prefix:    phrase,
+			}
+			return f, nil
 		}
-		return ef, nil
-	})
-}
-
-func parseExactPrefixFilter(lex *lexer, fieldName string) (filter, error) {
-	return parseFuncArg(lex, fieldName, func(arg string) (filter, error) {
-		ef := &exactPrefixFilter{
+		f := &exactFilter{
 			fieldName: fieldName,
-			prefix:    arg,
+			value:     phrase,
 		}
-		return ef, nil
+		return f, nil
 	})
 }
 
@@ -781,6 +781,48 @@ func parseFuncArgs(lex *lexer, fieldName string, callback func(args []string) (f
 	return callback(args)
 }
 
+// startsWithYear returns true if s starts from YYYY
+func startsWithYear(s string) bool {
+	if len(s) < 4 {
+		return false
+	}
+	for i := 0; i < 4; i++ {
+		c := s[i]
+		if c < '0' || c > '9' {
+			return false
+		}
+	}
+	s = s[4:]
+	if len(s) == 0 {
+		return true
+	}
+	c := s[0]
+	return c == '-' || c == '+' || c == 'Z' || c == 'z'
+}
+
+func parseTimeFilterWithOffset(lex *lexer) (*timeFilter, error) {
+	tf, err := parseTimeFilter(lex)
+	if err != nil {
+		return nil, err
+	}
+	if !lex.isKeyword("offset") {
+		return tf, nil
+	}
+	if !lex.mustNextToken() {
+		return nil, fmt.Errorf("missing offset for _time filter %s", tf)
+	}
+	s := getCompoundToken(lex)
+	d, err := promutils.ParseDuration(s)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse offset for _time filter %s: %w", tf, err)
+	}
+	offset := int64(d)
+	tf.minTimestamp -= offset
+	tf.maxTimestamp -= offset
+	tf.stringRepr += " offset " + s
+	return tf, nil
+}
+
 func parseTimeFilter(lex *lexer) (*timeFilter, error) {
 	startTimeInclude := false
 	switch {
@@ -789,17 +831,37 @@ func parseTimeFilter(lex *lexer) (*timeFilter, error) {
 	case lex.isKeyword("("):
 		startTimeInclude = false
 	default:
-		// Try parsing '_time:YYYY-MM-DD', which transforms to '_time:[YYYY-MM-DD, YYYY-MM-DD+1)'
-		startTime, stringRepr, err := parseTime(lex)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse _time filter: %w", err)
-		}
-		endTime := getMatchingEndTime(startTime, stringRepr)
-		tf := &timeFilter{
-			minTimestamp: startTime,
-			maxTimestamp: endTime,
+		s := getCompoundToken(lex)
+		sLower := strings.ToLower(s)
+		if sLower == "now" || startsWithYear(s) {
+			// Parse '_time:YYYY-MM-DD', which transforms to '_time:[YYYY-MM-DD, YYYY-MM-DD+1)'
+			t, err := promutils.ParseTimeAt(s, float64(lex.currentTimestamp)/1e9)
+			if err != nil {
+				return nil, fmt.Errorf("cannot parse _time filter: %w", err)
+			}
+			startTime := int64(t * 1e9)
+			endTime := getMatchingEndTime(startTime, s)
+			tf := &timeFilter{
+				minTimestamp: startTime,
+				maxTimestamp: endTime,
 
-			stringRepr: stringRepr,
+				stringRepr: s,
+			}
+			return tf, nil
+		}
+		// Parse _time:duration, which transforms to '_time:(now-duration, now]'
+		d, err := promutils.ParseDuration(s)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse duration in _time filter: %w", err)
+		}
+		if d < 0 {
+			d = -d
+		}
+		tf := &timeFilter{
+			minTimestamp: lex.currentTimestamp - int64(d),
+			maxTimestamp: lex.currentTimestamp,
+
+			stringRepr: s,
 		}
 		return tf, nil
 	}
@@ -1082,7 +1144,6 @@ var reservedKeywords = func() map[string]struct{} {
 
 		// functions
 		"exact",
-		"exact_prefix",
 		"i",
 		"in",
 		"ipv4_range",

@@ -79,6 +79,34 @@ func TestNewStreamFilterFailure(t *testing.T) {
 	f("{foo='bar' baz='x'}")
 }
 
+func TestParseTimeDuration(t *testing.T) {
+	f := func(s string, durationExpected time.Duration) {
+		t.Helper()
+		q, err := ParseQuery("_time:" + s)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		tf, ok := q.f.(*timeFilter)
+		if !ok {
+			t.Fatalf("unexpected filter; got %T; want *timeFilter; filter: %s", q.f, q.f)
+		}
+		if tf.stringRepr != s {
+			t.Fatalf("unexpected string represenation for timeFilter; got %q; want %q", tf.stringRepr, s)
+		}
+		duration := time.Duration(tf.maxTimestamp - tf.minTimestamp)
+		if duration != durationExpected {
+			t.Fatalf("unexpected duration; got %s; want %s", duration, durationExpected)
+		}
+	}
+	f("5m", 5*time.Minute)
+	f("5m offset 1h", 5*time.Minute)
+	f("5m offset -3.5h5m45s", 5*time.Minute)
+	f("-5.5m", 5*time.Minute+30*time.Second)
+	f("-5.5m offset 1d5m", 5*time.Minute+30*time.Second)
+	f("3d2h12m34s45ms", 3*24*time.Hour+2*time.Hour+12*time.Minute+34*time.Second+45*time.Millisecond)
+	f("3d2h12m34s45ms offset 10ms", 3*24*time.Hour+2*time.Hour+12*time.Minute+34*time.Second+45*time.Millisecond)
+}
+
 func TestParseTimeRange(t *testing.T) {
 	f := func(s string, minTimestampExpected, maxTimestampExpected int64) {
 		t.Helper()
@@ -234,10 +262,16 @@ func TestParseTimeRange(t *testing.T) {
 	maxTimestamp = time.Date(2023, time.April, 7, 0, 0, 0, 0, time.UTC).UnixNano() - 1
 	f(`(2023-03-01T21:20,2023-04-06]`, minTimestamp, maxTimestamp)
 
-	// _time:[start, end]
+	// _time:[start, end] with timezone
 	minTimestamp = time.Date(2023, time.February, 28, 21, 40, 0, 0, time.UTC).UnixNano()
 	maxTimestamp = time.Date(2023, time.April, 7, 0, 0, 0, 0, time.UTC).UnixNano() - 1
 	f(`[2023-03-01+02:20,2023-04-06T23]`, minTimestamp, maxTimestamp)
+
+	// _time:[start, end] with timezone and offset
+	offset := int64(30*time.Minute + 5*time.Second)
+	minTimestamp = time.Date(2023, time.February, 28, 21, 40, 0, 0, time.UTC).UnixNano() - offset
+	maxTimestamp = time.Date(2023, time.April, 7, 0, 0, 0, 0, time.UTC).UnixNano() - 1 - offset
+	f(`[2023-03-01+02:20,2023-04-06T23] offset 30m5s`, minTimestamp, maxTimestamp)
 }
 
 func TestParseSequenceFilter(t *testing.T) {
@@ -606,6 +640,7 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`_time:2023-01-02T04:05:06.789-02:30`, `_time:2023-01-02T04:05:06.789-02:30`)
 	f(`_time:2023-01-02T04:05:06.789+02:30`, `_time:2023-01-02T04:05:06.789+02:30`)
 	f(`_time:[1234567890, 1400000000]`, `_time:[1234567890,1400000000]`)
+	f(`_time:2d3h5.5m3s45ms`, `_time:2d3h5.5m3s45ms`)
 
 	// reserved keywords
 	f("and", `"and"`)
@@ -627,12 +662,6 @@ func TestParseQuerySuccess(t *testing.T) {
 	f("a:exact", `a:"exact"`)
 	f("a:exact-foo", `a:exact-foo`)
 	f("exact-foo:b", `exact-foo:b`)
-	f("exact_prefix", `"exact_prefix"`)
-	f("exact_prefix:a", `"exact_prefix":a`)
-	f("exact_prefix-foo", `exact_prefix-foo`)
-	f("a:exact_prefix", `a:"exact_prefix"`)
-	f("a:exact_prefix-foo", `a:exact_prefix-foo`)
-	f("exact_prefix-foo:b", `exact_prefix-foo:b`)
 	f("i", `"i"`)
 	f("i-foo", `i-foo`)
 	f("a:i-foo", `a:i-foo`)
@@ -676,17 +705,11 @@ func TestParseQuerySuccess(t *testing.T) {
 
 	// exact filter
 	f("exact(foo)", `exact(foo)`)
+	f("exact(foo*)", `exact(foo*)`)
 	f("exact('foo bar),|baz')", `exact("foo bar),|baz")`)
-	f(`exact(foo-bar,)`, `exact(foo-bar)`)
+	f("exact('foo bar),|baz'*)", `exact("foo bar),|baz"*)`)
 	f(`exact(foo|b:ar)`, `exact("foo|b:ar")`)
-	f(`foo:exact(f,)`, `foo:exact(f)`)
-
-	// exact_prefix filter
-	f("exact_prefix(foo)", `exact_prefix(foo)`)
-	f(`exact_prefix("foo bar")`, `exact_prefix("foo bar")`)
-	f(`exact_prefix(foo-bar,)`, `exact_prefix(foo-bar)`)
-	f(`exact_prefix(foo|b:ar)`, `exact_prefix("foo|b:ar")`)
-	f(`foo:exact_prefix(f,)`, `foo:exact_prefix(f)`)
+	f(`foo:exact(foo|b:ar*)`, `foo:exact("foo|b:ar"*)`)
 
 	// i filter
 	f("i(foo)", `i(foo)`)
@@ -849,6 +872,9 @@ func TestParseQueryFailure(t *testing.T) {
 	f("_time:[2023-01-02T04:05:06+12,2023]")
 	f("_time:[2023-01-02T04:05:06-12,2023]")
 	f("_time:2023-01-02T04:05:06.789")
+	f("_time:234foo")
+	f("_time:5m offset")
+	f("_time:10m offset foobar")
 
 	// long query with error
 	f(`very long query with error aaa ffdfd fdfdfd fdfd:( ffdfdfdfdfd`)
@@ -877,9 +903,9 @@ func TestParseQueryFailure(t *testing.T) {
 	f(`exact(f, b)`)
 	f(`exact(foo`)
 	f(`exact(foo,`)
-	f(`exact(foo*)`)
 	f(`exact(foo bar)`)
 	f(`exact(foo, bar`)
+	f(`exact(foo,)`)
 
 	// invalid i
 	f(`i(`)

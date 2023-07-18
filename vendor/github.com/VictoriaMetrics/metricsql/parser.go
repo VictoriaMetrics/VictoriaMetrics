@@ -311,7 +311,7 @@ func (p *parser) parseWithArgExpr() (*withArgExpr, error) {
 	}
 	if p.lex.Token == "(" {
 		// Parse func args.
-		args, err := p.parseIdentList()
+		args, err := p.parseIdentList(false)
 		if err != nil {
 			return nil, fmt.Errorf(`withArgExpr: cannot parse args for %q: %s`, wa.Name, err)
 		}
@@ -365,15 +365,25 @@ func (p *parser) parseExpr() (Expr, error) {
 			}
 		}
 		if isBinaryOpGroupModifier(p.lex.Token) {
-			if err := p.parseModifierExpr(&be.GroupModifier); err != nil {
+			if err := p.parseModifierExpr(&be.GroupModifier, false); err != nil {
 				return nil, err
 			}
 			if isBinaryOpJoinModifier(p.lex.Token) {
 				if isBinaryOpLogicalSet(be.Op) {
 					return nil, fmt.Errorf(`modifier %q cannot be applied to %q`, p.lex.Token, be.Op)
 				}
-				if err := p.parseModifierExpr(&be.JoinModifier); err != nil {
+				if err := p.parseModifierExpr(&be.JoinModifier, true); err != nil {
 					return nil, err
+				}
+				if strings.ToLower(p.lex.Token) == "prefix" {
+					if err := p.lex.Next(); err != nil {
+						return nil, fmt.Errorf("cannot read prefix for %s: %w", be.JoinModifier.AppendString(nil), err)
+					}
+					se, err := p.parseStringExpr()
+					if err != nil {
+						return nil, fmt.Errorf("cannot parse prefix for %s: %w", be.JoinModifier.AppendString(nil), err)
+					}
+					be.JoinModifierPrefix = se
 				}
 			}
 		}
@@ -608,7 +618,7 @@ funcPrefixLabel:
 		if !isAggrFuncModifier(p.lex.Token) {
 			return nil, fmt.Errorf(`AggrFuncExpr: unexpected token %q; want aggregate func modifier`, p.lex.Token)
 		}
-		if err := p.parseModifierExpr(&ae.Modifier); err != nil {
+		if err := p.parseModifierExpr(&ae.Modifier, false); err != nil {
 			return nil, err
 		}
 	}
@@ -623,7 +633,7 @@ funcArgsLabel:
 
 		// Verify whether func suffix exists.
 		if ae.Modifier.Op == "" && isAggrFuncModifier(p.lex.Token) {
-			if err := p.parseModifierExpr(&ae.Modifier); err != nil {
+			if err := p.parseModifierExpr(&ae.Modifier, false); err != nil {
 				return nil, err
 			}
 		}
@@ -665,6 +675,18 @@ func expandWithExpr(was []*withArgExpr, e Expr) (Expr, error) {
 		if err != nil {
 			return nil, err
 		}
+		var joinModifierPrefix *StringExpr
+		if t.JoinModifierPrefix != nil {
+			jmp, err := expandWithExpr(was, t.JoinModifierPrefix)
+			if err != nil {
+				return nil, err
+			}
+			se, ok := jmp.(*StringExpr)
+			if !ok {
+				return nil, fmt.Errorf("unexpected prefix for %s; want quoted string; got %s", t.JoinModifier.AppendString(nil), jmp.AppendString(nil))
+			}
+			joinModifierPrefix = se
+		}
 		if t.Op == "+" {
 			lse, lok := left.(*StringExpr)
 			rse, rok := right.(*StringExpr)
@@ -680,6 +702,7 @@ func expandWithExpr(was []*withArgExpr, e Expr) (Expr, error) {
 		be.Right = right
 		be.GroupModifier.Args = groupModifierArgs
 		be.JoinModifier.Args = joinModifierArgs
+		be.JoinModifierPrefix = joinModifierPrefix
 		pe := parensExpr{&be}
 		return &pe, nil
 	case *FuncExpr:
@@ -1084,7 +1107,7 @@ func isKeepMetricNames(token string) bool {
 	return token == "keep_metric_names"
 }
 
-func (p *parser) parseModifierExpr(me *ModifierExpr) error {
+func (p *parser) parseModifierExpr(me *ModifierExpr, allowStar bool) error {
 	if !isIdentPrefix(p.lex.Token) {
 		return fmt.Errorf(`ModifierExpr: unexpected token %q; want "ident"`, p.lex.Token)
 	}
@@ -1098,25 +1121,40 @@ func (p *parser) parseModifierExpr(me *ModifierExpr) error {
 		// join modifier may miss ident list.
 		return nil
 	}
-	args, err := p.parseIdentList()
+	args, err := p.parseIdentList(allowStar)
 	if err != nil {
-		return err
+		return fmt.Errorf("ModifierExpr: %w", err)
 	}
 	me.Args = args
 	return nil
 }
 
-func (p *parser) parseIdentList() ([]string, error) {
+func (p *parser) parseIdentList(allowStar bool) ([]string, error) {
 	if p.lex.Token != "(" {
 		return nil, fmt.Errorf(`identList: unexpected token %q; want "("`, p.lex.Token)
 	}
-	var idents []string
-	for {
+	if err := p.lex.Next(); err != nil {
+		return nil, err
+	}
+	if allowStar && p.lex.Token == "*" {
 		if err := p.lex.Next(); err != nil {
 			return nil, err
 		}
+		if p.lex.Token != ")" {
+			return nil, fmt.Errorf(`identList: unexpected token %q after "*"; want ")"`, p.lex.Token)
+		}
+		if err := p.lex.Next(); err != nil {
+			return nil, err
+		}
+		return []string{"*"}, nil
+	}
+	var idents []string
+	for {
 		if p.lex.Token == ")" {
-			goto closeParensLabel
+			if err := p.lex.Next(); err != nil {
+				return nil, err
+			}
+			return idents, nil
 		}
 		if !isIdentPrefix(p.lex.Token) {
 			return nil, fmt.Errorf(`identList: unexpected token %q; want "ident"`, p.lex.Token)
@@ -1127,19 +1165,15 @@ func (p *parser) parseIdentList() ([]string, error) {
 		}
 		switch p.lex.Token {
 		case ",":
-			continue
+			if err := p.lex.Next(); err != nil {
+				return nil, err
+			}
 		case ")":
-			goto closeParensLabel
+			continue
 		default:
 			return nil, fmt.Errorf(`identList: unexpected token %q; want ",", ")"`, p.lex.Token)
 		}
 	}
-
-closeParensLabel:
-	if err := p.lex.Next(); err != nil {
-		return nil, err
-	}
-	return idents, nil
 }
 
 func (p *parser) parseArgListExpr() ([]Expr, error) {
@@ -1628,6 +1662,11 @@ type BinaryOpExpr struct {
 	// JoinModifier contains modifier such as "group_left" or "group_right".
 	JoinModifier ModifierExpr
 
+	// JoinModifierPrefix is an optional prefix to add to labels specified inside group_left() or group_right() lists.
+	//
+	// The syntax is `group_left(foo,bar) prefix "abc"`
+	JoinModifierPrefix *StringExpr
+
 	// If KeepMetricNames is set to true, then the operation should keep metric names.
 	KeepMetricNames bool
 
@@ -1668,6 +1707,10 @@ func (be *BinaryOpExpr) appendStringNoKeepMetricNames(dst []byte) []byte {
 	if be.JoinModifier.Op != "" {
 		dst = append(dst, ' ')
 		dst = be.JoinModifier.AppendString(dst)
+		if prefix := be.JoinModifierPrefix; prefix != nil {
+			dst = append(dst, " prefix "...)
+			dst = prefix.AppendString(dst)
+		}
 	}
 	dst = append(dst, ' ')
 	if be.needRightParens() {
@@ -1739,7 +1782,11 @@ func (me *ModifierExpr) AppendString(dst []byte) []byte {
 	dst = append(dst, me.Op...)
 	dst = append(dst, '(')
 	for i, arg := range me.Args {
-		dst = appendEscapedIdent(dst, arg)
+		if arg == "*" {
+			dst = append(dst, '*')
+		} else {
+			dst = appendEscapedIdent(dst, arg)
+		}
 		if i+1 < len(me.Args) {
 			dst = append(dst, ',')
 		}
