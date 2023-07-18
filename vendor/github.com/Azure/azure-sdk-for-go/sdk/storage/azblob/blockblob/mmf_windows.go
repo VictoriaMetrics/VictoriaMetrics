@@ -26,7 +26,9 @@ func newMMB(size int64) (mmb, error) {
 	if err != nil {
 		return nil, os.NewSyscallError("CreateFileMapping", err)
 	}
-	defer syscall.CloseHandle(hMMF)
+	defer func() {
+		_ = syscall.CloseHandle(hMMF)
+	}()
 
 	addr, err := syscall.MapViewOfFile(hMMF, access, 0, 0, uintptr(size))
 	if err != nil {

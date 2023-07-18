@@ -1,3 +1,8 @@
+# v1.37.0 (2023-07-13)
+
+* **Feature**: S3 Inventory now supports Object Access Control List and Object Owner as available object metadata fields in inventory reports.
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # v1.36.0 (2023-06-28)
 
 * **Feature**: The S3 LISTObjects, ListObjectsV2 and ListObjectVersions API now supports a new optional header x-amz-optional-object-attributes. If header contains RestoreStatus as the value, then S3 will include Glacier restore status i.e. isRestoreInProgress and RestoreExpiryDate in List response.

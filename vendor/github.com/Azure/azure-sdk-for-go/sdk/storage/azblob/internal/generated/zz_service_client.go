@@ -513,7 +513,7 @@ func (client *ServiceClient) SubmitBatch(ctx context.Context, contentLength int6
 	if err != nil {
 		return ServiceClientSubmitBatchResponse{}, err
 	}
-	if !runtime.HasStatusCode(resp, http.StatusOK) {
+	if !runtime.HasStatusCode(resp, http.StatusAccepted) {
 		return ServiceClientSubmitBatchResponse{}, runtime.NewResponseError(resp)
 	}
 	return client.submitBatchHandleResponse(resp)
@@ -539,7 +539,7 @@ func (client *ServiceClient) submitBatchCreateRequest(ctx context.Context, conte
 		req.Raw().Header["x-ms-client-request-id"] = []string{*options.RequestID}
 	}
 	req.Raw().Header["Accept"] = []string{"application/xml"}
-	return req, req.SetBody(body, "application/xml")
+	return req, req.SetBody(body, multipartContentType)
 }
 
 // submitBatchHandleResponse handles the SubmitBatch response.

@@ -73,6 +73,10 @@ type ClientOptions = policy.ClientOptions
 type Client struct {
 	pl runtime.Pipeline
 	tr tracing.Tracer
+
+	// cached on the client to support shallow copying with new values
+	tp     tracing.Provider
+	modVer string
 }
 
 // NewClient creates a new Client instance with the provided values.
@@ -100,7 +104,13 @@ func NewClient(clientName, moduleVersion string, plOpts runtime.PipelineOptions,
 	pl := runtime.NewPipeline(mod, moduleVersion, plOpts, options)
 
 	tr := options.TracingProvider.NewTracer(client, moduleVersion)
-	return &Client{pl: pl, tr: tr}, nil
+
+	return &Client{
+		pl:     pl,
+		tr:     tr,
+		tp:     options.TracingProvider,
+		modVer: moduleVersion,
+	}, nil
 }
 
 // Pipeline returns the pipeline for this client.
@@ -111,4 +121,12 @@ func (c *Client) Pipeline() runtime.Pipeline {
 // Tracer returns the tracer for this client.
 func (c *Client) Tracer() tracing.Tracer {
 	return c.tr
+}
+
+// WithClientName returns a shallow copy of the Client with its tracing client name changed to clientName.
+// Note that the values for module name and version will be preserved from the source Client.
+//   - clientName - the fully qualified name of the client ("package.Client"); this is used by the tracing provider when creating spans
+func (c *Client) WithClientName(clientName string) *Client {
+	tr := c.tp.NewTracer(clientName, c.modVer)
+	return &Client{pl: c.pl, tr: tr, tp: c.tp, modVer: c.modVer}
 }
