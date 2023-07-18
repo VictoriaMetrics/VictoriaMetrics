@@ -99,8 +99,12 @@ func TestParseTimeDuration(t *testing.T) {
 		}
 	}
 	f("5m", 5*time.Minute)
+	f("5m offset 1h", 5*time.Minute)
+	f("5m offset -3.5h5m45s", 5*time.Minute)
 	f("-5.5m", 5*time.Minute+30*time.Second)
+	f("-5.5m offset 1d5m", 5*time.Minute+30*time.Second)
 	f("3d2h12m34s45ms", 3*24*time.Hour+2*time.Hour+12*time.Minute+34*time.Second+45*time.Millisecond)
+	f("3d2h12m34s45ms offset 10ms", 3*24*time.Hour+2*time.Hour+12*time.Minute+34*time.Second+45*time.Millisecond)
 }
 
 func TestParseTimeRange(t *testing.T) {
@@ -258,10 +262,16 @@ func TestParseTimeRange(t *testing.T) {
 	maxTimestamp = time.Date(2023, time.April, 7, 0, 0, 0, 0, time.UTC).UnixNano() - 1
 	f(`(2023-03-01T21:20,2023-04-06]`, minTimestamp, maxTimestamp)
 
-	// _time:[start, end]
+	// _time:[start, end] with timezone
 	minTimestamp = time.Date(2023, time.February, 28, 21, 40, 0, 0, time.UTC).UnixNano()
 	maxTimestamp = time.Date(2023, time.April, 7, 0, 0, 0, 0, time.UTC).UnixNano() - 1
 	f(`[2023-03-01+02:20,2023-04-06T23]`, minTimestamp, maxTimestamp)
+
+	// _time:[start, end] with timezone and offset
+	offset := int64(30*time.Minute + 5*time.Second)
+	minTimestamp = time.Date(2023, time.February, 28, 21, 40, 0, 0, time.UTC).UnixNano() - offset
+	maxTimestamp = time.Date(2023, time.April, 7, 0, 0, 0, 0, time.UTC).UnixNano() - 1 - offset
+	f(`[2023-03-01+02:20,2023-04-06T23] offset 30m5s`, minTimestamp, maxTimestamp)
 }
 
 func TestParseSequenceFilter(t *testing.T) {
@@ -863,6 +873,8 @@ func TestParseQueryFailure(t *testing.T) {
 	f("_time:[2023-01-02T04:05:06-12,2023]")
 	f("_time:2023-01-02T04:05:06.789")
 	f("_time:234foo")
+	f("_time:5m offset")
+	f("_time:10m offset foobar")
 
 	// long query with error
 	f(`very long query with error aaa ffdfd fdfdfd fdfd:( ffdfdfdfdfd`)
