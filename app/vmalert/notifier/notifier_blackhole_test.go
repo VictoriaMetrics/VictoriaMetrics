@@ -9,8 +9,7 @@ import (
 )
 
 func TestBlackHoleNotifier_Send(t *testing.T) {
-	bh := NewBlackHoleNotifier()
-
+	bh := newBlackHoleNotifier()
 	if err := bh.Send(context.Background(), []Alert{{
 		GroupID:     0,
 		Name:        "alert0",
@@ -20,16 +19,15 @@ func TestBlackHoleNotifier_Send(t *testing.T) {
 	}}, nil); err != nil {
 		t.Errorf("unexpected error %s", err)
 	}
-	alertCount := bh.metrics.alertsSent.Get()
 
+	alertCount := bh.metrics.alertsSent.Get()
 	if alertCount != 1 {
 		t.Errorf("expect value 1; instead got %d", alertCount)
 	}
 }
 
 func TestBlackHoleNotifier_Close(t *testing.T) {
-	bh := NewBlackHoleNotifier()
-
+	bh := newBlackHoleNotifier()
 	if err := bh.Send(context.Background(), []Alert{{
 		GroupID:     0,
 		Name:        "alert0",
@@ -48,6 +46,5 @@ func TestBlackHoleNotifier_Close(t *testing.T) {
 		if name == alertMetricName {
 			t.Errorf("Metric name should have unregistered.But still present")
 		}
-
 	}
 }

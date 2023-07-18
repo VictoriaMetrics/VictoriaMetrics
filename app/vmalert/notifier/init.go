@@ -19,7 +19,9 @@ var (
 
 	addrs = flagutil.NewArrayString("notifier.url", "Prometheus Alertmanager URL, e.g. http://127.0.0.1:9093. "+
 		"List all Alertmanager URLs if it runs in the cluster mode to ensure high availability.")
-	blackHole = flag.Bool("notifier.blackhole", false, "Don't send any notifications to anywhere. -notifier.url and -notifier.blackhole and -notifier.config are mutually exclusive")
+	blackHole = flag.Bool("notifier.blackhole", false, "Whether to blackhole alerting notifications. "+
+		"Enable this flag if you want vmalert to evaluate alerting rules without sending any notifications to external receivers (eg. alertmanager). "+
+		"`-notifier.url`, `-notifier.config` and `-notifier.blackhole` are mutually exclusive.")
 
 	basicAuthUsername     = flagutil.NewArrayString("notifier.basicAuth.username", "Optional basic auth username for -notifier.url")
 	basicAuthPassword     = flagutil.NewArrayString("notifier.basicAuth.password", "Optional basic auth password for -notifier.url")
@@ -97,7 +99,7 @@ func Init(gen AlertURLGenerator, extLabels map[string]string, extURL string) (fu
 		}
 
 		staticNotifiersFn = func() []Notifier {
-			return []Notifier{NewBlackHoleNotifier()}
+			return []Notifier{newBlackHoleNotifier()}
 		}
 		return staticNotifiersFn, nil
 	}
