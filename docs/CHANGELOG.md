@@ -63,6 +63,7 @@ The following `tip` changes can be tested by building VictoriaMetrics components
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): reset evaluation timestamp after modifying group interval. Before, there could have latency on rule evaluation time.
 * BUGFIX: vmselect: fix timestamp alignment for Prometheus querying API if time argument is less than 10m from the beginning of Unix epoch.
 * BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): properly parse binary operations with reserved words on the right side such as `foo + (on{bar="baz"})`. Previously such queries could lead to panic. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4422).
+* BUGFIX: [Official Grafana dashboards for VictoriaMetrics](https://grafana.com/orgs/victoriametrics): display cache usage for all components on panel `Cache usage % by type` for cluster dashboard. Before, only vmstorage caches were shown.
 
 ## [v1.91.3](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.91.3)
 
