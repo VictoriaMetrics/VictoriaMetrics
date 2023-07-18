@@ -627,12 +627,6 @@ func TestParseQuerySuccess(t *testing.T) {
 	f("a:exact", `a:"exact"`)
 	f("a:exact-foo", `a:exact-foo`)
 	f("exact-foo:b", `exact-foo:b`)
-	f("exact_prefix", `"exact_prefix"`)
-	f("exact_prefix:a", `"exact_prefix":a`)
-	f("exact_prefix-foo", `exact_prefix-foo`)
-	f("a:exact_prefix", `a:"exact_prefix"`)
-	f("a:exact_prefix-foo", `a:exact_prefix-foo`)
-	f("exact_prefix-foo:b", `exact_prefix-foo:b`)
 	f("i", `"i"`)
 	f("i-foo", `i-foo`)
 	f("a:i-foo", `a:i-foo`)
@@ -676,17 +670,11 @@ func TestParseQuerySuccess(t *testing.T) {
 
 	// exact filter
 	f("exact(foo)", `exact(foo)`)
+	f("exact(foo*)", `exact(foo*)`)
 	f("exact('foo bar),|baz')", `exact("foo bar),|baz")`)
-	f(`exact(foo-bar,)`, `exact(foo-bar)`)
+	f("exact('foo bar),|baz'*)", `exact("foo bar),|baz"*)`)
 	f(`exact(foo|b:ar)`, `exact("foo|b:ar")`)
-	f(`foo:exact(f,)`, `foo:exact(f)`)
-
-	// exact_prefix filter
-	f("exact_prefix(foo)", `exact_prefix(foo)`)
-	f(`exact_prefix("foo bar")`, `exact_prefix("foo bar")`)
-	f(`exact_prefix(foo-bar,)`, `exact_prefix(foo-bar)`)
-	f(`exact_prefix(foo|b:ar)`, `exact_prefix("foo|b:ar")`)
-	f(`foo:exact_prefix(f,)`, `foo:exact_prefix(f)`)
+	f(`foo:exact(foo|b:ar*)`, `foo:exact("foo|b:ar"*)`)
 
 	// i filter
 	f("i(foo)", `i(foo)`)
@@ -877,9 +865,9 @@ func TestParseQueryFailure(t *testing.T) {
 	f(`exact(f, b)`)
 	f(`exact(foo`)
 	f(`exact(foo,`)
-	f(`exact(foo*)`)
 	f(`exact(foo bar)`)
 	f(`exact(foo, bar`)
+	f(`exact(foo,)`)
 
 	// invalid i
 	f(`i(`)
