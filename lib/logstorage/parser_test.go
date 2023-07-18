@@ -79,6 +79,30 @@ func TestNewStreamFilterFailure(t *testing.T) {
 	f("{foo='bar' baz='x'}")
 }
 
+func TestParseTimeDuration(t *testing.T) {
+	f := func(s string, durationExpected time.Duration) {
+		t.Helper()
+		q, err := ParseQuery("_time:" + s)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		tf, ok := q.f.(*timeFilter)
+		if !ok {
+			t.Fatalf("unexpected filter; got %T; want *timeFilter; filter: %s", q.f, q.f)
+		}
+		if tf.stringRepr != s {
+			t.Fatalf("unexpected string represenation for timeFilter; got %q; want %q", tf.stringRepr, s)
+		}
+		duration := time.Duration(tf.maxTimestamp - tf.minTimestamp)
+		if duration != durationExpected {
+			t.Fatalf("unexpected duration; got %s; want %s", duration, durationExpected)
+		}
+	}
+	f("5m", 5*time.Minute)
+	f("-5.5m", 5*time.Minute + 30*time.Second)
+	f("3d2h12m34s45ms", 3*24*time.Hour + 2*time.Hour+12*time.Minute+34*time.Second + 45*time.Millisecond)
+}
+
 func TestParseTimeRange(t *testing.T) {
 	f := func(s string, minTimestampExpected, maxTimestampExpected int64) {
 		t.Helper()
@@ -606,6 +630,7 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`_time:2023-01-02T04:05:06.789-02:30`, `_time:2023-01-02T04:05:06.789-02:30`)
 	f(`_time:2023-01-02T04:05:06.789+02:30`, `_time:2023-01-02T04:05:06.789+02:30`)
 	f(`_time:[1234567890, 1400000000]`, `_time:[1234567890,1400000000]`)
+	f(`_time:2d3h5.5m3s45ms`, `_time:2d3h5.5m3s45ms`)
 
 	// reserved keywords
 	f("and", `"and"`)
@@ -837,6 +862,7 @@ func TestParseQueryFailure(t *testing.T) {
 	f("_time:[2023-01-02T04:05:06+12,2023]")
 	f("_time:[2023-01-02T04:05:06-12,2023]")
 	f("_time:2023-01-02T04:05:06.789")
+	f("_time:234foo")
 
 	// long query with error
 	f(`very long query with error aaa ffdfd fdfdfd fdfd:( ffdfdfdfdfd`)
