@@ -488,7 +488,7 @@ func parseAnyCaseFilter(lex *lexer, fieldName string) (filter, error) {
 	})
 }
 
-func parseFuncArgMaybePrefix(lex *lexer, funcName, fieldName string, f func(arg string, isPrefiFilter bool) (filter, error)) (filter, error) {
+func parseFuncArgMaybePrefix(lex *lexer, funcName, fieldName string, callback func(arg string, isPrefiFilter bool) (filter, error)) (filter, error) {
 	phrase := lex.token
 	lex.nextToken()
 	if !lex.isKeyword("(") {
@@ -510,7 +510,7 @@ func parseFuncArgMaybePrefix(lex *lexer, funcName, fieldName string, f func(arg 
 		return nil, fmt.Errorf("unexpected token %q instead of ')' in %s()", lex.token, funcName)
 	}
 	lex.nextToken()
-	return f(phrase, isPrefixFilter)
+	return callback(phrase, isPrefixFilter)
 }
 
 func parseLenRangeFilter(lex *lexer, fieldName string) (filter, error) {
@@ -781,6 +781,25 @@ func parseFuncArgs(lex *lexer, fieldName string, callback func(args []string) (f
 	return callback(args)
 }
 
+// startsWithYear returns true if s starts from YYYY
+func startsWithYear(s string) bool {
+	if len(s) < 4 {
+		return false
+	}
+	for i := 0; i < 4; i++ {
+		c := s[i]
+		if c < '0' || c > '9' {
+			return false
+		}
+	}
+	s = s[4:]
+	if len(s) == 0 {
+		return true
+	}
+	c := s[0]
+	return c == '-' || c == '+' || c == 'Z' || c == 'z'
+}
+
 func parseTimeFilter(lex *lexer) (*timeFilter, error) {
 	startTimeInclude := false
 	switch {
@@ -789,17 +808,36 @@ func parseTimeFilter(lex *lexer) (*timeFilter, error) {
 	case lex.isKeyword("("):
 		startTimeInclude = false
 	default:
-		// Try parsing '_time:YYYY-MM-DD', which transforms to '_time:[YYYY-MM-DD, YYYY-MM-DD+1)'
-		startTime, stringRepr, err := parseTime(lex)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse _time filter: %w", err)
-		}
-		endTime := getMatchingEndTime(startTime, stringRepr)
-		tf := &timeFilter{
-			minTimestamp: startTime,
-			maxTimestamp: endTime,
+		s := getCompoundToken(lex)
+		if strings.ToLower(s) == "now" || startsWithYear(s) {
+			// Parse '_time:YYYY-MM-DD', which transforms to '_time:[YYYY-MM-DD, YYYY-MM-DD+1)'
+			t, err := promutils.ParseTimeAt(s, float64(lex.currentTimestamp)/1e9)
+			if err != nil {
+				return nil, fmt.Errorf("cannot parse _time filter: %w", err)
+			}
+			startTime := int64(t * 1e9)
+			endTime := getMatchingEndTime(startTime, s)
+			tf := &timeFilter{
+				minTimestamp: startTime,
+				maxTimestamp: endTime,
 
-			stringRepr: stringRepr,
+				stringRepr: s,
+			}
+			return tf, nil
+		}
+		// Parse _time:duration, which transforms to '_time:(now-duration, now]'
+		d, err := promutils.ParseDuration(s)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse duration in _time filter: %w", err)
+		}
+		if d < 0 {
+			d = -d
+		}
+		tf := &timeFilter{
+			minTimestamp: lex.currentTimestamp - int64(d),
+			maxTimestamp: lex.currentTimestamp,
+
+			stringRepr: s,
 		}
 		return tf, nil
 	}
