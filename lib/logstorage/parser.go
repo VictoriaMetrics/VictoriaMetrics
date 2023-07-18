@@ -1140,6 +1140,7 @@ var reservedKeywords = func() map[string]struct{} {
 		"[",
 		"]",
 		"now",
+		"offset",
 		"-",
 
 		// functions
