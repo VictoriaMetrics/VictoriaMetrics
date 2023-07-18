@@ -641,6 +641,15 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`_time:2023-01-02T04:05:06.789+02:30`, `_time:2023-01-02T04:05:06.789+02:30`)
 	f(`_time:[1234567890, 1400000000]`, `_time:[1234567890,1400000000]`)
 	f(`_time:2d3h5.5m3s45ms`, `_time:2d3h5.5m3s45ms`)
+	f(`_time:2023-01-05 OFFSET 5m`, `_time:2023-01-05 offset 5m`)
+	f(`_time:[2023-01-05, 2023-01-06] OFFset 5m`, `_time:[2023-01-05,2023-01-06] offset 5m`)
+	f(`_time:[2023-01-05, 2023-01-06) OFFset 5m`, `_time:[2023-01-05,2023-01-06) offset 5m`)
+	f(`_time:(2023-01-05, 2023-01-06] OFFset 5m`, `_time:(2023-01-05,2023-01-06] offset 5m`)
+	f(`_time:(2023-01-05, 2023-01-06) OFFset 5m`, `_time:(2023-01-05,2023-01-06) offset 5m`)
+	f(`_time:1h offset 5m`, `_time:1h offset 5m`)
+	f(`_time:1h "offSet"`, `_time:1h "offSet"`)  // "offset" is a search word, since it is quoted
+	f(`_time:1h (Offset)`, `_time:1h "Offset"`) // "offset" is a search word, since it is in parens
+	f(`_time:1h "and"`, `_time:1h "and"`) // "and" is a search word, since it is quoted
 
 	// reserved keywords
 	f("and", `"and"`)
