@@ -512,8 +512,8 @@ The following articles contain useful information about Prometheus relabeling:
   {% endraw %}
 
 * An optional `if` filter can be used for conditional relabeling. The `if` filter may contain
-  arbitrary [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors).
-  For example, the following relabeling rule drops metrics, which don't match `foo{bar="baz"}` series selector, while leaving the rest of metrics:
+  arbitrary [time series selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
+  For example, the following relabeling rule keeps metrics matching `foo{bar="baz"}` series selector, while dropping the rest of metrics:
 
   ```yaml
   - if: 'foo{bar="baz"}'

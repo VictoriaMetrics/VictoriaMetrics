@@ -37,6 +37,9 @@ const maxInmemoryPartsPerPartition = 20
 
 // datadb represents a database with log data
 type datadb struct {
+	// mergeIdx is used for generating unique directory names for parts
+	mergeIdx uint64
+
 	inmemoryMergesTotal  uint64
 	inmemoryActiveMerges uint64
 	fileMergesTotal      uint64
@@ -44,9 +47,6 @@ type datadb struct {
 
 	// pt is the partition the datadb belongs to
 	pt *partition
-
-	// mergeIdx is used for generating unique directory names for parts
-	mergeIdx uint64
 
 	// path is the path to the directory with log data
 	path string

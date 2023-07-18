@@ -2,7 +2,6 @@ package storage
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -45,6 +44,8 @@ type Storage struct {
 	tooSmallTimestampRows uint64
 	tooBigTimestampRows   uint64
 
+	timeseriesRepopulated  uint64
+	newTimeseriesCreated   uint64
 	slowRowInserts         uint64
 	slowPerDayIndexInserts uint64
 	slowMetricNameLoads    uint64
@@ -293,7 +294,11 @@ func (s *Storage) updateDeletedMetricIDs(metricIDs *uint64set.Set) {
 // since it may slow down data ingestion when used frequently.
 func (s *Storage) DebugFlush() {
 	s.tb.flushPendingRows()
-	s.idb().tb.DebugFlush()
+	idb := s.idb()
+	idb.tb.DebugFlush()
+	idb.doExtDB(func(extDB *indexDB) {
+		extDB.tb.DebugFlush()
+	})
 }
 
 // CreateSnapshot creates snapshot for s and returns the snapshot name.
@@ -440,6 +445,8 @@ type Metrics struct {
 	TooSmallTimestampRows uint64
 	TooBigTimestampRows   uint64
 
+	TimeseriesRepopulated  uint64
+	NewTimeseriesCreated   uint64
 	SlowRowInserts         uint64
 	SlowPerDayIndexInserts uint64
 	SlowMetricNameLoads    uint64
@@ -509,6 +516,8 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 	m.TooSmallTimestampRows += atomic.LoadUint64(&s.tooSmallTimestampRows)
 	m.TooBigTimestampRows += atomic.LoadUint64(&s.tooBigTimestampRows)
 
+	m.TimeseriesRepopulated += atomic.LoadUint64(&s.timeseriesRepopulated)
+	m.NewTimeseriesCreated += atomic.LoadUint64(&s.newTimeseriesCreated)
 	m.SlowRowInserts += atomic.LoadUint64(&s.slowRowInserts)
 	m.SlowPerDayIndexInserts += atomic.LoadUint64(&s.slowPerDayIndexInserts)
 	m.SlowMetricNameLoads += atomic.LoadUint64(&s.slowMetricNameLoads)
@@ -723,8 +732,9 @@ func (s *Storage) mustRotateIndexDB() {
 	// Persist changes on the file system.
 	fs.MustSyncPath(s.path)
 
-	// Do not flush tsidCache to avoid read/write path slowdown
-	// and slowly re-populate new idb with entries from the cache via maybeCreateIndexes().
+	// Do not flush tsidCache to avoid read/write path slowdown.
+	// The cache is automatically re-populated with new TSID entries
+	// with the updated indexdb generation.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1401
 
 	// Flush metric id caches for the current and the previous hour,
@@ -738,7 +748,7 @@ func (s *Storage) mustRotateIndexDB() {
 	//    These series are already registered in prevHourMetricIDs, so VM doesn't add per-day entries to the current indexdb.
 	// 4. Stop adding new samples for these series just before 5 UTC.
 	// 5. The next indexdb rotation is performed at 4 UTC next day.
-	//    The information about the series from step 5 disappears from indexdb, since the old indexdb from step 1 is deleted,
+	//    The information about the series from step 3 disappears from indexdb, since the old indexdb from step 1 is deleted,
 	//    while the current indexdb doesn't contain information about the series.
 	//    So queries for the last 24 hours stop returning samples added at step 3.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2698
@@ -815,7 +825,6 @@ func (s *Storage) mustLoadNextDayMetricIDs(date uint64) *byDateMetricIDEntry {
 	name := "next_day_metric_ids"
 	path := filepath.Join(s.cachePath, name)
 	if !fs.IsPathExist(path) {
-		logger.Infof("nothing to load from %q", path)
 		return e
 	}
 	src, err := os.ReadFile(path)
@@ -855,7 +864,6 @@ func (s *Storage) mustLoadHourMetricIDs(hour uint64, name string) *hourMetricIDs
 	}
 	path := filepath.Join(s.cachePath, name)
 	if !fs.IsPathExist(path) {
-		logger.Infof("nothing to load from %q", path)
 		return hm
 	}
 	src, err := os.ReadFile(path)
@@ -1176,8 +1184,7 @@ func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters) (int,
 	if err != nil {
 		return deletedCount, fmt.Errorf("cannot delete tsids: %w", err)
 	}
-	// Do not reset MetricName->TSID cache in order to prevent from adding new data points
-	// to deleted time series in Storage.add, since it is already reset inside DeleteTSIDs.
+	// Do not reset MetricName->TSID cache, since it is already reset inside DeleteTSIDs.
 
 	// Do not reset MetricID->MetricName cache, since it must be used only
 	// after filtering out deleted metricIDs.
@@ -1531,61 +1538,129 @@ var metricRowsInsertCtxPool sync.Pool
 
 const maxMetricRowsPerBlock = 8000
 
-// RegisterMetricNames registers all the metric names from mns in the indexdb, so they can be queried later.
+// RegisterMetricNames registers all the metric names from mrs in the indexdb, so they can be queried later.
 //
-// The the MetricRow.Timestamp is used for registering the metric name starting from the given timestamp.
+// The the MetricRow.Timestamp is used for registering the metric name at the given day according to the timestamp.
 // Th MetricRow.Value field is ignored.
-func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) error {
+func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 	qt = qt.NewChild("registering %d series", len(mrs))
 	defer qt.Done()
-	var metricName []byte
+	var metricNameBuf []byte
 	var genTSID generationTSID
 	mn := GetMetricName()
 	defer PutMetricName(mn)
 
+	var seriesRepopulated uint64
+
 	idb := s.idb()
 	is := idb.getIndexSearch(noDeadline)
 	defer idb.putIndexSearch(is)
+	var firstWarn error
 	for i := range mrs {
 		mr := &mrs[i]
+		date := uint64(mr.Timestamp) / msecPerDay
 		if s.getTSIDFromCache(&genTSID, mr.MetricNameRaw) {
-			if err := s.registerSeriesCardinality(genTSID.TSID.MetricID, mr.MetricNameRaw); err != nil {
+			// Fast path - mr.MetricNameRaw has been already registered in the current idb.
+			if !s.registerSeriesCardinality(genTSID.TSID.MetricID, mr.MetricNameRaw) {
+				// Skip row, since it exceeds cardinality limit
 				continue
 			}
-			if genTSID.generation == idb.generation {
-				// Fast path - mr.MetricNameRaw has been already registered in the current idb.
-				continue
+			if genTSID.generation != idb.generation {
+				// The found TSID is from the previous indexdb. Create it in the current indexdb.
+
+				if err := mn.UnmarshalRaw(mr.MetricNameRaw); err != nil {
+					// Do not stop adding rows on error - just skip invalid row.
+					// This guarantees that invalid rows don't prevent
+					// from adding valid rows into the storage.
+					if firstWarn == nil {
+						firstWarn = fmt.Errorf("cannot umarshal MetricNameRaw %q: %w", mr.MetricNameRaw, err)
+					}
+					continue
+				}
+				mn.sortTags()
+
+				createAllIndexesForMetricName(is, mn, &genTSID.TSID, date)
+				genTSID.generation = idb.generation
+				s.putSeriesToCache(mr.MetricNameRaw, &genTSID, date)
+				seriesRepopulated++
 			}
+			continue
 		}
-		// Slow path - register mr.MetricNameRaw.
+
+		// Slow path - search TSID for the given metricName in indexdb.
+
+		// Construct canonical metric name - it is used below.
 		if err := mn.UnmarshalRaw(mr.MetricNameRaw); err != nil {
-			return fmt.Errorf("cannot unmarshal MetricNameRaw %q: %w", mr.MetricNameRaw, err)
+			// Do not stop adding rows on error - just skip invalid row.
+			// This guarantees that invalid rows don't prevent
+			// from adding valid rows into the storage.
+			if firstWarn == nil {
+				firstWarn = fmt.Errorf("cannot umarshal MetricNameRaw %q: %w", mr.MetricNameRaw, err)
+			}
+			continue
 		}
 		mn.sortTags()
-		metricName = mn.Marshal(metricName[:0])
-		date := uint64(mr.Timestamp) / msecPerDay
-		if err := is.GetOrCreateTSIDByName(&genTSID.TSID, metricName, mr.MetricNameRaw, date); err != nil {
-			if errors.Is(err, errSeriesCardinalityExceeded) {
+		metricNameBuf = mn.Marshal(metricNameBuf[:0])
+
+		if is.getTSIDByMetricName(&genTSID, metricNameBuf, date) {
+			// Slower path - the TSID has been found in indexdb.
+
+			if !s.registerSeriesCardinality(genTSID.TSID.MetricID, mr.MetricNameRaw) {
+				// Skip the row, since it exceeds the configured cardinality limit.
 				continue
 			}
-			return fmt.Errorf("cannot create TSID for metricName %q: %w", metricName, err)
+
+			if genTSID.generation != idb.generation {
+				// The found TSID is from the previous indexdb. Create it in the current indexdb.
+				createAllIndexesForMetricName(is, mn, &genTSID.TSID, date)
+				genTSID.generation = idb.generation
+				seriesRepopulated++
+			}
+			s.putSeriesToCache(mr.MetricNameRaw, &genTSID, date)
+			continue
 		}
+
+		// Slowest path - there is no TSID in indexdb for the given mr.MetricNameRaw. Create it.
+		generateTSID(&genTSID.TSID, mn)
+
+		if !s.registerSeriesCardinality(genTSID.TSID.MetricID, mr.MetricNameRaw) {
+			// Skip the row, since it exceeds the configured cardinality limit.
+			continue
+		}
+
+		// Schedule creating TSID indexes instead of creating them synchronously.
+		// This should keep stable the ingestion rate when new time series are ingested.
+		createAllIndexesForMetricName(is, mn, &genTSID.TSID, date)
 		genTSID.generation = idb.generation
-		s.putTSIDToCache(&genTSID, mr.MetricNameRaw)
+		s.putSeriesToCache(mr.MetricNameRaw, &genTSID, date)
 	}
-	return nil
+
+	atomic.AddUint64(&s.timeseriesRepopulated, seriesRepopulated)
+
+	if firstWarn != nil {
+		logger.Warnf("cannot create some metrics: %s", firstWarn)
+	}
 }
 
 func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, precisionBits uint8) error {
 	idb := s.idb()
 	is := idb.getIndexSearch(noDeadline)
 	defer idb.putIndexSearch(is)
+
+	mn := GetMetricName()
+	defer PutMetricName(mn)
+
 	var (
 		// These vars are used for speeding up bulk imports of multiple adjacent rows for the same metricName.
 		prevTSID          TSID
 		prevMetricNameRaw []byte
 	)
-	var pmrs *pendingMetricRows
+	var metricNameBuf []byte
+
+	var slowInsertsCount uint64
+	var newSeriesCount uint64
+	var seriesRepopulated uint64
+
 	minTimestamp, maxTimestamp := s.tb.getMinMaxTimestamps()
 
 	var genTSID generationTSID
@@ -1629,6 +1704,8 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 		r.Timestamp = mr.Timestamp
 		r.Value = mr.Value
 		r.PrecisionBits = precisionBits
+
+		// Search for TSID for the given mr.MetricNameRaw and store it at r.TSID.
 		if string(mr.MetricNameRaw) == string(prevMetricNameRaw) {
 			// Fast path - the current mr contains the same metric name as the previous mr, so it contains the same TSID.
 			// This path should trigger on bulk imports when many rows contain the same MetricNameRaw.
@@ -1636,99 +1713,109 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 			continue
 		}
 		if s.getTSIDFromCache(&genTSID, mr.MetricNameRaw) {
-			if err := s.registerSeriesCardinality(r.TSID.MetricID, mr.MetricNameRaw); err != nil {
+			// Fast path - the TSID for the given mr.MetricNameRaw has been found in cache and isn't deleted.
+			// There is no need in checking whether r.TSID.MetricID is deleted, since tsidCache doesn't
+			// contain MetricName->TSID entries for deleted time series.
+			// See Storage.DeleteSeries code for details.
+
+			if !s.registerSeriesCardinality(r.TSID.MetricID, mr.MetricNameRaw) {
+				// Skip row, since it exceeds cardinality limit
 				j--
 				continue
 			}
 			r.TSID = genTSID.TSID
-			// Fast path - the TSID for the given MetricNameRaw has been found in cache and isn't deleted.
-			// There is no need in checking whether r.TSID.MetricID is deleted, since tsidCache doesn't
-			// contain MetricName->TSID entries for deleted time series.
-			// See Storage.DeleteSeries code for details.
 			prevTSID = r.TSID
 			prevMetricNameRaw = mr.MetricNameRaw
 
 			if genTSID.generation != idb.generation {
-				// The found entry is from the previous cache generation,
-				// so attempt to re-populate the current generation with this entry.
-				// This is needed for https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1401
+				// The found TSID is from the previous indexdb. Create it in the current indexdb.
 				date := uint64(r.Timestamp) / msecPerDay
-				created, err := is.maybeCreateIndexes(&genTSID.TSID, mr.MetricNameRaw, date)
-				if err != nil {
-					return fmt.Errorf("cannot create indexes: %w", err)
-				}
-				if created {
-					genTSID.generation = idb.generation
-					s.putTSIDToCache(&genTSID, mr.MetricNameRaw)
-				}
-			}
-			continue
-		}
 
-		// Slow path - the TSID is missing in the cache.
-		// Postpone its search in the loop below.
-		j--
-		if pmrs == nil {
-			pmrs = getPendingMetricRows()
-		}
-		if err := pmrs.addRow(mr); err != nil {
-			// Do not stop adding rows on error - just skip invalid row.
-			// This guarantees that invalid rows don't prevent
-			// from adding valid rows into the storage.
-			if firstWarn == nil {
-				firstWarn = err
-			}
-			continue
-		}
-	}
-	if pmrs != nil {
-		// Sort pendingMetricRows by canonical metric name in order to speed up search via `is` in the loop below.
-		pendingMetricRows := pmrs.pmrs
-		sort.Slice(pendingMetricRows, func(i, j int) bool {
-			return string(pendingMetricRows[i].MetricName) < string(pendingMetricRows[j].MetricName)
-		})
-		prevMetricNameRaw = nil
-		var slowInsertsCount uint64
-		for i := range pendingMetricRows {
-			pmr := &pendingMetricRows[i]
-			mr := pmr.mr
-			dstMrs[j] = mr
-			r := &rows[j]
-			j++
-			r.Timestamp = mr.Timestamp
-			r.Value = mr.Value
-			r.PrecisionBits = precisionBits
-			if string(mr.MetricNameRaw) == string(prevMetricNameRaw) {
-				// Fast path - the current mr contains the same metric name as the previous mr, so it contains the same TSID.
-				// This path should trigger on bulk imports when many rows contain the same MetricNameRaw.
-				r.TSID = prevTSID
-				continue
-			}
-			slowInsertsCount++
-			date := uint64(r.Timestamp) / msecPerDay
-			if err := is.GetOrCreateTSIDByName(&r.TSID, pmr.MetricName, mr.MetricNameRaw, date); err != nil {
-				j--
-				if errors.Is(err, errSeriesCardinalityExceeded) {
+				if err := mn.UnmarshalRaw(mr.MetricNameRaw); err != nil {
+					if firstWarn == nil {
+						firstWarn = fmt.Errorf("cannot unmarshal MetricNameRaw %q: %w", mr.MetricNameRaw, err)
+					}
+					j--
 					continue
 				}
-				// Do not stop adding rows on error - just skip invalid row.
-				// This guarantees that invalid rows don't prevent
-				// from adding valid rows into the storage.
-				if firstWarn == nil {
-					firstWarn = fmt.Errorf("cannot obtain or create TSID for MetricName %q: %w", pmr.MetricName, err)
-				}
+				mn.sortTags()
+
+				createAllIndexesForMetricName(is, mn, &genTSID.TSID, date)
+				genTSID.generation = idb.generation
+				s.putSeriesToCache(mr.MetricNameRaw, &genTSID, date)
+				seriesRepopulated++
+				slowInsertsCount++
+			}
+			continue
+		}
+
+		// Slow path - the TSID for the given mr.MetricNameRaw is missing in the cache.
+		slowInsertsCount++
+
+		date := uint64(r.Timestamp) / msecPerDay
+
+		// Construct canonical metric name - it is used below.
+		if err := mn.UnmarshalRaw(mr.MetricNameRaw); err != nil {
+			if firstWarn == nil {
+				firstWarn = fmt.Errorf("cannot unmarshal MetricNameRaw %q: %w", mr.MetricNameRaw, err)
+			}
+			j--
+			continue
+		}
+		mn.sortTags()
+		metricNameBuf = mn.Marshal(metricNameBuf[:0])
+
+		// Search for TSID for the given mr.MetricNameRaw in the indexdb.
+		if is.getTSIDByMetricName(&genTSID, metricNameBuf, date) {
+			// Slower path - the TSID has been found in indexdb.
+
+			if !s.registerSeriesCardinality(genTSID.TSID.MetricID, mr.MetricNameRaw) {
+				// Skip the row, since it exceeds the configured cardinality limit.
+				j--
 				continue
 			}
-			genTSID.generation = idb.generation
-			genTSID.TSID = r.TSID
-			s.putTSIDToCache(&genTSID, mr.MetricNameRaw)
 
-			prevTSID = r.TSID
+			if genTSID.generation != idb.generation {
+				// The found TSID is from the previous indexdb. Create it in the current indexdb.
+				createAllIndexesForMetricName(is, mn, &genTSID.TSID, date)
+				genTSID.generation = idb.generation
+				seriesRepopulated++
+			}
+			s.putSeriesToCache(mr.MetricNameRaw, &genTSID, date)
+
+			r.TSID = genTSID.TSID
+			prevTSID = genTSID.TSID
 			prevMetricNameRaw = mr.MetricNameRaw
+			continue
 		}
-		putPendingMetricRows(pmrs)
-		atomic.AddUint64(&s.slowRowInserts, slowInsertsCount)
+
+		// Slowest path - the TSID for the given mr.MetricNameRaw isn't found in indexdb. Create it.
+		generateTSID(&genTSID.TSID, mn)
+
+		if !s.registerSeriesCardinality(genTSID.TSID.MetricID, mr.MetricNameRaw) {
+			// Skip the row, since it exceeds the configured cardinality limit.
+			j--
+			continue
+		}
+
+		createAllIndexesForMetricName(is, mn, &genTSID.TSID, date)
+		genTSID.generation = idb.generation
+		s.putSeriesToCache(mr.MetricNameRaw, &genTSID, date)
+		newSeriesCount++
+
+		r.TSID = genTSID.TSID
+		prevTSID = r.TSID
+		prevMetricNameRaw = mr.MetricNameRaw
+
+		if logNewSeries {
+			logger.Infof("new series created: %s", mn.String())
+		}
 	}
+
+	atomic.AddUint64(&s.slowRowInserts, slowInsertsCount)
+	atomic.AddUint64(&s.newTimeseriesCreated, newSeriesCount)
+	atomic.AddUint64(&s.timeseriesRepopulated, seriesRepopulated)
+
 	if firstWarn != nil {
 		storageAddRowsLogger.Warnf("warn occurred during rows addition: %s", firstWarn)
 	}
@@ -1749,21 +1836,43 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 
 var storageAddRowsLogger = logger.WithThrottler("storageAddRows", 5*time.Second)
 
-func (s *Storage) registerSeriesCardinality(metricID uint64, metricNameRaw []byte) error {
+// SetLogNewSeries updates new series logging.
+//
+// This function must be called before any calling any storage functions.
+func SetLogNewSeries(ok bool) {
+	logNewSeries = ok
+}
+
+var logNewSeries = false
+
+func createAllIndexesForMetricName(is *indexSearch, mn *MetricName, tsid *TSID, date uint64) {
+	is.createGlobalIndexes(tsid, mn)
+	is.createPerDayIndexes(date, tsid, mn)
+}
+
+func (s *Storage) putSeriesToCache(metricNameRaw []byte, genTSID *generationTSID, date uint64) {
+	// Store the TSID for for the current indexdb into cache,
+	// so future rows for that TSID are ingested via fast path.
+	s.putTSIDToCache(genTSID, metricNameRaw)
+
+	// Register the (date, metricID) entry in the cache,
+	// so next time the entry is found there instead of searching for it in the indexdb.
+	s.dateMetricIDCache.Set(date, genTSID.TSID.MetricID)
+}
+
+func (s *Storage) registerSeriesCardinality(metricID uint64, metricNameRaw []byte) bool {
 	if sl := s.hourlySeriesLimiter; sl != nil && !sl.Add(metricID) {
 		atomic.AddUint64(&s.hourlySeriesLimitRowsDropped, 1)
 		logSkippedSeries(metricNameRaw, "-storage.maxHourlySeries", sl.MaxItems())
-		return errSeriesCardinalityExceeded
+		return false
 	}
 	if sl := s.dailySeriesLimiter; sl != nil && !sl.Add(metricID) {
 		atomic.AddUint64(&s.dailySeriesLimitRowsDropped, 1)
 		logSkippedSeries(metricNameRaw, "-storage.maxDailySeries", sl.MaxItems())
-		return errSeriesCardinalityExceeded
+		return false
 	}
-	return nil
+	return true
 }
-
-var errSeriesCardinalityExceeded = fmt.Errorf("cannot create series because series cardinality limit exceeded")
 
 func logSkippedSeries(metricNameRaw []byte, flagName string, flagValue int) {
 	select {
@@ -1787,75 +1896,6 @@ func getUserReadableMetricName(metricNameRaw []byte) string {
 	return mn.String()
 }
 
-type pendingMetricRow struct {
-	MetricName []byte
-	mr         *MetricRow
-}
-
-type pendingMetricRows struct {
-	pmrs           []pendingMetricRow
-	metricNamesBuf []byte
-
-	lastMetricNameRaw []byte
-	lastMetricName    []byte
-	mn                MetricName
-}
-
-func (pmrs *pendingMetricRows) reset() {
-	mrs := pmrs.pmrs
-	for i := range mrs {
-		pmr := &mrs[i]
-		pmr.MetricName = nil
-		pmr.mr = nil
-	}
-	pmrs.pmrs = mrs[:0]
-	pmrs.metricNamesBuf = pmrs.metricNamesBuf[:0]
-	pmrs.lastMetricNameRaw = nil
-	pmrs.lastMetricName = nil
-	pmrs.mn.Reset()
-}
-
-func (pmrs *pendingMetricRows) addRow(mr *MetricRow) error {
-	// Do not spend CPU time on re-calculating canonical metricName during bulk import
-	// of many rows for the same metric.
-	if string(mr.MetricNameRaw) != string(pmrs.lastMetricNameRaw) {
-		if err := pmrs.mn.UnmarshalRaw(mr.MetricNameRaw); err != nil {
-			return fmt.Errorf("cannot unmarshal MetricNameRaw %q: %w", mr.MetricNameRaw, err)
-		}
-		pmrs.mn.sortTags()
-		metricNamesBufLen := len(pmrs.metricNamesBuf)
-		pmrs.metricNamesBuf = pmrs.mn.Marshal(pmrs.metricNamesBuf)
-		pmrs.lastMetricName = pmrs.metricNamesBuf[metricNamesBufLen:]
-		pmrs.lastMetricNameRaw = mr.MetricNameRaw
-	}
-	mrs := pmrs.pmrs
-	if cap(mrs) > len(mrs) {
-		mrs = mrs[:len(mrs)+1]
-	} else {
-		mrs = append(mrs, pendingMetricRow{})
-	}
-	pmrs.pmrs = mrs
-	pmr := &mrs[len(mrs)-1]
-	pmr.MetricName = pmrs.lastMetricName
-	pmr.mr = mr
-	return nil
-}
-
-func getPendingMetricRows() *pendingMetricRows {
-	v := pendingMetricRowsPool.Get()
-	if v == nil {
-		v = &pendingMetricRows{}
-	}
-	return v.(*pendingMetricRows)
-}
-
-func putPendingMetricRows(pmrs *pendingMetricRows) {
-	pmrs.reset()
-	pendingMetricRowsPool.Put(pmrs)
-}
-
-var pendingMetricRowsPool sync.Pool
-
 func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow) error {
 	var date uint64
 	var hour uint64
@@ -1875,9 +1915,9 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow) error {
 	// pMin linearly increases from 0 to 1 during the last hour of the day.
 	pMin := (float64(ts%(3600*24)) / 3600) - 23
 	type pendingDateMetricID struct {
-		date     uint64
-		metricID uint64
-		mr       *MetricRow
+		date uint64
+		tsid *TSID
+		mr   *MetricRow
 	}
 	var pendingDateMetricIDs []pendingDateMetricID
 	var pendingNextDayMetricIDs []uint64
@@ -1897,7 +1937,7 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow) error {
 		prevDate = date
 		prevMetricID = metricID
 		if hour == hm.hour {
-			// The r belongs to the current hour. Check for the current hour cache.
+			// The row belongs to the current hour. Check for the current hour cache.
 			if hm.m.Has(metricID) {
 				// Fast path: the metricID is in the current hour cache.
 				// This means the metricID has been already added to per-day inverted index.
@@ -1910,9 +1950,9 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow) error {
 					p := float64(uint32(fastHashUint64(metricID))) / (1 << 32)
 					if p < pMin && !nextDayMetricIDs.Has(metricID) {
 						pendingDateMetricIDs = append(pendingDateMetricIDs, pendingDateMetricID{
-							date:     date + 1,
-							metricID: metricID,
-							mr:       mrs[i],
+							date: date + 1,
+							tsid: &r.TSID,
+							mr:   mrs[i],
 						})
 						pendingNextDayMetricIDs = append(pendingNextDayMetricIDs, metricID)
 					}
@@ -1932,9 +1972,9 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow) error {
 		}
 		// Slow path: store the (date, metricID) entry in the indexDB.
 		pendingDateMetricIDs = append(pendingDateMetricIDs, pendingDateMetricID{
-			date:     date,
-			metricID: metricID,
-			mr:       mrs[i],
+			date: date,
+			tsid: &r.TSID,
+			mr:   mrs[i],
 		})
 	}
 	if len(pendingNextDayMetricIDs) > 0 {
@@ -1948,7 +1988,7 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow) error {
 		s.pendingHourEntriesLock.Unlock()
 	}
 	if len(pendingDateMetricIDs) == 0 {
-		// Fast path - there are no new (date, metricID) entries in rows.
+		// Fast path - there are no new (date, metricID) entries.
 		return nil
 	}
 
@@ -1962,27 +2002,22 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow) error {
 		if a.date != b.date {
 			return a.date < b.date
 		}
-		return a.metricID < b.metricID
+		return a.tsid.MetricID < b.tsid.MetricID
 	})
+
 	idb := s.idb()
 	is := idb.getIndexSearch(noDeadline)
 	defer idb.putIndexSearch(is)
+
 	var firstError error
 	dateMetricIDsForCache := make([]dateMetricID, 0, len(pendingDateMetricIDs))
 	mn := GetMetricName()
 	for _, dmid := range pendingDateMetricIDs {
 		date := dmid.date
-		metricID := dmid.metricID
-		ok, err := is.hasDateMetricID(date, metricID)
-		if err != nil {
-			if firstError == nil {
-				firstError = fmt.Errorf("error when locating (date=%s, metricID=%d) in database: %w", dateToString(date), metricID, err)
-			}
-			continue
-		}
-		if !ok {
+		metricID := dmid.tsid.MetricID
+		if !is.hasDateMetricIDNoExtDB(date, metricID) {
 			// The (date, metricID) entry is missing in the indexDB. Add it there together with per-day indexes.
-			// It is OK if the (date, metricID) entry is added multiple times to db
+			// It is OK if the (date, metricID) entry is added multiple times to indexdb
 			// by concurrent goroutines.
 			if err := mn.UnmarshalRaw(dmid.mr.MetricNameRaw); err != nil {
 				if firstError == nil {
@@ -1991,7 +2026,7 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow) error {
 				continue
 			}
 			mn.sortTags()
-			is.createPerDayIndexes(date, metricID, mn)
+			is.createPerDayIndexes(date, dmid.tsid, mn)
 		}
 		dateMetricIDsForCache = append(dateMetricIDsForCache, dateMetricID{
 			date:     date,
