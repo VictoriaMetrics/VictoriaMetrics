@@ -375,7 +375,7 @@ func (p *parser) parseExpr() (Expr, error) {
 				if err := p.parseModifierExpr(&be.JoinModifier, true); err != nil {
 					return nil, err
 				}
-				if strings.ToLower(p.lex.Token) == "prefix" {
+				if isPrefixModifier(p.lex.Token) {
 					if err := p.lex.Next(); err != nil {
 						return nil, fmt.Errorf("cannot read prefix for %s: %w", be.JoinModifier.AppendString(nil), err)
 					}
@@ -1758,7 +1758,11 @@ func needBinaryOpArgParens(arg Expr) bool {
 }
 
 func isReservedBinaryOpIdent(s string) bool {
-	return isBinaryOpGroupModifier(s) || isBinaryOpJoinModifier(s) || isBinaryOpBoolModifier(s)
+	return isBinaryOpGroupModifier(s) || isBinaryOpJoinModifier(s) || isBinaryOpBoolModifier(s) || isPrefixModifier(s)
+}
+
+func isPrefixModifier(s string) bool {
+	return strings.ToLower(s) == "prefix"
 }
 
 func appendArgInParens(dst []byte, arg Expr) []byte {
