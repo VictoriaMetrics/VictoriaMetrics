@@ -99,8 +99,8 @@ func TestParseTimeDuration(t *testing.T) {
 		}
 	}
 	f("5m", 5*time.Minute)
-	f("-5.5m", 5*time.Minute + 30*time.Second)
-	f("3d2h12m34s45ms", 3*24*time.Hour + 2*time.Hour+12*time.Minute+34*time.Second + 45*time.Millisecond)
+	f("-5.5m", 5*time.Minute+30*time.Second)
+	f("3d2h12m34s45ms", 3*24*time.Hour+2*time.Hour+12*time.Minute+34*time.Second+45*time.Millisecond)
 }
 
 func TestParseTimeRange(t *testing.T) {
