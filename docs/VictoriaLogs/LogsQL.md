@@ -589,11 +589,11 @@ See also:
 
 ### Exact prefix filter
 
-Sometimes it is needed to find log messages starting with some prefix. This can be done with the `exact_prefix(...)` filter.
+Sometimes it is needed to find log messages starting with some prefix. This can be done with the `exact("prefix"*)` filter.
 For example, the following query matches log messages, which start from `Processing request` prefix:
 
 ```logsql
-exact_prefix("Processing request")
+exact("Processing request"*)
 ```
 
 This filter matches the following [log messages](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field):
@@ -603,30 +603,30 @@ This filter matches the following [log messages](https://docs.victoriametrics.co
 
 It doesn't match the following log messages:
 
-- `processing request foobar`, since the log message starts with lowercase `p`. Use `exact_prefix("processing request") OR exact_prefix("Processing request")`
+- `processing request foobar`, since the log message starts with lowercase `p`. Use `exact("processing request"*) OR exact("Processing request"*)`
   query in this case. See [these docs](#logical-filter) for details.
 - `start: Processing request`, since the log message doesn't start with `Processing request`. Use `"Processing request"` query in this case.
   See [these docs](#phrase-filter) for details.
 
-By default the `exact_prefix()` filter is applied to the [`_msg` field](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field).
-Specify the [field name](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model) in front of the `exact_prefix()` filter and put a colon after it
+By default the `exact()` filter is applied to the [`_msg` field](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field).
+Specify the [field name](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model) in front of the `exact()` filter and put a colon after it
 if it must be searched in the given field. For example, the following query returns log entries with `log.level` field, which starts with `err` prefix:
 
 ```logsql
-log.level:exact_prefix("err")
+log.level:exact("err"*)
 ```
 
 Both the field name and the phrase can contain arbitrary [utf-8](https://en.wikipedia.org/wiki/UTF-8)-encoded chars. For example:
 
 ```logsql
-log.уровень:exact_prefix("ошиб")
+log.уровень:exact("ошиб"*)
 ```
 
 The field name can be put inside quotes if it contains special chars, which may clash with the query syntax.
 For example, the following query matches `log:level` values starting with `err` prefix:
 
 ```logsql
-"log:level":exact_prefix("err")
+"log:level":exact("err"*)
 ```
 
 See also:
@@ -809,7 +809,7 @@ Performance tips:
   Note that the `re("error|warning")` matches `errors` as well as `warnings` [words](#word), while `error OR warning` matches
   only the specified [words](#word). See also [multi-exact filter](#multi-exact-filter).
 - Prefer moving the regexp filter to the end of the [logical filter](#logical-filter), so lightweighter filters are executed first.
-- Prefer using `exact_prefix("some prefix")` instead of `re("^some prefix")`, since the [exact_prefix()](#exact-prefix-filter) works much faster than the `re()` filter.
+- Prefer using `exact("some prefix"*)` instead of `re("^some prefix")`, since the [exact()](#exact-prefix-filter) works much faster than the `re()` filter.
 - See [other performance tips](#performance-tips).
 
 See also:
