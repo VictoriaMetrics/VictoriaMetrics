@@ -26,6 +26,26 @@
   &__size {
     flex-grow: 1;
     min-width: 150px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: $padding-global;
+  }
+
+  &-description {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: flex-start;
+    gap: $padding-small;
+
+    button {
+      color: inherit;
+      min-height: 29px;
+    }
+
+    code {
+      margin: 0 3px;
+    }
   }
 
   &-metrics {
