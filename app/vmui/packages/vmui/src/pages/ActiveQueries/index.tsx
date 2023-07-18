@@ -43,8 +43,6 @@ const ActiveQueries: FC = () => {
       }));
   }, [activeQueries]);
 
-  console.log(activeQueries);
-
   const handleRefresh = async () => {
     fetchData().catch(console.error);
   };
