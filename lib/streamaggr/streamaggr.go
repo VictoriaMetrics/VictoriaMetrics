@@ -266,7 +266,7 @@ func newAggregator(cfg *Config, pushFunc PushFunc, dedupInterval time.Duration) 
 			return nil, fmt.Errorf("cannot parse `staleness_interval: %q`: %w", cfg.StalenessInterval, err)
 		}
 		if stalenessInterval < interval {
-			return nil, fmt.Errorf("stalenessInterval cannot be less than interval (%s); got %s", cfg.Interval, cfg.StalenessInterval)
+			return nil, fmt.Errorf("staleness_interval cannot be less than interval (%s); got %s", cfg.Interval, cfg.StalenessInterval)
 		}
 	}
 
