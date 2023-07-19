@@ -319,6 +319,7 @@ The UI allows exploring query results via graphs and tables. It also provides th
   - [Metrics explorer](#metrics-explorer) - automatically builds graphs for selected metrics; 
   - [Cardinality explorer](#cardinality-explorer) - stats about existing metrics in TSDB;
   - [Top queries](#top-queries) - shows most frequently executed queries;
+  - [Active queries](#active-queries) - shows currently executed queries;
 - Tools:
   - [Trace analyzer](#query-tracing) - playground for loading query traces in JSON format; 
   - [WITH expressions playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/expand-with-exprs) - test how WITH expressions work; 
@@ -362,6 +363,15 @@ See the [example VMUI at VictoriaMetrics playground](https://play.victoriametric
 * the most frequently executed queries;
 * queries with the biggest average execution duration;
 * queries that took the most summary time for execution.
+
+## Active queries
+
+[VMUI](#vmui) provides `active queries` tab, which shows currently execute queries.
+It provides the following information per each query:
+
+- The query itself, together with the time range and step args passed to [/api/v1/query_range](https://docs.victoriametrics.com/keyConcepts.html#range-query).
+- The duration of the query execution.
+- The client address, who initiated the query execution.
 
 ## Metrics explorer
 

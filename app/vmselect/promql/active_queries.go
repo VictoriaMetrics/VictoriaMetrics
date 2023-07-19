@@ -2,7 +2,7 @@ package promql
 
 import (
 	"fmt"
-	"io"
+	"net/http"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -12,8 +12,10 @@ import (
 // WriteActiveQueries writes active queries to w.
 //
 // The written active queries are sorted in descending order of their exeuction duration.
-func WriteActiveQueries(w io.Writer) {
+func WriteActiveQueries(w http.ResponseWriter, r *http.Request) {
 	aqes := activeQueriesV.GetAll()
+
+	w.Header().Set("Content-Type", "application/json")
 	sort.Slice(aqes, func(i, j int) bool {
 		return aqes[i].startTime.Sub(aqes[j].startTime) < 0
 	})
