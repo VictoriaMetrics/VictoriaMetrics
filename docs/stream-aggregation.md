@@ -541,6 +541,10 @@ at [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-
   # The aggregated stats is sent to remote storage once per interval.
   interval: 1m
 
+  # staleness_interval is interval after which the series state will be cleared if no samples have been sent during it.
+  # The parameter is only relevant for outputs: total, increase and histogram_bucket.
+  staleness_interval: 2m
+
   # without is an optional list of labels, which must be removed from the output aggregation.
   # See https://docs.victoriametrics.com/stream-aggregation.html#aggregating-by-labels
   without: [instance]
