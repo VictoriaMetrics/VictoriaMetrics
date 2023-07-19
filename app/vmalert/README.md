@@ -901,7 +901,7 @@ command-line flags with their descriptions.
 
 The shortlist of configuration flags is the following:
 {% raw  %}
-```
+```console
   -clusterMode
      If clusterMode is enabled, then vmalert automatically adds the tenant specified in config groups to -datasource.url, -remoteWrite.url and -remoteRead.url. See https://docs.victoriametrics.com/vmalert.html#multitenancy . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
   -configCheckInterval duration
@@ -1331,7 +1331,7 @@ The configuration file allows to configure static notifiers, discover notifiers 
 and [DNS](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dns_sd_config):
 For example:
 
-```
+```yaml
 static_configs:
   - targets:
       - localhost:9093
@@ -1356,7 +1356,7 @@ to ensure [high availability](https://github.com/prometheus/alertmanager#high-av
 The configuration file [specification](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmalert/notifier/config.go)
 is the following:
 
-```
+```yaml
 # Per-target Notifier timeout when pushing alerts.
 [ timeout: <duration> | default = 10s ]
 
@@ -1475,6 +1475,7 @@ docker push my-repo:my-version-name
 ```
 
 To run the built image in `victoria-metrics-k8s-stack` or `VMAlert` CR object apply the following config change:
+
 ```yaml
 kind: VMAlert
 spec:
