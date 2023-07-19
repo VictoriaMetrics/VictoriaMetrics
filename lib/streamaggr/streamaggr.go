@@ -527,12 +527,9 @@ func (a *aggregator) push(tss []prompbmarshal.TimeSeries) {
 			bb.B = marshalLabelsFast(bb.B[:0], tmpLabels.Labels)
 		}
 		outputKey := bytesutil.InternBytes(bb.B)
-		inputKey := ""
-		if !a.aggregateOnlyByTime {
-			tmpLabels.Labels = extractUnneededLabels(tmpLabels.Labels[:0], labels.Labels, a.by, a.without)
-			bb.B = marshalLabelsFast(bb.B[:0], tmpLabels.Labels)
-			inputKey = bytesutil.InternBytes(bb.B)
-		}
+
+		bb.B = marshalLabelsFast(bb.B[:0], tmpLabels.Labels)
+		inputKey := bytesutil.InternBytes(bb.B)
 
 		for _, sample := range ts.Samples {
 			a.pushSample(inputKey, outputKey, sample.Value)
