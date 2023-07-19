@@ -73,7 +73,9 @@ and make it merged. See example in this [commit](https://github.com/VictoriaMetr
       * linux/ppc64le
       * linux/386
       This step can be run manually with the command `make publish` from the needed git tag.
-4. Push the tags created `v1.xx.y` and `v1.xx.y-cluster` at step 2 to public GitHub repository at https://github.com/VictoriaMetrics/VictoriaMetrics .
+4. Push the tags `v1.xx.y` and `v1.xx.y-cluster` created at step 2 to public GitHub repository at https://github.com/VictoriaMetrics/VictoriaMetrics.
+   Push the tags `v1.xx.y`, `v1.xx.y-cluster`, `v1.xx.y-enterprise` and `v1.xx.y-enterprise-cluster` to the corresponding
+   branches in private repository.
    **Important note:** do not push enterprise tags to public GitHub repository - they must be pushed only to private repository.
 5. Run `TAG=v1.xx.y make github-create-release github-upload-assets`. This command performs the following tasks:
    a) Create draft GitHub release with the name `TAG`. This step can be run manually
