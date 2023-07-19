@@ -27,13 +27,10 @@ var (
 	retryMaxTime      = flag.Duration("remoteWrite.retryMaxTime", time.Second*30, "The max time spent on retry attempts for the failed remote-write request. Change this value if it is expected for remoteWrite.url to be unreachable for more than -remoteWrite.retryMaxTime. See also -remoteWrite.retryMinInterval")
 )
 
-// RWClient interface wraps methods for remote write client
+// RWClient interface wraps part of methods for remote write client
 type RWClient interface {
 	Push(s prompbmarshal.TimeSeries) error
 	Close() error
-	run(ctx context.Context)
-	flush(ctx context.Context, wr *prompbmarshal.WriteRequest)
-	send(ctx context.Context, data []byte) error
 }
 
 // Client is an asynchronous HTTP client for writing

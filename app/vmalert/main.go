@@ -92,10 +92,9 @@ absolute path to all .tpl files in root.
 	disableAlertGroupLabel = flag.Bool("disableAlertgroupLabel", false, "Whether to disable adding group's Name as label to generated alerts and time series.")
 
 	dryRun        = flag.Bool("dryRun", false, "Whether to check only config files without running vmalert. The rules file are validated. The -rule flag must be specified.")
-	unitTest      = flag.Bool("unittest", false, "Used to perform unit testing with given unit testing files")
-	unitTestFiles = flagutil.NewArrayString("unittest.file", `The unit test files, must be used with -unittest=true.
+	unitTestFiles = flagutil.NewArrayString("unittestFile", `Perform unit testing with given rules and cases.
 Examples:
- -unittest.file="./unittest/testdata/test1.yaml,./unittest/testdata/test2.yaml.
+ -unittestFile="./unittest/testdata/test1.yaml,./unittest/testdata/test2.yaml".
 `)
 )
 
@@ -122,10 +121,7 @@ func main() {
 		logger.Fatalf("failed to parse %q: %s", *ruleTemplatesPath, err)
 	}
 
-	if *unitTest {
-		if len(*unitTestFiles) == 0 {
-			logger.Panicf("should set at lease one file in --unittest.file for test")
-		}
+	if len(*unitTestFiles) > 0 {
 		if unitRule(*unitTestFiles...) {
 			os.Exit(1)
 		}

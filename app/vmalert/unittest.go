@@ -282,7 +282,7 @@ func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]i
 	if err != nil {
 		return []error{fmt.Errorf("failed to init datasource: %v", err)}
 	}
-	rw, err := remotewrite.NewDebugClient(context.Background())
+	rw, err := remotewrite.NewDebugClient()
 	if err != nil {
 		return []error{fmt.Errorf("failed to init wr: %v", err)}
 	}
@@ -312,7 +312,6 @@ func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]i
 				}
 			}
 			// flush series after each group evaluation
-			rw.DebugFlush()
 			vmstorage.Storage.DebugFlush()
 		}
 

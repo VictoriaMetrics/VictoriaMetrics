@@ -738,8 +738,8 @@ You can use `vmalert` to test your rules.
 It will setup an isolated VM instance, simulate the periodic ingestion of samples for several time series, use those series to evaluate recording and alerting rules, and then test whether the firing alerts or metricsql expressions match what was configured as the expected results. 
 
 ```
-# Run vmalert in -unittest and specify one or more test files via -unittest.file cmd-line flag
-./vmalert -unittest=true -unittest.file=test1.yaml -unittest.file=test2.yaml
+# Run vmalert with one or multiple test files via -unittestFile cmd-line flag
+./vmalert -unittestFile=test1.yaml -unittestFile=test2.yaml
 ```
 
 ### Test file format
@@ -880,7 +880,7 @@ value: <number>
 
 This is an example input file for unit testing which passes the test. `test.yml` is the test file which follows the syntax above and `alerts.yml` contains the alerting rules.
 
-With `alerts.yml` in the same directory, run `./vmalert -unittest=true -unittest.file=./unittest/testdata/test.yaml`.
+With `rules.yaml` in the same directory, run `./vmalert -unittestFile=./unittest/testdata/test.yaml`.
 
 #### `test.yaml`
 

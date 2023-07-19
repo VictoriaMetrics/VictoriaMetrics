@@ -137,7 +137,11 @@ func (ls Labels) String() string {
 	return b.String()
 }
 
-// LabelCompare return positive negative if a is less than b
+// LabelCompare return negative if a is less than b, return 0 if they are the same
+// eg.
+// a=[]Label{{Name: "a", Value: "1"}},b=[]Label{{Name: "b", Value: "1"}}, return -1
+// a=[]Label{{Name: "a", Value: "2"}},b=[]Label{{Name: "a", Value: "1"}}, return 1
+// a=[]Label{{Name: "a", Value: "1"}},b=[]Label{{Name: "a", Value: "1"}}, return 0
 func LabelCompare(a, b Labels) int {
 	l := len(a)
 	if len(b) < l {
