@@ -39,11 +39,12 @@ import (
 // copied object. If the request is an HTTP 1.1 request, the response is chunk
 // encoded. If it were not, it would not contain the content-length, and you would
 // need to read the entire body. The copy request charge is based on the storage
-// class and Region that you specify for the destination object. For pricing
-// information, see Amazon S3 pricing (http://aws.amazon.com/s3/pricing/) . Amazon
-// S3 transfer acceleration does not support cross-Region copies. If you request a
-// cross-Region copy using a transfer acceleration endpoint, you get a 400 Bad
-// Request error. For more information, see Transfer Acceleration (https://docs.aws.amazon.com/AmazonS3/latest/dev/transfer-acceleration.html)
+// class and Region that you specify for the destination object. The request can
+// also result in a data retrieval charge for the source if the source storage
+// class bills for data retrieval. For pricing information, see Amazon S3 pricing (http://aws.amazon.com/s3/pricing/)
+// . Amazon S3 transfer acceleration does not support cross-Region copies. If you
+// request a cross-Region copy using a transfer acceleration endpoint, you get a
+// 400 Bad Request error. For more information, see Transfer Acceleration (https://docs.aws.amazon.com/AmazonS3/latest/dev/transfer-acceleration.html)
 // . Metadata When copying an object, you can preserve all metadata (the default)
 // or specify new metadata. However, the access control list (ACL) is not preserved
 // and is set to private for the user making the request. To override the default
@@ -478,7 +479,7 @@ func (c *Client) addOperationCopyObjectMiddlewares(stack *middleware.Stack, opti
 	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
 		return err
 	}
-	if err = addClientUserAgent(stack); err != nil {
+	if err = addClientUserAgent(stack, options); err != nil {
 		return err
 	}
 	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {

@@ -168,7 +168,7 @@ received from [streams](https://docs.victoriametrics.com/VictoriaLogs/keyConcept
 during the last 5 minutes:
 
 ```bash
-curl http://localhost:9428/select/logsql/query -d 'query=_stream:{app="nginx"} AND _time:[now-5m,now] AND error' | wc -l
+curl http://localhost:9428/select/logsql/query -d 'query=_stream:{app="nginx"} AND _time:5m AND error' | wc -l
 ```
 
 See [these docs](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html#stream-filter) about `_stream` filter,
@@ -194,7 +194,7 @@ The following example calculates stats on the number of log messages received du
 grouped by `log.level` [field](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model):
 
 ```bash
-curl http://localhost:9428/select/logsql/query -d 'query=_time:[now-5m,now] log.level:*' | jq -r '."log.level"' | sort | uniq -c 
+curl http://localhost:9428/select/logsql/query -d 'query=_time:5m log.level:*' | jq -r '."log.level"' | sort | uniq -c 
 ```
 
 The query selects all the log messages with non-empty `log.level` field via ["any value" filter](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html#any-value-filter),

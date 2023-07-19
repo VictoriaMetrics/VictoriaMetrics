@@ -138,3 +138,16 @@ export interface RelabelData {
   resultingLabels?: string;
   steps: RelabelStep[];
 }
+
+export interface ActiveQueriesType {
+  duration: string;
+  end: number;
+  start: number;
+  id: string;
+  query: string;
+  remote_addr: string;
+  step: number;
+  from?: string;
+  to?: string;
+  data?: string;
+}

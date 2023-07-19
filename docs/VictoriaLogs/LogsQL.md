@@ -66,7 +66,7 @@ For example, the following query returns logs with the `error` [word](#word),
 which were ingested into VictoriaLogs during the last 5 minutes:
 
 ```logsql
-error AND _time:[now-5m,now]
+error AND _time:5m
 ```
 
 This query consists of two [filters](#filters) joined with `AND` [operator](#logical-filter):
@@ -80,7 +80,7 @@ Typical LogsQL query constists of multiple [filters](#filters) joined with `AND`
 So LogsQL allows omitting `AND` words. For example, the following query is equivalent to the query above:
 
 ```logsql
-error _time:[now-5m,now]
+error _time:5m
 ```
 
 The query returns the following [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model) by default:
@@ -95,34 +95,34 @@ then just refer them in the query with `field_name:*` [filter](#any-value-filter
 For example, the following query returns `host.hostname` field additionally to `_msg`, `_stream` and `_time` fields:
 
 ```logsql
-error _time:[now-5m,now] host.hostname:*
+error _time:5m host.hostname:*
 ```
 
 Suppose the query above selects too many rows because some buggy app pushes invalid error logs to VictoriaLogs. Suppose the app adds `buggy_app` [word](#word) to every log line.
 Then the following query removes all the logs from the buggy app, allowing us paying attention to the real errors:
 
 ```logsql
-_time:[now-5m,now] error NOT buggy_app
+_time:5m error NOT buggy_app
 ```
 
 This query uses `NOT` [operator](#logical-filter) for removing log lines from the buggy app. The `NOT` operator is used frequently, so it can be substituted with `!` char.
 So the following query is equivalent to the previous one:
 
 ```logsql
-_time:[now-5m,now] error !buggy_app
+_time:5m error !buggy_app
 ```
 
 Suppose another buggy app starts pushing invalid error logs to VictoriaLogs - it adds `foobar` [word](#word) to every emitted log line.
 No problems - just add `!foobar` to the query in order to remove these buggy logs:
 
 ```logsql
-_time:[now-5m,now] error !buggy_app !foobar
+_time:5m error !buggy_app !foobar
 ```
 
 This query can be rewritten to more clear query with the `OR` [operator](#logical-filter) inside parentheses:
 
 ```logsql
-_time:[now-5m,now] error !(buggy_app OR foobar)
+_time:5m error !(buggy_app OR foobar)
 ```
 
 Note that the parentheses are required here, since otherwise the query won't return the expected results.
@@ -138,26 +138,26 @@ This word can be stored in other [field](https://docs.victoriametrics.com/Victor
 How to select error logs in this case? Just add the `log.level:` prefix in front of the `error` word:
 
 ```logsq
-_time:[now-5m,now] log.level:error !(buggy_app OR foobar)
+_time:5m log.level:error !(buggy_app OR foobar)
 ```
 
 The field name can be wrapped into quotes if it contains special chars or keywords, which may clash with LogsQL syntax.
 Any [word](#word) also can be wrapped into quotes. So the following query is equivalent to the previous one:
 
 ```logsql
-"_time":[now-5m,now] "log.level":"error" !("buggy_app" OR "foobar")
+"_time":"5m" "log.level":"error" !("buggy_app" OR "foobar")
 ```
 
 What if the application identifier - such as `buggy_app` and `foobar` - is stored in the `app` field? Correct - just add `app:` prefix in front of `buggy_app` and `foobar`:
 
 ```logsql
-_time:[now-5m,now] log.level:error !(app:buggy_app OR app:foobar)
+_time:5m log.level:error !(app:buggy_app OR app:foobar)
 ```
 
 The query can be simplified by moving the `app:` prefix outside the parentheses:
 
 ```logsql
-_time:[now-5m,now] log.level:error !app:(buggy_app OR foobar)
+_time:5m log.level:error !app:(buggy_app OR foobar)
 ```
 
 The `app` field uniquely identifies the application instance if a single instance runs per each unique `app`.
@@ -167,7 +167,7 @@ and query performance when querying the needed streams via [`_stream` filter](#s
 If the `app` field is associated with the log stream, then the query above can be rewritten to more performant one:
 
 ```logsql
-_time:[now-5m,now] log.level:error _stream:{app!~"buggy_app|foobar"}
+_time:5m log.level:error _stream:{app!~"buggy_app|foobar"}
 ```
 
 This query completely skips scanning for logs from `buggy_app` and `foobar` apps, thus significantly reducing disk read IO and CPU time
@@ -254,38 +254,42 @@ For example, the following query returns [log messages](https://docs.victoriamet
 ingested into VictoriaLogs during the last hour, which contain the `error` [word](#word):
 
 ```logsql
-_time:(now-1h, now) AND error
+_time:1h AND error
 ```
 
 The following formats are supported for `_time` filter:
 
-- Fixed time:
-  - `_time:YYYY-MM-DD` - matches all the log messages for the particular day. For example, `_time:2023-04-25` matches all the log messages for April 25, 2023 by UTC.
-  - `_time:YYYY-MM` - matches all the log messages for the particular month. For example, `_time:2023-02` matches all the log messages for February, 2023 by UTC.
-  - `_time:YYYY` - matches all the log messages for the particular year. For example, `_time:2023` matches all the log message for 2023 by UTC.
-  - `_time:YYYY-MM-DDTHH` - matches all the log messages for the particular hour. For example, `_time:2023-04-25T22` matches all the log messages from `22:00` to `23:00`
-    on April 25, 2023 by UTC.
-  - `_time:YYYY-MM-DDTHH:MM` - matches all the log messages for the particular minute. For example, `_time:2023-04-25T22:45` matches all the log messages from `22:45` to `22:46`
-    on April 25, 2023 by UTC.
-  - `_time:YYYY-MM-DDTHH:MM:SS` - matches all the log messages for the particular second. For example, `_time:2023-04-25T22:45:59` matches all the log messages
-    from `22:45:59` to `23:46:00` on April 25, 2023 by UTC.
-
-- Time range:
-  - `_time:[min_time, max_time]` - matches log messages on the time range `[min_time, max_time]`, including both `min_time` and `max_time`.
+- `_time:duration` matches logs with timestamps on the time range `(now-duration, now]`. Examples:
+  - `_time:5m` - returns logs for the last 5 minutes
+  - `_time:2.5d15m42.345s` - returns logs for the last 2.5 days, 15 minutes and 42.345 seconds
+  - `_time:1y` - returns logs for the last year
+- `_time:YYYY-MM-DD` - matches all the logs for the particular day by UTC. For example, `_time:2023-04-25` matches logs on April 25, 2023 by UTC.
+- `_time:YYYY-MM` - matches all the logs for the particular month by UTC. For example, `_time:2023-02` matches logs on February, 2023 by UTC.
+- `_time:YYYY` - matches all the logs for the particular year by UTC. For example, `_time:2023` matches logs on 2023 by UTC.
+- `_time:YYYY-MM-DDTHH` - matches all the logs for the particular hour by UTC. For example, `_time:2023-04-25T22` matches logs on April 25, 2023 at 22 hour by UTC.
+- `_time:YYYY-MM-DDTHH:MM` - matches all the logs for the particular minute by UTC. For example, `_time:2023-04-25T22:45` matches logs on April 25, 2023 at 22:45 by UTC.
+- `_time:YYYY-MM-DDTHH:MM:SS` - matches all the logs for the particular second by UTC. For example, `_time:2023-04-25T22:45:59` matches logs on April 25, 2023 at 22:45:59 by UTC.
+- `_time:[min_time, max_time]` - matches logs on the time range `[min_time, max_time]`, including both `min_time` and `max_time`.
     The `min_time` and `max_time` can contain any format specified [here](https://docs.victoriametrics.com/#timestamp-formats).
-    For example, `_time:[2023-04-01, 2023-04-30]` matches log messages for the whole April, 2023 by UTC, e.g. it is equivalent to `_time:2023-04`.
-  - `_time:[min_time, max_time)` - matches log messages on the time range `[min_time, max_time)`, not including `max_time`.
+    For example, `_time:[2023-04-01, 2023-04-30]` matches logs for the whole April, 2023 by UTC, e.g. it is equivalent to `_time:2023-04`.
+- `_time:[min_time, max_time)` - matches logs on the time range `[min_time, max_time)`, not including `max_time`.
     The `min_time` and `max_time` can contain any format specified [here](https://docs.victoriametrics.com/#timestamp-formats).
-    For example, `_time:[2023-02-01, 2023-03-01)` matches log messages for the whole February, 2023 by UTC, e.g. it is equivalent to `_time:2023-02`.
+    For example, `_time:[2023-02-01, 2023-03-01)` matches logs for the whole February, 2023 by UTC, e.g. it is equivalent to `_time:2023-02`.
 
 It is possible to specify time zone offset for all the absolute time formats by appending `+hh:mm` or `-hh:mm` suffix.
-For example, `_time:2023-04-25+05:30` matches all the log messages on April 25, 2023 by India time zone,
-while `_time:2023-02-07:00` matches all the log messages from February, 2023 by California time zone.
+For example, `_time:2023-04-25+05:30` matches all the logs on April 25, 2023 by India time zone,
+while `_time:2023-02-07:00` matches all the logs on February, 2023 by California time zone.
+
+It is possible to specify generic offset for the selected time range by appending `offset` after the `_time` filter. Examples:
+
+- `_time:5m offset 1h` matches logs on the time range `(now-1h5m, now-1h]`.
+- `_time:2023-07 offset 5h30m` matches logs on July, 2023 by UTC with offset 5h30m.
+- `_time:[2023-02-01, 2023-03-01) offset 1w` matches logs the week before the time range `[2023-02-01, 2023-03-01)` by UTC.
 
 Performance tips:
 
 - It is recommended specifying the smallest possible time range during the search, since it reduces the amounts of log entries, which need to be scanned during the query.
-  For example, `_time:[now-1h, now]` is usually faster than `_time:[now-5h, now]`.
+  For example, `_time:1h` is usually faster than `_time:5h`.
 
 - While LogsQL supports arbitrary number of `_time:...` filters at any level of [logical filters](#logical-filter),
   it is recommended specifying a single `_time` filter at the top level of the query.
@@ -589,11 +593,11 @@ See also:
 
 ### Exact prefix filter
 
-Sometimes it is needed to find log messages starting with some prefix. This can be done with the `exact_prefix(...)` filter.
+Sometimes it is needed to find log messages starting with some prefix. This can be done with the `exact("prefix"*)` filter.
 For example, the following query matches log messages, which start from `Processing request` prefix:
 
 ```logsql
-exact_prefix("Processing request")
+exact("Processing request"*)
 ```
 
 This filter matches the following [log messages](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field):
@@ -603,30 +607,30 @@ This filter matches the following [log messages](https://docs.victoriametrics.co
 
 It doesn't match the following log messages:
 
-- `processing request foobar`, since the log message starts with lowercase `p`. Use `exact_prefix("processing request") OR exact_prefix("Processing request")`
+- `processing request foobar`, since the log message starts with lowercase `p`. Use `exact("processing request"*) OR exact("Processing request"*)`
   query in this case. See [these docs](#logical-filter) for details.
 - `start: Processing request`, since the log message doesn't start with `Processing request`. Use `"Processing request"` query in this case.
   See [these docs](#phrase-filter) for details.
 
-By default the `exact_prefix()` filter is applied to the [`_msg` field](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field).
-Specify the [field name](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model) in front of the `exact_prefix()` filter and put a colon after it
+By default the `exact()` filter is applied to the [`_msg` field](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field).
+Specify the [field name](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model) in front of the `exact()` filter and put a colon after it
 if it must be searched in the given field. For example, the following query returns log entries with `log.level` field, which starts with `err` prefix:
 
 ```logsql
-log.level:exact_prefix("err")
+log.level:exact("err"*)
 ```
 
 Both the field name and the phrase can contain arbitrary [utf-8](https://en.wikipedia.org/wiki/UTF-8)-encoded chars. For example:
 
 ```logsql
-log.уровень:exact_prefix("ошиб")
+log.уровень:exact("ошиб"*)
 ```
 
 The field name can be put inside quotes if it contains special chars, which may clash with the query syntax.
 For example, the following query matches `log:level` values starting with `err` prefix:
 
 ```logsql
-"log:level":exact_prefix("err")
+"log:level":exact("err"*)
 ```
 
 See also:
@@ -661,7 +665,7 @@ For example, the following query selects all the logs for the last hour for user
 during the last day:
 
 ```logsql
-_time:[now-1h,now] AND user_id:in(_time:[now-1d,now] AND path:admin | fields user_id)
+_time:1h AND user_id:in(_time:1d AND path:admin | fields user_id)
 ```
 
 See the [Roadmap](https://docs.victoriametrics.com/VictoriaLogs/Roadmap.html) for details.
@@ -809,7 +813,7 @@ Performance tips:
   Note that the `re("error|warning")` matches `errors` as well as `warnings` [words](#word), while `error OR warning` matches
   only the specified [words](#word). See also [multi-exact filter](#multi-exact-filter).
 - Prefer moving the regexp filter to the end of the [logical filter](#logical-filter), so lightweighter filters are executed first.
-- Prefer using `exact_prefix("some prefix")` instead of `re("^some prefix")`, since the [exact_prefix()](#exact-prefix-filter) works much faster than the `re()` filter.
+- Prefer using `exact("some prefix"*)` instead of `re("^some prefix")`, since the [exact()](#exact-prefix-filter) works much faster than the `re()` filter.
 - See [other performance tips](#performance-tips).
 
 See also:
