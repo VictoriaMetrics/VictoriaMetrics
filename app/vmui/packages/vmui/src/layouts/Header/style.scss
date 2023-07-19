@@ -21,6 +21,11 @@
     padding: $padding-small;
   }
 
+  &_sidebar {
+    display: grid;
+    grid-template-columns: 40px auto 1fr;
+  }
+
   &_mobile {
     display: grid;
     grid-template-columns: 33px 1fr 33px;
@@ -46,13 +51,6 @@
     min-width: 65px;
     margin-bottom: 2px;
     overflow: hidden;
-
-    &:not(&_logs) {
-      @media (max-width: 1200px) {
-        min-width: 14px;
-        max-width: 14px;
-      }
-    }
 
     svg {
       max-width: 65px;

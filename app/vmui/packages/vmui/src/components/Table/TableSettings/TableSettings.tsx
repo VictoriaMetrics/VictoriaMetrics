@@ -1,15 +1,15 @@
 import React, { FC, useEffect, useRef, useMemo } from "preact/compat";
-import Button from "../../../../components/Main/Button/Button";
-import { RestartIcon, SettingsIcon } from "../../../../components/Main/Icons";
-import Popper from "../../../../components/Main/Popper/Popper";
+import Button from "../../Main/Button/Button";
+import { RestartIcon, SettingsIcon } from "../../Main/Icons";
+import Popper from "../../Main/Popper/Popper";
 import "./style.scss";
-import Checkbox from "../../../../components/Main/Checkbox/Checkbox";
-import Tooltip from "../../../../components/Main/Tooltip/Tooltip";
-import Switch from "../../../../components/Main/Switch/Switch";
-import { arrayEquals } from "../../../../utils/array";
+import Checkbox from "../../Main/Checkbox/Checkbox";
+import Tooltip from "../../Main/Tooltip/Tooltip";
+import Switch from "../../Main/Switch/Switch";
+import { arrayEquals } from "../../../utils/array";
 import classNames from "classnames";
-import useDeviceDetect from "../../../../hooks/useDeviceDetect";
-import useBoolean from "../../../../hooks/useBoolean";
+import useDeviceDetect from "../../../hooks/useDeviceDetect";
+import useBoolean from "../../../hooks/useBoolean";
 
 const title = "Table settings";
 

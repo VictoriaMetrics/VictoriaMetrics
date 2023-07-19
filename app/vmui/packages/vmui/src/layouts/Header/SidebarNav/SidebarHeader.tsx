@@ -1,13 +1,13 @@
 import React, { FC, useEffect, useRef } from "preact/compat";
 import { useLocation } from "react-router-dom";
-import ShortcutKeys from "../../../Main/ShortcutKeys/ShortcutKeys";
+import ShortcutKeys from "../../../components/Main/ShortcutKeys/ShortcutKeys";
 import classNames from "classnames";
 import HeaderNav from "../HeaderNav/HeaderNav";
-import useClickOutside from "../../../../hooks/useClickOutside";
-import MenuBurger from "../../../Main/MenuBurger/MenuBurger";
-import useDeviceDetect from "../../../../hooks/useDeviceDetect";
+import useClickOutside from "../../../hooks/useClickOutside";
+import MenuBurger from "../../../components/Main/MenuBurger/MenuBurger";
+import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import "./style.scss";
-import useBoolean from "../../../../hooks/useBoolean";
+import useBoolean from "../../../hooks/useBoolean";
 
 interface SidebarHeaderProps {
   background: string
@@ -18,6 +18,7 @@ const SidebarHeader: FC<SidebarHeaderProps> = ({
   background,
   color,
 }) => {
+  const { REACT_APP_LOGS } = process.env;
   const { pathname } = useLocation();
   const { isMobile } = useDeviceDetect();
 
@@ -60,7 +61,7 @@ const SidebarHeader: FC<SidebarHeaderProps> = ({
         />
       </div>
       <div className="vm-header-sidebar-menu-settings">
-        {!isMobile && <ShortcutKeys showTitle={true}/>}
+        {!isMobile && !REACT_APP_LOGS && <ShortcutKeys showTitle={true}/>}
       </div>
     </div>
   </div>;
