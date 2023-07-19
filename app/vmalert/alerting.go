@@ -21,17 +21,18 @@ import (
 
 // AlertingRule is basic alert entity
 type AlertingRule struct {
-	Type         config.Type
-	RuleID       uint64
-	Name         string
-	Expr         string
-	For          time.Duration
-	Labels       map[string]string
-	Annotations  map[string]string
-	GroupID      uint64
-	GroupName    string
-	EvalInterval time.Duration
-	Debug        bool
+	Type          config.Type
+	RuleID        uint64
+	Name          string
+	Expr          string
+	For           time.Duration
+	KeepFiringFor time.Duration
+	Labels        map[string]string
+	Annotations   map[string]string
+	GroupID       uint64
+	GroupName     string
+	EvalInterval  time.Duration
+	Debug         bool
 
 	q datasource.Querier
 
@@ -56,17 +57,18 @@ type alertingRuleMetrics struct {
 
 func newAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule) *AlertingRule {
 	ar := &AlertingRule{
-		Type:         group.Type,
-		RuleID:       cfg.ID,
-		Name:         cfg.Alert,
-		Expr:         cfg.Expr,
-		For:          cfg.For.Duration(),
-		Labels:       cfg.Labels,
-		Annotations:  cfg.Annotations,
-		GroupID:      group.ID(),
-		GroupName:    group.Name,
-		EvalInterval: group.Interval,
-		Debug:        cfg.Debug,
+		Type:          group.Type,
+		RuleID:        cfg.ID,
+		Name:          cfg.Alert,
+		Expr:          cfg.Expr,
+		For:           cfg.For.Duration(),
+		KeepFiringFor: cfg.KeepFiringFor.Duration(),
+		Labels:        cfg.Labels,
+		Annotations:   cfg.Annotations,
+		GroupID:       group.ID(),
+		GroupName:     group.Name,
+		EvalInterval:  group.Interval,
+		Debug:         cfg.Debug,
 		q: qb.BuildWithParams(datasource.QuerierParams{
 			DataSourceType:     group.Type.String(),
 			EvaluationInterval: group.Interval,
@@ -391,12 +393,22 @@ func (ar *AlertingRule) Exec(ctx context.Context, ts time.Time, limit int) ([]pr
 				ar.logDebugf(ts, a, "PENDING => DELETED: is absent in current evaluation round")
 				continue
 			}
+			// check if alert should keep StateFiring if rule has `keep_firing_for` field
 			if a.State == notifier.StateFiring {
-				a.State = notifier.StateInactive
-				a.ResolvedAt = ts
-				ar.logDebugf(ts, a, "FIRING => INACTIVE: is absent in current evaluation round")
+				if ar.KeepFiringFor != 0 && a.KeepFiringSince.IsZero() {
+					a.KeepFiringSince = ts
+				}
+				if ar.KeepFiringFor == 0 || ts.Sub(a.KeepFiringSince) > ar.KeepFiringFor {
+					a.State = notifier.StateInactive
+					a.ResolvedAt = ts
+					ar.logDebugf(ts, a, "FIRING => INACTIVE: is absent in current evaluation round")
+					continue
+				}
+
 			}
-			continue
+		} else {
+			// reset KeepFiringSince
+			a.KeepFiringSince = time.Time{}
 		}
 		numActivePending++
 		if a.State == notifier.StatePending && ts.Sub(a.ActiveAt) >= ar.For {

@@ -105,14 +105,16 @@ func (g *Group) Validate(validateTplFn ValidateTplFn, validateExpressions bool) 
 // Rule describes entity that represent either
 // recording rule or alerting rule.
 type Rule struct {
-	ID          uint64
-	Record      string              `yaml:"record,omitempty"`
-	Alert       string              `yaml:"alert,omitempty"`
-	Expr        string              `yaml:"expr"`
-	For         *promutils.Duration `yaml:"for,omitempty"`
-	Labels      map[string]string   `yaml:"labels,omitempty"`
-	Annotations map[string]string   `yaml:"annotations,omitempty"`
-	Debug       bool                `yaml:"debug,omitempty"`
+	ID     uint64
+	Record string              `yaml:"record,omitempty"`
+	Alert  string              `yaml:"alert,omitempty"`
+	Expr   string              `yaml:"expr"`
+	For    *promutils.Duration `yaml:"for,omitempty"`
+	// How long will an alert continue firing since got last firing data
+	KeepFiringFor *promutils.Duration `yaml:"keep_firing_for,omitempty"`
+	Labels        map[string]string   `yaml:"labels,omitempty"`
+	Annotations   map[string]string   `yaml:"annotations,omitempty"`
+	Debug         bool                `yaml:"debug,omitempty"`
 	// UpdateEntriesLimit defines max number of rule's state updates stored in memory.
 	// Overrides `-rule.updateEntriesLimit`.
 	UpdateEntriesLimit *int `yaml:"update_entries_limit,omitempty"`
