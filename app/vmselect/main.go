@@ -266,6 +266,12 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		return true
 	}
+	if path == "/api/v1/status/active_queries" {
+		globalStatusActiveQueriesRequests.Inc()
+		httpserver.EnableCORS(w, r)
+		promql.WriteActiveQueries(w, r)
+		return true
+	}
 	if path == "/admin/tenants" {
 		tenantsRequests.Inc()
 		httpserver.EnableCORS(w, r)
@@ -500,7 +506,8 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		return true
 	case "prometheus/api/v1/status/active_queries":
 		statusActiveQueriesRequests.Inc()
-		promql.WriteActiveQueries(w)
+		httpserver.EnableCORS(w, r)
+		promql.WriteActiveQueriesForTenant(at, w, r)
 		return true
 	case "prometheus/api/v1/status/top_queries":
 		topQueriesRequests.Inc()
@@ -767,7 +774,8 @@ var (
 	statusTSDBRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/status/tsdb"}`)
 	statusTSDBErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/select/{}/prometheus/api/v1/status/tsdb"}`)
 
-	statusActiveQueriesRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}prometheus/api/v1/status/active_queries"}`)
+	globalStatusActiveQueriesRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/status/active_queries"}`)
+	statusActiveQueriesRequests       = metrics.NewCounter(`vm_http_requests_total{path="/select/{}prometheus/api/v1/status/active_queries"}`)
 
 	topQueriesRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/status/top_queries"}`)
 	topQueriesErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/select/{}/prometheus/api/v1/status/top_queries"}`)

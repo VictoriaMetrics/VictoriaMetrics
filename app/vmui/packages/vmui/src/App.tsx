@@ -14,6 +14,7 @@ import PreviewIcons from "./components/Main/Icons/PreviewIcons";
 import WithTemplate from "./pages/WithTemplate";
 import Relabel from "./pages/Relabel";
 import ExploreLogs from "./pages/ExploreLogs/ExploreLogs";
+import ActiveQueries from "./pages/ActiveQueries";
 
 const App: FC = () => {
   const { REACT_APP_LOGS } = process.env;
@@ -64,6 +65,10 @@ const App: FC = () => {
                     <Route
                       path={router.relabel}
                       element={<Relabel/>}
+                    />
+                    <Route
+                      path={router.activeQueries}
+                      element={<ActiveQueries/>}
                     />
                     <Route
                       path={router.icons}
