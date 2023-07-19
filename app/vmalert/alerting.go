@@ -404,7 +404,7 @@ func (ar *AlertingRule) Exec(ctx context.Context, ts time.Time, limit int) ([]pr
 					ar.logDebugf(ts, a, "FIRING => INACTIVE: is absent in current evaluation round")
 					continue
 				}
-
+				ar.logDebugf(ts, a, "KEEP_FIRING: will keep firing for %fs since %v", ar.KeepFiringFor.Seconds(), a.KeepFiringSince)
 			}
 		} else {
 			// reset KeepFiringSince
