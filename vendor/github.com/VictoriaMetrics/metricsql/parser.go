@@ -784,6 +784,18 @@ func expandWithExpr(was []*withArgExpr, e Expr) (Expr, error) {
 		}
 		re := *t
 		re.Expr = eNew
+		re.Window, err = expandDuration(was, re.Window)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse window for %s: %w", re.Expr.AppendString(nil), err)
+		}
+		re.Step, err = expandDuration(was, re.Step)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse step in %s: %w", re.Expr.AppendString(nil), err)
+		}
+		re.Offset, err = expandDuration(was, re.Offset)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse offset in %s: %w", re.Expr.AppendString(nil), err)
+		}
 		if t.At != nil {
 			atNew, err := expandWithExpr(was, t.At)
 			if err != nil {
@@ -828,7 +840,7 @@ func expandWithExpr(was []*withArgExpr, e Expr) (Expr, error) {
 								lfe.Label, t.AppendString(nil), eNew.AppendString(nil))
 						}
 						if len(wme.labelFilterss) > 0 {
-							panic(fmt.Errorf("BUG: wme.labelFilterss must be empty after WITH template expansion; got %s", wme.labelFilterss))
+							panic(fmt.Errorf("BUG: wme.labelFilterss must be empty after WITH template expansion; got %s", wme.AppendString(nil)))
 						}
 						lfssSrc := wme.LabelFilterss
 						if len(lfssSrc) > 1 {
@@ -888,7 +900,7 @@ func expandWithExpr(was []*withArgExpr, e Expr) (Expr, error) {
 			return nil, fmt.Errorf("cannot expand %q to non-metric expression %q", t.AppendString(nil), eNew.AppendString(nil))
 		}
 		if len(wme.labelFilterss) > 0 {
-			panic(fmt.Errorf("BUG: wme.labelFilterss must be empty after WITH templates expansion; got %s", wme.labelFilterss))
+			panic(fmt.Errorf("BUG: wme.labelFilterss must be empty after WITH templates expansion; got %s", wme.AppendString(nil)))
 		}
 		lfssSrc := wme.LabelFilterss
 		var lfssNew [][]LabelFilter
@@ -943,6 +955,38 @@ func expandWithArgs(was []*withArgExpr, args []Expr) ([]Expr, error) {
 		dstArgs[i] = dstArg
 	}
 	return dstArgs, nil
+}
+
+func expandDuration(was []*withArgExpr, d *DurationExpr) (*DurationExpr, error) {
+	if d == nil {
+		return nil, nil
+	}
+	if !d.needsParsing {
+		return d, nil
+	}
+	wa := getWithArgExpr(was, d.s)
+	if wa == nil {
+		return nil, fmt.Errorf("cannot find WITH template for %q", d.s)
+	}
+	e, err := expandWithExprExt(was, wa, []Expr{})
+	if err != nil {
+		return nil, err
+	}
+	switch t := e.(type) {
+	case *DurationExpr:
+		if t.needsParsing {
+			panic(fmt.Errorf("BUG: DurationExpr %q must be already parsed", t.s))
+		}
+		return t, nil
+	case *NumberExpr:
+		// Convert number of seconds to DurationExpr
+		de := &DurationExpr{
+			s: t.s,
+		}
+		return de, nil
+	default:
+		return nil, fmt.Errorf("unexpected value for WITH template %q; got %s; want duration", d.s, e.AppendString(nil))
+	}
 }
 
 func expandModifierArgs(was []*withArgExpr, args []string) ([]string, error) {
@@ -1335,8 +1379,24 @@ type labelFilterExpr struct {
 	IsNegative bool
 }
 
-func (lfe *labelFilterExpr) String() string {
-	return fmt.Sprintf("[label=%q, value=%+v, isRegexp=%v, isNegative=%v]", lfe.Label, lfe.Value, lfe.IsRegexp, lfe.IsNegative)
+func (lfe *labelFilterExpr) AppendString(dst []byte) []byte {
+	dst = appendEscapedIdent(dst, lfe.Label)
+	if lfe.Value == nil {
+		return dst
+	}
+	dst = appendLabelFilterOp(dst, lfe.IsNegative, lfe.IsRegexp)
+	tokens := lfe.Value.tokens
+	if len(tokens) == 0 {
+		dst = strconv.AppendQuote(dst, lfe.Value.S)
+		return dst
+	}
+	for i, token := range tokens {
+		dst = append(dst, token...)
+		if i+1 < len(tokens) {
+			dst = append(dst, '+')
+		}
+	}
+	return dst
 }
 
 func (lfe *labelFilterExpr) toLabelFilter() (*LabelFilter, error) {
@@ -1452,13 +1512,28 @@ func (p *parser) parseDuration() (*DurationExpr, error) {
 
 func (p *parser) parsePositiveDuration() (*DurationExpr, error) {
 	s := p.lex.Token
+	if isIdentPrefix(s) {
+		n := strings.IndexByte(s, ':')
+		if n >= 0 {
+			p.lex.PushBack(s[:n], s[n:])
+			s = s[:n]
+		}
+		if err := p.lex.Next(); err != nil {
+			return nil, err
+		}
+		de := &DurationExpr{
+			s:            s,
+			needsParsing: true,
+		}
+		return de, nil
+	}
 	if isPositiveDuration(s) {
 		if err := p.lex.Next(); err != nil {
 			return nil, err
 		}
 	} else {
 		if !isPositiveNumberPrefix(s) {
-			return nil, fmt.Errorf(`duration: unexpected token %q; want "duration"`, s)
+			return nil, fmt.Errorf(`duration: unexpected token %q; want valid duration`, s)
 		}
 		// Verify the duration in seconds without explicit suffix.
 		if _, err := p.parsePositiveNumberExpr(); err != nil {
@@ -1478,12 +1553,18 @@ func (p *parser) parsePositiveDuration() (*DurationExpr, error) {
 // DurationExpr contains the duration
 type DurationExpr struct {
 	s string
+
+	// needsParsing is set to true if s isn't parsed yet with expandWithExpr()
+	needsParsing bool
 }
 
 // AppendString appends string representation of de to dst and returns the result.
 func (de *DurationExpr) AppendString(dst []byte) []byte {
 	if de == nil {
 		return dst
+	}
+	if de.needsParsing {
+		panic(fmt.Errorf("BUG: duration %q must be already parsed with expandWithExpr()", de.s))
 	}
 	return append(dst, de.s...)
 }
@@ -1492,6 +1573,9 @@ func (de *DurationExpr) AppendString(dst []byte) []byte {
 func (de *DurationExpr) Duration(step int64) int64 {
 	if de == nil {
 		return 0
+	}
+	if de.needsParsing {
+		panic(fmt.Errorf("BUG: duration %q must be already parsed", de.s))
 	}
 	d, err := DurationValue(de.s, step)
 	if err != nil {
@@ -1617,6 +1701,9 @@ type StringExpr struct {
 
 // AppendString appends string representation of se to dst and returns the result.
 func (se *StringExpr) AppendString(dst []byte) []byte {
+	if len(se.tokens) > 0 {
+		panic(fmt.Errorf("BUG: StringExpr=%q must be already parsed with expandWithExpr()", se.tokens))
+	}
 	return strconv.AppendQuote(dst, se.S)
 }
 
@@ -2037,23 +2124,22 @@ type LabelFilter struct {
 // AppendString appends string representation of me to dst and returns the result.
 func (lf *LabelFilter) AppendString(dst []byte) []byte {
 	dst = appendEscapedIdent(dst, lf.Label)
-	var op string
-	if lf.IsNegative {
-		if lf.IsRegexp {
-			op = "!~"
-		} else {
-			op = "!="
-		}
-	} else {
-		if lf.IsRegexp {
-			op = "=~"
-		} else {
-			op = "="
-		}
-	}
-	dst = append(dst, op...)
+	dst = appendLabelFilterOp(dst, lf.IsNegative, lf.IsRegexp)
 	dst = strconv.AppendQuote(dst, lf.Value)
 	return dst
+}
+
+func appendLabelFilterOp(dst []byte, isNegative, isRegexp bool) []byte {
+	if isNegative {
+		if isRegexp {
+			return append(dst, "!~"...)
+		}
+		return append(dst, "!="...)
+	}
+	if isRegexp {
+		return append(dst, "=~"...)
+	}
+	return append(dst, '=')
 }
 
 // MetricExpr represents MetricsQL metric with optional filters, i.e. `foo{...}`.
@@ -2082,8 +2168,28 @@ type MetricExpr struct {
 	labelFilterss [][]*labelFilterExpr
 }
 
+func appendLabelFilterss(dst []byte, lfss [][]*labelFilterExpr) []byte {
+	dst = append(dst, '{')
+	for i, lfs := range lfss {
+		for j, lf := range lfs {
+			dst = lf.AppendString(dst)
+			if j+1 < len(lfs) {
+				dst = append(dst, ',')
+			}
+		}
+		if i+1 < len(lfss) {
+			dst = append(dst, " or "...)
+		}
+	}
+	dst = append(dst, '}')
+	return dst
+}
+
 // AppendString appends string representation of me to dst and returns the result.
 func (me *MetricExpr) AppendString(dst []byte) []byte {
+	if len(me.labelFilterss) > 0 {
+		return appendLabelFilterss(dst, me.labelFilterss)
+	}
 	lfss := me.LabelFilterss
 	if len(lfss) == 0 {
 		dst = append(dst, "{}"...)

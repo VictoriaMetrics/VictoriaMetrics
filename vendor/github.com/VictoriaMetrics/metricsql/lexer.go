@@ -37,6 +37,11 @@ func (lex *lexer) Init(s string) {
 	lex.sTail = s
 }
 
+func (lex *lexer) PushBack(currToken, sHead string) {
+	lex.Token = currToken
+	lex.sTail = sHead + lex.sTail
+}
+
 func (lex *lexer) Next() error {
 	if lex.err != nil {
 		return lex.err
