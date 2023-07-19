@@ -1696,22 +1696,7 @@ func (be *BinaryOpExpr) appendStringNoKeepMetricNames(dst []byte) []byte {
 		dst = be.Left.AppendString(dst)
 	}
 	dst = append(dst, ' ')
-	dst = append(dst, be.Op...)
-	if be.Bool {
-		dst = append(dst, "bool"...)
-	}
-	if be.GroupModifier.Op != "" {
-		dst = append(dst, ' ')
-		dst = be.GroupModifier.AppendString(dst)
-	}
-	if be.JoinModifier.Op != "" {
-		dst = append(dst, ' ')
-		dst = be.JoinModifier.AppendString(dst)
-		if prefix := be.JoinModifierPrefix; prefix != nil {
-			dst = append(dst, " prefix "...)
-			dst = prefix.AppendString(dst)
-		}
-	}
+	dst = be.appendModifiers(dst)
 	dst = append(dst, ' ')
 	if be.needRightParens() {
 		dst = appendArgInParens(dst, be.Right)
@@ -1737,10 +1722,30 @@ func (be *BinaryOpExpr) needRightParens() bool {
 		if isReservedBinaryOpIdent(t.Name) {
 			return true
 		}
-		return be.KeepMetricNames
+		return t.KeepMetricNames || be.KeepMetricNames
 	default:
 		return false
 	}
+}
+
+func (be *BinaryOpExpr) appendModifiers(dst []byte) []byte {
+	dst = append(dst, be.Op...)
+	if be.Bool {
+		dst = append(dst, "bool"...)
+	}
+	if be.GroupModifier.Op != "" {
+		dst = append(dst, ' ')
+		dst = be.GroupModifier.AppendString(dst)
+	}
+	if be.JoinModifier.Op != "" {
+		dst = append(dst, ' ')
+		dst = be.JoinModifier.AppendString(dst)
+		if prefix := be.JoinModifierPrefix; prefix != nil {
+			dst = append(dst, " prefix "...)
+			dst = prefix.AppendString(dst)
+		}
+	}
+	return dst
 }
 
 func needBinaryOpArgParens(arg Expr) bool {
@@ -1827,6 +1832,10 @@ type FuncExpr struct {
 func (fe *FuncExpr) AppendString(dst []byte) []byte {
 	dst = appendEscapedIdent(dst, fe.Name)
 	dst = appendStringArgListExpr(dst, fe.Args)
+	return fe.appendModifiers(dst)
+}
+
+func (fe *FuncExpr) appendModifiers(dst []byte) []byte {
 	if fe.KeepMetricNames {
 		dst = append(dst, " keep_metric_names"...)
 	}
@@ -1855,6 +1864,10 @@ type AggrFuncExpr struct {
 func (ae *AggrFuncExpr) AppendString(dst []byte) []byte {
 	dst = appendEscapedIdent(dst, ae.Name)
 	dst = appendStringArgListExpr(dst, ae.Args)
+	return ae.appendModifiers(dst)
+}
+
+func (ae *AggrFuncExpr) appendModifiers(dst []byte) []byte {
 	if ae.Modifier.Op != "" {
 		dst = append(dst, ' ')
 		dst = ae.Modifier.AppendString(dst)
@@ -1954,18 +1967,7 @@ func (re *RollupExpr) ForSubquery() bool {
 
 // AppendString appends string representation of re to dst and returns the result.
 func (re *RollupExpr) AppendString(dst []byte) []byte {
-	needParens := func() bool {
-		if _, ok := re.Expr.(*RollupExpr); ok {
-			return true
-		}
-		if _, ok := re.Expr.(*BinaryOpExpr); ok {
-			return true
-		}
-		if ae, ok := re.Expr.(*AggrFuncExpr); ok && ae.Modifier.Op != "" {
-			return true
-		}
-		return false
-	}()
+	needParens := re.needParens()
 	if needParens {
 		dst = append(dst, '(')
 	}
@@ -1973,6 +1975,10 @@ func (re *RollupExpr) AppendString(dst []byte) []byte {
 	if needParens {
 		dst = append(dst, ')')
 	}
+	return re.appendModifiers(dst)
+}
+
+func (re *RollupExpr) appendModifiers(dst []byte) []byte {
 	if re.Window != nil || re.InheritStep || re.Step != nil {
 		dst = append(dst, '[')
 		dst = re.Window.AppendString(dst)
@@ -2000,6 +2006,17 @@ func (re *RollupExpr) AppendString(dst []byte) []byte {
 		}
 	}
 	return dst
+}
+
+func (re *RollupExpr) needParens() bool {
+	switch t := re.Expr.(type) {
+	case *RollupExpr, *BinaryOpExpr:
+		return true
+	case *AggrFuncExpr:
+		return t.Modifier.Op != ""
+	default:
+		return false
+	}
 }
 
 // LabelFilter represents MetricsQL label filter like `foo="bar"`.
