@@ -552,23 +552,6 @@ func (a *aggregator) pushSample(inputKey, outputKey string, value float64) {
 	}
 }
 
-func extractUnneededLabels(dst, labels []prompbmarshal.Label, by, without []string) []prompbmarshal.Label {
-	if len(without) > 0 {
-		for _, label := range labels {
-			if hasInArray(label.Name, without) {
-				dst = append(dst, label)
-			}
-		}
-	} else {
-		for _, label := range labels {
-			if !hasInArray(label.Name, by) {
-				dst = append(dst, label)
-			}
-		}
-	}
-	return dst
-}
-
 func removeUnneededLabels(dst, labels []prompbmarshal.Label, by, without []string) []prompbmarshal.Label {
 	if len(without) > 0 {
 		for _, label := range labels {
