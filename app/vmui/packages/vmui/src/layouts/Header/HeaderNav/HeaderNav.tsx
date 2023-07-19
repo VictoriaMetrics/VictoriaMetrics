@@ -1,14 +1,14 @@
 import React, { FC, useMemo, useState } from "preact/compat";
-import router, { routerOptions } from "../../../../router";
-import { getAppModeEnable } from "../../../../utils/app-mode";
+import router, { routerOptions } from "../../../router";
+import { getAppModeEnable } from "../../../utils/app-mode";
 import { useLocation } from "react-router-dom";
-import { useDashboardsState } from "../../../../state/dashboards/DashboardsStateContext";
+import { useDashboardsState } from "../../../state/dashboards/DashboardsStateContext";
 import { useEffect } from "react";
 import "./style.scss";
 import NavItem from "./NavItem";
 import NavSubItem from "./NavSubItem";
 import classNames from "classnames";
-import { defaultNavigation, logsNavigation } from "../../../../constants/navigation";
+import { defaultNavigation, logsNavigation } from "../../../constants/navigation";
 
 interface HeaderNavProps {
   color: string
