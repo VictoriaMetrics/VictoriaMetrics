@@ -743,6 +743,234 @@ See full description for these flags in `./vmalert -help`.
 * `query` template function is disabled for performance reasons (might be changed in future);
 * `limit` group's param has no effect during replay (might be changed in future);
 
+## Unit Testing for Rules
+
+You can use `vmalert` to test your rules. 
+It will setup an isolated VM instance, simulate the periodic ingestion of samples for several time series, use those series to evaluate recording and alerting rules, and then test whether the firing alerts or metricsql expressions match what was configured as the expected results. 
+
+```
+# Run vmalert with one or multiple test files via -unittestFile cmd-line flag
+./vmalert -unittestFile=test1.yaml -unittestFile=test2.yaml
+```
+
+### Test file format
+
+```
+# Path to the files or http url with alerting and/or recording rules.
+# Enterprise version of vmalert supports S3 and GCS paths to rules.
+rule_files:
+  [ - <file_name> ]
+
+# How often vmalert checks what alerts are firing
+[ evaluation_interval: <duration> | default = 1m ]
+
+# Groups listed below will be evaluated by order.
+# Not All the groups need not be mentioned, if not, they will be evaluated by define order in rule_files.
+group_eval_order:
+  [ - <group_name> ]
+
+# All the tests are listed here.
+tests:
+  [ - <test_group> ]
+```
+
+#### `<test_group>`
+
+```
+# Series data
+# vmalert will write those `input_series` by `interval` to VM instance.
+
+# interval between input series data point
+interval: <duration>
+input_series:
+  [ - <series> ]
+
+# Name of the test group, optional
+[ name: <string> ]
+
+# Unit tests for alerting rules. Alerting rules are from the input file.
+alert_rule_test:
+  [ - <alert_test_case> ]
+
+# Unit tests for Metricsql expressions.
+metricsql_expr_test:
+  [ - <metricsql_expr_test> ]
+
+# External labels accessible to the alert template.
+external_labels:
+  [ <labelname>: <string> ... ]
+
+```
+
+#### `<series>`
+
+```
+# series should format as '<metric name>{<label name>=<label value>, ...}'
+# Examples:
+#      series_name{label1="value1", label2="value2"}
+#      go_goroutines{job="prometheus", instance="localhost:9090"}
+series: <string>
+
+# values support several special equations:
+#     'a+bxc' becomes 'a a+b a+(2*b) a+(3*b) … a+(c*b)'
+#     Read this as series starts at a, then c further samples incrementing by b.
+#     'a-bxc' becomes 'a a-b a-(2*b) a-(3*b) … a-(c*b)'
+#     Read this as series starts at a, then c further samples decrementing by b (or incrementing by negative b).
+#    '_' represents a missing sample from scrape
+# Examples:
+#     1. '-2+4x3' becomes '-2 2 6 10' - series starts at -2, then 3 further samples incrementing by 4.
+#     2. ' 1-2x4' becomes '1 -1 -3 -5 -7' - series starts at 1, then 4 further samples decrementing by 2.
+#     3. ' 1x4' becomes '1 1 1 1 1' - shorthand for '1+0x4', series starts at 1, then 4 further samples incrementing by 0.
+#     4. ' 1 _x3' becomes '1 _ _ _ ' - the missing sample cannot increment, so 3 missing samples are produced by the '_x3' expression.
+values: <string>
+```
+
+#### `<alert_test_case>`
+
+vmalert by default adds group name and alert name to generated alerts and timeseries. 
+So you will need to specify both `groupname` and `alertname` under a single `<alert_test_case>`, but no need to add them under `exp_alerts`.
+You can also pass `--disableAlertgroupLabel` to prevent adding groupname label, in that case, `groupname` can be missed.
+
+```
+# The time elapsed from time=0s when this alerting rule be checked.
+# Means this rule should be firing at this point, or shouldn't be firing if 'exp_alerts' is empty.
+eval_time: <duration>
+
+# Name of the group name to be tested.
+groupname: <string>
+
+# Name of the alert to be tested.
+alertname: <string>
+
+# List of expected alerts which are firing under the given alertname at
+# given evaluation time. If you want to test if an alerting rule should
+# not be firing, then you can mention the above fields and leave 'exp_alerts' empty.
+exp_alerts:
+  [ - <alert> ]
+```
+
+#### `<alert>`
+
+```
+# These are the expanded labels and annotations of the expected alert.
+# Note: labels also include the labels of the sample associated with the alert
+exp_labels:
+  [ <labelname>: <string> ]
+exp_annotations:
+  [ <labelname>: <string> ]
+```
+
+#### `<metricsql_expr_test>`
+
+```
+# Expression to evaluate
+expr: <string>
+
+# The time elapsed from time=0s when this expression be evaluated.
+eval_time: <duration>
+
+# Expected samples at the given evaluation time.
+exp_samples:
+  [ - <sample> ]
+```
+
+#### `<sample>`
+
+```
+# Labels of the sample in usual series notation '<metric name>{<label name>=<label value>, ...}'
+# Examples:
+#      series_name{label1="value1", label2="value2"}
+#      go_goroutines{job="prometheus", instance="localhost:9090"}
+labels: <string>
+
+# The expected value of the Metricsql expression.
+value: <number>
+```
+
+### Example
+
+This is an example input file for unit testing which passes the test. `test.yml` is the test file which follows the syntax above and `alerts.yml` contains the alerting rules.
+
+With `rules.yaml` in the same directory, run `./vmalert -unittestFile=./unittest/testdata/test.yaml`.
+
+#### `test.yaml`
+
+```
+rule_files:
+  - rules.yaml
+
+evaluation_interval: 1m
+
+tests:
+  - interval: 1m
+    input_series:
+      - series: 'up{job="prometheus", instance="localhost:9090"}'
+        values: "0+0x1440"
+
+    metricsql_expr_test:
+      - expr: suquery_interval_test
+        eval_time: 4m
+        exp_samples:
+          - labels: '{__name__="suquery_interval_test",datacenter="dc-123", instance="localhost:9090", job="prometheus"}'
+            value: 1
+
+    alert_rule_test:
+      - eval_time: 2h
+        groupname: group1
+        alertname: InstanceDown
+        exp_alerts:
+          - exp_labels:
+              job: prometheus
+              severity: page
+              instance: localhost:9090
+              datacenter: dc-123
+            exp_annotations:
+              summary: "Instance localhost:9090 down"
+              description: "localhost:9090 of job prometheus has been down for more than 5 minutes."
+
+      - eval_time: 0
+        groupname: group1
+        alertname: AlwaysFiring
+        exp_alerts:
+          - exp_labels:
+              datacenter: dc-123
+
+      - eval_time: 0
+        groupname: group1
+        alertname: InstanceDown
+        exp_alerts: []
+
+    external_labels:
+      datacenter: dc-123
+```
+
+#### `alerts.yml`
+
+```
+# This is the rules file.
+
+groups:
+  - name: group1
+    rules:
+      - alert: InstanceDown
+        expr: up == 0
+        for: 5m
+        labels:
+          severity: page
+        annotations:
+          summary: "Instance {{ $labels.instance }} down"
+          description: "{{ $labels.instance }} of job {{ $labels.job }} has been down for more than 5 minutes."
+      - alert: AlwaysFiring
+        expr: 1
+
+  - name: group2
+    rules:
+      - record: job:test:count_over_time1m
+        expr: sum without(instance) (count_over_time(test[1m]))
+      - record: suquery_interval_test
+        expr: count_over_time(up[5m:])
+```
+
 ## Monitoring
 
 `vmalert` exports various metrics in Prometheus exposition format at `http://vmalert-host:8880/metrics` page.
@@ -1293,6 +1521,11 @@ The shortlist of configuration flags is the following:
      Path to file with TLS key if -tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated
   -tlsMinVersion string
      Optional minimum TLS version to use for incoming requests over HTTPS if -tls is set. Supported values: TLS10, TLS11, TLS12, TLS13
+  -unittestFile array
+     Path to the unit test file configuration. When set, vmalert starts in unit test mode and performs only tests in configured files. 
+     Examples:
+      -unittestFile="./unittest/testdata/test1.yaml,./unittest/testdata/test2.yaml".
+     See more information here https://docs.victoriametrics.com/vmalert.html#unit-testing-for-rules.
   -version
      Show VictoriaMetrics version
 ```

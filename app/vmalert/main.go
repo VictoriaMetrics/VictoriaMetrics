@@ -92,9 +92,10 @@ absolute path to all .tpl files in root.
 	disableAlertGroupLabel = flag.Bool("disableAlertgroupLabel", false, "Whether to disable adding group's Name as label to generated alerts and time series.")
 
 	dryRun        = flag.Bool("dryRun", false, "Whether to check only config files without running vmalert. The rules file are validated. The -rule flag must be specified.")
-	unitTestFiles = flagutil.NewArrayString("unittestFile", `Perform unit testing with given rules and cases.
+	unitTestFiles = flagutil.NewArrayString("unittestFile", `Path to the unit test file configuration. When set, vmalert starts in unit test mode and performs only tests in configured files. 
 Examples:
  -unittestFile="./unittest/testdata/test1.yaml,./unittest/testdata/test2.yaml".
+See more information here https://docs.victoriametrics.com/vmalert.html#unit-testing-for-rules.
 `)
 )
 

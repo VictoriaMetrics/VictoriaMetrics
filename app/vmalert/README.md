@@ -1510,6 +1510,11 @@ The shortlist of configuration flags is the following:
      Path to file with TLS key if -tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated
   -tlsMinVersion string
      Optional minimum TLS version to use for incoming requests over HTTPS if -tls is set. Supported values: TLS10, TLS11, TLS12, TLS13
+  -unittestFile array
+     Path to the unit test file configuration. When set, vmalert starts in unit test mode and performs only tests in configured files. 
+     Examples:
+      -unittestFile="./unittest/testdata/test1.yaml,./unittest/testdata/test2.yaml".
+     See more information here https://docs.victoriametrics.com/vmalert.html#unit-testing-for-rules.
   -version
      Show VictoriaMetrics version
 ```
