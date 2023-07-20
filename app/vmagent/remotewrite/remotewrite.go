@@ -630,7 +630,7 @@ func (rwctx *remoteWriteCtx) Push(tss []prompbmarshal.TimeSeries) {
 	rowsCount := getRowsCount(tss)
 	rwctx.rowsPushedAfterRelabel.Add(rowsCount)
 
-	releaseTss := func() {
+	defer func() {
 		// Return back relabeling contexts to the pool
 		if rctx != nil {
 			*v = prompbmarshal.ResetTimeSeries(tss)
@@ -638,7 +638,6 @@ func (rwctx *remoteWriteCtx) Push(tss []prompbmarshal.TimeSeries) {
 			putRelabelCtx(rctx)
 		}
 	}
-	defer releaseTss()
 
 	// Load stream aggregagation config
 	sas := rwctx.sas.Load()
