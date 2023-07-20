@@ -1,0 +1,24 @@
+# File contains default list of alerts for VM enterprise components.
+# The alerts below are just recommendations and may require some updates
+# and threshold calibration according to every specific setup.
+groups:
+  - name: vm-license
+    # note the `job` filter and update accordingly to your setup
+    rules:
+      - alert: LicenseExpiresInLessThan30Days
+        expr: vm_license_expires_in_seconds < 30 * 24 * 3600
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.job }} instance {{ $labels.instance }} license expires in less than 30 days"
+          description: "{{ $labels.instance }} of job {{ $labels.job }} license expires in {{ $value | humanizeDuration }}. 
+            Please make sure to update the license before it expires."
+
+      - alert: LicenseExpiresInLessThan7Days
+        expr: vm_license_expires_in_seconds < 7 * 24 * 3600
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.job }} instance {{ $labels.instance }} license expires in less than 7 days"
+          description: "{{ $labels.instance }} of job {{ $labels.job }} license expires in {{ $value | humanizeDuration }}. 
+            Please make sure to update the license before it expires."
