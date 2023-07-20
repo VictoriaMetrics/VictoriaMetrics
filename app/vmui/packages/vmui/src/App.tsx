@@ -14,7 +14,7 @@ import PreviewIcons from "./components/Main/Icons/PreviewIcons";
 import WithTemplate from "./pages/WithTemplate";
 import Relabel from "./pages/Relabel";
 import ExploreLogs from "./pages/ExploreLogs/ExploreLogs";
-import from "./pages/ActiveQueries";
+import ActiveQueries from "./pages/ActiveQueries";
 
 const App: FC = () => {
   const [loadedTheme, setLoadedTheme] = useState(false);
