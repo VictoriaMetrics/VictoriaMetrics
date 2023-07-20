@@ -12,6 +12,7 @@
 /vmagent-remotewrite-data
 /vmstorage-data
 /vmselect-cache
+/victoria-logs-data
 /package/temp-deb-*
 /package/temp-rpm-*
 /package/*.deb
