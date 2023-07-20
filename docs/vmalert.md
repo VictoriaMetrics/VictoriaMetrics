@@ -756,12 +756,12 @@ It will setup an isolated VM instance, simulate the periodic ingestion of sample
 ### Test file format
 
 ```
-# Path to the files or http url with alerting and/or recording rules.
+# Path to the files or http url containing [rule groups](https://docs.victoriametrics.com/vmalert.html#groups) configuration.
 # Enterprise version of vmalert supports S3 and GCS paths to rules.
 rule_files:
   [ - <file_name> ]
 
-# How often vmalert checks what alerts are firing
+# The evaluation interval for rules specified in `rule_files`
 [ evaluation_interval: <duration> | default = 1m ]
 
 # Groups listed below will be evaluated by order.
@@ -769,7 +769,7 @@ rule_files:
 group_eval_order:
   [ - <group_name> ]
 
-# All the tests are listed here.
+# The list of unit test files to be checked during evaluation.
 tests:
   [ - <test_group> ]
 ```
@@ -777,11 +777,9 @@ tests:
 #### `<test_group>`
 
 ```
-# Series data
-# vmalert will write those `input_series` by `interval` to VM instance.
-
-# interval between input series data point
+# Interval between samples for input series
 interval: <duration>
+# Time series to persist into the database according to configured <interval> before running tests.
 input_series:
   [ - <series> ]
 
@@ -889,7 +887,7 @@ value: <number>
 
 ### Example
 
-This is an example input file for unit testing which passes the test. `test.yml` is the test file which follows the syntax above and `alerts.yml` contains the alerting rules.
+This is an example input file for unit testing which will passes. `test.yaml` is the test file which follows the syntax above and `alerts.yaml` contains the alerting rules.
 
 With `rules.yaml` in the same directory, run `./vmalert -unittestFile=./unittest/testdata/test.yaml`.
 
@@ -944,7 +942,7 @@ tests:
       datacenter: dc-123
 ```
 
-#### `alerts.yml`
+#### `alerts.yaml`
 
 ```
 # This is the rules file.
@@ -1522,7 +1520,7 @@ The shortlist of configuration flags is the following:
   -tlsMinVersion string
      Optional minimum TLS version to use for incoming requests over HTTPS if -tls is set. Supported values: TLS10, TLS11, TLS12, TLS13
   -unittestFile array
-     Path to the unit test file configuration. When set, vmalert starts in unit test mode and performs only tests in configured files. 
+     Path to the unit test files. When set, vmalert starts in unit test mode and performs only tests on configured files.
      Examples:
       -unittestFile="./unittest/testdata/test1.yaml,./unittest/testdata/test2.yaml".
      See more information here https://docs.victoriametrics.com/vmalert.html#unit-testing-for-rules.

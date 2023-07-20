@@ -756,8 +756,8 @@ which aren't always backward compatible with [PromQL](https://prometheus.io/docs
 
 The configuration format for files specified in `-unittestFile` cmd-line flag is the following:
 ```
-# Path to the files containing rule groups (https://docs.victoriametrics.com/vmalert.html#groups) configuration.
-# Path to the files supports the same features as `-rule` cmd-line flag.
+# Path to the files or http url containing [rule groups](https://docs.victoriametrics.com/vmalert.html#groups) configuration.
+# Enterprise version of vmalert supports S3 and GCS paths to rules.
 rule_files:
   [ - <string> ]
 
@@ -888,8 +888,8 @@ value: <number>
 
 ### Example
 
-This is an example input file for unit testing which passes the test. 
-`test.yml` is the test file which follows the syntax above and `alerts.yml` contains the alerting rules.
+This is an example input file for unit testing which will pass.
+`test.yaml` is the test file which follows the syntax above and `alerts.yaml` contains the alerting rules.
 
 With `rules.yaml` in the same directory, run `./vmalert -unittestFile=./unittest/testdata/test.yaml`.
 
@@ -944,7 +944,7 @@ tests:
       datacenter: dc-123
 ```
 
-#### `alerts.yml`
+#### `alerts.yaml`
 
 ```
 # This is the rules file.
@@ -1522,7 +1522,7 @@ The shortlist of configuration flags is the following:
   -tlsMinVersion string
      Optional minimum TLS version to use for incoming requests over HTTPS if -tls is set. Supported values: TLS10, TLS11, TLS12, TLS13
   -unittestFile array
-     Path to the unit test file configuration. When set, vmalert starts in unit test mode and performs only tests in configured files. 
+     Path to the unit test files. When set, vmalert starts in unit test mode and performs only tests on configured files.
      Examples:
       -unittestFile="./unittest/testdata/test1.yaml,./unittest/testdata/test2.yaml".
      See more information here https://docs.victoriametrics.com/vmalert.html#unit-testing-for-rules.
