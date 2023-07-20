@@ -8,13 +8,14 @@ import (
 
 	"github.com/golang/snappy"
 
+	"github.com/VictoriaMetrics/metrics"
+	"github.com/VictoriaMetrics/metricsql"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
-	"github.com/VictoriaMetrics/metrics"
-	"github.com/VictoriaMetrics/metricsql"
 )
 
 var (
@@ -108,10 +109,15 @@ func parseLogFields(s string, dst []logstorage.Field) ([]logstorage.Field, error
 		return nil, fmt.Errorf("failed to parse stream labels; got %q", expr.AppendString(nil))
 	}
 
+	// Expecting only label filters without MetricsQL "or" operator.
+	if len(me.LabelFilterss) != 1 {
+		return nil, fmt.Errorf("unexpected format of log fields; got %q", s)
+	}
+
 	// Allocate space for labels + msg field.
 	// Msg field is added by caller.
-	dst = slicesutil.ResizeNoCopyMayOverallocate(dst, len(me.LabelFilters)+1)
-	for i, l := range me.LabelFilters {
+	dst = slicesutil.ResizeNoCopyMayOverallocate(dst, len(me.LabelFilterss[0]))
+	for i, l := range me.LabelFilterss[0] {
 		dst[i].Name = l.Label
 		dst[i].Value = l.Value
 	}
