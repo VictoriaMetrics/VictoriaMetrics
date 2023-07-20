@@ -84,18 +84,17 @@ var (
 	PendingScrapeConfigs int32
 
 	// configData contains -promscrape.config data
-	configData atomic.Value
+	configData atomic.Pointer[[]byte]
 )
 
 // WriteConfigData writes -promscrape.config contents to w
 func WriteConfigData(w io.Writer) {
-	v := configData.Load()
-	if v == nil {
+	p := configData.Load()
+	if p == nil {
 		// Nothing to write to w
 		return
 	}
-	b := v.(*[]byte)
-	_, _ = w.Write(*b)
+	_, _ = w.Write(*p)
 }
 
 func runScraper(configFile string, pushData func(at *auth.Token, wr *prompbmarshal.WriteRequest), globalStopCh <-chan struct{}) {

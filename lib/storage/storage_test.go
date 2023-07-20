@@ -168,7 +168,7 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		hmOrig.m.Add(34)
 		s.currHourMetricIDs.Store(hmOrig)
 		s.updateCurrHourMetricIDs(hour)
-		hmCurr := s.currHourMetricIDs.Load().(*hourMetricIDs)
+		hmCurr := s.currHourMetricIDs.Load()
 		if hmCurr.hour != hour {
 			// It is possible new hour occurred. Update the hour and verify it again.
 			hour = uint64(timestampFromTime(time.Now())) / msecPerHour
@@ -180,7 +180,7 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 			t.Fatalf("unexpected length of hm.m; got %d; want %d", hmCurr.m.Len(), 0)
 		}
 
-		hmPrev := s.prevHourMetricIDs.Load().(*hourMetricIDs)
+		hmPrev := s.prevHourMetricIDs.Load()
 		if !reflect.DeepEqual(hmPrev, hmOrig) {
 			t.Fatalf("unexpected hmPrev; got %v; want %v", hmPrev, hmOrig)
 		}
@@ -200,7 +200,7 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		hmOrig.m.Add(34)
 		s.currHourMetricIDs.Store(hmOrig)
 		s.updateCurrHourMetricIDs(hour)
-		hmCurr := s.currHourMetricIDs.Load().(*hourMetricIDs)
+		hmCurr := s.currHourMetricIDs.Load()
 		if hmCurr.hour != hour {
 			// It is possible new hour occurred. Update the hour and verify it again.
 			hour = uint64(timestampFromTime(time.Now())) / msecPerHour
@@ -214,7 +214,7 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 			t.Fatalf("unexpected hmCurr; got %v; want %v", hmCurr, hmOrig)
 		}
 
-		hmPrev := s.prevHourMetricIDs.Load().(*hourMetricIDs)
+		hmPrev := s.prevHourMetricIDs.Load()
 		hmEmpty := &hourMetricIDs{}
 		if !reflect.DeepEqual(hmPrev, hmEmpty) {
 			t.Fatalf("unexpected hmPrev; got %v; want %v", hmPrev, hmEmpty)
@@ -260,7 +260,7 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		hmOrig.m.Add(34)
 		s.currHourMetricIDs.Store(hmOrig)
 		s.updateCurrHourMetricIDs(hour)
-		hmCurr := s.currHourMetricIDs.Load().(*hourMetricIDs)
+		hmCurr := s.currHourMetricIDs.Load()
 		if hmCurr.hour != hour {
 			// It is possible new hour occurred. Update the hour and verify it again.
 			hour = uint64(timestampFromTime(time.Now())) / msecPerHour
@@ -275,7 +275,7 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 			t.Fatalf("unexpected hmPrev.byTenant; got %v; want %v", hmCurr.byTenant, byTenantExpected)
 		}
 
-		hmPrev := s.prevHourMetricIDs.Load().(*hourMetricIDs)
+		hmPrev := s.prevHourMetricIDs.Load()
 		if !reflect.DeepEqual(hmPrev, hmOrig) {
 			t.Fatalf("unexpected hmPrev; got %v; want %v", hmPrev, hmOrig)
 		}
@@ -317,7 +317,7 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		hmOrig.m.Add(34)
 		s.currHourMetricIDs.Store(hmOrig)
 		s.updateCurrHourMetricIDs(hour)
-		hmCurr := s.currHourMetricIDs.Load().(*hourMetricIDs)
+		hmCurr := s.currHourMetricIDs.Load()
 		if hmCurr.hour != hour {
 			// It is possible new hour occurred. Update the hour and verify it again.
 			hour = uint64(timestampFromTime(time.Now())) / msecPerHour
@@ -341,7 +341,7 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 			t.Fatalf("unexpected hmPrev.byTenant; got %v; want %v", hmCurr.byTenant, byTenantExpected)
 		}
 
-		hmPrev := s.prevHourMetricIDs.Load().(*hourMetricIDs)
+		hmPrev := s.prevHourMetricIDs.Load()
 		hmEmpty := &hourMetricIDs{}
 		if !reflect.DeepEqual(hmPrev, hmEmpty) {
 			t.Fatalf("unexpected hmPrev; got %v; want %v", hmPrev, hmEmpty)
@@ -385,7 +385,7 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		hmOrig.m.Add(34)
 		s.currHourMetricIDs.Store(hmOrig)
 		s.updateCurrHourMetricIDs(hour)
-		hmCurr := s.currHourMetricIDs.Load().(*hourMetricIDs)
+		hmCurr := s.currHourMetricIDs.Load()
 		if hmCurr.hour != hour {
 			// It is possible new hour occurred. Update the hour and verify it again.
 			hour = uint64(timestampFromTime(time.Now())) / msecPerHour
@@ -409,7 +409,7 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 			t.Fatalf("unexpected hmPrev.byTenant; got %v; want %v", hmCurr.byTenant, byTenantExpected)
 		}
 
-		hmPrev := s.prevHourMetricIDs.Load().(*hourMetricIDs)
+		hmPrev := s.prevHourMetricIDs.Load()
 		hmEmpty := &hourMetricIDs{}
 		if !reflect.DeepEqual(hmPrev, hmEmpty) {
 			t.Fatalf("unexpected hmPrev; got %v; want %v", hmPrev, hmEmpty)
@@ -436,7 +436,7 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		}
 		s.currHourMetricIDs.Store(hmOrig)
 		s.updateCurrHourMetricIDs(hour)
-		hmCurr := s.currHourMetricIDs.Load().(*hourMetricIDs)
+		hmCurr := s.currHourMetricIDs.Load()
 		if hmCurr.hour != hour {
 			t.Fatalf("unexpected hmCurr.hour; got %d; want %d", hmCurr.hour, hour)
 		}
@@ -447,7 +447,7 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		if !reflect.DeepEqual(hmCurr.byTenant, byTenantExpected) {
 			t.Fatalf("unexpected hmPrev.byTenant; got %v; want %v", hmCurr.byTenant, byTenantExpected)
 		}
-		hmPrev := s.prevHourMetricIDs.Load().(*hourMetricIDs)
+		hmPrev := s.prevHourMetricIDs.Load()
 		if !reflect.DeepEqual(hmPrev, hmOrig) {
 			t.Fatalf("unexpected hmPrev; got %v; want %v", hmPrev, hmOrig)
 		}

@@ -27,7 +27,7 @@ type apiConfig struct {
 	apiPath string
 
 	// labels contains the latest discovered labels.
-	labels atomic.Value
+	labels atomic.Pointer[[]*promutils.Labels]
 
 	cancel context.CancelFunc
 	wg     sync.WaitGroup

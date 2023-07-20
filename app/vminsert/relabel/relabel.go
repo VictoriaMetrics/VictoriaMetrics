@@ -69,7 +69,7 @@ var (
 	configTimestamp    = metrics.NewCounter(`vm_relabel_config_last_reload_success_timestamp_seconds`)
 )
 
-var pcsGlobal atomic.Value
+var pcsGlobal atomic.Pointer[promrelabel.ParsedConfigs]
 
 // CheckRelabelConfig checks config pointed by -relabelConfig
 func CheckRelabelConfig() error {
@@ -90,7 +90,7 @@ func loadRelabelConfig() (*promrelabel.ParsedConfigs, error) {
 
 // HasRelabeling returns true if there is global relabeling.
 func HasRelabeling() bool {
-	pcs := pcsGlobal.Load().(*promrelabel.ParsedConfigs)
+	pcs := pcsGlobal.Load()
 	return pcs.Len() > 0 || *usePromCompatibleNaming
 }
 
@@ -110,7 +110,7 @@ func (ctx *Ctx) Reset() {
 //
 // The returned labels are valid until the next call to ApplyRelabeling.
 func (ctx *Ctx) ApplyRelabeling(labels []prompb.Label) []prompb.Label {
-	pcs := pcsGlobal.Load().(*promrelabel.ParsedConfigs)
+	pcs := pcsGlobal.Load()
 	if pcs.Len() == 0 && !*usePromCompatibleNaming {
 		// There are no relabeling rules.
 		return labels

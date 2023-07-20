@@ -2689,10 +2689,10 @@ type storageNodesBucket struct {
 	sns []*storageNode
 }
 
-var storageNodes atomic.Value
+var storageNodes atomic.Pointer[storageNodesBucket]
 
 func getStorageNodesBucket() *storageNodesBucket {
-	return storageNodes.Load().(*storageNodesBucket)
+	return storageNodes.Load()
 }
 
 func setStorageNodesBucket(snb *storageNodesBucket) {

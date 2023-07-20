@@ -476,10 +476,10 @@ type storageNodesBucket struct {
 }
 
 // storageNodes contains a list of vmstorage node clients.
-var storageNodes atomic.Value
+var storageNodes atomic.Pointer[storageNodesBucket]
 
 func getStorageNodesBucket() *storageNodesBucket {
-	return storageNodes.Load().(*storageNodesBucket)
+	return storageNodes.Load()
 }
 
 func setStorageNodesBucket(snb *storageNodesBucket) {

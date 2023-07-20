@@ -60,7 +60,7 @@ type Storage struct {
 	// lock file for exclusive access to the storage on the given path.
 	flockF *os.File
 
-	idbCurr atomic.Value
+	idbCurr atomic.Pointer[indexDB]
 
 	tb *table
 
@@ -81,16 +81,16 @@ type Storage struct {
 	dateMetricIDCache *dateMetricIDCache
 
 	// Fast cache for MetricID values occurred during the current hour.
-	currHourMetricIDs atomic.Value
+	currHourMetricIDs atomic.Pointer[hourMetricIDs]
 
 	// Fast cache for MetricID values occurred during the previous hour.
-	prevHourMetricIDs atomic.Value
+	prevHourMetricIDs atomic.Pointer[hourMetricIDs]
 
 	// Fast cache for pre-populating per-day inverted index for the next day.
 	// This is needed in order to remove CPU usage spikes at 00:00 UTC
 	// due to creation of per-day inverted index for active time series.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/430 for details.
-	nextDayMetricIDs atomic.Value
+	nextDayMetricIDs atomic.Pointer[byDateMetricIDEntry]
 
 	// Pending MetricID values to be added to currHourMetricIDs.
 	pendingHourEntriesLock sync.Mutex
@@ -101,7 +101,7 @@ type Storage struct {
 	pendingNextDayMetricIDs     *uint64set.Set
 
 	// prefetchedMetricIDs contains metricIDs for pre-fetched metricNames in the prefetchMetricNames function.
-	prefetchedMetricIDs atomic.Value
+	prefetchedMetricIDs atomic.Pointer[uint64set.Set]
 
 	// prefetchedMetricIDsDeadline is used for periodic reset of prefetchedMetricIDs in order to limit its size under high rate of creating new series.
 	prefetchedMetricIDsDeadline uint64
@@ -129,7 +129,7 @@ type Storage struct {
 	//
 	// It is safe to keep the set in memory even for big number of deleted
 	// metricIDs, since it usually requires 1 bit per deleted metricID.
-	deletedMetricIDs           atomic.Value
+	deletedMetricIDs           atomic.Pointer[uint64set.Set]
 	deletedMetricIDsUpdateLock sync.Mutex
 
 	isReadOnly uint32
@@ -283,7 +283,7 @@ func getTSIDCacheSize() int {
 }
 
 func (s *Storage) getDeletedMetricIDs() *uint64set.Set {
-	return s.deletedMetricIDs.Load().(*uint64set.Set)
+	return s.deletedMetricIDs.Load()
 }
 
 func (s *Storage) setDeletedMetricIDs(dmis *uint64set.Set) {
@@ -449,7 +449,7 @@ func (s *Storage) DeleteStaleSnapshots(maxAge time.Duration) error {
 }
 
 func (s *Storage) idb() *indexDB {
-	return s.idbCurr.Load().(*indexDB)
+	return s.idbCurr.Load()
 }
 
 // Metrics contains essential metrics for the Storage.
@@ -584,8 +584,8 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 	m.DateMetricIDCacheSyncsCount += atomic.LoadUint64(&s.dateMetricIDCache.syncsCount)
 	m.DateMetricIDCacheResetsCount += atomic.LoadUint64(&s.dateMetricIDCache.resetsCount)
 
-	hmCurr := s.currHourMetricIDs.Load().(*hourMetricIDs)
-	hmPrev := s.prevHourMetricIDs.Load().(*hourMetricIDs)
+	hmCurr := s.currHourMetricIDs.Load()
+	hmPrev := s.prevHourMetricIDs.Load()
 	hourMetricIDsLen := hmPrev.m.Len()
 	if hmCurr.m.Len() > hourMetricIDsLen {
 		hourMetricIDsLen = hmCurr.m.Len()
@@ -594,11 +594,11 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 	m.HourMetricIDCacheSizeBytes += hmCurr.m.SizeBytes()
 	m.HourMetricIDCacheSizeBytes += hmPrev.m.SizeBytes()
 
-	nextDayMetricIDs := &s.nextDayMetricIDs.Load().(*byDateMetricIDEntry).v
+	nextDayMetricIDs := &s.nextDayMetricIDs.Load().v
 	m.NextDayMetricIDCacheSize += uint64(nextDayMetricIDs.Len())
 	m.NextDayMetricIDCacheSizeBytes += nextDayMetricIDs.SizeBytes()
 
-	prefetchedMetricIDs := s.prefetchedMetricIDs.Load().(*uint64set.Set)
+	prefetchedMetricIDs := s.prefetchedMetricIDs.Load()
 	m.PrefetchedMetricIDsSize += uint64(prefetchedMetricIDs.Len())
 	m.PrefetchedMetricIDsSizeBytes += uint64(prefetchedMetricIDs.SizeBytes())
 
@@ -812,12 +812,12 @@ func (s *Storage) MustClose() {
 	s.mustSaveCache(s.metricNameCache, "metricID_metricName")
 	s.metricNameCache.Stop()
 
-	hmCurr := s.currHourMetricIDs.Load().(*hourMetricIDs)
+	hmCurr := s.currHourMetricIDs.Load()
 	s.mustSaveHourMetricIDs(hmCurr, "curr_hour_metric_ids")
-	hmPrev := s.prevHourMetricIDs.Load().(*hourMetricIDs)
+	hmPrev := s.prevHourMetricIDs.Load()
 	s.mustSaveHourMetricIDs(hmPrev, "prev_hour_metric_ids")
 
-	nextDayMetricIDs := s.nextDayMetricIDs.Load().(*byDateMetricIDEntry)
+	nextDayMetricIDs := s.nextDayMetricIDs.Load()
 	s.mustSaveNextDayMetricIDs(nextDayMetricIDs)
 
 	// Release lock file.
@@ -1160,7 +1160,7 @@ func (s *Storage) prefetchMetricNames(qt *querytracer.Tracer, accountID, project
 		return nil
 	}
 	var metricIDs uint64Sorter
-	prefetchedMetricIDs := s.prefetchedMetricIDs.Load().(*uint64set.Set)
+	prefetchedMetricIDs := s.prefetchedMetricIDs.Load()
 	for _, metricID := range srcMetricIDs {
 		if prefetchedMetricIDs.Has(metricID) {
 			continue
@@ -2014,10 +2014,10 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow) error {
 		prevDate     uint64
 		prevMetricID uint64
 	)
-	hm := s.currHourMetricIDs.Load().(*hourMetricIDs)
-	hmPrev := s.prevHourMetricIDs.Load().(*hourMetricIDs)
+	hm := s.currHourMetricIDs.Load()
+	hmPrev := s.prevHourMetricIDs.Load()
 	hmPrevDate := hmPrev.hour / 24
-	nextDayMetricIDs := &s.nextDayMetricIDs.Load().(*byDateMetricIDEntry).v
+	nextDayMetricIDs := &s.nextDayMetricIDs.Load().v
 	ts := fasttime.UnixTimestamp()
 	// Start pre-populating the next per-day inverted index during the last hour of the current day.
 	// pMin linearly increases from 0 to 1 during the last hour of the day.
@@ -2174,7 +2174,7 @@ type dateMetricIDCache struct {
 	resetsCount uint64
 
 	// Contains immutable map
-	byDate atomic.Value
+	byDate atomic.Pointer[byDateMetricIDMap]
 
 	// Contains mutable map protected by mu
 	byDateMutable    *byDateMetricIDMap
@@ -2204,7 +2204,7 @@ func (dmc *dateMetricIDCache) resetLocked() {
 }
 
 func (dmc *dateMetricIDCache) EntriesCount() int {
-	byDate := dmc.byDate.Load().(*byDateMetricIDMap)
+	byDate := dmc.byDate.Load()
 	n := 0
 	for _, e := range byDate.m {
 		n += e.v.Len()
@@ -2213,7 +2213,7 @@ func (dmc *dateMetricIDCache) EntriesCount() int {
 }
 
 func (dmc *dateMetricIDCache) SizeBytes() uint64 {
-	byDate := dmc.byDate.Load().(*byDateMetricIDMap)
+	byDate := dmc.byDate.Load()
 	n := uint64(0)
 	for _, e := range byDate.m {
 		n += e.v.SizeBytes()
@@ -2222,7 +2222,7 @@ func (dmc *dateMetricIDCache) SizeBytes() uint64 {
 }
 
 func (dmc *dateMetricIDCache) Has(date, metricID uint64) bool {
-	byDate := dmc.byDate.Load().(*byDateMetricIDMap)
+	byDate := dmc.byDate.Load()
 	v := byDate.get(date)
 	if v.Has(metricID) {
 		// Fast path.
@@ -2288,7 +2288,7 @@ func (dmc *dateMetricIDCache) syncLocked() {
 		// Nothing to sync.
 		return
 	}
-	byDate := dmc.byDate.Load().(*byDateMetricIDMap)
+	byDate := dmc.byDate.Load()
 	byDateMutable := dmc.byDateMutable
 	for date, e := range byDateMutable.m {
 		v := byDate.get(date)
@@ -2301,7 +2301,7 @@ func (dmc *dateMetricIDCache) syncLocked() {
 			date: date,
 			v:    *v,
 		}
-		if date == byDateMutable.hotEntry.Load().(*byDateMetricIDEntry).date {
+		if date == byDateMutable.hotEntry.Load().date {
 			byDateMutable.hotEntry.Store(dme)
 		}
 		byDateMutable.m[date] = dme
@@ -2324,7 +2324,7 @@ func (dmc *dateMetricIDCache) syncLocked() {
 }
 
 type byDateMetricIDMap struct {
-	hotEntry atomic.Value
+	hotEntry atomic.Pointer[byDateMetricIDEntry]
 	m        map[uint64]*byDateMetricIDEntry
 }
 
@@ -2337,7 +2337,7 @@ func newByDateMetricIDMap() *byDateMetricIDMap {
 }
 
 func (dmm *byDateMetricIDMap) get(date uint64) *uint64set.Set {
-	hotEntry := dmm.hotEntry.Load().(*byDateMetricIDEntry)
+	hotEntry := dmm.hotEntry.Load()
 	if hotEntry.date == date {
 		// Fast path
 		return &hotEntry.v
@@ -2369,7 +2369,7 @@ type byDateMetricIDEntry struct {
 }
 
 func (s *Storage) updateNextDayMetricIDs(date uint64) {
-	e := s.nextDayMetricIDs.Load().(*byDateMetricIDEntry)
+	e := s.nextDayMetricIDs.Load()
 	s.pendingNextDayMetricIDsLock.Lock()
 	pendingMetricIDs := s.pendingNextDayMetricIDs
 	s.pendingNextDayMetricIDs = &uint64set.Set{}
@@ -2396,7 +2396,7 @@ func (s *Storage) updateNextDayMetricIDs(date uint64) {
 }
 
 func (s *Storage) updateCurrHourMetricIDs(hour uint64) {
-	hm := s.currHourMetricIDs.Load().(*hourMetricIDs)
+	hm := s.currHourMetricIDs.Load()
 	var newEntries []pendingHourMetricIDEntry
 	s.pendingHourEntriesLock.Lock()
 	if len(s.pendingHourEntries) < cap(s.pendingHourEntries)/2 {
