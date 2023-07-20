@@ -65,7 +65,7 @@ func rulesUnitTest(files ...string) bool {
 	for _, f := range files {
 		if err := ruleUnitTest(f); err != nil {
 			fmt.Println("  FAILED")
-			fmt.Println(err)
+			fmt.Printf("\nfailed to run unit test for file %q: \n%s", f, err)
 			failed = true
 		} else {
 			fmt.Println("  SUCCESS")
@@ -78,32 +78,33 @@ func ruleUnitTest(filename string) []error {
 	fmt.Println("\nUnit Testing: ", filename)
 	b, err := os.ReadFile(filename)
 	if err != nil {
-		return []error{fmt.Errorf("failed to read unit test file %s: %v", filename, err)}
+		return []error{fmt.Errorf("failed to read file: %w", err)}
 	}
 
 	var unitTestInp unitTestFile
 	if err := yaml.UnmarshalStrict(b, &unitTestInp); err != nil {
-		return []error{fmt.Errorf("failed to unmarshal unit test file %s: %v", filename, err)}
+		return []error{fmt.Errorf("failed to unmarshal file: %w", err)}
 	}
 	if err := resolveAndGlobFilepaths(filepath.Dir(filename), &unitTestInp); err != nil {
-		return []error{fmt.Errorf("failed to unmarshal unit test file %s: %v", filename, err)}
+		return []error{fmt.Errorf("failed to resolve path for `rule_files`: %w", err)}
 	}
 
 	if unitTestInp.EvaluationInterval.Duration() == 0 {
+		fmt.Println("evaluation_interval set to 1m by default")
 		unitTestInp.EvaluationInterval = &promutils.Duration{D: 1 * time.Minute}
 	}
 
 	groupOrderMap := make(map[string]int)
 	for i, gn := range unitTestInp.GroupEvalOrder {
 		if _, ok := groupOrderMap[gn]; ok {
-			return []error{fmt.Errorf("group name repeated in evaluation order: %s", gn)}
+			return []error{fmt.Errorf("group name repeated in `group_eval_order`: %s", gn)}
 		}
 		groupOrderMap[gn] = i
 	}
 
 	testGroups, err := vmalertconfig.Parse(unitTestInp.RuleFiles, nil, true)
 	if err != nil {
-		return []error{fmt.Errorf("failed to parse groups from file: %v", err)}
+		return []error{fmt.Errorf("failed to parse `rule_files`: %w", err)}
 	}
 
 	var errs []error
@@ -112,7 +113,8 @@ func ruleUnitTest(filename string) []error {
 			errs = append(errs, err)
 			continue
 		}
-		errs = append(errs, t.test(unitTestInp.EvaluationInterval.Duration(), groupOrderMap, testGroups)...)
+		testErrs := t.test(unitTestInp.EvaluationInterval.Duration(), groupOrderMap, testGroups)
+		errs = append(errs, testErrs...)
 	}
 
 	if len(errs) > 0 {
@@ -245,38 +247,15 @@ func resolveAndGlobFilepaths(baseDir string, utf *unitTestFile) error {
 }
 
 func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]int, testGroups []vmalertconfig.Group) (checkErrs []error) {
-	// set up vmstorage and http server
+	// set up vmstorage and http server for ingest and read queries
 	setUp()
 	// tear down vmstorage and clean the data dir
 	defer tearDown()
-	// sort group eval order according to given "group_eval_order".
-	sort.Slice(testGroups, func(i, j int) bool {
-		return groupOrderMap[testGroups[i].Name] < groupOrderMap[testGroups[j].Name]
-	})
+
 	err := unittest.WriteInputSeries(tg.InputSeries, tg.Interval, testStartTime, testPromWriteHTTPPath)
 	if err != nil {
 		return []error{err}
 	}
-
-	alertEvalTimesMap := map[time.Duration]struct{}{}
-	alertExpResultMap := map[time.Duration]map[string]map[string][]unittest.ExpAlert{}
-	for _, at := range tg.AlertRuleTests {
-		alertEvalTimesMap[at.EvalTime.Duration()] = struct{}{}
-		if _, ok := alertExpResultMap[at.EvalTime.Duration()]; !ok {
-			alertExpResultMap[at.EvalTime.Duration()] = make(map[string]map[string][]unittest.ExpAlert)
-		}
-		if _, ok := alertExpResultMap[at.EvalTime.Duration()][at.GroupName]; !ok {
-			alertExpResultMap[at.EvalTime.Duration()][at.GroupName] = make(map[string][]unittest.ExpAlert)
-		}
-		alertExpResultMap[at.EvalTime.Duration()][at.GroupName][at.Alertname] = at.ExpAlerts
-	}
-	alertEvalTimes := make([]time.Duration, 0, len(alertEvalTimesMap))
-	for k := range alertEvalTimesMap {
-		alertEvalTimes = append(alertEvalTimes, k)
-	}
-	sort.Slice(alertEvalTimes, func(i, j int) bool {
-		return alertEvalTimes[i] < alertEvalTimes[j]
-	})
 
 	q, err := datasource.Init(nil)
 	if err != nil {
@@ -286,17 +265,44 @@ func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]i
 	if err != nil {
 		return []error{fmt.Errorf("failed to init wr: %v", err)}
 	}
-	e := &executor{
-		rw:                       rw,
-		notifiers:                func() []notifier.Notifier { return nil },
-		previouslySentSeriesToRW: make(map[uint64]map[string][]prompbmarshal.Label),
+
+	alertEvalTimesMap := map[time.Duration]struct{}{}
+	alertExpResultMap := map[time.Duration]map[string]map[string][]unittest.ExpAlert{}
+	for _, at := range tg.AlertRuleTests {
+		et := at.EvalTime.Duration()
+		alertEvalTimesMap[et] = struct{}{}
+		if _, ok := alertExpResultMap[et]; !ok {
+			alertExpResultMap[et] = make(map[string]map[string][]unittest.ExpAlert)
+		}
+		if _, ok := alertExpResultMap[et][at.GroupName]; !ok {
+			alertExpResultMap[et][at.GroupName] = make(map[string][]unittest.ExpAlert)
+		}
+		alertExpResultMap[et][at.GroupName][at.Alertname] = at.ExpAlerts
 	}
+	alertEvalTimes := make([]time.Duration, 0, len(alertEvalTimesMap))
+	for k := range alertEvalTimesMap {
+		alertEvalTimes = append(alertEvalTimes, k)
+	}
+	sort.Slice(alertEvalTimes, func(i, j int) bool {
+		return alertEvalTimes[i] < alertEvalTimes[j]
+	})
+
+	// sort group eval order according to the given "group_eval_order".
+	sort.Slice(testGroups, func(i, j int) bool {
+		return groupOrderMap[testGroups[i].Name] < groupOrderMap[testGroups[j].Name]
+	})
 
 	// create groups with given rule
 	var groups []*Group
 	for _, group := range testGroups {
 		ng := newGroup(group, q, *evaluationInterval, tg.ExternalLabels)
 		groups = append(groups, ng)
+	}
+
+	e := &executor{
+		rw:                       rw,
+		notifiers:                func() []notifier.Notifier { return nil },
+		previouslySentSeriesToRW: make(map[uint64]map[string][]prompbmarshal.Label),
 	}
 
 	evalIndex := 0
@@ -342,10 +348,11 @@ func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]i
 							if got.State != notifier.StateFiring {
 								continue
 							}
-							gotAlertsMap[g.Name][ar.Name] = append(gotAlertsMap[g.Name][ar.Name], unittest.LabelAndAnnotation{
+							laa := unittest.LabelAndAnnotation{
 								Labels:      datasource.ConvertToLabels(got.Labels),
 								Annotations: datasource.ConvertToLabels(got.Annotations),
-							})
+							}
+							gotAlertsMap[g.Name][ar.Name] = append(gotAlertsMap[g.Name][ar.Name], laa)
 						}
 					}
 
