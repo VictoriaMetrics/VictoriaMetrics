@@ -734,6 +734,9 @@ See full description for these flags in `./vmalert -help`.
 
 ## Unit Testing for Rules
 
+> Unit testing is available from v1.94.0. 
+> Unit tests do not respect `-clusterMode` for now.
+
 You can use `vmalert` to run unit tests for alerting and recording rules.
 In unit test mode vmalert performs the following actions:
 * sets up an isolated VictoriaMetrics instance;
