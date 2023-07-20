@@ -180,7 +180,7 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 		if ok {
 			return
 		}
-		bu.setBroken(*brokenBackendBackoff)
+		bu.setBroken()
 	}
 	err := &httpserver.ErrorWithStatusCode{
 		Err:        fmt.Errorf("all the backends for the user %q are unavailable", ui.name()),
