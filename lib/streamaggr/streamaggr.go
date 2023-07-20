@@ -79,7 +79,7 @@ type Config struct {
 	// Interval is the interval between aggregations.
 	Interval string `yaml:"interval"`
 
-	// Staleness interval is interval after which the series state will be cleared if no samples have been sent during it.
+	// Staleness interval is interval after which the series state will be reset if no samples have been sent during it.
 	// The parameter is only relevant for outputs: total, increase and histogram_bucket.
 	StalenessInterval string `yaml:"staleness_interval,omitempty"`
 
