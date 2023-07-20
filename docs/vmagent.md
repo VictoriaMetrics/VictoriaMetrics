@@ -474,7 +474,7 @@ with [additional enhancements](#relabeling-enhancements). The relabeling can be 
   This relabeling is used for modifying labels in discovered targets and for dropping unneeded targets.
   See [relabeling cookbook](https://docs.victoriametrics.com/relabeling.html) for details.
 
-  This relabeling can be debugged by clicking the `debug` link at the corresponding target on the `http://vmagent:8429/targets` page
+  This relabeling can be debugged by clicking the `debug` link (the link is available only if `--promscrape.dropOriginalLabels=false`) at the corresponding target on the `http://vmagent:8429/targets` page
   or on the `http://vmagent:8429/service-discovery` page. See [these docs](#relabel-debug) for details.
 
 * At the `scrape_config -> metric_relabel_configs` section in `-promscrape.config` file.
@@ -523,8 +523,8 @@ The following articles contain useful information about Prometheus relabeling:
   {% endraw %}
 
 * An optional `if` filter can be used for conditional relabeling. The `if` filter may contain
-  arbitrary [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors).
-  For example, the following relabeling rule drops metrics, which don't match `foo{bar="baz"}` series selector, while leaving the rest of metrics:
+  arbitrary [time series selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
+  For example, the following relabeling rule keeps metrics matching `foo{bar="baz"}` series selector, while dropping the rest of metrics:
 
   ```yaml
   - if: 'foo{bar="baz"}'
@@ -655,19 +655,19 @@ provide the following tools for debugging target-level and metric-level relabeli
 
 - Target-level debugging (e.g. `relabel_configs` section at [scrape_configs](https://docs.victoriametrics.com/sd_configs.html#scrape_configs))
   can be performed by navigating to `http://vmagent:8429/targets` page (`http://victoriametrics:8428/targets` page for single-node VictoriaMetrics)
-  and clicking the `debug target relabeling` link at the target, which must be debugged.
+  and clicking the `debug target relabeling` link (the link is available only if `--promscrape.dropOriginalLabels=false`) at the target, which must be debugged.
   The opened page shows step-by-step results for the actual target relabeling rules applied to the discovered target labels.
   The page shows also the target URL generated after applying all the relabeling rules.
 
   The `http://vmagent:8429/targets` page shows only active targets. If you need to understand why some target
   is dropped during the relabeling, then navigate to `http://vmagent:8428/service-discovery` page
   (`http://victoriametrics:8428/service-discovery` for single-node VictoriaMetrics), find the dropped target
-  and click the `debug` link there. The opened page shows step-by-step results for the actual relabeling rules,
+  and click the `debug` link (the link is available only if `--promscrape.dropOriginalLabels=false`) there. The opened page shows step-by-step results for the actual relabeling rules,
   which result to target drop.
 
 - Metric-level debugging (e.g. `metric_relabel_configs` section at [scrape_configs](https://docs.victoriametrics.com/sd_configs.html#scrape_configs)
   can be performed by navigating to `http://vmagent:8429/targets` page (`http://victoriametrics:8428/targets` page for single-node VictoriaMetrics)
-  and clicking the `debug metrics relabeling` link at the target, which must be debugged.
+  and clicking the `debug metrics relabeling` link (the link is available only if `--promscrape.dropOriginalLabels=false`) at the target, which must be debugged.
   The opened page shows step-by-step results for the actual metric relabeling rules applied to the given target labels.
 
 ## Prometheus staleness markers
@@ -1207,9 +1207,9 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -dryRun
      Whether to check config files without running vmagent. The following files are checked: -promscrape.config, -remoteWrite.relabelConfig, -remoteWrite.urlRelabelConfig, -remoteWrite.streamAggr.config . Unknown config entries aren't allowed in -promscrape.config by default. This can be changed by passing -promscrape.config.strictParse=false command-line flag
   -enableTCP6
-     Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP is used
+     Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP are used
   -envflag.enable
-     Whether to enable reading flags from environment variables additionally to command line. Command line flag values have priority over values from environment vars. Flags are read only from command line if this flag isn't set. See https://docs.victoriametrics.com/#environment-variables for more details
+     Whether to enable reading flags from environment variables in addition to the command line. Command line flag values have priority over values from environment vars. Flags are read only from the command line if this flag isn't set. See https://docs.victoriametrics.com/#environment-variables for more details
   -envflag.prefix string
      Prefix for environment variables if -envflag.enable is set
   -eula
@@ -1274,7 +1274,7 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -internStringDisableCache
      Whether to disable caches for interned strings. This may reduce memory usage at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning . See also -internStringCacheExpireDuration and -internStringMaxLen
   -internStringMaxLen int
-     The maximum length for strings to intern. Lower limit may save memory at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning . See also -internStringDisableCache and -internStringCacheExpireDuration (default 500)
+     The maximum length for strings to intern. A lower limit may save memory at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning . See also -internStringDisableCache and -internStringCacheExpireDuration (default 500)
   -kafka.consumer.topic array
      Kafka topic names for data consumption. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
      Supports an array of values separated by comma or specified via multiple flags.
@@ -1321,15 +1321,15 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -loggerWarnsPerSecondLimit int
      Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero values disable the rate limit
   -maxConcurrentInserts int
-     The maximum number of concurrent insert requests. Default value should work for most cases, since it minimizes the memory usage. The default value can be increased when clients send data over slow networks. See also -insert.maxQueueDuration (default 8)
+     The maximum number of concurrent insert requests. The default value should work for most cases, since it minimizes memory usage. The default value can be increased when clients send data over slow networks. See also -insert.maxQueueDuration (default 8)
   -maxInsertRequestSize size
      The maximum size in bytes of a single Prometheus remote_write API request
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 33554432)
   -memory.allowedBytes size
-     Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache resulting in higher disk IO usage
+     Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache resulting in higher disk IO usage
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
   -memory.allowedPercent float
-     Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache which will result in higher disk IO usage (default 60)
+     Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache which will result in higher disk IO usage (default 60)
   -metricsAuthKey string
      Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -opentsdbHTTPListenAddr string

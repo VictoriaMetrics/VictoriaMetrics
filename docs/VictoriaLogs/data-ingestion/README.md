@@ -1,3 +1,14 @@
+---
+sort: 6
+title: Data ingestion
+weight: 6
+menu:
+  docs:
+    identifier: victorialogs-data-ingestion
+    parent: "victorialogs"
+    weight: 6
+---
+
 # Data ingestion
 
 [VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/) can accept logs from the following log collectors:
@@ -6,6 +17,7 @@
 - Fluentbit. See [how to setup Fluentbit for sending logs to VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/Fluentbit.html).
 - Logstash. See [how to setup Logstash for sending logs to VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/Logstash.html).
 - Vector. See [how to setup Vector for sending logs to VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/Vector.html).
+- Promtail. See [how to setup Promtail for sending logs to VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/Promtail.html).
 
 The ingested logs can be queried according to [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/).
 
@@ -21,6 +33,7 @@ VictoriaLogs supports the following data ingestion HTTP APIs:
 
 - Elasticsearch bulk API. See [these docs](#elasticsearch-bulk-api).
 - JSON stream API aka [ndjson](http://ndjson.org/). See [these docs](#json-stream-api).
+- [Loki JSON API](https://grafana.com/docs/loki/latest/api/#push-log-entries-to-lokiq). See [these docs](#loki-json-api).
 
 VictoriaLogs accepts optional [HTTP parameters](#http-parameters) at data ingestion HTTP APIs.
 
@@ -56,6 +69,11 @@ The command should return the following response:
 ```bash
 {"_msg":"cannot open file","_stream":"{}","_time":"2023-06-21T04:24:24Z","host.name":"host123"}
 ```
+
+The response by default contains [`_msg`](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field),
+[`_stream`](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#stream-fields) and
+[`_time`](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#time-field) fields plus the explicitly mentioned fields.
+See [these docs](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html#querying-specific-fields) for details.
 
 See also:
 
@@ -103,11 +121,27 @@ The command should return the following response:
 {"_msg":"oh no!","_stream":"{stream=\"stream1\"}","_time":"2023-06-20T15:32:10.567Z","log.level":"error"}
 ```
 
+The response by default contains [`_msg`](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field),
+[`_stream`](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#stream-fields) and
+[`_time`](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#time-field) fields plus the explicitly mentioned fields.
+See [these docs](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html#querying-specific-fields) for details.
+
 See also:
 
 - [How to debug data ingestion](#troubleshooting).
 - [HTTP parameters, which can be passed to the API](#http-parameters).
 - [How to query VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/querying.html).
+
+### Loki JSON API
+
+VictoriaLogs accepts logs in [Loki JSON API](https://grafana.com/docs/loki/latest/api/#push-log-entries-to-lokiq) format at `http://localhost:9428/insert/loki/api/v1/push` endpoint.
+
+The following command pushes a single log line to Loki JSON API at VictoriaLogs:
+
+```bash
+curl -v -H "Content-Type: application/json" -XPOST -s "http://localhost:9428/insert/loki/api/v1/push?_stream_fields=foo" --data-raw \
+  '{"streams": [{ "stream": { "foo": "bar2" }, "values": [ [ "1570818238000000000", "fizzbuzz" ] ] }]}'
+```
 
 ### HTTP parameters
 
@@ -142,6 +176,22 @@ VictoriaLogs accepts optional `AccountID` and `ProjectID` headers at [data inges
 These headers may contain the needed tenant to ingest data to. See [multitenancy docs](https://docs.victoriametrics.com/VictoriaLogs/#multitenancy) for details.
 
 ## Troubleshooting
+
+The following command can be used for verifying whether the data is successfully ingested into VictoriaLogs:
+
+```logsql
+curl http://localhost:9428/select/logsql/query -d 'query=*' | head
+```
+
+This command selects all the data ingested into VictoriaLogs via [HTTP query API](https://docs.victoriametrics.com/VictoriaLogs/querying/#http-api)
+using [any value filter](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html#any-value-filter),
+while `head` cancels query execution after reading the first 10 log lines. See [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/#command-line)
+for more details on how `head` integrates with VictoriaLogs.
+
+The response by default contains [`_msg`](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field),
+[`_stream`](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#stream-fields) and
+[`_time`](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#time-field) fields plus the explicitly mentioned fields.
+See [these docs](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html#querying-specific-fields) for details.
 
 VictoriaLogs provides the following command-line flags, which can help debugging data ingestion issues:
 

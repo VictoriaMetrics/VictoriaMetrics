@@ -29,4 +29,6 @@ func TestTableOpenClose(t *testing.T) {
 		tb := mustOpenTable(path, strg)
 		tb.MustClose()
 	}
+
+	stopTestStorage(strg)
 }

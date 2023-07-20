@@ -93,7 +93,7 @@ func MultitenancyEnabled() bool {
 }
 
 // Contains the current relabelConfigs.
-var allRelabelConfigs atomic.Value
+var allRelabelConfigs atomic.Pointer[relabelConfigs]
 
 // maxQueues limits the maximum value for `-remoteWrite.queues`. There is no sense in setting too high value,
 // since it may lead to high memory usage due to big number of buffers.
@@ -346,7 +346,7 @@ func Push(at *auth.Token, wr *prompbmarshal.WriteRequest) {
 	}
 
 	var rctx *relabelCtx
-	rcs := allRelabelConfigs.Load().(*relabelConfigs)
+	rcs := allRelabelConfigs.Load()
 	pcsGlobal := rcs.global
 	if pcsGlobal.Len() > 0 || len(labelsGlobal) > 0 {
 		rctx = getRelabelCtx()
@@ -612,7 +612,7 @@ func (rwctx *remoteWriteCtx) Push(tss []prompbmarshal.TimeSeries) {
 	// Apply relabeling
 	var rctx *relabelCtx
 	var v *[]prompbmarshal.TimeSeries
-	rcs := allRelabelConfigs.Load().(*relabelConfigs)
+	rcs := allRelabelConfigs.Load()
 	pcs := rcs.perURL[rwctx.idx]
 	if pcs.Len() > 0 {
 		rctx = getRelabelCtx()

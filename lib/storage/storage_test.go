@@ -169,7 +169,7 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		hmOrig.m.Add(34)
 		s.currHourMetricIDs.Store(hmOrig)
 		s.updateCurrHourMetricIDs(hour)
-		hmCurr := s.currHourMetricIDs.Load().(*hourMetricIDs)
+		hmCurr := s.currHourMetricIDs.Load()
 		if hmCurr.hour != hour {
 			t.Fatalf("unexpected hmCurr.hour; got %d; want %d", hmCurr.hour, hour)
 		}
@@ -177,7 +177,7 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 			t.Fatalf("unexpected length of hm.m; got %d; want %d", hmCurr.m.Len(), 0)
 		}
 
-		hmPrev := s.prevHourMetricIDs.Load().(*hourMetricIDs)
+		hmPrev := s.prevHourMetricIDs.Load()
 		if !reflect.DeepEqual(hmPrev, hmOrig) {
 			t.Fatalf("unexpected hmPrev; got %v; want %v", hmPrev, hmOrig)
 		}
@@ -197,7 +197,7 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		hmOrig.m.Add(34)
 		s.currHourMetricIDs.Store(hmOrig)
 		s.updateCurrHourMetricIDs(hour)
-		hmCurr := s.currHourMetricIDs.Load().(*hourMetricIDs)
+		hmCurr := s.currHourMetricIDs.Load()
 		if hmCurr.hour != hour {
 			t.Fatalf("unexpected hmCurr.hour; got %d; want %d", hmCurr.hour, hour)
 		}
@@ -205,7 +205,7 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 			t.Fatalf("unexpected hmCurr; got %v; want %v", hmCurr, hmOrig)
 		}
 
-		hmPrev := s.prevHourMetricIDs.Load().(*hourMetricIDs)
+		hmPrev := s.prevHourMetricIDs.Load()
 		hmEmpty := &hourMetricIDs{}
 		if !reflect.DeepEqual(hmPrev, hmEmpty) {
 			t.Fatalf("unexpected hmPrev; got %v; want %v", hmPrev, hmEmpty)
@@ -235,7 +235,7 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		hmOrig.m.Add(34)
 		s.currHourMetricIDs.Store(hmOrig)
 		s.updateCurrHourMetricIDs(hour)
-		hmCurr := s.currHourMetricIDs.Load().(*hourMetricIDs)
+		hmCurr := s.currHourMetricIDs.Load()
 		if hmCurr.hour != hour {
 			t.Fatalf("unexpected hmCurr.hour; got %d; want %d", hmCurr.hour, hour)
 		}
@@ -243,7 +243,7 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 			t.Fatalf("unexpected hmCurr.m; got %v; want %v", hmCurr.m, pendingHourEntries)
 		}
 
-		hmPrev := s.prevHourMetricIDs.Load().(*hourMetricIDs)
+		hmPrev := s.prevHourMetricIDs.Load()
 		if !reflect.DeepEqual(hmPrev, hmOrig) {
 			t.Fatalf("unexpected hmPrev; got %v; want %v", hmPrev, hmOrig)
 		}
@@ -269,7 +269,7 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		hmOrig.m.Add(34)
 		s.currHourMetricIDs.Store(hmOrig)
 		s.updateCurrHourMetricIDs(hour)
-		hmCurr := s.currHourMetricIDs.Load().(*hourMetricIDs)
+		hmCurr := s.currHourMetricIDs.Load()
 		if hmCurr.hour != hour {
 			t.Fatalf("unexpected hmCurr.hour; got %d; want %d", hmCurr.hour, hour)
 		}
@@ -284,7 +284,7 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 			t.Fatalf("unexpected hm.m; got %v; want %v", hmCurr.m, m)
 		}
 
-		hmPrev := s.prevHourMetricIDs.Load().(*hourMetricIDs)
+		hmPrev := s.prevHourMetricIDs.Load()
 		hmEmpty := &hourMetricIDs{}
 		if !reflect.DeepEqual(hmPrev, hmEmpty) {
 			t.Fatalf("unexpected hmPrev; got %v; want %v", hmPrev, hmEmpty)
@@ -312,7 +312,7 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		hmOrig.m.Add(34)
 		s.currHourMetricIDs.Store(hmOrig)
 		s.updateCurrHourMetricIDs(hour)
-		hmCurr := s.currHourMetricIDs.Load().(*hourMetricIDs)
+		hmCurr := s.currHourMetricIDs.Load()
 		if hmCurr.hour != hour {
 			t.Fatalf("unexpected hmCurr.hour; got %d; want %d", hmCurr.hour, hour)
 		}
@@ -327,7 +327,7 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 			t.Fatalf("unexpected hm.m; got %v; want %v", hmCurr.m, m)
 		}
 
-		hmPrev := s.prevHourMetricIDs.Load().(*hourMetricIDs)
+		hmPrev := s.prevHourMetricIDs.Load()
 		hmEmpty := &hourMetricIDs{}
 		if !reflect.DeepEqual(hmPrev, hmEmpty) {
 			t.Fatalf("unexpected hmPrev; got %v; want %v", hmPrev, hmEmpty)
@@ -355,14 +355,14 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		}
 		s.currHourMetricIDs.Store(hmOrig)
 		s.updateCurrHourMetricIDs(hour)
-		hmCurr := s.currHourMetricIDs.Load().(*hourMetricIDs)
+		hmCurr := s.currHourMetricIDs.Load()
 		if hmCurr.hour != hour {
 			t.Fatalf("unexpected hmCurr.hour; got %d; want %d", hmCurr.hour, hour)
 		}
 		if hmCurr.m.Len() != 0 {
 			t.Fatalf("unexpected non-empty hmCurr.m; got %v", hmCurr.m.AppendTo(nil))
 		}
-		hmPrev := s.prevHourMetricIDs.Load().(*hourMetricIDs)
+		hmPrev := s.prevHourMetricIDs.Load()
 		if !reflect.DeepEqual(hmPrev, hmOrig) {
 			t.Fatalf("unexpected hmPrev; got %v; want %v", hmPrev, hmOrig)
 		}
@@ -823,9 +823,7 @@ func testStorageRegisterMetricNames(s *Storage) error {
 			}
 			mrs = append(mrs, mr)
 		}
-		if err := s.RegisterMetricNames(nil, mrs); err != nil {
-			return fmt.Errorf("unexpected error in RegisterMetricNames: %w", err)
-		}
+		s.RegisterMetricNames(nil, mrs)
 	}
 	var addIDsExpected []string
 	for k := range addIDsMap {
@@ -988,7 +986,7 @@ func testStorageAddRows(rng *rand.Rand, s *Storage) error {
 	const addsCount = 10
 
 	maxTimestamp := timestampFromTime(time.Now())
-	minTimestamp := maxTimestamp - s.retentionMsecs
+	minTimestamp := maxTimestamp - s.retentionMsecs + 3600*1000
 	for i := 0; i < addsCount; i++ {
 		mrs := testGenerateMetricRows(rng, rowsPerAdd, minTimestamp, maxTimestamp)
 		if err := s.AddRows(mrs, defaultPrecisionBits); err != nil {
@@ -1030,7 +1028,9 @@ func testStorageAddRows(rng *rand.Rand, s *Storage) error {
 		return fmt.Errorf("snapshot %q must contain at least %d rows; got %d", snapshotPath, minRowsExpected, rowsCount)
 	}
 
-	// Verify that force merge for the snapshot leaves only a single part per partition.
+	// Verify that force merge for the snapshot leaves at most a single part per partition.
+	// Zero parts are possible if the snapshot is created just after the partition has been created
+	// by concurrent goroutine, but it didn't put the data into it yet.
 	if err := s1.ForceMergePartitions(""); err != nil {
 		return fmt.Errorf("error when force merging partitions: %w", err)
 	}
@@ -1039,9 +1039,9 @@ func testStorageAddRows(rng *rand.Rand, s *Storage) error {
 		pws := ptw.pt.GetParts(nil, true)
 		numParts := len(pws)
 		ptw.pt.PutParts(pws)
-		if numParts != 1 {
+		if numParts > 1 {
 			s1.tb.PutPartitions(ptws)
-			return fmt.Errorf("unexpected number of parts for partition %q after force merge; got %d; want 1", ptw.pt.name, numParts)
+			return fmt.Errorf("unexpected number of parts for partition %q after force merge; got %d; want at most 1", ptw.pt.name, numParts)
 		}
 	}
 	s1.tb.PutPartitions(ptws)
@@ -1196,13 +1196,4 @@ func TestStorageDeleteStaleSnapshots(t *testing.T) {
 	if err := os.RemoveAll(path); err != nil {
 		t.Fatalf("cannot remove %q: %s", path, err)
 	}
-}
-
-func containsString(a []string, s string) bool {
-	for i := range a {
-		if a[i] == s {
-			return true
-		}
-	}
-	return false
 }

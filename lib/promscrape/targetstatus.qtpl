@@ -228,10 +228,7 @@
                     %}
                         <tr {% if !ts.up %}{%space%}class="alert alert-danger" role="alert" {% endif %}>
                             <td class="endpoint">
-                                <a href="{%s endpoint %}" target="_blank">{%s endpoint %}</a> (
-                                <a href="target_response?id={%s targetID %}" target="_blank"
-                                  title="click to fetch target response on behalf of the scraper">response</a>
-                                )
+                                {%= endpointContent(endpoint, targetID)%}
                             </td>
                             <td>
                                 {% if ts.up %}
@@ -241,17 +238,10 @@
                                 {% endif %}
                             </td>
                             <td class="labels">
-                                <div title="click to show original labels"
-                                  onclick="document.getElementById('original-labels-{%s targetID %}').style.display='block'">
-                                    {%= formatLabels(ts.sw.Config.Labels) %}
-                                </div>
-                                <div style="display:none" id="original-labels-{%s targetID %}">
-                                    {%= formatLabels(ts.sw.Config.OriginalLabels) %}
-                                </div>
+                                {%= labelsContent(targetID, ts.sw.Config) %}
                             </td>
                             <td>
-                                <a href="target-relabel-debug?id={%s targetID %}" target="_blank">target</a>{% space %}
-                                <a href="metric-relabel-debug?id={%s targetID %}" target="_blank">metrics</a>
+                                {%= debugRelabelingContent(targetID)%}
                             </td>
                             <td>{%d ts.scrapesTotal %}</td>
                             <td>{%d ts.scrapesFailed %}</td>
@@ -327,8 +317,7 @@
                         {%= formatLabels(t.labels) %}
                     </td>
                     <td>
-                        {% code targetID := getLabelsID(t.originalLabels) %}
-                        <a href="target-relabel-debug?id={%s targetID %}" target="_blank">debug</a>
+                        {%= discoveredJobsRelabelContent(t.originalLabels) %}
                     </td>
                 </tr>
             {% endfor %}
@@ -381,3 +370,37 @@
 {% endfunc %}
 
 {% endstripspace %}
+
+{% func endpointContent(endpoint, targetID string) %}
+<a href="{%s endpoint %}" target="_blank">{%s endpoint %}</a>{% space %}
+{% if targetID != "" %}
+(<a href="target_response?id={%s targetID %}" target="_blank"
+   title="click to fetch target response on behalf of the scraper">response</a>)
+{% endif %}
+{% endfunc %}
+
+{% func labelsContent(targetID string, config *ScrapeWork) %}
+<div title="click to show original labels"
+     {% if targetID != "" %}onclick="document.getElementById('original-labels-{%s targetID %}').style.display='block'" {% endif %}>
+    {%= formatLabels(config.Labels) %}
+</div>
+{% if config.OriginalLabels != nil %}
+<div style="display:none" id="original-labels-{%s targetID %}">
+    {%= formatLabels(config.OriginalLabels) %}
+</div>
+{% endif %}
+{% endfunc %}
+
+{% func debugRelabelingContent(targetID string) %}
+{% if targetID != "" %}
+<a href="target-relabel-debug?id={%s targetID %}" target="_blank">target</a>{% space %}
+<a href="metric-relabel-debug?id={%s targetID %}" target="_blank">metrics</a>
+{% endif %}
+{% endfunc %}
+
+{% func discoveredJobsRelabelContent(originalLabels *promutils.Labels) %}
+{% if originalLabels != nil %}
+{% code targetID := getLabelsID(originalLabels) %}
+<a href="target-relabel-debug?id={%s targetID %}" target="_blank">debug</a>
+{% endif %}
+{% endfunc %}

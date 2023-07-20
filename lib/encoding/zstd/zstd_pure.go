@@ -15,7 +15,7 @@ var (
 	decoder *zstd.Decoder
 
 	mu sync.Mutex
-	av atomic.Value
+	av atomic.Pointer[registry]
 )
 
 type registry map[int]*zstd.Encoder
@@ -45,7 +45,7 @@ func CompressLevel(dst, src []byte, compressionLevel int) []byte {
 }
 
 func getEncoder(compressionLevel int) *zstd.Encoder {
-	r := av.Load().(registry)
+	r := av.Load()
 	e := r[compressionLevel]
 	if e != nil {
 		return e
@@ -54,7 +54,7 @@ func getEncoder(compressionLevel int) *zstd.Encoder {
 	mu.Lock()
 	// Create the encoder under lock in order to prevent from wasted work
 	// when concurrent goroutines create encoder for the same compressionLevel.
-	r1 := av.Load().(registry)
+	r1 := av.Load()
 	if e = r1[compressionLevel]; e == nil {
 		e = newEncoder(compressionLevel)
 		r2 := make(registry)

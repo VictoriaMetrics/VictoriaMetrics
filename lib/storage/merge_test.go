@@ -384,6 +384,7 @@ func TestMergeForciblyStop(t *testing.T) {
 	if rowsDeleted != 0 {
 		t.Fatalf("unexpected rowsDeleted; got %d; want %d", rowsDeleted, 0)
 	}
+	stopTestStorage(strg)
 }
 
 func testMergeBlockStreams(t *testing.T, bsrs []*blockStreamReader, expectedBlocksCount, expectedRowsCount int, expectedMinTimestamp, expectedMaxTimestamp int64) {
@@ -399,6 +400,7 @@ func testMergeBlockStreams(t *testing.T, bsrs []*blockStreamReader, expectedBloc
 	if err := mergeBlockStreams(&mp.ph, &bsw, bsrs, nil, strg, 0, &rowsMerged, &rowsDeleted); err != nil {
 		t.Fatalf("unexpected error in mergeBlockStreams: %s", err)
 	}
+	stopTestStorage(strg)
 
 	// Verify written data.
 	if mp.ph.RowsCount != uint64(expectedRowsCount) {

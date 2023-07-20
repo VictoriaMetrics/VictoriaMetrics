@@ -37,6 +37,11 @@ func (lex *lexer) Init(s string) {
 	lex.sTail = s
 }
 
+func (lex *lexer) PushBack(currToken, sHead string) {
+	lex.Token = currToken
+	lex.sTail = sHead + lex.sTail
+}
+
 func (lex *lexer) Next() error {
 	if lex.err != nil {
 		return lex.err
@@ -561,10 +566,8 @@ func DurationValue(s string, step int64) (int64, error) {
 func parseSingleDuration(s string, step int64) (float64, error) {
 	s = strings.ToLower(s)
 	numPart := s[:len(s)-1]
-	if strings.HasSuffix(numPart, "m") {
-		// Duration in ms
-		numPart = numPart[:len(numPart)-1]
-	}
+	// Strip trailing m if the duration is in ms
+	numPart = strings.TrimSuffix(numPart, "m")
 	f, err := strconv.ParseFloat(numPart, 64)
 	if err != nil {
 		return 0, fmt.Errorf("cannot parse duration %q: %s", s, err)
