@@ -87,7 +87,7 @@ func GetTenantIDFromString(s string) (TenantID, error) {
 	if colon < 0 {
 		account, err := getUint32FromString(s)
 		if err != nil {
-			return tenantID, fmt.Errorf("cannot parse %q as TenantID: %w", s, err)
+			return tenantID, fmt.Errorf("cannot parse accountID from %q: %w", s, err)
 		}
 		tenantID.AccountID = account
 
@@ -96,13 +96,13 @@ func GetTenantIDFromString(s string) (TenantID, error) {
 
 	account, err := getUint32FromString(s[:colon])
 	if err != nil {
-		return tenantID, fmt.Errorf("cannot parse %q as TenantID: %w", s, err)
+		return tenantID, fmt.Errorf("cannot parse accountID part from %q: %w", s, err)
 	}
 	tenantID.AccountID = account
 
 	project, err := getUint32FromString(s[colon+1:])
 	if err != nil {
-		return tenantID, fmt.Errorf("cannot parse %q as TenantID: %w", s, err)
+		return tenantID, fmt.Errorf("cannot parse projectID part from %q: %w", s, err)
 	}
 	tenantID.ProjectID = project
 

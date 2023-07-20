@@ -17,7 +17,7 @@ menu:
 - Fluentbit. See [how to setup Fluentbit for sending logs to VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/Fluentbit.html).
 - Logstash. See [how to setup Logstash for sending logs to VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/Logstash.html).
 - Vector. See [how to setup Vector for sending logs to VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/Vector.html).
-- Promtail. See [how to setup Promtail for sending logs to VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/Promtail.html).
+- Promtail (aka Grafana Loki). See [how to setup Promtail for sending logs to VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/Promtail.html).
 
 The ingested logs can be queried according to [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/).
 
@@ -33,7 +33,7 @@ VictoriaLogs supports the following data ingestion HTTP APIs:
 
 - Elasticsearch bulk API. See [these docs](#elasticsearch-bulk-api).
 - JSON stream API aka [ndjson](http://ndjson.org/). See [these docs](#json-stream-api).
-- [Loki JSON API](https://grafana.com/docs/loki/latest/api/#push-log-entries-to-lokiq). See [these docs](#loki-json-api).
+- Loki JSON API. See [these docs](#loki-json-api).
 
 VictoriaLogs accepts optional [HTTP parameters](#http-parameters) at data ingestion HTTP APIs.
 
@@ -47,11 +47,17 @@ The following command pushes a single log line to VictoriaLogs:
 
 ```bash
 echo '{"create":{}}
-{"_msg":"cannot open file","_time":"2023-06-21T04:24:24Z","host.name":"host123"}
+{"_msg":"cannot open file","_time":"0","host.name":"host123"}
 ' | curl -X POST -H 'Content-Type: application/json' --data-binary @- http://localhost:9428/insert/elasticsearch/_bulk
 ```
 
 It is possible to push thousands of log lines in a single request to this API.
+
+If the [timestamp field](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#time-field) is set to `"0"`,
+then the current timestamp at VictoriaLogs side is used per each ingested log line.
+Otherwise the timestamp field must be in the [ISO8601](https://en.wikipedia.org/wiki/ISO_8601) format. For example, `2023-06-20T15:32:10Z`.
+Optional fractional part of seconds can be specified after the dot - `2023-06-20T15:32:10.123Z`.
+Timezone can be specified instead of `Z` suffix - `2023-06-20T15:32:10+02:00`.
 
 See [these docs](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model) for details on fields,
 which must be present in the ingested log messages.
@@ -88,17 +94,18 @@ VictoriaLogs accepts JSON line stream aka [ndjson](http://ndjson.org/) at `http:
 The following command pushes multiple log lines to VictoriaLogs:
 
  ```bash
-echo '{ "log": { "level": "info", "message": "hello world" }, "date": "2023-06-20T15:31:23Z", "stream": "stream1" }
-{ "log": { "level": "error", "message": "oh no!" }, "date": "2023-06-20T15:32:10.567Z", "stream": "stream1" }
-{ "log": { "level": "info", "message": "hello world" }, "date": "2023-06-20T15:35:11.567890+02:00", "stream": "stream2" }
+echo '{ "log": { "level": "info", "message": "hello world" }, "date": "0", "stream": "stream1" }
+{ "log": { "level": "error", "message": "oh no!" }, "date": "0", "stream": "stream1" }
+{ "log": { "level": "info", "message": "hello world" }, "date": "0", "stream": "stream2" }
 ' | curl -X POST -H 'Content-Type: application/stream+json' --data-binary @- \
   'http://localhost:9428/insert/jsonline?_stream_fields=stream&_time_field=date&_msg_field=log.message'
 ```
 
 It is possible to push unlimited number of log lines in a single request to this API.
 
-The [timestamp field](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#time-field) must be
-in the [ISO8601](https://en.wikipedia.org/wiki/ISO_8601) format. For example, `2023-06-20T15:32:10Z`.
+If the [timestamp field](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#time-field) is set to `"0"`,
+then the current timestamp at VictoriaLogs side is used per each ingested log line.
+Otherwise the timestamp field must be in the [ISO8601](https://en.wikipedia.org/wiki/ISO_8601) format. For example, `2023-06-20T15:32:10Z`.
 Optional fractional part of seconds can be specified after the dot - `2023-06-20T15:32:10.123Z`.
 Timezone can be specified instead of `Z` suffix - `2023-06-20T15:32:10+02:00`.
 
@@ -134,14 +141,41 @@ See also:
 
 ### Loki JSON API
 
-VictoriaLogs accepts logs in [Loki JSON API](https://grafana.com/docs/loki/latest/api/#push-log-entries-to-lokiq) format at `http://localhost:9428/insert/loki/api/v1/push` endpoint.
+VictoriaLogs accepts logs in [Loki JSON API](https://grafana.com/docs/loki/latest/api/#push-log-entries-to-loki) format at `http://localhost:9428/insert/loki/api/v1/push` endpoint.
 
 The following command pushes a single log line to Loki JSON API at VictoriaLogs:
 
 ```bash
-curl -v -H "Content-Type: application/json" -XPOST -s "http://localhost:9428/insert/loki/api/v1/push?_stream_fields=foo" --data-raw \
-  '{"streams": [{ "stream": { "foo": "bar2" }, "values": [ [ "1570818238000000000", "fizzbuzz" ] ] }]}'
+curl -H "Content-Type: application/json" -XPOST "http://localhost:9428/insert/loki/api/v1/push?_stream_fields=instance,job" --data-raw \
+  '{"streams": [{ "stream": { "instance": "host123", "job": "app42" }, "values": [ [ "0", "foo fizzbuzz bar" ] ] }]}'
 ```
+
+It is possible to push thousands of log streams and log lines in a single request to this API.
+
+The API accepts various http parameters, which can change the data ingestion behavior - [these docs](#http-parameters) for details.
+
+The following command verifies that the data has been successfully ingested into VictoriaLogs by [querying](https://docs.victoriametrics.com/VictoriaLogs/querying/) it:
+
+```bash
+curl http://localhost:9428/select/logsql/query -d 'query=fizzbuzz'
+```
+
+The command should return the following response:
+
+```bash
+{"_msg":"foo fizzbuzz bar","_stream":"{instance=\"host123\",job=\"app42\"}","_time":"2023-07-20T23:01:19.288676497Z"}
+```
+
+The response by default contains [`_msg`](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field),
+[`_stream`](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#stream-fields) and
+[`_time`](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#time-field) fields plus the explicitly mentioned fields.
+See [these docs](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html#querying-specific-fields) for details.
+
+See also:
+
+- [How to debug data ingestion](#troubleshooting).
+- [HTTP parameters, which can be passed to the API](#http-parameters).
+- [How to query VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/querying.html).
 
 ### HTTP parameters
 

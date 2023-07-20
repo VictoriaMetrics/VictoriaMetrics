@@ -6,127 +6,185 @@ import (
 	"math"
 	"net/http"
 	"strconv"
+	"time"
 
-	"github.com/valyala/fastjson"
-
-	"github.com/VictoriaMetrics/metrics"
-
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
+	"github.com/VictoriaMetrics/metrics"
+	"github.com/valyala/fastjson"
 )
 
 var (
-	rowsIngestedTotalJSON = metrics.NewCounter(`vl_rows_ingested_total{type="loki", format="json"}`)
+	rowsIngestedJSONTotal = metrics.NewCounter(`vl_rows_ingested_total{type="loki",format="json"}`)
 	parserPool            fastjson.ParserPool
 )
 
 func handleJSON(r *http.Request, w http.ResponseWriter) bool {
-	contentType := r.Header.Get("Content-Type")
 	reader := r.Body
-	if contentType == "gzip" {
+	if r.Header.Get("Content-Encoding") == "gzip" {
 		zr, err := common.GetGzipReader(reader)
 		if err != nil {
-			httpserver.Errorf(w, r, "cannot read gzipped request: %s", err)
+			httpserver.Errorf(w, r, "cannot initialize gzip reader: %s", err)
 			return true
 		}
 		defer common.PutGzipReader(zr)
 		reader = zr
 	}
 
+	wcr := writeconcurrencylimiter.GetReader(reader)
+	data, err := io.ReadAll(wcr)
+	writeconcurrencylimiter.PutReader(wcr)
+	if err != nil {
+		httpserver.Errorf(w, r, "cannot read request body: %s", err)
+		return true
+	}
+
 	cp, err := getCommonParams(r)
 	if err != nil {
-		httpserver.Errorf(w, r, "cannot parse request: %s", err)
+		httpserver.Errorf(w, r, "cannot parse common params from request: %s", err)
 		return true
 	}
 	lr := logstorage.GetLogRows(cp.StreamFields, cp.IgnoreFields)
-	defer logstorage.PutLogRows(lr)
-
 	processLogMessage := cp.GetProcessLogMessageFunc(lr)
-	n, err := processJSONRequest(reader, processLogMessage)
+	n, err := parseJSONRequest(data, processLogMessage)
+	vlstorage.MustAddRows(lr)
+	logstorage.PutLogRows(lr)
 	if err != nil {
-		httpserver.Errorf(w, r, "cannot decode loki request: %s", err)
+		httpserver.Errorf(w, r, "cannot parse Loki request: %s", err)
 		return true
 	}
-	rowsIngestedTotalJSON.Add(n)
+	rowsIngestedJSONTotal.Add(n)
 	return true
 }
 
-func processJSONRequest(r io.Reader, processLogMessage func(timestamp int64, fields []logstorage.Field)) (int, error) {
-	wcr := writeconcurrencylimiter.GetReader(r)
-	defer writeconcurrencylimiter.PutReader(wcr)
-
-	bytes, err := io.ReadAll(wcr)
-	if err != nil {
-		return 0, fmt.Errorf("cannot read request body: %w", err)
-	}
-
+func parseJSONRequest(data []byte, processLogMessage func(timestamp int64, fields []logstorage.Field)) (int, error) {
 	p := parserPool.Get()
 	defer parserPool.Put(p)
-	v, err := p.ParseBytes(bytes)
+	v, err := p.ParseBytes(data)
 	if err != nil {
-		return 0, fmt.Errorf("cannot parse request body: %w", err)
+		return 0, fmt.Errorf("cannot parse JSON request body: %w", err)
 	}
 
+	streamsV := v.Get("streams")
+	if streamsV == nil {
+		return 0, fmt.Errorf("missing `streams` item in the parsed JSON: %q", v)
+	}
+	streams, err := streamsV.Array()
+	if err != nil {
+		return 0, fmt.Errorf("`streams` item in the parsed JSON must contain an array; got %q", streamsV)
+	}
+
+	currentTimestamp := time.Now().UnixNano()
 	var commonFields []logstorage.Field
 	rowsIngested := 0
-	for stIdx, st := range v.GetArray("streams") {
-		// `stream` contains labels for the stream.
-		// Labels are same for all entries in the stream.
-		logFields := st.GetObject("stream")
-		if logFields == nil {
-			logger.Warnf("missing streams field from %q", st)
-			logFields = &fastjson.Object{}
-		}
-		commonFields = slicesutil.ResizeNoCopyMayOverallocate(commonFields, logFields.Len()+1)
-		i := 0
-		logFields.Visit(func(k []byte, v *fastjson.Value) {
-			sfName := bytesutil.ToUnsafeString(k)
-			sfValue := bytesutil.ToUnsafeString(v.GetStringBytes())
-			commonFields[i].Name = sfName
-			commonFields[i].Value = sfValue
-			i++
-		})
-		msgFieldIdx := logFields.Len()
-		commonFields[msgFieldIdx].Name = msgField
-
-		for idx, v := range st.GetArray("values") {
-			vs := v.GetArray()
-			if len(vs) != 2 {
-				return rowsIngested, fmt.Errorf("unexpected number of values in stream %d line %d: %q; got %d; want %d", stIdx, idx, v, len(vs), 2)
-			}
-
-			tsString := bytesutil.ToUnsafeString(vs[0].GetStringBytes())
-			ts, err := parseLokiTimestamp(tsString)
+	for _, stream := range streams {
+		// populate common labels from `stream` dict
+		commonFields = commonFields[:0]
+		labelsV := stream.Get("stream")
+		var labels *fastjson.Object
+		if labelsV != nil {
+			o, err := labelsV.Object()
 			if err != nil {
-				return rowsIngested, fmt.Errorf("cannot parse timestamp in stream %d line %d: %q: %s", stIdx, idx, vs, err)
+				return rowsIngested, fmt.Errorf("`stream` item in the parsed JSON must contain an object; got %q", labelsV)
+			}
+			labels = o
+		}
+		labels.Visit(func(k []byte, v *fastjson.Value) {
+			if err != nil {
+				return
+			}
+			vStr, errLocal := v.StringBytes()
+			if errLocal != nil {
+				err = fmt.Errorf("unexpected label value type for %q:%q; want string", k, v)
+				return
+			}
+			commonFields = append(commonFields, logstorage.Field{
+				Name:  bytesutil.ToUnsafeString(k),
+				Value: bytesutil.ToUnsafeString(vStr),
+			})
+		})
+		if err != nil {
+			return rowsIngested, fmt.Errorf("error when parsing `stream` object: %w", err)
+		}
+
+		// populate messages from `values` array
+		linesV := stream.Get("values")
+		if linesV == nil {
+			return rowsIngested, fmt.Errorf("missing `values` item in the parsed JSON %q", stream)
+		}
+		lines, err := linesV.Array()
+		if err != nil {
+			return rowsIngested, fmt.Errorf("`values` item in the parsed JSON must contain an array; got %q", linesV)
+		}
+
+		fields := commonFields
+		for _, line := range lines {
+			lineA, err := line.Array()
+			if err != nil {
+				return rowsIngested, fmt.Errorf("unexpected contents of `values` item; want array; got %q", line)
+			}
+			if len(lineA) != 2 {
+				return rowsIngested, fmt.Errorf("unexpected number of values in `values` item array %q; got %d want 2", line, len(lineA))
 			}
 
-			commonFields[msgFieldIdx].Value = bytesutil.ToUnsafeString(vs[1].GetStringBytes())
-			processLogMessage(ts, commonFields)
+			// parse timestamp
+			timestamp, err := lineA[0].StringBytes()
+			if err != nil {
+				return rowsIngested, fmt.Errorf("unexpected log timestamp type for %q; want string", lineA[0])
+			}
+			ts, err := parseLokiTimestamp(bytesutil.ToUnsafeString(timestamp))
+			if err != nil {
+				return rowsIngested, fmt.Errorf("cannot parse log timestamp %q: %w", timestamp, err)
+			}
+			if ts == 0 {
+				ts = currentTimestamp
+			}
 
-			rowsIngested++
+			// parse log message
+			msg, err := lineA[1].StringBytes()
+			if err != nil {
+				return rowsIngested, fmt.Errorf("unexpected log message type for %q; want string", lineA[1])
+			}
+
+			fields = append(fields[:len(commonFields)], logstorage.Field{
+				Name:  "_msg",
+				Value: bytesutil.ToUnsafeString(msg),
+			})
+			processLogMessage(ts, fields)
+
 		}
+		rowsIngested += len(lines)
 	}
 
 	return rowsIngested, nil
 }
 
 func parseLokiTimestamp(s string) (int64, error) {
-	// Parsing timestamp in nanoseconds
+	if s == "" {
+		// Special case - an empty timestamp must be substituted with the current time by the caller.
+		return 0, nil
+	}
 	n, err := strconv.ParseInt(s, 10, 64)
 	if err != nil {
-		return 0, fmt.Errorf("cannot parse timestamp in nanoseconds from %q: %w", s, err)
-	}
-	if n > int64(math.MaxInt64) {
-		return 0, fmt.Errorf("too big timestamp in nanoseconds: %d; mustn't exceed %d", n, math.MaxInt64)
+		// Fall back to parsing floating-point value
+		f, err := strconv.ParseFloat(s, 64)
+		if err != nil {
+			return 0, err
+		}
+		if f > math.MaxInt64 {
+			return 0, fmt.Errorf("too big timestamp in nanoseconds: %v; mustn't exceed %v", f, math.MaxInt64)
+		}
+		if f < math.MinInt64 {
+			return 0, fmt.Errorf("too small timestamp in nanoseconds: %v; must be bigger or equal to %v", f, math.MinInt64)
+		}
+		n = int64(f)
 	}
 	if n < 0 {
-		return 0, fmt.Errorf("too small timestamp in nanoseconds: %d; must be bigger than %d", n, 0)
+		return 0, fmt.Errorf("too small timestamp in nanoseconds: %d; must be bigger than 0", n)
 	}
 	return n, nil
 }

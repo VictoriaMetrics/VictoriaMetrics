@@ -4,34 +4,31 @@ import (
 	"net/http"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 	"github.com/VictoriaMetrics/metrics"
 )
 
-const msgField = "_msg"
-
 var (
-	lokiRequestsTotal = metrics.NewCounter(`vl_http_requests_total{path="/insert/loki/api/v1/push"}`)
+	lokiRequestsJSONTotal     = metrics.NewCounter(`vl_http_requests_total{path="/insert/loki/api/v1/push",format="json"}`)
+	lokiRequestsProtobufTotal = metrics.NewCounter(`vl_http_requests_total{path="/insert/loki/api/v1/push",format="protobuf"}`)
 )
 
-// RequestHandler processes ElasticSearch insert requests
+// RequestHandler processes Loki insert requests
+//
+// See https://grafana.com/docs/loki/latest/api/#push-log-entries-to-loki
 func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
-	switch path {
-	case "/api/v1/push":
-		contentType := r.Header.Get("Content-Type")
-		lokiRequestsTotal.Inc()
-		switch contentType {
-		case "application/x-protobuf":
-			return handleProtobuf(r, w)
-		case "application/json", "gzip":
-			return handleJSON(r, w)
-		default:
-			logger.Warnf("unsupported Content-Type=%q for %q request; skipping it", contentType, path)
-			return false
-		}
-	default:
+	if path != "/api/v1/push" {
 		return false
+	}
+	contentType := r.Header.Get("Content-Type")
+	switch contentType {
+	case "application/json":
+		lokiRequestsJSONTotal.Inc()
+		return handleJSON(r, w)
+	default:
+		// Protobuf request body should be handled by default accoring to https://grafana.com/docs/loki/latest/api/#push-log-entries-to-loki
+		lokiRequestsProtobufTotal.Inc()
+		return handleProtobuf(r, w)
 	}
 }
 
