@@ -2,7 +2,6 @@ package remotewrite
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -25,7 +24,7 @@ type DebugClient struct {
 	wg sync.WaitGroup
 }
 
-// NewDebugClient returns a debug remotewrite client
+// NewDebugClient initiates and returns a new DebugClient
 func NewDebugClient() (*DebugClient, error) {
 	if *addr == "" {
 		return nil, nil
@@ -45,28 +44,28 @@ func NewDebugClient() (*DebugClient, error) {
 	return c, nil
 }
 
-// Push adds timeseries into queue for writing into remote storage.
-// Push returns and error if client is stopped or if queue is full.
+// Push sends the given timeseries to the remote storage.
 func (c *DebugClient) Push(s prompbmarshal.TimeSeries) error {
 	c.wg.Add(1)
 	defer c.wg.Done()
 	wr := &prompbmarshal.WriteRequest{Timeseries: []prompbmarshal.TimeSeries{s}}
 	data, err := wr.Marshal()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to marshal the given time series: %w", err)
 	}
-	b := snappy.Encode(nil, data)
-	return c.send(context.Background(), b)
+
+	return c.send(data)
 }
 
-// Close stops the client
+// Close stops the DebugClient
 func (c *DebugClient) Close() error {
 	c.wg.Wait()
 	return nil
 }
 
-func (c *DebugClient) send(ctx context.Context, data []byte) error {
-	r := bytes.NewReader(data)
+func (c *DebugClient) send(data []byte) error {
+	b := snappy.Encode(nil, data)
+	r := bytes.NewReader(b)
 	req, err := http.NewRequest(http.MethodPost, c.addr, r)
 	if err != nil {
 		return fmt.Errorf("failed to create new HTTP request: %w", err)
@@ -82,30 +81,17 @@ func (c *DebugClient) send(ctx context.Context, data []byte) error {
 	if !*disablePathAppend {
 		req.URL.Path = path.Join(req.URL.Path, "/api/v1/write")
 	}
-	resp, err := c.c.Do(req.WithContext(ctx))
+	resp, err := c.c.Do(req)
 	if err != nil {
 		return fmt.Errorf("error while sending request to %s: %w; Data len %d(%d)",
 			req.URL.Redacted(), err, len(data), r.Size())
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	body, _ := io.ReadAll(resp.Body)
-
-	// according to https://prometheus.io/docs/concepts/remote_write_spec/
-	// Prometheus remote Write compatible receivers MUST
-	switch resp.StatusCode / 100 {
-	case 2:
-		// respond with a HTTP 2xx status code when the write is successful.
+	if resp.StatusCode/100 == 2 {
 		return nil
-	case 4:
-		if resp.StatusCode != http.StatusTooManyRequests {
-			// MUST NOT retry write requests on HTTP 4xx responses other than 429
-			return &nonRetriableError{fmt.Errorf("unexpected response code %d for %s. Response body %q",
-				resp.StatusCode, req.URL.Redacted(), body)}
-		}
-		fallthrough
-	default:
-		return fmt.Errorf("unexpected response code %d for %s. Response body %q",
-			resp.StatusCode, req.URL.Redacted(), body)
 	}
+	body, _ := io.ReadAll(resp.Body)
+	return fmt.Errorf("unexpected response code %d for %s. Response body %q",
+		resp.StatusCode, req.URL.Redacted(), body)
 }
