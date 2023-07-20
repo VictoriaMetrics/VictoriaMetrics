@@ -17,6 +17,7 @@ menu:
 - Fluentbit. See [how to setup Fluentbit for sending logs to VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/Fluentbit.html).
 - Logstash. See [how to setup Logstash for sending logs to VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/Logstash.html).
 - Vector. See [how to setup Vector for sending logs to VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/Vector.html).
+- Promtail. See [how to setup Promtail for sending logs to VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/Promtail.html).
 
 The ingested logs can be queried according to [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/).
 
@@ -32,6 +33,7 @@ VictoriaLogs supports the following data ingestion HTTP APIs:
 
 - Elasticsearch bulk API. See [these docs](#elasticsearch-bulk-api).
 - JSON stream API aka [ndjson](http://ndjson.org/). See [these docs](#json-stream-api).
+- [Loki JSON API](https://grafana.com/docs/loki/latest/api/#push-log-entries-to-lokiq). See [these docs](#loki-json-api).
 
 VictoriaLogs accepts optional [HTTP parameters](#http-parameters) at data ingestion HTTP APIs.
 
@@ -129,6 +131,17 @@ See also:
 - [How to debug data ingestion](#troubleshooting).
 - [HTTP parameters, which can be passed to the API](#http-parameters).
 - [How to query VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/querying.html).
+
+### Loki JSON API
+
+VictoriaLogs accepts logs in [Loki JSON API](https://grafana.com/docs/loki/latest/api/#push-log-entries-to-lokiq) format at `http://localhost:9428/insert/loki/api/v1/push` endpoint.
+
+The following command pushes a single log line to Loki JSON API at VictoriaLogs:
+
+```bash
+curl -v -H "Content-Type: application/json" -XPOST -s "http://localhost:9428/insert/loki/api/v1/push?_stream_fields=foo" --data-raw \
+  '{"streams": [{ "stream": { "foo": "bar2" }, "values": [ [ "1570818238000000000", "fizzbuzz" ] ] }]}'
+```
 
 ### HTTP parameters
 
