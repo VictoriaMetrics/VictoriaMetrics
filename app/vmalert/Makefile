@@ -102,6 +102,10 @@ replay-vmalert: vmalert
 		-replay.timeFrom=2021-05-11T07:21:43Z \
 		-replay.timeTo=2021-05-29T18:40:43Z
 
+unittest-vmalert: vmalert
+	./bin/vmalert -unittestFile=app/vmalert/unittest/testdata/test1.yaml \
+ 		-unittestFile=app/vmalert/unittest/testdata/test2.yaml
+
 vmalert-linux-amd64:
 	APP_NAME=vmalert CGO_ENABLED=1 GOOS=linux GOARCH=amd64 $(MAKE) app-local-goos-goarch
 
