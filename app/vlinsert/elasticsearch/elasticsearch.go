@@ -199,12 +199,15 @@ func readBulkLine(sc *bufio.Scanner, timeField, msgField string,
 		return false, fmt.Errorf("cannot parse json-encoded log entry: %w", err)
 	}
 
-	timestamp, err := extractTimestampFromFields(timeField, p.Fields)
+	ts, err := extractTimestampFromFields(timeField, p.Fields)
 	if err != nil {
 		return false, fmt.Errorf("cannot parse timestamp: %w", err)
 	}
+	if ts == 0 {
+		ts = time.Now().UnixNano()
+	}
 	p.RenameField(msgField, "_msg")
-	processLogMessage(timestamp, p.Fields)
+	processLogMessage(ts, p.Fields)
 	logjson.PutParser(p)
 	return true, nil
 }
@@ -222,10 +225,15 @@ func extractTimestampFromFields(timeField string, fields []logstorage.Field) (in
 		f.Value = ""
 		return timestamp, nil
 	}
-	return time.Now().UnixNano(), nil
+	return 0, nil
 }
 
 func parseElasticsearchTimestamp(s string) (int64, error) {
+	if s == "0" || s == "" {
+		// Special case - zero or empty timestamp must be substituted
+		// with the current time by the caller.
+		return 0, nil
+	}
 	if len(s) < len("YYYY-MM-DD") || s[len("YYYY")] != '-' {
 		// Try parsing timestamp in milliseconds
 		n, err := strconv.ParseInt(s, 10, 64)

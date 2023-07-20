@@ -4,68 +4,66 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
+	"strings"
 	"sync"
+	"time"
 
-	"github.com/golang/snappy"
-
-	"github.com/VictoriaMetrics/metrics"
-	"github.com/VictoriaMetrics/metricsql"
-
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
+	"github.com/VictoriaMetrics/metrics"
+	"github.com/golang/snappy"
 )
 
 var (
-	rowsIngestedTotalProtobuf = metrics.NewCounter(`vl_rows_ingested_total{type="loki", format="protobuf"}`)
+	rowsIngestedProtobufTotal = metrics.NewCounter(`vl_rows_ingested_total{type="loki",format="protobuf"}`)
 	bytesBufPool              bytesutil.ByteBufferPool
 	pushReqsPool              sync.Pool
 )
 
 func handleProtobuf(r *http.Request, w http.ResponseWriter) bool {
 	wcr := writeconcurrencylimiter.GetReader(r.Body)
-	defer writeconcurrencylimiter.PutReader(wcr)
+	data, err := io.ReadAll(wcr)
+	writeconcurrencylimiter.PutReader(wcr)
+	if err != nil {
+		httpserver.Errorf(w, r, "cannot read request body: %s", err)
+		return true
+	}
 
 	cp, err := getCommonParams(r)
 	if err != nil {
-		httpserver.Errorf(w, r, "cannot parse request: %s", err)
+		httpserver.Errorf(w, r, "cannot parse common params from request: %s", err)
 		return true
 	}
 	lr := logstorage.GetLogRows(cp.StreamFields, cp.IgnoreFields)
-	defer logstorage.PutLogRows(lr)
-
 	processLogMessage := cp.GetProcessLogMessageFunc(lr)
-	n, err := processProtobufRequest(wcr, processLogMessage)
+	n, err := parseProtobufRequest(data, processLogMessage)
+	vlstorage.MustAddRows(lr)
+	logstorage.PutLogRows(lr)
 	if err != nil {
-		httpserver.Errorf(w, r, "cannot decode loki request: %s", err)
+		httpserver.Errorf(w, r, "cannot parse loki request: %s", err)
 		return true
 	}
-
-	rowsIngestedTotalProtobuf.Add(n)
-
+	rowsIngestedProtobufTotal.Add(n)
 	return true
 }
 
-func processProtobufRequest(r io.Reader, processLogMessage func(timestamp int64, fields []logstorage.Field)) (int, error) {
-	wcr := writeconcurrencylimiter.GetReader(r)
-	defer writeconcurrencylimiter.PutReader(wcr)
-
-	bytes, err := io.ReadAll(wcr)
-	if err != nil {
-		return 0, fmt.Errorf("cannot read request body: %s", err)
-	}
-
+func parseProtobufRequest(data []byte, processLogMessage func(timestamp int64, fields []logstorage.Field)) (int, error) {
 	bb := bytesBufPool.Get()
 	defer bytesBufPool.Put(bb)
-	bb.B, err = snappy.Decode(bb.B[:cap(bb.B)], bytes)
-	if err != nil {
-		return 0, fmt.Errorf("cannot decode snappy from request body: %s", err)
-	}
 
-	req := getPushReq()
-	defer putPushReq(req)
+	buf, err := snappy.Decode(bb.B[:cap(bb.B)], data)
+	if err != nil {
+		return 0, fmt.Errorf("cannot decode snappy-encoded request body: %w", err)
+	}
+	bb.B = buf
+
+	req := getPushRequest()
+	defer putPushRequest(req)
+
 	err = req.Unmarshal(bb.B)
 	if err != nil {
 		return 0, fmt.Errorf("cannot parse request body: %s", err)
@@ -73,59 +71,93 @@ func processProtobufRequest(r io.Reader, processLogMessage func(timestamp int64,
 
 	var commonFields []logstorage.Field
 	rowsIngested := 0
-	for stIdx, st := range req.Streams {
+	streams := req.Streams
+	currentTimestamp := time.Now().UnixNano()
+	for i := range streams {
+		stream := &streams[i]
 		// st.Labels contains labels for the stream.
 		// Labels are same for all entries in the stream.
-		commonFields, err = parseLogFields(st.Labels, commonFields)
+		commonFields, err = parsePromLabels(commonFields[:0], stream.Labels)
 		if err != nil {
-			return rowsIngested, fmt.Errorf("failed to unmarshal labels in stream %d: %q; %s", stIdx, st.Labels, err)
+			return rowsIngested, fmt.Errorf("cannot parse stream labels %q: %s", stream.Labels, err)
 		}
-		msgFieldIDx := len(commonFields) - 1
-		commonFields[msgFieldIDx].Name = msgField
+		fields := commonFields
 
-		for _, v := range st.Entries {
-			commonFields[msgFieldIDx].Value = v.Line
-			processLogMessage(v.Timestamp.UnixNano(), commonFields)
-			rowsIngested++
+		entries := stream.Entries
+		for j := range entries {
+			entry := &entries[j]
+			fields = append(fields[:len(commonFields)], logstorage.Field{
+				Name:  "_msg",
+				Value: entry.Line,
+			})
+			ts := entry.Timestamp.UnixNano()
+			if ts == 0 {
+				ts = currentTimestamp
+			}
+			processLogMessage(ts, fields)
 		}
+		rowsIngested += len(stream.Entries)
 	}
 	return rowsIngested, nil
 }
 
-// Parses logs fields s and returns the corresponding log fields.
-// Cannot use searchutils.ParseMetricSelector here because its dependencies
-// bring flags which clashes with logstorage flags.
+// parsePromLabels parses log fields in Prometheus text exposition format from s, appends them to dst and returns the result.
 //
-// Loki encodes labels in the PromQL labels format.
 // See test data of promtail for examples: https://github.com/grafana/loki/blob/a24ef7b206e0ca63ee74ca6ecb0a09b745cd2258/pkg/push/types_test.go
-func parseLogFields(s string, dst []logstorage.Field) ([]logstorage.Field, error) {
-	expr, err := metricsql.Parse(s)
-	if err != nil {
-		return nil, err
+func parsePromLabels(dst []logstorage.Field, s string) ([]logstorage.Field, error) {
+	// Make sure s is wrapped into `{...}`
+	s = strings.TrimSpace(s)
+	if len(s) < 2 {
+		return nil, fmt.Errorf("too short string to parse: %q", s)
 	}
-
-	me, ok := expr.(*metricsql.MetricExpr)
-	if !ok {
-		return nil, fmt.Errorf("failed to parse stream labels; got %q", expr.AppendString(nil))
+	if s[0] != '{' {
+		return nil, fmt.Errorf("missing `{` at the beginning of %q", s)
 	}
-
-	// Expecting only label filters without MetricsQL "or" operator.
-	if len(me.LabelFilterss) != 1 {
-		return nil, fmt.Errorf("unexpected format of log fields; got %q", s)
+	if s[len(s)-1] != '}' {
+		return nil, fmt.Errorf("missing `}` at the end of %q", s)
 	}
+	s = s[1 : len(s)-1]
 
-	// Allocate space for labels + msg field.
-	// Msg field is added by caller.
-	dst = slicesutil.ResizeNoCopyMayOverallocate(dst, len(me.LabelFilterss[0]))
-	for i, l := range me.LabelFilterss[0] {
-		dst[i].Name = l.Label
-		dst[i].Value = l.Value
+	for len(s) > 0 {
+		// Parse label name
+		n := strings.IndexByte(s, '=')
+		if n < 0 {
+			return nil, fmt.Errorf("cannot find `=` char for label value at %s", s)
+		}
+		name := s[:n]
+		s = s[n+1:]
+
+		// Parse label value
+		qs, err := strconv.QuotedPrefix(s)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse value for label %q at %s: %w", name, s, err)
+		}
+		s = s[len(qs):]
+		value, err := strconv.Unquote(qs)
+		if err != nil {
+			return nil, fmt.Errorf("cannot unquote value %q for label %q: %w", qs, name, err)
+		}
+
+		// Append the found field to dst.
+		dst = append(dst, logstorage.Field{
+			Name:  name,
+			Value: value,
+		})
+
+		// Check whether there are other labels remaining
+		if len(s) == 0 {
+			break
+		}
+		if !strings.HasPrefix(s, ",") {
+			return nil, fmt.Errorf("missing `,` char at %s", s)
+		}
+		s = s[1:]
+		s = strings.TrimPrefix(s, " ")
 	}
-
 	return dst, nil
 }
 
-func getPushReq() *PushRequest {
+func getPushRequest() *PushRequest {
 	v := pushReqsPool.Get()
 	if v == nil {
 		return &PushRequest{}
@@ -133,7 +165,7 @@ func getPushReq() *PushRequest {
 	return v.(*PushRequest)
 }
 
-func putPushReq(reqs *PushRequest) {
-	reqs.Reset()
-	pushReqsPool.Put(reqs)
+func putPushRequest(req *PushRequest) {
+	req.Reset()
+	pushReqsPool.Put(req)
 }

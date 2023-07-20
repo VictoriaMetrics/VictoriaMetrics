@@ -8,11 +8,11 @@
 *.test
 *.swp
 /gocache-for-docker
+/victoria-logs-data
 /victoria-metrics-data
 /vmagent-remotewrite-data
 /vmstorage-data
 /vmselect-cache
-/victoria-logs-data
 /package/temp-deb-*
 /package/temp-rpm-*
 /package/*.deb

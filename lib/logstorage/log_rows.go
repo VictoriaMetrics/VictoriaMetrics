@@ -230,6 +230,7 @@ func (lr *LogRows) GetRowString(idx int) string {
 // GetLogRows returns LogRows from the pool for the given streamFields.
 //
 // streamFields is a set of field names, which must be associated with the stream.
+// ignoreFields is a set of field names, which must be ignored during data ingestion.
 //
 // Return back it to the pool with PutLogRows() when it is no longer needed.
 func GetLogRows(streamFields, ignoreFields []string) *LogRows {
