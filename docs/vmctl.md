@@ -736,6 +736,9 @@ requires an Authentication header like `X-Scope-OrgID`. You can define it via th
 
 ## Migrating data from VictoriaMetrics
 
+The simplest way to migrate data between VM instances is to copy data.
+See more details [here](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#data-migration).
+
 vmctl uses [native binary protocol](https://docs.victoriametrics.com/#how-to-export-data-in-native-format)
 (available since [1.42.0 release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.42.0))
 o migrate data between VM instances: single to single, cluster to cluster, single to cluster and vice versa.
