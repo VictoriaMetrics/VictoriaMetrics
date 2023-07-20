@@ -12,8 +12,8 @@ import (
 
 var (
 	maxSortBufferSize = flagutil.NewBytes("select.maxSortBufferSize", 1024*1024, "Query results from /select/logsql/query are automatically sorted by _time "+
-		"if their summary size doesn't exceed this value; otherwise query results are streamed in the response without sorting; "+
-		"too big value for this flag may result in high memory usage, since the sorting is performed in memory")
+		"if their summary size doesn't exceed this value; otherwise, query results are streamed in the response without sorting; "+
+		"too big value for this flag may result in high memory usage since the sorting is performed in memory")
 )
 
 // ProcessQueryRequest handles /select/logsql/query request

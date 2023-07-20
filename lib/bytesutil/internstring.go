@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	internStringMaxLen = flag.Int("internStringMaxLen", 500, "The maximum length for strings to intern. Lower limit may save memory at the cost of higher CPU usage. "+
+	internStringMaxLen = flag.Int("internStringMaxLen", 500, "The maximum length for strings to intern. A lower limit may save memory at the cost of higher CPU usage. "+
 		"See https://en.wikipedia.org/wiki/String_interning . See also -internStringDisableCache and -internStringCacheExpireDuration")
 	disableCache = flag.Bool("internStringDisableCache", false, "Whether to disable caches for interned strings. This may reduce memory usage at the cost of higher CPU usage. "+
 		"See https://en.wikipedia.org/wiki/String_interning . See also -internStringCacheExpireDuration and -internStringMaxLen")

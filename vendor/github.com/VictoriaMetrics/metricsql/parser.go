@@ -311,7 +311,7 @@ func (p *parser) parseWithArgExpr() (*withArgExpr, error) {
 	}
 	if p.lex.Token == "(" {
 		// Parse func args.
-		args, err := p.parseIdentList()
+		args, err := p.parseIdentList(false)
 		if err != nil {
 			return nil, fmt.Errorf(`withArgExpr: cannot parse args for %q: %s`, wa.Name, err)
 		}
@@ -365,15 +365,25 @@ func (p *parser) parseExpr() (Expr, error) {
 			}
 		}
 		if isBinaryOpGroupModifier(p.lex.Token) {
-			if err := p.parseModifierExpr(&be.GroupModifier); err != nil {
+			if err := p.parseModifierExpr(&be.GroupModifier, false); err != nil {
 				return nil, err
 			}
 			if isBinaryOpJoinModifier(p.lex.Token) {
 				if isBinaryOpLogicalSet(be.Op) {
 					return nil, fmt.Errorf(`modifier %q cannot be applied to %q`, p.lex.Token, be.Op)
 				}
-				if err := p.parseModifierExpr(&be.JoinModifier); err != nil {
+				if err := p.parseModifierExpr(&be.JoinModifier, true); err != nil {
 					return nil, err
+				}
+				if isPrefixModifier(p.lex.Token) {
+					if err := p.lex.Next(); err != nil {
+						return nil, fmt.Errorf("cannot read prefix for %s: %w", be.JoinModifier.AppendString(nil), err)
+					}
+					se, err := p.parseStringExpr()
+					if err != nil {
+						return nil, fmt.Errorf("cannot parse prefix for %s: %w", be.JoinModifier.AppendString(nil), err)
+					}
+					be.JoinModifierPrefix = se
 				}
 			}
 		}
@@ -573,6 +583,14 @@ func (p *parser) parseParensExpr() (*parensExpr, error) {
 	if err := p.lex.Next(); err != nil {
 		return nil, err
 	}
+	if len(exprs) == 1 {
+		if be, ok := exprs[0].(*BinaryOpExpr); ok && isKeepMetricNames(p.lex.Token) {
+			if err := p.lex.Next(); err != nil {
+				return nil, err
+			}
+			be.KeepMetricNames = true
+		}
+	}
 	pe := parensExpr(exprs)
 	return &pe, nil
 }
@@ -600,7 +618,7 @@ funcPrefixLabel:
 		if !isAggrFuncModifier(p.lex.Token) {
 			return nil, fmt.Errorf(`AggrFuncExpr: unexpected token %q; want aggregate func modifier`, p.lex.Token)
 		}
-		if err := p.parseModifierExpr(&ae.Modifier); err != nil {
+		if err := p.parseModifierExpr(&ae.Modifier, false); err != nil {
 			return nil, err
 		}
 	}
@@ -615,7 +633,7 @@ funcArgsLabel:
 
 		// Verify whether func suffix exists.
 		if ae.Modifier.Op == "" && isAggrFuncModifier(p.lex.Token) {
-			if err := p.parseModifierExpr(&ae.Modifier); err != nil {
+			if err := p.parseModifierExpr(&ae.Modifier, false); err != nil {
 				return nil, err
 			}
 		}
@@ -657,6 +675,18 @@ func expandWithExpr(was []*withArgExpr, e Expr) (Expr, error) {
 		if err != nil {
 			return nil, err
 		}
+		var joinModifierPrefix *StringExpr
+		if t.JoinModifierPrefix != nil {
+			jmp, err := expandWithExpr(was, t.JoinModifierPrefix)
+			if err != nil {
+				return nil, err
+			}
+			se, ok := jmp.(*StringExpr)
+			if !ok {
+				return nil, fmt.Errorf("unexpected prefix for %s; want quoted string; got %s", t.JoinModifier.AppendString(nil), jmp.AppendString(nil))
+			}
+			joinModifierPrefix = se
+		}
 		if t.Op == "+" {
 			lse, lok := left.(*StringExpr)
 			rse, rok := right.(*StringExpr)
@@ -672,6 +702,7 @@ func expandWithExpr(was []*withArgExpr, e Expr) (Expr, error) {
 		be.Right = right
 		be.GroupModifier.Args = groupModifierArgs
 		be.JoinModifier.Args = joinModifierArgs
+		be.JoinModifierPrefix = joinModifierPrefix
 		pe := parensExpr{&be}
 		return &pe, nil
 	case *FuncExpr:
@@ -753,6 +784,18 @@ func expandWithExpr(was []*withArgExpr, e Expr) (Expr, error) {
 		}
 		re := *t
 		re.Expr = eNew
+		re.Window, err = expandDuration(was, re.Window)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse window for %s: %w", re.Expr.AppendString(nil), err)
+		}
+		re.Step, err = expandDuration(was, re.Step)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse step in %s: %w", re.Expr.AppendString(nil), err)
+		}
+		re.Offset, err = expandDuration(was, re.Offset)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse offset in %s: %w", re.Expr.AppendString(nil), err)
+		}
 		if t.At != nil {
 			atNew, err := expandWithExpr(was, t.At)
 			if err != nil {
@@ -797,7 +840,7 @@ func expandWithExpr(was []*withArgExpr, e Expr) (Expr, error) {
 								lfe.Label, t.AppendString(nil), eNew.AppendString(nil))
 						}
 						if len(wme.labelFilterss) > 0 {
-							panic(fmt.Errorf("BUG: wme.labelFilterss must be empty after WITH template expansion; got %s", wme.labelFilterss))
+							panic(fmt.Errorf("BUG: wme.labelFilterss must be empty after WITH template expansion; got %s", wme.AppendString(nil)))
 						}
 						lfssSrc := wme.LabelFilterss
 						if len(lfssSrc) > 1 {
@@ -857,7 +900,7 @@ func expandWithExpr(was []*withArgExpr, e Expr) (Expr, error) {
 			return nil, fmt.Errorf("cannot expand %q to non-metric expression %q", t.AppendString(nil), eNew.AppendString(nil))
 		}
 		if len(wme.labelFilterss) > 0 {
-			panic(fmt.Errorf("BUG: wme.labelFilterss must be empty after WITH templates expansion; got %s", wme.labelFilterss))
+			panic(fmt.Errorf("BUG: wme.labelFilterss must be empty after WITH templates expansion; got %s", wme.AppendString(nil)))
 		}
 		lfssSrc := wme.LabelFilterss
 		var lfssNew [][]LabelFilter
@@ -912,6 +955,38 @@ func expandWithArgs(was []*withArgExpr, args []Expr) ([]Expr, error) {
 		dstArgs[i] = dstArg
 	}
 	return dstArgs, nil
+}
+
+func expandDuration(was []*withArgExpr, d *DurationExpr) (*DurationExpr, error) {
+	if d == nil {
+		return nil, nil
+	}
+	if !d.needsParsing {
+		return d, nil
+	}
+	wa := getWithArgExpr(was, d.s)
+	if wa == nil {
+		return nil, fmt.Errorf("cannot find WITH template for %q", d.s)
+	}
+	e, err := expandWithExprExt(was, wa, []Expr{})
+	if err != nil {
+		return nil, err
+	}
+	switch t := e.(type) {
+	case *DurationExpr:
+		if t.needsParsing {
+			panic(fmt.Errorf("BUG: DurationExpr %q must be already parsed", t.s))
+		}
+		return t, nil
+	case *NumberExpr:
+		// Convert number of seconds to DurationExpr
+		de := &DurationExpr{
+			s: t.s,
+		}
+		return de, nil
+	default:
+		return nil, fmt.Errorf("unexpected value for WITH template %q; got %s; want duration", d.s, e.AppendString(nil))
+	}
 }
 
 func expandModifierArgs(was []*withArgExpr, args []string) ([]string, error) {
@@ -1076,7 +1151,7 @@ func isKeepMetricNames(token string) bool {
 	return token == "keep_metric_names"
 }
 
-func (p *parser) parseModifierExpr(me *ModifierExpr) error {
+func (p *parser) parseModifierExpr(me *ModifierExpr, allowStar bool) error {
 	if !isIdentPrefix(p.lex.Token) {
 		return fmt.Errorf(`ModifierExpr: unexpected token %q; want "ident"`, p.lex.Token)
 	}
@@ -1090,25 +1165,40 @@ func (p *parser) parseModifierExpr(me *ModifierExpr) error {
 		// join modifier may miss ident list.
 		return nil
 	}
-	args, err := p.parseIdentList()
+	args, err := p.parseIdentList(allowStar)
 	if err != nil {
-		return err
+		return fmt.Errorf("ModifierExpr: %w", err)
 	}
 	me.Args = args
 	return nil
 }
 
-func (p *parser) parseIdentList() ([]string, error) {
+func (p *parser) parseIdentList(allowStar bool) ([]string, error) {
 	if p.lex.Token != "(" {
 		return nil, fmt.Errorf(`identList: unexpected token %q; want "("`, p.lex.Token)
 	}
-	var idents []string
-	for {
+	if err := p.lex.Next(); err != nil {
+		return nil, err
+	}
+	if allowStar && p.lex.Token == "*" {
 		if err := p.lex.Next(); err != nil {
 			return nil, err
 		}
+		if p.lex.Token != ")" {
+			return nil, fmt.Errorf(`identList: unexpected token %q after "*"; want ")"`, p.lex.Token)
+		}
+		if err := p.lex.Next(); err != nil {
+			return nil, err
+		}
+		return []string{"*"}, nil
+	}
+	var idents []string
+	for {
 		if p.lex.Token == ")" {
-			goto closeParensLabel
+			if err := p.lex.Next(); err != nil {
+				return nil, err
+			}
+			return idents, nil
 		}
 		if !isIdentPrefix(p.lex.Token) {
 			return nil, fmt.Errorf(`identList: unexpected token %q; want "ident"`, p.lex.Token)
@@ -1119,19 +1209,15 @@ func (p *parser) parseIdentList() ([]string, error) {
 		}
 		switch p.lex.Token {
 		case ",":
-			continue
+			if err := p.lex.Next(); err != nil {
+				return nil, err
+			}
 		case ")":
-			goto closeParensLabel
+			continue
 		default:
 			return nil, fmt.Errorf(`identList: unexpected token %q; want ",", ")"`, p.lex.Token)
 		}
 	}
-
-closeParensLabel:
-	if err := p.lex.Next(); err != nil {
-		return nil, err
-	}
-	return idents, nil
 }
 
 func (p *parser) parseArgListExpr() ([]Expr, error) {
@@ -1293,8 +1379,24 @@ type labelFilterExpr struct {
 	IsNegative bool
 }
 
-func (lfe *labelFilterExpr) String() string {
-	return fmt.Sprintf("[label=%q, value=%+v, isRegexp=%v, isNegative=%v]", lfe.Label, lfe.Value, lfe.IsRegexp, lfe.IsNegative)
+func (lfe *labelFilterExpr) AppendString(dst []byte) []byte {
+	dst = appendEscapedIdent(dst, lfe.Label)
+	if lfe.Value == nil {
+		return dst
+	}
+	dst = appendLabelFilterOp(dst, lfe.IsNegative, lfe.IsRegexp)
+	tokens := lfe.Value.tokens
+	if len(tokens) == 0 {
+		dst = strconv.AppendQuote(dst, lfe.Value.S)
+		return dst
+	}
+	for i, token := range tokens {
+		dst = append(dst, token...)
+		if i+1 < len(tokens) {
+			dst = append(dst, '+')
+		}
+	}
+	return dst
 }
 
 func (lfe *labelFilterExpr) toLabelFilter() (*LabelFilter, error) {
@@ -1410,13 +1512,28 @@ func (p *parser) parseDuration() (*DurationExpr, error) {
 
 func (p *parser) parsePositiveDuration() (*DurationExpr, error) {
 	s := p.lex.Token
+	if isIdentPrefix(s) {
+		n := strings.IndexByte(s, ':')
+		if n >= 0 {
+			p.lex.PushBack(s[:n], s[n:])
+			s = s[:n]
+		}
+		if err := p.lex.Next(); err != nil {
+			return nil, err
+		}
+		de := &DurationExpr{
+			s:            s,
+			needsParsing: true,
+		}
+		return de, nil
+	}
 	if isPositiveDuration(s) {
 		if err := p.lex.Next(); err != nil {
 			return nil, err
 		}
 	} else {
 		if !isPositiveNumberPrefix(s) {
-			return nil, fmt.Errorf(`duration: unexpected token %q; want "duration"`, s)
+			return nil, fmt.Errorf(`duration: unexpected token %q; want valid duration`, s)
 		}
 		// Verify the duration in seconds without explicit suffix.
 		if _, err := p.parsePositiveNumberExpr(); err != nil {
@@ -1436,12 +1553,18 @@ func (p *parser) parsePositiveDuration() (*DurationExpr, error) {
 // DurationExpr contains the duration
 type DurationExpr struct {
 	s string
+
+	// needsParsing is set to true if s isn't parsed yet with expandWithExpr()
+	needsParsing bool
 }
 
 // AppendString appends string representation of de to dst and returns the result.
 func (de *DurationExpr) AppendString(dst []byte) []byte {
 	if de == nil {
 		return dst
+	}
+	if de.needsParsing {
+		panic(fmt.Errorf("BUG: duration %q must be already parsed with expandWithExpr()", de.s))
 	}
 	return append(dst, de.s...)
 }
@@ -1450,6 +1573,9 @@ func (de *DurationExpr) AppendString(dst []byte) []byte {
 func (de *DurationExpr) Duration(step int64) int64 {
 	if de == nil {
 		return 0
+	}
+	if de.needsParsing {
+		panic(fmt.Errorf("BUG: duration %q must be already parsed", de.s))
 	}
 	d, err := DurationValue(de.s, step)
 	if err != nil {
@@ -1575,6 +1701,9 @@ type StringExpr struct {
 
 // AppendString appends string representation of se to dst and returns the result.
 func (se *StringExpr) AppendString(dst []byte) []byte {
+	if len(se.tokens) > 0 {
+		panic(fmt.Errorf("BUG: StringExpr=%q must be already parsed with expandWithExpr()", se.tokens))
+	}
 	return strconv.AppendQuote(dst, se.S)
 }
 
@@ -1620,6 +1749,11 @@ type BinaryOpExpr struct {
 	// JoinModifier contains modifier such as "group_left" or "group_right".
 	JoinModifier ModifierExpr
 
+	// JoinModifierPrefix is an optional prefix to add to labels specified inside group_left() or group_right() lists.
+	//
+	// The syntax is `group_left(foo,bar) prefix "abc"`
+	JoinModifierPrefix *StringExpr
+
 	// If KeepMetricNames is set to true, then the operation should keep metric names.
 	KeepMetricNames bool
 
@@ -1632,12 +1766,56 @@ type BinaryOpExpr struct {
 
 // AppendString appends string representation of be to dst and returns the result.
 func (be *BinaryOpExpr) AppendString(dst []byte) []byte {
-	if _, ok := be.Left.(*BinaryOpExpr); ok {
+	if be.KeepMetricNames {
+		dst = append(dst, '(')
+		dst = be.appendStringNoKeepMetricNames(dst)
+		dst = append(dst, ") keep_metric_names"...)
+	} else {
+		dst = be.appendStringNoKeepMetricNames(dst)
+	}
+	return dst
+}
+
+func (be *BinaryOpExpr) appendStringNoKeepMetricNames(dst []byte) []byte {
+	if be.needLeftParens() {
 		dst = appendArgInParens(dst, be.Left)
 	} else {
 		dst = be.Left.AppendString(dst)
 	}
 	dst = append(dst, ' ')
+	dst = be.appendModifiers(dst)
+	dst = append(dst, ' ')
+	if be.needRightParens() {
+		dst = appendArgInParens(dst, be.Right)
+	} else {
+		dst = be.Right.AppendString(dst)
+	}
+	return dst
+}
+
+func (be *BinaryOpExpr) needLeftParens() bool {
+	return needBinaryOpArgParens(be.Left)
+}
+
+func (be *BinaryOpExpr) needRightParens() bool {
+	if needBinaryOpArgParens(be.Right) {
+		return true
+	}
+	switch t := be.Right.(type) {
+	case *MetricExpr:
+		metricName := t.getMetricName()
+		return isReservedBinaryOpIdent(metricName)
+	case *FuncExpr:
+		if isReservedBinaryOpIdent(t.Name) {
+			return true
+		}
+		return t.KeepMetricNames || be.KeepMetricNames
+	default:
+		return false
+	}
+}
+
+func (be *BinaryOpExpr) appendModifiers(dst []byte) []byte {
 	dst = append(dst, be.Op...)
 	if be.Bool {
 		dst = append(dst, "bool"...)
@@ -1649,44 +1827,34 @@ func (be *BinaryOpExpr) AppendString(dst []byte) []byte {
 	if be.JoinModifier.Op != "" {
 		dst = append(dst, ' ')
 		dst = be.JoinModifier.AppendString(dst)
-	}
-	dst = append(dst, ' ')
-	if be.needRightParens() {
-		dst = appendArgInParens(dst, be.Right)
-	} else {
-		dst = be.Right.AppendString(dst)
-	}
-	if be.KeepMetricNames {
-		dst = append(dst, " keep_metric_names"...)
+		if prefix := be.JoinModifierPrefix; prefix != nil {
+			dst = append(dst, " prefix "...)
+			dst = prefix.AppendString(dst)
+		}
 	}
 	return dst
 }
 
-func (be *BinaryOpExpr) needRightParens() bool {
-	r := be.Right
-	if _, ok := r.(*BinaryOpExpr); ok {
+func needBinaryOpArgParens(arg Expr) bool {
+	switch t := arg.(type) {
+	case *BinaryOpExpr:
 		return true
-	}
-	if me, ok := r.(*MetricExpr); ok {
-		metricName := me.getMetricName()
-		return isReservedBinaryOpIdent(metricName)
-	}
-	if fe, ok := r.(*FuncExpr); ok && isReservedBinaryOpIdent(fe.Name) {
-		return true
-	}
-	if !be.KeepMetricNames {
-		return false
-	}
-	switch r.(type) {
-	case *FuncExpr:
-		return true
+	case *RollupExpr:
+		if be, ok := t.Expr.(*BinaryOpExpr); ok && be.KeepMetricNames {
+			return true
+		}
+		return t.Offset != nil || t.At != nil
 	default:
 		return false
 	}
 }
 
 func isReservedBinaryOpIdent(s string) bool {
-	return isBinaryOpGroupModifier(s) || isBinaryOpJoinModifier(s) || isBinaryOpBoolModifier(s)
+	return isBinaryOpGroupModifier(s) || isBinaryOpJoinModifier(s) || isBinaryOpBoolModifier(s) || isPrefixModifier(s)
+}
+
+func isPrefixModifier(s string) bool {
+	return strings.ToLower(s) == "prefix"
 }
 
 func appendArgInParens(dst []byte, arg Expr) []byte {
@@ -1708,9 +1876,13 @@ type ModifierExpr struct {
 // AppendString appends string representation of me to dst and returns the result.
 func (me *ModifierExpr) AppendString(dst []byte) []byte {
 	dst = append(dst, me.Op...)
-	dst = append(dst, "("...)
+	dst = append(dst, '(')
 	for i, arg := range me.Args {
-		dst = appendEscapedIdent(dst, arg)
+		if arg == "*" {
+			dst = append(dst, '*')
+		} else {
+			dst = appendEscapedIdent(dst, arg)
+		}
 		if i+1 < len(me.Args) {
 			dst = append(dst, ',')
 		}
@@ -1747,6 +1919,10 @@ type FuncExpr struct {
 func (fe *FuncExpr) AppendString(dst []byte) []byte {
 	dst = appendEscapedIdent(dst, fe.Name)
 	dst = appendStringArgListExpr(dst, fe.Args)
+	return fe.appendModifiers(dst)
+}
+
+func (fe *FuncExpr) appendModifiers(dst []byte) []byte {
 	if fe.KeepMetricNames {
 		dst = append(dst, " keep_metric_names"...)
 	}
@@ -1775,6 +1951,10 @@ type AggrFuncExpr struct {
 func (ae *AggrFuncExpr) AppendString(dst []byte) []byte {
 	dst = appendEscapedIdent(dst, ae.Name)
 	dst = appendStringArgListExpr(dst, ae.Args)
+	return ae.appendModifiers(dst)
+}
+
+func (ae *AggrFuncExpr) appendModifiers(dst []byte) []byte {
 	if ae.Modifier.Op != "" {
 		dst = append(dst, ' ')
 		dst = ae.Modifier.AppendString(dst)
@@ -1874,18 +2054,7 @@ func (re *RollupExpr) ForSubquery() bool {
 
 // AppendString appends string representation of re to dst and returns the result.
 func (re *RollupExpr) AppendString(dst []byte) []byte {
-	needParens := func() bool {
-		if _, ok := re.Expr.(*RollupExpr); ok {
-			return true
-		}
-		if _, ok := re.Expr.(*BinaryOpExpr); ok {
-			return true
-		}
-		if ae, ok := re.Expr.(*AggrFuncExpr); ok && ae.Modifier.Op != "" {
-			return true
-		}
-		return false
-	}()
+	needParens := re.needParens()
 	if needParens {
 		dst = append(dst, '(')
 	}
@@ -1893,6 +2062,10 @@ func (re *RollupExpr) AppendString(dst []byte) []byte {
 	if needParens {
 		dst = append(dst, ')')
 	}
+	return re.appendModifiers(dst)
+}
+
+func (re *RollupExpr) appendModifiers(dst []byte) []byte {
 	if re.Window != nil || re.InheritStep || re.Step != nil {
 		dst = append(dst, '[')
 		dst = re.Window.AppendString(dst)
@@ -1922,6 +2095,17 @@ func (re *RollupExpr) AppendString(dst []byte) []byte {
 	return dst
 }
 
+func (re *RollupExpr) needParens() bool {
+	switch t := re.Expr.(type) {
+	case *RollupExpr, *BinaryOpExpr:
+		return true
+	case *AggrFuncExpr:
+		return t.Modifier.Op != ""
+	default:
+		return false
+	}
+}
+
 // LabelFilter represents MetricsQL label filter like `foo="bar"`.
 type LabelFilter struct {
 	// Label contains label name for the filter.
@@ -1940,23 +2124,22 @@ type LabelFilter struct {
 // AppendString appends string representation of me to dst and returns the result.
 func (lf *LabelFilter) AppendString(dst []byte) []byte {
 	dst = appendEscapedIdent(dst, lf.Label)
-	var op string
-	if lf.IsNegative {
-		if lf.IsRegexp {
-			op = "!~"
-		} else {
-			op = "!="
-		}
-	} else {
-		if lf.IsRegexp {
-			op = "=~"
-		} else {
-			op = "="
-		}
-	}
-	dst = append(dst, op...)
+	dst = appendLabelFilterOp(dst, lf.IsNegative, lf.IsRegexp)
 	dst = strconv.AppendQuote(dst, lf.Value)
 	return dst
+}
+
+func appendLabelFilterOp(dst []byte, isNegative, isRegexp bool) []byte {
+	if isNegative {
+		if isRegexp {
+			return append(dst, "!~"...)
+		}
+		return append(dst, "!="...)
+	}
+	if isRegexp {
+		return append(dst, "=~"...)
+	}
+	return append(dst, '=')
 }
 
 // MetricExpr represents MetricsQL metric with optional filters, i.e. `foo{...}`.
@@ -1985,8 +2168,28 @@ type MetricExpr struct {
 	labelFilterss [][]*labelFilterExpr
 }
 
+func appendLabelFilterss(dst []byte, lfss [][]*labelFilterExpr) []byte {
+	dst = append(dst, '{')
+	for i, lfs := range lfss {
+		for j, lf := range lfs {
+			dst = lf.AppendString(dst)
+			if j+1 < len(lfs) {
+				dst = append(dst, ',')
+			}
+		}
+		if i+1 < len(lfss) {
+			dst = append(dst, " or "...)
+		}
+	}
+	dst = append(dst, '}')
+	return dst
+}
+
 // AppendString appends string representation of me to dst and returns the result.
 func (me *MetricExpr) AppendString(dst []byte) []byte {
+	if len(me.labelFilterss) > 0 {
+		return appendLabelFilterss(dst, me.labelFilterss)
+	}
 	lfss := me.LabelFilterss
 	if len(lfss) == 0 {
 		dst = append(dst, "{}"...)

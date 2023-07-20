@@ -6,6 +6,7 @@ package pb
 import (
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/cheggaaa/pb/v3/termutil"
 )
@@ -29,6 +30,10 @@ func (p *Pool) print(first bool) bool {
 		if err != nil {
 			log.Panic(err)
 		}
+	}
+	cols, err := termutil.TerminalWidth()
+	if err != nil {
+		cols = defaultBarWidth
 	}
 	isFinished := true
 	for _, bar := range p.bars {

@@ -22,8 +22,8 @@ var (
 	storageDataPath = flag.String("storageDataPath", "victoria-logs-data", "Path to directory with the VictoriaLogs data; "+
 		"see https://docs.victoriametrics.com/VictoriaLogs/#storage")
 	inmemoryDataFlushInterval = flag.Duration("inmemoryDataFlushInterval", 5*time.Second, "The interval for guaranteed saving of in-memory data to disk. "+
-		"The saved data survives unclean shutdown such as OOM crash, hardware reset, SIGKILL, etc. "+
-		"Bigger intervals may help increasing lifetime of flash storage with limited write cycles (e.g. Raspberry PI). "+
+		"The saved data survives unclean shutdowns such as OOM crash, hardware reset, SIGKILL, etc. "+
+		"Bigger intervals may help increase the lifetime of flash storage with limited write cycles (e.g. Raspberry PI). "+
 		"Smaller intervals increase disk IO load. Minimum supported value is 1s")
 	logNewStreams = flag.Bool("logNewStreams", false, "Whether to log creation of new streams; this can be useful for debugging of high cardinality issues with log streams; "+
 		"see https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#stream-fields ; see also -logIngestedRows")

@@ -1,8 +1,8 @@
 import React, { FC } from "preact/compat";
 import dayjs from "dayjs";
 import "./style.scss";
-import { CodeIcon, IssueIcon, LogoIcon, WikiIcon } from "../../Main/Icons";
-import useDeviceDetect from "../../../hooks/useDeviceDetect";
+import { CodeIcon, IssueIcon, LogoShortIcon, WikiIcon } from "../../components/Main/Icons";
+import useDeviceDetect from "../../hooks/useDeviceDetect";
 
 const Footer: FC = () => {
   const { isMobile } = useDeviceDetect();
@@ -15,7 +15,7 @@ const Footer: FC = () => {
       href="https://victoriametrics.com/"
       rel="me noreferrer"
     >
-      <LogoIcon/>
+      <LogoShortIcon/>
       victoriametrics.com
     </a>
     <a
