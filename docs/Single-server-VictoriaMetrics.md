@@ -412,6 +412,13 @@ matching the specified [series selector](https://prometheus.io/docs/prometheus/l
 
 Cardinality explorer is built on top of [/api/v1/status/tsdb](#tsdb-stats).
 
+If you are using [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) each
+vmstorage tracks the number of stored timeseries individually. vmselect requests stats via [/api/v1/status/tsdb](#tsdb-stats)
+from each vmstorage node and merges the results. This may lead to inflated values when samples for the same time series
+are spread across multiple vmstorage nodes due to [replication](#replication) or rerouting.
+It happens because vmstorage fetches the collected tsdb stats from every vmstorage node and merges it.
+The `seriesCountByMetricName` stats is just summed across vmstorage nodes.
+
 See [cardinality explorer playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/cardinality).
 See the example of using the cardinality explorer [here](https://victoriametrics.com/blog/cardinality-explorer/).
 
@@ -1793,6 +1800,13 @@ VictoriaMetrics returns TSDB stats at `/api/v1/status/tsdb` page in the way simi
 * `focusLabel=LABEL_NAME` returns label values with the highest number of time series for the given `LABEL_NAME` in the `seriesCountByFocusLabelValue` list.
 * `match[]=SELECTOR` where `SELECTOR` is an arbitrary [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors) for series to take into account during stats calculation. By default all the series are taken into account.
 * `extra_label=LABEL=VALUE`. See [these docs](#prometheus-querying-api-enhancements) for more details.
+
+If you are using [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) each
+vmstorage tracks the number of stored timeseries individually. vmselect requests stats via [/api/v1/status/tsdb](#tsdb-stats)
+from each vmstorage node and merges the results. This may lead to inflated values when samples for the same time series
+are spread across multiple vmstorage nodes due to [replication](#replication) or rerouting.
+It happens because vmstorage fetches the collected tsdb stats from every vmstorage node and merges it.
+The `seriesCountByMetricName` stats is just summed across vmstorage nodes.
 
 VictoriaMetrics provides an UI on top of `/api/v1/status/tsdb` - see [cardinality explorer docs](#cardinality-explorer).
 
