@@ -269,7 +269,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	if path == "/api/v1/status/active_queries" {
 		globalStatusActiveQueriesRequests.Inc()
 		httpserver.EnableCORS(w, r)
-		promql.WriteActiveQueries(w, r)
+		promql.ActiveQueriesHandler(nil, w, r)
 		return true
 	}
 	if path == "/admin/tenants" {
@@ -507,7 +507,7 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 	case "prometheus/api/v1/status/active_queries":
 		statusActiveQueriesRequests.Inc()
 		httpserver.EnableCORS(w, r)
-		promql.WriteActiveQueriesForTenant(at, w, r)
+		promql.ActiveQueriesHandler(at, w, r)
 		return true
 	case "prometheus/api/v1/status/top_queries":
 		topQueriesRequests.Inc()

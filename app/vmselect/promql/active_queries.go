@@ -11,21 +11,23 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 )
 
-// WriteActiveQueriesForTenant writes active queries for the given (accountID, projectID) to w.
-func WriteActiveQueriesForTenant(at *auth.Token, w http.ResponseWriter, r *http.Request) {
+// ActiveQueriesHandler returns response to /api/v1/status/active_queries
+//
+// It writes a JSON with active queries to w.
+//
+// If at is nil, then all the active queries across all the tenants are written.
+func ActiveQueriesHandler(at *auth.Token, w http.ResponseWriter, r *http.Request) {
 	aqes := activeQueriesV.GetAll()
-	var dst []activeQueryEntry
-	for _, aqe := range aqes {
-		if aqe.accountID == at.AccountID && aqe.projectID == at.ProjectID {
-			dst = append(dst, aqe)
+	if at != nil {
+		// Filter out queries, which do not belong to at.
+		dst := aqes[:0]
+		for _, aqe := range aqes {
+			if aqe.accountID == at.AccountID && aqe.projectID == at.ProjectID {
+				dst = append(dst, aqe)
+			}
 		}
+		aqes = dst
 	}
-	writeActiveQueries(w, dst)
-}
-
-// WriteActiveQueries writes active queries to w.
-func WriteActiveQueries(w http.ResponseWriter, r *http.Request) {
-	aqes := activeQueriesV.GetAll()
 	writeActiveQueries(w, aqes)
 }
 
