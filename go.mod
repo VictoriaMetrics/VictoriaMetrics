@@ -39,7 +39,10 @@ require (
 	gopkg.in/yaml.v2 v2.4.0
 )
 
-require github.com/bmatcuk/doublestar/v4 v4.6.0
+require (
+	github.com/bmatcuk/doublestar/v4 v4.6.0
+	golang.org/x/exp v0.0.0-20230713183714-613f0c0eb8a1
+)
 
 require (
 	cloud.google.com/go v0.110.6 // indirect
@@ -115,7 +118,6 @@ require (
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/goleak v1.2.1 // indirect
 	golang.org/x/crypto v0.11.0 // indirect
-	golang.org/x/exp v0.0.0-20230713183714-613f0c0eb8a1 // indirect
 	golang.org/x/sync v0.3.0 // indirect
 	golang.org/x/text v0.11.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
