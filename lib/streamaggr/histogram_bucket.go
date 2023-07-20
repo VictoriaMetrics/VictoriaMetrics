@@ -12,7 +12,7 @@ import (
 type histogramBucketAggrState struct {
 	m sync.Map
 
-	intervalSecs uint64
+	stalenessInterval uint64
 }
 
 type histogramBucketStateValue struct {
@@ -22,16 +22,15 @@ type histogramBucketStateValue struct {
 	deleted        bool
 }
 
-func newHistogramBucketAggrState(interval time.Duration) *histogramBucketAggrState {
-	intervalSecs := uint64(interval.Seconds() + 1)
+func newHistogramBucketAggrState(stalenessInterval time.Duration) *histogramBucketAggrState {
 	return &histogramBucketAggrState{
-		intervalSecs: intervalSecs,
+		stalenessInterval: uint64(stalenessInterval.Seconds()),
 	}
 }
 
 func (as *histogramBucketAggrState) pushSample(inputKey, outputKey string, value float64) {
 	currentTime := fasttime.UnixTimestamp()
-	deleteDeadline := currentTime + 2*as.intervalSecs
+	deleteDeadline := currentTime + as.stalenessInterval
 
 again:
 	v, ok := as.m.Load(outputKey)
