@@ -3017,23 +3017,21 @@ func TestExecSuccess(t *testing.T) {
 		t.Parallel()
 		q := `sort_desc(((label_set(time(), "foo", "bar", "__name__", "q1") or label_set(10, "foo", "qwert", "__name__", "q2")) / 2) keep_metric_names)`
 		r1 := netstorage.Result{
-			MetricName: storage.MetricName{
-				MetricGroup: []byte("q1"),
-			},
+			MetricName: metricNameExpected,
 			Values:     []float64{500, 600, 700, 800, 900, 1000},
 			Timestamps: timestampsExpected,
 		}
+		r1.MetricName.MetricGroup = []byte("q1")
 		r1.MetricName.Tags = []storage.Tag{{
 			Key:   []byte("foo"),
 			Value: []byte("bar"),
 		}}
 		r2 := netstorage.Result{
-			MetricName: storage.MetricName{
-				MetricGroup: []byte("q2"),
-			},
+			MetricName: metricNameExpected,
 			Values:     []float64{5, 5, 5, 5, 5, 5},
 			Timestamps: timestampsExpected,
 		}
+		r2.MetricName.MetricGroup = []byte("q2")
 		r2.MetricName.Tags = []storage.Tag{{
 			Key:   []byte("foo"),
 			Value: []byte("qwert"),
@@ -3080,23 +3078,21 @@ func TestExecSuccess(t *testing.T) {
 		t.Parallel()
 		q := `sort_desc(2 * (label_set(time(), "foo", "bar", "__name__", "q1"), label_set(10, "foo", "qwert", "__name__", "q2")) keep_metric_names)`
 		r1 := netstorage.Result{
-			MetricName: storage.MetricName{
-				MetricGroup: []byte("q1"),
-			},
+			MetricName: metricNameExpected,
 			Values:     []float64{2000, 2400, 2800, 3200, 3600, 4000},
 			Timestamps: timestampsExpected,
 		}
+		r1.MetricName.MetricGroup = []byte("q1")
 		r1.MetricName.Tags = []storage.Tag{{
 			Key:   []byte("foo"),
 			Value: []byte("bar"),
 		}}
 		r2 := netstorage.Result{
-			MetricName: storage.MetricName{
-				MetricGroup: []byte("q2"),
-			},
+			MetricName: metricNameExpected,
 			Values:     []float64{20, 20, 20, 20, 20, 20},
 			Timestamps: timestampsExpected,
 		}
+		r2.MetricName.MetricGroup = []byte("q2")
 		r2.MetricName.Tags = []storage.Tag{{
 			Key:   []byte("foo"),
 			Value: []byte("qwert"),
@@ -3132,23 +3128,21 @@ func TestExecSuccess(t *testing.T) {
 		t.Parallel()
 		q := `sort_desc(2 * on() group_right() (label_set(time(), "foo", "bar", "__name__", "q1"), label_set(10, "foo", "qwert", "__name__", "q2")) keep_metric_names)`
 		r1 := netstorage.Result{
-			MetricName: storage.MetricName{
-				MetricGroup: []byte("q1"),
-			},
+			MetricName: metricNameExpected,
 			Values:     []float64{2000, 2400, 2800, 3200, 3600, 4000},
 			Timestamps: timestampsExpected,
 		}
+		r1.MetricName.MetricGroup = []byte("q1")
 		r1.MetricName.Tags = []storage.Tag{{
 			Key:   []byte("foo"),
 			Value: []byte("bar"),
 		}}
 		r2 := netstorage.Result{
-			MetricName: storage.MetricName{
-				MetricGroup: []byte("q2"),
-			},
+			MetricName: metricNameExpected,
 			Values:     []float64{20, 20, 20, 20, 20, 20},
 			Timestamps: timestampsExpected,
 		}
+		r2.MetricName.MetricGroup = []byte("q2")
 		r2.MetricName.Tags = []storage.Tag{{
 			Key:   []byte("foo"),
 			Value: []byte("qwert"),
