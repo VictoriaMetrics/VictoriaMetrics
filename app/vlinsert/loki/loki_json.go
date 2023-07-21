@@ -176,10 +176,10 @@ func parseLokiTimestamp(s string) (int64, error) {
 			return 0, err
 		}
 		if f > math.MaxInt64 {
-			return 0, fmt.Errorf("too big timestamp in nanoseconds: %v; mustn't exceed %v", f, math.MaxInt64)
+			return 0, fmt.Errorf("too big timestamp in nanoseconds: %v; mustn't exceed %v", f, int64(math.MaxInt64))
 		}
 		if f < math.MinInt64 {
-			return 0, fmt.Errorf("too small timestamp in nanoseconds: %v; must be bigger or equal to %v", f, math.MinInt64)
+			return 0, fmt.Errorf("too small timestamp in nanoseconds: %v; must be bigger or equal to %v", f, int64(math.MinInt64))
 		}
 		n = int64(f)
 	}
