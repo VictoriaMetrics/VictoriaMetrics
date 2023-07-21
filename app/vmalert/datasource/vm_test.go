@@ -611,6 +611,20 @@ func TestRequestParams(t *testing.T) {
 				checkEqualString(t, exp, r.URL.RawQuery)
 			},
 		},
+		{
+			"graphite extra params allows to override from",
+			false,
+			&VMStorage{
+				dataSourceType: datasourceGraphite,
+				extraParams: url.Values{
+					"from": {"-10m"},
+				},
+			},
+			func(t *testing.T, r *http.Request) {
+				exp := fmt.Sprintf("format=json&from=-10m&target=%s&until=now", query)
+				checkEqualString(t, exp, r.URL.RawQuery)
+			},
+		},
 	}
 
 	for _, tc := range testCases {
