@@ -122,3 +122,25 @@ func TestTenantIDLessEqual(t *testing.T) {
 		t.Fatalf("unexpected result for equal(%s, %s); got true; want false", tid1, tid2)
 	}
 }
+
+func Test_GetTenantIDFromString(t *testing.T) {
+	f := func(tenant string, expected TenantID) {
+		t.Helper()
+
+		got, err := GetTenantIDFromString(tenant)
+		if err != nil {
+			t.Errorf("unexpected error: %s", err)
+			return
+		}
+
+		if got.String() != expected.String() {
+			t.Fatalf("expected %v, got %v", expected, got)
+		}
+	}
+
+	f("", TenantID{})
+	f("123", TenantID{AccountID: 123})
+	f("123:456", TenantID{AccountID: 123, ProjectID: 456})
+	f("123:", TenantID{AccountID: 123})
+	f(":456", TenantID{ProjectID: 456})
+}

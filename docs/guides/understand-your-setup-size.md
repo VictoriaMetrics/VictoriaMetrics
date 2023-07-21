@@ -10,7 +10,7 @@ aliases:
 ---
 # Understand Your Setup Size
 
-The docs provide a simple and high-level overview of Ingestion Rate, Active Time Series, and Query per Second. These terms are a part of capacity planning ([Single-Node](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#capacity-planning), [Cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#capacity-planning)) and [Managed VictoriaMetrics](https://docs.victoriametrics.com/managed_victoriametrics/) pricing.
+The docs provide a simple and high-level overview of Ingestion Rate, Active Time Series, and Query per Second. These terms are a part of capacity planning ([Single-Node](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#capacity-planning), [Cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#capacity-planning)) and [Managed VictoriaMetrics](https://docs.victoriametrics.com/managed-victoriametrics/) pricing.
 
 ## Terminology
 

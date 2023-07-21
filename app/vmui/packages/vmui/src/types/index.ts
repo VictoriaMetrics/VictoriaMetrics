@@ -147,7 +147,6 @@ export interface ActiveQueriesType {
   query: string;
   remote_addr: string;
   step: number;
-  from?: string;
-  to?: string;
+  args?: string;
   data?: string;
 }

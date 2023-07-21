@@ -358,7 +358,7 @@ Below are aggregation functions that can be put in the `outputs` list at [stream
 ### total
 
 `total` generates output [counter](https://docs.victoriametrics.com/keyConcepts.html#counter) by summing the input counters.
-`total` only makes sense for aggregating [counter](https://docs.victoriametrics.com/keyConcepts.html#counter) type metrics.
+`total` only makes sense for aggregating [counter](https://docs.victoriametrics.com/keyConcepts.html#counter) metrics.
 
 The results of `total` is equal to the `sum(some_counter)` query.
 
@@ -383,7 +383,7 @@ This changes a label with pod's name in the series, but `total` account for such
 ### increase
 
 `increase` returns the increase of input [counters](https://docs.victoriametrics.com/keyConcepts.html#counter).
-`increase` only makes sense for aggregating [counter](https://docs.victoriametrics.com/keyConcepts.html#counter) type metrics.
+`increase` only makes sense for aggregating [counter](https://docs.victoriametrics.com/keyConcepts.html#counter) metrics.
 
 The results of `increase` with aggregation interval of `1m` is equal to the `increase(some_counter[1m])` query.
 
@@ -406,6 +406,7 @@ The results of `count_samples` with aggregation interval of `1m` is equal to the
 ### sum_samples
 
 `sum_samples` sums input [sample values](https://docs.victoriametrics.com/keyConcepts.html#raw-samples).
+`sum_samples` makes sense only for aggregating [gauge](https://docs.victoriametrics.com/keyConcepts.html#gauge) metrics.
 
 The results of `sum_samples` with aggregation interval of `1m` is equal to the `sum_over_time(some_metric[1m])` query.
 
@@ -455,12 +456,14 @@ For example, see below time series produced by config with aggregation interval 
 ### stddev
 
 `stddev` returns [standard deviation](https://en.wikipedia.org/wiki/Standard_deviation) for the input [sample values](https://docs.victoriametrics.com/keyConcepts.html#raw-samples).
+`stddev` makes sense only for aggregating [gauge](https://docs.victoriametrics.com/keyConcepts.html#gauge) metrics.
 
 The results of `stddev` with aggregation interval of `1m` is equal to the `stddev_over_time(some_metric[1m])` query.
 
 ### stdvar
 
 `stdvar` returns [standard variance](https://en.wikipedia.org/wiki/Variance) for the input [sample values](https://docs.victoriametrics.com/keyConcepts.html#raw-samples).
+`stdvar` makes sense only for aggregating [gauge](https://docs.victoriametrics.com/keyConcepts.html#gauge) metrics.
 
 The results of `stdvar` with aggregation interval of `1m` is equal to the `stdvar_over_time(some_metric[1m])` query.
 
@@ -472,6 +475,7 @@ For example, see below time series produced by config with aggregation interval 
 
 `histogram_bucket` returns [VictoriaMetrics histogram buckets](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350)
   for the input [sample values](https://docs.victoriametrics.com/keyConcepts.html#raw-samples).
+`histogram_bucket` makes sense only for aggregating [gauge](https://docs.victoriametrics.com/keyConcepts.html#gauge) metrics.
 
 The results of `histogram_bucket` with aggregation interval of `1m` is equal to the `histogram_over_time(some_histogram_bucket[1m])` query.
 
@@ -480,6 +484,7 @@ The results of `histogram_bucket` with aggregation interval of `1m` is equal to 
 `quantiles(phi1, ..., phiN)` returns [percentiles](https://en.wikipedia.org/wiki/Percentile) for the given `phi*`
 over the input [sample values](https://docs.victoriametrics.com/keyConcepts.html#raw-samples). 
 The `phi` must be in the range `[0..1]`, where `0` means `0th` percentile, while `1` means `100th` percentile.
+`quantiles(...)` makes sense only for aggregating [gauge](https://docs.victoriametrics.com/keyConcepts.html#gauge) metrics.
 
 The results of `quantiles(phi1, ..., phiN)` with aggregation interval of `1m` 
 is equal to the `quantiles_over_time("quantile", phi1, ..., phiN, some_histogram_bucket[1m])` query.
@@ -540,6 +545,16 @@ at [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-
   # interval is the interval for the aggregation.
   # The aggregated stats is sent to remote storage once per interval.
   interval: 1m
+
+  # staleness_interval defines an interval after which the series state will be reset if no samples have been sent during it.
+  # It means that:
+  # - no data point will be written for a resulting time series if it didn't receive any updates during configured interval,
+  # - if the series receives updates after the configured interval again, then the time series will be calculated from the initial state
+  #   (it's like this series didn't exist until now).
+  # Increase this parameter if it is expected for matched metrics to be delayed or collected with irregular intervals exceeding the `interval` value.
+  # By default, is equal to x2 of the `interval` field.
+  # The parameter is only relevant for outputs: total, increase and histogram_bucket.
+  # staleness_interval: 2m
 
   # without is an optional list of labels, which must be removed from the output aggregation.
   # See https://docs.victoriametrics.com/stream-aggregation.html#aggregating-by-labels

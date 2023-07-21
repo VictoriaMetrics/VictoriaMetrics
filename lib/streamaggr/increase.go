@@ -12,7 +12,7 @@ type increaseAggrState struct {
 	m sync.Map
 
 	ignoreInputDeadline uint64
-	intervalSecs        uint64
+	stalenessSecs       uint64
 }
 
 type increaseStateValue struct {
@@ -23,18 +23,19 @@ type increaseStateValue struct {
 	deleted        bool
 }
 
-func newIncreaseAggrState(interval time.Duration) *increaseAggrState {
+func newIncreaseAggrState(interval time.Duration, stalenessInterval time.Duration) *increaseAggrState {
 	currentTime := fasttime.UnixTimestamp()
-	intervalSecs := uint64(interval.Seconds() + 1)
+	intervalSecs := roundDurationToSecs(interval)
+	stalenessSecs := roundDurationToSecs(stalenessInterval)
 	return &increaseAggrState{
 		ignoreInputDeadline: currentTime + intervalSecs,
-		intervalSecs:        intervalSecs,
+		stalenessSecs:       stalenessSecs,
 	}
 }
 
 func (as *increaseAggrState) pushSample(inputKey, outputKey string, value float64) {
 	currentTime := fasttime.UnixTimestamp()
-	deleteDeadline := currentTime + 2*as.intervalSecs
+	deleteDeadline := currentTime + as.stalenessSecs
 
 again:
 	v, ok := as.m.Load(outputKey)

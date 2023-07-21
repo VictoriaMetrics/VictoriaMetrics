@@ -9,10 +9,10 @@ import (
 	"time"
 )
 
-// WriteActiveQueries writes active queries to w.
+// ActiveQueriesHandler returns response to /api/v1/status/active_queries
 //
-// The written active queries are sorted in descending order of their exeuction duration.
-func WriteActiveQueries(w http.ResponseWriter, r *http.Request) {
+// It writes a JSON with active queries to w.
+func ActiveQueriesHandler(w http.ResponseWriter, r *http.Request) {
 	aqes := activeQueriesV.GetAll()
 
 	w.Header().Set("Content-Type", "application/json")

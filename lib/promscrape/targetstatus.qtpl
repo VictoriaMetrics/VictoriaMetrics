@@ -180,7 +180,7 @@
     <div class="row mt-4">
         <div class="col-12">
             {% for i, jts := range tsr.jobTargetsStatuses %}
-                {%= scrapeJobTargets(i, jts) %}
+                {%= scrapeJobTargets(i, jts, tsr.hasOriginalLabels) %}
             {% endfor %}
             {% for i, jobName := range tsr.emptyJobs %}
                 {% code
@@ -189,13 +189,13 @@
                         jobName: jobName,
                     }
                 %}
-                {%= scrapeJobTargets(num, jts) %}
+                {%= scrapeJobTargets(num, jts, tsr.hasOriginalLabels) %}
             {% endfor %}
         </div>
    </div>
 {% endfunc %}
 
-{% func scrapeJobTargets(num int, jts *jobTargetsStatuses) %}
+{% func scrapeJobTargets(num int, jts *jobTargetsStatuses, hasOriginalLabels bool) %}
     <div class="row mb-4">
         <div class="col-12">
             <h4>
@@ -209,7 +209,9 @@
                             <th scope="col">Endpoint</th>
                             <th scope="col">State</th>
                             <th scope="col" title="target labels">Labels</th>
-                            <th scope="col" title="debug relabeling">Debug relabeling</th>
+                            {% if hasOriginalLabels %}
+                              <th scope="col" title="debug relabeling">Debug relabeling</th>
+                            {% endif %}
                             <th scope="col" title="total scrapes">Scrapes</th>
                             <th scope="col" title="total scrape errors">Errors</th>
                             <th scope="col" title="the time of the last scrape">Last Scrape</th>
@@ -222,16 +224,20 @@
                     {% for _, ts := range jts.targetsStatus %}
                     {% code
                         endpoint := ts.sw.Config.ScrapeURL
+                        originalLabels := ts.sw.Config.OriginalLabels
+
                         // The target is uniquely identified by a pointer to its original labels.
-                        targetID := getLabelsID(ts.sw.Config.OriginalLabels)
+                        targetID := getLabelsID(originalLabels)
                         lastScrapeDuration := ts.getDurationFromLastScrape()
                     %}
                         <tr {% if !ts.up %}{%space%}class="alert alert-danger" role="alert" {% endif %}>
                             <td class="endpoint">
-                                <a href="{%s endpoint %}" target="_blank">{%s endpoint %}</a> (
-                                <a href="target_response?id={%s targetID %}" target="_blank"
-                                  title="click to fetch target response on behalf of the scraper">response</a>
-                                )
+                              <a href="{%s endpoint %}" target="_blank">{%s endpoint %}</a>
+                                {% if hasOriginalLabels %}
+                                  {% space %}
+                                  (<a href="target_response?id={%s targetID %}" target="_blank"
+                                    title="click to fetch target response on behalf of the scraper">response</a>)
+                                {% endif %}
                             </td>
                             <td>
                                 {% if ts.up %}
@@ -241,18 +247,26 @@
                                 {% endif %}
                             </td>
                             <td class="labels">
-                                <div title="click to show original labels"
-                                  onclick="document.getElementById('original-labels-{%s targetID %}').style.display='block'">
-                                    {%= formatLabels(ts.sw.Config.Labels) %}
-                                </div>
+                              <div
+                                {% if hasOriginalLabels %}
+                                  {% space %}title="click to show original labels"
+                                    onclick="document.getElementById('original-labels-{%s targetID %}').style.display='block'"
+                                {% endif %}
+                              >
+                                {%= formatLabels(ts.sw.Config.Labels) %}
+                              </div>
+                              {% if hasOriginalLabels %}
                                 <div style="display:none" id="original-labels-{%s targetID %}">
-                                    {%= formatLabels(ts.sw.Config.OriginalLabels) %}
+                                  {%= formatLabels(originalLabels) %}
                                 </div>
+                              {% endif %}
                             </td>
-                            <td>
+                            {% if hasOriginalLabels %}
+                              <td>
                                 <a href="target-relabel-debug?id={%s targetID %}" target="_blank">target</a>{% space %}
                                 <a href="metric-relabel-debug?id={%s targetID %}" target="_blank">metrics</a>
-                            </td>
+                              </td>
+                            {% endif %}
                             <td>{%d ts.scrapesTotal %}</td>
                             <td>{%d ts.scrapesFailed %}</td>
                             <td>
@@ -274,6 +288,11 @@
 {% endfunc %}
 
 {% func discoveredTargets(tsr *targetsStatusResult) %}
+    {% if !tsr.hasOriginalLabels %}
+        Discovered targets are unavailable when -promscrape.dropOriginalLabels command-line flag is set
+        {% return %}
+    {% endif %}
+
     {% code tljs := tsr.getTargetLabelsByJob() %}
     <div class="row mt-4">
         <div class="col-12">

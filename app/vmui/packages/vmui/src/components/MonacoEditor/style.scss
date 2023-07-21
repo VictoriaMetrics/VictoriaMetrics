@@ -1,0 +1,27 @@
+@use "src/styles/variables" as *;
+
+.vm-monaco-editor {
+  display: grid;
+  height: 100%;
+  min-height: inherit;
+
+  &__input {
+    height: 100%;
+    padding: $padding-small 0;
+    resize: none;
+
+    &_resize {
+      &-vertical {
+        resize: vertical;
+      }
+
+      &-horizontal {
+        resize: horizontal;
+      }
+
+      &-both {
+        resize: both;
+      }
+    }
+  }
+}

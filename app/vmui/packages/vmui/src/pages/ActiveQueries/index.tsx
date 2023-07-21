@@ -11,6 +11,8 @@ import classNames from "classnames";
 import Button from "../../components/Main/Button/Button";
 import { RefreshIcon } from "../../components/Main/Icons";
 import "./style.scss";
+import { DATE_TIME_FORMAT } from "../../constants/date";
+import { roundStep } from "../../utils/time";
 
 const ActiveQueries: FC = () => {
   const { isMobile } = useDeviceDetect();
@@ -18,29 +20,31 @@ const ActiveQueries: FC = () => {
 
   const { data, lastUpdated, isLoading, error, fetchData } = useFetchActiveQueries();
 
-  const activeQueries = useMemo(() => data.map(({ duration, ...item }: ActiveQueriesType) => ({
-    duration,
-    data: JSON.stringify(item, null, 2),
-    from: dayjs(item.start).tz().format("MMM DD, YYYY \nHH:mm:ss.SSS"),
-    to: dayjs(item.end).tz().format("MMM DD, YYYY \nHH:mm:ss.SSS"),
-    ...item,
-  })), [data, timezone]);
+  const activeQueries = useMemo(() => data.map((item: ActiveQueriesType) => {
+    const from = dayjs(item.start).tz().format(DATE_TIME_FORMAT);
+    const to = dayjs(item.end).tz().format(DATE_TIME_FORMAT);
+    return {
+      duration: item.duration,
+      remote_addr: item.remote_addr,
+      query: item.query,
+      args: `${from} to ${to}, step=${roundStep(item.step)}`,
+      data: JSON.stringify(item, null, 2),
+    } as ActiveQueriesType;
+  }), [data, timezone]);
 
   const columns = useMemo(() => {
     if (!activeQueries?.length) return [];
-    const hideColumns = ["end", "start", "data"];
-    const keys = new Set<string>();
-    for (const item of activeQueries) {
-      for (const key in item) {
-        keys.add(key);
-      }
-    }
-    return Array.from(keys)
-      .filter((col) => !hideColumns.includes(col))
-      .map((key) => ({
-        key: key as keyof ActiveQueriesType,
-        title: key,
-      }));
+    const keys = Object.keys(activeQueries[0]) as (keyof ActiveQueriesType)[];
+
+    const titles: Partial<Record<keyof ActiveQueriesType, string>> = {
+      remote_addr: "client address",
+    };
+    const hideColumns = ["data"];
+
+    return keys.filter((col) => !hideColumns.includes(col)).map((key) => ({
+      key: key,
+      title: titles[key] || key,
+    }));
   }, [activeQueries]);
 
   const handleRefresh = async () => {
@@ -76,7 +80,7 @@ const ActiveQueries: FC = () => {
           <Table
             rows={activeQueries}
             columns={columns}
-            defaultOrderBy={"from"}
+            defaultOrderBy={"duration"}
             copyToClipboard={"data"}
             paginationOffset={{ startIndex: 0, endIndex: Infinity }}
           />

@@ -128,4 +128,13 @@
     left: auto;
     right: $padding-small;
   }
+
+  &__controls-info {
+    position: absolute;
+    bottom: $padding-small;
+    right: $padding-global;
+    color: $color-text-secondary;
+    font-size: $font-size-small;
+    opacity: 0.8;
+  }
 }
