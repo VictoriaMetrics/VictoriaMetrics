@@ -54,6 +54,16 @@ func (s *VMStorage) setGraphiteReqParams(r *http.Request, query string, timestam
 	}
 	r.URL.Path += graphitePath
 	q := r.URL.Query()
+	from := "-5min"
+	if s.lookBack > 0 {
+		lookBack := timestamp.Add(-s.lookBack)
+		from = strconv.FormatInt(lookBack.Unix(), 10)
+	}
+	q.Set("from", from)
+	q.Set("format", "json")
+	q.Set("target", query)
+	q.Set("until", "now")
+
 	for k, vs := range s.extraParams {
 		if q.Has(k) { // extraParams are prior to params in URL
 			q.Del(k)
@@ -62,14 +72,6 @@ func (s *VMStorage) setGraphiteReqParams(r *http.Request, query string, timestam
 			q.Add(k, v)
 		}
 	}
-	q.Set("format", "json")
-	q.Set("target", query)
-	from := "-5min"
-	if s.lookBack > 0 {
-		lookBack := timestamp.Add(-s.lookBack)
-		from = strconv.FormatInt(lookBack.Unix(), 10)
-	}
-	q.Set("from", from)
-	q.Set("until", "now")
+
 	r.URL.RawQuery = q.Encode()
 }
