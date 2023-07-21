@@ -64,12 +64,14 @@ func (s *VMStorage) setGraphiteReqParams(r *http.Request, query string, timestam
 	}
 	q.Set("format", "json")
 	q.Set("target", query)
-	from := "-5min"
-	if s.lookBack > 0 {
-		lookBack := timestamp.Add(-s.lookBack)
-		from = strconv.FormatInt(lookBack.Unix(), 10)
+	if !q.Has("from") {
+		from := "-5min"
+		if s.lookBack > 0 {
+			lookBack := timestamp.Add(-s.lookBack)
+			from = strconv.FormatInt(lookBack.Unix(), 10)
+		}
+		q.Set("from", from)
 	}
-	q.Set("from", from)
 	q.Set("until", "now")
 	r.URL.RawQuery = q.Encode()
 }
