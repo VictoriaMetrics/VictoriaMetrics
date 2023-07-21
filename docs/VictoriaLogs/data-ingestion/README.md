@@ -153,6 +153,7 @@ curl -H "Content-Type: application/json" -XPOST "http://localhost:9428/insert/lo
 It is possible to push thousands of log streams and log lines in a single request to this API.
 
 The API accepts various http parameters, which can change the data ingestion behavior - [these docs](#http-parameters) for details.
+There is no need in specifying `_msg_field` and `_time_field` query args, since VictoriaLogs automatically extracts log message and timestamp from the ingested Loki data.
 
 The following command verifies that the data has been successfully ingested into VictoriaLogs by [querying](https://docs.victoriametrics.com/VictoriaLogs/querying/) it:
 
