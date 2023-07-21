@@ -156,11 +156,6 @@ func (tsm *targetStatusMap) getScrapeWorkByTargetID(targetID string) *scrapeWork
 }
 
 func getLabelsID(labels *promutils.Labels) string {
-	// return empty string if OriginalLabels was dropped
-	// via flag --promscrape.dropOriginalLabels
-	if labels == nil {
-		return ""
-	}
 	return fmt.Sprintf("%016x", uintptr(unsafe.Pointer(labels)))
 }
 
@@ -397,6 +392,7 @@ func (tsm *targetStatusMap) getTargetsStatusByJob(filter *requestFilter) *target
 	}
 	dts := droppedTargetsMap.getTargetsList()
 	return &targetsStatusResult{
+		hasOriginalLabels:  !*dropOriginalLabels,
 		jobTargetsStatuses: jts,
 		droppedTargets:     dts,
 		emptyJobs:          emptyJobs,
@@ -507,6 +503,7 @@ func getRequestFilter(r *http.Request) *requestFilter {
 }
 
 type targetsStatusResult struct {
+	hasOriginalLabels  bool
 	jobTargetsStatuses []*jobTargetsStatuses
 	droppedTargets     []droppedTarget
 	emptyJobs          []string
