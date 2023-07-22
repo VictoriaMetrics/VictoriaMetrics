@@ -584,6 +584,9 @@ func registerStorageMetrics(strg *storage.Storage) {
 	metrics.NewGauge(`vm_timeseries_repopulated_total`, func() float64 {
 		return float64(m().TimeseriesRepopulated)
 	})
+	metrics.NewGauge(`vm_timeseries_precreated_total`, func() float64 {
+		return float64(m().TimeseriesPreCreated)
+	})
 	metrics.NewGauge(`vm_new_timeseries_created_total`, func() float64 {
 		return float64(m().NewTimeseriesCreated)
 	})

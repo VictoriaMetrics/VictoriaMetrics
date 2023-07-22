@@ -96,9 +96,6 @@ type indexDB struct {
 	// and is used for syncing items from different indexDBs
 	generation uint64
 
-	// The unix timestamp in seconds for the indexDB rotation.
-	rotationTimestamp uint64
-
 	name string
 	tb   *mergeset.Table
 
@@ -136,10 +133,7 @@ func getTagFiltersCacheSize() int {
 //
 // The last segment of the path should contain unique hex value which
 // will be then used as indexDB.generation
-//
-// The rotationTimestamp must be set to the current unix timestamp when mustOpenIndexDB
-// is called when creating new indexdb during indexdb rotation.
-func mustOpenIndexDB(path string, s *Storage, rotationTimestamp uint64, isReadOnly *uint32) *indexDB {
+func mustOpenIndexDB(path string, s *Storage, isReadOnly *uint32) *indexDB {
 	if s == nil {
 		logger.Panicf("BUG: Storage must be nin-nil")
 	}
@@ -157,11 +151,10 @@ func mustOpenIndexDB(path string, s *Storage, rotationTimestamp uint64, isReadOn
 	tagFiltersCacheSize := getTagFiltersCacheSize()
 
 	db := &indexDB{
-		refCount:          1,
-		generation:        gen,
-		rotationTimestamp: rotationTimestamp,
-		tb:                tb,
-		name:              name,
+		refCount:   1,
+		generation: gen,
+		tb:         tb,
+		name:       name,
 
 		tagFiltersToMetricIDsCache: workingsetcache.New(tagFiltersCacheSize),
 		s:                          s,

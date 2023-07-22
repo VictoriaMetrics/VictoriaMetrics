@@ -511,7 +511,7 @@ func TestIndexDBOpenClose(t *testing.T) {
 	tableName := nextIndexDBTableName()
 	for i := 0; i < 5; i++ {
 		var isReadOnly uint32
-		db := mustOpenIndexDB(tableName, &s, 0, &isReadOnly)
+		db := mustOpenIndexDB(tableName, &s, &isReadOnly)
 		db.MustClose()
 	}
 	if err := os.RemoveAll(tableName); err != nil {
