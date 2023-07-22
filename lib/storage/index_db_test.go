@@ -1962,14 +1962,12 @@ func newTestStorage() *Storage {
 	s := &Storage{
 		cachePath: "test-storage-cache",
 
-		metricIDCache:   workingsetcache.New(1234),
-		metricNameCache: workingsetcache.New(1234),
-		tsidCache:       workingsetcache.New(1234),
-		retentionMsecs:  maxRetentionMsecs,
+		metricIDCache:     workingsetcache.New(1234),
+		metricNameCache:   workingsetcache.New(1234),
+		tsidCache:         workingsetcache.New(1234),
+		dateMetricIDCache: newDateMetricIDCache(),
+		retentionMsecs:    maxRetentionMsecs,
 	}
-	var idb indexDB
-	idb.dateMetricIDCache = newDateMetricIDCache()
-	s.idbCurr.Store(&idb)
 	s.setDeletedMetricIDs(&uint64set.Set{})
 	return s
 }

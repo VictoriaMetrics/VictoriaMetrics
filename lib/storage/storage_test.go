@@ -90,23 +90,25 @@ func TestDateMetricIDCacheConcurrent(t *testing.T) {
 
 func testDateMetricIDCache(c *dateMetricIDCache, concurrent bool) error {
 	type dmk struct {
-		date     uint64
-		metricID uint64
+		generation uint64
+		date       uint64
+		metricID   uint64
 	}
 	m := make(map[dmk]bool)
 	for i := 0; i < 1e5; i++ {
+		generation := uint64(i) % 2
 		date := uint64(i) % 3
 		metricID := uint64(i) % 1237
-		if !concurrent && c.Has(date, metricID) {
-			if !m[dmk{date, metricID}] {
-				return fmt.Errorf("c.Has(%d, %d) must return false, but returned true", date, metricID)
+		if !concurrent && c.Has(generation, date, metricID) {
+			if !m[dmk{generation, date, metricID}] {
+				return fmt.Errorf("c.Has(%d, %d, %d) must return false, but returned true", generation, date, metricID)
 			}
 			continue
 		}
-		c.Set(date, metricID)
-		m[dmk{date, metricID}] = true
-		if !concurrent && !c.Has(date, metricID) {
-			return fmt.Errorf("c.Has(%d, %d) must return true, but returned false", date, metricID)
+		c.Set(generation, date, metricID)
+		m[dmk{generation, date, metricID}] = true
+		if !concurrent && !c.Has(generation, date, metricID) {
+			return fmt.Errorf("c.Has(%d, %d, %d) must return true, but returned false", generation, date, metricID)
 		}
 		if i%11234 == 0 {
 			c.mu.Lock()
@@ -114,25 +116,29 @@ func testDateMetricIDCache(c *dateMetricIDCache, concurrent bool) error {
 			c.mu.Unlock()
 		}
 		if i%34323 == 0 {
-			c.Reset()
+			c.mu.Lock()
+			c.resetLocked()
+			c.mu.Unlock()
 			m = make(map[dmk]bool)
 		}
 	}
 
 	// Verify fast path after sync.
 	for i := 0; i < 1e5; i++ {
+		generation := uint64(i) % 2
 		date := uint64(i) % 3
 		metricID := uint64(i) % 123
-		c.Set(date, metricID)
+		c.Set(generation, date, metricID)
 	}
 	c.mu.Lock()
 	c.syncLocked()
 	c.mu.Unlock()
 	for i := 0; i < 1e5; i++ {
+		generation := uint64(i) % 2
 		date := uint64(i) % 3
 		metricID := uint64(i) % 123
-		if !concurrent && !c.Has(date, metricID) {
-			return fmt.Errorf("c.Has(%d, %d) must return true after sync", date, metricID)
+		if !concurrent && !c.Has(generation, date, metricID) {
+			return fmt.Errorf("c.Has(%d, %d, %d) must return true after sync", generation, date, metricID)
 		}
 	}
 
@@ -140,7 +146,9 @@ func testDateMetricIDCache(c *dateMetricIDCache, concurrent bool) error {
 	if n := c.EntriesCount(); !concurrent && n < 123 {
 		return fmt.Errorf("c.EntriesCount must return at least 123; returned %d", n)
 	}
-	c.Reset()
+	c.mu.Lock()
+	c.resetLocked()
+	c.mu.Unlock()
 	if n := c.EntriesCount(); !concurrent && n > 0 {
 		return fmt.Errorf("c.EntriesCount must return 0 after reset; returned %d", n)
 	}
@@ -150,12 +158,9 @@ func testDateMetricIDCache(c *dateMetricIDCache, concurrent bool) error {
 func TestUpdateCurrHourMetricIDs(t *testing.T) {
 	newStorage := func() *Storage {
 		var s Storage
-		var idb indexDB
-		idb.currHourMetricIDs.Store(&hourMetricIDs{})
-		idb.prevHourMetricIDs.Store(&hourMetricIDs{})
-		idb.pendingHourEntries = &uint64set.Set{}
-		s.idbCurr.Store(&idb)
-
+		s.currHourMetricIDs.Store(&hourMetricIDs{})
+		s.prevHourMetricIDs.Store(&hourMetricIDs{})
+		s.pendingHourEntries = &uint64set.Set{}
 		return &s
 	}
 	t.Run("empty_pending_metric_ids_stale_curr_hour", func(t *testing.T) {
@@ -170,10 +175,9 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		}
 		hmOrig.m.Add(12)
 		hmOrig.m.Add(34)
-		idb := s.idbCurr.Load()
-		idb.currHourMetricIDs.Store(hmOrig)
+		s.currHourMetricIDs.Store(hmOrig)
 		s.updateCurrHourMetricIDs(hour)
-		hmCurr := idb.currHourMetricIDs.Load()
+		hmCurr := s.currHourMetricIDs.Load()
 		if hmCurr.hour != hour {
 			t.Fatalf("unexpected hmCurr.hour; got %d; want %d", hmCurr.hour, hour)
 		}
@@ -181,13 +185,13 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 			t.Fatalf("unexpected length of hm.m; got %d; want %d", hmCurr.m.Len(), 0)
 		}
 
-		hmPrev := idb.prevHourMetricIDs.Load()
+		hmPrev := s.prevHourMetricIDs.Load()
 		if !reflect.DeepEqual(hmPrev, hmOrig) {
 			t.Fatalf("unexpected hmPrev; got %v; want %v", hmPrev, hmOrig)
 		}
 
-		if idb.pendingHourEntries.Len() != 0 {
-			t.Fatalf("unexpected s.pendingHourEntries.Len(); got %d; want %d", idb.pendingHourEntries.Len(), 0)
+		if s.pendingHourEntries.Len() != 0 {
+			t.Fatalf("unexpected s.pendingHourEntries.Len(); got %d; want %d", s.pendingHourEntries.Len(), 0)
 		}
 	})
 	t.Run("empty_pending_metric_ids_valid_curr_hour", func(t *testing.T) {
@@ -197,12 +201,11 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 			m:    &uint64set.Set{},
 			hour: hour,
 		}
-		idb := s.idbCurr.Load()
 		hmOrig.m.Add(12)
 		hmOrig.m.Add(34)
-		idb.currHourMetricIDs.Store(hmOrig)
+		s.currHourMetricIDs.Store(hmOrig)
 		s.updateCurrHourMetricIDs(hour)
-		hmCurr := idb.currHourMetricIDs.Load()
+		hmCurr := s.currHourMetricIDs.Load()
 		if hmCurr.hour != hour {
 			t.Fatalf("unexpected hmCurr.hour; got %d; want %d", hmCurr.hour, hour)
 		}
@@ -210,24 +213,23 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 			t.Fatalf("unexpected hmCurr; got %v; want %v", hmCurr, hmOrig)
 		}
 
-		hmPrev := idb.prevHourMetricIDs.Load()
+		hmPrev := s.prevHourMetricIDs.Load()
 		hmEmpty := &hourMetricIDs{}
 		if !reflect.DeepEqual(hmPrev, hmEmpty) {
 			t.Fatalf("unexpected hmPrev; got %v; want %v", hmPrev, hmEmpty)
 		}
 
-		if idb.pendingHourEntries.Len() != 0 {
-			t.Fatalf("unexpected s.pendingHourEntries.Len(); got %d; want %d", idb.pendingHourEntries.Len(), 0)
+		if s.pendingHourEntries.Len() != 0 {
+			t.Fatalf("unexpected s.pendingHourEntries.Len(); got %d; want %d", s.pendingHourEntries.Len(), 0)
 		}
 	})
 	t.Run("nonempty_pending_metric_ids_stale_curr_hour", func(t *testing.T) {
 		s := newStorage()
-		idb := s.idbCurr.Load()
 		pendingHourEntries := &uint64set.Set{}
 		pendingHourEntries.Add(343)
 		pendingHourEntries.Add(32424)
 		pendingHourEntries.Add(8293432)
-		idb.pendingHourEntries = pendingHourEntries
+		s.pendingHourEntries = pendingHourEntries
 
 		hour := fasttime.UnixHour()
 		if hour%24 == 0 {
@@ -239,9 +241,9 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		}
 		hmOrig.m.Add(12)
 		hmOrig.m.Add(34)
-		idb.currHourMetricIDs.Store(hmOrig)
+		s.currHourMetricIDs.Store(hmOrig)
 		s.updateCurrHourMetricIDs(hour)
-		hmCurr := idb.currHourMetricIDs.Load()
+		hmCurr := s.currHourMetricIDs.Load()
 		if hmCurr.hour != hour {
 			t.Fatalf("unexpected hmCurr.hour; got %d; want %d", hmCurr.hour, hour)
 		}
@@ -249,23 +251,22 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 			t.Fatalf("unexpected hmCurr.m; got %v; want %v", hmCurr.m, pendingHourEntries)
 		}
 
-		hmPrev := idb.prevHourMetricIDs.Load()
+		hmPrev := s.prevHourMetricIDs.Load()
 		if !reflect.DeepEqual(hmPrev, hmOrig) {
 			t.Fatalf("unexpected hmPrev; got %v; want %v", hmPrev, hmOrig)
 		}
 
-		if idb.pendingHourEntries.Len() != 0 {
-			t.Fatalf("unexpected s.pendingHourEntries.Len(); got %d; want %d", idb.pendingHourEntries.Len(), 0)
+		if s.pendingHourEntries.Len() != 0 {
+			t.Fatalf("unexpected s.pendingHourEntries.Len(); got %d; want %d", s.pendingHourEntries.Len(), 0)
 		}
 	})
 	t.Run("nonempty_pending_metric_ids_valid_curr_hour", func(t *testing.T) {
 		s := newStorage()
-		idb := s.idbCurr.Load()
 		pendingHourEntries := &uint64set.Set{}
 		pendingHourEntries.Add(343)
 		pendingHourEntries.Add(32424)
 		pendingHourEntries.Add(8293432)
-		idb.pendingHourEntries = pendingHourEntries
+		s.pendingHourEntries = pendingHourEntries
 
 		hour := fasttime.UnixHour()
 		hmOrig := &hourMetricIDs{
@@ -274,9 +275,9 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		}
 		hmOrig.m.Add(12)
 		hmOrig.m.Add(34)
-		idb.currHourMetricIDs.Store(hmOrig)
+		s.currHourMetricIDs.Store(hmOrig)
 		s.updateCurrHourMetricIDs(hour)
-		hmCurr := idb.currHourMetricIDs.Load()
+		hmCurr := s.currHourMetricIDs.Load()
 		if hmCurr.hour != hour {
 			t.Fatalf("unexpected hmCurr.hour; got %d; want %d", hmCurr.hour, hour)
 		}
@@ -291,24 +292,23 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 			t.Fatalf("unexpected hm.m; got %v; want %v", hmCurr.m, m)
 		}
 
-		hmPrev := idb.prevHourMetricIDs.Load()
+		hmPrev := s.prevHourMetricIDs.Load()
 		hmEmpty := &hourMetricIDs{}
 		if !reflect.DeepEqual(hmPrev, hmEmpty) {
 			t.Fatalf("unexpected hmPrev; got %v; want %v", hmPrev, hmEmpty)
 		}
 
-		if idb.pendingHourEntries.Len() != 0 {
-			t.Fatalf("unexpected s.pendingHourEntries.Len(); got %d; want %d", idb.pendingHourEntries.Len(), 0)
+		if s.pendingHourEntries.Len() != 0 {
+			t.Fatalf("unexpected s.pendingHourEntries.Len(); got %d; want %d", s.pendingHourEntries.Len(), 0)
 		}
 	})
 	t.Run("nonempty_pending_metric_ids_valid_curr_hour_start_of_day", func(t *testing.T) {
 		s := newStorage()
-		idb := s.idb()
 		pendingHourEntries := &uint64set.Set{}
 		pendingHourEntries.Add(343)
 		pendingHourEntries.Add(32424)
 		pendingHourEntries.Add(8293432)
-		idb.pendingHourEntries = pendingHourEntries
+		s.pendingHourEntries = pendingHourEntries
 
 		hour := fasttime.UnixHour()
 		hour -= hour % 24
@@ -318,9 +318,9 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		}
 		hmOrig.m.Add(12)
 		hmOrig.m.Add(34)
-		idb.currHourMetricIDs.Store(hmOrig)
+		s.currHourMetricIDs.Store(hmOrig)
 		s.updateCurrHourMetricIDs(hour)
-		hmCurr := idb.currHourMetricIDs.Load()
+		hmCurr := s.currHourMetricIDs.Load()
 		if hmCurr.hour != hour {
 			t.Fatalf("unexpected hmCurr.hour; got %d; want %d", hmCurr.hour, hour)
 		}
@@ -335,14 +335,14 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 			t.Fatalf("unexpected hm.m; got %v; want %v", hmCurr.m, m)
 		}
 
-		hmPrev := idb.prevHourMetricIDs.Load()
+		hmPrev := s.prevHourMetricIDs.Load()
 		hmEmpty := &hourMetricIDs{}
 		if !reflect.DeepEqual(hmPrev, hmEmpty) {
 			t.Fatalf("unexpected hmPrev; got %v; want %v", hmPrev, hmEmpty)
 		}
 
-		if idb.pendingHourEntries.Len() != 0 {
-			t.Fatalf("unexpected s.pendingHourEntries.Len(); got %d; want %d", idb.pendingHourEntries.Len(), 0)
+		if s.pendingHourEntries.Len() != 0 {
+			t.Fatalf("unexpected s.pendingHourEntries.Len(); got %d; want %d", s.pendingHourEntries.Len(), 0)
 		}
 	})
 	t.Run("nonempty_pending_metric_ids_from_previous_hour_new_day", func(t *testing.T) {
@@ -351,32 +351,31 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		hour := fasttime.UnixHour()
 		hour -= hour % 24
 
-		idb := s.idbCurr.Load()
 		pendingHourEntries := &uint64set.Set{}
 		pendingHourEntries.Add(343)
 		pendingHourEntries.Add(32424)
 		pendingHourEntries.Add(8293432)
-		idb.pendingHourEntries = pendingHourEntries
+		s.pendingHourEntries = pendingHourEntries
 
 		hmOrig := &hourMetricIDs{
 			m:    &uint64set.Set{},
 			hour: hour - 1,
 		}
-		idb.currHourMetricIDs.Store(hmOrig)
+		s.currHourMetricIDs.Store(hmOrig)
 		s.updateCurrHourMetricIDs(hour)
-		hmCurr := idb.currHourMetricIDs.Load()
+		hmCurr := s.currHourMetricIDs.Load()
 		if hmCurr.hour != hour {
 			t.Fatalf("unexpected hmCurr.hour; got %d; want %d", hmCurr.hour, hour)
 		}
 		if hmCurr.m.Len() != 0 {
 			t.Fatalf("unexpected non-empty hmCurr.m; got %v", hmCurr.m.AppendTo(nil))
 		}
-		hmPrev := idb.prevHourMetricIDs.Load()
+		hmPrev := s.prevHourMetricIDs.Load()
 		if !reflect.DeepEqual(hmPrev, hmOrig) {
 			t.Fatalf("unexpected hmPrev; got %v; want %v", hmPrev, hmOrig)
 		}
-		if idb.pendingHourEntries.Len() != 0 {
-			t.Fatalf("unexpected s.pendingHourEntries.Len(); got %d; want %d", idb.pendingHourEntries.Len(), 0)
+		if s.pendingHourEntries.Len() != 0 {
+			t.Fatalf("unexpected s.pendingHourEntries.Len(); got %d; want %d", s.pendingHourEntries.Len(), 0)
 		}
 	})
 }
@@ -417,45 +416,53 @@ func TestMetricRowMarshalUnmarshal(t *testing.T) {
 	}
 }
 
-func TestNextRetentionDuration(t *testing.T) {
-	validateRetention := func(retention int64) {
+func TestNextRetentionDeadlineSeconds(t *testing.T) {
+	f := func(currentTime string, retention, offset time.Duration, deadlineExpected string) {
 		t.Helper()
-		validateRetentionAt := func(now time.Time, retention int64) {
-			nowMsecs := now.UnixMilli()
-			d := nextRetentionDurationAt(nowMsecs, retention)
-			if d <= 0 {
-				nextTime := now.Add(d)
-				retentionHuman := time.Duration(retention) * time.Millisecond
-				t.Errorf("unexpected retention duration for retention=%s; got %s(%s); must be %s + %s; offset: %s", retentionHuman, nextTime, d, now, retentionHuman, time.Duration(retentionTimezoneOffsetMsecs)*time.Millisecond)
-			}
+
+		now, err := time.Parse(time.RFC3339, currentTime)
+		if err != nil {
+			t.Fatalf("cannot parse currentTime=%q: %s", currentTime, err)
 		}
 
-		// UTC offsets are in range [-12 hours, +14 hours].
-		// Verify that any legit combination of retention timezone and local time
-		// will return valid retention duration.
-		// See: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4207
-		for retentionOffset := -12; retentionOffset <= 14; retentionOffset++ {
-			SetRetentionTimezoneOffset(time.Duration(retentionOffset) * time.Hour)
-			validateRetentionAt(time.Now().UTC(), retention)
-
-			now := time.Date(2023, 4, 27, 23, 58, 0, 0, time.UTC)
-			validateRetentionAt(now, retention)
-
-			now = time.Date(2023, 4, 27, 0, 1, 0, 0, time.UTC)
-			validateRetentionAt(now, retention)
-
-			now = time.Date(2023, 4, 27, 0, 0, 0, 0, time.UTC)
-			validateRetentionAt(now, retention)
+		d := nextRetentionDeadlineSeconds(now.Unix(), int64(retention.Seconds()), int64(offset.Seconds()))
+		deadline := time.Unix(d, 0).UTC().Format(time.RFC3339)
+		if deadline != deadlineExpected {
+			t.Fatalf("unexpected deadline; got %s; want %s", deadline, deadlineExpected)
 		}
 	}
 
-	for retentionDays := 0.3; retentionDays < 3; retentionDays += 0.3 {
-		validateRetention(int64(retentionDays * msecPerDay))
-	}
+	f("2023-07-22T12:44:35Z", 24*time.Hour, 0, "2023-07-23T04:00:00Z")
+	f("2023-07-22T03:44:35Z", 24*time.Hour, 0, "2023-07-22T04:00:00Z")
+	f("2023-07-22T04:44:35Z", 24*time.Hour, 0, "2023-07-23T04:00:00Z")
+	f("2023-07-22T23:44:35Z", 24*time.Hour, 0, "2023-07-23T04:00:00Z")
+	f("2023-07-23T03:59:35Z", 24*time.Hour, 0, "2023-07-23T04:00:00Z")
 
-	for retentionMonths := float64(0.1); retentionMonths < 120; retentionMonths += 0.3 {
-		validateRetention(int64(retentionMonths * msecsPerMonth))
-	}
+	f("2023-07-22T12:44:35Z", 24*time.Hour, 2*time.Hour, "2023-07-23T02:00:00Z")
+	f("2023-07-22T01:44:35Z", 24*time.Hour, 2*time.Hour, "2023-07-22T02:00:00Z")
+	f("2023-07-22T02:44:35Z", 24*time.Hour, 2*time.Hour, "2023-07-23T02:00:00Z")
+	f("2023-07-22T23:44:35Z", 24*time.Hour, 2*time.Hour, "2023-07-23T02:00:00Z")
+	f("2023-07-23T01:59:35Z", 24*time.Hour, 2*time.Hour, "2023-07-23T02:00:00Z")
+
+	f("2023-07-22T12:44:35Z", 24*time.Hour, -5*time.Hour, "2023-07-23T09:00:00Z")
+	f("2023-07-22T08:44:35Z", 24*time.Hour, -5*time.Hour, "2023-07-22T09:00:00Z")
+	f("2023-07-22T09:44:35Z", 24*time.Hour, -5*time.Hour, "2023-07-23T09:00:00Z")
+
+	f("2023-07-22T12:44:35Z", 24*time.Hour, -12*time.Hour, "2023-07-22T16:00:00Z")
+	f("2023-07-22T15:44:35Z", 24*time.Hour, -12*time.Hour, "2023-07-22T16:00:00Z")
+	f("2023-07-22T16:44:35Z", 24*time.Hour, -12*time.Hour, "2023-07-23T16:00:00Z")
+
+	f("2023-07-22T12:44:35Z", 24*time.Hour, -18*time.Hour, "2023-07-22T22:00:00Z")
+	f("2023-07-22T21:44:35Z", 24*time.Hour, -18*time.Hour, "2023-07-22T22:00:00Z")
+	f("2023-07-22T22:44:35Z", 24*time.Hour, -18*time.Hour, "2023-07-23T22:00:00Z")
+
+	f("2023-07-22T12:44:35Z", 24*time.Hour, 18*time.Hour, "2023-07-23T10:00:00Z")
+	f("2023-07-22T09:44:35Z", 24*time.Hour, 18*time.Hour, "2023-07-22T10:00:00Z")
+	f("2023-07-22T10:44:35Z", 24*time.Hour, 18*time.Hour, "2023-07-23T10:00:00Z")
+
+	f("2023-07-22T12:44:35Z", 24*time.Hour, 37*time.Hour, "2023-07-22T15:00:00Z")
+	f("2023-07-22T14:44:35Z", 24*time.Hour, 37*time.Hour, "2023-07-22T15:00:00Z")
+	f("2023-07-22T15:44:35Z", 24*time.Hour, 37*time.Hour, "2023-07-23T15:00:00Z")
 }
 
 func TestStorageOpenClose(t *testing.T) {

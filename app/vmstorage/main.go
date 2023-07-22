@@ -663,7 +663,7 @@ func registerStorageMetrics(strg *storage.Storage) {
 		return float64(m().TimeseriesRepopulated)
 	})
 	metrics.NewGauge(`vm_timeseries_precreated_total`, func() float64 {
-		return float64(m().TimeSeriesPreCreated)
+		return float64(m().TimeseriesPreCreated)
 	})
 	metrics.NewGauge(`vm_new_timeseries_created_total`, func() float64 {
 		return float64(m().NewTimeseriesCreated)
