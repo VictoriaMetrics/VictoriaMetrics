@@ -7,106 +7,26 @@
 package loki
 
 import (
-	"context"
 	"fmt"
 	"io"
-	"math"
 	math_bits "math/bits"
 	"reflect"
 	"strings"
 	"time"
 
-	_ "github.com/gogo/protobuf/gogoproto"
-	proto "github.com/gogo/protobuf/proto"
-	_ "github.com/gogo/protobuf/types"
 	github_com_gogo_protobuf_types "github.com/gogo/protobuf/types"
-	grpc "google.golang.org/grpc"
-	codes "google.golang.org/grpc/codes"
-	status "google.golang.org/grpc/status"
 )
-
-// Reference imports to suppress errors if they are not otherwise used.
-var _ = proto.Marshal
-var _ = fmt.Errorf
-var _ = math.Inf
-var _ = time.Kitchen
-
-// This is a compile-time assertion to ensure that this generated file
-// is compatible with the proto package it is being compiled against.
-// A compilation error at this line likely means your copy of the
-// proto package needs to be updated.
-const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
 type PushRequest struct {
 	Streams []Stream `protobuf:"bytes,1,rep,name=streams,proto3,customtype=Stream" json:"streams"`
 }
 
-func (m *PushRequest) Reset()      { *m = PushRequest{} }
-func (*PushRequest) ProtoMessage() {}
-func (*PushRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_35ec442956852c9e, []int{0}
-}
-func (m *PushRequest) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *PushRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	if deterministic {
-		return xxx_messageInfo_PushRequest.Marshal(b, m, deterministic)
-	} else {
-		b = b[:cap(b)]
-		n, err := m.MarshalToSizedBuffer(b)
-		if err != nil {
-			return nil, err
-		}
-		return b[:n], nil
-	}
-}
-func (m *PushRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_PushRequest.Merge(m, src)
-}
-func (m *PushRequest) XXX_Size() int {
-	return m.Size()
-}
-func (m *PushRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_PushRequest.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_PushRequest proto.InternalMessageInfo
+func (m *PushRequest) Reset() { *m = PushRequest{} }
 
 type PushResponse struct {
 }
 
-func (m *PushResponse) Reset()      { *m = PushResponse{} }
-func (*PushResponse) ProtoMessage() {}
-func (*PushResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_35ec442956852c9e, []int{1}
-}
-func (m *PushResponse) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *PushResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	if deterministic {
-		return xxx_messageInfo_PushResponse.Marshal(b, m, deterministic)
-	} else {
-		b = b[:cap(b)]
-		n, err := m.MarshalToSizedBuffer(b)
-		if err != nil {
-			return nil, err
-		}
-		return b[:n], nil
-	}
-}
-func (m *PushResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_PushResponse.Merge(m, src)
-}
-func (m *PushResponse) XXX_Size() int {
-	return m.Size()
-}
-func (m *PushResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_PushResponse.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_PushResponse proto.InternalMessageInfo
+func (m *PushResponse) Reset() { *m = PushResponse{} }
 
 type StreamAdapter struct {
 	Labels  string         `protobuf:"bytes,1,opt,name=labels,proto3" json:"labels"`
@@ -115,37 +35,7 @@ type StreamAdapter struct {
 	Hash uint64 `protobuf:"varint,3,opt,name=hash,proto3" json:"-"`
 }
 
-func (m *StreamAdapter) Reset()      { *m = StreamAdapter{} }
-func (*StreamAdapter) ProtoMessage() {}
-func (*StreamAdapter) Descriptor() ([]byte, []int) {
-	return fileDescriptor_35ec442956852c9e, []int{2}
-}
-func (m *StreamAdapter) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *StreamAdapter) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	if deterministic {
-		return xxx_messageInfo_StreamAdapter.Marshal(b, m, deterministic)
-	} else {
-		b = b[:cap(b)]
-		n, err := m.MarshalToSizedBuffer(b)
-		if err != nil {
-			return nil, err
-		}
-		return b[:n], nil
-	}
-}
-func (m *StreamAdapter) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_StreamAdapter.Merge(m, src)
-}
-func (m *StreamAdapter) XXX_Size() int {
-	return m.Size()
-}
-func (m *StreamAdapter) XXX_DiscardUnknown() {
-	xxx_messageInfo_StreamAdapter.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_StreamAdapter proto.InternalMessageInfo
+func (m *StreamAdapter) Reset() { *m = StreamAdapter{} }
 
 func (m *StreamAdapter) GetLabels() string {
 	if m != nil {
@@ -173,37 +63,7 @@ type EntryAdapter struct {
 	Line      string    `protobuf:"bytes,2,opt,name=line,proto3" json:"line"`
 }
 
-func (m *EntryAdapter) Reset()      { *m = EntryAdapter{} }
-func (*EntryAdapter) ProtoMessage() {}
-func (*EntryAdapter) Descriptor() ([]byte, []int) {
-	return fileDescriptor_35ec442956852c9e, []int{3}
-}
-func (m *EntryAdapter) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *EntryAdapter) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	if deterministic {
-		return xxx_messageInfo_EntryAdapter.Marshal(b, m, deterministic)
-	} else {
-		b = b[:cap(b)]
-		n, err := m.MarshalToSizedBuffer(b)
-		if err != nil {
-			return nil, err
-		}
-		return b[:n], nil
-	}
-}
-func (m *EntryAdapter) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_EntryAdapter.Merge(m, src)
-}
-func (m *EntryAdapter) XXX_Size() int {
-	return m.Size()
-}
-func (m *EntryAdapter) XXX_DiscardUnknown() {
-	xxx_messageInfo_EntryAdapter.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_EntryAdapter proto.InternalMessageInfo
+func (m *EntryAdapter) Reset() { *m = EntryAdapter{} }
 
 func (m *EntryAdapter) GetTimestamp() time.Time {
 	if m != nil {
@@ -217,46 +77,6 @@ func (m *EntryAdapter) GetLine() string {
 		return m.Line
 	}
 	return ""
-}
-
-func init() {
-	proto.RegisterType((*PushRequest)(nil), "logproto.PushRequest")
-	proto.RegisterType((*PushResponse)(nil), "logproto.PushResponse")
-	proto.RegisterType((*StreamAdapter)(nil), "logproto.StreamAdapter")
-	proto.RegisterType((*EntryAdapter)(nil), "logproto.EntryAdapter")
-}
-
-func init() { proto.RegisterFile("pkg/push/push.proto", fileDescriptor_35ec442956852c9e) }
-
-var fileDescriptor_35ec442956852c9e = []byte{
-	// 422 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x5c, 0x52, 0x41, 0x6f, 0xd3, 0x30,
-	0x18, 0xb5, 0xbb, 0xd2, 0x6d, 0xee, 0x18, 0x92, 0x61, 0xa3, 0x44, 0xc8, 0xae, 0x72, 0xea, 0x85,
-	0x44, 0x2a, 0x07, 0xce, 0x8d, 0x84, 0xb4, 0x23, 0x0a, 0x08, 0x24, 0x6e, 0x0e, 0x78, 0x4e, 0xb4,
-	0x24, 0x0e, 0xb1, 0x83, 0xc4, 0x8d, 0x9f, 0x30, 0xfe, 0x05, 0x3f, 0x65, 0xc7, 0x1e, 0x27, 0x0e,
-	0x81, 0xa6, 0x17, 0x94, 0xd3, 0x7e, 0x02, 0x8a, 0x13, 0xd3, 0xc2, 0xc5, 0x79, 0x7e, 0xfe, 0xfc,
-	0xbd, 0xf7, 0xbd, 0x18, 0x3d, 0x2c, 0xae, 0x84, 0x5f, 0x54, 0x2a, 0x36, 0x8b, 0x57, 0x94, 0x52,
-	0x4b, 0x7c, 0x94, 0x4a, 0x61, 0x90, 0xf3, 0x48, 0x48, 0x21, 0x0d, 0xf4, 0x3b, 0xd4, 0x9f, 0x3b,
-	0x54, 0x48, 0x29, 0x52, 0xee, 0x9b, 0x5d, 0x54, 0x5d, 0xfa, 0x3a, 0xc9, 0xb8, 0xd2, 0x2c, 0x2b,
-	0xfa, 0x02, 0xf7, 0x1d, 0x9a, 0xbe, 0xaa, 0x54, 0x1c, 0xf2, 0x4f, 0x15, 0x57, 0x1a, 0x5f, 0xa0,
-	0x43, 0xa5, 0x4b, 0xce, 0x32, 0x35, 0x83, 0xf3, 0x83, 0xc5, 0x74, 0xf9, 0xd8, 0xb3, 0x0a, 0xde,
-	0x6b, 0x73, 0xb0, 0xfa, 0xc8, 0x0a, 0xcd, 0xcb, 0xe0, 0xec, 0x47, 0x4d, 0x27, 0x3d, 0xd5, 0xd6,
-	0xd4, 0xde, 0x0a, 0x2d, 0x70, 0x4f, 0xd1, 0x49, 0xdf, 0x58, 0x15, 0x32, 0x57, 0xdc, 0xfd, 0x06,
-	0xd1, 0xfd, 0x7f, 0x3a, 0x60, 0x17, 0x4d, 0x52, 0x16, 0xf1, 0xb4, 0x93, 0x82, 0x8b, 0xe3, 0x00,
-	0xb5, 0x35, 0x1d, 0x98, 0x70, 0xf8, 0xe2, 0x15, 0x3a, 0xe4, 0xb9, 0x2e, 0x13, 0xae, 0x66, 0x23,
-	0xe3, 0xe7, 0x7c, 0xe7, 0xe7, 0x65, 0xae, 0xcb, 0x2f, 0xd6, 0xce, 0x83, 0x9b, 0x9a, 0x82, 0xce,
-	0xc8, 0x50, 0x1e, 0x5a, 0x80, 0x9f, 0xa0, 0x71, 0xcc, 0x54, 0x3c, 0x3b, 0x98, 0xc3, 0xc5, 0x38,
-	0xb8, 0xd7, 0xd6, 0x14, 0x3e, 0x0b, 0x0d, 0xe5, 0x7e, 0x46, 0x27, 0xfb, 0x4d, 0xf0, 0x05, 0x3a,
-	0xfe, 0x9b, 0x8f, 0x31, 0x35, 0x5d, 0x3a, 0x5e, 0x9f, 0xa0, 0x67, 0x13, 0xf4, 0xde, 0xd8, 0x8a,
-	0xe0, 0x74, 0xd0, 0x1c, 0x69, 0x75, 0xfd, 0x93, 0xc2, 0x70, 0x77, 0x19, 0x3f, 0x45, 0xe3, 0x34,
-	0xc9, 0xf9, 0x6c, 0x64, 0x26, 0x3b, 0x6a, 0x6b, 0x6a, 0xf6, 0xa1, 0x59, 0x97, 0x2b, 0x34, 0xe9,
-	0xb2, 0xe1, 0x25, 0x7e, 0x81, 0xc6, 0x1d, 0xc2, 0x67, 0xbb, 0xb1, 0xf6, 0x7e, 0x87, 0x73, 0xfe,
-	0x3f, 0x3d, 0x84, 0x09, 0x82, 0xb7, 0xeb, 0x0d, 0x01, 0xb7, 0x1b, 0x02, 0xee, 0x36, 0x04, 0x7e,
-	0x6d, 0x08, 0xfc, 0xde, 0x10, 0x78, 0xd3, 0x10, 0xb8, 0x6e, 0x08, 0xfc, 0xd5, 0x10, 0xf8, 0xbb,
-	0x21, 0xe0, 0xae, 0x21, 0xf0, 0x7a, 0x4b, 0xc0, 0x7a, 0x4b, 0xc0, 0xed, 0x96, 0x80, 0xf7, 0x73,
-	0x91, 0xe8, 0xb8, 0x8a, 0xbc, 0x0f, 0x32, 0xf3, 0x45, 0xc9, 0x2e, 0x59, 0xce, 0xfc, 0x54, 0x5e,
-	0x25, 0xbe, 0x7d, 0x5b, 0xd1, 0xc4, 0xa8, 0x3d, 0xff, 0x13, 0x00, 0x00, 0xff, 0xff, 0x5c, 0x30,
-	0xfc, 0xe9, 0x6e, 0x02, 0x00, 0x00,
 }
 
 func (this *PushRequest) Equal(that interface{}) bool {
@@ -426,86 +246,6 @@ func valueToGoStringPush(v interface{}, typ string) string {
 	}
 	pv := reflect.Indirect(rv).Interface()
 	return fmt.Sprintf("func(v %v) *%v { return &v } ( %#v )", typ, typ, pv)
-}
-
-// Reference imports to suppress errors if they are not otherwise used.
-var _ context.Context
-var _ grpc.ClientConn
-
-// This is a compile-time assertion to ensure that this generated file
-// is compatible with the grpc package it is being compiled against.
-const _ = grpc.SupportPackageIsVersion4
-
-// PusherClient is the client API for Pusher service.
-//
-// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
-type PusherClient interface {
-	Push(ctx context.Context, in *PushRequest, opts ...grpc.CallOption) (*PushResponse, error)
-}
-
-type pusherClient struct {
-	cc *grpc.ClientConn
-}
-
-func NewPusherClient(cc *grpc.ClientConn) PusherClient {
-	return &pusherClient{cc}
-}
-
-func (c *pusherClient) Push(ctx context.Context, in *PushRequest, opts ...grpc.CallOption) (*PushResponse, error) {
-	out := new(PushResponse)
-	err := c.cc.Invoke(ctx, "/logproto.Pusher/Push", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-// PusherServer is the server API for Pusher service.
-type PusherServer interface {
-	Push(context.Context, *PushRequest) (*PushResponse, error)
-}
-
-// UnimplementedPusherServer can be embedded to have forward compatible implementations.
-type UnimplementedPusherServer struct {
-}
-
-func (*UnimplementedPusherServer) Push(ctx context.Context, req *PushRequest) (*PushResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Push not implemented")
-}
-
-func RegisterPusherServer(s *grpc.Server, srv PusherServer) {
-	s.RegisterService(&_Pusher_serviceDesc, srv)
-}
-
-func _Pusher_Push_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(PushRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(PusherServer).Push(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/logproto.Pusher/Push",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(PusherServer).Push(ctx, req.(*PushRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-var _Pusher_serviceDesc = grpc.ServiceDesc{
-	ServiceName: "logproto.Pusher",
-	HandlerType: (*PusherServer)(nil),
-	Methods: []grpc.MethodDesc{
-		{
-			MethodName: "Push",
-			Handler:    _Pusher_Push_Handler,
-		},
-	},
-	Streams:  []grpc.StreamDesc{},
-	Metadata: "pkg/push/push.proto",
 }
 
 func (m *PushRequest) Marshal() (dAtA []byte, err error) {
