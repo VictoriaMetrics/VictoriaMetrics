@@ -68,7 +68,7 @@ func replay(groupsCfg []config.Group, qb datasource.QuerierBuilder, rw *remotewr
 
 	var total int
 	for _, cfg := range groupsCfg {
-		ng := newGroup(cfg, qb, *evaluationInterval, labels)
+		ng := newGroup(cfg, qb, labels)
 		total += ng.replay(tFrom, tTo, rw)
 	}
 	logger.Infof("replay finished! Imported %d samples", total)

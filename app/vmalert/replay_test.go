@@ -51,7 +51,7 @@ func TestReplay(t *testing.T) {
 			to:    "2021-01-01T12:02:00.000Z",
 			maxDP: 10,
 			cfg: []config.Group{
-				{Rules: []config.Rule{{Record: "foo", Expr: "sum(up)"}}},
+				{Interval: promutils.NewDuration(*evaluationInterval), Rules: []config.Rule{{Record: "foo", Expr: "sum(up)"}}},
 			},
 			qb: &fakeReplayQuerier{
 				registry: map[string]map[string]struct{}{
@@ -65,7 +65,7 @@ func TestReplay(t *testing.T) {
 			to:    "2021-01-01T12:02:30.000Z",
 			maxDP: 1,
 			cfg: []config.Group{
-				{Rules: []config.Rule{{Record: "foo", Expr: "sum(up)"}}},
+				{Interval: promutils.NewDuration(*evaluationInterval), Rules: []config.Rule{{Record: "foo", Expr: "sum(up)"}}},
 			},
 			qb: &fakeReplayQuerier{
 				registry: map[string]map[string]struct{}{
@@ -102,8 +102,8 @@ func TestReplay(t *testing.T) {
 			to:    "2021-01-01T12:02:30.000Z",
 			maxDP: 1,
 			cfg: []config.Group{
-				{Rules: []config.Rule{{Record: "foo", Expr: "sum(up)"}}},
-				{Rules: []config.Rule{{Record: "bar", Expr: "max(up)"}}},
+				{Interval: promutils.NewDuration(*evaluationInterval), Rules: []config.Rule{{Record: "foo", Expr: "sum(up)"}}},
+				{Interval: promutils.NewDuration(*evaluationInterval), Rules: []config.Rule{{Record: "bar", Expr: "max(up)"}}},
 			},
 			qb: &fakeReplayQuerier{
 				registry: map[string]map[string]struct{}{
@@ -126,8 +126,8 @@ func TestReplay(t *testing.T) {
 			to:    "2021-01-01T12:02:30.000Z",
 			maxDP: 1,
 			cfg: []config.Group{
-				{Rules: []config.Rule{{Alert: "foo", Expr: "sum(up) > 1"}}},
-				{Rules: []config.Rule{{Alert: "bar", Expr: "max(up) < 1"}}},
+				{Interval: promutils.NewDuration(*evaluationInterval), Rules: []config.Rule{{Alert: "foo", Expr: "sum(up) > 1"}}},
+				{Interval: promutils.NewDuration(*evaluationInterval), Rules: []config.Rule{{Alert: "bar", Expr: "max(up) < 1"}}},
 			},
 			qb: &fakeReplayQuerier{
 				registry: map[string]map[string]struct{}{

@@ -521,7 +521,7 @@ func TestGroup_Restore(t *testing.T) {
 			fqr.set(r.Expr, metricWithValueAndLabels(t, 0, "__name__", r.Alert))
 		}
 
-		fg := newGroup(config.Group{Name: "TestRestore", Rules: rules}, fqr, time.Second, nil)
+		fg := newGroup(config.Group{Name: "TestRestore", Rules: rules, Interval: promutils.NewDuration(time.Second), Concurrency: 1}, fqr, nil)
 		wg := sync.WaitGroup{}
 		wg.Add(1)
 		go func() {

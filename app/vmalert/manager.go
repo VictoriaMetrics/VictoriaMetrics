@@ -112,7 +112,7 @@ func (m *manager) update(ctx context.Context, groupsCfg []config.Group, restore 
 				arPresent = true
 			}
 		}
-		ng := newGroup(cfg, m.querierBuilder, *evaluationInterval, m.labels)
+		ng := newGroup(cfg, m.querierBuilder, m.labels)
 		groupsRegistry[ng.ID()] = ng
 	}
 

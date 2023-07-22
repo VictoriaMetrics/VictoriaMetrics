@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"sort"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v2"
 
@@ -23,6 +24,7 @@ type Group struct {
 	File        string
 	Name        string              `yaml:"name"`
 	Interval    *promutils.Duration `yaml:"interval,omitempty"`
+	EvalOffset  *promutils.Duration `yaml:"eval_offset,omitempty"`
 	Limit       int                 `yaml:"limit,omitempty"`
 	Rules       []Rule              `yaml:"rules"`
 	Concurrency int                 `yaml:"concurrency"`
@@ -64,9 +66,29 @@ func (g *Group) UnmarshalYAML(unmarshal func(interface{}) error) error {
 }
 
 // Validate check for internal Group or Rule configuration errors
-func (g *Group) Validate(validateTplFn ValidateTplFn, validateExpressions bool) error {
+func (g *Group) Validate(validateTplFn ValidateTplFn, validateExpressions bool, defaultGroupInterval time.Duration) error {
 	if g.Name == "" {
 		return fmt.Errorf("group name must be set")
+	}
+	if g.Interval.Duration() < 0 || g.EvalOffset.Duration() < 0 {
+		return fmt.Errorf("neither interval nor eval_offset should be less than 0")
+	}
+	// set default values for group
+	if g.Interval == nil {
+		g.Interval = promutils.NewDuration(defaultGroupInterval)
+	}
+	if g.EvalOffset.Duration() > g.Interval.Duration() {
+		return fmt.Errorf("eval_offset %v shouldn't be greater than interval %v", *g.EvalOffset, *g.Interval)
+
+	}
+	if g.Limit < 0 {
+		return fmt.Errorf("limit %d shouldn't be less than 0", g.Limit)
+	}
+	if g.Concurrency < 0 {
+		return fmt.Errorf("concurrency %d shouldn't be less than 0", g.Concurrency)
+
+	} else if g.Concurrency == 0 {
+		g.Concurrency = 1
 	}
 
 	uniqueRules := map[uint64]struct{}{}
@@ -208,7 +230,7 @@ type ValidateTplFn func(annotations map[string]string) error
 var cLogger = &log.Logger{}
 
 // ParseSilent parses rule configs from given file patterns without emitting logs
-func ParseSilent(pathPatterns []string, validateTplFn ValidateTplFn, validateExpressions bool) ([]Group, error) {
+func ParseSilent(pathPatterns []string, validateTplFn ValidateTplFn, validateExpressions bool, defaultGroupInterval time.Duration) ([]Group, error) {
 	cLogger.Suppress(true)
 	defer cLogger.Suppress(false)
 
@@ -216,16 +238,16 @@ func ParseSilent(pathPatterns []string, validateTplFn ValidateTplFn, validateExp
 	if err != nil {
 		return nil, fmt.Errorf("failed to read from the config: %s", err)
 	}
-	return parse(files, validateTplFn, validateExpressions)
+	return parse(files, validateTplFn, validateExpressions, defaultGroupInterval)
 }
 
 // Parse parses rule configs from given file patterns
-func Parse(pathPatterns []string, validateTplFn ValidateTplFn, validateExpressions bool) ([]Group, error) {
+func Parse(pathPatterns []string, validateTplFn ValidateTplFn, validateExpressions bool, defaultGroupInterval time.Duration) ([]Group, error) {
 	files, err := readFromFS(pathPatterns)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read from the config: %s", err)
 	}
-	groups, err := parse(files, validateTplFn, validateExpressions)
+	groups, err := parse(files, validateTplFn, validateExpressions, defaultGroupInterval)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse %s: %s", pathPatterns, err)
 	}
@@ -235,7 +257,7 @@ func Parse(pathPatterns []string, validateTplFn ValidateTplFn, validateExpressio
 	return groups, nil
 }
 
-func parse(files map[string][]byte, validateTplFn ValidateTplFn, validateExpressions bool) ([]Group, error) {
+func parse(files map[string][]byte, validateTplFn ValidateTplFn, validateExpressions bool, defaultGroupInterval time.Duration) ([]Group, error) {
 	errGroup := new(utils.ErrGroup)
 	var groups []Group
 	for file, data := range files {
@@ -246,7 +268,7 @@ func parse(files map[string][]byte, validateTplFn ValidateTplFn, validateExpress
 			continue
 		}
 		for _, g := range gr {
-			if err := g.Validate(validateTplFn, validateExpressions); err != nil {
+			if err := g.Validate(validateTplFn, validateExpressions, defaultGroupInterval); err != nil {
 				errGroup.Add(fmt.Errorf("invalid group %q in file %q: %w", g.Name, file, err))
 				continue
 			}

@@ -69,7 +69,7 @@ func TestManagerUpdateConcurrent(t *testing.T) {
 			r := rand.New(rand.NewSource(int64(n)))
 			for i := 0; i < iterations; i++ {
 				rnd := r.Intn(len(paths))
-				cfg, err := config.Parse([]string{paths[rnd]}, notifier.ValidateTemplates, true)
+				cfg, err := config.Parse([]string{paths[rnd]}, notifier.ValidateTemplates, true, *evaluationInterval)
 				if err != nil { // update can fail and this is expected
 					continue
 				}
@@ -232,7 +232,7 @@ func TestManagerUpdate(t *testing.T) {
 				t.Fatalf("failed to complete initial rules update: %s", err)
 			}
 
-			cfgUpdate, err := config.Parse([]string{tc.updatePath}, notifier.ValidateTemplates, true)
+			cfgUpdate, err := config.Parse([]string{tc.updatePath}, notifier.ValidateTemplates, true, *evaluationInterval)
 			if err == nil { // update can fail and that's expected
 				_ = m.update(ctx, cfgUpdate, false)
 			}
@@ -334,7 +334,7 @@ func loadCfg(t *testing.T, path []string, validateAnnotations, validateExpressio
 	if validateAnnotations {
 		validateTplFn = notifier.ValidateTemplates
 	}
-	cfg, err := config.Parse(path, validateTplFn, validateExpressions)
+	cfg, err := config.Parse(path, validateTplFn, validateExpressions, *evaluationInterval)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -24,7 +24,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestParseGood(t *testing.T) {
-	if _, err := Parse([]string{"testdata/rules/*good.rules", "testdata/dir/*good.*"}, notifier.ValidateTemplates, true); err != nil {
+	if _, err := Parse([]string{"testdata/rules/*good.rules", "testdata/dir/*good.*"}, notifier.ValidateTemplates, true, time.Minute); err != nil {
 		t.Errorf("error parsing files %s", err)
 	}
 }
@@ -54,11 +54,11 @@ groups:
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
 
-	if _, err := Parse([]string{srv.URL + "/good-alert", srv.URL + "/good-rr"}, notifier.ValidateTemplates, true); err != nil {
+	if _, err := Parse([]string{srv.URL + "/good-alert", srv.URL + "/good-rr"}, notifier.ValidateTemplates, true, time.Minute); err != nil {
 		t.Errorf("error parsing URLs %s", err)
 	}
 
-	if _, err := Parse([]string{srv.URL + "/bad"}, notifier.ValidateTemplates, true); err == nil {
+	if _, err := Parse([]string{srv.URL + "/bad"}, notifier.ValidateTemplates, true, time.Minute); err == nil {
 		t.Errorf("expected parsing error: %s", err)
 	}
 }
@@ -68,6 +68,10 @@ func TestParseBad(t *testing.T) {
 		path   []string
 		expErr string
 	}{
+		{
+			[]string{"testdata/rules/rules_interval_bad.rules"},
+			"shouldn't be greater than interval",
+		},
 		{
 			[]string{"testdata/rules/rules0-bad.rules"},
 			"unexpected token",
@@ -106,7 +110,7 @@ func TestParseBad(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		_, err := Parse(tc.path, notifier.ValidateTemplates, true)
+		_, err := Parse(tc.path, notifier.ValidateTemplates, true, time.Minute)
 		if err == nil {
 			t.Errorf("expected to get error")
 			return
@@ -348,7 +352,7 @@ func TestGroup_Validate(t *testing.T) {
 		if tc.validateAnnotations {
 			validateTplFn = notifier.ValidateTemplates
 		}
-		err := tc.group.Validate(validateTplFn, tc.validateExpressions)
+		err := tc.group.Validate(validateTplFn, tc.validateExpressions, time.Minute)
 		if err == nil {
 			if tc.expErr != "" {
 				t.Errorf("expected to get err %q; got nil insted", tc.expErr)

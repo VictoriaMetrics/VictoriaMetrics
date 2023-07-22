@@ -123,7 +123,9 @@ The v1.93.x line will be supported for at least 12 months since [v1.93.0](https:
 * BUGFIX: [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager.html): fix panic when creating a backup to a local filesystem on Windows. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4704).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): properly handle client address with `X-Forwarded-For` part at the [Active queries](https://docs.victoriametrics.com/#active-queries) page. See [this comment](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4676#issuecomment-1663203424).
 * BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): prevent from panic when the lookbehind window in square brackets of [rollup function](https://docs.victoriametrics.com/MetricsQL.html#rollup-functions) is parsed into negative value. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4795).
+* FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): add `eval_offset` attribute for rule group. If specified, group will be evaluated at exact offset in the range of `[0 ... interval]`, using random offset if not.
 
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): use local scrape timestamps for the scraped metrics unless `honor_timestamps: true` option is explicitly set at [scrape_config](https://docs.victoriametrics.com/sd_configs.html#scrape_configs). This fixes gaps for metrics collected from [cadvisor](https://github.com/google/cadvisor) or similar exporters, which export metrics with invalid timestamps. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4697) and [this comment](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4697#issuecomment-1654614799) for details. The issue has been introduced in [v1.68.0](#v1680).
 
 ## [v1.92.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.92.1)
 
