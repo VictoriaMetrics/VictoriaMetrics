@@ -66,7 +66,10 @@ func getPushgatewayLabels(path string) ([]prompbmarshal.Label, error) {
 		if isBase64 {
 			data, err := base64.URLEncoding.DecodeString(value)
 			if err != nil {
-				return nil, fmt.Errorf("cannot base64-decode value=%q for label=%q: %w", value, name, err)
+				data, err = base64.RawURLEncoding.DecodeString(value)
+				if err != nil {
+					return nil, fmt.Errorf("cannot base64-decode value=%q for label=%q: %w", value, name, err)
+				}
 			}
 			value = string(data)
 		}
