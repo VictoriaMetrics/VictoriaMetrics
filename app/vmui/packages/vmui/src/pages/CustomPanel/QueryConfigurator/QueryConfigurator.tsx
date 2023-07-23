@@ -1,4 +1,4 @@
-import React, { FC, useState, useEffect } from "preact/compat";
+import React, { FC, useEffect, useState } from "preact/compat";
 import QueryEditor from "../../../components/Configurators/QueryEditor/QueryEditor";
 import AdditionalSettings from "../../../components/Configurators/AdditionalSettings/AdditionalSettings";
 import { ErrorTypes } from "../../../types";
@@ -6,7 +6,14 @@ import usePrevious from "../../../hooks/usePrevious";
 import { MAX_QUERY_FIELDS } from "../../../constants/graph";
 import { useQueryDispatch, useQueryState } from "../../../state/query/QueryStateContext";
 import { useTimeDispatch } from "../../../state/time/TimeStateContext";
-import { DeleteIcon, PlayIcon, PlusIcon, VisibilityIcon, VisibilityOffIcon } from "../../../components/Main/Icons";
+import {
+  DeleteIcon,
+  PlayIcon,
+  PlusIcon,
+  Prettify,
+  VisibilityIcon,
+  VisibilityOffIcon
+} from "../../../components/Main/Icons";
 import Button from "../../../components/Main/Button/Button";
 import "./style.scss";
 import Tooltip from "../../../components/Main/Tooltip/Tooltip";
@@ -113,6 +120,21 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
     handleToggleHideQuery(e, i);
   };
 
+  const handlePrettifyQuery = (el: HTMLButtonElement, i: number) => {
+    const newStateQuery = [...stateQuery];
+
+    // TODO: prettify
+    newStateQuery[i] = newStateQuery[i].toUpperCase();
+
+    setStateQuery(newStateQuery);
+  };
+
+  const createHandlerPrettifyQuery = (i: number) => {
+    return (e: ReactMouseEvent<HTMLButtonElement, MouseEvent>) => {
+      handlePrettifyQuery(e.currentTarget, i);
+    };
+  };
+
   useEffect(() => {
     if (prevStateQuery && (stateQuery.length < prevStateQuery.length)) {
       handleRunQuery();
@@ -163,6 +185,18 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
               />
             </div>
           </Tooltip>
+
+          <Tooltip title={"Prettify query"}>
+            <div className="vm-query-configurator-list-row__button">
+              <Button
+                variant={"text"}
+                color={"gray"}
+                startIcon={<Prettify/>}
+                onClick={createHandlerPrettifyQuery(i)}
+              />
+            </div>
+          </Tooltip>
+
           {stateQuery.length > 1 && (
             <Tooltip title="Remove Query">
               <div className="vm-query-configurator-list-row__button">
