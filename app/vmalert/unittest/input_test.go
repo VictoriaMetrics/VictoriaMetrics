@@ -22,7 +22,7 @@ func TestParseInputValue(t *testing.T) {
 			nil,
 			true,
 		},
-		// stale don't support operations
+		// stale doesn't support operations
 		{
 			"stalex3",
 			nil,
