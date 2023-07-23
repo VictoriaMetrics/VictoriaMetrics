@@ -4,7 +4,6 @@
   "private": true,
   "homepage": "./",
   "dependencies": {
-    "@monaco-editor/react": "^4.5.1",
     "@types/lodash.debounce": "^4.0.6",
     "@types/lodash.get": "^4.4.6",
     "@types/lodash.throttle": "^4.1.6",
@@ -33,7 +32,7 @@
   "scripts": {
     "start": "react-app-rewired start",
     "start:logs": "cross-env REACT_APP_LOGS=true npm run start",
-    "build": "GENERATE_SOURCEMAP=false react-app-rewired build",
+    "build": "GENERATE_SOURCEMAP=true react-app-rewired build",
     "build:logs": "cross-env REACT_APP_LOGS=true npm run build",
     "lint": "eslint src --ext tsx,ts",
     "lint:fix": "eslint src --ext tsx,ts --fix",
