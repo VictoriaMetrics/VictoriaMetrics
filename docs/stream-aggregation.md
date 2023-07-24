@@ -64,6 +64,7 @@ Stream aggregation can be used as [statsd](https://github.com/statsd/statsd) alt
 * [Summing input metrics](#summing-input-metrics)
 * [Quantiles over input metrics](#quantiles-over-input-metrics)
 * [Histograms over input metrics](#histograms-over-input-metrics)
+* [Aggregating histograms](#aggregating-histograms)
 
 Currently, streaming aggregation is available only for [supported data ingestion protocols](https://docs.victoriametrics.com/#how-to-import-time-series-data)
 and not available for [Statsd metrics format](https://github.com/statsd/statsd/blob/master/docs/metric_types.md).
@@ -140,7 +141,7 @@ some_metric:5m_max
 ```
 
 See [the list of aggregate output](#aggregation-outputs), which can be specified at `output` field.
-See also [aggregating by labels](#aggregating-by-labels).
+See also [aggregating histograms](#aggregating-histograms) and [aggregating by labels](#aggregating-by-labels).
 
 ### Reducing the number of stored series
 
@@ -165,7 +166,7 @@ http_requests_total:30s_without_path_user_total
 ```
 
 See [the list of aggregate output](#aggregation-outputs), which can be specified at `output` field.
-
+See also [aggregating histograms](#aggregating-histograms).
 
 ### Counting input samples
 
@@ -307,6 +308,48 @@ The resulting histogram buckets can be queried with [MetricsQL](https://docs.vic
 
 See [the list of aggregate output](#aggregation-outputs), which can be specified at `output` field.
 See also [quantiles over input metrics](#quantiles-over-input-metrics) and [aggregating by labels](#aggregating-by-labels).
+
+### Aggregating histograms
+
+[Histogram](https://docs.victoriametrics.com/keyConcepts.html#histogram) is a set of [counter](https://docs.victoriametrics.com/keyConcepts.html#counter)
+metrics with different `vmrange` or `le` labels. As they're counters, the applicable aggregation output is 
+[total](https://docs.victoriametrics.com/stream-aggregation.html#total):
+```yaml
+- match: 'http_request_duration_seconds_bucket'
+  interval: 1m
+  without: [instance]
+  outputs: [total]
+  output_relabel_configs:
+    - source_labels: [__name__]
+      target_label: __name__
+```
+
+This config generates the following output metrics according to [output metric naming](#output-metric-names):
+```
+http_request_duration_seconds_bucket:1m_without_instance_total{le="0.1"} value1
+http_request_duration_seconds_bucket:1m_without_instance_total{le="0.2"} value2
+http_request_duration_seconds_bucket:1m_without_instance_total{le="0.4"} value3
+http_request_duration_seconds_bucket:1m_without_instance_total{le="1"}   value4
+http_request_duration_seconds_bucket:1m_without_instance_total{le="3"}   value5
+http_request_duration_seconds_bucket:1m_without_instance_total{le="8"}   value6
+http_request_duration_seconds_bucket:1m_without_instance_total{le="20"}  value7
+http_request_duration_seconds_bucket:1m_without_instance_total{le="60"}  value8
+http_request_duration_seconds_bucket:1m_without_instance_total{le="120"} value9
+http_request_duration_seconds_bucket:1m_without_instance_total{le="+Inf" value10
+```
+
+The resulting metrics can be used in [histogram_quantile](https://docs.victoriametrics.com/MetricsQL.html#histogram_quantile)
+function:
+```metricsql
+histogram_quantile(0.9, sum(rate(http_request_duration_seconds_bucket:1m_without_instance_total[5m])) by(le))
+```
+
+Please note, histograms can be aggregated if their `le` labels are configured identically. 
+[VictoriaMetrics histogram buckets](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350)
+have no such requirement.
+
+See [the list of aggregate output](#aggregation-outputs), which can be specified at `output` field.
+See also [histograms over input metrics](#histograms-over-input-metrics) and [quantiles over input metrics](#quantiles-over-input-metrics).
 
 
 ## Output metric names
@@ -476,6 +519,7 @@ For example, see below time series produced by config with aggregation interval 
 `histogram_bucket` returns [VictoriaMetrics histogram buckets](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350)
   for the input [sample values](https://docs.victoriametrics.com/keyConcepts.html#raw-samples).
 `histogram_bucket` makes sense only for aggregating [gauge](https://docs.victoriametrics.com/keyConcepts.html#gauge) metrics.
+See how to aggregate regular histograms [here](#aggregating-histograms).
 
 The results of `histogram_bucket` with aggregation interval of `1m` is equal to the `histogram_over_time(some_histogram_bucket[1m])` query.
 
