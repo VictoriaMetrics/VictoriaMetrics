@@ -84,7 +84,7 @@ func TestIfExpressionUnmarshalFailure(t *testing.T) {
 	}
 	f(`{`)
 	f(`{x:y}`)
-	f(`[]`)
+	f(`[1]`)
 	f(`"{"`)
 	f(`'{'`)
 	f(`foo{bar`)
@@ -122,6 +122,8 @@ func TestIfExpressionUnmarshalSuccess(t *testing.T) {
 	f(`'{a="b", c!="d", e=~"g", h!~"d"}'`)
 	f(`foo{bar="zs",a=~"b|c"}`)
 	f(`foo{z="y" or bar="zs",a=~"b|c"}`)
+	f(`- foo
+- bar{baz="abc"}`)
 }
 
 func TestIfExpressionMatch(t *testing.T) {

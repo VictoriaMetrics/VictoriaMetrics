@@ -32,7 +32,7 @@ These flags must point to a file containing [stream aggregation config](#stream-
 By default, the following data is written to the storage when stream aggregation is enabled:
 
 - the aggregated samples;
-- the raw input samples, which didn't match all the `match` options in the provided [config](#stream-aggregation-config).
+- the raw input samples, which didn't match any `match` option in the provided [config](#stream-aggregation-config).
 
 This behaviour can be changed via the following command-line flags:
 
@@ -240,7 +240,9 @@ per each incoming request, then the following [stream aggregation config](#strea
 can be used for calculating 50th and 99th percentiles for these metrics every 30 seconds:
 
 ```yaml
-- match: '{__name__=~"request_duration_seconds|response_size_bytes"}'
+- match:
+  - request_duration_seconds
+  - response_size_bytes
   interval: 30s
   outputs: ["quantiles(0.50, 0.99)"]
 ```
@@ -269,7 +271,9 @@ can be used for calculating [VictoriaMetrics histogram buckets](https://valyala.
 for these metrics every 60 seconds:
 
 ```yaml
-- match: '{__name__=~"request_duration_seconds|response_size_bytes"}'
+- match:
+  - request_duration_seconds
+  - response_size_bytes
   interval: 60s
   outputs: [histogram_bucket]
 ```
@@ -600,10 +604,15 @@ at [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-
   # It can contain arbitrary Prometheus series selector
   # according to https://docs.victoriametrics.com/keyConcepts.html#filtering .
   # If match isn't set, then all the incoming samples are aggregated.
+  #
+  # match also can contain a list of series selectors. Then the incoming samples are aggregated
+  # if they match at least a single series selector.
+  #
 - match: 'http_request_duration_seconds_bucket{env=~"prod|staging"}'
 
   # interval is the interval for the aggregation.
   # The aggregated stats is sent to remote storage once per interval.
+  #
   interval: 1m
 
   # staleness_interval defines an interval after which the series state will be reset if no samples have been sent during it.
@@ -614,30 +623,36 @@ at [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-
   # Increase this parameter if it is expected for matched metrics to be delayed or collected with irregular intervals exceeding the `interval` value.
   # By default, is equal to x2 of the `interval` field.
   # The parameter is only relevant for outputs: total, increase and histogram_bucket.
+  #
   # staleness_interval: 2m
 
   # without is an optional list of labels, which must be removed from the output aggregation.
   # See https://docs.victoriametrics.com/stream-aggregation.html#aggregating-by-labels
+  #
   without: [instance]
 
   # by is an optional list of labels, which must be preserved in the output aggregation.
   # See https://docs.victoriametrics.com/stream-aggregation.html#aggregating-by-labels
+  #
   # by: [job, vmrange]
 
   # outputs is the list of aggregations to perform on the input data.
   # See https://docs.victoriametrics.com/stream-aggregation.html#aggregation-outputs
+  #
   outputs: [total]
 
   # input_relabel_configs is an optional relabeling rules,
   # which are applied to the incoming samples after they pass the match filter
   # and before being aggregated.
   # See https://docs.victoriametrics.com/stream-aggregation.html#relabeling
+  #
   input_relabel_configs:
   - target_label: vmaggr
     replacement: before
 
   # output_relabel_configs is an optional relabeling rules,
   # which are applied to the aggregated output metrics.
+  #
   output_relabel_configs:
   - target_label: vmaggr
     replacement: after

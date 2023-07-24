@@ -514,6 +514,7 @@ The following articles contain useful information about Prometheus relabeling:
 
 * An optional `if` filter can be used for conditional relabeling. The `if` filter may contain
   arbitrary [time series selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
+  The `action` is performed only for [samples](https://docs.victoriametrics.com/keyConcepts.html#raw-samples), which match the provided `if` filter.
   For example, the following relabeling rule keeps metrics matching `foo{bar="baz"}` series selector, while dropping the rest of metrics:
 
   ```yaml
@@ -527,6 +528,18 @@ The following articles contain useful information about Prometheus relabeling:
   - action: keep
     source_labels: [__name__, bar]
     regex: 'foo;baz'
+  ```
+
+  The `if` option may contain more than one filter. In this case the `action` is performed if at least a single filter
+  matches the given [sample](https://docs.victoriametrics.com/keyConcepts.html#raw-samples).
+  For example, the following relabeling rule adds `foo="bar"` label to samples with `job="foo"` or `instance="bar"` labels:
+
+  ```yaml
+  - target_label: foo
+    replacement: bar
+    if:
+    - '{job="foo"}'
+    - '{instance="bar"}'
   ```
 
 * The `regex` value can be split into multiple lines for improved readability and maintainability.
