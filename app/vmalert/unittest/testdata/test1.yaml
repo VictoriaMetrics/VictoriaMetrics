@@ -9,7 +9,7 @@ tests:
     name: "basic test"
     input_series:
       - series: "test"
-        values: "_x5 1x5"
+        values: "_x5 1x5 _ stale"
 
     alert_rule_test:
       - eval_time: 1m
@@ -25,6 +25,16 @@ tests:
         groupname: group1
         alertname: SameAlertNameWithDifferentGroup
         exp_alerts: []
+
+    metricsql_expr_test:
+      - expr: test
+        eval_time: 11m
+        exp_samples:
+          - labels: '{__name__="test"}'
+            value: 1
+      - expr: test
+        eval_time: 12m
+        exp_samples: []
 
   - interval: 1m
     name: "basic test2"
