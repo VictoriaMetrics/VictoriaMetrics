@@ -64,6 +64,7 @@ Stream aggregation can be used as [statsd](https://github.com/statsd/statsd) alt
 * [Summing input metrics](#summing-input-metrics)
 * [Quantiles over input metrics](#quantiles-over-input-metrics)
 * [Histograms over input metrics](#histograms-over-input-metrics)
+* [Aggregating histograms](#aggregating-histograms)
 
 Currently, streaming aggregation is available only for [supported data ingestion protocols](https://docs.victoriametrics.com/#how-to-import-time-series-data)
 and not available for [Statsd metrics format](https://github.com/statsd/statsd/blob/master/docs/metric_types.md).
@@ -140,7 +141,7 @@ some_metric:5m_max
 ```
 
 See [the list of aggregate output](#aggregation-outputs), which can be specified at `output` field.
-See also [aggregating by labels](#aggregating-by-labels).
+See also [aggregating histograms](#aggregating-histograms) and [aggregating by labels](#aggregating-by-labels).
 
 ### Reducing the number of stored series
 
@@ -165,7 +166,7 @@ http_requests_total:30s_without_path_user_total
 ```
 
 See [the list of aggregate output](#aggregation-outputs), which can be specified at `output` field.
-
+See also [aggregating histograms](#aggregating-histograms).
 
 ### Counting input samples
 
