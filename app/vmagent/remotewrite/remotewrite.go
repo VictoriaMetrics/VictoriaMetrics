@@ -67,10 +67,13 @@ var (
 
 	streamAggrConfig = flagutil.NewArrayString("remoteWrite.streamAggr.config", "Optional path to file with stream aggregation config. "+
 		"See https://docs.victoriametrics.com/stream-aggregation.html . "+
-		"See also -remoteWrite.streamAggr.keepInput and -remoteWrite.streamAggr.dedupInterval")
-	streamAggrKeepInput = flagutil.NewArrayBool("remoteWrite.streamAggr.keepInput", "Whether to keep input samples after the aggregation with -remoteWrite.streamAggr.config. "+
-		"By default, the input is dropped after the aggregation, so only the aggregate data is sent to the -remoteWrite.url. "+
-		"See https://docs.victoriametrics.com/stream-aggregation.html")
+		"See also -remoteWrite.streamAggr.keepInput, -remoteWrite.streamAggr.dropInput and -remoteWrite.streamAggr.dedupInterval")
+	streamAggrKeepInput = flagutil.NewArrayBool("remoteWrite.streamAggr.keepInput", "Whether to keep all the input samples after the aggregation "+
+		"with -remoteWrite.streamAggr.config. By default, only aggregates samples are dropped, while the remaining samples "+
+		"are written to the corresponding -remoteWrite.url . See also -remoteWrite.streamAggr.dropInput and https://docs.victoriametrics.com/stream-aggregation.html")
+	streamAggrDropInput = flagutil.NewArrayBool("remoteWrite.streamAggr.dropInput", "Whether to drop all the input samples after the aggregation "+
+		"with -remoteWrite.streamAggr.config. By default, only aggregates samples are dropped, while the remaining samples "+
+		"are written to the corresponding -remoteWrite.url . See also -remoteWrite.streamAggr.keepInput and https://docs.victoriametrics.com/stream-aggregation.html")
 	streamAggrDedupInterval = flagutil.NewArrayDuration("remoteWrite.streamAggr.dedupInterval", "Input samples are de-duplicated with this interval before being aggregated. "+
 		"Only the last sample per each time series per each interval is aggregated if the interval is greater than zero")
 )
@@ -507,6 +510,7 @@ type remoteWriteCtx struct {
 
 	sas                 atomic.Pointer[streamaggr.Aggregators]
 	streamAggrKeepInput bool
+	streamAggrDropInput bool
 
 	pss        []*pendingSeries
 	pssNextIdx uint64
@@ -579,6 +583,7 @@ func newRemoteWriteCtx(argIdx int, at *auth.Token, remoteWriteURL *url.URL, maxI
 		}
 		rwctx.sas.Store(sas)
 		rwctx.streamAggrKeepInput = streamAggrKeepInput.GetOptionalArg(argIdx)
+		rwctx.streamAggrDropInput = streamAggrDropInput.GetOptionalArg(argIdx)
 		metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reload_successful{path=%q}`, sasFile)).Set(1)
 		metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reload_success_timestamp_seconds{path=%q}`, sasFile)).Set(fasttime.UnixTimestamp())
 	}
@@ -630,41 +635,45 @@ func (rwctx *remoteWriteCtx) Push(tss []prompbmarshal.TimeSeries) {
 	rowsCount := getRowsCount(tss)
 	rwctx.rowsPushedAfterRelabel.Add(rowsCount)
 
-	defer func() {
-		// Return back relabeling contexts to the pool
-		if rctx != nil {
-			*v = prompbmarshal.ResetTimeSeries(tss)
-			tssPool.Put(v)
-			putRelabelCtx(rctx)
-		}
-	}
-
-	// Load stream aggregagation config
+	// Apply stream aggregation if any
 	sas := rwctx.sas.Load()
-
-	// Fast path, no need to track used series
-	if sas == nil || rwctx.streamAggrKeepInput {
-		// Apply stream aggregation to the input samples
-		// it's safe to call sas.Push with sas == nil
-		sas.Push(tss, nil)
-
-		// Push all samples to the remote storage
-		rwctx.pushInternal(tss)
-
-		return
+	if sas != nil {
+		matchIdxs := matchIdxsPool.Get()
+		matchIdxs.B = sas.Push(tss, matchIdxs.B)
+		if !rwctx.streamAggrKeepInput {
+			if rctx == nil {
+				rctx = getRelabelCtx()
+				// Make a copy of tss before dropping aggregated series
+				v = tssPool.Get().(*[]prompbmarshal.TimeSeries)
+				tss = append(*v, tss...)
+			}
+			tss = dropAggregatedSeries(tss, matchIdxs.B, rwctx.streamAggrDropInput)
+		}
+		matchIdxsPool.Put(matchIdxs)
 	}
+	rwctx.pushInternal(tss)
 
-	// Track series which were used for stream aggregation.
-	ut := streamaggr.NewTssUsageTracker(len(tss))
-	sas.Push(tss, ut.Matched)
+	// Return back relabeling contexts to the pool
+	if rctx != nil {
+		*v = prompbmarshal.ResetTimeSeries(tss)
+		tssPool.Put(v)
+		putRelabelCtx(rctx)
+	}
+}
 
-	unmatchedSeries := tssPool.Get().(*[]prompbmarshal.TimeSeries)
-	// Push only unmatched series to the remote storage
-	*unmatchedSeries = ut.GetUnmatched(tss, *unmatchedSeries)
-	rwctx.pushInternal(*unmatchedSeries)
+var matchIdxsPool bytesutil.ByteBufferPool
 
-	*unmatchedSeries = prompbmarshal.ResetTimeSeries(*unmatchedSeries)
-	tssPool.Put(unmatchedSeries)
+func dropAggregatedSeries(src []prompbmarshal.TimeSeries, matchIdxs []byte, dropInput bool) []prompbmarshal.TimeSeries {
+	dst := src[:0]
+	for i, match := range matchIdxs {
+		if match == 0 {
+			continue
+		}
+		dst = append(dst, src[i])
+	}
+	tail := src[len(dst):]
+	_ = prompbmarshal.ResetTimeSeries(tail)
+	return dst
 }
 
 func (rwctx *remoteWriteCtx) pushInternal(tss []prompbmarshal.TimeSeries) {

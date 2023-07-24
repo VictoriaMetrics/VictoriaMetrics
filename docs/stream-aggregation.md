@@ -17,7 +17,10 @@ can aggregate incoming [samples](https://docs.victoriametrics.com/keyConcepts.ht
 The aggregation is applied to all the metrics received via any [supported data ingestion protocol](https://docs.victoriametrics.com/#how-to-import-time-series-data)
 and/or scraped from [Prometheus-compatible targets](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter).
 
-The stream aggregation is configured via the following command-line flags:
+Stream aggregation ignores timestamps associated with the input [samples](https://docs.victoriametrics.com/keyConcepts.html#raw-samples).
+It expects that the ingested samples have timestamps close to the current time.
+
+Stream aggregation is configured via the following command-line flags:
 
 - `-remoteWrite.streamAggr.config` at [vmagent](https://docs.victoriametrics.com/vmagent.html).
   This flag can be specified individually per each `-remoteWrite.url`.
@@ -26,16 +29,21 @@ The stream aggregation is configured via the following command-line flags:
 
 These flags must point to a file containing [stream aggregation config](#stream-aggregation-config).
 
-By default, only the aggregated data is written to the storage. If the original incoming samples must be written to the storage too,
-then the following command-line flags must be specified:
+By default, the following data is written to the storage when stream aggregation is enabled:
 
-- `-remoteWrite.streamAggr.keepInput` at [vmagent](https://docs.victoriametrics.com/vmagent.html).
-  This flag can be specified individually per each `-remoteWrite.url`.
-  This allows writing both raw and aggregate data to different remote storage destinations.
-- `-streamAggr.keepInput` at [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html).
+- the aggregated samples;
+- the raw input samples, which didn't match all the `match` options in the provided [config](#stream-aggregation-config).
 
-Stream aggregation ignores timestamps associated with the input [samples](https://docs.victoriametrics.com/keyConcepts.html#raw-samples).
-It expects that the ingested samples have timestamps close to the current time.
+This behaviour can be changed via the following command-line flags:
+
+- `-remoteWrite.streamAggr.keepInput` at [vmagent](https://docs.victoriametrics.com/vmagent.html) and `-streamAggr.keepInput`
+  at [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html).
+  If one of these flags are set, then all the input samples are written to the storage alongside the aggregated samples.
+  The `-remoteWrite.streamAggr.keepInput` flag can be specified individually per each `-remoteWrite.url`.
+- `-remoteWrite.streamAggr.dropInput` at [vmagent](https://docs.victoriametrics.com/vmagent.html) and `-streamAggr.dropInput`
+  at [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html).
+  If one of these flags are set, then all the input samples are dropped, while only the aggregated samples are written to the storage.
+  The `-remoteWrite.streamAggr.dropInput` flag can be specified individually per each `-remoteWrite.url`.
 
 By default, all the input samples are aggregated. Sometimes it is needed to de-duplicate samples before the aggregation.
 For example, if the samples are received from replicated sources.
