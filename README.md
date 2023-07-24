@@ -458,7 +458,7 @@ DD_DD_URL=http://victoriametrics:8428/datadog
 
 _Choose correct URL for VictoriaMetrics [here](https://docs.victoriametrics.com/url-examples.html#datadog)._
 
-To configure DataDog agent via [configuration file](https://docs.datadoghq.com/agent/guide/agent-configuration-files)
+To configure DataDog agent via [configuration file](https://github.com/DataDog/datadog-agent/blob/878600ef7a55c5ef0efb41ed0915f020cf7e3bd0/pkg/config/config_template.yaml#L33)
 add the following line:
 
 <div class="with-copy" markdown="1">
@@ -486,7 +486,8 @@ Run DataDog using the following ENV variable with VictoriaMetrics as additional 
 <div class="with-copy" markdown="1">
 
 ```
-DD_ADDITIONAL_ENDPOINTS='{\"http://victoriametrics:8428/datadog\"}'
+DD_ADDITIONAL_ENDPOINTS='{\"http://victoriametrics:8428/datadog\": [\"apikey\"]}'
+
 ```
 
 </div>
@@ -500,7 +501,9 @@ add the following line:
 <div class="with-copy" markdown="1">
 
 ```
-additional_endpoints: http://victoriametrics:8428/datadog
+additional_endpoints:
+  "http://victoriametrics:8428/datadog":
+  - apikey
 ```
 
 </div>
