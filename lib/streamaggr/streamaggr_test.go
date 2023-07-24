@@ -440,7 +440,9 @@ foo{abc="456",de="fg"} 8
 - interval: 1m
   by: [abc]
   outputs: [count_samples, sum_samples, count_series]
-  match: 'foo{abc=~".+"}'
+  match:
+  - foo{abc=~".+"}
+  - '{non_existing_label!=""}'
 `, `
 foo{abc="123"} 4
 bar 5

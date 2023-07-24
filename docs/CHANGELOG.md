@@ -34,8 +34,7 @@ Previously only aggregated samples were written to the storage by default.
 The previous behavior can be restored in the following ways:
 
 - by passing `-streamAggr.dropInput` command-line flag to single-node VictoriaMetrics;
-- by passing `-remoteWrite.streamAggr.dropInput` command-line flag per each configured `-remoteWrite.streamAggr.config` at `vmagent`.
-**
+- by passing `-remoteWrite.streamAggr.dropInput` command-line flag per each configured `-remoteWrite.streamAggr.config` at `vmagent`.**
 
 * SECURITY: upgrade base docker image (alpine) from 3.18.0 to 3.18.2. See [alpine 3.18.2 release notes](https://alpinelinux.org/posts/Alpine-3.15.9-3.16.6-3.17.4-3.18.2-released.html).
 * SECURITY: upgrade Go builder from Go1.20.5 to Go1.20.6. See [the list of issues addressed in Go1.20.6](https://github.com/golang/go/issues?q=milestone%3AGo1.20.6+label%3ACherryPickApproved).
@@ -51,6 +50,8 @@ The previous behavior can be restored in the following ways:
   Thanks to @lujiajing1126 for the initial idea and [implementation](https://github.com/VictoriaMetrics/metricsql/pull/13). See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4025).
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): added a new page with the list of currently running queries. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4598) and [these docs](https://docs.victoriametrics.com/#active-queries).
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): allow configuring staleness interval in [stream aggregation](https://docs.victoriametrics.com/stream-aggregation.html) config. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4667) for details.
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): allow specifying a list of [series selectors](https://docs.victoriametrics.com/keyConcepts.html#filtering) inside `if` option of relabeling rules. The corresponding relabeling rule is executed when at least a single series selector matches. See [these docs](https://docs.victoriametrics.com/vmagent.html#relabeling-enhancements).
+* FEATURE: [stream aggregation](https://docs.victoriametrics.com/stream-aggregation.html): allow specifying a list of [series selectors](https://docs.victoriametrics.com/keyConcepts.html#filtering) inside `match` option of [stream aggregation configs](https://docs.victoriametrics.com/stream-aggregation.html#stream-aggregation-config). The input sample is aggregated when at least a single series selector matches. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4635).
 * FEATURE: [stream aggregation](https://docs.victoriametrics.com/stream-aggregation.html): preserve input samples, which match zero `match` options from the [configured aggregations](https://docs.victoriametrics.com/stream-aggregation.html#stream-aggregation-config). Previously all the input samples were dropped by default, so only the aggregated samples are written to the output storage. The previous behavior can be restored by passing `-streamAggr.dropInput` command-line flag to single-node VictoriaMetrics or by passing `-remoteWrite.streamAggr.dropInput` command-line flag to `vmagent`.
 * FEATURE: [vmctl](https://docs.victoriametrics.com/vmctl.html): add verbose output for docker installations or when TTY isn't available. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4081).
 * FEATURE: [vmctl](https://docs.victoriametrics.com/vmctl.html): interrupt backoff retries when import process is cancelled. The change makes vmctl more responsive in case of errors during the import. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4442).
