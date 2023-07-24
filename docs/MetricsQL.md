@@ -469,7 +469,7 @@ See also [increase_pure](#increase_pure) and [increase](#increase).
 
 #### increase_pure
 
-`increase_pure(series_selector[d])` iis a [rollup function](#rollup-functions), which works the same as [increase](#increase) except
+`increase_pure(series_selector[d])` is a [rollup function](#rollup-functions), which works the same as [increase](#increase) except
 of the following corner case - it assumes that [counters](https://docs.victoriametrics.com/keyConcepts.html#counter) always start from 0,
 while [increase](#increase) ignores the first value in a series if it is too big.
 
