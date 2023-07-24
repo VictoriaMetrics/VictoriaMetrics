@@ -12,6 +12,9 @@ import (
 var (
 	disablePathAppend = flag.Bool("remoteRead.disablePathAppend", false, "Whether to disable automatic appending of '/api/v1/query' path "+
 		"to the configured -datasource.url and -remoteRead.url")
+	disableStepParam = flag.Bool("datasource.disableStepParam", false, "Whether to disable adding 'step' param to the issued instant queries. "+
+		"This might be useful when using vmalert with datasources that do not support 'step' param for instant queries, like Google Managed Prometheus. "+
+		"It is not recommended to enable this flag if you use vmalert with VictoriaMetrics.")
 )
 
 type promResponse struct {
@@ -165,13 +168,13 @@ func (s *VMStorage) setPrometheusInstantReqParams(r *http.Request, query string,
 		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1232
 		timestamp = timestamp.Truncate(s.evaluationInterval)
 	}
-	q.Set("time", fmt.Sprintf("%d", timestamp.Unix()))
-	if s.evaluationInterval > 0 { // set step as evaluationInterval by default
+	q.Set("time", timestamp.Format(time.RFC3339))
+	if !*disableStepParam && s.evaluationInterval > 0 { // set step as evaluationInterval by default
 		// always convert to seconds to keep compatibility with older
 		// Prometheus versions. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1943
 		q.Set("step", fmt.Sprintf("%ds", int(s.evaluationInterval.Seconds())))
 	}
-	if s.queryStep > 0 { // override step with user-specified value
+	if !*disableStepParam && s.queryStep > 0 { // override step with user-specified value
 		// always convert to seconds to keep compatibility with older
 		// Prometheus versions. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1943
 		q.Set("step", fmt.Sprintf("%ds", int(s.queryStep.Seconds())))
@@ -188,8 +191,8 @@ func (s *VMStorage) setPrometheusRangeReqParams(r *http.Request, query string, s
 		r.URL.Path += "/api/v1/query_range"
 	}
 	q := r.URL.Query()
-	q.Add("start", fmt.Sprintf("%d", start.Unix()))
-	q.Add("end", fmt.Sprintf("%d", end.Unix()))
+	q.Add("start", start.Format(time.RFC3339))
+	q.Add("end", end.Format(time.RFC3339))
 	if s.evaluationInterval > 0 { // set step as evaluationInterval by default
 		// always convert to seconds to keep compatibility with older
 		// Prometheus versions. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1943

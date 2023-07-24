@@ -328,7 +328,8 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/api/v1/status/active_queries":
 		statusActiveQueriesRequests.Inc()
-		promql.WriteActiveQueries(w)
+		httpserver.EnableCORS(w, r)
+		promql.ActiveQueriesHandler(w, r)
 		return true
 	case "/api/v1/status/top_queries":
 		topQueriesRequests.Inc()

@@ -32,6 +32,7 @@ where you can chat with VictoriaMetrics users to get additional references, revi
   - [MHI Vestas Offshore Wind](#mhi-vestas-offshore-wind)
   - [Percona](#percona)
   - [Razorpay](#razorpay)
+  - [Roblox](#roblox)
   - [Sensedia](#sensedia)
   - [Smarkets](#smarkets)
   - [Synthesio](#synthesio)
@@ -446,13 +447,48 @@ Percona migrated from Prometheus to VictoriaMetrics in the [Percona Monitoring a
 
 See [the full article](https://engineering.razorpay.com/scaling-to-trillions-of-metric-data-points-f569a5b654f2).
 
+## Roblox
+
+[Roblox](https://roblox.com/) builds the tools and platform that empower people to create their own immersive experiences,
+so that any world they can imagine can be brought to life.
+
+With more than 200 million active monthly users, Roblox is one of the most popular gaming platforms on the Internet.
+The company started with Prometheus and InfluxDB for observability, but as volume continued to build,
+Roblox eventually adopted a time-series database called VictoriaMetrics.
+
+That sudden growth coincided with a substantial rebuild of Roblox’s observability system, which informed internal users about
+everything from the condition of Roblox application servers and storage infrastructure to the number of players and player experience.
+
+The original observability system was largely homegrown, consisting of some open source software and internally developed tools.
+It was based on a decentralized model and leveraged individual Prometheus and InfluxDB instances to store data streaming
+in from the infrastructure and the platform, which internal Roblox users analyzed using Grafana and an internally developed tool called RCity.
+
+From a usability perspective, there was no central repository for data or analysis, and engineers had to jump around to different tools
+to get what they needed. It also hurt Roblox’s flexibility to know how the platform was working in a new region or a new country.
+
+And while the simplicity of storing data in key-value pairs aided visualization, it made doing in-depth analysis a real pain.
+
+Lastly, the homegrown observability system hurt reliability for Roblox.
+
+By all accounts, the move to VictoriaMetrics and Grafana has been a success. With a centralized telemetry database and visualization system,
+Roblox engineers don’t have to hunt around for different tools when problems arise, which was source of delay before.
+The new setup has also helped Roblox deliver 100% availability for three straight quarters, despite moving a massive amount of data.
+
+Numbers:
+
+- 200 storage nodes in VictoriaMetrics cluster
+- Active time series: 5 billion
+- Data ingestion rate: 120 million data points per second
+
+See more details [in this article](https://www.datanami.com/2023/05/30/why-roblox-picked-victoriametrics-for-observability-data-overhaul/).
+
 ## Sensedia
 
 [Sensedia](https://www.sensedia.com) is a leading integration solutions provider with more than 120 enterprise clients across a range of sectors. Its world-class portfolio includes: an API Management Platform, Adaptive Governance, Events Hub, Service Mesh, Cloud Connectors and Strategic Professional Services' teams.
 
 > Our initial requirements for monitoring solution: the metrics must be stored for 15 days, the solution must be scalable and must offer high availability of the metrics. It must being integrated into Grafana and allowing the use of PromQL when creating/editing dashboards in Grafana to obtain metrics from the Prometheus datasource. The solution also needs to receive data from Prometheus using HTTPS and needs to request a login and password to write/read the metrics. Details are available [in this article](https://nordicapis.com/api-monitoring-with-prometheus-grafana-alertmanager-and-victoriametrics/).
 
-> We evaluated VictoriaMetrics, InfluxDB OpenSource and Enterprise, ElasticSearch, Thanos, Cortex, TimescaleDB/PostgreSQL and M3DB. We selected VictoriaMetrics because it has [good community support](https://slack.victoriametrics.com/), [good documentation](https://docs.victoriametrics.com/) and it just works.
+> We evaluated VictoriaMetrics, InfluxDB OpenSource and Enterprise, Elasticsearch, Thanos, Cortex, TimescaleDB/PostgreSQL and M3DB. We selected VictoriaMetrics because it has [good community support](https://slack.victoriametrics.com/), [good documentation](https://docs.victoriametrics.com/) and it just works.
 
 > We started using VictoriaMetrics in the production environment days before the start of BlackFriday in 2020, the period of greatest use of the Sensedia API-Platform by customers. There was a record in the generation of metrics and there was no instability with the monitoring stack.
 

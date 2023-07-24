@@ -1,0 +1,25 @@
+version: "3"
+
+services:
+  promtail:
+    image: grafana/promtail:2.8.2
+    volumes:
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/log:/var/log:ro
+      - ./config.yml:/etc/promtail/docker-config.yml:ro
+    command: -config.file=/etc/promtail/docker-config.yml
+    ports:
+      - "5140:5140"
+
+  # Run `make package-victoria-logs` to build victoria-logs image
+  vlogs:
+    image: docker.io/victoriametrics/victoria-logs:v0.3.0-victorialogs
+    volumes:
+      - victorialogs-promtail-docker:/vlogs
+    ports:
+      - '9428:9428'
+    command:
+      - -storageDataPath=/vlogs
+
+volumes:
+  victorialogs-promtail-docker:

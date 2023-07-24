@@ -11,8 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/net/http2"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -161,12 +159,6 @@ func newClient(ctx context.Context, sw *ScrapeWork) *client {
 		// can be much bigger because of stream parsing.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1017#issuecomment-767235047
 		Timeout: 30 * sw.ScrapeTimeout,
-	}
-	if sw.EnableHTTP2 {
-		_, err := http2.ConfigureTransports(sc.Transport.(*http.Transport))
-		if err != nil {
-			logger.Errorf("failed to configure HTTP/2 transport: %s", err)
-		}
 	}
 	if sw.DenyRedirects {
 		sc.CheckRedirect = func(req *http.Request, via []*http.Request) error {

@@ -13,7 +13,7 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 )
 
-var enableTCP6 = flag.Bool("enableTCP6", false, "Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP is used")
+var enableTCP6 = flag.Bool("enableTCP6", false, "Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP are used")
 
 // NewTCPListener returns new TCP listener for the given addr and optional tlsConfig.
 //

@@ -30,8 +30,8 @@ const (
 // The cache evicts inactive entries after the given expireDuration.
 // Recently accessed entries survive expireDuration.
 type Cache struct {
-	curr atomic.Value
-	prev atomic.Value
+	curr atomic.Pointer[fastcache.Cache]
+	prev atomic.Pointer[fastcache.Cache]
 
 	// csHistory holds cache stats history
 	csHistory fastcache.Stats
@@ -148,8 +148,8 @@ func (c *Cache) expirationWatcher(expireDuration time.Duration) {
 			return
 		}
 		// Reset prev cache and swap it with the curr cache.
-		prev := c.prev.Load().(*fastcache.Cache)
-		curr := c.curr.Load().(*fastcache.Cache)
+		prev := c.prev.Load()
+		curr := c.curr.Load()
 		c.prev.Store(curr)
 		var cs fastcache.Stats
 		prev.UpdateStats(&cs)
@@ -188,8 +188,8 @@ func (c *Cache) prevCacheWatcher() {
 			c.mu.Unlock()
 			return
 		}
-		prev := c.prev.Load().(*fastcache.Cache)
-		curr := c.curr.Load().(*fastcache.Cache)
+		prev := c.prev.Load()
+		curr := c.curr.Load()
 		var csCurr, csPrev fastcache.Stats
 		curr.UpdateStats(&csCurr)
 		prev.UpdateStats(&csPrev)
@@ -232,7 +232,7 @@ func (c *Cache) cacheSizeWatcher() {
 			continue
 		}
 		var cs fastcache.Stats
-		curr := c.curr.Load().(*fastcache.Cache)
+		curr := c.curr.Load()
 		curr.UpdateStats(&cs)
 		if cs.BytesSize >= uint64(0.9*float64(cs.MaxBytesSize)) {
 			maxBytesSize = cs.MaxBytesSize
@@ -254,8 +254,8 @@ func (c *Cache) cacheSizeWatcher() {
 
 	c.mu.Lock()
 	c.setMode(switching)
-	prev := c.prev.Load().(*fastcache.Cache)
-	curr := c.curr.Load().(*fastcache.Cache)
+	prev := c.prev.Load()
+	curr := c.curr.Load()
 	c.prev.Store(curr)
 	var cs fastcache.Stats
 	prev.UpdateStats(&cs)
@@ -273,7 +273,7 @@ func (c *Cache) cacheSizeWatcher() {
 		case <-t.C:
 		}
 		var cs fastcache.Stats
-		curr := c.curr.Load().(*fastcache.Cache)
+		curr := c.curr.Load()
 		curr.UpdateStats(&cs)
 		if cs.BytesSize >= maxBytesSize {
 			break
@@ -282,7 +282,7 @@ func (c *Cache) cacheSizeWatcher() {
 
 	c.mu.Lock()
 	c.setMode(whole)
-	prev = c.prev.Load().(*fastcache.Cache)
+	prev = c.prev.Load()
 	c.prev.Store(fastcache.New(1024))
 	cs.Reset()
 	prev.UpdateStats(&cs)
@@ -293,7 +293,7 @@ func (c *Cache) cacheSizeWatcher() {
 
 // Save saves the cache to filePath.
 func (c *Cache) Save(filePath string) error {
-	curr := c.curr.Load().(*fastcache.Cache)
+	curr := c.curr.Load()
 	concurrency := cgroup.AvailableCPUs()
 	return curr.SaveToFileConcurrent(filePath, concurrency)
 }
@@ -311,10 +311,10 @@ func (c *Cache) Stop() {
 // Reset resets the cache.
 func (c *Cache) Reset() {
 	var cs fastcache.Stats
-	prev := c.prev.Load().(*fastcache.Cache)
+	prev := c.prev.Load()
 	prev.UpdateStats(&cs)
 	prev.Reset()
-	curr := c.curr.Load().(*fastcache.Cache)
+	curr := c.curr.Load()
 	curr.UpdateStats(&cs)
 	updateCacheStatsHistory(&c.csHistory, &cs)
 	curr.Reset()
@@ -335,11 +335,11 @@ func (c *Cache) UpdateStats(fcs *fastcache.Stats) {
 	updateCacheStatsHistory(fcs, &c.csHistory)
 
 	var cs fastcache.Stats
-	curr := c.curr.Load().(*fastcache.Cache)
+	curr := c.curr.Load()
 	curr.UpdateStats(&cs)
 	updateCacheStats(fcs, &cs)
 
-	prev := c.prev.Load().(*fastcache.Cache)
+	prev := c.prev.Load()
 	cs.Reset()
 	prev.UpdateStats(&cs)
 	updateCacheStats(fcs, &cs)
@@ -369,7 +369,7 @@ func updateCacheStatsHistory(dst, src *fastcache.Stats) {
 
 // Get appends the found value for the given key to dst and returns the result.
 func (c *Cache) Get(dst, key []byte) []byte {
-	curr := c.curr.Load().(*fastcache.Cache)
+	curr := c.curr.Load()
 	result := curr.Get(dst, key)
 	if len(result) > len(dst) {
 		// Fast path - the entry is found in the current cache.
@@ -381,7 +381,7 @@ func (c *Cache) Get(dst, key []byte) []byte {
 	}
 
 	// Search for the entry in the previous cache.
-	prev := c.prev.Load().(*fastcache.Cache)
+	prev := c.prev.Load()
 	result = prev.Get(dst, key)
 	if len(result) <= len(dst) {
 		// Nothing found.
@@ -394,14 +394,14 @@ func (c *Cache) Get(dst, key []byte) []byte {
 
 // Has verifies whether the cache contains the given key.
 func (c *Cache) Has(key []byte) bool {
-	curr := c.curr.Load().(*fastcache.Cache)
+	curr := c.curr.Load()
 	if curr.Has(key) {
 		return true
 	}
 	if c.loadMode() == whole {
 		return false
 	}
-	prev := c.prev.Load().(*fastcache.Cache)
+	prev := c.prev.Load()
 	if !prev.Has(key) {
 		return false
 	}
@@ -417,13 +417,13 @@ var tmpBufPool bytesutil.ByteBufferPool
 
 // Set sets the given value for the given key.
 func (c *Cache) Set(key, value []byte) {
-	curr := c.curr.Load().(*fastcache.Cache)
+	curr := c.curr.Load()
 	curr.Set(key, value)
 }
 
 // GetBig appends the found value for the given key to dst and returns the result.
 func (c *Cache) GetBig(dst, key []byte) []byte {
-	curr := c.curr.Load().(*fastcache.Cache)
+	curr := c.curr.Load()
 	result := curr.GetBig(dst, key)
 	if len(result) > len(dst) {
 		// Fast path - the entry is found in the current cache.
@@ -435,7 +435,7 @@ func (c *Cache) GetBig(dst, key []byte) []byte {
 	}
 
 	// Search for the entry in the previous cache.
-	prev := c.prev.Load().(*fastcache.Cache)
+	prev := c.prev.Load()
 	result = prev.GetBig(dst, key)
 	if len(result) <= len(dst) {
 		// Nothing found.
@@ -448,7 +448,7 @@ func (c *Cache) GetBig(dst, key []byte) []byte {
 
 // SetBig sets the given value for the given key.
 func (c *Cache) SetBig(key, value []byte) {
-	curr := c.curr.Load().(*fastcache.Cache)
+	curr := c.curr.Load()
 	curr.SetBig(key, value)
 }
 

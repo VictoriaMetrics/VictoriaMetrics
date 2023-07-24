@@ -478,9 +478,10 @@ var (
 			Value: 1,
 		},
 		&cli.TimestampFlag{
-			Name:   remoteReadFilterTimeStart,
-			Usage:  "The time filter in RFC3339 format to select timeseries with timestamp equal or higher than provided value. E.g. '2020-01-01T20:07:00Z'",
-			Layout: time.RFC3339,
+			Name:     remoteReadFilterTimeStart,
+			Usage:    "The time filter in RFC3339 format to select timeseries with timestamp equal or higher than provided value. E.g. '2020-01-01T20:07:00Z'",
+			Layout:   time.RFC3339,
+			Required: true,
 		},
 		&cli.TimestampFlag{
 			Name:   remoteReadFilterTimeEnd,

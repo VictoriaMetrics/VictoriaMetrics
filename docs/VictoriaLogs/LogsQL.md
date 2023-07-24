@@ -1,3 +1,15 @@
+---
+sort: 2
+weight: 2
+title: LogsQL
+menu:
+  docs:
+    parent: "victorialogs"
+    weight: 2
+aliases:
+- /VictoriaLogs/LogsQL.html
+---
+
 # LogsQL
 
 LogsQL is a simple yet powerful query language for [VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/).
@@ -25,9 +37,6 @@ For example, the following query finds all the logs with `error` word:
 error
 ```
 
-This query matches logs with any [timestamp](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#time-field),
-e.g. it may return logs from the previous year alongside recently ingested logs.
-
 If the queried [word](#word) clashes with LogsQL keywords, then just wrap it into quotes.
 For example, the following query finds all the log messages with `and` [word](#word):
 
@@ -48,13 +57,16 @@ finds log messages with the `error: cannot find file` phrase:
 "error: cannot find file"
 ```
 
+Queries above match logs with any [timestamp](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#time-field),
+e.g. they may return logs from the previous year alongside recently ingested logs.
+
 Usually logs from the previous year aren't so interesting comparing to the recently ingested logs.
 So it is recommended adding [time filter](#time-filter) to the query.
 For example, the following query returns logs with the `error` [word](#word),
 which were ingested into VictoriaLogs during the last 5 minutes:
 
 ```logsql
-error AND _time:[now-5m,now]
+error AND _time:5m
 ```
 
 This query consists of two [filters](#filters) joined with `AND` [operator](#logical-filter):
@@ -68,7 +80,7 @@ Typical LogsQL query constists of multiple [filters](#filters) joined with `AND`
 So LogsQL allows omitting `AND` words. For example, the following query is equivalent to the query above:
 
 ```logsql
-error _time:[now-5m,now]
+error _time:5m
 ```
 
 The query returns the following [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model) by default:
@@ -78,38 +90,39 @@ The query returns the following [log fields](https://docs.victoriametrics.com/Vi
 - [`_time` field](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#time-field)
 
 Logs may contain arbitrary number of other fields. If you need obtaining some of these fields in query results,
-then just refer them in the query with `field_name:*` [filter](#any-value-filter).
+then just refer them in the query with `field_name:*` [filter](#any-value-filter). See [these docs](#querying-specific-fields) for more details.
+
 For example, the following query returns `host.hostname` field additionally to `_msg`, `_stream` and `_time` fields:
 
 ```logsql
-error _time:[now-5m,now] host.hostname:*
+error _time:5m host.hostname:*
 ```
 
 Suppose the query above selects too many rows because some buggy app pushes invalid error logs to VictoriaLogs. Suppose the app adds `buggy_app` [word](#word) to every log line.
 Then the following query removes all the logs from the buggy app, allowing us paying attention to the real errors:
 
 ```logsql
-_time:[now-5m,now] error NOT buggy_app
+_time:5m error NOT buggy_app
 ```
 
 This query uses `NOT` [operator](#logical-filter) for removing log lines from the buggy app. The `NOT` operator is used frequently, so it can be substituted with `!` char.
 So the following query is equivalent to the previous one:
 
 ```logsql
-_time:[now-5m,now] error !buggy_app
+_time:5m error !buggy_app
 ```
 
 Suppose another buggy app starts pushing invalid error logs to VictoriaLogs - it adds `foobar` [word](#word) to every emitted log line.
 No problems - just add `!foobar` to the query in order to remove these buggy logs:
 
 ```logsql
-_time:[now-5m,now] error !buggy_app !foobar
+_time:5m error !buggy_app !foobar
 ```
 
 This query can be rewritten to more clear query with the `OR` [operator](#logical-filter) inside parentheses:
 
 ```logsql
-_time:[now-5m,now] error !(buggy_app OR foobar)
+_time:5m error !(buggy_app OR foobar)
 ```
 
 Note that the parentheses are required here, since otherwise the query won't return the expected results.
@@ -125,26 +138,26 @@ This word can be stored in other [field](https://docs.victoriametrics.com/Victor
 How to select error logs in this case? Just add the `log.level:` prefix in front of the `error` word:
 
 ```logsq
-_time:[now-5m,now] log.level:error !(buggy_app OR foobar)
+_time:5m log.level:error !(buggy_app OR foobar)
 ```
 
 The field name can be wrapped into quotes if it contains special chars or keywords, which may clash with LogsQL syntax.
 Any [word](#word) also can be wrapped into quotes. So the following query is equivalent to the previous one:
 
 ```logsql
-"_time":[now-5m,now] "log.level":"error" !("buggy_app" OR "foobar")
+"_time":"5m" "log.level":"error" !("buggy_app" OR "foobar")
 ```
 
 What if the application identifier - such as `buggy_app` and `foobar` - is stored in the `app` field? Correct - just add `app:` prefix in front of `buggy_app` and `foobar`:
 
 ```logsql
-_time:[now-5m,now] log.level:error !(app:buggy_app OR app:foobar)
+_time:5m log.level:error !(app:buggy_app OR app:foobar)
 ```
 
 The query can be simplified by moving the `app:` prefix outside the parentheses:
 
 ```logsql
-_time:[now-5m,now] log.level:error !app:(buggy_app OR foobar)
+_time:5m log.level:error !app:(buggy_app OR foobar)
 ```
 
 The `app` field uniquely identifies the application instance if a single instance runs per each unique `app`.
@@ -154,7 +167,7 @@ and query performance when querying the needed streams via [`_stream` filter](#s
 If the `app` field is associated with the log stream, then the query above can be rewritten to more performant one:
 
 ```logsql
-_time:[now-5m,now] log.level:error _stream:{app!~"buggy_app|foobar"}
+_time:5m log.level:error _stream:{app!~"buggy_app|foobar"}
 ```
 
 This query completely skips scanning for logs from `buggy_app` and `foobar` apps, thus significantly reducing disk read IO and CPU time
@@ -241,38 +254,42 @@ For example, the following query returns [log messages](https://docs.victoriamet
 ingested into VictoriaLogs during the last hour, which contain the `error` [word](#word):
 
 ```logsql
-_time:(now-1h, now) AND error
+_time:1h AND error
 ```
 
 The following formats are supported for `_time` filter:
 
-- Fixed time:
-  - `_time:YYYY-MM-DD` - matches all the log messages for the particular day. For example, `_time:2023-04-25` matches all the log messages for April 25, 2023 by UTC.
-  - `_time:YYYY-MM` - matches all the log messages for the particular month. For example, `_time:2023-02` matches all the log messages for February, 2023 by UTC.
-  - `_time:YYYY` - matches all the log messages for the particular year. For example, `_time:2023` matches all the log message for 2023 by UTC.
-  - `_time:YYYY-MM-DDTHH` - matches all the log messages for the particular hour. For example, `_time:2023-04-25T22` matches all the log messages from `22:00` to `23:00`
-    on April 25, 2023 by UTC.
-  - `_time:YYYY-MM-DDTHH:MM` - matches all the log messages for the particular minute. For example, `_time:2023-04-25T22:45` matches all the log messages from `22:45` to `22:46`
-    on April 25, 2023 by UTC.
-  - `_time:YYYY-MM-DDTHH:MM:SS` - matches all the log messages for the particular second. For example, `_time:2023-04-25T22:45:59` matches all the log messages
-    from `22:45:59` to `23:46:00` on April 25, 2023 by UTC.
-
-- Time range:
-  - `_time:[min_time, max_time]` - matches log messages on the time range `[min_time, max_time]`, including both `min_time` and `max_time`.
+- `_time:duration` matches logs with timestamps on the time range `(now-duration, now]`. Examples:
+  - `_time:5m` - returns logs for the last 5 minutes
+  - `_time:2.5d15m42.345s` - returns logs for the last 2.5 days, 15 minutes and 42.345 seconds
+  - `_time:1y` - returns logs for the last year
+- `_time:YYYY-MM-DD` - matches all the logs for the particular day by UTC. For example, `_time:2023-04-25` matches logs on April 25, 2023 by UTC.
+- `_time:YYYY-MM` - matches all the logs for the particular month by UTC. For example, `_time:2023-02` matches logs on February, 2023 by UTC.
+- `_time:YYYY` - matches all the logs for the particular year by UTC. For example, `_time:2023` matches logs on 2023 by UTC.
+- `_time:YYYY-MM-DDTHH` - matches all the logs for the particular hour by UTC. For example, `_time:2023-04-25T22` matches logs on April 25, 2023 at 22 hour by UTC.
+- `_time:YYYY-MM-DDTHH:MM` - matches all the logs for the particular minute by UTC. For example, `_time:2023-04-25T22:45` matches logs on April 25, 2023 at 22:45 by UTC.
+- `_time:YYYY-MM-DDTHH:MM:SS` - matches all the logs for the particular second by UTC. For example, `_time:2023-04-25T22:45:59` matches logs on April 25, 2023 at 22:45:59 by UTC.
+- `_time:[min_time, max_time]` - matches logs on the time range `[min_time, max_time]`, including both `min_time` and `max_time`.
     The `min_time` and `max_time` can contain any format specified [here](https://docs.victoriametrics.com/#timestamp-formats).
-    For example, `_time:[2023-04-01, 2023-04-30]` matches log messages for the whole April, 2023 by UTC, e.g. it is equivalent to `_time:2023-04`.
-  - `_time:[min_time, max_time)` - matches log messages on the time range `[min_time, max_time)`, not including `max_time`.
+    For example, `_time:[2023-04-01, 2023-04-30]` matches logs for the whole April, 2023 by UTC, e.g. it is equivalent to `_time:2023-04`.
+- `_time:[min_time, max_time)` - matches logs on the time range `[min_time, max_time)`, not including `max_time`.
     The `min_time` and `max_time` can contain any format specified [here](https://docs.victoriametrics.com/#timestamp-formats).
-    For example, `_time:[2023-02-01, 2023-03-01)` matches log messages for the whole February, 2023 by UTC, e.g. it is equivalent to `_time:2023-02`.
+    For example, `_time:[2023-02-01, 2023-03-01)` matches logs for the whole February, 2023 by UTC, e.g. it is equivalent to `_time:2023-02`.
 
 It is possible to specify time zone offset for all the absolute time formats by appending `+hh:mm` or `-hh:mm` suffix.
-For example, `_time:2023-04-25+05:30` matches all the log messages on April 25, 2023 by India time zone,
-while `_time:2023-02-07:00` matches all the log messages from February, 2023 by California time zone.
+For example, `_time:2023-04-25+05:30` matches all the logs on April 25, 2023 by India time zone,
+while `_time:2023-02-07:00` matches all the logs on February, 2023 by California time zone.
+
+It is possible to specify generic offset for the selected time range by appending `offset` after the `_time` filter. Examples:
+
+- `_time:5m offset 1h` matches logs on the time range `(now-1h5m, now-1h]`.
+- `_time:2023-07 offset 5h30m` matches logs on July, 2023 by UTC with offset 5h30m.
+- `_time:[2023-02-01, 2023-03-01) offset 1w` matches logs the week before the time range `[2023-02-01, 2023-03-01)` by UTC.
 
 Performance tips:
 
 - It is recommended specifying the smallest possible time range during the search, since it reduces the amounts of log entries, which need to be scanned during the query.
-  For example, `_time:[now-1h, now]` is usually faster than `_time:[now-5h, now]`.
+  For example, `_time:1h` is usually faster than `_time:5h`.
 
 - While LogsQL supports arbitrary number of `_time:...` filters at any level of [logical filters](#logical-filter),
   it is recommended specifying a single `_time` filter at the top level of the query.
@@ -371,26 +388,27 @@ See also:
 
 Is you need to search for log messages with the specific phrase inside them, then just wrap the phrase in quotes.
 The phrase can contain any chars, including whitespace, punctuation, parens, etc. They are taken into account during the search.
-For example, the following query matches [log messages](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field) with `cannot open file` phrase inside them:
+For example, the following query matches [log messages](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field)
+with `ssh: login fail` phrase inside them:
 
 ```logsql
-"cannot open file"
+"ssh: login fail"
 ```
 
 This query matches the following [log messages](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field):
 
-- `ERROR: cannot open file /foo/bar/baz`
-- `cannot open file: permission denied`
+- `ERROR: ssh: login fail for user "foobar"`
+- `ssh: login fail!`
 
 This query doesn't match the following log messages:
 
-- `cannot  open  file`, since the number of whitespace chars between words doesn't match the number of whitespace chars in the search phrase.
-  Use `seq("cannot", "open", "file")` query instead. See [these docs](#sequence-filter) for details.
-- `open file: cannot do this`, since the message doesn't contain the full phrase requested in the query. If you need matching a message
-  with all the [words](#word) listed in the query, then use `cannot AND open AND file` query. See [these docs](#logical-filter) for details.
-- `cannot open files`, since the message ends with `files` [word](#word) instead of `file` word. Use `"cannot open file"*` query for this case.
+- `ssh login fail`, since the message misses `:` char just after the `ssh`.
+  Use `seq("ssh", "login", "fail")` query if log messages with the sequence of these words must be found. See [these docs](#sequence-filter) for details.
+- `login fail: ssh error`, since the message doesn't contain the full phrase requested in the query. If you need matching a message
+  with all the [words](#word) listed in the query, then use `ssh AND login AND fail` query. See [these docs](#logical-filter) for details.
+- `ssh: login failed`, since the message ends with `failed` [word](#word) instead of `fail` word. Use `"ssh: login fail"*` query for this case.
   See [these docs](#prefix-filter) for details.
-- `Cannot open file: failure`, since the `Cannot` word starts with capital letter. Use `i("cannot open file")` for this case.
+- `SSH: login fail`, since the `SSH` word is in capital letters. Use `i("ssh: login fail")` for case-insensitive search.
   See [these docs](#case-insensitive-filter) for details.
 
 By default the given phrase is searched in the [`_msg` field](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field).
@@ -575,11 +593,11 @@ See also:
 
 ### Exact prefix filter
 
-Sometimes it is needed to find log messages starting with some prefix. This can be done with the `exact_prefix(...)` filter.
+Sometimes it is needed to find log messages starting with some prefix. This can be done with the `exact("prefix"*)` filter.
 For example, the following query matches log messages, which start from `Processing request` prefix:
 
 ```logsql
-exact_prefix("Processing request")
+exact("Processing request"*)
 ```
 
 This filter matches the following [log messages](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field):
@@ -589,30 +607,30 @@ This filter matches the following [log messages](https://docs.victoriametrics.co
 
 It doesn't match the following log messages:
 
-- `processing request foobar`, since the log message starts with lowercase `p`. Use `exact_prefix("processing request") OR exact_prefix("Processing request")`
+- `processing request foobar`, since the log message starts with lowercase `p`. Use `exact("processing request"*) OR exact("Processing request"*)`
   query in this case. See [these docs](#logical-filter) for details.
 - `start: Processing request`, since the log message doesn't start with `Processing request`. Use `"Processing request"` query in this case.
   See [these docs](#phrase-filter) for details.
 
-By default the `exact_prefix()` filter is applied to the [`_msg` field](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field).
-Specify the [field name](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model) in front of the `exact_prefix()` filter and put a colon after it
+By default the `exact()` filter is applied to the [`_msg` field](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field).
+Specify the [field name](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model) in front of the `exact()` filter and put a colon after it
 if it must be searched in the given field. For example, the following query returns log entries with `log.level` field, which starts with `err` prefix:
 
 ```logsql
-log.level:exact_prefix("err")
+log.level:exact("err"*)
 ```
 
 Both the field name and the phrase can contain arbitrary [utf-8](https://en.wikipedia.org/wiki/UTF-8)-encoded chars. For example:
 
 ```logsql
-log.уровень:exact_prefix("ошиб")
+log.уровень:exact("ошиб"*)
 ```
 
 The field name can be put inside quotes if it contains special chars, which may clash with the query syntax.
 For example, the following query matches `log:level` values starting with `err` prefix:
 
 ```logsql
-"log:level":exact_prefix("err")
+"log:level":exact("err"*)
 ```
 
 See also:
@@ -647,7 +665,7 @@ For example, the following query selects all the logs for the last hour for user
 during the last day:
 
 ```logsql
-_time:[now-1h,now] AND user_id:in(_time:[now-1d,now] AND path:admin | fields user_id)
+_time:1h AND user_id:in(_time:1d AND path:admin | fields user_id)
 ```
 
 See the [Roadmap](https://docs.victoriametrics.com/VictoriaLogs/Roadmap.html) for details.
@@ -755,39 +773,47 @@ See also:
 ### Regexp filter
 
 LogsQL supports regular expression filter with [re2 syntax](https://github.com/google/re2/wiki/Syntax) via `re(...)` expression.
-For example, the following query returns all the log messages containing `error` or `warn` susbstrings:
+For example, the following query returns all the log messages containing `err` or `warn` susbstrings:
 
 ```logsql
-re("error|warn")
+re("err|warn")
 ```
 
-The query matches the following [log messages](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field):
+The query matches the following [log messages](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field), which contain either `err` or `warn` substrings:
 
 - `error: cannot read data`
-- `A warning has been raised`
+- `2 warnings have been raised`
+- `data trasferring finished`
+
+The query doesn't match the following log messages:
+
+- `ERROR: cannot open file`, since the `ERROR` word is in uppercase letters. Use `re("(?i)(err|warn)")` query for case-insensitive regexp search.
+  See [these docs](https://github.com/google/re2/wiki/Syntax) for details. See also [case-insenstive filter docs](#case-insensitive-filter).
+- `it is warmer than usual`, since it doesn't contain neither `err` nor `warn` substrings.
 
 By default the `re()` filter is applied to the [`_msg` field](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field).
 Specify the needed [field name](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model) in front of the filter
-in order to apply it to the given field. For example, the following query matches `event.original` field containing either `error` or `warn` substrings:
+in order to apply it to the given field. For example, the following query matches `event.original` field containing either `err` or `warn` substrings:
 
 ```logsql
-event.original:re("error|warn")
+event.original:re("err|warn")
 ```
 
 If the field name contains special chars, which may clash with the query syntax, then it may be put into quotes in the query.
-For example, the following query matches `event:original` field containing either `error` or `warn` substrings:
+For example, the following query matches `event:original` field containing either `err` or `warn` substrings:
 
 ```logsql
-"event:original":re("error|warn")
+"event:original":re("err|warn")
 ```
 
 Performance tips:
 
 - Prefer combining simple [word filter](#word-filter) with [logical filter](#logical-filter) instead of using regexp filter.
   For example, the `re("error|warning")` query can be substituted with `error OR warning` query, which usually works much faster.
-  See also [multi-exact filter](#multi-exact-filter).
+  Note that the `re("error|warning")` matches `errors` as well as `warnings` [words](#word), while `error OR warning` matches
+  only the specified [words](#word). See also [multi-exact filter](#multi-exact-filter).
 - Prefer moving the regexp filter to the end of the [logical filter](#logical-filter), so lightweighter filters are executed first.
-- Prefer using `exact_prefix("some prefix")` instead of `re("^some prefix")`, since the [exact_prefix()](#exact-prefix-filter) works much faster than the `re()` filter.
+- Prefer using `exact("some prefix"*)` instead of `re("^some prefix")`, since the [exact()](#exact-prefix-filter) works much faster than the `re()` filter.
 - See [other performance tips](#performance-tips).
 
 See also:
@@ -1077,6 +1103,27 @@ according to [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying
 LogsQL will support the ability to limit the number of returned results alongside the ability to page the returned results.
 Additionally, LogsQL will provide the ability to select fields, which must be returned in the response.
 
+See the [Roadmap](https://docs.victoriametrics.com/VictoriaLogs/Roadmap.html) for details.
+
+## Querying specific fields
+
+By default VictoriaLogs query response contains [`_msg`](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field),
+[`_stream`](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#stream-fields) and
+[`_time`](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#time-field) fields.
+
+If you want selecting other fields from the ingested [structured logs](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model),
+then they must be mentioned in query filters. For example, if you want selecting `log.level` field, and this field isn't mentioned in the query yet, then add
+`log.level:*` [filter](#any-value-filter) filter to the end of the query.
+The `field_name:*` filter doesn't return log entries with empty or missing `field_name`. If you want returning log entries
+with and without the given field, then `(field_name:* OR field_name:"")` filter can be used.
+See the following docs for details:
+
+- [Any value filter](#any-value-filter)
+- [Empty value filter](#empty-value-filter)
+- [Logical filter](#logical-filter)
+
+In the future LogsQL will support `| fields field1, field2, ... fieldN` syntax for selecting the listed fields.
+It will also support the ability to select all the fields for the matching log entries with `| fields *` syntax.
 See the [Roadmap](https://docs.victoriametrics.com/VictoriaLogs/Roadmap.html) for details.
 
 ## Performance tips

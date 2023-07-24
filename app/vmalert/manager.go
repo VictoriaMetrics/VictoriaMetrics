@@ -19,7 +19,7 @@ type manager struct {
 	querierBuilder datasource.QuerierBuilder
 	notifiers      func() []notifier.Notifier
 
-	rw *remotewrite.Client
+	rw remotewrite.RWClient
 	// remote read builder.
 	rr datasource.QuerierBuilder
 
@@ -120,7 +120,7 @@ func (m *manager) update(ctx context.Context, groupsCfg []config.Group, restore 
 		return fmt.Errorf("config contains recording rules but `-remoteWrite.url` isn't set")
 	}
 	if arPresent && m.notifiers == nil {
-		return fmt.Errorf("config contains alerting rules but neither `-notifier.url` nor `-notifier.config` aren't set")
+		return fmt.Errorf("config contains alerting rules but neither `-notifier.url` nor `-notifier.config` nor `-notifier.blackhole` aren't set")
 	}
 
 	type updateItem struct {

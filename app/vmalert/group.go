@@ -274,7 +274,7 @@ func (g *Group) close() {
 
 var skipRandSleepOnGroupStart bool
 
-func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *remotewrite.Client, rr datasource.QuerierBuilder) {
+func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw remotewrite.RWClient, rr datasource.QuerierBuilder) {
 	defer func() { close(g.finishedCh) }()
 
 	// Spread group rules evaluation over time in order to reduce load on VictoriaMetrics.
@@ -384,11 +384,17 @@ func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *r
 				g.Interval = ng.Interval
 				t.Stop()
 				t = time.NewTicker(g.Interval)
+				evalTS = time.Now()
 			}
 			g.mu.Unlock()
 			logger.Infof("group %q re-started; interval=%v; concurrency=%d", g.Name, g.Interval, g.Concurrency)
 		case <-t.C:
 			missed := (time.Since(evalTS) / g.Interval) - 1
+			if missed < 0 {
+				// missed can become < 0 due to irregular delays during evaluation
+				// which can result in time.Since(evalTS) < g.Interval
+				missed = 0
+			}
 			if missed > 0 {
 				g.metrics.iterationMissed.Inc()
 			}
@@ -416,7 +422,7 @@ type executor struct {
 	notifiers       func() []notifier.Notifier
 	notifierHeaders map[string]string
 
-	rw *remotewrite.Client
+	rw remotewrite.RWClient
 
 	previouslySentSeriesToRWMu sync.Mutex
 	// previouslySentSeriesToRW stores series sent to RW on previous iteration

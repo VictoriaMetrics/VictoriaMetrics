@@ -14,8 +14,8 @@ import (
 //
 // The `if` expression can contain arbitrary PromQL-like label filters such as `metric_name{filters...}`
 type IfExpression struct {
-	s   string
-	lfs []*labelFilter
+	s    string
+	lfss [][]*labelFilter
 }
 
 // String returns string representation of ie.
@@ -36,12 +36,12 @@ func (ie *IfExpression) Parse(s string) error {
 	if !ok {
 		return fmt.Errorf("expecting series selector; got %q", expr.AppendString(nil))
 	}
-	lfs, err := metricExprToLabelFilters(me)
+	lfss, err := metricExprToLabelFilterss(me)
 	if err != nil {
 		return fmt.Errorf("cannot parse series selector: %w", err)
 	}
 	ie.s = s
-	ie.lfs = lfs
+	ie.lfss = lfss
 	return nil
 }
 
@@ -81,7 +81,16 @@ func (ie *IfExpression) Match(labels []prompbmarshal.Label) bool {
 	if ie == nil {
 		return true
 	}
-	for _, lf := range ie.lfs {
+	for _, lfs := range ie.lfss {
+		if matchLabelFilters(lfs, labels) {
+			return true
+		}
+	}
+	return false
+}
+
+func matchLabelFilters(lfs []*labelFilter, labels []prompbmarshal.Label) bool {
+	for _, lf := range lfs {
 		if !lf.match(labels) {
 			return false
 		}
@@ -89,16 +98,20 @@ func (ie *IfExpression) Match(labels []prompbmarshal.Label) bool {
 	return true
 }
 
-func metricExprToLabelFilters(me *metricsql.MetricExpr) ([]*labelFilter, error) {
-	lfs := make([]*labelFilter, len(me.LabelFilters))
-	for i := range me.LabelFilters {
-		lf, err := newLabelFilter(&me.LabelFilters[i])
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse %s: %w", me.AppendString(nil), err)
+func metricExprToLabelFilterss(me *metricsql.MetricExpr) ([][]*labelFilter, error) {
+	lfssNew := make([][]*labelFilter, len(me.LabelFilterss))
+	for i, lfs := range me.LabelFilterss {
+		lfsNew := make([]*labelFilter, len(lfs))
+		for j := range lfs {
+			lf, err := newLabelFilter(&lfs[j])
+			if err != nil {
+				return nil, fmt.Errorf("cannot parse %s: %w", me.AppendString(nil), err)
+			}
+			lfsNew[j] = lf
 		}
-		lfs[i] = lf
+		lfssNew[i] = lfsNew
 	}
-	return lfs, nil
+	return lfssNew, nil
 }
 
 // labelFilter contains PromQL filter for `{label op "value"}`

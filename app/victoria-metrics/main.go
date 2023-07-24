@@ -36,8 +36,8 @@ var (
 		"-promscrape.config, -relabelConfig and -streamAggr.config. Unknown config entries aren't allowed in -promscrape.config by default. "+
 		"This can be changed with -promscrape.config.strictParse=false command-line flag")
 	inmemoryDataFlushInterval = flag.Duration("inmemoryDataFlushInterval", 5*time.Second, "The interval for guaranteed saving of in-memory data to disk. "+
-		"The saved data survives unclean shutdown such as OOM crash, hardware reset, SIGKILL, etc. "+
-		"Bigger intervals may help increasing lifetime of flash storage with limited write cycles (e.g. Raspberry PI). "+
+		"The saved data survives unclean shutdowns such as OOM crash, hardware reset, SIGKILL, etc. "+
+		"Bigger intervals may help increase the lifetime of flash storage with limited write cycles (e.g. Raspberry PI). "+
 		"Smaller intervals increase disk IO load. Minimum supported value is 1s")
 )
 

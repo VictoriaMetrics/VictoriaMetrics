@@ -2,27 +2,34 @@ package promql
 
 import (
 	"fmt"
-	"io"
+	"net/http"
 	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
 )
 
-// WriteActiveQueries writes active queries to w.
+// ActiveQueriesHandler returns response to /api/v1/status/active_queries
 //
-// The written active queries are sorted in descending order of their exeuction duration.
-func WriteActiveQueries(w io.Writer) {
+// It writes a JSON with active queries to w.
+func ActiveQueriesHandler(w http.ResponseWriter, r *http.Request) {
 	aqes := activeQueriesV.GetAll()
+
+	w.Header().Set("Content-Type", "application/json")
 	sort.Slice(aqes, func(i, j int) bool {
 		return aqes[i].startTime.Sub(aqes[j].startTime) < 0
 	})
 	now := time.Now()
-	for _, aqe := range aqes {
+	fmt.Fprintf(w, `{"status":"ok","data":[`)
+	for i, aqe := range aqes {
 		d := now.Sub(aqe.startTime)
-		fmt.Fprintf(w, "\tduration: %.3fs, id=%016X, remote_addr=%s, query=%q, start=%d, end=%d, step=%d\n",
+		fmt.Fprintf(w, `{"duration":"%.3fs","id":"%016X","remote_addr":%s,"query":%q,"start":%d,"end":%d,"step":%d}`,
 			d.Seconds(), aqe.qid, aqe.quotedRemoteAddr, aqe.q, aqe.start, aqe.end, aqe.step)
+		if i+1 < len(aqes) {
+			fmt.Fprintf(w, `,`)
+		}
 	}
+	fmt.Fprintf(w, `]}`)
 }
 
 var activeQueriesV = newActiveQueries()

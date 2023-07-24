@@ -8,6 +8,7 @@ const router = {
   withTemplate: "/expand-with-exprs",
   relabel: "/relabeling",
   logs: "/logs",
+  activeQueries: "/active-queries",
   icons: "/icons"
 };
 
@@ -42,7 +43,7 @@ export const routerOptions: {[key: string]: RouterOptions} = {
     ...routerOptionsDefault
   },
   [router.metrics]: {
-    title: "Explore metrics",
+    title: "Explore Prometheus metrics",
     header: {
       tenant: true,
       stepControl: true,
@@ -80,6 +81,10 @@ export const routerOptions: {[key: string]: RouterOptions} = {
   },
   [router.logs]: {
     title: "Logs Explorer",
+    header: {}
+  },
+  [router.activeQueries]: {
+    title: "Active Queries",
     header: {}
   },
   [router.icons]: {

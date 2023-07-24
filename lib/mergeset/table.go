@@ -661,12 +661,11 @@ func (tb *Table) flushInmemoryParts(isFinal bool) {
 
 func (riss *rawItemsShards) flush(tb *Table, dst []*inmemoryBlock, isFinal bool) []*inmemoryBlock {
 	tb.rawItemsPendingFlushesWG.Add(1)
-	defer tb.rawItemsPendingFlushesWG.Done()
-
 	for i := range riss.shards {
 		dst = riss.shards[i].appendBlocksToFlush(dst, tb, isFinal)
 	}
 	tb.flushBlocksToParts(dst, isFinal)
+	tb.rawItemsPendingFlushesWG.Done()
 	return dst
 }
 
@@ -1378,7 +1377,9 @@ func mustOpenParts(path string) []*partWrapper {
 	}
 	partNamesPath := filepath.Join(path, partsFilename)
 	if !fs.IsPathExist(partNamesPath) {
-		// create parts.json file on migration from previous versions before v1.90.0
+		// Create parts.json file if it doesn't exist yet.
+		// This should protect from possible carshloops just after the migration from versions below v1.90.0
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4336
 		mustWritePartNames(pws, path)
 	}
 

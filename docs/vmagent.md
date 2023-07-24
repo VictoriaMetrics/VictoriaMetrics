@@ -476,6 +476,7 @@ with [additional enhancements](#relabeling-enhancements). The relabeling can be 
 
   This relabeling can be debugged by clicking the `debug` link at the corresponding target on the `http://vmagent:8429/targets` page
   or on the `http://vmagent:8429/service-discovery` page. See [these docs](#relabel-debug) for details.
+  The link is unavailable if `vmagent` runs with `-promscrape.dropOriginalLabels` command-line flag.
 
 * At the `scrape_config -> metric_relabel_configs` section in `-promscrape.config` file.
   This relabeling is used for modifying labels in scraped metrics and for dropping unneeded metrics.
@@ -523,8 +524,8 @@ The following articles contain useful information about Prometheus relabeling:
   {% endraw %}
 
 * An optional `if` filter can be used for conditional relabeling. The `if` filter may contain
-  arbitrary [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors).
-  For example, the following relabeling rule drops metrics, which don't match `foo{bar="baz"}` series selector, while leaving the rest of metrics:
+  arbitrary [time series selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
+  For example, the following relabeling rule keeps metrics matching `foo{bar="baz"}` series selector, while dropping the rest of metrics:
 
   ```yaml
   - if: 'foo{bar="baz"}'
@@ -656,18 +657,20 @@ provide the following tools for debugging target-level and metric-level relabeli
 - Target-level debugging (e.g. `relabel_configs` section at [scrape_configs](https://docs.victoriametrics.com/sd_configs.html#scrape_configs))
   can be performed by navigating to `http://vmagent:8429/targets` page (`http://victoriametrics:8428/targets` page for single-node VictoriaMetrics)
   and clicking the `debug target relabeling` link at the target, which must be debugged.
+  The link is unavailable if `vmagent` runs with `-promscrape.dropOriginalLabels` command-line flag.
   The opened page shows step-by-step results for the actual target relabeling rules applied to the discovered target labels.
   The page shows also the target URL generated after applying all the relabeling rules.
 
   The `http://vmagent:8429/targets` page shows only active targets. If you need to understand why some target
   is dropped during the relabeling, then navigate to `http://vmagent:8428/service-discovery` page
   (`http://victoriametrics:8428/service-discovery` for single-node VictoriaMetrics), find the dropped target
-  and click the `debug` link there. The opened page shows step-by-step results for the actual relabeling rules,
-  which result to target drop.
+  and click the `debug` link there. The link is unavailable if `vmagent` runs with `-promscrape.dropOriginalLabels` command-line flag.
+  The opened page shows step-by-step results for the actual relabeling rules, which result to target drop.
 
 - Metric-level debugging (e.g. `metric_relabel_configs` section at [scrape_configs](https://docs.victoriametrics.com/sd_configs.html#scrape_configs)
   can be performed by navigating to `http://vmagent:8429/targets` page (`http://victoriametrics:8428/targets` page for single-node VictoriaMetrics)
   and clicking the `debug metrics relabeling` link at the target, which must be debugged.
+  The link is unavailable if `vmagent` runs with `-promscrape.dropOriginalLabels` command-line flag.
   The opened page shows step-by-step results for the actual metric relabeling rules applied to the given target labels.
 
 ## Prometheus staleness markers
@@ -1189,6 +1192,10 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
 
   -cacheExpireDuration duration
      Items are removed from in-memory caches after they aren't accessed for this duration. Lower values may reduce memory usage at the cost of higher CPU usage. See also -prevCacheRemovalPercent (default 30m0s)
+  -clients.docker
+     Decides whether a docker container be brought up automatically
+  -clients.semaphore
+     Tells if the job is running on Semaphore
   -configAuthKey string
      Authorization key for accessing /config page. It must be passed via authKey query arg
   -csvTrimTimestamp duration
@@ -1203,9 +1210,9 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -dryRun
      Whether to check config files without running vmagent. The following files are checked: -promscrape.config, -remoteWrite.relabelConfig, -remoteWrite.urlRelabelConfig, -remoteWrite.streamAggr.config . Unknown config entries aren't allowed in -promscrape.config by default. This can be changed by passing -promscrape.config.strictParse=false command-line flag
   -enableTCP6
-     Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP is used
+     Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP are used
   -envflag.enable
-     Whether to enable reading flags from environment variables additionally to command line. Command line flag values have priority over values from environment vars. Flags are read only from command line if this flag isn't set. See https://docs.victoriametrics.com/#environment-variables for more details
+     Whether to enable reading flags from environment variables in addition to the command line. Command line flag values have priority over values from environment vars. Flags are read only from the command line if this flag isn't set. See https://docs.victoriametrics.com/#environment-variables for more details
   -envflag.prefix string
      Prefix for environment variables if -envflag.enable is set
   -eula
@@ -1233,13 +1240,13 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -http.shutdownDelay duration
      Optional delay before http server shutdown. During this delay, the server returns non-OK responses from /health page, so load balancers can route new requests to other servers
   -httpAuth.password string
-     Password for HTTP Basic Auth. The authentication is disabled if -httpAuth.username is empty
+     Password for HTTP server's Basic Auth. The authentication is disabled if -httpAuth.username is empty
   -httpAuth.username string
-     Username for HTTP Basic Auth. The authentication is disabled if empty. See also -httpAuth.password
+     Username for HTTP server's Basic Auth. The authentication is disabled if empty. See also -httpAuth.password
   -httpListenAddr string
      TCP address to listen for http connections. Set this flag to empty value in order to disable listening on any port. This mode may be useful for running multiple vmagent instances on the same server. Note that /targets and /metrics pages aren't available if -httpListenAddr=''. See also -httpListenAddr.useProxyProtocol (default ":8429")
   -httpListenAddr.useProxyProtocol
-     Whether to use proxy protocol for connections accepted at -httpListenAddr . See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt
+     Whether to use proxy protocol for connections accepted at -httpListenAddr . See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing
   -import.maxLineLen size
      The maximum length in bytes of a single line accepted by /api/v1/import; the line length can be limited with 'max_rows_per_line' query arg passed to /api/v1/export
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 104857600)
@@ -1270,7 +1277,7 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -internStringDisableCache
      Whether to disable caches for interned strings. This may reduce memory usage at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning . See also -internStringCacheExpireDuration and -internStringMaxLen
   -internStringMaxLen int
-     The maximum length for strings to intern. Lower limit may save memory at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning . See also -internStringDisableCache and -internStringCacheExpireDuration (default 500)
+     The maximum length for strings to intern. A lower limit may save memory at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning . See also -internStringDisableCache and -internStringCacheExpireDuration (default 500)
   -kafka.consumer.topic array
      Kafka topic names for data consumption. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
      Supports an array of values separated by comma or specified via multiple flags.
@@ -1283,6 +1290,9 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -kafka.consumer.topic.brokers array
      List of brokers to connect for given topic, e.g. -kafka.consumer.topic.broker=host-1:9092;host-2:9092 . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
      Supports an array of values separated by comma or specified via multiple flags.
+  -kafka.consumer.topic.concurrency array
+     Configures consumer concurrency for topic specified via -kafka.consumer.topic flag.This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
+     Supports array of values separated by comma or specified via multiple flags.
   -kafka.consumer.topic.defaultFormat string
      Expected data format in the topic if -kafka.consumer.topic.format is skipped. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html (default "promremotewrite")
   -kafka.consumer.topic.format array
@@ -1314,15 +1324,15 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -loggerWarnsPerSecondLimit int
      Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero values disable the rate limit
   -maxConcurrentInserts int
-     The maximum number of concurrent insert requests. Default value should work for most cases, since it minimizes the memory usage. The default value can be increased when clients send data over slow networks. See also -insert.maxQueueDuration (default 8)
+     The maximum number of concurrent insert requests. The default value should work for most cases, since it minimizes memory usage. The default value can be increased when clients send data over slow networks. See also -insert.maxQueueDuration (default 8)
   -maxInsertRequestSize size
      The maximum size in bytes of a single Prometheus remote_write API request
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 33554432)
   -memory.allowedBytes size
-     Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache resulting in higher disk IO usage
+     Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache resulting in higher disk IO usage
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
   -memory.allowedPercent float
-     Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache which will result in higher disk IO usage (default 60)
+     Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache which will result in higher disk IO usage (default 60)
   -metricsAuthKey string
      Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -opentsdbHTTPListenAddr string
@@ -1491,6 +1501,8 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -remoteWrite.headers array
      Optional HTTP headers to send with each request to the corresponding -remoteWrite.url. For example, -remoteWrite.headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding -remoteWrite.url. Multiple headers must be delimited by '^^': -remoteWrite.headers='header1:value1^^header2:value2'
      Supports an array of values separated by comma or specified via multiple flags.
+  -remoteWrite.keepDanglingQueues
+     Keep persistent queues contents at -remoteWrite.tmpDataPath in case there are no matching -remoteWrite.url. Useful when -remoteWrite.url is changed temporarily and persistent queue files will be needed later on.
   -remoteWrite.label array
      Optional label in the form 'name=value' to add to all the metrics before sending them to -remoteWrite.url. Pass multiple -remoteWrite.label flags in order to add multiple labels to metrics before sending them to remote storage
      Supports an array of values separated by comma or specified via multiple flags.
@@ -1535,8 +1547,6 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      Supports array of values separated by comma or specified via multiple flags.
   -remoteWrite.relabelConfig string
      Optional path to file with relabeling configs, which are applied to all the metrics before sending them to -remoteWrite.url. See also -remoteWrite.urlRelabelConfig. The path can point either to local file or to http url. See https://docs.victoriametrics.com/vmagent.html#relabeling
-  -remoteWrite.keepDanglingQueues
-     Keep persistent queues contents at -remoteWrite.tmpDataPath in case there are no matching -remoteWrite.url. Useful when -remoteWrite.url is changed temporarily and persistent queue files will be needed later on.
   -remoteWrite.roundDigits array
      Round metric values to this number of decimal digits after the point before writing them to remote storage. Examples: -remoteWrite.roundDigits=2 would round 1.236 to 1.24, while -remoteWrite.roundDigits=-1 would round 126.78 to 130. By default, digits rounding is disabled. Set it to 100 for disabling it for a particular remote storage. This option may be used for improving data compression for the stored metrics
      Supports array of values separated by comma or specified via multiple flags.

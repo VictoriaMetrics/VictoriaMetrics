@@ -91,7 +91,12 @@ absolute path to all .tpl files in root.
 
 	disableAlertGroupLabel = flag.Bool("disableAlertgroupLabel", false, "Whether to disable adding group's Name as label to generated alerts and time series.")
 
-	dryRun = flag.Bool("dryRun", false, "Whether to check only config files without running vmalert. The rules file are validated. The -rule flag must be specified.")
+	dryRun        = flag.Bool("dryRun", false, "Whether to check only config files without running vmalert. The rules file are validated. The -rule flag must be specified.")
+	unitTestFiles = flagutil.NewArrayString("unittestFile", `Path to the unit test files. When set, vmalert starts in unit test mode and performs only tests on configured files.
+Examples:
+ -unittestFile="./unittest/testdata/test1.yaml,./unittest/testdata/test2.yaml".
+See more information here https://docs.victoriametrics.com/vmalert.html#unit-testing-for-rules.
+`)
 )
 
 var alertURLGeneratorFn notifier.AlertURLGenerator
@@ -115,6 +120,13 @@ func main() {
 	err := templates.Load(*ruleTemplatesPath, true)
 	if err != nil {
 		logger.Fatalf("failed to parse %q: %s", *ruleTemplatesPath, err)
+	}
+
+	if len(*unitTestFiles) > 0 {
+		if unitRule(*unitTestFiles...) {
+			os.Exit(1)
+		}
+		os.Exit(0)
 	}
 
 	if *dryRun {
@@ -399,7 +411,7 @@ func configsEqual(a, b []config.Group) bool {
 // setConfigSuccess sets config reload status to 1.
 func setConfigSuccess(at uint64) {
 	configSuccess.Set(1)
-	configTimestamp.Set(fasttime.UnixTimestamp())
+	configTimestamp.Set(at)
 	// reset the error if any
 	setConfigErr(nil)
 }

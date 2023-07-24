@@ -80,6 +80,10 @@ type Config struct {
 	// Interval is the interval between aggregations.
 	Interval string `yaml:"interval"`
 
+	// Staleness interval is interval after which the series state will be reset if no samples have been sent during it.
+	// The parameter is only relevant for outputs: total, increase and histogram_bucket.
+	StalenessInterval string `yaml:"staleness_interval,omitempty"`
+
 	// Outputs is a list of output aggregate functions to produce.
 	//
 	// The following names are allowed:
@@ -255,6 +259,18 @@ func newAggregator(cfg *Config, pushFunc PushFunc, dedupInterval time.Duration) 
 		return nil, fmt.Errorf("the minimum supported aggregation interval is 1s; got %s", interval)
 	}
 
+	// check cfg.StalenessInterval
+	stalenessInterval := interval * 2
+	if cfg.StalenessInterval != "" {
+		stalenessInterval, err = time.ParseDuration(cfg.StalenessInterval)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse `staleness_interval: %q`: %w", cfg.StalenessInterval, err)
+		}
+		if stalenessInterval < interval {
+			return nil, fmt.Errorf("staleness_interval cannot be less than interval (%s); got %s", cfg.Interval, cfg.StalenessInterval)
+		}
+	}
+
 	// initialize input_relabel_configs and output_relabel_configs
 	inputRelabeling, err := promrelabel.ParseRelabelConfigs(cfg.InputRelabelConfigs)
 	if err != nil {
@@ -309,9 +325,9 @@ func newAggregator(cfg *Config, pushFunc PushFunc, dedupInterval time.Duration) 
 		}
 		switch output {
 		case "total":
-			aggrStates[i] = newTotalAggrState(interval)
+			aggrStates[i] = newTotalAggrState(interval, stalenessInterval)
 		case "increase":
-			aggrStates[i] = newIncreaseAggrState(interval)
+			aggrStates[i] = newIncreaseAggrState(interval, stalenessInterval)
 		case "count_series":
 			aggrStates[i] = newCountSeriesAggrState()
 		case "count_samples":
@@ -331,7 +347,7 @@ func newAggregator(cfg *Config, pushFunc PushFunc, dedupInterval time.Duration) 
 		case "stdvar":
 			aggrStates[i] = newStdvarAggrState()
 		case "histogram_bucket":
-			aggrStates[i] = newHistogramBucketAggrState(interval)
+			aggrStates[i] = newHistogramBucketAggrState(stalenessInterval)
 		default:
 			return nil, fmt.Errorf("unsupported output=%q; supported values: %s; "+
 				"see https://docs.victoriametrics.com/vmagent.html#stream-aggregation", output, supportedOutputs)
@@ -507,6 +523,7 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matched func(id int)) 
 			pushSample(inputKey, outputKey, sample.Value)
 		}
 	}
+	promutils.PutLabels(labels)
 	bbPool.Put(bb)
 }
 
@@ -522,12 +539,14 @@ func (a *aggregator) push(tss []prompbmarshal.TimeSeries, tracker func(id int)) 
 			tracker(idx)
 		}
 		labels.Labels = append(labels.Labels[:0], ts.Labels...)
-		labels.Labels = a.inputRelabeling.Apply(labels.Labels, 0)
-		if len(labels.Labels) == 0 {
-			// The metric has been deleted by the relabeling
-			continue
+		if applyFilters {
+			labels.Labels = a.inputRelabeling.Apply(labels.Labels, 0)
+			if len(labels.Labels) == 0 {
+				// The metric has been deleted by the relabeling
+				continue
+			}
+			labels.Sort()
 		}
-		labels.Sort()
 
 		if a.aggregateOnlyByTime {
 			bb.B = marshalLabelsFast(bb.B[:0], labels.Labels)
