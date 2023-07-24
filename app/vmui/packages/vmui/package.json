@@ -4,7 +4,6 @@
   "private": true,
   "homepage": "./",
   "dependencies": {
-    "@monaco-editor/react": "^4.5.1",
     "@types/lodash.debounce": "^4.0.6",
     "@types/lodash.get": "^4.4.6",
     "@types/lodash.throttle": "^4.1.6",
