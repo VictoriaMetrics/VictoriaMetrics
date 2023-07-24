@@ -423,7 +423,7 @@ An example of changing a set of series can be restarting a pod in the Kubernetes
 This changes a label with pod's name in the series, but `total` account for such a scenario and do not reset the state of aggregated metric.
 
 Aggregating irregular and sporadic metrics (received from [Lambdas](https://aws.amazon.com/lambda/)
-or [Cloud Functions](https://cloud.google.com/functions)) can be controlled via `staleness_inteval`.
+or [Cloud Functions](https://cloud.google.com/functions)) can be controlled via [staleness_inteval](#stream-aggregation-config).
 
 ### increase
 
@@ -437,7 +437,7 @@ For example, see below time series produced by config with aggregation interval 
 <img alt="increase aggregation" src="stream-aggregation-check-increase.png">
 
 Aggregating irregular and sporadic metrics (received from [Lambdas](https://aws.amazon.com/lambda/)
-or [Cloud Functions](https://cloud.google.com/functions)) can be controlled via `staleness_inteval`.
+or [Cloud Functions](https://cloud.google.com/functions)) can be controlled via [staleness_inteval](#stream-aggregation-config).
 
 ### count_series
 
@@ -529,7 +529,7 @@ See how to aggregate regular histograms [here](#aggregating-histograms).
 The results of `histogram_bucket` with aggregation interval of `1m` is equal to the `histogram_over_time(some_histogram_bucket[1m])` query.
 
 Aggregating irregular and sporadic metrics (received from [Lambdas](https://aws.amazon.com/lambda/)
-or [Cloud Functions](https://cloud.google.com/functions)) can be controlled via `staleness_inteval`.
+or [Cloud Functions](https://cloud.google.com/functions)) can be controlled via [staleness_inteval](#stream-aggregation-config).
 
 ### quantiles
 
