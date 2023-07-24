@@ -71,6 +71,7 @@ var (
 	dryRun        = flag.Bool("dryRun", false, "Whether to check config files without running vmagent. The following files are checked: "+
 		"-promscrape.config, -remoteWrite.relabelConfig, -remoteWrite.urlRelabelConfig, -remoteWrite.streamAggr.config . "+
 		"Unknown config entries aren't allowed in -promscrape.config by default. This can be changed by passing -promscrape.config.strictParse=false command-line flag")
+	syntaxCheckOnly = flag.Bool("dryRun.syntaxOnly", false, "Only check config syntax during dryrun, ignore file references in auth configs")
 )
 
 var (
@@ -97,14 +98,14 @@ func main() {
 	pushmetrics.Init()
 
 	if promscrape.IsDryRun() {
-		if err := promscrape.CheckConfig(); err != nil {
+		if err := promscrape.CheckConfig(promscrape.SyntaxCheckOnly()); err != nil {
 			logger.Fatalf("error when checking -promscrape.config: %s", err)
 		}
 		logger.Infof("-promscrape.config is ok; exiting with 0 status code")
 		return
 	}
 	if *dryRun {
-		if err := promscrape.CheckConfig(); err != nil {
+		if err := promscrape.CheckConfig(*syntaxCheckOnly); err != nil {
 			logger.Fatalf("error when checking -promscrape.config: %s", err)
 		}
 		if err := remotewrite.CheckRelabelConfigs(); err != nil {

@@ -10,10 +10,11 @@ import (
 
 func TestNewConfig(t *testing.T) {
 	tests := []struct {
-		name         string
-		opts         Options
-		wantErr      bool
-		expectHeader string
+		name            string
+		opts            Options
+		syntaxCheckOnly bool
+		wantErr         bool
+		expectHeader    string
 	}{
 		{
 			name: "OAuth2 config",
@@ -38,16 +39,43 @@ func TestNewConfig(t *testing.T) {
 			expectHeader: "Bearer some-token",
 		},
 		{
+			name: "OAuth2 config only check syntax, omit non-existing-file",
+			opts: Options{
+				OAuth2: &OAuth2Config{
+					ClientID:         "some-id",
+					ClientSecretFile: "testdata/non-existing-file",
+					TokenURL:         "http://localhost:8511",
+				},
+			},
+			syntaxCheckOnly: true,
+			wantErr:         false,
+			expectHeader:    "Bearer some-token",
+		},
+		{
 			name: "OAuth2 want err",
 			opts: Options{
 				OAuth2: &OAuth2Config{
 					ClientID:         "some-id",
 					ClientSecret:     NewSecret("some-secret"),
-					ClientSecretFile: "testdata/test_secretfile.txt",
+					ClientSecretFile: "testdata/non-existing-file",
 					TokenURL:         "http://localhost:8511",
 				},
 			},
-			wantErr: true,
+			syntaxCheckOnly: true,
+			wantErr:         true,
+		},
+		{
+			name: "OAuth2 with invalid url",
+			opts: Options{
+				OAuth2: &OAuth2Config{
+					ClientID:     "some-id",
+					ClientSecret: NewSecret("some-secret"),
+					ProxyURL:     "%sinvalid-url",
+					TokenURL:     "http://localhost:8511",
+				},
+			},
+			syntaxCheckOnly: true,
+			wantErr:         true,
 		},
 		{
 			name: "basic Auth config",
@@ -96,6 +124,18 @@ func TestNewConfig(t *testing.T) {
 			},
 			expectHeader: "Bearer some-token",
 		},
+		{
+			name: "tls config using non-existing cert file",
+			opts: Options{
+				BearerToken: "some-token",
+				TLSConfig: &TLSConfig{
+					InsecureSkipVerify: true,
+					CertFile:           "non-existing-file",
+				},
+			},
+			syntaxCheckOnly: true,
+			expectHeader:    "Bearer some-token",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -109,7 +149,7 @@ func TestNewConfig(t *testing.T) {
 				mock := httptest.NewServer(r)
 				tt.opts.OAuth2.TokenURL = mock.URL
 			}
-			got, err := tt.opts.NewConfig()
+			got, err := tt.opts.NewConfigWithSyntaxCheckOnly(tt.syntaxCheckOnly)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewConfig() error = %v, wantErr %v", err, tt.wantErr)
 				return

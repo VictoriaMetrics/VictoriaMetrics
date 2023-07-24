@@ -193,7 +193,7 @@ type oauth2ConfigInternal struct {
 	tokenSource      oauth2.TokenSource
 }
 
-func newOAuth2ConfigInternal(baseDir string, o *OAuth2Config) (*oauth2ConfigInternal, error) {
+func newOAuth2ConfigInternal(baseDir string, o *OAuth2Config, syntaxCheckOnly bool) (*oauth2ConfigInternal, error) {
 	if err := o.validate(); err != nil {
 		return nil, err
 	}
@@ -206,7 +206,7 @@ func newOAuth2ConfigInternal(baseDir string, o *OAuth2Config) (*oauth2ConfigInte
 			EndpointParams: urlValuesFromMap(o.EndpointParams),
 		},
 	}
-	if o.ClientSecretFile != "" {
+	if o.ClientSecretFile != "" && !syntaxCheckOnly {
 		oi.clientSecretFile = fs.GetFilepath(baseDir, o.ClientSecretFile)
 		secret, err := readPasswordFromFile(oi.clientSecretFile)
 		if err != nil {
@@ -218,7 +218,7 @@ func newOAuth2ConfigInternal(baseDir string, o *OAuth2Config) (*oauth2ConfigInte
 		BaseDir:   baseDir,
 		TLSConfig: o.TLSConfig,
 	}
-	ac, err := opts.NewConfig()
+	ac, err := opts.NewConfigWithSyntaxCheckOnly(syntaxCheckOnly)
 	if err != nil {
 		return nil, fmt.Errorf("cannot initialize TLS config for OAuth2: %w", err)
 	}
@@ -422,6 +422,11 @@ func (ac *Config) NewTLSConfig() *tls.Config {
 
 // NewConfig creates auth config for the given hcc.
 func (hcc *HTTPClientConfig) NewConfig(baseDir string) (*Config, error) {
+	return hcc.NewConfigWithSyntaxCheckOnly(baseDir, false)
+}
+
+// NewConfigWithSyntaxCheckOnly will ignore referenced files if syntaxCheckOnly.
+func (hcc *HTTPClientConfig) NewConfigWithSyntaxCheckOnly(baseDir string, syntaxCheckOnly bool) (*Config, error) {
 	opts := &Options{
 		BaseDir:         baseDir,
 		Authorization:   hcc.Authorization,
@@ -432,11 +437,16 @@ func (hcc *HTTPClientConfig) NewConfig(baseDir string) (*Config, error) {
 		TLSConfig:       hcc.TLSConfig,
 		Headers:         hcc.Headers,
 	}
-	return opts.NewConfig()
+	return opts.NewConfigWithSyntaxCheckOnly(syntaxCheckOnly)
 }
 
 // NewConfig creates auth config for the given pcc.
 func (pcc *ProxyClientConfig) NewConfig(baseDir string) (*Config, error) {
+	return pcc.NewConfigWithSyntaxCheckOnly(baseDir, false)
+}
+
+// NewConfigWithSyntaxCheckOnly will ignore referenced files if syntaxCheckOnly.
+func (pcc *ProxyClientConfig) NewConfigWithSyntaxCheckOnly(baseDir string, syntaxCheckOnly bool) (*Config, error) {
 	opts := &Options{
 		BaseDir:         baseDir,
 		Authorization:   pcc.Authorization,
@@ -447,16 +457,21 @@ func (pcc *ProxyClientConfig) NewConfig(baseDir string) (*Config, error) {
 		TLSConfig:       pcc.TLSConfig,
 		Headers:         pcc.Headers,
 	}
-	return opts.NewConfig()
+	return opts.NewConfigWithSyntaxCheckOnly(syntaxCheckOnly)
 }
 
 // NewConfig creates auth config for the given ba.
 func (ba *BasicAuthConfig) NewConfig(baseDir string) (*Config, error) {
+	return ba.NewConfigWithSyntaxCheckOnly(baseDir, false)
+}
+
+// NewConfigWithSyntaxCheckOnly will ignore referenced files if syntaxCheckOnly.
+func (ba *BasicAuthConfig) NewConfigWithSyntaxCheckOnly(baseDir string, syntaxCheckOnly bool) (*Config, error) {
 	opts := &Options{
 		BaseDir:   baseDir,
 		BasicAuth: ba,
 	}
-	return opts.NewConfig()
+	return opts.NewConfigWithSyntaxCheckOnly(syntaxCheckOnly)
 }
 
 // Options contain options, which must be passed to NewConfig.
@@ -491,13 +506,18 @@ type Options struct {
 
 // NewConfig creates auth config from the given opts.
 func (opts *Options) NewConfig() (*Config, error) {
+	return opts.NewConfigWithSyntaxCheckOnly(false)
+}
+
+// NewConfigWithSyntaxCheckOnly will ignore referenced files if syntaxCheckOnly.
+func (opts *Options) NewConfigWithSyntaxCheckOnly(syntaxCheckOnly bool) (*Config, error) {
 	baseDir := opts.BaseDir
 	if baseDir == "" {
 		baseDir = "."
 	}
 	var actx authContext
 	if opts.Authorization != nil {
-		if err := actx.initFromAuthorization(baseDir, opts.Authorization); err != nil {
+		if err := actx.initFromAuthorization(baseDir, opts.Authorization, syntaxCheckOnly); err != nil {
 			return nil, err
 		}
 	}
@@ -505,7 +525,7 @@ func (opts *Options) NewConfig() (*Config, error) {
 		if actx.getAuthHeader != nil {
 			return nil, fmt.Errorf("cannot use both `authorization` and `basic_auth`")
 		}
-		if err := actx.initFromBasicAuthConfig(baseDir, opts.BasicAuth); err != nil {
+		if err := actx.initFromBasicAuthConfig(baseDir, opts.BasicAuth, syntaxCheckOnly); err != nil {
 			return nil, err
 		}
 	}
@@ -516,7 +536,7 @@ func (opts *Options) NewConfig() (*Config, error) {
 		if opts.BearerToken != "" {
 			return nil, fmt.Errorf("both `bearer_token`=%q and `bearer_token_file`=%q are set", opts.BearerToken, opts.BearerTokenFile)
 		}
-		if err := actx.initFromBearerTokenFile(baseDir, opts.BearerTokenFile); err != nil {
+		if err := actx.initFromBearerTokenFile(baseDir, opts.BearerTokenFile, syntaxCheckOnly); err != nil {
 			return nil, err
 		}
 	}
@@ -532,13 +552,13 @@ func (opts *Options) NewConfig() (*Config, error) {
 		if actx.getAuthHeader != nil {
 			return nil, fmt.Errorf("cannot simultaneously use `authorization`, `basic_auth, `bearer_token` and `ouath2`")
 		}
-		if err := actx.initFromOAuth2Config(baseDir, opts.OAuth2); err != nil {
+		if err := actx.initFromOAuth2Config(baseDir, opts.OAuth2, syntaxCheckOnly); err != nil {
 			return nil, err
 		}
 	}
 	var tctx tlsContext
 	if opts.TLSConfig != nil {
-		if err := tctx.initFromTLSConfig(baseDir, opts.TLSConfig); err != nil {
+		if err := tctx.initFromTLSConfig(baseDir, opts.TLSConfig, syntaxCheckOnly); err != nil {
 			return nil, err
 		}
 	}
@@ -571,7 +591,7 @@ type authContext struct {
 	authDigest string
 }
 
-func (actx *authContext) initFromAuthorization(baseDir string, az *Authorization) error {
+func (actx *authContext) initFromAuthorization(baseDir string, az *Authorization, syntaxCheckOnly bool) error {
 	azType := "Bearer"
 	if az.Type != "" {
 		azType = az.Type
@@ -586,7 +606,13 @@ func (actx *authContext) initFromAuthorization(baseDir string, az *Authorization
 	if az.Credentials != nil {
 		return fmt.Errorf("both `credentials`=%q and `credentials_file`=%q are set", az.Credentials, az.CredentialsFile)
 	}
+
 	filePath := fs.GetFilepath(baseDir, az.CredentialsFile)
+	actx.authDigest = fmt.Sprintf("custom(type=%q, credsFile=%q)", az.Type, filePath)
+	if syntaxCheckOnly {
+		actx.getAuthHeader = func() string { return "" }
+		return nil
+	}
 	actx.getAuthHeader = func() string {
 		token, err := readPasswordFromFile(filePath)
 		if err != nil {
@@ -595,11 +621,10 @@ func (actx *authContext) initFromAuthorization(baseDir string, az *Authorization
 		}
 		return azType + " " + token
 	}
-	actx.authDigest = fmt.Sprintf("custom(type=%q, credsFile=%q)", az.Type, filePath)
 	return nil
 }
 
-func (actx *authContext) initFromBasicAuthConfig(baseDir string, ba *BasicAuthConfig) error {
+func (actx *authContext) initFromBasicAuthConfig(baseDir string, ba *BasicAuthConfig, syntaxCheckOnly bool) error {
 	if ba.Username == "" {
 		return fmt.Errorf("missing `username` in `basic_auth` section")
 	}
@@ -617,6 +642,11 @@ func (actx *authContext) initFromBasicAuthConfig(baseDir string, ba *BasicAuthCo
 		return fmt.Errorf("both `password`=%q and `password_file`=%q are set in `basic_auth` section", ba.Password, ba.PasswordFile)
 	}
 	filePath := fs.GetFilepath(baseDir, ba.PasswordFile)
+	actx.authDigest = fmt.Sprintf("basic(username=%q, passwordFile=%q)", ba.Username, filePath)
+	if syntaxCheckOnly {
+		actx.getAuthHeader = func() string { return "" }
+		return nil
+	}
 	actx.getAuthHeader = func() string {
 		password, err := readPasswordFromFile(filePath)
 		if err != nil {
@@ -628,12 +658,16 @@ func (actx *authContext) initFromBasicAuthConfig(baseDir string, ba *BasicAuthCo
 		token64 := base64.StdEncoding.EncodeToString([]byte(token))
 		return "Basic " + token64
 	}
-	actx.authDigest = fmt.Sprintf("basic(username=%q, passwordFile=%q)", ba.Username, filePath)
 	return nil
 }
 
-func (actx *authContext) initFromBearerTokenFile(baseDir string, bearerTokenFile string) error {
+func (actx *authContext) initFromBearerTokenFile(baseDir string, bearerTokenFile string, syntaxCheckOnly bool) error {
 	filePath := fs.GetFilepath(baseDir, bearerTokenFile)
+	actx.authDigest = fmt.Sprintf("bearer(tokenFile=%q)", filePath)
+	if syntaxCheckOnly {
+		actx.getAuthHeader = func() string { return "" }
+		return nil
+	}
 	actx.getAuthHeader = func() string {
 		token, err := readPasswordFromFile(filePath)
 		if err != nil {
@@ -642,7 +676,6 @@ func (actx *authContext) initFromBearerTokenFile(baseDir string, bearerTokenFile
 		}
 		return "Bearer " + token
 	}
-	actx.authDigest = fmt.Sprintf("bearer(tokenFile=%q)", filePath)
 	return nil
 }
 
@@ -654,8 +687,8 @@ func (actx *authContext) initFromBearerToken(bearerToken string) error {
 	return nil
 }
 
-func (actx *authContext) initFromOAuth2Config(baseDir string, o *OAuth2Config) error {
-	oi, err := newOAuth2ConfigInternal(baseDir, o)
+func (actx *authContext) initFromOAuth2Config(baseDir string, o *OAuth2Config, syntaxCheckOnly bool) error {
+	oi, err := newOAuth2ConfigInternal(baseDir, o, syntaxCheckOnly)
 	if err != nil {
 		return err
 	}
@@ -685,7 +718,7 @@ type tlsContext struct {
 	minVersion         uint16
 }
 
-func (tctx *tlsContext) initFromTLSConfig(baseDir string, tc *TLSConfig) error {
+func (tctx *tlsContext) initFromTLSConfig(baseDir string, tc *TLSConfig, syntaxCheckOnly bool) error {
 	tctx.serverName = tc.ServerName
 	tctx.insecureSkipVerify = tc.InsecureSkipVerify
 	if len(tc.Key) != 0 || len(tc.Cert) != 0 {
@@ -699,28 +732,34 @@ func (tctx *tlsContext) initFromTLSConfig(baseDir string, tc *TLSConfig) error {
 		h := xxhash.Sum64(tc.Key) ^ xxhash.Sum64(tc.Cert)
 		tctx.tlsCertDigest = fmt.Sprintf("digest(key+cert)=%d", h)
 	} else if tc.CertFile != "" || tc.KeyFile != "" {
-		tctx.getTLSCert = func(*tls.CertificateRequestInfo) (*tls.Certificate, error) {
-			// Re-read TLS certificate from disk. This is needed for https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1420
-			certPath := fs.GetFilepath(baseDir, tc.CertFile)
-			keyPath := fs.GetFilepath(baseDir, tc.KeyFile)
-			cert, err := tls.LoadX509KeyPair(certPath, keyPath)
-			if err != nil {
-				return nil, fmt.Errorf("cannot load TLS certificate from `cert_file`=%q, `key_file`=%q: %w", tc.CertFile, tc.KeyFile, err)
+		tctx.tlsCertDigest = fmt.Sprintf("certFile=%q, keyFile=%q", tc.CertFile, tc.KeyFile)
+		if syntaxCheckOnly {
+			tctx.getTLSCert = func(*tls.CertificateRequestInfo) (*tls.Certificate, error) {
+				return nil, nil
 			}
-			return &cert, nil
+		} else {
+			tctx.getTLSCert = func(*tls.CertificateRequestInfo) (*tls.Certificate, error) {
+				// Re-read TLS certificate from disk. This is needed for https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1420
+				certPath := fs.GetFilepath(baseDir, tc.CertFile)
+				keyPath := fs.GetFilepath(baseDir, tc.KeyFile)
+				cert, err := tls.LoadX509KeyPair(certPath, keyPath)
+				if err != nil {
+					return nil, fmt.Errorf("cannot load TLS certificate from `cert_file`=%q, `key_file`=%q: %w", tc.CertFile, tc.KeyFile, err)
+				}
+				return &cert, nil
+			}
 		}
 		// Check whether the configured TLS cert can be loaded.
 		if _, err := tctx.getTLSCert(nil); err != nil {
 			return err
 		}
-		tctx.tlsCertDigest = fmt.Sprintf("certFile=%q, keyFile=%q", tc.CertFile, tc.KeyFile)
 	}
 	if len(tc.CA) != 0 {
 		tctx.rootCA = x509.NewCertPool()
 		if !tctx.rootCA.AppendCertsFromPEM(tc.CA) {
 			return fmt.Errorf("cannot parse data from `ca` value")
 		}
-	} else if tc.CAFile != "" {
+	} else if tc.CAFile != "" && !syntaxCheckOnly {
 		path := fs.GetFilepath(baseDir, tc.CAFile)
 		data, err := fs.ReadFileOrHTTP(path)
 		if err != nil {

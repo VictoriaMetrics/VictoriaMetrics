@@ -50,6 +50,7 @@ var (
 		"Returns non-zero exit code on parsing errors and emits these errors to stderr. "+
 		"See also -promscrape.config.strictParse command-line flag. "+
 		"Pass -loggerLevel=ERROR if you don't need to see info messages in the output.")
+	syntaxCheckOnly    = flag.Bool("promscrape.config.dryRun.syntaxOnly", false, "Only check config syntax during dryrun, ignore file references in auth configs")
 	dropOriginalLabels = flag.Bool("promscrape.dropOriginalLabels", false, "Whether to drop original labels for scrape targets at /targets and /api/v1/targets pages. "+
 		"This may be needed for reducing memory usage when original labels for big number of scrape targets occupy big amounts of memory. "+
 		"Note that this reduces debuggability for improper per-target relabeling configs")
@@ -398,12 +399,17 @@ func loadStaticConfigs(path string) ([]StaticConfig, error) {
 
 // loadConfig loads Prometheus config from the given path.
 func loadConfig(path string) (*Config, []byte, error) {
+	return loadConfigWithSyntaxCheckOnly(path, false)
+}
+
+// loadConfigWithSyntaxCheckOnly will ignore referenced files if syntaxCheckOnly.
+func loadConfigWithSyntaxCheckOnly(path string, syntaxCheckOnly bool) (*Config, []byte, error) {
 	data, err := fs.ReadFileOrHTTP(path)
 	if err != nil {
 		return nil, nil, fmt.Errorf("cannot read Prometheus config from %q: %w", path, err)
 	}
 	var c Config
-	dataNew, err := c.parseData(data, path)
+	dataNew, err := c.parseDataWithSyntaxCheckOnly(data, path, syntaxCheckOnly)
 	if err != nil {
 		return nil, nil, fmt.Errorf("cannot parse Prometheus config from %q: %w", path, err)
 	}
@@ -450,7 +456,17 @@ func IsDryRun() bool {
 	return *dryRun
 }
 
+// SyntaxCheckOnly returns true if -promscrape.config.dryRun.syntaxOnly command-line flag is set
+func SyntaxCheckOnly() bool {
+	return *syntaxCheckOnly
+}
+
 func (cfg *Config) parseData(data []byte, path string) ([]byte, error) {
+	return cfg.parseDataWithSyntaxCheckOnly(data, path, false)
+}
+
+// parseDataWithSyntaxCheckOnly will ignore referenced files if syntaxCheckOnly.
+func (cfg *Config) parseDataWithSyntaxCheckOnly(data []byte, path string, syntaxCheckOnly bool) ([]byte, error) {
 	if err := cfg.unmarshal(data, *strictParse); err != nil {
 		return nil, fmt.Errorf("cannot unmarshal data: %w", err)
 	}
@@ -486,7 +502,7 @@ func (cfg *Config) parseData(data []byte, path string) ([]byte, error) {
 		sc = sc.clone()
 		cfg.ScrapeConfigs[i] = sc
 
-		swc, err := getScrapeWorkConfig(sc, cfg.baseDir, &cfg.Global)
+		swc, err := getScrapeWorkConfig(sc, cfg.baseDir, &cfg.Global, syntaxCheckOnly)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse `scrape_config`: %w", err)
 		}
@@ -973,7 +989,7 @@ func (cfg *Config) getStaticScrapeWork() []*ScrapeWork {
 	return dst
 }
 
-func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConfig) (*scrapeWorkConfig, error) {
+func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConfig, syntaxCheckOnly bool) (*scrapeWorkConfig, error) {
 	jobName := sc.JobName
 	if jobName == "" {
 		return nil, fmt.Errorf("missing `job_name` field in `scrape_config`")
@@ -1016,11 +1032,11 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 		return nil, fmt.Errorf("unexpected `scheme` for `job_name` %q: %q; supported values: http or https", jobName, scheme)
 	}
 	params := sc.Params
-	ac, err := sc.HTTPClientConfig.NewConfig(baseDir)
+	ac, err := sc.HTTPClientConfig.NewConfigWithSyntaxCheckOnly(baseDir, syntaxCheckOnly)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse auth config for `job_name` %q: %w", jobName, err)
 	}
-	proxyAC, err := sc.ProxyClientConfig.NewConfig(baseDir)
+	proxyAC, err := sc.ProxyClientConfig.NewConfigWithSyntaxCheckOnly(baseDir, syntaxCheckOnly)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse proxy auth config for `job_name` %q: %w", jobName, err)
 	}

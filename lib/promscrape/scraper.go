@@ -49,11 +49,11 @@ var (
 )
 
 // CheckConfig checks -promscrape.config for errors and unsupported options.
-func CheckConfig() error {
+func CheckConfig(syntaxCheckOnly bool) error {
 	if *promscrapeConfigFile == "" {
 		return nil
 	}
-	_, _, err := loadConfig(*promscrapeConfigFile)
+	_, _, err := loadConfigWithSyntaxCheckOnly(*promscrapeConfigFile, syntaxCheckOnly)
 	return err
 }
 
