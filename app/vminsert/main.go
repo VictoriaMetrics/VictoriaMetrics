@@ -228,8 +228,8 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	case "/api/v1/newrelic/inventory/deltas":
 		newrelicInventoryRequests.Inc()
 		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(204)
-		fmt.Fprintf(w, `{"version": 1}`)
+		w.WriteHeader(202)
+		fmt.Fprintf(w, `{"payload":{"version": 1, "state": {}, "reset": "false"}}`)
 		return true
 	case "/api/v1/newrelic/infra/v2/metrics/events/bulk":
 		newrelicWriteRequests.Inc()
