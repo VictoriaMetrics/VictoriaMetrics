@@ -141,7 +141,10 @@ func newIfExpression(s string) (*ifExpression, error) {
 // String returns string representation of ie.
 func (ie *IfExpression) String() string {
 	if ie == nil {
-		return "[]"
+		return "{}"
+	}
+	if len(ie.ies) == 1 {
+		return ie.ies[0].String()
 	}
 	return fmt.Sprintf("%s", ie.ies)
 }
