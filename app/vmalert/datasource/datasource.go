@@ -5,10 +5,9 @@ import (
 	"context"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
 	"time"
-
-	"golang.org/x/exp/slices"
 )
 
 // Querier interface wraps Query and QueryRange methods
@@ -175,6 +174,6 @@ func ConvertToLabels(m map[string]string) (labelset Labels) {
 		})
 	}
 	// sort label
-	slices.SortFunc(labelset, func(a, b Label) bool { return a.Name < b.Name })
+	sort.Slice(labelset, func(i, j int) bool { return labelset[i].Name < labelset[j].Name })
 	return
 }
