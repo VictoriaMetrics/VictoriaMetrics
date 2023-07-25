@@ -806,6 +806,135 @@ The `/api/v1/export` endpoint should return the following response:
 Extra labels may be added to all the imported time series by passing `extra_label=name=value` query args.
 For example, `/api/put?extra_label=foo=bar` would add `{foo="bar"}` label to all the ingested metrics.
 
+## How to send data from NewRelic infrastructure agent
+
+VictoriaMetrics accepts data from NewRelic infrastructure agent API at `/api/v1/newrelic/infra/v2/metrics/events/bulk` path.
+NewRelic's infrastructure agent sends so-called [Events](https://docs.newrelic.com/docs/data-apis/understand-data/new-relic-data-types/#event-data)
+which are transformed to the [Prometheus exposition format](https://github.com/prometheus/docs/blob/main/content/docs/instrumenting/exposition_formats.md#text-based-format).
+
+NewRelic represents another data format named [Metrics](https://docs.newrelic.com/docs/data-apis/understand-data/new-relic-data-types/#metrics).
+But those data are constructed from Events with some updates on the NewRelic cloud.
+
+By default, NewRelic's infrastructure agent sends next types of the infrastructure events:
+1. SystemSample
+2. ProcessSample
+3. StorageSample
+4. NetworkSample
+5. ContainerSample
+6. InfrastructureEvent
+   Those all events processed by VictoriaMetrics and prepare the [Prometheus exposition format](https://github.com/prometheus/docs/blob/main/content/docs/instrumenting/exposition_formats.md#text-based-format).
+
+Event example:
+```json
+{ 
+  "eventType":"SystemSample",
+  "timestamp":1690286056,
+  "entityKey":"macbook-pro.local",
+  "cpuPercent":0,
+  "cpuUserPercent":0,
+  "cpuSystemPercent":0,
+  "cpuIOWaitPercent":0,
+  "cpuIdlePercent":0,
+  "cpuStealPercent":0,
+  "loadAverageOneMinute":5.7216796875,
+  "loadAverageFiveMinute":4.13525390625,
+  "loadAverageFifteenMinute":3.591796875,
+  "memoryTotalBytes":17179869184,
+  "memoryFreeBytes":3762601984,
+  "memoryUsedBytes":13417267200,
+  "memoryFreePercent":21.901226043701172,
+  "memoryUsedPercent":78.09877395629883,
+  "memoryCachedBytes":0,
+  "memorySlabBytes":0,
+  "memorySharedBytes":0,
+  "memoryKernelFree":110690304,
+  "swapTotalBytes":7516192768,
+  "uptime":762371
+}
+```
+
+### Sending metrics to VictoriaMetrics
+
+NewRelic's infrastructure agent allows configuring destinations for metrics sending via ENV variable `COLLECTOR_URL`.
+It is necessary to specify `NRIA_LICENSE_KEY` which can get only after registration into account of the NewRelic cloud.
+
+To configure NewRelic infrastructure agent via ENV variable add the following prefix:
+```console
+COLLECTOR_URL="http://localhost:8428/api/v1/newrelic"  NRIA_LICENSE_KEY="YOUR_LICENSE_KEY" ./newrelic-infra
+```
+<p align="center">
+  <img src="docs/NewRelic-infrastructure-agent.png" width="800">
+</p>
+
+When we specify collector URL Newrelic infrastructure agent starts to send metrics to the `/infra/v2/metrics/events/bulk`.
+
+### Send data via cURL
+
+Imports data in NewRelic format into VictoriaMetrics
+
+1. create file `newrelic.json`
+2. add next data to the json file
+```console
+[
+    {
+      "EntityID":28257883748326179,
+      "IsAgent":true,
+      "Events":[
+        {
+          "eventType":"SystemSample",
+          "timestamp":1690286061,
+          "entityKey":"macbook-pro.local",
+          "cpuPercent":25.056660790748904,
+          "cpuUserPercent":8.687987912389374,
+          "cpuSystemPercent":16.36867287835953,
+          "cpuIOWaitPercent":0,
+          "cpuIdlePercent":74.94333920925109,
+          "cpuStealPercent":0,
+          "loadAverageOneMinute":5.42333984375,
+          "loadAverageFiveMinute":4.099609375,
+          "loadAverageFifteenMinute":3.58203125,
+          "memoryTotalBytes":17179869184,
+          "memoryFreeBytes":3782705152,
+          "memoryUsedBytes":13397164032,
+          "memoryFreePercent":22.01824188232422,
+          "memoryUsedPercent":77.98175811767578,
+          "memoryCachedBytes":0,
+          "memorySlabBytes":0,
+          "memorySharedBytes":0,
+          "memoryKernelFree":89587712,
+          "swapTotalBytes":7516192768,
+          "swapFreeBytes":1737293824,
+          "swapUsedBytes":5778898944,
+          "diskUsedBytes":0,
+          "diskUsedPercent":0,
+          "diskFreeBytes":0,
+          "diskFreePercent":0,
+          "diskTotalBytes":0,
+          "diskUtilizationPercent":0,
+          "diskReadUtilizationPercent":0,
+          "diskWriteUtilizationPercent":0,
+          "diskReadsPerSecond":0,
+          "diskWritesPerSecond":0,
+          "uptime":762376
+        }
+      ],
+      "ReportingAgentID":28257883748326179
+    }
+  ]
+```
+
+Single-node VictoriaMetrics:
+
+```console
+curl -X POST -H 'Content-Type: application/json' --data-binary @newrelic.json http://localhost:8428/api/v1/newrelic/infra/v2/metrics/events/bulk
+```
+
+Cluster Version:
+
+```console
+curl -X POST -H 'Content-Type: application/json' --data-binary @newrelic.json http://localhost:8480/insert/0/api/v1/newrelic/infra/v2/metrics/events/bulk
+```
+
 ## Prometheus querying API usage
 
 VictoriaMetrics supports the following handlers from [Prometheus querying API](https://prometheus.io/docs/prometheus/latest/querying/api/):
