@@ -96,7 +96,10 @@ func (m *Metric) unmarshal(o *fastjson.Object) ([]Metric, error) {
 	if entityKey == nil {
 		return nil, fmt.Errorf("error get entityKey from Events object: %s", o)
 	}
-	tags = append(tags, Tag{Key: "entityKey", Value: string(entityKey.GetStringBytes())})
+	tag := Tag{Key: "entityKey", Value: string(entityKey.GetStringBytes())}
+	defer tag.reset()
+
+	tags = append(tags, tag)
 
 	o.Visit(func(key []byte, v *fastjson.Value) {
 		k := string(key)
