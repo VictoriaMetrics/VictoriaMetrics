@@ -33,10 +33,14 @@ import (
 var (
 	remoteWriteURLs = flagutil.NewArrayString("remoteWrite.url", "Remote storage URL to write data to. It must support either VictoriaMetrics remote write protocol "+
 		"or Prometheus remote_write protocol. Example url: http://<victoriametrics-host>:8428/api/v1/write . "+
-		"Pass multiple -remoteWrite.url options in order to replicate the collected data to multiple remote storage systems. See also -remoteWrite.multitenantURL")
+		"Pass multiple -remoteWrite.url options in order to replicate the collected data to multiple remote storage systems. "+
+		"The data can be sharded among the configured remote storage systems if -remoteWrite.shardByURL flag is set. "+
+		"See also -remoteWrite.multitenantURL")
 	remoteWriteMultitenantURLs = flagutil.NewArrayString("remoteWrite.multitenantURL", "Base path for multitenant remote storage URL to write data to. "+
 		"See https://docs.victoriametrics.com/vmagent.html#multitenancy for details. Example url: http://<vminsert>:8480 . "+
 		"Pass multiple -remoteWrite.multitenantURL flags in order to replicate data to multiple remote storage systems. See also -remoteWrite.url")
+	shardByURL = flag.Bool("remoteWrite.shardByURL", false, "Whether to shard outgoing series across all the remote storage systems enumerated via -remoteWrite.url . "+
+		"By default the data is replicated across all the -remoteWrite.url . See https://docs.victoriametrics.com/vmagent.html#sharding-among-remote-storages")
 	tmpDataPath = flag.String("remoteWrite.tmpDataPath", "vmagent-remotewrite-data", "Path to directory where temporary data for remote write component is stored. "+
 		"See also -remoteWrite.maxDiskUsagePerURL")
 	keepDanglingQueues = flag.Bool("remoteWrite.keepDanglingQueues", false, "Keep persistent queues contents at -remoteWrite.tmpDataPath in case there are no matching -remoteWrite.url. "+
@@ -322,7 +326,7 @@ func Stop() {
 // If at is nil, then the data is pushed to the configured `-remoteWrite.url`.
 // If at isn't nil, the data is pushed to the configured `-remoteWrite.multitenantURL`.
 //
-// Note that wr may be modified by Push due to relabeling and rounding.
+// Note that wr may be modified by Push because of relabeling and rounding.
 func Push(at *auth.Token, wr *prompbmarshal.WriteRequest) {
 	if at == nil && len(*remoteWriteMultitenantURLs) > 0 {
 		// Write data to default tenant if at isn't set while -remoteWrite.multitenantURL is set.
@@ -403,10 +407,46 @@ func pushBlockToRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []prompbmarsha
 		// Nothing to push
 		return
 	}
-	// Push block to remote storages in parallel in order to reduce the time needed for sending the data to multiple remote storage systems.
+	if len(rwctxs) == 1 {
+		// Fast path - just push data to the configured single remote storage
+		rwctxs[0].Push(tssBlock)
+		return
+	}
+
+	// We need to push tssBlock to multiple remote storages.
+	// This is either sharding or replication depending on -remoteWrite.shardByURL command-line flag value.
+	if *shardByURL {
+		// Shard the data among rwctxs
+		tssByURL := make([][]prompbmarshal.TimeSeries, len(rwctxs))
+		for _, ts := range tssBlock {
+			h := getLabelsHash(ts.Labels)
+			idx := h % uint64(len(tssByURL))
+			tssByURL[idx] = append(tssByURL[idx], ts)
+		}
+		// Push sharded data to remote storages in parallel in order to reduce
+		// the time needed for sending the data to multiple remote storage systems.
+		var wg sync.WaitGroup
+		wg.Add(len(rwctxs))
+		for i, rwctx := range rwctxs {
+			tssShard := tssByURL[i]
+			if len(tssShard) == 0 {
+				continue
+			}
+			go func(rwctx *remoteWriteCtx, tss []prompbmarshal.TimeSeries) {
+				defer wg.Done()
+				rwctx.Push(tss)
+			}(rwctx, tssShard)
+		}
+		wg.Wait()
+		return
+	}
+
+	// Replicate data among rwctxs.
+	// Push block to remote storages in parallel in order to reduce
+	// the time needed for sending the data to multiple remote storage systems.
 	var wg sync.WaitGroup
+	wg.Add(len(rwctxs))
 	for _, rwctx := range rwctxs {
-		wg.Add(1)
 		go func(rwctx *remoteWriteCtx) {
 			defer wg.Done()
 			rwctx.Push(tssBlock)

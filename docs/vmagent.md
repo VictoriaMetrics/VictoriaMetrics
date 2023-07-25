@@ -65,7 +65,7 @@ and sending the data to the Prometheus-compatible remote storage:
   The path can point either to local file or to http url. `vmagent` doesn't support some sections of Prometheus config file,
   so you may need either to delete these sections or to run `vmagent` with `-promscrape.config.strictParse=false` command-line flag.
   In this case `vmagent` ignores unsupported sections. See [the list of unsupported sections](#unsupported-prometheus-config-sections).
-* `-remoteWrite.url` with Prometheus-compatible remote storage endpoint such as VictoriaMetrics.
+* `-remoteWrite.url` with Prometheus-compatible remote storage endpoint such as VictoriaMetrics, where to send the data to.
 
 Example command for writing the data received via [supported push-based protocols](#how-to-push-data-to-vmagent)
 to [single-node VictoriaMetrics](https://docs.victoriametrics.com/) located at `victoria-metrics-host:8428`:
@@ -169,6 +169,20 @@ and then it sends the buffered data to the remote storage in order to prevent da
 so there is no need in specifying multiple `-remoteWrite.url` flags when writing data to the same cluster.
 See [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#replication-and-data-safety).
 
+### Sharding among remote storages
+
+By default `vmagent` replicates data among remote storage systems enumerated via `-remoteWrite.url` command-line flag.
+If the `-remoteWrite.shardByURL` command-line flag is set, then `vmagent` spreads evenly
+the outgoing [time series](https://docs.victoriametrics.com/keyConcepts.html#time-series)
+among all the remote storage systems enumerated via `-remoteWrite.url`. Note that samples for the same
+time series are routed to the same remote storage system if `-remoteWrite.shardByURL` flag is specified.
+This allows building scalable data processing pipelines when a single remote storage cannot keep up with the data ingestion workload.
+For example, this allows building horizontally scalable [stream aggregation](https://docs.victoriametrics.com/stream-aggregation.html)
+by routing outgoing samples for the same time series of [counter](https://docs.victoriametrics.com/keyConcepts.html#counter)
+and [histogram](https://docs.victoriametrics.com/keyConcepts.html#histogram) types from top-level `vmagent` instances
+to the same second-level `vmagent` instance, so they are aggregated properly.
+
+See also [how to scrape big number of targets](#scraping-big-number-of-targets).
 
 ### Relabeling and filtering
 
@@ -776,6 +790,9 @@ start a cluster of three `vmagent` instances, where each target is scraped by tw
 If each target is scraped by multiple `vmagent` instances, then data deduplication must be enabled at remote storage pointed by `-remoteWrite.url`.
 The `-dedup.minScrapeInterval` must be set to the `scrape_interval` configured at `-promscrape.config`.
 See [these docs](https://docs.victoriametrics.com/#deduplication) for details.
+
+See also [how to shard data among multiple remote storage systems](#sharding-among-remote-storages).
+
 
 ## High availability
 
@@ -1566,6 +1583,8 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -remoteWrite.sendTimeout array
      Timeout for sending a single block of data to the corresponding -remoteWrite.url
      Supports array of values separated by comma or specified via multiple flags.
+  -remoteWrite.shardByURL
+     Whether to shard outgoing series across all the remote storage systems enumerated via -remoteWrite.url . By default the data is replicated across all the -remoteWrite.url . See https://docs.victoriametrics.com/vmagent.html#sharding-among-remote-storages
   -remoteWrite.showURL
      Whether to show -remoteWrite.url in the exported metrics. It is hidden by default, since it can contain sensitive info such as auth key
   -remoteWrite.significantFigures array
@@ -1601,7 +1620,7 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -remoteWrite.tmpDataPath string
      Path to directory where temporary data for remote write component is stored. See also -remoteWrite.maxDiskUsagePerURL (default "vmagent-remotewrite-data")
   -remoteWrite.url array
-     Remote storage URL to write data to. It must support either VictoriaMetrics remote write protocol or Prometheus remote_write protocol. Example url: http://<victoriametrics-host>:8428/api/v1/write . Pass multiple -remoteWrite.url options in order to replicate the collected data to multiple remote storage systems. See also -remoteWrite.multitenantURL
+     Remote storage URL to write data to. It must support either VictoriaMetrics remote write protocol or Prometheus remote_write protocol. Example url: http://<victoriametrics-host>:8428/api/v1/write . Pass multiple -remoteWrite.url options in order to replicate the collected data to multiple remote storage systems. The data can be sharded among the configured remote storage systems if -remoteWrite.shardByURL flag is set. See also -remoteWrite.multitenantURL
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.urlRelabelConfig array
      Optional path to relabel configs for the corresponding -remoteWrite.url. See also -remoteWrite.relabelConfig. The path can point either to local file or to http url. See https://docs.victoriametrics.com/vmagent.html#relabeling
