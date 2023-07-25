@@ -8,6 +8,12 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/newrelic"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/newrelic/stream"
+	"github.com/VictoriaMetrics/metrics"
+)
+
+var (
+	rowsInserted  = metrics.NewCounter(`vm_rows_inserted_total{type="newrelic"}`)
+	rowsPerInsert = metrics.NewHistogram(`vm_rows_per_insert{type="newrelic"}`)
 )
 
 // InsertHandlerForHTTP processes remote write for NewRelic POST /infra/v2/metrics/events/bulk request.
@@ -48,7 +54,7 @@ func insertRows(rows []newrelic.Metric, extraLabels []prompbmarshal.Label) error
 			return err
 		}
 	}
-	// rowsInserted.Add(len(rows))
-	// rowsPerInsert.Update(float64(len(rows)))
+	rowsInserted.Add(len(rows))
+	rowsPerInsert.Update(float64(len(rows)))
 	return ctx.FlushBufs()
 }
