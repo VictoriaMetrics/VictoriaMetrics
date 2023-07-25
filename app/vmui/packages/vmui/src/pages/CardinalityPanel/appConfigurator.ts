@@ -10,14 +10,17 @@ interface AppState {
 export default class AppConfigurator {
   private tsdbStatus: TSDBStatus;
   private tabsNames: string[];
+  private isPrometheus: boolean;
 
   constructor() {
     this.tsdbStatus = this.defaultTSDBStatus;
     this.tabsNames = ["table", "graph"];
+    this.isPrometheus = false;
     this.getDefaultState = this.getDefaultState.bind(this);
   }
 
   set tsdbStatusData(tsdbStatus: TSDBStatus) {
+    this.isPrometheus = !!tsdbStatus?.headStats;
     this.tsdbStatus = tsdbStatus;
   }
 
@@ -37,6 +40,10 @@ export default class AppConfigurator {
       seriesCountByLabelValuePair: [],
       labelValueCountByLabelName: [],
     };
+  }
+
+  get isPrometheusData(): boolean {
+    return this.isPrometheus;
   }
 
   keys(match?: string | null, focusLabel?: string | null): string[] {

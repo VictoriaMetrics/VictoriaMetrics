@@ -10,6 +10,7 @@ export interface TSDBStatus {
   seriesCountByFocusLabelValue: TopHeapEntry[];
   seriesCountByLabelValuePair: TopHeapEntry[];
   labelValueCountByLabelName: TopHeapEntry[];
+  headStats?: object;
 }
 
 export interface TopHeapEntry {
