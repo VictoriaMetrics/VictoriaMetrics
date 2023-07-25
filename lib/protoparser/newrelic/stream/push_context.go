@@ -9,6 +9,13 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
+	"github.com/VictoriaMetrics/metrics"
+)
+
+var (
+	readCalls       = metrics.NewCounter(`vm_protoparser_read_calls_total{type="newrelic"}`)
+	readErrors      = metrics.NewCounter(`vm_protoparser_read_errors_total{type="newrelic"}`)
+	unmarshalErrors = metrics.NewCounter(`vm_protoparser_unmarshal_errors_total{type="newrelic"}`)
 )
 
 var pushCtxPool sync.Pool
@@ -20,16 +27,16 @@ type pushCtx struct {
 }
 
 func (ctx *pushCtx) Read() error {
-	// readCalls.Inc()
+	readCalls.Inc()
 	lr := io.LimitReader(ctx.br, int64(64*1024*1024)+1)
 	startTime := fasttime.UnixTimestamp()
 	reqLen, err := ctx.reqBuf.ReadFrom(lr)
 	if err != nil {
-		// readErrors.Inc()
+		readErrors.Inc()
 		return fmt.Errorf("cannot read compressed request in %d seconds: %w", fasttime.UnixTimestamp()-startTime, err)
 	}
 	if reqLen > int64(64*1024*1024) {
-		// readErrors.Inc()
+		readErrors.Inc()
 		return fmt.Errorf("too big packed request; mustn't exceed `-maxInsertRequestSize=%d` bytes", 64*1024*1024)
 	}
 	return nil

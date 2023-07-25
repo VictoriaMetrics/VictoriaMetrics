@@ -9,6 +9,9 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 )
 
+// Parse parses NewRelic POST request for newrelic/infra/v2/metrics/events/bulk from reader and calls callback for the parsed request.
+//
+// callback shouldn't hold series after returning.
 func Parse(r io.Reader, contentEncoding string, callback func(series []newrelic.Metric) error) error {
 	wcr := writeconcurrencylimiter.GetReader(r)
 	defer writeconcurrencylimiter.PutReader(wcr)
@@ -45,6 +48,7 @@ func Parse(r io.Reader, contentEncoding string, callback func(series []newrelic.
 	var events newrelic.Events
 
 	if err := events.Unmarshal(metricsPost); err != nil {
+		unmarshalErrors.Inc()
 		return fmt.Errorf("cannot unmarshal NewRelic POST request with size %d bytes: %s", len(ctx.reqBuf.B), err)
 	}
 
