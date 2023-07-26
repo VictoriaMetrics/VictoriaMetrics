@@ -32,9 +32,9 @@ type APIAlert struct {
 	SourceLink string `json:"source"`
 	// Restored shows whether Alert's state was restored on restart
 	Restored bool `json:"restored"`
-	// Stabilized shows when firing state is kept because of
+	// Stabilizing shows when firing state is kept because of
 	// `keep_firing_for` instead of real alert
-	Stabilized bool `json:"stabilized"`
+	Stabilizing bool `json:"stabilizing"`
 }
 
 // WebLink returns a link to the alert which can be used in UI.

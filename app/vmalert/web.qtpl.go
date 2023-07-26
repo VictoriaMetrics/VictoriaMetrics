@@ -825,9 +825,9 @@ func StreamListAlerts(qw422016 *qt422016.Writer, r *http.Request, groupAlerts []
 					qw422016.N().S(`
                                     `)
 //line app/vmalert/web.qtpl:232
-					if ar.Stabilized {
+					if ar.Stabilizing {
 //line app/vmalert/web.qtpl:232
-						streambadgeStabilized(qw422016)
+						streambadgeStabilizing(qw422016)
 //line app/vmalert/web.qtpl:232
 					}
 //line app/vmalert/web.qtpl:232
@@ -1786,7 +1786,7 @@ func badgeRestored() string {
 }
 
 //line app/vmalert/web.qtpl:569
-func streambadgeStabilized(qw422016 *qt422016.Writer) {
+func streambadgeStabilizing(qw422016 *qt422016.Writer) {
 //line app/vmalert/web.qtpl:569
 	qw422016.N().S(`
 <span class="badge bg-warning text-dark" title="This firing state is kept because of `)
@@ -1797,28 +1797,28 @@ func streambadgeStabilized(qw422016 *qt422016.Writer) {
 //line app/vmalert/web.qtpl:569
 	qw422016.N().S("`")
 //line app/vmalert/web.qtpl:569
-	qw422016.N().S(`">stabilized</span>
+	qw422016.N().S(`">stabilizing</span>
 `)
 //line app/vmalert/web.qtpl:571
 }
 
 //line app/vmalert/web.qtpl:571
-func writebadgeStabilized(qq422016 qtio422016.Writer) {
+func writebadgeStabilizing(qq422016 qtio422016.Writer) {
 //line app/vmalert/web.qtpl:571
 	qw422016 := qt422016.AcquireWriter(qq422016)
 //line app/vmalert/web.qtpl:571
-	streambadgeStabilized(qw422016)
+	streambadgeStabilizing(qw422016)
 //line app/vmalert/web.qtpl:571
 	qt422016.ReleaseWriter(qw422016)
 //line app/vmalert/web.qtpl:571
 }
 
 //line app/vmalert/web.qtpl:571
-func badgeStabilized() string {
+func badgeStabilizing() string {
 //line app/vmalert/web.qtpl:571
 	qb422016 := qt422016.AcquireByteBuffer()
 //line app/vmalert/web.qtpl:571
-	writebadgeStabilized(qb422016)
+	writebadgeStabilizing(qb422016)
 //line app/vmalert/web.qtpl:571
 	qs422016 := string(qb422016.B)
 //line app/vmalert/web.qtpl:571

@@ -594,7 +594,7 @@ func (ar *AlertingRule) newAlertAPI(a notifier.Alert) *APIAlert {
 		aa.SourceLink = alertURLGeneratorFn(a)
 	}
 	if a.State == notifier.StateFiring && !a.KeepFiringSince.IsZero() {
-		aa.Stabilized = true
+		aa.Stabilizing = true
 	}
 	return aa
 }

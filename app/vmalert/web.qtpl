@@ -229,7 +229,7 @@ btn-primary
                                 <td>
                                     {%s ar.ActiveAt.Format("2006-01-02T15:04:05Z07:00") %}
                                     {% if ar.Restored %}{%= badgeRestored() %}{% endif %}
-                                    {% if ar.Stabilized %}{%= badgeStabilized() %}{% endif %}
+                                    {% if ar.Stabilizing %}{%= badgeStabilizing() %}{% endif %}
                                 </td>
                                 <td>{%s ar.Value %}</td>
                                 <td>
@@ -566,8 +566,8 @@ btn-primary
 <span class="badge bg-warning text-dark" title="Alert state was restored after the service restart from remote storage">restored</span>
 {% endfunc %}
 
-{% func badgeStabilized() %}
-<span class="badge bg-warning text-dark" title="This firing state is kept because of `keep_firing_for`">stabilized</span>
+{% func badgeStabilizing() %}
+<span class="badge bg-warning text-dark" title="This firing state is kept because of `keep_firing_for`">stabilizing</span>
 {% endfunc %}
 
 {% func seriesFetchedWarn(r APIRule) %}
