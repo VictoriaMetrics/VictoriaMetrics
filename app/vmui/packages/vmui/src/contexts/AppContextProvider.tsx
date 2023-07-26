@@ -3,6 +3,7 @@ import { TimeStateProvider } from "../state/time/TimeStateContext";
 import { QueryStateProvider } from "../state/query/QueryStateContext";
 import { CustomPanelStateProvider } from "../state/customPanel/CustomPanelStateContext";
 import { GraphStateProvider } from "../state/graph/GraphStateContext";
+import { TopQueriesStateProvider } from "../state/topQueries/TopQueriesStateContext";
 import { SnackbarProvider } from "./Snackbar";
 
 import { combineComponents } from "../utils/combine-components";
@@ -14,6 +15,7 @@ const providers = [
   QueryStateProvider,
   CustomPanelStateProvider,
   GraphStateProvider,
+  TopQueriesStateProvider,
   SnackbarProvider,
   DashboardsStateProvider
 ];

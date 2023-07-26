@@ -11,7 +11,7 @@ import Spinner from "../../components/Main/Spinner/Spinner";
 import { useFetchQueryOptions } from "../../hooks/useFetchQueryOptions";
 import TracingsView from "../../components/TraceQuery/TracingsView";
 import Trace from "../../components/TraceQuery/Trace";
-import TableSettings from "../../components/Table/TableSettings/TableSettings";
+import TableSettings from "../CardinalityPanel/Table/TableSettings/TableSettings";
 import { useCustomPanelState, useCustomPanelDispatch } from "../../state/customPanel/CustomPanelStateContext";
 import { useQueryState } from "../../state/query/QueryStateContext";
 import { useTimeDispatch, useTimeState } from "../../state/time/TimeStateContext";
@@ -26,7 +26,6 @@ import GraphTips from "../../components/Chart/GraphTips/GraphTips";
 import InstantQueryTip from "./InstantQueryTip/InstantQueryTip";
 import useBoolean from "../../hooks/useBoolean";
 import { getColumns } from "../../hooks/useSortedCategories";
-import useEventListener from "../../hooks/useEventListener";
 
 const CustomPanel: FC = () => {
   const { displayType, isTracingEnabled } = useCustomPanelState();
@@ -100,9 +99,6 @@ const CustomPanel: FC = () => {
   const toggleTableCompact = () => {
     customPanelDispatch({ type: "TOGGLE_TABLE_COMPACT" });
   };
-
-  const handleChangePopstate = () => window.location.reload();
-  useEventListener("popstate", handleChangePopstate);
 
   useEffect(() => {
     if (traces) {

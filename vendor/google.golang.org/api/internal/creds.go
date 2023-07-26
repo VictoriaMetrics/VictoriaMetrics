@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
@@ -47,7 +48,7 @@ func baseCreds(ctx context.Context, ds *DialSettings) (*google.Credentials, erro
 		return credentialsFromJSON(ctx, ds.CredentialsJSON, ds)
 	}
 	if ds.CredentialsFile != "" {
-		data, err := os.ReadFile(ds.CredentialsFile)
+		data, err := ioutil.ReadFile(ds.CredentialsFile)
 		if err != nil {
 			return nil, fmt.Errorf("cannot read credentials file: %v", err)
 		}

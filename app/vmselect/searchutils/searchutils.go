@@ -140,14 +140,12 @@ func GetExtraTagFilters(r *http.Request) ([][]storage.TagFilter, error) {
 	}
 	var etfs [][]storage.TagFilter
 	for _, extraFilter := range extraFilters {
-		tfss, err := ParseMetricSelector(extraFilter)
+		tfs, err := ParseMetricSelector(extraFilter)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse extra_filters=%s: %w", extraFilter, err)
 		}
-		for i := range tfss {
-			tfss[i] = append(tfss[i], tagFilters...)
-		}
-		etfs = append(etfs, tfss...)
+		tfs = append(tfs, tagFilters...)
+		etfs = append(etfs, tfs)
 	}
 	return etfs, nil
 }
@@ -172,7 +170,7 @@ func JoinTagFilterss(src, etfs [][]storage.TagFilter) [][]storage.TagFilter {
 }
 
 // ParseMetricSelector parses s containing PromQL metric selector and returns the corresponding LabelFilters.
-func ParseMetricSelector(s string) ([][]storage.TagFilter, error) {
+func ParseMetricSelector(s string) ([]storage.TagFilter, error) {
 	expr, err := metricsql.Parse(s)
 	if err != nil {
 		return nil, err
@@ -181,24 +179,20 @@ func ParseMetricSelector(s string) ([][]storage.TagFilter, error) {
 	if !ok {
 		return nil, fmt.Errorf("expecting metricSelector; got %q", expr.AppendString(nil))
 	}
-	if len(me.LabelFilterss) == 0 {
-		return nil, fmt.Errorf("labelFilterss cannot be empty")
+	if len(me.LabelFilters) == 0 {
+		return nil, fmt.Errorf("labelFilters cannot be empty")
 	}
-	tfss := ToTagFilterss(me.LabelFilterss)
-	return tfss, nil
+	tfs := ToTagFilters(me.LabelFilters)
+	return tfs, nil
 }
 
-// ToTagFilterss converts lfss to or-delimited slices of storage.TagFilter
-func ToTagFilterss(lfss [][]metricsql.LabelFilter) [][]storage.TagFilter {
-	tfss := make([][]storage.TagFilter, len(lfss))
-	for i, lfs := range lfss {
-		tfs := make([]storage.TagFilter, len(lfs))
-		for j := range lfs {
-			toTagFilter(&tfs[j], &lfs[j])
-		}
-		tfss[i] = tfs
+// ToTagFilters converts lfs to a slice of storage.TagFilter
+func ToTagFilters(lfs []metricsql.LabelFilter) []storage.TagFilter {
+	tfs := make([]storage.TagFilter, len(lfs))
+	for i := range lfs {
+		toTagFilter(&tfs[i], &lfs[i])
 	}
-	return tfss
+	return tfs
 }
 
 func toTagFilter(dst *storage.TagFilter, src *metricsql.LabelFilter) {

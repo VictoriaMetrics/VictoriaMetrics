@@ -45,14 +45,6 @@ func (pd *Duration) Duration() time.Duration {
 	return pd.D
 }
 
-// ParseTime returns time for pd.
-func (pd *Duration) ParseTime() time.Time {
-	if pd == nil {
-		return time.Time{}
-	}
-	return time.UnixMilli(pd.Duration().Milliseconds())
-}
-
 // ParseDuration parses duration string in Prometheus format
 func ParseDuration(s string) (time.Duration, error) {
 	ms, err := metricsql.DurationValue(s, 0)

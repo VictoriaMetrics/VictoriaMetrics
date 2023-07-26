@@ -27,7 +27,7 @@ import (
 	"cloud.google.com/go/compute/metadata"
 	"cloud.google.com/go/internal/optional"
 	"cloud.google.com/go/internal/trace"
-	"cloud.google.com/go/storage/internal/apiv2/storagepb"
+	storagepb "cloud.google.com/go/storage/internal/apiv2/stubs"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/iamcredentials/v1"
 	"google.golang.org/api/iterator"
@@ -173,17 +173,11 @@ func (b *BucketHandle) Update(ctx context.Context, uattrs BucketAttrsToUpdate) (
 // [Overview of access control]: https://cloud.google.com/storage/docs/accesscontrol#signed_urls_query_string_authentication
 // [automatic detection of credentials]: https://pkg.go.dev/cloud.google.com/go/storage#hdr-Credential_requirements_for_signing
 func (b *BucketHandle) SignedURL(object string, opts *SignedURLOptions) (string, error) {
+	if opts.GoogleAccessID != "" && (opts.SignBytes != nil || len(opts.PrivateKey) > 0) {
+		return SignedURL(b.name, object, opts)
+	}
 	// Make a copy of opts so we don't modify the pointer parameter.
 	newopts := opts.clone()
-
-	if newopts.Hostname == "" {
-		// Extract the correct host from the readhost set on the client
-		newopts.Hostname = b.c.xmlHost
-	}
-
-	if opts.GoogleAccessID != "" && (opts.SignBytes != nil || len(opts.PrivateKey) > 0) {
-		return SignedURL(b.name, object, newopts)
-	}
 
 	if newopts.GoogleAccessID == "" {
 		id, err := b.detectDefaultGoogleAccessID()
@@ -221,17 +215,11 @@ func (b *BucketHandle) SignedURL(object string, opts *SignedURLOptions) (string,
 //
 // [automatic detection of credentials]: https://pkg.go.dev/cloud.google.com/go/storage#hdr-Credential_requirements_for_signing
 func (b *BucketHandle) GenerateSignedPostPolicyV4(object string, opts *PostPolicyV4Options) (*PostPolicyV4, error) {
+	if opts.GoogleAccessID != "" && (opts.SignRawBytes != nil || opts.SignBytes != nil || len(opts.PrivateKey) > 0) {
+		return GenerateSignedPostPolicyV4(b.name, object, opts)
+	}
 	// Make a copy of opts so we don't modify the pointer parameter.
 	newopts := opts.clone()
-
-	if newopts.Hostname == "" {
-		// Extract the correct host from the readhost set on the client
-		newopts.Hostname = b.c.xmlHost
-	}
-
-	if opts.GoogleAccessID != "" && (opts.SignRawBytes != nil || opts.SignBytes != nil || len(opts.PrivateKey) > 0) {
-		return GenerateSignedPostPolicyV4(b.name, object, newopts)
-	}
 
 	if newopts.GoogleAccessID == "" {
 		id, err := b.detectDefaultGoogleAccessID()
@@ -933,6 +921,8 @@ func (ua *BucketAttrsToUpdate) toProtoBucket() *storagepb.Bucket {
 		return &storagepb.Bucket{}
 	}
 
+	// TODO(cathyo): Handle labels. Pending b/230510191.
+
 	var v *storagepb.Bucket_Versioning
 	if ua.VersioningEnabled != nil {
 		v = &storagepb.Bucket_Versioning{Enabled: optional.ToBool(ua.VersioningEnabled)}
@@ -1006,7 +996,6 @@ func (ua *BucketAttrsToUpdate) toProtoBucket() *storagepb.Bucket {
 		IamConfig:             bktIAM,
 		Rpo:                   ua.RPO.String(),
 		Autoclass:             ua.Autoclass.toProtoAutoclass(),
-		Labels:                ua.setLabels,
 	}
 }
 
@@ -1275,9 +1264,7 @@ func (ua *BucketAttrsToUpdate) toRawBucket() *raw.Bucket {
 }
 
 // If returns a new BucketHandle that applies a set of preconditions.
-// Preconditions already set on the BucketHandle are ignored. The supplied
-// BucketConditions must have exactly one field set to a non-zero value;
-// otherwise an error will be returned from any operation on the BucketHandle.
+// Preconditions already set on the BucketHandle are ignored.
 // Operations on the new handle will return an error if the preconditions are not
 // satisfied. The only valid preconditions for buckets are MetagenerationMatch
 // and MetagenerationNotMatch.

@@ -37,12 +37,8 @@ func benchmarkAggregatorsPush(b *testing.B, output string) {
   without: [job]
   outputs: [%q]
 `, output)
-	pushCalls := 0
 	pushFunc := func(tss []prompbmarshal.TimeSeries) {
-		pushCalls++
-		if pushCalls > 1 {
-			panic(fmt.Errorf("pushFunc is expected to be called exactly once at MustStop"))
-		}
+		panic(fmt.Errorf("unexpected pushFunc call"))
 	}
 	a, err := NewAggregatorsFromData([]byte(config), pushFunc, 0)
 	if err != nil {
@@ -53,9 +49,8 @@ func benchmarkAggregatorsPush(b *testing.B, output string) {
 	b.ReportAllocs()
 	b.SetBytes(int64(len(benchSeries)))
 	b.RunParallel(func(pb *testing.PB) {
-		var matchIdxs []byte
 		for pb.Next() {
-			matchIdxs = a.Push(benchSeries, matchIdxs)
+			a.Push(benchSeries)
 		}
 	})
 }

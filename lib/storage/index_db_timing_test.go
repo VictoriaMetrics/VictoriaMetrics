@@ -2,12 +2,11 @@ package storage
 
 import (
 	"fmt"
+	"os"
 	"regexp"
 	"strconv"
 	"testing"
 	"time"
-
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 )
 
 func BenchmarkRegexpFilterMatch(b *testing.B) {
@@ -39,18 +38,27 @@ func BenchmarkRegexpFilterMismatch(b *testing.B) {
 }
 
 func BenchmarkIndexDBAddTSIDs(b *testing.B) {
-	const path = "BenchmarkIndexDBAddTSIDs"
-	s := MustOpenStorage(path, maxRetentionMsecs, 0, 0)
-	db := s.idb()
-
 	const recordsPerLoop = 1e3
+
+	s := newTestStorage()
+	defer stopTestStorage(s)
+
+	dbName := nextIndexDBTableName()
+	var isReadOnly uint32
+	db := mustOpenIndexDB(dbName, s, 0, &isReadOnly)
+	defer func() {
+		db.MustClose()
+		if err := os.RemoveAll(dbName); err != nil {
+			b.Fatalf("cannot remove indexDB: %s", err)
+		}
+	}()
 
 	b.ReportAllocs()
 	b.SetBytes(recordsPerLoop)
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
 		var mn MetricName
-		var genTSID generationTSID
+		var tsid TSID
 
 		// The most common tags.
 		mn.Tags = []Tag{
@@ -64,18 +72,16 @@ func BenchmarkIndexDBAddTSIDs(b *testing.B) {
 
 		startOffset := 0
 		for pb.Next() {
-			benchmarkIndexDBAddTSIDs(db, &genTSID, &mn, startOffset, recordsPerLoop)
+			benchmarkIndexDBAddTSIDs(db, &tsid, &mn, startOffset, recordsPerLoop)
 			startOffset += recordsPerLoop
 		}
 	})
 	b.StopTimer()
-
-	s.MustClose()
-	fs.MustRemoveAll(path)
 }
 
-func benchmarkIndexDBAddTSIDs(db *indexDB, genTSID *generationTSID, mn *MetricName, startOffset, recordsPerLoop int) {
-	date := uint64(0)
+func benchmarkIndexDBAddTSIDs(db *indexDB, tsid *TSID, mn *MetricName, startOffset, recordsPerLoop int) {
+	var metricName []byte
+	var metricNameRaw []byte
 	is := db.getIndexSearch(noDeadline)
 	defer db.putIndexSearch(is)
 	for i := 0; i < recordsPerLoop; i++ {
@@ -84,33 +90,48 @@ func benchmarkIndexDBAddTSIDs(db *indexDB, genTSID *generationTSID, mn *MetricNa
 			mn.Tags[j].Value = strconv.AppendUint(mn.Tags[j].Value[:0], uint64(i*j), 16)
 		}
 		mn.sortTags()
-
-		generateTSID(&genTSID.TSID, mn)
-		createAllIndexesForMetricName(is, mn, &genTSID.TSID, date)
+		metricName = mn.Marshal(metricName[:0])
+		metricNameRaw = mn.marshalRaw(metricNameRaw[:0])
+		if err := is.GetOrCreateTSIDByName(tsid, metricName, metricNameRaw, 0); err != nil {
+			panic(fmt.Errorf("cannot insert record: %w", err))
+		}
 	}
 }
 
 func BenchmarkHeadPostingForMatchers(b *testing.B) {
 	// This benchmark is equivalent to https://github.com/prometheus/prometheus/blob/23c0299d85bfeb5d9b59e994861553a25ca578e5/tsdb/head_bench_test.go#L52
 	// See https://www.robustperception.io/evaluating-performance-and-correctness for more details.
-	const path = "BenchmarkHeadPostingForMatchers"
-	s := MustOpenStorage(path, maxRetentionMsecs, 0, 0)
-	db := s.idb()
+	s := newTestStorage()
+	defer stopTestStorage(s)
+
+	dbName := nextIndexDBTableName()
+	var isReadOnly uint32
+	db := mustOpenIndexDB(dbName, s, 0, &isReadOnly)
+	defer func() {
+		db.MustClose()
+		if err := os.RemoveAll(dbName); err != nil {
+			b.Fatalf("cannot remove indexDB: %s", err)
+		}
+	}()
 
 	// Fill the db with data as in https://github.com/prometheus/prometheus/blob/23c0299d85bfeb5d9b59e994861553a25ca578e5/tsdb/head_bench_test.go#L66
+	var mn MetricName
+	var metricName []byte
+	var metricNameRaw []byte
+	var tsid TSID
 	is := db.getIndexSearch(noDeadline)
 	defer db.putIndexSearch(is)
-	var mn MetricName
-	var genTSID generationTSID
-	date := uint64(0)
 	addSeries := func(kvs ...string) {
 		mn.Reset()
 		for i := 0; i < len(kvs); i += 2 {
 			mn.AddTag(kvs[i], kvs[i+1])
 		}
 		mn.sortTags()
-		generateTSID(&genTSID.TSID, &mn)
-		createAllIndexesForMetricName(is, &mn, &genTSID.TSID, date)
+		metricName = mn.Marshal(metricName[:0])
+		metricNameRaw = mn.marshalRaw(metricNameRaw[:0])
+		if err := is.createTSIDByName(&tsid, metricName, metricNameRaw, 0); err != nil {
+			b.Fatalf("cannot insert record: %s", err)
+		}
 	}
 	for n := 0; n < 10; n++ {
 		ns := strconv.Itoa(n)
@@ -126,19 +147,19 @@ func BenchmarkHeadPostingForMatchers(b *testing.B) {
 	}
 
 	// Make sure all the items can be searched.
-	db.s.DebugFlush()
+	db.tb.DebugFlush()
 	b.ResetTimer()
 
 	benchSearch := func(b *testing.B, tfs *TagFilters, expectedMetricIDs int) {
+		is := db.getIndexSearch(noDeadline)
+		defer db.putIndexSearch(is)
 		tfss := []*TagFilters{tfs}
 		tr := TimeRange{
 			MinTimestamp: 0,
 			MaxTimestamp: timestampFromTime(time.Now()),
 		}
 		for i := 0; i < b.N; i++ {
-			is := db.getIndexSearch(noDeadline)
 			metricIDs, err := is.searchMetricIDs(nil, tfss, tr, 2e9)
-			db.putIndexSearch(is)
 			if err != nil {
 				b.Fatalf("unexpected error in searchMetricIDs: %s", err)
 			}
@@ -254,15 +275,21 @@ func BenchmarkHeadPostingForMatchers(b *testing.B) {
 		addTagFilter(tfs, "j", "foo", false, false)
 		benchSearch(b, tfs, 88889)
 	})
-
-	s.MustClose()
-	fs.MustRemoveAll(path)
 }
 
 func BenchmarkIndexDBGetTSIDs(b *testing.B) {
-	const path = "BenchmarkIndexDBGetTSIDs"
-	s := MustOpenStorage(path, maxRetentionMsecs, 0, 0)
-	db := s.idb()
+	s := newTestStorage()
+	defer stopTestStorage(s)
+
+	dbName := nextIndexDBTableName()
+	var isReadOnly uint32
+	db := mustOpenIndexDB(dbName, s, 0, &isReadOnly)
+	defer func() {
+		db.MustClose()
+		if err := os.RemoveAll(dbName); err != nil {
+			b.Fatalf("cannot remove indexDB: %s", err)
+		}
+	}()
 
 	const recordsPerLoop = 1000
 	const recordsCount = 1e5
@@ -275,42 +302,41 @@ func BenchmarkIndexDBGetTSIDs(b *testing.B) {
 		value := fmt.Sprintf("value_%d", i)
 		mn.AddTag(key, value)
 	}
-	mn.sortTags()
-
-	var genTSID generationTSID
-	date := uint64(12345)
+	var tsid TSID
+	var metricName []byte
+	var metricNameRaw []byte
 
 	is := db.getIndexSearch(noDeadline)
 	defer db.putIndexSearch(is)
-
 	for i := 0; i < recordsCount; i++ {
-		generateTSID(&genTSID.TSID, &mn)
-		createAllIndexesForMetricName(is, &mn, &genTSID.TSID, date)
+		mn.sortTags()
+		metricName = mn.Marshal(metricName[:0])
+		metricNameRaw = mn.marshalRaw(metricName[:0])
+		if err := is.GetOrCreateTSIDByName(&tsid, metricName, metricNameRaw, 0); err != nil {
+			b.Fatalf("cannot insert record: %s", err)
+		}
 	}
-	db.s.DebugFlush()
 
 	b.SetBytes(recordsPerLoop)
 	b.ReportAllocs()
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
-		var genTSIDLocal generationTSID
+		var tsidLocal TSID
 		var metricNameLocal []byte
-		var mnLocal MetricName
-		mnLocal.CopyFrom(&mn)
-		mnLocal.sortTags()
+		var metricNameLocalRaw []byte
+		mnLocal := mn
+		is := db.getIndexSearch(noDeadline)
+		defer db.putIndexSearch(is)
 		for pb.Next() {
-			is := db.getIndexSearch(noDeadline)
 			for i := 0; i < recordsPerLoop; i++ {
+				mnLocal.sortTags()
 				metricNameLocal = mnLocal.Marshal(metricNameLocal[:0])
-				if !is.getTSIDByMetricName(&genTSIDLocal, metricNameLocal, date) {
-					panic(fmt.Errorf("cannot obtain tsid for row %d", i))
+				metricNameLocalRaw = mnLocal.marshalRaw(metricNameLocalRaw[:0])
+				if err := is.GetOrCreateTSIDByName(&tsidLocal, metricNameLocal, metricNameLocalRaw, 0); err != nil {
+					panic(fmt.Errorf("cannot obtain tsid: %w", err))
 				}
 			}
-			db.putIndexSearch(is)
 		}
 	})
 	b.StopTimer()
-
-	s.MustClose()
-	fs.MustRemoveAll(path)
 }

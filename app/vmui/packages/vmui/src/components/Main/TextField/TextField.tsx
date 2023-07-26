@@ -59,13 +59,9 @@ const TextField: FC<TextFieldProps> = ({
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     onKeyDown && onKeyDown(e);
-
-    const { key, ctrlKey, metaKey } = e;
-    const isEnter = key === "Enter";
-    const runByEnter = type !== "textarea" ? isEnter : isEnter && (metaKey || ctrlKey);
-    if (runByEnter && onEnter) {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      onEnter();
+      onEnter && onEnter();
     }
   };
 
@@ -143,8 +139,7 @@ const TextField: FC<TextFieldProps> = ({
         {helperText}
       </span>
     )}
-  </label>
-  ;
+  </label>;
 };
 
 export default TextField;

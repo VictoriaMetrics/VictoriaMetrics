@@ -35,14 +35,14 @@ all instruments fall into two overlapping logical categories: asynchronous or
 synchronous, and int64 or float64.
 
 All synchronous instruments ([Int64Counter], [Int64UpDownCounter],
-[Int64Histogram], [Float64Counter], [Float64UpDownCounter], and
-[Float64Histogram]) are used to measure the operation and performance of source
-code during the source code execution. These instruments only make measurements
-when the source code they instrument is run.
+[Int64Histogram], [Float64Counter], [Float64UpDownCounter], [Float64Histogram])
+are used to measure the operation and performance of source code during the
+source code execution. These instruments only make measurements when the source
+code they instrument is run.
 
 All asynchronous instruments ([Int64ObservableCounter],
 [Int64ObservableUpDownCounter], [Int64ObservableGauge],
-[Float64ObservableCounter], [Float64ObservableUpDownCounter], and
+[Float64ObservableCounter], [Float64ObservableUpDownCounter],
 [Float64ObservableGauge]) are used to measure metrics outside of the execution
 of source code. They are said to make "observations" via a callback function
 called once every measurement collection cycle.
@@ -53,53 +53,20 @@ categories to use.
 
 Outside of these two broad categories, instruments are described by the
 function they are designed to serve. All Counters ([Int64Counter],
-[Float64Counter], [Int64ObservableCounter], and [Float64ObservableCounter]) are
+[Float64Counter], [Int64ObservableCounter], [Float64ObservableCounter]) are
 designed to measure values that never decrease in value, but instead only
 incrementally increase in value. UpDownCounters ([Int64UpDownCounter],
-[Float64UpDownCounter], [Int64ObservableUpDownCounter], and
+[Float64UpDownCounter], [Int64ObservableUpDownCounter],
 [Float64ObservableUpDownCounter]) on the other hand, are designed to measure
-values that can increase and decrease. When more information needs to be
-conveyed about all the synchronous measurements made during a collection cycle,
-a Histogram ([Int64Histogram] and [Float64Histogram]) should be used. Finally,
-when just the most recent measurement needs to be conveyed about an
-asynchronous measurement, a Gauge ([Int64ObservableGauge] and
+values that can increase and decrease. When more information
+needs to be conveyed about all the synchronous measurements made during a
+collection cycle, a Histogram ([Int64Histogram], [Float64Histogram]) should be
+used. Finally, when just the most recent measurement needs to be conveyed about an
+asynchronous measurement, a Gauge ([Int64ObservableGauge],
 [Float64ObservableGauge]) should be used.
 
 See the [OpenTelemetry documentation] for more information about instruments
 and their intended use.
-
-# Measurements
-
-Measurements are made by recording values and information about the values with
-an instrument. How these measurements are recorded depends on the instrument.
-
-Measurements for synchronous instruments ([Int64Counter], [Int64UpDownCounter],
-[Int64Histogram], [Float64Counter], [Float64UpDownCounter], and
-[Float64Histogram]) are recorded using the instrument methods directly. All
-counter instruments have an Add method that is used to measure an increment
-value, and all histogram instruments have a Record method to measure a data
-point.
-
-Asynchronous instruments ([Int64ObservableCounter],
-[Int64ObservableUpDownCounter], [Int64ObservableGauge],
-[Float64ObservableCounter], [Float64ObservableUpDownCounter], and
-[Float64ObservableGauge]) record measurements within a callback function. The
-callback is registered with the Meter which ensures the callback is called once
-per collection cycle. A callback can be registered two ways: during the
-instrument's creation using an option, or later using the RegisterCallback
-method of the [Meter] that created the instrument.
-
-If the following criteria are met, an option ([WithInt64Callback] or
-[WithFloat64Callback]) can be used during the asynchronous instrument's
-creation to register a callback ([Int64Callback] or [Float64Callback],
-respectively):
-
-  - The measurement process is known when the instrument is created
-  - Only that instrument will make a measurement within the callback
-  - The callback never needs to be unregistered
-
-If the criteria are not met, use the RegisterCallback method of the [Meter] that
-created the instrument to register a [Callback].
 
 # API Implementations
 

@@ -1,15 +1,3 @@
----
-weight: 1
-title: Filebeat setup
-disableToc: true
-menu:
-  docs:
-    parent: "victorialogs-data-ingestion"
-    weight: 1
-aliases:
-  - /VictoriaLogs/data-ingestion/Filebeat.html
----
-
 # Filebeat setup
 
 Specify [`output.elasicsearch`](https://www.elastic.co/guide/en/beats/filebeat/current/elasticsearch-output.html) section in the `filebeat.yml`

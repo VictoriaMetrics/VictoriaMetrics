@@ -618,29 +618,6 @@ Additional information:
 * [How to send Influx data to VictoriaMetrics](https://docs.victoriametrics.com/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf)
 * [URL Format](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format)
 
-## /internal/resetRollupResultCache
-
-**Resets the response cache for previously served queries. It is recommended to invoke after [backfilling](https://docs.victoriametrics.com/#backfilling) procedure.**
-
-Single-node VictoriaMetrics:
-<div class="with-copy" markdown="1">
-
-```console
-curl -Is http://localhost:8428/internal/resetRollupResultCache
-```
-
-</div>
-
-Cluster version of VictoriaMetrics::
-
-<div class="with-copy" markdown="1">
-
-```console
-curl -Is http://<vmselect>:8481/select/internal/resetRollupResultCache
-```
-
-</div>
-
 ## TCP and UDP
 
 ### How to send data from OpenTSDB-compatible agents to VictoriaMetrics

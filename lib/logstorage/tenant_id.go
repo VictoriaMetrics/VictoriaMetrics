@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 )
@@ -79,51 +78,14 @@ func GetTenantIDFromRequest(r *http.Request) (TenantID, error) {
 	return tenantID, nil
 }
 
-// GetTenantIDFromString returns tenantID from s.
-// String is expected in the form of accountID:projectID
-func GetTenantIDFromString(s string) (TenantID, error) {
-	var tenantID TenantID
-	colon := strings.Index(s, ":")
-	if colon < 0 {
-		account, err := getUint32FromString(s)
-		if err != nil {
-			return tenantID, fmt.Errorf("cannot parse accountID from %q: %w", s, err)
-		}
-		tenantID.AccountID = account
-
-		return tenantID, nil
-	}
-
-	account, err := getUint32FromString(s[:colon])
-	if err != nil {
-		return tenantID, fmt.Errorf("cannot parse accountID part from %q: %w", s, err)
-	}
-	tenantID.AccountID = account
-
-	project, err := getUint32FromString(s[colon+1:])
-	if err != nil {
-		return tenantID, fmt.Errorf("cannot parse projectID part from %q: %w", s, err)
-	}
-	tenantID.ProjectID = project
-
-	return tenantID, nil
-}
-
 func getUint32FromHeader(r *http.Request, headerName string) (uint32, error) {
 	s := r.Header.Get(headerName)
 	if len(s) == 0 {
 		return 0, nil
 	}
-	return getUint32FromString(s)
-}
-
-func getUint32FromString(s string) (uint32, error) {
-	if len(s) == 0 {
-		return 0, nil
-	}
 	n, err := strconv.ParseUint(s, 10, 32)
 	if err != nil {
-		return 0, fmt.Errorf("cannot parse %q as uint32: %w", s, err)
+		return 0, fmt.Errorf("cannot parse %s header %q: %w", headerName, s, err)
 	}
 	return uint32(n), nil
 }

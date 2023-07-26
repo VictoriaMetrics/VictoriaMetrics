@@ -17,10 +17,7 @@ can aggregate incoming [samples](https://docs.victoriametrics.com/keyConcepts.ht
 The aggregation is applied to all the metrics received via any [supported data ingestion protocol](https://docs.victoriametrics.com/#how-to-import-time-series-data)
 and/or scraped from [Prometheus-compatible targets](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter).
 
-Stream aggregation ignores timestamps associated with the input [samples](https://docs.victoriametrics.com/keyConcepts.html#raw-samples).
-It expects that the ingested samples have timestamps close to the current time.
-
-Stream aggregation is configured via the following command-line flags:
+The stream aggregation is configured via the following command-line flags:
 
 - `-remoteWrite.streamAggr.config` at [vmagent](https://docs.victoriametrics.com/vmagent.html).
   This flag can be specified individually per each `-remoteWrite.url`.
@@ -29,21 +26,16 @@ Stream aggregation is configured via the following command-line flags:
 
 These flags must point to a file containing [stream aggregation config](#stream-aggregation-config).
 
-By default, the following data is written to the storage when stream aggregation is enabled:
+By default, only the aggregated data is written to the storage. If the original incoming samples must be written to the storage too,
+then the following command-line flags must be specified:
 
-- the aggregated samples;
-- the raw input samples, which didn't match any `match` option in the provided [config](#stream-aggregation-config).
+- `-remoteWrite.streamAggr.keepInput` at [vmagent](https://docs.victoriametrics.com/vmagent.html).
+  This flag can be specified individually per each `-remoteWrite.url`.
+  This allows writing both raw and aggregate data to different remote storage destinations.
+- `-streamAggr.keepInput` at [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html).
 
-This behaviour can be changed via the following command-line flags:
-
-- `-remoteWrite.streamAggr.keepInput` at [vmagent](https://docs.victoriametrics.com/vmagent.html) and `-streamAggr.keepInput`
-  at [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html).
-  If one of these flags are set, then all the input samples are written to the storage alongside the aggregated samples.
-  The `-remoteWrite.streamAggr.keepInput` flag can be specified individually per each `-remoteWrite.url`.
-- `-remoteWrite.streamAggr.dropInput` at [vmagent](https://docs.victoriametrics.com/vmagent.html) and `-streamAggr.dropInput`
-  at [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html).
-  If one of these flags are set, then all the input samples are dropped, while only the aggregated samples are written to the storage.
-  The `-remoteWrite.streamAggr.dropInput` flag can be specified individually per each `-remoteWrite.url`.
+Stream aggregation ignores timestamps associated with the input [samples](https://docs.victoriametrics.com/keyConcepts.html#raw-samples).
+It expects that the ingested samples have timestamps close to the current time.
 
 By default, all the input samples are aggregated. Sometimes it is needed to de-duplicate samples before the aggregation.
 For example, if the samples are received from replicated sources.
@@ -72,10 +64,6 @@ Stream aggregation can be used as [statsd](https://github.com/statsd/statsd) alt
 * [Summing input metrics](#summing-input-metrics)
 * [Quantiles over input metrics](#quantiles-over-input-metrics)
 * [Histograms over input metrics](#histograms-over-input-metrics)
-* [Aggregating histograms](#aggregating-histograms)
-
-Currently, streaming aggregation is available only for [supported data ingestion protocols](https://docs.victoriametrics.com/#how-to-import-time-series-data)
-and not available for [Statsd metrics format](https://github.com/statsd/statsd/blob/master/docs/metric_types.md).
 
 ### Recording rules alternative
 
@@ -149,7 +137,7 @@ some_metric:5m_max
 ```
 
 See [the list of aggregate output](#aggregation-outputs), which can be specified at `output` field.
-See also [aggregating histograms](#aggregating-histograms) and [aggregating by labels](#aggregating-by-labels).
+See also [aggregating by labels](#aggregating-by-labels).
 
 ### Reducing the number of stored series
 
@@ -174,7 +162,7 @@ http_requests_total:30s_without_path_user_total
 ```
 
 See [the list of aggregate output](#aggregation-outputs), which can be specified at `output` field.
-See also [aggregating histograms](#aggregating-histograms).
+
 
 ### Counting input samples
 
@@ -240,9 +228,7 @@ per each incoming request, then the following [stream aggregation config](#strea
 can be used for calculating 50th and 99th percentiles for these metrics every 30 seconds:
 
 ```yaml
-- match:
-  - request_duration_seconds
-  - response_size_bytes
+- match: '{__name__=~"request_duration_seconds|response_size_bytes"}'
   interval: 30s
   outputs: ["quantiles(0.50, 0.99)"]
 ```
@@ -271,9 +257,7 @@ can be used for calculating [VictoriaMetrics histogram buckets](https://valyala.
 for these metrics every 60 seconds:
 
 ```yaml
-- match:
-  - request_duration_seconds
-  - response_size_bytes
+- match: '{__name__=~"request_duration_seconds|response_size_bytes"}'
   interval: 60s
   outputs: [histogram_bucket]
 ```
@@ -320,48 +304,6 @@ The resulting histogram buckets can be queried with [MetricsQL](https://docs.vic
 
 See [the list of aggregate output](#aggregation-outputs), which can be specified at `output` field.
 See also [quantiles over input metrics](#quantiles-over-input-metrics) and [aggregating by labels](#aggregating-by-labels).
-
-### Aggregating histograms
-
-[Histogram](https://docs.victoriametrics.com/keyConcepts.html#histogram) is a set of [counter](https://docs.victoriametrics.com/keyConcepts.html#counter)
-metrics with different `vmrange` or `le` labels. As they're counters, the applicable aggregation output is 
-[total](https://docs.victoriametrics.com/stream-aggregation.html#total):
-```yaml
-- match: 'http_request_duration_seconds_bucket'
-  interval: 1m
-  without: [instance]
-  outputs: [total]
-  output_relabel_configs:
-    - source_labels: [__name__]
-      target_label: __name__
-```
-
-This config generates the following output metrics according to [output metric naming](#output-metric-names):
-```
-http_request_duration_seconds_bucket:1m_without_instance_total{le="0.1"} value1
-http_request_duration_seconds_bucket:1m_without_instance_total{le="0.2"} value2
-http_request_duration_seconds_bucket:1m_without_instance_total{le="0.4"} value3
-http_request_duration_seconds_bucket:1m_without_instance_total{le="1"}   value4
-http_request_duration_seconds_bucket:1m_without_instance_total{le="3"}   value5
-http_request_duration_seconds_bucket:1m_without_instance_total{le="8"}   value6
-http_request_duration_seconds_bucket:1m_without_instance_total{le="20"}  value7
-http_request_duration_seconds_bucket:1m_without_instance_total{le="60"}  value8
-http_request_duration_seconds_bucket:1m_without_instance_total{le="120"} value9
-http_request_duration_seconds_bucket:1m_without_instance_total{le="+Inf" value10
-```
-
-The resulting metrics can be used in [histogram_quantile](https://docs.victoriametrics.com/MetricsQL.html#histogram_quantile)
-function:
-```metricsql
-histogram_quantile(0.9, sum(rate(http_request_duration_seconds_bucket:1m_without_instance_total[5m])) by(le))
-```
-
-Please note, histograms can be aggregated if their `le` labels are configured identically. 
-[VictoriaMetrics histogram buckets](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350)
-have no such requirement.
-
-See [the list of aggregate output](#aggregation-outputs), which can be specified at `output` field.
-See also [histograms over input metrics](#histograms-over-input-metrics) and [quantiles over input metrics](#quantiles-over-input-metrics).
 
 
 ## Output metric names
@@ -413,7 +355,7 @@ Below are aggregation functions that can be put in the `outputs` list at [stream
 ### total
 
 `total` generates output [counter](https://docs.victoriametrics.com/keyConcepts.html#counter) by summing the input counters.
-`total` only makes sense for aggregating [counter](https://docs.victoriametrics.com/keyConcepts.html#counter) metrics.
+`total` only makes sense for aggregating [counter](https://docs.victoriametrics.com/keyConcepts.html#counter) type metrics.
 
 The results of `total` is equal to the `sum(some_counter)` query.
 
@@ -430,26 +372,21 @@ For example:
 <img alt="total aggregation counter reset" src="stream-aggregation-check-total-reset.png">
 
 The same behavior will occur when creating or deleting new series in an aggregation group -
-`total` will increase monotonically considering the values of the series set.  
+`total` will increase monotonically considering the values of the series set. 
+
 An example of changing a set of series can be restarting a pod in the Kubernetes.
 This changes a label with pod's name in the series, but `total` account for such a scenario and do not reset the state of aggregated metric.
-
-Aggregating irregular and sporadic metrics (received from [Lambdas](https://aws.amazon.com/lambda/)
-or [Cloud Functions](https://cloud.google.com/functions)) can be controlled via [staleness_inteval](#stream-aggregation-config).
 
 ### increase
 
 `increase` returns the increase of input [counters](https://docs.victoriametrics.com/keyConcepts.html#counter).
-`increase` only makes sense for aggregating [counter](https://docs.victoriametrics.com/keyConcepts.html#counter) metrics.
+`increase` only makes sense for aggregating [counter](https://docs.victoriametrics.com/keyConcepts.html#counter) type metrics.
 
 The results of `increase` with aggregation interval of `1m` is equal to the `increase(some_counter[1m])` query.
 
 For example, see below time series produced by config with aggregation interval `1m` and `by: ["instance"]` and  the regular query:
 
 <img alt="increase aggregation" src="stream-aggregation-check-increase.png">
-
-Aggregating irregular and sporadic metrics (received from [Lambdas](https://aws.amazon.com/lambda/)
-or [Cloud Functions](https://cloud.google.com/functions)) can be controlled via [staleness_inteval](#stream-aggregation-config).
 
 ### count_series
 
@@ -466,7 +403,6 @@ The results of `count_samples` with aggregation interval of `1m` is equal to the
 ### sum_samples
 
 `sum_samples` sums input [sample values](https://docs.victoriametrics.com/keyConcepts.html#raw-samples).
-`sum_samples` makes sense only for aggregating [gauge](https://docs.victoriametrics.com/keyConcepts.html#gauge) metrics.
 
 The results of `sum_samples` with aggregation interval of `1m` is equal to the `sum_over_time(some_metric[1m])` query.
 
@@ -516,14 +452,12 @@ For example, see below time series produced by config with aggregation interval 
 ### stddev
 
 `stddev` returns [standard deviation](https://en.wikipedia.org/wiki/Standard_deviation) for the input [sample values](https://docs.victoriametrics.com/keyConcepts.html#raw-samples).
-`stddev` makes sense only for aggregating [gauge](https://docs.victoriametrics.com/keyConcepts.html#gauge) metrics.
 
 The results of `stddev` with aggregation interval of `1m` is equal to the `stddev_over_time(some_metric[1m])` query.
 
 ### stdvar
 
 `stdvar` returns [standard variance](https://en.wikipedia.org/wiki/Variance) for the input [sample values](https://docs.victoriametrics.com/keyConcepts.html#raw-samples).
-`stdvar` makes sense only for aggregating [gauge](https://docs.victoriametrics.com/keyConcepts.html#gauge) metrics.
 
 The results of `stdvar` with aggregation interval of `1m` is equal to the `stdvar_over_time(some_metric[1m])` query.
 
@@ -535,20 +469,14 @@ For example, see below time series produced by config with aggregation interval 
 
 `histogram_bucket` returns [VictoriaMetrics histogram buckets](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350)
   for the input [sample values](https://docs.victoriametrics.com/keyConcepts.html#raw-samples).
-`histogram_bucket` makes sense only for aggregating [gauge](https://docs.victoriametrics.com/keyConcepts.html#gauge) metrics.
-See how to aggregate regular histograms [here](#aggregating-histograms).
 
 The results of `histogram_bucket` with aggregation interval of `1m` is equal to the `histogram_over_time(some_histogram_bucket[1m])` query.
-
-Aggregating irregular and sporadic metrics (received from [Lambdas](https://aws.amazon.com/lambda/)
-or [Cloud Functions](https://cloud.google.com/functions)) can be controlled via [staleness_inteval](#stream-aggregation-config).
 
 ### quantiles
 
 `quantiles(phi1, ..., phiN)` returns [percentiles](https://en.wikipedia.org/wiki/Percentile) for the given `phi*`
 over the input [sample values](https://docs.victoriametrics.com/keyConcepts.html#raw-samples). 
 The `phi` must be in the range `[0..1]`, where `0` means `0th` percentile, while `1` means `100th` percentile.
-`quantiles(...)` makes sense only for aggregating [gauge](https://docs.victoriametrics.com/keyConcepts.html#gauge) metrics.
 
 The results of `quantiles(phi1, ..., phiN)` with aggregation interval of `1m` 
 is equal to the `quantiles_over_time("quantile", phi1, ..., phiN, some_histogram_bucket[1m])` query.
@@ -604,55 +532,34 @@ at [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-
   # It can contain arbitrary Prometheus series selector
   # according to https://docs.victoriametrics.com/keyConcepts.html#filtering .
   # If match isn't set, then all the incoming samples are aggregated.
-  #
-  # match also can contain a list of series selectors. Then the incoming samples are aggregated
-  # if they match at least a single series selector.
-  #
 - match: 'http_request_duration_seconds_bucket{env=~"prod|staging"}'
 
   # interval is the interval for the aggregation.
   # The aggregated stats is sent to remote storage once per interval.
-  #
   interval: 1m
-
-  # staleness_interval defines an interval after which the series state will be reset if no samples have been sent during it.
-  # It means that:
-  # - no data point will be written for a resulting time series if it didn't receive any updates during configured interval,
-  # - if the series receives updates after the configured interval again, then the time series will be calculated from the initial state
-  #   (it's like this series didn't exist until now).
-  # Increase this parameter if it is expected for matched metrics to be delayed or collected with irregular intervals exceeding the `interval` value.
-  # By default, is equal to x2 of the `interval` field.
-  # The parameter is only relevant for outputs: total, increase and histogram_bucket.
-  #
-  # staleness_interval: 2m
 
   # without is an optional list of labels, which must be removed from the output aggregation.
   # See https://docs.victoriametrics.com/stream-aggregation.html#aggregating-by-labels
-  #
   without: [instance]
 
   # by is an optional list of labels, which must be preserved in the output aggregation.
   # See https://docs.victoriametrics.com/stream-aggregation.html#aggregating-by-labels
-  #
   # by: [job, vmrange]
 
   # outputs is the list of aggregations to perform on the input data.
   # See https://docs.victoriametrics.com/stream-aggregation.html#aggregation-outputs
-  #
   outputs: [total]
 
   # input_relabel_configs is an optional relabeling rules,
   # which are applied to the incoming samples after they pass the match filter
   # and before being aggregated.
   # See https://docs.victoriametrics.com/stream-aggregation.html#relabeling
-  #
   input_relabel_configs:
   - target_label: vmaggr
     replacement: before
 
   # output_relabel_configs is an optional relabeling rules,
   # which are applied to the aggregated output metrics.
-  #
   output_relabel_configs:
   - target_label: vmaggr
     replacement: after

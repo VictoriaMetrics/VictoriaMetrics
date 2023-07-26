@@ -125,8 +125,7 @@ func (p *retryPolicy) Do(req *policy.Request) (resp *http.Response, err error) {
 		}
 
 		if options.TryTimeout == 0 {
-			clone := req.Clone(req.Raw().Context())
-			resp, err = clone.Next()
+			resp, err = req.Next()
 		} else {
 			// Set the per-try time for this particular retry operation and then Do the operation.
 			tryCtx, tryCancel := context.WithTimeout(req.Raw().Context(), options.TryTimeout)

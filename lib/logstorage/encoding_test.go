@@ -2,17 +2,10 @@ package logstorage
 
 import (
 	"fmt"
-	"math"
 	"reflect"
 	"strings"
 	"testing"
 )
-
-func isAlmostEqual(a, b int) bool {
-	fa := float64(a)
-	fb := float64(b)
-	return math.Abs(fa-fb) <= math.Abs(fa+fb)*0.17
-}
 
 func TestMarshalUnmarshalStringsBlock(t *testing.T) {
 	f := func(logs string, blockLenExpected int) {
@@ -22,7 +15,7 @@ func TestMarshalUnmarshalStringsBlock(t *testing.T) {
 			a = strings.Split(logs, "\n")
 		}
 		data := marshalStringsBlock(nil, a)
-		if !isAlmostEqual(len(data), blockLenExpected) {
+		if len(data) != blockLenExpected {
 			t.Fatalf("unexpected block length; got %d; want %d; block=%q", len(data), blockLenExpected, data)
 		}
 		sbu := getStringsBlockUnmarshaler()

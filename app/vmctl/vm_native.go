@@ -339,26 +339,23 @@ func buildMatchWithFilter(filter string, metricName string) (string, error) {
 	if filter == metricName {
 		return filter, nil
 	}
-	nameFilter := fmt.Sprintf("__name__=%q", metricName)
 
-	tfss, err := searchutils.ParseMetricSelector(filter)
+	labels, err := searchutils.ParseMetricSelector(filter)
 	if err != nil {
 		return "", err
 	}
 
-	var filters []string
-	for _, tfs := range tfss {
-		var a []string
-		for _, tf := range tfs {
-			if len(tf.Key) == 0 {
-				continue
-			}
-			a = append(a, tf.String())
+	str := make([]string, 0, len(labels))
+	for _, label := range labels {
+		if len(label.Key) == 0 {
+			continue
 		}
-		a = append(a, nameFilter)
-		filters = append(filters, strings.Join(a, ","))
+		str = append(str, label.String())
 	}
 
-	match := "{" + strings.Join(filters, " or ") + "}"
+	nameFilter := fmt.Sprintf("__name__=%q", metricName)
+	str = append(str, nameFilter)
+
+	match := fmt.Sprintf("{%s}", strings.Join(str, ","))
 	return match, nil
 }

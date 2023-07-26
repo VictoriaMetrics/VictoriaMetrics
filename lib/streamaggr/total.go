@@ -13,7 +13,7 @@ type totalAggrState struct {
 	m sync.Map
 
 	ignoreInputDeadline uint64
-	stalenessSecs       uint64
+	intervalSecs        uint64
 }
 
 type totalStateValue struct {
@@ -29,19 +29,18 @@ type lastValueState struct {
 	deleteDeadline uint64
 }
 
-func newTotalAggrState(interval time.Duration, stalenessInterval time.Duration) *totalAggrState {
+func newTotalAggrState(interval time.Duration) *totalAggrState {
 	currentTime := fasttime.UnixTimestamp()
-	intervalSecs := roundDurationToSecs(interval)
-	stalenessSecs := roundDurationToSecs(stalenessInterval)
+	intervalSecs := uint64(interval.Seconds() + 1)
 	return &totalAggrState{
 		ignoreInputDeadline: currentTime + intervalSecs,
-		stalenessSecs:       stalenessSecs,
+		intervalSecs:        intervalSecs,
 	}
 }
 
 func (as *totalAggrState) pushSample(inputKey, outputKey string, value float64) {
 	currentTime := fasttime.UnixTimestamp()
-	deleteDeadline := currentTime + as.stalenessSecs
+	deleteDeadline := currentTime + as.intervalSecs + (as.intervalSecs >> 1)
 
 again:
 	v, ok := as.m.Load(outputKey)

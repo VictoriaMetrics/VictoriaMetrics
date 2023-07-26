@@ -20,7 +20,7 @@ import (
 	"reflect"
 
 	"cloud.google.com/go/internal/trace"
-	"cloud.google.com/go/storage/internal/apiv2/storagepb"
+	storagepb "cloud.google.com/go/storage/internal/apiv2/stubs"
 	raw "google.golang.org/api/storage/v1"
 )
 

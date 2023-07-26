@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"mime"
 	"mime/multipart"
 	"net/http"
@@ -221,8 +222,8 @@ func (mi *MediaInfo) UploadRequest(reqHeaders http.Header, body io.Reader) (newB
 		toCleanup = append(toCleanup, combined)
 		if fb != nil && fm != nil {
 			getBody = func() (io.ReadCloser, error) {
-				rb := io.NopCloser(fb())
-				rm := io.NopCloser(fm())
+				rb := ioutil.NopCloser(fb())
+				rm := ioutil.NopCloser(fm())
 				var mimeBoundary string
 				if _, params, err := mime.ParseMediaType(ctype); err == nil {
 					mimeBoundary = params["boundary"]
@@ -242,7 +243,7 @@ func (mi *MediaInfo) UploadRequest(reqHeaders http.Header, body io.Reader) (newB
 		fb := readerFunc(body)
 		if fb != nil {
 			getBody = func() (io.ReadCloser, error) {
-				rb := io.NopCloser(fb())
+				rb := ioutil.NopCloser(fb())
 				toCleanup = append(toCleanup, rb)
 				return rb, nil
 			}

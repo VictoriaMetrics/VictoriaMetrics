@@ -35,10 +35,6 @@ export const defaultNavigation: NavigationItem[] = [
         value: router.topQueries,
       },
       {
-        label: routerOptions[router.activeQueries].title,
-        value: router.activeQueries,
-      },
-      {
         label: routerOptions[router.logs].title,
         value: router.logs,
       },

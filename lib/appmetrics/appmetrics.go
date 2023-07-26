@@ -32,14 +32,14 @@ func WritePrometheusMetrics(w io.Writer) {
 	}
 	metricsCacheLock.Unlock()
 
-	bb := metricsCache.Load()
+	bb := metricsCache.Load().(*bytesutil.ByteBuffer)
 	_, _ = w.Write(bb.B)
 }
 
 var (
 	metricsCacheLock           sync.Mutex
 	metricsCacheLastUpdateTime time.Time
-	metricsCache               atomic.Pointer[bytesutil.ByteBuffer]
+	metricsCache               atomic.Value
 )
 
 func writePrometheusMetrics(w io.Writer) {

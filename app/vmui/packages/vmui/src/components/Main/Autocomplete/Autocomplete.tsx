@@ -21,7 +21,6 @@ interface AutocompleteProps {
   disabledFullScreen?: boolean
   onSelect: (val: string) => void
   onOpenAutocomplete?: (val: boolean) => void
-  onFoundOptions?: (val: string[]) => void
 }
 
 const Autocomplete: FC<AutocompleteProps> = ({
@@ -37,8 +36,7 @@ const Autocomplete: FC<AutocompleteProps> = ({
   label,
   disabledFullScreen,
   onSelect,
-  onOpenAutocomplete,
-  onFoundOptions
+  onOpenAutocomplete
 }) => {
   const { isMobile } = useDeviceDetect();
   const wrapperEl = useRef<HTMLDivElement>(null);
@@ -121,10 +119,6 @@ const Autocomplete: FC<AutocompleteProps> = ({
   useEffect(() => {
     onOpenAutocomplete && onOpenAutocomplete(openAutocomplete);
   }, [openAutocomplete]);
-
-  useEffect(() => {
-    onFoundOptions && onFoundOptions(foundOptions);
-  }, [foundOptions]);
 
   return (
     <Popper

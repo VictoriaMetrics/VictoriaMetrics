@@ -49,9 +49,6 @@ func (g *callIDGenerator) reset() {
 var idGen callIDGenerator
 
 // MethodLogger is the sub-logger for each method.
-//
-// This is used in the 1.0 release of gcp/observability, and thus must not be
-// deleted or changed.
 type MethodLogger interface {
 	Log(context.Context, LogEntryConfig)
 }
@@ -68,9 +65,6 @@ type TruncatingMethodLogger struct {
 }
 
 // NewTruncatingMethodLogger returns a new truncating method logger.
-//
-// This is used in the 1.0 release of gcp/observability, and thus must not be
-// deleted or changed.
 func NewTruncatingMethodLogger(h, m uint64) *TruncatingMethodLogger {
 	return &TruncatingMethodLogger{
 		headerMaxLen:  h,
@@ -151,9 +145,6 @@ func (ml *TruncatingMethodLogger) truncateMessage(msgPb *binlogpb.Message) (trun
 }
 
 // LogEntryConfig represents the configuration for binary log entry.
-//
-// This is used in the 1.0 release of gcp/observability, and thus must not be
-// deleted or changed.
 type LogEntryConfig interface {
 	toProto() *binlogpb.GrpcLogEntry
 }

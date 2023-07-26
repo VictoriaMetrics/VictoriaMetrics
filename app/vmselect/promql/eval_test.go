@@ -29,9 +29,8 @@ func TestGetCommonLabelFilters(t *testing.T) {
 			tss = append(tss, &ts)
 		}
 		lfs := getCommonLabelFilters(tss)
-		var me metricsql.MetricExpr
-		if len(lfs) > 0 {
-			me.LabelFilterss = [][]metricsql.LabelFilter{lfs}
+		me := &metricsql.MetricExpr{
+			LabelFilters: lfs,
 		}
 		lfsMarshaled := me.AppendString(nil)
 		if string(lfsMarshaled) != lfsExpected {
@@ -41,7 +40,7 @@ func TestGetCommonLabelFilters(t *testing.T) {
 	f(``, `{}`)
 	f(`m 1`, `{}`)
 	f(`m{a="b"} 1`, `{a="b"}`)
-	f(`m{c="d",a="b"} 1`, `{a="b",c="d"}`)
+	f(`m{c="d",a="b"} 1`, `{a="b", c="d"}`)
 	f(`m1{a="foo"} 1
 m2{a="bar"} 1`, `{a=~"bar|foo"}`)
 	f(`m1{a="foo"} 1

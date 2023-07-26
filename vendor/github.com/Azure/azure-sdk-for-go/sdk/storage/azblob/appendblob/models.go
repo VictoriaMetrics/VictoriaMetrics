@@ -100,9 +100,6 @@ func (o *AppendBlockOptions) format() (*generated.AppendBlobClientAppendBlockOpt
 
 // AppendBlockFromURLOptions contains the optional parameters for the Client.AppendBlockFromURL method.
 type AppendBlockFromURLOptions struct {
-	// Only Bearer type is supported. Credentials should be a valid OAuth access token to copy source.
-	CopySourceAuthorization *string
-
 	// SourceContentValidation contains the validation mechanism used on the range of bytes read from the source.
 	SourceContentValidation blob.SourceContentValidationType
 
@@ -128,8 +125,7 @@ func (o *AppendBlockFromURLOptions) format() (*generated.AppendBlobClientAppendB
 	}
 
 	options := &generated.AppendBlobClientAppendBlockFromURLOptions{
-		SourceRange:             exported.FormatHTTPRange(o.Range),
-		CopySourceAuthorization: o.CopySourceAuthorization,
+		SourceRange: exported.FormatHTTPRange(o.Range),
 	}
 
 	if o.SourceContentValidation != nil {

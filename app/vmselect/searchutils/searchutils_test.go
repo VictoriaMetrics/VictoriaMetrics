@@ -135,69 +135,69 @@ func TestJoinTagFilterss(t *testing.T) {
 		}
 	}
 	// Single tag filter
-	f(t, joinTagFilters(
+	f(t, [][]storage.TagFilter{
 		mustParseMetricSelector(`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4"}`),
-	), nil, []string{
+	}, nil, []string{
 		`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4"}`,
 	})
 	// Miltiple tag filters
-	f(t, joinTagFilters(
+	f(t, [][]storage.TagFilter{
 		mustParseMetricSelector(`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4"}`),
 		mustParseMetricSelector(`{k5=~"v5"}`),
-	), nil, []string{
+	}, nil, []string{
 		`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4"}`,
 		`{k5=~"v5"}`,
 	})
 	// Single extra filter
-	f(t, nil, joinTagFilters(
+	f(t, nil, [][]storage.TagFilter{
 		mustParseMetricSelector(`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4"}`),
-	), []string{
+	}, []string{
 		`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4"}`,
 	})
 	// Multiple extra filters
-	f(t, nil, joinTagFilters(
+	f(t, nil, [][]storage.TagFilter{
 		mustParseMetricSelector(`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4"}`),
 		mustParseMetricSelector(`{k5=~"v5"}`),
-	), []string{
+	}, []string{
 		`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4"}`,
 		`{k5=~"v5"}`,
 	})
 	// Single tag filter and a single extra filter
-	f(t, joinTagFilters(
+	f(t, [][]storage.TagFilter{
 		mustParseMetricSelector(`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4"}`),
-	), joinTagFilters(
+	}, [][]storage.TagFilter{
 		mustParseMetricSelector(`{k5=~"v5"}`),
-	), []string{
+	}, []string{
 		`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4",k5=~"v5"}`,
 	})
 	// Multiple tag filters and a single extra filter
-	f(t, joinTagFilters(
+	f(t, [][]storage.TagFilter{
 		mustParseMetricSelector(`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4"}`),
 		mustParseMetricSelector(`{k5=~"v5"}`),
-	), joinTagFilters(
+	}, [][]storage.TagFilter{
 		mustParseMetricSelector(`{k6=~"v6"}`),
-	), []string{
+	}, []string{
 		`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4",k6=~"v6"}`,
 		`{k5=~"v5",k6=~"v6"}`,
 	})
 	// Single tag filter and multiple extra filters
-	f(t, joinTagFilters(
+	f(t, [][]storage.TagFilter{
 		mustParseMetricSelector(`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4"}`),
-	), joinTagFilters(
+	}, [][]storage.TagFilter{
 		mustParseMetricSelector(`{k5=~"v5"}`),
 		mustParseMetricSelector(`{k6=~"v6"}`),
-	), []string{
+	}, []string{
 		`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4",k5=~"v5"}`,
 		`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4",k6=~"v6"}`,
 	})
 	// Multiple tag filters and multiple extra filters
-	f(t, joinTagFilters(
+	f(t, [][]storage.TagFilter{
 		mustParseMetricSelector(`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4"}`),
 		mustParseMetricSelector(`{k5=~"v5"}`),
-	), joinTagFilters(
+	}, [][]storage.TagFilter{
 		mustParseMetricSelector(`{k6=~"v6"}`),
 		mustParseMetricSelector(`{k7=~"v7"}`),
-	), []string{
+	}, []string{
 		`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4",k6=~"v6"}`,
 		`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4",k7=~"v7"}`,
 		`{k5=~"v5",k6=~"v6"}`,
@@ -205,20 +205,12 @@ func TestJoinTagFilterss(t *testing.T) {
 	})
 }
 
-func joinTagFilters(args ...[][]storage.TagFilter) [][]storage.TagFilter {
-	result := append([][]storage.TagFilter{}, args[0]...)
-	for _, tfss := range args[1:] {
-		result = append(result, tfss...)
-	}
-	return result
-}
-
-func mustParseMetricSelector(s string) [][]storage.TagFilter {
-	tfss, err := ParseMetricSelector(s)
+func mustParseMetricSelector(s string) []storage.TagFilter {
+	tf, err := ParseMetricSelector(s)
 	if err != nil {
 		panic(fmt.Errorf("cannot parse %q: %w", s, err))
 	}
-	return tfss
+	return tf
 }
 
 func tagFilterssToStrings(tfss [][]storage.TagFilter) []string {

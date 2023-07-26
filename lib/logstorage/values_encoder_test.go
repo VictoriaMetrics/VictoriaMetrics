@@ -55,27 +55,27 @@ func TestValuesEncoder(t *testing.T) {
 
 	// uint8 values
 	for i := range values {
-		values[i] = fmt.Sprintf("%d", uint64(i+1))
+		values[i] = fmt.Sprintf("%d", i+1)
 	}
 	f(values, valueTypeUint8, 1, uint64(len(values)))
 
 	// uint16 values
 	for i := range values {
-		values[i] = fmt.Sprintf("%d", uint64(i+1)<<8)
+		values[i] = fmt.Sprintf("%d", (i+1)<<8)
 	}
-	f(values, valueTypeUint16, 1<<8, uint64(len(values))<<8)
+	f(values, valueTypeUint16, 1<<8, uint64(len(values)<<8))
 
 	// uint32 values
 	for i := range values {
-		values[i] = fmt.Sprintf("%d", uint64(i+1)<<16)
+		values[i] = fmt.Sprintf("%d", (i+1)<<16)
 	}
-	f(values, valueTypeUint32, 1<<16, uint64(len(values))<<16)
+	f(values, valueTypeUint32, 1<<16, uint64(len(values)<<16))
 
 	// uint64 values
 	for i := range values {
-		values[i] = fmt.Sprintf("%d", uint64(i+1)<<32)
+		values[i] = fmt.Sprintf("%d", (i+1)<<32)
 	}
-	f(values, valueTypeUint64, 1<<32, uint64(len(values))<<32)
+	f(values, valueTypeUint64, 1<<32, uint64(len(values)<<32))
 
 	// ipv4 values
 	for i := range values {

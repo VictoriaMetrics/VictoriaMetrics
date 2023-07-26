@@ -1,20 +1,7 @@
----
-sort: 4
-weight: 4
-title: VictoriaLogs roadmap
-disableToc: true
-menu:
-  docs:
-    parent: "victorialogs"
-    weight: 4
-aliases:
-- /VictoriaLogs/Roadmap.html
----
-
 # VictoriaLogs roadmap
 
 The [VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/) Preview is ready for evaluation in production.
-It is recommended running it alongside the existing solutions such as Elasticsearch and Grafana Loki
+It is recommended running it alongside the existing solutions such as ElasticSearch and Grafana Loki
 and comparing their resource usage and usability.
 It isn't recommended migrating from existing solutions to VictoriaLogs Preview yet.
 

@@ -269,9 +269,7 @@ func mustOpenPartition(smallPartsPath, bigPartsPath string, s *Storage) *partiti
 
 	partNamesPath := filepath.Join(smallPartsPath, partsFilename)
 	if !fs.IsPathExist(partNamesPath) {
-		// Create parts.json file if it doesn't exist yet.
-		// This should protect from possible carshloops just after the migration from versions below v1.90.0
-		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4336
+		// create parts.json file on migration from previous versions before v1.90.0
 		mustWritePartNames(smallParts, bigParts, smallPartsPath)
 	}
 

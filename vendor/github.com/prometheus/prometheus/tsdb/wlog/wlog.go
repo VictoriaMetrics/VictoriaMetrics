@@ -188,8 +188,6 @@ type WL struct {
 	compress    bool
 	snappyBuf   []byte
 
-	WriteNotified WriteNotified
-
 	metrics *wlMetrics
 }
 
@@ -343,10 +341,6 @@ func (w *WL) CompressionEnabled() bool {
 // Dir returns the directory of the WAL.
 func (w *WL) Dir() string {
 	return w.dir
-}
-
-func (w *WL) SetWriteNotified(wn WriteNotified) {
-	w.WriteNotified = wn
 }
 
 func (w *WL) run() {

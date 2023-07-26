@@ -12,7 +12,7 @@ import SelectLimit from "../../../components/Main/Pagination/SelectLimit/SelectL
 import useStateSearchParams from "../../../hooks/useStateSearchParams";
 import useSearchParamsFromObject from "../../../hooks/useSearchParamsFromObject";
 import { getFromStorage, saveToStorage } from "../../../utils/storage";
-import TableSettings from "../../../components/Table/TableSettings/TableSettings";
+import TableSettings from "../../CardinalityPanel/Table/TableSettings/TableSettings";
 import useBoolean from "../../../hooks/useBoolean";
 import TableLogs from "./TableLogs";
 import GroupLogs from "./GroupLogs";

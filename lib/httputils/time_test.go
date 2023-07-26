@@ -53,7 +53,7 @@ func TestGetTimeSuccess(t *testing.T) {
 	f("1562529662.324", 1562529662324)
 	f("-9223372036.854", minTimeMsecs)
 	f("-9223372036.855", minTimeMsecs)
-	f("1223372036.855", 1223372036855)
+	f("9223372036.855", maxTimeMsecs)
 }
 
 func TestGetTimeError(t *testing.T) {

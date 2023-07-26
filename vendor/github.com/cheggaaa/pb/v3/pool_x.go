@@ -1,4 +1,3 @@
-//go:build linux || darwin || freebsd || netbsd || openbsd || solaris || dragonfly || plan9 || aix
 // +build linux darwin freebsd netbsd openbsd solaris dragonfly plan9 aix
 
 package pb
@@ -6,7 +5,6 @@ package pb
 import (
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/cheggaaa/pb/v3/termutil"
 )
@@ -33,11 +31,7 @@ func (p *Pool) print(first bool) bool {
 			isFinished = false
 		}
 		bar.SetWidth(cols)
-		result := bar.String()
-		if r := cols - CellCount(result); r > 0 {
-			result += strings.Repeat(" ", r)
-		}
-		out += fmt.Sprintf("\r%s\n", result)
+		out += fmt.Sprintf("\r%s\n", bar.String())
 	}
 	if p.Output != nil {
 		fmt.Fprint(p.Output, out)

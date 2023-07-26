@@ -33,7 +33,7 @@ var (
 			return !inOneof(ox) && inOneof(oy)
 		}
 		// Fields in disjoint oneof sets are sorted by declaration index.
-		if inOneof(ox) && inOneof(oy) && ox != oy {
+		if ox != nil && oy != nil && ox != oy {
 			return ox.Index() < oy.Index()
 		}
 		// Fields sorted by field number.

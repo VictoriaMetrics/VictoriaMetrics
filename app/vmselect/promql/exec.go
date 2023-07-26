@@ -277,12 +277,10 @@ func escapeDotsInRegexpLabelFilters(e metricsql.Expr) metricsql.Expr {
 		if !ok {
 			return
 		}
-		for _, lfs := range me.LabelFilterss {
-			for i := range lfs {
-				f := &lfs[i]
-				if f.IsRegexp {
-					f.Value = escapeDots(f.Value)
-				}
+		for i := range me.LabelFilters {
+			f := &me.LabelFilters[i]
+			if f.IsRegexp {
+				f.Value = escapeDots(f.Value)
 			}
 		}
 	})

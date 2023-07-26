@@ -6,21 +6,18 @@ import "./style.scss";
 import Tooltip from "../../../components/Main/Tooltip/Tooltip";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import classNames from "classnames";
-import { useEffect } from "preact/compat";
+import { useEffect, useState } from "preact/compat";
 import { useSearchParams } from "react-router-dom";
 import CardinalityTotals, { CardinalityTotalsProps } from "../CardinalityTotals/CardinalityTotals";
-import useSearchParamsFromObject from "../../../hooks/useSearchParamsFromObject";
-import useStateSearchParams from "../../../hooks/useStateSearchParams";
 
 const CardinalityConfigurator: FC<CardinalityTotalsProps> = (props) => {
   const { isMobile } = useDeviceDetect();
-  const [searchParams] = useSearchParams();
-  const { setSearchParamsFromKeys } = useSearchParamsFromObject();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const showTips = searchParams.get("tips") || "";
-  const [match, setMatch] = useStateSearchParams("", "match");
-  const [focusLabel, setFocusLabel] = useStateSearchParams("", "focusLabel");
-  const [topN, setTopN] = useStateSearchParams(10, "topN");
+  const [match, setMatch] = useState(searchParams.get("match") || "");
+  const [focusLabel, setFocusLabel] = useState(searchParams.get("focusLabel") || "");
+  const [topN, setTopN] = useState(+(searchParams.get("topN") || 10));
 
   const errorTopN = useMemo(() => topN < 0 ? "Number must be bigger than zero" : "", [topN]);
 
@@ -30,16 +27,23 @@ const CardinalityConfigurator: FC<CardinalityTotalsProps> = (props) => {
   };
 
   const handleRunQuery = () => {
-    setSearchParamsFromKeys({ match, topN, focusLabel });
+    searchParams.set("match", match);
+    searchParams.set("topN", topN.toString());
+    searchParams.set("focusLabel", focusLabel);
+    setSearchParams(searchParams);
   };
 
   const handleResetQuery = () => {
-    setSearchParamsFromKeys({ match: "", focusLabel: "" });
+    searchParams.set("match", "");
+    searchParams.set("focusLabel", "");
+    setSearchParams(searchParams);
   };
 
   const handleToggleTips = () => {
     const showTips = searchParams.get("tips") || "";
-    setSearchParamsFromKeys({ tips: showTips ? "" : "true" });
+    if (showTips) searchParams.delete("tips");
+    else searchParams.set("tips", "true");
+    setSearchParams(searchParams);
   };
 
   useEffect(() => {

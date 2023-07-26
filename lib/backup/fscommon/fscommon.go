@@ -106,7 +106,7 @@ func appendFilesInternal(dst []string, d *os.File) ([]string, error) {
 }
 
 func isSpecialFile(name string) bool {
-	return name == "flock.lock" || name == backupnames.RestoreInProgressFilename || name == backupnames.RestoreMarkFileName
+	return name == "flock.lock" || name == backupnames.RestoreInProgressFilename
 }
 
 // RemoveEmptyDirs recursively removes empty directories under the given dir.
@@ -165,9 +165,8 @@ func removeEmptyDirsInternal(d *os.File) (bool, error) {
 			continue
 		}
 		if fi.Mode()&os.ModeSymlink != os.ModeSymlink {
-			// isSpecialFile is not suitable for this function, because the root directory must be considered not empty
-			// i.e. function must consider the markers of the restore in progress as files that are not allowed to be removed by this function.
-			if name == "flock.lock" {
+			if isSpecialFile(name) {
+				// Do not take into account special files
 				continue
 			}
 			dirEntries++
@@ -233,3 +232,9 @@ func removeEmptyDirsInternal(d *os.File) (bool, error) {
 func IgnorePath(path string) bool {
 	return strings.HasSuffix(path, ".ignore")
 }
+
+// BackupCompleteFilename is a filename, which is created in the destination fs when backup is complete.
+const BackupCompleteFilename = "backup_complete.ignore"
+
+// BackupMetadataFilename is a filename, which contains metadata for the backup.
+const BackupMetadataFilename = "backup_metadata.ignore"

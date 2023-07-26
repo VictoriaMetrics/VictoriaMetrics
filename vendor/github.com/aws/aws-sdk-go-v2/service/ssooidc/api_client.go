@@ -64,9 +64,6 @@ type Options struct {
 	// modify this list for per operation behavior.
 	APIOptions []func(*middleware.Stack) error
 
-	// The optional application specific identifier appended to the User-Agent header.
-	AppID string
-
 	// Configures the events that will be sent to the configured logger.
 	ClientLogMode aws.ClientLogMode
 
@@ -236,7 +233,6 @@ func NewFromConfig(cfg aws.Config, optFns ...func(*Options)) *Client {
 		APIOptions:         cfg.APIOptions,
 		Logger:             cfg.Logger,
 		ClientLogMode:      cfg.ClientLogMode,
-		AppID:              cfg.AppID,
 	}
 	resolveAWSRetryerProvider(cfg, &opts)
 	resolveAWSRetryMaxAttempts(cfg, &opts)
@@ -350,16 +346,8 @@ func resolveAWSEndpointResolver(cfg aws.Config, o *Options) {
 	o.EndpointResolver = withEndpointResolver(cfg.EndpointResolver, cfg.EndpointResolverWithOptions, NewDefaultEndpointResolver())
 }
 
-func addClientUserAgent(stack *middleware.Stack, options Options) error {
-	if err := awsmiddleware.AddSDKAgentKeyValue(awsmiddleware.APIMetadata, "ssooidc", goModuleVersion)(stack); err != nil {
-		return err
-	}
-
-	if len(options.AppID) > 0 {
-		return awsmiddleware.AddSDKAgentKey(awsmiddleware.ApplicationIdentifier, options.AppID)(stack)
-	}
-
-	return nil
+func addClientUserAgent(stack *middleware.Stack) error {
+	return awsmiddleware.AddSDKAgentKeyValue(awsmiddleware.APIMetadata, "ssooidc", goModuleVersion)(stack)
 }
 
 func addHTTPSignerV4Middleware(stack *middleware.Stack, o Options) error {

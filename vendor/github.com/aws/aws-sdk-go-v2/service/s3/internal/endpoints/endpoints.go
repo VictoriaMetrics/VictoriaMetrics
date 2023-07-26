@@ -92,7 +92,6 @@ var partitionRegexp = struct {
 	AwsIso   *regexp.Regexp
 	AwsIsoB  *regexp.Regexp
 	AwsIsoE  *regexp.Regexp
-	AwsIsoF  *regexp.Regexp
 	AwsUsGov *regexp.Regexp
 }{
 
@@ -101,7 +100,6 @@ var partitionRegexp = struct {
 	AwsIso:   regexp.MustCompile("^us\\-iso\\-\\w+\\-\\d+$"),
 	AwsIsoB:  regexp.MustCompile("^us\\-isob\\-\\w+\\-\\d+$"),
 	AwsIsoE:  regexp.MustCompile("^eu\\-isoe\\-\\w+\\-\\d+$"),
-	AwsIsoF:  regexp.MustCompile("^us\\-isof\\-\\w+\\-\\d+$"),
 	AwsUsGov: regexp.MustCompile("^us\\-gov\\-\\w+\\-\\d+$"),
 }
 
@@ -682,27 +680,6 @@ var defaultPartitions = endpoints.Partitions{
 		IsRegionalized: true,
 	},
 	{
-		ID: "aws-iso-f",
-		Defaults: map[endpoints.DefaultKey]endpoints.Endpoint{
-			{
-				Variant: endpoints.FIPSVariant,
-			}: {
-				Hostname:          "s3-fips.{region}.csp.hci.ic.gov",
-				Protocols:         []string{"https"},
-				SignatureVersions: []string{"v4"},
-			},
-			{
-				Variant: 0,
-			}: {
-				Hostname:          "s3.{region}.csp.hci.ic.gov",
-				Protocols:         []string{"https"},
-				SignatureVersions: []string{"v4"},
-			},
-		},
-		RegionRegex:    partitionRegexp.AwsIsoF,
-		IsRegionalized: true,
-	},
-	{
 		ID: "aws-us-gov",
 		Defaults: map[endpoints.DefaultKey]endpoints.Endpoint{
 			{
@@ -880,19 +857,6 @@ func GetDNSSuffix(id string, options Options) (string, error) {
 
 		}
 
-	case strings.EqualFold(id, "aws-iso-f"):
-		switch variant {
-		case endpoints.FIPSVariant:
-			return "csp.hci.ic.gov", nil
-
-		case 0:
-			return "csp.hci.ic.gov", nil
-
-		default:
-			return "", fmt.Errorf("unsupported endpoint variant %v, in partition %s", variant, id)
-
-		}
-
 	case strings.EqualFold(id, "aws-us-gov"):
 		switch variant {
 		case endpoints.DualStackVariant:
@@ -936,9 +900,6 @@ func GetDNSSuffixFromRegion(region string, options Options) (string, error) {
 
 	case partitionRegexp.AwsIsoE.MatchString(region):
 		return GetDNSSuffix("aws-iso-e", options)
-
-	case partitionRegexp.AwsIsoF.MatchString(region):
-		return GetDNSSuffix("aws-iso-f", options)
 
 	case partitionRegexp.AwsUsGov.MatchString(region):
 		return GetDNSSuffix("aws-us-gov", options)

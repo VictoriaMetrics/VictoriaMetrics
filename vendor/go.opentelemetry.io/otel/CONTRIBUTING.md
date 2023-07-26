@@ -28,11 +28,6 @@ precommit` - the `precommit` target is the default).
 The `precommit` target also fixes the formatting of the code and
 checks the status of the go module files.
 
-Additionally, there is a `codespell` target that checks for common
-typos in the code. It is not run by default, but you can run it
-manually with `make codespell`. It will set up a virtual environment
-in `venv` and install `codespell` there.
-
 If after running `make precommit` the output of `git status` contains
 `nothing to commit, working tree clean` then it means that everything
 is up-to-date and properly formatted.
@@ -155,10 +150,10 @@ Any [Maintainer] can merge the PR once the above criteria have been met.
 ## Design Choices
 
 As with other OpenTelemetry clients, opentelemetry-go follows the
-[OpenTelemetry Specification](https://opentelemetry.io/docs/specs/otel).
+[opentelemetry-specification](https://github.com/open-telemetry/opentelemetry-specification).
 
 It's especially valuable to read through the [library
-guidelines](https://opentelemetry.io/docs/specs/otel/library-guidelines).
+guidelines](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/library-guidelines.md).
 
 ### Focus on Capabilities, Not Structure Compliance
 

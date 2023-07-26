@@ -2,7 +2,6 @@
 Thumbs.db
 
 .tools/
-venv/
 .idea/
 .vscode/
 *.iml

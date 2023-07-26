@@ -99,7 +99,6 @@ const JsonForm: FC<JsonFormProps> = ({
         error={error}
         autofocus
         onChange={handleChangeJson}
-        onEnter={handleApply}
         disabled={!editable}
       />
       <div className="vm-json-form-footer">

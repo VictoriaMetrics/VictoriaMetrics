@@ -481,7 +481,7 @@ func (sf *sequenceFilter) apply(bs *blockSearch, bm *filterBitmap) {
 
 // exactPrefixFilter matches the exact prefix.
 //
-// Example LogsQL: `fieldName:exact("foo bar"*)
+// Example LogsQL: `fieldName:exact_prefix("foo bar")
 type exactPrefixFilter struct {
 	fieldName string
 	prefix    string
@@ -491,7 +491,7 @@ type exactPrefixFilter struct {
 }
 
 func (ef *exactPrefixFilter) String() string {
-	return fmt.Sprintf("%sexact(%s*)", quoteFieldNameIfNeeded(ef.fieldName), quoteTokenIfNeeded(ef.prefix))
+	return fmt.Sprintf("%sexact_prefix(%s)", quoteFieldNameIfNeeded(ef.fieldName), quoteTokenIfNeeded(ef.prefix))
 }
 
 func (ef *exactPrefixFilter) getTokens() []string {

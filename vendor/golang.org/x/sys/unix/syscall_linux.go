@@ -1699,23 +1699,12 @@ func PtracePokeUser(pid int, addr uintptr, data []byte) (count int, err error) {
 	return ptracePoke(PTRACE_POKEUSR, PTRACE_PEEKUSR, pid, addr, data)
 }
 
-// elfNT_PRSTATUS is a copy of the debug/elf.NT_PRSTATUS constant so
-// x/sys/unix doesn't need to depend on debug/elf and thus
-// compress/zlib, debug/dwarf, and other packages.
-const elfNT_PRSTATUS = 1
-
 func PtraceGetRegs(pid int, regsout *PtraceRegs) (err error) {
-	var iov Iovec
-	iov.Base = (*byte)(unsafe.Pointer(regsout))
-	iov.SetLen(int(unsafe.Sizeof(*regsout)))
-	return ptracePtr(PTRACE_GETREGSET, pid, uintptr(elfNT_PRSTATUS), unsafe.Pointer(&iov))
+	return ptracePtr(PTRACE_GETREGS, pid, 0, unsafe.Pointer(regsout))
 }
 
 func PtraceSetRegs(pid int, regs *PtraceRegs) (err error) {
-	var iov Iovec
-	iov.Base = (*byte)(unsafe.Pointer(regs))
-	iov.SetLen(int(unsafe.Sizeof(*regs)))
-	return ptracePtr(PTRACE_SETREGSET, pid, uintptr(elfNT_PRSTATUS), unsafe.Pointer(&iov))
+	return ptracePtr(PTRACE_SETREGS, pid, 0, unsafe.Pointer(regs))
 }
 
 func PtraceSetOptions(pid int, options int) (err error) {
@@ -2124,15 +2113,11 @@ func writevRacedetect(iovecs []Iovec, n int) {
 
 // mmap varies by architecture; see syscall_linux_*.go.
 //sys	munmap(addr uintptr, length uintptr) (err error)
-//sys	mremap(oldaddr uintptr, oldlength uintptr, newlength uintptr, flags int, newaddr uintptr) (xaddr uintptr, err error)
 
-var mapper = &mremapMmapper{
-	mmapper: mmapper{
-		active: make(map[*byte][]byte),
-		mmap:   mmap,
-		munmap: munmap,
-	},
-	mremap: mremap,
+var mapper = &mmapper{
+	active: make(map[*byte][]byte),
+	mmap:   mmap,
+	munmap: munmap,
 }
 
 func Mmap(fd int, offset int64, length int, prot int, flags int) (data []byte, err error) {
@@ -2141,10 +2126,6 @@ func Mmap(fd int, offset int64, length int, prot int, flags int) (data []byte, e
 
 func Munmap(b []byte) (err error) {
 	return mapper.Munmap(b)
-}
-
-func Mremap(oldData []byte, newLength int, flags int) (data []byte, err error) {
-	return mapper.Mremap(oldData, newLength, flags)
 }
 
 //sys	Madvise(b []byte, advice int) (err error)
@@ -2439,21 +2420,6 @@ func PthreadSigmask(how int, set, oldset *Sigset_t) error {
 	return rtSigprocmask(how, set, oldset, _C__NSIG/8)
 }
 
-//sysnb	getresuid(ruid *_C_int, euid *_C_int, suid *_C_int)
-//sysnb	getresgid(rgid *_C_int, egid *_C_int, sgid *_C_int)
-
-func Getresuid() (ruid, euid, suid int) {
-	var r, e, s _C_int
-	getresuid(&r, &e, &s)
-	return int(r), int(e), int(s)
-}
-
-func Getresgid() (rgid, egid, sgid int) {
-	var r, e, s _C_int
-	getresgid(&r, &e, &s)
-	return int(r), int(e), int(s)
-}
-
 /*
  * Unimplemented
  */
@@ -2495,6 +2461,7 @@ func Getresgid() (rgid, egid, sgid int) {
 // MqTimedreceive
 // MqTimedsend
 // MqUnlink
+// Mremap
 // Msgctl
 // Msgget
 // Msgrcv

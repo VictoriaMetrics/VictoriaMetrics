@@ -95,8 +95,6 @@ const (
 	retryModeKey        = "retry_mode"
 
 	caBundleKey = "ca_bundle"
-
-	sdkAppID = "sdk_ua_app_id"
 )
 
 // defaultSharedConfigProfile allows for swapping the default profile for testing
@@ -269,9 +267,6 @@ type SharedConfig struct {
 	//
 	//  ca_bundle=$HOME/my_custom_ca_bundle
 	CustomCABundle string
-
-	// aws sdk app ID that can be added to user agent header string
-	AppID string
 }
 
 func (c SharedConfig) getDefaultsMode(ctx context.Context) (value aws.DefaultsMode, ok bool, err error) {
@@ -392,11 +387,6 @@ func (c SharedConfig) getCustomCABundle(context.Context) (io.Reader, bool, error
 		return nil, false, err
 	}
 	return bytes.NewReader(b), true, nil
-}
-
-// getAppID returns the sdk app ID if set in shared config profile
-func (c SharedConfig) getAppID(context.Context) (string, bool, error) {
-	return c.AppID, len(c.AppID) > 0, nil
 }
 
 // loadSharedConfigIgnoreNotExist is an alias for loadSharedConfig with the
@@ -994,9 +984,6 @@ func (c *SharedConfig) setFromIniSection(profile string, section ini.Section) er
 	}
 
 	updateString(&c.CustomCABundle, section, caBundleKey)
-
-	// user agent app ID added to request User-Agent header
-	updateString(&c.AppID, section, sdkAppID)
 
 	// Shared Credentials
 	creds := aws.Credentials{

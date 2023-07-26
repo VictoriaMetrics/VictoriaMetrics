@@ -8,7 +8,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/VictoriaMetrics/metrics"
@@ -91,12 +90,7 @@ absolute path to all .tpl files in root.
 
 	disableAlertGroupLabel = flag.Bool("disableAlertgroupLabel", false, "Whether to disable adding group's Name as label to generated alerts and time series.")
 
-	dryRun        = flag.Bool("dryRun", false, "Whether to check only config files without running vmalert. The rules file are validated. The -rule flag must be specified.")
-	unitTestFiles = flagutil.NewArrayString("unittestFile", `Path to the unit test files. When set, vmalert starts in unit test mode and performs only tests on configured files.
-Examples:
- -unittestFile="./unittest/testdata/test1.yaml,./unittest/testdata/test2.yaml".
-See more information here https://docs.victoriametrics.com/vmalert.html#unit-testing-for-rules.
-`)
+	dryRun = flag.Bool("dryRun", false, "Whether to check only config files without running vmalert. The rules file are validated. The -rule flag must be specified.")
 )
 
 var alertURLGeneratorFn notifier.AlertURLGenerator
@@ -120,13 +114,6 @@ func main() {
 	err := templates.Load(*ruleTemplatesPath, true)
 	if err != nil {
 		logger.Fatalf("failed to parse %q: %s", *ruleTemplatesPath, err)
-	}
-
-	if len(*unitTestFiles) > 0 {
-		if unitRule(*unitTestFiles...) {
-			os.Exit(1)
-		}
-		os.Exit(0)
 	}
 
 	if *dryRun {
@@ -339,7 +326,8 @@ func configReload(ctx context.Context, m *manager, groupsCfg []config.Group, sig
 	}
 
 	// init reload metrics with positive values to improve alerting conditions
-	setConfigSuccess(fasttime.UnixTimestamp())
+	configSuccess.Set(1)
+	configTimestamp.Set(fasttime.UnixTimestamp())
 	parseFn := config.Parse
 	for {
 		select {
@@ -359,19 +347,22 @@ func configReload(ctx context.Context, m *manager, groupsCfg []config.Group, sig
 			parseFn = config.ParseSilent
 		}
 		if err := notifier.Reload(); err != nil {
-			setConfigError(err)
+			configReloadErrors.Inc()
+			configSuccess.Set(0)
 			logger.Errorf("failed to reload notifier config: %s", err)
 			continue
 		}
 		err := templates.Load(*ruleTemplatesPath, false)
 		if err != nil {
-			setConfigError(err)
+			configReloadErrors.Inc()
+			configSuccess.Set(0)
 			logger.Errorf("failed to load new templates: %s", err)
 			continue
 		}
 		newGroupsCfg, err := parseFn(*rulePath, validateTplFn, *validateExpressions)
 		if err != nil {
-			setConfigError(err)
+			configReloadErrors.Inc()
+			configSuccess.Set(0)
 			logger.Errorf("cannot parse configuration file: %s", err)
 			continue
 		}
@@ -380,18 +371,19 @@ func configReload(ctx context.Context, m *manager, groupsCfg []config.Group, sig
 			// set success to 1 since previous reload
 			// could have been unsuccessful
 			configSuccess.Set(1)
-			setConfigError(nil)
 			// config didn't change - skip it
 			continue
 		}
 		if err := m.update(ctx, newGroupsCfg, false); err != nil {
-			setConfigError(err)
+			configReloadErrors.Inc()
+			configSuccess.Set(0)
 			logger.Errorf("error while reloading rules: %s", err)
 			continue
 		}
 		templates.Reload()
 		groupsCfg = newGroupsCfg
-		setConfigSuccess(fasttime.UnixTimestamp())
+		configSuccess.Set(1)
+		configTimestamp.Set(fasttime.UnixTimestamp())
 		logger.Infof("Rules reloaded successfully from %q", *rulePath)
 	}
 }
@@ -406,41 +398,4 @@ func configsEqual(a, b []config.Group) bool {
 		}
 	}
 	return true
-}
-
-// setConfigSuccess sets config reload status to 1.
-func setConfigSuccess(at uint64) {
-	configSuccess.Set(1)
-	configTimestamp.Set(at)
-	// reset the error if any
-	setConfigErr(nil)
-}
-
-// setConfigError sets config reload status to 0.
-func setConfigError(err error) {
-	configReloadErrors.Inc()
-	configSuccess.Set(0)
-	setConfigErr(err)
-}
-
-var (
-	configErrMu sync.RWMutex
-	// configErr represent the error message from the last
-	// config reload.
-	configErr error
-)
-
-func setConfigErr(err error) {
-	configErrMu.Lock()
-	configErr = err
-	configErrMu.Unlock()
-}
-
-func configError() error {
-	configErrMu.RLock()
-	defer configErrMu.RUnlock()
-	if configErr != nil {
-		return configErr
-	}
-	return nil
 }

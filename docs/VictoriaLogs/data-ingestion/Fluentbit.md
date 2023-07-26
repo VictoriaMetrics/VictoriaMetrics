@@ -1,16 +1,4 @@
----
-weight: 2
-title: Fluentbit setup
-disableToc: true
-menu:
-  docs:
-    parent: "victorialogs-data-ingestion"
-    weight: 2
-aliases:
-  - /VictoriaLogs/data-ingestion/Fluentbit.html
----
-
-# Fluentbit setup
+## Fluentbit setup
 
 Specify [http output](https://docs.fluentbit.io/manual/pipeline/outputs/http) section in the `fluentbit.conf`
 for sending the collected logs to [VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/):

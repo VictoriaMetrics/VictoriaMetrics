@@ -38,7 +38,8 @@ func (sdc *SDConfig) GetLabels(baseDir string) ([]*promutils.Labels, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot get API config for kuma_sd: %w", err)
 	}
-	pLabels := cfg.labels.Load()
+	v := cfg.labels.Load()
+	pLabels := v.(*[]*promutils.Labels)
 	return *pLabels, nil
 }
 

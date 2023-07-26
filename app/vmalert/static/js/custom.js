@@ -7,11 +7,9 @@ function collapseAll() {
 }
 
 function toggleByID(id) {
-    if (id) {
-        let el = $("#" + id);
-        if (el.length > 0) {
-            el.click();
-        }
+    let el = $("#" + id);
+    if (el.length > 0) {
+        el.click();
     }
 }
 

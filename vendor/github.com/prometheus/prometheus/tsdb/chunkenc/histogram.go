@@ -386,9 +386,9 @@ func counterResetInAnyBucket(oldBuckets, newBuckets []int64, oldSpans, newSpans 
 
 		if oldIdx <= newIdx {
 			// Moving ahead old bucket and span by 1 index.
-			if oldInsideSpanIdx+1 >= oldSpans[oldSpanSliceIdx].Length {
+			if oldInsideSpanIdx == oldSpans[oldSpanSliceIdx].Length-1 {
 				// Current span is over.
-				oldSpanSliceIdx = nextNonEmptySpanSliceIdx(oldSpanSliceIdx, oldSpans)
+				oldSpanSliceIdx++
 				oldInsideSpanIdx = 0
 				if oldSpanSliceIdx >= len(oldSpans) {
 					// All old spans are over.
@@ -405,9 +405,9 @@ func counterResetInAnyBucket(oldBuckets, newBuckets []int64, oldSpans, newSpans 
 
 		if oldIdx > newIdx {
 			// Moving ahead new bucket and span by 1 index.
-			if newInsideSpanIdx+1 >= newSpans[newSpanSliceIdx].Length {
+			if newInsideSpanIdx == newSpans[newSpanSliceIdx].Length-1 {
 				// Current span is over.
-				newSpanSliceIdx = nextNonEmptySpanSliceIdx(newSpanSliceIdx, newSpans)
+				newSpanSliceIdx++
 				newInsideSpanIdx = 0
 				if newSpanSliceIdx >= len(newSpans) {
 					// All new spans are over.

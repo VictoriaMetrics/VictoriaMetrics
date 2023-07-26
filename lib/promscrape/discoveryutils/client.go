@@ -14,6 +14,8 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/net/http2"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
@@ -84,7 +86,7 @@ type HTTPClient struct {
 var defaultDialer = &net.Dialer{}
 
 // NewClient returns new Client for the given args.
-func NewClient(apiServer string, ac *promauth.Config, proxyURL *proxy.URL, proxyAC *promauth.Config, httpCfg *promauth.HTTPClientConfig) (*Client, error) {
+func NewClient(apiServer string, ac *promauth.Config, proxyURL *proxy.URL, proxyAC *promauth.Config, httpCfg promauth.HTTPClientConfig) (*Client, error) {
 	u, err := url.Parse(apiServer)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse apiServer=%q: %w", apiServer, err)
@@ -141,16 +143,23 @@ func NewClient(apiServer string, ac *promauth.Config, proxyURL *proxy.URL, proxy
 		}
 	}
 	if httpCfg.FollowRedirects != nil && !*httpCfg.FollowRedirects {
-		checkRedirect := func(req *http.Request, via []*http.Request) error {
+		client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
 		}
-		client.CheckRedirect = checkRedirect
-		blockingClient.CheckRedirect = checkRedirect
+		blockingClient.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		}
 	}
 	setHTTPProxyHeaders := func(req *http.Request) {}
 	if proxyAC != nil {
 		setHTTPProxyHeaders = func(req *http.Request) {
 			proxyURL.SetHeaders(proxyAC, req)
+		}
+	}
+	if httpCfg.EnableHTTP2 != nil && *httpCfg.EnableHTTP2 {
+		_, err := http2.ConfigureTransports(client.Transport.(*http.Transport))
+		if err != nil {
+			return nil, fmt.Errorf("failed to configure HTTP/2 transport: %s", err)
 		}
 	}
 	ctx, cancel := context.WithCancel(context.Background())

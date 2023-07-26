@@ -26,7 +26,6 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/google/s2a-go/stream"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/grpclog"
 
@@ -35,14 +34,14 @@ import (
 
 // remoteSigner implementes the crypto.Signer interface.
 type remoteSigner struct {
-	leafCert  *x509.Certificate
-	s2AStream stream.S2AStream
+	leafCert *x509.Certificate
+	cstream  s2av2pb.S2AService_SetUpSessionClient
 }
 
 // New returns an instance of RemoteSigner, an implementation of the
 // crypto.Signer interface.
-func New(leafCert *x509.Certificate, s2AStream stream.S2AStream) crypto.Signer {
-	return &remoteSigner{leafCert, s2AStream}
+func New(leafCert *x509.Certificate, cstream s2av2pb.S2AService_SetUpSessionClient) crypto.Signer {
+	return &remoteSigner{leafCert, cstream}
 }
 
 func (s *remoteSigner) Public() crypto.PublicKey {
@@ -62,7 +61,7 @@ func (s *remoteSigner) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpt
 	if grpclog.V(1) {
 		grpclog.Infof("Sending request to S2Av2 for signing operation.")
 	}
-	if err := s.s2AStream.Send(&s2av2pb.SessionReq{
+	if err := s.cstream.Send(&s2av2pb.SessionReq{
 		ReqOneof: &s2av2pb.SessionReq_OffloadPrivateKeyOperationReq{
 			OffloadPrivateKeyOperationReq: req,
 		},
@@ -71,7 +70,7 @@ func (s *remoteSigner) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpt
 		return nil, err
 	}
 
-	resp, err := s.s2AStream.Recv()
+	resp, err := s.cstream.Recv()
 	if err != nil {
 		grpclog.Infof("Failed to receive signing operation response from S2Av2.")
 		return nil, err
@@ -89,9 +88,9 @@ func (s *remoteSigner) getCert() *x509.Certificate {
 	return s.leafCert
 }
 
-// getStream returns the s2AStream field in s.
-func (s *remoteSigner) getStream() stream.S2AStream {
-	return s.s2AStream
+// getStream returns the cstream field in s.
+func (s *remoteSigner) getStream() s2av2pb.S2AService_SetUpSessionClient {
+	return s.cstream
 }
 
 func getSignReq(signatureAlgorithm s2av2pb.SignatureAlgorithm, digest []byte) (*s2av2pb.OffloadPrivateKeyOperationReq, error) {

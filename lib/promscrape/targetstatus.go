@@ -392,7 +392,6 @@ func (tsm *targetStatusMap) getTargetsStatusByJob(filter *requestFilter) *target
 	}
 	dts := droppedTargetsMap.getTargetsList()
 	return &targetsStatusResult{
-		hasOriginalLabels:  !*dropOriginalLabels,
 		jobTargetsStatuses: jts,
 		droppedTargets:     dts,
 		emptyJobs:          emptyJobs,
@@ -503,7 +502,6 @@ func getRequestFilter(r *http.Request) *requestFilter {
 }
 
 type targetsStatusResult struct {
-	hasOriginalLabels  bool
 	jobTargetsStatuses []*jobTargetsStatuses
 	droppedTargets     []droppedTarget
 	emptyJobs          []string

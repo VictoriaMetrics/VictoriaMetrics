@@ -18,9 +18,7 @@ type TenantID struct {
 // CounterMap is a map of counters keyed by tenant.
 type CounterMap struct {
 	metric string
-
-	// do not use atomic.Pointer, since the stored map there is already a pointer type.
-	m atomic.Value
+	m      atomic.Value
 }
 
 // NewCounterMap creates new CounterMap for the given metric.

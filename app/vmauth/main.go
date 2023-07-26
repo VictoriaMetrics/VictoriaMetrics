@@ -123,9 +123,6 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 }
 
 func processUserRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
-	startTime := time.Now()
-	defer ui.requestsDuration.UpdateDuration(startTime)
-
 	ui.requests.Inc()
 
 	// Limit the concurrency of requests to backends

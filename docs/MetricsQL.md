@@ -56,7 +56,7 @@ Feel free [filing a feature request](https://github.com/VictoriaMetrics/Victoria
 This functionality can be evaluated at [VictoriaMetrics playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/)
 or at your own [VictoriaMetrics instance](https://docs.victoriametrics.com/#how-to-start-victoriametrics).
 
-The list of MetricsQL features on top of PromQL:
+The list of MetricsQL features:
 
 * Graphite-compatible filters can be passed via `{__graphite__="foo.*.bar"}` syntax.
   See [these docs](https://docs.victoriametrics.com/#selecting-graphite-metrics).
@@ -67,16 +67,6 @@ The list of MetricsQL features on top of PromQL:
   depending on the current step used for building the graph (e.g. `step` query arg passed to [/api/v1/query_range](https://docs.victoriametrics.com/keyConcepts.html#range-query)).
   For instance, the following query is valid in VictoriaMetrics: `rate(node_network_receive_bytes_total)`.
   It is equivalent to `rate(node_network_receive_bytes_total[$__interval])` when used in Grafana.
-* [Series selectors](https://docs.victoriametrics.com/keyConcepts.html#filtering) accept multiple `or` filters. For example, `{env="prod",job="a" or env="dev",job="b"}`
-  selects series with either `{env="prod",job="a"}` or `{env="dev",job="b"}` labels.
-  See [these docs](https://docs.victoriametrics.com/keyConcepts.html#filtering-by-multiple-or-filters) for details.
-* Support for `group_left(*)` and `group_right(*)` for copying all the labels from time series on the `one` side
-  of [many-to-one operations](https://prometheus.io/docs/prometheus/latest/querying/operators/#many-to-one-and-one-to-many-vector-matches).
-  The copied label names may clash with the existing label names, so MetricsQL provides an ability to add prefix to the copied metric names
-  via `group_left(*) prefix "..."` syntax.
-  For example, the following query copies all the `namespace`-related labels from `kube_namespace_labels` to `kube_pod_info` series,
-  while adding `ns_` prefix to the copied labels: `kube_pod_info * on(namespace) group_left(*) prefix "ns_" kube_namespace_labels`.
-  Labels from the `on()` list aren't copied.
 * [Aggregate functions](#aggregate-functions) accept arbitrary number of args.
   For example, `avg(q1, q2, q3)` would return the average values for every point across time series returned by `q1`, `q2` and `q3`.
 * [@ modifier](https://prometheus.io/docs/prometheus/latest/querying/basics/#modifier) can be put anywhere in the query.
@@ -115,19 +105,16 @@ The list of MetricsQL features on top of PromQL:
   Go to [WITH templates playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/expand-with-exprs) and try it.
 * String literals may be concatenated. This is useful with `WITH` templates:
   `WITH (commonPrefix="long_metric_prefix_") {__name__=commonPrefix+"suffix1"} / {__name__=commonPrefix+"suffix2"}`.
-* `keep_metric_names` modifier can be applied to all the [rollup functions](#rollup-functions), [transform functions](#transform-functions) and [binary operators](https://prometheus.io/docs/prometheus/latest/querying/operators/#binary-operators).
+* `keep_metric_names` modifier can be applied to all the [rollup functions](#rollup-functions) and [transform functions](#transform-functions).
   This modifier prevents from dropping metric names in function results. See [these docs](#keep_metric_names).
 
 ## keep_metric_names
 
-By default, metric names are dropped after applying functions or [binary operators](https://prometheus.io/docs/prometheus/latest/querying/operators/#binary-operators),
-since they may change the meaning of the original time series.
+By default, metric names are dropped after applying functions, which change the meaning of the original time series.
 This may result in `duplicate time series` error when the function is applied to multiple time series with different names.
-This error can be fixed by applying `keep_metric_names` modifier to the function or binary operator.
+This error can be fixed by applying `keep_metric_names` modifier to the function.
 
-For example:
-- `rate({__name__=~"foo|bar"}) keep_metric_names` leaves `foo` and `bar` metric names in the returned time series.
-- `({__name__=~"foo|bar"} / 10) keep_metric_names` leaves `foo` and `bar` metric names in the returned time series.
+For example, `rate({__name__=~"foo|bar"}) keep_metric_names` leaves `foo` and `bar` metric names in the returned time series.
 
 ## MetricsQL functions
 
@@ -469,7 +456,7 @@ See also [increase_pure](#increase_pure) and [increase](#increase).
 
 #### increase_pure
 
-`increase_pure(series_selector[d])` is a [rollup function](#rollup-functions), which works the same as [increase](#increase) except
+`increase_pure(series_selector[d])` iis a [rollup function](#rollup-functions), which works the same as [increase](#increase) except
 of the following corner case - it assumes that [counters](https://docs.victoriametrics.com/keyConcepts.html#counter) always start from 0,
 while [increase](#increase) ignores the first value in a series if it is too big.
 

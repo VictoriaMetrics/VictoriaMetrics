@@ -17,7 +17,6 @@ import {
   TipHighNumberOfSeries,
   TipHighNumberOfValues
 } from "./CardinalityTips";
-import useSearchParamsFromObject from "../../hooks/useSearchParamsFromObject";
 
 const spinnerMessage = `Please wait while cardinality stats is calculated. 
                         This may take some time if the db contains big number of time series.`;
@@ -25,8 +24,7 @@ const spinnerMessage = `Please wait while cardinality stats is calculated.
 const CardinalityPanel: FC = () => {
   const { isMobile } = useDeviceDetect();
 
-  const [searchParams] = useSearchParams();
-  const { setSearchParamsFromKeys } = useSearchParamsFromObject();
+  const [searchParams, setSearchParams] = useSearchParams();
   const showTips = searchParams.get("tips") || "";
   const match = searchParams.get("match") || "";
   const focusLabel = searchParams.get("focusLabel") || "";
@@ -37,14 +35,14 @@ const CardinalityPanel: FC = () => {
 
   const handleFilterClick = (key: string) => (query: string) => {
     const value = queryUpdater[key]({ query, focusLabel, match });
-    const params: Record<string, string> = { match: value };
+    searchParams.set("match", value);
     if (key === "labelValueCountByLabelName" || key == "seriesCountByLabelName") {
-      params.focusLabel = query;
+      searchParams.set("focusLabel", query);
     }
     if (key == "seriesCountByFocusLabelValue") {
-      params.focusLabel = "";
+      searchParams.set("focusLabel", "");
     }
-    setSearchParamsFromKeys(params);
+    setSearchParams(searchParams);
   };
 
   return (

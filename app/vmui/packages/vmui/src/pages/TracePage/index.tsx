@@ -9,6 +9,7 @@ import { CloseIcon } from "../../components/Main/Icons";
 import Modal from "../../components/Main/Modal/Modal";
 import JsonForm from "./JsonForm/JsonForm";
 import { ErrorTypes } from "../../types";
+import { useSearchParams } from "react-router-dom";
 import useDropzone from "../../hooks/useDropzone";
 import TraceUploadButtons from "./TraceUploadButtons/TraceUploadButtons";
 import useBoolean from "../../hooks/useBoolean";
@@ -17,6 +18,7 @@ const TracePage: FC = () => {
   const [tracesState, setTracesState] = useState<Trace[]>([]);
   const [errors, setErrors] = useState<{filename: string, text: string}[]>([]);
   const hasTraces = useMemo(() => !!tracesState.length, [tracesState]);
+  const [, setSearchParams] = useSearchParams();
 
   const {
     value: openModal,
@@ -74,6 +76,11 @@ const TracePage: FC = () => {
   const createHandlerCloseError = (index: number) => () => {
     handleCloseError(index);
   };
+
+  useEffect(() => {
+    setSearchParams({});
+  }, []);
+
 
   const { files, dragging } = useDropzone();
 

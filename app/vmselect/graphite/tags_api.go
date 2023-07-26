@@ -21,10 +21,8 @@ import (
 )
 
 var (
-	maxGraphiteTagKeysPerSearch = flag.Int("search.maxGraphiteTagKeys", 100e3, "The maximum number of tag keys returned from Graphite API, which returns tags. "+
-		"See https://docs.victoriametrics.com/#graphite-tags-api-usage")
-	maxGraphiteTagValuesPerSearch = flag.Int("search.maxGraphiteTagValues", 100e3, "The maximum number of tag values returned from Graphite API, which returns tag values. "+
-		"See https://docs.victoriametrics.com/#graphite-tags-api-usage")
+	maxGraphiteTagKeysPerSearch   = flag.Int("search.maxGraphiteTagKeys", 100e3, "The maximum number of tag keys returned from Graphite /tags, /tags/autoComplete/*, /tags/findSeries API")
+	maxGraphiteTagValuesPerSearch = flag.Int("search.maxGraphiteTagValues", 100e3, "The maximum number of tag values returned Graphite /tags/<tag_name> API")
 )
 
 // TagsDelSeriesHandler implements /tags/delSeries handler.
@@ -138,7 +136,9 @@ func registerMetrics(startTime time.Time, w http.ResponseWriter, r *http.Request
 		mr.MetricNameRaw = storage.MarshalMetricNameRaw(mr.MetricNameRaw[:0], labels)
 		mr.Timestamp = ct
 	}
-	vmstorage.RegisterMetricNames(nil, mrs)
+	if err := vmstorage.RegisterMetricNames(nil, mrs); err != nil {
+		return fmt.Errorf("cannot register paths: %w", err)
+	}
 
 	// Return response
 	contentType := "text/plain; charset=utf-8"
@@ -189,13 +189,13 @@ func TagsAutoCompleteValuesHandler(startTime time.Time, w http.ResponseWriter, r
 		// Escape special chars in tagPrefix as Graphite does.
 		// See https://github.com/graphite-project/graphite-web/blob/3ad279df5cb90b211953e39161df416e54a84948/webapp/graphite/tags/base.py#L228
 		filter := regexp.QuoteMeta(valuePrefix)
-		tagValues, err = netstorage.GraphiteTagValues(nil, tag, filter, *maxGraphiteTagValuesPerSearch, deadline)
+		tagValues, err = netstorage.GraphiteTagValues(nil, tag, filter, *maxGraphiteTagKeysPerSearch, deadline)
 		if err != nil {
 			return err
 		}
 	} else {
 		// Slow path: use netstorage.SearchMetricNames for applying `expr` filters.
-		sq, err := getSearchQueryForExprs(startTime, etfs, exprs, *maxGraphiteTagValuesPerSearch)
+		sq, err := getSearchQueryForExprs(startTime, etfs, exprs, *maxGraphiteTagKeysPerSearch)
 		if err != nil {
 			return err
 		}
@@ -350,7 +350,7 @@ func TagsFindSeriesHandler(startTime time.Time, w http.ResponseWriter, r *http.R
 	if err != nil {
 		return fmt.Errorf("cannot setup tag filters: %w", err)
 	}
-	sq, err := getSearchQueryForExprs(startTime, etfs, exprs, *maxGraphiteSeries)
+	sq, err := getSearchQueryForExprs(startTime, etfs, exprs, *maxGraphiteTagKeysPerSearch)
 	if err != nil {
 		return err
 	}

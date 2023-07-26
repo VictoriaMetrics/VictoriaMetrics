@@ -21,19 +21,16 @@ import (
 var (
 	streamAggrConfig = flag.String("streamAggr.config", "", "Optional path to file with stream aggregation config. "+
 		"See https://docs.victoriametrics.com/stream-aggregation.html . "+
-		"See also -streamAggr.keepInput, -streamAggr.dropInput and -streamAggr.dedupInterval")
-	streamAggrKeepInput = flag.Bool("streamAggr.keepInput", false, "Whether to keep all the input samples after the aggregation with -streamAggr.config. "+
-		"By default, only aggregated samples are dropped, while the remaining samples are stored in the database. "+
-		"See also -streamAggr.dropInput and https://docs.victoriametrics.com/stream-aggregation.html")
-	streamAggrDropInput = flag.Bool("streamAggr.dropInput", false, "Whether to drop all the input samples after the aggregation with -streamAggr.config. "+
-		"By default, only aggregated samples are dropped, while the remaining samples are stored in the database. "+
-		"See also -streamAggr.keepInput and https://docs.victoriametrics.com/stream-aggregation.html")
+		"See also -remoteWrite.streamAggr.keepInput and -streamAggr.dedupInterval")
+	streamAggrKeepInput = flag.Bool("streamAggr.keepInput", false, "Whether to keep input samples after the aggregation with -streamAggr.config. "+
+		"By default, the input is dropped after the aggregation, so only the aggregate data is stored. "+
+		"See https://docs.victoriametrics.com/stream-aggregation.html")
 	streamAggrDedupInterval = flag.Duration("streamAggr.dedupInterval", 0, "Input samples are de-duplicated with this interval before being aggregated. "+
 		"Only the last sample per each time series per each interval is aggregated if the interval is greater than zero")
 )
 
 var (
-	saCfgReloaderStopCh chan struct{}
+	saCfgReloaderStopCh = make(chan struct{})
 	saCfgReloaderWG     sync.WaitGroup
 
 	saCfgReloads   = metrics.NewCounter(`vminsert_streamagg_config_reloads_total`)
@@ -62,7 +59,6 @@ func CheckStreamAggrConfig() error {
 //
 // MustStopStreamAggr must be called when stream aggr is no longer needed.
 func InitStreamAggr() {
-	saCfgReloaderStopCh = make(chan struct{})
 	if *streamAggrConfig == "" {
 		return
 	}
@@ -136,20 +132,14 @@ func (ctx *streamAggrCtx) Reset() {
 	promrelabel.CleanLabels(ts.Labels)
 }
 
-func (ctx *streamAggrCtx) push(mrs []storage.MetricRow, matchIdxs []byte) []byte {
-	matchIdxs = bytesutil.ResizeNoCopyMayOverallocate(matchIdxs, len(mrs))
-	for i := 0; i < len(matchIdxs); i++ {
-		matchIdxs[i] = 0
-	}
-
+func (ctx *streamAggrCtx) push(mrs []storage.MetricRow) {
 	mn := &ctx.mn
 	tss := ctx.tss[:]
 	ts := &tss[0]
 	labels := ts.Labels
 	samples := ts.Samples
 	sas := sasGlobal.Load()
-	var matchIdxsLocal []byte
-	for idx, mr := range mrs {
+	for _, mr := range mrs {
 		if err := mn.UnmarshalRaw(mr.MetricNameRaw); err != nil {
 			logger.Panicf("BUG: cannot unmarshal recently marshaled MetricName: %s", err)
 		}
@@ -173,13 +163,8 @@ func (ctx *streamAggrCtx) push(mrs []storage.MetricRow, matchIdxs []byte) []byte
 		ts.Labels = labels
 		ts.Samples = samples
 
-		matchIdxsLocal = sas.Push(tss, matchIdxsLocal)
-		if matchIdxsLocal[0] != 0 {
-			matchIdxs[idx] = 1
-		}
+		sas.Push(tss)
 	}
-
-	return matchIdxs
 }
 
 func pushAggregateSeries(tss []prompbmarshal.TimeSeries) {

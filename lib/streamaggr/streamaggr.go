@@ -79,10 +79,6 @@ type Config struct {
 	// Interval is the interval between aggregations.
 	Interval string `yaml:"interval"`
 
-	// Staleness interval is interval after which the series state will be reset if no samples have been sent during it.
-	// The parameter is only relevant for outputs: total, increase and histogram_bucket.
-	StalenessInterval string `yaml:"staleness_interval,omitempty"`
-
 	// Outputs is a list of output aggregate functions to produce.
 	//
 	// The following names are allowed:
@@ -194,25 +190,13 @@ func (a *Aggregators) Equal(b *Aggregators) bool {
 }
 
 // Push pushes tss to a.
-//
-// Push sets matchIdxs[idx] to 1 if the corresponding tss[idx] was used in aggregations.
-// Otherwise matchIdxs[idx] is set to 0.
-//
-// Push returns matchIdxs with len equal to len(tss).
-// It re-uses the matchIdxs if it has enough capacity to hold len(tss) items.
-// Otherwise it allocates new matchIdxs.
-func (a *Aggregators) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) []byte {
-	matchIdxs = bytesutil.ResizeNoCopyMayOverallocate(matchIdxs, len(tss))
-	for i := 0; i < len(matchIdxs); i++ {
-		matchIdxs[i] = 0
+func (a *Aggregators) Push(tss []prompbmarshal.TimeSeries) {
+	if a == nil {
+		return
 	}
-
-	if a != nil {
-		for _, aggr := range a.as {
-			aggr.Push(tss, matchIdxs)
-		}
+	for _, aggr := range a.as {
+		aggr.Push(tss)
 	}
-	return matchIdxs
 }
 
 // aggregator aggregates input series according to the config passed to NewAggregator
@@ -270,18 +254,6 @@ func newAggregator(cfg *Config, pushFunc PushFunc, dedupInterval time.Duration) 
 		return nil, fmt.Errorf("the minimum supported aggregation interval is 1s; got %s", interval)
 	}
 
-	// check cfg.StalenessInterval
-	stalenessInterval := interval * 2
-	if cfg.StalenessInterval != "" {
-		stalenessInterval, err = time.ParseDuration(cfg.StalenessInterval)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse `staleness_interval: %q`: %w", cfg.StalenessInterval, err)
-		}
-		if stalenessInterval < interval {
-			return nil, fmt.Errorf("staleness_interval cannot be less than interval (%s); got %s", cfg.Interval, cfg.StalenessInterval)
-		}
-	}
-
 	// initialize input_relabel_configs and output_relabel_configs
 	inputRelabeling, err := promrelabel.ParseRelabelConfigs(cfg.InputRelabelConfigs)
 	if err != nil {
@@ -336,9 +308,9 @@ func newAggregator(cfg *Config, pushFunc PushFunc, dedupInterval time.Duration) 
 		}
 		switch output {
 		case "total":
-			aggrStates[i] = newTotalAggrState(interval, stalenessInterval)
+			aggrStates[i] = newTotalAggrState(interval)
 		case "increase":
-			aggrStates[i] = newIncreaseAggrState(interval, stalenessInterval)
+			aggrStates[i] = newIncreaseAggrState(interval)
 		case "count_series":
 			aggrStates[i] = newCountSeriesAggrState()
 		case "count_samples":
@@ -358,7 +330,7 @@ func newAggregator(cfg *Config, pushFunc PushFunc, dedupInterval time.Duration) 
 		case "stdvar":
 			aggrStates[i] = newStdvarAggrState()
 		case "histogram_bucket":
-			aggrStates[i] = newHistogramBucketAggrState(stalenessInterval)
+			aggrStates[i] = newHistogramBucketAggrState(interval)
 		default:
 			return nil, fmt.Errorf("unsupported output=%q; supported values: %s; "+
 				"see https://docs.victoriametrics.com/vmagent.html#stream-aggregation", output, supportedOutputs)
@@ -461,7 +433,7 @@ func (a *aggregator) dedupFlush() {
 		skipAggrSuffix: true,
 	}
 	a.dedupAggr.appendSeriesForFlush(ctx)
-	a.push(ctx.tss, nil)
+	a.push(ctx.tss)
 }
 
 func (a *aggregator) flush() {
@@ -510,24 +482,35 @@ func (a *aggregator) MustStop() {
 }
 
 // Push pushes tss to a.
-func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
+func (a *aggregator) Push(tss []prompbmarshal.TimeSeries) {
 	if a.dedupAggr == nil {
-		// Deduplication is disabled.
-		a.push(tss, matchIdxs)
+		a.push(tss)
 		return
 	}
 
-	// Deduplication is enabled.
+	// deduplication is enabled.
 	// push samples to dedupAggr, so later they will be pushed to the configured aggregators.
 	pushSample := a.dedupAggr.pushSample
 	inputKey := ""
 	bb := bbPool.Get()
+	for _, ts := range tss {
+		bb.B = marshalLabelsFast(bb.B[:0], ts.Labels)
+		outputKey := bytesutil.InternBytes(bb.B)
+		for _, sample := range ts.Samples {
+			pushSample(inputKey, outputKey, sample.Value)
+		}
+	}
+	bbPool.Put(bb)
+}
+
+func (a *aggregator) push(tss []prompbmarshal.TimeSeries) {
 	labels := promutils.GetLabels()
-	for idx, ts := range tss {
+	tmpLabels := promutils.GetLabels()
+	bb := bbPool.Get()
+	for _, ts := range tss {
 		if !a.match.Match(ts.Labels) {
 			continue
 		}
-		matchIdxs[idx] = 1
 
 		labels.Labels = append(labels.Labels[:0], ts.Labels...)
 		labels.Labels = a.inputRelabeling.Apply(labels.Labels, 0)
@@ -536,39 +519,6 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 			continue
 		}
 		labels.Sort()
-
-		bb.B = marshalLabelsFast(bb.B[:0], labels.Labels)
-		outputKey := bytesutil.InternBytes(bb.B)
-		for _, sample := range ts.Samples {
-			pushSample(inputKey, outputKey, sample.Value)
-		}
-	}
-	promutils.PutLabels(labels)
-	bbPool.Put(bb)
-}
-
-func (a *aggregator) push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
-	labels := promutils.GetLabels()
-	tmpLabels := promutils.GetLabels()
-	bb := bbPool.Get()
-	applyFilters := matchIdxs != nil
-	for idx, ts := range tss {
-		if applyFilters {
-			if !a.match.Match(ts.Labels) {
-				continue
-			}
-			matchIdxs[idx] = 1
-		}
-
-		labels.Labels = append(labels.Labels[:0], ts.Labels...)
-		if applyFilters {
-			labels.Labels = a.inputRelabeling.Apply(labels.Labels, 0)
-			if len(labels.Labels) == 0 {
-				// The metric has been deleted by the relabeling
-				continue
-			}
-			labels.Sort()
-		}
 
 		if a.aggregateOnlyByTime {
 			bb.B = marshalLabelsFast(bb.B[:0], labels.Labels)

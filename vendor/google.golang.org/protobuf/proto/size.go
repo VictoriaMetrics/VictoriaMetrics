@@ -73,27 +73,23 @@ func (o MarshalOptions) sizeField(fd protoreflect.FieldDescriptor, value protore
 }
 
 func (o MarshalOptions) sizeList(num protowire.Number, fd protoreflect.FieldDescriptor, list protoreflect.List) (size int) {
-	sizeTag := protowire.SizeTag(num)
-
 	if fd.IsPacked() && list.Len() > 0 {
 		content := 0
 		for i, llen := 0, list.Len(); i < llen; i++ {
 			content += o.sizeSingular(num, fd.Kind(), list.Get(i))
 		}
-		return sizeTag + protowire.SizeBytes(content)
+		return protowire.SizeTag(num) + protowire.SizeBytes(content)
 	}
 
 	for i, llen := 0, list.Len(); i < llen; i++ {
-		size += sizeTag + o.sizeSingular(num, fd.Kind(), list.Get(i))
+		size += protowire.SizeTag(num) + o.sizeSingular(num, fd.Kind(), list.Get(i))
 	}
 	return size
 }
 
 func (o MarshalOptions) sizeMap(num protowire.Number, fd protoreflect.FieldDescriptor, mapv protoreflect.Map) (size int) {
-	sizeTag := protowire.SizeTag(num)
-
 	mapv.Range(func(key protoreflect.MapKey, value protoreflect.Value) bool {
-		size += sizeTag
+		size += protowire.SizeTag(num)
 		size += protowire.SizeBytes(o.sizeField(fd.MapKey(), key.Value()) + o.sizeField(fd.MapValue(), value))
 		return true
 	})

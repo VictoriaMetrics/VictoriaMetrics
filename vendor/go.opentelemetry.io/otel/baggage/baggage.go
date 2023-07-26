@@ -289,37 +289,45 @@ func parseMember(member string) (Member, error) {
 		props      properties
 	)
 
-	keyValue, properties, found := strings.Cut(member, propertyDelimiter)
-	if found {
+	parts := strings.SplitN(member, propertyDelimiter, 2)
+	switch len(parts) {
+	case 2:
 		// Parse the member properties.
-		for _, pStr := range strings.Split(properties, propertyDelimiter) {
+		for _, pStr := range strings.Split(parts[1], propertyDelimiter) {
 			p, err := parseProperty(pStr)
 			if err != nil {
 				return newInvalidMember(), err
 			}
 			props = append(props, p)
 		}
-	}
-	// Parse the member key/value pair.
+		fallthrough
+	case 1:
+		// Parse the member key/value pair.
 
-	// Take into account a value can contain equal signs (=).
-	k, v, found := strings.Cut(keyValue, keyValueDelimiter)
-	if !found {
-		return newInvalidMember(), fmt.Errorf("%w: %q", errInvalidMember, member)
-	}
-	// "Leading and trailing whitespaces are allowed but MUST be trimmed
-	// when converting the header into a data structure."
-	key = strings.TrimSpace(k)
-	var err error
-	value, err = url.QueryUnescape(strings.TrimSpace(v))
-	if err != nil {
-		return newInvalidMember(), fmt.Errorf("%w: %q", err, value)
-	}
-	if !keyRe.MatchString(key) {
-		return newInvalidMember(), fmt.Errorf("%w: %q", errInvalidKey, key)
-	}
-	if !valueRe.MatchString(value) {
-		return newInvalidMember(), fmt.Errorf("%w: %q", errInvalidValue, value)
+		// Take into account a value can contain equal signs (=).
+		kv := strings.SplitN(parts[0], keyValueDelimiter, 2)
+		if len(kv) != 2 {
+			return newInvalidMember(), fmt.Errorf("%w: %q", errInvalidMember, member)
+		}
+		// "Leading and trailing whitespaces are allowed but MUST be trimmed
+		// when converting the header into a data structure."
+		key = strings.TrimSpace(kv[0])
+		var err error
+		value, err = url.QueryUnescape(strings.TrimSpace(kv[1]))
+		if err != nil {
+			return newInvalidMember(), fmt.Errorf("%w: %q", err, value)
+		}
+		if !keyRe.MatchString(key) {
+			return newInvalidMember(), fmt.Errorf("%w: %q", errInvalidKey, key)
+		}
+		if !valueRe.MatchString(value) {
+			return newInvalidMember(), fmt.Errorf("%w: %q", errInvalidValue, value)
+		}
+	default:
+		// This should never happen unless a developer has changed the string
+		// splitting somehow. Panic instead of failing silently and allowing
+		// the bug to slip past the CI checks.
+		panic("failed to parse baggage member")
 	}
 
 	return Member{key: key, value: value, properties: props, hasData: true}, nil

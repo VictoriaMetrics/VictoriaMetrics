@@ -1,15 +1,3 @@
----
-weight: 3
-title: Logstash setup
-disableToc: true
-menu:
-  docs:
-    parent: "victorialogs-data-ingestion"
-    weight: 3
-aliases:
-  - /VictoriaLogs/data-ingestion/Logstash.html
----
-
 # Logstash setup
 
 Specify [`output.elasticsearch`](https://www.elastic.co/guide/en/logstash/current/plugins-outputs-elasticsearch.html) section in the `logstash.conf` file

@@ -30,7 +30,7 @@ const shortDurations = supportedDurations.map(d => d.short);
 
 export const roundToMilliseconds = (num: number): number => Math.round(num*1000)/1000;
 
-export const roundStep = (step: number) => {
+const roundStep = (step: number) => {
   let result = roundToMilliseconds(step);
   const integerStep = Math.round(step);
 

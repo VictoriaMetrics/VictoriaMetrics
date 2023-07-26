@@ -47,8 +47,6 @@ func benchmarkMergeBlockStreams(b *testing.B, mps []*inmemoryPart, rowsPerLoop i
 			}
 		}
 	})
-
-	stopTestStorage(strg)
 }
 
 var benchTwoSourcesWorstCaseMPS = func() []*inmemoryPart {

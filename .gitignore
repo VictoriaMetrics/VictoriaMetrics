@@ -8,7 +8,6 @@
 *.test
 *.swp
 /gocache-for-docker
-/victoria-logs-data
 /victoria-metrics-data
 /vmagent-remotewrite-data
 /vmstorage-data

@@ -138,7 +138,16 @@ func (ps *partSearch) Seek(k []byte) {
 	items := ps.ib.items
 	data := ps.ib.data
 	cpLen := commonPrefixLen(ps.ib.commonPrefix, k)
-	ps.ibItemIdx = binarySearchKey(data, items, k, cpLen)
+	if cpLen > 0 {
+		keySuffix := k[cpLen:]
+		ps.ibItemIdx = sort.Search(len(items), func(i int) bool {
+			it := items[i]
+			it.Start += uint32(cpLen)
+			return string(keySuffix) <= it.String(data)
+		})
+	} else {
+		ps.ibItemIdx = binarySearchKey(data, items, k)
+	}
 	if ps.ibItemIdx < len(items) {
 		// The item has been found.
 		return
@@ -156,18 +165,14 @@ func (ps *partSearch) tryFastSeek(k []byte) bool {
 	if ps.ib == nil {
 		return false
 	}
+	data := ps.ib.data
 	items := ps.ib.items
 	idx := ps.ibItemIdx
 	if idx >= len(items) {
 		// The ib is exhausted.
 		return false
 	}
-	cpLen := commonPrefixLen(ps.ib.commonPrefix, k)
-	suffix := k[cpLen:]
-	it := items[len(items)-1]
-	it.Start += uint32(cpLen)
-	data := ps.ib.data
-	if string(suffix) > it.String(data) {
+	if string(k) > items[len(items)-1].String(data) {
 		// The item is located in next blocks.
 		return false
 	}
@@ -176,16 +181,8 @@ func (ps *partSearch) tryFastSeek(k []byte) bool {
 	if idx > 0 {
 		idx--
 	}
-	it = items[idx]
-	it.Start += uint32(cpLen)
-	if string(suffix) < it.String(data) {
-		items = items[:idx]
-		if len(items) == 0 {
-			return false
-		}
-		it = items[0]
-		it.Start += uint32(cpLen)
-		if string(suffix) < it.String(data) {
+	if string(k) < items[idx].String(data) {
+		if string(k) < items[0].String(data) {
 			// The item is located in previous blocks.
 			return false
 		}
@@ -193,7 +190,7 @@ func (ps *partSearch) tryFastSeek(k []byte) bool {
 	}
 
 	// The item is located in the current block
-	ps.ibItemIdx = idx + binarySearchKey(data, items[idx:], k, cpLen)
+	ps.ibItemIdx = idx + binarySearchKey(data, items[idx:], k)
 	return true
 }
 
@@ -333,14 +330,11 @@ func (ps *partSearch) readInmemoryBlock(bh *blockHeader) (*inmemoryBlock, error)
 	return ib, nil
 }
 
-func binarySearchKey(data []byte, items []Item, k []byte, cpLen int) int {
+func binarySearchKey(data []byte, items []Item, key []byte) int {
 	if len(items) == 0 {
 		return 0
 	}
-	suffix := k[cpLen:]
-	it := items[0]
-	it.Start += uint32(cpLen)
-	if string(suffix) <= it.String(data) {
+	if string(key) <= items[0].String(data) {
 		// Fast path - the item is the first.
 		return 0
 	}
@@ -352,9 +346,7 @@ func binarySearchKey(data []byte, items []Item, k []byte, cpLen int) int {
 	i, j := uint(0), n
 	for i < j {
 		h := uint(i+j) >> 1
-		it := items[h]
-		it.Start += uint32(cpLen)
-		if h >= 0 && h < uint(len(items)) && string(suffix) > it.String(data) {
+		if h >= 0 && h < uint(len(items)) && string(key) > items[h].String(data) {
 			i = h + 1
 		} else {
 			j = h

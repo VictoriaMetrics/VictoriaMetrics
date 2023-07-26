@@ -7,20 +7,14 @@
 package base
 
 import (
-	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/runtime"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/internal/exported"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/internal/generated"
 )
 
-// ClientOptions contains the optional parameters when creating a Client.
-type ClientOptions struct {
-	azcore.ClientOptions
-}
-
 type Client[T any] struct {
-	inner      *T
-	credential any
+	inner     *T
+	sharedKey *exported.SharedKeyCredential
 }
 
 func InnerClient[T any](client *Client[T]) *T {
@@ -28,40 +22,31 @@ func InnerClient[T any](client *Client[T]) *T {
 }
 
 func SharedKey[T any](client *Client[T]) *exported.SharedKeyCredential {
-	switch cred := client.credential.(type) {
-	case *exported.SharedKeyCredential:
-		return cred
-	default:
-		return nil
-	}
-}
-
-func Credential[T any](client *Client[T]) any {
-	return client.credential
+	return client.sharedKey
 }
 
 func NewClient[T any](inner *T) *Client[T] {
 	return &Client[T]{inner: inner}
 }
 
-func NewServiceClient(containerURL string, pipeline runtime.Pipeline, credential any) *Client[generated.ServiceClient] {
+func NewServiceClient(containerURL string, pipeline runtime.Pipeline, sharedKey *exported.SharedKeyCredential) *Client[generated.ServiceClient] {
 	return &Client[generated.ServiceClient]{
-		inner:      generated.NewServiceClient(containerURL, pipeline),
-		credential: credential,
+		inner:     generated.NewServiceClient(containerURL, pipeline),
+		sharedKey: sharedKey,
 	}
 }
 
-func NewContainerClient(containerURL string, pipeline runtime.Pipeline, credential any) *Client[generated.ContainerClient] {
+func NewContainerClient(containerURL string, pipeline runtime.Pipeline, sharedKey *exported.SharedKeyCredential) *Client[generated.ContainerClient] {
 	return &Client[generated.ContainerClient]{
-		inner:      generated.NewContainerClient(containerURL, pipeline),
-		credential: credential,
+		inner:     generated.NewContainerClient(containerURL, pipeline),
+		sharedKey: sharedKey,
 	}
 }
 
-func NewBlobClient(blobURL string, pipeline runtime.Pipeline, credential any) *Client[generated.BlobClient] {
+func NewBlobClient(blobURL string, pipeline runtime.Pipeline, sharedKey *exported.SharedKeyCredential) *Client[generated.BlobClient] {
 	return &Client[generated.BlobClient]{
-		inner:      generated.NewBlobClient(blobURL, pipeline),
-		credential: credential,
+		inner:     generated.NewBlobClient(blobURL, pipeline),
+		sharedKey: sharedKey,
 	}
 }
 

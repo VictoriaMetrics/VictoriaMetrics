@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import classNames from "classnames";
 import { ArrowDropDownIcon, CopyIcon, DoneIcon } from "../Main/Icons";
-import { getComparator, stableSort } from "./helpers";
+import { getComparator, stableSort } from "../../pages/CardinalityPanel/Table/helpers";
 import Tooltip from "../Main/Tooltip/Tooltip";
 import Button from "../Main/Button/Button";
 import { useEffect } from "preact/compat";

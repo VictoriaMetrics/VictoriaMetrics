@@ -244,9 +244,9 @@ type txRing struct {
 	txIDCount int // How many ids in the ring.
 }
 
-func newTxRing(capacity int) *txRing {
+func newTxRing(cap int) *txRing {
 	return &txRing{
-		txIDs: make([]uint64, capacity),
+		txIDs: make([]uint64, cap),
 	}
 }
 
