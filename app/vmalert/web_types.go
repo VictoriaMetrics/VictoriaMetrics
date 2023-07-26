@@ -32,6 +32,9 @@ type APIAlert struct {
 	SourceLink string `json:"source"`
 	// Restored shows whether Alert's state was restored on restart
 	Restored bool `json:"restored"`
+	// Stabilized shows when firing state is kept because of
+	// `keep_firing_for` instead of real alert
+	Stabilized bool `json:"stabilized"`
 }
 
 // WebLink returns a link to the alert which can be used in UI.
@@ -96,9 +99,11 @@ type APIRule struct {
 	// Query represents Rule's `expression` field
 	Query string `json:"query"`
 	// Duration represents Rule's `for` field
-	Duration    float64           `json:"duration"`
-	Labels      map[string]string `json:"labels,omitempty"`
-	Annotations map[string]string `json:"annotations,omitempty"`
+	Duration float64 `json:"duration"`
+	// Alert will continue firing for this long even when the alerting expression no longer has results.
+	KeepFiringFor float64           `json:"keep_firing_for"`
+	Labels        map[string]string `json:"labels,omitempty"`
+	Annotations   map[string]string `json:"annotations,omitempty"`
 	// LastError contains the error faced while executing the rule.
 	LastError string `json:"lastError"`
 	// EvaluationTime is the time taken to completely evaluate the rule in float seconds.

@@ -524,6 +524,7 @@ func (ar *AlertingRule) ToAPI() APIRule {
 		Name:              ar.Name,
 		Query:             ar.Expr,
 		Duration:          ar.For.Seconds(),
+		KeepFiringFor:     ar.KeepFiringFor.Seconds(),
 		Labels:            ar.Labels,
 		Annotations:       ar.Annotations,
 		LastEvaluation:    lastState.time,
@@ -591,6 +592,9 @@ func (ar *AlertingRule) newAlertAPI(a notifier.Alert) *APIAlert {
 	}
 	if alertURLGeneratorFn != nil {
 		aa.SourceLink = alertURLGeneratorFn(a)
+	}
+	if a.State == notifier.StateFiring && !a.KeepFiringSince.IsZero() {
+		aa.Stabilized = true
 	}
 	return aa
 }
