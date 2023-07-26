@@ -110,7 +110,7 @@ type Rule struct {
 	Alert  string              `yaml:"alert,omitempty"`
 	Expr   string              `yaml:"expr"`
 	For    *promutils.Duration `yaml:"for,omitempty"`
-	// How long will an alert continue firing since got last firing data
+	// Alert will continue firing for this long even when the alerting expression no longer has results.
 	KeepFiringFor *promutils.Duration `yaml:"keep_firing_for,omitempty"`
 	Labels        map[string]string   `yaml:"labels,omitempty"`
 	Annotations   map[string]string   `yaml:"annotations,omitempty"`

@@ -368,6 +368,7 @@ func (ar *AlertingRule) Exec(ctx context.Context, ts time.Time, limit int) ([]pr
 			if err != nil {
 				return nil, err
 			}
+			a.KeepFiringSince = time.Time{}
 			continue
 		}
 		a, err := ar.newAlert(m, ls, start, qFn)
@@ -393,12 +394,17 @@ func (ar *AlertingRule) Exec(ctx context.Context, ts time.Time, limit int) ([]pr
 				ar.logDebugf(ts, a, "PENDING => DELETED: is absent in current evaluation round")
 				continue
 			}
-			// check if alert should keep StateFiring if rule has `keep_firing_for` field
+			// check if alert should keep StateFiring if rule has
+			// `keep_firing_for` field
 			if a.State == notifier.StateFiring {
-				if ar.KeepFiringFor != 0 && a.KeepFiringSince.IsZero() {
-					a.KeepFiringSince = ts
+				if ar.KeepFiringFor > 0 {
+					if a.KeepFiringSince.IsZero() {
+						a.KeepFiringSince = ts
+					}
 				}
-				if ar.KeepFiringFor == 0 || ts.Sub(a.KeepFiringSince) > ar.KeepFiringFor {
+				// alerts with ar.KeepFiringFor>0 may remain FIRING
+				// even if their expression isn't true anymore
+				if ts.Sub(a.KeepFiringSince) > ar.KeepFiringFor {
 					a.State = notifier.StateInactive
 					a.ResolvedAt = ts
 					ar.logDebugf(ts, a, "FIRING => INACTIVE: is absent in current evaluation round")
@@ -406,9 +412,6 @@ func (ar *AlertingRule) Exec(ctx context.Context, ts time.Time, limit int) ([]pr
 				}
 				ar.logDebugf(ts, a, "KEEP_FIRING: will keep firing for %fs since %v", ar.KeepFiringFor.Seconds(), a.KeepFiringSince)
 			}
-		} else {
-			// reset KeepFiringSince
-			a.KeepFiringSince = time.Time{}
 		}
 		numActivePending++
 		if a.State == notifier.StatePending && ts.Sub(a.ActiveAt) >= ar.For {

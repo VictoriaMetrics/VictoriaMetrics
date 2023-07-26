@@ -419,7 +419,7 @@ func TestFaultyNotifier(t *testing.T) {
 	fq := &fakeQuerier{}
 	fq.add(metricWithValueAndLabels(t, 1, "__name__", "foo", "job", "bar"))
 
-	r := newTestAlertingRule("instant", 0, false)
+	r := newTestAlertingRule("instant", 0)
 	r.q = fq
 
 	fn := &fakeNotifier{}

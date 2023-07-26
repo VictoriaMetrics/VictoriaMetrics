@@ -203,6 +203,10 @@ expr: <string>
 # as firing once they return.
 [ for: <duration> | default = 0s ]
 
+# Alert will continue firing for this long even when the alerting expression no longer has results.
+# This allows you to delay alert resolution.
+[ keep_firing_for: <duration> | default = 0s ]
+
 # Whether to print debug information into logs.
 # Information includes alerts state changes and requests sent to the datasource.
 # Please note, that if rule's query params contain sensitive
