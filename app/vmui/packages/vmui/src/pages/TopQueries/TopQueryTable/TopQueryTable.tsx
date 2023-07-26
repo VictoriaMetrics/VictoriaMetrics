@@ -1,17 +1,17 @@
 import React, { FC, useState, useMemo } from "react";
 import { TopQuery } from "../../../types";
-import { getComparator, stableSort } from "../../CardinalityPanel/Table/helpers";
+import { getComparator, stableSort } from "../../../components/Table/helpers";
 import { TopQueryPanelProps } from "../TopQueryPanel/TopQueryPanel";
 import classNames from "classnames";
 import { ArrowDropDownIcon, CopyIcon, PlayCircleOutlineIcon } from "../../../components/Main/Icons";
 import Button from "../../../components/Main/Button/Button";
 import Tooltip from "../../../components/Main/Tooltip/Tooltip";
-import { useSnack } from "../../../contexts/Snackbar";
 import { Link } from "react-router-dom";
 import router from "../../../router";
+import useCopyToClipboard from "../../../hooks/useCopyToClipboard";
 
 const TopQueryTable:FC<TopQueryPanelProps> = ({ rows, columns, defaultOrderBy }) => {
-  const { showInfoMessage } = useSnack();
+  const copyToClipboard = useCopyToClipboard();
 
   const [orderBy, setOrderBy] = useState<keyof TopQuery>(defaultOrderBy || "count");
   const [orderDir, setOrderDir] = useState<"asc" | "desc">("desc");
@@ -28,10 +28,8 @@ const TopQueryTable:FC<TopQueryPanelProps> = ({ rows, columns, defaultOrderBy })
     onSortHandler(col);
   };
 
-  const createCopyHandler = ({ query }: TopQuery) => () => {
-    // TODO add useCopyToClipboard after merge https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4145
-    navigator.clipboard.writeText(query);
-    showInfoMessage({ text: "Query has been copied", type: "success" });
+  const createCopyHandler = ({ query }: TopQuery) => async () => {
+    await copyToClipboard(query, "Query has been copied");
   };
 
   return (

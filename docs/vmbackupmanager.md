@@ -309,7 +309,7 @@ If restore mark doesn't exist at `storageDataPath`(restore wasn't requested) `vm
   $ /vmbackupmanager-prod backup list
   [{"name":"daily/2023-04-07","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:07+00:00"},{"name":"hourly/2023-04-07:11","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:06+00:00"},{"name":"latest","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:04+00:00"},{"name":"monthly/2023-04","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:10+00:00"},{"name":"weekly/2023-14","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:09+00:00"}]
   ```
-2. Run `vmbackupmanager restore create` to create restore mark:
+1. Run `vmbackupmanager restore create` to create restore mark:
    - Use relative path to backup to restore from currently used remote storage:
      ```console
      $ /vmbackupmanager-prod restore create daily/2023-04-07
@@ -318,12 +318,12 @@ If restore mark doesn't exist at `storageDataPath`(restore wasn't requested) `vm
      ```console
      $ /vmbackupmanager-prod restore create azblob://test1/vmbackupmanager/daily/2023-04-07
      ```
-3. Stop `vmstorage` or `vmsingle` node
-4. Run `vmbackupmanager restore` to restore backup:
+1. Stop `vmstorage` or `vmsingle` node
+1. Run `vmbackupmanager restore` to restore backup:
   ```console
   $ /vmbackupmanager-prod restore -credsFilePath=credentials.json -storageDataPath=/vmstorage-data
   ```
-5. Start `vmstorage` or `vmsingle` node
+1. Start `vmstorage` or `vmsingle` node
 
 
 ### How to restore in Kubernetes
@@ -337,13 +337,13 @@ If restore mark doesn't exist at `storageDataPath`(restore wasn't requested) `vm
          enabled: "true"
    ```
    See operator `VMStorage` schema [here](https://docs.victoriametrics.com/operator/api.html#vmstorage) and `VMSingle` [here](https://docs.victoriametrics.com/operator/api.html#vmsinglespec).
-2. Enter container running `vmbackupmanager`
-2. Use `vmbackupmanager backup list` to get list of available backups:
+1. Enter container running `vmbackupmanager`
+1. Use `vmbackupmanager backup list` to get list of available backups:
   ```console
   $ /vmbackupmanager-prod backup list
   [{"name":"daily/2023-04-07","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:07+00:00"},{"name":"hourly/2023-04-07:11","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:06+00:00"},{"name":"latest","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:04+00:00"},{"name":"monthly/2023-04","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:10+00:00"},{"name":"weekly/2023-14","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:09+00:00"}]
   ```
-3. Use `vmbackupmanager restore create` to create restore mark:
+1. Use `vmbackupmanager restore create` to create restore mark:
   - Use relative path to backup to restore from currently used remote storage:
     ```console
     $ /vmbackupmanager-prod restore create daily/2023-04-07
@@ -352,7 +352,7 @@ If restore mark doesn't exist at `storageDataPath`(restore wasn't requested) `vm
     ```console
     $ /vmbackupmanager-prod restore create azblob://test1/vmbackupmanager/daily/2023-04-07
     ```
-4. Restart pod
+1. Restart pod
 
 #### Restore cluster into another cluster
 
@@ -369,13 +369,13 @@ Clusters here are referred to as `source` and `destination`.
    ```
    Note: it is safe to leave this section in the cluster configuration, since it will be ignored if restore mark doesn't exist.
    > Important! Use different `-dst` for *destination* cluster to avoid overwriting backup data of the *source* cluster.
-2. Enter container running `vmbackupmanager` in *source* cluster
-2. Use `vmbackupmanager backup list` to get list of available backups:
+1. Enter container running `vmbackupmanager` in *source* cluster
+1. Use `vmbackupmanager backup list` to get list of available backups:
   ```console
   $ /vmbackupmanager-prod backup list
   [{"name":"daily/2023-04-07","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:07+00:00"},{"name":"hourly/2023-04-07:11","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:06+00:00"},{"name":"latest","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:04+00:00"},{"name":"monthly/2023-04","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:10+00:00"},{"name":"weekly/2023-14","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:09+00:00"}]
   ```
-3. Use `vmbackupmanager restore create` to create restore mark at each pod of the *destination* cluster.
+1. Use `vmbackupmanager restore create` to create restore mark at each pod of the *destination* cluster.
    Each pod in *destination* cluster should be restored from backup of respective pod in *source* cluster.
    For example: `vmstorage-source-0` in *source* cluster should be restored from `vmstorage-destination-0` in *destination* cluster.
   ```console
@@ -434,9 +434,9 @@ command-line flags:
   -dst string
      The root folder of Victoria Metrics backups. Example: gs://bucket/path/to/backup/dir, s3://bucket/path/to/backup/dir or fs:///path/to/local/backup/dir
   -enableTCP6
-     Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP is used
+     Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP are used
   -envflag.enable
-     Whether to enable reading flags from environment variables additionally to command line. Command line flag values have priority over values from environment vars. Flags are read only from command line if this flag isn't set. See https://docs.victoriametrics.com/#environment-variables for more details
+     Whether to enable reading flags from environment variables in addition to the command line. Command line flag values have priority over values from environment vars. Flags are read only from the command line if this flag isn't set. See https://docs.victoriametrics.com/#environment-variables for more details
   -envflag.prefix string
      Prefix for environment variables if -envflag.enable is set
   -eula
@@ -458,11 +458,17 @@ command-line flags:
   -http.shutdownDelay duration
      Optional delay before http server shutdown. During this delay, the server returns non-OK responses from /health page, so load balancers can route new requests to other servers
   -httpAuth.password string
-     Password for HTTP Basic Auth. The authentication is disabled if -httpAuth.username is empty
+     Password for HTTP server's Basic Auth. The authentication is disabled if -httpAuth.username is empty
   -httpAuth.username string
-     Username for HTTP Basic Auth. The authentication is disabled if empty. See also -httpAuth.password
+     Username for HTTP server's Basic Auth. The authentication is disabled if empty. See also -httpAuth.password
   -httpListenAddr string
      Address to listen for http connections (default ":8300")
+  -internStringCacheExpireDuration duration
+     The expiry duration for caches for interned strings. See https://en.wikipedia.org/wiki/String_interning . See also -internStringMaxLen and -internStringDisableCache (default 6m0s)
+  -internStringDisableCache
+     Whether to disable caches for interned strings. This may reduce memory usage at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning . See also -internStringCacheExpireDuration and -internStringMaxLen
+  -internStringMaxLen int
+     The maximum length for strings to intern. A lower limit may save memory at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning . See also -internStringDisableCache and -internStringCacheExpireDuration (default 500)
   -keepLastDaily int
      Keep last N daily backups. If 0 is specified next retention cycle removes all backups for given time period. (default -1)
   -keepLastHourly int
@@ -490,10 +496,10 @@ command-line flags:
   -maxBytesPerSecond int
      The maximum upload speed. There is no limit if it is set to 0
   -memory.allowedBytes size
-     Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache resulting in higher disk IO usage
+     Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache resulting in higher disk IO usage
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
   -memory.allowedPercent float
-     Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache which will result in higher disk IO usage (default 60)
+     Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache which will result in higher disk IO usage (default 60)
   -metricsAuthKey string
      Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -pprofAuthKey string
@@ -507,13 +513,20 @@ command-line flags:
      Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/#push-metrics . By default, metrics exposed at /metrics page aren't pushed to any remote storage
      Supports an array of values separated by comma or specified via multiple flags.
   -runOnStart
-     Upload backups immediately after start of the service. Otherwise, the backup starts on new hour
+     Upload backups immediately after start of the service. Otherwise the backup starts on new hour
+  -s2a_enable_appengine_dialer
+     If true, opportunistically use AppEngine-specific dialer to call S2A.
+  -s2a_timeout duration
+     Timeout enforced on the connection to the S2A service for handshake. (default 3s)
   -s3ForcePathStyle
      Prefixing endpoint with bucket name when set false, true by default. (default true)
+  -s3StorageClass string
+     The Storage Class applied to objects uploaded to AWS S3. Supported values are: GLACIER, DEEP_ARCHIVE, GLACIER_IR, INTELLIGENT_TIERING, ONEZONE_IA, OUTPOSTS, REDUCED_REDUNDANCY, STANDARD, STANDARD_IA.
+     See https://docs.aws.amazon.com/AmazonS3/latest/userguide/storage-class-intro.html/
   -snapshot.createURL string
      VictoriaMetrics create snapshot url. When this is given a snapshot will automatically be created during backup.Example: http://victoriametrics:8428/snapshot/create
   -snapshot.deleteURL string
-     VictoriaMetrics delete snapshot url. Optional. Will be generated from snapshot.createURL if not provided. All created snapshots will be automatically deleted.Example: http://victoriametrics:8428/snapshot/delete
+     VictoriaMetrics delete snapshot url. Optional. Will be generated from snapshot.createURL if not provided. All created snaphosts will be automatically deleted.Example: http://victoriametrics:8428/snapshot/delete
   -storageDataPath string
      Path to VictoriaMetrics data. Must match -storageDataPath from VictoriaMetrics or vmstorage (default "victoria-metrics-data")
   -tls

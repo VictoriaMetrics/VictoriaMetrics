@@ -54,9 +54,9 @@ For each `VMCluster` resource, the Operator creates `VMStorage` as `StatefulSet`
 as deployment. For `VMStorage` and `VMSelect` headless  services are created. `VMInsert` is created as service with clusterIP. 
 
 There is a strict order for these objects creation and reconciliation:
- 1. `VMStorage` is synced - the Operator waits until all its pods are ready;
- 2. Then it syncs `VMSelect` with the same manner;
- 3. `VMInsert` is the last object to sync.
+1. `VMStorage` is synced - the Operator waits until all its pods are ready;
+1. Then it syncs `VMSelect` with the same manner;
+1. `VMInsert` is the last object to sync.
 
 All statefulsets are created with [OnDelete](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#on-delete) 
 update type. It allows to manually manage the rolling update process for Operator by deleting pods one by one and waiting 
@@ -212,19 +212,22 @@ two operators at the same time.
  By specifying configuration at CRD, operator generates config for `VMAgent` and syncs it. It's possible to use static targets
  or use standard k8s discovery mechanism with `Ingress`. 
   You have to configure blackbox exporter before you can use this feature. The second requirement is `VMAgent` selectors, 
-  it must match your `VMProbe` by label or namespace selector.
+  it must match your `VMProbe` by label or namespace selector. `VMAgent` probeSelector must match `VMProbe` labels.
+ See more details about selectors [here](https://docs.victoriametrics.com/operator/quick-start.html#object-selectors).
 
 ## VMNodeScrape
 
 The `VMNodeScrape` CRD provides discovery mechanism for scraping metrics kubernetes nodes.
 By specifying configuration at CRD, operator generates config for `VMAgent` and syncs it. It's useful for cadvisor scraping,
 node-exporter or other node-based exporters. `VMAgent` nodeScrapeSelector must match `VMNodeScrape` labels.
+ See more details about selectors [here](https://docs.victoriametrics.com/operator/quick-start.html#object-selectors).
 
 ## VMStaticScrape
 
 The `VMStaticScrape` CRD provides mechanism for scraping metrics from static targets, configured by CRD targets.
 By specifying configuration at CRD, operator generates config for `VMAgent` and syncs it. It's useful for external targets management,
 when service-discovery is not available. `VMAgent` staticScrapeSelector must match `VMStaticScrape` labels.
+See more details about selectors [here](https://docs.victoriametrics.com/operator/quick-start.html#object-selectors).
  
 ## VMAuth
 

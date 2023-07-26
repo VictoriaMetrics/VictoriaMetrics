@@ -449,7 +449,7 @@ func TestParsedRelabelConfigsApply(t *testing.T) {
 	t.Run("keep-if-hit", func(t *testing.T) {
 		f(`
 - action: keep
-  if: '{foo="yyy"}'
+  if: ['foobar', '{foo="yyy"}', '{a="b"}']
 `, `{foo="yyy"}`, false, `{foo="yyy"}`)
 	})
 	t.Run("keep-hit", func(t *testing.T) {

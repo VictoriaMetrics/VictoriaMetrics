@@ -174,6 +174,7 @@ type serverOptions struct {
 	maxHeaderListSize     *uint32
 	headerTableSize       *uint32
 	numServerWorkers      uint32
+	recvBufferPool        SharedBufferPool
 }
 
 var defaultServerOptions = serverOptions{
@@ -182,6 +183,7 @@ var defaultServerOptions = serverOptions{
 	connectionTimeout:     120 * time.Second,
 	writeBufferSize:       defaultWriteBufSize,
 	readBufferSize:        defaultReadBufSize,
+	recvBufferPool:        nopBufferPool{},
 }
 var globalServerOptions []ServerOption
 
@@ -552,6 +554,27 @@ func NumStreamWorkers(numServerWorkers uint32) ServerOption {
 	})
 }
 
+// RecvBufferPool returns a ServerOption that configures the server
+// to use the provided shared buffer pool for parsing incoming messages. Depending
+// on the application's workload, this could result in reduced memory allocation.
+//
+// If you are unsure about how to implement a memory pool but want to utilize one,
+// begin with grpc.NewSharedBufferPool.
+//
+// Note: The shared buffer pool feature will not be active if any of the following
+// options are used: StatsHandler, EnableTracing, or binary logging. In such
+// cases, the shared buffer pool will be ignored.
+//
+// # Experimental
+//
+// Notice: This API is EXPERIMENTAL and may be changed or removed in a
+// later release.
+func RecvBufferPool(bufferPool SharedBufferPool) ServerOption {
+	return newFuncServerOption(func(o *serverOptions) {
+		o.recvBufferPool = bufferPool
+	})
+}
+
 // serverWorkerResetThreshold defines how often the stack must be reset. Every
 // N requests, by spawning a new goroutine in its place, a worker can reset its
 // stack so that large stacks don't live in memory forever. 2^16 should allow
@@ -895,7 +918,7 @@ func (s *Server) drainServerTransports(addr string) {
 	s.mu.Lock()
 	conns := s.conns[addr]
 	for st := range conns {
-		st.Drain()
+		st.Drain("")
 	}
 	s.mu.Unlock()
 }
@@ -1046,7 +1069,7 @@ func (s *Server) addConn(addr string, st transport.ServerTransport) bool {
 	if s.drain {
 		// Transport added after we drained our existing conns: drain it
 		// immediately.
-		st.Drain()
+		st.Drain("")
 	}
 
 	if s.conns[addr] == nil {
@@ -1296,7 +1319,7 @@ func (s *Server) processUnaryRPC(t transport.ServerTransport, stream *transport.
 	if len(shs) != 0 || len(binlogs) != 0 {
 		payInfo = &payloadInfo{}
 	}
-	d, err := recvAndDecompress(&parser{r: stream}, stream, dc, s.opts.maxReceiveMessageSize, payInfo, decomp)
+	d, err := recvAndDecompress(&parser{r: stream, recvBufferPool: s.opts.recvBufferPool}, stream, dc, s.opts.maxReceiveMessageSize, payInfo, decomp)
 	if err != nil {
 		if e := t.WriteStatus(stream, status.Convert(err)); e != nil {
 			channelz.Warningf(logger, s.channelzID, "grpc: Server.processUnaryRPC failed to write status: %v", e)
@@ -1506,7 +1529,7 @@ func (s *Server) processStreamingRPC(t transport.ServerTransport, stream *transp
 		ctx:                   ctx,
 		t:                     t,
 		s:                     stream,
-		p:                     &parser{r: stream},
+		p:                     &parser{r: stream, recvBufferPool: s.opts.recvBufferPool},
 		codec:                 s.getCodec(stream.ContentSubtype()),
 		maxReceiveMessageSize: s.opts.maxReceiveMessageSize,
 		maxSendMessageSize:    s.opts.maxSendMessageSize,
@@ -1856,7 +1879,7 @@ func (s *Server) GracefulStop() {
 	if !s.drain {
 		for _, conns := range s.conns {
 			for st := range conns {
-				st.Drain()
+				st.Drain("graceful_stop")
 			}
 		}
 		s.drain = true

@@ -6,7 +6,7 @@ groups:
     # note the `job` filter and update accordingly to your setup
     rules:
       - alert: TooManyRestarts
-        expr: changes(process_start_time_seconds{job=~"victoriametrics.*|vmselect.*|vminsert.*|vmstorage.*|vmagent.*|vmalert.*|vmsingle.*"}[15m]) > 2
+        expr: changes(process_start_time_seconds{job=~"victoriametrics.*|vmselect.*|vminsert.*|vmstorage.*|vmagent.*|vmalert.*|vmsingle.*|vmalertmanager.*"}[15m]) > 2
         labels:
           severity: critical
         annotations:
@@ -15,7 +15,7 @@ groups:
             It might be crashlooping."
 
       - alert: ServiceDown
-        expr: up{job=~"victoriametrics.*|vmselect.*|vminsert.*|vmstorage.*|vmagent.*|vmalert.*|vmsingle.*"} == 0
+        expr: up{job=~"victoriametrics.*|vmselect.*|vminsert.*|vmstorage.*|vmagent.*|vmalert.*|vmsingle.*|vmalertmanager.*"} == 0
         for: 2m
         labels:
           severity: critical

@@ -17,6 +17,12 @@ func ParseTime(s string) (float64, error) {
 	return ParseTimeAt(s, currentTimestamp)
 }
 
+const (
+	// time.UnixNano can only store maxInt64, which is 2262
+	maxValidYear = 2262
+	minValidYear = 1970
+)
+
 // ParseTimeAt parses time s in different formats, assuming the given currentTimestamp.
 //
 // See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#timestamp-formats
@@ -66,6 +72,10 @@ func ParseTimeAt(s string, currentTimestamp float64) (float64, error) {
 		t, err := time.Parse("2006", s)
 		if err != nil {
 			return 0, err
+		}
+		y := t.Year()
+		if y > maxValidYear || y < minValidYear {
+			return 0, fmt.Errorf("cannot parse year from %q: year must in range [%d, %d]", s, minValidYear, maxValidYear)
 		}
 		return tzOffset + float64(t.UnixNano())/1e9, nil
 	}

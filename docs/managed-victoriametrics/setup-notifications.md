@@ -15,8 +15,8 @@ The guide covers how to enable email and Slack notifications.
 
 Table of content:
 1. [Setup Slack notifications](#setup-slack-notifications)
-2. [Setup emails notifications](#setup-emails-notifications)
-3. [Send test notification](#send-test-notification)
+1. [Setup emails notifications](#setup-emails-notifications)
+1. [Send test notification](#send-test-notification)
 
 When you enter the notification section, you will be able to fill in the channels in which you
 want to receive notifications
@@ -28,23 +28,23 @@ want to receive notifications
 ## Setup Slack notifications
 
 1. Setup Slack webhook
-How to do this is indicated on the following link https://api.slack.com/messaging/webhooks
+   How to do this is indicated on the following link https://api.slack.com/messaging/webhooks
 
-<p>
-  <img src="setup-notifications-slack-channels-webhook.png" width="800">
-</p>
+   <p>
+     <img src="setup-notifications-slack-channels-webhook.png" width="800">
+   </p>
 
-2. Specify Slack channels
+1. Specify Slack channels
 
-Enter one or more channels into input and press enter or choose it after each input.
+   Enter one or more channels into input and press enter or choose it after each input.
 
-<p>
-  <img src="setup-notifications-slack-channel.png" width="800">
-</p>
+   <p>
+     <img src="setup-notifications-slack-channel.png" width="800">
+   </p>
 
-<p>
-  <img src="setup-notifications-slack-channels.png" width="800">
-</p>
+   <p>
+     <img src="setup-notifications-slack-channels.png" width="800">
+   </p>
 
 ## Setup emails notifications
 

@@ -3,6 +3,7 @@ package streamaggr
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -158,7 +159,7 @@ func TestAggregatorsEqual(t *testing.T) {
 }
 
 func TestAggregatorsSuccess(t *testing.T) {
-	f := func(config, inputMetrics, outputMetricsExpected string) {
+	f := func(config, inputMetrics, outputMetricsExpected, matchIdxsStrExpected string) {
 		t.Helper()
 
 		// Initialize Aggregators
@@ -183,8 +184,17 @@ func TestAggregatorsSuccess(t *testing.T) {
 
 		// Push the inputMetrics to Aggregators
 		tssInput := mustParsePromMetrics(inputMetrics)
-		a.Push(tssInput)
+		matchIdxs := a.Push(tssInput, nil)
 		a.MustStop()
+
+		// Verify matchIdxs equals to matchIdxsExpected
+		matchIdxsStr := ""
+		for _, v := range matchIdxs {
+			matchIdxsStr += strconv.Itoa(int(v))
+		}
+		if matchIdxsStr != matchIdxsStrExpected {
+			t.Fatalf("unexpected matchIdxs;\ngot\n%s\nwant\n%s", matchIdxsStr, matchIdxsStrExpected)
+		}
 
 		// Verify the tssOutput contains the expected metrics
 		tsStrings := make([]string, len(tssOutput))
@@ -199,9 +209,9 @@ func TestAggregatorsSuccess(t *testing.T) {
 	}
 
 	// Empty config
-	f(``, ``, ``)
-	f(``, `foo{bar="baz"} 1`, ``)
-	f(``, "foo 1\nbaz 2", ``)
+	f(``, ``, ``, "")
+	f(``, `foo{bar="baz"} 1`, ``, "0")
+	f(``, "foo 1\nbaz 2", ``, "00")
 
 	// Empty by list - aggregate only by time
 	f(`
@@ -224,7 +234,7 @@ foo:1m_last{abc="123"} 8.5
 foo:1m_last{abc="456",de="fg"} 8
 foo:1m_sum_samples{abc="123"} 12.5
 foo:1m_sum_samples{abc="456",de="fg"} 8
-`)
+`, "1111")
 
 	// Special case: __name__ in `by` list - this is the same as empty `by` list
 	f(`
@@ -242,7 +252,7 @@ bar:1m_sum_samples 5
 foo:1m_count_samples 3
 foo:1m_count_series 2
 foo:1m_sum_samples 20.5
-`)
+`, "1111")
 
 	// Non-empty `by` list with non-existing labels
 	f(`
@@ -260,7 +270,7 @@ bar:1m_by_bar_foo_sum_samples 5
 foo:1m_by_bar_foo_count_samples 3
 foo:1m_by_bar_foo_count_series 2
 foo:1m_by_bar_foo_sum_samples 20.5
-`)
+`, "1111")
 
 	// Non-empty `by` list with existing label
 	f(`
@@ -281,7 +291,7 @@ foo:1m_by_abc_count_series{abc="123"} 1
 foo:1m_by_abc_count_series{abc="456"} 1
 foo:1m_by_abc_sum_samples{abc="123"} 12.5
 foo:1m_by_abc_sum_samples{abc="456"} 8
-`)
+`, "1111")
 
 	// Non-empty `by` list with duplicate existing label
 	f(`
@@ -302,7 +312,7 @@ foo:1m_by_abc_count_series{abc="123"} 1
 foo:1m_by_abc_count_series{abc="456"} 1
 foo:1m_by_abc_sum_samples{abc="123"} 12.5
 foo:1m_by_abc_sum_samples{abc="456"} 8
-`)
+`, "1111")
 
 	// Non-empty `without` list with non-existing labels
 	f(`
@@ -323,7 +333,7 @@ foo:1m_without_foo_count_series{abc="123"} 1
 foo:1m_without_foo_count_series{abc="456",de="fg"} 1
 foo:1m_without_foo_sum_samples{abc="123"} 12.5
 foo:1m_without_foo_sum_samples{abc="456",de="fg"} 8
-`)
+`, "1111")
 
 	// Non-empty `without` list with existing labels
 	f(`
@@ -344,7 +354,7 @@ foo:1m_without_abc_count_series 1
 foo:1m_without_abc_count_series{de="fg"} 1
 foo:1m_without_abc_sum_samples 12.5
 foo:1m_without_abc_sum_samples{de="fg"} 8
-`)
+`, "1111")
 
 	// Special case: __name__ in `without` list
 	f(`
@@ -365,7 +375,7 @@ foo{abc="456",de="fg"} 8
 :1m_sum_samples 5
 :1m_sum_samples{abc="123"} 12.5
 :1m_sum_samples{abc="456",de="fg"} 8
-`)
+`, "1111")
 
 	// drop some input metrics
 	f(`
@@ -383,7 +393,7 @@ foo{abc="456",de="fg"} 8
 `, `bar:1m_without_abc_count_samples 1
 bar:1m_without_abc_count_series 1
 bar:1m_without_abc_sum_samples 5
-`)
+`, "1111")
 
 	// rename output metrics
 	f(`
@@ -410,7 +420,7 @@ bar-1m-without-abc-sum-samples 5
 foo-1m-without-abc-count-samples 2
 foo-1m-without-abc-count-series 1
 foo-1m-without-abc-sum-samples 12.5
-`)
+`, "1111")
 
 	// match doesn't match anything
 	f(`
@@ -423,14 +433,16 @@ foo{abc="123"} 4
 bar 5
 foo{abc="123"} 8.5
 foo{abc="456",de="fg"} 8
-`, ``)
+`, ``, "0000")
 
 	// match matches foo series with non-empty abc label
 	f(`
 - interval: 1m
   by: [abc]
   outputs: [count_samples, sum_samples, count_series]
-  match: 'foo{abc=~".+"}'
+  match:
+  - foo{abc=~".+"}
+  - '{non_existing_label!=""}'
 `, `
 foo{abc="123"} 4
 bar 5
@@ -442,7 +454,7 @@ foo:1m_by_abc_count_series{abc="123"} 1
 foo:1m_by_abc_count_series{abc="456"} 1
 foo:1m_by_abc_sum_samples{abc="123"} 12.5
 foo:1m_by_abc_sum_samples{abc="456"} 8
-`)
+`, "1011")
 
 	// total output for non-repeated series
 	f(`
@@ -453,7 +465,7 @@ foo 123
 bar{baz="qwe"} 4.34
 `, `bar:1m_total{baz="qwe"} 0
 foo:1m_total 0
-`)
+`, "11")
 
 	// total output for repeated series
 	f(`
@@ -472,7 +484,7 @@ foo{baz="qwe"} 10
 bar:1m_total{baz="qwer"} 1
 foo:1m_total 0
 foo:1m_total{baz="qwe"} 15
-`)
+`, "11111111")
 
 	// total output for repeated series with group by __name__
 	f(`
@@ -490,7 +502,7 @@ bar{baz="qwer"} 344
 foo{baz="qwe"} 10
 `, `bar:1m_total 6.02
 foo:1m_total 15
-`)
+`, "11111111")
 
 	// increase output for non-repeated series
 	f(`
@@ -501,7 +513,7 @@ foo 123
 bar{baz="qwe"} 4.34
 `, `bar:1m_increase{baz="qwe"} 0
 foo:1m_increase 0
-`)
+`, "11")
 
 	// increase output for repeated series
 	f(`
@@ -520,7 +532,7 @@ foo{baz="qwe"} 10
 bar:1m_increase{baz="qwer"} 1
 foo:1m_increase 0
 foo:1m_increase{baz="qwe"} 15
-`)
+`, "11111111")
 
 	// multiple aggregate configs
 	f(`
@@ -539,7 +551,7 @@ foo:1m_sum_samples 4.3
 foo:1m_sum_samples{bar="baz"} 2
 foo:5m_by_bar_sum_samples 4.3
 foo:5m_by_bar_sum_samples{bar="baz"} 2
-`)
+`, "111")
 
 	// min and max outputs
 	f(`
@@ -556,7 +568,7 @@ foo:1m_max{abc="123"} 8.5
 foo:1m_max{abc="456",de="fg"} 8
 foo:1m_min{abc="123"} 4
 foo:1m_min{abc="456",de="fg"} 8
-`)
+`, "1111")
 
 	// avg output
 	f(`
@@ -570,7 +582,7 @@ foo{abc="456",de="fg"} 8
 `, `bar:1m_avg 5
 foo:1m_avg{abc="123"} 6.25
 foo:1m_avg{abc="456",de="fg"} 8
-`)
+`, "1111")
 
 	// stddev output
 	f(`
@@ -584,7 +596,7 @@ foo{abc="456",de="fg"} 8
 `, `bar:1m_stddev 0
 foo:1m_stddev{abc="123"} 2.25
 foo:1m_stddev{abc="456",de="fg"} 0
-`)
+`, "1111")
 
 	// stdvar output
 	f(`
@@ -598,7 +610,7 @@ foo{abc="456",de="fg"} 8
 `, `bar:1m_stdvar 0
 foo:1m_stdvar{abc="123"} 5.0625
 foo:1m_stdvar{abc="456",de="fg"} 0
-`)
+`, "1111")
 
 	// histogram_bucket output
 	f(`
@@ -616,7 +628,7 @@ cpu_usage{cpu="2"} 90
 cpu_usage:1m_histogram_bucket{cpu="1",vmrange="1.292e+01...1.468e+01"} 3
 cpu_usage:1m_histogram_bucket{cpu="1",vmrange="2.448e+01...2.783e+01"} 1
 cpu_usage:1m_histogram_bucket{cpu="2",vmrange="8.799e+01...1.000e+02"} 1
-`)
+`, "1111111")
 
 	// histogram_bucket output without cpu
 	f(`
@@ -635,7 +647,7 @@ cpu_usage{cpu="2"} 90
 cpu_usage:1m_without_cpu_histogram_bucket{vmrange="1.292e+01...1.468e+01"} 3
 cpu_usage:1m_without_cpu_histogram_bucket{vmrange="2.448e+01...2.783e+01"} 1
 cpu_usage:1m_without_cpu_histogram_bucket{vmrange="8.799e+01...1.000e+02"} 1
-`)
+`, "1111111")
 
 	// quantiles output
 	f(`
@@ -655,7 +667,7 @@ cpu_usage:1m_quantiles{cpu="1",quantile="1"} 25
 cpu_usage:1m_quantiles{cpu="2",quantile="0"} 90
 cpu_usage:1m_quantiles{cpu="2",quantile="0.5"} 90
 cpu_usage:1m_quantiles{cpu="2",quantile="1"} 90
-`)
+`, "1111111")
 
 	// quantiles output without cpu
 	f(`
@@ -673,11 +685,11 @@ cpu_usage{cpu="2"} 90
 `, `cpu_usage:1m_without_cpu_quantiles{quantile="0"} 12
 cpu_usage:1m_without_cpu_quantiles{quantile="0.5"} 13.3
 cpu_usage:1m_without_cpu_quantiles{quantile="1"} 90
-`)
+`, "1111111")
 }
 
 func TestAggregatorsWithDedupInterval(t *testing.T) {
-	f := func(config, inputMetrics, outputMetricsExpected string) {
+	f := func(config, inputMetrics, outputMetricsExpected, matchIdxsStrExpected string) {
 		t.Helper()
 
 		// Initialize Aggregators
@@ -703,7 +715,7 @@ func TestAggregatorsWithDedupInterval(t *testing.T) {
 
 		// Push the inputMetrics to Aggregators
 		tssInput := mustParsePromMetrics(inputMetrics)
-		a.Push(tssInput)
+		matchIdxs := a.Push(tssInput, nil)
 		if a != nil {
 			for _, aggr := range a.as {
 				aggr.dedupFlush()
@@ -711,6 +723,15 @@ func TestAggregatorsWithDedupInterval(t *testing.T) {
 			}
 		}
 		a.MustStop()
+
+		// Verify matchIdxs equals to matchIdxsExpected
+		matchIdxsStr := ""
+		for _, v := range matchIdxs {
+			matchIdxsStr += strconv.Itoa(int(v))
+		}
+		if matchIdxsStr != matchIdxsStrExpected {
+			t.Fatalf("unexpected matchIdxs;\ngot\n%s\nwant\n%s", matchIdxsStr, matchIdxsStrExpected)
+		}
 
 		// Verify the tssOutput contains the expected metrics
 		tsStrings := make([]string, len(tssOutput))
@@ -732,7 +753,7 @@ foo 123
 bar 567
 `, `bar:1m_sum_samples 567
 foo:1m_sum_samples 123
-`)
+`, "11")
 
 	f(`
 - interval: 1m
@@ -750,7 +771,7 @@ foo{baz="qwe"} 10
 bar:1m_sum_samples{baz="qwer"} 344
 foo:1m_sum_samples 123
 foo:1m_sum_samples{baz="qwe"} 10
-`)
+`, "11111111")
 }
 
 func timeSeriesToString(ts prompbmarshal.TimeSeries) string {

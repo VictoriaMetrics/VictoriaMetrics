@@ -170,7 +170,7 @@ func (o unitOpt) applyInt64ObservableGauge(c Int64ObservableGaugeConfig) Int64Ob
 func WithUnit(u string) InstrumentOption { return unitOpt(u) }
 
 // AddOption applies options to an addition measurement. See
-// [MeasurementOption] for other options that can be used as a AddOption.
+// [MeasurementOption] for other options that can be used as an AddOption.
 type AddOption interface {
 	applyAdd(AddConfig) AddConfig
 }

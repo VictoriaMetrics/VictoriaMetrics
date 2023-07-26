@@ -27,7 +27,7 @@ The use of VictoriaMetrics enterprise components is permitted in the following c
 - Production use if you have a valid enterprise contract or valid permit from VictoriaMetrics company.
   [Contact us](mailto:info@victoriametrics.com) if you need such contract.
 
-- [Managed VictoriaMetrics](https://docs.victoriametrics.com/managed_victoriametrics/) is built on top of enterprise binaries of VictoriaMetrics.
+- [Managed VictoriaMetrics](https://docs.victoriametrics.com/managed-victoriametrics/) is built on top of enterprise binaries of VictoriaMetrics.
 
 All the enterprise apps require `-eula` command-line flag to be passed to them. This flag acknowledges that your usage fits one of the cases listed above.
 

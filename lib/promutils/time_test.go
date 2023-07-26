@@ -91,6 +91,7 @@ func TestParseTimeFailure(t *testing.T) {
 	}
 
 	f("")
+	f("2263")
 	f("23-45:50")
 	f("1223-fo:ba")
 	f("1223-12:ba")

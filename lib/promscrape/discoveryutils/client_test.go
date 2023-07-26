@@ -58,22 +58,6 @@ func TestNewClientFromConfig(t *testing.T) {
 			},
 			expectedMessage: "I'm before redirect",
 		},
-		{
-			httpCfg: promauth.HTTPClientConfig{
-				EnableHTTP2: &allowed,
-			},
-			handler: func(w http.ResponseWriter, r *http.Request) {
-				switch r.URL.Path {
-				case "/redirected":
-					fmt.Fprint(w, "I'm here to serve you!!!")
-				default:
-					w.Header().Set("Location", "/redirected")
-					w.WriteHeader(http.StatusFound)
-					fmt.Fprint(w, "I'm before redirect")
-				}
-			},
-			expectedMessage: "I'm here to serve you!!!",
-		},
 	}
 
 	for _, validConfig := range newClientValidConfig {
@@ -83,7 +67,7 @@ func TestNewClientFromConfig(t *testing.T) {
 		}
 		defer testServer.Close()
 
-		client, err := NewClient("http://0.0.0.0:1234", nil, &proxy.URL{}, nil, validConfig.httpCfg)
+		client, err := NewClient("http://0.0.0.0:1234", nil, &proxy.URL{}, nil, &validConfig.httpCfg)
 		if err != nil {
 			t.Errorf("Can't create a client from this config: %+v", validConfig.httpCfg)
 			continue
