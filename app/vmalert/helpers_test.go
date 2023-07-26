@@ -272,6 +272,9 @@ func compareAlertingRules(t *testing.T, a, b *AlertingRule) error {
 	if a.For != b.For {
 		return fmt.Errorf("expected to have for %q; got %q", a.For, b.For)
 	}
+	if a.KeepFiringFor != b.KeepFiringFor {
+		return fmt.Errorf("expected to have KeepFiringFor %q; got %q", a.KeepFiringFor, b.KeepFiringFor)
+	}
 	if !reflect.DeepEqual(a.Annotations, b.Annotations) {
 		return fmt.Errorf("expected to have annotations %#v; got %#v", a.Annotations, b.Annotations)
 	}

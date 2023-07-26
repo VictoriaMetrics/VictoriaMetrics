@@ -451,6 +451,7 @@ func (ar *AlertingRule) UpdateWith(r Rule) error {
 	}
 	ar.Expr = nr.Expr
 	ar.For = nr.For
+	ar.KeepFiringFor = nr.KeepFiringFor
 	ar.Labels = nr.Labels
 	ar.Annotations = nr.Annotations
 	ar.EvalInterval = nr.EvalInterval
