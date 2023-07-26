@@ -378,10 +378,10 @@ It provides the following information per each query:
 [VMUI](#vmui) provides an ability to explore metrics exported by a particular `job` / `instance` in the following way:
 
 1. Open the `vmui` at `http://victoriametrics:8428/vmui/`.
-2. Click the `Explore metrics` tab.
-3. Select the `job` you want to explore.
-4. Optionally select the `instance` for the selected job to explore.
-5. Select metrics you want to explore and compare.
+1. Click the `Explore metrics` tab.
+1. Select the `job` you want to explore.
+1. Optionally select the `instance` for the selected job to explore.
+1. Select metrics you want to explore and compare.
 
 It is possible to change the selected time range for the graphs in the top right corner.
 
@@ -916,13 +916,13 @@ to your needs or when testing bugfixes.
 ### Development build
 
 1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.19.
-2. Run `make victoria-metrics` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
+1. Run `make victoria-metrics` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `victoria-metrics` binary and puts it into the `bin` folder.
 
 ### Production build
 
 1. [Install docker](https://docs.docker.com/install/).
-2. Run `make victoria-metrics-prod` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
+1. Run `make victoria-metrics-prod` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `victoria-metrics-prod` binary and puts it into the `bin` folder.
 
 ### ARM build
@@ -932,13 +932,13 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 ### Development ARM build
 
 1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.19.
-2. Run `make victoria-metrics-linux-arm` or `make victoria-metrics-linux-arm64` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
+1. Run `make victoria-metrics-linux-arm` or `make victoria-metrics-linux-arm64` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `victoria-metrics-linux-arm` or `victoria-metrics-linux-arm64` binary respectively and puts it into the `bin` folder.
 
 ### Production ARM build
 
 1. [Install docker](https://docs.docker.com/install/).
-2. Run `make victoria-metrics-linux-arm-prod` or `make victoria-metrics-linux-arm64-prod` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
+1. Run `make victoria-metrics-linux-arm-prod` or `make victoria-metrics-linux-arm64-prod` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `victoria-metrics-linux-arm-prod` or `victoria-metrics-linux-arm64-prod` binary respectively and puts it into the `bin` folder.
 
 ### Pure Go build (CGO_ENABLED=0)
@@ -946,7 +946,7 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 `Pure Go` mode builds only Go code without [cgo](https://golang.org/cmd/cgo/) dependencies.
 
 1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.19.
-2. Run `make victoria-metrics-pure` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
+1. Run `make victoria-metrics-pure` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `victoria-metrics-pure` binary and puts it into the `bin` folder.
 
 ### Building docker images
@@ -999,9 +999,9 @@ Navigate to `http://<victoriametrics-addr>:8428/snapshot/delete_all` in order to
 Steps for restoring from a snapshot:
 
 1. Stop VictoriaMetrics with `kill -INT`.
-2. Restore snapshot contents from backup with [vmrestore](https://docs.victoriametrics.com/vmrestore.html)
+1. Restore snapshot contents from backup with [vmrestore](https://docs.victoriametrics.com/vmrestore.html)
    to the directory pointed by `-storageDataPath`.
-3. Start VictoriaMetrics.
+1. Start VictoriaMetrics.
 
 ## How to delete time series
 
@@ -2053,16 +2053,16 @@ The simplest way to migrate data from one single-node (source) to another (desti
 to another do the following:
 
 1. Stop the VictoriaMetrics (source) with `kill -INT`;
-2. Copy (via [rsync](https://en.wikipedia.org/wiki/Rsync) or any other tool) the entire folder specified
+1. Copy (via [rsync](https://en.wikipedia.org/wiki/Rsync) or any other tool) the entire folder specified
 via `-storageDataPath` from the source node to the empty folder at the destination node.
-3. Once copy is done, stop the VictoriaMetrics (destination) with `kill -INT` and verify that
+1. Once copy is done, stop the VictoriaMetrics (destination) with `kill -INT` and verify that
 its `-storageDataPath` points to the copied folder from p.2;
-4. Start the VictoriaMetrics (destination). The copied data should be now available.
+1. Start the VictoriaMetrics (destination). The copied data should be now available.
 
 Things to consider when copying data:
 
 1. Data formats between single-node and vmstorage node aren't compatible and can't be copied.
-2. Copying data folder means complete replacement of the previous data on destination VictoriaMetrics.
+1. Copying data folder means complete replacement of the previous data on destination VictoriaMetrics.
 
 For more complex scenarios like single-to-cluster, cluster-to-single, re-sharding or migrating only a fraction
 of data - see [vmctl. Migrating data from VictoriaMetrics](https://docs.victoriametrics.com/vmctl.html#migrating-data-from-victoriametrics).
