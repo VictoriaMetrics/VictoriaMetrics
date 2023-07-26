@@ -743,6 +743,249 @@ See full description for these flags in `./vmalert -help`.
 * `query` template function is disabled for performance reasons (might be changed in future);
 * `limit` group's param has no effect during replay (might be changed in future);
 
+## Unit Testing for Rules
+
+> Unit testing is available from v1.92.0. 
+> Unit tests do not respect `-clusterMode` for now.
+
+You can use `vmalert` to run unit tests for alerting and recording rules.
+In unit test mode vmalert performs the following actions:
+* sets up an isolated VictoriaMetrics instance;
+* simulates the periodic ingestion of time series;
+* queries the ingested data for recording and alerting rules evaluation;
+* tests whether the firing alerts or resulting recording rules match the expected results. 
+
+See how to run vmalert in unit test mode below:
+```
+# Run vmalert with one or multiple test files via -unittestFile cmd-line flag
+./vmalert -unittestFile=test1.yaml -unittestFile=test2.yaml
+```
+
+vmalert is compatible with [Prometheus config format for tests](https://prometheus.io/docs/prometheus/latest/configuration/unit_testing_rules/#test-file-format)
+except `promql_expr_test` field. Use `metricsql_expr_test` field name instead. The name is different because vmalert 
+validates and executes [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) expressions, 
+which aren't always backward compatible with [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/).
+
+### Test file format
+
+The configuration format for files specified in `-unittestFile` cmd-line flag is the following:
+```
+# Path to the files or http url containing [rule groups](https://docs.victoriametrics.com/vmalert.html#groups) configuration.
+# Enterprise version of vmalert supports S3 and GCS paths to rules.
+rule_files:
+  [ - <string> ]
+
+# The evaluation interval for rules specified in `rule_files`
+[ evaluation_interval: <duration> | default = 1m ]
+
+# Groups listed below will be evaluated by order.
+# Not All the groups need not be mentioned, if not, they will be evaluated by define order in rule_files.
+group_eval_order:
+  [ - <string> ]
+
+# The list of unit test files to be checked during evaluation.
+tests:
+  [ - <test_group> ]
+```
+
+#### `<test_group>`
+
+```
+# Interval between samples for input series
+interval: <duration>
+# Time series to persist into the database according to configured <interval> before running tests.
+input_series:
+  [ - <series> ]
+
+# Name of the test group, optional
+[ name: <string> ]
+
+# Unit tests for alerting rules
+alert_rule_test:
+  [ - <alert_test_case> ]
+
+# Unit tests for Metricsql expressions.
+metricsql_expr_test:
+  [ - <metricsql_expr_test> ]
+
+# External labels accessible for templating.
+external_labels:
+  [ <labelname>: <string> ... ]
+
+```
+
+#### `<series>`
+
+```
+# series in the following format '<metric name>{<label name>=<label value>, ...}'
+# Examples:
+#      series_name{label1="value1", label2="value2"}
+#      go_goroutines{job="prometheus", instance="localhost:9090"}
+series: <string>
+
+# values support several special equations:
+#    'a+bxc' becomes 'a a+b a+(2*b) a+(3*b) … a+(c*b)'
+#     Read this as series starts at a, then c further samples incrementing by b.
+#    'a-bxc' becomes 'a a-b a-(2*b) a-(3*b) … a-(c*b)'
+#     Read this as series starts at a, then c further samples decrementing by b (or incrementing by negative b).
+#    '_' represents a missing sample from scrape
+#    'stale' indicates a stale sample
+# Examples:
+#     1. '-2+4x3' becomes '-2 2 6 10' - series starts at -2, then 3 further samples incrementing by 4.
+#     2. ' 1-2x4' becomes '1 -1 -3 -5 -7' - series starts at 1, then 4 further samples decrementing by 2.
+#     3. ' 1x4' becomes '1 1 1 1 1' - shorthand for '1+0x4', series starts at 1, then 4 further samples incrementing by 0.
+#     4. ' 1 _x3 stale' becomes '1 _ _ _ stale' - the missing sample cannot increment, so 3 missing samples are produced by the '_x3' expression.
+values: <string>
+```
+
+#### `<alert_test_case>`
+
+vmalert by default adds `alertgroup` and `alertname` to the generated alerts and time series. 
+So you will need to specify both `groupname` and `alertname` under a single `<alert_test_case>`, 
+but no need to add them under `exp_alerts`.
+You can also pass `--disableAlertgroupLabel` to prevent vmalert from adding `alertgroup` label.
+
+```
+# The time elapsed from time=0s when this alerting rule should be checked.
+# Means this rule should be firing at this point, or shouldn't be firing if 'exp_alerts' is empty.
+eval_time: <duration>
+
+# Name of the group name to be tested.
+groupname: <string>
+
+# Name of the alert to be tested.
+alertname: <string>
+
+# List of the expected alerts that are firing under the given alertname at
+# the given evaluation time. If you want to test if an alerting rule should
+# not be firing, then you can mention only the fields above and leave 'exp_alerts' empty.
+exp_alerts:
+  [ - <alert> ]
+```
+
+#### `<alert>`
+
+```
+# These are the expanded labels and annotations of the expected alert.
+# Note: labels also include the labels of the sample associated with the alert
+exp_labels:
+  [ <labelname>: <string> ]
+exp_annotations:
+  [ <labelname>: <string> ]
+```
+
+#### `<metricsql_expr_test>`
+
+```
+# Expression to evaluate
+expr: <string>
+
+# The time elapsed from time=0s when this expression be evaluated.
+eval_time: <duration>
+
+# Expected samples at the given evaluation time.
+exp_samples:
+  [ - <sample> ]
+```
+
+#### `<sample>`
+
+```
+# Labels of the sample in usual series notation '<metric name>{<label name>=<label value>, ...}'
+# Examples:
+#      series_name{label1="value1", label2="value2"}
+#      go_goroutines{job="prometheus", instance="localhost:9090"}
+labels: <string>
+
+# The expected value of the Metricsql expression.
+value: <number>
+```
+
+### Example
+
+This is an example input file for unit testing which will pass.
+`test.yaml` is the test file which follows the syntax above and `alerts.yaml` contains the alerting rules.
+
+With `rules.yaml` in the same directory, run `./vmalert -unittestFile=./unittest/testdata/test.yaml`.
+
+#### `test.yaml`
+
+```
+rule_files:
+  - rules.yaml
+
+evaluation_interval: 1m
+
+tests:
+  - interval: 1m
+    input_series:
+      - series: 'up{job="prometheus", instance="localhost:9090"}'
+        values: "0+0x1440"
+
+    metricsql_expr_test:
+      - expr: suquery_interval_test
+        eval_time: 4m
+        exp_samples:
+          - labels: '{__name__="suquery_interval_test", datacenter="dc-123", instance="localhost:9090", job="prometheus"}'
+            value: 1
+
+    alert_rule_test:
+      - eval_time: 2h
+        groupname: group1
+        alertname: InstanceDown
+        exp_alerts:
+          - exp_labels:
+              job: prometheus
+              severity: page
+              instance: localhost:9090
+              datacenter: dc-123
+            exp_annotations:
+              summary: "Instance localhost:9090 down"
+              description: "localhost:9090 of job prometheus has been down for more than 5 minutes."
+
+      - eval_time: 0
+        groupname: group1
+        alertname: AlwaysFiring
+        exp_alerts:
+          - exp_labels:
+              datacenter: dc-123
+
+      - eval_time: 0
+        groupname: group1
+        alertname: InstanceDown
+        exp_alerts: []
+
+    external_labels:
+      datacenter: dc-123
+```
+
+#### `alerts.yaml`
+
+```
+# This is the rules file.
+
+groups:
+  - name: group1
+    rules:
+      - alert: InstanceDown
+        expr: up == 0
+        for: 5m
+        labels:
+          severity: page
+        annotations:
+          summary: "Instance {{ $labels.instance }} down"
+          description: "{{ $labels.instance }} of job {{ $labels.job }} has been down for more than 5 minutes."
+      - alert: AlwaysFiring
+        expr: 1
+
+  - name: group2
+    rules:
+      - record: job:test:count_over_time1m
+        expr: sum without(instance) (count_over_time(test[1m]))
+      - record: suquery_interval_test
+        expr: count_over_time(up[5m:])
+```
+
 ## Monitoring
 
 `vmalert` exports various metrics in Prometheus exposition format at `http://vmalert-host:8880/metrics` page.
@@ -912,7 +1155,7 @@ command-line flags with their descriptions.
 
 The shortlist of configuration flags is the following:
 {% raw  %}
-```
+```console
   -clusterMode
      If clusterMode is enabled, then vmalert automatically adds the tenant specified in config groups to -datasource.url, -remoteWrite.url and -remoteRead.url. See https://docs.victoriametrics.com/vmalert.html#multitenancy . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
   -configCheckInterval duration
@@ -932,7 +1175,7 @@ The shortlist of configuration flags is the following:
   -datasource.disableKeepAlive
      Whether to disable long-lived connections to the datasource. If true, disables HTTP keep-alives and will only use the connection to the server for a single HTTP request.
   -datasource.disableStepParam
-     Whether to disable adding 'step' param to the issued instant queries. This might be useful when using vmalert with datasources that do not support 'step' param for instant queries, like Google Managed Prometheus. It is not recommended to enable this flag if you use vmalert to query VictoriaMetrics.
+     Whether to disable adding 'step' param to the issued instant queries. This might be useful when using vmalert with datasources that do not support 'step' param for instant queries, like Google Managed Prometheus. It is not recommended to enable this flag if you use vmalert with VictoriaMetrics.
   -datasource.headers string
      Optional HTTP extraHeaders to send with each request to the corresponding -datasource.url. For example, -datasource.headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding -datasource.url. Multiple headers must be delimited by '^^': -datasource.headers='header1:value1^^header2:value2'
   -datasource.lookback duration
@@ -978,9 +1221,9 @@ The shortlist of configuration flags is the following:
   -dryRun
      Whether to check only config files without running vmalert. The rules file are validated. The -rule flag must be specified.
   -enableTCP6
-     Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP is used
+     Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP are used
   -envflag.enable
-     Whether to enable reading flags from environment variables additionally to command line. Command line flag values have priority over values from environment vars. Flags are read only from command line if this flag isn't set. See https://docs.victoriametrics.com/#environment-variables for more details
+     Whether to enable reading flags from environment variables in addition to the command line. Command line flag values have priority over values from environment vars. Flags are read only from the command line if this flag isn't set. See https://docs.victoriametrics.com/#environment-variables for more details
   -envflag.prefix string
      Prefix for environment variables if -envflag.enable is set
   -eula
@@ -1011,9 +1254,9 @@ The shortlist of configuration flags is the following:
   -http.shutdownDelay duration
      Optional delay before http server shutdown. During this delay, the server returns non-OK responses from /health page, so load balancers can route new requests to other servers
   -httpAuth.password string
-     Password for HTTP Basic Auth. The authentication is disabled if -httpAuth.username is empty
+     Password for HTTP server's Basic Auth. The authentication is disabled if -httpAuth.username is empty
   -httpAuth.username string
-     Username for HTTP Basic Auth. The authentication is disabled if empty. See also -httpAuth.password
+     Username for HTTP server's Basic Auth. The authentication is disabled if empty. See also -httpAuth.password
   -httpListenAddr string
      Address to listen for http connections. See also -httpListenAddr.useProxyProtocol (default ":8880")
   -httpListenAddr.useProxyProtocol
@@ -1023,7 +1266,7 @@ The shortlist of configuration flags is the following:
   -internStringDisableCache
      Whether to disable caches for interned strings. This may reduce memory usage at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning . See also -internStringCacheExpireDuration and -internStringMaxLen
   -internStringMaxLen int
-     The maximum length for strings to intern. Lower limit may save memory at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning . See also -internStringDisableCache and -internStringCacheExpireDuration (default 500)
+     The maximum length for strings to intern. A lower limit may save memory at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning . See also -internStringDisableCache and -internStringCacheExpireDuration (default 500)
   -loggerDisableTimestamps
      Whether to disable writing timestamps in logs
   -loggerErrorsPerSecondLimit int
@@ -1041,10 +1284,10 @@ The shortlist of configuration flags is the following:
   -loggerWarnsPerSecondLimit int
      Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero values disable the rate limit
   -memory.allowedBytes size
-     Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache resulting in higher disk IO usage
+     Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache resulting in higher disk IO usage
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
   -memory.allowedPercent float
-     Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache which will result in higher disk IO usage (default 60)
+     Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache which will result in higher disk IO usage (default 60)
   -metricsAuthKey string
      Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -notifier.basicAuth.password array
@@ -1099,6 +1342,8 @@ The shortlist of configuration flags is the following:
   -notifier.url array
      Prometheus Alertmanager URL, e.g. http://127.0.0.1:9093. List all Alertmanager URLs if it runs in the cluster mode to ensure high availability.
      Supports an array of values separated by comma or specified via multiple flags.
+  -notifier.blackhole bool
+     Whether to blackhole alerting notifications. Enable this flag if you want vmalert to evaluate alerting rules without sending any notifications to external receivers (eg. alertmanager). `-notifier.url`, `-notifier.config` and `-notifier.blackhole` are mutually exclusive.
   -pprofAuthKey string
      Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -promscrape.consul.waitTime duration
@@ -1291,6 +1536,11 @@ The shortlist of configuration flags is the following:
      Path to file with TLS key if -tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated
   -tlsMinVersion string
      Optional minimum TLS version to use for incoming requests over HTTPS if -tls is set. Supported values: TLS10, TLS11, TLS12, TLS13
+  -unittestFile array
+     Path to the unit test files. When set, vmalert starts in unit test mode and performs only tests on configured files.
+     Examples:
+      -unittestFile="./unittest/testdata/test1.yaml,./unittest/testdata/test2.yaml".
+     See more information here https://docs.victoriametrics.com/vmalert.html#unit-testing-for-rules.
   -version
      Show VictoriaMetrics version
 ```
@@ -1340,7 +1590,7 @@ The configuration file allows to configure static notifiers, discover notifiers 
 and [DNS](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dns_sd_config):
 For example:
 
-```
+```yaml
 static_configs:
   - targets:
       - localhost:9093
@@ -1365,7 +1615,7 @@ to ensure [high availability](https://github.com/prometheus/alertmanager#high-av
 The configuration file [specification](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmalert/notifier/config.go)
 is the following:
 
-```
+```yaml
 # Per-target Notifier timeout when pushing alerts.
 [ timeout: <duration> | default = 10s ]
 
@@ -1484,6 +1734,7 @@ docker push my-repo:my-version-name
 ```
 
 To run the built image in `victoria-metrics-k8s-stack` or `VMAlert` CR object apply the following config change:
+
 ```yaml
 kind: VMAlert
 spec:
@@ -1495,13 +1746,13 @@ spec:
 ### Development build
 
 1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.19.
-2. Run `make vmalert` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
+1. Run `make vmalert` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `vmalert` binary and puts it into the `bin` folder.
 
 ### Production build
 
 1. [Install docker](https://docs.docker.com/install/).
-2. Run `make vmalert-prod` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
+1. Run `make vmalert-prod` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `vmalert-prod` binary and puts it into the `bin` folder.
 
 ### ARM build
@@ -1511,11 +1762,11 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 ### Development ARM build
 
 1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.19.
-2. Run `make vmalert-linux-arm` or `make vmalert-linux-arm64` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
+1. Run `make vmalert-linux-arm` or `make vmalert-linux-arm64` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `vmalert-linux-arm` or `vmalert-linux-arm64` binary respectively and puts it into the `bin` folder.
 
 ### Production ARM build
 
 1. [Install docker](https://docs.docker.com/install/).
-2. Run `make vmalert-linux-arm-prod` or `make vmalert-linux-arm64-prod` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
+1. Run `make vmalert-linux-arm-prod` or `make vmalert-linux-arm64-prod` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `vmalert-linux-arm-prod` or `vmalert-linux-arm64-prod` binary respectively and puts it into the `bin` folder.

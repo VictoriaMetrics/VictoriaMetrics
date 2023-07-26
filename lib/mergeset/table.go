@@ -661,12 +661,11 @@ func (tb *Table) flushInmemoryParts(isFinal bool) {
 
 func (riss *rawItemsShards) flush(tb *Table, dst []*inmemoryBlock, isFinal bool) []*inmemoryBlock {
 	tb.rawItemsPendingFlushesWG.Add(1)
-	defer tb.rawItemsPendingFlushesWG.Done()
-
 	for i := range riss.shards {
 		dst = riss.shards[i].appendBlocksToFlush(dst, tb, isFinal)
 	}
 	tb.flushBlocksToParts(dst, isFinal)
+	tb.rawItemsPendingFlushesWG.Done()
 	return dst
 }
 

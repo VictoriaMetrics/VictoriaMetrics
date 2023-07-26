@@ -1,6 +1,5 @@
-import React, { FC, useEffect } from "preact/compat";
+import React, { FC, useCallback, useEffect } from "preact/compat";
 import "./style.scss";
-import TextField from "../../components/Main/TextField/TextField";
 import Button from "../../components/Main/Button/Button";
 import { InfoIcon, PlayIcon, WikiIcon } from "../../components/Main/Icons";
 import "./style.scss";
@@ -9,6 +8,7 @@ import Spinner from "../../components/Main/Spinner/Spinner";
 import Alert from "../../components/Main/Alert/Alert";
 import { useSearchParams } from "react-router-dom";
 import useStateSearchParams from "../../hooks/useStateSearchParams";
+import TextField from "../../components/Main/TextField/TextField";
 
 const example = {
   config: `- if: '{bar_label=~"b.*"}'
@@ -30,20 +30,20 @@ const Relabel: FC = () => {
   const [config, setConfig] = useStateSearchParams("", "config");
   const [labels, setLabels] = useStateSearchParams("", "labels");
 
-  const handleChangeConfig = (val: string) => {
-    setConfig(val);
+  const handleChangeConfig = (val?: string) => {
+    setConfig(val || "");
   };
 
-  const handleChangeLabels = (val: string) => {
-    setLabels(val);
+  const handleChangeLabels = (val?: string) => {
+    setLabels(val || "");
   };
 
-  const handleRunQuery = () => {
+  const handleRunQuery = useCallback(() => {
     fetchData(config, labels);
     searchParams.set("config", config);
     searchParams.set("labels", labels);
     setSearchParams(searchParams);
-  };
+  }, [config, labels]);
 
   const handleRunExample = () => {
     const { config, labels } = example;
@@ -69,13 +69,14 @@ const Relabel: FC = () => {
     <section className="vm-relabeling">
       {loading && <Spinner/>}
       <div className="vm-relabeling-header vm-block">
-        <div className="vm-relabeling-header__configs">
+        <div className="vm-relabeling-header-configs">
           <TextField
             type="textarea"
             label="Relabel configs"
             value={config}
             autofocus
             onChange={handleChangeConfig}
+            onEnter={handleRunQuery}
           />
         </div>
         <div className="vm-relabeling-header__labels">
@@ -84,6 +85,7 @@ const Relabel: FC = () => {
             label="Labels"
             value={labels}
             onChange={handleChangeLabels}
+            onEnter={handleRunQuery}
           />
         </div>
         <div className="vm-relabeling-header-bottom">

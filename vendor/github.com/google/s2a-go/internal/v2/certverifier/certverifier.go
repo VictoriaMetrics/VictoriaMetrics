@@ -23,6 +23,7 @@ import (
 	"crypto/x509"
 	"fmt"
 
+	"github.com/google/s2a-go/stream"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/grpclog"
 
@@ -31,13 +32,13 @@ import (
 
 // VerifyClientCertificateChain builds a SessionReq, sends it to S2Av2 and
 // receives a SessionResp.
-func VerifyClientCertificateChain(verificationMode s2av2pb.ValidatePeerCertificateChainReq_VerificationMode, cstream s2av2pb.S2AService_SetUpSessionClient) func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+func VerifyClientCertificateChain(verificationMode s2av2pb.ValidatePeerCertificateChainReq_VerificationMode, s2AStream stream.S2AStream) func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
 	return func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
 		// Offload verification to S2Av2.
 		if grpclog.V(1) {
 			grpclog.Infof("Sending request to S2Av2 for client peer cert chain validation.")
 		}
-		if err := cstream.Send(&s2av2pb.SessionReq{
+		if err := s2AStream.Send(&s2av2pb.SessionReq{
 			ReqOneof: &s2av2pb.SessionReq_ValidatePeerCertificateChainReq{
 				ValidatePeerCertificateChainReq: &s2av2pb.ValidatePeerCertificateChainReq{
 					Mode: verificationMode,
@@ -54,7 +55,7 @@ func VerifyClientCertificateChain(verificationMode s2av2pb.ValidatePeerCertifica
 		}
 
 		// Get the response from S2Av2.
-		resp, err := cstream.Recv()
+		resp, err := s2AStream.Recv()
 		if err != nil {
 			grpclog.Infof("Failed to receive client peer cert chain validation response from S2Av2.")
 			return err
@@ -76,20 +77,21 @@ func VerifyClientCertificateChain(verificationMode s2av2pb.ValidatePeerCertifica
 
 // VerifyServerCertificateChain builds a SessionReq, sends it to S2Av2 and
 // receives a SessionResp.
-func VerifyServerCertificateChain(hostname string, verificationMode s2av2pb.ValidatePeerCertificateChainReq_VerificationMode, cstream s2av2pb.S2AService_SetUpSessionClient) func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+func VerifyServerCertificateChain(hostname string, verificationMode s2av2pb.ValidatePeerCertificateChainReq_VerificationMode, s2AStream stream.S2AStream, serverAuthorizationPolicy []byte) func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
 	return func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
 		// Offload verification to S2Av2.
 		if grpclog.V(1) {
 			grpclog.Infof("Sending request to S2Av2 for server peer cert chain validation.")
 		}
-		if err := cstream.Send(&s2av2pb.SessionReq{
+		if err := s2AStream.Send(&s2av2pb.SessionReq{
 			ReqOneof: &s2av2pb.SessionReq_ValidatePeerCertificateChainReq{
 				ValidatePeerCertificateChainReq: &s2av2pb.ValidatePeerCertificateChainReq{
 					Mode: verificationMode,
 					PeerOneof: &s2av2pb.ValidatePeerCertificateChainReq_ServerPeer_{
 						ServerPeer: &s2av2pb.ValidatePeerCertificateChainReq_ServerPeer{
-							CertificateChain: rawCerts,
-							ServerHostname:   hostname,
+							CertificateChain:                   rawCerts,
+							ServerHostname:                     hostname,
+							SerializedUnrestrictedClientPolicy: serverAuthorizationPolicy,
 						},
 					},
 				},
@@ -100,7 +102,7 @@ func VerifyServerCertificateChain(hostname string, verificationMode s2av2pb.Vali
 		}
 
 		// Get the response from S2Av2.
-		resp, err := cstream.Recv()
+		resp, err := s2AStream.Recv()
 		if err != nil {
 			grpclog.Infof("Failed to receive server peer cert chain validation response from S2Av2.")
 			return err

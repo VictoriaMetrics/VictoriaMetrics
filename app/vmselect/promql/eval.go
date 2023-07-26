@@ -1075,13 +1075,16 @@ func evalRollupFuncWithMetricExpr(qt *querytracer.Tracer, ec *EvalConfig, funcNa
 	}
 
 	// Fetch the remaining part of the result.
-	tfs := searchutils.ToTagFilters(me.LabelFilters)
-	tfss := searchutils.JoinTagFilterss([][]storage.TagFilter{tfs}, ec.EnforcedTagFilterss)
+	tfss := searchutils.ToTagFilterss(me.LabelFilterss)
+	tfss = searchutils.JoinTagFilterss(tfss, ec.EnforcedTagFilterss)
 	minTimestamp := start - maxSilenceInterval
 	if window > ec.Step {
 		minTimestamp -= window
 	} else {
 		minTimestamp -= ec.Step
+	}
+	if minTimestamp < 0 {
+		minTimestamp = 0
 	}
 	sq := storage.NewSearchQuery(minTimestamp, ec.End, tfss, ec.MaxSeries)
 	rss, err := netstorage.ProcessSearchQuery(qt, sq, ec.Deadline)

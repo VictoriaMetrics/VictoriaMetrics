@@ -127,7 +127,7 @@ If you see unexpected or unreliable query results from VictoriaMetrics, then try
    especially [subqueries](https://docs.victoriametrics.com/MetricsQL.html#subqueries)
    and [rollup functions](https://docs.victoriametrics.com/MetricsQL.html#rollup-functions) sections.
 
-2. If the simplest query continues returning unexpected / unreliable results, then try verifying correctness
+1. If the simplest query continues returning unexpected / unreliable results, then try verifying correctness
    of raw unprocessed samples for this query via [/api/v1/export](https://docs.victoriametrics.com/#how-to-export-data-in-json-line-format)
    on the given `[start..end]` time range and check whether they are expected:
 
@@ -144,7 +144,7 @@ If you see unexpected or unreliable query results from VictoriaMetrics, then try
    If you migrate from InfluxDB, then pass `-search.setLookbackToStep` command-line flag to single-node VictoriaMetrics
    or to `vmselect` in VictoriaMetrics cluster. See also [how to migrate from InfluxDB to VictoriaMetrics](https://docs.victoriametrics.com/guides/migrate-from-influx.html).
 
-3. Sometimes response caching may lead to unexpected results when samples with older timestamps
+1. Sometimes response caching may lead to unexpected results when samples with older timestamps
    are ingested into VictoriaMetrics (aka [backfilling](https://docs.victoriametrics.com/#backfilling)).
    Try disabling response cache and see whether this helps. This can be done in the following ways:
 
@@ -155,7 +155,7 @@ If you see unexpected or unreliable query results from VictoriaMetrics, then try
      If you use Grafana, then this query arg can be specified in `Custom Query Parameters` field
      at Prometheus datasource settings - see [these docs](https://grafana.com/docs/grafana/latest/datasources/prometheus/) for details.
 
-4. If you use cluster version of VictoriaMetrics, then it may return partial responses by default
+1. If you use cluster version of VictoriaMetrics, then it may return partial responses by default
    when some of `vmstorage` nodes are temporarily unavailable - see [cluster availability docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#cluster-availability)
    for details. If you want to prioritize query consistency over cluster availability,
    then you can pass `-search.denyPartialResponse` command-line flag to all the `vmselect` nodes.
@@ -164,22 +164,31 @@ If you see unexpected or unreliable query results from VictoriaMetrics, then try
    If you use Grafana, then this query arg can be specified in `Custom Query Parameters` field
    at Prometheus datasource settings - see [these docs](https://grafana.com/docs/grafana/latest/datasources/prometheus/) for details.
 
-5. If you pass `-replicationFactor` command-line flag to `vmselect`, then it is recommended removing this flag from `vmselect`,
+1. If you pass `-replicationFactor` command-line flag to `vmselect`, then it is recommended removing this flag from `vmselect`,
    since it may lead to incomplete responses when `vmstorage` nodes contain less than `-replicationFactor`
    copies of the requested data.
 
-6. Try upgrading to the [latest available version of VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/releases)
+1. If you observe gaps when plotting time series try simplifying your query according to p2 and follow the list.
+   If problem still remains, then it is likely caused by irregular intervals for metrics collection (network delays
+   or targets unavailability on scrapes, irregular pushes, irregular timestamps).
+   VictoriaMetrics automatically [fills the gaps](https://docs.victoriametrics.com/keyConcepts.html#range-query)
+   based on median interval between [data samples](https://docs.victoriametrics.com/keyConcepts.html#raw-samples).
+   This might work incorrect for irregular data as median will be skewed. In this case it is recommended to switch
+   to the static interval for gaps filling by setting `-search.minStalenessInterval=5m` cmd-line flag (`5m` is
+   the static interval used by Prometheus).
+
+1. Try upgrading to the [latest available version of VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/releases)
    and verifying whether the issue is fixed there.
 
-7. Try executing the query with `trace=1` query arg. This enables query tracing, which may contain
+1. Try executing the query with `trace=1` query arg. This enables query tracing, which may contain
    useful information on why the query returns unexpected data. See [query tracing docs](https://docs.victoriametrics.com/#query-tracing) for details.
 
-8. Inspect command-line flags passed to VictoriaMetrics components. If you don't understand clearly the purpose
+1. Inspect command-line flags passed to VictoriaMetrics components. If you don't understand clearly the purpose
    or the effect of some flags, then remove them from the list of flags passed to VictoriaMetrics components,
    because some command-line flags may change query results in unexpected ways when set to improper values.
    VictoriaMetrics is optimized for running with default flag values (e.g. when they aren't set explicitly).
 
-9. If the steps above didn't help identifying the root cause of unexpected query results,
+1. If the steps above didn't help identifying the root cause of unexpected query results,
    then [file a bugreport](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/new) with details on how to reproduce the issue.
 
 
@@ -214,7 +223,7 @@ There are the following most commons reasons for slow data ingestion in Victoria
      provide [cardinality explorer](https://docs.victoriametrics.com/#cardinality-explorer),
      which can help determining and fixing the source of [high cardinality](https://docs.victoriametrics.com/FAQ.html#what-is-high-cardinality).
 
-2. [High churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate),
+1. [High churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate),
    e.g. when old time series are substituted with new time series at a high rate.
    When VictoriaMetrics encounters a sample for new time series, it needs to register the time series
    in the internal index (aka `indexdb`), so it can be quickly located on subsequent select queries.
@@ -230,7 +239,7 @@ There are the following most commons reasons for slow data ingestion in Victoria
    The [cardinality explorer](https://docs.victoriametrics.com/#cardinality-explorer) can help identifying
    such labels.
 
-3. Resource shortage. The [official Grafana dashboards for VictoriaMetrics](https://docs.victoriametrics.com/#monitoring)
+1. Resource shortage. The [official Grafana dashboards for VictoriaMetrics](https://docs.victoriametrics.com/#monitoring)
    contain `resource usage` graphs, which show memory usage, CPU usage, disk IO usage and free disk size.
    Make sure VictoriaMetrics has enough free resources for graceful handling of potential spikes in workload
    according to the following recommendations:
@@ -258,7 +267,7 @@ There are the following most commons reasons for slow data ingestion in Victoria
      background merge of the incoming data. This leads to increased number of data files on disk,
      which, in turn, slows down both data ingestion and querying. See [these docs](https://docs.victoriametrics.com/#storage) for details.
 
-4. If you run cluster version of VictoriaMetrics, then make sure `vminsert` and `vmstorage` components
+1. If you run cluster version of VictoriaMetrics, then make sure `vminsert` and `vmstorage` components
    are located in the same network with small network latency between them.
    `vminsert` packs incoming data into batch packets and sends them to `vmstorage` on-by-one.
    It waits until `vmstorage` returns back `ack` response before sending the next packet.
@@ -272,12 +281,12 @@ There are the following most commons reasons for slow data ingestion in Victoria
    is resource shortage at `vmstorage` nodes. In this case you need to increase amounts
    of available resources (CPU, RAM, disk IO) at `vmstorage` nodes or to add more `vmstorage` nodes to the cluster.
 
-5. Noisy neighbor. Make sure VictoriaMetrics components run in an environments without other resource-hungry apps.
+1. Noisy neighbor. Make sure VictoriaMetrics components run in an environments without other resource-hungry apps.
    Such apps may steal RAM, CPU, disk IO and network bandwidth, which is needed for VictoriaMetrics components.
    Issues like this are very hard to catch via [official Grafana dashboard for cluster version of VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#monitoring)
    and proper diagnosis would require checking resource usage on the instances where VictoriaMetrics runs.
 
-6. If you see `TooHighSlowInsertsRate` [alert](https://docs.victoriametrics.com/#monitoring) when single-node VictoriaMetrics or `vmstorage` has enough
+1. If you see `TooHighSlowInsertsRate` [alert](https://docs.victoriametrics.com/#monitoring) when single-node VictoriaMetrics or `vmstorage` has enough
    free CPU and RAM, then increase `-cacheExpireDuration` command-line flag at single-node VictoriaMetrics or at `vmstorage` to the value,
    which exceeds the interval between ingested samples for the same time series (aka `scrape_interval`).
    See [this comment](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3976#issuecomment-1476883183) for more details.
@@ -342,7 +351,7 @@ There are the following most common sources of out of memory (aka OOM) crashes i
    recommended to tune. If you see that VictoriaMetrics needs increasing some cache sizes for the current workload,
    then it is better migrating to a host with more memory instead of trying to tune cache sizes manually.
 
-2. Unexpected heavy queries. The query is considered as heavy if it needs to select and process millions of unique time series.
+1. Unexpected heavy queries. The query is considered as heavy if it needs to select and process millions of unique time series.
    Such query may lead to OOM exception, since VictoriaMetrics needs to keep some of per-series data in memory.
    VictoriaMetrics provides [various settings](https://docs.victoriametrics.com/#resource-usage-limits), 
    which can help limit resource usage.
@@ -350,7 +359,7 @@ There are the following most common sources of out of memory (aka OOM) crashes i
    VictoriaMetrics also provides [query tracer](https://docs.victoriametrics.com/#query-tracing) 
    to help identify the source of heavy query.
 
-3. Lack of free memory for processing workload spikes. If VictoriaMetrics components use almost all the available memory
+1. Lack of free memory for processing workload spikes. If VictoriaMetrics components use almost all the available memory
    under the current workload, then it is recommended migrating to a host with bigger amounts of memory.
    This would protect from possible OOM crashes on workload spikes. It is recommended to have at least 50%
    of free memory for graceful handling of possible workload spikes.

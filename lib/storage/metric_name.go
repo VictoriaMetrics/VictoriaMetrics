@@ -311,8 +311,20 @@ func (mn *MetricName) GetTagValue(tagKey string) []byte {
 }
 
 // SetTags sets tags from src with keys matching addTags.
-func (mn *MetricName) SetTags(addTags []string, src *MetricName) {
+//
+// It adds prefix to copied label names.
+// skipTags contains a list of tags, which must be skipped.
+func (mn *MetricName) SetTags(addTags []string, prefix string, skipTags []string, src *MetricName) {
+	if len(addTags) == 1 && addTags[0] == "*" {
+		// Special case for copying all the tags except of skipTags from src to mn.
+		mn.setAllTags(prefix, skipTags, src)
+		return
+	}
+	bb := bbPool.Get()
 	for _, tagName := range addTags {
+		if containsString(skipTags, tagName) {
+			continue
+		}
 		if tagName == string(metricGroupTagKey) {
 			mn.MetricGroup = append(mn.MetricGroup[:0], src.MetricGroup...)
 			continue
@@ -329,19 +341,47 @@ func (mn *MetricName) SetTags(addTags []string, src *MetricName) {
 			mn.RemoveTag(tagName)
 			continue
 		}
-		found := false
-		for i := range mn.Tags {
-			t := &mn.Tags[i]
-			if string(t.Key) == tagName {
-				t.Value = append(t.Value[:0], srcTag.Value...)
-				found = true
-				break
-			}
-		}
-		if !found {
-			mn.AddTagBytes(srcTag.Key, srcTag.Value)
+		bb.B = append(bb.B[:0], prefix...)
+		bb.B = append(bb.B, tagName...)
+		mn.SetTagBytes(bb.B, srcTag.Value)
+	}
+	bbPool.Put(bb)
+}
+
+var bbPool bytesutil.ByteBufferPool
+
+// SetTagBytes sets tag with the given key to the given value.
+func (mn *MetricName) SetTagBytes(key, value []byte) {
+	for i := range mn.Tags {
+		t := &mn.Tags[i]
+		if string(t.Key) == string(key) {
+			t.Value = append(t.Value[:0], value...)
+			return
 		}
 	}
+	mn.AddTagBytes(key, value)
+}
+
+func (mn *MetricName) setAllTags(prefix string, skipTags []string, src *MetricName) {
+	bb := bbPool.Get()
+	for _, tag := range src.Tags {
+		if containsString(skipTags, bytesutil.ToUnsafeString(tag.Key)) {
+			continue
+		}
+		bb.B = append(bb.B[:0], prefix...)
+		bb.B = append(bb.B, tag.Key...)
+		mn.SetTagBytes(bb.B, tag.Value)
+	}
+	bbPool.Put(bb)
+}
+
+func containsString(a []string, s string) bool {
+	for _, x := range a {
+		if x == s {
+			return true
+		}
+	}
+	return false
 }
 
 func hasTag(tags []string, key []byte) bool {
