@@ -378,9 +378,35 @@ the process alerts state will be lost. To avoid this situation, `vmalert` should
 * `-remoteRead.url` - URL to VictoriaMetrics (Single) or vmselect (Cluster). `vmalert` will try to restore alerts state
   from configured address by querying time series with name `ALERTS_FOR_STATE`.
 
-Both flags are required for proper state restoration. Restore process may fail if time series are missing
+Both flags are required for proper state restoration.
+Restore will only perform once on rules which loaded from `-rule` when vmalert started. Restore process may fail if time series are missing
 in configured `-remoteRead.url`, weren't updated in the last `1h` (controlled by `-remoteRead.lookback`)
 or received state doesn't match current `vmalert` rules configuration.
+
+#### Restore
+Restore works base on two time series:
+* `ALERTS`: shows current active alerts. Active alert is an alert in `PENDING` or `FIRING` state. The state is reflected via label `alertstate`. For example, `ALERTS{alertgroup="vmcluster",alertname="TooHighChurnRate24h",alertstate="firing",dc="sandbox-gke",env="sandbox",severity="warning",vm_account_id="0",vm_project_id="0"}`.
+* `ALERTS_FOR_STATE`: restores the state of the active alerts, produced only for alerts with `for>0`. The value of the time series is the moment alert became active. For example,
+```
+{
+   "metric": {
+      "__name__": "ALERTS_FOR_STATE",
+      "alertgroup": "vmcluster",
+      "alertname": "TooHighChurnRate24h",
+      "dc": "sandbox-gke",
+      "env": "sandbox",
+      "severity": "warning",
+      "vm_account_id": "0",
+      "vm_project_id": "0"
+   },
+   "value": [
+      1690387135.472,  // the timestamp when value was recorded.
+      "1689700306"     // the timestamp when alert became active.
+   ]
+}
+```
+When vmalert restore state for rule, it will query like `last_over_time(ALERTS_FOR_STATE{alertgroup="vmcluster",alertname="TooHighChurnRate24h",dc="sandbox-gke",xxx}[1h])`. vmalert can retrieve the original trigger timestamp of alert, and determine whether alert should be firing.
+For example, there is an alerting rule with `for: 1h` got triggered since `12:00`, last for 40 minutes. Then vmalert stopped and started at `12:41`. With restore, vmalert will retrieve the original trigger timestamp-`12:00` and fire the alert at `13:00` if it's not resolved all the time.
 
 ### Multitenancy
 
