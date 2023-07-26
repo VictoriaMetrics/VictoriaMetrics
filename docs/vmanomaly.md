@@ -58,7 +58,7 @@ Currently, vmanomaly ships with a few common models:
    from time-series mean (straight line). Keeps only two model parameters internally:
    `mean` and `std` (standard deviation).
 
-2. **Prophet**
+1. **Prophet**
 
    _(simplest in configuration, recommended for getting starting)_
 
@@ -72,24 +72,24 @@ Currently, vmanomaly ships with a few common models:
 
    See [Prophet documentation](https://facebook.github.io/prophet/)
 
-3. **Holt-Winters**
+1. **Holt-Winters**
 
    Very popular forecasting algorithm. See [statsmodels.org documentation](
    https://www.statsmodels.org/stable/generated/statsmodels.tsa.holtwinters.ExponentialSmoothing.html)
    for Holt-Winters exponential smoothing.
 
-4. **Seasonal-Trend Decomposition**
+1. **Seasonal-Trend Decomposition**
 
    Extracts three components: season, trend, and residual, that can be plotted individually for
    easier debugging. Uses LOESS (locally estimated scatterplot smoothing).
    See [statsmodels.org documentation](https://www.statsmodels.org/dev/examples/notebooks/generated/stl_decomposition.html)
    for LOESS STD.
 
-5. **ARIMA**
+1. **ARIMA**
 
    Commonly used forecasting model. See [statsmodels.org documentation](https://www.statsmodels.org/stable/generated/statsmodels.tsa.arima.model.ARIMA.html) for ARIMA.
 
-6. **Rolling Quantile**
+1. **Rolling Quantile**
 
    A simple moving window of quantiles. Easy to use, easy to understand, but not as powerful as 
    other models.
