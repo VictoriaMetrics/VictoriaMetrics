@@ -228,6 +228,7 @@ func Test_vmNativeProcessor_run(t *testing.T) {
 				interCluster: tt.fields.interCluster,
 				cc:           tt.fields.cc,
 				isSilent:     tt.args.silent,
+				isNative:     true,
 			}
 
 			if err := p.run(tt.args.ctx); (err != nil) != tt.wantErr {

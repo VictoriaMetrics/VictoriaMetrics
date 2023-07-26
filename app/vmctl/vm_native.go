@@ -34,11 +34,12 @@ type vmNativeProcessor struct {
 	cc             int
 	disableRetries bool
 	isSilent       bool
+	isNative       bool
 }
 
 const (
-	nativeExportAddr       = "api/v1/export/native"
-	nativeImportAddr       = "api/v1/import/native"
+	nativeExportAddr       = "api/v1/export"
+	nativeImportAddr       = "api/v1/import"
 	nativeWithBackoffTpl   = `{{ blue "%s:" }} {{ counters . }} {{ bar . "[" "█" (cycle . "█") "▒" "]" }} {{ percent . }}`
 	nativeSingleProcessTpl = `Total: {{counters . }} {{ cycle . "↖" "↗" "↘" "↙" }} Speed: {{speed . }} {{string . "suffix"}}`
 )
@@ -159,9 +160,14 @@ func (p *vmNativeProcessor) runSingle(ctx context.Context, f native.Filter, srcU
 
 func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string, ranges [][]time.Time, silent bool) error {
 	exportAddr := nativeExportAddr
+	importAddr := nativeImportAddr
+	if p.isNative {
+		exportAddr += "/native"
+		importAddr += "/native"
+	}
 	srcURL := fmt.Sprintf("%s/%s", p.src.Addr, exportAddr)
 
-	importAddr, err := vm.AddExtraLabelsToImportPath(nativeImportAddr, p.dst.ExtraLabels)
+	importAddr, err := vm.AddExtraLabelsToImportPath(importAddr, p.dst.ExtraLabels)
 	if err != nil {
 		return fmt.Errorf("failed to add labels to import path: %s", err)
 	}
