@@ -44,35 +44,35 @@ See details about all supported options in the [vmgateway documentation](https:/
 [Keycloak](https://www.keycloak.org/) is an open source identity service that can be used to issue JWT tokens.
 
 1. Log in with admin credentials to your Keycloak instance
-2. Go to `Clients` -> `Create`.<br>
+1. Go to `Clients` -> `Create`.<br>
    Use `OpenID Connect` as `Client Type`.<br>
    Specify `grafana` as `Client ID`.<br>
    Click `Next`.<br>
    <img src="grafana-vmgateway-openid-configuration/create-client-1.png" width="800">
-3. Enable `Client authentication`.<br>
+1. Enable `Client authentication`.<br>
    Enable `Authorization`.<br>
    <img src="grafana-vmgateway-openid-configuration/create-client-2.png" width="800"><br>
    Click `Next`.<br>
-4. Add Grafana URL as `Root URL`. For example, `http://localhost:3000/`.<br>
+1. Add Grafana URL as `Root URL`. For example, `http://localhost:3000/`.<br>
    <img src="grafana-vmgateway-openid-configuration/create-client-3.png" width="800"><br>
    Click `Save`.<br>
-5. Go to `Clients` -> `grafana` -> `Credentials`.<br>
+1. Go to `Clients` -> `grafana` -> `Credentials`.<br>
    <img src="grafana-vmgateway-openid-configuration/client-secret.png" width="800"><br>
    Copy the value of `Client secret`. It will be used later in Grafana configuration.<br>
-6. Go to `Clients` -> `grafana` -> `Client scopes`.<br>
+1. Go to `Clients` -> `grafana` -> `Client scopes`.<br>
    Click at `grafana-dedicated` -> `Add mapper` -> `By configuration` -> `User attribute`.<br>
    <img src="grafana-vmgateway-openid-configuration/create-mapper-1.png" width="800"><br>
    <img src="grafana-vmgateway-openid-configuration/create-mapper-2.png" width="800"><br>
    Configure the mapper as follows<br>
-    - `Name` as `vm_access`.
-    - `Token Claim Name` as `vm_access`.
-    - `User Attribute` as `vm_access`.
-    - `Claim JSON Type` as `JSON`.
-      Enable `Add to ID token` and `Add to access token`.<br>
+   - `Name` as `vm_access`.
+   - `Token Claim Name` as `vm_access`.
+   - `User Attribute` as `vm_access`.
+   - `Claim JSON Type` as `JSON`.
+     Enable `Add to ID token` and `Add to access token`.<br>
    
-    <img src="grafana-vmgateway-openid-configuration/create-mapper-3.png" width="800"><br>
-    Click `Save`.<br>
-7. Go to `Users` -> select user to configure claims -> `Attributes`.<br>
+   <img src="grafana-vmgateway-openid-configuration/create-mapper-3.png" width="800"><br>
+   Click `Save`.<br>
+1. Go to `Users` -> select user to configure claims -> `Attributes`.<br>
    Specify `vm_access` as `Key`.<br>
    For the purpose of this example, we will use 2 users:<br>
    - for the first user we will specify `{"tenant_id" : {"account_id": 0, "project_id": 0 },"extra_labels":{ "team": "admin" }}` as `Value`.

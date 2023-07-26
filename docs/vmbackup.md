@@ -105,13 +105,13 @@ See also [vmbackupmanager tool](https://docs.victoriametrics.com/vmbackupmanager
 The backup algorithm is the following:
 
 1. Create a snapshot by querying the provided `-snapshot.createURL`
-2. Collect information about files in the created snapshot, in the `-dst` and in the `-origin`.
-3. Determine which files in `-dst` are missing in the created snapshot, and delete them. These are usually small files, which are already merged into bigger files in the snapshot.
-4. Determine which files in the created snapshot are missing in `-dst`. These are usually small new files and bigger merged files.
-5. Determine which files from step 3 exist in the `-origin`, and perform server-side copy of these files from `-origin` to `-dst`.
+1. Collect information about files in the created snapshot, in the `-dst` and in the `-origin`.
+1. Determine which files in `-dst` are missing in the created snapshot, and delete them. These are usually small files, which are already merged into bigger files in the snapshot.
+1. Determine which files in the created snapshot are missing in `-dst`. These are usually small new files and bigger merged files.
+1. Determine which files from step 3 exist in the `-origin`, and perform server-side copy of these files from `-origin` to `-dst`.
    These are usually the biggest and the oldest files, which are shared between backups.
-6. Upload the remaining files from step 3 from the created snapshot to `-dst`.
-7. Delete the created snapshot.
+1. Upload the remaining files from step 3 from the created snapshot to `-dst`.
+1. Delete the created snapshot.
 
 The algorithm splits source files into 1 GiB chunks in the backup. Each chunk is stored as a separate file in the backup.
 Such splitting balances between the number of files in the backup and the amounts of data that needs to be re-transferred after temporary errors.
@@ -313,13 +313,13 @@ It is recommended using [binary releases](https://github.com/VictoriaMetrics/Vic
 ### Development build
 
 1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.19.
-2. Run `make vmbackup` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
+1. Run `make vmbackup` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `vmbackup` binary and puts it into the `bin` folder.
 
 ### Production build
 
 1. [Install docker](https://docs.docker.com/install/).
-2. Run `make vmbackup-prod` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
+1. Run `make vmbackup-prod` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `vmbackup-prod` binary and puts it into the `bin` folder.
 
 ### Building docker images
