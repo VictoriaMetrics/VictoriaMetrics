@@ -1,6 +1,7 @@
 package streamaggr
 
 import (
+	"math"
 	"sync"
 	"time"
 
@@ -12,7 +13,7 @@ import (
 type histogramBucketAggrState struct {
 	m sync.Map
 
-	intervalSecs uint64
+	stalenessSecs uint64
 }
 
 type histogramBucketStateValue struct {
@@ -22,16 +23,16 @@ type histogramBucketStateValue struct {
 	deleted        bool
 }
 
-func newHistogramBucketAggrState(interval time.Duration) *histogramBucketAggrState {
-	intervalSecs := uint64(interval.Seconds() + 1)
+func newHistogramBucketAggrState(stalenessInterval time.Duration) *histogramBucketAggrState {
+	stalenessSecs := roundDurationToSecs(stalenessInterval)
 	return &histogramBucketAggrState{
-		intervalSecs: intervalSecs,
+		stalenessSecs: stalenessSecs,
 	}
 }
 
 func (as *histogramBucketAggrState) pushSample(inputKey, outputKey string, value float64) {
 	currentTime := fasttime.UnixTimestamp()
-	deleteDeadline := currentTime + 2*as.intervalSecs
+	deleteDeadline := currentTime + as.stalenessSecs
 
 again:
 	v, ok := as.m.Load(outputKey)
@@ -98,4 +99,12 @@ func (as *histogramBucketAggrState) appendSeriesForFlush(ctx *flushCtx) {
 		sv.mu.Unlock()
 		return true
 	})
+}
+
+func roundDurationToSecs(d time.Duration) uint64 {
+	if d < 0 {
+		return 0
+	}
+	secs := d.Seconds()
+	return uint64(math.Ceil(secs))
 }

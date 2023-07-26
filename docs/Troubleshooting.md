@@ -168,18 +168,27 @@ If you see unexpected or unreliable query results from VictoriaMetrics, then try
    since it may lead to incomplete responses when `vmstorage` nodes contain less than `-replicationFactor`
    copies of the requested data.
 
-6. Try upgrading to the [latest available version of VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/releases)
+6. If you observe gaps when plotting time series try simplifying your query according to p2 and follow the list. 
+   If problem still remains, then it is likely caused by irregular intervals for metrics collection (network delays 
+   or targets unavailability on scrapes, irregular pushes, irregular timestamps).
+   VictoriaMetrics automatically [fills the gaps](https://docs.victoriametrics.com/keyConcepts.html#range-query)
+   based on median interval between [data samples](https://docs.victoriametrics.com/keyConcepts.html#raw-samples).
+   This might work incorrect for irregular data as median will be skewed. In this case it is recommended to switch 
+   to the static interval for gaps filling by setting `--search.minStalenessInterval=5m` cmd-line flag (`5m` is 
+   the static interval used by Prometheus).
+
+7. Try upgrading to the [latest available version of VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/releases)
    and verifying whether the issue is fixed there.
 
-7. Try executing the query with `trace=1` query arg. This enables query tracing, which may contain
+8. Try executing the query with `trace=1` query arg. This enables query tracing, which may contain
    useful information on why the query returns unexpected data. See [query tracing docs](https://docs.victoriametrics.com/#query-tracing) for details.
 
-8. Inspect command-line flags passed to VictoriaMetrics components. If you don't understand clearly the purpose
+9. Inspect command-line flags passed to VictoriaMetrics components. If you don't understand clearly the purpose
    or the effect of some flags, then remove them from the list of flags passed to VictoriaMetrics components,
    because some command-line flags may change query results in unexpected ways when set to improper values.
    VictoriaMetrics is optimized for running with default flag values (e.g. when they aren't set explicitly).
 
-9. If the steps above didn't help identifying the root cause of unexpected query results,
+10. If the steps above didn't help identifying the root cause of unexpected query results,
    then [file a bugreport](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/new) with details on how to reproduce the issue.
 
 

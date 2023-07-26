@@ -1,16 +1,19 @@
 import React, { FC } from "preact/compat";
 import "./style.scss";
 import TextField from "../../components/Main/TextField/TextField";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Button from "../../components/Main/Button/Button";
 import { PlayIcon } from "../../components/Main/Icons";
 import WithTemplateTutorial from "./WithTemplateTutorial/WithTemplateTutorial";
 import { useExpandWithExprs } from "./hooks/useExpandWithExprs";
 import Spinner from "../../components/Main/Spinner/Spinner";
+import { useSearchParams } from "react-router-dom";
 
 const WithTemplate: FC = () => {
+  const [searchParams] = useSearchParams();
+
   const { data, loading, error, expand } = useExpandWithExprs();
-  const [expr, setExpr] = useState("");
+  const [expr, setExpr] = useState(searchParams.get("expr") || "");
 
   const handleChangeInput = (val: string) => {
     setExpr(val);
@@ -19,6 +22,10 @@ const WithTemplate: FC = () => {
   const handleRunQuery = () => {
     expand(expr);
   };
+
+  useEffect(() => {
+    if (expr) expand(expr);
+  }, []);
 
   return (
     <section className="vm-with-template">
@@ -32,6 +39,7 @@ const WithTemplate: FC = () => {
             value={expr}
             error={error}
             autofocus
+            onEnter={handleRunQuery}
             onChange={handleChangeInput}
           />
         </div>

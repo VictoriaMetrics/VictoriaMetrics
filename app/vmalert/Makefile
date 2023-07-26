@@ -74,12 +74,12 @@ test-vmalert:
 	go test -v -race -cover ./app/vmalert/config
 	go test -v -race -cover ./app/vmalert/remotewrite
 	go test -v -race -cover ./app/vmalert/utils
+	go test -v -race -cover ./app/vmalert/unittest
 
 run-vmalert: vmalert
 	./bin/vmalert -rule=app/vmalert/config/testdata/rules/rules2-good.rules \
-		-datasource.url=http://localhost:8428 \
-		-notifier.url=http://localhost:9093 \
-		-notifier.url=http://127.0.0.1:9093 \
+		-datasource.url=http://demo.robustperception.io:9090 \
+		-notifier.blackhole \
 		-remoteWrite.url=http://localhost:8428 \
 		-remoteRead.url=http://localhost:8428 \
 		-external.label=cluster=east-1 \
@@ -102,6 +102,10 @@ replay-vmalert: vmalert
 		-external.label=replica=a \
 		-replay.timeFrom=2021-05-11T07:21:43Z \
 		-replay.timeTo=2021-05-29T18:40:43Z
+
+unittest-vmalert: vmalert
+	./bin/vmalert -unittestFile=app/vmalert/unittest/testdata/test1.yaml \
+ 		-unittestFile=app/vmalert/unittest/testdata/test2.yaml
 
 vmalert-linux-amd64:
 	APP_NAME=vmalert CGO_ENABLED=1 GOOS=linux GOARCH=amd64 $(MAKE) app-local-goos-goarch

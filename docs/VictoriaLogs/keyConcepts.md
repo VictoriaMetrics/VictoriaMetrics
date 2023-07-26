@@ -1,9 +1,21 @@
+---
+sort: 5
+weight: 5
+title: VictoriaLogs key concepts
+menu:
+  docs:
+    parent: "victorialogs"
+    weight: 5
+aliases:
+- /VictoriaLogs/Roadmap.html
+---
+
 # VictoriaLogs key concepts
 
 ## Data model
 
-[VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/) works with structured logs.
-Every log entry may contain arbitrary number of `key=value` pairs (aka fields).
+[VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/) works with both structured and unstructured logs.
+Every log entry must contain at least [log message field](#message-field) plus arbitrary number of additional `key=value` fields.
 A single log entry can be expressed as a single-level [JSON](https://www.json.org/json-en.html) object with string keys and values.
 For example:
 

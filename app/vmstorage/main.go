@@ -155,11 +155,10 @@ func AddRows(mrs []storage.MetricRow) error {
 var errReadOnly = errors.New("the storage is in read-only mode; check -storage.minFreeDiskSpaceBytes command-line flag value")
 
 // RegisterMetricNames registers all the metrics from mrs in the storage.
-func RegisterMetricNames(qt *querytracer.Tracer, mrs []storage.MetricRow) error {
+func RegisterMetricNames(qt *querytracer.Tracer, mrs []storage.MetricRow) {
 	WG.Add(1)
-	err := Storage.RegisterMetricNames(qt, mrs)
+	Storage.RegisterMetricNames(qt, mrs)
 	WG.Done()
-	return err
 }
 
 // DeleteSeries deletes series matching tfss.
@@ -546,12 +545,6 @@ func registerStorageMetrics(strg *storage.Storage) {
 		return float64(idbm().PartsRefCount)
 	})
 
-	metrics.NewGauge(`vm_new_timeseries_created_total`, func() float64 {
-		return float64(idbm().NewTimeseriesCreated)
-	})
-	metrics.NewGauge(`vm_timeseries_repopulated_total`, func() float64 {
-		return float64(idbm().TimeseriesRepopulated)
-	})
 	metrics.NewGauge(`vm_missing_tsids_for_metric_id_total`, func() float64 {
 		return float64(idbm().MissingTSIDsForMetricID)
 	})
@@ -666,6 +659,15 @@ func registerStorageMetrics(strg *storage.Storage) {
 		return float64(m().TooSmallTimestampRows)
 	})
 
+	metrics.NewGauge(`vm_timeseries_repopulated_total`, func() float64 {
+		return float64(m().TimeseriesRepopulated)
+	})
+	metrics.NewGauge(`vm_timeseries_precreated_total`, func() float64 {
+		return float64(m().TimeseriesPreCreated)
+	})
+	metrics.NewGauge(`vm_new_timeseries_created_total`, func() float64 {
+		return float64(m().NewTimeseriesCreated)
+	})
 	metrics.NewGauge(`vm_slow_row_inserts_total`, func() float64 {
 		return float64(m().SlowRowInserts)
 	})

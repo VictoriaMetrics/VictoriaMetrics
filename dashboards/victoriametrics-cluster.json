@@ -3503,7 +3503,7 @@
               },
               "editorMode": "code",
               "exemplar": true,
-              "expr": "max(\n    vm_cache_size_bytes{job=~\"$job_storage\", instance=~\"$instance\"} \n    /\n    vm_cache_size_max_bytes{job=~\"$job\", instance=~\"$instance\"}\n) by(type)",
+              "expr": "max(\n    vm_cache_size_bytes{job=~\"$job\", instance=~\"$instance\"} \n    /\n    vm_cache_size_max_bytes{job=~\"$job\", instance=~\"$instance\"}\n) by(type)",
               "interval": "",
               "legendFormat": "__auto",
               "range": true,

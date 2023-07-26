@@ -2,14 +2,14 @@
 
 DOCKER_NAMESPACE ?= victoriametrics
 
-ROOT_IMAGE ?= alpine:3.18.0
+ROOT_IMAGE ?= alpine:3.18.2
 
-# Use alpine:3.17.3 instead of 3.18.0 for CERTS_IMAGE
-# because alpine:3.18.0 is broken for cross-platform builds
+# Use alpine:3.17.3 instead of 3.18.2 for CERTS_IMAGE
+# because alpine:3.18.2 is broken for cross-platform builds
 # TODO: sync it with ROOT_IMAGE when it will be fixed in the new alpine releases
 CERTS_IMAGE := alpine:3.17.3
 
-GO_BUILDER_IMAGE := golang:1.20.5-alpine
+GO_BUILDER_IMAGE := golang:1.20.6-alpine
 BUILDER_IMAGE := local/builder:2.0.0-$(shell echo $(GO_BUILDER_IMAGE) | tr :/ __)-1
 BASE_IMAGE := local/base:1.1.4-$(shell echo $(ROOT_IMAGE) | tr :/ __)-$(shell echo $(CERTS_IMAGE) | tr :/ __)
 DOCKER_COMPOSE ?= docker compose
@@ -21,9 +21,6 @@ package-base:
 			--build-arg certs_image=$(CERTS_IMAGE) \
 			--tag $(BASE_IMAGE) \
 			deployment/docker/base
-
-docker-scan: package-base
-	docker scan --severity=medium --accept-license $(BASE_IMAGE) || (echo "❌ The build has been terminated because critical vulnerabilities were found in $(BASE_IMAGE)"; exit 1)
 
 package-builder:
 	(docker image ls --format '{{.Repository}}:{{.Tag}}' | grep -q '$(BUILDER_IMAGE)$$') \

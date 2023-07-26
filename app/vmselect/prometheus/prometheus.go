@@ -1005,15 +1005,15 @@ func getMaxLookback(r *http.Request) (int64, error) {
 }
 
 func getTagFilterssFromMatches(matches []string) ([][]storage.TagFilter, error) {
-	tagFilterss := make([][]storage.TagFilter, 0, len(matches))
+	tfss := make([][]storage.TagFilter, 0, len(matches))
 	for _, match := range matches {
-		tagFilters, err := searchutils.ParseMetricSelector(match)
+		tfssLocal, err := searchutils.ParseMetricSelector(match)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse matches[]=%s: %w", match, err)
 		}
-		tagFilterss = append(tagFilterss, tagFilters)
+		tfss = append(tfss, tfssLocal...)
 	}
-	return tagFilterss, nil
+	return tfss, nil
 }
 
 func getRoundDigits(r *http.Request) int {

@@ -172,14 +172,6 @@ func testPartitionSearchEx(t *testing.T, ptt int64, tr TimeRange, partsCount, ma
 	pt := mustCreatePartition(ptt, "small-table", "big-table", strg)
 	smallPartsPath := pt.smallPartsPath
 	bigPartsPath := pt.bigPartsPath
-	defer func() {
-		if err := os.RemoveAll("small-table"); err != nil {
-			t.Fatalf("cannot remove small parts directory: %s", err)
-		}
-		if err := os.RemoveAll("big-table"); err != nil {
-			t.Fatalf("cannot remove big parts directory: %s", err)
-		}
-	}()
 	var tmpRows []rawRow
 	for _, rows := range rowss {
 		pt.AddRows(rows)
@@ -194,6 +186,14 @@ func testPartitionSearchEx(t *testing.T, ptt int64, tr TimeRange, partsCount, ma
 	pt = mustOpenPartition(smallPartsPath, bigPartsPath, strg)
 	testPartitionSearch(t, pt, tsids, tr, rbsExpected, rowsCountExpected)
 	pt.MustClose()
+	stopTestStorage(strg)
+
+	if err := os.RemoveAll("small-table"); err != nil {
+		t.Fatalf("cannot remove small parts directory: %s", err)
+	}
+	if err := os.RemoveAll("big-table"); err != nil {
+		t.Fatalf("cannot remove big parts directory: %s", err)
+	}
 }
 
 func testPartitionSearch(t *testing.T, pt *partition, tsids []TSID, tr TimeRange, rbsExpected []rawBlock, rowsCountExpected int64) {

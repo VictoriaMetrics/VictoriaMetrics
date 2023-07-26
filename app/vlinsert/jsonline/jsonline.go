@@ -99,12 +99,15 @@ func readLine(sc *bufio.Scanner, timeField, msgField string, processLogMessage f
 	if err := p.ParseLogMessage(line); err != nil {
 		return false, fmt.Errorf("cannot parse json-encoded log entry: %w", err)
 	}
-	timestamp, err := extractTimestampFromFields(timeField, p.Fields)
+	ts, err := extractTimestampFromFields(timeField, p.Fields)
 	if err != nil {
 		return false, fmt.Errorf("cannot parse timestamp: %w", err)
 	}
+	if ts == 0 {
+		ts = time.Now().UnixNano()
+	}
 	p.RenameField(msgField, "_msg")
-	processLogMessage(timestamp, p.Fields)
+	processLogMessage(ts, p.Fields)
 	logjson.PutParser(p)
 	return true, nil
 }
@@ -122,10 +125,15 @@ func extractTimestampFromFields(timeField string, fields []logstorage.Field) (in
 		f.Value = ""
 		return timestamp, nil
 	}
-	return time.Now().UnixNano(), nil
+	return 0, nil
 }
 
 func parseISO8601Timestamp(s string) (int64, error) {
+	if s == "0" || s == "" {
+		// Special case for returning the current timestamp.
+		// It must be automatically converted to the current timestamp by the caller.
+		return 0, nil
+	}
 	t, err := time.Parse(time.RFC3339, s)
 	if err != nil {
 		return 0, fmt.Errorf("cannot parse timestamp %q: %w", s, err)
