@@ -261,6 +261,25 @@ func TestRollupShareGTOverTime(t *testing.T) {
 	f(1000, 0)
 }
 
+func TestRollupShareEQOverTime(t *testing.T) {
+	f := func(eq, vExpected float64) {
+		t.Helper()
+		eqs := []*timeseries{{
+			Values:     []float64{eq},
+			Timestamps: []int64{123},
+		}}
+		var me metricsql.MetricExpr
+		args := []interface{}{&metricsql.RollupExpr{Expr: &me}, eqs}
+		testRollupFunc(t, "share_eq_over_time", args, &me, vExpected)
+	}
+
+	f(-123, 0)
+	f(34, 0.3333333333333333)
+	f(44, 0.16666666666666666)
+	f(123, 0.08333333333333333)
+	f(1000, 0)
+}
+
 func TestRollupCountLEOverTime(t *testing.T) {
 	f := func(le, vExpected float64) {
 		t.Helper()
