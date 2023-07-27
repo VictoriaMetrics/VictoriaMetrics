@@ -117,7 +117,7 @@ btn-primary
                                         <div class="col-12 mb-2">
                                             {% if r.Type == "alerting" %}
                                             {% if r.KeepFiringFor > 0 %}
-                                            <b>alert:</b> {%s r.Name %} (for: {%v r.Duration %} seconds) (keep_firing_for: {%v r.KeepFiringFor %} seconds)
+                                            <b>alert:</b> {%s r.Name %} (for: {%v r.Duration %} seconds, keep_firing_for: {%v r.KeepFiringFor %} seconds)
                                             {% else %}
                                             <b>alert:</b> {%s r.Name %} (for: {%v r.Duration %} seconds)
                                             {% endif %}
@@ -447,6 +447,18 @@ btn-primary
         </div>
       </div>
     </div>
+    {% if rule.KeepFiringFor > 0 %}
+    <div class="container border-bottom p-2">
+      <div class="row">
+        <div class="col-2">
+          Keep firing for
+        </div>
+        <div class="col">
+         {%v rule.KeepFiringFor %} seconds
+        </div>
+      </div>
+    </div>
+    {% endif %}
     {% endif %}
     <div class="container border-bottom p-2">
       <div class="row">
