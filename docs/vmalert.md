@@ -751,6 +751,7 @@ See full description for these flags in `./vmalert -help`.
 * Graphite engine isn't supported yet;
 * `query` template function is disabled for performance reasons (might be changed in future);
 * `limit` group's param has no effect during replay (might be changed in future);
+* `keep_firing_for` alerting rule param has no effect during replay (might be changed in future).
 
 ## Unit Testing for Rules
 

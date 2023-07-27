@@ -985,13 +985,7 @@ func newTestAlertingRule(name string, waitFor time.Duration) *AlertingRule {
 }
 
 func newTestAlertingRuleWithKeepFiring(name string, waitFor, keepFiringFor time.Duration) *AlertingRule {
-	rule := AlertingRule{
-		Name:          name,
-		For:           waitFor,
-		EvalInterval:  waitFor,
-		alerts:        make(map[uint64]*notifier.Alert),
-		state:         newRuleState(10),
-		KeepFiringFor: keepFiringFor,
-	}
-	return &rule
+	rule := newTestAlertingRule(name, waitFor)
+	rule.KeepFiringFor = keepFiringFor
+	return rule
 }
