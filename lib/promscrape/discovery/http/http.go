@@ -57,5 +57,9 @@ func addHTTPTargetLabels(src []httpGroupTarget, sourceURL string) []*promutils.L
 
 // MustStop stops further usage for sdc.
 func (sdc *SDConfig) MustStop() {
-	configMap.Delete(sdc)
+	v := configMap.Delete(sdc)
+	if v != nil {
+		cfg := v.(*apiConfig)
+		cfg.client.Stop()
+	}
 }

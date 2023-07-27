@@ -80,6 +80,7 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 	// The synchronous targets' update is needed for returning non-empty list of targets
 	// just after the initialization.
 	if err := cfg.updateTargetsLabels(ctx); err != nil {
+		client.Stop()
 		return nil, fmt.Errorf("cannot discover Kuma targets: %w", err)
 	}
 	cfg.wg.Add(1)

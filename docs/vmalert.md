@@ -214,6 +214,10 @@ expr: <string>
 # as firing once they return.
 [ for: <duration> | default = 0s ]
 
+# Alert will continue firing for this long even when the alerting expression no longer has results.
+# This allows you to delay alert resolution.
+[ keep_firing_for: <duration> | default = 0s ]
+
 # Whether to print debug information into logs.
 # Information includes alerts state changes and requests sent to the datasource.
 # Please note, that if rule's query params contain sensitive
@@ -368,19 +372,24 @@ For recording rules to work `-remoteWrite.url` must be specified.
 
 ### Alerts state on restarts
 
-`vmalert` has no local storage, so alerts state is stored in the process memory. Hence, after restart of `vmalert`
-the process alerts state will be lost. To avoid this situation, `vmalert` should be configured via the following flags:
+`vmalert` is stateless, it holds alerts state in the process memory. Restarting of `vmalert` process
+will reset alerts state in memory. To prevent `vmalert` from losing alerts state it should be configured
+to persist the state to the remote destination via the following flags:
 
 * `-remoteWrite.url` - URL to VictoriaMetrics (Single) or vminsert (Cluster). `vmalert` will persist alerts state
-  into the configured address in the form of time series named `ALERTS` and `ALERTS_FOR_STATE` via remote-write protocol.
-  These are regular time series and maybe queried from VM just as any other time series.
-  The state is stored to the configured address on every rule evaluation.
+  to the configured address in the form of [time series](https://docs.victoriametrics.com/keyConcepts.html#time-series)
+  `ALERTS` and `ALERTS_FOR_STATE` via remote-write protocol.
+  These time series can be queried from VictoriaMetrics just as any other time series.
+  The state will be persisted to the configured address on each evaluation.
 * `-remoteRead.url` - URL to VictoriaMetrics (Single) or vmselect (Cluster). `vmalert` will try to restore alerts state
-  from configured address by querying time series with name `ALERTS_FOR_STATE`.
+  from the configured address by querying time series with name `ALERTS_FOR_STATE`. The restore happens only once when
+  `vmalert` process starts, and only for the configured rules. Config [hot reload](#hot-config-reload) doesn't trigger 
+  state restore.
 
 Both flags are required for proper state restoration. Restore process may fail if time series are missing
 in configured `-remoteRead.url`, weren't updated in the last `1h` (controlled by `-remoteRead.lookback`)
-or received state doesn't match current `vmalert` rules configuration.
+or received state doesn't match current `vmalert` rules configuration. `vmalert` marks successfully restored rules
+with `restored` label in [web UI](#WEB).
 
 ### Multitenancy
 
@@ -742,6 +751,7 @@ See full description for these flags in `./vmalert -help`.
 * Graphite engine isn't supported yet;
 * `query` template function is disabled for performance reasons (might be changed in future);
 * `limit` group's param has no effect during replay (might be changed in future);
+* `keep_firing_for` alerting rule param has no effect during replay (might be changed in future).
 
 ## Unit Testing for Rules
 

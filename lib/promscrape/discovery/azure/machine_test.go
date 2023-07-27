@@ -71,6 +71,7 @@ func TestGetVirtualMachinesSuccess(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected error at client create: %s", err)
 			}
+			defer c.Stop()
 			ac := &apiConfig{
 				c:              c,
 				subscriptionID: "some-id",

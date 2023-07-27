@@ -46,18 +46,36 @@ func TestUpdateWith(t *testing.T) {
 					"summary":     "{{ $value|humanize }}",
 					"description": "{{$labels}}",
 				},
-			}},
-			[]config.Rule{{
-				Alert: "foo",
-				Expr:  "up > 10",
-				For:   promutils.NewDuration(time.Second),
-				Labels: map[string]string{
-					"baz": "bar",
+			},
+				{
+					Alert: "bar",
+					Expr:  "up > 0",
+					For:   promutils.NewDuration(time.Second),
+					Labels: map[string]string{
+						"bar": "baz",
+					},
+				}},
+			[]config.Rule{
+				{
+					Alert: "foo",
+					Expr:  "up > 10",
+					For:   promutils.NewDuration(time.Second),
+					Labels: map[string]string{
+						"baz": "bar",
+					},
+					Annotations: map[string]string{
+						"summary": "none",
+					},
 				},
-				Annotations: map[string]string{
-					"summary": "none",
-				},
-			}},
+				{
+					Alert:         "bar",
+					Expr:          "up > 0",
+					For:           promutils.NewDuration(2 * time.Second),
+					KeepFiringFor: promutils.NewDuration(time.Minute),
+					Labels: map[string]string{
+						"bar": "baz",
+					},
+				}},
 		},
 		{
 			"update recording rule",

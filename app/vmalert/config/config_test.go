@@ -404,7 +404,7 @@ func TestHashRule(t *testing.T) {
 			true,
 		},
 		{
-			Rule{Alert: "alert", Expr: "up == 1", For: promutils.NewDuration(time.Minute)},
+			Rule{Alert: "alert", Expr: "up == 1", For: promutils.NewDuration(time.Minute), KeepFiringFor: promutils.NewDuration(time.Minute)},
 			Rule{Alert: "alert", Expr: "up == 1"},
 			true,
 		},
