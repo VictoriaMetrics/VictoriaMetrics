@@ -87,6 +87,7 @@ The previous behavior can be restored in the following ways:
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): reset evaluation timestamp after modifying group interval. Before, there could have latency on rule evaluation time.
 * BUGFIX: vmselect: fix timestamp alignment for Prometheus querying API if time argument is less than 10m from the beginning of Unix epoch.
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): do not show [relabel debug](https://docs.victoriametrics.com/vmagent.html#relabel-debug) links at the `/targets` page when `vmagent` runs with `-promscrape.dropOriginalLabels` command-line flag, since it has no the original labels needed for relabel debug. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4597).
+* BUGFIX: vminsert: fixed decoding of label values with slash for pushgateway and prometheus golang client compatibility. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4692).
 * BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): properly parse binary operations with reserved words on the right side such as `foo + (on{bar="baz"})`. Previously such queries could lead to panic. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4422).
 * BUGFIX: [Official Grafana dashboards for VictoriaMetrics](https://grafana.com/orgs/victoriametrics): display cache usage for all components on panel `Cache usage % by type` for cluster dashboard. Before, only vmstorage caches were shown.
 
