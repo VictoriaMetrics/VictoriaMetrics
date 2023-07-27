@@ -18,6 +18,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/influx"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/native"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/netstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/opentelemetry"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/opentsdb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/opentsdbhttp"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/prometheusimport"
@@ -289,6 +290,15 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		addInfluxResponseHeaders(w)
 		influxutils.WriteDatabaseNames(w)
 		return true
+	case "opentelemetry/api/v1/push":
+		opentelemetryPushRequests.Inc()
+		if err := opentelemetry.InsertHandler(at, r); err != nil {
+			opentelemetryPushErrors.Inc()
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		w.WriteHeader(http.StatusOK)
+		return true
 	case "datadog/api/v1/series":
 		datadogWriteRequests.Inc()
 		if err := datadog.InsertHandlerForHTTP(at, r); err != nil {
@@ -358,6 +368,9 @@ var (
 	influxWriteErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/insert/{}/influx/write", protocol="influx"}`)
 
 	influxQueryRequests = metrics.NewCounter(`vm_http_requests_total{path="/insert/{}/influx/query", protocol="influx"}`)
+
+	opentelemetryPushRequests = metrics.NewCounter(`vm_http_requests_total{path="/insert/{}/opentelemetry/api/v1/push", protocol="opentelemetry"}`)
+	opentelemetryPushErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/insert/{}/opentelemetry/api/v1/push", protocol="opentelemetry"}`)
 
 	datadogWriteRequests = metrics.NewCounter(`vm_http_requests_total{path="/insert/{}/datadog/api/v1/series", protocol="datadog"}`)
 	datadogWriteErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/insert/{}/datadog/api/v1/series", protocol="datadog"}`)
