@@ -21,7 +21,6 @@ require (
 	github.com/cespare/xxhash/v2 v2.2.0
 	github.com/cheggaaa/pb/v3 v3.1.4
 	github.com/gogo/protobuf v1.3.2
-	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/golang/snappy v0.0.4
 	github.com/googleapis/gax-go/v2 v2.12.0
 	github.com/influxdata/influxdb v1.11.2
@@ -79,6 +78,7 @@ require (
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/golang-jwt/jwt/v4 v4.5.0 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
+	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/google/s2a-go v0.1.4 // indirect
 	github.com/google/uuid v1.3.0 // indirect
