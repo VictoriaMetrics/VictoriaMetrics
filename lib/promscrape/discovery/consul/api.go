@@ -90,6 +90,7 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 	}
 	dc, err := getDatacenter(client, sdc.Datacenter)
 	if err != nil {
+		client.Stop()
 		return nil, fmt.Errorf("cannot obtain consul datacenter: %w", err)
 	}
 
