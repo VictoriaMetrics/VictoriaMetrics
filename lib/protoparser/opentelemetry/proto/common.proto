@@ -65,13 +65,3 @@ message KeyValue {
   string key = 1;
   AnyValue value = 2;
 }
-
-// InstrumentationScope is a message representing the instrumentation scope information
-// such as the fully qualified name and version. 
-message InstrumentationScope {
-  // An empty instrumentation scope name means the name is unknown.
-  string name = 1;
-  string version = 2;
-  repeated KeyValue attributes = 3;
-  uint32 dropped_attributes_count = 4;
-}

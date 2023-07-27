@@ -184,10 +184,6 @@ type ResourceMetrics struct {
 type ScopeMetrics struct {
 	unknownFields []byte
 
-	// The instrumentation scope information for the metrics in this message.
-	// Semantically when InstrumentationScope isn't set, it is equivalent with
-	// an empty instrumentation scope name (unknown).
-	Scope *InstrumentationScope `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
 	// A list of metrics that originate from an instrumentation library.
 	Metrics []*Metric `protobuf:"bytes,2,rep,name=metrics,proto3" json:"metrics,omitempty"`
 	// This schema_url applies to all metrics in the "metrics" field.

@@ -167,16 +167,6 @@ func (m *ScopeMetrics) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 			dAtA[i] = 0x12
 		}
 	}
-	if m.Scope != nil {
-		size, err := m.Scope.MarshalToSizedBufferVT(dAtA[:i])
-		if err != nil {
-			return 0, err
-		}
-		i -= size
-		i = encodeVarint(dAtA, i, uint64(size))
-		i--
-		dAtA[i] = 0xa
-	}
 	return len(dAtA) - i, nil
 }
 
@@ -1278,10 +1268,6 @@ func (m *ScopeMetrics) SizeVT() (n int) {
 	}
 	var l int
 	_ = l
-	if m.Scope != nil {
-		l = m.Scope.SizeVT()
-		n += 1 + l + sov(uint64(l))
-	}
 	if len(m.Metrics) > 0 {
 		for _, e := range m.Metrics {
 			l = e.SizeVT()
@@ -2019,42 +2005,6 @@ func (m *ScopeMetrics) UnmarshalVT(dAtA []byte) error {
 			return fmt.Errorf("proto: ScopeMetrics: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
-		case 1:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Scope", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflow
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return ErrInvalidLength
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLength
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			if m.Scope == nil {
-				m.Scope = &InstrumentationScope{}
-			}
-			if err := m.Scope.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
 		case 2:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Metrics", wireType)

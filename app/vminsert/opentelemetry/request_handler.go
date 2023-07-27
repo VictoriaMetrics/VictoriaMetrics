@@ -1,14 +1,13 @@
-package opentelemetryhttp
+package opentelemetry
 
 import (
 	"net/http"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
-	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/stream"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -23,34 +22,31 @@ func InsertHandler(req *http.Request) error {
 	if err != nil {
 		return err
 	}
-	isJSON := req.Header.Get("Content-Type") == "application/json"
 	isGzipped := req.Header.Get("Content-Encoding") == "gzip"
-	return parser.ParseStream(req.Body, isJSON, isGzipped, func(tss []prompb.TimeSeries) error {
+	return stream.ParseStream(req.Body, isGzipped, func(tss []prompbmarshal.TimeSeries) error {
 		return insertRows(tss, extraLabels)
 	})
 }
 
-func insertRows(timeseries []prompb.TimeSeries, extraLabels []prompbmarshal.Label) error {
+func insertRows(tss []prompbmarshal.TimeSeries, extraLabels []prompbmarshal.Label) error {
 	ctx := common.GetInsertCtx()
 	defer common.PutInsertCtx(ctx)
 
 	rowsLen := 0
-	for i := range timeseries {
-		rowsLen += len(timeseries[i].Samples)
+	for i := range tss {
+		rowsLen += len(tss[i].Samples)
 	}
 	ctx.Reset(rowsLen)
 	rowsTotal := 0
 	hasRelabeling := relabel.HasRelabeling()
-	for i := range timeseries {
-		ts := &timeseries[i]
+	for i := range tss {
+		ts := &tss[i]
 		rowsTotal += len(ts.Samples)
 		ctx.Labels = ctx.Labels[:0]
-		srcLabels := ts.Labels
-		for _, srcLabel := range srcLabels {
-			ctx.AddLabelBytes(srcLabel.Name, srcLabel.Value)
+		for _, label := range ts.Labels {
+			ctx.AddLabel(label.Name, label.Value)
 		}
-		for j := range extraLabels {
-			label := &extraLabels[j]
+		for _, label := range extraLabels {
 			ctx.AddLabel(label.Name, label.Value)
 		}
 		if hasRelabeling {

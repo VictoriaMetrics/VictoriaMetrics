@@ -1,4 +1,4 @@
-package opentelemetryhttp
+package opentelemetry
 
 import (
 	"net/http"
@@ -6,11 +6,9 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
-	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/stream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -27,14 +25,13 @@ func InsertHandler(at *auth.Token, req *http.Request) error {
 	if err != nil {
 		return err
 	}
-	isJSON := req.Header.Get("Content-Type") == "application/json"
 	isGzipped := req.Header.Get("Content-Encoding") == "gzip"
-	return parser.ParseStream(req.Body, isJSON, isGzipped, func(tss []prompb.TimeSeries) error {
+	return stream.ParseStream(req.Body, isGzipped, func(tss []prompbmarshal.TimeSeries) error {
 		return insertRows(at, tss, extraLabels)
 	})
 }
 
-func insertRows(at *auth.Token, timeseries []prompb.TimeSeries, extraLabels []prompbmarshal.Label) error {
+func insertRows(at *auth.Token, tss []prompbmarshal.TimeSeries, extraLabels []prompbmarshal.Label) error {
 	ctx := common.GetPushCtx()
 	defer common.PutPushCtx(ctx)
 
@@ -42,26 +39,14 @@ func insertRows(at *auth.Token, timeseries []prompb.TimeSeries, extraLabels []pr
 	tssDst := ctx.WriteRequest.Timeseries[:0]
 	labels := ctx.Labels[:0]
 	samples := ctx.Samples[:0]
-	for i := range timeseries {
-		ts := &timeseries[i]
+	for i := range tss {
+		ts := &tss[i]
 		rowsTotal += len(ts.Samples)
 		labelsLen := len(labels)
-		for i := range ts.Labels {
-			label := &ts.Labels[i]
-			labels = append(labels, prompbmarshal.Label{
-				Name:  bytesutil.ToUnsafeString(label.Name),
-				Value: bytesutil.ToUnsafeString(label.Value),
-			})
-		}
+		labels = append(labels, ts.Labels...)
 		labels = append(labels, extraLabels...)
 		samplesLen := len(samples)
-		for i := range ts.Samples {
-			sample := &ts.Samples[i]
-			samples = append(samples, prompbmarshal.Sample{
-				Value:     sample.Value,
-				Timestamp: sample.Timestamp,
-			})
-		}
+		samples = append(samples, ts.Samples...)
 		tssDst = append(tssDst, prompbmarshal.TimeSeries{
 			Labels:  labels[labelsLen:],
 			Samples: samples[samplesLen:],

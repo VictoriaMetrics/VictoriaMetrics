@@ -92,8 +92,10 @@ VictoriaMetrics has the following prominent features:
   * [OpenTelemetry metrics format](#sending-data-via-opentelemetry).
 * It supports powerful [stream aggregation](https://docs.victoriametrics.com/stream-aggregation.html), which can be used as a [statsd](https://github.com/statsd/statsd) alternative.
 * It supports metrics [relabeling](#relabeling).
-* It can deal with [high cardinality issues](https://docs.victoriametrics.com/FAQ.html#what-is-high-cardinality) and [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate) issues via [series limiter](#cardinality-limiter).
-* It ideally works with big amounts of time series data from APM, Kubernetes, IoT sensors, connected cars, industrial telemetry, financial data and various [Enterprise workloads](https://docs.victoriametrics.com/enterprise.html).
+* It can deal with [high cardinality issues](https://docs.victoriametrics.com/FAQ.html#what-is-high-cardinality) and
+  [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate) issues via [series limiter](#cardinality-limiter).
+* It ideally works with big amounts of time series data from APM, Kubernetes, IoT sensors, connected cars, industrial telemetry, financial data
+  and various [Enterprise workloads](https://docs.victoriametrics.com/enterprise.html).
 * It has open source [cluster version](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster).
 * It can store data on [NFS-based storages](https://en.wikipedia.org/wiki/Network_File_System) such as [Amazon EFS](https://aws.amazon.com/efs/)
   and [Google Filestore](https://cloud.google.com/filestore).
@@ -1361,64 +1363,9 @@ VictoriaMetrics also may scrape Prometheus targets - see [these docs](#how-to-sc
 
 ## Sending data via OpenTelemetry
 
- VictoriaMetrics supports data ingestion via [OpenTelemetry metrics protocol](https://github.com/open-telemetry/opentelemetry-specification/blob/ffddc289462dfe0c2041e3ca42a7b1df805706de/specification/metrics/data-model.md)
-with `protobuf` and `json` encoding via `/opentemetry/api/v1/push` path. For example, the following command stores `temperature{job="vm",label1="value1"} 15`
-[metric](https://docs.victoriametrics.com/keyConcepts.html#what-is-a-metric) to VictoriaMetrics:
+VictoriaMetrics supports data ingestion via [OpenTelemetry protocol for metrics](https://github.com/open-telemetry/opentelemetry-specification/blob/ffddc289462dfe0c2041e3ca42a7b1df805706de/specification/metrics/data-model.md) at `/opentemetry/api/v1/push` path.
 
-```bash
-echo '{
-  "resourceMetrics": [
-    {
-      "resource": {
-        "attributes": [
-          {
-            "key": "job",
-            "value": {
-              "stringValue": "vm"
-            }
-          }
-        ]
-      },
-      "scopeMetrics": [
-        {
-          "metrics": [
-            {
-              "name": "temperature",
-              "gauge": {
-                "dataPoints": [
-                  {
-                    "attributes": [
-                      {
-                        "key": "label1",
-                        "value": {
-                          "stringValue": "value1"
-                        }
-                      }
-                    ],
-                    "asInt": "15"
-                  }
-                ]
-              }
-            }
-          ]
-        }
-      ]
-    }
-  ]
-}
-' | curl -X POST -H 'Content-Type: application/json' --data-binary @- http://localhost:8428/opentelemetry/api/v1/push
-```
-
-The saved data can be verified by querying it via [/api/v1/export](https://docs.victoriametrics.com/#how-to-export-data-in-json-line-format):
-
-```bash
-curl http://localhost:8428/api/v1/export -d 'match[]=temperature'
-{"metric":{"__name__":"temperature","job":"vm","label1":"value1"},"values":[15],"timestamps":[1673390534000]}
-```
-
-By default VictoriaMetrics expects `protobuf`-encoded requests at `/opentelemetry/api/v1/push`. Set `Content-Type: application/json`
-request header when sending `json`-encoded data.
-
+VictoriaMetrics expects `protobuf`-encoded requests at `/opentelemetry/api/v1/push`.
 Set HTTP request header `Content-Encoding: gzip` when sending gzip-compressed data to `/opentelemetry/api/v1/push`.
 
 ## Relabeling

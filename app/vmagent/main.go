@@ -16,7 +16,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/graphite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/influx"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/native"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/opentelemetryhttp"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/opentelemetry"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/opentsdb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/opentsdbhttp"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/prometheusimport"
@@ -309,6 +309,15 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		influxQueryRequests.Inc()
 		influxutils.WriteDatabaseNames(w)
 		return true
+	case "/opentelemetry/api/v1/push":
+		opentelemetryPushRequests.Inc()
+		if err := opentelemetry.InsertHandler(nil, r); err != nil {
+			opentelemetryPushErrors.Inc()
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		w.WriteHeader(http.StatusOK)
+		return true
 	case "/datadog/api/v1/series":
 		datadogWriteRequests.Inc()
 		if err := datadog.InsertHandlerForHTTP(nil, r); err != nil {
@@ -343,15 +352,6 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		datadogMetadataRequests.Inc()
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprintf(w, `{}`)
-		return true
-	case "/opentelemetry/api/v1/push":
-		opentelemetryPushRequests.Inc()
-		if err := opentelemetryhttp.InsertHandler(nil, r); err != nil {
-			opentelemetryPushErrors.Inc()
-			httpserver.Errorf(w, r, "%s", err)
-			return true
-		}
-		w.WriteHeader(http.StatusOK)
 		return true
 	case "/prometheus/targets", "/targets":
 		promscrapeTargetsRequests.Inc()
@@ -508,6 +508,15 @@ func processMultitenantRequest(w http.ResponseWriter, r *http.Request, path stri
 	case "influx/query":
 		influxQueryRequests.Inc()
 		influxutils.WriteDatabaseNames(w)
+		return true
+	case "opentelemetry/api/v1/push":
+		opentelemetryPushRequests.Inc()
+		if err := opentelemetry.InsertHandler(at, r); err != nil {
+			opentelemetryPushErrors.Inc()
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		w.WriteHeader(http.StatusOK)
 		return true
 	case "datadog/api/v1/series":
 		datadogWriteRequests.Inc()

@@ -118,15 +118,3 @@ type KeyValue struct {
 	Key   string    `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
 	Value *AnyValue `protobuf:"bytes,2,opt,name=value,proto3" json:"value,omitempty"`
 }
-
-// InstrumentationScope is a message representing the instrumentation scope information
-// such as the fully qualified name and version.
-type InstrumentationScope struct {
-	unknownFields []byte
-
-	// An empty instrumentation scope name means the name is unknown.
-	Name                   string      `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Version                string      `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"`
-	Attributes             []*KeyValue `protobuf:"bytes,3,rep,name=attributes,proto3" json:"attributes,omitempty"`
-	DroppedAttributesCount uint32      `protobuf:"varint,4,opt,name=dropped_attributes_count,json=droppedAttributesCount,proto3" json:"dropped_attributes_count,omitempty"`
-}

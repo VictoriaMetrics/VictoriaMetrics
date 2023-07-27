@@ -62,11 +62,6 @@ message ResourceMetrics {
 
 // A collection of Metrics produced by an Scope.
 message ScopeMetrics {
-  // The instrumentation scope information for the metrics in this message.
-  // Semantically when InstrumentationScope isn't set, it is equivalent with
-  // an empty instrumentation scope name (unknown).
-  InstrumentationScope scope = 1;
-
   // A list of metrics that originate from an instrumentation library.
   repeated Metric metrics = 2;
 
