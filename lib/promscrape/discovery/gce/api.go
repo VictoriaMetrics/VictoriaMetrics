@@ -42,6 +42,7 @@ func newAPIConfig(sdc *SDConfig) (*apiConfig, error) {
 	if len(project) == 0 {
 		proj, err := getCurrentProject()
 		if err != nil {
+			client.CloseIdleConnections()
 			return nil, fmt.Errorf("cannot determine the current project; make sure `vmagent` runs inside GCE; error: %w", err)
 		}
 		project = proj
@@ -52,6 +53,7 @@ func newAPIConfig(sdc *SDConfig) (*apiConfig, error) {
 		// Autodetect the current zone.
 		zone, err := getCurrentZone()
 		if err != nil {
+			client.CloseIdleConnections()
 			return nil, fmt.Errorf("cannot determine the current zone; make sure `vmagent` runs inside GCE; error: %w", err)
 		}
 		zones = append(zones, zone)
@@ -62,6 +64,7 @@ func newAPIConfig(sdc *SDConfig) (*apiConfig, error) {
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3202
 		zs, err := getZonesForProject(client, project)
 		if err != nil {
+			client.CloseIdleConnections()
 			return nil, fmt.Errorf("cannot obtain zones for project %q: %w", project, err)
 		}
 		zones = zs
