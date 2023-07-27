@@ -18,6 +18,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 * SECURITY: upgrade Go builder from Go1.20.4 to Go1.21.0.
 * SECURITY: upgrade base docker image (Alpine) from 3.18.2 to 3.18.3. See [alpine 3.18.3 release notes](https://alpinelinux.org/posts/Alpine-3.15.10-3.16.7-3.17.5-3.18.3-released.html).
 
+* BUGFIX: vminsert: fixed decoding of label values with slash for pushgateway and prometheus golang client compatibility. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4692).
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): properly apply `if` filters during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling-enhancements). Previously the `if` filter could improperly work. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4806) and [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4816).
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): fix possible panic at shutdown when [stream aggregation](https://docs.victoriametrics.com/stream-aggregation.html) is enabled. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4407) for details.
 * BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth.html): Properly handle LOCAL command for proxy protocol. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3335#issuecomment-1569864108).
