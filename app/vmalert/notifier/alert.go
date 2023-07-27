@@ -39,6 +39,8 @@ type Alert struct {
 	ResolvedAt time.Time
 	// LastSent defines the moment when Alert was sent last time
 	LastSent time.Time
+	// KeepFiringSince defines the moment when StateFiring was kept because of `keep_firing_for` instead of real alert
+	KeepFiringSince time.Time
 	// Value stores the value returned from evaluating expression from Expr field
 	Value float64
 	// ID is the unique identifier for the Alert

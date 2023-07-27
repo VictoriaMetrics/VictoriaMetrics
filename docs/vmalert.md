@@ -214,6 +214,10 @@ expr: <string>
 # as firing once they return.
 [ for: <duration> | default = 0s ]
 
+# Alert will continue firing for this long even when the alerting expression no longer has results.
+# This allows you to delay alert resolution.
+[ keep_firing_for: <duration> | default = 0s ]
+
 # Whether to print debug information into logs.
 # Information includes alerts state changes and requests sent to the datasource.
 # Please note, that if rule's query params contain sensitive
@@ -747,6 +751,7 @@ See full description for these flags in `./vmalert -help`.
 * Graphite engine isn't supported yet;
 * `query` template function is disabled for performance reasons (might be changed in future);
 * `limit` group's param has no effect during replay (might be changed in future);
+* `keep_firing_for` alerting rule param has no effect during replay (might be changed in future).
 
 ## Unit Testing for Rules
 

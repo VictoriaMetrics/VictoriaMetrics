@@ -21,17 +21,18 @@ import (
 
 // AlertingRule is basic alert entity
 type AlertingRule struct {
-	Type         config.Type
-	RuleID       uint64
-	Name         string
-	Expr         string
-	For          time.Duration
-	Labels       map[string]string
-	Annotations  map[string]string
-	GroupID      uint64
-	GroupName    string
-	EvalInterval time.Duration
-	Debug        bool
+	Type          config.Type
+	RuleID        uint64
+	Name          string
+	Expr          string
+	For           time.Duration
+	KeepFiringFor time.Duration
+	Labels        map[string]string
+	Annotations   map[string]string
+	GroupID       uint64
+	GroupName     string
+	EvalInterval  time.Duration
+	Debug         bool
 
 	q datasource.Querier
 
@@ -56,17 +57,18 @@ type alertingRuleMetrics struct {
 
 func newAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule) *AlertingRule {
 	ar := &AlertingRule{
-		Type:         group.Type,
-		RuleID:       cfg.ID,
-		Name:         cfg.Alert,
-		Expr:         cfg.Expr,
-		For:          cfg.For.Duration(),
-		Labels:       cfg.Labels,
-		Annotations:  cfg.Annotations,
-		GroupID:      group.ID(),
-		GroupName:    group.Name,
-		EvalInterval: group.Interval,
-		Debug:        cfg.Debug,
+		Type:          group.Type,
+		RuleID:        cfg.ID,
+		Name:          cfg.Alert,
+		Expr:          cfg.Expr,
+		For:           cfg.For.Duration(),
+		KeepFiringFor: cfg.KeepFiringFor.Duration(),
+		Labels:        cfg.Labels,
+		Annotations:   cfg.Annotations,
+		GroupID:       group.ID(),
+		GroupName:     group.Name,
+		EvalInterval:  group.Interval,
+		Debug:         cfg.Debug,
 		q: qb.BuildWithParams(datasource.QuerierParams{
 			DataSourceType:     group.Type.String(),
 			EvaluationInterval: group.Interval,
@@ -366,6 +368,7 @@ func (ar *AlertingRule) Exec(ctx context.Context, ts time.Time, limit int) ([]pr
 			if err != nil {
 				return nil, err
 			}
+			a.KeepFiringSince = time.Time{}
 			continue
 		}
 		a, err := ar.newAlert(m, ls, start, qFn)
@@ -391,12 +394,24 @@ func (ar *AlertingRule) Exec(ctx context.Context, ts time.Time, limit int) ([]pr
 				ar.logDebugf(ts, a, "PENDING => DELETED: is absent in current evaluation round")
 				continue
 			}
+			// check if alert should keep StateFiring if rule has
+			// `keep_firing_for` field
 			if a.State == notifier.StateFiring {
-				a.State = notifier.StateInactive
-				a.ResolvedAt = ts
-				ar.logDebugf(ts, a, "FIRING => INACTIVE: is absent in current evaluation round")
+				if ar.KeepFiringFor > 0 {
+					if a.KeepFiringSince.IsZero() {
+						a.KeepFiringSince = ts
+					}
+				}
+				// alerts with ar.KeepFiringFor>0 may remain FIRING
+				// even if their expression isn't true anymore
+				if ts.Sub(a.KeepFiringSince) > ar.KeepFiringFor {
+					a.State = notifier.StateInactive
+					a.ResolvedAt = ts
+					ar.logDebugf(ts, a, "FIRING => INACTIVE: is absent in current evaluation round")
+					continue
+				}
+				ar.logDebugf(ts, a, "KEEP_FIRING: will keep firing for %fs since %v", ar.KeepFiringFor.Seconds(), a.KeepFiringSince)
 			}
-			continue
 		}
 		numActivePending++
 		if a.State == notifier.StatePending && ts.Sub(a.ActiveAt) >= ar.For {
@@ -436,6 +451,7 @@ func (ar *AlertingRule) UpdateWith(r Rule) error {
 	}
 	ar.Expr = nr.Expr
 	ar.For = nr.For
+	ar.KeepFiringFor = nr.KeepFiringFor
 	ar.Labels = nr.Labels
 	ar.Annotations = nr.Annotations
 	ar.EvalInterval = nr.EvalInterval
@@ -508,6 +524,7 @@ func (ar *AlertingRule) ToAPI() APIRule {
 		Name:              ar.Name,
 		Query:             ar.Expr,
 		Duration:          ar.For.Seconds(),
+		KeepFiringFor:     ar.KeepFiringFor.Seconds(),
 		Labels:            ar.Labels,
 		Annotations:       ar.Annotations,
 		LastEvaluation:    lastState.time,
@@ -575,6 +592,9 @@ func (ar *AlertingRule) newAlertAPI(a notifier.Alert) *APIAlert {
 	}
 	if alertURLGeneratorFn != nil {
 		aa.SourceLink = alertURLGeneratorFn(a)
+	}
+	if a.State == notifier.StateFiring && !a.KeepFiringSince.IsZero() {
+		aa.Stabilizing = true
 	}
 	return aa
 }

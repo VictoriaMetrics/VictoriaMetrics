@@ -116,7 +116,11 @@ btn-primary
                                     <div class="row">
                                         <div class="col-12 mb-2">
                                             {% if r.Type == "alerting" %}
+                                            {% if r.KeepFiringFor > 0 %}
+                                            <b>alert:</b> {%s r.Name %} (for: {%v r.Duration %} seconds, keep_firing_for: {%v r.KeepFiringFor %} seconds)
+                                            {% else %}
                                             <b>alert:</b> {%s r.Name %} (for: {%v r.Duration %} seconds)
+                                            {% endif %}
                                             {% else %}
                                             <b>record:</b> {%s r.Name %}
                                             {% endif %}
@@ -225,6 +229,7 @@ btn-primary
                                 <td>
                                     {%s ar.ActiveAt.Format("2006-01-02T15:04:05Z07:00") %}
                                     {% if ar.Restored %}{%= badgeRestored() %}{% endif %}
+                                    {% if ar.Stabilizing %}{%= badgeStabilizing() %}{% endif %}
                                 </td>
                                 <td>{%s ar.Value %}</td>
                                 <td>
@@ -442,6 +447,18 @@ btn-primary
         </div>
       </div>
     </div>
+    {% if rule.KeepFiringFor > 0 %}
+    <div class="container border-bottom p-2">
+      <div class="row">
+        <div class="col-2">
+          Keep firing for
+        </div>
+        <div class="col">
+         {%v rule.KeepFiringFor %} seconds
+        </div>
+      </div>
+    </div>
+    {% endif %}
     {% endif %}
     <div class="container border-bottom p-2">
       <div class="row">
@@ -559,6 +576,10 @@ btn-primary
 
 {% func badgeRestored() %}
 <span class="badge bg-warning text-dark" title="Alert state was restored after the service restart from remote storage">restored</span>
+{% endfunc %}
+
+{% func badgeStabilizing() %}
+<span class="badge bg-warning text-dark" title="This firing state is kept because of `keep_firing_for`">stabilizing</span>
 {% endfunc %}
 
 {% func seriesFetchedWarn(r APIRule) %}
