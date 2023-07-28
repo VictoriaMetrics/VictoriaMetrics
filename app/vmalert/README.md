@@ -378,7 +378,7 @@ to persist the state to the remote destination via the following flags:
 Both flags are required for proper state restoration. Restore process may fail if time series are missing
 in configured `-remoteRead.url`, weren't updated in the last `1h` (controlled by `-remoteRead.lookback`)
 or received state doesn't match current `vmalert` rules configuration. `vmalert` marks successfully restored rules
-with `restored` label in [web UI](#WEB).
+with `restored` label in [web UI](#web).
 
 ### Multitenancy
 
@@ -1607,7 +1607,7 @@ dns_sd_configs:
     port: 9093
 ```
 
-The list of configured or discovered Notifiers can be explored via [UI](#Web).
+The list of configured or discovered Notifiers can be explored via [UI](#web).
 If Alertmanager runs in cluster mode then all its URLs needs to be available during discovery
 to ensure [high availability](https://github.com/prometheus/alertmanager#high-availability).
 
