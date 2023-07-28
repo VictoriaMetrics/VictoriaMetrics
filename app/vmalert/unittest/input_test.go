@@ -1,9 +1,8 @@
 package unittest
 
 import (
+	"reflect"
 	"testing"
-
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 )
 
 func TestParseInputValue(t *testing.T) {
@@ -22,12 +21,6 @@ func TestParseInputValue(t *testing.T) {
 			nil,
 			true,
 		},
-		// stale doesn't support operations
-		{
-			"stalex3",
-			nil,
-			true,
-		},
 		{
 			"-4",
 			[]sequenceValue{{Value: -4}},
@@ -36,11 +29,6 @@ func TestParseInputValue(t *testing.T) {
 		{
 			"_",
 			[]sequenceValue{{Omitted: true}},
-			false,
-		},
-		{
-			"stale",
-			[]sequenceValue{{Value: decimal.StaleNaN}},
 			false,
 		},
 		{
@@ -64,8 +52,8 @@ func TestParseInputValue(t *testing.T) {
 			false,
 		},
 		{
-			"1+1x1 _ -4 stale 3+20x1",
-			[]sequenceValue{{Value: 1}, {Value: 2}, {Omitted: true}, {Value: -4}, {Value: decimal.StaleNaN}, {Value: 3}, {Value: 23}},
+			"1+1x1 _ -4 3+20x1",
+			[]sequenceValue{{Value: 1}, {Value: 2}, {Omitted: true}, {Value: -4}, {Value: 3}, {Value: 23}},
 			false,
 		},
 	}
@@ -75,19 +63,8 @@ func TestParseInputValue(t *testing.T) {
 		if err != nil != tc.failed {
 			t.Fatalf("failed to parse %s, expect %t, got %t", tc.input, tc.failed, err != nil)
 		}
-		if len(tc.exp) != len(output) {
+		if !reflect.DeepEqual(tc.exp, output) {
 			t.Fatalf("expect %v, got %v", tc.exp, output)
-		}
-		for i := 0; i < len(tc.exp); i++ {
-			if tc.exp[i].Omitted != output[i].Omitted {
-				t.Fatalf("expect %v, got %v", tc.exp, output)
-			}
-			if tc.exp[i].Value != output[i].Value {
-				if decimal.IsStaleNaN(tc.exp[i].Value) && decimal.IsStaleNaN(output[i].Value) {
-					continue
-				}
-				t.Fatalf("expect %v, got %v", tc.exp, output)
-			}
 		}
 	}
 }

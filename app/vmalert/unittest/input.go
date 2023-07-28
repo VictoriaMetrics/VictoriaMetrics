@@ -12,7 +12,6 @@ import (
 
 	testutil "github.com/VictoriaMetrics/VictoriaMetrics/app/victoria-metrics/test"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 	"github.com/VictoriaMetrics/metricsql"
@@ -86,13 +85,9 @@ func WriteInputSeries(input []Series, interval *promutils.Duration, startStamp t
 func parseInputValue(input string, origin bool) ([]sequenceValue, error) {
 	var res []sequenceValue
 	items := strings.Split(input, " ")
-	reg := regexp.MustCompile(`\D?\d*\D?`)
+	reg2 := regexp.MustCompile(`\D?\d*\D?`)
 	for _, item := range items {
-		if item == "stale" {
-			res = append(res, sequenceValue{Value: decimal.StaleNaN})
-			continue
-		}
-		vals := reg.FindAllString(item, -1)
+		vals := reg2.FindAllString(item, -1)
 		switch len(vals) {
 		case 1:
 			if vals[0] == "_" {
