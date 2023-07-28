@@ -73,7 +73,7 @@ and make it merged. See example in this [commit](https://github.com/VictoriaMetr
       * linux/ppc64le
       * linux/386
       This step can be run manually with the command `make publish` from the needed git tag.
-1. Push the tags `v1.xx.y` and `v1.xx.y-cluster` created at step 2 to public GitHub repository at https://github.com/VictoriaMetrics/VictoriaMetrics.
+1. Push the tags `v1.xx.y` and `v1.xx.y-cluster` created at step 8 to public GitHub repository at https://github.com/VictoriaMetrics/VictoriaMetrics.
    Push the tags `v1.xx.y`, `v1.xx.y-cluster`, `v1.xx.y-enterprise` and `v1.xx.y-enterprise-cluster` to the corresponding
    branches in private repository.
    **Important note:** do not push enterprise tags to public GitHub repository - they must be pushed only to private repository.
@@ -81,7 +81,7 @@ and make it merged. See example in this [commit](https://github.com/VictoriaMetr
    a) Create draft GitHub release with the name `TAG`. This step can be run manually
       with the command `TAG=v1.xx.y make github-create-release`.
       The release id is stored at `/tmp/vm-github-release` file.
-   b) Upload all the binaries and checksums created at step `3a` to that release.
+   b) Upload all the binaries and checksums created at step `9a` to that release.
       This step can be run manually with the command `make github-upload-assets`.
       It is expected that the needed release id is stored at `/tmp/vm-github-release` file,
       which must be created at the step `a`.
