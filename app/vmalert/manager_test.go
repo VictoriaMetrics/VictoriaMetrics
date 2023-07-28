@@ -257,7 +257,7 @@ func TestManagerUpdate(t *testing.T) {
 func TestManagerUpdateNegative(t *testing.T) {
 	testCases := []struct {
 		notifiers []notifier.Notifier
-		rw        remotewrite.RWClient
+		rw        *remotewrite.Client
 		cfg       config.Group
 		expErr    string
 	}{
