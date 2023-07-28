@@ -274,7 +274,7 @@ func (g *Group) close() {
 
 var skipRandSleepOnGroupStart bool
 
-func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw remotewrite.RWClient, rr datasource.QuerierBuilder) {
+func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *remotewrite.Client, rr datasource.QuerierBuilder) {
 	defer func() { close(g.finishedCh) }()
 
 	// Spread group rules evaluation over time in order to reduce load on VictoriaMetrics.
@@ -422,7 +422,7 @@ type executor struct {
 	notifiers       func() []notifier.Notifier
 	notifierHeaders map[string]string
 
-	rw remotewrite.RWClient
+	rw *remotewrite.Client
 
 	previouslySentSeriesToRWMu sync.Mutex
 	// previouslySentSeriesToRW stores series sent to RW on previous iteration
