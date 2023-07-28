@@ -755,35 +755,21 @@ See full description for these flags in `./vmalert -help`.
 
 ## Unit Testing for Rules
 
-> Unit testing is available from v1.92.0. 
-> Unit tests do not respect `-clusterMode` for now.
+You can use `vmalert` to test your rules. 
+It will setup an isolated VM instance, simulate the periodic ingestion of samples for several time series, use those series to evaluate recording and alerting rules, and then test whether the firing alerts or metricsql expressions match what was configured as the expected results. 
 
-You can use `vmalert` to run unit tests for alerting and recording rules.
-In unit test mode vmalert performs the following actions:
-* sets up an isolated VictoriaMetrics instance;
-* simulates the periodic ingestion of time series;
-* queries the ingested data for recording and alerting rules evaluation;
-* tests whether the firing alerts or resulting recording rules match the expected results. 
-
-See how to run vmalert in unit test mode below:
 ```
 # Run vmalert with one or multiple test files via -unittestFile cmd-line flag
 ./vmalert -unittestFile=test1.yaml -unittestFile=test2.yaml
 ```
 
-vmalert is compatible with [Prometheus config format for tests](https://prometheus.io/docs/prometheus/latest/configuration/unit_testing_rules/#test-file-format)
-except `promql_expr_test` field. Use `metricsql_expr_test` field name instead. The name is different because vmalert 
-validates and executes [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) expressions, 
-which aren't always backward compatible with [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/).
-
 ### Test file format
 
-The configuration format for files specified in `-unittestFile` cmd-line flag is the following:
 ```
 # Path to the files or http url containing [rule groups](https://docs.victoriametrics.com/vmalert.html#groups) configuration.
 # Enterprise version of vmalert supports S3 and GCS paths to rules.
 rule_files:
-  [ - <string> ]
+  [ - <file_name> ]
 
 # The evaluation interval for rules specified in `rule_files`
 [ evaluation_interval: <duration> | default = 1m ]
@@ -791,7 +777,7 @@ rule_files:
 # Groups listed below will be evaluated by order.
 # Not All the groups need not be mentioned, if not, they will be evaluated by define order in rule_files.
 group_eval_order:
-  [ - <string> ]
+  [ - <group_name> ]
 
 # The list of unit test files to be checked during evaluation.
 tests:
@@ -810,7 +796,7 @@ input_series:
 # Name of the test group, optional
 [ name: <string> ]
 
-# Unit tests for alerting rules
+# Unit tests for alerting rules. Alerting rules are from the input file.
 alert_rule_test:
   [ - <alert_test_case> ]
 
@@ -818,7 +804,7 @@ alert_rule_test:
 metricsql_expr_test:
   [ - <metricsql_expr_test> ]
 
-# External labels accessible for templating.
+# External labels accessible to the alert template.
 external_labels:
   [ <labelname>: <string> ... ]
 
@@ -827,7 +813,7 @@ external_labels:
 #### `<series>`
 
 ```
-# series in the following format '<metric name>{<label name>=<label value>, ...}'
+# series should format as '<metric name>{<label name>=<label value>, ...}'
 # Examples:
 #      series_name{label1="value1", label2="value2"}
 #      go_goroutines{job="prometheus", instance="localhost:9090"}
@@ -849,13 +835,12 @@ values: <string>
 
 #### `<alert_test_case>`
 
-vmalert by default adds `alertgroup` and `alertname` to the generated alerts and time series. 
-So you will need to specify both `groupname` and `alertname` under a single `<alert_test_case>`, 
-but no need to add them under `exp_alerts`.
-You can also pass `--disableAlertgroupLabel` to prevent vmalert from adding `alertgroup` label.
+vmalert by default adds group name and alert name to generated alerts and timeseries. 
+So you will need to specify both `groupname` and `alertname` under a single `<alert_test_case>`, but no need to add them under `exp_alerts`.
+You can also pass `--disableAlertgroupLabel` to prevent adding groupname label, in that case, `groupname` can be missed.
 
 ```
-# The time elapsed from time=0s when this alerting rule should be checked.
+# The time elapsed from time=0s when this alerting rule be checked.
 # Means this rule should be firing at this point, or shouldn't be firing if 'exp_alerts' is empty.
 eval_time: <duration>
 
@@ -865,9 +850,9 @@ groupname: <string>
 # Name of the alert to be tested.
 alertname: <string>
 
-# List of the expected alerts that are firing under the given alertname at
-# the given evaluation time. If you want to test if an alerting rule should
-# not be firing, then you can mention only the fields above and leave 'exp_alerts' empty.
+# List of expected alerts which are firing under the given alertname at
+# given evaluation time. If you want to test if an alerting rule should
+# not be firing, then you can mention the above fields and leave 'exp_alerts' empty.
 exp_alerts:
   [ - <alert> ]
 ```
@@ -912,8 +897,7 @@ value: <number>
 
 ### Example
 
-This is an example input file for unit testing which will pass.
-`test.yaml` is the test file which follows the syntax above and `alerts.yaml` contains the alerting rules.
+This is an example input file for unit testing which will passes. `test.yaml` is the test file which follows the syntax above and `alerts.yaml` contains the alerting rules.
 
 With `rules.yaml` in the same directory, run `./vmalert -unittestFile=./unittest/testdata/test.yaml`.
 
@@ -935,7 +919,7 @@ tests:
       - expr: suquery_interval_test
         eval_time: 4m
         exp_samples:
-          - labels: '{__name__="suquery_interval_test", datacenter="dc-123", instance="localhost:9090", job="prometheus"}'
+          - labels: '{__name__="suquery_interval_test",datacenter="dc-123", instance="localhost:9090", job="prometheus"}'
             value: 1
 
     alert_rule_test:
