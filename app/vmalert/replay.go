@@ -33,7 +33,7 @@ var (
 		"Progress bar rendering might be verbose or break the logs parsing, so it is recommended to be disabled when not used in interactive mode.")
 )
 
-func replay(groupsCfg []config.Group, qb datasource.QuerierBuilder, rw remotewrite.RWClient) error {
+func replay(groupsCfg []config.Group, qb datasource.QuerierBuilder, rw *remotewrite.Client) error {
 	if *replayMaxDatapoints < 1 {
 		return fmt.Errorf("replay.maxDatapointsPerQuery can't be lower than 1")
 	}
@@ -78,7 +78,7 @@ func replay(groupsCfg []config.Group, qb datasource.QuerierBuilder, rw remotewri
 	return nil
 }
 
-func (g *Group) replay(start, end time.Time, rw remotewrite.RWClient) int {
+func (g *Group) replay(start, end time.Time, rw *remotewrite.Client) int {
 	var total int
 	step := g.Interval * time.Duration(*replayMaxDatapoints)
 	ri := rangeIterator{start: start, end: end, step: step}
@@ -119,7 +119,7 @@ func (g *Group) replay(start, end time.Time, rw remotewrite.RWClient) int {
 	return total
 }
 
-func replayRule(rule Rule, start, end time.Time, rw remotewrite.RWClient) (int, error) {
+func replayRule(rule Rule, start, end time.Time, rw *remotewrite.Client) (int, error) {
 	var err error
 	var tss []prompbmarshal.TimeSeries
 	for i := 0; i < *replayRuleRetryAttempts; i++ {
