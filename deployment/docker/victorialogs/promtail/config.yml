@@ -6,7 +6,7 @@ positions:
   filename: /tmp/positions.yaml
 
 clients:
-  - url: http://vlogs:9428/insert/loki/api/v1/push?_stream_fields=instance,job,host,app,pid
+  - url: http://vlogs:9428/insert/loki/api/v1/push?_stream_fields=instance,job,host,app
     tenant_id: "0:0"
 
 scrape_configs:

@@ -24,6 +24,12 @@ The following `tip` changes can be tested by building VictoriaMetrics components
 
 ## tip
 
+## [v1.92.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.92.1)
+
+Released at 2023-07-28
+
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): revert unit test feature for alerting and recording rules introduced in [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4596). See the following [change](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4734).
+
 ## [v1.92.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.92.0)
 
 Released at 2023-07-27
@@ -39,6 +45,8 @@ The previous behavior can be restored in the following ways:
 
 - by passing `-streamAggr.dropInput` command-line flag to single-node VictoriaMetrics;
 - by passing `-remoteWrite.streamAggr.dropInput` command-line flag per each configured `-remoteWrite.streamAggr.config` at `vmagent`.
+
+### CHANGES
 
 * SECURITY: upgrade base docker image (alpine) from 3.18.0 to 3.18.2. See [alpine 3.18.2 release notes](https://alpinelinux.org/posts/Alpine-3.15.9-3.16.6-3.17.4-3.18.2-released.html).
 * SECURITY: upgrade Go builder from Go1.20.5 to Go1.20.6. See [the list of issues addressed in Go1.20.6](https://github.com/golang/go/issues?q=milestone%3AGo1.20.6+label%3ACherryPickApproved).

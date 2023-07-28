@@ -19,7 +19,7 @@ type manager struct {
 	querierBuilder datasource.QuerierBuilder
 	notifiers      func() []notifier.Notifier
 
-	rw remotewrite.RWClient
+	rw *remotewrite.Client
 	// remote read builder.
 	rr datasource.QuerierBuilder
 
