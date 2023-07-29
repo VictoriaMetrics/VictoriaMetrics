@@ -70,7 +70,7 @@ func TestParseBad(t *testing.T) {
 	}{
 		{
 			[]string{"testdata/rules/rules_interval_bad.rules"},
-			"shouldn't be greater than interval",
+			"eval_offset should be less than interval",
 		},
 		{
 			[]string{"testdata/rules/rules0-bad.rules"},
@@ -144,6 +144,35 @@ func TestGroup_Validate(t *testing.T) {
 		{
 			group:  &Group{},
 			expErr: "group name must be set",
+		},
+		{
+			group: &Group{
+				Name:     "negative interval",
+				Interval: promutils.NewDuration(-1),
+			},
+			expErr: "neither interval nor eval_offset should be less than 0",
+		},
+		{
+			group: &Group{
+				Name:       "wrong eval_offset",
+				Interval:   promutils.NewDuration(time.Minute),
+				EvalOffset: promutils.NewDuration(2 * time.Minute),
+			},
+			expErr: "eval_offset should be less than interval",
+		},
+		{
+			group: &Group{
+				Name:  "wrong limit",
+				Limit: -1,
+			},
+			expErr: "invalid limit",
+		},
+		{
+			group: &Group{
+				Name:        "wrong concurrency",
+				Concurrency: -1,
+			},
+			expErr: "invalid concurrency",
 		},
 		{
 			group: &Group{
@@ -352,7 +381,7 @@ func TestGroup_Validate(t *testing.T) {
 		if tc.validateAnnotations {
 			validateTplFn = notifier.ValidateTemplates
 		}
-		err := tc.group.Validate(validateTplFn, tc.validateExpressions, time.Minute)
+		err := tc.group.Validate(validateTplFn, tc.validateExpressions)
 		if err == nil {
 			if tc.expErr != "" {
 				t.Errorf("expected to get err %q; got nil insted", tc.expErr)

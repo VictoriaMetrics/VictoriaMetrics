@@ -54,10 +54,6 @@ func (g *Group) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	if err != nil {
 		return fmt.Errorf("failed to marshal group configuration for checksum: %w", err)
 	}
-	// change default value to prometheus datasource.
-	if g.Type.Get() == "" {
-		g.Type.Set(NewPrometheusType())
-	}
 
 	h := md5.New()
 	h.Write(b)
@@ -65,30 +61,35 @@ func (g *Group) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	return nil
 }
 
-// Validate check for internal Group or Rule configuration errors
-func (g *Group) Validate(validateTplFn ValidateTplFn, validateExpressions bool, defaultGroupInterval time.Duration) error {
+// SetDefaultFields sets some fields with default values if nil
+func (g *Group) SetDefaultFields(defaultGroupInterval time.Duration) {
+	if g.Interval == nil {
+		g.Interval = promutils.NewDuration(defaultGroupInterval)
+	}
+	if g.Type.Get() == "" {
+		g.Type.Set(NewPrometheusType())
+	}
+	if g.Concurrency == 0 {
+		g.Concurrency = 1
+	}
+}
+
+// Validate checks for internal Group or Rule configuration errors
+func (g *Group) Validate(validateTplFn ValidateTplFn, validateExpressions bool) error {
 	if g.Name == "" {
 		return fmt.Errorf("group name must be set")
 	}
 	if g.Interval.Duration() < 0 || g.EvalOffset.Duration() < 0 {
 		return fmt.Errorf("neither interval nor eval_offset should be less than 0")
 	}
-	// set default values for group
-	if g.Interval == nil {
-		g.Interval = promutils.NewDuration(defaultGroupInterval)
-	}
 	if g.EvalOffset.Duration() > g.Interval.Duration() {
-		return fmt.Errorf("eval_offset %v shouldn't be greater than interval %v", *g.EvalOffset, *g.Interval)
-
+		return fmt.Errorf("eval_offset should be less than interval; now eval_offset: %v, interval: %v", *g.EvalOffset, *g.Interval)
 	}
 	if g.Limit < 0 {
-		return fmt.Errorf("limit %d shouldn't be less than 0", g.Limit)
+		return fmt.Errorf("invalid limit %d, shouldn't be less than 0", g.Limit)
 	}
 	if g.Concurrency < 0 {
-		return fmt.Errorf("concurrency %d shouldn't be less than 0", g.Concurrency)
-
-	} else if g.Concurrency == 0 {
-		g.Concurrency = 1
+		return fmt.Errorf("invalid concurrency %d, shouldn't be less than 0", g.Concurrency)
 	}
 
 	uniqueRules := map[uint64]struct{}{}
@@ -98,26 +99,26 @@ func (g *Group) Validate(validateTplFn ValidateTplFn, validateExpressions bool, 
 			ruleName = r.Alert
 		}
 		if _, ok := uniqueRules[r.ID]; ok {
-			return fmt.Errorf("%q is a duplicate within the group %q", r.String(), g.Name)
+			return fmt.Errorf("%q is a duplicate in group", r.String())
 		}
 		uniqueRules[r.ID] = struct{}{}
 		if err := r.Validate(); err != nil {
-			return fmt.Errorf("invalid rule %q.%q: %w", g.Name, ruleName, err)
+			return fmt.Errorf("invalid rule %q: %w", ruleName, err)
 		}
 		if validateExpressions {
 			// its needed only for tests.
 			// because correct types must be inherited after unmarshalling.
 			exprValidator := g.Type.ValidateExpr
 			if err := exprValidator(r.Expr); err != nil {
-				return fmt.Errorf("invalid expression for rule %q.%q: %w", g.Name, ruleName, err)
+				return fmt.Errorf("invalid expression for rule  %q: %w", ruleName, err)
 			}
 		}
 		if validateTplFn != nil {
 			if err := validateTplFn(r.Annotations); err != nil {
-				return fmt.Errorf("invalid annotations for rule %q.%q: %w", g.Name, ruleName, err)
+				return fmt.Errorf("invalid annotations for rule  %q: %w", ruleName, err)
 			}
 			if err := validateTplFn(r.Labels); err != nil {
-				return fmt.Errorf("invalid labels for rule %q.%q: %w", g.Name, ruleName, err)
+				return fmt.Errorf("invalid labels for rule  %q: %w", ruleName, err)
 			}
 		}
 	}
@@ -268,7 +269,8 @@ func parse(files map[string][]byte, validateTplFn ValidateTplFn, validateExpress
 			continue
 		}
 		for _, g := range gr {
-			if err := g.Validate(validateTplFn, validateExpressions, defaultGroupInterval); err != nil {
+			g.SetDefaultFields(defaultGroupInterval)
+			if err := g.Validate(validateTplFn, validateExpressions); err != nil {
 				errGroup.Add(fmt.Errorf("invalid group %q in file %q: %w", g.Name, file, err))
 				continue
 			}

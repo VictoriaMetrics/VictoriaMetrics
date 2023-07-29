@@ -1,8 +1,7 @@
 groups:
   - name: groupTest
-    interval: 1h
-    ## eval_offset shouldn't be greater than interval
-    eval_offset: 65m
+    ## default interval is 1min, eval_offset shouldn't be greater than interval
+    eval_offset: 2m
     rules:
       - alert: VMRows
         for: 2s
