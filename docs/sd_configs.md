@@ -1445,7 +1445,8 @@ scrape_configs:
   # If honor_timestamps is set to "false", the timestamps of the metrics exposed
   # by the target will be ignored.
   #
-  # By default, honor_timestamps is set to true.
+  # By default, honor_timestamps is set to false.
+  # See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4697#issuecomment-1656540535 for details.
   # honor_timestamps: <boolean>
 
   # scheme configures the protocol scheme used for requests.
