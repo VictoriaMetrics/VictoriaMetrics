@@ -1238,7 +1238,7 @@ func TestStorageRotateIndexDB(t *testing.T) {
 				return
 			default:
 				time.Sleep(time.Millisecond)
-				s.mustRotateIndexDB()
+				s.mustRotateIndexDB(time.Now())
 			}
 		}
 	}()
