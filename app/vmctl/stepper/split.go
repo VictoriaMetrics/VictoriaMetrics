@@ -10,6 +10,8 @@ const (
 	StepMonth string = "month"
 	// StepDay represents a one day interval
 	StepDay string = "day"
+	// StepWeek represents a one week interval
+	StepWeek string = "week"
 	// StepHour represents a one hour interval
 	StepHour string = "hour"
 	// StepMinute represents a one minute interval
@@ -39,6 +41,10 @@ func SplitDateRange(start, end time.Time, step string) ([][]time.Time, error) {
 	case StepDay:
 		nextStep = func(t time.Time) (time.Time, time.Time) {
 			return t, t.AddDate(0, 0, 1)
+		}
+	case StepWeek:
+		nextStep = func(t time.Time) (time.Time, time.Time) {
+			return t, t.Add(7 * 24 * time.Hour)
 		}
 	case StepHour:
 		nextStep = func(t time.Time) (time.Time, time.Time) {
