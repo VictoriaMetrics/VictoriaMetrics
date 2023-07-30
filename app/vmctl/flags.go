@@ -468,6 +468,7 @@ const (
 	remoteReadHTTPTimeout        = "remote-read-http-timeout"
 	remoteReadHeaders            = "remote-read-headers"
 	remoteReadInsecureSkipVerify = "remote-read-insecure-skip-verify"
+	remoteReadSrcPath            = "remote-read-src-path"
 )
 
 var (
@@ -543,6 +544,11 @@ var (
 			Name:  remoteReadInsecureSkipVerify,
 			Usage: "Whether to skip TLS certificate verification when connecting to the remote read address",
 			Value: false,
+		},
+		&cli.StringFlag{
+			Name:  remoteReadSrcPath,
+			Usage: "Remote read source storage path to the remote read protocol. For example `/api/v1/read` or `read`",
+			Value: "",
 		},
 	}
 )

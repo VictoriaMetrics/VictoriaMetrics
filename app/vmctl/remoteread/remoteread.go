@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -33,6 +34,7 @@ type StreamCallback func(series *vm.TimeSeries) error
 // time series via remote read protocol.
 type Client struct {
 	addr      string
+	path      string
 	c         *http.Client
 	user      string
 	password  string
@@ -45,6 +47,8 @@ type Client struct {
 type Config struct {
 	// Addr of remote storage
 	Addr string
+	// Path of the remote read protocol
+	Path string
 	// Timeout defines timeout for HTTP requests
 	// made by remote read client
 	Timeout time.Duration
@@ -106,6 +110,7 @@ func NewClient(cfg Config) (*Client, error) {
 			Transport: utils.Transport(cfg.Addr, cfg.InsecureSkipVerify),
 		},
 		addr:      strings.TrimSuffix(cfg.Addr, "/"),
+		path:      cfg.Path,
 		user:      cfg.Username,
 		password:  cfg.Password,
 		useStream: cfg.UseStream,
@@ -173,8 +178,15 @@ func (c *Client) Ping() error {
 
 func (c *Client) fetch(ctx context.Context, data []byte, streamCb StreamCallback) error {
 	r := bytes.NewReader(data)
-	url := c.addr + remoteReadPath
-	req, err := http.NewRequest(http.MethodPost, url, r)
+	u, err := url.JoinPath(c.addr, c.path)
+	if err != nil {
+		return fmt.Errorf("error create url from addr %s and path %s", c.addr, c.path)
+	}
+	// use default path to remote read protocol if path is empty
+	if u == c.addr {
+		u = c.addr + remoteReadPath
+	}
+	req, err := http.NewRequest(http.MethodPost, u, r)
 	if err != nil {
 		return fmt.Errorf("failed to create new HTTP request: %w", err)
 	}
