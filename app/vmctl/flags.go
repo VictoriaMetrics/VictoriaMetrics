@@ -463,12 +463,13 @@ const (
 	remoteReadFilterLabelValue   = "remote-read-filter-label-value"
 	remoteReadStepInterval       = "remote-read-step-interval"
 	remoteReadSrcAddr            = "remote-read-src-addr"
+	remoteReadSrcHealthPath      = "remote-read-src-health-path"
 	remoteReadUser               = "remote-read-user"
 	remoteReadPassword           = "remote-read-password"
 	remoteReadHTTPTimeout        = "remote-read-http-timeout"
 	remoteReadHeaders            = "remote-read-headers"
 	remoteReadInsecureSkipVerify = "remote-read-insecure-skip-verify"
-	remoteReadSrcPath            = "remote-read-src-path"
+	remoteReadDisablePathAppend  = "remote-read-disable-path-append"
 )
 
 var (
@@ -520,6 +521,10 @@ var (
 			Required: true,
 		},
 		&cli.StringFlag{
+			Name:  remoteReadSrcHealthPath,
+			Usage: "Remote read health check path.",
+		},
+		&cli.StringFlag{
 			Name:    remoteReadUser,
 			Usage:   "Remote read username for basic auth",
 			EnvVars: []string{"REMOTE_READ_USERNAME"},
@@ -545,10 +550,10 @@ var (
 			Usage: "Whether to skip TLS certificate verification when connecting to the remote read address",
 			Value: false,
 		},
-		&cli.StringFlag{
-			Name:  remoteReadSrcPath,
-			Usage: "Remote read source storage path to the remote read protocol. For example `/api/v1/read` or `read`",
-			Value: "",
+		&cli.BoolFlag{
+			Name:  remoteReadDisablePathAppend,
+			Usage: "Whether to disable automatic appending of the path to the remote storage.",
+			Value: true,
 		},
 	}
 )

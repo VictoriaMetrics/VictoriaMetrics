@@ -25,7 +25,7 @@ The following `tip` changes can be tested by building VictoriaMetrics components
 ## tip
 
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): use local scrape timestamps for the scraped metrics unless `honor_timestamps: true` option is explicitly set at [scrape_config](https://docs.victoriametrics.com/sd_configs.html#scrape_configs). This fixes gaps for metrics collected from [cadvisor](https://github.com/google/cadvisor) or similar exporters, which export metrics with invalid timestamps. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4697) and [this comment](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4697#issuecomment-1654614799) for details. The issue has been introduced in [v1.68.0](#v1680).
-* BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl.html): add `remote-read-src-path` flag where user can define a path to a the source remote read protocol. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4655).
+* FEATURE: [vmctl](https://docs.victoriametrics.com/vmctl.html): do not add `/api/v1/read` suffix to remote read storage address defined by `--remote-read-src-addr` if a `--remote-read-disable-path-append` command-line flag is set. It allows an overriding path for remote-read API via `--remote-read-src-addr`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4655).
 
 ## [v1.92.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.92.1)
 

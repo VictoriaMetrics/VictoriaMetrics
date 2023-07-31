@@ -33,22 +33,25 @@ type StreamCallback func(series *vm.TimeSeries) error
 // Client is an HTTP client for reading
 // time series via remote read protocol.
 type Client struct {
-	addr      string
-	path      string
-	c         *http.Client
-	user      string
-	password  string
-	useStream bool
-	headers   []keyValue
-	matchers  []*prompb.LabelMatcher
+	addr              string
+	disablePathAppend bool
+	healthPath        string
+	c                 *http.Client
+	user              string
+	password          string
+	useStream         bool
+	headers           []keyValue
+	matchers          []*prompb.LabelMatcher
 }
 
 // Config is config for remote read.
 type Config struct {
 	// Addr of remote storage
 	Addr string
-	// Path of the remote read protocol
-	Path string
+	// HealthPath defines a health check path of the remote storage
+	HealthPath string
+	// DisablePathAppend disable automatic appending of the remote read path
+	DisablePathAppend bool
 	// Timeout defines timeout for HTTP requests
 	// made by remote read client
 	Timeout time.Duration
@@ -109,14 +112,20 @@ func NewClient(cfg Config) (*Client, error) {
 			Timeout:   cfg.Timeout,
 			Transport: utils.Transport(cfg.Addr, cfg.InsecureSkipVerify),
 		},
-		addr:      strings.TrimSuffix(cfg.Addr, "/"),
-		path:      cfg.Path,
-		user:      cfg.Username,
-		password:  cfg.Password,
-		useStream: cfg.UseStream,
-		headers:   headers,
-		matchers:  []*prompb.LabelMatcher{m},
+		addr:              strings.TrimSuffix(cfg.Addr, "/"),
+		disablePathAppend: cfg.DisablePathAppend,
+		healthPath:        cfg.HealthPath,
+		user:              cfg.Username,
+		password:          cfg.Password,
+		useStream:         cfg.UseStream,
+		headers:           headers,
+		matchers:          []*prompb.LabelMatcher{m},
 	}
+
+	if err := c.Ping(); err != nil {
+		return nil, fmt.Errorf("ping to %q failed: %s", cfg.Addr, err)
+	}
+
 	return c, nil
 }
 
@@ -161,10 +170,28 @@ func (c *Client) do(req *http.Request) (*http.Response, error) {
 
 // Ping checks the health of the read source
 func (c *Client) Ping() error {
-	url := c.addr + healthPath
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	// use a default health check path
+	u, err := url.JoinPath(c.addr, healthPath)
 	if err != nil {
-		return fmt.Errorf("cannot create request to %q: %s", url, err)
+		return fmt.Errorf("error create health check url from addr %s and default health path %s", c.addr, healthPath)
+	}
+	if c.disablePathAppend {
+		// we should remove a defined remote read prefix path
+		parsedURL, err := url.Parse(c.addr)
+		if err != nil {
+			return err
+		}
+		parsedURL.Path = ""
+		parsedURL.RawQuery = ""
+		parsedURL.Fragment = ""
+		u, err = url.JoinPath(parsedURL.String(), c.healthPath)
+		if err != nil {
+			return fmt.Errorf("error create health check url from addr %s and defined health path %s", parsedURL.String(), c.healthPath)
+		}
+	}
+	req, err := http.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return fmt.Errorf("cannot create request to %q: %s", u, err)
 	}
 	resp, err := c.do(req)
 	if err != nil {
@@ -178,13 +205,14 @@ func (c *Client) Ping() error {
 
 func (c *Client) fetch(ctx context.Context, data []byte, streamCb StreamCallback) error {
 	r := bytes.NewReader(data)
-	u, err := url.JoinPath(c.addr, c.path)
+	// by default, we are using a common remote read path
+	u, err := url.JoinPath(c.addr, remoteReadPath)
 	if err != nil {
-		return fmt.Errorf("error create url from addr %s and path %s", c.addr, c.path)
+		return fmt.Errorf("error create url from addr %s and default remote read path %s", c.addr, remoteReadPath)
 	}
-	// use default path to remote read protocol if path is empty
-	if u == c.addr {
-		u = c.addr + remoteReadPath
+	// we should use full address from the remote-read-src-addr flag
+	if c.disablePathAppend {
+		u = c.addr
 	}
 	req, err := http.NewRequest(http.MethodPost, u, r)
 	if err != nil {

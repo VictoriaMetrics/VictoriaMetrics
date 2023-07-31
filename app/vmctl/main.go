@@ -133,7 +133,8 @@ func main() {
 						LabelName:          c.String(remoteReadFilterLabel),
 						LabelValue:         c.String(remoteReadFilterLabelValue),
 						InsecureSkipVerify: c.Bool(remoteReadInsecureSkipVerify),
-						Path:               c.String(remoteReadSrcPath),
+						DisablePathAppend:  c.Bool(remoteReadDisablePathAppend),
+						HealthPath:         c.String(remoteReadSrcHealthPath),
 					})
 					if err != nil {
 						return fmt.Errorf("error create remote read client: %s", err)
