@@ -744,6 +744,14 @@ Metric names are stripped from the resulting rollups. Add [keep_metric_names](#k
 
 See also [share_gt_over_time](#share_gt_over_time).
 
+#### share_eq_over_time
+
+`share_eq_over_time(series_selector[d], eq)` is a [rollup function](#rollup-functions), which returns share (in the range `[0...1]`) of raw samples
+on the given lookbehind window `d`, which are equal to `eq`. It is calculated independently per each time series returned
+from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
+
+Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
+
 #### stale_samples_over_time
 
 `stale_samples_over_time(series_selector[d])` is a [rollup function](#rollup-functions), which calculates the number
