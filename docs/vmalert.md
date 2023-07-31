@@ -372,9 +372,9 @@ For recording rules to work `-remoteWrite.url` must be specified.
 
 ### Alerts state on restarts
 
-`vmalert` is stateless, it holds alerts state in the process memory. Restarting of `vmalert` process
-will reset alerts state in memory. To prevent `vmalert` from losing alerts state it should be configured
-to persist the state to the remote destination via the following flags:
+`vmalert` holds alerts state in the memory. Restart of the `vmalert` process will reset the state of all active alerts 
+in the memory. To prevent `vmalert` from losing the state on restarts configure it to persist the state 
+to the remote database via the following flags:
 
 * `-remoteWrite.url` - URL to VictoriaMetrics (Single) or vminsert (Cluster). `vmalert` will persist alerts state
   to the configured address in the form of [time series](https://docs.victoriametrics.com/keyConcepts.html#time-series)
