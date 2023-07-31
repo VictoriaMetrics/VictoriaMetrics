@@ -1,7 +1,6 @@
-import React, { FC, useEffect, useState } from "preact/compat";
+import React, { FC, StateUpdater, useEffect, useState } from "preact/compat";
 import QueryEditor from "../../../components/Configurators/QueryEditor/QueryEditor";
 import AdditionalSettings from "../../../components/Configurators/AdditionalSettings/AdditionalSettings";
-import { ErrorTypes } from "../../../types";
 import usePrevious from "../../../hooks/usePrevious";
 import { MAX_QUERY_FIELDS } from "../../../constants/graph";
 import { useQueryDispatch, useQueryState } from "../../../state/query/QueryStateContext";
@@ -24,7 +23,8 @@ import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import { QueryStats } from "../../../api/types";
 
 export interface QueryConfiguratorProps {
-  errors: (ErrorTypes | string)[];
+  queryErrors: string[];
+  setQueryErrors: StateUpdater<string[]>;
   stats: QueryStats[];
   queryOptions: string[]
   onHideQuery: (queries: number[]) => void
@@ -32,12 +32,14 @@ export interface QueryConfiguratorProps {
 }
 
 const QueryConfigurator: FC<QueryConfiguratorProps> = ({
-  errors,
+  queryErrors,
+  setQueryErrors,
   stats,
   queryOptions,
   onHideQuery,
   onRunQuery
 }) => {
+
   const { isMobile } = useDeviceDetect();
 
   const { query, queryHistory, autocomplete } = useQueryState();
@@ -127,12 +129,17 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
       .then((response) => response.json())
       .then((data) => {
         if (data["status"] == "success") {
+          const newQueryErrors = [...queryErrors];
+          newQueryErrors[i] = "";
+          setQueryErrors(newQueryErrors);
+
           const newStateQuery = [...stateQuery];
           newStateQuery[i] = data["query"];
           setStateQuery(newStateQuery);
         } else {
-          // TODO handle error
-          return;
+          const newQueryErrors = [...queryErrors];
+          newQueryErrors[i] = data["msg"];
+          setQueryErrors(newQueryErrors);
         }
       });
   };
@@ -174,7 +181,7 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
             value={stateQuery[i]}
             autocomplete={autocomplete}
             options={queryOptions}
-            error={errors[i]}
+            error={queryErrors[i]}
             stats={stats[i]}
             onArrowUp={createHandlerArrow(-1, i)}
             onArrowDown={createHandlerArrow(1, i)}
