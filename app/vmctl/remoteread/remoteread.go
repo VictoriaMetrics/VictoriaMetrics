@@ -154,23 +154,6 @@ func (c *Client) do(req *http.Request) (*http.Response, error) {
 	return c.c.Do(req)
 }
 
-// Ping checks the health of the read source
-func (c *Client) Ping() error {
-	url := c.addr + healthPath
-	req, err := http.NewRequest(http.MethodGet, url, nil)
-	if err != nil {
-		return fmt.Errorf("cannot create request to %q: %s", url, err)
-	}
-	resp, err := c.do(req)
-	if err != nil {
-		return err
-	}
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("bad status code: %d", resp.StatusCode)
-	}
-	return nil
-}
-
 func (c *Client) fetch(ctx context.Context, data []byte, streamCb StreamCallback) error {
 	r := bytes.NewReader(data)
 	url := c.addr + remoteReadPath
