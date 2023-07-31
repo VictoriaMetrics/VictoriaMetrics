@@ -21,6 +21,7 @@ import { MouseEvent as ReactMouseEvent } from "react";
 import { arrayEquals } from "../../../utils/array";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import { QueryStats } from "../../../api/types";
+import { useAppState } from "../../../state/common/StateContext";
 
 export interface QueryConfiguratorProps {
   queryErrors: string[];
@@ -123,9 +124,10 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
   };
 
   const handlePrettifyQuery = (el: HTMLButtonElement, i: number) => {
+    const { serverUrl } = useAppState();
 
     const oldQuery = encodeURIComponent(stateQuery[i]);
-    fetch("http://127.0.0.1:8428/prettify-query?query=" + oldQuery)
+    fetch(`${serverUrl}/prettify-query?query=${oldQuery}`)
       .then((response) => response.json())
       .then((data) => {
         if (data["status"] == "success") {
