@@ -33,6 +33,18 @@ const (
 type IndexdbStats struct {
 	// StreamsCreatedTotal is the number of log streams created since the indexdb initialization.
 	StreamsCreatedTotal uint64
+
+	// IndexdbSizeBytes is the size of data in indexdb.
+	IndexdbSizeBytes uint64
+
+	// IndexdbItemsCount is the number of items in indexdb.
+	IndexdbItemsCount uint64
+
+	// IndexdbBlocksCount is the number of blocks in indexdb.
+	IndexdbBlocksCount uint64
+
+	// IndexdbPartsCount is the number of parts in indexdb.
+	IndexdbPartsCount uint64
 }
 
 type indexdb struct {
@@ -88,6 +100,14 @@ func (idb *indexdb) debugFlush() {
 
 func (idb *indexdb) updateStats(d *IndexdbStats) {
 	d.StreamsCreatedTotal += atomic.LoadUint64(&idb.streamsCreatedTotal)
+
+	var tm mergeset.TableMetrics
+	idb.tb.UpdateMetrics(&tm)
+
+	d.IndexdbSizeBytes += tm.InmemorySizeBytes + tm.FileSizeBytes
+	d.IndexdbItemsCount += tm.InmemoryItemsCount + tm.FileItemsCount
+	d.IndexdbPartsCount += tm.InmemoryPartsCount + tm.FilePartsCount
+	d.IndexdbBlocksCount += tm.InmemoryBlocksCount + tm.FileBlocksCount
 }
 
 func (idb *indexdb) appendStreamTagsByStreamID(dst []byte, sid *streamID) []byte {

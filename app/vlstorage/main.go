@@ -121,29 +121,48 @@ func initStorageMetrics(strg *logstorage.Storage) *metrics.Set {
 		return float64(m().FileMergesTotal)
 	})
 
-	ms.NewGauge(`vl_rows{type="inmemory"}`, func() float64 {
+	ms.NewGauge(`vl_storage_rows{type="inmemory"}`, func() float64 {
 		return float64(m().InmemoryRowsCount)
 	})
-	ms.NewGauge(`vl_rows{type="file"}`, func() float64 {
+	ms.NewGauge(`vl_storage_rows{type="file"}`, func() float64 {
 		return float64(m().FileRowsCount)
 	})
-	ms.NewGauge(`vl_parts{type="inmemory"}`, func() float64 {
+	ms.NewGauge(`vl_storage_parts{type="inmemory"}`, func() float64 {
 		return float64(m().InmemoryParts)
 	})
-	ms.NewGauge(`vl_parts{type="file"}`, func() float64 {
+	ms.NewGauge(`vl_storage_parts{type="file"}`, func() float64 {
 		return float64(m().FileParts)
 	})
-	ms.NewGauge(`vl_blocks{type="inmemory"}`, func() float64 {
+	ms.NewGauge(`vl_storage_blocks{type="inmemory"}`, func() float64 {
 		return float64(m().InmemoryBlocks)
 	})
-	ms.NewGauge(`vl_blocks{type="file"}`, func() float64 {
+	ms.NewGauge(`vl_storage_blocks{type="file"}`, func() float64 {
 		return float64(m().FileBlocks)
 	})
+
 	ms.NewGauge(`vl_partitions`, func() float64 {
 		return float64(m().PartitionsCount)
 	})
 	ms.NewGauge(`vl_streams_created_total`, func() float64 {
 		return float64(m().StreamsCreatedTotal)
+	})
+
+	ms.NewGauge(`vl_indexdb_rows`, func() float64 {
+		return float64(m().IndexdbItemsCount)
+	})
+	ms.NewGauge(`vl_indexdb_parts`, func() float64 {
+		return float64(m().IndexdbPartsCount)
+	})
+	ms.NewGauge(`vl_indexdb_blocks`, func() float64 {
+		return float64(m().IndexdbBlocksCount)
+	})
+
+	ms.NewGauge(`vl_data_size_bytes{type="indexdb"}`, func() float64 {
+		return float64(m().IndexdbSizeBytes)
+	})
+	ms.NewGauge(`vl_data_size_bytes{type="storage"}`, func() float64 {
+		dm := m()
+		return float64(dm.CompressedInmemorySize + dm.CompressedFileSize)
 	})
 
 	ms.NewGauge(`vl_compressed_data_size_bytes{type="inmemory"}`, func() float64 {
