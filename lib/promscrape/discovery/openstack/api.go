@@ -91,6 +91,7 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 		}
 		ac, err := opts.NewConfig()
 		if err != nil {
+			cfg.client.CloseIdleConnections()
 			return nil, err
 		}
 		cfg.client.Transport = &http.Transport{
@@ -111,6 +112,7 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 		sdcAuth = readCredentialsFromEnv()
 	}
 	if strings.HasSuffix(sdcAuth.IdentityEndpoint, "v2.0") {
+		cfg.client.CloseIdleConnections()
 		return nil, errors.New("identity_endpoint v2.0 is not supported")
 	}
 	// trim .0 from v3.0 for prometheus cfg compatibility
@@ -118,11 +120,13 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 
 	parsedURL, err := url.Parse(sdcAuth.IdentityEndpoint)
 	if err != nil {
+		cfg.client.CloseIdleConnections()
 		return nil, fmt.Errorf("cannot parse identity_endpoint: %s as url, err: %w", sdcAuth.IdentityEndpoint, err)
 	}
 	cfg.endpoint = parsedURL
 	tokenReq, err := buildAuthRequestBody(&sdcAuth)
 	if err != nil {
+		cfg.client.CloseIdleConnections()
 		return nil, err
 	}
 	cfg.authTokenReq = tokenReq

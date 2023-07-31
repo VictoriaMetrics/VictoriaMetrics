@@ -213,11 +213,9 @@ This query works in the following way:
 
 1. The `increase(vm_rows_read_per_query_bucket[1h])` calculates per-bucket per-instance
    number of events over the last hour.
-
-2. The `sum(...) by (vmrange)` calculates per-bucket events by summing per-instance buckets
+1. The `sum(...) by (vmrange)` calculates per-bucket events by summing per-instance buckets
    with the same `vmrange` values.
-
-3. The `histogram_quantile(0.99, ...)` calculates 99th percentile over `vmrange` buckets returned at step 2.
+1. The `histogram_quantile(0.99, ...)` calculates 99th percentile over `vmrange` buckets returned at step 2.
 
 Histogram metric type exposes two additional counters ending with `_sum` and `_count` suffixes:
 
@@ -271,16 +269,16 @@ implementations of a histogram supported by VictoriaMetrics:
    supported by most of
    the [client libraries for metrics instrumentation](https://prometheus.io/docs/instrumenting/clientlibs/). Prometheus
    histogram requires a user to define ranges (`buckets`) statically.
-2. [VictoriaMetrics histogram](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350)
+1. [VictoriaMetrics histogram](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350)
    supported by [VictoriaMetrics/metrics](https://github.com/VictoriaMetrics/metrics) instrumentation library.
    Victoriametrics histogram automatically handles bucket boundaries, so users don't need to think about them.
 
 We recommend reading the following articles before you start using histograms:
 
 1. [Prometheus histogram](https://prometheus.io/docs/concepts/metric_types/#histogram)
-2. [Histograms and summaries](https://prometheus.io/docs/practices/histograms/)
-3. [How does a Prometheus Histogram work?](https://www.robustperception.io/how-does-a-prometheus-histogram-work)
-4. [Improving histogram usability for Prometheus and Grafana](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350)
+1. [Histograms and summaries](https://prometheus.io/docs/practices/histograms/)
+1. [How does a Prometheus Histogram work?](https://www.robustperception.io/how-does-a-prometheus-histogram-work)
+1. [Improving histogram usability for Prometheus and Grafana](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350)
 
 #### Summary
 

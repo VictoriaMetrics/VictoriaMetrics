@@ -692,8 +692,8 @@ func (s *Storage) retentionWatcher() {
 		select {
 		case <-s.stop:
 			return
-		case <-time.After(time.Second * time.Duration(d)):
-			s.mustRotateIndexDB()
+		case currentTime := <-time.After(time.Second * time.Duration(d)):
+			s.mustRotateIndexDB(currentTime)
 		}
 	}
 }
@@ -750,14 +750,15 @@ func (s *Storage) nextDayMetricIDsUpdater() {
 	}
 }
 
-func (s *Storage) mustRotateIndexDB() {
+func (s *Storage) mustRotateIndexDB(currentTime time.Time) {
 	// Create new indexdb table, which will be used as idbNext
 	newTableName := nextIndexDBTableName()
 	idbNewPath := filepath.Join(s.path, indexdbDirname, newTableName)
 	idbNew := mustOpenIndexDB(idbNewPath, s, &s.isReadOnly)
 
 	// Update nextRotationTimestamp
-	atomic.AddInt64(&s.nextRotationTimestamp, s.retentionMsecs/1000)
+	nextRotationTimestamp := currentTime.UnixMilli() + s.retentionMsecs/1000
+	atomic.StoreInt64(&s.nextRotationTimestamp, nextRotationTimestamp)
 
 	// Set idbNext to idbNew
 	idbNext := s.idbNext.Load()

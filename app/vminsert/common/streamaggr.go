@@ -33,7 +33,7 @@ var (
 )
 
 var (
-	saCfgReloaderStopCh chan struct{}
+	saCfgReloaderStopCh = make(chan struct{})
 	saCfgReloaderWG     sync.WaitGroup
 
 	saCfgReloads   = metrics.NewCounter(`vminsert_streamagg_config_reloads_total`)
@@ -62,7 +62,6 @@ func CheckStreamAggrConfig() error {
 //
 // MustStopStreamAggr must be called when stream aggr is no longer needed.
 func InitStreamAggr() {
-	saCfgReloaderStopCh = make(chan struct{})
 	if *streamAggrConfig == "" {
 		return
 	}

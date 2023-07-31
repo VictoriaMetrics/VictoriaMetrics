@@ -771,8 +771,8 @@ scrape_configs:
 Credentials are discovered by looking in the following places, preferring the first location found:
 
 1. a JSON file specified by the `GOOGLE_APPLICATION_CREDENTIALS` environment variable
-2. a JSON file in the well-known path `$HOME/.config/gcloud/application_default_credentials.json`
-3. fetched from the GCE metadata server
+1. a JSON file in the well-known path `$HOME/.config/gcloud/application_default_credentials.json`
+1. fetched from the GCE metadata server
 
 Each discovered target has an [`__address__`](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
 to `<iface_ip>:<port>`, where `<iface_ip>` is private IP of the discovered instance, while `<port>` is the `port` value
@@ -1445,7 +1445,8 @@ scrape_configs:
   # If honor_timestamps is set to "false", the timestamps of the metrics exposed
   # by the target will be ignored.
   #
-  # By default, honor_timestamps is set to true.
+  # By default, honor_timestamps is set to false.
+  # See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4697#issuecomment-1656540535 for details.
   # honor_timestamps: <boolean>
 
   # scheme configures the protocol scheme used for requests.

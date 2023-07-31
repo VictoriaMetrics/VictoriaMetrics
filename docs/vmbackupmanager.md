@@ -309,7 +309,7 @@ If restore mark doesn't exist at `storageDataPath`(restore wasn't requested) `vm
   $ /vmbackupmanager-prod backup list
   [{"name":"daily/2023-04-07","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:07+00:00"},{"name":"hourly/2023-04-07:11","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:06+00:00"},{"name":"latest","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:04+00:00"},{"name":"monthly/2023-04","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:10+00:00"},{"name":"weekly/2023-14","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:09+00:00"}]
   ```
-2. Run `vmbackupmanager restore create` to create restore mark:
+1. Run `vmbackupmanager restore create` to create restore mark:
    - Use relative path to backup to restore from currently used remote storage:
      ```console
      $ /vmbackupmanager-prod restore create daily/2023-04-07
@@ -318,12 +318,12 @@ If restore mark doesn't exist at `storageDataPath`(restore wasn't requested) `vm
      ```console
      $ /vmbackupmanager-prod restore create azblob://test1/vmbackupmanager/daily/2023-04-07
      ```
-3. Stop `vmstorage` or `vmsingle` node
-4. Run `vmbackupmanager restore` to restore backup:
+1. Stop `vmstorage` or `vmsingle` node
+1. Run `vmbackupmanager restore` to restore backup:
   ```console
   $ /vmbackupmanager-prod restore -credsFilePath=credentials.json -storageDataPath=/vmstorage-data
   ```
-5. Start `vmstorage` or `vmsingle` node
+1. Start `vmstorage` or `vmsingle` node
 
 
 ### How to restore in Kubernetes
@@ -337,13 +337,13 @@ If restore mark doesn't exist at `storageDataPath`(restore wasn't requested) `vm
          enabled: "true"
    ```
    See operator `VMStorage` schema [here](https://docs.victoriametrics.com/operator/api.html#vmstorage) and `VMSingle` [here](https://docs.victoriametrics.com/operator/api.html#vmsinglespec).
-2. Enter container running `vmbackupmanager`
-2. Use `vmbackupmanager backup list` to get list of available backups:
+1. Enter container running `vmbackupmanager`
+1. Use `vmbackupmanager backup list` to get list of available backups:
   ```console
   $ /vmbackupmanager-prod backup list
   [{"name":"daily/2023-04-07","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:07+00:00"},{"name":"hourly/2023-04-07:11","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:06+00:00"},{"name":"latest","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:04+00:00"},{"name":"monthly/2023-04","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:10+00:00"},{"name":"weekly/2023-14","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:09+00:00"}]
   ```
-3. Use `vmbackupmanager restore create` to create restore mark:
+1. Use `vmbackupmanager restore create` to create restore mark:
   - Use relative path to backup to restore from currently used remote storage:
     ```console
     $ /vmbackupmanager-prod restore create daily/2023-04-07
@@ -352,7 +352,7 @@ If restore mark doesn't exist at `storageDataPath`(restore wasn't requested) `vm
     ```console
     $ /vmbackupmanager-prod restore create azblob://test1/vmbackupmanager/daily/2023-04-07
     ```
-4. Restart pod
+1. Restart pod
 
 #### Restore cluster into another cluster
 
@@ -369,13 +369,13 @@ Clusters here are referred to as `source` and `destination`.
    ```
    Note: it is safe to leave this section in the cluster configuration, since it will be ignored if restore mark doesn't exist.
    > Important! Use different `-dst` for *destination* cluster to avoid overwriting backup data of the *source* cluster.
-2. Enter container running `vmbackupmanager` in *source* cluster
-2. Use `vmbackupmanager backup list` to get list of available backups:
+1. Enter container running `vmbackupmanager` in *source* cluster
+1. Use `vmbackupmanager backup list` to get list of available backups:
   ```console
   $ /vmbackupmanager-prod backup list
   [{"name":"daily/2023-04-07","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:07+00:00"},{"name":"hourly/2023-04-07:11","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:06+00:00"},{"name":"latest","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:04+00:00"},{"name":"monthly/2023-04","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:10+00:00"},{"name":"weekly/2023-14","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:09+00:00"}]
   ```
-3. Use `vmbackupmanager restore create` to create restore mark at each pod of the *destination* cluster.
+1. Use `vmbackupmanager restore create` to create restore mark at each pod of the *destination* cluster.
    Each pod in *destination* cluster should be restored from backup of respective pod in *source* cluster.
    For example: `vmstorage-source-0` in *source* cluster should be restored from `vmstorage-destination-0` in *destination* cluster.
   ```console

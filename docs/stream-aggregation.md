@@ -302,7 +302,7 @@ The resulting histogram buckets can be queried with [MetricsQL](https://docs.vic
 
    This query uses [histogram_quantiles](https://docs.victoriametrics.com/MetricsQL.html#histogram_quantiles) function.
 
-2. An estimated [standard deviation](https://en.wikipedia.org/wiki/Standard_deviation) of the request duration over the last hour:
+1. An estimated [standard deviation](https://en.wikipedia.org/wiki/Standard_deviation) of the request duration over the last hour:
 
    ```metricsql
    histogram_stddev(sum(increase(request_duration_seconds:60s_histogram_bucket[1h])) by (vmrange))
@@ -310,7 +310,7 @@ The resulting histogram buckets can be queried with [MetricsQL](https://docs.vic
 
    This query uses [histogram_stddev](https://docs.victoriametrics.com/MetricsQL.html#histogram_stddev) function.
 
-3. An estimated share of requests with the duration smaller than `0.5s` over the last hour:
+1. An estimated share of requests with the duration smaller than `0.5s` over the last hour:
 
    ```metricsql
    histogram_share(0.5, sum(increase(request_duration_seconds:60s_histogram_bucket[1h])) by (vmrange))

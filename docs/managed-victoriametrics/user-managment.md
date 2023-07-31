@@ -15,10 +15,10 @@ The user management system enables admins to control user access and onboard and
 
 The document covers the following topics
 1. [User Roles](#user-roles)
-2. [User List](#user-list)
-3. [How to Add User](#how-to-add-user)
-4. [How to Update User](#how-to-update-user)
-5. [How to Delete User](#how-to-delete-user)
+1. [User List](#user-list)
+1. [How to Add User](#how-to-add-user)
+1. [How to Update User](#how-to-update-user)
+1. [How to Delete User](#how-to-delete-user)
 
 ## User roles
 

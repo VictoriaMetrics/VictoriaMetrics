@@ -1479,7 +1479,7 @@ func TestIndexDBRepopulateAfterRotation(t *testing.T) {
 	prevGeneration := db.generation
 
 	// force index rotation
-	s.mustRotateIndexDB()
+	s.mustRotateIndexDB(time.Now())
 
 	// check tsidCache wasn't reset after the rotation
 	var cs2 fastcache.Stats

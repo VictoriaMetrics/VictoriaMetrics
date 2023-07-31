@@ -18,10 +18,10 @@ monitoring, logs collection, access protection, software updates, backups, etc.
 
 The document covers the following topics
 1. [How to register](#how-to-register)
-2. [How to restore password](#how-to-restore-password)
-3. [Creating deployment](#creating-deployment)
-4. [Deployment access](#deployment-access)
-5. [Modifying deployment](#modifying-deployment)
+1. [How to restore password](#how-to-restore-password)
+1. [Creating deployment](#creating-deployment)
+1. [Deployment access](#deployment-access)
+1. [Modifying deployment](#modifying-deployment)
 
 ## How to register
 
@@ -77,34 +77,33 @@ If you forgot password, it can be restored in the following way:
 
 1. Click `Forgot your password?` link at [this page](https://dbaas.victoriametrics.com/signIn):
 
-<p>
-  <img src="quickstart_restore-password.png" width="800">
-</p>
+   <p>
+     <img src="quickstart_restore-password.png" width="800">
+   </p>
 
-2. Enter your email in the field and click `Send Email` button:
+1. Enter your email in the field and click `Send Email` button:
 
-<p>
-  <img src="quickstart_restore-password-email.png" width="800">
-</p>
+   <p>
+     <img src="quickstart_restore-password-email.png" width="800">
+   </p>
 
-3. Follow the instruction sent to your email in order to gain access to your VictoriaMetrics cloud account:
+1. Follow the instruction sent to your email in order to gain access to your VictoriaMetrics cloud account:
 
-<p>
-  <img src="quickstart_password-restore-email.png" width="800">
-</p>
+   <p>
+     <img src="quickstart_password-restore-email.png" width="800">
+   </p>
 
-4. Navigate to the Profile page by clicking the corresponding link at the top right corner:
+1. Navigate to the Profile page by clicking the corresponding link at the top right corner:
 
-<p>
-  <img src="quickstart_restore-password-profile.png" width="800">
-</p>
+   <p>
+     <img src="quickstart_restore-password-profile.png" width="800">
+   </p>
 
-5. Enter new password at the Profile page and press `Save` button:
+1. Enter new password at the Profile page and press `Save` button:
 
-<p>
-  <img src="quickstart_restore-password-save-password.png" width="800">
-</p>
-
+   <p>
+     <img src="quickstart_restore-password-save-password.png" width="800">
+   </p>
 
 ## Creating deployment
 

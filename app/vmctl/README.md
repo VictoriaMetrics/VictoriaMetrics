@@ -85,24 +85,24 @@ See `./vmctl opentsdb --help` for details and full list of flags.
 
 OpenTSDB migration works like so:
 
-1. Find metrics based on selected filters (or the default filter set `['a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z']`)
+1. Find metrics based on selected filters (or the default filter set `['a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z']`):
 
-- e.g. `curl -Ss "http://opentsdb:4242/api/suggest?type=metrics&q=sys"`
+   `curl -Ss "http://opentsdb:4242/api/suggest?type=metrics&q=sys"`
 
-2. Find series associated with each returned metric
+1. Find series associated with each returned metric:
 
-- e.g. `curl -Ss "http://opentsdb:4242/api/search/lookup?m=system.load5&limit=1000000"`
+   `curl -Ss "http://opentsdb:4242/api/search/lookup?m=system.load5&limit=1000000"`
 
-Here `results` return field should not be empty. Otherwise, it means that meta tables are absent and needs to be turned on previously.
+   Here `results` return field should not be empty. Otherwise, it means that meta tables are absent and needs to be turned on previously.
 
-3. Download data for each series in chunks defined in the CLI switches
+1. Download data for each series in chunks defined in the CLI switches:
 
-- e.g. `-retention=sum-1m-avg:1h:90d` means
-  - `curl -Ss "http://opentsdb:4242/api/query?start=1h-ago&end=now&m=sum:1m-avg-none:system.load5\{host=host1\}"`
-  - `curl -Ss "http://opentsdb:4242/api/query?start=2h-ago&end=1h-ago&m=sum:1m-avg-none:system.load5\{host=host1\}"`
-  - `curl -Ss "http://opentsdb:4242/api/query?start=3h-ago&end=2h-ago&m=sum:1m-avg-none:system.load5\{host=host1\}"`
-  - ...
-  - `curl -Ss "http://opentsdb:4242/api/query?start=2160h-ago&end=2159h-ago&m=sum:1m-avg-none:system.load5\{host=host1\}"`
+   `-retention=sum-1m-avg:1h:90d` means:
+   - `curl -Ss "http://opentsdb:4242/api/query?start=1h-ago&end=now&m=sum:1m-avg-none:system.load5\{host=host1\}"`
+   - `curl -Ss "http://opentsdb:4242/api/query?start=2h-ago&end=1h-ago&m=sum:1m-avg-none:system.load5\{host=host1\}"`
+   - `curl -Ss "http://opentsdb:4242/api/query?start=3h-ago&end=2h-ago&m=sum:1m-avg-none:system.load5\{host=host1\}"`
+   - ...
+   - `curl -Ss "http://opentsdb:4242/api/query?start=2160h-ago&end=2159h-ago&m=sum:1m-avg-none:system.load5\{host=host1\}"`
 
 This means that we must stream data from OpenTSDB to VictoriaMetrics in chunks. This is where concurrency for OpenTSDB comes in. We can query multiple chunks at once, but we shouldn't perform too many chunks at a time to avoid overloading the OpenTSDB cluster.
 
@@ -131,7 +131,7 @@ Starting with a relatively simple retention string (`sum-1m-avg:1h:30d`), let's 
 There are two essential parts of a retention string:
 
 1. [aggregation](#aggregation)
-2. [windows/time ranges](#windows)
+1. [windows/time ranges](#windows)
 
 #### Aggregation
 
@@ -163,7 +163,7 @@ We do not allow for defining the "null value" portion of the rollup window (e.g.
 There are two important windows we define in a retention string:
 
 1. the "chunk" range of each query
-2. The time range we will be querying on with that "chunk"
+1. The time range we will be querying on with that "chunk"
 
 From our example, our windows are `1h:30d`.
 
@@ -445,11 +445,11 @@ See `./vmctl remote-read --help` for details and full list of flags.
 
 To start the migration process configure the following flags:
 1. `--remote-read-src-addr` - data source address to read from;
-2. `--vm-addr` - VictoriaMetrics address to write to. For single-node VM is usually equal to `--httpListenAddr`, 
-and for cluster version is equal to `--httpListenAddr` flag of vminsert component (for example `http://<vminsert>:8480/insert/<accountID>/prometheus`);
-3. `--remote-read-filter-time-start` - the time filter in RFC3339 format to select time series with timestamp equal or higher than provided value. E.g. '2020-01-01T20:07:00Z';
-4. `--remote-read-filter-time-end` - the time filter in RFC3339 format to select time series with timestamp equal or smaller than provided value. E.g. '2020-01-01T20:07:00Z'. Current time is used when omitted.;
-5. `--remote-read-step-interval` - split export data into chunks. Valid values are `month, day, hour, minute`;
+1. `--vm-addr` - VictoriaMetrics address to write to. For single-node VM is usually equal to `--httpListenAddr`, 
+   and for cluster version is equal to `--httpListenAddr` flag of vminsert component (for example `http://<vminsert>:8480/insert/<accountID>/prometheus`);
+1. `--remote-read-filter-time-start` - the time filter in RFC3339 format to select time series with timestamp equal or higher than provided value. E.g. '2020-01-01T20:07:00Z';
+1. `--remote-read-filter-time-end` - the time filter in RFC3339 format to select time series with timestamp equal or smaller than provided value. E.g. '2020-01-01T20:07:00Z'. Current time is used when omitted.;
+1. `--remote-read-step-interval` - split export data into chunks. Valid values are `month, day, hour, minute`;
 
 The importing process example for local installation of Prometheus
 and single-node VictoriaMetrics(`http://localhost:8428`):
@@ -516,7 +516,7 @@ and that you have a separate Thanos Store installation.
     - url: http://victoria-metrics:8428/api/v1/write
     ```
 
-2. Make sure VM is running, of course. Now check the logs to make sure that Prometheus is sending and VM is receiving.
+1. Make sure VM is running, of course. Now check the logs to make sure that Prometheus is sending and VM is receiving.
     In Prometheus, make sure there are no errors. On the VM side, you should see messages like this:
 
     ```
@@ -524,7 +524,7 @@ and that you have a separate Thanos Store installation.
     2020-04-27T18:38:46.506Z info VictoriaMetrics/lib/storage/partition.go:222 partition "2020_04" has been created
     ```
 
-3. Now just wait. Within two hours, Prometheus should finish its current data file and hand it off to Thanos Store for long term
+1. Now just wait. Within two hours, Prometheus should finish its current data file and hand it off to Thanos Store for long term
     storage.
 
 ### Historical data
@@ -736,7 +736,7 @@ See `./vmctl vm-native --help` for details and full list of flags.
 
 Migration in `vm-native` mode takes two steps:
 1. Explore the list of the metrics to migrate via `api/v1/label/__name__/values` API;
-2. Migrate explored metrics one-by-one.
+1. Migrate explored metrics one-by-one.
 
 ```
 ./vmctl vm-native \
@@ -770,54 +770,54 @@ _To disable explore phase and switch to the old way of data migration via single
 Importing tips:
 
 1. Migrating big volumes of data may result in reaching the safety limits on `src` side.
-Please verify that `-search.maxExportDuration` and `-search.maxExportSeries` were set with
-proper values for `src`. If hitting the limits, follow the recommendations 
-[here](https://docs.victoriametrics.com/#how-to-export-data-in-native-format).
-If hitting `the number of matching timeseries exceeds...` error, adjust filters to match less time series or 
-update `-search.maxSeries` command-line flag on vmselect/vmsingle;
-2. Migrating all the metrics from one VM to another may collide with existing application metrics
-(prefixed with `vm_`) at destination and lead to confusion when using
-[official Grafana dashboards](https://grafana.com/orgs/victoriametrics/dashboards).
-To avoid such situation try to filter out VM process metrics via `--vm-native-filter-match='{__name__!~"vm_.*"}'` flag.
-3. Migrating data with overlapping time range or via unstable network can produce duplicates series at destination.
-To avoid duplicates set `-dedup.minScrapeInterval=1ms` for `vmselect`/`vmstorage` at the destination.
-This will instruct `vmselect`/`vmstorage` to ignore duplicates with identical timestamps.
-4. When migrating large volumes of data use `--vm-native-step-interval` flag to split migration [into steps](#using-time-based-chunking-of-migration).
-5. When migrating data from one VM cluster to another, consider using [cluster-to-cluster mode](#cluster-to-cluster-migration-mode).
-Or manually specify addresses according to [URL format](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format):
-    ```console
-    # Migrating from cluster specific tenantID to single
-    --vm-native-src-addr=http://<src-vmselect>:8481/select/0/prometheus
-    --vm-native-dst-addr=http://<dst-vmsingle>:8428
+   Please verify that `-search.maxExportDuration` and `-search.maxExportSeries` were set with
+   proper values for `src`. If hitting the limits, follow the recommendations 
+   [here](https://docs.victoriametrics.com/#how-to-export-data-in-native-format).
+   If hitting `the number of matching timeseries exceeds...` error, adjust filters to match less time series or 
+   update `-search.maxSeries` command-line flag on vmselect/vmsingle;
+1. Migrating all the metrics from one VM to another may collide with existing application metrics
+   (prefixed with `vm_`) at destination and lead to confusion when using
+   [official Grafana dashboards](https://grafana.com/orgs/victoriametrics/dashboards).
+   To avoid such situation try to filter out VM process metrics via `--vm-native-filter-match='{__name__!~"vm_.*"}'` flag.
+1. Migrating data with overlapping time range or via unstable network can produce duplicates series at destination.
+   To avoid duplicates set `-dedup.minScrapeInterval=1ms` for `vmselect`/`vmstorage` at the destination.
+   This will instruct `vmselect`/`vmstorage` to ignore duplicates with identical timestamps.
+1. When migrating large volumes of data use `--vm-native-step-interval` flag to split migration [into steps](#using-time-based-chunking-of-migration).
+1. When migrating data from one VM cluster to another, consider using [cluster-to-cluster mode](#cluster-to-cluster-migration-mode).
+   Or manually specify addresses according to [URL format](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format):
+   ```console
+   # Migrating from cluster specific tenantID to single
+   --vm-native-src-addr=http://<src-vmselect>:8481/select/0/prometheus
+   --vm-native-dst-addr=http://<dst-vmsingle>:8428
     
-     # Migrating from single to cluster specific tenantID
-    --vm-native-src-addr=http://<src-vmsingle>:8428
-    --vm-native-src-addr=http://<dst-vminsert>:8480/insert/0/prometheus
+   # Migrating from single to cluster specific tenantID
+   --vm-native-src-addr=http://<src-vmsingle>:8428
+   --vm-native-src-addr=http://<dst-vminsert>:8480/insert/0/prometheus
     
-    # Migrating single to single
-    --vm-native-src-addr=http://<src-vmsingle>:8428
-    --vm-native-dst-addr=http://<dst-vmsingle>:8428
+   # Migrating single to single
+   --vm-native-src-addr=http://<src-vmsingle>:8428
+   --vm-native-dst-addr=http://<dst-vmsingle>:8428
     
-    # Migrating cluster to cluster for specific tenant ID
-    --vm-native-src-addr=http://<src-vmselect>:8481/select/0/prometheus
-    --vm-native-dst-addr=http://<dst-vminsert>:8480/insert/0/prometheus
-    ```
-6. Migrating data from VM cluster which had replication (`-replicationFactor` > 1) enabled won't produce the same amount
-of data copies for the destination database, and will result only in creating duplicates. To remove duplicates,
-destination database need to be configured with `-dedup.minScrapeInterval=1ms`. To restore the replication factor
-the destination `vminsert` component need to be configured with the according `-replicationFactor` value. 
-See more about replication [here](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#replication-and-data-safety).
-7. Migration speed can be adjusted via `--vm-concurrency` cmd-line flag, which controls the number of concurrent 
-workers busy with processing. Please note, that each worker can load up to a single vCPU core on VictoriaMetrics. 
-So try to set it according to allocated CPU resources of your VictoriaMetrics destination installation.
-7. Migration is a backfilling process, so it is recommended to read
-[Backfilling tips](https://github.com/VictoriaMetrics/VictoriaMetrics#backfilling) section.
-8. `vmctl` doesn't provide relabeling or other types of labels management.
-Instead, use [relabeling in VictoriaMetrics](https://github.com/VictoriaMetrics/vmctl/issues/4#issuecomment-683424375).
-9. `vmctl` supports `--vm-native-src-headers` and `--vm-native-dst-headers` to define headers sent with each request
-to the corresponding source address.
-10. `vmctl` supports `--vm-native-disable-http-keep-alive` to allow `vmctl` to use non-persistent HTTP connections to avoid
-error `use of closed network connection` when run a longer export.
+   # Migrating cluster to cluster for specific tenant ID
+   --vm-native-src-addr=http://<src-vmselect>:8481/select/0/prometheus
+   --vm-native-dst-addr=http://<dst-vminsert>:8480/insert/0/prometheus
+   ```
+1. Migrating data from VM cluster which had replication (`-replicationFactor` > 1) enabled won't produce the same amount
+   of data copies for the destination database, and will result only in creating duplicates. To remove duplicates,
+   destination database need to be configured with `-dedup.minScrapeInterval=1ms`. To restore the replication factor
+   the destination `vminsert` component need to be configured with the according `-replicationFactor` value. 
+   See more about replication [here](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#replication-and-data-safety).
+1. Migration speed can be adjusted via `--vm-concurrency` cmd-line flag, which controls the number of concurrent 
+   workers busy with processing. Please note, that each worker can load up to a single vCPU core on VictoriaMetrics. 
+   So try to set it according to allocated CPU resources of your VictoriaMetrics destination installation.
+1. Migration is a backfilling process, so it is recommended to read
+   [Backfilling tips](https://github.com/VictoriaMetrics/VictoriaMetrics#backfilling) section.
+1. `vmctl` doesn't provide relabeling or other types of labels management.
+   Instead, use [relabeling in VictoriaMetrics](https://github.com/VictoriaMetrics/vmctl/issues/4#issuecomment-683424375).
+1. `vmctl` supports `--vm-native-src-headers` and `--vm-native-dst-headers` to define headers sent with each request
+   to the corresponding source address.
+1. `vmctl` supports `--vm-native-disable-http-keep-alive` to allow `vmctl` to use non-persistent HTTP connections to avoid
+   error `use of closed network connection` when run a longer export.
 
 
 ### Using time-based chunking of migration
@@ -1024,13 +1024,13 @@ It is recommended using [binary releases](https://github.com/VictoriaMetrics/Vic
 ### Development build
 
 1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.19.
-2. Run `make vmctl` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
+1. Run `make vmctl` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `vmctl` binary and puts it into the `bin` folder.
 
 ### Production build
 
 1. [Install docker](https://docs.docker.com/install/).
-2. Run `make vmctl-prod` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
+1. Run `make vmctl-prod` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `vmctl-prod` binary and puts it into the `bin` folder.
 
 ### Building docker images
@@ -1053,11 +1053,11 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 #### Development ARM build
 
 1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.19.
-2. Run `make vmctl-linux-arm` or `make vmctl-linux-arm64` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
+1. Run `make vmctl-linux-arm` or `make vmctl-linux-arm64` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `vmctl-linux-arm` or `vmctl-linux-arm64` binary respectively and puts it into the `bin` folder.
 
 #### Production ARM build
 
 1. [Install docker](https://docs.docker.com/install/).
-2. Run `make vmctl-linux-arm-prod` or `make vmctl-linux-arm64-prod` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
+1. Run `make vmctl-linux-arm-prod` or `make vmctl-linux-arm64-prod` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `vmctl-linux-arm-prod` or `vmctl-linux-arm64-prod` binary respectively and puts it into the `bin` folder.

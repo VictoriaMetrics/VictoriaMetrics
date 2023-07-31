@@ -81,6 +81,12 @@ type HTTPClient struct {
 	ReadTimeout time.Duration
 }
 
+func (hc *HTTPClient) stop() {
+	// Close idle connections to server in order to free up resources.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4724
+	hc.client.CloseIdleConnections()
+}
+
 var defaultDialer = &net.Dialer{}
 
 // NewClient returns new Client for the given args.
@@ -276,6 +282,8 @@ func (c *Client) APIServer() string {
 // Stop cancels all in-flight requests
 func (c *Client) Stop() {
 	c.clientCancel()
+	c.client.stop()
+	c.blockingClient.stop()
 }
 
 func doRequestWithPossibleRetry(hc *HTTPClient, req *http.Request) (*http.Response, error) {
