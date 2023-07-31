@@ -1243,8 +1243,6 @@ The shortlist of configuration flags is the following:
      See https://docs.victoriametrics.com/vmalert.html#reading-rules-from-object-storage
      
      Supports an array of values separated by comma or specified via multiple flags.
-  -rule.configCheckInterval duration
-     Interval for checking for changes in '-rule' files. By default, the checking is disabled. Send SIGHUP signal in order to force config check for changes. DEPRECATED - see '-configCheckInterval' instead
   -rule.maxResolveDuration duration
      Limits the maximum duration for automatic alert expiration, which by default is 4 times evaluationInterval of the parent group.
   -rule.resendDelay duration

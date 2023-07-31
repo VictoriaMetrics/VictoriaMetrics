@@ -55,9 +55,6 @@ absolute path to all .tpl files in root.
  -rule.templates="dir/**/*.tpl". Includes all the .tpl files in "dir" subfolders recursively.
 `)
 
-	rulesCheckInterval = flag.Duration("rule.configCheckInterval", 0, "Interval for checking for changes in '-rule' files. "+
-		"By default, the checking is disabled. Send SIGHUP signal in order to force config check for changes. DEPRECATED - see '-configCheckInterval' instead")
-
 	configCheckInterval = flag.Duration("configCheckInterval", 0, "Interval for checking for changes in '-rule' or '-notifier.config' files. "+
 		"By default, the checking is disabled. Send SIGHUP signal in order to force config check for changes.")
 
@@ -311,10 +308,6 @@ See the docs at https://docs.victoriametrics.com/vmalert.html .
 func configReload(ctx context.Context, m *manager, groupsCfg []config.Group, sighupCh <-chan os.Signal) {
 	var configCheckCh <-chan time.Time
 	checkInterval := *configCheckInterval
-	if checkInterval == 0 && *rulesCheckInterval > 0 {
-		logger.Warnf("flag `rule.configCheckInterval` is deprecated - use `configCheckInterval` instead")
-		checkInterval = *rulesCheckInterval
-	}
 	if checkInterval > 0 {
 		ticker := time.NewTicker(checkInterval)
 		configCheckCh = ticker.C
