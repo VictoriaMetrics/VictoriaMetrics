@@ -121,12 +121,20 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
   };
 
   const handlePrettifyQuery = (el: HTMLButtonElement, i: number) => {
-    const newStateQuery = [...stateQuery];
 
-    // TODO: prettify
-    newStateQuery[i] = newStateQuery[i].toUpperCase();
-
-    setStateQuery(newStateQuery);
+    const oldQuery = encodeURIComponent(stateQuery[i]);
+    fetch("http://127.0.0.1:8428/prettify-query?query=" + oldQuery)
+      .then((response) => response.json())
+      .then((data) => {
+        if (data["status"] == "success") {
+          const newStateQuery = [...stateQuery];
+          newStateQuery[i] = data["query"];
+          setStateQuery(newStateQuery);
+        } else {
+          // TODO handle error
+          return;
+        }
+      });
   };
 
   const createHandlerPrettifyQuery = (i: number) => {
