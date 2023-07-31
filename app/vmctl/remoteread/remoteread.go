@@ -24,7 +24,6 @@ import (
 const (
 	defaultReadTimeout = 5 * time.Minute
 	remoteReadPath     = "/api/v1/read"
-	healthPath         = "/-/healthy"
 )
 
 // StreamCallback is a callback function for processing time series

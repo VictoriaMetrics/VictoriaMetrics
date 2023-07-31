@@ -24,8 +24,14 @@ The following `tip` changes can be tested by building VictoriaMetrics components
 
 ## tip
 
-* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): use local scrape timestamps for the scraped metrics unless `honor_timestamps: true` option is explicitly set at [scrape_config](https://docs.victoriametrics.com/sd_configs.html#scrape_configs). This fixes gaps for metrics collected from [cadvisor](https://github.com/google/cadvisor) or similar exporters, which export metrics with invalid timestamps. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4697) and [this comment](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4697#issuecomment-1654614799) for details. The issue has been introduced in [v1.68.0](#v1680).
+* FEATURE: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): add `share_eq_over_time(m[d], eq)` function for calculating the share (in the range `[0...1]`) of raw samples on the given lookbehind window `d`, which are equal to `eq`. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4441). Thanks to @Damon07 for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4725).
+* FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): remove deprecated in [v1.61.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.61.0) `-rule.configCheckInterval` command-line flag. Use `-configCheckInterval` command-line flag instead.
+* FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): remove support of deprecated web links of `/api/v1/<groupID>/<alertID>/status` form in favour of `/api/v1/alerts?group_id=<>&alert_id=<>` links. Links of `/api/v1/<groupID>/<alertID>/status` form were deprecated in v1.79.0. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2825) for details.
+* FEATURE: [vmctl](https://docs.victoriametrics.com/vmctl.html): add support of `week` step for [time-based chunking migration](https://docs.victoriametrics.com/vmctl.html#using-time-based-chunking-of-migration). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4738).
 * FEATURE: [vmctl](https://docs.victoriametrics.com/vmctl.html): do not add `/api/v1/read` suffix to remote read storage address defined by `--remote-read-src-addr` if a `--remote-read-disable-path-append` command-line flag is set. It allows an overriding path for remote-read API via `--remote-read-src-addr`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4655).
+
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): use local scrape timestamps for the scraped metrics unless `honor_timestamps: true` option is explicitly set at [scrape_config](https://docs.victoriametrics.com/sd_configs.html#scrape_configs). This fixes gaps for metrics collected from [cadvisor](https://github.com/google/cadvisor) or similar exporters, which export metrics with invalid timestamps. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4697) and [this comment](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4697#issuecomment-1654614799) for details. The issue has been introduced in [v1.68.0](#v1680).
+
 
 ## [v1.92.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.92.1)
 
@@ -49,7 +55,7 @@ The previous behavior can be restored in the following ways:
 - by passing `-streamAggr.dropInput` command-line flag to single-node VictoriaMetrics;
 - by passing `-remoteWrite.streamAggr.dropInput` command-line flag per each configured `-remoteWrite.streamAggr.config` at `vmagent`.
 
-### CHANGES
+---
 
 * SECURITY: upgrade base docker image (alpine) from 3.18.0 to 3.18.2. See [alpine 3.18.2 release notes](https://alpinelinux.org/posts/Alpine-3.15.9-3.16.6-3.17.4-3.18.2-released.html).
 * SECURITY: upgrade Go builder from Go1.20.5 to Go1.20.6. See [the list of issues addressed in Go1.20.6](https://github.com/golang/go/issues?q=milestone%3AGo1.20.6+label%3ACherryPickApproved).
