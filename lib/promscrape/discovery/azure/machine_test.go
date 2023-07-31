@@ -67,10 +67,11 @@ func TestGetVirtualMachinesSuccess(t *testing.T) {
 				}
 			}))
 			defer testServer.Close()
-			c, err := discoveryutils.NewClient(testServer.URL, nil, nil, nil, promauth.HTTPClientConfig{})
+			c, err := discoveryutils.NewClient(testServer.URL, nil, nil, nil, &promauth.HTTPClientConfig{})
 			if err != nil {
 				t.Fatalf("unexpected error at client create: %s", err)
 			}
+			defer c.Stop()
 			ac := &apiConfig{
 				c:              c,
 				subscriptionID: "some-id",

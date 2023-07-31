@@ -1,0 +1,24 @@
+@use "src/styles/variables" as *;
+
+.vm-pagination {
+  position: sticky;
+  right: 0;
+  display: flex;
+  justify-content: flex-end;
+  gap: $padding-small;
+  padding: $padding-global 0 0;
+
+  &_mobile {
+    padding: $padding-global 0;
+  }
+
+  &__icon {
+    &_prev {
+      transform: rotate(90deg);
+    }
+
+    &_next {
+      transform: rotate(-90deg);
+    }
+  }
+}

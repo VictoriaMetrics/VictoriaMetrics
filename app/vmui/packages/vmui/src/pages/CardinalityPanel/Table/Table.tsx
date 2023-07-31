@@ -2,7 +2,7 @@ import React, { FC, useState } from "preact/compat";
 import { MouseEvent } from "react";
 import { Data, Order, TableProps, } from "./types";
 import { EnhancedTableHead } from "./TableHead";
-import { getComparator, stableSort } from "./helpers";
+import { getComparator, stableSort } from "../../../components/Table/helpers";
 
 const EnhancedTable: FC<TableProps> = ({
   rows,

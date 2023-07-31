@@ -33,10 +33,14 @@ import (
 var (
 	remoteWriteURLs = flagutil.NewArrayString("remoteWrite.url", "Remote storage URL to write data to. It must support either VictoriaMetrics remote write protocol "+
 		"or Prometheus remote_write protocol. Example url: http://<victoriametrics-host>:8428/api/v1/write . "+
-		"Pass multiple -remoteWrite.url options in order to replicate the collected data to multiple remote storage systems. See also -remoteWrite.multitenantURL")
+		"Pass multiple -remoteWrite.url options in order to replicate the collected data to multiple remote storage systems. "+
+		"The data can be sharded among the configured remote storage systems if -remoteWrite.shardByURL flag is set. "+
+		"See also -remoteWrite.multitenantURL")
 	remoteWriteMultitenantURLs = flagutil.NewArrayString("remoteWrite.multitenantURL", "Base path for multitenant remote storage URL to write data to. "+
 		"See https://docs.victoriametrics.com/vmagent.html#multitenancy for details. Example url: http://<vminsert>:8480 . "+
 		"Pass multiple -remoteWrite.multitenantURL flags in order to replicate data to multiple remote storage systems. See also -remoteWrite.url")
+	shardByURL = flag.Bool("remoteWrite.shardByURL", false, "Whether to shard outgoing series across all the remote storage systems enumerated via -remoteWrite.url . "+
+		"By default the data is replicated across all the -remoteWrite.url . See https://docs.victoriametrics.com/vmagent.html#sharding-among-remote-storages")
 	tmpDataPath = flag.String("remoteWrite.tmpDataPath", "vmagent-remotewrite-data", "Path to directory where temporary data for remote write component is stored. "+
 		"See also -remoteWrite.maxDiskUsagePerURL")
 	keepDanglingQueues = flag.Bool("remoteWrite.keepDanglingQueues", false, "Keep persistent queues contents at -remoteWrite.tmpDataPath in case there are no matching -remoteWrite.url. "+
@@ -67,10 +71,13 @@ var (
 
 	streamAggrConfig = flagutil.NewArrayString("remoteWrite.streamAggr.config", "Optional path to file with stream aggregation config. "+
 		"See https://docs.victoriametrics.com/stream-aggregation.html . "+
-		"See also -remoteWrite.streamAggr.keepInput and -remoteWrite.streamAggr.dedupInterval")
-	streamAggrKeepInput = flagutil.NewArrayBool("remoteWrite.streamAggr.keepInput", "Whether to keep input samples after the aggregation with -remoteWrite.streamAggr.config. "+
-		"By default, the input is dropped after the aggregation, so only the aggregate data is sent to the -remoteWrite.url. "+
-		"See https://docs.victoriametrics.com/stream-aggregation.html")
+		"See also -remoteWrite.streamAggr.keepInput, -remoteWrite.streamAggr.dropInput and -remoteWrite.streamAggr.dedupInterval")
+	streamAggrKeepInput = flagutil.NewArrayBool("remoteWrite.streamAggr.keepInput", "Whether to keep all the input samples after the aggregation "+
+		"with -remoteWrite.streamAggr.config. By default, only aggregates samples are dropped, while the remaining samples "+
+		"are written to the corresponding -remoteWrite.url . See also -remoteWrite.streamAggr.dropInput and https://docs.victoriametrics.com/stream-aggregation.html")
+	streamAggrDropInput = flagutil.NewArrayBool("remoteWrite.streamAggr.dropInput", "Whether to drop all the input samples after the aggregation "+
+		"with -remoteWrite.streamAggr.config. By default, only aggregates samples are dropped, while the remaining samples "+
+		"are written to the corresponding -remoteWrite.url . See also -remoteWrite.streamAggr.keepInput and https://docs.victoriametrics.com/stream-aggregation.html")
 	streamAggrDedupInterval = flagutil.NewArrayDuration("remoteWrite.streamAggr.dedupInterval", "Input samples are de-duplicated with this interval before being aggregated. "+
 		"Only the last sample per each time series per each interval is aggregated if the interval is greater than zero")
 )
@@ -93,7 +100,7 @@ func MultitenancyEnabled() bool {
 }
 
 // Contains the current relabelConfigs.
-var allRelabelConfigs atomic.Value
+var allRelabelConfigs atomic.Pointer[relabelConfigs]
 
 // maxQueues limits the maximum value for `-remoteWrite.queues`. There is no sense in setting too high value,
 // since it may lead to high memory usage due to big number of buffers.
@@ -319,7 +326,7 @@ func Stop() {
 // If at is nil, then the data is pushed to the configured `-remoteWrite.url`.
 // If at isn't nil, the data is pushed to the configured `-remoteWrite.multitenantURL`.
 //
-// Note that wr may be modified by Push due to relabeling and rounding.
+// Note that wr may be modified by Push because of relabeling and rounding.
 func Push(at *auth.Token, wr *prompbmarshal.WriteRequest) {
 	if at == nil && len(*remoteWriteMultitenantURLs) > 0 {
 		// Write data to default tenant if at isn't set while -remoteWrite.multitenantURL is set.
@@ -346,7 +353,7 @@ func Push(at *auth.Token, wr *prompbmarshal.WriteRequest) {
 	}
 
 	var rctx *relabelCtx
-	rcs := allRelabelConfigs.Load().(*relabelConfigs)
+	rcs := allRelabelConfigs.Load()
 	pcsGlobal := rcs.global
 	if pcsGlobal.Len() > 0 || len(labelsGlobal) > 0 {
 		rctx = getRelabelCtx()
@@ -400,10 +407,46 @@ func pushBlockToRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []prompbmarsha
 		// Nothing to push
 		return
 	}
-	// Push block to remote storages in parallel in order to reduce the time needed for sending the data to multiple remote storage systems.
+	if len(rwctxs) == 1 {
+		// Fast path - just push data to the configured single remote storage
+		rwctxs[0].Push(tssBlock)
+		return
+	}
+
+	// We need to push tssBlock to multiple remote storages.
+	// This is either sharding or replication depending on -remoteWrite.shardByURL command-line flag value.
+	if *shardByURL {
+		// Shard the data among rwctxs
+		tssByURL := make([][]prompbmarshal.TimeSeries, len(rwctxs))
+		for _, ts := range tssBlock {
+			h := getLabelsHash(ts.Labels)
+			idx := h % uint64(len(tssByURL))
+			tssByURL[idx] = append(tssByURL[idx], ts)
+		}
+		// Push sharded data to remote storages in parallel in order to reduce
+		// the time needed for sending the data to multiple remote storage systems.
+		var wg sync.WaitGroup
+		wg.Add(len(rwctxs))
+		for i, rwctx := range rwctxs {
+			tssShard := tssByURL[i]
+			if len(tssShard) == 0 {
+				continue
+			}
+			go func(rwctx *remoteWriteCtx, tss []prompbmarshal.TimeSeries) {
+				defer wg.Done()
+				rwctx.Push(tss)
+			}(rwctx, tssShard)
+		}
+		wg.Wait()
+		return
+	}
+
+	// Replicate data among rwctxs.
+	// Push block to remote storages in parallel in order to reduce
+	// the time needed for sending the data to multiple remote storage systems.
 	var wg sync.WaitGroup
+	wg.Add(len(rwctxs))
 	for _, rwctx := range rwctxs {
-		wg.Add(1)
 		go func(rwctx *remoteWriteCtx) {
 			defer wg.Done()
 			rwctx.Push(tssBlock)
@@ -507,6 +550,7 @@ type remoteWriteCtx struct {
 
 	sas                 atomic.Pointer[streamaggr.Aggregators]
 	streamAggrKeepInput bool
+	streamAggrDropInput bool
 
 	pss        []*pendingSeries
 	pssNextIdx uint64
@@ -579,6 +623,7 @@ func newRemoteWriteCtx(argIdx int, at *auth.Token, remoteWriteURL *url.URL, maxI
 		}
 		rwctx.sas.Store(sas)
 		rwctx.streamAggrKeepInput = streamAggrKeepInput.GetOptionalArg(argIdx)
+		rwctx.streamAggrDropInput = streamAggrDropInput.GetOptionalArg(argIdx)
 		metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reload_successful{path=%q}`, sasFile)).Set(1)
 		metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reload_success_timestamp_seconds{path=%q}`, sasFile)).Set(fasttime.UnixTimestamp())
 	}
@@ -587,6 +632,11 @@ func newRemoteWriteCtx(argIdx int, at *auth.Token, remoteWriteURL *url.URL, maxI
 }
 
 func (rwctx *remoteWriteCtx) MustStop() {
+	// sas must be stopped before rwctx is closed
+	// because sas can write pending series to rwctx.pss if there are any
+	sas := rwctx.sas.Swap(nil)
+	sas.MustStop()
+
 	for _, ps := range rwctx.pss {
 		ps.MustStop()
 	}
@@ -595,9 +645,6 @@ func (rwctx *remoteWriteCtx) MustStop() {
 	rwctx.fq.UnblockAllReaders()
 	rwctx.c.MustStop()
 	rwctx.c = nil
-
-	sas := rwctx.sas.Swap(nil)
-	sas.MustStop()
 
 	rwctx.fq.MustClose()
 	rwctx.fq = nil
@@ -610,7 +657,7 @@ func (rwctx *remoteWriteCtx) Push(tss []prompbmarshal.TimeSeries) {
 	// Apply relabeling
 	var rctx *relabelCtx
 	var v *[]prompbmarshal.TimeSeries
-	rcs := allRelabelConfigs.Load().(*relabelConfigs)
+	rcs := allRelabelConfigs.Load()
 	pcs := rcs.perURL[rwctx.idx]
 	if pcs.Len() > 0 {
 		rctx = getRelabelCtx()
@@ -618,7 +665,7 @@ func (rwctx *remoteWriteCtx) Push(tss []prompbmarshal.TimeSeries) {
 		// from affecting time series for other remoteWrite.url configs.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/467
 		// and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/599
-		v = tssRelabelPool.Get().(*[]prompbmarshal.TimeSeries)
+		v = tssPool.Get().(*[]prompbmarshal.TimeSeries)
 		tss = append(*v, tss...)
 		rowsCountBeforeRelabel := getRowsCount(tss)
 		tss = rctx.applyRelabeling(tss, nil, pcs)
@@ -630,18 +677,43 @@ func (rwctx *remoteWriteCtx) Push(tss []prompbmarshal.TimeSeries) {
 
 	// Apply stream aggregation if any
 	sas := rwctx.sas.Load()
-	sas.Push(tss)
-	if sas == nil || rwctx.streamAggrKeepInput {
-		// Push samples to the remote storage
-		rwctx.pushInternal(tss)
+	if sas != nil {
+		matchIdxs := matchIdxsPool.Get()
+		matchIdxs.B = sas.Push(tss, matchIdxs.B)
+		if !rwctx.streamAggrKeepInput {
+			if rctx == nil {
+				rctx = getRelabelCtx()
+				// Make a copy of tss before dropping aggregated series
+				v = tssPool.Get().(*[]prompbmarshal.TimeSeries)
+				tss = append(*v, tss...)
+			}
+			tss = dropAggregatedSeries(tss, matchIdxs.B, rwctx.streamAggrDropInput)
+		}
+		matchIdxsPool.Put(matchIdxs)
 	}
+	rwctx.pushInternal(tss)
 
 	// Return back relabeling contexts to the pool
 	if rctx != nil {
 		*v = prompbmarshal.ResetTimeSeries(tss)
-		tssRelabelPool.Put(v)
+		tssPool.Put(v)
 		putRelabelCtx(rctx)
 	}
+}
+
+var matchIdxsPool bytesutil.ByteBufferPool
+
+func dropAggregatedSeries(src []prompbmarshal.TimeSeries, matchIdxs []byte, dropInput bool) []prompbmarshal.TimeSeries {
+	dst := src[:0]
+	for i, match := range matchIdxs {
+		if match == 0 {
+			continue
+		}
+		dst = append(dst, src[i])
+	}
+	tail := src[len(dst):]
+	_ = prompbmarshal.ResetTimeSeries(tail)
+	return dst
 }
 
 func (rwctx *remoteWriteCtx) pushInternal(tss []prompbmarshal.TimeSeries) {
@@ -680,7 +752,7 @@ func (rwctx *remoteWriteCtx) reinitStreamAggr() {
 	metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reload_success_timestamp_seconds{path=%q}`, sasFile)).Set(fasttime.UnixTimestamp())
 }
 
-var tssRelabelPool = &sync.Pool{
+var tssPool = &sync.Pool{
 	New: func() interface{} {
 		a := []prompbmarshal.TimeSeries{}
 		return &a

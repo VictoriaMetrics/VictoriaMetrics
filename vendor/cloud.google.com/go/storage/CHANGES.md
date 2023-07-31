@@ -1,6 +1,35 @@
 # Changes
 
 
+## [1.31.0](https://github.com/googleapis/google-cloud-go/compare/storage/v1.30.1...storage/v1.31.0) (2023-06-27)
+
+
+### Features
+
+* **storage/internal:** Add ctype=CORD for ChecksummedData.content ([ca94e27](https://github.com/googleapis/google-cloud-go/commit/ca94e2724f9e2610b46aefd0a3b5ddc06102e91b))
+* **storage:** Add support for MatchGlob ([#8097](https://github.com/googleapis/google-cloud-go/issues/8097)) ([9426a5a](https://github.com/googleapis/google-cloud-go/commit/9426a5a45d4c2fd07f84261f6d602680e79cdc48)), refs [#7727](https://github.com/googleapis/google-cloud-go/issues/7727) [#7728](https://github.com/googleapis/google-cloud-go/issues/7728)
+* **storage:** Respect WithEndpoint for SignedURLs and PostPolicy ([#8113](https://github.com/googleapis/google-cloud-go/issues/8113)) ([f918f23](https://github.com/googleapis/google-cloud-go/commit/f918f23a3cda4fbc8d709e32b914ead8b735d664))
+* **storage:** Update all direct dependencies ([b340d03](https://github.com/googleapis/google-cloud-go/commit/b340d030f2b52a4ce48846ce63984b28583abde6))
+
+
+### Bug Fixes
+
+* **storage:** Fix CreateBucket logic for gRPC ([#8165](https://github.com/googleapis/google-cloud-go/issues/8165)) ([8424e7e](https://github.com/googleapis/google-cloud-go/commit/8424e7e145a117c91006318fa924a8b2643c1c7e)), refs [#8162](https://github.com/googleapis/google-cloud-go/issues/8162)
+* **storage:** Fix reads with "./" in object names [XML] ([#8017](https://github.com/googleapis/google-cloud-go/issues/8017)) ([6b7b21f](https://github.com/googleapis/google-cloud-go/commit/6b7b21f8a334b6ad3a25e1f66ae1265b4d1f0995))
+* **storage:** Fix routing header for writes ([#8159](https://github.com/googleapis/google-cloud-go/issues/8159)) ([42a59f5](https://github.com/googleapis/google-cloud-go/commit/42a59f5a23ab9b4743ab032ad92304922c801d93)), refs [#8142](https://github.com/googleapis/google-cloud-go/issues/8142) [#8143](https://github.com/googleapis/google-cloud-go/issues/8143) [#8144](https://github.com/googleapis/google-cloud-go/issues/8144) [#8145](https://github.com/googleapis/google-cloud-go/issues/8145) [#8149](https://github.com/googleapis/google-cloud-go/issues/8149)
+* **storage:** REST query UpdateMask bug ([df52820](https://github.com/googleapis/google-cloud-go/commit/df52820b0e7721954809a8aa8700b93c5662dc9b))
+* **storage:** Update grpc to v1.55.0 ([1147ce0](https://github.com/googleapis/google-cloud-go/commit/1147ce02a990276ca4f8ab7a1ab65c14da4450ef))
+
+
+### Documentation
+
+* **storage/internal:** Clarifications about behavior of DeleteObject RPC ([3f1ed9c](https://github.com/googleapis/google-cloud-go/commit/3f1ed9c63fb115f47607a3ab478842fe5ba0df11))
+* **storage/internal:** Clarified the behavior of supplying bucket.name field in CreateBucket to reflect actual implementation ([ebae64d](https://github.com/googleapis/google-cloud-go/commit/ebae64d53397ec5dfe851f098754eaa1f5df7cb1))
+* **storage/internal:** Revert ChecksummedData message definition not to specify ctype=CORD, because it would be a breaking change. ([ef61e47](https://github.com/googleapis/google-cloud-go/commit/ef61e4799280a355b960da8ae240ceb2efbe71ac))
+* **storage/internal:** Update routing annotations for CancelResumableWriteRequest and QueryWriteStatusRequest ([4900851](https://github.com/googleapis/google-cloud-go/commit/49008518e168fe6f7891b907d6fc14eecdef758c))
+* **storage/internal:** Updated ChecksummedData message definition to specify ctype=CORD, and removed incorrect earlier attempt that set that annotation in the ReadObjectResponse message definition ([ef61e47](https://github.com/googleapis/google-cloud-go/commit/ef61e4799280a355b960da8ae240ceb2efbe71ac))
+* **storage:** WithXMLReads should mention XML instead of JSON API ([#7881](https://github.com/googleapis/google-cloud-go/issues/7881)) ([36f56c8](https://github.com/googleapis/google-cloud-go/commit/36f56c80c456ca74ffc03df76844ce15980ced82))
+
 ## [1.30.1](https://github.com/googleapis/google-cloud-go/compare/storage/v1.30.0...storage/v1.30.1) (2023-03-21)
 
 

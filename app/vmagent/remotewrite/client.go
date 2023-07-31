@@ -257,7 +257,7 @@ func getAuthConfig(argIdx int) (*promauth.Config, error) {
 	}
 	authCfg, err := opts.NewConfig()
 	if err != nil {
-		return nil, fmt.Errorf("cannot populate OAuth2 config for remoteWrite idx: %d, err: %w", argIdx, err)
+		return nil, fmt.Errorf("cannot populate auth config for remoteWrite idx: %d, err: %w", argIdx, err)
 	}
 	return authCfg, nil
 }

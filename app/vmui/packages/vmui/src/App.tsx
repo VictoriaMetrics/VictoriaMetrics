@@ -2,7 +2,7 @@ import React, { FC, useState } from "preact/compat";
 import { HashRouter, Route, Routes } from "react-router-dom";
 import router from "./router";
 import AppContextProvider from "./contexts/AppContextProvider";
-import Layout from "./components/Layout/Layout";
+import MainLayout from "./layouts/MainLayout/MainLayout";
 import CustomPanel from "./pages/CustomPanel";
 import DashboardsLayout from "./pages/PredefinedPanels";
 import CardinalityPanel from "./pages/CardinalityPanel";
@@ -13,9 +13,10 @@ import ExploreMetrics from "./pages/ExploreMetrics";
 import PreviewIcons from "./components/Main/Icons/PreviewIcons";
 import WithTemplate from "./pages/WithTemplate";
 import Relabel from "./pages/Relabel";
+import ExploreLogs from "./pages/ExploreLogs/ExploreLogs";
+import ActiveQueries from "./pages/ActiveQueries";
 
 const App: FC = () => {
-
   const [loadedTheme, setLoadedTheme] = useState(false);
 
   return <>
@@ -27,7 +28,7 @@ const App: FC = () => {
             <Routes>
               <Route
                 path={"/"}
-                element={<Layout/>}
+                element={<MainLayout/>}
               >
                 <Route
                   path={router.home}
@@ -62,8 +63,16 @@ const App: FC = () => {
                   element={<Relabel/>}
                 />
                 <Route
+                  path={router.activeQueries}
+                  element={<ActiveQueries/>}
+                />
+                <Route
                   path={router.icons}
                   element={<PreviewIcons/>}
+                />
+                <Route
+                  path={router.logs}
+                  element={<ExploreLogs/>}
                 />
               </Route>
             </Routes>

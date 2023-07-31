@@ -199,6 +199,9 @@ type AssumeRoleInput struct {
 	// in the IAM User Guide.
 	PolicyArns []types.PolicyDescriptorType
 
+	// Reserved for future use.
+	ProvidedContexts []types.ProvidedContext
+
 	// The identification number of the MFA device that is associated with the user
 	// who is making the AssumeRole call. Specify this value if the trust policy of
 	// the role being assumed includes a condition that requires MFA authentication.
@@ -354,7 +357,7 @@ func (c *Client) addOperationAssumeRoleMiddlewares(stack *middleware.Stack, opti
 	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
 		return err
 	}
-	if err = addClientUserAgent(stack); err != nil {
+	if err = addClientUserAgent(stack, options); err != nil {
 		return err
 	}
 	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {

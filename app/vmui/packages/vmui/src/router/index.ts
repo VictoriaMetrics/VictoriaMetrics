@@ -7,6 +7,8 @@ const router = {
   trace: "/trace",
   withTemplate: "/expand-with-exprs",
   relabel: "/relabeling",
+  logs: "/logs",
+  activeQueries: "/active-queries",
   icons: "/icons"
 };
 
@@ -24,12 +26,14 @@ export interface RouterOptions {
   header: RouterOptionsHeader
 }
 
+const { REACT_APP_LOGS } = process.env;
+
 const routerOptionsDefault = {
   header: {
     tenant: true,
-    stepControl: true,
-    timeSelector: true,
-    executionControls: true,
+    stepControl: !REACT_APP_LOGS,
+    timeSelector: !REACT_APP_LOGS,
+    executionControls: !REACT_APP_LOGS,
   }
 };
 
@@ -39,7 +43,7 @@ export const routerOptions: {[key: string]: RouterOptions} = {
     ...routerOptionsDefault
   },
   [router.metrics]: {
-    title: "Explore metrics",
+    title: "Explore Prometheus metrics",
     header: {
       tenant: true,
       stepControl: true,
@@ -73,6 +77,14 @@ export const routerOptions: {[key: string]: RouterOptions} = {
   },
   [router.relabel]: {
     title: "Metric relabel debug",
+    header: {}
+  },
+  [router.logs]: {
+    title: "Logs Explorer",
+    header: {}
+  },
+  [router.activeQueries]: {
+    title: "Active Queries",
     header: {}
   },
   [router.icons]: {

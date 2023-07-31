@@ -3,14 +3,12 @@ package searchutils
 import (
 	"flag"
 	"fmt"
-	"math"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metricsql"
 )
@@ -21,96 +19,9 @@ var (
 	maxStatusRequestDuration = flag.Duration("search.maxStatusRequestDuration", time.Minute*5, "The maximum duration for /api/v1/status/* requests")
 )
 
-func roundToSeconds(ms int64) int64 {
-	return ms - ms%1000
-}
-
-// GetInt returns integer value from the given argKey.
-func GetInt(r *http.Request, argKey string) (int, error) {
-	argValue := r.FormValue(argKey)
-	if len(argValue) == 0 {
-		return 0, nil
-	}
-	n, err := strconv.Atoi(argValue)
-	if err != nil {
-		return 0, fmt.Errorf("cannot parse integer %q=%q: %w", argKey, argValue, err)
-	}
-	return n, nil
-}
-
-// GetTime returns time from the given argKey query arg.
-//
-// If argKey is missing in r, then defaultMs rounded to seconds is returned.
-// The rounding is needed in order to align query results in Grafana
-// executed at different times. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/720
-func GetTime(r *http.Request, argKey string, defaultMs int64) (int64, error) {
-	argValue := r.FormValue(argKey)
-	if len(argValue) == 0 {
-		return roundToSeconds(defaultMs), nil
-	}
-	// Handle Prometheus'-provided minTime and maxTime.
-	// See https://github.com/prometheus/client_golang/issues/614
-	switch argValue {
-	case prometheusMinTimeFormatted:
-		return minTimeMsecs, nil
-	case prometheusMaxTimeFormatted:
-		return maxTimeMsecs, nil
-	}
-	// Parse argValue
-	secs, err := promutils.ParseTime(argValue)
-	if err != nil {
-		return 0, fmt.Errorf("cannot parse %s=%s: %w", argKey, argValue, err)
-	}
-	msecs := int64(secs * 1e3)
-	if msecs < minTimeMsecs {
-		msecs = 0
-	}
-	if msecs > maxTimeMsecs {
-		msecs = maxTimeMsecs
-	}
-	return msecs, nil
-}
-
-var (
-	// These constants were obtained from https://github.com/prometheus/prometheus/blob/91d7175eaac18b00e370965f3a8186cc40bf9f55/web/api/v1/api.go#L442
-	// See https://github.com/prometheus/client_golang/issues/614 for details.
-	prometheusMinTimeFormatted = time.Unix(math.MinInt64/1000+62135596801, 0).UTC().Format(time.RFC3339Nano)
-	prometheusMaxTimeFormatted = time.Unix(math.MaxInt64/1000-62135596801, 999999999).UTC().Format(time.RFC3339Nano)
-)
-
-const (
-	// These values prevent from overflow when storing msec-precision time in int64.
-	minTimeMsecs = 0 // use 0 instead of `int64(-1<<63) / 1e6` because the storage engine doesn't actually support negative time
-	maxTimeMsecs = int64(1<<63-1) / 1e6
-)
-
-// GetDuration returns duration from the given argKey query arg.
-func GetDuration(r *http.Request, argKey string, defaultValue int64) (int64, error) {
-	argValue := r.FormValue(argKey)
-	if len(argValue) == 0 {
-		return defaultValue, nil
-	}
-	secs, err := strconv.ParseFloat(argValue, 64)
-	if err != nil {
-		// Try parsing string format
-		d, err := promutils.ParseDuration(argValue)
-		if err != nil {
-			return 0, fmt.Errorf("cannot parse %q=%q: %w", argKey, argValue, err)
-		}
-		secs = d.Seconds()
-	}
-	msecs := int64(secs * 1e3)
-	if msecs <= 0 || msecs > maxDurationMsecs {
-		return 0, fmt.Errorf("%q=%dms is out of allowed range [%d ... %d]", argKey, msecs, 0, int64(maxDurationMsecs))
-	}
-	return msecs, nil
-}
-
-const maxDurationMsecs = 100 * 365 * 24 * 3600 * 1000
-
 // GetMaxQueryDuration returns the maximum duration for query from r.
 func GetMaxQueryDuration(r *http.Request) time.Duration {
-	dms, err := GetDuration(r, "timeout", 0)
+	dms, err := httputils.GetDuration(r, "timeout", 0)
 	if err != nil {
 		dms = 0
 	}
@@ -140,7 +51,7 @@ func GetDeadlineForExport(r *http.Request, startTime time.Time) Deadline {
 }
 
 func getDeadlineWithMaxDuration(r *http.Request, startTime time.Time, dMax int64, flagHint string) Deadline {
-	d, err := GetDuration(r, "timeout", 0)
+	d, err := httputils.GetDuration(r, "timeout", 0)
 	if err != nil {
 		d = 0
 	}
@@ -149,17 +60,6 @@ func getDeadlineWithMaxDuration(r *http.Request, startTime time.Time, dMax int64
 	}
 	timeout := time.Duration(d) * time.Millisecond
 	return NewDeadline(startTime, timeout, flagHint)
-}
-
-// GetBool returns boolean value from the given argKey query arg.
-func GetBool(r *http.Request, argKey string) bool {
-	argValue := r.FormValue(argKey)
-	switch strings.ToLower(argValue) {
-	case "", "0", "f", "false", "no":
-		return false
-	default:
-		return true
-	}
 }
 
 // Deadline contains deadline with the corresponding timeout for pretty error messages.
@@ -240,12 +140,14 @@ func GetExtraTagFilters(r *http.Request) ([][]storage.TagFilter, error) {
 	}
 	var etfs [][]storage.TagFilter
 	for _, extraFilter := range extraFilters {
-		tfs, err := ParseMetricSelector(extraFilter)
+		tfss, err := ParseMetricSelector(extraFilter)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse extra_filters=%s: %w", extraFilter, err)
 		}
-		tfs = append(tfs, tagFilters...)
-		etfs = append(etfs, tfs)
+		for i := range tfss {
+			tfss[i] = append(tfss[i], tagFilters...)
+		}
+		etfs = append(etfs, tfss...)
 	}
 	return etfs, nil
 }
@@ -270,7 +172,7 @@ func JoinTagFilterss(src, etfs [][]storage.TagFilter) [][]storage.TagFilter {
 }
 
 // ParseMetricSelector parses s containing PromQL metric selector and returns the corresponding LabelFilters.
-func ParseMetricSelector(s string) ([]storage.TagFilter, error) {
+func ParseMetricSelector(s string) ([][]storage.TagFilter, error) {
 	expr, err := metricsql.Parse(s)
 	if err != nil {
 		return nil, err
@@ -279,20 +181,24 @@ func ParseMetricSelector(s string) ([]storage.TagFilter, error) {
 	if !ok {
 		return nil, fmt.Errorf("expecting metricSelector; got %q", expr.AppendString(nil))
 	}
-	if len(me.LabelFilters) == 0 {
-		return nil, fmt.Errorf("labelFilters cannot be empty")
+	if len(me.LabelFilterss) == 0 {
+		return nil, fmt.Errorf("labelFilterss cannot be empty")
 	}
-	tfs := ToTagFilters(me.LabelFilters)
-	return tfs, nil
+	tfss := ToTagFilterss(me.LabelFilterss)
+	return tfss, nil
 }
 
-// ToTagFilters converts lfs to a slice of storage.TagFilter
-func ToTagFilters(lfs []metricsql.LabelFilter) []storage.TagFilter {
-	tfs := make([]storage.TagFilter, len(lfs))
-	for i := range lfs {
-		toTagFilter(&tfs[i], &lfs[i])
+// ToTagFilterss converts lfss to or-delimited slices of storage.TagFilter
+func ToTagFilterss(lfss [][]metricsql.LabelFilter) [][]storage.TagFilter {
+	tfss := make([][]storage.TagFilter, len(lfss))
+	for i, lfs := range lfss {
+		tfs := make([]storage.TagFilter, len(lfs))
+		for j := range lfs {
+			toTagFilter(&tfs[j], &lfs[j])
+		}
+		tfss[i] = tfs
 	}
-	return tfs
+	return tfss
 }
 
 func toTagFilter(dst *storage.TagFilter, src *metricsql.LabelFilter) {

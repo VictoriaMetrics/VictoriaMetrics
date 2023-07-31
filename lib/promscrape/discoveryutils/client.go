@@ -3,6 +3,7 @@ package discoveryutils
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -12,8 +13,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"golang.org/x/net/http2"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
@@ -82,10 +81,16 @@ type HTTPClient struct {
 	ReadTimeout time.Duration
 }
 
+func (hc *HTTPClient) stop() {
+	// Close idle connections to server in order to free up resources.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4724
+	hc.client.CloseIdleConnections()
+}
+
 var defaultDialer = &net.Dialer{}
 
 // NewClient returns new Client for the given args.
-func NewClient(apiServer string, ac *promauth.Config, proxyURL *proxy.URL, proxyAC *promauth.Config, httpCfg promauth.HTTPClientConfig) (*Client, error) {
+func NewClient(apiServer string, ac *promauth.Config, proxyURL *proxy.URL, proxyAC *promauth.Config, httpCfg *promauth.HTTPClientConfig) (*Client, error) {
 	u, err := url.Parse(apiServer)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse apiServer=%q: %w", apiServer, err)
@@ -142,23 +147,16 @@ func NewClient(apiServer string, ac *promauth.Config, proxyURL *proxy.URL, proxy
 		}
 	}
 	if httpCfg.FollowRedirects != nil && !*httpCfg.FollowRedirects {
-		client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		checkRedirect := func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
 		}
-		blockingClient.CheckRedirect = func(req *http.Request, via []*http.Request) error {
-			return http.ErrUseLastResponse
-		}
+		client.CheckRedirect = checkRedirect
+		blockingClient.CheckRedirect = checkRedirect
 	}
 	setHTTPProxyHeaders := func(req *http.Request) {}
 	if proxyAC != nil {
 		setHTTPProxyHeaders = func(req *http.Request) {
 			proxyURL.SetHeaders(proxyAC, req)
-		}
-	}
-	if httpCfg.EnableHTTP2 != nil && *httpCfg.EnableHTTP2 {
-		_, err := http2.ConfigureTransports(client.Transport.(*http.Transport))
-		if err != nil {
-			return nil, fmt.Errorf("failed to configure HTTP/2 transport: %s", err)
 		}
 	}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -284,6 +282,8 @@ func (c *Client) APIServer() string {
 // Stop cancels all in-flight requests
 func (c *Client) Stop() {
 	c.clientCancel()
+	c.client.stop()
+	c.blockingClient.stop()
 }
 
 func doRequestWithPossibleRetry(hc *HTTPClient, req *http.Request) (*http.Response, error) {
@@ -301,7 +301,7 @@ func doRequestWithPossibleRetry(hc *HTTPClient, req *http.Request) (*http.Respon
 			if statusCode != http.StatusTooManyRequests {
 				return true
 			}
-		} else if reqErr != net.ErrClosed && !strings.Contains(reqErr.Error(), "broken pipe") {
+		} else if !errors.Is(reqErr, net.ErrClosed) && !strings.Contains(reqErr.Error(), "broken pipe") {
 			return true
 		}
 		return false

@@ -17,7 +17,7 @@ export const dragChart = ({ e, factor = 0.85, u, setPanning, setPlotScale }: Dra
 
     const clientX = isMouseEvent ? e.clientX : e.touches[0].clientX;
     const dx = xUnitsPerPx * ((clientX - leftStart) * factor);
-    setPlotScale({ u, min: scXMin - dx, max: scXMax - dx });
+    setPlotScale({ min: scXMin - dx, max: scXMax - dx });
   };
   const mouseUp = () => {
     setPanning(false);

@@ -48,6 +48,9 @@ const QueryEditor: FC<QueryEditorProps> = ({
   const handleKeyDown = (e: KeyboardEvent) => {
     const { key, ctrlKey, metaKey, shiftKey } = e;
 
+    const value = (e.target as HTMLTextAreaElement).value || "";
+    const isMultiline = value.split("\n").length > 1;
+
     const ctrlMetaKey = ctrlKey || metaKey;
     const arrowUp = key === "ArrowUp";
     const arrowDown = key === "ArrowDown";
@@ -65,10 +68,19 @@ const QueryEditor: FC<QueryEditorProps> = ({
       onArrowDown();
     }
 
+    if (enter && openAutocomplete) {
+      e.preventDefault();
+    }
+
     // execute query
-    if (enter && !shiftKey && !openAutocomplete) {
+    if (enter && !shiftKey && (!isMultiline || ctrlMetaKey) && !openAutocomplete) {
+      e.preventDefault();
       onEnter();
     }
+  };
+
+  const handleChangeFoundOptions = (val: string[]) => {
+    setOpenAutocomplete(!!val.length);
   };
 
   return <div
@@ -93,7 +105,7 @@ const QueryEditor: FC<QueryEditorProps> = ({
         options={options}
         anchor={autocompleteAnchorEl}
         onSelect={handleSelect}
-        onOpenAutocomplete={setOpenAutocomplete}
+        onFoundOptions={handleChangeFoundOptions}
       />
     )}
     {showSeriesFetchedWarning && (

@@ -6,7 +6,6 @@ import (
 )
 
 func TestGetTime(t *testing.T) {
-	l, _ := time.LoadLocation("UTC")
 	tests := []struct {
 		name    string
 		s       string
@@ -23,7 +22,7 @@ func TestGetTime(t *testing.T) {
 			name: "only year",
 			s:    "2019",
 			want: func() time.Time {
-				t := time.Date(2019, 1, 1, 0, 0, 0, 0, l)
+				t := time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC)
 				return t
 			},
 		},
@@ -31,7 +30,7 @@ func TestGetTime(t *testing.T) {
 			name: "year and month",
 			s:    "2019-01",
 			want: func() time.Time {
-				t := time.Date(2019, 1, 1, 0, 0, 0, 0, l)
+				t := time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC)
 				return t
 			},
 		},
@@ -39,7 +38,7 @@ func TestGetTime(t *testing.T) {
 			name: "year and not first month",
 			s:    "2019-02",
 			want: func() time.Time {
-				t := time.Date(2019, 2, 1, 0, 0, 0, 0, l)
+				t := time.Date(2019, 2, 1, 0, 0, 0, 0, time.UTC)
 				return t
 			},
 		},
@@ -47,7 +46,7 @@ func TestGetTime(t *testing.T) {
 			name: "year, month and day",
 			s:    "2019-02-01",
 			want: func() time.Time {
-				t := time.Date(2019, 2, 1, 0, 0, 0, 0, l)
+				t := time.Date(2019, 2, 1, 0, 0, 0, 0, time.UTC)
 				return t
 			},
 		},
@@ -55,7 +54,7 @@ func TestGetTime(t *testing.T) {
 			name: "year, month and not first day",
 			s:    "2019-02-10",
 			want: func() time.Time {
-				t := time.Date(2019, 2, 10, 0, 0, 0, 0, l)
+				t := time.Date(2019, 2, 10, 0, 0, 0, 0, time.UTC)
 				return t
 			},
 		},
@@ -63,7 +62,7 @@ func TestGetTime(t *testing.T) {
 			name: "year, month, day and time",
 			s:    "2019-02-02T00",
 			want: func() time.Time {
-				t := time.Date(2019, 2, 2, 0, 0, 0, 0, l)
+				t := time.Date(2019, 2, 2, 0, 0, 0, 0, time.UTC)
 				return t
 			},
 		},
@@ -71,7 +70,7 @@ func TestGetTime(t *testing.T) {
 			name: "year, month, day and one hour time",
 			s:    "2019-02-02T01",
 			want: func() time.Time {
-				t := time.Date(2019, 2, 2, 1, 0, 0, 0, l)
+				t := time.Date(2019, 2, 2, 1, 0, 0, 0, time.UTC)
 				return t
 			},
 		},
@@ -79,7 +78,7 @@ func TestGetTime(t *testing.T) {
 			name: "time with zero minutes",
 			s:    "2019-02-02T01:00",
 			want: func() time.Time {
-				t := time.Date(2019, 2, 2, 1, 0, 0, 0, l)
+				t := time.Date(2019, 2, 2, 1, 0, 0, 0, time.UTC)
 				return t
 			},
 		},
@@ -87,7 +86,7 @@ func TestGetTime(t *testing.T) {
 			name: "time with one minute",
 			s:    "2019-02-02T01:01",
 			want: func() time.Time {
-				t := time.Date(2019, 2, 2, 1, 1, 0, 0, l)
+				t := time.Date(2019, 2, 2, 1, 1, 0, 0, time.UTC)
 				return t
 			},
 		},
@@ -95,7 +94,7 @@ func TestGetTime(t *testing.T) {
 			name: "time with zero seconds",
 			s:    "2019-02-02T01:01:00",
 			want: func() time.Time {
-				t := time.Date(2019, 2, 2, 1, 1, 0, 0, l)
+				t := time.Date(2019, 2, 2, 1, 1, 0, 0, time.UTC)
 				return t
 			},
 		},
@@ -103,7 +102,7 @@ func TestGetTime(t *testing.T) {
 			name: "timezone with one second",
 			s:    "2019-02-02T01:01:01",
 			want: func() time.Time {
-				t := time.Date(2019, 2, 2, 1, 1, 1, 0, l)
+				t := time.Date(2019, 2, 2, 1, 1, 1, 0, time.UTC)
 				return t
 			},
 		},
@@ -111,7 +110,7 @@ func TestGetTime(t *testing.T) {
 			name: "time with two second and timezone",
 			s:    "2019-07-07T20:01:02Z",
 			want: func() time.Time {
-				t := time.Date(2019, 7, 7, 20, 1, 02, 0, l)
+				t := time.Date(2019, 7, 7, 20, 1, 02, 0, time.UTC)
 				return t
 			},
 		},
@@ -119,7 +118,7 @@ func TestGetTime(t *testing.T) {
 			name: "time with seconds and timezone",
 			s:    "2019-07-07T20:47:40+03:00",
 			want: func() time.Time {
-				l, _ = time.LoadLocation("Europe/Kiev")
+				l, _ := time.LoadLocation("Europe/Kiev")
 				t := time.Date(2019, 7, 7, 20, 47, 40, 0, l)
 				return t
 			},
@@ -134,7 +133,7 @@ func TestGetTime(t *testing.T) {
 			name: "float timestamp representation",
 			s:    "1562529662.324",
 			want: func() time.Time {
-				t := time.Date(2019, 7, 7, 23, 01, 02, 324, l)
+				t := time.Date(2019, 7, 7, 20, 01, 02, 324e6, time.UTC)
 				return t
 			},
 		},
@@ -142,17 +141,15 @@ func TestGetTime(t *testing.T) {
 			name: "negative timestamp",
 			s:    "-9223372036.855",
 			want: func() time.Time {
-				l, _ = time.LoadLocation("Europe/Kiev")
-				return time.Date(1970, 01, 01, 03, 00, 00, 00, l)
+				return time.Date(1970, 01, 01, 00, 00, 00, 00, time.UTC)
 			},
 			wantErr: false,
 		},
 		{
 			name: "big timestamp",
-			s:    "9223372036.855",
+			s:    "1223372036855",
 			want: func() time.Time {
-				l, _ = time.LoadLocation("Europe/Kiev")
-				t := time.Date(2262, 04, 12, 02, 47, 16, 855, l)
+				t := time.Date(2008, 10, 7, 9, 33, 56, 855e6, time.UTC)
 				return t
 			},
 			wantErr: false,

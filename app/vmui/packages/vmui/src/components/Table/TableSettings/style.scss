@@ -1,0 +1,43 @@
+@use "src/styles/variables" as *;
+
+.vm-table-settings-popper {
+  display: grid;
+  min-width: 250px;
+
+  &_mobile &-list {
+    gap: $padding-global;
+
+    &:first-child {
+      padding-top: 0;
+    }
+  }
+
+  &-list {
+    display: grid;
+    gap: 12px;
+    padding: $padding-global;
+    max-height: 350px;
+    overflow: auto;
+    border-bottom: $border-divider;
+
+    &_first {
+      padding-top: 0;
+    }
+
+    &-header {
+      display: grid;
+      align-items: center;
+      justify-content: space-between;
+      grid-template-columns: 1fr auto;
+      min-height: 25px;
+
+      &__title {
+        font-weight: bold;
+      }
+    }
+
+    &__item {
+      font-size: $font-size;
+    }
+  }
+}

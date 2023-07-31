@@ -168,6 +168,8 @@ type partWrapper struct {
 	refCount uint32
 
 	// The flag, which is set when the part must be deleted after refCount reaches zero.
+	// This field should be updated only after partWrapper
+	// was removed from the list of active parts.
 	mustBeDeleted uint32
 
 	// The part itself.
@@ -264,6 +266,14 @@ func mustOpenPartition(smallPartsPath, bigPartsPath string, s *Storage) *partiti
 
 	smallParts := mustOpenParts(smallPartsPath, partNamesSmall)
 	bigParts := mustOpenParts(bigPartsPath, partNamesBig)
+
+	partNamesPath := filepath.Join(smallPartsPath, partsFilename)
+	if !fs.IsPathExist(partNamesPath) {
+		// Create parts.json file if it doesn't exist yet.
+		// This should protect from possible carshloops just after the migration from versions below v1.90.0
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4336
+		mustWritePartNames(smallParts, bigParts, smallPartsPath)
+	}
 
 	pt := newPartition(name, smallPartsPath, bigPartsPath, s)
 	pt.smallParts = smallParts

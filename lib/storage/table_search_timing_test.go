@@ -38,7 +38,7 @@ func BenchmarkTableSearch(b *testing.B) {
 	}
 }
 
-func openBenchTable(b *testing.B, startTimestamp int64, rowsPerInsert, rowsCount, tsidsCount int) *table {
+func openBenchTable(b *testing.B, startTimestamp int64, rowsPerInsert, rowsCount, tsidsCount int) (*table, *Storage) {
 	b.Helper()
 
 	path := filepath.Join("benchmarkTableSearch", fmt.Sprintf("rows%d_tsids%d", rowsCount, tsidsCount))
@@ -58,7 +58,7 @@ func openBenchTable(b *testing.B, startTimestamp int64, rowsPerInsert, rowsCount
 		b.Fatalf("unexpected rows count in the table %q; got %d; want %d", path, rowsCount, rowsCountExpected)
 	}
 
-	return tb
+	return tb, strg
 }
 
 var createdBenchTables = make(map[string]bool)
@@ -98,13 +98,14 @@ func createBenchTable(b *testing.B, path string, startTimestamp int64, rowsPerIn
 	wg.Wait()
 
 	tb.MustClose()
+	stopTestStorage(strg)
 }
 
 func benchmarkTableSearch(b *testing.B, rowsCount, tsidsCount, tsidsSearch int) {
 	startTimestamp := timestampFromTime(time.Now()) - 365*24*3600*1000
 	rowsPerInsert := getMaxRawRowsPerShard()
 
-	tb := openBenchTable(b, startTimestamp, rowsPerInsert, rowsCount, tsidsCount)
+	tb, strg := openBenchTable(b, startTimestamp, rowsPerInsert, rowsCount, tsidsCount)
 	tr := TimeRange{
 		MinTimestamp: startTimestamp,
 		MaxTimestamp: (1 << 63) - 1,
@@ -135,4 +136,5 @@ func benchmarkTableSearch(b *testing.B, rowsCount, tsidsCount, tsidsSearch int) 
 	b.StopTimer()
 
 	tb.MustClose()
+	stopTestStorage(strg)
 }

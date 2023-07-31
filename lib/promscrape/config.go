@@ -239,12 +239,17 @@ type GlobalConfig struct {
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config
 type ScrapeConfig struct {
-	JobName              string                      `yaml:"job_name"`
-	ScrapeInterval       *promutils.Duration         `yaml:"scrape_interval,omitempty"`
-	ScrapeTimeout        *promutils.Duration         `yaml:"scrape_timeout,omitempty"`
-	MetricsPath          string                      `yaml:"metrics_path,omitempty"`
-	HonorLabels          bool                        `yaml:"honor_labels,omitempty"`
-	HonorTimestamps      *bool                       `yaml:"honor_timestamps,omitempty"`
+	JobName        string              `yaml:"job_name"`
+	ScrapeInterval *promutils.Duration `yaml:"scrape_interval,omitempty"`
+	ScrapeTimeout  *promutils.Duration `yaml:"scrape_timeout,omitempty"`
+	MetricsPath    string              `yaml:"metrics_path,omitempty"`
+	HonorLabels    bool                `yaml:"honor_labels,omitempty"`
+
+	// HonorTimestamps is set to false by default contrary to Prometheus, which sets it to true by default,
+	// because of the issue with gaps on graphs when scraping cadvisor or similar targets, which export invalid timestamps.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4697#issuecomment-1654614799 for details.
+	HonorTimestamps bool `yaml:"honor_timestamps,omitempty"`
+
 	Scheme               string                      `yaml:"scheme,omitempty"`
 	Params               map[string][]string         `yaml:"params,omitempty"`
 	HTTPClientConfig     promauth.HTTPClientConfig   `yaml:",inline"`
@@ -984,17 +989,10 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 		scrapeTimeout = scrapeInterval
 	}
 	honorLabels := sc.HonorLabels
-	honorTimestamps := true
-	if sc.HonorTimestamps != nil {
-		honorTimestamps = *sc.HonorTimestamps
-	}
+	honorTimestamps := sc.HonorTimestamps
 	denyRedirects := false
 	if sc.HTTPClientConfig.FollowRedirects != nil {
 		denyRedirects = !*sc.HTTPClientConfig.FollowRedirects
-	}
-	enableHTTP2 := false
-	if sc.HTTPClientConfig.EnableHTTP2 != nil {
-		enableHTTP2 = !*sc.HTTPClientConfig.EnableHTTP2
 	}
 	metricsPath := sc.MetricsPath
 	if metricsPath == "" {
@@ -1048,7 +1046,6 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 		honorLabels:          honorLabels,
 		honorTimestamps:      honorTimestamps,
 		denyRedirects:        denyRedirects,
-		enableHTTP2:          enableHTTP2,
 		externalLabels:       externalLabels,
 		relabelConfigs:       relabelConfigs,
 		metricRelabelConfigs: metricRelabelConfigs,
@@ -1079,7 +1076,6 @@ type scrapeWorkConfig struct {
 	honorLabels          bool
 	honorTimestamps      bool
 	denyRedirects        bool
-	enableHTTP2          bool
 	externalLabels       *promutils.Labels
 	relabelConfigs       *promrelabel.ParsedConfigs
 	metricRelabelConfigs *promrelabel.ParsedConfigs
@@ -1357,7 +1353,6 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		HonorLabels:          swc.honorLabels,
 		HonorTimestamps:      swc.honorTimestamps,
 		DenyRedirects:        swc.denyRedirects,
-		EnableHTTP2:          swc.enableHTTP2,
 		OriginalLabels:       originalLabels,
 		Labels:               labelsCopy,
 		ExternalLabels:       swc.externalLabels,

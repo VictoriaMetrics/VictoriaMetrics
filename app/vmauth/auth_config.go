@@ -50,7 +50,8 @@ type UserInfo struct {
 	concurrencyLimitCh      chan struct{}
 	concurrencyLimitReached *metrics.Counter
 
-	requests *metrics.Counter
+	requests         *metrics.Counter
+	requestsDuration *metrics.Summary
 }
 
 func (ui *UserInfo) beginConcurrencyLimit() error {
@@ -378,6 +379,7 @@ func parseAuthConfig(data []byte) (*AuthConfig, error) {
 	ui := ac.UnauthorizedUser
 	if ui != nil {
 		ui.requests = metrics.GetOrCreateCounter(`vmauth_unauthorized_user_requests_total`)
+		ui.requestsDuration = metrics.GetOrCreateSummary(`vmauth_unauthorized_user_request_duration_seconds`)
 		ui.concurrencyLimitCh = make(chan struct{}, ui.getMaxConcurrentRequests())
 		ui.concurrencyLimitReached = metrics.GetOrCreateCounter(`vmauth_unauthorized_user_concurrent_requests_limit_reached_total`)
 		_ = metrics.GetOrCreateGauge(`vmauth_unauthorized_user_concurrent_requests_capacity`, func() float64 {
@@ -441,9 +443,11 @@ func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, error) {
 				return nil, fmt.Errorf("password shouldn't be set for bearer_token %q", ui.BearerToken)
 			}
 			ui.requests = metrics.GetOrCreateCounter(fmt.Sprintf(`vmauth_user_requests_total{username=%q}`, name))
+			ui.requestsDuration = metrics.GetOrCreateSummary(fmt.Sprintf(`vmauth_user_request_duration_seconds{username=%q}`, name))
 		}
 		if ui.Username != "" {
 			ui.requests = metrics.GetOrCreateCounter(fmt.Sprintf(`vmauth_user_requests_total{username=%q}`, name))
+			ui.requestsDuration = metrics.GetOrCreateSummary(fmt.Sprintf(`vmauth_user_request_duration_seconds{username=%q}`, name))
 		}
 		mcr := ui.getMaxConcurrentRequests()
 		ui.concurrencyLimitCh = make(chan struct{}, mcr)

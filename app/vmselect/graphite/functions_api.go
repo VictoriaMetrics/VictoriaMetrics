@@ -8,14 +8,14 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
 )
 
 // FunctionsHandler implements /functions handler.
 //
 // See https://graphite.readthedocs.io/en/latest/functions.html#function-api
 func FunctionsHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
-	grouped := searchutils.GetBool(r, "grouped")
+	grouped := httputils.GetBool(r, "grouped")
 	group := r.FormValue("group")
 	result := make(map[string]interface{})
 	for funcName, fi := range funcs {

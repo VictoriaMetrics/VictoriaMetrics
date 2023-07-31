@@ -141,8 +141,6 @@ type Table struct {
 	// which may need to be merged.
 	needMergeCh chan struct{}
 
-	flockF *os.File
-
 	stopCh chan struct{}
 
 	wg sync.WaitGroup
@@ -274,6 +272,9 @@ type partWrapper struct {
 
 	refCount uint32
 
+	// mustBeDeleted marks partWrapper for deletion.
+	// This field should be updated only after partWrapper
+	// was removed from the list of active parts.
 	mustBeDeleted uint32
 
 	isInMerge bool
@@ -328,9 +329,6 @@ func MustOpenTable(path string, flushCallback func(), prepareBlock PrepareBlockC
 	// Create a directory for the table if it doesn't exist yet.
 	fs.MustMkdirIfNotExist(path)
 
-	// Protect from concurrent opens.
-	flockF := fs.MustCreateFlockFile(path)
-
 	// Open table parts.
 	pws := mustOpenParts(path)
 
@@ -342,7 +340,6 @@ func MustOpenTable(path string, flushCallback func(), prepareBlock PrepareBlockC
 		fileParts:     pws,
 		mergeIdx:      uint64(time.Now().UnixNano()),
 		needMergeCh:   make(chan struct{}, 1),
-		flockF:        flockF,
 		stopCh:        make(chan struct{}),
 	}
 	tb.rawItems.init()
@@ -405,10 +402,6 @@ func (tb *Table) MustClose() {
 	for _, pw := range fileParts {
 		pw.decRef()
 	}
-
-	// Release flockF
-	fs.MustClose(tb.flockF)
-	tb.flockF = nil
 }
 
 // Path returns the path to tb on the filesystem.
@@ -668,12 +661,11 @@ func (tb *Table) flushInmemoryParts(isFinal bool) {
 
 func (riss *rawItemsShards) flush(tb *Table, dst []*inmemoryBlock, isFinal bool) []*inmemoryBlock {
 	tb.rawItemsPendingFlushesWG.Add(1)
-	defer tb.rawItemsPendingFlushesWG.Done()
-
 	for i := range riss.shards {
 		dst = riss.shards[i].appendBlocksToFlush(dst, tb, isFinal)
 	}
 	tb.flushBlocksToParts(dst, isFinal)
+	tb.rawItemsPendingFlushesWG.Done()
 	return dst
 }
 
@@ -1382,6 +1374,13 @@ func mustOpenParts(path string) []*partWrapper {
 			refCount: 1,
 		}
 		pws = append(pws, pw)
+	}
+	partNamesPath := filepath.Join(path, partsFilename)
+	if !fs.IsPathExist(partNamesPath) {
+		// Create parts.json file if it doesn't exist yet.
+		// This should protect from possible carshloops just after the migration from versions below v1.90.0
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4336
+		mustWritePartNames(pws, path)
 	}
 
 	return pws

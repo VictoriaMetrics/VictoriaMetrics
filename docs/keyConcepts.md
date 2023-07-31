@@ -213,11 +213,9 @@ This query works in the following way:
 
 1. The `increase(vm_rows_read_per_query_bucket[1h])` calculates per-bucket per-instance
    number of events over the last hour.
-
-2. The `sum(...) by (vmrange)` calculates per-bucket events by summing per-instance buckets
+1. The `sum(...) by (vmrange)` calculates per-bucket events by summing per-instance buckets
    with the same `vmrange` values.
-
-3. The `histogram_quantile(0.99, ...)` calculates 99th percentile over `vmrange` buckets returned at step 2.
+1. The `histogram_quantile(0.99, ...)` calculates 99th percentile over `vmrange` buckets returned at step 2.
 
 Histogram metric type exposes two additional counters ending with `_sum` and `_count` suffixes:
 
@@ -271,16 +269,16 @@ implementations of a histogram supported by VictoriaMetrics:
    supported by most of
    the [client libraries for metrics instrumentation](https://prometheus.io/docs/instrumenting/clientlibs/). Prometheus
    histogram requires a user to define ranges (`buckets`) statically.
-2. [VictoriaMetrics histogram](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350)
+1. [VictoriaMetrics histogram](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350)
    supported by [VictoriaMetrics/metrics](https://github.com/VictoriaMetrics/metrics) instrumentation library.
    Victoriametrics histogram automatically handles bucket boundaries, so users don't need to think about them.
 
 We recommend reading the following articles before you start using histograms:
 
 1. [Prometheus histogram](https://prometheus.io/docs/concepts/metric_types/#histogram)
-2. [Histograms and summaries](https://prometheus.io/docs/practices/histograms/)
-3. [How does a Prometheus Histogram work?](https://www.robustperception.io/how-does-a-prometheus-histogram-work)
-4. [Improving histogram usability for Prometheus and Grafana](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350)
+1. [Histograms and summaries](https://prometheus.io/docs/practices/histograms/)
+1. [How does a Prometheus Histogram work?](https://www.robustperception.io/how-does-a-prometheus-histogram-work)
+1. [Improving histogram usability for Prometheus and Grafana](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350)
 
 #### Summary
 
@@ -504,9 +502,11 @@ GET | POST /api/v1/query?query=...&time=...&step=...
 Params:
 
 * `query` - [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) expression.
-* `time` - optional, timestamp to evaluate the `query` at. If omitted, `time` is set to `now()` (current timestamp).
+* `time` - optional, [timestamp](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#timestamp-formats)
+  in second precision to evaluate the `query` at. If omitted, `time` is set to `now()` (current timestamp).
   The `time` param can be specified in [multiple allowed formats](https://docs.victoriametrics.com/#timestamp-formats).
-* `step` - optional, the max time range for searching for raw samples in the past when executing the `query`. 
+* `step` - optional, the max [interval](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-durations)
+  for searching for raw samples in the past when executing the `query`. 
   For example, request `/api/v1/query?query=up&step=1m` will look for the last written raw sample for metric `up`
   on interval between `now()` and `now()-1m`. If omitted, `step` is set to `5m` (5 minutes).
 
@@ -596,18 +596,18 @@ GET | POST /api/v1/query_range?query=...&start=...&end=...&step=...
 
 Params:
 * `query` - [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) expression.
-* `start` - the starting timestamp of the time range for `query` evaluation.
-* `end` - the ending timestamp of the time range for `query` evaluation.
+* `start` - the starting [timestamp](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#timestamp-formats)
+  of the time range for `query` evaluation.
+* `end` - the ending [timestamp](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#timestamp-formats)
+  of the time range for `query` evaluation.
   If the `end` isn't set, then the `end` is automatically set to the current time.
-* `step` - the [interval](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-durations) between datapoints,
-  which must be returned from the range query.
+* `step` - the [interval](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-durations) 
+  between data points, which must be returned from the range query.
   The `query` is executed at `start`, `start+step`, `start+2*step`, ..., `end` timestamps.
   If the `step` isn't set, then it is automatically set to `5m` (5 minutes).
 
-The `start` and `end` params can be specified in [multiple allowed formats](https://docs.victoriametrics.com/#timestamp-formats).
-
-To get the values of `foo_bar` on the time range from `2022-05-10 09:59:00` to `2022-05-10 10:17:00`, in VictoriaMetrics we
-need to issue a range query:
+To get the values of `foo_bar` on the time range from `2022-05-10 09:59:00` to `2022-05-10 10:17:00`
+in VictoriaMetrics we need to issue a range query:
 
 ```console
 curl "http://<victoria-metrics-addr>/api/v1/query_range?query=foo_bar&step=1m&start=2022-05-10T09:59:00.000Z&end=2022-05-10T10:17:00.000Z"
@@ -740,6 +740,25 @@ useful in the following scenarios:
 
 If you need to export raw samples from VictoriaMetrics, then take a look at [export APIs](https://docs.victoriametrics.com/#how-to-export-time-series).
 
+### Query latency
+
+By default, Victoria Metrics does not immediately return the recently written samples. Instead, it retrieves the last results
+written prior to the time specified by the `-search.latencyOffset` command-line flag, which has a default offset of 30 seconds.
+This is true for both `query` and `query_range` and may give the impression that data is written to the VM with a 30-second delay.
+
+This flag prevents from non-consistent results due to the fact that only part of the values are scraped in the last scrape interval.
+
+Here is an illustration of a potential problem when `-search.latencyOffset` is set to zero:
+
+<img src="keyConcepts_without_latencyOffset.png" width="1000">
+
+When this flag is set, the VM will return the last metric value collected before the `-search.latencyOffset`
+duration throughout the `-search.latencyOffset` duration:
+
+<img src="keyConcepts_with_latencyOffset.png" width="1000">
+
+It can be overridden on per-query basis via `latency_offset` query arg.
+
 ### MetricsQL
 
 VictoriaMetrics provide a special query language for executing read queries - [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html).
@@ -764,15 +783,15 @@ requests_total{path="/", code="200"}
 requests_total{path="/", code="403"} 
 ```
 
-To select only time series with specific label value specify the matching condition in curly braces:
+To select only time series with specific label value specify the matching filter in curly braces:
 
 ```metricsql
 requests_total{code="200"} 
 ```
 
-The query above will return all time series with the name `requests_total` and `code="200"`. We use the operator `=` to
-match a label value. For negative match use `!=` operator. Filters also support regex matching `=~` for positive
-and `!~` for negative matching:
+The query above returns all time series with the name `requests_total` and label `code="200"`. We use the operator `=` to
+match label value. For negative match use `!=` operator. Filters also support positive regex matching via `=~`
+and negative regex matching via `!~`:
 
 ```metricsql
 requests_total{code=~"2.*"}
@@ -781,23 +800,48 @@ requests_total{code=~"2.*"}
 Filters can also be combined:
 
 ```metricsql
-requests_total{code=~"200|204", path="/home"}
+requests_total{code=~"200", path="/home"}
 ```
 
-The query above will return all time series with a name `requests_total`, status `code` `200` or `204`and `path="/home"`
-.
+The query above returns all time series with `requests_total` name, which simultaneously have labels `code="200"` and `path="/home"`.
 
 #### Filtering by name
 
 Sometimes it is required to return all the time series for multiple metric names. As was mentioned in
-the [data model section](#data-model), the metric name is just an ordinary label with a special name — `__name__`. So
+the [data model section](#data-model), the metric name is just an ordinary label with a special name - `__name__`. So
 filtering by multiple metric names may be performed by applying regexps on metric names:
 
 ```metricsql
 {__name__=~"requests_(error|success)_total"}
 ```
 
-The query above is supposed to return series for two metrics: `requests_error_total` and `requests_success_total`.
+The query above returns series for two metrics: `requests_error_total` and `requests_success_total`.
+
+#### Filtering by multiple "or" filters
+
+[MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) supports selecting time series, which match at least one of multiple "or" filters.
+Such filters must be delimited by `or` inside curly braces. For example, the following query selects time series with
+either `{job="app1",env="prod"}` or `{job="app2",env="dev"}` labels:
+
+```metricsql
+{job="app1",env="prod" or job="app2",env="dev"}
+```
+
+The number of `or` groups can be arbitrary. The number of `,`-delimited label filters per each `or` group can be arbitrary.
+Per-group filters are applied with `and` operation, e.g. they select series simultaneously matching all the filters in the group.
+
+This functionality allows passing the selected series to [rollup functions](https://docs.victoriametrics.com/MetricsQL.html#rollup-functions)
+such as [rate()](https://docs.victoriametrics.com/MetricsQL.html#rate)
+without the need to use [subqueries](https://docs.victoriametrics.com/MetricsQL.html#subqueries):
+
+```metricsql
+rate({job="app1",env="prod" or job="app2",env="dev"}[5m])
+
+```
+
+If you need to select series matching multiple filters for the same label, then it is better from performance PoV
+to use regexp filter `{label=~"value1|...|valueN"}` instead of `{label="value1" or ... or label="valueN"}`.
+
 
 #### Arithmetic operations
 
