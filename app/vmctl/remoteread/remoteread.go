@@ -35,7 +35,6 @@ type StreamCallback func(series *vm.TimeSeries) error
 type Client struct {
 	addr              string
 	disablePathAppend bool
-	healthPath        string
 	c                 *http.Client
 	user              string
 	password          string
@@ -48,8 +47,6 @@ type Client struct {
 type Config struct {
 	// Addr of remote storage
 	Addr string
-	// HealthPath defines a health check path of the remote storage
-	HealthPath string
 	// DisablePathAppend disable automatic appending of the remote read path
 	DisablePathAppend bool
 	// Timeout defines timeout for HTTP requests
@@ -114,16 +111,11 @@ func NewClient(cfg Config) (*Client, error) {
 		},
 		addr:              strings.TrimSuffix(cfg.Addr, "/"),
 		disablePathAppend: cfg.DisablePathAppend,
-		healthPath:        cfg.HealthPath,
 		user:              cfg.Username,
 		password:          cfg.Password,
 		useStream:         cfg.UseStream,
 		headers:           headers,
 		matchers:          []*prompb.LabelMatcher{m},
-	}
-
-	if err := c.Ping(); err != nil {
-		return nil, fmt.Errorf("ping to %q failed: %s", cfg.Addr, err)
 	}
 
 	return c, nil
@@ -166,41 +158,6 @@ func (c *Client) do(req *http.Request) (*http.Response, error) {
 		req.Header.Add(h.key, h.value)
 	}
 	return c.c.Do(req)
-}
-
-// Ping checks the health of the read source
-func (c *Client) Ping() error {
-	// use a default health check path
-	u, err := url.JoinPath(c.addr, healthPath)
-	if err != nil {
-		return fmt.Errorf("error create health check url from addr %s and default health path %s", c.addr, healthPath)
-	}
-	if c.disablePathAppend {
-		// we should remove a defined remote read prefix path
-		parsedURL, err := url.Parse(c.addr)
-		if err != nil {
-			return err
-		}
-		parsedURL.Path = ""
-		parsedURL.RawQuery = ""
-		parsedURL.Fragment = ""
-		u, err = url.JoinPath(parsedURL.String(), c.healthPath)
-		if err != nil {
-			return fmt.Errorf("error create health check url from addr %s and defined health path %s", parsedURL.String(), c.healthPath)
-		}
-	}
-	req, err := http.NewRequest(http.MethodGet, u, nil)
-	if err != nil {
-		return fmt.Errorf("cannot create request to %q: %s", u, err)
-	}
-	resp, err := c.do(req)
-	if err != nil {
-		return err
-	}
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("bad status code: %d", resp.StatusCode)
-	}
-	return nil
 }
 
 func (c *Client) fetch(ctx context.Context, data []byte, streamCb StreamCallback) error {

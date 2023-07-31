@@ -463,7 +463,6 @@ const (
 	remoteReadFilterLabelValue   = "remote-read-filter-label-value"
 	remoteReadStepInterval       = "remote-read-step-interval"
 	remoteReadSrcAddr            = "remote-read-src-addr"
-	remoteReadSrcHealthPath      = "remote-read-src-health-path"
 	remoteReadUser               = "remote-read-user"
 	remoteReadPassword           = "remote-read-password"
 	remoteReadHTTPTimeout        = "remote-read-http-timeout"
@@ -519,10 +518,6 @@ var (
 			Name:     remoteReadSrcAddr,
 			Usage:    "Remote read address to perform read from.",
 			Required: true,
-		},
-		&cli.StringFlag{
-			Name:  remoteReadSrcHealthPath,
-			Usage: "Remote read health check path.",
 		},
 		&cli.StringFlag{
 			Name:    remoteReadUser,
