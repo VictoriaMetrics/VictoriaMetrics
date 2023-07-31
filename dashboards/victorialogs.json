@@ -98,7 +98,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(vl_rows)",
+          "expr": "sum(vl_storage_rows)",
           "format": "time_series",
           "instant": true,
           "interval": "",
