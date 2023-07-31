@@ -24,6 +24,8 @@ The following `tip` changes can be tested by building VictoriaMetrics components
 
 ## tip
 
+* FEATURE: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): add `share_eq_over_time(m[d], eq)` function for calculating the share (in the range `[0...1]`) of raw samples on the given lookbehind window `d`, which are equal to `eq`. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4441). Thanks to @Damon07 for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4725).
+
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): use local scrape timestamps for the scraped metrics unless `honor_timestamps: true` option is explicitly set at [scrape_config](https://docs.victoriametrics.com/sd_configs.html#scrape_configs). This fixes gaps for metrics collected from [cadvisor](https://github.com/google/cadvisor) or similar exporters, which export metrics with invalid timestamps. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4697) and [this comment](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4697#issuecomment-1654614799) for details. The issue has been introduced in [v1.68.0](#v1680).
 
 
