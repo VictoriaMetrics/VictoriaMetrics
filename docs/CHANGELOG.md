@@ -29,6 +29,7 @@ The following `tip` changes can be tested by building VictoriaMetrics components
 * FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): remove support of deprecated web links of `/api/v1/<groupID>/<alertID>/status` form in favour of `/api/v1/alerts?group_id=<>&alert_id=<>` links. Links of `/api/v1/<groupID>/<alertID>/status` form were deprecated in v1.79.0. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2825) for details.
 
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): use local scrape timestamps for the scraped metrics unless `honor_timestamps: true` option is explicitly set at [scrape_config](https://docs.victoriametrics.com/sd_configs.html#scrape_configs). This fixes gaps for metrics collected from [cadvisor](https://github.com/google/cadvisor) or similar exporters, which export metrics with invalid timestamps. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4697) and [this comment](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4697#issuecomment-1654614799) for details. The issue has been introduced in [v1.68.0](#v1680).
+* FEATURE: [vmctl](https://docs.victoriametrics.com/vmctl.html): add support of `week` step for [time-based chunking migration](https://docs.victoriametrics.com/vmctl.html#using-time-based-chunking-of-migration). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4738).
 
 
 ## [v1.92.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.92.1)
