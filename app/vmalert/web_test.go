@@ -145,23 +145,6 @@ func TestHandler(t *testing.T) {
 			t.Errorf("expected 1 group got %d", length)
 		}
 	})
-
-	// check deprecated links support
-	// TODO: remove as soon as deprecated links removed
-	t.Run("/api/v1/0/0/status", func(t *testing.T) {
-		alert := &APIAlert{}
-		getResp(ts.URL+"/api/v1/0/0/status", alert, 200)
-		expAlert := ar.newAlertAPI(*ar.alerts[0])
-		if !reflect.DeepEqual(alert, expAlert) {
-			t.Errorf("expected %v is equal to %v", alert, expAlert)
-		}
-	})
-	t.Run("/api/v1/0/1/status", func(t *testing.T) {
-		getResp(ts.URL+"/api/v1/0/1/status", nil, 404)
-	})
-	t.Run("/api/v1/1/0/status", func(t *testing.T) {
-		getResp(ts.URL+"/api/v1/1/0/status", nil, 404)
-	})
 }
 
 func TestEmptyResponse(t *testing.T) {
