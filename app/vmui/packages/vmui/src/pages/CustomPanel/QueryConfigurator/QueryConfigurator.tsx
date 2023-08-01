@@ -162,7 +162,7 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
 
   };
 
-  const createHandlerPrettifyQuery = (i: number) => {
+  const createHandlerPrettifyQuery = async (i: number) => {
     return (e: ReactMouseEvent<HTMLButtonElement, MouseEvent>) => {
       handlePrettifyQuery(e.currentTarget, i);
     };
