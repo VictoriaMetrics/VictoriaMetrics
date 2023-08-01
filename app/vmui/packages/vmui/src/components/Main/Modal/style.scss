@@ -1,6 +1,6 @@
 @use "src/styles/variables" as *;
 
-$padding-modal: 22px;
+$padding-modal: $padding-medium;
 
 .vm-modal {
   position: fixed;
@@ -43,9 +43,6 @@ $padding-modal: 22px;
   }
 
   &-content {
-    display: grid;
-    grid-template-rows: auto 1fr;
-    align-items: flex-start;
     background: $color-background-block;
     box-shadow: 0 0 24px rgba($color-black, 0.07);
     border-radius: $border-radius-small;

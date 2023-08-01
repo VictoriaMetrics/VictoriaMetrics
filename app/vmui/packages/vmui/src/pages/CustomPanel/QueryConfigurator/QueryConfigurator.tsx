@@ -15,6 +15,7 @@ import { MouseEvent as ReactMouseEvent } from "react";
 import { arrayEquals } from "../../../utils/array";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import { QueryStats } from "../../../api/types";
+import QueryHistoryList from "../QueryHistory/QueryHistoryList";
 
 export interface QueryConfiguratorProps {
   errors: (ErrorTypes | string)[];
@@ -39,16 +40,23 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
 
   const [stateQuery, setStateQuery] = useState(query || []);
   const [hideQuery, setHideQuery] = useState<number[]>([]);
+  const [awaitStateQuery, setAwaitStateQuery] = useState(false);
   const prevStateQuery = usePrevious(stateQuery) as (undefined | string[]);
 
   const updateHistory = () => {
     queryDispatch({
-      type: "SET_QUERY_HISTORY", payload: stateQuery.map((q, i) => {
+      type: "SET_QUERY_HISTORY",
+      payload: stateQuery.map((q, i) => {
         const h = queryHistory[i] || { values: [] };
         const queryEqual = q === h.values[h.values.length - 1];
+        const newValues = !queryEqual && q ? [...h.values, q] : h.values;
+
+        // limit the history
+        if (newValues.length > 25)  newValues.shift();
+
         return {
           index: h.values.length - Number(queryEqual),
-          values: !queryEqual && q ? [...h.values, q] : h.values
+          values: newValues
         };
       })
     });
@@ -83,6 +91,11 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
 
   const handleChangeQuery = (value: string, index: number) => {
     setStateQuery(prev => prev.map((q, i) => i === index ? value : q));
+  };
+
+  const handleSelectHistory = (value: string, index: number) => {
+    handleChangeQuery(value, index);
+    setAwaitStateQuery(true);
   };
 
   const handleHistoryChange = (step: number, indexQuery: number) => {
@@ -122,6 +135,13 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
   useEffect(() => {
     onHideQuery(hideQuery);
   }, [hideQuery]);
+
+  useEffect(() => {
+    if (awaitStateQuery) {
+      handleRunQuery();
+      setAwaitStateQuery(false);
+    }
+  }, [stateQuery, awaitStateQuery]);
 
   return <div
     className={classNames({
@@ -181,6 +201,10 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
     <div className="vm-query-configurator-settings">
       <AdditionalSettings/>
       <div className="vm-query-configurator-settings__buttons">
+        <QueryHistoryList
+          history={queryHistory}
+          handleSelectQuery={handleSelectHistory}
+        />
         {stateQuery.length < MAX_QUERY_FIELDS && (
           <Button
             variant="outlined"

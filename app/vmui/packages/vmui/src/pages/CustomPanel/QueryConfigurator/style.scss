@@ -40,7 +40,7 @@
     &__buttons {
       flex-grow: 1;
       display: grid;
-      grid-template-columns: repeat(2, auto);
+      grid-template-columns: repeat(3, auto);
       gap: $padding-small;
       justify-content: flex-end;
     }

@@ -1,0 +1,45 @@
+@use "src/styles/variables" as *;
+
+.vm-query-history {
+  max-width: 80vw;
+  min-width: 40vw;
+
+  &__tabs {
+    margin: (-$padding-medium) (-$padding-medium) 0;
+    padding: 0 $padding-medium;
+
+    &_mobile {
+      margin: (-$padding-global) (-$padding-medium) 0;
+    }
+  }
+
+  &-list {
+    display: grid;
+    align-items: flex-start;
+
+    &-item {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: $padding-small;
+      align-items: center;
+      margin: 0 (-$padding-medium) 0;
+      padding: $padding-small calc($padding-medium + $padding-small);
+      border-bottom: $border-divider;
+
+      &:first-child {
+        border-top: $border-divider;
+      }
+
+      &__value {
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        font-family: $font-family-monospace;
+      }
+
+      &__buttons {
+        display: flex;
+        gap: $padding-small;
+      }
+    }
+  }
+}
