@@ -477,6 +477,7 @@ const (
 	remoteReadHTTPTimeout        = "remote-read-http-timeout"
 	remoteReadHeaders            = "remote-read-headers"
 	remoteReadInsecureSkipVerify = "remote-read-insecure-skip-verify"
+	remoteReadDisablePathAppend  = "remote-read-disable-path-append"
 )
 
 var (
@@ -552,6 +553,11 @@ var (
 			Name:  remoteReadInsecureSkipVerify,
 			Usage: "Whether to skip TLS certificate verification when connecting to the remote read address",
 			Value: false,
+		},
+		&cli.BoolFlag{
+			Name:  remoteReadDisablePathAppend,
+			Usage: "Whether to disable automatic appending of the path to the remote storage.",
+			Value: true,
 		},
 	}
 )
