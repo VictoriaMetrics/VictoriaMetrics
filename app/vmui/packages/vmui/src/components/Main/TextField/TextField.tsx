@@ -3,6 +3,7 @@ import classNames from "classnames";
 import { useMemo } from "preact/compat";
 import { useAppState } from "../../../state/common/StateContext";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
+import TextFieldError from "./TextFieldError";
 import "./style.scss";
 
 interface TextFieldProps {
@@ -132,12 +133,7 @@ const TextField: FC<TextFieldProps> = ({
       )
     }
     {label && <span className="vm-text-field__label">{label}</span>}
-    <span
-      className="vm-text-field__error"
-      data-show={!!error}
-    >
-      {error}
-    </span>
+    <TextFieldError error={error}/>
     {helperText && !error && (
       <span className="vm-text-field__helper-text">
         {helperText}
