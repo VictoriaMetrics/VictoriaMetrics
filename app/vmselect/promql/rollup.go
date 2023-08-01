@@ -78,6 +78,7 @@ var rollupFuncs = map[string]newRollupFunc{
 	"scrape_interval":         newRollupFuncOneArg(rollupScrapeInterval),
 	"share_gt_over_time":      newRollupShareGT,
 	"share_le_over_time":      newRollupShareLE,
+	"share_eq_over_time":      newRollupShareEQ,
 	"stale_samples_over_time": newRollupFuncOneArg(rollupStaleSamples),
 	"stddev_over_time":        newRollupFuncOneArg(rollupStddev),
 	"stdvar_over_time":        newRollupFuncOneArg(rollupStdvar),
@@ -1104,6 +1105,10 @@ func countFilterGT(values []float64, gt float64) int {
 		}
 	}
 	return n
+}
+
+func newRollupShareEQ(args []interface{}) (rollupFunc, error) {
+	return newRollupShareFilter(args, countFilterEQ)
 }
 
 func countFilterEQ(values []float64, eq float64) int {
