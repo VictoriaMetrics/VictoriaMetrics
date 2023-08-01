@@ -76,6 +76,7 @@ func ExpandWithExprs(w http.ResponseWriter, r *http.Request) {
 	_ = bw.Flush()
 }
 
+// PrettifyQuery implements /prettify-query. Takes a MetricsQL query and returns it formatted.
 func PrettifyQuery(w http.ResponseWriter, r *http.Request) {
 	query := r.FormValue("query")
 	bw := bufferedwriter.Get(w)
