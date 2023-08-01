@@ -30,6 +30,7 @@ The following `tip` changes can be tested by building VictoriaMetrics components
 
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): use local scrape timestamps for the scraped metrics unless `honor_timestamps: true` option is explicitly set at [scrape_config](https://docs.victoriametrics.com/sd_configs.html#scrape_configs). This fixes gaps for metrics collected from [cadvisor](https://github.com/google/cadvisor) or similar exporters, which export metrics with invalid timestamps. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4697) and [this comment](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4697#issuecomment-1654614799) for details. The issue has been introduced in [v1.68.0](#v1680).
 * FEATURE: [vmctl](https://docs.victoriametrics.com/vmctl.html): add support of `week` step for [time-based chunking migration](https://docs.victoriametrics.com/vmctl.html#using-time-based-chunking-of-migration). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4738).
+* BUGFIX: [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager.html): fix panic when creating a backup to a local filesystem on Windows. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4704). 
 
 
 ## [v1.92.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.92.1)
