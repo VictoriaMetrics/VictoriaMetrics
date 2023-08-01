@@ -254,6 +254,7 @@ func main() {
 						cc:             c.Int(vmConcurrency),
 						disableRetries: c.Bool(vmNativeDisableRetries),
 						isSilent:       c.Bool(globalSilent),
+						isNative:       !c.Bool(vmNativeDisableBinaryProtocol),
 					}
 					return p.run(ctx)
 				},

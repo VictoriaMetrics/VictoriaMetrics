@@ -325,8 +325,9 @@ const (
 	vmNativeFilterTimeEnd   = "vm-native-filter-time-end"
 	vmNativeStepInterval    = "vm-native-step-interval"
 
-	vmNativeDisableHTTPKeepAlive = "vm-native-disable-http-keep-alive"
-	vmNativeDisableRetries       = "vm-native-disable-retries"
+	vmNativeDisableBinaryProtocol = "vm-native-disable-binary-protocol"
+	vmNativeDisableHTTPKeepAlive  = "vm-native-disable-http-keep-alive"
+	vmNativeDisableRetries        = "vm-native-disable-retries"
 
 	vmNativeSrcAddr        = "vm-native-src-addr"
 	vmNativeSrcUser        = "vm-native-src-user"
@@ -448,6 +449,14 @@ var (
 		&cli.BoolFlag{
 			Name:  vmNativeDisableRetries,
 			Usage: "Defines whether to disable retries with backoff policy for migration process",
+			Value: false,
+		},
+		&cli.BoolFlag{
+			Name: vmNativeDisableBinaryProtocol,
+			Usage: "Whether to use https://docs.victoriametrics.com/#how-to-export-data-in-json-line-format" +
+				"instead of https://docs.victoriametrics.com/#how-to-export-data-in-native-format API." +
+				"Binary export/import API protocol implies less network and resource usage, as it transfers compressed binary data blocks." +
+				"Non-binary export/import API is less efficient, but supports deduplication if it is configured on vm-native-src-addr side.",
 			Value: false,
 		},
 	}
