@@ -63,6 +63,7 @@ This Document documents the types introduced by the VictoriaMetrics to be consum
 * [EmbeddedPodDisruptionBudgetSpec](#embeddedpoddisruptionbudgetspec)
 * [EmbeddedProbes](#embeddedprobes)
 * [HTTPAuth](#httpauth)
+* [KeyValue](#keyvalue)
 * [ServiceSpec](#servicespec)
 * [StorageSpec](#storagespec)
 * [StreamAggrConfig](#streamaggrconfig)
@@ -122,12 +123,14 @@ This Document documents the types introduced by the VictoriaMetrics to be consum
 * [StaticRef](#staticref)
 * [TargetRef](#targetref)
 * [VMUser](#vmuser)
+* [VMUserIPFilters](#vmuseripfilters)
 * [VMUserList](#vmuserlist)
 * [VMUserSpec](#vmuserspec)
 * [EmbeddedIngress](#embeddedingress)
 * [VMAuth](#vmauth)
 * [VMAuthList](#vmauthlist)
 * [VMAuthSpec](#vmauthspec)
+* [VMAuthUnauthorizedPath](#vmauthunauthorizedpath)
 * [TargetEndpoint](#targetendpoint)
 * [VMStaticScrape](#vmstaticscrape)
 * [VMStaticScrapeList](#vmstaticscrapelist)
@@ -256,7 +259,7 @@ EmailConfig configures notifications via Email.
 | auth_password | AuthPassword defines secret name and key at CRD namespace. | *[v1.SecretKeySelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#secretkeyselector-v1-core) | false |
 | auth_secret | AuthSecret defines secrent name and key at CRD namespace. It must contain the CRAM-MD5 secret. | *[v1.SecretKeySelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#secretkeyselector-v1-core) | false |
 | auth_identity | The identity to use for authentication. | string | false |
-| headers | Further headers email header key/value pairs. Overrides any headers previously set by the notification implementation. | map[string]string | false |
+| headers | Further headers email header key/value pairs. Overrides any headers previously set by the notification implementation. | EmailConfigHeaders | false |
 | html | The HTML body of the email notification. | string | false |
 | text | The text body of the email notification. | string | false |
 | require_tls | The SMTP TLS requirement. Note that Go does not support unencrypted connections to remote SMTP endpoints. | *bool | false |
@@ -504,7 +507,7 @@ SlackConfirmationField protect users from destructive actions or particularly di
 
 ## SlackField
 
-See https://api.slack.com/docs/message-attachments#fields for more information.
+SlackField configures a single Slack field that is sent with each notification. See https://api.slack.com/docs/message-attachments#fields for more information.
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
@@ -807,7 +810,7 @@ VMAgentSpec defines the desired state of VMAgent
 
 ## VMAgentStatus
 
-VmAgentStatus defines the observed state of VmAgent
+VMAgentStatus defines the observed state of VmAgent
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
@@ -838,7 +841,7 @@ BearerAuth defines auth with bearer token
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
-| bearerTokenFilePath |  | string | false |
+| bearerTokenFile | Path to bearer token file | string | false |
 | bearerTokenSecret | Optional bearer auth token to use for -remoteWrite.url | *[v1.SecretKeySelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#secretkeyselector-v1-core) | false |
 
 [Back to TOC](#table-of-contents)
@@ -932,11 +935,22 @@ HTTPAuth generic auth used with http protocols
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
 | basicAuth |  | *[BasicAuth](#basicauth) | false |
-| OAuth2 |  | *[OAuth2](#oauth2) | false |
+| oauth2 |  | *[OAuth2](#oauth2) | false |
 | tlsConfig |  | *[TLSConfig](#tlsconfig) | false |
-| bearerTokenFilePath |  | string | false |
+| bearerTokenFile | Path to bearer token file | string | false |
 | bearerTokenSecret | Optional bearer auth token to use for -remoteWrite.url | *[v1.SecretKeySelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#secretkeyselector-v1-core) | false |
 | headers | Headers allow configuring custom http headers Must be in form of semicolon separated header with value e.g. headerName:headerValue vmalert supports it since 1.79.0 version | []string | false |
+
+[Back to TOC](#table-of-contents)
+
+## KeyValue
+
+KeyValue defines a (key, value) tuple.
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| key | Key of the tuple. | string | true |
+| value | Value of the tuple. | string | true |
 
 [Back to TOC](#table-of-contents)
 
@@ -1005,15 +1019,15 @@ VMAlert  executes a list of given alerting or recording rules against configured
 
 ## VMAlertDatasourceSpec
 
-VMAgentRemoteReadSpec defines the remote storage configuration for VmAlert to read alerts from
+VMAlertDatasourceSpec defines the remote storage configuration for VmAlert to read alerts from
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
 | url | Victoria Metrics or VMSelect url. Required parameter. E.g. http://127.0.0.1:8428 | string | true |
 | basicAuth |  | *[BasicAuth](#basicauth) | false |
-| OAuth2 |  | *[OAuth2](#oauth2) | false |
+| oauth2 |  | *[OAuth2](#oauth2) | false |
 | tlsConfig |  | *[TLSConfig](#tlsconfig) | false |
-| bearerTokenFilePath |  | string | false |
+| bearerTokenFile | Path to bearer token file | string | false |
 | bearerTokenSecret | Optional bearer auth token to use for -remoteWrite.url | *[v1.SecretKeySelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#secretkeyselector-v1-core) | false |
 | headers | Headers allow configuring custom http headers Must be in form of semicolon separated header with value e.g. headerName:headerValue vmalert supports it since 1.79.0 version | []string | false |
 
@@ -1039,9 +1053,9 @@ VMAlertNotifierSpec defines the notifier url for sending information about alert
 | url | AlertManager url.  E.g. http://127.0.0.1:9093 | string | false |
 | selector | Selector allows service discovery for alertmanager in this case all matched vmalertmanager replicas will be added into vmalert notifier.url as statefulset pod.fqdn | *[DiscoverySelector](#discoveryselector) | false |
 | basicAuth |  | *[BasicAuth](#basicauth) | false |
-| OAuth2 |  | *[OAuth2](#oauth2) | false |
+| oauth2 |  | *[OAuth2](#oauth2) | false |
 | tlsConfig |  | *[TLSConfig](#tlsconfig) | false |
-| bearerTokenFilePath |  | string | false |
+| bearerTokenFile | Path to bearer token file | string | false |
 | bearerTokenSecret | Optional bearer auth token to use for -remoteWrite.url | *[v1.SecretKeySelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#secretkeyselector-v1-core) | false |
 | headers | Headers allow configuring custom http headers Must be in form of semicolon separated header with value e.g. headerName:headerValue vmalert supports it since 1.79.0 version | []string | false |
 
@@ -1049,16 +1063,16 @@ VMAlertNotifierSpec defines the notifier url for sending information about alert
 
 ## VMAlertRemoteReadSpec
 
-VMAgentRemoteReadSpec defines the remote storage configuration for VmAlert to read alerts from
+VMAlertRemoteReadSpec defines the remote storage configuration for VmAlert to read alerts from
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
 | url | URL of the endpoint to send samples to. | string | true |
 | lookback | Lookback defines how far to look into past for alerts timeseries. For example, if lookback=1h then range from now() to now()-1h will be scanned. (default 1h0m0s) Applied only to RemoteReadSpec | *string | false |
 | basicAuth |  | *[BasicAuth](#basicauth) | false |
-| OAuth2 |  | *[OAuth2](#oauth2) | false |
+| oauth2 |  | *[OAuth2](#oauth2) | false |
 | tlsConfig |  | *[TLSConfig](#tlsconfig) | false |
-| bearerTokenFilePath |  | string | false |
+| bearerTokenFile | Path to bearer token file | string | false |
 | bearerTokenSecret | Optional bearer auth token to use for -remoteWrite.url | *[v1.SecretKeySelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#secretkeyselector-v1-core) | false |
 | headers | Headers allow configuring custom http headers Must be in form of semicolon separated header with value e.g. headerName:headerValue vmalert supports it since 1.79.0 version | []string | false |
 
@@ -1066,7 +1080,7 @@ VMAgentRemoteReadSpec defines the remote storage configuration for VmAlert to re
 
 ## VMAlertRemoteWriteSpec
 
-VMAgentRemoteWriteSpec defines the remote storage configuration for VmAlert
+VMAlertRemoteWriteSpec defines the remote storage configuration for VmAlert
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
@@ -1076,9 +1090,9 @@ VMAgentRemoteWriteSpec defines the remote storage configuration for VmAlert
 | maxBatchSize | Defines defines max number of timeseries to be flushed at once (default 1000) | *int32 | false |
 | maxQueueSize | Defines the max number of pending datapoints to remote write endpoint (default 100000) | *int32 | false |
 | basicAuth |  | *[BasicAuth](#basicauth) | false |
-| OAuth2 |  | *[OAuth2](#oauth2) | false |
+| oauth2 |  | *[OAuth2](#oauth2) | false |
 | tlsConfig |  | *[TLSConfig](#tlsconfig) | false |
-| bearerTokenFilePath |  | string | false |
+| bearerTokenFile | Path to bearer token file | string | false |
 | bearerTokenSecret | Optional bearer auth token to use for -remoteWrite.url | *[v1.SecretKeySelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#secretkeyselector-v1-core) | false |
 | headers | Headers allow configuring custom http headers Must be in form of semicolon separated header with value e.g. headerName:headerValue vmalert supports it since 1.79.0 version | []string | false |
 
@@ -1114,7 +1128,7 @@ VMAlertSpec defines the desired state of VMAlert
 | hostNetwork | HostNetwork controls whether the pod may use the node network namespace | bool | false |
 | dnsPolicy | DNSPolicy sets DNS policy for the pod | [v1.DNSPolicy](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#pod-v1-core) | false |
 | topologySpreadConstraints | TopologySpreadConstraints embedded kubernetes pod configuration option, controls how pods are spread across your cluster among failure-domains such as regions, zones, nodes, and other user-defined topology domains https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/ | [][v1.TopologySpreadConstraint](https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/) | false |
-| evaluationInterval | EvaluationInterval how often evalute rules by default | string | false |
+| evaluationInterval | EvaluationInterval defines how often to evaluate rules by default | string | false |
 | enforcedNamespaceLabel | EnforcedNamespaceLabel enforces adding a namespace label of origin for each alert and metric that is user created. The label value will always be the namespace of the object that is being created. | string | false |
 | selectAllByDefault | SelectAllByDefault changes default behavior for empty CRD selectors, such RuleSelector. with selectAllByDefault: true and empty serviceScrapeSelector and RuleNamespaceSelector Operator selects all exist serviceScrapes with selectAllByDefault: false - selects nothing | bool | false |
 | ruleSelector | RuleSelector selector to select which VMRules to mount for loading alerting rules from. Works in combination with NamespaceSelector. If both nil - behaviour controlled by selectAllByDefault NamespaceSelector nil - only objects at VMAlert namespace. | *[metav1.LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#labelselector-v1-meta) | false |
@@ -1147,7 +1161,7 @@ VMAlertSpec defines the desired state of VMAlert
 
 ## VMAlertStatus
 
-VmAlertStatus defines the observed state of VmAlert
+VMAlertStatus defines the observed state of VmAlert
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
@@ -1241,10 +1255,12 @@ VMSingleStatus defines the observed state of VMSingle
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
-| replicas | ReplicaCount Total number of non-terminated pods targeted by this VMAlert cluster (their labels match the selector). | int32 | true |
-| updatedReplicas | UpdatedReplicas Total number of non-terminated pods targeted by this VMAlert cluster that have the desired version spec. | int32 | true |
-| availableReplicas | AvailableReplicas Total number of available pods (ready for at least minReadySeconds) targeted by this VMAlert cluster. | int32 | true |
-| unavailableReplicas | UnavailableReplicas Total number of unavailable pods targeted by this VMAlert cluster. | int32 | true |
+| replicas | ReplicaCount Total number of non-terminated pods targeted by this VMSingle. | int32 | true |
+| updatedReplicas | UpdatedReplicas Total number of non-terminated pods targeted by this VMSingle. | int32 | true |
+| availableReplicas | AvailableReplicas Total number of available pods (ready for at least minReadySeconds) targeted by this VMSingle. | int32 | true |
+| unavailableReplicas | UnavailableReplicas Total number of unavailable pods targeted by this VMSingle. | int32 | true |
+| singleStatus |  | SingleStatus | true |
+| reason |  | string | false |
 
 [Back to TOC](#table-of-contents)
 
@@ -1259,8 +1275,10 @@ Rule describes an alerting or recording rule.
 | expr | Expr is query, that will be evaluated at dataSource | string | true |
 | debug | Debug enables logging for rule it useful for tracking | *bool | false |
 | for | For evaluation interval in time.Duration format 30s, 1m, 1h  or nanoseconds | string | false |
+| keep_firing_for | KeepFiringFor will make alert continue firing for this long even when the alerting expression no longer has results. Use time.Duration format, 30s, 1m, 1h  or nanoseconds | string | false |
 | labels | Labels will be added to rule configuration | map[string]string | false |
 | annotations | Annotations will be added to rule configuration | map[string]string | false |
+| update_entries_limit | UpdateEntriesLimit defines max number of rule&#39;s state updates stored in memory. Overrides `-rule.updateEntriesLimit` in vmalert. | *int | false |
 
 [Back to TOC](#table-of-contents)
 
@@ -1281,6 +1299,7 @@ RuleGroup is a list of sequentially evaluated recording and alerting rules.
 | params | Params optional HTTP URL parameters added to each rule request | url.Values | false |
 | type | Type defines datasource type for enterprise version of vmalert possible values - prometheus,graphite | string | false |
 | headers | Headers contains optional HTTP headers added to each rule request Must be in form `header-name: value` For example:\n headers:\n   - \&#34;CustomHeader: foo\&#34;\n   - \&#34;CustomHeader2: bar\&#34; | []string | false |
+| notifier_headers | NotifierHeaders contains optional HTTP headers added to each alert request which will send to notifier Must be in form `header-name: value` For example:\n headers:\n   - \&#34;CustomHeader: foo\&#34;\n   - \&#34;CustomHeader2: bar\&#34; | []string | false |
 
 [Back to TOC](#table-of-contents)
 
@@ -1572,6 +1591,7 @@ PodMetricsEndpoint defines a scrapeable endpoint of a Kubernetes Pod serving Pro
 | authorization | Authorization with http header Authorization | *[Authorization](#authorization) | false |
 | vm_scrape_params | VMScrapeParams defines VictoriaMetrics specific scrape parametrs | *[VMScrapeParams](#vmscrapeparams) | false |
 | attach_metadata | AttachMetadata configures metadata attaching from service discovery | [AttachMetadata](#attachmetadata) | false |
+| filterRunning | FilterRunning applies filter with pod status == running it prevents from scrapping metrics at failed or succeed state pods. enabled by default | *bool | false |
 
 [Back to TOC](#table-of-contents)
 
@@ -1969,7 +1989,8 @@ StaticRef - user-defined routing host address.
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
-| url | URL http url for given staticRef. | string | true |
+| url | URL http url for given staticRef. | string | false |
+| urls | URLs allows setting multiple urls for load-balancing at vmauth-side. | []string | false |
 
 [Back to TOC](#table-of-contents)
 
@@ -1984,6 +2005,7 @@ TargetRef describes target for user traffic forwarding. one of target types can 
 | paths | Paths - matched path to route. | []string | false |
 | target_path_suffix | QueryParams []string `json:\&#34;queryParams,omitempty\&#34;` TargetPathSuffix allows to add some suffix to the target path It allows to hide tenant configuration from user with crd as ref. it also may contain any url encoded params. | string | false |
 | headers | Headers represent additional http headers, that vmauth uses in form of [\&#34;header_key: header_value\&#34;] multiple values for header key: [\&#34;header_key: value1,value2\&#34;] it&#39;s available since 1.68.0 version of vmauth | []string | false |
+| ip_filters | IPFilters defines per target src ip filters supported only with enterprise version of vmauth https://docs.victoriametrics.com/vmauth.html#ip-filters | [VMUserIPFilters](#vmuseripfilters) | false |
 
 [Back to TOC](#table-of-contents)
 
@@ -1996,6 +2018,17 @@ VMUser is the Schema for the vmusers API
 | metadata |  | [metav1.ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#objectmeta-v1-meta) | false |
 | spec |  | [VMUserSpec](#vmuserspec) | false |
 | status |  | [VMUserStatus](#vmuserstatus) | false |
+
+[Back to TOC](#table-of-contents)
+
+## VMUserIPFilters
+
+VMUserIPFilters defines filters for IP addresses supported only with enterprise version of vmauth https://docs.victoriametrics.com/vmauth.html#ip-filters
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| deny_list |  | []string | false |
+| allow_list |  | []string | false |
 
 [Back to TOC](#table-of-contents)
 
@@ -2024,6 +2057,7 @@ VMUserSpec defines the desired state of VMUser
 | generatePassword | GeneratePassword instructs operator to generate password for user if spec.password if empty. | bool | false |
 | bearerToken | BearerToken Authorization header value for accessing protected endpoint. | *string | false |
 | targetRefs | TargetRefs - reference to endpoints, which user may access. | [][TargetRef](#targetref) | true |
+| default_url | DefaultURLs backend url for non-matching paths filter usually used for default backend with error message | []string | false |
 
 [Back to TOC](#table-of-contents)
 
@@ -2106,7 +2140,7 @@ VMAuthSpec defines the desired state of VMAuth
 | userNamespaceSelector | UserNamespaceSelector Namespaces to be selected for  VMAuth discovery. Works in combination with Selector. NamespaceSelector nil - only objects at VMAuth namespace. Selector nil - only objects at NamespaceSelector namespaces. If both nil - behaviour controlled by selectAllByDefault | *[metav1.LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#labelselector-v1-meta) | false |
 | extraArgs | ExtraArgs that will be passed to  VMAuth pod for example remoteWrite.tmpDataPath: /tmp | map[string]string | false |
 | extraEnvs | ExtraEnvs that will be added to VMAuth pod | [][v1.EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#envvar-v1-core) | false |
-| serviceSpec | ServiceSpec that will be added to vmauth service spec | *[ServiceSpec](#servicespec) | false |
+| serviceSpec | ServiceSpec that will be added to vmsingle service spec | *[ServiceSpec](#servicespec) | false |
 | serviceScrapeSpec | ServiceScrapeSpec that will be added to vmauth VMServiceScrape spec | *[VMServiceScrapeSpec](#vmservicescrapespec) | false |
 | podDisruptionBudget | PodDisruptionBudget created by operator | *[EmbeddedPodDisruptionBudgetSpec](#embeddedpoddisruptionbudgetspec) | false |
 | ingress | Ingress enables ingress configuration for VMAuth. | *[EmbeddedIngress](#embeddedingress) | false |
@@ -2116,6 +2150,19 @@ VMAuthSpec defines the desired state of VMAuth
 | nodeSelector | NodeSelector Define which Nodes the Pods are scheduled on. | map[string]string | false |
 | terminationGracePeriodSeconds | TerminationGracePeriodSeconds period for container graceful termination | *int64 | false |
 | readinessGates | ReadinessGates defines pod readiness gates | []v1.PodReadinessGate | false |
+| unauthorizedAccessConfig | UnauthorizedAccessConfig configures access for un authorized users | [][VMAuthUnauthorizedPath](#vmauthunauthorizedpath) | false |
+
+[Back to TOC](#table-of-contents)
+
+## VMAuthUnauthorizedPath
+
+VMAuthUnauthorizedPath defines url_map for unauthorized access
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| src_paths | Paths src request paths | []string | false |
+| url_prefix | URLs defines url_prefix for dst routing | []string | false |
+| ip_filters | IPFilters defines filter for src ip address enterprise only | [VMUserIPFilters](#vmuseripfilters) | false |
 
 [Back to TOC](#table-of-contents)
 
@@ -2200,7 +2247,7 @@ ProbeTargetIngress defines the set of Ingress objects considered for probing.
 
 ## VMProbe
 
-\n VMProbe defines a probe for targets, that will be executed with prober,\n like blackbox exporter.\nIt helps to monitor reachability of target with various checks.
+VMProbe defines a probe for targets, that will be executed with prober, like blackbox exporter. It helps to monitor reachability of target with various checks.
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
