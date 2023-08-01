@@ -45,6 +45,10 @@ $button-radius: 6px;
     transform: translateZ(-1px);
   }
 
+  &.prettify:active {
+    color: $color-primary;
+  }
+
   span {
     display: grid;
     align-items: center;
