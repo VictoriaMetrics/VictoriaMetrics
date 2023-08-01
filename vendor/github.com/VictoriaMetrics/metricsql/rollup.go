@@ -64,6 +64,7 @@ var rollupFuncs = map[string]bool{
 	"scrape_interval":         true,
 	"share_gt_over_time":      true,
 	"share_le_over_time":      true,
+	"share_eq_over_time":      true,
 	"stale_samples_over_time": true,
 	"stddev_over_time":        true,
 	"stdvar_over_time":        true,

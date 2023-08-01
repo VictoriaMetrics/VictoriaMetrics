@@ -361,9 +361,9 @@ For recording rules to work `-remoteWrite.url` must be specified.
 
 ### Alerts state on restarts
 
-`vmalert` is stateless, it holds alerts state in the process memory. Restarting of `vmalert` process
-will reset alerts state in memory. To prevent `vmalert` from losing alerts state it should be configured
-to persist the state to the remote destination via the following flags:
+`vmalert` holds alerts state in the memory. Restart of the `vmalert` process will reset the state of all active alerts 
+in the memory. To prevent `vmalert` from losing the state on restarts configure it to persist the state 
+to the remote database via the following flags:
 
 * `-remoteWrite.url` - URL to VictoriaMetrics (Single) or vminsert (Cluster). `vmalert` will persist alerts state
   to the configured address in the form of [time series](https://docs.victoriametrics.com/keyConcepts.html#time-series)
@@ -1243,8 +1243,6 @@ The shortlist of configuration flags is the following:
      See https://docs.victoriametrics.com/vmalert.html#reading-rules-from-object-storage
      
      Supports an array of values separated by comma or specified via multiple flags.
-  -rule.configCheckInterval duration
-     Interval for checking for changes in '-rule' files. By default, the checking is disabled. Send SIGHUP signal in order to force config check for changes. DEPRECATED - see '-configCheckInterval' instead
   -rule.maxResolveDuration duration
      Limits the maximum duration for automatic alert expiration, which by default is 4 times evaluationInterval of the parent group.
   -rule.resendDelay duration

@@ -92,7 +92,7 @@ groups:
 	}
 	writeToFile(t, f.Name(), rules1)
 
-	*rulesCheckInterval = 200 * time.Millisecond
+	*configCheckInterval = 200 * time.Millisecond
 	*rulePath = []string{f.Name()}
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -117,14 +117,14 @@ groups:
 		return len(m.groups)
 	}
 
-	time.Sleep(*rulesCheckInterval * 2)
+	time.Sleep(*configCheckInterval * 2)
 	groupsLen := lenLocked(m)
 	if groupsLen != 1 {
 		t.Fatalf("expected to have exactly 1 group loaded; got %d", groupsLen)
 	}
 
 	writeToFile(t, f.Name(), rules2)
-	time.Sleep(*rulesCheckInterval * 2)
+	time.Sleep(*configCheckInterval * 2)
 	groupsLen = lenLocked(m)
 	if groupsLen != 2 {
 		fmt.Println(m.groups)
@@ -133,7 +133,7 @@ groups:
 
 	writeToFile(t, f.Name(), rules1)
 	procutil.SelfSIGHUP()
-	time.Sleep(*rulesCheckInterval / 2)
+	time.Sleep(*configCheckInterval / 2)
 	groupsLen = lenLocked(m)
 	if groupsLen != 1 {
 		t.Fatalf("expected to have exactly 1 group loaded; got %d", groupsLen)
@@ -141,7 +141,7 @@ groups:
 
 	writeToFile(t, f.Name(), `corrupted`)
 	procutil.SelfSIGHUP()
-	time.Sleep(*rulesCheckInterval / 2)
+	time.Sleep(*configCheckInterval / 2)
 	groupsLen = lenLocked(m)
 	if groupsLen != 1 { // should remain unchanged
 		t.Fatalf("expected to have exactly 1 group loaded; got %d", groupsLen)
