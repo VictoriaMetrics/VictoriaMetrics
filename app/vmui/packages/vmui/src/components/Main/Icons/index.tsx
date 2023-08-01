@@ -291,7 +291,6 @@ export const VisibilityOffIcon = () => (
   </svg>
 );
 
-
 export const Prettify = () => (
   <svg
     viewBox="0 0 24 24"
@@ -302,8 +301,6 @@ export const Prettify = () => (
     ></path>
   </svg>
 );
-
-
 
 export const CopyIcon = () => (
   <svg
