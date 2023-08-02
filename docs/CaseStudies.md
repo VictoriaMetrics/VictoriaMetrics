@@ -432,7 +432,6 @@ The key areas:
 * VictoriaMetrics Data model - read and write paths, index structure, compression and the crucial role of the churn rate
 * Time series in the Multiverse Madness 
 * HA and Fault Tolerance - write without data loss, read for no downtime, management of Multiverse
-* Summary 
 
 ## Percona
 
