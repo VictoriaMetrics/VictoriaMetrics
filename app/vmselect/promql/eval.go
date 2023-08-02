@@ -19,6 +19,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metrics"
@@ -98,6 +99,12 @@ func alignStartEnd(start, end, step int64) (int64, int64) {
 	return start, end
 }
 
+// LabeledNumber is a number with label tags attached.
+type LabeledNumber struct {
+	Tags  []storage.Tag
+	Value float64
+}
+
 // EvalConfig is the configuration required for query evaluation via Exec
 type EvalConfig struct {
 	Start int64
@@ -128,6 +135,9 @@ type EvalConfig struct {
 	// EnforcedTagFilterss may contain additional label filters to use in the query.
 	EnforcedTagFilterss [][]storage.TagFilter
 
+	// External labeled numbers supplied with the query.
+	ExternalData map[string][]LabeledNumber
+
 	// The callback, which returns the request URI during logging.
 	// The request URI isn't stored here because its' construction may take non-trivial amounts of CPU.
 	GetRequestURI func() string
@@ -155,6 +165,7 @@ func copyEvalConfig(src *EvalConfig) *EvalConfig {
 	ec.LookbackDelta = src.LookbackDelta
 	ec.RoundDigits = src.RoundDigits
 	ec.EnforcedTagFilterss = src.EnforcedTagFilterss
+	ec.ExternalData = src.ExternalData
 	ec.GetRequestURI = src.GetRequestURI
 	ec.QueryStats = src.QueryStats
 
@@ -259,8 +270,22 @@ func evalExpr(qt *querytracer.Tracer, ec *EvalConfig, e metricsql.Expr) ([]*time
 	return rv, nil
 }
 
+// this is private in metricsql
+func isMetricNameFilter(lf *metricsql.LabelFilter) bool {
+	return lf.Label == "__name__" && !lf.IsNegative && !lf.IsRegexp
+}
+
 func evalExprInternal(qt *querytracer.Tracer, ec *EvalConfig, e metricsql.Expr) ([]*timeseries, error) {
 	if me, ok := e.(*metricsql.MetricExpr); ok {
+		if len(me.LabelFilterss) == 1 && len(me.LabelFilterss[0]) > 0 && isMetricNameFilter(&me.LabelFilterss[0][0]) {
+			if datum, ok := ec.ExternalData[me.LabelFilterss[0][0].Value]; ok {
+				ts := make([]*timeseries, len(datum))
+				for i, d := range datum {
+					ts[i] = evalNumberWithTags(ec, d.Value, d.Tags)
+				}
+				return ts, nil
+			}
+		}
 		re := &metricsql.RollupExpr{
 			Expr: me,
 		}
@@ -1321,6 +1346,16 @@ var timeseriesByWorkerIDPool sync.Pool
 var bbPool bytesutil.ByteBufferPool
 
 func evalNumber(ec *EvalConfig, n float64) []*timeseries {
+	return []*timeseries{evalNumberInternal(ec, n)}
+}
+
+func evalNumberWithTags(ec *EvalConfig, n float64, tags []storage.Tag) *timeseries {
+	ts := evalNumberInternal(ec, n)
+	ts.MetricName.Tags = tags
+	return ts
+}
+
+func evalNumberInternal(ec *EvalConfig, n float64) *timeseries {
 	var ts timeseries
 	ts.denyReuse = true
 	timestamps := ec.getSharedTimestamps()
@@ -1330,7 +1365,7 @@ func evalNumber(ec *EvalConfig, n float64) []*timeseries {
 	}
 	ts.Values = values
 	ts.Timestamps = timestamps
-	return []*timeseries{&ts}
+	return &ts
 }
 
 func evalString(ec *EvalConfig, s string) []*timeseries {
@@ -1396,4 +1431,30 @@ func dropStaleNaNs(funcName string, values []float64, timestamps []int64) ([]flo
 		dstTimestamps = append(dstTimestamps, timestamps[i])
 	}
 	return dstValues, dstTimestamps
+}
+
+// ParseExternalData parses external data in Prometheus text export format
+// into a map of sets of LabeledNumber by their metric name.
+func ParseExternalData(extData string) map[string][]LabeledNumber {
+	if extData == "" {
+		return nil
+	}
+
+	var rows prometheus.Rows
+	rows.Unmarshal(extData)
+
+	result := make(map[string][]LabeledNumber)
+	for _, r := range rows.Rows {
+		data := result[r.Metric]
+		tags := make([]storage.Tag, len(r.Tags))
+		for i, t := range r.Tags {
+			tags[i].Key = []byte(t.Key)
+			tags[i].Value = []byte(t.Value)
+		}
+		result[r.Metric] = append(data, LabeledNumber{
+			Tags:  tags,
+			Value: r.Value,
+		})
+	}
+	return result
 }
