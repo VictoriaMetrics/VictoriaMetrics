@@ -22,6 +22,14 @@
 
     &__tooltip {
       white-space: pre-line;
+
+      p {
+        margin-bottom: $padding-small;
+
+        &:last-child {
+          margin-bottom: 0;
+        }
+      }
     }
   }
 }
