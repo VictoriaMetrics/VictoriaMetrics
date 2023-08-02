@@ -24,6 +24,7 @@ export interface TracingData {
 export interface QueryStats {
   seriesFetched?: string;
   resultLength?: number;
+  isPartial?: boolean;
 }
 
 export interface Logs {
