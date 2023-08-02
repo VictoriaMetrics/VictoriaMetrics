@@ -30,6 +30,7 @@ where you can chat with VictoriaMetrics users to get additional references, revi
   - [Groove X](#groove-x)
   - [Idealo.de](#idealode)
   - [MHI Vestas Offshore Wind](#mhi-vestas-offshore-wind)
+  - [Naver][#naver]
   - [Percona](#percona)
   - [Razorpay](#razorpay)
   - [Roblox](#roblox)
@@ -419,6 +420,18 @@ Numbers with current, limited roll out:
 - Total number of datapoints: 850 billions
 - Data size on disk: 800 GiB
 - Retention period: 3 years
+
+## Naver 
+
+See [our](https://www.navercorp.com/en/) video ["Time Series in the Multiverse of Madness" (in Korean)](https://www.youtube.com/watch?v=OUyXPgVcdw4) about the comparison of Time Series Database, why we have chosen VictoriaMetrics
+We also covered the internals of the VictoriaMetrics data model and Cluster.
+The key areas: 
+
+* Explanation of the importance and role of Monitoring for NaverCorp
+* History overview of Time Series Databases
+* VictoriaMetrics Data model - read and write paths, index structure, compression and the crucial role of the churn rate
+* Time series in the Multiverse Madness 
+* HA and Fault Tolerance - write without data loss, read for no downtime, management of Multiverse
 
 ## Percona
 
