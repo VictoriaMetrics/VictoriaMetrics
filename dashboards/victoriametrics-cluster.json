@@ -624,7 +624,7 @@
             "uid": "$ds"
           },
           "exemplar": true,
-          "expr": "sum(vm_data_size_bytes{job=~\"$job_storage\"}) / sum(vm_rows{job=~\"$job_storage\"})",
+          "expr": "sum(vm_data_size_bytes{job=~\"$job_storage\"}) / sum(vm_rows{job=~\"$job_storage\", type!~\"indexdb.*\"})",
           "format": "time_series",
           "instant": true,
           "interval": "",
