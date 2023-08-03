@@ -1,7 +1,6 @@
 import React, { FC, useEffect, useRef, useState } from "react";
-import useCopyToClipboard from "../../../hooks/useCopyToClipboard";
 import useEventListener from "../../../hooks/useEventListener";
-import Tooltip from "../Tooltip/Tooltip";
+import classNames from "classnames";
 import "./style.scss";
 
 interface TextFieldErrorProps {
@@ -9,10 +8,9 @@ interface TextFieldErrorProps {
 }
 
 const TextFieldError: FC<TextFieldErrorProps> = ({ error }) => {
-  const copyToClipboard = useCopyToClipboard();
   const errorRef = useRef<HTMLSpanElement>(null);
   const [isErrorTruncated, setIsErrorTruncated] = useState(false);
-  const [isCopied, setIsCopied] = useState(false);
+  const [showFull, setShowFull] = useState(false);
 
   const checkIfTextTruncated = () => {
     const el = errorRef.current;
@@ -26,46 +24,33 @@ const TextFieldError: FC<TextFieldErrorProps> = ({ error }) => {
     }
   };
 
-  const handleCopyError = async () => {
-    const copied = await copyToClipboard(error);
-    setIsCopied(copied);
+  const handleClickError = () => {
+    if (!isErrorTruncated) return;
+    setShowFull(true);
+    setIsErrorTruncated(false);
   };
 
   useEffect(() => {
-    if (!isCopied) return;
-    const timeout = setTimeout(() => setIsCopied(false), 3000);
-    return () => clearTimeout(timeout);
-  }, [isCopied]);
+    setShowFull(false);
+    checkIfTextTruncated();
+  }, [errorRef, error]);
 
-  useEffect(checkIfTextTruncated, [errorRef, error]);
   useEventListener("resize", checkIfTextTruncated);
 
-  const contentError = (
+  return (
     <span
-      className="vm-text-field__error"
+      className={classNames({
+        "vm-text-field__error": true,
+        "vm-text-field__error_overflowed": isErrorTruncated,
+        "vm-text-field__error_full": showFull,
+      })}
       data-show={!!error}
       ref={errorRef}
-      onClick={handleCopyError}
+      onClick={handleClickError}
     >
       {error}
     </span>
   );
-
-  if (isErrorTruncated) {
-    return (
-      <Tooltip
-        title={(
-          <p className="vm-text-field__error-tooltip">
-            {isCopied ? "error text has been copied" : error}
-          </p>
-        )}
-      >
-        {contentError}
-      </Tooltip>
-    );
-  }
-
-  return contentError;
 };
 
 export default TextFieldError;
