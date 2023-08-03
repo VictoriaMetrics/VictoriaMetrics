@@ -3,6 +3,7 @@ package elasticsearch
 import (
 	"bufio"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"math"
@@ -10,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/VictoriaMetrics/metrics"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
@@ -21,7 +24,10 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
-	"github.com/VictoriaMetrics/metrics"
+)
+
+var (
+	elasticsearchVersion = flag.String("elasticsearch.version", "8.9.0", "Elasticsearch version to report to client")
 )
 
 // RequestHandler processes Elasticsearch insert requests
@@ -60,9 +66,9 @@ func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 			// See the latest available version for Elasticsearch at https://github.com/elastic/elasticsearch/releases
 			fmt.Fprintf(w, `{
 			"version": {
-				"number": "8.8.0"
+				"number": %q
 			}
-		}`)
+		}`, *elasticsearchVersion)
 		case http.MethodHead:
 			// Return empty response for Logstash ping request.
 		}
