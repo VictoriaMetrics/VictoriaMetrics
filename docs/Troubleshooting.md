@@ -414,9 +414,8 @@ would help identify and prevent most of the issues listed above.
 [Grafana dashboards](https://grafana.com/orgs/victoriametrics/dashboards) contain panels reflecting the
 health state, resource usage and other specific metrics for VictoriaMetrics components.
 
-Alerting rules for [single-node](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts.yml)
-and [cluster](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/cluster/deployment/docker/alerts.yml) versions
-of VictoriaMetrics will notify about issues with Victoriametrics components and provide recommendations for how to solve them.
+The list of [recommended alerting rules](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#alerts)
+for VictoriaMetrics components will notify about issues and provide recommendations for how to solve them.
 
 Internally, we heavily rely both on dashboards and alerts, and constantly improve them.
 It is important to stay up to date with such changes.

@@ -2139,7 +2139,7 @@ in front of VictoriaMetrics. [Contact us](mailto:sales@victoriametrics.com) if y
 
 Released at 2021-01-13
 
-* FEATURE: provide a sample list of alerting rules for VictoriaMetrics components. It is available [here](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts.yml).
+* FEATURE: provide a sample list of alerting rules for VictoriaMetrics components. It is available [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#alerts).
 * FEATURE: disable final merge for data for the previous month at the beginning of new month, since it may result in high disk IO and CPU usage. Final merge can be enabled by setting `-finalMergeDelay` command-line flag to positive duration.
 * FEATURE: add `tfirst_over_time(m[d])` and `tlast_over_time(m[d])` functions to [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) for returning timestamps for the first and the last data point in `m` over `d` duration.
 * FEATURE: add ability to pass multiple labels to `sort_by_label()` and `sort_by_label_desc()` functions. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/992> .
