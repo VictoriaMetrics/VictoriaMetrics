@@ -4434,7 +4434,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\"}) \n/ sum(vm_rows{job=~\"$job\", instance=~\"$instance\"})",
+              "expr": "sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\"}) \n/ sum(vm_rows{job=~\"$job\", instance=~\"$instance\", type!~\"indexdb.*\"})",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
