@@ -1571,7 +1571,7 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      Round metric values to this number of decimal digits after the point before writing them to remote storage. Examples: -remoteWrite.roundDigits=2 would round 1.236 to 1.24, while -remoteWrite.roundDigits=-1 would round 126.78 to 130. By default, digits rounding is disabled. Set it to 100 for disabling it for a particular remote storage. This option may be used for improving data compression for the stored metrics
      Supports array of values separated by comma or specified via multiple flags.
   -remoteWrite.sendTimeout array
-     Timeout for sending a single block of data to the corresponding -remoteWrite.url
+     Timeout for sending a single block of data to the corresponding -remoteWrite.url (default 1m)
      Supports array of values separated by comma or specified via multiple flags.
   -remoteWrite.shardByURL
      Whether to shard outgoing series across all the remote storage systems enumerated via -remoteWrite.url . By default the data is replicated across all the -remoteWrite.url . See https://docs.victoriametrics.com/vmagent.html#sharding-among-remote-storages
