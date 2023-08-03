@@ -24,6 +24,7 @@
 - fix `attachMetadata` value miscovert for scrape objects. See [this issue](https://github.com/VictoriaMetrics/operator/issues/697) and [this PR](https://github.com/VictoriaMetrics/operator/pull/698) for details.
 - [vmalert](https://docs.victoriametrics.com/operator/api.html#vmalert): fix `tlsCAFile` argument value generation when using secret or configMap. See [this issue](https://github.com/VictoriaMetrics/operator/issues/699) and [this PR](https://github.com/VictoriaMetrics/operator/issues/699) for details.
 - [vmalertmanager](https://docs.victoriametrics.com/operator/api.html#vmalertmanager): fix default request memory and apply default resources if not set. See [this issue](https://github.com/VictoriaMetrics/operator/issues/706) and [this PR](https://github.com/VictoriaMetrics/operator/pull/710) for details.
+- [vmagent](https://docs.victoriametrics.com/operator/api.html#vmagent): fix missing additional VolumeClaimTemplates when using `ClaimTemplates` under StatefulMode.
 
 ### Features
 

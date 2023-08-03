@@ -1,4 +1,4 @@
-GO_VERSION ?=1.20.6
+GO_VERSION ?=1.20.7
 SNAP_BUILDER_IMAGE := local/snap-builder:2.0.0-$(shell echo $(GO_VERSION) | tr :/ __)
 
 
