@@ -1,4 +1,5 @@
-# File contains default list of alerts for VM components.
+# File contains default list of alerts for various VM components.
+# The following alerts are recommended for use for any VM installation.
 # The alerts below are just recommendations and may require some updates
 # and threshold calibration according to every specific setup.
 groups:
@@ -73,3 +74,16 @@ groups:
           description: "The rate of TSID misses during query lookups is too high for \"{{ $labels.job }}\" ({{ $labels.instance }}).\n
          Make sure you're running VictoriaMetrics of v1.85.3 or higher.\n
          Related issue https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3502"
+
+      - alert: ConcurrentInsertsHitTheLimit
+        expr: avg_over_time(vm_concurrent_insert_current[1m]) >= vm_concurrent_insert_capacity
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.job }} on instance {{ $labels.instance }} is constantly hitting concurrent inserts limit"
+          description: "The limit of concurrent inserts on instance {{ $labels.instance }} depends on the number of CPUs.\n
+            Usually, when component constantly hits the limit it is likely the component is overloaded and requires more CPU.
+            In some cases for components like vmagent or vminsert the alert might trigger if there are too many clients
+            making write attempts. If vmagent's or vminsert's CPU usage and network saturation are at normal level, then 
+            it might be worth adjusting `-maxConcurrentInserts` cmd-line flag."

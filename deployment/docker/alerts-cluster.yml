@@ -80,18 +80,6 @@ groups:
           description: "RPC errors are interconnection errors between cluster components.\n
             Possible reasons for errors are misconfiguration, overload, network blips or unreachable components."
 
-      - alert: ConcurrentFlushesHitTheLimit
-        expr: avg_over_time(vm_concurrent_insert_current[1m]) >= vm_concurrent_insert_capacity
-        for: 15m
-        labels:
-          severity: warning
-          show_at: dashboard
-        annotations:
-          dashboard: "http://localhost:3000/d/oS7Bi_0Wz?viewPanel=133&var-instance={{ $labels.instance }}"
-          summary: "vmstorage on instance {{ $labels.instance }} is constantly hitting concurrent flushes limit"
-          description: "The limit of concurrent flushes on instance {{ $labels.instance }} is equal to number of CPUs.\n
-            When vmstorage constantly hits the limit it means that storage is overloaded and requires more CPU."
-
       - alert: RowsRejectedOnIngestion
         expr: sum(rate(vm_rows_ignored_total[5m])) by (instance, reason) > 0
         for: 15m
