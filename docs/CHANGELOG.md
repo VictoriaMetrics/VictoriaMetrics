@@ -24,6 +24,8 @@ The following `tip` changes can be tested by building VictoriaMetrics components
 
 ## tip
 
+* SECURITY: upgrade Go builder from Go1.20.6 to Go1.20.7. The update includes a security fix to the crypto/tls package, as well as bug fixes to the assembler and the compiler. See [the list of issues addressed in Go1.20.7](https://github.com/golang/go/issues?q=milestone%3AGo1.20.7+label%3ACherryPickApproved).
+
 * FEATURE: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): add `share_eq_over_time(m[d], eq)` function for calculating the share (in the range `[0...1]`) of raw samples on the given lookbehind window `d`, which are equal to `eq`. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4441). Thanks to @Damon07 for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4725).
 * FEATURE: [vmauth](https://docs.victoriametrics.com/vmauth.html): allow configuring deadline for a backend to be excluded from the rotation on errors via `-failTimeout` cmd-line flag. This feature could be useful when it is expected for backends to be not available for significant periods of time. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4415) for details. Thanks to @SunKyu for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4416).  
 * FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): remove deprecated in [v1.61.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.61.0) `-rule.configCheckInterval` command-line flag. Use `-configCheckInterval` command-line flag instead.
