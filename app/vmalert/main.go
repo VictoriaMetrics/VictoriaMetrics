@@ -361,7 +361,6 @@ func configReload(ctx context.Context, m *manager, groupsCfg []config.Group, sig
 			// set success to 1 since previous reload
 			// could have been unsuccessful
 			configSuccess.Set(1)
-			setConfigError(nil)
 			// config didn't change - skip it
 			continue
 		}
