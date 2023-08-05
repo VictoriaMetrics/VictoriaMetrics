@@ -872,7 +872,7 @@ func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, w http.Respo
 		LookbackDelta:       lookbackDelta,
 		RoundDigits:         getRoundDigits(r),
 		EnforcedTagFilterss: etfs,
-		ExternalData:        promql.ParseExternalData(r.FormValue("extData")),
+		ExternalData:        promql.ParseExternalData(r.Form["extra_data"]),
 		GetRequestURI: func() string {
 			return httpserver.GetRequestURI(r)
 		},

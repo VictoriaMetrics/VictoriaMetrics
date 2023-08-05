@@ -1435,15 +1435,22 @@ func dropStaleNaNs(funcName string, values []float64, timestamps []int64) ([]flo
 
 // ParseExternalData parses external data in Prometheus text export format
 // into a map of sets of LabeledNumber by their metric name.
-func ParseExternalData(extData string) map[string][]LabeledNumber {
-	if extData == "" {
+func ParseExternalData(extData []string) map[string][]LabeledNumber {
+	if len(extData) == 0 {
 		return nil
 	}
 
 	var rows prometheus.Rows
-	rows.Unmarshal(extData)
 
 	result := make(map[string][]LabeledNumber)
+	for _, s := range extData {
+		rows.Unmarshal(s)
+		addExternalData(result, &rows)
+	}
+	return result
+}
+
+func addExternalData(result map[string][]LabeledNumber, rows *prometheus.Rows) {
 	for _, r := range rows.Rows {
 		data := result[r.Metric]
 		tags := make([]storage.Tag, len(r.Tags))
@@ -1456,5 +1463,4 @@ func ParseExternalData(extData string) map[string][]LabeledNumber {
 			Value: r.Value,
 		})
 	}
-	return result
 }
