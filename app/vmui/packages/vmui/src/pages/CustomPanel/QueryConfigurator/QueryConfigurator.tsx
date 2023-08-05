@@ -21,7 +21,7 @@ import { MouseEvent as ReactMouseEvent } from "react";
 import { arrayEquals } from "../../../utils/array";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import { QueryStats } from "../../../api/types";
-import { useAppState } from "../../../state/common/StateContext";
+import { usePrettifyQuery } from "./hooks/usePrettifyQuery";
 
 export interface QueryConfiguratorProps {
   queryErrors: string[];
@@ -116,57 +116,20 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
 
   const createHandlerRemoveQuery = (i: number) => () => {
     handleRemoveQuery(i);
-    setHideQuery(prev => prev.includes(i) ? prev.filter(n => n !== i) : prev.map(n => n > i ? n - 1: n));
+    setHideQuery(prev => prev.includes(i) ? prev.filter(n => n !== i) : prev.map(n => n > i ? n - 1 : n));
   };
 
   const createHandlerHideQuery = (i: number) => (e: ReactMouseEvent<HTMLButtonElement, MouseEvent>) => {
     handleToggleHideQuery(e, i);
   };
 
-  const { serverUrl } = useAppState();
 
-  const handlePrettifyQuery = async (el: HTMLButtonElement, i: number) => {
-
-    const oldQuery = encodeURIComponent(stateQuery[i]);
-    let response: Response;
-    try {
-      response = await fetch(`${serverUrl}/prettify-query?query=${oldQuery}`);
-    } catch (e) {
-      const newQueryErrors = [...queryErrors];
-      newQueryErrors[i] = `${e}`;
-      setQueryErrors(newQueryErrors);
-      return;
-    }
-
-    if (response.status != 200) {
-      const newQueryErrors = [...queryErrors];
-      newQueryErrors[i] = "Error requesting /prettify-query, status: " + response.status;
-      setQueryErrors(newQueryErrors);
-    }
-
-    const data = await response.json();
-
-    if (data["status"] == "success") {
-      const newQueryErrors = [...queryErrors];
-      newQueryErrors[i] = "";
-      setQueryErrors(newQueryErrors);
-
-      const newStateQuery = [...stateQuery];
-      newStateQuery[i] = data["query"];
-      setStateQuery(newStateQuery);
-    } else {
-      const newQueryErrors = [...queryErrors];
-      newQueryErrors[i] = data["msg"];
-      setQueryErrors(newQueryErrors);
-    }
-
-  };
-
-  const createHandlerPrettifyQuery = async (i: number) => {
-    return (e: ReactMouseEvent<HTMLButtonElement, MouseEvent>) => {
-      handlePrettifyQuery(e.currentTarget, i);
-    };
-  };
+  const { handlePrettifyQuery } = usePrettifyQuery(
+    stateQuery,
+    setStateQuery,
+    queryErrors,
+    setQueryErrors
+  );
 
   useEffect(() => {
     if (prevStateQuery && (stateQuery.length < prevStateQuery.length)) {
@@ -225,7 +188,7 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
                 variant={"text"}
                 color={"gray"}
                 startIcon={<Prettify/>}
-                onClick={createHandlerPrettifyQuery(i)}
+                onClick={async () => await handlePrettifyQuery(i)}
                 className="prettify"
               />
             </div>
