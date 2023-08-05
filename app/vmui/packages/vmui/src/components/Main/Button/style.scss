@@ -45,8 +45,8 @@ $button-radius: 6px;
     transform: translateZ(-1px);
   }
 
-  &.prettify:active {
-    color: $color-primary;
+  &:active:after {
+    transform: scale(0.9);
   }
 
   span {
