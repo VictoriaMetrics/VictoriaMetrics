@@ -38,7 +38,7 @@ btn-primary
     {% endif %}
 {% endfunc %}
 
-{% func ListGroups(r *http.Request, originGroups []APIGroup) %}
+{% func ListGroups(r *http.Request, originGroups []apiGroup) %}
     {%code prefix := utils.Prefix(r.URL.Path) %}
     {%= tpl.Header(r, navItems, "Groups", getLastConfigError()) %}
         {%code
@@ -46,9 +46,9 @@ btn-primary
             rOk := make(map[string]int)
             rNotOk := make(map[string]int)
             rNoMatch := make(map[string]int)
-            var groups []APIGroup
+            var groups []apiGroup
             for _, g := range originGroups {
-                var rules []APIRule
+                var rules []apiRule
                 for _, r := range g.Rules {
                     if r.LastError != "" {
                         rNotOk[g.ID]++
@@ -166,7 +166,7 @@ btn-primary
 {% endfunc %}
 
 
-{% func ListAlerts(r *http.Request, groupAlerts []GroupAlerts) %}
+{% func ListAlerts(r *http.Request, groupAlerts []groupAlerts) %}
     {%code prefix := utils.Prefix(r.URL.Path) %}
     {%= tpl.Header(r, navItems, "Alerts", getLastConfigError()) %}
     {% if len(groupAlerts) > 0 %}
@@ -183,7 +183,7 @@ btn-primary
             </div>
             {%code
                 var keys []string
-                alertsByRule := make(map[string][]*APIAlert)
+                alertsByRule := make(map[string][]*apiAlert)
                 for _, alert := range ga.Alerts {
                     if len(alertsByRule[alert.RuleID]) < 1 {
                         keys = append(keys, alert.RuleID)
@@ -310,7 +310,7 @@ btn-primary
 
 {% endfunc %}
 
-{% func Alert(r *http.Request, alert *APIAlert) %}
+{% func Alert(r *http.Request, alert *apiAlert) %}
     {%code prefix := utils.Prefix(r.URL.Path) %}
     {%= tpl.Header(r, navItems, "", getLastConfigError()) %}
     {%code
@@ -397,7 +397,7 @@ btn-primary
 {% endfunc %}
 
 
-{% func RuleDetails(r *http.Request, rule APIRule) %}
+{% func RuleDetails(r *http.Request, rule apiRule) %}
     {%code prefix := utils.Prefix(r.URL.Path) %}
     {%= tpl.Header(r, navItems, "", getLastConfigError()) %}
     {%code
@@ -416,9 +416,9 @@ btn-primary
         var seriesFetchedEnabled bool
         var seriesFetchedWarning bool
         for _, u := range rule.Updates {
-          if u.seriesFetched != nil {
+          if u.SeriesFetched != nil {
             seriesFetchedEnabled = true
-            if *u.seriesFetched == 0 && u.samples == 0{
+            if *u.SeriesFetched == 0 && u.Samples == 0{
                 seriesFetchedWarning = true
             }
           }
@@ -537,23 +537,23 @@ btn-primary
             <tbody>
 
      {% for _, u := range rule.Updates %}
-             <tr{% if u.err != nil %} class="alert-danger"{% endif %}>
+             <tr{% if u.Err != nil %} class="alert-danger"{% endif %}>
                  <td>
-                    <span class="badge bg-primary rounded-pill me-3" title="Updated at">{%s u.time.Format(time.RFC3339) %}</span>
+                    <span class="badge bg-primary rounded-pill me-3" title="Updated at">{%s u.Time.Format(time.RFC3339) %}</span>
                  </td>
-                 <td class="text-center">{%d u.samples %}</td>
-                 {% if seriesFetchedEnabled %}<td class="text-center">{% if u.seriesFetched != nil %}{%d *u.seriesFetched %}{% endif %}</td>{% endif %}
-                 <td class="text-center">{%f.3 u.duration.Seconds() %}s</td>
-                 <td class="text-center">{%s u.at.Format(time.RFC3339) %}</td>
+                 <td class="text-center">{%d u.Samples %}</td>
+                 {% if seriesFetchedEnabled %}<td class="text-center">{% if u.SeriesFetched != nil %}{%d *u.SeriesFetched %}{% endif %}</td>{% endif %}
+                 <td class="text-center">{%f.3 u.Duration.Seconds() %}s</td>
+                 <td class="text-center">{%s u.At.Format(time.RFC3339) %}</td>
                  <td>
-                    <textarea class="curl-area" rows="1" onclick="this.focus();this.select()">{%s u.curl %}</textarea>
+                    <textarea class="curl-area" rows="1" onclick="this.focus();this.select()">{%s u.Curl %}</textarea>
                 </td>
              </tr>
           </li>
-          {% if u.err != nil %}
-             <tr{% if u.err != nil %} class="alert-danger"{% endif %}>
+          {% if u.Err != nil %}
+             <tr{% if u.Err != nil %} class="alert-danger"{% endif %}>
                <td colspan="{% if seriesFetchedEnabled %}6{%else%}5{%endif%}">
-                   <span class="alert-danger">{%v u.err %}</span>
+                   <span class="alert-danger">{%v u.Err %}</span>
                </td>
              </tr>
           {% endif %}
@@ -582,7 +582,7 @@ btn-primary
 <span class="badge bg-warning text-dark" title="This firing state is kept because of `keep_firing_for`">stabilizing</span>
 {% endfunc %}
 
-{% func seriesFetchedWarn(r APIRule) %}
+{% func seriesFetchedWarn(r apiRule) %}
 {% if isNoMatch(r) %}
 <svg xmlns="http://www.w3.org/2000/svg"
     data-bs-toggle="tooltip"
@@ -596,7 +596,7 @@ btn-primary
 {% endfunc %}
 
 {%code
-  func isNoMatch (r APIRule) bool {
+  func isNoMatch (r apiRule) bool {
     return r.LastSamples == 0 && r.LastSeriesFetched != nil && *r.LastSeriesFetched == 0
   }
 %}

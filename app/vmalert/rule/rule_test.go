@@ -1,4 +1,4 @@
-package main
+package rule
 
 import (
 	"sync"
@@ -7,71 +7,73 @@ import (
 )
 
 func TestRule_stateDisabled(t *testing.T) {
-	state := newRuleState(-1)
-	e := state.getLast()
-	if !e.at.IsZero() {
+	r := &AlertingRule{}
+	InitRuleState(r, -1)
+	e := r.state.getLast()
+	if !e.At.IsZero() {
 		t.Fatalf("expected entry to be zero")
 	}
 
-	state.add(ruleStateEntry{at: time.Now()})
-	state.add(ruleStateEntry{at: time.Now()})
-	state.add(ruleStateEntry{at: time.Now()})
+	r.state.add(StateEntry{At: time.Now()})
+	r.state.add(StateEntry{At: time.Now()})
+	r.state.add(StateEntry{At: time.Now()})
 
-	if len(state.getAll()) != 1 {
+	if len(r.state.getAll()) != 1 {
 		// state should store at least one update at any circumstances
 		t.Fatalf("expected for state to have %d entries; got %d",
-			1, len(state.getAll()),
+			1, len(r.state.getAll()),
 		)
 	}
 }
 func TestRule_state(t *testing.T) {
+	r := &AlertingRule{}
 	stateEntriesN := 20
-	state := newRuleState(stateEntriesN)
-	e := state.getLast()
-	if !e.at.IsZero() {
+	InitRuleState(r, stateEntriesN)
+	e := r.state.getLast()
+	if !e.At.IsZero() {
 		t.Fatalf("expected entry to be zero")
 	}
 
 	now := time.Now()
-	state.add(ruleStateEntry{at: now})
+	r.state.add(StateEntry{At: now})
 
-	e = state.getLast()
-	if e.at != now {
+	e = r.state.getLast()
+	if e.At != now {
 		t.Fatalf("expected entry at %v to be equal to %v",
-			e.at, now)
+			e.At, now)
 	}
 
 	time.Sleep(time.Millisecond)
 	now2 := time.Now()
-	state.add(ruleStateEntry{at: now2})
+	r.state.add(StateEntry{At: now2})
 
-	e = state.getLast()
-	if e.at != now2 {
+	e = r.state.getLast()
+	if e.At != now2 {
 		t.Fatalf("expected entry at %v to be equal to %v",
-			e.at, now2)
+			e.At, now2)
 	}
 
-	if len(state.getAll()) != 2 {
+	if len(r.state.getAll()) != 2 {
 		t.Fatalf("expected for state to have 2 entries only; got %d",
-			len(state.getAll()),
+			len(r.state.getAll()),
 		)
 	}
 
 	var last time.Time
 	for i := 0; i < stateEntriesN*2; i++ {
 		last = time.Now()
-		state.add(ruleStateEntry{at: last})
+		r.state.add(StateEntry{At: last})
 	}
 
-	e = state.getLast()
-	if e.at != last {
+	e = r.state.getLast()
+	if e.At != last {
 		t.Fatalf("expected entry at %v to be equal to %v",
-			e.at, last)
+			e.At, last)
 	}
 
-	if len(state.getAll()) != stateEntriesN {
+	if len(r.state.getAll()) != stateEntriesN {
 		t.Fatalf("expected for state to have %d entries only; got %d",
-			stateEntriesN, len(state.getAll()),
+			stateEntriesN, len(r.state.getAll()),
 		)
 	}
 }
@@ -80,7 +82,8 @@ func TestRule_state(t *testing.T) {
 // execution of state updates.
 // Should be executed with -race flag
 func TestRule_stateConcurrent(_ *testing.T) {
-	state := newRuleState(20)
+	r := &AlertingRule{}
+	InitRuleState(r, 20)
 
 	const workers = 50
 	const iterations = 100
@@ -90,9 +93,9 @@ func TestRule_stateConcurrent(_ *testing.T) {
 		go func() {
 			defer wg.Done()
 			for i := 0; i < iterations; i++ {
-				state.add(ruleStateEntry{at: time.Now()})
-				state.getAll()
-				state.getLast()
+				r.state.add(StateEntry{At: time.Now()})
+				r.state.getAll()
+				r.state.getLast()
 			}
 		}()
 	}

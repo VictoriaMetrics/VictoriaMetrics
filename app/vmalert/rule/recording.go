@@ -1,4 +1,4 @@
-package main
+package rule
 
 import (
 	"context"
@@ -66,17 +66,18 @@ func newRecordingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rul
 		}),
 	}
 
+	entrySize := *ruleUpdateEntriesLimit
 	if cfg.UpdateEntriesLimit != nil {
-		rr.state = newRuleState(*cfg.UpdateEntriesLimit)
-	} else {
-		rr.state = newRuleState(*ruleUpdateEntriesLimit)
+		entrySize = *cfg.UpdateEntriesLimit
+
 	}
+	InitRuleState(rr, entrySize)
 
 	labels := fmt.Sprintf(`recording=%q, group=%q, id="%d"`, rr.Name, group.Name, rr.ID())
 	rr.metrics.errors = utils.GetOrCreateGauge(fmt.Sprintf(`vmalert_recording_rules_error{%s}`, labels),
 		func() float64 {
 			e := rr.state.getLast()
-			if e.err == nil {
+			if e.Err == nil {
 				return 0
 			}
 			return 1
@@ -84,21 +85,21 @@ func newRecordingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rul
 	rr.metrics.samples = utils.GetOrCreateGauge(fmt.Sprintf(`vmalert_recording_rules_last_evaluation_samples{%s}`, labels),
 		func() float64 {
 			e := rr.state.getLast()
-			return float64(e.samples)
+			return float64(e.Samples)
 		})
 	return rr
 }
 
-// Close unregisters rule metrics
-func (rr *RecordingRule) Close() {
+// close unregisters rule metrics
+func (rr *RecordingRule) close() {
 	rr.metrics.errors.Unregister()
 	rr.metrics.samples.Unregister()
 }
 
-// ExecRange executes recording rule on the given time range similarly to Exec.
+// execRange executes recording rule on the given time range similarly to Exec.
 // It doesn't update internal states of the Rule and meant to be used just
 // to get time series for backfilling.
-func (rr *RecordingRule) ExecRange(ctx context.Context, start, end time.Time) ([]prompbmarshal.TimeSeries, error) {
+func (rr *RecordingRule) execRange(ctx context.Context, start, end time.Time) ([]prompbmarshal.TimeSeries, error) {
 	res, err := rr.q.QueryRange(ctx, rr.Expr, start, end)
 	if err != nil {
 		return nil, err
@@ -117,17 +118,17 @@ func (rr *RecordingRule) ExecRange(ctx context.Context, start, end time.Time) ([
 	return tss, nil
 }
 
-// Exec executes RecordingRule expression via the given Querier.
-func (rr *RecordingRule) Exec(ctx context.Context, ts time.Time, limit int) ([]prompbmarshal.TimeSeries, error) {
+// exec executes RecordingRule expression via the given Querier.
+func (rr *RecordingRule) exec(ctx context.Context, ts time.Time, limit int) ([]prompbmarshal.TimeSeries, error) {
 	start := time.Now()
 	res, req, err := rr.q.Query(ctx, rr.Expr, ts)
-	curState := ruleStateEntry{
-		time:          start,
-		at:            ts,
-		duration:      time.Since(start),
-		samples:       len(res.Data),
-		seriesFetched: res.SeriesFetched,
-		curl:          requestToCurl(req),
+	curState := StateEntry{
+		Time:          start,
+		At:            ts,
+		Duration:      time.Since(start),
+		Samples:       len(res.Data),
+		SeriesFetched: res.SeriesFetched,
+		Curl:          requestToCurl(req),
 	}
 
 	defer func() {
@@ -135,15 +136,15 @@ func (rr *RecordingRule) Exec(ctx context.Context, ts time.Time, limit int) ([]p
 	}()
 
 	if err != nil {
-		curState.err = fmt.Errorf("failed to execute query %q: %w", rr.Expr, err)
-		return nil, curState.err
+		curState.Err = fmt.Errorf("failed to execute query %q: %w", rr.Expr, err)
+		return nil, curState.Err
 	}
 
 	qMetrics := res.Data
 	numSeries := len(qMetrics)
 	if limit > 0 && numSeries > limit {
-		curState.err = fmt.Errorf("exec exceeded limit of %d with %d series", limit, numSeries)
-		return nil, curState.err
+		curState.Err = fmt.Errorf("exec exceeded limit of %d with %d series", limit, numSeries)
+		return nil, curState.Err
 	}
 
 	duplicates := make(map[string]struct{}, len(qMetrics))
@@ -152,8 +153,8 @@ func (rr *RecordingRule) Exec(ctx context.Context, ts time.Time, limit int) ([]p
 		ts := rr.toTimeSeries(r)
 		key := stringifyLabels(ts)
 		if _, ok := duplicates[key]; ok {
-			curState.err = fmt.Errorf("original metric %v; resulting labels %q: %w", r, key, errDuplicate)
-			return nil, curState.err
+			curState.Err = fmt.Errorf("original metric %v; resulting labels %q: %w", r, key, errDuplicate)
+			return nil, curState.Err
 		}
 		duplicates[key] = struct{}{}
 		tss = append(tss, ts)
@@ -193,8 +194,8 @@ func (rr *RecordingRule) toTimeSeries(m datasource.Metric) prompbmarshal.TimeSer
 	return newTimeSeries(m.Values, m.Timestamps, labels)
 }
 
-// UpdateWith copies all significant fields.
-func (rr *RecordingRule) UpdateWith(r Rule) error {
+// updateWith copies all significant fields.
+func (rr *RecordingRule) updateWith(r Rule) error {
 	nr, ok := r.(*RecordingRule)
 	if !ok {
 		return fmt.Errorf("BUG: attempt to update recroding rule with wrong type %#v", r)
@@ -203,33 +204,4 @@ func (rr *RecordingRule) UpdateWith(r Rule) error {
 	rr.Labels = nr.Labels
 	rr.q = nr.q
 	return nil
-}
-
-// ToAPI returns Rule's representation in form
-// of APIRule
-func (rr *RecordingRule) ToAPI() APIRule {
-	lastState := rr.state.getLast()
-	r := APIRule{
-		Type:              "recording",
-		DatasourceType:    rr.Type.String(),
-		Name:              rr.Name,
-		Query:             rr.Expr,
-		Labels:            rr.Labels,
-		LastEvaluation:    lastState.time,
-		EvaluationTime:    lastState.duration.Seconds(),
-		Health:            "ok",
-		LastSamples:       lastState.samples,
-		LastSeriesFetched: lastState.seriesFetched,
-		MaxUpdates:        rr.state.size(),
-		Updates:           rr.state.getAll(),
-
-		// encode as strings to avoid rounding
-		ID:      fmt.Sprintf("%d", rr.ID()),
-		GroupID: fmt.Sprintf("%d", rr.GroupID),
-	}
-	if lastState.err != nil {
-		r.LastError = lastState.err.Error()
-		r.Health = "err"
-	}
-	return r
 }

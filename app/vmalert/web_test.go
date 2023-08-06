@@ -7,33 +7,29 @@ import (
 	"net/http/httptest"
 	"reflect"
 	"testing"
-	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/rule"
 )
 
 func TestHandler(t *testing.T) {
-	ar := &AlertingRule{
+	ar := &rule.AlertingRule{
 		Name: "alert",
-		alerts: map[uint64]*notifier.Alert{
-			0: {State: notifier.StateFiring},
-		},
-		state: newRuleState(10),
 	}
-	ar.state.add(ruleStateEntry{
-		time:    time.Now(),
-		at:      time.Now(),
-		samples: 10,
-	})
-	rr := &RecordingRule{
-		Name:  "record",
-		state: newRuleState(10),
+	ar.UpdateRuleAlerts(0, &notifier.Alert{State: notifier.StateFiring})
+	rule.InitRuleState(ar, 10)
+
+	rr := &rule.RecordingRule{
+		Name: "record",
 	}
-	g := &Group{
-		Name:  "group",
-		Rules: []Rule{ar, rr},
+	rule.InitRuleState(rr, 10)
+
+	g := &rule.Group{
+		Name: "group",
 	}
-	m := &manager{groups: make(map[uint64]*Group)}
+	g.Rules = append(g.Rules, ar)
+	g.Rules = append(g.Rules, rr)
+	m := &manager{groups: make(map[uint64]*rule.Group)}
 	m.groups[0] = g
 	rh := &requestHandler{m: m}
 
@@ -70,13 +66,13 @@ func TestHandler(t *testing.T) {
 	})
 
 	t.Run("/vmalert/rule", func(t *testing.T) {
-		a := ar.ToAPI()
+		a := ruleToAPI(ar)
 		getResp(ts.URL+"/vmalert/"+a.WebLink(), nil, 200)
-		r := rr.ToAPI()
+		r := ruleToAPI(rr)
 		getResp(ts.URL+"/vmalert/"+r.WebLink(), nil, 200)
 	})
 	t.Run("/vmalert/alert", func(t *testing.T) {
-		alerts := ar.AlertsToAPI()
+		alerts := ruleToAPIAlert(ar)
 		for _, a := range alerts {
 			getResp(ts.URL+"/vmalert/"+a.WebLink(), nil, 200)
 		}
@@ -103,14 +99,14 @@ func TestHandler(t *testing.T) {
 		}
 	})
 	t.Run("/api/v1/alert?alertID&groupID", func(t *testing.T) {
-		expAlert := ar.newAlertAPI(*ar.alerts[0])
-		alert := &APIAlert{}
+		expAlert := newAlertAPI(ar, ar.GetAlerts()[0])
+		alert := &apiAlert{}
 		getResp(ts.URL+"/"+expAlert.APILink(), alert, 200)
 		if !reflect.DeepEqual(alert, expAlert) {
 			t.Errorf("expected %v is equal to %v", alert, expAlert)
 		}
 
-		alert = &APIAlert{}
+		alert = &apiAlert{}
 		getResp(ts.URL+"/vmalert/"+expAlert.APILink(), alert, 200)
 		if !reflect.DeepEqual(alert, expAlert) {
 			t.Errorf("expected %v is equal to %v", alert, expAlert)
@@ -148,7 +144,7 @@ func TestHandler(t *testing.T) {
 }
 
 func TestEmptyResponse(t *testing.T) {
-	rhWithNoGroups := &requestHandler{m: &manager{groups: make(map[uint64]*Group)}}
+	rhWithNoGroups := &requestHandler{m: &manager{groups: make(map[uint64]*rule.Group)}}
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { rhWithNoGroups.handler(w, r) }))
 	defer ts.Close()
 
@@ -201,7 +197,7 @@ func TestEmptyResponse(t *testing.T) {
 		}
 	})
 
-	rhWithEmptyGroup := &requestHandler{m: &manager{groups: map[uint64]*Group{0: {Name: "test"}}}}
+	rhWithEmptyGroup := &requestHandler{m: &manager{groups: map[uint64]*rule.Group{0: {Name: "test"}}}}
 	ts.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { rhWithEmptyGroup.handler(w, r) })
 
 	t.Run("empty group /api/v1/rules", func(t *testing.T) {

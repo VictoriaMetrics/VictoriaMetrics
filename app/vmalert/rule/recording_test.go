@@ -1,4 +1,4 @@
-package main
+package rule
 
 import (
 	"context"
@@ -76,11 +76,11 @@ func TestRecordingRule_Exec(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.rule.Name, func(t *testing.T) {
-			fq := &fakeQuerier{}
-			fq.add(tc.metrics...)
+			fq := &datasource.FakeQuerier{}
+			fq.Add(tc.metrics...)
 			tc.rule.q = fq
-			tc.rule.state = newRuleState(10)
-			tss, err := tc.rule.Exec(context.TODO(), time.Now(), 0)
+			InitRuleState(tc.rule, 10)
+			tss, err := tc.rule.exec(context.TODO(), time.Now(), 0)
 			if err != nil {
 				t.Fatalf("unexpected Exec err: %s", err)
 			}
@@ -158,10 +158,10 @@ func TestRecordingRule_ExecRange(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.rule.Name, func(t *testing.T) {
-			fq := &fakeQuerier{}
-			fq.add(tc.metrics...)
+			fq := &datasource.FakeQuerier{}
+			fq.Add(tc.metrics...)
 			tc.rule.q = fq
-			tss, err := tc.rule.ExecRange(context.TODO(), time.Now(), time.Now())
+			tss, err := tc.rule.execRange(context.TODO(), time.Now(), time.Now())
 			if err != nil {
 				t.Fatalf("unexpected Exec err: %s", err)
 			}
@@ -198,15 +198,16 @@ func TestRecordingRuleLimit(t *testing.T) {
 		metricWithValuesAndLabels(t, []float64{2, 3}, "__name__", "bar", "job", "bar"),
 		metricWithValuesAndLabels(t, []float64{4, 5, 6}, "__name__", "baz", "job", "baz"),
 	}
-	rule := &RecordingRule{Name: "job:foo", state: newRuleState(10), Labels: map[string]string{
+	rule := &RecordingRule{Name: "job:foo", Labels: map[string]string{
 		"source": "test_limit",
 	}}
+	InitRuleState(rule, 10)
 	var err error
 	for _, testCase := range testCases {
-		fq := &fakeQuerier{}
-		fq.add(testMetrics...)
+		fq := &datasource.FakeQuerier{}
+		fq.Add(testMetrics...)
 		rule.q = fq
-		_, err = rule.Exec(context.TODO(), timestamp, testCase.limit)
+		_, err = rule.exec(context.TODO(), timestamp, testCase.limit)
 		if err != nil && !strings.EqualFold(err.Error(), testCase.err) {
 			t.Fatal(err)
 		}
@@ -215,18 +216,17 @@ func TestRecordingRuleLimit(t *testing.T) {
 
 func TestRecordingRule_ExecNegative(t *testing.T) {
 	rr := &RecordingRule{
-		Name:  "job:foo",
-		state: newRuleState(10),
+		Name: "job:foo",
 		Labels: map[string]string{
 			"job": "test",
 		},
 	}
-
-	fq := &fakeQuerier{}
+	InitRuleState(rr, 10)
+	fq := &datasource.FakeQuerier{}
 	expErr := "connection reset by peer"
-	fq.setErr(errors.New(expErr))
+	fq.SetErr(errors.New(expErr))
 	rr.q = fq
-	_, err := rr.Exec(context.TODO(), time.Now(), 0)
+	_, err := rr.exec(context.TODO(), time.Now(), 0)
 	if err == nil {
 		t.Fatalf("expected to get err; got nil")
 	}
@@ -234,14 +234,14 @@ func TestRecordingRule_ExecNegative(t *testing.T) {
 		t.Fatalf("expected to get err %q; got %q insterad", expErr, err)
 	}
 
-	fq.reset()
+	fq.Reset()
 
 	// add metrics which differs only by `job` label
 	// which will be overridden by rule
-	fq.add(metricWithValueAndLabels(t, 1, "__name__", "foo", "job", "foo"))
-	fq.add(metricWithValueAndLabels(t, 2, "__name__", "foo", "job", "bar"))
+	fq.Add(metricWithValueAndLabels(t, 1, "__name__", "foo", "job", "foo"))
+	fq.Add(metricWithValueAndLabels(t, 2, "__name__", "foo", "job", "bar"))
 
-	_, err = rr.Exec(context.TODO(), time.Now(), 0)
+	_, err = rr.exec(context.TODO(), time.Now(), 0)
 	if err == nil {
 		t.Fatalf("expected to get err; got nil")
 	}

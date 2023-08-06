@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/rule"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/tpl"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -143,29 +144,23 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 	}
 }
 
-const (
-	paramGroupID = "group_id"
-	paramAlertID = "alert_id"
-	paramRuleID  = "rule_id"
-)
-
-func (rh *requestHandler) getRule(r *http.Request) (APIRule, error) {
+func (rh *requestHandler) getRule(r *http.Request) (apiRule, error) {
 	groupID, err := strconv.ParseUint(r.FormValue(paramGroupID), 10, 0)
 	if err != nil {
-		return APIRule{}, fmt.Errorf("failed to read %q param: %s", paramGroupID, err)
+		return apiRule{}, fmt.Errorf("failed to read %q param: %s", paramGroupID, err)
 	}
 	ruleID, err := strconv.ParseUint(r.FormValue(paramRuleID), 10, 0)
 	if err != nil {
-		return APIRule{}, fmt.Errorf("failed to read %q param: %s", paramRuleID, err)
+		return apiRule{}, fmt.Errorf("failed to read %q param: %s", paramRuleID, err)
 	}
-	rule, err := rh.m.RuleAPI(groupID, ruleID)
+	obj, err := rh.m.ruleAPI(groupID, ruleID)
 	if err != nil {
-		return APIRule{}, errResponse(err, http.StatusNotFound)
+		return apiRule{}, errResponse(err, http.StatusNotFound)
 	}
-	return rule, nil
+	return obj, nil
 }
 
-func (rh *requestHandler) getAlert(r *http.Request) (*APIAlert, error) {
+func (rh *requestHandler) getAlert(r *http.Request) (*apiAlert, error) {
 	groupID, err := strconv.ParseUint(r.FormValue(paramGroupID), 10, 0)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read %q param: %s", paramGroupID, err)
@@ -174,7 +169,7 @@ func (rh *requestHandler) getAlert(r *http.Request) (*APIAlert, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to read %q param: %s", paramAlertID, err)
 	}
-	a, err := rh.m.AlertAPI(groupID, alertID)
+	a, err := rh.m.alertAPI(groupID, alertID)
 	if err != nil {
 		return nil, errResponse(err, http.StatusNotFound)
 	}
@@ -184,17 +179,17 @@ func (rh *requestHandler) getAlert(r *http.Request) (*APIAlert, error) {
 type listGroupsResponse struct {
 	Status string `json:"status"`
 	Data   struct {
-		Groups []APIGroup `json:"groups"`
+		Groups []apiGroup `json:"groups"`
 	} `json:"data"`
 }
 
-func (rh *requestHandler) groups() []APIGroup {
+func (rh *requestHandler) groups() []apiGroup {
 	rh.m.groupsMu.RLock()
 	defer rh.m.groupsMu.RUnlock()
 
-	groups := make([]APIGroup, 0)
+	groups := make([]apiGroup, 0)
 	for _, g := range rh.m.groups {
-		groups = append(groups, g.toAPI())
+		groups = append(groups, groupToAPI(g))
 	}
 
 	// sort list of alerts for deterministic output
@@ -221,35 +216,35 @@ func (rh *requestHandler) listGroups() ([]byte, error) {
 type listAlertsResponse struct {
 	Status string `json:"status"`
 	Data   struct {
-		Alerts []*APIAlert `json:"alerts"`
+		Alerts []*apiAlert `json:"alerts"`
 	} `json:"data"`
 }
 
-func (rh *requestHandler) groupAlerts() []GroupAlerts {
+func (rh *requestHandler) groupAlerts() []groupAlerts {
 	rh.m.groupsMu.RLock()
 	defer rh.m.groupsMu.RUnlock()
 
-	var groupAlerts []GroupAlerts
+	var gAlerts []groupAlerts
 	for _, g := range rh.m.groups {
-		var alerts []*APIAlert
+		var alerts []*apiAlert
 		for _, r := range g.Rules {
-			a, ok := r.(*AlertingRule)
+			a, ok := r.(*rule.AlertingRule)
 			if !ok {
 				continue
 			}
-			alerts = append(alerts, a.AlertsToAPI()...)
+			alerts = append(alerts, ruleToAPIAlert(a)...)
 		}
 		if len(alerts) > 0 {
-			groupAlerts = append(groupAlerts, GroupAlerts{
-				Group:  g.toAPI(),
+			gAlerts = append(gAlerts, groupAlerts{
+				Group:  groupToAPI(g),
 				Alerts: alerts,
 			})
 		}
 	}
-	sort.Slice(groupAlerts, func(i, j int) bool {
-		return groupAlerts[i].Group.Name < groupAlerts[j].Group.Name
+	sort.Slice(gAlerts, func(i, j int) bool {
+		return gAlerts[i].Group.Name < gAlerts[j].Group.Name
 	})
-	return groupAlerts
+	return gAlerts
 }
 
 func (rh *requestHandler) listAlerts() ([]byte, error) {
@@ -257,14 +252,14 @@ func (rh *requestHandler) listAlerts() ([]byte, error) {
 	defer rh.m.groupsMu.RUnlock()
 
 	lr := listAlertsResponse{Status: "success"}
-	lr.Data.Alerts = make([]*APIAlert, 0)
+	lr.Data.Alerts = make([]*apiAlert, 0)
 	for _, g := range rh.m.groups {
 		for _, r := range g.Rules {
-			a, ok := r.(*AlertingRule)
+			a, ok := r.(*rule.AlertingRule)
 			if !ok {
 				continue
 			}
-			lr.Data.Alerts = append(lr.Data.Alerts, a.AlertsToAPI()...)
+			lr.Data.Alerts = append(lr.Data.Alerts, ruleToAPIAlert(a)...)
 		}
 	}
 
