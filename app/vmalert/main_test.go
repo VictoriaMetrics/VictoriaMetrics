@@ -87,6 +87,7 @@ groups:
 	)
 
 	f, err := os.CreateTemp("", "")
+	defer os.Remove(f.Name())
 	if err != nil {
 		t.Fatal(err)
 	}
