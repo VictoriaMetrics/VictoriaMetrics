@@ -34,6 +34,7 @@ export interface QueryConfiguratorProps {
 
 const QueryConfigurator: FC<QueryConfiguratorProps> = ({
   queryErrors,
+  setQueryErrors,
   stats,
   queryOptions,
   onHideQuery,
@@ -51,7 +52,6 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
   const prevStateQuery = usePrevious(stateQuery) as (undefined | string[]);
 
   const getPrettifiedQuery = usePrettifyQuery();
-  const [ prettifyErrors, setPrettifyErrors ] = useState<string[]>([]);
 
   const updateHistory = () => {
     queryDispatch({
@@ -130,9 +130,9 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
 
     handleChangeQuery(prettyQuery.query, i);
 
-    setPrettifyErrors((pe) => {
-      pe[i] = prettyQuery.error;
-      return [...pe];
+    setQueryErrors((qe) => {
+      qe[i] = prettyQuery.error;
+      return [...qe];
     });
   };
 
@@ -167,7 +167,7 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
             value={stateQuery[i]}
             autocomplete={autocomplete}
             options={queryOptions}
-            error={queryErrors[i] || prettifyErrors[i]}
+            error={queryErrors[i]}
             stats={stats[i]}
             onArrowUp={createHandlerArrow(-1, i)}
             onArrowDown={createHandlerArrow(1, i)}
