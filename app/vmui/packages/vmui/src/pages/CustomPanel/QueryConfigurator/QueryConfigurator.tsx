@@ -34,7 +34,6 @@ export interface QueryConfiguratorProps {
 
 const QueryConfigurator: FC<QueryConfiguratorProps> = ({
   queryErrors,
-  setQueryErrors,
   stats,
   queryOptions,
   onHideQuery,
@@ -50,6 +49,9 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
   const [stateQuery, setStateQuery] = useState(query || []);
   const [hideQuery, setHideQuery] = useState<number[]>([]);
   const prevStateQuery = usePrevious(stateQuery) as (undefined | string[]);
+
+  const getPrettifiedQuery = usePrettifyQuery();
+  const [ prettifyErrors, setPrettifyErrors ] = useState<string[]>([]);
 
   const updateHistory = () => {
     queryDispatch({
@@ -123,13 +125,16 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
     handleToggleHideQuery(e, i);
   };
 
+  const handlePrettifyQuery = async (i:number) => {
+    const prettyQuery = await getPrettifiedQuery(stateQuery[i]);
 
-  const { handlePrettifyQuery } = usePrettifyQuery(
-    stateQuery,
-    setStateQuery,
-    queryErrors,
-    setQueryErrors
-  );
+    handleChangeQuery(prettyQuery.query, i);
+
+    setPrettifyErrors((pe) => {
+      pe[i] = prettyQuery.error;
+      return [...pe];
+    });
+  };
 
   useEffect(() => {
     if (prevStateQuery && (stateQuery.length < prevStateQuery.length)) {
@@ -162,7 +167,7 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
             value={stateQuery[i]}
             autocomplete={autocomplete}
             options={queryOptions}
-            error={queryErrors[i]}
+            error={queryErrors[i] || prettifyErrors[i]}
             stats={stats[i]}
             onArrowUp={createHandlerArrow(-1, i)}
             onArrowDown={createHandlerArrow(1, i)}

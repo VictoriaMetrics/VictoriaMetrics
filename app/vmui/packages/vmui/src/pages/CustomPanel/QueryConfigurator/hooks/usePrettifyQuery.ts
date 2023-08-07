@@ -1,49 +1,49 @@
 import { useAppState } from "../../../../state/common/StateContext";
-import { StateUpdater } from "preact/compat";
 
-export const usePrettifyQuery = (
-  stateQuery: string[],
-  setStateQuery: StateUpdater<string[]>,
-  queryErrors: string[],
-  setQueryErrors: StateUpdater<string[]>,
-) => {
+export interface PrettyQuery {
+  query: string;
+  error: string;
+}
 
+export const usePrettifyQuery = () => {
   const { serverUrl } = useAppState();
 
-  const handlePrettifyQuery = async (i: number) => {
-    const oldQuery = encodeURIComponent(stateQuery[i]);
-    let response: Response;
+  const getPrettifiedQuery = async (query: string): Promise<PrettyQuery> => {
     try {
-      response = await fetch(`${serverUrl}/prettify-query?query=${oldQuery}`);
+      const oldQuery = encodeURIComponent(query);
+      const fetchUrl = `${serverUrl}/prettify-query?query=${oldQuery}`;
+
+      // {"status": "success", "query": "metrics"}
+      // {"status": "error", "msg": "labelFilterExpr: unexpected token ..."}
+      const response = await fetch(fetchUrl);
+
+      if (response.status != 200) {
+        return {
+          query: query,
+          error: "Error requesting /prettify-query, status: " + response.status,
+        };
+      }
+
+      const data = await response.json();
+
+      if (data["status"] != "success") {
+        return {
+          query: query,
+          error: String(data.msg) };
+      }
+
+      return {
+        query: String(data.query),
+        error: "" };
+
     } catch (e) {
-      const newQueryErrors = [...queryErrors];
-      newQueryErrors[i] = `${e}`;
-      setQueryErrors(newQueryErrors);
-      return;
-    }
-
-    if (response.status != 200) {
-      const newQueryErrors = [...queryErrors];
-      newQueryErrors[i] = "Error requesting /prettify-query, status: " + response.status;
-      setQueryErrors(newQueryErrors);
-    }
-
-    const data = await response.json();
-
-    if (data["status"] == "success") {
-      const newQueryErrors = [...queryErrors];
-      newQueryErrors[i] = "";
-      setQueryErrors(newQueryErrors);
-
-      const newStateQuery = [...stateQuery];
-      newStateQuery[i] = data["query"];
-      setStateQuery(newStateQuery);
-    } else {
-      const newQueryErrors = [...queryErrors];
-      newQueryErrors[i] = data["msg"];
-      setQueryErrors(newQueryErrors);
+      console.error(e);
+      if (e instanceof Error && e.name !== "AbortError") {
+        return { query: query, error: `${e.name}: ${e.message}` };
+      }
+      return { query: query, error: String(e) };
     }
   };
 
-  return { handlePrettifyQuery: handlePrettifyQuery };
+  return getPrettifiedQuery;
 };
