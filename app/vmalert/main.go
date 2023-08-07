@@ -320,7 +320,7 @@ func configReload(ctx context.Context, m *manager, groupsCfg []config.Group, sig
 	}
 
 	// init metrics for config state with positive values to improve alerting conditions
-	setConfigSuccess(fasttime.UnixTimestamp())
+	setConfigSuccessAt(fasttime.UnixTimestamp())
 
 	parseFn := config.Parse
 	for {
@@ -362,6 +362,7 @@ func configReload(ctx context.Context, m *manager, groupsCfg []config.Group, sig
 			// set success to 1 since previous reload could have been unsuccessful
 			// do not update configTimestamp as config version remains old.
 			configSuccess.Set(1)
+			// reset the last config error since the config change was rolled back
 			setLastConfigErr(nil)
 			// config didn't change - skip iteration
 			continue
@@ -373,7 +374,7 @@ func configReload(ctx context.Context, m *manager, groupsCfg []config.Group, sig
 		}
 		templates.Reload()
 		groupsCfg = newGroupsCfg
-		setConfigSuccess(fasttime.UnixTimestamp())
+		setConfigSuccessAt(fasttime.UnixTimestamp())
 		logger.Infof("Rules reloaded successfully from %q", *rulePath)
 	}
 }
@@ -390,8 +391,8 @@ func configsEqual(a, b []config.Group) bool {
 	return true
 }
 
-// setConfigSuccess updates config related metrics as successful.
-func setConfigSuccess(at uint64) {
+// setConfigSuccessAt updates config related metrics as successful.
+func setConfigSuccessAt(at uint64) {
 	configSuccess.Set(1)
 	configTimestamp.Set(at)
 	// reset the lastConfigErr
