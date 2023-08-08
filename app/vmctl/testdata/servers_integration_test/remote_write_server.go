@@ -172,7 +172,6 @@ func (rws *RemoteWriteServer) seriesHandler() http.Handler {
 
 func (rws *RemoteWriteServer) valuesHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("REQUEST => %s", r.URL.String())
 		labelNames := make(map[string]struct{})
 		for _, ser := range rws.series {
 			if ser.Name != "" {
