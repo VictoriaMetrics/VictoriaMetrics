@@ -6,11 +6,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math/rand"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -44,7 +46,7 @@ type RemoteWriteServer struct {
 }
 
 // NewRemoteWriteServer prepares test remote write server
-func NewRemoteWriteServer(t *testing.T) *RemoteWriteServer {
+func NewRemoteWriteServer(t *testing.T, isCluster bool) *RemoteWriteServer {
 	rws := &RemoteWriteServer{series: make([]vm.TimeSeries, 0)}
 	mux := http.NewServeMux()
 
@@ -54,7 +56,21 @@ func NewRemoteWriteServer(t *testing.T) *RemoteWriteServer {
 	mux.Handle("/api/v1/label/__name__/values", rws.valuesHandler())
 	mux.Handle("/api/v1/export/native", rws.exportNativeHandler())
 	mux.Handle("/api/v1/import/native", rws.importNativeHandler(t))
-	mux.Handle("/admin/tenants", rws.tenantsHandler())
+
+	if isCluster {
+		tenants := getTenants()
+		mux.Handle("/admin/tenants", rws.tenantsHandler(tenants))
+
+		for _, tenant := range tenants {
+			exportAPIPerTenant := fmt.Sprintf("/select/%s/prometheus/api/v1/export/native", tenant)
+			importAPIPerTenant := fmt.Sprintf("/insert/%s/prometheus/api/v1/import/native", tenant)
+			valuesAPIPerTenant := fmt.Sprintf("/select/%s/prometheus/api/v1/label/__name__/values", tenant)
+			mux.Handle(exportAPIPerTenant, rws.exportNativeHandler())
+			mux.Handle(importAPIPerTenant, rws.importNativeHandler(t))
+			mux.Handle(valuesAPIPerTenant, rws.valuesHandler())
+		}
+	}
+
 	rws.server = httptest.NewServer(mux)
 	return rws
 }
@@ -156,6 +172,7 @@ func (rws *RemoteWriteServer) seriesHandler() http.Handler {
 
 func (rws *RemoteWriteServer) valuesHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("REQUEST => %s", r.URL.String())
 		labelNames := make(map[string]struct{})
 		for _, ser := range rws.series {
 			if ser.Name != "" {
@@ -265,9 +282,21 @@ func (rws *RemoteWriteServer) importNativeHandler(t *testing.T) http.Handler {
 	})
 }
 
-func (rws *RemoteWriteServer) tenantsHandler() http.Handler {
+func (rws *RemoteWriteServer) tenantsHandler(tenants []string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		
+
+		var t strings.Builder
+		for i, tenant := range tenants {
+			t.WriteString(fmt.Sprintf("%q", tenant))
+			if i == len(tenants)-1 {
+				break
+			}
+			t.WriteString(",")
+		}
+
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintf(w, `{"status":"success","data": [%s]}`, t.String())
+		return
 	})
 }
 
@@ -313,4 +342,26 @@ func generateTimeStampsAndValues(idx int, startTime, endTime, numOfSamples int64
 	}
 
 	return timestamps, values
+}
+
+func getTenants() []string {
+	min := 1000
+	max := 1002
+	d := max - min
+
+	uniqRand := make(map[int]struct{}, d)
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	for i := 0; i < d; i++ {
+		v := r.Intn(max-min) + min
+		if _, ok := uniqRand[v]; !ok {
+			uniqRand[v] = struct{}{}
+		}
+	}
+	var tenants []string
+	for number := range uniqRand {
+		strV := strconv.Itoa(number)
+		tenants = append(tenants, strV)
+	}
+	log.Printf("TENANTS => %s", tenants)
+	return tenants
 }

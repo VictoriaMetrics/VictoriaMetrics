@@ -222,8 +222,8 @@ func Test_vmNativeProcessor_run(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			src := remote_read_integration.NewRemoteWriteServer(t)
-			dst := remote_read_integration.NewRemoteWriteServer(t)
+			src := remote_read_integration.NewRemoteWriteServer(t, tt.fields.interCluster)
+			dst := remote_read_integration.NewRemoteWriteServer(t, tt.fields.interCluster)
 
 			defer func() {
 				src.Close()
