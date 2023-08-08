@@ -54,6 +54,7 @@ func NewRemoteWriteServer(t *testing.T) *RemoteWriteServer {
 	mux.Handle("/api/v1/label/__name__/values", rws.valuesHandler())
 	mux.Handle("/api/v1/export/native", rws.exportNativeHandler())
 	mux.Handle("/api/v1/import/native", rws.importNativeHandler(t))
+	mux.Handle("/admin/tenants", rws.tenantsHandler())
 	rws.server = httptest.NewServer(mux)
 	return rws
 }
@@ -261,6 +262,12 @@ func (rws *RemoteWriteServer) importNativeHandler(t *testing.T) http.Handler {
 
 		w.WriteHeader(http.StatusNoContent)
 		return
+	})
+}
+
+func (rws *RemoteWriteServer) tenantsHandler() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		
 	})
 }
 
