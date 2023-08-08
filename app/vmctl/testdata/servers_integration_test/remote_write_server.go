@@ -61,10 +61,11 @@ func NewRemoteWriteServer(t *testing.T, isCluster bool) *RemoteWriteServer {
 		tenants := getTenants()
 		mux.Handle("/admin/tenants", rws.tenantsHandler(tenants))
 
-		for _, tenant := range tenants {
-			exportAPIPerTenant := fmt.Sprintf("/select/%s/prometheus/api/v1/export/native", tenant)
-			importAPIPerTenant := fmt.Sprintf("/insert/%s/prometheus/api/v1/import/native", tenant)
-			valuesAPIPerTenant := fmt.Sprintf("/select/%s/prometheus/api/v1/label/__name__/values", tenant)
+		for tenant := range tenants {
+			val := strconv.Itoa(tenant)
+			exportAPIPerTenant := fmt.Sprintf("/select/%s/prometheus/api/v1/export/native", val)
+			importAPIPerTenant := fmt.Sprintf("/insert/%s/prometheus/api/v1/import/native", val)
+			valuesAPIPerTenant := fmt.Sprintf("/select/%s/prometheus/api/v1/label/__name__/values", val)
 			mux.Handle(exportAPIPerTenant, rws.exportNativeHandler())
 			mux.Handle(importAPIPerTenant, rws.importNativeHandler(t))
 			mux.Handle(valuesAPIPerTenant, rws.valuesHandler())
@@ -281,16 +282,19 @@ func (rws *RemoteWriteServer) importNativeHandler(t *testing.T) http.Handler {
 	})
 }
 
-func (rws *RemoteWriteServer) tenantsHandler(tenants []string) http.Handler {
+func (rws *RemoteWriteServer) tenantsHandler(tenants map[int]struct{}) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		var t strings.Builder
-		for i, tenant := range tenants {
-			t.WriteString(fmt.Sprintf("%q", tenant))
+		i := 0
+		for tenant := range tenants {
+			val := strconv.Itoa(tenant)
+			t.WriteString(fmt.Sprintf("%q", val))
 			if i == len(tenants)-1 {
 				break
 			}
 			t.WriteString(",")
+			i++
 		}
 
 		w.WriteHeader(http.StatusOK)
@@ -343,7 +347,7 @@ func generateTimeStampsAndValues(idx int, startTime, endTime, numOfSamples int64
 	return timestamps, values
 }
 
-func getTenants() []string {
+func getTenants() map[int]struct{} {
 	min := 1000
 	max := 1002
 	d := max - min
@@ -356,10 +360,6 @@ func getTenants() []string {
 			uniqRand[v] = struct{}{}
 		}
 	}
-	var tenants []string
-	for number := range uniqRand {
-		strV := strconv.Itoa(number)
-		tenants = append(tenants, strV)
-	}
-	return tenants
+
+	return uniqRand
 }
