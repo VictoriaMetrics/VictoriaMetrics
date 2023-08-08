@@ -135,3 +135,59 @@ It is also possible to split up config into multiple files, just list them all i
 ```sh
 python3 -m vmanomaly model_prophet.yaml io_csv.yaml scheduler_oneoff.yaml
 ```
+
+### Licensing
+
+Starting from v1.5.0 vmanomaly requires a license key to run. You can obtain a trial license
+key [here](https://victoriametrics.com/products/enterprise/trial/).
+
+The license key can be passed via the following command-line flags:
+```
+  --license LICENSE     See https://victoriametrics.com/products/enterprise/
+                        for trial license
+  --license-file LICENSE_FILE
+                        See https://victoriametrics.com/products/enterprise/
+                        for trial license
+  --license-verify-offline LICENSE_VERIFY_OFFLINE
+                        Force offline verification of license code
+```
+
+Usage example:
+```
+python3 -m vmanomaly --license-file /path/to/license_file.yaml config.yaml
+```
+
+In order to make it easier to monitor the license expiration date, the following metrics are exposed:
+```
+# HELP vm_license_expires_at When the license expires as a Unix timestamp in seconds
+# TYPE vm_license_expires_at gauge
+vm_license_expires_at 1.6963776e+09
+# HELP vm_license_expires_in_seconds Amount of seconds until the license expires
+# TYPE vm_license_expires_in_seconds gauge
+vm_license_expires_in_seconds 4.886608e+06
+```
+
+You can find example alerts for [vmalert](https://docs.victoriametrics.com/vmalert.html):
+```yaml
+groups:
+  - name: vm-license
+    # note the `job` filter and update accordingly to your setup
+    rules:
+      - alert: LicenseExpiresInLessThan30Days
+        expr: vm_license_expires_in_seconds < 30 * 24 * 3600
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.job }} instance {{ $labels.instance }} license expires in less than 30 days"
+          description: "{{ $labels.instance }} of job {{ $labels.job }} license expires in {{ $value | humanizeDuration }}. 
+            Please make sure to update the license before it expires."
+
+      - alert: LicenseExpiresInLessThan7Days
+        expr: vm_license_expires_in_seconds < 7 * 24 * 3600
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.job }} instance {{ $labels.instance }} license expires in less than 7 days"
+          description: "{{ $labels.instance }} of job {{ $labels.job }} license expires in {{ $value | humanizeDuration }}. 
+            Please make sure to update the license before it expires."
+```
