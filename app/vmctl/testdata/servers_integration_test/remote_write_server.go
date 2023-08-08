@@ -353,9 +353,8 @@ func getTenants() map[int]struct{} {
 	d := max - min
 
 	uniqRand := make(map[int]struct{}, d)
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	for i := 0; i < d; i++ {
-		v := r.Intn(max-min) + min
+		v := rand.Intn(max-min) + min
 		if _, ok := uniqRand[v]; !ok {
 			uniqRand[v] = struct{}{}
 		}
