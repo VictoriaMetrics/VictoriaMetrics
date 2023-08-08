@@ -764,6 +764,7 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWr
 		LookbackDelta:       lookbackDelta,
 		RoundDigits:         getRoundDigits(r),
 		EnforcedTagFilterss: etfs,
+		ExternalData:        promql.ParseExternalData(r.Form["extra_data"]),
 		GetRequestURI: func() string {
 			return httpserver.GetRequestURI(r)
 		},
