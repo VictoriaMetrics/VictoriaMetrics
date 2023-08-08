@@ -131,6 +131,7 @@ const CustomPanel: FC = () => {
       <QueryConfigurator
         queryErrors={!hideError ? queryErrors : []}
         setQueryErrors={setQueryErrors}
+        setHideError={setHideError}
         stats={queryStats}
         queryOptions={queryOptions}
         onHideQuery={handleHideQuery}

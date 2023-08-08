@@ -26,6 +26,7 @@ import { usePrettifyQuery } from "./hooks/usePrettifyQuery";
 export interface QueryConfiguratorProps {
   queryErrors: string[];
   setQueryErrors: StateUpdater<string[]>;
+  setHideError: StateUpdater<boolean>;
   stats: QueryStats[];
   queryOptions: string[]
   onHideQuery: (queries: number[]) => void
@@ -35,6 +36,7 @@ export interface QueryConfiguratorProps {
 const QueryConfigurator: FC<QueryConfiguratorProps> = ({
   queryErrors,
   setQueryErrors,
+  setHideError,
   stats,
   queryOptions,
   onHideQuery,
@@ -127,6 +129,7 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
 
   const handlePrettifyQuery = async (i:number) => {
     const prettyQuery = await getPrettifiedQuery(stateQuery[i]);
+    setHideError(false);
 
     handleChangeQuery(prettyQuery.query, i);
 
