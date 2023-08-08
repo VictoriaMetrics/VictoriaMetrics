@@ -361,6 +361,5 @@ func getTenants() []string {
 		strV := strconv.Itoa(number)
 		tenants = append(tenants, strV)
 	}
-	log.Printf("TENANTS => %s", tenants)
 	return tenants
 }
