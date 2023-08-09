@@ -87,10 +87,10 @@ groups:
 	)
 
 	f, err := os.CreateTemp("", "")
-	defer os.Remove(f.Name())
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer func() { _ = os.Remove(f.Name()) }()
 	writeToFile(t, f.Name(), rules1)
 
 	*configCheckInterval = 200 * time.Millisecond
