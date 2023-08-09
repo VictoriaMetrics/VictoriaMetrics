@@ -128,11 +128,11 @@ name: <string>
 [ limit: <int> | default = 0 ]
 
 # How many rules execute at once within a group. Increasing concurrency may speed
-# up round execution speed.
+# up group's evaluation duration (exposed via `vmalert_iteration_duration_seconds` metric).
 [ concurrency: <integer> | default = 1 ]
 
 # Optional type for expressions inside the rules. Supported values: "graphite" and "prometheus".
-# By default "prometheus" type is used.
+# By default, "prometheus" type is used.
 [ type: <string> ]
 
 # Optional list of HTTP URL parameters
