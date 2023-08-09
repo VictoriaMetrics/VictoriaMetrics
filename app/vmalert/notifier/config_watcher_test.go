@@ -14,7 +14,6 @@ import (
 
 func TestConfigWatcherReload(t *testing.T) {
 	f, err := os.CreateTemp("", "")
-	defer os.Remove(f.Name())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -37,7 +36,6 @@ static_configs:
 	}
 
 	f2, err := os.CreateTemp("", "")
-	defer os.Remove(f2.Name())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -65,7 +63,6 @@ func TestConfigWatcherStart(t *testing.T) {
 	defer consulSDServer.Close()
 
 	consulSDFile, err := os.CreateTemp("", "")
-	defer os.Remove(consulSDFile.Name())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -112,7 +109,6 @@ func TestConfigWatcherReloadConcurrent(t *testing.T) {
 	defer consulSDServer2.Close()
 
 	consulSDFile, err := os.CreateTemp("", "")
-	defer os.Remove(consulSDFile.Name())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -129,7 +125,6 @@ consul_sd_configs:
 `, consulSDServer1.URL, consulSDServer2.URL))
 
 	staticAndConsulSDFile, err := os.CreateTemp("", "")
-	defer os.Remove(staticAndConsulSDFile.Name())
 	if err != nil {
 		t.Fatal(err)
 	}
