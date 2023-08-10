@@ -38,7 +38,8 @@
 - [vmcluster](https://docs.victoriametrics.com/operator/api.html#vmagent): add [example config](https://github.com/VictoriaMetrics/operator/blob/master/config/examples/vmcluster_with_additional_claim.yaml) for cluster with custom storage claims.
 - [vmrule](https://docs.victoriametrics.com/operator/api.html#vmrule): support `update_entries_limit` field in rules, refer to [alerting rules](https://docs.victoriametrics.com/vmalert.html#alerting-rules). See [this PR](https://github.com/VictoriaMetrics/operator/pull/691) for details.
 - [vmrule](https://docs.victoriametrics.com/operator/api.html#vmrule): support `keep_firing_for` field in rules, refer to [alerting rules](https://docs.victoriametrics.com/vmalert.html#alerting-rules). See [this PR](https://github.com/VictoriaMetrics/operator/pull/711) for details.
-- [vmoperator parameters](https://docs.victoriametrics.com/operator/vars.html): Add option `VM_ENABLESTRICTSECURITY` and enable strict security context by default. See [this issue](https://github.com/VictoriaMetrics/operator/issues/637) and [this PR](https://github.com/VictoriaMetrics/operator/pull/692/) for details.
+- [vmoperator parameters](https://docs.victoriametrics.com/operator/vars.html): Add option `VM_ENABLESTRICTSECURITY` and enable strict security context by default. See [this issue](https://github.com/VictoriaMetrics/operator/issues/637), [this](https://github.com/VictoriaMetrics/operator/pull/692/) and [this](https://github.com/VictoriaMetrics/operator/pull/712) PR for details.
+
 
 <a name="v0.35.1"></a>
 ## [v0.35.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.35.1) - 12 Jul 2023
