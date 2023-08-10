@@ -24,6 +24,11 @@ The following `tip` changes can be tested by building VictoriaMetrics components
 
 ## tip
 
+**Update note**: starting from this release, VictoriaMetrics single-server and vmagent 
+set `honor_timestamps: false` by default in [scrape configs](https://docs.victoriametrics.com/sd_configs.html#scrape_configs)
+if this options isn't set explicitly. The change supposed to significantly improve staleness detection, compression
+and query performance when scraping `cadvisor` metrics. See more details [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4697).
+
 * SECURITY: upgrade Go builder from Go1.20.6 to Go1.20.7. The update includes a security fix to the crypto/tls package, as well as bug fixes to the assembler and the compiler. See [the list of issues addressed in Go1.20.7](https://github.com/golang/go/issues?q=milestone%3AGo1.20.7+label%3ACherryPickApproved).
 
 * FEATURE: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): add `share_eq_over_time(m[d], eq)` function for calculating the share (in the range `[0...1]`) of raw samples on the given lookbehind window `d`, which are equal to `eq`. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4441). Thanks to @Damon07 for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4725).
