@@ -54,13 +54,33 @@ Bumping the limits may significantly improve build speed.
 1. Cut new version in [CHANGELOG.md](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/CHANGELOG.md)
 and make it merged. See example in this [commit](https://github.com/VictoriaMetrics/VictoriaMetrics/commit/b771152039d23b5ccd637a23ea748bc44a9511a7).
 1. Cherry-pick all changes from `master` to `cluster` branch, and to ENT branches `enterprise-single-node`, `enterprise-cluster`.
-1. Cherry-pick bug fixes relevant for LTS releases.
 1. Make sure you get all changes fetched `git fetch --all`.
-1. Create the following release tags:
-   * `git tag -s v1.xx.y` in `master` branch
-   * `git tag -s v1.xx.y-cluster` in `cluster` branch
-   * `git tag -s v1.xx.y-enterprise` in `enterprise` branch
-   * `git tag -s v1.xx.y-enterprise-cluster` in `enterprise-cluster` branch
+1. Create local branches for picking changes:
+   * `git checkout -b master-v1.xx.y origin/master`
+   * `git checkout -b master-enterprise-v1.xx.y enterprise/enterprise-single`
+   * `git checkout -b cluster-v1.xx.y enterprise/enterprise-single`
+   * `git checkout -b cluster-enterprise-v1.xx.y enterprise/enterprise-cluster`
+1. checkout cluster branch and cherry-pick commits from master, resolve conflicts, push changes into sub-branch and create PR:
+    * `git checkout cluster-v1.xx.y`
+    * `git cherry-pick START_COMMIT_SHA^..END_COMMIT_SHA`
+    * `git push origin cluster-v1.xx.y:cluster-v1.xx.y-cherry-pick`
+1. wait for approve and *REBASE PR* into enterprise-single branch.
+1. checkout for enterprise-single branch and cherry-pick commits from master:
+    * `git checkout master-enterprise-v1.xx.y`
+    * `git cherry-pick START_COMMIT_SHA^..END_COMMIT_SHA`
+    * `git push enterprise master-enterprise-v1.xx.y:master-enterprise-v1.xx.y-cherry-pick`
+1. wait for approve and *REBASE PR* into enterprise-single branch.
+1. checkout for enterprise-cluster branch and cherry-pick commits from cluster:
+    * `git cluster-enterprise-v1.xx.y`
+    * `git cherry-pick START_COMMIT_SHA^..END_COMMIT_SHA`
+    * `git push enterprise cluster-enterprise-v1.xx.y:cluster-enterprise-v1.xx.y-cherry-pick`
+1. wait for approve and *REBASE PR* into enterprise-cluster branch.
+1. Cherry-pick bug fixes relevant for LTS releases.
+1. Create the following release tags from local branches:
+   * `git checkout master-v1.xx.y && git tag -s v1.xx.y` in `master-v1.xx.y` branch
+   * `git checkout cluster-v1.xx.y && git tag -s v1.xx.y-cluster` in `cluster-v1.xx.y` branch
+   * `git checkout master-enterprise-v1.xx.y && git tag -s v1.xx.y-enterprise` in `master-enterprise-v1.xx.y` branch
+   * `git checkout cluster-enterprise-v1.xx.y && git tag -s v1.xx.y-enterprise-cluster` in `cluster-enterprise-v1.xx.y` branch
 1. Run `TAG=v1.xx.y make publish-release`. This command performs the following tasks:
    a) Build and package binaries in `*.tar.gz` release archives with the corresponding `_checksums.txt` files inside `bin` directory.
       This step can be run manually with the command `make release` from the needed git tag.
