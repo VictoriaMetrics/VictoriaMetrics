@@ -12,7 +12,6 @@ aliases:
 # Auto Generated vars for package config 
  updated at Thu Aug 10 14:33:38 UTC 2023 
 
-
 | varible name | variable default value | variable required | variable description |
 | --- | --- | --- | --- |
 | VM_USECUSTOMCONFIGRELOADER | false | false | enables custom config reloader for vmauth and vmagent,it should speed-up config reloading process. |
