@@ -10,7 +10,7 @@ aliases:
 - /operator/vars.html
 ---
 # Auto Generated vars for package config 
- updated at Wed Aug  9 14:55:29 UTC 2023 
+ updated at Thu Aug 10 14:33:38 UTC 2023 
 
 
 | varible name | variable default value | variable required | variable description |
@@ -127,4 +127,4 @@ aliases:
 | VM_PODWAITREADYINTERVALCHECK | 5s | false | - |
 | VM_PODWAITREADYINITDELAY | 10s | false | - |
 | VM_FORCERESYNCINTERVAL | 60s | false | configures force resync interval for VMAgent, VMAlert, VMAlertmanager and VMAuth. |
-| VM_ENABLESTRICTSECURITY | true | false | EnableStrictSecurity will add default `securityContext` to pods and containers created by operatorDefault PodSecurityContext include:1. RunAsNonRoot: true2. RunAsUser/RunAsGroup/FSGroup: 65534'65534' refers to 'nobody' in all the used default images like alpine, busybox.If you're using customize image, please make sure '65534' is a valid uid in there or specify SecurityContext.Default container SecurityContext include:1. AllowPrivilegeEscalation: false2. ReadOnlyRootFilesystem: true |
+| VM_ENABLESTRICTSECURITY | true | false | EnableStrictSecurity will add default `securityContext` to pods and containers created by operatorDefault PodSecurityContext include:1. RunAsNonRoot: true2. RunAsUser/RunAsGroup/FSGroup: 65534'65534' refers to 'nobody' in all the used default images like alpine, busybox.If you're using customize image, please make sure '65534' is a valid uid in there or specify SecurityContext.3. FSGroupChangePolicy: &onRootMismatchIf KubeVersion>=1.20, use `FSGroupChangePolicy="onRootMismatch"` to skip the recursive permission changewhen the root of the volume already has the correct permissions4. SeccompProfile:type: RuntimeDefaultUse `RuntimeDefault` seccomp profile by default, which is defined by the container runtime,instead of using the Unconfined (seccomp disabled) mode.Default container SecurityContext include:1. AllowPrivilegeEscalation: false2. ReadOnlyRootFilesystem: true3. Capabilities:drop:- all |
