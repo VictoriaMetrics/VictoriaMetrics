@@ -216,7 +216,9 @@ func (c *Client) flush(ctx context.Context, wr *prompbmarshal.WriteRequest) {
 		retryInterval = maxRetryInterval
 	}
 	timeStart := time.Now()
-	defer sendDuration.Add(time.Since(timeStart).Seconds())
+	defer func() {
+		sendDuration.Add(time.Since(timeStart).Seconds())
+	}()
 L:
 	for attempts := 0; ; attempts++ {
 		err := c.send(ctx, b)
