@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -23,8 +24,12 @@ func ActiveQueriesHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, `{"status":"ok","data":[`)
 	for i, aqe := range aqes {
 		d := now.Sub(aqe.startTime)
+		addr := aqe.quotedRemoteAddr
+		if n := strings.IndexByte(aqe.quotedRemoteAddr, ','); n != -1 {
+			addr = aqe.quotedRemoteAddr[:n]
+		}
 		fmt.Fprintf(w, `{"duration":"%.3fs","id":"%016X","remote_addr":%s,"query":%q,"start":%d,"end":%d,"step":%d}`,
-			d.Seconds(), aqe.qid, aqe.quotedRemoteAddr, aqe.q, aqe.start, aqe.end, aqe.step)
+			d.Seconds(), aqe.qid, addr, aqe.q, aqe.start, aqe.end, aqe.step)
 		if i+1 < len(aqes) {
 			fmt.Fprintf(w, `,`)
 		}
