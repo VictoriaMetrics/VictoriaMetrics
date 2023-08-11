@@ -1,4 +1,4 @@
-FROM golang:1.20.7 as build-web-stage
+FROM golang:1.21.0 as build-web-stage
 COPY build /build
 
 WORKDIR /build
