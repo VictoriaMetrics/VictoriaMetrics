@@ -46,7 +46,6 @@ The following `tip` changes can be tested by building VictoriaMetrics components
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): properly set `vmalert_config_last_reload_successful` value on configuration updates or rollbacks. The bug was introduced in [v1.92.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.92.0) in [this PR](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4543).
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): fix `vmalert_remotewrite_send_duration_seconds_total` value, before it didn't count in the real time spending on remote write requests. See [this pr](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4801) for details.
 * BUGFIX: [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager.html): fix panic when creating a backup to a local filesystem on Windows. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4704).
-* BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix the response of active queries to valid JSON. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4782).
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): keep unmatched series when `remoteWrite.streamAggr.dropInput` is set to `false` to match intended behaviour introduced at [v1.92.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.92.0). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4804).
 
 
