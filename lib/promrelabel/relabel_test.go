@@ -915,3 +915,49 @@ func newTestRegexRelabelConfig(pattern string) *parsedRelabelConfig {
 	}
 	return prc
 }
+
+func TestParsedRelabelConfigsApplyForMultipleSeries(t *testing.T) {
+	f := func(config string, metrics []string, resultExpected []string) {
+		t.Helper()
+		pcs, err := ParseRelabelConfigsData([]byte(config))
+		if err != nil {
+			t.Fatalf("cannot parse %q: %s", config, err)
+		}
+
+		totalLabels := 0
+		var labels []prompbmarshal.Label
+		for _, metric := range metrics {
+			labels = append(labels, promutils.MustNewLabelsFromString(metric).GetLabels()...)
+			resultLabels := pcs.Apply(labels, totalLabels)
+			SortLabels(resultLabels)
+			totalLabels += len(resultLabels)
+			labels = resultLabels
+		}
+
+		var result []string
+		for i := range labels {
+			result = append(result, LabelsToString(labels[i:i+1]))
+		}
+
+		if len(result) != len(resultExpected) {
+			t.Fatalf("unexpected number of results; got\n%q\nwant\n%q", result, resultExpected)
+		}
+
+		for i := range result {
+			if result[i] != resultExpected[i] {
+				t.Fatalf("unexpected result[%d]; got\n%q\nwant\n%q", i, result[i], resultExpected[i])
+			}
+		}
+	}
+
+	t.Run("drops one of series", func(t *testing.T) {
+		f(`
+- action: drop
+  if: '{__name__!~"smth"}' 
+`, []string{`smth`, `notthis`}, []string{`smth`})
+		f(`
+- action: drop
+  if: '{__name__!~"smth"}'
+`, []string{`notthis`, `smth`}, []string{`smth`})
+	})
+}
