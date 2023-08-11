@@ -18,6 +18,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 * SECURITY: upgrade Go builder from Go1.20.4 to Go1.21.0.
 * SECURITY: upgrade base docker image (Alpine) from 3.18.2 to 3.18.3. See [alpine 3.18.3 release notes](https://alpinelinux.org/posts/Alpine-3.15.10-3.16.7-3.17.5-3.18.3-released.html).
 
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): properly apply `if` filters during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling-enhancements). Previously the `if` filter could improperly work. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4806) and [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4816).
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): Properly form path to static assets in WEB UI if `http.pathPrefix` set. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4349).
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): Properly set datasource query params. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4340). Thanks to @gsakun for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4341).
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): properly return empty slices instead of nil for `/api/v1/rules` and `/api/v1/alerts` API handlers. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4221).
