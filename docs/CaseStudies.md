@@ -30,6 +30,7 @@ where you can chat with VictoriaMetrics users to get additional references, revi
   - [Groove X](#groove-x)
   - [Idealo.de](#idealode)
   - [MHI Vestas Offshore Wind](#mhi-vestas-offshore-wind)
+  - [Naver](#naver)
   - [Percona](#percona)
   - [Razorpay](#razorpay)
   - [Roblox](#roblox)
@@ -419,6 +420,13 @@ Numbers with current, limited roll out:
 - Total number of datapoints: 850 billions
 - Data size on disk: 800 GiB
 - Retention period: 3 years
+
+## Naver
+
+[Naver](https://www.navercorp.com/en/) is a global tech platform that enables wide access to advanced technologies for SMEs, creators and partners,
+fueling their greater growth around the world.
+
+See [this video](https://www.youtube.com/watch?v=OUyXPgVcdw4) and [these slides](https://deview.kr/data/deview/session/attach/%5B2B4%5DVictoriaMetrics_%E1%84%89%E1%85%B5%E1%84%80%E1%85%A8%E1%84%8B%E1%85%A7%E1%86%AF_%E1%84%83%E1%85%A6%E1%84%8B%E1%85%B5%E1%84%90%E1%85%A5_%E1%84%83%E1%85%A2%E1%84%92%E1%85%A9%E1%86%AB%E1%84%83%E1%85%A9%E1%86%AB%E1%84%8B%E1%85%B4_%E1%84%86%E1%85%A5%E1%86%AF%E1%84%90%E1%85%B5%E1%84%87%E1%85%A5%E1%84%89%E1%85%B3_Kor+Eng.pdf) on why and how Naver uses VictoriaMetrics.
 
 ## Percona
 

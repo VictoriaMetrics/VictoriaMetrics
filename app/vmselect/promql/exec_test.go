@@ -5826,6 +5826,17 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`share_eq_over_time`, func(t *testing.T) {
+		t.Parallel()
+		q := `share_eq_over_time(round(5*rand(0))[200s:10s], 1)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{0.1, 0.2, 0.25, 0.1, 0.3, 0.3},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`count_gt_over_time`, func(t *testing.T) {
 		t.Parallel()
 		q := `count_gt_over_time(rand(0)[200s:10s], 0.7)`

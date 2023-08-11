@@ -133,6 +133,7 @@ func main() {
 						LabelName:          c.String(remoteReadFilterLabel),
 						LabelValue:         c.String(remoteReadFilterLabelValue),
 						InsecureSkipVerify: c.Bool(remoteReadInsecureSkipVerify),
+						DisablePathAppend:  c.Bool(remoteReadDisablePathAppend),
 					})
 					if err != nil {
 						return fmt.Errorf("error create remote read client: %s", err)
@@ -254,6 +255,7 @@ func main() {
 						cc:             c.Int(vmConcurrency),
 						disableRetries: c.Bool(vmNativeDisableRetries),
 						isSilent:       c.Bool(globalSilent),
+						isNative:       !c.Bool(vmNativeDisableBinaryProtocol),
 					}
 					return p.run(ctx)
 				},

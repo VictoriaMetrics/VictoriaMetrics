@@ -128,6 +128,7 @@ Case studies:
 * [Groove X](https://docs.victoriametrics.com/CaseStudies.html#groove-x)
 * [Idealo.de](https://docs.victoriametrics.com/CaseStudies.html#idealode)
 * [MHI Vestas Offshore Wind](https://docs.victoriametrics.com/CaseStudies.html#mhi-vestas-offshore-wind)
+* [Naver](https://docs.victoriametrics.com/CaseStudies.html#naver)
 * [Razorpay](https://docs.victoriametrics.com/CaseStudies.html#razorpay)
 * [Percona](https://docs.victoriametrics.com/CaseStudies.html#percona)
 * [Roblox](https://docs.victoriametrics.com/CaseStudies.html#roblox)
@@ -1371,7 +1372,7 @@ VictoriaMetrics also may scrape Prometheus targets - see [these docs](#how-to-sc
 
 ## Sending data via OpenTelemetry
 
-VictoriaMetrics supports data ingestion via [OpenTelemetry protocol for metrics](https://github.com/open-telemetry/opentelemetry-specification/blob/ffddc289462dfe0c2041e3ca42a7b1df805706de/specification/metrics/data-model.md) at `/opentemetry/api/v1/push` path.
+VictoriaMetrics supports data ingestion via [OpenTelemetry protocol for metrics](https://github.com/open-telemetry/opentelemetry-specification/blob/ffddc289462dfe0c2041e3ca42a7b1df805706de/specification/metrics/data-model.md) at `/opentelemetry/api/v1/push` path.
 
 VictoriaMetrics expects `protobuf`-encoded requests at `/opentelemetry/api/v1/push`.
 Set HTTP request header `Content-Encoding: gzip` when sending gzip-compressed data to `/opentelemetry/api/v1/push`.
@@ -1792,7 +1793,7 @@ created by community.
 
 Graphs on the dashboards contain useful hints - hover the `i` icon in the top left corner of each graph to read it.
 
-We recommend setting up [alerts](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts.yml)
+We recommend setting up [alerts](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#alerts)
 via [vmalert](https://docs.victoriametrics.com/vmalert.html) or via Prometheus.
 
 VictoriaMetrics exposes currently running queries and their execution times at `/api/v1/status/active_queries` page.

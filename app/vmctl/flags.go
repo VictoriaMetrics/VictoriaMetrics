@@ -325,8 +325,9 @@ const (
 	vmNativeFilterTimeEnd   = "vm-native-filter-time-end"
 	vmNativeStepInterval    = "vm-native-step-interval"
 
-	vmNativeDisableHTTPKeepAlive = "vm-native-disable-http-keep-alive"
-	vmNativeDisableRetries       = "vm-native-disable-retries"
+	vmNativeDisableBinaryProtocol = "vm-native-disable-binary-protocol"
+	vmNativeDisableHTTPKeepAlive  = "vm-native-disable-http-keep-alive"
+	vmNativeDisableRetries        = "vm-native-disable-retries"
 
 	vmNativeSrcAddr        = "vm-native-src-addr"
 	vmNativeSrcUser        = "vm-native-src-user"
@@ -450,6 +451,14 @@ var (
 			Usage: "Defines whether to disable retries with backoff policy for migration process",
 			Value: false,
 		},
+		&cli.BoolFlag{
+			Name: vmNativeDisableBinaryProtocol,
+			Usage: "Whether to use https://docs.victoriametrics.com/#how-to-export-data-in-json-line-format" +
+				"instead of https://docs.victoriametrics.com/#how-to-export-data-in-native-format API." +
+				"Binary export/import API protocol implies less network and resource usage, as it transfers compressed binary data blocks." +
+				"Non-binary export/import API is less efficient, but supports deduplication if it is configured on vm-native-src-addr side.",
+			Value: false,
+		},
 	}
 )
 
@@ -468,6 +477,7 @@ const (
 	remoteReadHTTPTimeout        = "remote-read-http-timeout"
 	remoteReadHeaders            = "remote-read-headers"
 	remoteReadInsecureSkipVerify = "remote-read-insecure-skip-verify"
+	remoteReadDisablePathAppend  = "remote-read-disable-path-append"
 )
 
 var (
@@ -542,6 +552,11 @@ var (
 		&cli.BoolFlag{
 			Name:  remoteReadInsecureSkipVerify,
 			Usage: "Whether to skip TLS certificate verification when connecting to the remote read address",
+			Value: false,
+		},
+		&cli.BoolFlag{
+			Name:  remoteReadDisablePathAppend,
+			Usage: "Whether to disable automatic appending of the /api/v1/read suffix to --remote-read-src-addr",
 			Value: false,
 		},
 	}

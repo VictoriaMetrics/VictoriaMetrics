@@ -138,27 +138,8 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 
 	default:
-		// Support of deprecated links:
-		// * /api/v1/<groupID>/<alertID>/status
-		// * <groupID>/<alertID>/status
-		// TODO: to remove in next versions
-
-		if !strings.HasSuffix(r.URL.Path, "/status") {
-			httpserver.Errorf(w, r, "unsupported path requested: %q ", r.URL.Path)
-			return false
-		}
-		alert, err := rh.alertByPath(strings.TrimPrefix(r.URL.Path, "/api/v1/"))
-		if err != nil {
-			httpserver.Errorf(w, r, "%s", err)
-			return true
-		}
-
-		redirectURL := alert.WebLink()
-		if strings.HasPrefix(r.URL.Path, "/api/v1/") {
-			redirectURL = alert.APILink()
-		}
-		httpserver.Redirect(w, "/"+redirectURL)
-		return true
+		httpserver.Errorf(w, r, "unsupported path requested: %q ", r.URL.Path)
+		return false
 	}
 }
 
@@ -300,41 +281,6 @@ func (rh *requestHandler) listAlerts() ([]byte, error) {
 		}
 	}
 	return b, nil
-}
-
-func (rh *requestHandler) alertByPath(path string) (*APIAlert, error) {
-	if strings.HasPrefix(path, "/vmalert") {
-		path = strings.TrimLeft(path, "/vmalert")
-	}
-	parts := strings.SplitN(strings.TrimLeft(path, "/"), "/", -1)
-	if len(parts) != 3 {
-		return nil, &httpserver.ErrorWithStatusCode{
-			Err:        fmt.Errorf(`path %q cointains /status suffix but doesn't match pattern "/groupID/alertID/status"`, path),
-			StatusCode: http.StatusBadRequest,
-		}
-	}
-	groupID, err := uint64FromPath(parts[0])
-	if err != nil {
-		return nil, badRequest(fmt.Errorf(`cannot parse groupID: %w`, err))
-	}
-	alertID, err := uint64FromPath(parts[1])
-	if err != nil {
-		return nil, badRequest(fmt.Errorf(`cannot parse alertID: %w`, err))
-	}
-	resp, err := rh.m.AlertAPI(groupID, alertID)
-	if err != nil {
-		return nil, errResponse(err, http.StatusNotFound)
-	}
-	return resp, nil
-}
-
-func uint64FromPath(path string) (uint64, error) {
-	s := strings.TrimRight(path, "/")
-	return strconv.ParseUint(s, 10, 0)
-}
-
-func badRequest(err error) *httpserver.ErrorWithStatusCode {
-	return errResponse(err, http.StatusBadRequest)
 }
 
 func errResponse(err error, sc int) *httpserver.ErrorWithStatusCode {

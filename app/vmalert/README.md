@@ -117,11 +117,11 @@ name: <string>
 [ limit: <int> | default = 0 ]
 
 # How many rules execute at once within a group. Increasing concurrency may speed
-# up round execution speed.
+# up group's evaluation duration (exposed via `vmalert_iteration_duration_seconds` metric).
 [ concurrency: <integer> | default = 1 ]
 
 # Optional type for expressions inside the rules. Supported values: "graphite" and "prometheus".
-# By default "prometheus" type is used.
+# By default, "prometheus" type is used.
 [ type: <string> ]
 
 # Optional list of HTTP URL parameters
@@ -361,9 +361,9 @@ For recording rules to work `-remoteWrite.url` must be specified.
 
 ### Alerts state on restarts
 
-`vmalert` is stateless, it holds alerts state in the process memory. Restarting of `vmalert` process
-will reset alerts state in memory. To prevent `vmalert` from losing alerts state it should be configured
-to persist the state to the remote destination via the following flags:
+`vmalert` holds alerts state in the memory. Restart of the `vmalert` process will reset the state of all active alerts 
+in the memory. To prevent `vmalert` from losing the state on restarts configure it to persist the state 
+to the remote database via the following flags:
 
 * `-remoteWrite.url` - URL to VictoriaMetrics (Single) or vminsert (Cluster). `vmalert` will persist alerts state
   to the configured address in the form of [time series](https://docs.victoriametrics.com/keyConcepts.html#time-series)
@@ -519,7 +519,7 @@ Alertmanagers.
 
 To avoid recording rules results and alerts state duplication in VictoriaMetrics server
 don't forget to configure [deduplication](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#deduplication).
-The recommended value for `-dedup.minScrapeInterval` must be greater or equal to vmalert `evaluation_interval`.
+The recommended value for `-dedup.minScrapeInterval` must be multiple of vmalert's `evaluation_interval`.
 If you observe inconsistent or "jumping" values in series produced by vmalert, try disabling `-datasource.queryTimeAlignment`
 command line flag. Because of alignment, two or more vmalert HA pairs will produce results with the same timestamps.
 But due of backfilling (data delivered to the datasource with some delay) values of such results may differ,
@@ -1243,8 +1243,6 @@ The shortlist of configuration flags is the following:
      See https://docs.victoriametrics.com/vmalert.html#reading-rules-from-object-storage
      
      Supports an array of values separated by comma or specified via multiple flags.
-  -rule.configCheckInterval duration
-     Interval for checking for changes in '-rule' files. By default, the checking is disabled. Send SIGHUP signal in order to force config check for changes. DEPRECATED - see '-configCheckInterval' instead
   -rule.maxResolveDuration duration
      Limits the maximum duration for automatic alert expiration, which by default is 4 times evaluationInterval of the parent group.
   -rule.resendDelay duration

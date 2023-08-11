@@ -9,22 +9,24 @@ ROOT_IMAGE ?= alpine:3.18.2
 # TODO: sync it with ROOT_IMAGE when it will be fixed in the new alpine releases
 CERTS_IMAGE := alpine:3.17.3
 
-GO_BUILDER_IMAGE := golang:1.20.6-alpine
+GO_BUILDER_IMAGE := golang:1.21.0-alpine
 BUILDER_IMAGE := local/builder:2.0.0-$(shell echo $(GO_BUILDER_IMAGE) | tr :/ __)-1
 BASE_IMAGE := local/base:1.1.4-$(shell echo $(ROOT_IMAGE) | tr :/ __)-$(shell echo $(CERTS_IMAGE) | tr :/ __)
+DOCKER_BUILD ?= docker build
 DOCKER_COMPOSE ?= docker compose
+DOCKER_IMAGE_LS ?= docker image ls --format '{{.Repository}}:{{.Tag}}'
 
 package-base:
-	(docker image ls --format '{{.Repository}}:{{.Tag}}' | grep -q '$(BASE_IMAGE)$$') \
-		|| docker build \
+	($(DOCKER_IMAGE_LS) | grep -q '$(BASE_IMAGE)$$') \
+		|| $(DOCKER_BUILD) \
 			--build-arg root_image=$(ROOT_IMAGE) \
 			--build-arg certs_image=$(CERTS_IMAGE) \
 			--tag $(BASE_IMAGE) \
 			deployment/docker/base
 
 package-builder:
-	(docker image ls --format '{{.Repository}}:{{.Tag}}' | grep -q '$(BUILDER_IMAGE)$$') \
-		|| docker build \
+	($(DOCKER_IMAGE_LS) | grep -q '$(BUILDER_IMAGE)$$') \
+		|| $(DOCKER_BUILD) \
 			--build-arg go_builder_image=$(GO_BUILDER_IMAGE) \
 			--tag $(BUILDER_IMAGE) \
 			deployment/docker/builder
@@ -60,9 +62,9 @@ app-via-docker-windows: package-builder
 			-o bin/$(APP_NAME)-windows$(APP_SUFFIX)-prod.exe $(PKG_PREFIX)/app/$(APP_NAME)
 
 package-via-docker: package-base
-	(docker image ls --format '{{.Repository}}:{{.Tag}}' | grep -q '$(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(APP_SUFFIX)$(RACE)$$') || (\
+	($(DOCKER_IMAGE_LS) | grep -q '$(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(APP_SUFFIX)$(RACE)$$') || (\
 		$(MAKE) app-via-docker && \
-		docker build \
+		$(DOCKER_BUILD) \
 			--build-arg src_binary=$(APP_NAME)$(APP_SUFFIX)-prod \
 			--build-arg base_image=$(BASE_IMAGE) \
 			--tag $(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(APP_SUFFIX)$(RACE) \
@@ -170,7 +172,7 @@ package-via-docker-386:
 	GOARCH=386 $(MAKE) package-via-docker-goarch-nocgo
 
 remove-docker-images:
-	docker image ls --format '{{.Repository}}\t{{.ID}}' | awk '{print $$2}' | xargs docker image rm -f
+	docker image ls --format '{{.ID}}' | xargs docker image rm -f
 
 docker-single-up:
 	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose.yml up -d

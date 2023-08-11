@@ -55,9 +55,6 @@ absolute path to all .tpl files in root.
  -rule.templates="dir/**/*.tpl". Includes all the .tpl files in "dir" subfolders recursively.
 `)
 
-	rulesCheckInterval = flag.Duration("rule.configCheckInterval", 0, "Interval for checking for changes in '-rule' files. "+
-		"By default, the checking is disabled. Send SIGHUP signal in order to force config check for changes. DEPRECATED - see '-configCheckInterval' instead")
-
 	configCheckInterval = flag.Duration("configCheckInterval", 0, "Interval for checking for changes in '-rule' or '-notifier.config' files. "+
 		"By default, the checking is disabled. Send SIGHUP signal in order to force config check for changes.")
 
@@ -311,10 +308,6 @@ See the docs at https://docs.victoriametrics.com/vmalert.html .
 func configReload(ctx context.Context, m *manager, groupsCfg []config.Group, sighupCh <-chan os.Signal) {
 	var configCheckCh <-chan time.Time
 	checkInterval := *configCheckInterval
-	if checkInterval == 0 && *rulesCheckInterval > 0 {
-		logger.Warnf("flag `rule.configCheckInterval` is deprecated - use `configCheckInterval` instead")
-		checkInterval = *rulesCheckInterval
-	}
 	if checkInterval > 0 {
 		ticker := time.NewTicker(checkInterval)
 		configCheckCh = ticker.C
@@ -326,8 +319,9 @@ func configReload(ctx context.Context, m *manager, groupsCfg []config.Group, sig
 		validateTplFn = notifier.ValidateTemplates
 	}
 
-	// init reload metrics with positive values to improve alerting conditions
-	setConfigSuccess(fasttime.UnixTimestamp())
+	// init metrics for config state with positive values to improve alerting conditions
+	setConfigSuccessAt(fasttime.UnixTimestamp())
+
 	parseFn := config.Parse
 	for {
 		select {
@@ -365,11 +359,12 @@ func configReload(ctx context.Context, m *manager, groupsCfg []config.Group, sig
 		}
 		if configsEqual(newGroupsCfg, groupsCfg) {
 			templates.Reload()
-			// set success to 1 since previous reload
-			// could have been unsuccessful
+			// set success to 1 since previous reload could have been unsuccessful
+			// do not update configTimestamp as config version remains old.
 			configSuccess.Set(1)
-			setConfigError(nil)
-			// config didn't change - skip it
+			// reset the last config error since the config change was rolled back
+			setLastConfigErr(nil)
+			// config didn't change - skip iteration
 			continue
 		}
 		if err := m.update(ctx, newGroupsCfg, false); err != nil {
@@ -379,7 +374,7 @@ func configReload(ctx context.Context, m *manager, groupsCfg []config.Group, sig
 		}
 		templates.Reload()
 		groupsCfg = newGroupsCfg
-		setConfigSuccess(fasttime.UnixTimestamp())
+		setConfigSuccessAt(fasttime.UnixTimestamp())
 		logger.Infof("Rules reloaded successfully from %q", *rulePath)
 	}
 }
@@ -396,39 +391,36 @@ func configsEqual(a, b []config.Group) bool {
 	return true
 }
 
-// setConfigSuccess sets config reload status to 1.
-func setConfigSuccess(at uint64) {
+// setConfigSuccessAt updates config related metrics as successful.
+func setConfigSuccessAt(at uint64) {
 	configSuccess.Set(1)
 	configTimestamp.Set(at)
-	// reset the error if any
-	setConfigErr(nil)
+	// reset the lastConfigErr
+	setLastConfigErr(nil)
 }
 
-// setConfigError sets config reload status to 0.
+// setConfigError updates config related metrics according to the error.
 func setConfigError(err error) {
 	configReloadErrors.Inc()
 	configSuccess.Set(0)
-	setConfigErr(err)
+	setLastConfigErr(err)
 }
 
 var (
-	configErrMu sync.RWMutex
-	// configErr represent the error message from the last
-	// config reload.
-	configErr error
+	lastConfigErrMu sync.RWMutex
+	// lastConfigErr represent the error message from the last config reload.
+	// The message is used in web UI as notification
+	lastConfigErr error
 )
 
-func setConfigErr(err error) {
-	configErrMu.Lock()
-	configErr = err
-	configErrMu.Unlock()
+func setLastConfigErr(err error) {
+	lastConfigErrMu.Lock()
+	lastConfigErr = err
+	lastConfigErrMu.Unlock()
 }
 
-func configError() error {
-	configErrMu.RLock()
-	defer configErrMu.RUnlock()
-	if configErr != nil {
-		return configErr
-	}
-	return nil
+func getLastConfigError() error {
+	lastConfigErrMu.RLock()
+	defer lastConfigErrMu.RUnlock()
+	return lastConfigErr
 }

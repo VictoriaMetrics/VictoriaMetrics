@@ -170,6 +170,82 @@ func Test_splitDateRange(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "week chunking with not full week",
+			args: args{
+				start:       "2023-07-30T00:00:00Z",
+				end:         "2023-08-05T23:59:59.999999999Z",
+				granularity: StepWeek,
+			},
+			want: []testTimeRange{
+				{
+					"2023-07-30T00:00:00Z",
+					"2023-08-05T23:59:59.999999999Z",
+				},
+			},
+		},
+		{
+			name: "week chunking with start of the week and end of the week",
+			args: args{
+				start:       "2023-07-30T00:00:00Z",
+				end:         "2023-08-06T00:00:00Z",
+				granularity: StepWeek,
+			},
+			want: []testTimeRange{
+				{
+					"2023-07-30T00:00:00Z",
+					"2023-08-06T00:00:00Z",
+				},
+			},
+		},
+		{
+			name: "week chunking with next one day week",
+			args: args{
+				start:       "2023-07-30T00:00:00Z",
+				end:         "2023-08-07T01:12:00Z",
+				granularity: StepWeek,
+			},
+			want: []testTimeRange{
+				{
+					"2023-07-30T00:00:00Z",
+					"2023-08-06T00:00:00Z",
+				},
+				{
+					"2023-08-06T00:00:00Z",
+					"2023-08-07T01:12:00Z",
+				},
+			},
+		},
+		{
+			name: "week chunking with month and not full week representation",
+			args: args{
+				start:       "2023-07-30T00:00:00Z",
+				end:         "2023-09-01T01:12:00Z",
+				granularity: StepWeek,
+			},
+			want: []testTimeRange{
+				{
+					"2023-07-30T00:00:00Z",
+					"2023-08-06T00:00:00Z",
+				},
+				{
+					"2023-08-06T00:00:00Z",
+					"2023-08-13T00:00:00Z",
+				},
+				{
+					"2023-08-13T00:00:00Z",
+					"2023-08-20T00:00:00Z",
+				},
+				{
+					"2023-08-20T00:00:00Z",
+					"2023-08-27T00:00:00Z",
+				},
+				{
+					"2023-08-27T00:00:00Z",
+					"2023-09-01T01:12:00Z",
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

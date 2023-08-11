@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -23,7 +24,6 @@ import (
 const (
 	defaultReadTimeout = 5 * time.Minute
 	remoteReadPath     = "/api/v1/read"
-	healthPath         = "/-/healthy"
 )
 
 // StreamCallback is a callback function for processing time series
@@ -32,19 +32,22 @@ type StreamCallback func(series *vm.TimeSeries) error
 // Client is an HTTP client for reading
 // time series via remote read protocol.
 type Client struct {
-	addr      string
-	c         *http.Client
-	user      string
-	password  string
-	useStream bool
-	headers   []keyValue
-	matchers  []*prompb.LabelMatcher
+	addr              string
+	disablePathAppend bool
+	c                 *http.Client
+	user              string
+	password          string
+	useStream         bool
+	headers           []keyValue
+	matchers          []*prompb.LabelMatcher
 }
 
 // Config is config for remote read.
 type Config struct {
 	// Addr of remote storage
 	Addr string
+	// DisablePathAppend disable automatic appending of the remote read path
+	DisablePathAppend bool
 	// Timeout defines timeout for HTTP requests
 	// made by remote read client
 	Timeout time.Duration
@@ -105,13 +108,15 @@ func NewClient(cfg Config) (*Client, error) {
 			Timeout:   cfg.Timeout,
 			Transport: utils.Transport(cfg.Addr, cfg.InsecureSkipVerify),
 		},
-		addr:      strings.TrimSuffix(cfg.Addr, "/"),
-		user:      cfg.Username,
-		password:  cfg.Password,
-		useStream: cfg.UseStream,
-		headers:   headers,
-		matchers:  []*prompb.LabelMatcher{m},
+		addr:              strings.TrimSuffix(cfg.Addr, "/"),
+		disablePathAppend: cfg.DisablePathAppend,
+		user:              cfg.Username,
+		password:          cfg.Password,
+		useStream:         cfg.UseStream,
+		headers:           headers,
+		matchers:          []*prompb.LabelMatcher{m},
 	}
+
 	return c, nil
 }
 
@@ -154,27 +159,18 @@ func (c *Client) do(req *http.Request) (*http.Response, error) {
 	return c.c.Do(req)
 }
 
-// Ping checks the health of the read source
-func (c *Client) Ping() error {
-	url := c.addr + healthPath
-	req, err := http.NewRequest(http.MethodGet, url, nil)
-	if err != nil {
-		return fmt.Errorf("cannot create request to %q: %s", url, err)
-	}
-	resp, err := c.do(req)
-	if err != nil {
-		return err
-	}
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("bad status code: %d", resp.StatusCode)
-	}
-	return nil
-}
-
 func (c *Client) fetch(ctx context.Context, data []byte, streamCb StreamCallback) error {
 	r := bytes.NewReader(data)
-	url := c.addr + remoteReadPath
-	req, err := http.NewRequest(http.MethodPost, url, r)
+	// by default, we are using a common remote read path
+	u, err := url.JoinPath(c.addr, remoteReadPath)
+	if err != nil {
+		return fmt.Errorf("error create url from addr %s and default remote read path %s", c.addr, remoteReadPath)
+	}
+	// we should use full address from the remote-read-src-addr flag
+	if c.disablePathAppend {
+		u = c.addr
+	}
+	req, err := http.NewRequest(http.MethodPost, u, r)
 	if err != nil {
 		return fmt.Errorf("failed to create new HTTP request: %w", err)
 	}

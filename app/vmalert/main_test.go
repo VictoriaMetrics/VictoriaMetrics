@@ -90,9 +90,10 @@ groups:
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer func() { _ = os.Remove(f.Name()) }()
 	writeToFile(t, f.Name(), rules1)
 
-	*rulesCheckInterval = 200 * time.Millisecond
+	*configCheckInterval = 200 * time.Millisecond
 	*rulePath = []string{f.Name()}
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -117,14 +118,37 @@ groups:
 		return len(m.groups)
 	}
 
-	time.Sleep(*rulesCheckInterval * 2)
+	checkCfg := func(err error) {
+		cErr := getLastConfigError()
+		cfgSuc := configSuccess.Get()
+		if err != nil {
+			if cErr == nil {
+				t.Fatalf("expected to have config error %s; got nil instead", cErr)
+			}
+			if cfgSuc != 0 {
+				t.Fatalf("expected to have metric configSuccess to be set to 0; got %d instead", cfgSuc)
+			}
+			return
+		}
+
+		if cErr != nil {
+			t.Fatalf("unexpected config error: %s", cErr)
+		}
+		if cfgSuc != 1 {
+			t.Fatalf("expected to have metric configSuccess to be set to 1; got %d instead", cfgSuc)
+		}
+	}
+
+	time.Sleep(*configCheckInterval * 2)
+	checkCfg(nil)
 	groupsLen := lenLocked(m)
 	if groupsLen != 1 {
 		t.Fatalf("expected to have exactly 1 group loaded; got %d", groupsLen)
 	}
 
 	writeToFile(t, f.Name(), rules2)
-	time.Sleep(*rulesCheckInterval * 2)
+	time.Sleep(*configCheckInterval * 2)
+	checkCfg(nil)
 	groupsLen = lenLocked(m)
 	if groupsLen != 2 {
 		fmt.Println(m.groups)
@@ -133,7 +157,8 @@ groups:
 
 	writeToFile(t, f.Name(), rules1)
 	procutil.SelfSIGHUP()
-	time.Sleep(*rulesCheckInterval / 2)
+	time.Sleep(*configCheckInterval / 2)
+	checkCfg(nil)
 	groupsLen = lenLocked(m)
 	if groupsLen != 1 {
 		t.Fatalf("expected to have exactly 1 group loaded; got %d", groupsLen)
@@ -141,7 +166,8 @@ groups:
 
 	writeToFile(t, f.Name(), `corrupted`)
 	procutil.SelfSIGHUP()
-	time.Sleep(*rulesCheckInterval / 2)
+	time.Sleep(*configCheckInterval / 2)
+	checkCfg(fmt.Errorf("config error"))
 	groupsLen = lenLocked(m)
 	if groupsLen != 1 { // should remain unchanged
 		t.Fatalf("expected to have exactly 1 group loaded; got %d", groupsLen)
