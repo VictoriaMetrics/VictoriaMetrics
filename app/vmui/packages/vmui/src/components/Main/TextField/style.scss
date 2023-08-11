@@ -40,14 +40,9 @@
     overflow: hidden;
     text-overflow: ellipsis;
     display: -webkit-box;
-    -webkit-line-clamp: 2; /* number of lines to show */
-    line-clamp: 2;
+    -webkit-line-clamp: 1; /* number of lines to show */
+    line-clamp: 1;
     -webkit-box-orient: vertical;
-
-    @media (max-width: 500px) {
-      -webkit-line-clamp: 1; /* number of lines to show */
-      line-clamp: 1;
-    }
   }
 
   &__label {
@@ -56,10 +51,22 @@
   }
 
   &__error {
-    top: calc((100% - ($font-size-small/2)) - 2px);
+    position: relative;
+    top: calc($font-size-small/-2);
+    width: fit-content;
+    overflow-wrap: anywhere;
     color: $color-error;
     pointer-events: auto;
     user-select: text;
+
+    &_full {
+      display: block;
+      overflow: visible;
+    }
+
+    &_overflowed {
+      cursor: pointer;
+    }
   }
 
   &__helper-text {
@@ -117,9 +124,9 @@
     align-items: center;
     justify-content: center;
     max-width: 15px;
-    top: auto;
+    top: 0;
     left: $padding-small;
-    height: 100%;
+    height: 40px;
     position: absolute;
     color: $color-text-secondary;
   }

@@ -10,8 +10,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/cespare/xxhash/v2"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bloomfilter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -28,6 +26,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/streamaggr"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
 	"github.com/VictoriaMetrics/metrics"
+	"github.com/cespare/xxhash/v2"
 )
 
 var (
@@ -705,11 +704,13 @@ var matchIdxsPool bytesutil.ByteBufferPool
 
 func dropAggregatedSeries(src []prompbmarshal.TimeSeries, matchIdxs []byte, dropInput bool) []prompbmarshal.TimeSeries {
 	dst := src[:0]
-	for i, match := range matchIdxs {
-		if match == 0 {
-			continue
+	if !dropInput {
+		for i, match := range matchIdxs {
+			if match == 1 {
+				continue
+			}
+			dst = append(dst, src[i])
 		}
-		dst = append(dst, src[i])
 	}
 	tail := src[len(dst):]
 	_ = prompbmarshal.ResetTimeSeries(tail)

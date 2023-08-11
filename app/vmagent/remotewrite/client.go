@@ -29,8 +29,9 @@ var (
 	rateLimit = flagutil.NewArrayInt("remoteWrite.rateLimit", "Optional rate limit in bytes per second for data sent to the corresponding -remoteWrite.url. "+
 		"By default, the rate limit is disabled. It can be useful for limiting load on remote storage when big amounts of buffered data "+
 		"is sent after temporary unavailability of the remote storage")
-	sendTimeout = flagutil.NewArrayDuration("remoteWrite.sendTimeout", "Timeout for sending a single block of data to the corresponding -remoteWrite.url (default 1m)")
-	proxyURL    = flagutil.NewArrayString("remoteWrite.proxyURL", "Optional proxy URL for writing data to the corresponding -remoteWrite.url. "+
+	sendTimeout = flagutil.NewArrayDuration("remoteWrite.sendTimeout", "Timeout for sending a single block of data to the corresponding -remoteWrite.url (default "+
+		defaultSendTimeout.String()+")")
+	proxyURL = flagutil.NewArrayString("remoteWrite.proxyURL", "Optional proxy URL for writing data to the corresponding -remoteWrite.url. "+
 		"Supported proxies: http, https, socks5. Example: -remoteWrite.proxyURL=socks5://proxy:1234")
 
 	tlsInsecureSkipVerify = flagutil.NewArrayBool("remoteWrite.tlsInsecureSkipVerify", "Whether to skip tls verification when connecting to the corresponding -remoteWrite.url")
@@ -71,6 +72,8 @@ var (
 		"Defaults to \"aps\"")
 	awsSecretKey = flagutil.NewArrayString("remoteWrite.aws.secretKey", "Optional AWS SecretKey to use for the corresponding -remoteWrite.url if -remoteWrite.aws.useSigv4 is set")
 )
+
+const defaultSendTimeout = time.Minute
 
 type client struct {
 	sanitizedURL   string
@@ -134,7 +137,7 @@ func newHTTPClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persiste
 	}
 	hc := &http.Client{
 		Transport: tr,
-		Timeout:   sendTimeout.GetOptionalArgOrDefault(argIdx, time.Minute),
+		Timeout:   sendTimeout.GetOptionalArgOrDefault(argIdx, defaultSendTimeout),
 	}
 	c := &client{
 		sanitizedURL:   sanitizedURL,

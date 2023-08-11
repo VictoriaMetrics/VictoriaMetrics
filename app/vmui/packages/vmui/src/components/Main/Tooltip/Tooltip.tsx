@@ -41,7 +41,7 @@ const Tooltip: FC<TooltipProps> = ({
     return () => {
       window.removeEventListener("scroll", onScrollWindow);
     };
-  }, [isOpen]);
+  }, [isOpen, title]);
 
   const popperStyle = useMemo(() => {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment

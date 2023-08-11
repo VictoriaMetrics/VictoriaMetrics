@@ -48,18 +48,22 @@ Bumping the limits may significantly improve build speed.
 
 ## Release version and Docker images
 
-1. Make sure that the release commits have no security issues.
-1. Document all the changes for new release in [CHANGELOG.md](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/CHANGELOG.md) and update version if needed in [SECURITY.md](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/SECURITY.md)
+1. Make sure all the changes are documented in [CHANGELOG.md](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/CHANGELOG.md).
+   Ideally, every change must be documented in the commit with the change. Alternatively, the change must be documented immediately
+   after the commit, which adds the change.
+1. Make sure all the changes are synced between `master`, `cluster`, `enterprise-single-node` and `enteprise-cluster` branches.
+   Changes in these branches must be synced immediately after they are commited in at least a single branch.
+1. Make sure that the release branches have no security issues.
+1. Update release versions if needed in [SECURITY.md](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/SECURITY.md).
 1. Add `(available starting from v1.xx.y)` line to feature docs introduced in the upcoming release.
 1. Cut new version in [CHANGELOG.md](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/CHANGELOG.md)
-and make it merged. See example in this [commit](https://github.com/VictoriaMetrics/VictoriaMetrics/commit/b771152039d23b5ccd637a23ea748bc44a9511a7).
-1. Cherry-pick all changes from `master` to `cluster` branch, and to ENT branches `enterprise-single-node`, `enterprise-cluster`.
+   and make it merged. See example in this [commit](https://github.com/VictoriaMetrics/VictoriaMetrics/commit/b771152039d23b5ccd637a23ea748bc44a9511a7).
 1. Cherry-pick bug fixes relevant for LTS releases.
 1. Make sure you get all changes fetched `git fetch --all`.
 1. Create the following release tags:
    * `git tag -s v1.xx.y` in `master` branch
    * `git tag -s v1.xx.y-cluster` in `cluster` branch
-   * `git tag -s v1.xx.y-enterprise` in `enterprise` branch
+   * `git tag -s v1.xx.y-enterprise` in `enterprise-single-node` branch
    * `git tag -s v1.xx.y-enterprise-cluster` in `enterprise-cluster` branch
 1. Run `TAG=v1.xx.y make publish-release`. This command performs the following tasks:
    a) Build and package binaries in `*.tar.gz` release archives with the corresponding `_checksums.txt` files inside `bin` directory.
