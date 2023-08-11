@@ -133,9 +133,16 @@ func (wr *writeContext) appendSamplesFromHistogram(metricName string, p *pb.Hist
 	t := int64(p.TimeUnixNano / 1e6)
 	isStale := (p.Flags)&uint32(1) != 0
 	wr.pointLabels = appendAttributesToPromLabels(wr.pointLabels[:0], p.Attributes)
+	wr.appendSample(metricName+"_count", t, float64(p.Count), isStale)
+	if p.Sum == nil {
+		// fast path, convert metric as simple counter.
+		// given buckets cannot be used for histogram functions.
+		// Negative threshold buckets MAY be used, but then the Histogram MetricPoint MUST NOT contain a sum value as it would no longer be a counter semantically.
+		// https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md#histogram
+		return
+	}
 
 	wr.appendSample(metricName+"_sum", t, *p.Sum, isStale)
-	wr.appendSample(metricName+"_count", t, float64(p.Count), isStale)
 
 	var cumulative uint64
 	for index, bound := range p.ExplicitBounds {
