@@ -24,10 +24,7 @@ The following `tip` changes can be tested by building VictoriaMetrics components
 
 ## tip
 
-**Update note**: starting from this release, VictoriaMetrics single-server and vmagent 
-set `honor_timestamps: false` by default in [scrape configs](https://docs.victoriametrics.com/sd_configs.html#scrape_configs)
-if this options isn't set explicitly. The change supposed to significantly improve staleness detection, compression
-and query performance when scraping `cadvisor` metrics. See more details [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4697).
+**Update note**: starting from this release, [vmagent](https://docs.victoriametrics.com/vmagent.html) ignores timestamps provided by scrape targets by default - it associates scraped metrics with local timestamps instead. Set `honor_timestamps: true` in [scrape configs](https://docs.victoriametrics.com/sd_configs.html#scrape_configs) if timestamps provided by scrape targets must be used instead. This change helps removing gaps for metrics collected from [cadvisor](https://github.com/google/cadvisor) such as `container_memory_usage_bytes`. This also improves data compression and query performance over metrics collected from `cadvisor`. See more details [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4697).
 
 * SECURITY: upgrade Go builder from Go1.20.6 to Go1.20.7. The update includes a security fix to the crypto/tls package, as well as bug fixes to the assembler and the compiler. See [the list of issues addressed in Go1.20.7](https://github.com/golang/go/issues?q=milestone%3AGo1.20.7+label%3ACherryPickApproved).
 
