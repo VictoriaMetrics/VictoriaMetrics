@@ -9,22 +9,23 @@ import (
 	"time"
 )
 
-// TimePrecision sets the precision of times and dates within this library.
-// This has an influence on the precision of times when comparing expiry or
-// other related time fields. Furthermore, it is also the precision of times
-// when serializing.
+// TimePrecision sets the precision of times and dates within this library. This
+// has an influence on the precision of times when comparing expiry or other
+// related time fields. Furthermore, it is also the precision of times when
+// serializing.
 //
 // For backwards compatibility the default precision is set to seconds, so that
 // no fractional timestamps are generated.
 var TimePrecision = time.Second
 
-// MarshalSingleStringAsArray modifies the behaviour of the ClaimStrings type, especially
-// its MarshalJSON function.
+// MarshalSingleStringAsArray modifies the behavior of the ClaimStrings type,
+// especially its MarshalJSON function.
 //
 // If it is set to true (the default), it will always serialize the type as an
-// array of strings, even if it just contains one element, defaulting to the behaviour
-// of the underlying []string. If it is set to false, it will serialize to a single
-// string, if it contains one element. Otherwise, it will serialize to an array of strings.
+// array of strings, even if it just contains one element, defaulting to the
+// behavior of the underlying []string. If it is set to false, it will serialize
+// to a single string, if it contains one element. Otherwise, it will serialize
+// to an array of strings.
 var MarshalSingleStringAsArray = true
 
 // NumericDate represents a JSON numeric date value, as referenced at
@@ -58,9 +59,10 @@ func (date NumericDate) MarshalJSON() (b []byte, err error) {
 	// For very large timestamps, UnixNano would overflow an int64, but this
 	// function requires nanosecond level precision, so we have to use the
 	// following technique to get round the issue:
+	//
 	// 1. Take the normal unix timestamp to form the whole number part of the
 	//    output,
-	// 2. Take the result of the Nanosecond function, which retuns the offset
+	// 2. Take the result of the Nanosecond function, which returns the offset
 	//    within the second of the particular unix time instance, to form the
 	//    decimal part of the output
 	// 3. Concatenate them to produce the final result
@@ -72,9 +74,10 @@ func (date NumericDate) MarshalJSON() (b []byte, err error) {
 	return output, nil
 }
 
-// UnmarshalJSON is an implementation of the json.RawMessage interface and deserializses a
-// NumericDate from a JSON representation, i.e. a json.Number. This number represents an UNIX epoch
-// with either integer or non-integer seconds.
+// UnmarshalJSON is an implementation of the json.RawMessage interface and
+// deserializes a [NumericDate] from a JSON representation, i.e. a
+// [json.Number]. This number represents an UNIX epoch with either integer or
+// non-integer seconds.
 func (date *NumericDate) UnmarshalJSON(b []byte) (err error) {
 	var (
 		number json.Number
@@ -95,8 +98,9 @@ func (date *NumericDate) UnmarshalJSON(b []byte) (err error) {
 	return nil
 }
 
-// ClaimStrings is basically just a slice of strings, but it can be either serialized from a string array or just a string.
-// This type is necessary, since the "aud" claim can either be a single string or an array.
+// ClaimStrings is basically just a slice of strings, but it can be either
+// serialized from a string array or just a string. This type is necessary,
+// since the "aud" claim can either be a single string or an array.
 type ClaimStrings []string
 
 func (s *ClaimStrings) UnmarshalJSON(data []byte) (err error) {
@@ -133,10 +137,11 @@ func (s *ClaimStrings) UnmarshalJSON(data []byte) (err error) {
 }
 
 func (s ClaimStrings) MarshalJSON() (b []byte, err error) {
-	// This handles a special case in the JWT RFC. If the string array, e.g. used by the "aud" field,
-	// only contains one element, it MAY be serialized as a single string. This may or may not be
-	// desired based on the ecosystem of other JWT library used, so we make it configurable by the
-	// variable MarshalSingleStringAsArray.
+	// This handles a special case in the JWT RFC. If the string array, e.g.
+	// used by the "aud" field, only contains one element, it MAY be serialized
+	// as a single string. This may or may not be desired based on the ecosystem
+	// of other JWT library used, so we make it configurable by the variable
+	// MarshalSingleStringAsArray.
 	if len(s) == 1 && !MarshalSingleStringAsArray {
 		return json.Marshal(s[0])
 	}
