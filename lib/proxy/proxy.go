@@ -139,7 +139,7 @@ func (u *URL) NewDialFunc(ac *promauth.Config) (fasthttp.DialFunc, error) {
 	}
 	pu := u.URL
 	if !isURLSchemeValid(pu.Scheme) {
-		return nil, fmt.Errorf("unknown scheme=%q for proxy_url=%q, must be in %q", pu.Scheme, pu.Redacted(), strings.Join(validURLSchemes, ","))
+		return nil, fmt.Errorf("unknown scheme=%q for proxy_url=%q, must be in %s", pu.Scheme, pu.Redacted(), validURLSchemes)
 	}
 	isTLS := (pu.Scheme == "https" || pu.Scheme == "tls+socks5")
 	proxyAddr := addMissingPort(pu.Host, isTLS)
