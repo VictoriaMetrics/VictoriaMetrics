@@ -24,9 +24,11 @@ The following `tip` changes can be tested by building VictoriaMetrics components
 
 ## tip
 
+
 **Update note**: starting from this release, [vmagent](https://docs.victoriametrics.com/vmagent.html) ignores timestamps provided by scrape targets by default - it associates scraped metrics with local timestamps instead. Set `honor_timestamps: true` in [scrape configs](https://docs.victoriametrics.com/sd_configs.html#scrape_configs) if timestamps provided by scrape targets must be used instead. This change helps removing gaps for metrics collected from [cadvisor](https://github.com/google/cadvisor) such as `container_memory_usage_bytes`. This also improves data compression and query performance over metrics collected from `cadvisor`. See more details [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4697).
 
 * SECURITY: upgrade Go builder from Go1.20.6 to Go1.21.0 in order to fix [this issue](https://github.com/golang/go/issues/61460).
+* SECURITY: upgrade base docker image (Alpine) from 3.18.2 to 3.18.3. See [alpine 3.18.3 release notes](https://alpinelinux.org/posts/Alpine-3.15.10-3.16.7-3.17.5-3.18.3-released.html).
 
 * FEATURE: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): add `share_eq_over_time(m[d], eq)` function for calculating the share (in the range `[0...1]`) of raw samples on the given lookbehind window `d`, which are equal to `eq`. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4441). Thanks to @Damon07 for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4725).
 * FEATURE: [vmauth](https://docs.victoriametrics.com/vmauth.html): allow configuring deadline for a backend to be excluded from the rotation on errors via `-failTimeout` cmd-line flag. This feature could be useful when it is expected for backends to be not available for significant periods of time. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4415) for details. Thanks to @SunKyu for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4416).  
