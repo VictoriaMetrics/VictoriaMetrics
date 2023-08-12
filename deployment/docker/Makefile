@@ -2,12 +2,8 @@
 
 DOCKER_NAMESPACE := victoriametrics
 
-ROOT_IMAGE ?= alpine:3.18.0
-
-# Use alpine:3.17.3 instead of 3.18.0 for CERTS_IMAGE
-# because alpine:3.18.0 is broken for cross-platform builds
-# TODO: sync it with ROOT_IMAGE when it will be fixed in the new alpine releases
-CERTS_IMAGE := alpine:3.17.3
+ROOT_IMAGE ?= alpine:3.18.3
+CERTS_IMAGE := alpine:3.18.3
 
 GO_BUILDER_IMAGE := golang:1.20.4-alpine
 BUILDER_IMAGE := local/builder:2.0.0-$(shell echo $(GO_BUILDER_IMAGE) | tr :/ __)-1
