@@ -18,6 +18,7 @@ See also [case studies](https://docs.victoriametrics.com/CaseStudies.html).
 
 * [Why Roblox Picked VictoriaMetrics for Observability Data Overhaul](https://www.datanami.com/2023/05/30/why-roblox-picked-victoriametrics-for-observability-data-overhaul/)
 * [The (Almost) Infinitely Scalable Open Source Monitoring Dream](https://www.forbes.com/sites/adrianbridgwater/2022/08/16/the-almost-infinitely-scalable-open-source-monitoring-dream/)
+* [The Agility In Cloud Observability](https://www.forbes.com/sites/adrianbridgwater/2023/07/05/the-agility-in-cloud-observability/)
 * [Monitoring at scale with Victoria Metrics](https://tech.bedrockstreaming.com/2022/09/06/monitoring-at-scale-with-victoriametrics.html)
 * [Optimizing Linkerd metrics in Prometheus](https://aatarasoff.medium.com/optimizing-linkerd-metrics-in-prometheus-de607ec10f6b)
 * [Optimizing the Storage of Large Volumes of Metrics for a Long Time in VictoriaMetrics](https://percona.community/blog/2022/06/02/long-time-keeping-metrics-victoriametrics/)
