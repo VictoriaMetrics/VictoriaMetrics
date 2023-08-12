@@ -252,8 +252,19 @@ type Config struct {
 	// and specify a Retryer instead.
 	SleepDelay func(time.Duration)
 
-	// Deprecated: This setting no longer has any effect.
-	// RESTful paths are no longer cleaned after request serialization.
+	// DisableRestProtocolURICleaning will not clean the URL path when making rest protocol requests.
+	// Will default to false. This would only be used for empty directory names in s3 requests.
+	//
+	// Example:
+	//    sess := session.Must(session.NewSession(&aws.Config{
+	//         DisableRestProtocolURICleaning: aws.Bool(true),
+	//    }))
+	//
+	//    svc := s3.New(sess)
+	//    out, err := svc.GetObject(&s3.GetObjectInput {
+	//    	Bucket: aws.String("bucketname"),
+	//    	Key: aws.String("//foo//bar//moo"),
+	//    })
 	DisableRestProtocolURICleaning *bool
 
 	// EnableEndpointDiscovery will allow for endpoint discovery on operations that
@@ -486,8 +497,8 @@ func (c *Config) WithLowerCaseHeaderMaps(t bool) *Config {
 	return c
 }
 
-// Deprecated: This setting no longer has any effect.
-// RESTful paths are no longer cleaned after request serialization.
+// WithDisableRestProtocolURICleaning sets a config DisableRestProtocolURICleaning value
+// returning a Config pointer for chaining.
 func (c *Config) WithDisableRestProtocolURICleaning(t bool) *Config {
 	c.DisableRestProtocolURICleaning = &t
 	return c
@@ -600,7 +611,7 @@ func mergeInConfig(dst *Config, other *Config) {
 	if other.DisableRestProtocolURICleaning != nil {
 		dst.DisableRestProtocolURICleaning = other.DisableRestProtocolURICleaning
 	}
-	
+
 	if other.EnforceShouldRetryCheck != nil {
 		dst.EnforceShouldRetryCheck = other.EnforceShouldRetryCheck
 	}
