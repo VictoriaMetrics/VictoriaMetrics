@@ -18,6 +18,17 @@ import (
 	"golang.org/x/net/proxy"
 )
 
+var validURLSchemes = []string{"http", "https", "socks5", "tls+socks5"}
+
+func isURLSchemeValid(scheme string) bool {
+	for _, vs := range validURLSchemes {
+		if scheme == vs {
+			return true
+		}
+	}
+	return false
+}
+
 // URL implements YAML.Marshaler and yaml.Unmarshaler interfaces for url.URL.
 type URL struct {
 	URL *url.URL
@@ -114,6 +125,9 @@ func (u *URL) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	if err != nil {
 		return fmt.Errorf("cannot parse proxy_url=%q as *url.URL: %w", s, err)
 	}
+	if !isURLSchemeValid(parsedURL.Scheme) {
+		return fmt.Errorf("cannot parse proxy_url=%q unsupported scheme format=%q, valid schemes: %s", s, parsedURL.Scheme, validURLSchemes)
+	}
 	u.URL = parsedURL
 	return nil
 }
@@ -124,10 +138,8 @@ func (u *URL) NewDialFunc(ac *promauth.Config) (fasthttp.DialFunc, error) {
 		return defaultDialFunc, nil
 	}
 	pu := u.URL
-	switch pu.Scheme {
-	case "http", "https", "socks5", "tls+socks5":
-	default:
-		return nil, fmt.Errorf("unknown scheme=%q for proxy_url=%q, must be http, https, socks5 or tls+socks5", pu.Scheme, pu.Redacted())
+	if !isURLSchemeValid(pu.Scheme) {
+		return nil, fmt.Errorf("unknown scheme=%q for proxy_url=%q, must be in %s", pu.Scheme, pu.Redacted(), validURLSchemes)
 	}
 	isTLS := (pu.Scheme == "https" || pu.Scheme == "tls+socks5")
 	proxyAddr := addMissingPort(pu.Host, isTLS)
