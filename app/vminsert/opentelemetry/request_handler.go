@@ -1,6 +1,7 @@
 package opentelemetry
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/common"
@@ -23,6 +24,9 @@ func InsertHandler(req *http.Request) error {
 		return err
 	}
 	isGzipped := req.Header.Get("Content-Encoding") == "gzip"
+	if req.Header.Get("Content-Type") == "application/json" {
+		return fmt.Errorf("json encoding isn't supported for opentelemetry format. Use protobuf encoding")
+	}
 	return stream.ParseStream(req.Body, isGzipped, func(tss []prompbmarshal.TimeSeries) error {
 		return insertRows(tss, extraLabels)
 	})

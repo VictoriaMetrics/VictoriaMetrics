@@ -171,7 +171,7 @@ func (ctx *InsertCtx) dropAggregatedRows(matchIdxs []byte) {
 	src := ctx.mrs
 	if !*streamAggrDropInput {
 		for idx, match := range matchIdxs {
-			if match != 0 {
+			if match == 1 {
 				continue
 			}
 			dst = append(dst, src[idx])

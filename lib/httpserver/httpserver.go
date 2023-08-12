@@ -436,11 +436,12 @@ var (
 
 // GetQuotedRemoteAddr returns quoted remote address.
 func GetQuotedRemoteAddr(r *http.Request) string {
-	remoteAddr := strconv.Quote(r.RemoteAddr) // quote remoteAddr and X-Forwarded-For, since they may contain untrusted input
+	remoteAddr := r.RemoteAddr
 	if addr := r.Header.Get("X-Forwarded-For"); addr != "" {
-		remoteAddr += ", X-Forwarded-For: " + strconv.Quote(addr)
+		remoteAddr += ", X-Forwarded-For: " + addr
 	}
-	return remoteAddr
+	// quote remoteAddr and X-Forwarded-For, since they may contain untrusted input
+	return strconv.Quote(remoteAddr)
 }
 
 // Errorf writes formatted error message to w and to logger.

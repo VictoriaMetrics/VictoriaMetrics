@@ -556,8 +556,8 @@ var (
 		},
 		&cli.BoolFlag{
 			Name:  remoteReadDisablePathAppend,
-			Usage: "Whether to disable automatic appending of the path to the remote storage.",
-			Value: true,
+			Usage: "Whether to disable automatic appending of the /api/v1/read suffix to --remote-read-src-addr",
+			Value: false,
 		},
 	}
 )
