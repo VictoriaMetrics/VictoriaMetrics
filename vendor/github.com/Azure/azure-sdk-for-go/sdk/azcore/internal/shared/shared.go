@@ -13,7 +13,6 @@ import (
 	"reflect"
 	"regexp"
 	"strconv"
-	"strings"
 	"time"
 )
 
@@ -79,14 +78,26 @@ func ValidateModVer(moduleVersion string) error {
 	return nil
 }
 
-// ExtractPackageName returns "package" from "package.Client".
+// ExtractModuleName returns "module", "package.Client" from "module/package.Client" or
+// "package", "package.Client" from "package.Client" when there's no "module/" prefix.
 // If clientName is malformed, an error is returned.
-func ExtractPackageName(clientName string) (string, error) {
-	pkg, client, ok := strings.Cut(clientName, ".")
-	if !ok {
-		return "", fmt.Errorf("missing . in clientName %s", clientName)
-	} else if pkg == "" || client == "" {
-		return "", fmt.Errorf("malformed clientName %s", clientName)
+func ExtractModuleName(clientName string) (string, string, error) {
+	// uses unnamed capturing for "module", "package.Client", and "package"
+	regex, err := regexp.Compile(`^(?:([a-z0-9]+)/)?(([a-z0-9]+)\.(?:[A-Za-z0-9]+))$`)
+	if err != nil {
+		return "", "", err
 	}
-	return pkg, nil
+
+	matches := regex.FindStringSubmatch(clientName)
+	if len(matches) < 4 {
+		return "", "", fmt.Errorf("malformed clientName %s", clientName)
+	}
+
+	// the first match is the entire string, the second is "module", the third is
+	// "package.Client" and the fourth is "package".
+	// if there was no "module/" prefix, the second match will be the empty string
+	if matches[1] != "" {
+		return matches[1], matches[2], nil
+	}
+	return matches[3], matches[2], nil
 }

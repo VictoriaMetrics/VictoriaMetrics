@@ -152,10 +152,10 @@ func (client *BlobClient) acquireLeaseCreateRequest(ctx context.Context, duratio
 		req.Raw().Header["x-ms-proposed-lease-id"] = []string{*options.ProposedLeaseID}
 	}
 	if modifiedAccessConditions != nil && modifiedAccessConditions.IfModifiedSince != nil {
-		req.Raw().Header["If-Modified-Since"] = []string{modifiedAccessConditions.IfModifiedSince.Format(time.RFC1123)}
+		req.Raw().Header["If-Modified-Since"] = []string{(*modifiedAccessConditions.IfModifiedSince).In(gmt).Format(time.RFC1123)}
 	}
 	if modifiedAccessConditions != nil && modifiedAccessConditions.IfUnmodifiedSince != nil {
-		req.Raw().Header["If-Unmodified-Since"] = []string{modifiedAccessConditions.IfUnmodifiedSince.Format(time.RFC1123)}
+		req.Raw().Header["If-Unmodified-Since"] = []string{(*modifiedAccessConditions.IfUnmodifiedSince).In(gmt).Format(time.RFC1123)}
 	}
 	if modifiedAccessConditions != nil && modifiedAccessConditions.IfMatch != nil {
 		req.Raw().Header["If-Match"] = []string{string(*modifiedAccessConditions.IfMatch)}
@@ -247,10 +247,10 @@ func (client *BlobClient) breakLeaseCreateRequest(ctx context.Context, options *
 		req.Raw().Header["x-ms-lease-break-period"] = []string{strconv.FormatInt(int64(*options.BreakPeriod), 10)}
 	}
 	if modifiedAccessConditions != nil && modifiedAccessConditions.IfModifiedSince != nil {
-		req.Raw().Header["If-Modified-Since"] = []string{modifiedAccessConditions.IfModifiedSince.Format(time.RFC1123)}
+		req.Raw().Header["If-Modified-Since"] = []string{(*modifiedAccessConditions.IfModifiedSince).In(gmt).Format(time.RFC1123)}
 	}
 	if modifiedAccessConditions != nil && modifiedAccessConditions.IfUnmodifiedSince != nil {
-		req.Raw().Header["If-Unmodified-Since"] = []string{modifiedAccessConditions.IfUnmodifiedSince.Format(time.RFC1123)}
+		req.Raw().Header["If-Unmodified-Since"] = []string{(*modifiedAccessConditions.IfUnmodifiedSince).In(gmt).Format(time.RFC1123)}
 	}
 	if modifiedAccessConditions != nil && modifiedAccessConditions.IfMatch != nil {
 		req.Raw().Header["If-Match"] = []string{string(*modifiedAccessConditions.IfMatch)}
@@ -350,10 +350,10 @@ func (client *BlobClient) changeLeaseCreateRequest(ctx context.Context, leaseID 
 	req.Raw().Header["x-ms-lease-id"] = []string{leaseID}
 	req.Raw().Header["x-ms-proposed-lease-id"] = []string{proposedLeaseID}
 	if modifiedAccessConditions != nil && modifiedAccessConditions.IfModifiedSince != nil {
-		req.Raw().Header["If-Modified-Since"] = []string{modifiedAccessConditions.IfModifiedSince.Format(time.RFC1123)}
+		req.Raw().Header["If-Modified-Since"] = []string{(*modifiedAccessConditions.IfModifiedSince).In(gmt).Format(time.RFC1123)}
 	}
 	if modifiedAccessConditions != nil && modifiedAccessConditions.IfUnmodifiedSince != nil {
-		req.Raw().Header["If-Unmodified-Since"] = []string{modifiedAccessConditions.IfUnmodifiedSince.Format(time.RFC1123)}
+		req.Raw().Header["If-Unmodified-Since"] = []string{(*modifiedAccessConditions.IfUnmodifiedSince).In(gmt).Format(time.RFC1123)}
 	}
 	if modifiedAccessConditions != nil && modifiedAccessConditions.IfMatch != nil {
 		req.Raw().Header["If-Match"] = []string{string(*modifiedAccessConditions.IfMatch)}
@@ -458,10 +458,10 @@ func (client *BlobClient) copyFromURLCreateRequest(ctx context.Context, copySour
 		req.Raw().Header["x-ms-access-tier"] = []string{string(*options.Tier)}
 	}
 	if sourceModifiedAccessConditions != nil && sourceModifiedAccessConditions.SourceIfModifiedSince != nil {
-		req.Raw().Header["x-ms-source-if-modified-since"] = []string{sourceModifiedAccessConditions.SourceIfModifiedSince.Format(time.RFC1123)}
+		req.Raw().Header["x-ms-source-if-modified-since"] = []string{(*sourceModifiedAccessConditions.SourceIfModifiedSince).In(gmt).Format(time.RFC1123)}
 	}
 	if sourceModifiedAccessConditions != nil && sourceModifiedAccessConditions.SourceIfUnmodifiedSince != nil {
-		req.Raw().Header["x-ms-source-if-unmodified-since"] = []string{sourceModifiedAccessConditions.SourceIfUnmodifiedSince.Format(time.RFC1123)}
+		req.Raw().Header["x-ms-source-if-unmodified-since"] = []string{(*sourceModifiedAccessConditions.SourceIfUnmodifiedSince).In(gmt).Format(time.RFC1123)}
 	}
 	if sourceModifiedAccessConditions != nil && sourceModifiedAccessConditions.SourceIfMatch != nil {
 		req.Raw().Header["x-ms-source-if-match"] = []string{string(*sourceModifiedAccessConditions.SourceIfMatch)}
@@ -470,10 +470,10 @@ func (client *BlobClient) copyFromURLCreateRequest(ctx context.Context, copySour
 		req.Raw().Header["x-ms-source-if-none-match"] = []string{string(*sourceModifiedAccessConditions.SourceIfNoneMatch)}
 	}
 	if modifiedAccessConditions != nil && modifiedAccessConditions.IfModifiedSince != nil {
-		req.Raw().Header["If-Modified-Since"] = []string{modifiedAccessConditions.IfModifiedSince.Format(time.RFC1123)}
+		req.Raw().Header["If-Modified-Since"] = []string{(*modifiedAccessConditions.IfModifiedSince).In(gmt).Format(time.RFC1123)}
 	}
 	if modifiedAccessConditions != nil && modifiedAccessConditions.IfUnmodifiedSince != nil {
-		req.Raw().Header["If-Unmodified-Since"] = []string{modifiedAccessConditions.IfUnmodifiedSince.Format(time.RFC1123)}
+		req.Raw().Header["If-Unmodified-Since"] = []string{(*modifiedAccessConditions.IfUnmodifiedSince).In(gmt).Format(time.RFC1123)}
 	}
 	if modifiedAccessConditions != nil && modifiedAccessConditions.IfMatch != nil {
 		req.Raw().Header["If-Match"] = []string{string(*modifiedAccessConditions.IfMatch)}
@@ -499,7 +499,7 @@ func (client *BlobClient) copyFromURLCreateRequest(ctx context.Context, copySour
 		req.Raw().Header["x-ms-tags"] = []string{*options.BlobTagsString}
 	}
 	if options != nil && options.ImmutabilityPolicyExpiry != nil {
-		req.Raw().Header["x-ms-immutability-policy-until-date"] = []string{options.ImmutabilityPolicyExpiry.Format(time.RFC1123)}
+		req.Raw().Header["x-ms-immutability-policy-until-date"] = []string{(*options.ImmutabilityPolicyExpiry).In(gmt).Format(time.RFC1123)}
 	}
 	if options != nil && options.ImmutabilityPolicyMode != nil {
 		req.Raw().Header["x-ms-immutability-policy-mode"] = []string{string(*options.ImmutabilityPolicyMode)}
@@ -625,10 +625,10 @@ func (client *BlobClient) createSnapshotCreateRequest(ctx context.Context, optio
 		req.Raw().Header["x-ms-encryption-scope"] = []string{*cpkScopeInfo.EncryptionScope}
 	}
 	if modifiedAccessConditions != nil && modifiedAccessConditions.IfModifiedSince != nil {
-		req.Raw().Header["If-Modified-Since"] = []string{modifiedAccessConditions.IfModifiedSince.Format(time.RFC1123)}
+		req.Raw().Header["If-Modified-Since"] = []string{(*modifiedAccessConditions.IfModifiedSince).In(gmt).Format(time.RFC1123)}
 	}
 	if modifiedAccessConditions != nil && modifiedAccessConditions.IfUnmodifiedSince != nil {
-		req.Raw().Header["If-Unmodified-Since"] = []string{modifiedAccessConditions.IfUnmodifiedSince.Format(time.RFC1123)}
+		req.Raw().Header["If-Unmodified-Since"] = []string{(*modifiedAccessConditions.IfUnmodifiedSince).In(gmt).Format(time.RFC1123)}
 	}
 	if modifiedAccessConditions != nil && modifiedAccessConditions.IfMatch != nil {
 		req.Raw().Header["If-Match"] = []string{string(*modifiedAccessConditions.IfMatch)}
@@ -754,10 +754,10 @@ func (client *BlobClient) deleteCreateRequest(ctx context.Context, options *Blob
 		req.Raw().Header["x-ms-delete-snapshots"] = []string{string(*options.DeleteSnapshots)}
 	}
 	if modifiedAccessConditions != nil && modifiedAccessConditions.IfModifiedSince != nil {
-		req.Raw().Header["If-Modified-Since"] = []string{modifiedAccessConditions.IfModifiedSince.Format(time.RFC1123)}
+		req.Raw().Header["If-Modified-Since"] = []string{(*modifiedAccessConditions.IfModifiedSince).In(gmt).Format(time.RFC1123)}
 	}
 	if modifiedAccessConditions != nil && modifiedAccessConditions.IfUnmodifiedSince != nil {
-		req.Raw().Header["If-Unmodified-Since"] = []string{modifiedAccessConditions.IfUnmodifiedSince.Format(time.RFC1123)}
+		req.Raw().Header["If-Unmodified-Since"] = []string{(*modifiedAccessConditions.IfUnmodifiedSince).In(gmt).Format(time.RFC1123)}
 	}
 	if modifiedAccessConditions != nil && modifiedAccessConditions.IfMatch != nil {
 		req.Raw().Header["If-Match"] = []string{string(*modifiedAccessConditions.IfMatch)}
@@ -925,10 +925,10 @@ func (client *BlobClient) downloadCreateRequest(ctx context.Context, options *Bl
 		req.Raw().Header["x-ms-encryption-algorithm"] = []string{string(*cpkInfo.EncryptionAlgorithm)}
 	}
 	if modifiedAccessConditions != nil && modifiedAccessConditions.IfModifiedSince != nil {
-		req.Raw().Header["If-Modified-Since"] = []string{modifiedAccessConditions.IfModifiedSince.Format(time.RFC1123)}
+		req.Raw().Header["If-Modified-Since"] = []string{(*modifiedAccessConditions.IfModifiedSince).In(gmt).Format(time.RFC1123)}
 	}
 	if modifiedAccessConditions != nil && modifiedAccessConditions.IfUnmodifiedSince != nil {
-		req.Raw().Header["If-Unmodified-Since"] = []string{modifiedAccessConditions.IfUnmodifiedSince.Format(time.RFC1123)}
+		req.Raw().Header["If-Unmodified-Since"] = []string{(*modifiedAccessConditions.IfUnmodifiedSince).In(gmt).Format(time.RFC1123)}
 	}
 	if modifiedAccessConditions != nil && modifiedAccessConditions.IfMatch != nil {
 		req.Raw().Header["If-Match"] = []string{string(*modifiedAccessConditions.IfMatch)}
@@ -1277,10 +1277,10 @@ func (client *BlobClient) getPropertiesCreateRequest(ctx context.Context, option
 		req.Raw().Header["x-ms-encryption-algorithm"] = []string{string(*cpkInfo.EncryptionAlgorithm)}
 	}
 	if modifiedAccessConditions != nil && modifiedAccessConditions.IfModifiedSince != nil {
-		req.Raw().Header["If-Modified-Since"] = []string{modifiedAccessConditions.IfModifiedSince.Format(time.RFC1123)}
+		req.Raw().Header["If-Modified-Since"] = []string{(*modifiedAccessConditions.IfModifiedSince).In(gmt).Format(time.RFC1123)}
 	}
 	if modifiedAccessConditions != nil && modifiedAccessConditions.IfUnmodifiedSince != nil {
-		req.Raw().Header["If-Unmodified-Since"] = []string{modifiedAccessConditions.IfUnmodifiedSince.Format(time.RFC1123)}
+		req.Raw().Header["If-Unmodified-Since"] = []string{(*modifiedAccessConditions.IfUnmodifiedSince).In(gmt).Format(time.RFC1123)}
 	}
 	if modifiedAccessConditions != nil && modifiedAccessConditions.IfMatch != nil {
 		req.Raw().Header["If-Match"] = []string{string(*modifiedAccessConditions.IfMatch)}
@@ -1670,10 +1670,10 @@ func (client *BlobClient) queryCreateRequest(ctx context.Context, options *BlobC
 		req.Raw().Header["x-ms-encryption-algorithm"] = []string{string(*cpkInfo.EncryptionAlgorithm)}
 	}
 	if modifiedAccessConditions != nil && modifiedAccessConditions.IfModifiedSince != nil {
-		req.Raw().Header["If-Modified-Since"] = []string{modifiedAccessConditions.IfModifiedSince.Format(time.RFC1123)}
+		req.Raw().Header["If-Modified-Since"] = []string{(*modifiedAccessConditions.IfModifiedSince).In(gmt).Format(time.RFC1123)}
 	}
 	if modifiedAccessConditions != nil && modifiedAccessConditions.IfUnmodifiedSince != nil {
-		req.Raw().Header["If-Unmodified-Since"] = []string{modifiedAccessConditions.IfUnmodifiedSince.Format(time.RFC1123)}
+		req.Raw().Header["If-Unmodified-Since"] = []string{(*modifiedAccessConditions.IfUnmodifiedSince).In(gmt).Format(time.RFC1123)}
 	}
 	if modifiedAccessConditions != nil && modifiedAccessConditions.IfMatch != nil {
 		req.Raw().Header["If-Match"] = []string{string(*modifiedAccessConditions.IfMatch)}
@@ -1883,10 +1883,10 @@ func (client *BlobClient) releaseLeaseCreateRequest(ctx context.Context, leaseID
 	req.Raw().Header["x-ms-lease-action"] = []string{"release"}
 	req.Raw().Header["x-ms-lease-id"] = []string{leaseID}
 	if modifiedAccessConditions != nil && modifiedAccessConditions.IfModifiedSince != nil {
-		req.Raw().Header["If-Modified-Since"] = []string{modifiedAccessConditions.IfModifiedSince.Format(time.RFC1123)}
+		req.Raw().Header["If-Modified-Since"] = []string{(*modifiedAccessConditions.IfModifiedSince).In(gmt).Format(time.RFC1123)}
 	}
 	if modifiedAccessConditions != nil && modifiedAccessConditions.IfUnmodifiedSince != nil {
-		req.Raw().Header["If-Unmodified-Since"] = []string{modifiedAccessConditions.IfUnmodifiedSince.Format(time.RFC1123)}
+		req.Raw().Header["If-Unmodified-Since"] = []string{(*modifiedAccessConditions.IfUnmodifiedSince).In(gmt).Format(time.RFC1123)}
 	}
 	if modifiedAccessConditions != nil && modifiedAccessConditions.IfMatch != nil {
 		req.Raw().Header["If-Match"] = []string{string(*modifiedAccessConditions.IfMatch)}
@@ -1974,10 +1974,10 @@ func (client *BlobClient) renewLeaseCreateRequest(ctx context.Context, leaseID s
 	req.Raw().Header["x-ms-lease-action"] = []string{"renew"}
 	req.Raw().Header["x-ms-lease-id"] = []string{leaseID}
 	if modifiedAccessConditions != nil && modifiedAccessConditions.IfModifiedSince != nil {
-		req.Raw().Header["If-Modified-Since"] = []string{modifiedAccessConditions.IfModifiedSince.Format(time.RFC1123)}
+		req.Raw().Header["If-Modified-Since"] = []string{(*modifiedAccessConditions.IfModifiedSince).In(gmt).Format(time.RFC1123)}
 	}
 	if modifiedAccessConditions != nil && modifiedAccessConditions.IfUnmodifiedSince != nil {
-		req.Raw().Header["If-Unmodified-Since"] = []string{modifiedAccessConditions.IfUnmodifiedSince.Format(time.RFC1123)}
+		req.Raw().Header["If-Unmodified-Since"] = []string{(*modifiedAccessConditions.IfUnmodifiedSince).In(gmt).Format(time.RFC1123)}
 	}
 	if modifiedAccessConditions != nil && modifiedAccessConditions.IfMatch != nil {
 		req.Raw().Header["If-Match"] = []string{string(*modifiedAccessConditions.IfMatch)}
@@ -2162,10 +2162,10 @@ func (client *BlobClient) setHTTPHeadersCreateRequest(ctx context.Context, optio
 		req.Raw().Header["x-ms-lease-id"] = []string{*leaseAccessConditions.LeaseID}
 	}
 	if modifiedAccessConditions != nil && modifiedAccessConditions.IfModifiedSince != nil {
-		req.Raw().Header["If-Modified-Since"] = []string{modifiedAccessConditions.IfModifiedSince.Format(time.RFC1123)}
+		req.Raw().Header["If-Modified-Since"] = []string{(*modifiedAccessConditions.IfModifiedSince).In(gmt).Format(time.RFC1123)}
 	}
 	if modifiedAccessConditions != nil && modifiedAccessConditions.IfUnmodifiedSince != nil {
-		req.Raw().Header["If-Unmodified-Since"] = []string{modifiedAccessConditions.IfUnmodifiedSince.Format(time.RFC1123)}
+		req.Raw().Header["If-Unmodified-Since"] = []string{(*modifiedAccessConditions.IfUnmodifiedSince).In(gmt).Format(time.RFC1123)}
 	}
 	if modifiedAccessConditions != nil && modifiedAccessConditions.IfMatch != nil {
 		req.Raw().Header["If-Match"] = []string{string(*modifiedAccessConditions.IfMatch)}
@@ -2265,10 +2265,10 @@ func (client *BlobClient) setImmutabilityPolicyCreateRequest(ctx context.Context
 		req.Raw().Header["x-ms-client-request-id"] = []string{*options.RequestID}
 	}
 	if modifiedAccessConditions != nil && modifiedAccessConditions.IfUnmodifiedSince != nil {
-		req.Raw().Header["If-Unmodified-Since"] = []string{modifiedAccessConditions.IfUnmodifiedSince.Format(time.RFC1123)}
+		req.Raw().Header["If-Unmodified-Since"] = []string{(*modifiedAccessConditions.IfUnmodifiedSince).In(gmt).Format(time.RFC1123)}
 	}
 	if options != nil && options.ImmutabilityPolicyExpiry != nil {
-		req.Raw().Header["x-ms-immutability-policy-until-date"] = []string{options.ImmutabilityPolicyExpiry.Format(time.RFC1123)}
+		req.Raw().Header["x-ms-immutability-policy-until-date"] = []string{(*options.ImmutabilityPolicyExpiry).In(gmt).Format(time.RFC1123)}
 	}
 	if options != nil && options.ImmutabilityPolicyMode != nil {
 		req.Raw().Header["x-ms-immutability-policy-mode"] = []string{string(*options.ImmutabilityPolicyMode)}
@@ -2440,10 +2440,10 @@ func (client *BlobClient) setMetadataCreateRequest(ctx context.Context, options 
 		req.Raw().Header["x-ms-encryption-scope"] = []string{*cpkScopeInfo.EncryptionScope}
 	}
 	if modifiedAccessConditions != nil && modifiedAccessConditions.IfModifiedSince != nil {
-		req.Raw().Header["If-Modified-Since"] = []string{modifiedAccessConditions.IfModifiedSince.Format(time.RFC1123)}
+		req.Raw().Header["If-Modified-Since"] = []string{(*modifiedAccessConditions.IfModifiedSince).In(gmt).Format(time.RFC1123)}
 	}
 	if modifiedAccessConditions != nil && modifiedAccessConditions.IfUnmodifiedSince != nil {
-		req.Raw().Header["If-Unmodified-Since"] = []string{modifiedAccessConditions.IfUnmodifiedSince.Format(time.RFC1123)}
+		req.Raw().Header["If-Unmodified-Since"] = []string{(*modifiedAccessConditions.IfUnmodifiedSince).In(gmt).Format(time.RFC1123)}
 	}
 	if modifiedAccessConditions != nil && modifiedAccessConditions.IfMatch != nil {
 		req.Raw().Header["If-Match"] = []string{string(*modifiedAccessConditions.IfMatch)}
@@ -2719,10 +2719,10 @@ func (client *BlobClient) startCopyFromURLCreateRequest(ctx context.Context, cop
 		req.Raw().Header["x-ms-rehydrate-priority"] = []string{string(*options.RehydratePriority)}
 	}
 	if sourceModifiedAccessConditions != nil && sourceModifiedAccessConditions.SourceIfModifiedSince != nil {
-		req.Raw().Header["x-ms-source-if-modified-since"] = []string{sourceModifiedAccessConditions.SourceIfModifiedSince.Format(time.RFC1123)}
+		req.Raw().Header["x-ms-source-if-modified-since"] = []string{(*sourceModifiedAccessConditions.SourceIfModifiedSince).In(gmt).Format(time.RFC1123)}
 	}
 	if sourceModifiedAccessConditions != nil && sourceModifiedAccessConditions.SourceIfUnmodifiedSince != nil {
-		req.Raw().Header["x-ms-source-if-unmodified-since"] = []string{sourceModifiedAccessConditions.SourceIfUnmodifiedSince.Format(time.RFC1123)}
+		req.Raw().Header["x-ms-source-if-unmodified-since"] = []string{(*sourceModifiedAccessConditions.SourceIfUnmodifiedSince).In(gmt).Format(time.RFC1123)}
 	}
 	if sourceModifiedAccessConditions != nil && sourceModifiedAccessConditions.SourceIfMatch != nil {
 		req.Raw().Header["x-ms-source-if-match"] = []string{string(*sourceModifiedAccessConditions.SourceIfMatch)}
@@ -2734,10 +2734,10 @@ func (client *BlobClient) startCopyFromURLCreateRequest(ctx context.Context, cop
 		req.Raw().Header["x-ms-source-if-tags"] = []string{*sourceModifiedAccessConditions.SourceIfTags}
 	}
 	if modifiedAccessConditions != nil && modifiedAccessConditions.IfModifiedSince != nil {
-		req.Raw().Header["If-Modified-Since"] = []string{modifiedAccessConditions.IfModifiedSince.Format(time.RFC1123)}
+		req.Raw().Header["If-Modified-Since"] = []string{(*modifiedAccessConditions.IfModifiedSince).In(gmt).Format(time.RFC1123)}
 	}
 	if modifiedAccessConditions != nil && modifiedAccessConditions.IfUnmodifiedSince != nil {
-		req.Raw().Header["If-Unmodified-Since"] = []string{modifiedAccessConditions.IfUnmodifiedSince.Format(time.RFC1123)}
+		req.Raw().Header["If-Unmodified-Since"] = []string{(*modifiedAccessConditions.IfUnmodifiedSince).In(gmt).Format(time.RFC1123)}
 	}
 	if modifiedAccessConditions != nil && modifiedAccessConditions.IfMatch != nil {
 		req.Raw().Header["If-Match"] = []string{string(*modifiedAccessConditions.IfMatch)}
@@ -2763,7 +2763,7 @@ func (client *BlobClient) startCopyFromURLCreateRequest(ctx context.Context, cop
 		req.Raw().Header["x-ms-seal-blob"] = []string{strconv.FormatBool(*options.SealBlob)}
 	}
 	if options != nil && options.ImmutabilityPolicyExpiry != nil {
-		req.Raw().Header["x-ms-immutability-policy-until-date"] = []string{options.ImmutabilityPolicyExpiry.Format(time.RFC1123)}
+		req.Raw().Header["x-ms-immutability-policy-until-date"] = []string{(*options.ImmutabilityPolicyExpiry).In(gmt).Format(time.RFC1123)}
 	}
 	if options != nil && options.ImmutabilityPolicyMode != nil {
 		req.Raw().Header["x-ms-immutability-policy-mode"] = []string{string(*options.ImmutabilityPolicyMode)}

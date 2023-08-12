@@ -70,6 +70,56 @@ func (o *UploadOptions) format() (*generated.BlockBlobClientUploadOptions, *gene
 
 // ---------------------------------------------------------------------------------------------------------------------
 
+// UploadBlobFromURLOptions contains the optional parameters for the Client.UploadBlobFromURL method.
+type UploadBlobFromURLOptions struct {
+	// Optional. Used to set blob tags in various blob operations.
+	Tags map[string]string
+
+	// Only Bearer type is supported. Credentials should be a valid OAuth access token to copy source.
+	CopySourceAuthorization *string
+
+	// Optional, default is true. Indicates if properties from the source blob should be copied.
+	CopySourceBlobProperties *bool
+
+	// Optional. Specifies a user-defined name-value pair associated with the blob.
+	Metadata map[string]*string
+
+	// Optional. Specifies the md5 calculated for the range of bytes that must be read from the copy source.
+	SourceContentMD5 []byte
+
+	// Optional. Indicates the tier to be set on the blob.
+	Tier *blob.AccessTier
+
+	// Additional optional headers
+	HTTPHeaders                    *blob.HTTPHeaders
+	AccessConditions               *blob.AccessConditions
+	CPKInfo                        *blob.CPKInfo
+	CPKScopeInfo                   *blob.CPKScopeInfo
+	SourceModifiedAccessConditions *blob.SourceModifiedAccessConditions
+}
+
+func (o *UploadBlobFromURLOptions) format() (*generated.BlockBlobClientPutBlobFromURLOptions, *generated.BlobHTTPHeaders,
+	*generated.LeaseAccessConditions, *generated.CPKInfo, *generated.CPKScopeInfo, *generated.ModifiedAccessConditions,
+	*generated.SourceModifiedAccessConditions) {
+	if o == nil {
+		return nil, nil, nil, nil, nil, nil, nil
+	}
+
+	options := generated.BlockBlobClientPutBlobFromURLOptions{
+		BlobTagsString:           shared.SerializeBlobTagsToStrPtr(o.Tags),
+		CopySourceAuthorization:  o.CopySourceAuthorization,
+		CopySourceBlobProperties: o.CopySourceBlobProperties,
+		Metadata:                 o.Metadata,
+		SourceContentMD5:         o.SourceContentMD5,
+		Tier:                     o.Tier,
+	}
+
+	leaseAccessConditions, modifiedAccessConditions := exported.FormatBlobAccessConditions(o.AccessConditions)
+	return &options, o.HTTPHeaders, leaseAccessConditions, o.CPKInfo, o.CPKScopeInfo, modifiedAccessConditions, o.SourceModifiedAccessConditions
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+
 // StageBlockOptions contains the optional parameters for the Client.StageBlock method.
 type StageBlockOptions struct {
 	CPKInfo *blob.CPKInfo

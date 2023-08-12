@@ -565,3 +565,14 @@ func (o *CopyFromURLOptions) format() (*generated.BlobClientCopyFromURLOptions, 
 	leaseAccessConditions, modifiedAccessConditions := exported.FormatBlobAccessConditions(o.BlobAccessConditions)
 	return options, o.SourceModifiedAccessConditions, modifiedAccessConditions, leaseAccessConditions
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+// GetAccountInfoOptions provides set of options for Client.GetAccountInfo
+type GetAccountInfoOptions struct {
+	// placeholder for future options
+}
+
+func (o *GetAccountInfoOptions) format() *generated.BlobClientGetAccountInfoOptions {
+	return nil
+}
