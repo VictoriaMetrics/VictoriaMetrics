@@ -126,7 +126,7 @@ func (u *URL) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		return fmt.Errorf("cannot parse proxy_url=%q as *url.URL: %w", s, err)
 	}
 	if !isURLSchemeValid(parsedURL.Scheme) {
-		return fmt.Errorf("cannot parse proxy_url=%q unsupported scheme format=%q, valid schemes=%q", s, parsedURL.Scheme, strings.Join(validURLSchemes, ","))
+		return fmt.Errorf("cannot parse proxy_url=%q unsupported scheme format=%q, valid schemes: %s", s, parsedURL.Scheme, validURLSchemes)
 	}
 	u.URL = parsedURL
 	return nil
