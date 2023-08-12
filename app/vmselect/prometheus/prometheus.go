@@ -694,7 +694,10 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWr
 		return err
 	}
 	if childQuery, windowExpr, offsetExpr := promql.IsMetricSelectorWithRollup(query); childQuery != "" {
-		window := windowExpr.Duration(step)
+		window, err := windowExpr.NonNegativeDuration(step)
+		if err != nil {
+			return fmt.Errorf("cannot parse lookbehind window in square brackets at %s: %w", query, err)
+		}
 		offset := offsetExpr.Duration(step)
 		start -= offset
 		end := start
@@ -723,11 +726,17 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWr
 		return nil
 	}
 	if childQuery, windowExpr, stepExpr, offsetExpr := promql.IsRollup(query); childQuery != "" {
-		newStep := stepExpr.Duration(step)
+		newStep, err := stepExpr.NonNegativeDuration(step)
+		if err != nil {
+			return fmt.Errorf("cannot parse step in square brackets at %s: %w", query, err)
+		}
 		if newStep > 0 {
 			step = newStep
 		}
-		window := windowExpr.Duration(step)
+		window, err := windowExpr.NonNegativeDuration(step)
+		if err != nil {
+			return fmt.Errorf("cannot parse lookbehind window in square brackets at %s: %w", query, err)
+		}
 		offset := offsetExpr.Duration(step)
 		start -= offset
 		end := start
