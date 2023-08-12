@@ -660,6 +660,10 @@ See changes [here](https://docs.victoriametrics.com/CHANGELOG_2022.html#v1810)
 
 See changes [here](https://docs.victoriametrics.com/CHANGELOG_2022.html#v1800)
 
+## [v1.79.14](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.79.14)
+
+See changes [here](https://docs.victoriametrics.com/CHANGELOG_2022.html#v17914)
+
 ## [v1.79.13](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.79.13)
 
 See changes [here](https://docs.victoriametrics.com/CHANGELOG_2022.html#v17913)
