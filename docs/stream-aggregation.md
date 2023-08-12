@@ -1,7 +1,7 @@
 ---
 sort: 98
 weight: 98
-title: streaming aggregation
+title: Streaming aggregation
 menu:
   docs:
     parent: "victoriametrics"
@@ -10,7 +10,7 @@ aliases:
 - /stream-aggregation.html
 ---
 
-# streaming aggregation
+# Streaming aggregation
 
 [vmagent](https://docs.victoriametrics.com/vmagent.html) and [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html)
 can aggregate incoming [samples](https://docs.victoriametrics.com/keyConcepts.html#raw-samples) in streaming mode by time and by labels before data is written to remote storage.
@@ -673,3 +673,15 @@ support the following approaches for hot reloading stream aggregation configs fr
   ```
 
 * By sending HTTP request to `/-/reload` endpoint (e.g. `http://vmagent:8429/-/reload` or `http://victoria-metrics:8428/-/reload).
+
+## Cluster mode
+
+If you use [vmagent in cluster mode](https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets) for streaming aggregation
+(with `-promscrape.cluster.*` parameters or with `VMAgent.spec.shardCount > 1` for [vmoperator](https://docs.victoriametrics.com/operator))
+then you need to pay attention to the using the `by`, `without` or `*_relabel_configs` parameters -
+you can get exactly the same timeseries identifier (name + labels) on different vmagent instances (shards) and write to the storage.
+This resulting data will be incorrect in this case. To avoid this, you need add differentiating (between vmagent instances) label to output metrics.
+
+You can do in with `remoteWrite.label` [parameter in vmagent](https://docs.victoriametrics.com/vmagent.html#adding-labels-to-metrics).
+For example, for running in docker or k8s you can use `remoteWrite.label` with `POD_NAME` or `HOSTNAME` environment variable: `remoteWrite.label='vmagent=%{HOSTNAME}'`.
+See [this issie](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4247#issue-1692894073) for details.
