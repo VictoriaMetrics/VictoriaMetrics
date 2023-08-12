@@ -4,11 +4,18 @@ package s3
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"github.com/aws/aws-sdk-go-v2/aws"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
 	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
+	internalauth "github.com/aws/aws-sdk-go-v2/internal/auth"
+	"github.com/aws/aws-sdk-go-v2/internal/v4a"
 	s3cust "github.com/aws/aws-sdk-go-v2/service/s3/internal/customizations"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
+	smithyendpoints "github.com/aws/smithy-go/endpoints"
 	"github.com/aws/smithy-go/middleware"
+	"github.com/aws/smithy-go/ptr"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
@@ -25,70 +32,51 @@ import (
 // create buckets in the Europe (Ireland) Region. For more information, see
 // Accessing a bucket (https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingBucket.html#access-bucket-intro)
 // . If you send your create bucket request to the s3.amazonaws.com endpoint, the
-// request goes to the us-east-1 Region. Accordingly, the signature calculations in
-// Signature Version 4 must use us-east-1 as the Region, even if the location
+// request goes to the us-east-1 Region. Accordingly, the signature calculations
+// in Signature Version 4 must use us-east-1 as the Region, even if the location
 // constraint in the request specifies another Region where the bucket is to be
 // created. If you create a bucket in a Region other than US East (N. Virginia),
 // your application must be able to handle 307 redirect. For more information, see
 // Virtual hosting of buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html)
-// . Access control lists (ACLs) When creating a bucket using this operation, you
-// can optionally configure the bucket ACL to specify the accounts or groups that
-// should be granted specific permissions on the bucket. If your CreateBucket
-// request sets bucket owner enforced for S3 Object Ownership and specifies a
-// bucket ACL that provides access to an external Amazon Web Services account, your
-// request fails with a 400 error and returns the
-// InvalidBucketAclWithObjectOwnership error code. For more information, see
-// Controlling object ownership (https://docs.aws.amazon.com/AmazonS3/latest/userguide/about-object-ownership.html)
-// in the Amazon S3 User Guide. There are two ways to grant the appropriate
-// permissions using the request headers.
-//   - Specify a canned ACL using the x-amz-acl request header. Amazon S3 supports
-//     a set of predefined ACLs, known as canned ACLs. Each canned ACL has a predefined
-//     set of grantees and permissions. For more information, see Canned ACL (https://docs.aws.amazon.com/AmazonS3/latest/dev/acl-overview.html#CannedACL)
-//     .
-//   - Specify access permissions explicitly using the x-amz-grant-read ,
-//     x-amz-grant-write , x-amz-grant-read-acp , x-amz-grant-write-acp , and
-//     x-amz-grant-full-control headers. These headers map to the set of permissions
-//     Amazon S3 supports in an ACL. For more information, see Access control list
-//     (ACL) overview (https://docs.aws.amazon.com/AmazonS3/latest/userguide/acl-overview.html)
-//     . You specify each grantee as a type=value pair, where the type is one of the
-//     following:
-//   - id – if the value specified is the canonical user ID of an Amazon Web
-//     Services account
-//   - uri – if you are granting permissions to a predefined group
-//   - emailAddress – if the value specified is the email address of an Amazon Web
-//     Services account Using email addresses to specify a grantee is only supported in
-//     the following Amazon Web Services Regions:
-//   - US East (N. Virginia)
-//   - US West (N. California)
-//   - US West (Oregon)
-//   - Asia Pacific (Singapore)
-//   - Asia Pacific (Sydney)
-//   - Asia Pacific (Tokyo)
-//   - Europe (Ireland)
-//   - South America (São Paulo) For a list of all the Amazon S3 supported Regions
-//     and endpoints, see Regions and Endpoints (https://docs.aws.amazon.com/general/latest/gr/rande.html#s3_region)
-//     in the Amazon Web Services General Reference. For example, the following
-//     x-amz-grant-read header grants the Amazon Web Services accounts identified by
-//     account IDs permissions to read object data and its metadata:
-//     x-amz-grant-read: id="11112222333", id="444455556666"
-//
-// You can use either a canned ACL or specify access permissions explicitly. You
-// cannot do both. Permissions In addition to s3:CreateBucket , the following
-// permissions are required when your CreateBucket includes specific headers:
-//   - ACLs - If your CreateBucket request specifies ACL permissions and the ACL is
-//     public-read, public-read-write, authenticated-read, or if you specify access
-//     permissions explicitly through any other ACL, both s3:CreateBucket and
-//     s3:PutBucketAcl permissions are needed. If the ACL the CreateBucket request is
-//     private or doesn't specify any ACLs, only s3:CreateBucket permission is
-//     needed.
+// . Permissions In addition to s3:CreateBucket , the following permissions are
+// required when your CreateBucket request includes specific headers:
+//   - Access control lists (ACLs) - If your CreateBucket request specifies access
+//     control list (ACL) permissions and the ACL is public-read, public-read-write,
+//     authenticated-read, or if you specify access permissions explicitly through any
+//     other ACL, both s3:CreateBucket and s3:PutBucketAcl permissions are needed. If
+//     the ACL for the CreateBucket request is private or if the request doesn't
+//     specify any ACLs, only s3:CreateBucket permission is needed.
 //   - Object Lock - If ObjectLockEnabledForBucket is set to true in your
 //     CreateBucket request, s3:PutBucketObjectLockConfiguration and
 //     s3:PutBucketVersioning permissions are required.
 //   - S3 Object Ownership - If your CreateBucket request includes the
-//     x-amz-object-ownership header, s3:PutBucketOwnershipControls permission is
-//     required.
+//     x-amz-object-ownership header, then the s3:PutBucketOwnershipControls
+//     permission is required. By default, ObjectOwnership is set to
+//     BucketOWnerEnforced and ACLs are disabled. We recommend keeping ACLs disabled,
+//     except in uncommon use cases where you must control access for each object
+//     individually. If you want to change the ObjectOwnership setting, you can use
+//     the x-amz-object-ownership header in your CreateBucket request to set the
+//     ObjectOwnership setting of your choice. For more information about S3 Object
+//     Ownership, see Controlling object ownership  (https://docs.aws.amazon.com/AmazonS3/latest/userguide/about-object-ownership.html)
+//     in the Amazon S3 User Guide.
+//   - S3 Block Public Access - If your specific use case requires granting public
+//     access to your S3 resources, you can disable Block Public Access. You can create
+//     a new bucket with Block Public Access enabled, then separately call the
+//     DeletePublicAccessBlock (https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeletePublicAccessBlock.html)
+//     API. To use this operation, you must have the s3:PutBucketPublicAccessBlock
+//     permission. By default, all Block Public Access settings are enabled for new
+//     buckets. To avoid inadvertent exposure of your resources, we recommend keeping
+//     the S3 Block Public Access settings enabled. For more information about S3 Block
+//     Public Access, see Blocking public access to your Amazon S3 storage  (https://docs.aws.amazon.com/AmazonS3/latest/userguide/about-object-ownership.html)
+//     in the Amazon S3 User Guide.
 //
-// The following operations are related to CreateBucket :
+// If your CreateBucket request sets BucketOwnerEnforced for Amazon S3 Object
+// Ownership and specifies a bucket ACL that provides access to an external Amazon
+// Web Services account, your request fails with a 400 error and returns the
+// InvalidBucketAcLWithObjectOwnership error code. For more information, see
+// Setting Object Ownership on an existing bucket  (https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-ownership-existing-bucket.html)
+// in the Amazon S3 User Guide. The following operations are related to
+// CreateBucket :
 //   - PutObject (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObject.html)
 //   - DeleteBucket (https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteBucket.html)
 func (c *Client) CreateBucket(ctx context.Context, params *CreateBucketInput, optFns ...func(*Options)) (*CreateBucketOutput, error) {
@@ -176,6 +164,9 @@ func (c *Client) addOperationCreateBucketMiddlewares(stack *middleware.Stack, op
 	if err != nil {
 		return err
 	}
+	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
+		return err
+	}
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
@@ -203,7 +194,7 @@ func (c *Client) addOperationCreateBucketMiddlewares(stack *middleware.Stack, op
 	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
 		return err
 	}
-	if err = addClientUserAgent(stack); err != nil {
+	if err = addClientUserAgent(stack, options); err != nil {
 		return err
 	}
 	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
@@ -213,6 +204,9 @@ func (c *Client) addOperationCreateBucketMiddlewares(stack *middleware.Stack, op
 		return err
 	}
 	if err = swapWithCustomHTTPSignerMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addCreateBucketResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
 	if err = addOpCreateBucketValidationMiddleware(stack); err != nil {
@@ -242,7 +236,20 @@ func (c *Client) addOperationCreateBucketMiddlewares(stack *middleware.Stack, op
 	if err = addRequestResponseLogging(stack, options); err != nil {
 		return err
 	}
+	if err = addendpointDisableHTTPSMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addSerializeImmutableHostnameBucketMiddleware(stack, options); err != nil {
+		return err
+	}
 	return nil
+}
+
+func (v *CreateBucketInput) bucket() (string, bool) {
+	if v.Bucket == nil {
+		return "", false
+	}
+	return *v.Bucket, true
 }
 
 func newServiceMetadataMiddleware_opCreateBucket(region string) *awsmiddleware.RegisterServiceMetadata {
@@ -278,4 +285,142 @@ func addCreateBucketUpdateEndpoint(stack *middleware.Stack, options Options) err
 		UseARNRegion:                   options.UseARNRegion,
 		DisableMultiRegionAccessPoints: options.DisableMultiRegionAccessPoints,
 	})
+}
+
+type opCreateBucketResolveEndpointMiddleware struct {
+	EndpointResolver EndpointResolverV2
+	BuiltInResolver  builtInParameterResolver
+}
+
+func (*opCreateBucketResolveEndpointMiddleware) ID() string {
+	return "ResolveEndpointV2"
+}
+
+func (m *opCreateBucketResolveEndpointMiddleware) HandleSerialize(ctx context.Context, in middleware.SerializeInput, next middleware.SerializeHandler) (
+	out middleware.SerializeOutput, metadata middleware.Metadata, err error,
+) {
+	if awsmiddleware.GetRequiresLegacyEndpoints(ctx) {
+		return next.HandleSerialize(ctx, in)
+	}
+
+	req, ok := in.Request.(*smithyhttp.Request)
+	if !ok {
+		return out, metadata, fmt.Errorf("unknown transport type %T", in.Request)
+	}
+
+	input, ok := in.Parameters.(*CreateBucketInput)
+	if !ok {
+		return out, metadata, fmt.Errorf("unknown transport type %T", in.Request)
+	}
+
+	if m.EndpointResolver == nil {
+		return out, metadata, fmt.Errorf("expected endpoint resolver to not be nil")
+	}
+
+	params := EndpointParameters{}
+
+	m.BuiltInResolver.ResolveBuiltIns(&params)
+
+	params.Bucket = input.Bucket
+
+	params.DisableAccessPoints = ptr.Bool(true)
+
+	var resolvedEndpoint smithyendpoints.Endpoint
+	resolvedEndpoint, err = m.EndpointResolver.ResolveEndpoint(ctx, params)
+	if err != nil {
+		return out, metadata, fmt.Errorf("failed to resolve service endpoint, %w", err)
+	}
+
+	req.URL = &resolvedEndpoint.URI
+
+	for k := range resolvedEndpoint.Headers {
+		req.Header.Set(
+			k,
+			resolvedEndpoint.Headers.Get(k),
+		)
+	}
+
+	authSchemes, err := internalauth.GetAuthenticationSchemes(&resolvedEndpoint.Properties)
+	if err != nil {
+		var nfe *internalauth.NoAuthenticationSchemesFoundError
+		if errors.As(err, &nfe) {
+			// if no auth scheme is found, default to sigv4
+			signingName := "s3"
+			signingRegion := m.BuiltInResolver.(*builtInResolver).Region
+			ctx = awsmiddleware.SetSigningName(ctx, signingName)
+			ctx = awsmiddleware.SetSigningRegion(ctx, signingRegion)
+			ctx = s3cust.SetSignerVersion(ctx, internalauth.SigV4)
+		}
+		var ue *internalauth.UnSupportedAuthenticationSchemeSpecifiedError
+		if errors.As(err, &ue) {
+			return out, metadata, fmt.Errorf(
+				"This operation requests signer version(s) %v but the client only supports %v",
+				ue.UnsupportedSchemes,
+				internalauth.SupportedSchemes,
+			)
+		}
+	}
+
+	for _, authScheme := range authSchemes {
+		switch authScheme.(type) {
+		case *internalauth.AuthenticationSchemeV4:
+			v4Scheme, _ := authScheme.(*internalauth.AuthenticationSchemeV4)
+			var signingName, signingRegion string
+			if v4Scheme.SigningName == nil {
+				signingName = "s3"
+			} else {
+				signingName = *v4Scheme.SigningName
+			}
+			if v4Scheme.SigningRegion == nil {
+				signingRegion = m.BuiltInResolver.(*builtInResolver).Region
+			} else {
+				signingRegion = *v4Scheme.SigningRegion
+			}
+			if v4Scheme.DisableDoubleEncoding != nil {
+				// The signer sets an equivalent value at client initialization time.
+				// Setting this context value will cause the signer to extract it
+				// and override the value set at client initialization time.
+				ctx = internalauth.SetDisableDoubleEncoding(ctx, *v4Scheme.DisableDoubleEncoding)
+			}
+			ctx = awsmiddleware.SetSigningName(ctx, signingName)
+			ctx = awsmiddleware.SetSigningRegion(ctx, signingRegion)
+			ctx = s3cust.SetSignerVersion(ctx, v4Scheme.Name)
+			break
+		case *internalauth.AuthenticationSchemeV4A:
+			v4aScheme, _ := authScheme.(*internalauth.AuthenticationSchemeV4A)
+			if v4aScheme.SigningName == nil {
+				v4aScheme.SigningName = aws.String("s3")
+			}
+			if v4aScheme.DisableDoubleEncoding != nil {
+				// The signer sets an equivalent value at client initialization time.
+				// Setting this context value will cause the signer to extract it
+				// and override the value set at client initialization time.
+				ctx = internalauth.SetDisableDoubleEncoding(ctx, *v4aScheme.DisableDoubleEncoding)
+			}
+			ctx = awsmiddleware.SetSigningName(ctx, *v4aScheme.SigningName)
+			ctx = awsmiddleware.SetSigningRegion(ctx, v4aScheme.SigningRegionSet[0])
+			ctx = s3cust.SetSignerVersion(ctx, v4a.Version)
+			break
+		case *internalauth.AuthenticationSchemeNone:
+			break
+		}
+	}
+
+	return next.HandleSerialize(ctx, in)
+}
+
+func addCreateBucketResolveEndpointMiddleware(stack *middleware.Stack, options Options) error {
+	return stack.Serialize.Insert(&opCreateBucketResolveEndpointMiddleware{
+		EndpointResolver: options.EndpointResolverV2,
+		BuiltInResolver: &builtInResolver{
+			Region:                         options.Region,
+			UseFIPS:                        options.EndpointOptions.UseFIPSEndpoint,
+			UseDualStack:                   options.EndpointOptions.UseDualStackEndpoint,
+			Endpoint:                       options.BaseEndpoint,
+			ForcePathStyle:                 options.UsePathStyle,
+			Accelerate:                     options.UseAccelerate,
+			DisableMultiRegionAccessPoints: options.DisableMultiRegionAccessPoints,
+			UseArnRegion:                   options.UseARNRegion,
+		},
+	}, "ResolveEndpoint", middleware.After)
 }

@@ -1699,12 +1699,23 @@ func PtracePokeUser(pid int, addr uintptr, data []byte) (count int, err error) {
 	return ptracePoke(PTRACE_POKEUSR, PTRACE_PEEKUSR, pid, addr, data)
 }
 
+// elfNT_PRSTATUS is a copy of the debug/elf.NT_PRSTATUS constant so
+// x/sys/unix doesn't need to depend on debug/elf and thus
+// compress/zlib, debug/dwarf, and other packages.
+const elfNT_PRSTATUS = 1
+
 func PtraceGetRegs(pid int, regsout *PtraceRegs) (err error) {
-	return ptracePtr(PTRACE_GETREGS, pid, 0, unsafe.Pointer(regsout))
+	var iov Iovec
+	iov.Base = (*byte)(unsafe.Pointer(regsout))
+	iov.SetLen(int(unsafe.Sizeof(*regsout)))
+	return ptracePtr(PTRACE_GETREGSET, pid, uintptr(elfNT_PRSTATUS), unsafe.Pointer(&iov))
 }
 
 func PtraceSetRegs(pid int, regs *PtraceRegs) (err error) {
-	return ptracePtr(PTRACE_SETREGS, pid, 0, unsafe.Pointer(regs))
+	var iov Iovec
+	iov.Base = (*byte)(unsafe.Pointer(regs))
+	iov.SetLen(int(unsafe.Sizeof(*regs)))
+	return ptracePtr(PTRACE_SETREGSET, pid, uintptr(elfNT_PRSTATUS), unsafe.Pointer(&iov))
 }
 
 func PtraceSetOptions(pid int, options int) (err error) {
@@ -1874,7 +1885,7 @@ func Getpgrp() (pid int) {
 //sys	PerfEventOpen(attr *PerfEventAttr, pid int, cpu int, groupFd int, flags int) (fd int, err error)
 //sys	PivotRoot(newroot string, putold string) (err error) = SYS_PIVOT_ROOT
 //sys	Prctl(option int, arg2 uintptr, arg3 uintptr, arg4 uintptr, arg5 uintptr) (err error)
-//sys	Pselect(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timespec, sigmask *Sigset_t) (n int, err error) = SYS_PSELECT6
+//sys	pselect6(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timespec, sigmask *sigset_argpack) (n int, err error)
 //sys	read(fd int, p []byte) (n int, err error)
 //sys	Removexattr(path string, attr string) (err error)
 //sys	Renameat2(olddirfd int, oldpath string, newdirfd int, newpath string, flags uint) (err error)
@@ -2113,21 +2124,7 @@ func writevRacedetect(iovecs []Iovec, n int) {
 
 // mmap varies by architecture; see syscall_linux_*.go.
 //sys	munmap(addr uintptr, length uintptr) (err error)
-
-var mapper = &mmapper{
-	active: make(map[*byte][]byte),
-	mmap:   mmap,
-	munmap: munmap,
-}
-
-func Mmap(fd int, offset int64, length int, prot int, flags int) (data []byte, err error) {
-	return mapper.Mmap(fd, offset, length, prot, flags)
-}
-
-func Munmap(b []byte) (err error) {
-	return mapper.Munmap(b)
-}
-
+//sys	mremap(oldaddr uintptr, oldlength uintptr, newlength uintptr, flags int, newaddr uintptr) (xaddr uintptr, err error)
 //sys	Madvise(b []byte, advice int) (err error)
 //sys	Mprotect(b []byte, prot int) (err error)
 //sys	Mlock(b []byte) (err error)
@@ -2135,6 +2132,12 @@ func Munmap(b []byte) (err error) {
 //sys	Msync(b []byte, flags int) (err error)
 //sys	Munlock(b []byte) (err error)
 //sys	Munlockall() (err error)
+
+const (
+	mremapFixed     = MREMAP_FIXED
+	mremapDontunmap = MREMAP_DONTUNMAP
+	mremapMaymove   = MREMAP_MAYMOVE
+)
 
 // Vmsplice splices user pages from a slice of Iovecs into a pipe specified by fd,
 // using the specified flags.
@@ -2420,6 +2423,54 @@ func PthreadSigmask(how int, set, oldset *Sigset_t) error {
 	return rtSigprocmask(how, set, oldset, _C__NSIG/8)
 }
 
+//sysnb	getresuid(ruid *_C_int, euid *_C_int, suid *_C_int)
+//sysnb	getresgid(rgid *_C_int, egid *_C_int, sgid *_C_int)
+
+func Getresuid() (ruid, euid, suid int) {
+	var r, e, s _C_int
+	getresuid(&r, &e, &s)
+	return int(r), int(e), int(s)
+}
+
+func Getresgid() (rgid, egid, sgid int) {
+	var r, e, s _C_int
+	getresgid(&r, &e, &s)
+	return int(r), int(e), int(s)
+}
+
+// Pselect is a wrapper around the Linux pselect6 system call.
+// This version does not modify the timeout argument.
+func Pselect(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timespec, sigmask *Sigset_t) (n int, err error) {
+	// Per https://man7.org/linux/man-pages/man2/select.2.html#NOTES,
+	// The Linux pselect6() system call modifies its timeout argument.
+	// [Not modifying the argument] is the behavior required by POSIX.1-2001.
+	var mutableTimeout *Timespec
+	if timeout != nil {
+		mutableTimeout = new(Timespec)
+		*mutableTimeout = *timeout
+	}
+
+	// The final argument of the pselect6() system call is not a
+	// sigset_t * pointer, but is instead a structure
+	var kernelMask *sigset_argpack
+	if sigmask != nil {
+		wordBits := 32 << (^uintptr(0) >> 63) // see math.intSize
+
+		// A sigset stores one bit per signal,
+		// offset by 1 (because signal 0 does not exist).
+		// So the number of words needed is ⌈__C_NSIG - 1 / wordBits⌉.
+		sigsetWords := (_C__NSIG - 1 + wordBits - 1) / (wordBits)
+
+		sigsetBytes := uintptr(sigsetWords * (wordBits / 8))
+		kernelMask = &sigset_argpack{
+			ss:    sigmask,
+			ssLen: sigsetBytes,
+		}
+	}
+
+	return pselect6(nfd, r, w, e, mutableTimeout, kernelMask)
+}
+
 /*
  * Unimplemented
  */
@@ -2461,7 +2512,6 @@ func PthreadSigmask(how int, set, oldset *Sigset_t) error {
 // MqTimedreceive
 // MqTimedsend
 // MqUnlink
-// Mremap
 // Msgctl
 // Msgget
 // Msgrcv

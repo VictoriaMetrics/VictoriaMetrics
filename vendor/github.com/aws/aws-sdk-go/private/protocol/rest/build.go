@@ -9,6 +9,7 @@ import (
 	"math"
 	"net/http"
 	"net/url"
+	"path"
 	"reflect"
 	"strconv"
 	"strings"
@@ -133,6 +134,9 @@ func buildLocationElements(r *request.Request, v reflect.Value, buildGETQuery bo
 	}
 
 	r.HTTPRequest.URL.RawQuery = query.Encode()
+	if !aws.BoolValue(r.Config.DisableRestProtocolURICleaning) {
+		cleanPath(r.HTTPRequest.URL)
+	}
 }
 
 func buildBody(r *request.Request, v reflect.Value) {
@@ -240,6 +244,19 @@ func buildQueryString(query url.Values, v reflect.Value, name string, tag reflec
 	return nil
 }
 
+func cleanPath(u *url.URL) {
+	hasSlash := strings.HasSuffix(u.Path, "/")
+
+	// clean up path, removing duplicate `/`
+	u.Path = path.Clean(u.Path)
+	u.RawPath = path.Clean(u.RawPath)
+
+	if hasSlash && !strings.HasSuffix(u.Path, "/") {
+		u.Path += "/"
+		u.RawPath += "/"
+	}
+}
+
 // EscapePath escapes part of a URL path in Amazon style
 func EscapePath(path string, encodeSep bool) string {
 	var buf bytes.Buffer
@@ -270,6 +287,10 @@ func convertType(v reflect.Value, tag reflect.StructTag) (str string, err error)
 		if tag.Get("location") != "header" || tag.Get("enum") == "" {
 			return "", fmt.Errorf("%T is only supported with location header and enum shapes", value)
 		}
+		if len(value) == 0 {
+			return "", errValueNotSet
+		}
+
 		buff := &bytes.Buffer{}
 		for i, sv := range value {
 			if sv == nil || len(*sv) == 0 {
