@@ -28,6 +28,9 @@ The following `tip` changes can be tested by building VictoriaMetrics components
 
 Released at 2023-08-12
 
+**v1.93.x is a line of LTS releases (e.g. long-time support). It contains important up-to-date bugfixes.
+The v1.93.x line will be supported for at least 12 months since [v1.93.0](https://docs.victoriametrics.com/CHANGELOG.html#v1930) release**
+
 **Update note**: starting from this release, [vmagent](https://docs.victoriametrics.com/vmagent.html) ignores timestamps provided by scrape targets by default - it associates scraped metrics with local timestamps instead. Set `honor_timestamps: true` in [scrape configs](https://docs.victoriametrics.com/sd_configs.html#scrape_configs) if timestamps provided by scrape targets must be used instead. This change helps removing gaps for metrics collected from [cadvisor](https://github.com/google/cadvisor) such as `container_memory_usage_bytes`. This also improves data compression and query performance over metrics collected from `cadvisor`. See more details [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4697).
 
 * SECURITY: upgrade Go builder from Go1.20.6 to Go1.21.0 in order to fix [this issue](https://github.com/golang/go/issues/61460).
