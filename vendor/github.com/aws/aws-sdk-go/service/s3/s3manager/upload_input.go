@@ -45,16 +45,16 @@ type UploadInput struct {
 	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com. When
 	// you use this action with S3 on Outposts through the Amazon Web Services SDKs,
 	// you provide the Outposts access point ARN in place of the bucket name. For
-	// more information about S3 on Outposts ARNs, see What is S3 on Outposts (https://docs.aws.amazon.com/AmazonS3/latest/userguide/S3onOutposts.html)
+	// more information about S3 on Outposts ARNs, see What is S3 on Outposts? (https://docs.aws.amazon.com/AmazonS3/latest/userguide/S3onOutposts.html)
 	// in the Amazon S3 User Guide.
 	//
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
 
 	// Specifies whether Amazon S3 should use an S3 Bucket Key for object encryption
-	// with server-side encryption using AWS KMS (SSE-KMS). Setting this header
-	// to true causes Amazon S3 to use an S3 Bucket Key for object encryption with
-	// SSE-KMS.
+	// with server-side encryption using Key Management Service (KMS) keys (SSE-KMS).
+	// Setting this header to true causes Amazon S3 to use an S3 Bucket Key for
+	// object encryption with SSE-KMS.
 	//
 	// Specifying this header with a PUT action doesn’t affect bucket-level settings
 	// for S3 Bucket Key.
@@ -216,18 +216,18 @@ type UploadInput struct {
 	// for future GetObject or CopyObject operations on this object.
 	SSEKMSEncryptionContext *string `location:"header" locationName:"x-amz-server-side-encryption-context" type:"string" sensitive:"true"`
 
-	// If x-amz-server-side-encryption has a valid value of aws:kms, this header
-	// specifies the ID of the Amazon Web Services Key Management Service (Amazon
-	// Web Services KMS) symmetric encryption customer managed key that was used
-	// for the object. If you specify x-amz-server-side-encryption:aws:kms, but
-	// do not providex-amz-server-side-encryption-aws-kms-key-id, Amazon S3 uses
-	// the Amazon Web Services managed key to protect the data. If the KMS key does
-	// not exist in the same account issuing the command, you must use the full
-	// ARN and not just the ID.
+	// If x-amz-server-side-encryption has a valid value of aws:kms or aws:kms:dsse,
+	// this header specifies the ID of the Key Management Service (KMS) symmetric
+	// encryption customer managed key that was used for the object. If you specify
+	// x-amz-server-side-encryption:aws:kms or x-amz-server-side-encryption:aws:kms:dsse,
+	// but do not providex-amz-server-side-encryption-aws-kms-key-id, Amazon S3
+	// uses the Amazon Web Services managed key (aws/s3) to protect the data. If
+	// the KMS key does not exist in the same account that's issuing the command,
+	// you must use the full ARN and not just the ID.
 	SSEKMSKeyId *string `location:"header" locationName:"x-amz-server-side-encryption-aws-kms-key-id" type:"string" sensitive:"true"`
 
 	// The server-side encryption algorithm used when storing this object in Amazon
-	// S3 (for example, AES256, aws:kms).
+	// S3 (for example, AES256, aws:kms, aws:kms:dsse).
 	ServerSideEncryption *string `location:"header" locationName:"x-amz-server-side-encryption" type:"string" enum:"ServerSideEncryption"`
 
 	// By default, Amazon S3 uses the STANDARD Storage Class to store newly created
