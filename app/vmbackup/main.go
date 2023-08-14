@@ -92,8 +92,6 @@ func main() {
 				logger.Fatalf("cannot delete snapshot: %s", err)
 			}
 		}
-	} else if len(*snapshotName) == 0 {
-		logger.Fatalf("`-snapshotName` or `-snapshot.createURL` must be provided")
 	}
 
 	go httpserver.Serve(*httpListenAddr, false, nil)
@@ -113,34 +111,48 @@ func main() {
 }
 
 func makeBackup() error {
-	if err := snapshot.Validate(*snapshotName); err != nil {
-		return fmt.Errorf("invalid -snapshotName=%q: %s", *snapshotName, err)
-	}
-
-	srcFS, err := newSrcFS()
-	if err != nil {
-		return err
-	}
 	dstFS, err := newDstFS()
 	if err != nil {
 		return err
 	}
-	originFS, err := newOriginFS()
-	if err != nil {
-		return err
+	if *snapshotName == "" {
+		// Make server-side copy from -origin to -dst
+		originFS, err := newRemoteOriginFS()
+		if err != nil {
+			return err
+		}
+		a := &actions.RemoteBackupCopy{
+			Concurrency: *concurrency,
+			Src:         originFS,
+			Dst:         dstFS,
+		}
+		if err := a.Run(); err != nil {
+			return err
+		}
+		originFS.MustStop()
+	} else {
+		// Make backup from srcFS to -dst
+		srcFS, err := newSrcFS()
+		if err != nil {
+			return err
+		}
+		originFS, err := newOriginFS()
+		if err != nil {
+			return err
+		}
+		a := &actions.Backup{
+			Concurrency: *concurrency,
+			Src:         srcFS,
+			Dst:         dstFS,
+			Origin:      originFS,
+		}
+		if err := a.Run(); err != nil {
+			return err
+		}
+		srcFS.MustStop()
+		originFS.MustStop()
 	}
-	a := &actions.Backup{
-		Concurrency: *concurrency,
-		Src:         srcFS,
-		Dst:         dstFS,
-		Origin:      originFS,
-	}
-	if err := a.Run(); err != nil {
-		return err
-	}
-	srcFS.MustStop()
 	dstFS.MustStop()
-	originFS.MustStop()
 	return nil
 }
 
@@ -155,6 +167,9 @@ See the docs at https://docs.victoriametrics.com/vmbackup.html .
 }
 
 func newSrcFS() (*fslocal.FS, error) {
+	if err := snapshot.Validate(*snapshotName); err != nil {
+		return nil, fmt.Errorf("invalid -snapshotName=%q: %s", *snapshotName, err)
+	}
 	snapshotPath := filepath.Join(*storageDataPath, "snapshots", *snapshotName)
 
 	// Verify the snapshot exists.
@@ -211,6 +226,17 @@ func hasFilepathPrefix(path, prefix string) bool {
 func newOriginFS() (common.OriginFS, error) {
 	if len(*origin) == 0 {
 		return &fsnil.FS{}, nil
+	}
+	fs, err := actions.NewRemoteFS(*origin)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse `-origin`=%q: %w", *origin, err)
+	}
+	return fs, nil
+}
+
+func newRemoteOriginFS() (common.RemoteFS, error) {
+	if len(*origin) == 0 {
+		return nil, fmt.Errorf("-origin cannot be empty when -snapshotName and -snapshot.createURL aren't set")
 	}
 	fs, err := actions.NewRemoteFS(*origin)
 	if err != nil {
