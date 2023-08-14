@@ -1,4 +1,5 @@
 @use "src/styles/variables" as *;
+
 $chart-tooltip-width: 325px;
 $chart-tooltip-icon-width: 25px;
 $chart-tooltip-half-icon: calc($chart-tooltip-icon-width/2);
@@ -53,10 +54,8 @@ $chart-tooltip-y: -1 * ($padding-small + $chart-tooltip-half-icon);
     }
 
     &__date {
-      &_range {
-        display: grid;
-        gap: 2px;
-      }
+      display: grid;
+      gap: 2px;
     }
   }
 
@@ -67,6 +66,13 @@ $chart-tooltip-y: -1 * ($padding-small + $chart-tooltip-half-icon);
     align-items: flex-start;
     word-break: break-all;
     line-height: $font-size;
+
+    &__stats {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: $padding-small;
+    }
 
     &__marker {
       width: 12px;

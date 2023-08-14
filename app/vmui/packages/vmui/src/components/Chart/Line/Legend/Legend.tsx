@@ -1,5 +1,5 @@
 import React, { FC, useMemo } from "preact/compat";
-import { LegendItemType } from "../../../../utils/uplot/types";
+import { LegendItemType } from "../../../../types";
 import LegendItem from "./LegendItem/LegendItem";
 import Accordion from "../../../Main/Accordion/Accordion";
 import "./style.scss";

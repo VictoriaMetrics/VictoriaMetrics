@@ -81,11 +81,13 @@ export const useFetchQuery = ({
     setFetchQueue([...fetchQueue, controller]);
     try {
       const isDisplayChart = displayType === "chart";
-      let seriesLimit = showAllSeries ? Infinity : (+stateSeriesLimits[displayType] || Infinity);
+      const defaultLimit = showAllSeries ? Infinity : (+stateSeriesLimits[displayType] || Infinity);
+      let seriesLimit = defaultLimit;
       const tempData: MetricBase[] = [];
       const tempTraces: Trace[] = [];
       let counter = 1;
       let totalLength = 0;
+      let isHistogramResult = false;
 
       for await (const url of fetchUrl) {
 
@@ -113,9 +115,8 @@ export const useFetchQuery = ({
             tempTraces.push(trace);
           }
 
-          const isHistogramResult = isDisplayChart && isHistogramData(resp.data.result);
-          if (resp.data.result.length) setIsHistogram(isHistogramResult);
-          if (isHistogramResult) seriesLimit = Infinity;
+          isHistogramResult = isDisplayChart && isHistogramData(resp.data.result);
+          seriesLimit = isHistogramResult ? Infinity : Math.max(totalLength, defaultLimit);
           const freeTempSize = seriesLimit - tempData.length;
           resp.data.result.slice(0, freeTempSize).forEach((d: MetricBase) => {
             d.group = counter;
@@ -134,6 +135,7 @@ export const useFetchQuery = ({
       setWarning(totalLength > seriesLimit ? limitText : "");
       isDisplayChart ? setGraphData(tempData as MetricResult[]) : setLiveData(tempData as InstantMetricResult[]);
       setTraces(tempTraces);
+      setIsHistogram(totalLength ? isHistogramResult: false);
     } catch (e) {
       if (e instanceof Error && e.name !== "AbortError") {
         setError(`${e.name}: ${e.message}`);
