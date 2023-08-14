@@ -48,14 +48,15 @@ var (
 		"isn't enough for sending high volume of collected data to remote storage. Default value is 2 * numberOfAvailableCPUs")
 	showRemoteWriteURL = flag.Bool("remoteWrite.showURL", false, "Whether to show -remoteWrite.url in the exported metrics. "+
 		"It is hidden by default, since it can contain sensitive info such as auth key")
-	maxPendingBytesPerURL = flagutil.NewArrayBytes("remoteWrite.maxDiskUsagePerURL", "The maximum file-based buffer size in bytes at -remoteWrite.tmpDataPath "+
+	maxPendingBytesPerURL = flagutil.NewArrayBytes("remoteWrite.maxDiskUsagePerURL", 0, "The maximum file-based buffer size in bytes at -remoteWrite.tmpDataPath "+
 		"for each -remoteWrite.url. When buffer size reaches the configured maximum, then old data is dropped when adding new data to the buffer. "+
 		"Buffered data is stored in ~500MB chunks. It is recommended to set the value for this flag to a multiple of the block size 500MB. "+
 		"Disk usage is unlimited if the value is set to 0")
-	significantFigures = flagutil.NewArrayInt("remoteWrite.significantFigures", "The number of significant figures to leave in metric values before writing them "+
+	significantFigures = flagutil.NewArrayInt("remoteWrite.significantFigures", 0, "The number of significant figures to leave in metric values before writing them "+
 		"to remote storage. See https://en.wikipedia.org/wiki/Significant_figures . Zero value saves all the significant figures. "+
 		"This option may be used for improving data compression for the stored metrics. See also -remoteWrite.roundDigits")
-	roundDigits = flagutil.NewArrayInt("remoteWrite.roundDigits", "Round metric values to this number of decimal digits after the point before writing them to remote storage. "+
+	roundDigits = flagutil.NewArrayInt("remoteWrite.roundDigits", 100, "Round metric values to this number of decimal digits after the point before "+
+		"writing them to remote storage. "+
 		"Examples: -remoteWrite.roundDigits=2 would round 1.236 to 1.24, while -remoteWrite.roundDigits=-1 would round 126.78 to 130. "+
 		"By default, digits rounding is disabled. Set it to 100 for disabling it for a particular remote storage. "+
 		"This option may be used for improving data compression for the stored metrics")
@@ -77,7 +78,7 @@ var (
 	streamAggrDropInput = flagutil.NewArrayBool("remoteWrite.streamAggr.dropInput", "Whether to drop all the input samples after the aggregation "+
 		"with -remoteWrite.streamAggr.config. By default, only aggregates samples are dropped, while the remaining samples "+
 		"are written to the corresponding -remoteWrite.url . See also -remoteWrite.streamAggr.keepInput and https://docs.victoriametrics.com/stream-aggregation.html")
-	streamAggrDedupInterval = flagutil.NewArrayDuration("remoteWrite.streamAggr.dedupInterval", "Input samples are de-duplicated with this interval before being aggregated. "+
+	streamAggrDedupInterval = flagutil.NewArrayDuration("remoteWrite.streamAggr.dedupInterval", 0, "Input samples are de-duplicated with this interval before being aggregated. "+
 		"Only the last sample per each time series per each interval is aggregated if the interval is greater than zero")
 )
 
@@ -565,7 +566,7 @@ func newRemoteWriteCtx(argIdx int, at *auth.Token, remoteWriteURL *url.URL, maxI
 	pqURL.Fragment = ""
 	h := xxhash.Sum64([]byte(pqURL.String()))
 	queuePath := filepath.Join(*tmpDataPath, persistentQueueDirname, fmt.Sprintf("%d_%016X", argIdx+1, h))
-	maxPendingBytes := maxPendingBytesPerURL.GetOptionalArgOrDefault(argIdx, 0)
+	maxPendingBytes := maxPendingBytesPerURL.GetOptionalArg(argIdx)
 	if maxPendingBytes != 0 && maxPendingBytes < persistentqueue.DefaultChunkFileSize {
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4195
 		logger.Warnf("rounding the -remoteWrite.maxDiskUsagePerURL=%d to the minimum supported value: %d", maxPendingBytes, persistentqueue.DefaultChunkFileSize)
@@ -589,8 +590,8 @@ func newRemoteWriteCtx(argIdx int, at *auth.Token, remoteWriteURL *url.URL, maxI
 	c.init(argIdx, *queues, sanitizedURL)
 
 	// Initialize pss
-	sf := significantFigures.GetOptionalArgOrDefault(argIdx, 0)
-	rd := roundDigits.GetOptionalArgOrDefault(argIdx, 100)
+	sf := significantFigures.GetOptionalArg(argIdx)
+	rd := roundDigits.GetOptionalArg(argIdx)
 	pssLen := *queues
 	if n := cgroup.AvailableCPUs(); pssLen > n {
 		// There is no sense in running more than availableCPUs concurrent pendingSeries,
@@ -615,7 +616,7 @@ func newRemoteWriteCtx(argIdx int, at *auth.Token, remoteWriteURL *url.URL, maxI
 	// Initialize sas
 	sasFile := streamAggrConfig.GetOptionalArg(argIdx)
 	if sasFile != "" {
-		dedupInterval := streamAggrDedupInterval.GetOptionalArgOrDefault(argIdx, 0)
+		dedupInterval := streamAggrDedupInterval.GetOptionalArg(argIdx)
 		sas, err := streamaggr.LoadFromFile(sasFile, rwctx.pushInternal, dedupInterval)
 		if err != nil {
 			logger.Fatalf("cannot initialize stream aggregators from -remoteWrite.streamAggr.config=%q: %s", sasFile, err)
@@ -738,7 +739,7 @@ func (rwctx *remoteWriteCtx) reinitStreamAggr() {
 	sasFile := streamAggrConfig.GetOptionalArg(rwctx.idx)
 	logger.Infof("reloading stream aggregation configs pointed by -remoteWrite.streamAggr.config=%q", sasFile)
 	metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reloads_total{path=%q}`, sasFile)).Inc()
-	dedupInterval := streamAggrDedupInterval.GetOptionalArgOrDefault(rwctx.idx, 0)
+	dedupInterval := streamAggrDedupInterval.GetOptionalArg(rwctx.idx)
 	sasNew, err := streamaggr.LoadFromFile(sasFile, rwctx.pushInternal, dedupInterval)
 	if err != nil {
 		metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reloads_errors_total{path=%q}`, sasFile)).Inc()
@@ -780,7 +781,7 @@ func CheckStreamAggrConfigs() error {
 		if sasFile == "" {
 			continue
 		}
-		dedupInterval := streamAggrDedupInterval.GetOptionalArgOrDefault(idx, 0)
+		dedupInterval := streamAggrDedupInterval.GetOptionalArg(idx)
 		sas, err := streamaggr.LoadFromFile(sasFile, pushNoop, dedupInterval)
 		if err != nil {
 			return fmt.Errorf("cannot load -remoteWrite.streamAggr.config=%q: %w", sasFile, err)

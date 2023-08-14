@@ -896,11 +896,17 @@ func evalRollupFuncWithSubquery(qt *querytracer.Tracer, ec *EvalConfig, funcName
 	// TODO: determine whether to use rollupResultCacheV here.
 	qt = qt.NewChild("subquery")
 	defer qt.Done()
-	step := re.Step.Duration(ec.Step)
+	step, err := re.Step.NonNegativeDuration(ec.Step)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse step in square brackets at %s: %w", expr.AppendString(nil), err)
+	}
 	if step == 0 {
 		step = ec.Step
 	}
-	window := re.Window.Duration(ec.Step)
+	window, err := re.Window.NonNegativeDuration(ec.Step)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse lookbehind window in square brackets at %s: %w", expr.AppendString(nil), err)
+	}
 
 	ecSQ := copyEvalConfig(ec)
 	ecSQ.Start -= window + maxSilenceInterval + step
@@ -1042,7 +1048,10 @@ var (
 func evalRollupFuncWithMetricExpr(qt *querytracer.Tracer, ec *EvalConfig, funcName string, rf rollupFunc,
 	expr metricsql.Expr, me *metricsql.MetricExpr, iafc *incrementalAggrFuncContext, windowExpr *metricsql.DurationExpr) ([]*timeseries, error) {
 	var rollupMemorySize int64
-	window := windowExpr.Duration(ec.Step)
+	window, err := windowExpr.NonNegativeDuration(ec.Step)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse lookbehind window in square brackets at %s: %w", expr.AppendString(nil), err)
+	}
 	if qt.Enabled() {
 		qt = qt.NewChild("rollup %s(): timeRange=%s, step=%d, window=%d", funcName, ec.timeRangeString(), ec.Step, window)
 		defer func() {

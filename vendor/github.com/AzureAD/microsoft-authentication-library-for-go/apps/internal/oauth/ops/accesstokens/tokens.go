@@ -294,10 +294,11 @@ func (rt RefreshToken) Key() string {
 		fourth = rt.ClientID
 	}
 
-	return strings.Join(
+	key := strings.Join(
 		[]string{rt.HomeAccountID, rt.Environment, rt.CredentialType, fourth},
 		shared.CacheKeySeparator,
 	)
+	return strings.ToLower(key)
 }
 
 func (rt RefreshToken) GetSecret() string {

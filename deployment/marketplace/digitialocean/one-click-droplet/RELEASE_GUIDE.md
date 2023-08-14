@@ -8,7 +8,7 @@
 4. Set variables `DIGITALOCEAN_API_TOKEN` with `VM_VERSION` for `packer` environment and run make from example below:
 
 ```console
-make release-victoria-metrics-digitalocean-oneclick-droplet DIGITALOCEAN_API_TOKEN="dop_v23_2e46f4759ceeeba0d0248" VM_VERSION="1.92.1"
+make release-victoria-metrics-digitalocean-oneclick-droplet DIGITALOCEAN_API_TOKEN="dop_v23_2e46f4759ceeeba0d0248" VM_VERSION="1.93.0"
 ```
 
 

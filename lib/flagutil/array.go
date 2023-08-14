@@ -16,12 +16,15 @@ func NewArrayString(name, description string) *ArrayString {
 	return &a
 }
 
-// NewArrayDuration returns new ArrayDuration with the given name and description.
-func NewArrayDuration(name, description string) *ArrayDuration {
+// NewArrayDuration returns new ArrayDuration with the given name, defaultValue and description.
+func NewArrayDuration(name string, defaultValue time.Duration, description string) *ArrayDuration {
+	description += fmt.Sprintf(" (default %s)", defaultValue)
 	description += "\nSupports `array` of values separated by comma or specified via multiple flags."
-	var a ArrayDuration
-	flag.Var(&a, name, description)
-	return &a
+	a := &ArrayDuration{
+		defaultValue: defaultValue,
+	}
+	flag.Var(a, name, description)
+	return a
 }
 
 // NewArrayBool returns new ArrayBool with the given name and description.
@@ -32,21 +35,27 @@ func NewArrayBool(name, description string) *ArrayBool {
 	return &a
 }
 
-// NewArrayInt returns new ArrayInt with the given name and description.
-func NewArrayInt(name, description string) *ArrayInt {
+// NewArrayInt returns new ArrayInt with the given name, defaultValue and description.
+func NewArrayInt(name string, defaultValue int, description string) *ArrayInt {
+	description += fmt.Sprintf(" (default %d)", defaultValue)
 	description += "\nSupports `array` of values separated by comma or specified via multiple flags."
-	var a ArrayInt
-	flag.Var(&a, name, description)
-	return &a
+	a := &ArrayInt{
+		defaultValue: defaultValue,
+	}
+	flag.Var(a, name, description)
+	return a
 }
 
-// NewArrayBytes returns new ArrayBytes with the given name and description.
-func NewArrayBytes(name, description string) *ArrayBytes {
+// NewArrayBytes returns new ArrayBytes with the given name, defaultValue and description.
+func NewArrayBytes(name string, defaultValue int64, description string) *ArrayBytes {
 	description += "\nSupports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB."
+	description += fmt.Sprintf(" (default %d)", defaultValue)
 	description += "\nSupports `array` of values separated by comma or specified via multiple flags."
-	var a ArrayBytes
-	flag.Var(&a, name, description)
-	return &a
+	a := &ArrayBytes{
+		defaultValue: defaultValue,
+	}
+	flag.Var(a, name, description)
+	return a
 }
 
 // ArrayString is a flag that holds an array of strings.
@@ -220,11 +229,11 @@ func (a *ArrayBool) IsBoolFlag() bool { return true }
 
 // String implements flag.Value interface
 func (a *ArrayBool) String() string {
-	formattedBools := make([]string, len(*a))
+	formattedResults := make([]string, len(*a))
 	for i, v := range *a {
-		formattedBools[i] = strconv.FormatBool(v)
+		formattedResults[i] = strconv.FormatBool(v)
 	}
-	return strings.Join(formattedBools, ",")
+	return strings.Join(formattedResults, ",")
 }
 
 // Set implements flag.Value interface
@@ -255,15 +264,19 @@ func (a *ArrayBool) GetOptionalArg(argIdx int) bool {
 // ArrayDuration is a flag that holds an array of time.Duration values.
 //
 // Has the same api as ArrayString.
-type ArrayDuration []time.Duration
+type ArrayDuration struct {
+	defaultValue time.Duration
+	a            []time.Duration
+}
 
 // String implements flag.Value interface
 func (a *ArrayDuration) String() string {
-	formattedBools := make([]string, len(*a))
-	for i, v := range *a {
-		formattedBools[i] = v.String()
+	x := a.a
+	formattedResults := make([]string, len(x))
+	for i, v := range x {
+		formattedResults[i] = v.String()
 	}
-	return strings.Join(formattedBools, ",")
+	return strings.Join(formattedResults, ",")
 }
 
 // Set implements flag.Value interface
@@ -274,20 +287,19 @@ func (a *ArrayDuration) Set(value string) error {
 		if err != nil {
 			return err
 		}
-		*a = append(*a, b)
+		a.a = append(a.a, b)
 	}
 	return nil
 }
 
-// GetOptionalArgOrDefault returns optional arg under the given argIdx,
-// or default value, if argIdx not found.
-func (a *ArrayDuration) GetOptionalArgOrDefault(argIdx int, defaultValue time.Duration) time.Duration {
-	x := *a
+// GetOptionalArg returns optional arg under the given argIdx, or default value, if argIdx not found.
+func (a *ArrayDuration) GetOptionalArg(argIdx int) time.Duration {
+	x := a.a
 	if argIdx >= len(x) {
 		if len(x) == 1 {
 			return x[0]
 		}
-		return defaultValue
+		return a.defaultValue
 	}
 	return x[argIdx]
 }
@@ -295,11 +307,14 @@ func (a *ArrayDuration) GetOptionalArgOrDefault(argIdx int, defaultValue time.Du
 // ArrayInt is flag that holds an array of ints.
 //
 // Has the same api as ArrayString.
-type ArrayInt []int
+type ArrayInt struct {
+	defaultValue int
+	a            []int
+}
 
 // String implements flag.Value interface
 func (a *ArrayInt) String() string {
-	x := *a
+	x := a.a
 	formattedInts := make([]string, len(x))
 	for i, v := range x {
 		formattedInts[i] = strconv.Itoa(v)
@@ -315,31 +330,34 @@ func (a *ArrayInt) Set(value string) error {
 		if err != nil {
 			return err
 		}
-		*a = append(*a, n)
+		a.a = append(a.a, n)
 	}
 	return nil
 }
 
-// GetOptionalArgOrDefault returns optional arg under the given argIdx.
-func (a *ArrayInt) GetOptionalArgOrDefault(argIdx, defaultValue int) int {
-	x := *a
+// GetOptionalArg returns optional arg under the given argIdx or default value.
+func (a *ArrayInt) GetOptionalArg(argIdx int) int {
+	x := a.a
 	if argIdx < len(x) {
 		return x[argIdx]
 	}
 	if len(x) == 1 {
 		return x[0]
 	}
-	return defaultValue
+	return a.defaultValue
 }
 
 // ArrayBytes is flag that holds an array of Bytes.
 //
 // Has the same api as ArrayString.
-type ArrayBytes []*Bytes
+type ArrayBytes struct {
+	defaultValue int64
+	a            []*Bytes
+}
 
 // String implements flag.Value interface
 func (a *ArrayBytes) String() string {
-	x := *a
+	x := a.a
 	formattedBytes := make([]string, len(x))
 	for i, v := range x {
 		formattedBytes[i] = v.String()
@@ -355,19 +373,19 @@ func (a *ArrayBytes) Set(value string) error {
 		if err := b.Set(v); err != nil {
 			return err
 		}
-		*a = append(*a, &b)
+		a.a = append(a.a, &b)
 	}
 	return nil
 }
 
-// GetOptionalArgOrDefault returns optional arg under the given argIdx.
-func (a *ArrayBytes) GetOptionalArgOrDefault(argIdx int, defaultValue int64) int64 {
-	x := *a
+// GetOptionalArg returns optional arg under the given argIdx, or default value
+func (a *ArrayBytes) GetOptionalArg(argIdx int) int64 {
+	x := a.a
 	if argIdx < len(x) {
 		return x[argIdx].N
 	}
 	if len(x) == 1 {
 		return x[0].N
 	}
-	return defaultValue
+	return a.defaultValue
 }
