@@ -26,6 +26,8 @@ The following `tip` changes can be tested by building VictoriaMetrics components
 
 * FEATURE: [vmbackup](https://docs.victoriametrics.com/vmbackup.html): add support for server-side copy of existing backups. See [these docs](https://docs.victoriametrics.com/vmbackup.html#server-side-copy-of-the-existing-backup) for details.
 
+* BUGFIX: remove `DEBUG` logging when parsing `if` filters inside [relabeling rules](https://docs.victoriametrics.com/vmagent.html#relabeling-enhancements) and when parsing `match` filters inside [stream aggregation rules](https://docs.victoriametrics.com/stream-aggregation.html).
+
 ## [v1.93.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.0)
 
 Released at 2023-08-12
