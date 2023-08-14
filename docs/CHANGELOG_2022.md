@@ -1,3 +1,15 @@
+---
+sort: 17
+weight: 17
+title: CHANGELOG for the year 2022
+menu:
+  docs:
+    parent: "victoriametrics"
+    weight: 17
+aliases:
+- /CHANGELOG.html
+---
+
 # CHANGELOG for the year 2022
 
 ## [v1.85.3](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.85.3)

@@ -1,11 +1,11 @@
 ---
-sort: 19
-weight: 19
+sort: 22
+weight: 22
 title: VictoriaMetrics Cluster Per Tenant Statistic
 menu:
   docs:
     parent: "victoriametrics"
-    weight: 19
+    weight: 22
 aliases:
 - /PerTenantStatistic.html
 ---
