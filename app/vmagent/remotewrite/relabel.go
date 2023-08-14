@@ -114,9 +114,9 @@ func (rctx *relabelCtx) applyRelabeling(tss []prompbmarshal.TimeSeries, extraLab
 			for j := range tmpLabels {
 				label := &tmpLabels[j]
 				if label.Name == "__name__" {
-					label.Value = promrelabel.SanitizeName(label.Value)
+					label.Value = promrelabel.SanitizeMetricName(label.Value)
 				} else {
-					label.Name = promrelabel.SanitizeName(label.Name)
+					label.Name = promrelabel.SanitizeLabelName(label.Name)
 				}
 			}
 		}
