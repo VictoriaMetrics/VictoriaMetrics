@@ -76,6 +76,7 @@ See also [case studies](https://docs.victoriametrics.com/CaseStudies.html).
 * [Evaluating Backend Options For Prometheus Metrics](https://www.techetio.com/2022/08/21/evaluating-backend-options-for-prometheus-metrics/)
 * [Time Series in the Multiverse of Madness (in Korean)](https://www.youtube.com/watch?v=OUyXPgVcdw4), plus [these slides](https://deview.kr/data/deview/session/attach/%5B2B4%5DVictoriaMetrics_%E1%84%89%E1%85%B5%E1%84%80%E1%85%A8%E1%84%8B%E1%85%A7%E1%86%AF_%E1%84%83%E1%85%A6%E1%84%8B%E1%85%B5%E1%84%90%E1%85%A5_%E1%84%83%E1%85%A2%E1%84%92%E1%85%A9%E1%86%AB%E1%84%83%E1%85%A9%E1%86%AB%E1%84%8B%E1%85%B4_%E1%84%86%E1%85%A5%E1%86%AF%E1%84%90%E1%85%B5%E1%84%87%E1%85%A5%E1%84%89%E1%85%B3_Kor+Eng.pdf)
 * [VictoriaMetrics: an overview and its use instead of Prometheus](https://rtfm.co.ua/en/victoriametrics-an-overview-and-its-use-instead-of-prometheus/)
+* [VictoriaMetrics: deploying a Kubernetes monitoring stack](https://rtfm.co.ua/en/victoriametrics-deploying-a-kubernetes-monitoring-stack/)
 
 ## Our articles
 
