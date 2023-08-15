@@ -148,10 +148,6 @@ func (rctx *relabelCtx) appendExtraLabels(tss []prompbmarshal.TimeSeries, extraL
 			}
 		}
 		labels = promrelabel.FinalizeLabels(labels[:labelsLen], labels[labelsLen:])
-		if len(labels) == labelsLen {
-			// Drop the current time series, since relabeling removed all the labels.
-			continue
-		}
 		tssDst = append(tssDst, prompbmarshal.TimeSeries{
 			Labels:  labels[labelsLen:],
 			Samples: ts.Samples,
