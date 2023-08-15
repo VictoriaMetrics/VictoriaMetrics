@@ -9,19 +9,35 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
-func TestSanitizeName(t *testing.T) {
+func TestSanitizeMetricName(t *testing.T) {
 	f := func(s, resultExpected string) {
 		t.Helper()
 		for i := 0; i < 5; i++ {
-			result := SanitizeName(s)
+			result := SanitizeMetricName(s)
 			if result != resultExpected {
-				t.Fatalf("unexpected result for SanitizeName(%q) at iteration %d; got %q; want %q", s, i, result, resultExpected)
+				t.Fatalf("unexpected result for SanitizeMetricName(%q) at iteration %d; got %q; want %q", s, i, result, resultExpected)
 			}
 		}
 	}
 	f("", "")
 	f("a", "a")
 	f("foo.bar/baz:a", "foo_bar_baz:a")
+	f("foo...bar", "foo___bar")
+}
+
+func TestSanitizeLabelName(t *testing.T) {
+	f := func(s, resultExpected string) {
+		t.Helper()
+		for i := 0; i < 5; i++ {
+			result := SanitizeLabelName(s)
+			if result != resultExpected {
+				t.Fatalf("unexpected result for SanitizeLabelName(%q) at iteration %d; got %q; want %q", s, i, result, resultExpected)
+			}
+		}
+	}
+	f("", "")
+	f("a", "a")
+	f("foo.bar/baz:a", "foo_bar_baz_a")
 	f("foo...bar", "foo___bar")
 }
 

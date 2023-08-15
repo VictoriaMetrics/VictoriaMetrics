@@ -1,3 +1,15 @@
+---
+sort: 19
+weight: 19
+title: CHANGELOG for the year 2020
+menu:
+  docs:
+    parent: "victoriametrics"
+    weight: 19
+aliases:
+- /CHANGELOG.html
+---
+
 # CHANGELOG for the year 2020
 
 ## [v1.51.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.51.0)
