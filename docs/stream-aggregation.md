@@ -678,10 +678,8 @@ support the following approaches for hot reloading stream aggregation configs fr
 
 If you use [vmagent in cluster mode](https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets) for streaming aggregation
 (with `-promscrape.cluster.*` parameters or with `VMAgent.spec.shardCount > 1` for [vmoperator](https://docs.victoriametrics.com/operator))
-then you need to pay attention to the using the `by`, `without` or `*_relabel_configs` parameters -
-you can get exactly the same timeseries identifier (name + labels) on different vmagent instances (shards) and write to the storage.
-This resulting data will be incorrect in this case. To avoid this, you need add differentiating (between vmagent instances) label to output metrics.
+then be careful when aggregating metrics via `by`, `without` or modifying via`*_relabel_configs` parameters, as incorrect usage may result in duplicates and data collision. For example, if more than one vmagent calculates `increase` for metric `http_requests_total` with `by: [path]` directive, then the resulting time series written to the remote database will be indistinguishable, as there is no way to tell to which `instance` the aggregation belongs. The proper fix would be to add a unique aggregation dimension: `by: [instance, path]`. With this change, aggregates between `instances` won't collide.
 
-You can do in with `remoteWrite.label` [parameter in vmagent](https://docs.victoriametrics.com/vmagent.html#adding-labels-to-metrics).
+If adding a new aggregation dimension isn't feasible (due to cardinality reduction purposes), then it is worth at least differentiating by which vmagent the aggregation was performed. You can do it with `remoteWrite.label` [parameter in vmagent](https://docs.victoriametrics.com/vmagent.html#adding-labels-to-metrics).
 For example, for running in docker or k8s you can use `remoteWrite.label` with `POD_NAME` or `HOSTNAME` environment variable: `remoteWrite.label='vmagent=%{HOSTNAME}'`.
-See [this issie](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4247#issue-1692894073) for details.
+See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4247#issue-1692894073) for details.
