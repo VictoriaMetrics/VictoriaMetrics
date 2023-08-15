@@ -113,7 +113,7 @@ func TestRemoteRead(t *testing.T) {
 			ctx := context.Background()
 			remoteReadServer := remote_read_integration.NewRemoteReadServer(t)
 			defer remoteReadServer.Close()
-			remoteWriteServer := remote_read_integration.NewRemoteWriteServer(t, false)
+			remoteWriteServer := remote_read_integration.NewRemoteWriteServer(t)
 			defer remoteWriteServer.Close()
 
 			tt.remoteReadConfig.Addr = remoteReadServer.URL()
@@ -268,7 +268,7 @@ func TestSteamRemoteRead(t *testing.T) {
 			ctx := context.Background()
 			remoteReadServer := remote_read_integration.NewRemoteReadStreamServer(t)
 			defer remoteReadServer.Close()
-			remoteWriteServer := remote_read_integration.NewRemoteWriteServer(t, false)
+			remoteWriteServer := remote_read_integration.NewRemoteWriteServer(t)
 			defer remoteWriteServer.Close()
 
 			tt.remoteReadConfig.Addr = remoteReadServer.URL()

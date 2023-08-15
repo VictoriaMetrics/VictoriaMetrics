@@ -6,13 +6,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"math/rand"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
 	"sort"
 	"strconv"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -46,7 +44,7 @@ type RemoteWriteServer struct {
 }
 
 // NewRemoteWriteServer prepares test remote write server
-func NewRemoteWriteServer(t *testing.T, isCluster bool) *RemoteWriteServer {
+func NewRemoteWriteServer(t *testing.T) *RemoteWriteServer {
 	rws := &RemoteWriteServer{series: make([]vm.TimeSeries, 0)}
 	mux := http.NewServeMux()
 
@@ -56,21 +54,6 @@ func NewRemoteWriteServer(t *testing.T, isCluster bool) *RemoteWriteServer {
 	mux.Handle("/api/v1/label/__name__/values", rws.valuesHandler())
 	mux.Handle("/api/v1/export/native", rws.exportNativeHandler())
 	mux.Handle("/api/v1/import/native", rws.importNativeHandler(t))
-
-	if isCluster {
-		tenants := getTenants()
-		mux.Handle("/admin/tenants", rws.tenantsHandler(tenants))
-
-		for tenant := range tenants {
-			val := strconv.Itoa(tenant)
-			exportAPIPerTenant := fmt.Sprintf("/select/%s/prometheus/api/v1/export/native", val)
-			importAPIPerTenant := fmt.Sprintf("/insert/%s/prometheus/api/v1/import/native", val)
-			valuesAPIPerTenant := fmt.Sprintf("/select/%s/prometheus/api/v1/label/__name__/values", val)
-			mux.Handle(exportAPIPerTenant, rws.exportNativeHandler())
-			mux.Handle(importAPIPerTenant, rws.importNativeHandler(t))
-			mux.Handle(valuesAPIPerTenant, rws.valuesHandler())
-		}
-	}
 
 	rws.server = httptest.NewServer(mux)
 	return rws
@@ -282,27 +265,6 @@ func (rws *RemoteWriteServer) importNativeHandler(t *testing.T) http.Handler {
 	})
 }
 
-func (rws *RemoteWriteServer) tenantsHandler(tenants map[int]struct{}) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
-		var t strings.Builder
-		i := 0
-		for tenant := range tenants {
-			val := strconv.Itoa(tenant)
-			t.WriteString(fmt.Sprintf("%q", val))
-			if i == len(tenants)-1 {
-				break
-			}
-			t.WriteString(",")
-			i++
-		}
-
-		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, `{"status":"success","data": [%s]}`, t.String())
-		return
-	})
-}
-
 // GenerateVNSeries generates test timeseries
 func GenerateVNSeries(start, end, numOfSeries, numOfSamples int64) []vm.TimeSeries {
 	var ts []vm.TimeSeries
@@ -345,20 +307,4 @@ func generateTimeStampsAndValues(idx int, startTime, endTime, numOfSamples int64
 	}
 
 	return timestamps, values
-}
-
-func getTenants() map[int]struct{} {
-	min := 1000
-	max := 1002
-	d := max - min
-
-	uniqRand := make(map[int]struct{}, d)
-	for i := 0; i < d; i++ {
-		v := rand.Intn(max-min) + min
-		if _, ok := uniqRand[v]; !ok {
-			uniqRand[v] = struct{}{}
-		}
-	}
-
-	return uniqRand
 }
