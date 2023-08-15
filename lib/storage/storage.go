@@ -154,21 +154,19 @@ type Storage struct {
 }
 
 // MustOpenStorage opens storage on the given path with the given retentionMsecs.
-func MustOpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySeries int) *Storage {
+func MustOpenStorage(path string, retention time.Duration, maxHourlySeries, maxDailySeries int) *Storage {
 	path, err := filepath.Abs(path)
 	if err != nil {
 		logger.Panicf("FATAL: cannot determine absolute path for %q: %s", path, err)
 	}
-	if retentionMsecs <= 0 {
-		retentionMsecs = maxRetentionMsecs
-	}
-	if retentionMsecs > maxRetentionMsecs {
-		retentionMsecs = maxRetentionMsecs
+	maxRetention := time.Millisecond * time.Duration(maxRetentionMsecs)
+	if retention <= 0 || retention > maxRetention {
+		retention = maxRetention
 	}
 	s := &Storage{
 		path:           path,
 		cachePath:      filepath.Join(path, cacheDirname),
-		retentionMsecs: retentionMsecs,
+		retentionMsecs: retention.Milliseconds(),
 		stop:           make(chan struct{}),
 	}
 	fs.MustMkdirIfNotExist(path)
@@ -246,7 +244,7 @@ func MustOpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDail
 
 	// Initialize nextRotationTimestamp
 	nowSecs := time.Now().UnixNano() / 1e9
-	nextRotationTimestamp := nextRetentionDeadlineSeconds(nowSecs, retentionMsecs/1000, retentionTimezoneOffsetSecs)
+	nextRotationTimestamp := nextRetentionDeadlineSeconds(nowSecs, retention.Milliseconds()/1000, retentionTimezoneOffsetSecs)
 	atomic.StoreInt64(&s.nextRotationTimestamp, nextRotationTimestamp)
 
 	// Load nextDayMetricIDs cache
