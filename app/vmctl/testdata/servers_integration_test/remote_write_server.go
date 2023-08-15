@@ -54,7 +54,6 @@ func NewRemoteWriteServer(t *testing.T) *RemoteWriteServer {
 	mux.Handle("/api/v1/label/__name__/values", rws.valuesHandler())
 	mux.Handle("/api/v1/export/native", rws.exportNativeHandler())
 	mux.Handle("/api/v1/import/native", rws.importNativeHandler(t))
-
 	rws.server = httptest.NewServer(mux)
 	return rws
 }
