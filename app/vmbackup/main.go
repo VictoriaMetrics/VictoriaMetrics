@@ -220,7 +220,14 @@ func hasFilepathPrefix(path, prefix string) bool {
 	if err != nil {
 		return false
 	}
-	return strings.HasPrefix(pathAbs, prefixAbs)
+	pos := strings.Index(pathAbs, prefixAbs)
+	if pos != 0 {
+		return false
+	}
+	if len(pathAbs) == len(prefixAbs) {
+		return true
+	}
+	return pathAbs[len(prefixAbs)] == '/'
 }
 
 func newOriginFS() (common.OriginFS, error) {

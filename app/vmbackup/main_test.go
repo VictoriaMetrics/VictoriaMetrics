@@ -26,4 +26,6 @@ func TestHasFilepathPrefix(t *testing.T) {
 	f("fs://"+pwd+"/foo", pwd+"/foo/bar", false)
 	f("fs://"+pwd+"/foo/bar", pwd+"/foo", true)
 	f("fs://"+pwd+"/foo", pwd+"/bar", false)
+	f("fs://"+pwd+"/foo1", pwd+"/foo", false)
+	f("fs:///foo"+pwd+"/foo", pwd+"/foo", false)
 }
