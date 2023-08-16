@@ -52,7 +52,7 @@ func appendFilesInternal(dst []string, d *os.File) ([]string, error) {
 			// Process directory
 			dst, err = AppendFiles(dst, path)
 			if err != nil {
-				return nil, fmt.Errorf("cannot list %q: %w", path, err)
+				return nil, fmt.Errorf("cannot append files %q: %w", path, err)
 			}
 			continue
 		}
@@ -124,9 +124,6 @@ func removeEmptyDirs(dir string) (bool, error) {
 		return false, err
 	}
 	ok, err := removeEmptyDirsInternal(d)
-	if err1 := d.Close(); err1 != nil {
-		err = err1
-	}
 	if err != nil {
 		return false, err
 	}
@@ -157,7 +154,7 @@ func removeEmptyDirsInternal(d *os.File) (bool, error) {
 			// Process directory
 			ok, err := removeEmptyDirs(path)
 			if err != nil {
-				return false, fmt.Errorf("cannot list %q: %w", path, err)
+				return false, fmt.Errorf("cannot remove empty dirs %q: %w", path, err)
 			}
 			if !ok {
 				dirEntries++
@@ -220,6 +217,9 @@ func removeEmptyDirsInternal(d *os.File) (bool, error) {
 	}
 	if dirEntries > 0 {
 		return false, nil
+	}
+	if err := d.Close(); err != nil {
+		return false, fmt.Errorf("cannot close %q: %w", dir, err)
 	}
 	// Use os.RemoveAll() instead of os.Remove(), since the dir may contain special files such as flock.lock and backupnames.RestoreInProgressFilename,
 	// which must be ignored.

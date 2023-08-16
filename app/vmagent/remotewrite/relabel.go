@@ -87,8 +87,8 @@ func initLabelsGlobal() {
 	}
 }
 
-func (rctx *relabelCtx) applyRelabeling(tss []prompbmarshal.TimeSeries, extraLabels []prompbmarshal.Label, pcs *promrelabel.ParsedConfigs) []prompbmarshal.TimeSeries {
-	if len(extraLabels) == 0 && pcs.Len() == 0 && !*usePromCompatibleNaming {
+func (rctx *relabelCtx) applyRelabeling(tss []prompbmarshal.TimeSeries, pcs *promrelabel.ParsedConfigs) []prompbmarshal.TimeSeries {
+	if pcs.Len() == 0 && !*usePromCompatibleNaming {
 		// Nothing to change.
 		return tss
 	}
@@ -98,25 +98,15 @@ func (rctx *relabelCtx) applyRelabeling(tss []prompbmarshal.TimeSeries, extraLab
 		ts := &tss[i]
 		labelsLen := len(labels)
 		labels = append(labels, ts.Labels...)
-		// extraLabels must be added before applying relabeling according to https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write
-		for j := range extraLabels {
-			extraLabel := &extraLabels[j]
-			tmp := promrelabel.GetLabelByName(labels[labelsLen:], extraLabel.Name)
-			if tmp != nil {
-				tmp.Value = extraLabel.Value
-			} else {
-				labels = append(labels, *extraLabel)
-			}
-		}
 		if *usePromCompatibleNaming {
 			// Replace unsupported Prometheus chars in label names and metric names with underscores.
 			tmpLabels := labels[labelsLen:]
 			for j := range tmpLabels {
 				label := &tmpLabels[j]
 				if label.Name == "__name__" {
-					label.Value = promrelabel.SanitizeName(label.Value)
+					label.Value = promrelabel.SanitizeMetricName(label.Value)
 				} else {
-					label.Name = promrelabel.SanitizeName(label.Name)
+					label.Name = promrelabel.SanitizeLabelName(label.Name)
 				}
 			}
 		}
@@ -126,6 +116,38 @@ func (rctx *relabelCtx) applyRelabeling(tss []prompbmarshal.TimeSeries, extraLab
 			// Drop the current time series, since relabeling removed all the labels.
 			continue
 		}
+		tssDst = append(tssDst, prompbmarshal.TimeSeries{
+			Labels:  labels[labelsLen:],
+			Samples: ts.Samples,
+		})
+	}
+	rctx.labels = labels
+	return tssDst
+}
+
+func (rctx *relabelCtx) appendExtraLabels(tss []prompbmarshal.TimeSeries, extraLabels []prompbmarshal.Label) []prompbmarshal.TimeSeries {
+	if len(extraLabels) == 0 {
+		return tss
+	}
+	tssDst := tss[:0]
+	labels := rctx.labels[:0]
+	for i := range tss {
+		ts := &tss[i]
+		labelsLen := len(labels)
+		labels = append(labels, ts.Labels...)
+		for j := range extraLabels {
+			extraLabel := extraLabels[j]
+			if *usePromCompatibleNaming {
+				extraLabel.Name = promrelabel.SanitizeLabelName(extraLabel.Name)
+			}
+			tmp := promrelabel.GetLabelByName(labels[labelsLen:], extraLabel.Name)
+			if tmp != nil {
+				tmp.Value = extraLabel.Value
+			} else {
+				labels = append(labels, extraLabel)
+			}
+		}
+		labels = promrelabel.FinalizeLabels(labels[:labelsLen], labels[labelsLen:])
 		tssDst = append(tssDst, prompbmarshal.TimeSeries{
 			Labels:  labels[labelsLen:],
 			Samples: ts.Samples,

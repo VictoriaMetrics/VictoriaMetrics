@@ -9,19 +9,35 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
-func TestSanitizeName(t *testing.T) {
+func TestSanitizeMetricName(t *testing.T) {
 	f := func(s, resultExpected string) {
 		t.Helper()
 		for i := 0; i < 5; i++ {
-			result := SanitizeName(s)
+			result := SanitizeMetricName(s)
 			if result != resultExpected {
-				t.Fatalf("unexpected result for SanitizeName(%q) at iteration %d; got %q; want %q", s, i, result, resultExpected)
+				t.Fatalf("unexpected result for SanitizeMetricName(%q) at iteration %d; got %q; want %q", s, i, result, resultExpected)
 			}
 		}
 	}
 	f("", "")
 	f("a", "a")
 	f("foo.bar/baz:a", "foo_bar_baz:a")
+	f("foo...bar", "foo___bar")
+}
+
+func TestSanitizeLabelName(t *testing.T) {
+	f := func(s, resultExpected string) {
+		t.Helper()
+		for i := 0; i < 5; i++ {
+			result := SanitizeLabelName(s)
+			if result != resultExpected {
+				t.Fatalf("unexpected result for SanitizeLabelName(%q) at iteration %d; got %q; want %q", s, i, result, resultExpected)
+			}
+		}
+	}
+	f("", "")
+	f("a", "a")
+	f("foo.bar/baz:a", "foo_bar_baz_a")
 	f("foo...bar", "foo___bar")
 }
 
@@ -914,4 +930,50 @@ func newTestRegexRelabelConfig(pattern string) *parsedRelabelConfig {
 		panic(fmt.Errorf("unexpected error in parseRelabelConfig: %s", err))
 	}
 	return prc
+}
+
+func TestParsedRelabelConfigsApplyForMultipleSeries(t *testing.T) {
+	f := func(config string, metrics []string, resultExpected []string) {
+		t.Helper()
+		pcs, err := ParseRelabelConfigsData([]byte(config))
+		if err != nil {
+			t.Fatalf("cannot parse %q: %s", config, err)
+		}
+
+		totalLabels := 0
+		var labels []prompbmarshal.Label
+		for _, metric := range metrics {
+			labels = append(labels, promutils.MustNewLabelsFromString(metric).GetLabels()...)
+			resultLabels := pcs.Apply(labels, totalLabels)
+			SortLabels(resultLabels)
+			totalLabels += len(resultLabels)
+			labels = resultLabels
+		}
+
+		var result []string
+		for i := range labels {
+			result = append(result, LabelsToString(labels[i:i+1]))
+		}
+
+		if len(result) != len(resultExpected) {
+			t.Fatalf("unexpected number of results; got\n%q\nwant\n%q", result, resultExpected)
+		}
+
+		for i := range result {
+			if result[i] != resultExpected[i] {
+				t.Fatalf("unexpected result[%d]; got\n%q\nwant\n%q", i, result[i], resultExpected[i])
+			}
+		}
+	}
+
+	t.Run("drops one of series", func(t *testing.T) {
+		f(`
+- action: drop
+  if: '{__name__!~"smth"}' 
+`, []string{`smth`, `notthis`}, []string{`smth`})
+		f(`
+- action: drop
+  if: '{__name__!~"smth"}'
+`, []string{`notthis`, `smth`}, []string{`smth`})
+	})
 }

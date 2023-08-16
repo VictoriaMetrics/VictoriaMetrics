@@ -103,6 +103,7 @@ export const useFetchQuery = ({
         if (response.ok) {
           setQueryStats(prev => [...prev, {
             ...resp?.stats,
+            isPartial: resp?.isPartial,
             resultLength: resp.data.result.length,
           }]);
           setQueryErrors(prev => [...prev, ""]);

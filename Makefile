@@ -34,7 +34,6 @@ clean:
 
 publish: package-base \
 	publish-victoria-metrics \
-	publish-victoria-logs \
 	publish-vmagent \
 	publish-vmalert \
 	publish-vmauth \
@@ -181,7 +180,6 @@ publish-release:
 
 release: \
 	release-victoria-metrics \
-	release-victoria-logs \
 	release-vmutils
 
 release-victoria-metrics: \

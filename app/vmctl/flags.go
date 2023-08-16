@@ -361,8 +361,9 @@ var (
 			Usage: "The time filter may contain different timestamp formats. See more details here https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#timestamp-formats",
 		},
 		&cli.StringFlag{
-			Name:  vmNativeStepInterval,
-			Usage: fmt.Sprintf("Split export data into chunks. Requires setting --%s. Valid values are '%s','%s','%s','%s'.", vmNativeFilterTimeStart, stepper.StepMonth, stepper.StepDay, stepper.StepHour, stepper.StepMinute),
+			Name: vmNativeStepInterval,
+			Usage: fmt.Sprintf("Split export data into chunks. Requires setting --%s. Valid values are '%s','%s','%s','%s','%s'.", vmNativeFilterTimeStart,
+				stepper.StepMonth, stepper.StepWeek, stepper.StepDay, stepper.StepHour, stepper.StepMinute),
 			Value: stepper.StepMonth,
 		},
 		&cli.BoolFlag{
@@ -556,8 +557,8 @@ var (
 		},
 		&cli.BoolFlag{
 			Name:  remoteReadDisablePathAppend,
-			Usage: "Whether to disable automatic appending of the path to the remote storage.",
-			Value: true,
+			Usage: "Whether to disable automatic appending of the /api/v1/read suffix to --remote-read-src-addr",
+			Value: false,
 		},
 	}
 )

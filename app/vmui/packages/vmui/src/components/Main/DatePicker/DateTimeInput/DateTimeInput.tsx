@@ -36,7 +36,7 @@ const DateTimeInput: FC<DateTimeInputProps> = ({
   const [maskedValue, setMaskedValue] = useState(formatStringDate(value));
   const [focusToTime, setFocusToTime] = useState(false);
   const [awaitChangeForEnter, setAwaitChangeForEnter] = useState(false);
-  const error = dayjs(maskedValue).isValid() ? "" : "Expected format: YYYY-MM-DD HH:mm:ss";
+  const error = dayjs(maskedValue).isValid() ? "" : "Invalid date format";
 
   const handleMaskedChange = (e: ChangeEvent<HTMLInputElement>) => {
     setMaskedValue(e.currentTarget.value);

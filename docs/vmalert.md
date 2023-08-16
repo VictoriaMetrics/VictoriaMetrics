@@ -128,11 +128,11 @@ name: <string>
 [ limit: <int> | default = 0 ]
 
 # How many rules execute at once within a group. Increasing concurrency may speed
-# up round execution speed.
+# up group's evaluation duration (exposed via `vmalert_iteration_duration_seconds` metric).
 [ concurrency: <integer> | default = 1 ]
 
 # Optional type for expressions inside the rules. Supported values: "graphite" and "prometheus".
-# By default "prometheus" type is used.
+# By default, "prometheus" type is used.
 [ type: <string> ]
 
 # Optional list of HTTP URL parameters
@@ -530,7 +530,7 @@ Alertmanagers.
 
 To avoid recording rules results and alerts state duplication in VictoriaMetrics server
 don't forget to configure [deduplication](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#deduplication).
-The recommended value for `-dedup.minScrapeInterval` must be greater or equal to vmalert `evaluation_interval`.
+The recommended value for `-dedup.minScrapeInterval` must be multiple of vmalert's `evaluation_interval`.
 If you observe inconsistent or "jumping" values in series produced by vmalert, try disabling `-datasource.queryTimeAlignment`
 command line flag. Because of alignment, two or more vmalert HA pairs will produce results with the same timestamps.
 But due of backfilling (data delivered to the datasource with some delay) values of such results may differ,
