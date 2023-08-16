@@ -136,6 +136,40 @@ It is also possible to split up config into multiple files, just list them all i
 python3 -m vmanomaly model_prophet.yaml io_csv.yaml scheduler_oneoff.yaml
 ```
 
+### Monitoring
+
+vmanomaly can be monitored by using push or pull approach.
+It can push metrics to VictoriaMetrics or expose metrics in Prometheus exposition format.
+
+#### Push approach
+
+vmanomaly can push metrics to VictoriaMetrics single-node or cluster version.
+In order to enable push approach, specify `push` section in config file:
+
+```yaml
+monitoring:
+   push:
+      url: "http://victoriametrics:8428/"
+      extra_labels:
+         job: "vmanomaly-push"
+```
+
+#### Pull approach
+
+vmanomaly can export internal metrics in Prometheus exposition format at `/metrics` page.
+These metrics can be scraped via [vmagent](https://docs.victoriametrics.com/vmagent.html) or Prometheus.
+
+In order to enable pull approach, specify `pull` section in config file:
+
+```yaml
+monitoring:
+   pull:
+      enable: true
+      port: 8080
+```
+
+This will expose metrics at `http://0.0.0.0:8080/metrics` page.
+
 ### Licensing
 
 Starting from v1.5.0 vmanomaly requires a license key to run. You can obtain a trial license
@@ -157,7 +191,9 @@ Usage example:
 python3 -m vmanomaly --license-file /path/to/license_file.yaml config.yaml
 ```
 
-In order to make it easier to monitor the license expiration date, the following metrics are exposed:
+In order to make it easier to monitor the license expiration date, the following metrics are exposed(see
+[Monitoring](#monitoring) section for details on how to scrape them):
+
 ```
 # HELP vm_license_expires_at When the license expires as a Unix timestamp in seconds
 # TYPE vm_license_expires_at gauge
