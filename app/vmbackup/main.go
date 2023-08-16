@@ -205,7 +205,20 @@ func hasFilepathPrefix(path, prefix string) bool {
 	if err != nil {
 		return false
 	}
-	return strings.HasPrefix(pathAbs, prefixAbs)
+	if prefixAbs == pathAbs {
+		return true
+	}
+	rel, err := filepath.Rel(prefixAbs, pathAbs)
+	if err != nil {
+		// if paths can't be related - they don't match
+		return false
+	}
+	if i := strings.Index(rel, "."); i == 0 {
+		// if path can be related only with . as first char - they still don't match
+		return false
+	}
+	// if paths are related - it is a match
+	return true
 }
 
 func newOriginFS() (common.OriginFS, error) {
