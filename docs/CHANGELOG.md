@@ -24,6 +24,8 @@ The following `tip` changes can be tested by building VictoriaMetrics components
 
 ## tip
 
+* BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl.html): don't interrupt the migration process if no metrics were found for a specific tenant. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4796).
+
 ## [v1.93.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.0)
 
 Released at 2023-08-12
