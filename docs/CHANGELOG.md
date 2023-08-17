@@ -22,7 +22,7 @@ The following `tip` changes can be tested by building VictoriaMetrics components
 * [How to build vmctl](https://docs.victoriametrics.com/vmctl.html#how-to-build)
 
 
-## tip
+## v1.93.x long-time support release (LTS)
 
 * BUGFIX: remove `DEBUG` logging when parsing `if` filters inside [relabeling rules](https://docs.victoriametrics.com/vmagent.html#relabeling-enhancements) and when parsing `match` filters inside [stream aggregation rules](https://docs.victoriametrics.com/stream-aggregation.html).
 * BUGFIX: properly replace `:` chars in label names with `_` when `-usePromCompatibleNaming` command-line flag is passed to `vmagent`, `vminsert` or single-node VictoriaMetrics. This addresses [this comment](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3113#issuecomment-1275077071).
