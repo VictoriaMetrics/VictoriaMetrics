@@ -721,9 +721,10 @@ func dropAggregatedSeries(src []prompbmarshal.TimeSeries, matchIdxs []byte, drop
 func (rwctx *remoteWriteCtx) pushInternal(tss []prompbmarshal.TimeSeries) {
 	if len(labelsGlobal) > 0 {
 		rctx := getRelabelCtx()
+		defer putRelabelCtx(rctx)
 		tss = rctx.appendExtraLabels(tss, labelsGlobal)
-		putRelabelCtx(rctx)
 	}
+
 	pss := rwctx.pss
 	idx := atomic.AddUint64(&rwctx.pssNextIdx, 1) % uint64(len(pss))
 	pss[idx].Push(tss)
