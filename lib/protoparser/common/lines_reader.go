@@ -93,7 +93,7 @@ again:
 }
 
 func isEOFLikeError(err error) bool {
-	if errors.Is(err, io.EOF) {
+	if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
 		return true
 	}
 	s := err.Error()
