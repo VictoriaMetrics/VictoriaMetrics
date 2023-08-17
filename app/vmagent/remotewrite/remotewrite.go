@@ -355,7 +355,7 @@ func Push(at *auth.Token, wr *prompbmarshal.WriteRequest) {
 	var rctx *relabelCtx
 	rcs := allRelabelConfigs.Load()
 	pcsGlobal := rcs.global
-	if pcsGlobal.Len() > 0 || len(labelsGlobal) > 0 {
+	if pcsGlobal.Len() > 0 {
 		rctx = getRelabelCtx()
 	}
 	tss := wr.Timeseries
@@ -722,7 +722,7 @@ func (rwctx *remoteWriteCtx) pushInternal(tss []prompbmarshal.TimeSeries) {
 	if len(labelsGlobal) > 0 {
 		rctx := getRelabelCtx()
 		defer putRelabelCtx(rctx)
-		tss = rctx.appendExtraLabels(tss, labelsGlobal)
+		rctx.appendExtraLabels(tss, labelsGlobal)
 	}
 
 	pss := rwctx.pss
