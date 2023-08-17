@@ -42,9 +42,9 @@ func TestAppendExtraLabels(t *testing.T) {
 	f := func(extraLabels []prompbmarshal.Label, sTss, sExpTss string) {
 		rctx := &relabelCtx{}
 		tss, expTss := parseSeries(sTss), parseSeries(sExpTss)
-		gotTss := rctx.appendExtraLabels(tss, extraLabels)
-		if !reflect.DeepEqual(gotTss, expTss) {
-			t.Fatalf("expected to have: \n%v;\ngot: \n%v", expTss, gotTss)
+		rctx.appendExtraLabels(tss, extraLabels)
+		if !reflect.DeepEqual(tss, expTss) {
+			t.Fatalf("expected to have: \n%v;\ngot: \n%v", expTss, tss)
 		}
 	}
 
