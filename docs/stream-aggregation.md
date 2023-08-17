@@ -687,7 +687,7 @@ If you use [vmagent in cluster mode](https://docs.victoriametrics.com/vmagent.ht
 then be careful when aggregating metrics via `by`, `without` or modifying via `*_relabel_configs` parameters, since incorrect usage
 may result in duplicates and data collision. For example, if more than one `vmagent` instance calculates `increase` for metric `http_requests_total`
 with `by: [path]` directive, then all the `vmagent` instances will aggregate samples to the same set of time series with different `path` labels.
-The proper fix would be to add an unique [`-remoteWrite.label`]https://docs.victoriametrics.com/vmagent.html#adding-labels-to-metrics() per each `vmagent`,
+The proper fix would be to add an unique [`-remoteWrite.label`](https://docs.victoriametrics.com/vmagent.html#adding-labels-to-metrics) per each `vmagent`,
 so every `vmagent` aggregates data into distinct set of time series. These time series then can be aggregated later as needed during querying.
 
 For example, if `vmagent` instances run in Docker or Kubernetes, then you can refer `POD_NAME` or `HOSTNAME` environment variables
