@@ -742,7 +742,7 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWr
 		end := start
 		start = end - window
 		if err := queryRangeHandler(qt, startTime, w, childQuery, start, end, step, r, ct, etfs); err != nil {
-			return fmt.Errorf("error when executing query=%q on the time range (start=%d, end=%d, step=%d): %w", childQuery, start, end, step, err)
+			return fmt.Errorf("error when executing query=%q on the time range (start=%d, end=%d, step=%d): %w", truncateQuery(childQuery), start, end, step, err)
 		}
 		return nil
 	}
@@ -781,7 +781,7 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWr
 	}
 	result, err := promql.Exec(qt, ec, query, true)
 	if err != nil {
-		return fmt.Errorf("error when executing query=%q for (time=%d, step=%d): %w", query, start, step, err)
+		return fmt.Errorf("error when executing query=%q for (time=%d, step=%d): %w", truncateQuery(query), start, step, err)
 	}
 	if queryOffset > 0 {
 		for i := range result {
@@ -840,7 +840,7 @@ func QueryRangeHandler(qt *querytracer.Tracer, startTime time.Time, w http.Respo
 		return err
 	}
 	if err := queryRangeHandler(qt, startTime, w, query, start, end, step, r, ct, etfs); err != nil {
-		return fmt.Errorf("error when executing query=%q on the time range (start=%d, end=%d, step=%d): %w", query, start, end, step, err)
+		return fmt.Errorf("error when executing query=%q on the time range (start=%d, end=%d, step=%d): %w", truncateQuery(query), start, end, step, err)
 	}
 	return nil
 }
@@ -1210,4 +1210,14 @@ func (sw *scalableWriter) flush() error {
 		return err == nil
 	})
 	return sw.bw.Flush()
+}
+
+const maxQueryLengthForLogs = 100
+
+// truncateQuery - truncate query string to make it readable in logs and json response, result is unparsable
+func truncateQuery(query string) string {
+	if len(query) <= maxQueryLengthForLogs {
+		return query
+	}
+	return fmt.Sprintf("%s...(query exceeds %d character, truncated)", query[0:100], maxQueryLengthForLogs)
 }

@@ -4,6 +4,7 @@ import (
 	"math"
 	"net/http"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
@@ -228,4 +229,15 @@ func TestGetLatencyOffsetMillisecondsFailure(t *testing.T) {
 		}
 	}
 	f("http://localhost?latency_offset=foobar")
+}
+
+func TestFormatQueryString(t *testing.T) {
+	str := strings.Repeat("s", maxQueryLengthForLogs)
+	if got := formatQueryString(str); got != str {
+		t.Errorf("expected the same queries got %s expected %s", got, str)
+	}
+	str2 := strings.Repeat("s", maxQueryLengthForLogs+1)
+	if got := formatQueryString(str2); got == str2 {
+		t.Errorf("expected the different queries got %s expected %s", got, str)
+	}
 }
