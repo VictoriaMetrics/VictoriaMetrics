@@ -10,7 +10,7 @@ aliases:
 - /operator/vars.html
 ---
 # Auto Generated vars for package config 
- updated at Tue Aug 15 07:50:00 UTC 2023 
+ updated at Fri Aug 18 07:32:53 UTC 2023 
 
 
 | varible name | variable default value | variable required | variable description |
@@ -18,7 +18,7 @@ aliases:
 | VM_USECUSTOMCONFIGRELOADER | false | false | enables custom config reloader for vmauth and vmagent,it should speed-up config reloading process. |
 | VM_CONTAINERREGISTRY | - | false | container registry name prefix, e.g. docker.io |
 | VM_CUSTOMCONFIGRELOADERIMAGE | victoriametrics/operator:config-reloader-v0.32.0 | false | - |
-| VM_PSPAUTOCREATEENABLED | true | false | - |
+| VM_PSPAUTOCREATEENABLED | false | false | - |
 | VM_VMALERTDEFAULT_IMAGE | victoriametrics/vmalert | false | - |
 | VM_VMALERTDEFAULT_VERSION | v1.91.3 | false | - |
 | VM_VMALERTDEFAULT_PORT | 8080 | false | - |
