@@ -3,6 +3,7 @@ package prometheus
 import (
 	"flag"
 	"fmt"
+	"github.com/VictoriaMetrics/metricsql"
 	"math"
 	"net"
 	"net/http"
@@ -76,6 +77,24 @@ func ExpandWithExprs(w http.ResponseWriter, r *http.Request) {
 	} else {
 		WriteExpandWithExprsResponse(bw, query)
 	}
+	_ = bw.Flush()
+}
+
+// PrettifyQuery implements /prettify-query. Takes a MetricsQL query and returns it formatted.
+func PrettifyQuery(w http.ResponseWriter, r *http.Request) {
+	query := r.FormValue("query")
+	bw := bufferedwriter.Get(w)
+	defer bufferedwriter.Put(bw)
+	w.Header().Set("Content-Type", "application/json")
+	httpserver.EnableCORS(w, r)
+
+	prettyQuery, err := metricsql.Prettify(query)
+	if err != nil {
+		fmt.Fprintf(bw, `{"status": "error", "msg": %q}`, err)
+	} else {
+		fmt.Fprintf(bw, `{"status": "success", "query": %q}`, prettyQuery)
+	}
+
 	_ = bw.Flush()
 }
 
