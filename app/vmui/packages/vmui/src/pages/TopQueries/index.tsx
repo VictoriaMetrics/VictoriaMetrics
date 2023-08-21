@@ -2,7 +2,7 @@ import React, { FC, useEffect, useMemo, KeyboardEvent } from "react";
 import { useFetchTopQueries } from "./hooks/useFetchTopQueries";
 import Spinner from "../../components/Main/Spinner/Spinner";
 import TopQueryPanel from "./TopQueryPanel/TopQueryPanel";
-import { formatPrettyNumber } from "../../utils/uplot/helpers";
+import { formatPrettyNumber } from "../../utils/uplot";
 import { isSupportedDuration } from "../../utils/time";
 import dayjs from "dayjs";
 import { TopQueryStats } from "../../types";

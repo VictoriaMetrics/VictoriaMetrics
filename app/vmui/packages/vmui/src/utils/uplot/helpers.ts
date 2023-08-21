@@ -1,27 +1,5 @@
-import uPlot, { Axis } from "uplot";
-
-export const defaultOptions = {
-  legend: {
-    show: false
-  },
-  cursor: {
-    drag: {
-      x: true,
-      y: false
-    },
-    focus: {
-      prox: 30
-    },
-    points: {
-      size: 5.6,
-      width: 1.4
-    },
-    bind: {
-      click: (): null => null,
-      dblclick: (): null => null,
-    },
-  },
-};
+import uPlot from "uplot";
+import { MetricResult } from "../../api/types";
 
 export const formatTicks = (u: uPlot, ticks: number[], unit = ""): string[] => {
   const min = ticks[0];
@@ -32,7 +10,11 @@ export const formatTicks = (u: uPlot, ticks: number[], unit = ""): string[] => {
   return ticks.map(v => `${formatPrettyNumber(v, min, max)} ${unit}`);
 };
 
-export const formatPrettyNumber = (n: number | null | undefined, min: number | null | undefined, max: number | null | undefined): string => {
+export const formatPrettyNumber = (
+  n: number | null | undefined,
+  min: number | null | undefined,
+  max: number | null | undefined
+): string => {
   if (n === undefined || n === null) {
     return "";
   }
@@ -59,11 +41,7 @@ export const formatPrettyNumber = (n: number | null | undefined, min: number | n
   });
 };
 
-interface AxisExtend extends Axis {
-  _size?: number;
-}
-
-const getTextWidth = (val: string, font: string): number => {
+export const getTextWidth = (val: string, font: string): number => {
   const span = document.createElement("span");
   span.innerText = val;
   span.style.cssText = `position: absolute; z-index: -1; pointer-events: none; opacity: 0; font: ${font}`;
@@ -73,17 +51,17 @@ const getTextWidth = (val: string, font: string): number => {
   return width;
 };
 
-export const sizeAxis = (u: uPlot, values: string[], axisIdx: number, cycleNum: number): number => {
-  const axis = u.axes[axisIdx] as AxisExtend;
-
-  if (cycleNum > 1) return axis._size || 60;
-
-  let axisSize = 6 + (axis?.ticks?.size || 0) + (axis.gap || 0);
-
-  const longestVal = (values ?? []).reduce((acc, val) => val?.length > acc.length ? val : acc, "");
-  if (longestVal != "") axisSize += getTextWidth(longestVal, "10px Arial");
-
-  return Math.ceil(axisSize);
+export const getDashLine = (group: number): number[] => {
+  return group <= 1 ? [] : [group*4, group*1.2];
 };
 
-export const getDashLine = (group: number): number[] => group <= 1 ? [] : [group*4, group*1.2];
+export const getMetricName = (metricItem: MetricResult) => {
+  const metric = metricItem?.metric || {};
+  const labelNames = Object.keys(metric).filter(x => x != "__name__");
+  const labels = labelNames.map(key => `${key}=${JSON.stringify(metric[key])}`);
+  let metricName = metric["__name__"] || "";
+  if (labels.length > 0) {
+    metricName += "{" + labels.join(",") + "}";
+  }
+  return metricName;
+};
