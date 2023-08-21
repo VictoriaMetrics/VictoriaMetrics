@@ -446,8 +446,12 @@ func (gw *groupWatcher) registerPendingAPIWatchers() {
 func (gw *groupWatcher) unsubscribeAPIWatcher(aw *apiWatcher) {
 	gw.mu.Lock()
 	defer gw.mu.Unlock()
-	for _, uw := range gw.m {
+	for key, uw := range gw.m {
 		uw.unsubscribeAPIWatcherLocked(aw)
+		if uw.refCount == 0 {
+			uw.close()
+			delete(gw.m, key)
+		}
 	}
 }
 
@@ -459,8 +463,11 @@ type urlWatcher struct {
 	namespace string
 	apiURL    string
 	gw        *groupWatcher
-	ctx       context.Context
-	cancel    context.CancelFunc
+
+	refCount int
+	wg       sync.WaitGroup
+	ctx      context.Context
+	cancel   context.CancelFunc
 
 	parseObject     parseObjectFunc
 	parseObjectList parseObjectListFunc
@@ -499,8 +506,10 @@ func newURLWatcher(role, apiURL string, gw *groupWatcher) *urlWatcher {
 		apiURL: apiURL,
 		gw:     gw,
 
-		ctx:    ctx,
-		cancel: cancel,
+		refCount: 0,
+		wg:       sync.WaitGroup{},
+		ctx:      ctx,
+		cancel:   cancel,
 
 		parseObject:     parseObject,
 		parseObjectList: parseObjectList,
@@ -520,6 +529,7 @@ func newURLWatcher(role, apiURL string, gw *groupWatcher) *urlWatcher {
 }
 
 func (uw *urlWatcher) subscribeAPIWatcherLocked(aw *apiWatcher) {
+	uw.refCount++
 	if _, ok := uw.aws[aw]; !ok {
 		if _, ok := uw.awsPending[aw]; !ok {
 			uw.awsPending[aw] = struct{}{}
@@ -579,9 +589,7 @@ func (uw *urlWatcher) unsubscribeAPIWatcherLocked(aw *apiWatcher) {
 		delete(uw.aws, aw)
 		metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_discovery_kubernetes_subscribers{role=%q,status="working"}`, uw.role)).Dec()
 	}
-	if (len(uw.aws) + len(uw.awsPending)) == 0 {
-		uw.cancel()
-	}
+	uw.refCount--
 }
 
 // reloadObjects reloads objects to the latest state and returns resourceVersion for the latest state.
@@ -666,6 +674,9 @@ func (uw *urlWatcher) reloadObjects() string {
 //
 // See https://kubernetes.io/docs/reference/using-api/api-concepts/#efficient-detection-of-changes
 func (uw *urlWatcher) watchForUpdates() {
+	uw.wg.Add(1)
+	defer uw.wg.Done()
+
 	backoffDelay := time.Second
 	maxBackoffDelay := 30 * time.Second
 	backoffSleep := func() {
@@ -840,6 +851,12 @@ func (uw *urlWatcher) maybeUpdateDependedScrapeWorksLocked() {
 			continue
 		}
 	}
+}
+
+// close cancels the underlying context and waits until all the goroutines are stopped.
+func (uw *urlWatcher) close() {
+	uw.cancel()
+	uw.wg.Wait()
 }
 
 // Bookmark is a bookmark message from Kubernetes Watch API.
