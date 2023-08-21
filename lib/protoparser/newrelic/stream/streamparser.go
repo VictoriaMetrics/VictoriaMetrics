@@ -7,7 +7,10 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/newrelic"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
+	"github.com/valyala/fastjson"
 )
+
+var parserPool fastjson.ParserPool
 
 // Parse parses NewRelic POST request for newrelic/infra/v2/metrics/events/bulk from reader and calls callback for the parsed request.
 //
@@ -32,8 +35,8 @@ func Parse(r io.Reader, contentEncoding string, callback func(series []newrelic.
 		return err
 	}
 
-	p := newrelic.GetJSONParser()
-	defer newrelic.PutJSONParser(p)
+	p := parserPool.Get()
+	defer parserPool.Put(p)
 
 	v, err := p.ParseBytes(ctx.reqBuf.B)
 	if err != nil {
