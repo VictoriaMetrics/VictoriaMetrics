@@ -11,6 +11,7 @@ Features:
 - migrate data from [Mimir](#migrating-data-from-mimir) to VictoriaMetrics
 - migrate data from [InfluxDB](#migrating-data-from-influxdb-1x) to VictoriaMetrics
 - migrate data from [OpenTSDB](#migrating-data-from-opentsdb) to VictoriaMetrics
+- migrate data from [Promscale](#migrating-data-from-promscale)
 - migrate data between [VictoriaMetrics](#migrating-data-from-victoriametrics) single or cluster version.
 - migrate data by [Prometheus remote read protocol](#migrating-data-by-remote-read-protocol) to VictoriaMetrics
 - [verify](#verifying-exported-blocks-from-victoriametrics) exported blocks from VictoriaMetrics single or cluster version.
