@@ -1,21 +1,10 @@
 import { MetricResult } from "../../api/types";
-import { Series } from "uplot";
+import uPlot, { Series as uPlotSeries } from "uplot";
 import { getNameForMetric, promValueToNumber } from "../metric";
-import { BarSeriesItem, Disp, Fill, LegendItemType, Stroke } from "./types";
-import { HideSeriesArgs } from "./types";
+import { HideSeriesArgs, BarSeriesItem, Disp, Fill, LegendItemType, Stroke, SeriesItem } from "../../types";
 import { baseContrastColors, getColorFromString } from "../color";
 import { getMedianFromArray, getMaxFromArray, getMinFromArray, getLastFromArray } from "../math";
 import { formatPrettyNumber } from "./helpers";
-
-export interface SeriesItem extends Series {
-  freeFormFields: {[key: string]: string};
-  calculations: {
-    min: string,
-    max: string,
-    median: string,
-    last: string
-  }
-}
 
 export const getSeriesItemContext = (data: MetricResult[], hideSeries: string[], alias: string[]) => {
   const colorState: {[key: string]: string} = {};
@@ -107,4 +96,16 @@ export const barDisp = (stroke: Stroke, fill: Fill): Disp => {
     stroke: stroke,
     fill: fill
   };
+};
+
+export const delSeries = (u: uPlot) => {
+  for (let i = u.series.length - 1; i >= 0; i--) {
+    u.delSeries(i);
+  }
+};
+
+export const addSeries = (u: uPlot, series: uPlotSeries[]) => {
+  series.forEach((s) => {
+    u.addSeries(s);
+  });
 };

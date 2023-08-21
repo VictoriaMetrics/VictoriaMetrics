@@ -1,4 +1,4 @@
-import { ArrayRGB } from "./uplot/types";
+import { ArrayRGB } from "../types";
 
 export const baseContrastColors = [
   "#e54040",
