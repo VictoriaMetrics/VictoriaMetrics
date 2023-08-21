@@ -124,7 +124,9 @@ func (m *Metric) unmarshal(o *fastjson.Object) ([]Metric, error) {
 			tags = append(tags, Tag{Key: name, Value: val})
 		case fastjson.TypeNumber:
 			// this is metric name with value
-			metricName := camelToSnakeCase(fmt.Sprintf("%s_%s", eventType.GetStringBytes(), string(key)))
+			val := bytesutil.ToUnsafeString(eventType.GetStringBytes())
+			mn := fmt.Sprintf("%s_%s", val, k)
+			metricName := camelToSnakeCase(mn)
 			f, err := getFloat64(v)
 			if err != nil {
 				logger.Errorf("error get NewRelic value for metric: %q; %s", k, err)
@@ -175,8 +177,8 @@ func camelToSnakeCase(str string) string {
 		}
 		snakeCase = append(snakeCase, byte(unicode.ToLower(rune(char))))
 	}
-
-	return string(snakeCase)
+	s := bytesutil.ToUnsafeString(snakeCase)
+	return s
 }
 
 func getFloat64(v *fastjson.Value) (float64, error) {
