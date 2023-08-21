@@ -3,12 +3,13 @@ package newrelic
 import (
 	"net/http"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/newrelic"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/newrelic/stream"
-	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
@@ -19,7 +20,8 @@ var (
 // InsertHandlerForHTTP processes remote write for NewRelic POST /infra/v2/metrics/events/bulk request.
 func InsertHandlerForHTTP(req *http.Request) error {
 	ce := req.Header.Get("Content-Encoding")
-	return stream.Parse(req.Body, ce, func(series []newrelic.Metric) error {
+	isGzip := ce == "gzip"
+	return stream.Parse(req.Body, isGzip, func(series []newrelic.Metric) error {
 		return insertRows(series, nil)
 	})
 }

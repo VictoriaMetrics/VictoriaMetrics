@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"unicode"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/valyala/fastjson"
 	"github.com/valyala/fastjson/fastfloat"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 var baseEventKeys = map[string]struct{}{
@@ -106,8 +107,10 @@ func (m *Metric) unmarshal(o *fastjson.Object) ([]Metric, error) {
 	o.Visit(func(key []byte, v *fastjson.Value) {
 
 		k := bytesutil.ToUnsafeString(key)
-		// skip already parsed values
-		if contains(k) {
+		// skip already which has been parsed before
+		// this is keys of BaseEvent type.
+		// this type contains all NewRelic structs
+		if _, ok := baseEventKeys[k]; ok {
 			return
 		}
 
@@ -195,13 +198,4 @@ func getFloat64(v *fastjson.Value) (float64, error) {
 	default:
 		return 0, fmt.Errorf("value doesn't contain float64; it contains %s", v.Type())
 	}
-}
-
-func contains(key string) bool {
-	// this is keys of BaseEvent type.
-	// this type contains all NewRelic structs
-	if _, ok := baseEventKeys[key]; ok {
-		return true
-	}
-	return false
 }

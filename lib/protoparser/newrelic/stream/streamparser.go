@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/valyala/fastjson"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/newrelic"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
-	"github.com/valyala/fastjson"
 )
 
 var parserPool fastjson.ParserPool
@@ -15,12 +16,12 @@ var parserPool fastjson.ParserPool
 // Parse parses NewRelic POST request for newrelic/infra/v2/metrics/events/bulk from reader and calls callback for the parsed request.
 //
 // callback shouldn't hold series after returning.
-func Parse(r io.Reader, contentEncoding string, callback func(series []newrelic.Metric) error) error {
+func Parse(r io.Reader, isGzip bool, callback func(series []newrelic.Metric) error) error {
 	wcr := writeconcurrencylimiter.GetReader(r)
 	defer writeconcurrencylimiter.PutReader(wcr)
 	r = wcr
 
-	if contentEncoding == "gzip" {
+	if isGzip {
 		zr, err := common.GetGzipReader(r)
 		if err != nil {
 			return fmt.Errorf("cannot read gzipped Newrelic agent data: %w", err)
