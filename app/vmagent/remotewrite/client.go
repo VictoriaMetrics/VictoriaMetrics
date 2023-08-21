@@ -323,6 +323,19 @@ func (c *client) runWorker() {
 }
 
 func (c *client) doRequest(url string, body []byte) (*http.Response, error) {
+	req := c.newRequest(url, body)
+	resp, err := c.hc.Do(req)
+	if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
+		// it is likely connection become stale. So we do one more attempt,
+		// so we do a one more attempt in hope request will succeed.
+		// If not, the error should be handled by the caller as usual.
+		req = c.newRequest(url, body)
+		resp, err = c.hc.Do(req)
+	}
+	return resp, err
+}
+
+func (c *client) newRequest(url string, body []byte) *http.Request {
 	reqBody := bytes.NewBuffer(body)
 	req, err := http.NewRequest(http.MethodPost, url, reqBody)
 	if err != nil {
@@ -346,14 +359,7 @@ func (c *client) doRequest(url string, body []byte) (*http.Response, error) {
 			logger.Warnf("cannot sign remoteWrite request with AWS sigv4: %s", err)
 		}
 	}
-	resp, err := c.hc.Do(req)
-	if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
-		// it is likely connection become stale. So we do one more attempt,
-		// so we do a one more attempt in hope request will succeed.
-		// If not, the error should be handled by the caller as usual.
-		resp, err = c.hc.Do(req)
-	}
-	return resp, err
+	return req
 }
 
 // sendBlockHTTP sends the given block to c.remoteWriteURL.
