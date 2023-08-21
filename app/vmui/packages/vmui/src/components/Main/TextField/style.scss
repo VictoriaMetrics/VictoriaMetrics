@@ -26,6 +26,7 @@
 
   &__label,
   &__error,
+  &__warning,
   &__helper-text, {
     position: absolute;
     left: calc($padding-global/2);
@@ -50,12 +51,13 @@
     color: $color-text-secondary;
   }
 
+  &__helper-text,
+  &__warning,
   &__error {
     position: relative;
     top: calc($font-size-small/-2);
     width: fit-content;
     overflow-wrap: anywhere;
-    color: $color-error;
     pointer-events: auto;
     user-select: text;
 
@@ -69,8 +71,15 @@
     }
   }
 
+  &__error {
+    color: $color-error;
+  }
+
+  &__warning {
+    color: $color-warning;
+  }
+
   &__helper-text {
-    bottom: calc($font-size-small/-2);
     color: $color-text-secondary;
   }
 
@@ -93,14 +102,26 @@
     }
 
     &_error {
-      border: 1px solid $color-error;
+      border-color: $color-error;
 
       &:hover {
-        border: 1px solid $color-error;
+        border-color: $color-error;
       }
 
       &:focus {
-        border: 1px solid $color-error;
+        border-color: $color-error;
+      }
+    }
+
+    &_warning {
+      border-color: $color-warning;
+
+      &:hover {
+        border-color: $color-warning;
+      }
+
+      &:focus {
+        border-color: $color-warning;
       }
     }
 
