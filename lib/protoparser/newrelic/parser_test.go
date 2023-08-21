@@ -86,15 +86,18 @@ func TestEvents_Unmarshal(t *testing.T) {
 			if (err != nil) != tt.wantErr {
 				t.Errorf("cannot parse json error: %s", err)
 			}
-			v, err := value.Array()
-			if err != nil {
-				t.Errorf("cannot get array from json")
-			}
-			if err := e.Unmarshal(v); (err != nil) != tt.wantErr {
-				t.Errorf("Unmarshal() error = %v, wantErr %v", err, tt.wantErr)
-			}
-			if !reflect.DeepEqual(e.Metrics, tt.metrics) {
-				t.Errorf("got metrics => %v; expected = %v", e.Metrics, tt.metrics)
+
+			if value != nil {
+				v, err := value.Array()
+				if err != nil {
+					t.Errorf("cannot get array from json")
+				}
+				if err := e.Unmarshal(v); (err != nil) != tt.wantErr {
+					t.Errorf("Unmarshal() error = %v, wantErr %v", err, tt.wantErr)
+				}
+				if !reflect.DeepEqual(e.Metrics, tt.metrics) {
+					t.Errorf("got metrics => %v; expected = %v", e.Metrics, tt.metrics)
+				}
 			}
 		})
 	}
