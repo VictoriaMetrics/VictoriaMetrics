@@ -306,6 +306,39 @@ Please see more about time filtering [here](https://docs.influxdata.com/influxdb
 Migrating data from InfluxDB v2.x is not supported yet ([#32](https://github.com/VictoriaMetrics/vmctl/issues/32)).
 You may find useful a 3rd party solution for this - <https://github.com/jonppe/influx_to_victoriametrics>.
 
+## Migrating data from Promscale
+
+Promscale support the Prometheus remote read protocol, that means `vmctl` in mode `remote-read` may be used for
+Promscale historical data migration.
+To migrate data from Promscale to VictoriaMetrics via `vmctl` it is necessary to use `--remote-read-disable-path-append` flag,
+because Promscale implements remote read protocol via `/read` API. When set `--remote-read-disable-path-append=true` it makes possible
+to change the source address, and define correct API where `vmctl` may export data.
+Also, it is important to know that Promscale doesn't support `STREAMED_XOR_CHUNKS` mode.
+
+See the example below:
+```console
+./vmctl remote-read --remote-read-src-addr=http://127.0.0.1:9201/read --remote-read-step-interval=day --remote-read-use-stream=false --vm-addr=http://127.0.0.1:8428 --remote-read-filter-time-start=2023-08-21T00:00:00Z --vm-concurrency=6 --remote-read-disable-path-append=true
+Selected time range "2023-08-21 00:00:00 +0000 UTC" - "2023-08-21 14:11:41.561979 +0000 UTC" will be split into 1 ranges according to "day" step. Continue? [Y/n] y
+VM worker 0:↙ 82831 samples/s                                                                                                                                                                        
+VM worker 1:↙ 54378 samples/s                                                                                                                                                                        
+VM worker 2:↙ 121616 samples/s                                                                                                                                                                       
+VM worker 3:↙ 59164 samples/s                                                                                                                                                                        
+VM worker 4:↙ 59220 samples/s                                                                                                                                                                        
+VM worker 5:↙ 102072 samples/s                                                                                                                                                                       
+Processing ranges: 1 / 1 [██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████] 100.00%
+2023/08/21 16:11:55 Import finished!
+2023/08/21 16:11:55 VictoriaMetrics importer stats:
+  idle duration: 0s;
+  time spent while importing: 14.047045459s;
+  total samples: 262111;
+  samples/s: 18659.51;
+  total bytes: 5.3 MB;
+  bytes/s: 376.4 kB;
+  import requests: 6;
+  import requests retries: 0;
+2023/08/21 16:11:55 Total time: 14.063458792s
+```
+
 ## Migrating data from Prometheus
 
 `vmctl` supports the `prometheus` mode for migrating data from Prometheus to VictoriaMetrics time-series database.
