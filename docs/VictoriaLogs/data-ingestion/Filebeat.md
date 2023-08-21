@@ -100,6 +100,22 @@ output.elasticsearch:
     _stream_fields: "host.name,log.file.path"
 ```
 
+Filebeat checks a version of ElasticSearch on startup and refuses to start sending logs if the version is not compatible.
+In order to bypass this check please add `allow_older_versions: true` into `output.elasticsearch` section:
+
+```yml
+output.elasticsearch:
+  hosts: [ "http://localhost:9428/insert/elasticsearch/" ]
+  parameters:
+    _msg_field: "message"
+    _time_field: "@timestamp"
+    _stream_fields: "host.name,log.file.path"
+  allow_older_versions: true
+```
+
+Alternatively, is also possible to change version which VictoriaLogs reports to Filebeat by using `-elasticsearch.version`
+command-line flag.
+
 See also:
 
 - [Data ingestion troubleshooting](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/#troubleshooting).

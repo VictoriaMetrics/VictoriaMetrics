@@ -9,6 +9,12 @@ remote_theme: rundocs/jekyll-rtd-theme
 readme_index:
   with_frontmatter: true
 
+
+exclude:
+  # exclude assets/README.md from publishing on the docs website
+  # as its purpose is different to other docs.
+  - assets/README.md
+
 google:
   gtag: G-N9SVT8S3HK
 

@@ -1569,6 +1569,17 @@ func (de *DurationExpr) AppendString(dst []byte) []byte {
 	return append(dst, de.s...)
 }
 
+// NonNegativeDuration returns non-negative duration for de in milliseconds.
+//
+// Error is returned if the duration is negative.
+func (de *DurationExpr) NonNegativeDuration(step int64) (int64, error) {
+	d := de.Duration(step)
+	if d < 0 {
+		return 0, fmt.Errorf("unexpected negative duration %dms", d)
+	}
+	return d, nil
+}
+
 // Duration returns the duration from de in milliseconds.
 func (de *DurationExpr) Duration(step int64) int64 {
 	if de == nil {

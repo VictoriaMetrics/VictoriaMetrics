@@ -361,8 +361,9 @@ var (
 			Usage: "The time filter may contain different timestamp formats. See more details here https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#timestamp-formats",
 		},
 		&cli.StringFlag{
-			Name:  vmNativeStepInterval,
-			Usage: fmt.Sprintf("Split export data into chunks. Requires setting --%s. Valid values are '%s','%s','%s','%s'.", vmNativeFilterTimeStart, stepper.StepMonth, stepper.StepDay, stepper.StepHour, stepper.StepMinute),
+			Name: vmNativeStepInterval,
+			Usage: fmt.Sprintf("Split export data into chunks. Requires setting --%s. Valid values are '%s','%s','%s','%s','%s'.", vmNativeFilterTimeStart,
+				stepper.StepMonth, stepper.StepWeek, stepper.StepDay, stepper.StepHour, stepper.StepMinute),
 			Value: stepper.StepMonth,
 		},
 		&cli.BoolFlag{
@@ -477,6 +478,7 @@ const (
 	remoteReadHTTPTimeout        = "remote-read-http-timeout"
 	remoteReadHeaders            = "remote-read-headers"
 	remoteReadInsecureSkipVerify = "remote-read-insecure-skip-verify"
+	remoteReadDisablePathAppend  = "remote-read-disable-path-append"
 )
 
 var (
@@ -551,6 +553,11 @@ var (
 		&cli.BoolFlag{
 			Name:  remoteReadInsecureSkipVerify,
 			Usage: "Whether to skip TLS certificate verification when connecting to the remote read address",
+			Value: false,
+		},
+		&cli.BoolFlag{
+			Name:  remoteReadDisablePathAppend,
+			Usage: "Whether to disable automatic appending of the /api/v1/read suffix to --remote-read-src-addr",
 			Value: false,
 		},
 	}

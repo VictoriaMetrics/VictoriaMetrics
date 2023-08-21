@@ -20,11 +20,6 @@ services:
         condition: service_healthy
       victoriametrics:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8686/health"]
-      interval: 1s
-      timeout: 1s
-      retries: 10
 
   # Run `make package-victoria-logs` to build victoria-logs image
   victorialogs:

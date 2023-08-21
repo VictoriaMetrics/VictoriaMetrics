@@ -34,7 +34,7 @@ func StreamWelcome(qw422016 *qt422016.Writer, r *http.Request) {
 	qw422016.N().S(`
     `)
 //line app/vmalert/web.qtpl:15
-	tpl.StreamHeader(qw422016, r, navItems, "vmalert", configError())
+	tpl.StreamHeader(qw422016, r, navItems, "vmalert", getLastConfigError())
 //line app/vmalert/web.qtpl:15
 	qw422016.N().S(`
     <p>
@@ -207,7 +207,7 @@ func StreamListGroups(qw422016 *qt422016.Writer, r *http.Request, originGroups [
 	qw422016.N().S(`
     `)
 //line app/vmalert/web.qtpl:43
-	tpl.StreamHeader(qw422016, r, navItems, "Groups", configError())
+	tpl.StreamHeader(qw422016, r, navItems, "Groups", getLastConfigError())
 //line app/vmalert/web.qtpl:43
 	qw422016.N().S(`
         `)
@@ -647,7 +647,7 @@ func StreamListAlerts(qw422016 *qt422016.Writer, r *http.Request, groupAlerts []
 	qw422016.N().S(`
     `)
 //line app/vmalert/web.qtpl:171
-	tpl.StreamHeader(qw422016, r, navItems, "Alerts", configError())
+	tpl.StreamHeader(qw422016, r, navItems, "Alerts", getLastConfigError())
 //line app/vmalert/web.qtpl:171
 	qw422016.N().S(`
     `)
@@ -922,7 +922,7 @@ func StreamListTargets(qw422016 *qt422016.Writer, r *http.Request, targets map[n
 	qw422016.N().S(`
     `)
 //line app/vmalert/web.qtpl:258
-	tpl.StreamHeader(qw422016, r, navItems, "Notifiers", configError())
+	tpl.StreamHeader(qw422016, r, navItems, "Notifiers", getLastConfigError())
 //line app/vmalert/web.qtpl:258
 	qw422016.N().S(`
     `)
@@ -1102,7 +1102,7 @@ func StreamAlert(qw422016 *qt422016.Writer, r *http.Request, alert *APIAlert) {
 	qw422016.N().S(`
     `)
 //line app/vmalert/web.qtpl:315
-	tpl.StreamHeader(qw422016, r, navItems, "", configError())
+	tpl.StreamHeader(qw422016, r, navItems, "", getLastConfigError())
 //line app/vmalert/web.qtpl:315
 	qw422016.N().S(`
     `)
@@ -1311,7 +1311,7 @@ func StreamRuleDetails(qw422016 *qt422016.Writer, r *http.Request, rule APIRule)
 	qw422016.N().S(`
     `)
 //line app/vmalert/web.qtpl:402
-	tpl.StreamHeader(qw422016, r, navItems, "", configError())
+	tpl.StreamHeader(qw422016, r, navItems, "", getLastConfigError())
 //line app/vmalert/web.qtpl:402
 	qw422016.N().S(`
     `)

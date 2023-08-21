@@ -7,6 +7,7 @@ import "./style.scss";
 import { QueryStats } from "../../../api/types";
 import Tooltip from "../../Main/Tooltip/Tooltip";
 import { WarningIcon } from "../../Main/Icons";
+import { partialWarning, seriesFetchedWarning } from "./warningText";
 
 export interface QueryEditorProps {
   onChange: (query: string) => void;
@@ -39,7 +40,17 @@ const QueryEditor: FC<QueryEditorProps> = ({
 
   const [openAutocomplete, setOpenAutocomplete] = useState(false);
   const autocompleteAnchorEl = useRef<HTMLDivElement>(null);
-  const showSeriesFetchedWarning = stats?.seriesFetched === "0" && !stats.resultLength;
+
+  const warnings = [
+    {
+      show: stats?.seriesFetched === "0" && !stats.resultLength,
+      text: seriesFetchedWarning
+    },
+    {
+      show: stats?.isPartial,
+      text: partialWarning
+    }
+  ].filter((warning) => warning.show);
 
   const handleSelect = (val: string) => {
     onChange(val);
@@ -108,17 +119,14 @@ const QueryEditor: FC<QueryEditorProps> = ({
         onFoundOptions={handleChangeFoundOptions}
       />
     )}
-    {showSeriesFetchedWarning && (
+    {!!warnings.length && (
       <div className="vm-query-editor-warning">
         <Tooltip
           placement="bottom-right"
           title={(
-            <span className="vm-query-editor-warning__tooltip">
-              {`No match! 
-              This query hasn't selected any time series from database.
-              Either the requested metrics are missing in the database, 
-              or there is a typo in series selector.`}
-            </span>
+            <div className="vm-query-editor-warning__tooltip">
+              {warnings.map((warning, index) => <p key={index}>{warning.text}</p>)}
+            </div>
           )}
         >
           <WarningIcon/>

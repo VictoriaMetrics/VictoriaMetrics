@@ -89,6 +89,23 @@ Do not forget to remove old backups when they are no longer needed in order to s
 
 See also [vmbackupmanager tool](https://docs.victoriametrics.com/vmbackupmanager.html) for automating smart backups.
 
+### Server-side copy of the existing backup
+
+Sometimes it is needed to make server-side copy of the existing backup. This can be done by specifying the source backup path via `-origin` command-line flag,
+while the destination path for backup copy must be specified via `-dst` command-line flag. For example, the following command copies backup
+from `gs://bucket/foo` to `gs://bucket/bar`:
+
+```console
+./vmbackup -origin=gs://bucket/foo -dst=gs://bucket/bar
+```
+
+The `-origin` and `-dst` must point to the same object storage bucket or to the same filesystem.
+
+The server-side backup copy is usually performed at much faster speed comparing to the usual backup, since backup data isn't transferred
+between the remote storage and locally running `vmbackup` tool.
+
+If the `-dst` already contains some data, then its' contents is synced with the `-origin` data. This allows making incremental server-side copies of backups.
+
 ## How does it work?
 
 The backup algorithm is the following:

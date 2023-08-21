@@ -39,11 +39,18 @@ func (m *awsRestxml_serializeOpAbortMultipartUpload) HandleSerialize(ctx context
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}/{Key+}?x-id=AbortMultipartUpload")
+	opPath, opQuery := httpbinding.SplitURI("/{Key+}?x-id=AbortMultipartUpload")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "DELETE"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -62,15 +69,6 @@ func (m *awsRestxml_serializeOpAbortMultipartUpload) HandleSerialize(ctx context
 func awsRestxml_serializeOpHttpBindingsAbortMultipartUploadInput(v *AbortMultipartUploadInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.ExpectedBucketOwner != nil && len(*v.ExpectedBucketOwner) > 0 {
@@ -120,11 +118,18 @@ func (m *awsRestxml_serializeOpCompleteMultipartUpload) HandleSerialize(ctx cont
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}/{Key+}?x-id=CompleteMultipartUpload")
+	opPath, opQuery := httpbinding.SplitURI("/{Key+}?x-id=CompleteMultipartUpload")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "POST"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -167,15 +172,6 @@ func (m *awsRestxml_serializeOpCompleteMultipartUpload) HandleSerialize(ctx cont
 func awsRestxml_serializeOpHttpBindingsCompleteMultipartUploadInput(v *CompleteMultipartUploadInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.ChecksumCRC32 != nil && len(*v.ChecksumCRC32) > 0 {
@@ -260,11 +256,18 @@ func (m *awsRestxml_serializeOpCopyObject) HandleSerialize(ctx context.Context, 
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}/{Key+}?x-id=CopyObject")
+	opPath, opQuery := httpbinding.SplitURI("/{Key+}?x-id=CopyObject")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "PUT"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -288,15 +291,6 @@ func awsRestxml_serializeOpHttpBindingsCopyObjectInput(v *CopyObjectInput, encod
 	if len(v.ACL) > 0 {
 		locationName := "X-Amz-Acl"
 		encoder.SetHeader(locationName).String(string(v.ACL))
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.BucketKeyEnabled {
@@ -526,11 +520,18 @@ func (m *awsRestxml_serializeOpCreateBucket) HandleSerialize(ctx context.Context
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}")
+	opPath, opQuery := httpbinding.SplitURI("/")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "PUT"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -578,15 +579,6 @@ func awsRestxml_serializeOpHttpBindingsCreateBucketInput(v *CreateBucketInput, e
 	if len(v.ACL) > 0 {
 		locationName := "X-Amz-Acl"
 		encoder.SetHeader(locationName).String(string(v.ACL))
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.GrantFullControl != nil && len(*v.GrantFullControl) > 0 {
@@ -648,11 +640,18 @@ func (m *awsRestxml_serializeOpCreateMultipartUpload) HandleSerialize(ctx contex
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}/{Key+}?uploads&x-id=CreateMultipartUpload")
+	opPath, opQuery := httpbinding.SplitURI("/{Key+}?uploads&x-id=CreateMultipartUpload")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "POST"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -676,15 +675,6 @@ func awsRestxml_serializeOpHttpBindingsCreateMultipartUploadInput(v *CreateMulti
 	if len(v.ACL) > 0 {
 		locationName := "X-Amz-Acl"
 		encoder.SetHeader(locationName).String(string(v.ACL))
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.BucketKeyEnabled {
@@ -859,11 +849,18 @@ func (m *awsRestxml_serializeOpDeleteBucket) HandleSerialize(ctx context.Context
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}")
+	opPath, opQuery := httpbinding.SplitURI("/")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "DELETE"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -882,15 +879,6 @@ func (m *awsRestxml_serializeOpDeleteBucket) HandleSerialize(ctx context.Context
 func awsRestxml_serializeOpHttpBindingsDeleteBucketInput(v *DeleteBucketInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.ExpectedBucketOwner != nil && len(*v.ExpectedBucketOwner) > 0 {
@@ -922,11 +910,18 @@ func (m *awsRestxml_serializeOpDeleteBucketAnalyticsConfiguration) HandleSeriali
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}?analytics")
+	opPath, opQuery := httpbinding.SplitURI("/?analytics")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "DELETE"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -945,15 +940,6 @@ func (m *awsRestxml_serializeOpDeleteBucketAnalyticsConfiguration) HandleSeriali
 func awsRestxml_serializeOpHttpBindingsDeleteBucketAnalyticsConfigurationInput(v *DeleteBucketAnalyticsConfigurationInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.ExpectedBucketOwner != nil && len(*v.ExpectedBucketOwner) > 0 {
@@ -989,11 +975,18 @@ func (m *awsRestxml_serializeOpDeleteBucketCors) HandleSerialize(ctx context.Con
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}?cors")
+	opPath, opQuery := httpbinding.SplitURI("/?cors")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "DELETE"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -1012,15 +1005,6 @@ func (m *awsRestxml_serializeOpDeleteBucketCors) HandleSerialize(ctx context.Con
 func awsRestxml_serializeOpHttpBindingsDeleteBucketCorsInput(v *DeleteBucketCorsInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.ExpectedBucketOwner != nil && len(*v.ExpectedBucketOwner) > 0 {
@@ -1052,11 +1036,18 @@ func (m *awsRestxml_serializeOpDeleteBucketEncryption) HandleSerialize(ctx conte
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}?encryption")
+	opPath, opQuery := httpbinding.SplitURI("/?encryption")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "DELETE"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -1075,15 +1066,6 @@ func (m *awsRestxml_serializeOpDeleteBucketEncryption) HandleSerialize(ctx conte
 func awsRestxml_serializeOpHttpBindingsDeleteBucketEncryptionInput(v *DeleteBucketEncryptionInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.ExpectedBucketOwner != nil && len(*v.ExpectedBucketOwner) > 0 {
@@ -1115,11 +1097,18 @@ func (m *awsRestxml_serializeOpDeleteBucketIntelligentTieringConfiguration) Hand
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}?intelligent-tiering")
+	opPath, opQuery := httpbinding.SplitURI("/?intelligent-tiering")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "DELETE"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -1138,15 +1127,6 @@ func (m *awsRestxml_serializeOpDeleteBucketIntelligentTieringConfiguration) Hand
 func awsRestxml_serializeOpHttpBindingsDeleteBucketIntelligentTieringConfigurationInput(v *DeleteBucketIntelligentTieringConfigurationInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.Id != nil {
@@ -1177,11 +1157,18 @@ func (m *awsRestxml_serializeOpDeleteBucketInventoryConfiguration) HandleSeriali
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}?inventory")
+	opPath, opQuery := httpbinding.SplitURI("/?inventory")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "DELETE"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -1200,15 +1187,6 @@ func (m *awsRestxml_serializeOpDeleteBucketInventoryConfiguration) HandleSeriali
 func awsRestxml_serializeOpHttpBindingsDeleteBucketInventoryConfigurationInput(v *DeleteBucketInventoryConfigurationInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.ExpectedBucketOwner != nil && len(*v.ExpectedBucketOwner) > 0 {
@@ -1244,11 +1222,18 @@ func (m *awsRestxml_serializeOpDeleteBucketLifecycle) HandleSerialize(ctx contex
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}?lifecycle")
+	opPath, opQuery := httpbinding.SplitURI("/?lifecycle")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "DELETE"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -1267,15 +1252,6 @@ func (m *awsRestxml_serializeOpDeleteBucketLifecycle) HandleSerialize(ctx contex
 func awsRestxml_serializeOpHttpBindingsDeleteBucketLifecycleInput(v *DeleteBucketLifecycleInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.ExpectedBucketOwner != nil && len(*v.ExpectedBucketOwner) > 0 {
@@ -1307,11 +1283,18 @@ func (m *awsRestxml_serializeOpDeleteBucketMetricsConfiguration) HandleSerialize
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}?metrics")
+	opPath, opQuery := httpbinding.SplitURI("/?metrics")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "DELETE"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -1330,15 +1313,6 @@ func (m *awsRestxml_serializeOpDeleteBucketMetricsConfiguration) HandleSerialize
 func awsRestxml_serializeOpHttpBindingsDeleteBucketMetricsConfigurationInput(v *DeleteBucketMetricsConfigurationInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.ExpectedBucketOwner != nil && len(*v.ExpectedBucketOwner) > 0 {
@@ -1374,11 +1348,18 @@ func (m *awsRestxml_serializeOpDeleteBucketOwnershipControls) HandleSerialize(ct
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}?ownershipControls")
+	opPath, opQuery := httpbinding.SplitURI("/?ownershipControls")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "DELETE"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -1397,15 +1378,6 @@ func (m *awsRestxml_serializeOpDeleteBucketOwnershipControls) HandleSerialize(ct
 func awsRestxml_serializeOpHttpBindingsDeleteBucketOwnershipControlsInput(v *DeleteBucketOwnershipControlsInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.ExpectedBucketOwner != nil && len(*v.ExpectedBucketOwner) > 0 {
@@ -1437,11 +1409,18 @@ func (m *awsRestxml_serializeOpDeleteBucketPolicy) HandleSerialize(ctx context.C
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}?policy")
+	opPath, opQuery := httpbinding.SplitURI("/?policy")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "DELETE"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -1460,15 +1439,6 @@ func (m *awsRestxml_serializeOpDeleteBucketPolicy) HandleSerialize(ctx context.C
 func awsRestxml_serializeOpHttpBindingsDeleteBucketPolicyInput(v *DeleteBucketPolicyInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.ExpectedBucketOwner != nil && len(*v.ExpectedBucketOwner) > 0 {
@@ -1500,11 +1470,18 @@ func (m *awsRestxml_serializeOpDeleteBucketReplication) HandleSerialize(ctx cont
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}?replication")
+	opPath, opQuery := httpbinding.SplitURI("/?replication")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "DELETE"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -1523,15 +1500,6 @@ func (m *awsRestxml_serializeOpDeleteBucketReplication) HandleSerialize(ctx cont
 func awsRestxml_serializeOpHttpBindingsDeleteBucketReplicationInput(v *DeleteBucketReplicationInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.ExpectedBucketOwner != nil && len(*v.ExpectedBucketOwner) > 0 {
@@ -1563,11 +1531,18 @@ func (m *awsRestxml_serializeOpDeleteBucketTagging) HandleSerialize(ctx context.
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}?tagging")
+	opPath, opQuery := httpbinding.SplitURI("/?tagging")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "DELETE"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -1586,15 +1561,6 @@ func (m *awsRestxml_serializeOpDeleteBucketTagging) HandleSerialize(ctx context.
 func awsRestxml_serializeOpHttpBindingsDeleteBucketTaggingInput(v *DeleteBucketTaggingInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.ExpectedBucketOwner != nil && len(*v.ExpectedBucketOwner) > 0 {
@@ -1626,11 +1592,18 @@ func (m *awsRestxml_serializeOpDeleteBucketWebsite) HandleSerialize(ctx context.
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}?website")
+	opPath, opQuery := httpbinding.SplitURI("/?website")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "DELETE"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -1649,15 +1622,6 @@ func (m *awsRestxml_serializeOpDeleteBucketWebsite) HandleSerialize(ctx context.
 func awsRestxml_serializeOpHttpBindingsDeleteBucketWebsiteInput(v *DeleteBucketWebsiteInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.ExpectedBucketOwner != nil && len(*v.ExpectedBucketOwner) > 0 {
@@ -1689,11 +1653,18 @@ func (m *awsRestxml_serializeOpDeleteObject) HandleSerialize(ctx context.Context
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}/{Key+}?x-id=DeleteObject")
+	opPath, opQuery := httpbinding.SplitURI("/{Key+}?x-id=DeleteObject")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "DELETE"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -1712,15 +1683,6 @@ func (m *awsRestxml_serializeOpDeleteObject) HandleSerialize(ctx context.Context
 func awsRestxml_serializeOpHttpBindingsDeleteObjectInput(v *DeleteObjectInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.BypassGovernanceRetention {
@@ -1780,11 +1742,18 @@ func (m *awsRestxml_serializeOpDeleteObjects) HandleSerialize(ctx context.Contex
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}?delete&x-id=DeleteObjects")
+	opPath, opQuery := httpbinding.SplitURI("/?delete&x-id=DeleteObjects")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "POST"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -1827,15 +1796,6 @@ func (m *awsRestxml_serializeOpDeleteObjects) HandleSerialize(ctx context.Contex
 func awsRestxml_serializeOpHttpBindingsDeleteObjectsInput(v *DeleteObjectsInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.BypassGovernanceRetention {
@@ -1887,11 +1847,18 @@ func (m *awsRestxml_serializeOpDeleteObjectTagging) HandleSerialize(ctx context.
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}/{Key+}?tagging")
+	opPath, opQuery := httpbinding.SplitURI("/{Key+}?tagging")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "DELETE"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -1910,15 +1877,6 @@ func (m *awsRestxml_serializeOpDeleteObjectTagging) HandleSerialize(ctx context.
 func awsRestxml_serializeOpHttpBindingsDeleteObjectTaggingInput(v *DeleteObjectTaggingInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.ExpectedBucketOwner != nil && len(*v.ExpectedBucketOwner) > 0 {
@@ -1963,11 +1921,18 @@ func (m *awsRestxml_serializeOpDeletePublicAccessBlock) HandleSerialize(ctx cont
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}?publicAccessBlock")
+	opPath, opQuery := httpbinding.SplitURI("/?publicAccessBlock")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "DELETE"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -1986,15 +1951,6 @@ func (m *awsRestxml_serializeOpDeletePublicAccessBlock) HandleSerialize(ctx cont
 func awsRestxml_serializeOpHttpBindingsDeletePublicAccessBlockInput(v *DeletePublicAccessBlockInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.ExpectedBucketOwner != nil && len(*v.ExpectedBucketOwner) > 0 {
@@ -2026,11 +1982,18 @@ func (m *awsRestxml_serializeOpGetBucketAccelerateConfiguration) HandleSerialize
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}?accelerate")
+	opPath, opQuery := httpbinding.SplitURI("/?accelerate")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "GET"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -2049,15 +2012,6 @@ func (m *awsRestxml_serializeOpGetBucketAccelerateConfiguration) HandleSerialize
 func awsRestxml_serializeOpHttpBindingsGetBucketAccelerateConfigurationInput(v *GetBucketAccelerateConfigurationInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.ExpectedBucketOwner != nil && len(*v.ExpectedBucketOwner) > 0 {
@@ -2094,11 +2048,18 @@ func (m *awsRestxml_serializeOpGetBucketAcl) HandleSerialize(ctx context.Context
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}?acl")
+	opPath, opQuery := httpbinding.SplitURI("/?acl")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "GET"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -2117,15 +2078,6 @@ func (m *awsRestxml_serializeOpGetBucketAcl) HandleSerialize(ctx context.Context
 func awsRestxml_serializeOpHttpBindingsGetBucketAclInput(v *GetBucketAclInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.ExpectedBucketOwner != nil && len(*v.ExpectedBucketOwner) > 0 {
@@ -2157,11 +2109,18 @@ func (m *awsRestxml_serializeOpGetBucketAnalyticsConfiguration) HandleSerialize(
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}?analytics&x-id=GetBucketAnalyticsConfiguration")
+	opPath, opQuery := httpbinding.SplitURI("/?analytics&x-id=GetBucketAnalyticsConfiguration")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "GET"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -2180,15 +2139,6 @@ func (m *awsRestxml_serializeOpGetBucketAnalyticsConfiguration) HandleSerialize(
 func awsRestxml_serializeOpHttpBindingsGetBucketAnalyticsConfigurationInput(v *GetBucketAnalyticsConfigurationInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.ExpectedBucketOwner != nil && len(*v.ExpectedBucketOwner) > 0 {
@@ -2224,11 +2174,18 @@ func (m *awsRestxml_serializeOpGetBucketCors) HandleSerialize(ctx context.Contex
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}?cors")
+	opPath, opQuery := httpbinding.SplitURI("/?cors")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "GET"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -2247,15 +2204,6 @@ func (m *awsRestxml_serializeOpGetBucketCors) HandleSerialize(ctx context.Contex
 func awsRestxml_serializeOpHttpBindingsGetBucketCorsInput(v *GetBucketCorsInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.ExpectedBucketOwner != nil && len(*v.ExpectedBucketOwner) > 0 {
@@ -2287,11 +2235,18 @@ func (m *awsRestxml_serializeOpGetBucketEncryption) HandleSerialize(ctx context.
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}?encryption")
+	opPath, opQuery := httpbinding.SplitURI("/?encryption")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "GET"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -2310,15 +2265,6 @@ func (m *awsRestxml_serializeOpGetBucketEncryption) HandleSerialize(ctx context.
 func awsRestxml_serializeOpHttpBindingsGetBucketEncryptionInput(v *GetBucketEncryptionInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.ExpectedBucketOwner != nil && len(*v.ExpectedBucketOwner) > 0 {
@@ -2350,11 +2296,18 @@ func (m *awsRestxml_serializeOpGetBucketIntelligentTieringConfiguration) HandleS
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}?intelligent-tiering&x-id=GetBucketIntelligentTieringConfiguration")
+	opPath, opQuery := httpbinding.SplitURI("/?intelligent-tiering&x-id=GetBucketIntelligentTieringConfiguration")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "GET"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -2373,15 +2326,6 @@ func (m *awsRestxml_serializeOpGetBucketIntelligentTieringConfiguration) HandleS
 func awsRestxml_serializeOpHttpBindingsGetBucketIntelligentTieringConfigurationInput(v *GetBucketIntelligentTieringConfigurationInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.Id != nil {
@@ -2412,11 +2356,18 @@ func (m *awsRestxml_serializeOpGetBucketInventoryConfiguration) HandleSerialize(
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}?inventory&x-id=GetBucketInventoryConfiguration")
+	opPath, opQuery := httpbinding.SplitURI("/?inventory&x-id=GetBucketInventoryConfiguration")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "GET"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -2435,15 +2386,6 @@ func (m *awsRestxml_serializeOpGetBucketInventoryConfiguration) HandleSerialize(
 func awsRestxml_serializeOpHttpBindingsGetBucketInventoryConfigurationInput(v *GetBucketInventoryConfigurationInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.ExpectedBucketOwner != nil && len(*v.ExpectedBucketOwner) > 0 {
@@ -2479,11 +2421,18 @@ func (m *awsRestxml_serializeOpGetBucketLifecycleConfiguration) HandleSerialize(
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}?lifecycle")
+	opPath, opQuery := httpbinding.SplitURI("/?lifecycle")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "GET"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -2502,15 +2451,6 @@ func (m *awsRestxml_serializeOpGetBucketLifecycleConfiguration) HandleSerialize(
 func awsRestxml_serializeOpHttpBindingsGetBucketLifecycleConfigurationInput(v *GetBucketLifecycleConfigurationInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.ExpectedBucketOwner != nil && len(*v.ExpectedBucketOwner) > 0 {
@@ -2542,11 +2482,18 @@ func (m *awsRestxml_serializeOpGetBucketLocation) HandleSerialize(ctx context.Co
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}?location")
+	opPath, opQuery := httpbinding.SplitURI("/?location")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "GET"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -2565,15 +2512,6 @@ func (m *awsRestxml_serializeOpGetBucketLocation) HandleSerialize(ctx context.Co
 func awsRestxml_serializeOpHttpBindingsGetBucketLocationInput(v *GetBucketLocationInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.ExpectedBucketOwner != nil && len(*v.ExpectedBucketOwner) > 0 {
@@ -2605,11 +2543,18 @@ func (m *awsRestxml_serializeOpGetBucketLogging) HandleSerialize(ctx context.Con
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}?logging")
+	opPath, opQuery := httpbinding.SplitURI("/?logging")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "GET"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -2628,15 +2573,6 @@ func (m *awsRestxml_serializeOpGetBucketLogging) HandleSerialize(ctx context.Con
 func awsRestxml_serializeOpHttpBindingsGetBucketLoggingInput(v *GetBucketLoggingInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.ExpectedBucketOwner != nil && len(*v.ExpectedBucketOwner) > 0 {
@@ -2668,11 +2604,18 @@ func (m *awsRestxml_serializeOpGetBucketMetricsConfiguration) HandleSerialize(ct
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}?metrics&x-id=GetBucketMetricsConfiguration")
+	opPath, opQuery := httpbinding.SplitURI("/?metrics&x-id=GetBucketMetricsConfiguration")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "GET"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -2691,15 +2634,6 @@ func (m *awsRestxml_serializeOpGetBucketMetricsConfiguration) HandleSerialize(ct
 func awsRestxml_serializeOpHttpBindingsGetBucketMetricsConfigurationInput(v *GetBucketMetricsConfigurationInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.ExpectedBucketOwner != nil && len(*v.ExpectedBucketOwner) > 0 {
@@ -2735,11 +2669,18 @@ func (m *awsRestxml_serializeOpGetBucketNotificationConfiguration) HandleSeriali
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}?notification")
+	opPath, opQuery := httpbinding.SplitURI("/?notification")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "GET"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -2758,15 +2699,6 @@ func (m *awsRestxml_serializeOpGetBucketNotificationConfiguration) HandleSeriali
 func awsRestxml_serializeOpHttpBindingsGetBucketNotificationConfigurationInput(v *GetBucketNotificationConfigurationInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.ExpectedBucketOwner != nil && len(*v.ExpectedBucketOwner) > 0 {
@@ -2798,11 +2730,18 @@ func (m *awsRestxml_serializeOpGetBucketOwnershipControls) HandleSerialize(ctx c
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}?ownershipControls")
+	opPath, opQuery := httpbinding.SplitURI("/?ownershipControls")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "GET"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -2821,15 +2760,6 @@ func (m *awsRestxml_serializeOpGetBucketOwnershipControls) HandleSerialize(ctx c
 func awsRestxml_serializeOpHttpBindingsGetBucketOwnershipControlsInput(v *GetBucketOwnershipControlsInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.ExpectedBucketOwner != nil && len(*v.ExpectedBucketOwner) > 0 {
@@ -2861,11 +2791,18 @@ func (m *awsRestxml_serializeOpGetBucketPolicy) HandleSerialize(ctx context.Cont
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}?policy")
+	opPath, opQuery := httpbinding.SplitURI("/?policy")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "GET"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -2884,15 +2821,6 @@ func (m *awsRestxml_serializeOpGetBucketPolicy) HandleSerialize(ctx context.Cont
 func awsRestxml_serializeOpHttpBindingsGetBucketPolicyInput(v *GetBucketPolicyInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.ExpectedBucketOwner != nil && len(*v.ExpectedBucketOwner) > 0 {
@@ -2924,11 +2852,18 @@ func (m *awsRestxml_serializeOpGetBucketPolicyStatus) HandleSerialize(ctx contex
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}?policyStatus")
+	opPath, opQuery := httpbinding.SplitURI("/?policyStatus")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "GET"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -2947,15 +2882,6 @@ func (m *awsRestxml_serializeOpGetBucketPolicyStatus) HandleSerialize(ctx contex
 func awsRestxml_serializeOpHttpBindingsGetBucketPolicyStatusInput(v *GetBucketPolicyStatusInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.ExpectedBucketOwner != nil && len(*v.ExpectedBucketOwner) > 0 {
@@ -2987,11 +2913,18 @@ func (m *awsRestxml_serializeOpGetBucketReplication) HandleSerialize(ctx context
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}?replication")
+	opPath, opQuery := httpbinding.SplitURI("/?replication")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "GET"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -3010,15 +2943,6 @@ func (m *awsRestxml_serializeOpGetBucketReplication) HandleSerialize(ctx context
 func awsRestxml_serializeOpHttpBindingsGetBucketReplicationInput(v *GetBucketReplicationInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.ExpectedBucketOwner != nil && len(*v.ExpectedBucketOwner) > 0 {
@@ -3050,11 +2974,18 @@ func (m *awsRestxml_serializeOpGetBucketRequestPayment) HandleSerialize(ctx cont
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}?requestPayment")
+	opPath, opQuery := httpbinding.SplitURI("/?requestPayment")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "GET"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -3073,15 +3004,6 @@ func (m *awsRestxml_serializeOpGetBucketRequestPayment) HandleSerialize(ctx cont
 func awsRestxml_serializeOpHttpBindingsGetBucketRequestPaymentInput(v *GetBucketRequestPaymentInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.ExpectedBucketOwner != nil && len(*v.ExpectedBucketOwner) > 0 {
@@ -3113,11 +3035,18 @@ func (m *awsRestxml_serializeOpGetBucketTagging) HandleSerialize(ctx context.Con
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}?tagging")
+	opPath, opQuery := httpbinding.SplitURI("/?tagging")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "GET"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -3136,15 +3065,6 @@ func (m *awsRestxml_serializeOpGetBucketTagging) HandleSerialize(ctx context.Con
 func awsRestxml_serializeOpHttpBindingsGetBucketTaggingInput(v *GetBucketTaggingInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.ExpectedBucketOwner != nil && len(*v.ExpectedBucketOwner) > 0 {
@@ -3176,11 +3096,18 @@ func (m *awsRestxml_serializeOpGetBucketVersioning) HandleSerialize(ctx context.
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}?versioning")
+	opPath, opQuery := httpbinding.SplitURI("/?versioning")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "GET"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -3199,15 +3126,6 @@ func (m *awsRestxml_serializeOpGetBucketVersioning) HandleSerialize(ctx context.
 func awsRestxml_serializeOpHttpBindingsGetBucketVersioningInput(v *GetBucketVersioningInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.ExpectedBucketOwner != nil && len(*v.ExpectedBucketOwner) > 0 {
@@ -3239,11 +3157,18 @@ func (m *awsRestxml_serializeOpGetBucketWebsite) HandleSerialize(ctx context.Con
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}?website")
+	opPath, opQuery := httpbinding.SplitURI("/?website")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "GET"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -3262,15 +3187,6 @@ func (m *awsRestxml_serializeOpGetBucketWebsite) HandleSerialize(ctx context.Con
 func awsRestxml_serializeOpHttpBindingsGetBucketWebsiteInput(v *GetBucketWebsiteInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.ExpectedBucketOwner != nil && len(*v.ExpectedBucketOwner) > 0 {
@@ -3302,11 +3218,18 @@ func (m *awsRestxml_serializeOpGetObject) HandleSerialize(ctx context.Context, i
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}/{Key+}?x-id=GetObject")
+	opPath, opQuery := httpbinding.SplitURI("/{Key+}?x-id=GetObject")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "GET"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -3325,15 +3248,6 @@ func (m *awsRestxml_serializeOpGetObject) HandleSerialize(ctx context.Context, i
 func awsRestxml_serializeOpHttpBindingsGetObjectInput(v *GetObjectInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if len(v.ChecksumMode) > 0 {
@@ -3456,11 +3370,18 @@ func (m *awsRestxml_serializeOpGetObjectAcl) HandleSerialize(ctx context.Context
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}/{Key+}?acl")
+	opPath, opQuery := httpbinding.SplitURI("/{Key+}?acl")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "GET"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -3479,15 +3400,6 @@ func (m *awsRestxml_serializeOpGetObjectAcl) HandleSerialize(ctx context.Context
 func awsRestxml_serializeOpHttpBindingsGetObjectAclInput(v *GetObjectAclInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.ExpectedBucketOwner != nil && len(*v.ExpectedBucketOwner) > 0 {
@@ -3537,11 +3449,18 @@ func (m *awsRestxml_serializeOpGetObjectAttributes) HandleSerialize(ctx context.
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}/{Key+}?attributes")
+	opPath, opQuery := httpbinding.SplitURI("/{Key+}?attributes")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "GET"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -3560,15 +3479,6 @@ func (m *awsRestxml_serializeOpGetObjectAttributes) HandleSerialize(ctx context.
 func awsRestxml_serializeOpHttpBindingsGetObjectAttributesInput(v *GetObjectAttributesInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.ExpectedBucketOwner != nil && len(*v.ExpectedBucketOwner) > 0 {
@@ -3657,11 +3567,18 @@ func (m *awsRestxml_serializeOpGetObjectLegalHold) HandleSerialize(ctx context.C
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}/{Key+}?legal-hold")
+	opPath, opQuery := httpbinding.SplitURI("/{Key+}?legal-hold")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "GET"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -3680,15 +3597,6 @@ func (m *awsRestxml_serializeOpGetObjectLegalHold) HandleSerialize(ctx context.C
 func awsRestxml_serializeOpHttpBindingsGetObjectLegalHoldInput(v *GetObjectLegalHoldInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.ExpectedBucketOwner != nil && len(*v.ExpectedBucketOwner) > 0 {
@@ -3738,11 +3646,18 @@ func (m *awsRestxml_serializeOpGetObjectLockConfiguration) HandleSerialize(ctx c
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}?object-lock")
+	opPath, opQuery := httpbinding.SplitURI("/?object-lock")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "GET"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -3761,15 +3676,6 @@ func (m *awsRestxml_serializeOpGetObjectLockConfiguration) HandleSerialize(ctx c
 func awsRestxml_serializeOpHttpBindingsGetObjectLockConfigurationInput(v *GetObjectLockConfigurationInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.ExpectedBucketOwner != nil && len(*v.ExpectedBucketOwner) > 0 {
@@ -3801,11 +3707,18 @@ func (m *awsRestxml_serializeOpGetObjectRetention) HandleSerialize(ctx context.C
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}/{Key+}?retention")
+	opPath, opQuery := httpbinding.SplitURI("/{Key+}?retention")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "GET"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -3824,15 +3737,6 @@ func (m *awsRestxml_serializeOpGetObjectRetention) HandleSerialize(ctx context.C
 func awsRestxml_serializeOpHttpBindingsGetObjectRetentionInput(v *GetObjectRetentionInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.ExpectedBucketOwner != nil && len(*v.ExpectedBucketOwner) > 0 {
@@ -3882,11 +3786,18 @@ func (m *awsRestxml_serializeOpGetObjectTagging) HandleSerialize(ctx context.Con
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}/{Key+}?tagging")
+	opPath, opQuery := httpbinding.SplitURI("/{Key+}?tagging")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "GET"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -3905,15 +3816,6 @@ func (m *awsRestxml_serializeOpGetObjectTagging) HandleSerialize(ctx context.Con
 func awsRestxml_serializeOpHttpBindingsGetObjectTaggingInput(v *GetObjectTaggingInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.ExpectedBucketOwner != nil && len(*v.ExpectedBucketOwner) > 0 {
@@ -3963,11 +3865,18 @@ func (m *awsRestxml_serializeOpGetObjectTorrent) HandleSerialize(ctx context.Con
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}/{Key+}?torrent")
+	opPath, opQuery := httpbinding.SplitURI("/{Key+}?torrent")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "GET"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -3986,15 +3895,6 @@ func (m *awsRestxml_serializeOpGetObjectTorrent) HandleSerialize(ctx context.Con
 func awsRestxml_serializeOpHttpBindingsGetObjectTorrentInput(v *GetObjectTorrentInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.ExpectedBucketOwner != nil && len(*v.ExpectedBucketOwner) > 0 {
@@ -4040,11 +3940,18 @@ func (m *awsRestxml_serializeOpGetPublicAccessBlock) HandleSerialize(ctx context
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}?publicAccessBlock")
+	opPath, opQuery := httpbinding.SplitURI("/?publicAccessBlock")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "GET"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -4063,15 +3970,6 @@ func (m *awsRestxml_serializeOpGetPublicAccessBlock) HandleSerialize(ctx context
 func awsRestxml_serializeOpHttpBindingsGetPublicAccessBlockInput(v *GetPublicAccessBlockInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.ExpectedBucketOwner != nil && len(*v.ExpectedBucketOwner) > 0 {
@@ -4103,11 +4001,18 @@ func (m *awsRestxml_serializeOpHeadBucket) HandleSerialize(ctx context.Context, 
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}")
+	opPath, opQuery := httpbinding.SplitURI("/")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "HEAD"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -4126,15 +4031,6 @@ func (m *awsRestxml_serializeOpHeadBucket) HandleSerialize(ctx context.Context, 
 func awsRestxml_serializeOpHttpBindingsHeadBucketInput(v *HeadBucketInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.ExpectedBucketOwner != nil && len(*v.ExpectedBucketOwner) > 0 {
@@ -4166,11 +4062,18 @@ func (m *awsRestxml_serializeOpHeadObject) HandleSerialize(ctx context.Context, 
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}/{Key+}")
+	opPath, opQuery := httpbinding.SplitURI("/{Key+}")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "HEAD"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -4189,15 +4092,6 @@ func (m *awsRestxml_serializeOpHeadObject) HandleSerialize(ctx context.Context, 
 func awsRestxml_serializeOpHttpBindingsHeadObjectInput(v *HeadObjectInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if len(v.ChecksumMode) > 0 {
@@ -4296,11 +4190,18 @@ func (m *awsRestxml_serializeOpListBucketAnalyticsConfigurations) HandleSerializ
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}?analytics&x-id=ListBucketAnalyticsConfigurations")
+	opPath, opQuery := httpbinding.SplitURI("/?analytics&x-id=ListBucketAnalyticsConfigurations")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "GET"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -4319,15 +4220,6 @@ func (m *awsRestxml_serializeOpListBucketAnalyticsConfigurations) HandleSerializ
 func awsRestxml_serializeOpHttpBindingsListBucketAnalyticsConfigurationsInput(v *ListBucketAnalyticsConfigurationsInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.ContinuationToken != nil {
@@ -4363,11 +4255,18 @@ func (m *awsRestxml_serializeOpListBucketIntelligentTieringConfigurations) Handl
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}?intelligent-tiering&x-id=ListBucketIntelligentTieringConfigurations")
+	opPath, opQuery := httpbinding.SplitURI("/?intelligent-tiering&x-id=ListBucketIntelligentTieringConfigurations")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "GET"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -4386,15 +4285,6 @@ func (m *awsRestxml_serializeOpListBucketIntelligentTieringConfigurations) Handl
 func awsRestxml_serializeOpHttpBindingsListBucketIntelligentTieringConfigurationsInput(v *ListBucketIntelligentTieringConfigurationsInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.ContinuationToken != nil {
@@ -4425,11 +4315,18 @@ func (m *awsRestxml_serializeOpListBucketInventoryConfigurations) HandleSerializ
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}?inventory&x-id=ListBucketInventoryConfigurations")
+	opPath, opQuery := httpbinding.SplitURI("/?inventory&x-id=ListBucketInventoryConfigurations")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "GET"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -4448,15 +4345,6 @@ func (m *awsRestxml_serializeOpListBucketInventoryConfigurations) HandleSerializ
 func awsRestxml_serializeOpHttpBindingsListBucketInventoryConfigurationsInput(v *ListBucketInventoryConfigurationsInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.ContinuationToken != nil {
@@ -4492,11 +4380,18 @@ func (m *awsRestxml_serializeOpListBucketMetricsConfigurations) HandleSerialize(
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}?metrics&x-id=ListBucketMetricsConfigurations")
+	opPath, opQuery := httpbinding.SplitURI("/?metrics&x-id=ListBucketMetricsConfigurations")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "GET"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -4515,15 +4410,6 @@ func (m *awsRestxml_serializeOpListBucketMetricsConfigurations) HandleSerialize(
 func awsRestxml_serializeOpHttpBindingsListBucketMetricsConfigurationsInput(v *ListBucketMetricsConfigurationsInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.ContinuationToken != nil {
@@ -4563,7 +4449,14 @@ func (m *awsRestxml_serializeOpListBuckets) HandleSerialize(ctx context.Context,
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "GET"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -4604,11 +4497,18 @@ func (m *awsRestxml_serializeOpListMultipartUploads) HandleSerialize(ctx context
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}?uploads")
+	opPath, opQuery := httpbinding.SplitURI("/?uploads")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "GET"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -4627,15 +4527,6 @@ func (m *awsRestxml_serializeOpListMultipartUploads) HandleSerialize(ctx context
 func awsRestxml_serializeOpHttpBindingsListMultipartUploadsInput(v *ListMultipartUploadsInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.Delimiter != nil {
@@ -4696,11 +4587,18 @@ func (m *awsRestxml_serializeOpListObjects) HandleSerialize(ctx context.Context,
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}")
+	opPath, opQuery := httpbinding.SplitURI("/")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "GET"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -4719,15 +4617,6 @@ func (m *awsRestxml_serializeOpListObjects) HandleSerialize(ctx context.Context,
 func awsRestxml_serializeOpHttpBindingsListObjectsInput(v *ListObjectsInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.Delimiter != nil {
@@ -4798,11 +4687,18 @@ func (m *awsRestxml_serializeOpListObjectsV2) HandleSerialize(ctx context.Contex
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}?list-type=2")
+	opPath, opQuery := httpbinding.SplitURI("/?list-type=2")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "GET"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -4821,15 +4717,6 @@ func (m *awsRestxml_serializeOpListObjectsV2) HandleSerialize(ctx context.Contex
 func awsRestxml_serializeOpHttpBindingsListObjectsV2Input(v *ListObjectsV2Input, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.ContinuationToken != nil {
@@ -4908,11 +4795,18 @@ func (m *awsRestxml_serializeOpListObjectVersions) HandleSerialize(ctx context.C
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}?versions")
+	opPath, opQuery := httpbinding.SplitURI("/?versions")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "GET"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -4931,15 +4825,6 @@ func (m *awsRestxml_serializeOpListObjectVersions) HandleSerialize(ctx context.C
 func awsRestxml_serializeOpHttpBindingsListObjectVersionsInput(v *ListObjectVersionsInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.Delimiter != nil {
@@ -5014,11 +4899,18 @@ func (m *awsRestxml_serializeOpListParts) HandleSerialize(ctx context.Context, i
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}/{Key+}?x-id=ListParts")
+	opPath, opQuery := httpbinding.SplitURI("/{Key+}?x-id=ListParts")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "GET"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -5037,15 +4929,6 @@ func (m *awsRestxml_serializeOpListParts) HandleSerialize(ctx context.Context, i
 func awsRestxml_serializeOpHttpBindingsListPartsInput(v *ListPartsInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.ExpectedBucketOwner != nil && len(*v.ExpectedBucketOwner) > 0 {
@@ -5118,11 +5001,18 @@ func (m *awsRestxml_serializeOpPutBucketAccelerateConfiguration) HandleSerialize
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}?accelerate")
+	opPath, opQuery := httpbinding.SplitURI("/?accelerate")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "PUT"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -5167,15 +5057,6 @@ func awsRestxml_serializeOpHttpBindingsPutBucketAccelerateConfigurationInput(v *
 		return fmt.Errorf("unsupported serialization of nil %T", v)
 	}
 
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
-	}
-
 	if len(v.ChecksumAlgorithm) > 0 {
 		locationName := "X-Amz-Sdk-Checksum-Algorithm"
 		encoder.SetHeader(locationName).String(string(v.ChecksumAlgorithm))
@@ -5210,11 +5091,18 @@ func (m *awsRestxml_serializeOpPutBucketAcl) HandleSerialize(ctx context.Context
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}?acl")
+	opPath, opQuery := httpbinding.SplitURI("/?acl")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "PUT"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -5262,15 +5150,6 @@ func awsRestxml_serializeOpHttpBindingsPutBucketAclInput(v *PutBucketAclInput, e
 	if len(v.ACL) > 0 {
 		locationName := "X-Amz-Acl"
 		encoder.SetHeader(locationName).String(string(v.ACL))
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if len(v.ChecksumAlgorithm) > 0 {
@@ -5337,11 +5216,18 @@ func (m *awsRestxml_serializeOpPutBucketAnalyticsConfiguration) HandleSerialize(
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}?analytics")
+	opPath, opQuery := httpbinding.SplitURI("/?analytics")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "PUT"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -5386,15 +5272,6 @@ func awsRestxml_serializeOpHttpBindingsPutBucketAnalyticsConfigurationInput(v *P
 		return fmt.Errorf("unsupported serialization of nil %T", v)
 	}
 
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
-	}
-
 	if v.ExpectedBucketOwner != nil && len(*v.ExpectedBucketOwner) > 0 {
 		locationName := "X-Amz-Expected-Bucket-Owner"
 		encoder.SetHeader(locationName).String(*v.ExpectedBucketOwner)
@@ -5428,11 +5305,18 @@ func (m *awsRestxml_serializeOpPutBucketCors) HandleSerialize(ctx context.Contex
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}?cors")
+	opPath, opQuery := httpbinding.SplitURI("/?cors")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "PUT"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -5477,15 +5361,6 @@ func awsRestxml_serializeOpHttpBindingsPutBucketCorsInput(v *PutBucketCorsInput,
 		return fmt.Errorf("unsupported serialization of nil %T", v)
 	}
 
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
-	}
-
 	if len(v.ChecksumAlgorithm) > 0 {
 		locationName := "X-Amz-Sdk-Checksum-Algorithm"
 		encoder.SetHeader(locationName).String(string(v.ChecksumAlgorithm))
@@ -5525,11 +5400,18 @@ func (m *awsRestxml_serializeOpPutBucketEncryption) HandleSerialize(ctx context.
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}?encryption")
+	opPath, opQuery := httpbinding.SplitURI("/?encryption")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "PUT"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -5574,15 +5456,6 @@ func awsRestxml_serializeOpHttpBindingsPutBucketEncryptionInput(v *PutBucketEncr
 		return fmt.Errorf("unsupported serialization of nil %T", v)
 	}
 
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
-	}
-
 	if len(v.ChecksumAlgorithm) > 0 {
 		locationName := "X-Amz-Sdk-Checksum-Algorithm"
 		encoder.SetHeader(locationName).String(string(v.ChecksumAlgorithm))
@@ -5622,11 +5495,18 @@ func (m *awsRestxml_serializeOpPutBucketIntelligentTieringConfiguration) HandleS
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}?intelligent-tiering")
+	opPath, opQuery := httpbinding.SplitURI("/?intelligent-tiering")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "PUT"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -5671,15 +5551,6 @@ func awsRestxml_serializeOpHttpBindingsPutBucketIntelligentTieringConfigurationI
 		return fmt.Errorf("unsupported serialization of nil %T", v)
 	}
 
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
-	}
-
 	if v.Id != nil {
 		encoder.SetQuery("id").String(*v.Id)
 	}
@@ -5708,11 +5579,18 @@ func (m *awsRestxml_serializeOpPutBucketInventoryConfiguration) HandleSerialize(
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}?inventory")
+	opPath, opQuery := httpbinding.SplitURI("/?inventory")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "PUT"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -5757,15 +5635,6 @@ func awsRestxml_serializeOpHttpBindingsPutBucketInventoryConfigurationInput(v *P
 		return fmt.Errorf("unsupported serialization of nil %T", v)
 	}
 
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
-	}
-
 	if v.ExpectedBucketOwner != nil && len(*v.ExpectedBucketOwner) > 0 {
 		locationName := "X-Amz-Expected-Bucket-Owner"
 		encoder.SetHeader(locationName).String(*v.ExpectedBucketOwner)
@@ -5799,11 +5668,18 @@ func (m *awsRestxml_serializeOpPutBucketLifecycleConfiguration) HandleSerialize(
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}?lifecycle")
+	opPath, opQuery := httpbinding.SplitURI("/?lifecycle")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "PUT"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -5848,15 +5724,6 @@ func awsRestxml_serializeOpHttpBindingsPutBucketLifecycleConfigurationInput(v *P
 		return fmt.Errorf("unsupported serialization of nil %T", v)
 	}
 
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
-	}
-
 	if len(v.ChecksumAlgorithm) > 0 {
 		locationName := "X-Amz-Sdk-Checksum-Algorithm"
 		encoder.SetHeader(locationName).String(string(v.ChecksumAlgorithm))
@@ -5891,11 +5758,18 @@ func (m *awsRestxml_serializeOpPutBucketLogging) HandleSerialize(ctx context.Con
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}?logging")
+	opPath, opQuery := httpbinding.SplitURI("/?logging")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "PUT"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -5940,15 +5814,6 @@ func awsRestxml_serializeOpHttpBindingsPutBucketLoggingInput(v *PutBucketLogging
 		return fmt.Errorf("unsupported serialization of nil %T", v)
 	}
 
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
-	}
-
 	if len(v.ChecksumAlgorithm) > 0 {
 		locationName := "X-Amz-Sdk-Checksum-Algorithm"
 		encoder.SetHeader(locationName).String(string(v.ChecksumAlgorithm))
@@ -5988,11 +5853,18 @@ func (m *awsRestxml_serializeOpPutBucketMetricsConfiguration) HandleSerialize(ct
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}?metrics")
+	opPath, opQuery := httpbinding.SplitURI("/?metrics")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "PUT"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -6037,15 +5909,6 @@ func awsRestxml_serializeOpHttpBindingsPutBucketMetricsConfigurationInput(v *Put
 		return fmt.Errorf("unsupported serialization of nil %T", v)
 	}
 
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
-	}
-
 	if v.ExpectedBucketOwner != nil && len(*v.ExpectedBucketOwner) > 0 {
 		locationName := "X-Amz-Expected-Bucket-Owner"
 		encoder.SetHeader(locationName).String(*v.ExpectedBucketOwner)
@@ -6079,11 +5942,18 @@ func (m *awsRestxml_serializeOpPutBucketNotificationConfiguration) HandleSeriali
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}?notification")
+	opPath, opQuery := httpbinding.SplitURI("/?notification")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "PUT"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -6128,15 +5998,6 @@ func awsRestxml_serializeOpHttpBindingsPutBucketNotificationConfigurationInput(v
 		return fmt.Errorf("unsupported serialization of nil %T", v)
 	}
 
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
-	}
-
 	if v.ExpectedBucketOwner != nil && len(*v.ExpectedBucketOwner) > 0 {
 		locationName := "X-Amz-Expected-Bucket-Owner"
 		encoder.SetHeader(locationName).String(*v.ExpectedBucketOwner)
@@ -6171,11 +6032,18 @@ func (m *awsRestxml_serializeOpPutBucketOwnershipControls) HandleSerialize(ctx c
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}?ownershipControls")
+	opPath, opQuery := httpbinding.SplitURI("/?ownershipControls")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "PUT"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -6220,15 +6088,6 @@ func awsRestxml_serializeOpHttpBindingsPutBucketOwnershipControlsInput(v *PutBuc
 		return fmt.Errorf("unsupported serialization of nil %T", v)
 	}
 
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
-	}
-
 	if v.ContentMD5 != nil && len(*v.ContentMD5) > 0 {
 		locationName := "Content-Md5"
 		encoder.SetHeader(locationName).String(*v.ContentMD5)
@@ -6263,11 +6122,18 @@ func (m *awsRestxml_serializeOpPutBucketPolicy) HandleSerialize(ctx context.Cont
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}?policy")
+	opPath, opQuery := httpbinding.SplitURI("/?policy")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "PUT"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -6298,15 +6164,6 @@ func (m *awsRestxml_serializeOpPutBucketPolicy) HandleSerialize(ctx context.Cont
 func awsRestxml_serializeOpHttpBindingsPutBucketPolicyInput(v *PutBucketPolicyInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if len(v.ChecksumAlgorithm) > 0 {
@@ -6353,11 +6210,18 @@ func (m *awsRestxml_serializeOpPutBucketReplication) HandleSerialize(ctx context
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}?replication")
+	opPath, opQuery := httpbinding.SplitURI("/?replication")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "PUT"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -6400,15 +6264,6 @@ func (m *awsRestxml_serializeOpPutBucketReplication) HandleSerialize(ctx context
 func awsRestxml_serializeOpHttpBindingsPutBucketReplicationInput(v *PutBucketReplicationInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if len(v.ChecksumAlgorithm) > 0 {
@@ -6455,11 +6310,18 @@ func (m *awsRestxml_serializeOpPutBucketRequestPayment) HandleSerialize(ctx cont
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}?requestPayment")
+	opPath, opQuery := httpbinding.SplitURI("/?requestPayment")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "PUT"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -6504,15 +6366,6 @@ func awsRestxml_serializeOpHttpBindingsPutBucketRequestPaymentInput(v *PutBucket
 		return fmt.Errorf("unsupported serialization of nil %T", v)
 	}
 
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
-	}
-
 	if len(v.ChecksumAlgorithm) > 0 {
 		locationName := "X-Amz-Sdk-Checksum-Algorithm"
 		encoder.SetHeader(locationName).String(string(v.ChecksumAlgorithm))
@@ -6552,11 +6405,18 @@ func (m *awsRestxml_serializeOpPutBucketTagging) HandleSerialize(ctx context.Con
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}?tagging")
+	opPath, opQuery := httpbinding.SplitURI("/?tagging")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "PUT"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -6601,15 +6461,6 @@ func awsRestxml_serializeOpHttpBindingsPutBucketTaggingInput(v *PutBucketTagging
 		return fmt.Errorf("unsupported serialization of nil %T", v)
 	}
 
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
-	}
-
 	if len(v.ChecksumAlgorithm) > 0 {
 		locationName := "X-Amz-Sdk-Checksum-Algorithm"
 		encoder.SetHeader(locationName).String(string(v.ChecksumAlgorithm))
@@ -6649,11 +6500,18 @@ func (m *awsRestxml_serializeOpPutBucketVersioning) HandleSerialize(ctx context.
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}?versioning")
+	opPath, opQuery := httpbinding.SplitURI("/?versioning")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "PUT"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -6696,15 +6554,6 @@ func (m *awsRestxml_serializeOpPutBucketVersioning) HandleSerialize(ctx context.
 func awsRestxml_serializeOpHttpBindingsPutBucketVersioningInput(v *PutBucketVersioningInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if len(v.ChecksumAlgorithm) > 0 {
@@ -6751,11 +6600,18 @@ func (m *awsRestxml_serializeOpPutBucketWebsite) HandleSerialize(ctx context.Con
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}?website")
+	opPath, opQuery := httpbinding.SplitURI("/?website")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "PUT"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -6800,15 +6656,6 @@ func awsRestxml_serializeOpHttpBindingsPutBucketWebsiteInput(v *PutBucketWebsite
 		return fmt.Errorf("unsupported serialization of nil %T", v)
 	}
 
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
-	}
-
 	if len(v.ChecksumAlgorithm) > 0 {
 		locationName := "X-Amz-Sdk-Checksum-Algorithm"
 		encoder.SetHeader(locationName).String(string(v.ChecksumAlgorithm))
@@ -6848,11 +6695,18 @@ func (m *awsRestxml_serializeOpPutObject) HandleSerialize(ctx context.Context, i
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}/{Key+}?x-id=PutObject")
+	opPath, opQuery := httpbinding.SplitURI("/{Key+}?x-id=PutObject")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "PUT"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -6888,15 +6742,6 @@ func awsRestxml_serializeOpHttpBindingsPutObjectInput(v *PutObjectInput, encoder
 	if len(v.ACL) > 0 {
 		locationName := "X-Amz-Acl"
 		encoder.SetHeader(locationName).String(string(v.ACL))
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.BucketKeyEnabled {
@@ -7101,11 +6946,18 @@ func (m *awsRestxml_serializeOpPutObjectAcl) HandleSerialize(ctx context.Context
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}/{Key+}?acl")
+	opPath, opQuery := httpbinding.SplitURI("/{Key+}?acl")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "PUT"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -7153,15 +7005,6 @@ func awsRestxml_serializeOpHttpBindingsPutObjectAclInput(v *PutObjectAclInput, e
 	if len(v.ACL) > 0 {
 		locationName := "X-Amz-Acl"
 		encoder.SetHeader(locationName).String(string(v.ACL))
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if len(v.ChecksumAlgorithm) > 0 {
@@ -7246,11 +7089,18 @@ func (m *awsRestxml_serializeOpPutObjectLegalHold) HandleSerialize(ctx context.C
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}/{Key+}?legal-hold")
+	opPath, opQuery := httpbinding.SplitURI("/{Key+}?legal-hold")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "PUT"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -7293,15 +7143,6 @@ func (m *awsRestxml_serializeOpPutObjectLegalHold) HandleSerialize(ctx context.C
 func awsRestxml_serializeOpHttpBindingsPutObjectLegalHoldInput(v *PutObjectLegalHoldInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if len(v.ChecksumAlgorithm) > 0 {
@@ -7361,11 +7202,18 @@ func (m *awsRestxml_serializeOpPutObjectLockConfiguration) HandleSerialize(ctx c
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}?object-lock")
+	opPath, opQuery := httpbinding.SplitURI("/?object-lock")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "PUT"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -7408,15 +7256,6 @@ func (m *awsRestxml_serializeOpPutObjectLockConfiguration) HandleSerialize(ctx c
 func awsRestxml_serializeOpHttpBindingsPutObjectLockConfigurationInput(v *PutObjectLockConfigurationInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if len(v.ChecksumAlgorithm) > 0 {
@@ -7468,11 +7307,18 @@ func (m *awsRestxml_serializeOpPutObjectRetention) HandleSerialize(ctx context.C
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}/{Key+}?retention")
+	opPath, opQuery := httpbinding.SplitURI("/{Key+}?retention")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "PUT"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -7515,15 +7361,6 @@ func (m *awsRestxml_serializeOpPutObjectRetention) HandleSerialize(ctx context.C
 func awsRestxml_serializeOpHttpBindingsPutObjectRetentionInput(v *PutObjectRetentionInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.BypassGovernanceRetention {
@@ -7588,11 +7425,18 @@ func (m *awsRestxml_serializeOpPutObjectTagging) HandleSerialize(ctx context.Con
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}/{Key+}?tagging")
+	opPath, opQuery := httpbinding.SplitURI("/{Key+}?tagging")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "PUT"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -7635,15 +7479,6 @@ func (m *awsRestxml_serializeOpPutObjectTagging) HandleSerialize(ctx context.Con
 func awsRestxml_serializeOpHttpBindingsPutObjectTaggingInput(v *PutObjectTaggingInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if len(v.ChecksumAlgorithm) > 0 {
@@ -7703,11 +7538,18 @@ func (m *awsRestxml_serializeOpPutPublicAccessBlock) HandleSerialize(ctx context
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}?publicAccessBlock")
+	opPath, opQuery := httpbinding.SplitURI("/?publicAccessBlock")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "PUT"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -7752,15 +7594,6 @@ func awsRestxml_serializeOpHttpBindingsPutPublicAccessBlockInput(v *PutPublicAcc
 		return fmt.Errorf("unsupported serialization of nil %T", v)
 	}
 
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
-	}
-
 	if len(v.ChecksumAlgorithm) > 0 {
 		locationName := "X-Amz-Sdk-Checksum-Algorithm"
 		encoder.SetHeader(locationName).String(string(v.ChecksumAlgorithm))
@@ -7800,11 +7633,18 @@ func (m *awsRestxml_serializeOpRestoreObject) HandleSerialize(ctx context.Contex
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}/{Key+}?restore&x-id=RestoreObject")
+	opPath, opQuery := httpbinding.SplitURI("/{Key+}?restore&x-id=RestoreObject")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "POST"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -7847,15 +7687,6 @@ func (m *awsRestxml_serializeOpRestoreObject) HandleSerialize(ctx context.Contex
 func awsRestxml_serializeOpHttpBindingsRestoreObjectInput(v *RestoreObjectInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if len(v.ChecksumAlgorithm) > 0 {
@@ -7910,11 +7741,18 @@ func (m *awsRestxml_serializeOpSelectObjectContent) HandleSerialize(ctx context.
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}/{Key+}?select&select-type=2&x-id=SelectObjectContent")
+	opPath, opQuery := httpbinding.SplitURI("/{Key+}?select&select-type=2&x-id=SelectObjectContent")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "POST"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -7951,15 +7789,6 @@ func (m *awsRestxml_serializeOpSelectObjectContent) HandleSerialize(ctx context.
 func awsRestxml_serializeOpHttpBindingsSelectObjectContentInput(v *SelectObjectContentInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.ExpectedBucketOwner != nil && len(*v.ExpectedBucketOwner) > 0 {
@@ -8094,11 +7923,18 @@ func (m *awsRestxml_serializeOpUploadPart) HandleSerialize(ctx context.Context, 
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}/{Key+}?x-id=UploadPart")
+	opPath, opQuery := httpbinding.SplitURI("/{Key+}?x-id=UploadPart")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "PUT"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -8129,15 +7965,6 @@ func (m *awsRestxml_serializeOpUploadPart) HandleSerialize(ctx context.Context, 
 func awsRestxml_serializeOpHttpBindingsUploadPartInput(v *UploadPartInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if len(v.ChecksumAlgorithm) > 0 {
@@ -8241,11 +8068,18 @@ func (m *awsRestxml_serializeOpUploadPartCopy) HandleSerialize(ctx context.Conte
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
 	}
 
-	opPath, opQuery := httpbinding.SplitURI("/{Bucket}/{Key+}?x-id=UploadPartCopy")
+	opPath, opQuery := httpbinding.SplitURI("/{Key+}?x-id=UploadPartCopy")
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "PUT"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}
@@ -8264,15 +8098,6 @@ func (m *awsRestxml_serializeOpUploadPartCopy) HandleSerialize(ctx context.Conte
 func awsRestxml_serializeOpHttpBindingsUploadPartCopyInput(v *UploadPartCopyInput, encoder *httpbinding.Encoder) error {
 	if v == nil {
 		return fmt.Errorf("unsupported serialization of nil %T", v)
-	}
-
-	if v.Bucket == nil || len(*v.Bucket) == 0 {
-		return &smithy.SerializationError{Err: fmt.Errorf("input member Bucket must not be empty")}
-	}
-	if v.Bucket != nil {
-		if err := encoder.SetURI("Bucket").String(*v.Bucket); err != nil {
-			return err
-		}
 	}
 
 	if v.CopySource != nil && len(*v.CopySource) > 0 {
@@ -8395,7 +8220,14 @@ func (m *awsRestxml_serializeOpWriteGetObjectResponse) HandleSerialize(ctx conte
 	request.URL.Path = smithyhttp.JoinPath(request.URL.Path, opPath)
 	request.URL.RawQuery = smithyhttp.JoinRawQuery(request.URL.RawQuery, opQuery)
 	request.Method = "POST"
-	restEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	var restEncoder *httpbinding.Encoder
+	if request.URL.RawPath == "" {
+		restEncoder, err = httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	} else {
+		request.URL.RawPath = smithyhttp.JoinPath(request.URL.RawPath, opPath)
+		restEncoder, err = httpbinding.NewEncoderWithRawPath(request.URL.Path, request.URL.RawPath, request.URL.RawQuery, request.Header)
+	}
+
 	if err != nil {
 		return out, metadata, &smithy.SerializationError{Err: err}
 	}

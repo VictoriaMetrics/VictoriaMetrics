@@ -1,6 +1,6 @@
 ---
-sort: 25
-weight: 25
+sort: 28
+weight: 28
 title: Relabeling cookbook
 menu:
   docs:

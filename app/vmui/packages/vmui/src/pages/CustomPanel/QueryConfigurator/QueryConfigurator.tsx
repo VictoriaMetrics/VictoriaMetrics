@@ -1,12 +1,18 @@
-import React, { FC, useState, useEffect } from "preact/compat";
+import React, { FC, StateUpdater, useEffect, useState } from "preact/compat";
 import QueryEditor from "../../../components/Configurators/QueryEditor/QueryEditor";
 import AdditionalSettings from "../../../components/Configurators/AdditionalSettings/AdditionalSettings";
-import { ErrorTypes } from "../../../types";
 import usePrevious from "../../../hooks/usePrevious";
 import { MAX_QUERY_FIELDS } from "../../../constants/graph";
 import { useQueryDispatch, useQueryState } from "../../../state/query/QueryStateContext";
 import { useTimeDispatch } from "../../../state/time/TimeStateContext";
-import { DeleteIcon, PlayIcon, PlusIcon, VisibilityIcon, VisibilityOffIcon } from "../../../components/Main/Icons";
+import {
+  DeleteIcon,
+  PlayIcon,
+  PlusIcon,
+  Prettify,
+  VisibilityIcon,
+  VisibilityOffIcon
+} from "../../../components/Main/Icons";
 import Button from "../../../components/Main/Button/Button";
 import "./style.scss";
 import Tooltip from "../../../components/Main/Tooltip/Tooltip";
@@ -15,10 +21,13 @@ import { MouseEvent as ReactMouseEvent } from "react";
 import { arrayEquals } from "../../../utils/array";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import { QueryStats } from "../../../api/types";
+import { usePrettifyQuery } from "./hooks/usePrettifyQuery";
 import QueryHistoryList from "../QueryHistory/QueryHistoryList";
 
 export interface QueryConfiguratorProps {
-  errors: (ErrorTypes | string)[];
+  queryErrors: string[];
+  setQueryErrors: StateUpdater<string[]>;
+  setHideError: StateUpdater<boolean>;
   stats: QueryStats[];
   queryOptions: string[]
   onHideQuery: (queries: number[]) => void
@@ -26,12 +35,15 @@ export interface QueryConfiguratorProps {
 }
 
 const QueryConfigurator: FC<QueryConfiguratorProps> = ({
-  errors,
+  queryErrors,
+  setQueryErrors,
+  setHideError,
   stats,
   queryOptions,
   onHideQuery,
   onRunQuery
 }) => {
+
   const { isMobile } = useDeviceDetect();
 
   const { query, queryHistory, autocomplete } = useQueryState();
@@ -42,6 +54,8 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
   const [hideQuery, setHideQuery] = useState<number[]>([]);
   const [awaitStateQuery, setAwaitStateQuery] = useState(false);
   const prevStateQuery = usePrevious(stateQuery) as (undefined | string[]);
+
+  const getPrettifiedQuery = usePrettifyQuery();
 
   const updateHistory = () => {
     queryDispatch({
@@ -119,11 +133,23 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
 
   const createHandlerRemoveQuery = (i: number) => () => {
     handleRemoveQuery(i);
-    setHideQuery(prev => prev.includes(i) ? prev.filter(n => n !== i) : prev.map(n => n > i ? n - 1: n));
+    setHideQuery(prev => prev.includes(i) ? prev.filter(n => n !== i) : prev.map(n => n > i ? n - 1 : n));
   };
 
   const createHandlerHideQuery = (i: number) => (e: ReactMouseEvent<HTMLButtonElement, MouseEvent>) => {
     handleToggleHideQuery(e, i);
+  };
+
+  const handlePrettifyQuery = async (i:number) => {
+    const prettyQuery = await getPrettifiedQuery(stateQuery[i]);
+    setHideError(false);
+
+    handleChangeQuery(prettyQuery.query, i);
+
+    setQueryErrors((qe) => {
+      qe[i] = prettyQuery.error;
+      return [...qe];
+    });
   };
 
   useEffect(() => {
@@ -164,7 +190,7 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
             value={stateQuery[i]}
             autocomplete={autocomplete}
             options={queryOptions}
-            error={errors[i]}
+            error={queryErrors[i]}
             stats={stats[i]}
             onArrowUp={createHandlerArrow(-1, i)}
             onArrowDown={createHandlerArrow(1, i)}
@@ -183,6 +209,19 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
               />
             </div>
           </Tooltip>
+
+          <Tooltip title={"Prettify query"}>
+            <div className="vm-query-configurator-list-row__button">
+              <Button
+                variant={"text"}
+                color={"gray"}
+                startIcon={<Prettify/>}
+                onClick={async () => await handlePrettifyQuery(i)}
+                className="prettify"
+              />
+            </div>
+          </Tooltip>
+
           {stateQuery.length > 1 && (
             <Tooltip title="Remove Query">
               <div className="vm-query-configurator-list-row__button">

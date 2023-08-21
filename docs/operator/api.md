@@ -810,7 +810,7 @@ VMAgentSpec defines the desired state of VMAgent
 
 ## VMAgentStatus
 
-VMAgentStatus defines the observed state of VmAgent
+VMAgentStatus defines the observed state of VMAgent
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
@@ -985,6 +985,7 @@ StreamAggrConfig defines the stream aggregation config
 | ----- | ----------- | ------ | -------- |
 | rules | Stream aggregation rules | [][StreamAggrRule](#streamaggrrule) | true |
 | keepInput | Allows writing both raw and aggregate data | bool | false |
+| dropInput | Allow drop all the input samples after the aggregation | bool | false |
 | dedupInterval | Allows setting different de-duplication intervals per each configured remote storage | string | false |
 
 [Back to TOC](#table-of-contents)
@@ -995,8 +996,9 @@ StreamAggrRule defines the rule in stream aggregation config
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
-| match | Match is a label selector for filtering time series for the given selector.\n\nIf the match isn&#39;t set, then all the input time series are processed. | string | false |
+| match | Match is a label selector for filtering time series for the given selector.\n\nIf the match isn&#39;t set, then all the input time series are processed. | Match | false |
 | interval | Interval is the interval between aggregations. | string | true |
+| staleness_interval | StalenessInterval defines an interval after which the series state will be reset if no samples have been sent during it. | string | false |
 | outputs | Outputs is a list of output aggregate functions to produce.\n\nThe following names are allowed:\n\n- total - aggregates input counters - increase - counts the increase over input counters - count_series - counts the input series - count_samples - counts the input samples - sum_samples - sums the input samples - last - the last biggest sample value - min - the minimum sample value - max - the maximum sample value - avg - the average value across all the samples - stddev - standard deviation across all the samples - stdvar - standard variance across all the samples - histogram_bucket - creates VictoriaMetrics histogram for input samples - quantiles(phi1, ..., phiN) - quantiles&#39; estimation for phi in the range [0..1]\n\nThe output time series will have the following names:\n\n  input_name:aggr_&lt;interval&gt;_&lt;output&gt; | []string | true |
 | by | By is an optional list of labels for grouping input series.\n\nSee also Without.\n\nIf neither By nor Without are set, then the Outputs are calculated individually per each input time series. | []string | false |
 | without | Without is an optional list of labels, which must be excluded when grouping input series.\n\nSee also By.\n\nIf neither By nor Without are set, then the Outputs are calculated individually per each input time series. | []string | false |
@@ -1161,7 +1163,7 @@ VMAlertSpec defines the desired state of VMAlert
 
 ## VMAlertStatus
 
-VMAlertStatus defines the observed state of VmAlert
+VMAlertStatus defines the observed state of VMAlert
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |

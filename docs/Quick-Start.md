@@ -145,8 +145,7 @@ VictoriaMetric team prepared a list of [Grafana dashboards](https://grafana.com/
 for the main components. Each dashboard contains a lot of useful information and tips. It is recommended
 to have these dashboards installed and up to date.
 
-The list of alerts for [single](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts.yml)
-and [cluster](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/cluster/deployment/docker/alerts.yml)
+Using the [recommended alerting rules](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#alerts)
 versions would also help to identify and notify about issues with the system.
 
 The rule of thumb is to have a separate installation of VictoriaMetrics or any other monitoring system

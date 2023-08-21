@@ -109,3 +109,22 @@ Grafana is provisioned by default with following entities:
 * `VictoriaMetrics - vmalert` dashboard
 
 Remember to pick `VictoriaMetrics - cluster` datasource when viewing `VictoriaMetrics - cluster` dashboard.
+
+## Alerts
+
+See below a list of recommended alerting rules for various VictoriaMetrics components for running in production. 
+Some of the alerting rules thresholds are just recommendations and could require an adjustment. The list
+of alerting rules is the following:
+* [alerts-health.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts-health.yml):
+  alerting rules related to all VictoriaMetrics components for tracking their "health" state; 
+* [alerts.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts.yml):
+  alerting rules related to [single-server VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html) installation;
+* [alerts-cluster.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts-cluster.yml):
+  alerting rules related to [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html);
+* [alerts-vmagent.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts-vmagent.yml):
+  alerting rules related to [vmagent](https://docs.victoriametrics.com/vmagent.html) component;
+* [alerts-vmalert.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts-vmalert.yml):
+  alerting rules related to [vmalert](https://docs.victoriametrics.com/vmalert.html) component;
+
+Please, also see [how to monitor](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#monitoring) 
+VictoriaMetrics installations.
