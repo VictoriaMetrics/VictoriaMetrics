@@ -16,9 +16,13 @@ var baseEventKeys = map[string]struct{}{
 	"timestamp": {}, "eventType": {},
 }
 
+type tagsBuffer struct {
+	tags []Tag
+}
+
 var tagsPool = sync.Pool{
 	New: func() interface{} {
-		return make([]Tag, 0)
+		return &tagsBuffer{tags: make([]Tag, 0)}
 	},
 }
 
@@ -80,10 +84,10 @@ type Metric struct {
 func (m *Metric) unmarshal(o *fastjson.Object) ([]Metric, error) {
 	m.reset()
 
-	tags := tagsPool.Get().([]Tag)
+	tgsBuffer := tagsPool.Get().(*tagsBuffer)
 	defer func() {
-		tags = tags[:0]
-		tagsPool.Put(tags)
+		tgsBuffer.tags = tgsBuffer.tags[:0]
+		tagsPool.Put(tgsBuffer)
 	}()
 
 	metrics := make([]Metric, 0, o.Len())
@@ -108,7 +112,7 @@ func (m *Metric) unmarshal(o *fastjson.Object) ([]Metric, error) {
 	o.Visit(func(key []byte, v *fastjson.Value) {
 
 		k := bytesutil.ToUnsafeString(key)
-		// skip already which has been parsed before
+		// skip base event keys which have been parsed before
 		// this is keys of BaseEvent type.
 		// this type contains all NewRelic structs
 		if _, ok := baseEventKeys[k]; ok {
@@ -125,7 +129,7 @@ func (m *Metric) unmarshal(o *fastjson.Object) ([]Metric, error) {
 				return
 			}
 			val := bytesutil.ToUnsafeString(value.GetStringBytes())
-			tags = append(tags, Tag{Key: name, Value: val})
+			tgsBuffer.tags = append(tgsBuffer.tags, Tag{Key: name, Value: val})
 		case fastjson.TypeNumber:
 			// this is metric name with value
 			val := bytesutil.ToUnsafeString(eventType.GetStringBytes())
@@ -146,7 +150,7 @@ func (m *Metric) unmarshal(o *fastjson.Object) ([]Metric, error) {
 
 	for i := range metrics {
 		metrics[i].Timestamp = m.Timestamp
-		metrics[i].Tags = tags
+		metrics[i].Tags = tgsBuffer.tags
 	}
 
 	return metrics, nil
