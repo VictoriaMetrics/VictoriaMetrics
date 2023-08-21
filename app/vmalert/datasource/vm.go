@@ -165,6 +165,12 @@ func (s *VMStorage) QueryRange(ctx context.Context, query string, start, end tim
 	}
 	req := s.newQueryRangeRequest(query, start, end)
 	resp, err := s.do(ctx, req)
+	if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
+		// something in the middle between client and datasource might be closing
+		// the connection. So we do a one more attempt in hope request will succeed.
+		req = s.newQueryRangeRequest(query, start, end)
+		resp, err = s.do(ctx, req)
+	}
 	if err != nil {
 		return res, err
 	}
