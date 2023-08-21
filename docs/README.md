@@ -176,7 +176,8 @@ VictoriaMetrics is developed at a fast pace, so it is recommended periodically c
 
 ### Environment variables
 
-All the VictoriaMetrics components allow referring environment variables in command-line flags via `%{ENV_VAR}` syntax.
+All the VictoriaMetrics components allow referring environment variables in `yaml` configuration files (such as `-promscrape.config`)
+and in command-line flags via `%{ENV_VAR}` syntax.
 For example, `-metricsAuthKey=%{METRICS_AUTH_KEY}` is automatically expanded to `-metricsAuthKey=top-secret`
 if `METRICS_AUTH_KEY=top-secret` environment variable exists at VictoriaMetrics startup.
 This expansion is performed by VictoriaMetrics itself.

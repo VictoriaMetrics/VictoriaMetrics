@@ -98,23 +98,14 @@ func (rctx *relabelCtx) applyRelabeling(tss []prompbmarshal.TimeSeries, pcs *pro
 		ts := &tss[i]
 		labelsLen := len(labels)
 		labels = append(labels, ts.Labels...)
-		if *usePromCompatibleNaming {
-			// Replace unsupported Prometheus chars in label names and metric names with underscores.
-			tmpLabels := labels[labelsLen:]
-			for j := range tmpLabels {
-				label := &tmpLabels[j]
-				if label.Name == "__name__" {
-					label.Value = promrelabel.SanitizeMetricName(label.Value)
-				} else {
-					label.Name = promrelabel.SanitizeLabelName(label.Name)
-				}
-			}
-		}
 		labels = pcs.Apply(labels, labelsLen)
 		labels = promrelabel.FinalizeLabels(labels[:labelsLen], labels[labelsLen:])
 		if len(labels) == labelsLen {
 			// Drop the current time series, since relabeling removed all the labels.
 			continue
+		}
+		if *usePromCompatibleNaming {
+			fixPromCompatibleNaming(labels[labelsLen:])
 		}
 		tssDst = append(tssDst, prompbmarshal.TimeSeries{
 			Labels:  labels[labelsLen:],
@@ -125,11 +116,10 @@ func (rctx *relabelCtx) applyRelabeling(tss []prompbmarshal.TimeSeries, pcs *pro
 	return tssDst
 }
 
-func (rctx *relabelCtx) appendExtraLabels(tss []prompbmarshal.TimeSeries, extraLabels []prompbmarshal.Label) []prompbmarshal.TimeSeries {
+func (rctx *relabelCtx) appendExtraLabels(tss []prompbmarshal.TimeSeries, extraLabels []prompbmarshal.Label) {
 	if len(extraLabels) == 0 {
-		return tss
+		return
 	}
-	tssDst := tss[:0]
 	labels := rctx.labels[:0]
 	for i := range tss {
 		ts := &tss[i]
@@ -147,14 +137,9 @@ func (rctx *relabelCtx) appendExtraLabels(tss []prompbmarshal.TimeSeries, extraL
 				labels = append(labels, extraLabel)
 			}
 		}
-		labels = promrelabel.FinalizeLabels(labels[:labelsLen], labels[labelsLen:])
-		tssDst = append(tssDst, prompbmarshal.TimeSeries{
-			Labels:  labels[labelsLen:],
-			Samples: ts.Samples,
-		})
+		ts.Labels = labels[labelsLen:]
 	}
 	rctx.labels = labels
-	return tssDst
 }
 
 type relabelCtx struct {
@@ -180,4 +165,16 @@ func getRelabelCtx() *relabelCtx {
 func putRelabelCtx(rctx *relabelCtx) {
 	rctx.labels = rctx.labels[:0]
 	relabelCtxPool.Put(rctx)
+}
+
+func fixPromCompatibleNaming(labels []prompbmarshal.Label) {
+	// Replace unsupported Prometheus chars in label names and metric names with underscores.
+	for i := range labels {
+		label := &labels[i]
+		if label.Name == "__name__" {
+			label.Value = promrelabel.SanitizeMetricName(label.Value)
+		} else {
+			label.Name = promrelabel.SanitizeLabelName(label.Name)
+		}
+	}
 }

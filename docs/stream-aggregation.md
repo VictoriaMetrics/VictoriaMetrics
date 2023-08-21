@@ -678,8 +678,12 @@ support the following approaches for hot reloading stream aggregation configs fr
 
 If you use [vmagent in cluster mode](https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets) for streaming aggregation
 (with `-promscrape.cluster.*` parameters or with `VMAgent.spec.shardCount > 1` for [vmoperator](https://docs.victoriametrics.com/operator))
-then be careful when aggregating metrics via `by`, `without` or modifying via`*_relabel_configs` parameters, as incorrect usage may result in duplicates and data collision. For example, if more than one vmagent calculates `increase` for metric `http_requests_total` with `by: [path]` directive, then the resulting time series written to the remote database will be indistinguishable, as there is no way to tell to which `instance` the aggregation belongs. The proper fix would be to add a unique aggregation dimension: `by: [instance, path]`. With this change, aggregates between `instances` won't collide.
+then be careful when aggregating metrics via `by`, `without` or modifying via `*_relabel_configs` parameters, since incorrect usage
+may result in duplicates and data collision. For example, if more than one `vmagent` instance calculates `increase` for metric `http_requests_total`
+with `by: [path]` directive, then all the `vmagent` instances will aggregate samples to the same set of time series with different `path` labels.
+The proper fix would be to add an unique [`-remoteWrite.label`](https://docs.victoriametrics.com/vmagent.html#adding-labels-to-metrics) per each `vmagent`,
+so every `vmagent` aggregates data into distinct set of time series. These time series then can be aggregated later as needed during querying.
 
-If adding a new aggregation dimension isn't feasible (due to cardinality reduction purposes), then it is worth at least differentiating by which vmagent the aggregation was performed. You can do it with `remoteWrite.label` [parameter in vmagent](https://docs.victoriametrics.com/vmagent.html#adding-labels-to-metrics).
-For example, for running in docker or k8s you can use `remoteWrite.label` with `POD_NAME` or `HOSTNAME` environment variable: `remoteWrite.label='vmagent=%{HOSTNAME}'`.
-See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4247#issue-1692894073) for details.
+For example, if `vmagent` instances run in Docker or Kubernetes, then you can refer `POD_NAME` or `HOSTNAME` environment variables
+as an unique label value per each `vmagent`: `-remoteWrite.label='vmagent=%{HOSTNAME}` . See [these docs](https://docs.victoriametrics.com/#environment-variables)
+on how to refer environment variables in VictoriaMetrics components.
