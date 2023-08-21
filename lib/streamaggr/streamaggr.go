@@ -175,6 +175,11 @@ func NewAggregators(cfgs []*Config, pushFunc PushFunc, dedupInterval time.Durati
 	}, nil
 }
 
+// Len returns number of aggregators
+func (a *Aggregators) Len() int {
+	return len(a.as)
+}
+
 // MustStop stops a.
 func (a *Aggregators) MustStop() {
 	if a == nil {
@@ -183,6 +188,60 @@ func (a *Aggregators) MustStop() {
 	for _, aggr := range a.as {
 		aggr.MustStop()
 	}
+	a.as = nil
+}
+
+// UpdateWith updates the list of aggregators from a with aggregators
+// from b. UpdateWith keeps original objects from a if they have identical
+// match by `configData` field with objects from b.
+// UpdateWith returns number of new as objects added to a.
+// Objects from a which were absent in b will be stopped.
+// Objects from b which had identical `configData` in a will be stopped.
+func (a *Aggregators) UpdateWith(b *Aggregators) int {
+	if b == nil {
+		a.MustStop()
+		return 0
+	}
+
+	var updatedAs []*aggregator
+	// keep all as which are present in a and b
+	for i, oldAs := range a.as {
+		matched := false
+		for j, newAs := range b.as {
+			if newAs == nil {
+				continue
+			}
+			if string(oldAs.configData) == string(newAs.configData) {
+				matched = true
+				updatedAs = append(updatedAs, oldAs)
+				// a.as already has this as, so we keep it as is
+				// and stop passed b.as instead
+				newAs.MustStop()
+				b.as[j] = nil
+			}
+		}
+		if !matched {
+			// a.as isn't present in b.as, so we stop it and remove
+			oldAs.MustStop()
+			a.as[i] = nil
+			continue
+		}
+	}
+
+	// by this point b.as should contain only new as,
+	// so we add them to updated list.
+	var newAsTotal int
+	for j, newAs := range b.as {
+		if newAs == nil {
+			continue
+		}
+		updatedAs = append(updatedAs, newAs)
+		b.as[j] = nil
+		newAsTotal++
+	}
+	a.as = updatedAs
+
+	return newAsTotal
 }
 
 // Equal returns true if a and b are initialized from identical configs.
@@ -244,6 +303,8 @@ type aggregator struct {
 
 	wg     sync.WaitGroup
 	stopCh chan struct{}
+
+	configData []byte
 }
 
 type aggrState interface {
@@ -261,6 +322,11 @@ type PushFunc func(tss []prompbmarshal.TimeSeries)
 //
 // The returned aggregator must be stopped when no longer needed by calling MustStop().
 func newAggregator(cfg *Config, pushFunc PushFunc, dedupInterval time.Duration) (*aggregator, error) {
+	configData, err := json.Marshal(cfg)
+	if err != nil {
+		logger.Panicf("BUG: cannot marshal the provided config: %s", err)
+	}
+
 	// check cfg.Interval
 	interval, err := time.ParseDuration(cfg.Interval)
 	if err != nil {
@@ -398,6 +464,8 @@ func newAggregator(cfg *Config, pushFunc PushFunc, dedupInterval time.Duration) 
 		suffix: suffix,
 
 		stopCh: make(chan struct{}),
+
+		configData: configData,
 	}
 
 	if dedupAggr != nil {

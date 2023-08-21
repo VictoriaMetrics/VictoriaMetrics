@@ -759,16 +759,27 @@ func (rwctx *remoteWriteCtx) reinitStreamAggr() {
 		logger.Errorf("cannot reload stream aggregation config from -remoteWrite.streamAggr.config=%q; continue using the previously loaded config; error: %s", sasFile, err)
 		return
 	}
-	if !sasNew.Equal(sas) {
-		sasOld := rwctx.sas.Swap(sasNew)
-		sasOld.MustStop()
-		logger.Infof("successfully reloaded stream aggregation configs at -remoteWrite.streamAggr.config=%q", sasFile)
-	} else {
+
+	defer func() {
+		metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reload_successful{path=%q}`, sasFile)).Set(1)
+		metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reload_success_timestamp_seconds{path=%q}`, sasFile)).Set(fasttime.UnixTimestamp())
+	}()
+
+	if sasNew.Equal(sas) {
 		sasNew.MustStop()
 		logger.Infof("the config at -remoteWrite.streamAggr.config=%q wasn't changed", sasFile)
+		return
 	}
-	metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reload_successful{path=%q}`, sasFile)).Set(1)
-	metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reload_success_timestamp_seconds{path=%q}`, sasFile)).Set(fasttime.UnixTimestamp())
+
+	sasOld := rwctx.sas.Load()
+	sasOldLen := sasOld.Len()
+	updated := sasOld.UpdateWith(sasNew)
+	rwctx.sas.Store(sasOld)
+
+	// no need to stop sasOld or sasNew as they should have been
+	// stopped in UpdateWith method.
+	logger.Infof("successfully reloaded stream aggregation configs at -remoteWrite.streamAggr.config=%q. "+
+		"Total aggregation configs %d (was %d); updated %d.", sasFile, sasOld.Len(), sasOldLen, updated)
 }
 
 var tssPool = &sync.Pool{
