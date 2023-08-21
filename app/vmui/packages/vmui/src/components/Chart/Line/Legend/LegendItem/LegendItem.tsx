@@ -1,6 +1,6 @@
 import React, { FC, useMemo } from "preact/compat";
 import { MouseEvent } from "react";
-import { LegendItemType } from "../../../../../utils/uplot/types";
+import { LegendItemType } from "../../../../../types";
 import "./style.scss";
 import classNames from "classnames";
 import { getFreeFields } from "./helpers";
