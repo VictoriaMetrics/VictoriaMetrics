@@ -182,10 +182,10 @@ The license key can be passed via the following command-line flags:
   --license-file LICENSE_FILE
                         See https://victoriametrics.com/products/enterprise/
                         for trial license
-  --license-verify-offline LICENSE_VERIFY_OFFLINE
-                        Force offline verification of license code.
-                        License is verified online by default. This flag runs license verification
-                        offline.
+  --license-verify-offline {true,false}
+                        Force offline verification of license code. License is
+                        verified online by default. This flag runs license
+                        verification offline.
 ```
 
 Usage example:
