@@ -96,13 +96,16 @@ func (m *Metric) unmarshal(o *fastjson.Object) ([]Metric, error) {
 	if entityKey == nil {
 		return nil, fmt.Errorf("error get entityKey from Events object: %s", o)
 	}
-	tag := Tag{Key: "entityKey", Value: string(entityKey.GetStringBytes())}
+	val := bytesutil.ToUnsafeString(entityKey.GetStringBytes())
+
+	tag := Tag{Key: "entityKey", Value: val}
 	defer tag.reset()
 
 	tags = append(tags, tag)
 
 	o.Visit(func(key []byte, v *fastjson.Value) {
-		k := string(key)
+
+		k := bytesutil.ToUnsafeString(key)
 		// skip already parsed values
 		if contains(k) {
 			return
@@ -111,19 +114,20 @@ func (m *Metric) unmarshal(o *fastjson.Object) ([]Metric, error) {
 		switch v.Type() {
 		case fastjson.TypeString:
 			// this is label with value
-			name := string(key)
+			name := k
 			value := v.Get()
 			if value == nil {
 				logger.Errorf("error get NewRelic label value from json: %s", v)
 				return
 			}
-			tags = append(tags, Tag{Key: name, Value: string(value.GetStringBytes())})
+			val := bytesutil.ToUnsafeString(entityKey.GetStringBytes())
+			tags = append(tags, Tag{Key: name, Value: val})
 		case fastjson.TypeNumber:
 			// this is metric name with value
 			metricName := camelToSnakeCase(fmt.Sprintf("%s_%s", eventType.GetStringBytes(), string(key)))
 			f, err := getFloat64(v)
 			if err != nil {
-				logger.Errorf("error get NewRelic value for metric: %q; %s", string(key), err)
+				logger.Errorf("error get NewRelic value for metric: %q; %s", k, err)
 				return
 			}
 			metrics = append(metrics, Metric{Metric: metricName, Value: f})
