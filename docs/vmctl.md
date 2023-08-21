@@ -22,6 +22,7 @@ Features:
 - migrate data from [Mimir](#migrating-data-from-mimir) to VictoriaMetrics
 - migrate data from [InfluxDB](#migrating-data-from-influxdb-1x) to VictoriaMetrics
 - migrate data from [OpenTSDB](#migrating-data-from-opentsdb) to VictoriaMetrics
+- migrate data from [Promscale](#migrating-data-from-promscale)
 - migrate data between [VictoriaMetrics](#migrating-data-from-victoriametrics) single or cluster version.
 - migrate data by [Prometheus remote read protocol](#migrating-data-by-remote-read-protocol) to VictoriaMetrics
 - [verify](#verifying-exported-blocks-from-victoriametrics) exported blocks from VictoriaMetrics single or cluster version.
@@ -316,6 +317,10 @@ Please see more about time filtering [here](https://docs.influxdata.com/influxdb
 
 Migrating data from InfluxDB v2.x is not supported yet ([#32](https://github.com/VictoriaMetrics/vmctl/issues/32)).
 You may find useful a 3rd party solution for this - <https://github.com/jonppe/influx_to_victoriametrics>.
+
+## Migrating data from Promscale 
+
+
 
 ## Migrating data from Prometheus
 
