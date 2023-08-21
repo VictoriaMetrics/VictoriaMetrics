@@ -2,6 +2,7 @@ package newrelic
 
 import (
 	"fmt"
+	"sync"
 	"unicode"
 
 	"github.com/valyala/fastjson"
@@ -12,7 +13,13 @@ import (
 )
 
 var baseEventKeys = map[string]struct{}{
-	"timestamp": {}, "entityKey": {}, "eventType": {},
+	"timestamp": {}, "eventType": {},
+}
+
+var tagsPool = sync.Pool{
+	New: func() interface{} {
+		return make([]Tag, 0)
+	},
 }
 
 // NewRelic agent sends next struct to the collector
@@ -73,7 +80,12 @@ type Metric struct {
 func (m *Metric) unmarshal(o *fastjson.Object) ([]Metric, error) {
 	m.reset()
 
-	var tags []Tag
+	tags := tagsPool.Get().([]Tag)
+	defer func() {
+		tags = tags[:0]
+		tagsPool.Put(tags)
+	}()
+
 	metrics := make([]Metric, 0, o.Len())
 	rawTs := o.Get("timestamp")
 	if rawTs != nil {
@@ -92,17 +104,6 @@ func (m *Metric) unmarshal(o *fastjson.Object) ([]Metric, error) {
 	if eventType == nil {
 		return nil, fmt.Errorf("error get eventType from Events object: %s", o)
 	}
-
-	entityKey := o.Get("entityKey")
-	if entityKey == nil {
-		return nil, fmt.Errorf("error get entityKey from Events object: %s", o)
-	}
-	val := bytesutil.ToUnsafeString(entityKey.GetStringBytes())
-
-	tag := Tag{Key: "entityKey", Value: val}
-	defer tag.reset()
-
-	tags = append(tags, tag)
 
 	o.Visit(func(key []byte, v *fastjson.Value) {
 
@@ -123,7 +124,7 @@ func (m *Metric) unmarshal(o *fastjson.Object) ([]Metric, error) {
 				logger.Errorf("error get NewRelic label value from json: %s", v)
 				return
 			}
-			val := bytesutil.ToUnsafeString(entityKey.GetStringBytes())
+			val := bytesutil.ToUnsafeString(value.GetStringBytes())
 			tags = append(tags, Tag{Key: name, Value: val})
 		case fastjson.TypeNumber:
 			// this is metric name with value
@@ -162,11 +163,6 @@ func (m *Metric) reset() {
 type Tag struct {
 	Key   string
 	Value string
-}
-
-func (t *Tag) reset() {
-	t.Key = ""
-	t.Value = ""
 }
 
 func camelToSnakeCase(str string) string {

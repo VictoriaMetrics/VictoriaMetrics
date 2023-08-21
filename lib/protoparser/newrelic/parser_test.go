@@ -27,6 +27,7 @@ func TestEvents_Unmarshal(t *testing.T) {
 					Timestamp: 1690286061000,
 					Tags: []Tag{
 						{Key: "entityKey", Value: "macbook-pro.local"},
+						{Key: "dc", Value: "1"},
 					},
 					Metric: "system_sample_disk_writes_per_second",
 					Value:  0,
@@ -35,6 +36,7 @@ func TestEvents_Unmarshal(t *testing.T) {
 					Timestamp: 1690286061000,
 					Tags: []Tag{
 						{Key: "entityKey", Value: "macbook-pro.local"},
+						{Key: "dc", Value: "1"},
 					},
 					Metric: "system_sample_uptime",
 					Value:  762376,
@@ -49,6 +51,7 @@ func TestEvents_Unmarshal(t *testing.T) {
           "eventType":"SystemSample",
           "timestamp":1690286061,
           "entityKey":"macbook-pro.local",
+		  "dc": "1",
           "diskWritesPerSecond":0,
           "uptime":762376
         }
@@ -98,6 +101,52 @@ func TestEvents_Unmarshal(t *testing.T) {
 				if !reflect.DeepEqual(e.Metrics, tt.metrics) {
 					t.Errorf("got metrics => %v; expected = %v", e.Metrics, tt.metrics)
 				}
+			}
+		})
+	}
+}
+
+func Test_camelToSnakeCase(t *testing.T) {
+	tests := []struct {
+		name string
+		str  string
+		want string
+	}{
+		{
+			name: "empty string",
+			str:  "",
+			want: "",
+		},
+		{
+			name: "lowercase all chars",
+			str:  "somenewstring",
+			want: "somenewstring",
+		},
+		{
+			name: "first letter uppercase",
+			str:  "Teststring",
+			want: "teststring",
+		},
+		{
+			name: "two uppercase letters",
+			str:  "TestString",
+			want: "test_string",
+		},
+		{
+			name: "first and last uppercase letters",
+			str:  "TeststrinG",
+			want: "teststrin_g",
+		},
+		{
+			name: "three letters uppercase",
+			str:  "TestStrinG",
+			want: "test_strin_g",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := camelToSnakeCase(tt.str); got != tt.want {
+				t.Errorf("camelToSnakeCase() = %v, want %v", got, tt.want)
 			}
 		})
 	}
