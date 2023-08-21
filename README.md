@@ -801,9 +801,6 @@ VictoriaMetrics accepts data from NewRelic infrastructure agent API at `/api/v1/
 NewRelic's infrastructure agent sends so-called [Events](https://docs.newrelic.com/docs/data-apis/understand-data/new-relic-data-types/#event-data)
 which are transformed to the [Prometheus exposition format](https://github.com/prometheus/docs/blob/main/content/docs/instrumenting/exposition_formats.md#text-based-format).
 
-NewRelic represents another data format named [Metrics](https://docs.newrelic.com/docs/data-apis/understand-data/new-relic-data-types/#metrics).
-But those data are constructed from Events with some updates on the NewRelic cloud.
-
 By default, NewRelic's infrastructure agent sends next types of the infrastructure events:
 1. SystemSample
 2. ProcessSample
@@ -813,39 +810,10 @@ By default, NewRelic's infrastructure agent sends next types of the infrastructu
 6. InfrastructureEvent
 Those all events processed by VictoriaMetrics and prepare the [Prometheus exposition format](https://github.com/prometheus/docs/blob/main/content/docs/instrumenting/exposition_formats.md#text-based-format).
 
-Event example: 
-```json
-{ 
-  "eventType":"SystemSample",
-  "timestamp":1690286056,
-  "entityKey":"macbook-pro.local",
-  "cpuPercent":0,
-  "cpuUserPercent":0,
-  "cpuSystemPercent":0,
-  "cpuIOWaitPercent":0,
-  "cpuIdlePercent":0,
-  "cpuStealPercent":0,
-  "loadAverageOneMinute":5.7216796875,
-  "loadAverageFiveMinute":4.13525390625,
-  "loadAverageFifteenMinute":3.591796875,
-  "memoryTotalBytes":17179869184,
-  "memoryFreeBytes":3762601984,
-  "memoryUsedBytes":13417267200,
-  "memoryFreePercent":21.901226043701172,
-  "memoryUsedPercent":78.09877395629883,
-  "memoryCachedBytes":0,
-  "memorySlabBytes":0,
-  "memorySharedBytes":0,
-  "memoryKernelFree":110690304,
-  "swapTotalBytes":7516192768,
-  "uptime":762371
-}
-```
-
 ### Sending metrics to VictoriaMetrics
 
 NewRelic's infrastructure agent allows configuring destinations for metrics sending via ENV variable `COLLECTOR_URL`.
-It is necessary to specify `NRIA_LICENSE_KEY` which can get only after registration into account of the NewRelic cloud.
+It is required to specify `NRIA_LICENSE_KEY` which can get only after registration into account of the NewRelic cloud.
 
 To configure NewRelic infrastructure agent via ENV variable add the following prefix:
 ```console
@@ -922,6 +890,14 @@ Cluster Version:
 
 ```console
 curl -X POST -H 'Content-Type: application/json' --data-binary @newrelic.json http://localhost:8480/insert/0/api/v1/newrelic/infra/v2/metrics/events/bulk
+```
+
+When you import data to the VictoriaMetrics, open [VMUI](#vmui) and find metrics like in the example below:
+
+```console
+{__name__="system_sample_memory_total_bytes", "entityKey"="host_name"}
+{__name__="system_sample_memory_free_bytes", "entityKey"="host_name"}
+{__name__="system_sample_memory_used_bytes, "entityKey"="host_name"}
 ```
 
 ## Prometheus querying API usage
