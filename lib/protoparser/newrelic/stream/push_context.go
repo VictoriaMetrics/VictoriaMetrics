@@ -9,7 +9,12 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/metrics"
+)
+
+var (
+	maxInsertRequestSize = flagutil.NewBytes("newrelic.maxInsertRequestSize", 64*1024*1024, "The maximum size in bytes of a single NewRelic POST request to /infra/v2/metrics/events/bulk")
 )
 
 var (
@@ -28,16 +33,16 @@ type pushCtx struct {
 
 func (ctx *pushCtx) Read() error {
 	readCalls.Inc()
-	lr := io.LimitReader(ctx.br, int64(64*1024*1024)+1)
+	lr := io.LimitReader(ctx.br, maxInsertRequestSize.N+1)
 	startTime := fasttime.UnixTimestamp()
 	reqLen, err := ctx.reqBuf.ReadFrom(lr)
 	if err != nil {
 		readErrors.Inc()
 		return fmt.Errorf("cannot read compressed request in %d seconds: %w", fasttime.UnixTimestamp()-startTime, err)
 	}
-	if reqLen > int64(64*1024*1024) {
+	if reqLen > maxInsertRequestSize.N {
 		readErrors.Inc()
-		return fmt.Errorf("too big packed request; mustn't exceed `-maxInsertRequestSize=%d` bytes", 64*1024*1024)
+		return fmt.Errorf("too big packed request; mustn't exceed `-maxInsertRequestSize=%d` bytes", maxInsertRequestSize.N)
 	}
 	return nil
 }
