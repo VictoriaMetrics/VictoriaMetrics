@@ -98,7 +98,6 @@ func newGroup(cfg config.Group, qb datasource.QuerierBuilder, labels map[string]
 		Type:            cfg.Type,
 		Name:            cfg.Name,
 		File:            cfg.File,
-		Interval:        cfg.Interval.Duration(),
 		Limit:           cfg.Limit,
 		Concurrency:     cfg.Concurrency,
 		Checksum:        cfg.Checksum,
@@ -110,6 +109,9 @@ func newGroup(cfg config.Group, qb datasource.QuerierBuilder, labels map[string]
 		doneCh:     make(chan struct{}),
 		finishedCh: make(chan struct{}),
 		updateCh:   make(chan *Group),
+	}
+	if cfg.Interval != nil {
+		g.Interval = cfg.Interval.Duration()
 	}
 	if cfg.EvalOffset != nil {
 		g.EvalOffset = &cfg.EvalOffset.D
@@ -279,13 +281,22 @@ var skipRandSleepOnGroupStart bool
 func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *remotewrite.Client, rr datasource.QuerierBuilder) {
 	defer func() { close(g.finishedCh) }()
 
-	// try to spread group rules evaluation over time in order to reduce load on VictoriaMetrics.
-	// if group `eval_offset`` is specified, will sleep the exact offset duration
-	// if not, sleep random duration
+	evalTS := time.Now()
+
+	// If group `eval_offset` is specified, will evaluate group
+	// at the nearest offset time point aligned with group interval,
+	// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3409.
+	// If not, sleep random duration to spread group rules evaluation
+	// over time in order to reduce load on VictoriaMetrics.
 	if !skipRandSleepOnGroupStart {
 		var randSleep uint64
 		if g.EvalOffset != nil {
-			randSleep = uint64(*g.EvalOffset)
+			ts := evalTS.Truncate(g.Interval).Add(*g.EvalOffset)
+			if ts.After(evalTS) {
+				randSleep = uint64(ts.Sub(evalTS))
+			} else {
+				randSleep = uint64(ts.Add(g.Interval).Sub(evalTS))
+			}
 		} else {
 			randSleep = uint64(float64(g.Interval) * (float64(g.ID()) / (1 << 64)))
 			sleepOffset := uint64(time.Now().UnixNano()) % uint64(g.Interval)
@@ -313,9 +324,11 @@ func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *r
 		previouslySentSeriesToRW: make(map[uint64]map[string][]prompbmarshal.Label),
 	}
 
-	evalTS := time.Now()
-
-	logger.Infof("group %q started; interval=%v; eval_offset=%v; concurrency=%d", g.Name, g.Interval, *g.EvalOffset, g.Concurrency)
+	if g.EvalOffset != nil {
+		logger.Infof("group %q started; interval=%v; eval_offset=%v; concurrency=%d", g.Name, g.Interval, *g.EvalOffset, g.Concurrency)
+	} else {
+		logger.Infof("group %q started; interval=%v; concurrency=%d", g.Name, g.Interval, g.Concurrency)
+	}
 
 	eval := func(ctx context.Context, ts time.Time) {
 		g.metrics.iterationTotal.Inc()
@@ -390,7 +403,11 @@ func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *r
 			e.notifierHeaders = g.NotifierHeaders
 
 			g.mu.Unlock()
-			logger.Infof("group %q re-started; interval=%v; eval_offset=%v; concurrency=%d", g.Name, g.Interval, *g.EvalOffset, g.Concurrency)
+			if g.EvalOffset != nil {
+				logger.Infof("group %q re-started; interval=%v; eval_offset=%v; concurrency=%d", g.Name, g.Interval, *g.EvalOffset, g.Concurrency)
+			} else {
+				logger.Infof("group %q re-started; interval=%v; concurrency=%d", g.Name, g.Interval, g.Concurrency)
+			}
 		case <-t.C:
 			missed := (time.Since(evalTS) / g.Interval) - 1
 			if missed < 0 {

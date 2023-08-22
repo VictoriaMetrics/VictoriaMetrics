@@ -112,8 +112,8 @@ name: <string>
 # How often rules in the group are evaluated.
 [ interval: <duration> | default = -evaluationInterval flag ]
 
-# Group will be evaluated at exact offset in the range of `[0 ... interval]`.
-# If not set, will take random eval_offset to spread groups evaluation over time.
+# Group will be evaluated at the nearest offset time point aligned with interval.
+# If not set, will take random offset to spread groups evaluation over time.
 [ eval_offset: <duration> ]
 
 # Limit the number of alerts an alerting rule and series a recording

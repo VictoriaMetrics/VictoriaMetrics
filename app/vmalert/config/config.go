@@ -74,7 +74,7 @@ func (g *Group) SetDefaultFields(defaultGroupInterval time.Duration) {
 	}
 }
 
-// Validate checks for internal Group or Rule configuration errors
+// Validate checks configuration errors for group and internal rules
 func (g *Group) Validate(validateTplFn ValidateTplFn, validateExpressions bool) error {
 	if g.Name == "" {
 		return fmt.Errorf("group name must be set")
