@@ -464,7 +464,8 @@ type urlWatcher struct {
 	apiURL    string
 	gw        *groupWatcher
 
-	// refCount is the number of apiWatcher objects subscribed to this urlWatcher.
+	// refCount keeps track on the number of subscribeAPIWatcherLocked and
+	// unsubscribeAPIWatcherLocked calls for the given urlWatcher.
 	refCount int
 	ctx      context.Context
 	cancel   context.CancelFunc
