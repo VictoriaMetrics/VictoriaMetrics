@@ -464,8 +464,8 @@ type urlWatcher struct {
 	apiURL    string
 	gw        *groupWatcher
 
+	// refCount is the number of apiWatcher objects subscribed to this urlWatcher.
 	refCount int
-	wg       sync.WaitGroup
 	ctx      context.Context
 	cancel   context.CancelFunc
 
@@ -507,7 +507,6 @@ func newURLWatcher(role, apiURL string, gw *groupWatcher) *urlWatcher {
 		gw:     gw,
 
 		refCount: 0,
-		wg:       sync.WaitGroup{},
 		ctx:      ctx,
 		cancel:   cancel,
 
@@ -674,9 +673,6 @@ func (uw *urlWatcher) reloadObjects() string {
 //
 // See https://kubernetes.io/docs/reference/using-api/api-concepts/#efficient-detection-of-changes
 func (uw *urlWatcher) watchForUpdates() {
-	uw.wg.Add(1)
-	defer uw.wg.Done()
-
 	backoffDelay := time.Second
 	maxBackoffDelay := 30 * time.Second
 	backoffSleep := func() {
@@ -853,10 +849,9 @@ func (uw *urlWatcher) maybeUpdateDependedScrapeWorksLocked() {
 	}
 }
 
-// close cancels the underlying context and waits until all the goroutines are stopped.
+// close cancels context used for API polling
 func (uw *urlWatcher) close() {
 	uw.cancel()
-	uw.wg.Wait()
 }
 
 // Bookmark is a bookmark message from Kubernetes Watch API.
