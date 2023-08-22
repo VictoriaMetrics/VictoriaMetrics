@@ -191,12 +191,13 @@ func (a *Aggregators) MustStop() {
 	a.as = nil
 }
 
-// UpdateWith updates the list of aggregators from a with aggregators
-// from b. UpdateWith keeps original objects from a if they have identical
-// match by `configData` field with objects from b.
-// UpdateWith returns number of new as objects added to a.
-// Objects from a which were absent in b will be stopped.
-// Objects from b which had identical `configData` in a will be stopped.
+// UpdateWith updates the list of `aggregator` from `a` with `aggregator`
+// from `b`. UpdateWith keeps original objects from `a` if they have identical
+// match by `configData` field with objects from `b`.
+// UpdateWith returns number of new objects added to `a`.
+// Objects from `a` which were absent in `b` will be stopped.
+// Objects from `b` which had identical `configData` match with objects from `a` will be stopped.
+// After UpdateWith call no further calls to MustStop are needed.
 func (a *Aggregators) UpdateWith(b *Aggregators) int {
 	if b == nil {
 		a.MustStop()
@@ -204,7 +205,7 @@ func (a *Aggregators) UpdateWith(b *Aggregators) int {
 	}
 
 	var updatedAs []*aggregator
-	// keep all as which are present in a and b
+	// keep all aggregators present in a and b
 	for i, oldAs := range a.as {
 		matched := false
 		for j, newAs := range b.as {
@@ -214,22 +215,22 @@ func (a *Aggregators) UpdateWith(b *Aggregators) int {
 			if string(oldAs.configData) == string(newAs.configData) {
 				matched = true
 				updatedAs = append(updatedAs, oldAs)
-				// a.as already has this as, so we keep it as is
-				// and stop passed b.as instead
+				// a already has this aggregator, so we keep it as is unchanged
+				// and stop the aggregator from b instead
 				newAs.MustStop()
 				b.as[j] = nil
 			}
 		}
 		if !matched {
-			// a.as isn't present in b.as, so we stop it and remove
+			// aggregator from a isn't present in b, so we stop it and remove from the list
 			oldAs.MustStop()
 			a.as[i] = nil
 			continue
 		}
 	}
 
-	// by this point b.as should contain only new as,
-	// so we add them to updated list.
+	// by this point, b should contain only new aggregators,
+	// so we simply add them to the final list.
 	var newAsTotal int
 	for j, newAs := range b.as {
 		if newAs == nil {
@@ -239,6 +240,10 @@ func (a *Aggregators) UpdateWith(b *Aggregators) int {
 		b.as[j] = nil
 		newAsTotal++
 	}
+
+	// replace list of a aggregators with updated list.
+	// all the old aggregators in a should have been
+	// either stopped or added to updatedAs.
 	a.as = updatedAs
 
 	return newAsTotal
