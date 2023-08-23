@@ -254,6 +254,16 @@ scrape_configs:
 </div>
 
 ### Docker-compose
+Before we create and run docker-compose file you need to get through gcloud authentification first:
+
+<div class="with-copy" markdown="1">
+
+```
+gcloud auth configure-docker us-docker.pkg.dev
+```
+
+</div>
+
 Let's wrap it all up together into the `docker-compose.yml` file. Don't forget to insert your license code into docker-compose file instead of `YOUR_LICENCE_CODE_IS_HERE`!
 
 <div class="with-copy" markdown="1">
@@ -389,6 +399,18 @@ docker-compose up -d
 ```
 
 </div>
+
+
+To check if vmanomaly is up and running you can check docker logs:
+
+<div class="with-copy" markdown="1">
+
+```
+docker logs vmanomaly
+```
+
+</div>
+
 
 ___________________________________________________________
 
