@@ -87,6 +87,9 @@ Released at 2023-07-28
 
 Released at 2023-07-27
 
+**Update note: this release contains backwards-incompatible change to indexdb,
+so rolling back to the previous versions of VictoriaMetrics may result in partial data loss of entries in indexdb.**
+
 **Update note**: starting from this release, [stream aggregation](https://docs.victoriametrics.com/stream-aggregation.html) writes
 the following samples to the configured remote storage by default:
 
