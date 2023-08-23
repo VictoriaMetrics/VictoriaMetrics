@@ -35,6 +35,7 @@ const CodeExample: FC<{code: string}> = ({ code }) => {
             variant="text"
             onClick={handlerCopy}
             startIcon={<CopyIcon/>}
+            ariaLabel="close"
           />
         </Tooltip>
       </div>

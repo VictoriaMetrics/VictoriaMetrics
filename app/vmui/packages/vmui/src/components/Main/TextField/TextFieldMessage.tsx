@@ -11,7 +11,6 @@ interface TextFieldErrorProps {
 }
 
 const TextFieldMessage: FC<TextFieldErrorProps> = ({ error, warning, info }) => {
-  console.log(warning);
   const messageRef = useRef<HTMLSpanElement>(null);
   const [isMessageTruncated, setIsMessageTruncated] = useState(false);
   const [showFull, setShowFull] = useState(false);

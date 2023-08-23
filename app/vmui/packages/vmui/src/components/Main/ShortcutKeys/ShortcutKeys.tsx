@@ -45,6 +45,7 @@ const ShortcutKeys: FC<{ showTitle?: boolean }> = ({ showTitle }) => {
         color="primary"
         startIcon={<KeyboardIcon/>}
         onClick={handleOpen}
+        ariaLabel={title}
       >
         {showTitle && title}
       </Button>

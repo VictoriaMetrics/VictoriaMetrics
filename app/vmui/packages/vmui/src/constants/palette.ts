@@ -26,7 +26,7 @@ export const lightPalette = {
   "color-success": "#4CAF50",
   "color-background-body": "#FEFEFF",
   "color-background-block": "#FFFFFF",
-  "color-background-tooltip": "rgba(97,97,97, 0.92)",
+  "color-background-tooltip": "rgba(80,80,80,0.9)",
   "color-text": "#110f0f",
   "color-text-secondary": "#706F6F",
   "color-text-disabled": "#A09F9F",

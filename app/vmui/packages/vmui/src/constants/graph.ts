@@ -1,4 +1,4 @@
-import { GraphSize } from "../types";
+import { GraphSize, SeriesItemStats } from "../types";
 
 export const MAX_QUERY_FIELDS = 4;
 export const DEFAULT_MAX_SERIES = {
@@ -22,3 +22,5 @@ export const GRAPH_SIZES: GraphSize[] = [
     height: () => window.innerHeight * 0.8
   },
 ];
+
+export const STATS_ORDER: (keyof SeriesItemStats)[] = ["min", "median", "max"];
