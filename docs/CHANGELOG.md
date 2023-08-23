@@ -49,6 +49,8 @@ The v1.93.x line will be supported for at least 12 months since [v1.93.0](https:
 
 Released at 2023-08-12
 
+**It is recommended upgrading to [VictoriaMetrics v1.93.1](https://docs.victoriametrics.com/CHANGELOG.html#v1931) because v1.93.0 contains a bug, which could lead to incorrect indexdb rotation. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4873) for details.**
+
 **v1.93.x is a line of LTS releases (e.g. long-time support). It contains important up-to-date bugfixes.
 The v1.93.x line will be supported for at least 12 months since [v1.93.0](https://docs.victoriametrics.com/CHANGELOG.html#v1930) release**
 
