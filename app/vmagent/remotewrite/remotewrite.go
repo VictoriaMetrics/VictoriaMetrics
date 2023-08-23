@@ -355,7 +355,7 @@ func Push(at *auth.Token, wr *prompbmarshal.WriteRequest) {
 	var rctx *relabelCtx
 	rcs := allRelabelConfigs.Load()
 	pcsGlobal := rcs.global
-	if pcsGlobal.Len() > 0 || len(labelsGlobal) > 0 {
+	if pcsGlobal.Len() > 0 {
 		rctx = getRelabelCtx()
 	}
 	tss := wr.Timeseries
@@ -386,7 +386,7 @@ func Push(at *auth.Token, wr *prompbmarshal.WriteRequest) {
 		}
 		if rctx != nil {
 			rowsCountBeforeRelabel := getRowsCount(tssBlock)
-			tssBlock = rctx.applyRelabeling(tssBlock, labelsGlobal, pcsGlobal)
+			tssBlock = rctx.applyRelabeling(tssBlock, pcsGlobal)
 			rowsCountAfterRelabel := getRowsCount(tssBlock)
 			rowsDroppedByGlobalRelabel.Add(rowsCountBeforeRelabel - rowsCountAfterRelabel)
 		}
@@ -668,7 +668,7 @@ func (rwctx *remoteWriteCtx) Push(tss []prompbmarshal.TimeSeries) {
 		v = tssPool.Get().(*[]prompbmarshal.TimeSeries)
 		tss = append(*v, tss...)
 		rowsCountBeforeRelabel := getRowsCount(tss)
-		tss = rctx.applyRelabeling(tss, nil, pcs)
+		tss = rctx.applyRelabeling(tss, pcs)
 		rowsCountAfterRelabel := getRowsCount(tss)
 		rwctx.rowsDroppedByRelabel.Add(rowsCountBeforeRelabel - rowsCountAfterRelabel)
 	}
@@ -719,6 +719,12 @@ func dropAggregatedSeries(src []prompbmarshal.TimeSeries, matchIdxs []byte, drop
 }
 
 func (rwctx *remoteWriteCtx) pushInternal(tss []prompbmarshal.TimeSeries) {
+	if len(labelsGlobal) > 0 {
+		rctx := getRelabelCtx()
+		defer putRelabelCtx(rctx)
+		rctx.appendExtraLabels(tss, labelsGlobal)
+	}
+
 	pss := rwctx.pss
 	idx := atomic.AddUint64(&rwctx.pssNextIdx, 1) % uint64(len(pss))
 	pss[idx].Push(tss)

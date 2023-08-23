@@ -22,11 +22,24 @@ The following `tip` changes can be tested by building VictoriaMetrics components
 * [How to build vmctl](https://docs.victoriametrics.com/vmctl.html#how-to-build)
 
 
-## tip
+## v1.93.x long-time support release (LTS)
+
+## v1.93.1 long-time support release (LTS)
+
+* BUGFIX: [storage](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html): properly set next retention time for indexDB. Previously it may enter into endless retention loop. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4873) for details.
+* BUGFIX: do not allow starting VictoriaMetrics components with improperly set boolean command-line flags in the form `-boolFlagName value`, since this leads to silent incomplete flags' parsing. This form should be replaced with `-boolFlagName=value`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4845).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): properly set labels from `-remoteWrite.label` command-line flag just before sending samples to the configured `-remoteWrite.url` according to [these docs](https://docs.victoriametrics.com/vmagent.html#adding-labels-to-metrics). Previously these labels were incorrectly set before [the relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling) configured via `-remoteWrite.urlRelabelConfigs` and [the stream aggregation](https://docs.victoriametrics.com/stream-aggregation.html) configured via `-remoteWrite.streamAggr.config`, so these labels could be lost or incorrectly transformed before sending the samples to remote storage. The fix allows using `-remoteWrite.label` for identifying `vmagent` instances in [cluster mode](https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4247) and [these docs](https://docs.victoriametrics.com/stream-aggregation.html#cluster-mode) for more details.
+* BUGFIX: remove `DEBUG` logging when parsing `if` filters inside [relabeling rules](https://docs.victoriametrics.com/vmagent.html#relabeling-enhancements) and when parsing `match` filters inside [stream aggregation rules](https://docs.victoriametrics.com/stream-aggregation.html).
+* BUGFIX: properly replace `:` chars in label names with `_` when `-usePromCompatibleNaming` command-line flag is passed to `vmagent`, `vminsert` or single-node VictoriaMetrics. This addresses [this comment](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3113#issuecomment-1275077071).
+* BUGFIX: [vmbackup](https://docs.victoriametrics.com/vmbackup.html): correctly check if specified `-dst` belongs to specified `-storageDataPath`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4837).
+* BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl.html): don't interrupt the migration process if no metrics were found for a specific tenant. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4796).
 
 ## [v1.93.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.0)
 
 Released at 2023-08-12
+
+**v1.93.x is a line of LTS releases (e.g. long-time support). It contains important up-to-date bugfixes.
+The v1.93.x line will be supported for at least 12 months since [v1.93.0](https://docs.victoriametrics.com/CHANGELOG.html#v1930) release**
 
 **Update note**: starting from this release, [vmagent](https://docs.victoriametrics.com/vmagent.html) ignores timestamps provided by scrape targets by default - it associates scraped metrics with local timestamps instead. Set `honor_timestamps: true` in [scrape configs](https://docs.victoriametrics.com/sd_configs.html#scrape_configs) if timestamps provided by scrape targets must be used instead. This change helps removing gaps for metrics collected from [cadvisor](https://github.com/google/cadvisor) such as `container_memory_usage_bytes`. This also improves data compression and query performance over metrics collected from `cadvisor`. See more details [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4697).
 
@@ -47,6 +60,7 @@ Released at 2023-08-12
 * FEATURE: [Official Grafana dashboards for VictoriaMetrics](https://grafana.com/orgs/victoriametrics): correctly calculate `Bytes per point` value for single-server and cluster VM dashboards. Before, the calculation mistakenly accounted for the number of entries in indexdb in denominator, which could have shown lower values than expected.
 * FEATURE: [Alerting rules for VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#alerts): `ConcurrentFlushesHitTheLimit` alerting rule was moved from [single-server](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts.yml) and [cluster](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts-cluster.yml) alerts to the [list of "health" alerts](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts-health.yml) as it could be related to many VictoriaMetrics components. 
 
+* BUGFIX: [storage](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html): properly set next retention time for indexDB. Previously it may enter into endless retention loop. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4873) for details.
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): return human readable error if opentelemetry has json encoding. Follow-up after [PR](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2570).
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): properly validate scheme for `proxy_url` field at the scrape config. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4811) for details.
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): properly apply `if` filters during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling-enhancements). Previously the `if` filter could improperly work. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4806) and [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4816).
@@ -386,6 +400,33 @@ Released at 2023-02-24
 * BUGFIX: properly parse timestamps in milliseconds when [ingesting data via OpenTSDB telnet put protocol](https://docs.victoriametrics.com/#sending-data-via-telnet-put-protocol). Previously timestamps in milliseconds were mistakenly multiplied by 1000. Thanks to @Droxenator for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3810).
 * BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): do not add extrapolated points outside the real points when using [interpolate()](https://docs.victoriametrics.com/MetricsQL.html#interpolate) function. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3816).
 
+## [v1.87.7](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.87.7)
+
+Released at 2023-08-12
+
+**v1.87.x is a line of LTS releases (e.g. long-time support). It contains important up-to-date bugfixes.
+The v1.87.x line will be supported for at least 12 months since [v1.87.0](https://docs.victoriametrics.com/CHANGELOG.html#v1870) release**
+
+* SECURITY: upgrade Go builder from Go1.20.4 to Go1.21.0.
+* SECURITY: upgrade base docker image (Alpine) from 3.18.2 to 3.18.3. See [alpine 3.18.3 release notes](https://alpinelinux.org/posts/Alpine-3.15.10-3.16.7-3.17.5-3.18.3-released.html).
+
+* BUGFIX: vmselect: fix timestamp alignment for Prometheus querying API if time argument is less than 10m from the beginning of Unix epoch.
+* BUGFIX: vminsert: fixed decoding of label values with slash when accepting data via [pushgateway protocol](https://docs.victoriametrics.com/#how-to-import-data-in-prometheus-exposition-format). This fixes Prometheus golang client compatibility. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4692).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): properly validate scheme for `proxy_url` field at the scrape config. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4811) for details.
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): close HTTP connections to [service discovery](https://docs.victoriametrics.com/sd_configs.html) servers when they are no longer needed. This should prevent from possible connection exhasution in some cases. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4724).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): properly apply `if` filters during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling-enhancements). Previously the `if` filter could improperly work. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4806) and [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4816).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): fix possible panic at shutdown when [stream aggregation](https://docs.victoriametrics.com/stream-aggregation.html) is enabled. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4407) for details.
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): use local scrape timestamps for the scraped metrics unless `honor_timestamps: true` option is explicitly set at [scrape_config](https://docs.victoriametrics.com/sd_configs.html#scrape_configs). This fixes gaps for metrics collected from [cadvisor](https://github.com/google/cadvisor) or similar exporters, which export metrics with invalid timestamps. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4697) and [this comment](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4697#issuecomment-1654614799) for details.
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth.html): Properly handle LOCAL command for proxy protocol. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3335#issuecomment-1569864108).
+* BUGFIX: [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): properly return error from [/api/v1/query](https://docs.victoriametrics.com/keyConcepts.html#instant-query) and [/api/v1/query_range](https://docs.victoriametrics.com/keyConcepts.html#range-query) at `vmselect` when the `-search.maxSamplesPerQuery` or `-search.maxSamplesPerSeries` [limit](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#resource-usage-limits) is exceeded. Previously incomplete response could be returned without the error if `vmselect` runs with `-replicationFactor` greater than 1. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4472).
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): correctly calculate evaluation time for rules. Before, there was a low probability for discrepancy between actual time and rules evaluation time if evaluation interval was lower than the execution time for rules within the group.
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): reset evaluation timestamp after modifying group interval. Before, there could have latency on rule evaluation time.
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): Properly set datasource query params. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4340). Thanks to @gsakun for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4341).
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): Properly form path to static assets in WEB UI if `http.pathPrefix` set. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4349).
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): properly return empty slices instead of nil for `/api/v1/rules` for groups with present name but absent `rules`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4221).
+* BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl.html): interrupt explore procedure in influx mode if vmctl found no numeric fields.
+* BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl.html): fix panic in case `--remote-read-filter-time-start` flag is not set for remote-read mode. This flag is now required to use remote-read mode. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4553).
+
 ## [v1.87.6](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.87.6)
 
 Released at 2023-05-18
@@ -659,6 +700,10 @@ See changes [here](https://docs.victoriametrics.com/CHANGELOG_2022.html#v1810)
 ## [v1.80.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.80.0)
 
 See changes [here](https://docs.victoriametrics.com/CHANGELOG_2022.html#v1800)
+
+## [v1.79.14](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.79.14)
+
+See changes [here](https://docs.victoriametrics.com/CHANGELOG_2022.html#v17914)
 
 ## [v1.79.13](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.79.13)
 
