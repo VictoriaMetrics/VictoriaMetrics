@@ -1,6 +1,13 @@
 # CHANGELOG
 
-## tip
+## Next release
+
+### Fixes
+
+### Features
+
+<a name="v0.36.0"></a>
+## [v0.36.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.36.0) - 23 Aug 2023
 
 ### Breaking changes
 
@@ -41,6 +48,8 @@
 - [vmrule](https://docs.victoriametrics.com/operator/api.html#vmrule): support `keep_firing_for` field in rules, refer to [alerting rules](https://docs.victoriametrics.com/vmalert.html#alerting-rules). See [this PR](https://github.com/VictoriaMetrics/operator/pull/711) for details.
 - [vmoperator parameters](https://docs.victoriametrics.com/operator/vars.html): Add option `VM_ENABLESTRICTSECURITY` and enable strict security context by default. See [this issue](https://github.com/VictoriaMetrics/operator/issues/637), [this](https://github.com/VictoriaMetrics/operator/pull/692/) and [this](https://github.com/VictoriaMetrics/operator/pull/712) PR for details.
 - [vmoperator parameters](https://docs.victoriametrics.com/operator/vars.html): change option `VM_PSPAUTOCREATEENABLED` default value from `true` to `false` cause PodSecurityPolicy already got deprecated since [kubernetes v1.25](https://kubernetes.io/docs/reference/using-api/deprecation-guide/#psp-v125). See [this pr](https://github.com/VictoriaMetrics/operator/pull/726) for details.
+
+[Changes][v0.36.0]
 
 <a name="v0.35.1"></a>
 ## [v0.35.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.35.1) - 12 Jul 2023

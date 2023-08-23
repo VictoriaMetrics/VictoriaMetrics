@@ -480,6 +480,10 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		expandWithExprsRequests.Inc()
 		prometheus.ExpandWithExprs(w, r)
 		return true
+	case "/prettify-query":
+		prettifyQueryRequests.Inc()
+		prometheus.PrettifyQuery(w, r)
+		return true
 	case "/api/v1/rules", "/rules":
 		rulesRequests.Inc()
 		if len(*vmalertProxyURL) > 0 {
@@ -655,6 +659,7 @@ var (
 	graphiteFunctionDetailsErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/functions/<func_name>"}`)
 
 	expandWithExprsRequests = metrics.NewCounter(`vm_http_requests_total{path="/expand-with-exprs"}`)
+	prettifyQueryRequests   = metrics.NewCounter(`vm_http_requests_total{path="/prettify-query"}`)
 
 	vmalertRequests = metrics.NewCounter(`vm_http_requests_total{path="/vmalert"}`)
 	rulesRequests   = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/rules"}`)

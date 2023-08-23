@@ -1,39 +1,39 @@
-import React, { FC, useEffect, useState } from "preact/compat";
-import { gradMetal16 } from "../../../../utils/uplot/heatmap";
+import React, { FC, useEffect, useMemo, useState } from "preact/compat";
+import { gradMetal16 } from "../../../../utils/uplot";
+import { SeriesItem, LegendItemType } from "../../../../types";
 import "./style.scss";
-import { TooltipHeatmapProps } from "../ChartTooltipHeatmap/ChartTooltipHeatmap";
-import { SeriesItem } from "../../../../utils/uplot/series";
 import LegendItem from "../../Line/Legend/LegendItem/LegendItem";
-import { LegendItemType } from "../../../../utils/uplot/types";
+import { ChartTooltipProps } from "../../ChartTooltip/ChartTooltip";
 
 interface LegendHeatmapProps {
   min: number
   max: number
-  legendValue: TooltipHeatmapProps | null,
+  legendValue: ChartTooltipProps | null,
   series: SeriesItem[]
 }
 
-const LegendHeatmap: FC<LegendHeatmapProps> = (
-  {
-    min,
-    max,
-    legendValue,
-    series,
-  }
-) => {
+const LegendHeatmap: FC<LegendHeatmapProps> = ({
+  min,
+  max,
+  legendValue,
+  series
+}) => {
 
   const [percent, setPercent] = useState(0);
   const [valueFormat, setValueFormat] = useState("");
   const [minFormat, setMinFormat] = useState("");
   const [maxFormat, setMaxFormat] = useState("");
 
+  const value = useMemo(() => {
+    return parseFloat(String(legendValue?.value || 0).replace("%", ""));
+  }, [legendValue]);
+
   useEffect(() => {
-    const value = legendValue?.value || 0;
     setPercent(value ? (value - min) / (max - min) * 100 : 0);
     setValueFormat(value ? `${value}%` : "");
     setMinFormat(`${min}%`);
     setMaxFormat(`${max}%`);
-  }, [legendValue, min, max]);
+  }, [value, min, max]);
 
   return (
     <div className="vm-legend-heatmap__wrapper">
@@ -42,7 +42,7 @@ const LegendHeatmap: FC<LegendHeatmapProps> = (
           className="vm-legend-heatmap-gradient"
           style={{ background: `linear-gradient(to right, ${gradMetal16.join(", ")})` }}
         >
-          {!!legendValue?.value && (
+          {!!value && (
             <div
               className="vm-legend-heatmap-gradient__value"
               style={{ left: `${percent}%` }}

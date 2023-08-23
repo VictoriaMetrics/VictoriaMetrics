@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "preact/compat";
+import { StateUpdater, useCallback, useEffect, useMemo, useState } from "preact/compat";
 import { getQueryRangeUrl, getQueryUrl } from "../api/query-range";
 import { useAppState } from "../state/common/StateContext";
 import { InstantMetricResult, MetricBase, MetricResult, QueryStats } from "../api/types";
@@ -28,6 +28,7 @@ interface FetchQueryReturn {
   liveData?: InstantMetricResult[],
   error?: ErrorTypes | string,
   queryErrors: (ErrorTypes | string)[],
+  setQueryErrors: StateUpdater<string[]>,
   queryStats: QueryStats[],
   warning?: string,
   traces?: Trace[],
@@ -62,11 +63,12 @@ export const useFetchQuery = ({
   const [liveData, setLiveData] = useState<InstantMetricResult[]>();
   const [traces, setTraces] = useState<Trace[]>();
   const [error, setError] = useState<ErrorTypes | string>();
-  const [queryErrors, setQueryErrors] = useState<(ErrorTypes | string)[]>([]);
+  const [queryErrors, setQueryErrors] = useState<string[]>([]);
   const [queryStats, setQueryStats] = useState<QueryStats[]>([]);
   const [warning, setWarning] = useState<string>();
   const [fetchQueue, setFetchQueue] = useState<AbortController[]>([]);
   const [isHistogram, setIsHistogram] = useState(false);
+
 
   const fetchData = async ({
     fetchUrl,
@@ -81,11 +83,13 @@ export const useFetchQuery = ({
     setFetchQueue([...fetchQueue, controller]);
     try {
       const isDisplayChart = displayType === "chart";
-      let seriesLimit = showAllSeries ? Infinity : (+stateSeriesLimits[displayType] || Infinity);
+      const defaultLimit = showAllSeries ? Infinity : (+stateSeriesLimits[displayType] || Infinity);
+      let seriesLimit = defaultLimit;
       const tempData: MetricBase[] = [];
       const tempTraces: Trace[] = [];
       let counter = 1;
       let totalLength = 0;
+      let isHistogramResult = false;
 
       for await (const url of fetchUrl) {
 
@@ -113,9 +117,8 @@ export const useFetchQuery = ({
             tempTraces.push(trace);
           }
 
-          const isHistogramResult = isDisplayChart && isHistogramData(resp.data.result);
-          if (resp.data.result.length) setIsHistogram(isHistogramResult);
-          if (isHistogramResult) seriesLimit = Infinity;
+          isHistogramResult = isDisplayChart && isHistogramData(resp.data.result);
+          seriesLimit = isHistogramResult ? Infinity : Math.max(totalLength, defaultLimit);
           const freeTempSize = seriesLimit - tempData.length;
           resp.data.result.slice(0, freeTempSize).forEach((d: MetricBase) => {
             d.group = counter;
@@ -134,6 +137,7 @@ export const useFetchQuery = ({
       setWarning(totalLength > seriesLimit ? limitText : "");
       isDisplayChart ? setGraphData(tempData as MetricResult[]) : setLiveData(tempData as InstantMetricResult[]);
       setTraces(tempTraces);
+      setIsHistogram(totalLength ? isHistogramResult: false);
     } catch (e) {
       if (e instanceof Error && e.name !== "AbortError") {
         setError(`${e.name}: ${e.message}`);
@@ -193,5 +197,5 @@ export const useFetchQuery = ({
     setFetchQueue(fetchQueue.filter(f => !f.signal.aborted));
   }, [fetchQueue]);
 
-  return { fetchUrl, isLoading, graphData, liveData, error, queryErrors, queryStats, warning, traces, isHistogram };
+  return { fetchUrl, isLoading, graphData, liveData, error, queryErrors, setQueryErrors, queryStats, warning, traces, isHistogram };
 };
