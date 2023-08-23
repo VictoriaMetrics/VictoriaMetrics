@@ -127,21 +127,14 @@ func NewVMStorage(baseURL string, authCfg *promauth.Config, lookBack time.Durati
 
 // Query executes the given query and returns parsed response
 func (s *VMStorage) Query(ctx context.Context, query string, ts time.Time) (Result, *http.Request, error) {
-	req, err := s.newRequestPOST()
-	if err != nil {
-		return Result{}, nil, err
-	}
-
-	switch s.dataSourceType {
-	case "", datasourcePrometheus:
-		s.setPrometheusInstantReqParams(req, query, ts)
-	case datasourceGraphite:
-		s.setGraphiteReqParams(req, query, ts)
-	default:
-		return Result{}, nil, fmt.Errorf("engine not found: %q", s.dataSourceType)
-	}
-
+	req := s.newQueryRequest(query, ts)
 	resp, err := s.do(ctx, req)
+	if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
+		// something in the middle between client and datasource might be closing
+		// the connection. So we do a one more attempt in hope request will succeed.
+		req = s.newQueryRequest(query, ts)
+		resp, err = s.do(ctx, req)
+	}
 	if err != nil {
 		return Result{}, req, err
 	}
@@ -164,18 +157,20 @@ func (s *VMStorage) QueryRange(ctx context.Context, query string, start, end tim
 	if s.dataSourceType != datasourcePrometheus {
 		return res, fmt.Errorf("%q is not supported for QueryRange", s.dataSourceType)
 	}
-	req, err := s.newRequestPOST()
-	if err != nil {
-		return res, err
-	}
 	if start.IsZero() {
 		return res, fmt.Errorf("start param is missing")
 	}
 	if end.IsZero() {
 		return res, fmt.Errorf("end param is missing")
 	}
-	s.setPrometheusRangeReqParams(req, query, start, end)
+	req := s.newQueryRangeRequest(query, start, end)
 	resp, err := s.do(ctx, req)
+	if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
+		// something in the middle between client and datasource might be closing
+		// the connection. So we do a one more attempt in hope request will succeed.
+		req = s.newQueryRangeRequest(query, start, end)
+		resp, err = s.do(ctx, req)
+	}
 	if err != nil {
 		return res, err
 	}
@@ -190,11 +185,6 @@ func (s *VMStorage) do(ctx context.Context, req *http.Request) (*http.Response, 
 		logger.Infof("DEBUG datasource request: executing %s request with params %q", req.Method, req.URL.RawQuery)
 	}
 	resp, err := s.c.Do(req.WithContext(ctx))
-	if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
-		// something in the middle between client and datasource might be closing
-		// the connection. So we do a one more attempt in hope request will succeed.
-		resp, err = s.c.Do(req.WithContext(ctx))
-	}
 	if err != nil {
 		return nil, fmt.Errorf("error getting response from %s: %w", req.URL.Redacted(), err)
 	}
@@ -206,10 +196,29 @@ func (s *VMStorage) do(ctx context.Context, req *http.Request) (*http.Response, 
 	return resp, nil
 }
 
-func (s *VMStorage) newRequestPOST() (*http.Request, error) {
+func (s *VMStorage) newQueryRangeRequest(query string, start, end time.Time) *http.Request {
+	req := s.newRequest()
+	s.setPrometheusRangeReqParams(req, query, start, end)
+	return req
+}
+
+func (s *VMStorage) newQueryRequest(query string, ts time.Time) *http.Request {
+	req := s.newRequest()
+	switch s.dataSourceType {
+	case "", datasourcePrometheus:
+		s.setPrometheusInstantReqParams(req, query, ts)
+	case datasourceGraphite:
+		s.setGraphiteReqParams(req, query, ts)
+	default:
+		logger.Panicf("BUG: engine not found: %q", s.dataSourceType)
+	}
+	return req
+}
+
+func (s *VMStorage) newRequest() *http.Request {
 	req, err := http.NewRequest(http.MethodPost, s.datasourceURL, nil)
 	if err != nil {
-		return nil, err
+		logger.Panicf("BUG: unexpected error from http.NewRequest(%q): %s", s.datasourceURL, err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	if s.authCfg != nil {
@@ -218,5 +227,5 @@ func (s *VMStorage) newRequestPOST() (*http.Request, error) {
 	for _, h := range s.extraHeaders {
 		req.Header.Set(h.key, h.value)
 	}
-	return req, nil
+	return req
 }
