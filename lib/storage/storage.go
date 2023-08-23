@@ -757,7 +757,7 @@ func (s *Storage) mustRotateIndexDB(currentTime time.Time) {
 	idbNew := mustOpenIndexDB(idbNewPath, s, &s.isReadOnly)
 
 	// Update nextRotationTimestamp
-	nextRotationTimestamp := currentTime.UnixMilli() + s.retentionMsecs/1000
+	nextRotationTimestamp := currentTime.Unix() + s.retentionMsecs/1000
 	atomic.StoreInt64(&s.nextRotationTimestamp, nextRotationTimestamp)
 
 	// Set idbNext to idbNew
