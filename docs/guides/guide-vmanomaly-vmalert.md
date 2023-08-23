@@ -11,6 +11,7 @@ aliases:
 # Getting started with vmanomaly
 
 **Prerequisites**
+- *vmanomaly* is a part of enterprise package. You can get license key [here](https://victoriametrics.com/products/enterprise/trial) to try this tutorial.
 - In the tutorial, we'll be using the following VictoriaMetrics components:
   -  [VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html) (v.1.83.1)
   -  [vmalert](https://docs.victoriametrics.com/vmalert.html) (v.1.83.1)
@@ -164,6 +165,7 @@ As the result of running vmanomaly, it produces the following metrics:
 Here is an example of how output metric will be written into VictoriaMetrics:
 `anomaly_score{for="node_cpu_rate", cpu="0", instance="node-xporter:9100", job="node-exporter", mode="idle"} 0.85`
 
+
 ____________________________________________
 
 ## 7. vmalert configuration
@@ -252,7 +254,7 @@ scrape_configs:
 </div>
 
 ### Docker-compose
-Let's wrap it all up together into the `docker-compose.yml` file
+Let's wrap it all up together into the `docker-compose.yml` file. Don't forget to insert your license code into docker-compose file instead of `YOUR_LICENCE_CODE_IS_HERE`!
 
 <div class="with-copy" markdown="1">
 
@@ -337,7 +339,7 @@ services:
     restart: always
   vmanomaly:
     container_name: vmanomaly
-    image: us-docker.pkg.dev/victoriametrics-test/public/vmanomaly-trial:v1.3.0
+    image: us-docker.pkg.dev/victoriametrics-test/vmanomaly/vmanomaly:latest
     depends_on:
       - "victoriametrics"
     ports:
@@ -347,7 +349,10 @@ services:
     restart: always
     volumes:
       - ./vmanomaly_config.yml:/config.yaml
-    command: [ "/config.yaml" ]
+    platform: "linux/amd64"
+    command: 
+      - "/config.yaml"
+      - "--license=YOUR_LICENCE_CODE_IS_HERE"
 
   node-exporter:
     image: quay.io/prometheus/node-exporter:latest
