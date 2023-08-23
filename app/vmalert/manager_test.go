@@ -69,7 +69,7 @@ func TestManagerUpdateConcurrent(t *testing.T) {
 			r := rand.New(rand.NewSource(int64(n)))
 			for i := 0; i < iterations; i++ {
 				rnd := r.Intn(len(paths))
-				cfg, err := config.Parse([]string{paths[rnd]}, notifier.ValidateTemplates, true, *evaluationInterval)
+				cfg, err := config.Parse([]string{paths[rnd]}, notifier.ValidateTemplates, true)
 				if err != nil { // update can fail and this is expected
 					continue
 				}
@@ -168,7 +168,8 @@ func TestManagerUpdate(t *testing.T) {
 					Name:     "TestGroup", Rules: []Rule{
 						Conns,
 						ExampleAlertAlwaysFiring,
-					}},
+					},
+				},
 			},
 		},
 		{
@@ -191,7 +192,8 @@ func TestManagerUpdate(t *testing.T) {
 					Rules: []Rule{
 						Conns,
 						ExampleAlertAlwaysFiring,
-					}},
+					},
+				},
 			},
 		},
 		{
@@ -232,7 +234,7 @@ func TestManagerUpdate(t *testing.T) {
 				t.Fatalf("failed to complete initial rules update: %s", err)
 			}
 
-			cfgUpdate, err := config.Parse([]string{tc.updatePath}, notifier.ValidateTemplates, true, *evaluationInterval)
+			cfgUpdate, err := config.Parse([]string{tc.updatePath}, notifier.ValidateTemplates, true)
 			if err == nil { // update can fail and that's expected
 				_ = m.update(ctx, cfgUpdate, false)
 			}
@@ -264,7 +266,8 @@ func TestManagerUpdateNegative(t *testing.T) {
 		{
 			nil,
 			nil,
-			config.Group{Name: "Recording rule only",
+			config.Group{
+				Name: "Recording rule only",
 				Rules: []config.Rule{
 					{Record: "record", Expr: "max(up)"},
 				},
@@ -274,7 +277,8 @@ func TestManagerUpdateNegative(t *testing.T) {
 		{
 			nil,
 			nil,
-			config.Group{Name: "Alerting rule only",
+			config.Group{
+				Name: "Alerting rule only",
 				Rules: []config.Rule{
 					{Alert: "alert", Expr: "up > 0"},
 				},
@@ -284,7 +288,8 @@ func TestManagerUpdateNegative(t *testing.T) {
 		{
 			[]notifier.Notifier{&fakeNotifier{}},
 			nil,
-			config.Group{Name: "Recording and alerting rules",
+			config.Group{
+				Name: "Recording and alerting rules",
 				Rules: []config.Rule{
 					{Alert: "alert1", Expr: "up > 0"},
 					{Alert: "alert2", Expr: "up > 0"},
@@ -296,7 +301,8 @@ func TestManagerUpdateNegative(t *testing.T) {
 		{
 			nil,
 			&remotewrite.Client{},
-			config.Group{Name: "Recording and alerting rules",
+			config.Group{
+				Name: "Recording and alerting rules",
 				Rules: []config.Rule{
 					{Record: "record1", Expr: "max(up)"},
 					{Record: "record2", Expr: "max(up)"},
@@ -334,7 +340,7 @@ func loadCfg(t *testing.T, path []string, validateAnnotations, validateExpressio
 	if validateAnnotations {
 		validateTplFn = notifier.ValidateTemplates
 	}
-	cfg, err := config.Parse(path, validateTplFn, validateExpressions, *evaluationInterval)
+	cfg, err := config.Parse(path, validateTplFn, validateExpressions)
 	if err != nil {
 		t.Fatal(err)
 	}

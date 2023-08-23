@@ -125,6 +125,7 @@ name: <string>
 
 # Group will be evaluated at the nearest offset time point aligned with interval.
 # If not set, will take random offset to spread groups evaluation over time.
+# If set, interval won't use -evaluationInterval flag and must be bigger than eval_offset.
 [ eval_offset: <duration> ]
 
 # Limit the number of alerts an alerting rule and series a recording

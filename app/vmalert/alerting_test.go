@@ -427,7 +427,8 @@ func TestAlertingRule_ExecRange(t *testing.T) {
 			newTestAlertingRule("multi-series-for=>pending=>pending=>firing", 3*time.Second),
 			[]datasource.Metric{
 				{Values: []float64{1, 1, 1}, Timestamps: []int64{1, 3, 5}},
-				{Values: []float64{1, 1}, Timestamps: []int64{1, 5},
+				{
+					Values: []float64{1, 1}, Timestamps: []int64{1, 5},
 					Labels: []datasource.Label{{Name: "foo", Value: "bar"}},
 				},
 			},
@@ -436,21 +437,26 @@ func TestAlertingRule_ExecRange(t *testing.T) {
 				{State: notifier.StatePending, ActiveAt: time.Unix(1, 0)},
 				{State: notifier.StateFiring, ActiveAt: time.Unix(1, 0)},
 				//
-				{State: notifier.StatePending, ActiveAt: time.Unix(1, 0),
+				{
+					State: notifier.StatePending, ActiveAt: time.Unix(1, 0),
 					Labels: map[string]string{
 						"foo": "bar",
-					}},
-				{State: notifier.StatePending, ActiveAt: time.Unix(5, 0),
+					},
+				},
+				{
+					State: notifier.StatePending, ActiveAt: time.Unix(5, 0),
 					Labels: map[string]string{
 						"foo": "bar",
-					}},
+					},
+				},
 			},
 		},
 		{
 			newTestRuleWithLabels("multi-series-firing", "source", "vm"),
 			[]datasource.Metric{
 				{Values: []float64{1, 1}, Timestamps: []int64{1, 100}},
-				{Values: []float64{1, 1}, Timestamps: []int64{1, 5},
+				{
+					Values: []float64{1, 1}, Timestamps: []int64{1, 5},
 					Labels: []datasource.Label{{Name: "foo", Value: "bar"}},
 				},
 			},
@@ -521,7 +527,7 @@ func TestGroup_Restore(t *testing.T) {
 			fqr.set(r.Expr, metricWithValueAndLabels(t, 0, "__name__", r.Alert))
 		}
 
-		fg := newGroup(config.Group{Name: "TestRestore", Rules: rules, Interval: promutils.NewDuration(time.Second), Concurrency: 1}, fqr, nil)
+		fg := newGroup(config.Group{Name: "TestRestore", Rules: rules}, fqr, time.Second, nil)
 		wg := sync.WaitGroup{}
 		wg.Add(1)
 		go func() {
@@ -586,7 +592,8 @@ func TestGroup_Restore(t *testing.T) {
 		[]config.Rule{{Alert: "foo", Expr: "foo", For: promutils.NewDuration(time.Second)}},
 		map[uint64]*notifier.Alert{
 			hash(map[string]string{alertNameLabel: "foo", alertGroupNameLabel: "TestRestore"}): {
-				ActiveAt: ts},
+				ActiveAt: ts,
+			},
 		})
 
 	// two rules, two active alerts, one with state restored
@@ -603,7 +610,8 @@ func TestGroup_Restore(t *testing.T) {
 				ActiveAt: defaultTS,
 			},
 			hash(map[string]string{alertNameLabel: "bar", alertGroupNameLabel: "TestRestore"}): {
-				ActiveAt: ts},
+				ActiveAt: ts,
+			},
 		})
 
 	// two rules, two active alerts, two with state restored
@@ -622,7 +630,8 @@ func TestGroup_Restore(t *testing.T) {
 				ActiveAt: ts,
 			},
 			hash(map[string]string{alertNameLabel: "bar", alertGroupNameLabel: "TestRestore"}): {
-				ActiveAt: ts},
+				ActiveAt: ts,
+			},
 		})
 
 	// one active alert but wrong state restore
@@ -844,7 +853,8 @@ func TestAlertingRule_Template(t *testing.T) {
 				hash(map[string]string{
 					alertNameLabel:      "OriginLabels",
 					alertGroupNameLabel: "Testing",
-					"instance":          "foo"}): {
+					"instance":          "foo",
+				}): {
 					Labels: map[string]string{
 						alertNameLabel:      "OriginLabels",
 						alertGroupNameLabel: "Testing",

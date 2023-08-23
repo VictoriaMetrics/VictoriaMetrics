@@ -93,11 +93,12 @@ func mergeLabels(groupName, ruleName string, set1, set2 map[string]string) map[s
 	return r
 }
 
-func newGroup(cfg config.Group, qb datasource.QuerierBuilder, labels map[string]string) *Group {
+func newGroup(cfg config.Group, qb datasource.QuerierBuilder, defaultInterval time.Duration, labels map[string]string) *Group {
 	g := &Group{
 		Type:            cfg.Type,
 		Name:            cfg.Name,
 		File:            cfg.File,
+		Interval:        cfg.Interval.Duration(),
 		Limit:           cfg.Limit,
 		Concurrency:     cfg.Concurrency,
 		Checksum:        cfg.Checksum,
@@ -110,8 +111,11 @@ func newGroup(cfg config.Group, qb datasource.QuerierBuilder, labels map[string]
 		finishedCh: make(chan struct{}),
 		updateCh:   make(chan *Group),
 	}
-	if cfg.Interval != nil {
-		g.Interval = cfg.Interval.Duration()
+	if g.Interval == 0 {
+		g.Interval = defaultInterval
+	}
+	if g.Concurrency < 1 {
+		g.Concurrency = 1
 	}
 	if cfg.EvalOffset != nil {
 		g.EvalOffset = &cfg.EvalOffset.D

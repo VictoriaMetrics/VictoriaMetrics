@@ -24,7 +24,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestParseGood(t *testing.T) {
-	if _, err := Parse([]string{"testdata/rules/*good.rules", "testdata/dir/*good.*"}, notifier.ValidateTemplates, true, time.Minute); err != nil {
+	if _, err := Parse([]string{"testdata/rules/*good.rules", "testdata/dir/*good.*"}, notifier.ValidateTemplates, true); err != nil {
 		t.Errorf("error parsing files %s", err)
 	}
 }
@@ -54,11 +54,11 @@ groups:
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
 
-	if _, err := Parse([]string{srv.URL + "/good-alert", srv.URL + "/good-rr"}, notifier.ValidateTemplates, true, time.Minute); err != nil {
+	if _, err := Parse([]string{srv.URL + "/good-alert", srv.URL + "/good-rr"}, notifier.ValidateTemplates, true); err != nil {
 		t.Errorf("error parsing URLs %s", err)
 	}
 
-	if _, err := Parse([]string{srv.URL + "/bad"}, notifier.ValidateTemplates, true, time.Minute); err == nil {
+	if _, err := Parse([]string{srv.URL + "/bad"}, notifier.ValidateTemplates, true); err == nil {
 		t.Errorf("expected parsing error: %s", err)
 	}
 }
@@ -70,7 +70,7 @@ func TestParseBad(t *testing.T) {
 	}{
 		{
 			[]string{"testdata/rules/rules_interval_bad.rules"},
-			"eval_offset should be less than interval",
+			"eval_offset should be smaller than interval",
 		},
 		{
 			[]string{"testdata/rules/rules0-bad.rules"},
@@ -110,7 +110,7 @@ func TestParseBad(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		_, err := Parse(tc.path, notifier.ValidateTemplates, true, time.Minute)
+		_, err := Parse(tc.path, notifier.ValidateTemplates, true)
 		if err == nil {
 			t.Errorf("expected to get error")
 			return
@@ -158,7 +158,7 @@ func TestGroup_Validate(t *testing.T) {
 				Interval:   promutils.NewDuration(time.Minute),
 				EvalOffset: promutils.NewDuration(2 * time.Minute),
 			},
-			expErr: "eval_offset should be less than interval",
+			expErr: "eval_offset should be smaller than interval",
 		},
 		{
 			group: &Group{

@@ -35,18 +35,19 @@ func TestUpdateWith(t *testing.T) {
 		},
 		{
 			"update alerting rule",
-			[]config.Rule{{
-				Alert: "foo",
-				Expr:  "up > 0",
-				For:   promutils.NewDuration(time.Second),
-				Labels: map[string]string{
-					"bar": "baz",
+			[]config.Rule{
+				{
+					Alert: "foo",
+					Expr:  "up > 0",
+					For:   promutils.NewDuration(time.Second),
+					Labels: map[string]string{
+						"bar": "baz",
+					},
+					Annotations: map[string]string{
+						"summary":     "{{ $value|humanize }}",
+						"description": "{{$labels}}",
+					},
 				},
-				Annotations: map[string]string{
-					"summary":     "{{ $value|humanize }}",
-					"description": "{{$labels}}",
-				},
-			},
 				{
 					Alert: "bar",
 					Expr:  "up > 0",
@@ -54,7 +55,8 @@ func TestUpdateWith(t *testing.T) {
 					Labels: map[string]string{
 						"bar": "baz",
 					},
-				}},
+				},
+			},
 			[]config.Rule{
 				{
 					Alert: "foo",
@@ -75,7 +77,8 @@ func TestUpdateWith(t *testing.T) {
 					Labels: map[string]string{
 						"bar": "baz",
 					},
-				}},
+				},
+			},
 		},
 		{
 			"update recording rule",
@@ -175,9 +178,8 @@ func TestUpdateWith(t *testing.T) {
 }
 
 func TestGroupStart(t *testing.T) {
-	const evalInterval = time.Millisecond
 	// TODO: make parsing from string instead of file
-	groups, err := config.Parse([]string{"config/testdata/rules/rules1-good.rules"}, notifier.ValidateTemplates, true, evalInterval)
+	groups, err := config.Parse([]string{"config/testdata/rules/rules1-good.rules"}, notifier.ValidateTemplates, true)
 	if err != nil {
 		t.Fatalf("failed to parse rules: %s", err)
 	}
@@ -185,7 +187,8 @@ func TestGroupStart(t *testing.T) {
 	fs := &fakeQuerier{}
 	fn := &fakeNotifier{}
 
-	g := newGroup(groups[0], fs, map[string]string{"cluster": "east-1"})
+	const evalInterval = time.Millisecond
+	g := newGroup(groups[0], fs, evalInterval, map[string]string{"cluster": "east-1"})
 	g.Concurrency = 2
 
 	const inst1, inst2, job = "foo", "bar", "baz"
@@ -494,8 +497,7 @@ func TestFaultyRW(t *testing.T) {
 }
 
 func TestCloseWithEvalInterruption(t *testing.T) {
-	const evalInterval = time.Millisecond
-	groups, err := config.Parse([]string{"config/testdata/rules/rules1-good.rules"}, notifier.ValidateTemplates, true, evalInterval)
+	groups, err := config.Parse([]string{"config/testdata/rules/rules1-good.rules"}, notifier.ValidateTemplates, true)
 	if err != nil {
 		t.Fatalf("failed to parse rules: %s", err)
 	}
@@ -503,7 +505,8 @@ func TestCloseWithEvalInterruption(t *testing.T) {
 	const delay = time.Second * 2
 	fq := &fakeQuerierWithDelay{delay: delay}
 
-	g := newGroup(groups[0], fq, nil)
+	const evalInterval = time.Millisecond
+	g := newGroup(groups[0], fq, evalInterval, nil)
 
 	go g.start(context.Background(), nil, nil, nil)
 
