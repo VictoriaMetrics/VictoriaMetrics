@@ -13,9 +13,9 @@ aliases:
 **Prerequisites**
 - *vmanomaly* is a part of enterprise package. You can get license key [here](https://victoriametrics.com/products/enterprise/trial) to try this tutorial.
 - In the tutorial, we'll be using the following VictoriaMetrics components:
-  -  [VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html) (v.1.83.1)
-  -  [vmalert](https://docs.victoriametrics.com/vmalert.html) (v.1.83.1)
-  -  [vmagent](https://docs.victoriametrics.com/vmagent.html) (v.1.83.1)
+  -  [VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html) (v.1.93.1)
+  -  [vmalert](https://docs.victoriametrics.com/vmalert.html) (v.1.93.1)
+  -  [vmagent](https://docs.victoriametrics.com/vmagent.html) (v.1.93.1)
   
   If you're unfamiliar with the listed components, please read [QuickStart](https://docs.victoriametrics.com/Quick-Start.html) first.
 - It is assumed that you are familiar with [Grafana](https://grafana.com/)(v.9.3.1) and [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/).
@@ -285,7 +285,7 @@ services:
   
   victoriametrics:
     container_name: victoriametrics
-    image: victoriametrics/victoria-metrics:v1.83.1
+    image: victoriametrics/victoria-metrics:v1.93.1
     ports:
       - 8428:8428
       - 8089:8089
