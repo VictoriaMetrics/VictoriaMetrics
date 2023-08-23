@@ -253,18 +253,14 @@ scrape_configs:
 
 </div>
 
+### vmanomaly licencing
+We are going to use license stored locally in file `vmanomaly_licence.txt` with key in it.
+You can explore other license options [here](https://docs.victoriametrics.com/vmanomaly.html#licensing)
+
+
 ### Docker-compose
-Before we create and run docker-compose file you need to get through gcloud authentification first:
 
-<div class="with-copy" markdown="1">
-
-```
-gcloud auth configure-docker us-docker.pkg.dev
-```
-
-</div>
-
-Let's wrap it all up together into the `docker-compose.yml` file. Don't forget to insert your license code into docker-compose file instead of `YOUR_LICENCE_CODE_IS_HERE`!
+Let's wrap it all up together into the `docker-compose.yml` file.
 
 <div class="with-copy" markdown="1">
 
@@ -349,7 +345,7 @@ services:
     restart: always
   vmanomaly:
     container_name: vmanomaly
-    image: us-docker.pkg.dev/victoriametrics-test/vmanomaly/vmanomaly:latest
+    image: us-docker.pkg.dev/victoriametrics-test/public/vmanomaly-trial:v1.5.0
     depends_on:
       - "victoriametrics"
     ports:
@@ -359,10 +355,11 @@ services:
     restart: always
     volumes:
       - ./vmanomaly_config.yml:/config.yaml
+      - ./vmanomaly_license.txt:/license.txt
     platform: "linux/amd64"
     command: 
       - "/config.yaml"
-      - "--license=YOUR_LICENCE_CODE_IS_HERE"
+      - "--license-file=/license.txt"
 
   node-exporter:
     image: quay.io/prometheus/node-exporter:latest
