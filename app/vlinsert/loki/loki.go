@@ -3,9 +3,10 @@ package loki
 import (
 	"net/http"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
-	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
@@ -14,12 +15,22 @@ var (
 )
 
 // RequestHandler processes Loki insert requests
-//
-// See https://grafana.com/docs/loki/latest/api/#push-log-entries-to-loki
 func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
-	if path != "/api/v1/push" {
+	switch path {
+	case "/api/v1/push":
+		return handleInsert(r, w)
+	case "/ready":
+		// See https://grafana.com/docs/loki/latest/api/#identify-ready-loki-instance
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("ready"))
+		return true
+	default:
 		return false
 	}
+}
+
+// See https://grafana.com/docs/loki/latest/api/#push-log-entries-to-loki
+func handleInsert(r *http.Request, w http.ResponseWriter) bool {
 	contentType := r.Header.Get("Content-Type")
 	switch contentType {
 	case "application/json":
