@@ -201,6 +201,8 @@ func (c *client) GetStreamReader() (*streamReader, error) {
 	// Set X-Prometheus-Scrape-Timeout-Seconds like Prometheus does, since it is used by some exporters such as PushProx.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1179#issuecomment-813117162
 	req.Header.Set("X-Prometheus-Scrape-Timeout-Seconds", c.scrapeTimeoutSecondsStr)
+	// Set same useragent as fasthttp.HostClient at c.hc uses for scraping
+	req.Header.Set("User-Agent", "vm_promscrape")
 	c.setHeaders(req)
 	c.setProxyHeaders(req)
 	scrapeRequests.Inc()
