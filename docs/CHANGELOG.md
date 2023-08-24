@@ -30,6 +30,8 @@ The following `tip` changes can be tested by building VictoriaMetrics components
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): make the warning message more noticeable for text fields. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4848).
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add button for auto-formatting PromQL/MetricsQL queries. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4681). Thanks to @aramattamara for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4694).
 
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): consistently set UserAgent header to `vm_promscrape` during scraping with enabled or disabled `promscrape.streamParse`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4884) for details.
+
 ## [v1.93.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.1)
 
 Released at 2023-08-23
