@@ -695,7 +695,7 @@ VMAgentRemoteWriteSettings - defines global settings for all remoteWrite urls.
 | showURL | Whether to show -remoteWrite.url in the exported metrics. It is hidden by default, since it can contain sensitive auth info | *bool | false |
 | tmpDataPath | Path to directory where temporary data for remote write component is stored (default vmagent-remotewrite-data) | *string | false |
 | flushInterval | Interval for flushing the data to remote storage. (default 1s) | *string | false |
-| label | Optional labels in the form &#39;name=value&#39; to add to all the metrics before sending them | map[string]string | false |
+| label | Labels in the form &#39;name=value&#39; to add to all the metrics before sending them. This overrides the label if it already exists | map[string]string | false |
 | useMultiTenantMode | Configures vmagent in multi-tenant mode with direct cluster support docs https://docs.victoriametrics.com/vmagent.html#multitenancy it&#39;s global setting and affects all remote storage configurations | bool | false |
 
 [Back to TOC](#table-of-contents)
