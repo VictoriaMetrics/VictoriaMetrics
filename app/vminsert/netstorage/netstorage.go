@@ -320,10 +320,6 @@ var cannotCloseStorageNodeConnLogger = logger.WithThrottler("cannotCloseStorageN
 var cannotSendBufsLogger = logger.WithThrottler("cannotSendBufRows", 5*time.Second)
 
 func sendToConn(bc *handshake.BufferedConn, buf []byte) error {
-	if len(buf) == 0 {
-		// Nothing to send
-		return nil
-	}
 	timeoutSeconds := len(buf) / 3e5
 	if timeoutSeconds < 60 {
 		timeoutSeconds = 60
