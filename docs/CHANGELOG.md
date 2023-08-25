@@ -34,6 +34,7 @@ The following `tip` changes can be tested by building VictoriaMetrics components
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): organize `min`, `max`, `median` values on the chart legend and tooltips for better visibility.
 
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): consistently set UserAgent header to `vm_promscrape` during scraping with enabled or disabled `promscrape.streamParse`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4884) for details.
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): consistently set timeout for scraping with enabled or disabled `promscrape.streamParse`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4847) for details.
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): consistently round sample values on chart, tooltip and legend.
 
 ## [v1.93.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.1)
