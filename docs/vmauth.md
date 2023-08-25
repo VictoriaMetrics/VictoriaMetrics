@@ -258,7 +258,7 @@ It is recommended protecting the following endpoints with authKeys:
 * `/metrics` with `metricsAuthKey` command-line flag, so unauthorized users couldn't get access to [vmauth metrics](#monitoring).
 * `/debug/pprof` with `pprofAuthKey` command-line flag, so unauthorized users couldn't get access to [profiling information](#profiling).
 
-`vmauth` also supports the ability to restict access by IP - see [these docs](#ip-filters). See also [concurrency limiting docs](#concurrency-limiting).
+`vmauth` also supports the ability to restrict access by IP - see [these docs](#ip-filters). See also [concurrency limiting docs](#concurrency-limiting).
 
 ## Monitoring
 
