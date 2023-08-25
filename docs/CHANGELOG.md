@@ -30,8 +30,12 @@ The following `tip` changes can be tested by building VictoriaMetrics components
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): retry failed write request on the closed connection immediately, without waiting for backoff. This should improve data delivery speed and reduce amount of error logs emitted by vmagent when using idle connections. See related [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4139).
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): make the warning message more noticeable for text fields. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4848).
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add button for auto-formatting PromQL/MetricsQL queries. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4681). Thanks to @aramattamara for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4694).
+* FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): improve accessibility score to 100 according to [Google's Lighthouse](https://developer.chrome.com/docs/lighthouse/accessibility/?utm_source=lighthouse&utm_medium=devtools) tests.
+* FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): organize `min`, `max`, `median` values on the chart legend and tooltips for better visibility.
 
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): consistently set UserAgent header to `vm_promscrape` during scraping with enabled or disabled `promscrape.streamParse`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4884) for details.
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): consistently set timeout for scraping with enabled or disabled `promscrape.streamParse`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4847) for details.
+* BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): consistently round sample values on chart, tooltip and legend.
 
 ## [v1.93.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.1)
 
