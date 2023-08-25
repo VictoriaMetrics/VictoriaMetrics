@@ -16,6 +16,7 @@ GO_BUILDINFO = -X '$(PKG_PREFIX)/lib/buildinfo.Version=$(APP_NAME)-$(DATEINFO_TA
 
 include app/*/Makefile
 include deployment/*/Makefile
+include dashboards/Makefile
 include snap/local/Makefile
 include package/release/Makefile
 
