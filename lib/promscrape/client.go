@@ -37,6 +37,9 @@ var (
 )
 
 type client struct {
+	// hang on to ScrapeWork so that clients can be recreated on http->https redirect
+	sw *ScrapeWork
+
 	// hc is the default client optimized for common case of scraping targets with moderate number of metrics.
 	hc *fasthttp.HostClient
 
@@ -82,6 +85,9 @@ func concatTwoStrings(x, y string) string {
 const scrapeUserAgent = "vm_promscrape"
 
 func newClient(ctx context.Context, sw *ScrapeWork) *client {
+
+	hc := buildHostClient(sw)
+
 	var u fasthttp.URI
 	u.Update(sw.ScrapeURL)
 	hostPort := string(u.Host())
@@ -117,24 +123,7 @@ func newClient(ctx context.Context, sw *ScrapeWork) *client {
 	}
 	hostPort = addMissingPort(hostPort, isTLS)
 	dialAddr = addMissingPort(dialAddr, isTLS)
-	dialFunc, err := newStatDialFunc(proxyURL, sw.ProxyAuthConfig)
-	if err != nil {
-		logger.Fatalf("cannot create dial func: %s", err)
-	}
-	hc := &fasthttp.HostClient{
-		Addr: dialAddr,
-		// Name used in User-Agent request header
-		Name:                         scrapeUserAgent,
-		Dial:                         dialFunc,
-		IsTLS:                        isTLS,
-		TLSConfig:                    tlsCfg,
-		MaxIdleConnDuration:          2 * sw.ScrapeInterval,
-		ReadTimeout:                  sw.ScrapeTimeout,
-		WriteTimeout:                 10 * time.Second,
-		MaxResponseBodySize:          maxScrapeSize.IntN(),
-		MaxIdempotentRequestAttempts: 1,
-		ReadBufferSize:               maxResponseHeadersSize.IntN(),
-	}
+
 	var sc *http.Client
 	var proxyURLFunc func(*http.Request) (*url.URL, error)
 	if pu := sw.ProxyURL.GetURL(); pu != nil {
@@ -161,6 +150,7 @@ func newClient(ctx context.Context, sw *ScrapeWork) *client {
 	}
 
 	return &client{
+		sw:                      sw,
 		hc:                      hc,
 		ctx:                     ctx,
 		sc:                      sc,
@@ -175,6 +165,52 @@ func newClient(ctx context.Context, sw *ScrapeWork) *client {
 		denyRedirects:           sw.DenyRedirects,
 		disableCompression:      sw.DisableCompression,
 		disableKeepAlive:        sw.DisableKeepAlive,
+	}
+}
+
+func buildHostClient(sw *ScrapeWork) *fasthttp.HostClient {
+	var u fasthttp.URI
+	u.Update(sw.ScrapeURL)
+	hostPort := string(u.Host())
+	dialAddr := hostPort
+	isTLS := string(u.Scheme()) == "https"
+	var tlsCfg *tls.Config
+	if isTLS {
+		tlsCfg = sw.AuthConfig.NewTLSConfig()
+	}
+	proxyURL := sw.ProxyURL
+	if !isTLS && proxyURL.IsHTTPOrHTTPS() {
+		// Send full sw.ScrapeURL in requests to a proxy host for non-TLS scrape targets
+		// like net/http package from Go does.
+		// See https://en.wikipedia.org/wiki/Proxy_server#Web_proxy_servers
+		pu := proxyURL.GetURL()
+		dialAddr = pu.Host
+		isTLS = pu.Scheme == "https"
+		if isTLS {
+			tlsCfg = sw.ProxyAuthConfig.NewTLSConfig()
+		}
+		proxyURL = &proxy.URL{}
+	}
+	hostPort = addMissingPort(hostPort, isTLS)
+	dialAddr = addMissingPort(dialAddr, isTLS)
+	dialFunc, err := newStatDialFunc(proxyURL, sw.ProxyAuthConfig)
+	if err != nil {
+		logger.Fatalf("cannot create dial func: %s", err)
+	}
+
+	return &fasthttp.HostClient{
+		Addr: dialAddr,
+		// Name used in User-Agent request header
+		Name:                         scrapeUserAgent,
+		Dial:                         dialFunc,
+		IsTLS:                        isTLS,
+		TLSConfig:                    tlsCfg,
+		MaxIdleConnDuration:          2 * sw.ScrapeInterval,
+		ReadTimeout:                  sw.ScrapeTimeout,
+		WriteTimeout:                 10 * time.Second,
+		MaxResponseBodySize:          maxScrapeSize.IntN(),
+		MaxIdempotentRequestAttempts: 1,
+		ReadBufferSize:               maxResponseHeadersSize.IntN(),
 	}
 }
 
@@ -282,6 +318,13 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 			err = fmt.Errorf("missing Location header")
 			break
 		}
+
+		// if we are redirecting from http to https we need to recreate the HostClient
+		if !c.hc.IsTLS && string(location[0:5]) == "https" {
+			c.sw.ScrapeURL = string(location)
+			c.hc = buildHostClient(c.sw)
+		}
+
 		req.URI().UpdateBytes(location)
 		err = doRequestWithPossibleRetry(ctx, c.hc, req, resp)
 		statusCode = resp.StatusCode()
