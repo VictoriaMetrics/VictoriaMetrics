@@ -3,6 +3,7 @@
 ## Next release
 
 ### Fixes
+- [vmselect](https://docs.victoriametrics.com/operator/api.html#vmcluster): fix cache directory when `cacheDataPath` not specified, before it will use `/tmp` which is protect by default strict securityContext.
 
 ### Features
 
