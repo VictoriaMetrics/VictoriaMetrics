@@ -32,11 +32,9 @@ export const formatPrettyNumber = (
   // This precision should be enough for most UX cases,
   // since the remaining digits are usually a white noise.
   let digits = 3 + Math.floor(1 + Math.log10(Math.max(Math.abs(min), Math.abs(max))) - Math.log10(range));
-  if (isNaN(digits) || digits > 20) {
-    digits = 20;
-  }
+  if (isNaN(digits) || digits > 20) digits = 20;
   return n.toLocaleString("en-US", {
-    minimumSignificantDigits: digits,
+    minimumSignificantDigits: 1,
     maximumSignificantDigits: digits,
   });
 };

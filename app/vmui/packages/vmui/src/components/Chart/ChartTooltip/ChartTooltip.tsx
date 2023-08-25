@@ -7,6 +7,7 @@ import uPlot from "uplot";
 import Button from "../../Main/Button/Button";
 import { CloseIcon, DragIcon } from "../../Main/Icons";
 import { SeriesItemStats } from "../../../types";
+import { STATS_ORDER } from "../../../constants/graph";
 
 export interface ChartTooltipProps {
   u?: uPlot;
@@ -134,6 +135,7 @@ const ChartTooltip: FC<ChartTooltipProps> = ({
               size="small"
               startIcon={<DragIcon/>}
               onMouseDown={handleMouseDown}
+              ariaLabel="drag the tooltip"
             />
             <Button
               className="vm-chart-tooltip-header__close"
@@ -141,6 +143,7 @@ const ChartTooltip: FC<ChartTooltipProps> = ({
               size="small"
               startIcon={<CloseIcon/>}
               onClick={handleClose}
+              ariaLabel="close the tooltip"
             />
           </>
         )}
@@ -152,25 +155,24 @@ const ChartTooltip: FC<ChartTooltipProps> = ({
             style={{ background: marker }}
           />
         )}
-        <div>
-          <p className="vm-chart-tooltip-data__value">
-            <b>{value}</b>{unit}
-          </p>
-          {stats && (
-            <p className="vm-chart-tooltip-data__stats">
-              {Object.keys(stats).filter(key => key !== "last").map((key, i) => (
-                <span key={i}>
-                  {key}:<b>{stats[key as keyof SeriesItemStats]}</b>
-                </span>
-              )
-              )}
-            </p>
-          )}
-        </div>
+        <p className="vm-chart-tooltip-data__value">
+          <b>{value}</b>{unit}
+        </p>
       </div>
-      <div className="vm-chart-tooltip-info">
-        {info}
-      </div>
+      {stats && (
+        <table className="vm-chart-tooltip-stats">
+          {STATS_ORDER.map((key, i) => (
+            <div
+              className="vm-chart-tooltip-stats-row"
+              key={i}
+            >
+              <span className="vm-chart-tooltip-stats-row__key">{key}:</span>
+              <span className="vm-chart-tooltip-stats-row__value">{stats[key]}</span>
+            </div>
+          ))}
+        </table>
+      )}
+      {info && <p className="vm-chart-tooltip__info">{info}</p>}
     </div>
   ), u.root);
 };

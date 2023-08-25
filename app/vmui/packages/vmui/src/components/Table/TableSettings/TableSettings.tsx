@@ -67,6 +67,7 @@ const TableSettings: FC<TableSettingsProps> = ({
             startIcon={<SettingsIcon/>}
             onClick={toggleOpenSettings}
             disabled={disabledButton}
+            ariaLabel="table settings"
           />
         </div>
       </Tooltip>
@@ -100,6 +101,7 @@ const TableSettings: FC<TableSettingsProps> = ({
                   size="small"
                   onClick={handleResetColumns}
                   startIcon={<RestartIcon/>}
+                  ariaLabel="reset columns"
                 />
               </Tooltip>
             </div>

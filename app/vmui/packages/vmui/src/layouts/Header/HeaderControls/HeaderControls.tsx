@@ -58,6 +58,7 @@ const HeaderControls: FC<ControlsProps & HeaderProps> = ({
             })}
             startIcon={<MoreIcon/>}
             onClick={handleToggleList}
+            ariaLabel={"controls"}
           />
         </div>
         <Modal

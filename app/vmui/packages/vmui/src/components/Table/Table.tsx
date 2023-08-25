@@ -110,6 +110,7 @@ const Table = <T extends object>({ rows, columns, defaultOrderBy, copyToClipboar
                         size="small"
                         startIcon={copied === rowIndex ? <DoneIcon/> : <CopyIcon/>}
                         onClick={createCopyHandler(row[copyToClipboard], rowIndex)}
+                        ariaLabel="copy row"
                       />
                     </Tooltip>
                   </div>
