@@ -4,6 +4,19 @@
 
 ### Fixes
 
+- TODO
+
+### Features
+
+- TODO
+
+<a name="v0.36.1"></a>
+## [v0.36.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.36.0) - 25 Aug 2023
+
+### Fixes
+
+- [vmselect](https://docs.victoriametrics.com/operator/api.html#vmcluster): fix cache directory when `cacheDataPath` not specified, before it will use `/tmp` which is protect by default strict securityContext.
+
 ### Features
 
 <a name="v0.36.0"></a>
