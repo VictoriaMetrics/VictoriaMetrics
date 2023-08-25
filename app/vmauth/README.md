@@ -221,6 +221,9 @@ ip_filters:
 The config may contain `%{ENV_VAR}` placeholders, which are substituted by the corresponding `ENV_VAR` environment variable values.
 This may be useful for passing secrets to the config.
 
+Please note, vmauth doesn't follow redirects. If destination redirects request to a new location, make sure this 
+location is supported in vmauth `url_map` config.
+
 ## Security
 
 It is expected that all the backend services protected by `vmauth` are located in an isolated private network, so they can be accessed by external users only via `vmauth`.
