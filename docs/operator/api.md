@@ -1840,9 +1840,9 @@ VMClusterStatus defines the observed state of VMCluster
 | dnsPolicy | DNSPolicy sets DNS policy for the pod | [v1.DNSPolicy](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#pod-v1-core) | false |
 | dnsConfig | Specifies the DNS parameters of a pod. Parameters specified here will be merged to the generated DNS configuration based on DNSPolicy. | *v1.PodDNSConfig | false |
 | topologySpreadConstraints | TopologySpreadConstraints embedded kubernetes pod configuration option, controls how pods are spread across your cluster among failure-domains such as regions, zones, nodes, and other user-defined topology domains https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/ | [][v1.TopologySpreadConstraint](https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/) | false |
-| cacheMountPath | CacheMountPath allows to add cache persistent for VMSelect | string | false |
+| cacheMountPath | CacheMountPath allows to add cache persistent for VMSelect, will use \&#34;/cache\&#34; as default if not specified. | string | false |
 | persistentVolume | Storage - add persistent volume for cacheMounthPath its useful for persistent cache use storage instead of persistentVolume. | *[StorageSpec](#storagespec) | false |
-| storage | StorageSpec - add persistent volume claim for cacheMounthPath its needed for persistent cache | *[StorageSpec](#storagespec) | false |
+| storage | StorageSpec - add persistent volume claim for cacheMountPath its needed for persistent cache | *[StorageSpec](#storagespec) | false |
 | extraEnvs | ExtraEnvs that will be added to VMSelect pod | [][v1.EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#envvar-v1-core) | false |
 | extraArgs |  | map[string]string | false |
 | port | Port listen port | string | false |
