@@ -186,6 +186,7 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
                 color={"gray"}
                 startIcon={hideQuery.includes(i) ? <VisibilityOffIcon/> : <VisibilityIcon/>}
                 onClick={createHandlerHideQuery(i)}
+                ariaLabel="visibility query"
               />
             </div>
           </Tooltip>
@@ -198,6 +199,7 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
                 startIcon={<Prettify/>}
                 onClick={async () => await handlePrettifyQuery(i)}
                 className="prettify"
+                ariaLabel="prettify the query"
               />
             </div>
           </Tooltip>
@@ -210,6 +212,7 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
                   color={"error"}
                   startIcon={<DeleteIcon/>}
                   onClick={createHandlerRemoveQuery(i)}
+                  ariaLabel="remove query"
                 />
               </div>
             </Tooltip>

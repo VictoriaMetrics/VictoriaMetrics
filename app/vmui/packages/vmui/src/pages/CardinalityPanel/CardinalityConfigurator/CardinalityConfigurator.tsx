@@ -122,6 +122,7 @@ const CardinalityConfigurator: FC<CardinalityTotalsProps> = (props) => {
             color={showTips ? "warning" : "gray"}
             startIcon={<TipIcon/>}
             onClick={handleToggleTips}
+            ariaLabel="visibility tips"
           />
         </Tooltip>
         <Button

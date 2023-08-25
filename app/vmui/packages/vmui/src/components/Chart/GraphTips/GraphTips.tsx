@@ -22,6 +22,7 @@ const GraphTips: FC = () => {
           color={"gray"}
           startIcon={<TipIcon/>}
           onClick={handleOpenTips}
+          ariaLabel="open the tips"
         />
       </Tooltip>
       {showTips && (
