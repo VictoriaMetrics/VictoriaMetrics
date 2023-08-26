@@ -395,7 +395,7 @@ func (s *Storage) MustAddRows(lr *LogRows) {
 	}
 	s.partitionsLock.Unlock()
 
-	if ptwHot != nil {
+	if ptwHot != nil && ptwHot.pt != nil {
 		if ptwHot.canAddAllRows(lr) {
 			ptwHot.pt.mustAddRows(lr)
 			ptwHot.decRef()
