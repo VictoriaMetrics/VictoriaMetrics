@@ -579,6 +579,9 @@ func (uw *urlWatcher) reloadObjects() string {
 		return uw.resourceVersion
 	}
 
+	// set by default to zero value, it reduces a load for kubernetes control plane
+	// https://kubernetes.io/docs/reference/using-api/api-concepts/#semantics-for-watch
+	uw.resourceVersion = "0"
 	startTime := time.Now()
 	requestURL := uw.apiURL
 	resp, err := uw.gw.doRequest(requestURL)
