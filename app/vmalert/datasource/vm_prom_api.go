@@ -161,12 +161,26 @@ func (s *VMStorage) setPrometheusInstantReqParams(r *http.Request, query string,
 		r.URL.Path += "/api/v1/query"
 	}
 	q := r.URL.Query()
-	if s.lookBack > 0 {
-		timestamp = timestamp.Add(-s.lookBack)
+
+	if s.evaluationInterval > 0 {
+		// with eval_offset, we will find the moment
+		// that the rule suppose to generate results
+		// see https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4693#discussion_r1301727488
+		if s.evalOffset != nil {
+			// if offset is smaller that group `eval_offset`,
+			// means we need to use the last offset point in range of last [0, interval]
+			if timestamp.Sub(timestamp.Truncate(s.evaluationInterval)) < *s.evalOffset {
+				timestamp = timestamp.Add(-*&s.evaluationInterval)
+			}
+			timestamp = timestamp.Truncate(s.evaluationInterval).Add(*s.evalOffset)
+		} else if *queryTimeAlignment {
+			// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1232
+			timestamp = timestamp.Truncate(s.evaluationInterval)
+		}
 	}
-	if *queryTimeAlignment && s.evaluationInterval > 0 {
-		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1232
-		timestamp = timestamp.Truncate(s.evaluationInterval)
+	// lookBack shouldn't work on group which has `eval_offset`
+	if s.lookBack > 0 && s.evalOffset == nil {
+		timestamp = timestamp.Add(-s.lookBack)
 	}
 	q.Set("time", timestamp.Format(time.RFC3339))
 	if !*disableStepParam && s.evaluationInterval > 0 { // set step as evaluationInterval by default
@@ -191,6 +205,9 @@ func (s *VMStorage) setPrometheusRangeReqParams(r *http.Request, query string, s
 		r.URL.Path += "/api/v1/query_range"
 	}
 	q := r.URL.Query()
+	if s.evalOffset != nil {
+		start = start.Truncate(s.evaluationInterval).Add(*s.evalOffset)
+	}
 	q.Add("start", start.Format(time.RFC3339))
 	q.Add("end", end.Format(time.RFC3339))
 	if s.evaluationInterval > 0 { // set step as evaluationInterval by default

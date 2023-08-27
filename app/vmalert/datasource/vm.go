@@ -36,6 +36,7 @@ type VMStorage struct {
 	datasourceURL    string
 	appendTypePrefix bool
 	lookBack         time.Duration
+	evalOffset       *time.Duration
 	queryStep        time.Duration
 
 	dataSourceType     datasourceType
@@ -86,6 +87,7 @@ func (s *VMStorage) Clone() *VMStorage {
 func (s *VMStorage) ApplyParams(params QuerierParams) *VMStorage {
 	s.dataSourceType = toDatasourceType(params.DataSourceType)
 	s.evaluationInterval = params.EvaluationInterval
+	s.evalOffset = params.EvalOffset
 	if params.QueryParams != nil {
 		if s.extraParams == nil {
 			s.extraParams = url.Values{}

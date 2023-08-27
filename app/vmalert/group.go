@@ -287,28 +287,29 @@ func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *r
 
 	evalTS := time.Now()
 
-	// If group `eval_offset` is specified, will evaluate group
-	// at the nearest offset time point aligned with group interval,
-	// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3409.
-	// If not, sleep random duration to spread group rules evaluation
+	// sleep random duration to spread group rules evaluation
 	// over time in order to reduce load on VictoriaMetrics.
+	// If `eval_offset` is specified, make sure randSleep is
+	// big enough to having all raw series in VictoriaMetrics
+	// when the actual query requests come, avoiding partial responses.
+	// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3409.
 	if !skipRandSleepOnGroupStart {
 		var randSleep uint64
-		if g.EvalOffset != nil {
-			ts := evalTS.Truncate(g.Interval).Add(*g.EvalOffset)
-			if ts.After(evalTS) {
-				randSleep = uint64(ts.Sub(evalTS))
-			} else {
-				randSleep = uint64(ts.Add(g.Interval).Sub(evalTS))
-			}
-		} else {
-			randSleep = uint64(float64(g.Interval) * (float64(g.ID()) / (1 << 64)))
-			sleepOffset := uint64(time.Now().UnixNano()) % uint64(g.Interval)
-			if randSleep < sleepOffset {
-				randSleep += uint64(g.Interval)
-			}
-			randSleep -= sleepOffset
+		randSleep = uint64(float64(g.Interval) * (float64(g.ID()) / (1 << 64)))
+		sleepOffset := uint64(evalTS.UnixNano()) % uint64(g.Interval)
+		if randSleep < sleepOffset {
+			randSleep += uint64(g.Interval)
 		}
+		randSleep -= sleepOffset
+		// check if evalTS after randSleep is before `eval_offset``,
+		// if it is, add extra eval_offset to randSleep.
+		if g.EvalOffset != nil {
+			tmpEvalTS := evalTS.Add(time.Duration(randSleep))
+			if tmpEvalTS.Before(tmpEvalTS.Truncate(g.Interval).Add(*g.EvalOffset)) {
+				randSleep += uint64(*g.EvalOffset)
+			}
+		}
+
 		sleepTimer := time.NewTimer(time.Duration(randSleep))
 		select {
 		case <-ctx.Done():
@@ -320,6 +321,8 @@ func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *r
 		case <-sleepTimer.C:
 		}
 	}
+
+	evalTS = time.Now()
 
 	e := &executor{
 		rw:                       rw,
