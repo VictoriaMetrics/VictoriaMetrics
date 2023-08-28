@@ -32,6 +32,10 @@ var (
 	disableRerouting      = flag.Bool("disableRerouting", true, "Whether to disable re-routing when some of vmstorage nodes accept incoming data at slower speed compared to other storage nodes. Disabled re-routing limits the ingestion rate by the slowest vmstorage node. On the other side, disabled re-routing minimizes the number of active time series in the cluster during rolling restarts and during spikes in series churn rate. See also -dropSamplesOnOverload")
 	dropSamplesOnOverload = flag.Bool("dropSamplesOnOverload", false, "Whether to drop incoming samples if the destination vmstorage node is overloaded and/or unavailable. This prioritizes cluster availability over consistency, e.g. the cluster continues accepting all the ingested samples, but some of them may be dropped if vmstorage nodes are temporarily unavailable and/or overloaded. The drop of samples happens before the replication, so it's not recommended to use this flag with -replicationFactor enabled.")
 	vmstorageDialTimeout  = flag.Duration("vmstorageDialTimeout", 5*time.Second, "Timeout for establishing RPC connections from vminsert to vmstorage")
+	vmstorageUserTimeout  = flag.Duration("vmstorageUserTimeout", 0, "TCP user timeout for RPC connections from vminsert to vmstorage (Linux only). "+
+		"When greater than 0, it specifies the maximum amount of time transmitted data may remain unacknowledged before the TCP connection is closed."+
+		"Setting a low TCP user timeout allows inserts to reroute around unresponsive storage nodes faster than the full insert timeout (at least 60 seconds)."+
+		"By default, this timeout is disabled.")
 )
 
 var errStorageReadOnly = errors.New("storage node is read only")
@@ -516,7 +520,7 @@ func initStorageNodes(addrs []string, hashSeed uint64) *storageNodesBucket {
 			addr += ":8400"
 		}
 		sn := &storageNode{
-			dialer: netutil.NewTCPDialer(ms, "vminsert", addr, *vmstorageDialTimeout),
+			dialer: netutil.NewTCPDialer(ms, "vminsert", addr, *vmstorageDialTimeout, *vmstorageUserTimeout),
 
 			stopCh: stopCh,
 
