@@ -329,6 +329,9 @@ func (s *Storage) watchRetention() {
 			logger.Infof("the partition %s is scheduled to be deleted because it is outside the -retentionPeriod=%dd", ptw.pt.path, durationToDays(s.retention))
 			atomic.StoreUint32(&ptw.mustBeDeleted, 1)
 			ptw.decRef()
+			if s.ptwHot != nil && s.ptwHot.pt == ptw.pt {
+				s.ptwHot = nil
+			}
 		}
 
 		select {
@@ -363,6 +366,7 @@ func (s *Storage) MustClose() {
 		}
 	}
 	s.partitions = nil
+	s.ptwHot = nil
 
 	// Save caches
 	streamIDCachePath := filepath.Join(s.path, cacheDirname, streamIDCacheFilename)
@@ -395,7 +399,7 @@ func (s *Storage) MustAddRows(lr *LogRows) {
 	}
 	s.partitionsLock.Unlock()
 
-	if ptwHot != nil && ptwHot.pt != nil {
+	if ptwHot != nil {
 		if ptwHot.canAddAllRows(lr) {
 			ptwHot.pt.mustAddRows(lr)
 			ptwHot.decRef()
