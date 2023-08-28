@@ -24,9 +24,14 @@ The following `tip` changes can be tested by building VictoriaMetrics components
 
 ## v1.93.x long-time support release (LTS)
 
-## v1.93.1 long-time support release (LTS)
+## [v1.93.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.1)
 
-* BUGFIX: [storage](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html): properly set next retention time for indexDB. Previously it may enter into endless retention loop. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4873) for details.
+Released at 2023-08-23
+
+**v1.93.x is a line of LTS releases (e.g. long-time support). It contains important up-to-date bugfixes.
+The v1.93.x line will be supported for at least 12 months since [v1.93.0](https://docs.victoriametrics.com/CHANGELOG.html#v1930) release**
+
+* BUGFIX: prevent from possible data loss during `indexdb` rotation. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4873) for details.
 * BUGFIX: do not allow starting VictoriaMetrics components with improperly set boolean command-line flags in the form `-boolFlagName value`, since this leads to silent incomplete flags' parsing. This form should be replaced with `-boolFlagName=value`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4845).
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): properly set labels from `-remoteWrite.label` command-line flag just before sending samples to the configured `-remoteWrite.url` according to [these docs](https://docs.victoriametrics.com/vmagent.html#adding-labels-to-metrics). Previously these labels were incorrectly set before [the relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling) configured via `-remoteWrite.urlRelabelConfigs` and [the stream aggregation](https://docs.victoriametrics.com/stream-aggregation.html) configured via `-remoteWrite.streamAggr.config`, so these labels could be lost or incorrectly transformed before sending the samples to remote storage. The fix allows using `-remoteWrite.label` for identifying `vmagent` instances in [cluster mode](https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4247) and [these docs](https://docs.victoriametrics.com/stream-aggregation.html#cluster-mode) for more details.
 * BUGFIX: remove `DEBUG` logging when parsing `if` filters inside [relabeling rules](https://docs.victoriametrics.com/vmagent.html#relabeling-enhancements) and when parsing `match` filters inside [stream aggregation rules](https://docs.victoriametrics.com/stream-aggregation.html).
@@ -37,6 +42,8 @@ The following `tip` changes can be tested by building VictoriaMetrics components
 ## [v1.93.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.0)
 
 Released at 2023-08-12
+
+**It is recommended upgrading to [VictoriaMetrics v1.93.1](https://docs.victoriametrics.com/CHANGELOG.html#v1931) because v1.93.0 contains a bug, which can lead to data loss because of incorrect `indexdb` rotation. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4873) for details.**
 
 **v1.93.x is a line of LTS releases (e.g. long-time support). It contains important up-to-date bugfixes.
 The v1.93.x line will be supported for at least 12 months since [v1.93.0](https://docs.victoriametrics.com/CHANGELOG.html#v1930) release**
@@ -83,6 +90,9 @@ Released at 2023-07-28
 ## [v1.92.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.92.0)
 
 Released at 2023-07-27
+
+**Update note: this release contains backwards-incompatible change to indexdb,
+so rolling back to the previous versions of VictoriaMetrics may result in partial data loss of entries in indexdb.**
 
 **Update note**: starting from this release, [stream aggregation](https://docs.victoriametrics.com/stream-aggregation.html) writes
 the following samples to the configured remote storage by default:
