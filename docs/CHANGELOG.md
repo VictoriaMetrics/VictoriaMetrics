@@ -37,6 +37,9 @@ The following `tip` changes can be tested by building VictoriaMetrics components
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): consistently set timeout for scraping with enabled or disabled `promscrape.streamParse`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4847) for details.
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): consistently round sample values on chart, tooltip and legend.
 
+* BUGFIX: [Official Grafana dashboards for VictoriaMetrics](https://grafana.com/orgs/victoriametrics): fix display of ingested rows rate for `Samples ingested/s` and `Samples rate` panels for vmagent's dasbhoard. Previously, not all ingested protocols were accounted in these panels. An extra panel `Rows rate` was added to `Ingestion` section to display the split for rows ingested rate by protocol.
+
+
 ## [v1.93.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.1)
 
 Released at 2023-08-23
