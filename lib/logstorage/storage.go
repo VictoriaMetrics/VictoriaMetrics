@@ -366,6 +366,7 @@ func (s *Storage) MustClose() {
 		}
 	}
 	s.partitions = nil
+	s.ptwHot = nil
 
 	// Save caches
 	streamIDCachePath := filepath.Join(s.path, cacheDirname, streamIDCacheFilename)
@@ -398,7 +399,7 @@ func (s *Storage) MustAddRows(lr *LogRows) {
 	}
 	s.partitionsLock.Unlock()
 
-	if ptwHot != nil && ptwHot.pt != nil {
+	if ptwHot != nil {
 		if ptwHot.canAddAllRows(lr) {
 			ptwHot.pt.mustAddRows(lr)
 			ptwHot.decRef()
