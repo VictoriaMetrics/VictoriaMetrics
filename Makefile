@@ -174,6 +174,7 @@ vmutils-crossbuild: \
 	vmutils-windows-amd64
 
 publish-release:
+	rm -rf bin/*
 	git checkout $(TAG) && LATEST_TAG=stable $(MAKE) release publish && \
 		git checkout $(TAG)-cluster && LATEST_TAG=cluster-stable $(MAKE) release publish && \
 		git checkout $(TAG)-enterprise && LATEST_TAG=enterprise-stable $(MAKE) release publish && \
