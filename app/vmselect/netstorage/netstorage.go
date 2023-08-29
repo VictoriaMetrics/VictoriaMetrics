@@ -42,6 +42,11 @@ var (
 	maxSamplesPerSeries  = flag.Int("search.maxSamplesPerSeries", 30e6, "The maximum number of raw samples a single query can scan per each time series. See also -search.maxSamplesPerQuery")
 	maxSamplesPerQuery   = flag.Int("search.maxSamplesPerQuery", 1e9, "The maximum number of raw samples a single query can process across all time series. This protects from heavy queries, which select unexpectedly high number of raw samples. See also -search.maxSamplesPerSeries")
 	vmstorageDialTimeout = flag.Duration("vmstorageDialTimeout", 5*time.Second, "Timeout for establishing RPC connections from vmselect to vmstorage")
+	vmstorageUserTimeout = flag.Duration("vmstorageUserTimeout", 0, "TCP user timeout for RPC connections from vmselect to vmstorage (Linux only). "+
+		"When greater than 0, it specifies the maximum amount of time transmitted data may remain unacknowledged before the TCP connection is closed. "+
+		"Setting a low TCP user timeout allows queries to ignore unresponsive storage nodes faster than the max query duration. "+
+		"By default, this timeout is disabled. "+
+		"See also -search.maxQueryDuration")
 )
 
 // Result is a single timeseries result.
@@ -2753,7 +2758,7 @@ func newStorageNode(ms *metrics.Set, addr string) *storageNode {
 		addr += ":8401"
 	}
 	// There is no need in requests compression, since vmselect requests are usually very small.
-	connPool := netutil.NewConnPool(ms, "vmselect", addr, handshake.VMSelectClient, 0, *vmstorageDialTimeout)
+	connPool := netutil.NewConnPool(ms, "vmselect", addr, handshake.VMSelectClient, 0, *vmstorageDialTimeout, *vmstorageUserTimeout)
 
 	sn := &storageNode{
 		connPool: connPool,
