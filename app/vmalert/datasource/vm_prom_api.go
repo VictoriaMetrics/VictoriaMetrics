@@ -162,26 +162,7 @@ func (s *VMStorage) setPrometheusInstantReqParams(r *http.Request, query string,
 	}
 	q := r.URL.Query()
 
-	if s.evaluationInterval > 0 {
-		// with eval_offset, we will find the moment
-		// that the rule suppose to generate results
-		// see https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4693#discussion_r1301727488
-		if s.evalOffset != nil {
-			// if offset is smaller that group `eval_offset`,
-			// means we need to use the last offset point in range of last [0, interval]
-			if timestamp.Sub(timestamp.Truncate(s.evaluationInterval)) < *s.evalOffset {
-				timestamp = timestamp.Add(-*&s.evaluationInterval)
-			}
-			timestamp = timestamp.Truncate(s.evaluationInterval).Add(*s.evalOffset)
-		} else if *queryTimeAlignment {
-			// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1232
-			timestamp = timestamp.Truncate(s.evaluationInterval)
-		}
-	}
-	// lookBack shouldn't work on group which has `eval_offset`
-	if s.lookBack > 0 && s.evalOffset == nil {
-		timestamp = timestamp.Add(-s.lookBack)
-	}
+	timestamp = s.getPrometheusReqTimestamp(timestamp)
 	q.Set("time", timestamp.Format(time.RFC3339))
 	if !*disableStepParam && s.evaluationInterval > 0 { // set step as evaluationInterval by default
 		// always convert to seconds to keep compatibility with older
@@ -231,4 +212,28 @@ func (s *VMStorage) setPrometheusReqParams(r *http.Request, query string) {
 	}
 	q.Set("query", query)
 	r.URL.RawQuery = q.Encode()
+}
+
+func (s *VMStorage) getPrometheusReqTimestamp(timestamp time.Time) time.Time {
+	if s.evaluationInterval > 0 {
+		// with eval_offset, we will find the moment
+		// that the rule suppose to generate results
+		// see https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4693#discussion_r1301727488
+		if s.evalOffset != nil {
+			// if offset is smaller that group `eval_offset`,
+			// means we need to use the last offset point in range of last [0, interval]
+			if timestamp.Sub(timestamp.Truncate(s.evaluationInterval)) < *s.evalOffset {
+				timestamp = timestamp.Add(-s.evaluationInterval)
+			}
+			timestamp = timestamp.Truncate(s.evaluationInterval).Add(*s.evalOffset)
+		} else if *queryTimeAlignment {
+			// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1232
+			timestamp = timestamp.Truncate(s.evaluationInterval)
+		}
+	}
+	// lookBack shouldn't work on group which has `eval_offset`
+	if s.lookBack > 0 && s.evalOffset == nil {
+		timestamp = timestamp.Add(-s.lookBack)
+	}
+	return timestamp
 }

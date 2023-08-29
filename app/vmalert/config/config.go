@@ -69,8 +69,11 @@ func (g *Group) Validate(validateTplFn ValidateTplFn, validateExpressions bool) 
 	if g.Name == "" {
 		return fmt.Errorf("group name must be set")
 	}
-	if g.Interval.Duration() < 0 || g.EvalOffset.Duration() < 0 {
-		return fmt.Errorf("neither interval nor eval_offset should be less than 0")
+	if g.Interval.Duration() < 0 {
+		return fmt.Errorf("interval shouldn't be lower than 0")
+	}
+	if g.EvalOffset.Duration() < 0 {
+		return fmt.Errorf("eval_offset shouldn't be lower than 0")
 	}
 	// if `eval_offset` is set, interval won't use global evaluationInterval flag and must bigger than offset.
 	if g.EvalOffset.Duration() > g.Interval.Duration() {

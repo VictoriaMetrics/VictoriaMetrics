@@ -114,7 +114,7 @@ name: <string>
 
 # Optional
 # Group will be evaluated at the exact offset in the range of [0...interval].
-# If set, interval won't use -evaluationInterval flag and must be bigger than eval_offset.
+# `eval_offset` can't be bigger than `interval`.
 [ eval_offset: <duration> ]
 
 # Limit the number of alerts an alerting rule and series a recording
