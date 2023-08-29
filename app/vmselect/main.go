@@ -292,6 +292,12 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		httpserver.Errorf(w, r, "auth error: %s", err)
 		return true
 	}
+	if at == nil {
+		// the only option for at to be nil is when p.AuthToken == "multitenant"
+		// vmselect does not have multitenant endpoint, so request must be rejected
+		httpserver.Errorf(w, r, "auth error: tenantID must be specified explicitly in the request path")
+		return true
+	}
 	switch p.Prefix {
 	case "select":
 		return selectHandler(qt, startTime, w, r, p, at)
