@@ -6,4 +6,5 @@ The `vm` folder contains copies of the listed dashboards but alternated to use
 
 The listed dashboards can be found on [Grafana website](https://grafana.com/orgs/victoriametrics/dashboards).
 
-When making changes to the dashboards upstream, don't forget to call `make dashboards-sync`.
+When making changes to the dashboards in `dashboards` folder, don't forget to call `make dashboards-sync`
+and sync changes to [Grafana website](https://grafana.com/orgs/victoriametrics/dashboards).
