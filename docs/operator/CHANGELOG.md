@@ -3,9 +3,8 @@
 ## Next release
 
 ### Fixes
-- [vmselect](https://docs.victoriametrics.com/operator/api.html#vmcluster): fix cache directory when `cacheDataPath` not specified, before it will use `/tmp` which is protect by default strict securityContext.
 
-- TODO
+- [vmagent](https://docs.victoriametrics.com/operator/api.html#vmagent): fix unmarshalling for streaming aggregation `match` field.
 
 ### Features
 
