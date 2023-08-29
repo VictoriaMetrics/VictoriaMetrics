@@ -29,18 +29,18 @@ func mergeURLs(uiURL, requestURI *url.URL) *url.URL {
 	return &targetURL
 }
 
-func (ui *UserInfo) getURLPrefixAndHeaders(u *url.URL) (*URLPrefix, []Header) {
+func (ui *UserInfo) getURLPrefixAndHeaders(u *url.URL) (*URLPrefix, []Header, []Header) {
 	for _, e := range ui.URLMaps {
 		for _, sp := range e.SrcPaths {
 			if sp.match(u.Path) {
-				return e.URLPrefix, e.Headers
+				return e.URLPrefix, e.Headers, ui.ResponseHeaders
 			}
 		}
 	}
 	if ui.URLPrefix != nil {
-		return ui.URLPrefix, ui.Headers
+		return ui.URLPrefix, ui.Headers, ui.ResponseHeaders
 	}
-	return nil, nil
+	return nil, nil, nil
 }
 
 func normalizeURL(uOrig *url.URL) *url.URL {

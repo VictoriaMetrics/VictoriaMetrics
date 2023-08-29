@@ -44,6 +44,7 @@ type UserInfo struct {
 	URLPrefix             *URLPrefix `yaml:"url_prefix,omitempty"`
 	URLMaps               []URLMap   `yaml:"url_map,omitempty"`
 	Headers               []Header   `yaml:"headers,omitempty"`
+	ResponseHeaders       []Header   `yaml:"response_headers,omitempty"`
 	MaxConcurrentRequests int        `yaml:"max_concurrent_requests,omitempty"`
 	DefaultURL            *URLPrefix `yaml:"default_url,omitempty"`
 
@@ -105,9 +106,10 @@ func (h *Header) MarshalYAML() (interface{}, error) {
 
 // URLMap is a mapping from source paths to target urls.
 type URLMap struct {
-	SrcPaths  []*SrcPath `yaml:"src_paths,omitempty"`
-	URLPrefix *URLPrefix `yaml:"url_prefix,omitempty"`
-	Headers   []Header   `yaml:"headers,omitempty"`
+	SrcPaths        []*SrcPath `yaml:"src_paths,omitempty"`
+	URLPrefix       *URLPrefix `yaml:"url_prefix,omitempty"`
+	Headers         []Header   `yaml:"headers,omitempty"`
+	ResponseHeaders []Header   `yaml:"response_headers,omitempty"`
 }
 
 // SrcPath represents an src path
