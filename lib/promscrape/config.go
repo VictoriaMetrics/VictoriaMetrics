@@ -53,7 +53,7 @@ var (
 	dropOriginalLabels = flag.Bool("promscrape.dropOriginalLabels", false, "Whether to drop original labels for scrape targets at /targets and /api/v1/targets pages. "+
 		"This may be needed for reducing memory usage when original labels for big number of scrape targets occupy big amounts of memory. "+
 		"Note that this reduces debuggability for improper per-target relabeling configs")
-	clusterMembersCount = flag.Int("promscrape.cluster.membersCount", 0, "The number of members in a cluster of scrapers. "+
+	clusterMembersCount = flag.Int("promscrape.cluster.membersCount", 1, "The number of members in a cluster of scrapers. "+
 		"Each member must have a unique -promscrape.cluster.memberNum in the range 0 ... promscrape.cluster.membersCount-1 . "+
 		"Each member then scrapes roughly 1/N of all the targets. By default, cluster scraping is disabled, i.e. a single scraper scrapes all the targets")
 	clusterMemberNum = flag.String("promscrape.cluster.memberNum", "0", "The number of vmagent instance in the cluster of scrapers. "+
@@ -83,7 +83,7 @@ func mustInitClusterMemberID() {
 	if err != nil {
 		logger.Fatalf("cannot parse -promscrape.cluster.memberNum=%q: %s", *clusterMemberNum, err)
 	}
-	if n < 0 || n >= *clusterMembersCount {
+	if n < 0 || (*clusterMembersCount != 0 && n >= *clusterMembersCount) {
 		logger.Fatalf("-promscrape.cluster.memberNum must be in the range [0..%d] according to -promscrape.cluster.membersCount=%d",
 			*clusterMembersCount, *clusterMembersCount)
 	}
