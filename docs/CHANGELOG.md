@@ -24,6 +24,7 @@ The following `tip` changes can be tested by building VictoriaMetrics components
 
 ## v1.93.x long-time support release (LTS)
 
+* BUGFIX: [build](https://docs.victoriametrics.com/): fix Docker builds for old Docker releases. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4907).
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): consistently set `User-Agent` header to `vm_promscrape` during scraping with enabled or disabled [stream parsing mode](https://docs.victoriametrics.com/vmagent.html#stream-parsing-mode). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4884).
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): consistently set timeout for scraping with enabled or disabled [stream parsing mode](https://docs.victoriametrics.com/vmagent.html#stream-parsing-mode). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4847).
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): correctly re-use HTTP request object on `EOF` retries when querying the configured datasource. Previously, there was a small chance that query retry wouldn't succeed.
