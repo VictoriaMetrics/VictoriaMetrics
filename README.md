@@ -993,7 +993,9 @@ Below is the output for `/path/to/vminsert -help`:
   -version
      Show VictoriaMetrics version
   -vmstorageDialTimeout duration
-     Timeout for establishing RPC connections from vminsert to vmstorage (default 5s)
+     Timeout for establishing RPC connections from vminsert to vmstorage. See also -vmstorageUserTimeout (default 3s)
+  -vmstorageUserTimeout duration
+     Network timeout for RPC connections from vminsert to vmstorage (Linux only). Lower values speed up re-rerouting recovery when some of vmstorage nodes become unavailable because of networking issues. Read more about TCP_USER_TIMEOUT at https://blog.cloudflare.com/when-tcp-sockets-refuse-to-die/ . See also -vmstorageDialTimeout (default 3s)
 ```
 
 ### List of command-line flags for vmselect
@@ -1233,7 +1235,9 @@ Below is the output for `/path/to/vmselect -help`:
   -vmalert.proxyURL string
      Optional URL for proxying requests to vmalert. For example, if -vmalert.proxyURL=http://vmalert:8880 , then alerting API requests such as /api/v1/rules from Grafana will be proxied to http://vmalert:8880/api/v1/rules
   -vmstorageDialTimeout duration
-     Timeout for establishing RPC connections from vmselect to vmstorage (default 5s)
+     Timeout for establishing RPC connections from vmselect to vmstorage. See also -vmstorageUserTimeout (default 3s)
+  -vmstorageUserTimeout duration
+     Network timeout for RPC connections from vmselect to vmstorage (Linux only). Lower values reduce the maximum query durations when some vmstorage nodes become unavailable because of networking issues. Read more about TCP_USER_TIMEOUT at https://blog.cloudflare.com/when-tcp-sockets-refuse-to-die/ . See also -vmstorageDialTimeout (default 3s)
   -vmui.customDashboardsPath string
      Optional path to vmui dashboards. See https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/app/vmui/packages/vmui/public/dashboards
 ```

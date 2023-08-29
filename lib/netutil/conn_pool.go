@@ -49,7 +49,7 @@ type connWithTimestamp struct {
 // The compression is disabled if compressionLevel <= 0.
 //
 // Call ConnPool.MustStop when the returned ConnPool is no longer needed.
-func NewConnPool(ms *metrics.Set, name, addr string, handshakeFunc handshake.Func, compressionLevel int, dialTimeout time.Duration, userTimeout time.Duration) *ConnPool {
+func NewConnPool(ms *metrics.Set, name, addr string, handshakeFunc handshake.Func, compressionLevel int, dialTimeout, userTimeout time.Duration) *ConnPool {
 	cp := &ConnPool{
 		d:                 NewTCPDialer(ms, name, addr, dialTimeout, userTimeout),
 		concurrentDialsCh: make(chan struct{}, 8),

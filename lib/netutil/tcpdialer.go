@@ -13,7 +13,7 @@ import (
 //
 // The name is used in metric tags for the returned dialer.
 // The name must be unique among dialers.
-func NewTCPDialer(ms *metrics.Set, name, addr string, dialTimeout time.Duration, userTimeout time.Duration) *TCPDialer {
+func NewTCPDialer(ms *metrics.Set, name, addr string, dialTimeout, userTimeout time.Duration) *TCPDialer {
 	d := &TCPDialer{
 		d: &net.Dialer{
 			Timeout: dialTimeout,
@@ -29,7 +29,8 @@ func NewTCPDialer(ms *metrics.Set, name, addr string, dialTimeout time.Duration,
 	}
 	d.connMetrics.init(ms, "vm_tcpdialer", name, addr)
 	if userTimeout > 0 {
-		d.d.Control = func(network, address string, c syscall.RawConn) (err error) {
+		d.d.Control = func(network, address string, c syscall.RawConn) error {
+			var err error
 			controlErr := c.Control(func(fd uintptr) {
 				err = setTCPUserTimeout(fd, userTimeout)
 			})
