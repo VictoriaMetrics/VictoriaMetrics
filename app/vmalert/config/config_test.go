@@ -150,7 +150,7 @@ func TestGroup_Validate(t *testing.T) {
 				Name:     "negative interval",
 				Interval: promutils.NewDuration(-1),
 			},
-			expErr: "neither interval nor eval_offset should be less than 0",
+			expErr: "interval shouldn't be lower than 0",
 		},
 		{
 			group: &Group{

@@ -523,3 +523,64 @@ func TestCloseWithEvalInterruption(t *testing.T) {
 	case <-g.finishedCh:
 	}
 }
+
+func TestGroupStartDelay(t *testing.T) {
+	g := &Group{}
+	g.Interval = time.Minute * 5
+	// use this fixed groupID to get fixed randSleep: 132s
+	// that will not be changed by g.EvalOffset
+	fixGroupKey := g.ID()
+	f := func(at time.Time, expTS time.Time) {
+		t.Helper()
+		gotDelay := delayBeforeStart(at, fixGroupKey, g.Interval, g.EvalOffset)
+		expDelay := expTS.Sub(at)
+		if expDelay != gotDelay {
+			t.Errorf("expected to get %v; got %v instead", expDelay, gotDelay)
+		}
+	}
+
+	// test group without offset
+	at := time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)
+	f(at, time.Date(2023, 1, 1, 0, 2, 12, 0, time.UTC))
+
+	at = time.Date(2023, 1, 1, 0, 2, 12, 0, time.UTC)
+	f(at, time.Date(2023, 1, 1, 0, 2, 12, 0, time.UTC))
+
+	// group eval will miss a beat sometimes,
+	// when randSleep is too big for it.
+	// in this case, will miss one in range [00:00-00:05]
+	at = time.Date(2023, 1, 1, 0, 2, 13, 0, time.UTC)
+	f(at, time.Date(2023, 1, 1, 0, 7, 12, 0, time.UTC))
+
+	// test group with offset smaller than above fixed randSleep,
+	// this way randSleep will always be enough
+	offset := 1 * time.Minute
+	g.EvalOffset = &offset
+
+	at = time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)
+	f(at, time.Date(2023, 1, 1, 0, 2, 12, 0, time.UTC))
+
+	at = time.Date(2023, 1, 1, 0, 2, 12, 0, time.UTC)
+	f(at, time.Date(2023, 1, 1, 0, 2, 12, 0, time.UTC))
+
+	// still miss a beat
+	at = time.Date(2023, 1, 1, 0, 2, 13, 0, time.UTC)
+	f(at, time.Date(2023, 1, 1, 0, 7, 12, 0, time.UTC))
+
+	// test group with offset bigger than above fixed randSleep,
+	// this way offset will be added to delay
+	offset = 3 * time.Minute
+	g.EvalOffset = &offset
+
+	at = time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)
+	f(at, time.Date(2023, 1, 1, 0, 5, 12, 0, time.UTC))
+
+	at = time.Date(2023, 1, 1, 0, 1, 0, 0, time.UTC)
+	f(at, time.Date(2023, 1, 1, 0, 5, 12, 0, time.UTC))
+
+	at = time.Date(2023, 1, 1, 0, 2, 13, 0, time.UTC)
+	f(at, time.Date(2023, 1, 1, 0, 10, 12, 0, time.UTC))
+
+	at = time.Date(2023, 1, 1, 0, 3, 0, 0, time.UTC)
+	f(at, time.Date(2023, 1, 1, 0, 10, 12, 0, time.UTC))
+}

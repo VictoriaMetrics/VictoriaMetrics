@@ -79,7 +79,7 @@ func TestGetPrometheusReqTimestamp(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		oldAlignPara := queryTimeAlignment
+		oldAlignPara := *queryTimeAlignment
 		*queryTimeAlignment = tc.queryTimeAlignment
 		originT, _ := time.Parse(time.RFC3339, tc.originTS)
 		expT, _ := time.Parse(time.RFC3339, tc.expTS)
@@ -87,6 +87,6 @@ func TestGetPrometheusReqTimestamp(t *testing.T) {
 		if !gotTS.Equal(expT) {
 			t.Fatalf("get wrong prometheus request timestamp, expect %s, got %s", expT, gotTS)
 		}
-		queryTimeAlignment = oldAlignPara
+		*queryTimeAlignment = oldAlignPara
 	}
 }
