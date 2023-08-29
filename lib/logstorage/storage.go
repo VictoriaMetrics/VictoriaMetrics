@@ -317,6 +317,9 @@ func (s *Storage) watchRetention() {
 				break
 			}
 			ptwsToDelete = append(ptwsToDelete, ptw)
+			if ptw == s.ptwHot {
+				s.ptwHot = nil
+			}
 		}
 		for i := range ptwsToDelete {
 			s.partitions[i] = nil
@@ -329,9 +332,6 @@ func (s *Storage) watchRetention() {
 			logger.Infof("the partition %s is scheduled to be deleted because it is outside the -retentionPeriod=%dd", ptw.pt.path, durationToDays(s.retention))
 			atomic.StoreUint32(&ptw.mustBeDeleted, 1)
 			ptw.decRef()
-			if s.ptwHot != nil && s.ptwHot.pt == ptw.pt {
-				s.ptwHot = nil
-			}
 		}
 
 		select {
