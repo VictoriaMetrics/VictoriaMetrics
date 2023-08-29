@@ -38,3 +38,10 @@ func UnixDate() uint64 {
 func UnixHour() uint64 {
 	return UnixTimestamp() / 3600
 }
+
+// UnixTime returns the current unix timestamp.
+//
+// It is faster than time.Now().Unix()
+func UnixTime() time.Time {
+	return time.Unix(int64(UnixTimestamp()), 0)
+}

@@ -28,5 +28,16 @@ func BenchmarkTimeNowUnix(b *testing.B) {
 	})
 }
 
+func BenchmarkUnixTime(b *testing.B) {
+	b.ReportAllocs()
+	b.RunParallel(func(pb *testing.PB) {
+		var ts uint64
+		for pb.Next() {
+			ts += uint64(UnixTime().Unix())
+		}
+		atomic.StoreUint64(&Sink, ts)
+	})
+}
+
 // Sink should prevent from code elimination by optimizing compiler
 var Sink uint64

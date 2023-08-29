@@ -28,3 +28,11 @@ func TestUnixHour(t *testing.T) {
 		t.Fatalf("unexpected UnixHour; got %d; want %d", hour, hourExpected)
 	}
 }
+
+func TestUnixTime(t *testing.T) {
+	tsExpected := time.Now()
+	ts := UnixTime()
+	if ts.Sub(tsExpected) > time.Second {
+		t.Fatalf("unexpected UnixTime; got %s; want %s", ts, tsExpected)
+	}
+}

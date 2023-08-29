@@ -75,8 +75,9 @@ func CheckTimeRange(tr storage.TimeRange) error {
 	if !*denyQueriesOutsideRetention {
 		return nil
 	}
-	minAllowedTimestamp := int64(fasttime.UnixTimestamp()*1000) - retentionPeriod.Msecs
-	if tr.MinTimestamp > minAllowedTimestamp {
+
+	minAllowed := fasttime.UnixTime().Add(-retentionPeriod.Duration())
+	if time.UnixMilli(tr.MinTimestamp).After(minAllowed) {
 		return nil
 	}
 	return &httpserver.ErrorWithStatusCode{
