@@ -83,7 +83,10 @@ func mustInitClusterMemberID() {
 	if err != nil {
 		logger.Fatalf("cannot parse -promscrape.cluster.memberNum=%q: %s", *clusterMemberNum, err)
 	}
-	if n < 0 || (*clusterMembersCount != 0 && n >= *clusterMembersCount) {
+	if *clusterMembersCount < 1 {
+		logger.Fatalf("-promscrape.cluster.membersCount can't be lower than 1: got %d", *clusterMembersCount)
+	}
+	if n < 0 || n >= *clusterMembersCount {
 		logger.Fatalf("-promscrape.cluster.memberNum must be in the range [0..%d] according to -promscrape.cluster.membersCount=%d",
 			*clusterMembersCount, *clusterMembersCount)
 	}
