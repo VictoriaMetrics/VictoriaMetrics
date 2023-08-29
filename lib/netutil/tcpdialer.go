@@ -9,19 +9,24 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 )
 
+// A dialer is a means to establish a connection.
+type dialer interface {
+	Dial(network, addr string) (c net.Conn, err error)
+}
+
 // NewTCPDialer returns new dialer for dialing the given addr.
 //
 // The name is used in metric tags for the returned dialer.
 // The name must be unique among dialers.
 func NewTCPDialer(ms *metrics.Set, name, addr string, dialTimeout, userTimeout time.Duration) *TCPDialer {
+	nd := &net.Dialer{
+		Timeout: dialTimeout,
+
+		// How frequently to send keep-alive packets over established TCP connections.
+		KeepAlive: time.Second,
+	}
 	d := &TCPDialer{
-		d: &net.Dialer{
-			Timeout: dialTimeout,
-
-			// How frequently to send keep-alive packets over established TCP connections.
-			KeepAlive: time.Second,
-		},
-
+		d:    nd,
 		addr: addr,
 
 		dials:      ms.NewCounter(fmt.Sprintf(`vm_tcpdialer_dials_total{name=%q, addr=%q}`, name, addr)),
@@ -29,7 +34,7 @@ func NewTCPDialer(ms *metrics.Set, name, addr string, dialTimeout, userTimeout t
 	}
 	d.connMetrics.init(ms, "vm_tcpdialer", name, addr)
 	if userTimeout > 0 {
-		d.d.Control = func(network, address string, c syscall.RawConn) error {
+		nd.Control = func(network, address string, c syscall.RawConn) error {
 			var err error
 			controlErr := c.Control(func(fd uintptr) {
 				err = setTCPUserTimeout(fd, userTimeout)
@@ -47,7 +52,7 @@ func NewTCPDialer(ms *metrics.Set, name, addr string, dialTimeout, userTimeout t
 //
 // It also gathers various stats for dialed connections.
 type TCPDialer struct {
-	d *net.Dialer
+	d dialer
 
 	addr string
 
