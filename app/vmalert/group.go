@@ -285,8 +285,6 @@ var skipRandSleepOnGroupStart bool
 func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *remotewrite.Client, rr datasource.QuerierBuilder) {
 	defer func() { close(g.finishedCh) }()
 
-	evalTS := time.Now()
-
 	// sleep random duration to spread group rules evaluation
 	// over time in order to reduce load on datasource.
 	if !skipRandSleepOnGroupStart {
@@ -305,7 +303,7 @@ func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *r
 		}
 	}
 
-	evalTS = time.Now()
+	evalTS := time.Now()
 
 	e := &executor{
 		rw:                       rw,
