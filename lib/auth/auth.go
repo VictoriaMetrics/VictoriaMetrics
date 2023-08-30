@@ -24,17 +24,22 @@ func (t *Token) String() string {
 }
 
 // NewToken returns new Token for the given authToken.
-//
-// If authToken == "multitenant", then nil Token is returned.
 func NewToken(authToken string) (*Token, error) {
-	if authToken == "multitenant" {
-		return nil, nil
-	}
 	var t Token
 	if err := t.Init(authToken); err != nil {
 		return nil, err
 	}
 	return &t, nil
+}
+
+// NewTokenPossibleMultitenant returns new Token for the given authToken.
+//
+// If authToken == "multitenant", then nil Token is returned.
+func NewTokenPossibleMultitenant(authToken string) (*Token, error) {
+	if authToken == "multitenant" {
+		return nil, nil
+	}
+	return NewToken(authToken)
 }
 
 // Init initializes t from authToken.
