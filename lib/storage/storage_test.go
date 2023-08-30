@@ -478,7 +478,7 @@ func TestStorageOpenClose(t *testing.T) {
 
 func TestStorageRandTimestamps(t *testing.T) {
 	path := "TestStorageRandTimestamps"
-	retention := 10 * retentionMonth
+	retention := 10 * retention31days
 	s := MustOpenStorage(path, retention, 0, 0)
 	t.Run("serial", func(t *testing.T) {
 		for i := 0; i < 3; i++ {
@@ -936,7 +936,7 @@ func testStorageRegisterMetricNames(s *Storage) error {
 func TestStorageAddRowsSerial(t *testing.T) {
 	rng := rand.New(rand.NewSource(1))
 	path := "TestStorageAddRowsSerial"
-	retention := 10 * retentionMonth
+	retention := 10 * retention31days
 	s := MustOpenStorage(path, retention, 1e5, 1e5)
 	if err := testStorageAddRows(rng, s); err != nil {
 		t.Fatalf("unexpected error: %s", err)
@@ -949,7 +949,7 @@ func TestStorageAddRowsSerial(t *testing.T) {
 
 func TestStorageAddRowsConcurrent(t *testing.T) {
 	path := "TestStorageAddRowsConcurrent"
-	retention := 10 * retentionMonth
+	retention := 10 * retention31days
 	s := MustOpenStorage(path, retention, 1e5, 1e5)
 	ch := make(chan error, 3)
 	for i := 0; i < cap(ch); i++ {
@@ -1164,7 +1164,7 @@ func testStorageAddMetrics(s *Storage, workerNum int) error {
 func TestStorageDeleteStaleSnapshots(t *testing.T) {
 	rng := rand.New(rand.NewSource(1))
 	path := "TestStorageDeleteStaleSnapshots"
-	retention := 10 * retentionMonth
+	retention := 10 * retention31days
 	s := MustOpenStorage(path, retention, 1e5, 1e5)
 	const rowsPerAdd = 1e3
 	const addsCount = 10

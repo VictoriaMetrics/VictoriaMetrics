@@ -7,7 +7,7 @@ import (
 
 func TestTableOpenClose(t *testing.T) {
 	const path = "TestTableOpenClose"
-	const retention = 123 * retentionMonth
+	const retention = 123 * retention31days
 
 	if err := os.RemoveAll(path); err != nil {
 		t.Fatalf("cannot remove %q: %s", path, err)

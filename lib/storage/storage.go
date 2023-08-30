@@ -33,8 +33,8 @@ import (
 )
 
 const (
-	retentionMonth = 31 * 24 * time.Hour
-	retentionMax   = 100 * 12 * retentionMonth
+	retention31days = 31 * 24 * time.Hour
+	retentionMax    = 100 * 12 * retention31days
 )
 
 // Storage represents TSDB storage.
