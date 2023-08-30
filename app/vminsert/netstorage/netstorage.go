@@ -325,6 +325,9 @@ var cannotCloseStorageNodeConnLogger = logger.WithThrottler("cannotCloseStorageN
 var cannotSendBufsLogger = logger.WithThrottler("cannotSendBufRows", 5*time.Second)
 
 func sendToConn(bc *handshake.BufferedConn, buf []byte) error {
+	// if len(buf) == 0, it must be sent to the vmstorage too in order to check for vmstorage health
+	// See checkReadOnlyMode() and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4870
+
 	timeoutSeconds := len(buf) / 3e5
 	if timeoutSeconds < 60 {
 		timeoutSeconds = 60
