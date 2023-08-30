@@ -131,6 +131,7 @@ const GlobalSettings: FC = () => {
           color="primary"
           startIcon={<SettingsIcon/>}
           onClick={handleOpen}
+          ariaLabel="settings"
         />
       </Tooltip>
     )}

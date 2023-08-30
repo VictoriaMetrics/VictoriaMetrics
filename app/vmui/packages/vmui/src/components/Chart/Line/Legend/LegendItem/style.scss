@@ -34,6 +34,7 @@
   }
 
   &__marker {
+    position: relative;
     width: 14px;
     height: 14px;
     box-sizing: border-box;
@@ -59,10 +60,29 @@
     }
   }
 
-  &-values {
+  &-stats {
     grid-column: 2;
     display: flex;
     align-items: center;
     gap: $padding-small;
+
+    &-row {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+
+      &:not(:last-child) {
+        padding-right: $padding-global;
+      }
+
+      &__key {
+        line-height: 1;
+        color: $color-text-secondary;
+        margin-right: calc($padding-small / 2);
+      }
+
+      &__value {
+      }
+    }
   }
 }

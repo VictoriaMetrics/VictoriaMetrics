@@ -1,3 +1,6 @@
+// Code created by gotmpl. DO NOT MODIFY.
+// source: internal/shared/semconvutil/httpconv.go.tmpl
+
 // Copyright The OpenTelemetry Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,7 +15,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package internal // import "go.opentelemetry.io/otel/semconv/internal/v2"
+package semconvutil // import "go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp/internal/semconvutil"
 
 import (
 	"fmt"
@@ -21,12 +24,106 @@ import (
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
+	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
 )
 
-// HTTPConv are the HTTP semantic convention attributes defined for a version
+// HTTPClientResponse returns trace attributes for an HTTP response received by a
+// client from a server. It will return the following attributes if the related
+// values are defined in resp: "http.status.code",
+// "http.response_content_length".
+//
+// This does not add all OpenTelemetry required attributes for an HTTP event,
+// it assumes ClientRequest was used to create the span with a complete set of
+// attributes. If a complete set of attributes can be generated using the
+// request contained in resp. For example:
+//
+//	append(HTTPClientResponse(resp), ClientRequest(resp.Request)...)
+func HTTPClientResponse(resp *http.Response) []attribute.KeyValue {
+	return hc.ClientResponse(resp)
+}
+
+// HTTPClientRequest returns trace attributes for an HTTP request made by a client.
+// The following attributes are always returned: "http.url", "http.flavor",
+// "http.method", "net.peer.name". The following attributes are returned if the
+// related values are defined in req: "net.peer.port", "http.user_agent",
+// "http.request_content_length", "enduser.id".
+func HTTPClientRequest(req *http.Request) []attribute.KeyValue {
+	return hc.ClientRequest(req)
+}
+
+// HTTPClientStatus returns a span status code and message for an HTTP status code
+// value received by a client.
+func HTTPClientStatus(code int) (codes.Code, string) {
+	return hc.ClientStatus(code)
+}
+
+// HTTPServerRequest returns trace attributes for an HTTP request received by a
+// server.
+//
+// The server must be the primary server name if it is known. For example this
+// would be the ServerName directive
+// (https://httpd.apache.org/docs/2.4/mod/core.html#servername) for an Apache
+// server, and the server_name directive
+// (http://nginx.org/en/docs/http/ngx_http_core_module.html#server_name) for an
+// nginx server. More generically, the primary server name would be the host
+// header value that matches the default virtual host of an HTTP server. It
+// should include the host identifier and if a port is used to route to the
+// server that port identifier should be included as an appropriate port
+// suffix.
+//
+// If the primary server name is not known, server should be an empty string.
+// The req Host will be used to determine the server instead.
+//
+// The following attributes are always returned: "http.method", "http.scheme",
+// "http.flavor", "http.target", "net.host.name". The following attributes are
+// returned if they related values are defined in req: "net.host.port",
+// "net.sock.peer.addr", "net.sock.peer.port", "http.user_agent", "enduser.id",
+// "http.client_ip".
+func HTTPServerRequest(server string, req *http.Request) []attribute.KeyValue {
+	return hc.ServerRequest(server, req)
+}
+
+// HTTPServerStatus returns a span status code and message for an HTTP status code
+// value returned by a server. Status codes in the 400-499 range are not
+// returned as errors.
+func HTTPServerStatus(code int) (codes.Code, string) {
+	return hc.ServerStatus(code)
+}
+
+// HTTPRequestHeader returns the contents of h as attributes.
+//
+// Instrumentation should require an explicit configuration of which headers to
+// captured and then prune what they pass here. Including all headers can be a
+// security risk - explicit configuration helps avoid leaking sensitive
+// information.
+//
+// The User-Agent header is already captured in the http.user_agent attribute
+// from ClientRequest and ServerRequest. Instrumentation may provide an option
+// to capture that header here even though it is not recommended. Otherwise,
+// instrumentation should filter that out of what is passed.
+func HTTPRequestHeader(h http.Header) []attribute.KeyValue {
+	return hc.RequestHeader(h)
+}
+
+// HTTPResponseHeader returns the contents of h as attributes.
+//
+// Instrumentation should require an explicit configuration of which headers to
+// captured and then prune what they pass here. Including all headers can be a
+// security risk - explicit configuration helps avoid leaking sensitive
+// information.
+//
+// The User-Agent header is already captured in the http.user_agent attribute
+// from ClientRequest and ServerRequest. Instrumentation may provide an option
+// to capture that header here even though it is not recommended. Otherwise,
+// instrumentation should filter that out of what is passed.
+func HTTPResponseHeader(h http.Header) []attribute.KeyValue {
+	return hc.ResponseHeader(h)
+}
+
+// httpConv are the HTTP semantic convention attributes defined for a version
 // of the OpenTelemetry specification.
-type HTTPConv struct {
-	NetConv *NetConv
+type httpConv struct {
+	NetConv *netConv
 
 	EnduserIDKey                 attribute.Key
 	HTTPClientIPKey              attribute.Key
@@ -43,6 +140,24 @@ type HTTPConv struct {
 	HTTPUserAgentKey             attribute.Key
 }
 
+var hc = &httpConv{
+	NetConv: nc,
+
+	EnduserIDKey:                 semconv.EnduserIDKey,
+	HTTPClientIPKey:              semconv.HTTPClientIPKey,
+	HTTPFlavorKey:                semconv.HTTPFlavorKey,
+	HTTPMethodKey:                semconv.HTTPMethodKey,
+	HTTPRequestContentLengthKey:  semconv.HTTPRequestContentLengthKey,
+	HTTPResponseContentLengthKey: semconv.HTTPResponseContentLengthKey,
+	HTTPRouteKey:                 semconv.HTTPRouteKey,
+	HTTPSchemeHTTP:               semconv.HTTPSchemeHTTP,
+	HTTPSchemeHTTPS:              semconv.HTTPSchemeHTTPS,
+	HTTPStatusCodeKey:            semconv.HTTPStatusCodeKey,
+	HTTPTargetKey:                semconv.HTTPTargetKey,
+	HTTPURLKey:                   semconv.HTTPURLKey,
+	HTTPUserAgentKey:             semconv.HTTPUserAgentKey,
+}
+
 // ClientResponse returns attributes for an HTTP response received by a client
 // from a server. The following attributes are returned if the related values
 // are defined in resp: "http.status.code", "http.response_content_length".
@@ -53,7 +168,7 @@ type HTTPConv struct {
 // request contained in resp. For example:
 //
 //	append(ClientResponse(resp), ClientRequest(resp.Request)...)
-func (c *HTTPConv) ClientResponse(resp *http.Response) []attribute.KeyValue {
+func (c *httpConv) ClientResponse(resp *http.Response) []attribute.KeyValue {
 	var n int
 	if resp.StatusCode > 0 {
 		n++
@@ -77,7 +192,7 @@ func (c *HTTPConv) ClientResponse(resp *http.Response) []attribute.KeyValue {
 // "http.method", "net.peer.name". The following attributes are returned if the
 // related values are defined in req: "net.peer.port", "http.user_agent",
 // "http.request_content_length", "enduser.id".
-func (c *HTTPConv) ClientRequest(req *http.Request) []attribute.KeyValue {
+func (c *httpConv) ClientRequest(req *http.Request) []attribute.KeyValue {
 	n := 3 // URL, peer name, proto, and method.
 	var h string
 	if req.URL != nil {
@@ -156,12 +271,12 @@ func (c *HTTPConv) ClientRequest(req *http.Request) []attribute.KeyValue {
 // returned if they related values are defined in req: "net.host.port",
 // "net.sock.peer.addr", "net.sock.peer.port", "http.user_agent", "enduser.id",
 // "http.client_ip".
-func (c *HTTPConv) ServerRequest(server string, req *http.Request) []attribute.KeyValue {
+func (c *httpConv) ServerRequest(server string, req *http.Request) []attribute.KeyValue {
 	// TODO: This currently does not add the specification required
 	// `http.target` attribute. It has too high of a cardinality to safely be
 	// added. An alternate should be added, or this comment removed, when it is
 	// addressed by the specification. If it is ultimately decided to continue
-	// not including the attribute, the HTTPTargetKey field of the HTTPConv
+	// not including the attribute, the HTTPTargetKey field of the httpConv
 	// should be removed as well.
 
 	n := 4 // Method, scheme, proto, and host name.
@@ -234,21 +349,21 @@ func (c *HTTPConv) ServerRequest(server string, req *http.Request) []attribute.K
 	return attrs
 }
 
-func (c *HTTPConv) method(method string) attribute.KeyValue {
+func (c *httpConv) method(method string) attribute.KeyValue {
 	if method == "" {
 		return c.HTTPMethodKey.String(http.MethodGet)
 	}
 	return c.HTTPMethodKey.String(method)
 }
 
-func (c *HTTPConv) scheme(https bool) attribute.KeyValue { // nolint:revive
+func (c *httpConv) scheme(https bool) attribute.KeyValue { // nolint:revive
 	if https {
 		return c.HTTPSchemeHTTPS
 	}
 	return c.HTTPSchemeHTTP
 }
 
-func (c *HTTPConv) proto(proto string) attribute.KeyValue {
+func (c *httpConv) proto(proto string) attribute.KeyValue {
 	switch proto {
 	case "HTTP/1.0":
 		return c.HTTPFlavorKey.String("1.0")
@@ -295,16 +410,16 @@ func firstHostPort(source ...string) (host string, port int) {
 }
 
 // RequestHeader returns the contents of h as OpenTelemetry attributes.
-func (c *HTTPConv) RequestHeader(h http.Header) []attribute.KeyValue {
+func (c *httpConv) RequestHeader(h http.Header) []attribute.KeyValue {
 	return c.header("http.request.header", h)
 }
 
 // ResponseHeader returns the contents of h as OpenTelemetry attributes.
-func (c *HTTPConv) ResponseHeader(h http.Header) []attribute.KeyValue {
+func (c *httpConv) ResponseHeader(h http.Header) []attribute.KeyValue {
 	return c.header("http.response.header", h)
 }
 
-func (c *HTTPConv) header(prefix string, h http.Header) []attribute.KeyValue {
+func (c *httpConv) header(prefix string, h http.Header) []attribute.KeyValue {
 	key := func(k string) attribute.Key {
 		k = strings.ToLower(k)
 		k = strings.ReplaceAll(k, "-", "_")
@@ -321,84 +436,25 @@ func (c *HTTPConv) header(prefix string, h http.Header) []attribute.KeyValue {
 
 // ClientStatus returns a span status code and message for an HTTP status code
 // value received by a client.
-func (c *HTTPConv) ClientStatus(code int) (codes.Code, string) {
-	stat, valid := validateHTTPStatusCode(code)
-	if !valid {
-		return stat, fmt.Sprintf("Invalid HTTP status code %d", code)
+func (c *httpConv) ClientStatus(code int) (codes.Code, string) {
+	if code < 100 || code >= 600 {
+		return codes.Error, fmt.Sprintf("Invalid HTTP status code %d", code)
 	}
-	return stat, ""
+	if code >= 400 {
+		return codes.Error, ""
+	}
+	return codes.Unset, ""
 }
 
 // ServerStatus returns a span status code and message for an HTTP status code
 // value returned by a server. Status codes in the 400-499 range are not
 // returned as errors.
-func (c *HTTPConv) ServerStatus(code int) (codes.Code, string) {
-	stat, valid := validateHTTPStatusCode(code)
-	if !valid {
-		return stat, fmt.Sprintf("Invalid HTTP status code %d", code)
+func (c *httpConv) ServerStatus(code int) (codes.Code, string) {
+	if code < 100 || code >= 600 {
+		return codes.Error, fmt.Sprintf("Invalid HTTP status code %d", code)
 	}
-
-	if code/100 == 4 {
-		return codes.Unset, ""
+	if code >= 500 {
+		return codes.Error, ""
 	}
-	return stat, ""
-}
-
-type codeRange struct {
-	fromInclusive int
-	toInclusive   int
-}
-
-func (r codeRange) contains(code int) bool {
-	return r.fromInclusive <= code && code <= r.toInclusive
-}
-
-var validRangesPerCategory = map[int][]codeRange{
-	1: {
-		{http.StatusContinue, http.StatusEarlyHints},
-	},
-	2: {
-		{http.StatusOK, http.StatusAlreadyReported},
-		{http.StatusIMUsed, http.StatusIMUsed},
-	},
-	3: {
-		{http.StatusMultipleChoices, http.StatusUseProxy},
-		{http.StatusTemporaryRedirect, http.StatusPermanentRedirect},
-	},
-	4: {
-		{http.StatusBadRequest, http.StatusTeapot}, // yes, teapot is so useful…
-		{http.StatusMisdirectedRequest, http.StatusUpgradeRequired},
-		{http.StatusPreconditionRequired, http.StatusTooManyRequests},
-		{http.StatusRequestHeaderFieldsTooLarge, http.StatusRequestHeaderFieldsTooLarge},
-		{http.StatusUnavailableForLegalReasons, http.StatusUnavailableForLegalReasons},
-	},
-	5: {
-		{http.StatusInternalServerError, http.StatusLoopDetected},
-		{http.StatusNotExtended, http.StatusNetworkAuthenticationRequired},
-	},
-}
-
-// validateHTTPStatusCode validates the HTTP status code and returns
-// corresponding span status code. If the `code` is not a valid HTTP status
-// code, returns span status Error and false.
-func validateHTTPStatusCode(code int) (codes.Code, bool) {
-	category := code / 100
-	ranges, ok := validRangesPerCategory[category]
-	if !ok {
-		return codes.Error, false
-	}
-	ok = false
-	for _, crange := range ranges {
-		ok = crange.contains(code)
-		if ok {
-			break
-		}
-	}
-	if !ok {
-		return codes.Error, false
-	}
-	if category > 0 && category < 4 {
-		return codes.Unset, true
-	}
-	return codes.Error, true
+	return codes.Unset, ""
 }

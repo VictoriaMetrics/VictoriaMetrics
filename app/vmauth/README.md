@@ -221,6 +221,9 @@ ip_filters:
 The config may contain `%{ENV_VAR}` placeholders, which are substituted by the corresponding `ENV_VAR` environment variable values.
 This may be useful for passing secrets to the config.
 
+Please note, vmauth doesn't follow redirects. If destination redirects request to a new location, make sure this 
+location is supported in vmauth `url_map` config.
+
 ## Security
 
 It is expected that all the backend services protected by `vmauth` are located in an isolated private network, so they can be accessed by external users only via `vmauth`.
@@ -241,10 +244,10 @@ Alternatively, [https termination proxy](https://en.wikipedia.org/wiki/TLS_termi
 It is recommended protecting the following endpoints with authKeys:
 * `/-/reload` with `-reloadAuthKey` command-line flag, so external users couldn't trigger config reload.
 * `/flags` with `-flagsAuthKey` command-line flag, so unauthorized users couldn't get application command-line flags.
-* `/metrics` with `metricsAuthKey` command-line flag, so unauthorized users couldn't get access to [vmauth metrics](#monitoring).
-* `/debug/pprof` with `pprofAuthKey` command-line flag, so unauthorized users couldn't get access to [profiling information](#profiling).
+* `/metrics` with `-metricsAuthKey` command-line flag, so unauthorized users couldn't get access to [vmauth metrics](#monitoring).
+* `/debug/pprof` with `-pprofAuthKey` command-line flag, so unauthorized users couldn't get access to [profiling information](#profiling).
 
-`vmauth` also supports the ability to restict access by IP - see [these docs](#ip-filters). See also [concurrency limiting docs](#concurrency-limiting).
+`vmauth` also supports the ability to restrict access by IP - see [these docs](#ip-filters). See also [concurrency limiting docs](#concurrency-limiting).
 
 ## Monitoring
 

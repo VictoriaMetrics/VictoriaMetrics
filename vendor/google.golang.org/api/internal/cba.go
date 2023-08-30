@@ -274,8 +274,8 @@ func shouldUseS2A(clientCertSource cert.Source, settings *DialSettings) bool {
 	if !isGoogleS2AEnabled() {
 		return false
 	}
-	// If DefaultMTLSEndpoint is not set, skip S2A.
-	if settings.DefaultMTLSEndpoint == "" {
+	// If DefaultMTLSEndpoint is not set and no endpoint override, skip S2A.
+	if settings.DefaultMTLSEndpoint == "" && settings.Endpoint == "" {
 		return false
 	}
 	// If MTLS is not enabled for this endpoint, skip S2A.

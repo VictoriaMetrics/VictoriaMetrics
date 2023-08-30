@@ -1036,6 +1036,7 @@ func (o *ObjectHandle) ReadCompressed(compressed bool) *ObjectHandle {
 // It is the caller's responsibility to call Close when writing is done. To
 // stop writing without saving the data, cancel the context.
 func (o *ObjectHandle) NewWriter(ctx context.Context) *Writer {
+	ctx = trace.StartSpan(ctx, "cloud.google.com/go/storage.Object.Writer")
 	return &Writer{
 		ctx:         ctx,
 		o:           o,

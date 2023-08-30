@@ -1,6 +1,24 @@
 # Changes
 
 
+## [1.32.0](https://github.com/googleapis/google-cloud-go/compare/storage/v1.31.0...storage/v1.32.0) (2023-08-15)
+
+
+### Features
+
+* **storage:** Add support for custom headers ([#8294](https://github.com/googleapis/google-cloud-go/issues/8294)) ([313fd4a](https://github.com/googleapis/google-cloud-go/commit/313fd4a60380d36c5ecaead3e968dbc84d044a0b))
+* **storage:** Add trace span to Writer ([#8375](https://github.com/googleapis/google-cloud-go/issues/8375)) ([f7ac85b](https://github.com/googleapis/google-cloud-go/commit/f7ac85bec2806d351529714bd7744a91a9fdefdd)), refs [#6144](https://github.com/googleapis/google-cloud-go/issues/6144)
+* **storage:** Support single-shot uploads in gRPC ([#8348](https://github.com/googleapis/google-cloud-go/issues/8348)) ([7de4a7d](https://github.com/googleapis/google-cloud-go/commit/7de4a7da31ab279a343b1592b15a126cda03e5e7)), refs [#7798](https://github.com/googleapis/google-cloud-go/issues/7798)
+* **storage:** Trace span covers life of a Reader ([#8390](https://github.com/googleapis/google-cloud-go/issues/8390)) ([8de30d7](https://github.com/googleapis/google-cloud-go/commit/8de30d752eec2fed2ea4c127482d3e213f9050e2))
+
+
+### Bug Fixes
+
+* **storage:** Fix AllObjects condition in gRPC ([#8184](https://github.com/googleapis/google-cloud-go/issues/8184)) ([2b99e4f](https://github.com/googleapis/google-cloud-go/commit/2b99e4f39be20fe21e8bc5c1ec1c0e758222c46e)), refs [#6205](https://github.com/googleapis/google-cloud-go/issues/6205)
+* **storage:** Fix gRPC generation/condition issues ([#8396](https://github.com/googleapis/google-cloud-go/issues/8396)) ([ca68ff5](https://github.com/googleapis/google-cloud-go/commit/ca68ff54b680732b59b223655070d0f6abccefee))
+* **storage:** Same method name and Trace Span name ([#8150](https://github.com/googleapis/google-cloud-go/issues/8150)) ([e277213](https://github.com/googleapis/google-cloud-go/commit/e2772133896bb94097b5d1f090f1bcafd136f2ed))
+* **storage:** Update gRPC retry codes ([#8202](https://github.com/googleapis/google-cloud-go/issues/8202)) ([afdf772](https://github.com/googleapis/google-cloud-go/commit/afdf772fc6a90b3010eee9d70ab65e22e276f53f))
+
 ## [1.31.0](https://github.com/googleapis/google-cloud-go/compare/storage/v1.30.1...storage/v1.31.0) (2023-06-27)
 
 

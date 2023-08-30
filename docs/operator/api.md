@@ -996,7 +996,7 @@ StreamAggrRule defines the rule in stream aggregation config
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
-| match | Match is a label selector for filtering time series for the given selector.\n\nIf the match isn&#39;t set, then all the input time series are processed. | Match | false |
+| match | Match is a label selector (or list of label selectors) for filtering time series for the given selector.\n\nIf the match isn&#39;t set, then all the input time series are processed. | StringOrArray | false |
 | interval | Interval is the interval between aggregations. | string | true |
 | staleness_interval | StalenessInterval defines an interval after which the series state will be reset if no samples have been sent during it. | string | false |
 | outputs | Outputs is a list of output aggregate functions to produce.\n\nThe following names are allowed:\n\n- total - aggregates input counters - increase - counts the increase over input counters - count_series - counts the input series - count_samples - counts the input samples - sum_samples - sums the input samples - last - the last biggest sample value - min - the minimum sample value - max - the maximum sample value - avg - the average value across all the samples - stddev - standard deviation across all the samples - stdvar - standard variance across all the samples - histogram_bucket - creates VictoriaMetrics histogram for input samples - quantiles(phi1, ..., phiN) - quantiles&#39; estimation for phi in the range [0..1]\n\nThe output time series will have the following names:\n\n  input_name:aggr_&lt;interval&gt;_&lt;output&gt; | []string | true |
@@ -1461,7 +1461,7 @@ RelabelConfig allows dynamic rewriting of the label set, being applied to sample
 | modulus | Modulus to take of the hash of the source label values. | uint64 | false |
 | replacement | Replacement value against which a regex replace is performed if the regular expression matches. Regex capture groups are available. Default is &#39;$1&#39; | string | false |
 | action | Action to perform based on regex matching. Default is &#39;replace&#39; | string | false |
-| if | If represents metricsQL match expression: &#39;{__name__=~\&#34;foo_.*\&#34;}&#39; | string | false |
+| if | If represents metricsQL match expression (or list of expressions): &#39;{__name__=~\&#34;foo_.*\&#34;}&#39; | StringOrArray | false |
 | match | Match is used together with Labels for `action: graphite` | string | false |
 | labels | Labels is used together with Match for `action: graphite` | map[string]string | false |
 
@@ -1840,9 +1840,9 @@ VMClusterStatus defines the observed state of VMCluster
 | dnsPolicy | DNSPolicy sets DNS policy for the pod | [v1.DNSPolicy](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#pod-v1-core) | false |
 | dnsConfig | Specifies the DNS parameters of a pod. Parameters specified here will be merged to the generated DNS configuration based on DNSPolicy. | *v1.PodDNSConfig | false |
 | topologySpreadConstraints | TopologySpreadConstraints embedded kubernetes pod configuration option, controls how pods are spread across your cluster among failure-domains such as regions, zones, nodes, and other user-defined topology domains https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/ | [][v1.TopologySpreadConstraint](https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/) | false |
-| cacheMountPath | CacheMountPath allows to add cache persistent for VMSelect | string | false |
+| cacheMountPath | CacheMountPath allows to add cache persistent for VMSelect, will use \&#34;/cache\&#34; as default if not specified. | string | false |
 | persistentVolume | Storage - add persistent volume for cacheMounthPath its useful for persistent cache use storage instead of persistentVolume. | *[StorageSpec](#storagespec) | false |
-| storage | StorageSpec - add persistent volume claim for cacheMounthPath its needed for persistent cache | *[StorageSpec](#storagespec) | false |
+| storage | StorageSpec - add persistent volume claim for cacheMountPath its needed for persistent cache | *[StorageSpec](#storagespec) | false |
 | extraEnvs | ExtraEnvs that will be added to VMSelect pod | [][v1.EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#envvar-v1-core) | false |
 | extraArgs |  | map[string]string | false |
 | port | Port listen port | string | false |
