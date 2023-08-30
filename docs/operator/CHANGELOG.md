@@ -8,7 +8,7 @@
 
 ### Features
 
-- TODO
+- [vmagent](https://docs.victoriametrics.com/operator/api.html#vmagent): support [multiple if conditions](https://docs.victoriametrics.com/vmagent.html#relabeling:~:text=the%20if%20option%20may%20contain%20more%20than%20one%20filter) for relabeling. See [this issue](https://github.com/VictoriaMetrics/operator/issues/730) for details. 
 
 <a name="v0.36.1"></a>
 ## [v0.36.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.36.0) - 25 Aug 2023
