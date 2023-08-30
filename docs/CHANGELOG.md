@@ -24,6 +24,7 @@ The following `tip` changes can be tested by building VictoriaMetrics components
 
 ## tip
 
+* FEATURE: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): add support for numbers with underscore delimiters such as `1_234_567_890` and `1.234_567_890`. These numbers are easier to read than `1234567890` and `1.234567890`.
 * FEATURE: [vmbackup](https://docs.victoriametrics.com/vmbackup.html): add support for server-side copy of existing backups. See [these docs](https://docs.victoriametrics.com/vmbackup.html#server-side-copy-of-the-existing-backup) for details.
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): add ability to set `member num` label for all the metrics scraped by a particular `vmagent` instance in [a cluster of vmagents](https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets) via `-promscrape.cluster.memberLabel` command-line flag. See [these docs](https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets) and [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4247).
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): do not log `unexpected EOF` when reading incoming metrics, since this error is expected and is handled during metrics' parsing. This reduces the amounts of noisy logs. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4817).
