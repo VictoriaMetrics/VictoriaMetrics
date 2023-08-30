@@ -325,10 +325,11 @@ func (c *client) runWorker() {
 func (c *client) doRequest(url string, body []byte) (*http.Response, error) {
 	req := c.newRequest(url, body)
 	resp, err := c.hc.Do(req)
-	if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
+	if err != nil && errors.Is(err, io.EOF) {
 		// it is likely connection became stale.
 		// So we do one more attempt in hope request will succeed.
 		// If not, the error should be handled by the caller as usual.
+		// This should help with https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4139
 		req = c.newRequest(url, body)
 		resp, err = c.hc.Do(req)
 	}

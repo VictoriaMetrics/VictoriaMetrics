@@ -16,6 +16,7 @@ GO_BUILDINFO = -X '$(PKG_PREFIX)/lib/buildinfo.Version=$(APP_NAME)-$(DATEINFO_TA
 
 include app/*/Makefile
 include deployment/*/Makefile
+include dashboards/Makefile
 include snap/local/Makefile
 include package/release/Makefile
 
@@ -173,6 +174,7 @@ vmutils-crossbuild: \
 	vmutils-windows-amd64
 
 publish-release:
+	rm -rf bin/*
 	git checkout $(TAG) && LATEST_TAG=stable $(MAKE) release publish && \
 		git checkout $(TAG)-cluster && LATEST_TAG=cluster-stable $(MAKE) release publish && \
 		git checkout $(TAG)-enterprise && LATEST_TAG=enterprise-stable $(MAKE) release publish && \
