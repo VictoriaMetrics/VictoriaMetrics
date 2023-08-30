@@ -14,7 +14,7 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 			t.Fatalf("cannot parse %q: %s", requestURI, err)
 		}
 		u = normalizeURL(u)
-		up, headers, _ := ui.getURLPrefixAndHeaders(u)
+		up, headers := ui.getURLPrefixAndHeaders(u)
 		if up == nil {
 			t.Fatalf("cannot determie backend: %s", err)
 		}
@@ -24,7 +24,7 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 		if target.String() != expectedTarget {
 			t.Fatalf("unexpected target; got %q; want %q", target, expectedTarget)
 		}
-		headersStr := fmt.Sprintf("%q", headers)
+		headersStr := fmt.Sprintf("%q", headers.RequestHeaders)
 		if headersStr != expectedHeaders {
 			t.Fatalf("unexpected headers; got %s; want %s", headersStr, expectedHeaders)
 		}
@@ -35,10 +35,10 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 	}, "", "http://foo.bar/.", "[]")
 	f(&UserInfo{
 		URLPrefix: mustParseURL("http://foo.bar"),
-		Headers: []Header{{
+		HeadersConf: HeadersConf{RequestHeaders: []Header{{
 			Name:  "bb",
 			Value: "aaa",
-		}},
+		}}},
 	}, "/", "http://foo.bar", `[{"bb" "aaa"}]`)
 	f(&UserInfo{
 		URLPrefix: mustParseURL("http://foo.bar/federate"),
@@ -62,7 +62,7 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 			{
 				SrcPaths:  getSrcPaths([]string{"/api/v1/query"}),
 				URLPrefix: mustParseURL("http://vmselect/0/prometheus"),
-				Headers: []Header{
+				HeadersConf: HeadersConf{RequestHeaders: []Header{
 					{
 						Name:  "xx",
 						Value: "aa",
@@ -71,7 +71,7 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 						Name:  "yy",
 						Value: "asdf",
 					},
-				},
+				}},
 			},
 			{
 				SrcPaths:  getSrcPaths([]string{"/api/v1/write"}),
@@ -79,10 +79,10 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 			},
 		},
 		URLPrefix: mustParseURL("http://default-server"),
-		Headers: []Header{{
+		HeadersConf: HeadersConf{RequestHeaders: []Header{{
 			Name:  "bb",
 			Value: "aaa",
-		}},
+		}}},
 	}
 	f(ui, "/api/v1/query?query=up", "http://vmselect/0/prometheus/api/v1/query?query=up", `[{"xx" "aa"} {"yy" "asdf"}]`)
 	f(ui, "/api/v1/write", "http://vminsert/0/prometheus/api/v1/write", "[]")
@@ -124,14 +124,14 @@ func TestCreateTargetURLFailure(t *testing.T) {
 			t.Fatalf("cannot parse %q: %s", requestURI, err)
 		}
 		u = normalizeURL(u)
-		up, headers, respHeaders := ui.getURLPrefixAndHeaders(u)
+		up, headers := ui.getURLPrefixAndHeaders(u)
 		if up != nil {
 			t.Fatalf("unexpected non-empty up=%#v", up)
 		}
-		if headers != nil {
+		if headers.RequestHeaders != nil {
 			t.Fatalf("unexpected non-empty headers=%q", headers)
 		}
-		if respHeaders != nil {
+		if headers.ResponseHeaders != nil {
 			t.Fatalf("unexpected non-empty headers=%q", headers)
 		}
 	}
