@@ -138,3 +138,6 @@ Fluent Bit is configured to send logs from running containers to VictoriaLogs in
 Additionally, it is configured to listen for syslog logs on port `5140` and send them to VictoriaLogs instance.
 
 To access VictoriaLogs UI use link [http://localhost:9428/select/vmui/](http://localhost:9428/select/vmui/).
+
+Please, also see [how to monitor](https://docs.victoriametrics.com/VictoriaLogs/#monitoring) 
+VictoriaLogs installations.
