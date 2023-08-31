@@ -242,7 +242,7 @@ func MustOpenStorage(path string, retention time.Duration, maxHourlySeries, maxD
 	s.idbNext.Store(idbNext)
 
 	// Initialize nextRotationTimestamp
-	nowSecs := time.Now().UnixNano() / 1e9
+	nowSecs := int64(fasttime.UnixTimestamp())
 	nextRotationTimestamp := nextRetentionDeadlineSeconds(nowSecs, retention.Milliseconds()/1000, retentionTimezoneOffsetSecs)
 	atomic.StoreInt64(&s.nextRotationTimestamp, nextRotationTimestamp)
 
