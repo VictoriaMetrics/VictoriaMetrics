@@ -33,8 +33,8 @@ import (
 )
 
 const (
-	msecsPerMonth     = 31 * 24 * 3600 * 1000
-	maxRetentionMsecs = 100 * 12 * msecsPerMonth
+	retentionMonth = 31 * 24 * time.Hour
+	retentionMax   = 100 * 12 * retentionMonth
 )
 
 // Storage represents TSDB storage.
@@ -159,9 +159,8 @@ func MustOpenStorage(path string, retention time.Duration, maxHourlySeries, maxD
 	if err != nil {
 		logger.Panicf("FATAL: cannot determine absolute path for %q: %s", path, err)
 	}
-	maxRetention := time.Millisecond * time.Duration(maxRetentionMsecs)
-	if retention <= 0 || retention > maxRetention {
-		retention = maxRetention
+	if retention <= 0 || retention > retentionMax {
+		retention = retentionMax
 	}
 	s := &Storage{
 		path:           path,
