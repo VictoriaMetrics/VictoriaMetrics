@@ -37,10 +37,10 @@ var (
 )
 
 type client struct {
-	// hc is the default client optimized for common case of scraping targets with moderate number of metrics.
-	hc *fasthttp.HostClient
+	// fc is the default client optimized for common case of scraping targets with moderate number of metrics.
+	fc *fasthttp.Client
 
-	// sc (aka `stream client`) is used instead of hc if ScrapeWork.StreamParse is set.
+	// sc (aka `stream client`) is used instead of fc if ScrapeWork.StreamParse is set.
 	// It may be useful for scraping targets with millions of metrics per target.
 	sc *http.Client
 
@@ -121,12 +121,10 @@ func newClient(ctx context.Context, sw *ScrapeWork) *client {
 	if err != nil {
 		logger.Fatalf("cannot create dial func: %s", err)
 	}
-	hc := &fasthttp.HostClient{
-		Addr: dialAddr,
+	fc := &fasthttp.Client{
 		// Name used in User-Agent request header
 		Name:                         scrapeUserAgent,
 		Dial:                         dialFunc,
-		IsTLS:                        isTLS,
 		TLSConfig:                    tlsCfg,
 		MaxIdleConnDuration:          2 * sw.ScrapeInterval,
 		ReadTimeout:                  sw.ScrapeTimeout,
@@ -161,7 +159,7 @@ func newClient(ctx context.Context, sw *ScrapeWork) *client {
 	}
 
 	return &client{
-		hc:                      hc,
+		fc:                      fc,
 		ctx:                     ctx,
 		sc:                      sc,
 		scrapeURL:               sw.ScrapeURL,
@@ -217,7 +215,7 @@ func (c *client) GetStreamReader() (*streamReader, error) {
 		r:           resp.Body,
 		cancel:      cancel,
 		scrapeURL:   c.scrapeURL,
-		maxBodySize: int64(c.hc.MaxResponseBodySize),
+		maxBodySize: int64(c.fc.MaxResponseBodySize),
 	}, nil
 }
 
@@ -231,7 +229,7 @@ func isStatusRedirect(statusCode int) bool {
 }
 
 func (c *client) ReadData(dst []byte) ([]byte, error) {
-	deadline := time.Now().Add(c.hc.ReadTimeout)
+	deadline := time.Now().Add(c.fc.ReadTimeout)
 	req := fasthttp.AcquireRequest()
 	req.SetRequestURI(c.requestURI)
 	req.Header.SetHost(c.hostPort)
@@ -263,7 +261,7 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 	ctx, cancel := context.WithDeadline(c.ctx, deadline)
 	defer cancel()
 
-	err := doRequestWithPossibleRetry(ctx, c.hc, req, resp)
+	err := doRequestWithPossibleRetry(ctx, c.fc, req, resp)
 	statusCode := resp.StatusCode()
 	redirectsCount := 0
 	for err == nil && isStatusRedirect(statusCode) {
@@ -283,7 +281,7 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 			break
 		}
 		req.URI().UpdateBytes(location)
-		err = doRequestWithPossibleRetry(ctx, c.hc, req, resp)
+		err = doRequestWithPossibleRetry(ctx, c.fc, req, resp)
 		statusCode = resp.StatusCode()
 		redirectsCount++
 	}
@@ -295,7 +293,7 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 		fasthttp.ReleaseResponse(resp)
 		if err == fasthttp.ErrTimeout {
 			scrapesTimedout.Inc()
-			return dst, fmt.Errorf("error when scraping %q with timeout %s: %w", c.scrapeURL, c.hc.ReadTimeout, err)
+			return dst, fmt.Errorf("error when scraping %q with timeout %s: %w", c.scrapeURL, c.fc.ReadTimeout, err)
 		}
 		if err == fasthttp.ErrBodyTooLarge {
 			maxScrapeSizeExceeded.Inc()
@@ -324,7 +322,7 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 		dst = append(dst, resp.Body()...)
 	}
 	fasthttp.ReleaseResponse(resp)
-	if len(dst) > c.hc.MaxResponseBodySize {
+	if len(dst) > c.fc.MaxResponseBodySize {
 		maxScrapeSizeExceeded.Inc()
 		return dst, fmt.Errorf("the response from %q exceeds -promscrape.maxScrapeSize=%d (the actual response size is %d bytes); "+
 			"either reduce the response size for the target or increase -promscrape.maxScrapeSize", c.scrapeURL, maxScrapeSize.N, len(dst))
@@ -350,14 +348,14 @@ var (
 	scrapeRetries         = metrics.NewCounter(`vm_promscrape_scrape_retries_total`)
 )
 
-func doRequestWithPossibleRetry(ctx context.Context, hc *fasthttp.HostClient, req *fasthttp.Request, resp *fasthttp.Response) error {
+func doRequestWithPossibleRetry(ctx context.Context, fc *fasthttp.Client, req *fasthttp.Request, resp *fasthttp.Response) error {
 	scrapeRequests.Inc()
 
 	var reqErr error
 	// Return true if the request execution is completed and retry is not required
 	attempt := func() bool {
 		// Use DoCtx instead of Do in order to support context cancellation
-		reqErr = hc.DoCtx(ctx, req, resp)
+		reqErr = fc.DoCtx(ctx, req, resp)
 		if reqErr == nil {
 			statusCode := resp.StatusCode()
 			if statusCode != fasthttp.StatusTooManyRequests {
