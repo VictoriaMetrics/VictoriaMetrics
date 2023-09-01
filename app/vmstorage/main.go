@@ -94,12 +94,12 @@ func main() {
 	mergeset.SetIndexBlocksCacheSize(cacheSizeIndexDBIndexBlocks.IntN())
 	mergeset.SetDataBlocksCacheSize(cacheSizeIndexDBDataBlocks.IntN())
 
-	if retentionPeriod.Msecs < 24*3600*1000 {
+	if retentionPeriod.Duration() < 24*time.Hour {
 		logger.Fatalf("-retentionPeriod cannot be smaller than a day; got %s", retentionPeriod)
 	}
 	logger.Infof("opening storage at %q with -retentionPeriod=%s", *storageDataPath, retentionPeriod)
 	startTime := time.Now()
-	strg := storage.MustOpenStorage(*storageDataPath, retentionPeriod.Msecs, *maxHourlySeries, *maxDailySeries)
+	strg := storage.MustOpenStorage(*storageDataPath, retentionPeriod.Duration(), *maxHourlySeries, *maxDailySeries)
 	initStaleSnapshotsRemover(strg)
 
 	var m storage.Metrics
@@ -301,10 +301,10 @@ func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storag
 
 func initStaleSnapshotsRemover(strg *storage.Storage) {
 	staleSnapshotsRemoverCh = make(chan struct{})
-	if snapshotsMaxAge.Msecs <= 0 {
+	if snapshotsMaxAge.Duration() <= 0 {
 		return
 	}
-	snapshotsMaxAgeDur := time.Duration(snapshotsMaxAge.Msecs) * time.Millisecond
+	snapshotsMaxAgeDur := snapshotsMaxAge.Duration()
 	staleSnapshotsRemoverWG.Add(1)
 	go func() {
 		defer staleSnapshotsRemoverWG.Done()

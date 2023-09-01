@@ -33,8 +33,8 @@ import (
 )
 
 const (
-	msecsPerMonth     = 31 * 24 * 3600 * 1000
-	maxRetentionMsecs = 100 * 12 * msecsPerMonth
+	retentionMonth = 31 * 24 * time.Hour
+	retentionMax   = 100 * 12 * retentionMonth
 )
 
 // Storage represents TSDB storage.
@@ -165,21 +165,18 @@ type accountProjectKey struct {
 }
 
 // MustOpenStorage opens storage on the given path with the given retentionMsecs.
-func MustOpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySeries int) *Storage {
+func MustOpenStorage(path string, retention time.Duration, maxHourlySeries, maxDailySeries int) *Storage {
 	path, err := filepath.Abs(path)
 	if err != nil {
 		logger.Panicf("FATAL: cannot determine absolute path for %q: %s", path, err)
 	}
-	if retentionMsecs <= 0 {
-		retentionMsecs = maxRetentionMsecs
-	}
-	if retentionMsecs > maxRetentionMsecs {
-		retentionMsecs = maxRetentionMsecs
+	if retention <= 0 || retention > retentionMax {
+		retention = retentionMax
 	}
 	s := &Storage{
 		path:           path,
 		cachePath:      filepath.Join(path, cacheDirname),
-		retentionMsecs: retentionMsecs,
+		retentionMsecs: retention.Milliseconds(),
 		stop:           make(chan struct{}),
 	}
 	fs.MustMkdirIfNotExist(path)
@@ -256,7 +253,8 @@ func MustOpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDail
 
 	// Initialize nextRotationTimestamp
 	nowSecs := time.Now().UnixNano() / 1e9
-	nextRotationTimestamp := nextRetentionDeadlineSeconds(nowSecs, retentionMsecs/1000, retentionTimezoneOffsetSecs)
+	retentionSecs := retention.Milliseconds() / 1000 // not .Seconds() because unnecessary float64 conversion
+	nextRotationTimestamp := nextRetentionDeadlineSeconds(nowSecs, retentionSecs, retentionTimezoneOffsetSecs)
 	atomic.StoreInt64(&s.nextRotationTimestamp, nextRotationTimestamp)
 
 	// Load nextDayMetricIDs cache
