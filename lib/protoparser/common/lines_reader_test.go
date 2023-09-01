@@ -52,19 +52,19 @@ func TestReadLinesBlockFailure(t *testing.T) {
 
 type failureReader struct{}
 
-func (fr *failureReader) Read(p []byte) (int, error) {
+func (fr *failureReader) Read(_ []byte) (int, error) {
 	return 0, fmt.Errorf("some error")
 }
 
 type unexpectedEOF struct{}
 
-func (un unexpectedEOF) Read(p []byte) (int, error) {
+func (un unexpectedEOF) Read(_ []byte) (int, error) {
 	return 0, io.ErrUnexpectedEOF
 }
 
 type eofErr struct{}
 
-func (eo eofErr) Read(p []byte) (int, error) {
+func (eo eofErr) Read(_ []byte) (int, error) {
 	return 0, io.EOF
 }
 

@@ -236,7 +236,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		funcName = strings.TrimPrefix(funcName, "/")
 		if funcName == "" {
 			graphiteFunctionsRequests.Inc()
-			if err := graphite.FunctionsHandler(startTime, w, r); err != nil {
+			if err := graphite.FunctionsHandler(w, r); err != nil {
 				graphiteFunctionsErrors.Inc()
 				httpserver.Errorf(w, r, "%s", err)
 				return true
@@ -244,7 +244,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 			return true
 		}
 		graphiteFunctionDetailsRequests.Inc()
-		if err := graphite.FunctionDetailsHandler(startTime, funcName, w, r); err != nil {
+		if err := graphite.FunctionDetailsHandler(funcName, w, r); err != nil {
 			graphiteFunctionDetailsErrors.Inc()
 			httpserver.Errorf(w, r, "%s", err)
 			return true

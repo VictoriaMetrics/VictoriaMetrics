@@ -1432,7 +1432,7 @@ func (th *topHeap) Swap(i, j int) {
 	a[j], a[i] = a[i], a[j]
 }
 
-func (th *topHeap) Push(x interface{}) {
+func (th *topHeap) Push(_ interface{}) {
 	panic(fmt.Errorf("BUG: Push shouldn't be called"))
 }
 

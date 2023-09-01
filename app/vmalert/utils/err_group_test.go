@@ -41,7 +41,7 @@ func TestErrGroup(t *testing.T) {
 // TestErrGroupConcurrent supposed to test concurrent
 // use of error group.
 // Should be executed with -race flag
-func TestErrGroupConcurrent(t *testing.T) {
+func TestErrGroupConcurrent(_ *testing.T) {
 	eg := new(ErrGroup)
 
 	const writersN = 4
