@@ -13,13 +13,15 @@ export interface CardinalityTotalsProps {
   totalSeriesPrev: number;
   totalLabelValuePairs: number;
   seriesCountByMetricName: TopHeapEntry[];
+  isPrometheus?: boolean;
 }
 
 const CardinalityTotals: FC<CardinalityTotalsProps> = ({
-  totalSeries,
-  totalSeriesPrev,
-  totalSeriesAll,
-  seriesCountByMetricName
+  totalSeries = 0,
+  totalSeriesPrev = 0,
+  totalSeriesAll = 0,
+  seriesCountByMetricName = [],
+  isPrometheus
 }) => {
   const { isMobile } = useDeviceDetect();
 
@@ -36,7 +38,7 @@ const CardinalityTotals: FC<CardinalityTotalsProps> = ({
     {
       title: "Total series",
       value: totalSeries.toLocaleString("en-US"),
-      dynamic: !totalSeries || !totalSeriesPrev ? "" : `${dynamic.toFixed(2)}%`,
+      dynamic: (!totalSeries || !totalSeriesPrev || isPrometheus) ? "" : `${dynamic.toFixed(2)}%`,
       display: !focusLabel,
       info: `The total number of active time series. 
              A time series is uniquely identified by its name plus a set of its labels. 
