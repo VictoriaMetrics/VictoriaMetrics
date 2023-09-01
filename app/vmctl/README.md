@@ -583,7 +583,7 @@ then import it into VM using `vmctl` in `prometheus` mode.
     1. Run the `minio/mc` Docker container.
     1. `mc config host add minio http://minio:9000 accessKey secretKey`, substituting appropriate values for the last 3 items.
     1. `mc cp -r minio/prometheus thanos-data`
- 
+
 1. Import using `vmctl`.
     1. Follow the [instructions](#how-to-build) to compile `vmctl` on your machine.
     1. Use [prometheus](#migrating-data-from-prometheus) mode to import data:
