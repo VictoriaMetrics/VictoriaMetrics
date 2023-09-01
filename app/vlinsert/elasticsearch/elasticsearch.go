@@ -86,6 +86,7 @@ func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/_bulk":
 		startTime := time.Now()
+		defer bulkRequestDuration.UpdateDuration(startTime)
 		bulkRequestsTotal.Inc()
 
 		cp, err := insertutils.GetCommonParams(r)
@@ -116,7 +117,8 @@ func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 }
 
 var (
-	bulkRequestsTotal = metrics.NewCounter(`vl_http_requests_total{path="/insert/elasticsearch/_bulk"}`)
+	bulkRequestsTotal   = metrics.NewCounter(`vl_http_requests_total{path="/insert/elasticsearch/_bulk"}`)
+	bulkRequestDuration = metrics.NewSummary(`vl_http_request_duration_seconds{path="/insert/elasticsearch/_bulk"}`)
 )
 
 func readBulkRequest(r io.Reader, isGzip bool, timeField, msgField string,
