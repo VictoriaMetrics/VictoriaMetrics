@@ -114,7 +114,7 @@ func (as *aggrStateAvgZero) Update(values []float64) {
 	as.seriesTotal++
 }
 
-func (as *aggrStateAvgZero) Finalize(xFilesFactor float64) []float64 {
+func (as *aggrStateAvgZero) Finalize(_ float64) []float64 {
 	sums := as.sums
 	values := make([]float64, as.pointsLen)
 	count := float64(as.seriesTotal)

@@ -419,7 +419,7 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		funcName = strings.TrimPrefix(funcName, "/")
 		if funcName == "" {
 			graphiteFunctionsRequests.Inc()
-			if err := graphite.FunctionsHandler(startTime, w, r); err != nil {
+			if err := graphite.FunctionsHandler(w, r); err != nil {
 				graphiteFunctionsErrors.Inc()
 				httpserver.Errorf(w, r, "%s", err)
 				return true
@@ -427,7 +427,7 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 			return true
 		}
 		graphiteFunctionDetailsRequests.Inc()
-		if err := graphite.FunctionDetailsHandler(startTime, funcName, w, r); err != nil {
+		if err := graphite.FunctionDetailsHandler(funcName, w, r); err != nil {
 			graphiteFunctionDetailsErrors.Inc()
 			httpserver.Errorf(w, r, "%s", err)
 			return true

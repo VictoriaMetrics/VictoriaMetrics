@@ -22,7 +22,7 @@ func newAvgAggrState() *avgAggrState {
 	return &avgAggrState{}
 }
 
-func (as *avgAggrState) pushSample(inputKey, outputKey string, value float64) {
+func (as *avgAggrState) pushSample(_, outputKey string, value float64) {
 again:
 	v, ok := as.m.Load(outputKey)
 	if !ok {

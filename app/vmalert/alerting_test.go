@@ -872,7 +872,6 @@ func TestAlertingRule_Template(t *testing.T) {
 				gotAlert := tc.rule.alerts[hash]
 				if gotAlert == nil {
 					t.Fatalf("alert %d is missing; labels: %v; annotations: %v", hash, expAlert.Labels, expAlert.Annotations)
-					break
 				}
 				if !reflect.DeepEqual(expAlert.Annotations, gotAlert.Annotations) {
 					t.Fatalf("expected to have annotations %#v; got %#v", expAlert.Annotations, gotAlert.Annotations)
