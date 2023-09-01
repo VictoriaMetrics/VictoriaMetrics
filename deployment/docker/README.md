@@ -128,3 +128,16 @@ of alerting rules is the following:
 
 Please, also see [how to monitor](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#monitoring) 
 VictoriaMetrics installations.
+
+## VictoriaLogs server
+
+VictoriaLogs will be accessible on the following port: `--httpListenAddr=:9428`
+
+[Fluent Bit](https://docs.fluentbit.io/manual) is used to send logs to VictoriaLogs instance.
+Fluent Bit is configured to send logs from running containers to VictoriaLogs instance.
+Additionally, it is configured to listen for syslog logs on port `5140` and send them to VictoriaLogs instance.
+
+To access VictoriaLogs UI use link [http://localhost:9428/select/vmui/](http://localhost:9428/select/vmui/).
+
+Please, also see [how to monitor](https://docs.victoriametrics.com/VictoriaLogs/#monitoring) 
+VictoriaLogs installations.
