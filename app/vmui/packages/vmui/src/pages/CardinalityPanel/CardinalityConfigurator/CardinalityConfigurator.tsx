@@ -127,6 +127,7 @@ const CardinalityConfigurator: FC<CardinalityTotalsProps> = ({ isPrometheus, ...
             color={showTips ? "warning" : "gray"}
             startIcon={<TipIcon/>}
             onClick={handleToggleTips}
+            ariaLabel="visibility tips"
           />
         </Tooltip>
         <Button

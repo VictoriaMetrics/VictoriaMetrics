@@ -123,6 +123,7 @@ func TestNeedSkipScrapeWork(t *testing.T) {
 	}
 	// Disabled clustering
 	f("foo", 0, 0, 0, false)
+	f("foo", 0, 0, 1, false)
 
 	// A cluster with 2 nodes with disabled replication
 	f("foo", 2, 0, 0, true)

@@ -2,9 +2,10 @@ import uPlot, { Axis, Series } from "uplot";
 import { getMaxFromArray, getMinFromArray } from "../math";
 import { getSecondsFromDuration, roundToMilliseconds } from "../time";
 import { AxisRange } from "../../state/graph/reducer";
-import { formatTicks, sizeAxis } from "./helpers";
+import { formatTicks, getTextWidth } from "./helpers";
 import { TimeParams } from "../../types";
 import { getCssVariable } from "../theme";
+import { AxisExtend } from "../../types";
 
 // see https://github.com/leeoniya/uPlot/tree/master/docs#axis--grid-opts
 const timeValues = [
@@ -76,4 +77,17 @@ export const getLimitsYAxis = (values: { [key: string]: number[] }, buffer: bool
   const max = getMaxFromArray(numbers) || 1;
   result[key] = buffer ? getMinMaxBuffer(min, max) : [min, max];
   return result;
+};
+
+export const sizeAxis = (u: uPlot, values: string[], axisIdx: number, cycleNum: number): number => {
+  const axis = u.axes[axisIdx] as AxisExtend;
+
+  if (cycleNum > 1) return axis._size || 60;
+
+  let axisSize = 6 + (axis?.ticks?.size || 0) + (axis.gap || 0);
+
+  const longestVal = (values ?? []).reduce((acc, val) => val?.length > acc.length ? val : acc, "");
+  if (longestVal != "") axisSize += getTextWidth(longestVal, "10px Arial");
+
+  return Math.ceil(axisSize);
 };

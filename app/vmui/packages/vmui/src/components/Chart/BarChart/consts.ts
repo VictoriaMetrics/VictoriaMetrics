@@ -1,6 +1,6 @@
 import { seriesBarsPlugin } from "../../../utils/uplot/plugin";
-import { barDisp, getBarSeries } from "../../../utils/uplot/series";
-import { Fill, Stroke } from "../../../utils/uplot/types";
+import { barDisp, getBarSeries } from "../../../utils/uplot";
+import { Fill, Stroke } from "../../../types";
 import { PaddingSide, Series } from "uplot";
 
 

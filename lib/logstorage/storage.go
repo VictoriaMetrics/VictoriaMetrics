@@ -317,6 +317,9 @@ func (s *Storage) watchRetention() {
 				break
 			}
 			ptwsToDelete = append(ptwsToDelete, ptw)
+			if ptw == s.ptwHot {
+				s.ptwHot = nil
+			}
 		}
 		for i := range ptwsToDelete {
 			s.partitions[i] = nil
@@ -363,6 +366,7 @@ func (s *Storage) MustClose() {
 		}
 	}
 	s.partitions = nil
+	s.ptwHot = nil
 
 	// Save caches
 	streamIDCachePath := filepath.Join(s.path, cacheDirname, streamIDCacheFilename)

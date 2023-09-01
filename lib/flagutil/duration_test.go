@@ -3,6 +3,7 @@ package flagutil
 import (
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestDurationSetFailure(t *testing.T) {
@@ -58,4 +59,23 @@ func TestDurationSetSuccess(t *testing.T) {
 	f("2.3W", 2.3*7*24*3600*1000)
 	f("1w", 7*24*3600*1000)
 	f("0.25y", 0.25*365*24*3600*1000)
+}
+
+func TestDurationDuration(t *testing.T) {
+	f := func(value string, expected time.Duration) {
+		t.Helper()
+		var d Duration
+		if err := d.Set(value); err != nil {
+			t.Fatalf("unexpected error in d.Set(%q): %s", value, err)
+		}
+		if d.Duration() != expected {
+			t.Fatalf("unexpected result; got %v; want %v", d.Duration().String(), expected.String())
+		}
+	}
+	f("0", 0)
+	f("1", 31*24*time.Hour)
+	f("1h", time.Hour)
+	f("1.5d", 1.5*24*time.Hour)
+	f("1w", 7*24*time.Hour)
+	f("0.25y", 0.25*365*24*time.Hour)
 }

@@ -62,7 +62,7 @@ func (z ZoneYAML) MarshalYAML() (interface{}, error) {
 }
 
 // GetLabels returns gce labels according to sdc.
-func (sdc *SDConfig) GetLabels(baseDir string) ([]*promutils.Labels, error) {
+func (sdc *SDConfig) GetLabels(_ string) ([]*promutils.Labels, error) {
 	cfg, err := getAPIConfig(sdc)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get API config: %w", err)

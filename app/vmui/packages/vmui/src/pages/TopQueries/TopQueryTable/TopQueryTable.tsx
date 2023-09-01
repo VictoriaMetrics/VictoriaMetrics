@@ -85,6 +85,7 @@ const TopQueryTable:FC<TopQueryPanelProps> = ({ rows, columns, defaultOrderBy })
                       variant="text"
                       size="small"
                       startIcon={<PlayCircleOutlineIcon/>}
+                      ariaLabel="execute query"
                     />
                   </Link>
                 </Tooltip>
@@ -94,6 +95,7 @@ const TopQueryTable:FC<TopQueryPanelProps> = ({ rows, columns, defaultOrderBy })
                     size="small"
                     startIcon={<CopyIcon/>}
                     onClick={createCopyHandler(row)}
+                    ariaLabel="copy query"
                   />
                 </Tooltip>
               </div>

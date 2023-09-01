@@ -1,4 +1,5 @@
 import { MetricBase } from "../api/types";
+export * from "./uplot";
 
 declare global {
   interface Window {

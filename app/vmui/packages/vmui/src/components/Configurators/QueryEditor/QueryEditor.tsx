@@ -5,8 +5,6 @@ import TextField from "../../Main/TextField/TextField";
 import Autocomplete from "../../Main/Autocomplete/Autocomplete";
 import "./style.scss";
 import { QueryStats } from "../../../api/types";
-import Tooltip from "../../Main/Tooltip/Tooltip";
-import { WarningIcon } from "../../Main/Icons";
 import { partialWarning, seriesFetchedWarning } from "./warningText";
 
 export interface QueryEditorProps {
@@ -41,7 +39,7 @@ const QueryEditor: FC<QueryEditorProps> = ({
   const [openAutocomplete, setOpenAutocomplete] = useState(false);
   const autocompleteAnchorEl = useRef<HTMLDivElement>(null);
 
-  const warnings = [
+  const warning = [
     {
       show: stats?.seriesFetched === "0" && !stats.resultLength,
       text: seriesFetchedWarning
@@ -50,7 +48,7 @@ const QueryEditor: FC<QueryEditorProps> = ({
       show: stats?.isPartial,
       text: partialWarning
     }
-  ].filter((warning) => warning.show);
+  ].filter((w) => w.show).map(w => w.text).join("");
 
   const handleSelect = (val: string) => {
     onChange(val);
@@ -104,6 +102,7 @@ const QueryEditor: FC<QueryEditorProps> = ({
       type={"textarea"}
       autofocus={!!value}
       error={error}
+      warning={warning}
       onKeyDown={handleKeyDown}
       onChange={onChange}
       disabled={disabled}
@@ -118,20 +117,6 @@ const QueryEditor: FC<QueryEditorProps> = ({
         onSelect={handleSelect}
         onFoundOptions={handleChangeFoundOptions}
       />
-    )}
-    {!!warnings.length && (
-      <div className="vm-query-editor-warning">
-        <Tooltip
-          placement="bottom-right"
-          title={(
-            <div className="vm-query-editor-warning__tooltip">
-              {warnings.map((warning, index) => <p key={index}>{warning.text}</p>)}
-            </div>
-          )}
-        >
-          <WarningIcon/>
-        </Tooltip>
-      </div>
     )}
   </div>;
 };

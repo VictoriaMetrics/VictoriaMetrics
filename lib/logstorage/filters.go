@@ -155,11 +155,11 @@ func (nf *noopFilter) String() string {
 	return ""
 }
 
-func (nf *noopFilter) updateReferencedColumnNames(m map[string]struct{}) {
+func (nf *noopFilter) updateReferencedColumnNames(_ map[string]struct{}) {
 	// nothing to do
 }
 
-func (nf *noopFilter) apply(bs *blockSearch, bm *filterBitmap) {
+func (nf *noopFilter) apply(_ *blockSearch, _ *filterBitmap) {
 	// nothing to do
 }
 

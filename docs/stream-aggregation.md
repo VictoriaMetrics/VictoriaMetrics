@@ -448,6 +448,12 @@ For example, see below time series produced by config with aggregation interval 
 
 <img alt="increase aggregation" src="stream-aggregation-check-increase.png">
 
+`increase` can be used as an alternative for [rate](https://docs.victoriametrics.com/MetricsQL.html#rate) function.
+For example, if we have `increase` with `interval` of `5m` for a counter `some_counter`, then to get `rate` we should divide
+the resulting aggregation by the `interval` in seconds: `some_counter:5m_increase / 5m` is similar to `rate(some_counter[5m])`.
+Please note, opposite to [rate](https://docs.victoriametrics.com/MetricsQL.html#rate), `increase` aggregations can be 
+combined safely afterwards. This is helpful when the aggregation is calculated by more than one vmagent.
+
 Aggregating irregular and sporadic metrics (received from [Lambdas](https://aws.amazon.com/lambda/)
 or [Cloud Functions](https://cloud.google.com/functions)) can be controlled via [staleness_inteval](#stream-aggregation-config).
 

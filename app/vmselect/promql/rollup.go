@@ -2222,7 +2222,7 @@ func rollupIntegrate(rfa *rollupFuncArg) float64 {
 	return sum
 }
 
-func rollupFake(rfa *rollupFuncArg) float64 {
+func rollupFake(_ *rollupFuncArg) float64 {
 	logger.Panicf("BUG: rollupFake shouldn't be called")
 	return 0
 }
