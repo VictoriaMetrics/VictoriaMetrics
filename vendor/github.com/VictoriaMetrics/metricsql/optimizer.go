@@ -78,7 +78,7 @@ func optimizeInplace(e Expr) {
 func getCommonLabelFilters(e Expr) []LabelFilter {
 	switch t := e.(type) {
 	case *MetricExpr:
-		return getLabelFiltersWithoutMetricName(t.LabelFilters)
+		return getCommonLabelFiltersWithoutMetricName(t.LabelFilterss)
 	case *RollupExpr:
 		return getCommonLabelFilters(t.Expr)
 	case *FuncExpr:
@@ -180,6 +180,21 @@ func TrimFiltersByGroupModifier(lfs []LabelFilter, be *BinaryOpExpr) []LabelFilt
 	}
 }
 
+func getCommonLabelFiltersWithoutMetricName(lfss [][]LabelFilter) []LabelFilter {
+	if len(lfss) == 0 {
+		return nil
+	}
+	lfsA := getLabelFiltersWithoutMetricName(lfss[0])
+	for _, lfs := range lfss[1:] {
+		if len(lfsA) == 0 {
+			return nil
+		}
+		lfsB := getLabelFiltersWithoutMetricName(lfs)
+		lfsA = intersectLabelFilters(lfsA, lfsB)
+	}
+	return lfsA
+}
+
 func getLabelFiltersWithoutMetricName(lfs []LabelFilter) []LabelFilter {
 	lfsNew := make([]LabelFilter, 0, len(lfs))
 	for _, lf := range lfs {
@@ -213,8 +228,11 @@ func pushdownBinaryOpFiltersInplace(e Expr, lfs []LabelFilter) {
 	}
 	switch t := e.(type) {
 	case *MetricExpr:
-		t.LabelFilters = unionLabelFilters(t.LabelFilters, lfs)
-		sortLabelFilters(t.LabelFilters)
+		for i, lfsLocal := range t.LabelFilterss {
+			lfsLocal = unionLabelFilters(lfsLocal, lfs)
+			sortLabelFilters(lfsLocal)
+			t.LabelFilterss[i] = lfsLocal
+		}
 	case *RollupExpr:
 		pushdownBinaryOpFiltersInplace(t.Expr, lfs)
 	case *FuncExpr:
