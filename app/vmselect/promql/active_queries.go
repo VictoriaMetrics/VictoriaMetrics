@@ -16,7 +16,7 @@ import (
 // It writes a JSON with active queries to w.
 //
 // If at is nil, then all the active queries across all the tenants are written.
-func ActiveQueriesHandler(at *auth.Token, w http.ResponseWriter, r *http.Request) {
+func ActiveQueriesHandler(at *auth.Token, w http.ResponseWriter, _ *http.Request) {
 	aqes := activeQueriesV.GetAll()
 	if at != nil {
 		// Filter out queries, which do not belong to at.

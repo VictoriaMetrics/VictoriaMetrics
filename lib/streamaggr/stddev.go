@@ -24,7 +24,7 @@ func newStddevAggrState() *stddevAggrState {
 	return &stddevAggrState{}
 }
 
-func (as *stddevAggrState) pushSample(inputKey, outputKey string, value float64) {
+func (as *stddevAggrState) pushSample(_, outputKey string, value float64) {
 again:
 	v, ok := as.m.Load(outputKey)
 	if !ok {

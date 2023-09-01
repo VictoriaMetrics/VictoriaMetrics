@@ -79,7 +79,7 @@ func TestRule_state(t *testing.T) {
 // TestRule_stateConcurrent supposed to test concurrent
 // execution of state updates.
 // Should be executed with -race flag
-func TestRule_stateConcurrent(t *testing.T) {
+func TestRule_stateConcurrent(_ *testing.T) {
 	state := newRuleState(20)
 
 	const workers = 50

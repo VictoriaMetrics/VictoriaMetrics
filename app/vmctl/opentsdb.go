@@ -170,8 +170,5 @@ func (op *otsdbProcessor) do(s queryObj) error {
 		Timestamps: data.Timestamps,
 		Values:     data.Values,
 	}
-	if err := op.im.Input(&ts); err != nil {
-		return err
-	}
-	return nil
+	return op.im.Input(&ts)
 }

@@ -2009,10 +2009,7 @@ func (sn *storageNode) processSearchMetricNames(qt *querytracer.Tracer, requestD
 func (sn *storageNode) processSearchQuery(qt *querytracer.Tracer, requestData []byte, processBlock func(mb *storage.MetricBlock, workerID uint) error,
 	workerID uint, deadline searchutils.Deadline) error {
 	f := func(bc *handshake.BufferedConn) error {
-		if err := sn.processSearchQueryOnConn(bc, requestData, processBlock, workerID); err != nil {
-			return err
-		}
-		return nil
+		return sn.processSearchQueryOnConn(bc, requestData, processBlock, workerID)
 	}
 	return sn.execOnConnWithPossibleRetry(qt, "search_v7", f, deadline)
 }

@@ -30,7 +30,7 @@ func newHistogramBucketAggrState(stalenessInterval time.Duration) *histogramBuck
 	}
 }
 
-func (as *histogramBucketAggrState) pushSample(inputKey, outputKey string, value float64) {
+func (as *histogramBucketAggrState) pushSample(_, outputKey string, value float64) {
 	currentTime := fasttime.UnixTimestamp()
 	deleteDeadline := currentTime + as.stalenessSecs
 

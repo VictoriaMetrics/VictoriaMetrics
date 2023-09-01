@@ -881,13 +881,13 @@ func (pt *partition) flushInmemoryParts(isFinal bool) {
 
 func (rrss *rawRowsShards) flush(pt *partition, dst []rawRow, isFinal bool) []rawRow {
 	for i := range rrss.shards {
-		dst = rrss.shards[i].appendRawRowsToFlush(dst, pt, isFinal)
+		dst = rrss.shards[i].appendRawRowsToFlush(dst, isFinal)
 	}
 	pt.flushRowsToParts(dst)
 	return dst
 }
 
-func (rrs *rawRowsShard) appendRawRowsToFlush(dst []rawRow, pt *partition, isFinal bool) []rawRow {
+func (rrs *rawRowsShard) appendRawRowsToFlush(dst []rawRow, isFinal bool) []rawRow {
 	currentTime := fasttime.UnixTimestamp()
 	flushSeconds := int64(pendingRowsFlushInterval.Seconds())
 	if flushSeconds <= 0 {

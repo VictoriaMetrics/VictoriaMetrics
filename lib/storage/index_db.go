@@ -829,7 +829,7 @@ func (is *indexSearch) searchTenantsOnTimeRange(qt *querytracer.Tracer, tenants 
 	maxDate := uint64(tr.MaxTimestamp-1) / msecPerDay
 	if maxDate == 0 || minDate > maxDate || maxDate-minDate > maxDaysForPerDaySearch {
 		qtChild := qt.NewChild("search for tenants in global index")
-		err := is.searchTenantsOnDate(qtChild, tenants, 0)
+		err := is.searchTenantsOnDate(tenants, 0)
 		qtChild.Done()
 		return err
 	}
@@ -847,7 +847,7 @@ func (is *indexSearch) searchTenantsOnTimeRange(qt *querytracer.Tracer, tenants 
 			}()
 			tenantsLocal := make(map[string]struct{})
 			isLocal := is.db.getIndexSearch(0, 0, is.deadline)
-			err := isLocal.searchTenantsOnDate(qtChild, tenantsLocal, date)
+			err := isLocal.searchTenantsOnDate(tenantsLocal, date)
 			is.db.putIndexSearch(isLocal)
 			mu.Lock()
 			defer mu.Unlock()
@@ -869,7 +869,7 @@ func (is *indexSearch) searchTenantsOnTimeRange(qt *querytracer.Tracer, tenants 
 	return errGlobal
 }
 
-func (is *indexSearch) searchTenantsOnDate(qt *querytracer.Tracer, tenants map[string]struct{}, date uint64) error {
+func (is *indexSearch) searchTenantsOnDate(tenants map[string]struct{}, date uint64) error {
 	loopsPaceLimiter := 0
 	ts := &is.ts
 	kb := &is.kb
@@ -1584,7 +1584,7 @@ func (th *topHeap) Swap(i, j int) {
 	a[j], a[i] = a[i], a[j]
 }
 
-func (th *topHeap) Push(x interface{}) {
+func (th *topHeap) Push(_ interface{}) {
 	panic(fmt.Errorf("BUG: Push shouldn't be called"))
 }
 

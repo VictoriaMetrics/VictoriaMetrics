@@ -74,7 +74,7 @@ func Exec(qt *querytracer.Tracer, ec *EvalConfig, q string, isFirstPointOnly boo
 		}
 		qt.Printf("leave only the first point in every series")
 	}
-	maySort := maySortResults(e, rv)
+	maySort := maySortResults(e)
 	result, err := timeseriesToResult(rv, maySort)
 	if err != nil {
 		return nil, err
@@ -96,7 +96,7 @@ func Exec(qt *querytracer.Tracer, ec *EvalConfig, q string, isFirstPointOnly boo
 	return result, nil
 }
 
-func maySortResults(e metricsql.Expr, tss []*timeseries) bool {
+func maySortResults(e metricsql.Expr) bool {
 	switch v := e.(type) {
 	case *metricsql.FuncExpr:
 		switch strings.ToLower(v.Name) {
