@@ -85,7 +85,7 @@ func MetricsFindHandler(startTime time.Time, w http.ResponseWriter, r *http.Requ
 	if leavesOnly {
 		paths = filterLeaves(paths, delimiter)
 	}
-	paths = deduplicatePaths(paths, delimiter)
+	paths = deduplicatePaths(paths)
 	sortPaths(paths, delimiter)
 	contentType := getContentType(jsonp)
 	w.Header().Set("Content-Type", contentType)
@@ -99,7 +99,7 @@ func MetricsFindHandler(startTime time.Time, w http.ResponseWriter, r *http.Requ
 	return nil
 }
 
-func deduplicatePaths(paths []string, delimiter string) []string {
+func deduplicatePaths(paths []string) []string {
 	if len(paths) == 0 {
 		return nil
 	}
