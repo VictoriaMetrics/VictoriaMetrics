@@ -46,6 +46,7 @@ The following `tip` changes can be tested by building VictoriaMetrics components
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): correctly re-use HTTP request object on `EOF` retries when querying the configured datasource. Previously, there was a small chance that query retry wouldn't succeed.
 * BUGFIX: [vmselect](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): correctly handle requests with `/select/multitenant` prefix. Such requests must be rejected since vmselect does not support multitenancy endpoint. Previously, such requests were causing panic. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4910).
 * BUGFIX: [vminsert](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): properly check for [read-only state](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#readonly-mode) at `vmstorage`. Previously it wasn't properly checked, which could lead to increased resource usage and data ingestion slowdown when some of `vmstorage` nodes are in read-only mode. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4870).
+* BUGFIX: [vmstorage](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html):  Correctly return response for `/api/v1/labels` requests. Previously an empty label names broke entire `vmcluster` RPC communication . See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4932).
 
 ## [v1.93.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.1)
 

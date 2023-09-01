@@ -690,6 +690,10 @@ func (s *Server) processLabelNames(ctx *vmselectRequestCtx) error {
 
 	// Send labelNames to vmselect
 	for _, labelName := range labelNames {
+		if len(labelName) == 0 {
+			// Skip empty label names, since they have no sense for prometheus.
+			continue
+		}
 		if err := ctx.writeString(labelName); err != nil {
 			return fmt.Errorf("cannot write label name %q: %w", labelName, err)
 		}
@@ -919,6 +923,9 @@ func (s *Server) processTenants(ctx *vmselectRequestCtx) error {
 
 	// Send tenants to vmselect
 	for _, tenant := range tenants {
+		if len(tenant) == 0 {
+			return fmt.Errorf("BUG: unexpected empty tenant name")
+		}
 		if err := ctx.writeString(tenant); err != nil {
 			return fmt.Errorf("cannot write tenant %q: %w", tenant, err)
 		}
