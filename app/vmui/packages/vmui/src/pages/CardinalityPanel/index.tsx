@@ -56,6 +56,7 @@ const CardinalityPanel: FC = () => {
     >
       {isLoading && <Spinner message={spinnerMessage}/>}
       <CardinalityConfigurator
+        isPrometheus={appConfigurator.isPrometheusData}
         totalSeries={tsdbStatusData.totalSeries}
         totalSeriesPrev={tsdbStatusData.totalSeriesPrev}
         totalSeriesAll={tsdbStatusData.totalSeriesByAll}
@@ -86,6 +87,7 @@ const CardinalityPanel: FC = () => {
           totalSeriesPrev={appConfigurator.totalSeries(keyName, true)}
           totalSeries={appConfigurator.totalSeries(keyName)}
           tableHeaderCells={tablesHeaders[keyName]}
+          isPrometheus={appConfigurator.isPrometheusData}
         />;
       })}
     </div>
