@@ -21,8 +21,15 @@
 //
 // # General documentation
 //
-// For information about setting deadlines, reusing contexts, and more
-// please visit https://pkg.go.dev/cloud.google.com/go.
+// For information that is relevant for all client libraries please reference
+// https://pkg.go.dev/cloud.google.com/go#pkg-overview. Some information on this
+// page includes:
+//
+//   - [Authentication and Authorization]
+//   - [Timeouts and Cancellation]
+//   - [Testing against Client Libraries]
+//   - [Debugging Client Libraries]
+//   - [Inspecting errors]
 //
 // # Example usage
 //
@@ -69,11 +76,6 @@
 //		// TODO: Handle error.
 //	}
 //
-// # Inspecting errors
-//
-// To see examples of how to inspect errors returned by this package please reference
-// [Inspecting errors](https://pkg.go.dev/cloud.google.com/go#hdr-Inspecting_errors).
-//
 // # Use of Context
 //
 // The ctx passed to NewClient is used for authentication requests and
@@ -81,13 +83,18 @@
 // Individual methods on the client use the ctx given to them.
 //
 // To close the open connection, use the Close() method.
+//
+// [Authentication and Authorization]: https://pkg.go.dev/cloud.google.com/go#hdr-Authentication_and_Authorization
+// [Timeouts and Cancellation]: https://pkg.go.dev/cloud.google.com/go#hdr-Timeouts_and_Cancellation
+// [Testing against Client Libraries]: https://pkg.go.dev/cloud.google.com/go#hdr-Testing
+// [Debugging Client Libraries]: https://pkg.go.dev/cloud.google.com/go#hdr-Debugging
+// [Inspecting errors]: https://pkg.go.dev/cloud.google.com/go#hdr-Inspecting_errors
 package storage // import "cloud.google.com/go/storage/internal/apiv2"
 
 import (
 	"context"
 
 	"google.golang.org/api/option"
-	"google.golang.org/grpc/metadata"
 )
 
 // For more information on implementing a client constructor hook, see
@@ -102,17 +109,6 @@ func getVersionClient() string {
 		return "UNKNOWN"
 	}
 	return versionClient
-}
-
-func insertMetadata(ctx context.Context, mds ...metadata.MD) context.Context {
-	out, _ := metadata.FromOutgoingContext(ctx)
-	out = out.Copy()
-	for _, md := range mds {
-		for k, v := range md {
-			out[k] = append(out[k], v...)
-		}
-	}
-	return metadata.NewOutgoingContext(ctx, out)
 }
 
 // DefaultAuthScopes reports the default set of authentication scopes to use with this package.
