@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/VictoriaMetrics/metricsql"
 )
@@ -28,6 +29,11 @@ type Duration struct {
 	Msecs int64
 
 	valueString string
+}
+
+// Duration convert to time.Duration.
+func (d *Duration) Duration() time.Duration {
+	return time.Millisecond * time.Duration(d.Msecs)
 }
 
 // String implements flag.Value interface
