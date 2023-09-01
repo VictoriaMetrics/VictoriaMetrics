@@ -7,7 +7,7 @@ import (
 )
 
 func TestCreateTargetURLSuccess(t *testing.T) {
-	f := func(ui *UserInfo, requestURI, expectedTarget, expectedHeaders string) {
+	f := func(ui *UserInfo, requestURI, expectedTarget, expectedRequestHeaders, expectedResponseHeaders string) {
 		t.Helper()
 		u, err := url.Parse(requestURI)
 		if err != nil {
@@ -25,36 +25,38 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 			t.Fatalf("unexpected target; got %q; want %q", target, expectedTarget)
 		}
 		headersStr := fmt.Sprintf("%q", headers.RequestHeaders)
-		if headersStr != expectedHeaders {
-			t.Fatalf("unexpected headers; got %s; want %s", headersStr, expectedHeaders)
+		if headersStr != expectedRequestHeaders {
+			t.Fatalf("unexpected headers; got %s; want %s", headersStr, expectedRequestHeaders)
 		}
 	}
 	// Simple routing with `url_prefix`
 	f(&UserInfo{
 		URLPrefix: mustParseURL("http://foo.bar"),
-	}, "", "http://foo.bar/.", "[]")
+	}, "", "http://foo.bar/.", "[]", "[]")
 	f(&UserInfo{
 		URLPrefix: mustParseURL("http://foo.bar"),
-		HeadersConf: HeadersConf{RequestHeaders: []Header{{
-			Name:  "bb",
-			Value: "aaa",
-		}}},
-	}, "/", "http://foo.bar", `[{"bb" "aaa"}]`)
+		HeadersConf: HeadersConf{
+			RequestHeaders: []Header{{
+				Name:  "bb",
+				Value: "aaa",
+			}},
+		},
+	}, "/", "http://foo.bar", `[{"bb" "aaa"}]`, `[]`)
 	f(&UserInfo{
 		URLPrefix: mustParseURL("http://foo.bar/federate"),
-	}, "/", "http://foo.bar/federate", "[]")
+	}, "/", "http://foo.bar/federate", "[]", "[]")
 	f(&UserInfo{
 		URLPrefix: mustParseURL("http://foo.bar"),
-	}, "a/b?c=d", "http://foo.bar/a/b?c=d", "[]")
+	}, "a/b?c=d", "http://foo.bar/a/b?c=d", "[]", "[]")
 	f(&UserInfo{
 		URLPrefix: mustParseURL("https://sss:3894/x/y"),
-	}, "/z", "https://sss:3894/x/y/z", "[]")
+	}, "/z", "https://sss:3894/x/y/z", "[]", "[]")
 	f(&UserInfo{
 		URLPrefix: mustParseURL("https://sss:3894/x/y"),
-	}, "/../../aaa", "https://sss:3894/x/y/aaa", "[]")
+	}, "/../../aaa", "https://sss:3894/x/y/aaa", "[]", "[]")
 	f(&UserInfo{
 		URLPrefix: mustParseURL("https://sss:3894/x/y"),
-	}, "/./asd/../../aaa?a=d&s=s/../d", "https://sss:3894/x/y/aaa?a=d&s=s%2F..%2Fd", "[]")
+	}, "/./asd/../../aaa?a=d&s=s/../d", "https://sss:3894/x/y/aaa?a=d&s=s%2F..%2Fd", "[]", "[]")
 
 	// Complex routing with `url_map`
 	ui := &UserInfo{
@@ -62,16 +64,24 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 			{
 				SrcPaths:  getSrcPaths([]string{"/api/v1/query"}),
 				URLPrefix: mustParseURL("http://vmselect/0/prometheus"),
-				HeadersConf: HeadersConf{RequestHeaders: []Header{
-					{
-						Name:  "xx",
-						Value: "aa",
+				HeadersConf: HeadersConf{
+					RequestHeaders: []Header{
+						{
+							Name:  "xx",
+							Value: "aa",
+						},
+						{
+							Name:  "yy",
+							Value: "asdf",
+						},
 					},
-					{
-						Name:  "yy",
-						Value: "asdf",
+					ResponseHeaders: []Header{
+						{
+							Name:  "qwe",
+							Value: "rty",
+						},
 					},
-				}},
+				},
 			},
 			{
 				SrcPaths:  getSrcPaths([]string{"/api/v1/write"}),
@@ -79,14 +89,20 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 			},
 		},
 		URLPrefix: mustParseURL("http://default-server"),
-		HeadersConf: HeadersConf{RequestHeaders: []Header{{
-			Name:  "bb",
-			Value: "aaa",
-		}}},
+		HeadersConf: HeadersConf{
+			RequestHeaders: []Header{{
+				Name:  "bb",
+				Value: "aaa",
+			}},
+			ResponseHeaders: []Header{{
+				Name:  "x",
+				Value: "y",
+			}},
+		},
 	}
-	f(ui, "/api/v1/query?query=up", "http://vmselect/0/prometheus/api/v1/query?query=up", `[{"xx" "aa"} {"yy" "asdf"}]`)
-	f(ui, "/api/v1/write", "http://vminsert/0/prometheus/api/v1/write", "[]")
-	f(ui, "/api/v1/query_range", "http://default-server/api/v1/query_range", `[{"bb" "aaa"}]`)
+	f(ui, "/api/v1/query?query=up", "http://vmselect/0/prometheus/api/v1/query?query=up", `[{"xx" "aa"} {"yy" "asdf"}]`, `[{"qwe" "rty"}]`)
+	f(ui, "/api/v1/write", "http://vminsert/0/prometheus/api/v1/write", "[]", "[]")
+	f(ui, "/api/v1/query_range", "http://default-server/api/v1/query_range", `[{"bb" "aaa"}]`, `[{"x" "y"}]`)
 
 	// Complex routing regexp paths in `url_map`
 	ui = &UserInfo{
@@ -102,18 +118,17 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 		},
 		URLPrefix: mustParseURL("http://default-server"),
 	}
-	f(ui, "/api/v1/query?query=up", "http://vmselect/0/prometheus/api/v1/query?query=up", "[]")
-	f(ui, "/api/v1/query_range?query=up", "http://vmselect/0/prometheus/api/v1/query_range?query=up", "[]")
-	f(ui, "/api/v1/label/foo/values", "http://vmselect/0/prometheus/api/v1/label/foo/values", "[]")
-	f(ui, "/api/v1/write", "http://vminsert/0/prometheus/api/v1/write", "[]")
-	f(ui, "/api/v1/foo/bar", "http://default-server/api/v1/foo/bar", "[]")
+	f(ui, "/api/v1/query?query=up", "http://vmselect/0/prometheus/api/v1/query?query=up", "[]", "[]")
+	f(ui, "/api/v1/query_range?query=up", "http://vmselect/0/prometheus/api/v1/query_range?query=up", "[]", "[]")
+	f(ui, "/api/v1/label/foo/values", "http://vmselect/0/prometheus/api/v1/label/foo/values", "[]", "[]")
+	f(ui, "/api/v1/write", "http://vminsert/0/prometheus/api/v1/write", "[]", "[]")
+	f(ui, "/api/v1/foo/bar", "http://default-server/api/v1/foo/bar", "[]", "[]")
 	f(&UserInfo{
 		URLPrefix: mustParseURL("http://foo.bar?extra_label=team=dev"),
-	}, "/api/v1/query", "http://foo.bar/api/v1/query?extra_label=team=dev", "[]")
+	}, "/api/v1/query", "http://foo.bar/api/v1/query?extra_label=team=dev", "[]", "[]")
 	f(&UserInfo{
 		URLPrefix: mustParseURL("http://foo.bar?extra_label=team=mobile"),
-	}, "/api/v1/query?extra_label=team=dev", "http://foo.bar/api/v1/query?extra_label=team%3Dmobile", "[]")
-
+	}, "/api/v1/query?extra_label=team=dev", "http://foo.bar/api/v1/query?extra_label=team%3Dmobile", "[]", "[]")
 }
 
 func TestCreateTargetURLFailure(t *testing.T) {
