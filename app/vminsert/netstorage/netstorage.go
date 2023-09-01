@@ -813,9 +813,22 @@ func (sn *storageNode) checkReadOnlyMode() {
 		atomic.StoreUint32(&sn.isReadOnly, 0)
 		return
 	}
-	if !errors.Is(err, errStorageReadOnly) {
-		logger.Errorf("cannot check storage readonly mode for -storageNode=%q: %s", sn.dialer.Addr(), err)
+	if errors.Is(err, errStorageReadOnly) {
+		// The storage remains in read-only mode
+		return
 	}
+
+	// There was an error when sending nil buf to the storage.
+	logger.Errorf("cannot check storage readonly mode for -storageNode=%q: %s", sn.dialer.Addr(), err)
+
+	// Mark the connection to the storage as broken.
+	if err = sn.bc.Close(); err != nil {
+		cannotCloseStorageNodeConnLogger.Warnf("cannot close connection to storageNode %q: %s", sn.dialer.Addr(), err)
+	}
+	sn.bc = nil
+	atomic.StoreUint32(&sn.broken, 1)
+	sn.brCond.Broadcast()
+	sn.connectionErrors.Inc()
 }
 
 var (
