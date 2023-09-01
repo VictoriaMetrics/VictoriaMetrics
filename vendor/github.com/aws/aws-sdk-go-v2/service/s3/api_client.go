@@ -344,6 +344,7 @@ func NewFromConfig(cfg aws.Config, optFns ...func(*Options)) *Client {
 	resolveAWSRetryMode(cfg, &opts)
 	resolveAWSEndpointResolver(cfg, &opts)
 	resolveUseARNRegion(cfg, &opts)
+	resolveDisableMultiRegionAccessPoints(cfg, &opts)
 	resolveUseDualStackEndpoint(cfg, &opts)
 	resolveUseFIPSEndpoint(cfg, &opts)
 	return New(opts, optFns...)
@@ -511,6 +512,21 @@ func resolveUseARNRegion(cfg aws.Config, o *Options) error {
 	}
 	if found {
 		o.UseARNRegion = value
+	}
+	return nil
+}
+
+// resolves DisableMultiRegionAccessPoints S3 configuration
+func resolveDisableMultiRegionAccessPoints(cfg aws.Config, o *Options) error {
+	if len(cfg.ConfigSources) == 0 {
+		return nil
+	}
+	value, found, err := s3sharedconfig.ResolveDisableMultiRegionAccessPoints(context.Background(), cfg.ConfigSources)
+	if err != nil {
+		return err
+	}
+	if found {
+		o.DisableMultiRegionAccessPoints = value
 	}
 	return nil
 }

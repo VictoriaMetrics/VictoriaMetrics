@@ -89,6 +89,8 @@ func (m *Manager) Read(ctx context.Context, authParameters authority.AuthParams)
 	realm := authParameters.AuthorityInfo.Tenant
 	clientID := authParameters.ClientID
 	scopes := authParameters.Scopes
+	authnSchemeKeyID := authParameters.AuthnScheme.KeyID()
+	tokenType := authParameters.AuthnScheme.AccessTokenType()
 
 	// fetch metadata if instanceDiscovery is enabled
 	aliases := []string{authParameters.AuthorityInfo.Host}
@@ -100,7 +102,7 @@ func (m *Manager) Read(ctx context.Context, authParameters authority.AuthParams)
 		aliases = metadata.Aliases
 	}
 
-	accessToken := m.readAccessToken(homeAccountID, aliases, realm, clientID, scopes)
+	accessToken := m.readAccessToken(homeAccountID, aliases, realm, clientID, scopes, tokenType, authnSchemeKeyID)
 	tr.AccessToken = accessToken
 
 	if homeAccountID == "" {
@@ -134,13 +136,13 @@ const scopeSeparator = " "
 
 // Write writes a token response to the cache and returns the account information the token is stored with.
 func (m *Manager) Write(authParameters authority.AuthParams, tokenResponse accesstokens.TokenResponse) (shared.Account, error) {
-	authParameters.HomeAccountID = tokenResponse.ClientInfo.HomeAccountID()
-	homeAccountID := authParameters.HomeAccountID
+	homeAccountID := tokenResponse.HomeAccountID()
 	environment := authParameters.AuthorityInfo.Host
 	realm := authParameters.AuthorityInfo.Tenant
 	clientID := authParameters.ClientID
 	target := strings.Join(tokenResponse.GrantedScopes.Slice, scopeSeparator)
 	cachedAt := time.Now()
+	authnSchemeKeyID := authParameters.AuthnScheme.KeyID()
 
 	var account shared.Account
 
@@ -162,6 +164,8 @@ func (m *Manager) Write(authParameters authority.AuthParams, tokenResponse acces
 			tokenResponse.ExtExpiresOn.T,
 			target,
 			tokenResponse.AccessToken,
+			tokenResponse.TokenType,
+			authnSchemeKeyID,
 		)
 
 		// Since we have a valid access token, cache it before moving on.
@@ -249,7 +253,7 @@ func (m *Manager) aadMetadata(ctx context.Context, authorityInfo authority.Info)
 	return m.aadCache[authorityInfo.Host], nil
 }
 
-func (m *Manager) readAccessToken(homeID string, envAliases []string, realm, clientID string, scopes []string) AccessToken {
+func (m *Manager) readAccessToken(homeID string, envAliases []string, realm, clientID string, scopes []string, tokenType, authnSchemeKeyID string) AccessToken {
 	m.contractMu.RLock()
 	defer m.contractMu.RUnlock()
 	// TODO: linear search (over a map no less) is slow for a large number (thousands) of tokens.
@@ -257,9 +261,11 @@ func (m *Manager) readAccessToken(homeID string, envAliases []string, realm, cli
 	// an issue, however if it does become a problem then we know where to look.
 	for _, at := range m.contract.AccessTokens {
 		if at.HomeAccountID == homeID && at.Realm == realm && at.ClientID == clientID {
-			if checkAlias(at.Environment, envAliases) {
-				if isMatchingScopes(scopes, at.Scopes) {
-					return at
+			if (at.TokenType == tokenType && at.AuthnSchemeKeyID == authnSchemeKeyID) || (at.TokenType == "" && (tokenType == "" || tokenType == "Bearer")) {
+				if checkAlias(at.Environment, envAliases) {
+					if isMatchingScopes(scopes, at.Scopes) {
+						return at
+					}
 				}
 			}
 		}
