@@ -691,7 +691,7 @@ func (s *Server) processLabelNames(ctx *vmselectRequestCtx) error {
 	// Send labelNames to vmselect
 	for _, labelName := range labelNames {
 		if len(labelName) == 0 {
-			// Skip empty label names, since they have no sense for prometheus.
+			// Skip empty label names
 			continue
 		}
 		if err := ctx.writeString(labelName); err != nil {
