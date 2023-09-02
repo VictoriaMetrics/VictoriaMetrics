@@ -10,6 +10,15 @@
 
 - TODO
 
+<a name="v0.37.1"></a>
+## [v0.37.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.37.1) - 02 Sep 2023
+
+**Default version of VictoriaMetrics components**: `v1.93.3`
+
+### Updates
+
+- bump default version of Victoria Metrics components to [v1.93.3](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.3)
+
 <a name="v0.37.0"></a>
 ## [v0.37.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.37.0) - 30 Aug 2023
 
