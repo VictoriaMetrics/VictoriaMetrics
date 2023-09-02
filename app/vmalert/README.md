@@ -163,8 +163,7 @@ notifier_headers:
 
 # Optional list of labels added to every rule within a group.
 # It has priority over the external labels.
-# Labels are commonly used for adding environm
-  ent
+# Labels are commonly used for adding environment
 # or tenant-specific tag.
 labels:
   [ <labelname>: <labelvalue> ... ]

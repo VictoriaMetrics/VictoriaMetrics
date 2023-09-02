@@ -39,16 +39,17 @@ type VMStorage struct {
 	queryStep        time.Duration
 	dataSourceType   datasourceType
 
-	// evaluationInterval defines the alignment of the request's timestamp
-	// and request's `step` param
+	// evaluationInterval will align the request's timestamp
+	// if `datasource.queryTimeAlignment` is enabled,
+	// will set request's `step` param as well.
 	evaluationInterval time.Duration
-	// evaluationOffset shifts the request's timestamp will be equal
+	// evaluationOffset shifts the request's timestamp, will be equal
 	// to the offset specified evaluationInterval.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4693
 	evaluationOffset *time.Duration
 	// extraParams contains params to be attached to each HTTP request
 	extraParams url.Values
-	// extraHeaders headers to be attached to each HTTP request
+	// extraHeaders are headers to be attached to each HTTP request
 	extraHeaders []keyValue
 
 	// whether to print additional log messages
