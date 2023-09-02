@@ -114,6 +114,8 @@ name: <string>
 
 # Optional
 # Group will be evaluated at the exact offset in the range of [0...interval].
+# E.g. for Group with `interval: 1h` and `eval_offset: 5m` the evaluation will
+# start at 5th minute of the hour. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3409
 # `eval_offset` can't be bigger than `interval`.
 [ eval_offset: <duration> ]
 
@@ -161,7 +163,8 @@ notifier_headers:
 
 # Optional list of labels added to every rule within a group.
 # It has priority over the external labels.
-# Labels are commonly used for adding environment
+# Labels are commonly used for adding environm
+  ent
 # or tenant-specific tag.
 labels:
   [ <labelname>: <labelvalue> ... ]

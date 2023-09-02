@@ -36,13 +36,20 @@ type VMStorage struct {
 	datasourceURL    string
 	appendTypePrefix bool
 	lookBack         time.Duration
-	evalOffset       *time.Duration
 	queryStep        time.Duration
+	dataSourceType   datasourceType
 
-	dataSourceType     datasourceType
+	// evaluationInterval defines the alignment of the request's timestamp
+	// and request's `step` param
 	evaluationInterval time.Duration
-	extraParams        url.Values
-	extraHeaders       []keyValue
+	// evaluationOffset shifts the request's timestamp will be equal
+	// to the offset specified evaluationInterval.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4693
+	evaluationOffset *time.Duration
+	// extraParams contains params to be attached to each HTTP request
+	extraParams url.Values
+	// extraHeaders headers to be attached to each HTTP request
+	extraHeaders []keyValue
 
 	// whether to print additional log messages
 	// for each sent request
@@ -87,7 +94,7 @@ func (s *VMStorage) Clone() *VMStorage {
 func (s *VMStorage) ApplyParams(params QuerierParams) *VMStorage {
 	s.dataSourceType = toDatasourceType(params.DataSourceType)
 	s.evaluationInterval = params.EvaluationInterval
-	s.evalOffset = params.EvalOffset
+	s.evaluationOffset = params.EvalOffset
 	if params.QueryParams != nil {
 		if s.extraParams == nil {
 			s.extraParams = url.Values{}

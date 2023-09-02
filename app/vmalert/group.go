@@ -404,24 +404,27 @@ func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *r
 	}
 }
 
+// delayBeforeStart returns a duration on the interval between [ts..ts+interval].
+// delayBeforeStart accounts for `offset`, so returned duration should be always
+// bigger than the `offset`.
 func delayBeforeStart(ts time.Time, key uint64, interval time.Duration, offset *time.Duration) time.Duration {
-	var randSleep uint64
-	randSleep = uint64(float64(interval) * (float64(key) / (1 << 64)))
-	sleepOffset := uint64(ts.UnixNano()) % uint64(interval)
+	var randSleep time.Duration
+	randSleep = time.Duration(float64(interval) * (float64(key) / (1 << 64)))
+	sleepOffset := time.Duration(ts.UnixNano() % interval.Nanoseconds())
 	if randSleep < sleepOffset {
-		randSleep += uint64(interval)
+		randSleep += interval
 	}
 	randSleep -= sleepOffset
-	// check if evalTS after randSleep is before `eval_offset`,
+	// check if `ts` after randSleep is before `offset`,
 	// if it is, add extra eval_offset to randSleep.
 	// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3409.
 	if offset != nil {
-		tmpEvalTS := ts.Add(time.Duration(randSleep))
+		tmpEvalTS := ts.Add(randSleep)
 		if tmpEvalTS.Before(tmpEvalTS.Truncate(interval).Add(*offset)) {
-			randSleep += uint64(*offset)
+			randSleep += *offset
 		}
 	}
-	return time.Duration(randSleep).Truncate(time.Second)
+	return randSleep.Truncate(time.Second)
 }
 
 func (g *Group) infof(format string, args ...interface{}) {

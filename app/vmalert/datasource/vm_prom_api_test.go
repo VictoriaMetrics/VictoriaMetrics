@@ -31,7 +31,7 @@ func TestGetPrometheusReqTimestamp(t *testing.T) {
 		{
 			"with eval_offset, find previous offset point",
 			&VMStorage{
-				evalOffset:         &offset,
+				evaluationOffset:   &offset,
 				evaluationInterval: time.Hour,
 				lookBack:           1 * time.Minute,
 			},
@@ -42,7 +42,7 @@ func TestGetPrometheusReqTimestamp(t *testing.T) {
 		{
 			"with eval_offset",
 			&VMStorage{
-				evalOffset:         &offset,
+				evaluationOffset:   &offset,
 				evaluationInterval: time.Hour,
 			},
 			true,
@@ -83,7 +83,7 @@ func TestGetPrometheusReqTimestamp(t *testing.T) {
 		*queryTimeAlignment = tc.queryTimeAlignment
 		originT, _ := time.Parse(time.RFC3339, tc.originTS)
 		expT, _ := time.Parse(time.RFC3339, tc.expTS)
-		gotTS := tc.s.getPrometheusReqTimestamp(originT)
+		gotTS := tc.s.adjustReqTimestamp(originT)
 		if !gotTS.Equal(expT) {
 			t.Fatalf("get wrong prometheus request timestamp, expect %s, got %s", expT, gotTS)
 		}

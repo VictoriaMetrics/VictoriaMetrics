@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"math"
 	"reflect"
 	"sort"
 	"testing"
@@ -526,61 +527,59 @@ func TestCloseWithEvalInterruption(t *testing.T) {
 
 func TestGroupStartDelay(t *testing.T) {
 	g := &Group{}
+	// interval of 5min and key generate a static delay of 30s
 	g.Interval = time.Minute * 5
-	// use this fixed groupID to get fixed randSleep: 132s
-	// that will not be changed by g.EvalOffset
-	fixGroupKey := g.ID()
-	f := func(at time.Time, expTS time.Time) {
+	key := uint64(math.MaxUint64 / 10)
+
+	f := func(atS, expS string) {
 		t.Helper()
-		gotDelay := delayBeforeStart(at, fixGroupKey, g.Interval, g.EvalOffset)
-		expDelay := expTS.Sub(at)
-		if expDelay != gotDelay {
-			t.Errorf("expected to get %v; got %v instead", expDelay, gotDelay)
+		at, err := time.Parse(time.DateTime, atS)
+		if err != nil {
+			t.Fatal(err)
+		}
+		expTS, err := time.Parse(time.DateTime, expS)
+		if err != nil {
+			t.Fatal(err)
+		}
+		delay := delayBeforeStart(at, key, g.Interval, g.EvalOffset)
+		gotStart := at.Add(delay)
+		if expTS != gotStart {
+			t.Errorf("expected to get %v; got %v instead", expTS, gotStart)
 		}
 	}
 
 	// test group without offset
-	at := time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)
-	f(at, time.Date(2023, 1, 1, 0, 2, 12, 0, time.UTC))
-
-	at = time.Date(2023, 1, 1, 0, 2, 12, 0, time.UTC)
-	f(at, time.Date(2023, 1, 1, 0, 2, 12, 0, time.UTC))
-
-	// group eval will miss a beat sometimes,
-	// when randSleep is too big for it.
-	// in this case, will miss one in range [00:00-00:05]
-	at = time.Date(2023, 1, 1, 0, 2, 13, 0, time.UTC)
-	f(at, time.Date(2023, 1, 1, 0, 7, 12, 0, time.UTC))
+	f("2023-01-01 00:00:00", "2023-01-01 00:00:30")
+	f("2023-01-01 00:00:29", "2023-01-01 00:00:30")
+	f("2023-01-01 00:00:31", "2023-01-01 00:05:30")
 
 	// test group with offset smaller than above fixed randSleep,
 	// this way randSleep will always be enough
-	offset := 1 * time.Minute
+	offset := 20 * time.Second
 	g.EvalOffset = &offset
 
-	at = time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)
-	f(at, time.Date(2023, 1, 1, 0, 2, 12, 0, time.UTC))
-
-	at = time.Date(2023, 1, 1, 0, 2, 12, 0, time.UTC)
-	f(at, time.Date(2023, 1, 1, 0, 2, 12, 0, time.UTC))
-
-	// still miss a beat
-	at = time.Date(2023, 1, 1, 0, 2, 13, 0, time.UTC)
-	f(at, time.Date(2023, 1, 1, 0, 7, 12, 0, time.UTC))
+	f("2023-01-01 00:00:00", "2023-01-01 00:00:30")
+	f("2023-01-01 00:00:29", "2023-01-01 00:00:30")
+	f("2023-01-01 00:00:31", "2023-01-01 00:05:30")
 
 	// test group with offset bigger than above fixed randSleep,
 	// this way offset will be added to delay
 	offset = 3 * time.Minute
 	g.EvalOffset = &offset
 
-	at = time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)
-	f(at, time.Date(2023, 1, 1, 0, 5, 12, 0, time.UTC))
+	f("2023-01-01 00:00:00", "2023-01-01 00:03:30")
+	f("2023-01-01 00:00:29", "2023-01-01 00:03:30")
+	f("2023-01-01 00:01:00", "2023-01-01 00:08:30")
+	f("2023-01-01 00:03:30", "2023-01-01 00:08:30")
+	f("2023-01-01 00:07:30", "2023-01-01 00:13:30")
 
-	at = time.Date(2023, 1, 1, 0, 1, 0, 0, time.UTC)
-	f(at, time.Date(2023, 1, 1, 0, 5, 12, 0, time.UTC))
+	offset = 10 * time.Minute
+	g.EvalOffset = &offset
+	// interval of 1h and key generate a static delay of 6m
+	g.Interval = time.Hour
 
-	at = time.Date(2023, 1, 1, 0, 2, 13, 0, time.UTC)
-	f(at, time.Date(2023, 1, 1, 0, 10, 12, 0, time.UTC))
+	f("2023-01-01 00:00:00", "2023-01-01 00:16:00")
+	f("2023-01-01 00:05:00", "2023-01-01 00:16:00")
+	f("2023-01-01 00:30:00", "2023-01-01 01:16:00")
 
-	at = time.Date(2023, 1, 1, 0, 3, 0, 0, time.UTC)
-	f(at, time.Date(2023, 1, 1, 0, 10, 12, 0, time.UTC))
 }
