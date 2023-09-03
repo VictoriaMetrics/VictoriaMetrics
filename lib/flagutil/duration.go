@@ -31,9 +31,14 @@ type Duration struct {
 	valueString string
 }
 
-// Duration convert to time.Duration.
+// Duration returns d as time.Duration
 func (d *Duration) Duration() time.Duration {
 	return time.Millisecond * time.Duration(d.msecs)
+}
+
+// Milliseconds returns d in milliseconds
+func (d *Duration) Milliseconds() int64 {
+	return d.msecs
 }
 
 // String implements flag.Value interface
