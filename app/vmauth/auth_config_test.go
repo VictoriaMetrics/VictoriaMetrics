@@ -299,14 +299,16 @@ users:
 						"http://vminsert1/insert/0/prometheus",
 						"http://vminsert2/insert/0/prometheus",
 					}),
-					Headers: []Header{
-						{
-							Name:  "foo",
-							Value: "bar",
-						},
-						{
-							Name:  "xxx",
-							Value: "y",
+					HeadersConf: HeadersConf{
+						RequestHeaders: []Header{
+							{
+								Name:  "foo",
+								Value: "bar",
+							},
+							{
+								Name:  "xxx",
+								Value: "y",
+							},
 						},
 					},
 				},
@@ -325,14 +327,16 @@ users:
 						"http://vminsert1/insert/0/prometheus",
 						"http://vminsert2/insert/0/prometheus",
 					}),
-					Headers: []Header{
-						{
-							Name:  "foo",
-							Value: "bar",
-						},
-						{
-							Name:  "xxx",
-							Value: "y",
+					HeadersConf: HeadersConf{
+						RequestHeaders: []Header{
+							{
+								Name:  "foo",
+								Value: "bar",
+							},
+							{
+								Name:  "xxx",
+								Value: "y",
+							},
 						},
 					},
 				},
@@ -389,14 +393,16 @@ users:
 						"http://vminsert1/insert/0/prometheus",
 						"http://vminsert2/insert/0/prometheus",
 					}),
-					Headers: []Header{
-						{
-							Name:  "foo",
-							Value: "bar",
-						},
-						{
-							Name:  "xxx",
-							Value: "y",
+					HeadersConf: HeadersConf{
+						RequestHeaders: []Header{
+							{
+								Name:  "foo",
+								Value: "bar",
+							},
+							{
+								Name:  "xxx",
+								Value: "y",
+							},
 						},
 					},
 				},
@@ -419,14 +425,16 @@ users:
 						"http://vminsert1/insert/0/prometheus",
 						"http://vminsert2/insert/0/prometheus",
 					}),
-					Headers: []Header{
-						{
-							Name:  "foo",
-							Value: "bar",
-						},
-						{
-							Name:  "xxx",
-							Value: "y",
+					HeadersConf: HeadersConf{
+						RequestHeaders: []Header{
+							{
+								Name:  "foo",
+								Value: "bar",
+							},
+							{
+								Name:  "xxx",
+								Value: "y",
+							},
 						},
 					},
 				},

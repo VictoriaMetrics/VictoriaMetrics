@@ -117,11 +117,16 @@ users:
 
   # Requests with the 'Authorization: Bearer YYY' header are proxied to http://localhost:8428 ,
   # The `X-Scope-OrgID: foobar` http header is added to every proxied request.
+  # The `X-Server-Hostname` http header is removed from the proxied response.
   # For example, http://vmauth:8427/api/v1/query is proxied to http://localhost:8428/api/v1/query
 - bearer_token: "YYY"
   url_prefix: "http://localhost:8428"
+  # extra headers to add to the request or remove from the request (if header value is empty)
   headers:
-  - "X-Scope-OrgID: foobar"
+    - "X-Scope-OrgID: foobar"
+  # extra headers to add to the response or remove from the response (if header value is empty)
+  response_headers:
+    - "X-Server-Hostname:" # empty value means the header will be removed from the response
 
   # All the requests to http://vmauth:8427 with the given Basic Auth (username:password)
   # are proxied to http://localhost:8428 .
@@ -175,6 +180,7 @@ users:
   #
   # - Requests to http://vmauth:8427/api/v1/write are proxied to http://vminsert:8480/insert/42/prometheus/api/v1/write .
   #   The "X-Scope-OrgID: abc" http header is added to these requests.
+  #   The "X-Server-Hostname" http header is removed from the proxied response.
   #
   # Request which do not match `src_paths` from the `url_map` are proxied to the urls from `default_url`
   # in a round-robin manner. The original request path is passed in `request_path` query arg.
@@ -194,6 +200,8 @@ users:
     url_prefix: "http://vminsert:8480/insert/42/prometheus"
     headers:
     - "X-Scope-OrgID: abc"
+    response_headers:
+    - "X-Server-Hostname:" # empty value means the header will be removed from the response
     ip_filters:
       deny_list: [127.0.0.1]
   default_url:

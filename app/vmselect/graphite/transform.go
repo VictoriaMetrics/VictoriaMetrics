@@ -189,7 +189,7 @@ func init() {
 	}
 }
 
-func transformTODO(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeriesFunc, error) {
+func transformTODO(_ *evalConfig, _ *graphiteql.FuncExpr) (nextSeriesFunc, error) {
 	return nil, fmt.Errorf("TODO: implement this function")
 }
 
@@ -1062,7 +1062,7 @@ func transformCumulative(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeriesFun
 	if err != nil {
 		return nil, err
 	}
-	return consolidateBy(ec, fe, nextSeries, "sum")
+	return consolidateBy(fe, nextSeries, "sum")
 }
 
 // See https://graphite.readthedocs.io/en/stable/functions.html#graphite.render.functions.consolidateBy
@@ -1079,10 +1079,10 @@ func transformConsolidateBy(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeries
 	if err != nil {
 		return nil, err
 	}
-	return consolidateBy(ec, fe, nextSeries, funcName)
+	return consolidateBy(fe, nextSeries, funcName)
 }
 
-func consolidateBy(ec *evalConfig, expr graphiteql.Expr, nextSeries nextSeriesFunc, funcName string) (nextSeriesFunc, error) {
+func consolidateBy(expr graphiteql.Expr, nextSeries nextSeriesFunc, funcName string) (nextSeriesFunc, error) {
 	consolidateFunc, err := getAggrFunc(funcName)
 	if err != nil {
 		return nil, err
@@ -1843,10 +1843,10 @@ func transformHighest(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeriesFunc, 
 	if err != nil {
 		return nil, err
 	}
-	return highestGeneric(ec, fe, nextSeries, n, funcName)
+	return highestGeneric(fe, nextSeries, n, funcName)
 }
 
-func highestGeneric(ec *evalConfig, expr graphiteql.Expr, nextSeries nextSeriesFunc, n float64, funcName string) (nextSeriesFunc, error) {
+func highestGeneric(expr graphiteql.Expr, nextSeries nextSeriesFunc, n float64, funcName string) (nextSeriesFunc, error) {
 	aggrFunc, err := getAggrFunc(funcName)
 	if err != nil {
 		_, _ = drainAllSeries(nextSeries)
@@ -1928,7 +1928,7 @@ func transformHighestAverage(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSerie
 	if err != nil {
 		return nil, err
 	}
-	return highestGeneric(ec, fe, nextSeries, n, "average")
+	return highestGeneric(fe, nextSeries, n, "average")
 }
 
 // See https://graphite.readthedocs.io/en/stable/functions.html#graphite.render.functions.highestCurrent
@@ -1945,7 +1945,7 @@ func transformHighestCurrent(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSerie
 	if err != nil {
 		return nil, err
 	}
-	return highestGeneric(ec, fe, nextSeries, n, "current")
+	return highestGeneric(fe, nextSeries, n, "current")
 }
 
 // See https://graphite.readthedocs.io/en/stable/functions.html#graphite.render.functions.highestMax
@@ -1962,7 +1962,7 @@ func transformHighestMax(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeriesFun
 	if err != nil {
 		return nil, err
 	}
-	return highestGeneric(ec, fe, nextSeries, n, "max")
+	return highestGeneric(fe, nextSeries, n, "max")
 }
 
 // See https://graphite.readthedocs.io/en/stable/functions.html#graphite.render.functions.hitcount
@@ -2379,10 +2379,10 @@ func transformLowest(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeriesFunc, e
 	if err != nil {
 		return nil, err
 	}
-	return lowestGeneric(ec, fe, nextSeries, n, funcName)
+	return lowestGeneric(fe, nextSeries, n, funcName)
 }
 
-func lowestGeneric(ec *evalConfig, expr graphiteql.Expr, nextSeries nextSeriesFunc, n float64, funcName string) (nextSeriesFunc, error) {
+func lowestGeneric(expr graphiteql.Expr, nextSeries nextSeriesFunc, n float64, funcName string) (nextSeriesFunc, error) {
 	aggrFunc, err := getAggrFunc(funcName)
 	if err != nil {
 		_, _ = drainAllSeries(nextSeries)
@@ -2459,7 +2459,7 @@ func transformLowestAverage(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeries
 	if err != nil {
 		return nil, err
 	}
-	return lowestGeneric(ec, fe, nextSeries, n, "average")
+	return lowestGeneric(fe, nextSeries, n, "average")
 }
 
 // See https://graphite.readthedocs.io/en/stable/functions.html#graphite.render.functions.lowestCurrent
@@ -2476,7 +2476,7 @@ func transformLowestCurrent(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeries
 	if err != nil {
 		return nil, err
 	}
-	return lowestGeneric(ec, fe, nextSeries, n, "current")
+	return lowestGeneric(fe, nextSeries, n, "current")
 }
 
 // See https://graphite.readthedocs.io/en/stable/functions.html#graphite.render.functions.maxSeries
@@ -2607,7 +2607,7 @@ func transformMostDeviant(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeriesFu
 	if err != nil {
 		return nil, err
 	}
-	return highestGeneric(ec, fe, nextSeries, n, "stddev")
+	return highestGeneric(fe, nextSeries, n, "stddev")
 }
 
 // See https://graphite.readthedocs.io/en/stable/functions.html#graphite.render.functions.movingAverage
@@ -3862,7 +3862,11 @@ func nextSeriesConcurrentWrapper(nextSeries nextSeriesFunc, f func(s *series) (*
 		}
 		if r.err != nil {
 			// Drain the rest of series before returning the error.
-			for range resultCh {
+			for {
+				_, ok := <-resultCh
+				if !ok {
+					break
+				}
 			}
 			<-errCh
 			return nil, r.err
@@ -4733,7 +4737,7 @@ func transformSortByTotal(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeriesFu
 	if err != nil {
 		return nil, err
 	}
-	return sortByGeneric(ec, fe, nextSeries, "sum", true)
+	return sortByGeneric(fe, nextSeries, "sum", true)
 }
 
 // https://graphite.readthedocs.io/en/stable/functions.html#graphite.render.functions.sortBy
@@ -4754,10 +4758,10 @@ func transformSortBy(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeriesFunc, e
 	if err != nil {
 		return nil, err
 	}
-	return sortByGeneric(ec, fe, nextSeries, funcName, reverse)
+	return sortByGeneric(fe, nextSeries, funcName, reverse)
 }
 
-func sortByGeneric(ec *evalConfig, fe *graphiteql.FuncExpr, nextSeries nextSeriesFunc, funcName string, reverse bool) (nextSeriesFunc, error) {
+func sortByGeneric(fe *graphiteql.FuncExpr, nextSeries nextSeriesFunc, funcName string, reverse bool) (nextSeriesFunc, error) {
 	aggrFunc, err := getAggrFunc(funcName)
 	if err != nil {
 		_, _ = drainAllSeries(nextSeries)
@@ -4868,7 +4872,7 @@ func transformSortByMinima(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeriesF
 		}
 		return s, nil
 	})
-	return sortByGeneric(ec, fe, f, "min", false)
+	return sortByGeneric(fe, f, "min", false)
 }
 
 // https://graphite.readthedocs.io/en/stable/functions.html#graphite.render.functions.sortByMaxima
@@ -4881,7 +4885,7 @@ func transformSortByMaxima(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeriesF
 	if err != nil {
 		return nil, err
 	}
-	return sortByGeneric(ec, fe, nextSeries, "max", true)
+	return sortByGeneric(fe, nextSeries, "max", true)
 }
 
 // https://graphite.readthedocs.io/en/stable/functions.html#graphite.render.functions.smartSummarize
@@ -5286,7 +5290,7 @@ func holtWinterConfidenceBands(ec *evalConfig, fe *graphiteql.FuncExpr, args []*
 	f := nextSeriesConcurrentWrapper(nextSeries, func(s *series) (*series, error) {
 		s.consolidate(&ecCopy, step)
 		timeStamps := s.Timestamps[trimWindowPoints:]
-		analysis := holtWintersAnalysis(&ecCopy, s, seasonalityMs)
+		analysis := holtWintersAnalysis(s, seasonalityMs)
 		forecastValues := analysis.predictions.Values[trimWindowPoints:]
 		deviationValues := analysis.deviations.Values[trimWindowPoints:]
 		valuesLen := len(forecastValues)
@@ -5450,7 +5454,7 @@ func transformHoltWintersForecast(ec *evalConfig, fe *graphiteql.FuncExpr) (next
 	trimWindowPoints := ecCopy.pointsLen(step) - ec.pointsLen(step)
 	f := nextSeriesConcurrentWrapper(nextSeries, func(s *series) (*series, error) {
 		s.consolidate(&ecCopy, step)
-		analysis := holtWintersAnalysis(&ecCopy, s, seasonalityMs)
+		analysis := holtWintersAnalysis(s, seasonalityMs)
 		predictions := analysis.predictions
 
 		s.Tags["holtWintersForecast"] = "1"
@@ -5468,7 +5472,7 @@ func transformHoltWintersForecast(ec *evalConfig, fe *graphiteql.FuncExpr) (next
 
 }
 
-func holtWintersAnalysis(ec *evalConfig, s *series, seasonality int64) holtWintersAnalysisResult {
+func holtWintersAnalysis(s *series, seasonality int64) holtWintersAnalysisResult {
 	alpha := 0.1
 	gamma := alpha
 	beta := 0.0035

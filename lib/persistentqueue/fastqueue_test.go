@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-func TestFastQueueOpenClose(t *testing.T) {
+func TestFastQueueOpenClose(_ *testing.T) {
 	path := "fast-queue-open-close"
 	mustDeleteDir(path)
 	for i := 0; i < 10; i++ {

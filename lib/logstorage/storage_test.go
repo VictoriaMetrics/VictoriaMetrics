@@ -7,7 +7,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 )
 
-func TestStorageLifecycle(t *testing.T) {
+func TestStorageLifecycle(_ *testing.T) {
 	const path = "TestStorageLifecycle"
 
 	for i := 0; i < 3; i++ {

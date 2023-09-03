@@ -243,7 +243,8 @@ func MustOpenStorage(path string, retention time.Duration, maxHourlySeries, maxD
 
 	// Initialize nextRotationTimestamp
 	nowSecs := int64(fasttime.UnixTimestamp())
-	nextRotationTimestamp := nextRetentionDeadlineSeconds(nowSecs, retention.Milliseconds()/1000, retentionTimezoneOffsetSecs)
+	retentionSecs := retention.Milliseconds() / 1000 // not .Seconds() because unnecessary float64 conversion
+	nextRotationTimestamp := nextRetentionDeadlineSeconds(nowSecs, retentionSecs, retentionTimezoneOffsetSecs)
 	atomic.StoreInt64(&s.nextRotationTimestamp, nextRotationTimestamp)
 
 	// Load nextDayMetricIDs cache

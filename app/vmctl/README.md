@@ -489,13 +489,14 @@ doesn't support it).
 See `./vmctl remote-read --help` for details and full list of flags.
 
 To start the migration process configure the following flags:
+
 1. `--remote-read-src-addr` - data source address to read from;
-2. `--vm-addr` - VictoriaMetrics address to write to. For single-node VM is usually equal to `--httpListenAddr`, 
+1. `--vm-addr` - VictoriaMetrics address to write to. For single-node VM is usually equal to `--httpListenAddr`, 
    and for cluster version is equal to `--httpListenAddr` flag of vminsert component (for example `http://<vminsert>:8480/insert/<accountID>/prometheus`);
-3. `--remote-read-filter-time-start` - the time filter in RFC3339 format to select time series with timestamp equal or higher than provided value. E.g. '2020-01-01T20:07:00Z';
-4. `--remote-read-filter-time-end` - the time filter in RFC3339 format to select time series with timestamp equal or smaller than provided value. E.g. '2020-01-01T20:07:00Z'. Current time is used when omitted.;
-5. `--remote-read-step-interval` - split export data into chunks. Valid values are `month, day, hour, minute`;
-6. `--remote-read-use-stream` - defines whether to use `SAMPLES` or `STREAMED_XOR_CHUNKS` mode. By default, is uses `SAMPLES` mode.
+1. `--remote-read-filter-time-start` - the time filter in RFC3339 format to select time series with timestamp equal or higher than provided value. E.g. '2020-01-01T20:07:00Z';
+1. `--remote-read-filter-time-end` - the time filter in RFC3339 format to select time series with timestamp equal or smaller than provided value. E.g. '2020-01-01T20:07:00Z'. Current time is used when omitted.;
+1. `--remote-read-step-interval` - split export data into chunks. Valid values are `month, day, hour, minute`;
+1. `--remote-read-use-stream` - defines whether to use `SAMPLES` or `STREAMED_XOR_CHUNKS` mode. By default, is uses `SAMPLES` mode.
 
 The importing process example for local installation of Prometheus
 and single-node VictoriaMetrics(`http://localhost:8428`):
@@ -562,7 +563,7 @@ and that you have a separate Thanos Store installation.
     - url: http://victoria-metrics:8428/api/v1/write
     ```
 
-2. Make sure VM is running, of course. Now check the logs to make sure that Prometheus is sending and VM is receiving.
+1. Make sure VM is running, of course. Now check the logs to make sure that Prometheus is sending and VM is receiving.
     In Prometheus, make sure there are no errors. On the VM side, you should see messages like this:
 
     ```
@@ -570,7 +571,7 @@ and that you have a separate Thanos Store installation.
     2020-04-27T18:38:46.506Z info VictoriaMetrics/lib/storage/partition.go:222 partition "2020_04" has been created
     ```
 
-3. Now just wait. Within two hours, Prometheus should finish its current data file and hand it off to Thanos Store for long term
+1. Now just wait. Within two hours, Prometheus should finish its current data file and hand it off to Thanos Store for long term
     storage.
 
 ### Historical data
@@ -579,12 +580,13 @@ Let's assume your data is stored on S3 served by minio. You first need to copy t
 then import it into VM using `vmctl` in `prometheus` mode.
 
 1. Copy data from minio.
-    1.1 Run the `minio/mc` Docker container.
-    1.2 `mc config host add minio http://minio:9000 accessKey secretKey`, substituting appropriate values for the last 3 items.
-    1.3 `mc cp -r minio/prometheus thanos-data`
-2. Import using `vmctl`.
-    2.1 Follow the [instructions](#how-to-build) to compile `vmctl` on your machine.
-    2.2 Use [prometheus](#migrating-data-from-prometheus) mode to import data:
+    1. Run the `minio/mc` Docker container.
+    1. `mc config host add minio http://minio:9000 accessKey secretKey`, substituting appropriate values for the last 3 items.
+    1. `mc cp -r minio/prometheus thanos-data`
+
+1. Import using `vmctl`.
+    1. Follow the [instructions](#how-to-build) to compile `vmctl` on your machine.
+    1. Use [prometheus](#migrating-data-from-prometheus) mode to import data:
 
     ```
     vmctl prometheus --prom-snapshot thanos-data --vm-addr http://victoria-metrics:8428
