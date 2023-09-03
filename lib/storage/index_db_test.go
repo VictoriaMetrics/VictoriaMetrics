@@ -1535,7 +1535,7 @@ func TestMatchTagFilters(t *testing.T) {
 func TestIndexDBRepopulateAfterRotation(t *testing.T) {
 	r := rand.New(rand.NewSource(1))
 	path := "TestIndexRepopulateAfterRotation"
-	s := MustOpenStorage(path, retentionMonth, 1e5, 1e5)
+	s := MustOpenStorage(path, retention31Days, 1e5, 1e5)
 
 	db := s.idb()
 	if db.generation == 0 {

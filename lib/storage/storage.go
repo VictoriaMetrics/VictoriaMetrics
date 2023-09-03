@@ -33,8 +33,8 @@ import (
 )
 
 const (
-	retentionMonth = 31 * 24 * time.Hour
-	retentionMax   = 100 * 12 * retentionMonth
+	retention31Days = 31 * 24 * time.Hour
+	retentionMax    = 100 * 12 * retention31Days
 )
 
 // Storage represents TSDB storage.
@@ -252,7 +252,7 @@ func MustOpenStorage(path string, retention time.Duration, maxHourlySeries, maxD
 	s.idbNext.Store(idbNext)
 
 	// Initialize nextRotationTimestamp
-	nowSecs := time.Now().UnixNano() / 1e9
+	nowSecs := int64(fasttime.UnixTimestamp())
 	retentionSecs := retention.Milliseconds() / 1000 // not .Seconds() because unnecessary float64 conversion
 	nextRotationTimestamp := nextRetentionDeadlineSeconds(nowSecs, retentionSecs, retentionTimezoneOffsetSecs)
 	atomic.StoreInt64(&s.nextRotationTimestamp, nextRotationTimestamp)

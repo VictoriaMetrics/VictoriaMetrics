@@ -42,8 +42,8 @@ func TestDurationSetSuccess(t *testing.T) {
 		if err := d.Set(value); err != nil {
 			t.Fatalf("unexpected error in d.Set(%q): %s", value, err)
 		}
-		if d.Msecs != expectedMsecs {
-			t.Fatalf("unexpected result; got %d; want %d", d.Msecs, expectedMsecs)
+		if d.msecs != expectedMsecs {
+			t.Fatalf("unexpected result; got %d; want %d", d.msecs, expectedMsecs)
 		}
 		valueString := d.String()
 		valueExpected := strings.ToLower(value)
@@ -52,8 +52,8 @@ func TestDurationSetSuccess(t *testing.T) {
 		}
 	}
 	f("0", 0)
-	f("1", msecsPerMonth)
-	f("123.456", 123.456*msecsPerMonth)
+	f("1", msecsPer31Days)
+	f("123.456", 123.456*msecsPer31Days)
 	f("1h", 3600*1000)
 	f("1.5d", 1.5*24*3600*1000)
 	f("2.3W", 2.3*7*24*3600*1000)
