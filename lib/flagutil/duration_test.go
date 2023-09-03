@@ -42,8 +42,8 @@ func TestDurationSetSuccess(t *testing.T) {
 		if err := d.Set(value); err != nil {
 			t.Fatalf("unexpected error in d.Set(%q): %s", value, err)
 		}
-		if d.msecs != expectedMsecs {
-			t.Fatalf("unexpected result; got %d; want %d", d.msecs, expectedMsecs)
+		if d.Milliseconds() != expectedMsecs {
+			t.Fatalf("unexpected result; got %d; want %d", d.Milliseconds(), expectedMsecs)
 		}
 		valueString := d.String()
 		valueExpected := strings.ToLower(value)
