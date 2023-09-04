@@ -1,17 +1,17 @@
 ---
 sort: 6
+weight: 6
+menu:
+  docs:
+    parent: 'victoriametrics'
+    weight: 6
+title: vmbackup
+aliases:
+  - /vmbackup.html
 ---
-
 # vmbackup
 
 `vmbackup` creates VictoriaMetrics data backups from [instant snapshots](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-work-with-snapshots).
-
-Supported storage systems for backups:
-
-* [GCS](https://cloud.google.com/storage/). Example: `gs://<bucket>/<path/to/backup>`
-* [S3](https://aws.amazon.com/s3/). Example: `s3://<bucket>/<path/to/backup>`
-* Any S3-compatible storage such as [MinIO](https://github.com/minio/minio), [Ceph](https://docs.ceph.com/en/pacific/radosgw/s3/) or [Swift](https://platform.swiftstack.com/docs/admin/middleware/s3_middleware.html). See [these docs](#advanced-usage) for details.
-* Local filesystem. Example: `fs://</absolute/path/to/backup>`. Note that `vmbackup` prevents from storing the backup into the directory pointed by `-storageDataPath` command-line flag, since this directory should be managed solely by VictoriaMetrics or `vmstorage`.
 
 `vmbackup` supports incremental and full backups. Incremental backups are created automatically if the destination path already contains data from the previous backup.
 Full backups can be sped up with `-origin` pointing to an already existing backup on the same remote storage. In this case `vmbackup` makes server-side copy for the shared
@@ -26,6 +26,16 @@ See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-
 See also [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager.html) tool built on top of `vmbackup`. This tool simplifies
 creation of hourly, daily, weekly and monthly backups.
 
+## Supported storage types
+
+`vmbackup` supports the following `-dst` storage types:
+
+* [GCS](https://cloud.google.com/storage/). Example: `gs://<bucket>/<path/to/backup>`
+* [S3](https://aws.amazon.com/s3/). Example: `s3://<bucket>/<path/to/backup>`
+* [Azure Blob Storage](https://azure.microsoft.com/en-us/products/storage/blobs/). Example: `azblob://<container>/<path/to/backup>`
+* Any S3-compatible storage such as [MinIO](https://github.com/minio/minio), [Ceph](https://docs.ceph.com/en/pacific/radosgw/s3/) or [Swift](https://platform.swiftstack.com/docs/admin/middleware/s3_middleware.html). See [these docs](#advanced-usage) for details.
+* Local filesystem. Example: `fs://</absolute/path/to/backup>`. Note that `vmbackup` prevents from storing the backup into the directory pointed by `-storageDataPath` command-line flag, since this directory should be managed solely by VictoriaMetrics or `vmstorage`.
+
 ## Use cases
 
 ### Regular backups
@@ -33,7 +43,7 @@ creation of hourly, daily, weekly and monthly backups.
 Regular backup can be performed with the following command:
 
 ```console
-vmbackup -storageDataPath=</path/to/victoria-metrics-data> -snapshot.createURL=http://localhost:8428/snapshot/create -dst=gs://<bucket>/<path/to/new/backup>
+./vmbackup -storageDataPath=</path/to/victoria-metrics-data> -snapshot.createURL=http://localhost:8428/snapshot/create -dst=gs://<bucket>/<path/to/new/backup>
 ```
 
 * `</path/to/victoria-metrics-data>` - path to VictoriaMetrics data pointed by `-storageDataPath` command-line flag in single-node VictoriaMetrics or in cluster `vmstorage`.
@@ -78,33 +88,50 @@ The command will upload only changed data to `gs://<bucket>/latest`.
 * Run the following command once a day:
 
 ```console
-vmbackup -storageDataPath=</path/to/victoria-metrics-data> -snapshot.createURL=http://localhost:8428/snapshot/create -dst=gs://<bucket>/<YYYYMMDD> -origin=gs://<bucket>/latest
+./vmbackup -storageDataPath=</path/to/victoria-metrics-data> -snapshot.createURL=http://localhost:8428/snapshot/create -dst=gs://<bucket>/<YYYYMMDD> -origin=gs://<bucket>/latest
 ```
 
 Where `<daily-snapshot>` is the snapshot for the last day `<YYYYMMDD>`.
 
-This apporach saves network bandwidth costs on hourly backups (since they are incremental) and allows recovering data from either the last hour (`latest` backup)
+This approach saves network bandwidth costs on hourly backups (since they are incremental) and allows recovering data from either the last hour (`latest` backup)
 or from any day (`YYYYMMDD` backups). Note that hourly backup shouldn't run when creating daily backup.
 
 Do not forget to remove old backups when they are no longer needed in order to save storage costs.
 
 See also [vmbackupmanager tool](https://docs.victoriametrics.com/vmbackupmanager.html) for automating smart backups.
 
+### Server-side copy of the existing backup
+
+Sometimes it is needed to make server-side copy of the existing backup. This can be done by specifying the source backup path via `-origin` command-line flag,
+while the destination path for backup copy must be specified via `-dst` command-line flag. For example, the following command copies backup
+from `gs://bucket/foo` to `gs://bucket/bar`:
+
+```console
+./vmbackup -origin=gs://bucket/foo -dst=gs://bucket/bar
+```
+
+The `-origin` and `-dst` must point to the same object storage bucket or to the same filesystem.
+
+The server-side backup copy is usually performed at much faster speed comparing to the usual backup, since backup data isn't transferred
+between the remote storage and locally running `vmbackup` tool.
+
+If the `-dst` already contains some data, then its' contents is synced with the `-origin` data. This allows making incremental server-side copies of backups.
+
 ## How does it work?
 
 The backup algorithm is the following:
 
 1. Create a snapshot by querying the provided `-snapshot.createURL`
-2. Collect information about files in the created snapshot, in the `-dst` and in the `-origin`.
-3. Determine which files in `-dst` are missing in the created snapshot, and delete them. These are usually small files, which are already merged into bigger files in the snapshot.
-4. Determine which files in the created snapshot are missing in `-dst`. These are usually small new files and bigger merged files.
-5. Determine which files from step 3 exist in the `-origin`, and perform server-side copy of these files from `-origin` to `-dst`.
+1. Collect information about files in the created snapshot, in the `-dst` and in the `-origin`.
+1. Determine which files in `-dst` are missing in the created snapshot, and delete them. These are usually small files, which are already merged into bigger files in the snapshot.
+1. Determine which files in the created snapshot are missing in `-dst`. These are usually small new files and bigger merged files.
+1. Determine which files from step 3 exist in the `-origin`, and perform server-side copy of these files from `-origin` to `-dst`.
    These are usually the biggest and the oldest files, which are shared between backups.
-6. Upload the remaining files from step 3 from the created snapshot to `-dst`.
-7. Delete the created snapshot.
+1. Upload the remaining files from step 3 from the created snapshot to `-dst`.
+1. Delete the created snapshot.
 
 The algorithm splits source files into 1 GiB chunks in the backup. Each chunk is stored as a separate file in the backup.
-Such splitting balances between the number of files in the backup and the amounts of data that needs to be re-transfered after temporary errors.
+Such splitting balances between the number of files in the backup and the amounts of data that needs to be re-transferred after temporary errors.
 
 `vmbackup` relies on [instant snapshot](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282) properties:
 
@@ -155,6 +182,11 @@ See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-
            "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/service-account-email"
     }
     ```
+* Obtaining credentials from env variables.
+    - For AWS S3 compatible storages set env variable `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`.
+      Also you can set env variable `AWS_SHARED_CREDENTIALS_FILE` with path to credentials file.
+    - For GCE cloud storage set env variable `GOOGLE_APPLICATION_CREDENTIALS` with path to credentials file.
+    - For Azure storage either set env variables `AZURE_STORAGE_ACCOUNT_NAME` and `AZURE_STORAGE_ACCOUNT_KEY`, or `AZURE_STORAGE_ACCOUNT_CONNECTION_STRING`.
 
 * Usage with s3 custom url endpoint. It is possible to use `vmbackup` with s3 compatible storages like minio, cloudian, etc.
   You have to add a custom url endpoint via flag:
@@ -183,24 +215,24 @@ See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-
   -customS3Endpoint string
      Custom S3 endpoint for use with S3-compatible storages (e.g. MinIO). S3 is used if not set
   -dst string
-     Where to put the backup on the remote storage. Example: gs://bucket/path/to/backup/dir, s3://bucket/path/to/backup/dir or fs:///path/to/local/backup/dir
+     Where to put the backup on the remote storage. Example: gs://bucket/path/to/backup, s3://bucket/path/to/backup, azblob://container/path/to/backup or fs:///path/to/local/backup/dir
      -dst can point to the previous backup. In this case incremental backup is performed, i.e. only changed data is uploaded
   -enableTCP6
-     Whether to enable IPv6 for listening and dialing. By default only IPv4 TCP and UDP is used
+     Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP are used
   -envflag.enable
-     Whether to enable reading flags from environment variables additionally to command line. Command line flag values have priority over values from environment vars. Flags are read only from command line if this flag isn't set. See https://docs.victoriametrics.com/#environment-variables for more details
+     Whether to enable reading flags from environment variables in addition to the command line. Command line flag values have priority over values from environment vars. Flags are read only from the command line if this flag isn't set. See https://docs.victoriametrics.com/#environment-variables for more details
   -envflag.prefix string
      Prefix for environment variables if -envflag.enable is set
   -eula
-     By specifying this flag, you confirm that you have an enterprise license and accept the EULA https://victoriametrics.com/assets/VM_EULA.pdf
+     By specifying this flag, you confirm that you have an enterprise license and accept the EULA https://victoriametrics.com/assets/VM_EULA.pdf . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
   -flagsAuthKey string
      Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -fs.disableMmap
-     Whether to use pread() instead of mmap() for reading data files. By default mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
+     Whether to use pread() instead of mmap() for reading data files. By default, mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
   -http.connTimeout duration
      Incoming http connections are closed after the configured timeout. This may help to spread the incoming load among a cluster of services behind a load balancer. Please note that the real timeout may be bigger by up to 10% as a protection against the thundering herd problem (default 2m0s)
   -http.disableResponseCompression
-     Disable compression of HTTP responses to save CPU resources. By default compression is enabled to save network bandwidth
+     Disable compression of HTTP responses to save CPU resources. By default, compression is enabled to save network bandwidth
   -http.idleConnTimeout duration
      Timeout for incoming idle http connections (default 1m0s)
   -http.maxGracefulShutdownDuration duration
@@ -210,17 +242,25 @@ See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-
   -http.shutdownDelay duration
      Optional delay before http server shutdown. During this delay, the server returns non-OK responses from /health page, so load balancers can route new requests to other servers
   -httpAuth.password string
-     Password for HTTP Basic Auth. The authentication is disabled if -httpAuth.username is empty
+     Password for HTTP server's Basic Auth. The authentication is disabled if -httpAuth.username is empty
   -httpAuth.username string
-     Username for HTTP Basic Auth. The authentication is disabled if empty. See also -httpAuth.password
+     Username for HTTP server's Basic Auth. The authentication is disabled if empty. See also -httpAuth.password
   -httpListenAddr string
      TCP address for exporting metrics at /metrics page (default ":8420")
+  -internStringCacheExpireDuration duration
+     The expiry duration for caches for interned strings. See https://en.wikipedia.org/wiki/String_interning . See also -internStringMaxLen and -internStringDisableCache (default 6m0s)
+  -internStringDisableCache
+     Whether to disable caches for interned strings. This may reduce memory usage at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning . See also -internStringCacheExpireDuration and -internStringMaxLen
+  -internStringMaxLen int
+     The maximum length for strings to intern. A lower limit may save memory at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning . See also -internStringDisableCache and -internStringCacheExpireDuration (default 500)
   -loggerDisableTimestamps
      Whether to disable writing timestamps in logs
   -loggerErrorsPerSecondLimit int
      Per-second limit on the number of ERROR messages. If more than the given number of errors are emitted per second, the remaining errors are suppressed. Zero values disable the rate limit
   -loggerFormat string
      Format for logs. Possible values: default, json (default "default")
+  -loggerJSONFields string
+     Allows renaming fields in JSON formatted logs. Example: "ts:timestamp,msg:message" renames "ts" to "timestamp" and "msg" to "message". Supported fields: ts, level, caller, msg
   -loggerLevel string
      Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC (default "INFO")
   -loggerOutput string
@@ -231,12 +271,12 @@ See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-
      Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero values disable the rate limit
   -maxBytesPerSecond size
      The maximum upload speed. There is no limit if it is set to 0
-     Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)
+     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
   -memory.allowedBytes size
-     Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache resulting in higher disk IO usage
-     Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)
+     Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache resulting in higher disk IO usage
+     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
   -memory.allowedPercent float
-     Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache which will result in higher disk IO usage (default 60)
+     Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache which will result in higher disk IO usage (default 60)
   -metricsAuthKey string
      Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -origin string
@@ -249,10 +289,17 @@ See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-
   -pushmetrics.interval duration
      Interval for pushing metrics to -pushmetrics.url (default 10s)
   -pushmetrics.url array
-     Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/#push-metrics . By default metrics exposed at /metrics page aren't pushed to any remote storage
+     Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/#push-metrics . By default, metrics exposed at /metrics page aren't pushed to any remote storage
      Supports an array of values separated by comma or specified via multiple flags.
+  -s2a_enable_appengine_dialer
+     If true, opportunistically use AppEngine-specific dialer to call S2A.
+  -s2a_timeout duration
+     Timeout enforced on the connection to the S2A service for handshake. (default 3s)
   -s3ForcePathStyle
      Prefixing endpoint with bucket name when set false, true by default. (default true)
+  -s3StorageClass string
+     The Storage Class applied to objects uploaded to AWS S3. Supported values are: GLACIER, DEEP_ARCHIVE, GLACIER_IR, INTELLIGENT_TIERING, ONEZONE_IA, OUTPOSTS, REDUCED_REDUNDANCY, STANDARD, STANDARD_IA.
+     See https://docs.aws.amazon.com/AmazonS3/latest/userguide/storage-class-intro.html/
   -snapshot.createURL string
      VictoriaMetrics create snapshot url. When this is given a snapshot will automatically be created during backup. Example: http://victoriametrics:8428/snapshot/create . There is no need in setting -snapshotName if -snapshot.createURL is set
   -snapshot.deleteURL string
@@ -270,6 +317,8 @@ See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-
      Supports an array of values separated by comma or specified via multiple flags.
   -tlsKeyFile string
      Path to file with TLS key if -tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated
+  -tlsMinVersion string
+     Optional minimum TLS version to use for incoming requests over HTTPS if -tls is set. Supported values: TLS10, TLS11, TLS12, TLS13
   -version
      Show VictoriaMetrics version
 ```
@@ -280,14 +329,14 @@ It is recommended using [binary releases](https://github.com/VictoriaMetrics/Vic
 
 ### Development build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.18.
-2. Run `make vmbackup` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.19.
+1. Run `make vmbackup` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `vmbackup` binary and puts it into the `bin` folder.
 
 ### Production build
 
 1. [Install docker](https://docs.docker.com/install/).
-2. Run `make vmbackup-prod` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
+1. Run `make vmbackup-prod` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `vmbackup-prod` binary and puts it into the `bin` folder.
 
 ### Building docker images

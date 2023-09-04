@@ -1,0 +1,168 @@
+@use "src/styles/variables" as *;
+
+.vm-text-field {
+  position: relative;
+  display: grid;
+  margin: 6px 0;
+  width: 100%;
+
+  &_textarea:after {
+    content: attr(data-replicated-value) " ";
+    white-space: pre-wrap;
+    visibility: hidden;
+  }
+
+  &__input,
+  &::after {
+    width: 100%;
+    padding: $padding-small $padding-global;
+    border: $border-divider;
+    background-color: transparent;
+    font-size: $font-size;
+    line-height: 18px;
+    grid-area: 1 / 1 / 2 / 2;
+    overflow: hidden;
+  }
+
+  &__label,
+  &__error,
+  &__warning,
+  &__helper-text, {
+    position: absolute;
+    left: calc($padding-global/2);
+    max-width: calc(100% - $padding-global);
+    padding: 0 3px;
+    font-size: $font-size-small;
+    line-height: calc($font-size-small + 2px);
+    pointer-events: none;
+    user-select: none;
+    background-color: $color-background-block;
+    z-index: 2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 1; /* number of lines to show */
+    line-clamp: 1;
+    -webkit-box-orient: vertical;
+  }
+
+  &__label {
+    top: calc(($font-size-small/-2) - 2px);
+    color: $color-text-secondary;
+  }
+
+  &__helper-text,
+  &__warning,
+  &__error {
+    position: relative;
+    top: calc($font-size-small/-2);
+    width: fit-content;
+    overflow-wrap: anywhere;
+    pointer-events: auto;
+    user-select: text;
+
+    &_full {
+      display: block;
+      overflow: visible;
+    }
+
+    &_overflowed {
+      cursor: pointer;
+    }
+  }
+
+  &__error {
+    color: $color-error;
+  }
+
+  &__warning {
+    color: $color-warning;
+  }
+
+  &__helper-text {
+    color: $color-text-secondary;
+  }
+
+  &__input {
+    display: block;
+    border-radius: $border-radius-small;
+    transition: border 200ms ease;
+    min-height: 40px;
+    resize: none;
+    overflow: hidden;
+    background-color: transparent;
+    color: $color-text;
+
+    &:focus {
+      border: 1px solid $color-primary;
+    }
+
+    &:hover {
+      border: 1px solid $color-primary;
+    }
+
+    &_error {
+      border-color: $color-error;
+
+      &:hover {
+        border-color: $color-error;
+      }
+
+      &:focus {
+        border-color: $color-error;
+      }
+    }
+
+    &_warning {
+      border-color: $color-warning;
+
+      &:hover {
+        border-color: $color-warning;
+      }
+
+      &:focus {
+        border-color: $color-warning;
+      }
+    }
+
+    &_icon-start {
+      padding-left: 31px;
+    }
+
+    &:disabled {
+      background-color: inherit;
+      color: inherit;
+
+      &:hover {
+        border-color: $color-text-disabled;
+      }
+    }
+  }
+
+  &__icon-start,
+  &__icon-end {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    max-width: 15px;
+    top: 0;
+    left: $padding-small;
+    height: 40px;
+    position: absolute;
+    color: $color-text-secondary;
+  }
+
+  &__icon-end {
+    left: auto;
+    right: $padding-small;
+  }
+
+  &__controls-info {
+    position: absolute;
+    bottom: $padding-small;
+    right: $padding-global;
+    color: $color-text-secondary;
+    font-size: $font-size-small;
+    opacity: 0.8;
+  }
+}

@@ -30,6 +30,23 @@ type manager struct {
 	groups   map[uint64]*Group
 }
 
+// RuleAPI generates APIRule object from alert by its ID(hash)
+func (m *manager) RuleAPI(gID, rID uint64) (APIRule, error) {
+	m.groupsMu.RLock()
+	defer m.groupsMu.RUnlock()
+
+	g, ok := m.groups[gID]
+	if !ok {
+		return APIRule{}, fmt.Errorf("can't find group with id %d", gID)
+	}
+	for _, rule := range g.Rules {
+		if rule.ID() == rID {
+			return rule.ToAPI(), nil
+		}
+	}
+	return APIRule{}, fmt.Errorf("can't find rule with id %d in group %q", rID, g.Name)
+}
+
 // AlertAPI generates APIAlert object from alert by its ID(hash)
 func (m *manager) AlertAPI(gID, aID uint64) (*APIAlert, error) {
 	m.groupsMu.RLock()
@@ -65,24 +82,18 @@ func (m *manager) close() {
 	m.wg.Wait()
 }
 
-func (m *manager) startGroup(ctx context.Context, group *Group, restore bool) error {
-	if restore && m.rr != nil {
-		err := group.Restore(ctx, m.rr, *remoteReadLookBack, m.labels)
-		if err != nil {
-			if !*remoteReadIgnoreRestoreErrors {
-				return fmt.Errorf("failed to restore state for group %q: %w", group.Name, err)
-			}
-			logger.Errorf("error while restoring state for group %q: %s", group.Name, err)
-		}
-	}
-
+func (m *manager) startGroup(ctx context.Context, g *Group, restore bool) error {
 	m.wg.Add(1)
-	id := group.ID()
+	id := g.ID()
 	go func() {
-		group.start(ctx, m.notifiers, m.rw)
-		m.wg.Done()
+		defer m.wg.Done()
+		if restore {
+			g.start(ctx, m.notifiers, m.rw, m.rr)
+		} else {
+			g.start(ctx, m.notifiers, m.rw, nil)
+		}
 	}()
-	m.groups[id] = group
+	m.groups[id] = g
 	return nil
 }
 
@@ -109,7 +120,7 @@ func (m *manager) update(ctx context.Context, groupsCfg []config.Group, restore 
 		return fmt.Errorf("config contains recording rules but `-remoteWrite.url` isn't set")
 	}
 	if arPresent && m.notifiers == nil {
-		return fmt.Errorf("config contains alerting rules but neither `-notifier.url` nor `-notifier.config` aren't set")
+		return fmt.Errorf("config contains alerting rules but neither `-notifier.url` nor `-notifier.config` nor `-notifier.blackhole` aren't set")
 	}
 
 	type updateItem struct {
@@ -136,6 +147,7 @@ func (m *manager) update(ctx context.Context, groupsCfg []config.Group, restore 
 	}
 	for _, ng := range groupsRegistry {
 		if err := m.startGroup(ctx, ng, restore); err != nil {
+			m.groupsMu.Unlock()
 			return err
 		}
 	}
@@ -149,6 +161,7 @@ func (m *manager) update(ctx context.Context, groupsCfg []config.Group, restore 
 				old.updateCh <- new
 				wg.Done()
 			}(item.old, item.new)
+			item.old.interruptEval()
 		}
 		wg.Wait()
 	}
@@ -163,16 +176,19 @@ func (g *Group) toAPI() APIGroup {
 		// encode as string to avoid rounding
 		ID: fmt.Sprintf("%d", g.ID()),
 
-		Name:           g.Name,
-		Type:           g.Type.String(),
-		File:           g.File,
-		Interval:       g.Interval.Seconds(),
-		LastEvaluation: g.LastEvaluation,
-		Concurrency:    g.Concurrency,
-		Params:         urlValuesToStrings(g.Params),
-		Headers:        headersToStrings(g.Headers),
-		Labels:         g.Labels,
+		Name:            g.Name,
+		Type:            g.Type.String(),
+		File:            g.File,
+		Interval:        g.Interval.Seconds(),
+		LastEvaluation:  g.LastEvaluation,
+		Concurrency:     g.Concurrency,
+		Params:          urlValuesToStrings(g.Params),
+		Headers:         headersToStrings(g.Headers),
+		NotifierHeaders: headersToStrings(g.NotifierHeaders),
+
+		Labels: g.Labels,
 	}
+	ag.Rules = make([]APIRule, 0)
 	for _, r := range g.Rules {
 		ag.Rules = append(ag.Rules, r.ToAPI())
 	}

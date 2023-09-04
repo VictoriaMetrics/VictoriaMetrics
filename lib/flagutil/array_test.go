@@ -9,21 +9,24 @@ import (
 )
 
 var (
-	fooFlag         Array
+	fooFlagString   ArrayString
 	fooFlagDuration ArrayDuration
 	fooFlagBool     ArrayBool
 	fooFlagInt      ArrayInt
+	fooFlagBytes    ArrayBytes
 )
 
 func init() {
-	os.Args = append(os.Args, "--fooFlag=foo", "--fooFlag=bar")
-	os.Args = append(os.Args, "--fooFlagDuration=10s", "--fooFlagDuration=5m")
-	os.Args = append(os.Args, "--fooFlagBool=true", "--fooFlagBool=false,true", "--fooFlagBool")
-	os.Args = append(os.Args, "--fooFlagInt=1", "--fooFlagInt=2,3")
-	flag.Var(&fooFlag, "fooFlag", "test")
+	os.Args = append(os.Args, "-fooFlagString=foo", "-fooFlagString=bar")
+	os.Args = append(os.Args, "-fooFlagDuration=10s", "-fooFlagDuration=5m")
+	os.Args = append(os.Args, "-fooFlagBool=true", "-fooFlagBool=false,true", "-fooFlagBool")
+	os.Args = append(os.Args, "-fooFlagInt=1", "-fooFlagInt=2,3")
+	os.Args = append(os.Args, "-fooFlagBytes=10MB", "-fooFlagBytes=23,10kib")
+	flag.Var(&fooFlagString, "fooFlagString", "test")
 	flag.Var(&fooFlagDuration, "fooFlagDuration", "test")
 	flag.Var(&fooFlagBool, "fooFlagBool", "test")
 	flag.Var(&fooFlagInt, "fooFlagInt", "test")
+	flag.Var(&fooFlagBytes, "fooFlagBytes", "test")
 }
 
 func TestMain(m *testing.M) {
@@ -31,46 +34,85 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func TestArray(t *testing.T) {
-	expected := []string{
+func TestArrayString(t *testing.T) {
+	expected := ArrayString{
 		"foo",
 		"bar",
 	}
-	if len(expected) != len(fooFlag) {
-		t.Errorf("len array flag (%d) is not equal to %d", len(fooFlag), len(expected))
-	}
-	for i, v := range fooFlag {
-		if v != expected[i] {
-			t.Errorf("unexpected item in array %q", v)
-		}
+	if !reflect.DeepEqual(expected, fooFlagString) {
+		t.Fatalf("unexpected flag values; got\n%q\nwant\n%q", fooFlagString, expected)
 	}
 }
 
-func TestArraySet(t *testing.T) {
-	f := func(s string, expectedValues []string) {
+func TestArrayString_Set(t *testing.T) {
+	f := func(s, expectedResult string) {
 		t.Helper()
-		var a Array
-		_ = a.Set(s)
-		if !reflect.DeepEqual([]string(a), expectedValues) {
-			t.Fatalf("unexpected values parsed;\ngot\n%q\nwant\n%q", a, expectedValues)
+		var a ArrayString
+		if err := a.Set(s); err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		result := a.String()
+		if result != expectedResult {
+			t.Fatalf("unexpected values parsed;\ngot\n%s\nwant\n%s", result, expectedResult)
 		}
 	}
-	f("", nil)
-	f(`foo`, []string{`foo`})
-	f(`foo,b ar,baz`, []string{`foo`, `b ar`, `baz`})
-	f(`foo,b\"'ar,"baz,d`, []string{`foo`, `b\"'ar`, `"baz,d`})
-	f(`,foo,,ba"r,`, []string{``, `foo`, ``, `ba"r`, ``})
-	f(`""`, []string{``})
-	f(`"foo,b\nar"`, []string{`foo,b` + "\n" + `ar`})
-	f(`"foo","bar",baz`, []string{`foo`, `bar`, `baz`})
-	f(`,fo,"\"b, a'\\",,r,`, []string{``, `fo`, `"b, a'\`, ``, `r`, ``})
+	// Zero args
+	f("", "")
+
+	// Single arg
+	f(`foo`, `foo`)
+	f(`fo"o`, `"fo\"o"`)
+	f(`fo'o`, `"fo'o"`)
+	f(`fo{o`, `"fo{o"`)
+	f(`fo[o`, `"fo[o"`)
+	f(`fo(o`, `"fo(o"`)
+
+	// Single arg with Prometheus label filters
+	f(`foo{bar="baz",x="y"}`, `"foo{bar=\"baz\",x=\"y\"}"`)
+	f(`foo{bar="ba}z",x="y"}`, `"foo{bar=\"ba}z\",x=\"y\"}"`)
+	f(`foo{bar='baz',x="y"}`, `"foo{bar='baz',x=\"y\"}"`)
+	f(`foo{bar='baz',x='y'}`, `"foo{bar='baz',x='y'}"`)
+	f(`foo{bar='ba}z',x='y'}`, `"foo{bar='ba}z',x='y'}"`)
+	f(`{foo="ba[r",baz='a'}`, `"{foo=\"ba[r\",baz='a'}"`)
+
+	// Single arg with JSON
+	f(`[1,2,3]`, `"[1,2,3]"`)
+	f(`{"foo":"ba,r",baz:x}`, `"{\"foo\":\"ba,r\",baz:x}"`)
+
+	// Single quoted arg
+	f(`"foo"`, `foo`)
+	f(`"fo,'o"`, `"fo,'o"`)
+	f(`"f\\o,\'\"o"`, `"f\\o,\\'\"o"`)
+	f(`"foo{bar='baz',x='y'}"`, `"foo{bar='baz',x='y'}"`)
+	f(`'foo'`, `foo`)
+	f(`'fo,"o'`, `"fo,\"o"`)
+	f(`'f\\o,\'\"o'`, `"f\\o,'\\\"o"`)
+	f(`'foo{bar="baz",x="y"}'`, `"foo{bar=\"baz\",x=\"y\"}"`)
+
+	// Multiple args
+	f(`foo,bar,baz`, `foo,bar,baz`)
+	f(`"foo",'bar',{[(ba'",z"`, `foo,bar,"{[(ba'\",z\""`)
+	f(`foo,b"'ar,"baz,d`, `foo,"b\"'ar,\"baz",d`)
+	f(`{foo="b,ar"},baz{x="y",z="d"}`, `"{foo=\"b,ar\"}","baz{x=\"y\",z=\"d\"}"`)
+
+	// Empty args
+	f(`""`, ``)
+	f(`''`, ``)
+	f(`,`, `,`)
+	f(`,foo,,ba"r,`, `,foo,,"ba\"r",`)
+
+	// Special chars inside double quotes
+	f(`"foo,b\nar"`, `"foo,b\nar"`)
+	f(`"foo\x23bar"`, "foo\x23bar")
 }
 
-func TestArrayGetOptionalArg(t *testing.T) {
+func TestArrayString_GetOptionalArg(t *testing.T) {
 	f := func(s string, argIdx int, expectedValue string) {
 		t.Helper()
-		var a Array
-		_ = a.Set(s)
+		var a ArrayString
+		if err := a.Set(s); err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
 		v := a.GetOptionalArg(argIdx)
 		if v != expectedValue {
 			t.Fatalf("unexpected value; got %q; want %q", v, expectedValue)
@@ -85,11 +127,13 @@ func TestArrayGetOptionalArg(t *testing.T) {
 	f("foo,bar", 2, "")
 }
 
-func TestArrayString(t *testing.T) {
+func TestArrayString_String(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
-		var a Array
-		_ = a.Set(s)
+		var a ArrayString
+		if err := a.Set(s); err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
 		result := a.String()
 		if result != s {
 			t.Fatalf("unexpected string;\ngot\n%s\nwant\n%s", result, s)
@@ -102,43 +146,47 @@ func TestArrayString(t *testing.T) {
 	f(",foo,")
 	f(`", foo","b\"ar",`)
 	f(`,"\nfoo\\",bar`)
+	f(`"foo{bar=~\"baz\",a!=\"b\"}","{a='b,{[(c'}"`)
 }
 
 func TestArrayDuration(t *testing.T) {
-	expected := []time.Duration{
-		time.Second * 10,
-		time.Minute * 5,
+	expected := ArrayDuration{
+		a: []time.Duration{
+			time.Second * 10,
+			time.Minute * 5,
+		},
 	}
-	if len(expected) != len(fooFlagDuration) {
-		t.Errorf("len array flag (%d) is not equal to %d", len(fooFlag), len(expected))
-	}
-	for i, v := range fooFlagDuration {
-		if v != expected[i] {
-			t.Errorf("unexpected item in array %s", v)
-		}
+	if !reflect.DeepEqual(expected, fooFlagDuration) {
+		t.Fatalf("unexpected flag values; got\n%s\nwant\n%s", &fooFlagDuration, &expected)
 	}
 }
 
-func TestArrayDurationSet(t *testing.T) {
-	f := func(s string, expectedValues []time.Duration) {
+func TestArrayDuration_Set(t *testing.T) {
+	f := func(s, expectedResult string) {
 		t.Helper()
 		var a ArrayDuration
-		_ = a.Set(s)
-		if !reflect.DeepEqual([]time.Duration(a), expectedValues) {
-			t.Fatalf("unexpected values parsed;\ngot\n%q\nwant\n%q", a, expectedValues)
+		if err := a.Set(s); err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		result := a.String()
+		if result != expectedResult {
+			t.Fatalf("unexpected values parsed;\ngot\n%q\nwant\n%q", result, expectedResult)
 		}
 	}
-	f("", nil)
-	f(`1m`, []time.Duration{time.Minute})
-	f(`5m,1s,1h`, []time.Duration{time.Minute * 5, time.Second, time.Hour})
+	f("", "")
+	f(`1m`, `1m0s`)
+	f(`5m,1s,1h`, `5m0s,1s,1h0m0s`)
 }
 
-func TestArrayDurationGetOptionalArg(t *testing.T) {
-	f := func(s string, argIdx int, expectedValue, defaultValue time.Duration) {
+func TestArrayDuration_GetOptionalArg(t *testing.T) {
+	f := func(s string, argIdx int, defaultValue, expectedValue time.Duration) {
 		t.Helper()
 		var a ArrayDuration
-		_ = a.Set(s)
-		v := a.GetOptionalArgOrDefault(argIdx, defaultValue)
+		a.defaultValue = defaultValue
+		if err := a.Set(s); err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		v := a.GetOptionalArg(argIdx)
 		if v != expectedValue {
 			t.Fatalf("unexpected value; got %q; want %q", v, expectedValue)
 		}
@@ -146,14 +194,16 @@ func TestArrayDurationGetOptionalArg(t *testing.T) {
 	f("", 0, time.Second, time.Second)
 	f("", 1, time.Minute, time.Minute)
 	f("10s,1m", 1, time.Minute, time.Minute)
-	f("10s", 3, time.Second*10, time.Minute)
+	f("10s", 3, time.Minute, time.Second*10)
 }
 
-func TestArrayDurationString(t *testing.T) {
+func TestArrayDuration_String(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
 		var a ArrayDuration
-		_ = a.Set(s)
+		if err := a.Set(s); err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
 		result := a.String()
 		if result != s {
 			t.Fatalf("unexpected string;\ngot\n%s\nwant\n%s", result, s)
@@ -165,38 +215,38 @@ func TestArrayDurationString(t *testing.T) {
 }
 
 func TestArrayBool(t *testing.T) {
-	expected := []bool{
+	expected := ArrayBool{
 		true, false, true, true,
 	}
-	if len(expected) != len(fooFlagBool) {
-		t.Errorf("len array flag (%d) is not equal to %d", len(fooFlag), len(expected))
-	}
-	for i, v := range fooFlagBool {
-		if v != expected[i] {
-			t.Errorf("unexpected item in array index=%v,value=%v,want=%v", i, v, expected[i])
-		}
+	if !reflect.DeepEqual(expected, fooFlagBool) {
+		t.Fatalf("unexpected flag values; got\n%v\nwant\n%v", fooFlagBool, expected)
 	}
 }
 
-func TestArrayBoolSet(t *testing.T) {
-	f := func(s string, expectedValues []bool) {
+func TestArrayBool_Set(t *testing.T) {
+	f := func(s, expectedResult string) {
 		t.Helper()
 		var a ArrayBool
-		_ = a.Set(s)
-		if !reflect.DeepEqual([]bool(a), expectedValues) {
-			t.Fatalf("unexpected values parsed;\ngot\n%v\nwant\n%v", a, expectedValues)
+		if err := a.Set(s); err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		result := a.String()
+		if result != expectedResult {
+			t.Fatalf("unexpected values parsed;\ngot\n%v\nwant\n%v", result, expectedResult)
 		}
 	}
-	f("", nil)
-	f(`true`, []bool{true})
-	f(`false,True,False`, []bool{false, true, false})
+	f("", "")
+	f(`true`, `true`)
+	f(`false,True,False`, `false,true,false`)
 }
 
-func TestArrayBoolGetOptionalArg(t *testing.T) {
+func TestArrayBool_GetOptionalArg(t *testing.T) {
 	f := func(s string, argIdx int, expectedValue bool) {
 		t.Helper()
 		var a ArrayBool
-		_ = a.Set(s)
+		if err := a.Set(s); err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
 		v := a.GetOptionalArg(argIdx)
 		if v != expectedValue {
 			t.Fatalf("unexpected value; got %v; want %v", v, expectedValue)
@@ -208,11 +258,13 @@ func TestArrayBoolGetOptionalArg(t *testing.T) {
 	f("true", 2, true)
 }
 
-func TestArrayBoolString(t *testing.T) {
+func TestArrayBool_String(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
 		var a ArrayBool
-		_ = a.Set(s)
+		if err := a.Set(s); err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
 		result := a.String()
 		if result != s {
 			t.Fatalf("unexpected string;\ngot\n%s\nwant\n%s", result, s)
@@ -225,52 +277,57 @@ func TestArrayBoolString(t *testing.T) {
 }
 
 func TestArrayInt(t *testing.T) {
-	expected := []int{1, 2, 3}
-	if len(expected) != len(fooFlagInt) {
-		t.Errorf("len array flag (%d) is not equal to %d", len(fooFlag), len(expected))
+	expected := ArrayInt{
+		a: []int{1, 2, 3},
 	}
-	for i, n := range fooFlagInt {
-		if n != expected[i] {
-			t.Errorf("unexpected item in array %d", n)
-		}
+	if !reflect.DeepEqual(expected, fooFlagInt) {
+		t.Fatalf("unexpected flag values; got\n%d\nwant\n%d", fooFlagInt, expected)
 	}
 }
 
-func TestArrayIntSet(t *testing.T) {
-	f := func(s string, expectedValues []int) {
+func TestArrayInt_Set(t *testing.T) {
+	f := func(s, expectedResult string) {
 		t.Helper()
 		var a ArrayInt
-		_ = a.Set(s)
-		if !reflect.DeepEqual([]int(a), expectedValues) {
-			t.Fatalf("unexpected values parsed;\ngot\n%q\nwant\n%q", a, expectedValues)
+		if err := a.Set(s); err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		result := a.String()
+		if result != expectedResult {
+			t.Fatalf("unexpected values parsed;\ngot\n%q\nwant\n%q", result, expectedResult)
 		}
 	}
-	f("", nil)
-	f(`1`, []int{1})
-	f(`-2,3,-64`, []int{-2, 3, -64})
+	f("", "")
+	f(`1`, `1`)
+	f(`-2,3,-64`, `-2,3,-64`)
 }
 
-func TestArrayIntGetOptionalArg(t *testing.T) {
-	f := func(s string, argIdx int, expectedValue, defaultValue int) {
+func TestArrayInt_GetOptionalArg(t *testing.T) {
+	f := func(s string, argIdx, defaultValue, expectedValue int) {
 		t.Helper()
 		var a ArrayInt
-		_ = a.Set(s)
-		v := a.GetOptionalArgOrDefault(argIdx, defaultValue)
+		a.defaultValue = defaultValue
+		if err := a.Set(s); err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		v := a.GetOptionalArg(argIdx)
 		if v != expectedValue {
 			t.Fatalf("unexpected value; got %d; want %d", v, expectedValue)
 		}
 	}
 	f("", 0, 123, 123)
 	f("", 1, -34, -34)
-	f("10,1", 1, 1, 234)
-	f("10", 3, 10, -34)
+	f("10,1", 1, 234, 1)
+	f("10", 3, -34, 10)
 }
 
-func TestArrayIntString(t *testing.T) {
+func TestArrayInt_String(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
 		var a ArrayInt
-		_ = a.Set(s)
+		if err := a.Set(s); err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
 		result := a.String()
 		if result != s {
 			t.Fatalf("unexpected string;\ngot\n%s\nwant\n%s", result, s)
@@ -279,4 +336,69 @@ func TestArrayIntString(t *testing.T) {
 	f("")
 	f("10,1")
 	f("-5,1,123")
+}
+
+func TestArrayBytes(t *testing.T) {
+	expected := []int64{10000000, 23, 10240}
+	result := make([]int64, len(fooFlagBytes.a))
+	for i, b := range fooFlagBytes.a {
+		result[i] = b.N
+	}
+	if !reflect.DeepEqual(expected, result) {
+		t.Fatalf("unexpected flag values; got\n%d\nwant\n%d", result, expected)
+	}
+}
+
+func TestArrayBytes_Set(t *testing.T) {
+	f := func(s, expectedResult string) {
+		t.Helper()
+		var a ArrayBytes
+		if err := a.Set(s); err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		result := a.String()
+		if result != expectedResult {
+			t.Fatalf("unexpected values parsed;\ngot\n%s\nwant\n%s", result, expectedResult)
+		}
+	}
+	f("", "")
+	f(`1`, `1`)
+	f(`-2,3,10kb`, `-2,3,10KB`)
+}
+
+func TestArrayBytes_GetOptionalArg(t *testing.T) {
+	f := func(s string, argIdx int, defaultValue, expectedValue int64) {
+		t.Helper()
+		var a ArrayBytes
+		a.defaultValue = defaultValue
+		if err := a.Set(s); err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		v := a.GetOptionalArg(argIdx)
+		if v != expectedValue {
+			t.Fatalf("unexpected value; got %d; want %d", v, expectedValue)
+		}
+	}
+	f("", 0, 123, 123)
+	f("", 1, -34, -34)
+	f("10,1", 1, 234, 1)
+	f("10,1", 3, 234, 234)
+	f("10Kb", 3, -34, 10000)
+}
+
+func TestArrayBytes_String(t *testing.T) {
+	f := func(s string) {
+		t.Helper()
+		var a ArrayBytes
+		if err := a.Set(s); err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		result := a.String()
+		if result != s {
+			t.Fatalf("unexpected string;\ngot\n%s\nwant\n%s", result, s)
+		}
+	}
+	f("")
+	f("10.5KiB,1")
+	f("-5,1,123MB")
 }

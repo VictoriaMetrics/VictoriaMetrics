@@ -1,0 +1,3 @@
+analyzed-path: /var/lib/docker/volumes
+bind-address: 0.0.0.0:9995
+dir-level: 1

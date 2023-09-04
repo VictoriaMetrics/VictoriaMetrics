@@ -155,12 +155,13 @@ func testMarshalUnmarshalInt64Array(t *testing.T, va []int64, precisionBits uint
 }
 
 func TestMarshalUnmarshalTimestamps(t *testing.T) {
+	r := rand.New(rand.NewSource(1))
 	const precisionBits = 3
 
 	var timestamps []int64
 	v := int64(0)
 	for i := 0; i < 8*1024; i++ {
-		v += 30e3 * int64(rand.NormFloat64()*5e2)
+		v += 30e3 * int64(r.NormFloat64()*5e2)
 		timestamps = append(timestamps, v)
 	}
 	result, mt, firstTimestamp := MarshalTimestamps(nil, timestamps, precisionBits)
@@ -174,12 +175,13 @@ func TestMarshalUnmarshalTimestamps(t *testing.T) {
 }
 
 func TestMarshalUnmarshalValues(t *testing.T) {
+	r := rand.New(rand.NewSource(1))
 	const precisionBits = 3
 
 	var values []int64
 	v := int64(0)
 	for i := 0; i < 8*1024; i++ {
-		v += int64(rand.NormFloat64() * 1e2)
+		v += int64(r.NormFloat64() * 1e2)
 		values = append(values, v)
 	}
 	result, mt, firstValue := MarshalValues(nil, values, precisionBits)

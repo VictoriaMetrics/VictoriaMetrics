@@ -1,0 +1,21 @@
+@use "src/styles/variables" as *;
+
+.vm-explore-metrics {
+  display: grid;
+  align-items: flex-start;
+  gap: $padding-medium;
+
+  @media (max-width: 500px) {
+    gap: $padding-small;
+  }
+
+  &-body {
+    display: grid;
+    align-items: flex-start;
+    gap: $padding-medium;
+
+    @media (max-width: 500px) {
+      gap: $padding-small;
+    }
+  }
+}

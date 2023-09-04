@@ -18,7 +18,9 @@ type TenantID struct {
 // CounterMap is a map of counters keyed by tenant.
 type CounterMap struct {
 	metric string
-	m      atomic.Value
+
+	// do not use atomic.Pointer, since the stored map there is already a pointer type.
+	m atomic.Value
 }
 
 // NewCounterMap creates new CounterMap for the given metric.
@@ -37,6 +39,13 @@ func (cm *CounterMap) Get(at *auth.Token) *metrics.Counter {
 		ProjectID: at.ProjectID,
 	}
 	return cm.GetByTenant(key)
+}
+
+// MultiAdd adds multiple values grouped by auth.Token
+func (cm *CounterMap) MultiAdd(perTenantValues map[auth.Token]int) {
+	for token, value := range perTenantValues {
+		cm.Get(&token).Add(value)
+	}
 }
 
 // GetByTenant returns counter for the given key.

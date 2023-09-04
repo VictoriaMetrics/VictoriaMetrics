@@ -1,0 +1,17 @@
+@use "src/styles/variables" as *;
+
+.vm-graph-view {
+  width: 100%;
+
+  &_full-width {
+    width: calc(100vw - ($padding-medium * 4) - var(--scrollbar-width));
+
+    @media (max-width: 768px) {
+      width: calc(100vw - ($padding-medium * 2) - var(--scrollbar-width));
+    }
+
+    &_mobile {
+      width: calc(100vw - ($padding-global * 2) - var(--scrollbar-width));
+    }
+  }
+}

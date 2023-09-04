@@ -1,0 +1,15 @@
+@use "src/styles/variables" as *;
+
+.vm-theme-control {
+
+  &__toggle {
+    display: inline-flex;
+    min-width: 300px;
+    text-transform: capitalize;
+  }
+
+  &_mobile &__toggle {
+    display: flex;
+    min-width: 100%;
+  }
+}

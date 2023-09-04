@@ -11,6 +11,7 @@ import (
 // IntSlice wraps []int to satisfy flag.Value
 type IntSlice struct {
 	slice      []int
+	separator  separatorSpec
 	hasBeenSet bool
 }
 
@@ -40,6 +41,10 @@ func (i *IntSlice) SetInt(value int) {
 	i.slice = append(i.slice, value)
 }
 
+func (i *IntSlice) WithSeparatorSpec(spec separatorSpec) {
+	i.separator = spec
+}
+
 // Set parses the value into an integer and appends it to the list of values
 func (i *IntSlice) Set(value string) error {
 	if !i.hasBeenSet {
@@ -54,7 +59,7 @@ func (i *IntSlice) Set(value string) error {
 		return nil
 	}
 
-	for _, s := range flagSplitMultiValues(value) {
+	for _, s := range i.separator.flagSplitMultiValues(value) {
 		tmp, err := strconv.ParseInt(strings.TrimSpace(s), 0, 64)
 		if err != nil {
 			return err
@@ -95,7 +100,7 @@ func (i *IntSlice) Get() interface{} {
 // String returns a readable representation of this value
 // (for usage defaults)
 func (f *IntSliceFlag) String() string {
-	return withEnvHint(f.GetEnvVars(), stringifyIntSliceFlag(f))
+	return FlagStringer(f)
 }
 
 // TakesValue returns true of the flag takes a value, otherwise false
@@ -116,10 +121,13 @@ func (f *IntSliceFlag) GetCategory() string {
 // GetValue returns the flags value as string representation and an empty
 // string if the flag takes no value at all.
 func (f *IntSliceFlag) GetValue() string {
-	if f.Value != nil {
-		return f.Value.String()
+	var defaultVals []string
+	if f.Value != nil && len(f.Value.Value()) > 0 {
+		for _, i := range f.Value.Value() {
+			defaultVals = append(defaultVals, strconv.Itoa(i))
+		}
 	}
-	return ""
+	return strings.Join(defaultVals, ", ")
 }
 
 // GetDefaultText returns the default text for this flag
@@ -133,6 +141,11 @@ func (f *IntSliceFlag) GetDefaultText() string {
 // GetEnvVars returns the env vars for this flag
 func (f *IntSliceFlag) GetEnvVars() []string {
 	return f.EnvVars
+}
+
+// IsSliceFlag implements DocGenerationSliceFlag.
+func (f *IntSliceFlag) IsSliceFlag() bool {
+	return true
 }
 
 // Apply populates the flag given the flag set and environment
@@ -152,10 +165,11 @@ func (f *IntSliceFlag) Apply(set *flag.FlagSet) error {
 		setValue = f.Value.clone()
 	default:
 		setValue = new(IntSlice)
+		setValue.WithSeparatorSpec(f.separator)
 	}
 
 	if val, source, ok := flagFromEnvOrFile(f.EnvVars, f.FilePath); ok && val != "" {
-		for _, s := range flagSplitMultiValues(val) {
+		for _, s := range f.separator.flagSplitMultiValues(val) {
 			if err := setValue.Set(strings.TrimSpace(s)); err != nil {
 				return fmt.Errorf("could not parse %q as int slice value from %s for flag %s: %s", val, source, f.Name, err)
 			}
@@ -174,9 +188,22 @@ func (f *IntSliceFlag) Apply(set *flag.FlagSet) error {
 	return nil
 }
 
+func (f *IntSliceFlag) WithSeparatorSpec(spec separatorSpec) {
+	f.separator = spec
+}
+
 // Get returns the flag’s value in the given Context.
 func (f *IntSliceFlag) Get(ctx *Context) []int {
 	return ctx.IntSlice(f.Name)
+}
+
+// RunAction executes flag action if set
+func (f *IntSliceFlag) RunAction(c *Context) error {
+	if f.Action != nil {
+		return f.Action(c, c.IntSlice(f.Name))
+	}
+
+	return nil
 }
 
 // IntSlice looks up the value of a local IntSliceFlag, returns

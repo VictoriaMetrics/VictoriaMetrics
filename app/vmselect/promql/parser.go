@@ -34,7 +34,7 @@ func IsMetricSelectorWithRollup(s string) (childQuery string, window, offset *me
 		return
 	}
 	me, ok := re.Expr.(*metricsql.MetricExpr)
-	if !ok || len(me.LabelFilters) == 0 {
+	if !ok || len(me.LabelFilterss) == 0 {
 		return
 	}
 	wrappedQuery := me.AppendString(nil)

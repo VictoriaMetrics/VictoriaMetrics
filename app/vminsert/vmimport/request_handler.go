@@ -10,9 +10,9 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/vmimport"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/vmimport/stream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -30,11 +30,9 @@ func InsertHandler(at *auth.Token, req *http.Request) error {
 	if err != nil {
 		return err
 	}
-	return writeconcurrencylimiter.Do(func() error {
-		isGzipped := req.Header.Get("Content-Encoding") == "gzip"
-		return parser.ParseStream(req.Body, isGzipped, func(rows []parser.Row) error {
-			return insertRows(at, rows, extraLabels)
-		})
+	isGzipped := req.Header.Get("Content-Encoding") == "gzip"
+	return stream.Parse(req.Body, isGzipped, func(rows []parser.Row) error {
+		return insertRows(at, rows, extraLabels)
 	})
 }
 
@@ -44,6 +42,7 @@ func insertRows(at *auth.Token, rows []parser.Row, extraLabels []prompbmarshal.L
 
 	ctx.Reset() // This line is required for initializing ctx internals.
 	rowsTotal := 0
+	perTenantRows := make(map[auth.Token]int)
 	hasRelabeling := relabel.HasRelabeling()
 	for i := range rows {
 		r := &rows[i]
@@ -65,8 +64,9 @@ func insertRows(at *auth.Token, rows []parser.Row, extraLabels []prompbmarshal.L
 			continue
 		}
 		ctx.SortLabelsIfNeeded()
-		ctx.MetricNameBuf = storage.MarshalMetricNameRaw(ctx.MetricNameBuf[:0], at.AccountID, at.ProjectID, ctx.Labels)
-		storageNodeIdx := ctx.GetStorageNodeIdx(at, ctx.Labels)
+		atLocal := ctx.GetLocalAuthToken(at)
+		ctx.MetricNameBuf = storage.MarshalMetricNameRaw(ctx.MetricNameBuf[:0], atLocal.AccountID, atLocal.ProjectID, ctx.Labels)
+		storageNodeIdx := ctx.GetStorageNodeIdx(atLocal, ctx.Labels)
 		values := r.Values
 		timestamps := r.Timestamps
 		if len(timestamps) != len(values) {
@@ -74,13 +74,14 @@ func insertRows(at *auth.Token, rows []parser.Row, extraLabels []prompbmarshal.L
 		}
 		for j, value := range values {
 			timestamp := timestamps[j]
-			if err := ctx.WriteDataPointExt(at, storageNodeIdx, ctx.MetricNameBuf, timestamp, value); err != nil {
+			if err := ctx.WriteDataPointExt(storageNodeIdx, ctx.MetricNameBuf, timestamp, value); err != nil {
 				return err
 			}
 		}
+		perTenantRows[*atLocal] += len(r.Values)
 	}
 	rowsInserted.Add(rowsTotal)
-	rowsTenantInserted.Get(at).Add(rowsTotal)
+	rowsTenantInserted.MultiAdd(perTenantRows)
 	rowsPerInsert.Update(float64(rowsTotal))
 	return ctx.FlushBufs()
 }

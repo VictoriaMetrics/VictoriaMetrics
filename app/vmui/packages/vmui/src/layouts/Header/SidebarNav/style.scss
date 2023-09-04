@@ -1,0 +1,65 @@
+@use "src/styles/variables" as *;
+
+$sidebar-transition: cubic-bezier(0.280, 0.840, 0.420, 1);
+
+.vm-header-sidebar {
+  width: 24px;
+  height: 24px;
+  color: inherit;
+  background-color: inherit;
+
+  &-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 51px;
+    width: 51px;
+    transition: left 350ms $sidebar-transition;
+
+    &_open {
+      position: fixed;
+      left: 149px;
+      z-index: 102;
+    }
+  }
+
+  &-menu {
+    position: fixed;
+    top: 0;
+    left: 0;
+    display: grid;
+    gap: $padding-global;
+    padding: $padding-global;
+    grid-template-rows: 1fr auto;
+    width: 200px;
+    height: 100%;
+    background-color: inherit;
+    z-index: 101;
+    transform-origin: left;
+    transform: translateX(-100%);
+    transition: transform 300ms $sidebar-transition;
+    box-shadow: $box-shadow-popper;
+
+    &_open {
+      transform: translateX(0);
+    }
+
+    &__logo {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      cursor: pointer;
+      width: 65px;
+    }
+
+    &-settings {
+      display: grid;
+      align-items: center;
+      gap: $padding-small;
+    }
+  }
+}

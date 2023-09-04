@@ -47,7 +47,9 @@ func (it Item) String(data []byte) string {
 	return *(*string)(unsafe.Pointer(sh))
 }
 
-func (ib *inmemoryBlock) Len() int { return len(ib.items) }
+func (ib *inmemoryBlock) Len() int {
+	return len(ib.items)
+}
 
 func (ib *inmemoryBlock) Less(i, j int) bool {
 	items := ib.items
@@ -155,7 +157,7 @@ func commonPrefixLen(a, b []byte) int {
 
 // Add adds x to the end of ib.
 //
-// false is returned if x isn't added to ib due to block size contraints.
+// false is returned if x isn't added to ib due to block size constraints.
 func (ib *inmemoryBlock) Add(x []byte) bool {
 	data := ib.data
 	if len(x)+len(data) > maxInmemoryBlockSize {
@@ -334,8 +336,7 @@ func (ib *inmemoryBlock) marshalData(sb *storageBlock, firstItemDst, commonPrefi
 	return firstItemDst, commonPrefixDst, uint32(len(ib.items)), marshalTypeZSTD
 }
 
-// UnmarshalData decodes itemsCount items from sb and firstItem and stores
-// them to ib.
+// UnmarshalData decodes itemsCount items from sb and firstItem and stores them to ib.
 func (ib *inmemoryBlock) UnmarshalData(sb *storageBlock, firstItem, commonPrefix []byte, itemsCount uint32, mt marshalType) error {
 	ib.Reset()
 

@@ -16,6 +16,11 @@ type apiConfig struct {
 	client *discoveryutils.Client
 	port   int
 
+	// role is the type of objects to discover.
+	//
+	// filtersQueryArg is applied only to the given role - the rest of objects are queried without filters.
+	role string
+
 	// filtersQueryArg contains escaped `filters` query arg to add to each request to Docker Swarm API.
 	filtersQueryArg string
 }
@@ -44,16 +49,17 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse proxy auth config: %w", err)
 	}
-	client, err := discoveryutils.NewClient(sdc.Host, ac, sdc.ProxyURL, proxyAC)
+	client, err := discoveryutils.NewClient(sdc.Host, ac, sdc.ProxyURL, proxyAC, &sdc.HTTPClientConfig)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create HTTP client for %q: %w", sdc.Host, err)
 	}
 	cfg.client = client
+	cfg.role = sdc.Role
 	return cfg, nil
 }
 
-func (cfg *apiConfig) getAPIResponse(path string) ([]byte, error) {
-	if len(cfg.filtersQueryArg) > 0 {
+func (cfg *apiConfig) getAPIResponse(path, filtersQueryArg string) ([]byte, error) {
+	if len(filtersQueryArg) > 0 {
 		separator := "?"
 		if strings.Contains(path, "?") {
 			separator = "&"
@@ -63,20 +69,16 @@ func (cfg *apiConfig) getAPIResponse(path string) ([]byte, error) {
 	return cfg.client.GetAPIResponse(path)
 }
 
+// Encodes filters as `map[string][]string` and then marshals it to JSON.
+// Reference: https://docs.docker.com/engine/api/v1.41/#tag/Task
 func getFiltersQueryArg(filters []Filter) string {
 	if len(filters) == 0 {
 		return ""
 	}
-	m := make(map[string]map[string]bool)
+
+	m := make(map[string][]string)
 	for _, f := range filters {
-		x := m[f.Name]
-		if x == nil {
-			x = make(map[string]bool)
-			m[f.Name] = x
-		}
-		for _, value := range f.Values {
-			x[value] = true
-		}
+		m[f.Name] = f.Values
 	}
 	buf, err := json.Marshal(m)
 	if err != nil {

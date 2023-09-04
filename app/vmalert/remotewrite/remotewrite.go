@@ -22,6 +22,9 @@ import (
 
 var (
 	disablePathAppend = flag.Bool("remoteWrite.disablePathAppend", false, "Whether to disable automatic appending of '/api/v1/write' path to the configured -remoteWrite.url.")
+	sendTimeout       = flag.Duration("remoteWrite.sendTimeout", 30*time.Second, "Timeout for sending data to the configured -remoteWrite.url.")
+	retryMinInterval  = flag.Duration("remoteWrite.retryMinInterval", time.Second, "The minimum delay between retry attempts. Every next retry attempt will double the delay to prevent hammering of remote database. See also -remoteWrite.retryMaxInterval")
+	retryMaxTime      = flag.Duration("remoteWrite.retryMaxTime", time.Second*30, "The max time spent on retry attempts for the failed remote-write request. Change this value if it is expected for remoteWrite.url to be unreachable for more than -remoteWrite.retryMaxTime. See also -remoteWrite.retryMinInterval")
 )
 
 // Client is an asynchronous HTTP client for writing
@@ -57,13 +60,8 @@ type Config struct {
 	MaxQueueSize int
 	// FlushInterval defines time interval for flushing batches
 	FlushInterval time.Duration
-	// WriteTimeout defines timeout for HTTP write request
-	// to remote storage
-	WriteTimeout time.Duration
 	// Transport will be used by the underlying http.Client
 	Transport *http.Transport
-	// DisablePathAppend can be used to not automatically append '/api/v1/write' to the remote write url
-	DisablePathAppend bool
 }
 
 const (
@@ -89,9 +87,6 @@ func NewClient(ctx context.Context, cfg Config) (*Client, error) {
 	if cfg.FlushInterval == 0 {
 		cfg.FlushInterval = defaultFlushInterval
 	}
-	if cfg.WriteTimeout == 0 {
-		cfg.WriteTimeout = defaultWriteTimeout
-	}
 	if cfg.Transport == nil {
 		cfg.Transport = http.DefaultTransport.(*http.Transport).Clone()
 	}
@@ -101,7 +96,7 @@ func NewClient(ctx context.Context, cfg Config) (*Client, error) {
 	}
 	c := &Client{
 		c: &http.Client{
-			Timeout:   cfg.WriteTimeout,
+			Timeout:   *sendTimeout,
 			Transport: cfg.Transport,
 		},
 		addr:          strings.TrimSuffix(cfg.Addr, "/"),
@@ -154,6 +149,7 @@ func (c *Client) run(ctx context.Context) {
 			wr.Timeseries = append(wr.Timeseries, ts)
 		}
 		lastCtx, cancel := context.WithTimeout(context.Background(), defaultWriteTimeout)
+		logger.Infof("shutting down remote write client and flushing remained %d series", len(wr.Timeseries))
 		c.flush(lastCtx, wr)
 		cancel()
 	}
@@ -187,13 +183,18 @@ func (c *Client) run(ctx context.Context) {
 var (
 	sentRows            = metrics.NewCounter(`vmalert_remotewrite_sent_rows_total`)
 	sentBytes           = metrics.NewCounter(`vmalert_remotewrite_sent_bytes_total`)
+	sendDuration        = metrics.NewFloatCounter(`vmalert_remotewrite_send_duration_seconds_total`)
 	droppedRows         = metrics.NewCounter(`vmalert_remotewrite_dropped_rows_total`)
 	droppedBytes        = metrics.NewCounter(`vmalert_remotewrite_dropped_bytes_total`)
 	bufferFlushDuration = metrics.NewHistogram(`vmalert_remotewrite_flush_duration_seconds`)
+
+	_ = metrics.NewGauge(`vmalert_remotewrite_concurrency`, func() float64 {
+		return float64(*concurrency)
+	})
 )
 
 // flush is a blocking function that marshals WriteRequest and sends
-// it to remote write endpoint. Flush performs limited amount of retries
+// it to remote-write endpoint. Flush performs limited amount of retries
 // if request fails.
 func (c *Client) flush(ctx context.Context, wr *prompbmarshal.WriteRequest) {
 	if len(wr.Timeseries) < 1 {
@@ -208,9 +209,18 @@ func (c *Client) flush(ctx context.Context, wr *prompbmarshal.WriteRequest) {
 		return
 	}
 
-	const attempts = 5
 	b := snappy.Encode(nil, data)
-	for i := 0; i < attempts; i++ {
+
+	retryInterval, maxRetryInterval := *retryMinInterval, *retryMaxTime
+	if retryInterval > maxRetryInterval {
+		retryInterval = maxRetryInterval
+	}
+	timeStart := time.Now()
+	defer func() {
+		sendDuration.Add(time.Since(timeStart).Seconds())
+	}()
+L:
+	for attempts := 0; ; attempts++ {
 		err := c.send(ctx, b)
 		if err == nil {
 			sentRows.Add(len(wr.Timeseries))
@@ -218,21 +228,46 @@ func (c *Client) flush(ctx context.Context, wr *prompbmarshal.WriteRequest) {
 			return
 		}
 
-		logger.Errorf("attempt %d to send request failed: %s", i+1, err)
-		// sleeping to avoid remote db hammering
-		time.Sleep(time.Second)
-		continue
+		_, isNotRetriable := err.(*nonRetriableError)
+		logger.Warnf("attempt %d to send request failed: %s (retriable: %v)", attempts+1, err, !isNotRetriable)
+
+		if isNotRetriable {
+			// exit fast if error isn't retriable
+			break
+		}
+
+		// check if request has been cancelled before backoff
+		select {
+		case <-ctx.Done():
+			logger.Errorf("interrupting retry attempt %d: context cancelled", attempts+1)
+			break L
+		default:
+		}
+
+		timeLeftForRetries := maxRetryInterval - time.Since(timeStart)
+		if timeLeftForRetries < 0 {
+			// the max retry time has passed, so we give up
+			break
+		}
+
+		if retryInterval > timeLeftForRetries {
+			retryInterval = timeLeftForRetries
+		}
+		// sleeping to prevent remote db hammering
+		time.Sleep(retryInterval)
+		retryInterval *= 2
+
 	}
 
 	droppedRows.Add(len(wr.Timeseries))
 	droppedBytes.Add(len(b))
-	logger.Errorf("all %d attempts to send request failed - dropping %d time series",
-		attempts, len(wr.Timeseries))
+	logger.Errorf("attempts to send remote-write request failed - dropping %d time series",
+		len(wr.Timeseries))
 }
 
 func (c *Client) send(ctx context.Context, data []byte) error {
 	r := bytes.NewReader(data)
-	req, err := http.NewRequest("POST", c.addr, r)
+	req, err := http.NewRequest(http.MethodPost, c.addr, r)
 	if err != nil {
 		return fmt.Errorf("failed to create new HTTP request: %w", err)
 	}
@@ -256,10 +291,32 @@ func (c *Client) send(ctx context.Context, data []byte) error {
 			req.URL.Redacted(), err, len(data), r.Size())
 	}
 	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+
+	body, _ := io.ReadAll(resp.Body)
+
+	// according to https://prometheus.io/docs/concepts/remote_write_spec/
+	// Prometheus remote Write compatible receivers MUST
+	switch resp.StatusCode / 100 {
+	case 2:
+		// respond with a HTTP 2xx status code when the write is successful.
+		return nil
+	case 4:
+		if resp.StatusCode != http.StatusTooManyRequests {
+			// MUST NOT retry write requests on HTTP 4xx responses other than 429
+			return &nonRetriableError{fmt.Errorf("unexpected response code %d for %s. Response body %q",
+				resp.StatusCode, req.URL.Redacted(), body)}
+		}
+		fallthrough
+	default:
 		return fmt.Errorf("unexpected response code %d for %s. Response body %q",
 			resp.StatusCode, req.URL.Redacted(), body)
 	}
-	return nil
+}
+
+type nonRetriableError struct {
+	err error
+}
+
+func (e *nonRetriableError) Error() string {
+	return e.err.Error()
 }

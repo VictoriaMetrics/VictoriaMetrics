@@ -12,6 +12,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/querystats"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
@@ -73,7 +74,7 @@ func Exec(qt *querytracer.Tracer, ec *EvalConfig, q string, isFirstPointOnly boo
 		}
 		qt.Printf("leave only the first point in every series")
 	}
-	maySort := maySortResults(e, rv)
+	maySort := maySortResults(e)
 	result, err := timeseriesToResult(rv, maySort)
 	if err != nil {
 		return nil, err
@@ -95,12 +96,13 @@ func Exec(qt *querytracer.Tracer, ec *EvalConfig, q string, isFirstPointOnly boo
 	return result, nil
 }
 
-func maySortResults(e metricsql.Expr, tss []*timeseries) bool {
+func maySortResults(e metricsql.Expr) bool {
 	switch v := e.(type) {
 	case *metricsql.FuncExpr:
 		switch strings.ToLower(v.Name) {
 		case "sort", "sort_desc",
-			"sort_by_label", "sort_by_label_desc":
+			"sort_by_label", "sort_by_label_desc",
+			"sort_by_label_numeric", "sort_by_label_numeric_desc":
 			return false
 		}
 	case *metricsql.AggrFuncExpr:
@@ -121,15 +123,18 @@ func timeseriesToResult(tss []*timeseries, maySort bool) ([]netstorage.Result, e
 	bb := bbPool.Get()
 	for i, ts := range tss {
 		bb.B = marshalMetricNameSorted(bb.B[:0], &ts.MetricName)
-		if _, ok := m[string(bb.B)]; ok {
+		k := bytesutil.InternBytes(bb.B)
+		if _, ok := m[k]; ok {
 			return nil, fmt.Errorf(`duplicate output timeseries: %s`, stringMetricName(&ts.MetricName))
 		}
-		m[string(bb.B)] = struct{}{}
+		m[k] = struct{}{}
 
 		rs := &result[i]
-		rs.MetricName.CopyFrom(&ts.MetricName)
-		rs.Values = append(rs.Values[:0], ts.Values...)
-		rs.Timestamps = append(rs.Timestamps[:0], ts.Timestamps...)
+		rs.MetricName.MoveFrom(&ts.MetricName)
+		rs.Values = ts.Values
+		ts.Values = nil
+		rs.Timestamps = ts.Timestamps
+		ts.Timestamps = nil
 	}
 	bbPool.Put(bb)
 
@@ -273,10 +278,12 @@ func escapeDotsInRegexpLabelFilters(e metricsql.Expr) metricsql.Expr {
 		if !ok {
 			return
 		}
-		for i := range me.LabelFilters {
-			f := &me.LabelFilters[i]
-			if f.IsRegexp {
-				f.Value = escapeDots(f.Value)
+		for _, lfs := range me.LabelFilterss {
+			for i := range lfs {
+				f := &lfs[i]
+				if f.IsRegexp {
+					f.Value = escapeDots(f.Value)
+				}
 			}
 		}
 	})

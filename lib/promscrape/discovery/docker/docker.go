@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 )
 
@@ -36,7 +37,7 @@ type Filter struct {
 }
 
 // GetLabels returns docker labels according to sdc.
-func (sdc *SDConfig) GetLabels(baseDir string) ([]map[string]string, error) {
+func (sdc *SDConfig) GetLabels(baseDir string) ([]*promutils.Labels, error) {
 	cfg, err := getAPIConfig(sdc, baseDir)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get API config: %w", err)
@@ -46,5 +47,9 @@ func (sdc *SDConfig) GetLabels(baseDir string) ([]map[string]string, error) {
 
 // MustStop stops further usage for sdc.
 func (sdc *SDConfig) MustStop() {
-	configMap.Delete(sdc)
+	v := configMap.Delete(sdc)
+	if v != nil {
+		cfg := v.(*apiConfig)
+		cfg.client.Stop()
+	}
 }

@@ -104,6 +104,9 @@ func InitRollupResultCache(cachePath string) {
 	metrics.GetOrCreateGauge(`vm_cache_size_bytes{type="promql/rollupResult"}`, func() float64 {
 		return float64(fcs().BytesSize)
 	})
+	metrics.GetOrCreateGauge(`vm_cache_size_max_bytes{type="promql/rollupResult"}`, func() float64 {
+		return float64(fcs().MaxBytesSize)
+	})
 	metrics.GetOrCreateGauge(`vm_cache_requests_total{type="promql/rollupResult"}`, func() float64 {
 		return float64(fcs().GetCalls)
 	})
@@ -384,16 +387,13 @@ func mustLoadRollupResultCacheKeyPrefix(path string) {
 func mustSaveRollupResultCacheKeyPrefix(path string) {
 	path = path + ".key.prefix"
 	data := encoding.MarshalUint64(nil, rollupResultCacheKeyPrefix)
-	fs.MustRemoveAll(path)
-	if err := fs.WriteFileAtomically(path, data); err != nil {
-		logger.Fatalf("cannot store rollupResult cache key prefix to %q: %s", path, err)
-	}
+	fs.MustWriteAtomic(path, data, true)
 }
 
 var tooBigRollupResults = metrics.NewCounter("vm_too_big_rollup_results_total")
 
 // Increment this value every time the format of the cache changes.
-const rollupResultCacheVersion = 8
+const rollupResultCacheVersion = 9
 
 func marshalRollupResultCacheKey(dst []byte, at *auth.Token, expr metricsql.Expr, window, step int64, etfs [][]storage.TagFilter) []byte {
 	dst = append(dst, rollupResultCacheVersion)
@@ -442,7 +442,8 @@ func mergeTimeseries(a, b []*timeseries, bStart int64, ec *EvalConfig) []*timese
 	defer bbPool.Put(bb)
 	for _, ts := range a {
 		bb.B = marshalMetricNameSorted(bb.B[:0], &ts.MetricName)
-		m[string(bb.B)] = ts
+		k := bytesutil.InternBytes(bb.B)
+		m[k] = ts
 	}
 
 	rvs := make([]*timeseries, 0, len(a))
@@ -451,12 +452,11 @@ func mergeTimeseries(a, b []*timeseries, bStart int64, ec *EvalConfig) []*timese
 		tmp.denyReuse = true
 		tmp.Timestamps = sharedTimestamps
 		tmp.Values = make([]float64, 0, len(tmp.Timestamps))
-		// Do not use MetricName.CopyFrom for performance reasons.
-		// It is safe to make shallow copy, since tsB must no longer used.
-		tmp.MetricName = tsB.MetricName
+		tmp.MetricName.MoveFrom(&tsB.MetricName)
 
-		bb.B = marshalMetricNameSorted(bb.B[:0], &tsB.MetricName)
-		tsA := m[string(bb.B)]
+		bb.B = marshalMetricNameSorted(bb.B[:0], &tmp.MetricName)
+		k := bytesutil.InternBytes(bb.B)
+		tsA := m[k]
 		if tsA == nil {
 			tStart := ec.Start
 			for tStart < bStart {
@@ -465,7 +465,7 @@ func mergeTimeseries(a, b []*timeseries, bStart int64, ec *EvalConfig) []*timese
 			}
 		} else {
 			tmp.Values = append(tmp.Values, tsA.Values...)
-			delete(m, string(bb.B))
+			delete(m, k)
 		}
 		tmp.Values = append(tmp.Values, tsB.Values...)
 		if len(tmp.Values) != len(tmp.Timestamps) {
@@ -479,9 +479,8 @@ func mergeTimeseries(a, b []*timeseries, bStart int64, ec *EvalConfig) []*timese
 		var tmp timeseries
 		tmp.denyReuse = true
 		tmp.Timestamps = sharedTimestamps
-		// Do not use MetricName.CopyFrom for performance reasons.
-		// It is safe to make shallow copy, since tsA must no longer used.
-		tmp.MetricName = tsA.MetricName
+		tmp.Values = make([]float64, 0, len(tmp.Timestamps))
+		tmp.MetricName.MoveFrom(&tsA.MetricName)
 		tmp.Values = append(tmp.Values, tsA.Values...)
 
 		tStart := bStart

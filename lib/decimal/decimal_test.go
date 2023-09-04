@@ -506,8 +506,9 @@ func TestFloatToDecimalRoundtrip(t *testing.T) {
 	f(vMin)
 	f(vStaleNaN)
 
+	r := rand.New(rand.NewSource(1))
 	for i := 0; i < 1e4; i++ {
-		v := rand.NormFloat64()
+		v := r.NormFloat64()
 		f(v)
 		f(v * 1e-6)
 		f(v * 1e6)

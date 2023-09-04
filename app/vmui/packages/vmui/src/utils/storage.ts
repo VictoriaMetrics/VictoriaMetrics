@@ -4,14 +4,21 @@ export type StorageKeys = "BASIC_AUTH_DATA"
     | "AUTOCOMPLETE"
     | "NO_CACHE"
     | "QUERY_TRACING"
+    | "SERIES_LIMITS"
+    | "TABLE_COMPACT"
+    | "TIMEZONE"
+    | "THEME"
+    | "LOGS_LIMIT"
+    | "EXPLORE_METRICS_TIPS"
 
 export const saveToStorage = (key: StorageKeys, value: string | boolean | Record<string, unknown>): void => {
   if (value) {
     // keeping object in storage so that keeping the string is not different from keeping
-    window.localStorage.setItem(key, JSON.stringify({value}));
+    window.localStorage.setItem(key, JSON.stringify({ value }));
   } else {
     removeFromStorage([key]);
   }
+  window.dispatchEvent(new Event("storage"));
 };
 
 // TODO: make this aware of data type that is stored

@@ -1,3 +1,13 @@
+---
+weight: 11
+title: "Multi-regional setup with VictoriaMetrics: Dedicated regions for monitoring"
+menu:
+  docs:
+    parent: "guides"
+    weight: 11
+aliases:
+- /guides/multi-regional-setup-dedicated-regions.html
+---
 # Multi-regional setup with VictoriaMetrics: Dedicated regions for monitoring
 
 ### Scenario
@@ -42,11 +52,14 @@ Here is a Quickstart guide for [vmagent](https://docs.victoriametrics.com/vmagen
 
 You can use one of the following options:
 
+1. Multi-level [vmselect setup](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multi-level-cluster-setup) in cluster setup, top-level vmselect(s) reads data from cluster-level vmselects
+   * Returns data in one of the clusters is unavailable  
+   * Merges data from both sources. You need to turn on [deduplication](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#deduplication) to remove duplicates 
 1. Regional endpoints - use one regional endpoint as default and switch to another if there is an issue.
-2. Load balancer - that sends queries to a particular region. The benefit and disadvantage of this setup is that it's simple.
-3. Promxy - proxy that reads data from multiple Prometheus-like sources. It allows reading data more intelligently to cover the region's unavailability out of the box. It doesn't support MetricsQL yet (please check this issue).
-4. Global vmselect in cluster setup - you can set up an additional subset of vmselects that knows about all storages in all regions.
-   *  The deduplication in 1ms on the vmselect side must be turned on. This setup allows you to query data using MetricsQL.
+1. Load balancer - that sends queries to a particular region. The benefit and disadvantage of this setup is that it's simple.
+1. Promxy - proxy that reads data from multiple Prometheus-like sources. It allows reading data more intelligently to cover the region's unavailability out of the box. It doesn't support MetricsQL yet (please check this issue).
+1. Global vmselect in cluster setup - you can set up an additional subset of vmselects that knows about all storages in all regions.
+   * The [deduplication](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#deduplication) in 1ms on the vmselect side must be turned on. This setup allows you to query data using MetricsQL.
    * The downside is that vmselect waits for a response from all storages in all regions.
 
 
@@ -62,10 +75,8 @@ You can set up vmalert in each Ground control region that evaluates recording an
 
 For alert deduplication, please use [cluster mode in Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/#high-availability).
 
-We also recommend adopting these alerts:
-
-* VictoriaMetrics Single - [https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts.yml)
-* VictoriaMetrics Cluster - [https://github.com/VictoriaMetrics/VictoriaMetrics/blob/cluster/deployment/docker/alerts.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/cluster/deployment/docker/alerts.yml)
+We also recommend adopting the list of [alerting rules](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#alerts)
+for VictoriaMetrics components.
 
 ### Monitoring
 
@@ -81,3 +92,4 @@ Additional context
 ### What more can we do?
 
 Setup vmagents in Ground Control regions. That allows it to accept data close to storage and add more reliability if storage is temporarily offline.
+g

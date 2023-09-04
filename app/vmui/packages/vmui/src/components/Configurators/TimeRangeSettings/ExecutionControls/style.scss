@@ -1,0 +1,43 @@
+@use "src/styles/variables" as *;
+@use "src/components/Main/Button/style" as *;
+
+.vm-execution-controls {
+
+  &-buttons {
+    display: flex;
+    justify-content: space-between;
+    border-radius: calc($button-radius + 1px);
+    min-width: 107px;
+
+    &_mobile {
+      flex-direction: column;
+      gap: $padding-medium;
+    }
+
+    &__arrow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transform: rotate(0);
+      transition: transform 200ms ease-in-out;
+
+      &_open {
+        transform: rotate(180deg);
+      }
+    }
+  }
+
+  &-list {
+    width: 124px;
+    max-height: 208px;
+    overflow: auto;
+    padding: $padding-small 0;
+    font-size: $font-size;
+
+    &_mobile {
+      width: 100%;
+      max-height: calc(($vh * 100) - 70px);
+      padding: 0;
+    }
+  }
+}

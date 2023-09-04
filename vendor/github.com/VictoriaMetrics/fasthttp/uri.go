@@ -356,9 +356,9 @@ func (u *URI) RequestURI() []byte {
 //
 // Examples:
 //
-//    * For /foo/bar/baz.html path returns baz.html.
-//    * For /foo/bar/ returns empty byte slice.
-//    * For /foobar.js returns foobar.js.
+//   - For /foo/bar/baz.html path returns baz.html.
+//   - For /foo/bar/ returns empty byte slice.
+//   - For /foobar.js returns foobar.js.
 func (u *URI) LastPathSegment() []byte {
 	path := u.Path()
 	n := bytes.LastIndexByte(path, '/')
@@ -372,14 +372,14 @@ func (u *URI) LastPathSegment() []byte {
 //
 // The following newURI types are accepted:
 //
-//     * Absolute, i.e. http://foobar.com/aaa/bb?cc . In this case the original
-//       uri is replaced by newURI.
-//     * Absolute without scheme, i.e. //foobar.com/aaa/bb?cc. In this case
-//       the original scheme is preserved.
-//     * Missing host, i.e. /aaa/bb?cc . In this case only RequestURI part
-//       of the original uri is replaced.
-//     * Relative path, i.e.  xx?yy=abc . In this case the original RequestURI
-//       is updated according to the new relative path.
+//   - Absolute, i.e. http://foobar.com/aaa/bb?cc . In this case the original
+//     uri is replaced by newURI.
+//   - Absolute without scheme, i.e. //foobar.com/aaa/bb?cc. In this case
+//     the original scheme is preserved.
+//   - Missing host, i.e. /aaa/bb?cc . In this case only RequestURI part
+//     of the original uri is replaced.
+//   - Relative path, i.e.  xx?yy=abc . In this case the original RequestURI
+//     is updated according to the new relative path.
 func (u *URI) Update(newURI string) {
 	u.UpdateBytes(s2b(newURI))
 }
@@ -388,14 +388,14 @@ func (u *URI) Update(newURI string) {
 //
 // The following newURI types are accepted:
 //
-//     * Absolute, i.e. http://foobar.com/aaa/bb?cc . In this case the original
-//       uri is replaced by newURI.
-//     * Absolute without scheme, i.e. //foobar.com/aaa/bb?cc. In this case
-//       the original scheme is preserved.
-//     * Missing host, i.e. /aaa/bb?cc . In this case only RequestURI part
-//       of the original uri is replaced.
-//     * Relative path, i.e.  xx?yy=abc . In this case the original RequestURI
-//       is updated according to the new relative path.
+//   - Absolute, i.e. http://foobar.com/aaa/bb?cc . In this case the original
+//     uri is replaced by newURI.
+//   - Absolute without scheme, i.e. //foobar.com/aaa/bb?cc. In this case
+//     the original scheme is preserved.
+//   - Missing host, i.e. /aaa/bb?cc . In this case only RequestURI part
+//     of the original uri is replaced.
+//   - Relative path, i.e.  xx?yy=abc . In this case the original RequestURI
+//     is updated according to the new relative path.
 func (u *URI) UpdateBytes(newURI []byte) {
 	u.requestURI = u.updateBytes(newURI, u.requestURI)
 }

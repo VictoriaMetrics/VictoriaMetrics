@@ -3,10 +3,20 @@ package fs
 import (
 	"fmt"
 	"os"
+	"sync/atomic"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"golang.org/x/sys/unix"
 )
+
+func mustRemoveDirAtomic(dir string) {
+	n := atomic.AddUint64(&atomicDirRemoveCounter, 1)
+	tmpDir := fmt.Sprintf("%s.must-remove.%d", dir, n)
+	if err := os.Rename(dir, tmpDir); err != nil {
+		logger.Panicf("FATAL: cannot move %s to %s: %s", dir, tmpDir, err)
+	}
+	MustRemoveAll(tmpDir)
+}
 
 func mmap(fd int, length int) (data []byte, err error) {
 	return unix.Mmap(fd, 0, length, unix.PROT_READ, unix.MAP_SHARED)
@@ -19,7 +29,7 @@ func mUnmap(data []byte) error {
 func mustSyncPath(path string) {
 	d, err := os.Open(path)
 	if err != nil {
-		logger.Panicf("FATAL: cannot open %q: %s", path, err)
+		logger.Panicf("FATAL: cannot open file for fsync: %s", err)
 	}
 	if err := d.Sync(); err != nil {
 		_ = d.Close()
@@ -49,15 +59,8 @@ func createFlockFile(flockFile string) (*os.File, error) {
 }
 
 func mustGetFreeSpace(path string) uint64 {
-	d, err := os.Open(path)
-	if err != nil {
-		logger.Panicf("FATAL: cannot determine free disk space on %q: %s", path, err)
-	}
-	defer MustClose(d)
-
-	fd := d.Fd()
 	var stat unix.Statvfs_t
-	if err := unix.Fstatvfs(int(fd), &stat); err != nil {
+	if err := unix.Statvfs(path, &stat); err != nil {
 		logger.Panicf("FATAL: cannot determine free disk space on %q: %s", path, err)
 	}
 	return freeSpace(stat)

@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -17,14 +18,14 @@ import (
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config
 type RelabelConfig struct {
+	If           *IfExpression   `yaml:"if,omitempty"`
+	Action       string          `yaml:"action,omitempty"`
 	SourceLabels []string        `yaml:"source_labels,flow,omitempty"`
 	Separator    *string         `yaml:"separator,omitempty"`
 	TargetLabel  string          `yaml:"target_label,omitempty"`
 	Regex        *MultiLineRegex `yaml:"regex,omitempty"`
 	Modulus      uint64          `yaml:"modulus,omitempty"`
 	Replacement  *string         `yaml:"replacement,omitempty"`
-	Action       string          `yaml:"action,omitempty"`
-	If           *IfExpression   `yaml:"if,omitempty"`
 
 	// Match is used together with Labels for `action: graphite`. For example:
 	// - action: graphite
@@ -120,8 +121,7 @@ func (mlr *MultiLineRegex) MarshalYAML() (interface{}, error) {
 
 // ParsedConfigs represents parsed relabel configs.
 type ParsedConfigs struct {
-	prcs         []*parsedRelabelConfig
-	relabelDebug bool
+	prcs []*parsedRelabelConfig
 }
 
 // Len returns the number of relabel configs in pcs.
@@ -139,20 +139,32 @@ func (pcs *ParsedConfigs) String() string {
 	}
 	var a []string
 	for _, prc := range pcs.prcs {
-		s := "[" + prc.String() + "]"
+		s := prc.String()
+		lines := strings.Split(s, "\n")
+		lines[0] = "- " + lines[0]
+		for i := range lines[1:] {
+			line := &lines[1+i]
+			if len(*line) > 0 {
+				*line = "  " + *line
+			}
+		}
+		s = strings.Join(lines, "\n")
 		a = append(a, s)
 	}
-	return fmt.Sprintf("%s, relabelDebug=%v", strings.Join(a, ","), pcs.relabelDebug)
+	return strings.Join(a, "")
 }
 
 // LoadRelabelConfigs loads relabel configs from the given path.
-func LoadRelabelConfigs(path string, relabelDebug bool) (*ParsedConfigs, error) {
+func LoadRelabelConfigs(path string) (*ParsedConfigs, error) {
 	data, err := fs.ReadFileOrHTTP(path)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read `relabel_configs` from %q: %w", path, err)
 	}
-	data = envtemplate.Replace(data)
-	pcs, err := ParseRelabelConfigsData(data, relabelDebug)
+	data, err = envtemplate.ReplaceBytes(data)
+	if err != nil {
+		return nil, fmt.Errorf("cannot expand environment vars at %q: %w", path, err)
+	}
+	pcs, err := ParseRelabelConfigsData(data)
 	if err != nil {
 		return nil, fmt.Errorf("cannot unmarshal `relabel_configs` from %q: %w", path, err)
 	}
@@ -160,16 +172,16 @@ func LoadRelabelConfigs(path string, relabelDebug bool) (*ParsedConfigs, error) 
 }
 
 // ParseRelabelConfigsData parses relabel configs from the given data.
-func ParseRelabelConfigsData(data []byte, relabelDebug bool) (*ParsedConfigs, error) {
+func ParseRelabelConfigsData(data []byte) (*ParsedConfigs, error) {
 	var rcs []RelabelConfig
 	if err := yaml.UnmarshalStrict(data, &rcs); err != nil {
 		return nil, err
 	}
-	return ParseRelabelConfigs(rcs, relabelDebug)
+	return ParseRelabelConfigs(rcs)
 }
 
 // ParseRelabelConfigs parses rcs to dst.
-func ParseRelabelConfigs(rcs []RelabelConfig, relabelDebug bool) (*ParsedConfigs, error) {
+func ParseRelabelConfigs(rcs []RelabelConfig) (*ParsedConfigs, error) {
 	if len(rcs) == 0 {
 		return nil, nil
 	}
@@ -182,8 +194,7 @@ func ParseRelabelConfigs(rcs []RelabelConfig, relabelDebug bool) (*ParsedConfigs
 		prcs[i] = prc
 	}
 	return &ParsedConfigs{
-		prcs:         prcs,
-		relabelDebug: relabelDebug,
+		prcs: prcs,
 	}, nil
 }
 
@@ -267,7 +278,7 @@ func parseRelabelConfig(rc *RelabelConfig) (*parsedRelabelConfig, error) {
 			return nil, fmt.Errorf("`replacement` cannot be used with `action=graphite`; see https://docs.victoriametrics.com/vmagent.html#graphite-relabeling")
 		}
 		if rc.Regex != nil {
-			return nil, fmt.Errorf("`regex` cannot be used with `action=graphite`; see https://docs.victoriametrics.com/vmagent.html#graphite-relabeling")
+			return nil, fmt.Errorf("`regex` cannot be used for `action=graphite`; see https://docs.victoriametrics.com/vmagent.html#graphite-relabeling")
 		}
 	case "replace":
 		if targetLabel == "" {
@@ -284,9 +295,35 @@ func parseRelabelConfig(rc *RelabelConfig) (*parsedRelabelConfig, error) {
 		if len(sourceLabels) < 2 {
 			return nil, fmt.Errorf("`source_labels` must contain at least two entries for `action=keep_if_equal`; got %q", sourceLabels)
 		}
+		if targetLabel != "" {
+			return nil, fmt.Errorf("`target_label` cannot be used for `action=keep_if_equal`")
+		}
+		if rc.Regex != nil {
+			return nil, fmt.Errorf("`regex` cannot be used for `action=keep_if_equal`")
+		}
 	case "drop_if_equal":
 		if len(sourceLabels) < 2 {
 			return nil, fmt.Errorf("`source_labels` must contain at least two entries for `action=drop_if_equal`; got %q", sourceLabels)
+		}
+		if targetLabel != "" {
+			return nil, fmt.Errorf("`target_label` cannot be used for `action=drop_if_equal`")
+		}
+		if rc.Regex != nil {
+			return nil, fmt.Errorf("`regex` cannot be used for `action=drop_if_equal`")
+		}
+	case "keepequal":
+		if targetLabel == "" {
+			return nil, fmt.Errorf("missing `target_label` for `action=keepequal`")
+		}
+		if rc.Regex != nil {
+			return nil, fmt.Errorf("`regex` cannot be used for `action=keepequal`")
+		}
+	case "dropequal":
+		if targetLabel == "" {
+			return nil, fmt.Errorf("missing `target_label` for `action=dropequal`")
+		}
+		if rc.Regex != nil {
+			return nil, fmt.Errorf("`regex` cannot be used for `action=dropequal`")
 		}
 	case "keep":
 		if len(sourceLabels) == 0 && rc.If == nil {
@@ -346,7 +383,13 @@ func parseRelabelConfig(rc *RelabelConfig) (*parsedRelabelConfig, error) {
 			return nil, fmt.Errorf("`labels` config cannot be applied to `action=%s`; it is applied only to `action=graphite`", action)
 		}
 	}
-	return &parsedRelabelConfig{
+	ruleOriginal, err := yaml.Marshal(rc)
+	if err != nil {
+		logger.Panicf("BUG: cannot marshal RelabelConfig: %s", err)
+	}
+	prc := &parsedRelabelConfig{
+		ruleOriginal: string(ruleOriginal),
+
 		SourceLabels:  sourceLabels,
 		Separator:     separator,
 		TargetLabel:   targetLabel,
@@ -365,7 +408,10 @@ func parseRelabelConfig(rc *RelabelConfig) (*parsedRelabelConfig, error) {
 		hasCaptureGroupInTargetLabel:   strings.Contains(targetLabel, "$"),
 		hasCaptureGroupInReplacement:   strings.Contains(replacement, "$"),
 		hasLabelReferenceInReplacement: strings.Contains(replacement, "{{"),
-	}, nil
+	}
+	prc.stringReplacer = bytesutil.NewFastStringTransformer(prc.replaceFullStringSlow)
+	prc.submatchReplacer = bytesutil.NewFastStringTransformer(prc.replaceStringSubmatchesSlow)
+	return prc, nil
 }
 
 func isDefaultRegex(expr string) bool {

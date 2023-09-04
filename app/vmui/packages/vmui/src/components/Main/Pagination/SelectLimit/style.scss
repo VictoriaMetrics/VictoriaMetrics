@@ -1,0 +1,6 @@
+@use "src/styles/variables" as *;
+
+.vm-select-limits {
+  display: grid;
+  padding: $padding-small 0;
+}

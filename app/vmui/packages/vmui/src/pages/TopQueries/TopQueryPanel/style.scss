@@ -1,0 +1,29 @@
+@use "src/styles/variables" as *;
+
+.vm-top-queries-panel {
+  &-header {
+    margin: -$padding-medium 0-$padding-medium 0;
+
+    &_mobile {
+      margin: -$padding-global 0-$padding-global 0;
+    }
+  }
+
+  &__table {
+    padding-top: $padding-medium;
+    width: calc(100vw - ($padding-medium * 4) - var(--scrollbar-width));
+    overflow: auto;
+
+    @media (max-width: 768px) {
+      width: calc(100vw - ($padding-medium * 2) - var(--scrollbar-width));
+    }
+
+    &_mobile {
+      width: calc(100vw - ($padding-global * 2) - var(--scrollbar-width));
+    }
+
+    .vm-table-cell_header {
+      white-space: nowrap;
+    }
+  }
+}

@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/gce"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
@@ -18,11 +17,13 @@ import (
 )
 
 func TestMergeLabels(t *testing.T) {
-	f := func(swc *scrapeWorkConfig, target string, extraLabels, metaLabels map[string]string, resultExpected string) {
+	f := func(swc *scrapeWorkConfig, target string, extraLabelsMap, metaLabelsMap map[string]string, resultExpected string) {
 		t.Helper()
-		var labels []prompbmarshal.Label
-		labels = mergeLabels(labels[:0], swc, target, extraLabels, metaLabels)
-		result := promLabelsString(labels)
+		extraLabels := promutils.NewLabelsFromMap(extraLabelsMap)
+		metaLabels := promutils.NewLabelsFromMap(metaLabelsMap)
+		labels := promutils.NewLabels(0)
+		mergeLabels(labels, swc, target, extraLabels, metaLabels)
+		result := labels.String()
 		if result != resultExpected {
 			t.Fatalf("unexpected result;\ngot\n%s\nwant\n%s", result, resultExpected)
 		}
@@ -36,19 +37,11 @@ func TestMergeLabels(t *testing.T) {
 		metricsPath:          "/foo/bar",
 		scrapeIntervalString: "15s",
 		scrapeTimeoutString:  "10s",
-		externalLabels: map[string]string{
-			"job": "bar",
-			"a":   "b",
-		},
-	}, "foo", nil, nil, `{__address__="foo",__metrics_path__="/foo/bar",__scheme__="https",__scrape_interval__="15s",__scrape_timeout__="10s",a="b",job="xyz"}`)
+	}, "foo", nil, nil, `{__address__="foo",__metrics_path__="/foo/bar",__scheme__="https",__scrape_interval__="15s",__scrape_timeout__="10s",job="xyz"}`)
 	f(&scrapeWorkConfig{
 		jobName:     "xyz",
 		scheme:      "https",
 		metricsPath: "/foo/bar",
-		externalLabels: map[string]string{
-			"job": "bar",
-			"a":   "b",
-		},
 	}, "foo", map[string]string{
 		"job": "extra_job",
 		"foo": "extra_foo",
@@ -96,7 +89,7 @@ scrape_configs:
 scrape_configs:
 - job_name: foo
   honor_labels: true
-  honor_timestamps: false
+  honor_timestamps: true
   scheme: https
   params:
     foo:
@@ -111,7 +104,6 @@ scrape_configs:
   static_configs:
   - targets:
     - foo
-  relabel_debug: true
   scrape_align_interval: 1h30m0s
   proxy_bearer_token_file: file.txt
   proxy_headers:
@@ -131,6 +123,7 @@ func TestNeedSkipScrapeWork(t *testing.T) {
 	}
 	// Disabled clustering
 	f("foo", 0, 0, 0, false)
+	f("foo", 0, 0, 1, false)
 
 	// A cluster with 2 nodes with disabled replication
 	f("foo", 2, 0, 0, true)
@@ -222,6 +215,88 @@ func TestLoadConfig(t *testing.T) {
 	}
 }
 
+func TestAddressWithFullURL(t *testing.T) {
+	data := `
+scrape_configs:
+- job_name: abc
+  metrics_path: /foo/bar
+  scheme: https
+  params:
+    x: [y]
+  static_configs:
+  - targets:
+    # the following targets are scraped by the provided urls
+    - 'http://host1/metric/path1'
+    - 'https://host2/metric/path2'
+    - 'http://host3:1234/metric/path3?arg1=value1'
+    # the following target is scraped by <scheme>://host4:1234<metrics_path>
+    - host4:1234
+`
+	var cfg Config
+	allData, err := cfg.parseData([]byte(data), "sss")
+	if err != nil {
+		t.Fatalf("cannot parase data: %s", err)
+	}
+	if string(allData) != data {
+		t.Fatalf("invalid data returned from parseData;\ngot\n%s\nwant\n%s", allData, data)
+	}
+	sws := cfg.getStaticScrapeWork()
+	resetNonEssentialFields(sws)
+	swsExpected := []*ScrapeWork{
+		{
+			ScrapeURL:      "http://host1:80/metric/path1?x=y",
+			ScrapeInterval: defaultScrapeInterval,
+			ScrapeTimeout:  defaultScrapeTimeout,
+			Labels: promutils.NewLabelsFromMap(map[string]string{
+				"instance": "host1:80",
+				"job":      "abc",
+			}),
+			AuthConfig:      &promauth.Config{},
+			ProxyAuthConfig: &promauth.Config{},
+			jobNameOriginal: "abc",
+		},
+		{
+			ScrapeURL:      "https://host2:443/metric/path2?x=y",
+			ScrapeInterval: defaultScrapeInterval,
+			ScrapeTimeout:  defaultScrapeTimeout,
+			Labels: promutils.NewLabelsFromMap(map[string]string{
+				"instance": "host2:443",
+				"job":      "abc",
+			}),
+			AuthConfig:      &promauth.Config{},
+			ProxyAuthConfig: &promauth.Config{},
+			jobNameOriginal: "abc",
+		},
+		{
+			ScrapeURL:      "http://host3:1234/metric/path3?arg1=value1&x=y",
+			ScrapeInterval: defaultScrapeInterval,
+			ScrapeTimeout:  defaultScrapeTimeout,
+			Labels: promutils.NewLabelsFromMap(map[string]string{
+				"instance": "host3:1234",
+				"job":      "abc",
+			}),
+			AuthConfig:      &promauth.Config{},
+			ProxyAuthConfig: &promauth.Config{},
+			jobNameOriginal: "abc",
+		},
+		{
+			ScrapeURL:      "https://host4:1234/foo/bar?x=y",
+			ScrapeInterval: defaultScrapeInterval,
+			ScrapeTimeout:  defaultScrapeTimeout,
+			Labels: promutils.NewLabelsFromMap(map[string]string{
+				"instance": "host4:1234",
+				"job":      "abc",
+			}),
+			AuthConfig:      &promauth.Config{},
+			ProxyAuthConfig: &promauth.Config{},
+			jobNameOriginal: "abc",
+		},
+	}
+	if !reflect.DeepEqual(sws, swsExpected) {
+		t.Fatalf("unexpected scrapeWork;\ngot\n%#v\nwant\n%#v", sws, swsExpected)
+	}
+}
+
 func TestBlackboxExporter(t *testing.T) {
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/684
 	data := `
@@ -252,48 +327,13 @@ scrape_configs:
 	sws := cfg.getStaticScrapeWork()
 	resetNonEssentialFields(sws)
 	swsExpected := []*ScrapeWork{{
-		ScrapeURL:       "http://black:9115/probe?module=dns_udp_example&target=8.8.8.8",
-		ScrapeInterval:  defaultScrapeInterval,
-		ScrapeTimeout:   defaultScrapeTimeout,
-		HonorTimestamps: true,
-		Labels: []prompbmarshal.Label{
-			{
-				Name:  "__address__",
-				Value: "black:9115",
-			},
-			{
-				Name:  "__metrics_path__",
-				Value: "/probe",
-			},
-			{
-				Name:  "__param_module",
-				Value: "dns_udp_example",
-			},
-			{
-				Name:  "__param_target",
-				Value: "8.8.8.8",
-			},
-			{
-				Name:  "__scheme__",
-				Value: "http",
-			},
-			{
-				Name:  "__scrape_interval__",
-				Value: "1m0s",
-			},
-			{
-				Name:  "__scrape_timeout__",
-				Value: "10s",
-			},
-			{
-				Name:  "instance",
-				Value: "8.8.8.8",
-			},
-			{
-				Name:  "job",
-				Value: "blackbox",
-			},
-		},
+		ScrapeURL:      "http://black:9115/probe?module=dns_udp_example&target=8.8.8.8",
+		ScrapeInterval: defaultScrapeInterval,
+		ScrapeTimeout:  defaultScrapeTimeout,
+		Labels: promutils.NewLabelsFromMap(map[string]string{
+			"instance": "8.8.8.8",
+			"job":      "blackbox",
+		}),
 		AuthConfig:      &promauth.Config{},
 		ProxyAuthConfig: &promauth.Config{},
 		jobNameOriginal: "blackbox",
@@ -674,8 +714,10 @@ scrape_config_files:
 }
 
 func resetNonEssentialFields(sws []*ScrapeWork) {
-	for i := range sws {
-		sws[i].OriginalLabels = nil
+	for _, sw := range sws {
+		sw.OriginalLabels = nil
+		sw.RelabelConfigs = nil
+		sw.MetricRelabelConfigs = nil
 	}
 }
 
@@ -693,15 +735,6 @@ func TestGetFileSDScrapeWorkSuccess(t *testing.T) {
 		}
 		resetNonEssentialFields(sws)
 
-		// Remove `__vm_filepath` label, since its value depends on the current working dir.
-		for _, sw := range sws {
-			for j := range sw.Labels {
-				label := &sw.Labels[j]
-				if label.Name == "__vm_filepath" {
-					label.Value = ""
-				}
-			}
-		}
 		if !reflect.DeepEqual(sws, expectedSws) {
 			t.Fatalf("unexpected scrapeWork; got\n%+v\nwant\n%+v", sws, expectedSws)
 		}
@@ -720,142 +753,40 @@ scrape_configs:
   - files: ["testdata/file_sd.json", "testdata/file_sd*.yml"]
 `, []*ScrapeWork{
 		{
-			ScrapeURL:       "http://host1:80/abc/de",
-			ScrapeInterval:  defaultScrapeInterval,
-			ScrapeTimeout:   defaultScrapeTimeout,
-			HonorTimestamps: true,
-			Labels: []prompbmarshal.Label{
-				{
-					Name:  "__address__",
-					Value: "host1",
-				},
-				{
-					Name:  "__metrics_path__",
-					Value: "/abc/de",
-				},
-				{
-					Name:  "__scheme__",
-					Value: "http",
-				},
-				{
-					Name:  "__scrape_interval__",
-					Value: "1m0s",
-				},
-				{
-					Name:  "__scrape_timeout__",
-					Value: "10s",
-				},
-				{
-					Name:  "__vm_filepath",
-					Value: "",
-				},
-				{
-					Name:  "instance",
-					Value: "host1:80",
-				},
-				{
-					Name:  "job",
-					Value: "foo",
-				},
-				{
-					Name:  "qwe",
-					Value: "rty",
-				},
-			},
+			ScrapeURL:      "http://host1:80/abc/de",
+			ScrapeInterval: defaultScrapeInterval,
+			ScrapeTimeout:  defaultScrapeTimeout,
+			Labels: promutils.NewLabelsFromMap(map[string]string{
+				"instance": "host1:80",
+				"job":      "foo",
+				"qwe":      "rty",
+			}),
 			AuthConfig:      &promauth.Config{},
 			ProxyAuthConfig: &promauth.Config{},
 			jobNameOriginal: "foo",
 		},
 		{
-			ScrapeURL:       "http://host2:80/abc/de",
-			ScrapeInterval:  defaultScrapeInterval,
-			ScrapeTimeout:   defaultScrapeTimeout,
-			HonorTimestamps: true,
-			Labels: []prompbmarshal.Label{
-				{
-					Name:  "__address__",
-					Value: "host2",
-				},
-				{
-					Name:  "__metrics_path__",
-					Value: "/abc/de",
-				},
-				{
-					Name:  "__scheme__",
-					Value: "http",
-				},
-				{
-					Name:  "__scrape_interval__",
-					Value: "1m0s",
-				},
-				{
-					Name:  "__scrape_timeout__",
-					Value: "10s",
-				},
-				{
-					Name:  "__vm_filepath",
-					Value: "",
-				},
-				{
-					Name:  "instance",
-					Value: "host2:80",
-				},
-				{
-					Name:  "job",
-					Value: "foo",
-				},
-				{
-					Name:  "qwe",
-					Value: "rty",
-				},
-			},
+			ScrapeURL:      "http://host2:80/abc/de",
+			ScrapeInterval: defaultScrapeInterval,
+			ScrapeTimeout:  defaultScrapeTimeout,
+			Labels: promutils.NewLabelsFromMap(map[string]string{
+				"instance": "host2:80",
+				"job":      "foo",
+				"qwe":      "rty",
+			}),
 			AuthConfig:      &promauth.Config{},
 			ProxyAuthConfig: &promauth.Config{},
 			jobNameOriginal: "foo",
 		},
 		{
-			ScrapeURL:       "http://localhost:9090/abc/de",
-			ScrapeInterval:  defaultScrapeInterval,
-			ScrapeTimeout:   defaultScrapeTimeout,
-			HonorTimestamps: true,
-			Labels: []prompbmarshal.Label{
-				{
-					Name:  "__address__",
-					Value: "localhost:9090",
-				},
-				{
-					Name:  "__metrics_path__",
-					Value: "/abc/de",
-				},
-				{
-					Name:  "__scheme__",
-					Value: "http",
-				},
-				{
-					Name:  "__scrape_interval__",
-					Value: "1m0s",
-				},
-				{
-					Name:  "__scrape_timeout__",
-					Value: "10s",
-				},
-				{
-					Name:  "__vm_filepath",
-					Value: "",
-				},
-				{
-					Name:  "instance",
-					Value: "localhost:9090",
-				},
-				{
-					Name:  "job",
-					Value: "foo",
-				},
-				{
-					Name:  "yml",
-					Value: "test",
-				},
-			},
+			ScrapeURL:      "http://localhost:9090/abc/de",
+			ScrapeInterval: defaultScrapeInterval,
+			ScrapeTimeout:  defaultScrapeTimeout,
+			Labels: promutils.NewLabelsFromMap(map[string]string{
+				"instance": "localhost:9090",
+				"job":      "foo",
+				"yml":      "test",
+			}),
 			AuthConfig:      &promauth.Config{},
 			ProxyAuthConfig: &promauth.Config{},
 			jobNameOriginal: "foo",
@@ -883,40 +814,13 @@ scrape_configs:
   - targets: ["foo.bar:1234"]
 `, []*ScrapeWork{
 		{
-			ScrapeURL:       "http://foo.bar:1234/metrics",
-			ScrapeInterval:  defaultScrapeInterval,
-			ScrapeTimeout:   defaultScrapeTimeout,
-			HonorTimestamps: true,
-			Labels: []prompbmarshal.Label{
-				{
-					Name:  "__address__",
-					Value: "foo.bar:1234",
-				},
-				{
-					Name:  "__metrics_path__",
-					Value: "/metrics",
-				},
-				{
-					Name:  "__scheme__",
-					Value: "http",
-				},
-				{
-					Name:  "__scrape_interval__",
-					Value: "1m0s",
-				},
-				{
-					Name:  "__scrape_timeout__",
-					Value: "10s",
-				},
-				{
-					Name:  "instance",
-					Value: "foo.bar:1234",
-				},
-				{
-					Name:  "job",
-					Value: "foo",
-				},
-			},
+			ScrapeURL:      "http://foo.bar:1234/metrics",
+			ScrapeInterval: defaultScrapeInterval,
+			ScrapeTimeout:  defaultScrapeTimeout,
+			Labels: promutils.NewLabelsFromMap(map[string]string{
+				"instance": "foo.bar:1234",
+				"job":      "foo",
+			}),
 			AuthConfig:      &promauth.Config{},
 			ProxyAuthConfig: &promauth.Config{},
 			jobNameOriginal: "foo",
@@ -933,48 +837,17 @@ scrape_configs:
   - targets: ["foo.bar:1234"]
 `, []*ScrapeWork{
 		{
-			ScrapeURL:       "http://foo.bar:1234/metrics",
-			ScrapeInterval:  defaultScrapeInterval,
-			ScrapeTimeout:   defaultScrapeTimeout,
-			HonorTimestamps: true,
-			Labels: []prompbmarshal.Label{
-				{
-					Name:  "__address__",
-					Value: "foo.bar:1234",
-				},
-				{
-					Name:  "__metrics_path__",
-					Value: "/metrics",
-				},
-				{
-					Name:  "__scheme__",
-					Value: "http",
-				},
-				{
-					Name:  "__scrape_interval__",
-					Value: "1m0s",
-				},
-				{
-					Name:  "__scrape_timeout__",
-					Value: "10s",
-				},
-				{
-					Name:  "datacenter",
-					Value: "foobar",
-				},
-				{
-					Name:  "instance",
-					Value: "foo.bar:1234",
-				},
-				{
-					Name:  "job",
-					Value: "foo",
-				},
-				{
-					Name:  "jobs",
-					Value: "xxx",
-				},
-			},
+			ScrapeURL:      "http://foo.bar:1234/metrics",
+			ScrapeInterval: defaultScrapeInterval,
+			ScrapeTimeout:  defaultScrapeTimeout,
+			Labels: promutils.NewLabelsFromMap(map[string]string{
+				"instance": "foo.bar:1234",
+				"job":      "foo",
+			}),
+			ExternalLabels: promutils.NewLabelsFromMap(map[string]string{
+				"datacenter": "foobar",
+				"jobs":       "xxx",
+			}),
 			AuthConfig:      &promauth.Config{},
 			ProxyAuthConfig: &promauth.Config{},
 			jobNameOriginal: "foo",
@@ -991,7 +864,7 @@ scrape_configs:
   metrics_path: /foo/bar
   scheme: https
   honor_labels: true
-  honor_timestamps: false
+  honor_timestamps: true
   follow_redirects: false
   params:
     p: ["x&y", "="]
@@ -1017,46 +890,13 @@ scrape_configs:
 			ScrapeInterval:  54 * time.Second,
 			ScrapeTimeout:   5 * time.Second,
 			HonorLabels:     true,
-			HonorTimestamps: false,
+			HonorTimestamps: true,
 			DenyRedirects:   true,
-			Labels: []prompbmarshal.Label{
-				{
-					Name:  "__address__",
-					Value: "foo.bar",
-				},
-				{
-					Name:  "__metrics_path__",
-					Value: "/foo/bar",
-				},
-				{
-					Name:  "__param_p",
-					Value: "x&y",
-				},
-				{
-					Name:  "__scheme__",
-					Value: "https",
-				},
-				{
-					Name:  "__scrape_interval__",
-					Value: "54s",
-				},
-				{
-					Name:  "__scrape_timeout__",
-					Value: "5s",
-				},
-				{
-					Name:  "instance",
-					Value: "foo.bar:443",
-				},
-				{
-					Name:  "job",
-					Value: "foo",
-				},
-				{
-					Name:  "x",
-					Value: "y",
-				},
-			},
+			Labels: promutils.NewLabelsFromMap(map[string]string{
+				"instance": "foo.bar:443",
+				"job":      "foo",
+				"x":        "y",
+			}),
 			AuthConfig:      &promauth.Config{},
 			ProxyAuthConfig: &promauth.Config{},
 			ProxyURL:        proxy.MustNewURL("http://foo.bar"),
@@ -1067,86 +907,26 @@ scrape_configs:
 			ScrapeInterval:  54 * time.Second,
 			ScrapeTimeout:   5 * time.Second,
 			HonorLabels:     true,
-			HonorTimestamps: false,
+			HonorTimestamps: true,
 			DenyRedirects:   true,
-			Labels: []prompbmarshal.Label{
-				{
-					Name:  "__address__",
-					Value: "aaa",
-				},
-				{
-					Name:  "__metrics_path__",
-					Value: "/foo/bar",
-				},
-				{
-					Name:  "__param_p",
-					Value: "x&y",
-				},
-				{
-					Name:  "__scheme__",
-					Value: "https",
-				},
-				{
-					Name:  "__scrape_interval__",
-					Value: "54s",
-				},
-				{
-					Name:  "__scrape_timeout__",
-					Value: "5s",
-				},
-				{
-					Name:  "instance",
-					Value: "aaa:443",
-				},
-				{
-					Name:  "job",
-					Value: "foo",
-				},
-				{
-					Name:  "x",
-					Value: "y",
-				},
-			},
+			Labels: promutils.NewLabelsFromMap(map[string]string{
+				"instance": "aaa:443",
+				"job":      "foo",
+				"x":        "y",
+			}),
 			AuthConfig:      &promauth.Config{},
 			ProxyAuthConfig: &promauth.Config{},
 			ProxyURL:        proxy.MustNewURL("http://foo.bar"),
 			jobNameOriginal: "foo",
 		},
 		{
-			ScrapeURL:       "http://1.2.3.4:80/metrics",
-			ScrapeInterval:  8 * time.Second,
-			ScrapeTimeout:   8 * time.Second,
-			HonorTimestamps: true,
-			Labels: []prompbmarshal.Label{
-				{
-					Name:  "__address__",
-					Value: "1.2.3.4",
-				},
-				{
-					Name:  "__metrics_path__",
-					Value: "/metrics",
-				},
-				{
-					Name:  "__scheme__",
-					Value: "http",
-				},
-				{
-					Name:  "__scrape_interval__",
-					Value: "8s",
-				},
-				{
-					Name:  "__scrape_timeout__",
-					Value: "8s",
-				},
-				{
-					Name:  "instance",
-					Value: "1.2.3.4:80",
-				},
-				{
-					Name:  "job",
-					Value: "qwer",
-				},
-			},
+			ScrapeURL:      "http://1.2.3.4:80/metrics",
+			ScrapeInterval: 8 * time.Second,
+			ScrapeTimeout:  8 * time.Second,
+			Labels: promutils.NewLabelsFromMap(map[string]string{
+				"instance": "1.2.3.4:80",
+				"job":      "qwer",
+			}),
 			AuthConfig: &promauth.Config{
 				TLSServerName:         "foobar",
 				TLSInsecureSkipVerify: true,
@@ -1155,40 +935,13 @@ scrape_configs:
 			jobNameOriginal: "qwer",
 		},
 		{
-			ScrapeURL:       "http://foobar:80/metrics",
-			ScrapeInterval:  8 * time.Second,
-			ScrapeTimeout:   8 * time.Second,
-			HonorTimestamps: true,
-			Labels: []prompbmarshal.Label{
-				{
-					Name:  "__address__",
-					Value: "foobar",
-				},
-				{
-					Name:  "__metrics_path__",
-					Value: "/metrics",
-				},
-				{
-					Name:  "__scheme__",
-					Value: "http",
-				},
-				{
-					Name:  "__scrape_interval__",
-					Value: "8s",
-				},
-				{
-					Name:  "__scrape_timeout__",
-					Value: "8s",
-				},
-				{
-					Name:  "instance",
-					Value: "foobar:80",
-				},
-				{
-					Name:  "job",
-					Value: "asdf",
-				},
-			},
+			ScrapeURL:      "http://foobar:80/metrics",
+			ScrapeInterval: 8 * time.Second,
+			ScrapeTimeout:  8 * time.Second,
+			Labels: promutils.NewLabelsFromMap(map[string]string{
+				"instance": "foobar:80",
+				"job":      "asdf",
+			}),
 			AuthConfig:      &promauth.Config{},
 			ProxyAuthConfig: &promauth.Config{},
 			jobNameOriginal: "asdf",
@@ -1231,52 +984,15 @@ scrape_configs:
   - targets: ["foo.bar:1234", "drop-this-target"]
 `, []*ScrapeWork{
 		{
-			ScrapeURL:       "http://foo.bar:1234/metrics?x=keep_me",
-			ScrapeInterval:  defaultScrapeInterval,
-			ScrapeTimeout:   defaultScrapeTimeout,
-			HonorTimestamps: true,
-			Labels: []prompbmarshal.Label{
-				{
-					Name:  "__address__",
-					Value: "foo.bar:1234",
-				},
-				{
-					Name:  "__metrics_path__",
-					Value: "/metrics",
-				},
-				{
-					Name:  "__param_x",
-					Value: "keep_me",
-				},
-				{
-					Name:  "__scheme__",
-					Value: "http",
-				},
-				{
-					Name:  "__scrape_interval__",
-					Value: "1m0s",
-				},
-				{
-					Name:  "__scrape_timeout__",
-					Value: "10s",
-				},
-				{
-					Name:  "hash",
-					Value: "82",
-				},
-				{
-					Name:  "instance",
-					Value: "foo.bar:1234",
-				},
-				{
-					Name:  "prefix:url",
-					Value: "http://foo.bar:1234/metrics",
-				},
-				{
-					Name:  "url",
-					Value: "http://foo.bar:1234/metrics",
-				},
-			},
+			ScrapeURL:      "http://foo.bar:1234/metrics?x=keep_me",
+			ScrapeInterval: defaultScrapeInterval,
+			ScrapeTimeout:  defaultScrapeTimeout,
+			Labels: promutils.NewLabelsFromMap(map[string]string{
+				"hash":       "82",
+				"instance":   "foo.bar:1234",
+				"prefix:url": "http://foo.bar:1234/metrics",
+				"url":        "http://foo.bar:1234/metrics",
+			}),
 			AuthConfig:      &promauth.Config{},
 			ProxyAuthConfig: &promauth.Config{},
 			jobNameOriginal: "foo",
@@ -1311,44 +1027,13 @@ scrape_configs:
   - targets: ["foo.bar:1234"]
 `, []*ScrapeWork{
 		{
-			ScrapeURL:       "mailto://foo.bar:1234/abc.de?a=b",
-			ScrapeInterval:  defaultScrapeInterval,
-			ScrapeTimeout:   defaultScrapeTimeout,
-			HonorTimestamps: true,
-			Labels: []prompbmarshal.Label{
-				{
-					Name:  "__address__",
-					Value: "foo.bar:1234",
-				},
-				{
-					Name:  "__metrics_path__",
-					Value: "/abc.de",
-				},
-				{
-					Name:  "__param_a",
-					Value: "b",
-				},
-				{
-					Name:  "__scheme__",
-					Value: "mailto",
-				},
-				{
-					Name:  "__scrape_interval__",
-					Value: "1m0s",
-				},
-				{
-					Name:  "__scrape_timeout__",
-					Value: "10s",
-				},
-				{
-					Name:  "instance",
-					Value: "fake.addr",
-				},
-				{
-					Name:  "job",
-					Value: "https",
-				},
-			},
+			ScrapeURL:      "mailto://foo.bar:1234/abc.de?a=b",
+			ScrapeInterval: defaultScrapeInterval,
+			ScrapeTimeout:  defaultScrapeTimeout,
+			Labels: promutils.NewLabelsFromMap(map[string]string{
+				"instance": "fake.addr",
+				"job":      "https",
+			}),
 			AuthConfig:      &promauth.Config{},
 			ProxyAuthConfig: &promauth.Config{},
 			jobNameOriginal: "foo",
@@ -1376,24 +1061,13 @@ scrape_configs:
   - targets: ["foo.bar:1234", "xyz"]
 `, []*ScrapeWork{
 		{
-			ScrapeURL:       "http://foo.bar:1234/metrics",
-			ScrapeInterval:  defaultScrapeInterval,
-			ScrapeTimeout:   defaultScrapeTimeout,
-			HonorTimestamps: true,
-			Labels: []prompbmarshal.Label{
-				{
-					Name:  "__address__",
-					Value: "foo.bar:1234",
-				},
-				{
-					Name:  "instance",
-					Value: "foo.bar:1234",
-				},
-				{
-					Name:  "job",
-					Value: "3",
-				},
-			},
+			ScrapeURL:      "http://foo.bar:1234/metrics",
+			ScrapeInterval: defaultScrapeInterval,
+			ScrapeTimeout:  defaultScrapeTimeout,
+			Labels: promutils.NewLabelsFromMap(map[string]string{
+				"instance": "foo.bar:1234",
+				"job":      "3",
+			}),
 			AuthConfig:      &promauth.Config{},
 			ProxyAuthConfig: &promauth.Config{},
 			jobNameOriginal: "foo",
@@ -1410,90 +1084,13 @@ scrape_configs:
   - targets: ["foo.bar:1234"]
 `, []*ScrapeWork{
 		{
-			ScrapeURL:       "http://foo.bar:1234/metrics",
-			ScrapeInterval:  defaultScrapeInterval,
-			ScrapeTimeout:   defaultScrapeTimeout,
-			HonorTimestamps: true,
-			Labels: []prompbmarshal.Label{
-				{
-					Name:  "__address__",
-					Value: "foo.bar:1234",
-				},
-				{
-					Name:  "__metrics_path__",
-					Value: "/metrics",
-				},
-				{
-					Name:  "__scheme__",
-					Value: "http",
-				},
-				{
-					Name:  "__scrape_interval__",
-					Value: "1m0s",
-				},
-				{
-					Name:  "__scrape_timeout__",
-					Value: "10s",
-				},
-				{
-					Name:  "instance",
-					Value: "foo.bar:1234",
-				},
-				{
-					Name:  "job",
-					Value: "foo",
-				},
-			},
-			AuthConfig:      &promauth.Config{},
-			ProxyAuthConfig: &promauth.Config{},
-			MetricRelabelConfigs: mustParseRelabelConfigs(`
-- source_labels: [foo]
-  target_label: abc
-`),
-			jobNameOriginal: "foo",
-		},
-	})
-	f(`
-scrape_configs:
-- job_name: foo
-  static_configs:
-  - targets: ["foo.bar:1234"]
-`, []*ScrapeWork{
-		{
-			ScrapeURL:       "http://foo.bar:1234/metrics",
-			ScrapeInterval:  defaultScrapeInterval,
-			ScrapeTimeout:   defaultScrapeTimeout,
-			HonorTimestamps: true,
-			Labels: []prompbmarshal.Label{
-				{
-					Name:  "__address__",
-					Value: "foo.bar:1234",
-				},
-				{
-					Name:  "__metrics_path__",
-					Value: "/metrics",
-				},
-				{
-					Name:  "__scheme__",
-					Value: "http",
-				},
-				{
-					Name:  "__scrape_interval__",
-					Value: "1m0s",
-				},
-				{
-					Name:  "__scrape_timeout__",
-					Value: "10s",
-				},
-				{
-					Name:  "instance",
-					Value: "foo.bar:1234",
-				},
-				{
-					Name:  "job",
-					Value: "foo",
-				},
-			},
+			ScrapeURL:      "http://foo.bar:1234/metrics",
+			ScrapeInterval: defaultScrapeInterval,
+			ScrapeTimeout:  defaultScrapeTimeout,
+			Labels: promutils.NewLabelsFromMap(map[string]string{
+				"instance": "foo.bar:1234",
+				"job":      "foo",
+			}),
 			AuthConfig:      &promauth.Config{},
 			ProxyAuthConfig: &promauth.Config{},
 			jobNameOriginal: "foo",
@@ -1506,40 +1103,32 @@ scrape_configs:
   - targets: ["foo.bar:1234"]
 `, []*ScrapeWork{
 		{
-			ScrapeURL:       "http://foo.bar:1234/metrics",
-			ScrapeInterval:  defaultScrapeInterval,
-			ScrapeTimeout:   defaultScrapeTimeout,
-			HonorTimestamps: true,
-			Labels: []prompbmarshal.Label{
-				{
-					Name:  "__address__",
-					Value: "foo.bar:1234",
-				},
-				{
-					Name:  "__metrics_path__",
-					Value: "/metrics",
-				},
-				{
-					Name:  "__scheme__",
-					Value: "http",
-				},
-				{
-					Name:  "__scrape_interval__",
-					Value: "1m0s",
-				},
-				{
-					Name:  "__scrape_timeout__",
-					Value: "10s",
-				},
-				{
-					Name:  "instance",
-					Value: "foo.bar:1234",
-				},
-				{
-					Name:  "job",
-					Value: "foo",
-				},
-			},
+			ScrapeURL:      "http://foo.bar:1234/metrics",
+			ScrapeInterval: defaultScrapeInterval,
+			ScrapeTimeout:  defaultScrapeTimeout,
+			Labels: promutils.NewLabelsFromMap(map[string]string{
+				"instance": "foo.bar:1234",
+				"job":      "foo",
+			}),
+			AuthConfig:      &promauth.Config{},
+			ProxyAuthConfig: &promauth.Config{},
+			jobNameOriginal: "foo",
+		},
+	})
+	f(`
+scrape_configs:
+- job_name: foo
+  static_configs:
+  - targets: ["foo.bar:1234"]
+`, []*ScrapeWork{
+		{
+			ScrapeURL:      "http://foo.bar:1234/metrics",
+			ScrapeInterval: defaultScrapeInterval,
+			ScrapeTimeout:  defaultScrapeTimeout,
+			Labels: promutils.NewLabelsFromMap(map[string]string{
+				"instance": "foo.bar:1234",
+				"job":      "foo",
+			}),
 			AuthConfig:      &promauth.Config{},
 			ProxyAuthConfig: &promauth.Config{},
 			jobNameOriginal: "foo",
@@ -1566,52 +1155,21 @@ scrape_configs:
       job: yyy
 `, []*ScrapeWork{
 		{
-			ScrapeURL:       "http://pp:80/metrics?a=c&a=xy",
-			ScrapeInterval:  defaultScrapeInterval,
-			ScrapeTimeout:   defaultScrapeTimeout,
-			HonorTimestamps: true,
-			Labels: []prompbmarshal.Label{
-				{
-					Name:  "__address__",
-					Value: "pp",
-				},
-				{
-					Name:  "__metrics_path__",
-					Value: "/metrics",
-				},
-				{
-					Name:  "__param_a",
-					Value: "c",
-				},
-				{
-					Name:  "__scheme__",
-					Value: "http",
-				},
-				{
-					Name:  "__scrape_interval__",
-					Value: "1m0s",
-				},
-				{
-					Name:  "__scrape_timeout__",
-					Value: "10s",
-				},
-				{
-					Name:  "foo",
-					Value: "bar",
-				},
-				{
-					Name:  "instance",
-					Value: "pp:80",
-				},
-				{
-					Name:  "job",
-					Value: "yyy",
-				},
-				{
-					Name:  "q",
-					Value: "qwe",
-				},
-			},
+			ScrapeURL:      "http://pp:80/metrics?a=c&a=xy",
+			ScrapeInterval: defaultScrapeInterval,
+			ScrapeTimeout:  defaultScrapeTimeout,
+			Labels: promutils.NewLabelsFromMap(map[string]string{
+				"foo":      "bar",
+				"instance": "pp:80",
+				"job":      "yyy",
+			}),
+			ExternalLabels: promutils.NewLabelsFromMap(map[string]string{
+				"__address__": "aaasdf",
+				"__param_a":   "jlfd",
+				"foo":         "xx",
+				"job":         "foobar",
+				"q":           "qwe",
+			}),
 			AuthConfig:      &promauth.Config{},
 			ProxyAuthConfig: &promauth.Config{},
 			jobNameOriginal: "aaa",
@@ -1663,56 +1221,13 @@ scrape_configs:
         replacement: true
 `, []*ScrapeWork{
 		{
-			ScrapeURL:       "http://127.0.0.1:9116/snmp?module=if_mib&target=192.168.1.2",
-			ScrapeInterval:  defaultScrapeInterval,
-			ScrapeTimeout:   defaultScrapeTimeout,
-			HonorTimestamps: true,
-			Labels: []prompbmarshal.Label{
-				{
-					Name:  "__address__",
-					Value: "127.0.0.1:9116",
-				},
-				{
-					Name:  "__metrics_path__",
-					Value: "/snmp",
-				},
-				{
-					Name:  "__param_module",
-					Value: "if_mib",
-				},
-				{
-					Name:  "__param_target",
-					Value: "192.168.1.2",
-				},
-				{
-					Name:  "__scheme__",
-					Value: "http",
-				},
-				{
-					Name:  "__scrape_interval__",
-					Value: "1m0s",
-				},
-				{
-					Name:  "__scrape_timeout__",
-					Value: "10s",
-				},
-				{
-					Name:  "__series_limit__",
-					Value: "1234",
-				},
-				{
-					Name:  "__stream_parse__",
-					Value: "true",
-				},
-				{
-					Name:  "instance",
-					Value: "192.168.1.2",
-				},
-				{
-					Name:  "job",
-					Value: "snmp",
-				},
-			},
+			ScrapeURL:      "http://127.0.0.1:9116/snmp?module=if_mib&target=192.168.1.2",
+			ScrapeInterval: defaultScrapeInterval,
+			ScrapeTimeout:  defaultScrapeTimeout,
+			Labels: promutils.NewLabelsFromMap(map[string]string{
+				"instance": "192.168.1.2",
+				"job":      "snmp",
+			}),
 			AuthConfig:          ac,
 			ProxyAuthConfig:     proxyAC,
 			SampleLimit:         100,
@@ -1735,40 +1250,13 @@ scrape_configs:
     target_label: __metrics_path__
 `, []*ScrapeWork{
 		{
-			ScrapeURL:       "http://foo.bar:1234/metricspath",
-			ScrapeInterval:  defaultScrapeInterval,
-			ScrapeTimeout:   defaultScrapeTimeout,
-			HonorTimestamps: true,
-			Labels: []prompbmarshal.Label{
-				{
-					Name:  "__address__",
-					Value: "foo.bar:1234",
-				},
-				{
-					Name:  "__metrics_path__",
-					Value: "metricspath",
-				},
-				{
-					Name:  "__scheme__",
-					Value: "http",
-				},
-				{
-					Name:  "__scrape_interval__",
-					Value: "1m0s",
-				},
-				{
-					Name:  "__scrape_timeout__",
-					Value: "10s",
-				},
-				{
-					Name:  "instance",
-					Value: "foo.bar:1234",
-				},
-				{
-					Name:  "job",
-					Value: "path wo slash",
-				},
-			},
+			ScrapeURL:      "http://foo.bar:1234/metricspath",
+			ScrapeInterval: defaultScrapeInterval,
+			ScrapeTimeout:  defaultScrapeTimeout,
+			Labels: promutils.NewLabelsFromMap(map[string]string{
+				"instance": "foo.bar:1234",
+				"job":      "path wo slash",
+			}),
 			jobNameOriginal: "path wo slash",
 			AuthConfig:      &promauth.Config{},
 			ProxyAuthConfig: &promauth.Config{},
@@ -1782,6 +1270,7 @@ scrape_configs:
   scrape_interval: 1w
   scrape_align_interval: 1d
   scrape_offset: 2d
+  no_stale_markers: true
   static_configs:
   - targets: ["foo.bar:1234"]
 `, []*ScrapeWork{
@@ -1791,37 +1280,11 @@ scrape_configs:
 			ScrapeTimeout:       time.Hour * 24,
 			ScrapeAlignInterval: time.Hour * 24,
 			ScrapeOffset:        time.Hour * 24 * 2,
-			HonorTimestamps:     true,
-			Labels: []prompbmarshal.Label{
-				{
-					Name:  "__address__",
-					Value: "foo.bar:1234",
-				},
-				{
-					Name:  "__metrics_path__",
-					Value: "/metrics",
-				},
-				{
-					Name:  "__scheme__",
-					Value: "http",
-				},
-				{
-					Name:  "__scrape_interval__",
-					Value: "168h0m0s",
-				},
-				{
-					Name:  "__scrape_timeout__",
-					Value: "24h0m0s",
-				},
-				{
-					Name:  "instance",
-					Value: "foo.bar:1234",
-				},
-				{
-					Name:  "job",
-					Value: "foo",
-				},
-			},
+			NoStaleMarkers:      true,
+			Labels: promutils.NewLabelsFromMap(map[string]string{
+				"instance": "foo.bar:1234",
+				"job":      "foo",
+			}),
 			AuthConfig:      &promauth.Config{},
 			ProxyAuthConfig: &promauth.Config{},
 			jobNameOriginal: "foo",
@@ -1847,23 +1310,23 @@ func TestScrapeConfigClone(t *testing.T) {
 	f := func(sc *ScrapeConfig) {
 		t.Helper()
 		scCopy := sc.clone()
-		if !reflect.DeepEqual(sc, scCopy) {
-			t.Fatalf("unexpected result after unmarshalJSON() for JSON:\n%s", sc.marshalJSON())
+		scJSON := sc.marshalJSON()
+		scCopyJSON := scCopy.marshalJSON()
+		if !reflect.DeepEqual(scJSON, scCopyJSON) {
+			t.Fatalf("unexpected cloned result:\ngot\n%s\nwant\n%s", scCopyJSON, scJSON)
 		}
 	}
 
 	f(&ScrapeConfig{})
 
-	bFalse := false
 	var ie promrelabel.IfExpression
 	if err := ie.Parse(`{foo=~"bar",baz!="z"}`); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	f(&ScrapeConfig{
-		JobName:         "foo",
-		ScrapeInterval:  promutils.NewDuration(time.Second * 47),
-		HonorLabels:     true,
-		HonorTimestamps: &bFalse,
+		JobName:        "foo",
+		ScrapeInterval: promutils.NewDuration(time.Second * 47),
+		HonorLabels:    true,
 		Params: map[string][]string{
 			"foo": {"bar", "baz"},
 		},

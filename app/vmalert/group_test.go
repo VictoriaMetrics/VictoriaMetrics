@@ -3,8 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"reflect"
 	"sort"
 	"testing"
@@ -12,6 +10,9 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/remotewrite"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
@@ -45,18 +46,36 @@ func TestUpdateWith(t *testing.T) {
 					"summary":     "{{ $value|humanize }}",
 					"description": "{{$labels}}",
 				},
-			}},
-			[]config.Rule{{
-				Alert: "foo",
-				Expr:  "up > 10",
-				For:   promutils.NewDuration(time.Second),
-				Labels: map[string]string{
-					"baz": "bar",
+			},
+				{
+					Alert: "bar",
+					Expr:  "up > 0",
+					For:   promutils.NewDuration(time.Second),
+					Labels: map[string]string{
+						"bar": "baz",
+					},
+				}},
+			[]config.Rule{
+				{
+					Alert: "foo",
+					Expr:  "up > 10",
+					For:   promutils.NewDuration(time.Second),
+					Labels: map[string]string{
+						"baz": "bar",
+					},
+					Annotations: map[string]string{
+						"summary": "none",
+					},
 				},
-				Annotations: map[string]string{
-					"summary": "none",
-				},
-			}},
+				{
+					Alert:         "bar",
+					Expr:          "up > 0",
+					For:           promutils.NewDuration(2 * time.Second),
+					KeepFiringFor: promutils.NewDuration(time.Minute),
+					Labels: map[string]string{
+						"bar": "baz",
+					},
+				}},
 		},
 		{
 			"update recording rule",
@@ -208,7 +227,7 @@ func TestGroupStart(t *testing.T) {
 	fs.add(m1)
 	fs.add(m2)
 	go func() {
-		g.start(context.Background(), func() []notifier.Notifier { return []notifier.Notifier{fn} }, nil)
+		g.start(context.Background(), func() []notifier.Notifier { return []notifier.Notifier{fn} }, nil, fs)
 		close(finished)
 	}()
 
@@ -451,4 +470,53 @@ func TestFaultyNotifier(t *testing.T) {
 		time.Sleep(time.Millisecond * 100)
 	}
 	t.Fatalf("alive notifier didn't receive notification by %v", deadline)
+}
+
+func TestFaultyRW(t *testing.T) {
+	fq := &fakeQuerier{}
+	fq.add(metricWithValueAndLabels(t, 1, "__name__", "foo", "job", "bar"))
+
+	r := &RecordingRule{
+		Name:  "test",
+		state: newRuleState(10),
+		q:     fq,
+	}
+
+	e := &executor{
+		rw:                       &remotewrite.Client{},
+		previouslySentSeriesToRW: make(map[uint64]map[string][]prompbmarshal.Label),
+	}
+
+	err := e.exec(context.Background(), r, time.Now(), 0, 10)
+	if err == nil {
+		t.Fatalf("expected to get an error from faulty RW client, got nil instead")
+	}
+}
+
+func TestCloseWithEvalInterruption(t *testing.T) {
+	groups, err := config.Parse([]string{"config/testdata/rules/rules1-good.rules"}, notifier.ValidateTemplates, true)
+	if err != nil {
+		t.Fatalf("failed to parse rules: %s", err)
+	}
+
+	const delay = time.Second * 2
+	fq := &fakeQuerierWithDelay{delay: delay}
+
+	const evalInterval = time.Millisecond
+	g := newGroup(groups[0], fq, evalInterval, nil)
+
+	go g.start(context.Background(), nil, nil, nil)
+
+	time.Sleep(evalInterval * 20)
+
+	go func() {
+		g.close()
+	}()
+
+	deadline := time.Tick(delay / 2)
+	select {
+	case <-deadline:
+		t.Fatalf("deadline for close exceeded")
+	case <-g.finishedCh:
+	}
 }

@@ -1,0 +1,19 @@
+@use "src/styles/variables" as *;
+
+.vm-json-view {
+
+  &__copy {
+    position: sticky;
+    top: 0;
+    display: flex;
+    justify-content: flex-end;
+    z-index: 2;
+  }
+
+  &__code {
+    transform: translateY(-32px);
+    font-size: $font-size;
+    line-height: 1.4;
+    white-space: pre-wrap;
+  }
+}

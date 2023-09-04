@@ -4,8 +4,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
 func Test_parseNodes(t *testing.T) {
@@ -112,7 +112,7 @@ func Test_addNodeLabels(t *testing.T) {
 	tests := []struct {
 		name string
 		args args
-		want [][]prompbmarshal.Label
+		want []*promutils.Labels
 	}{
 		{
 			name: "add labels to one node",
@@ -154,8 +154,8 @@ func Test_addNodeLabels(t *testing.T) {
 				},
 				port: 9100,
 			},
-			want: [][]prompbmarshal.Label{
-				discoveryutils.GetSortedLabels(map[string]string{
+			want: []*promutils.Labels{
+				promutils.NewLabelsFromMap(map[string]string{
 					"__address__":                                   "172.31.40.97:9100",
 					"__meta_dockerswarm_node_address":               "172.31.40.97",
 					"__meta_dockerswarm_node_availability":          "active",
@@ -175,14 +175,7 @@ func Test_addNodeLabels(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := addNodeLabels(tt.args.nodes, tt.args.port)
-
-			var sortedLabelss [][]prompbmarshal.Label
-			for _, labels := range got {
-				sortedLabelss = append(sortedLabelss, discoveryutils.GetSortedLabels(labels))
-			}
-			if !reflect.DeepEqual(sortedLabelss, tt.want) {
-				t.Errorf("addNodeLabels() \ngot  %v, \nwant %v", sortedLabelss, tt.want)
-			}
+			discoveryutils.TestEqualLabelss(t, got, tt.want)
 		})
 	}
 }

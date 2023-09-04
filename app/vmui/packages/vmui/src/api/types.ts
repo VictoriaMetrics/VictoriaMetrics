@@ -11,11 +11,25 @@ export interface MetricResult extends MetricBase {
 
 
 export interface InstantMetricResult extends MetricBase {
-  value: [number, string]
+  value?: [number, string]
+  values?: [number, string][]
 }
 
 export interface TracingData {
   message: string;
   duration_msec: number;
   children: TracingData[];
+}
+
+export interface QueryStats {
+  seriesFetched?: string;
+  resultLength?: number;
+  isPartial?: boolean;
+}
+
+export interface Logs {
+  _msg: string;
+  _stream: string;
+  _time: string;
+  [key: string]: string;
 }

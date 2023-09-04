@@ -6,13 +6,13 @@ import (
 	"net/http"
 )
 
-func getZonesForProject(client *http.Client, project, filter string) ([]string, error) {
+func getZonesForProject(client *http.Client, project string) ([]string, error) {
 	// See https://cloud.google.com/compute/docs/reference/rest/v1/zones
 	zonesURL := fmt.Sprintf("https://compute.googleapis.com/compute/v1/projects/%s/zones", project)
 	var zones []string
 	pageToken := ""
 	for {
-		data, err := getAPIResponse(client, zonesURL, filter, pageToken)
+		data, err := getAPIResponse(client, zonesURL, "", pageToken)
 		if err != nil {
 			return nil, fmt.Errorf("cannot obtain zones: %w", err)
 		}

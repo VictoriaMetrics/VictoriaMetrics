@@ -1,0 +1,43 @@
+name: Feature request
+description: Suggest an idea for this project
+labels: [enhancement]
+body:
+  - type: textarea
+    id: describe-the-problem
+    attributes:
+      label: Is your feature request related to a problem? Please describe
+      description: |
+        A clear and concise description of what the problem is.
+      placeholder: |
+        Ex. I'm always frustrated when [...]
+    validations:
+      required: false
+  - type: textarea
+    id: describe-the-solution
+    attributes:
+      label: Describe the solution you'd like
+      description: |
+        A clear and concise description of what you want to happen.
+    validations:
+      required: true
+  - type: textarea
+    id: alternative-solutions
+    attributes:
+      label: Describe alternatives you've considered
+      description: |
+        A clear and concise description of any alternative solutions or features you've considered.
+      placeholder: |
+        I have tried to do `A`, but that doesn't solve a problem completely.
+        I have tried to do `A` and `B`, but implementing this would be better.
+    validations:
+      required: false
+  - type: textarea
+    id: feature-additional-info
+    attributes:
+      label: Additional information
+      description: |
+        Additional information which you consider helpful for implementing this feature.
+      placeholder: |
+        Add any other context or screenshots about the feature request here.
+    validations:
+      required: false

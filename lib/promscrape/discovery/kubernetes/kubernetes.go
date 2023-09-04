@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 )
 
@@ -24,7 +25,7 @@ type SDConfig struct {
 	Role string `yaml:"role"`
 	// The filepath to kube config.
 	// If defined any cluster connection information from HTTPClientConfig is ignored.
-	KubeConfigFile string `yaml:"kubeconfig_file"`
+	KubeConfigFile string `yaml:"kubeconfig_file,omitempty"`
 
 	HTTPClientConfig promauth.HTTPClientConfig `yaml:",inline"`
 	ProxyURL         *proxy.URL                `yaml:"proxy_url,omitempty"`
@@ -69,7 +70,7 @@ type Selector struct {
 }
 
 // ScrapeWorkConstructorFunc must construct ScrapeWork object for the given metaLabels.
-type ScrapeWorkConstructorFunc func(metaLabels map[string]string) interface{}
+type ScrapeWorkConstructorFunc func(metaLabels *promutils.Labels) interface{}
 
 // GetScrapeWorkObjects returns ScrapeWork objects for the given sdc.
 //

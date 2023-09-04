@@ -1,0 +1,19 @@
+filebeat.inputs:
+  - type: syslog
+    format: rfc3164
+    protocol.tcp:
+      host: "0.0.0.0:12345"
+
+output.elasticsearch:
+  hosts: [ "http://vlogs:9428/insert/elasticsearch/" ]
+  worker: 5
+  bulk_max_size: 1000
+  parameters:
+    _msg_field: "message"
+    _time_field: "@timestamp"
+    _stream_fields: "host.name,process.program,process.pid"
+
+http:
+  enabled: true
+  host: 0.0.0.0
+  port: 5066

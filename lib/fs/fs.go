@@ -8,8 +8,10 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/filestream"
@@ -23,88 +25,101 @@ func MustSyncPath(path string) {
 	mustSyncPath(path)
 }
 
-// WriteFileAtomically atomically writes data to the given file path.
+// MustWriteSync writes data to the file at path and then calls fsync on the created file.
 //
-// WriteFileAtomically returns only after the file is fully written and synced
-// to the underlying storage.
-func WriteFileAtomically(path string, data []byte) error {
-	// Check for the existing file. It is expected that
-	// the WriteFileAtomically function cannot be called concurrently
-	// with the same `path`.
-	if IsPathExist(path) {
-		return fmt.Errorf("cannot create file %q, since it already exists", path)
-	}
-
-	n := atomic.AddUint64(&tmpFileNum, 1)
-	tmpPath := fmt.Sprintf("%s.tmp.%d", path, n)
-	f, err := filestream.Create(tmpPath, false)
-	if err != nil {
-		return fmt.Errorf("cannot create file %q: %w", tmpPath, err)
-	}
+// The fsync guarantees that the written data survives hardware reset after successful call.
+//
+// This function may leave the file at the path in inconsistent state on app crash
+// in the middle of the write.
+// Use MustWriteAtomic if the file at the path must be either written in full
+// or not written at all on app crash in the middle of the write.
+func MustWriteSync(path string, data []byte) {
+	f := filestream.MustCreate(path, false)
 	if _, err := f.Write(data); err != nil {
 		f.MustClose()
-		MustRemoveAll(tmpPath)
-		return fmt.Errorf("cannot write %d bytes to file %q: %w", len(data), tmpPath, err)
+		// Do not call MustRemoveAll(path), so the user could inspect
+		// the file contents during investigation of the issue.
+		logger.Panicf("FATAL: cannot write %d bytes to %q: %s", len(data), path, err)
 	}
-
 	// Sync and close the file.
 	f.MustClose()
+}
 
-	// Atomically move the file from tmpPath to path.
+// MustWriteAtomic atomically writes data to the given file path.
+//
+// This function returns only after the file is fully written and synced
+// to the underlying storage.
+//
+// This function guarantees that the file at path either fully written or not written at all on app crash
+// in the middle of the write.
+//
+// If the file at path already exists, then the file is overwritten atomically if canOverwrite is true.
+// Otherwise error is returned.
+func MustWriteAtomic(path string, data []byte, canOverwrite bool) {
+	// Check for the existing file. It is expected that
+	// the MustWriteAtomic function cannot be called concurrently
+	// with the same `path`.
+	if IsPathExist(path) && !canOverwrite {
+		logger.Panicf("FATAL: cannot create file %q, since it already exists", path)
+	}
+
+	// Write data to a temporary file.
+	n := atomic.AddUint64(&tmpFileNum, 1)
+	tmpPath := fmt.Sprintf("%s.tmp.%d", path, n)
+	MustWriteSync(tmpPath, data)
+
+	// Atomically move the temporary file from tmpPath to path.
 	if err := os.Rename(tmpPath, path); err != nil {
 		// do not call MustRemoveAll(tmpPath) here, so the user could inspect
-		// the file contents during investigating the issue.
-		return fmt.Errorf("cannot move %q to %q: %w", tmpPath, path, err)
+		// the file contents during investigation of the issue.
+		logger.Panicf("FATAL: cannot move temporary file %q to %q: %s", tmpPath, path, err)
 	}
 
 	// Sync the containing directory, so the file is guaranteed to appear in the directory.
 	// See https://www.quora.com/When-should-you-fsync-the-containing-directory-in-addition-to-the-file-itself
 	absPath, err := filepath.Abs(path)
 	if err != nil {
-		return fmt.Errorf("cannot obtain absolute path to %q: %w", path, err)
+		logger.Panicf("FATAL: cannot obtain absolute path to %q: %s", path, err)
 	}
 	parentDirPath := filepath.Dir(absPath)
 	MustSyncPath(parentDirPath)
-
-	return nil
 }
 
 // IsTemporaryFileName returns true if fn matches temporary file name pattern
-// from WriteFileAtomically.
+// from MustWriteAtomic.
 func IsTemporaryFileName(fn string) bool {
 	return tmpFileNameRe.MatchString(fn)
 }
 
-// tmpFileNameRe is regexp for temporary file name - see WriteFileAtomically for details.
+// tmpFileNameRe is regexp for temporary file name - see MustWriteAtomic for details.
 var tmpFileNameRe = regexp.MustCompile(`\.tmp\.\d+$`)
 
-// MkdirAllIfNotExist creates the given path dir if it isn't exist.
-func MkdirAllIfNotExist(path string) error {
+// MustMkdirIfNotExist creates the given path dir if it isn't exist.
+func MustMkdirIfNotExist(path string) {
 	if IsPathExist(path) {
-		return nil
+		return
 	}
-	return mkdirSync(path)
+	mustMkdirSync(path)
 }
 
-// MkdirAllFailIfExist creates the given path dir if it isn't exist.
+// MustMkdirFailIfExist creates the given path dir if it isn't exist.
 //
-// Returns error if path already exists.
-func MkdirAllFailIfExist(path string) error {
+// If the directory at the given path already exists, then the function logs the error and exits.
+func MustMkdirFailIfExist(path string) {
 	if IsPathExist(path) {
-		return fmt.Errorf("the %q already exists", path)
+		logger.Panicf("FATAL: the %q already exists", path)
 	}
-	return mkdirSync(path)
+	mustMkdirSync(path)
 }
 
-func mkdirSync(path string) error {
+func mustMkdirSync(path string) {
 	if err := os.MkdirAll(path, 0755); err != nil {
-		return err
+		logger.Panicf("FATAL: cannot create directory: %s", err)
 	}
 	// Sync the parent directory, so the created directory becomes visible
 	// in the fs after power loss.
 	parentDirPath := filepath.Dir(path)
 	MustSyncPath(parentDirPath)
-	return nil
 }
 
 // RemoveDirContents removes all the contents of the given dir if it exists.
@@ -118,7 +133,7 @@ func RemoveDirContents(dir string) {
 	}
 	d, err := os.Open(dir)
 	if err != nil {
-		logger.Panicf("FATAL: cannot open dir %q: %s", dir, err)
+		logger.Panicf("FATAL: cannot open dir: %s", err)
 	}
 	defer MustClose(d)
 	names, err := d.Readdirnames(-1)
@@ -130,7 +145,7 @@ func RemoveDirContents(dir string) {
 			// Skip special dirs.
 			continue
 		}
-		fullPath := dir + "/" + name
+		fullPath := filepath.Join(dir, name)
 		MustRemoveAll(fullPath)
 	}
 	MustSyncPath(dir)
@@ -180,7 +195,7 @@ func IsEmptyDir(path string) bool {
 	// See https://stackoverflow.com/a/30708914/274937
 	f, err := os.Open(path)
 	if err != nil {
-		logger.Panicf("FATAL: unexpected error when opening directory %q: %s", path, err)
+		logger.Panicf("FATAL: cannot open dir: %s", err)
 	}
 	_, err = f.Readdirnames(1)
 	MustClose(f)
@@ -193,88 +208,97 @@ func IsEmptyDir(path string) bool {
 	return false
 }
 
-// MustRemoveAll removes path with all the contents.
+// MustRemoveDirAtomic removes the given dir atomically.
 //
-// It properly fsyncs the parent directory after path removal.
+// It uses the following algorithm:
 //
-// It properly handles NFS issue https://github.com/VictoriaMetrics/VictoriaMetrics/issues/61 .
-func MustRemoveAll(path string) {
-	mustRemoveAll(path, func() {})
-}
-
-// MustRemoveAllWithDoneCallback removes path with all the contents.
+//  1. Atomically rename the "<dir>" to "<dir>.must-remove.<XYZ>",
+//     where <XYZ> is an unique number.
+//  2. Remove the "<dir>.must-remove.XYZ" in background.
 //
-// It properly fsyncs the parent directory after path removal.
-//
-// done is called after the path is successfully removed.
-//
-// done may be called after the function returns for NFS path.
-// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/61.
-func MustRemoveAllWithDoneCallback(path string, done func()) {
-	mustRemoveAll(path, done)
-}
-
-// HardLinkFiles makes hard links for all the files from srcDir in dstDir.
-func HardLinkFiles(srcDir, dstDir string) error {
-	if err := mkdirSync(dstDir); err != nil {
-		return fmt.Errorf("cannot create dstDir=%q: %w", dstDir, err)
+// If the process crashes after the step 1, then the directory must be removed
+// on the next process start by calling MustRemoveTemporaryDirs on the parent directory.
+func MustRemoveDirAtomic(dir string) {
+	if !IsPathExist(dir) {
+		return
 	}
+	mustRemoveDirAtomic(dir)
+	parentDir := filepath.Dir(dir)
+	MustSyncPath(parentDir)
+}
 
-	d, err := os.Open(srcDir)
+var atomicDirRemoveCounter = uint64(time.Now().UnixNano())
+
+// MustReadDir reads directory entries at the given dir.
+func MustReadDir(dir string) []os.DirEntry {
+	des, err := os.ReadDir(dir)
 	if err != nil {
-		return fmt.Errorf("cannot open srcDir=%q: %w", srcDir, err)
+		logger.Panicf("FATAL: cannot read directory contents: %s", err)
 	}
-	defer func() {
-		if err := d.Close(); err != nil {
-			logger.Panicf("FATAL: cannot close %q: %s", srcDir, err)
+	return des
+}
+
+// MustRemoveTemporaryDirs removes all the subdirectories with ".must-remove.<XYZ>" suffix.
+//
+// Such directories may be left on unclean shutdown during MustRemoveDirAtomic call.
+func MustRemoveTemporaryDirs(dir string) {
+	des := MustReadDir(dir)
+	for _, de := range des {
+		if !IsDirOrSymlink(de) {
+			// Skip non-directories
+			continue
 		}
-	}()
-
-	fis, err := d.Readdir(-1)
-	if err != nil {
-		return fmt.Errorf("cannot read files in scrDir=%q: %w", srcDir, err)
+		dirName := de.Name()
+		if IsScheduledForRemoval(dirName) {
+			fullPath := filepath.Join(dir, dirName)
+			MustRemoveAll(fullPath)
+		}
 	}
-	for _, fi := range fis {
-		if IsDirOrSymlink(fi) {
+	MustSyncPath(dir)
+}
+
+// MustHardLinkFiles makes hard links for all the files from srcDir in dstDir.
+func MustHardLinkFiles(srcDir, dstDir string) {
+	mustMkdirSync(dstDir)
+
+	des := MustReadDir(srcDir)
+	for _, de := range des {
+		if IsDirOrSymlink(de) {
 			// Skip directories.
 			continue
 		}
-		fn := fi.Name()
-		srcPath := srcDir + "/" + fn
-		dstPath := dstDir + "/" + fn
+		fn := de.Name()
+		srcPath := filepath.Join(srcDir, fn)
+		dstPath := filepath.Join(dstDir, fn)
 		if err := os.Link(srcPath, dstPath); err != nil {
-			return err
+			logger.Panicf("FATAL: cannot link files: %s", err)
 		}
 	}
 
 	MustSyncPath(dstDir)
-	return nil
 }
 
-// IsDirOrSymlink returns true if fi is directory or symlink.
-func IsDirOrSymlink(fi os.FileInfo) bool {
-	return fi.IsDir() || (fi.Mode()&os.ModeSymlink == os.ModeSymlink)
+// IsDirOrSymlink returns true if de is directory or symlink.
+func IsDirOrSymlink(de os.DirEntry) bool {
+	return de.IsDir() || (de.Type()&os.ModeSymlink == os.ModeSymlink)
 }
 
-// SymlinkRelative creates relative symlink for srcPath in dstPath.
-func SymlinkRelative(srcPath, dstPath string) error {
+// MustSymlinkRelative creates relative symlink for srcPath in dstPath.
+func MustSymlinkRelative(srcPath, dstPath string) {
 	baseDir := filepath.Dir(dstPath)
 	srcPathRel, err := filepath.Rel(baseDir, srcPath)
 	if err != nil {
-		return fmt.Errorf("cannot make relative path for srcPath=%q: %w", srcPath, err)
+		logger.Panicf("FATAL: cannot make relative path for srcPath=%q: %s", srcPath, err)
 	}
-	return os.Symlink(srcPathRel, dstPath)
+	if err := os.Symlink(srcPathRel, dstPath); err != nil {
+		logger.Panicf("FATAL: cannot make a symlink: %s", err)
+	}
 }
 
-// CopyDirectory copies all the files in srcPath to dstPath.
-func CopyDirectory(srcPath, dstPath string) error {
-	des, err := os.ReadDir(srcPath)
-	if err != nil {
-		return err
-	}
-	if err := MkdirAllIfNotExist(dstPath); err != nil {
-		return err
-	}
+// MustCopyDirectory copies all the files in srcPath to dstPath.
+func MustCopyDirectory(srcPath, dstPath string) {
+	des := MustReadDir(srcPath)
+	MustMkdirIfNotExist(dstPath)
 	for _, de := range des {
 		if !de.Type().IsRegular() {
 			// Skip non-files
@@ -282,67 +306,70 @@ func CopyDirectory(srcPath, dstPath string) error {
 		}
 		src := filepath.Join(srcPath, de.Name())
 		dst := filepath.Join(dstPath, de.Name())
-		if err := copyFile(src, dst); err != nil {
-			return err
-		}
+		MustCopyFile(src, dst)
 	}
 	MustSyncPath(dstPath)
-	return nil
 }
 
-func copyFile(srcPath, dstPath string) error {
+// MustCopyFile copies the file from srcPath to dstPath.
+func MustCopyFile(srcPath, dstPath string) {
 	src, err := os.Open(srcPath)
 	if err != nil {
-		return err
+		logger.Panicf("FATAL: cannot open srcPath: %s", err)
 	}
 	defer MustClose(src)
 	dst, err := os.Create(dstPath)
 	if err != nil {
-		return err
+		logger.Panicf("FATAL: cannot create dstPath: %s", err)
 	}
 	defer MustClose(dst)
 	if _, err := io.Copy(dst, src); err != nil {
-		return err
+		logger.Panicf("FATAL: cannot copy %q to %q: %s", srcPath, dstPath, err)
 	}
 	MustSyncPath(dstPath)
-	return nil
 }
 
-// ReadFullData reads len(data) bytes from r.
-func ReadFullData(r io.Reader, data []byte) error {
+// MustReadData reads len(data) bytes from r.
+func MustReadData(r filestream.ReadCloser, data []byte) {
 	n, err := io.ReadFull(r, data)
 	if err != nil {
 		if err == io.EOF {
-			return io.EOF
+			return
 		}
-		return fmt.Errorf("cannot read %d bytes; read only %d bytes; error: %w", len(data), n, err)
+		logger.Panicf("FATAL: cannot read %d bytes from %s; read only %d bytes; error: %s", len(data), r.Path(), n, err)
 	}
 	if n != len(data) {
-		logger.Panicf("BUG: io.ReadFull read only %d bytes; must read %d bytes", n, len(data))
+		logger.Panicf("BUG: io.ReadFull read only %d bytes from %s; must read %d bytes", n, r.Path(), len(data))
 	}
-	return nil
 }
 
 // MustWriteData writes data to w.
-func MustWriteData(w io.Writer, data []byte) {
+func MustWriteData(w filestream.WriteCloser, data []byte) {
 	if len(data) == 0 {
 		return
 	}
 	n, err := w.Write(data)
 	if err != nil {
-		logger.Panicf("FATAL: cannot write %d bytes: %s", len(data), err)
+		logger.Panicf("FATAL: cannot write %d bytes to %s: %s", len(data), w.Path(), err)
 	}
 	if n != len(data) {
-		logger.Panicf("BUG: writer wrote %d bytes instead of %d bytes", n, len(data))
+		logger.Panicf("BUG: writer wrote %d bytes instead of %d bytes to %s", n, len(data), w.Path())
 	}
 }
 
-// CreateFlockFile creates flock.lock file in the directory dir
+// MustCreateFlockFile creates FlockFilename file in the directory dir
 // and returns the handler to the file.
-func CreateFlockFile(dir string) (*os.File, error) {
-	flockFile := dir + "/flock.lock"
-	return createFlockFile(flockFile)
+func MustCreateFlockFile(dir string) *os.File {
+	flockFilepath := filepath.Join(dir, FlockFilename)
+	f, err := createFlockFile(flockFilepath)
+	if err != nil {
+		logger.Panicf("FATAL: cannot create lock file: %s; make sure a single process has exclusive access to %q", err, dir)
+	}
+	return f
 }
+
+// FlockFilename is the filename for the file created by MustCreateFlockFile().
+const FlockFilename = "flock.lock"
 
 // MustGetFreeSpace returns free space for the given directory path.
 func MustGetFreeSpace(path string) uint64 {
@@ -384,6 +411,12 @@ func ReadFileOrHTTP(path string) ([]byte, error) {
 		}
 		data, err := io.ReadAll(resp.Body)
 		_ = resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			if len(data) > 4*1024 {
+				data = data[:4*1024]
+			}
+			return nil, fmt.Errorf("unexpected status code when fetching %q: %d, expecting %d; response: %q", path, resp.StatusCode, http.StatusOK, data)
+		}
 		if err != nil {
 			return nil, fmt.Errorf("cannot read %q: %s", path, err)
 		}
@@ -409,4 +442,9 @@ func isHTTPURL(targetURL string) bool {
 	parsed, err := url.Parse(targetURL)
 	return err == nil && (parsed.Scheme == "http" || parsed.Scheme == "https") && parsed.Host != ""
 
+}
+
+// IsScheduledForRemoval returns true if the filename contains .must-remove. substring
+func IsScheduledForRemoval(filename string) bool {
+	return strings.Contains(filename, ".must-remove.")
 }

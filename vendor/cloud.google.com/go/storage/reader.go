@@ -87,8 +87,9 @@ func (o *ObjectHandle) NewReader(ctx context.Context) (*Reader, error) {
 // that file will be served back whole, regardless of the requested range as
 // Google Cloud Storage dictates.
 func (o *ObjectHandle) NewRangeReader(ctx context.Context, offset, length int64) (r *Reader, err error) {
-	ctx = trace.StartSpan(ctx, "cloud.google.com/go/storage.Object.NewRangeReader")
-	defer func() { trace.EndSpan(ctx, err) }()
+	// This span covers the life of the reader. It is closed via the context
+	// in Reader.Close.
+	ctx = trace.StartSpan(ctx, "cloud.google.com/go/storage.Object.Reader")
 
 	if err := o.validate(); err != nil {
 		return nil, err
@@ -117,6 +118,14 @@ func (o *ObjectHandle) NewRangeReader(ctx context.Context, offset, length int64)
 
 	r, err = o.c.tc.NewRangeReader(ctx, params, opts...)
 
+	// Pass the context so that the span can be closed in Reader.Close, or close the
+	// span now if there is an error.
+	if err == nil {
+		r.ctx = ctx
+	} else {
+		trace.EndSpan(ctx, err)
+	}
+
 	return r, err
 }
 
@@ -139,15 +148,23 @@ func uncompressedByServer(res *http.Response) bool {
 		res.Header.Get("Content-Encoding") != "gzip"
 }
 
+// parseCRC32c parses the crc32c hash from the X-Goog-Hash header.
+// It can parse headers in the form [crc32c=xxx md5=xxx] (XML responses) or the
+// form [crc32c=xxx,md5=xxx] (JSON responses). The md5 hash is ignored.
 func parseCRC32c(res *http.Response) (uint32, bool) {
 	const prefix = "crc32c="
 	for _, spec := range res.Header["X-Goog-Hash"] {
-		if strings.HasPrefix(spec, prefix) {
-			c, err := decodeUint32(spec[len(prefix):])
-			if err == nil {
-				return c, true
+		values := strings.Split(spec, ",")
+
+		for _, v := range values {
+			if strings.HasPrefix(v, prefix) {
+				c, err := decodeUint32(v[len(prefix):])
+				if err == nil {
+					return c, true
+				}
 			}
 		}
+
 	}
 	return 0, false
 }
@@ -196,11 +213,14 @@ type Reader struct {
 	gotCRC             uint32 // running crc
 
 	reader io.ReadCloser
+	ctx    context.Context
 }
 
 // Close closes the Reader. It must be called when done reading.
 func (r *Reader) Close() error {
-	return r.reader.Close()
+	err := r.reader.Close()
+	trace.EndSpan(r.ctx, err)
+	return err
 }
 
 func (r *Reader) Read(p []byte) (int, error) {

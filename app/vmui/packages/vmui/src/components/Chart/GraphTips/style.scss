@@ -1,0 +1,49 @@
+@use "src/styles/variables" as *;
+
+.fc-graph-tips {
+  max-width: 520px;
+  display: grid;
+  gap: $padding-global;
+
+  &-item {
+    display: grid;
+    gap: $padding-small;
+    line-height: 1.3;
+    padding-bottom: $padding-global;
+    border-bottom: $border-divider;
+
+    &__action {
+      color: $color-text-secondary;
+      font-weight: bold;
+    }
+
+    &__description {
+      display: inline-block;
+      line-height: 1.5;
+
+      svg,
+      code {
+        min-height: 20px;
+        min-width: 20px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 4px;
+        font-size: $font-size-small;
+        color: $color-text;
+        background-color: $color-background-body;
+        border: $border-divider;
+        border-radius: $border-radius-small;
+        margin: 0 2px 2px;
+      }
+    }
+
+    svg {
+      width: 18px;
+      color: $color-primary;
+      padding: 2px;
+      margin-top: -8px;
+      transform: translateY(8px);
+    }
+  }
+}

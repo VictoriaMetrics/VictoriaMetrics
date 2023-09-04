@@ -7,12 +7,13 @@ import (
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
 // getServiceNodesLabels returns labels for Consul service nodes with given cfg.
-func getServiceNodesLabels(cfg *apiConfig) []map[string]string {
+func getServiceNodesLabels(cfg *apiConfig) []*promutils.Labels {
 	sns := cfg.consulWatcher.getServiceNodesSnapshot()
-	var ms []map[string]string
+	var ms []*promutils.Labels
 	for svc, sn := range sns {
 		for i := range sn {
 			ms = sn[i].appendTargetLabels(ms, svc, cfg.tagSeparator)
@@ -34,13 +35,24 @@ type ServiceNode struct {
 //
 // See https://www.consul.io/api/health.html#list-nodes-for-service
 type Service struct {
-	ID        string
-	Service   string
-	Address   string
-	Namespace string
-	Port      int
-	Tags      []string
-	Meta      map[string]string
+	ID              string
+	Service         string
+	Address         string
+	Namespace       string
+	Partition       string
+	Port            int
+	Tags            []string
+	Meta            map[string]string
+	TaggedAddresses map[string]ServiceTaggedAddress
+	Datacenter      string
+}
+
+// ServiceTaggedAddress is Consul service.
+//
+// See https://www.consul.io/api/health.html#list-nodes-for-service
+type ServiceTaggedAddress struct {
+	Address string
+	Port    int
 }
 
 // Node is Consul node.
@@ -62,7 +74,8 @@ type Check struct {
 	Status  string
 }
 
-func parseServiceNodes(data []byte) ([]ServiceNode, error) {
+// ParseServiceNodes return parsed slice of ServiceNode by data.
+func ParseServiceNodes(data []byte) ([]ServiceNode, error) {
 	var sns []ServiceNode
 	if err := json.Unmarshal(data, &sns); err != nil {
 		return nil, fmt.Errorf("cannot unmarshal ServiceNodes from %q: %w", data, err)
@@ -70,43 +83,43 @@ func parseServiceNodes(data []byte) ([]ServiceNode, error) {
 	return sns, nil
 }
 
-func (sn *ServiceNode) appendTargetLabels(ms []map[string]string, serviceName, tagSeparator string) []map[string]string {
+func (sn *ServiceNode) appendTargetLabels(ms []*promutils.Labels, serviceName, tagSeparator string) []*promutils.Labels {
 	var addr string
 	if sn.Service.Address != "" {
 		addr = discoveryutils.JoinHostPort(sn.Service.Address, sn.Service.Port)
 	} else {
 		addr = discoveryutils.JoinHostPort(sn.Node.Address, sn.Service.Port)
 	}
-	m := map[string]string{
-		"__address__":                   addr,
-		"__meta_consul_address":         sn.Node.Address,
-		"__meta_consul_dc":              sn.Node.Datacenter,
-		"__meta_consul_health":          aggregatedStatus(sn.Checks),
-		"__meta_consul_namespace":       sn.Service.Namespace,
-		"__meta_consul_node":            sn.Node.Node,
-		"__meta_consul_service":         serviceName,
-		"__meta_consul_service_address": sn.Service.Address,
-		"__meta_consul_service_id":      sn.Service.ID,
-		"__meta_consul_service_port":    strconv.Itoa(sn.Service.Port),
-	}
-	// We surround the separated list with the separator as well. This way regular expressions
-	// in relabeling rules don't have to consider tag positions.
-	m["__meta_consul_tags"] = tagSeparator + strings.Join(sn.Service.Tags, tagSeparator) + tagSeparator
+	m := promutils.NewLabels(16)
+	m.Add("__address__", addr)
+	m.Add("__meta_consul_address", sn.Node.Address)
+	m.Add("__meta_consul_dc", sn.Node.Datacenter)
+	m.Add("__meta_consul_health", AggregatedStatus(sn.Checks))
+	m.Add("__meta_consul_namespace", sn.Service.Namespace)
+	m.Add("__meta_consul_partition", sn.Service.Partition)
+	m.Add("__meta_consul_node", sn.Node.Node)
+	m.Add("__meta_consul_service", serviceName)
+	m.Add("__meta_consul_service_address", sn.Service.Address)
+	m.Add("__meta_consul_service_id", sn.Service.ID)
+	m.Add("__meta_consul_service_port", strconv.Itoa(sn.Service.Port))
+
+	discoveryutils.AddTagsToLabels(m, sn.Service.Tags, "__meta_consul_", tagSeparator)
 
 	for k, v := range sn.Node.Meta {
-		m[discoveryutils.SanitizeLabelName("__meta_consul_metadata_"+k)] = v
+		m.Add(discoveryutils.SanitizeLabelName("__meta_consul_metadata_"+k), v)
 	}
 	for k, v := range sn.Service.Meta {
-		m[discoveryutils.SanitizeLabelName("__meta_consul_service_metadata_"+k)] = v
+		m.Add(discoveryutils.SanitizeLabelName("__meta_consul_service_metadata_"+k), v)
 	}
 	for k, v := range sn.Node.TaggedAddresses {
-		m[discoveryutils.SanitizeLabelName("__meta_consul_tagged_address_"+k)] = v
+		m.Add(discoveryutils.SanitizeLabelName("__meta_consul_tagged_address_"+k), v)
 	}
 	ms = append(ms, m)
 	return ms
 }
 
-func aggregatedStatus(checks []Check) string {
+// AggregatedStatus returns aggregated status of service node checks.
+func AggregatedStatus(checks []Check) string {
 	// The code has been copy-pasted from HealthChecks.AggregatedStatus in Consul
 	var passing, warning, critical, maintenance bool
 	for _, check := range checks {

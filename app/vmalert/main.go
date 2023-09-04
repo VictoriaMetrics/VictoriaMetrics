@@ -8,7 +8,10 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
+
+	"github.com/VictoriaMetrics/metrics"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
@@ -24,54 +27,68 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
-	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
-	rulePath = flagutil.NewArray("rule", `Path to the file with alert rules.
-Supports patterns. Flag can be specified multiple times.
+	rulePath = flagutil.NewArrayString("rule", `Path to the files or http url with alerting and/or recording rules.
+Supports hierarchical patterns and regexpes.
 Examples:
- -rule="/path/to/file". Path to a single file with alerting rules
- -rule="dir/*.yaml" -rule="/*.yaml". Relative path to all .yaml files in "dir" folder,
-absolute path to all .yaml files in root.
-Rule files may contain %{ENV_VAR} placeholders, which are substituted by the corresponding env vars.`)
+ -rule="/path/to/file". Path to a single file with alerting rules.
+ -rule="http://<some-server-addr>/path/to/rules". HTTP URL to a page with alerting rules.
+ -rule="dir/*.yaml" -rule="/*.yaml" -rule="gcs://vmalert-rules/tenant_%{TENANT_ID}/prod". 
+ -rule="dir/**/*.yaml". Includes all the .yaml files in "dir" subfolders recursively.
+Rule files may contain %{ENV_VAR} placeholders, which are substituted by the corresponding env vars.
 
-	ruleTemplatesPath = flagutil.NewArray("rule.templates", `Path or glob pattern to location with go template definitions
+Enterprise version of vmalert supports S3 and GCS paths to rules.
+For example: gs://bucket/path/to/rules, s3://bucket/path/to/rules
+S3 and GCS paths support only matching by prefix, e.g. s3://bucket/dir/rule_ matches
+all files with prefix rule_ in folder dir.
+See https://docs.victoriametrics.com/vmalert.html#reading-rules-from-object-storage
+`)
+
+	ruleTemplatesPath = flagutil.NewArrayString("rule.templates", `Path or glob pattern to location with go template definitions
 	for rules annotations templating. Flag can be specified multiple times.
 Examples:
  -rule.templates="/path/to/file". Path to a single file with go templates
  -rule.templates="dir/*.tpl" -rule.templates="/*.tpl". Relative path to all .tpl files in "dir" folder,
-absolute path to all .tpl files in root.`)
-
-	rulesCheckInterval = flag.Duration("rule.configCheckInterval", 0, "Interval for checking for changes in '-rule' files. "+
-		"By default the checking is disabled. Send SIGHUP signal in order to force config check for changes. DEPRECATED - see '-configCheckInterval' instead")
+absolute path to all .tpl files in root.
+ -rule.templates="dir/**/*.tpl". Includes all the .tpl files in "dir" subfolders recursively.
+`)
 
 	configCheckInterval = flag.Duration("configCheckInterval", 0, "Interval for checking for changes in '-rule' or '-notifier.config' files. "+
-		"By default the checking is disabled. Send SIGHUP signal in order to force config check for changes.")
+		"By default, the checking is disabled. Send SIGHUP signal in order to force config check for changes.")
 
-	httpListenAddr     = flag.String("httpListenAddr", ":8880", "Address to listen for http connections")
+	httpListenAddr   = flag.String("httpListenAddr", ":8880", "Address to listen for http connections. See also -httpListenAddr.useProxyProtocol")
+	useProxyProtocol = flag.Bool("httpListenAddr.useProxyProtocol", false, "Whether to use proxy protocol for connections accepted at -httpListenAddr . "+
+		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . "+
+		"With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing")
 	evaluationInterval = flag.Duration("evaluationInterval", time.Minute, "How often to evaluate the rules")
 
 	validateTemplates   = flag.Bool("rule.validateTemplates", true, "Whether to validate annotation and label templates")
 	validateExpressions = flag.Bool("rule.validateExpressions", true, "Whether to validate rules expressions via MetricsQL engine")
 	maxResolveDuration  = flag.Duration("rule.maxResolveDuration", 0, "Limits the maximum duration for automatic alert expiration, "+
-		"which is by default equal to 3 evaluation intervals of the parent group.")
-	resendDelay = flag.Duration("rule.resendDelay", 0, "Minimum amount of time to wait before resending an alert to notifier")
+		"which by default is 4 times evaluationInterval of the parent group.")
+	resendDelay            = flag.Duration("rule.resendDelay", 0, "Minimum amount of time to wait before resending an alert to notifier")
+	ruleUpdateEntriesLimit = flag.Int("rule.updateEntriesLimit", 20, "Defines the max number of rule's state updates stored in-memory. "+
+		"Rule's updates are available on rule's Details page and are used for debugging purposes. The number of stored updates can be overridden per rule via update_entries_limit param.")
 
-	externalURL         = flag.String("external.url", "", "External URL is used as alert's source for sent alerts to the notifier")
-	externalAlertSource = flag.String("external.alert.source", "", `External Alert Source allows to override the Source link for alerts sent to AlertManager for cases where you want to build a custom link to Grafana, Prometheus or any other service.
-Supports templating. For example, link to Grafana: 'explore?orgId=1&left=[\"now-1h\",\"now\",\"VictoriaMetrics\",{\"expr\": \"{{$expr|quotesEscape|crlfEscape|queryEscape}}\"},{\"mode\":\"Metrics\"},{\"ui\":[true,true,true,\"none\"]}]'.
-If empty 'vmalert/alert?group_id={{.GroupID}}&alert_id={{.AlertID}}' is used.`)
-	externalLabels = flagutil.NewArray("external.label", "Optional label in the form 'Name=value' to add to all generated recording rules and alerts. "+
+	externalURL         = flag.String("external.url", "", "External URL is used as alert's source for sent alerts to the notifier. By default, hostname is used as address.")
+	externalAlertSource = flag.String("external.alert.source", "", `External Alert Source allows to override the Source link for alerts sent to AlertManager `+
+		`for cases where you want to build a custom link to Grafana, Prometheus or any other service. `+
+		`Supports templating - see https://docs.victoriametrics.com/vmalert.html#templating . `+
+		`For example, link to Grafana: -external.alert.source='explore?orgId=1&left={"datasource":"VictoriaMetrics","queries":[{"expr":{{$expr|jsonEscape|queryEscape}},"refId":"A"}],"range":{"from":"now-1h","to":"now"}}'. `+
+		`Link to VMUI: -external.alert.source='vmui/#/?g0.expr={{.Expr|queryEscape}}'. `+
+		`If empty 'vmalert/alert?group_id={{.GroupID}}&alert_id={{.AlertID}}' is used.`)
+	externalLabels = flagutil.NewArrayString("external.label", "Optional label in the form 'Name=value' to add to all generated recording rules and alerts. "+
 		"Pass multiple -label flags in order to add multiple label sets.")
 
 	remoteReadLookBack = flag.Duration("remoteRead.lookback", time.Hour, "Lookback defines how far to look into past for alerts timeseries."+
 		" For example, if lookback=1h then range from now() to now()-1h will be scanned.")
-	remoteReadIgnoreRestoreErrors = flag.Bool("remoteRead.ignoreRestoreErrors", true, "Whether to ignore errors from remote storage when restoring alerts state on startup.")
+	remoteReadIgnoreRestoreErrors = flag.Bool("remoteRead.ignoreRestoreErrors", true, "Whether to ignore errors from remote storage when restoring alerts state on startup. DEPRECATED - this flag has no effect and will be removed in the next releases.")
 
 	disableAlertGroupLabel = flag.Bool("disableAlertgroupLabel", false, "Whether to disable adding group's Name as label to generated alerts and time series.")
 
-	dryRun = flag.Bool("dryRun", false, "Whether to check only config files without running vmalert. The rules file are validated. The `-rule` flag must be specified.")
+	dryRun = flag.Bool("dryRun", false, "Whether to check only config files without running vmalert. The rules file are validated. The -rule flag must be specified.")
 )
 
 var alertURLGeneratorFn notifier.AlertURLGenerator
@@ -87,6 +104,10 @@ func main() {
 	buildinfo.Init()
 	logger.Init()
 	pushmetrics.Init()
+
+	if !*remoteReadIgnoreRestoreErrors {
+		logger.Warnf("flag `remoteRead.ignoreRestoreErrors` is deprecated and will be removed in next releases.")
+	}
 
 	err := templates.Load(*ruleTemplatesPath, true)
 	if err != nil {
@@ -166,7 +187,7 @@ func main() {
 	go configReload(ctx, manager, groupsCfg, sighupCh)
 
 	rh := &requestHandler{m: manager}
-	go httpserver.Serve(*httpListenAddr, rh.handler)
+	go httpserver.Serve(*httpListenAddr, *useProxyProtocol, rh.handler)
 
 	sig := procutil.WaitForSigterm()
 	logger.Infof("service received signal %s", sig)
@@ -264,7 +285,10 @@ func getAlertURLGenerator(externalURL *url.URL, externalAlertSource string, vali
 		"tpl": externalAlertSource,
 	}
 	return func(alert notifier.Alert) string {
-		templated, err := alert.ExecTemplate(nil, nil, m)
+		qFn := func(query string) ([]datasource.Metric, error) {
+			return nil, fmt.Errorf("`query` template isn't supported for alert source template")
+		}
+		templated, err := alert.ExecTemplate(qFn, alert.Labels, m)
 		if err != nil {
 			logger.Errorf("can not exec source template %s", err)
 		}
@@ -284,10 +308,6 @@ See the docs at https://docs.victoriametrics.com/vmalert.html .
 func configReload(ctx context.Context, m *manager, groupsCfg []config.Group, sighupCh <-chan os.Signal) {
 	var configCheckCh <-chan time.Time
 	checkInterval := *configCheckInterval
-	if checkInterval == 0 && *rulesCheckInterval > 0 {
-		logger.Warnf("flag `rule.configCheckInterval` is deprecated - use `configCheckInterval` instead")
-		checkInterval = *rulesCheckInterval
-	}
 	if checkInterval > 0 {
 		ticker := time.NewTicker(checkInterval)
 		configCheckCh = ticker.C
@@ -299,9 +319,10 @@ func configReload(ctx context.Context, m *manager, groupsCfg []config.Group, sig
 		validateTplFn = notifier.ValidateTemplates
 	}
 
-	// init reload metrics with positive values to improve alerting conditions
-	configSuccess.Set(1)
-	configTimestamp.Set(fasttime.UnixTimestamp())
+	// init metrics for config state with positive values to improve alerting conditions
+	setConfigSuccessAt(fasttime.UnixTimestamp())
+
+	parseFn := config.Parse
 	for {
 		select {
 		case <-ctx.Done():
@@ -313,46 +334,47 @@ func configReload(ctx context.Context, m *manager, groupsCfg []config.Group, sig
 			}
 			logger.Infof("SIGHUP received. Going to reload rules %q %s...", *rulePath, tmplMsg)
 			configReloads.Inc()
+			// allow logs emitting during manual config reload
+			parseFn = config.Parse
 		case <-configCheckCh:
+			// disable logs emitting during per-interval config reload
+			parseFn = config.ParseSilent
 		}
 		if err := notifier.Reload(); err != nil {
-			configReloadErrors.Inc()
-			configSuccess.Set(0)
+			setConfigError(err)
 			logger.Errorf("failed to reload notifier config: %s", err)
 			continue
 		}
 		err := templates.Load(*ruleTemplatesPath, false)
 		if err != nil {
-			configReloadErrors.Inc()
-			configSuccess.Set(0)
+			setConfigError(err)
 			logger.Errorf("failed to load new templates: %s", err)
 			continue
 		}
-		newGroupsCfg, err := config.Parse(*rulePath, validateTplFn, *validateExpressions)
+		newGroupsCfg, err := parseFn(*rulePath, validateTplFn, *validateExpressions)
 		if err != nil {
-			configReloadErrors.Inc()
-			configSuccess.Set(0)
+			setConfigError(err)
 			logger.Errorf("cannot parse configuration file: %s", err)
 			continue
 		}
 		if configsEqual(newGroupsCfg, groupsCfg) {
 			templates.Reload()
-			// set success to 1 since previous reload
-			// could have been unsuccessful
+			// set success to 1 since previous reload could have been unsuccessful
+			// do not update configTimestamp as config version remains old.
 			configSuccess.Set(1)
-			// config didn't change - skip it
+			// reset the last config error since the config change was rolled back
+			setLastConfigErr(nil)
+			// config didn't change - skip iteration
 			continue
 		}
 		if err := m.update(ctx, newGroupsCfg, false); err != nil {
-			configReloadErrors.Inc()
-			configSuccess.Set(0)
+			setConfigError(err)
 			logger.Errorf("error while reloading rules: %s", err)
 			continue
 		}
 		templates.Reload()
 		groupsCfg = newGroupsCfg
-		configSuccess.Set(1)
-		configTimestamp.Set(fasttime.UnixTimestamp())
+		setConfigSuccessAt(fasttime.UnixTimestamp())
 		logger.Infof("Rules reloaded successfully from %q", *rulePath)
 	}
 }
@@ -367,4 +389,38 @@ func configsEqual(a, b []config.Group) bool {
 		}
 	}
 	return true
+}
+
+// setConfigSuccessAt updates config related metrics as successful.
+func setConfigSuccessAt(at uint64) {
+	configSuccess.Set(1)
+	configTimestamp.Set(at)
+	// reset the lastConfigErr
+	setLastConfigErr(nil)
+}
+
+// setConfigError updates config related metrics according to the error.
+func setConfigError(err error) {
+	configReloadErrors.Inc()
+	configSuccess.Set(0)
+	setLastConfigErr(err)
+}
+
+var (
+	lastConfigErrMu sync.RWMutex
+	// lastConfigErr represent the error message from the last config reload.
+	// The message is used in web UI as notification
+	lastConfigErr error
+)
+
+func setLastConfigErr(err error) {
+	lastConfigErrMu.Lock()
+	lastConfigErr = err
+	lastConfigErrMu.Unlock()
+}
+
+func getLastConfigError() error {
+	lastConfigErrMu.RLock()
+	defer lastConfigErrMu.RUnlock()
+	return lastConfigErr
 }

@@ -23,7 +23,7 @@ func newSignedGetRequest(apiURL, service, region string, creds *credentials) (*h
 }
 
 func newSignedGetRequestWithTime(apiURL, service, region string, creds *credentials, t time.Time) (*http.Request, error) {
-	req, err := http.NewRequest("GET", apiURL, nil)
+	req, err := http.NewRequest(http.MethodGet, apiURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create http request with given apiURL: %s, err: %w", apiURL, err)
 	}
@@ -41,6 +41,9 @@ func signRequestWithTime(req *http.Request, service, region, payloadHash string,
 	datestamp := t.Format("20060102")
 	canonicalURL := uri.Path
 	canonicalQS := uri.Query().Encode()
+	// Replace "%20" with "+" according to AWS requirements.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3171
+	canonicalQS = strings.ReplaceAll(canonicalQS, "+", "%20")
 
 	canonicalHeaders := fmt.Sprintf("host:%s\nx-amz-date:%s\n", uri.Host, amzdate)
 	signedHeaders := "host;x-amz-date"
@@ -81,10 +84,10 @@ func signRequestWithTime(req *http.Request, service, region, payloadHash string,
 }
 
 func getSignatureKey(key, datestamp, region, service string) string {
-	kDate := hmacBin("AWS4"+key, datestamp)
-	kRegion := hmacBin(kDate, region)
-	kService := hmacBin(kRegion, service)
-	return hmacBin(kService, "aws4_request")
+	dateKey := hmacBin("AWS4"+key, datestamp)
+	regionKey := hmacBin(dateKey, region)
+	serviceKey := hmacBin(regionKey, service)
+	return hmacBin(serviceKey, "aws4_request")
 }
 
 func hashHex(s string) string {

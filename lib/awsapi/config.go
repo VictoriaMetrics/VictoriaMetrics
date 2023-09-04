@@ -53,11 +53,9 @@ func NewConfig(ec2Endpoint, stsEndpoint, region, roleARN, accessKey, secretKey, 
 		defaultAccessKey: os.Getenv("AWS_ACCESS_KEY_ID"),
 		defaultSecretKey: os.Getenv("AWS_SECRET_ACCESS_KEY"),
 	}
-	cfg.service = service
 	if cfg.service == "" {
 		cfg.service = "aps"
 	}
-	cfg.region = region
 	if cfg.region == "" {
 		r, err := getDefaultRegion(cfg.client)
 		if err != nil {
@@ -75,8 +73,6 @@ func NewConfig(ec2Endpoint, stsEndpoint, region, roleARN, accessKey, secretKey, 
 		return nil, fmt.Errorf("roleARN is missing for AWS_WEB_IDENTITY_TOKEN_FILE=%q; set it via env var AWS_ROLE_ARN", cfg.webTokenPath)
 	}
 	// explicitly set credentials has priority over env variables
-	cfg.defaultAccessKey = os.Getenv("AWS_ACCESS_KEY_ID")
-	cfg.defaultSecretKey = os.Getenv("AWS_SECRET_ACCESS_KEY")
 	if len(accessKey) > 0 {
 		cfg.defaultAccessKey = accessKey
 	}
@@ -88,6 +84,11 @@ func NewConfig(ec2Endpoint, stsEndpoint, region, roleARN, accessKey, secretKey, 
 		SecretAccessKey: cfg.defaultSecretKey,
 	}
 	return cfg, nil
+}
+
+// GetRegion returns region for the given cfg.
+func (cfg *Config) GetRegion() string {
+	return cfg.region
 }
 
 // GetEC2APIResponse performs EC2 API request with ghe given action.
@@ -108,7 +109,7 @@ func (cfg *Config) GetEC2APIResponse(action, filtersQueryString, nextPageToken s
 	if len(nextPageToken) > 0 {
 		apiURL += fmt.Sprintf("&NextToken=%s", url.QueryEscape(nextPageToken))
 	}
-	apiURL += "&Version=2013-10-15"
+	apiURL += "&Version=2016-11-15"
 	req, err := newSignedGetRequest(apiURL, "ec2", cfg.region, ac)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create signed request: %w", err)
@@ -238,7 +239,7 @@ func (cfg *Config) getAPICredentials() (*credentials, error) {
 }
 
 // getECSRoleCredentialsByPath makes request to ecs metadata service
-// and retrieves instances credentails
+// and retrieves instances credentials
 // https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-iam-roles.html
 func getECSRoleCredentialsByPath(client *http.Client, path string) (*credentials, error) {
 	resp, err := client.Get(path)
@@ -300,7 +301,7 @@ func getMetadataByPath(client *http.Client, apiPath string) ([]byte, error) {
 
 	// Obtain session token
 	sessionTokenURL := "http://169.254.169.254/latest/api/token"
-	req, err := http.NewRequest("PUT", sessionTokenURL, nil)
+	req, err := http.NewRequest(http.MethodPut, sessionTokenURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create request for IMDSv2 session token at url %q: %w", sessionTokenURL, err)
 	}
@@ -316,7 +317,7 @@ func getMetadataByPath(client *http.Client, apiPath string) ([]byte, error) {
 
 	// Use session token in the request.
 	apiURL := "http://169.254.169.254/latest/" + apiPath
-	req, err = http.NewRequest("GET", apiURL, nil)
+	req, err = http.NewRequest(http.MethodGet, apiURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create request to %q: %w", apiURL, err)
 	}
@@ -328,14 +329,14 @@ func getMetadataByPath(client *http.Client, apiPath string) ([]byte, error) {
 	return readResponseBody(resp, apiURL)
 }
 
-// getRoleWebIdentityCredentials obtains credentials fo the given roleARN with webToken.
+// getRoleWebIdentityCredentials obtains credentials for the given roleARN with webToken.
 // https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRoleWithWebIdentity.html
 // aws IRSA for kubernetes.
 // https://aws.amazon.com/blogs/opensource/introducing-fine-grained-iam-roles-service-accounts/
 func (cfg *Config) getRoleWebIdentityCredentials(token string) (*credentials, error) {
 	data, err := cfg.getSTSAPIResponse("AssumeRoleWithWebIdentity", func(apiURL string) (*http.Request, error) {
 		apiURL += fmt.Sprintf("&WebIdentityToken=%s", url.QueryEscape(token))
-		return http.NewRequest("GET", apiURL, nil)
+		return http.NewRequest(http.MethodGet, apiURL, nil)
 	})
 	if err != nil {
 		return nil, err
@@ -364,7 +365,7 @@ func (cfg *Config) getSTSAPIResponse(action string, reqBuilder func(apiURL strin
 	return readResponseBody(resp, apiURL)
 }
 
-// getRoleARNCredentials obtains credentials fo the given roleARN.
+// getRoleARNCredentials obtains credentials for the given roleARN.
 func (cfg *Config) getRoleARNCredentials(creds *credentials) (*credentials, error) {
 	data, err := cfg.getSTSAPIResponse("AssumeRole", func(apiURL string) (*http.Request, error) {
 		return newSignedGetRequest(apiURL, "sts", cfg.region, creds)

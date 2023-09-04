@@ -1,3 +1,13 @@
+---
+title: Migrate from InfluxDB to VictoriaMetrics
+weight: 8
+menu:
+  docs:
+    parent: "guides"
+    weight: 8
+aliases:
+- /guides/migrate-from-influx.html
+---
 # Migrate from InfluxDB to VictoriaMetrics
 
 InfluxDB is a well-known time series database built for
@@ -24,21 +34,23 @@ VictoriaMetrics is something [new to explore](https://docs.victoriametrics.com/k
 with similarities and differences:
 
 * both solutions are **schemaless**, which means there is no need to define metrics or their tags in advance;
-* multi-dimensional data support is implemented
+* multidimensional data support is implemented
   via [tags](https://docs.influxdata.com/influxdb/v2.2/reference/key-concepts/data-elements/#tags)
   in InfluxDB and via [labels](https://docs.victoriametrics.com/keyConcepts.html#structure-of-a-metric) in
   VictoriaMetrics. However, labels in VictoriaMetrics are always `strings`, while InfluxDB supports multiple data types;
 * timestamps are stored with nanosecond resolution in InfluxDB, while in VictoriaMetrics it is **milliseconds**;
-* in VictoriaMetrics metric's value is always `float64`, while InfluxDB supports multiple data types.
+* in VictoriaMetrics metric value is always `float64`, while InfluxDB supports multiple data types.
 * there are
   no [measurements](https://docs.influxdata.com/influxdb/v2.2/reference/key-concepts/data-elements/#measurement)
   or [fields](https://docs.influxdata.com/influxdb/v2.2/reference/key-concepts/data-elements/#field-key) in
   VictoriaMetrics, metric name contains it all. If measurement contains more than 1 field, then for VictoriaMetrics
   it will be multiple metrics;
-* there are no [buckets](https://docs.influxdata.com/influxdb/v2.2/reference/key-concepts/data-elements/#bucket)
-  or [organizations](https://docs.influxdata.com/influxdb/v2.2/reference/key-concepts/data-elements/#organization), all
+* there are no [databases](https://docs.influxdata.com/influxdb/v1.8/concepts/glossary/#database), 
+  [buckets](https://docs.influxdata.com/influxdb/v2.2/reference/key-concepts/data-elements/#bucket)
+  or [organizations](https://docs.influxdata.com/influxdb/v2.2/reference/key-concepts/data-elements/#organization). All
   data in VictoriaMetrics is stored in a global namespace or within
-  a [tenant](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy).
+  a [tenant](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy). 
+  See more about multi-tenancy [here](https://docs.victoriametrics.com/keyConcepts.html#multi-tenancy). 
 
 Let's consider the
 following [sample data](https://docs.influxdata.com/influxdb/v2.2/reference/key-concepts/data-elements/#sample-data)
@@ -123,14 +135,14 @@ In addition to InfluxDB line protocol, VictoriaMetrics supports many other ways 
 
 ## Query data
 
-VictoriaMetrics does not have a com\mand-line interface (CLI). Instead, it provides
+VictoriaMetrics does not have a command-line interface (CLI). Instead, it provides
 an [HTTP API](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#prometheus-querying-api-usage)
 for serving read queries. This API is used in various integrations such as
 [Grafana](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#grafana-setup). The same API is also used
 by [VMUI](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#vmui) - a graphical User Interface for
 querying and visualizing metrics:
 
-{% include img.html href="migrate-from-influx-vmui.png" %}
+<img src="migrate-from-influx-vmui.png">
 
 See more about [how to query data in VictoriaMetrics](https://docs.victoriametrics.com/keyConcepts.html#query-data).
 
@@ -159,7 +171,7 @@ The data sample consists data points for a measurement `foo`
 and a field `bar` with additional tag `instance=localhost`. If we would like plot this data as a time series in Grafana
 it might have the following look:
 
-{% include img.html href="migrate-from-influx-data-sample-in-influx.png" %}
+<img src="migrate-from-influx-data-sample-in-influx.png">
 
 The query used for this panel is written in
 [InfluxQL](https://docs.influxdata.com/influxdb/v1.8/query_language/):
@@ -194,14 +206,14 @@ InfluxQL query might be translated to MetricsQL let's break it into components f
 In result, executing the `foo_bar{instance="localhost"}` MetricsQL expression with `step=1m` for the same set of data in
 Grafana will have the following form:
 
-{% include img.html href="migrate-from-influx-data-sample-in-vm.png" %}
+<img src="migrate-from-influx-data-sample-in-vm.png">
 
 Visualizations from both databases are a bit different - VictoriaMetrics shows some extra points
 filling the gaps in the graph. This behavior is described in more
 detail [here](https://docs.victoriametrics.com/keyConcepts.html#range-query). In InfluxDB, we can achieve a similar
 behavior by adding `fill(previous)` to the query.
 
-VictoriaMetrics fills the gaps on the graph assuming time series are always continious and not discrete.
+VictoriaMetrics fills the gaps on the graph assuming time series are always continuous and not discrete.
 To limit the interval on which VictoriaMetrics will try to fill the gaps, set `-search.setLookbackToStep`
 command-line flag. This limits the gap filling to a single `step` interval passed to
 [/api/v1/query_range](https://docs.victoriametrics.com/keyConcepts.html#range-query).
@@ -267,7 +279,7 @@ consider [backfilling tips](https://docs.victoriametrics.com/Single-server-Victo
 * How do I get raw data points with MetricsQL?
     * _For getting raw data points specify the interval at which you want them in square brackets and send
       as [instant query](https://docs.victoriametrics.com/keyConcepts.html#instant-query). For
-      example, `GET api/v1/query?query="my_metric[5m]"&time=<time>` will return raw samples for `my_metric` in interval
+      example, `GET api/v1/query?query=my_metric[5m]&time=<time>` will return raw samples for `my_metric` in interval
       from `<time>` to `<time>-5m`._
 * Can you have multiple aggregators in a MetricsQL query, e.g. `SELECT MAX(field), MIN(field) ...`?
     * _Yes, try the following query `( alias(max(field), "max"), alias(min(field), "min") )`._

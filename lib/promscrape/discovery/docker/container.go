@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
 // See https://github.com/moby/moby/blob/314759dc2f4745925d8dec6d15acc7761c6e5c92/docs/api/v1.41.yaml#L4024
@@ -30,7 +31,7 @@ type container struct {
 	}
 }
 
-func getContainersLabels(cfg *apiConfig) ([]map[string]string, error) {
+func getContainersLabels(cfg *apiConfig) ([]*promutils.Labels, error) {
 	networkLabels, err := getNetworksLabelsByNetworkID(cfg)
 	if err != nil {
 		return nil, err
@@ -58,8 +59,8 @@ func parseContainers(data []byte) ([]container, error) {
 	return containers, nil
 }
 
-func addContainersLabels(containers []container, networkLabels map[string]map[string]string, defaultPort int, hostNetworkingHost string) []map[string]string {
-	var ms []map[string]string
+func addContainersLabels(containers []container, networkLabels map[string]*promutils.Labels, defaultPort int, hostNetworkingHost string) []*promutils.Labels {
+	var ms []*promutils.Labels
 	for i := range containers {
 		c := &containers[i]
 		if len(c.Names) == 0 {
@@ -71,16 +72,17 @@ func addContainersLabels(containers []container, networkLabels map[string]map[st
 				if p.Type != "tcp" {
 					continue
 				}
-				m := map[string]string{
-					"__address__":                discoveryutils.JoinHostPort(n.IPAddress, p.PrivatePort),
-					"__meta_docker_network_ip":   n.IPAddress,
-					"__meta_docker_port_private": strconv.Itoa(p.PrivatePort),
-				}
+				m := promutils.NewLabels(16)
+				m.Add("__address__", discoveryutils.JoinHostPort(n.IPAddress, p.PrivatePort))
+				m.Add("__meta_docker_network_ip", n.IPAddress)
+				m.Add("__meta_docker_port_private", strconv.Itoa(p.PrivatePort))
 				if p.PublicPort > 0 {
-					m["__meta_docker_port_public"] = strconv.Itoa(p.PublicPort)
-					m["__meta_docker_port_public_ip"] = p.IP
+					m.Add("__meta_docker_port_public", strconv.Itoa(p.PublicPort))
+					m.Add("__meta_docker_port_public_ip", p.IP)
 				}
 				addCommonLabels(m, c, networkLabels[n.NetworkID])
+				// Remove possible duplicate labels, which can appear after addCommonLabels() call
+				m.RemoveDuplicates()
 				ms = append(ms, m)
 				added = true
 			}
@@ -90,11 +92,12 @@ func addContainersLabels(containers []container, networkLabels map[string]map[st
 				if c.HostConfig.NetworkMode != "host" {
 					addr = discoveryutils.JoinHostPort(n.IPAddress, defaultPort)
 				}
-				m := map[string]string{
-					"__address__":              addr,
-					"__meta_docker_network_ip": n.IPAddress,
-				}
+				m := promutils.NewLabels(16)
+				m.Add("__address__", addr)
+				m.Add("__meta_docker_network_ip", n.IPAddress)
 				addCommonLabels(m, c, networkLabels[n.NetworkID])
+				// Remove possible duplicate labels, which can appear after addCommonLabels() call
+				m.RemoveDuplicates()
 				ms = append(ms, m)
 			}
 		}
@@ -102,14 +105,12 @@ func addContainersLabels(containers []container, networkLabels map[string]map[st
 	return ms
 }
 
-func addCommonLabels(m map[string]string, c *container, networkLabels map[string]string) {
-	m["__meta_docker_container_id"] = c.ID
-	m["__meta_docker_container_name"] = c.Names[0]
-	m["__meta_docker_container_network_mode"] = c.HostConfig.NetworkMode
+func addCommonLabels(m *promutils.Labels, c *container, networkLabels *promutils.Labels) {
+	m.Add("__meta_docker_container_id", c.ID)
+	m.Add("__meta_docker_container_name", c.Names[0])
+	m.Add("__meta_docker_container_network_mode", c.HostConfig.NetworkMode)
 	for k, v := range c.Labels {
-		m[discoveryutils.SanitizeLabelName("__meta_docker_container_label_"+k)] = v
+		m.Add(discoveryutils.SanitizeLabelName("__meta_docker_container_label_"+k), v)
 	}
-	for k, v := range networkLabels {
-		m[k] = v
-	}
+	m.AddFrom(networkLabels)
 }

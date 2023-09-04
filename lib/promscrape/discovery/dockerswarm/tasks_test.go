@@ -4,8 +4,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
 func Test_parseTasks(t *testing.T) {
@@ -116,16 +116,16 @@ func Test_parseTasks(t *testing.T) {
 func Test_addTasksLabels(t *testing.T) {
 	type args struct {
 		tasks          []task
-		nodesLabels    []map[string]string
-		servicesLabels []map[string]string
-		networksLabels map[string]map[string]string
+		nodesLabels    []*promutils.Labels
+		servicesLabels []*promutils.Labels
+		networksLabels map[string]*promutils.Labels
 		services       []service
 		port           int
 	}
 	tests := []struct {
 		name string
 		args args
-		want [][]prompbmarshal.Label
+		want []*promutils.Labels
 	}{
 		{
 			name: "adds 1 task with nodes labels",
@@ -159,8 +159,8 @@ func Test_addTasksLabels(t *testing.T) {
 							}},
 					},
 				},
-				nodesLabels: []map[string]string{
-					{
+				nodesLabels: []*promutils.Labels{
+					promutils.NewLabelsFromMap(map[string]string{
 						"__address__":                                   "172.31.40.97:9100",
 						"__meta_dockerswarm_node_address":               "172.31.40.97",
 						"__meta_dockerswarm_node_availability":          "active",
@@ -171,11 +171,11 @@ func Test_addTasksLabels(t *testing.T) {
 						"__meta_dockerswarm_node_platform_os":           "linux",
 						"__meta_dockerswarm_node_role":                  "manager",
 						"__meta_dockerswarm_node_status":                "ready",
-					},
+					}),
 				},
 			},
-			want: [][]prompbmarshal.Label{
-				discoveryutils.GetSortedLabels(map[string]string{
+			want: []*promutils.Labels{
+				promutils.NewLabelsFromMap(map[string]string{
 					"__address__":                                   "172.31.40.97:6379",
 					"__meta_dockerswarm_node_address":               "172.31.40.97",
 					"__meta_dockerswarm_node_availability":          "active",
@@ -230,18 +230,18 @@ func Test_addTasksLabels(t *testing.T) {
 							PortStatus: struct{ Ports []portConfig }{}},
 					},
 				},
-				networksLabels: map[string]map[string]string{
-					"qs0hog6ldlei9ct11pr3c77v1": {
+				networksLabels: map[string]*promutils.Labels{
+					"qs0hog6ldlei9ct11pr3c77v1": promutils.NewLabelsFromMap(map[string]string{
 						"__meta_dockerswarm_network_id":         "qs0hog6ldlei9ct11pr3c77v1",
 						"__meta_dockerswarm_network_ingress":    "true",
 						"__meta_dockerswarm_network_internal":   "false",
 						"__meta_dockerswarm_network_label_key1": "value1",
 						"__meta_dockerswarm_network_name":       "ingress",
 						"__meta_dockerswarm_network_scope":      "swarm",
-					},
+					}),
 				},
-				nodesLabels: []map[string]string{
-					{
+				nodesLabels: []*promutils.Labels{
+					promutils.NewLabelsFromMap(map[string]string{
 						"__address__":                                   "172.31.40.97:9100",
 						"__meta_dockerswarm_node_address":               "172.31.40.97",
 						"__meta_dockerswarm_node_availability":          "active",
@@ -252,7 +252,7 @@ func Test_addTasksLabels(t *testing.T) {
 						"__meta_dockerswarm_node_platform_os":           "linux",
 						"__meta_dockerswarm_node_role":                  "manager",
 						"__meta_dockerswarm_node_status":                "ready",
-					},
+					}),
 				},
 				services: []service{
 					{
@@ -320,10 +320,10 @@ func Test_addTasksLabels(t *testing.T) {
 						},
 					},
 				},
-				servicesLabels: []map[string]string{},
+				servicesLabels: []*promutils.Labels{},
 			},
-			want: [][]prompbmarshal.Label{
-				discoveryutils.GetSortedLabels(map[string]string{
+			want: []*promutils.Labels{
+				promutils.NewLabelsFromMap(map[string]string{
 					"__address__":                                   "10.10.15.15:6379",
 					"__meta_dockerswarm_network_id":                 "qs0hog6ldlei9ct11pr3c77v1",
 					"__meta_dockerswarm_network_ingress":            "true",
@@ -353,13 +353,7 @@ func Test_addTasksLabels(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := addTasksLabels(tt.args.tasks, tt.args.nodesLabels, tt.args.servicesLabels, tt.args.networksLabels, tt.args.services, tt.args.port)
-			var sortedLabelss [][]prompbmarshal.Label
-			for _, labels := range got {
-				sortedLabelss = append(sortedLabelss, discoveryutils.GetSortedLabels(labels))
-			}
-			if !reflect.DeepEqual(sortedLabelss, tt.want) {
-				t.Errorf("addTasksLabels() \ngot  %v, \nwant %v", sortedLabelss, tt.want)
-			}
+			discoveryutils.TestEqualLabelss(t, got, tt.want)
 		})
 	}
 }

@@ -1,0 +1,8 @@
+@use "src/styles/variables" as *;
+
+.vm-explore-logs {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  align-items: flex-start;
+  gap: $padding-medium;
+}

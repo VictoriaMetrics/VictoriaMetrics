@@ -6,8 +6,8 @@ import (
 	"net"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
 // https://docs.docker.com/engine/api/v1.40/#tag/Service
@@ -46,7 +46,7 @@ type portConfig struct {
 	PublishedPort int
 }
 
-func getServicesLabels(cfg *apiConfig) ([]map[string]string, error) {
+func getServicesLabels(cfg *apiConfig) ([]*promutils.Labels, error) {
 	services, err := getServices(cfg)
 	if err != nil {
 		return nil, err
@@ -59,7 +59,11 @@ func getServicesLabels(cfg *apiConfig) ([]map[string]string, error) {
 }
 
 func getServices(cfg *apiConfig) ([]service, error) {
-	data, err := cfg.getAPIResponse("/services")
+	filtersQueryArg := ""
+	if cfg.role == "services" {
+		filtersQueryArg = cfg.filtersQueryArg
+	}
+	data, err := cfg.getAPIResponse("/services", filtersQueryArg)
 	if err != nil {
 		return nil, fmt.Errorf("cannot query dockerswarm api for services: %w", err)
 	}
@@ -84,19 +88,18 @@ func getServiceMode(svc service) string {
 	return ""
 }
 
-func addServicesLabels(services []service, networksLabels map[string]map[string]string, port int) []map[string]string {
-	var ms []map[string]string
+func addServicesLabels(services []service, networksLabels map[string]*promutils.Labels, port int) []*promutils.Labels {
+	var ms []*promutils.Labels
 	for _, service := range services {
-		commonLabels := map[string]string{
-			"__meta_dockerswarm_service_id":                      service.ID,
-			"__meta_dockerswarm_service_name":                    service.Spec.Name,
-			"__meta_dockerswarm_service_mode":                    getServiceMode(service),
-			"__meta_dockerswarm_service_task_container_hostname": service.Spec.TaskTemplate.ContainerSpec.Hostname,
-			"__meta_dockerswarm_service_task_container_image":    service.Spec.TaskTemplate.ContainerSpec.Image,
-			"__meta_dockerswarm_service_updating_status":         service.UpdateStatus.State,
-		}
+		commonLabels := promutils.NewLabels(10)
+		commonLabels.Add("__meta_dockerswarm_service_id", service.ID)
+		commonLabels.Add("__meta_dockerswarm_service_name", service.Spec.Name)
+		commonLabels.Add("__meta_dockerswarm_service_mode", getServiceMode(service))
+		commonLabels.Add("__meta_dockerswarm_service_task_container_hostname", service.Spec.TaskTemplate.ContainerSpec.Hostname)
+		commonLabels.Add("__meta_dockerswarm_service_task_container_image", service.Spec.TaskTemplate.ContainerSpec.Image)
+		commonLabels.Add("__meta_dockerswarm_service_updating_status", service.UpdateStatus.State)
 		for k, v := range service.Spec.Labels {
-			commonLabels[discoveryutils.SanitizeLabelName("__meta_dockerswarm_service_label_"+k)] = v
+			commonLabels.Add(discoveryutils.SanitizeLabelName("__meta_dockerswarm_service_label_"+k), v)
 		}
 		for _, vip := range service.Endpoint.VirtualIPs {
 			// skip services without virtual address.
@@ -114,30 +117,24 @@ func addServicesLabels(services []service, networksLabels map[string]map[string]
 				if ep.Protocol != "tcp" {
 					continue
 				}
-				m := map[string]string{
-					"__address__": discoveryutils.JoinHostPort(ip.String(), ep.PublishedPort),
-					"__meta_dockerswarm_service_endpoint_port_name":         ep.Name,
-					"__meta_dockerswarm_service_endpoint_port_publish_mode": ep.PublishMode,
-				}
-				for k, v := range commonLabels {
-					m[k] = v
-				}
-				for k, v := range networksLabels[vip.NetworkID] {
-					m[k] = v
-				}
+				m := promutils.NewLabels(24)
+				m.Add("__address__", discoveryutils.JoinHostPort(ip.String(), ep.PublishedPort))
+				m.Add("__meta_dockerswarm_service_endpoint_port_name", ep.Name)
+				m.Add("__meta_dockerswarm_service_endpoint_port_publish_mode", ep.PublishMode)
+				m.AddFrom(commonLabels)
+				m.AddFrom(networksLabels[vip.NetworkID])
+				// Remove possible duplicate labels, which can appear after AddFrom() calls
+				m.RemoveDuplicates()
 				added = true
 				ms = append(ms, m)
 			}
 			if !added {
-				m := map[string]string{
-					"__address__": discoveryutils.JoinHostPort(ip.String(), port),
-				}
-				for k, v := range commonLabels {
-					m[k] = v
-				}
-				for k, v := range networksLabels[vip.NetworkID] {
-					m[k] = v
-				}
+				m := promutils.NewLabels(24)
+				m.Add("__address__", discoveryutils.JoinHostPort(ip.String(), port))
+				m.AddFrom(commonLabels)
+				m.AddFrom(networksLabels[vip.NetworkID])
+				// Remove possible duplicate labels, which can appear after AddFrom() calls
+				m.RemoveDuplicates()
 				ms = append(ms, m)
 			}
 		}

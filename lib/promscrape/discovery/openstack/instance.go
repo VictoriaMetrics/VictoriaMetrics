@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
 // See https://docs.openstack.org/api-ref/compute/#list-servers
@@ -45,19 +46,18 @@ func parseServersDetail(data []byte) (*serversDetail, error) {
 	return &srvd, nil
 }
 
-func addInstanceLabels(servers []server, port int) []map[string]string {
-	var ms []map[string]string
+func addInstanceLabels(servers []server, port int) []*promutils.Labels {
+	var ms []*promutils.Labels
 	for _, server := range servers {
-		m := map[string]string{
-			"__meta_openstack_instance_id":     server.ID,
-			"__meta_openstack_instance_status": server.Status,
-			"__meta_openstack_instance_name":   server.Name,
-			"__meta_openstack_project_id":      server.TenantID,
-			"__meta_openstack_user_id":         server.UserID,
-			"__meta_openstack_instance_flavor": server.Flavor.ID,
-		}
+		commonLabels := promutils.NewLabels(16)
+		commonLabels.Add("__meta_openstack_instance_id", server.ID)
+		commonLabels.Add("__meta_openstack_instance_status", server.Status)
+		commonLabels.Add("__meta_openstack_instance_name", server.Name)
+		commonLabels.Add("__meta_openstack_project_id", server.TenantID)
+		commonLabels.Add("__meta_openstack_user_id", server.UserID)
+		commonLabels.Add("__meta_openstack_instance_flavor", server.Flavor.ID)
 		for k, v := range server.Metadata {
-			m[discoveryutils.SanitizeLabelName("__meta_openstack_tag_"+k)] = v
+			commonLabels.Add(discoveryutils.SanitizeLabelName("__meta_openstack_tag_"+k), v)
 		}
 		// Traverse server.Addresses in alphabetical order of pool name
 		// in order to return targets in deterministic order.
@@ -87,17 +87,15 @@ func addInstanceLabels(servers []server, port int) []map[string]string {
 					continue
 				}
 				// copy labels
-				lbls := make(map[string]string, len(m))
-				for k, v := range m {
-					lbls[k] = v
-				}
-				lbls["__meta_openstack_address_pool"] = pool
-				lbls["__meta_openstack_private_ip"] = ip.Address
+				m := promutils.NewLabels(20)
+				m.AddFrom(commonLabels)
+				m.Add("__meta_openstack_address_pool", pool)
+				m.Add("__meta_openstack_private_ip", ip.Address)
 				if len(publicIP) > 0 {
-					lbls["__meta_openstack_public_ip"] = publicIP
+					m.Add("__meta_openstack_public_ip", publicIP)
 				}
-				lbls["__address__"] = discoveryutils.JoinHostPort(ip.Address, port)
-				ms = append(ms, lbls)
+				m.Add("__address__", discoveryutils.JoinHostPort(ip.Address, port))
+				ms = append(ms, m)
 			}
 		}
 	}
@@ -133,7 +131,7 @@ func (cfg *apiConfig) getServers() ([]server, error) {
 	}
 }
 
-func getInstancesLabels(cfg *apiConfig) ([]map[string]string, error) {
+func getInstancesLabels(cfg *apiConfig) ([]*promutils.Labels, error) {
 	srv, err := cfg.getServers()
 	if err != nil {
 		return nil, err

@@ -5,16 +5,14 @@ import (
 	"fmt"
 	"hash/fnv"
 	"net/url"
-	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 
 	"gopkg.in/yaml.v2"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config/log"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
@@ -38,7 +36,8 @@ type Group struct {
 	Params url.Values `yaml:"params"`
 	// Headers contains optional HTTP headers added to each rule request
 	Headers []Header `yaml:"headers,omitempty"`
-
+	// NotifierHeaders contains optional HTTP headers sent to notifiers for generated notifications
+	NotifierHeaders []Header `yaml:"notifier_headers,omitempty"`
 	// Catches all undefined fields and must be empty after parsing.
 	XXX map[string]interface{} `yaml:",inline"`
 }
@@ -77,7 +76,7 @@ func (g *Group) Validate(validateTplFn ValidateTplFn, validateExpressions bool) 
 			ruleName = r.Alert
 		}
 		if _, ok := uniqueRules[r.ID]; ok {
-			return fmt.Errorf("rule %q duplicate", ruleName)
+			return fmt.Errorf("%q is a duplicate within the group %q", r.String(), g.Name)
 		}
 		uniqueRules[r.ID] = struct{}{}
 		if err := r.Validate(); err != nil {
@@ -106,13 +105,19 @@ func (g *Group) Validate(validateTplFn ValidateTplFn, validateExpressions bool) 
 // Rule describes entity that represent either
 // recording rule or alerting rule.
 type Rule struct {
-	ID          uint64
-	Record      string              `yaml:"record,omitempty"`
-	Alert       string              `yaml:"alert,omitempty"`
-	Expr        string              `yaml:"expr"`
-	For         *promutils.Duration `yaml:"for,omitempty"`
-	Labels      map[string]string   `yaml:"labels,omitempty"`
-	Annotations map[string]string   `yaml:"annotations,omitempty"`
+	ID     uint64
+	Record string              `yaml:"record,omitempty"`
+	Alert  string              `yaml:"alert,omitempty"`
+	Expr   string              `yaml:"expr"`
+	For    *promutils.Duration `yaml:"for,omitempty"`
+	// Alert will continue firing for this long even when the alerting expression no longer has results.
+	KeepFiringFor *promutils.Duration `yaml:"keep_firing_for,omitempty"`
+	Labels        map[string]string   `yaml:"labels,omitempty"`
+	Annotations   map[string]string   `yaml:"annotations,omitempty"`
+	Debug         bool                `yaml:"debug,omitempty"`
+	// UpdateEntriesLimit defines max number of rule's state updates stored in memory.
+	// Overrides `-rule.updateEntriesLimit`.
+	UpdateEntriesLimit *int `yaml:"update_entries_limit,omitempty"`
 
 	// Catches all undefined fields and must be empty after parsing.
 	XXX map[string]interface{} `yaml:",inline"`
@@ -134,6 +139,32 @@ func (r *Rule) Name() string {
 		return r.Record
 	}
 	return r.Alert
+}
+
+// String implements Stringer interface
+func (r *Rule) String() string {
+	ruleType := "recording"
+	if r.Alert != "" {
+		ruleType = "alerting"
+	}
+	b := strings.Builder{}
+	b.WriteString(fmt.Sprintf("%s rule %q", ruleType, r.Name()))
+	b.WriteString(fmt.Sprintf("; expr: %q", r.Expr))
+
+	kv := sortMap(r.Labels)
+	for i := range kv {
+		if i == 0 {
+			b.WriteString("; labels:")
+		}
+		b.WriteString(" ")
+		b.WriteString(kv[i].key)
+		b.WriteString("=")
+		b.WriteString(kv[i].value)
+		if i < len(kv)-1 {
+			b.WriteString(",")
+		}
+	}
+	return b.String()
 }
 
 // HashRule hashes significant Rule fields into
@@ -171,21 +202,45 @@ func (r *Rule) Validate() error {
 // ValidateTplFn must validate the given annotations
 type ValidateTplFn func(annotations map[string]string) error
 
+// cLogger is a logger with support of logs suppressing.
+// it is used when logs emitted by config package needs
+// to be suppressed.
+var cLogger = &log.Logger{}
+
+// ParseSilent parses rule configs from given file patterns without emitting logs
+func ParseSilent(pathPatterns []string, validateTplFn ValidateTplFn, validateExpressions bool) ([]Group, error) {
+	cLogger.Suppress(true)
+	defer cLogger.Suppress(false)
+
+	files, err := readFromFS(pathPatterns)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read from the config: %s", err)
+	}
+	return parse(files, validateTplFn, validateExpressions)
+}
+
 // Parse parses rule configs from given file patterns
 func Parse(pathPatterns []string, validateTplFn ValidateTplFn, validateExpressions bool) ([]Group, error) {
-	var fp []string
-	for _, pattern := range pathPatterns {
-		matches, err := filepath.Glob(pattern)
-		if err != nil {
-			return nil, fmt.Errorf("error reading file pattern %s: %w", pattern, err)
-		}
-		fp = append(fp, matches...)
+	files, err := readFromFS(pathPatterns)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read from the config: %s", err)
 	}
+	groups, err := parse(files, validateTplFn, validateExpressions)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse %s: %s", pathPatterns, err)
+	}
+	if len(groups) < 1 {
+		cLogger.Warnf("no groups found in %s", strings.Join(pathPatterns, ";"))
+	}
+	return groups, nil
+}
+
+func parse(files map[string][]byte, validateTplFn ValidateTplFn, validateExpressions bool) ([]Group, error) {
 	errGroup := new(utils.ErrGroup)
 	var groups []Group
-	for _, file := range fp {
+	for file, data := range files {
 		uniqueGroups := map[string]struct{}{}
-		gr, err := parseFile(file)
+		gr, err := parseConfig(data)
 		if err != nil {
 			errGroup.Add(fmt.Errorf("failed to parse file %q: %w", file, err))
 			continue
@@ -207,18 +262,20 @@ func Parse(pathPatterns []string, validateTplFn ValidateTplFn, validateExpressio
 	if err := errGroup.Err(); err != nil {
 		return nil, err
 	}
-	if len(groups) < 1 {
-		logger.Warnf("no groups found in %s", strings.Join(pathPatterns, ";"))
-	}
+	sort.SliceStable(groups, func(i, j int) bool {
+		if groups[i].File != groups[j].File {
+			return groups[i].File < groups[j].File
+		}
+		return groups[i].Name < groups[j].Name
+	})
 	return groups, nil
 }
 
-func parseFile(path string) ([]Group, error) {
-	data, err := os.ReadFile(path)
+func parseConfig(data []byte) ([]Group, error) {
+	data, err := envtemplate.ReplaceBytes(data)
 	if err != nil {
-		return nil, fmt.Errorf("error reading alert rule file: %w", err)
+		return nil, fmt.Errorf("cannot expand environment vars: %w", err)
 	}
-	data = envtemplate.Replace(data)
 	g := struct {
 		Groups []Group `yaml:"groups"`
 		// Catches all undefined fields and must be empty after parsing.

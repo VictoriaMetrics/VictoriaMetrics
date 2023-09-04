@@ -1,51 +1,79 @@
-import React, {FC} from "preact/compat";
-import {HashRouter, Route, Routes} from "react-router-dom";
-import {SnackbarProvider} from "./contexts/Snackbar";
-import {StateProvider} from "./state/common/StateContext";
-import {AuthStateProvider} from "./state/auth/AuthStateContext";
-import {GraphStateProvider} from "./state/graph/GraphStateContext";
-import {CardinalityStateProvider} from "./state/cardinality/CardinalityStateContext";
-import THEME from "./theme/theme";
-import { ThemeProvider, StyledEngineProvider } from "@mui/material/styles";
-import CssBaseline from "@mui/material/CssBaseline";
-import LocalizationProvider from "@mui/lab/LocalizationProvider";
-import DayjsUtils from "@date-io/dayjs";
-import router from "./router/index";
-
-import CustomPanel from "./components/CustomPanel/CustomPanel";
-import HomeLayout from "./components/Home/HomeLayout";
-import DashboardsLayout from "./components/PredefinedPanels/DashboardsLayout";
-import CardinalityPanel from "./components/CardinalityPanel/CardinalityPanel";
-
+import React, { FC, useState } from "preact/compat";
+import { HashRouter, Route, Routes } from "react-router-dom";
+import router from "./router";
+import AppContextProvider from "./contexts/AppContextProvider";
+import MainLayout from "./layouts/MainLayout/MainLayout";
+import CustomPanel from "./pages/CustomPanel";
+import DashboardsLayout from "./pages/PredefinedPanels";
+import CardinalityPanel from "./pages/CardinalityPanel";
+import TopQueries from "./pages/TopQueries";
+import ThemeProvider from "./components/Main/ThemeProvider/ThemeProvider";
+import TracePage from "./pages/TracePage";
+import ExploreMetrics from "./pages/ExploreMetrics";
+import PreviewIcons from "./components/Main/Icons/PreviewIcons";
+import WithTemplate from "./pages/WithTemplate";
+import Relabel from "./pages/Relabel";
+import ActiveQueries from "./pages/ActiveQueries";
 
 const App: FC = () => {
+  const [loadedTheme, setLoadedTheme] = useState(false);
 
   return <>
     <HashRouter>
-      <CssBaseline /> {/* CSS Baseline: kind of normalize.css made by materialUI team - can be scoped */}
-      <LocalizationProvider dateAdapter={DayjsUtils}> {/* Allows datepicker to work with DayJS */}
-        <StyledEngineProvider injectFirst>
-          <ThemeProvider theme={THEME}>  {/* Material UI theme customization */}
-            <StateProvider> {/* Serialized into query string, common app settings */}
-              <AuthStateProvider> {/* Auth related info - optionally persisted to Local Storage */}
-                <GraphStateProvider> {/* Graph settings */}
-                  <CardinalityStateProvider> {/* Cardinality settings */}
-                    <SnackbarProvider> {/* Display various snackbars */}
-                      <Routes>
-                        <Route path={"/"} element={<HomeLayout/>}>
-                          <Route path={router.home} element={<CustomPanel/>}/>
-                          <Route path={router.dashboards} element={<DashboardsLayout/>}/>
-                          <Route path={router.cardinality} element={<CardinalityPanel/>} />
-                        </Route>
-                      </Routes>
-                    </SnackbarProvider>
-                  </CardinalityStateProvider>
-                </GraphStateProvider>
-              </AuthStateProvider>
-            </StateProvider>
-          </ThemeProvider>
-        </StyledEngineProvider>
-      </LocalizationProvider>
+      <AppContextProvider>
+        <>
+          <ThemeProvider onLoaded={setLoadedTheme}/>
+          {loadedTheme && (
+            <Routes>
+              <Route
+                path={"/"}
+                element={<MainLayout/>}
+              >
+                <Route
+                  path={router.home}
+                  element={<CustomPanel/>}
+                />
+                <Route
+                  path={router.metrics}
+                  element={<ExploreMetrics/>}
+                />
+                <Route
+                  path={router.cardinality}
+                  element={<CardinalityPanel/>}
+                />
+                <Route
+                  path={router.topQueries}
+                  element={<TopQueries/>}
+                />
+                <Route
+                  path={router.trace}
+                  element={<TracePage/>}
+                />
+                <Route
+                  path={router.dashboards}
+                  element={<DashboardsLayout/>}
+                />
+                <Route
+                  path={router.withTemplate}
+                  element={<WithTemplate/>}
+                />
+                <Route
+                  path={router.relabel}
+                  element={<Relabel/>}
+                />
+                <Route
+                  path={router.activeQueries}
+                  element={<ActiveQueries/>}
+                />
+                <Route
+                  path={router.icons}
+                  element={<PreviewIcons/>}
+                />
+              </Route>
+            </Routes>
+          )}
+        </>
+      </AppContextProvider>
     </HashRouter>
   </>;
 };

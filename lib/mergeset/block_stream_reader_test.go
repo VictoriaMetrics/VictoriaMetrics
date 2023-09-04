@@ -2,16 +2,18 @@ package mergeset
 
 import (
 	"fmt"
+	"math/rand"
 	"sort"
 	"testing"
 	"time"
 )
 
 func TestBlockStreamReaderReadFromInmemoryPart(t *testing.T) {
+	r := rand.New(rand.NewSource(1))
 	var items []string
 	var ib inmemoryBlock
 	for i := 0; i < 100; i++ {
-		item := getRandomBytes()
+		item := getRandomBytes(r)
 		if !ib.Add(item) {
 			break
 		}

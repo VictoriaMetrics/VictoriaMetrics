@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -18,6 +19,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -35,6 +37,9 @@ type Server struct {
 	// ln is the listener for incoming connections to the server.
 	ln net.Listener
 
+	// The channel for limiting the number of concurrently executed requests.
+	concurrencyLimitCh chan struct{}
+
 	// connsMap is a map of currently established connections to the server.
 	// It is used for closing the connections when MustStop() is called.
 	connsMap ingestserver.ConnsMap
@@ -44,6 +49,9 @@ type Server struct {
 
 	// stopFlag is set to true when the server needs to stop.
 	stopFlag uint32
+
+	concurrencyLimitReached *metrics.Counter
+	concurrencyLimitTimeout *metrics.Counter
 
 	vmselectConns      *metrics.Counter
 	vmselectConnErrors *metrics.Counter
@@ -59,6 +67,7 @@ type Server struct {
 	tsdbStatusRequests          *metrics.Counter
 	searchMetricNamesRequests   *metrics.Counter
 	searchRequests              *metrics.Counter
+	tenantsRequests             *metrics.Counter
 
 	metricBlocksRead *metrics.Counter
 	metricRowsRead   *metrics.Counter
@@ -74,20 +83,47 @@ type Limits struct {
 
 	// MaxTagValueSuffixes is the maximum number of entries, which can be returned from tagValueSuffixes request.
 	MaxTagValueSuffixes int
+
+	// MaxConcurrentRequests is the maximum number of concurrent requests a server can process.
+	//
+	// The remaining requests wait for up to MaxQueueDuration for their execution.
+	MaxConcurrentRequests int
+
+	// MaxConcurrentRequestsFlagName is the name for the flag containing the MaxConcurrentRequests value.
+	MaxConcurrentRequestsFlagName string
+
+	// MaxQueueDuration is the maximum duration to wait if MaxConcurrentRequests are executed.
+	MaxQueueDuration time.Duration
+
+	// MaxQueueDurationFlagName is the name for the flag containing the MaxQueueDuration value.
+	MaxQueueDurationFlagName string
 }
 
 // NewServer starts new Server at the given addr, which serves the given api with the given limits.
 //
 // If disableResponseCompression is set to true, then the returned server doesn't compress responses.
 func NewServer(addr string, api API, limits Limits, disableResponseCompression bool) (*Server, error) {
-	ln, err := netutil.NewTCPListener("vmselect", addr, nil)
+	ln, err := netutil.NewTCPListener("vmselect", addr, false, nil)
 	if err != nil {
 		return nil, fmt.Errorf("unable to listen vmselectAddr %s: %w", addr, err)
 	}
+	concurrencyLimitCh := make(chan struct{}, limits.MaxConcurrentRequests)
+	_ = metrics.NewGauge(`vm_vmselect_concurrent_requests_capacity`, func() float64 {
+		return float64(cap(concurrencyLimitCh))
+	})
+	_ = metrics.NewGauge(`vm_vmselect_concurrent_requests_current`, func() float64 {
+		return float64(len(concurrencyLimitCh))
+	})
 	s := &Server{
-		api:    api,
-		limits: limits,
-		ln:     ln,
+		api:                        api,
+		limits:                     limits,
+		disableResponseCompression: disableResponseCompression,
+		ln:                         ln,
+
+		concurrencyLimitCh: concurrencyLimitCh,
+
+		concurrencyLimitReached: metrics.NewCounter(fmt.Sprintf(`vm_vmselect_concurrent_requests_limit_reached_total{addr=%q}`, addr)),
+		concurrencyLimitTimeout: metrics.NewCounter(fmt.Sprintf(`vm_vmselect_concurrent_requests_limit_timeout_total{addr=%q}`, addr)),
 
 		vmselectConns:      metrics.NewCounter(fmt.Sprintf(`vm_vmselect_conns{addr=%q}`, addr)),
 		vmselectConnErrors: metrics.NewCounter(fmt.Sprintf(`vm_vmselect_conn_errors_total{addr=%q}`, addr)),
@@ -103,10 +139,12 @@ func NewServer(addr string, api API, limits Limits, disableResponseCompression b
 		tsdbStatusRequests:          metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="tsdbStatus",addr=%q}`, addr)),
 		searchMetricNamesRequests:   metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="searchMetricNames",addr=%q}`, addr)),
 		searchRequests:              metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="search",addr=%q}`, addr)),
+		tenantsRequests:             metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="tenants",addr=%q}`, addr)),
 
 		metricBlocksRead: metrics.NewCounter(fmt.Sprintf(`vm_vmselect_metric_blocks_read_total{addr=%q}`, addr)),
 		metricRowsRead:   metrics.NewCounter(fmt.Sprintf(`vm_vmselect_metric_rows_read_total{addr=%q}`, addr)),
 	}
+
 	s.connsMap.Init()
 	s.wg.Add(1)
 	go func() {
@@ -161,7 +199,9 @@ func (s *Server) run() {
 					// c is closed inside Server.MustStop
 					return
 				}
-				logger.Errorf("cannot perform vmselect handshake with client %q: %s", c.RemoteAddr(), err)
+				if !errors.Is(err, handshake.ErrIgnoreHealthcheck) {
+					logger.Errorf("cannot perform vmselect handshake with client %q: %s", c.RemoteAddr(), err)
+				}
 				_ = c.Close()
 				return
 			}
@@ -213,8 +253,7 @@ func (s *Server) processConn(bc *handshake.BufferedConn) error {
 	}
 	for {
 		if err := s.processRequest(ctx); err != nil {
-			if err == io.EOF {
-				// Remote client gracefully closed the connection.
+			if isExpectedError(err) {
 				return nil
 			}
 			if errors.Is(err, storage.ErrDeadlineExceeded) {
@@ -226,6 +265,25 @@ func (s *Server) processConn(bc *handshake.BufferedConn) error {
 			return fmt.Errorf("cannot flush compressed buffers: %w", err)
 		}
 	}
+}
+
+func isExpectedError(err error) bool {
+	if err == io.EOF {
+		// Remote client gracefully closed the connection.
+		return true
+	}
+	if errors.Is(err, net.ErrClosed) {
+		return true
+	}
+	errStr := err.Error()
+	if strings.Contains(errStr, "broken pipe") || strings.Contains(errStr, "connection reset by peer") {
+		// The connection has been interrupted abruptly.
+		// It could happen due to unexpected network glitch or because connection was
+		// interrupted by remote client. In both cases, remote client will notice
+		// connection breach and handle it on its own. No need in mirroring the error here.
+		return true
+	}
+	return false
 }
 
 type vmselectRequestCtx struct {
@@ -465,6 +523,38 @@ func (s *Server) processRequest(ctx *vmselectRequestCtx) error {
 	return nil
 }
 
+func (s *Server) beginConcurrentRequest(ctx *vmselectRequestCtx) error {
+	select {
+	case s.concurrencyLimitCh <- struct{}{}:
+		return nil
+	default:
+		d := time.Duration(ctx.timeout) * time.Second
+		if d > s.limits.MaxQueueDuration {
+			d = s.limits.MaxQueueDuration
+		}
+		t := timerpool.Get(d)
+		s.concurrencyLimitReached.Inc()
+		select {
+		case s.concurrencyLimitCh <- struct{}{}:
+			timerpool.Put(t)
+			ctx.qt.Printf("wait in queue because -%s=%d concurrent requests are executed", s.limits.MaxConcurrentRequestsFlagName, s.limits.MaxConcurrentRequests)
+			return nil
+		case <-t.C:
+			timerpool.Put(t)
+			s.concurrencyLimitTimeout.Inc()
+			return fmt.Errorf("couldn't start executing the request in %.3f seconds, since -%s=%d concurrent requests "+
+				"are already executed. Possible solutions: to reduce the query load; to add more compute resources to the server; "+
+				"to increase -%s=%d; to increase -%s",
+				d.Seconds(), s.limits.MaxConcurrentRequestsFlagName, s.limits.MaxConcurrentRequests,
+				s.limits.MaxQueueDurationFlagName, s.limits.MaxQueueDuration, s.limits.MaxConcurrentRequestsFlagName)
+		}
+	}
+}
+
+func (s *Server) endConcurrentRequest() {
+	<-s.concurrencyLimitCh
+}
+
 func (s *Server) processRPC(ctx *vmselectRequestCtx, rpcName string) error {
 	switch rpcName {
 	case "search_v7":
@@ -485,6 +575,8 @@ func (s *Server) processRPC(ctx *vmselectRequestCtx, rpcName string) error {
 		return s.processDeleteSeries(ctx)
 	case "registerMetricNames_v3":
 		return s.processRegisterMetricNames(ctx)
+	case "tenants_v1":
+		return s.processTenants(ctx)
 	default:
 		return fmt.Errorf("unsupported rpcName: %q", rpcName)
 	}
@@ -518,6 +610,11 @@ func (s *Server) processRegisterMetricNames(ctx *vmselectRequestCtx) error {
 		mr.Timestamp = int64(n)
 	}
 
+	if err := s.beginConcurrentRequest(ctx); err != nil {
+		return ctx.writeErrorMessage(err)
+	}
+	defer s.endConcurrentRequest()
+
 	// Register metric names from mrs.
 	if err := s.api.RegisterMetricNames(ctx.qt, mrs, ctx.deadline); err != nil {
 		return ctx.writeErrorMessage(err)
@@ -537,6 +634,11 @@ func (s *Server) processDeleteSeries(ctx *vmselectRequestCtx) error {
 	if err := ctx.readSearchQuery(); err != nil {
 		return err
 	}
+
+	if err := s.beginConcurrentRequest(ctx); err != nil {
+		return ctx.writeErrorMessage(err)
+	}
+	defer s.endConcurrentRequest()
 
 	// Execute the request.
 	deletedCount, err := s.api.DeleteSeries(ctx.qt, &ctx.sq, ctx.deadline)
@@ -570,6 +672,11 @@ func (s *Server) processLabelNames(ctx *vmselectRequestCtx) error {
 		maxLabelNames = s.limits.MaxLabelNames
 	}
 
+	if err := s.beginConcurrentRequest(ctx); err != nil {
+		return ctx.writeErrorMessage(err)
+	}
+	defer s.endConcurrentRequest()
+
 	// Execute the request
 	labelNames, err := s.api.LabelNames(ctx.qt, &ctx.sq, maxLabelNames, ctx.deadline)
 	if err != nil {
@@ -583,6 +690,10 @@ func (s *Server) processLabelNames(ctx *vmselectRequestCtx) error {
 
 	// Send labelNames to vmselect
 	for _, labelName := range labelNames {
+		if len(labelName) == 0 {
+			// Skip empty label names, since they may break RPC communication with vmselect
+			continue
+		}
 		if err := ctx.writeString(labelName); err != nil {
 			return fmt.Errorf("cannot write label name %q: %w", labelName, err)
 		}
@@ -615,6 +726,11 @@ func (s *Server) processLabelValues(ctx *vmselectRequestCtx) error {
 		maxLabelValues = s.limits.MaxLabelValues
 	}
 
+	if err := s.beginConcurrentRequest(ctx); err != nil {
+		return ctx.writeErrorMessage(err)
+	}
+	defer s.endConcurrentRequest()
+
 	// Execute the request
 	labelValues, err := s.api.LabelValues(ctx.qt, &ctx.sq, labelName, maxLabelValues, ctx.deadline)
 	if err != nil {
@@ -629,7 +745,7 @@ func (s *Server) processLabelValues(ctx *vmselectRequestCtx) error {
 	// Send labelValues to vmselect
 	for _, labelValue := range labelValues {
 		if len(labelValue) == 0 {
-			// Skip empty label values, since they have no sense for prometheus.
+			// Skip empty label values, since they may break RPC communication with vmselect
 			continue
 		}
 		if err := ctx.writeString(labelValue); err != nil {
@@ -675,6 +791,11 @@ func (s *Server) processTagValueSuffixes(ctx *vmselectRequestCtx) error {
 		maxSuffixes = s.limits.MaxTagValueSuffixes
 	}
 
+	if err := s.beginConcurrentRequest(ctx); err != nil {
+		return ctx.writeErrorMessage(err)
+	}
+	defer s.endConcurrentRequest()
+
 	// Execute the request
 	suffixes, err := s.api.TagValueSuffixes(ctx.qt, accountID, projectID, tr, tagKey, tagValuePrefix, delimiter, maxSuffixes, ctx.deadline)
 	if err != nil {
@@ -716,6 +837,11 @@ func (s *Server) processSeriesCount(ctx *vmselectRequestCtx) error {
 		return err
 	}
 
+	if err := s.beginConcurrentRequest(ctx); err != nil {
+		return ctx.writeErrorMessage(err)
+	}
+	defer s.endConcurrentRequest()
+
 	// Execute the request
 	n, err := s.api.SeriesCount(ctx.qt, accountID, projectID, ctx.deadline)
 	if err != nil {
@@ -750,6 +876,11 @@ func (s *Server) processTSDBStatus(ctx *vmselectRequestCtx) error {
 		return fmt.Errorf("cannot read topN: %w", err)
 	}
 
+	if err := s.beginConcurrentRequest(ctx); err != nil {
+		return ctx.writeErrorMessage(err)
+	}
+	defer s.endConcurrentRequest()
+
 	// Execute the request
 	status, err := s.api.TSDBStatus(ctx.qt, &ctx.sq, focusLabel, int(topN), ctx.deadline)
 	if err != nil {
@@ -763,6 +894,47 @@ func (s *Server) processTSDBStatus(ctx *vmselectRequestCtx) error {
 
 	// Send status to vmselect.
 	return writeTSDBStatus(ctx, status)
+}
+
+func (s *Server) processTenants(ctx *vmselectRequestCtx) error {
+	s.tenantsRequests.Inc()
+
+	// Read request
+	tr, err := ctx.readTimeRange()
+	if err != nil {
+		return err
+	}
+
+	if err := s.beginConcurrentRequest(ctx); err != nil {
+		return ctx.writeErrorMessage(err)
+	}
+	defer s.endConcurrentRequest()
+
+	// Execute the request
+	tenants, err := s.api.Tenants(ctx.qt, tr, ctx.deadline)
+	if err != nil {
+		return ctx.writeErrorMessage(err)
+	}
+
+	// Send an empty error message to vmselect.
+	if err := ctx.writeString(""); err != nil {
+		return fmt.Errorf("cannot send empty error message: %w", err)
+	}
+
+	// Send tenants to vmselect
+	for _, tenant := range tenants {
+		if len(tenant) == 0 {
+			logger.Panicf("BUG: unexpected empty tenant name")
+		}
+		if err := ctx.writeString(tenant); err != nil {
+			return fmt.Errorf("cannot write tenant %q: %w", tenant, err)
+		}
+	}
+	// Send 'end of response' marker
+	if err := ctx.writeString(""); err != nil {
+		return fmt.Errorf("cannot send 'end of response' marker")
+	}
+	return nil
 }
 
 func writeTSDBStatus(ctx *vmselectRequestCtx, status *storage.TSDBStatus) error {
@@ -813,6 +985,11 @@ func (s *Server) processSearchMetricNames(ctx *vmselectRequestCtx) error {
 		return err
 	}
 
+	if err := s.beginConcurrentRequest(ctx); err != nil {
+		return ctx.writeErrorMessage(err)
+	}
+	defer s.endConcurrentRequest()
+
 	// Execute request.
 	metricNames, err := s.api.SearchMetricNames(ctx.qt, &ctx.sq, ctx.deadline)
 	if err != nil {
@@ -845,6 +1022,11 @@ func (s *Server) processSearch(ctx *vmselectRequestCtx) error {
 	if err := ctx.readSearchQuery(); err != nil {
 		return err
 	}
+
+	if err := s.beginConcurrentRequest(ctx); err != nil {
+		return ctx.writeErrorMessage(err)
+	}
+	defer s.endConcurrentRequest()
 
 	// Initiaialize the search.
 	startTime := time.Now()

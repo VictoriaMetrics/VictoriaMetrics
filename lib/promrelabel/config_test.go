@@ -50,7 +50,7 @@ func TestRelabelConfigMarshalUnmarshal(t *testing.T) {
 	f(`
 - action: keep
   regex: foobar
-`, "- regex: foobar\n  action: keep\n")
+  `, "- action: keep\n  regex: foobar\n")
 	f(`
 - regex:
   - 'fo.+'
@@ -80,11 +80,11 @@ func TestRelabelConfigMarshalUnmarshal(t *testing.T) {
 
 func TestLoadRelabelConfigsSuccess(t *testing.T) {
 	path := "testdata/relabel_configs_valid.yml"
-	pcs, err := LoadRelabelConfigs(path, false)
+	pcs, err := LoadRelabelConfigs(path)
 	if err != nil {
 		t.Fatalf("cannot load relabel configs from %q: %s", path, err)
 	}
-	nExpected := 16
+	nExpected := 18
 	if n := pcs.Len(); n != nExpected {
 		t.Fatalf("unexpected number of relabel configs loaded from %q; got %d; want %d", path, n, nExpected)
 	}
@@ -93,7 +93,7 @@ func TestLoadRelabelConfigsSuccess(t *testing.T) {
 func TestLoadRelabelConfigsFailure(t *testing.T) {
 	f := func(path string) {
 		t.Helper()
-		rcs, err := LoadRelabelConfigs(path, false)
+		rcs, err := LoadRelabelConfigs(path)
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
@@ -112,7 +112,7 @@ func TestLoadRelabelConfigsFailure(t *testing.T) {
 func TestParsedConfigsString(t *testing.T) {
 	f := func(rcs []RelabelConfig, sExpected string) {
 		t.Helper()
-		pcs, err := ParseRelabelConfigs(rcs, false)
+		pcs, err := ParseRelabelConfigs(rcs)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
@@ -126,8 +126,7 @@ func TestParsedConfigsString(t *testing.T) {
 			TargetLabel:  "foo",
 			SourceLabels: []string{"aaa"},
 		},
-	}, "[SourceLabels=[aaa], Separator=;, TargetLabel=foo, Regex=.*, Modulus=0, Replacement=$1, Action=replace, If=, "+
-		"graphiteMatchTemplate=<nil>, graphiteLabelRules=[]], relabelDebug=false")
+	}, "- source_labels: [aaa]\n  target_label: foo\n")
 	var ie IfExpression
 	if err := ie.Parse("{foo=~'bar'}"); err != nil {
 		t.Fatalf("unexpected error when parsing if expression: %s", err)
@@ -141,8 +140,8 @@ func TestParsedConfigsString(t *testing.T) {
 			},
 			If: &ie,
 		},
-	}, "[SourceLabels=[], Separator=;, TargetLabel=, Regex=.*, Modulus=0, Replacement=$1, Action=graphite, If={foo=~'bar'}, "+
-		"graphiteMatchTemplate=foo.*.bar, graphiteLabelRules=[replaceTemplate=$1-zz, targetLabel=job]], relabelDebug=false")
+	}, "- if: '{foo=~''bar''}'\n  action: graphite\n  match: foo.*.bar\n  labels:\n    job: $1-zz\n")
+	replacement := "foo"
 	f([]RelabelConfig{
 		{
 			Action:       "replace",
@@ -150,16 +149,26 @@ func TestParsedConfigsString(t *testing.T) {
 			TargetLabel:  "x",
 			If:           &ie,
 		},
-	}, "[SourceLabels=[foo bar], Separator=;, TargetLabel=x, Regex=.*, Modulus=0, Replacement=$1, Action=replace, If={foo=~'bar'}, "+
-		"graphiteMatchTemplate=<nil>, graphiteLabelRules=[]], relabelDebug=false")
+		{
+			TargetLabel: "x",
+			Replacement: &replacement,
+		},
+	}, "- if: '{foo=~''bar''}'\n  action: replace\n  source_labels: [foo, bar]\n  target_label: x\n- target_label: x\n  replacement: foo\n")
 }
 
 func TestParseRelabelConfigsSuccess(t *testing.T) {
 	f := func(rcs []RelabelConfig, pcsExpected *ParsedConfigs) {
 		t.Helper()
-		pcs, err := ParseRelabelConfigs(rcs, false)
+		pcs, err := ParseRelabelConfigs(rcs)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
+		}
+		if pcs != nil {
+			for _, prc := range pcs.prcs {
+				prc.ruleOriginal = ""
+				prc.stringReplacer = nil
+				prc.submatchReplacer = nil
+			}
 		}
 		if !reflect.DeepEqual(pcs, pcsExpected) {
 			t.Fatalf("unexpected pcs; got\n%#v\nwant\n%#v", pcs, pcsExpected)
@@ -192,7 +201,7 @@ func TestParseRelabelConfigsSuccess(t *testing.T) {
 func TestParseRelabelConfigsFailure(t *testing.T) {
 	f := func(rcs []RelabelConfig) {
 		t.Helper()
-		pcs, err := ParseRelabelConfigs(rcs, false)
+		pcs, err := ParseRelabelConfigs(rcs)
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
@@ -257,6 +266,26 @@ func TestParseRelabelConfigsFailure(t *testing.T) {
 			},
 		})
 	})
+	t.Run("keep_if_equal-unused-target-label", func(t *testing.T) {
+		f([]RelabelConfig{
+			{
+				Action:       "keep_if_equal",
+				SourceLabels: []string{"foo", "bar"},
+				TargetLabel:  "foo",
+			},
+		})
+	})
+	t.Run("keep_if_equal-unused-regex", func(t *testing.T) {
+		f([]RelabelConfig{
+			{
+				Action:       "keep_if_equal",
+				SourceLabels: []string{"foo", "bar"},
+				Regex: &MultiLineRegex{
+					S: "bar",
+				},
+			},
+		})
+	})
 	t.Run("drop_if_equal-missing-source-labels", func(t *testing.T) {
 		f([]RelabelConfig{
 			{
@@ -269,6 +298,80 @@ func TestParseRelabelConfigsFailure(t *testing.T) {
 			{
 				Action:       "drop_if_equal",
 				SourceLabels: []string{"foo"},
+			},
+		})
+	})
+	t.Run("drop_if_equal-unused-target-label", func(t *testing.T) {
+		f([]RelabelConfig{
+			{
+				Action:       "drop_if_equal",
+				SourceLabels: []string{"foo", "bar"},
+				TargetLabel:  "foo",
+			},
+		})
+	})
+	t.Run("drop_if_equal-unused-regex", func(t *testing.T) {
+		f([]RelabelConfig{
+			{
+				Action:       "drop_if_equal",
+				SourceLabels: []string{"foo", "bar"},
+				Regex: &MultiLineRegex{
+					S: "bar",
+				},
+			},
+		})
+	})
+	t.Run("keepequal-missing-source-labels", func(t *testing.T) {
+		f([]RelabelConfig{
+			{
+				Action: "keepequal",
+			},
+		})
+	})
+	t.Run("keepequal-missing-target-label", func(t *testing.T) {
+		f([]RelabelConfig{
+			{
+				Action:       "keepequal",
+				SourceLabels: []string{"foo"},
+			},
+		})
+	})
+	t.Run("keepequal-unused-regex", func(t *testing.T) {
+		f([]RelabelConfig{
+			{
+				Action:       "keepequal",
+				SourceLabels: []string{"foo"},
+				TargetLabel:  "foo",
+				Regex: &MultiLineRegex{
+					S: "bar",
+				},
+			},
+		})
+	})
+	t.Run("dropequal-missing-source-labels", func(t *testing.T) {
+		f([]RelabelConfig{
+			{
+				Action: "dropequal",
+			},
+		})
+	})
+	t.Run("dropequal-missing-target-label", func(t *testing.T) {
+		f([]RelabelConfig{
+			{
+				Action:       "dropequal",
+				SourceLabels: []string{"foo"},
+			},
+		})
+	})
+	t.Run("dropequal-unused-regex", func(t *testing.T) {
+		f([]RelabelConfig{
+			{
+				Action:       "dropequal",
+				SourceLabels: []string{"foo"},
+				TargetLabel:  "foo",
+				Regex: &MultiLineRegex{
+					S: "bar",
+				},
 			},
 		})
 	})

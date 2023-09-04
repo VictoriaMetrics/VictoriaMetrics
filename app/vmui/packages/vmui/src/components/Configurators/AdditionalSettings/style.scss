@@ -1,0 +1,23 @@
+@use "src/styles/variables" as *;
+
+.vm-additional-settings {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: $padding-medium;
+
+  &__input {
+    flex-basis: 160px;
+    margin-bottom: -6px;
+  }
+
+  &_mobile {
+    display: grid;
+    grid-template-columns: 1fr;
+    align-items: flex-start;
+    padding: 0 $padding-global;
+    gap: $padding-medium;
+    width: 100%;
+  }
+}

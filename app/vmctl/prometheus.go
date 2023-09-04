@@ -9,6 +9,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
 	"github.com/prometheus/prometheus/tsdb"
+	"github.com/prometheus/prometheus/tsdb/chunkenc"
 )
 
 type prometheusProcessor struct {
@@ -101,6 +102,7 @@ func (pp *prometheusProcessor) do(b tsdb.BlockReader) error {
 	if err != nil {
 		return fmt.Errorf("failed to read block: %s", err)
 	}
+	var it chunkenc.Iterator
 	for ss.Next() {
 		var name string
 		var labels []vm.LabelPair
@@ -122,8 +124,16 @@ func (pp *prometheusProcessor) do(b tsdb.BlockReader) error {
 
 		var timestamps []int64
 		var values []float64
-		it := series.Iterator()
-		for it.Next() {
+		it = series.Iterator(it)
+		for {
+			typ := it.Next()
+			if typ == chunkenc.ValNone {
+				break
+			}
+			if typ != chunkenc.ValFloat {
+				// Skip unsupported values
+				continue
+			}
 			t, v := it.At()
 			timestamps = append(timestamps, t)
 			values = append(values, v)

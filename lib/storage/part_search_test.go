@@ -1155,13 +1155,14 @@ func TestPartSearchMultiRowsOneTSID(t *testing.T) {
 func testPartSearchMultiRowsOneTSID(t *testing.T, rowsCount int) {
 	t.Helper()
 
+	rng := rand.New(rand.NewSource(1))
 	var rows []rawRow
 	var r rawRow
 	r.PrecisionBits = 24
 	r.TSID.MetricID = 1111
 	for i := 0; i < rowsCount; i++ {
-		r.Timestamp = int64(rand.NormFloat64() * 1e6)
-		r.Value = float64(int(rand.NormFloat64() * 1e5))
+		r.Timestamp = int64(rng.NormFloat64() * 1e6)
+		r.Value = float64(int(rng.NormFloat64() * 1e5))
 		rows = append(rows, r)
 	}
 
@@ -1191,20 +1192,21 @@ func TestPartSearchMultiRowsMultiTSIDs(t *testing.T) {
 func testPartSearchMultiRowsMultiTSIDs(t *testing.T, rowsCount, tsidsCount int) {
 	t.Helper()
 
+	rng := rand.New(rand.NewSource(2))
 	var rows []rawRow
 	var r rawRow
 	r.PrecisionBits = 24
 	for i := 0; i < rowsCount; i++ {
-		r.TSID.MetricID = uint64(rand.Intn(tsidsCount))
-		r.Timestamp = int64(rand.NormFloat64() * 1e6)
-		r.Value = float64(int(rand.NormFloat64() * 1e5))
+		r.TSID.MetricID = uint64(rng.Intn(tsidsCount))
+		r.Timestamp = int64(rng.NormFloat64() * 1e6)
+		r.Value = float64(int(rng.NormFloat64() * 1e5))
 		rows = append(rows, r)
 	}
 
 	var tsids []TSID
 	var tsid TSID
 	for i := 0; i < 100; i++ {
-		tsid.MetricID = uint64(rand.Intn(tsidsCount * 3))
+		tsid.MetricID = uint64(rng.Intn(tsidsCount * 3))
 		tsids = append(tsids, tsid)
 	}
 	sort.Slice(tsids, func(i, j int) bool { return tsids[i].Less(&tsids[j]) })
@@ -1423,9 +1425,6 @@ func getTestExpectedRawBlocks(rowsOriginal []rawRow, tsids []TSID, tr TimeRange)
 
 func newTestPart(rows []rawRow) *part {
 	mp := newTestInmemoryPart(rows)
-	p, err := mp.NewPart()
-	if err != nil {
-		panic(fmt.Errorf("cannot create new part: %w", err))
-	}
+	p := mp.NewPart()
 	return p
 }

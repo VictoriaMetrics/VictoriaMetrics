@@ -51,7 +51,7 @@ func timestampToPartitionName(timestamp int64) string {
 	return t.Format("2006_01")
 }
 
-// fromPartitionName initializes tr from the given parition name.
+// fromPartitionName initializes tr from the given partition name.
 func (tr *TimeRange) fromPartitionName(name string) error {
 	t, err := time.Parse("2006_01", name)
 	if err != nil {

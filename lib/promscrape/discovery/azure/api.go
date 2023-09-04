@@ -3,6 +3,8 @@ package azure
 import (
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"net/url"
 	"os"
 	"strconv"
@@ -13,7 +15,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
-	"github.com/VictoriaMetrics/fasthttp"
 )
 
 var configMap = discoveryutils.NewConfigMap()
@@ -109,7 +110,7 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 	if err != nil {
 		return nil, err
 	}
-	c, err := discoveryutils.NewClient(env.ResourceManagerEndpoint, ac, sdc.ProxyURL, proxyAC)
+	c, err := discoveryutils.NewClient(env.ResourceManagerEndpoint, ac, sdc.ProxyURL, proxyAC, &sdc.HTTPClientConfig)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create client for %q: %w", env.ResourceManagerEndpoint, err)
 	}
@@ -157,7 +158,7 @@ func readCloudEndpointsFromFile(filePath string) (*cloudEnvironmentEndpoints, er
 
 func getRefreshTokenFunc(sdc *SDConfig, ac, proxyAC *promauth.Config, env *cloudEnvironmentEndpoints) (refreshTokenFunc, error) {
 	var tokenEndpoint, tokenAPIPath string
-	var modifyRequest func(request *fasthttp.Request)
+	var modifyRequest func(request *http.Request)
 	authenticationMethod := sdc.AuthenticationMethod
 	if authenticationMethod == "" {
 		authenticationMethod = "OAuth"
@@ -182,9 +183,9 @@ func getRefreshTokenFunc(sdc *SDConfig, ac, proxyAC *promauth.Config, env *cloud
 		authParams := q.Encode()
 		tokenAPIPath = "/" + sdc.TenantID + "/oauth2/token"
 		tokenEndpoint = env.ActiveDirectoryEndpoint
-		modifyRequest = func(request *fasthttp.Request) {
-			request.SetBodyString(authParams)
-			request.Header.SetMethod("POST")
+		modifyRequest = func(request *http.Request) {
+			request.Body = io.NopCloser(strings.NewReader(authParams))
+			request.Method = http.MethodPost
 		}
 	case "managedidentity":
 		endpoint := "http://169.254.169.254/metadata/identity/oauth2/token"
@@ -198,11 +199,16 @@ func getRefreshTokenFunc(sdc *SDConfig, ac, proxyAC *promauth.Config, env *cloud
 		q := endpointURL.Query()
 
 		msiSecret := os.Getenv("MSI_SECRET")
+		identityHeader := os.Getenv("IDENTITY_HEADER")
 		clientIDParam := "client_id"
 		apiVersion := "2018-02-01"
 		if msiSecret != "" {
 			clientIDParam = "clientid"
 			apiVersion = "2017-09-01"
+		}
+		if identityHeader != "" {
+			clientIDParam = "client_id"
+			apiVersion = "2019-08-01"
 		}
 		q.Set("api-version", apiVersion)
 		q.Set(clientIDParam, sdc.ClientID)
@@ -210,9 +216,12 @@ func getRefreshTokenFunc(sdc *SDConfig, ac, proxyAC *promauth.Config, env *cloud
 		endpointURL.RawQuery = q.Encode()
 		tokenAPIPath = endpointURL.RequestURI()
 		tokenEndpoint = endpointURL.Scheme + "://" + endpointURL.Host
-		modifyRequest = func(request *fasthttp.Request) {
+		modifyRequest = func(request *http.Request) {
 			if msiSecret != "" {
 				request.Header.Set("secret", msiSecret)
+				if identityHeader != "" {
+					request.Header.Set("X-IDENTITY-HEADER", msiSecret)
+				}
 			} else {
 				request.Header.Set("Metadata", "true")
 			}
@@ -221,7 +230,7 @@ func getRefreshTokenFunc(sdc *SDConfig, ac, proxyAC *promauth.Config, env *cloud
 		return nil, fmt.Errorf("unsupported `authentication_method: %q` only `OAuth` and `ManagedIdentity` are supported", authenticationMethod)
 	}
 
-	authClient, err := discoveryutils.NewClient(tokenEndpoint, ac, sdc.ProxyURL, proxyAC)
+	authClient, err := discoveryutils.NewClient(tokenEndpoint, ac, sdc.ProxyURL, proxyAC, &sdc.HTTPClientConfig)
 	if err != nil {
 		return nil, fmt.Errorf("cannot build auth client: %w", err)
 	}
@@ -232,15 +241,38 @@ func getRefreshTokenFunc(sdc *SDConfig, ac, proxyAC *promauth.Config, env *cloud
 		}
 		var tr tokenResponse
 		if err := json.Unmarshal(data, &tr); err != nil {
-			return "", 0, fmt.Errorf("cannot parse token auth response %q: %w", string(data), err)
+			return "", 0, fmt.Errorf("cannot parse token auth response %q: %w", data, err)
 		}
-		expiresInSeconds, err := strconv.ParseInt(tr.ExpiresIn, 10, 64)
+
+		expiresInSeconds, err := parseTokenExpiry(tr)
 		if err != nil {
-			return "", 0, fmt.Errorf("cannot parse expiresIn param in token auth %q: %w", tr.ExpiresIn, err)
+			return "", 0, err
 		}
 		return tr.AccessToken, time.Second * time.Duration(expiresInSeconds), nil
 	}
 	return refreshToken, nil
+}
+
+// parseTokenExpiry returns token expiry in seconds
+func parseTokenExpiry(tr tokenResponse) (int64, error) {
+	var expiresInSeconds int64
+	var err error
+
+	if tr.ExpiresIn == "" {
+		var expiresOnSeconds int64
+		expiresOnSeconds, err = strconv.ParseInt(tr.ExpiresOn, 10, 64)
+		if err != nil {
+			return 0, fmt.Errorf("cannot parse expiresOn=%q in auth token response: %w", tr.ExpiresOn, err)
+		}
+		expiresInSeconds = expiresOnSeconds - time.Now().Unix()
+	} else {
+		expiresInSeconds, err = strconv.ParseInt(tr.ExpiresIn, 10, 64)
+		if err != nil {
+			return 0, fmt.Errorf("cannot parse expiresIn=%q auth token response: %w", tr.ExpiresIn, err)
+		}
+	}
+
+	return expiresInSeconds, nil
 }
 
 // mustGetAuthToken returns auth token
@@ -269,4 +301,5 @@ func (ac *apiConfig) mustGetAuthToken() string {
 type tokenResponse struct {
 	AccessToken string `json:"access_token"`
 	ExpiresIn   string `json:"expires_in"`
+	ExpiresOn   string `json:"expires_on"`
 }

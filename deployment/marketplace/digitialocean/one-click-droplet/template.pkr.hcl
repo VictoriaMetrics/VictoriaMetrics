@@ -58,7 +58,7 @@ build {
   # Install VictoriaMetrics
   provisioner "shell" {
     environment_vars = [
-      "VM_VER=${var.victoriametrics_version}",
+      "VM_VERSION=${var.victoriametrics_version}",
       "DEBIAN_FRONTEND=noninteractive"
     ]
     scripts = [

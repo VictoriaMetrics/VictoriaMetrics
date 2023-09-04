@@ -1,29 +1,33 @@
 package storage
 
 import (
+	"fmt"
 	"math/rand"
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 )
 
 func TestBlockMarshalUnmarshalPortable(t *testing.T) {
+	rng := rand.New(rand.NewSource(1))
 	var b Block
 	for i := 0; i < 1000; i++ {
 		b.Reset()
-		rowsCount := rand.Intn(maxRowsPerBlock) + 1
+		rowsCount := rng.Intn(maxRowsPerBlock) + 1
 		b.timestamps = getRandTimestamps(rowsCount)
 		b.values = getRandValues(rowsCount)
-		b.bh.Scale = int16(rand.Intn(30) - 15)
-		b.bh.PrecisionBits = 64
+		b.bh.Scale = int16(rng.Intn(30) - 15)
+		b.bh.PrecisionBits = uint8(64 - (i % 64))
 		testBlockMarshalUnmarshalPortable(t, &b)
 	}
 }
 
 func testBlockMarshalUnmarshalPortable(t *testing.T, b *Block) {
 	var b1, b2 Block
-	b1.CopyFrom(b)
 	rowsCount := len(b.values)
+	b1.CopyFrom(b)
 	data := b1.MarshalPortable(nil)
 	if b1.bh.RowsCount != uint32(rowsCount) {
 		t.Fatalf("unexpected number of rows marshaled; got %d; want %d", b1.bh.RowsCount, rowsCount)
@@ -60,10 +64,13 @@ func testBlockMarshalUnmarshalPortable(t *testing.T, b *Block) {
 	compareBlocksPortable(t, &b2, b, &b1.bh)
 }
 
-func compareBlocksPortable(t *testing.T, b1, b2 *Block, bhExpected *blockHeader) {
+func compareBlocksPortable(t *testing.T, b1, bExpected *Block, bhExpected *blockHeader) {
 	t.Helper()
 	if b1.bh.MinTimestamp != bhExpected.MinTimestamp {
 		t.Fatalf("unexpected MinTimestamp; got %d; want %d", b1.bh.MinTimestamp, bhExpected.MinTimestamp)
+	}
+	if b1.bh.MaxTimestamp != bhExpected.MaxTimestamp {
+		t.Fatalf("unexpected MinTimestamp; got %d; want %d", b1.bh.MaxTimestamp, bhExpected.MaxTimestamp)
 	}
 	if b1.bh.FirstValue != bhExpected.FirstValue {
 		t.Fatalf("unexpected FirstValue; got %d; want %d", b1.bh.FirstValue, bhExpected.FirstValue)
@@ -83,11 +90,15 @@ func compareBlocksPortable(t *testing.T, b1, b2 *Block, bhExpected *blockHeader)
 	if b1.bh.PrecisionBits != bhExpected.PrecisionBits {
 		t.Fatalf("unexpected PrecisionBits; got %d; want %d", b1.bh.PrecisionBits, bhExpected.PrecisionBits)
 	}
-	if !reflect.DeepEqual(b1.values, b2.values) {
-		t.Fatalf("unexpected values; got %d; want %d", b1.values, b2.values)
+
+	timestampsExpected := getTimestampsForPrecisionBits(bExpected.timestamps, bhExpected.PrecisionBits)
+	valuesExpected := getValuesForPrecisionBits(bExpected.values, bhExpected.PrecisionBits)
+
+	if !reflect.DeepEqual(b1.values, valuesExpected) {
+		t.Fatalf("unexpected values for precisionBits=%d; got\n%d\nwant\n%d", b1.bh.PrecisionBits, b1.values, valuesExpected)
 	}
-	if !reflect.DeepEqual(b1.timestamps, b2.timestamps) {
-		t.Fatalf("unexpected timestamps; got %d; want %d", b1.timestamps, b2.timestamps)
+	if !reflect.DeepEqual(b1.timestamps, timestampsExpected) {
+		t.Fatalf("unexpected timestamps for precisionBits=%d; got\n%d\nwant\n%d", b1.bh.PrecisionBits, b1.timestamps, timestampsExpected)
 	}
 	if len(b1.values) != int(bhExpected.RowsCount) {
 		t.Fatalf("unexpected number of values; got %d; want %d", len(b1.values), bhExpected.RowsCount)
@@ -97,20 +108,43 @@ func compareBlocksPortable(t *testing.T, b1, b2 *Block, bhExpected *blockHeader)
 	}
 }
 
+func getTimestampsForPrecisionBits(timestamps []int64, precisionBits uint8) []int64 {
+	data, marshalType, firstTimestamp := encoding.MarshalTimestamps(nil, timestamps, precisionBits)
+	timestampsAdjusted, err := encoding.UnmarshalTimestamps(nil, data, marshalType, firstTimestamp, len(timestamps))
+	if err != nil {
+		panic(fmt.Errorf("BUG: cannot unmarshal timestamps with precisionBits %d: %s", precisionBits, err))
+	}
+	minTimestamp := timestamps[0]
+	maxTimestamp := timestamps[len(timestamps)-1]
+	encoding.EnsureNonDecreasingSequence(timestampsAdjusted, minTimestamp, maxTimestamp)
+	return timestampsAdjusted
+}
+
+func getValuesForPrecisionBits(values []int64, precisionBits uint8) []int64 {
+	data, marshalType, firstValue := encoding.MarshalValues(nil, values, precisionBits)
+	valuesAdjusted, err := encoding.UnmarshalValues(nil, data, marshalType, firstValue, len(values))
+	if err != nil {
+		panic(fmt.Errorf("BUG: cannot unmarshal values with precisionBits %d: %s", precisionBits, err))
+	}
+	return valuesAdjusted
+}
+
 func getRandValues(rowsCount int) []int64 {
+	rng := rand.New(rand.NewSource(1))
 	a := make([]int64, rowsCount)
 	for i := 0; i < rowsCount; i++ {
-		a[i] = int64(rand.Intn(1e5) - 0.5e5)
+		a[i] = int64(rng.Intn(1e5) - 0.5e5)
 	}
 	return a
 }
 
 func getRandTimestamps(rowsCount int) []int64 {
+	rng := rand.New(rand.NewSource(1))
 	a := make([]int64, rowsCount)
-	ts := int64(rand.Intn(1e9))
+	ts := int64(rng.Intn(1e9))
 	for i := 0; i < rowsCount; i++ {
 		a[i] = ts
-		ts += int64(rand.Intn(1e5))
+		ts += int64(rng.Intn(1e5))
 	}
 	return a
 }

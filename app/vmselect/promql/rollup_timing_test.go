@@ -35,9 +35,10 @@ var (
 )
 
 var benchValues = func() []float64 {
+	r := rand.New(rand.NewSource(1))
 	values := make([]float64, 1000)
 	for i := range values {
-		values[i] = rand.Float64() * 100
+		values[i] = r.Float64() * 100
 	}
 	return values
 }()

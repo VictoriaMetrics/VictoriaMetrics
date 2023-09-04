@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 )
 
@@ -25,7 +26,7 @@ type SDConfig struct {
 }
 
 // GetLabels returns http service discovery labels according to sdc.
-func (sdc *SDConfig) GetLabels(baseDir string) ([]map[string]string, error) {
+func (sdc *SDConfig) GetLabels(baseDir string) ([]*promutils.Labels, error) {
 	cfg, err := getAPIConfig(sdc, baseDir)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get API config: %w", err)
@@ -37,17 +38,17 @@ func (sdc *SDConfig) GetLabels(baseDir string) ([]map[string]string, error) {
 	return addHTTPTargetLabels(hts, sdc.URL), nil
 }
 
-func addHTTPTargetLabels(src []httpGroupTarget, sourceURL string) []map[string]string {
-	ms := make([]map[string]string, 0, len(src))
+func addHTTPTargetLabels(src []httpGroupTarget, sourceURL string) []*promutils.Labels {
+	ms := make([]*promutils.Labels, 0, len(src))
 	for _, targetGroup := range src {
 		labels := targetGroup.Labels
 		for _, target := range targetGroup.Targets {
-			m := make(map[string]string, len(labels))
-			for k, v := range labels {
-				m[k] = v
-			}
-			m["__address__"] = target
-			m["__meta_url"] = sourceURL
+			m := promutils.NewLabels(2 + labels.Len())
+			m.AddFrom(labels)
+			m.Add("__address__", target)
+			m.Add("__meta_url", sourceURL)
+			// Remove possible duplicate labels, which can appear after AddFrom() call
+			m.RemoveDuplicates()
 			ms = append(ms, m)
 		}
 	}
@@ -56,5 +57,9 @@ func addHTTPTargetLabels(src []httpGroupTarget, sourceURL string) []map[string]s
 
 // MustStop stops further usage for sdc.
 func (sdc *SDConfig) MustStop() {
-	configMap.Delete(sdc)
+	v := configMap.Delete(sdc)
+	if v != nil {
+		cfg := v.(*apiConfig)
+		cfg.client.Stop()
+	}
 }

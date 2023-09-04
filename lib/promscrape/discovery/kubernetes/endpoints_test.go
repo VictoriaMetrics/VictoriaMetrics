@@ -4,8 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
 func TestParseEndpointsListFailure(t *testing.T) {
@@ -91,8 +90,8 @@ func TestParseEndpointsListSuccess(t *testing.T) {
 	}
 
 	sortedLabelss := getSortedLabelss(objectsByKey)
-	expectedLabelss := [][]prompbmarshal.Label{
-		discoveryutils.GetSortedLabels(map[string]string{
+	expectedLabelss := []*promutils.Labels{
+		promutils.NewLabelsFromMap(map[string]string{
 			"__address__": "172.17.0.2:8443",
 			"__meta_kubernetes_endpoint_address_target_kind":  "Pod",
 			"__meta_kubernetes_endpoint_address_target_name":  "coredns-6955765f44-lnp6t",
@@ -119,7 +118,7 @@ func TestGetEndpointsLabels(t *testing.T) {
 		containerPorts map[string][]ContainerPort
 		endpointPorts  []EndpointPort
 	}
-	f := func(t *testing.T, args testArgs, wantLabels [][]prompbmarshal.Label) {
+	f := func(t *testing.T, args testArgs, wantLabels []*promutils.Labels) {
 		t.Helper()
 		eps := Endpoints{
 			Metadata: ObjectMeta{
@@ -175,12 +174,7 @@ func TestGetEndpointsLabels(t *testing.T) {
 		}
 		node := Node{
 			Metadata: ObjectMeta{
-				Labels: []prompbmarshal.Label{
-					{
-						Name:  "node-label",
-						Value: "xyz",
-					},
-				},
+				Labels: promutils.NewLabelsFromMap(map[string]string{"node-label": "xyz"}),
 			},
 		}
 		for cn, ports := range args.containerPorts {
@@ -212,10 +206,11 @@ func TestGetEndpointsLabels(t *testing.T) {
 			},
 		}
 		gw.attachNodeMetadata = true
-		var sortedLabelss [][]prompbmarshal.Label
+		var sortedLabelss []*promutils.Labels
 		gotLabels := eps.getTargetLabels(&gw)
 		for _, lbs := range gotLabels {
-			sortedLabelss = append(sortedLabelss, discoveryutils.GetSortedLabels(lbs))
+			lbs.Sort()
+			sortedLabelss = append(sortedLabelss, lbs)
 		}
 		if !areEqualLabelss(sortedLabelss, wantLabels) {
 			t.Fatalf("unexpected labels:\ngot\n%v\nwant\n%v", sortedLabelss, wantLabels)
@@ -231,8 +226,8 @@ func TestGetEndpointsLabels(t *testing.T) {
 					Protocol: "foobar",
 				},
 			},
-		}, [][]prompbmarshal.Label{
-			discoveryutils.GetSortedLabels(map[string]string{
+		}, []*promutils.Labels{
+			promutils.NewLabelsFromMap(map[string]string{
 				"__address__": "10.13.15.15:8081",
 				"__meta_kubernetes_endpoint_address_target_kind": "Pod",
 				"__meta_kubernetes_endpoint_address_target_name": "test-pod",
@@ -272,8 +267,8 @@ func TestGetEndpointsLabels(t *testing.T) {
 					Protocol: "https",
 				},
 			},
-		}, [][]prompbmarshal.Label{
-			discoveryutils.GetSortedLabels(map[string]string{
+		}, []*promutils.Labels{
+			promutils.NewLabelsFromMap(map[string]string{
 				"__address__": "10.13.15.15:8081",
 				"__meta_kubernetes_endpoint_address_target_kind": "Pod",
 				"__meta_kubernetes_endpoint_address_target_name": "test-pod",
@@ -296,8 +291,11 @@ func TestGetEndpointsLabels(t *testing.T) {
 				"__meta_kubernetes_service_name":                 "test-eps",
 				"__meta_kubernetes_service_type":                 "service-type",
 			}),
-			discoveryutils.GetSortedLabels(map[string]string{
-				"__address__":                                    "192.168.15.1:8428",
+			promutils.NewLabelsFromMap(map[string]string{
+				"__address__": "192.168.15.1:8428",
+				"__meta_kubernetes_endpoint_address_target_kind": "Pod",
+				"__meta_kubernetes_endpoint_address_target_name": "test-pod",
+				"__meta_kubernetes_endpoints_name":               "test-eps",
 				"__meta_kubernetes_namespace":                    "default",
 				"__meta_kubernetes_node_label_node_label":        "xyz",
 				"__meta_kubernetes_node_labelpresent_node_label": "true",
@@ -335,8 +333,8 @@ func TestGetEndpointsLabels(t *testing.T) {
 					Protocol: "xabc",
 				},
 			},
-		}, [][]prompbmarshal.Label{
-			discoveryutils.GetSortedLabels(map[string]string{
+		}, []*promutils.Labels{
+			promutils.NewLabelsFromMap(map[string]string{
 				"__address__": "10.13.15.15:8428",
 				"__meta_kubernetes_endpoint_address_target_kind": "Pod",
 				"__meta_kubernetes_endpoint_address_target_name": "test-pod",

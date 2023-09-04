@@ -4,8 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
 func TestParsePodListFailure(t *testing.T) {
@@ -26,8 +25,7 @@ func TestParsePodListFailure(t *testing.T) {
 	f(`{"items":[{"metadata":{"labels":[1]}}]}`)
 }
 
-func TestParsePodListSuccess(t *testing.T) {
-	data := `
+const testPodsList = `
 {
   "kind": "PodList",
   "apiVersion": "v1",
@@ -229,7 +227,9 @@ func TestParsePodListSuccess(t *testing.T) {
   ]
 }
 `
-	r := bytes.NewBufferString(data)
+
+func TestParsePodListSuccess(t *testing.T) {
+	r := bytes.NewBufferString(testPodsList)
 	objectsByKey, meta, err := parsePodList(r)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
@@ -239,8 +239,8 @@ func TestParsePodListSuccess(t *testing.T) {
 		t.Fatalf("unexpected resource version; got %s; want %s", meta.ResourceVersion, expectedResourceVersion)
 	}
 	sortedLabelss := getSortedLabelss(objectsByKey)
-	expectedLabelss := [][]prompbmarshal.Label{
-		discoveryutils.GetSortedLabels(map[string]string{
+	expectedLabelss := []*promutils.Labels{
+		promutils.NewLabelsFromMap(map[string]string{
 			"__address__": "172.17.0.2:1234",
 
 			"__meta_kubernetes_namespace":                    "kube-system",
@@ -262,6 +262,7 @@ func TestParsePodListSuccess(t *testing.T) {
 			"__meta_kubernetes_pod_controller_kind":          "Node",
 			"__meta_kubernetes_pod_controller_name":          "m01",
 			"__meta_kubernetes_pod_container_init":           "false",
+			"__meta_kubernetes_pod_container_id":             "docker://a28f0800855008485376c1eece1cf61de97cb7026b9188d138b0d55d92fc2f5c",
 
 			"__meta_kubernetes_pod_label_component": "etcd",
 			"__meta_kubernetes_pod_label_tier":      "control-plane",

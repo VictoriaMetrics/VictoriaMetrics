@@ -160,7 +160,7 @@ func TestDerivValues(t *testing.T) {
 	testRowsEqual(t, values, timestamps, valuesExpected, timestamps)
 }
 
-func testRollupFunc(t *testing.T, funcName string, args []interface{}, meExpected *metricsql.MetricExpr, vExpected float64) {
+func testRollupFunc(t *testing.T, funcName string, args []interface{}, vExpected float64) {
 	t.Helper()
 	nrf := getRollupFunc(funcName)
 	if nrf == nil {
@@ -203,7 +203,7 @@ func TestRollupDurationOverTime(t *testing.T) {
 		}}
 		var me metricsql.MetricExpr
 		args := []interface{}{&metricsql.RollupExpr{Expr: &me}, maxIntervals}
-		testRollupFunc(t, "duration_over_time", args, &me, dExpected)
+		testRollupFunc(t, "duration_over_time", args, dExpected)
 	}
 	f(-123, 0)
 	f(0, 0)
@@ -224,7 +224,7 @@ func TestRollupShareLEOverTime(t *testing.T) {
 		}}
 		var me metricsql.MetricExpr
 		args := []interface{}{&metricsql.RollupExpr{Expr: &me}, les}
-		testRollupFunc(t, "share_le_over_time", args, &me, vExpected)
+		testRollupFunc(t, "share_le_over_time", args, vExpected)
 	}
 
 	f(-123, 0)
@@ -247,7 +247,7 @@ func TestRollupShareGTOverTime(t *testing.T) {
 		}}
 		var me metricsql.MetricExpr
 		args := []interface{}{&metricsql.RollupExpr{Expr: &me}, gts}
-		testRollupFunc(t, "share_gt_over_time", args, &me, vExpected)
+		testRollupFunc(t, "share_gt_over_time", args, vExpected)
 	}
 
 	f(-123, 1)
@@ -261,6 +261,25 @@ func TestRollupShareGTOverTime(t *testing.T) {
 	f(1000, 0)
 }
 
+func TestRollupShareEQOverTime(t *testing.T) {
+	f := func(eq, vExpected float64) {
+		t.Helper()
+		eqs := []*timeseries{{
+			Values:     []float64{eq},
+			Timestamps: []int64{123},
+		}}
+		var me metricsql.MetricExpr
+		args := []interface{}{&metricsql.RollupExpr{Expr: &me}, eqs}
+		testRollupFunc(t, "share_eq_over_time", args, vExpected)
+	}
+
+	f(-123, 0)
+	f(34, 0.3333333333333333)
+	f(44, 0.16666666666666666)
+	f(123, 0.08333333333333333)
+	f(1000, 0)
+}
+
 func TestRollupCountLEOverTime(t *testing.T) {
 	f := func(le, vExpected float64) {
 		t.Helper()
@@ -270,7 +289,7 @@ func TestRollupCountLEOverTime(t *testing.T) {
 		}}
 		var me metricsql.MetricExpr
 		args := []interface{}{&metricsql.RollupExpr{Expr: &me}, les}
-		testRollupFunc(t, "count_le_over_time", args, &me, vExpected)
+		testRollupFunc(t, "count_le_over_time", args, vExpected)
 	}
 
 	f(-123, 0)
@@ -293,7 +312,7 @@ func TestRollupCountGTOverTime(t *testing.T) {
 		}}
 		var me metricsql.MetricExpr
 		args := []interface{}{&metricsql.RollupExpr{Expr: &me}, gts}
-		testRollupFunc(t, "count_gt_over_time", args, &me, vExpected)
+		testRollupFunc(t, "count_gt_over_time", args, vExpected)
 	}
 
 	f(-123, 12)
@@ -316,7 +335,7 @@ func TestRollupCountEQOverTime(t *testing.T) {
 		}}
 		var me metricsql.MetricExpr
 		args := []interface{}{&metricsql.RollupExpr{Expr: &me}, eqs}
-		testRollupFunc(t, "count_eq_over_time", args, &me, vExpected)
+		testRollupFunc(t, "count_eq_over_time", args, vExpected)
 	}
 
 	f(-123, 0)
@@ -335,7 +354,7 @@ func TestRollupCountNEOverTime(t *testing.T) {
 		}}
 		var me metricsql.MetricExpr
 		args := []interface{}{&metricsql.RollupExpr{Expr: &me}, nes}
-		testRollupFunc(t, "count_ne_over_time", args, &me, vExpected)
+		testRollupFunc(t, "count_ne_over_time", args, vExpected)
 	}
 
 	f(-123, 12)
@@ -354,7 +373,7 @@ func TestRollupQuantileOverTime(t *testing.T) {
 		}}
 		var me metricsql.MetricExpr
 		args := []interface{}{phis, &metricsql.RollupExpr{Expr: &me}}
-		testRollupFunc(t, "quantile_over_time", args, &me, vExpected)
+		testRollupFunc(t, "quantile_over_time", args, vExpected)
 	}
 
 	f(-123, math.Inf(-1))
@@ -376,7 +395,7 @@ func TestRollupPredictLinear(t *testing.T) {
 		}}
 		var me metricsql.MetricExpr
 		args := []interface{}{&metricsql.RollupExpr{Expr: &me}, secs}
-		testRollupFunc(t, "predict_linear", args, &me, vExpected)
+		testRollupFunc(t, "predict_linear", args, vExpected)
 	}
 
 	f(0e-3, 65.07405077267295)
@@ -388,12 +407,7 @@ func TestRollupPredictLinear(t *testing.T) {
 func TestLinearRegression(t *testing.T) {
 	f := func(values []float64, timestamps []int64, expV, expK float64) {
 		t.Helper()
-		rfa := &rollupFuncArg{
-			values:        values,
-			timestamps:    timestamps,
-			currTimestamp: timestamps[0] + 100,
-		}
-		v, k := linearRegression(rfa)
+		v, k := linearRegression(values, timestamps, timestamps[0]+100)
 		if err := compareValues([]float64{v}, []float64{expV}); err != nil {
 			t.Fatalf("unexpected v err: %s", err)
 		}
@@ -420,7 +434,7 @@ func TestRollupHoltWinters(t *testing.T) {
 		}}
 		var me metricsql.MetricExpr
 		args := []interface{}{&metricsql.RollupExpr{Expr: &me}, sfs, tfs}
-		testRollupFunc(t, "holt_winters", args, &me, vExpected)
+		testRollupFunc(t, "holt_winters", args, vExpected)
 	}
 
 	f(-1, 0.5, nan)
@@ -448,7 +462,7 @@ func TestRollupHoeffdingBoundLower(t *testing.T) {
 		}}
 		var me metricsql.MetricExpr
 		args := []interface{}{phis, &metricsql.RollupExpr{Expr: &me}}
-		testRollupFunc(t, "hoeffding_bound_lower", args, &me, vExpected)
+		testRollupFunc(t, "hoeffding_bound_lower", args, vExpected)
 	}
 
 	f(0.5, 28.21949401521037)
@@ -469,7 +483,7 @@ func TestRollupHoeffdingBoundUpper(t *testing.T) {
 		}}
 		var me metricsql.MetricExpr
 		args := []interface{}{phis, &metricsql.RollupExpr{Expr: &me}}
-		testRollupFunc(t, "hoeffding_bound_upper", args, &me, vExpected)
+		testRollupFunc(t, "hoeffding_bound_upper", args, vExpected)
 	}
 
 	f(0.5, 65.9471726514563)
@@ -486,7 +500,7 @@ func TestRollupNewRollupFuncSuccess(t *testing.T) {
 		t.Helper()
 		var me metricsql.MetricExpr
 		args := []interface{}{&metricsql.RollupExpr{Expr: &me}}
-		testRollupFunc(t, funcName, args, &me, vExpected)
+		testRollupFunc(t, funcName, args, vExpected)
 	}
 
 	f("default_rollup", 34)
@@ -504,6 +518,7 @@ func TestRollupNewRollupFuncSuccess(t *testing.T) {
 	f("resets", 5)
 	f("range_over_time", 111)
 	f("avg_over_time", 47.083333333333336)
+	f("mad_over_time", 10)
 	f("min_over_time", 12)
 	f("max_over_time", 123)
 	f("tmin_over_time", 0.08)
@@ -587,8 +602,8 @@ func TestRollupNoWindowNoPoints(t *testing.T) {
 		}
 		rc.Timestamps = rc.getTimestamps()
 		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
-		if samplesScanned != 0 {
-			t.Fatalf("expecting zero samplesScanned from rollupConfig.Do; got %d", samplesScanned)
+		if samplesScanned != 12 {
+			t.Fatalf("expecting 12 samplesScanned from rollupConfig.Do; got %d", samplesScanned)
 		}
 		valuesExpected := []float64{nan, nan, nan, nan, nan}
 		timestampsExpected := []int64{0, 1, 2, 3, 4}
@@ -626,8 +641,8 @@ func TestRollupWindowNoPoints(t *testing.T) {
 		}
 		rc.Timestamps = rc.getTimestamps()
 		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
-		if samplesScanned != 0 {
-			t.Fatalf("expecting zero samplesScanned from rollupConfig.Do; got %d", samplesScanned)
+		if samplesScanned != 12 {
+			t.Fatalf("expecting 12 samplesScanned from rollupConfig.Do; got %d", samplesScanned)
 		}
 		valuesExpected := []float64{nan, nan, nan, nan, nan}
 		timestampsExpected := []int64{0, 1, 2, 3, 4}
@@ -644,8 +659,8 @@ func TestRollupWindowNoPoints(t *testing.T) {
 		}
 		rc.Timestamps = rc.getTimestamps()
 		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
-		if samplesScanned != 0 {
-			t.Fatalf("expecting zero samplesScanned from rollupConfig.Do; got %d", samplesScanned)
+		if samplesScanned != 12 {
+			t.Fatalf("expecting 12 samplesScanned from rollupConfig.Do; got %d", samplesScanned)
 		}
 		valuesExpected := []float64{nan, nan, nan, nan}
 		timestampsExpected := []int64{161, 171, 181, 191}
@@ -665,8 +680,8 @@ func TestRollupNoWindowPartialPoints(t *testing.T) {
 		}
 		rc.Timestamps = rc.getTimestamps()
 		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
-		if samplesScanned == 0 {
-			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
+		if samplesScanned != 15 {
+			t.Fatalf("expecting 15 samplesScanned from rollupConfig.Do; got %d", samplesScanned)
 		}
 		valuesExpected := []float64{nan, 123, nan, 34, nan, 44}
 		timestampsExpected := []int64{0, 5, 10, 15, 20, 25}
@@ -683,8 +698,8 @@ func TestRollupNoWindowPartialPoints(t *testing.T) {
 		}
 		rc.Timestamps = rc.getTimestamps()
 		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
-		if samplesScanned == 0 {
-			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
+		if samplesScanned != 16 {
+			t.Fatalf("expecting 16 samplesScanned from rollupConfig.Do; got %d", samplesScanned)
 		}
 		valuesExpected := []float64{44, 32, 34, nan}
 		timestampsExpected := []int64{100, 120, 140, 160}
@@ -701,8 +716,8 @@ func TestRollupNoWindowPartialPoints(t *testing.T) {
 		}
 		rc.Timestamps = rc.getTimestamps()
 		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
-		if samplesScanned == 0 {
-			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
+		if samplesScanned != 24 {
+			t.Fatalf("expecting 24 samplesScanned from rollupConfig.Do; got %d", samplesScanned)
 		}
 		valuesExpected := []float64{nan, nan, 123, 34, 32}
 		timestampsExpected := []int64{-50, 0, 50, 100, 150}
@@ -722,8 +737,8 @@ func TestRollupWindowPartialPoints(t *testing.T) {
 		}
 		rc.Timestamps = rc.getTimestamps()
 		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
-		if samplesScanned == 0 {
-			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
+		if samplesScanned != 16 {
+			t.Fatalf("expecting 16 samplesScanned from rollupConfig.Do; got %d", samplesScanned)
 		}
 		valuesExpected := []float64{nan, 123, 123, 34, 34}
 		timestampsExpected := []int64{0, 5, 10, 15, 20}
@@ -740,8 +755,8 @@ func TestRollupWindowPartialPoints(t *testing.T) {
 		}
 		rc.Timestamps = rc.getTimestamps()
 		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
-		if samplesScanned == 0 {
-			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
+		if samplesScanned != 16 {
+			t.Fatalf("expecting 16 samplesScanned from rollupConfig.Do; got %d", samplesScanned)
 		}
 		valuesExpected := []float64{44, 34, 34, nan}
 		timestampsExpected := []int64{100, 120, 140, 160}
@@ -758,8 +773,8 @@ func TestRollupWindowPartialPoints(t *testing.T) {
 		}
 		rc.Timestamps = rc.getTimestamps()
 		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
-		if samplesScanned == 0 {
-			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
+		if samplesScanned != 15 {
+			t.Fatalf("expecting 15 samplesScanned from rollupConfig.Do; got %d", samplesScanned)
 		}
 		valuesExpected := []float64{nan, 54, 44, nan}
 		timestampsExpected := []int64{0, 50, 100, 150}
@@ -779,8 +794,8 @@ func TestRollupFuncsLookbackDelta(t *testing.T) {
 		}
 		rc.Timestamps = rc.getTimestamps()
 		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
-		if samplesScanned == 0 {
-			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
+		if samplesScanned != 18 {
+			t.Fatalf("expecting 18 samplesScanned from rollupConfig.Do; got %d", samplesScanned)
 		}
 		valuesExpected := []float64{99, nan, 44, nan, 32, 34, nan}
 		timestampsExpected := []int64{80, 90, 100, 110, 120, 130, 140}
@@ -797,8 +812,8 @@ func TestRollupFuncsLookbackDelta(t *testing.T) {
 		}
 		rc.Timestamps = rc.getTimestamps()
 		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
-		if samplesScanned == 0 {
-			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
+		if samplesScanned != 18 {
+			t.Fatalf("expecting 18 samplesScanned from rollupConfig.Do; got %d", samplesScanned)
 		}
 		valuesExpected := []float64{99, nan, 44, nan, 32, 34, nan}
 		timestampsExpected := []int64{80, 90, 100, 110, 120, 130, 140}
@@ -815,8 +830,8 @@ func TestRollupFuncsLookbackDelta(t *testing.T) {
 		}
 		rc.Timestamps = rc.getTimestamps()
 		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
-		if samplesScanned == 0 {
-			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
+		if samplesScanned != 18 {
+			t.Fatalf("expecting 18 samplesScanned from rollupConfig.Do; got %d", samplesScanned)
 		}
 		valuesExpected := []float64{99, nan, 44, nan, 32, 34, nan}
 		timestampsExpected := []int64{80, 90, 100, 110, 120, 130, 140}
@@ -836,8 +851,8 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		}
 		rc.Timestamps = rc.getTimestamps()
 		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
-		if samplesScanned == 0 {
-			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
+		if samplesScanned != 24 {
+			t.Fatalf("expecting 24 samplesScanned from rollupConfig.Do; got %d", samplesScanned)
 		}
 		valuesExpected := []float64{nan, 123, 54, 44, 34}
 		timestampsExpected := []int64{0, 40, 80, 120, 160}
@@ -854,8 +869,8 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		}
 		rc.Timestamps = rc.getTimestamps()
 		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
-		if samplesScanned == 0 {
-			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
+		if samplesScanned != 24 {
+			t.Fatalf("expecting 24 samplesScanned from rollupConfig.Do; got %d", samplesScanned)
 		}
 		valuesExpected := []float64{nan, 4, 4, 3, 1}
 		timestampsExpected := []int64{0, 40, 80, 120, 160}
@@ -872,8 +887,8 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		}
 		rc.Timestamps = rc.getTimestamps()
 		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
-		if samplesScanned == 0 {
-			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
+		if samplesScanned != 24 {
+			t.Fatalf("expecting 24 samplesScanned from rollupConfig.Do; got %d", samplesScanned)
 		}
 		valuesExpected := []float64{nan, 21, 12, 32, 34}
 		timestampsExpected := []int64{0, 40, 80, 120, 160}
@@ -890,8 +905,8 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		}
 		rc.Timestamps = rc.getTimestamps()
 		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
-		if samplesScanned == 0 {
-			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
+		if samplesScanned != 24 {
+			t.Fatalf("expecting 24 samplesScanned from rollupConfig.Do; got %d", samplesScanned)
 		}
 		valuesExpected := []float64{nan, 123, 99, 44, 34}
 		timestampsExpected := []int64{0, 40, 80, 120, 160}
@@ -908,8 +923,8 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		}
 		rc.Timestamps = rc.getTimestamps()
 		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
-		if samplesScanned == 0 {
-			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
+		if samplesScanned != 24 {
+			t.Fatalf("expecting 24 samplesScanned from rollupConfig.Do; got %d", samplesScanned)
 		}
 		valuesExpected := []float64{nan, 222, 199, 110, 34}
 		timestampsExpected := []int64{0, 40, 80, 120, 160}
@@ -926,8 +941,8 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		}
 		rc.Timestamps = rc.getTimestamps()
 		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
-		if samplesScanned == 0 {
-			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
+		if samplesScanned != 24 {
+			t.Fatalf("expecting 24 samplesScanned from rollupConfig.Do; got %d", samplesScanned)
 		}
 		valuesExpected := []float64{nan, 21, -9, 22, 0}
 		timestampsExpected := []int64{0, 40, 80, 120, 160}
@@ -944,8 +959,8 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		}
 		rc.Timestamps = rc.getTimestamps()
 		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
-		if samplesScanned == 0 {
-			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
+		if samplesScanned != 24 {
+			t.Fatalf("expecting 24 samplesScanned from rollupConfig.Do; got %d", samplesScanned)
 		}
 		valuesExpected := []float64{nan, -102, -42, -10, nan}
 		timestampsExpected := []int64{0, 40, 80, 120, 160}
@@ -962,8 +977,8 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		}
 		rc.Timestamps = rc.getTimestamps()
 		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
-		if samplesScanned == 0 {
-			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
+		if samplesScanned != 24 {
+			t.Fatalf("expecting 24 samplesScanned from rollupConfig.Do; got %d", samplesScanned)
 		}
 		valuesExpected := []float64{123, 33, -87, 0}
 		timestampsExpected := []int64{10, 50, 90, 130}
@@ -980,8 +995,8 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		}
 		rc.Timestamps = rc.getTimestamps()
 		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
-		if samplesScanned == 0 {
-			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
+		if samplesScanned != 24 {
+			t.Fatalf("expecting 24 samplesScanned from rollupConfig.Do; got %d", samplesScanned)
 		}
 		valuesExpected := []float64{nan, 0.004, 0, 0, 0.03}
 		timestampsExpected := []int64{0, 40, 80, 120, 160}
@@ -998,8 +1013,8 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		}
 		rc.Timestamps = rc.getTimestamps()
 		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
-		if samplesScanned == 0 {
-			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
+		if samplesScanned != 24 {
+			t.Fatalf("expecting 24 samplesScanned from rollupConfig.Do; got %d", samplesScanned)
 		}
 		valuesExpected := []float64{nan, 0.031, 0.044, 0.04, 0.01}
 		timestampsExpected := []int64{0, 40, 80, 120, 160}
@@ -1016,8 +1031,8 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		}
 		rc.Timestamps = rc.getTimestamps()
 		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
-		if samplesScanned == 0 {
-			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
+		if samplesScanned != 47 {
+			t.Fatalf("expecting 47 samplesScanned from rollupConfig.Do; got %d", samplesScanned)
 		}
 		valuesExpected := []float64{nan, 0.031, 0.075, 0.115, 0.125}
 		timestampsExpected := []int64{0, 40, 80, 120, 160}
@@ -1034,8 +1049,8 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		}
 		rc.Timestamps = rc.getTimestamps()
 		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
-		if samplesScanned == 0 {
-			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
+		if samplesScanned != 24 {
+			t.Fatalf("expecting 24 samplesScanned from rollupConfig.Do; got %d", samplesScanned)
 		}
 		valuesExpected := []float64{nan, 0.010333333333333333, 0.011, 0.013333333333333334, 0.01}
 		timestampsExpected := []int64{0, 40, 80, 120, 160}
@@ -1052,8 +1067,8 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		}
 		rc.Timestamps = rc.getTimestamps()
 		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
-		if samplesScanned == 0 {
-			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
+		if samplesScanned != 35 {
+			t.Fatalf("expecting 35 samplesScanned from rollupConfig.Do; got %d", samplesScanned)
 		}
 		valuesExpected := []float64{nan, 0.010333333333333333, 0.010714285714285714, 0.012, 0.0125}
 		timestampsExpected := []int64{0, 40, 80, 120, 160}
@@ -1070,8 +1085,8 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		}
 		rc.Timestamps = rc.getTimestamps()
 		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
-		if samplesScanned == 0 {
-			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
+		if samplesScanned != 24 {
+			t.Fatalf("expecting 24 samplesScanned from rollupConfig.Do; got %d", samplesScanned)
 		}
 		valuesExpected := []float64{nan, 4, 4, 3, 0}
 		timestampsExpected := []int64{0, 40, 80, 120, 160}
@@ -1088,8 +1103,8 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		}
 		rc.Timestamps = rc.getTimestamps()
 		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
-		if samplesScanned == 0 {
-			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
+		if samplesScanned != 24 {
+			t.Fatalf("expecting 24 samplesScanned from rollupConfig.Do; got %d", samplesScanned)
 		}
 		valuesExpected := []float64{nan, 3, 3, 2, 0}
 		timestampsExpected := []int64{0, 40, 80, 120, 160}
@@ -1106,8 +1121,8 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		}
 		rc.Timestamps = rc.getTimestamps()
 		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
-		if samplesScanned == 0 {
-			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
+		if samplesScanned != 16 {
+			t.Fatalf("expecting 16 samplesScanned from rollupConfig.Do; got %d", samplesScanned)
 		}
 		valuesExpected := []float64{nan, 1, 1, 1, 1, 0}
 		timestampsExpected := []int64{0, 9, 18, 27, 36, 45}
@@ -1124,8 +1139,8 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		}
 		rc.Timestamps = rc.getTimestamps()
 		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
-		if samplesScanned == 0 {
-			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
+		if samplesScanned != 24 {
+			t.Fatalf("expecting 24 samplesScanned from rollupConfig.Do; got %d", samplesScanned)
 		}
 		valuesExpected := []float64{nan, 2, 2, 1, 0}
 		timestampsExpected := []int64{0, 40, 80, 120, 160}
@@ -1142,8 +1157,8 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		}
 		rc.Timestamps = rc.getTimestamps()
 		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
-		if samplesScanned == 0 {
-			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
+		if samplesScanned != 24 {
+			t.Fatalf("expecting 24 samplesScanned from rollupConfig.Do; got %d", samplesScanned)
 		}
 		valuesExpected := []float64{nan, 55.5, 49.75, 36.666666666666664, 34}
 		timestampsExpected := []int64{0, 40, 80, 120, 160}
@@ -1160,8 +1175,8 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		}
 		rc.Timestamps = rc.getTimestamps()
 		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
-		if samplesScanned == 0 {
-			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
+		if samplesScanned != 24 {
+			t.Fatalf("expecting 24 samplesScanned from rollupConfig.Do; got %d", samplesScanned)
 		}
 		valuesExpected := []float64{nan, -2879.310344827588, 127.87627310448904, -496.5831435079728, 0}
 		timestampsExpected := []int64{0, 40, 80, 120, 160}
@@ -1178,8 +1193,8 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		}
 		rc.Timestamps = rc.getTimestamps()
 		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
-		if samplesScanned == 0 {
-			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
+		if samplesScanned != 14 {
+			t.Fatalf("expecting 14 samplesScanned from rollupConfig.Do; got %d", samplesScanned)
 		}
 		valuesExpected := []float64{nan, nan, nan, 0, -8900, 0}
 		timestampsExpected := []int64{0, 4, 8, 12, 16, 20}
@@ -1196,8 +1211,8 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		}
 		rc.Timestamps = rc.getTimestamps()
 		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
-		if samplesScanned == 0 {
-			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
+		if samplesScanned != 24 {
+			t.Fatalf("expecting 24 samplesScanned from rollupConfig.Do; got %d", samplesScanned)
 		}
 		valuesExpected := []float64{nan, -1916.6666666666665, -43500, 400, 0}
 		timestampsExpected := []int64{0, 40, 80, 120, 160}
@@ -1214,8 +1229,8 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		}
 		rc.Timestamps = rc.getTimestamps()
 		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
-		if samplesScanned == 0 {
-			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
+		if samplesScanned != 24 {
+			t.Fatalf("expecting 24 samplesScanned from rollupConfig.Do; got %d", samplesScanned)
 		}
 		valuesExpected := []float64{nan, 39.81519810323691, 32.080952292598795, 5.2493385826745405, 0}
 		timestampsExpected := []int64{0, 40, 80, 120, 160}
@@ -1232,8 +1247,8 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		}
 		rc.Timestamps = rc.getTimestamps()
 		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
-		if samplesScanned == 0 {
-			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
+		if samplesScanned != 24 {
+			t.Fatalf("expecting 24 samplesScanned from rollupConfig.Do; got %d", samplesScanned)
 		}
 		valuesExpected := []float64{nan, 2.148, 1.593, 1.156, 1.36}
 		timestampsExpected := []int64{0, 40, 80, 120, 160}
@@ -1250,8 +1265,8 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		}
 		rc.Timestamps = rc.getTimestamps()
 		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
-		if samplesScanned == 0 {
-			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
+		if samplesScanned != 24 {
+			t.Fatalf("expecting 24 samplesScanned from rollupConfig.Do; got %d", samplesScanned)
 		}
 		valuesExpected := []float64{nan, 4, 4, 3, 1}
 		timestampsExpected := []int64{0, 40, 80, 120, 160}
@@ -1268,8 +1283,8 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		}
 		rc.Timestamps = rc.getTimestamps()
 		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
-		if samplesScanned == 0 {
-			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
+		if samplesScanned != 35 {
+			t.Fatalf("expecting 35 samplesScanned from rollupConfig.Do; got %d", samplesScanned)
 		}
 		valuesExpected := []float64{nan, 4, 7, 6, 3}
 		timestampsExpected := []int64{0, 40, 80, 120, 160}
@@ -1286,8 +1301,8 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		}
 		rc.Timestamps = rc.getTimestamps()
 		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
-		if samplesScanned == 0 {
-			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
+		if samplesScanned != 35 {
+			t.Fatalf("expecting 35 samplesScanned from rollupConfig.Do; got %d", samplesScanned)
 		}
 		valuesExpected := []float64{nan, 21, 34, 34, 34}
 		timestampsExpected := []int64{0, 40, 80, 120, 160}
@@ -1304,10 +1319,10 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		}
 		rc.Timestamps = rc.getTimestamps()
 		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
-		if samplesScanned == 0 {
-			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
+		if samplesScanned != 35 {
+			t.Fatalf("expecting 35 samplesScanned from rollupConfig.Do; got %d", samplesScanned)
 		}
-		valuesExpected := []float64{nan, 2775, 5262.5, 3678.5714285714284, 2880}
+		valuesExpected := []float64{nan, 2775, 5262.5, 3862.5, 1800}
 		timestampsExpected := []int64{0, 40, 80, 120, 160}
 		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
 	})
@@ -1322,8 +1337,8 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		}
 		rc.Timestamps = rc.getTimestamps()
 		values, samplesScanned := rc.Do("", nil, testValues, testTimestamps)
-		if samplesScanned == 0 {
-			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
+		if samplesScanned != 35 {
+			t.Fatalf("expecting 35 samplesScanned from rollupConfig.Do; got %d", samplesScanned)
 		}
 		valuesExpected := []float64{nan, -0.86650328627136, -1.1200838283548589, -0.40035755084856683, nan}
 		timestampsExpected := []int64{0, 40, 80, 120, 160}
@@ -1348,8 +1363,8 @@ func TestRollupBigNumberOfValues(t *testing.T) {
 		srcTimestamps[i] = int64(i / 2)
 	}
 	values, samplesScanned := rc.Do("", nil, srcValues, srcTimestamps)
-	if samplesScanned == 0 {
-		t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
+	if samplesScanned != 22002 {
+		t.Fatalf("expecting 22002 samplesScanned from rollupConfig.Do; got %d", samplesScanned)
 	}
 	valuesExpected := []float64{1, 4001, 8001, 9999, nan, nan}
 	timestampsExpected := []int64{0, 2000, 4000, 6000, 8000, 10000}
@@ -1425,19 +1440,16 @@ func TestRollupDelta(t *testing.T) {
 
 	// Small initial value
 	f(nan, nan, nan, []float64{1}, 1)
-	f(nan, nan, nan, []float64{10}, 10)
-	f(nan, nan, nan, []float64{100}, 100)
+	f(nan, nan, nan, []float64{10}, 0)
+	f(nan, nan, nan, []float64{100}, 0)
 	f(nan, nan, nan, []float64{1, 2, 3}, 3)
 	f(1, nan, nan, []float64{1, 2, 3}, 2)
 	f(nan, nan, nan, []float64{5, 6, 8}, 8)
 	f(2, nan, nan, []float64{5, 6, 8}, 6)
 
-	// Moderate initial value with zero delta after that.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/962
-	f(nan, nan, nan, []float64{100}, 100)
-	f(nan, nan, nan, []float64{100, 100}, 100)
+	f(nan, nan, nan, []float64{100, 100}, 0)
 
-	// Big initial value with with zero delta after that.
+	// Big initial value with zero delta after that.
 	f(nan, nan, nan, []float64{1000}, 0)
 	f(nan, nan, nan, []float64{1000, 1000}, 0)
 

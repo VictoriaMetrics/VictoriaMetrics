@@ -1,0 +1,61 @@
+@use "src/styles/variables" as *;
+
+.vm-popper {
+  position: fixed;
+  background-color: $color-background-block;
+  box-shadow: $box-shadow-popper;
+  z-index: -99;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 100ms ease-in-out;
+  border-radius: $border-radius-small;
+
+  &_open {
+    z-index: 101;
+    opacity: 1;
+    transform-origin: top center;
+    animation: vm-slider 150ms cubic-bezier(0.280, 0.840, 0.420, 1.1);
+    pointer-events: auto;
+  }
+
+  &_mobile {
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 100%;
+    border-radius: 0;
+    overflow: auto;
+    animation: none;
+  }
+
+  &-header {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: $padding-small;
+    align-items: center;
+    justify-content: space-between;
+    background-color: $color-background-block;
+    padding: $padding-small $padding-small $padding-small $padding-global;
+    border-radius: $border-radius-small $border-radius-small 0 0;
+    color: $color-text;
+    border-bottom: $border-divider;
+    margin-bottom: $padding-global;
+    min-height: 51px;
+
+    &__title {
+      font-weight: bold;
+      user-select: none;
+    }
+  }
+}
+
+@keyframes vm-slider {
+  0% {
+    transform: scaleY(0);
+  }
+  100% {
+    transform: scaleY(1);
+  }
+}

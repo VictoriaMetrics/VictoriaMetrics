@@ -1,0 +1,16 @@
+@use "src/styles/variables" as *;
+
+.vm-explore-metrics-graph {
+  padding: 0 $padding-global $padding-global;
+
+  &_mobile {
+    padding: 0 $padding-global $padding-global;
+  }
+
+  &__warning {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    justify-content: space-between;
+  }
+}

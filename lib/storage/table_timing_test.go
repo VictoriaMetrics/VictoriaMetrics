@@ -27,15 +27,16 @@ func benchmarkTableAddRows(b *testing.B, rowsPerInsert, tsidsCount int) {
 	startTimestamp := timestampFromTime(time.Now())
 	timestamp := startTimestamp
 	value := float64(100)
+	rng := rand.New(rand.NewSource(1))
 	for i := 0; i < rowsPerInsert; i++ {
 		r := &rows[i]
 		r.PrecisionBits = defaultPrecisionBits
-		r.TSID.MetricID = uint64(rand.Intn(tsidsCount) + 1)
+		r.TSID.MetricID = uint64(rng.Intn(tsidsCount) + 1)
 		r.Timestamp = timestamp
 		r.Value = value
 
-		timestamp += 10 + rand.Int63n(2)
-		value += float64(int(rand.NormFloat64() * 5))
+		timestamp += 10 + rng.Int63n(2)
+		value += float64(int(rng.NormFloat64() * 5))
 	}
 	timestampDelta := timestamp - startTimestamp
 
@@ -44,13 +45,10 @@ func benchmarkTableAddRows(b *testing.B, rowsPerInsert, tsidsCount int) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	b.SetBytes(int64(rowsCountExpected))
-	tablePath := "./benchmarkTableAddRows"
+	tablePath := "benchmarkTableAddRows"
+	strg := newTestStorage()
 	for i := 0; i < b.N; i++ {
-		var isReadOnly uint32
-		tb, err := openTable(tablePath, nilGetDeletedMetricIDs, maxRetentionMsecs, &isReadOnly)
-		if err != nil {
-			b.Fatalf("cannot open table %q: %s", tablePath, err)
-		}
+		tb := mustOpenTable(tablePath, strg)
 
 		workCh := make(chan struct{}, insertsCount)
 		for j := 0; j < insertsCount; j++ {
@@ -79,9 +77,7 @@ func benchmarkTableAddRows(b *testing.B, rowsPerInsert, tsidsCount int) {
 						r.Value++
 					}
 					// Add updated rowsCopy.
-					if err := tb.AddRows(rowsCopy); err != nil {
-						panic(fmt.Errorf("cannot add rows to table %q: %w", tablePath, err))
-					}
+					tb.MustAddRows(rowsCopy)
 				}
 
 				doneCh <- struct{}{}
@@ -95,14 +91,10 @@ func benchmarkTableAddRows(b *testing.B, rowsPerInsert, tsidsCount int) {
 		tb.MustClose()
 
 		// Open the table from files and verify the rows count on it
-		tb, err = openTable(tablePath, nilGetDeletedMetricIDs, maxRetentionMsecs, &isReadOnly)
-		if err != nil {
-			b.Fatalf("cannot open table %q: %s", tablePath, err)
-		}
+		tb = mustOpenTable(tablePath, strg)
 		var m TableMetrics
 		tb.UpdateMetrics(&m)
-		rowsCount := m.BigRowsCount + m.SmallRowsCount
-		if rowsCount != uint64(rowsCountExpected) {
+		if rowsCount := m.TotalRowsCount(); rowsCount != uint64(rowsCountExpected) {
 			b.Fatalf("unexpected rows count in the final table %q: got %d; want %d", tablePath, rowsCount, rowsCountExpected)
 		}
 		tb.MustClose()
@@ -112,4 +104,5 @@ func benchmarkTableAddRows(b *testing.B, rowsPerInsert, tsidsCount int) {
 			b.Fatalf("cannot remove table %q: %s", tablePath, err)
 		}
 	}
+	stopTestStorage(strg)
 }

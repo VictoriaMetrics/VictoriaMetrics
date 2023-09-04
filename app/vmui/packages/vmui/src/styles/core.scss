@@ -1,0 +1,110 @@
+@use "src/styles/variables" as *;
+
+html, body, #root {
+  font-family: $font-family-global;
+  font-size: $font-size;
+  color: $color-text;
+  min-height: 100%;
+  cursor: default;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  margin: 0;
+  background-color: $color-background-body;
+}
+
+body {
+  overflow: auto;
+}
+
+* {
+  font: inherit;
+  cursor: inherit;
+  touch-action: pan-x pan-y;
+  -webkit-tap-highlight-color: transparent;
+}
+
+code {
+  font-family: $font-family-monospace;
+}
+
+b {
+  font-weight: bold;
+}
+
+textarea,
+input {
+  cursor: text;
+}
+
+input::placeholder,
+textarea::placeholder {
+  user-select: none;
+}
+
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.vm-snackbar {
+  position: fixed;
+  left: $padding-global;
+  bottom: $padding-global;
+  z-index: 999;
+  animation: vm-slide-snackbar 150ms cubic-bezier(0.280, 0.840, 0.420, 1.1);
+
+  &-content {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+
+    &__close {
+      width: 24px;
+      height: 24px;
+      padding: 4px;
+      color: inherit;
+      opacity: 0.8;
+    }
+  }
+
+  &_mobile {
+    bottom: 0;
+    left: 0;
+    right: 0;
+  }
+
+  @keyframes vm-slide-snackbar {
+    0% {
+      transform: translateY(100%);
+    }
+    100% {
+      transform: translateY(0);
+    }
+  }
+}
+
+svg {
+  width: 100%;
+}
+
+/* Works on Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: $color-text-disabled $color-background-block;
+}
+
+/* Works on Chrome, Edge, and Safari */
+*::-webkit-scrollbar {
+  width: 12px;
+}
+
+*::-webkit-scrollbar-track {
+  background: $color-background-block;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: $color-text-disabled;
+  border-radius: 20px;
+  border: 3px solid $color-background-block;
+}

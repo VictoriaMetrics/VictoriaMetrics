@@ -90,8 +90,8 @@ func (h *ResponseHeader) SetContentRange(startPos, endPos, contentLength int) {
 
 // SetByteRange sets 'Range: bytes=startPos-endPos' header.
 //
-//     * If startPos is negative, then 'bytes=-startPos' value is set.
-//     * If endPos is negative, then 'bytes=startPos-' value is set.
+//   - If startPos is negative, then 'bytes=-startPos' value is set.
+//   - If endPos is negative, then 'bytes=startPos-' value is set.
 func (h *RequestHeader) SetByteRange(startPos, endPos int) {
 	h.parseRawHeaders()
 
@@ -1985,9 +1985,9 @@ func normalizeHeaderKey(b []byte) {
 // after dashes are also uppercased. All the other letters are lowercased.
 // Examples:
 //
-//   * coNTENT-TYPe -> Content-Type
-//   * HOST -> Host
-//   * foo-bar-baz -> Foo-Bar-Baz
+//   - coNTENT-TYPe -> Content-Type
+//   - HOST -> Host
+//   - foo-bar-baz -> Foo-Bar-Baz
 func AppendNormalizedHeaderKey(dst []byte, key string) []byte {
 	dst = append(dst, key...)
 	normalizeHeaderKey(dst[len(dst)-len(key):])
@@ -2001,9 +2001,9 @@ func AppendNormalizedHeaderKey(dst []byte, key string) []byte {
 // after dashes are also uppercased. All the other letters are lowercased.
 // Examples:
 //
-//   * coNTENT-TYPe -> Content-Type
-//   * HOST -> Host
-//   * foo-bar-baz -> Foo-Bar-Baz
+//   - coNTENT-TYPe -> Content-Type
+//   - HOST -> Host
+//   - foo-bar-baz -> Foo-Bar-Baz
 func AppendNormalizedHeaderKeyBytes(dst, key []byte) []byte {
 	return AppendNormalizedHeaderKey(dst, b2s(key))
 }

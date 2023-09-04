@@ -1,0 +1,59 @@
+@use "src/styles/variables" as *;
+
+.vm-predefined-panels {
+  display: grid;
+  gap: $padding-global;
+  align-items: flex-start;
+
+  @media (max-width: 768px) {
+    padding: $padding-medium 0;
+  }
+
+  @media (max-width: 500px) {
+    padding: $padding-small 0;
+  }
+
+  &-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-start;
+    font-size: $font-size-small;
+    gap: $padding-small;
+    overflow: hidden;
+
+    @media (max-width: 768px) {
+      padding: 0 $padding-global;
+    }
+
+    &__tab {
+      padding: $padding-small $padding-global;
+      border-radius: $border-radius-medium;
+      cursor: pointer;
+      transition: background 200ms ease-in-out, color 150ms ease-in;
+      background: $color-background-block;
+      text-transform: uppercase;
+      color: $color-text-secondary;
+      text-align: center;
+      border: 1px solid rgba($color-black, 0.2);
+
+      @media (max-width: 500px) {
+        flex-grow: 1;
+      }
+
+      &:hover {
+        color: $color-primary;
+      }
+
+      &_active {
+        border-color: $color-primary;
+        color: $color-primary;
+      }
+    }
+  }
+
+  &__dashboards {
+    display: grid;
+    gap: $padding-global;
+  }
+}

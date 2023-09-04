@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
 
@@ -66,10 +67,11 @@ func TestGetVirtualMachinesSuccess(t *testing.T) {
 				}
 			}))
 			defer testServer.Close()
-			c, err := discoveryutils.NewClient(testServer.URL, nil, nil, nil)
+			c, err := discoveryutils.NewClient(testServer.URL, nil, nil, nil, &promauth.HTTPClientConfig{})
 			if err != nil {
 				t.Fatalf("unexpected error at client create: %s", err)
 			}
+			defer c.Stop()
 			ac := &apiConfig{
 				c:              c,
 				subscriptionID: "some-id",

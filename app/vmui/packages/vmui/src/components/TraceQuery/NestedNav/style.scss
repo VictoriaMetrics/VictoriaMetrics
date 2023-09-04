@@ -1,0 +1,75 @@
+@use "src/styles/variables" as *;
+
+.vm-nested-nav {
+  margin-left: $padding-medium;
+  border-radius: $border-radius-small;
+  background-color: rgba($color-tropical-blue, 0.4);
+
+  &_mobile {
+    margin-left: $padding-small;
+  }
+
+  &_dark {
+    background-color: rgba($color-black, 0.1);
+  }
+
+  &-header {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: $padding-small;
+    padding: $padding-small;
+    border-radius: $border-radius-small;
+    transition: background-color 200ms ease-in-out;
+    cursor: pointer;
+
+    &:hover {
+      background-color: $color-hover-black;
+    }
+
+    &__icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      transition: transform 200ms ease-in-out;
+
+      &_open {
+        transform: rotate(180deg);
+      }
+    }
+
+    &__progress {
+      grid-column: 2;
+    }
+
+    &__message {
+      position: relative;
+      grid-column: 2;
+      line-height: 130%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      display: -moz-box;
+      -moz-box-orient: vertical;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      line-clamp: 3;
+
+      &_show-full {
+        display: block;
+        overflow: visible;
+      }
+    }
+
+    &-bottom {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      grid-column: 2;
+
+      &__duration {
+        color: $color-text-secondary;
+      }
+    }
+  }
+}

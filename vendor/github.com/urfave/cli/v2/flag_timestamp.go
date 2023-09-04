@@ -72,6 +72,25 @@ func (t *Timestamp) Get() interface{} {
 	return *t
 }
 
+// clone timestamp
+func (t *Timestamp) clone() *Timestamp {
+	tc := &Timestamp{
+		timestamp:  nil,
+		hasBeenSet: t.hasBeenSet,
+		layout:     t.layout,
+		location:   nil,
+	}
+	if t.timestamp != nil {
+		tts := *t.timestamp
+		tc.timestamp = &tts
+	}
+	if t.location != nil {
+		loc := *t.location
+		tc.location = &loc
+	}
+	return tc
+}
+
 // TakesValue returns true of the flag takes a value, otherwise false
 func (f *TimestampFlag) TakesValue() bool {
 	return true
@@ -101,7 +120,11 @@ func (f *TimestampFlag) GetDefaultText() string {
 	if f.DefaultText != "" {
 		return f.DefaultText
 	}
-	return f.GetValue()
+	if f.defaultValue != nil && f.defaultValue.timestamp != nil {
+		return f.defaultValue.timestamp.String()
+	}
+
+	return ""
 }
 
 // GetEnvVars returns the env vars for this flag
@@ -120,16 +143,17 @@ func (f *TimestampFlag) Apply(set *flag.FlagSet) error {
 	f.Value.SetLayout(f.Layout)
 	f.Value.SetLocation(f.Timezone)
 
-	if f.Destination != nil {
-		f.Destination.SetLayout(f.Layout)
-		f.Destination.SetLocation(f.Timezone)
-	}
+	f.defaultValue = f.Value.clone()
 
 	if val, source, found := flagFromEnvOrFile(f.EnvVars, f.FilePath); found {
 		if err := f.Value.Set(val); err != nil {
 			return fmt.Errorf("could not parse %q as timestamp value from %s for flag %s: %s", val, source, f.Name, err)
 		}
 		f.HasBeenSet = true
+	}
+
+	if f.Destination != nil {
+		*f.Destination = *f.Value
 	}
 
 	for _, name := range f.Names() {
@@ -146,6 +170,15 @@ func (f *TimestampFlag) Apply(set *flag.FlagSet) error {
 // Get returns the flag’s value in the given Context.
 func (f *TimestampFlag) Get(ctx *Context) *time.Time {
 	return ctx.Timestamp(f.Name)
+}
+
+// RunAction executes flag action if set
+func (f *TimestampFlag) RunAction(c *Context) error {
+	if f.Action != nil {
+		return f.Action(c, c.Timestamp(f.Name))
+	}
+
+	return nil
 }
 
 // Timestamp gets the timestamp from a flag name

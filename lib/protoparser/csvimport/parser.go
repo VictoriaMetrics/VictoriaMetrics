@@ -68,7 +68,7 @@ type metric struct {
 	Value float64
 }
 
-// Unmarshal unmarshal csv lines from s according to the given cds.
+// Unmarshal unmarshals csv lines from s according to the given cds.
 func (rs *Rows) Unmarshal(s string, cds []ColumnDescriptor) {
 	rs.sc.Init(s)
 	rs.Rows, rs.tagsPool, rs.metricsPool = parseRows(&rs.sc, rs.Rows[:0], rs.tagsPool[:0], rs.metricsPool[:0], cds)
@@ -88,6 +88,10 @@ func parseRows(sc *scanner, dst []Row, tags []Tag, metrics []metric, cds []Colum
 			}
 			cd := &cds[col]
 			col++
+			if cd.isEmpty() || sc.Column == "" {
+				// Ignore empty column.
+				continue
+			}
 			if parseTimestamp := cd.ParseTimestamp; parseTimestamp != nil {
 				timestamp, err := parseTimestamp(sc.Column)
 				if err != nil {
@@ -106,8 +110,7 @@ func parseRows(sc *scanner, dst []Row, tags []Tag, metrics []metric, cds []Colum
 			}
 			metricName := cd.MetricName
 			if metricName == "" {
-				// The given field is ignored.
-				continue
+				logger.Panicf("BUG: unexpected empty MetricName")
 			}
 			value, err := fastfloat.Parse(sc.Column)
 			if err != nil {
@@ -127,7 +130,7 @@ func parseRows(sc *scanner, dst []Row, tags []Tag, metrics []metric, cds []Colum
 			continue
 		}
 		if len(metrics) == 0 {
-			logger.Panicf("BUG: expecting at least a single metric in columnDescriptors=%#v", cds)
+			continue
 		}
 		r.Metric = metrics[0].Name
 		r.Tags = tags[tagsLen:]

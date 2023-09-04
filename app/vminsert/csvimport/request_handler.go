@@ -9,8 +9,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/csvimport"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/csvimport/stream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -26,10 +26,8 @@ func InsertHandler(at *auth.Token, req *http.Request) error {
 	if err != nil {
 		return err
 	}
-	return writeconcurrencylimiter.Do(func() error {
-		return parser.ParseStream(req, func(rows []parser.Row) error {
-			return insertRows(at, rows, extraLabels)
-		})
+	return stream.Parse(req, func(rows []parser.Row) error {
+		return insertRows(at, rows, extraLabels)
 	})
 }
 
@@ -38,6 +36,7 @@ func insertRows(at *auth.Token, rows []parser.Row, extraLabels []prompbmarshal.L
 	defer netstorage.PutInsertCtx(ctx)
 
 	ctx.Reset() // This line is required for initializing ctx internals.
+	perTenantRows := make(map[auth.Token]int)
 	hasRelabeling := relabel.HasRelabeling()
 	for i := range rows {
 		r := &rows[i]
@@ -59,12 +58,14 @@ func insertRows(at *auth.Token, rows []parser.Row, extraLabels []prompbmarshal.L
 			continue
 		}
 		ctx.SortLabelsIfNeeded()
-		if err := ctx.WriteDataPoint(at, ctx.Labels, r.Timestamp, r.Value); err != nil {
+		atLocal := ctx.GetLocalAuthToken(at)
+		if err := ctx.WriteDataPoint(atLocal, ctx.Labels, r.Timestamp, r.Value); err != nil {
 			return err
 		}
+		perTenantRows[*atLocal]++
 	}
 	rowsInserted.Add(len(rows))
-	rowsTenantInserted.Get(at).Add(len(rows))
+	rowsTenantInserted.MultiAdd(perTenantRows)
 	rowsPerInsert.Update(float64(len(rows)))
 	return ctx.FlushBufs()
 }

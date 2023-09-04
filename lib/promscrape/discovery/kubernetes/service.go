@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
 func (s *Service) key() string {
@@ -72,31 +73,30 @@ type ServicePort struct {
 // getTargetLabels returns labels for each port of the given s.
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#service
-func (s *Service) getTargetLabels(gw *groupWatcher) []map[string]string {
+func (s *Service) getTargetLabels(_ *groupWatcher) []*promutils.Labels {
 	host := fmt.Sprintf("%s.%s.svc", s.Metadata.Name, s.Metadata.Namespace)
-	var ms []map[string]string
+	var ms []*promutils.Labels
 	for _, sp := range s.Spec.Ports {
 		addr := discoveryutils.JoinHostPort(host, sp.Port)
-		m := map[string]string{
-			"__address__":                             addr,
-			"__meta_kubernetes_service_port_name":     sp.Name,
-			"__meta_kubernetes_service_port_number":   strconv.Itoa(sp.Port),
-			"__meta_kubernetes_service_port_protocol": sp.Protocol,
-		}
+		m := promutils.GetLabels()
+		m.Add("__address__", addr)
+		m.Add("__meta_kubernetes_service_port_name", sp.Name)
+		m.Add("__meta_kubernetes_service_port_number", strconv.Itoa(sp.Port))
+		m.Add("__meta_kubernetes_service_port_protocol", sp.Protocol)
 		s.appendCommonLabels(m)
 		ms = append(ms, m)
 	}
 	return ms
 }
 
-func (s *Service) appendCommonLabels(m map[string]string) {
-	m["__meta_kubernetes_namespace"] = s.Metadata.Namespace
-	m["__meta_kubernetes_service_name"] = s.Metadata.Name
-	m["__meta_kubernetes_service_type"] = s.Spec.Type
+func (s *Service) appendCommonLabels(m *promutils.Labels) {
+	m.Add("__meta_kubernetes_namespace", s.Metadata.Namespace)
+	m.Add("__meta_kubernetes_service_name", s.Metadata.Name)
+	m.Add("__meta_kubernetes_service_type", s.Spec.Type)
 	if s.Spec.Type != "ExternalName" {
-		m["__meta_kubernetes_service_cluster_ip"] = s.Spec.ClusterIP
+		m.Add("__meta_kubernetes_service_cluster_ip", s.Spec.ClusterIP)
 	} else {
-		m["__meta_kubernetes_service_external_name"] = s.Spec.ExternalName
+		m.Add("__meta_kubernetes_service_external_name", s.Spec.ExternalName)
 	}
 	s.Metadata.registerLabelsAndAnnotations("__meta_kubernetes_service", m)
 }

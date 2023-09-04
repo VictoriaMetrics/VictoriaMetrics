@@ -64,17 +64,18 @@ func TestManagerUpdateConcurrent(t *testing.T) {
 	wg := sync.WaitGroup{}
 	wg.Add(workers)
 	for i := 0; i < workers; i++ {
-		go func() {
+		go func(n int) {
 			defer wg.Done()
+			r := rand.New(rand.NewSource(int64(n)))
 			for i := 0; i < iterations; i++ {
-				rnd := rand.Intn(len(paths))
+				rnd := r.Intn(len(paths))
 				cfg, err := config.Parse([]string{paths[rnd]}, notifier.ValidateTemplates, true)
 				if err != nil { // update can fail and this is expected
 					continue
 				}
 				_ = m.update(context.Background(), cfg, false)
 			}
-		}()
+		}(i)
 	}
 	wg.Wait()
 }
@@ -338,4 +339,22 @@ func loadCfg(t *testing.T, path []string, validateAnnotations, validateExpressio
 		t.Fatal(err)
 	}
 	return cfg
+}
+
+func TestUrlValuesToStrings(t *testing.T) {
+	mapQueryParams := map[string][]string{
+		"param1": {"param1"},
+		"param2": {"anotherparam"},
+	}
+	expectedRes := []string{"param1=param1", "param2=anotherparam"}
+	res := urlValuesToStrings(mapQueryParams)
+
+	if len(res) != len(expectedRes) {
+		t.Errorf("Expected length %d, but got %d", len(expectedRes), len(res))
+	}
+	for ind, val := range expectedRes {
+		if val != res[ind] {
+			t.Errorf("Expected %v; but got %v", val, res[ind])
+		}
+	}
 }

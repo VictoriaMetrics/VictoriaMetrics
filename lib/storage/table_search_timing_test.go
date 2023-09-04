@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"path/filepath"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -13,8 +14,9 @@ import (
 )
 
 func TestMain(m *testing.M) {
+	isDebug = true
 	n := m.Run()
-	if err := os.RemoveAll("./benchmarkTableSearch"); err != nil {
+	if err := os.RemoveAll("benchmarkTableSearch"); err != nil {
 		panic(fmt.Errorf("cannot remove benchmark tables: %w", err))
 	}
 	os.Exit(n)
@@ -36,31 +38,27 @@ func BenchmarkTableSearch(b *testing.B) {
 	}
 }
 
-func openBenchTable(b *testing.B, startTimestamp int64, rowsPerInsert, rowsCount, tsidsCount int) *table {
+func openBenchTable(b *testing.B, startTimestamp int64, rowsPerInsert, rowsCount, tsidsCount int) (*table, *Storage) {
 	b.Helper()
 
-	path := fmt.Sprintf("./benchmarkTableSearch/rows%d_tsids%d", rowsCount, tsidsCount)
+	path := filepath.Join("benchmarkTableSearch", fmt.Sprintf("rows%d_tsids%d", rowsCount, tsidsCount))
 	if !createdBenchTables[path] {
 		createBenchTable(b, path, startTimestamp, rowsPerInsert, rowsCount, tsidsCount)
 		createdBenchTables[path] = true
 	}
-	var isReadOnly uint32
-	tb, err := openTable(path, nilGetDeletedMetricIDs, maxRetentionMsecs, &isReadOnly)
-	if err != nil {
-		b.Fatalf("cnanot open table %q: %s", path, err)
-	}
+	strg := newTestStorage()
+	tb := mustOpenTable(path, strg)
 
 	// Verify rows count in the table opened from files.
 	insertsCount := uint64((rowsCount + rowsPerInsert - 1) / rowsPerInsert)
 	rowsCountExpected := insertsCount * uint64(rowsPerInsert)
 	var m TableMetrics
 	tb.UpdateMetrics(&m)
-	rowsCountActual := m.BigRowsCount + m.SmallRowsCount
-	if rowsCountActual != rowsCountExpected {
-		b.Fatalf("unexpected rows count in the table %q; got %d; want %d", path, rowsCountActual, rowsCountExpected)
+	if rowsCount := m.TotalRowsCount(); rowsCount != rowsCountExpected {
+		b.Fatalf("unexpected rows count in the table %q; got %d; want %d", path, rowsCount, rowsCountExpected)
 	}
 
-	return tb
+	return tb, strg
 }
 
 var createdBenchTables = make(map[string]bool)
@@ -68,11 +66,8 @@ var createdBenchTables = make(map[string]bool)
 func createBenchTable(b *testing.B, path string, startTimestamp int64, rowsPerInsert, rowsCount, tsidsCount int) {
 	b.Helper()
 
-	var isReadOnly uint32
-	tb, err := openTable(path, nilGetDeletedMetricIDs, maxRetentionMsecs, &isReadOnly)
-	if err != nil {
-		b.Fatalf("cannot open table %q: %s", path, err)
-	}
+	strg := newTestStorage()
+	tb := mustOpenTable(path, strg)
 
 	insertsCount := uint64((rowsCount + rowsPerInsert - 1) / rowsPerInsert)
 	timestamp := uint64(startTimestamp)
@@ -80,37 +75,37 @@ func createBenchTable(b *testing.B, path string, startTimestamp int64, rowsPerIn
 	var wg sync.WaitGroup
 	for k := 0; k < cgroup.AvailableCPUs(); k++ {
 		wg.Add(1)
-		go func() {
+		go func(n int) {
+			rng := rand.New(rand.NewSource(int64(n)))
 			rows := make([]rawRow, rowsPerInsert)
 			value := float64(100)
 			for int(atomic.AddUint64(&insertsCount, ^uint64(0))) >= 0 {
 				for j := 0; j < rowsPerInsert; j++ {
-					ts := atomic.AddUint64(&timestamp, uint64(10+rand.Int63n(2)))
-					value += float64(int(rand.NormFloat64() * 5))
+					ts := atomic.AddUint64(&timestamp, uint64(10+rng.Int63n(2)))
+					value += float64(int(rng.NormFloat64() * 5))
 
 					r := &rows[j]
 					r.PrecisionBits = defaultPrecisionBits
-					r.TSID.MetricID = uint64(rand.Intn(tsidsCount) + 1)
+					r.TSID.MetricID = uint64(rng.Intn(tsidsCount) + 1)
 					r.Timestamp = int64(ts)
 					r.Value = value
 				}
-				if err := tb.AddRows(rows); err != nil {
-					panic(fmt.Errorf("cannot add %d rows: %w", rowsPerInsert, err))
-				}
+				tb.MustAddRows(rows)
 			}
 			wg.Done()
-		}()
+		}(k)
 	}
 	wg.Wait()
 
 	tb.MustClose()
+	stopTestStorage(strg)
 }
 
 func benchmarkTableSearch(b *testing.B, rowsCount, tsidsCount, tsidsSearch int) {
 	startTimestamp := timestampFromTime(time.Now()) - 365*24*3600*1000
 	rowsPerInsert := getMaxRawRowsPerShard()
 
-	tb := openBenchTable(b, startTimestamp, rowsPerInsert, rowsCount, tsidsCount)
+	tb, strg := openBenchTable(b, startTimestamp, rowsPerInsert, rowsCount, tsidsCount)
 	tr := TimeRange{
 		MinTimestamp: startTimestamp,
 		MaxTimestamp: (1 << 63) - 1,
@@ -141,4 +136,5 @@ func benchmarkTableSearch(b *testing.B, rowsCount, tsidsCount, tsidsSearch int) 
 	b.StopTimer()
 
 	tb.MustClose()
+	stopTestStorage(strg)
 }

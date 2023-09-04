@@ -16,6 +16,9 @@ type blockHeader struct {
 	// The first item.
 	firstItem []byte
 
+	// Whether commonPrefix and firstItem point to external data.
+	noCopy bool
+
 	// Marshal type used for block compression.
 	marshalType marshalType
 
@@ -40,8 +43,13 @@ func (bh *blockHeader) SizeBytes() int {
 }
 
 func (bh *blockHeader) Reset() {
-	bh.commonPrefix = bh.commonPrefix[:0]
-	bh.firstItem = bh.firstItem[:0]
+	if bh.noCopy {
+		bh.commonPrefix = nil
+		bh.firstItem = nil
+	} else {
+		bh.commonPrefix = bh.commonPrefix[:0]
+		bh.firstItem = bh.firstItem[:0]
+	}
 	bh.marshalType = marshalTypePlain
 	bh.itemsCount = 0
 	bh.itemsBlockOffset = 0
@@ -62,13 +70,17 @@ func (bh *blockHeader) Marshal(dst []byte) []byte {
 	return dst
 }
 
-func (bh *blockHeader) Unmarshal(src []byte) ([]byte, error) {
+// UnmarshalNoCopy unmarshals bh from src without copying the data from src.
+//
+// The src must remain unchanged while bh is in use.
+func (bh *blockHeader) UnmarshalNoCopy(src []byte) ([]byte, error) {
+	bh.noCopy = true
 	// Unmarshal commonPrefix
 	tail, cp, err := encoding.UnmarshalBytes(src)
 	if err != nil {
 		return tail, fmt.Errorf("cannot unmarshal commonPrefix: %w", err)
 	}
-	bh.commonPrefix = append(bh.commonPrefix[:0], cp...)
+	bh.commonPrefix = cp[:len(cp):len(cp)]
 	src = tail
 
 	// Unmarshal firstItem
@@ -76,7 +88,7 @@ func (bh *blockHeader) Unmarshal(src []byte) ([]byte, error) {
 	if err != nil {
 		return tail, fmt.Errorf("cannot unmarshal firstItem: %w", err)
 	}
-	bh.firstItem = append(bh.firstItem[:0], fi...)
+	bh.firstItem = fi[:len(fi):len(fi)]
 	src = tail
 
 	// Unmarshal marshalType
@@ -137,11 +149,13 @@ func (bh *blockHeader) Unmarshal(src []byte) ([]byte, error) {
 	return src, nil
 }
 
-// unmarshalBlockHeaders unmarshals all the block headers from src,
+// unmarshalBlockHeadersNoCopy unmarshals all the block headers from src,
 // appends them to dst and returns the appended result.
 //
 // Block headers must be sorted by bh.firstItem.
-func unmarshalBlockHeaders(dst []blockHeader, src []byte, blockHeadersCount int) ([]blockHeader, error) {
+//
+// It is expected that src remains unchanged while rhe returned blocks are in use.
+func unmarshalBlockHeadersNoCopy(dst []blockHeader, src []byte, blockHeadersCount int) ([]blockHeader, error) {
 	if blockHeadersCount <= 0 {
 		logger.Panicf("BUG: blockHeadersCount must be greater than 0; got %d", blockHeadersCount)
 	}
@@ -151,9 +165,9 @@ func unmarshalBlockHeaders(dst []blockHeader, src []byte, blockHeadersCount int)
 	}
 	dst = dst[:dstLen+blockHeadersCount]
 	for i := 0; i < blockHeadersCount; i++ {
-		tail, err := dst[dstLen+i].Unmarshal(src)
+		tail, err := dst[dstLen+i].UnmarshalNoCopy(src)
 		if err != nil {
-			return dst, fmt.Errorf("cannot unmarshal block header: %w", err)
+			return dst, fmt.Errorf("cannot unmarshal block header #%d out of %d: %w", i, blockHeadersCount, err)
 		}
 		src = tail
 	}

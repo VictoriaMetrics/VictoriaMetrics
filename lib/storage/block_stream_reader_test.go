@@ -17,11 +17,12 @@ func TestBlockStreamReaderSingleRow(t *testing.T) {
 }
 
 func TestBlockStreamReaderSingleBlockManyRows(t *testing.T) {
+	rng := rand.New(rand.NewSource(1))
 	var rows []rawRow
 	var r rawRow
 	r.PrecisionBits = defaultPrecisionBits
 	for i := 0; i < maxRowsPerBlock; i++ {
-		r.Value = rand.Float64()*1e9 - 5e8
+		r.Value = rng.Float64()*1e9 - 5e8
 		r.Timestamp = int64(i * 1e9)
 		rows = append(rows, r)
 	}
@@ -29,24 +30,26 @@ func TestBlockStreamReaderSingleBlockManyRows(t *testing.T) {
 }
 
 func TestBlockStreamReaderSingleTSIDManyBlocks(t *testing.T) {
+	rng := rand.New(rand.NewSource(1))
 	var rows []rawRow
 	var r rawRow
 	r.PrecisionBits = 1
 	for i := 0; i < 5*maxRowsPerBlock; i++ {
-		r.Value = rand.NormFloat64() * 1e4
-		r.Timestamp = int64(rand.NormFloat64() * 1e9)
+		r.Value = rng.NormFloat64() * 1e4
+		r.Timestamp = int64(rng.NormFloat64() * 1e9)
 		rows = append(rows, r)
 	}
 	testBlocksStreamReader(t, rows, 5)
 }
 
 func TestBlockStreamReaderManyTSIDSingleRow(t *testing.T) {
+	rng := rand.New(rand.NewSource(1))
 	var rows []rawRow
 	var r rawRow
 	r.PrecisionBits = defaultPrecisionBits
 	for i := 0; i < 1000; i++ {
 		r.TSID.MetricID = uint64(i)
-		r.Value = rand.Float64()*1e9 - 5e8
+		r.Value = rng.Float64()*1e9 - 5e8
 		r.Timestamp = int64(i * 1e9)
 		rows = append(rows, r)
 	}
@@ -54,28 +57,30 @@ func TestBlockStreamReaderManyTSIDSingleRow(t *testing.T) {
 }
 
 func TestBlockStreamReaderManyTSIDManyRows(t *testing.T) {
+	rng := rand.New(rand.NewSource(1))
 	var rows []rawRow
 	var r rawRow
 	r.PrecisionBits = defaultPrecisionBits
 	const blocks = 123
 	for i := 0; i < 3210; i++ {
 		r.TSID.MetricID = uint64((1e9 - i) % blocks)
-		r.Value = rand.Float64()
-		r.Timestamp = int64(rand.Float64() * 1e9)
+		r.Value = rng.Float64()
+		r.Timestamp = int64(rng.Float64() * 1e9)
 		rows = append(rows, r)
 	}
 	testBlocksStreamReader(t, rows, blocks)
 }
 
 func TestBlockStreamReaderReadConcurrent(t *testing.T) {
+	rng := rand.New(rand.NewSource(1))
 	var rows []rawRow
 	var r rawRow
 	r.PrecisionBits = defaultPrecisionBits
 	const blocks = 123
 	for i := 0; i < 3210; i++ {
 		r.TSID.MetricID = uint64((1e9 - i) % blocks)
-		r.Value = rand.Float64()
-		r.Timestamp = int64(rand.Float64() * 1e9)
+		r.Value = rng.Float64()
+		r.Timestamp = int64(rng.Float64() * 1e9)
 		rows = append(rows, r)
 	}
 	var mp inmemoryPart
@@ -101,7 +106,7 @@ func TestBlockStreamReaderReadConcurrent(t *testing.T) {
 
 func testBlockStreamReaderReadRows(mp *inmemoryPart, rows []rawRow) error {
 	var bsr blockStreamReader
-	bsr.InitFromInmemoryPart(mp)
+	bsr.MustInitFromInmemoryPart(mp)
 	rowsCount := 0
 	for bsr.NextBlock() {
 		if err := bsr.Block.UnmarshalData(); err != nil {
@@ -123,7 +128,7 @@ func testBlockStreamReaderReadRows(mp *inmemoryPart, rows []rawRow) error {
 func testBlocksStreamReader(t *testing.T, rows []rawRow, expectedBlocksCount int) {
 	t.Helper()
 
-	bsr := newTestBlockStreamReader(t, rows)
+	bsr := newTestBlockStreamReader(rows)
 	blocksCount := 0
 	rowsCount := 0
 	for bsr.NextBlock() {
@@ -146,10 +151,10 @@ func testBlocksStreamReader(t *testing.T, rows []rawRow, expectedBlocksCount int
 	}
 }
 
-func newTestBlockStreamReader(t *testing.T, rows []rawRow) *blockStreamReader {
+func newTestBlockStreamReader(rows []rawRow) *blockStreamReader {
 	var mp inmemoryPart
 	mp.InitFromRows(rows)
 	var bsr blockStreamReader
-	bsr.InitFromInmemoryPart(&mp)
+	bsr.MustInitFromInmemoryPart(&mp)
 	return &bsr
 }

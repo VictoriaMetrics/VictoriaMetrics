@@ -1,0 +1,17 @@
+@use "src/styles/variables" as *;
+
+.vm-code-example {
+  position: relative;
+  display: block;
+  padding: $padding-global;
+  white-space: pre-wrap;
+  border-radius: $border-radius-small;
+  background-color: rgba($color-black, 0.05);
+  overflow: auto;
+
+  &__copy {
+    position: absolute;
+    right: 10px;
+    top: 10px;
+  }
+}

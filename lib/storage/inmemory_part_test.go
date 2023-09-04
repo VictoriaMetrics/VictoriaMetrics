@@ -19,6 +19,7 @@ func TestInmemoryPartInitFromRows(t *testing.T) {
 		},
 	}, 1)
 
+	rng := rand.New(rand.NewSource(1))
 	var rows []rawRow
 	var r rawRow
 
@@ -27,8 +28,8 @@ func TestInmemoryPartInitFromRows(t *testing.T) {
 	initTestTSID(&r.TSID)
 	r.PrecisionBits = defaultPrecisionBits
 	for i := uint64(0); i < 1e4; i++ {
-		r.Timestamp = int64(rand.NormFloat64() * 1e7)
-		r.Value = rand.NormFloat64() * 100
+		r.Timestamp = int64(rng.NormFloat64() * 1e7)
+		r.Value = rng.NormFloat64() * 100
 
 		rows = append(rows, r)
 	}
@@ -39,8 +40,8 @@ func TestInmemoryPartInitFromRows(t *testing.T) {
 	for i := 0; i < 1e4; i++ {
 		initTestTSID(&r.TSID)
 		r.TSID.MetricID = uint64(i)
-		r.Timestamp = int64(rand.NormFloat64() * 1e7)
-		r.Value = rand.NormFloat64() * 100
+		r.Timestamp = int64(rng.NormFloat64() * 1e7)
+		r.Value = rng.NormFloat64() * 100
 		r.PrecisionBits = uint8(i%64) + 1
 
 		rows = append(rows, r)
@@ -77,7 +78,7 @@ func testInmemoryPartInitFromRows(t *testing.T, rows []rawRow, blocksCount int) 
 	}
 
 	var bsr blockStreamReader
-	bsr.InitFromInmemoryPart(&mp)
+	bsr.MustInitFromInmemoryPart(&mp)
 
 	rowsCount := 0
 	blockNum := 0

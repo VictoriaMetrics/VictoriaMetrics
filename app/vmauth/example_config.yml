@@ -12,32 +12,38 @@ users:
 
   # Requests with the 'Authorization: Bearer YYY' header are proxied to http://localhost:8428 ,
   # The `X-Scope-OrgID: foobar` http header is added to every proxied request.
+  # The `X-Server-Hostname:` http header is removed from the proxied response.
   # For example, http://vmauth:8427/api/v1/query is proxied to http://localhost:8428/api/v1/query
 - bearer_token: "YYY"
   url_prefix: "http://localhost:8428"
+  # extra headers to add to the request or remove from the request (if header value is empty)
   headers:
   - "X-Scope-OrgID: foobar"
+  # extra headers to add to the response or remove from the response (if header value is empty)
+  response_headers:
+  - "X-Server-Hostname:" # empty value means the header will be removed from the response
 
-  # The user for querying local single-node VictoriaMetrics.
   # All the requests to http://vmauth:8427 with the given Basic Auth (username:password)
-  # will be proxied to http://localhost:8428 .
+  # are proxied to http://localhost:8428 .
   # For example, http://vmauth:8427/api/v1/query is proxied to http://localhost:8428/api/v1/query
+  #
+  # The given user can send maximum 10 concurrent requests according to the provided max_concurrent_requests.
+  # Excess concurrent requests are rejected with 429 HTTP status code.
+  # See also -maxConcurrentPerUserRequests and -maxConcurrentRequests command-line flags.
 - username: "local-single-node"
   password: "***"
   url_prefix: "http://localhost:8428"
+  max_concurrent_requests: 10
 
-  # The user for querying local single-node VictoriaMetrics with extra_label team=dev.
   # All the requests to http://vmauth:8427 with the given Basic Auth (username:password)
-  # will be routed to http://localhost:8428 with extra_label=team=dev query arg.
+  # are proxied to http://localhost:8428 with extra_label=team=dev query arg.
   # For example, http://vmauth:8427/api/v1/query is routed to http://localhost:8428/api/v1/query?extra_label=team=dev
-- username: "local-single-node"
+- username: "local-single-node2"
   password: "***"
   url_prefix: "http://localhost:8428?extra_label=team=dev"
 
-  # The user for querying account 123 in VictoriaMetrics cluster
-  # See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format
   # All the requests to http://vmauth:8427 with the given Basic Auth (username:password)
-  # will be load-balanced among http://vmselect1:8481/select/123/prometheus and http://vmselect2:8481/select/123/prometheus
+  # are load-balanced among http://vmselect1:8481/select/123/prometheus and http://vmselect2:8481/select/123/prometheus
   # For example, http://vmauth:8427/api/v1/query is proxied to the following urls in a round-robin manner:
   #   - http://vmselect1:8481/select/123/prometheus/api/v1/select
   #   - http://vmselect2:8481/select/123/prometheus/api/v1/select
@@ -47,10 +53,8 @@ users:
   - "http://vmselect1:8481/select/123/prometheus"
   - "http://vmselect2:8481/select/123/prometheus"
 
-  # The user for inserting Prometheus data into VictoriaMetrics cluster under account 42
-  # See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format
   # All the requests to http://vmauth:8427 with the given Basic Auth (username:password)
-  # will be load-balanced between http://vminsert1:8480/insert/42/prometheus and http://vminsert2:8480/insert/42/prometheus
+  # are load-balanced between http://vminsert1:8480/insert/42/prometheus and http://vminsert2:8480/insert/42/prometheus
   # For example, http://vmauth:8427/api/v1/write is proxied to the following urls in a round-robin manner:
   #   - http://vminsert1:8480/insert/42/prometheus/api/v1/write
   #   - http://vminsert2:8480/insert/42/prometheus/api/v1/write
@@ -61,14 +65,22 @@ users:
   - "http://vminsert2:8480/insert/42/prometheus"
 
   # A single user for querying and inserting data:
+  #
   # - Requests to http://vmauth:8427/api/v1/query, http://vmauth:8427/api/v1/query_range
   #   and http://vmauth:8427/api/v1/label/<label_name>/values are proxied to the following urls in a round-robin manner:
   #     - http://vmselect1:8481/select/42/prometheus
   #     - http://vmselect2:8481/select/42/prometheus
   #   For example, http://vmauth:8427/api/v1/query is proxied to http://vmselect1:8480/select/42/prometheus/api/v1/query
   #   or to http://vmselect2:8480/select/42/prometheus/api/v1/query .
+  #
   # - Requests to http://vmauth:8427/api/v1/write are proxied to http://vminsert:8480/insert/42/prometheus/api/v1/write .
   #   The "X-Scope-OrgID: abc" http header is added to these requests.
+  #
+  # Request which do not match `src_paths` from the `url_map` are proxied to the urls from `default_url`
+  # in a round-robin manner. The original request path is passed in `request_path` query arg.
+  # For example, request to http://vmauth:8427/non/existing/path are proxied:
+  #  - to http://default1:8888/unsupported_url_handler?request_path=/non/existing/path
+  #  - or http://default2:8888/unsupported_url_handler?request_path=/non/existing/path
 - username: "foobar"
   url_map:
   - src_paths:
@@ -82,3 +94,16 @@ users:
     url_prefix: "http://vminsert:8480/insert/42/prometheus"
     headers:
     - "X-Scope-OrgID: abc"
+  default_url:
+  - "http://default1:8888/unsupported_url_handler"
+  - "http://default2:8888/unsupported_url_handler"
+
+# Requests without Authorization header are routed according to `unauthorized_user` section.
+unauthorized_user:
+  url_map:
+  - src_paths:
+    - /api/v1/query
+    - /api/v1/query_range
+    url_prefix:
+    - http://vmselect1:8481/select/0/prometheus
+    - http://vmselect2:8481/select/0/prometheus

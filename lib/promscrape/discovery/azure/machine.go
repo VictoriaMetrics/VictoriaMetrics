@@ -3,10 +3,11 @@ package azure
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/url"
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
-	"github.com/VictoriaMetrics/fasthttp"
 )
 
 // virtualMachine represents an Azure virtual machine (which can also be created by a VMSS)
@@ -28,9 +29,14 @@ type vmIPAddress struct {
 }
 
 type virtualMachineProperties struct {
-	NetworkProfile networkProfile `json:"networkProfile,omitempty"`
-	OsProfile      osProfile      `json:"osProfile,omitempty"`
-	StorageProfile storageProfile `json:"storageProfile,omitempty"`
+	NetworkProfile  networkProfile  `json:"networkProfile,omitempty"`
+	OsProfile       osProfile       `json:"osProfile,omitempty"`
+	StorageProfile  storageProfile  `json:"storageProfile,omitempty"`
+	HardwareProfile hardwareProfile `json:"hardwareProfile,omitempty"`
+}
+
+type hardwareProfile struct {
+	VMSize string `json:"vmSize,omitempty"`
 }
 
 type storageProfile struct {
@@ -44,6 +50,7 @@ type osDisk struct {
 type osProfile struct {
 	ComputerName string `json:"computerName,omitempty"`
 }
+
 type networkProfile struct {
 	// NetworkInterfaces - Specifies the list of resource Ids for the network interfaces associated with the virtual machine.
 	NetworkInterfaces []networkInterfaceReference `json:"networkInterfaces,omitempty"`
@@ -61,24 +68,39 @@ type listAPIResponse struct {
 
 // visitAllAPIObjects iterates over list API with pagination and applies cb for each response object
 func visitAllAPIObjects(ac *apiConfig, apiURL string, cb func(data json.RawMessage) error) error {
-	nextLink := apiURL
-	for nextLink != "" {
-		resp, err := ac.c.GetAPIResponseWithReqParams(nextLink, func(request *fasthttp.Request) {
+	nextLinkURI := apiURL
+	for {
+		resp, err := ac.c.GetAPIResponseWithReqParams(nextLinkURI, func(request *http.Request) {
 			request.Header.Set("Authorization", "Bearer "+ac.mustGetAuthToken())
 		})
 		if err != nil {
-			return fmt.Errorf("cannot execute azure api request at %s: %w", nextLink, err)
+			return fmt.Errorf("cannot execute azure api request at %s: %w", nextLinkURI, err)
 		}
 		var lar listAPIResponse
 		if err := json.Unmarshal(resp, &lar); err != nil {
-			return fmt.Errorf("cannot parse azure api response %q obtained from %s: %w", resp, nextLink, err)
+			return fmt.Errorf("cannot parse azure api response %q obtained from %s: %w", resp, nextLinkURI, err)
 		}
 		for i := range lar.Value {
 			if err := cb(lar.Value[i]); err != nil {
 				return err
 			}
 		}
-		nextLink = lar.NextLink
+
+		// Azure API returns NextLink with apiServer in it, so we need to remove it.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3247
+		if lar.NextLink == "" {
+			break
+		}
+		nextURL, err := url.Parse(lar.NextLink)
+		if err != nil {
+			return fmt.Errorf("cannot parse nextLink from response %q: %w", lar.NextLink, err)
+		}
+
+		if nextURL.Host != "" && nextURL.Host != ac.c.APIServer() {
+			return fmt.Errorf("unexpected nextLink host %q, expecting %q", nextURL.Host, ac.c.APIServer())
+		}
+
+		nextLinkURI = nextURL.RequestURI()
 	}
 	return nil
 }

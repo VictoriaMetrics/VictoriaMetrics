@@ -3,6 +3,9 @@ package docker
 import (
 	"reflect"
 	"testing"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
 func Test_parseContainers(t *testing.T) {
@@ -314,7 +317,7 @@ func Test_addContainerLabels(t *testing.T) {
 	tests := []struct {
 		name    string
 		c       container
-		want    []map[string]string
+		want    []*promutils.Labels
 		wantErr bool
 	}{
 		{
@@ -352,8 +355,8 @@ func Test_addContainerLabels(t *testing.T) {
 					},
 				},
 			},
-			want: []map[string]string{
-				{
+			want: []*promutils.Labels{
+				promutils.NewLabelsFromMap(map[string]string{
 					"__address__":                "172.17.0.2:8012",
 					"__meta_docker_container_id": "90bc3b31aa13da5c0b11af2e228d54b38428a84e25d4e249ae9e9c95e51a0700",
 					"__meta_docker_container_label_com_docker_compose_config_hash":      "c9f0bd5bb31921f94cff367d819a30a0cc08d4399080897a6c5cd74b983156ec",
@@ -370,7 +373,7 @@ func Test_addContainerLabels(t *testing.T) {
 					"__meta_docker_network_ip":                                          "172.17.0.2",
 					"__meta_docker_network_name":                                        "bridge",
 					"__meta_docker_network_scope":                                       "local",
-				},
+				}),
 			},
 		},
 		{
@@ -408,8 +411,8 @@ func Test_addContainerLabels(t *testing.T) {
 					},
 				},
 			},
-			want: []map[string]string{
-				{
+			want: []*promutils.Labels{
+				promutils.NewLabelsFromMap(map[string]string{
 					"__address__":                "foobar",
 					"__meta_docker_container_id": "90bc3b31aa13da5c0b11af2e228d54b38428a84e25d4e249ae9e9c95e51a0700",
 					"__meta_docker_container_label_com_docker_compose_config_hash":      "c9f0bd5bb31921f94cff367d819a30a0cc08d4399080897a6c5cd74b983156ec",
@@ -426,7 +429,7 @@ func Test_addContainerLabels(t *testing.T) {
 					"__meta_docker_network_ip":                                          "172.17.0.2",
 					"__meta_docker_network_name":                                        "bridge",
 					"__meta_docker_network_scope":                                       "local",
-				},
+				}),
 			},
 		},
 		{
@@ -475,8 +478,8 @@ func Test_addContainerLabels(t *testing.T) {
 					},
 				},
 			},
-			want: []map[string]string{
-				{
+			want: []*promutils.Labels{
+				promutils.NewLabelsFromMap(map[string]string{
 					"__address__":                "172.17.0.2:8080",
 					"__meta_docker_container_id": "90bc3b31aa13da5c0b11af2e228d54b38428a84e25d4e249ae9e9c95e51a0700",
 					"__meta_docker_container_label_com_docker_compose_config_hash":      "c9f0bd5bb31921f94cff367d819a30a0cc08d4399080897a6c5cd74b983156ec",
@@ -496,21 +499,19 @@ func Test_addContainerLabels(t *testing.T) {
 					"__meta_docker_port_private":                                        "8080",
 					"__meta_docker_port_public":                                         "18081",
 					"__meta_docker_port_public_ip":                                      "0.0.0.0",
-				},
+				}),
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			labelsMap := addContainersLabels([]container{tt.c}, networkLabels, 8012, "foobar")
+			labelss := addContainersLabels([]container{tt.c}, networkLabels, 8012, "foobar")
 			if (err != nil) != tt.wantErr {
 				t.Errorf("addContainersLabels() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(labelsMap, tt.want) {
-				t.Errorf("addContainersLabels() \ngot  %v, \nwant %v", labelsMap, tt.want)
-			}
+			discoveryutils.TestEqualLabelss(t, labelss, tt.want)
 		})
 	}
 }

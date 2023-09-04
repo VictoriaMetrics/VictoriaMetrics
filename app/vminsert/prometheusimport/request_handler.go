@@ -6,11 +6,12 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus/stream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -30,11 +31,11 @@ func InsertHandler(at *auth.Token, req *http.Request) error {
 	if err != nil {
 		return err
 	}
-	return writeconcurrencylimiter.Do(func() error {
-		isGzipped := req.Header.Get("Content-Encoding") == "gzip"
-		return parser.ParseStream(req.Body, defaultTimestamp, isGzipped, func(rows []parser.Row) error {
-			return insertRows(at, rows, extraLabels)
-		}, nil)
+	isGzipped := req.Header.Get("Content-Encoding") == "gzip"
+	return stream.Parse(req.Body, defaultTimestamp, isGzipped, func(rows []parser.Row) error {
+		return insertRows(at, rows, extraLabels)
+	}, func(s string) {
+		httpserver.LogError(req, s)
 	})
 }
 
@@ -43,6 +44,7 @@ func insertRows(at *auth.Token, rows []parser.Row, extraLabels []prompbmarshal.L
 	defer netstorage.PutInsertCtx(ctx)
 
 	ctx.Reset() // This line is required for initializing ctx internals.
+	perTenantRows := make(map[auth.Token]int)
 	hasRelabeling := relabel.HasRelabeling()
 	for i := range rows {
 		r := &rows[i]
@@ -64,12 +66,14 @@ func insertRows(at *auth.Token, rows []parser.Row, extraLabels []prompbmarshal.L
 			continue
 		}
 		ctx.SortLabelsIfNeeded()
-		if err := ctx.WriteDataPoint(at, ctx.Labels, r.Timestamp, r.Value); err != nil {
+		atLocal := ctx.GetLocalAuthToken(at)
+		if err := ctx.WriteDataPoint(atLocal, ctx.Labels, r.Timestamp, r.Value); err != nil {
 			return err
 		}
+		perTenantRows[*atLocal]++
 	}
 	rowsInserted.Add(len(rows))
-	rowsTenantInserted.Get(at).Add(len(rows))
+	rowsTenantInserted.MultiAdd(perTenantRows)
 	rowsPerInsert.Update(float64(len(rows)))
 	return ctx.FlushBufs()
 }

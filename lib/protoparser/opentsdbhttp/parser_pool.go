@@ -4,17 +4,17 @@ import (
 	"github.com/valyala/fastjson"
 )
 
-// getJSONParser returns JSON parser.
+// GetJSONParser returns JSON parser.
 //
-// The parser must be returned to the pool via putJSONParser when no longer needed.
-func getJSONParser() *fastjson.Parser {
+// The parser must be returned to the pool via PutJSONParser when no longer needed.
+func GetJSONParser() *fastjson.Parser {
 	return parserPool.Get()
 }
 
-// putJSONParser returns p to the pool.
+// PutJSONParser returns p to the pool.
 //
 // p cannot be used after returning to the pool.
-func putJSONParser(p *fastjson.Parser) {
+func PutJSONParser(p *fastjson.Parser) {
 	parserPool.Put(p)
 }
 

@@ -19,9 +19,9 @@ import (
 	"io"
 	"time"
 
+	"cloud.google.com/go/iam/apiv1/iampb"
 	gax "github.com/googleapis/gax-go/v2"
 	"google.golang.org/api/option"
-	iampb "google.golang.org/genproto/googleapis/iam/v1"
 )
 
 // TODO(noahdietz): Move existing factory methods to this file.
@@ -317,10 +317,11 @@ type destinationObject struct {
 }
 
 type rewriteObjectRequest struct {
-	srcObject     sourceObject
-	dstObject     destinationObject
-	predefinedACL string
-	token         string
+	srcObject                sourceObject
+	dstObject                destinationObject
+	predefinedACL            string
+	token                    string
+	maxBytesRewrittenPerCall int64
 }
 
 type rewriteObjectResponse struct {

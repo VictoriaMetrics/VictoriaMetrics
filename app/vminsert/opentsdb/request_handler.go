@@ -7,10 +7,9 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentsdb"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentsdb/stream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
-	"github.com/valyala/fastjson/fastfloat"
 )
 
 var (
@@ -23,10 +22,8 @@ var (
 //
 // See http://opentsdb.net/docs/build/html/api_telnet/put.html
 func InsertHandler(at *auth.Token, r io.Reader) error {
-	return writeconcurrencylimiter.Do(func() error {
-		return parser.ParseStream(r, func(rows []parser.Row) error {
-			return insertRows(at, rows)
-		})
+	return stream.Parse(r, func(rows []parser.Row) error {
+		return insertRows(at, rows)
 	})
 }
 
@@ -35,7 +32,7 @@ func insertRows(at *auth.Token, rows []parser.Row) error {
 	defer netstorage.PutInsertCtx(ctx)
 
 	ctx.Reset() // This line is required for initializing ctx internals.
-	atCopy := *at
+	perTenantRows := make(map[auth.Token]int)
 	hasRelabeling := relabel.HasRelabeling()
 	for i := range rows {
 		r := &rows[i]
@@ -43,16 +40,6 @@ func insertRows(at *auth.Token, rows []parser.Row) error {
 		ctx.AddLabel("", r.Metric)
 		for j := range r.Tags {
 			tag := &r.Tags[j]
-			if atCopy.AccountID == 0 {
-				// Multi-tenancy support via custom tags.
-				// Do not allow overriding AccountID and ProjectID from atCopy for security reasons.
-				if tag.Key == "VictoriaMetrics_AccountID" {
-					atCopy.AccountID = uint32(fastfloat.ParseUint64BestEffort(tag.Value))
-				}
-				if atCopy.ProjectID == 0 && tag.Key == "VictoriaMetrics_ProjectID" {
-					atCopy.ProjectID = uint32(fastfloat.ParseUint64BestEffort(tag.Value))
-				}
-			}
 			ctx.AddLabel(tag.Key, tag.Value)
 		}
 		if hasRelabeling {
@@ -63,13 +50,14 @@ func insertRows(at *auth.Token, rows []parser.Row) error {
 			continue
 		}
 		ctx.SortLabelsIfNeeded()
-		if err := ctx.WriteDataPoint(&atCopy, ctx.Labels, r.Timestamp, r.Value); err != nil {
+		atLocal := ctx.GetLocalAuthToken(at)
+		if err := ctx.WriteDataPoint(atLocal, ctx.Labels, r.Timestamp, r.Value); err != nil {
 			return err
 		}
+		perTenantRows[*atLocal]++
 	}
-	// Assume that all the rows for a single connection belong to the same (AccountID, ProjectID).
 	rowsInserted.Add(len(rows))
-	rowsTenantInserted.Get(&atCopy).Add(len(rows))
+	rowsTenantInserted.MultiAdd(perTenantRows)
 	rowsPerInsert.Update(float64(len(rows)))
 	return ctx.FlushBufs()
 }

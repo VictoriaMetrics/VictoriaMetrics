@@ -221,7 +221,7 @@ func getAPIResponse(apiURL string, cfg *apiConfig) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	req, err := http.NewRequest("GET", apiURL, nil)
+	req, err := http.NewRequest(http.MethodGet, apiURL, nil)
 	if err != nil {
 		logger.Panicf("BUG: cannot create new request for yandex cloud api url %s: %s", apiURL, err)
 	}

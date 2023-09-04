@@ -2,7 +2,8 @@ PKG_PREFIX := github.com/VictoriaMetrics/VictoriaMetrics
 
 DATEINFO_TAG ?= $(shell date -u +'%Y%m%d-%H%M%S')
 BUILDINFO_TAG ?= $(shell echo $$(git describe --long --all | tr '/' '-')$$( \
-	      git diff-index --quiet HEAD -- || echo '-dirty-'$$(git diff-index -u HEAD | openssl sha1 | cut -c 10-17)))
+	      git diff-index --quiet HEAD -- || echo '-dirty-'$$(git diff-index -u HEAD | openssl sha1 | cut -d' ' -f2 | cut -c 1-8)))
+LATEST_TAG ?= cluster-latest
 
 PKG_TAG ?= $(shell git tag -l --points-at HEAD)
 ifeq ($(PKG_TAG),)
@@ -15,6 +16,8 @@ GO_BUILDINFO = -X '$(PKG_PREFIX)/lib/buildinfo.Version=$(APP_NAME)-$(DATEINFO_TA
 
 include app/*/Makefile
 include deployment/*/Makefile
+include dashboards/Makefile
+include package/release/Makefile
 
 all: \
 	vminsert \
@@ -64,6 +67,11 @@ vmcluster-openbsd-amd64: \
 	vmselect-openbsd-amd64 \
 	vmstorage-openbsd-amd64
 
+vmcluster-windows-amd64: \
+	vminsert-windows-amd64 \
+	vmselect-windows-amd64 \
+	vmstorage-windows-amd64
+
 vmcluster-crossbuild: \
 	vmcluster-linux-amd64 \
 	vmcluster-linux-arm64 \
@@ -73,7 +81,7 @@ vmcluster-crossbuild: \
 	vmcluster-freebsd-amd64 \
 	vmcluster-openbsd-amd64
 
-publish: docker-scan \
+publish: package-base \
 	publish-vminsert \
 	publish-vmselect \
 	publish-vmstorage
@@ -84,10 +92,11 @@ package: \
 	package-vmstorage
 
 publish-release:
-	git checkout $(TAG) && $(MAKE) release publish && \
-		git checkout $(TAG)-cluster && $(MAKE) release publish && \
-		git checkout $(TAG)-enterprise && $(MAKE) release publish && \
-		git checkout $(TAG)-enterprise-cluster && $(MAKE) release publish
+	rm -rf bin/*
+	git checkout $(TAG) && LATEST_TAG=stable $(MAKE) release publish && \
+		git checkout $(TAG)-cluster && LATEST_TAG=cluster-stable $(MAKE) release publish && \
+		git checkout $(TAG)-enterprise && LATEST_TAG=enterprise-stable $(MAKE) release publish && \
+		git checkout $(TAG)-enterprise-cluster && LATEST_TAG=enterprise-cluster-stable $(MAKE) release publish
 
 release: \
 	release-vmcluster
@@ -96,7 +105,8 @@ release-vmcluster: \
 	release-vmcluster-linux-amd64 \
 	release-vmcluster-linux-arm64 \
 	release-vmcluster-freebsd-amd64 \
-	release-vmcluster-openbsd-amd64
+	release-vmcluster-openbsd-amd64 \
+	release-vmcluster-windows-amd64
 
 release-vmcluster-linux-amd64:
 	GOOS=linux GOARCH=amd64 $(MAKE) release-vmcluster-goos-goarch
@@ -109,6 +119,9 @@ release-vmcluster-freebsd-amd64:
 
 release-vmcluster-openbsd-amd64:
 	GOOS=openbsd GOARCH=amd64 $(MAKE) release-vmcluster-goos-goarch
+
+release-vmcluster-windows-amd64:
+	GOARCH=amd64 $(MAKE) release-vmcluster-windows-goarch
 
 release-vmcluster-goos-goarch: \
 	vminsert-$(GOOS)-$(GOARCH)-prod \
@@ -129,6 +142,25 @@ release-vmcluster-goos-goarch: \
 		vmselect-$(GOOS)-$(GOARCH)-prod \
 		vmstorage-$(GOOS)-$(GOARCH)-prod
 
+release-vmcluster-windows-goarch: \
+	vminsert-windows-$(GOARCH)-prod \
+	vmselect-windows-$(GOARCH)-prod \
+	vmstorage-windows-$(GOARCH)-prod
+	cd bin && \
+		zip victoria-metrics-windows-$(GOARCH)-$(PKG_TAG).zip \
+			vminsert-windows-$(GOARCH)-prod.exe \
+			vmselect-windows-$(GOARCH)-prod.exe \
+			vmstorage-windows-$(GOARCH)-prod.exe \
+		&& sha256sum victoria-metrics-windows-$(GOARCH)-$(PKG_TAG).zip \
+			vminsert-windows-$(GOARCH)-prod.exe \
+			vmselect-windows-$(GOARCH)-prod.exe \
+			vmstorage-windows-$(GOARCH)-prod.exe \
+		> victoria-metrics-windows-$(GOARCH)-$(PKG_TAG)_checksums.txt
+	cd bin && rm -rf \
+		vminsert-windows-$(GOARCH)-prod.exe \
+		vmselect-windows-$(GOARCH)-prod.exe \
+		vmstorage-windows-$(GOARCH)-prod.exe
+
 pprof-cpu:
 	go tool pprof -trim_path=github.com/VictoriaMetrics/VictoriaMetrics@ $(PPROF_FILE)
 
@@ -140,29 +172,7 @@ vet:
 	go vet ./lib/...
 	go vet ./app/...
 
-lint: install-golint
-	golint lib/...
-	golint app/...
-
-install-golint:
-	which golint || GO111MODULE=off go get golang.org/x/lint/golint
-
-errcheck: install-errcheck
-	errcheck -exclude=errcheck_excludes.txt ./lib/...
-	errcheck -exclude=errcheck_excludes.txt ./app/vminsert/...
-	errcheck -exclude=errcheck_excludes.txt ./app/vmselect/...
-	errcheck -exclude=errcheck_excludes.txt ./app/vmstorage/...
-	errcheck -exclude=errcheck_excludes.txt ./app/vmagent/...
-	errcheck -exclude=errcheck_excludes.txt ./app/vmalert/...
-	errcheck -exclude=errcheck_excludes.txt ./app/vmauth/...
-	errcheck -exclude=errcheck_excludes.txt ./app/vmbackup/...
-	errcheck -exclude=errcheck_excludes.txt ./app/vmrestore/...
-	errcheck -exclude=errcheck_excludes.txt ./app/vmctl/...
-
-install-errcheck:
-	which errcheck || GO111MODULE=off go get github.com/kisielk/errcheck
-
-check-all: fmt vet lint errcheck golangci-lint
+check-all: fmt vet golangci-lint govulncheck
 
 test:
 	go test ./lib/... ./app/...
@@ -190,7 +200,7 @@ benchmark-pure:
 vendor-update:
 	go get -u -d ./lib/...
 	go get -u -d ./app/...
-	go mod tidy -compat=1.18
+	go mod tidy -compat=1.19
 	go mod vendor
 
 app-local:
@@ -209,35 +219,60 @@ quicktemplate-gen: install-qtc
 	qtc
 
 install-qtc:
-	which qtc || GO111MODULE=off go get github.com/valyala/quicktemplate/qtc
+	which qtc || go install github.com/valyala/quicktemplate/qtc@latest
 
 
 golangci-lint: install-golangci-lint
-	golangci-lint run --exclude '(SA4003|SA1019|SA5011):' -D errcheck -D structcheck --timeout 2m
+	golangci-lint run
 
 install-golangci-lint:
-	which golangci-lint || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.48.0
+	which golangci-lint || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.54.2
+
+govulncheck: install-govulncheck
+	govulncheck ./...
+
+install-govulncheck:
+	which govulncheck || go install golang.org/x/vuln/cmd/govulncheck@latest
 
 install-wwhrd:
-	which wwhrd || GO111MODULE=off go get github.com/frapposelli/wwhrd
+	which wwhrd || go install github.com/frapposelli/wwhrd@latest
 
 check-licenses: install-wwhrd
 	wwhrd check -f .wwhrd.yml
 
 copy-docs:
-	echo "---\nsort: ${ORDER}\n---\n" > ${DST}
-	cat ${SRC} >> ${DST}
+# The 'printf' function is used instead of 'echo' or 'echo -e' to handle line breaks (e.g. '\n') in the same way on different operating systems (MacOS/Ubuntu Linux/Arch Linux) and their shells (bash/sh/zsh/fish).
+# For details, see https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4548#issue-1782796419 and https://stackoverflow.com/questions/8467424/echo-newline-in-bash-prints-literal-n
+	echo "---" > ${DST}
+	@if [ ${ORDER} -ne 0 ]; then \
+		echo "sort: ${ORDER}" >> ${DST}; \
+		echo "weight: ${ORDER}" >> ${DST}; \
+		printf "menu:\n  docs:\n    parent: 'victoriametrics'\n    weight: ${ORDER}\n" >> ${DST}; \
+	fi
 
-# Copies docs for all components and adds the order tag.
-# Cluster docs are supposed to be ordered as 9th.
-# For The rest of docs is ordered manually.t
+	echo "title: ${TITLE}" >> ${DST}
+	@if [ ${OLD_URL} ]; then \
+		printf "aliases:\n  - ${OLD_URL}\n" >> ${DST}; \
+	fi
+	echo "---" >> ${DST}
+	cat ${SRC} >> ${DST}
+	sed -i='.tmp' 's/<img src=\"docs\//<img src=\"/' ${DST}
+	rm -rf docs/*.tmp
+
+# Copies docs for all components and adds the order/weight tag, title, menu position and alias with the backward compatible link for the old site.
+# For ORDER=0 it adds no order tag/weight tag.
+# FOR OLD_URL - relative link, used for backward compatibility with the link from documentation based on GitHub pages (old one)
+# FOR OLD_URL='' it adds no alias, it should be empty for every new page, don't change it for already existing links.
+# Images starting with <img src="docs/ are replaced with <img src="
+# Cluster docs are supposed to be ordered as 2nd.
+# The rest of docs is ordered manually.
 docs-sync:
-	SRC=README.md DST=docs/Cluster-VictoriaMetrics.md ORDER=2 $(MAKE) copy-docs
-	SRC=app/vmagent/README.md DST=docs/vmagent.md ORDER=3 $(MAKE) copy-docs
-	SRC=app/vmalert/README.md DST=docs/vmalert.md ORDER=4 $(MAKE) copy-docs
-	SRC=app/vmauth/README.md DST=docs/vmauth.md ORDER=5 $(MAKE) copy-docs
-	SRC=app/vmbackup/README.md DST=docs/vmbackup.md ORDER=6 $(MAKE) copy-docs
-	SRC=app/vmrestore/README.md DST=docs/vmrestore.md ORDER=7 $(MAKE) copy-docs
-	SRC=app/vmctl/README.md DST=docs/vmctl.md ORDER=8 $(MAKE) copy-docs
-	SRC=app/vmgateway/README.md DST=docs/vmgateway.md ORDER=9 $(MAKE) copy-docs
-	SRC=app/vmbackupmanager/README.md DST=docs/vmbackupmanager.md ORDER=10 $(MAKE) copy-docs
+	SRC=README.md DST=docs/Cluster-VictoriaMetrics.md OLD_URL='/Cluster-VictoriaMetrics.html' ORDER=2 TITLE='Cluster version' $(MAKE) copy-docs
+	SRC=app/vmagent/README.md DST=docs/vmagent.md OLD_URL='/vmagent.html' ORDER=3 TITLE=vmagent $(MAKE) copy-docs
+	SRC=app/vmalert/README.md DST=docs/vmalert.md OLD_URL='/vmalert.html' ORDER=4 TITLE=vmalert $(MAKE) copy-docs
+	SRC=app/vmauth/README.md DST=docs/vmauth.md OLD_URL='/vmauth.html' ORDER=5 TITLE=vmauth $(MAKE) copy-docs
+	SRC=app/vmbackup/README.md DST=docs/vmbackup.md OLD_URL='/vmbackup.html' ORDER=6 TITLE=vmbackup $(MAKE) copy-docs
+	SRC=app/vmrestore/README.md DST=docs/vmrestore.md OLD_URL='/vmrestore.html' ORDER=7 TITLE=vmrestore $(MAKE) copy-docs
+	SRC=app/vmctl/README.md DST=docs/vmctl.md OLD_URL='/vmctl.html' ORDER=8 TITLE=vmctl $(MAKE) copy-docs
+	SRC=app/vmgateway/README.md DST=docs/vmgateway.md OLD_URL='/vmgateway.html' ORDER=9 TITLE=vmgateway $(MAKE) copy-docs
+	SRC=app/vmbackupmanager/README.md DST=docs/vmbackupmanager.md OLD_URL='/vmbackupmanager.html' ORDER=10 TITLE=vmbackupmanager $(MAKE) copy-docs

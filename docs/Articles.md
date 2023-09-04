@@ -1,5 +1,13 @@
 ---
-sort: 17
+sort: 20
+weight: 20
+title: Articles
+menu:
+  docs:
+    parent: "victoriametrics"
+    weight: 20
+aliases:
+- /Articles.html
 ---
 
 # Articles
@@ -8,6 +16,11 @@ See also [case studies](https://docs.victoriametrics.com/CaseStudies.html).
 
 ## Third-party articles and slides about VictoriaMetrics
 
+* [Why Roblox Picked VictoriaMetrics for Observability Data Overhaul](https://www.datanami.com/2023/05/30/why-roblox-picked-victoriametrics-for-observability-data-overhaul/)
+* [The (Almost) Infinitely Scalable Open Source Monitoring Dream](https://www.forbes.com/sites/adrianbridgwater/2022/08/16/the-almost-infinitely-scalable-open-source-monitoring-dream/)
+* [The Agility In Cloud Observability](https://www.forbes.com/sites/adrianbridgwater/2023/07/05/the-agility-in-cloud-observability/)
+* [Monitoring at scale with Victoria Metrics](https://tech.bedrockstreaming.com/2022/09/06/monitoring-at-scale-with-victoriametrics.html)
+* [Optimizing Linkerd metrics in Prometheus](https://aatarasoff.medium.com/optimizing-linkerd-metrics-in-prometheus-de607ec10f6b)
 * [Optimizing the Storage of Large Volumes of Metrics for a Long Time in VictoriaMetrics](https://percona.community/blog/2022/06/02/long-time-keeping-metrics-victoriametrics/)
 * [How do We Keep Metrics for a Long Time in VictoriaMetrics](https://www.youtube.com/watch?v=SGZjY7xgDwE)
 * [Announcing Asserts](https://www.asserts.ai/blog/announcing-asserts/)
@@ -16,9 +29,11 @@ See also [case studies](https://docs.victoriametrics.com/CaseStudies.html).
 * [VictoriaMetrics vs. OpenTSDB](https://blg.robot-house.us/posts/tsdbs-grow/)
 * [Monitoring of multiple OpenShift clusters with VictoriaMetrics](https://medium.com/ibm-garage/monitoring-of-multiple-openshift-clusters-with-victoriametrics-d4f0979e2544)
 * [Fly's Prometheus Metrics](https://fly.io/blog/measuring-fly/)
+* [Ultra Monitoring with Victoria Metrics](https://dev.to/aws-builders/ultra-monitoring-with-victoria-metrics-1p2)
 * [Infrastructure monitoring with Prometheus at Zerodha](https://zerodha.tech/blog/infra-monitoring-at-zerodha/)
 * [Sismology: Iguana Solutions’ Monitoring System](https://medium.com/nerd-for-tech/sismology-iguana-solutions-monitoring-system-f46e4170447f)
 * [Prometheus High Availability and Fault Tolerance strategy, long term storage with VictoriaMetrics](https://medium.com/miro-engineering/prometheus-high-availability-and-fault-tolerance-strategy-long-term-storage-with-victoriametrics-82f6f3f0409e)
+* [Monitoring with Prometheus, Grafana, AlertManager and VictoriaMetrics](https://www.sensedia.com/post/monitoring-with-prometheus-grafana-alertmanager-and-victoriametrics)
 * [How we improved our Kubernetes monitoring at Smarkets, and how you could too](https://smarketshq.com/monitoring-kubernetes-clusters-41a4b24c19e3)
 * [Kubernetes and VictoriaMetrics in Mist v4.6](https://mist.io/blog/2021-11-26-kubernetes-and-victoriametrics-in-Mist-v4-6)
 * [Foiled by the Firewall: A Tale of Transition From Prometheus to VictoriaMetrics](https://www.percona.com/blog/2020/12/01/foiled-by-the-firewall-a-tale-of-transition-from-prometheus-to-victoriametrics/)
@@ -52,8 +67,16 @@ See also [case studies](https://docs.victoriametrics.com/CaseStudies.html).
 * [Install and configure VictoriaMetrics on Debian](https://www.vultr.com/docs/install-and-configure-victoriametrics-on-debian)
 * [Superset BI with Victoria Metrics](https://cer6erus.medium.com/superset-bi-with-victoria-metrics-a109d3e91bc6)
 * [VictoriaMetrics Source Code Analysis - Bloom filter](https://www.sobyte.net/post/2022-05/victoriametrics-bloomfilter/)
-* [How we tried using VictoriaMetrics and Thanos at the same time](https://habr.com/ru/company/sravni/blog/672908/)
-* [The (Almost) Infinitely Scalable Open Source Monitoring Dream](https://www.forbes.com/sites/adrianbridgwater/2022/08/16/the-almost-infinitely-scalable-open-source-monitoring-dream/)
+* [How we tried using VictoriaMetrics and Thanos at the same time](https://medium.com/@uburro/how-we-tried-using-victoriametrics-and-thanos-at-the-same-time-48803d2a638b)
+* [Prometheus, Grafana, and Kubernetes, Oh My!](https://www.groundcover.com/blog/prometheus-grafana-kubernetes)
+* [Explaining modern server monitoring stacks for self-hosting](https://dataswamp.org/~solene/2022-09-11-exploring-monitoring-stacks.html)
+* [Brewblox: InfluxDB to Victoria Metrics](https://www.brewblox.com/dev/decisions/20210718_victoria_metrics.html)
+* [VictoriaMetrics static scraper](https://blog.differentpla.net/blog/2022/10/16/victoria-metrics-static-scraper/)
+* [VictoriaMetrics and Open Cosmos boldly takes edge computing to the edge of space](https://www.iot-now.com/2022/07/19/122423-victoriametrics-and-open-cosmos-boldly-takes-edge-computing-to-the-edge-of-space/)
+* [Evaluating Backend Options For Prometheus Metrics](https://www.techetio.com/2022/08/21/evaluating-backend-options-for-prometheus-metrics/)
+* [Time Series in the Multiverse of Madness (in Korean)](https://www.youtube.com/watch?v=OUyXPgVcdw4), plus [these slides](https://deview.kr/data/deview/session/attach/%5B2B4%5DVictoriaMetrics_%E1%84%89%E1%85%B5%E1%84%80%E1%85%A8%E1%84%8B%E1%85%A7%E1%86%AF_%E1%84%83%E1%85%A6%E1%84%8B%E1%85%B5%E1%84%90%E1%85%A5_%E1%84%83%E1%85%A2%E1%84%92%E1%85%A9%E1%86%AB%E1%84%83%E1%85%A9%E1%86%AB%E1%84%8B%E1%85%B4_%E1%84%86%E1%85%A5%E1%86%AF%E1%84%90%E1%85%B5%E1%84%87%E1%85%A5%E1%84%89%E1%85%B3_Kor+Eng.pdf)
+* [VictoriaMetrics: an overview and its use instead of Prometheus](https://rtfm.co.ua/en/victoriametrics-an-overview-and-its-use-instead-of-prometheus/)
+* [VictoriaMetrics: deploying a Kubernetes monitoring stack](https://rtfm.co.ua/en/victoriametrics-deploying-a-kubernetes-monitoring-stack/)
 
 ## Our articles
 
@@ -66,6 +89,7 @@ See also [case studies](https://docs.victoriametrics.com/CaseStudies.html).
 
 ### Benchmarks
 
+* [Grafana Mimir and VictoriaMetrics: performance tests](https://victoriametrics.com/blog/mimir-benchmark/)
 * [When size matters — benchmarking VictoriaMetrics vs Timescale and InfluxDB](https://valyala.medium.com/when-size-matters-benchmarking-victoriametrics-vs-timescale-and-influxdb-6035811952d4)
 * [High-cardinality TSDB benchmarks: VictoriaMetrics vs TimescaleDB vs InfluxDB](https://valyala.medium.com/high-cardinality-tsdb-benchmarks-victoriametrics-vs-timescaledb-vs-influxdb-13e6ee64dd6b)
 * [Insert benchmarks with inch: InfluxDB vs VictoriaMetrics](https://valyala.medium.com/insert-benchmarks-with-inch-influxdb-vs-victoriametrics-e31a41ae2893)
@@ -89,6 +113,7 @@ See also [case studies](https://docs.victoriametrics.com/CaseStudies.html).
 
 ### Tutorials, guides and how-to articles
 
+* [Monitoring VictoriaMetrics](https://victoriametrics.com/blog/victoriametrics-monitoring/)
 * [PromQL tutorial for beginners and humans](https://valyala.medium.com/promql-tutorial-for-beginners-9ab455142085)
 * [How to optimize PromQL and MetricsQL queries](https://valyala.medium.com/how-to-optimize-promql-and-metricsql-queries-85a1b75bf986)
 * [Analyzing Prometheus data with external tools](https://valyala.medium.com/analyzing-prometheus-data-with-external-tools-5f3e5e147639)
@@ -98,9 +123,15 @@ See also [case studies](https://docs.victoriametrics.com/CaseStudies.html).
 * [How to use relabeling in Prometheus and VictoriaMetrics](https://valyala.medium.com/how-to-use-relabeling-in-prometheus-and-victoriametrics-8b90fc22c4b2)
 * [How to monitor Go applications with VictoriaMetrics](https://victoriametrics.medium.com/how-to-monitor-go-applications-with-victoriametrics-c04703110870)
 * [Prometheus storage: tech terms for humans](https://valyala.medium.com/prometheus-storage-technical-terms-for-humans-4ab4de6c3d48)
+* [Cardinality explorer](https://victoriametrics.com/blog/cardinality-explorer/)
+* [Rules backfilling via vmalert](https://victoriametrics.com/blog/rules-replay/)
 
 ### Other articles
 
-* [How ClickHouse inspired us to build a high performance time series database](https://www.youtube.com/watch?v=p9qjb_yoBro). See also [slides](https://docs.google.com/presentation/d/1SdFrwsyR-HMXfbzrY8xfDZH_Dg6E7E5NJ84tQozMn3w/edit?usp=sharing).
+* [How ClickHouse inspired us to build a high performance time series database](https://www.youtube.com/watch?v=p9qjb_yoBro). See also [slides](https://docs.google.com/presentation/d/1SdFrwsyR-HMXfbzrY8xfDZH_Dg6E7E5NJ84tQozMn3w/edit?usp=sharing)
+* [OSA Con 2022: Specifics of data analysis in Time Series Databases](https://www.youtube.com/watch?v=_zORxrgLtec)
+* [OSMC 2022. VictoriaMetrics: scaling to 100 million metrics per second](https://www.youtube.com/watch?v=xfed9_Q0_qU). See also [slides](https://www.slideshare.net/NETWAYS/osmc-2022-victoriametrics-scaling-to-100-million-metrics-per-second-by-aliaksandr-valialkin)
+* [CNCF Paris Meetup 2022-09-15 - VictoriaMetrics - The cost of scale in Prometheus ecosystem](https://www.youtube.com/watch?v=gcZYHpri2Hw). See also [slides](https://docs.google.com/presentation/d/1jhZuKnAXi15M-mdBP5a4ZAiyrMeHhYmzO8xcZ6pMyLc/edit?usp=sharing)
+* [VictoriaMetrics Meetup December 2022](https://www.youtube.com/watch?v=Mesc6JBFNhQ). See also [slides for "VictoriaMetrics 2022: new features" talk](https://docs.google.com/presentation/d/1jI7XZoodmuzLymdu4MToG9onAKQjzCNwMO2NDupyUkQ/edit?usp=sharing).
 * [Comparing Thanos to VictoriaMetrics cluster](https://faun.pub/comparing-thanos-to-victoriametrics-cluster-b193bea1683)
 * [Evaluation performance and correctness: VictoriaMetrics response](https://valyala.medium.com/evaluating-performance-and-correctness-victoriametrics-response-e27315627e87)

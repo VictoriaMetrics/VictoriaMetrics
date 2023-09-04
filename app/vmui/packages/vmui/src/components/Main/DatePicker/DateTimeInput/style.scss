@@ -1,0 +1,61 @@
+@use "src/styles/variables" as *;
+
+.vm-date-time-input {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: $padding-small 0;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: $padding-global;
+  cursor: pointer;
+  transition: color 200ms ease-in-out, border-bottom-color 300ms ease;
+
+  &:hover input {
+    border-bottom-color: $color-primary;
+  }
+
+  label {
+    grid-column: 1/3;
+    width: 100%;
+    font-size: $font-size-small;
+    color: $color-text-secondary;
+    user-select: none;
+  }
+
+  &__icon {
+    position: absolute;
+    bottom: 2px;
+    right: 0;
+  }
+
+  input {
+    padding: 0 0 $padding-small;
+    border-bottom: $border-divider;
+    border-top: none;
+    border-left: none;
+    border-right: none;
+    background: transparent;
+    color: $color-text;
+
+    &:focus {
+      border-bottom-color: $color-primary;
+    }
+  }
+
+  &_error input {
+    border-color: $color-error;
+
+    &:focus {
+      border-bottom-color: $color-error;
+    }
+  }
+
+  &__error-text {
+    color: $color-error;
+    font-size: $font-size-small;
+    position: absolute;
+    left: 0;
+    bottom: -$font-size-small;
+  }
+}

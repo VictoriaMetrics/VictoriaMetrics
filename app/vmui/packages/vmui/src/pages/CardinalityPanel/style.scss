@@ -1,0 +1,42 @@
+@use "src/styles/variables" as *;
+
+.vm-cardinality-panel {
+  display: grid;
+  align-items: flex-start;
+  gap: $padding-medium;
+
+  &_mobile, &_mobile &-tips {
+    gap: $padding-small;
+  }
+
+  &-tips {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-content: flex-start;
+    justify-content: flex-start;
+    gap: $padding-medium;
+    flex-grow: 1;
+    width: 100%;
+  }
+
+  &-table {
+    &__header {
+      th:first-child {
+        width: 60%;
+      }
+
+      th:not(:first-child) {
+        width: auto;
+      }
+    }
+
+
+    &__progress {
+      display: grid;
+      grid-template-columns: minmax(200px, 1fr) 70px;
+      align-items: center;
+      justify-content: flex-start;
+      gap: $padding-small;
+    }
+  }
+}

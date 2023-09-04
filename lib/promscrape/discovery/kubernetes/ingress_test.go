@@ -4,8 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
 func TestMatchesHostPattern(t *testing.T) {
@@ -103,8 +102,8 @@ func TestParseIngressListSuccess(t *testing.T) {
 		t.Fatalf("unexpected resource version; got %s; want %s", meta.ResourceVersion, expectedResourceVersion)
 	}
 	sortedLabelss := getSortedLabelss(objectsByKey)
-	expectedLabelss := [][]prompbmarshal.Label{
-		discoveryutils.GetSortedLabels(map[string]string{
+	expectedLabelss := []*promutils.Labels{
+		promutils.NewLabelsFromMap(map[string]string{
 			"__address__": "foobar",
 			"__meta_kubernetes_ingress_annotation_kubectl_kubernetes_io_last_applied_configuration":        `{"apiVersion":"networking.k8s.io/v1","kind":"Ingress","metadata":{"annotations":{},"name":"test-ingress","namespace":"default"},"spec":{"backend":{"serviceName":"testsvc","servicePort":80}}}` + "\n",
 			"__meta_kubernetes_ingress_annotationpresent_kubectl_kubernetes_io_last_applied_configuration": "true",

@@ -8,6 +8,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/metricsql"
 )
 
@@ -99,7 +100,7 @@ func TestIncrementalAggr(t *testing.T) {
 }
 
 func testIncrementalParallelAggr(iafc *incrementalAggrFuncContext, tssSrc, tssExpected []*timeseries) error {
-	const workersCount = 3
+	workersCount := netstorage.MaxWorkers()
 	tsCh := make(chan *timeseries)
 	var wg sync.WaitGroup
 	wg.Add(workersCount)

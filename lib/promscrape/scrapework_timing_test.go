@@ -8,6 +8,48 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 )
 
+func BenchmarkIsAutoMetricMiss(b *testing.B) {
+	metrics := []string{
+		"process_cpu_seconds_total",
+		"process_resident_memory_bytes",
+		"vm_tcplistener_read_calls_total",
+		"http_requests_total",
+		"node_cpu_seconds_total",
+	}
+	b.ReportAllocs()
+	b.SetBytes(1)
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			for _, metric := range metrics {
+				if isAutoMetric(metric) {
+					panic(fmt.Errorf("BUG: %q mustn't be detected as auto metric", metric))
+				}
+			}
+		}
+	})
+}
+
+func BenchmarkIsAutoMetricHit(b *testing.B) {
+	metrics := []string{
+		"up",
+		"scrape_duration_seconds",
+		"scrape_series_current",
+		"scrape_samples_scraped",
+		"scrape_series_added",
+	}
+	b.ReportAllocs()
+	b.SetBytes(1)
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			for _, metric := range metrics {
+				if !isAutoMetric(metric) {
+					panic(fmt.Errorf("BUG: %q must be detected as auto metric", metric))
+				}
+			}
+		}
+	})
+}
+
 func BenchmarkScrapeWorkScrapeInternal(b *testing.B) {
 	data := `
 vm_tcplistener_accepts_total{name="http", addr=":80"} 1443

@@ -1,0 +1,15 @@
+@use "src/styles/variables" as *;
+
+.vm-graph-settings {
+  &-popper {
+    display: grid;
+    gap: $padding-global;
+    padding: 0 0 $padding-global;
+
+    &__body {
+      display: grid;
+      gap: $padding-small;
+      padding: 0 $padding-global;
+    }
+  }
+}

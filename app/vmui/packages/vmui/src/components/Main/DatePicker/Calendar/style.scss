@@ -1,0 +1,175 @@
+@use "src/styles/variables" as *;
+
+.vm-calendar {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  padding: $padding-global;
+  font-size: $font-size;
+  user-select: none;
+  background-color: $color-background-block;
+  border-radius: $border-radius-medium;
+
+  &_mobile {
+    padding: 0 $padding-global;
+  }
+
+  &-header {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    justify-content: center;
+    gap: $padding-medium;
+    padding-bottom: $padding-global;
+    min-height: 36px;
+
+    &-left {
+      display: grid;
+      grid-template-columns: auto auto;
+      align-items: center;
+      justify-content: flex-start;
+      gap: $padding-small;
+      cursor: pointer;
+      transition: opacity 200ms ease-in-out;
+
+      &:hover {
+        opacity: 0.8;
+      }
+
+      &__date {
+        font-size: $font-size;
+        color: $color-text;
+        font-weight: bold;
+      }
+
+      &__select-year {
+        display: grid;
+        align-items: center;
+        justify-content: center;
+        width: 14px;
+        height: 14px;
+      }
+    }
+
+    &-right {
+      display: grid;
+      grid-template-columns: 18px 18px;
+      align-items: center;
+      justify-content: center;
+      gap: $padding-small;
+
+      &__prev,
+      &__next {
+        margin: -8px;
+        padding: 8px;
+        cursor: pointer;
+        transition: opacity 200ms ease-in-out;
+
+        &:hover {
+          opacity: 0.8;
+        }
+      }
+
+      &__prev {
+        transform: rotate(90deg);
+      }
+
+      &__next {
+        transform: rotate(-90deg);
+      }
+    }
+  }
+
+  &-body {
+    display: grid;
+    grid-template-columns: repeat(7, 32px);
+    grid-template-rows: repeat(7, 32px);
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+
+    @media (max-width: 500px) {
+      grid-template-columns: repeat(7, calc((100vw - ($padding-global * 2) - (6 * 2px))/7));
+      grid-template-rows: repeat(7, calc((100vw - ($padding-global * 2) - (6 * 2px))/7));
+    }
+
+    &-cell {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      border-radius: 50%;
+      height: 100%;
+
+      &_weekday {
+        color: $color-text-secondary;
+      }
+
+      &_day {
+        cursor: pointer;
+        transition: color 200ms ease, background-color 300ms ease-in-out;
+
+        &:hover {
+          background-color: $color-hover-black;
+        }
+
+        &_empty {
+          pointer-events: none;
+        }
+
+        &_active {
+          background-color: $color-primary;
+          color: $color-white;
+
+          &:hover {
+            background-color: $color-primary;
+          }
+        }
+
+        &_today {
+          border: 1px solid $color-primary;
+        }
+      }
+    }
+  }
+
+  &-years {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: $padding-small;
+    max-height: 400px;
+    overflow: auto;
+
+    &__year {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 16px;
+      border-radius: $border-radius-medium;
+      cursor: pointer;
+      transition: color 200ms ease, background-color 300ms ease-in-out;
+
+      &:hover {
+        background-color: $color-hover-black;
+      }
+
+      &_selected {
+        background-color: $color-primary;
+        color: $color-white;
+
+        &:hover {
+          background-color: $color-primary;
+        }
+      }
+
+      &_today {
+        border: 1px solid $color-primary;
+      }
+    }
+  }
+
+  &-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+  }
+}

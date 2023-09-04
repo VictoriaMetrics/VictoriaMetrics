@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"reflect"
 	"sort"
 	"sync"
@@ -43,19 +44,82 @@ func (fq *fakeQuerier) BuildWithParams(_ datasource.QuerierParams) datasource.Qu
 	return fq
 }
 
-func (fq *fakeQuerier) QueryRange(ctx context.Context, q string, _, _ time.Time) ([]datasource.Metric, error) {
-	return fq.Query(ctx, q, time.Now())
+func (fq *fakeQuerier) QueryRange(ctx context.Context, q string, _, _ time.Time) (datasource.Result, error) {
+	req, _, err := fq.Query(ctx, q, time.Now())
+	return req, err
 }
 
-func (fq *fakeQuerier) Query(_ context.Context, _ string, _ time.Time) ([]datasource.Metric, error) {
+func (fq *fakeQuerier) Query(_ context.Context, _ string, _ time.Time) (datasource.Result, *http.Request, error) {
 	fq.Lock()
 	defer fq.Unlock()
 	if fq.err != nil {
-		return nil, fq.err
+		return datasource.Result{}, nil, fq.err
 	}
 	cp := make([]datasource.Metric, len(fq.metrics))
 	copy(cp, fq.metrics)
-	return cp, nil
+	req, _ := http.NewRequest(http.MethodPost, "foo.com", nil)
+	return datasource.Result{Data: cp}, req, nil
+}
+
+type fakeQuerierWithRegistry struct {
+	sync.Mutex
+	registry map[string][]datasource.Metric
+}
+
+func (fqr *fakeQuerierWithRegistry) set(key string, metrics ...datasource.Metric) {
+	fqr.Lock()
+	if fqr.registry == nil {
+		fqr.registry = make(map[string][]datasource.Metric)
+	}
+	fqr.registry[key] = metrics
+	fqr.Unlock()
+}
+
+func (fqr *fakeQuerierWithRegistry) reset() {
+	fqr.Lock()
+	fqr.registry = nil
+	fqr.Unlock()
+}
+
+func (fqr *fakeQuerierWithRegistry) BuildWithParams(_ datasource.QuerierParams) datasource.Querier {
+	return fqr
+}
+
+func (fqr *fakeQuerierWithRegistry) QueryRange(ctx context.Context, q string, _, _ time.Time) (datasource.Result, error) {
+	req, _, err := fqr.Query(ctx, q, time.Now())
+	return req, err
+}
+
+func (fqr *fakeQuerierWithRegistry) Query(_ context.Context, expr string, _ time.Time) (datasource.Result, *http.Request, error) {
+	fqr.Lock()
+	defer fqr.Unlock()
+
+	req, _ := http.NewRequest(http.MethodPost, "foo.com", nil)
+	metrics, ok := fqr.registry[expr]
+	if !ok {
+		return datasource.Result{}, req, nil
+	}
+	cp := make([]datasource.Metric, len(metrics))
+	copy(cp, metrics)
+	return datasource.Result{Data: cp}, req, nil
+}
+
+type fakeQuerierWithDelay struct {
+	fakeQuerier
+	delay time.Duration
+}
+
+func (fqd *fakeQuerierWithDelay) Query(ctx context.Context, expr string, ts time.Time) (datasource.Result, *http.Request, error) {
+	timer := time.NewTimer(fqd.delay)
+	select {
+	case <-ctx.Done():
+	case <-timer.C:
+	}
+	return fqd.fakeQuerier.Query(ctx, expr, ts)
+}
+
+func (fqd *fakeQuerierWithDelay) BuildWithParams(_ datasource.QuerierParams) datasource.Querier {
+	return fqd
 }
 
 type fakeNotifier struct {
@@ -67,7 +131,7 @@ type fakeNotifier struct {
 
 func (*fakeNotifier) Close()       {}
 func (*fakeNotifier) Addr() string { return "" }
-func (fn *fakeNotifier) Send(_ context.Context, alerts []notifier.Alert) error {
+func (fn *fakeNotifier) Send(_ context.Context, alerts []notifier.Alert, _ map[string]string) error {
 	fn.Lock()
 	defer fn.Unlock()
 	fn.counter += len(alerts)
@@ -91,7 +155,7 @@ type faultyNotifier struct {
 	fakeNotifier
 }
 
-func (fn *faultyNotifier) Send(ctx context.Context, _ []notifier.Alert) error {
+func (fn *faultyNotifier) Send(ctx context.Context, _ []notifier.Alert, _ map[string]string) error {
 	d, ok := ctx.Deadline()
 	if ok {
 		time.Sleep(time.Until(d))
@@ -207,6 +271,9 @@ func compareAlertingRules(t *testing.T, a, b *AlertingRule) error {
 	}
 	if a.For != b.For {
 		return fmt.Errorf("expected to have for %q; got %q", a.For, b.For)
+	}
+	if a.KeepFiringFor != b.KeepFiringFor {
+		return fmt.Errorf("expected to have KeepFiringFor %q; got %q", a.KeepFiringFor, b.KeepFiringFor)
 	}
 	if !reflect.DeepEqual(a.Annotations, b.Annotations) {
 		return fmt.Errorf("expected to have annotations %#v; got %#v", a.Annotations, b.Annotations)

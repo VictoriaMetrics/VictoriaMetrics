@@ -9,9 +9,10 @@ func TestCompressDecompressZSTD(t *testing.T) {
 	testCompressDecompressZSTD(t, []byte("a"))
 	testCompressDecompressZSTD(t, []byte("foobarbaz"))
 
+	r := rand.New(rand.NewSource(1))
 	var b []byte
 	for i := 0; i < 64*1024; i++ {
-		b = append(b, byte(rand.Int31n(256)))
+		b = append(b, byte(r.Int31n(256)))
 	}
 	testCompressDecompressZSTD(t, b)
 }

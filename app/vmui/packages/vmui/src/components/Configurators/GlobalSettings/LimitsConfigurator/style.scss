@@ -1,0 +1,29 @@
+@use "src/styles/variables" as *;
+
+.vm-limits-configurator {
+
+  &-title {
+    &__reset {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      flex-grow: 1;
+    }
+  }
+
+  &__inputs {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: $padding-global;
+
+    &_mobile {
+      gap: $padding-small;
+    }
+
+    div {
+      flex-grow: 1;
+    }
+  }
+}

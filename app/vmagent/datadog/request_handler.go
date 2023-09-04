@@ -9,8 +9,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/datadog"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/datadog/stream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -28,11 +28,9 @@ func InsertHandlerForHTTP(at *auth.Token, req *http.Request) error {
 	if err != nil {
 		return err
 	}
-	return writeconcurrencylimiter.Do(func() error {
-		ce := req.Header.Get("Content-Encoding")
-		return parser.ParseStream(req.Body, ce, func(series []parser.Series) error {
-			return insertRows(at, series, extraLabels)
-		})
+	ce := req.Header.Get("Content-Encoding")
+	return stream.Parse(req.Body, ce, func(series []parser.Series) error {
+		return insertRows(at, series, extraLabels)
 	})
 }
 
@@ -52,10 +50,18 @@ func insertRows(at *auth.Token, series []parser.Series, extraLabels []prompbmars
 			Name:  "__name__",
 			Value: ss.Metric,
 		})
-		labels = append(labels, prompbmarshal.Label{
-			Name:  "host",
-			Value: ss.Host,
-		})
+		if ss.Host != "" {
+			labels = append(labels, prompbmarshal.Label{
+				Name:  "host",
+				Value: ss.Host,
+			})
+		}
+		if ss.Device != "" {
+			labels = append(labels, prompbmarshal.Label{
+				Name:  "device",
+				Value: ss.Device,
+			})
+		}
 		for _, tag := range ss.Tags {
 			name, value := parser.SplitTag(tag)
 			if name == "host" {

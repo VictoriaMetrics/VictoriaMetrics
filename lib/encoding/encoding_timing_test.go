@@ -42,10 +42,11 @@ func BenchmarkUnmarshalGaugeArray(b *testing.B) {
 }
 
 var benchGaugeArray = func() []int64 {
+	r := rand.New(rand.NewSource(1))
 	a := make([]int64, 8*1024)
 	v := int64(0)
 	for i := 0; i < len(a); i++ {
-		v += int64(rand.NormFloat64() * 100)
+		v += int64(r.NormFloat64() * 100)
 		a[i] = v
 	}
 	return a
@@ -230,10 +231,11 @@ var benchMarshalType = func() MarshalType {
 }()
 
 var benchInt64Array = func() []int64 {
+	r := rand.New(rand.NewSource(1))
 	var a []int64
 	var v int64
 	for i := 0; i < 8*1024; i++ {
-		v += 30e3 + int64(rand.NormFloat64()*1e3)
+		v += 30e3 + int64(r.NormFloat64()*1e3)
 		a = append(a, v)
 	}
 	return a

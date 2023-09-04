@@ -17,7 +17,7 @@ type blockStreamReader struct {
 	// Block contains the current block if Next returned true.
 	Block inmemoryBlock
 
-	// isInmemoryBlock is set to true if bsr was initialized with InitFromInmemoryBlock().
+	// isInmemoryBlock is set to true if bsr was initialized with MustInitFromInmemoryBlock().
 	isInmemoryBlock bool
 
 	// The index of the current item in the Block, which is returned from CurrItem()
@@ -103,16 +103,16 @@ func (bsr *blockStreamReader) String() string {
 	return bsr.ph.String()
 }
 
-// InitFromInmemoryBlock initializes bsr from the given ib.
-func (bsr *blockStreamReader) InitFromInmemoryBlock(ib *inmemoryBlock) {
+// MustInitFromInmemoryBlock initializes bsr from the given ib.
+func (bsr *blockStreamReader) MustInitFromInmemoryBlock(ib *inmemoryBlock) {
 	bsr.reset()
 	bsr.Block.CopyFrom(ib)
 	bsr.Block.SortItems()
 	bsr.isInmemoryBlock = true
 }
 
-// InitFromInmemoryPart initializes bsr from the given mp.
-func (bsr *blockStreamReader) InitFromInmemoryPart(mp *inmemoryPart) {
+// MustInitFromInmemoryPart initializes bsr from the given mp.
+func (bsr *blockStreamReader) MustInitFromInmemoryPart(mp *inmemoryPart) {
 	bsr.reset()
 
 	var err error
@@ -134,57 +134,40 @@ func (bsr *blockStreamReader) InitFromInmemoryPart(mp *inmemoryPart) {
 	}
 }
 
-// InitFromFilePart initializes bsr from a file-based part on the given path.
+// MustInitFromFilePart initializes bsr from a file-based part on the given path.
 //
 // Part files are read without OS cache pollution, since the part is usually
 // deleted after the merge.
-func (bsr *blockStreamReader) InitFromFilePart(path string) error {
+func (bsr *blockStreamReader) MustInitFromFilePart(path string) {
 	bsr.reset()
 
 	path = filepath.Clean(path)
 
-	if err := bsr.ph.ParseFromPath(path); err != nil {
-		return fmt.Errorf("cannot parse partHeader data from %q: %w", path, err)
-	}
+	bsr.ph.MustReadMetadata(path)
 
-	metaindexPath := path + "/metaindex.bin"
-	metaindexFile, err := filestream.Open(metaindexPath, true)
-	if err != nil {
-		return fmt.Errorf("cannot open metaindex file in stream mode: %w", err)
-	}
+	metaindexPath := filepath.Join(path, metaindexFilename)
+	metaindexFile := filestream.MustOpen(metaindexPath, true)
+
+	var err error
 	bsr.mrs, err = unmarshalMetaindexRows(bsr.mrs[:0], metaindexFile)
 	metaindexFile.MustClose()
 	if err != nil {
-		return fmt.Errorf("cannot unmarshal metaindex rows from file %q: %w", metaindexPath, err)
+		logger.Panicf("FATAL: cannot unmarshal metaindex rows from file %q: %s", metaindexPath, err)
 	}
 
-	indexPath := path + "/index.bin"
-	indexFile, err := filestream.Open(indexPath, true)
-	if err != nil {
-		return fmt.Errorf("cannot open index file in stream mode: %w", err)
-	}
+	indexPath := filepath.Join(path, indexFilename)
+	indexFile := filestream.MustOpen(indexPath, true)
 
-	itemsPath := path + "/items.bin"
-	itemsFile, err := filestream.Open(itemsPath, true)
-	if err != nil {
-		indexFile.MustClose()
-		return fmt.Errorf("cannot open items file in stream mode: %w", err)
-	}
+	itemsPath := filepath.Join(path, itemsFilename)
+	itemsFile := filestream.MustOpen(itemsPath, true)
 
-	lensPath := path + "/lens.bin"
-	lensFile, err := filestream.Open(lensPath, true)
-	if err != nil {
-		indexFile.MustClose()
-		itemsFile.MustClose()
-		return fmt.Errorf("cannot open lens file in stream mode: %w", err)
-	}
+	lensPath := filepath.Join(path, lensFilename)
+	lensFile := filestream.MustOpen(lensPath, true)
 
 	bsr.path = path
 	bsr.indexReader = indexFile
 	bsr.itemsReader = itemsFile
 	bsr.lensReader = lensFile
-
-	return nil
 }
 
 // MustClose closes the bsr.
@@ -234,16 +217,10 @@ func (bsr *blockStreamReader) Next() bool {
 	bsr.bhIdx++
 
 	bsr.sb.itemsData = bytesutil.ResizeNoCopyMayOverallocate(bsr.sb.itemsData, int(bsr.bh.itemsBlockSize))
-	if err := fs.ReadFullData(bsr.itemsReader, bsr.sb.itemsData); err != nil {
-		bsr.err = fmt.Errorf("cannot read compressed items block with size %d: %w", bsr.bh.itemsBlockSize, err)
-		return false
-	}
+	fs.MustReadData(bsr.itemsReader, bsr.sb.itemsData)
 
 	bsr.sb.lensData = bytesutil.ResizeNoCopyMayOverallocate(bsr.sb.lensData, int(bsr.bh.lensBlockSize))
-	if err := fs.ReadFullData(bsr.lensReader, bsr.sb.lensData); err != nil {
-		bsr.err = fmt.Errorf("cannot read compressed lens block with size %d: %w", bsr.bh.lensBlockSize, err)
-		return false
-	}
+	fs.MustReadData(bsr.lensReader, bsr.sb.lensData)
 
 	if err := bsr.Block.UnmarshalData(&bsr.sb, bsr.bh.firstItem, bsr.bh.commonPrefix, bsr.bh.itemsCount, bsr.bh.marshalType); err != nil {
 		bsr.err = fmt.Errorf("cannot unmarshal inmemoryBlock from storageBlock with firstItem=%X, commonPrefix=%X, itemsCount=%d, marshalType=%d: %w",
@@ -283,9 +260,7 @@ func (bsr *blockStreamReader) readNextBHS() error {
 
 	// Read compressed index block.
 	bsr.packedBuf = bytesutil.ResizeNoCopyMayOverallocate(bsr.packedBuf, int(mr.indexBlockSize))
-	if err := fs.ReadFullData(bsr.indexReader, bsr.packedBuf); err != nil {
-		return fmt.Errorf("cannot read compressed index block with size %d: %w", mr.indexBlockSize, err)
-	}
+	fs.MustReadData(bsr.indexReader, bsr.packedBuf)
 
 	// Unpack the compressed index block.
 	var err error
@@ -295,22 +270,11 @@ func (bsr *blockStreamReader) readNextBHS() error {
 	}
 
 	// Unmarshal the unpacked index block into bsr.bhs.
-	if n := int(mr.blockHeadersCount) - cap(bsr.bhs); n > 0 {
-		bsr.bhs = append(bsr.bhs[:cap(bsr.bhs)], make([]blockHeader, n)...)
+	bsr.bhs, err = unmarshalBlockHeadersNoCopy(bsr.bhs[:0], bsr.unpackedBuf, int(mr.blockHeadersCount))
+	if err != nil {
+		return fmt.Errorf("cannot unmarshal blockHeaders in the index block #%d: %w", bsr.mrIdx, err)
 	}
-	bsr.bhs = bsr.bhs[:mr.blockHeadersCount]
 	bsr.bhIdx = 0
-	b := bsr.unpackedBuf
-	for i := 0; i < int(mr.blockHeadersCount); i++ {
-		tail, err := bsr.bhs[i].Unmarshal(b)
-		if err != nil {
-			return fmt.Errorf("cannot unmarshal blockHeader #%d in the index block #%d: %w", len(bsr.bhs), bsr.mrIdx, err)
-		}
-		b = tail
-	}
-	if len(b) > 0 {
-		return fmt.Errorf("unexpected non-empty tail left after unmarshaling block headers; len(tail)=%d", len(b))
-	}
 	return nil
 }
 

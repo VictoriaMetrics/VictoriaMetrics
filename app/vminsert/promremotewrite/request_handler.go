@@ -9,10 +9,9 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
-	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/promremotewrite"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/promremotewrite/stream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -28,10 +27,9 @@ func InsertHandler(at *auth.Token, req *http.Request) error {
 	if err != nil {
 		return err
 	}
-	return writeconcurrencylimiter.Do(func() error {
-		return parser.ParseStream(req.Body, func(tss []prompb.TimeSeries) error {
-			return insertRows(at, tss, extraLabels)
-		})
+	isVMRemoteWrite := req.Header.Get("Content-Encoding") == "zstd"
+	return stream.Parse(req.Body, isVMRemoteWrite, func(tss []prompb.TimeSeries) error {
+		return insertRows(at, tss, extraLabels)
 	})
 }
 
@@ -41,6 +39,7 @@ func insertRows(at *auth.Token, timeseries []prompb.TimeSeries, extraLabels []pr
 
 	ctx.Reset() // This line is required for initializing ctx internals.
 	rowsTotal := 0
+	perTenantRows := make(map[auth.Token]int)
 	hasRelabeling := relabel.HasRelabeling()
 	for i := range timeseries {
 		ts := &timeseries[i]
@@ -62,21 +61,23 @@ func insertRows(at *auth.Token, timeseries []prompb.TimeSeries, extraLabels []pr
 			continue
 		}
 		ctx.SortLabelsIfNeeded()
-		storageNodeIdx := ctx.GetStorageNodeIdx(at, ctx.Labels)
+		atLocal := ctx.GetLocalAuthToken(at)
+		storageNodeIdx := ctx.GetStorageNodeIdx(atLocal, ctx.Labels)
 		ctx.MetricNameBuf = ctx.MetricNameBuf[:0]
 		samples := ts.Samples
 		for i := range samples {
 			r := &samples[i]
 			if len(ctx.MetricNameBuf) == 0 {
-				ctx.MetricNameBuf = storage.MarshalMetricNameRaw(ctx.MetricNameBuf[:0], at.AccountID, at.ProjectID, ctx.Labels)
+				ctx.MetricNameBuf = storage.MarshalMetricNameRaw(ctx.MetricNameBuf[:0], atLocal.AccountID, atLocal.ProjectID, ctx.Labels)
 			}
-			if err := ctx.WriteDataPointExt(at, storageNodeIdx, ctx.MetricNameBuf, r.Timestamp, r.Value); err != nil {
+			if err := ctx.WriteDataPointExt(storageNodeIdx, ctx.MetricNameBuf, r.Timestamp, r.Value); err != nil {
 				return err
 			}
 		}
+		perTenantRows[*atLocal] += len(ts.Samples)
 	}
 	rowsInserted.Add(rowsTotal)
-	rowsTenantInserted.Get(at).Add(rowsTotal)
+	rowsTenantInserted.MultiAdd(perTenantRows)
 	rowsPerInsert.Update(float64(rowsTotal))
 	return ctx.FlushBufs()
 }

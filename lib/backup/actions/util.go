@@ -3,10 +3,12 @@ package actions
 import (
 	"flag"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/azremote"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fsremote"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/gcsremote"
@@ -22,6 +24,9 @@ var (
 		"or if both not set, DefaultSharedConfigProfile is used")
 	customS3Endpoint = flag.String("customS3Endpoint", "", "Custom S3 endpoint for use with S3-compatible storages (e.g. MinIO). S3 is used if not set")
 	s3ForcePathStyle = flag.Bool("s3ForcePathStyle", true, "Prefixing endpoint with bucket name when set false, true by default.")
+	s3StorageClass   = flag.String("s3StorageClass", "", "The Storage Class applied to objects uploaded to AWS S3. Supported values are: GLACIER, "+
+		"DEEP_ARCHIVE, GLACIER_IR, INTELLIGENT_TIERING, ONEZONE_IA, OUTPOSTS, REDUCED_REDUNDANCY, STANDARD, STANDARD_IA.\n"+
+		"See https://docs.aws.amazon.com/AmazonS3/latest/userguide/storage-class-intro.html/")
 )
 
 func runParallel(concurrency int, parts []common.Part, f func(p common.Part) error, progress func(elapsed time.Duration)) error {
@@ -183,17 +188,17 @@ func NewRemoteFS(path string) (common.RemoteFS, error) {
 	}
 	n := strings.Index(path, "://")
 	if n < 0 {
-		return nil, fmt.Errorf("Missing scheme in path %q. Supported schemes: `gs://`, `s3://`, `fs://`", path)
+		return nil, fmt.Errorf("Missing scheme in path %q. Supported schemes: `gs://`, `s3://`, `azblob://`, `fs://`", path)
 	}
 	scheme := path[:n]
 	dir := path[n+len("://"):]
 	switch scheme {
 	case "fs":
-		if !strings.HasPrefix(dir, "/") {
+		if !filepath.IsAbs(dir) {
 			return nil, fmt.Errorf("dir must be absolute; got %q", dir)
 		}
 		fs := &fsremote.FS{
-			Dir: dir,
+			Dir: filepath.Clean(dir),
 		}
 		return fs, nil
 	case "gcs", "gs":
@@ -212,6 +217,21 @@ func NewRemoteFS(path string) (common.RemoteFS, error) {
 			return nil, fmt.Errorf("cannot initialize connection to gcs: %w", err)
 		}
 		return fs, nil
+	case "azblob":
+		n := strings.Index(dir, "/")
+		if n < 0 {
+			return nil, fmt.Errorf("missing directory on the AZBlob container %q", dir)
+		}
+		bucket := dir[:n]
+		dir = dir[n:]
+		fs := &azremote.FS{
+			Container: bucket,
+			Dir:       dir,
+		}
+		if err := fs.Init(); err != nil {
+			return nil, fmt.Errorf("cannot initialize connection to AZBlob: %w", err)
+		}
+		return fs, nil
 	case "s3":
 		n := strings.Index(dir, "/")
 		if n < 0 {
@@ -223,6 +243,7 @@ func NewRemoteFS(path string) (common.RemoteFS, error) {
 			CredsFilePath:    *credsFilePath,
 			ConfigFilePath:   *configFilePath,
 			CustomEndpoint:   *customS3Endpoint,
+			StorageClass:     s3remote.StringToS3StorageClass(*s3StorageClass),
 			S3ForcePathStyle: *s3ForcePathStyle,
 			ProfileName:      *configProfile,
 			Bucket:           bucket,

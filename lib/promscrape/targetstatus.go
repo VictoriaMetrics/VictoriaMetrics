@@ -14,8 +14,8 @@ import (
 	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 	"github.com/cespare/xxhash/v2"
 )
 
@@ -147,15 +147,16 @@ func (tsm *targetStatusMap) getScrapeWorkByTargetID(targetID string) *scrapeWork
 	tsm.mu.Lock()
 	defer tsm.mu.Unlock()
 	for sw := range tsm.m {
-		if getTargetID(sw) == targetID {
+		// The target is uniquely identified by a pointer to its original labels.
+		if getLabelsID(sw.Config.OriginalLabels) == targetID {
 			return sw
 		}
 	}
 	return nil
 }
 
-func getTargetID(sw *scrapeWork) string {
-	return fmt.Sprintf("%016x", uintptr(unsafe.Pointer(sw)))
+func getLabelsID(labels *promutils.Labels) string {
+	return fmt.Sprintf("%016x", uintptr(unsafe.Pointer(labels)))
 }
 
 // StatusByGroup returns the number of targets with status==up
@@ -181,8 +182,8 @@ func (tsm *targetStatusMap) getActiveTargetStatuses() []targetStatus {
 	tsm.mu.Unlock()
 	// Sort discovered targets by __address__ label, so they stay in consistent order across calls
 	sort.Slice(tss, func(i, j int) bool {
-		addr1 := promrelabel.GetLabelValueByName(tss[i].sw.Config.OriginalLabels, "__address__")
-		addr2 := promrelabel.GetLabelValueByName(tss[j].sw.Config.OriginalLabels, "__address__")
+		addr1 := tss[i].sw.Config.OriginalLabels.Get("__address__")
+		addr2 := tss[j].sw.Config.OriginalLabels.Get("__address__")
 		return addr1 < addr2
 	})
 	return tss
@@ -196,8 +197,7 @@ func (tsm *targetStatusMap) WriteActiveTargetsJSON(w io.Writer) {
 		fmt.Fprintf(w, `{"discoveredLabels":`)
 		writeLabelsJSON(w, ts.sw.Config.OriginalLabels)
 		fmt.Fprintf(w, `,"labels":`)
-		labelsFinalized := promrelabel.FinalizeLabels(nil, ts.sw.Config.Labels)
-		writeLabelsJSON(w, labelsFinalized)
+		writeLabelsJSON(w, ts.sw.Config.Labels)
 		fmt.Fprintf(w, `,"scrapePool":%q`, ts.sw.Config.Job())
 		fmt.Fprintf(w, `,"scrapeUrl":%q`, ts.sw.Config.ScrapeURL)
 		errMsg := ""
@@ -220,11 +220,12 @@ func (tsm *targetStatusMap) WriteActiveTargetsJSON(w io.Writer) {
 	fmt.Fprintf(w, `]`)
 }
 
-func writeLabelsJSON(w io.Writer, labels []prompbmarshal.Label) {
+func writeLabelsJSON(w io.Writer, labels *promutils.Labels) {
 	fmt.Fprintf(w, `{`)
-	for i, label := range labels {
+	labelsList := labels.GetLabels()
+	for i, label := range labelsList {
 		fmt.Fprintf(w, "%q:%q", label.Name, label.Value)
-		if i+1 < len(labels) {
+		if i+1 < len(labelsList) {
 			fmt.Fprintf(w, `,`)
 		}
 	}
@@ -253,37 +254,41 @@ type droppedTargets struct {
 }
 
 type droppedTarget struct {
-	originalLabels []prompbmarshal.Label
+	originalLabels *promutils.Labels
+	relabelConfigs *promrelabel.ParsedConfigs
 	deadline       uint64
 }
 
-func (dt *droppedTargets) getTargetsLabels() [][]prompbmarshal.Label {
+func (dt *droppedTargets) getTargetsList() []droppedTarget {
 	dt.mu.Lock()
-	dtls := make([][]prompbmarshal.Label, 0, len(dt.m))
+	dts := make([]droppedTarget, 0, len(dt.m))
 	for _, v := range dt.m {
-		dtls = append(dtls, v.originalLabels)
+		dts = append(dts, v)
 	}
 	dt.mu.Unlock()
 	// Sort discovered targets by __address__ label, so they stay in consistent order across calls
-	sort.Slice(dtls, func(i, j int) bool {
-		addr1 := promrelabel.GetLabelValueByName(dtls[i], "__address__")
-		addr2 := promrelabel.GetLabelValueByName(dtls[j], "__address__")
+	sort.Slice(dts, func(i, j int) bool {
+		addr1 := dts[i].originalLabels.Get("__address__")
+		addr2 := dts[j].originalLabels.Get("__address__")
 		return addr1 < addr2
 	})
-	return dtls
+	return dts
 }
 
-func (dt *droppedTargets) Register(originalLabels []prompbmarshal.Label) {
-	// It is better to have hash collisions instead of spending additional CPU on promLabelsString() call.
+func (dt *droppedTargets) Register(originalLabels *promutils.Labels, relabelConfigs *promrelabel.ParsedConfigs) {
+	if *dropOriginalLabels {
+		// The originalLabels must be dropped, so do not register it.
+		return
+	}
+	// It is better to have hash collisions instead of spending additional CPU on originalLabels.String() call.
 	key := labelsHash(originalLabels)
 	currentTime := fasttime.UnixTimestamp()
 	dt.mu.Lock()
-	if k, ok := dt.m[key]; ok {
-		k.deadline = currentTime + 10*60
-		dt.m[key] = k
-	} else if len(dt.m) < *maxDroppedTargets {
+	_, ok := dt.m[key]
+	if ok || len(dt.m) < *maxDroppedTargets {
 		dt.m[key] = droppedTarget{
 			originalLabels: originalLabels,
+			relabelConfigs: relabelConfigs,
 			deadline:       currentTime + 10*60,
 		}
 	}
@@ -298,9 +303,9 @@ func (dt *droppedTargets) Register(originalLabels []prompbmarshal.Label) {
 	dt.mu.Unlock()
 }
 
-func labelsHash(labels []prompbmarshal.Label) uint64 {
+func labelsHash(labels *promutils.Labels) uint64 {
 	d := xxhashPool.Get().(*xxhash.Digest)
-	for _, label := range labels {
+	for _, label := range labels.GetLabels() {
 		_, _ = d.WriteString(label.Name)
 		_, _ = d.WriteString(label.Value)
 	}
@@ -318,13 +323,13 @@ var xxhashPool = &sync.Pool{
 
 // WriteDroppedTargetsJSON writes `droppedTargets` contents to w according to https://prometheus.io/docs/prometheus/latest/querying/api/#targets
 func (dt *droppedTargets) WriteDroppedTargetsJSON(w io.Writer) {
-	dtls := dt.getTargetsLabels()
+	dts := dt.getTargetsList()
 	fmt.Fprintf(w, `[`)
-	for i, labels := range dtls {
+	for i, dt := range dts {
 		fmt.Fprintf(w, `{"discoveredLabels":`)
-		writeLabelsJSON(w, labels)
+		writeLabelsJSON(w, dt.originalLabels)
 		fmt.Fprintf(w, `}`)
-		if i+1 < len(dtls) {
+		if i+1 < len(dts) {
 			fmt.Fprintf(w, `,`)
 		}
 	}
@@ -385,12 +390,13 @@ func (tsm *targetStatusMap) getTargetsStatusByJob(filter *requestFilter) *target
 		// Do not show empty jobs if target filters are set.
 		emptyJobs = nil
 	}
-	dtls := droppedTargetsMap.getTargetsLabels()
+	dts := droppedTargetsMap.getTargetsList()
 	return &targetsStatusResult{
-		jobTargetsStatuses:   jts,
-		droppedTargetsLabels: dtls,
-		emptyJobs:            emptyJobs,
-		err:                  err,
+		hasOriginalLabels:  !*dropOriginalLabels,
+		jobTargetsStatuses: jts,
+		droppedTargets:     dts,
+		emptyJobs:          emptyJobs,
+		err:                err,
 	}
 }
 
@@ -432,7 +438,8 @@ func filterTargetsByLabels(jts []*jobTargetsStatuses, searchQuery string) ([]*jo
 	for _, job := range jts {
 		var tss []targetStatus
 		for _, ts := range job.targetsStatus {
-			if ie.Match(ts.sw.Config.Labels) {
+			labels := ts.sw.Config.Labels.GetLabels()
+			if ie.Match(labels) {
 				tss = append(tss, ts)
 			}
 		}
@@ -496,22 +503,73 @@ func getRequestFilter(r *http.Request) *requestFilter {
 }
 
 type targetsStatusResult struct {
-	jobTargetsStatuses   []*jobTargetsStatuses
-	droppedTargetsLabels [][]prompbmarshal.Label
-	emptyJobs            []string
-	err                  error
+	hasOriginalLabels  bool
+	jobTargetsStatuses []*jobTargetsStatuses
+	droppedTargets     []droppedTarget
+	emptyJobs          []string
+	err                error
 }
 
 type targetLabels struct {
-	up               bool
-	discoveredLabels []prompbmarshal.Label
-	labels           []prompbmarshal.Label
+	up             bool
+	originalLabels *promutils.Labels
+	labels         *promutils.Labels
 }
 type targetLabelsByJob struct {
 	jobName        string
 	targets        []targetLabels
 	activeTargets  int
 	droppedTargets int
+}
+
+func getMetricRelabelContextByTargetID(targetID string) (*promrelabel.ParsedConfigs, *promutils.Labels, bool) {
+	tsmGlobal.mu.Lock()
+	defer tsmGlobal.mu.Unlock()
+
+	for sw := range tsmGlobal.m {
+		// The target is uniquely identified by a pointer to its original labels.
+		if getLabelsID(sw.Config.OriginalLabels) == targetID {
+			return sw.Config.MetricRelabelConfigs, sw.Config.Labels, true
+		}
+	}
+	return nil, nil, false
+}
+
+func getTargetRelabelContextByTargetID(targetID string) (*promrelabel.ParsedConfigs, *promutils.Labels, bool) {
+	var relabelConfigs *promrelabel.ParsedConfigs
+	var labels *promutils.Labels
+	found := false
+
+	// Search for relabel context in tsmGlobal (aka active targets)
+	tsmGlobal.mu.Lock()
+	for sw := range tsmGlobal.m {
+		// The target is uniquely identified by a pointer to its original labels.
+		if getLabelsID(sw.Config.OriginalLabels) == targetID {
+			relabelConfigs = sw.Config.RelabelConfigs
+			labels = sw.Config.OriginalLabels
+			found = true
+			break
+		}
+	}
+	tsmGlobal.mu.Unlock()
+
+	if found {
+		return relabelConfigs, labels, true
+	}
+
+	// Search for relabel context in droppedTargetsMap (aka deleted targets)
+	droppedTargetsMap.mu.Lock()
+	for _, dt := range droppedTargetsMap.m {
+		if getLabelsID(dt.originalLabels) == targetID {
+			relabelConfigs = dt.relabelConfigs
+			labels = dt.originalLabels
+			found = true
+			break
+		}
+	}
+	droppedTargetsMap.mu.Unlock()
+
+	return relabelConfigs, labels, found
 }
 
 func (tsr *targetsStatusResult) getTargetLabelsByJob() []*targetLabelsByJob {
@@ -528,14 +586,14 @@ func (tsr *targetsStatusResult) getTargetLabelsByJob() []*targetLabelsByJob {
 			}
 			m.activeTargets++
 			m.targets = append(m.targets, targetLabels{
-				up:               ts.up,
-				discoveredLabels: ts.sw.Config.OriginalLabels,
-				labels:           ts.sw.Config.Labels,
+				up:             ts.up,
+				originalLabels: ts.sw.Config.OriginalLabels,
+				labels:         ts.sw.Config.Labels,
 			})
 		}
 	}
-	for _, labels := range tsr.droppedTargetsLabels {
-		jobName := promrelabel.GetLabelValueByName(labels, "job")
+	for _, dt := range tsr.droppedTargets {
+		jobName := dt.originalLabels.Get("job")
 		m := byJob[jobName]
 		if m == nil {
 			m = &targetLabelsByJob{
@@ -545,7 +603,7 @@ func (tsr *targetsStatusResult) getTargetLabelsByJob() []*targetLabelsByJob {
 		}
 		m.droppedTargets++
 		m.targets = append(m.targets, targetLabels{
-			discoveredLabels: labels,
+			originalLabels: dt.originalLabels,
 		})
 	}
 	a := make([]*targetLabelsByJob, 0, len(byJob))

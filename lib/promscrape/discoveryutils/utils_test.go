@@ -6,6 +6,20 @@ import (
 	"time"
 )
 
+func TestJoinHostPort(t *testing.T) {
+	f := func(host string, port int, resultExpected string) {
+		t.Helper()
+		for i := 0; i < 5; i++ {
+			result := JoinHostPort(host, port)
+			if result != resultExpected {
+				t.Fatalf("unexpected result for JoinHostPort(%q, %d); got %q; want %q", host, port, result, resultExpected)
+			}
+		}
+	}
+	f("foo", 123, "foo:123")
+	f("1:32::43", 80, "[1:32::43]:80")
+}
+
 func TestSanitizeLabelNameSerial(t *testing.T) {
 	if err := testSanitizeLabelName(); err != nil {
 		t.Fatalf("unexpected error: %s", err)
@@ -49,8 +63,5 @@ func testSanitizeLabelName() error {
 	if err := f("foo", "foo"); err != nil {
 		return err
 	}
-	if err := f("foo-bar/baz", "foo_bar_baz"); err != nil {
-		return err
-	}
-	return nil
+	return f("foo-bar/baz", "foo_bar_baz")
 }

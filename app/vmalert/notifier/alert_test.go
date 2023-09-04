@@ -54,28 +54,35 @@ func TestAlert_ExecTemplate(t *testing.T) {
 					"job":      "staging",
 					"instance": "localhost",
 				},
+				For: 5 * time.Minute,
 			},
 			annotations: map[string]string{
 				"summary":     "Too high connection number for {{$labels.instance}} for job {{$labels.job}}",
-				"description": "It is {{ $value }} connections for {{$labels.instance}}",
+				"description": "It is {{ $value }} connections for {{$labels.instance}} for more than {{ .For }}",
 			},
 			expTpl: map[string]string{
 				"summary":     "Too high connection number for localhost for job staging",
-				"description": "It is 10000 connections for localhost",
+				"description": "It is 10000 connections for localhost for more than 5m0s",
 			},
 		},
 		{
 			name: "expression-template",
 			alert: &Alert{
-				Expr: `vm_rows{"label"="bar"}>0`,
+				Expr: `vm_rows{"label"="bar"}<0`,
 			},
 			annotations: map[string]string{
-				"exprEscapedQuery": "{{ $expr|quotesEscape|queryEscape }}",
-				"exprEscapedPath":  "{{ $expr|quotesEscape|pathEscape }}",
+				"exprEscapedQuery":  "{{ $expr|queryEscape }}",
+				"exprEscapedPath":   "{{ $expr|pathEscape }}",
+				"exprEscapedJSON":   "{{ $expr|jsonEscape }}",
+				"exprEscapedQuotes": "{{ $expr|quotesEscape }}",
+				"exprEscapedHTML":   "{{ $expr|htmlEscape }}",
 			},
 			expTpl: map[string]string{
-				"exprEscapedQuery": "vm_rows%7B%5C%22label%5C%22%3D%5C%22bar%5C%22%7D%3E0",
-				"exprEscapedPath":  "vm_rows%7B%5C%22label%5C%22=%5C%22bar%5C%22%7D%3E0",
+				"exprEscapedQuery":  "vm_rows%7B%22label%22%3D%22bar%22%7D%3C0",
+				"exprEscapedPath":   "vm_rows%7B%22label%22=%22bar%22%7D%3C0",
+				"exprEscapedJSON":   `"vm_rows{\"label\"=\"bar\"}\u003c0"`,
+				"exprEscapedQuotes": `vm_rows{\"label\"=\"bar\"}\u003c0`,
+				"exprEscapedHTML":   "vm_rows{&quot;label&quot;=&quot;bar&quot;}&lt;0",
 			},
 		},
 		{
@@ -146,7 +153,7 @@ func TestAlert_ExecTemplate(t *testing.T) {
 			},
 		},
 		{
-			name: "ActiveAt custome format",
+			name: "ActiveAt custom format",
 			alert: &Alert{
 				ActiveAt: time.Date(2022, 8, 19, 20, 34, 58, 651387237, time.UTC),
 			},
@@ -193,6 +200,9 @@ func TestAlert_ExecTemplate(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			if err := ValidateTemplates(tc.annotations); err != nil {
+				t.Fatal(err)
+			}
 			tpl, err := tc.alert.ExecTemplate(qFn, tc.alert.Labels, tc.annotations)
 			if err != nil {
 				t.Fatal(err)
@@ -233,7 +243,7 @@ func TestAlert_toPromLabels(t *testing.T) {
   replacement: "aaa"
 - action: labeldrop
   regex: "env.*"
-`), false)
+`))
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}

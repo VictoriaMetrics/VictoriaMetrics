@@ -53,4 +53,7 @@ type RemoteFS interface {
 
 	// HasFile returns true if filePath exists at RemoteFS.
 	HasFile(filePath string) (bool, error)
+
+	// ReadFile returns file contents at the given filePath.
+	ReadFile(filePath string) ([]byte, error)
 }

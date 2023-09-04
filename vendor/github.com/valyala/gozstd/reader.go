@@ -15,7 +15,12 @@ package gozstd
 // See https://github.com/golang/go/issues/24450 .
 
 static size_t ZSTD_initDStream_usingDDict_wrapper(uintptr_t ds, uintptr_t dict) {
-    return ZSTD_initDStream_usingDDict((ZSTD_DStream*)ds, (ZSTD_DDict*)dict);
+    ZSTD_DStream *zds = (ZSTD_DStream *)ds;
+    size_t rv = ZSTD_DCtx_reset(zds, ZSTD_reset_session_only);
+    if (rv != 0) {
+        return rv;
+    }
+    return ZSTD_DCtx_refDDict(zds, (ZSTD_DDict *)dict);
 }
 
 static size_t ZSTD_freeDStream_wrapper(uintptr_t ds) {

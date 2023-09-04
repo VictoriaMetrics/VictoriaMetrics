@@ -8,7 +8,7 @@ import (
 func TestParseAgentFailure(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
-		a, err := parseAgent([]byte(s))
+		a, err := ParseAgent([]byte(s))
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
@@ -66,13 +66,21 @@ func TestParseAgentSuccess(t *testing.T) {
   }
 }
 `
-	a, err := parseAgent([]byte(data))
+	a, err := ParseAgent([]byte(data))
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	aExpected := &Agent{
 		Config: AgentConfig{
 			Datacenter: "dc1",
+			NodeName:   "foobar",
+		},
+		Member: AgentMember{
+			Addr: "10.1.10.12",
+		},
+		Meta: map[string]string{
+			"instance_type": "i2.xlarge",
+			"os_version":    "ubuntu_16.04",
 		},
 	}
 	if !reflect.DeepEqual(a, aExpected) {

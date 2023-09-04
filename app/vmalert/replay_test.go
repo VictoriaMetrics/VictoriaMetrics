@@ -20,21 +20,21 @@ func (fr *fakeReplayQuerier) BuildWithParams(_ datasource.QuerierParams) datasou
 	return fr
 }
 
-func (fr *fakeReplayQuerier) QueryRange(_ context.Context, q string, from, to time.Time) ([]datasource.Metric, error) {
+func (fr *fakeReplayQuerier) QueryRange(_ context.Context, q string, from, to time.Time) (res datasource.Result, err error) {
 	key := fmt.Sprintf("%s+%s", from.Format("15:04:05"), to.Format("15:04:05"))
 	dps, ok := fr.registry[q]
 	if !ok {
-		return nil, fmt.Errorf("unexpected query received: %q", q)
+		return res, fmt.Errorf("unexpected query received: %q", q)
 	}
 	_, ok = dps[key]
 	if !ok {
-		return nil, fmt.Errorf("unexpected time range received: %q", key)
+		return res, fmt.Errorf("unexpected time range received: %q", key)
 	}
 	delete(dps, key)
 	if len(fr.registry[q]) < 1 {
 		delete(fr.registry, q)
 	}
-	return nil, nil
+	return res, nil
 }
 
 func TestReplay(t *testing.T) {

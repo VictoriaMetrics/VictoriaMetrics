@@ -36,6 +36,9 @@ vminsert-freebsd-amd64-prod:
 vminsert-openbsd-amd64-prod:
 	APP_NAME=vminsert $(MAKE) app-via-docker-openbsd-amd64
 
+vminsert-windows-amd64-prod:
+	APP_NAME=vminsert $(MAKE) app-via-docker-windows-amd64
+
 vminsert-prod-race:
 	APP_NAME=vminsert RACE=-race $(MAKE) app-via-docker
 
@@ -44,6 +47,21 @@ package-vminsert:
 
 package-vminsert-race:
 	APP_NAME=vminsert RACE=-race $(MAKE) package-via-docker
+
+package-vminsert-amd64:
+	APP_NAME=vminsert $(MAKE) package-via-docker-amd64
+
+package-vminsert-arm:
+	APP_NAME=vminsert $(MAKE) package-via-docker-arm
+
+package-vminsert-arm64:
+	APP_NAME=vminsert $(MAKE) package-via-docker-arm64
+
+package-vminsert-ppc64le:
+	APP_NAME=vminsert $(MAKE) package-via-docker-ppc64le
+
+package-vminsert-386:
+	APP_NAME=vminsert $(MAKE) package-via-docker-386
 
 publish-vminsert:
 	APP_NAME=vminsert $(MAKE) publish-via-docker
@@ -63,6 +81,9 @@ vminsert-linux-arm64:
 vminsert-linux-ppc64le:
 	APP_NAME=vminsert CGO_ENABLED=0 GOOS=linux GOARCH=ppc64le $(MAKE) app-local-goos-goarch
 
+vminsert-linux-s390x:
+	APP_NAME=vminsert CGO_ENABLED=0 GOOS=linux GOARCH=s390x $(MAKE) app-local-goos-goarch
+
 vminsert-linux-386:
 	APP_NAME=vminsert CGO_ENABLED=0 GOOS=linux GOARCH=386 $(MAKE) app-local-goos-goarch
 
@@ -71,6 +92,9 @@ vminsert-freebsd-amd64:
 
 vminsert-openbsd-amd64:
 	APP_NAME=vminsert CGO_ENABLED=0 GOOS=openbsd GOARCH=amd64 $(MAKE) app-local-goos-goarch
+
+vminsert-windows-amd64:
+	GOARCH=amd64 APP_NAME=vminsert $(MAKE) app-local-windows-goarch
 
 vminsert-pure:
 	APP_NAME=vminsert $(MAKE) app-local-pure

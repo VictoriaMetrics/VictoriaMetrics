@@ -1,22 +1,17 @@
-import {useEffect, useState} from "preact/compat";
-import {getQueryOptions} from "../api/query-range";
-import {useAppState} from "../state/common/StateContext";
-import {getAppModeEnable, getAppModeParams} from "../utils/app-mode";
-
-const appModeEnable = getAppModeEnable();
-const {serverURL: appServerUrl} = getAppModeParams();
+import { useEffect, useState } from "preact/compat";
+import { getQueryOptions } from "../api/query-range";
+import { useAppState } from "../state/common/StateContext";
 
 export const useFetchQueryOptions = (): {
   queryOptions: string[],
 } => {
-  const {serverUrl} = useAppState();
+  const { serverUrl } = useAppState();
 
   const [queryOptions, setQueryOptions] = useState([]);
 
   const fetchOptions = async () => {
-    const server = appModeEnable ? appServerUrl : serverUrl;
-    if (!server) return;
-    const url = getQueryOptions(server);
+    if (!serverUrl) return;
+    const url = getQueryOptions(serverUrl);
 
     try {
       const response = await fetch(url);

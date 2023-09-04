@@ -216,6 +216,11 @@ func TestRowsUnmarshalFailure(t *testing.T) {
 	f(`a {foo  ="bar" , `)
 	f(`a {foo  ="bar" , baz } 2`)
 
+	// invalid tags - see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4284
+	f(`a{"__name__":"upsd_time_left_ns","host":"myhost", status_OB="true"} 12`)
+	f(`a{host:"myhost"} 12`)
+	f(`a{host:"myhost",foo="bar"} 12`)
+
 	// empty metric name
 	f(`{foo="bar"}`)
 

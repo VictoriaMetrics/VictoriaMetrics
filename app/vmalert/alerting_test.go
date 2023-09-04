@@ -6,12 +6,15 @@ import (
 	"reflect"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
 func TestAlertingRule_ToTimeSeries(t *testing.T) {
@@ -110,7 +113,7 @@ func TestAlertingRule_Exec(t *testing.T) {
 	testCases := []struct {
 		rule      *AlertingRule
 		steps     [][]datasource.Metric
-		expAlerts []testAlert
+		expAlerts map[int][]testAlert
 	}{
 		{
 			newTestAlertingRule("empty", 0),
@@ -122,50 +125,8 @@ func TestAlertingRule_Exec(t *testing.T) {
 			[][]datasource.Metric{
 				{datasource.Metric{Values: []float64{1}, Timestamps: []int64{1}}},
 			},
-			[]testAlert{
-				{alert: &notifier.Alert{State: notifier.StateFiring}},
-			},
-		},
-		{
-			newTestAlertingRule("single-firing", 0),
-			[][]datasource.Metric{
-				{metricWithLabels(t, "name", "foo")},
-			},
-			[]testAlert{
-				{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateFiring}},
-			},
-		},
-		{
-			newTestAlertingRule("single-firing=>inactive", 0),
-			[][]datasource.Metric{
-				{metricWithLabels(t, "name", "foo")},
-				{},
-			},
-			[]testAlert{
-				{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateInactive}},
-			},
-		},
-		{
-			newTestAlertingRule("single-firing=>inactive=>firing", 0),
-			[][]datasource.Metric{
-				{metricWithLabels(t, "name", "foo")},
-				{},
-				{metricWithLabels(t, "name", "foo")},
-			},
-			[]testAlert{
-				{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateFiring}},
-			},
-		},
-		{
-			newTestAlertingRule("single-firing=>inactive=>firing=>inactive", 0),
-			[][]datasource.Metric{
-				{metricWithLabels(t, "name", "foo")},
-				{},
-				{metricWithLabels(t, "name", "foo")},
-				{},
-			},
-			[]testAlert{
-				{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateInactive}},
+			map[int][]testAlert{
+				0: {{alert: &notifier.Alert{State: notifier.StateFiring}}},
 			},
 		},
 		{
@@ -177,12 +138,16 @@ func TestAlertingRule_Exec(t *testing.T) {
 				{},
 				{},
 			},
-			[]testAlert{
-				{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateInactive}},
+			map[int][]testAlert{
+				0: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateFiring}}},
+				1: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateInactive}}},
+				2: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateFiring}}},
+				3: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateInactive}}},
+				4: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateInactive}}},
 			},
 		},
 		{
-			newTestAlertingRule("single-firing=>inactive=>firing=>inactive=>empty=>firing", 0),
+			newTestAlertingRule("single-firing=>inactive=>firing=>inactive=>inactive=>firing", 0),
 			[][]datasource.Metric{
 				{metricWithLabels(t, "name", "foo")},
 				{},
@@ -191,8 +156,13 @@ func TestAlertingRule_Exec(t *testing.T) {
 				{},
 				{metricWithLabels(t, "name", "foo")},
 			},
-			[]testAlert{
-				{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateFiring}},
+			map[int][]testAlert{
+				0: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateFiring}}},
+				1: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateInactive}}},
+				2: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateFiring}}},
+				3: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateInactive}}},
+				4: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateInactive}}},
+				5: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateFiring}}},
 			},
 		},
 		{
@@ -204,10 +174,12 @@ func TestAlertingRule_Exec(t *testing.T) {
 					metricWithLabels(t, "name", "foo2"),
 				},
 			},
-			[]testAlert{
-				{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateFiring}},
-				{labels: []string{"name", "foo1"}, alert: &notifier.Alert{State: notifier.StateFiring}},
-				{labels: []string{"name", "foo2"}, alert: &notifier.Alert{State: notifier.StateFiring}},
+			map[int][]testAlert{
+				0: {
+					{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateFiring}},
+					{labels: []string{"name", "foo1"}, alert: &notifier.Alert{State: notifier.StateFiring}},
+					{labels: []string{"name", "foo2"}, alert: &notifier.Alert{State: notifier.StateFiring}},
+				},
 			},
 		},
 		{
@@ -220,10 +192,19 @@ func TestAlertingRule_Exec(t *testing.T) {
 			// 1: fire first alert
 			// 2: fire second alert, set first inactive
 			// 3: fire third alert, set second inactive
-			[]testAlert{
-				{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateInactive}},
-				{labels: []string{"name", "foo1"}, alert: &notifier.Alert{State: notifier.StateInactive}},
-				{labels: []string{"name", "foo2"}, alert: &notifier.Alert{State: notifier.StateFiring}},
+			map[int][]testAlert{
+				0: {
+					{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateFiring}},
+				},
+				1: {
+					{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateInactive}},
+					{labels: []string{"name", "foo1"}, alert: &notifier.Alert{State: notifier.StateFiring}},
+				},
+				2: {
+					{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateInactive}},
+					{labels: []string{"name", "foo1"}, alert: &notifier.Alert{State: notifier.StateInactive}},
+					{labels: []string{"name", "foo2"}, alert: &notifier.Alert{State: notifier.StateFiring}},
+				},
 			},
 		},
 		{
@@ -231,8 +212,8 @@ func TestAlertingRule_Exec(t *testing.T) {
 			[][]datasource.Metric{
 				{metricWithLabels(t, "name", "foo")},
 			},
-			[]testAlert{
-				{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StatePending}},
+			map[int][]testAlert{
+				0: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StatePending}}},
 			},
 		},
 		{
@@ -241,8 +222,9 @@ func TestAlertingRule_Exec(t *testing.T) {
 				{metricWithLabels(t, "name", "foo")},
 				{metricWithLabels(t, "name", "foo")},
 			},
-			[]testAlert{
-				{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateFiring}},
+			map[int][]testAlert{
+				0: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StatePending}}},
+				1: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateFiring}}},
 			},
 		},
 		{
@@ -250,34 +232,13 @@ func TestAlertingRule_Exec(t *testing.T) {
 			[][]datasource.Metric{
 				{metricWithLabels(t, "name", "foo")},
 				{metricWithLabels(t, "name", "foo")},
-				// empty step to reset and delete pending alerts
+				// empty step to delete pending alerts
 				{},
 			},
-			nil,
-		},
-		{
-			newTestAlertingRule("for-pending=>firing=>inactive", defaultStep),
-			[][]datasource.Metric{
-				{metricWithLabels(t, "name", "foo")},
-				{metricWithLabels(t, "name", "foo")},
-				// empty step to reset pending alerts
-				{},
-			},
-			[]testAlert{
-				{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateInactive}},
-			},
-		},
-		{
-			newTestAlertingRule("for-pending=>firing=>inactive=>pending", defaultStep),
-			[][]datasource.Metric{
-				{metricWithLabels(t, "name", "foo")},
-				{metricWithLabels(t, "name", "foo")},
-				// empty step to reset pending alerts
-				{},
-				{metricWithLabels(t, "name", "foo")},
-			},
-			[]testAlert{
-				{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StatePending}},
+			map[int][]testAlert{
+				0: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StatePending}}},
+				1: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StatePending}}},
+				2: {},
 			},
 		},
 		{
@@ -285,13 +246,57 @@ func TestAlertingRule_Exec(t *testing.T) {
 			[][]datasource.Metric{
 				{metricWithLabels(t, "name", "foo")},
 				{metricWithLabels(t, "name", "foo")},
-				// empty step to reset pending alerts
+				// empty step to set alert inactive
 				{},
 				{metricWithLabels(t, "name", "foo")},
 				{metricWithLabels(t, "name", "foo")},
 			},
-			[]testAlert{
-				{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateFiring}},
+			map[int][]testAlert{
+				0: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StatePending}}},
+				1: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateFiring}}},
+				2: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateInactive}}},
+				3: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StatePending}}},
+				4: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateFiring}}},
+			},
+		},
+		{
+			newTestAlertingRuleWithKeepFiring("for-pending=>firing=>keepfiring=>firing", defaultStep, defaultStep),
+			[][]datasource.Metric{
+				{metricWithLabels(t, "name", "foo")},
+				{metricWithLabels(t, "name", "foo")},
+				// empty step to keep firing
+				{},
+				{metricWithLabels(t, "name", "foo")},
+			},
+			map[int][]testAlert{
+				0: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StatePending}}},
+				1: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateFiring}}},
+				2: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateFiring}}},
+				3: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateFiring}}},
+			},
+		},
+		{
+			newTestAlertingRuleWithKeepFiring("for-pending=>firing=>keepfiring=>keepfiring=>inactive=>pending=>firing", defaultStep, 2*defaultStep),
+			[][]datasource.Metric{
+				{metricWithLabels(t, "name", "foo")},
+				{metricWithLabels(t, "name", "foo")},
+				// empty step to keep firing
+				{},
+				// another empty step to keep firing
+				{},
+				// empty step to set alert inactive
+				{},
+				{metricWithLabels(t, "name", "foo")},
+				{metricWithLabels(t, "name", "foo")},
+			},
+			map[int][]testAlert{
+				0: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StatePending}}},
+				1: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateFiring}}},
+				2: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateFiring}}},
+				3: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateFiring}}},
+				4: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateInactive}}},
+				5: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StatePending}}},
+				6: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateFiring}}},
 			},
 		},
 	}
@@ -301,7 +306,7 @@ func TestAlertingRule_Exec(t *testing.T) {
 			fq := &fakeQuerier{}
 			tc.rule.q = fq
 			tc.rule.GroupID = fakeGroup.ID()
-			for _, step := range tc.steps {
+			for i, step := range tc.steps {
 				fq.reset()
 				fq.add(step...)
 				if _, err := tc.rule.Exec(context.TODO(), time.Now(), 0); err != nil {
@@ -309,28 +314,31 @@ func TestAlertingRule_Exec(t *testing.T) {
 				}
 				// artificial delay between applying steps
 				time.Sleep(defaultStep)
-			}
-			if len(tc.rule.alerts) != len(tc.expAlerts) {
-				t.Fatalf("expected %d alerts; got %d", len(tc.expAlerts), len(tc.rule.alerts))
-			}
-			expAlerts := make(map[uint64]*notifier.Alert)
-			for _, ta := range tc.expAlerts {
-				labels := make(map[string]string)
-				for i := 0; i < len(ta.labels); i += 2 {
-					k, v := ta.labels[i], ta.labels[i+1]
-					labels[k] = v
+				if _, ok := tc.expAlerts[i]; !ok {
+					continue
 				}
-				labels[alertNameLabel] = tc.rule.Name
-				h := hash(labels)
-				expAlerts[h] = ta.alert
-			}
-			for key, exp := range expAlerts {
-				got, ok := tc.rule.alerts[key]
-				if !ok {
-					t.Fatalf("expected to have key %d", key)
+				if len(tc.rule.alerts) != len(tc.expAlerts[i]) {
+					t.Fatalf("evalIndex %d: expected %d alerts; got %d", i, len(tc.expAlerts[i]), len(tc.rule.alerts))
 				}
-				if got.State != exp.State {
-					t.Fatalf("expected state %d; got %d", exp.State, got.State)
+				expAlerts := make(map[uint64]*notifier.Alert)
+				for _, ta := range tc.expAlerts[i] {
+					labels := make(map[string]string)
+					for i := 0; i < len(ta.labels); i += 2 {
+						k, v := ta.labels[i], ta.labels[i+1]
+						labels[k] = v
+					}
+					labels[alertNameLabel] = tc.rule.Name
+					h := hash(labels)
+					expAlerts[h] = ta.alert
+				}
+				for key, exp := range expAlerts {
+					got, ok := tc.rule.alerts[key]
+					if !ok {
+						t.Fatalf("evalIndex %d: expected to have key %d", i, key)
+					}
+					if got.State != exp.State {
+						t.Fatalf("evalIndex %d: expected state %d; got %d", i, exp.State, got.State)
+					}
 				}
 			}
 		})
@@ -502,118 +510,156 @@ func TestAlertingRule_ExecRange(t *testing.T) {
 	}
 }
 
-func TestAlertingRule_Restore(t *testing.T) {
-	testCases := []struct {
-		rule      *AlertingRule
-		metrics   []datasource.Metric
-		expAlerts map[uint64]*notifier.Alert
-	}{
-		{
-			newTestRuleWithLabels("no extra labels"),
-			[]datasource.Metric{
-				metricWithValueAndLabels(t, float64(time.Now().Truncate(time.Hour).Unix()),
-					"__name__", alertForStateMetricName,
-				),
-			},
-			map[uint64]*notifier.Alert{
-				hash(nil): {State: notifier.StatePending,
-					ActiveAt: time.Now().Truncate(time.Hour)},
-			},
-		},
-		{
-			newTestRuleWithLabels("metric labels"),
-			[]datasource.Metric{
-				metricWithValueAndLabels(t, float64(time.Now().Truncate(time.Hour).Unix()),
-					"__name__", alertForStateMetricName,
-					alertNameLabel, "metric labels",
-					alertGroupNameLabel, "groupID",
-					"foo", "bar",
-					"namespace", "baz",
-				),
-			},
-			map[uint64]*notifier.Alert{
-				hash(map[string]string{
-					alertNameLabel:      "metric labels",
-					alertGroupNameLabel: "groupID",
-					"foo":               "bar",
-					"namespace":         "baz",
-				}): {State: notifier.StatePending,
-					ActiveAt: time.Now().Truncate(time.Hour)},
-			},
-		},
-		{
-			newTestRuleWithLabels("rule labels", "source", "vm"),
-			[]datasource.Metric{
-				metricWithValueAndLabels(t, float64(time.Now().Truncate(time.Hour).Unix()),
-					"__name__", alertForStateMetricName,
-					"foo", "bar",
-					"namespace", "baz",
-					// extra labels set by rule
-					"source", "vm",
-				),
-			},
-			map[uint64]*notifier.Alert{
-				hash(map[string]string{
-					"foo":       "bar",
-					"namespace": "baz",
-					"source":    "vm",
-				}): {State: notifier.StatePending,
-					ActiveAt: time.Now().Truncate(time.Hour)},
-			},
-		},
-		{
-			newTestRuleWithLabels("multiple alerts"),
-			[]datasource.Metric{
-				metricWithValueAndLabels(t, float64(time.Now().Truncate(time.Hour).Unix()),
-					"__name__", alertForStateMetricName,
-					"host", "localhost-1",
-				),
-				metricWithValueAndLabels(t, float64(time.Now().Truncate(2*time.Hour).Unix()),
-					"__name__", alertForStateMetricName,
-					"host", "localhost-2",
-				),
-				metricWithValueAndLabels(t, float64(time.Now().Truncate(3*time.Hour).Unix()),
-					"__name__", alertForStateMetricName,
-					"host", "localhost-3",
-				),
-			},
-			map[uint64]*notifier.Alert{
-				hash(map[string]string{"host": "localhost-1"}): {State: notifier.StatePending,
-					ActiveAt: time.Now().Truncate(time.Hour)},
-				hash(map[string]string{"host": "localhost-2"}): {State: notifier.StatePending,
-					ActiveAt: time.Now().Truncate(2 * time.Hour)},
-				hash(map[string]string{"host": "localhost-3"}): {State: notifier.StatePending,
-					ActiveAt: time.Now().Truncate(3 * time.Hour)},
-			},
-		},
+func TestGroup_Restore(t *testing.T) {
+	defaultTS := time.Now()
+	fqr := &fakeQuerierWithRegistry{}
+	fn := func(rules []config.Rule, expAlerts map[uint64]*notifier.Alert) {
+		t.Helper()
+		defer fqr.reset()
+
+		for _, r := range rules {
+			fqr.set(r.Expr, metricWithValueAndLabels(t, 0, "__name__", r.Alert))
+		}
+
+		fg := newGroup(config.Group{Name: "TestRestore", Rules: rules}, fqr, time.Second, nil)
+		wg := sync.WaitGroup{}
+		wg.Add(1)
+		go func() {
+			nts := func() []notifier.Notifier { return []notifier.Notifier{&fakeNotifier{}} }
+			fg.start(context.Background(), nts, nil, fqr)
+			wg.Done()
+		}()
+		fg.close()
+		wg.Wait()
+
+		gotAlerts := make(map[uint64]*notifier.Alert)
+		for _, rs := range fg.Rules {
+			alerts := rs.(*AlertingRule).alerts
+			for k, v := range alerts {
+				if !v.Restored {
+					// set not restored alerts to predictable timestamp
+					v.ActiveAt = defaultTS
+				}
+				gotAlerts[k] = v
+			}
+		}
+
+		if len(gotAlerts) != len(expAlerts) {
+			t.Fatalf("expected %d alerts; got %d", len(expAlerts), len(gotAlerts))
+		}
+		for key, exp := range expAlerts {
+			got, ok := gotAlerts[key]
+			if !ok {
+				t.Fatalf("expected to have key %d", key)
+			}
+			if got.State != notifier.StatePending {
+				t.Fatalf("expected state %d; got %d", notifier.StatePending, got.State)
+			}
+			if got.ActiveAt != exp.ActiveAt {
+				t.Fatalf("expected ActiveAt %v; got %v", exp.ActiveAt, got.ActiveAt)
+			}
+		}
 	}
-	fakeGroup := Group{Name: "TestRule_Exec"}
-	for _, tc := range testCases {
-		t.Run(tc.rule.Name, func(t *testing.T) {
-			fq := &fakeQuerier{}
-			tc.rule.GroupID = fakeGroup.ID()
-			tc.rule.q = fq
-			fq.add(tc.metrics...)
-			if err := tc.rule.Restore(context.TODO(), fq, time.Hour, nil); err != nil {
-				t.Fatalf("unexpected err: %s", err)
-			}
-			if len(tc.rule.alerts) != len(tc.expAlerts) {
-				t.Fatalf("expected %d alerts; got %d", len(tc.expAlerts), len(tc.rule.alerts))
-			}
-			for key, exp := range tc.expAlerts {
-				got, ok := tc.rule.alerts[key]
-				if !ok {
-					t.Fatalf("expected to have key %d", key)
-				}
-				if got.State != exp.State {
-					t.Fatalf("expected state %d; got %d", exp.State, got.State)
-				}
-				if got.ActiveAt != exp.ActiveAt {
-					t.Fatalf("expected ActiveAt %v; got %v", exp.ActiveAt, got.ActiveAt)
-				}
-			}
+
+	stateMetric := func(name string, value time.Time, labels ...string) datasource.Metric {
+		labels = append(labels, "__name__", alertForStateMetricName)
+		labels = append(labels, alertNameLabel, name)
+		labels = append(labels, alertGroupNameLabel, "TestRestore")
+		return metricWithValueAndLabels(t, float64(value.Unix()), labels...)
+	}
+
+	// one active alert, no previous state
+	fn(
+		[]config.Rule{{Alert: "foo", Expr: "foo", For: promutils.NewDuration(time.Second)}},
+		map[uint64]*notifier.Alert{
+			hash(map[string]string{alertNameLabel: "foo", alertGroupNameLabel: "TestRestore"}): {
+				ActiveAt: defaultTS,
+			},
 		})
-	}
+	fqr.reset()
+
+	// one active alert with state restore
+	ts := time.Now().Truncate(time.Hour)
+	fqr.set(`last_over_time(ALERTS_FOR_STATE{alertgroup="TestRestore",alertname="foo"}[3600s])`,
+		stateMetric("foo", ts))
+	fn(
+		[]config.Rule{{Alert: "foo", Expr: "foo", For: promutils.NewDuration(time.Second)}},
+		map[uint64]*notifier.Alert{
+			hash(map[string]string{alertNameLabel: "foo", alertGroupNameLabel: "TestRestore"}): {
+				ActiveAt: ts},
+		})
+
+	// two rules, two active alerts, one with state restored
+	ts = time.Now().Truncate(time.Hour)
+	fqr.set(`last_over_time(ALERTS_FOR_STATE{alertgroup="TestRestore",alertname="bar"}[3600s])`,
+		stateMetric("foo", ts))
+	fn(
+		[]config.Rule{
+			{Alert: "foo", Expr: "foo", For: promutils.NewDuration(time.Second)},
+			{Alert: "bar", Expr: "bar", For: promutils.NewDuration(time.Second)},
+		},
+		map[uint64]*notifier.Alert{
+			hash(map[string]string{alertNameLabel: "foo", alertGroupNameLabel: "TestRestore"}): {
+				ActiveAt: defaultTS,
+			},
+			hash(map[string]string{alertNameLabel: "bar", alertGroupNameLabel: "TestRestore"}): {
+				ActiveAt: ts},
+		})
+
+	// two rules, two active alerts, two with state restored
+	ts = time.Now().Truncate(time.Hour)
+	fqr.set(`last_over_time(ALERTS_FOR_STATE{alertgroup="TestRestore",alertname="foo"}[3600s])`,
+		stateMetric("foo", ts))
+	fqr.set(`last_over_time(ALERTS_FOR_STATE{alertgroup="TestRestore",alertname="bar"}[3600s])`,
+		stateMetric("bar", ts))
+	fn(
+		[]config.Rule{
+			{Alert: "foo", Expr: "foo", For: promutils.NewDuration(time.Second)},
+			{Alert: "bar", Expr: "bar", For: promutils.NewDuration(time.Second)},
+		},
+		map[uint64]*notifier.Alert{
+			hash(map[string]string{alertNameLabel: "foo", alertGroupNameLabel: "TestRestore"}): {
+				ActiveAt: ts,
+			},
+			hash(map[string]string{alertNameLabel: "bar", alertGroupNameLabel: "TestRestore"}): {
+				ActiveAt: ts},
+		})
+
+	// one active alert but wrong state restore
+	ts = time.Now().Truncate(time.Hour)
+	fqr.set(`last_over_time(ALERTS_FOR_STATE{alertname="bar",alertgroup="TestRestore"}[3600s])`,
+		stateMetric("wrong alert", ts))
+	fn(
+		[]config.Rule{{Alert: "foo", Expr: "foo", For: promutils.NewDuration(time.Second)}},
+		map[uint64]*notifier.Alert{
+			hash(map[string]string{alertNameLabel: "foo", alertGroupNameLabel: "TestRestore"}): {
+				ActiveAt: defaultTS,
+			},
+		})
+
+	// one active alert with labels
+	ts = time.Now().Truncate(time.Hour)
+	fqr.set(`last_over_time(ALERTS_FOR_STATE{alertgroup="TestRestore",alertname="foo",env="dev"}[3600s])`,
+		stateMetric("foo", ts, "env", "dev"))
+	fn(
+		[]config.Rule{{Alert: "foo", Expr: "foo", Labels: map[string]string{"env": "dev"}, For: promutils.NewDuration(time.Second)}},
+		map[uint64]*notifier.Alert{
+			hash(map[string]string{alertNameLabel: "foo", alertGroupNameLabel: "TestRestore", "env": "dev"}): {
+				ActiveAt: ts,
+			},
+		})
+
+	// one active alert with restore labels missmatch
+	ts = time.Now().Truncate(time.Hour)
+	fqr.set(`last_over_time(ALERTS_FOR_STATE{alertgroup="TestRestore",alertname="foo",env="dev"}[3600s])`,
+		stateMetric("foo", ts, "env", "dev", "team", "foo"))
+	fn(
+		[]config.Rule{{Alert: "foo", Expr: "foo", Labels: map[string]string{"env": "dev"}, For: promutils.NewDuration(time.Second)}},
+		map[uint64]*notifier.Alert{
+			hash(map[string]string{alertNameLabel: "foo", alertGroupNameLabel: "TestRestore", "env": "dev"}): {
+				ActiveAt: defaultTS,
+			},
+		})
 }
 
 func TestAlertingRule_Exec_Negative(t *testing.T) {
@@ -700,14 +746,25 @@ func TestAlertingRule_Template(t *testing.T) {
 		expAlerts map[uint64]*notifier.Alert
 	}{
 		{
-			newTestRuleWithLabels("common", "region", "east"),
+			&AlertingRule{
+				Name: "common",
+				Labels: map[string]string{
+					"region": "east",
+				},
+				Annotations: map[string]string{
+					"summary": `{{ $labels.alertname }}: Too high connection number for "{{ $labels.instance }}"`,
+				},
+				alerts: make(map[uint64]*notifier.Alert),
+			},
 			[]datasource.Metric{
 				metricWithValueAndLabels(t, 1, "instance", "foo"),
 				metricWithValueAndLabels(t, 1, "instance", "bar"),
 			},
 			map[uint64]*notifier.Alert{
 				hash(map[string]string{alertNameLabel: "common", "region": "east", "instance": "foo"}): {
-					Annotations: map[string]string{},
+					Annotations: map[string]string{
+						"summary": `common: Too high connection number for "foo"`,
+					},
 					Labels: map[string]string{
 						alertNameLabel: "common",
 						"region":       "east",
@@ -715,7 +772,9 @@ func TestAlertingRule_Template(t *testing.T) {
 					},
 				},
 				hash(map[string]string{alertNameLabel: "common", "region": "east", "instance": "bar"}): {
-					Annotations: map[string]string{},
+					Annotations: map[string]string{
+						"summary": `common: Too high connection number for "bar"`,
+					},
 					Labels: map[string]string{
 						alertNameLabel: "common",
 						"region":       "east",
@@ -804,6 +863,7 @@ func TestAlertingRule_Template(t *testing.T) {
 			fq := &fakeQuerier{}
 			tc.rule.GroupID = fakeGroup.ID()
 			tc.rule.q = fq
+			tc.rule.state = newRuleState(10)
 			fq.add(tc.metrics...)
 			if _, err := tc.rule.Exec(context.TODO(), time.Now(), 0); err != nil {
 				t.Fatalf("unexpected err: %s", err)
@@ -811,8 +871,7 @@ func TestAlertingRule_Template(t *testing.T) {
 			for hash, expAlert := range tc.expAlerts {
 				gotAlert := tc.rule.alerts[hash]
 				if gotAlert == nil {
-					t.Fatalf("alert %d is missing; labels: %v; annotations: %v",
-						hash, expAlert.Labels, expAlert.Annotations)
+					t.Fatalf("alert %d is missing; labels: %v; annotations: %v", hash, expAlert.Labels, expAlert.Annotations)
 				}
 				if !reflect.DeepEqual(expAlert.Annotations, gotAlert.Annotations) {
 					t.Fatalf("expected to have annotations %#v; got %#v", expAlert.Annotations, gotAlert.Annotations)
@@ -915,5 +974,18 @@ func newTestRuleWithLabels(name string, labels ...string) *AlertingRule {
 }
 
 func newTestAlertingRule(name string, waitFor time.Duration) *AlertingRule {
-	return &AlertingRule{Name: name, alerts: make(map[uint64]*notifier.Alert), For: waitFor, EvalInterval: waitFor}
+	rule := AlertingRule{
+		Name:         name,
+		For:          waitFor,
+		EvalInterval: waitFor,
+		alerts:       make(map[uint64]*notifier.Alert),
+		state:        newRuleState(10),
+	}
+	return &rule
+}
+
+func newTestAlertingRuleWithKeepFiring(name string, waitFor, keepFiringFor time.Duration) *AlertingRule {
+	rule := newTestAlertingRule(name, waitFor)
+	rule.KeepFiringFor = keepFiringFor
+	return rule
 }

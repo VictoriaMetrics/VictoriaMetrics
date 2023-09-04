@@ -1,0 +1,23 @@
+@use "src/styles/variables" as *;
+
+.vm-line-progress {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  justify-content: center;
+  gap: $padding-small;
+  color: $color-text-secondary;
+
+  &-track {
+    width: 100%;
+    height: 20px;
+    background-color: $color-hover-black;
+    border-radius: $border-radius-small;
+
+    &__thumb {
+      height: 100%;
+      background-color: $color-dodger-blue;
+      border-radius: $border-radius-small;
+    }
+  }
+}

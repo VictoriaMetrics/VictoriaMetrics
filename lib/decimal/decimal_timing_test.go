@@ -84,17 +84,19 @@ func benchmarkAppendFloatToDecimal(b *testing.B, fa []float64) {
 }
 
 var testFAReal = func() []float64 {
+	r := rand.New(rand.NewSource(1))
 	fa := make([]float64, 8*1024)
 	for i := 0; i < len(fa); i++ {
-		fa[i] = rand.NormFloat64() * 1e-6
+		fa[i] = r.NormFloat64() * 1e-6
 	}
 	return fa
 }()
 
 var testFAInteger = func() []float64 {
+	r := rand.New(rand.NewSource(2))
 	fa := make([]float64, 8*1024)
 	for i := 0; i < len(fa); i++ {
-		fa[i] = float64(int(rand.NormFloat64() * 1e6))
+		fa[i] = float64(int(r.NormFloat64() * 1e6))
 	}
 	return fa
 }()

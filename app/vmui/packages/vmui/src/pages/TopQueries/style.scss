@@ -1,0 +1,64 @@
+@use "src/styles/variables" as *;
+
+.vm-top-queries {
+  display: grid;
+  align-items: flex-start;
+  gap: $padding-medium;
+
+  &_mobile {
+    gap: $padding-small;
+  }
+
+  &-controls {
+    display: grid;
+    gap: $padding-small;
+
+    &-fields {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: $padding-medium;
+
+      &__item {
+        flex-grow: 1;
+        min-width: 200px;
+      }
+    }
+
+    &-bottom {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: $padding-medium;
+
+      &_mobile {
+        grid-template-columns: 1fr;
+        gap: $padding-small;
+      }
+
+      &__info {
+      }
+
+      &__button {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+      }
+    }
+  }
+
+  &-panels {
+    display: grid;
+    gap: $padding-medium;
+
+    &__table-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: $padding-small;
+      height: 100%;
+      padding: 0 $padding-small;
+    }
+  }
+}

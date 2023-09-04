@@ -2,6 +2,7 @@ package prometheus
 
 import (
 	"math"
+	"net/http"
 	"reflect"
 	"testing"
 
@@ -194,4 +195,37 @@ func TestAdjustLastPoints(t *testing.T) {
 			Values:     []float64{1, 2, 2},
 		},
 	})
+}
+
+func TestGetLatencyOffsetMillisecondsSuccess(t *testing.T) {
+	f := func(url string, expectedOffset int64) {
+		t.Helper()
+		r, err := http.NewRequest(http.MethodGet, url, nil)
+		if err != nil {
+			t.Fatalf("unexpected error in NewRequest(%q): %s", url, err)
+		}
+		offset, err := getLatencyOffsetMilliseconds(r)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		if offset != expectedOffset {
+			t.Fatalf("unexpected offset got %d; want %d", offset, expectedOffset)
+		}
+	}
+	f("http://localhost", latencyOffset.Milliseconds())
+	f("http://localhost?latency_offset=1.234s", 1234)
+}
+
+func TestGetLatencyOffsetMillisecondsFailure(t *testing.T) {
+	f := func(url string) {
+		t.Helper()
+		r, err := http.NewRequest(http.MethodGet, url, nil)
+		if err != nil {
+			t.Fatalf("unexpected error in NewRequest(%q): %s", url, err)
+		}
+		if _, err := getLatencyOffsetMilliseconds(r); err == nil {
+			t.Fatalf("expecting non-nil error")
+		}
+	}
+	f("http://localhost?latency_offset=foobar")
 }

@@ -53,6 +53,8 @@ func testMarshalInt64NearestDelta(t *testing.T, va []int64, precisionBits uint8,
 }
 
 func TestMarshalUnmarshalInt64NearestDelta(t *testing.T) {
+	r := rand.New(rand.NewSource(1))
+
 	testMarshalUnmarshalInt64NearestDelta(t, []int64{0}, 4)
 	testMarshalUnmarshalInt64NearestDelta(t, []int64{0, 0}, 4)
 	testMarshalUnmarshalInt64NearestDelta(t, []int64{1, -3}, 4)
@@ -105,7 +107,7 @@ func TestMarshalUnmarshalInt64NearestDelta(t *testing.T) {
 	v = 787933
 	va = []int64{}
 	for i := 0; i < 1024; i++ {
-		v -= 25 + int64(rand.NormFloat64()*2)
+		v -= 25 + int64(r.NormFloat64()*2)
 		va = append(va, v)
 	}
 	testMarshalUnmarshalInt64NearestDelta(t, va, 4)
@@ -114,7 +116,7 @@ func TestMarshalUnmarshalInt64NearestDelta(t *testing.T) {
 	v = 943854
 	va = []int64{}
 	for i := 0; i < 1024; i++ {
-		v += 30 + rand.Int63n(5)
+		v += 30 + r.Int63n(5)
 		va = append(va, v)
 	}
 	testMarshalUnmarshalInt64NearestDelta(t, va, 4)
@@ -123,7 +125,7 @@ func TestMarshalUnmarshalInt64NearestDelta(t *testing.T) {
 	v = -12345
 	va = []int64{}
 	for i := 0; i < 1024; i++ {
-		v += int64(rand.NormFloat64() * 10)
+		v += int64(r.NormFloat64() * 10)
 		va = append(va, v)
 	}
 	testMarshalUnmarshalInt64NearestDelta(t, va, 4)
@@ -132,7 +134,7 @@ func TestMarshalUnmarshalInt64NearestDelta(t *testing.T) {
 	v = -12345
 	va = []int64{}
 	for i := 0; i < 1024; i++ {
-		v += rand.Int63n(15) - 1
+		v += r.Int63n(15) - 1
 		va = append(va, v)
 	}
 	testMarshalUnmarshalInt64NearestDelta(t, va, 4)

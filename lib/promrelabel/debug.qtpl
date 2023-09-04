@@ -1,0 +1,207 @@
+{% import (
+        "fmt"
+        "github.com/VictoriaMetrics/VictoriaMetrics/lib/htmlcomponents"
+        "github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+) %}
+
+{% stripspace %}
+
+{% func RelabelDebugSteps(targetURL, targetID, format string, dss []DebugStep, metric, relabelConfigs  string, err error) %}
+  {% if format == "json" %}
+      {%= RelabelDebugStepsJSON(targetURL, targetID, dss, metric, relabelConfigs, err) %}
+  {% else %}
+      {%= RelabelDebugStepsHTML(targetURL, targetID, dss, metric, relabelConfigs, err) %}
+  {% endif %}
+{% endfunc %}
+
+{% func RelabelDebugStepsHTML(targetURL, targetID string, dss []DebugStep, metric, relabelConfigs string, err error) %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {%= htmlcomponents.CommonHeader() %}
+    <title>Metric relabel debug</title>
+    <script>
+function submitRelabelDebugForm(e) {
+  var form = e.target;
+  var method = "GET";
+  if (form.elements["relabel_configs"].value.length + form.elements["metric"].value.length > 1000) {
+    method = "POST";
+  }
+  form.method = method;
+}
+    </script>
+</head>
+<body>
+    {%= htmlcomponents.Navbar() %}
+    <div class="container-fluid">
+        <a href="https://docs.victoriametrics.com/relabeling.html" target="_blank">Relabeling docs</a>{% space %}
+
+        {% if targetURL != "" %}
+          <a href="metric-relabel-debug{% if targetID != "" %}?id={%s targetID %}{% endif %}">Metric relabel debug</a>
+        {% else %}
+          <a href="target-relabel-debug{% if targetID != "" %}?id={%s targetID %}{% endif %}">Target relabel debug</a>
+        {% endif %}
+
+        <br>
+        {% if err != nil %}
+            {%= htmlcomponents.ErrorNotification(err) %}
+        {% endif %}
+
+        <div class="m-3">
+        <form method="POST" onsubmit="submitRelabelDebugForm(event)">
+            {%= relabelDebugFormInputs(metric, relabelConfigs) %}
+            {% if targetID != "" %}
+              <input type="hidden" name="id" value="{%s targetID %}" />
+            {% endif %}
+            <input type="submit" value="Submit" class="btn btn-primary m-1" />
+            {% if targetID != "" %}
+                <button type="button" onclick="location.href='?id={%s targetID %}'" class="btn btn-secondary m-1">Reset</button>
+            {% endif %}
+        </form>
+        </div>
+
+        <div class="row">
+            <main class="col-12">
+              {%= relabelDebugSteps(dss, targetURL, targetID) %}
+            </main>
+        </div>
+    </div>
+</body>
+</html>
+{% endfunc %}
+
+{% func relabelDebugFormInputs(metric, relabelConfigs string) %}
+    <div>
+        Relabel configs:<br/>
+        <textarea name="relabel_configs" style="width: 100%; height: 15em; font-family: monospace" class="m-1">{%s relabelConfigs %}</textarea>
+    </div>
+
+    <div>
+        Labels:<br/>
+        <textarea name="metric" style="width: 100%; height: 5em; font-family: monospace" class="m-1">{%s metric %}</textarea>
+    </div>
+{% endfunc %}
+
+{% func relabelDebugSteps(dss []DebugStep, targetURL, targetID string) %}
+{% if len(dss) > 0 %}
+<div class="m-3">
+    <b>Original labels:</b> <samp>{%= mustFormatLabels(dss[0].In) %}</samp>
+</div>
+{% endif %}
+<table class="table table-striped table-hover table-bordered table-sm">
+  <thead>
+    <tr>
+      <th scope="col" style="width: 5%">Step</th>
+      <th scope="col" style="width: 25%">Relabeling Rule</th>
+      <th scope="col" style="width: 35%">Input Labels</th>
+      <th scope="col" stile="width: 35%">Output labels</a>
+    </tr>
+  </thead>
+  <tbody>
+        {% for i, ds := range dss %}
+        {% code
+                inLabels := promutils.MustNewLabelsFromString(ds.In)
+                outLabels := promutils.MustNewLabelsFromString(ds.Out)
+                changedLabels := getChangedLabelNames(inLabels, outLabels)
+        %}
+        <tr>
+                <td>{%d i %}</td>
+                <td><b><pre class="m-2">{%s ds.Rule %}</pre></b></td>
+                <td>
+                    <div class="m-2" style="font-size: 0.9em" title="deleted and updated labels highlighted in red">
+                        {%= labelsWithHighlight(inLabels, changedLabels, "red") %}
+                    </div>
+                </td>
+                <td>
+                    <div class="m-2" style="font-size: 0.9em" title="added and updated labels highlighted in blue">
+                        {%= labelsWithHighlight(outLabels, changedLabels, "blue") %}
+                    </div>
+                </td>
+        </tr>
+        {% endfor %}
+  </tbody>
+</table>
+{% if len(dss) > 0 %}
+<div class="m-3">
+    <b>Resulting labels:</b> <samp>{%= mustFormatLabels(dss[len(dss)-1].Out) %}</samp>
+    {% if targetURL != "" %}
+        <div>
+            <b>Target URL:</b>{% space %}<a href="{%s targetURL %}" target="_blank">{%s targetURL %}</a>
+            {% if targetID != "" %}
+                {% space %}
+                (<a href="target_response?id={%s targetID %}" target="_blank" title="click to fetch target response on behalf of the scraper">response</a>)
+            {% endif %}
+        </div>
+    {% endif %}
+</div>
+{% endif %}
+{% endfunc %}
+
+{% func RelabelDebugStepsJSON(targetURL, targetID string, dss []DebugStep, metric, relabelConfigs string, err error) %}
+{
+    {% if err != nil %}
+        "status": "error",
+        "error": {%q= fmt.Sprintf("Error: %s", err) %}
+    {% else %}
+        "status": "success",
+        {% if len(dss) > 0 %}
+            "originalLabels": {%q= mustFormatLabels(dss[0].In) %},
+            "resultingLabels": {%q= mustFormatLabels(dss[len(dss)-1].Out) %},
+        {% endif %}
+        "steps": [
+            {% for i, ds := range dss %}
+                {% code
+                    inLabels := promutils.MustNewLabelsFromString(ds.In)
+                    outLabels := promutils.MustNewLabelsFromString(ds.Out)
+                    changedLabels := getChangedLabelNames(inLabels, outLabels)
+                %}
+                {
+                    "inLabels": {%q= labelsWithHighlight(inLabels, changedLabels, "red") %},
+                    "outLabels": {%q= labelsWithHighlight(outLabels, changedLabels, "blue") %},
+                    "rule": {%q= ds.Rule %}
+                }
+                {% if i != len(dss)-1 %},{% endif %}
+            {% endfor %}
+        ]
+    {% endif %}
+}
+{% endfunc %}
+
+{% func labelsWithHighlight(labels *promutils.Labels, highlight map[string]struct{}, color string) %}
+        {% code
+                labelsList := labels.GetLabels()
+                metricName := ""
+                for i, label := range labelsList {
+                        if label.Name == "__name__" {
+                                metricName = label.Value
+                                labelsList = append(labelsList[:i], labelsList[i+1:]...)
+                                break
+                        }
+                }
+        %}
+        {% if metricName != "" %}
+                {% if _, ok := highlight["__name__"]; ok %}
+                        <span style="font-weight:bold;color:{%s color %}">{%s metricName %}</span>
+                {% else %}
+                        {%s metricName %}
+                {% endif %}
+                {% if len(labelsList) == 0 %}{% return %}{% endif %}
+        {% endif %}
+{
+        {% for i, label := range labelsList %}
+                {% if _, ok := highlight[label.Name]; ok %}
+                        <span style="font-weight:bold;color:{%s color %}">{%s label.Name %}={%q label.Value %}</span>
+                {% else %}
+                        {%s label.Name %}={%q label.Value %}
+                {% endif %}
+                {% if i < len(labelsList)-1 %},{% space %}{% endif %}
+        {% endfor %}
+}
+{% endfunc %}
+
+{% func mustFormatLabels(s string) %}
+        {% code labels := promutils.MustNewLabelsFromString(s) %}
+        {%= labelsWithHighlight(labels, nil, "") %}
+{% endfunc %}
+
+{% endstripspace %}

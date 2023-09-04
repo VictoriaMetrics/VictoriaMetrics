@@ -1,0 +1,62 @@
+@use "src/styles/variables" as *;
+
+.vm-time-selector {
+  display: grid;
+  grid-template-columns: repeat(2, 230px);
+  padding: $padding-global 0;
+
+  &_mobile {
+    grid-template-columns: 1fr;
+    min-width: 250px;
+    width: 100%;
+    max-height: calc(($vh * 100) - 70px);
+    overflow: auto;
+  }
+
+  &_mobile &-left {
+    border-right: none;
+    border-bottom: $border-divider;
+    padding-bottom: $padding-global;
+  }
+
+  &-left {
+    display: flex;
+    flex-direction: column;
+    gap: $padding-small;
+    border-right: $border-divider;
+    padding: 0 $padding-global;
+
+    &-inputs {
+      flex-grow: 1;
+      display: grid;
+      align-items: flex-start;
+      justify-content: stretch;
+    }
+
+    &-timezone {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: $padding-small;
+      font-size: $font-size-small;
+      margin-bottom: $padding-small;
+
+      &__title {}
+
+      &__utc {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background-color: $color-hover-black;
+        padding: calc($padding-small/2);
+        border-radius: $border-radius-small;
+      }
+    }
+
+    &__controls {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: $padding-small;
+    }
+  }
+}

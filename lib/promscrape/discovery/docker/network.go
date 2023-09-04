@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
 // See https://docs.docker.com/engine/api/v1.40/#tag/Network
@@ -18,7 +19,7 @@ type network struct {
 	Labels   map[string]string
 }
 
-func getNetworksLabelsByNetworkID(cfg *apiConfig) (map[string]map[string]string, error) {
+func getNetworksLabelsByNetworkID(cfg *apiConfig) (map[string]*promutils.Labels, error) {
 	networks, err := getNetworks(cfg)
 	if err != nil {
 		return nil, err
@@ -42,18 +43,17 @@ func parseNetworks(data []byte) ([]network, error) {
 	return networks, nil
 }
 
-func getNetworkLabelsByNetworkID(networks []network) map[string]map[string]string {
-	ms := make(map[string]map[string]string)
+func getNetworkLabelsByNetworkID(networks []network) map[string]*promutils.Labels {
+	ms := make(map[string]*promutils.Labels)
 	for _, network := range networks {
-		m := map[string]string{
-			"__meta_docker_network_id":       network.ID,
-			"__meta_docker_network_name":     network.Name,
-			"__meta_docker_network_internal": strconv.FormatBool(network.Internal),
-			"__meta_docker_network_ingress":  strconv.FormatBool(network.Ingress),
-			"__meta_docker_network_scope":    network.Scope,
-		}
+		m := promutils.NewLabels(8)
+		m.Add("__meta_docker_network_id", network.ID)
+		m.Add("__meta_docker_network_name", network.Name)
+		m.Add("__meta_docker_network_internal", strconv.FormatBool(network.Internal))
+		m.Add("__meta_docker_network_ingress", strconv.FormatBool(network.Ingress))
+		m.Add("__meta_docker_network_scope", network.Scope)
 		for k, v := range network.Labels {
-			m[discoveryutils.SanitizeLabelName("__meta_docker_network_label_"+k)] = v
+			m.Add(discoveryutils.SanitizeLabelName("__meta_docker_network_label_"+k), v)
 		}
 		ms[network.ID] = m
 	}

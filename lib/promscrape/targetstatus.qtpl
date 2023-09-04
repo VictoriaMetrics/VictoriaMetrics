@@ -2,8 +2,8 @@
 	"net/url"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/htmlcomponents"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 ) %}
 
 {% stripspace %}
@@ -22,8 +22,8 @@
 		{%s= "\t" %}
 		state={% if ts.up %}up{% else %}down{% endif %},{% space %}
 		endpoint={%s= ts.sw.Config.ScrapeURL %},{% space %}
-		labels={%s= promLabelsString(promrelabel.FinalizeLabels(nil, ts.sw.Config.Labels)) %},{% space %}
-		{% if filter.showOriginalLabels %}originalLabels={%s= promLabelsString(ts.sw.Config.OriginalLabels) %},{% space %}{% endif %}
+		labels={%s= ts.sw.Config.Labels.String() %},{% space %}
+		{% if filter.showOriginalLabels %}originalLabels={%s= ts.sw.Config.OriginalLabels.String() %},{% space %}{% endif %}
 		scrapes_total={%d ts.scrapesTotal %},{% space %}
 		scrapes_failed={%d ts.scrapesFailed %},{% space %}
 		last_scrape={%d int(ts.getDurationFromLastScrape().Milliseconds()) %}ms ago,{% space %}
@@ -45,14 +45,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    {%= commonHeader() %}
+    {%= htmlcomponents.CommonHeader() %}
     <title>Active Targets</title>
 </head>
 <body>
-    {%= navbar() %}
+    {%= htmlcomponents.Navbar() %}
     <div class="container-fluid">
         {% if tsr.err != nil %}
-            {%= errorNotification(tsr.err) %}
+            {%= htmlcomponents.ErrorNotification(tsr.err) %}
         {% endif %}
         <div class="row">
             <main class="col-12">
@@ -72,14 +72,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    {%= commonHeader() %}
+    {%= htmlcomponents.CommonHeader() %}
     <title>Discovered Targets</title>
 </head>
 <body>
-    {%= navbar() %}
+    {%= htmlcomponents.Navbar() %}
     <div class="container-fluid">
         {% if tsr.err != nil %}
-            {%= errorNotification(tsr.err) %}
+            {%= htmlcomponents.ErrorNotification(tsr.err) %}
         {% endif %}
         <div class="row">
             <main class="col-12">
@@ -93,23 +93,6 @@
     </div>
 </body>
 </html>
-{% endfunc %}
-
-{% func commonHeader() %}
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link href="static/css/bootstrap.min.css" rel="stylesheet" />
-{% endfunc %}
-
-{% func navbar() %}
-    <div class="navbar navbar-dark bg-dark box-shadow">
-        <div class="d-flex justify-content-between">
-            <a href="#" class="navbar-brand d-flex align-items-center ms-3" title="The High Performance Open Source Time Series Database &amp; Monitoring Solution ">
-                <svg xmlns="http://www.w3.org/2000/svg" id="VM_logo" viewBox="0 0 464.61 533.89" width="20" height="20" class="me-1"><defs><style>.cls-1{fill:#fff;}</style></defs><path class="cls-1" d="M459.86,467.77c9,7.67,24.12,13.49,39.3,13.69v0h1.68v0c15.18-.2,30.31-6,39.3-13.69,47.43-40.45,184.65-166.24,184.65-166.24,36.84-34.27-65.64-68.28-223.95-68.47h-1.68c-158.31.19-260.79,34.2-224,68.47C275.21,301.53,412.43,427.32,459.86,467.77Z" transform="translate(-267.7 -233.05)"/><path class="cls-1" d="M540.1,535.88c-9,7.67-24.12,13.5-39.3,13.7h-1.6c-15.18-.2-30.31-6-39.3-13.7-32.81-28-148.56-132.93-192.16-172.7v60.74c0,6.67,2.55,15.52,7.09,19.68,29.64,27.18,143.94,131.8,185.07,166.88,9,7.67,24.12,13.49,39.3,13.69v0h1.6v0c15.18-.2,30.31-6,39.3-13.69,41.13-35.08,155.43-139.7,185.07-166.88,4.54-4.16,7.09-13,7.09-19.68V363.18C688.66,403,572.91,507.9,540.1,535.88Z" transform="translate(-267.7 -233.05)"/><path class="cls-1" d="M540.1,678.64c-9,7.67-24.12,13.49-39.3,13.69v0h-1.6v0c-15.18-.2-30.31-6-39.3-13.69-32.81-28-148.56-132.94-192.16-172.7v60.73c0,6.67,2.55,15.53,7.09,19.69,29.64,27.17,143.94,131.8,185.07,166.87,9,7.67,24.12,13.5,39.3,13.7h1.6c15.18-.2,30.31-6,39.3-13.7,41.13-35.07,155.43-139.7,185.07-166.87,4.54-4.16,7.09-13,7.09-19.69V505.94C688.66,545.7,572.91,650.66,540.1,678.64Z" transform="translate(-267.7 -233.05)"/></svg>
-                <strong>VictoriaMetrics</strong>
-            </a>
-        </div>
-    </div>
 {% endfunc %}
 
 {% func filtersForm(filter *requestFilter) %}
@@ -197,7 +180,7 @@
     <div class="row mt-4">
         <div class="col-12">
             {% for i, jts := range tsr.jobTargetsStatuses %}
-                {%= scrapeJobTargets(i, jts) %}
+                {%= scrapeJobTargets(i, jts, tsr.hasOriginalLabels) %}
             {% endfor %}
             {% for i, jobName := range tsr.emptyJobs %}
                 {% code
@@ -206,13 +189,13 @@
                         jobName: jobName,
                     }
                 %}
-                {%= scrapeJobTargets(num, jts) %}
+                {%= scrapeJobTargets(num, jts, tsr.hasOriginalLabels) %}
             {% endfor %}
         </div>
    </div>
 {% endfunc %}
 
-{% func scrapeJobTargets(num int, jts *jobTargetsStatuses) %}
+{% func scrapeJobTargets(num int, jts *jobTargetsStatuses, hasOriginalLabels bool) %}
     <div class="row mb-4">
         <div class="col-12">
             <h4>
@@ -226,6 +209,9 @@
                             <th scope="col">Endpoint</th>
                             <th scope="col">State</th>
                             <th scope="col" title="target labels">Labels</th>
+                            {% if hasOriginalLabels %}
+                              <th scope="col" title="debug relabeling">Debug relabeling</th>
+                            {% endif %}
                             <th scope="col" title="total scrapes">Scrapes</th>
                             <th scope="col" title="total scrape errors">Errors</th>
                             <th scope="col" title="the time of the last scrape">Last Scrape</th>
@@ -238,15 +224,20 @@
                     {% for _, ts := range jts.targetsStatus %}
                     {% code
                         endpoint := ts.sw.Config.ScrapeURL
-                        targetID := getTargetID(ts.sw)
+                        originalLabels := ts.sw.Config.OriginalLabels
+
+                        // The target is uniquely identified by a pointer to its original labels.
+                        targetID := getLabelsID(originalLabels)
                         lastScrapeDuration := ts.getDurationFromLastScrape()
                     %}
                         <tr {% if !ts.up %}{%space%}class="alert alert-danger" role="alert" {% endif %}>
                             <td class="endpoint">
-                                <a href="{%s endpoint %}" target="_blank">{%s endpoint %}</a> (
-                                <a href="target_response?id={%s targetID %}" target="_blank"
-                                  title="click to fetch target response on behalf of the scraper">response</a>
-                                )
+                              <a href="{%s endpoint %}" target="_blank">{%s endpoint %}</a>
+                                {% if hasOriginalLabels %}
+                                  {% space %}
+                                  (<a href="target_response?id={%s targetID %}" target="_blank"
+                                    title="click to fetch target response on behalf of the scraper">response</a>)
+                                {% endif %}
                             </td>
                             <td>
                                 {% if ts.up %}
@@ -256,14 +247,26 @@
                                 {% endif %}
                             </td>
                             <td class="labels">
-                                <div title="click to show original labels"
-                                  onclick="document.getElementById('original-labels-{%s targetID %}').style.display='block'">
-                                    {%= formatLabel(promrelabel.FinalizeLabels(nil, ts.sw.Config.Labels)) %}
-                                </div>
+                              <div
+                                {% if hasOriginalLabels %}
+                                  {% space %}title="click to show original labels"
+                                    onclick="document.getElementById('original-labels-{%s targetID %}').style.display='block'"
+                                {% endif %}
+                              >
+                                {%= formatLabels(ts.sw.Config.Labels) %}
+                              </div>
+                              {% if hasOriginalLabels %}
                                 <div style="display:none" id="original-labels-{%s targetID %}">
-                                    {%= formatLabel(ts.sw.Config.OriginalLabels) %}
+                                  {%= formatLabels(originalLabels) %}
                                 </div>
+                              {% endif %}
                             </td>
+                            {% if hasOriginalLabels %}
+                              <td>
+                                <a href="target-relabel-debug?id={%s targetID %}" target="_blank">target</a>{% space %}
+                                <a href="metric-relabel-debug?id={%s targetID %}" target="_blank">metrics</a>
+                              </td>
+                            {% endif %}
                             <td>{%d ts.scrapesTotal %}</td>
                             <td>{%d ts.scrapesFailed %}</td>
                             <td>
@@ -285,6 +288,11 @@
 {% endfunc %}
 
 {% func discoveredTargets(tsr *targetsStatusResult) %}
+    {% if !tsr.hasOriginalLabels %}
+        Discovered targets are unavailable when -promscrape.dropOriginalLabels command-line flag is set
+        {% return %}
+    {% endif %}
+
     {% code tljs := tsr.getTargetLabelsByJob() %}
     <div class="row mt-4">
         <div class="col-12">
@@ -305,8 +313,9 @@
             <thead>
                 <tr>
                     <th scope="col" style="width: 5%">Status</th>
-                    <th scope="col" style="width: 65%">Discovered Labels</th>
+                    <th scope="col" style="width: 60%">Discovered Labels</th>
                     <th scope="col" style="width: 30%">Target Labels</th>
+                    <th scope="col" stile="width: 5%">Debug relabeling</a>
                 </tr>
             </thead>
             <tbody>
@@ -314,7 +323,7 @@
                 <tr
                     {% if !t.up %}
                         {% space %}role="alert"{% space %}
-                        {% if len(t.labels) > 0 %}
+                        {% if t.labels.Len() > 0 %}
                             class="alert alert-danger"
                         {% else %}
                             class="alert alert-warning"
@@ -324,17 +333,21 @@
                     <td>
                         {% if t.up %}
                             <span class="badge bg-success">UP</span>
-                        {% elseif len(t.labels) > 0 %}
+                        {% elseif t.labels.Len() > 0 %}
                             <span class="badge bg-danger">DOWN</span>
                         {% else %}
                             <span class="badge bg-warning">DROPPED</span>
                         {% endif %}
                     </td>
                     <td class="labels">
-                        {%= formatLabel(t.discoveredLabels) %}
+                        {%= formatLabels(t.originalLabels) %}
                     </td>
                     <td class="labels">
-                        {%= formatLabel(promrelabel.FinalizeLabels(nil, t.labels)) %}
+                        {%= formatLabels(t.labels) %}
+                    </td>
+                    <td>
+                        {% code targetID := getLabelsID(t.originalLabels) %}
+                        <a href="target-relabel-debug?id={%s targetID %}" target="_blank">debug</a>
                     </td>
                 </tr>
             {% endfor %}
@@ -376,23 +389,14 @@
 	{%s qa.Encode() %}
 {% endfunc %}
 
-{% func formatLabel(labels []prompbmarshal.Label) %}
+{% func formatLabels(labels *promutils.Labels) %}
+{% code labelsList := labels.GetLabels() %}
 {
-  {% for i, label := range labels %}
+  {% for i, label := range labelsList %}
       {%s label.Name %}={%q label.Value %}
-      {% if i+1 < len(labels) %},{% space %}{% endif %}
+      {% if i+1 < len(labelsList) %},{% space %}{% endif %}
   {% endfor %}
 }
-{% endfunc %}
-
-{% func errorNotification(err error) %}
-    <div class="alert alert-danger d-flex align-items-center" role="alert">
-        <svg class="bi flex-shrink-0 me-2" width="24" height="24" role="img" aria-label="Danger:">
-            <use xlink:href="#exclamation-triangle-fill"/></svg>
-        <div>
-            {%s err.Error() %}
-        </div>
-    </div>
 {% endfunc %}
 
 {% endstripspace %}

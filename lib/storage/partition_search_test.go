@@ -7,8 +7,6 @@ import (
 	"sort"
 	"testing"
 	"time"
-
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 )
 
 func TestPartitionSearch(t *testing.T) {
@@ -116,11 +114,13 @@ func TestPartitionSearch(t *testing.T) {
 func testPartitionSearchEx(t *testing.T, ptt int64, tr TimeRange, partsCount, maxRowsPerPart, tsidsCount int) {
 	t.Helper()
 
+	rng := rand.New(rand.NewSource(1))
+
 	// Generate tsids to search.
 	var tsids []TSID
 	var tsid TSID
 	for i := 0; i < 25; i++ {
-		tsid.MetricID = uint64(rand.Intn(tsidsCount * 2))
+		tsid.MetricID = uint64(rng.Intn(tsidsCount * 2))
 		tsids = append(tsids, tsid)
 	}
 	sort.Slice(tsids, func(i, j int) bool { return tsids[i].Less(&tsids[j]) })
@@ -137,13 +137,13 @@ func testPartitionSearchEx(t *testing.T, ptt int64, tr TimeRange, partsCount, ma
 		var r rawRow
 		r.PrecisionBits = 30
 		timestamp := ptr.MinTimestamp
-		rowsCount := 1 + rand.Intn(maxRowsPerPart)
+		rowsCount := 1 + rng.Intn(maxRowsPerPart)
 		for j := 0; j < rowsCount; j++ {
-			r.TSID.MetricID = uint64(rand.Intn(tsidsCount))
+			r.TSID.MetricID = uint64(rng.Intn(tsidsCount))
 			r.Timestamp = timestamp
-			r.Value = float64(int(rand.NormFloat64() * 1e5))
+			r.Value = float64(int(rng.NormFloat64() * 1e5))
 
-			timestamp += int64(rand.Intn(1e4))
+			timestamp += int64(rng.Intn(1e4))
 			if timestamp > ptr.MaxTimestamp {
 				break
 			}
@@ -167,38 +167,33 @@ func testPartitionSearchEx(t *testing.T, ptt int64, tr TimeRange, partsCount, ma
 	})
 
 	// Create partition from rowss and test search on it.
-	retentionMsecs := timestampFromTime(time.Now()) - ptr.MinTimestamp + 3600*1000
-	var isReadOnly uint32
-	pt, err := createPartition(ptt, "./small-table", "./big-table", nilGetDeletedMetricIDs, retentionMsecs, &isReadOnly)
-	if err != nil {
-		t.Fatalf("cannot create partition: %s", err)
-	}
+	strg := newTestStorage()
+	strg.retentionMsecs = timestampFromTime(time.Now()) - ptr.MinTimestamp + 3600*1000
+	pt := mustCreatePartition(ptt, "small-table", "big-table", strg)
 	smallPartsPath := pt.smallPartsPath
 	bigPartsPath := pt.bigPartsPath
-	defer func() {
-		if err := os.RemoveAll("./small-table"); err != nil {
-			t.Fatalf("cannot remove small parts directory: %s", err)
-		}
-		if err := os.RemoveAll("./big-table"); err != nil {
-			t.Fatalf("cannot remove big parts directory: %s", err)
-		}
-	}()
+	var tmpRows []rawRow
 	for _, rows := range rowss {
 		pt.AddRows(rows)
 
-		// Flush just added rows to a separate partition.
-		pt.flushRawRows(true)
+		// Flush just added rows to a separate partitions.
+		tmpRows = pt.flushPendingRows(tmpRows[:0], true)
 	}
 	testPartitionSearch(t, pt, tsids, tr, rbsExpected, -1)
 	pt.MustClose()
 
 	// Open the created partition and test search on it.
-	pt, err = openPartition(smallPartsPath, bigPartsPath, nilGetDeletedMetricIDs, retentionMsecs, &isReadOnly)
-	if err != nil {
-		t.Fatalf("cannot open partition: %s", err)
-	}
+	pt = mustOpenPartition(smallPartsPath, bigPartsPath, strg)
 	testPartitionSearch(t, pt, tsids, tr, rbsExpected, rowsCountExpected)
 	pt.MustClose()
+	stopTestStorage(strg)
+
+	if err := os.RemoveAll("small-table"); err != nil {
+		t.Fatalf("cannot remove small parts directory: %s", err)
+	}
+	if err := os.RemoveAll("big-table"); err != nil {
+		t.Fatalf("cannot remove big parts directory: %s", err)
+	}
 }
 
 func testPartitionSearch(t *testing.T, pt *partition, tsids []TSID, tr TimeRange, rbsExpected []rawBlock, rowsCountExpected int64) {
@@ -234,8 +229,7 @@ func testPartitionSearchSerial(pt *partition, tsids []TSID, tr TimeRange, rbsExp
 		// due to the race with raw rows flusher.
 		var m partitionMetrics
 		pt.UpdateMetrics(&m)
-		rowsCount := m.BigRowsCount + m.SmallRowsCount
-		if rowsCount != uint64(rowsCountExpected) {
+		if rowsCount := m.TotalRowsCount(); rowsCount != uint64(rowsCountExpected) {
 			return fmt.Errorf("unexpected rows count; got %d; want %d", rowsCount, rowsCountExpected)
 		}
 	}
@@ -260,8 +254,7 @@ func testPartitionSearchSerial(pt *partition, tsids []TSID, tr TimeRange, rbsExp
 	if rowsCountExpected >= 0 {
 		var m partitionMetrics
 		pt.UpdateMetrics(&m)
-		rowsCount := m.BigRowsCount + m.SmallRowsCount
-		if rowsCount != uint64(rowsCountExpected) {
+		if rowsCount := m.TotalRowsCount(); rowsCount != uint64(rowsCountExpected) {
 			return fmt.Errorf("unexpected rows count after search; got %d; want %d", rowsCount, rowsCountExpected)
 		}
 	}
@@ -276,9 +269,5 @@ func testPartitionSearchSerial(pt *partition, tsids []TSID, tr TimeRange, rbsExp
 	}
 	pts.MustClose()
 
-	return nil
-}
-
-func nilGetDeletedMetricIDs() *uint64set.Set {
 	return nil
 }

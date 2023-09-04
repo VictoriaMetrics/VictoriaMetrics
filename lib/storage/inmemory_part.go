@@ -1,9 +1,12 @@
 package storage
 
 import (
+	"path/filepath"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
@@ -31,6 +34,28 @@ func (mp *inmemoryPart) Reset() {
 	mp.creationTime = 0
 }
 
+// MustStoreToDisk stores the mp to the given path on disk.
+func (mp *inmemoryPart) MustStoreToDisk(path string) {
+	fs.MustMkdirFailIfExist(path)
+
+	timestampsPath := filepath.Join(path, timestampsFilename)
+	fs.MustWriteSync(timestampsPath, mp.timestampsData.B)
+
+	valuesPath := filepath.Join(path, valuesFilename)
+	fs.MustWriteSync(valuesPath, mp.valuesData.B)
+
+	indexPath := filepath.Join(path, indexFilename)
+	fs.MustWriteSync(indexPath, mp.indexData.B)
+
+	metaindexPath := filepath.Join(path, metaindexFilename)
+	fs.MustWriteSync(metaindexPath, mp.metaindexData.B)
+
+	mp.ph.MustWriteMetadata(path)
+
+	fs.MustSyncPath(path)
+	// Do not sync parent directory - it must be synced by the caller.
+}
+
 // InitFromRows initializes mp from the given rows.
 func (mp *inmemoryPart) InitFromRows(rows []rawRow) {
 	if len(rows) == 0 {
@@ -48,10 +73,13 @@ func (mp *inmemoryPart) InitFromRows(rows []rawRow) {
 //
 // It is safe calling NewPart multiple times.
 // It is unsafe re-using mp while the returned part is in use.
-func (mp *inmemoryPart) NewPart() (*part, error) {
-	ph := mp.ph
-	size := uint64(len(mp.timestampsData.B) + len(mp.valuesData.B) + len(mp.indexData.B) + len(mp.metaindexData.B))
-	return newPart(&ph, "", size, mp.metaindexData.NewReader(), &mp.timestampsData, &mp.valuesData, &mp.indexData)
+func (mp *inmemoryPart) NewPart() *part {
+	size := mp.size()
+	return newPart(&mp.ph, "", size, mp.metaindexData.NewReader(), &mp.timestampsData, &mp.valuesData, &mp.indexData)
+}
+
+func (mp *inmemoryPart) size() uint64 {
+	return uint64(cap(mp.timestampsData.B) + cap(mp.valuesData.B) + cap(mp.indexData.B) + cap(mp.metaindexData.B))
 }
 
 func getInmemoryPart() *inmemoryPart {

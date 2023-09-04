@@ -1,0 +1,129 @@
+@use "src/styles/variables" as *;
+
+.vm-select {
+  &-input {
+    position: relative;
+    display: flex;
+    align-items: center;
+    padding: 8px 0 8px $padding-global;
+    cursor: pointer;
+    border: $border-divider;
+    border-radius: $border-radius-small;
+    min-height: 40px;
+
+    &-content {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      flex-wrap: wrap;
+      gap: $padding-small;
+      flex-grow: 1;
+
+      &_mobile {
+        flex-wrap: nowrap;
+      }
+
+      &__counter {
+        font-size: $font-size;
+        line-height: $font-size;
+      }
+
+      &__selected {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background-color: $color-hover-black;
+        padding: 2px 2px 2px 6px;
+        border-radius: $border-radius-small;
+        font-size: $font-size;
+        line-height: $font-size;
+        max-width: 100%;
+
+        span {
+          width: 100%;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        svg {
+          width: 20px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin-left: 10px;
+          background-color: transparent;
+          border-radius: $border-radius-small;
+          transition: background-color 200ms ease-in-out;
+          padding: 4px;
+
+          &:hover {
+            background-color: rgba($color-black, 0.1);
+          }
+        }
+      }
+    }
+
+    input {
+      display: inline-block;
+      position: relative;
+      border-radius: $border-radius-small;
+      font-size: $font-size;
+      line-height: 18px;
+      height: 18px;
+      padding: 0;
+      border: none;
+      z-index: 2;
+      min-width: 100px;
+      flex-grow: 1;
+      background-color: transparent;
+      color: $color-text;
+
+      &:placeholder-shown {
+        width: auto;
+      }
+    }
+
+    &__icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: flex-end;
+      color: $color-text-secondary;
+      border-right: $border-divider;
+      transition: transform 200ms ease-in, opacity 200ms ease-in;
+      cursor: pointer;
+      padding: 0 $padding-small;
+
+      &:last-child {
+        border: none;
+      }
+
+      svg {
+        width: 14px;
+      }
+
+      &_open {
+        transform: rotate(180deg);
+      }
+
+      &:hover {
+        opacity: 0.7;
+      }
+    }
+  }
+
+  &-options {
+    display: grid;
+    gap: $padding-small;
+    max-width: 300px;
+    max-height: 208px;
+    overflow: auto;
+    padding: $padding-global;
+    font-size: $font-size;
+
+    &_mobile {
+      padding: 0 $padding-global $padding-small;
+      max-width: 100%;
+      max-height: calc(($vh * 100) - 70px);
+    }
+  }
+}

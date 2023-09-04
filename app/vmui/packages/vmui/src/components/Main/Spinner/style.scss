@@ -1,0 +1,79 @@
+@use "src/styles/variables" as *;
+
+.vm-spinner {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba($color-white, 0.5);
+  pointer-events: none;
+  z-index: 99;
+  animation: vm-fade 2s cubic-bezier(0.280, 0.840, 0.420, 1.1);
+
+  &_dark {
+    background-color: rgba($color-black, 0.2);
+  }
+
+  &__message {
+    margin-top: $padding-medium;
+    white-space: pre-line;
+    text-align: center;
+    line-height: 1.3;
+    font-size: $font-size-medium;
+    color: rgba($color-text, 0.9);
+  }
+}
+
+.half-circle-spinner, .half-circle-spinner * {
+  box-sizing: border-box;
+}
+
+.half-circle-spinner {
+  width: 60px;
+  height: 60px;
+  border-radius: 100%;
+  position: relative;
+}
+
+.half-circle-spinner .circle {
+  content: "";
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 100%;
+  border: calc(60px / 10) solid transparent;
+}
+
+.half-circle-spinner .circle.circle-1 {
+  border-top-color: $color-primary;
+  animation: half-circle-spinner-animation 1s infinite;
+}
+
+.half-circle-spinner .circle.circle-2 {
+  border-bottom-color: $color-primary;
+  animation: half-circle-spinner-animation 1s infinite alternate;
+}
+
+@keyframes half-circle-spinner-animation {
+  0% {
+    transform: rotate(0deg);
+
+  }
+  100%{
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes vm-fade {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1
+  }
+}

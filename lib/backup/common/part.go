@@ -51,7 +51,7 @@ func (p *Part) RemotePath(prefix string) string {
 	return fmt.Sprintf("%s/%s/%016X_%016X_%016X", prefix, p.Path, p.FileSize, p.Offset, p.Size)
 }
 
-var partNameRegexp = regexp.MustCompile(`^(.+)/([0-9A-F]{16})_([0-9A-F]{16})_([0-9A-F]{16})$`)
+var partNameRegexp = regexp.MustCompile(`^(.+)[/\\]([0-9A-F]{16})_([0-9A-F]{16})_([0-9A-F]{16})$`)
 
 // ParseFromRemotePath parses p from remotePath.
 //

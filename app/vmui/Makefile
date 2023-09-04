@@ -5,11 +5,19 @@ vmui-package-base-image:
 
 vmui-build: vmui-package-base-image
 	docker run --rm \
-          --user $(shell id -u):$(shell id -g) \
-         --mount type=bind,src="$(shell pwd)/app/vmui",dst=/build \
-         -w /build/packages/vmui \
-         --entrypoint=/bin/bash \
-         vmui-builder-image -c "npm install && npm run build"
+		--user $(shell id -u):$(shell id -g) \
+		--mount type=bind,src="$(shell pwd)/app/vmui",dst=/build \
+		-w /build/packages/vmui \
+		--entrypoint=/bin/bash \
+		vmui-builder-image -c "npm install && npm run build"
+
+vmui-logs-build: vmui-package-base-image
+	docker run --rm \
+		--user $(shell id -u):$(shell id -g) \
+		--mount type=bind,src="$(shell pwd)/app/vmui",dst=/build \
+		-w /build/packages/vmui \
+		--entrypoint=/bin/bash \
+		vmui-builder-image -c "npm install && npm run build:logs"
 
 vmui-release: vmui-build
 	docker build -t ${DOCKER_NAMESPACE}/vmui:latest -f app/vmui/Dockerfile-web ./app/vmui/packages/vmui
@@ -23,3 +31,6 @@ vmui-publish-release: vmui-release
 
 vmui-update: vmui-build
 	rm -rf app/vmselect/vmui/* && mv app/vmui/packages/vmui/build/* app/vmselect/vmui
+
+vmui-logs-update: vmui-logs-build
+	rm -rf app/vlselect/vmui/* && mv app/vmui/packages/vmui/build/* app/vlselect/vmui && rm -rf app/vlselect/vmui/dashboards

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"path/filepath"
 	"reflect"
 	"sort"
 	"strings"
@@ -11,6 +12,7 @@ import (
 	"testing/quick"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 )
 
@@ -88,23 +90,25 @@ func TestDateMetricIDCacheConcurrent(t *testing.T) {
 
 func testDateMetricIDCache(c *dateMetricIDCache, concurrent bool) error {
 	type dmk struct {
-		date     uint64
-		metricID uint64
+		generation uint64
+		date       uint64
+		metricID   uint64
 	}
 	m := make(map[dmk]bool)
 	for i := 0; i < 1e5; i++ {
+		generation := uint64(i) % 2
 		date := uint64(i) % 3
 		metricID := uint64(i) % 1237
-		if !concurrent && c.Has(date, metricID) {
-			if !m[dmk{date, metricID}] {
-				return fmt.Errorf("c.Has(%d, %d) must return false, but returned true", date, metricID)
+		if !concurrent && c.Has(generation, date, metricID) {
+			if !m[dmk{generation, date, metricID}] {
+				return fmt.Errorf("c.Has(%d, %d, %d) must return false, but returned true", generation, date, metricID)
 			}
 			continue
 		}
-		c.Set(date, metricID)
-		m[dmk{date, metricID}] = true
-		if !concurrent && !c.Has(date, metricID) {
-			return fmt.Errorf("c.Has(%d, %d) must return true, but returned false", date, metricID)
+		c.Set(generation, date, metricID)
+		m[dmk{generation, date, metricID}] = true
+		if !concurrent && !c.Has(generation, date, metricID) {
+			return fmt.Errorf("c.Has(%d, %d, %d) must return true, but returned false", generation, date, metricID)
 		}
 		if i%11234 == 0 {
 			c.mu.Lock()
@@ -112,25 +116,29 @@ func testDateMetricIDCache(c *dateMetricIDCache, concurrent bool) error {
 			c.mu.Unlock()
 		}
 		if i%34323 == 0 {
-			c.Reset()
+			c.mu.Lock()
+			c.resetLocked()
+			c.mu.Unlock()
 			m = make(map[dmk]bool)
 		}
 	}
 
 	// Verify fast path after sync.
 	for i := 0; i < 1e5; i++ {
+		generation := uint64(i) % 2
 		date := uint64(i) % 3
 		metricID := uint64(i) % 123
-		c.Set(date, metricID)
+		c.Set(generation, date, metricID)
 	}
 	c.mu.Lock()
 	c.syncLocked()
 	c.mu.Unlock()
 	for i := 0; i < 1e5; i++ {
+		generation := uint64(i) % 2
 		date := uint64(i) % 3
 		metricID := uint64(i) % 123
-		if !concurrent && !c.Has(date, metricID) {
-			return fmt.Errorf("c.Has(%d, %d) must return true after sync", date, metricID)
+		if !concurrent && !c.Has(generation, date, metricID) {
+			return fmt.Errorf("c.Has(%d, %d, %d) must return true after sync", generation, date, metricID)
 		}
 	}
 
@@ -138,7 +146,9 @@ func testDateMetricIDCache(c *dateMetricIDCache, concurrent bool) error {
 	if n := c.EntriesCount(); !concurrent && n < 123 {
 		return fmt.Errorf("c.EntriesCount must return at least 123; returned %d", n)
 	}
-	c.Reset()
+	c.mu.Lock()
+	c.resetLocked()
+	c.mu.Unlock()
 	if n := c.EntriesCount(); !concurrent && n > 0 {
 		return fmt.Errorf("c.EntriesCount must return 0 after reset; returned %d", n)
 	}
@@ -154,16 +164,19 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 	}
 	t.Run("empty_pending_metric_ids_stale_curr_hour", func(t *testing.T) {
 		s := newStorage()
-		hour := uint64(timestampFromTime(time.Now())) / msecPerHour
+		hour := fasttime.UnixHour()
+		if hour%24 == 0 {
+			hour++
+		}
 		hmOrig := &hourMetricIDs{
 			m:    &uint64set.Set{},
-			hour: 123,
+			hour: hour - 1,
 		}
 		hmOrig.m.Add(12)
 		hmOrig.m.Add(34)
 		s.currHourMetricIDs.Store(hmOrig)
-		s.updateCurrHourMetricIDs()
-		hmCurr := s.currHourMetricIDs.Load().(*hourMetricIDs)
+		s.updateCurrHourMetricIDs(hour)
+		hmCurr := s.currHourMetricIDs.Load()
 		if hmCurr.hour != hour {
 			// It is possible new hour occurred. Update the hour and verify it again.
 			hour = uint64(timestampFromTime(time.Now())) / msecPerHour
@@ -174,11 +187,8 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		if hmCurr.m.Len() != 0 {
 			t.Fatalf("unexpected length of hm.m; got %d; want %d", hmCurr.m.Len(), 0)
 		}
-		if !hmCurr.isFull {
-			t.Fatalf("unexpected hmCurr.isFull; got %v; want %v", hmCurr.isFull, true)
-		}
 
-		hmPrev := s.prevHourMetricIDs.Load().(*hourMetricIDs)
+		hmPrev := s.prevHourMetricIDs.Load()
 		if !reflect.DeepEqual(hmPrev, hmOrig) {
 			t.Fatalf("unexpected hmPrev; got %v; want %v", hmPrev, hmOrig)
 		}
@@ -189,7 +199,7 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 	})
 	t.Run("empty_pending_metric_ids_valid_curr_hour", func(t *testing.T) {
 		s := newStorage()
-		hour := uint64(timestampFromTime(time.Now())) / msecPerHour
+		hour := fasttime.UnixHour()
 		hmOrig := &hourMetricIDs{
 			m:    &uint64set.Set{},
 			hour: hour,
@@ -197,8 +207,8 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		hmOrig.m.Add(12)
 		hmOrig.m.Add(34)
 		s.currHourMetricIDs.Store(hmOrig)
-		s.updateCurrHourMetricIDs()
-		hmCurr := s.currHourMetricIDs.Load().(*hourMetricIDs)
+		s.updateCurrHourMetricIDs(hour)
+		hmCurr := s.currHourMetricIDs.Load()
 		if hmCurr.hour != hour {
 			// It is possible new hour occurred. Update the hour and verify it again.
 			hour = uint64(timestampFromTime(time.Now())) / msecPerHour
@@ -211,11 +221,8 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		if !reflect.DeepEqual(hmCurr, hmOrig) {
 			t.Fatalf("unexpected hmCurr; got %v; want %v", hmCurr, hmOrig)
 		}
-		if hmCurr.isFull {
-			t.Fatalf("unexpected hmCurr.isFull; got %v; want %v", hmCurr.isFull, false)
-		}
 
-		hmPrev := s.prevHourMetricIDs.Load().(*hourMetricIDs)
+		hmPrev := s.prevHourMetricIDs.Load()
 		hmEmpty := &hourMetricIDs{}
 		if !reflect.DeepEqual(hmPrev, hmEmpty) {
 			t.Fatalf("unexpected hmPrev; got %v; want %v", hmPrev, hmEmpty)
@@ -249,16 +256,19 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 			x.Add(e.MetricID)
 		}
 
-		hour := uint64(timestampFromTime(time.Now())) / msecPerHour
+		hour := fasttime.UnixHour()
+		if hour%24 == 0 {
+			hour++
+		}
 		hmOrig := &hourMetricIDs{
 			m:    &uint64set.Set{},
-			hour: 123,
+			hour: hour - 1,
 		}
 		hmOrig.m.Add(12)
 		hmOrig.m.Add(34)
 		s.currHourMetricIDs.Store(hmOrig)
-		s.updateCurrHourMetricIDs()
-		hmCurr := s.currHourMetricIDs.Load().(*hourMetricIDs)
+		s.updateCurrHourMetricIDs(hour)
+		hmCurr := s.currHourMetricIDs.Load()
 		if hmCurr.hour != hour {
 			// It is possible new hour occurred. Update the hour and verify it again.
 			hour = uint64(timestampFromTime(time.Now())) / msecPerHour
@@ -272,11 +282,8 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		if !reflect.DeepEqual(hmCurr.byTenant, byTenantExpected) {
 			t.Fatalf("unexpected hmPrev.byTenant; got %v; want %v", hmCurr.byTenant, byTenantExpected)
 		}
-		if !hmCurr.isFull {
-			t.Fatalf("unexpected hmCurr.isFull; got %v; want %v", hmCurr.isFull, true)
-		}
 
-		hmPrev := s.prevHourMetricIDs.Load().(*hourMetricIDs)
+		hmPrev := s.prevHourMetricIDs.Load()
 		if !reflect.DeepEqual(hmPrev, hmOrig) {
 			t.Fatalf("unexpected hmPrev; got %v; want %v", hmPrev, hmOrig)
 		}
@@ -309,7 +316,7 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 			x.Add(e.MetricID)
 		}
 
-		hour := uint64(timestampFromTime(time.Now())) / msecPerHour
+		hour := fasttime.UnixHour()
 		hmOrig := &hourMetricIDs{
 			m:    &uint64set.Set{},
 			hour: hour,
@@ -317,8 +324,8 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		hmOrig.m.Add(12)
 		hmOrig.m.Add(34)
 		s.currHourMetricIDs.Store(hmOrig)
-		s.updateCurrHourMetricIDs()
-		hmCurr := s.currHourMetricIDs.Load().(*hourMetricIDs)
+		s.updateCurrHourMetricIDs(hour)
+		hmCurr := s.currHourMetricIDs.Load()
 		if hmCurr.hour != hour {
 			// It is possible new hour occurred. Update the hour and verify it again.
 			hour = uint64(timestampFromTime(time.Now())) / msecPerHour
@@ -341,14 +348,116 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		if !reflect.DeepEqual(hmCurr.byTenant, byTenantExpected) {
 			t.Fatalf("unexpected hmPrev.byTenant; got %v; want %v", hmCurr.byTenant, byTenantExpected)
 		}
-		if hmCurr.isFull {
-			t.Fatalf("unexpected hmCurr.isFull; got %v; want %v", hmCurr.isFull, false)
-		}
 
-		hmPrev := s.prevHourMetricIDs.Load().(*hourMetricIDs)
+		hmPrev := s.prevHourMetricIDs.Load()
 		hmEmpty := &hourMetricIDs{}
 		if !reflect.DeepEqual(hmPrev, hmEmpty) {
 			t.Fatalf("unexpected hmPrev; got %v; want %v", hmPrev, hmEmpty)
+		}
+		if len(s.pendingHourEntries) != 0 {
+			t.Fatalf("unexpected s.pendingHourEntries.Len(); got %d; want %d", len(s.pendingHourEntries), 0)
+		}
+	})
+	t.Run("nonempty_pending_metric_ids_valid_curr_hour_start_of_day", func(t *testing.T) {
+		s := newStorage()
+		s.pendingHourEntries = []pendingHourMetricIDEntry{
+			{AccountID: 123, ProjectID: 431, MetricID: 343},
+			{AccountID: 123, ProjectID: 431, MetricID: 32424},
+			{AccountID: 1, ProjectID: 2, MetricID: 8293432},
+		}
+		mExpected := &uint64set.Set{}
+		for _, e := range s.pendingHourEntries {
+			mExpected.Add(e.MetricID)
+		}
+		byTenantExpected := make(map[accountProjectKey]*uint64set.Set)
+		for _, e := range s.pendingHourEntries {
+			k := accountProjectKey{
+				AccountID: e.AccountID,
+				ProjectID: e.ProjectID,
+			}
+			x := byTenantExpected[k]
+			if x == nil {
+				x = &uint64set.Set{}
+				byTenantExpected[k] = x
+			}
+			x.Add(e.MetricID)
+		}
+
+		hour := fasttime.UnixHour()
+		hour -= hour % 24
+		hmOrig := &hourMetricIDs{
+			m:    &uint64set.Set{},
+			hour: hour,
+		}
+		hmOrig.m.Add(12)
+		hmOrig.m.Add(34)
+		s.currHourMetricIDs.Store(hmOrig)
+		s.updateCurrHourMetricIDs(hour)
+		hmCurr := s.currHourMetricIDs.Load()
+		if hmCurr.hour != hour {
+			// It is possible new hour occurred. Update the hour and verify it again.
+			hour = uint64(timestampFromTime(time.Now())) / msecPerHour
+			if hmCurr.hour != hour {
+				t.Fatalf("unexpected hmCurr.hour; got %d; want %d", hmCurr.hour, hour)
+			}
+			// Do not run other checks, since they may fail.
+			return
+		}
+		m := mExpected.Clone()
+		hmOrig.m.ForEach(func(part []uint64) bool {
+			for _, metricID := range part {
+				m.Add(metricID)
+			}
+			return true
+		})
+		if !hmCurr.m.Equal(m) {
+			t.Fatalf("unexpected hm.m; got %v; want %v", hmCurr.m, m)
+		}
+		if !reflect.DeepEqual(hmCurr.byTenant, byTenantExpected) {
+			t.Fatalf("unexpected hmPrev.byTenant; got %v; want %v", hmCurr.byTenant, byTenantExpected)
+		}
+
+		hmPrev := s.prevHourMetricIDs.Load()
+		hmEmpty := &hourMetricIDs{}
+		if !reflect.DeepEqual(hmPrev, hmEmpty) {
+			t.Fatalf("unexpected hmPrev; got %v; want %v", hmPrev, hmEmpty)
+		}
+		if len(s.pendingHourEntries) != 0 {
+			t.Fatalf("unexpected s.pendingHourEntries.Len(); got %d; want %d", len(s.pendingHourEntries), 0)
+		}
+	})
+	t.Run("nonempty_pending_metric_ids_from_previous_hour_new_day", func(t *testing.T) {
+		s := newStorage()
+
+		hour := fasttime.UnixHour()
+		hour -= hour % 24
+
+		s.pendingHourEntries = []pendingHourMetricIDEntry{
+			{AccountID: 123, ProjectID: 431, MetricID: 343},
+			{AccountID: 123, ProjectID: 431, MetricID: 32424},
+			{AccountID: 1, ProjectID: 2, MetricID: 8293432},
+		}
+
+		hmOrig := &hourMetricIDs{
+			m:    &uint64set.Set{},
+			hour: hour - 1,
+		}
+		s.currHourMetricIDs.Store(hmOrig)
+		s.updateCurrHourMetricIDs(hour)
+		hmCurr := s.currHourMetricIDs.Load()
+		if hmCurr.hour != hour {
+			t.Fatalf("unexpected hmCurr.hour; got %d; want %d", hmCurr.hour, hour)
+		}
+		if hmCurr.m.Len() != 0 {
+			t.Fatalf("unexpected non-empty hmCurr.m; got %v", hmCurr.m.AppendTo(nil))
+		}
+		byTenantExpected := make(map[accountProjectKey]*uint64set.Set)
+		if !reflect.DeepEqual(hmCurr.byTenant, byTenantExpected) {
+			t.Fatalf("unexpected hmPrev.byTenant; got %v; want %v", hmCurr.byTenant, byTenantExpected)
+		}
+		hmPrev := s.prevHourMetricIDs.Load()
+		if !reflect.DeepEqual(hmPrev, hmOrig) {
+			t.Fatalf("unexpected hmPrev; got %v; want %v", hmPrev, hmOrig)
 		}
 		if len(s.pendingHourEntries) != 0 {
 			t.Fatalf("unexpected s.pendingHourEntries.Len(); got %d; want %d", len(s.pendingHourEntries), 0)
@@ -359,10 +468,10 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 func TestMetricRowMarshalUnmarshal(t *testing.T) {
 	var buf []byte
 	typ := reflect.TypeOf(&MetricRow{})
-	rnd := rand.New(rand.NewSource(1))
+	rng := rand.New(rand.NewSource(1))
 
 	for i := 0; i < 1000; i++ {
-		v, ok := quick.Value(typ, rnd)
+		v, ok := quick.Value(typ, rng)
 		if !ok {
 			t.Fatalf("cannot create random MetricRow via quick.Value")
 		}
@@ -392,24 +501,59 @@ func TestMetricRowMarshalUnmarshal(t *testing.T) {
 	}
 }
 
-func TestNextRetentionDuration(t *testing.T) {
-	for retentionMonths := float64(0.1); retentionMonths < 120; retentionMonths += 0.3 {
-		d := nextRetentionDuration(int64(retentionMonths * msecsPerMonth))
-		if d <= 0 {
-			currTime := time.Now().UTC()
-			nextTime := time.Now().UTC().Add(d)
-			t.Fatalf("unexpected retention duration for retentionMonths=%f; got %s; must be %s + %f months", retentionMonths, nextTime, currTime, retentionMonths)
+func TestNextRetentionDeadlineSeconds(t *testing.T) {
+	f := func(currentTime string, retention, offset time.Duration, deadlineExpected string) {
+		t.Helper()
+
+		now, err := time.Parse(time.RFC3339, currentTime)
+		if err != nil {
+			t.Fatalf("cannot parse currentTime=%q: %s", currentTime, err)
+		}
+
+		d := nextRetentionDeadlineSeconds(now.Unix(), int64(retention.Seconds()), int64(offset.Seconds()))
+		deadline := time.Unix(d, 0).UTC().Format(time.RFC3339)
+		if deadline != deadlineExpected {
+			t.Fatalf("unexpected deadline; got %s; want %s", deadline, deadlineExpected)
 		}
 	}
+
+	f("2023-07-22T12:44:35Z", 24*time.Hour, 0, "2023-07-23T04:00:00Z")
+	f("2023-07-22T03:44:35Z", 24*time.Hour, 0, "2023-07-22T04:00:00Z")
+	f("2023-07-22T04:44:35Z", 24*time.Hour, 0, "2023-07-23T04:00:00Z")
+	f("2023-07-22T23:44:35Z", 24*time.Hour, 0, "2023-07-23T04:00:00Z")
+	f("2023-07-23T03:59:35Z", 24*time.Hour, 0, "2023-07-23T04:00:00Z")
+
+	f("2023-07-22T12:44:35Z", 24*time.Hour, 2*time.Hour, "2023-07-23T02:00:00Z")
+	f("2023-07-22T01:44:35Z", 24*time.Hour, 2*time.Hour, "2023-07-22T02:00:00Z")
+	f("2023-07-22T02:44:35Z", 24*time.Hour, 2*time.Hour, "2023-07-23T02:00:00Z")
+	f("2023-07-22T23:44:35Z", 24*time.Hour, 2*time.Hour, "2023-07-23T02:00:00Z")
+	f("2023-07-23T01:59:35Z", 24*time.Hour, 2*time.Hour, "2023-07-23T02:00:00Z")
+
+	f("2023-07-22T12:44:35Z", 24*time.Hour, -5*time.Hour, "2023-07-23T09:00:00Z")
+	f("2023-07-22T08:44:35Z", 24*time.Hour, -5*time.Hour, "2023-07-22T09:00:00Z")
+	f("2023-07-22T09:44:35Z", 24*time.Hour, -5*time.Hour, "2023-07-23T09:00:00Z")
+
+	f("2023-07-22T12:44:35Z", 24*time.Hour, -12*time.Hour, "2023-07-22T16:00:00Z")
+	f("2023-07-22T15:44:35Z", 24*time.Hour, -12*time.Hour, "2023-07-22T16:00:00Z")
+	f("2023-07-22T16:44:35Z", 24*time.Hour, -12*time.Hour, "2023-07-23T16:00:00Z")
+
+	f("2023-07-22T12:44:35Z", 24*time.Hour, -18*time.Hour, "2023-07-22T22:00:00Z")
+	f("2023-07-22T21:44:35Z", 24*time.Hour, -18*time.Hour, "2023-07-22T22:00:00Z")
+	f("2023-07-22T22:44:35Z", 24*time.Hour, -18*time.Hour, "2023-07-23T22:00:00Z")
+
+	f("2023-07-22T12:44:35Z", 24*time.Hour, 18*time.Hour, "2023-07-23T10:00:00Z")
+	f("2023-07-22T09:44:35Z", 24*time.Hour, 18*time.Hour, "2023-07-22T10:00:00Z")
+	f("2023-07-22T10:44:35Z", 24*time.Hour, 18*time.Hour, "2023-07-23T10:00:00Z")
+
+	f("2023-07-22T12:44:35Z", 24*time.Hour, 37*time.Hour, "2023-07-22T15:00:00Z")
+	f("2023-07-22T14:44:35Z", 24*time.Hour, 37*time.Hour, "2023-07-22T15:00:00Z")
+	f("2023-07-22T15:44:35Z", 24*time.Hour, 37*time.Hour, "2023-07-23T15:00:00Z")
 }
 
 func TestStorageOpenClose(t *testing.T) {
 	path := "TestStorageOpenClose"
 	for i := 0; i < 10; i++ {
-		s, err := OpenStorage(path, -1, 1e5, 1e6)
-		if err != nil {
-			t.Fatalf("cannot open storage: %s", err)
-		}
+		s := MustOpenStorage(path, -1, 1e5, 1e6)
 		s.MustClose()
 	}
 	if err := os.RemoveAll(path); err != nil {
@@ -417,40 +561,17 @@ func TestStorageOpenClose(t *testing.T) {
 	}
 }
 
-func TestStorageOpenMultipleTimes(t *testing.T) {
-	path := "TestStorageOpenMultipleTimes"
-	s1, err := OpenStorage(path, -1, 0, 0)
-	if err != nil {
-		t.Fatalf("cannot open storage the first time: %s", err)
-	}
-
-	for i := 0; i < 10; i++ {
-		s2, err := OpenStorage(path, -1, 0, 0)
-		if err == nil {
-			s2.MustClose()
-			t.Fatalf("expecting non-nil error when opening already opened storage")
-		}
-	}
-	s1.MustClose()
-	if err := os.RemoveAll(path); err != nil {
-		t.Fatalf("cannot remove %q: %s", path, err)
-	}
-}
-
 func TestStorageRandTimestamps(t *testing.T) {
 	path := "TestStorageRandTimestamps"
-	retentionMsecs := int64(60 * msecsPerMonth)
-	s, err := OpenStorage(path, retentionMsecs, 0, 0)
-	if err != nil {
-		t.Fatalf("cannot open storage: %s", err)
-	}
+	retention := 10 * retention31Days
+	s := MustOpenStorage(path, retention, 0, 0)
 	t.Run("serial", func(t *testing.T) {
 		for i := 0; i < 3; i++ {
 			if err := testStorageRandTimestamps(s); err != nil {
-				t.Fatal(err)
+				t.Fatalf("error on iteration %d: %s", i, err)
 			}
 			s.MustClose()
-			s, err = OpenStorage(path, retentionMsecs, 0, 0)
+			s = MustOpenStorage(path, retention, 0, 0)
 		}
 	})
 	t.Run("concurrent", func(t *testing.T) {
@@ -464,14 +585,15 @@ func TestStorageRandTimestamps(t *testing.T) {
 				ch <- err
 			}()
 		}
+		tt := time.NewTimer(time.Second * 10)
 		for i := 0; i < cap(ch); i++ {
 			select {
 			case err := <-ch:
 				if err != nil {
-					t.Fatal(err)
+					t.Fatalf("error on iteration %d: %s", i, err)
 				}
-			case <-time.After(time.Second * 10):
-				t.Fatal("timeout")
+			case <-tt.C:
+				t.Fatalf("timeout on iteration %d", i)
 			}
 		}
 	})
@@ -482,10 +604,10 @@ func TestStorageRandTimestamps(t *testing.T) {
 }
 
 func testStorageRandTimestamps(s *Storage) error {
-	const rowsPerAdd = 1e3
-	const addsCount = 2
-	typ := reflect.TypeOf(int64(0))
-	rnd := rand.New(rand.NewSource(1))
+	currentTime := timestampFromTime(time.Now())
+	const rowsPerAdd = 5e3
+	const addsCount = 3
+	rng := rand.New(rand.NewSource(1))
 
 	for i := 0; i < addsCount; i++ {
 		var mrs []MetricRow
@@ -495,17 +617,10 @@ func testStorageRandTimestamps(s *Storage) error {
 			{[]byte("instance"), []byte("1.2.3.4")},
 		}
 		for j := 0; j < rowsPerAdd; j++ {
-			mn.MetricGroup = []byte(fmt.Sprintf("metric_%d", rand.Intn(100)))
+			mn.MetricGroup = []byte(fmt.Sprintf("metric_%d", rng.Intn(100)))
 			metricNameRaw := mn.marshalRaw(nil)
-			timestamp := int64(rnd.NormFloat64() * 1e12)
-			if j%2 == 0 {
-				ts, ok := quick.Value(typ, rnd)
-				if !ok {
-					return fmt.Errorf("cannot create random timestamp via quick.Value")
-				}
-				timestamp = ts.Interface().(int64)
-			}
-			value := rnd.NormFloat64() * 1e12
+			timestamp := currentTime - int64((rng.Float64()-0.2)*float64(2*s.retentionMsecs))
+			value := rng.NormFloat64() * 1e11
 
 			mr := MetricRow{
 				MetricNameRaw: metricNameRaw,
@@ -525,18 +640,15 @@ func testStorageRandTimestamps(s *Storage) error {
 	// Verify the storage contains rows.
 	var m Metrics
 	s.UpdateMetrics(&m)
-	if m.TableMetrics.SmallRowsCount == 0 {
-		return fmt.Errorf("expecting at least one row in the table")
+	if rowsCount := m.TableMetrics.TotalRowsCount(); rowsCount == 0 {
+		return fmt.Errorf("expecting at least one row in storage")
 	}
 	return nil
 }
 
 func TestStorageDeleteSeries(t *testing.T) {
 	path := "TestStorageDeleteSeries"
-	s, err := OpenStorage(path, 0, 0, 0)
-	if err != nil {
-		t.Fatalf("cannot open storage: %s", err)
-	}
+	s := MustOpenStorage(path, 0, 0, 0)
 
 	// Verify no label names exist
 	lns, err := s.SearchLabelNamesWithFiltersOnTimeRange(nil, 0, 0, nil, TimeRange{}, 1e5, 1e9, noDeadline)
@@ -556,10 +668,7 @@ func TestStorageDeleteSeries(t *testing.T) {
 			// Re-open the storage in order to check how deleted metricIDs
 			// are persisted.
 			s.MustClose()
-			s, err = OpenStorage(path, 0, 0, 0)
-			if err != nil {
-				t.Fatalf("cannot open storage after closing on iteration %d: %s", i, err)
-			}
+			s = MustOpenStorage(path, 0, 0, 0)
 		}
 	})
 
@@ -577,14 +686,15 @@ func TestStorageDeleteSeries(t *testing.T) {
 				ch <- err
 			}(i)
 		}
+		tt := time.NewTimer(30 * time.Second)
 		for i := 0; i < cap(ch); i++ {
 			select {
 			case err := <-ch:
 				if err != nil {
-					t.Fatalf("unexpected error: %s", err)
+					t.Fatalf("unexpected error on iteration %d: %s", i, err)
 				}
-			case <-time.After(30 * time.Second):
-				t.Fatalf("timeout")
+			case <-tt.C:
+				t.Fatalf("timeout on iteration %d", i)
 			}
 		}
 	})
@@ -605,6 +715,7 @@ func TestStorageDeleteSeries(t *testing.T) {
 }
 
 func testStorageDeleteSeries(s *Storage, workerNum int) error {
+	rng := rand.New(rand.NewSource(1))
 	const rowsPerMetric = 100
 	const metricsCount = 30
 
@@ -633,8 +744,8 @@ func testStorageDeleteSeries(s *Storage, workerNum int) error {
 		metricNameRaw := mn.marshalRaw(nil)
 
 		for j := 0; j < rowsPerMetric; j++ {
-			timestamp := rand.Int63n(1e10)
-			value := rand.NormFloat64() * 1e6
+			timestamp := rng.Int63n(1e10)
+			value := rng.NormFloat64() * 1e6
 
 			mr := MetricRow{
 				MetricNameRaw: metricNameRaw,
@@ -756,10 +867,7 @@ func checkLabelNames(lns []string, lnsExpected map[string]bool) error {
 
 func TestStorageRegisterMetricNamesSerial(t *testing.T) {
 	path := "TestStorageRegisterMetricNamesSerial"
-	s, err := OpenStorage(path, 0, 0, 0)
-	if err != nil {
-		t.Fatalf("cannot open storage: %s", err)
-	}
+	s := MustOpenStorage(path, 0, 0, 0)
 	if err := testStorageRegisterMetricNames(s); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -771,10 +879,7 @@ func TestStorageRegisterMetricNamesSerial(t *testing.T) {
 
 func TestStorageRegisterMetricNamesConcurrent(t *testing.T) {
 	path := "TestStorageRegisterMetricNamesConcurrent"
-	s, err := OpenStorage(path, 0, 0, 0)
-	if err != nil {
-		t.Fatalf("cannot open storage: %s", err)
-	}
+	s := MustOpenStorage(path, 0, 0, 0)
 	ch := make(chan error, 3)
 	for i := 0; i < cap(ch); i++ {
 		go func() {
@@ -827,9 +932,7 @@ func testStorageRegisterMetricNames(s *Storage) error {
 			}
 			mrs = append(mrs, mr)
 		}
-		if err := s.RegisterMetricNames(nil, mrs); err != nil {
-			return fmt.Errorf("unexpected error in RegisterMetricNames: %w", err)
-		}
+		s.RegisterMetricNames(nil, mrs)
 	}
 	var addIDsExpected []string
 	for k := range addIDsMap {
@@ -938,9 +1041,6 @@ func testStorageRegisterMetricNames(s *Storage) error {
 	if err != nil {
 		return fmt.Errorf("error in SearchMetricNames: %w", err)
 	}
-	if err != nil {
-		return fmt.Errorf("cannot unmarshal metric names: %w", err)
-	}
 	if len(metricNames) < metricsPerAdd {
 		return fmt.Errorf("unexpected number of metricNames returned from SearchMetricNames; got %d; want at least %d", len(metricNames), int(metricsPerAdd))
 	}
@@ -976,12 +1076,11 @@ func testStorageRegisterMetricNames(s *Storage) error {
 }
 
 func TestStorageAddRowsSerial(t *testing.T) {
+	rng := rand.New(rand.NewSource(1))
 	path := "TestStorageAddRowsSerial"
-	s, err := OpenStorage(path, 0, 1e5, 1e5)
-	if err != nil {
-		t.Fatalf("cannot open storage: %s", err)
-	}
-	if err := testStorageAddRows(s); err != nil {
+	retention := 10 * retention31Days
+	s := MustOpenStorage(path, retention, 1e5, 1e5)
+	if err := testStorageAddRows(rng, s); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	s.MustClose()
@@ -992,15 +1091,14 @@ func TestStorageAddRowsSerial(t *testing.T) {
 
 func TestStorageAddRowsConcurrent(t *testing.T) {
 	path := "TestStorageAddRowsConcurrent"
-	s, err := OpenStorage(path, 0, 1e5, 1e5)
-	if err != nil {
-		t.Fatalf("cannot open storage: %s", err)
-	}
+	retention := 10 * retention31Days
+	s := MustOpenStorage(path, retention, 1e5, 1e5)
 	ch := make(chan error, 3)
 	for i := 0; i < cap(ch); i++ {
-		go func() {
-			ch <- testStorageAddRows(s)
-		}()
+		go func(n int) {
+			rLocal := rand.New(rand.NewSource(int64(n)))
+			ch <- testStorageAddRows(rLocal, s)
+		}(i)
 	}
 	for i := 0; i < cap(ch); i++ {
 		select {
@@ -1018,7 +1116,7 @@ func TestStorageAddRowsConcurrent(t *testing.T) {
 	}
 }
 
-func testGenerateMetricRows(rows uint64, timestampMin, timestampMax int64) []MetricRow {
+func testGenerateMetricRows(rng *rand.Rand, rows uint64, timestampMin, timestampMax int64) []MetricRow {
 	var mrs []MetricRow
 	var mn MetricName
 	mn.Tags = []Tag{
@@ -1030,8 +1128,8 @@ func testGenerateMetricRows(rows uint64, timestampMin, timestampMax int64) []Met
 		mn.ProjectID = uint32(rand.Intn(3))
 		mn.MetricGroup = []byte(fmt.Sprintf("metric_%d", i))
 		metricNameRaw := mn.marshalRaw(nil)
-		timestamp := rand.Int63n(timestampMax-timestampMin) + timestampMin
-		value := rand.NormFloat64() * 1e6
+		timestamp := rng.Int63n(timestampMax-timestampMin) + timestampMin
+		value := rng.NormFloat64() * 1e6
 
 		mr := MetricRow{
 			MetricNameRaw: metricNameRaw,
@@ -1043,12 +1141,14 @@ func testGenerateMetricRows(rows uint64, timestampMin, timestampMax int64) []Met
 	return mrs
 }
 
-func testStorageAddRows(s *Storage) error {
+func testStorageAddRows(rng *rand.Rand, s *Storage) error {
 	const rowsPerAdd = 1e3
 	const addsCount = 10
 
+	maxTimestamp := timestampFromTime(time.Now())
+	minTimestamp := maxTimestamp - s.retentionMsecs + 3600*1000
 	for i := 0; i < addsCount; i++ {
-		mrs := testGenerateMetricRows(rowsPerAdd, 0, 1e10)
+		mrs := testGenerateMetricRows(rng, rowsPerAdd, minTimestamp, maxTimestamp)
 		if err := s.AddRows(mrs, defaultPrecisionBits); err != nil {
 			return fmt.Errorf("unexpected error when adding mrs: %w", err)
 		}
@@ -1058,12 +1158,12 @@ func testStorageAddRows(s *Storage) error {
 	minRowsExpected := uint64(rowsPerAdd * addsCount)
 	var m Metrics
 	s.UpdateMetrics(&m)
-	if m.TableMetrics.SmallRowsCount < minRowsExpected {
-		return fmt.Errorf("expecting at least %d rows in the table; got %d", minRowsExpected, m.TableMetrics.SmallRowsCount)
+	if rowsCount := m.TableMetrics.TotalRowsCount(); rowsCount < minRowsExpected {
+		return fmt.Errorf("expecting at least %d rows in the table; got %d", minRowsExpected, rowsCount)
 	}
 
 	// Try creating a snapshot from the storage.
-	snapshotName, err := s.CreateSnapshot()
+	snapshotName, err := s.CreateSnapshot(0)
 	if err != nil {
 		return fmt.Errorf("cannot create snapshot from the storage: %w", err)
 	}
@@ -1078,31 +1178,30 @@ func testStorageAddRows(s *Storage) error {
 	}
 
 	// Try opening the storage from snapshot.
-	snapshotPath := s.path + "/snapshots/" + snapshotName
-	s1, err := OpenStorage(snapshotPath, 0, 0, 0)
-	if err != nil {
-		return fmt.Errorf("cannot open storage from snapshot: %w", err)
-	}
+	snapshotPath := filepath.Join(s.path, snapshotsDirname, snapshotName)
+	s1 := MustOpenStorage(snapshotPath, 0, 0, 0)
 
 	// Verify the snapshot contains rows
 	var m1 Metrics
 	s1.UpdateMetrics(&m1)
-	if m1.TableMetrics.SmallRowsCount < minRowsExpected {
-		return fmt.Errorf("snapshot %q must contain at least %d rows; got %d", snapshotPath, minRowsExpected, m1.TableMetrics.SmallRowsCount)
+	if rowsCount := m1.TableMetrics.TotalRowsCount(); rowsCount < minRowsExpected {
+		return fmt.Errorf("snapshot %q must contain at least %d rows; got %d", snapshotPath, minRowsExpected, rowsCount)
 	}
 
-	// Verify that force merge for the snapshot leaves only a single part per partition.
+	// Verify that force merge for the snapshot leaves at most a single part per partition.
+	// Zero parts are possible if the snapshot is created just after the partition has been created
+	// by concurrent goroutine, but it didn't put the data into it yet.
 	if err := s1.ForceMergePartitions(""); err != nil {
 		return fmt.Errorf("error when force merging partitions: %w", err)
 	}
 	ptws := s1.tb.GetPartitions(nil)
 	for _, ptw := range ptws {
-		pws := ptw.pt.GetParts(nil)
+		pws := ptw.pt.GetParts(nil, true)
 		numParts := len(pws)
 		ptw.pt.PutParts(pws)
-		if numParts != 1 {
+		if numParts > 1 {
 			s1.tb.PutPartitions(ptws)
-			return fmt.Errorf("unexpected number of parts for partition %q after force merge; got %d; want 1", ptw.pt.name, numParts)
+			return fmt.Errorf("unexpected number of parts for partition %q after force merge; got %d; want at most 1", ptw.pt.name, numParts)
 		}
 	}
 	s1.tb.PutPartitions(ptws)
@@ -1126,10 +1225,7 @@ func testStorageAddRows(s *Storage) error {
 
 func TestStorageRotateIndexDB(t *testing.T) {
 	path := "TestStorageRotateIndexDB"
-	s, err := OpenStorage(path, 0, 0, 0)
-	if err != nil {
-		t.Fatalf("cannot open storage: %s", err)
-	}
+	s := MustOpenStorage(path, 0, 0, 0)
 
 	// Start indexDB rotater in a separate goroutine
 	stopCh := make(chan struct{})
@@ -1142,7 +1238,7 @@ func TestStorageRotateIndexDB(t *testing.T) {
 				return
 			default:
 				time.Sleep(time.Millisecond)
-				s.mustRotateIndexDB()
+				s.mustRotateIndexDB(time.Now())
 			}
 		}
 	}()
@@ -1175,6 +1271,7 @@ func TestStorageRotateIndexDB(t *testing.T) {
 }
 
 func testStorageAddMetrics(s *Storage, workerNum int) error {
+	rng := rand.New(rand.NewSource(1))
 	const rowsCount = 1e3
 
 	var mn MetricName
@@ -1185,10 +1282,10 @@ func testStorageAddMetrics(s *Storage, workerNum int) error {
 	for i := 0; i < rowsCount; i++ {
 		mn.AccountID = 123
 		mn.ProjectID = uint32(i % 3)
-		mn.MetricGroup = []byte(fmt.Sprintf("metric_%d_%d", workerNum, rand.Intn(10)))
+		mn.MetricGroup = []byte(fmt.Sprintf("metric_%d_%d", workerNum, rng.Intn(10)))
 		metricNameRaw := mn.marshalRaw(nil)
-		timestamp := rand.Int63n(1e10)
-		value := rand.NormFloat64() * 1e6
+		timestamp := rng.Int63n(1e10)
+		value := rng.NormFloat64() * 1e6
 
 		mr := MetricRow{
 			MetricNameRaw: metricNameRaw,
@@ -1204,28 +1301,29 @@ func testStorageAddMetrics(s *Storage, workerNum int) error {
 	minRowsExpected := uint64(rowsCount)
 	var m Metrics
 	s.UpdateMetrics(&m)
-	if m.TableMetrics.SmallRowsCount < minRowsExpected {
-		return fmt.Errorf("expecting at least %d rows in the table; got %d", minRowsExpected, m.TableMetrics.SmallRowsCount)
+	if rowsCount := m.TableMetrics.TotalRowsCount(); rowsCount < minRowsExpected {
+		return fmt.Errorf("expecting at least %d rows in the table; got %d", minRowsExpected, rowsCount)
 	}
 	return nil
 }
 
 func TestStorageDeleteStaleSnapshots(t *testing.T) {
+	rng := rand.New(rand.NewSource(1))
 	path := "TestStorageDeleteStaleSnapshots"
-	s, err := OpenStorage(path, 0, 1e5, 1e5)
-	if err != nil {
-		t.Fatalf("cannot open storage: %s", err)
-	}
+	retention := 10 * retention31Days
+	s := MustOpenStorage(path, retention, 1e5, 1e5)
 	const rowsPerAdd = 1e3
 	const addsCount = 10
+	maxTimestamp := timestampFromTime(time.Now())
+	minTimestamp := maxTimestamp - s.retentionMsecs
 	for i := 0; i < addsCount; i++ {
-		mrs := testGenerateMetricRows(rowsPerAdd, 0, 1e10)
+		mrs := testGenerateMetricRows(rng, rowsPerAdd, minTimestamp, maxTimestamp)
 		if err := s.AddRows(mrs, defaultPrecisionBits); err != nil {
 			t.Fatalf("unexpected error when adding mrs: %s", err)
 		}
 	}
 	// Try creating a snapshot from the storage.
-	snapshotName, err := s.CreateSnapshot()
+	snapshotName, err := s.CreateSnapshot(0)
 	if err != nil {
 		t.Fatalf("cannot create snapshot from the storage: %s", err)
 	}
@@ -1260,13 +1358,4 @@ func TestStorageDeleteStaleSnapshots(t *testing.T) {
 	if err := os.RemoveAll(path); err != nil {
 		t.Fatalf("cannot remove %q: %s", path, err)
 	}
-}
-
-func containsString(a []string, s string) bool {
-	for i := range a {
-		if a[i] == s {
-			return true
-		}
-	}
-	return false
 }

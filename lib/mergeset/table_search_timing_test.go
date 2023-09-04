@@ -17,6 +17,8 @@ func BenchmarkTableSearch(b *testing.B) {
 }
 
 func benchmarkTableSearch(b *testing.B, itemsCount int) {
+	r := rand.New(rand.NewSource(1))
+
 	path := fmt.Sprintf("BenchmarkTableSearch-%d", itemsCount)
 	if err := os.RemoveAll(path); err != nil {
 		b.Fatalf("cannot remove %q: %s", path, err)
@@ -25,7 +27,7 @@ func benchmarkTableSearch(b *testing.B, itemsCount int) {
 		_ = os.RemoveAll(path)
 	}()
 
-	tb, items, err := newTestTable(path, itemsCount)
+	tb, items, err := newTestTable(r, path, itemsCount)
 	if err != nil {
 		panic(fmt.Errorf("cannot create test table at %q with %d items: %w", path, itemsCount, err))
 	}
@@ -33,10 +35,7 @@ func benchmarkTableSearch(b *testing.B, itemsCount int) {
 	// Force finishing pending merges
 	tb.MustClose()
 	var isReadOnly uint32
-	tb, err = OpenTable(path, nil, nil, &isReadOnly)
-	if err != nil {
-		b.Fatalf("unexpected error when re-opening table %q: %s", path, err)
-	}
+	tb = MustOpenTable(path, nil, nil, &isReadOnly)
 	defer tb.MustClose()
 
 	keys := make([][]byte, len(items))
@@ -52,7 +51,7 @@ func benchmarkTableSearch(b *testing.B, itemsCount int) {
 	})
 
 	randKeys := append([][]byte{}, keys...)
-	rand.Shuffle(len(randKeys), func(i, j int) {
+	r.Shuffle(len(randKeys), func(i, j int) {
 		randKeys[i], randKeys[j] = randKeys[j], randKeys[i]
 	})
 	b.Run("random-keys-exact", func(b *testing.B) {
@@ -81,11 +80,12 @@ func benchmarkTableSearchKeysExt(b *testing.B, tb *Table, keys [][]byte, stripSu
 	b.ReportAllocs()
 	b.SetBytes(int64(searchKeysCount * rowsToScan))
 	b.RunParallel(func(pb *testing.PB) {
+		r := rand.New(rand.NewSource(1))
 		var ts TableSearch
 		ts.Init(tb)
 		defer ts.MustClose()
 		for pb.Next() {
-			startIdx := rand.Intn(len(keys) - searchKeysCount)
+			startIdx := r.Intn(len(keys) - searchKeysCount)
 			searchKeys := keys[startIdx : startIdx+searchKeysCount]
 			for i, key := range searchKeys {
 				searchKey := key

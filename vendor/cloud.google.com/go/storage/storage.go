@@ -33,6 +33,7 @@ import (
 	"reflect"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -40,7 +41,7 @@ import (
 	"cloud.google.com/go/internal/optional"
 	"cloud.google.com/go/internal/trace"
 	"cloud.google.com/go/storage/internal"
-	storagepb "cloud.google.com/go/storage/internal/apiv2/stubs"
+	"cloud.google.com/go/storage/internal/apiv2/storagepb"
 	"github.com/googleapis/gax-go/v2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/googleapi"
@@ -51,6 +52,7 @@ import (
 	htransport "google.golang.org/api/transport/http"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/types/known/fieldmaskpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -107,8 +109,8 @@ type Client struct {
 	raw *raw.Service
 	// Scheme describes the scheme under the current host.
 	scheme string
-	// ReadHost is the default host used on the reader.
-	readHost string
+	// xmlHost is the default host used for XML requests.
+	xmlHost string
 	// May be nil.
 	creds *google.Credentials
 	retry *retryConfig
@@ -127,8 +129,10 @@ type Client struct {
 //
 // Clients should be reused instead of created as needed. The methods of Client
 // are safe for concurrent use by multiple goroutines.
+//
+// You may configure the client by passing in options from the [google.golang.org/api/option]
+// package. You may also use options defined in this package, such as [WithJSONReads].
 func NewClient(ctx context.Context, opts ...option.ClientOption) (*Client, error) {
-
 	// Use the experimental gRPC client if the env var is set.
 	// This is an experimental API and not intended for public use.
 	if withGRPC := os.Getenv("STORAGE_USE_GRPC"); withGRPC != "" {
@@ -177,40 +181,42 @@ func NewClient(ctx context.Context, opts ...option.ClientOption) (*Client, error
 		endpoint := hostURL.String()
 
 		// Append the emulator host as default endpoint for the user
-		opts = append([]option.ClientOption{option.WithoutAuthentication()}, opts...)
-
-		opts = append(opts, internaloption.WithDefaultEndpoint(endpoint))
-		opts = append(opts, internaloption.WithDefaultMTLSEndpoint(endpoint))
+		opts = append([]option.ClientOption{
+			option.WithoutAuthentication(),
+			internaloption.SkipDialSettingsValidation(),
+			internaloption.WithDefaultEndpoint(endpoint),
+			internaloption.WithDefaultMTLSEndpoint(endpoint),
+		}, opts...)
 	}
 
 	// htransport selects the correct endpoint among WithEndpoint (user override), WithDefaultEndpoint, and WithDefaultMTLSEndpoint.
 	hc, ep, err := htransport.NewClient(ctx, opts...)
 	if err != nil {
-		return nil, fmt.Errorf("dialing: %v", err)
+		return nil, fmt.Errorf("dialing: %w", err)
 	}
 	// RawService should be created with the chosen endpoint to take account of user override.
 	rawService, err := raw.NewService(ctx, option.WithEndpoint(ep), option.WithHTTPClient(hc))
 	if err != nil {
-		return nil, fmt.Errorf("storage client: %v", err)
+		return nil, fmt.Errorf("storage client: %w", err)
 	}
-	// Update readHost and scheme with the chosen endpoint.
+	// Update xmlHost and scheme with the chosen endpoint.
 	u, err := url.Parse(ep)
 	if err != nil {
-		return nil, fmt.Errorf("supplied endpoint %q is not valid: %v", ep, err)
+		return nil, fmt.Errorf("supplied endpoint %q is not valid: %w", ep, err)
 	}
 
 	tc, err := newHTTPStorageClient(ctx, withClientOptions(opts...))
 	if err != nil {
-		return nil, fmt.Errorf("storage: %v", err)
+		return nil, fmt.Errorf("storage: %w", err)
 	}
 
 	return &Client{
-		hc:       hc,
-		raw:      rawService,
-		scheme:   u.Scheme,
-		readHost: u.Host,
-		creds:    creds,
-		tc:       tc,
+		hc:      hc,
+		raw:     rawService,
+		scheme:  u.Scheme,
+		xmlHost: u.Host,
+		creds:   creds,
+		tc:      tc,
 	}, nil
 }
 
@@ -256,13 +262,13 @@ const (
 	SigningSchemeV4
 )
 
-// URLStyle determines the style to use for the signed URL. pathStyle is the
+// URLStyle determines the style to use for the signed URL. PathStyle is the
 // default. All non-default options work with V4 scheme only. See
 // https://cloud.google.com/storage/docs/request-endpoints for details.
 type URLStyle interface {
 	// host should return the host portion of the signed URL, not including
 	// the scheme (e.g. storage.googleapis.com).
-	host(bucket string) string
+	host(hostname, bucket string) string
 
 	// path should return the path portion of the signed URL, which may include
 	// both the bucket and object name or only the object name depending on the
@@ -278,7 +284,11 @@ type bucketBoundHostname struct {
 	hostname string
 }
 
-func (s pathStyle) host(bucket string) string {
+func (s pathStyle) host(hostname, bucket string) string {
+	if hostname != "" {
+		return stripScheme(hostname)
+	}
+
 	if host := os.Getenv("STORAGE_EMULATOR_HOST"); host != "" {
 		return stripScheme(host)
 	}
@@ -286,7 +296,7 @@ func (s pathStyle) host(bucket string) string {
 	return "storage.googleapis.com"
 }
 
-func (s virtualHostedStyle) host(bucket string) string {
+func (s virtualHostedStyle) host(_, bucket string) string {
 	if host := os.Getenv("STORAGE_EMULATOR_HOST"); host != "" {
 		return bucket + "." + stripScheme(host)
 	}
@@ -294,7 +304,7 @@ func (s virtualHostedStyle) host(bucket string) string {
 	return bucket + ".storage.googleapis.com"
 }
 
-func (s bucketBoundHostname) host(bucket string) string {
+func (s bucketBoundHostname) host(_, bucket string) string {
 	return s.hostname
 }
 
@@ -315,7 +325,10 @@ func (s bucketBoundHostname) path(bucket, object string) string {
 }
 
 // PathStyle is the default style, and will generate a URL of the form
-// "storage.googleapis.com/<bucket-name>/<object-name>".
+// "<host-name>/<bucket-name>/<object-name>". By default, <host-name> is
+// storage.googleapis.com, but setting an endpoint on the storage Client or
+// through STORAGE_EMULATOR_HOST overrides this. Setting Hostname on
+// SignedURLOptions or PostPolicyV4Options overrides everything else.
 func PathStyle() URLStyle {
 	return pathStyle{}
 }
@@ -436,6 +449,12 @@ type SignedURLOptions struct {
 	// Scheme determines the version of URL signing to use. Default is
 	// SigningSchemeV2.
 	Scheme SigningScheme
+
+	// Hostname sets the host of the signed URL. This field overrides any
+	// endpoint set on a storage Client or through STORAGE_EMULATOR_HOST.
+	// Only compatible with PathStyle URLStyle.
+	// Optional.
+	Hostname string
 }
 
 func (opts *SignedURLOptions) clone() *SignedURLOptions {
@@ -452,6 +471,7 @@ func (opts *SignedURLOptions) clone() *SignedURLOptions {
 		Style:           opts.Style,
 		Insecure:        opts.Insecure,
 		Scheme:          opts.Scheme,
+		Hostname:        opts.Hostname,
 	}
 }
 
@@ -533,7 +553,7 @@ func v4SanitizeHeaders(hdrs []string) []string {
 		sanitizedHeader := strings.TrimSpace(hdr)
 
 		var key, value string
-		headerMatches := strings.Split(sanitizedHeader, ":")
+		headerMatches := strings.SplitN(sanitizedHeader, ":", 2)
 		if len(headerMatches) < 2 {
 			continue
 		}
@@ -647,7 +667,7 @@ var utcNow = func() time.Time {
 func extractHeaderNames(kvs []string) []string {
 	var res []string
 	for _, header := range kvs {
-		nameValue := strings.Split(header, ":")
+		nameValue := strings.SplitN(header, ":", 2)
 		res = append(res, nameValue[0])
 	}
 	return res
@@ -710,7 +730,7 @@ func signedURLV4(bucket, name string, opts *SignedURLOptions, now time.Time) (st
 	fmt.Fprintf(buf, "%s\n", escapedQuery)
 
 	// Fill in the hostname based on the desired URL style.
-	u.Host = opts.Style.host(bucket)
+	u.Host = opts.Style.host(opts.Hostname, bucket)
 
 	// Fill in the URL scheme.
 	if opts.Insecure {
@@ -791,7 +811,7 @@ func sortHeadersByKey(hdrs []string) []string {
 	headersMap := map[string]string{}
 	var headersKeys []string
 	for _, h := range hdrs {
-		parts := strings.Split(h, ":")
+		parts := strings.SplitN(h, ":", 2)
 		k := parts[0]
 		v := parts[1]
 		headersMap[k] = v
@@ -844,7 +864,7 @@ func signedURLV2(bucket, name string, opts *SignedURLOptions) (string, error) {
 	}
 	encoded := base64.StdEncoding.EncodeToString(b)
 	u.Scheme = "https"
-	u.Host = PathStyle().host(bucket)
+	u.Host = PathStyle().host(opts.Hostname, bucket)
 	q := u.Query()
 	q.Set("GoogleAccessId", opts.GoogleAccessID)
 	q.Set("Expires", fmt.Sprintf("%d", opts.Expires.Unix()))
@@ -887,7 +907,9 @@ func (o *ObjectHandle) Generation(gen int64) *ObjectHandle {
 }
 
 // If returns a new ObjectHandle that applies a set of preconditions.
-// Preconditions already set on the ObjectHandle are ignored.
+// Preconditions already set on the ObjectHandle are ignored. The supplied
+// Conditions must have at least one field set to a non-default value;
+// otherwise an error will be returned from any operation on the ObjectHandle.
 // Operations on the new handle will return an error if the preconditions are not
 // satisfied. See https://cloud.google.com/storage/docs/generations-preconditions
 // for more details.
@@ -1014,6 +1036,7 @@ func (o *ObjectHandle) ReadCompressed(compressed bool) *ObjectHandle {
 // It is the caller's responsibility to call Close when writing is done. To
 // stop writing without saving the data, cancel the context.
 func (o *ObjectHandle) NewWriter(ctx context.Context) *Writer {
+	ctx = trace.StartSpan(ctx, "cloud.google.com/go/storage.Object.Writer")
 	return &Writer{
 		ctx:         ctx,
 		o:           o,
@@ -1088,11 +1111,6 @@ func (o *ObjectAttrs) toRawObject(bucket string) *raw.Object {
 
 // toProtoObject copies the editable attributes from o to the proto library's Object type.
 func (o *ObjectAttrs) toProtoObject(b string) *storagepb.Object {
-	checksums := &storagepb.ObjectChecksums{Md5Hash: o.MD5}
-	if o.CRC32C > 0 {
-		checksums.Crc32C = proto.Uint32(o.CRC32C)
-	}
-
 	// For now, there are only globally unique buckets, and "_" is the alias
 	// project ID for such buckets. If the bucket is not provided, like in the
 	// destination ObjectAttrs of a Copy, do not attempt to format it.
@@ -1121,7 +1139,6 @@ func (o *ObjectAttrs) toProtoObject(b string) *storagepb.Object {
 		KmsKey:              o.KMSKeyName,
 		Generation:          o.Generation,
 		Size:                o.Size,
-		Checksums:           checksums,
 	}
 }
 
@@ -1163,7 +1180,7 @@ func (uattrs *ObjectAttrsToUpdate) toProtoObject(bucket, object string) *storage
 		o.Acl = toProtoObjectACL(uattrs.ACL)
 	}
 
-	// TODO(cathyo): Handle metadata. Pending b/230510191.
+	o.Metadata = uattrs.Metadata
 
 	return o
 }
@@ -1319,6 +1336,11 @@ type ObjectAttrs struct {
 	// later value but not to an earlier one. For more information see
 	// https://cloud.google.com/storage/docs/metadata#custom-time .
 	CustomTime time.Time
+
+	// ComponentCount is the number of objects contained within a composite object.
+	// For non-composite objects, the value will be zero.
+	// This field is read-only.
+	ComponentCount int64
 }
 
 // convertTime converts a time in RFC3339 format to time.Time.
@@ -1389,6 +1411,7 @@ func newObject(o *raw.Object) *ObjectAttrs {
 		Updated:                 convertTime(o.Updated),
 		Etag:                    o.Etag,
 		CustomTime:              convertTime(o.CustomTime),
+		ComponentCount:          o.ComponentCount,
 	}
 }
 
@@ -1416,12 +1439,14 @@ func newObjectFromProto(o *storagepb.Object) *ObjectAttrs {
 		Generation:              o.Generation,
 		Metageneration:          o.Metageneration,
 		StorageClass:            o.StorageClass,
-		CustomerKeySHA256:       string(o.GetCustomerEncryption().GetKeySha256Bytes()),
-		KMSKeyName:              o.GetKmsKey(),
-		Created:                 convertProtoTime(o.GetCreateTime()),
-		Deleted:                 convertProtoTime(o.GetDeleteTime()),
-		Updated:                 convertProtoTime(o.GetUpdateTime()),
-		CustomTime:              convertProtoTime(o.GetCustomTime()),
+		// CustomerKeySHA256 needs to be presented as base64 encoded, but the response from gRPC is not.
+		CustomerKeySHA256: base64.StdEncoding.EncodeToString(o.GetCustomerEncryption().GetKeySha256Bytes()),
+		KMSKeyName:        o.GetKmsKey(),
+		Created:           convertProtoTime(o.GetCreateTime()),
+		Deleted:           convertProtoTime(o.GetDeleteTime()),
+		Updated:           convertProtoTime(o.GetUpdateTime()),
+		CustomTime:        convertProtoTime(o.GetCustomTime()),
+		ComponentCount:    int64(o.ComponentCount),
 	}
 }
 
@@ -1476,6 +1501,8 @@ type Query struct {
 	// aside from the prefix, contain delimiter will have their name,
 	// truncated after the delimiter, returned in prefixes.
 	// Duplicate prefixes are omitted.
+	// Must be set to / when used with the MatchGlob parameter to filter results
+	// in a directory-like mode.
 	// Optional.
 	Delimiter string
 
@@ -1488,10 +1515,11 @@ type Query struct {
 	// object will be included in the results.
 	Versions bool
 
-	// fieldSelection is used to select only specific fields to be returned by
-	// the query. It's used internally and is populated for the user by
-	// calling Query.SetAttrSelection
-	fieldSelection string
+	// attrSelection is used to select only specific fields to be returned by
+	// the query. It is set by the user calling SetAttrSelection. These
+	// are used by toFieldMask and toFieldSelection for gRPC and HTTP/JSON
+	// clients respectively.
+	attrSelection []string
 
 	// StartOffset is used to filter results to objects whose names are
 	// lexicographically equal to or after startOffset. If endOffset is also set,
@@ -1516,6 +1544,12 @@ type Query struct {
 	// true, they will also be included as objects and their metadata will be
 	// populated in the returned ObjectAttrs.
 	IncludeTrailingDelimiter bool
+
+	// MatchGlob is a glob pattern used to filter results (for example, foo*bar). See
+	// https://cloud.google.com/storage/docs/json_api/v1/objects/list#list-object-glob
+	// for syntax details. When Delimiter is set in conjunction with MatchGlob,
+	// it must be set to /.
+	MatchGlob string
 }
 
 // attrToFieldMap maps the field names of ObjectAttrs to the underlying field
@@ -1549,6 +1583,41 @@ var attrToFieldMap = map[string]string{
 	"Updated":                 "updated",
 	"Etag":                    "etag",
 	"CustomTime":              "customTime",
+	"ComponentCount":          "componentCount",
+}
+
+// attrToProtoFieldMap maps the field names of ObjectAttrs to the underlying field
+// names in the protobuf Object message.
+var attrToProtoFieldMap = map[string]string{
+	"Name":                    "name",
+	"Bucket":                  "bucket",
+	"Etag":                    "etag",
+	"Generation":              "generation",
+	"Metageneration":          "metageneration",
+	"StorageClass":            "storage_class",
+	"Size":                    "size",
+	"ContentEncoding":         "content_encoding",
+	"ContentDisposition":      "content_disposition",
+	"CacheControl":            "cache_control",
+	"ACL":                     "acl",
+	"ContentLanguage":         "content_language",
+	"Deleted":                 "delete_time",
+	"ContentType":             "content_type",
+	"Created":                 "create_time",
+	"CRC32C":                  "checksums.crc32c",
+	"MD5":                     "checksums.md5_hash",
+	"Updated":                 "update_time",
+	"KMSKeyName":              "kms_key",
+	"TemporaryHold":           "temporary_hold",
+	"RetentionExpirationTime": "retention_expire_time",
+	"Metadata":                "metadata",
+	"EventBasedHold":          "event_based_hold",
+	"Owner":                   "owner",
+	"CustomerKeySHA256":       "customer_encryption",
+	"CustomTime":              "custom_time",
+	"ComponentCount":          "component_count",
+	// MediaLink was explicitly excluded from the proto as it is an HTTP-ism.
+	// "MediaLink":               "mediaLink",
 }
 
 // SetAttrSelection makes the query populate only specific attributes of
@@ -1559,16 +1628,42 @@ var attrToFieldMap = map[string]string{
 // optimization; for more information, see
 // https://cloud.google.com/storage/docs/json_api/v1/how-tos/performance
 func (q *Query) SetAttrSelection(attrs []string) error {
+	// Validate selections.
+	for _, attr := range attrs {
+		// If the attr is acceptable for one of the two sets, then it is OK.
+		// If it is not acceptable for either, then return an error.
+		// The respective masking implementations ignore unknown attrs which
+		// makes switching between transports a little easier.
+		_, okJSON := attrToFieldMap[attr]
+		_, okGRPC := attrToProtoFieldMap[attr]
+
+		if !okJSON && !okGRPC {
+			return fmt.Errorf("storage: attr %v is not valid", attr)
+		}
+	}
+
+	q.attrSelection = attrs
+
+	return nil
+}
+
+func (q *Query) toFieldSelection() string {
+	if q == nil || len(q.attrSelection) == 0 {
+		return ""
+	}
 	fieldSet := make(map[string]bool)
 
-	for _, attr := range attrs {
+	for _, attr := range q.attrSelection {
 		field, ok := attrToFieldMap[attr]
 		if !ok {
-			return fmt.Errorf("storage: attr %v is not valid", attr)
+			// Future proofing, skip unknown fields, let SetAttrSelection handle
+			// error modes.
+			continue
 		}
 		fieldSet[field] = true
 	}
 
+	var s string
 	if len(fieldSet) > 0 {
 		var b bytes.Buffer
 		b.WriteString("prefixes,items(")
@@ -1581,9 +1676,50 @@ func (q *Query) SetAttrSelection(attrs []string) error {
 			b.WriteString(field)
 		}
 		b.WriteString(")")
-		q.fieldSelection = b.String()
+		s = b.String()
 	}
-	return nil
+	return s
+}
+
+func (q *Query) toFieldMask() *fieldmaskpb.FieldMask {
+	// The default behavior with no Query is ProjectionDefault (i.e. ProjectionFull).
+	if q == nil {
+		return &fieldmaskpb.FieldMask{Paths: []string{"*"}}
+	}
+
+	// User selected attributes via q.SetAttrSeleciton. This takes precedence
+	// over the Projection.
+	if numSelected := len(q.attrSelection); numSelected > 0 {
+		protoFieldPaths := make([]string, 0, numSelected)
+
+		for _, attr := range q.attrSelection {
+			pf, ok := attrToProtoFieldMap[attr]
+			if !ok {
+				// Future proofing, skip unknown fields, let SetAttrSelection
+				// handle error modes.
+				continue
+			}
+			protoFieldPaths = append(protoFieldPaths, pf)
+		}
+
+		return &fieldmaskpb.FieldMask{Paths: protoFieldPaths}
+	}
+
+	// ProjectDefault == ProjectionFull which means all fields.
+	fm := &fieldmaskpb.FieldMask{Paths: []string{"*"}}
+	if q.Projection == ProjectionNoACL {
+		paths := make([]string, 0, len(attrToProtoFieldMap)-2) // omitting two fields
+		for _, f := range attrToProtoFieldMap {
+			// Skip the acl and owner fields for "NoACL".
+			if f == "acl" || f == "owner" {
+				continue
+			}
+			paths = append(paths, f)
+		}
+		fm.Paths = paths
+	}
+
+	return fm
 }
 
 // Conditions constrain methods to act on specific generations of
@@ -1606,6 +1742,8 @@ type Conditions struct {
 	// GenerationNotMatch specifies that the object must not have the given
 	// generation for the operation to occur.
 	// If GenerationNotMatch is zero, it has no effect.
+	// This condition only works for object reads if the WithJSONReads client
+	// option is set.
 	GenerationNotMatch int64
 
 	// DoesNotExist specifies that the object must not exist in the bucket for
@@ -1624,6 +1762,8 @@ type Conditions struct {
 	// MetagenerationNotMatch specifies that the object must not have the given
 	// metageneration for the operation to occur.
 	// If MetagenerationNotMatch is zero, it has no effect.
+	// This condition only works for object reads if the WithJSONReads client
+	// option is set.
 	MetagenerationNotMatch int64
 }
 
@@ -1875,8 +2015,8 @@ func (ws *withPolicy) apply(config *retryConfig) {
 
 // WithErrorFunc allows users to pass a custom function to the retryer. Errors
 // will be retried if and only if `shouldRetry(err)` returns true.
-// By default, the following errors are retried (see invoke.go for the default
-// shouldRetry function):
+// By default, the following errors are retried (see ShouldRetry for the default
+// function):
 //
 // - HTTP responses with codes 408, 429, 502, 503, and 504.
 //
@@ -1887,7 +2027,8 @@ func (ws *withPolicy) apply(config *retryConfig) {
 // - Wrapped versions of these errors.
 //
 // This option can be used to retry on a different set of errors than the
-// default.
+// default. Users can use the default ShouldRetry function inside their custom
+// function if they only want to make minor modifications to default behavior.
 func WithErrorFunc(shouldRetry func(err error) bool) RetryOption {
 	return &withErrorFunc{
 		shouldRetry: shouldRetry,
@@ -1980,6 +2121,25 @@ func toProtoCommonObjectRequestParams(key []byte) *storagepb.CommonObjectRequest
 	}
 }
 
+func toProtoChecksums(sendCRC32C bool, attrs *ObjectAttrs) *storagepb.ObjectChecksums {
+	var checksums *storagepb.ObjectChecksums
+	if sendCRC32C {
+		checksums = &storagepb.ObjectChecksums{
+			Crc32C: proto.Uint32(attrs.CRC32C),
+		}
+	}
+	if len(attrs.MD5) != 0 {
+		if checksums == nil {
+			checksums = &storagepb.ObjectChecksums{
+				Md5Hash: attrs.MD5,
+			}
+		} else {
+			checksums.Md5Hash = attrs.MD5
+		}
+	}
+	return checksums
+}
+
 // ServiceAccount fetches the email address of the given project's Google Cloud Storage service account.
 func (c *Client) ServiceAccount(ctx context.Context, projectID string) (string, error) {
 	o := makeStorageOpts(true, c.retry, "")
@@ -1999,6 +2159,24 @@ func bucketResourceName(p, b string) string {
 func parseBucketName(b string) string {
 	sep := strings.LastIndex(b, "/")
 	return b[sep+1:]
+}
+
+// parseProjectNumber consume the given resource name and parses out the project
+// number if one is present i.e. it is not a project ID.
+func parseProjectNumber(r string) uint64 {
+	projectID := regexp.MustCompile(`projects\/([0-9]+)\/?`)
+	if matches := projectID.FindStringSubmatch(r); len(matches) > 0 {
+		// Capture group follows the matched segment. For example:
+		// input: projects/123/bars/456
+		// output: [projects/123/, 123]
+		number, err := strconv.ParseUint(matches[1], 10, 64)
+		if err != nil {
+			return 0
+		}
+		return number
+	}
+
+	return 0
 }
 
 // toProjectResource accepts a project ID and formats it as a Project resource

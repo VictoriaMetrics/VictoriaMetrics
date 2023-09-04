@@ -8,6 +8,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
 func TestGetAPIPathsWithNamespaces(t *testing.T) {
@@ -919,10 +921,10 @@ func TestGetScrapeWorkObjects(t *testing.T) {
 			}
 			testAPIServer := httptest.NewServer(mux)
 			tc.sdc.APIServer = testAPIServer.URL
-			ac, err := newAPIConfig(tc.sdc, "", func(metaLabels map[string]string) interface{} {
+			ac, err := newAPIConfig(tc.sdc, "", func(metaLabels *promutils.Labels) interface{} {
 				var res []interface{}
-				for k := range metaLabels {
-					res = append(res, k)
+				for _, label := range metaLabels.Labels {
+					res = append(res, label.Name)
 				}
 				return res
 			})

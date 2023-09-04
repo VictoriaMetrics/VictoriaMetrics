@@ -11,76 +11,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
-func TestGetTimeSuccess(t *testing.T) {
-	f := func(s string, timestampExpected int64) {
-		t.Helper()
-		urlStr := fmt.Sprintf("http://foo.bar/baz?s=%s", url.QueryEscape(s))
-		r, err := http.NewRequest("GET", urlStr, nil)
-		if err != nil {
-			t.Fatalf("unexpected error in NewRequest: %s", err)
-		}
-
-		// Verify defaultValue
-		ts, err := GetTime(r, "foo", 123456)
-		if err != nil {
-			t.Fatalf("unexpected error when obtaining default time from GetTime(%q): %s", s, err)
-		}
-		if ts != 123000 {
-			t.Fatalf("unexpected default value for GetTime(%q); got %d; want %d", s, ts, 123000)
-		}
-
-		// Verify timestampExpected
-		ts, err = GetTime(r, "s", 123)
-		if err != nil {
-			t.Fatalf("unexpected error in GetTime(%q): %s", s, err)
-		}
-		if ts != timestampExpected {
-			t.Fatalf("unexpected timestamp for GetTime(%q); got %d; want %d", s, ts, timestampExpected)
-		}
-	}
-
-	f("2019-07-07T20:01:02Z", 1562529662000)
-	f("2019-07-07T20:47:40+03:00", 1562521660000)
-	f("-292273086-05-16T16:47:06Z", minTimeMsecs)
-	f("292277025-08-18T07:12:54.999999999Z", maxTimeMsecs)
-	f("1562529662.324", 1562529662324)
-	f("-9223372036.854", minTimeMsecs)
-	f("-9223372036.855", minTimeMsecs)
-	f("9223372036.855", maxTimeMsecs)
-}
-
-func TestGetTimeError(t *testing.T) {
-	f := func(s string) {
-		t.Helper()
-		urlStr := fmt.Sprintf("http://foo.bar/baz?s=%s", url.QueryEscape(s))
-		r, err := http.NewRequest("GET", urlStr, nil)
-		if err != nil {
-			t.Fatalf("unexpected error in NewRequest: %s", err)
-		}
-
-		// Verify defaultValue
-		ts, err := GetTime(r, "foo", 123456)
-		if err != nil {
-			t.Fatalf("unexpected error when obtaining default time from GetTime(%q): %s", s, err)
-		}
-		if ts != 123000 {
-			t.Fatalf("unexpected default value for GetTime(%q); got %d; want %d", s, ts, 123000)
-		}
-
-		// Verify timestampExpected
-		_, err = GetTime(r, "s", 123)
-		if err == nil {
-			t.Fatalf("expecting non-nil error in GetTime(%q)", s)
-		}
-	}
-
-	f("foo")
-	f("2019-07-07T20:01:02Zisdf")
-	f("2019-07-07T20:47:40+03:00123")
-	f("-292273086-05-16T16:47:07Z")
-	f("292277025-08-18T07:12:54.999999998Z")
-}
-
 func TestGetExtraTagFilters(t *testing.T) {
 	httpReqWithForm := func(qs string) *http.Request {
 		q, err := url.ParseQuery(qs)
@@ -205,69 +135,69 @@ func TestJoinTagFilterss(t *testing.T) {
 		}
 	}
 	// Single tag filter
-	f(t, [][]storage.TagFilter{
+	f(t, joinTagFilters(
 		mustParseMetricSelector(`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4"}`),
-	}, nil, []string{
+	), nil, []string{
 		`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4"}`,
 	})
 	// Miltiple tag filters
-	f(t, [][]storage.TagFilter{
+	f(t, joinTagFilters(
 		mustParseMetricSelector(`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4"}`),
 		mustParseMetricSelector(`{k5=~"v5"}`),
-	}, nil, []string{
+	), nil, []string{
 		`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4"}`,
 		`{k5=~"v5"}`,
 	})
 	// Single extra filter
-	f(t, nil, [][]storage.TagFilter{
+	f(t, nil, joinTagFilters(
 		mustParseMetricSelector(`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4"}`),
-	}, []string{
+	), []string{
 		`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4"}`,
 	})
 	// Multiple extra filters
-	f(t, nil, [][]storage.TagFilter{
+	f(t, nil, joinTagFilters(
 		mustParseMetricSelector(`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4"}`),
 		mustParseMetricSelector(`{k5=~"v5"}`),
-	}, []string{
+	), []string{
 		`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4"}`,
 		`{k5=~"v5"}`,
 	})
 	// Single tag filter and a single extra filter
-	f(t, [][]storage.TagFilter{
+	f(t, joinTagFilters(
 		mustParseMetricSelector(`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4"}`),
-	}, [][]storage.TagFilter{
+	), joinTagFilters(
 		mustParseMetricSelector(`{k5=~"v5"}`),
-	}, []string{
+	), []string{
 		`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4",k5=~"v5"}`,
 	})
 	// Multiple tag filters and a single extra filter
-	f(t, [][]storage.TagFilter{
+	f(t, joinTagFilters(
 		mustParseMetricSelector(`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4"}`),
 		mustParseMetricSelector(`{k5=~"v5"}`),
-	}, [][]storage.TagFilter{
+	), joinTagFilters(
 		mustParseMetricSelector(`{k6=~"v6"}`),
-	}, []string{
+	), []string{
 		`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4",k6=~"v6"}`,
 		`{k5=~"v5",k6=~"v6"}`,
 	})
 	// Single tag filter and multiple extra filters
-	f(t, [][]storage.TagFilter{
+	f(t, joinTagFilters(
 		mustParseMetricSelector(`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4"}`),
-	}, [][]storage.TagFilter{
+	), joinTagFilters(
 		mustParseMetricSelector(`{k5=~"v5"}`),
 		mustParseMetricSelector(`{k6=~"v6"}`),
-	}, []string{
+	), []string{
 		`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4",k5=~"v5"}`,
 		`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4",k6=~"v6"}`,
 	})
 	// Multiple tag filters and multiple extra filters
-	f(t, [][]storage.TagFilter{
+	f(t, joinTagFilters(
 		mustParseMetricSelector(`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4"}`),
 		mustParseMetricSelector(`{k5=~"v5"}`),
-	}, [][]storage.TagFilter{
+	), joinTagFilters(
 		mustParseMetricSelector(`{k6=~"v6"}`),
 		mustParseMetricSelector(`{k7=~"v7"}`),
-	}, []string{
+	), []string{
 		`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4",k6=~"v6"}`,
 		`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4",k7=~"v7"}`,
 		`{k5=~"v5",k6=~"v6"}`,
@@ -275,12 +205,20 @@ func TestJoinTagFilterss(t *testing.T) {
 	})
 }
 
-func mustParseMetricSelector(s string) []storage.TagFilter {
-	tf, err := ParseMetricSelector(s)
+func joinTagFilters(args ...[][]storage.TagFilter) [][]storage.TagFilter {
+	result := append([][]storage.TagFilter{}, args[0]...)
+	for _, tfss := range args[1:] {
+		result = append(result, tfss...)
+	}
+	return result
+}
+
+func mustParseMetricSelector(s string) [][]storage.TagFilter {
+	tfss, err := ParseMetricSelector(s)
 	if err != nil {
 		panic(fmt.Errorf("cannot parse %q: %w", s, err))
 	}
-	return tf
+	return tfss
 }
 
 func tagFilterssToStrings(tfss [][]storage.TagFilter) []string {

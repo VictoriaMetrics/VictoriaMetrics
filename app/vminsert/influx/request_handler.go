@@ -15,16 +15,15 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/influx"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/influx/stream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
-	"github.com/valyala/fastjson/fastfloat"
 )
 
 var (
 	measurementFieldSeparator = flag.String("influxMeasurementFieldSeparator", "_", "Separator for '{measurement}{separator}{field_name}' metric name when inserted via InfluxDB line protocol")
-	skipSingleField           = flag.Bool("influxSkipSingleField", false, "Uses '{measurement}' instead of '{measurement}{separator}{field_name}' for metic name if InfluxDB line contains only a single field")
+	skipSingleField           = flag.Bool("influxSkipSingleField", false, "Uses '{measurement}' instead of '{measurement}{separator}{field_name}' for metric name if InfluxDB line contains only a single field")
 	skipMeasurement           = flag.Bool("influxSkipMeasurement", false, "Uses '{field_name}' as a metric name while ignoring '{measurement}' and '-influxMeasurementFieldSeparator'")
 	dbLabel                   = flag.String("influxDBLabel", "db", "Default label for the DB name sent over '?db={db_name}' query parameter")
 )
@@ -39,10 +38,8 @@ var (
 //
 // See https://github.com/influxdata/telegraf/tree/master/plugins/inputs/socket_listener/
 func InsertHandlerForReader(at *auth.Token, r io.Reader) error {
-	return writeconcurrencylimiter.Do(func() error {
-		return parser.ParseStream(r, false, "", "", func(db string, rows []parser.Row) error {
-			return insertRows(at, db, rows, nil, true)
-		})
+	return stream.Parse(r, false, "", "", func(db string, rows []parser.Row) error {
+		return insertRows(at, db, rows, nil)
 	})
 }
 
@@ -54,26 +51,24 @@ func InsertHandlerForHTTP(at *auth.Token, req *http.Request) error {
 	if err != nil {
 		return err
 	}
-	return writeconcurrencylimiter.Do(func() error {
-		isGzipped := req.Header.Get("Content-Encoding") == "gzip"
-		q := req.URL.Query()
-		precision := q.Get("precision")
-		// Read db tag from https://docs.influxdata.com/influxdb/v1.7/tools/api/#write-http-endpoint
-		db := q.Get("db")
-		return parser.ParseStream(req.Body, isGzipped, precision, db, func(db string, rows []parser.Row) error {
-			return insertRows(at, db, rows, extraLabels, false)
-		})
+	isGzipped := req.Header.Get("Content-Encoding") == "gzip"
+	q := req.URL.Query()
+	precision := q.Get("precision")
+	// Read db tag from https://docs.influxdata.com/influxdb/v1.7/tools/api/#write-http-endpoint
+	db := q.Get("db")
+	return stream.Parse(req.Body, isGzipped, precision, db, func(db string, rows []parser.Row) error {
+		return insertRows(at, db, rows, extraLabels)
 	})
 }
 
-func insertRows(at *auth.Token, db string, rows []parser.Row, extraLabels []prompbmarshal.Label, mayOverrideAccountProjectID bool) error {
+func insertRows(at *auth.Token, db string, rows []parser.Row, extraLabels []prompbmarshal.Label) error {
 	ctx := getPushCtx()
 	defer putPushCtx(ctx)
 
 	ic := &ctx.Common
 	ic.Reset() // This line is required for initializing ic internals.
 	rowsTotal := 0
-	atCopy := *at
+	perTenantRows := make(map[auth.Token]int)
 	hasRelabeling := relabel.HasRelabeling()
 	for i := range rows {
 		r := &rows[i]
@@ -82,15 +77,6 @@ func insertRows(at *auth.Token, db string, rows []parser.Row, extraLabels []prom
 		hasDBKey := false
 		for j := range r.Tags {
 			tag := &r.Tags[j]
-			if mayOverrideAccountProjectID {
-				// Multi-tenancy support via custom tags.
-				if tag.Key == "VictoriaMetrics_AccountID" {
-					atCopy.AccountID = uint32(fastfloat.ParseUint64BestEffort(tag.Value))
-				}
-				if tag.Key == "VictoriaMetrics_ProjectID" {
-					atCopy.ProjectID = uint32(fastfloat.ParseUint64BestEffort(tag.Value))
-				}
-			}
 			if tag.Key == *dbLabel {
 				hasDBKey = true
 			}
@@ -115,8 +101,6 @@ func insertRows(at *auth.Token, db string, rows []parser.Row, extraLabels []prom
 		metricGroupPrefixLen := len(ctx.metricGroupBuf)
 		if hasRelabeling {
 			ctx.originLabels = append(ctx.originLabels[:0], ic.Labels...)
-			ic.MetricNameBuf = storage.MarshalMetricNameRaw(ic.MetricNameBuf[:0], atCopy.AccountID, atCopy.ProjectID, nil)
-			metricNameBufLen := len(ic.MetricNameBuf)
 			for j := range r.Fields {
 				f := &r.Fields[j]
 				if !skipFieldKey {
@@ -130,19 +114,22 @@ func insertRows(at *auth.Token, db string, rows []parser.Row, extraLabels []prom
 					// Skip metric without labels.
 					continue
 				}
-				ic.MetricNameBuf = ic.MetricNameBuf[:metricNameBufLen]
 				ic.SortLabelsIfNeeded()
+				atLocal := ic.GetLocalAuthToken(at)
+				ic.MetricNameBuf = storage.MarshalMetricNameRaw(ic.MetricNameBuf[:0], atLocal.AccountID, atLocal.ProjectID, nil)
 				for i := range ic.Labels {
 					ic.MetricNameBuf = storage.MarshalMetricLabelRaw(ic.MetricNameBuf, &ic.Labels[i])
 				}
-				storageNodeIdx := ic.GetStorageNodeIdx(&atCopy, ic.Labels)
-				if err := ic.WriteDataPointExt(&atCopy, storageNodeIdx, ic.MetricNameBuf, r.Timestamp, f.Value); err != nil {
+				storageNodeIdx := ic.GetStorageNodeIdx(atLocal, ic.Labels)
+				if err := ic.WriteDataPointExt(storageNodeIdx, ic.MetricNameBuf, r.Timestamp, f.Value); err != nil {
 					return err
 				}
+				perTenantRows[*atLocal]++
 			}
 		} else {
 			ic.SortLabelsIfNeeded()
-			ic.MetricNameBuf = storage.MarshalMetricNameRaw(ic.MetricNameBuf[:0], atCopy.AccountID, atCopy.ProjectID, ic.Labels)
+			atLocal := ic.GetLocalAuthToken(at)
+			ic.MetricNameBuf = storage.MarshalMetricNameRaw(ic.MetricNameBuf[:0], atLocal.AccountID, atLocal.ProjectID, ic.Labels)
 			metricNameBufLen := len(ic.MetricNameBuf)
 			labelsLen := len(ic.Labels)
 			for j := range r.Fields {
@@ -159,15 +146,16 @@ func insertRows(at *auth.Token, db string, rows []parser.Row, extraLabels []prom
 				}
 				ic.MetricNameBuf = ic.MetricNameBuf[:metricNameBufLen]
 				ic.MetricNameBuf = storage.MarshalMetricLabelRaw(ic.MetricNameBuf, &ic.Labels[len(ic.Labels)-1])
-				storageNodeIdx := ic.GetStorageNodeIdx(&atCopy, ic.Labels)
-				if err := ic.WriteDataPointExt(&atCopy, storageNodeIdx, ic.MetricNameBuf, r.Timestamp, f.Value); err != nil {
+				storageNodeIdx := ic.GetStorageNodeIdx(atLocal, ic.Labels)
+				if err := ic.WriteDataPointExt(storageNodeIdx, ic.MetricNameBuf, r.Timestamp, f.Value); err != nil {
 					return err
 				}
+				perTenantRows[*atLocal]++
 			}
 		}
 	}
 	rowsInserted.Add(rowsTotal)
-	rowsTenantInserted.Get(&atCopy).Add(rowsTotal)
+	rowsTenantInserted.MultiAdd(perTenantRows)
 	rowsPerInsert.Update(float64(rowsTotal))
 	return ic.FlushBufs()
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"hash/fnv"
 	"net/url"
@@ -35,15 +36,19 @@ type Group struct {
 	Checksum       string
 	LastEvaluation time.Time
 
-	Labels  map[string]string
-	Params  url.Values
-	Headers map[string]string
+	Labels          map[string]string
+	Params          url.Values
+	Headers         map[string]string
+	NotifierHeaders map[string]string
 
 	doneCh     chan struct{}
 	finishedCh chan struct{}
 	// channel accepts new Group obj
 	// which supposed to update current group
 	updateCh chan *Group
+	// evalCancel stores the cancel fn for interrupting
+	// rules evaluation. Used on groups update() and close().
+	evalCancel context.CancelFunc
 
 	metrics *groupMetrics
 }
@@ -89,16 +94,17 @@ func mergeLabels(groupName, ruleName string, set1, set2 map[string]string) map[s
 
 func newGroup(cfg config.Group, qb datasource.QuerierBuilder, defaultInterval time.Duration, labels map[string]string) *Group {
 	g := &Group{
-		Type:        cfg.Type,
-		Name:        cfg.Name,
-		File:        cfg.File,
-		Interval:    cfg.Interval.Duration(),
-		Limit:       cfg.Limit,
-		Concurrency: cfg.Concurrency,
-		Checksum:    cfg.Checksum,
-		Params:      cfg.Params,
-		Headers:     make(map[string]string),
-		Labels:      cfg.Labels,
+		Type:            cfg.Type,
+		Name:            cfg.Name,
+		File:            cfg.File,
+		Interval:        cfg.Interval.Duration(),
+		Limit:           cfg.Limit,
+		Concurrency:     cfg.Concurrency,
+		Checksum:        cfg.Checksum,
+		Params:          cfg.Params,
+		Headers:         make(map[string]string),
+		NotifierHeaders: make(map[string]string),
+		Labels:          cfg.Labels,
 
 		doneCh:     make(chan struct{}),
 		finishedCh: make(chan struct{}),
@@ -112,6 +118,9 @@ func newGroup(cfg config.Group, qb datasource.QuerierBuilder, defaultInterval ti
 	}
 	for _, h := range cfg.Headers {
 		g.Headers[h.Key] = h.Value
+	}
+	for _, h := range cfg.NotifierHeaders {
+		g.NotifierHeaders[h.Key] = h.Value
 	}
 	g.metrics = newGroupMetrics(g)
 	rules := make([]Rule, len(cfg.Rules))
@@ -158,20 +167,23 @@ func (g *Group) ID() uint64 {
 }
 
 // Restore restores alerts state for group rules
-func (g *Group) Restore(ctx context.Context, qb datasource.QuerierBuilder, lookback time.Duration, labels map[string]string) error {
-	labels = mergeLabels(g.Name, "", labels, g.Labels)
+func (g *Group) Restore(ctx context.Context, qb datasource.QuerierBuilder, ts time.Time, lookback time.Duration) error {
 	for _, rule := range g.Rules {
-		rr, ok := rule.(*AlertingRule)
+		ar, ok := rule.(*AlertingRule)
 		if !ok {
 			continue
 		}
-		if rr.For < 1 {
+		if ar.For < 1 {
 			continue
 		}
-		// ignore g.ExtraFilterLabels on purpose, so it
-		// won't affect the restore procedure.
-		q := qb.BuildWithParams(datasource.QuerierParams{})
-		if err := rr.Restore(ctx, q, lookback, labels); err != nil {
+		q := qb.BuildWithParams(datasource.QuerierParams{
+			DataSourceType:     g.Type.String(),
+			EvaluationInterval: g.Interval,
+			QueryParams:        g.Params,
+			Headers:            g.Headers,
+			Debug:              ar.Debug,
+		})
+		if err := ar.Restore(ctx, q, ts, lookback); err != nil {
 			return fmt.Errorf("error while restoring rule %q: %w", rule, err)
 		}
 	}
@@ -223,6 +235,7 @@ func (g *Group) updateWith(newGroup *Group) error {
 	g.Concurrency = newGroup.Concurrency
 	g.Params = newGroup.Params
 	g.Headers = newGroup.Headers
+	g.NotifierHeaders = newGroup.NotifierHeaders
 	g.Labels = newGroup.Labels
 	g.Limit = newGroup.Limit
 	g.Checksum = newGroup.Checksum
@@ -230,11 +243,24 @@ func (g *Group) updateWith(newGroup *Group) error {
 	return nil
 }
 
+// interruptEval interrupts in-flight rules evaluations
+// within the group. It is expected that g.evalCancel
+// will be repopulated after the call.
+func (g *Group) interruptEval() {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+
+	if g.evalCancel != nil {
+		g.evalCancel()
+	}
+}
+
 func (g *Group) close() {
 	if g.doneCh == nil {
 		return
 	}
 	close(g.doneCh)
+	g.interruptEval()
 	<-g.finishedCh
 
 	g.metrics.iterationDuration.Unregister()
@@ -248,13 +274,8 @@ func (g *Group) close() {
 
 var skipRandSleepOnGroupStart bool
 
-func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *remotewrite.Client) {
+func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *remotewrite.Client, rr datasource.QuerierBuilder) {
 	defer func() { close(g.finishedCh) }()
-
-	e := &executor{
-		rw:                       rw,
-		notifiers:                nts,
-		previouslySentSeriesToRW: make(map[uint64]map[string][]prompbmarshal.Label)}
 
 	// Spread group rules evaluation over time in order to reduce load on VictoriaMetrics.
 	if !skipRandSleepOnGroupStart {
@@ -276,11 +297,18 @@ func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *r
 		}
 	}
 
+	e := &executor{
+		rw:                       rw,
+		notifiers:                nts,
+		notifierHeaders:          g.NotifierHeaders,
+		previouslySentSeriesToRW: make(map[uint64]map[string][]prompbmarshal.Label),
+	}
+
 	evalTS := time.Now()
 
 	logger.Infof("group %q started; interval=%v; concurrency=%d", g.Name, g.Interval, g.Concurrency)
 
-	eval := func(ts time.Time) {
+	eval := func(ctx context.Context, ts time.Time) {
 		g.metrics.iterationTotal.Inc()
 
 		start := time.Now()
@@ -302,10 +330,26 @@ func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *r
 		g.LastEvaluation = start
 	}
 
-	eval(evalTS)
+	evalCtx, cancel := context.WithCancel(ctx)
+	g.mu.Lock()
+	g.evalCancel = cancel
+	g.mu.Unlock()
+	defer g.evalCancel()
+
+	eval(evalCtx, evalTS)
 
 	t := time.NewTicker(g.Interval)
 	defer t.Stop()
+
+	// restore the rules state after the first evaluation
+	// so only active alerts can be restored.
+	if rr != nil {
+		err := g.Restore(ctx, rr, evalTS, *remoteReadLookBack)
+		if err != nil {
+			logger.Errorf("error while restoring ruleState for group %q: %s", g.Name, err)
+		}
+	}
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -316,6 +360,14 @@ func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *r
 			return
 		case ng := <-g.updateCh:
 			g.mu.Lock()
+
+			// it is expected that g.evalCancel will be evoked
+			// somewhere else to unblock group from the rules evaluation.
+			// we recreate the evalCtx and g.evalCancel, so it can
+			// be called again.
+			evalCtx, cancel = context.WithCancel(ctx)
+			g.evalCancel = cancel
+
 			err := g.updateWith(ng)
 			if err != nil {
 				logger.Errorf("group %q: failed to update: %s", g.Name, err)
@@ -326,21 +378,29 @@ func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *r
 			// ensure that staleness is tracked or existing rules only
 			e.purgeStaleSeries(g.Rules)
 
+			e.notifierHeaders = g.NotifierHeaders
+
 			if g.Interval != ng.Interval {
 				g.Interval = ng.Interval
 				t.Stop()
 				t = time.NewTicker(g.Interval)
+				evalTS = time.Now()
 			}
 			g.mu.Unlock()
 			logger.Infof("group %q re-started; interval=%v; concurrency=%d", g.Name, g.Interval, g.Concurrency)
 		case <-t.C:
 			missed := (time.Since(evalTS) / g.Interval) - 1
+			if missed < 0 {
+				// missed can become < 0 due to irregular delays during evaluation
+				// which can result in time.Since(evalTS) < g.Interval
+				missed = 0
+			}
 			if missed > 0 {
 				g.metrics.iterationMissed.Inc()
 			}
 			evalTS = evalTS.Add((missed + 1) * g.Interval)
 
-			eval(evalTS)
+			eval(evalCtx, evalTS)
 		}
 	}
 }
@@ -359,8 +419,10 @@ func getResolveDuration(groupInterval, delta, maxDuration time.Duration) time.Du
 }
 
 type executor struct {
-	notifiers func() []notifier.Notifier
-	rw        *remotewrite.Client
+	notifiers       func() []notifier.Notifier
+	notifierHeaders map[string]string
+
+	rw *remotewrite.Client
 
 	previouslySentSeriesToRWMu sync.Mutex
 	// previouslySentSeriesToRW stores series sent to RW on previous iteration
@@ -414,24 +476,35 @@ func (e *executor) exec(ctx context.Context, rule Rule, ts time.Time, resolveDur
 
 	tss, err := rule.Exec(ctx, ts, limit)
 	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			// the context can be cancelled on graceful shutdown
+			// or on group update. So no need to handle the error as usual.
+			return nil
+		}
 		execErrors.Inc()
 		return fmt.Errorf("rule %q: failed to execute: %w", rule, err)
 	}
 
-	errGr := new(utils.ErrGroup)
 	if e.rw != nil {
-		pushToRW := func(tss []prompbmarshal.TimeSeries) {
+		pushToRW := func(tss []prompbmarshal.TimeSeries) error {
+			var lastErr error
 			for _, ts := range tss {
 				remoteWriteTotal.Inc()
 				if err := e.rw.Push(ts); err != nil {
 					remoteWriteErrors.Inc()
-					errGr.Add(fmt.Errorf("rule %q: remote write failure: %w", rule, err))
+					lastErr = fmt.Errorf("rule %q: remote write failure: %w", rule, err)
 				}
 			}
+			return lastErr
 		}
-		pushToRW(tss)
+		if err := pushToRW(tss); err != nil {
+			return err
+		}
+
 		staleSeries := e.getStaleSeries(rule, tss, ts)
-		pushToRW(staleSeries)
+		if err := pushToRW(staleSeries); err != nil {
+			return err
+		}
 	}
 
 	ar, ok := rule.(*AlertingRule)
@@ -445,10 +518,11 @@ func (e *executor) exec(ctx context.Context, rule Rule, ts time.Time, resolveDur
 	}
 
 	wg := sync.WaitGroup{}
+	errGr := new(utils.ErrGroup)
 	for _, nt := range e.notifiers() {
 		wg.Add(1)
 		go func(nt notifier.Notifier) {
-			if err := nt.Send(ctx, alerts); err != nil {
+			if err := nt.Send(ctx, alerts, e.notifierHeaders); err != nil {
 				errGr.Add(fmt.Errorf("rule %q: failed to send alerts to addr %q: %w", rule, nt.Addr(), err))
 			}
 			wg.Done()

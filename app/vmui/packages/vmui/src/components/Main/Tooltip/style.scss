@@ -1,0 +1,27 @@
+@use "src/styles/variables" as *;
+
+.vm-tooltip {
+  position: fixed;
+  padding: 3px 8px;
+  background-color: $color-background-tooltip;
+  box-shadow: $box-shadow-popper;
+  border-radius: $border-radius-small;
+  color: $color-white;
+  font-size: $font-size-small;
+  line-height: 150%;
+  white-space: nowrap;
+  z-index: 101;
+  opacity: 1;
+  transition: opacity 100ms ease-in-out;
+  animation: vm-scale 150ms cubic-bezier(0.280, 0.840, 0.420, 1);
+  pointer-events: auto;
+}
+
+@keyframes vm-scale {
+  0% {
+    transform: scale(0);
+  }
+  100% {
+    transform: scale(1);
+  }
+}

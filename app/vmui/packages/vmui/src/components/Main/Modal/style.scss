@@ -1,0 +1,94 @@
+@use "src/styles/variables" as *;
+
+$padding-modal: 22px;
+
+.vm-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba($color-black, 0.55);
+
+  &_mobile {
+    align-items: flex-start;
+    min-height: calc($vh * 100);
+    max-height: calc($vh * 100);
+    overflow: auto;
+  }
+
+  &_mobile &-content {
+    width: 100vw;
+    border-radius: 0;
+    overflow: visible;
+    min-height: 100%;
+    max-height: max-content;
+    grid-template-rows: 70px max-content;
+
+    &-header {
+      padding: $padding-small $padding-small $padding-small $padding-global;
+      margin-bottom: $padding-global;
+    }
+
+    &-body {
+      display: grid;
+      align-items: flex-start;
+      min-height: 100%;
+      padding: 0 $padding-global $padding-modal;
+    }
+  }
+
+  &-content {
+    display: grid;
+    grid-template-rows: auto 1fr;
+    align-items: flex-start;
+    background: $color-background-block;
+    box-shadow: 0 0 24px rgba($color-black, 0.07);
+    border-radius: $border-radius-small;
+    max-height: calc($vh * 90);
+    overflow: auto;
+
+    &-header {
+      position: sticky;
+      top: 0;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: $padding-small;
+      align-items: center;
+      justify-content: space-between;
+      background-color: $color-background-block;
+      padding: $padding-global $padding-modal;
+      border-radius: $border-radius-small $border-radius-small 0 0;
+      color: $color-text;
+      border-bottom: $border-divider;
+      margin-bottom: $padding-modal;
+      min-height: 51px;
+      z-index: 3;
+
+      &__title {
+        font-weight: bold;
+        user-select: none;
+      }
+
+      &__close {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        padding: 10px;
+        box-sizing: content-box;
+        color: $color-white;
+        cursor: pointer;
+      }
+    }
+
+    &-body {
+      padding: 0 $padding-modal $padding-modal;
+    }
+  }
+}
+

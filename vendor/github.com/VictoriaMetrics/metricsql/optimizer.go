@@ -10,9 +10,9 @@ import (
 //
 // It performs the following optimizations:
 //
-// - Adds missing filters to `foo{filters1} op bar{filters2}`
-//   according to https://utcc.utoronto.ca/~cks/space/blog/sysadmin/PrometheusLabelNonOptimization
-//   I.e. such query is converted to `foo{filters1, filters2} op bar{filters1, filters2}`
+//   - Adds missing filters to `foo{filters1} op bar{filters2}`
+//     according to https://utcc.utoronto.ca/~cks/space/blog/sysadmin/PrometheusLabelNonOptimization
+//     I.e. such query is converted to `foo{filters1, filters2} op bar{filters1, filters2}`
 func Optimize(e Expr) Expr {
 	if !canOptimize(e) {
 		return e
@@ -78,7 +78,7 @@ func optimizeInplace(e Expr) {
 func getCommonLabelFilters(e Expr) []LabelFilter {
 	switch t := e.(type) {
 	case *MetricExpr:
-		return getLabelFiltersWithoutMetricName(t.LabelFilters)
+		return getCommonLabelFiltersWithoutMetricName(t.LabelFilterss)
 	case *RollupExpr:
 		return getCommonLabelFilters(t.Expr)
 	case *FuncExpr:
@@ -180,6 +180,21 @@ func TrimFiltersByGroupModifier(lfs []LabelFilter, be *BinaryOpExpr) []LabelFilt
 	}
 }
 
+func getCommonLabelFiltersWithoutMetricName(lfss [][]LabelFilter) []LabelFilter {
+	if len(lfss) == 0 {
+		return nil
+	}
+	lfsA := getLabelFiltersWithoutMetricName(lfss[0])
+	for _, lfs := range lfss[1:] {
+		if len(lfsA) == 0 {
+			return nil
+		}
+		lfsB := getLabelFiltersWithoutMetricName(lfs)
+		lfsA = intersectLabelFilters(lfsA, lfsB)
+	}
+	return lfsA
+}
+
 func getLabelFiltersWithoutMetricName(lfs []LabelFilter) []LabelFilter {
 	lfsNew := make([]LabelFilter, 0, len(lfs))
 	for _, lf := range lfs {
@@ -213,8 +228,11 @@ func pushdownBinaryOpFiltersInplace(e Expr, lfs []LabelFilter) {
 	}
 	switch t := e.(type) {
 	case *MetricExpr:
-		t.LabelFilters = unionLabelFilters(t.LabelFilters, lfs)
-		sortLabelFilters(t.LabelFilters)
+		for i, lfsLocal := range t.LabelFilterss {
+			lfsLocal = unionLabelFilters(lfsLocal, lfs)
+			sortLabelFilters(lfsLocal)
+			t.LabelFilterss[i] = lfsLocal
+		}
 	case *RollupExpr:
 		pushdownBinaryOpFiltersInplace(t.Expr, lfs)
 	case *FuncExpr:
@@ -386,13 +404,14 @@ func getTransformArgIdxForOptimization(funcName string, args []Expr) int {
 		return -1
 	}
 	switch funcName {
-	case "", "absent", "scalar", "union", "vector":
+	case "", "absent", "scalar", "union", "vector", "range_normalize":
 		return -1
 	case "end", "now", "pi", "ru", "start", "step", "time":
 		return -1
 	case "limit_offset":
 		return 2
-	case "buckets_limit", "histogram_quantile", "histogram_share", "range_quantile":
+	case "buckets_limit", "histogram_quantile", "histogram_share", "range_quantile",
+		"range_trim_outliers", "range_trim_spikes", "range_trim_zscore":
 		return 1
 	case "histogram_quantiles":
 		return len(args) - 1

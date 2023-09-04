@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 )
 
@@ -14,9 +15,14 @@ type SDConfig struct {
 	Server     string           `yaml:"server,omitempty"`
 	Token      *promauth.Secret `yaml:"token"`
 	Datacenter string           `yaml:"datacenter"`
+
 	// Namespace only supported at enterprise consul.
 	// https://www.consul.io/docs/enterprise/namespaces
-	Namespace         string                     `yaml:"namespace,omitempty"`
+	Namespace string `yaml:"namespace,omitempty"`
+	// Partition only supported at enteprise consul.
+	// https://developer.hashicorp.com/consul/docs/enterprise/admin-partitions
+	Partition string `yaml:"partition,omitempty"`
+
 	Scheme            string                     `yaml:"scheme,omitempty"`
 	Username          string                     `yaml:"username"`
 	Password          *promauth.Secret           `yaml:"password"`
@@ -28,12 +34,16 @@ type SDConfig struct {
 	NodeMeta          map[string]string          `yaml:"node_meta,omitempty"`
 	TagSeparator      *string                    `yaml:"tag_separator,omitempty"`
 	AllowStale        *bool                      `yaml:"allow_stale,omitempty"`
+	// See https://developer.hashicorp.com/consul/api-docs/features/filtering
+	// list of supported filters https://developer.hashicorp.com/consul/api-docs/catalog#filtering-1
+	Filter string `yaml:"filter,omitempty"`
+
 	// RefreshInterval time.Duration `yaml:"refresh_interval"`
 	// refresh_interval is obtained from `-promscrape.consulSDCheckInterval` command-line option.
 }
 
 // GetLabels returns Consul labels according to sdc.
-func (sdc *SDConfig) GetLabels(baseDir string) ([]map[string]string, error) {
+func (sdc *SDConfig) GetLabels(baseDir string) ([]*promutils.Labels, error) {
 	cfg, err := getAPIConfig(sdc, baseDir)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get API config: %w", err)

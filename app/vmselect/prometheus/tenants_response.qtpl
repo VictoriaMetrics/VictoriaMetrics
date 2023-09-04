@@ -1,0 +1,24 @@
+{% stripspace %}
+
+{% import (
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
+) %}
+
+TenantsResponse generates response for /admin/tenants .
+{% func TenantsResponse(tenants []string, qt *querytracer.Tracer) %}
+{
+	"status":"success",
+	"data":[
+		{% for i, tenant := range tenants %}
+			{%q= tenant %}
+			{% if i+1 < len(tenants) %},{% endif %}
+		{% endfor %}
+	]
+	{% code
+		qt.Printf("generate response for %d tenants", len(tenants))
+		qt.Done()
+	%}
+	{%= dumpQueryTrace(qt) %}
+}
+{% endfunc %}
+{% endstripspace %}

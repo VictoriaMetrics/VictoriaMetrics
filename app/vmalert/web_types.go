@@ -32,6 +32,9 @@ type APIAlert struct {
 	SourceLink string `json:"source"`
 	// Restored shows whether Alert's state was restored on restart
 	Restored bool `json:"restored"`
+	// Stabilizing shows when firing state is kept because of
+	// `keep_firing_for` instead of real alert
+	Stabilizing bool `json:"stabilizing"`
 }
 
 // WebLink returns a link to the alert which can be used in UI.
@@ -72,6 +75,8 @@ type APIGroup struct {
 	Params []string `json:"params,omitempty"`
 	// Headers contains HTTP headers added to each Rule's request
 	Headers []string `json:"headers,omitempty"`
+	// NotifierHeaders contains HTTP headers added to each alert request which will send to notifier
+	NotifierHeaders []string `json:"notifier_headers,omitempty"`
 	// Labels is a set of label value pairs, that will be added to every rule.
 	Labels map[string]string `json:"labels,omitempty"`
 }
@@ -86,7 +91,7 @@ type GroupAlerts struct {
 // see https://github.com/prometheus/compliance/blob/main/alert_generator/specification.md#get-apiv1rules
 type APIRule struct {
 	// State must be one of these under following scenarios
-	//  "pending": at least 1 alert in the rule in pending state and no other alert in firing state.
+	//  "pending": at least 1 alert in the rule in pending state and no other alert in firing ruleState.
 	//  "firing": at least 1 alert in the rule in firing state.
 	//  "inactive": no alert in the rule in firing or pending state.
 	State string `json:"state"`
@@ -94,9 +99,11 @@ type APIRule struct {
 	// Query represents Rule's `expression` field
 	Query string `json:"query"`
 	// Duration represents Rule's `for` field
-	Duration    float64           `json:"duration"`
-	Labels      map[string]string `json:"labels,omitempty"`
-	Annotations map[string]string `json:"annotations,omitempty"`
+	Duration float64 `json:"duration"`
+	// Alert will continue firing for this long even when the alerting expression no longer has results.
+	KeepFiringFor float64           `json:"keep_firing_for"`
+	Labels        map[string]string `json:"labels,omitempty"`
+	Annotations   map[string]string `json:"annotations,omitempty"`
 	// LastError contains the error faced while executing the rule.
 	LastError string `json:"lastError"`
 	// EvaluationTime is the time taken to completely evaluate the rule in float seconds.
@@ -113,11 +120,29 @@ type APIRule struct {
 
 	// Additional fields
 
-	// Type of the rule: recording or alerting
+	// DatasourceType of the rule: prometheus or graphite
 	DatasourceType string `json:"datasourceType"`
-	LastSamples    int    `json:"lastSamples"`
-	// ID is an unique Alert's ID within a group
+	// LastSamples stores the amount of data samples received on last evaluation
+	LastSamples int `json:"lastSamples"`
+	// LastSeriesFetched stores the amount of time series fetched by datasource
+	// during the last evaluation
+	LastSeriesFetched *int `json:"lastSeriesFetched,omitempty"`
+
+	// ID is a unique Alert's ID within a group
 	ID string `json:"id"`
 	// GroupID is an unique Group's ID
 	GroupID string `json:"group_id"`
+	// Debug shows whether debug mode is enabled
+	Debug bool `json:"debug"`
+
+	// MaxUpdates is the max number of recorded ruleStateEntry objects
+	MaxUpdates int `json:"max_updates_entries"`
+	// Updates contains the ordered list of recorded ruleStateEntry objects
+	Updates []ruleStateEntry `json:"-"`
+}
+
+// WebLink returns a link to the alert which can be used in UI.
+func (ar APIRule) WebLink() string {
+	return fmt.Sprintf("rule?%s=%s&%s=%s",
+		paramGroupID, ar.GroupID, paramRuleID, ar.ID)
 }

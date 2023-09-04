@@ -1,6 +1,7 @@
 package netutil
 
 import (
+	"crypto/tls"
 	"reflect"
 	"testing"
 )
@@ -75,4 +76,45 @@ func TestCipherSuitesFromNames(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestParseTLSVersionSuccess(t *testing.T) {
+	f := func(s string, want uint16) {
+		t.Helper()
+		got, err := ParseTLSVersion(s)
+		if err != nil {
+			t.Fatalf("unexpected error for ParseTLSVersion(%q): %s", s, err)
+		}
+		if got != want {
+			t.Fatalf("unexpected value got from ParseTLSVersion(%q); got %d; want %d", s, got, want)
+		}
+	}
+	// lowercase tlsName
+	f("tls10", tls.VersionTLS10)
+	f("tls11", tls.VersionTLS11)
+	f("tls12", tls.VersionTLS12)
+	f("tls13", tls.VersionTLS13)
+	// uppercase tlsName
+	f("TLS10", tls.VersionTLS10)
+	f("TLS11", tls.VersionTLS11)
+	f("TLS12", tls.VersionTLS12)
+	f("TLS13", tls.VersionTLS13)
+	// empty tlsName
+	f("", 0)
+}
+
+func TestParseTLSVersionFailure(t *testing.T) {
+	f := func(s string) {
+		t.Helper()
+		_, err := ParseTLSVersion(s)
+		if err == nil {
+			t.Fatalf("expecting non-nil error for ParseTLSVersion(%q)", s)
+		}
+	}
+	// incorrect tlsName
+	f("123")
+	// incorrect tlsName with correct prefix
+	f("TLS1")
+	// incorrect tls version in tlsName
+	f("TLS14")
 }

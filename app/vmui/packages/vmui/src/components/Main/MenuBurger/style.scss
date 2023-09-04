@@ -1,0 +1,133 @@
+@use "src/styles/variables" as *;
+
+$width-line: 2px;
+
+.vm-menu-burger {
+  position: relative;
+  border: none;
+  background: none;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  outline: none;
+  cursor: pointer;
+  transform-style: preserve-3d;
+
+  &:after {
+    content: '';
+    position: absolute;
+    left: -6px;
+    top: -6px;
+    width: calc(100% + 12px);
+    height: calc(100% + 12px);
+    background-color: rgba($color-black, 0.1);
+    border-radius: 50%;
+    transform: scale(0) translateZ(-2px);
+    transition: transform 140ms ease-in-out;
+  }
+
+  &:hover {
+    &:after {
+      transform: scale(1) translateZ(-2px);
+    }
+  }
+
+  span {
+    display: block;
+    top: 50%;
+    transform: translateY(-50%);
+    border-top: $width-line solid #fff;
+    transition: transform 0.3s ease, border-color 0.3s ease;
+
+    &,
+    &:before,
+    &:after {
+      position: absolute;
+      left: 0;
+      width: 100%;
+      height: $width-line;
+      border-radius: 6px;
+    }
+
+    &:before,
+    &:after {
+      content: '';
+      top: 0;
+      background: $color-white;
+      animation-duration: 0.6s;
+      animation-timing-function: cubic-bezier(0.645, 0.045, 0.355, 1);
+      animation-fill-mode: forwards;
+    }
+
+    &:before {
+      animation-name: topLineBurger;
+    }
+
+    &:after {
+      animation-name: bottomLineBurger;
+
+    }
+  }
+
+  &_opened span {
+    border-color: transparent;
+  }
+
+  &_opened span:before {
+    animation-name: topLineCross;
+  }
+
+  &_opened span:after {
+    animation-name: bottomLineCross;
+  }
+}
+
+@keyframes topLineCross {
+  0% {
+    transform: translateY(-7px);
+  }
+  50% {
+    transform: translateY(0px);
+  }
+  100% {
+    width: 60%;
+    transform: translateY(-2px) translateX(30%) rotate(45deg);
+  }
+}
+
+@keyframes bottomLineCross {
+  0% {
+    transform: translateY(3px);
+  }
+  50% {
+    transform: translateY(0px);
+  }
+  100% {
+    width: 60%;
+    transform: translateY(-2px) translateX(30%) rotate(-45deg);
+  }
+}
+
+@keyframes topLineBurger {
+  0% {
+    transform: translateY(0px) rotate(45deg);
+  }
+  50% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: translateY(-7px) rotate(0deg);
+  }
+}
+
+@keyframes bottomLineBurger {
+  0% {
+    transform: translateY(0px) rotate(-45deg);
+  }
+  50% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: translateY(3px) rotate(0deg);
+  }
+}

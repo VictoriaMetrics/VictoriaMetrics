@@ -1,0 +1,53 @@
+@use "src/styles/variables" as *;
+
+.vm-preview-icons {
+  display: grid;
+  align-items: flex-start;
+  justify-content: center;
+  grid-template-columns: repeat(auto-fill, 100px);
+  gap: $padding-global;
+
+  &-item {
+    display: grid;
+    grid-template-rows: 1fr auto;
+    align-items: stretch;
+    justify-content: center;
+    gap: $padding-small;
+    height: 100px;
+    padding: $padding-global $padding-small;
+    border-radius: $border-radius-small;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: box-shadow 200ms ease-in-out;
+
+    &:hover {
+      box-shadow: rgba(0, 0, 0, 0.16) 0 1px 4px;
+    }
+
+    &:active &__svg {
+      transform: scale(0.9);
+    }
+
+    &__name {
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      text-align: center;
+      font-size: $font-size-small;
+      line-height: 2;
+    }
+
+    &__svg {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      transition: transform 100ms ease-out;
+
+      svg {
+        width: auto;
+        height: 24px
+      }
+    }
+  }
+}

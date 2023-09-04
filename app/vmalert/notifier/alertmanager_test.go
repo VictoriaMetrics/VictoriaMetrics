@@ -25,6 +25,7 @@ func TestAlertManager_Addr(t *testing.T) {
 
 func TestAlertManager_Send(t *testing.T) {
 	const baUser, baPass = "foo", "bar"
+	const headerKey, headerValue = "TenantID", "foo"
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(_ http.ResponseWriter, _ *http.Request) {
 		t.Errorf("should not be called")
@@ -67,14 +68,16 @@ func TestAlertManager_Send(t *testing.T) {
 			if a[0].GeneratorURL != "0/0" {
 				t.Errorf("expected 0/0 as generatorURL got %s", a[0].GeneratorURL)
 			}
-			if a[0].Labels["alertname"] != "alert0" {
-				t.Errorf("expected alert0 as alert name got %s", a[0].Labels["alertname"])
-			}
 			if a[0].StartsAt.IsZero() {
 				t.Errorf("expected non-zero start time")
 			}
 			if a[0].EndAt.IsZero() {
 				t.Errorf("expected non-zero end time")
+			}
+		case 3:
+			if r.Header.Get(headerKey) != headerValue {
+				t.Errorf("expected header %q to be set to %q; got %q instead",
+					headerKey, headerValue, r.Header.Get(headerKey))
 			}
 		}
 	})
@@ -93,10 +96,10 @@ func TestAlertManager_Send(t *testing.T) {
 	if err != nil {
 		t.Errorf("unexpected error: %s", err)
 	}
-	if err := am.Send(context.Background(), []Alert{{}, {}}); err == nil {
+	if err := am.Send(context.Background(), []Alert{{}, {}}, nil); err == nil {
 		t.Error("expected connection error got nil")
 	}
-	if err := am.Send(context.Background(), []Alert{}); err == nil {
+	if err := am.Send(context.Background(), []Alert{}, nil); err == nil {
 		t.Error("expected wrong http code error got nil")
 	}
 	if err := am.Send(context.Background(), []Alert{{
@@ -105,10 +108,13 @@ func TestAlertManager_Send(t *testing.T) {
 		Start:       time.Now().UTC(),
 		End:         time.Now().UTC(),
 		Annotations: map[string]string{"a": "b", "c": "d", "e": "f"},
-	}}); err != nil {
+	}}, nil); err != nil {
 		t.Errorf("unexpected error %s", err)
 	}
 	if c != 2 {
 		t.Errorf("expected 2 calls(count from zero) to server got %d", c)
+	}
+	if err := am.Send(context.Background(), nil, map[string]string{headerKey: headerValue}); err != nil {
+		t.Errorf("unexpected error %s", err)
 	}
 }

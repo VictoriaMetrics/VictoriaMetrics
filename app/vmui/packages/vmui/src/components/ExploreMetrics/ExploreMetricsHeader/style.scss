@@ -1,0 +1,67 @@
+@use "src/styles/variables" as *;
+
+.vm-explore-metrics-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: $padding-global calc($padding-small + 10px);
+  max-width: calc(100vw - var(--scrollbar-width));
+
+  &_mobile {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  &__job {
+    flex-grow: 1;
+    min-width: 150px;
+  }
+
+  &__instance {
+    flex-grow: 2;
+    min-width: 150px;
+  }
+
+  &__size {
+    flex-grow: 1;
+    min-width: 150px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: $padding-global;
+  }
+
+  &-description {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: flex-start;
+    gap: $padding-small;
+
+    button {
+      color: inherit;
+      min-height: 29px;
+    }
+
+    code {
+      margin: 0 3px;
+    }
+  }
+
+  &-metrics {
+    flex-grow: 1;
+    width: 100%;
+  }
+
+  &__clear-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px;
+    cursor: pointer;
+
+    &:hover {
+      opacity: 0.7
+    }
+  }
+}

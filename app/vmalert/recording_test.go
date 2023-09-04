@@ -52,9 +52,11 @@ func TestRecordingRule_Exec(t *testing.T) {
 			},
 		},
 		{
-			&RecordingRule{Name: "job:foo", Labels: map[string]string{
-				"source": "test",
-			}},
+			&RecordingRule{
+				Name: "job:foo",
+				Labels: map[string]string{
+					"source": "test",
+				}},
 			[]datasource.Metric{
 				metricWithValueAndLabels(t, 2, "__name__", "foo", "job", "foo"),
 				metricWithValueAndLabels(t, 1, "__name__", "bar", "job", "bar")},
@@ -77,6 +79,7 @@ func TestRecordingRule_Exec(t *testing.T) {
 			fq := &fakeQuerier{}
 			fq.add(tc.metrics...)
 			tc.rule.q = fq
+			tc.rule.state = newRuleState(10)
 			tss, err := tc.rule.Exec(context.TODO(), time.Now(), 0)
 			if err != nil {
 				t.Fatalf("unexpected Exec err: %s", err)
@@ -195,7 +198,7 @@ func TestRecordingRuleLimit(t *testing.T) {
 		metricWithValuesAndLabels(t, []float64{2, 3}, "__name__", "bar", "job", "bar"),
 		metricWithValuesAndLabels(t, []float64{4, 5, 6}, "__name__", "baz", "job", "baz"),
 	}
-	rule := &RecordingRule{Name: "job:foo", Labels: map[string]string{
+	rule := &RecordingRule{Name: "job:foo", state: newRuleState(10), Labels: map[string]string{
 		"source": "test_limit",
 	}}
 	var err error
@@ -211,9 +214,13 @@ func TestRecordingRuleLimit(t *testing.T) {
 }
 
 func TestRecordingRule_ExecNegative(t *testing.T) {
-	rr := &RecordingRule{Name: "job:foo", Labels: map[string]string{
-		"job": "test",
-	}}
+	rr := &RecordingRule{
+		Name:  "job:foo",
+		state: newRuleState(10),
+		Labels: map[string]string{
+			"job": "test",
+		},
+	}
 
 	fq := &fakeQuerier{}
 	expErr := "connection reset by peer"

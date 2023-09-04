@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/consul"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/dns"
@@ -30,7 +29,7 @@ type Config struct {
 	// ConsulSDConfigs contains list of settings for service discovery via Consul
 	// see https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config
 	ConsulSDConfigs []consul.SDConfig `yaml:"consul_sd_configs,omitempty"`
-	// DNSSDConfigs ontains list of settings for service discovery via DNS.
+	// DNSSDConfigs contains list of settings for service discovery via DNS.
 	// See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dns_sd_config
 	DNSSDConfigs []dns.SDConfig `yaml:"dns_sd_configs,omitempty"`
 
@@ -68,6 +67,8 @@ type Config struct {
 //	[ - '<host>' ]
 type StaticConfig struct {
 	Targets []string `yaml:"targets"`
+	// HTTPClientConfig contains HTTP configuration for the Targets
+	HTTPClientConfig promauth.HTTPClientConfig `yaml:",inline"`
 }
 
 // UnmarshalYAML implements the yaml.Unmarshaler interface.
@@ -82,12 +83,12 @@ func (cfg *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	if cfg.Timeout.Duration() == 0 {
 		cfg.Timeout = promutils.NewDuration(time.Second * 10)
 	}
-	rCfg, err := promrelabel.ParseRelabelConfigs(cfg.RelabelConfigs, false)
+	rCfg, err := promrelabel.ParseRelabelConfigs(cfg.RelabelConfigs)
 	if err != nil {
 		return fmt.Errorf("failed to parse relabeling config: %w", err)
 	}
 	cfg.parsedRelabelConfigs = rCfg
-	arCfg, err := promrelabel.ParseRelabelConfigs(cfg.AlertRelabelConfigs, false)
+	arCfg, err := promrelabel.ParseRelabelConfigs(cfg.AlertRelabelConfigs)
 	if err != nil {
 		return fmt.Errorf("failed to parse alert relabeling config: %w", err)
 	}
@@ -128,23 +129,24 @@ func parseConfig(path string) (*Config, error) {
 	return cfg, nil
 }
 
-func parseLabels(target string, metaLabels map[string]string, cfg *Config) (string, []prompbmarshal.Label, error) {
+func parseLabels(target string, metaLabels *promutils.Labels, cfg *Config) (string, *promutils.Labels, error) {
 	labels := mergeLabels(target, metaLabels, cfg)
-	labels = cfg.parsedRelabelConfigs.Apply(labels, 0, false)
-	labels = promrelabel.RemoveMetaLabels(labels[:0], labels)
+	labels.Labels = cfg.parsedRelabelConfigs.Apply(labels.Labels, 0)
+	labels.RemoveMetaLabels()
+	labels.Sort()
 	// Remove references to already deleted labels, so GC could clean strings for label name and label value past len(labels).
 	// This should reduce memory usage when relabeling creates big number of temporary labels with long names and/or values.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/825 for details.
-	labels = append([]prompbmarshal.Label{}, labels...)
+	labels = labels.Clone()
 
-	if len(labels) == 0 {
+	if labels.Len() == 0 {
 		return "", nil, nil
 	}
-	schemeRelabeled := promrelabel.GetLabelValueByName(labels, "__scheme__")
+	schemeRelabeled := labels.Get("__scheme__")
 	if len(schemeRelabeled) == 0 {
 		schemeRelabeled = "http"
 	}
-	addressRelabeled := promrelabel.GetLabelValueByName(labels, "__address__")
+	addressRelabeled := labels.Get("__address__")
 	if len(addressRelabeled) == 0 {
 		return "", nil, nil
 	}
@@ -152,7 +154,7 @@ func parseLabels(target string, metaLabels map[string]string, cfg *Config) (stri
 		return "", nil, nil
 	}
 	addressRelabeled = addMissingPort(schemeRelabeled, addressRelabeled)
-	alertsPathRelabeled := promrelabel.GetLabelValueByName(labels, "__alerts_path__")
+	alertsPathRelabeled := labels.Get("__alerts_path__")
 	if !strings.HasPrefix(alertsPathRelabeled, "/") {
 		alertsPathRelabeled = "/" + alertsPathRelabeled
 	}
@@ -176,21 +178,12 @@ func addMissingPort(scheme, target string) string {
 	return target
 }
 
-func mergeLabels(target string, metaLabels map[string]string, cfg *Config) []prompbmarshal.Label {
+func mergeLabels(target string, metaLabels *promutils.Labels, cfg *Config) *promutils.Labels {
 	// See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config
-	m := make(map[string]string)
-	m["__address__"] = target
-	m["__scheme__"] = cfg.Scheme
-	m["__alerts_path__"] = path.Join("/", cfg.PathPrefix, alertManagerPath)
-	for k, v := range metaLabels {
-		m[k] = v
-	}
-	result := make([]prompbmarshal.Label, 0, len(m))
-	for k, v := range m {
-		result = append(result, prompbmarshal.Label{
-			Name:  k,
-			Value: v,
-		})
-	}
-	return result
+	m := promutils.NewLabels(3 + metaLabels.Len())
+	m.Add("__address__", target)
+	m.Add("__scheme__", cfg.Scheme)
+	m.Add("__alerts_path__", path.Join("/", cfg.PathPrefix, alertManagerPath))
+	m.AddFrom(metaLabels)
+	return m
 }

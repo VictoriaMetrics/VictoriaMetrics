@@ -1,0 +1,27 @@
+@use "src/styles/variables" as *;
+
+.vm-link {
+  transition: color 200ms ease;
+  cursor: pointer;
+
+  &_colored {
+    color: $color-primary;
+  }
+
+  &_underlined {
+    text-decoration: underline;
+  }
+
+  &_with-icon {
+    display: grid;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    grid-template-columns: 14px auto;
+  }
+
+  &:hover {
+    color: $color-primary;
+    text-decoration: underline;
+  }
+}

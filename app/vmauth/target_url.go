@@ -1,16 +1,10 @@
 package main
 
 import (
-	"fmt"
 	"net/url"
 	"path"
 	"strings"
 )
-
-func (up *URLPrefix) mergeURLs(requestURI *url.URL) *url.URL {
-	pu := up.getNextURL()
-	return mergeURLs(pu, requestURI)
-}
 
 func mergeURLs(uiURL, requestURI *url.URL) *url.URL {
 	targetURL := *uiURL
@@ -35,24 +29,36 @@ func mergeURLs(uiURL, requestURI *url.URL) *url.URL {
 	return &targetURL
 }
 
-func createTargetURL(ui *UserInfo, uOrig *url.URL) (*url.URL, []Header, error) {
-	u := *uOrig
-	// Prevent from attacks with using `..` in r.URL.Path
-	u.Path = path.Clean(u.Path)
-	if !strings.HasPrefix(u.Path, "/") {
-		u.Path = "/" + u.Path
-	}
-	u.Path = strings.TrimSuffix(u.Path, "/")
-	for _, e := range ui.URLMap {
+func (ui *UserInfo) getURLPrefixAndHeaders(u *url.URL) (*URLPrefix, HeadersConf) {
+	for _, e := range ui.URLMaps {
 		for _, sp := range e.SrcPaths {
 			if sp.match(u.Path) {
-				return e.URLPrefix.mergeURLs(&u), e.Headers, nil
+				return e.URLPrefix, e.HeadersConf
 			}
 		}
 	}
 	if ui.URLPrefix != nil {
-		return ui.URLPrefix.mergeURLs(&u), ui.Headers, nil
+		return ui.URLPrefix, ui.HeadersConf
 	}
-	missingRouteRequests.Inc()
-	return nil, nil, fmt.Errorf("missing route for %q", u.String())
+	return nil, HeadersConf{}
+}
+
+func normalizeURL(uOrig *url.URL) *url.URL {
+	u := *uOrig
+	// Prevent from attacks with using `..` in r.URL.Path
+	u.Path = path.Clean(u.Path)
+	if !strings.HasSuffix(u.Path, "/") && strings.HasSuffix(uOrig.Path, "/") {
+		// The path.Clean() removes trailing slash.
+		// Return it back if needed.
+		// This should fix https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1752
+		u.Path += "/"
+	}
+	if !strings.HasPrefix(u.Path, "/") {
+		u.Path = "/" + u.Path
+	}
+	if u.Path == "/" {
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1554
+		u.Path = ""
+	}
+	return &u
 }

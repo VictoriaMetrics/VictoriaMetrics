@@ -318,11 +318,11 @@ func CompressHandler(h RequestHandler) RequestHandler {
 //
 // Level is the desired compression level:
 //
-//     * CompressNoCompression
-//     * CompressBestSpeed
-//     * CompressBestCompression
-//     * CompressDefaultCompression
-//     * CompressHuffmanOnly
+//   - CompressNoCompression
+//   - CompressBestSpeed
+//   - CompressBestCompression
+//   - CompressDefaultCompression
+//   - CompressHuffmanOnly
 func CompressHandlerLevel(h RequestHandler, level int) RequestHandler {
 	return func(ctx *RequestCtx) {
 		h(ctx)
@@ -405,8 +405,8 @@ type HijackHandler func(c net.Conn)
 //
 // The server skips calling the handler in the following cases:
 //
-//     * 'Connection: close' header exists in either request or response.
-//     * Unexpected error during response writing to the connection.
+//   - 'Connection: close' header exists in either request or response.
+//   - Unexpected error during response writing to the connection.
 //
 // The server stops processing requests from hijacked connections.
 // Server limits such as Concurrency, ReadTimeout, WriteTimeout, etc.
@@ -417,9 +417,8 @@ type HijackHandler func(c net.Conn)
 // Arbitrary 'Connection: Upgrade' protocols may be implemented
 // with HijackHandler. For instance,
 //
-//     * WebSocket ( https://en.wikipedia.org/wiki/WebSocket )
-//     * HTTP/2.0 ( https://en.wikipedia.org/wiki/HTTP/2 )
-//
+//   - WebSocket ( https://en.wikipedia.org/wiki/WebSocket )
+//   - HTTP/2.0 ( https://en.wikipedia.org/wiki/HTTP/2 )
 func (ctx *RequestCtx) Hijack(handler HijackHandler) {
 	ctx.hijackHandler = handler
 }
@@ -759,15 +758,15 @@ func SaveMultipartFile(fh *multipart.FileHeader, path string) error {
 //
 // The value is searched in the following places:
 //
-//   * Query string.
-//   * POST or PUT body.
+//   - Query string.
+//   - POST or PUT body.
 //
 // There are more fine-grained methods for obtaining form values:
 //
-//   * QueryArgs for obtaining values from query string.
-//   * PostArgs for obtaining values from POST or PUT body.
-//   * MultipartForm for obtaining values from multipart form.
-//   * FormFile for obtaining uploaded files.
+//   - QueryArgs for obtaining values from query string.
+//   - PostArgs for obtaining values from POST or PUT body.
+//   - MultipartForm for obtaining values from multipart form.
+//   - FormFile for obtaining uploaded files.
 //
 // The returned value is valid until returning from RequestHandler.
 func (ctx *RequestCtx) FormValue(key string) []byte {
@@ -896,10 +895,10 @@ func (ctx *RequestCtx) SuccessString(contentType, body string) {
 //
 // statusCode must have one of the following values:
 //
-//    * StatusMovedPermanently (301)
-//    * StatusFound (302)
-//    * StatusSeeOther (303)
-//    * StatusTemporaryRedirect (307)
+//   - StatusMovedPermanently (301)
+//   - StatusFound (302)
+//   - StatusSeeOther (303)
+//   - StatusTemporaryRedirect (307)
 //
 // All other statusCode values are replaced by StatusFound (302).
 //
@@ -918,10 +917,10 @@ func (ctx *RequestCtx) Redirect(uri string, statusCode int) {
 //
 // statusCode must have one of the following values:
 //
-//    * StatusMovedPermanently (301)
-//    * StatusFound (302)
-//    * StatusSeeOther (303)
-//    * StatusTemporaryRedirect (307)
+//   - StatusMovedPermanently (301)
+//   - StatusFound (302)
+//   - StatusSeeOther (303)
+//   - StatusTemporaryRedirect (307)
 //
 // All other statusCode values are replaced by StatusFound (302).
 //
@@ -1056,9 +1055,9 @@ func (ctx *RequestCtx) SetBodyStream(bodyStream io.Reader, bodySize int) {
 //
 // This function may be used in the following cases:
 //
-//     * if response body is too big (more than 10MB).
-//     * if response body is streamed from slow external sources.
-//     * if response body must be streamed to the client in chunks.
+//   - if response body is too big (more than 10MB).
+//   - if response body is streamed from slow external sources.
+//   - if response body must be streamed to the client in chunks.
 //     (aka `http server push`).
 func (ctx *RequestCtx) SetBodyStreamWriter(sw StreamWriter) {
 	ctx.Response.SetBodyStreamWriter(sw)

@@ -19,6 +19,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -37,7 +38,7 @@ type object interface {
 	key() string
 
 	// getTargetLabels must be called under gw.mu lock.
-	getTargetLabels(gw *groupWatcher) []map[string]string
+	getTargetLabels(gw *groupWatcher) []*promutils.Labels
 }
 
 // parseObjectFunc must parse object from the given data.
@@ -136,8 +137,8 @@ func (aw *apiWatcher) updateScrapeWorks(uw *urlWatcher, swosByKey map[string][]i
 	aw.swosByURLWatcherLock.Unlock()
 }
 
-func (aw *apiWatcher) setScrapeWorks(uw *urlWatcher, key string, labels []map[string]string) {
-	swos := getScrapeWorkObjectsForLabels(aw.swcFunc, labels)
+func (aw *apiWatcher) setScrapeWorks(uw *urlWatcher, key string, labelss []*promutils.Labels) {
+	swos := getScrapeWorkObjectsForLabels(aw.swcFunc, labelss)
 	aw.swosByURLWatcherLock.Lock()
 	swosByKey := aw.swosByURLWatcher[uw]
 	if swosByKey == nil {
@@ -163,7 +164,7 @@ func (aw *apiWatcher) removeScrapeWorks(uw *urlWatcher, key string) {
 	aw.swosByURLWatcherLock.Unlock()
 }
 
-func getScrapeWorkObjectsForLabels(swcFunc ScrapeWorkConstructorFunc, labelss []map[string]string) []interface{} {
+func getScrapeWorkObjectsForLabels(swcFunc ScrapeWorkConstructorFunc, labelss []*promutils.Labels) []interface{} {
 	// Do not pre-allocate swos, since it is likely the swos will be empty because of relabeling
 	var swos []interface{}
 	for _, labels := range labelss {
@@ -299,22 +300,29 @@ func (gw *groupWatcher) getScrapeWorkObjectsByAPIWatcherLocked(objectsByKey map[
 	var wg sync.WaitGroup
 	limiterCh := make(chan struct{}, cgroup.AvailableCPUs())
 	for key, o := range objectsByKey {
-		labels := o.getTargetLabels(gw)
+		labelss := o.getTargetLabels(gw)
 		wg.Add(1)
 		limiterCh <- struct{}{}
-		go func(key string, labels []map[string]string) {
+		go func(key string, labelss []*promutils.Labels) {
 			for aw, e := range swosByAPIWatcher {
-				swos := getScrapeWorkObjectsForLabels(aw.swcFunc, labels)
+				swos := getScrapeWorkObjectsForLabels(aw.swcFunc, labelss)
 				e.mu.Lock()
 				e.swosByKey[key] = swos
 				e.mu.Unlock()
 			}
+			putLabelssToPool(labelss)
 			wg.Done()
 			<-limiterCh
-		}(key, labels)
+		}(key, labelss)
 	}
 	wg.Wait()
 	return swosByAPIWatcher
+}
+
+func putLabelssToPool(labelss []*promutils.Labels) {
+	for _, labels := range labelss {
+		promutils.PutLabels(labels)
+	}
 }
 
 func (gw *groupWatcher) getObjectByRoleLocked(role, namespace, name string) object {
@@ -400,10 +408,10 @@ func (gw *groupWatcher) doRequest(requestURL string) (*http.Response, error) {
 		requestURL = strings.Replace(requestURL, "/apis/networking.k8s.io/v1/", "/apis/networking.k8s.io/v1beta1/", 1)
 	}
 	if strings.Contains(requestURL, "/apis/discovery.k8s.io/v1/") && atomic.LoadUint32(&gw.useDiscoveryV1Beta1) == 1 {
-		// Update discovery URL for old Kuberentes API, which supports only v1beta1 path.
+		// Update discovery URL for old Kubernetes API, which supports only v1beta1 path.
 		requestURL = strings.Replace(requestURL, "/apis/discovery.k8s.io/v1/", "/apis/discovery.k8s.io/v1beta1/", 1)
 	}
-	req, err := http.NewRequest("GET", requestURL, nil)
+	req, err := http.NewRequest(http.MethodGet, requestURL, nil)
 	if err != nil {
 		logger.Fatalf("cannot create a request for %q: %s", requestURL, err)
 	}
@@ -572,7 +580,13 @@ func (uw *urlWatcher) reloadObjects() string {
 	}
 
 	startTime := time.Now()
-	requestURL := uw.apiURL
+	apiURL := uw.apiURL
+
+	// Set resourceVersion to 0 in order to reduce load on Kubernetes control plane.
+	// See https://kubernetes.io/docs/reference/using-api/api-concepts/#semantics-for-get-and-list
+	// and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4855 .
+	delimiter := getQueryArgsDelimiter(apiURL)
+	requestURL := apiURL + delimiter + "resourceVersion=0&resourceVersionMatch=NotOlderThan"
 	resp, err := uw.gw.doRequest(requestURL)
 	if err != nil {
 		logger.Errorf("cannot perform request to %q: %s", requestURL, err)
@@ -649,10 +663,7 @@ func (uw *urlWatcher) watchForUpdates() {
 		}
 	}
 	apiURL := uw.apiURL
-	delimiter := "?"
-	if strings.Contains(apiURL, "?") {
-		delimiter = "&"
-	}
+	delimiter := getQueryArgsDelimiter(apiURL)
 	timeoutSeconds := time.Duration(0.9 * float64(uw.gw.client.Timeout)).Seconds()
 	apiURL += delimiter + "watch=1&allowWatchBookmarks=true&timeoutSeconds=" + strconv.Itoa(int(timeoutSeconds))
 	for {
@@ -702,7 +713,7 @@ func (uw *urlWatcher) readObjectUpdateStream(r io.Reader) error {
 	var we WatchEvent
 	for {
 		if err := d.Decode(&we); err != nil {
-			return err
+			return fmt.Errorf("cannot parse WatchEvent json response: %w", err)
 		}
 		switch we.Type {
 		case "ADDED", "MODIFIED":
@@ -764,10 +775,11 @@ func (uw *urlWatcher) updateObjectLocked(key string, o object) {
 		uw.objectsUpdated.Inc()
 	}
 	if len(uw.aws) > 0 {
-		labels := o.getTargetLabels(uw.gw)
+		labelss := o.getTargetLabels(uw.gw)
 		for aw := range uw.aws {
-			aw.setScrapeWorks(uw, key, labels)
+			aw.setScrapeWorks(uw, key, labelss)
 		}
+		putLabelssToPool(labelss)
 	}
 	uw.maybeUpdateDependedScrapeWorksLocked()
 }
@@ -933,4 +945,11 @@ func getObjectParsersForRole(role string) (parseObjectFunc, parseObjectListFunc)
 		logger.Panicf("BUG: unsupported role=%q", role)
 		return nil, nil
 	}
+}
+
+func getQueryArgsDelimiter(apiURL string) string {
+	if strings.Contains(apiURL, "?") {
+		return "&"
+	}
+	return "?"
 }

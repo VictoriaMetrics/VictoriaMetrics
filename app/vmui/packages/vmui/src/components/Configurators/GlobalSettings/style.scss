@@ -1,0 +1,48 @@
+@use "src/styles/variables" as *;
+
+.vm-server-configurator {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: $padding-medium;
+  width: 600px;
+  padding-bottom: $padding-medium;
+
+  &_mobile {
+    grid-auto-rows: min-content;
+    align-items: flex-start;
+    height: 100%;
+    width: 100%;
+  }
+
+  @media (max-width: 768px) {
+    width: 100%;
+  }
+
+  &__input {
+    width: 100%;
+  }
+
+  &__title {
+    grid-column: auto / span 2;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    font-size: $font-size;
+    font-weight: bold;
+    margin-bottom: $padding-global;
+  }
+
+  &-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: $padding-small;
+    width: 100%;
+  }
+
+  &_mobile &-footer {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+}

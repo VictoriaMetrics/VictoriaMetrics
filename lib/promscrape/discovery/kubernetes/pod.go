@@ -4,10 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"strconv"
 	"strings"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
 func (p *Pod) key() string {
@@ -81,10 +82,12 @@ type ContainerPort struct {
 //
 // See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#podstatus-v1-core
 type PodStatus struct {
-	Phase      string
-	PodIP      string
-	HostIP     string
-	Conditions []PodCondition
+	Phase                 string
+	PodIP                 string
+	HostIP                string
+	Conditions            []PodCondition
+	ContainerStatuses     []ContainerStatus
+	InitContainerStatuses []ContainerStatus
 }
 
 // PodCondition implements k8s pod condition.
@@ -95,21 +98,42 @@ type PodCondition struct {
 	Status string
 }
 
+// ContainerStatus implements k8s container status.
+//
+// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.20/#containerstatus-v1-core
+type ContainerStatus struct {
+	Name        string
+	ContainerID string
+}
+
+func getContainerID(p *Pod, containerName string, isInit bool) string {
+	css := p.Status.ContainerStatuses
+	if isInit {
+		css = p.Status.InitContainerStatuses
+	}
+	for _, cs := range css {
+		if cs.Name == containerName {
+			return cs.ContainerID
+		}
+	}
+	return ""
+}
+
 // getTargetLabels returns labels for each port of the given p.
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#pod
-func (p *Pod) getTargetLabels(gw *groupWatcher) []map[string]string {
+func (p *Pod) getTargetLabels(gw *groupWatcher) []*promutils.Labels {
 	if len(p.Status.PodIP) == 0 {
 		// Skip pod without IP
 		return nil
 	}
-	var ms []map[string]string
-	ms = appendPodLabels(ms, gw, p, p.Spec.Containers, "false")
-	ms = appendPodLabels(ms, gw, p, p.Spec.InitContainers, "true")
+	var ms []*promutils.Labels
+	ms = appendPodLabels(ms, gw, p, p.Spec.Containers, false)
+	ms = appendPodLabels(ms, gw, p, p.Spec.InitContainers, true)
 	return ms
 }
 
-func appendPodLabels(ms []map[string]string, gw *groupWatcher, p *Pod, cs []Container, isInit string) []map[string]string {
+func appendPodLabels(ms []*promutils.Labels, gw *groupWatcher, p *Pod, cs []Container, isInit bool) []*promutils.Labels {
 	for _, c := range cs {
 		for _, cp := range c.Ports {
 			ms = appendPodLabelsInternal(ms, gw, p, c, &cp, isInit)
@@ -121,53 +145,77 @@ func appendPodLabels(ms []map[string]string, gw *groupWatcher, p *Pod, cs []Cont
 	return ms
 }
 
-func appendPodLabelsInternal(ms []map[string]string, gw *groupWatcher, p *Pod, c Container, cp *ContainerPort, isInit string) []map[string]string {
+func appendPodLabelsInternal(ms []*promutils.Labels, gw *groupWatcher, p *Pod, c Container, cp *ContainerPort, isInit bool) []*promutils.Labels {
 	addr := p.Status.PodIP
 	if cp != nil {
 		addr = discoveryutils.JoinHostPort(addr, cp.ContainerPort)
 	}
-	m := map[string]string{
-		"__address__":                          addr,
-		"__meta_kubernetes_pod_container_init": isInit,
+	m := promutils.GetLabels()
+	m.Add("__address__", addr)
+	isInitStr := "false"
+	if isInit {
+		isInitStr = "true"
 	}
+	m.Add("__meta_kubernetes_pod_container_init", isInitStr)
+
+	containerID := getContainerID(p, c.Name, isInit)
+	if containerID != "" {
+		m.Add("__meta_kubernetes_pod_container_id", containerID)
+	}
+
 	p.appendCommonLabels(m, gw)
 	p.appendContainerLabels(m, c, cp)
 	return append(ms, m)
 }
 
-func (p *Pod) appendContainerLabels(m map[string]string, c Container, cp *ContainerPort) {
-	m["__meta_kubernetes_pod_container_image"] = c.Image
-	m["__meta_kubernetes_pod_container_name"] = c.Name
+func (p *Pod) appendContainerLabels(m *promutils.Labels, c Container, cp *ContainerPort) {
+	m.Add("__meta_kubernetes_pod_container_image", c.Image)
+	m.Add("__meta_kubernetes_pod_container_name", c.Name)
 	if cp != nil {
-		m["__meta_kubernetes_pod_container_port_name"] = cp.Name
-		m["__meta_kubernetes_pod_container_port_number"] = strconv.Itoa(cp.ContainerPort)
-		m["__meta_kubernetes_pod_container_port_protocol"] = cp.Protocol
+		m.Add("__meta_kubernetes_pod_container_port_name", cp.Name)
+		m.Add("__meta_kubernetes_pod_container_port_number", bytesutil.Itoa(cp.ContainerPort))
+		m.Add("__meta_kubernetes_pod_container_port_protocol", cp.Protocol)
 	}
 }
 
-func (p *Pod) appendCommonLabels(m map[string]string, gw *groupWatcher) {
+func (p *Pod) appendEndpointLabels(m *promutils.Labels, eps *Endpoints) {
+	m.Add("__meta_kubernetes_endpoints_name", eps.Metadata.Name)
+	m.Add("__meta_kubernetes_endpoint_address_target_kind", "Pod")
+	m.Add("__meta_kubernetes_endpoint_address_target_name", p.Metadata.Name)
+	eps.Metadata.registerLabelsAndAnnotations("__meta_kubernetes_endpoints", m)
+}
+
+func (p *Pod) appendEndpointSliceLabels(m *promutils.Labels, eps *EndpointSlice) {
+	m.Add("__meta_kubernetes_endpointslice_name", eps.Metadata.Name)
+	m.Add("__meta_kubernetes_endpointslice_address_target_kind", "Pod")
+	m.Add("__meta_kubernetes_endpointslice_address_target_name", p.Metadata.Name)
+	m.Add("__meta_kubernetes_endpointslice_address_type", eps.AddressType)
+	eps.Metadata.registerLabelsAndAnnotations("__meta_kubernetes_endpointslice", m)
+}
+
+func (p *Pod) appendCommonLabels(m *promutils.Labels, gw *groupWatcher) {
 	if gw.attachNodeMetadata {
-		m["__meta_kubernetes_node_name"] = p.Spec.NodeName
+		m.Add("__meta_kubernetes_node_name", p.Spec.NodeName)
 		o := gw.getObjectByRoleLocked("node", p.Metadata.Namespace, p.Spec.NodeName)
 		if o != nil {
 			n := o.(*Node)
 			n.Metadata.registerLabelsAndAnnotations("__meta_kubernetes_node", m)
 		}
 	}
-	m["__meta_kubernetes_pod_name"] = p.Metadata.Name
-	m["__meta_kubernetes_pod_ip"] = p.Status.PodIP
-	m["__meta_kubernetes_pod_ready"] = getPodReadyStatus(p.Status.Conditions)
-	m["__meta_kubernetes_pod_phase"] = p.Status.Phase
-	m["__meta_kubernetes_pod_node_name"] = p.Spec.NodeName
-	m["__meta_kubernetes_pod_host_ip"] = p.Status.HostIP
-	m["__meta_kubernetes_pod_uid"] = p.Metadata.UID
-	m["__meta_kubernetes_namespace"] = p.Metadata.Namespace
+	m.Add("__meta_kubernetes_pod_name", p.Metadata.Name)
+	m.Add("__meta_kubernetes_pod_ip", p.Status.PodIP)
+	m.Add("__meta_kubernetes_pod_ready", getPodReadyStatus(p.Status.Conditions))
+	m.Add("__meta_kubernetes_pod_phase", p.Status.Phase)
+	m.Add("__meta_kubernetes_pod_node_name", p.Spec.NodeName)
+	m.Add("__meta_kubernetes_pod_host_ip", p.Status.HostIP)
+	m.Add("__meta_kubernetes_pod_uid", p.Metadata.UID)
+	m.Add("__meta_kubernetes_namespace", p.Metadata.Namespace)
 	if pc := getPodController(p.Metadata.OwnerReferences); pc != nil {
 		if pc.Kind != "" {
-			m["__meta_kubernetes_pod_controller_kind"] = pc.Kind
+			m.Add("__meta_kubernetes_pod_controller_kind", pc.Kind)
 		}
 		if pc.Name != "" {
-			m["__meta_kubernetes_pod_controller_name"] = pc.Name
+			m.Add("__meta_kubernetes_pod_controller_name", pc.Name)
 		}
 	}
 	p.Metadata.registerLabelsAndAnnotations("__meta_kubernetes_pod", m)
@@ -185,8 +233,10 @@ func getPodController(ors []OwnerReference) *OwnerReference {
 func getPodReadyStatus(conds []PodCondition) string {
 	for _, c := range conds {
 		if c.Type == "Ready" {
-			return strings.ToLower(c.Status)
+			return toLowerConverter.Transform(c.Status)
 		}
 	}
 	return "unknown"
 }
+
+var toLowerConverter = bytesutil.NewFastStringTransformer(strings.ToLower)

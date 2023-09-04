@@ -29,8 +29,9 @@ func TestGetCommonLabelFilters(t *testing.T) {
 			tss = append(tss, &ts)
 		}
 		lfs := getCommonLabelFilters(tss)
-		me := &metricsql.MetricExpr{
-			LabelFilters: lfs,
+		var me metricsql.MetricExpr
+		if len(lfs) > 0 {
+			me.LabelFilterss = [][]metricsql.LabelFilter{lfs}
 		}
 		lfsMarshaled := me.AppendString(nil)
 		if string(lfsMarshaled) != lfsExpected {
@@ -40,7 +41,7 @@ func TestGetCommonLabelFilters(t *testing.T) {
 	f(``, `{}`)
 	f(`m 1`, `{}`)
 	f(`m{a="b"} 1`, `{a="b"}`)
-	f(`m{c="d",a="b"} 1`, `{a="b", c="d"}`)
+	f(`m{c="d",a="b"} 1`, `{a="b",c="d"}`)
 	f(`m1{a="foo"} 1
 m2{a="bar"} 1`, `{a=~"bar|foo"}`)
 	f(`m1{a="foo"} 1
@@ -75,4 +76,22 @@ func TestValidateMaxPointsPerSeriesSuccess(t *testing.T) {
 	f(1, 1, 1, 2)
 	f(1659962171908, 1659966077742, 5000, 800)
 	f(1659962150000, 1659966070000, 10000, 393)
+}
+
+func TestQueryStats_addSeriesFetched(t *testing.T) {
+	qs := &QueryStats{}
+	ec := &EvalConfig{
+		QueryStats: qs,
+	}
+	ec.QueryStats.addSeriesFetched(1)
+
+	if qs.SeriesFetched != 1 {
+		t.Fatalf("expected to get 1; got %d instead", qs.SeriesFetched)
+	}
+
+	ecNew := copyEvalConfig(ec)
+	ecNew.QueryStats.addSeriesFetched(3)
+	if qs.SeriesFetched != 4 {
+		t.Fatalf("expected to get 4; got %d instead", qs.SeriesFetched)
+	}
 }

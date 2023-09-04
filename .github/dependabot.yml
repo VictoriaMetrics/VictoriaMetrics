@@ -8,10 +8,12 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 0
   - package-ecosystem: "bundler"
     directory: "/docs"
     schedule:
-      interval: "daily"
+      interval: "weekly"
+    open-pull-requests-limit: 0
   - package-ecosystem: "gomod"
     directory: "/app/vmui/packages/vmui/web"
     schedule:

@@ -8,7 +8,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
-// rawRow reperesents raw timeseries row.
+// rawRow represents raw timeseries row.
 type rawRow struct {
 	// TSID is time series id.
 	TSID TSID
@@ -92,7 +92,10 @@ func (rrm *rawRowsMarshaler) marshalToInmemoryPart(mp *inmemoryPart, rows []rawR
 		logger.Panicf("BUG: rows count must be smaller than 2^32; got %d", len(rows))
 	}
 
-	rrm.bsw.InitFromInmemoryPart(mp)
+	// Use the minimum compression level for first-level in-memory blocks,
+	// since they are going to be re-compressed during subsequent merges.
+	const compressLevel = -5 // See https://github.com/facebook/zstd/releases/tag/v1.3.4
+	rrm.bsw.MustInitFromInmemoryPart(mp, compressLevel)
 
 	ph := &mp.ph
 	ph.Reset()

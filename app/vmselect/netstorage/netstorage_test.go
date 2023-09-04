@@ -1,15 +1,45 @@
 package netstorage
 
 import (
+	"flag"
 	"reflect"
+	"runtime"
 	"testing"
 )
+
+func TestInitStopNodes(t *testing.T) {
+	if err := flag.Set("vmstorageDialTimeout", "1ms"); err != nil {
+		t.Fatalf("cannot set vmstorageDialTimeout flag: %s", err)
+	}
+	for i := 0; i < 3; i++ {
+		Init([]string{"host1", "host2"})
+		runtime.Gosched()
+		MustStop()
+	}
+
+	// Try initializing the netstorage with bigger number of nodes
+	for i := 0; i < 3; i++ {
+		Init([]string{"host1", "host2", "host3"})
+		runtime.Gosched()
+		MustStop()
+	}
+
+	// Try initializing the netstorage with smaller number of nodes
+	for i := 0; i < 3; i++ {
+		Init([]string{"host1"})
+		runtime.Gosched()
+		MustStop()
+	}
+}
 
 func TestMergeSortBlocks(t *testing.T) {
 	f := func(blocks []*sortBlock, dedupInterval int64, expectedResult *Result) {
 		t.Helper()
 		var result Result
-		mergeSortBlocks(&result, blocks, dedupInterval)
+		sbh := getSortBlocksHeap()
+		sbh.sbs = append(sbh.sbs[:0], blocks...)
+		mergeSortBlocks(&result, sbh, dedupInterval)
+		putSortBlocksHeap(sbh)
 		if !reflect.DeepEqual(result.Values, expectedResult.Values) {
 			t.Fatalf("unexpected values;\ngot\n%v\nwant\n%v", result.Values, expectedResult.Values)
 		}
@@ -102,21 +132,35 @@ func TestMergeSortBlocks(t *testing.T) {
 		Values:     []float64{9, 4.2, 2.1, 5.2, 42, 6.1},
 	})
 
-	// Multiple blocks with identical timestamps.
+	// Multiple blocks with identical timestamps and identical values.
 	f([]*sortBlock{
+		{
+			Timestamps: []int64{1, 2, 4, 5},
+			Values:     []float64{9, 5.2, 6.1, 9},
+		},
 		{
 			Timestamps: []int64{1, 2, 4},
 			Values:     []float64{9, 5.2, 6.1},
+		},
+	}, 1, &Result{
+		Timestamps: []int64{1, 2, 4, 5},
+		Values:     []float64{9, 5.2, 6.1, 9},
+	})
+
+	// Multiple blocks with identical timestamps.
+	f([]*sortBlock{
+		{
+			Timestamps: []int64{1, 2, 4, 5},
+			Values:     []float64{9, 5.2, 6.1, 9},
 		},
 		{
 			Timestamps: []int64{1, 2, 4},
 			Values:     []float64{4.2, 2.1, 42},
 		},
 	}, 1, &Result{
-		Timestamps: []int64{1, 2, 4},
-		Values:     []float64{4.2, 2.1, 42},
+		Timestamps: []int64{1, 2, 4, 5},
+		Values:     []float64{9, 5.2, 42, 9},
 	})
-
 	// Multiple blocks with identical timestamps, disabled deduplication.
 	f([]*sortBlock{
 		{
@@ -144,7 +188,7 @@ func TestMergeSortBlocks(t *testing.T) {
 		},
 	}, 1, &Result{
 		Timestamps: []int64{1, 2, 4, 5, 10, 11, 12},
-		Values:     []float64{21, 22, 23, 7, 24, 5, 26},
+		Values:     []float64{21, 22, 23, 7, 24, 25, 26},
 	})
 
 	// Multiple blocks with identical timestamp ranges, no deduplication.

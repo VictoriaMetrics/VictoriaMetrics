@@ -1,11 +1,10 @@
 package gce
 
 import (
-	"reflect"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
 func TestParseInstanceListFailure(t *testing.T) {
@@ -148,12 +147,8 @@ func TestParseInstanceListSuccess(t *testing.T) {
 	tagSeparator := ","
 	port := 80
 	labelss := inst.appendTargetLabels(nil, project, tagSeparator, port)
-	var sortedLabelss [][]prompbmarshal.Label
-	for _, labels := range labelss {
-		sortedLabelss = append(sortedLabelss, discoveryutils.GetSortedLabels(labels))
-	}
-	expectedLabelss := [][]prompbmarshal.Label{
-		discoveryutils.GetSortedLabels(map[string]string{
+	expectedLabelss := []*promutils.Labels{
+		promutils.NewLabelsFromMap(map[string]string{
 			"__address__":                                   "10.11.2.7:80",
 			"__meta_gce_instance_id":                        "7897352091592122",
 			"__meta_gce_instance_name":                      "play-1m-1-vmagent",
@@ -174,7 +169,5 @@ func TestParseInstanceListSuccess(t *testing.T) {
 			"__meta_gce_zone":                               "https://www.googleapis.com/compute/v1/projects/victoriametrics-test/zones/us-east1-b",
 		}),
 	}
-	if !reflect.DeepEqual(sortedLabelss, expectedLabelss) {
-		t.Fatalf("unexpected labels:\ngot\n%v\nwant\n%v", sortedLabelss, expectedLabelss)
-	}
+	discoveryutils.TestEqualLabelss(t, labelss, expectedLabelss)
 }

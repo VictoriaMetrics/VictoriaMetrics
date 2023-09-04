@@ -1,0 +1,46 @@
+@use "src/styles/variables" as *;
+
+.vm-predefined-panel {
+
+  &-header {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    justify-content: flex-start;
+    gap: $padding-small;
+    padding: $padding-small $padding-small*2;
+    border-bottom: $border-divider;
+
+    &__description {
+      white-space: pre-wrap;
+      line-height: 1.3;
+
+      ul,
+      ol {
+        list-style-position: inside;
+      }
+
+      a {
+        color: $color-tropical-blue;
+        text-decoration: underline;
+      }
+    }
+
+    &__info {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      color: $color-primary
+    }
+  }
+
+  &-body {
+    padding: $padding-small $padding-small*2;
+    min-height: 500px;
+
+    @media (max-width: 500px) {
+      padding: 0;
+    }
+  }
+}

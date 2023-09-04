@@ -1,9 +1,11 @@
 package mergeset
 
 import (
+	"path/filepath"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 )
 
 type inmemoryPart struct {
@@ -26,6 +28,28 @@ func (mp *inmemoryPart) Reset() {
 	mp.indexData.Reset()
 	mp.itemsData.Reset()
 	mp.lensData.Reset()
+}
+
+// MustStoreToDisk stores mp to the given path on disk.
+func (mp *inmemoryPart) MustStoreToDisk(path string) {
+	fs.MustMkdirFailIfExist(path)
+
+	metaindexPath := filepath.Join(path, metaindexFilename)
+	fs.MustWriteSync(metaindexPath, mp.metaindexData.B)
+
+	indexPath := filepath.Join(path, indexFilename)
+	fs.MustWriteSync(indexPath, mp.indexData.B)
+
+	itemsPath := filepath.Join(path, itemsFilename)
+	fs.MustWriteSync(itemsPath, mp.itemsData.B)
+
+	lensPath := filepath.Join(path, lensFilename)
+	fs.MustWriteSync(lensPath, mp.lensData.B)
+
+	mp.ph.MustWriteMetadata(path)
+
+	fs.MustSyncPath(path)
+	// Do not sync parent directory - it must be synced by the caller.
 }
 
 // Init initializes mp from ib.
@@ -60,14 +84,14 @@ func (mp *inmemoryPart) Init(ib *inmemoryBlock) {
 
 	bb := inmemoryPartBytePool.Get()
 	bb.B = mp.bh.Marshal(bb.B[:0])
-	mp.indexData.B = encoding.CompressZSTDLevel(mp.indexData.B[:0], bb.B, 0)
+	mp.indexData.B = encoding.CompressZSTDLevel(mp.indexData.B[:0], bb.B, compressLevel)
 
 	mp.mr.firstItem = append(mp.mr.firstItem[:0], mp.bh.firstItem...)
 	mp.mr.blockHeadersCount = 1
 	mp.mr.indexBlockOffset = 0
 	mp.mr.indexBlockSize = uint32(len(mp.indexData.B))
 	bb.B = mp.mr.Marshal(bb.B[:0])
-	mp.metaindexData.B = encoding.CompressZSTDLevel(mp.metaindexData.B[:0], bb.B, 0)
+	mp.metaindexData.B = encoding.CompressZSTDLevel(mp.metaindexData.B[:0], bb.B, compressLevel)
 	inmemoryPartBytePool.Put(bb)
 }
 
@@ -76,15 +100,11 @@ var inmemoryPartBytePool bytesutil.ByteBufferPool
 // It is safe calling NewPart multiple times.
 // It is unsafe re-using mp while the returned part is in use.
 func (mp *inmemoryPart) NewPart() *part {
-	ph := mp.ph
 	size := mp.size()
-	p, err := newPart(&ph, "", size, mp.metaindexData.NewReader(), &mp.indexData, &mp.itemsData, &mp.lensData)
-	if err != nil {
-		logger.Panicf("BUG: cannot create a part from inmemoryPart: %s", err)
-	}
+	p := newPart(&mp.ph, "", size, mp.metaindexData.NewReader(), &mp.indexData, &mp.itemsData, &mp.lensData)
 	return p
 }
 
 func (mp *inmemoryPart) size() uint64 {
-	return uint64(len(mp.metaindexData.B) + len(mp.indexData.B) + len(mp.itemsData.B) + len(mp.lensData.B))
+	return uint64(cap(mp.metaindexData.B) + cap(mp.indexData.B) + cap(mp.itemsData.B) + cap(mp.lensData.B))
 }

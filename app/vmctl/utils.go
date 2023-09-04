@@ -6,12 +6,17 @@ import (
 	"os"
 	"strings"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/terminal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
 )
 
 const barTpl = `{{ blue "%s:" }} {{ counters . }} {{ bar . "[" "█" (cycle . "█") "▒" "]" }} {{ percent . }}`
 
 func prompt(question string) bool {
+	isTerminal := terminal.IsTerminal(int(os.Stdout.Fd()))
+	if !isTerminal {
+		return true
+	}
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Print(question, " [Y/n] ")
 	answer, err := reader.ReadString('\n')

@@ -1,0 +1,32 @@
+@use "src/styles/variables" as *;
+
+.vm-section-header {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  justify-content: center;
+  padding: 0 $padding-medium;
+  border-bottom: $border-divider;
+  border-radius: $border-radius-medium $border-radius-medium 0 0;
+
+  &__title {
+    font-size: $font-size;
+    font-weight: bold;
+
+    &_mobile {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      display: -webkit-box;
+      -webkit-line-clamp: 2; /* number of lines to show */
+      line-clamp: 2;
+      -webkit-box-orient: vertical;
+    }
+  }
+
+  &__tabs {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    font-size: $font-size-small;
+  }
+}

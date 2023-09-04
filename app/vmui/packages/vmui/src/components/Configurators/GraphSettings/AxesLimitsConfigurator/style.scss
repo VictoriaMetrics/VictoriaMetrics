@@ -1,0 +1,30 @@
+@use "src/styles/variables" as *;
+
+.vm-axes-limits {
+  display: grid;
+  align-items: center;
+  gap: $padding-global;
+  max-width: 300px;
+
+  &_mobile {
+    width: 100%;
+    max-width: 100%;
+    gap: $padding-medium;
+  }
+
+  &_mobile &-list__inputs {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  &-list {
+    display: grid;
+    align-items: center;
+    gap: $padding-global;
+
+    &__inputs {
+      display: grid;
+      grid-template-columns: repeat(2, 120px);
+      gap: $padding-small;
+    }
+  }
+}

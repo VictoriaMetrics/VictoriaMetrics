@@ -3,11 +3,11 @@
   <head>
     <meta charset="utf-8" />
     <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
     <meta name="theme-color" content="#000000" />
     <meta
       name="description"
-      content="VM-UI is a metric explorer for Victoria Metrics"
+      content="UI for VictoriaMetrics"
     />
     <link rel="apple-touch-icon" href="%PUBLIC_URL%/apple-touch-icon.png" />
     <link rel="icon" type="image/png" sizes="32x32" href="%PUBLIC_URL%/favicon-32x32.png">
@@ -26,8 +26,18 @@
       Learn how to configure a non-root public URL by running `npm run build`.
     -->
     <title>VM UI</title>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap" />
     <script src="%PUBLIC_URL%/dashboards/index.js" type="module"></script>
+
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="%PUBLIC_URL%/preview.jpg">
+    <meta name="twitter:title" content="UI for VictoriaMetrics">
+    <meta name="twitter:description" content="Explore and troubleshoot your VictoriaMetrics data">
+    <meta name="twitter:site" content="@VictoriaMetrics">
+
+    <meta property="og:title" content="Metric explorer for VictoriaMetrics">
+    <meta property="og:description" content="Explore and troubleshoot your VictoriaMetrics data">
+    <meta property="og:image" content="%PUBLIC_URL%/preview.jpg">
+    <meta property="og:type" content="website">
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>

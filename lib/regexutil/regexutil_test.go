@@ -110,3 +110,22 @@ func TestSimplify(t *testing.T) {
 	// The transformed regexp mustn't match barx
 	f("(foo|bar$)x*", "", "(?:foo|bar$)x*")
 }
+
+func TestRemoveStartEndAnchors(t *testing.T) {
+	f := func(s, resultExpected string) {
+		t.Helper()
+		result := RemoveStartEndAnchors(s)
+		if result != resultExpected {
+			t.Fatalf("unexpected result for RemoveStartEndAnchors(%q); got %q; want %q", s, result, resultExpected)
+		}
+	}
+	f("", "")
+	f("a", "a")
+	f("^^abc", "abc")
+	f("a^b$c", "a^b$c")
+	f("$$abc^", "$$abc^")
+	f("^abc|de$", "abc|de")
+	f("abc\\$", "abc\\$")
+	f("^abc\\$$$", "abc\\$")
+	f("^a\\$b\\$$", "a\\$b\\$")
+}

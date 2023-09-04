@@ -9,6 +9,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 )
 
@@ -82,7 +83,7 @@ type DataCenterInfo struct {
 }
 
 // GetLabels returns Eureka labels according to sdc.
-func (sdc *SDConfig) GetLabels(baseDir string) ([]map[string]string, error) {
+func (sdc *SDConfig) GetLabels(baseDir string) ([]*promutils.Labels, error) {
 	cfg, err := getAPIConfig(sdc, baseDir)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get API config: %w", err)
@@ -100,11 +101,15 @@ func (sdc *SDConfig) GetLabels(baseDir string) ([]map[string]string, error) {
 
 // MustStop stops further usage for sdc.
 func (sdc *SDConfig) MustStop() {
-	configMap.Delete(sdc)
+	v := configMap.Delete(sdc)
+	if v != nil {
+		cfg := v.(*apiConfig)
+		cfg.client.Stop()
+	}
 }
 
-func addInstanceLabels(apps *applications) []map[string]string {
-	var ms []map[string]string
+func addInstanceLabels(apps *applications) []*promutils.Labels {
+	var ms []*promutils.Labels
 	for _, app := range apps.Applications {
 		for _, instance := range app.Instances {
 			instancePort := 80
@@ -112,38 +117,37 @@ func addInstanceLabels(apps *applications) []map[string]string {
 				instancePort = instance.Port.Port
 			}
 			targetAddress := discoveryutils.JoinHostPort(instance.HostName, instancePort)
-			m := map[string]string{
-				"__address__":                                   targetAddress,
-				"instance":                                      instance.InstanceID,
-				"__meta_eureka_app_name":                        app.Name,
-				"__meta_eureka_app_instance_hostname":           instance.HostName,
-				"__meta_eureka_app_instance_homepage_url":       instance.HomePageURL,
-				"__meta_eureka_app_instance_statuspage_url":     instance.StatusPageURL,
-				"__meta_eureka_app_instance_healthcheck_url":    instance.HealthCheckURL,
-				"__meta_eureka_app_instance_ip_addr":            instance.IPAddr,
-				"__meta_eureka_app_instance_vip_address":        instance.VipAddress,
-				"__meta_eureka_app_instance_secure_vip_address": instance.SecureVipAddress,
-				"__meta_eureka_app_instance_status":             instance.Status,
-				"__meta_eureka_app_instance_country_id":         strconv.Itoa(instance.CountryID),
-				"__meta_eureka_app_instance_id":                 instance.InstanceID,
-			}
+			m := promutils.NewLabels(24)
+			m.Add("__address__", targetAddress)
+			m.Add("instance", instance.InstanceID)
+			m.Add("__meta_eureka_app_name", app.Name)
+			m.Add("__meta_eureka_app_instance_hostname", instance.HostName)
+			m.Add("__meta_eureka_app_instance_homepage_url", instance.HomePageURL)
+			m.Add("__meta_eureka_app_instance_statuspage_url", instance.StatusPageURL)
+			m.Add("__meta_eureka_app_instance_healthcheck_url", instance.HealthCheckURL)
+			m.Add("__meta_eureka_app_instance_ip_addr", instance.IPAddr)
+			m.Add("__meta_eureka_app_instance_vip_address", instance.VipAddress)
+			m.Add("__meta_eureka_app_instance_secure_vip_address", instance.SecureVipAddress)
+			m.Add("__meta_eureka_app_instance_status", instance.Status)
+			m.Add("__meta_eureka_app_instance_country_id", strconv.Itoa(instance.CountryID))
+			m.Add("__meta_eureka_app_instance_id", instance.InstanceID)
 			if instance.Port.Port != 0 {
-				m["__meta_eureka_app_instance_port"] = strconv.Itoa(instance.Port.Port)
-				m["__meta_eureka_app_instance_port_enabled"] = strconv.FormatBool(instance.Port.Enabled)
+				m.Add("__meta_eureka_app_instance_port", strconv.Itoa(instance.Port.Port))
+				m.Add("__meta_eureka_app_instance_port_enabled", strconv.FormatBool(instance.Port.Enabled))
 			}
 			if instance.SecurePort.Port != 0 {
-				m["__meta_eureka_app_instance_secure_port"] = strconv.Itoa(instance.SecurePort.Port)
-				m["__meta_eureka_app_instance_secure_port_enabled"] = strconv.FormatBool(instance.SecurePort.Enabled)
+				m.Add("__meta_eureka_app_instance_secure_port", strconv.Itoa(instance.SecurePort.Port))
+				m.Add("__meta_eureka_app_instance_secure_port_enabled", strconv.FormatBool(instance.SecurePort.Enabled))
 
 			}
 			if len(instance.DataCenterInfo.Name) > 0 {
-				m["__meta_eureka_app_instance_datacenterinfo_name"] = instance.DataCenterInfo.Name
+				m.Add("__meta_eureka_app_instance_datacenterinfo_name", instance.DataCenterInfo.Name)
 				for _, tag := range instance.DataCenterInfo.Metadata.Items {
-					m[discoveryutils.SanitizeLabelName("__meta_eureka_app_instance_datacenterinfo_metadata_"+tag.XMLName.Local)] = tag.Content
+					m.Add(discoveryutils.SanitizeLabelName("__meta_eureka_app_instance_datacenterinfo_metadata_"+tag.XMLName.Local), tag.Content)
 				}
 			}
 			for _, tag := range instance.Metadata.Items {
-				m[discoveryutils.SanitizeLabelName("__meta_eureka_app_instance_metadata_"+tag.XMLName.Local)] = tag.Content
+				m.Add(discoveryutils.SanitizeLabelName("__meta_eureka_app_instance_metadata_"+tag.XMLName.Local), tag.Content)
 			}
 			ms = append(ms, m)
 		}

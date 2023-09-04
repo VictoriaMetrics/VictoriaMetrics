@@ -5,13 +5,16 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	"cloud.google.com/go/storage"
+	"github.com/googleapis/gax-go/v2"
+	"google.golang.org/api/iterator"
+	"google.golang.org/api/option"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fscommon"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"google.golang.org/api/iterator"
-	"google.golang.org/api/option"
 )
 
 // FS represents filesystem for backups in GCS.
@@ -61,6 +64,14 @@ func (fs *FS) Init() error {
 		}
 		client = c
 	}
+
+	client.SetRetry(
+		storage.WithPolicy(storage.RetryAlways),
+		storage.WithBackoff(gax.Backoff{
+			Initial:    time.Second,
+			Max:        time.Minute * 3,
+			Multiplier: 3,
+		}))
 	fs.bkt = client.Bucket(fs.Bucket)
 	return nil
 }
@@ -250,4 +261,16 @@ func (fs *FS) HasFile(filePath string) (bool, error) {
 		return false, fmt.Errorf("unexpected error when obtaining attributes for %q at %s (remote path %q): %w", filePath, fs, o.ObjectName(), err)
 	}
 	return true, nil
+}
+
+// ReadFile returns the content of filePath at fs.
+func (fs *FS) ReadFile(filePath string) ([]byte, error) {
+	o := fs.bkt.Object(fs.Dir + filePath)
+	ctx := context.Background()
+	r, err := o.NewReader(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read %q at %s (remote path %q): %w", filePath, fs, o.ObjectName(), err)
+	}
+	defer r.Close()
+	return io.ReadAll(r)
 }

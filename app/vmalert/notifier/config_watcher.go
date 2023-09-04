@@ -6,8 +6,10 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/consul"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/dns"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
 // configWatcher supports dynamic reload of Notifier objects
@@ -122,7 +124,7 @@ func targetsFromLabels(labelsFn getLabels, cfg *Config, genFn AlertURLGenerator)
 	var errors []error
 	duplicates := make(map[string]struct{})
 	for _, labels := range metaLabels {
-		target := labels["__address__"]
+		target := labels.Get("__address__")
 		u, processedLabels, err := parseLabels(target, labels, cfg)
 		if err != nil {
 			errors = append(errors, err)
@@ -155,18 +157,19 @@ func targetsFromLabels(labelsFn getLabels, cfg *Config, genFn AlertURLGenerator)
 	return targets, errors
 }
 
-type getLabels func() ([]map[string]string, error)
+type getLabels func() ([]*promutils.Labels, error)
 
 func (cw *configWatcher) start() error {
 	if len(cw.cfg.StaticConfigs) > 0 {
 		var targets []Target
 		for _, cfg := range cw.cfg.StaticConfigs {
+			httpCfg := mergeHTTPClientConfigs(cw.cfg.HTTPClientConfig, cfg.HTTPClientConfig)
 			for _, target := range cfg.Targets {
 				address, labels, err := parseLabels(target, nil, cw.cfg)
 				if err != nil {
 					return fmt.Errorf("failed to parse labels for target %q: %s", target, err)
 				}
-				notifier, err := NewAlertManager(address, cw.genFn, cw.cfg.HTTPClientConfig, cw.cfg.parsedAlertRelabelConfigs, cw.cfg.Timeout.Duration())
+				notifier, err := NewAlertManager(address, cw.genFn, httpCfg, cw.cfg.parsedAlertRelabelConfigs, cw.cfg.Timeout.Duration())
 				if err != nil {
 					return fmt.Errorf("failed to init alertmanager for addr %q: %s", address, err)
 				}
@@ -180,8 +183,8 @@ func (cw *configWatcher) start() error {
 	}
 
 	if len(cw.cfg.ConsulSDConfigs) > 0 {
-		err := cw.add(TargetConsul, *consul.SDCheckInterval, func() ([]map[string]string, error) {
-			var labels []map[string]string
+		err := cw.add(TargetConsul, *consul.SDCheckInterval, func() ([]*promutils.Labels, error) {
+			var labels []*promutils.Labels
 			for i := range cw.cfg.ConsulSDConfigs {
 				sdc := &cw.cfg.ConsulSDConfigs[i]
 				targetLabels, err := sdc.GetLabels(cw.cfg.baseDir)
@@ -198,8 +201,8 @@ func (cw *configWatcher) start() error {
 	}
 
 	if len(cw.cfg.DNSSDConfigs) > 0 {
-		err := cw.add(TargetDNS, *dns.SDCheckInterval, func() ([]map[string]string, error) {
-			var labels []map[string]string
+		err := cw.add(TargetDNS, *dns.SDCheckInterval, func() ([]*promutils.Labels, error) {
+			var labels []*promutils.Labels
 			for i := range cw.cfg.DNSSDConfigs {
 				sdc := &cw.cfg.DNSSDConfigs[i]
 				targetLabels, err := sdc.GetLabels(cw.cfg.baseDir)
@@ -251,4 +254,31 @@ func (cw *configWatcher) setTargets(key TargetType, targets []Target) {
 	}
 	cw.targets[key] = targets
 	cw.targetsMu.Unlock()
+}
+
+// mergeHTTPClientConfigs merges fields between child and parent params
+// by populating child from parent params if they're missing.
+func mergeHTTPClientConfigs(parent, child promauth.HTTPClientConfig) promauth.HTTPClientConfig {
+	if child.Authorization == nil {
+		child.Authorization = parent.Authorization
+	}
+	if child.BasicAuth == nil {
+		child.BasicAuth = parent.BasicAuth
+	}
+	if child.BearerToken == nil {
+		child.BearerToken = parent.BearerToken
+	}
+	if child.BearerTokenFile == "" {
+		child.BearerTokenFile = parent.BearerTokenFile
+	}
+	if child.OAuth2 == nil {
+		child.OAuth2 = parent.OAuth2
+	}
+	if child.TLSConfig == nil {
+		child.TLSConfig = parent.TLSConfig
+	}
+	if child.Headers == nil {
+		child.Headers = parent.Headers
+	}
+	return child
 }

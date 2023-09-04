@@ -1,6 +1,7 @@
 package servers
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"net"
@@ -12,7 +13,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/clusternative"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/clusternative/stream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -40,7 +41,7 @@ type VMInsertServer struct {
 
 // NewVMInsertServer starts VMInsertServer at the given addr serving the given storage.
 func NewVMInsertServer(addr string, storage *storage.Storage) (*VMInsertServer, error) {
-	ln, err := netutil.NewTCPListener("vminsert", addr, nil)
+	ln, err := netutil.NewTCPListener("vminsert", addr, false, nil)
 	if err != nil {
 		return nil, fmt.Errorf("unable to listen vminsertAddr %s: %w", addr, err)
 	}
@@ -73,7 +74,6 @@ func (s *VMInsertServer) run() {
 			}
 			logger.Panicf("FATAL: cannot process vminsert conns at %s: %s", s.ln.Addr(), err)
 		}
-		logger.Infof("accepted vminsert conn from %s", c.RemoteAddr())
 
 		if !s.connsMap.Add(c) {
 			// The server is closed.
@@ -98,7 +98,9 @@ func (s *VMInsertServer) run() {
 					// c is stopped inside VMInsertServer.MustStop
 					return
 				}
-				logger.Errorf("cannot perform vminsert handshake with client %q: %s", c.RemoteAddr(), err)
+				if !errors.Is(err, handshake.ErrIgnoreHealthcheck) {
+					logger.Errorf("cannot perform vminsert handshake with client %q: %s", c.RemoteAddr(), err)
+				}
 				_ = c.Close()
 				return
 			}
@@ -110,7 +112,7 @@ func (s *VMInsertServer) run() {
 			}()
 
 			logger.Infof("processing vminsert conn from %s", c.RemoteAddr())
-			err = clusternative.ParseStream(bc, func(rows []storage.MetricRow) error {
+			err = stream.Parse(bc, func(rows []storage.MetricRow) error {
 				vminsertMetricsRead.Add(len(rows))
 				return s.storage.AddRows(rows, uint8(*precisionBits))
 			}, s.storage.IsReadOnly)

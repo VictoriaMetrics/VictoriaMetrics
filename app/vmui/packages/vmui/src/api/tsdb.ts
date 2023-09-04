@@ -1,6 +1,5 @@
 export interface CardinalityRequestsParams {
   topN: number,
-  extraLabel: string | null,
   match: string | null,
   date: string | null,
   focusLabel: string | null,

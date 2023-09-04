@@ -11,6 +11,7 @@ import (
 // Float64Slice wraps []float64 to satisfy flag.Value
 type Float64Slice struct {
 	slice      []float64
+	separator  separatorSpec
 	hasBeenSet bool
 }
 
@@ -29,6 +30,10 @@ func (f *Float64Slice) clone() *Float64Slice {
 	return n
 }
 
+func (f *Float64Slice) WithSeparatorSpec(spec separatorSpec) {
+	f.separator = spec
+}
+
 // Set parses the value into a float64 and appends it to the list of values
 func (f *Float64Slice) Set(value string) error {
 	if !f.hasBeenSet {
@@ -43,7 +48,7 @@ func (f *Float64Slice) Set(value string) error {
 		return nil
 	}
 
-	for _, s := range flagSplitMultiValues(value) {
+	for _, s := range f.separator.flagSplitMultiValues(value) {
 		tmp, err := strconv.ParseFloat(strings.TrimSpace(s), 64)
 		if err != nil {
 			return err
@@ -83,7 +88,7 @@ func (f *Float64Slice) Get() interface{} {
 // String returns a readable representation of this value
 // (for usage defaults)
 func (f *Float64SliceFlag) String() string {
-	return withEnvHint(f.GetEnvVars(), stringifyFloat64SliceFlag(f))
+	return FlagStringer(f)
 }
 
 // TakesValue returns true if the flag takes a value, otherwise false
@@ -104,10 +109,13 @@ func (f *Float64SliceFlag) GetCategory() string {
 // GetValue returns the flags value as string representation and an empty
 // string if the flag takes no value at all.
 func (f *Float64SliceFlag) GetValue() string {
-	if f.Value != nil {
-		return f.Value.String()
+	var defaultVals []string
+	if f.Value != nil && len(f.Value.Value()) > 0 {
+		for _, i := range f.Value.Value() {
+			defaultVals = append(defaultVals, strings.TrimRight(strings.TrimRight(fmt.Sprintf("%f", i), "0"), "."))
+		}
 	}
-	return ""
+	return strings.Join(defaultVals, ", ")
 }
 
 // GetDefaultText returns the default text for this flag
@@ -121,6 +129,11 @@ func (f *Float64SliceFlag) GetDefaultText() string {
 // GetEnvVars returns the env vars for this flag
 func (f *Float64SliceFlag) GetEnvVars() []string {
 	return f.EnvVars
+}
+
+// IsSliceFlag implements DocGenerationSliceFlag.
+func (f *Float64SliceFlag) IsSliceFlag() bool {
+	return true
 }
 
 // Apply populates the flag given the flag set and environment
@@ -140,11 +153,12 @@ func (f *Float64SliceFlag) Apply(set *flag.FlagSet) error {
 		setValue = f.Value.clone()
 	default:
 		setValue = new(Float64Slice)
+		setValue.WithSeparatorSpec(f.separator)
 	}
 
 	if val, source, found := flagFromEnvOrFile(f.EnvVars, f.FilePath); found {
 		if val != "" {
-			for _, s := range flagSplitMultiValues(val) {
+			for _, s := range f.separator.flagSplitMultiValues(val) {
 				if err := setValue.Set(strings.TrimSpace(s)); err != nil {
 					return fmt.Errorf("could not parse %q as float64 slice value from %s for flag %s: %s", val, source, f.Name, err)
 				}
@@ -164,9 +178,22 @@ func (f *Float64SliceFlag) Apply(set *flag.FlagSet) error {
 	return nil
 }
 
+func (f *Float64SliceFlag) WithSeparatorSpec(spec separatorSpec) {
+	f.separator = spec
+}
+
 // Get returns the flag’s value in the given Context.
 func (f *Float64SliceFlag) Get(ctx *Context) []float64 {
 	return ctx.Float64Slice(f.Name)
+}
+
+// RunAction executes flag action if set
+func (f *Float64SliceFlag) RunAction(c *Context) error {
+	if f.Action != nil {
+		return f.Action(c, c.Float64Slice(f.Name))
+	}
+
+	return nil
 }
 
 // Float64Slice looks up the value of a local Float64SliceFlag, returns

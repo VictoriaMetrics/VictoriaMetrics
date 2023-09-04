@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"sync"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
@@ -30,4 +31,88 @@ type Rule interface {
 	Close()
 }
 
-var errDuplicate = errors.New("result contains metrics with the same labelset after applying rule labels")
+var errDuplicate = errors.New("result contains metrics with the same labelset after applying rule labels. See https://docs.victoriametrics.com/vmalert.html#series-with-the-same-labelset for details")
+
+type ruleState struct {
+	sync.RWMutex
+	entries []ruleStateEntry
+	cur     int
+}
+
+type ruleStateEntry struct {
+	// stores last moment of time rule.Exec was called
+	time time.Time
+	// stores the timesteamp with which rule.Exec was called
+	at time.Time
+	// stores the duration of the last rule.Exec call
+	duration time.Duration
+	// stores last error that happened in Exec func
+	// resets on every successful Exec
+	// may be used as Health ruleState
+	err error
+	// stores the number of samples returned during
+	// the last evaluation
+	samples int
+	// stores the number of time series fetched during
+	// the last evaluation.
+	// Is supported by VictoriaMetrics only, starting from v1.90.0
+	// If seriesFetched == nil, then this attribute was missing in
+	// datasource response (unsupported).
+	seriesFetched *int
+	// stores the curl command reflecting the HTTP request used during rule.Exec
+	curl string
+}
+
+func newRuleState(size int) *ruleState {
+	if size < 1 {
+		size = 1
+	}
+	return &ruleState{
+		entries: make([]ruleStateEntry, size),
+	}
+}
+
+func (s *ruleState) getLast() ruleStateEntry {
+	s.RLock()
+	defer s.RUnlock()
+	return s.entries[s.cur]
+}
+
+func (s *ruleState) size() int {
+	s.RLock()
+	defer s.RUnlock()
+	return len(s.entries)
+}
+
+func (s *ruleState) getAll() []ruleStateEntry {
+	entries := make([]ruleStateEntry, 0)
+
+	s.RLock()
+	defer s.RUnlock()
+
+	cur := s.cur
+	for {
+		e := s.entries[cur]
+		if !e.time.IsZero() || !e.at.IsZero() {
+			entries = append(entries, e)
+		}
+		cur--
+		if cur < 0 {
+			cur = cap(s.entries) - 1
+		}
+		if cur == s.cur {
+			return entries
+		}
+	}
+}
+
+func (s *ruleState) add(e ruleStateEntry) {
+	s.Lock()
+	defer s.Unlock()
+
+	s.cur++
+	if s.cur > cap(s.entries)-1 {
+		s.cur = 0
+	}
+	s.entries[s.cur] = e
+}

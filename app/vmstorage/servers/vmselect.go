@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"net/http"
 	"sync"
+	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
@@ -18,6 +20,11 @@ var (
 	maxTagKeys                   = flag.Int("search.maxTagKeys", 100e3, "The maximum number of tag keys returned per search")
 	maxTagValues                 = flag.Int("search.maxTagValues", 100e3, "The maximum number of tag values returned per search")
 	maxTagValueSuffixesPerSearch = flag.Int("search.maxTagValueSuffixesPerSearch", 100e3, "The maximum number of tag value suffixes returned from /metrics/find")
+	maxConcurrentRequests        = flag.Int("search.maxConcurrentRequests", 2*cgroup.AvailableCPUs(), "The maximum number of concurrent vmselect requests "+
+		"the vmstorage can process at -vmselectAddr. It shouldn't be high, since a single request usually saturates a CPU core, and many concurrently executed requests "+
+		"may require high amounts of memory. See also -search.maxQueueDuration")
+	maxQueueDuration = flag.Duration("search.maxQueueDuration", 10*time.Second, "The maximum time the incoming vmselect request waits for execution "+
+		"when -search.maxConcurrentRequests limit is reached")
 
 	disableRPCCompression = flag.Bool(`rpc.disableCompression`, false, "Whether to disable compression of the data sent from vmstorage to vmselect. "+
 		"This reduces CPU usage at the cost of higher network bandwidth usage")
@@ -32,9 +39,13 @@ func NewVMSelectServer(addr string, s *storage.Storage) (*vmselectapi.Server, er
 		s: s,
 	}
 	limits := vmselectapi.Limits{
-		MaxLabelNames:       *maxTagKeys,
-		MaxLabelValues:      *maxTagValues,
-		MaxTagValueSuffixes: *maxTagValueSuffixesPerSearch,
+		MaxLabelNames:                 *maxTagKeys,
+		MaxLabelValues:                *maxTagValues,
+		MaxTagValueSuffixes:           *maxTagValueSuffixesPerSearch,
+		MaxConcurrentRequests:         *maxConcurrentRequests,
+		MaxConcurrentRequestsFlagName: "search.maxConcurrentRequests",
+		MaxQueueDuration:              *maxQueueDuration,
+		MaxQueueDurationFlagName:      "search.maxQueueDuration",
 	}
 	return vmselectapi.NewServer(addr, api, limits, *disableRPCCompression)
 }
@@ -112,8 +123,12 @@ func (api *vmstorageAPI) LabelNames(qt *querytracer.Tracer, sq *storage.SearchQu
 	return api.s.SearchLabelNamesWithFiltersOnTimeRange(qt, sq.AccountID, sq.ProjectID, tfss, tr, maxLabelNames, maxMetrics, deadline)
 }
 
-func (api *vmstorageAPI) SeriesCount(qt *querytracer.Tracer, accountID, projectID uint32, deadline uint64) (uint64, error) {
+func (api *vmstorageAPI) SeriesCount(_ *querytracer.Tracer, accountID, projectID uint32, deadline uint64) (uint64, error) {
 	return api.s.GetSeriesCount(accountID, projectID, deadline)
+}
+
+func (api *vmstorageAPI) Tenants(qt *querytracer.Tracer, tr storage.TimeRange, deadline uint64) ([]string, error) {
+	return api.s.SearchTenants(qt, tr, deadline)
 }
 
 func (api *vmstorageAPI) TSDBStatus(qt *querytracer.Tracer, sq *storage.SearchQuery, focusLabel string, topN int, deadline uint64) (*storage.TSDBStatus, error) {
@@ -140,8 +155,9 @@ func (api *vmstorageAPI) DeleteSeries(qt *querytracer.Tracer, sq *storage.Search
 	return api.s.DeleteSeries(qt, tfss)
 }
 
-func (api *vmstorageAPI) RegisterMetricNames(qt *querytracer.Tracer, mrs []storage.MetricRow, deadline uint64) error {
-	return api.s.RegisterMetricNames(qt, mrs)
+func (api *vmstorageAPI) RegisterMetricNames(qt *querytracer.Tracer, mrs []storage.MetricRow, _ uint64) error {
+	api.s.RegisterMetricNames(qt, mrs)
+	return nil
 }
 
 func (api *vmstorageAPI) setupTfss(qt *querytracer.Tracer, sq *storage.SearchQuery, tr storage.TimeRange, maxMetrics int, deadline uint64) ([]*storage.TagFilters, error) {
@@ -162,7 +178,8 @@ func (api *vmstorageAPI) setupTfss(qt *querytracer.Tracer, sq *storage.SearchQue
 				}
 				if len(paths) >= maxMetrics {
 					return nil, fmt.Errorf("more than %d time series match Graphite query %q; "+
-						"either narrow down the query or increase the corresponding -search.max* command-line flag value at vmselect nodes", maxMetrics, query)
+						"either narrow down the query or increase the corresponding -search.max* command-line flag value at vmselect nodes; "+
+						"see https://docs.victoriametrics.com/#resource-usage-limits", maxMetrics, query)
 				}
 				tfs.AddGraphiteQuery(query, paths, tf.IsNegative)
 				continue
@@ -200,7 +217,7 @@ func (bi *blockIterator) NextBlock(mb *storage.MetricBlock) bool {
 	if !bi.sr.NextMetricBlock() {
 		return false
 	}
-	mb.MetricName = bi.sr.MetricBlockRef.MetricName
+	mb.MetricName = append(mb.MetricName[:0], bi.sr.MetricBlockRef.MetricName...)
 	bi.sr.MetricBlockRef.BlockRef.MustReadBlock(&mb.Block)
 	return true
 }

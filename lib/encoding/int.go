@@ -11,7 +11,7 @@ func MarshalUint16(dst []byte, u uint16) []byte {
 	return append(dst, byte(u>>8), byte(u))
 }
 
-// UnmarshalUint16 returns unmarshaled uint32 from src.
+// UnmarshalUint16 returns unmarshaled uint16 from src.
 func UnmarshalUint16(src []byte) uint16 {
 	// This is faster than the manual conversion.
 	return binary.BigEndian.Uint16(src[:2])
@@ -218,6 +218,20 @@ func UnmarshalVarUint64s(dst []uint64, src []byte) ([]byte, error) {
 	return src[idx:], nil
 }
 
+// MarshalBool appends marshaled v to dst and returns the result.
+func MarshalBool(dst []byte, v bool) []byte {
+	x := byte(0)
+	if v {
+		x = 1
+	}
+	return append(dst, x)
+}
+
+// UnmarshalBool unmarshals bool from src.
+func UnmarshalBool(src []byte) bool {
+	return src[0] != 0
+}
+
 // MarshalBytes appends marshaled b to dst and returns the result.
 func MarshalBytes(dst, b []byte) []byte {
 	dst = MarshalVarUint64(dst, uint64(len(b)))
@@ -295,3 +309,32 @@ type Uint64s struct {
 }
 
 var uint64sPool sync.Pool
+
+// GetUint32s returns an uint32 slice with the given size.
+// The slize contents isn't initialized - it may contain garbage.
+func GetUint32s(size int) *Uint32s {
+	v := uint32sPool.Get()
+	if v == nil {
+		return &Uint32s{
+			A: make([]uint32, size),
+		}
+	}
+	is := v.(*Uint32s)
+	if n := size - cap(is.A); n > 0 {
+		is.A = append(is.A[:cap(is.A)], make([]uint32, n)...)
+	}
+	is.A = is.A[:size]
+	return is
+}
+
+// PutUint32s returns is to the pool.
+func PutUint32s(is *Uint32s) {
+	uint32sPool.Put(is)
+}
+
+// Uint32s holds an uint32 slice
+type Uint32s struct {
+	A []uint32
+}
+
+var uint32sPool sync.Pool

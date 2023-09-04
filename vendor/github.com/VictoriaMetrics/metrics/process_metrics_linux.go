@@ -9,6 +9,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 )
 
@@ -48,6 +49,7 @@ func writeProcessMetrics(w io.Writer) {
 		log.Printf("ERROR: metrics: cannot open %s: %s", statFilepath, err)
 		return
 	}
+
 	// Search for the end of command.
 	n := bytes.LastIndex(data, []byte(") "))
 	if n < 0 {
@@ -85,12 +87,20 @@ func writeProcessMetrics(w io.Writer) {
 	writeIOMetrics(w)
 }
 
+var procSelfIOErrLogged uint32
+
 func writeIOMetrics(w io.Writer) {
 	ioFilepath := "/proc/self/io"
 	data, err := ioutil.ReadFile(ioFilepath)
 	if err != nil {
-		log.Printf("ERROR: metrics: cannot open %q: %s", ioFilepath, err)
+		// Do not spam the logs with errors - this error cannot be fixed without process restart.
+		// See https://github.com/VictoriaMetrics/metrics/issues/42
+		if atomic.CompareAndSwapUint32(&procSelfIOErrLogged, 0, 1) {
+			log.Printf("ERROR: metrics: cannot read process_io_* metrics from %q, so these metrics won't be updated until the error is fixed; "+
+				"see https://github.com/VictoriaMetrics/metrics/issues/42 ; The error: %s", ioFilepath, err)
+		}
 	}
+
 	getInt := func(s string) int64 {
 		n := strings.IndexByte(s, ' ')
 		if n < 0 {

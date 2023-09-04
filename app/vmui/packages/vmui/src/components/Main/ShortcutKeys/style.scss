@@ -1,0 +1,77 @@
+@use "src/styles/variables" as *;
+
+.vm-shortcuts {
+  min-width: 400px;
+
+  @media (max-width: 500px) {
+    min-width: 100%;
+  }
+
+  &-section {
+    position: relative;
+    margin-bottom: $padding-global;
+    padding-bottom: $padding-global;
+    border-bottom: $border-divider;
+
+    &__title {
+      font-weight: bold;
+      margin-bottom: $padding-global;
+    }
+
+    &__read-more {
+      position: absolute;
+      top: -8px;
+      right: 0;
+    }
+
+    &-list {
+      display: grid;
+      gap: $padding-global;
+
+      @media (max-width: 500px) {
+        gap: $padding-medium;
+      }
+
+      &-item {
+        display: grid;
+        grid-template-columns: 210px 1fr;
+        align-items: center;
+        gap: $padding-small;
+
+        @media (max-width: 500px) {
+          grid-template-columns: 1fr;
+        }
+
+        &__key {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+
+          svg,
+          code {
+            display: inline-block;
+            padding: 2px $padding-small 0;
+            font-size: $font-size-small;
+            line-height: 2;
+            color: $color-text;
+            text-align: center;
+            background-color: $color-background-body;
+            background-repeat: repeat-x;
+            border: $border-divider;
+            border-radius: 4px;
+          }
+
+          svg {
+            width: 24px;
+            padding: 4px;
+            color: $color-primary;
+          }
+        }
+
+        &__description {
+          font-size: $font-size;
+        }
+      }
+    }
+  }
+}

@@ -2,8 +2,10 @@ package vmimport
 
 import (
 	"fmt"
+	"math"
 	"strings"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/valyala/fastjson"
@@ -79,7 +81,11 @@ func (r *Row) unmarshal(s string, tu *tagsUnmarshaler) error {
 	for i, v := range values {
 		f, err := v.Float64()
 		if err != nil {
-			return fmt.Errorf("cannot unmarshal value at position %d: %w", i, err)
+			// Fall back to parsing special values
+			f, err = getSpecialFloat64(v)
+			if err != nil {
+				return fmt.Errorf("cannot unmarshal value at position %d: %w", i, err)
+			}
 		}
 		r.Values = append(r.Values, f)
 	}
@@ -101,6 +107,43 @@ func (r *Row) unmarshal(s string, tu *tagsUnmarshaler) error {
 		return fmt.Errorf("`timestamps` array size must match `values` array size; got %d; want %d", len(r.Timestamps), len(r.Values))
 	}
 	return nil
+}
+
+var nan = math.NaN()
+
+func getSpecialFloat64(v *fastjson.Value) (float64, error) {
+	vt := v.Type()
+	switch vt {
+	case fastjson.TypeNull:
+		return nan, nil
+	case fastjson.TypeString:
+		b, _ := v.StringBytes()
+		s := bytesutil.ToUnsafeString(b)
+		return getSpecialFloat64FromString(s)
+	default:
+		return 0, fmt.Errorf("unsupported value type: %s; value=%q", vt, v)
+	}
+}
+
+var inf = math.Inf(1)
+
+func getSpecialFloat64FromString(s string) (float64, error) {
+	minus := false
+	if strings.HasPrefix(s, "-") {
+		minus = true
+		s = s[1:]
+	}
+	switch s {
+	case "infinity", "Infinity", "Inf", "inf":
+		if minus {
+			return -inf, nil
+		}
+		return inf, nil
+	case "null", "Null", "nan", "NaN":
+		return nan, nil
+	default:
+		return 0, fmt.Errorf("unsupported string: %q", s)
+	}
 }
 
 // Tag represents `/api/v1/import` tag.

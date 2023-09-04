@@ -1,0 +1,64 @@
+/************* colors *************/
+$color-primary: var(--color-primary);
+$color-secondary: var(--color-secondary);
+$color-error: var(--color-error);
+$color-warning: var(--color-warning);
+$color-info: var(--color-info);
+$color-success: var(--color-success);
+
+$color-primary-text: var(--color-primary-text);
+$color-secondary-text: var(--color-secondary-text);
+$color-error-text: var(--color-error-text);
+$color-warning-text: var(--color-warning-text);
+$color-info-text: var(--color-info-text);
+$color-success-text: var(--color-success-text);
+
+$color-text: var(--color-text);
+$color-text-secondary: var(--color-text-secondary);
+$color-text-disabled: var(--color-text-disabled);
+
+$color-black: #110f0f;
+$color-white: #ffffff;
+
+$color-dodger-blue: #1A90FF;
+$color-tropical-blue: #C9E3F6;
+
+
+/************* background *************/
+$color-background-body: var(--color-background-body);
+$color-background-block: var(--color-background-block);
+$color-background-tooltip: var(--color-background-tooltip);
+
+
+/************* padding *************/
+$padding-global: 16px;
+$padding-large: 48px;
+$padding-medium: 24px;
+$padding-small: 8px;
+
+
+/************* fonts *************/
+$font-family-global: 'Lato', sans-serif;
+$font-family-monospace: monospace;
+$font-size-large: 18px;
+$font-size-medium: 16px;
+$font-size: 14px;
+$font-size-small: 12px;
+
+
+/************* border *************/
+$border-divider: var(--border-divider);
+
+
+/************* border-radius *************/
+$border-radius-small: 4px;
+$border-radius-medium: 8px;
+$border-radius-large: 16px;
+
+
+/************* box-shadows *************/
+$box-shadow: var(--box-shadow);
+$box-shadow-popper: var(--box-shadow-popper);
+
+$color-hover-black: var(--color-hover-black);
+$vh: var(--vh);

@@ -249,6 +249,9 @@ func unmarshalTags(dst []Tag, s string, noEscapes bool) (string, []Tag, error) {
 			return s, dst, fmt.Errorf("missing value for tag %q", s)
 		}
 		key := skipTrailingWhitespace(s[:n])
+		if strings.IndexByte(key, '"') >= 0 {
+			return s, dst, fmt.Errorf("tag key %q cannot contain double quotes", key)
+		}
 		s = skipLeadingWhitespace(s[n+1:])
 		if len(s) == 0 || s[0] != '"' {
 			return s, dst, fmt.Errorf("expecting quoted value for tag %q; got %q", key, s)

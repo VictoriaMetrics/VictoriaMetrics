@@ -47,7 +47,7 @@ func benchmarkBlockStreamWriter(b *testing.B, ebs []Block, rowsCount int, writeR
 				}
 			}
 
-			bsw.InitFromInmemoryPart(&mp)
+			bsw.MustInitFromInmemoryPart(&mp, -5)
 			for i := range ebsCopy {
 				bsw.WriteExternalBlock(&ebsCopy[i], &ph, &rowsMerged)
 			}
@@ -66,7 +66,7 @@ func newBenchBlocks(rows []rawRow) []Block {
 
 	mp := newTestInmemoryPart(rows)
 	var bsr blockStreamReader
-	bsr.InitFromInmemoryPart(mp)
+	bsr.MustInitFromInmemoryPart(mp)
 	for bsr.NextBlock() {
 		var eb Block
 		eb.CopyFrom(&bsr.Block)

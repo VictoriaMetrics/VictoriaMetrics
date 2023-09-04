@@ -4,7 +4,7 @@ import "unicode/utf8"
 
 // FirstLineSegment returns the prefix of the given byte slice after which a
 // decision to break the string over to the next line can or must be made,
-// according to the rules of Unicode Standard Annex #14. This is used to
+// according to the rules of [Unicode Standard Annex #14]. This is used to
 // implement line breaking.
 //
 // Line breaking, also known as word wrapping, is the process of breaking a
@@ -13,7 +13,7 @@ import "unicode/utf8"
 //
 // The returned "segment" may not be broken into smaller parts, unless no other
 // breaking opportunities present themselves, in which case you may break by
-// grapheme clusters (using the FirstGraphemeCluster() function to determine the
+// grapheme clusters (using the [FirstGraphemeCluster] function to determine the
 // grapheme clusters).
 //
 // The "mustBreak" flag indicates whether you MUST break the line after the
@@ -35,14 +35,17 @@ import "unicode/utf8"
 //
 // Given an empty byte slice "b", the function returns nil values.
 //
-// Note that in accordance with UAX #14 LB3, the final segment will end with
+// Note that in accordance with [UAX #14 LB3], the final segment will end with
 // "mustBreak" set to true. You can choose to ignore this by checking if the
 // length of the "rest" slice is 0 and calling [HasTrailingLineBreak] or
 // [HasTrailingLineBreakInString] on the last rune.
 //
 // Note also that this algorithm may break within grapheme clusters. This is
 // addressed in Section 8.2 Example 6 of UAX #14. To avoid this, you can use
-// the Step() function instead.
+// the [Step] function instead.
+//
+// [Unicode Standard Annex #14]: https://www.unicode.org/reports/tr14/
+// [UAX #14 LB3]: https://www.unicode.org/reports/tr14/#Algorithm
 func FirstLineSegment(b []byte, state int) (segment, rest []byte, mustBreak bool, newState int) {
 	// An empty byte slice returns nothing.
 	if len(b) == 0 {
@@ -114,7 +117,9 @@ func FirstLineSegmentInString(str string, state int) (segment, rest string, must
 }
 
 // HasTrailingLineBreak returns true if the last rune in the given byte slice is
-// one of the hard line break code points as defined in LB4 and LB5 of UAX #14.
+// one of the hard line break code points defined in LB4 and LB5 of [UAX #14].
+//
+// [UAX #14]: https://www.unicode.org/reports/tr14/#Algorithm
 func HasTrailingLineBreak(b []byte) bool {
 	r, _ := utf8.DecodeLastRune(b)
 	property, _ := propertyWithGenCat(lineBreakCodePoints, r)

@@ -2,6 +2,7 @@ package persistentqueue
 
 import (
 	"fmt"
+	"path/filepath"
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -41,7 +42,7 @@ type FastQueue struct {
 // if maxPendingBytes is 0, then the queue size is unlimited.
 // Otherwise its size is limited by maxPendingBytes. The oldest data is dropped when the queue
 // reaches maxPendingSize.
-func MustOpenFastQueue(path, name string, maxInmemoryBlocks, maxPendingBytes int) *FastQueue {
+func MustOpenFastQueue(path, name string, maxInmemoryBlocks int, maxPendingBytes int64) *FastQueue {
 	pq := mustOpen(path, name, maxPendingBytes)
 	fq := &FastQueue{
 		pq: pq,
@@ -198,4 +199,9 @@ func (fq *FastQueue) MustReadBlock(dst []byte) ([]byte, bool) {
 		fq.pq.ResetIfEmpty()
 		fq.cond.Wait()
 	}
+}
+
+// Dirname returns the directory name for persistent queue.
+func (fq *FastQueue) Dirname() string {
+	return filepath.Base(fq.pq.dir)
 }

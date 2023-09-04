@@ -7,6 +7,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/awsapi"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
 // SDCheckInterval defines interval for targets refresh.
@@ -34,7 +35,7 @@ type SDConfig struct {
 }
 
 // GetLabels returns ec2 labels according to sdc.
-func (sdc *SDConfig) GetLabels(baseDir string) ([]map[string]string, error) {
+func (sdc *SDConfig) GetLabels(_ string) ([]*promutils.Labels, error) {
 	cfg, err := getAPIConfig(sdc)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get API config: %w", err)

@@ -3,6 +3,8 @@ package http
 import (
 	"reflect"
 	"testing"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
 func Test_parseAPIResponse(t *testing.T) {
@@ -28,7 +30,7 @@ func Test_parseAPIResponse(t *testing.T) {
 			},
 			want: []httpGroupTarget{
 				{
-					Labels:  map[string]string{"label-1": "value-1"},
+					Labels:  promutils.NewLabelsFromMap(map[string]string{"label-1": "value-1"}),
 					Targets: []string{"http://target-1:9100", "http://target-2:9150"},
 				},
 			},

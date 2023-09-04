@@ -1,15 +1,14 @@
 package discoveryutils
 
 import (
-	"encoding/json"
-	"net"
+	"reflect"
 	"regexp"
-	"sort"
 	"strconv"
-	"sync"
-	"sync/atomic"
+	"strings"
+	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
 // SanitizeLabelName replaces anything that doesn't match
@@ -17,86 +16,74 @@ import (
 //
 // This has been copied from Prometheus sources at util/strutil/strconv.go
 func SanitizeLabelName(name string) string {
-	m := sanitizedLabelNames.Load().(*sync.Map)
-	v, ok := m.Load(name)
-	if ok {
-		// Fast path - the sanitized label name is found in the cache.
-		sp := v.(*string)
-		return *sp
-	}
-	// Slow path - sanitize name and store it in the cache.
-	sanitizedName := invalidLabelCharRE.ReplaceAllString(name, "_")
-	// Make a copy of name in order to limit memory usage to the name length,
-	// since the name may point to bigger string.
-	s := string(append([]byte{}, name...))
-	if sanitizedName == name {
-		// point sanitizedName to just allocated s, since it may point to name,
-		// which, in turn, can point to bigger string.
-		sanitizedName = s
-	}
-	sp := &sanitizedName
-	m.Store(s, sp)
-	n := atomic.AddUint64(&sanitizedLabelNamesLen, 1)
-	if n > 100e3 {
-		atomic.StoreUint64(&sanitizedLabelNamesLen, 0)
-		sanitizedLabelNames.Store(&sync.Map{})
-	}
-	return sanitizedName
+	return labelNamesSanitizer.Transform(name)
 }
 
-var (
-	sanitizedLabelNames    atomic.Value
-	sanitizedLabelNamesLen uint64
+var labelNamesSanitizer = bytesutil.NewFastStringTransformer(func(s string) string {
+	return invalidLabelCharRE.ReplaceAllString(s, "_")
+})
 
-	invalidLabelCharRE = regexp.MustCompile(`[^a-zA-Z0-9_]`)
-)
-
-func init() {
-	sanitizedLabelNames.Store(&sync.Map{})
-}
+var invalidLabelCharRE = regexp.MustCompile(`[^a-zA-Z0-9_]`)
 
 // JoinHostPort returns host:port.
 //
 // Host may be dns name, ipv4 or ipv6 address.
 func JoinHostPort(host string, port int) string {
-	portStr := strconv.Itoa(port)
-	return net.JoinHostPort(host, portStr)
+	bb := bbPool.Get()
+	b := bb.B[:0]
+	isIPv6 := strings.IndexByte(host, ':') >= 0
+	if isIPv6 {
+		b = append(b, '[')
+	}
+	b = append(b, host...)
+	if isIPv6 {
+		b = append(b, ']')
+	}
+	b = append(b, ':')
+	b = strconv.AppendInt(b, int64(port), 10)
+	s := bytesutil.InternBytes(b)
+	bb.B = b
+	bbPool.Put(bb)
+	return s
 }
 
-// SortedLabels represents sorted labels.
-type SortedLabels []prompbmarshal.Label
+var bbPool bytesutil.ByteBufferPool
 
-// GetByName returns the label with the given name from sls.
-func (sls *SortedLabels) GetByName(name string) string {
-	for _, lb := range *sls {
-		if lb.Name == name {
-			return lb.Value
+// TestEqualLabelss tests whether got are equal to want.
+func TestEqualLabelss(t *testing.T, got, want []*promutils.Labels) {
+	t.Helper()
+	var gotCopy []*promutils.Labels
+	for _, labels := range got {
+		labels = labels.Clone()
+		labels.Sort()
+		gotCopy = append(gotCopy, labels)
+	}
+	if !reflect.DeepEqual(gotCopy, want) {
+		t.Fatalf("unexpected labels:\ngot\n%v\nwant\n%v", gotCopy, want)
+	}
+}
+
+// AddTagsToLabels adds <prefix>_tags (separated with tagSeparator) to labels
+// and exposes individual tags via <prefix>_tag_* labels, so users could move all the tags
+// into the discovered scrape target with the following relabeling rule in the way similar to kubernetes_sd_configs:
+//
+//   - action: labelmap
+//     regex: <prefix>_tag_(.+)
+//
+// This solves https://stackoverflow.com/questions/44339461/relabeling-in-prometheus
+func AddTagsToLabels(m *promutils.Labels, tags []string, prefix, tagSeparator string) {
+	// We surround the separated list with the separator as well. This way regular expressions
+	// in relabeling rules don't have to consider tag positions.
+	m.Add(prefix+"tags", tagSeparator+strings.Join(tags, tagSeparator)+tagSeparator)
+
+	for _, tag := range tags {
+		k := tag
+		v := ""
+		if n := strings.IndexByte(tag, '='); n >= 0 {
+			k = tag[:n]
+			v = tag[n+1:]
 		}
+		m.Add(SanitizeLabelName(prefix+"tag_"+k), v)
+		m.Add(SanitizeLabelName(prefix+"tagpresent_"+k), "true")
 	}
-	return ""
-}
-
-// UnmarshalJSON unmarshals JSON from data.
-func (sls *SortedLabels) UnmarshalJSON(data []byte) error {
-	var m map[string]string
-	if err := json.Unmarshal(data, &m); err != nil {
-		return err
-	}
-	*sls = GetSortedLabels(m)
-	return nil
-}
-
-// GetSortedLabels returns SortedLabels built from m.
-func GetSortedLabels(m map[string]string) SortedLabels {
-	a := make([]prompbmarshal.Label, 0, len(m))
-	for k, v := range m {
-		a = append(a, prompbmarshal.Label{
-			Name:  k,
-			Value: v,
-		})
-	}
-	sort.Slice(a, func(i, j int) bool {
-		return a[i].Name < a[j].Name
-	})
-	return a
 }

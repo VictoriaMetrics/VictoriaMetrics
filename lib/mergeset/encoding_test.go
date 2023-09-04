@@ -4,7 +4,6 @@ import (
 	"math/rand"
 	"reflect"
 	"sort"
-	"sync"
 	"testing"
 	"testing/quick"
 
@@ -33,6 +32,8 @@ func TestCommonPrefixLen(t *testing.T) {
 }
 
 func TestInmemoryBlockAdd(t *testing.T) {
+	r := rand.New(rand.NewSource(1))
+
 	var ib inmemoryBlock
 
 	for i := 0; i < 30; i++ {
@@ -42,7 +43,7 @@ func TestInmemoryBlockAdd(t *testing.T) {
 
 		// Fill ib.
 		for j := 0; j < i*100+1; j++ {
-			s := getRandomBytes()
+			s := getRandomBytes(r)
 			if !ib.Add(s) {
 				// ib is full.
 				break
@@ -69,6 +70,7 @@ func TestInmemoryBlockAdd(t *testing.T) {
 }
 
 func TestInmemoryBlockSort(t *testing.T) {
+	r := rand.New(rand.NewSource(1))
 	var ib inmemoryBlock
 
 	for i := 0; i < 100; i++ {
@@ -77,8 +79,8 @@ func TestInmemoryBlockSort(t *testing.T) {
 		ib.Reset()
 
 		// Fill ib.
-		for j := 0; j < rand.Intn(1500); j++ {
-			s := getRandomBytes()
+		for j := 0; j < r.Intn(1500); j++ {
+			s := getRandomBytes(r)
 			if !ib.Add(s) {
 				// ib is full.
 				break
@@ -109,21 +111,22 @@ func TestInmemoryBlockSort(t *testing.T) {
 }
 
 func TestInmemoryBlockMarshalUnmarshal(t *testing.T) {
+	r := rand.New(rand.NewSource(1))
 	var ib, ib2 inmemoryBlock
 	var sb storageBlock
 	var firstItem, commonPrefix []byte
 	var itemsLen uint32
 	var mt marshalType
 
-	for i := 0; i < 1000; i++ {
+	for i := 0; i < 1000; i += 10 {
 		var items []string
 		totalLen := 0
 		ib.Reset()
 
 		// Fill ib.
-		itemsCount := 2 * (rand.Intn(i+1) + 1)
+		itemsCount := 2 * (r.Intn(i+1) + 1)
 		for j := 0; j < itemsCount/2; j++ {
-			s := getRandomBytes()
+			s := getRandomBytes(r)
 			s = []byte("prefix " + string(s))
 			if !ib.Add(s) {
 				// ib is full.
@@ -132,7 +135,7 @@ func TestInmemoryBlockMarshalUnmarshal(t *testing.T) {
 			items = append(items, string(s))
 			totalLen += len(s)
 
-			s = getRandomBytes()
+			s = getRandomBytes(r)
 			if !ib.Add(s) {
 				// ib is full
 				break
@@ -186,10 +189,8 @@ func TestInmemoryBlockMarshalUnmarshal(t *testing.T) {
 	}
 }
 
-func getRandomBytes() []byte {
-	rndLock.Lock()
-	iv, ok := quick.Value(bytesType, rnd)
-	rndLock.Unlock()
+func getRandomBytes(r *rand.Rand) []byte {
+	iv, ok := quick.Value(bytesType, r)
 	if !ok {
 		logger.Panicf("error in quick.Value when generating random string")
 	}
@@ -197,8 +198,3 @@ func getRandomBytes() []byte {
 }
 
 var bytesType = reflect.TypeOf([]byte(nil))
-
-var (
-	rnd     = rand.New(rand.NewSource(1))
-	rndLock sync.Mutex
-)

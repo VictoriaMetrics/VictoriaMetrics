@@ -1,6 +1,7 @@
 package clusternative
 
 import (
+	"errors"
 	"fmt"
 	"net"
 
@@ -8,10 +9,9 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/handshake"
-	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/clusternative"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/clusternative/stream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -25,13 +25,14 @@ var (
 func InsertHandler(c net.Conn) error {
 	bc, err := handshake.VMInsertServer(c, 0)
 	if err != nil {
+		if errors.Is(err, handshake.ErrIgnoreHealthcheck) {
+			return nil
+		}
 		return fmt.Errorf("cannot perform vminsert handshake with client %q: %w", c.RemoteAddr(), err)
 	}
-	return writeconcurrencylimiter.Do(func() error {
-		return parser.ParseStream(bc, func(rows []storage.MetricRow) error {
-			return insertRows(rows)
-		}, nil)
-	})
+	return stream.Parse(bc, func(rows []storage.MetricRow) error {
+		return insertRows(rows)
+	}, nil)
 }
 
 func insertRows(rows []storage.MetricRow) error {

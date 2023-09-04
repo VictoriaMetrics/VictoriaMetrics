@@ -1,5 +1,11 @@
 ---
-sort: 21
+sort: 24
+weight: 24
+title: VictoriaMetrics API examples
+menu:
+  docs:
+    parent: "victoriametrics"
+    weight: 24
 ---
 
 # VictoriaMetrics API examples
@@ -101,6 +107,7 @@ Additional information:
 
 * [How to export time series](https://docs.victoriametrics.com/#how-to-export-time-series)
 * [How to import time series](https://docs.victoriametrics.com/#how-to-import-time-series-data)
+* [How to export data in JSON line format](https://docs.victoriametrics.com/#how-to-export-data-in-json-line-format)
 * [URL format for VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format)
 
 ## /api/v1/export/csv
@@ -167,7 +174,7 @@ Single-node VictoriaMetrics:
 <div class="with-copy" markdown="1">
 
 ```console
-curl --data-binary "@filename.json" -X POST http://localhost:8428/api/v1/import
+curl -H 'Content-Type: application/json' --data-binary "@filename.json" -X POST http://localhost:8428/api/v1/import
 ```
 
 </div>
@@ -176,7 +183,7 @@ Cluster version of VictoriaMetrics:
 <div class="with-copy" markdown="1">
 
 ```console
-curl --data-binary "@filename.json" -X POST http://<vminsert>:8480/insert/0/prometheus/api/v1/import
+curl -H 'Content-Type: application/json' --data-binary "@filename.json" -X POST http://<vminsert>:8480/insert/0/prometheus/api/v1/import
 ```
 
 </div>
@@ -225,6 +232,7 @@ Single-node VictoriaMetrics:
 ```console
 curl -X POST http://localhost:8428/api/v1/import/native -T filename.bin
 ```
+</div>
 
 Cluster version of VictoriaMetrics:
 <div class="with-copy" markdown="1">
@@ -251,6 +259,8 @@ Single-node VictoriaMetrics:
 curl -d 'metric_name{foo="bar"} 123' -X POST http://localhost:8428/api/v1/import/prometheus
 ```
 
+</div>
+
 Cluster version of VictoriaMetrics:
 <div class="with-copy" markdown="1">
 
@@ -267,7 +277,7 @@ Additional information:
 
 ## /api/v1/labels
 
-**Get a list of label names**
+**Get a list of label names at the given time range**
 
 Single-node VictoriaMetrics:
 <div class="with-copy" markdown="1">
@@ -287,6 +297,9 @@ curl http://<vmselect>:8481/select/0/prometheus/api/v1/labels
 
 </div>
 
+By default, VictoriaMetrics returns labels seen during the last day starting at 00:00 UTC. An arbitrary time range can be set via `start` and `end` query args.
+The specified `start..end` time range is rounded to day granularity because of performance optimization concerns.
+
 Additional information:
 * [Prometheus querying API usage](https://docs.victoriametrics.com/#prometheus-querying-api-usage)
 * [Querying label values](https://prometheus.io/docs/prometheus/latest/querying/api/#querying-label-values)
@@ -294,7 +307,7 @@ Additional information:
 
 ## /api/v1/label/.../values
 
-**Get a list of values for a particular label**
+**Get a list of values for a particular label on the given time range**
 
 Single-node VictoriaMetrics:
 <div class="with-copy" markdown="1">
@@ -313,6 +326,9 @@ curl http://<vmselect>:8481/select/0/prometheus/api/v1/label/job/values
 ```
 
 </div>
+
+By default, VictoriaMetrics returns labels values seen during the last day starting at 00:00 UTC. An arbitrary time range can be set via `start` and `end` query args.
+The specified `start..end` time range is rounded to day granularity because of performance optimization concerns.
 
 Additional information:
 * [Prometheus querying API usage](https://docs.victoriametrics.com/#prometheus-querying-api-usage)
@@ -377,7 +393,7 @@ Additional information:
 
 ## /api/v1/series
 
-**Returns series names with their labels**
+**Returns series names with their labels on the given time range**
 
 Single-node VictoriaMetrics:
 <div class="with-copy" markdown="1">
@@ -396,6 +412,9 @@ curl http://<vmselect>:8481/select/0/prometheus/api/v1/series -d 'match[]=vm_htt
 ```
 
 </div>
+
+By default, VictoriaMetrics returns time series seen during the last day starting at 00:00 UTC. An arbitrary time range can be set via `start` and `end` query args.
+The specified `start..end` time range is rounded to day granularity because of performance optimization concerns.
 
 Additional information:
 * [Prometheus querying API usage](https://docs.victoriametrics.com/#prometheus-querying-api-usage)
@@ -430,6 +449,28 @@ Additional information:
 * [TSDB Stats](https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats)
 * [URL format for VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format)
 
+## /datadog
+
+**DataDog URL for Single-node VictoriaMetrics**
+
+<div class="with-copy" markdown="1">
+
+```
+http://victoriametrics:8428/datadog
+```
+
+</div>
+
+**DataDog URL for Cluster version of VictoriaMetrics**
+
+<div class="with-copy" markdown="1">
+
+```
+http://vminsert:8480/insert/0/datadog
+```
+
+</div>
+
 ## /datadog/api/v1/series
 
 **Imports data in DataDog format into VictoriaMetrics**
@@ -456,7 +497,7 @@ echo '
     }
   ]
 }
-' | curl -X POST --data-binary @- http://localhost:8428/datadog/api/v1/series
+' | curl -X POST -H 'Content-Type: application/json' --data-binary @- http://localhost:8428/datadog/api/v1/series
 ```
 
 </div>
@@ -483,7 +524,7 @@ echo '
     }
   ]
 }
-' | curl -X POST --data-binary @- 'http://<vminsert>:8480/insert/0/datadog/api/v1/series'
+' | curl -X POST -H 'Content-Type: application/json' --data-binary @- 'http://<vminsert>:8480/insert/0/datadog/api/v1/series'
 ```
 
 </div>
@@ -577,9 +618,32 @@ Additional information:
 * [How to send Influx data to VictoriaMetrics](https://docs.victoriametrics.com/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf)
 * [URL Format](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format)
 
+## /internal/resetRollupResultCache
+
+**Resets the response cache for previously served queries. It is recommended to invoke after [backfilling](https://docs.victoriametrics.com/#backfilling) procedure.**
+
+Single-node VictoriaMetrics:
+<div class="with-copy" markdown="1">
+
+```console
+curl -Is http://localhost:8428/internal/resetRollupResultCache
+```
+
+</div>
+
+Cluster version of VictoriaMetrics::
+
+<div class="with-copy" markdown="1">
+
+```console
+curl -Is http://<vmselect>:8481/select/internal/resetRollupResultCache
+```
+
+</div>
+
 ## TCP and UDP
 
-**How to send data from OpenTSDB-compatible agents to VictoriaMetrics**
+### How to send data from OpenTSDB-compatible agents to VictoriaMetrics
 
 Turned off by default. Enable OpenTSDB receiver in VictoriaMetrics by setting `-opentsdbListenAddr` command-line flag.
 *If run from docker, '-opentsdbListenAddr' port should be exposed*
@@ -597,7 +661,7 @@ Cluster version of VictoriaMetrics:
 <div class="with-copy" markdown="1">
 
 ```console
-echo "put foo.bar.baz `date +%s` 123  tag1=value1 tag2=value2 VictoriaMetrics_AccountID=0" | nc -N http://<vminsert> 4242
+echo "put foo.bar.baz `date +%s` 123  tag1=value1 tag2=value2" | nc -N http://<vminsert> 4242
 ```
 
 </div>
@@ -627,7 +691,7 @@ Additional information:
 * [OpenTSDB http put API](http://opentsdb.net/docs/build/html/api_http/put.html)
 * [How to send data OpenTSDB data to VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-opentsdb-compatible-agents)
 
-**How to send Graphite data to VictoriaMetrics**
+### How to send Graphite data to VictoriaMetrics
 
 Enable Graphite receiver in VictoriaMetrics by setting `-graphiteListenAddr` command-line flag.
 
@@ -644,14 +708,12 @@ Cluster version of VictoriaMetrics:
 <div class="with-copy" markdown="1">
 
 ```console
-echo "foo.bar.baz;tag1=value1;tag2=value2;VictoriaMetrics_AccountID=42 123 `date +%s`" | nc -N http://<vminsert> 2003
+echo "foo.bar.baz;tag1=value1;tag2=value2 123 `date +%s`" | nc -N http://<vminsert> 2003
 ```
 
 </div>
 
 Additional information:
-
-`VictoriaMetrics_AccountID=42` - [tenant ID](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy) in cluster version of VictoriaMetrics
 
 * [How to send Graphite data to VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-graphite-compatible-agents-such-as-statsd)
 * [Multitenancy in cluster version of VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy)

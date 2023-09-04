@@ -1,0 +1,77 @@
+@use "src/styles/variables" as *;
+
+$checkbox-size: 16px;
+$checkbox-padding: 2px;
+$checkbox-handle-size: $checkbox-size - ($checkbox-padding * 2);
+$checkbox-border-radius: $border-radius-small;
+
+.vm-checkbox {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  cursor: pointer;
+  user-select: none;
+
+  &_disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+
+  &_secondary_active &-track {
+    background-color: $color-secondary;
+  }
+
+  &_secondary &-track {
+    border: 1px solid $color-secondary;
+  }
+
+  &_primary_active &-track {
+    background-color: $color-primary;
+  }
+
+  &_primary &-track {
+    border: 1px solid $color-primary;
+  }
+
+  &_active &-track {
+    &__thumb {
+      transform: scale(1);
+    }
+  }
+
+  &:hover &-track {
+    opacity: 0.8;
+  }
+
+  &-track {
+    position: relative;
+    background-color: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: $checkbox-border-radius;
+    padding: $checkbox-padding;
+    width: $checkbox-size;
+    height: $checkbox-size;
+    transition: background-color 200ms ease, opacity 300ms ease-out;
+
+    &__thumb {
+      display: grid;
+      align-items: center;
+      justify-content: center;
+      width: $checkbox-handle-size;
+      height: $checkbox-handle-size;
+      color: $color-white;
+      transform: scale(0);
+      transition: transform 100ms ease-in-out;
+    }
+  }
+
+  &__label {
+    white-space: nowrap;
+    font-size: inherit;
+    color: inherit;
+    margin-left: $padding-small;
+    transition: color 200ms ease;
+  }
+}

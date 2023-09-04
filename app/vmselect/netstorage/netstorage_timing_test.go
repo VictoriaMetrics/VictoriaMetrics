@@ -90,16 +90,18 @@ func benchmarkMergeSortBlocks(b *testing.B, blocks []*sortBlock) {
 	b.ReportAllocs()
 	b.RunParallel(func(pb *testing.PB) {
 		var result Result
-		sbs := make(sortBlocksHeap, len(blocks))
+		sbh := getSortBlocksHeap()
 		for pb.Next() {
 			result.reset()
-			for i, b := range blocks {
+			sbs := sbh.sbs[:0]
+			for _, b := range blocks {
 				sb := getSortBlock()
 				sb.Timestamps = b.Timestamps
 				sb.Values = b.Values
-				sbs[i] = sb
+				sbs = append(sbs, sb)
 			}
-			mergeSortBlocks(&result, sbs, dedupInterval)
+			sbh.sbs = sbs
+			mergeSortBlocks(&result, sbh, dedupInterval)
 		}
 	})
 }

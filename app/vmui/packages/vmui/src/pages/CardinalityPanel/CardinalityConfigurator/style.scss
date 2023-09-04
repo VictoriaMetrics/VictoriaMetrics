@@ -1,0 +1,74 @@
+@use "src/styles/variables" as *;
+
+.vm-cardinality-configurator {
+  display: grid;
+  gap: $padding-small;
+
+  &-controls {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: $padding-small $padding-medium;
+
+    &__query {
+      flex-grow: 10;
+    }
+
+    &__item {
+      flex-grow: 2;
+
+      &_limit {
+        flex-grow: 1;
+      }
+
+      svg {
+        color: $color-text-disabled
+      }
+    }
+  }
+
+  &-bottom {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: $padding-global;
+    width: 100%;
+
+    &-helpful {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+      gap: $padding-small $padding-global;
+
+      a {
+        color: $color-text-secondary;
+      }
+    }
+
+    &__execute {
+      display: flex;
+      align-items: center;
+      gap: $padding-small;
+    }
+  }
+
+  &_mobile &-bottom {
+    justify-content: center;
+
+    &-helpful {
+      flex-grow: 1;
+      justify-content: center;
+    }
+
+    &__execute {
+      width: 100%;
+
+      button:nth-child(3) {
+        width: 100%;
+      }
+    }
+  }
+}

@@ -170,6 +170,14 @@ func (mn *MetricName) Reset() {
 	mn.Tags = mn.Tags[:0]
 }
 
+// MoveFrom moves src to mn.
+//
+// The src is reset after the call.
+func (mn *MetricName) MoveFrom(src *MetricName) {
+	*mn = *src
+	*src = MetricName{}
+}
+
 // CopyFrom copies src to mn.
 func (mn *MetricName) CopyFrom(src *MetricName) {
 	mn.AccountID = src.AccountID
@@ -310,8 +318,20 @@ func (mn *MetricName) GetTagValue(tagKey string) []byte {
 }
 
 // SetTags sets tags from src with keys matching addTags.
-func (mn *MetricName) SetTags(addTags []string, src *MetricName) {
+//
+// It adds prefix to copied label names.
+// skipTags contains a list of tags, which must be skipped.
+func (mn *MetricName) SetTags(addTags []string, prefix string, skipTags []string, src *MetricName) {
+	if len(addTags) == 1 && addTags[0] == "*" {
+		// Special case for copying all the tags except of skipTags from src to mn.
+		mn.setAllTags(prefix, skipTags, src)
+		return
+	}
+	bb := bbPool.Get()
 	for _, tagName := range addTags {
+		if containsString(skipTags, tagName) {
+			continue
+		}
 		if tagName == string(metricGroupTagKey) {
 			mn.MetricGroup = append(mn.MetricGroup[:0], src.MetricGroup...)
 			continue
@@ -328,19 +348,47 @@ func (mn *MetricName) SetTags(addTags []string, src *MetricName) {
 			mn.RemoveTag(tagName)
 			continue
 		}
-		found := false
-		for i := range mn.Tags {
-			t := &mn.Tags[i]
-			if string(t.Key) == tagName {
-				t.Value = append(t.Value[:0], srcTag.Value...)
-				found = true
-				break
-			}
-		}
-		if !found {
-			mn.AddTagBytes(srcTag.Key, srcTag.Value)
+		bb.B = append(bb.B[:0], prefix...)
+		bb.B = append(bb.B, tagName...)
+		mn.SetTagBytes(bb.B, srcTag.Value)
+	}
+	bbPool.Put(bb)
+}
+
+var bbPool bytesutil.ByteBufferPool
+
+// SetTagBytes sets tag with the given key to the given value.
+func (mn *MetricName) SetTagBytes(key, value []byte) {
+	for i := range mn.Tags {
+		t := &mn.Tags[i]
+		if string(t.Key) == string(key) {
+			t.Value = append(t.Value[:0], value...)
+			return
 		}
 	}
+	mn.AddTagBytes(key, value)
+}
+
+func (mn *MetricName) setAllTags(prefix string, skipTags []string, src *MetricName) {
+	bb := bbPool.Get()
+	for _, tag := range src.Tags {
+		if containsString(skipTags, bytesutil.ToUnsafeString(tag.Key)) {
+			continue
+		}
+		bb.B = append(bb.B[:0], prefix...)
+		bb.B = append(bb.B, tag.Key...)
+		mn.SetTagBytes(bb.B, tag.Value)
+	}
+	bbPool.Put(bb)
+}
+
+func containsString(a []string, s string) bool {
+	for _, x := range a {
+		if x == s {
+			return true
+		}
+	}
+	return false
 }
 
 func hasTag(tags []string, key []byte) bool {
@@ -539,7 +587,7 @@ func MarshalMetricNameRaw(dst []byte, accountID, projectID uint32, labels []prom
 			label.Name = label.Name[:maxLabelNameLen]
 		}
 		if len(label.Value) > maxLabelValueLen {
-			atomic.AddUint64(&TooLongLabelValues, 1)
+			trackTruncatedLabels(labels, label)
 			label.Value = label.Value[:maxLabelValueLen]
 		}
 		if len(label.Value) == 0 {
@@ -589,7 +637,7 @@ func trackDroppedLabels(labels, droppedLabels []prompb.Label) {
 	select {
 	case <-droppedLabelsLogTicker.C:
 		// Do not call logger.WithThrottler() here, since this will result in increased CPU usage
-		// because labelsToString() will be called with each trackDroppedLAbels call.
+		// because labelsToString() will be called with each trackDroppedLabels call.
 		logger.Warnf("dropping %d labels for %s; dropped labels: %s; either reduce the number of labels for this metric "+
 			"or increase -maxLabelsPerTimeseries=%d command-line flag value",
 			len(droppedLabels), labelsToString(labels), labelsToString(droppedLabels), maxLabelsPerTimeseries)
@@ -597,7 +645,21 @@ func trackDroppedLabels(labels, droppedLabels []prompb.Label) {
 	}
 }
 
+func trackTruncatedLabels(labels []prompb.Label, truncated *prompb.Label) {
+	atomic.AddUint64(&TooLongLabelValues, 1)
+	select {
+	case <-truncatedLabelsLogTicker.C:
+		// Do not call logger.WithThrottler() here, since this will result in increased CPU usage
+		// because labelsToString() will be called with each trackTruncatedLabels call.
+		logger.Warnf("truncated label value as it exceeds configured maximal label value length: max %d, actual %d;"+
+			" truncated label: %s; original labels: %s; either reduce the label value length or increase -maxLabelValueLen=%d;",
+			maxLabelValueLen, len(truncated.Value), truncated.Name, labelsToString(labels), maxLabelValueLen)
+	default:
+	}
+}
+
 var droppedLabelsLogTicker = time.NewTicker(5 * time.Second)
+var truncatedLabelsLogTicker = time.NewTicker(5 * time.Second)
 
 func labelsToString(labels []prompb.Label) string {
 	labelsCopy := append([]prompb.Label{}, labels...)

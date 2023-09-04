@@ -1,11 +1,21 @@
+---
+weight: 4
+title: Getting started with VM Operator
+menu:
+  docs:
+    parent: "guides"
+    weight: 4
+aliases:
+- /guides/getting-started-with-vm-operator.html
+---
 # Getting started with VM Operator
 
 **The guide covers:**
 
 * The setup of a [VM Operator](https://github.com/VictoriaMetrics/helm-charts/tree/master/charts/victoria-metrics-operator) via Helm in [Kubernetes](https://kubernetes.io/) with Helm charts.
 * The setup of a [VictoriaMetrics Cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) via [VM Operator](https://github.com/VictoriaMetrics/helm-charts/tree/master/charts/victoria-metrics-operator).
-* How to add CRD for a [VictoriaMetrics Cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) via [VM Operator](https://github.com/VictoriaMetrics/helm-charts/tree/master/charts/victoria-metrics-operator). 
-* How to visualize stored data 
+* How to add CRD for a [VictoriaMetrics Cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) via [VM Operator](https://github.com/VictoriaMetrics/helm-charts/tree/master/charts/victoria-metrics-operator).
+* How to visualize stored data
 * How to store metrics in [VictoriaMetrics](https://victoriametrics.com)
 
 **Preconditions**
@@ -16,14 +26,14 @@
 
 ## 1. VictoriaMetrics Helm repository
 
-See how to work with a [VictoriaMetrics Helm repository in previous guide](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-cluster.html#1-victoriametrics-helm-repository). 
+See how to work with a [VictoriaMetrics Helm repository in previous guide](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-cluster.html#1-victoriametrics-helm-repository).
 
 ## 2. Install the VM Operator from the Helm chart
 
 <div class="with-copy" markdown="1">
 
 ```console
-helm install operator vm/victoria-metrics-operator
+helm install vmoperator vm/victoria-metrics-operator
 ```
 
 </div>
@@ -148,7 +158,7 @@ vminsert-example-vmcluster-persistent    ClusterIP   10.107.47.136   <none>     
 ```
 
 To scrape metrics from Kubernetes with a VictoriaMetrics Cluster we will need to install [VMAgent](https://docs.victoriametrics.com/vmagent.html) with some additional configurations.
-Copy `vminsert-example-vmcluster-persistent` (or whatever user put into metadata.name field [https://docs.victoriametrics.com/guides/getting-started-with-vm-operator.html#example-cluster-config](https://docs.victoriametrics.com/guides/getting-started-with-vm-operator.html#example-cluster-config)) service name and add it to the `remoteWrite` URL from [quick-start example](https://github.com/VictoriaMetrics/operator/blob/master/docs/quick-start.MD#vmagent). 
+Copy `vminsert-example-vmcluster-persistent` (or whatever user put into metadata.name field [https://docs.victoriametrics.com/guides/getting-started-with-vm-operator.html#example-cluster-config](https://docs.victoriametrics.com/guides/getting-started-with-vm-operator.html#example-cluster-config)) service name and add it to the `remoteWrite` URL from [quick-start example](https://github.com/VictoriaMetrics/operator/blob/master/docs/quick-start.MD#vmagent).
 Here is an example of the full configuration that we need to apply:
 
 <div class="with-copy" markdown="1">
@@ -199,7 +209,7 @@ The expected output is:
 vmagent-example-vmagent-7996844b5f-b5rzs                 2/2     Running   0          9s
 ```
 
-> There are two containers for VMagent: the first one is a VMagent and the second one is a sidecard with a secret. VMagent use a secret with configuration wich is mounted to the special sidecar. It observes the changes with configuration and send a signal to reload configuration for the VMagent.
+> There are two containers for VMagent: the first one is a VMagent and the second one is a sidecar with a secret. VMagent use a secret with configuration which is mounted to the special sidecar. It observes the changes with configuration and send a signal to reload configuration for the VMagent.
 
 Run the following command to make `VMAgent`'s port accessible from the local machine:
 
@@ -299,7 +309,7 @@ EOF
 
 ## 5. Check the result you obtained in your browser
 
-To check that [VictoriaMetrics](https://victoriametrics.com) collecting metrics from the k8s cluster open in your browser [http://127.0.0.1:3000/dashboards](http://127.0.0.1:3000/dashboards) and choose the `VictoriaMetrics - cluster` dashboard. Use `admin` for login and the `password` that you previously got from kubectl. 
+To check that [VictoriaMetrics](https://victoriametrics.com) collecting metrics from the k8s cluster open in your browser [http://127.0.0.1:3000/dashboards](http://127.0.0.1:3000/dashboards) and choose the `VictoriaMetrics - cluster` dashboard. Use `admin` for login and the `password` that you previously got from kubectl.
 
 <p align="center">
   <img src="guide-vmcluster-k8s-via-vm-operator-grafana1.png" width="800" alt="grafana dashboards">

@@ -1,137 +1,127 @@
-import {Box, Paper, Table, TableBody, TableCell, TableContainer, TablePagination, TableRow,} from "@mui/material";
-import React, {FC, useState} from "preact/compat";
-import {ChangeEvent, MouseEvent} from "react";
-import {Data, Order, TableProps,} from "./types";
-import {EnhancedTableHead} from "./TableHead";
-import {getComparator, stableSort} from "./helpers";
+import React, { useState, useMemo } from "react";
+import classNames from "classnames";
+import { ArrowDropDownIcon, CopyIcon, DoneIcon } from "../Main/Icons";
+import { getComparator, stableSort } from "./helpers";
+import Tooltip from "../Main/Tooltip/Tooltip";
+import Button from "../Main/Button/Button";
+import { useEffect } from "preact/compat";
 
+interface TableProps<T> {
+  rows: T[];
+  columns: { title?: string, key: keyof Partial<T>, className?: string }[];
+  defaultOrderBy: keyof T;
+  copyToClipboard?: keyof T;
+  // TODO: Remove when pagination is implemented on the backend.
+  paginationOffset: {
+    startIndex: number;
+    endIndex: number;
+  }
+}
 
-const EnhancedTable: FC<TableProps> = ({
-  rows,
-  headerCells,
-  defaultSortColumn,
-  isPagingEnabled,
-  tableCells}) => {
+const Table = <T extends object>({ rows, columns, defaultOrderBy, copyToClipboard, paginationOffset }: TableProps<T>) => {
+  const [orderBy, setOrderBy] = useState<keyof T>(defaultOrderBy);
+  const [orderDir, setOrderDir] = useState<"asc" | "desc">("desc");
+  const [copied, setCopied] = useState<number | null>(null);
 
-  const [order, setOrder] = useState<Order>("desc");
-  const [orderBy, setOrderBy] = useState<keyof Data>(defaultSortColumn);
-  const [selected, setSelected] = useState<readonly string[]>([]);
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(5);
+  // const sortedList = useMemo(() => stableSort(rows as [], getComparator(orderDir, orderBy)),
+  //   [rows, orderBy, orderDir]);
+  // TODO: Remove when pagination is implemented on the backend.
+  const sortedList = useMemo(() => {
+    const { startIndex, endIndex } = paginationOffset;
+    return stableSort(rows as [], getComparator(orderDir, orderBy)).slice(startIndex, endIndex);
+  },
+  [rows, orderBy, orderDir, paginationOffset]);
 
-  const handleRequestSort = (
-    event: MouseEvent<unknown>,
-    property: keyof Data,
-  ) => {
-    const isAsc = orderBy === property && order === "asc";
-    setOrder(isAsc ? "desc" : "asc");
-    setOrderBy(property);
+  const createSortHandler = (key: keyof T) => () => {
+    setOrderDir((prev) => prev === "asc" && orderBy === key ? "desc" : "asc");
+    setOrderBy(key);
   };
 
-  const handleSelectAllClick = (event: ChangeEvent<HTMLInputElement>) => {
-    if (event.target.checked) {
-      const newSelecteds = rows.map((n) => n.name) as string[];
-      setSelected(newSelecteds);
-      return;
+  const createCopyHandler = (copyValue:  string | number, rowIndex: number) => async () => {
+    if (copied === rowIndex) return;
+    try {
+      await navigator.clipboard.writeText(String(copyValue));
+      setCopied(rowIndex);
+    } catch (e) {
+      console.error(e);
     }
-    setSelected([]);
   };
 
-  const handleClick = (name: string) => () => {
-    const selectedIndex = selected.indexOf(name);
-    let newSelected: readonly string[] = [];
+  useEffect(() => {
+    if (copied === null) return;
+    const timeout = setTimeout(() => setCopied(null), 2000);
+    return () => clearTimeout(timeout);
+  }, [copied]);
 
-    if (selectedIndex === -1) {
-      newSelected = newSelected.concat(selected, name);
-    } else if (selectedIndex === 0) {
-      newSelected = newSelected.concat(selected.slice(1));
-    } else if (selectedIndex === selected.length - 1) {
-      newSelected = newSelected.concat(selected.slice(0, -1));
-    } else if (selectedIndex > 0) {
-      newSelected = newSelected.concat(
-        selected.slice(0, selectedIndex),
-        selected.slice(selectedIndex + 1),
-      );
-    }
-
-    setSelected(newSelected);
-  };
-
-  const handleChangePage = (event: unknown, newPage: number) => {
-    setPage(newPage);
-  };
-
-  const handleChangeRowsPerPage = (event: ChangeEvent<HTMLInputElement>) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
-    setPage(0);
-  };
-
-  const isSelected = (name: string) => selected.indexOf(name) !== -1;
-
-  // Avoid a layout jump when reaching the last page with empty rows.
-  const emptyRows =
-    page > 0 ? Math.max(0, (1 + page) * rowsPerPage - rows.length) : 0;
-
-  const sortedData = isPagingEnabled ? stableSort(rows, getComparator(order, orderBy))
-    .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage) : stableSort(rows, getComparator(order, orderBy));
   return (
-    <Box sx={{width: "100%"}}>
-      <Paper sx={{width: "100%", mb: 2}}>
-        <TableContainer>
-          <Table
-            size={"small"}
-            sx={{minWidth: 750}}
-            aria-labelledby="tableTitle"
+    <table className="vm-table">
+      <thead className="vm-table-header">
+        <tr className="vm-table__row vm-table__row_header">
+          {columns.map((col) => (
+            <th
+              className="vm-table-cell vm-table-cell_header vm-table-cell_sort"
+              onClick={createSortHandler(col.key)}
+              key={String(col.key)}
+            >
+              <div className="vm-table-cell__content">
+                <div>
+                  {String(col.title || col.key)}
+                </div>
+                <div
+                  className={classNames({
+                    "vm-table__sort-icon": true,
+                    "vm-table__sort-icon_active": orderBy === col.key,
+                    "vm-table__sort-icon_desc": orderDir === "desc" && orderBy === col.key
+                  })}
+                >
+                  <ArrowDropDownIcon/>
+                </div>
+              </div>
+            </th>
+          ))}
+          {copyToClipboard && <th className="vm-table-cell vm-table-cell_header"/>}
+        </tr>
+      </thead>
+      <tbody className="vm-table-body">
+        {sortedList.map((row, rowIndex) => (
+          <tr
+            className="vm-table__row"
+            key={rowIndex}
           >
-            <EnhancedTableHead
-              numSelected={selected.length}
-              order={order}
-              orderBy={orderBy}
-              onSelectAllClick={handleSelectAllClick}
-              onRequestSort={handleRequestSort}
-              rowCount={rows.length}
-              headerCells={headerCells}/>
-            <TableBody>
-              {/* if you don't need to support IE11, you can replace the `stableSort` call with:
-              rows.slice().sort(getComparator(order, orderBy)) */}
-              {sortedData
-                .map((row) => {
-                  const isItemSelected = isSelected(row.name);
-
-                  return (
-                    <TableRow
-                      hover
-                      onClick={handleClick(row.name)}
-                      role="checkbox"
-                      aria-checked={isItemSelected}
-                      tabIndex={-1}
-                      key={row.name}
-                      selected={isItemSelected}
-                    >
-                      {tableCells(row)}
-                    </TableRow>
-                  );
+            {columns.map((col) => (
+              <td
+                className={classNames({
+                  "vm-table-cell": true,
+                  [`${col.className}`]: col.className
                 })}
-              {emptyRows > 0 && (
-                <TableRow>
-                  <TableCell colSpan={6}/>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
-        {isPagingEnabled ? <TablePagination
-          rowsPerPageOptions={[5, 10, 25]}
-          component="div"
-          count={rows.length}
-          rowsPerPage={rowsPerPage}
-          page={page}
-          onPageChange={handleChangePage}
-          onRowsPerPageChange={handleChangeRowsPerPage}
-        /> : null}
-      </Paper>
-    </Box>
+                key={String(col.key)}
+              >
+                {row[col.key] || "-"}
+              </td>
+            ))}
+            {copyToClipboard && (
+              <td className="vm-table-cell vm-table-cell_right">
+                {row[copyToClipboard] && (
+                  <div className="vm-table-cell__content">
+                    <Tooltip title={copied === rowIndex ? "Copied" : "Copy row"}>
+                      <Button
+                        variant="text"
+                        color={copied === rowIndex ? "success" : "gray"}
+                        size="small"
+                        startIcon={copied === rowIndex ? <DoneIcon/> : <CopyIcon/>}
+                        onClick={createCopyHandler(row[copyToClipboard], rowIndex)}
+                        ariaLabel="copy row"
+                      />
+                    </Tooltip>
+                  </div>
+                )}
+              </td>
+            )}
+          </tr>
+        ))}
+      </tbody>
+    </table>
   );
 };
 
-export default EnhancedTable;
+export default Table;

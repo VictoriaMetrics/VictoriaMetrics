@@ -80,7 +80,7 @@ func (pts *partitionSearch) Init(pt *partition, tsids []TSID, tr TimeRange) {
 		return
 	}
 
-	pts.pws = pt.GetParts(pts.pws[:0])
+	pts.pws = pt.GetParts(pts.pws[:0], true)
 
 	// Initialize psPool.
 	if n := len(pts.pws) - cap(pts.psPool); n > 0 {

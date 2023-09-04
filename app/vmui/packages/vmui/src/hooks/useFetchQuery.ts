@@ -1,79 +1,143 @@
-import {useCallback, useEffect, useMemo, useState} from "preact/compat";
-import {getQueryRangeUrl, getQueryUrl} from "../api/query-range";
-import {useAppState} from "../state/common/StateContext";
-import {InstantMetricResult, MetricBase, MetricResult} from "../api/types";
-import {isValidHttpUrl} from "../utils/url";
-import {ErrorTypes} from "../types";
-import {getAppModeEnable, getAppModeParams} from "../utils/app-mode";
+import { StateUpdater, useCallback, useEffect, useMemo, useState } from "preact/compat";
+import { getQueryRangeUrl, getQueryUrl } from "../api/query-range";
+import { useAppState } from "../state/common/StateContext";
+import { InstantMetricResult, MetricBase, MetricResult, QueryStats } from "../api/types";
+import { isValidHttpUrl } from "../utils/url";
+import { ErrorTypes, SeriesLimits } from "../types";
 import debounce from "lodash.debounce";
-import {DisplayType} from "../components/CustomPanel/Configurator/DisplayTypeSwitch";
-import {CustomStep} from "../state/graph/reducer";
-import usePrevious from "./usePrevious";
-import {arrayEquals} from "../utils/array";
-import Trace from "../components/CustomPanel/Trace/Trace";
+import { DisplayType } from "../pages/CustomPanel/DisplayTypeSwitch";
+import Trace from "../components/TraceQuery/Trace";
+import { useQueryState } from "../state/query/QueryStateContext";
+import { useTimeState } from "../state/time/TimeStateContext";
+import { useCustomPanelState } from "../state/customPanel/CustomPanelStateContext";
+import { isHistogramData } from "../utils/metric";
 
 interface FetchQueryParams {
   predefinedQuery?: string[]
   visible: boolean
   display?: DisplayType,
-  customStep: CustomStep,
+  customStep: string,
+  hideQuery?: number[]
+  showAllSeries?: boolean
 }
 
-const appModeEnable = getAppModeEnable();
-const {serverURL: appServerUrl} = getAppModeParams();
-
-export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: FetchQueryParams): {
+interface FetchQueryReturn {
   fetchUrl?: string[],
   isLoading: boolean,
   graphData?: MetricResult[],
   liveData?: InstantMetricResult[],
   error?: ErrorTypes | string,
+  queryErrors: (ErrorTypes | string)[],
+  setQueryErrors: StateUpdater<string[]>,
+  queryStats: QueryStats[],
+  warning?: string,
   traces?: Trace[],
-} => {
-  const {query, displayType, serverUrl, time: {period}, queryControls: {nocache, isTracingEnabled}} = useAppState();
+  isHistogram: boolean
+}
+
+interface FetchDataParams {
+  fetchUrl: string[],
+  fetchQueue: AbortController[],
+  displayType: DisplayType,
+  query: string[],
+  stateSeriesLimits: SeriesLimits,
+  showAllSeries?: boolean,
+  hideQuery?: number[]
+}
+
+export const useFetchQuery = ({
+  predefinedQuery,
+  visible,
+  display,
+  customStep,
+  hideQuery,
+  showAllSeries
+}: FetchQueryParams): FetchQueryReturn => {
+  const { query } = useQueryState();
+  const { period } = useTimeState();
+  const { displayType, nocache, isTracingEnabled, seriesLimits: stateSeriesLimits } = useCustomPanelState();
+  const { serverUrl } = useAppState();
 
   const [isLoading, setIsLoading] = useState(false);
   const [graphData, setGraphData] = useState<MetricResult[]>();
   const [liveData, setLiveData] = useState<InstantMetricResult[]>();
   const [traces, setTraces] = useState<Trace[]>();
   const [error, setError] = useState<ErrorTypes | string>();
+  const [queryErrors, setQueryErrors] = useState<string[]>([]);
+  const [queryStats, setQueryStats] = useState<QueryStats[]>([]);
+  const [warning, setWarning] = useState<string>();
   const [fetchQueue, setFetchQueue] = useState<AbortController[]>([]);
+  const [isHistogram, setIsHistogram] = useState(false);
 
-  useEffect(() => {
-    if (error) {
-      setGraphData(undefined);
-      setLiveData(undefined);
-      setTraces(undefined);
-    }
-  }, [error]);
 
-  const fetchData = async (fetchUrl: string[], fetchQueue: AbortController[], displayType: DisplayType, query: string[]) => {
+  const fetchData = async ({
+    fetchUrl,
+    fetchQueue,
+    displayType,
+    query,
+    stateSeriesLimits,
+    showAllSeries,
+    hideQuery,
+  }: FetchDataParams) => {
     const controller = new AbortController();
     setFetchQueue([...fetchQueue, controller]);
     try {
-      const responses = await Promise.all(fetchUrl.map(url => fetch(url, {signal: controller.signal})));
-      const tempData = [];
+      const isDisplayChart = displayType === "chart";
+      const defaultLimit = showAllSeries ? Infinity : (+stateSeriesLimits[displayType] || Infinity);
+      let seriesLimit = defaultLimit;
+      const tempData: MetricBase[] = [];
       const tempTraces: Trace[] = [];
       let counter = 1;
-      for await (const response of responses) {
+      let totalLength = 0;
+      let isHistogramResult = false;
+
+      for await (const url of fetchUrl) {
+
+        const isHideQuery = hideQuery?.includes(counter - 1);
+        if (isHideQuery) {
+          setQueryErrors(prev => [...prev, ""]);
+          setQueryStats(prev => [...prev, {}]);
+          counter++;
+          continue;
+        }
+
+        const response = await fetch(url, { signal: controller.signal });
         const resp = await response.json();
+
         if (response.ok) {
-          setError(undefined);
+          setQueryStats(prev => [...prev, {
+            ...resp?.stats,
+            isPartial: resp?.isPartial,
+            resultLength: resp.data.result.length,
+          }]);
+          setQueryErrors(prev => [...prev, ""]);
+
           if (resp.trace) {
-            const trace = new Trace(resp.trace, query[counter-1]);
+            const trace = new Trace(resp.trace, query[counter - 1]);
             tempTraces.push(trace);
           }
-          tempData.push(...resp.data.result.map((d: MetricBase) => {
+
+          isHistogramResult = isDisplayChart && isHistogramData(resp.data.result);
+          seriesLimit = isHistogramResult ? Infinity : Math.max(totalLength, defaultLimit);
+          const freeTempSize = seriesLimit - tempData.length;
+          resp.data.result.slice(0, freeTempSize).forEach((d: MetricBase) => {
             d.group = counter;
-            return d;
-          }));
-          counter++;
+            tempData.push(d);
+          });
+
+          totalLength += resp.data.result.length;
         } else {
-          setError(`${resp.errorType}\r\n${resp?.error}`);
+          tempData.push({ metric: {}, values: [], group: counter } as MetricBase);
+          setQueryErrors(prev => [...prev, `${resp.errorType}\r\n${resp?.error}`]);
         }
+        counter++;
       }
-      displayType === "chart" ? setGraphData(tempData) : setLiveData(tempData);
+
+      const limitText = `Showing ${seriesLimit} series out of ${totalLength} series due to performance reasons. Please narrow down the query, so it returns less series`;
+      setWarning(totalLength > seriesLimit ? limitText : "");
+      isDisplayChart ? setGraphData(tempData as MetricResult[]) : setLiveData(tempData as InstantMetricResult[]);
       setTraces(tempTraces);
+      setIsHistogram(totalLength ? isHistogramResult: false);
     } catch (e) {
       if (e instanceof Error && e.name !== "AbortError") {
         setError(`${e.name}: ${e.message}`);
@@ -82,37 +146,49 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
     setIsLoading(false);
   };
 
-  const throttledFetchData = useCallback(debounce(fetchData, 600), []);
+  const throttledFetchData = useCallback(debounce(fetchData, 300), []);
 
   const fetchUrl = useMemo(() => {
-    const server = appModeEnable ? appServerUrl : serverUrl;
+    setError("");
+    setQueryErrors([]);
+    setQueryStats([]);
     const expr = predefinedQuery ?? query;
     const displayChart = (display || displayType) === "chart";
     if (!period) return;
-    if (!server) {
+    if (!serverUrl) {
       setError(ErrorTypes.emptyServer);
     } else if (expr.every(q => !q.trim())) {
-      setError(ErrorTypes.validQuery);
-    } else if (isValidHttpUrl(server)) {
-      const updatedPeriod = {...period};
-      if (customStep.enable) updatedPeriod.step = customStep.value;
-      return expr.filter(q => q.trim()).map(q => displayChart
-        ? getQueryRangeUrl(server, q, updatedPeriod, nocache, isTracingEnabled)
-        : getQueryUrl(server, q, updatedPeriod, isTracingEnabled));
+      setQueryErrors(expr.map(() => ErrorTypes.validQuery));
+    } else if (isValidHttpUrl(serverUrl)) {
+      const updatedPeriod = { ...period };
+      updatedPeriod.step = customStep;
+      return expr.map(q => displayChart
+        ? getQueryRangeUrl(serverUrl, q, updatedPeriod, nocache, isTracingEnabled)
+        : getQueryUrl(serverUrl, q, updatedPeriod, isTracingEnabled));
     } else {
       setError(ErrorTypes.validServer);
     }
   },
-  [serverUrl, period, displayType, customStep]);
+  [serverUrl, period, displayType, customStep, hideQuery]);
 
-  const prevFetchUrl = usePrevious(fetchUrl);
+  const [prevUrl, setPrevUrl] = useState<string[]>([]);
 
   useEffect(() => {
-    if (!visible || (fetchUrl && prevFetchUrl && arrayEquals(fetchUrl, prevFetchUrl)) || !fetchUrl?.length) return;
+    const isLazyPredefined = (fetchUrl === prevUrl && !!predefinedQuery);
+    if (!visible || !fetchUrl?.length || isLazyPredefined) return;
     setIsLoading(true);
     const expr = predefinedQuery ?? query;
-    throttledFetchData(fetchUrl, fetchQueue, (display || displayType), expr);
-  }, [fetchUrl, visible]);
+    throttledFetchData({
+      fetchUrl,
+      fetchQueue,
+      displayType: display || displayType,
+      query: expr,
+      stateSeriesLimits,
+      showAllSeries,
+      hideQuery,
+    });
+    setPrevUrl(fetchUrl);
+  }, [fetchUrl, visible, stateSeriesLimits, showAllSeries]);
 
   useEffect(() => {
     const fetchPast = fetchQueue.slice(0, -1);
@@ -121,5 +197,5 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
     setFetchQueue(fetchQueue.filter(f => !f.signal.aborted));
   }, [fetchQueue]);
 
-  return {fetchUrl, isLoading, graphData, liveData, error, traces};
+  return { fetchUrl, isLoading, graphData, liveData, error, queryErrors, setQueryErrors, queryStats, warning, traces, isHistogram };
 };

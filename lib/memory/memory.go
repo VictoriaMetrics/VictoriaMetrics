@@ -11,8 +11,8 @@ import (
 )
 
 var (
-	allowedPercent = flag.Float64("memory.allowedPercent", 60, `Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache which will result in higher disk IO usage`)
-	allowedBytes   = flagutil.NewBytes("memory.allowedBytes", 0, `Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache resulting in higher disk IO usage`)
+	allowedPercent = flag.Float64("memory.allowedPercent", 60, `Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache which will result in higher disk IO usage`)
+	allowedBytes   = flagutil.NewBytes("memory.allowedBytes", 0, `Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache resulting in higher disk IO usage`)
 )
 
 var _ = metrics.NewGauge("process_memory_limit_bytes", func() float64 {
@@ -33,15 +33,15 @@ func initOnce() {
 	}
 	memoryLimit = sysTotalMemory()
 	if allowedBytes.N <= 0 {
-		if *allowedPercent < 1 || *allowedPercent > 200 {
-			logger.Panicf("FATAL: -memory.allowedPercent must be in the range [1...200]; got %g", *allowedPercent)
+		if *allowedPercent < 1 || *allowedPercent > 100 {
+			logger.Fatalf("FATAL: -memory.allowedPercent must be in the range [1...100]; got %g", *allowedPercent)
 		}
 		percent := *allowedPercent / 100
 		allowedMemory = int(float64(memoryLimit) * percent)
 		remainingMemory = memoryLimit - allowedMemory
 		logger.Infof("limiting caches to %d bytes, leaving %d bytes to the OS according to -memory.allowedPercent=%g", allowedMemory, remainingMemory, *allowedPercent)
 	} else {
-		allowedMemory = allowedBytes.N
+		allowedMemory = allowedBytes.IntN()
 		remainingMemory = memoryLimit - allowedMemory
 		logger.Infof("limiting caches to %d bytes, leaving %d bytes to the OS according to -memory.allowedBytes=%s", allowedMemory, remainingMemory, allowedBytes.String())
 	}

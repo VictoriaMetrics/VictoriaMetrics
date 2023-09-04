@@ -1,0 +1,33 @@
+@use "src/styles/variables" as *;
+
+.vm-accordion-header {
+  position: relative;
+  font-size: inherit;
+  cursor: pointer;
+  display: grid;
+  align-items: center;
+
+  &__arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    right: 14px;
+    top: auto;
+    transform: rotate(0);
+    transition: transform 200ms ease-in-out;
+
+    &_open {
+      transform: rotate(180deg);
+    }
+
+    svg {
+      width: 14px;
+      height: auto;
+    }
+  }
+}
+
+.accordion-section {
+  overflow: hidden;
+}

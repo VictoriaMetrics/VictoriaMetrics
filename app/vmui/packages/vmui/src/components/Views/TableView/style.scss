@@ -1,0 +1,15 @@
+@use "src/styles/variables" as *;
+
+.vm-table-view {
+  margin-top: -$padding-medium;
+  max-width: 100%;
+  overflow: auto;
+
+  &_mobile {
+    margin-top: -$padding-global;
+  }
+
+  table {
+    margin-top: 0;
+  }
+}

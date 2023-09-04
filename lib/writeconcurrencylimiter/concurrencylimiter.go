@@ -3,7 +3,9 @@ package writeconcurrencylimiter
 import (
 	"flag"
 	"fmt"
+	"io"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
@@ -13,52 +15,110 @@ import (
 )
 
 var (
-	maxConcurrentInserts = flag.Int("maxConcurrentInserts", cgroup.AvailableCPUs()*4, "The maximum number of concurrent inserts. Default value should work for most cases, "+
-		"since it minimizes the overhead for concurrent inserts. This option is tigthly coupled with -insert.maxQueueDuration")
-	maxQueueDuration = flag.Duration("insert.maxQueueDuration", time.Minute, "The maximum duration for waiting in the queue for insert requests due to -maxConcurrentInserts")
+	maxConcurrentInserts = flag.Int("maxConcurrentInserts", 2*cgroup.AvailableCPUs(), "The maximum number of concurrent insert requests. "+
+		"Default value should work for most cases, since it minimizes the memory usage. The default value can be increased when clients send data over slow networks. "+
+		"See also -insert.maxQueueDuration")
+	maxQueueDuration = flag.Duration("insert.maxQueueDuration", time.Minute, "The maximum duration to wait in the queue when -maxConcurrentInserts "+
+		"concurrent insert requests are executed")
 )
 
-// ch is the channel for limiting concurrent calls to Do.
-var ch chan struct{}
-
-// Init initializes concurrencylimiter.
+// Reader is a reader, which increases the concurrency after the first Read() call
 //
-// Init must be called after flag.Parse call.
-func Init() {
-	ch = make(chan struct{}, *maxConcurrentInserts)
+// The concurrency can be reduced by calling DecConcurrency().
+// Then the concurrency is increased after the next Read() call.
+type Reader struct {
+	r                    io.Reader
+	increasedConcurrency bool
 }
 
-// Do calls f with the limited concurrency.
-func Do(f func() error) error {
-	// Limit the number of conurrent f calls in order to prevent from excess
-	// memory usage and CPU thrashing.
+// GetReader returns the Reader for r.
+//
+// The PutReader() must be called when the returned Reader is no longer needed.
+func GetReader(r io.Reader) *Reader {
+	v := readerPool.Get()
+	if v == nil {
+		return &Reader{
+			r: r,
+		}
+	}
+	rr := v.(*Reader)
+	rr.r = r
+	return rr
+}
+
+// PutReader returns the r to the pool.
+//
+// It decreases the concurrency if r has increased concurrency.
+func PutReader(r *Reader) {
+	r.DecConcurrency()
+	r.r = nil
+	readerPool.Put(r)
+}
+
+var readerPool sync.Pool
+
+// Read implements io.Reader.
+//
+// It increases concurrency after the first call or after the next call after DecConcurrency() call.
+func (r *Reader) Read(p []byte) (int, error) {
+	n, err := r.r.Read(p)
+	if !r.increasedConcurrency {
+		if !incConcurrency() {
+			err = &httpserver.ErrorWithStatusCode{
+				Err: fmt.Errorf("cannot process insert request for %.3f seconds because %d concurrent insert requests are executed. "+
+					"Possible solutions: to reduce workload; to increase compute resources at the server; "+
+					"to increase -insert.maxQueueDuration; to increase -maxConcurrentInserts",
+					maxQueueDuration.Seconds(), *maxConcurrentInserts),
+				StatusCode: http.StatusServiceUnavailable,
+			}
+			return 0, err
+		}
+		r.increasedConcurrency = true
+	}
+	return n, err
+}
+
+// DecConcurrency decreases the concurrency, so it could be increased again after the next Read() call.
+func (r *Reader) DecConcurrency() {
+	if r.increasedConcurrency {
+		decConcurrency()
+		r.increasedConcurrency = false
+	}
+}
+
+func initConcurrencyLimitCh() {
+	concurrencyLimitCh = make(chan struct{}, *maxConcurrentInserts)
+}
+
+var (
+	concurrencyLimitCh     chan struct{}
+	concurrencyLimitChOnce sync.Once
+)
+
+func incConcurrency() bool {
+	concurrencyLimitChOnce.Do(initConcurrencyLimitCh)
+
 	select {
-	case ch <- struct{}{}:
-		err := f()
-		<-ch
-		return err
+	case concurrencyLimitCh <- struct{}{}:
+		return true
 	default:
 	}
 
-	// All the workers are busy.
-	// Sleep for up to *maxQueueDuration.
 	concurrencyLimitReached.Inc()
 	t := timerpool.Get(*maxQueueDuration)
 	select {
-	case ch <- struct{}{}:
+	case concurrencyLimitCh <- struct{}{}:
 		timerpool.Put(t)
-		err := f()
-		<-ch
-		return err
+		return true
 	case <-t.C:
 		timerpool.Put(t)
 		concurrencyLimitTimeout.Inc()
-		return &httpserver.ErrorWithStatusCode{
-			Err: fmt.Errorf("cannot handle more than %d concurrent inserts during %s; possible solutions: "+
-				"increase `-insert.maxQueueDuration`, increase `-maxConcurrentInserts`, increase server capacity", *maxConcurrentInserts, *maxQueueDuration),
-			StatusCode: http.StatusServiceUnavailable,
-		}
+		return false
 	}
+}
+
+func decConcurrency() {
+	<-concurrencyLimitCh
 }
 
 var (
@@ -66,9 +126,11 @@ var (
 	concurrencyLimitTimeout = metrics.NewCounter(`vm_concurrent_insert_limit_timeout_total`)
 
 	_ = metrics.NewGauge(`vm_concurrent_insert_capacity`, func() float64 {
-		return float64(cap(ch))
+		concurrencyLimitChOnce.Do(initConcurrencyLimitCh)
+		return float64(cap(concurrencyLimitCh))
 	})
 	_ = metrics.NewGauge(`vm_concurrent_insert_current`, func() float64 {
-		return float64(len(ch))
+		concurrencyLimitChOnce.Do(initConcurrencyLimitCh)
+		return float64(len(concurrencyLimitCh))
 	})
 )

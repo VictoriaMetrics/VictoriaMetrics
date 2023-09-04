@@ -8,6 +8,8 @@ import (
 	"io"
 	"strings"
 	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 )
 
 var denyQueryTracing = flag.Bool("denyQueryTracing", false, "Whether to disable the ability to trace queries. See https://docs.victoriametrics.com/#query-tracing")
@@ -42,8 +44,10 @@ func New(enabled bool, format string, args ...interface{}) *Tracer {
 	if *denyQueryTracing || !enabled {
 		return nil
 	}
+	message := fmt.Sprintf(format, args...)
+	message = buildinfo.Version + ": " + message
 	return &Tracer{
-		message:   fmt.Sprintf(format, args...),
+		message:   message,
 		startTime: time.Now(),
 	}
 }
@@ -225,7 +229,7 @@ func (t *Tracer) getLastChildDoneTime(defaultTime time.Time) time.Time {
 
 // span represents a single trace span
 type span struct {
-	// DurationMsec is the duration for the current trace span in microseconds.
+	// DurationMsec is the duration for the current trace span in milliseconds.
 	DurationMsec float64 `json:"duration_msec"`
 	// Message is a trace message
 	Message string `json:"message"`

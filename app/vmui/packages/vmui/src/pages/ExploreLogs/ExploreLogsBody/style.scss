@@ -1,0 +1,85 @@
+@use "src/styles/variables" as *;
+
+.vm-explore-logs-body {
+  &-header {
+    margin: -$padding-medium 0-$padding-medium 0;
+
+    &_mobile {
+      margin: -$padding-global 0-$padding-global 0;
+    }
+
+    &__settings {
+      display: flex;
+      align-items: center;
+      gap: $padding-small;
+    }
+  }
+
+  &__table {
+    padding-top: $padding-medium;
+    width: calc(100vw - ($padding-medium * 4) - var(--scrollbar-width));
+    overflow: auto;
+
+    @media (max-width: 768px) {
+      width: calc(100vw - ($padding-medium * 2) - var(--scrollbar-width));
+    }
+
+    &_mobile {
+      width: calc(100vw - ($padding-global * 2) - var(--scrollbar-width));
+    }
+
+    .vm-table {
+      min-width: 700px;
+    }
+  }
+
+  &-content {
+    &-group {
+
+      &-keys {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: $padding-small;
+        border-bottom: $border-divider;
+        padding: $padding-global 0;
+
+        &__title {
+          font-weight: bold;
+        }
+
+        &__key {
+          padding: 4px 12px;
+          background-color: $color-primary;
+          color: $color-primary-text;
+          border-radius: $border-radius-small;
+        }
+      }
+
+      &-rows {
+        display: grid;
+
+        &-item {
+          display: grid;
+          grid-template-columns: 107px 1fr;
+          gap: $padding-small;
+          padding: $padding-global 0;
+          border-bottom: $border-divider;
+
+          &__time {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1.3;
+          }
+
+          &__msg {
+            font-family: $font-family-monospace;
+            overflow-wrap: anywhere;
+            line-height: 1.1;
+          }
+        }
+      }
+    }
+  }
+}

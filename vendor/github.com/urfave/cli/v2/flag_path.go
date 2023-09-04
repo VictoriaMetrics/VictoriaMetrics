@@ -33,10 +33,10 @@ func (f *PathFlag) GetDefaultText() string {
 	if f.DefaultText != "" {
 		return f.DefaultText
 	}
-	if f.Value == "" {
-		return f.Value
+	if f.defaultValue == "" {
+		return f.defaultValue
 	}
-	return fmt.Sprintf("%q", f.Value)
+	return fmt.Sprintf("%q", f.defaultValue)
 }
 
 // GetEnvVars returns the env vars for this flag
@@ -46,6 +46,9 @@ func (f *PathFlag) GetEnvVars() []string {
 
 // Apply populates the flag given the flag set and environment
 func (f *PathFlag) Apply(set *flag.FlagSet) error {
+	// set default value so that environment wont be able to overwrite it
+	f.defaultValue = f.Value
+
 	if val, _, found := flagFromEnvOrFile(f.EnvVars, f.FilePath); found {
 		f.Value = val
 		f.HasBeenSet = true
@@ -67,6 +70,15 @@ func (f *PathFlag) Get(ctx *Context) string {
 	return ctx.Path(f.Name)
 }
 
+// RunAction executes flag action if set
+func (f *PathFlag) RunAction(c *Context) error {
+	if f.Action != nil {
+		return f.Action(c, c.Path(f.Name))
+	}
+
+	return nil
+}
+
 // Path looks up the value of a local PathFlag, returns
 // "" if not found
 func (cCtx *Context) Path(name string) string {
@@ -78,13 +90,8 @@ func (cCtx *Context) Path(name string) string {
 }
 
 func lookupPath(name string, set *flag.FlagSet) string {
-	f := set.Lookup(name)
-	if f != nil {
-		parsed, err := f.Value.String(), error(nil)
-		if err != nil {
-			return ""
-		}
-		return parsed
+	if f := set.Lookup(name); f != nil {
+		return f.Value.String()
 	}
 	return ""
 }

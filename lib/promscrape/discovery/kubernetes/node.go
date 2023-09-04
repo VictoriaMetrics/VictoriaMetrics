@@ -6,6 +6,7 @@ import (
 	"io"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
 // getNodesLabels returns labels for k8s nodes obtained from the given cfg
@@ -81,22 +82,21 @@ type NodeDaemonEndpoints struct {
 	KubeletEndpoint DaemonEndpoint
 }
 
-// getTargetLabels returs labels for the given n.
+// getTargetLabels returns labels for the given n.
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#node
-func (n *Node) getTargetLabels(gw *groupWatcher) []map[string]string {
+func (n *Node) getTargetLabels(_ *groupWatcher) []*promutils.Labels {
 	addr := getNodeAddr(n.Status.Addresses)
 	if len(addr) == 0 {
 		// Skip node without address
 		return nil
 	}
 	addr = discoveryutils.JoinHostPort(addr, n.Status.DaemonEndpoints.KubeletEndpoint.Port)
-	m := map[string]string{
-		"__address__":                        addr,
-		"instance":                           n.Metadata.Name,
-		"__meta_kubernetes_node_name":        n.Metadata.Name,
-		"__meta_kubernetes_node_provider_id": n.Spec.ProviderID,
-	}
+	m := promutils.GetLabels()
+	m.Add("__address__", addr)
+	m.Add("instance", n.Metadata.Name)
+	m.Add("__meta_kubernetes_node_name", n.Metadata.Name)
+	m.Add("__meta_kubernetes_node_provider_id", n.Spec.ProviderID)
 	n.Metadata.registerLabelsAndAnnotations("__meta_kubernetes_node", m)
 	addrTypesUsed := make(map[string]bool, len(n.Status.Addresses))
 	for _, a := range n.Status.Addresses {
@@ -104,9 +104,9 @@ func (n *Node) getTargetLabels(gw *groupWatcher) []map[string]string {
 			continue
 		}
 		addrTypesUsed[a.Type] = true
-		m[discoveryutils.SanitizeLabelName("__meta_kubernetes_node_address_"+a.Type)] = a.Address
+		m.Add(discoveryutils.SanitizeLabelName("__meta_kubernetes_node_address_"+a.Type), a.Address)
 	}
-	return []map[string]string{m}
+	return []*promutils.Labels{m}
 }
 
 func getNodeAddr(nas []NodeAddress) string {

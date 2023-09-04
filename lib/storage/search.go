@@ -10,7 +10,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storagepacelimiter"
 )
 
 // BlockRef references a Block.
@@ -129,11 +128,15 @@ type Search struct {
 	// MetricBlockRef is updated with each Search.NextMetricBlock call.
 	MetricBlockRef MetricBlockRef
 
+	// idb is used for MetricName lookup for the found data blocks.
 	idb *indexDB
+
+	// retentionDeadline is used for filtering out blocks outside the configured retention.
+	retentionDeadline int64
 
 	ts tableSearch
 
-	// tr contains time range used in the serach.
+	// tr contains time range used in the search.
 	tr TimeRange
 
 	// tfss contains tag filters used in the search.
@@ -156,6 +159,7 @@ func (s *Search) reset() {
 	s.MetricBlockRef.BlockRef = nil
 
 	s.idb = nil
+	s.retentionDeadline = 0
 	s.ts.reset()
 	s.tr = TimeRange{}
 	s.tfss = nil
@@ -177,28 +181,35 @@ func (s *Search) Init(qt *querytracer.Tracer, storage *Storage, tfss []*TagFilte
 	if s.needClosing {
 		logger.Panicf("BUG: missing MustClose call before the next call to Init")
 	}
+	retentionDeadline := int64(fasttime.UnixTimestamp()*1e3) - storage.retentionMsecs
 
 	s.reset()
+	s.idb = storage.idb()
+	s.retentionDeadline = retentionDeadline
 	s.tr = tr
 	s.tfss = tfss
 	s.deadline = deadline
 	s.needClosing = true
 
-	tsids, err := storage.searchTSIDs(qt, tfss, tr, maxMetrics, deadline)
-	if err == nil {
-		err = storage.prefetchMetricNames(qt, tsids, deadline)
+	var tsids []TSID
+	metricIDs, err := s.idb.searchMetricIDs(qt, tfss, tr, maxMetrics, deadline)
+	if err == nil && len(metricIDs) > 0 && len(tfss) > 0 {
+		accountID := tfss[0].accountID
+		projectID := tfss[0].projectID
+		tsids, err = s.idb.getTSIDsFromMetricIDs(qt, accountID, projectID, metricIDs, deadline)
+		if err == nil {
+			err = storage.prefetchMetricNames(qt, accountID, projectID, metricIDs, deadline)
+		}
 	}
-	// It is ok to call Init on error from storage.searchTSIDs.
+	// It is ok to call Init on non-nil err.
 	// Init must be called before returning because it will fail
-	// on Seach.MustClose otherwise.
+	// on Search.MustClose otherwise.
 	s.ts.Init(storage.tb, tsids, tr)
 	qt.Printf("search for parts with data for %d series", len(tsids))
 	if err != nil {
 		s.err = err
 		return 0
 	}
-
-	s.idb = storage.idb()
 	return len(tsids)
 }
 
@@ -234,6 +245,10 @@ func (s *Search) NextMetricBlock() bool {
 		s.loops++
 		tsid := &s.ts.BlockRef.bh.TSID
 		if tsid.MetricID != s.prevMetricID {
+			if s.ts.BlockRef.bh.MaxTimestamp < s.retentionDeadline {
+				// Skip the block, since it contains only data outside the configured retention.
+				continue
+			}
 			var err error
 			s.MetricBlockRef.MetricName, err = s.idb.searchMetricNameWithCache(s.MetricBlockRef.MetricName[:0], tsid.MetricID, tsid.AccountID, tsid.ProjectID)
 			if err != nil {
@@ -496,7 +511,6 @@ func checkSearchDeadlineAndPace(deadline uint64) error {
 	if fasttime.UnixTimestamp() > deadline {
 		return ErrDeadlineExceeded
 	}
-	storagepacelimiter.Search.WaitIfNeeded()
 	return nil
 }
 

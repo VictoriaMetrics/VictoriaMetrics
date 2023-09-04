@@ -15,6 +15,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/fasthttp"
 	"github.com/cespare/xxhash/v2"
 	"golang.org/x/oauth2"
@@ -79,6 +80,8 @@ type TLSConfig struct {
 	ServerName         string `yaml:"server_name,omitempty"`
 	InsecureSkipVerify bool   `yaml:"insecure_skip_verify,omitempty"`
 	MinVersion         string `yaml:"min_version,omitempty"`
+	// Do not define MaxVersion field (max_version), since this has no sense from security PoV.
+	// This can only result in lower security level if improperly set.
 }
 
 // String returns human-readable representation of tc
@@ -120,6 +123,19 @@ type HTTPClientConfig struct {
 
 	// Headers contains optional HTTP headers, which must be sent in the request to the server
 	Headers []string `yaml:"headers,omitempty"`
+
+	// FollowRedirects specifies whether the client should follow HTTP 3xx redirects.
+	FollowRedirects *bool `yaml:"follow_redirects,omitempty"`
+
+	// Do not support enable_http2 option because of the following reasons:
+	//
+	// - http2 is used very rarely comparing to http for Prometheus metrics exposition and service discovery
+	// - http2 is much harder to debug than http
+	// - http2 has very bad security record because of its complexity - see https://portswigger.net/research/http2
+	//
+	// VictoriaMetrics components are compiled with nethttpomithttp2 tag because of these issues.
+	//
+	// EnableHTTP2 bool
 }
 
 // ProxyClientConfig represents proxy client config.
@@ -399,6 +415,8 @@ func (ac *Config) NewTLSConfig() *tls.Config {
 	tlsCfg.ServerName = ac.TLSServerName
 	tlsCfg.InsecureSkipVerify = ac.TLSInsecureSkipVerify
 	tlsCfg.MinVersion = ac.TLSMinVersion
+	// Do not set tlsCfg.MaxVersion, since this has no sense from security PoV.
+	// This can only result in lower security level if improperly set.
 	return tlsCfg
 }
 
@@ -713,27 +731,10 @@ func (tctx *tlsContext) initFromTLSConfig(baseDir string, tc *TLSConfig) error {
 			return fmt.Errorf("cannot parse data from `ca_file` %q", tc.CAFile)
 		}
 	}
-	if tc.MinVersion != "" {
-		v, err := parseTLSVersion(tc.MinVersion)
-		if err != nil {
-			return fmt.Errorf("cannot parse `min_version`: %w", err)
-		}
-		tctx.minVersion = v
+	v, err := netutil.ParseTLSVersion(tc.MinVersion)
+	if err != nil {
+		return fmt.Errorf("cannot parse `min_version`: %w", err)
 	}
+	tctx.minVersion = v
 	return nil
-}
-
-func parseTLSVersion(s string) (uint16, error) {
-	switch strings.ToUpper(s) {
-	case "TLS13":
-		return tls.VersionTLS13, nil
-	case "TLS12":
-		return tls.VersionTLS12, nil
-	case "TLS11":
-		return tls.VersionTLS11, nil
-	case "TLS10":
-		return tls.VersionTLS10, nil
-	default:
-		return 0, fmt.Errorf("unsupported TLS version %q", s)
-	}
 }

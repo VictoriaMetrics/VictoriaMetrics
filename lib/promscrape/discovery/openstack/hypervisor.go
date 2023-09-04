@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
 // See https://docs.openstack.org/api-ref/compute/#list-hypervisors-details
@@ -61,25 +62,24 @@ func (cfg *apiConfig) getHypervisors() ([]hypervisor, error) {
 	}
 }
 
-func addHypervisorLabels(hvs []hypervisor, port int) []map[string]string {
-	var ms []map[string]string
+func addHypervisorLabels(hvs []hypervisor, port int) []*promutils.Labels {
+	var ms []*promutils.Labels
 	for _, hv := range hvs {
 		addr := discoveryutils.JoinHostPort(hv.HostIP, port)
-		m := map[string]string{
-			"__address__":                          addr,
-			"__meta_openstack_hypervisor_type":     hv.Type,
-			"__meta_openstack_hypervisor_status":   hv.Status,
-			"__meta_openstack_hypervisor_hostname": hv.Hostname,
-			"__meta_openstack_hypervisor_state":    hv.State,
-			"__meta_openstack_hypervisor_host_ip":  hv.HostIP,
-			"__meta_openstack_hypervisor_id":       strconv.Itoa(hv.ID),
-		}
+		m := promutils.NewLabels(8)
+		m.Add("__address__", addr)
+		m.Add("__meta_openstack_hypervisor_type", hv.Type)
+		m.Add("__meta_openstack_hypervisor_status", hv.Status)
+		m.Add("__meta_openstack_hypervisor_hostname", hv.Hostname)
+		m.Add("__meta_openstack_hypervisor_state", hv.State)
+		m.Add("__meta_openstack_hypervisor_host_ip", hv.HostIP)
+		m.Add("__meta_openstack_hypervisor_id", strconv.Itoa(hv.ID))
 		ms = append(ms, m)
 	}
 	return ms
 }
 
-func getHypervisorLabels(cfg *apiConfig) ([]map[string]string, error) {
+func getHypervisorLabels(cfg *apiConfig) ([]*promutils.Labels, error) {
 	hvs, err := cfg.getHypervisors()
 	if err != nil {
 		return nil, fmt.Errorf("cannot get hypervisors: %w", err)
