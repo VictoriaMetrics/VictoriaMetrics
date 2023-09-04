@@ -4,7 +4,7 @@
 
 ### Fixes
 
-- TODO
+* [vmuser](https://docs.victoriametrics.com/operator/api.html#vmuser): [Enterprise] fixes ip_filters indent for url_prefix. Previously it wasn't possible to use ip_filters with multiple target refs
 
 ### Features
 
