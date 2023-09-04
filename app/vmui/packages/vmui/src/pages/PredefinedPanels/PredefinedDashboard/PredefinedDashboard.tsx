@@ -108,6 +108,7 @@ const PredefinedDashboard: FC<PredefinedDashboardProps> = ({
               <button
                 className="vm-predefined-dashboard-panels-panel__resizer"
                 onMouseDown={createHandlerResize(i)}
+                aria-label="resize the panel"
               />
             </div>
           )

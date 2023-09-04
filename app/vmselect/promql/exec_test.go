@@ -86,6 +86,28 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run("int_with_underscores", func(t *testing.T) {
+		t.Parallel()
+		q := `123_456_789`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{123456789, 123456789, 123456789, 123456789, 123456789, 123456789},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run("float_with_underscores", func(t *testing.T) {
+		t.Parallel()
+		q := `1_2.3_456_789`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{12.3456789, 12.3456789, 12.3456789, 12.3456789, 12.3456789, 12.3456789},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run("duration-constant", func(t *testing.T) {
 		t.Parallel()
 		q := `1h23m5S`
@@ -136,6 +158,17 @@ func TestExecSuccess(t *testing.T) {
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
 			Values:     []float64{1.23 * (1 << 20), 1.23 * (1 << 20), 1.23 * (1 << 20), 1.23 * (1 << 20), 1.23 * (1 << 20), 1.23 * (1 << 20)},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run("num-with-suffix-5", func(t *testing.T) {
+		t.Parallel()
+		q := `1_234M`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1234e6, 1234e6, 1234e6, 1234e6, 1234e6, 1234e6},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r}

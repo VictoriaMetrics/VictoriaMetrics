@@ -151,7 +151,7 @@ func processUserRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 
 func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 	u := normalizeURL(r.URL)
-	up, headers := ui.getURLPrefixAndHeaders(u)
+	up, headersConf := ui.getURLPrefixAndHeaders(u)
 	isDefault := false
 	if up == nil {
 		missingRouteRequests.Inc()
@@ -159,7 +159,7 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 			httpserver.Errorf(w, r, "missing route for %q", u.String())
 			return
 		}
-		up, headers = ui.DefaultURL, ui.Headers
+		up, headersConf = ui.DefaultURL, ui.HeadersConf
 		isDefault = true
 	}
 	r.Body = &readTrackingBody{
@@ -178,7 +178,7 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 		} else { // Update path for regular routes.
 			targetURL = mergeURLs(targetURL, u)
 		}
-		ok := tryProcessingRequest(w, r, targetURL, headers)
+		ok := tryProcessingRequest(w, r, targetURL, headersConf)
 		bu.put()
 		if ok {
 			return
@@ -192,13 +192,11 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 	httpserver.Errorf(w, r, "%s", err)
 }
 
-func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url.URL, headers []Header) bool {
+func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url.URL, headersConf HeadersConf) bool {
 	// This code has been copied from net/http/httputil/reverseproxy.go
 	req := sanitizeRequestHeaders(r)
 	req.URL = targetURL
-	for _, h := range headers {
-		req.Header.Set(h.Name, h.Value)
-	}
+	updateHeadersByConfig(req.Header, headersConf.RequestHeaders)
 	transportOnce.Do(transportInit)
 	res, err := transport.RoundTrip(req)
 	if err != nil {
@@ -222,6 +220,7 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 	}
 	removeHopHeaders(res.Header)
 	copyHeader(w.Header(), res.Header)
+	updateHeadersByConfig(w.Header(), headersConf.ResponseHeaders)
 	w.WriteHeader(res.StatusCode)
 
 	copyBuf := copyBufPool.Get()
@@ -243,6 +242,16 @@ func copyHeader(dst, src http.Header) {
 	for k, vv := range src {
 		for _, v := range vv {
 			dst.Add(k, v)
+		}
+	}
+}
+
+func updateHeadersByConfig(headers http.Header, config []Header) {
+	for _, h := range config {
+		if h.Value == "" {
+			headers.Del(h.Name)
+		} else {
+			headers.Set(h.Name, h.Value)
 		}
 	}
 }

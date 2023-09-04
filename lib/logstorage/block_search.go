@@ -120,7 +120,7 @@ func (bs *blockSearch) search(bsw *blockSearchWork) {
 		case "_stream":
 			bs.br.addStreamColumn(bs)
 		case "_time":
-			bs.br.addTimeColumn(bs)
+			bs.br.addTimeColumn()
 		default:
 			v := bs.csh.getConstColumnValue(columnName)
 			if v != "" {
@@ -452,7 +452,7 @@ func (br *blockResult) addColumn(bs *blockSearch, ch *columnHeader, bm *filterBi
 	br.valuesBuf = valuesBuf
 }
 
-func (br *blockResult) addTimeColumn(bs *blockSearch) {
+func (br *blockResult) addTimeColumn() {
 	br.cs = append(br.cs, blockResultColumn{
 		isTime: true,
 	})

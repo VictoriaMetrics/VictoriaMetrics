@@ -1090,18 +1090,18 @@ func transformHour(t time.Time) int {
 	return t.Hour()
 }
 
-func runningSum(a, b float64, idx int) float64 {
+func runningSum(a, b float64, _ int) float64 {
 	return a + b
 }
 
-func runningMax(a, b float64, idx int) float64 {
+func runningMax(a, b float64, _ int) float64 {
 	if a > b {
 		return a
 	}
 	return b
 }
 
-func runningMin(a, b float64, idx int) float64 {
+func runningMin(a, b float64, _ int) float64 {
 	if a < b {
 		return a
 	}

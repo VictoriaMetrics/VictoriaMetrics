@@ -80,6 +80,7 @@ publish-via-docker: \
 		--tag $(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(RACE) \
 		--tag $(DOCKER_NAMESPACE)/$(APP_NAME):$(LATEST_TAG)$(RACE) \
 		-o type=image \
+		--provenance=false \
 		-f app/$(APP_NAME)/multiarch/Dockerfile \
 		--push \
 		bin

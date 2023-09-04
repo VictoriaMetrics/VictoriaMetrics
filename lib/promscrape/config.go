@@ -53,12 +53,15 @@ var (
 	dropOriginalLabels = flag.Bool("promscrape.dropOriginalLabels", false, "Whether to drop original labels for scrape targets at /targets and /api/v1/targets pages. "+
 		"This may be needed for reducing memory usage when original labels for big number of scrape targets occupy big amounts of memory. "+
 		"Note that this reduces debuggability for improper per-target relabeling configs")
-	clusterMembersCount = flag.Int("promscrape.cluster.membersCount", 0, "The number of members in a cluster of scrapers. "+
+	clusterMembersCount = flag.Int("promscrape.cluster.membersCount", 1, "The number of members in a cluster of scrapers. "+
 		"Each member must have a unique -promscrape.cluster.memberNum in the range 0 ... promscrape.cluster.membersCount-1 . "+
 		"Each member then scrapes roughly 1/N of all the targets. By default, cluster scraping is disabled, i.e. a single scraper scrapes all the targets")
-	clusterMemberNum = flag.String("promscrape.cluster.memberNum", "0", "The number of number in the cluster of scrapers. "+
+	clusterMemberNum = flag.String("promscrape.cluster.memberNum", "0", "The number of vmagent instance in the cluster of scrapers. "+
 		"It must be a unique value in the range 0 ... promscrape.cluster.membersCount-1 across scrapers in the cluster. "+
-		"Can be specified as pod name of Kubernetes StatefulSet - pod-name-Num, where Num is a numeric part of pod name")
+		"Can be specified as pod name of Kubernetes StatefulSet - pod-name-Num, where Num is a numeric part of pod name. "+
+		"See also -promscrape.cluster.memberLabel")
+	clusterMemberLabel = flag.String("promscrape.cluster.memberLabel", "", "If non-empty, then the label with this name and the -promscrape.cluster.memberNum value "+
+		"is added to all the scraped metrics")
 	clusterReplicationFactor = flag.Int("promscrape.cluster.replicationFactor", 1, "The number of members in the cluster, which scrape the same targets. "+
 		"If the replication factor is greater than 1, then the deduplication must be enabled at remote storage side. See https://docs.victoriametrics.com/#deduplication")
 	clusterName = flag.String("promscrape.cluster.name", "", "Optional name of the cluster. If multiple vmagent clusters scrape the same targets, "+
@@ -79,6 +82,13 @@ func mustInitClusterMemberID() {
 	n, err := strconv.Atoi(s)
 	if err != nil {
 		logger.Fatalf("cannot parse -promscrape.cluster.memberNum=%q: %s", *clusterMemberNum, err)
+	}
+	if *clusterMembersCount < 1 {
+		logger.Fatalf("-promscrape.cluster.membersCount can't be lower than 1: got %d", *clusterMembersCount)
+	}
+	if n < 0 || n >= *clusterMembersCount {
+		logger.Fatalf("-promscrape.cluster.memberNum must be in the range [0..%d] according to -promscrape.cluster.membersCount=%d",
+			*clusterMembersCount, *clusterMembersCount)
 	}
 	clusterMemberID = n
 }
@@ -1336,6 +1346,9 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 	// Add missing "instance" label according to https://www.robustperception.io/life-of-a-label
 	if labels.Get("instance") == "" {
 		labels.Add("instance", address)
+	}
+	if *clusterMemberLabel != "" && *clusterMemberNum != "" {
+		labels.Add(*clusterMemberLabel, *clusterMemberNum)
 	}
 	// Remove references to deleted labels, so GC could clean strings for label name and label value past len(labels.Labels).
 	// This should reduce memory usage when relabeling creates big number of temporary labels with long names and/or values.

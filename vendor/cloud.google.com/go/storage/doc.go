@@ -320,6 +320,17 @@ client (using [Client.SetRetry]). For example:
 		// Handle err.
 	}
 
+# Sending Custom Headers
+
+You can add custom headers to any API call made by this package by using
+[callctx.SetHeaders] on the context which is passed to the method. For example,
+to add a [custom audit logging] header:
+
+	ctx := context.Background()
+	ctx = callctx.SetHeaders(ctx, "x-goog-custom-audit-<key>", "<value>")
+	// Use client as usual with the context and the additional headers will be sent.
+	client.Bucket("my-bucket").Attrs(ctx)
+
 [Cloud Storage IAM docs]: https://cloud.google.com/storage/docs/access-control/iam
 [XML POST Object docs]: https://cloud.google.com/storage/docs/xml-api/post-object
 [Cloud Storage retry docs]: https://cloud.google.com/storage/docs/retry-strategy
@@ -327,5 +338,6 @@ client (using [Client.SetRetry]). For example:
 [gcloud using application default credentials]: https://cloud.google.com/sdk/gcloud/reference/auth/application-default/login
 [impersonation enabled]: https://cloud.google.com/sdk/gcloud/reference#--impersonate-service-account
 [IAM Service Account Credentials API]: https://console.developers.google.com/apis/api/iamcredentials.googleapis.com/overview
+[custom audit logging]: https://cloud.google.com/storage/docs/audit-logging#add-custom-metadata
 */
 package storage // import "cloud.google.com/go/storage"

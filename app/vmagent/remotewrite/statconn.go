@@ -27,7 +27,7 @@ var (
 	stdDialerOnce sync.Once
 )
 
-func statDial(ctx context.Context, networkUnused, addr string) (conn net.Conn, err error) {
+func statDial(ctx context.Context, _, addr string) (conn net.Conn, err error) {
 	network := netutil.GetTCPNetwork()
 	d := getStdDialer()
 	conn, err = d.DialContext(ctx, network, addr)

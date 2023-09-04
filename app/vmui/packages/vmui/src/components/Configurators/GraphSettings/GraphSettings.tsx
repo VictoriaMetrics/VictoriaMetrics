@@ -34,6 +34,7 @@ const GraphSettings: FC<GraphSettingsProps> = ({ yaxis, setYaxisLimits, toggleEn
             variant="text"
             startIcon={<SettingsIcon/>}
             onClick={toggleOpen}
+            ariaLabel="settings"
           />
         </div>
       </Tooltip>

@@ -171,6 +171,7 @@ const StepConfigurator: FC = () => {
                   color="primary"
                   startIcon={<RestartIcon/>}
                   onClick={handleReset}
+                  ariaLabel="reset step"
                 />
               </Tooltip>
             )}

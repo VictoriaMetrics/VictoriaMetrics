@@ -1,4 +1,16 @@
-import uPlot, { Series } from "uplot";
+import { Axis, Series } from "uplot";
+
+export interface SeriesItemStats {
+    min: string,
+    max: string,
+    median: string,
+    last: string
+}
+
+export interface SeriesItem extends Series {
+    freeFormFields: {[key: string]: string};
+    calculations: SeriesItemStats
+}
 
 export interface HideSeriesArgs {
     hideSeries: string[],
@@ -7,13 +19,9 @@ export interface HideSeriesArgs {
     series: Series[]
 }
 
-export interface DragArgs {
-    e: MouseEvent | TouchEvent,
-    u: uPlot,
-    factor: number,
-    setPanning: (enable: boolean) => void,
-    setPlotScale: ({ min, max }: { min: number, max: number }) => void
-}
+export type MinMax = { min: number, max: number }
+
+export type SetMinMax = ({ min, max }: MinMax) => void
 
 export interface LegendItemType {
     group: number;
@@ -53,3 +61,7 @@ export interface Fill {
 }
 
 export type ArrayRGB = [number, number, number]
+
+export interface AxisExtend extends Axis {
+    _size?: number;
+}

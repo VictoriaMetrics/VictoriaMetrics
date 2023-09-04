@@ -162,6 +162,7 @@ const Popper: FC<PopperProps> = ({
                 variant="text"
                 size="small"
                 onClick={handleClickClose}
+                ariaLabel="close"
               >
                 <CloseIcon/>
               </Button>

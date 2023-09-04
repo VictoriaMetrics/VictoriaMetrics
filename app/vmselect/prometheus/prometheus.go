@@ -76,7 +76,7 @@ func ExpandWithExprs(w http.ResponseWriter, r *http.Request) {
 	_ = bw.Flush()
 }
 
-// PrettifyQuery implements /prettify-query. Takes a MetricsQL query and returns it formatted.
+// PrettifyQuery handles the request /prettify-query
 func PrettifyQuery(w http.ResponseWriter, r *http.Request) {
 	query := r.FormValue("query")
 	bw := bufferedwriter.Get(w)
@@ -90,7 +90,6 @@ func PrettifyQuery(w http.ResponseWriter, r *http.Request) {
 	} else {
 		fmt.Fprintf(bw, `{"status": "success", "query": %q}`, prettyQuery)
 	}
-
 	_ = bw.Flush()
 }
 
@@ -668,10 +667,7 @@ func SeriesHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		qt.Donef("start=%d, end=%d", cp.start, cp.end)
 	}
 	WriteSeriesResponse(bw, metricNames, qt, qtDone)
-	if err := bw.Flush(); err != nil {
-		return err
-	}
-	return nil
+	return bw.Flush()
 }
 
 var seriesDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/series"}`)

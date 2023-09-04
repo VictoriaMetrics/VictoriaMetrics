@@ -23,7 +23,7 @@ func newStdvarAggrState() *stdvarAggrState {
 	return &stdvarAggrState{}
 }
 
-func (as *stdvarAggrState) pushSample(inputKey, outputKey string, value float64) {
+func (as *stdvarAggrState) pushSample(_, outputKey string, value float64) {
 again:
 	v, ok := as.m.Load(outputKey)
 	if !ok {

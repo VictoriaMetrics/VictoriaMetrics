@@ -22,7 +22,7 @@ func newCountSeriesAggrState() *countSeriesAggrState {
 	return &countSeriesAggrState{}
 }
 
-func (as *countSeriesAggrState) pushSample(inputKey, outputKey string, value float64) {
+func (as *countSeriesAggrState) pushSample(inputKey, outputKey string, _ float64) {
 again:
 	v, ok := as.m.Load(outputKey)
 	if !ok {

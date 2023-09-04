@@ -27,6 +27,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"reflect"
 	"strconv"
 
 	"github.com/AzureAD/microsoft-authentication-library-for-go/apps/cache"
@@ -297,8 +298,8 @@ func (pca Client) AcquireTokenSilent(ctx context.Context, scopes []string, opts 
 	if err := options.ApplyOptions(&o, opts); err != nil {
 		return AuthResult{}, err
 	}
-	// a home account ID is required to find user tokens in the cache
-	if o.account.HomeAccountID == "" {
+	// an account is required to find user tokens in the cache
+	if reflect.ValueOf(o.account).IsZero() {
 		return AuthResult{}, errNoAccount
 	}
 

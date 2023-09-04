@@ -662,14 +662,14 @@ func (tb *Table) flushInmemoryParts(isFinal bool) {
 func (riss *rawItemsShards) flush(tb *Table, dst []*inmemoryBlock, isFinal bool) []*inmemoryBlock {
 	tb.rawItemsPendingFlushesWG.Add(1)
 	for i := range riss.shards {
-		dst = riss.shards[i].appendBlocksToFlush(dst, tb, isFinal)
+		dst = riss.shards[i].appendBlocksToFlush(dst, isFinal)
 	}
 	tb.flushBlocksToParts(dst, isFinal)
 	tb.rawItemsPendingFlushesWG.Done()
 	return dst
 }
 
-func (ris *rawItemsShard) appendBlocksToFlush(dst []*inmemoryBlock, tb *Table, isFinal bool) []*inmemoryBlock {
+func (ris *rawItemsShard) appendBlocksToFlush(dst []*inmemoryBlock, isFinal bool) []*inmemoryBlock {
 	currentTime := fasttime.UnixTimestamp()
 	flushSeconds := int64(pendingItemsFlushInterval.Seconds())
 	if flushSeconds <= 0 {
