@@ -300,8 +300,8 @@ func (ddb *datadb) mergeExistingParts() error {
 		}
 		err := ddb.mergeParts(pws, false)
 		ddb.releaseDiskSpace(partsSize)
+		ddb.releasePartsToMerge(pws)
 		if err != nil {
-			ddb.releasePartsToMerge(pws)
 			return err
 		}
 	}
