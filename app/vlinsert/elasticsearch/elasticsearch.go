@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bufferedwriter"
@@ -22,7 +24,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
-	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
@@ -102,8 +103,11 @@ func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 			logger.Warnf("cannot decode log message #%d in /_bulk request: %s", n, err)
 			return true
 		}
-		vlstorage.MustAddRows(lr)
+		err = vlstorage.AddRows(lr)
 		logstorage.PutLogRows(lr)
+		if err != nil {
+			httpserver.Errorf(w, r, "cannot insert rows: %s", err)
+		}
 
 		tookMs := time.Since(startTime).Milliseconds()
 		bw := bufferedwriter.Get(w)
@@ -122,7 +126,7 @@ var (
 )
 
 func readBulkRequest(r io.Reader, isGzip bool, timeField, msgField string,
-	processLogMessage func(timestamp int64, fields []logstorage.Field),
+	processLogMessage func(timestamp int64, fields []logstorage.Field) error,
 ) (int, error) {
 	// See https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-bulk.html
 
@@ -167,7 +171,7 @@ var lineBufferPool bytesutil.ByteBufferPool
 var rowsIngestedTotal = metrics.NewCounter(`vl_rows_ingested_total{type="elasticsearch_bulk"}`)
 
 func readBulkLine(sc *bufio.Scanner, timeField, msgField string,
-	processLogMessage func(timestamp int64, fields []logstorage.Field),
+	processLogMessage func(timestamp int64, fields []logstorage.Field) error,
 ) (bool, error) {
 	var line []byte
 
@@ -214,8 +218,12 @@ func readBulkLine(sc *bufio.Scanner, timeField, msgField string,
 		ts = time.Now().UnixNano()
 	}
 	p.RenameField(msgField, "_msg")
-	processLogMessage(ts, p.Fields)
+	err = processLogMessage(ts, p.Fields)
 	logjson.PutParser(p)
+	if err != nil {
+		return false, err
+	}
+
 	return true, nil
 }
 
