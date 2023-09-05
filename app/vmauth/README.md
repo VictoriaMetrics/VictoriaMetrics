@@ -361,7 +361,7 @@ See the docs at https://docs.victoriametrics.com/vmauth.html .
   -envflag.prefix string
      Prefix for environment variables if -envflag.enable is set
   -eula
-     By specifying this flag, you confirm that you have an enterprise license and accept the ELA https://victoriametrics.com/legal/esa/ . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
+     By specifying this flag, you confirm that you have an enterprise license and accept the ESA https://victoriametrics.com/legal/esa/ . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
   -failTimeout duration
      Sets a delay period for load balancing to skip a malfunctioning backend. (defaults 3s)
   -flagsAuthKey string

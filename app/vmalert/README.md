@@ -983,7 +983,7 @@ The shortlist of configuration flags is the following:
   -envflag.prefix string
      Prefix for environment variables if -envflag.enable is set
   -eula
-     By specifying this flag, you confirm that you have an enterprise license and accept the ELA https://victoriametrics.com/legal/esa/ . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
+     By specifying this flag, you confirm that you have an enterprise license and accept the ESA https://victoriametrics.com/legal/esa/ . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
   -evaluationInterval duration
      How often to evaluate the rules (default 1m0s)
   -external.alert.source string
