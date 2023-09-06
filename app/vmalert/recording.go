@@ -61,6 +61,7 @@ func newRecordingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rul
 		q: qb.BuildWithParams(datasource.QuerierParams{
 			DataSourceType:     group.Type.String(),
 			EvaluationInterval: group.Interval,
+			EvalOffset:         group.EvalOffset,
 			QueryParams:        group.Params,
 			Headers:            group.Headers,
 		}),

@@ -31,6 +31,7 @@ type Group struct {
 	Rules          []Rule
 	Type           config.Type
 	Interval       time.Duration
+	EvalOffset     *time.Duration
 	Limit          int
 	Concurrency    int
 	Checksum       string
@@ -116,6 +117,9 @@ func newGroup(cfg config.Group, qb datasource.QuerierBuilder, defaultInterval ti
 	if g.Concurrency < 1 {
 		g.Concurrency = 1
 	}
+	if cfg.EvalOffset != nil {
+		g.EvalOffset = &cfg.EvalOffset.D
+	}
 	for _, h := range cfg.Headers {
 		g.Headers[h.Key] = h.Value
 	}
@@ -163,6 +167,10 @@ func (g *Group) ID() uint64 {
 	hash.Write([]byte("\xff"))
 	hash.Write([]byte(g.Name))
 	hash.Write([]byte(g.Type.Get()))
+	hash.Write([]byte(g.Interval.String()))
+	if g.EvalOffset != nil {
+		hash.Write([]byte(g.EvalOffset.String()))
+	}
 	return hash.Sum64()
 }
 
@@ -277,15 +285,13 @@ var skipRandSleepOnGroupStart bool
 func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *remotewrite.Client, rr datasource.QuerierBuilder) {
 	defer func() { close(g.finishedCh) }()
 
-	// Spread group rules evaluation over time in order to reduce load on VictoriaMetrics.
+	// sleep random duration to spread group rules evaluation
+	// over time in order to reduce load on datasource.
 	if !skipRandSleepOnGroupStart {
-		randSleep := uint64(float64(g.Interval) * (float64(g.ID()) / (1 << 64)))
-		sleepOffset := uint64(time.Now().UnixNano()) % uint64(g.Interval)
-		if randSleep < sleepOffset {
-			randSleep += uint64(g.Interval)
-		}
-		randSleep -= sleepOffset
-		sleepTimer := time.NewTimer(time.Duration(randSleep))
+		sleepBeforeStart := delayBeforeStart(time.Now(), g.ID(), g.Interval, g.EvalOffset)
+		g.infof("will start in %v", sleepBeforeStart)
+
+		sleepTimer := time.NewTimer(sleepBeforeStart)
 		select {
 		case <-ctx.Done():
 			sleepTimer.Stop()
@@ -297,6 +303,8 @@ func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *r
 		}
 	}
 
+	evalTS := time.Now()
+
 	e := &executor{
 		rw:                       rw,
 		notifiers:                nts,
@@ -304,9 +312,7 @@ func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *r
 		previouslySentSeriesToRW: make(map[uint64]map[string][]prompbmarshal.Label),
 	}
 
-	evalTS := time.Now()
-
-	logger.Infof("group %q started; interval=%v; concurrency=%d", g.Name, g.Interval, g.Concurrency)
+	g.infof("started")
 
 	eval := func(ctx context.Context, ts time.Time) {
 		g.metrics.iterationTotal.Inc()
@@ -375,19 +381,12 @@ func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *r
 				continue
 			}
 
-			// ensure that staleness is tracked or existing rules only
+			// ensure that staleness is tracked for existing rules only
 			e.purgeStaleSeries(g.Rules)
-
 			e.notifierHeaders = g.NotifierHeaders
-
-			if g.Interval != ng.Interval {
-				g.Interval = ng.Interval
-				t.Stop()
-				t = time.NewTicker(g.Interval)
-				evalTS = time.Now()
-			}
 			g.mu.Unlock()
-			logger.Infof("group %q re-started; interval=%v; concurrency=%d", g.Name, g.Interval, g.Concurrency)
+
+			g.infof("re-started")
 		case <-t.C:
 			missed := (time.Since(evalTS) / g.Interval) - 1
 			if missed < 0 {
@@ -403,6 +402,35 @@ func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *r
 			eval(evalCtx, evalTS)
 		}
 	}
+}
+
+// delayBeforeStart returns a duration on the interval between [ts..ts+interval].
+// delayBeforeStart accounts for `offset`, so returned duration should be always
+// bigger than the `offset`.
+func delayBeforeStart(ts time.Time, key uint64, interval time.Duration, offset *time.Duration) time.Duration {
+	var randSleep time.Duration
+	randSleep = time.Duration(float64(interval) * (float64(key) / (1 << 64)))
+	sleepOffset := time.Duration(ts.UnixNano() % interval.Nanoseconds())
+	if randSleep < sleepOffset {
+		randSleep += interval
+	}
+	randSleep -= sleepOffset
+	// check if `ts` after randSleep is before `offset`,
+	// if it is, add extra eval_offset to randSleep.
+	// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3409.
+	if offset != nil {
+		tmpEvalTS := ts.Add(randSleep)
+		if tmpEvalTS.Before(tmpEvalTS.Truncate(interval).Add(*offset)) {
+			randSleep += *offset
+		}
+	}
+	return randSleep.Truncate(time.Second)
+}
+
+func (g *Group) infof(format string, args ...interface{}) {
+	msg := fmt.Sprintf(format, args...)
+	logger.Infof("group %q %s; interval=%v; eval_offset=%v; concurrency=%d",
+		g.Name, msg, g.Interval, g.EvalOffset, g.Concurrency)
 }
 
 // getResolveDuration returns the duration after which firing alert

@@ -168,7 +168,8 @@ func TestManagerUpdate(t *testing.T) {
 					Name:     "TestGroup", Rules: []Rule{
 						Conns,
 						ExampleAlertAlwaysFiring,
-					}},
+					},
+				},
 			},
 		},
 		{
@@ -191,7 +192,8 @@ func TestManagerUpdate(t *testing.T) {
 					Rules: []Rule{
 						Conns,
 						ExampleAlertAlwaysFiring,
-					}},
+					},
+				},
 			},
 		},
 		{
@@ -264,7 +266,8 @@ func TestManagerUpdateNegative(t *testing.T) {
 		{
 			nil,
 			nil,
-			config.Group{Name: "Recording rule only",
+			config.Group{
+				Name: "Recording rule only",
 				Rules: []config.Rule{
 					{Record: "record", Expr: "max(up)"},
 				},
@@ -274,7 +277,8 @@ func TestManagerUpdateNegative(t *testing.T) {
 		{
 			nil,
 			nil,
-			config.Group{Name: "Alerting rule only",
+			config.Group{
+				Name: "Alerting rule only",
 				Rules: []config.Rule{
 					{Alert: "alert", Expr: "up > 0"},
 				},
@@ -284,7 +288,8 @@ func TestManagerUpdateNegative(t *testing.T) {
 		{
 			[]notifier.Notifier{&fakeNotifier{}},
 			nil,
-			config.Group{Name: "Recording and alerting rules",
+			config.Group{
+				Name: "Recording and alerting rules",
 				Rules: []config.Rule{
 					{Alert: "alert1", Expr: "up > 0"},
 					{Alert: "alert2", Expr: "up > 0"},
@@ -296,7 +301,8 @@ func TestManagerUpdateNegative(t *testing.T) {
 		{
 			nil,
 			&remotewrite.Client{},
-			config.Group{Name: "Recording and alerting rules",
+			config.Group{
+				Name: "Recording and alerting rules",
 				Rules: []config.Rule{
 					{Record: "record1", Expr: "max(up)"},
 					{Record: "record2", Expr: "max(up)"},
