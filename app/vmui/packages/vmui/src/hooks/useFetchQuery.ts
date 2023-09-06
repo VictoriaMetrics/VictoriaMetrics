@@ -11,6 +11,8 @@ import { useQueryState } from "../state/query/QueryStateContext";
 import { useTimeState } from "../state/time/TimeStateContext";
 import { useCustomPanelState } from "../state/customPanel/CustomPanelStateContext";
 import { isHistogramData } from "../utils/metric";
+import { useGraphState } from "../state/graph/GraphStateContext";
+import { getStepFromDuration } from "../utils/time";
 
 interface FetchQueryParams {
   predefinedQuery?: string[]
@@ -57,6 +59,7 @@ export const useFetchQuery = ({
   const { period } = useTimeState();
   const { displayType, nocache, isTracingEnabled, seriesLimits: stateSeriesLimits } = useCustomPanelState();
   const { serverUrl } = useAppState();
+  const { isHistogram: isHistogramState } = useGraphState();
 
   const [isLoading, setIsLoading] = useState(false);
   const [graphData, setGraphData] = useState<MetricResult[]>();
@@ -69,6 +72,10 @@ export const useFetchQuery = ({
   const [fetchQueue, setFetchQueue] = useState<AbortController[]>([]);
   const [isHistogram, setIsHistogram] = useState(false);
 
+  const defaultStep = useMemo(() => {
+    const { end, start } = period;
+    return getStepFromDuration(end - start, isHistogramState);
+  }, [period, isHistogramState]);
 
   const fetchData = async ({
     fetchUrl,
@@ -137,7 +144,7 @@ export const useFetchQuery = ({
       setWarning(totalLength > seriesLimit ? limitText : "");
       isDisplayChart ? setGraphData(tempData as MetricResult[]) : setLiveData(tempData as InstantMetricResult[]);
       setTraces(tempTraces);
-      setIsHistogram(totalLength ? isHistogramResult: false);
+      setIsHistogram(prev => totalLength ? isHistogramResult : prev);
     } catch (e) {
       if (e instanceof Error && e.name !== "AbortError") {
         setError(`${e.name}: ${e.message}`);
@@ -196,6 +203,10 @@ export const useFetchQuery = ({
     fetchPast.map(f => f.abort());
     setFetchQueue(fetchQueue.filter(f => !f.signal.aborted));
   }, [fetchQueue]);
+
+  useEffect(() => {
+    if (defaultStep === customStep) setGraphData([]);
+  }, [isHistogram]);
 
   return { fetchUrl, isLoading, graphData, liveData, error, queryErrors, setQueryErrors, queryStats, warning, traces, isHistogram };
 };
