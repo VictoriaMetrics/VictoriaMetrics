@@ -123,6 +123,13 @@ name: <string>
 # How often rules in the group are evaluated.
 [ interval: <duration> | default = -evaluationInterval flag ]
 
+# Optional
+# Group will be evaluated at the exact offset in the range of [0...interval].
+# E.g. for Group with `interval: 1h` and `eval_offset: 5m` the evaluation will
+# start at 5th minute of the hour. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3409
+# `eval_offset` can't be bigger than `interval`.
+[ eval_offset: <duration> ]
+
 # Limit the number of alerts an alerting rule and series a recording
 # rule can produce. 0 is no limit.
 [ limit: <int> | default = 0 ]

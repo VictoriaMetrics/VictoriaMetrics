@@ -38,7 +38,7 @@ The following `tip` changes can be tested by building VictoriaMetrics components
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): improve accessibility score to 100 according to [Google's Lighthouse](https://developer.chrome.com/docs/lighthouse/accessibility/) tests.
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): organize `min`, `max`, `median` values on the chart legend and tooltips for better visibility.
 * FEATURE: dashboards: provide copies of Grafana dashboards alternated with VictoriaMetrics datasource at [dashboards/vm](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/dashboards/vm).
-* FEATURE: [vmauth](https://docs.victoriametrics.com/vmauth.html): added ability to set, override and clear request and response headers on a per-user and per-path basis. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4825) and [these docs](https://docs.victoriametrics.com/vmauth.html#auth-config) for details.
+* FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): add `eval_offset` attribute for [Groups](https://docs.victoriametrics.com/vmalert.html#groups). If specified, Group will be evaluated at the exact time offset on the range of [0...evaluationInterval]. The setting might be useful for cron-like rules which must be evaluated at specific moments of time. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3409) for details.
 
 * BUGFIX: [Official Grafana dashboards for VictoriaMetrics](https://grafana.com/orgs/victoriametrics): fix display of ingested rows rate for `Samples ingested/s` and `Samples rate` panels for vmagent's dasbhoard. Previously, not all ingested protocols were accounted in these panels. An extra panel `Rows rate` was added to `Ingestion` section to display the split for rows ingested rate by protocol.
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix the bug causing render looping when switching to heatmap.
@@ -123,7 +123,6 @@ The v1.93.x line will be supported for at least 12 months since [v1.93.0](https:
 * BUGFIX: [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager.html): fix panic when creating a backup to a local filesystem on Windows. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4704).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): properly handle client address with `X-Forwarded-For` part at the [Active queries](https://docs.victoriametrics.com/#active-queries) page. See [this comment](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4676#issuecomment-1663203424).
 * BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): prevent from panic when the lookbehind window in square brackets of [rollup function](https://docs.victoriametrics.com/MetricsQL.html#rollup-functions) is parsed into negative value. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4795).
-
 
 ## [v1.92.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.92.1)
 

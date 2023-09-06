@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"math"
 	"reflect"
 	"sort"
 	"testing"
@@ -35,18 +36,19 @@ func TestUpdateWith(t *testing.T) {
 		},
 		{
 			"update alerting rule",
-			[]config.Rule{{
-				Alert: "foo",
-				Expr:  "up > 0",
-				For:   promutils.NewDuration(time.Second),
-				Labels: map[string]string{
-					"bar": "baz",
+			[]config.Rule{
+				{
+					Alert: "foo",
+					Expr:  "up > 0",
+					For:   promutils.NewDuration(time.Second),
+					Labels: map[string]string{
+						"bar": "baz",
+					},
+					Annotations: map[string]string{
+						"summary":     "{{ $value|humanize }}",
+						"description": "{{$labels}}",
+					},
 				},
-				Annotations: map[string]string{
-					"summary":     "{{ $value|humanize }}",
-					"description": "{{$labels}}",
-				},
-			},
 				{
 					Alert: "bar",
 					Expr:  "up > 0",
@@ -54,7 +56,8 @@ func TestUpdateWith(t *testing.T) {
 					Labels: map[string]string{
 						"bar": "baz",
 					},
-				}},
+				},
+			},
 			[]config.Rule{
 				{
 					Alert: "foo",
@@ -75,7 +78,8 @@ func TestUpdateWith(t *testing.T) {
 					Labels: map[string]string{
 						"bar": "baz",
 					},
-				}},
+				},
+			},
 		},
 		{
 			"update recording rule",
@@ -519,4 +523,63 @@ func TestCloseWithEvalInterruption(t *testing.T) {
 		t.Fatalf("deadline for close exceeded")
 	case <-g.finishedCh:
 	}
+}
+
+func TestGroupStartDelay(t *testing.T) {
+	g := &Group{}
+	// interval of 5min and key generate a static delay of 30s
+	g.Interval = time.Minute * 5
+	key := uint64(math.MaxUint64 / 10)
+
+	f := func(atS, expS string) {
+		t.Helper()
+		at, err := time.Parse(time.DateTime, atS)
+		if err != nil {
+			t.Fatal(err)
+		}
+		expTS, err := time.Parse(time.DateTime, expS)
+		if err != nil {
+			t.Fatal(err)
+		}
+		delay := delayBeforeStart(at, key, g.Interval, g.EvalOffset)
+		gotStart := at.Add(delay)
+		if expTS != gotStart {
+			t.Errorf("expected to get %v; got %v instead", expTS, gotStart)
+		}
+	}
+
+	// test group without offset
+	f("2023-01-01 00:00:00", "2023-01-01 00:00:30")
+	f("2023-01-01 00:00:29", "2023-01-01 00:00:30")
+	f("2023-01-01 00:00:31", "2023-01-01 00:05:30")
+
+	// test group with offset smaller than above fixed randSleep,
+	// this way randSleep will always be enough
+	offset := 20 * time.Second
+	g.EvalOffset = &offset
+
+	f("2023-01-01 00:00:00", "2023-01-01 00:00:30")
+	f("2023-01-01 00:00:29", "2023-01-01 00:00:30")
+	f("2023-01-01 00:00:31", "2023-01-01 00:05:30")
+
+	// test group with offset bigger than above fixed randSleep,
+	// this way offset will be added to delay
+	offset = 3 * time.Minute
+	g.EvalOffset = &offset
+
+	f("2023-01-01 00:00:00", "2023-01-01 00:03:30")
+	f("2023-01-01 00:00:29", "2023-01-01 00:03:30")
+	f("2023-01-01 00:01:00", "2023-01-01 00:08:30")
+	f("2023-01-01 00:03:30", "2023-01-01 00:08:30")
+	f("2023-01-01 00:07:30", "2023-01-01 00:13:30")
+
+	offset = 10 * time.Minute
+	g.EvalOffset = &offset
+	// interval of 1h and key generate a static delay of 6m
+	g.Interval = time.Hour
+
+	f("2023-01-01 00:00:00", "2023-01-01 00:16:00")
+	f("2023-01-01 00:05:00", "2023-01-01 00:16:00")
+	f("2023-01-01 00:30:00", "2023-01-01 01:16:00")
+
 }
