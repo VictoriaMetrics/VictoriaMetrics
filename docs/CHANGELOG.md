@@ -15,8 +15,8 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## v1.87.x long-time support release (LTS)
 
-* BUGFIX: [vminsert](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): properly parse `/insert/multitenant/*` urls, which have been broken since [v1.93.2](#v1932). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4947).
-* BUGFIX: properly build armv5 binaries for `GOARCH=arm`. This has been broken after the upgrading of Go builder to Go1.21.0. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4965).
+* BUGFIX: [vminsert enterprise](https://docs.victoriametrics.com/enterprise.html): properly parse `/insert/multitenant/*` urls, which have been broken since [v1.93.2](#v1932). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4947).
+* BUGFIX: properly build production armv5 binaries for `GOARCH=arm`. This has been broken after the upgrading of Go builder to Go1.21.0. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4965).
 
 ## [v1.87.8](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.87.8)
 
