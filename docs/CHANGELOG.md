@@ -24,6 +24,8 @@ The following `tip` changes can be tested by building VictoriaMetrics components
 
 ## tip
 
+* SECURITY: upgrade Go builder from Go1.21.0 to Go1.21.1. See [the list of issues addressed in Go1.20.6](https://github.com/golang/go/issues?q=milestone%3AGo1.21.1+label%3ACherryPickApproved).
+
 * FEATURE: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): add support for numbers with underscore delimiters such as `1_234_567_890` and `1.234_567_890`. These numbers are easier to read than `1234567890` and `1.234567890`.
 * FEATURE: [vmbackup](https://docs.victoriametrics.com/vmbackup.html): add support for server-side copy of existing backups. See [these docs](https://docs.victoriametrics.com/vmbackup.html#server-side-copy-of-the-existing-backup) for details.
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add the option to see the latest 25 queries. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4718).
