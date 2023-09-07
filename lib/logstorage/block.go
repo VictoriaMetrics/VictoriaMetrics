@@ -505,6 +505,7 @@ func (b *block) appendRows(dst *rows) {
 		dst.rows = append(dst.rows, fieldsBuf[fieldsLen:])
 	}
 	dst.fieldsBuf = fieldsBuf
+	dst.maxUniqueFields += len(ccs) + len(cs)
 }
 
 func areSameFieldsInRows(rows [][]Field) bool {
