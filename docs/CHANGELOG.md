@@ -1,15 +1,3 @@
----
-sort: 16
-weight: 16
-title: CHANGELOG
-menu:
-  docs:
-    parent: "victoriametrics"
-    weight: 16
-aliases:
-- /CHANGELOG.html
----
-
 # CHANGELOG
 
 The following `tip` changes can be tested by building VictoriaMetrics components from the latest commits according to the following docs:
@@ -23,6 +11,8 @@ The following `tip` changes can be tested by building VictoriaMetrics components
 
 
 ## v1.93.x long-time support release (LTS)
+
+* SECURITY: upgrade Go builder from Go1.21.0 to Go1.21.1. See [the list of issues addressed in Go1.20.6](https://github.com/golang/go/issues?q=milestone%3AGo1.21.1+label%3ACherryPickApproved).
 
 * BUGFIX: [vminsert enterprise](https://docs.victoriametrics.com/enterprise.html): properly parse `/insert/multitenant/*` urls, which have been broken since [v1.93.2](#v1932). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4947).
 * BUGFIX: properly build production armv5 binaries for `GOARCH=arm`. This has been broken after the upgrading of Go builder to Go1.21.0. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4965).
