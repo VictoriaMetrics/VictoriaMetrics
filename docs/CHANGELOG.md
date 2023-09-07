@@ -19,6 +19,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 * BUGFIX: [vminsert enterprise](https://docs.victoriametrics.com/enterprise.html): properly parse `/insert/multitenant/*` urls, which have been broken since [v1.93.2](#v1932). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4947).
 * BUGFIX: properly build production armv5 binaries for `GOARCH=arm`. This has been broken after the upgrading of Go builder to Go1.21.0. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4965).
+* BUGFIX: [vmselect](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): return `503 Service Unavailable` status code when [partial responses](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#cluster-availability) are denied and some of `vmstorage` nodes are temporarily unavailable. Previously `422 Unprocessable Entiry` status code was mistakenly returned in this case, which could prevent from automatic recovery by re-sending the request to healthy cluster replica in another availability zone.
 
 ## [v1.87.8](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.87.8)
 
