@@ -104,7 +104,9 @@ app-via-docker-linux-amd64:
 	CGO_ENABLED=1 GOOS=linux GOARCH=amd64 $(MAKE) app-via-docker-goos-goarch
 
 app-via-docker-linux-arm:
-	CGO_ENABLED=0 GOOS=linux GOARCH=arm $(MAKE) app-via-docker-goos-goarch
+	APP_SUFFIX='-linux-arm' \
+	DOCKER_OPTS='--env CGO_ENABLED=0 --env GOOS=linux --env GOARCH=arm --env GOARM=5' \
+	$(MAKE) app-via-docker
 
 app-via-docker-linux-arm64:
 	APP_SUFFIX='-linux-arm64' \
