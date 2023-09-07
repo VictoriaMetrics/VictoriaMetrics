@@ -1754,6 +1754,12 @@ func (snr *storageNodesRequest) collectResults(partialResultsCounter *metrics.Co
 				// and the number of partial responses reach -replicationFactor,
 				// since this means that the response is partial.
 				snr.finishQueryTracers("cancel request because partial responses are denied and some vmstorage nodes failed to return response")
+
+				// Returns 503 status code for partial response, so the caller could retry it if needed.
+				err = &httpserver.ErrorWithStatusCode{
+					Err: err,
+					StatusCode: http.StatusServiceUnavailable,
+				}
 				return false, err
 			}
 			continue
@@ -1780,7 +1786,12 @@ func (snr *storageNodesRequest) collectResults(partialResultsCounter *metrics.Co
 	if len(errsPartial) == len(sns) {
 		// All the vmstorage nodes returned error.
 		// Return only the first error, since it has no sense in returning all errors.
-		return false, errsPartial[0]
+		// Returns 503 status code for partial response, so the caller could retry it if needed.
+		err := &httpserver.ErrorWithStatusCode{
+			Err: errsPartial[0],
+			StatusCode: http.StatusServiceUnavailable,
+		}
+		return false, err
 	}
 	// Return partial results.
 	// This allows gracefully degrade vmselect in the case
