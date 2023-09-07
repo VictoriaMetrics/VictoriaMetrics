@@ -1,6 +1,6 @@
 module github.com/VictoriaMetrics/VictoriaMetrics
 
-go 1.19
+go 1.20
 
 replace (
 	// Newer versions of this package break vmselect build
