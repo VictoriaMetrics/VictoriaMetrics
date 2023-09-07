@@ -5,7 +5,7 @@ DOCKER_NAMESPACE ?= victoriametrics
 ROOT_IMAGE ?= alpine:3.18.3
 CERTS_IMAGE := alpine:3.18.3
 
-GO_BUILDER_IMAGE := golang:1.21.0-alpine
+GO_BUILDER_IMAGE := golang:1.21.1-alpine
 BUILDER_IMAGE := local/builder:2.0.0-$(shell echo $(GO_BUILDER_IMAGE) | tr :/ __)-1
 BASE_IMAGE := local/base:1.1.4-$(shell echo $(ROOT_IMAGE) | tr :/ __)-$(shell echo $(CERTS_IMAGE) | tr :/ __)
 DOCKER_BUILD ?= docker build
@@ -104,7 +104,9 @@ app-via-docker-linux-amd64:
 	CGO_ENABLED=1 GOOS=linux GOARCH=amd64 $(MAKE) app-via-docker-goos-goarch
 
 app-via-docker-linux-arm:
-	CGO_ENABLED=0 GOOS=linux GOARCH=arm $(MAKE) app-via-docker-goos-goarch
+	APP_SUFFIX='-linux-arm' \
+	DOCKER_OPTS='--env CGO_ENABLED=0 --env GOOS=linux --env GOARCH=arm --env GOARM=5' \
+	$(MAKE) app-via-docker
 
 app-via-docker-linux-arm64:
 	APP_SUFFIX='-linux-arm64' \

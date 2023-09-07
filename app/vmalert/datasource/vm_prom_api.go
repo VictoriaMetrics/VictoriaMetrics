@@ -161,13 +161,8 @@ func (s *VMStorage) setPrometheusInstantReqParams(r *http.Request, query string,
 		r.URL.Path += "/api/v1/query"
 	}
 	q := r.URL.Query()
-	if s.lookBack > 0 {
-		timestamp = timestamp.Add(-s.lookBack)
-	}
-	if *queryTimeAlignment && s.evaluationInterval > 0 {
-		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1232
-		timestamp = timestamp.Truncate(s.evaluationInterval)
-	}
+
+	timestamp = s.adjustReqTimestamp(timestamp)
 	q.Set("time", timestamp.Format(time.RFC3339))
 	if !*disableStepParam && s.evaluationInterval > 0 { // set step as evaluationInterval by default
 		// always convert to seconds to keep compatibility with older
@@ -191,6 +186,9 @@ func (s *VMStorage) setPrometheusRangeReqParams(r *http.Request, query string, s
 		r.URL.Path += "/api/v1/query_range"
 	}
 	q := r.URL.Query()
+	if s.evaluationOffset != nil {
+		start = start.Truncate(s.evaluationInterval).Add(*s.evaluationOffset)
+	}
 	q.Add("start", start.Format(time.RFC3339))
 	q.Add("end", end.Format(time.RFC3339))
 	if s.evaluationInterval > 0 { // set step as evaluationInterval by default
@@ -214,4 +212,31 @@ func (s *VMStorage) setPrometheusReqParams(r *http.Request, query string) {
 	}
 	q.Set("query", query)
 	r.URL.RawQuery = q.Encode()
+}
+
+func (s *VMStorage) adjustReqTimestamp(timestamp time.Time) time.Time {
+	if s.evaluationOffset != nil {
+		// calculate the min timestamp on the evaluationInterval
+		intervalStart := timestamp.Truncate(s.evaluationInterval)
+		ts := intervalStart.Add(*s.evaluationOffset)
+		if timestamp.Before(ts) {
+			// if passed timestamp is before the expected evaluation offset,
+			// then we should adjust it to the previous evaluation round.
+			// E.g. request with evaluationInterval=1h and evaluationOffset=30m
+			// was evaluated at 11:20. Then the timestamp should be adjusted
+			// to 10:30, to the previous evaluationInterval.
+			return ts.Add(-s.evaluationInterval)
+		}
+		// evaluationOffset shouldn't interfere with queryTimeAlignment or lookBack,
+		// so we return it immediately
+		return ts
+	}
+	if *queryTimeAlignment {
+		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1232
+		timestamp = timestamp.Truncate(s.evaluationInterval)
+	}
+	if s.lookBack > 0 {
+		timestamp = timestamp.Add(-s.lookBack)
+	}
+	return timestamp
 }

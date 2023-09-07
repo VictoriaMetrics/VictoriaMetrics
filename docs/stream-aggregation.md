@@ -559,6 +559,9 @@ The `phi` must be in the range `[0..1]`, where `0` means `0th` percentile, while
 The results of `quantiles(phi1, ..., phiN)` with aggregation interval of `1m` 
 is equal to the `quantiles_over_time("quantile", phi1, ..., phiN, some_histogram_bucket[1m])` query.
 
+Please note, `quantiles` aggregation won't produce correct results when vmagent is in [cluster mode](#cluster-mode)
+since percentiles should be calculated only on the whole matched data set.
+
 ## Aggregating by labels
 
 All the labels for the input metrics are preserved by default in the output metrics. For example,
