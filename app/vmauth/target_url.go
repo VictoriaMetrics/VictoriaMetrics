@@ -8,6 +8,9 @@ import (
 
 func mergeURLs(uiURL, requestURI *url.URL) *url.URL {
 	targetURL := *uiURL
+	if strings.HasPrefix(requestURI.Path, "/") {
+		targetURL.Path = strings.TrimSuffix(targetURL.Path, "/")
+	}
 	targetURL.Path += requestURI.Path
 	requestParams := requestURI.Query()
 	// fast path
