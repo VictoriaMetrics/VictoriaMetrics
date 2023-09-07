@@ -134,7 +134,7 @@ func logLevelSkipframes(skipframes int, level, format string, args []interface{}
 	if shouldSkipLog(level) {
 		return
 	}
-	msg := formatLogMessage(200, format, args)
+	msg := formatLogMessage(500, format, args)
 	logMessage(level, msg, 3+skipframes)
 }
 
