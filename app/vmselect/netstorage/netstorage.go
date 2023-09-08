@@ -1757,7 +1757,7 @@ func (snr *storageNodesRequest) collectResults(partialResultsCounter *metrics.Co
 
 				// Returns 503 status code for partial response, so the caller could retry it if needed.
 				err = &httpserver.ErrorWithStatusCode{
-					Err: err,
+					Err:        err,
 					StatusCode: http.StatusServiceUnavailable,
 				}
 				return false, err
@@ -1788,7 +1788,7 @@ func (snr *storageNodesRequest) collectResults(partialResultsCounter *metrics.Co
 		// Return only the first error, since it has no sense in returning all errors.
 		// Returns 503 status code for partial response, so the caller could retry it if needed.
 		err := &httpserver.ErrorWithStatusCode{
-			Err: errsPartial[0],
+			Err:        errsPartial[0],
 			StatusCode: http.StatusServiceUnavailable,
 		}
 		return false, err
@@ -2058,7 +2058,10 @@ func (sn *storageNode) execOnConn(qt *querytracer.Tracer, funcName string, f fun
 	}
 	bc, err := sn.connPool.Get()
 	if err != nil {
-		return fmt.Errorf("cannot obtain connection from a pool: %w", err)
+		return &httpserver.ErrorWithStatusCode{
+			Err:        fmt.Errorf("cannot obtain connection from a pool: %w", err),
+			StatusCode: http.StatusServiceUnavailable,
+		}
 	}
 	// Extend the connection deadline by 2 seconds, so the remote storage could return `timeout` error
 	// without the need to break the connection.
