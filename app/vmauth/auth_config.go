@@ -46,6 +46,7 @@ type UserInfo struct {
 	HeadersConf           HeadersConf `yaml:",inline"`
 	MaxConcurrentRequests int         `yaml:"max_concurrent_requests,omitempty"`
 	DefaultURL            *URLPrefix  `yaml:"default_url,omitempty"`
+	RetryStatusCodes      []int       `yaml:"retry_status_codes,omitempty"`
 
 	concurrencyLimitCh      chan struct{}
 	concurrencyLimitReached *metrics.Counter
@@ -111,9 +112,10 @@ func (h *Header) MarshalYAML() (interface{}, error) {
 
 // URLMap is a mapping from source paths to target urls.
 type URLMap struct {
-	SrcPaths    []*SrcPath  `yaml:"src_paths,omitempty"`
-	URLPrefix   *URLPrefix  `yaml:"url_prefix,omitempty"`
-	HeadersConf HeadersConf `yaml:",inline"`
+	SrcPaths         []*SrcPath  `yaml:"src_paths,omitempty"`
+	URLPrefix        *URLPrefix  `yaml:"url_prefix,omitempty"`
+	HeadersConf      HeadersConf `yaml:",inline"`
+	RetryStatusCodes []int       `yaml:"retry_status_codes,omitempty"`
 }
 
 // SrcPath represents an src path

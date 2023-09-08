@@ -155,7 +155,7 @@ func processUserRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 
 func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 	u := normalizeURL(r.URL)
-	up, headersConf := ui.getURLPrefixAndHeaders(u)
+	up, hc, retryStatusCodes := ui.getURLPrefixAndHeaders(u)
 	isDefault := false
 	if up == nil {
 		missingRouteRequests.Inc()
@@ -163,7 +163,7 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 			httpserver.Errorf(w, r, "missing route for %q", u.String())
 			return
 		}
-		up, headersConf = ui.DefaultURL, ui.HeadersConf
+		up, hc, retryStatusCodes = ui.DefaultURL, ui.HeadersConf, ui.RetryStatusCodes
 		isDefault = true
 	}
 	maxAttempts := up.getBackendsCount()
@@ -183,7 +183,7 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 		} else { // Update path for regular routes.
 			targetURL = mergeURLs(targetURL, u)
 		}
-		ok := tryProcessingRequest(w, r, targetURL, headersConf)
+		ok := tryProcessingRequest(w, r, targetURL, hc, retryStatusCodes)
 		bu.put()
 		if ok {
 			return
@@ -197,11 +197,11 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 	httpserver.Errorf(w, r, "%s", err)
 }
 
-func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url.URL, headersConf HeadersConf) bool {
+func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url.URL, hc HeadersConf, retryStatusCodes []int) bool {
 	// This code has been copied from net/http/httputil/reverseproxy.go
 	req := sanitizeRequestHeaders(r)
 	req.URL = targetURL
-	updateHeadersByConfig(req.Header, headersConf.RequestHeaders)
+	updateHeadersByConfig(req.Header, hc.RequestHeaders)
 	transportOnce.Do(transportInit)
 	res, err := transport.RoundTrip(req)
 	rtb, rtbOK := req.Body.(*readTrackingBody)
@@ -226,22 +226,22 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 		remoteAddr := httpserver.GetQuotedRemoteAddr(r)
 		// NOTE: do not use httpserver.GetRequestURI
 		// it explicitly reads request body, which may fail retries.
-		logger.Warnf("remoteAddr: %s; requestURI: %s; retrying the request to %s because of error: %s", remoteAddr, req.URL, targetURL, err)
+		logger.Warnf("remoteAddr: %s; requestURI: %s; retrying the request to %s because of response error: %s", remoteAddr, req.URL, targetURL, err)
 		return false
 	}
-	if res.StatusCode/100 >= 5 && (rtbOK && rtb.canRetry()) {
-		// Retry requests at other backends on 5xx status codes.
+	if (rtbOK && rtb.canRetry()) && hasInt(retryStatusCodes, res.StatusCode) {
+		// Retry requests at other backends if it matches retryStatusCodes.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4893
 		remoteAddr := httpserver.GetQuotedRemoteAddr(r)
 		// NOTE: do not use httpserver.GetRequestURI
 		// it explicitly reads request body, which may fail retries.
-		logger.Warnf("remoteAddr: %s; requestURI: %s; retrying the request to %s because of unexpected status code: %d; must be smaller than 500",
-			remoteAddr, req.URL, targetURL, res.StatusCode)
+		logger.Warnf("remoteAddr: %s; requestURI: %s; retrying the request to %s because response status code=%d belongs to retry_status_codes=%d",
+			remoteAddr, req.URL, targetURL, res.StatusCode, retryStatusCodes)
 		return false
 	}
 	removeHopHeaders(res.Header)
 	copyHeader(w.Header(), res.Header)
-	updateHeadersByConfig(w.Header(), headersConf.ResponseHeaders)
+	updateHeadersByConfig(w.Header(), hc.ResponseHeaders)
 	w.WriteHeader(res.StatusCode)
 
 	copyBuf := copyBufPool.Get()
@@ -255,6 +255,15 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 		return true
 	}
 	return true
+}
+
+func hasInt(a []int, n int) bool {
+	for _, x := range a {
+		if x == n {
+			return true
+		}
+	}
+	return false
 }
 
 var copyBufPool bytesutil.ByteBufferPool
