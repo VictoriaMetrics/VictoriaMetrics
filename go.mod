@@ -36,6 +36,8 @@ require (
 	gopkg.in/yaml.v2 v2.4.0
 )
 
+require github.com/coreos/go-systemd/v22 v22.5.0
+
 require (
 	cloud.google.com/go v0.112.2 // indirect
 	cloud.google.com/go/auth v0.2.0 // indirect
