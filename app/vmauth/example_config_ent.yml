@@ -39,18 +39,6 @@ users:
   - "http://default1:8888/unsupported_url_handler"
   - "http://default2:8888/unsupported_url_handler"
 
-# Requests without Authorization header are routed according to `unauthorized_user` section.
-unauthorized_user:
-  url_map:
-  - src_paths:
-    - /api/v1/query
-    - /api/v1/query_range
-    url_prefix:
-    - http://vmselect1:8481/select/0/prometheus
-    - http://vmselect2:8481/select/0/prometheus
-    ip_filters:
-      allow_list: [8.8.8.8]
-
 ip_filters:
   allow_list: ["1.2.3.0/24", "127.0.0.1"]
   deny_list:
