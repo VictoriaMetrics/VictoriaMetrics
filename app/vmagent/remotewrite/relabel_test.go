@@ -40,6 +40,7 @@ func TestApplyRelabeling(t *testing.T) {
 
 func TestAppendExtraLabels(t *testing.T) {
 	f := func(extraLabels []prompbmarshal.Label, sTss, sExpTss string) {
+		t.Helper()
 		rctx := &relabelCtx{}
 		tss, expTss := parseSeries(sTss), parseSeries(sExpTss)
 		rctx.appendExtraLabels(tss, extraLabels)
@@ -55,7 +56,7 @@ func TestAppendExtraLabels(t *testing.T) {
 
 	oldVal := *usePromCompatibleNaming
 	*usePromCompatibleNaming = true
-	f([]prompbmarshal.Label{{Name: "foo.bar", Value: "baz"}}, "up", `up{foo_bar="baz"}`)
+	f([]prompbmarshal.Label{{Name: "foo.bar", Value: "baz"}}, "up", `up{foo.bar="baz"}`)
 	*usePromCompatibleNaming = oldVal
 }
 

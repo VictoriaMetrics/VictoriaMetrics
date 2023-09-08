@@ -719,15 +719,26 @@ func dropAggregatedSeries(src []prompbmarshal.TimeSeries, matchIdxs []byte, drop
 }
 
 func (rwctx *remoteWriteCtx) pushInternal(tss []prompbmarshal.TimeSeries) {
+	var rctx *relabelCtx
+	var v *[]prompbmarshal.TimeSeries
 	if len(labelsGlobal) > 0 {
-		rctx := getRelabelCtx()
-		defer putRelabelCtx(rctx)
+		// Make a copy of tss before adding extra labels in order to prevent
+		// from affecting time series for other remoteWrite.url configs.
+		rctx = getRelabelCtx()
+		v = tssPool.Get().(*[]prompbmarshal.TimeSeries)
+		tss = append(*v, tss...)
 		rctx.appendExtraLabels(tss, labelsGlobal)
 	}
 
 	pss := rwctx.pss
 	idx := atomic.AddUint64(&rwctx.pssNextIdx, 1) % uint64(len(pss))
 	pss[idx].Push(tss)
+
+	if rctx != nil {
+		*v = prompbmarshal.ResetTimeSeries(tss)
+		tssPool.Put(v)
+		putRelabelCtx(rctx)
+	}
 }
 
 func (rwctx *remoteWriteCtx) reinitStreamAggr() {
