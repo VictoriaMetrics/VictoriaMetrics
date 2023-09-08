@@ -597,6 +597,17 @@ func TestRequestParams(t *testing.T) {
 			},
 		},
 		{
+			"allow duplicates in query params",
+			false,
+			storage.Clone().ApplyParams(QuerierParams{
+				QueryParams: url.Values{"extra_labels": {"env=dev", "foo=bar"}},
+			}),
+			func(t *testing.T, r *http.Request) {
+				exp := url.Values{"query": {query}, "round_digits": {"10"}, "extra_labels": {"env=dev", "foo=bar"}, "time": {timestamp.Format(time.RFC3339)}}
+				checkEqualString(t, exp.Encode(), r.URL.RawQuery)
+			},
+		},
+		{
 			"graphite extra params",
 			false,
 			&VMStorage{
