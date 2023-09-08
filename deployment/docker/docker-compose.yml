@@ -49,7 +49,7 @@ services:
       - grafanadata:/var/lib/grafana
       - ./provisioning/:/etc/grafana/provisioning/
       - ./../../dashboards/victoriametrics.json:/var/lib/grafana/dashboards/vm.json
-      - ./../../dashboards/victorisalogs.json:/var/lib/grafana/dashboards/vl.json
+      - ./../../dashboards/victorialogs.json:/var/lib/grafana/dashboards/vl.json
       - ./../../dashboards/vmagent.json:/var/lib/grafana/dashboards/vmagent.json
       - ./../../dashboards/vmalert.json:/var/lib/grafana/dashboards/vmalert.json
     networks:
