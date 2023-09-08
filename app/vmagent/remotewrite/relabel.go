@@ -80,10 +80,14 @@ func initLabelsGlobal() {
 		if n < 0 {
 			logger.Fatalf("missing '=' in `-remoteWrite.label`. It must contain label in the form `name=value`; got %q", s)
 		}
-		labelsGlobal = append(labelsGlobal, prompbmarshal.Label{
+		extraLabel := prompbmarshal.Label{
 			Name:  s[:n],
 			Value: s[n+1:],
-		})
+		}
+		if *usePromCompatibleNaming {
+			extraLabel.Name = promrelabel.SanitizeLabelName(extraLabel.Name)
+		}
+		labelsGlobal = append(labelsGlobal, extraLabel)
 	}
 }
 
@@ -117,9 +121,6 @@ func (rctx *relabelCtx) applyRelabeling(tss []prompbmarshal.TimeSeries, pcs *pro
 }
 
 func (rctx *relabelCtx) appendExtraLabels(tss []prompbmarshal.TimeSeries, extraLabels []prompbmarshal.Label) {
-	if len(extraLabels) == 0 {
-		return
-	}
 	labels := rctx.labels[:0]
 	for i := range tss {
 		ts := &tss[i]
@@ -127,9 +128,6 @@ func (rctx *relabelCtx) appendExtraLabels(tss []prompbmarshal.TimeSeries, extraL
 		labels = append(labels, ts.Labels...)
 		for j := range extraLabels {
 			extraLabel := extraLabels[j]
-			if *usePromCompatibleNaming {
-				extraLabel.Name = promrelabel.SanitizeLabelName(extraLabel.Name)
-			}
 			tmp := promrelabel.GetLabelByName(labels[labelsLen:], extraLabel.Name)
 			if tmp != nil {
 				tmp.Value = extraLabel.Value

@@ -659,14 +659,17 @@ func (rwctx *remoteWriteCtx) Push(tss []prompbmarshal.TimeSeries) {
 	var v *[]prompbmarshal.TimeSeries
 	rcs := allRelabelConfigs.Load()
 	pcs := rcs.perURL[rwctx.idx]
-	if pcs.Len() > 0 {
-		rctx = getRelabelCtx()
-		// Make a copy of tss before applying relabeling in order to prevent
+	if pcs.Len() > 0 || len(labelsGlobal) > 0 {
+		// Make a copy of tss before applying relabeling or global labels in order to prevent
 		// from affecting time series for other remoteWrite.url configs.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/467
 		// and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/599
+		// and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4982
 		v = tssPool.Get().(*[]prompbmarshal.TimeSeries)
 		tss = append(*v, tss...)
+	}
+	if pcs.Len() > 0 {
+		rctx = getRelabelCtx()
 		rowsCountBeforeRelabel := getRowsCount(tss)
 		tss = rctx.applyRelabeling(tss, pcs)
 		rowsCountAfterRelabel := getRowsCount(tss)
@@ -718,13 +721,13 @@ func dropAggregatedSeries(src []prompbmarshal.TimeSeries, matchIdxs []byte, drop
 	return dst
 }
 
+// tss must be mutable
 func (rwctx *remoteWriteCtx) pushInternal(tss []prompbmarshal.TimeSeries) {
 	if len(labelsGlobal) > 0 {
 		rctx := getRelabelCtx()
 		defer putRelabelCtx(rctx)
 		rctx.appendExtraLabels(tss, labelsGlobal)
 	}
-
 	pss := rwctx.pss
 	idx := atomic.AddUint64(&rwctx.pssNextIdx, 1) % uint64(len(pss))
 	pss[idx].Push(tss)
