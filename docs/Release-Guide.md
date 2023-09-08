@@ -133,7 +133,7 @@ The operator repository [https://github.com/VictoriaMetrics/operator/](https://g
 
 ### Bump the version of images
 
-- Bump `Version` field in [file `internal/config/config.go`](https://github.com/VictoriaMetrics/operator/blob/master/internal/config/config.go#L47) with new release version for:
+- Bump `Version` field in [file `internal/config/config.go`](https://github.com/VictoriaMetrics/operator/blob/master/internal/config/config.go) with new release version for:
   - `vmalert` in `BaseOperatorConf.VMAlertDefault.Version`,
   - `vmagent` in `BaseOperatorConf.VMAgentDefault.Version`,
   - `vmsingle` in `BaseOperatorConf.VMSingleDefault.Version`,
