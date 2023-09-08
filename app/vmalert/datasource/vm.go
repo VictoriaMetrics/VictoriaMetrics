@@ -91,8 +91,15 @@ func (s *VMStorage) ApplyParams(params QuerierParams) *VMStorage {
 			s.extraParams = url.Values{}
 		}
 		for k, vl := range params.QueryParams {
-			for _, v := range vl { // custom query params are prior to default ones
-				s.extraParams.Set(k, v)
+			// custom query params are prior to default ones
+			if s.extraParams.Has(k) {
+				s.extraParams.Del(k)
+			}
+			for _, v := range vl {
+				// don't use .Set() instead of Del/Add since it is allowed
+				// for GET params to be duplicated
+				// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4908
+				s.extraParams.Add(k, v)
 			}
 		}
 	}
