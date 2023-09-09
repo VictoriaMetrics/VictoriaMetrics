@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/VictoriaMetrics/metricsql"
 )
@@ -24,10 +25,20 @@ func NewDuration(name string, defaultValue string, description string) *Duration
 
 // Duration is a flag for holding duration.
 type Duration struct {
-	// Msecs contains parsed duration in milliseconds.
-	Msecs int64
+	// msecs contains parsed duration in milliseconds.
+	msecs int64
 
 	valueString string
+}
+
+// Duration returns d as time.Duration
+func (d *Duration) Duration() time.Duration {
+	return time.Millisecond * time.Duration(d.msecs)
+}
+
+// Milliseconds returns d in milliseconds
+func (d *Duration) Milliseconds() int64 {
+	return d.msecs
 }
 
 // String implements flag.Value interface
@@ -46,7 +57,7 @@ func (d *Duration) Set(value string) error {
 		if months < 0 {
 			return fmt.Errorf("duration months cannot be negative; got %g", months)
 		}
-		d.Msecs = int64(months * msecsPerMonth)
+		d.msecs = int64(months * msecsPer31Days)
 		d.valueString = value
 		return nil
 	}
@@ -59,11 +70,11 @@ func (d *Duration) Set(value string) error {
 	if err != nil {
 		return err
 	}
-	d.Msecs = msecs
+	d.msecs = msecs
 	d.valueString = value
 	return nil
 }
 
 const maxMonths = 12 * 100
 
-const msecsPerMonth = 31 * 24 * 3600 * 1000
+const msecsPer31Days = 31 * 24 * 3600 * 1000

@@ -8,6 +8,7 @@ const MenuBurger = ({ open }: {open: boolean}) => (
       "vm-menu-burger": true,
       "vm-menu-burger_opened": open
     })}
+    aria-label="menu"
   >
     <span></span>
   </button>

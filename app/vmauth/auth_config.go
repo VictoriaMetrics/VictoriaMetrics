@@ -37,21 +37,28 @@ type AuthConfig struct {
 
 // UserInfo is user information read from authConfigPath
 type UserInfo struct {
-	Name                  string     `yaml:"name,omitempty"`
-	BearerToken           string     `yaml:"bearer_token,omitempty"`
-	Username              string     `yaml:"username,omitempty"`
-	Password              string     `yaml:"password,omitempty"`
-	URLPrefix             *URLPrefix `yaml:"url_prefix,omitempty"`
-	URLMaps               []URLMap   `yaml:"url_map,omitempty"`
-	Headers               []Header   `yaml:"headers,omitempty"`
-	MaxConcurrentRequests int        `yaml:"max_concurrent_requests,omitempty"`
-	DefaultURL            *URLPrefix `yaml:"default_url,omitempty"`
+	Name                  string      `yaml:"name,omitempty"`
+	BearerToken           string      `yaml:"bearer_token,omitempty"`
+	Username              string      `yaml:"username,omitempty"`
+	Password              string      `yaml:"password,omitempty"`
+	URLPrefix             *URLPrefix  `yaml:"url_prefix,omitempty"`
+	URLMaps               []URLMap    `yaml:"url_map,omitempty"`
+	HeadersConf           HeadersConf `yaml:",inline"`
+	MaxConcurrentRequests int         `yaml:"max_concurrent_requests,omitempty"`
+	DefaultURL            *URLPrefix  `yaml:"default_url,omitempty"`
+	RetryStatusCodes      []int       `yaml:"retry_status_codes,omitempty"`
 
 	concurrencyLimitCh      chan struct{}
 	concurrencyLimitReached *metrics.Counter
 
 	requests         *metrics.Counter
 	requestsDuration *metrics.Summary
+}
+
+// HeadersConf represents config for request and response headers.
+type HeadersConf struct {
+	RequestHeaders  []Header `yaml:"headers,omitempty"`
+	ResponseHeaders []Header `yaml:"response_headers,omitempty"`
 }
 
 func (ui *UserInfo) beginConcurrencyLimit() error {
@@ -105,9 +112,10 @@ func (h *Header) MarshalYAML() (interface{}, error) {
 
 // URLMap is a mapping from source paths to target urls.
 type URLMap struct {
-	SrcPaths  []*SrcPath `yaml:"src_paths,omitempty"`
-	URLPrefix *URLPrefix `yaml:"url_prefix,omitempty"`
-	Headers   []Header   `yaml:"headers,omitempty"`
+	SrcPaths         []*SrcPath  `yaml:"src_paths,omitempty"`
+	URLPrefix        *URLPrefix  `yaml:"url_prefix,omitempty"`
+	HeadersConf      HeadersConf `yaml:",inline"`
+	RetryStatusCodes []int       `yaml:"retry_status_codes,omitempty"`
 }
 
 // SrcPath represents an src path

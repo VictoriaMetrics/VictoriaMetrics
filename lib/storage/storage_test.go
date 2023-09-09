@@ -478,15 +478,15 @@ func TestStorageOpenClose(t *testing.T) {
 
 func TestStorageRandTimestamps(t *testing.T) {
 	path := "TestStorageRandTimestamps"
-	retentionMsecs := int64(10 * msecsPerMonth)
-	s := MustOpenStorage(path, retentionMsecs, 0, 0)
+	retention := 10 * retention31Days
+	s := MustOpenStorage(path, retention, 0, 0)
 	t.Run("serial", func(t *testing.T) {
 		for i := 0; i < 3; i++ {
 			if err := testStorageRandTimestamps(s); err != nil {
 				t.Fatalf("error on iteration %d: %s", i, err)
 			}
 			s.MustClose()
-			s = MustOpenStorage(path, retentionMsecs, 0, 0)
+			s = MustOpenStorage(path, retention, 0, 0)
 		}
 	})
 	t.Run("concurrent", func(t *testing.T) {
@@ -936,8 +936,8 @@ func testStorageRegisterMetricNames(s *Storage) error {
 func TestStorageAddRowsSerial(t *testing.T) {
 	rng := rand.New(rand.NewSource(1))
 	path := "TestStorageAddRowsSerial"
-	retentionMsecs := int64(msecsPerMonth * 10)
-	s := MustOpenStorage(path, retentionMsecs, 1e5, 1e5)
+	retention := 10 * retention31Days
+	s := MustOpenStorage(path, retention, 1e5, 1e5)
 	if err := testStorageAddRows(rng, s); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -949,8 +949,8 @@ func TestStorageAddRowsSerial(t *testing.T) {
 
 func TestStorageAddRowsConcurrent(t *testing.T) {
 	path := "TestStorageAddRowsConcurrent"
-	retentionMsecs := int64(msecsPerMonth * 10)
-	s := MustOpenStorage(path, retentionMsecs, 1e5, 1e5)
+	retention := 10 * retention31Days
+	s := MustOpenStorage(path, retention, 1e5, 1e5)
 	ch := make(chan error, 3)
 	for i := 0; i < cap(ch); i++ {
 		go func(n int) {
@@ -1164,8 +1164,8 @@ func testStorageAddMetrics(s *Storage, workerNum int) error {
 func TestStorageDeleteStaleSnapshots(t *testing.T) {
 	rng := rand.New(rand.NewSource(1))
 	path := "TestStorageDeleteStaleSnapshots"
-	retentionMsecs := int64(msecsPerMonth * 10)
-	s := MustOpenStorage(path, retentionMsecs, 1e5, 1e5)
+	retention := 10 * retention31Days
+	s := MustOpenStorage(path, retention, 1e5, 1e5)
 	const rowsPerAdd = 1e3
 	const addsCount = 10
 	maxTimestamp := timestampFromTime(time.Now())

@@ -1,0 +1,120 @@
+@use "src/styles/variables" as *;
+
+$chart-tooltip-width: 370px;
+$chart-tooltip-icon-width: 25px;
+$chart-tooltip-half-icon: calc($chart-tooltip-icon-width / 2);
+$chart-tooltip-date-width: $chart-tooltip-width - (2*$chart-tooltip-icon-width) - (3*$padding-global);
+$chart-tooltip-x: -1 * ($padding-small + $padding-global + $chart-tooltip-date-width + $chart-tooltip-half-icon);
+$chart-tooltip-y: -1 * ($padding-global + $chart-tooltip-half-icon);
+
+.vm-chart-tooltip {
+  position: absolute;
+  display: grid;
+  gap: $padding-global;
+  width: $chart-tooltip-width;
+  padding: $padding-global;
+  border-radius: $border-radius-medium;
+  background: $color-background-tooltip;
+  color: $color-white;
+  font-size: $font-size-small;
+  font-weight: normal;
+  line-height: 150%;
+  word-wrap: break-word;
+  font-family: $font-family-monospace;
+  z-index: 98;
+  user-select: text;
+  pointer-events: none;
+
+  &_sticky {
+    pointer-events: auto;
+    z-index: 99;
+  }
+
+  &_moved {
+    position: fixed;
+    margin-top: $chart-tooltip-y;
+    margin-left: $chart-tooltip-x;
+  }
+
+  &-header {
+    display: grid;
+    grid-template-columns: 1fr $chart-tooltip-icon-width $chart-tooltip-icon-width;
+    gap: $padding-small;
+    align-items: center;
+    justify-content: center;
+    min-height: 25px;
+
+    &__title {
+      grid-row: 1;
+    }
+
+    &__close {
+      grid-row: 1;
+      grid-column: 3;
+      color: $color-white;
+    }
+
+    &__drag {
+      grid-row: 1;
+      grid-column: 2;
+      color: $color-white;
+      cursor: move;
+    }
+
+    &__date {
+      grid-column: 1;
+      display: grid;
+      gap: 2px;
+    }
+  }
+
+  &-data {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: $padding-small;
+
+    &__marker {
+      width: $font-size;
+      height: $font-size;
+      border: 1px solid rgba($color-white, 0.5);
+    }
+
+    &__value {
+      line-height: 1;
+      font-size: $font-size;
+    }
+  }
+
+  &-stats {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-start;
+    gap: $padding-small $padding-global;
+
+    &-row {
+      display: grid;
+      align-items: center;
+      justify-content: flex-start;
+
+      &:not(:last-child) {
+        padding-right: $padding-small;
+      }
+
+      &__key {
+        line-height: 1;
+        margin-right: calc($padding-small/2);
+      }
+
+      &__value {
+        font-weight: bold;
+      }
+    }
+  }
+
+  &__info {
+    word-break: break-all;
+    white-space: pre-wrap;
+  }
+}

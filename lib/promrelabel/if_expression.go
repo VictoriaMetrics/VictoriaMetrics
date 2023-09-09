@@ -80,7 +80,6 @@ func (ie *IfExpression) UnmarshalYAML(f func(interface{}) error) error {
 }
 
 func (ie *IfExpression) unmarshalFromInterface(v interface{}) error {
-	logger.Infof("DEBUG: unmarshaling ifExpr from %#v", v)
 	ies := ie.ies[:0]
 	switch t := v.(type) {
 	case string:
@@ -89,7 +88,6 @@ func (ie *IfExpression) unmarshalFromInterface(v interface{}) error {
 			return fmt.Errorf("unexpected `match` option: %w", err)
 		}
 		ies = append(ies, ieLocal)
-		logger.Infof("DEBUG: unmarshaled ifExpr from %#v to %s", t, ieLocal)
 	case []interface{}:
 		for _, x := range t {
 			s, ok := x.(string)
@@ -102,7 +100,6 @@ func (ie *IfExpression) unmarshalFromInterface(v interface{}) error {
 			}
 			ies = append(ies, ieLocal)
 		}
-		logger.Infof("DEBUG: unmarshaled ifExpr from %#v to %s", t, ies)
 	default:
 		return fmt.Errorf("unexpected `match` type; got %#v; want string or an array of strings", t)
 	}

@@ -201,7 +201,12 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 		}
 
 		if len(metrics) == 0 {
-			return fmt.Errorf("no metrics found")
+			errMsg := "no metrics found"
+			if tenantID != "" {
+				errMsg = fmt.Sprintf("%s for tenant id: %s", errMsg, tenantID)
+			}
+			log.Println(errMsg)
+			return nil
 		}
 		foundSeriesMsg = fmt.Sprintf("Found %d metrics to import", len(metrics))
 	}

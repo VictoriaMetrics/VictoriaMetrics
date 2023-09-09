@@ -88,9 +88,8 @@ const NestedNav: FC<RecursiveProps> = ({ trace, totalMsec })  => {
           </div>
           {(isExpanded || showFullMessage) && (
             <Button
-              variant="outlined"
+              variant="text"
               size="small"
-              color="secondary"
               onClick={handleClickShowMore}
             >
               {showFullMessage ? "Hide" : "Show full query"}

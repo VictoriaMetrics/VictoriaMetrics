@@ -243,3 +243,10 @@ func (fs *FS) HasFile(filePath string) (bool, error) {
 	}
 	return true, nil
 }
+
+// ReadFile returns the content of filePath at fs.
+func (fs *FS) ReadFile(filePath string) ([]byte, error) {
+	path := filepath.Join(fs.Dir, filePath)
+
+	return os.ReadFile(path)
+}

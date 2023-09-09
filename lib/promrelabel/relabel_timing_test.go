@@ -8,20 +8,39 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 )
 
-func BenchmarkSanitizeName(b *testing.B) {
+func BenchmarkSanitizeMetricName(b *testing.B) {
 	for _, name := range []string{"", "foo", "foo-bar-baz", "http_requests_total"} {
 		b.Run(name, func(b *testing.B) {
-			benchmarkSanitizeName(b, name)
+			benchmarkSanitizeMetricName(b, name)
 		})
 	}
 }
 
-func benchmarkSanitizeName(b *testing.B, name string) {
+func benchmarkSanitizeMetricName(b *testing.B, name string) {
 	b.ReportAllocs()
 	b.SetBytes(1)
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			sanitizedName := SanitizeName(name)
+			sanitizedName := SanitizeMetricName(name)
+			GlobalSink += len(sanitizedName)
+		}
+	})
+}
+
+func BenchmarkSanitizeLabelName(b *testing.B) {
+	for _, name := range []string{"", "foo", "foo-bar-baz", "http_requests_total"} {
+		b.Run(name, func(b *testing.B) {
+			benchmarkSanitizeLabelName(b, name)
+		})
+	}
+}
+
+func benchmarkSanitizeLabelName(b *testing.B, name string) {
+	b.ReportAllocs()
+	b.SetBytes(1)
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			sanitizedName := SanitizeLabelName(name)
 			GlobalSink += len(sanitizedName)
 		}
 	})

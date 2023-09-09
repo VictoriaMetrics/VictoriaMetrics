@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -41,7 +43,9 @@ var (
 	reloadAuthKey        = flag.String("reloadAuthKey", "", "Auth key for /-/reload http endpoint. It must be passed as authKey=...")
 	logInvalidAuthTokens = flag.Bool("logInvalidAuthTokens", false, "Whether to log requests with invalid auth tokens. "+
 		`Such requests are always counted at vmauth_http_request_errors_total{reason="invalid_auth_token"} metric, which is exposed at /metrics page`)
-	failTimeout = flag.Duration("failTimeout", 3*time.Second, "Sets a delay period for load balancing to skip a malfunctioning backend.")
+	failTimeout               = flag.Duration("failTimeout", 3*time.Second, "Sets a delay period for load balancing to skip a malfunctioning backend")
+	maxRequestBodySizeToRetry = flagutil.NewBytes("maxRequestBodySizeToRetry", 16*1024, "The maximum request body size, which can be cached and re-tried at other backends. "+
+		"Bigger values may require more memory")
 )
 
 func main() {
@@ -151,7 +155,7 @@ func processUserRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 
 func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 	u := normalizeURL(r.URL)
-	up, headers := ui.getURLPrefixAndHeaders(u)
+	up, hc, retryStatusCodes := ui.getURLPrefixAndHeaders(u)
 	isDefault := false
 	if up == nil {
 		missingRouteRequests.Inc()
@@ -159,14 +163,15 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 			httpserver.Errorf(w, r, "missing route for %q", u.String())
 			return
 		}
-		up, headers = ui.DefaultURL, ui.Headers
+		up, hc, retryStatusCodes = ui.DefaultURL, ui.HeadersConf, ui.RetryStatusCodes
 		isDefault = true
 	}
-	r.Body = &readTrackingBody{
-		r: r.Body,
-	}
-
 	maxAttempts := up.getBackendsCount()
+	if maxAttempts > 1 {
+		r.Body = &readTrackingBody{
+			r: r.Body,
+		}
+	}
 	for i := 0; i < maxAttempts; i++ {
 		bu := up.getLeastLoadedBackendURL()
 		targetURL := bu.url
@@ -178,7 +183,7 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 		} else { // Update path for regular routes.
 			targetURL = mergeURLs(targetURL, u)
 		}
-		ok := tryProcessingRequest(w, r, targetURL, headers)
+		ok := tryProcessingRequest(w, r, targetURL, hc, retryStatusCodes)
 		bu.put()
 		if ok {
 			return
@@ -192,20 +197,24 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 	httpserver.Errorf(w, r, "%s", err)
 }
 
-func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url.URL, headers []Header) bool {
+func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url.URL, hc HeadersConf, retryStatusCodes []int) bool {
 	// This code has been copied from net/http/httputil/reverseproxy.go
 	req := sanitizeRequestHeaders(r)
 	req.URL = targetURL
-	for _, h := range headers {
-		req.Header.Set(h.Name, h.Value)
-	}
+	updateHeadersByConfig(req.Header, hc.RequestHeaders)
 	transportOnce.Do(transportInit)
 	res, err := transport.RoundTrip(req)
+	rtb, rtbOK := req.Body.(*readTrackingBody)
 	if err != nil {
-		rtb := req.Body.(*readTrackingBody)
-		if rtb.readStarted {
-			// Request body has been already read, so it is impossible to retry the request.
-			// Return the error to the client then.
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			// Do not retry canceled or timed out requests
+			remoteAddr := httpserver.GetQuotedRemoteAddr(r)
+			requestURI := httpserver.GetRequestURI(r)
+			logger.Warnf("remoteAddr: %s; requestURI: %s; error when proxying response body from %s: %s", remoteAddr, requestURI, targetURL, err)
+			return true
+		}
+		if !rtbOK || !rtb.canRetry() {
+			// Request body cannot be re-sent to another backend. Return the error to the client then.
 			err = &httpserver.ErrorWithStatusCode{
 				Err:        fmt.Errorf("cannot proxy the request to %q: %w", targetURL, err),
 				StatusCode: http.StatusServiceUnavailable,
@@ -216,12 +225,23 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 		// Retry the request if its body wasn't read yet. This usually means that the backend isn't reachable.
 		remoteAddr := httpserver.GetQuotedRemoteAddr(r)
 		// NOTE: do not use httpserver.GetRequestURI
-		// it explicitly reads request body and fails retries.
-		logger.Warnf("remoteAddr: %s; requestURI: %s; error when proxying the request to %q: %s", remoteAddr, req.URL, targetURL, err)
+		// it explicitly reads request body, which may fail retries.
+		logger.Warnf("remoteAddr: %s; requestURI: %s; retrying the request to %s because of response error: %s", remoteAddr, req.URL, targetURL, err)
+		return false
+	}
+	if (rtbOK && rtb.canRetry()) && hasInt(retryStatusCodes, res.StatusCode) {
+		// Retry requests at other backends if it matches retryStatusCodes.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4893
+		remoteAddr := httpserver.GetQuotedRemoteAddr(r)
+		// NOTE: do not use httpserver.GetRequestURI
+		// it explicitly reads request body, which may fail retries.
+		logger.Warnf("remoteAddr: %s; requestURI: %s; retrying the request to %s because response status code=%d belongs to retry_status_codes=%d",
+			remoteAddr, req.URL, targetURL, res.StatusCode, retryStatusCodes)
 		return false
 	}
 	removeHopHeaders(res.Header)
 	copyHeader(w.Header(), res.Header)
+	updateHeadersByConfig(w.Header(), hc.ResponseHeaders)
 	w.WriteHeader(res.StatusCode)
 
 	copyBuf := copyBufPool.Get()
@@ -237,12 +257,31 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 	return true
 }
 
+func hasInt(a []int, n int) bool {
+	for _, x := range a {
+		if x == n {
+			return true
+		}
+	}
+	return false
+}
+
 var copyBufPool bytesutil.ByteBufferPool
 
 func copyHeader(dst, src http.Header) {
 	for k, vv := range src {
 		for _, v := range vv {
 			dst.Add(k, v)
+		}
+	}
+}
+
+func updateHeadersByConfig(headers http.Header, config []Header) {
+	for _, h := range config {
+		if h.Value == "" {
+			headers.Del(h.Name)
+		} else {
+			headers.Set(h.Name, h.Value)
 		}
 	}
 }
@@ -361,26 +400,86 @@ func handleConcurrencyLimitError(w http.ResponseWriter, r *http.Request, err err
 }
 
 type readTrackingBody struct {
-	r           io.ReadCloser
-	readStarted bool
+	// r contains reader for initial data reading
+	r io.ReadCloser
+
+	// buf is a buffer for data read from r. Buf size is limited by maxRequestBodySizeToRetry.
+	// If more than maxRequestBodySizeToRetry is read from r, then cannotRetry is set to true.
+	buf []byte
+
+	// cannotRetry is set to true when more than maxRequestBodySizeToRetry are read from r.
+	// In this case the read data cannot fit buf, so it cannot be re-read from buf.
+	cannotRetry bool
+
+	// bufComplete is set to true when buf contains complete request body read from r.
+	bufComplete bool
+
+	// needReadBuf is set to true when Read() must be performed from buf instead of r.
+	needReadBuf bool
+
+	// offset is an offset at buf for the next data read if needReadBuf is set to true.
+	offset int
 }
 
 // Read implements io.Reader interface
 // tracks body reading requests
 func (rtb *readTrackingBody) Read(p []byte) (int, error) {
-	if len(p) > 0 {
-		rtb.readStarted = true
+	if rtb.needReadBuf {
+		if rtb.offset >= len(rtb.buf) {
+			return 0, io.EOF
+		}
+		n := copy(p, rtb.buf[rtb.offset:])
+		rtb.offset += n
+		return n, nil
 	}
-	return rtb.r.Read(p)
+
+	if rtb.r == nil {
+		return 0, fmt.Errorf("cannot read data after closing the reader")
+	}
+
+	n, err := rtb.r.Read(p)
+	if rtb.cannotRetry {
+		return n, err
+	}
+	if len(rtb.buf)+n > maxRequestBodySizeToRetry.IntN() {
+		rtb.cannotRetry = true
+		return n, err
+	}
+	rtb.buf = append(rtb.buf, p[:n]...)
+	if err == io.EOF {
+		rtb.bufComplete = true
+	}
+	return n, err
+}
+
+func (rtb *readTrackingBody) canRetry() bool {
+	if rtb.cannotRetry {
+		return false
+	}
+	if len(rtb.buf) > 0 && !rtb.needReadBuf {
+		return false
+	}
+	return true
 }
 
 // Close implements io.Closer interface.
 func (rtb *readTrackingBody) Close() error {
-	// Close rtb.r only if at least a single Read call was performed.
-	// http.Roundtrip performs body.Close call even without any Read calls
-	// so this hack allows us to reuse request body
-	if rtb.readStarted {
-		return rtb.r.Close()
+	rtb.offset = 0
+	if rtb.bufComplete {
+		rtb.needReadBuf = true
 	}
+
+	// Close rtb.r only if the request body is completely read or if it is too big.
+	// http.Roundtrip performs body.Close call even without any Read calls,
+	// so this hack allows us to reuse request body.
+	if rtb.bufComplete || rtb.cannotRetry {
+		if rtb.r == nil {
+			return nil
+		}
+		err := rtb.r.Close()
+		rtb.r = nil
+		return err
+	}
+
 	return nil
 }

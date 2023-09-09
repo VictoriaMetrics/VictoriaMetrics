@@ -1,3 +1,15 @@
+---
+sort: 18
+weight: 18
+title: CHANGELOG for the year 2021
+menu:
+  docs:
+    parent: "victoriametrics"
+    weight: 18
+aliases:
+- /CHANGELOG.html
+---
+
 # CHANGELOG for the year 2021
 
 ## [v1.71.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.71.0)

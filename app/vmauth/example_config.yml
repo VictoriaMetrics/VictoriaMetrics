@@ -12,11 +12,16 @@ users:
 
   # Requests with the 'Authorization: Bearer YYY' header are proxied to http://localhost:8428 ,
   # The `X-Scope-OrgID: foobar` http header is added to every proxied request.
+  # The `X-Server-Hostname:` http header is removed from the proxied response.
   # For example, http://vmauth:8427/api/v1/query is proxied to http://localhost:8428/api/v1/query
 - bearer_token: "YYY"
   url_prefix: "http://localhost:8428"
+  # extra headers to add to the request or remove from the request (if header value is empty)
   headers:
   - "X-Scope-OrgID: foobar"
+  # extra headers to add to the response or remove from the response (if header value is empty)
+  response_headers:
+  - "X-Server-Hostname:" # empty value means the header will be removed from the response
 
   # All the requests to http://vmauth:8427 with the given Basic Auth (username:password)
   # are proxied to http://localhost:8428 .
@@ -67,6 +72,7 @@ users:
   #     - http://vmselect2:8481/select/42/prometheus
   #   For example, http://vmauth:8427/api/v1/query is proxied to http://vmselect1:8480/select/42/prometheus/api/v1/query
   #   or to http://vmselect2:8480/select/42/prometheus/api/v1/query .
+  #   Requests are re-tried at other url_prefix backends if response status codes match 500 or 502.
   #
   # - Requests to http://vmauth:8427/api/v1/write are proxied to http://vminsert:8480/insert/42/prometheus/api/v1/write .
   #   The "X-Scope-OrgID: abc" http header is added to these requests.
@@ -85,6 +91,7 @@ users:
     url_prefix:
     - "http://vmselect1:8481/select/42/prometheus"
     - "http://vmselect2:8481/select/42/prometheus"
+    retry_status_codes: [500, 502]
   - src_paths: ["/api/v1/write"]
     url_prefix: "http://vminsert:8480/insert/42/prometheus"
     headers:
@@ -94,11 +101,11 @@ users:
   - "http://default2:8888/unsupported_url_handler"
 
 # Requests without Authorization header are routed according to `unauthorized_user` section.
+# Requests are routed in round-robin fashion between `url_prefix` backends.
+# The deny_partial_response query arg is added to all the routed requests.
+# The requests are re-tried if url_prefix backends send 500 or 503 response status codes.
 unauthorized_user:
-  url_map:
-  - src_paths:
-    - /api/v1/query
-    - /api/v1/query_range
-    url_prefix:
-    - http://vmselect1:8481/select/0/prometheus
-    - http://vmselect2:8481/select/0/prometheus
+  url_prefix:
+  - http://vmselect-az1/?deny_partial_response=1
+  - http://vmselect-az2/?deny_partial_response=1
+  retry_status_codes: [503, 500]

@@ -7,7 +7,7 @@ import (
 
 func TestTableOpenClose(t *testing.T) {
 	const path = "TestTableOpenClose"
-	const retentionMsecs = 123 * msecsPerMonth
+	const retention = 123 * retention31Days
 
 	if err := os.RemoveAll(path); err != nil {
 		t.Fatalf("cannot remove %q: %s", path, err)
@@ -18,7 +18,7 @@ func TestTableOpenClose(t *testing.T) {
 
 	// Create a new table
 	strg := newTestStorage()
-	strg.retentionMsecs = retentionMsecs
+	strg.retentionMsecs = retention.Milliseconds()
 	tb := mustOpenTable(path, strg)
 
 	// Close it

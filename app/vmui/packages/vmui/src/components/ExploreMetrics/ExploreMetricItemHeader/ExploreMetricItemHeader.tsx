@@ -59,6 +59,7 @@ const ExploreMetricItemHeader: FC<ExploreMetricItemControlsProps> = ({
           size="small"
           startIcon={<MoreIcon/>}
           onClick={handleOpenOptions}
+          ariaLabel="open panel settings"
         />
         {openOptions && (
           <Modal
@@ -72,6 +73,7 @@ const ExploreMetricItemHeader: FC<ExploreMetricItemControlsProps> = ({
                   variant="outlined"
                   onClick={handleOrderUp}
                   disabled={index === 0}
+                  ariaLabel="move graph up"
                 />
                 <p>position:
                   <span className="vm-explore-metrics-item-header-modal-order__index">#{index + 1}</span>
@@ -81,6 +83,7 @@ const ExploreMetricItemHeader: FC<ExploreMetricItemControlsProps> = ({
                   variant="outlined"
                   onClick={handleOrderDown}
                   disabled={index === length - 1}
+                  ariaLabel="move graph down"
                 />
               </div>
               {!isBucket && (
@@ -123,6 +126,7 @@ const ExploreMetricItemHeader: FC<ExploreMetricItemControlsProps> = ({
             color="gray"
             size="small"
             onClick={handleOrderUp}
+            ariaLabel="move graph up"
           />
         </Tooltip>
         <div className="vm-explore-metrics-item-header__index">#{index+1}</div>
@@ -134,6 +138,7 @@ const ExploreMetricItemHeader: FC<ExploreMetricItemControlsProps> = ({
             color="gray"
             size="small"
             onClick={handleOrderDown}
+            ariaLabel="move graph down"
           />
         </Tooltip>
       </div>
@@ -157,6 +162,7 @@ const ExploreMetricItemHeader: FC<ExploreMetricItemControlsProps> = ({
             color="gray"
             size="small"
             onClick={handleClickRemove}
+            ariaLabel="close graph"
           />
         </Tooltip>
       </div>

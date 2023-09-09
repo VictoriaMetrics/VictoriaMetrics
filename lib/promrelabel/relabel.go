@@ -619,15 +619,28 @@ func fillLabelReferences(dst []byte, replacement string, labels []prompbmarshal.
 	return dst
 }
 
-// SanitizeName replaces unsupported by Prometheus chars in metric names and label names with _.
+// SanitizeLabelName replaces unsupported by Prometheus chars in label names with _.
 //
 // See https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels
-func SanitizeName(name string) string {
-	return promSanitizer.Transform(name)
+func SanitizeLabelName(name string) string {
+	return labelNameSanitizer.Transform(name)
 }
 
-var promSanitizer = bytesutil.NewFastStringTransformer(func(s string) string {
-	return unsupportedPromChars.ReplaceAllString(s, "_")
+var labelNameSanitizer = bytesutil.NewFastStringTransformer(func(s string) string {
+	return unsupportedLabelNameChars.ReplaceAllString(s, "_")
 })
 
-var unsupportedPromChars = regexp.MustCompile(`[^a-zA-Z0-9_:]`)
+var unsupportedLabelNameChars = regexp.MustCompile(`[^a-zA-Z0-9_]`)
+
+// SanitizeMetricName replaces unsupported by Prometheus chars in metric names with _.
+//
+// See https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels
+func SanitizeMetricName(value string) string {
+	return metricNameSanitizer.Transform(value)
+}
+
+var metricNameSanitizer = bytesutil.NewFastStringTransformer(func(s string) string {
+	return unsupportedMetricNameChars.ReplaceAllString(s, "_")
+})
+
+var unsupportedMetricNameChars = regexp.MustCompile(`[^a-zA-Z0-9_:]`)

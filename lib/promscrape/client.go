@@ -79,6 +79,8 @@ func concatTwoStrings(x, y string) string {
 	return s
 }
 
+const scrapeUserAgent = "vm_promscrape"
+
 func newClient(ctx context.Context, sw *ScrapeWork) *client {
 	var u fasthttp.URI
 	u.Update(sw.ScrapeURL)
@@ -120,8 +122,9 @@ func newClient(ctx context.Context, sw *ScrapeWork) *client {
 		logger.Fatalf("cannot create dial func: %s", err)
 	}
 	hc := &fasthttp.HostClient{
-		Addr:                         dialAddr,
-		Name:                         "vm_promscrape",
+		Addr: dialAddr,
+		// Name used in User-Agent request header
+		Name:                         scrapeUserAgent,
 		Dial:                         dialFunc,
 		IsTLS:                        isTLS,
 		TLSConfig:                    tlsCfg,
@@ -148,17 +151,8 @@ func newClient(ctx context.Context, sw *ScrapeWork) *client {
 			DialContext:            statStdDial,
 			MaxIdleConnsPerHost:    100,
 			MaxResponseHeaderBytes: int64(maxResponseHeadersSize.N),
-
-			// Set timeout for receiving the first response byte,
-			// since the duration for reading the full response can be much bigger because of stream parsing.
-			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1017#issuecomment-767235047
-			ResponseHeaderTimeout: sw.ScrapeTimeout,
 		},
-
-		// Set 30x bigger timeout than the sw.ScrapeTimeout, since the duration for reading the full response
-		// can be much bigger because of stream parsing.
-		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1017#issuecomment-767235047
-		Timeout: 30 * sw.ScrapeTimeout,
+		Timeout: sw.ScrapeTimeout,
 	}
 	if sw.DenyRedirects {
 		sc.CheckRedirect = func(req *http.Request, via []*http.Request) error {
@@ -201,6 +195,7 @@ func (c *client) GetStreamReader() (*streamReader, error) {
 	// Set X-Prometheus-Scrape-Timeout-Seconds like Prometheus does, since it is used by some exporters such as PushProx.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1179#issuecomment-813117162
 	req.Header.Set("X-Prometheus-Scrape-Timeout-Seconds", c.scrapeTimeoutSecondsStr)
+	req.Header.Set("User-Agent", scrapeUserAgent)
 	c.setHeaders(req)
 	c.setProxyHeaders(req)
 	scrapeRequests.Inc()

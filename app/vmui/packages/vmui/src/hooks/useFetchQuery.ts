@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "preact/compat";
+import { StateUpdater, useCallback, useEffect, useMemo, useState } from "preact/compat";
 import { getQueryRangeUrl, getQueryUrl } from "../api/query-range";
 import { useAppState } from "../state/common/StateContext";
 import { InstantMetricResult, MetricBase, MetricResult, QueryStats } from "../api/types";
@@ -11,6 +11,8 @@ import { useQueryState } from "../state/query/QueryStateContext";
 import { useTimeState } from "../state/time/TimeStateContext";
 import { useCustomPanelState } from "../state/customPanel/CustomPanelStateContext";
 import { isHistogramData } from "../utils/metric";
+import { useGraphState } from "../state/graph/GraphStateContext";
+import { getStepFromDuration } from "../utils/time";
 
 interface FetchQueryParams {
   predefinedQuery?: string[]
@@ -28,6 +30,7 @@ interface FetchQueryReturn {
   liveData?: InstantMetricResult[],
   error?: ErrorTypes | string,
   queryErrors: (ErrorTypes | string)[],
+  setQueryErrors: StateUpdater<string[]>,
   queryStats: QueryStats[],
   warning?: string,
   traces?: Trace[],
@@ -56,17 +59,23 @@ export const useFetchQuery = ({
   const { period } = useTimeState();
   const { displayType, nocache, isTracingEnabled, seriesLimits: stateSeriesLimits } = useCustomPanelState();
   const { serverUrl } = useAppState();
+  const { isHistogram: isHistogramState } = useGraphState();
 
   const [isLoading, setIsLoading] = useState(false);
   const [graphData, setGraphData] = useState<MetricResult[]>();
   const [liveData, setLiveData] = useState<InstantMetricResult[]>();
   const [traces, setTraces] = useState<Trace[]>();
   const [error, setError] = useState<ErrorTypes | string>();
-  const [queryErrors, setQueryErrors] = useState<(ErrorTypes | string)[]>([]);
+  const [queryErrors, setQueryErrors] = useState<string[]>([]);
   const [queryStats, setQueryStats] = useState<QueryStats[]>([]);
   const [warning, setWarning] = useState<string>();
   const [fetchQueue, setFetchQueue] = useState<AbortController[]>([]);
   const [isHistogram, setIsHistogram] = useState(false);
+
+  const defaultStep = useMemo(() => {
+    const { end, start } = period;
+    return getStepFromDuration(end - start, isHistogramState);
+  }, [period, isHistogramState]);
 
   const fetchData = async ({
     fetchUrl,
@@ -81,11 +90,13 @@ export const useFetchQuery = ({
     setFetchQueue([...fetchQueue, controller]);
     try {
       const isDisplayChart = displayType === "chart";
-      let seriesLimit = showAllSeries ? Infinity : (+stateSeriesLimits[displayType] || Infinity);
+      const defaultLimit = showAllSeries ? Infinity : (+stateSeriesLimits[displayType] || Infinity);
+      let seriesLimit = defaultLimit;
       const tempData: MetricBase[] = [];
       const tempTraces: Trace[] = [];
       let counter = 1;
       let totalLength = 0;
+      let isHistogramResult = false;
 
       for await (const url of fetchUrl) {
 
@@ -113,9 +124,8 @@ export const useFetchQuery = ({
             tempTraces.push(trace);
           }
 
-          const isHistogramResult = isDisplayChart && isHistogramData(resp.data.result);
-          if (resp.data.result.length) setIsHistogram(isHistogramResult);
-          if (isHistogramResult) seriesLimit = Infinity;
+          isHistogramResult = isDisplayChart && isHistogramData(resp.data.result);
+          seriesLimit = isHistogramResult ? Infinity : Math.max(totalLength, defaultLimit);
           const freeTempSize = seriesLimit - tempData.length;
           resp.data.result.slice(0, freeTempSize).forEach((d: MetricBase) => {
             d.group = counter;
@@ -134,6 +144,7 @@ export const useFetchQuery = ({
       setWarning(totalLength > seriesLimit ? limitText : "");
       isDisplayChart ? setGraphData(tempData as MetricResult[]) : setLiveData(tempData as InstantMetricResult[]);
       setTraces(tempTraces);
+      setIsHistogram(prev => totalLength ? isHistogramResult : prev);
     } catch (e) {
       if (e instanceof Error && e.name !== "AbortError") {
         setError(`${e.name}: ${e.message}`);
@@ -193,5 +204,9 @@ export const useFetchQuery = ({
     setFetchQueue(fetchQueue.filter(f => !f.signal.aborted));
   }, [fetchQueue]);
 
-  return { fetchUrl, isLoading, graphData, liveData, error, queryErrors, queryStats, warning, traces, isHistogram };
+  useEffect(() => {
+    if (defaultStep === customStep) setGraphData([]);
+  }, [isHistogram]);
+
+  return { fetchUrl, isLoading, graphData, liveData, error, queryErrors, setQueryErrors, queryStats, warning, traces, isHistogram };
 };

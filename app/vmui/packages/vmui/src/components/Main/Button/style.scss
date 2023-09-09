@@ -45,6 +45,10 @@ $button-radius: 6px;
     transform: translateZ(-1px);
   }
 
+  &:active:after {
+    transform: scale(0.9);
+  }
+
   span {
     display: grid;
     align-items: center;

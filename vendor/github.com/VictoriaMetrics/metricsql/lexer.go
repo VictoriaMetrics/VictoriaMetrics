@@ -233,7 +233,7 @@ func scanPositiveNumber(s string) (string, error) {
 		}
 		return s[:i], nil
 	}
-	for i < len(s) && isDecimalChar(s[i]) {
+	for i < len(s) && isDecimalCharOrUnderscore(s[i]) {
 		i++
 	}
 
@@ -258,7 +258,7 @@ func scanPositiveNumber(s string) (string, error) {
 		// Scan fractional part. It cannot be empty.
 		i++
 		j := i
-		for j < len(s) && isDecimalChar(s[j]) {
+		for j < len(s) && isDecimalCharOrUnderscore(s[j]) {
 			j++
 		}
 		i = j
@@ -671,6 +671,10 @@ func scanSingleDuration(s string, canBeNegative bool) int {
 
 func isDecimalChar(ch byte) bool {
 	return ch >= '0' && ch <= '9'
+}
+
+func isDecimalCharOrUnderscore(ch byte) bool {
+	return isDecimalChar(ch) || ch == '_'
 }
 
 func isHexChar(ch byte) bool {

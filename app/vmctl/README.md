@@ -11,6 +11,7 @@ Features:
 - migrate data from [Mimir](#migrating-data-from-mimir) to VictoriaMetrics
 - migrate data from [InfluxDB](#migrating-data-from-influxdb-1x) to VictoriaMetrics
 - migrate data from [OpenTSDB](#migrating-data-from-opentsdb) to VictoriaMetrics
+- migrate data from [Promscale](#migrating-data-from-promscale)
 - migrate data between [VictoriaMetrics](#migrating-data-from-victoriametrics) single or cluster version.
 - migrate data by [Prometheus remote read protocol](#migrating-data-by-remote-read-protocol) to VictoriaMetrics
 - [verify](#verifying-exported-blocks-from-victoriametrics) exported blocks from VictoriaMetrics single or cluster version.
@@ -306,6 +307,46 @@ Please see more about time filtering [here](https://docs.influxdata.com/influxdb
 Migrating data from InfluxDB v2.x is not supported yet ([#32](https://github.com/VictoriaMetrics/vmctl/issues/32)).
 You may find useful a 3rd party solution for this - <https://github.com/jonppe/influx_to_victoriametrics>.
 
+## Migrating data from Promscale
+
+[Promscale](https://github.com/timescale/promscale) supports [Prometheus Remote Read API](https://prometheus.io/docs/prometheus/latest/querying/remote_read_api/).
+To migrate historical data from Promscale to VictoriaMetrics we recommend using `vmctl`
+in [remote-read](https://docs.victoriametrics.com/vmctl.html#migrating-data-by-remote-read-protocol) mode.
+
+See the example of migration command below:
+```console
+./vmctl remote-read --remote-read-src-addr=http://<promscale>:9201/read \
+                    --remote-read-step-interval=day \
+                    --remote-read-use-stream=false \ # promscale doesn't support streaming
+                    --vm-addr=http://<victoriametrics>:8428 \
+                    --remote-read-filter-time-start=2023-08-21T00:00:00Z \
+                    --remote-read-disable-path-append=true # promscale has custom remote read API HTTP path
+Selected time range "2023-08-21 00:00:00 +0000 UTC" - "2023-08-21 14:11:41.561979 +0000 UTC" will be split into 1 ranges according to "day" step. Continue? [Y/n] y
+VM worker 0:↙ 82831 samples/s                                                                                                                                                                        
+VM worker 1:↙ 54378 samples/s                                                                                                                                                                        
+VM worker 2:↙ 121616 samples/s                                                                                                                                                                       
+VM worker 3:↙ 59164 samples/s                                                                                                                                                                        
+VM worker 4:↙ 59220 samples/s                                                                                                                                                                        
+VM worker 5:↙ 102072 samples/s                                                                                                                                                                       
+Processing ranges: 1 / 1 [██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████] 100.00%
+2023/08/21 16:11:55 Import finished!
+2023/08/21 16:11:55 VictoriaMetrics importer stats:
+  idle duration: 0s;
+  time spent while importing: 14.047045459s;
+  total samples: 262111;
+  samples/s: 18659.51;
+  total bytes: 5.3 MB;
+  bytes/s: 376.4 kB;
+  import requests: 6;
+  import requests retries: 0;
+2023/08/21 16:11:55 Total time: 14.063458792s
+```
+
+Here we specify the full path to Promscale's Remote Read API via `--remote-read-src-addr`, and disable auto-path 
+appending via `--remote-read-disable-path-append` cmd-line flags. This is necessary, as Promscale has a different to 
+Prometheus API path. Promscale doesn't support stream mode for Remote Read API,
+so we disable it via `--remote-read-use-stream=false`. 
+
 ## Migrating data from Prometheus
 
 `vmctl` supports the `prometheus` mode for migrating data from Prometheus to VictoriaMetrics time-series database.
@@ -438,28 +479,34 @@ Found 2 blocks to import. Continue? [Y/n] y
 
 ## Migrating data by remote read protocol
 
-`vmctl` supports the `remote-read` mode for migrating data from databases which support 
-[Prometheus remote read API](https://prometheus.io/docs/prometheus/latest/querying/remote_read_api/)
+`vmctl` provides the `remote-read` mode for migrating data from remote databases supporting 
+[Prometheus remote read API](https://prometheus.io/docs/prometheus/latest/querying/remote_read_api/).
+Remote read API has two implementations of remote read API: default (`SAMPLES`) and 
+[streamed](https://prometheus.io/blog/2019/10/10/remote-read-meets-streaming/) (`STREAMED_XOR_CHUNKS`).
+Streamed version is more efficient but has lower adoption (e.g. [Promscale](#migrating-data-from-promscale)
+doesn't support it).
 
 See `./vmctl remote-read --help` for details and full list of flags.
 
 To start the migration process configure the following flags:
+
 1. `--remote-read-src-addr` - data source address to read from;
 1. `--vm-addr` - VictoriaMetrics address to write to. For single-node VM is usually equal to `--httpListenAddr`, 
    and for cluster version is equal to `--httpListenAddr` flag of vminsert component (for example `http://<vminsert>:8480/insert/<accountID>/prometheus`);
 1. `--remote-read-filter-time-start` - the time filter in RFC3339 format to select time series with timestamp equal or higher than provided value. E.g. '2020-01-01T20:07:00Z';
 1. `--remote-read-filter-time-end` - the time filter in RFC3339 format to select time series with timestamp equal or smaller than provided value. E.g. '2020-01-01T20:07:00Z'. Current time is used when omitted.;
 1. `--remote-read-step-interval` - split export data into chunks. Valid values are `month, day, hour, minute`;
+1. `--remote-read-use-stream` - defines whether to use `SAMPLES` or `STREAMED_XOR_CHUNKS` mode. By default, is uses `SAMPLES` mode.
 
 The importing process example for local installation of Prometheus
 and single-node VictoriaMetrics(`http://localhost:8428`):
 
 ```
 ./vmctl remote-read \
---remote-read-src-addr=http://127.0.0.1:9091 \
+--remote-read-src-addr=http://<prometheus>:9091 \
 --remote-read-filter-time-start=2021-10-18T00:00:00Z \
 --remote-read-step-interval=hour \
---vm-addr=http://127.0.0.1:8428 \
+--vm-addr=http://<victoria-metrics>:8428 \
 --vm-concurrency=6
 
 Split defined times into 8798 ranges to import. Continue? [Y/n]
@@ -536,6 +583,7 @@ then import it into VM using `vmctl` in `prometheus` mode.
     1. Run the `minio/mc` Docker container.
     1. `mc config host add minio http://minio:9000 accessKey secretKey`, substituting appropriate values for the last 3 items.
     1. `mc cp -r minio/prometheus thanos-data`
+
 1. Import using `vmctl`.
     1. Follow the [instructions](#how-to-build) to compile `vmctl` on your machine.
     1. Use [prometheus](#migrating-data-from-prometheus) mode to import data:
@@ -553,7 +601,7 @@ service (or anything that exposes gRPC StoreAPI e.g. Querier) via Prometheus rem
 If you want to migrate data, you should run [thanos-remote-read](https://github.com/G-Research/thanos-remote-read) proxy
 and define the Thanos store address `./thanos-remote-read -store 127.0.0.1:19194`. 
 It is important to know that `store` flag is Thanos Store API gRPC endpoint. 
-Also, it is important to know that thanos-remote-read proxy  doesn't support `STREAMED_XOR_CHUNKS` mode.
+Also, it is important to know that thanos-remote-read proxy doesn't support stream mode.
 When you run thanos-remote-read proxy, it exposes port to serve HTTP on `10080 by default`.
 
 The importing process example for local installation of Thanos
@@ -616,7 +664,7 @@ api:
 If you defined some prometheus prefix, you should use it when you define flag `--remote-read-src-addr=http://127.0.0.1:9009/{prometheus_http_prefix}`.
 By default, Cortex uses the `prometheus` path prefix, so you should define the flag `--remote-read-src-addr=http://127.0.0.1:9009/prometheus`.
 
-It is important to know that Cortex doesn't support the `STREAMED_XOR_CHUNKS` mode.
+It is important to know that Cortex doesn't support the stream mode.
 When you run Cortex, it exposes a port to serve HTTP on `9009 by default`.
 
 The importing process example for the local installation of Cortex
@@ -658,26 +706,24 @@ requires an Authentication header like `X-Scope-OrgID`. You can define it via th
 
 ## Migrating data from Mimir
 
-Mimir has similar implementation as Cortex and also support of the Prometheus remote read protocol. That means
-`vmctl` in mode `remote-read` may also be used for Mimir historical data migration.
-These instructions may vary based on the details of your Mimir configuration.
+Mimir has similar implementation as Cortex and supports Prometheus remote read API. That means historical data
+from Mimir can be migrated via `vmctl` in mode `remote-read` mode.
+The instructions for data migration via vmctl vary based on the details of your Mimir configuration.
 Please read carefully and verify as you go.
 
 ### Remote read protocol
 
-If you want to migrate data, you should check your Mimir configuration in the section
-```yaml
-api:
-  prometheus_http_prefix:
-```
+By default, Mimir uses the `prometheus` path prefix so specifying the source
+should be as simple as `--remote-read-src-addr=http://<mimir>:9009/prometheus`.
+But if prefix was overriden via `prometheus_http_prefix`, then source address should be updated
+to `--remote-read-src-addr=http://<mimir>:9009/{prometheus_http_prefix}`.
 
-If you defined some prometheus prefix, you should use it when you define flag `--remote-read-src-addr=http://127.0.0.1:9009/{prometheus_http_prefix}`.
-By default, Mimir uses the `prometheus` path prefix, so you should define the flag `--remote-read-src-addr=http://127.0.0.1:9009/prometheus`.
+Mimir supports [streamed remote read API](https://prometheus.io/blog/2019/10/10/remote-read-meets-streaming/),
+so it is recommended setting `--remote-read-use-stream=true` flag for better performance and resource usage.
 
-Mimir supports both remote read mode, so you can use `STREAMED_XOR_CHUNKS` mode and `SAMPLES` mode.
 When you run Mimir, it exposes a port to serve HTTP on `8080 by default`.
 
-Next example of the local installation was in multi-tenant mode (3 instances of mimir) with nginx as load balancer.
+Next example of the local installation was in multi-tenant mode (3 instances of Mimir) with nginx as load balancer.
 Load balancer expose single port `:9090`.
 
 As you can see in the example we call `:9009` instead of `:8080` because of proxy.
@@ -687,13 +733,12 @@ and single-node VictoriaMetrics(`http://localhost:8428`):
 
 ```
 ./vmctl remote-read 
---remote-read-src-addr=http://127.0.0.1:9009/prometheus \
+--remote-read-src-addr=http://<mimir>:9009/prometheus \
 --remote-read-filter-time-start=2021-10-18T00:00:00Z \
 --remote-read-step-interval=hour \
 --remote-read-headers=X-Scope-OrgID:demo \
 --remote-read-use-stream=true \
---vm-addr=http://127.0.0.1:8428 \
---vm-concurrency=6
+--vm-addr=http://<victoria-metrics>:8428 \
 ```
 
 And when the process finishes, you will see the following:
@@ -826,7 +871,7 @@ It is possible split migration process into set of smaller batches based on time
 migrating large volumes of data as this adds indication of progress and ability to restore process from certain point 
 in case of failure.
 
-To use this you need to specify `--vm-native-step-interval` flag. Supported values are: `month`, `day`, `hour`, `minute`.
+To use this you need to specify `--vm-native-step-interval` flag. Supported values are: `month`, `week`, `day`, `hour`, `minute`.
 Note that in order to use this it is required `--vm-native-filter-time-start` to be set to calculate time ranges for 
 export process.
 
@@ -836,7 +881,7 @@ Every range is being processed independently, which means that:
 so it is possible to restart process starting from failed range.
 
 It is recommended using the `month` step when migrating the data over multiple months, 
-since the migration with `day` and `hour` steps may take longer time to complete because of additional overhead.
+since the migration with `week`, `day` and `hour` steps may take longer time to complete because of additional overhead.
 
 Usage example:
 ```console
@@ -1023,7 +1068,7 @@ It is recommended using [binary releases](https://github.com/VictoriaMetrics/Vic
 
 ### Development build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.19.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.20.
 1. Run `make vmctl` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `vmctl` binary and puts it into the `bin` folder.
 
@@ -1052,7 +1097,7 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 
 #### Development ARM build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.19.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.20.
 1. Run `make vmctl-linux-arm` or `make vmctl-linux-arm64` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `vmctl-linux-arm` or `vmctl-linux-arm64` binary respectively and puts it into the `bin` folder.
 

@@ -39,13 +39,13 @@ func Init() {
 		logger.Panicf("BUG: Init() has been already called")
 	}
 
-	if retentionPeriod.Msecs < 24*3600*1000 {
+	if retentionPeriod.Duration() < 24*time.Hour {
 		logger.Fatalf("-retentionPeriod cannot be smaller than a day; got %s", retentionPeriod)
 	}
 	cfg := &logstorage.StorageConfig{
-		Retention:       time.Millisecond * time.Duration(retentionPeriod.Msecs),
+		Retention:       retentionPeriod.Duration(),
 		FlushInterval:   *inmemoryDataFlushInterval,
-		FutureRetention: time.Millisecond * time.Duration(futureRetention.Msecs),
+		FutureRetention: futureRetention.Duration(),
 		LogNewStreams:   *logNewStreams,
 		LogIngestedRows: *logIngestedRows,
 	}

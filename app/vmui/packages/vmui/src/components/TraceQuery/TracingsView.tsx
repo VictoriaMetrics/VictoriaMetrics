@@ -69,6 +69,7 @@ const TracingsView: FC<TraceViewProps> = ({ traces, jsonEditor = false, onDelete
                   variant="text"
                   startIcon={<CodeIcon/>}
                   onClick={handleJsonClick(trace)}
+                  ariaLabel="open JSON"
                 />
               </Tooltip>
               <Tooltip title={"Remove trace"}>
@@ -77,6 +78,7 @@ const TracingsView: FC<TraceViewProps> = ({ traces, jsonEditor = false, onDelete
                   color="error"
                   startIcon={<DeleteIcon/>}
                   onClick={handleDeleteClick(trace)}
+                  ariaLabel="remove trace"
                 />
               </Tooltip>
             </div>

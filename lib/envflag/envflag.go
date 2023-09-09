@@ -32,6 +32,11 @@ func ParseFlagSet(fs *flag.FlagSet, args []string) {
 		// Do not use lib/logger here, since it is uninitialized yet.
 		log.Fatalf("cannot parse flags %q: %s", args, err)
 	}
+	if fs.NArg() > 0 {
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4845
+		log.Fatalf("unprocessed command-line args left: %s; the most likely reason is missing `=` between boolean flag name and value; "+
+			"see https://pkg.go.dev/flag#hdr-Command_line_flag_syntax", fs.Args())
+	}
 	if !*enable {
 		return
 	}

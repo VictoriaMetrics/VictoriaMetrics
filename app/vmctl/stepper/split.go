@@ -8,10 +8,10 @@ import (
 const (
 	// StepMonth represents a one month interval
 	StepMonth string = "month"
-	// StepDay represents a one day interval
-	StepDay string = "day"
 	// StepWeek represents a one week interval
 	StepWeek string = "week"
+	// StepDay represents a one day interval
+	StepDay string = "day"
 	// StepHour represents a one hour interval
 	StepHour string = "hour"
 	// StepMinute represents a one minute interval

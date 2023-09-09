@@ -35,9 +35,42 @@ accounting and rate limiting such as [vmgateway](https://docs.victoriametrics.co
 
 Each `url_prefix` in the [-auth.config](#auth-config) may contain either a single url or a list of urls.
 In the latter case `vmauth` balances load among the configured urls in least-loaded round-robin manner.
-`vmauth` retries failing `GET` requests across the configured list of urls.
-This feature is useful for balancing the load among multiple `vmselect` and/or `vminsert` nodes
-in [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html).
+
+If the backend at the configured url isn't available, then `vmauth` tries sending the request to the remaining configured urls.
+
+It is possible to configure automatic retry of requests if the backend responds with status code from optional `retry_status_codes` list.
+
+Load balancing feature can be used in the following cases:
+
+- Balancing the load among multiple `vmselect` and/or `vminsert` nodes in [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html).
+  The following `-auth.config` file can be used for spreading incoming requests among 3 vmselect nodes and re-trying failed requests
+  or requests with 500 and 502 response status codes:
+
+  ```yml
+  unauthorized_user:
+    url_prefix:
+    - http://vmselect1:8481/
+    - http://vmselect2:8481/
+    - http://vmselect3:8481/
+    retry_status_codes: [500, 502]
+  ```
+
+- Spreading select queries among multiple availability zones (AZs) with identical data. For example, the following config spreads select queries
+  among 3 AZs. Requests are re-tried if some AZs are temporarily unavailable or if some `vmstorage` nodes in some AZs are temporarily unavailable.
+  `vmauth` adds `deny_partial_response=1` query arg to all the queries in order to guarantee to get full response from every AZ.
+  See [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#cluster-availability) for details.
+
+  ```yml
+  unauthorized_user:
+    url_prefix:
+    - https://vmselect-az1/?deny_partial_response=1
+    - https://vmselect-az2/?deny_partial_response=1
+    - https://vmselect-az3/?deny_partial_response=1
+    retry_status_codes: [500, 502, 503]
+  ```
+
+Load balancig can also be configured independently per each user and per each `url_map` entry.
+See [auth config docs](#auth-config) for more details.
 
 ## Concurrency limiting
 
@@ -117,11 +150,16 @@ users:
 
   # Requests with the 'Authorization: Bearer YYY' header are proxied to http://localhost:8428 ,
   # The `X-Scope-OrgID: foobar` http header is added to every proxied request.
+  # The `X-Server-Hostname` http header is removed from the proxied response.
   # For example, http://vmauth:8427/api/v1/query is proxied to http://localhost:8428/api/v1/query
 - bearer_token: "YYY"
   url_prefix: "http://localhost:8428"
+  # extra headers to add to the request or remove from the request (if header value is empty)
   headers:
-  - "X-Scope-OrgID: foobar"
+    - "X-Scope-OrgID: foobar"
+  # extra headers to add to the response or remove from the response (if header value is empty)
+  response_headers:
+    - "X-Server-Hostname:" # empty value means the header will be removed from the response
 
   # All the requests to http://vmauth:8427 with the given Basic Auth (username:password)
   # are proxied to http://localhost:8428 .
@@ -172,9 +210,11 @@ users:
   #     - http://vmselect2:8481/select/42/prometheus
   #   For example, http://vmauth:8427/api/v1/query is proxied to http://vmselect1:8480/select/42/prometheus/api/v1/query
   #   or to http://vmselect2:8480/select/42/prometheus/api/v1/query .
+  #   Requests are re-tried at other url_prefix backends if response status codes match 500 or 502.
   #
   # - Requests to http://vmauth:8427/api/v1/write are proxied to http://vminsert:8480/insert/42/prometheus/api/v1/write .
   #   The "X-Scope-OrgID: abc" http header is added to these requests.
+  #   The "X-Server-Hostname" http header is removed from the proxied response.
   #
   # Request which do not match `src_paths` from the `url_map` are proxied to the urls from `default_url`
   # in a round-robin manner. The original request path is passed in `request_path` query arg.
@@ -190,10 +230,13 @@ users:
     url_prefix:
     - "http://vmselect1:8481/select/42/prometheus"
     - "http://vmselect2:8481/select/42/prometheus"
+    retry_status_codes: [500, 502]
   - src_paths: ["/api/v1/write"]
     url_prefix: "http://vminsert:8480/insert/42/prometheus"
     headers:
     - "X-Scope-OrgID: abc"
+    response_headers:
+    - "X-Server-Hostname:" # empty value means the header will be removed from the response
     ip_filters:
       deny_list: [127.0.0.1]
   default_url:
@@ -201,16 +244,14 @@ users:
   - "http://default2:8888/unsupported_url_handler"
 
 # Requests without Authorization header are routed according to `unauthorized_user` section.
+# Requests are routed in round-robin fashion between `url_prefix` backends.
+# The deny_partial_response query arg is added to all the routed requests.
+# The requests are re-tried if url_prefix backends send 500 or 503 response status codes.
 unauthorized_user:
-  url_map:
-  - src_paths:
-    - /api/v1/query
-    - /api/v1/query_range
-    url_prefix:
-    - http://vmselect1:8481/select/0/prometheus
-    - http://vmselect2:8481/select/0/prometheus
-    ip_filters:
-      allow_list: [8.8.8.8]
+  url_prefix:
+  - http://vmselect-az1/?deny_partial_response=1
+  - http://vmselect-az2/?deny_partial_response=1
+  retry_status_codes: [503, 500]
 
 ip_filters:
   allow_list: ["1.2.3.0/24", "127.0.0.1"]
@@ -220,6 +261,9 @@ ip_filters:
 
 The config may contain `%{ENV_VAR}` placeholders, which are substituted by the corresponding `ENV_VAR` environment variable values.
 This may be useful for passing secrets to the config.
+
+Please note, vmauth doesn't follow redirects. If destination redirects request to a new location, make sure this 
+location is supported in vmauth `url_map` config.
 
 ## Security
 
@@ -240,11 +284,11 @@ Alternatively, [https termination proxy](https://en.wikipedia.org/wiki/TLS_termi
 
 It is recommended protecting the following endpoints with authKeys:
 * `/-/reload` with `-reloadAuthKey` command-line flag, so external users couldn't trigger config reload.
-* `/flags` with `-flagsAuthkey` command-line flag, so unauthorized users couldn't get application command-line flags.
-* `/metrics` with `metricsAuthkey` command-line flag, so unauthorized users couldn't get access to [vmauth metrics](#monitoring).
-* `/debug/pprof` with `pprofAuthKey` command-line flag, so unauthorized users couldn't get access to [profiling information](#profiling).
+* `/flags` with `-flagsAuthKey` command-line flag, so unauthorized users couldn't get application command-line flags.
+* `/metrics` with `-metricsAuthKey` command-line flag, so unauthorized users couldn't get access to [vmauth metrics](#monitoring).
+* `/debug/pprof` with `-pprofAuthKey` command-line flag, so unauthorized users couldn't get access to [profiling information](#profiling).
 
-`vmauth` also supports the ability to restict access by IP - see [these docs](#ip-filters). See also [concurrency limiting docs](#concurrency-limiting).
+`vmauth` also supports the ability to restrict access by IP - see [these docs](#ip-filters). See also [concurrency limiting docs](#concurrency-limiting).
 
 ## Monitoring
 
@@ -276,7 +320,7 @@ It is recommended using [binary releases](https://github.com/VictoriaMetrics/Vic
 
 ### Development build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.19.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.20.
 1. Run `make vmauth` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `vmauth` binary and puts it into the `bin` folder.
 
@@ -350,7 +394,7 @@ See the docs at https://docs.victoriametrics.com/vmauth.html .
   -envflag.prefix string
      Prefix for environment variables if -envflag.enable is set
   -eula
-     By specifying this flag, you confirm that you have an enterprise license and accept the EULA https://victoriametrics.com/assets/VM_EULA.pdf . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
+     Deprecated, please use -license or -licenseFile flags instead. By specifying this flag, you confirm that you have an enterprise license and accept the ESA https://victoriametrics.com/legal/esa/ . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
   -failTimeout duration
      Sets a delay period for load balancing to skip a malfunctioning backend. (defaults 3s)
   -flagsAuthKey string
@@ -383,6 +427,12 @@ See the docs at https://docs.victoriametrics.com/vmauth.html .
      Whether to disable caches for interned strings. This may reduce memory usage at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning . See also -internStringCacheExpireDuration and -internStringMaxLen
   -internStringMaxLen int
      The maximum length for strings to intern. A lower limit may save memory at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning . See also -internStringDisableCache and -internStringCacheExpireDuration (default 500)
+  -license string
+     See https://victoriametrics.com/products/enterprise/ for trial license. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
+  -license.forceOffline
+     See https://victoriametrics.com/products/enterprise/ for trial license. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
+  -licenseFile string
+     See https://victoriametrics.com/products/enterprise/ for trial license. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
   -logInvalidAuthTokens
      Whether to log requests with invalid auth tokens. Such requests are always counted at vmauth_http_request_errors_total{reason="invalid_auth_token"} metric, which is exposed at /metrics page
   -loggerDisableTimestamps
@@ -407,6 +457,9 @@ See the docs at https://docs.victoriametrics.com/vmauth.html .
      The maximum number of concurrent requests vmauth can process. Other requests are rejected with '429 Too Many Requests' http status code. See also -maxConcurrentPerUserRequests and -maxIdleConnsPerBackend command-line options (default 1000)
   -maxIdleConnsPerBackend int
      The maximum number of idle connections vmauth can open per each backend host. See also -maxConcurrentRequests (default 100)
+  -maxRequestBodySizeToRetry size
+     The maximum request body size, which can be cached and re-tried at other backends. Bigger values may require more memory
+     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 16384)
   -memory.allowedBytes size
      Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache resulting in higher disk IO usage
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)

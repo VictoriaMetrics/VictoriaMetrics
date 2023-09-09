@@ -33,8 +33,8 @@ import (
 )
 
 const (
-	msecsPerMonth     = 31 * 24 * 3600 * 1000
-	maxRetentionMsecs = 100 * 12 * msecsPerMonth
+	retention31Days = 31 * 24 * time.Hour
+	retentionMax    = 100 * 12 * retention31Days
 )
 
 // Storage represents TSDB storage.
@@ -154,21 +154,18 @@ type Storage struct {
 }
 
 // MustOpenStorage opens storage on the given path with the given retentionMsecs.
-func MustOpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySeries int) *Storage {
+func MustOpenStorage(path string, retention time.Duration, maxHourlySeries, maxDailySeries int) *Storage {
 	path, err := filepath.Abs(path)
 	if err != nil {
 		logger.Panicf("FATAL: cannot determine absolute path for %q: %s", path, err)
 	}
-	if retentionMsecs <= 0 {
-		retentionMsecs = maxRetentionMsecs
-	}
-	if retentionMsecs > maxRetentionMsecs {
-		retentionMsecs = maxRetentionMsecs
+	if retention <= 0 || retention > retentionMax {
+		retention = retentionMax
 	}
 	s := &Storage{
 		path:           path,
 		cachePath:      filepath.Join(path, cacheDirname),
-		retentionMsecs: retentionMsecs,
+		retentionMsecs: retention.Milliseconds(),
 		stop:           make(chan struct{}),
 	}
 	fs.MustMkdirIfNotExist(path)
@@ -245,8 +242,9 @@ func MustOpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDail
 	s.idbNext.Store(idbNext)
 
 	// Initialize nextRotationTimestamp
-	nowSecs := time.Now().UnixNano() / 1e9
-	nextRotationTimestamp := nextRetentionDeadlineSeconds(nowSecs, retentionMsecs/1000, retentionTimezoneOffsetSecs)
+	nowSecs := int64(fasttime.UnixTimestamp())
+	retentionSecs := retention.Milliseconds() / 1000 // not .Seconds() because unnecessary float64 conversion
+	nextRotationTimestamp := nextRetentionDeadlineSeconds(nowSecs, retentionSecs, retentionTimezoneOffsetSecs)
 	atomic.StoreInt64(&s.nextRotationTimestamp, nextRotationTimestamp)
 
 	// Load nextDayMetricIDs cache
@@ -757,7 +755,7 @@ func (s *Storage) mustRotateIndexDB(currentTime time.Time) {
 	idbNew := mustOpenIndexDB(idbNewPath, s, &s.isReadOnly)
 
 	// Update nextRotationTimestamp
-	nextRotationTimestamp := currentTime.UnixMilli() + s.retentionMsecs/1000
+	nextRotationTimestamp := currentTime.Unix() + s.retentionMsecs/1000
 	atomic.StoreInt64(&s.nextRotationTimestamp, nextRotationTimestamp)
 
 	// Set idbNext to idbNew

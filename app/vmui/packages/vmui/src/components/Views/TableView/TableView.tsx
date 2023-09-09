@@ -164,6 +164,7 @@ const TableView: FC<GraphViewProps> = ({ data, displayColumns }) => {
                           size="small"
                           startIcon={<CopyIcon/>}
                           onClick={createCopyHandler(row.copyValue)}
+                          ariaLabel="copy row"
                         />
                       </Tooltip>
                     </div>

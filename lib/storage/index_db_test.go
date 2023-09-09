@@ -508,7 +508,7 @@ func TestIndexDB(t *testing.T) {
 
 	t.Run("serial", func(t *testing.T) {
 		const path = "TestIndexDB-serial"
-		s := MustOpenStorage(path, maxRetentionMsecs, 0, 0)
+		s := MustOpenStorage(path, retentionMax, 0, 0)
 
 		db := s.idb()
 		mns, tsids, err := testIndexDBGetOrCreateTSIDByName(db, metricGroups)
@@ -521,7 +521,7 @@ func TestIndexDB(t *testing.T) {
 
 		// Re-open the storage and verify it works as expected.
 		s.MustClose()
-		s = MustOpenStorage(path, maxRetentionMsecs, 0, 0)
+		s = MustOpenStorage(path, retentionMax, 0, 0)
 
 		db = s.idb()
 		if err := testIndexDBCheckTSIDByName(db, mns, tsids, false); err != nil {
@@ -534,7 +534,7 @@ func TestIndexDB(t *testing.T) {
 
 	t.Run("concurrent", func(t *testing.T) {
 		const path = "TestIndexDB-concurrent"
-		s := MustOpenStorage(path, maxRetentionMsecs, 0, 0)
+		s := MustOpenStorage(path, retentionMax, 0, 0)
 		db := s.idb()
 
 		ch := make(chan error, 3)
@@ -1429,7 +1429,7 @@ func TestMatchTagFilters(t *testing.T) {
 func TestIndexDBRepopulateAfterRotation(t *testing.T) {
 	r := rand.New(rand.NewSource(1))
 	path := "TestIndexRepopulateAfterRotation"
-	s := MustOpenStorage(path, msecsPerMonth, 1e5, 1e5)
+	s := MustOpenStorage(path, retention31Days, 1e5, 1e5)
 
 	db := s.idb()
 	if db.generation == 0 {
@@ -1516,7 +1516,7 @@ func TestIndexDBRepopulateAfterRotation(t *testing.T) {
 
 func TestSearchTSIDWithTimeRange(t *testing.T) {
 	const path = "TestSearchTSIDWithTimeRange"
-	s := MustOpenStorage(path, maxRetentionMsecs, 0, 0)
+	s := MustOpenStorage(path, retentionMax, 0, 0)
 	db := s.idb()
 
 	is := db.getIndexSearch(noDeadline)
@@ -1966,7 +1966,7 @@ func newTestStorage() *Storage {
 		metricNameCache:   workingsetcache.New(1234),
 		tsidCache:         workingsetcache.New(1234),
 		dateMetricIDCache: newDateMetricIDCache(),
-		retentionMsecs:    maxRetentionMsecs,
+		retentionMsecs:    retentionMax.Milliseconds(),
 	}
 	s.setDeletedMetricIDs(&uint64set.Set{})
 	return s

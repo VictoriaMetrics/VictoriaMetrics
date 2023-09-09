@@ -180,7 +180,7 @@ func modifyData(msg Metric, normalize bool) (Metric, error) {
 	/*
 		replace bad characters in metric name with _ per the data model
 	*/
-	finalMsg.Metric = promrelabel.SanitizeName(name)
+	finalMsg.Metric = promrelabel.SanitizeMetricName(name)
 	// replace bad characters in tag keys with _ per the data model
 	for key, value := range msg.Tags {
 		// if normalization requested, lowercase the key and value
@@ -191,7 +191,7 @@ func modifyData(msg Metric, normalize bool) (Metric, error) {
 		/*
 			replace all explicitly bad characters with _
 		*/
-		key = promrelabel.SanitizeName(key)
+		key = promrelabel.SanitizeLabelName(key)
 		// tags that start with __ are considered custom stats for internal prometheus stuff, we should drop them
 		if !strings.HasPrefix(key, "__") {
 			finalMsg.Tags[key] = value

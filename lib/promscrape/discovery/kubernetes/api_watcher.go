@@ -580,7 +580,13 @@ func (uw *urlWatcher) reloadObjects() string {
 	}
 
 	startTime := time.Now()
-	requestURL := uw.apiURL
+	apiURL := uw.apiURL
+
+	// Set resourceVersion to 0 in order to reduce load on Kubernetes control plane.
+	// See https://kubernetes.io/docs/reference/using-api/api-concepts/#semantics-for-get-and-list
+	// and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4855 .
+	delimiter := getQueryArgsDelimiter(apiURL)
+	requestURL := apiURL + delimiter + "resourceVersion=0&resourceVersionMatch=NotOlderThan"
 	resp, err := uw.gw.doRequest(requestURL)
 	if err != nil {
 		logger.Errorf("cannot perform request to %q: %s", requestURL, err)
@@ -657,10 +663,7 @@ func (uw *urlWatcher) watchForUpdates() {
 		}
 	}
 	apiURL := uw.apiURL
-	delimiter := "?"
-	if strings.Contains(apiURL, "?") {
-		delimiter = "&"
-	}
+	delimiter := getQueryArgsDelimiter(apiURL)
 	timeoutSeconds := time.Duration(0.9 * float64(uw.gw.client.Timeout)).Seconds()
 	apiURL += delimiter + "watch=1&allowWatchBookmarks=true&timeoutSeconds=" + strconv.Itoa(int(timeoutSeconds))
 	for {
@@ -942,4 +945,11 @@ func getObjectParsersForRole(role string) (parseObjectFunc, parseObjectListFunc)
 		logger.Panicf("BUG: unsupported role=%q", role)
 		return nil, nil
 	}
+}
+
+func getQueryArgsDelimiter(apiURL string) string {
+	if strings.Contains(apiURL, "?") {
+		return "&"
+	}
+	return "?"
 }

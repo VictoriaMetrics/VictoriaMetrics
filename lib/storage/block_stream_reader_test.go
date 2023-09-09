@@ -128,7 +128,7 @@ func testBlockStreamReaderReadRows(mp *inmemoryPart, rows []rawRow) error {
 func testBlocksStreamReader(t *testing.T, rows []rawRow, expectedBlocksCount int) {
 	t.Helper()
 
-	bsr := newTestBlockStreamReader(t, rows)
+	bsr := newTestBlockStreamReader(rows)
 	blocksCount := 0
 	rowsCount := 0
 	for bsr.NextBlock() {
@@ -151,7 +151,7 @@ func testBlocksStreamReader(t *testing.T, rows []rawRow, expectedBlocksCount int
 	}
 }
 
-func newTestBlockStreamReader(t *testing.T, rows []rawRow) *blockStreamReader {
+func newTestBlockStreamReader(rows []rawRow) *blockStreamReader {
 	var mp inmemoryPart
 	mp.InitFromRows(rows)
 	var bsr blockStreamReader

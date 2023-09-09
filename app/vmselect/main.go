@@ -236,7 +236,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		funcName = strings.TrimPrefix(funcName, "/")
 		if funcName == "" {
 			graphiteFunctionsRequests.Inc()
-			if err := graphite.FunctionsHandler(startTime, w, r); err != nil {
+			if err := graphite.FunctionsHandler(w, r); err != nil {
 				graphiteFunctionsErrors.Inc()
 				httpserver.Errorf(w, r, "%s", err)
 				return true
@@ -244,7 +244,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 			return true
 		}
 		graphiteFunctionDetailsRequests.Inc()
-		if err := graphite.FunctionDetailsHandler(startTime, funcName, w, r); err != nil {
+		if err := graphite.FunctionDetailsHandler(funcName, w, r); err != nil {
 			graphiteFunctionDetailsErrors.Inc()
 			httpserver.Errorf(w, r, "%s", err)
 			return true
@@ -480,6 +480,10 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		expandWithExprsRequests.Inc()
 		prometheus.ExpandWithExprs(w, r)
 		return true
+	case "/prettify-query":
+		prettifyQueryRequests.Inc()
+		prometheus.PrettifyQuery(w, r)
+		return true
 	case "/api/v1/rules", "/rules":
 		rulesRequests.Inc()
 		if len(*vmalertProxyURL) > 0 {
@@ -655,6 +659,7 @@ var (
 	graphiteFunctionDetailsErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/functions/<func_name>"}`)
 
 	expandWithExprsRequests = metrics.NewCounter(`vm_http_requests_total{path="/expand-with-exprs"}`)
+	prettifyQueryRequests   = metrics.NewCounter(`vm_http_requests_total{path="/prettify-query"}`)
 
 	vmalertRequests = metrics.NewCounter(`vm_http_requests_total{path="/vmalert"}`)
 	rulesRequests   = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/rules"}`)

@@ -76,6 +76,7 @@ const AdditionalSettings: FC = () => {
             variant="outlined"
             startIcon={<TuneIcon/>}
             onClick={handleToggleList}
+            ariaLabel="additional the query settings"
           />
         </div>
         <Popper
