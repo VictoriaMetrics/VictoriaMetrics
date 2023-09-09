@@ -124,7 +124,7 @@ func Init(resetCacheIfNeeded func(mrs []storage.MetricRow)) {
 		*DataPath, time.Since(startTime).Seconds(), partsCount, blocksCount, rowsCount, sizeBytes)
 	registerStorageMetrics(Storage)
 
-	promdb.Init(retentionPeriod.Msecs)
+	promdb.Init(retentionPeriod.Milliseconds())
 }
 
 // Storage is a storage.
