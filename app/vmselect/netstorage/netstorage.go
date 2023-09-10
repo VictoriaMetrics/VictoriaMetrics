@@ -1752,7 +1752,7 @@ func (snr *storageNodesRequest) collectResults(partialResultsCounter *metrics.Co
 
 				// Returns 503 status code for partial response, so the caller could retry it if needed.
 				err = &httpserver.ErrorWithStatusCode{
-					Err: err,
+					Err:        err,
 					StatusCode: http.StatusServiceUnavailable,
 				}
 				return false, err
@@ -1783,7 +1783,7 @@ func (snr *storageNodesRequest) collectResults(partialResultsCounter *metrics.Co
 		// Return only the first error, since it has no sense in returning all errors.
 		// Returns 503 status code for partial response, so the caller could retry it if needed.
 		err := &httpserver.ErrorWithStatusCode{
-			Err: errsPartial[0],
+			Err:        errsPartial[0],
 			StatusCode: http.StatusServiceUnavailable,
 		}
 		return false, err
