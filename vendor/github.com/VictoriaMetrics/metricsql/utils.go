@@ -1,5 +1,9 @@
 package metricsql
 
+import (
+	"strings"
+)
+
 // ExpandWithExprs expands WITH expressions inside q and returns the resulting
 // PromQL without WITH expressions.
 func ExpandWithExprs(q string) (string, error) {
@@ -35,4 +39,50 @@ func VisitAll(e Expr, f func(expr Expr)) {
 		VisitAll(expr.Expr, f)
 	}
 	f(e)
+}
+
+// IsSupportedFunction checks are function expression supported by MetricsQL
+func IsSupportedFunction(funcName string) bool {
+	funcName = strings.ToLower(funcName)
+	if IsRollupFunc(funcName) {
+		return true
+	}
+	if IsTransformFunc(funcName) {
+		return true
+	}
+	if IsAggrFunc(funcName) {
+		return true
+	}
+	return false
+}
+
+func isSupportedFunction(e Expr) bool {
+	isSupported := true
+	VisitAll(e, func(expr Expr) {
+		switch v := expr.(type) {
+		case *FuncExpr:
+			if !IsSupportedFunction(v.Name) {
+				isSupported = false
+				return
+			}
+			for _, arg := range v.Args {
+				if !isSupportedFunction(arg) {
+					isSupported = false
+					return
+				}
+			}
+		case *AggrFuncExpr:
+			if !IsSupportedFunction(v.Name) {
+				isSupported = false
+				return
+			}
+			for _, arg := range v.Args {
+				if !isSupportedFunction(arg) {
+					isSupported = false
+					return
+				}
+			}
+		}
+	})
+	return isSupported
 }

@@ -362,7 +362,7 @@ func getFuncArgIdxForOptimization(funcName string, args []Expr) int {
 	if IsTransformFunc(funcName) {
 		return getTransformArgIdxForOptimization(funcName, args)
 	}
-	if isAggrFunc(funcName) {
+	if IsAggrFunc(funcName) {
 		return getAggrArgIdxForOptimization(funcName, args)
 	}
 	return -1
