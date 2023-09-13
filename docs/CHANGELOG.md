@@ -46,6 +46,7 @@ ssue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4825) and [these
 
 * BUGFIX: [Official Grafana dashboards for VictoriaMetrics](https://grafana.com/orgs/victoriametrics): fix display of ingested rows rate for `Samples ingested/s` and `Samples rate` panels for vmagent's dasbhoard. Previously, not all ingested protocols were accounted in these panels. An extra panel `Rows rate` was added to `Ingestion` section to display the split for rows ingested rate by protocol.
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix the bug causing render looping when switching to heatmap.
+* BUGFIX: [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html) validate `-dedup.minScrapeInterval` value and `-downsampling.period` intervals are multiples of each other. See [these docs](https://docs.victoriametrics.com/#downsampling).
 
 ## [v1.93.4](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.4)
 
