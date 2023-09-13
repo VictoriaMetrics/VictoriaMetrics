@@ -14,6 +14,7 @@ export interface CardinalityTotalsProps {
   totalLabelValuePairs: number;
   seriesCountByMetricName: TopHeapEntry[];
   isPrometheus?: boolean;
+  numOfValues: number;
 }
 
 const CardinalityTotals: FC<CardinalityTotalsProps> = ({
@@ -21,7 +22,8 @@ const CardinalityTotals: FC<CardinalityTotalsProps> = ({
   totalSeriesPrev = 0,
   totalSeriesAll = 0,
   seriesCountByMetricName = [],
-  isPrometheus
+  isPrometheus,
+  numOfValues
 }) => {
   const { isMobile } = useDeviceDetect();
 
@@ -50,6 +52,12 @@ const CardinalityTotals: FC<CardinalityTotalsProps> = ({
       value: isNaN(progress) ? "-" : `${progress.toFixed(2)}%`,
       display: isMetric,
       info: "The share of these series in the total number of time series."
+    },
+    {
+      title: "Number of values",
+      value: numOfValues,
+      display: numOfValues && focusLabel,
+      info: "This number is getting via the api/v1/label/<label_name>/values API and returns a list of label values for a provided label name."
     }
   ].filter(t => t.display);
 

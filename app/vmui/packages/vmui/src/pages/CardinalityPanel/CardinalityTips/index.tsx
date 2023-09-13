@@ -63,8 +63,39 @@ export const TipCardinalityOfSingle: FC = () => (
   </TipCard>
 );
 
-export const TipCardinalityOfLabel: FC = () => (
+export const TipCardinalityOfLabel: FC<{isCluster: boolean}> = ({ isCluster }) => (
   <TipCard title="Dashboard of a label">
+    {isCluster ?
+      <p>
+          In&nbsp;
+        <a
+          href={"https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html"}
+          target={"_blank"}
+          rel="noreferrer"
+          className={"vm-link vm-link_colored"}
+        >cluster version of VictoriaMetrics</a> each vmstorage tracks the stored time series individually. vmselect requests stats via&nbsp;
+        <a
+          href={"https://docs.victoriametrics.com/#tsdb-stats"}
+          target={"_blank"}
+          rel="noreferrer"
+          className={"vm-link vm-link_colored"}
+        >/api/v1/status/tsdb</a> API from each vmstorage node and merges the results by summing per-series stats.
+          This may lead to inflated values when samples for the same time series are spread across multiple vmstorage nodes
+          due to&nbsp;
+        <a
+          href={"https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#replication-and-data-safety"}
+          target={"_blank"}
+          className={"vm-link vm-link_colored"}
+          rel="noreferrer"
+        >replication</a> or&nbsp;
+        <a
+          href={"https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html?highlight=re-routes#cluster-availability"}
+          target={"_blank"}
+          className={"vm-link vm-link_colored"}
+          rel="noreferrer"
+        >rerouting</a>.
+      </p>: <></>
+    }
     <p>
       This dashboard helps you understand the count of time series per label.
     </p>
