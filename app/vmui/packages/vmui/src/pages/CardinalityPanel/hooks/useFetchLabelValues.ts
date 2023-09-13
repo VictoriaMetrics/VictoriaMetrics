@@ -46,6 +46,5 @@ export const useFetchValues = (focusLabel: string): ValuesResponse => {
     fetchData().catch(console.error);
   }, [fetchUrl]);
 
-  console.log("values =>", values);
   return { values, isLoading, error };
 };
