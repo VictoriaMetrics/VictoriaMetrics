@@ -2,6 +2,10 @@
 
 ## Next release
 
+### Features
+
+- [vmoperator](https://docs.victoriametrics.com/operator/): upgrade vmagent/vmauth's default config-reloader image.
+
 ### Fixes
 
 - [vmcluster](https://docs.victoriametrics.com/operator/api.html#vmcluster): remove redundant annotation `operator.victoriametrics/last-applied-spec` from created workloads like vmstorage statefulset.
