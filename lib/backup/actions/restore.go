@@ -144,7 +144,7 @@ func (r *Restore) Run() error {
 	}
 
 	partsToCopy := common.PartsDifference(srcParts, dstParts)
-	partsToCopy = append(partsToCopy, common.FilterPartsForForceCopy(srcParts)...)
+	partsToCopy = common.EnforceSpecialsCopy(srcParts, partsToCopy)
 	downloadSize := getPartsSize(partsToCopy)
 	if len(partsToCopy) > 0 {
 		perPath := make(map[string][]common.Part)

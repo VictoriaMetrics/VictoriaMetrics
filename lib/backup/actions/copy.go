@@ -84,7 +84,7 @@ func runCopy(src common.OriginFS, dst common.RemoteFS, concurrency int) error {
 	}
 
 	partsToCopy := common.PartsDifference(srcParts, dstParts)
-	partsToCopy = append(partsToCopy, common.FilterPartsForForceCopy(srcParts)...)
+	partsToCopy = common.EnforceSpecialsCopy(srcParts, partsToCopy)
 	copySize := getPartsSize(partsToCopy)
 	if err := copySrcParts(src, dst, partsToCopy, concurrency); err != nil {
 		return fmt.Errorf("cannot server-side copy parts from src to dst: %w", err)
