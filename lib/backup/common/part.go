@@ -135,3 +135,20 @@ func PartsIntersect(a, b []Part) []Part {
 	}
 	return d
 }
+
+// FilterPartsForForceCopy filters parts that must be copied from src to dst without checking whether
+// they already exist in dst.
+//
+// Such parts are returned as a new slice.
+func FilterPartsForForceCopy(pts []Part) []Part {
+	// `parts.json` files must be copied from src to dst without checking whether they already exist in dst.
+	// This is needed because size and paths for those files can be the same even if the contents differ.
+	// See: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5005
+	var filtered []Part
+	for _, pt := range pts {
+		if strings.HasPrefix(pt.Path, "data") && strings.HasSuffix(pt.Path, "parts.json") {
+			filtered = append(filtered, pt)
+		}
+	}
+	return filtered
+}
