@@ -18,13 +18,37 @@
           "type": "dashboard"
         },
         "type": "dashboard"
+      },
+      {
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${ds}"
+        },
+        "enable": true,
+        "expr": "sum(vm_app_version{job=~\"$job\", instance=~\"$instance\"}) by(short_version) unless (sum(vm_app_version{job=~\"$job\", instance=~\"$instance\"} offset 20m) by(short_version))",
+        "hide": true,
+        "iconColor": "blue",
+        "name": "version change",
+        "textFormat": "{{short_version}}",
+        "titleFormat": "Version change"
+      },
+      {
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${ds}"
+        },
+        "enable": true,
+        "expr": "sum(changes(vm_app_start_timestamp{job=~\"$job\", instance=~\"$instance\"})) by(job)",
+        "hide": true,
+        "iconColor": "orange",
+        "name": "restarts",
+        "textFormat": "{{job}} restarted"
       }
     ]
   },
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 4,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -2077,8 +2101,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -2182,8 +2205,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -2318,8 +2340,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -2425,8 +2446,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -2561,6 +2581,10 @@
         "type": "query"
       },
       {
+        "datasource": {
+          "type": "prometheus",
+          "uid": "$ds"
+        },
         "filters": [],
         "hide": 0,
         "name": "adhoc",
@@ -2577,6 +2601,6 @@
   "timezone": "",
   "title": "VictoriaLogs",
   "uid": "OqPIZTX4z",
-  "version": 7,
+  "version": 3,
   "weekStart": ""
 }
