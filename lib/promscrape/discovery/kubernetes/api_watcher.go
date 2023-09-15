@@ -464,9 +464,6 @@ type urlWatcher struct {
 	apiURL    string
 	gw        *groupWatcher
 
-	// refCount keeps track on the number of subscribeAPIWatcherLocked and
-	// unsubscribeAPIWatcherLocked calls for the given urlWatcher.
-	refCount int
 	ctx      context.Context
 	cancel   context.CancelFunc
 
@@ -529,7 +526,6 @@ func newURLWatcher(role, apiURL string, gw *groupWatcher) *urlWatcher {
 }
 
 func (uw *urlWatcher) subscribeAPIWatcherLocked(aw *apiWatcher) {
-	uw.refCount++
 	if _, ok := uw.aws[aw]; !ok {
 		if _, ok := uw.awsPending[aw]; !ok {
 			uw.awsPending[aw] = struct{}{}
@@ -589,7 +585,6 @@ func (uw *urlWatcher) unsubscribeAPIWatcherLocked(aw *apiWatcher) {
 		delete(uw.aws, aw)
 		metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_discovery_kubernetes_subscribers{role=%q,status="working"}`, uw.role)).Dec()
 	}
-	uw.refCount--
 }
 
 // reloadObjects reloads objects to the latest state and returns resourceVersion for the latest state.
