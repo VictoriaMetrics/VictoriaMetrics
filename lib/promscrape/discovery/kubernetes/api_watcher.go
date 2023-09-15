@@ -448,8 +448,8 @@ func (gw *groupWatcher) unsubscribeAPIWatcher(aw *apiWatcher) {
 	defer gw.mu.Unlock()
 	for key, uw := range gw.m {
 		uw.unsubscribeAPIWatcherLocked(aw)
-		if uw.refCount == 0 {
-			uw.close()
+		if (len(uw.aws) + len(uw.awsPending)) == 0 {
+			uw.cancel()
 			delete(gw.m, key)
 		}
 	}
@@ -464,8 +464,8 @@ type urlWatcher struct {
 	apiURL    string
 	gw        *groupWatcher
 
-	ctx      context.Context
-	cancel   context.CancelFunc
+	ctx    context.Context
+	cancel context.CancelFunc
 
 	parseObject     parseObjectFunc
 	parseObjectList parseObjectListFunc
@@ -596,7 +596,6 @@ func (uw *urlWatcher) reloadObjects() string {
 
 	startTime := time.Now()
 	apiURL := uw.apiURL
-
 
 	// Set resourceVersion to 0 in order to reduce load on Kubernetes control plane.
 	// See https://kubernetes.io/docs/reference/using-api/api-concepts/#semantics-for-get-and-list
