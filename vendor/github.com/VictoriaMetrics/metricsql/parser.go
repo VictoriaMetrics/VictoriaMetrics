@@ -31,10 +31,9 @@ func Parse(s string) (Expr, error) {
 	}
 	e = removeParensExpr(e)
 	e = simplifyConstants(e)
-	if !isSupportedFunction(e) {
-		return nil, fmt.Errorf("got unsupported function")
+	if err := checkSupportedFunctions(e); err != nil {
+		return nil, err
 	}
-
 	return e, nil
 }
 

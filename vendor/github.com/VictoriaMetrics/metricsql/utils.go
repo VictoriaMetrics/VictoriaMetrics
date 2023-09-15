@@ -1,6 +1,7 @@
 package metricsql
 
 import (
+	"fmt"
 	"strings"
 )
 
@@ -18,7 +19,7 @@ func ExpandWithExprs(q string) (string, error) {
 // VisitAll recursively calls f for all the Expr children in e.
 //
 // It visits leaf children at first and then visits parent nodes.
-// It is safe modifying expr in f.
+// It is safe modifying e in f.
 func VisitAll(e Expr, f func(expr Expr)) {
 	switch expr := e.(type) {
 	case *BinaryOpExpr:
@@ -41,7 +42,7 @@ func VisitAll(e Expr, f func(expr Expr)) {
 	f(e)
 }
 
-// IsSupportedFunction checks are function expression supported by MetricsQL
+// IsSupportedFunction returns true if funcName contains supported MetricsQL function
 func IsSupportedFunction(funcName string) bool {
 	funcName = strings.ToLower(funcName)
 	if IsRollupFunc(funcName) {
@@ -56,33 +57,22 @@ func IsSupportedFunction(funcName string) bool {
 	return false
 }
 
-func isSupportedFunction(e Expr) bool {
-	isSupported := true
+func checkSupportedFunctions(e Expr) error {
+	var err error
 	VisitAll(e, func(expr Expr) {
-		switch v := expr.(type) {
+		if err != nil {
+			return
+		}
+		switch t := expr.(type) {
 		case *FuncExpr:
-			if !IsSupportedFunction(v.Name) {
-				isSupported = false
-				return
-			}
-			for _, arg := range v.Args {
-				if !isSupportedFunction(arg) {
-					isSupported = false
-					return
-				}
+			if !IsRollupFunc(t.Name) && !IsTransformFunc(t.Name) {
+				err = fmt.Errorf("unsupported function %q", t.Name)
 			}
 		case *AggrFuncExpr:
-			if !IsSupportedFunction(v.Name) {
-				isSupported = false
-				return
-			}
-			for _, arg := range v.Args {
-				if !isSupportedFunction(arg) {
-					isSupported = false
-					return
-				}
+			if !IsAggrFunc(t.Name) {
+				err = fmt.Errorf("unsupported aggregate function %q", t.Name)
 			}
 		}
 	})
-	return isSupported
+	return err
 }

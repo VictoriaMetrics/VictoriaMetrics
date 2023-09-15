@@ -2,7 +2,13 @@
 
 ## Next release
 
-- TODO
+### Features
+
+- [vmoperator](https://docs.victoriametrics.com/operator/): upgrade vmagent/vmauth's default config-reloader image.
+
+### Fixes
+
+- [vmcluster](https://docs.victoriametrics.com/operator/api.html#vmcluster): remove redundant annotation `operator.victoriametrics/last-applied-spec` from created workloads like vmstorage statefulset.
 
 <a name="v0.38.0"></a>
 ## [v0.38.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.38.0) - 11 Sep 2023
