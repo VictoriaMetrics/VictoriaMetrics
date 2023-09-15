@@ -855,7 +855,7 @@ func mustCloseDatadb(ddb *datadb) {
 	setInMergeLocked(pws)
 	err := ddb.mergePartsFinal(pws)
 	if err != nil {
-		logger.Errorf("FATAL: cannot merge inmemory parts: %s", err)
+		logger.Fatalf("FATAL: cannot merge inmemory parts: %s", err)
 	}
 
 	// There is no need in using ddb.partsLock here, since nobody should acces ddb now.
