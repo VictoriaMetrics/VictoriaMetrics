@@ -135,3 +135,31 @@ func PartsIntersect(a, b []Part) []Part {
 	}
 	return d
 }
+
+// EnforceSpecialsCopy enforces copying of special parts from src to toCopy without checking whether
+// part is already present in dst.
+func EnforceSpecialsCopy(src, toCopy []Part) []Part {
+	// `parts.json` files must be copied from src to dst without checking whether they already exist in dst.
+	// This is needed because size and paths for those files can be the same even if the contents differ.
+	// See: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5005
+	filtered := make(map[Part]bool)
+	for _, pt := range src {
+		if strings.HasPrefix(pt.Path, "data") && strings.HasSuffix(pt.Path, "parts.json") {
+			filtered[pt] = false
+		}
+	}
+
+	for _, pt := range toCopy {
+		if _, ok := filtered[pt]; ok {
+			filtered[pt] = true
+		}
+	}
+
+	for pt, ok := range filtered {
+		if !ok {
+			toCopy = append(toCopy, pt)
+		}
+	}
+
+	return toCopy
+}
