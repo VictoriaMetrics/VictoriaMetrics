@@ -12,6 +12,8 @@ The following `tip` changes can be tested by building VictoriaMetrics components
 
 ## v1.93.x long-time support release (LTS)
 
+* BUGFIX: [vmbackup](https://docs.victoriametrics.com/vmbackup.html): force copying of `data/small/.../parts.json` in order to ensure backup consistency. Previously, `parts.json` could be skipped during copying, which could lead to data loss during restore. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5005).
+
 ## [v1.93.4](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.4)
 
 Released at 2023-09-10
