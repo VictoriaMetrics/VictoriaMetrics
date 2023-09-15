@@ -1156,7 +1156,7 @@ func (s *Storage) prefetchMetricNames(qt *querytracer.Tracer, srcMetricIDs []uin
 	qt.Printf("%d out of %d metric names must be pre-fetched", len(metricIDs), len(srcMetricIDs))
 	if len(metricIDs) < 500 {
 		// It is cheaper to skip pre-fetching and obtain metricNames inline.
-		qt.Printf("skip pre-fetching metric names for low number of metrid ids=%d", len(metricIDs))
+		qt.Printf("skip pre-fetching metric names for low number of metric ids=%d", len(metricIDs))
 		return nil
 	}
 	atomic.AddUint64(&s.slowMetricNameLoads, uint64(len(metricIDs)))
