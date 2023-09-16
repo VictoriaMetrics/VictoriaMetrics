@@ -1697,6 +1697,10 @@ Downsampling happens during [background merges](https://docs.victoriametrics.com
 and can't be performed if there is not enough of free disk space or if vmstorage 
 is in [read-only mode](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#readonly-mode).
 
+Please, note that intervals of `-downsampling.period` must be multiples of each other. 
+In case [deduplication](https://docs.victoriametrics.com/#deduplication) is enabled value of `-dedup.minScrapeInterval` must also be multiple of `-downsampling.period` intervals.
+This is required to ensure consistency of deduplication and downsampling results.
+
 The downsampling can be evaluated for free by downloading and using enterprise binaries from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
 
 ## Multi-tenancy

@@ -19,8 +19,11 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 )
 
+var jsonlineRequestDuration = metrics.NewSummary(`vl_http_request_duration_seconds{path="/insert/jsonline"}`)
+
 // RequestHandler processes jsonline insert requests
 func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
+	defer jsonlineRequestDuration.UpdateDuration(time.Now())
 	w.Header().Add("Content-Type", "application/json")
 
 	if r.Method != "POST" {
