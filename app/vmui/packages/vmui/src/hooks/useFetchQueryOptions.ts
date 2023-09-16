@@ -1,32 +1,50 @@
 import { useEffect, useState } from "preact/compat";
-import { getQueryOptions } from "../api/query-range";
 import { useAppState } from "../state/common/StateContext";
 
-export const useFetchQueryOptions = (): {
-  queryOptions: string[],
-} => {
+export const useFetchQueryOptions = ({ metric }: {metric: string}) => {
   const { serverUrl } = useAppState();
 
-  const [queryOptions, setQueryOptions] = useState([]);
-
-  const fetchOptions = async () => {
-    if (!serverUrl) return;
-    const url = getQueryOptions(serverUrl);
-
-    try {
-      const response = await fetch(url);
-      const resp = await response.json();
-      if (response.ok) {
-        setQueryOptions(resp.data);
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  };
+  const [metricNames, setMetricNames] = useState<string[]>([]);
+  const [labels, setLabels] = useState<string[]>([]);
 
   useEffect(() => {
-    fetchOptions();
+    const fetchMetrics = async () => {
+
+      try {
+        const response = await fetch(`${serverUrl}/api/v1/label/__name__/values`);
+        // const values = await fetch(`${serverUrl}/api/v1/label/device/values?match[]=node_arp_entries`);
+        if (response.ok) {
+          const { data } = await response.json();
+          setMetricNames(data);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    };
+
+    if (!serverUrl) return;
+    fetchMetrics();
   }, [serverUrl]);
 
-  return { queryOptions };
+  useEffect(() => {
+    const fetchLabels = async () => {
+      try {
+        const response = await fetch(`${serverUrl}/api/v1/labels?match[]=${metric}`);
+        if (response.ok) {
+          const { data } = await response.json();
+          setLabels(data);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    };
+
+    if (!serverUrl || !metric) return;
+    fetchLabels();
+  }, [serverUrl, metric]);
+
+  return {
+    metricNames,
+    labels
+  };
 };

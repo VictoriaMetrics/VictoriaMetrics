@@ -163,7 +163,6 @@ const Select: FC<SelectProps> = ({
         options={list}
         anchor={autocompleteAnchorEl}
         selected={selectedValues}
-        maxWords={10}
         minLength={0}
         fullWidth
         noOptionsText={noOptionsText}

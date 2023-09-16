@@ -5,5 +5,3 @@ export const getQueryRangeUrl = (server: string, query: string, period: TimePara
 
 export const getQueryUrl = (server: string, query: string, period: TimeParams, queryTracing: boolean): string =>
   `${server}/api/v1/query?query=${encodeURIComponent(query)}&time=${period.end}${queryTracing ? "&trace=1" : ""}`;
-
-export const getQueryOptions = (server: string) => `${server}/api/v1/label/__name__/values`;

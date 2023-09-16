@@ -12,13 +12,13 @@ interface AutocompleteProps {
   options: string[]
   anchor: Ref<HTMLElement>
   disabled?: boolean
-  maxWords?: number
   minLength?: number
   fullWidth?: boolean
   noOptionsText?: string
   selected?: string[]
   label?: string
   disabledFullScreen?: boolean
+  offset?: {top: number, left: number}
   onSelect: (val: string) => void
   onOpenAutocomplete?: (val: boolean) => void
   onFoundOptions?: (val: string[]) => void
@@ -29,13 +29,13 @@ const Autocomplete: FC<AutocompleteProps> = ({
   options,
   anchor,
   disabled,
-  maxWords = 1,
   minLength = 2,
   fullWidth,
   selected,
   noOptionsText,
   label,
   disabledFullScreen,
+  offset,
   onSelect,
   onOpenAutocomplete,
   onFoundOptions
@@ -54,7 +54,7 @@ const Autocomplete: FC<AutocompleteProps> = ({
   const foundOptions = useMemo(() => {
     if (!openAutocomplete) return [];
     try {
-      const regexp = new RegExp(String(value), "i");
+      const regexp = new RegExp(String(value.trim()), "i");
       const found = options.filter((item) => regexp.test(item) && (item !== value));
       return found.sort((a,b) => (a.match(regexp)?.index || 0) - (b.match(regexp)?.index || 0));
     } catch (e) {
@@ -106,8 +106,7 @@ const Autocomplete: FC<AutocompleteProps> = ({
   }, [focusOption, foundOptions, handleCloseAutocomplete, onSelect, selected]);
 
   useEffect(() => {
-    const words = (value.match(/[a-zA-Z_:.][a-zA-Z0-9_:.]*/gm) || []).length;
-    setOpenAutocomplete(value.length > minLength && words <= maxWords);
+    setOpenAutocomplete(value.length > minLength);
   }, [value]);
 
   useEventListener("keydown", handleKeyDown);
@@ -135,6 +134,7 @@ const Autocomplete: FC<AutocompleteProps> = ({
       fullWidth={fullWidth}
       title={isMobile ? label : undefined}
       disabledFullScreen={disabledFullScreen}
+      offset={offset}
     >
       <div
         className={classNames({
