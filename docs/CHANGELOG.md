@@ -15,8 +15,8 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## v1.87.x long-time support release (LTS)
 
-* BUGFIX: [storage](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html): fixes possible infinity merge loop after API call to `/internal/force_merge`. See this [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4987) for details.
-* BUGFIX: [Graphite Render API](https://docs.victoriametrics.com/#graphite-render-api-usage) correctly return null instead of +Inf for render response. See this [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3783) for details.
+* BUGFIX: [storage](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html): prevent from livelock when [forced merge](https://docs.victoriametrics.com/#forced-merge) is called under high data ingestion. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4987).
+* BUGFIX: [Graphite Render API](https://docs.victoriametrics.com/#graphite-render-api-usage): correctly return `null` instead of `Inf` in JSON query responses. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3783).
 
 ## [v1.87.9](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.87.9)
 
