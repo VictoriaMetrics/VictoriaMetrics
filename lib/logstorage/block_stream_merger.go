@@ -121,7 +121,7 @@ func (bsm *blockStreamMerger) mustInit(bsw *blockStreamWriter, bsrs []*blockStre
 var mergeStreamsExceedLogger = logger.WithThrottler("mergeStreamsExceed", 10*time.Second)
 
 func (bsm *blockStreamMerger) mergeStreamsLimitWarn(bd *blockData) {
-	attempted := bsm.rows.maxUniqueFields + len(bd.columnsData) + len(bd.constColumns)
+	attempted := bsm.rows.uniqueFields + len(bd.columnsData) + len(bd.constColumns)
 	mergeStreamsExceedLogger.Warnf("cannot perform background merge: too many columns for block after merge: %d, max columns: %d; "+
 		"check ingestion configuration; see: https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/#troubleshooting", attempted, maxColumnsPerBlock)
 }
@@ -232,7 +232,7 @@ func (bsm *blockStreamMerger) mustMergeRows(bd *blockData) {
 	rows := bsm.rows.rows
 	bsm.rowsTmp.mergeRows(timestamps[:rowsLen], timestamps[rowsLen:], rows[:rowsLen], rows[rowsLen:])
 	bsm.rows, bsm.rowsTmp = bsm.rowsTmp, bsm.rows
-	bsm.rows.maxUniqueFields = bsm.rowsTmp.maxUniqueFields
+	bsm.rows.uniqueFields = bsm.rowsTmp.uniqueFields
 	bsm.rowsTmp.reset()
 
 	if bsm.uncompressedRowsSizeBytes >= maxUncompressedBlockSize {

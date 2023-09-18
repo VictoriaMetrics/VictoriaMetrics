@@ -65,9 +65,9 @@ func (f *Field) unmarshal(src []byte) ([]byte, error) {
 type rows struct {
 	fieldsBuf []Field
 
-	// maxUniqueFields is the maximum number of unique fields which may be stored in fieldsBuf.
+	// uniqueFields is the maximum estimated number of unique fields which are currently stored in fieldsBuf.
 	// it is used to perform worst case estimation when merging rows.
-	maxUniqueFields int
+	uniqueFields int
 
 	timestamps []int64
 
@@ -129,5 +129,5 @@ func (rs *rows) mergeRows(timestampsA, timestampsB []int64, fieldsA, fieldsB [][
 // hasCapacityFor returns true if merging bd with rs won't create too many columns
 // for creating a new block.
 func (rs *rows) hasCapacityFor(bd *blockData) bool {
-	return rs.maxUniqueFields+len(bd.columnsData)+len(bd.constColumns) < maxColumnsPerBlock
+	return rs.uniqueFields+len(bd.columnsData)+len(bd.constColumns) < maxColumnsPerBlock
 }
