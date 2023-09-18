@@ -77,7 +77,7 @@ func (fs *FS) ListParts() ([]common.Part, error) {
 		if err != nil {
 			return nil, fmt.Errorf("cannot stat %q: %w", file, err)
 		}
-		path := file[len(dir):]
+		path := common.ToCanonicalPath(file[len(dir):])
 		size := uint64(fi.Size())
 		if size == 0 {
 			parts = append(parts, common.Part{
@@ -146,8 +146,9 @@ func (fs *FS) NewWriteCloser(p common.Part) (io.WriteCloser, error) {
 	return blwc, nil
 }
 
-// DeletePath deletes the given path from fs and returns the size
-// for the deleted file.
+// DeletePath deletes the given path from fs and returns the size for the deleted file.
+//
+// The path must be in canonical form, e.g. it must have `/` directory separators
 func (fs *FS) DeletePath(path string) (uint64, error) {
 	p := common.Part{
 		Path: path,
@@ -187,7 +188,7 @@ func (fs *FS) mkdirAll(filePath string) error {
 }
 
 func (fs *FS) path(p common.Part) string {
-	return filepath.Join(fs.Dir, p.Path)
+	return p.LocalPath(fs.Dir)
 }
 
 type limitedReadCloser struct {
