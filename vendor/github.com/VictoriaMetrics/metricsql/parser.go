@@ -31,6 +31,9 @@ func Parse(s string) (Expr, error) {
 	}
 	e = removeParensExpr(e)
 	e = simplifyConstants(e)
+	if err := checkSupportedFunctions(e); err != nil {
+		return nil, err
+	}
 	return e, nil
 }
 
@@ -596,7 +599,7 @@ func (p *parser) parseParensExpr() (*parensExpr, error) {
 }
 
 func (p *parser) parseAggrFuncExpr() (*AggrFuncExpr, error) {
-	if !isAggrFunc(p.lex.Token) {
+	if !IsAggrFunc(p.lex.Token) {
 		return nil, fmt.Errorf(`AggrFuncExpr: unexpected token %q; want aggregate func`, p.lex.Token)
 	}
 
@@ -1608,7 +1611,7 @@ func (p *parser) parseIdentExpr() (Expr, error) {
 	}
 	if isIdentPrefix(p.lex.Token) {
 		p.lex.Prev()
-		if isAggrFunc(p.lex.Token) {
+		if IsAggrFunc(p.lex.Token) {
 			return p.parseAggrFuncExpr()
 		}
 		return p.parseMetricExpr()
@@ -1620,7 +1623,7 @@ func (p *parser) parseIdentExpr() (Expr, error) {
 	switch p.lex.Token {
 	case "(":
 		p.lex.Prev()
-		if isAggrFunc(p.lex.Token) {
+		if IsAggrFunc(p.lex.Token) {
 			return p.parseAggrFuncExpr()
 		}
 		return p.parseFuncExpr()
