@@ -504,9 +504,8 @@ func newURLWatcher(role, apiURL string, gw *groupWatcher) *urlWatcher {
 		apiURL: apiURL,
 		gw:     gw,
 
-		refCount: 0,
-		ctx:      ctx,
-		cancel:   cancel,
+		ctx:    ctx,
+		cancel: cancel,
 
 		parseObject:     parseObject,
 		parseObjectList: parseObjectList,
@@ -604,7 +603,9 @@ func (uw *urlWatcher) reloadObjects() string {
 	requestURL := apiURL + delimiter + "resourceVersion=0&resourceVersionMatch=NotOlderThan"
 	resp, err := uw.gw.doRequest(uw.ctx, requestURL)
 	if err != nil {
-		logger.Errorf("cannot perform request to %q: %s", requestURL, err)
+		if !errors.Is(err, context.Canceled) {
+			logger.Errorf("cannot perform request to %q: %s", requestURL, err)
+		}
 		return ""
 	}
 	if resp.StatusCode != http.StatusOK {
@@ -681,9 +682,10 @@ func (uw *urlWatcher) watchForUpdates() {
 	delimiter := getQueryArgsDelimiter(apiURL)
 	timeoutSeconds := time.Duration(0.9 * float64(uw.gw.client.Timeout)).Seconds()
 	apiURL += delimiter + "watch=1&allowWatchBookmarks=true&timeoutSeconds=" + strconv.Itoa(int(timeoutSeconds))
+	stopCh := uw.ctx.Done()
 	for {
 		select {
-		case <-uw.ctx.Done():
+		case <-stopCh:
 			return
 		default:
 		}
@@ -696,8 +698,10 @@ func (uw *urlWatcher) watchForUpdates() {
 		requestURL := apiURL + "&resourceVersion=" + url.QueryEscape(resourceVersion)
 		resp, err := uw.gw.doRequest(uw.ctx, requestURL)
 		if err != nil {
-			logger.Errorf("cannot perform request to %q: %s", requestURL, err)
-			backoffSleep()
+			if !errors.Is(err, context.Canceled) {
+				logger.Errorf("cannot perform request to %q: %s", requestURL, err)
+				backoffSleep()
+			}
 			continue
 		}
 		if resp.StatusCode != http.StatusOK {
@@ -842,11 +846,6 @@ func (uw *urlWatcher) maybeUpdateDependedScrapeWorksLocked() {
 			continue
 		}
 	}
-}
-
-// close cancels context used for API polling
-func (uw *urlWatcher) close() {
-	uw.cancel()
 }
 
 // Bookmark is a bookmark message from Kubernetes Watch API.
