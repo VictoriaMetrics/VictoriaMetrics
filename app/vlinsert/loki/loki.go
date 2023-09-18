@@ -3,15 +3,8 @@ package loki
 import (
 	"net/http"
 
-	"github.com/VictoriaMetrics/metrics"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
-)
-
-var (
-	lokiRequestsJSONTotal     = metrics.NewCounter(`vl_http_requests_total{path="/insert/loki/api/v1/push",format="json"}`)
-	lokiRequestsProtobufTotal = metrics.NewCounter(`vl_http_requests_total{path="/insert/loki/api/v1/push",format="protobuf"}`)
 )
 
 // RequestHandler processes Loki insert requests
@@ -34,11 +27,9 @@ func handleInsert(r *http.Request, w http.ResponseWriter) bool {
 	contentType := r.Header.Get("Content-Type")
 	switch contentType {
 	case "application/json":
-		lokiRequestsJSONTotal.Inc()
 		return handleJSON(r, w)
 	default:
-		// Protobuf request body should be handled by default accoring to https://grafana.com/docs/loki/latest/api/#push-log-entries-to-loki
-		lokiRequestsProtobufTotal.Inc()
+		// Protobuf request body should be handled by default according to https://grafana.com/docs/loki/latest/api/#push-log-entries-to-loki
 		return handleProtobuf(r, w)
 	}
 }

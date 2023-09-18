@@ -24,8 +24,6 @@ The following `tip` changes can be tested by building VictoriaMetrics components
 
 ## tip
 
-* SECURITY: upgrade Go builder from Go1.21.0 to Go1.21.1. See [the list of issues addressed in Go1.20.6](https://github.com/golang/go/issues?q=milestone%3AGo1.21.1+label%3ACherryPickApproved).
-
 * FEATURE: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): add support for numbers with underscore delimiters such as `1_234_567_890` and `1.234_567_890`. These numbers are easier to read than `1234567890` and `1.234567890`.
 * FEATURE: [vmbackup](https://docs.victoriametrics.com/vmbackup.html): add support for server-side copy of existing backups. See [these docs](https://docs.victoriametrics.com/vmbackup.html#server-side-copy-of-the-existing-backup) for details.
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add the option to see the latest 25 queries. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4718).
@@ -44,10 +42,26 @@ The following `tip` changes can be tested by building VictoriaMetrics components
 ssue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4825) and [these docs](https://docs.victoriametrics.com/vmauth.html#auth-config) for details.
 * FEATURE: [vmauth](https://docs.victoriametrics.com/vmauth.html): add ability to retry requests to the [remaining backends](https://docs.victoriametrics.com/vmauth.html#load-balancing) if they return response status codes specified in the `retry_status_codes` list. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4893).
 * FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): add `eval_offset` attribute for [Groups](https://docs.victoriametrics.com/vmalert.html#groups). If specified, Group will be evaluated at the exact time offset on the range of [0...evaluationInterval]. The setting might be useful for cron-like rules which must be evaluated at specific moments of time. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3409) for details.
+* FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): validate [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) function names in alerting and recording rules when `vmalert` runs with `-dryRun` command-line flag. Previously it was allowed to use unknown (aka invalid) MetricsQL function names there. For example, `foo()` was counted as a valid query. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4933).
 * FEATURE: limit the length of string params in log messages to 500 chars. Longer string params are replaced with the `first_250_chars..last_250_chars`. This prevents from too long log lines, which can be emitted by VictoriaMetrics components.
 
+* BUGFIX: [storage](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html): prevent from livelock when [forced merge](https://docs.victoriametrics.com/#forced-merge) is called under high data ingestion. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4987).
+* BUGFIX: [Graphite Render API](https://docs.victoriametrics.com/#graphite-render-api-usage): correctly return `null` instead of `Inf` in JSON query responses. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3783).
 * BUGFIX: [Official Grafana dashboards for VictoriaMetrics](https://grafana.com/orgs/victoriametrics): fix display of ingested rows rate for `Samples ingested/s` and `Samples rate` panels for vmagent's dasbhoard. Previously, not all ingested protocols were accounted in these panels. An extra panel `Rows rate` was added to `Ingestion` section to display the split for rows ingested rate by protocol.
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix the bug causing render looping when switching to heatmap.
+* BUGFIX: [vmbackup](https://docs.victoriametrics.com/vmbackup.html): properly copy `parts.json` files inside `<-storageDataPath>/{data,indexdb}` folders during [incremental backups](https://docs.victoriametrics.com/vmbackup.html#incremental-backups). Previously the new `parts.json` could be skipped during incremental backups, which could lead to inability to restore from the backup. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5005). This issue has been introduced in [v1.90.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.90.0).
+* BUGFIX: [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html) validate `-dedup.minScrapeInterval` value and `-downsampling.period` intervals are multiples of each other. See [these docs](https://docs.victoriametrics.com/#downsampling).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): properly close connections to Kubernetes API server after the change in `selectors` or `namespaces` sections of [kubernetes_sd_configs](https://docs.victoriametrics.com/sd_configs.html#kubernetes_sd_configs). Previously `vmagent` could continue polling Kubernetes API server with the old `selectors` or `namespaces` configs additionally to polling new configs. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4850).
+
+## [v1.93.4](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.4)
+
+Released at 2023-09-10
+
+**v1.93.x is a line of LTS releases (e.g. long-time support). It contains important up-to-date bugfixes.
+The v1.93.x line will be supported for at least 12 months since [v1.93.0](https://docs.victoriametrics.com/CHANGELOG.html#v1930) release**
+
+* SECURITY: upgrade Go builder from Go1.21.0 to Go1.21.1. See [the list of issues addressed in Go1.20.6](https://github.com/golang/go/issues?q=milestone%3AGo1.21.1+label%3ACherryPickApproved).
+
 * BUGFIX: [vminsert enterprise](https://docs.victoriametrics.com/enterprise.html): properly parse `/insert/multitenant/*` urls, which have been broken since [v1.93.2](#v1932). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4947).
 * BUGFIX: properly build production armv5 binaries for `GOARCH=arm`. This has been broken after the upgrading of Go builder to Go1.21.0. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4965).
 * BUGFIX: [vmselect](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): return `503 Service Unavailable` status code when [partial responses](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#cluster-availability) are denied and some of `vmstorage` nodes are temporarily unavailable. Previously `422 Unprocessable Entiry` status code was mistakenly returned in this case, which could prevent from automatic recovery by re-sending the request to healthy cluster replica in another availability zone.
@@ -462,6 +476,20 @@ Released at 2023-02-24
 * BUGFIX: prevent from possible data ingestion slowdown and query performance slowdown during [background merges of big parts](https://docs.victoriametrics.com/#storage) on systems with small number of CPU cores (1 or 2 CPU cores). The issue has been introduced in [v1.85.0](https://docs.victoriametrics.com/CHANGELOG.html#v1850) when implementing [this feature](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3337). See also [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3790).
 * BUGFIX: properly parse timestamps in milliseconds when [ingesting data via OpenTSDB telnet put protocol](https://docs.victoriametrics.com/#sending-data-via-telnet-put-protocol). Previously timestamps in milliseconds were mistakenly multiplied by 1000. Thanks to @Droxenator for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3810).
 * BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): do not add extrapolated points outside the real points when using [interpolate()](https://docs.victoriametrics.com/MetricsQL.html#interpolate) function. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3816).
+
+## [v1.87.9](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.87.9)
+
+Released at 2023-09-10
+
+**v1.87.x is a line of LTS releases (e.g. long-time support). It contains important up-to-date bugfixes.
+The v1.87.x line will be supported for at least 12 months since [v1.87.0](https://docs.victoriametrics.com/CHANGELOG.html#v1870) release**
+
+* SECURITY: upgrade Go builder from Go1.21.0 to Go1.21.1. See [the list of issues addressed in Go1.20.6](https://github.com/golang/go/issues?q=milestone%3AGo1.21.1+label%3ACherryPickApproved).
+
+* BUGFIX: [vminsert enterprise](https://docs.victoriametrics.com/enterprise.html): properly parse `/insert/multitenant/*` urls, which have been broken since [v1.93.2](#v1932). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4947).
+* BUGFIX: properly build production armv5 binaries for `GOARCH=arm`. This has been broken after the upgrading of Go builder to Go1.21.0. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4965).
+* BUGFIX: [vmselect](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): return `503 Service Unavailable` status code when [partial responses](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#cluster-availability) are denied and some of `vmstorage` nodes are temporarily unavailable. Previously `422 Unprocessable Entiry` status code was mistakenly returned in this case, which could prevent from automatic recovery by re-sending the request to healthy cluster replica in another availability zone.
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): fix the bug when Group's `params` fields with multiple values were overriding each other instead of adding up. The bug was introduced in [this commit](https://github.com/VictoriaMetrics/VictoriaMetrics/commit/eccecdf177115297fa1dc4d42d38e23de9a9f2cb) starting from [v1.87.7](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.87.7). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4908).
 
 ## [v1.87.8](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.87.8)
 

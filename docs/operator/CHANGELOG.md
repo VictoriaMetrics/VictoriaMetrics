@@ -2,10 +2,24 @@
 
 ## Next release
 
+### Features
+
+- [vmoperator](https://docs.victoriametrics.com/operator/): upgrade vmagent/vmauth's default config-reloader image.
+
 ### Fixes
 
-* [vmuser](https://docs.victoriametrics.com/operator/api.html#vmuser): [Enterprise] fixes ip_filters indent for url_prefix. Previously it wasn't possible to use ip_filters with multiple target refs
-* [vmoperator](https://docs.victoriametrics.com/operator/): turn off `EnableStrictSecurity` by default. Before, upgrade operator to v0.36.0+ could fail components with volume attached, see [this issue](https://github.com/VictoriaMetrics/operator/issues/749) for details.
+- [vmcluster](https://docs.victoriametrics.com/operator/api.html#vmcluster): remove redundant annotation `operator.victoriametrics/last-applied-spec` from created workloads like vmstorage statefulset.
+
+<a name="v0.38.0"></a>
+## [v0.38.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.38.0) - 11 Sep 2023
+
+**Default version of VictoriaMetrics components**: `v1.93.4`
+
+### Fixes
+
+- [vmuser](https://docs.victoriametrics.com/operator/api.html#vmuser): [Enterprise] fixes ip_filters indent for url_prefix. Previously it wasn't possible to use ip_filters with multiple target refs
+- [vmoperator](https://docs.victoriametrics.com/operator/): turn off `EnableStrictSecurity` by default. Before, upgrade operator to v0.36.0+ could fail components with volume attached, see [this issue](https://github.com/VictoriaMetrics/operator/issues/749) for details.
+- [vmoperator](https://docs.victoriametrics.com/operator/): bump default version of VictoriaMetrics components to [1.93.4](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.4).
 
 ### Features
 

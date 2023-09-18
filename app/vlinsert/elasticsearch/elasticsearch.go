@@ -109,6 +109,12 @@ func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 		defer bufferedwriter.Put(bw)
 		WriteBulkResponse(bw, n, tookMs)
 		_ = bw.Flush()
+
+		// update bulkRequestDuration only for successfully parsed requests
+		// There is no need in updating bulkRequestDuration for request errors,
+		// since their timings are usually much smaller than the timing for successful request parsing.
+		bulkRequestDuration.UpdateDuration(startTime)
+
 		return true
 	default:
 		return false
@@ -116,7 +122,9 @@ func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 }
 
 var (
-	bulkRequestsTotal = metrics.NewCounter(`vl_http_requests_total{path="/insert/elasticsearch/_bulk"}`)
+	bulkRequestsTotal   = metrics.NewCounter(`vl_http_requests_total{path="/insert/elasticsearch/_bulk"}`)
+	rowsIngestedTotal   = metrics.NewCounter(`vl_rows_ingested_total{type="elasticsearch_bulk"}`)
+	bulkRequestDuration = metrics.NewHistogram(`vl_http_request_duration_seconds{path="/insert/elasticsearch/_bulk"}`)
 )
 
 func readBulkRequest(r io.Reader, isGzip bool, timeField, msgField string,
@@ -161,8 +169,6 @@ func readBulkRequest(r io.Reader, isGzip bool, timeField, msgField string,
 }
 
 var lineBufferPool bytesutil.ByteBufferPool
-
-var rowsIngestedTotal = metrics.NewCounter(`vl_rows_ingested_total{type="elasticsearch_bulk"}`)
 
 func readBulkLine(sc *bufio.Scanner, timeField, msgField string,
 	processLogMessage func(timestamp int64, fields []logstorage.Field),

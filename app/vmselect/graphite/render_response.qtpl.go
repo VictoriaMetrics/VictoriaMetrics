@@ -148,7 +148,7 @@ func streamrenderSeriesJSON(qw422016 *qt422016.Writer, s *series) {
 //line app/vmselect/graphite/render_response.qtpl:48
 		qw422016.N().S(`[`)
 //line app/vmselect/graphite/render_response.qtpl:50
-		if math.IsNaN(v) {
+		if math.IsNaN(v) || math.IsInf(v, 0) {
 //line app/vmselect/graphite/render_response.qtpl:50
 			qw422016.N().S(`null`)
 //line app/vmselect/graphite/render_response.qtpl:50

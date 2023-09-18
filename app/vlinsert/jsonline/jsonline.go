@@ -21,6 +21,7 @@ import (
 
 // RequestHandler processes jsonline insert requests
 func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
+	startTime := time.Now()
 	w.Header().Add("Content-Type", "application/json")
 
 	if r.Method != "POST" {
@@ -76,6 +77,11 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 
 	vlstorage.MustAddRows(lr)
 	logstorage.PutLogRows(lr)
+
+	// update jsonlineRequestDuration only for successfully parsed requests.
+	// There is no need in updating jsonlineRequestDuration for request errors,
+	// since their timings are usually much smaller than the timing for successful request parsing.
+	jsonlineRequestDuration.UpdateDuration(startTime)
 
 	return true
 }
@@ -144,6 +150,7 @@ func parseISO8601Timestamp(s string) (int64, error) {
 var lineBufferPool bytesutil.ByteBufferPool
 
 var (
-	requestsTotal     = metrics.NewCounter(`vl_http_requests_total{path="/insert/jsonline"}`)
-	rowsIngestedTotal = metrics.NewCounter(`vl_rows_ingested_total{type="jsonline"}`)
+	requestsTotal           = metrics.NewCounter(`vl_http_requests_total{path="/insert/jsonline"}`)
+	rowsIngestedTotal       = metrics.NewCounter(`vl_rows_ingested_total{type="jsonline"}`)
+	jsonlineRequestDuration = metrics.NewHistogram(`vl_http_request_duration_seconds{path="/insert/jsonline"}`)
 )
