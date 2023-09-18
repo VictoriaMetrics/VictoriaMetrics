@@ -14,7 +14,7 @@ The following `tip` changes can be tested by building VictoriaMetrics components
 
 * BUGFIX: [storage](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html): fixes possible infinity merge loop after API call to `/internal/force_merge`. See this [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4987) for details.
 * BUGFIX: [Graphite Render API](https://docs.victoriametrics.com/#graphite-render-api-usage) correctly return null instead of +Inf for render response. See this [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3783) for details.
-* BUGFIX: [vmbackup](https://docs.victoriametrics.com/vmbackup.html): force copying of `data/small/.../parts.json` in order to ensure backup consistency. Previously, `parts.json` could be skipped during copying, which could lead to data loss during restore. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5005).
+* BUGFIX: [vmbackup](https://docs.victoriametrics.com/vmbackup.html): properly copy `parts.json` files inside `<-storageDataPath>/{data,indexdb}` folders during [incremental backups](https://docs.victoriametrics.com/vmbackup.html#incremental-backups). Previously the new `parts.json` could be skipped during incremental backups, which could lead to inability to restore from the backup. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5005). This issue has been introduced in [v1.90.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.90.0).
 
 ## [v1.93.4](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.4)
 
