@@ -123,7 +123,7 @@ type Client struct {
 	useGRPC bool
 }
 
-// NewClient creates a new Google Cloud Storage client.
+// NewClient creates a new Google Cloud Storage client using the HTTP transport.
 // The default scope is ScopeFullControl. To use a different scope, like
 // ScopeReadOnly, use option.WithScopes.
 //
@@ -133,12 +133,6 @@ type Client struct {
 // You may configure the client by passing in options from the [google.golang.org/api/option]
 // package. You may also use options defined in this package, such as [WithJSONReads].
 func NewClient(ctx context.Context, opts ...option.ClientOption) (*Client, error) {
-	// Use the experimental gRPC client if the env var is set.
-	// This is an experimental API and not intended for public use.
-	if withGRPC := os.Getenv("STORAGE_USE_GRPC"); withGRPC != "" {
-		return newGRPCClient(ctx, opts...)
-	}
-
 	var creds *google.Credentials
 
 	// In general, it is recommended to use raw.NewService instead of htransport.NewClient
@@ -220,11 +214,20 @@ func NewClient(ctx context.Context, opts ...option.ClientOption) (*Client, error
 	}, nil
 }
 
-// newGRPCClient creates a new Storage client that initializes a gRPC-based
-// client. Calls that have not been implemented in gRPC will panic.
+// NewGRPCClient creates a new Storage client using the gRPC transport and API.
+// Client methods which have not been implemented in gRPC will return an error.
+// In particular, methods for Cloud Pub/Sub notifications are not supported.
 //
-// This is an experimental API and not intended for public use.
-func newGRPCClient(ctx context.Context, opts ...option.ClientOption) (*Client, error) {
+// The storage gRPC API is still in preview and not yet publicly available.
+// If you would like to use the API, please first contact your GCP account rep to
+// request access. The API may be subject to breaking changes.
+//
+// Clients should be reused instead of created as needed. The methods of Client
+// are safe for concurrent use by multiple goroutines.
+//
+// You may configure the client by passing in options from the [google.golang.org/api/option]
+// package.
+func NewGRPCClient(ctx context.Context, opts ...option.ClientOption) (*Client, error) {
 	opts = append(defaultGRPCOptions(), opts...)
 	tc, err := newGRPCStorageClient(ctx, withClientOptions(opts...))
 	if err != nil {
@@ -2187,8 +2190,6 @@ func toProjectResource(project string) string {
 
 // setConditionProtoField uses protobuf reflection to set named condition field
 // to the given condition value if supported on the protobuf message.
-//
-// This is an experimental API and not intended for public use.
 func setConditionProtoField(m protoreflect.Message, f string, v int64) bool {
 	fields := m.Descriptor().Fields()
 	if rf := fields.ByName(protoreflect.Name(f)); rf != nil {
@@ -2201,8 +2202,6 @@ func setConditionProtoField(m protoreflect.Message, f string, v int64) bool {
 
 // applyCondsProto validates and attempts to set the conditions on a protobuf
 // message using protobuf reflection.
-//
-// This is an experimental API and not intended for public use.
 func applyCondsProto(method string, gen int64, conds *Conditions, msg proto.Message) error {
 	rmsg := msg.ProtoReflect()
 
