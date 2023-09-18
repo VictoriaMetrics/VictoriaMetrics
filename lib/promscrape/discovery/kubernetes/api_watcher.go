@@ -446,11 +446,10 @@ func (gw *groupWatcher) registerPendingAPIWatchers() {
 func (gw *groupWatcher) unsubscribeAPIWatcher(aw *apiWatcher) {
 	gw.mu.Lock()
 	defer gw.mu.Unlock()
-	for key, uw := range gw.m {
+	for _, uw := range gw.m {
 		uw.unsubscribeAPIWatcherLocked(aw)
-		if (len(uw.aws) + len(uw.awsPending)) == 0 {
-			uw.cancel()
-			delete(gw.m, key)
+		if len(uw.aws)+len(uw.awsPending) == 0 {
+			time.AfterFunc(10*time.Second, uw.stopIfNoUsers)
 		}
 	}
 }
@@ -522,6 +521,16 @@ func newURLWatcher(role, apiURL string, gw *groupWatcher) *urlWatcher {
 	}
 	logger.Infof("started %s watcher for %q", uw.role, uw.apiURL)
 	return uw
+}
+
+func (uw *urlWatcher) stopIfNoUsers() {
+	gw := uw.gw
+	gw.mu.Lock()
+	if len(uw.aws)+len(uw.awsPending) == 0 {
+		uw.cancel()
+		delete(gw.m, uw.apiURL)
+	}
+	gw.mu.Unlock()
 }
 
 func (uw *urlWatcher) subscribeAPIWatcherLocked(aw *apiWatcher) {
