@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync/atomic"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
@@ -37,10 +38,20 @@ type Part struct {
 	ActualSize uint64
 }
 
+// key returns a string, which uniquely identifies p.
 func (p *Part) key() string {
+	if strings.HasSuffix(p.Path, "/parts.json") {
+		// parts.json file contents changes over time, so it must have an unique key in order
+		// to always copy it during backup, restore and server-side copy.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5005
+		id := atomic.AddUint64(&uniqueKeyID, 1)
+		return fmt.Sprintf("unique-%016X", id)
+	}
 	// Do not use p.FileSize in the key, since it cannot be properly initialized when resuming the restore for partially restored file
 	return fmt.Sprintf("%s%016X%016X%016X", p.Path, p.Offset, p.Size, p.ActualSize)
 }
+
+var uniqueKeyID uint64
 
 // String returns human-readable representation of the part.
 func (p *Part) String() string {
@@ -157,32 +168,4 @@ func PartsIntersect(a, b []Part) []Part {
 		}
 	}
 	return d
-}
-
-// EnforceSpecialsCopy enforces copying of special parts from src to toCopy without checking whether
-// part is already present in dst.
-func EnforceSpecialsCopy(src, toCopy []Part) []Part {
-	// `parts.json` files must be copied from src to dst without checking whether they already exist in dst.
-	// This is needed because size and paths for those files can be the same even if the contents differ.
-	// See: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5005
-	filtered := make(map[Part]bool)
-	for _, pt := range src {
-		if strings.HasPrefix(pt.Path, "data") && strings.HasSuffix(pt.Path, "parts.json") {
-			filtered[pt] = false
-		}
-	}
-
-	for _, pt := range toCopy {
-		if _, ok := filtered[pt]; ok {
-			filtered[pt] = true
-		}
-	}
-
-	for pt, ok := range filtered {
-		if !ok {
-			toCopy = append(toCopy, pt)
-		}
-	}
-
-	return toCopy
 }
