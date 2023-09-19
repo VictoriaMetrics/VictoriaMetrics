@@ -78,6 +78,7 @@ See also [case studies](https://docs.victoriametrics.com/CaseStudies.html).
 * [VictoriaMetrics: an overview and its use instead of Prometheus](https://rtfm.co.ua/en/victoriametrics-an-overview-and-its-use-instead-of-prometheus/)
 * [VictoriaMetrics: deploying a Kubernetes monitoring stack](https://rtfm.co.ua/en/victoriametrics-deploying-a-kubernetes-monitoring-stack/)
 * [Better, Faster, Cheaper: How Grammarly Improved Monitoring by Over 10x with VictoriaMetrics](https://www.grammarly.com/blog/engineering/monitoring-with-victoriametrics/)
+* [VictoriaMetrics, a stress-free Prometheus Remote Storage for 1 Billion metrics](https://medium.com/criteo-engineering/victoriametrics-a-prometheus-remote-storage-solution-57081a3d8e61)
 
 ## Our articles
 
