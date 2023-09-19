@@ -63,6 +63,7 @@ const CardinalityPanel: FC = () => {
         totalLabelValuePairs={tsdbStatusData.totalLabelValuePairs}
         seriesCountByMetricName={tsdbStatusData.seriesCountByMetricName}
         numOfValues={numOfValues}
+        isCluster={isCluster}
       />
 
       {showTips && (
@@ -70,7 +71,7 @@ const CardinalityPanel: FC = () => {
           {!match && !focusLabel && <TipHighNumberOfSeries/>}
           {match && !focusLabel && <TipCardinalityOfSingle/>}
           {!match && !focusLabel && <TipHighNumberOfValues/>}
-          {focusLabel && <TipCardinalityOfLabel isCluster={isCluster}/>}
+          {focusLabel && <TipCardinalityOfLabel />}
         </div>
       )}
 

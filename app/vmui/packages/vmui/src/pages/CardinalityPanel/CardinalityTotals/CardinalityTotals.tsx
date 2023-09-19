@@ -15,6 +15,7 @@ export interface CardinalityTotalsProps {
   seriesCountByMetricName: TopHeapEntry[];
   isPrometheus?: boolean;
   numOfValues: number;
+  isCluster: boolean;
 }
 
 const CardinalityTotals: FC<CardinalityTotalsProps> = ({

@@ -123,9 +123,7 @@ export const useFetchQuery = (): {
 
   useEffect(() => {
     const id = getTenantIdFromUrl(serverUrl);
-    if (id && id !== "") {
-      setIsCluster(true);
-    }
+    setIsCluster(!!id);
   }, [serverUrl]);
 
   if (focusLabel) {
