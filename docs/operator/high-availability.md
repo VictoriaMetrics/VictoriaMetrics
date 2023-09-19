@@ -49,7 +49,7 @@ spec:
   podScrapeSelector: {}
   serviceScrapeSelector: {}
   scrapeInterval: 60s
-  vmAgentExternalLabelName: vmagent-ha
+  vmAgentExternalLabelName: vmagentHa
   replicaCount: 2
   remoteWrite:
     - url: "http://vmsingle-example-vmsingle-persisted.default.svc:8429/api/v1/write"
@@ -77,7 +77,7 @@ spec:
   podScrapeSelector: {}
   serviceScrapeSelector: {}
   scrapeInterval: 60s
-  vmAgentExternalLabelName: vmagent-ha
+  vmAgentExternalLabelName: vmagentHa
   shardCount: 5
   replicaCount: 2
   remoteWrite:
@@ -118,7 +118,7 @@ metadata:
   name: example-persistent
 spec:
   selectAllByDefault: true
-  vmAgentExternalLabelName: vmagent-ha
+  vmAgentExternalLabelName: vmagentHa
   replicaCount: 2
   remoteWrite:
     - url: "http://vmsingle-example-vmsingle-persisted.default.svc:8429/api/v1/write"
