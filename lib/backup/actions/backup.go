@@ -147,7 +147,6 @@ func runBackup(src *fslocal.FS, dst common.RemoteFS, origin common.OriginFS, con
 	}
 
 	srcCopyParts := common.PartsDifference(partsToCopy, originParts)
-	srcCopyParts = common.EnforceSpecialsCopy(srcParts, srcCopyParts)
 	uploadSize := getPartsSize(srcCopyParts)
 	if len(srcCopyParts) > 0 {
 		logger.Infof("uploading %d parts from %s to %s", len(srcCopyParts), src, dst)

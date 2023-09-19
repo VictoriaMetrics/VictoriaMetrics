@@ -75,9 +75,8 @@ func GetCommonParams(r *http.Request) (*CommonParams, error) {
 func (cp *CommonParams) GetProcessLogMessageFunc(lr *logstorage.LogRows) func(timestamp int64, fields []logstorage.Field) {
 	return func(timestamp int64, fields []logstorage.Field) {
 		if len(fields) > *MaxFieldsPerLine {
-			var rf logstorage.RowFormatter
-			rf = append(rf[:0], fields...)
-			logger.Warnf("dropping log line with %d fields; it exceeds -insert.maxFieldsPerLine=%d; %s", len(fields), *MaxFieldsPerLine, rf.String())
+			rf := logstorage.RowFormatter(fields)
+			logger.Warnf("dropping log line with %d fields; it exceeds -insert.maxFieldsPerLine=%d; %s", len(fields), *MaxFieldsPerLine, rf)
 			rowsDroppedTotalTooManyFields.Inc()
 			return
 		}

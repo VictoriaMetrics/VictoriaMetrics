@@ -2,19 +2,9 @@ package loki
 
 import (
 	"net/http"
-	"time"
-
-	"github.com/VictoriaMetrics/metrics"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
-)
-
-var (
-	lokiRequestsJSONTotal       = metrics.NewCounter(`vl_http_requests_total{path="/insert/loki/api/v1/push",format="json"}`)
-	lokiRequestsProtobufTotal   = metrics.NewCounter(`vl_http_requests_total{path="/insert/loki/api/v1/push",format="protobuf"}`)
-	lokiRequestJSONDuration     = metrics.NewSummary(`vl_http_request_duration_seconds{path="/insert/loki/api/v1/push",format="json"}`)
-	lokiRequestProtobufDuration = metrics.NewSummary(`vl_http_request_duration_seconds{path="/insert/loki/api/v1/push",format="protobuf"}`)
 )
 
 // RequestHandler processes Loki insert requests
@@ -37,13 +27,9 @@ func handleInsert(r *http.Request, w http.ResponseWriter) bool {
 	contentType := r.Header.Get("Content-Type")
 	switch contentType {
 	case "application/json":
-		defer lokiRequestJSONDuration.UpdateDuration(time.Now())
-		lokiRequestsJSONTotal.Inc()
 		return handleJSON(r, w)
 	default:
 		// Protobuf request body should be handled by default according to https://grafana.com/docs/loki/latest/api/#push-log-entries-to-loki
-		defer lokiRequestProtobufDuration.UpdateDuration(time.Now())
-		lokiRequestsProtobufTotal.Inc()
 		return handleProtobuf(r, w)
 	}
 }

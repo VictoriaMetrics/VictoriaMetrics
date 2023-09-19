@@ -23,6 +23,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 )
 
 var apiServerTimeout = flag.Duration("promscrape.kubernetes.apiServerTimeout", 30*time.Minute, "How frequently to reload the full state from Kubernetes API server")
@@ -271,7 +272,11 @@ func selectorsKey(selectors []Selector) string {
 
 var (
 	groupWatchersLock sync.Mutex
-	groupWatchers     = make(map[string]*groupWatcher)
+	groupWatchers     = func() map[string]*groupWatcher {
+		gws := make(map[string]*groupWatcher)
+		go groupWatchersCleaner(gws)
+		return gws
+	}()
 
 	_ = metrics.NewGauge(`vm_promscrape_discovery_kubernetes_group_watchers`, func() float64 {
 		groupWatchersLock.Lock()
@@ -280,6 +285,21 @@ var (
 		return float64(n)
 	})
 )
+
+func groupWatchersCleaner(gws map[string]*groupWatcher) {
+	for {
+		time.Sleep(7 * time.Second)
+		groupWatchersLock.Lock()
+		for key, gw := range gws {
+			gw.mu.Lock()
+			if len(gw.m) == 0 {
+				delete(gws, key)
+			}
+			gw.mu.Unlock()
+		}
+		groupWatchersLock.Unlock()
+	}
+}
 
 type swosByKeyWithLock struct {
 	mu        sync.Mutex
@@ -380,24 +400,7 @@ func (gw *groupWatcher) startWatchersForRole(role string, aw *apiWatcher) {
 				// This should guarantee that the ScrapeWork objects for these objects are properly updated
 				// as soon as the objects they depend on are updated.
 				// This should fix https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1240 .
-				go func() {
-					const minSleepTime = 5 * time.Second
-					sleepTime := minSleepTime
-					for {
-						time.Sleep(sleepTime)
-						startTime := time.Now()
-						gw.mu.Lock()
-						if uw.needRecreateScrapeWorks {
-							uw.needRecreateScrapeWorks = false
-							uw.recreateScrapeWorksLocked(uw.objectsByKey, uw.aws)
-							sleepTime = time.Since(startTime)
-							if sleepTime < minSleepTime {
-								sleepTime = minSleepTime
-							}
-						}
-						gw.mu.Unlock()
-					}
-				}()
+				go uw.recreateScrapeWorks()
 			}
 		}
 	}
@@ -446,11 +449,10 @@ func (gw *groupWatcher) registerPendingAPIWatchers() {
 func (gw *groupWatcher) unsubscribeAPIWatcher(aw *apiWatcher) {
 	gw.mu.Lock()
 	defer gw.mu.Unlock()
-	for key, uw := range gw.m {
+	for _, uw := range gw.m {
 		uw.unsubscribeAPIWatcherLocked(aw)
-		if (len(uw.aws) + len(uw.awsPending)) == 0 {
-			uw.cancel()
-			delete(gw.m, key)
+		if len(uw.aws)+len(uw.awsPending) == 0 {
+			time.AfterFunc(10*time.Second, uw.stopIfNoUsers)
 		}
 	}
 }
@@ -504,9 +506,8 @@ func newURLWatcher(role, apiURL string, gw *groupWatcher) *urlWatcher {
 		apiURL: apiURL,
 		gw:     gw,
 
-		refCount: 0,
-		ctx:      ctx,
-		cancel:   cancel,
+		ctx:    ctx,
+		cancel: cancel,
 
 		parseObject:     parseObject,
 		parseObjectList: parseObjectList,
@@ -523,6 +524,44 @@ func newURLWatcher(role, apiURL string, gw *groupWatcher) *urlWatcher {
 	}
 	logger.Infof("started %s watcher for %q", uw.role, uw.apiURL)
 	return uw
+}
+
+func (uw *urlWatcher) stopIfNoUsers() {
+	gw := uw.gw
+	gw.mu.Lock()
+	if len(uw.aws)+len(uw.awsPending) == 0 {
+		uw.cancel()
+		delete(gw.m, uw.apiURL)
+	}
+	gw.mu.Unlock()
+}
+
+func (uw *urlWatcher) recreateScrapeWorks() {
+	const minSleepTime = 5 * time.Second
+	sleepTime := minSleepTime
+	gw := uw.gw
+	stopCh := uw.ctx.Done()
+	for {
+		t := timerpool.Get(sleepTime)
+		select {
+		case <-stopCh:
+			timerpool.Put(t)
+			return
+		case <-t.C:
+			timerpool.Put(t)
+		}
+		startTime := time.Now()
+		gw.mu.Lock()
+		if uw.needRecreateScrapeWorks {
+			uw.needRecreateScrapeWorks = false
+			uw.recreateScrapeWorksLocked(uw.objectsByKey, uw.aws)
+			sleepTime = time.Since(startTime)
+			if sleepTime < minSleepTime {
+				sleepTime = minSleepTime
+			}
+		}
+		gw.mu.Unlock()
+	}
 }
 
 func (uw *urlWatcher) subscribeAPIWatcherLocked(aw *apiWatcher) {
@@ -604,7 +643,9 @@ func (uw *urlWatcher) reloadObjects() string {
 	requestURL := apiURL + delimiter + "resourceVersion=0&resourceVersionMatch=NotOlderThan"
 	resp, err := uw.gw.doRequest(uw.ctx, requestURL)
 	if err != nil {
-		logger.Errorf("cannot perform request to %q: %s", requestURL, err)
+		if !errors.Is(err, context.Canceled) {
+			logger.Errorf("cannot perform request to %q: %s", requestURL, err)
+		}
 		return ""
 	}
 	if resp.StatusCode != http.StatusOK {
@@ -668,10 +709,18 @@ func (uw *urlWatcher) reloadObjects() string {
 //
 // See https://kubernetes.io/docs/reference/using-api/api-concepts/#efficient-detection-of-changes
 func (uw *urlWatcher) watchForUpdates() {
+	stopCh := uw.ctx.Done()
 	backoffDelay := time.Second
 	maxBackoffDelay := 30 * time.Second
 	backoffSleep := func() {
-		time.Sleep(backoffDelay)
+		t := timerpool.Get(backoffDelay)
+		select {
+		case <-stopCh:
+			timerpool.Put(t)
+			return
+		case <-t.C:
+			timerpool.Put(t)
+		}
 		backoffDelay *= 2
 		if backoffDelay > maxBackoffDelay {
 			backoffDelay = maxBackoffDelay
@@ -683,7 +732,9 @@ func (uw *urlWatcher) watchForUpdates() {
 	apiURL += delimiter + "watch=1&allowWatchBookmarks=true&timeoutSeconds=" + strconv.Itoa(int(timeoutSeconds))
 	for {
 		select {
-		case <-uw.ctx.Done():
+		case <-stopCh:
+			metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_discovery_kubernetes_url_watchers{role=%q}`, uw.role)).Dec()
+			logger.Infof("stopped %s watcher for %q", uw.role, uw.apiURL)
 			return
 		default:
 		}
@@ -696,8 +747,10 @@ func (uw *urlWatcher) watchForUpdates() {
 		requestURL := apiURL + "&resourceVersion=" + url.QueryEscape(resourceVersion)
 		resp, err := uw.gw.doRequest(uw.ctx, requestURL)
 		if err != nil {
-			logger.Errorf("cannot perform request to %q: %s", requestURL, err)
-			backoffSleep()
+			if !errors.Is(err, context.Canceled) {
+				logger.Errorf("cannot perform request to %q: %s", requestURL, err)
+				backoffSleep()
+			}
 			continue
 		}
 		if resp.StatusCode != http.StatusOK {
@@ -842,11 +895,6 @@ func (uw *urlWatcher) maybeUpdateDependedScrapeWorksLocked() {
 			continue
 		}
 	}
-}
-
-// close cancels context used for API polling
-func (uw *urlWatcher) close() {
-	uw.cancel()
 }
 
 // Bookmark is a bookmark message from Kubernetes Watch API.

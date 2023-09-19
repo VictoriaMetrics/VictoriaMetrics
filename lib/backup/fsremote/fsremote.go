@@ -58,7 +58,8 @@ func (fs *FS) ListParts() ([]common.Part, error) {
 			continue
 		}
 		var p common.Part
-		if !p.ParseFromRemotePath(file[len(dir):]) {
+		remotePath := common.ToCanonicalPath(file[len(dir):])
+		if !p.ParseFromRemotePath(remotePath) {
 			logger.Infof("skipping unknown file %s", file)
 			continue
 		}
@@ -68,7 +69,6 @@ func (fs *FS) ListParts() ([]common.Part, error) {
 			return nil, fmt.Errorf("cannot stat file %q for part %q: %w", file, p.Path, err)
 		}
 		p.ActualSize = uint64(fi.Size())
-		p.Path = pathToCanonical(p.Path)
 		parts = append(parts, p)
 	}
 	return parts, nil
@@ -76,7 +76,6 @@ func (fs *FS) ListParts() ([]common.Part, error) {
 
 // DeletePart deletes the given part p from fs.
 func (fs *FS) DeletePart(p common.Part) error {
-	p.Path = canonicalPathToLocal(p.Path)
 	path := fs.path(p)
 	if err := os.Remove(path); err != nil {
 		return fmt.Errorf("cannot remove %q: %w", path, err)
@@ -97,7 +96,6 @@ func (fs *FS) CopyPart(srcFS common.OriginFS, p common.Part) error {
 	if !ok {
 		return fmt.Errorf("cannot perform server-side copying from %s to %s: both of them must be fsremote", srcFS, fs)
 	}
-	p.Path = canonicalPathToLocal(p.Path)
 	srcPath := src.path(p)
 	dstPath := fs.path(p)
 	if err := fs.mkdirAll(dstPath); err != nil {
@@ -142,7 +140,6 @@ func (fs *FS) CopyPart(srcFS common.OriginFS, p common.Part) error {
 
 // DownloadPart download part p from fs to w.
 func (fs *FS) DownloadPart(p common.Part, w io.Writer) error {
-	p.Path = canonicalPathToLocal(p.Path)
 	path := fs.path(p)
 	r, err := os.Open(path)
 	if err != nil {
@@ -198,14 +195,13 @@ func (fs *FS) mkdirAll(filePath string) error {
 }
 
 func (fs *FS) path(p common.Part) string {
-	return filepath.Join(fs.Dir, p.Path, fmt.Sprintf("%016X_%016X_%016X", p.FileSize, p.Offset, p.Size))
+	return filepath.Join(p.LocalPath(fs.Dir), fmt.Sprintf("%016X_%016X_%016X", p.FileSize, p.Offset, p.Size))
 }
 
 // DeleteFile deletes filePath at fs.
 //
 // The function does nothing if the filePath doesn't exist.
 func (fs *FS) DeleteFile(filePath string) error {
-	filePath = canonicalPathToLocal(filePath)
 	path := filepath.Join(fs.Dir, filePath)
 	err := os.Remove(path)
 	if err != nil && !os.IsNotExist(err) {
@@ -247,6 +243,5 @@ func (fs *FS) HasFile(filePath string) (bool, error) {
 // ReadFile returns the content of filePath at fs.
 func (fs *FS) ReadFile(filePath string) ([]byte, error) {
 	path := filepath.Join(fs.Dir, filePath)
-
 	return os.ReadFile(path)
 }

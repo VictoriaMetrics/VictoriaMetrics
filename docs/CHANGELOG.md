@@ -47,8 +47,19 @@ ssue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4825) and [these
 
 * BUGFIX: [Official Grafana dashboards for VictoriaMetrics](https://grafana.com/orgs/victoriametrics): fix display of ingested rows rate for `Samples ingested/s` and `Samples rate` panels for vmagent's dasbhoard. Previously, not all ingested protocols were accounted in these panels. An extra panel `Rows rate` was added to `Ingestion` section to display the split for rows ingested rate by protocol.
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix the bug causing render looping when switching to heatmap.
-* BUGFIX: [vmbackup](https://docs.victoriametrics.com/vmbackup.html): force copying of `data/small/.../parts.json` in order to ensure backup consistency. Previously, `parts.json` could be skipped during copying, which could lead to data loss during restore. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5005).
 * BUGFIX: [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html) validate `-dedup.minScrapeInterval` value and `-downsampling.period` intervals are multiples of each other. See [these docs](https://docs.victoriametrics.com/#downsampling).
+
+## [v1.93.5](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.5)
+
+Released at 2023-09-19
+
+**v1.93.x is a line of LTS releases (e.g. long-time support). It contains important up-to-date bugfixes.
+The v1.93.x line will be supported for at least 12 months since [v1.93.0](https://docs.victoriametrics.com/CHANGELOG.html#v1930) release**
+
+* BUGFIX: [storage](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html): prevent from livelock when [forced merge](https://docs.victoriametrics.com/#forced-merge) is called under high data ingestion. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4987).
+* BUGFIX: [Graphite Render API](https://docs.victoriametrics.com/#graphite-render-api-usage): correctly return `null` instead of `Inf` in JSON query responses. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3783).
+* BUGFIX: [vmbackup](https://docs.victoriametrics.com/vmbackup.html): properly copy `parts.json` files inside `<-storageDataPath>/{data,indexdb}` folders during [incremental backups](https://docs.victoriametrics.com/vmbackup.html#incremental-backups). Previously the new `parts.json` could be skipped during incremental backups, which could lead to inability to restore from the backup. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5005). This issue has been introduced in [v1.90.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.90.0).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): properly close connections to Kubernetes API server after the change in `selectors` or `namespaces` sections of [kubernetes_sd_configs](https://docs.victoriametrics.com/sd_configs.html#kubernetes_sd_configs). Previously `vmagent` could continue polling Kubernetes API server with the old `selectors` or `namespaces` configs additionally to polling new configs. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4850).
 
 ## [v1.93.4](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.4)
 
@@ -103,7 +114,6 @@ The v1.93.x line will be supported for at least 12 months since [v1.93.0](https:
 * BUGFIX: properly replace `:` chars in label names with `_` when `-usePromCompatibleNaming` command-line flag is passed to `vmagent`, `vminsert` or single-node VictoriaMetrics. This addresses [this comment](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3113#issuecomment-1275077071).
 * BUGFIX: [vmbackup](https://docs.victoriametrics.com/vmbackup.html): correctly check if specified `-dst` belongs to specified `-storageDataPath`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4837).
 * BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl.html): don't interrupt the migration process if no metrics were found for a specific tenant. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4796).
-* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): fix the thread leak that occurs during the polling of the Kubernetes API server after a configuration reload. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4850).
 
 ## [v1.93.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.0)
 
