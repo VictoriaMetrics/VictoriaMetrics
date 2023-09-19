@@ -10,9 +10,10 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
-// AppendFiles appends all the files from dir to dst.
+// AppendFiles appends paths to all the files from local dir to dst.
 //
-// All the appended files will have dir prefix.
+// All the appended filepaths will have dir prefix.
+// The returned paths have local OS-specific directory separators.
 func AppendFiles(dst []string, dir string) ([]string, error) {
 	d, err := os.Open(dir)
 	if err != nil {

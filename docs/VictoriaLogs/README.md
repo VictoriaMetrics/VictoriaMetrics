@@ -172,7 +172,7 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
   -inmemoryDataFlushInterval duration
     	The interval for guaranteed saving of in-memory data to disk. The saved data survives unclean shutdowns such as OOM crash, hardware reset, SIGKILL, etc. Bigger intervals may help increase the lifetime of flash storage with limited write cycles (e.g. Raspberry PI). Smaller intervals increase disk IO load. Minimum supported value is 1s (default 5s)
   -insert.maxFieldsPerLine int
-    	The maximum number of fields per line, which can be read by /insert/* handlers (default 1000)
+    	The maximum number of log fields per line, which can be read by /insert/* handlers (default 1000)
   -insert.maxLineSizeBytes size
     	The maximum size of a single line, which can be read by /insert/* handlers
     	Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 262144)
