@@ -1781,7 +1781,10 @@ func mustOpenParts(path string, partNames []string) []*partWrapper {
 	for _, partName := range partNames {
 		partPath := filepath.Join(path, partName)
 		if !fs.IsPathExist(partPath) {
-			logger.Panicf("FATAL: missing part dir %q; part is listed in %q, but missing on disk", partPath, filepath.Join(path, partsFilename))
+			partsFile := filepath.Join(path, partsFilename)
+			logger.Panicf("FATAL: missing part dir %q; part is listed in %q, but missing on disk; "+
+				"ensure %q content is not corrupted; remove %q to rebuild its' content from the list of existing parts",
+				partPath, partsFile, partsFilename, partsFile)
 		}
 
 		m[partName] = struct{}{}
