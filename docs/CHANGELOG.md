@@ -37,6 +37,7 @@ The following `tip` changes can be tested by building VictoriaMetrics components
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add button for auto-formatting PromQL/MetricsQL queries. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4681). Thanks to @aramattamara for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4694).
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): improve accessibility score to 100 according to [Google's Lighthouse](https://developer.chrome.com/docs/lighthouse/accessibility/) tests.
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): organize `min`, `max`, `median` values on the chart legend and tooltips for better visibility.
+* FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add storage of query history in `localStorage`. See [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5022).
 * FEATURE: dashboards: provide copies of Grafana dashboards alternated with VictoriaMetrics datasource at [dashboards/vm](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/dashboards/vm).
 * FEATURE: [vmauth](https://docs.victoriametrics.com/vmauth.html): added ability to set, override and clear request and response headers on a per-user and per-path basis. See [this i
 ssue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4825) and [these docs](https://docs.victoriametrics.com/vmauth.html#auth-config) for details.
