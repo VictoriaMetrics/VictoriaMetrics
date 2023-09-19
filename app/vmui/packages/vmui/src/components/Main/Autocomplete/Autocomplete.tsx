@@ -7,9 +7,15 @@ import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import useBoolean from "../../../hooks/useBoolean";
 import useEventListener from "../../../hooks/useEventListener";
 
+export interface AutocompleteOptions {
+  value: string;
+  description?: string;
+  type?: string;
+}
+
 interface AutocompleteProps {
   value: string
-  options: string[]
+  options: AutocompleteOptions[]
   anchor: Ref<HTMLElement>
   disabled?: boolean
   minLength?: number
@@ -21,7 +27,12 @@ interface AutocompleteProps {
   offset?: {top: number, left: number}
   onSelect: (val: string) => void
   onOpenAutocomplete?: (val: boolean) => void
-  onFoundOptions?: (val: string[]) => void
+  onFoundOptions?: (val: AutocompleteOptions[]) => void
+}
+
+enum FocusType {
+  mouse,
+  keyboard
 }
 
 const Autocomplete: FC<AutocompleteProps> = ({
@@ -43,7 +54,7 @@ const Autocomplete: FC<AutocompleteProps> = ({
   const { isMobile } = useDeviceDetect();
   const wrapperEl = useRef<HTMLDivElement>(null);
 
-  const [focusOption, setFocusOption] = useState(-1);
+  const [focusOption, setFocusOption] = useState<{index: number, type?: FocusType}>({ index: -1 });
 
   const {
     value: openAutocomplete,
@@ -55,8 +66,8 @@ const Autocomplete: FC<AutocompleteProps> = ({
     if (!openAutocomplete) return [];
     try {
       const regexp = new RegExp(String(value.trim()), "i");
-      const found = options.filter((item) => regexp.test(item) && (item !== value));
-      return found.sort((a,b) => (a.match(regexp)?.index || 0) - (b.match(regexp)?.index || 0));
+      const found = options.filter((item) => regexp.test(item.value) && (item.value !== value));
+      return found.sort((a,b) => (a.value.match(regexp)?.index || 0) - (b.value.match(regexp)?.index || 0));
     } catch (e) {
       return [];
     }
@@ -72,9 +83,17 @@ const Autocomplete: FC<AutocompleteProps> = ({
     if (!selected) handleCloseAutocomplete();
   };
 
+  const createHandlerMouseEnter = (index: number) => () => {
+    setFocusOption({ index, type: FocusType.mouse });
+  };
+
+  const handlerMouseLeave = () => {
+    setFocusOption({ index: -1 });
+  };
+
   const scrollToValue = () => {
-    if (!wrapperEl.current) return;
-    const target = wrapperEl.current.childNodes[focusOption] as HTMLElement;
+    if (!wrapperEl.current || focusOption.type === FocusType.mouse) return;
+    const target = wrapperEl.current.childNodes[focusOption.index] as HTMLElement;
     if (target?.scrollIntoView) target.scrollIntoView({ block: "center" });
   };
 
@@ -85,18 +104,24 @@ const Autocomplete: FC<AutocompleteProps> = ({
 
     if (key === "ArrowUp" && !modifiers && hasOptions) {
       e.preventDefault();
-      setFocusOption((prev) => prev <= 0 ? 0 : prev - 1);
+      setFocusOption(({ index }) => index <= 0
+        ? { index: 0, type: FocusType.keyboard }
+        : { index: index - 1, type: FocusType.keyboard }
+      );
     }
 
     if (key === "ArrowDown" && !modifiers && hasOptions) {
       e.preventDefault();
       const lastIndex = foundOptions.length - 1;
-      setFocusOption((prev) => prev >= lastIndex ? lastIndex : prev + 1);
+      setFocusOption(({ index }) => index >= lastIndex
+        ? { index: lastIndex, type: FocusType.keyboard }
+        : { index: index + 1, type: FocusType.keyboard }
+      );
     }
 
     if (key === "Enter") {
-      const value = foundOptions[focusOption];
-      value && onSelect(value);
+      const item = foundOptions[focusOption.index];
+      item && onSelect(item.value);
       if (!selected) handleCloseAutocomplete();
     }
 
@@ -114,7 +139,7 @@ const Autocomplete: FC<AutocompleteProps> = ({
   useEffect(scrollToValue, [focusOption, foundOptions]);
 
   useEffect(() => {
-    setFocusOption(-1);
+    setFocusOption({ index: -1 });
   }, [foundOptions]);
 
   useEffect(() => {
@@ -149,19 +174,32 @@ const Autocomplete: FC<AutocompleteProps> = ({
             className={classNames({
               "vm-list-item": true,
               "vm-list-item_mobile": isMobile,
-              "vm-list-item_active": i === focusOption,
+              "vm-list-item_active": i === focusOption.index,
               "vm-list-item_multiselect": selected,
-              "vm-list-item_multiselect_selected": selected?.includes(option)
+              "vm-list-item_multiselect_selected": selected?.includes(option.value)
             })}
-            id={`$autocomplete$${option}`}
-            key={option}
-            onClick={createHandlerSelect(option)}
+            id={`$autocomplete$${option.value}`}
+            key={option.value}
+            onClick={createHandlerSelect(option.value)}
+            onMouseEnter={createHandlerMouseEnter(i)}
+            onMouseLeave={handlerMouseLeave}
           >
-            {selected?.includes(option) && <DoneIcon/>}
-            <span>{option}</span>
+            {selected?.includes(option.value) && <DoneIcon/>}
+            <span>{option.value}</span>
           </div>
         )}
       </div>
+      {foundOptions[focusOption.index]?.description && (
+        <div className="vm-autocomplete-info">
+          <div className="vm-autocomplete-info__type">
+            {foundOptions[focusOption.index].type}
+          </div>
+          <div
+            className="vm-autocomplete-info__description"
+            dangerouslySetInnerHTML={{ __html: foundOptions[focusOption.index].description || "" }}
+          />
+        </div>
+      )}
     </Popper>
   );
 };

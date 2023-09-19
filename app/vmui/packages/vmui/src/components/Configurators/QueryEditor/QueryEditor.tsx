@@ -6,6 +6,7 @@ import QueryEditorAutocomplete from "./QueryEditorAutocomplete";
 import "./style.scss";
 import { QueryStats } from "../../../api/types";
 import { partialWarning, seriesFetchedWarning } from "./warningText";
+import { AutocompleteOptions } from "../../Main/Autocomplete/Autocomplete";
 
 export interface QueryEditorProps {
   onChange: (query: string) => void;
@@ -87,7 +88,7 @@ const QueryEditor: FC<QueryEditorProps> = ({
     }
   };
 
-  const handleChangeFoundOptions = (val: string[]) => {
+  const handleChangeFoundOptions = (val: AutocompleteOptions[]) => {
     setOpenAutocomplete(!!val.length);
   };
 
