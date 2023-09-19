@@ -149,7 +149,18 @@ func mustOpenDatadb(pt *partition, path string, flushInterval time.Duration) *da
 
 	pws := make([]*partWrapper, len(partNames))
 	for i, partName := range partNames {
+		// Make sure the partName exists on disk.
+		// If it is missing, then manual action from the user is needed,
+		// since this is unexpected state, which cannot occur under normal operation,
+		// including unclean shutdown.
 		partPath := filepath.Join(path, partName)
+		if !fs.IsPathExist(partPath) {
+			partsFile := filepath.Join(path, partsFilename)
+			logger.Panicf("FATAL: part %q is listed in %q, but is missing on disk; "+
+				"ensure %q contents is not corrupted; remove %q to rebuild its' content from the list of existing parts",
+				partPath, partsFile, partsFile, partsFile)
+		}
+
 		p := mustOpenFilePart(pt, partPath)
 		pws[i] = newPartWrapper(p, nil, time.Time{})
 	}
