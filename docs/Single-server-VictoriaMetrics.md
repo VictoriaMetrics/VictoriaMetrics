@@ -812,16 +812,7 @@ VictoriaMetrics accepts data from NewRelic infrastructure agent API at `/api/v1/
 NewRelic's infrastructure agent sends so-called [Events](https://docs.newrelic.com/docs/data-apis/understand-data/new-relic-data-types/#event-data)
 which are transformed to the [Prometheus exposition format](https://github.com/prometheus/docs/blob/main/content/docs/instrumenting/exposition_formats.md#text-based-format).
 
-By default, NewRelic's infrastructure agent sends next types of the infrastructure events:
-1. SystemSample
-2. ProcessSample
-3. StorageSample
-4. NetworkSample
-5. ContainerSample
-6. InfrastructureEvent
-   Those all events processed by VictoriaMetrics and prepare the [Prometheus exposition format](https://github.com/prometheus/docs/blob/main/content/docs/instrumenting/exposition_formats.md#text-based-format).
-
-### Sending metrics to VictoriaMetrics
+## Sending metrics to VictoriaMetrics
 
 NewRelic's infrastructure agent allows configuring destinations for metrics sending via ENV variable `COLLECTOR_URL`.
 It is required to specify `NRIA_LICENSE_KEY` which can get only after registration into account of the NewRelic cloud.
@@ -835,6 +826,15 @@ COLLECTOR_URL="http://localhost:8428/api/v1/newrelic"  NRIA_LICENSE_KEY="YOUR_LI
 </p>
 
 When we specify collector URL Newrelic infrastructure agent starts to send metrics to the `/infra/v2/metrics/events/bulk`.
+
+By default, NewRelic's infrastructure agent sends next types of the infrastructure events:
+1. SystemSample
+2. ProcessSample
+3. StorageSample
+4. NetworkSample
+5. ContainerSample
+6. InfrastructureEvent
+   Those all events processed by VictoriaMetrics and prepare the [Prometheus exposition format](https://github.com/prometheus/docs/blob/main/content/docs/instrumenting/exposition_formats.md#text-based-format).
 
 ### Send data via cURL
 
