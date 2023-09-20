@@ -129,7 +129,7 @@ type Table struct {
 	rawItems rawItemsShards
 
 	// partsLock protects inmemoryParts and fileParts.
-	partsLock sync.Mutex
+	partsLock sync.RWMutex
 
 	// inmemoryParts contains inmemory parts.
 	inmemoryParts []*partWrapper
@@ -531,7 +531,7 @@ func (tb *Table) AddItems(items [][]byte) {
 //
 // The appended parts must be released with putParts.
 func (tb *Table) getParts(dst []*partWrapper) []*partWrapper {
-	tb.partsLock.Lock()
+	tb.partsLock.RLock()
 	for _, pw := range tb.inmemoryParts {
 		pw.incRef()
 	}
@@ -540,7 +540,7 @@ func (tb *Table) getParts(dst []*partWrapper) []*partWrapper {
 	}
 	dst = append(dst, tb.inmemoryParts...)
 	dst = append(dst, tb.fileParts...)
-	tb.partsLock.Unlock()
+	tb.partsLock.RUnlock()
 
 	return dst
 }
