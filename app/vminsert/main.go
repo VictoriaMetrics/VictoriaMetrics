@@ -9,6 +9,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	vminsertCommon "github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/csvimport"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/datadog"
@@ -36,7 +38,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
-	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
@@ -220,19 +221,19 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		w.WriteHeader(http.StatusOK)
 		return true
-	case "/api/v1/newrelic":
+	case "/newrelic/api/v1":
 		newrelicCheckRequest.Inc()
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(202)
 		fmt.Fprintf(w, `{"status":"ok"}`)
 		return true
-	case "/api/v1/newrelic/inventory/deltas":
+	case "/newrelic/api/v1/inventory/deltas":
 		newrelicInventoryRequests.Inc()
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(202)
 		fmt.Fprintf(w, `{"payload":{"version": 1, "state": {}, "reset": "false"}}`)
 		return true
-	case "/api/v1/newrelic/infra/v2/metrics/events/bulk":
+	case "/newrelic/api/v1/infra/v2/metrics/events/bulk":
 		newrelicWriteRequests.Inc()
 		if err := newrelic.InsertHandlerForHTTP(r); err != nil {
 			newrelicWriteErrors.Inc()
