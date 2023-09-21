@@ -12,6 +12,8 @@ The following `tip` changes can be tested by building VictoriaMetrics components
 
 ## v1.93.x long-time support release (LTS)
 
+* BUGFIX: [vmbackup](https://docs.victoriametrics.com/vmbackup.html): properly copy `appliedRetention.txt` files inside `<-storageDataPath>/{data}` folders during [incremental backups](https://docs.victoriametrics.com/vmbackup.html#incremental-backups). Previously the new `appliedRetention.txt` could be skipped during incremental backups, which could lead to increased load on storage after restoring from backup. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5005).
+
 ## [v1.93.5](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.5)
 
 Released at 2023-09-19
