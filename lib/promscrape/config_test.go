@@ -447,59 +447,62 @@ func getStaticScrapeWork(data []byte, path string) ([]*ScrapeWork, error) {
 }
 
 func TestGetStaticScrapeWorkFailure(t *testing.T) {
-	f := func(data string) {
-		t.Helper()
-		sws, err := getStaticScrapeWork([]byte(data), "non-existing-file")
-		if err == nil {
-			t.Fatalf("expecting non-nil error")
-		}
-		if sws != nil {
-			t.Fatalf("expecting nil sws")
-		}
-	}
-
-	// incorrect yaml
-	f(`foo bar baz`)
-
-	// Missing job_name
-	f(`
+	tests := []struct {
+		name      string
+		data      string
+		expectSws []*ScrapeWork
+		wantErr   bool
+	}{
+		{
+			name:    "Incorrect yaml",
+			data:    `foo bar baz`,
+			wantErr: true,
+		},
+		{
+			name: "Missing job_name",
+			data: `
 scrape_configs:
 - static_configs:
   - targets: ["foo"]
-`)
-
-	// Duplicate job_name
-	f(`
+`,
+		},
+		{
+			name: "Duplicate job_name",
+			data: `
 scrape_configs:
 - job_name: foo
   static_configs:
-    targets: ["foo"]
+  - targets: ["foo"]
 - job_name: foo
   static_configs:
-    targets: ["bar"]
-`)
-
-	// Invalid scheme
-	f(`
+  - targets: ["bar"]
+`,
+			wantErr: true,
+		},
+		{
+			name: "Invalid scheme",
+			data: `
 scrape_configs:
 - job_name: x
   scheme: asdf
   static_configs:
   - targets: ["foo"]
-`)
-
-	// Missing username in `basic_auth`
-	f(`
+`,
+		},
+		{
+			name: "Missing username in `basic_auth`",
+			data: `
 scrape_configs:
 - job_name: x
   basic_auth:
     password: sss
   static_configs:
   - targets: ["a"]
-`)
-
-	// Both password and password_file set in `basic_auth`
-	f(`
+`,
+		},
+		{
+			name: "Both password and password_file set in `basic_auth`",
+			data: `
 scrape_configs:
 - job_name: x
   basic_auth:
@@ -508,10 +511,11 @@ scrape_configs:
     password_file: sdfdf
   static_configs:
   - targets: ["a"]
-`)
-
-	// Invalid password_file set in `basic_auth`
-	f(`
+`,
+		},
+		{
+			name: "Invalid password_file set in `basic_auth`",
+			data: `
 scrape_configs:
 - job_name: x
   basic_auth:
@@ -519,20 +523,23 @@ scrape_configs:
     password_file: ['foobar']
   static_configs:
   - targets: ["a"]
-`)
-
-	// Both `bearer_token` and `bearer_token_file` are set
-	f(`
+`,
+			wantErr: true,
+		},
+		{
+			name: "Both `bearer_token` and `bearer_token_file` are set",
+			data: `
 scrape_configs:
 - job_name: x
   bearer_token: foo
   bearer_token_file: bar
   static_configs:
   - targets: ["a"]
-`)
-
-	// Both `basic_auth` and `bearer_token` are set
-	f(`
+`,
+		},
+		{
+			name: "Both `basic_auth` and `bearer_token` are set",
+			data: `
 scrape_configs:
 - job_name: x
   bearer_token: foo
@@ -541,10 +548,11 @@ scrape_configs:
     password: bar
   static_configs:
   - targets: ["a"]
-`)
-
-	// Both `authorization` and `basic_auth` are set
-	f(`
+`,
+		},
+		{
+			name: "Both `authorization` and `basic_auth` are set",
+			data: `
 scrape_configs:
 - job_name: x
   authorization:
@@ -553,10 +561,11 @@ scrape_configs:
     username: foobar
   static_configs:
   - targets: ["a"]
-`)
-
-	// Both `authorization` and `bearer_token` are set
-	f(`
+`,
+		},
+		{
+			name: "Both `authorization` and `bearer_token` are set",
+			data: `
 scrape_configs:
 - job_name: x
   authorization:
@@ -564,59 +573,66 @@ scrape_configs:
   bearer_token: foo
   static_configs:
   - targets: ["a"]
-`)
-
-	// Invalid `bearer_token_file`
-	f(`
+`,
+		},
+		{
+			name: "Invalid `bearer_token_file`",
+			data: `
 scrape_configs:
 - job_name: x
   bearer_token_file: [foobar]
   static_configs:
   - targets: ["a"]
-`)
-
-	// non-existing ca_file
-	f(`
+`,
+			wantErr: true,
+		},
+		{
+			name: "non-existing ca_file",
+			data: `
 scrape_configs:
 - job_name: aa
   tls_config:
     ca_file: non/extising/file
   static_configs:
   - targets: ["s"]
-`)
-
-	// invalid ca_file
-	f(`
+`,
+		},
+		{
+			name: "invalid ca_file",
+			data: `
 scrape_configs:
 - job_name: aa
   tls_config:
     ca_file: testdata/prometheus.yml
   static_configs:
   - targets: ["s"]
-`)
-
-	// non-existing cert_file
-	f(`
+`,
+		},
+		{
+			name: "non-existing cert_file",
+			data: `
 scrape_configs:
 - job_name: aa
   tls_config:
     cert_file: non/extising/file
   static_configs:
   - targets: ["s"]
-`)
-
-	// non-existing key_file
-	f(`
+`,
+		},
+		{
+			name: "non-existing key_file",
+			data: `
 scrape_configs:
 - job_name: aa
   tls_config:
     key_file: non/extising/file
   static_configs:
   - targets: ["s"]
-`)
-
-	// Invalid regex in relabel_configs
-	f(`
+`,
+		},
+		{
+			name: "Invalid regex in relabel_configs",
+			data: `
 scrape_configs:
 - job_name: aa
   relabel_configs:
@@ -625,10 +641,11 @@ scrape_configs:
     target_label: bar
   static_configs:
   - targets: ["s"]
-`)
-
-	// Missing target_label for action=replace in relabel_configs
-	f(`
+`,
+		},
+		{
+			name: "Missing target_label for action=replace in relabel_configs",
+			data: `
 scrape_configs:
 - job_name: aa
   relabel_configs:
@@ -636,30 +653,33 @@ scrape_configs:
     source_labels: [foo]
   static_configs:
   - targets: ["s"]
-`)
-
-	// Missing source_labels for action=keep in relabel_configs
-	f(`
+`,
+		},
+		{
+			name: "Missing source_labels for action=keep in relabel_configs",
+			data: `
 scrape_configs:
 - job_name: aa
   relabel_configs:
   - action: keep
   static_configs:
   - targets: ["s"]
-`)
-
-	// Missing source_labels for action=drop in relabel_configs
-	f(`
+`,
+		},
+		{
+			name: "Missing source_labels for action=drop in relabel_configs",
+			data: `
 scrape_configs:
 - job_name: aa
   relabel_configs:
   - action: drop
   static_configs:
   - targets: ["s"]
-`)
-
-	// Missing source_labels for action=hashmod in relabel_configs
-	f(`
+`,
+		},
+		{
+			name: "Missing source_labels for action=hashmod in relabel_configs",
+			data: `
 scrape_configs:
 - job_name: aa
   relabel_configs:
@@ -668,10 +688,11 @@ scrape_configs:
     modulus: 123
   static_configs:
   - targets: ["s"]
-`)
-
-	// Missing target for action=hashmod in relabel_configs
-	f(`
+`,
+		},
+		{
+			name: "Missing target for action=hashmod in relabel_configs",
+			data: `
 scrape_configs:
 - job_name: aa
   relabel_configs:
@@ -680,10 +701,11 @@ scrape_configs:
     modulus: 123
   static_configs:
   - targets: ["s"]
-`)
-
-	// Missing modulus for action=hashmod in relabel_configs
-	f(`
+`,
+		},
+		{
+			name: "Missing modulus for action=hashmod in relabel_configs",
+			data: `
 scrape_configs:
 - job_name: aa
   relabel_configs:
@@ -692,25 +714,42 @@ scrape_configs:
     target_label: bar
   static_configs:
   - targets: ["s"]
-`)
-
-	// Invalid action in relabel_configs
-	f(`
+`,
+		},
+		{
+			name: "Invalid action in relabel_configs",
+			data: `
 scrape_configs:
 - job_name: aa
   relabel_configs:
   - action: foobar
   static_configs:
   - targets: ["s"]
-`)
-
-	// Invalid scrape_config_files contents
-	f(`
+`,
+		},
+		{
+			name: "Invalid scrape_config_files contents",
+			data: `
 scrape_config_files:
 - job_name: aa
   static_configs:
   - targets: ["s"]
-`)
+`,
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sws, err := getStaticScrapeWork([]byte(tt.data), "non-existing-file")
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("failed to test %s, wantErr %v, got %v", tt.name, tt.wantErr, err)
+				return
+			}
+			if len(sws) != len(tt.expectSws) {
+				t.Errorf("failed to test %s, want %d sws, got %d", tt.name, len(tt.expectSws), len(sws))
+			}
+		})
+	}
 }
 
 func resetNonEssentialFields(sws []*ScrapeWork) {

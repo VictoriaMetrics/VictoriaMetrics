@@ -208,11 +208,6 @@ func newOAuth2ConfigInternal(baseDir string, o *OAuth2Config) (*oauth2ConfigInte
 	}
 	if o.ClientSecretFile != "" {
 		oi.clientSecretFile = fs.GetFilepath(baseDir, o.ClientSecretFile)
-		secret, err := readPasswordFromFile(oi.clientSecretFile)
-		if err != nil {
-			return nil, fmt.Errorf("cannot read OAuth2 secret from %q: %w", oi.clientSecretFile, err)
-		}
-		oi.cfg.ClientSecret = secret
 	}
 	opts := &Options{
 		BaseDir:   baseDir,
@@ -660,6 +655,14 @@ func (actx *authContext) initFromOAuth2Config(baseDir string, o *OAuth2Config) e
 		return err
 	}
 	actx.getAuthHeader = func() string {
+		if oi.clientSecretFile != "" {
+			secret, err := readPasswordFromFile(oi.clientSecretFile)
+			if err != nil {
+				logger.Errorf("cannot read OAuth2 secret from %q: %w", oi.clientSecretFile, err)
+				return ""
+			}
+			oi.cfg.ClientSecret = secret
+		}
 		ts, err := oi.getTokenSource()
 		if err != nil {
 			logger.Errorf("cannot get OAuth2 tokenSource: %s", err)

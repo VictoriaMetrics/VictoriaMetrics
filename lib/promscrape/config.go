@@ -480,6 +480,8 @@ func (cfg *Config) parseData(data []byte, path string) ([]byte, error) {
 	}
 
 	// Initialize cfg.ScrapeConfigs
+	// drop jobs with invalid config with error log
+	var validScrapeConfigs []*ScrapeConfig
 	for i, sc := range cfg.ScrapeConfigs {
 		// Make a copy of sc in order to remove references to `data` memory.
 		// This should prevent from memory leaks on config reload.
@@ -488,10 +490,13 @@ func (cfg *Config) parseData(data []byte, path string) ([]byte, error) {
 
 		swc, err := getScrapeWorkConfig(sc, cfg.baseDir, &cfg.Global)
 		if err != nil {
-			return nil, fmt.Errorf("cannot parse `scrape_config`: %w", err)
+			logger.Errorf("cannot parse `scrape_config`: %w", err)
+			continue
 		}
 		sc.swc = swc
+		validScrapeConfigs = append(validScrapeConfigs, sc)
 	}
+	cfg.ScrapeConfigs = validScrapeConfigs
 	return dataNew, nil
 }
 

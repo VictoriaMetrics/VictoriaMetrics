@@ -38,12 +38,23 @@ func TestNewConfig(t *testing.T) {
 			expectHeader: "Bearer some-token",
 		},
 		{
+			name: "OAuth2 lazy load non-existing-file",
+			opts: Options{
+				OAuth2: &OAuth2Config{
+					ClientID:         "some-id",
+					ClientSecretFile: "non-existing-file",
+					TokenURL:         "http://localhost:8511",
+				},
+			},
+			wantErr: false,
+		},
+		{
 			name: "OAuth2 want err",
 			opts: Options{
 				OAuth2: &OAuth2Config{
 					ClientID:         "some-id",
 					ClientSecret:     NewSecret("some-secret"),
-					ClientSecretFile: "testdata/test_secretfile.txt",
+					ClientSecretFile: "testdata/non-existing-file",
 					TokenURL:         "http://localhost:8511",
 				},
 			},
@@ -95,6 +106,17 @@ func TestNewConfig(t *testing.T) {
 				},
 			},
 			expectHeader: "Bearer some-token",
+		},
+		{
+			name: "tls config with non-existing file",
+			opts: Options{
+				BearerToken: "some-token",
+				TLSConfig: &TLSConfig{
+					InsecureSkipVerify: true,
+					CertFile:           "non-existing-file",
+				},
+			},
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
