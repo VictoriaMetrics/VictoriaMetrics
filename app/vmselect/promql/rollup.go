@@ -7,11 +7,12 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/VictoriaMetrics/metrics"
+	"github.com/VictoriaMetrics/metricsql"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
-	"github.com/VictoriaMetrics/metrics"
-	"github.com/VictoriaMetrics/metricsql"
 )
 
 var minStalenessInterval = flag.Duration("search.minStalenessInterval", 0, "The minimum interval for staleness calculations. "+
@@ -125,6 +126,7 @@ var rollupAggrFuncs = map[string]rollupFunc{
 	"lifetime":                rollupLifetime,
 	"mad_over_time":           rollupMAD,
 	"max_over_time":           rollupMax,
+	"median_over_time":        rollupMedian,
 	"min_over_time":           rollupMin,
 	"mode_over_time":          rollupModeOverTime,
 	"present_over_time":       rollupPresent,
@@ -1394,6 +1396,10 @@ func rollupMax(rfa *rollupFuncArg) float64 {
 		}
 	}
 	return maxValue
+}
+
+func rollupMedian(rfa *rollupFuncArg) float64 {
+	return quantile(0.5, rfa.values)
 }
 
 func rollupTmin(rfa *rollupFuncArg) float64 {
