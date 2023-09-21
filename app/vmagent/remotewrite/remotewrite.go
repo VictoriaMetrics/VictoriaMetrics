@@ -771,15 +771,17 @@ func (rwctx *remoteWriteCtx) reinitStreamAggr() {
 		return
 	}
 
-	sasOld := rwctx.sas.Load()
-	sasOldLen := sasOld.Len()
-	updated := sasOld.UpdateWith(sasNew)
-	rwctx.sas.Store(sasOld)
+	if sas == nil {
+		sas = &streamaggr.Aggregators{}
+	}
+	sasOldLen := sas.Len()
+	updated := sas.UpdateWith(sasNew)
+	rwctx.sas.Store(sas)
 
-	// no need to stop sasOld or sasNew as they should have been
+	// no need to stop sas or sasNew as their *aggregator should have been
 	// stopped in UpdateWith method.
 	logger.Infof("successfully reloaded stream aggregation configs at -remoteWrite.streamAggr.config=%q. "+
-		"Total aggregation configs %d (was %d); updated %d.", sasFile, sasOld.Len(), sasOldLen, updated)
+		"Total aggregation configs %d (was %d); updated %d.", sasFile, sas.Len(), sasOldLen, updated)
 }
 
 var tssPool = &sync.Pool{

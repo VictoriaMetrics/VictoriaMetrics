@@ -86,33 +86,50 @@ func InitStreamAggr() {
 			case <-saCfgReloaderStopCh:
 				return
 			}
-			reloadStreamAggrConfig()
+			reloadStreamAggrConfig(false)
 		}
 	}()
 }
 
-func reloadStreamAggrConfig() {
+func reloadStreamAggrConfig(testMode bool) {
 	logger.Infof("reloading -streamAggr.config=%q", *streamAggrConfig)
 	saCfgReloads.Inc()
 
-	sasNew, err := streamaggr.LoadFromFile(*streamAggrConfig, pushAggregateSeries, *streamAggrDedupInterval)
+	pushFn := pushAggregateSeries
+	if testMode {
+		pushFn = func(tss []prompbmarshal.TimeSeries) {}
+	}
+	sasNew, err := streamaggr.LoadFromFile(*streamAggrConfig, pushFn, *streamAggrDedupInterval)
 	if err != nil {
 		saCfgSuccess.Set(0)
 		saCfgReloadErr.Inc()
 		logger.Errorf("cannot reload -streamAggr.config=%q: use the previously loaded config; error: %s", *streamAggrConfig, err)
 		return
 	}
+
+	defer func() {
+		saCfgSuccess.Set(1)
+		saCfgTimestamp.Set(fasttime.UnixTimestamp())
+	}()
+
 	sas := sasGlobal.Load()
-	if !sasNew.Equal(sas) {
-		sasOld := sasGlobal.Swap(sasNew)
-		sasOld.MustStop()
-		logger.Infof("successfully reloaded stream aggregation config at -streamAggr.config=%q", *streamAggrConfig)
-	} else {
-		logger.Infof("nothing changed in -streamAggr.config=%q", *streamAggrConfig)
+	if sasNew.Equal(sas) {
 		sasNew.MustStop()
+		logger.Infof("the config at -streamAggr.config=%q wasn't changed", *streamAggrConfig)
+		return
 	}
-	saCfgSuccess.Set(1)
-	saCfgTimestamp.Set(fasttime.UnixTimestamp())
+
+	if sas == nil {
+		sas = &streamaggr.Aggregators{}
+	}
+	sasOldLen := sas.Len()
+	updated := sas.UpdateWith(sasNew)
+	sasGlobal.Store(sas)
+
+	// no need to stop sasOld or sasNew as their *aggregator should have been
+	// stopped in UpdateWith method.
+	logger.Infof("successfully reloaded stream aggregation configs at -streamAggr.config=%q. "+
+		"Total aggregation configs %d (was %d); updated %d.", *streamAggrConfig, sas.Len(), sasOldLen, updated)
 }
 
 // MustStopStreamAggr stops stream aggregators.

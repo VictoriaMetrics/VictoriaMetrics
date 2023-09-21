@@ -134,7 +134,8 @@ type Config struct {
 
 // Aggregators aggregates metrics passed to Push and calls pushFunc for aggregate data.
 type Aggregators struct {
-	as []*aggregator
+	asMu sync.RWMutex
+	as   []*aggregator
 
 	// configData contains marshaled configs passed to NewAggregators().
 	// It is used in Equal() for comparing Aggregators.
@@ -177,6 +178,11 @@ func NewAggregators(cfgs []*Config, pushFunc PushFunc, dedupInterval time.Durati
 
 // Len returns number of aggregators
 func (a *Aggregators) Len() int {
+	if a == nil {
+		return 0
+	}
+	a.asMu.RLock()
+	defer a.asMu.RUnlock()
 	return len(a.as)
 }
 
@@ -185,10 +191,13 @@ func (a *Aggregators) MustStop() {
 	if a == nil {
 		return
 	}
+
+	a.asMu.Lock()
 	for _, aggr := range a.as {
 		aggr.MustStop()
 	}
 	a.as = nil
+	a.asMu.Unlock()
 }
 
 // UpdateWith updates the list of `aggregator` from `a` with `aggregator`
@@ -197,12 +206,17 @@ func (a *Aggregators) MustStop() {
 // UpdateWith returns number of new objects added to `a`.
 // Objects from `a` which were absent in `b` will be stopped.
 // Objects from `b` which had identical `configData` match with objects from `a` will be stopped.
-// After UpdateWith call no further calls to MustStop are needed.
+// UpdateWith stops `aggregator`s from `a` and `b` that won't be used anymore,
+// so no further calls to MustStop are needed.
 func (a *Aggregators) UpdateWith(b *Aggregators) int {
 	if b == nil {
+		fmt.Println("lol b is nil")
 		a.MustStop()
 		return 0
 	}
+
+	a.asMu.Lock()
+	defer a.asMu.Unlock()
 
 	var updatedAs []*aggregator
 	// keep all aggregators present in a and b
@@ -260,11 +274,11 @@ func (a *Aggregators) Equal(b *Aggregators) bool {
 // Push pushes tss to a.
 //
 // Push sets matchIdxs[idx] to 1 if the corresponding tss[idx] was used in aggregations.
-// Otherwise matchIdxs[idx] is set to 0.
+// Otherwise, matchIdxs[idx] is set to 0.
 //
 // Push returns matchIdxs with len equal to len(tss).
 // It re-uses the matchIdxs if it has enough capacity to hold len(tss) items.
-// Otherwise it allocates new matchIdxs.
+// Otherwise, it allocates new matchIdxs.
 func (a *Aggregators) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) []byte {
 	matchIdxs = bytesutil.ResizeNoCopyMayOverallocate(matchIdxs, len(tss))
 	for i := 0; i < len(matchIdxs); i++ {
@@ -272,9 +286,11 @@ func (a *Aggregators) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) []b
 	}
 
 	if a != nil {
+		a.asMu.RLock()
 		for _, aggr := range a.as {
 			aggr.Push(tss, matchIdxs)
 		}
+		a.asMu.RUnlock()
 	}
 	return matchIdxs
 }
