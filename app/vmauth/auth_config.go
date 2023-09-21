@@ -382,7 +382,7 @@ var stopCh chan struct{}
 func loadAuthConfig() (bool, error) {
 	data, err := fs.ReadFileOrHTTP(*authConfigPath)
 	if err != nil {
-		return false, fmt.Errorf("failed to read -auth.config=%q: %s", *authConfigPath, err)
+		return false, fmt.Errorf("failed to read -auth.config=%q: %w", *authConfigPath, err)
 	}
 
 	oldData := authConfigData.Load()
@@ -393,12 +393,12 @@ func loadAuthConfig() (bool, error) {
 
 	ac, err := parseAuthConfig(data)
 	if err != nil {
-		return false, fmt.Errorf("failed to parse -auth.config=%q: %s", *authConfigPath, err)
+		return false, fmt.Errorf("failed to parse -auth.config=%q: %w", *authConfigPath, err)
 	}
 
 	m, err := parseAuthConfigUsers(ac)
 	if err != nil {
-		return false, fmt.Errorf("failed to parse users from -auth.config=%q: %s", *authConfigPath, err)
+		return false, fmt.Errorf("failed to parse users from -auth.config=%q: %w", *authConfigPath, err)
 	}
 	logger.Infof("loaded information about %d users from -auth.config=%q", len(m), *authConfigPath)
 
