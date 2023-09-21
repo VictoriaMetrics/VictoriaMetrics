@@ -26,6 +26,7 @@ var (
 	maxTagValuesPerSearch = flag.Int("search.maxTagValues", 100e3, "The maximum number of tag values returned from /api/v1/label/<label_name>/values")
 	maxSamplesPerSeries   = flag.Int("search.maxSamplesPerSeries", 30e6, "The maximum number of raw samples a single query can scan per each time series. This option allows limiting memory usage")
 	maxSamplesPerQuery    = flag.Int("search.maxSamplesPerQuery", 1e9, "The maximum number of raw samples a single query can process across all time series. This protects from heavy queries, which select unexpectedly high number of raw samples. See also -search.maxSamplesPerSeries")
+	maxWorkersPerQuery    = flag.Int("search.maxWorkersPerQuery", 0, "The maximum number of workers for processing query results. The default value is equal to the number of available CPU cores. The flag value might be adjusted for systems with high number of CPUs in order to reduce lock contention.")
 )
 
 // Result is a single timeseries result.
@@ -199,6 +200,9 @@ var resultPool sync.Pool
 
 // MaxWorkers returns the maximum number of workers netstorage can spin when calling RunParallel()
 func MaxWorkers() int {
+	if *maxWorkersPerQuery != 0 {
+		return *maxWorkersPerQuery
+	}
 	return gomaxprocs
 }
 
