@@ -3,7 +3,6 @@ package storage
 import (
 	"bytes"
 	"fmt"
-	"io"
 	"math/rand"
 	"os"
 	"reflect"
@@ -655,19 +654,19 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 		}
 
 		// Search for metric name for the given metricID.
-		var err error
-		metricNameCopy, err = db.searchMetricNameWithCache(metricNameCopy[:0], genTSID.TSID.MetricID)
-		if err != nil {
-			return fmt.Errorf("error in searchMetricNameWithCache for metricID=%d; i=%d: %w", genTSID.TSID.MetricID, i, err)
+		var ok bool
+		metricNameCopy, ok = db.searchMetricNameWithCache(metricNameCopy[:0], genTSID.TSID.MetricID)
+		if !ok {
+			return fmt.Errorf("cannot find metricName for metricID=%d; i=%d", genTSID.TSID.MetricID, i)
 		}
 		if !bytes.Equal(metricName, metricNameCopy) {
 			return fmt.Errorf("unexpected mn for metricID=%d;\ngot\n%q\nwant\n%q", genTSID.TSID.MetricID, metricNameCopy, metricName)
 		}
 
 		// Try searching metric name for non-existent MetricID.
-		buf, err := db.searchMetricNameWithCache(nil, 1)
-		if err != io.EOF {
-			return fmt.Errorf("expecting io.EOF error when searching for non-existing metricID; got %v", err)
+		buf, found := db.searchMetricNameWithCache(nil, 1)
+		if found {
+			return fmt.Errorf("unexpected metricName found for non-existing metricID; got %X", buf)
 		}
 		if len(buf) > 0 {
 			return fmt.Errorf("expecting empty buf when searching for non-existent metricID; got %X", buf)
