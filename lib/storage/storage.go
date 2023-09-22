@@ -1179,15 +1179,12 @@ func (s *Storage) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, 
 				return nil, err
 			}
 		}
-		var err error
-		metricName, err = idb.searchMetricNameWithCache(metricName[:0], metricID, accountID, projectID)
-		if err != nil {
-			if err == io.EOF {
-				// Skip missing metricName for metricID.
-				// It should be automatically fixed. See indexDB.searchMetricName for details.
-				continue
-			}
-			return nil, fmt.Errorf("error when searching metricName for metricID=%d: %w", metricID, err)
+		var ok bool
+		metricName, ok = idb.searchMetricNameWithCache(metricName[:0], metricID, accountID, projectID)
+		if !ok {
+			// Skip missing metricName for metricID.
+			// It should be automatically fixed. See indexDB.searchMetricName for details.
+			continue
 		}
 		if _, ok := metricNamesSeen[string(metricName)]; ok {
 			// The given metric name was already seen; skip it
@@ -1242,13 +1239,11 @@ func (s *Storage) prefetchMetricNames(qt *querytracer.Tracer, accountID, project
 				return err
 			}
 		}
-		metricName, err = is.searchMetricNameWithCache(metricName[:0], metricID)
-		if err != nil {
-			if err == io.EOF {
-				missingMetricIDs = append(missingMetricIDs, metricID)
-				continue
-			}
-			return fmt.Errorf("error in pre-fetching metricName for metricID=%d: %w", metricID, err)
+		var ok bool
+		metricName, ok = is.searchMetricNameWithCache(metricName[:0], metricID)
+		if !ok {
+			missingMetricIDs = append(missingMetricIDs, metricID)
+			continue
 		}
 	}
 	idb.doExtDB(func(extDB *indexDB) {
@@ -1260,11 +1255,7 @@ func (s *Storage) prefetchMetricNames(qt *querytracer.Tracer, accountID, project
 					return
 				}
 			}
-			metricName, err = is.searchMetricNameWithCache(metricName[:0], metricID)
-			if err != nil && err != io.EOF {
-				err = fmt.Errorf("error in pre-fetching metricName for metricID=%d in extDB: %w", metricID, err)
-				return
-			}
+			metricName, _ = is.searchMetricNameWithCache(metricName[:0], metricID)
 		}
 	})
 	if err != nil && err != io.EOF {
