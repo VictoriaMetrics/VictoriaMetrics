@@ -6,6 +6,7 @@ import (
 
 	"github.com/valyala/fastjson"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/newrelic"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
@@ -41,19 +42,28 @@ func Parse(r io.Reader, isGzip bool, callback func(series []newrelic.Metric) err
 
 	v, err := p.ParseBytes(ctx.reqBuf.B)
 	if err != nil {
-		return fmt.Errorf("cannot unmarshal NewRelic POST request with size %d bytes: %s", len(ctx.reqBuf.B), err)
+		return fmt.Errorf("cannot parse NewRelic POST request with size %d bytes: %w", len(ctx.reqBuf.B), err)
 	}
 
 	metricsPost, err := v.Array()
 	if err != nil {
-		return fmt.Errorf("cannot get Newrelic post data: %s", err)
+		return fmt.Errorf("cannot fetch data from Newrelic POST request: %w", err)
 	}
 
 	var events newrelic.Events
 
 	if err := events.Unmarshal(metricsPost); err != nil {
 		unmarshalErrors.Inc()
-		return fmt.Errorf("cannot unmarshal NewRelic POST request with size %d bytes: %s", len(ctx.reqBuf.B), err)
+		return fmt.Errorf("cannot unmarshal NewRelic POST request: %w", err)
+	}
+
+	// Fill in missing timestamps
+	currentTimestamp := int64(fasttime.UnixTimestamp())
+	for i := range events.Metrics {
+		m := &events.Metrics[i]
+		if m.Timestamp == 0 {
+			m.Timestamp = currentTimestamp * 1e3
+		}
 	}
 
 	if err := callback(events.Metrics); err != nil {

@@ -40,6 +40,7 @@ var tagsPool = sync.Pool{
 // We are using only Events field because it contains all needed metrics
 
 // Events represents Metrics collected from NewRelic MetricPost request
+// https://docs.newrelic.com/docs/infrastructure/manage-your-data/data-instrumentation/default-infrastructure-monitoring-data/#infrastructure-events
 type Events struct {
 	Metrics []Metric
 }
@@ -99,8 +100,8 @@ func (m *Metric) unmarshal(o *fastjson.Object) ([]Metric, error) {
 		}
 		m.Timestamp = int64(ts * 1e3)
 	} else {
-		// Allow missing timestamp. It is automatically populated
-		// with the current time in this case.
+		// Allow missing timestamp. It should be automatically populated
+		// with the current time by the caller.
 		m.Timestamp = 0
 	}
 

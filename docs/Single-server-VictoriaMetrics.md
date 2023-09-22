@@ -806,51 +806,30 @@ The `/api/v1/export` endpoint should return the following response:
 Extra labels may be added to all the imported time series by passing `extra_label=name=value` query args.
 For example, `/api/put?extra_label=foo=bar` would add `{foo="bar"}` label to all the ingested metrics.
 
-## How to send data from NewRelic infrastructure agent
+## How to send data from NewRelic agent
 
-VictoriaMetrics accepts data from NewRelic infrastructure agent API at `/api/v1/newrelic/infra/v2/metrics/events/bulk` path.
-NewRelic's infrastructure agent sends so-called [Events](https://docs.newrelic.com/docs/data-apis/understand-data/new-relic-data-types/#event-data)
-which are transformed to the [Prometheus exposition format](https://github.com/prometheus/docs/blob/main/content/docs/instrumenting/exposition_formats.md#text-based-format).
+VictoriaMetrics accepts data from [NewRelic infrastructure agent](https://docs.newrelic.com/docs/infrastructure/install-infrastructure-agent)
+at `/api/v1/newrelic/infra/v2/metrics/events/bulk` path.
+NewRelic's infrastructure agent sends so-called [Events](https://docs.newrelic.com/docs/infrastructure/manage-your-data/data-instrumentation/default-infrastructure-monitoring-data/#infrastructure-events)
+which then transformed by VictoriaMetrics to the [Prometheus exposition format](https://github.com/prometheus/docs/blob/main/content/docs/instrumenting/exposition_formats.md#text-based-format).
 
-## Sending metrics to VictoriaMetrics
+NewRelic's infrastructure agent allows configuring destinations for metrics forwarding via ENV variable `COLLECTOR_URL`.
+It is also required to specify `NRIA_LICENSE_KEY`, which is available only after registration into account of the NewRelic cloud.
 
-NewRelic's infrastructure agent allows configuring destinations for metrics sending via ENV variable `COLLECTOR_URL`.
-It is required to specify `NRIA_LICENSE_KEY` which can get only after registration into account of the NewRelic cloud.
-
-To configure NewRelic infrastructure agent via ENV variable add the following prefix:
+To configure NewRelic infrastructure agent for forwarding metrics to VictoriaMetrics use the following example:
 ```console
-COLLECTOR_URL="http://localhost:8428/api/v1/newrelic"  NRIA_LICENSE_KEY="YOUR_LICENSE_KEY" ./newrelic-infra
+COLLECTOR_URL="http://localhost:8428/newrelic/api/v1"  NRIA_LICENSE_KEY="YOUR_LICENSE_KEY" ./newrelic-infra
 ```
-<p align="center">
-  <img src="docs/NewRelic-infrastructure-agent.png" width="800">
-</p>
 
-When we specify collector URL Newrelic infrastructure agent starts to send metrics to the `/infra/v2/metrics/events/bulk`.
+### NewRelic agent data mapping 
 
-By default, NewRelic's infrastructure agent sends next types of the infrastructure events:
-1. SystemSample
-2. ProcessSample
-3. StorageSample
-4. NetworkSample
-5. ContainerSample
-6. InfrastructureEvent
-   Those all events processed by VictoriaMetrics and prepare the [Prometheus exposition format](https://github.com/prometheus/docs/blob/main/content/docs/instrumenting/exposition_formats.md#text-based-format).
-
-### Send data via cURL
-
-Imports data in NewRelic format into VictoriaMetrics
-
-1. create file `newrelic.json`
-2. add next data to the json file
-```console
+As example, lets create `newrelic.json` file with the following content:
+```json
 [
     {
-      "EntityID":28257883748326179,
-      "IsAgent":true,
       "Events":[
         {
           "eventType":"SystemSample",
-          "timestamp":1690286061,
           "entityKey":"macbook-pro.local",
           "cpuPercent":25.056660790748904,
           "cpuUserPercent":8.687987912389374,
@@ -860,56 +839,40 @@ Imports data in NewRelic format into VictoriaMetrics
           "cpuStealPercent":0,
           "loadAverageOneMinute":5.42333984375,
           "loadAverageFiveMinute":4.099609375,
-          "loadAverageFifteenMinute":3.58203125,
-          "memoryTotalBytes":17179869184,
-          "memoryFreeBytes":3782705152,
-          "memoryUsedBytes":13397164032,
-          "memoryFreePercent":22.01824188232422,
-          "memoryUsedPercent":77.98175811767578,
-          "memoryCachedBytes":0,
-          "memorySlabBytes":0,
-          "memorySharedBytes":0,
-          "memoryKernelFree":89587712,
-          "swapTotalBytes":7516192768,
-          "swapFreeBytes":1737293824,
-          "swapUsedBytes":5778898944,
-          "diskUsedBytes":0,
-          "diskUsedPercent":0,
-          "diskFreeBytes":0,
-          "diskFreePercent":0,
-          "diskTotalBytes":0,
-          "diskUtilizationPercent":0,
-          "diskReadUtilizationPercent":0,
-          "diskWriteUtilizationPercent":0,
-          "diskReadsPerSecond":0,
-          "diskWritesPerSecond":0,
-          "uptime":762376
+          "loadAverageFifteenMinute":3.58203125
         }
-      ],
-      "ReportingAgentID":28257883748326179
+      ]
     }
   ]
 ```
 
-Single-node VictoriaMetrics:
+Let's use cUrl to send `newrelic.json` to single-node VictoriaMetrics:
 
 ```console
-curl -X POST -H 'Content-Type: application/json' --data-binary @newrelic.json http://localhost:8428/api/v1/newrelic/infra/v2/metrics/events/bulk
+curl -X POST -H 'Content-Type: application/json' --data-binary @newrelic.json http://localhost:8428/newrelic/api/v1/infra/v2/metrics/events/bulk
 ```
 
-Cluster Version:
-
+If data was successfully ingested, you'll get `{"status":"ok"}` response. Let's fetch ingested data from VictoriaMetrics
+in vmui via query `{__name__!=""}`:
 ```console
-curl -X POST -H 'Content-Type: application/json' --data-binary @newrelic.json http://localhost:8480/insert/0/api/v1/newrelic/infra/v2/metrics/events/bulk
+system_sample_cpu_io_wait_percent{entityKey="macbook-pro.local"}	        0	
+system_sample_cpu_idle_percent{entityKey="macbook-pro.local"}	            74.9433392092	
+system_sample_cpu_percent{entityKey="macbook-pro.local"}	                25.056660790748	
+system_sample_cpu_steal_percent{entityKey="macbook-pro.local"}	            0	
+system_sample_cpu_system_percent{entityKey="macbook-pro.local"}	            16.368672878359	
+system_sample_cpu_user_percent{entityKey="macbook-pro.local"}	            8.687987912389	
+system_sample_load_average_fifteen_minute{entityKey="macbook-pro.local"}	3.58203125	
+system_sample_load_average_five_minute{entityKey="macbook-pro.local"}	    4.099609375	
+system_sample_load_average_one_minute{entityKey="macbook-pro.local"}	    5.42333984375	
 ```
 
-When you import data to the VictoriaMetrics, open [VMUI](#vmui) and find metrics like in the example below:
+The fields in `newrelic.json` are transformed in the following way:
+1. `eventType` filed is used as prefix for all metrics in the object;
+2. `entityKey` or any other field with `string` value type is used as label attached to all metrics in the object;
+3. the rest fields with numeric values will be used as metrics;
+4. the additional field `timestamp` can be added to the payload to set the timestamp for all metrics. If omitted,
+current time is used.
 
-```console
-{__name__="system_sample_memory_total_bytes", "entityKey"="host_name"}
-{__name__="system_sample_memory_free_bytes", "entityKey"="host_name"}
-{__name__="system_sample_memory_used_bytes, "entityKey"="host_name"}
-```
 
 ## Prometheus querying API usage
 
