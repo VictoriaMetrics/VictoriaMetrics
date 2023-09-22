@@ -154,20 +154,23 @@ See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-
 
 ## Advanced usage
 
-* Obtaining credentials from a file.
 
-  Add flag `-credsFilePath=/etc/credentials` with the following content:
+### Providing credentials as a file
 
-    for s3 (aws, minio or other s3 compatible storages):
+Obtaining credentials from a file.
 
+Add flag `-credsFilePath=/etc/credentials` with the following content:
+
+- for S3 (AWS, MinIO or other S3 compatible storages):
+    
      ```console
      [default]
      aws_access_key_id=theaccesskey
      aws_secret_access_key=thesecretaccesskeyvalue
     ```
 
-    for gce cloud storage:
-
+- for GCP cloud storage:
+    
     ```json
     {
            "type": "service_account",
@@ -182,24 +185,99 @@ See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-
            "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/service-account-email"
     }
     ```
-* Obtaining credentials from env variables.
-    - For AWS S3 compatible storages set env variable `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`.
-      Also you can set env variable `AWS_SHARED_CREDENTIALS_FILE` with path to credentials file.
-    - For GCE cloud storage set env variable `GOOGLE_APPLICATION_CREDENTIALS` with path to credentials file.
-    - For Azure storage either set env variables `AZURE_STORAGE_ACCOUNT_NAME` and `AZURE_STORAGE_ACCOUNT_KEY`, or `AZURE_STORAGE_ACCOUNT_CONNECTION_STRING`.
 
-* Usage with s3 custom url endpoint. It is possible to use `vmbackup` with s3 compatible storages like minio, cloudian, etc.
-  You have to add a custom url endpoint via flag:
+### Providing credentials via env variables 
 
-```console
-  # for minio
-  -customS3Endpoint=http://localhost:9000
+Obtaining credentials from env variables.
+- For AWS S3 compatible storages set env variable `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`. 
+  Also you can set env variable `AWS_SHARED_CREDENTIALS_FILE` with path to credentials file.
+- For GCE cloud storage set env variable `GOOGLE_APPLICATION_CREDENTIALS` with path to credentials file.
+- For Azure storage either set env variables `AZURE_STORAGE_ACCOUNT_NAME` and `AZURE_STORAGE_ACCOUNT_KEY`, or `AZURE_STORAGE_ACCOUNT_CONNECTION_STRING`.
 
-  # for aws gov region
-  -customS3Endpoint=https://s3-fips.us-gov-west-1.amazonaws.com
+Please, note that `vmbackup` will use credentials provided by cloud providers metadata service [when applicable](https://docs.victoriametrics.com/vmbackup.html#using-cloud-providers-metadata-service).
+
+### Using cloud providers metadata service
+
+`vmbackup` and `vmbackupmanager` will automatically use cloud providers metadata service in order to obtain credentials if they are running in cloud environment
+and credentials are not explicitly provided via flags or env variables.
+
+### Providing credentials in Kubernetes
+
+The simplest way to provide credentials in Kubernetes is to use [Secrets](https://kubernetes.io/docs/concepts/configuration/secret/)
+and inject them into the pod as environment variables. For example, the following secret can be used for AWS S3 credentials:
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: vmbackup-credentials
+data:
+  access_key: key
+  secret_key: secret
+```
+And then it can be injected into the pod as environment variables:
+```yaml
+...
+env:
+- name: AWS_ACCESS_KEY_ID
+  valueFrom:
+    secretKeyRef:
+      key: access_key
+      name: vmbackup-credentials
+- name: AWS_SECRET_ACCESS_KEY
+  valueFrom:
+    secretKeyRef:
+      key: secret_key
+      name: vmbackup-credentials
+...
 ```
 
-* Run `vmbackup -help` in order to see all the available options:
+A more secure way is to use IAM roles to provide tokens for pods instead of managing credentials manually. 
+
+For AWS deployments it will be required to configure [IAM roles for service accounts](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html).
+In order to use IAM roles for service accounts with `vmbackup` or `vmbackupmanager` it is required to create ServiceAccount with IAM role mapping:
+```yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: monitoring-backups
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::{ACCOUNT_ID}:role/{ROLE_NAME}
+```
+And [configure pod to use service account](https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/).
+After this `vmbackup` and `vmbackupmanager` will automatically use IAM role for service account in order to obtain credentials.
+
+For GCP deployments it will be required to configure [Workload Identity](https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity).
+In order to use Workload Identity with `vmbackup` or `vmbackupmanager` it is required to create ServiceAccount with Workload Identity annotation:
+```yaml
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: monitoring-backups
+  annotations:
+    iam.gke.io/gcp-service-account: {sa_name}@{project_name}.iam.gserviceaccount.com
+```
+And [configure pod to use service account](https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/).
+After this `vmbackup` and `vmbackupmanager` will automatically use Workload Identity for servicpe account in order to obtain credentials.
+
+### Using custom S3 endpoint
+
+Usage with s3 custom url endpoint. It is possible to use `vmbackup` with s3 compatible storages like minio, cloudian, etc.
+You have to add a custom url endpoint via flag:
+
+- for MinIO
+    ```console
+      -customS3Endpoint=http://localhost:9000
+    ```
+
+- for aws gov region
+    ```console
+      -customS3Endpoint=https://s3-fips.us-gov-west-1.amazonaws.com
+    ```
+
+### Command-line flags
+
+Run `vmbackup -help` in order to see all the available options:
 
 ```console
   -concurrency int
