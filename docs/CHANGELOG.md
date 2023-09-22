@@ -50,6 +50,7 @@ The following `tip` changes can be tested by building VictoriaMetrics components
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix the bug causing render looping when switching to heatmap.
 * BUGFIX: [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html) validate `-dedup.minScrapeInterval` value and `-downsampling.period` intervals are multiples of each other. See [these docs](https://docs.victoriametrics.com/#downsampling).
 * BUGFIX: [vmbackup](https://docs.victoriametrics.com/vmbackup.html): properly copy `appliedRetention.txt` files inside `<-storageDataPath>/{data}` folders during [incremental backups](https://docs.victoriametrics.com/vmbackup.html#incremental-backups). Previously the new `appliedRetention.txt` could be skipped during incremental backups, which could lead to increased load on storage after restoring from backup. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5005).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): suppress `context canceled` error messages in logs when `vmagent` is reloading service discovery config. This error could appear starting from [v1.93.5](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.5). See [this PR](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5048). 
 
 ## [v1.93.5](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.5)
 
