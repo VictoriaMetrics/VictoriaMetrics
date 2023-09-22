@@ -771,7 +771,7 @@ func (uw *urlWatcher) watchForUpdates() {
 		err = uw.readObjectUpdateStream(resp.Body)
 		_ = resp.Body.Close()
 		if err != nil {
-			if !errors.Is(err, io.EOF) {
+			if !(errors.Is(err, io.EOF) || errors.Is(err, context.Canceled)) {
 				logger.Errorf("error when reading WatchEvent stream from %q: %s", requestURL, err)
 				uw.resourceVersion = ""
 			}
