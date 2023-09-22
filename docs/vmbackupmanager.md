@@ -121,6 +121,9 @@ The result on the GCS bucket
 
   <img alt="latest folder" src="vmbackupmanager_latest_folder.png">
 
+Please, see [vmbackup docs](https://docs.victoriametrics.com/vmbackup.html#advanced-usage) for more examples of authentication with different
+storage types.
+
 ## Backup Retention Policy
 
 Backup retention policy is controlled by:
