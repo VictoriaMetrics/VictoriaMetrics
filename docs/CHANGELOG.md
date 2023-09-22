@@ -21,6 +21,8 @@ The following `tip` changes can be tested by building VictoriaMetrics components
 * [How to build vmauth](https://docs.victoriametrics.com/vmauth.html#how-to-build-from-sources)
 * [How to build vmctl](https://docs.victoriametrics.com/vmctl.html#how-to-build)
 
+Metrics of the actual version of VictoriaMetrics cluster are available for viewing at our 
+[sandbox](https://play-grafana.victoriametrics.com/d/oS7Bi_0Wz_vm/victoriametrics-cluster-vm).
 
 ## tip
 
