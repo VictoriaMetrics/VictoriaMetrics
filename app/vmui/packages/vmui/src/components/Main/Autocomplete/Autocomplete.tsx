@@ -1,4 +1,4 @@
-import React, { FC, Ref, useCallback, useEffect, useMemo, useRef, useState } from "preact/compat";
+import React, { FC, Ref, useCallback, useEffect, useMemo, useRef, useState, JSX } from "preact/compat";
 import classNames from "classnames";
 import Popper from "../Popper/Popper";
 import "./style.scss";
@@ -11,6 +11,7 @@ export interface AutocompleteOptions {
   value: string;
   description?: string;
   type?: string;
+  icon?: JSX.Element
 }
 
 interface AutocompleteProps {
@@ -66,7 +67,7 @@ const Autocomplete: FC<AutocompleteProps> = ({
     if (!openAutocomplete) return [];
     try {
       const regexp = new RegExp(String(value.trim()), "i");
-      const found = options.filter((item) => regexp.test(item.value) && (item.value !== value));
+      const found = options.filter((item) => regexp.test(item.value));
       return found.sort((a,b) => (a.value.match(regexp)?.index || 0) - (b.value.match(regexp)?.index || 0));
     } catch (e) {
       return [];
@@ -104,19 +105,19 @@ const Autocomplete: FC<AutocompleteProps> = ({
 
     if (key === "ArrowUp" && !modifiers && hasOptions) {
       e.preventDefault();
-      setFocusOption(({ index }) => index <= 0
-        ? { index: 0, type: FocusType.keyboard }
-        : { index: index - 1, type: FocusType.keyboard }
-      );
+      setFocusOption(({ index }) => ({
+        index:  index <= 0 ? 0 : index - 1,
+        type: FocusType.keyboard
+      }));
     }
 
     if (key === "ArrowDown" && !modifiers && hasOptions) {
       e.preventDefault();
       const lastIndex = foundOptions.length - 1;
-      setFocusOption(({ index }) => index >= lastIndex
-        ? { index: lastIndex, type: FocusType.keyboard }
-        : { index: index + 1, type: FocusType.keyboard }
-      );
+      setFocusOption(({ index }) => ({
+        index: index >= lastIndex ? lastIndex : index + 1,
+        type: FocusType.keyboard
+      }));
     }
 
     if (key === "Enter") {
@@ -131,7 +132,7 @@ const Autocomplete: FC<AutocompleteProps> = ({
   }, [focusOption, foundOptions, handleCloseAutocomplete, onSelect, selected]);
 
   useEffect(() => {
-    setOpenAutocomplete(value.length > minLength);
+    setOpenAutocomplete(value.length >= minLength);
   }, [value]);
 
   useEventListener("keydown", handleKeyDown);
@@ -176,15 +177,17 @@ const Autocomplete: FC<AutocompleteProps> = ({
               "vm-list-item_mobile": isMobile,
               "vm-list-item_active": i === focusOption.index,
               "vm-list-item_multiselect": selected,
-              "vm-list-item_multiselect_selected": selected?.includes(option.value)
+              "vm-list-item_multiselect_selected": selected?.includes(option.value),
+              "vm-list-item_with-icon":  option.icon,
             })}
             id={`$autocomplete$${option.value}`}
-            key={option.value}
+            key={`${i}${option.value}`}
             onClick={createHandlerSelect(option.value)}
             onMouseEnter={createHandlerMouseEnter(i)}
             onMouseLeave={handlerMouseLeave}
           >
             {selected?.includes(option.value) && <DoneIcon/>}
+            <>{option.icon}</>
             <span>{option.value}</span>
           </div>
         )}

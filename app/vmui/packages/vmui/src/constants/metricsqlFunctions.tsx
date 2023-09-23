@@ -1,3 +1,6 @@
+import React from "preact/compat";
+import { FunctionIcon } from "../components/Main/Icons";
+
 const docsUrl = "https://docs.victoriametrics.com/MetricsQL.html";
 
 export default [
@@ -1106,4 +1109,4 @@ export default [
     description: `<code>zscore(q) by (group_labels)</code> is <a class="vm-link vm-link_colored" target="_blank" href="${docsUrl}#aggregate-functions">aggregate function</a>, which returns <a class="vm-link vm-link_colored" target="_blank" href="https://en.wikipedia.org/wiki/Standard_score">z-score</a> values\n  per each <code>group_labels</code> for all the time series returned by <code>q</code>. The aggregate is calculated individually per each group of points with the same timestamp.\n  This function is useful for detecting anomalies in the group of related time series.`,
     type: "Aggregate function"
   }
-];
+].map(fn => ({ ...fn, icon: <FunctionIcon /> }));

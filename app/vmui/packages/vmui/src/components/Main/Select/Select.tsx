@@ -163,7 +163,7 @@ const Select: FC<SelectProps> = ({
         options={list.map(el => ({ value: el }))}
         anchor={autocompleteAnchorEl}
         selected={selectedValues}
-        minLength={0}
+        minLength={1}
         fullWidth
         noOptionsText={noOptionsText}
         onSelect={handleSelected}

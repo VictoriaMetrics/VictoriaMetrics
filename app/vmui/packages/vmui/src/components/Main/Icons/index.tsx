@@ -1,4 +1,5 @@
 import React from "react";
+import { getCssVariable } from "../../../utils/theme";
 
 export const LogoIcon = () => (
   <svg
@@ -428,5 +429,55 @@ export const ListIcon = () => (
     fill="currentColor"
   >
     <path d="M3 14h4v-4H3v4zm0 5h4v-4H3v4zM3 9h4V5H3v4zm5 5h13v-4H8v4zm0 5h13v-4H8v4zM8 5v4h13V5H8z"></path>
+  </svg>
+);
+
+export const MetricIcon = () => (
+  <svg
+    viewBox="0 0 16 16"
+    fill={getCssVariable("color-error")}
+  >
+    <path
+      d="M13.5095 4L8.50952 1H7.50952L2.50952 4L2.01953 4.85999V10.86L2.50952 11.71L7.50952 14.71H8.50952L13.5095 11.71L13.9995 10.86V4.85999L13.5095 4ZM7.50952 13.5601L3.00952 10.86V5.69995L7.50952 8.15002V13.5601ZM3.26953 4.69995L8.00952 1.85999L12.7495 4.69995L8.00952 7.29004L3.26953 4.69995ZM13.0095 10.86L8.50952 13.5601V8.15002L13.0095 5.69995V10.86Z"
+    />
+  </svg>
+);
+
+export const FunctionIcon = () => (
+  <svg
+    viewBox="0 0 16 16"
+    fill={getCssVariable("color-primary")}
+  >
+    <path
+      fillRule="evenodd"
+      clipRule="evenodd"
+      d="M2 5H4V4H1.5L1 4.5V12.5L1.5 13H4V12H2V5ZM14.5 4H12V5H14V12H12V13H14.5L15 12.5V4.5L14.5 4ZM11.76 6.56995L12 7V9.51001L11.7 9.95996L7.19995 11.96H6.73999L4.23999 10.46L4 10.03V7.53003L4.30005 7.06995L8.80005 5.06995H9.26001L11.76 6.56995ZM5 9.70996L6.5 10.61V9.28003L5 8.38V9.70996ZM5.57996 7.56006L7.03003 8.43005L10.42 6.93005L8.96997 6.06006L5.57996 7.56006ZM7.53003 10.73L11.03 9.17004V7.77002L7.53003 9.31995V10.73Z"
+    />
+  </svg>
+);
+
+export const LabelIcon = () => (
+  <svg
+    viewBox="0 0 16 16"
+    fill={getCssVariable("color-warning")}
+  >
+    <path
+      fillRule="evenodd"
+      clipRule="evenodd"
+      d="M14 2H8L7 3V6H8V3H14V8H10V9H14L15 8V3L14 2ZM9 6H13V7H9.41L9 6.59V6ZM7 7H2L1 8V13L2 14H8L9 13V8L8 7H7ZM8 13H2V8H8V9V13ZM3 9H7V10H3V9ZM3 11H7V12H3V11ZM9 4H13V5H9V4Z"
+    />
+  </svg>
+);
+
+export const ValueIcon = () => (
+  <svg
+    viewBox="0 0 16 16"
+    fill={getCssVariable("color-primary")}
+  >
+    <path
+      fillRule="evenodd"
+      clipRule="evenodd"
+      d="M7 3L8 2H14L15 3V8L14 9H10V8H14V3H8V6H7V3ZM9 9V8L8 7H7H2L1 8V13L2 14H8L9 13V9ZM8 8V9V13H2V8H7H8ZM9.41421 7L9 6.58579V6H13V7H9.41421ZM9 4H13V5H9V4ZM7 10H3V11H7V10Z"
+    />
   </svg>
 );

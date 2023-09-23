@@ -3,8 +3,10 @@ import Autocomplete, { AutocompleteOptions } from "../../Main/Autocomplete/Autoc
 import { useFetchQueryOptions } from "../../../hooks/useFetchQueryOptions";
 import { getTextWidth } from "../../../utils/uplot";
 import metricsqlFunctions from "../../../constants/metricsqlFunctions";
+import { escapeRegExp } from "../../../utils/regexp";
 
-enum CONTEXT_SYNTAX {
+enum ContextType {
+  empty = "empty",
   metricsql = "metricsql",
   label = "label",
   value = "value",
@@ -25,60 +27,75 @@ const QueryEditorAutocomplete: FC<QueryEditorAutocompleteProps> = ({
   onSelect,
   onFoundOptions
 }) => {
-  const [metric, setMetric] = useState("");
-  const [label, setLabel] = useState("");
-  const [context, setContext] = useState<CONTEXT_SYNTAX>(CONTEXT_SYNTAX.metricsql);
   const [leftOffset, setLeftOffset] = useState(0);
 
-  const { metricNames, labels, values } = useFetchQueryOptions({ metric, label });
+
+  const metric = useMemo(() => {
+    const regexp = /\b[^{}(),\s]+(?={|$)/g;
+    const match = value.match(regexp);
+    return match ? match[0] : "";
+  }, [value]);
+
+  const label = useMemo(() => {
+    const regexp = /[a-z_]\w*(?=\s*(=|!=|=~|!~))/g;
+    const match = value.match(regexp);
+    return match ? match[match.length - 1] : "";
+  }, [value]);
+
+
+  const metricRegexp = new RegExp(`\\(?(${escapeRegExp(metric)})$`, "g");
+  const labelRegexp = /[{.,].?(\w+)$/gm;
+  const valueRegexp = new RegExp(`(${escapeRegExp(metric)})?{?.+${escapeRegExp(label)}="?([^"]*)$`, "g");
+
+  const context = useMemo(() => {
+    [metricRegexp, labelRegexp, valueRegexp].forEach(regexp => regexp.lastIndex = 0);
+    if (valueRegexp.test(value)) {
+      return ContextType.value;
+    } else if (labelRegexp.test(value)) {
+      return ContextType.label;
+    } else if (metricRegexp.test(value)) {
+      return ContextType.metricsql;
+    }
+    return ContextType.empty;
+  }, [value, valueRegexp, labelRegexp, metricRegexp]);
+
+  const { metrics, labels, values } = useFetchQueryOptions({ metric, label });
 
   const options = useMemo(() => {
-    if (context === CONTEXT_SYNTAX.label) {
-      return labels.map(l => ({ value: l }));
+    switch (context) {
+      case ContextType.metricsql:
+        return [...metrics, ...metricsqlFunctions];
+      case ContextType.label:
+        return labels;
+      case ContextType.value:
+        return values;
+      default:
+        return [];
     }
-    if (context === CONTEXT_SYNTAX.value) {
-      return values.map(l => ({ value: l }));
-    }
-    return [...metricNames.map(n => ({ value: n })), ...metricsqlFunctions];
-  }, [context, metricNames, labels, values]);
+  }, [context, metrics, labels, values]);
 
   const valueByContext = useMemo(() => {
-    const isLabel = context === CONTEXT_SYNTAX.label;
-    const isValue = context === CONTEXT_SYNTAX.value;
-    if ((isLabel || isValue) && value.length === caretPosition[1]) {
-      const beforeCaret = value.substring(0, caretPosition[0]);
-      const wordMatch = beforeCaret.match(/([\w_]+)$/) || [];
-      return wordMatch[1] || "";
-    }
-    return value;
-  }, [context, caretPosition]);
+    if (value.length !== caretPosition[1]) return value;
 
-  const handleSelect = (val: string) => {
-    const [startCaret] = caretPosition;
-    const beforeCaret = value.substring(0, startCaret);
-    const wordMatch = beforeCaret.match(/([\w_]+)$/) || [];
-    if (wordMatch?.index !== undefined) {
-      const newVal = value.substring(0, wordMatch.index) + val + value.substring(wordMatch.index + wordMatch[1].length);
-      onSelect(newVal);
+    const wordMatch = value.match(/([\w_]+)$/) || [];
+    return wordMatch[1] || "";
+  }, [context, caretPosition, value]);
+
+  const handleSelect = (insert: string) => {
+    const wordMatch = value.match(/([\w_]+)$/);
+    const wordMatchIndex = wordMatch?.index !== undefined ? wordMatch.index : value.length;
+    const beforeInsert = value.substring(0, wordMatchIndex);
+    const afterInsert = value.substring(wordMatchIndex + (wordMatch?.[1].length || 0));
+
+    if (context === ContextType.value) {
+      const quote = "\"";
+      const needsQuote = beforeInsert[beforeInsert.length - 1] !== quote;
+      insert = `${needsQuote ? quote : ""}${insert}${quote}`;
     }
+
+    const newVal = `${beforeInsert}${insert}${afterInsert}`;
+    onSelect(newVal);
   };
-
-  useEffect(() => {
-    const name = value.replace(/\{.+/, "");
-    setMetric(metricNames.includes(name) ? name : "");
-  }, [value, metricNames]);
-
-  useEffect(() => {
-    if (!metric) {
-      setLabel("");
-      return;
-    }
-    const regex = /(?<=\{|\s*,\s*)(?<label>[a-z0-9_]\w*)\s*(?=[=~]?[\s",])/g;
-    const matches = Array.from(value.matchAll(regex));
-    const lastMatch = matches[matches.length - 1];
-    const name = lastMatch?.groups?.label || "";
-    setLabel(labels.includes(name) ? name : "");
-  }, [value, metric, labels]);
 
   useEffect(() => {
     if (!anchorEl.current) {
@@ -93,25 +110,13 @@ const QueryEditorAutocomplete: FC<QueryEditorAutocompleteProps> = ({
     setLeftOffset(offset);
   }, [anchorEl, caretPosition]);
 
-  useEffect(() => {
-    const regexpLabel = /(?<={\s*|,\s*)\s*([^\s,=]+?)\s*(?=$|,|})/;
-    const regexpValue = /(?<=")\s*([^"\s,]*?)\s*(?="|$|,)/;
-    if (value.match(regexpLabel)) {
-      setContext(CONTEXT_SYNTAX.label);
-    } else if (value.match(regexpValue)) {
-      setContext(CONTEXT_SYNTAX.value);
-    } else {
-      setContext(CONTEXT_SYNTAX.metricsql);
-    }
-  }, [value]);
-
   return (
     <Autocomplete
       disabledFullScreen
       value={valueByContext}
       options={options}
       anchor={anchorEl}
-      minLength={context === CONTEXT_SYNTAX.label ? 0 : 2}
+      minLength={context === ContextType.metricsql ? 2 : 0}
       offset={{ top: 0, left: leftOffset }}
       onSelect={handleSelect}
       onFoundOptions={onFoundOptions}
