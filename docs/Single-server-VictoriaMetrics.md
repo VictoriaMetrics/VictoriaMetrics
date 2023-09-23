@@ -97,6 +97,7 @@ VictoriaMetrics has the following prominent features:
   * [Prometheus exposition format](#how-to-import-data-in-prometheus-exposition-format).
   * [InfluxDB line protocol](#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf) over HTTP, TCP and UDP.
   * [Graphite plaintext protocol](#how-to-send-data-from-graphite-compatible-agents-such-as-statsd) with [tags](https://graphite.readthedocs.io/en/latest/tags.html#carbon).
+  * [Statsd plaintext protocol](#how-to-send-data-from-statsd-compatible-clients)
   * [OpenTSDB put message](#sending-data-via-telnet-put-protocol).
   * [HTTP OpenTSDB /api/put requests](#sending-opentsdb-data-via-http-apiput-requests).
   * [JSON line format](#how-to-import-data-in-json-line-format).
@@ -712,6 +713,45 @@ The `/api/v1/export` endpoint should return the following response:
 {"metric":{"__name__":"measurement_field2","tag1":"value1","tag2":"value2"},"values":[1.23],"timestamps":[1695902762311]}
 ```
 
+## How to send data from Statsd-compatible clients
+
+VictoriaMetrics supports extended statsd protocol with tags. Also it does not support sampling and metric types(it will be ignored).  
+Enable Statsd receiver in VictoriaMetrics by setting `-statsdListenAddr` command line flag. For instance,
+the following command will enable Statsd receiver in VictoriaMetrics on TCP and UDP port `8125`:
+
+```console
+/path/to/victoria-metrics-prod -statsdListenAddr=:8125
+```
+
+Example for writing data with Statsd plaintext protocol to local VictoriaMetrics using `nc`:
+
+```console
+echo "foo.bar:123|g|#foo:bar" | nc -N localhost 8125
+```
+
+Explicit setting of timestamps is not supported for statsd protocol. Timestamp is set to the current time when VictoriaMetrics or vmagent receives it.
+
+An arbitrary number of lines delimited by `\n` (aka newline char) can be sent in one go.
+After that the data may be read via [/api/v1/export](#how-to-export-data-in-json-line-format) endpoint:
+
+<div class="with-copy" markdown="1">
+
+```console
+curl -G 'http://localhost:8428/api/v1/export' -d 'match=foo.bar.baz'
+```
+
+</div>
+
+The `/api/v1/export` endpoint should return the following response:
+
+```json
+{"metric":{"__name__":"foo.bar.baz","tag1":"value1","tag2":"value2"},"values":[123],"timestamps":[1560277406000]}
+```
+
+Some examples of compatible statsd clients:
+- [statsd-instrument](https://github.com/Shopify/statsd-instrument)
+- [dogstatsd-ruby](https://github.com/DataDog/dogstatsd-ruby)
+- [go-statsd-client](https://github.com/cactus/go-statsd-client)
 ## How to send data from Graphite-compatible agents such as [StatsD](https://github.com/etsy/statsd)
 
 Enable Graphite receiver in VictoriaMetrics by setting `-graphiteListenAddr` command line flag. For instance,

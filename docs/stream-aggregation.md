@@ -117,16 +117,13 @@ Stream aggregation can be used in the following cases:
 
 ### Statsd alternative
 
-Stream aggregation can be used as [statsd](https://github.com/statsd/statsd) alternative in the following cases:
+Stream aggregation can be used as [statsd](https://github.com/statsd/statsd) drop-in replacement in the following cases:
 
 * [Counting input samples](#counting-input-samples)
 * [Summing input metrics](#summing-input-metrics)
 * [Quantiles over input metrics](#quantiles-over-input-metrics)
 * [Histograms over input metrics](#histograms-over-input-metrics)
 * [Aggregating histograms](#aggregating-histograms)
-
-Currently, streaming aggregation is available only for [supported data ingestion protocols](https://docs.victoriametrics.com/#how-to-import-time-series-data)
-and not available for [Statsd metrics format](https://github.com/statsd/statsd/blob/master/docs/metric_types.md).
 
 ### Recording rules alternative
 
