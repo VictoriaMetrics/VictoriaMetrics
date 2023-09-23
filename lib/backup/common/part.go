@@ -40,9 +40,11 @@ type Part struct {
 
 // key returns a string, which uniquely identifies p.
 func (p *Part) key() string {
-	if strings.HasSuffix(p.Path, "/parts.json") {
-		// parts.json file contents changes over time, so it must have an unique key in order
-		// to always copy it during backup, restore and server-side copy.
+	if strings.HasSuffix(p.Path, "/parts.json") ||
+		strings.HasSuffix(p.Path, "/appliedRetention.txt") {
+		// parts.json and appliedRetention.txt files contents changes over time,
+		// so it must have an unique key in order to always copy it during
+		// backup, restore and server-side copy.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5005
 		id := atomic.AddUint64(&uniqueKeyID, 1)
 		return fmt.Sprintf("unique-%016X", id)

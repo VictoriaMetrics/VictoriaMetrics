@@ -10,7 +10,7 @@ aliases:
 - /operator/vars.html
 ---
 # Auto Generated vars for package config 
- updated at Wed Sep 13 14:05:24 UTC 2023 
+ updated at Thu Sep 21 10:01:40 UTC 2023 
 
 
 | varible name | variable default value | variable required | variable description |
@@ -20,7 +20,7 @@ aliases:
 | VM_CUSTOMCONFIGRELOADERIMAGE | victoriametrics/operator:config-reloader-v0.32.0 | false | - |
 | VM_PSPAUTOCREATEENABLED | false | false | - |
 | VM_VMALERTDEFAULT_IMAGE | victoriametrics/vmalert | false | - |
-| VM_VMALERTDEFAULT_VERSION | v1.93.4 | false | - |
+| VM_VMALERTDEFAULT_VERSION | v1.93.5 | false | - |
 | VM_VMALERTDEFAULT_PORT | 8080 | false | - |
 | VM_VMALERTDEFAULT_USEDEFAULTRESOURCES | true | false | - |
 | VM_VMALERTDEFAULT_RESOURCE_LIMIT_MEM | 500Mi | false | - |
@@ -31,7 +31,7 @@ aliases:
 | VM_VMALERTDEFAULT_CONFIGRELOADERMEMORY | 25Mi | false | - |
 | VM_VMALERTDEFAULT_CONFIGRELOADIMAGE | jimmidyson/configmap-reload:v0.3.0 | false | - |
 | VM_VMAGENTDEFAULT_IMAGE | victoriametrics/vmagent | false | - |
-| VM_VMAGENTDEFAULT_VERSION | v1.93.4 | false | - |
+| VM_VMAGENTDEFAULT_VERSION | v1.93.5 | false | - |
 | VM_VMAGENTDEFAULT_CONFIGRELOADIMAGE | quay.io/prometheus-operator/prometheus-config-reloader:v0.68.0 | false | - |
 | VM_VMAGENTDEFAULT_PORT | 8429 | false | - |
 | VM_VMAGENTDEFAULT_USEDEFAULTRESOURCES | true | false | - |
@@ -42,7 +42,7 @@ aliases:
 | VM_VMAGENTDEFAULT_CONFIGRELOADERCPU | 100m | false | - |
 | VM_VMAGENTDEFAULT_CONFIGRELOADERMEMORY | 25Mi | false | - |
 | VM_VMSINGLEDEFAULT_IMAGE | victoriametrics/victoria-metrics | false | - |
-| VM_VMSINGLEDEFAULT_VERSION | v1.93.4 | false | - |
+| VM_VMSINGLEDEFAULT_VERSION | v1.93.5 | false | - |
 | VM_VMSINGLEDEFAULT_PORT | 8429 | false | - |
 | VM_VMSINGLEDEFAULT_USEDEFAULTRESOURCES | true | false | - |
 | VM_VMSINGLEDEFAULT_RESOURCE_LIMIT_MEM | 1500Mi | false | - |
@@ -53,14 +53,14 @@ aliases:
 | VM_VMSINGLEDEFAULT_CONFIGRELOADERMEMORY | 25Mi | false | - |
 | VM_VMCLUSTERDEFAULT_USEDEFAULTRESOURCES | true | false | - |
 | VM_VMCLUSTERDEFAULT_VMSELECTDEFAULT_IMAGE | victoriametrics/vmselect | false | - |
-| VM_VMCLUSTERDEFAULT_VMSELECTDEFAULT_VERSION | v1.93.4-cluster | false | - |
+| VM_VMCLUSTERDEFAULT_VMSELECTDEFAULT_VERSION | v1.93.5-cluster | false | - |
 | VM_VMCLUSTERDEFAULT_VMSELECTDEFAULT_PORT | 8481 | false | - |
 | VM_VMCLUSTERDEFAULT_VMSELECTDEFAULT_RESOURCE_LIMIT_MEM | 1000Mi | false | - |
 | VM_VMCLUSTERDEFAULT_VMSELECTDEFAULT_RESOURCE_LIMIT_CPU | 500m | false | - |
 | VM_VMCLUSTERDEFAULT_VMSELECTDEFAULT_RESOURCE_REQUEST_MEM | 500Mi | false | - |
 | VM_VMCLUSTERDEFAULT_VMSELECTDEFAULT_RESOURCE_REQUEST_CPU | 100m | false | - |
 | VM_VMCLUSTERDEFAULT_VMSTORAGEDEFAULT_IMAGE | victoriametrics/vmstorage | false | - |
-| VM_VMCLUSTERDEFAULT_VMSTORAGEDEFAULT_VERSION | v1.93.4-cluster | false | - |
+| VM_VMCLUSTERDEFAULT_VMSTORAGEDEFAULT_VERSION | v1.93.5-cluster | false | - |
 | VM_VMCLUSTERDEFAULT_VMSTORAGEDEFAULT_VMINSERTPORT | 8400 | false | - |
 | VM_VMCLUSTERDEFAULT_VMSTORAGEDEFAULT_VMSELECTPORT | 8401 | false | - |
 | VM_VMCLUSTERDEFAULT_VMSTORAGEDEFAULT_PORT | 8482 | false | - |
@@ -69,7 +69,7 @@ aliases:
 | VM_VMCLUSTERDEFAULT_VMSTORAGEDEFAULT_RESOURCE_REQUEST_MEM | 500Mi | false | - |
 | VM_VMCLUSTERDEFAULT_VMSTORAGEDEFAULT_RESOURCE_REQUEST_CPU | 250m | false | - |
 | VM_VMCLUSTERDEFAULT_VMINSERTDEFAULT_IMAGE | victoriametrics/vminsert | false | - |
-| VM_VMCLUSTERDEFAULT_VMINSERTDEFAULT_VERSION | v1.93.4-cluster | false | - |
+| VM_VMCLUSTERDEFAULT_VMINSERTDEFAULT_VERSION | v1.93.5-cluster | false | - |
 | VM_VMCLUSTERDEFAULT_VMINSERTDEFAULT_PORT | 8480 | false | - |
 | VM_VMCLUSTERDEFAULT_VMINSERTDEFAULT_RESOURCE_LIMIT_MEM | 500Mi | false | - |
 | VM_VMCLUSTERDEFAULT_VMINSERTDEFAULT_RESOURCE_LIMIT_CPU | 500m | false | - |
@@ -88,7 +88,7 @@ aliases:
 | VM_VMALERTMANAGER_RESOURCE_REQUEST_CPU | 30m | false | - |
 | VM_DISABLESELFSERVICESCRAPECREATION | false | false | - |
 | VM_VMBACKUP_IMAGE | victoriametrics/vmbackupmanager | false | - |
-| VM_VMBACKUP_VERSION | v1.93.4-enterprise | false | - |
+| VM_VMBACKUP_VERSION | v1.93.5-enterprise | false | - |
 | VM_VMBACKUP_PORT | 8300 | false | - |
 | VM_VMBACKUP_USEDEFAULTRESOURCES | true | false | - |
 | VM_VMBACKUP_RESOURCE_LIMIT_MEM | 500Mi | false | - |
@@ -97,7 +97,7 @@ aliases:
 | VM_VMBACKUP_RESOURCE_REQUEST_CPU | 150m | false | - |
 | VM_VMBACKUP_LOGLEVEL | INFO | false | - |
 | VM_VMAUTHDEFAULT_IMAGE | victoriametrics/vmauth | false | - |
-| VM_VMAUTHDEFAULT_VERSION | v1.93.4 | false | - |
+| VM_VMAUTHDEFAULT_VERSION | v1.93.5 | false | - |
 | VM_VMAUTHDEFAULT_CONFIGRELOADIMAGE | quay.io/prometheus-operator/prometheus-config-reloader:v0.68.0 | false | - |
 | VM_VMAUTHDEFAULT_PORT | 8427 | false | - |
 | VM_VMAUTHDEFAULT_USEDEFAULTRESOURCES | true | false | - |
