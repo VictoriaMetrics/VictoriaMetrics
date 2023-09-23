@@ -15,9 +15,9 @@ var (
 	rowsPerInsert = metrics.NewHistogram(`vm_rows_per_insert{type="statsd"}`)
 )
 
-// InsertHandler processes remote write for statsd plaintext protocol.
+// InsertHandler processes remote write for statsd protocol with tags.
 //
-// TODO: add link to statsd format
+// https://github.com/statsd/statsd/blob/master/docs/metric_types.md
 func InsertHandler(r io.Reader) error {
 	return stream.Parse(r, insertRows)
 }

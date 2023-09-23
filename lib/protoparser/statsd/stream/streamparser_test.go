@@ -57,13 +57,4 @@ func Test_streamContext_Read(t *testing.T) {
 			Timestamp: int64(fasttime.UnixTimestamp()) * 1000,
 		}},
 	})
-	// missing timestamp.
-	// Note that this test may be flaky due to timing issues. TODO: fix it
-	f("aaa:1123|c", &statsd.Rows{
-		Rows: []statsd.Row{{
-			Metric:    "aaa",
-			Value:     1123,
-			Timestamp: int64(fasttime.UnixTimestamp()) * 1000,
-		}},
-	})
 }

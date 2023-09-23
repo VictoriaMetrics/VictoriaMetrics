@@ -9,11 +9,10 @@ import (
 	"github.com/valyala/fastjson/fastfloat"
 )
 
-// statsd text line protocol may use white space or tab as separator
-// See https://github.com/grobian/carbon-c-relay/commit/f3ffe6cc2b52b07d14acbda649ad3fd6babdd528
-const statsdSeparators = "|"
-const statsdValuesSeparator = ":"
-const statsdTagsStartSeparator = "#"
+// Statsd metric format with tags: MetricName:value|type|@sample_rate|#tag1:value,tag1...
+const statsdSeparator = '|'
+const statsdPairsSeparator = ':'
+const statsdTagsStartSeparator = '#'
 const statsdTagsSeparator = ','
 
 // Rows contains parsed statsd rows.
@@ -64,14 +63,14 @@ func (r *Row) unmarshal(s string, tagsPool []Tag) ([]Tag, error) {
 	r.reset()
 	originalString := s
 	s = stripTrailingWhitespace(s)
-	separatorPosition := strings.IndexAny(s, statsdSeparators)
+	separatorPosition := strings.IndexByte(s, statsdSeparator)
 	if separatorPosition < 0 {
 		s = stripTrailingWhitespace(s)
 	} else {
 		s = stripTrailingWhitespace(s[:separatorPosition])
 	}
 
-	valuesSeparatorPosition := strings.LastIndexAny(s, statsdValuesSeparator)
+	valuesSeparatorPosition := strings.LastIndexByte(s, statsdPairsSeparator)
 
 	if valuesSeparatorPosition < 0 {
 		return tagsPool, fmt.Errorf("cannot find separator for %q:", s)
@@ -86,22 +85,18 @@ func (r *Row) unmarshal(s string, tagsPool []Tag) ([]Tag, error) {
 	}
 	r.Value = v
 
-	// handling tags
-	tagsSeparatorPosition := strings.LastIndexAny(originalString, statsdTagsStartSeparator)
+	// parsing tags
+	tagsSeparatorPosition := strings.LastIndexByte(originalString, statsdTagsStartSeparator)
 
 	if tagsSeparatorPosition < 0 {
 		// no tags
-
 		return tagsPool, nil
+	} else {
+		tagsStart := len(tagsPool)
+		tagsPool = unmarshalTags(tagsPool, originalString[tagsSeparatorPosition+1:])
+		tags := tagsPool[tagsStart:]
+		r.Tags = tags[:len(tags):len(tags)]
 	}
-	tagsPool = unmarshalTags(tagsPool, originalString[tagsSeparatorPosition+1:])
-
-	// TODO: handle tags unmarshaling errors
-	// if err != nil {
-	// 	return tagsPool, fmt.Errorf("cannot parse metric and tags from %q: %w; original line: %q", metricAndTags, err, originalString)
-	// }
-
-	r.Tags = tagsPool
 
 	return tagsPool, nil
 }
@@ -188,7 +183,7 @@ func (t *Tag) reset() {
 
 func (t *Tag) unmarshal(s string) {
 	t.reset()
-	n := strings.IndexByte(s, ':')
+	n := strings.IndexByte(s, statsdPairsSeparator)
 	if n < 0 {
 		// Empty tag value.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1100
@@ -208,8 +203,7 @@ func stripTrailingWhitespace(s string) string {
 			return ""
 		}
 		ch := s[n]
-		// statsd text line protocol may use white space or tab as separator
-		// See https://github.com/grobian/carbon-c-relay/commit/f3ffe6cc2b52b07d14acbda649ad3fd6babdd528
+
 		if ch != ' ' && ch != '\t' {
 			return s[:n+1]
 		}

@@ -27,23 +27,6 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 		}
 	}
 
-	f("foo.bar:123.456|c|#foo:bar,qwe:asd", &Rows{
-		Rows: []Row{{
-			Metric: "foo.bar",
-			Value:  123.456,
-			Tags: []Tag{
-				{
-					Key:   "foo",
-					Value: "bar",
-				},
-				{
-					Key:   "qwe",
-					Value: "asd",
-				},
-			},
-		}},
-	})
-
 	// Empty line
 	f("", &Rows{})
 	f("\r", &Rows{})
@@ -73,6 +56,52 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 		Rows: []Row{{
 			Metric: "foo.bar",
 			Value:  123.456,
+		}},
+	})
+
+	// with sample rate
+	f("foo.bar:1|c|@0.1", &Rows{
+		Rows: []Row{{
+			Metric: "foo.bar",
+			Value:  1,
+		}},
+	})
+
+	// without specifying metric unit
+	f("foo.bar:123", &Rows{
+		Rows: []Row{{
+			Metric: "foo.bar",
+			Value:  123,
+		}},
+	})
+	// without specifying metric unit but with tags
+	f("foo.bar:123|#foo:bar", &Rows{
+		Rows: []Row{{
+			Metric: "foo.bar",
+			Value:  123,
+			Tags: []Tag{
+				{
+					Key:   "foo",
+					Value: "bar",
+				},
+			},
+		}},
+	})
+
+	f("foo.bar:123.456|c|#foo:bar,qwe:asd", &Rows{
+		Rows: []Row{{
+			Metric: "foo.bar",
+			Value:  123.456,
+			Tags: []Tag{
+				{
+					Key:   "foo",
+					Value: "bar",
+				},
+				{
+					Key:   "qwe",
+					Value: "asd",
+				},
+			},
 		}},
 	})
 
@@ -171,57 +200,17 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 		},
 	})
 
-	// // With tab as separator
-	// // See https://github.com/grobian/carbon-c-relay/commit/f3ffe6cc2b52b07d14acbda649ad3fd6babdd528
-	// f("foo.baz\t125.456\t1789\n", &Rows{
-	// 	Rows: []Row{{
-	// 		Metric:    "foo.baz",
-	// 		Value:     125.456,
-	// 		Timestamp: 1789,
-	// 	}},
-	// })
-	// // With tab as separator and tags
-	// f("foo;baz=bar;bb=;y=x;=z\t1\t2", &Rows{
-	// 	Rows: []Row{{
-	// 		Metric: "foo",
-	// 		Tags: []Tag{
-	// 			{
-	// 				Key:   "baz",
-	// 				Value: "bar",
-	// 			},
-	// 			{
-	// 				Key:   "y",
-	// 				Value: "x",
-	// 			},
-	// 		},
-	// 		Value:     1,
-	// 		Timestamp: 2,
-	// 	}},
-	// })
-
-	// // Whitespace after the timestamp
-	// // See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1865
-	// f("foo.baz 125 1789 \na 1.34 567\t  ", &Rows{
-	// 	Rows: []Row{
-	// 		{
-	// 			Metric:    "foo.baz",
-	// 			Value:     125,
-	// 			Timestamp: 1789,
-	// 		},
-	// 		{
-	// 			Metric:    "a",
-	// 			Value:     1.34,
-	// 			Timestamp: 567,
-	// 		},
-	// 	},
-	// })
-
-	// // Multiple whitespaces as separators
-	// f("foo.baz \t125  1789 \t\n", &Rows{
-	// 	Rows: []Row{{
-	// 		Metric:    "foo.baz",
-	// 		Value:     125,
-	// 		Timestamp: 1789,
-	// 	}},
-	// })
+	// Whitespace after at the end
+	f("foo.baz:125|c\na:1.34\t  ", &Rows{
+		Rows: []Row{
+			{
+				Metric: "foo.baz",
+				Value:  125,
+			},
+			{
+				Metric: "a",
+				Value:  1.34,
+			},
+		},
+	})
 }
