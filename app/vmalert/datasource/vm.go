@@ -199,7 +199,7 @@ func (s *VMStorage) QueryRange(ctx context.Context, query string, start, end tim
 
 func (s *VMStorage) do(ctx context.Context, req *http.Request) (*http.Response, error) {
 	if s.debug {
-		logger.Infof("DEBUG datasource request: executing %s request with params %q", req.Method, req.URL.RawQuery)
+		logger.Infof("DEBUG datasource request: executing %s request with params %q", req.Method, req.URL.Redacted())
 	}
 	resp, err := s.c.Do(req.WithContext(ctx))
 	if err != nil {
