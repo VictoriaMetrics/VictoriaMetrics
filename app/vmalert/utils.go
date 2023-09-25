@@ -114,6 +114,7 @@ func requestToCurl(req *http.Request) string {
 }
 
 var authTypes = []string{"basic", "bearer"}
+var secreteWords = []string{"auth", "pass", "key", "secret", "token"}
 
 func hideSecretes(headerValues []string) []string {
 	for k, value := range headerValues {
@@ -132,9 +133,10 @@ func hideSecretes(headerValues []string) []string {
 
 func isSecreteHeader(str string) bool {
 	s := strings.ToLower(str)
-	return strings.Contains(s, "auth") ||
-		strings.Contains(s, "pass") ||
-		strings.Contains(s, "key") ||
-		strings.Contains(s, "secret") ||
-		strings.Contains(s, "token")
+	for _, secrete := range secreteWords {
+		if strings.Contains(s, secrete) {
+			return true
+		}
+	}
+	return false
 }
