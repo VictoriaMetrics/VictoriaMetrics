@@ -79,7 +79,7 @@ func requestToCurl(req *http.Request) string {
 	cw := &curlWriter{}
 
 	schema := req.URL.Scheme
-	requestURL := req.URL.String()
+	requestURL := req.URL.Redacted()
 	if schema == "" {
 		schema = "http"
 		if req.TLS != nil {
@@ -103,9 +103,38 @@ func requestToCurl(req *http.Request) string {
 
 	for _, k := range keys {
 		cw.add("-H")
+		if isSecreteHeader(k) {
+			req.Header[k] = hideSecretes(req.Header[k])
+		}
 		cw.addWithEsc(fmt.Sprintf("%s: %s", k, strings.Join(req.Header[k], " ")))
 	}
 
 	cw.addWithEsc(requestURL)
 	return cw.string()
+}
+
+var authTypes = []string{"basic", "bearer"}
+
+func hideSecretes(headerValues []string) []string {
+	for k, value := range headerValues {
+		for _, at := range authTypes {
+			if strings.HasPrefix(strings.ToLower(value), at) {
+				v := value[:len(at)]
+				headerValues[k] = fmt.Sprintf("%s %s", v, "<secret>")
+				break
+			}
+			headerValues[k] = "<secret>"
+		}
+	}
+
+	return headerValues
+}
+
+func isSecreteHeader(str string) bool {
+	s := strings.ToLower(str)
+	return strings.Contains(s, "auth") ||
+		strings.Contains(s, "pass") ||
+		strings.Contains(s, "key") ||
+		strings.Contains(s, "secret") ||
+		strings.Contains(s, "token")
 }

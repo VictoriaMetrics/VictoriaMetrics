@@ -44,4 +44,28 @@ func TestRequestToCurl(t *testing.T) {
 	params.Add("step", "10")
 	req.URL.RawQuery = params.Encode()
 	f(req, "curl -k -X POST 'https://foo.com?query=up&step=10'")
+
+	req, _ = http.NewRequest(http.MethodPost, "https://user:pass@foo.com", nil)
+	params = req.URL.Query()
+	params.Add("query", "up")
+	params.Add("step", "10")
+	req.URL.RawQuery = params.Encode()
+	f(req, "curl -k -X POST 'https://user:xxxxx@foo.com?query=up&step=10'")
+
+	req, _ = http.NewRequest(http.MethodPost, "https://user:pass@foo.com", nil)
+	req.Header.Set("Authorisation", "Bearer 123456")
+	params = req.URL.Query()
+	params.Add("query", "up")
+	params.Add("step", "10")
+	req.URL.RawQuery = params.Encode()
+	f(req, "curl -k -X POST -H 'Authorisation: Bearer <secret>' 'https://user:xxxxx@foo.com?query=up&step=10'")
+
+	req, _ = http.NewRequest(http.MethodPost, "https://user:pass@foo.com", nil)
+	req.Header.Set("Authorisation", "Basic 123456")
+	params = req.URL.Query()
+	params.Add("query", "up")
+	params.Add("step", "10")
+	req.URL.RawQuery = params.Encode()
+	f(req, "curl -k -X POST -H 'Authorisation: Basic <secret>' 'https://user:xxxxx@foo.com?query=up&step=10'")
+
 }
