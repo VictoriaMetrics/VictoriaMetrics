@@ -8479,11 +8479,11 @@ func TestExecSuccess(t *testing.T) {
 	})
 	t.Run(`result sorting`, func(t *testing.T) {
 		t.Parallel()
-		q := `label_set(1, "instance", "localhost:1001", "type", "free")
-			or label_set(1, "instance", "localhost:1001", "type", "buffers")
-			or label_set(1, "instance", "localhost:1000", "type", "buffers")
-			or label_set(1, "instance", "localhost:1000", "type", "free")
-`
+		q := `(label_set(1, "instance", "localhost:1001", "type", "free"),
+			label_set(1, "instance", "localhost:1001", "type", "buffers"),
+			label_set(1, "instance", "localhost:1000", "type", "buffers"),
+			label_set(1, "instance", "localhost:1000", "type", "free"),
+		)`
 		r1 := netstorage.Result{
 			MetricName: metricNameExpected,
 			Values:     []float64{1, 1, 1, 1, 1, 1},
@@ -8513,6 +8513,34 @@ func TestExecSuccess(t *testing.T) {
 		testAddLabels(t, &r4.MetricName,
 			"instance", "localhost:1001", "type", "free")
 		resultExpected := []netstorage.Result{r1, r2, r3, r4}
+		f(q, resultExpected)
+	})
+	t.Run(`no_sorting_for_or`, func(t *testing.T) {
+		t.Parallel()
+		q := `label_set(2, "foo", "bar") or label_set(1, "foo", "baz")`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{2, 2, 2, 2, 2, 2},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.Tags = []storage.Tag{
+			{
+				Key: []byte("foo"),
+				Value: []byte("bar"),
+			},
+		}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1, 1, 1, 1, 1, 1},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.Tags = []storage.Tag{
+			{
+				Key: []byte("foo"),
+				Value: []byte("baz"),
+			},
+		}
+		resultExpected := []netstorage.Result{r1, r2}
 		f(q, resultExpected)
 	})
 	t.Run(`sort_by_label_numeric(multiple_labels_only_string)`, func(t *testing.T) {
