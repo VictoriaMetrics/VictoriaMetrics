@@ -1113,7 +1113,9 @@ func (pt *partition) getMaxSmallPartSize() uint64 {
 }
 
 func (pt *partition) getMaxBigPartSize() uint64 {
-	workersCount := getDefaultMergeConcurrency(4)
+	// Always use 4 workers for big merges due to historical reasons.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4915#issuecomment-1733922830
+	workersCount := 4
 	return getMaxOutBytes(pt.bigPartsPath, workersCount)
 }
 
