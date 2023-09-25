@@ -1180,14 +1180,6 @@ func (pt *partition) releasePartsToMerge(pws []*partWrapper) {
 
 var errNothingToMerge = fmt.Errorf("nothing to merge")
 
-func atomicSetBool(p *uint64, b bool) {
-	v := uint64(0)
-	if b {
-		v = 1
-	}
-	atomic.StoreUint64(p, v)
-}
-
 func (pt *partition) runFinalDedup() error {
 	requiredDedupInterval, actualDedupInterval := pt.getRequiredDedupInterval()
 	t := time.Now()
