@@ -8525,7 +8525,7 @@ func TestExecSuccess(t *testing.T) {
 		}
 		r1.MetricName.Tags = []storage.Tag{
 			{
-				Key: []byte("foo"),
+				Key:   []byte("foo"),
 				Value: []byte("bar"),
 			},
 		}
@@ -8536,7 +8536,7 @@ func TestExecSuccess(t *testing.T) {
 		}
 		r2.MetricName.Tags = []storage.Tag{
 			{
-				Key: []byte("foo"),
+				Key:   []byte("foo"),
 				Value: []byte("baz"),
 			},
 		}
