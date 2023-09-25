@@ -14,6 +14,7 @@ The following `tip` changes can be tested by building VictoriaMetrics components
 
 * BUGFIX: [vmbackup](https://docs.victoriametrics.com/vmbackup.html): properly copy `appliedRetention.txt` files inside `<-storageDataPath>/{data}` folders during [incremental backups](https://docs.victoriametrics.com/vmbackup.html#incremental-backups). Previously the new `appliedRetention.txt` could be skipped during incremental backups, which could lead to increased load on storage after restoring from backup. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5005).
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): suppress `context canceled` error messages in logs when `vmagent` is reloading service discovery config. This error could appear starting from [v1.93.5](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.5). See [this PR](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5048). 
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): allow using `median_over_time` in [`aggr_over_time`](https://docs.victoriametrics.com/MetricsQL.html#aggr_over_time) [rollup function](https://docs.victoriametrics.com/MetricsQL.html#rollup-functions). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5034).
 
 ## [v1.93.5](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.5)
 
