@@ -1940,9 +1940,6 @@ and [cardinality explorer docs](#cardinality-explorer).
   has at least 20% of free space. The remaining amount of free space
   can be [monitored](#monitoring) via `vm_free_disk_space_bytes` metric. The total size of data
   stored on the disk can be monitored via sum of `vm_data_size_bytes` metrics.
-  See also `vm_merge_need_free_disk_space` metrics, which are set to values higher than 0
-  if background merge cannot be initiated due to free disk space shortage. The value shows the number of per-month partitions,
-  which would start background merge if they had more free disk space.
 
 * VictoriaMetrics buffers incoming data in memory for up to a few seconds before flushing it to persistent storage.
   This may lead to the following "issues":
