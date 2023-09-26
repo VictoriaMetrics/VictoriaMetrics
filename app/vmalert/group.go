@@ -52,6 +52,9 @@ type Group struct {
 	evalCancel context.CancelFunc
 
 	metrics *groupMetrics
+	// queryTimeAlignment will enforce rule evaluation timestamp
+	// be aligned with interval
+	queryTimeAlignment *bool
 }
 
 type groupMetrics struct {
@@ -95,17 +98,18 @@ func mergeLabels(groupName, ruleName string, set1, set2 map[string]string) map[s
 
 func newGroup(cfg config.Group, qb datasource.QuerierBuilder, defaultInterval time.Duration, labels map[string]string) *Group {
 	g := &Group{
-		Type:            cfg.Type,
-		Name:            cfg.Name,
-		File:            cfg.File,
-		Interval:        cfg.Interval.Duration(),
-		Limit:           cfg.Limit,
-		Concurrency:     cfg.Concurrency,
-		Checksum:        cfg.Checksum,
-		Params:          cfg.Params,
-		Headers:         make(map[string]string),
-		NotifierHeaders: make(map[string]string),
-		Labels:          cfg.Labels,
+		Type:               cfg.Type,
+		Name:               cfg.Name,
+		File:               cfg.File,
+		Interval:           cfg.Interval.Duration(),
+		Limit:              cfg.Limit,
+		Concurrency:        cfg.Concurrency,
+		Checksum:           cfg.Checksum,
+		Params:             cfg.Params,
+		Headers:            make(map[string]string),
+		NotifierHeaders:    make(map[string]string),
+		Labels:             cfg.Labels,
+		queryTimeAlignment: cfg.QueryTimeAlignment,
 
 		doneCh:     make(chan struct{}),
 		finishedCh: make(chan struct{}),
@@ -326,6 +330,10 @@ func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *r
 		}
 
 		resolveDuration := getResolveDuration(g.Interval, *resendDelay, *maxResolveDuration)
+		if g.queryTimeAlignment == nil || *g.queryTimeAlignment {
+			// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5049
+			ts = ts.Truncate(g.Interval)
+		}
 		errs := e.execConcurrently(ctx, g.Rules, ts, g.Concurrency, resolveDuration, g.Limit)
 		for err := range errs {
 			if err != nil {

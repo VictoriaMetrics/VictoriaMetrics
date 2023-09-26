@@ -142,6 +142,10 @@ name: <string>
 # By default, "prometheus" type is used.
 [ type: <string> ]
 
+# Optional
+# Group evaluation time will always be aligned with interval.
+[ query_time_alignment: <bool> | default true]
+
 # Optional list of HTTP URL parameters
 # applied for all rules requests within a group
 # For example:

@@ -506,8 +506,7 @@ func TestRequestParams(t *testing.T) {
 			},
 			func(t *testing.T, r *http.Request) {
 				evalInterval := 15 * time.Second
-				tt := timestamp.Truncate(evalInterval)
-				exp := url.Values{"query": {query}, "step": {evalInterval.String()}, "time": {tt.Format(time.RFC3339)}}
+				exp := url.Values{"query": {query}, "step": {evalInterval.String()}, "time": {timestamp.Format(time.RFC3339)}}
 				checkEqualString(t, exp.Encode(), r.URL.RawQuery)
 			},
 		},
@@ -521,7 +520,6 @@ func TestRequestParams(t *testing.T) {
 			func(t *testing.T, r *http.Request) {
 				evalInterval := 15 * time.Second
 				tt := timestamp.Add(-time.Minute)
-				tt = tt.Truncate(evalInterval)
 				exp := url.Values{"query": {query}, "step": {evalInterval.String()}, "time": {tt.Format(time.RFC3339)}}
 				checkEqualString(t, exp.Encode(), r.URL.RawQuery)
 			},
@@ -549,8 +547,7 @@ func TestRequestParams(t *testing.T) {
 			},
 			func(t *testing.T, r *http.Request) {
 				evalInterval := 3 * time.Hour
-				tt := timestamp.Truncate(evalInterval)
-				exp := url.Values{"query": {query}, "step": {fmt.Sprintf("%ds", int(evalInterval.Seconds()))}, "time": {tt.Format(time.RFC3339)}}
+				exp := url.Values{"query": {query}, "step": {fmt.Sprintf("%ds", int(evalInterval.Seconds()))}, "time": {timestamp.Format(time.RFC3339)}}
 				checkEqualString(t, exp.Encode(), r.URL.RawQuery)
 			},
 		},
