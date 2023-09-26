@@ -101,12 +101,14 @@ func requestToCurl(req *http.Request) string {
 	}
 	sort.Strings(keys)
 
+	headers := make(http.Header, len(req.Header))
 	for _, k := range keys {
 		cw.add("-H")
+		headers[k] = req.Header[k]
 		if isSecreteHeader(k) {
-			req.Header[k] = hideSecretes(req.Header[k])
+			headers[k] = hideSecretes(headers[k])
 		}
-		cw.addWithEsc(fmt.Sprintf("%s: %s", k, strings.Join(req.Header[k], " ")))
+		cw.addWithEsc(fmt.Sprintf("%s: %s", k, strings.Join(headers[k], " ")))
 	}
 
 	cw.addWithEsc(requestURL)
