@@ -7,96 +7,69 @@ import (
 
 func TestRequestToCurl(t *testing.T) {
 	f := func(req *http.Request, exp string) {
+		t.Helper()
 		got := requestToCurl(req)
 		if got != exp {
 			t.Fatalf("expected to have %q; got %q instead", exp, got)
 		}
 	}
 
-	req, _ := http.NewRequest(http.MethodPost, "foo.com", nil)
+	newReq := func(url string, queryParams ...string) *http.Request {
+		t.Helper()
+		r, err := http.NewRequest(http.MethodPost, url, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		params := r.URL.Query()
+		for i := 0; i < len(queryParams); i += 2 {
+			params.Add(queryParams[i], queryParams[i+1])
+		}
+		r.URL.RawQuery = params.Encode()
+
+		return r
+	}
+
+	req := newReq("foo.com")
 	f(req, "curl -X POST 'http://foo.com'")
 
-	req, _ = http.NewRequest(http.MethodGet, "https://foo.com", nil)
-	f(req, "curl -k -X GET 'https://foo.com'")
-
-	req, _ = http.NewRequest(http.MethodPost, "foo.com", nil)
+	req = newReq("foo.com")
 	req.Header.Set("foo", "bar")
 	req.Header.Set("baz", "qux")
 	f(req, "curl -X POST -H 'Baz: qux' -H 'Foo: bar' 'http://foo.com'")
 
-	req, _ = http.NewRequest(http.MethodPost, "foo.com", nil)
-	params := req.URL.Query()
-	params.Add("query", "up")
-	params.Add("step", "10")
-	req.URL.RawQuery = params.Encode()
+	req = newReq("foo.com", "query", "up", "step", "10")
 	f(req, "curl -X POST 'http://foo.com?query=up&step=10'")
 
-	req, _ = http.NewRequest(http.MethodPost, "http://foo.com", nil)
-	params = req.URL.Query()
-	params.Add("query", "up")
-	params.Add("step", "10")
-	req.URL.RawQuery = params.Encode()
+	req = newReq("http://foo.com", "query", "up", "step", "10")
 	f(req, "curl -X POST 'http://foo.com?query=up&step=10'")
 
-	req, _ = http.NewRequest(http.MethodPost, "https://foo.com", nil)
-	params = req.URL.Query()
-	params.Add("query", "up")
-	params.Add("step", "10")
-	req.URL.RawQuery = params.Encode()
+	req = newReq("https://foo.com", "query", "up", "step", "10")
 	f(req, "curl -k -X POST 'https://foo.com?query=up&step=10'")
 
-	req, _ = http.NewRequest(http.MethodPost, "https://user:pass@foo.com", nil)
-	params = req.URL.Query()
-	params.Add("query", "up")
-	params.Add("step", "10")
-	req.URL.RawQuery = params.Encode()
+	req = newReq("https://user:pass@foo.com", "query", "up", "step", "10")
 	f(req, "curl -k -X POST 'https://user:xxxxx@foo.com?query=up&step=10'")
 
-	req, _ = http.NewRequest(http.MethodPost, "https://user:pass@foo.com", nil)
+	req = newReq("https://user:pass@foo.com")
 	req.Header.Set("Authorisation", "Bearer 123456")
-	params = req.URL.Query()
-	params.Add("query", "up")
-	params.Add("step", "10")
-	req.URL.RawQuery = params.Encode()
-	f(req, "curl -k -X POST -H 'Authorisation: Bearer <secret>' 'https://user:xxxxx@foo.com?query=up&step=10'")
+	f(req, "curl -k -X POST -H 'Authorisation: <secret>' 'https://user:xxxxx@foo.com'")
 
-	req, _ = http.NewRequest(http.MethodPost, "https://user:pass@foo.com", nil)
+	req = newReq("https://user:pass@foo.com")
 	req.Header.Set("Authorisation", "Basic 123456")
-	params = req.URL.Query()
-	params.Add("query", "up")
-	params.Add("step", "10")
-	req.URL.RawQuery = params.Encode()
-	f(req, "curl -k -X POST -H 'Authorisation: Basic <secret>' 'https://user:xxxxx@foo.com?query=up&step=10'")
+	f(req, "curl -k -X POST -H 'Authorisation: <secret>' 'https://user:xxxxx@foo.com'")
 
-	req, _ = http.NewRequest(http.MethodPost, "https://foo.com", nil)
+	req = newReq("https://foo.com")
 	req.Header.Set("My-Password", "mypassword")
-	params = req.URL.Query()
-	params.Add("query", "up")
-	params.Add("step", "10")
-	req.URL.RawQuery = params.Encode()
-	f(req, "curl -k -X POST -H 'My-Password: <secret>' 'https://foo.com?query=up&step=10'")
+	f(req, "curl -k -X POST -H 'My-Password: <secret>' 'https://foo.com'")
 
-	req, _ = http.NewRequest(http.MethodPost, "https://foo.com", nil)
+	req = newReq("https://foo.com")
 	req.Header.Set("key-for", "my-new-key")
-	params = req.URL.Query()
-	params.Add("query", "up")
-	params.Add("step", "10")
-	req.URL.RawQuery = params.Encode()
-	f(req, "curl -k -X POST -H 'Key-For: <secret>' 'https://foo.com?query=up&step=10'")
+	f(req, "curl -k -X POST -H 'Key-For: <secret>' 'https://foo.com'")
 
-	req, _ = http.NewRequest(http.MethodPost, "https://foo.com", nil)
+	req = newReq("https://foo.com")
 	req.Header.Set("My-Secret-Org", "secret-organisation")
-	params = req.URL.Query()
-	params.Add("query", "up")
-	params.Add("step", "10")
-	req.URL.RawQuery = params.Encode()
-	f(req, "curl -k -X POST -H 'My-Secret-Org: <secret>' 'https://foo.com?query=up&step=10'")
+	f(req, "curl -k -X POST -H 'My-Secret-Org: <secret>' 'https://foo.com'")
 
-	req, _ = http.NewRequest(http.MethodPost, "https://foo.com", nil)
+	req = newReq("https://foo.com")
 	req.Header.Set("Token", "secret-token")
-	params = req.URL.Query()
-	params.Add("query", "up")
-	params.Add("step", "10")
-	req.URL.RawQuery = params.Encode()
-	f(req, "curl -k -X POST -H 'Token: <secret>' 'https://foo.com?query=up&step=10'")
+	f(req, "curl -k -X POST -H 'Token: <secret>' 'https://foo.com'")
 }

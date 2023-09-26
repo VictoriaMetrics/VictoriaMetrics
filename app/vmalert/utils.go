@@ -101,41 +101,25 @@ func requestToCurl(req *http.Request) string {
 	}
 	sort.Strings(keys)
 
-	headers := req.Header.Clone()
 	for _, k := range keys {
 		cw.add("-H")
 		if isSecreteHeader(k) {
-			headers[k] = hideSecretes(headers[k])
+			cw.addWithEsc(fmt.Sprintf("%s: <secret>", k))
+			continue
 		}
-		cw.addWithEsc(fmt.Sprintf("%s: %s", k, strings.Join(headers[k], " ")))
+		cw.addWithEsc(fmt.Sprintf("%s: %s", k, strings.Join(req.Header[k], " ")))
 	}
 
 	cw.addWithEsc(requestURL)
 	return cw.string()
 }
 
-var authTypes = []string{"basic", "bearer"}
-var secreteWords = []string{"auth", "pass", "key", "secret", "token"}
-
-func hideSecretes(headerValues []string) []string {
-	for k, value := range headerValues {
-		for _, at := range authTypes {
-			if strings.HasPrefix(strings.ToLower(value), at) {
-				v := value[:len(at)]
-				headerValues[k] = fmt.Sprintf("%s %s", v, "<secret>")
-				break
-			}
-			headerValues[k] = "<secret>"
-		}
-	}
-
-	return headerValues
-}
+var secretWords = []string{"auth", "pass", "key", "secret", "token"}
 
 func isSecreteHeader(str string) bool {
 	s := strings.ToLower(str)
-	for _, secrete := range secreteWords {
-		if strings.Contains(s, secrete) {
+	for _, secret := range secretWords {
+		if strings.Contains(s, secret) {
 			return true
 		}
 	}
