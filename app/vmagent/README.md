@@ -3,7 +3,8 @@
 `vmagent` is a tiny agent which helps you collect metrics from various sources,
 [relabel and filter the collected metrics](#relabeling)
 and store them in [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics)
-or any other storage systems via Prometheus `remote_write` protocol.
+or any other storage systems via Prometheus `remote_write` protocol
+or via [VictoriaMetrics `remote_write` protocol](#victoriametrics-remote-write-protocol).
 
 See [Quick Start](#quick-start) for details.
 
