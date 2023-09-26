@@ -98,7 +98,7 @@ func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 		isGzip := r.Header.Get("Content-Encoding") == "gzip"
 		n, err := readBulkRequest(r.Body, isGzip, cp.TimeField, cp.MsgField, processLogMessage)
 		if err != nil {
-			logger.Warnf("cannot decode log message #%d in /_bulk request: %s", n, err)
+			logger.Warnf("cannot decode log message #%d in /_bulk request: %s, stream fields: %s", n, err, cp.StreamFields)
 			return true
 		}
 		vlstorage.MustAddRows(lr)
