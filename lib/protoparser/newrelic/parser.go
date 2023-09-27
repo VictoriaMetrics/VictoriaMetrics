@@ -180,14 +180,54 @@ type Tag struct {
 
 func camelToSnakeCase(str string) string {
 	length := len(str)
-	snakeCase := make([]byte, 0, length)
+	snakeCase := make([]byte, 0, length*2)
+	tokens := make([]byte, 0, length)
+	var allTokensUpper bool
+
+	flush := func(tokens []byte) {
+		for _, c := range tokens {
+			snakeCase = append(snakeCase, byte(unicode.ToLower(rune(c))))
+		}
+	}
 
 	for i := 0; i < length; i++ {
 		char := str[i]
-		if i > 0 && unicode.IsUpper(rune(char)) {
-			snakeCase = append(snakeCase, '_')
+		if unicode.IsUpper(rune(char)) {
+			switch {
+			case len(tokens) == 0:
+				allTokensUpper = true
+				tokens = append(tokens, char)
+			case allTokensUpper:
+				tokens = append(tokens, char)
+			default:
+				flush(tokens)
+				snakeCase = append(snakeCase, '_')
+				tokens = tokens[:0]
+				tokens = append(tokens, char)
+				allTokensUpper = true
+			}
+		} else {
+			switch {
+			case len(tokens) == 1:
+				tokens = append(tokens, char)
+				allTokensUpper = false
+			case allTokensUpper:
+				tail := tokens[:len(tokens)-1]
+				last := tokens[len(tokens)-1:]
+				flush(tail)
+				snakeCase = append(snakeCase, '_')
+				tokens = tokens[:0]
+				tokens = append(tokens, last...)
+				tokens = append(tokens, char)
+				allTokensUpper = false
+			default:
+				tokens = append(tokens, char)
+			}
 		}
-		snakeCase = append(snakeCase, byte(unicode.ToLower(rune(char))))
+	}
+
+	if len(tokens) > 0 {
+		flush(tokens)
 	}
 	s := bytesutil.ToUnsafeString(snakeCase)
 	return s

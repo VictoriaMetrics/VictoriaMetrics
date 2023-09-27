@@ -2,6 +2,7 @@ package newrelic
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/valyala/fastjson"
@@ -142,6 +143,16 @@ func Test_camelToSnakeCase(t *testing.T) {
 			str:  "TestStrinG",
 			want: "test_strin_g",
 		},
+		{
+			name: "has many upper case letters",
+			str:  "ProgressIOTime",
+			want: "progress_io_time",
+		},
+		{
+			name: "last all uppercase letters",
+			str:  "ProgressTSDB",
+			want: "progress_tsdb",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -150,4 +161,14 @@ func Test_camelToSnakeCase(t *testing.T) {
 			}
 		})
 	}
+}
+
+func BenchmarkCameToSnake(b *testing.B) {
+	b.ReportAllocs()
+	str := strings.Repeat("ProgressIOTime", 20)
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			camelToSnakeCase(str)
+		}
+	})
 }
