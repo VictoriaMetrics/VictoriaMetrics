@@ -12,6 +12,11 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
+const (
+	hostNameTagKey         = "entityKey"
+	exportedHostNameTagKey = "exported_host"
+)
+
 var baseEventKeys = map[string]struct{}{
 	"timestamp": {}, "eventType": {},
 }
@@ -128,6 +133,9 @@ func (m *Metric) unmarshal(o *fastjson.Object) ([]Metric, error) {
 			if value == nil {
 				logger.Errorf("error get NewRelic label value from json: %s", v)
 				return
+			}
+			if name == hostNameTagKey {
+				name = exportedHostNameTagKey
 			}
 			val := bytesutil.ToUnsafeString(value.GetStringBytes())
 			tgsBuffer.tags = append(tgsBuffer.tags, Tag{Key: name, Value: val})
