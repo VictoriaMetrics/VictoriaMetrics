@@ -20,10 +20,16 @@ import (
 // The callback can be called concurrently multiple times for streamed data from r.
 //
 // callback shouldn't hold rows after returning.
-func Parse(r io.Reader, defaultTimestamp int64, isGzipped bool, callback func(rows []prometheus.Row) error, errLogger func(string)) error {
-	wcr := writeconcurrencylimiter.GetReader(r)
-	defer writeconcurrencylimiter.PutReader(wcr)
-	r = wcr
+//
+// limitConcurrency defines whether to control the number of concurrent calls to this function.
+// It is recommended setting limitConcurrency=true if the caller doesn't have concurrency limits set,
+// like /api/v1/write calls.
+func Parse(r io.Reader, defaultTimestamp int64, isGzipped, limitConcurrency bool, callback func(rows []prometheus.Row) error, errLogger func(string)) error {
+	if limitConcurrency {
+		wcr := writeconcurrencylimiter.GetReader(r)
+		defer writeconcurrencylimiter.PutReader(wcr)
+		r = wcr
+	}
 
 	if isGzipped {
 		zr, err := common.GetGzipReader(r)
@@ -44,7 +50,9 @@ func Parse(r io.Reader, defaultTimestamp int64, isGzipped bool, callback func(ro
 		uw.reqBuf, ctx.reqBuf = ctx.reqBuf, uw.reqBuf
 		ctx.wg.Add(1)
 		common.ScheduleUnmarshalWork(uw)
-		wcr.DecConcurrency()
+		if wcr, ok := r.(*writeconcurrencylimiter.Reader); ok {
+			wcr.DecConcurrency()
+		}
 	}
 	ctx.wg.Wait()
 	if err := ctx.Error(); err != nil {
