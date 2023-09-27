@@ -35,6 +35,14 @@
 
     &__description {
       line-height: 130%;
+
+      p {
+        margin: $padding-global 0;
+
+        &:last-child {
+          margin: 0;
+        }
+      }
     }
   }
 }

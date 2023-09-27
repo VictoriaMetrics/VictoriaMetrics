@@ -2,8 +2,8 @@ import React, { FC, Ref, useState, useEffect, useMemo } from "preact/compat";
 import Autocomplete, { AutocompleteOptions } from "../../Main/Autocomplete/Autocomplete";
 import { useFetchQueryOptions } from "../../../hooks/useFetchQueryOptions";
 import { getTextWidth } from "../../../utils/uplot";
-import metricsqlFunctions from "../../../constants/metricsqlFunctions";
 import { escapeRegExp } from "../../../utils/regexp";
+import useGetMetricsQL from "../../../hooks/useGetMetricsQL";
 
 enum ContextType {
   empty = "empty",
@@ -28,7 +28,7 @@ const QueryEditorAutocomplete: FC<QueryEditorAutocompleteProps> = ({
   onFoundOptions
 }) => {
   const [leftOffset, setLeftOffset] = useState(0);
-
+  const metricsqlFunctions = useGetMetricsQL();
 
   const metric = useMemo(() => {
     const regexp = /\b[^{}(),\s]+(?={|$)/g;
