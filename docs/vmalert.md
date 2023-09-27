@@ -994,6 +994,8 @@ The shortlist of configuration flags is the following:
      Whether to disable adding group's Name as label to generated alerts and time series.
   -dryRun
      Whether to check only config files without running vmalert. The rules file are validated. The -rule flag must be specified.
+  -debugShowSecrets
+     Whether to show sensitive information in web UI or debug mode. It is hidden by default, since it can contain sensitive information such as auth key
   -enableTCP6
      Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP are used
   -envflag.enable

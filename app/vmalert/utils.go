@@ -79,9 +79,9 @@ func requestToCurl(req *http.Request) string {
 	cw := &curlWriter{}
 
 	schema := req.URL.Scheme
-	requestURL := req.URL.Redacted()
-	if *showUISensitiveInfo {
-		requestURL = req.URL.String()
+	requestURL := req.URL.String()
+	if !*debugShowSecrets {
+		requestURL = req.URL.Redacted()
 	}
 	if schema == "" {
 		schema = "http"
@@ -106,7 +106,7 @@ func requestToCurl(req *http.Request) string {
 
 	for _, k := range keys {
 		cw.add("-H")
-		if isSecreteHeader(k) && !*showUISensitiveInfo {
+		if isSecreteHeader(k) && !*debugShowSecrets {
 			cw.addWithEsc(fmt.Sprintf("%s: <secret>", k))
 			continue
 		}
