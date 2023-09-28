@@ -187,9 +187,6 @@ func (s *VMStorage) setPrometheusRangeReqParams(r *http.Request, query string, s
 		r.URL.Path += "/api/v1/query_range"
 	}
 	q := r.URL.Query()
-	if s.evaluationOffset != nil {
-		start = start.Truncate(s.evaluationInterval).Add(*s.evaluationOffset)
-	}
 	q.Add("start", start.Format(time.RFC3339))
 	q.Add("end", end.Format(time.RFC3339))
 	if s.evaluationInterval > 0 { // set step as evaluationInterval by default
