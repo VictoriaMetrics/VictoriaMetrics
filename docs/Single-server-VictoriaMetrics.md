@@ -599,6 +599,8 @@ curl -d 'measurement,tag1=value1,tag2=value2 field1=123,field2=1.23' -X POST 'ht
 
 </div>
 
+Please, note that VictoriaMetrics also exposes endpoint for InfluxDB v2 HTTP API at `/influx/api/v2/write` and `/api/v2/write`.
+
 An arbitrary number of lines delimited by '\n' (aka newline char) can be sent in a single request.
 After that the data may be read via [/api/v1/export](#how-to-export-data-in-json-line-format) endpoint:
 
