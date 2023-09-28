@@ -8,7 +8,6 @@ import { useSearchParams } from "react-router-dom";
 import dayjs from "dayjs";
 import { DATE_FORMAT } from "../../../constants/date";
 import { getTenantIdFromUrl } from "../../../utils/tenants";
-import { useFetchValues } from "./useFetchLabelValues";
 
 export const useFetchQuery = (): {
   fetchUrl?: string[],
@@ -16,7 +15,6 @@ export const useFetchQuery = (): {
   error?: ErrorTypes | string
   appConfigurator: AppConfigurator,
   isCluster: boolean,
-  numOfValues: number,
 } => {
   const appConfigurator = new AppConfigurator();
 
@@ -31,7 +29,6 @@ export const useFetchQuery = (): {
   const [error, setError] = useState<ErrorTypes | string>();
   const [tsdbStatus, setTSDBStatus] = useState<TSDBStatus>(appConfigurator.defaultTSDBStatus);
   const [isCluster, setIsCluster] = useState<boolean>(false);
-  const [numOfValues, setNumOfValues] = useState<number>(0);
 
   const getResponseJson = async (url: string) => {
     const response = await fetch(url);
@@ -126,14 +123,7 @@ export const useFetchQuery = (): {
     setIsCluster(!!id);
   }, [serverUrl]);
 
-  if (focusLabel) {
-    const { values } = useFetchValues(focusLabel);
-    if (values && values.length) {
-      setNumOfValues(values.length);
-    }
-  }
-
 
   appConfigurator.tsdbStatusData = tsdbStatus;
-  return { isLoading, appConfigurator: appConfigurator, error, isCluster, numOfValues };
+  return { isLoading, appConfigurator: appConfigurator, error, isCluster };
 };

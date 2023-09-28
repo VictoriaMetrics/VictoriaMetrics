@@ -112,7 +112,7 @@ const CardinalityConfigurator: FC<CardinalityTotalsProps> = ({ isPrometheus, isC
       {isCluster &&
         <div className="vm-cardinality-configurator-bottom-helpful">
           <Hyperlink
-            href="https://docs.victoriametrics.com/?highlight=In%20cluster%20version%20of%20VictoriaMetrics#cardinality-explorer"
+            href="https://docs.victoriametrics.com/#cardinality-explorer-statistic-inaccurancy"
             withIcon={true}
           >
             <WikiIcon/>

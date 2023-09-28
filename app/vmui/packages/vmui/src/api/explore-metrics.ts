@@ -16,7 +16,3 @@ export const getNamesUrl = (server: string, period: TimeParams, job: string, ins
   const match = `{${filters}}`;
   return `${server}/api/v1/label/__name__/values?match[]=${encodeURIComponent(match)}&start=${period.start}&end=${period.end}`;
 };
-
-export const getValuesUrl = (server: string, period: TimeParams, label: string): string => {
-  return `${server}/api/v1/label/${label}/values?start=${period.start}&end=${period.end}`;
-};
