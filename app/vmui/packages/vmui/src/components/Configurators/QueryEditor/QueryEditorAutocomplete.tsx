@@ -49,14 +49,16 @@ const QueryEditorAutocomplete: FC<QueryEditorAutocompleteProps> = ({
 
   const context = useMemo(() => {
     [metricRegexp, labelRegexp, valueRegexp].forEach(regexp => regexp.lastIndex = 0);
-    if (valueRegexp.test(value)) {
-      return ContextType.value;
-    } else if (labelRegexp.test(value)) {
-      return ContextType.label;
-    } else if (metricRegexp.test(value)) {
-      return ContextType.metricsql;
+    switch (true) {
+      case valueRegexp.test(value):
+        return ContextType.value;
+      case labelRegexp.test(value):
+        return ContextType.label;
+      case metricRegexp.test(value):
+        return ContextType.metricsql;
+      default:
+        return ContextType.empty;
     }
-    return ContextType.empty;
   }, [value, valueRegexp, labelRegexp, metricRegexp]);
 
   const { metrics, labels, values } = useFetchQueryOptions({ metric, label });
