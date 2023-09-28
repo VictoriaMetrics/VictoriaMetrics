@@ -42,7 +42,7 @@ type ruleState struct {
 type ruleStateEntry struct {
 	// stores last moment of time rule.Exec was called
 	time time.Time
-	// stores the timestamp rule.Exec was called
+	// stores the timestamp rule.Exec was called with
 	at time.Time
 	// stores the duration of the last rule.Exec call
 	duration time.Duration

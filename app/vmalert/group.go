@@ -52,9 +52,9 @@ type Group struct {
 	evalCancel context.CancelFunc
 
 	metrics *groupMetrics
-	// queryTimeAlignment will enforce rule evaluation timestamp
-	// be aligned with interval
-	queryTimeAlignment *bool
+	// evalAlignment will make the timestamp of group query
+	// requests be aligned with interval
+	evalAlignment *bool
 }
 
 type groupMetrics struct {
@@ -98,18 +98,18 @@ func mergeLabels(groupName, ruleName string, set1, set2 map[string]string) map[s
 
 func newGroup(cfg config.Group, qb datasource.QuerierBuilder, defaultInterval time.Duration, labels map[string]string) *Group {
 	g := &Group{
-		Type:               cfg.Type,
-		Name:               cfg.Name,
-		File:               cfg.File,
-		Interval:           cfg.Interval.Duration(),
-		Limit:              cfg.Limit,
-		Concurrency:        cfg.Concurrency,
-		Checksum:           cfg.Checksum,
-		Params:             cfg.Params,
-		Headers:            make(map[string]string),
-		NotifierHeaders:    make(map[string]string),
-		Labels:             cfg.Labels,
-		queryTimeAlignment: cfg.QueryTimeAlignment,
+		Type:            cfg.Type,
+		Name:            cfg.Name,
+		File:            cfg.File,
+		Interval:        cfg.Interval.Duration(),
+		Limit:           cfg.Limit,
+		Concurrency:     cfg.Concurrency,
+		Checksum:        cfg.Checksum,
+		Params:          cfg.Params,
+		Headers:         make(map[string]string),
+		NotifierHeaders: make(map[string]string),
+		Labels:          cfg.Labels,
+		evalAlignment:   cfg.EvalAlignment,
 
 		doneCh:     make(chan struct{}),
 		finishedCh: make(chan struct{}),
@@ -330,10 +330,7 @@ func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *r
 		}
 
 		resolveDuration := getResolveDuration(g.Interval, *resendDelay, *maxResolveDuration)
-		if g.queryTimeAlignment == nil || *g.queryTimeAlignment {
-			// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5049
-			ts = ts.Truncate(g.Interval)
-		}
+		ts = g.adjustReqTimestamp(ts)
 		errs := e.execConcurrently(ctx, g.Rules, ts, g.Concurrency, resolveDuration, g.Limit)
 		for err := range errs {
 			if err != nil {
@@ -452,6 +449,32 @@ func getResolveDuration(groupInterval, delta, maxDuration time.Duration) time.Du
 		resolveDuration = maxDuration
 	}
 	return resolveDuration
+}
+
+func (g *Group) adjustReqTimestamp(timestamp time.Time) time.Time {
+	if g.EvalOffset != nil {
+		// calculate the min timestamp on the evaluationInterval
+		intervalStart := timestamp.Truncate(g.Interval)
+		ts := intervalStart.Add(*g.EvalOffset)
+		if timestamp.Before(ts) {
+			// if passed timestamp is before the expected evaluation offset,
+			// then we should adjust it to the previous evaluation round.
+			// E.g. request with evaluationInterval=1h and evaluationOffset=30m
+			// was evaluated at 11:20. Then the timestamp should be adjusted
+			// to 10:30, to the previous evaluationInterval.
+			return ts.Add(-g.Interval)
+		}
+		// EvalOffset shouldn't interfere with evalAlignment,
+		// so we return it immediately
+		return ts
+	}
+	if g.evalAlignment == nil || *g.evalAlignment {
+		// align query time with interval to get similar result with grafana when plotting time series.
+		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5049
+		// and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1232
+		return timestamp.Truncate(g.Interval)
+	}
+	return timestamp
 }
 
 type executor struct {

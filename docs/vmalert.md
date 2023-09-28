@@ -143,8 +143,11 @@ name: <string>
 [ type: <string> ]
 
 # Optional
-# Group evaluation time will always be aligned with interval.
-[ query_time_alignment: <bool> | default true]
+# The timestamp of group query request will be aligned with interval, instead of
+# using the real one that evaluation happens at.
+# By default it's enabled to get more predictable results and similar with grafana
+# when plotting time series.
+[ eval_alignment: <bool> | default true]
 
 # Optional list of HTTP URL parameters
 # applied for all rules requests within a group

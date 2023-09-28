@@ -581,5 +581,58 @@ func TestGroupStartDelay(t *testing.T) {
 	f("2023-01-01 00:00:00", "2023-01-01 00:16:00")
 	f("2023-01-01 00:05:00", "2023-01-01 00:16:00")
 	f("2023-01-01 00:30:00", "2023-01-01 01:16:00")
+}
 
+func TestGetPrometheusReqTimestamp(t *testing.T) {
+	offset := 30 * time.Minute
+	disableAlign := false
+	testCases := []struct {
+		name            string
+		g               *Group
+		originTS, expTS string
+	}{
+		{
+			"with query align",
+			&Group{
+				Interval: time.Hour,
+			},
+			"2023-08-28T11:11:00+00:00",
+			"2023-08-28T11:00:00+00:00",
+		},
+		{
+			"without query align",
+			&Group{
+				Interval:      time.Hour,
+				evalAlignment: &disableAlign,
+			},
+			"2023-08-28T11:11:00+00:00",
+			"2023-08-28T11:11:00+00:00",
+		},
+		{
+			"with eval_offset, find previous offset point",
+			&Group{
+				EvalOffset: &offset,
+				Interval:   time.Hour,
+			},
+			"2023-08-28T11:11:00+00:00",
+			"2023-08-28T10:30:00+00:00",
+		},
+		{
+			"with eval_offset",
+			&Group{
+				EvalOffset: &offset,
+				Interval:   time.Hour,
+			},
+			"2023-08-28T11:41:00+00:00",
+			"2023-08-28T11:30:00+00:00",
+		},
+	}
+	for _, tc := range testCases {
+		originT, _ := time.Parse(time.RFC3339, tc.originTS)
+		expT, _ := time.Parse(time.RFC3339, tc.expTS)
+		gotTS := tc.g.adjustReqTimestamp(originT)
+		if !gotTS.Equal(expT) {
+			t.Fatalf("get wrong prometheus request timestamp, expect %s, got %s", expT, gotTS)
+		}
+	}
 }
