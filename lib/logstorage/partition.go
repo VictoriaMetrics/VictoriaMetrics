@@ -77,7 +77,7 @@ func mustOpenPartition(s *Storage, path string) *partition {
 
 	// Open datadb
 	datadbPath := filepath.Join(path, datadbDirname)
-	pt.ddb = mustOpenDatadb(pt, datadbPath, s.flushInterval)
+	pt.ddb = mustOpenDatadb(pt, datadbPath, s.flushInterval, &s.isReadOnly)
 
 	return pt
 }

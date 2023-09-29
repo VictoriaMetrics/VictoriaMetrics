@@ -6,11 +6,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
-	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
@@ -29,6 +30,7 @@ var (
 		"see https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#stream-fields ; see also -logIngestedRows")
 	logIngestedRows = flag.Bool("logIngestedRows", false, "Whether to log all the ingested log entries; this can be useful for debugging of data ingestion; "+
 		"see https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/ ; see also -logNewStreams")
+	minFreeDiskSpaceBytes = flagutil.NewBytes("storage.minFreeDiskSpaceBytes", 10e6, "The minimum free disk space at -storageDataPath after which the storage stops accepting new data")
 )
 
 // Init initializes vlstorage.
@@ -43,11 +45,12 @@ func Init() {
 		logger.Fatalf("-retentionPeriod cannot be smaller than a day; got %s", retentionPeriod)
 	}
 	cfg := &logstorage.StorageConfig{
-		Retention:       retentionPeriod.Duration(),
-		FlushInterval:   *inmemoryDataFlushInterval,
-		FutureRetention: futureRetention.Duration(),
-		LogNewStreams:   *logNewStreams,
-		LogIngestedRows: *logIngestedRows,
+		Retention:             retentionPeriod.Duration(),
+		FlushInterval:         *inmemoryDataFlushInterval,
+		FutureRetention:       futureRetention.Duration(),
+		LogNewStreams:         *logNewStreams,
+		LogIngestedRows:       *logIngestedRows,
+		MinFreeDiskSpaceBytes: minFreeDiskSpaceBytes.N,
 	}
 	logger.Infof("opening storage at -storageDataPath=%s", *storageDataPath)
 	startTime := time.Now()
@@ -74,9 +77,9 @@ func Stop() {
 var strg *logstorage.Storage
 var storageMetrics *metrics.Set
 
-// MustAddRows adds lr to vlstorage
-func MustAddRows(lr *logstorage.LogRows) {
-	strg.MustAddRows(lr)
+// AddRows adds lr to vlstorage
+func AddRows(lr *logstorage.LogRows) error {
+	return strg.AddRows(lr)
 }
 
 // RunQuery runs the given q and calls processBlock for the returned data blocks
@@ -106,6 +109,13 @@ func initStorageMetrics(strg *logstorage.Storage) *metrics.Set {
 
 	ms.NewGauge(fmt.Sprintf(`vl_free_disk_space_bytes{path=%q}`, *storageDataPath), func() float64 {
 		return float64(fs.MustGetFreeSpace(*storageDataPath))
+	})
+	ms.NewGauge(fmt.Sprintf(`vl_storage_is_read_only{path=%q}`, *storageDataPath), func() float64 {
+		if m().IsReadOnly {
+			return 1
+		}
+
+		return 0
 	})
 
 	ms.NewGauge(`vl_active_merges{type="inmemory"}`, func() float64 {
