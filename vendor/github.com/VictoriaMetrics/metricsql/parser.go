@@ -55,7 +55,6 @@ func getDefaultWithArgExprs() []*withArgExpr {
 				clamp_max(step()/300, 1)
 			)`,
 
-			`median_over_time(m) = quantile_over_time(0.5, m)`,
 			`range_median(q) = range_quantile(0.5, q)`,
 			`alias(q, name) = label_set(q, "__name__", name)`,
 		})

@@ -19,12 +19,13 @@ import (
 )
 
 var (
-	rowsIngestedProtobufTotal = metrics.NewCounter(`vl_rows_ingested_total{type="loki",format="protobuf"}`)
-	bytesBufPool              bytesutil.ByteBufferPool
-	pushReqsPool              sync.Pool
+	bytesBufPool bytesutil.ByteBufferPool
+	pushReqsPool sync.Pool
 )
 
 func handleProtobuf(r *http.Request, w http.ResponseWriter) bool {
+	startTime := time.Now()
+	lokiRequestsProtobufTotal.Inc()
 	wcr := writeconcurrencylimiter.GetReader(r.Body)
 	data, err := io.ReadAll(wcr)
 	writeconcurrencylimiter.PutReader(wcr)
@@ -53,11 +54,24 @@ func handleProtobuf(r *http.Request, w http.ResponseWriter) bool {
 		httpserver.Errorf(w, r, "cannot insert rows: %s", err)
 		return true
 	}
+
 	rowsIngestedProtobufTotal.Add(n)
+
+	// update lokiRequestProtobufDuration only for successfully parsed requests
+	// There is no need in updating lokiRequestProtobufDuration for request errors,
+	// since their timings are usually much smaller than the timing for successful request parsing.
+	lokiRequestProtobufDuration.UpdateDuration(startTime)
+
 	return true
 }
 
-func parseProtobufRequest(data []byte, processLogMessage func(timestamp int64, fields []logstorage.Field) error) (int, error) {
+var (
+	lokiRequestsProtobufTotal   = metrics.NewCounter(`vl_http_requests_total{path="/insert/loki/api/v1/push",format="protobuf"}`)
+	rowsIngestedProtobufTotal   = metrics.NewCounter(`vl_rows_ingested_total{type="loki",format="protobuf"}`)
+	lokiRequestProtobufDuration = metrics.NewHistogram(`vl_http_request_duration_seconds{path="/insert/loki/api/v1/push",format="protobuf"}`)
+)
+
+ func parseProtobufRequest(data []byte, processLogMessage func(timestamp int64, fields []logstorage.Field) error) (int, error) {
 	bb := bytesBufPool.Get()
 	defer bytesBufPool.Put(bb)
 

@@ -70,9 +70,6 @@ type datadb struct {
 	// stopCh is used for notifying background workers to stop
 	stopCh chan struct{}
 
-	// mergeDoneCond is used for pace-limiting the data ingestion rate
-	mergeDoneCond *sync.Cond
-
 	// inmemoryPartsFlushersCount is the number of currently running in-memory parts flushers
 	//
 	// This variable must be accessed under partsLock.
@@ -153,7 +150,18 @@ func mustOpenDatadb(pt *partition, path string, flushInterval time.Duration, isR
 
 	pws := make([]*partWrapper, len(partNames))
 	for i, partName := range partNames {
+		// Make sure the partName exists on disk.
+		// If it is missing, then manual action from the user is needed,
+		// since this is unexpected state, which cannot occur under normal operation,
+		// including unclean shutdown.
 		partPath := filepath.Join(path, partName)
+		if !fs.IsPathExist(partPath) {
+			partsFile := filepath.Join(path, partsFilename)
+			logger.Panicf("FATAL: part %q is listed in %q, but is missing on disk; "+
+				"ensure %q contents is not corrupted; remove %q to rebuild its' content from the list of existing parts",
+				partPath, partsFile, partsFile, partsFile)
+		}
+
 		p := mustOpenFilePart(pt, partPath)
 		pws[i] = newPartWrapper(p, nil, time.Time{})
 	}
@@ -167,7 +175,6 @@ func mustOpenDatadb(pt *partition, path string, flushInterval time.Duration, isR
 		stopCh:        make(chan struct{}),
 		isReadOnly:    isReadOnly,
 	}
-	ddb.mergeDoneCond = sync.NewCond(&ddb.partsLock)
 
 	// Start merge workers in the hope they'll merge the remaining parts
 	ddb.partsLock.Lock()
@@ -430,7 +437,6 @@ func (ddb *datadb) mergeParts(pws []*partWrapper, isFinal bool) error {
 	}
 	if needStop(stopCh) {
 		ddb.releasePartsToMerge(pws)
-		ddb.mergeDoneCond.Broadcast()
 		// Remove incomplete destination part
 		if dstPartType == partFile {
 			fs.MustRemoveAll(dstPartPath)
@@ -541,10 +547,6 @@ func (ddb *datadb) mustAddRows(lr *LogRows) {
 	ddb.startInmemoryPartsFlusherLocked()
 	if len(ddb.inmemoryParts) > defaultPartsToMerge {
 		ddb.startMergeWorkerLocked()
-	}
-	for len(ddb.inmemoryParts) > maxInmemoryPartsPerPartition {
-		// limit the pace for data ingestion if too many inmemory parts are created
-		ddb.mergeDoneCond.Wait()
 	}
 	ddb.partsLock.Unlock()
 }
@@ -717,8 +719,6 @@ func (ddb *datadb) swapSrcWithDstParts(pws []*partWrapper, pwNew *partWrapper, d
 		atomic.StoreUint32(&pw.mustBeDeleted, 1)
 		pw.decRef()
 	}
-
-	ddb.mergeDoneCond.Broadcast()
 }
 
 func removeParts(pws []*partWrapper, partsToRemove map[*partWrapper]struct{}) ([]*partWrapper, int) {
