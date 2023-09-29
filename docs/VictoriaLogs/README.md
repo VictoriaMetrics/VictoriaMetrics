@@ -239,6 +239,9 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
     	Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 1048576)
   -storageDataPath string
     	Path to directory with the VictoriaLogs data; see https://docs.victoriametrics.com/VictoriaLogs/#storage (default "victoria-logs-data")
+  -storage.minFreeDiskSpaceBytes size
+    	The minimum free disk space at -storageDataPath after which the storage stops accepting new data
+    	Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 10000000)
   -tls
     	Whether to enable TLS for incoming HTTP requests at -httpListenAddr (aka https). -tlsCertFile and -tlsKeyFile must be set if -tls is set
   -tlsCertFile string

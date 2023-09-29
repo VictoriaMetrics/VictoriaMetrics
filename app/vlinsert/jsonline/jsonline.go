@@ -75,8 +75,12 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		rowsIngestedTotal.Inc()
 	}
 
-	vlstorage.MustAddRows(lr)
+	err = vlstorage.AddRows(lr)
 	logstorage.PutLogRows(lr)
+	if err != nil {
+		httpserver.Errorf(w, r, "cannot insert rows: %s", err)
+		return true
+	}
 
 	// update jsonlineRequestDuration only for successfully parsed requests.
 	// There is no need in updating jsonlineRequestDuration for request errors,
@@ -86,7 +90,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	return true
 }
 
-func readLine(sc *bufio.Scanner, timeField, msgField string, processLogMessage func(timestamp int64, fields []logstorage.Field)) (bool, error) {
+func readLine(sc *bufio.Scanner, timeField, msgField string, processLogMessage func(timestamp int64, fields []logstorage.Field) error) (bool, error) {
 	var line []byte
 	for len(line) == 0 {
 		if !sc.Scan() {
@@ -113,8 +117,12 @@ func readLine(sc *bufio.Scanner, timeField, msgField string, processLogMessage f
 		ts = time.Now().UnixNano()
 	}
 	p.RenameField(msgField, "_msg")
-	processLogMessage(ts, p.Fields)
+	err = processLogMessage(ts, p.Fields)
 	logjson.PutParser(p)
+	if err != nil {
+		return false, err
+	}
+
 	return true, nil
 }
 
