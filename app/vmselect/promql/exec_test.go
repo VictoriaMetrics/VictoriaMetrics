@@ -5,10 +5,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/VictoriaMetrics/metricsql"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
-	"github.com/VictoriaMetrics/metricsql"
 )
 
 func TestEscapeDots(t *testing.T) {
@@ -245,6 +246,23 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run("bitmap_and(NaN, 1)", func(t *testing.T) {
+		t.Parallel()
+		q := `bitmap_and(NaN, 1)`
+		var resultExpected []netstorage.Result
+		f(q, resultExpected)
+	})
+	t.Run("bitmap_and(round(rand(1) > 0.5, 1), 1)", func(t *testing.T) {
+		t.Parallel()
+		q := `bitmap_and(round(rand(1) > 0.5, 1), 1)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1, 1, 1, nan, nan, 1},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run("bitmap_or(0xA2, 0x11)", func(t *testing.T) {
 		t.Parallel()
 		q := `bitmap_or(0xA2, 0x11)`
@@ -267,6 +285,23 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run("bitmap_or(NaN, 1)", func(t *testing.T) {
+		t.Parallel()
+		q := `bitmap_or(NaN, 1)`
+		var resultExpected []netstorage.Result
+		f(q, resultExpected)
+	})
+	t.Run("bitmap_or(round(rand(1) > 0.5, 1), 1)", func(t *testing.T) {
+		t.Parallel()
+		q := `bitmap_or(round(rand(1) > 0.5, 1), 1)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1, 1, 1, nan, nan, 1},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run("bitmap_xor(0xB3, 0x11)", func(t *testing.T) {
 		t.Parallel()
 		q := `bitmap_xor(0xB3, 0x11)`
@@ -284,6 +319,23 @@ func TestExecSuccess(t *testing.T) {
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
 			Values:     []float64{1017, 1185, 1385, 1617, 1817, 1985},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run("bitmap_xor(NaN, 1)", func(t *testing.T) {
+		t.Parallel()
+		q := `bitmap_xor(NaN, 1)`
+		var resultExpected []netstorage.Result
+		f(q, resultExpected)
+	})
+	t.Run("bitmap_xor(round(rand(1) > 0.5, 1), 1)", func(t *testing.T) {
+		t.Parallel()
+		q := `bitmap_xor(round(rand(1) > 0.5, 1), 1)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{0, 0, 0, nan, nan, 0},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r}
