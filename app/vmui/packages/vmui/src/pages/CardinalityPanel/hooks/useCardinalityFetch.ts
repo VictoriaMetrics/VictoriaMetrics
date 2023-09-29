@@ -7,12 +7,14 @@ import AppConfigurator from "../appConfigurator";
 import { useSearchParams } from "react-router-dom";
 import dayjs from "dayjs";
 import { DATE_FORMAT } from "../../../constants/date";
+import { getTenantIdFromUrl } from "../../../utils/tenants";
 
 export const useFetchQuery = (): {
   fetchUrl?: string[],
   isLoading: boolean,
   error?: ErrorTypes | string
   appConfigurator: AppConfigurator,
+  isCluster: boolean,
 } => {
   const appConfigurator = new AppConfigurator();
 
@@ -26,6 +28,7 @@ export const useFetchQuery = (): {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<ErrorTypes | string>();
   const [tsdbStatus, setTSDBStatus] = useState<TSDBStatus>(appConfigurator.defaultTSDBStatus);
+  const [isCluster, setIsCluster] = useState<boolean>(false);
 
   const getResponseJson = async (url: string) => {
     const response = await fetch(url);
@@ -115,6 +118,12 @@ export const useFetchQuery = (): {
     }
   }, [error]);
 
+  useEffect(() => {
+    const id = getTenantIdFromUrl(serverUrl);
+    setIsCluster(!!id);
+  }, [serverUrl]);
+
+
   appConfigurator.tsdbStatusData = tsdbStatus;
-  return { isLoading, appConfigurator: appConfigurator, error };
+  return { isLoading, appConfigurator: appConfigurator, error, isCluster };
 };

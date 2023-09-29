@@ -2372,7 +2372,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -2388,7 +2389,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 4
+            "y": 36
           },
           "id": 92,
           "options": {
@@ -2474,7 +2475,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -2490,7 +2492,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 4
+            "y": 36
           },
           "id": 95,
           "options": {
@@ -2579,7 +2581,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "transparent"
+                    "color": "transparent",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -2595,7 +2598,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 12
+            "y": 44
           },
           "id": 98,
           "options": {
@@ -2684,7 +2687,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "transparent"
+                    "color": "transparent",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -2700,7 +2704,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 12
+            "y": 44
           },
           "id": 99,
           "options": {
@@ -2788,7 +2792,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -2804,7 +2809,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 20
+            "y": 52
           },
           "id": 79,
           "links": [],
@@ -2893,7 +2898,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -2909,7 +2915,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 20
+            "y": 52
           },
           "id": 18,
           "links": [
@@ -3003,7 +3009,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -3019,7 +3026,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 28
+            "y": 60
           },
           "id": 127,
           "links": [],
@@ -3106,7 +3113,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -3122,7 +3130,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 28
+            "y": 60
           },
           "id": 50,
           "options": {
@@ -3165,6 +3173,123 @@
             "type": "prometheus",
             "uid": "$ds"
           },
+          "description": "Shows how many concurrent inserts (parsing and processing of scraped or ingested data) are taking place.\n\nIf the number of concurrent inserts hits the `limit` or is close to the `limit` constantly - it might be a sign of a resource shortage.\n\nIf vmagent's CPU usage and remote write connection saturation are at normal level, it might be that `-maxConcurrentInserts` cmd-line flag needs to be increased.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "links": [],
+              "mappings": [],
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 68
+          },
+          "id": 130,
+          "links": [],
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "9.2.6",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "exemplar": true,
+              "expr": "max_over_time(vm_concurrent_insert_current{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])",
+              "interval": "",
+              "legendFormat": "{{instance}} ({{job}})",
+              "range": true,
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "exemplar": true,
+              "expr": "min(vm_concurrent_insert_capacity{job=~\"$job\", instance=~\"$instance\"}) by(job)",
+              "interval": "",
+              "legendFormat": "limit ({{job}})",
+              "range": true,
+              "refId": "B"
+            }
+          ],
+          "title": "Concurrent inserts ($instance)",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -3180,7 +3305,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -3220,7 +3346,7 @@
             "h": 7,
             "w": 24,
             "x": 0,
-            "y": 36
+            "y": 76
           },
           "id": 129,
           "options": {
@@ -3239,7 +3365,7 @@
               }
             ]
           },
-          "pluginVersion": "9.2.6",
+          "pluginVersion": "9.2.7",
           "targets": [
             {
               "datasource": {
@@ -4062,7 +4188,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 38
+            "y": 85
           },
           "id": 73,
           "links": [],
@@ -4179,7 +4305,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 38
+            "y": 85
           },
           "id": 131,
           "links": [],
@@ -4216,123 +4342,6 @@
             }
           ],
           "title": "Rows rate  ($instance)",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$ds"
-          },
-          "description": "Shows how many concurrent inserts are taking place.\n\nIf the number of concurrent inserts hitting the `limit` or is close to the `limit` constantly - it might be a sign of a resource shortage.\n\n If vmagent's CPU usage and remote write connection saturation are at normal level, it might be that `-maxConcurrentInserts` cmd-line flag need to be increased.",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "drawStyle": "line",
-                "fillOpacity": 0,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "never",
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "links": [],
-              "mappings": [],
-              "min": 0,
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              },
-              "unit": "short"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 0,
-            "y": 46
-          },
-          "id": 130,
-          "links": [],
-          "options": {
-            "legend": {
-              "calcs": [
-                "mean",
-                "lastNotNull",
-                "max"
-              ],
-              "displayMode": "table",
-              "placement": "bottom",
-              "showLegend": true
-            },
-            "tooltip": {
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "pluginVersion": "9.2.6",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "$ds"
-              },
-              "editorMode": "code",
-              "exemplar": true,
-              "expr": "max_over_time(vm_concurrent_insert_current{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])",
-              "interval": "",
-              "legendFormat": "{{instance}} ({{job}})",
-              "range": true,
-              "refId": "A"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "$ds"
-              },
-              "editorMode": "code",
-              "exemplar": true,
-              "expr": "min(vm_concurrent_insert_capacity{job=~\"$job\", instance=~\"$instance\"}) by(job)",
-              "interval": "",
-              "legendFormat": "limit ({{job}})",
-              "range": true,
-              "refId": "B"
-            }
-          ],
-          "title": "Concurrent inserts ($instance)",
           "type": "timeseries"
         },
         {
@@ -4399,8 +4408,8 @@
           "gridPos": {
             "h": 8,
             "w": 12,
-            "x": 12,
-            "y": 46
+            "x": 0,
+            "y": 93
           },
           "id": 77,
           "links": [],

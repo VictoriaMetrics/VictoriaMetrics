@@ -6,8 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 	"github.com/golang/snappy"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 )
 
 func BenchmarkParseProtobufRequest(b *testing.B) {
@@ -28,7 +29,7 @@ func benchmarkParseProtobufRequest(b *testing.B, streams, rows, labels int) {
 	b.RunParallel(func(pb *testing.PB) {
 		body := getProtobufBody(streams, rows, labels)
 		for pb.Next() {
-			_, err := parseProtobufRequest(body, func(timestamp int64, fields []logstorage.Field) {})
+			_, err := parseProtobufRequest(body, func(timestamp int64, fields []logstorage.Field) error { return nil })
 			if err != nil {
 				panic(fmt.Errorf("unexpected error: %s", err))
 			}
