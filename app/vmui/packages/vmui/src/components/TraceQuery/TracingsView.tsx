@@ -89,6 +89,7 @@ const TracingsView: FC<TraceViewProps> = ({ traces, jsonEditor = false, onDelete
               })}
             >
               <NestedNav
+                isRoot
                 trace={trace}
                 totalMsec={trace.duration}
               />
