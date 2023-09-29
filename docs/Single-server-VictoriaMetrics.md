@@ -416,13 +416,16 @@ matching the specified [series selector](https://prometheus.io/docs/prometheus/l
 
 Cardinality explorer is built on top of [/api/v1/status/tsdb](#tsdb-stats).
 
+See [cardinality explorer playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/cardinality).
+See the example of using the cardinality explorer [here](https://victoriametrics.com/blog/cardinality-explorer/).
+
+## Cardinality explorer statistic inaccuracy
+
 In [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) each vmstorage tracks the stored time series individually.
 vmselect requests stats via [/api/v1/status/tsdb](#tsdb-stats) API from each vmstorage node and merges the results by summing per-series stats.
 This may lead to inflated values when samples for the same time series are spread across multiple vmstorage nodes
 due to [replication](#replication) or [rerouting](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html?highlight=re-routes#cluster-availability).
 
-See [cardinality explorer playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/cardinality).
-See the example of using the cardinality explorer [here](https://victoriametrics.com/blog/cardinality-explorer/).
 
 ## How to apply new config to VictoriaMetrics
 
