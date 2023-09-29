@@ -21,11 +21,12 @@ and [the license](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master
 The use of VictoriaMetrics enterprise components is permitted in the following cases:
 
 - Evaluation use in non-production setups. Please, request trial license [here](https://victoriametrics.com/products/enterprise/).
+  Trial key will be sent to your email after filling the trial form.
   Download components from usual places - [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) and [docker hub](https://hub.docker.com/u/victoriametrics).
   Enterprise binaries and packages have `enterprise` suffix in their names.
 
 - Production use if you have a valid enterprise contract or valid permit from VictoriaMetrics company.
-  [Contact us](mailto:info@victoriametrics.com) if you need such contract.
+  [Contact us](mailto:sales@victoriametrics.com) if you need such contract.
 
 - [Managed VictoriaMetrics](https://docs.victoriametrics.com/managed-victoriametrics/) is built on top of enterprise binaries of VictoriaMetrics.
 
@@ -164,6 +165,11 @@ data:
   license: {BASE64_ENCODED_LICENSE_KEY}
 ```
 
+Or create secret via `kubectl`:
+```console
+kubectl create secret generic vm-license --from-literal=license={VM_KEY_VALUE}
+```
+
 ### Kubernetes operator
 
 VictoriaMetrics enterprise components can be deployed via [VictoriaMetrics operator](https://docs.victoriametrics.com/operator/).
@@ -210,6 +216,11 @@ metadata:
 type: Opaque
 data:
   license: {BASE64_ENCODED_LICENSE_KEY}
+```
+
+Or create secret via `kubectl`:
+```console
+kubectl create secret generic vm-license --from-literal=license={VM_KEY_VALUE}
 ```
 
 See full list of CRD specifications [here](https://docs.victoriametrics.com/operator/api.html).
