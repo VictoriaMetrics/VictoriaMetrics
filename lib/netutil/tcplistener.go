@@ -28,9 +28,9 @@ func NewTCPListener(name, addr string, useProxyProtocol bool, tlsConfig *tls.Con
 	network := GetTCPNetwork()
 	listeners, err := activation.ListenersWithNames()
 	if err == nil {
-		sa_ln, ok := listeners[addr]
-		if ok && len(sa_ln) == 1 {
-			ln = sa_ln[0]
+		saLn, ok := listeners[addr]
+		if ok && len(saLn) == 1 {
+			ln = saLn[0]
 		}
 	}
 	if ln == nil {
