@@ -365,6 +365,8 @@ See the [example VMUI at VictoriaMetrics playground](https://play.victoriametric
 * queries with the biggest average execution duration;
 * queries that took the most summary time for execution.
 
+This information is obtained from the `/api/v1/status/top_queries` HTTP endpoint.
+
 ## Active queries
 
 [VMUI](#vmui) provides `active queries` tab, which shows currently execute queries.
@@ -373,6 +375,8 @@ It provides the following information per each query:
 - The query itself, together with the time range and step args passed to [/api/v1/query_range](https://docs.victoriametrics.com/keyConcepts.html#range-query).
 - The duration of the query execution.
 - The client address, who initiated the query execution.
+
+This information is obtained from the `/api/v1/status/active_queries` HTTP endpoint.
 
 ## Metrics explorer
 
@@ -855,7 +859,7 @@ Additionally, VictoriaMetrics provides the following handlers:
 * `/api/v1/series/count` - returns the total number of time series in the database. Some notes:
   * the handler scans all the inverted index, so it can be slow if the database contains tens of millions of time series;
   * the handler may count [deleted time series](#how-to-delete-time-series) additionally to normal time series due to internal implementation restrictions;
-* `/api/v1/status/active_queries` - returns a list of currently running queries.
+* `/api/v1/status/active_queries` - returns the list of currently running queries. This list is also available at [`active queries` page at VMUI](#active-queries).
 * `/api/v1/status/top_queries` - returns the following query lists:
   * the most frequently executed queries - `topByCount`
   * queries with the biggest average execution duration - `topByAvgDuration`
@@ -864,6 +868,8 @@ Additionally, VictoriaMetrics provides the following handlers:
   The number of returned queries can be limited via `topN` query arg. Old queries can be filtered out with `maxLifetime` query arg.
   For example, request to `/api/v1/status/top_queries?topN=5&maxLifetime=30s` would return up to 5 queries per list, which were executed during the last 30 seconds.
   VictoriaMetrics tracks the last `-search.queryStats.lastQueriesCount` queries with durations at least `-search.queryStats.minQueryDuration`.
+
+  See also [`top queries` page at VMUI](#top-queries).
 
 ### Timestamp formats
 
@@ -1815,9 +1821,9 @@ Graphs on the dashboards contain useful hints - hover the `i` icon in the top le
 We recommend setting up [alerts](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#alerts)
 via [vmalert](https://docs.victoriametrics.com/vmalert.html) or via Prometheus.
 
-VictoriaMetrics exposes currently running queries and their execution times at `/api/v1/status/active_queries` page.
+VictoriaMetrics exposes currently running queries and their execution times at [`active queries` page](#active-queries).
 
-VictoriaMetrics exposes queries, which take the most time to execute, at `/api/v1/status/top_queries` page.
+VictoriaMetrics exposes queries, which take the most time to execute, at [`top queries` page](#top-queries).
 
 See also [VictoriaMetrics Monitoring](https://victoriametrics.com/blog/victoriametrics-monitoring/)
 and [troubleshooting docs](https://docs.victoriametrics.com/Troubleshooting.html).
