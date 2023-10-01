@@ -204,7 +204,7 @@ func getAuthTokenFromPath(path string) (*auth.Token, error) {
 	if p.Suffix != "opentsdb/api/put" {
 		return nil, fmt.Errorf("unsupported path requested: %q; expecting 'opentsdb/api/put'", p.Suffix)
 	}
-	return auth.NewToken(p.AuthToken)
+	return auth.NewTokenPossibleMultitenant(p.AuthToken)
 }
 
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
