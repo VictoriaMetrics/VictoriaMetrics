@@ -296,29 +296,40 @@ There are the following most commons reasons for slow data ingestion in Victoria
 Some queries may take more time and resources (CPU, RAM, network bandwidth) than others.
 VictoriaMetrics logs slow queries if their execution time exceeds the duration passed
 to `-search.logSlowQueryDuration` command-line flag (5s by default).
-VictoriaMetrics also provides `/api/v1/status/top_queries` endpoint, which returns
-queries that took the most time to execute.
-See [these docs](https://docs.victoriametrics.com/#prometheus-querying-api-enhancements) for details.
 
-There are the following solutions exist for slow queries:
+VictoriaMetrics provides [`top queries` page at VMUI](https://docs.victoriametrics.com/#top-queries), which shows
+queries that took the most time to execute.
+
+There are the following solutions exist for improving performance of slow queries:
 
 - Adding more CPU and memory to VictoriaMetrics, so it may perform the slow query faster.
-  If you use cluster version of VictoriaMetrics, then migration of `vmselect` nodes to machines
+  If you use cluster version of VictoriaMetrics, then migrating `vmselect` nodes to machines
   with more CPU and RAM should help improving speed for slow queries. Query performance
-  is always limited by resources of one vmselect which processes the query. For example, if 2vCPU cores on `vmselect`
+  is always limited by resources of one `vmselect` which processes the query. For example, if 2vCPU cores on `vmselect`
   isn't enough to process query fast enough, then migrating `vmselect` to a machine with 4vCPU cores should increase heavy query performance by up to 2x.
-  If the line on `Concurrent select` graph form the [official Grafana dashboard for VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#monitoring)
+  If the line on `concurrent select` graph form the [official Grafana dashboard for VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#monitoring)
   is close to the limit, then prefer adding more `vmselect` nodes to the cluster.
   Sometimes adding more `vmstorage` nodes also can help improving the speed for slow queries.
 
 - Rewriting slow queries, so they become faster. Unfortunately it is hard determining
   whether the given query is slow by just looking at it.
-  VictoriaMetrics provides [query tracing](https://docs.victoriametrics.com/#query-tracing) feature,
-  which can help determine the source of slow query.
-  See also [this article](https://valyala.medium.com/how-to-optimize-promql-and-metricsql-queries-85a1b75bf986),
-  which explains how to determine and optimize slow queries.
 
-  In practice many slow queries are generated because of improper use of [subqueries](https://docs.victoriametrics.com/MetricsQL.html#subqueries).
+  The main source of slow queries in practice is [alerting and recording rules](https://docs.victoriametrics.com/vmalert.html#rules)
+  with long lookbehind windows in square brackets. These queries are frequently used in SLI/SLO calculations such as [Sloth](https://github.com/slok/sloth).
+
+  For example, `avg_over_time(up[30d]) > 0.99` needs to read and process
+  all the [raw samples](https://docs.victoriametrics.com/keyConcepts.html#raw-samples)
+  for `up` [time series](https://docs.victoriametrics.com/keyConcepts.html#time-series) over the last 30 days
+  each time it executes. If this query is executed frequently, then it can take significant share of CPU, disk read IO, network bandwidth and RAM.
+  Such queries can be optimized in the following ways:
+
+  - To reduce the lookbehind window in square brackets. For example, `avg_over_time(up[10d])` takes up to 3x less compute resources
+    than `avg_over_time(up[30d])` at VictoriaMetrics.
+  - To increase evaluation interval for alerting and recording rules, so they are executed less frequently.
+    For example, increasing `-evaluationInterval` command-line flag value at [vmalert](https://docs.victoriametrics.com/vmalert.html)
+    from `1m` to `2m` should reduce compute resource usage at VictoriaMetrics by 2x.
+
+  Another source of slow queries is improper use of [subqueries](https://docs.victoriametrics.com/MetricsQL.html#subqueries).
   It is recommended avoiding subqueries if you don't understand clearly how they work.
   It is easy to create a subquery without knowing about it.
   For example, `rate(sum(some_metric))` is implicitly transformed into the following subquery
@@ -334,6 +345,11 @@ There are the following solutions exist for slow queries:
 
   It is likely this query won't return the expected results. Instead, `sum(rate(some_metric))` must be used instead.
   See [this article](https://www.robustperception.io/rate-then-sum-never-sum-then-rate/) for more details.
+
+  VictoriaMetrics provides [query tracing](https://docs.victoriametrics.com/#query-tracing) feature,
+  which can help determining the source of slow query.
+  See also [this article](https://valyala.medium.com/how-to-optimize-promql-and-metricsql-queries-85a1b75bf986),
+  which explains how to determine and optimize slow queries.
 
 
 ## Out of memory errors
