@@ -19,8 +19,7 @@ services:
     container_name: grafana
     image: grafana/grafana:9.2.7
     depends_on:
-      - "vmselect-1"
-      - "vmselect-2"
+      - "vmauth"
     ports:
       - 3000:3000
     restart: always
@@ -116,8 +115,7 @@ services:
     container_name: vmalert
     image: victoriametrics/vmalert:v1.93.5
     depends_on:
-      - "vmselect-1"
-      - "vmselect-2"
+      - "vmauth"
     ports:
       - 8880:8880
     volumes:
