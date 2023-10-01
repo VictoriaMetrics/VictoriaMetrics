@@ -634,45 +634,41 @@ func needAssistedMerge(pws []*partWrapper, maxParts int) bool {
 }
 
 func (pt *partition) assistedMergeForInmemoryParts() {
-	for {
-		pt.partsLock.Lock()
-		needMerge := needAssistedMerge(pt.inmemoryParts, maxInmemoryPartsPerPartition)
-		pt.partsLock.Unlock()
-		if !needMerge {
-			return
-		}
-
-		atomic.AddUint64(&pt.inmemoryAssistedMerges, 1)
-		err := pt.mergeInmemoryParts()
-		if err == nil {
-			continue
-		}
-		if errors.Is(err, errNothingToMerge) || errors.Is(err, errForciblyStopped) {
-			return
-		}
-		logger.Panicf("FATAL: cannot merge inmemory parts: %s", err)
+	pt.partsLock.Lock()
+	needMerge := needAssistedMerge(pt.inmemoryParts, maxInmemoryPartsPerPartition)
+	pt.partsLock.Unlock()
+	if !needMerge {
+		return
 	}
+
+	atomic.AddUint64(&pt.inmemoryAssistedMerges, 1)
+	err := pt.mergeInmemoryParts()
+	if err == nil {
+		return
+	}
+	if errors.Is(err, errNothingToMerge) || errors.Is(err, errForciblyStopped) {
+		return
+	}
+	logger.Panicf("FATAL: cannot merge inmemory parts: %s", err)
 }
 
 func (pt *partition) assistedMergeForSmallParts() {
-	for {
-		pt.partsLock.Lock()
-		needMerge := needAssistedMerge(pt.smallParts, maxSmallPartsPerPartition)
-		pt.partsLock.Unlock()
-		if !needMerge {
-			return
-		}
-
-		atomic.AddUint64(&pt.smallAssistedMerges, 1)
-		err := pt.mergeExistingParts(false)
-		if err == nil {
-			continue
-		}
-		if errors.Is(err, errNothingToMerge) || errors.Is(err, errForciblyStopped) || errors.Is(err, errReadOnlyMode) {
-			return
-		}
-		logger.Panicf("FATAL: cannot merge small parts: %s", err)
+	pt.partsLock.Lock()
+	needMerge := needAssistedMerge(pt.smallParts, maxSmallPartsPerPartition)
+	pt.partsLock.Unlock()
+	if !needMerge {
+		return
 	}
+
+	atomic.AddUint64(&pt.smallAssistedMerges, 1)
+	err := pt.mergeExistingParts(false)
+	if err == nil {
+		return
+	}
+	if errors.Is(err, errNothingToMerge) || errors.Is(err, errForciblyStopped) || errors.Is(err, errReadOnlyMode) {
+		return
+	}
+	logger.Panicf("FATAL: cannot merge small parts: %s", err)
 }
 
 func getNotInMergePartsCount(pws []*partWrapper) int {
