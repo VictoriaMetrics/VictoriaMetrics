@@ -1018,6 +1018,14 @@ func SetFinalMergeDelay(delay time.Duration) {
 
 var errNothingToMerge = fmt.Errorf("nothing to merge")
 
+func assertIsInMerge(pws []*partWrapper) {
+	for _, pw := range pws {
+		if !pw.isInMerge {
+			logger.Panicf("BUG: partWrapper.isInMerge unexpectedly set to false")
+		}
+	}
+}
+
 func (tb *Table) releasePartsToMerge(pws []*partWrapper) {
 	tb.partsLock.Lock()
 	for _, pw := range pws {
@@ -1036,11 +1044,15 @@ func (tb *Table) releasePartsToMerge(pws []*partWrapper) {
 // If isFinal is set, then the resulting part will be stored to disk.
 //
 // All the parts inside pws must have isInMerge field set to true.
+// The isInMerge field inside pws parts is set to false before returning from the function.
 func (tb *Table) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFinal bool) error {
 	if len(pws) == 0 {
 		// Nothing to merge.
 		return errNothingToMerge
 	}
+
+	assertIsInMerge(pws)
+	defer tb.releasePartsToMerge(pws)
 
 	startTime := time.Now()
 
@@ -1091,7 +1103,6 @@ func (tb *Table) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFinal 
 		putBlockStreamReader(bsr)
 	}
 	if err != nil {
-		tb.releasePartsToMerge(pws)
 		return err
 	}
 	if mpNew != nil {

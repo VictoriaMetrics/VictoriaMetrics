@@ -1163,6 +1163,14 @@ func (pt *partition) mergeExistingParts(isFinal bool) error {
 	return pt.mergeParts(pws, pt.stopCh, isFinal)
 }
 
+func assertIsInMerge(pws []*partWrapper) {
+	for _, pw := range pws {
+		if !pw.isInMerge {
+			logger.Panicf("BUG: partWrapper.isInMerge unexpectedly set to false")
+		}
+	}
+}
+
 func (pt *partition) releasePartsToMerge(pws []*partWrapper) {
 	pt.partsLock.Lock()
 	for _, pw := range pws {
@@ -1222,11 +1230,15 @@ func getMinDedupInterval(pws []*partWrapper) int64 {
 // if isFinal is set, then the resulting part will be saved to disk.
 //
 // All the parts inside pws must have isInMerge field set to true.
+// The isInMerge field inside pws parts is set to false before returning from the function.
 func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFinal bool) error {
 	if len(pws) == 0 {
 		// Nothing to merge.
 		return errNothingToMerge
 	}
+
+	assertIsInMerge(pws)
+	defer pt.releasePartsToMerge(pws)
 
 	startTime := time.Now()
 
@@ -1278,7 +1290,6 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFi
 		putBlockStreamReader(bsr)
 	}
 	if err != nil {
-		pt.releasePartsToMerge(pws)
 		return err
 	}
 	if mpNew != nil {
