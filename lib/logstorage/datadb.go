@@ -191,7 +191,8 @@ func mustOpenDatadb(pt *partition, path string, flushInterval time.Duration, isR
 //
 // This function must be called under partsLock.
 func (ddb *datadb) startInmemoryPartsFlusherLocked() {
-	if ddb.inmemoryPartsFlushersCount >= 1 {
+	maxWorkers := getMergeWorkersCount()
+	if ddb.inmemoryPartsFlushersCount >= maxWorkers {
 		return
 	}
 	ddb.inmemoryPartsFlushersCount++
@@ -246,7 +247,8 @@ func (ddb *datadb) startMergeWorkerLocked() {
 	if ddb.IsReadOnly() {
 		return
 	}
-	if ddb.mergeWorkersCount >= getMergeWorkersCount() {
+	maxWorkers := getMergeWorkersCount()
+	if ddb.mergeWorkersCount >= maxWorkers {
 		return
 	}
 	ddb.mergeWorkersCount++
@@ -354,6 +356,7 @@ var errReadOnly = errors.New("the storage is in read-only mode")
 // if isFinal is set, then the resulting part will be saved to disk.
 //
 // All the parts inside pws must have isInMerge field set to true.
+// The isInMerge field inside pws parts is set to false before returning from the function.
 func (ddb *datadb) mergeParts(pws []*partWrapper, isFinal bool) error {
 	if len(pws) == 0 {
 		// Nothing to merge.
