@@ -1697,7 +1697,8 @@ See [these docs](https://docs.victoriametrics.com/guides/guide-vmcluster-multipl
 which allow configuring multiple retentions for distinct sets of time series matching the configured [series filters](https://docs.victoriametrics.com/keyConcepts.html#filtering)
 via `-retentionFilter` command-line flag. This flag accepts `filter:duration` options, where `filter` must be
 a valid [series filter](https://docs.victoriametrics.com/keyConcepts.html#filtering), while the `duration`
-must contain valid [retention](#retention) for time series matching the given `filter`. If series doesn't match
+must contain valid [retention](#retention) for time series matching the given `filter`. The `duration` of the retention filter must be lower or equal to [-retentionPeriod](#retention)
+flag value, because retention period has higher priority and always delete data outside the configured retention. If series doesn't match
 any configured `-retentionFilter`, then the retention configured via [-retentionPeriod](#retention) command-line flag is applied to it.
 If series matches multiple configured retention filters, then the smallest retention is applied.
 
