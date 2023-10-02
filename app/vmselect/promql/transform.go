@@ -2590,10 +2590,12 @@ func newTransformBitmap(bitmapFunc func(a, b uint64) uint64) func(tfa *transform
 		}
 		tf := func(values []float64) {
 			for i, v := range values {
-				if math.IsNaN(v) {
-					continue
+				w := ns[i]
+				result := nan
+				if !math.IsNaN(v) && !math.IsNaN(w) {
+					result = float64(bitmapFunc(uint64(v), uint64(w)))
 				}
-				values[i] = float64(bitmapFunc(uint64(v), uint64(ns[i])))
+				values[i] = result
 			}
 		}
 		return doTransformValues(args[0], tf, tfa.fe)
