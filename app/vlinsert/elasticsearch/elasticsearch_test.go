@@ -15,9 +15,8 @@ func TestReadBulkRequestFailure(t *testing.T) {
 	f := func(data string) {
 		t.Helper()
 
-		processLogMessage := func(timestamp int64, fields []logstorage.Field) error {
+		processLogMessage := func(timestamp int64, fields []logstorage.Field) {
 			t.Fatalf("unexpected call to processLogMessage with timestamp=%d, fields=%s", timestamp, fields)
-			return nil
 		}
 
 		r := bytes.NewBufferString(data)
@@ -44,7 +43,7 @@ func TestReadBulkRequestSuccess(t *testing.T) {
 
 		var timestamps []int64
 		var result string
-		processLogMessage := func(timestamp int64, fields []logstorage.Field) error {
+		processLogMessage := func(timestamp int64, fields []logstorage.Field) {
 			timestamps = append(timestamps, timestamp)
 
 			a := make([]string, len(fields))
@@ -53,7 +52,6 @@ func TestReadBulkRequestSuccess(t *testing.T) {
 			}
 			s := "{" + strings.Join(a, ",") + "}\n"
 			result += s
-			return nil
 		}
 
 		// Read the request without compression

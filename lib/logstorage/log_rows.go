@@ -7,7 +7,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 )
 
-// LogRows holds a set of rows needed for Storage.AddRows
+// LogRows holds a set of rows needed for Storage.MustAddRows
 //
 // LogRows must be obtained via GetLogRows()
 type LogRows struct {

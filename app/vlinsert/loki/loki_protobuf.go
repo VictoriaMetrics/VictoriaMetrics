@@ -39,19 +39,17 @@ func handleProtobuf(r *http.Request, w http.ResponseWriter) bool {
 		httpserver.Errorf(w, r, "cannot parse common params from request: %s", err)
 		return true
 	}
+	if err := vlstorage.CanWriteData(); err != nil {
+		httpserver.Errorf(w, r, "%s", err)
+		return true
+	}
 	lr := logstorage.GetLogRows(cp.StreamFields, cp.IgnoreFields)
 	processLogMessage := cp.GetProcessLogMessageFunc(lr)
 	n, err := parseProtobufRequest(data, processLogMessage)
-	if err != nil {
-		logstorage.PutLogRows(lr)
-		httpserver.Errorf(w, r, "cannot parse Loki request: %s", err)
-		return true
-	}
-
-	err = vlstorage.AddRows(lr)
+	vlstorage.MustAddRows(lr)
 	logstorage.PutLogRows(lr)
 	if err != nil {
-		httpserver.Errorf(w, r, "cannot insert rows: %s", err)
+		httpserver.Errorf(w, r, "cannot parse Loki protobuf request: %s", err)
 		return true
 	}
 
@@ -71,7 +69,7 @@ var (
 	lokiRequestProtobufDuration = metrics.NewHistogram(`vl_http_request_duration_seconds{path="/insert/loki/api/v1/push",format="protobuf"}`)
 )
 
-func parseProtobufRequest(data []byte, processLogMessage func(timestamp int64, fields []logstorage.Field) error) (int, error) {
+func parseProtobufRequest(data []byte, processLogMessage func(timestamp int64, fields []logstorage.Field)) (int, error) {
 	bb := bytesBufPool.Get()
 	defer bytesBufPool.Put(bb)
 
@@ -114,10 +112,7 @@ func parseProtobufRequest(data []byte, processLogMessage func(timestamp int64, f
 			if ts == 0 {
 				ts = currentTimestamp
 			}
-			err = processLogMessage(ts, fields)
-			if err != nil {
-				return rowsIngested, err
-			}
+			processLogMessage(ts, fields)
 		}
 		rowsIngested += len(stream.Entries)
 	}

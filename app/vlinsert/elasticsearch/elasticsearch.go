@@ -94,18 +94,19 @@ func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
+		if err := vlstorage.CanWriteData(); err != nil {
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
 		lr := logstorage.GetLogRows(cp.StreamFields, cp.IgnoreFields)
 		processLogMessage := cp.GetProcessLogMessageFunc(lr)
 		isGzip := r.Header.Get("Content-Encoding") == "gzip"
 		n, err := readBulkRequest(r.Body, isGzip, cp.TimeField, cp.MsgField, processLogMessage)
+		vlstorage.MustAddRows(lr)
+		logstorage.PutLogRows(lr)
 		if err != nil {
 			logger.Warnf("cannot decode log message #%d in /_bulk request: %s", n, err)
 			return true
-		}
-		err = vlstorage.AddRows(lr)
-		logstorage.PutLogRows(lr)
-		if err != nil {
-			httpserver.Errorf(w, r, "cannot insert rows: %s", err)
 		}
 
 		tookMs := time.Since(startTime).Milliseconds()
@@ -132,7 +133,7 @@ var (
 )
 
 func readBulkRequest(r io.Reader, isGzip bool, timeField, msgField string,
-	processLogMessage func(timestamp int64, fields []logstorage.Field) error,
+	processLogMessage func(timestamp int64, fields []logstorage.Field),
 ) (int, error) {
 	// See https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-bulk.html
 
@@ -175,7 +176,7 @@ func readBulkRequest(r io.Reader, isGzip bool, timeField, msgField string,
 var lineBufferPool bytesutil.ByteBufferPool
 
 func readBulkLine(sc *bufio.Scanner, timeField, msgField string,
-	processLogMessage func(timestamp int64, fields []logstorage.Field) error,
+	processLogMessage func(timestamp int64, fields []logstorage.Field),
 ) (bool, error) {
 	var line []byte
 
@@ -222,11 +223,8 @@ func readBulkLine(sc *bufio.Scanner, timeField, msgField string,
 		ts = time.Now().UnixNano()
 	}
 	p.RenameField(msgField, "_msg")
-	err = processLogMessage(ts, p.Fields)
+	processLogMessage(ts, p.Fields)
 	logjson.PutParser(p)
-	if err != nil {
-		return false, err
-	}
 
 	return true, nil
 }

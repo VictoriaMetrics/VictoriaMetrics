@@ -72,13 +72,13 @@ func GetCommonParams(r *http.Request) (*CommonParams, error) {
 }
 
 // GetProcessLogMessageFunc returns a function, which adds parsed log messages to lr.
-func (cp *CommonParams) GetProcessLogMessageFunc(lr *logstorage.LogRows) func(timestamp int64, fields []logstorage.Field) error {
-	return func(timestamp int64, fields []logstorage.Field) error {
+func (cp *CommonParams) GetProcessLogMessageFunc(lr *logstorage.LogRows) func(timestamp int64, fields []logstorage.Field) {
+	return func(timestamp int64, fields []logstorage.Field) {
 		if len(fields) > *MaxFieldsPerLine {
 			rf := logstorage.RowFormatter(fields)
 			logger.Warnf("dropping log line with %d fields; it exceeds -insert.maxFieldsPerLine=%d; %s", len(fields), *MaxFieldsPerLine, rf)
 			rowsDroppedTotalTooManyFields.Inc()
-			return nil
+			return
 		}
 
 		lr.MustAdd(cp.TenantID, timestamp, fields)
@@ -87,14 +87,12 @@ func (cp *CommonParams) GetProcessLogMessageFunc(lr *logstorage.LogRows) func(ti
 			lr.ResetKeepSettings()
 			logger.Infof("remoteAddr=%s; requestURI=%s; ignoring log entry because of `debug` query arg: %s", cp.DebugRemoteAddr, cp.DebugRequestURI, s)
 			rowsDroppedTotalDebug.Inc()
-			return nil
+			return
 		}
 		if lr.NeedFlush() {
-			err := vlstorage.AddRows(lr)
+			vlstorage.MustAddRows(lr)
 			lr.ResetKeepSettings()
-			return err
 		}
-		return nil
 	}
 }
 
