@@ -36,6 +36,10 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		httpserver.Errorf(w, r, "%s", err)
 		return true
 	}
+	if err := vlstorage.CanWriteData(); err != nil {
+		httpserver.Errorf(w, r, "%s", err)
+		return true
+	}
 	lr := logstorage.GetLogRows(cp.StreamFields, cp.IgnoreFields)
 	processLogMessage := cp.GetProcessLogMessageFunc(lr)
 
@@ -115,6 +119,7 @@ func readLine(sc *bufio.Scanner, timeField, msgField string, processLogMessage f
 	p.RenameField(msgField, "_msg")
 	processLogMessage(ts, p.Fields)
 	logjson.PutParser(p)
+
 	return true, nil
 }
 

@@ -111,6 +111,12 @@ func maySortResults(e metricsql.Expr) bool {
 			"bottomk_max", "bottomk_min", "bottomk_avg", "bottomk_median", "bottomk_last":
 			return false
 		}
+	case *metricsql.BinaryOpExpr:
+		if strings.ToLower(v.Op) == "or" {
+			// Do not sort results for `a or b` in the same way as Prometheus does.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4763
+			return false
+		}
 	}
 	return true
 }

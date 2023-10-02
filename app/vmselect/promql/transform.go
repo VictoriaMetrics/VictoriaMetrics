@@ -11,12 +11,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/VictoriaMetrics/metricsql"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
-	"github.com/VictoriaMetrics/metricsql"
 )
 
 var transformFuncs = map[string]transformFunc{
@@ -2589,7 +2590,12 @@ func newTransformBitmap(bitmapFunc func(a, b uint64) uint64) func(tfa *transform
 		}
 		tf := func(values []float64) {
 			for i, v := range values {
-				values[i] = float64(bitmapFunc(uint64(v), uint64(ns[i])))
+				w := ns[i]
+				result := nan
+				if !math.IsNaN(v) && !math.IsNaN(w) {
+					result = float64(bitmapFunc(uint64(v), uint64(w)))
+				}
+				values[i] = result
 			}
 		}
 		return doTransformValues(args[0], tf, tfa.fe)

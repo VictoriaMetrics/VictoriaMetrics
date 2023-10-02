@@ -331,6 +331,33 @@ to add a [custom audit logging] header:
 	// Use client as usual with the context and the additional headers will be sent.
 	client.Bucket("my-bucket").Attrs(ctx)
 
+# Experimental gRPC API
+
+This package includes support for the Cloud Storage gRPC API, which is currently
+in preview. This implementation uses gRPC rather than the current JSON & XML
+APIs to make requests to Cloud Storage. If you would like to try the API,
+please contact your GCP account rep for more information. The gRPC API is not
+yet generally available, so it may be subject to breaking changes.
+
+To create a client which will use gRPC, use the alternate constructor:
+
+	ctx := context.Background()
+	client, err := storage.NewGRPCClient(ctx)
+	if err != nil {
+		// TODO: Handle error.
+	}
+	// Use client as usual.
+
+If the application is running within GCP, users may get better performance by
+enabling DirectPath (enabling requests to skip some proxy steps). To enable,
+set the environment variable `GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS=true` and add
+the following side-effect imports to your application:
+
+	import (
+		_ "google.golang.org/grpc/balancer/rls"
+		_ "google.golang.org/grpc/xds/googledirectpath"
+	)
+
 [Cloud Storage IAM docs]: https://cloud.google.com/storage/docs/access-control/iam
 [XML POST Object docs]: https://cloud.google.com/storage/docs/xml-api/post-object
 [Cloud Storage retry docs]: https://cloud.google.com/storage/docs/retry-strategy

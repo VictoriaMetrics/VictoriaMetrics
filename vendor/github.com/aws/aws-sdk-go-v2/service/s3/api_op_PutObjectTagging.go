@@ -20,10 +20,10 @@ import (
 )
 
 // Sets the supplied tag-set to an object that already exists in a bucket. A tag
-// is a key-value pair. You can associate tags with an object by sending a PUT
-// request against the tagging subresource that is associated with the object. You
-// can retrieve tags by sending a GET request. For more information, see
-// GetObjectTagging (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectTagging.html)
+// is a key-value pair. For more information, see Object Tagging (https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-tagging.html)
+// . You can associate tags with an object by sending a PUT request against the
+// tagging subresource that is associated with the object. You can retrieve tags by
+// sending a GET request. For more information, see GetObjectTagging (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectTagging.html)
 // . For tagging-related restrictions related to characters and encodings, see Tag
 // Restrictions (https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/allocation-tag-restrictions.html)
 // . Note that Amazon S3 limits the maximum number of tags to 10 tags per object.
@@ -31,20 +31,18 @@ import (
 // s3:PutObjectTagging action. By default, the bucket owner has this permission and
 // can grant this permission to others. To put tags of any other version, use the
 // versionId query parameter. You also need permission for the
-// s3:PutObjectVersionTagging action. For information about the Amazon S3 object
-// tagging feature, see Object Tagging (https://docs.aws.amazon.com/AmazonS3/latest/dev/object-tagging.html)
-// . PutObjectTagging has the following special errors:
-//   - Code: InvalidTagError
-//   - Cause: The tag provided was not a valid tag. This error can occur if the
-//     tag did not pass input validation. For more information, see Object Tagging (https://docs.aws.amazon.com/AmazonS3/latest/dev/object-tagging.html)
+// s3:PutObjectVersionTagging action. PutObjectTagging has the following special
+// errors. For more Amazon S3 errors see, Error Responses (https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html)
+// .
+//   - InvalidTag - The tag provided was not a valid tag. This error can occur if
+//     the tag did not pass input validation. For more information, see Object
+//     Tagging (https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-tagging.html)
 //     .
-//   - Code: MalformedXMLError
-//   - Cause: The XML provided does not match the schema.
-//   - Code: OperationAbortedError
-//   - Cause: A conflicting conditional action is currently in progress against
-//     this resource. Please try again.
-//   - Code: InternalError
-//   - Cause: The service was unable to apply the provided tag to the object.
+//   - MalformedXML - The XML provided does not match the schema.
+//   - OperationAborted - A conflicting conditional action is currently in progress
+//     against this resource. Please try again.
+//   - InternalError - The service was unable to apply the provided tag to the
+//     object.
 //
 // The following operations are related to PutObjectTagging :
 //   - GetObjectTagging (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectTagging.html)
@@ -116,9 +114,11 @@ type PutObjectTaggingInput struct {
 	ExpectedBucketOwner *string
 
 	// Confirms that the requester knows that they will be charged for the request.
-	// Bucket owners need not specify this parameter in their requests. For information
-	// about downloading objects from Requester Pays buckets, see Downloading Objects
-	// in Requester Pays Buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
+	// Bucket owners need not specify this parameter in their requests. If either the
+	// source or destination Amazon S3 bucket has Requester Pays enabled, the requester
+	// will pay for corresponding charges to copy the object. For information about
+	// downloading objects from Requester Pays buckets, see Downloading Objects in
+	// Requester Pays Buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
 	// in the Amazon S3 User Guide.
 	RequestPayer types.RequestPayer
 

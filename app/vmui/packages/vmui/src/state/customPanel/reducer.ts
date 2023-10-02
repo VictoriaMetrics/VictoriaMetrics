@@ -27,7 +27,7 @@ export const initialCustomPanelState: CustomPanelState = {
   displayType: (displayType?.value || "chart") as DisplayType,
   nocache: false,
   isTracingEnabled: false,
-  seriesLimits: limitsStorage ? JSON.parse(getFromStorage("SERIES_LIMITS") as string) : DEFAULT_MAX_SERIES,
+  seriesLimits: limitsStorage ? JSON.parse(limitsStorage) : DEFAULT_MAX_SERIES,
   tableCompact: getFromStorage("TABLE_COMPACT") as boolean || false,
 };
 

@@ -23,6 +23,7 @@ where you can chat with VictoriaMetrics users to get additional references, revi
   - [Brandwatch](#brandwatch)
   - [CERN](#cern)
   - [COLOPL](#colopl)
+  - [Criteo](#criteo)
   - [Dig Security](#dig-security)
   - [Fly.io](#flyio)
   - [German Research Center for Artificial Intelligence](#german-research-center-for-artificial-intelligence)
@@ -241,6 +242,13 @@ after evaulating the following remote storage solutions for Prometheus:
 
 See [slides](https://speakerdeck.com/inletorder/monitoring-platform-with-victoria-metrics) and [video](https://www.youtube.com/watch?v=hUpHIluxw80)
 from `Large-scale, super-load system monitoring platform built with VictoriaMetrics` talk at [Prometheus Meetup Tokyo #3](https://prometheus.connpass.com/event/157721/).
+
+## Criteo
+
+[Criteo](https://www.criteo.com/) is a global technology company that helps marketers and media owners reach their goals through the world’s leading Commerce Media Platform.
+
+See [this blog post](https://medium.com/criteo-engineering/victoriametrics-a-prometheus-remote-storage-solution-57081a3d8e61) on how Criteo started using VictoriaMetrics
+and why they prefer VictoriaMetrics over competing solutions.
 
 ## Dig Security
 

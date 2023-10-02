@@ -11,6 +11,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/csvimport"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/datadog"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/graphite"
@@ -39,7 +41,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
-	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
@@ -208,7 +209,7 @@ func getAuthTokenFromPath(path string) (*auth.Token, error) {
 	if p.Suffix != "opentsdb/api/put" {
 		return nil, fmt.Errorf("unsupported path requested: %q; expecting 'opentsdb/api/put'", p.Suffix)
 	}
-	return auth.NewToken(p.AuthToken)
+	return auth.NewTokenPossibleMultitenant(p.AuthToken)
 }
 
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
@@ -251,7 +252,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		w.WriteHeader(statusCode)
 		return true
 	}
-	if strings.HasPrefix(path, "datadog/") {
+	if strings.HasPrefix(path, "/datadog/") {
 		// Trim suffix from paths starting from /datadog/ in order to support legacy DataDog agent.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2670
 		path = strings.TrimSuffix(path, "/")

@@ -110,6 +110,7 @@ Case studies:
 * [Brandwatch](https://docs.victoriametrics.com/CaseStudies.html#brandwatch)
 * [CERN](https://docs.victoriametrics.com/CaseStudies.html#cern)
 * [COLOPL](https://docs.victoriametrics.com/CaseStudies.html#colopl)
+* [Criteo](https://docs.victoriametrics.com/CaseStudies.html#criteo)
 * [Dig Security](https://docs.victoriametrics.com/CaseStudies.html#dig-security)
 * [Fly.io](https://docs.victoriametrics.com/CaseStudies.html#flyio)
 * [German Research Center for Artificial Intelligence](https://docs.victoriametrics.com/CaseStudies.html#german-research-center-for-artificial-intelligence)
@@ -364,6 +365,8 @@ See the [example VMUI at VictoriaMetrics playground](https://play.victoriametric
 * queries with the biggest average execution duration;
 * queries that took the most summary time for execution.
 
+This information is obtained from the `/api/v1/status/top_queries` HTTP endpoint.
+
 ## Active queries
 
 [VMUI](#vmui) provides `active queries` tab, which shows currently execute queries.
@@ -372,6 +375,8 @@ It provides the following information per each query:
 - The query itself, together with the time range and step args passed to [/api/v1/query_range](https://docs.victoriametrics.com/keyConcepts.html#range-query).
 - The duration of the query execution.
 - The client address, who initiated the query execution.
+
+This information is obtained from the `/api/v1/status/active_queries` HTTP endpoint.
 
 ## Metrics explorer
 
@@ -404,13 +409,15 @@ matching the specified [series selector](https://prometheus.io/docs/prometheus/l
 
 Cardinality explorer is built on top of [/api/v1/status/tsdb](#tsdb-stats).
 
+See [cardinality explorer playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/cardinality).
+See the example of using the cardinality explorer [here](https://victoriametrics.com/blog/cardinality-explorer/).
+
+## Cardinality explorer statistic inaccuracy
+
 In [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) each vmstorage tracks the stored time series individually.
 vmselect requests stats via [/api/v1/status/tsdb](#tsdb-stats) API from each vmstorage node and merges the results by summing per-series stats.
 This may lead to inflated values when samples for the same time series are spread across multiple vmstorage nodes
 due to [replication](#replication) or [rerouting](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html?highlight=re-routes#cluster-availability).
-
-See [cardinality explorer playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/cardinality).
-See the example of using the cardinality explorer [here](https://victoriametrics.com/blog/cardinality-explorer/).
 
 ## How to apply new config to VictoriaMetrics
 
@@ -615,6 +622,28 @@ For example, `/write?extra_label=foo=bar` would add `{foo="bar"}` label to all t
 Some plugins for Telegraf such as [fluentd](https://github.com/fangli/fluent-plugin-influxdb), [Juniper/open-nti](https://github.com/Juniper/open-nti)
 or [Juniper/jitmon](https://github.com/Juniper/jtimon) send `SHOW DATABASES` query to `/query` and expect a particular database name in the response.
 Comma-separated list of expected databases can be passed to VictoriaMetrics via `-influx.databaseNames` command-line flag.
+
+### How to send data in InfluxDB v2 format
+
+VictoriaMetrics exposes endpoint for InfluxDB v2 HTTP API at `/influx/api/v2/write` and `/api/v2/write`.
+
+
+In order to write data with InfluxDB line protocol to local VictoriaMetrics using `curl`:
+
+<div class="with-copy" markdown="1">
+
+```console
+curl -d 'measurement,tag1=value1,tag2=value2 field1=123,field2=1.23' -X POST 'http://localhost:8428/api/v2/write'
+```
+
+</div>
+
+The `/api/v1/export` endpoint should return the following response:
+
+```json
+{"metric":{"__name__":"measurement_field1","tag1":"value1","tag2":"value2"},"values":[123],"timestamps":[1695902762311]}
+{"metric":{"__name__":"measurement_field2","tag1":"value1","tag2":"value2"},"values":[1.23],"timestamps":[1695902762311]}
+```
 
 ## How to send data from Graphite-compatible agents such as [StatsD](https://github.com/etsy/statsd)
 
@@ -830,7 +859,7 @@ Additionally, VictoriaMetrics provides the following handlers:
 * `/api/v1/series/count` - returns the total number of time series in the database. Some notes:
   * the handler scans all the inverted index, so it can be slow if the database contains tens of millions of time series;
   * the handler may count [deleted time series](#how-to-delete-time-series) additionally to normal time series due to internal implementation restrictions;
-* `/api/v1/status/active_queries` - returns a list of currently running queries.
+* `/api/v1/status/active_queries` - returns the list of currently running queries. This list is also available at [`active queries` page at VMUI](#active-queries).
 * `/api/v1/status/top_queries` - returns the following query lists:
   * the most frequently executed queries - `topByCount`
   * queries with the biggest average execution duration - `topByAvgDuration`
@@ -839,6 +868,8 @@ Additionally, VictoriaMetrics provides the following handlers:
   The number of returned queries can be limited via `topN` query arg. Old queries can be filtered out with `maxLifetime` query arg.
   For example, request to `/api/v1/status/top_queries?topN=5&maxLifetime=30s` would return up to 5 queries per list, which were executed during the last 30 seconds.
   VictoriaMetrics tracks the last `-search.queryStats.lastQueriesCount` queries with durations at least `-search.queryStats.minQueryDuration`.
+
+  See also [`top queries` page at VMUI](#top-queries).
 
 ### Timestamp formats
 
@@ -1654,9 +1685,10 @@ See [these docs](https://docs.victoriametrics.com/guides/guide-vmcluster-multipl
 which allow configuring multiple retentions for distinct sets of time series matching the configured [series filters](https://docs.victoriametrics.com/keyConcepts.html#filtering)
 via `-retentionFilter` command-line flag. This flag accepts `filter:duration` options, where `filter` must be
 a valid [series filter](https://docs.victoriametrics.com/keyConcepts.html#filtering), while the `duration`
-must contain valid [retention](#retention) for time series matching the given `filter`. If series doesn't match
-any configured `-retentionFilter`, then the retention configured via [-retentionPeriod](#retention) command-line flag is applied to it.
-If series matches multiple configured retention filters, then the smallest retention is applied.
+must contain valid [retention](#retention) for time series matching the given `filter`. 
+The `duration` of the `-retentionFilter` must be lower or equal to [-retentionPeriod](#retention) flag value.
+If series doesn't match any configured `-retentionFilter`, then the retention configured via [-retentionPeriod](#retention) 
+command-line flag is applied to it. If series matches multiple configured retention filters, then the smallest retention is applied.
 
 For example, the following config sets 3 days retention for time series with `team="juniors"` label,
 30 days retention for time series with `env="dev"` or `env="staging"` label and 1 year retention for the remaining time series:
@@ -1790,9 +1822,9 @@ Graphs on the dashboards contain useful hints - hover the `i` icon in the top le
 We recommend setting up [alerts](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#alerts)
 via [vmalert](https://docs.victoriametrics.com/vmalert.html) or via Prometheus.
 
-VictoriaMetrics exposes currently running queries and their execution times at `/api/v1/status/active_queries` page.
+VictoriaMetrics exposes currently running queries and their execution times at [`active queries` page](#active-queries).
 
-VictoriaMetrics exposes queries, which take the most time to execute, at `/api/v1/status/top_queries` page.
+VictoriaMetrics exposes queries, which take the most time to execute, at [`top queries` page](#top-queries).
 
 See also [VictoriaMetrics Monitoring](https://victoriametrics.com/blog/victoriametrics-monitoring/)
 and [troubleshooting docs](https://docs.victoriametrics.com/Troubleshooting.html).
@@ -1937,9 +1969,6 @@ and [cardinality explorer docs](#cardinality-explorer).
   has at least 20% of free space. The remaining amount of free space
   can be [monitored](#monitoring) via `vm_free_disk_space_bytes` metric. The total size of data
   stored on the disk can be monitored via sum of `vm_data_size_bytes` metrics.
-  See also `vm_merge_need_free_disk_space` metrics, which are set to values higher than 0
-  if background merge cannot be initiated due to free disk space shortage. The value shows the number of per-month partitions,
-  which would start background merge if they had more free disk space.
 
 * VictoriaMetrics buffers incoming data in memory for up to a few seconds before flushing it to persistent storage.
   This may lead to the following "issues":

@@ -6,8 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 	"github.com/golang/snappy"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 )
 
 func BenchmarkParseProtobufRequest(b *testing.B) {

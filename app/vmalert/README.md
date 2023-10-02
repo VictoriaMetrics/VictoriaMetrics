@@ -526,7 +526,7 @@ Alertmanagers.
 
 To avoid recording rules results and alerts state duplication in VictoriaMetrics server
 don't forget to configure [deduplication](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#deduplication).
-The recommended value for `-dedup.minScrapeInterval` must be multiple of vmalert's `evaluation_interval`.
+The recommended value for `-dedup.minScrapeInterval` must be multiple of vmalert's `-evaluationInterval`.
 If you observe inconsistent or "jumping" values in series produced by vmalert, try disabling `-datasource.queryTimeAlignment`
 command line flag. Because of alignment, two or more vmalert HA pairs will produce results with the same timestamps.
 But due of backfilling (data delivered to the datasource with some delay) values of such results may differ,
@@ -778,7 +778,7 @@ may get empty response from the datasource and produce empty recording rules or 
 
 Try the following recommendations to reduce the chance of hitting the data delay issue:
 
-* Always configure group's `evaluationInterval` to be bigger or at least equal to 
+* Always configure group's `-evaluationInterval` to be bigger or at least equal to
 [time series resolution](https://docs.victoriametrics.com/keyConcepts.html#time-series-resolution);
 * Ensure that `[duration]` value is at least twice bigger than 
 [time series resolution](https://docs.victoriametrics.com/keyConcepts.html#time-series-resolution). For example,
