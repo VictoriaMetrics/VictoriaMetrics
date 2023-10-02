@@ -290,9 +290,11 @@ type CreateMultipartUploadInput struct {
 	ObjectLockRetainUntilDate *time.Time
 
 	// Confirms that the requester knows that they will be charged for the request.
-	// Bucket owners need not specify this parameter in their requests. For information
-	// about downloading objects from Requester Pays buckets, see Downloading Objects
-	// in Requester Pays Buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
+	// Bucket owners need not specify this parameter in their requests. If either the
+	// source or destination Amazon S3 bucket has Requester Pays enabled, the requester
+	// will pay for corresponding charges to copy the object. For information about
+	// downloading objects from Requester Pays buckets, see Downloading Objects in
+	// Requester Pays Buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
 	// in the Amazon S3 User Guide.
 	RequestPayer types.RequestPayer
 
@@ -317,11 +319,12 @@ type CreateMultipartUploadInput struct {
 	// JSON with the encryption context key-value pairs.
 	SSEKMSEncryptionContext *string
 
-	// Specifies the ID of the symmetric encryption customer managed key to use for
-	// object encryption. All GET and PUT requests for an object protected by KMS will
-	// fail if they're not made via SSL or using SigV4. For information about
-	// configuring any of the officially supported Amazon Web Services SDKs and Amazon
-	// Web Services CLI, see Specifying the Signature Version in Request Authentication (https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingAWSSDK.html#specify-signature-version)
+	// Specifies the ID (Key ID, Key ARN, or Key Alias) of the symmetric encryption
+	// customer managed key to use for object encryption. All GET and PUT requests for
+	// an object protected by KMS will fail if they're not made via SSL or using SigV4.
+	// For information about configuring any of the officially supported Amazon Web
+	// Services SDKs and Amazon Web Services CLI, see Specifying the Signature Version
+	// in Request Authentication (https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingAWSSDK.html#specify-signature-version)
 	// in the Amazon S3 User Guide.
 	SSEKMSKeyId *string
 

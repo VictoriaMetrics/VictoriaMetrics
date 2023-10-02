@@ -137,9 +137,12 @@ import (
 // use the CopyObject action to change the storage class of an object that is
 // already stored in Amazon S3 by using the StorageClass parameter. For more
 // information, see Storage Classes (https://docs.aws.amazon.com/AmazonS3/latest/dev/storage-class-intro.html)
-// in the Amazon S3 User Guide. If the source object's storage class is GLACIER,
-// you must restore a copy of this object before you can use it as a source object
-// for the copy operation. For more information, see RestoreObject (https://docs.aws.amazon.com/AmazonS3/latest/API/API_RestoreObject.html)
+// in the Amazon S3 User Guide. If the source object's storage class is GLACIER or
+// DEEP_ARCHIVE, or the object's storage class is INTELLIGENT_TIERING and it's S3
+// Intelligent-Tiering access tier (https://docs.aws.amazon.com/AmazonS3/latest/userguide/intelligent-tiering-overview.html#intel-tiering-tier-definition)
+// is Archive Access or Deep Archive Access, you must restore a copy of this object
+// before you can use it as a source object for the copy operation. For more
+// information, see RestoreObject (https://docs.aws.amazon.com/AmazonS3/latest/API/API_RestoreObject.html)
 // . For more information, see Copying Objects (https://docs.aws.amazon.com/AmazonS3/latest/dev/CopyingObjectsExamples.html)
 // . Versioning By default, x-amz-copy-source header identifies the current
 // version of an object to copy. If the current version is a delete marker, Amazon
@@ -332,9 +335,11 @@ type CopyObjectInput struct {
 	ObjectLockRetainUntilDate *time.Time
 
 	// Confirms that the requester knows that they will be charged for the request.
-	// Bucket owners need not specify this parameter in their requests. For information
-	// about downloading objects from Requester Pays buckets, see Downloading Objects
-	// in Requester Pays Buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
+	// Bucket owners need not specify this parameter in their requests. If either the
+	// source or destination Amazon S3 bucket has Requester Pays enabled, the requester
+	// will pay for corresponding charges to copy the object. For information about
+	// downloading objects from Requester Pays buckets, see Downloading Objects in
+	// Requester Pays Buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
 	// in the Amazon S3 User Guide.
 	RequestPayer types.RequestPayer
 
@@ -359,11 +364,11 @@ type CopyObjectInput struct {
 	// JSON with the encryption context key-value pairs.
 	SSEKMSEncryptionContext *string
 
-	// Specifies the KMS key ID to use for object encryption. All GET and PUT requests
-	// for an object protected by KMS will fail if they're not made via SSL or using
-	// SigV4. For information about configuring any of the officially supported Amazon
-	// Web Services SDKs and Amazon Web Services CLI, see Specifying the Signature
-	// Version in Request Authentication (https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingAWSSDK.html#specify-signature-version)
+	// Specifies the KMS ID (Key ID, Key ARN, or Key Alias) to use for object
+	// encryption. All GET and PUT requests for an object protected by KMS will fail if
+	// they're not made via SSL or using SigV4. For information about configuring any
+	// of the officially supported Amazon Web Services SDKs and Amazon Web Services
+	// CLI, see Specifying the Signature Version in Request Authentication (https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingAWSSDK.html#specify-signature-version)
 	// in the Amazon S3 User Guide.
 	SSEKMSKeyId *string
 
@@ -371,11 +376,11 @@ type CopyObjectInput struct {
 	// (for example, AES256 , aws:kms , aws:kms:dsse ).
 	ServerSideEncryption types.ServerSideEncryption
 
-	// By default, Amazon S3 uses the STANDARD Storage Class to store newly created
-	// objects. The STANDARD storage class provides high durability and high
-	// availability. Depending on performance needs, you can specify a different
-	// Storage Class. Amazon S3 on Outposts only uses the OUTPOSTS Storage Class. For
-	// more information, see Storage Classes (https://docs.aws.amazon.com/AmazonS3/latest/dev/storage-class-intro.html)
+	// If the x-amz-storage-class header is not used, the copied object will be stored
+	// in the STANDARD Storage Class by default. The STANDARD storage class provides
+	// high durability and high availability. Depending on performance needs, you can
+	// specify a different Storage Class. Amazon S3 on Outposts only uses the OUTPOSTS
+	// Storage Class. For more information, see Storage Classes (https://docs.aws.amazon.com/AmazonS3/latest/dev/storage-class-intro.html)
 	// in the Amazon S3 User Guide.
 	StorageClass types.StorageClass
 

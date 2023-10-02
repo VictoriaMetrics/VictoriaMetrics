@@ -45,8 +45,6 @@ import (
 
 // httpStorageClient is the HTTP-JSON API implementation of the transport-agnostic
 // storageClient interface.
-//
-// This is an experimental API and not intended for public use.
 type httpStorageClient struct {
 	creds    *google.Credentials
 	hc       *http.Client
@@ -59,8 +57,6 @@ type httpStorageClient struct {
 
 // newHTTPStorageClient initializes a new storageClient that uses the HTTP-JSON
 // Storage API.
-//
-// This is an experimental API and not intended for public use.
 func newHTTPStorageClient(ctx context.Context, opts ...storageOption) (storageClient, error) {
 	s := initSettings(opts...)
 	o := s.clientOption

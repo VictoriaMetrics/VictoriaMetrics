@@ -83,6 +83,30 @@ func HTTPServerRequest(server string, req *http.Request) []attribute.KeyValue {
 	return hc.ServerRequest(server, req)
 }
 
+// HTTPServerRequestMetrics returns metric attributes for an HTTP request received by a
+// server.
+//
+// The server must be the primary server name if it is known. For example this
+// would be the ServerName directive
+// (https://httpd.apache.org/docs/2.4/mod/core.html#servername) for an Apache
+// server, and the server_name directive
+// (http://nginx.org/en/docs/http/ngx_http_core_module.html#server_name) for an
+// nginx server. More generically, the primary server name would be the host
+// header value that matches the default virtual host of an HTTP server. It
+// should include the host identifier and if a port is used to route to the
+// server that port identifier should be included as an appropriate port
+// suffix.
+//
+// If the primary server name is not known, server should be an empty string.
+// The req Host will be used to determine the server instead.
+//
+// The following attributes are always returned: "http.method", "http.scheme",
+// "http.flavor", "net.host.name". The following attributes are
+// returned if they related values are defined in req: "net.host.port".
+func HTTPServerRequestMetrics(server string, req *http.Request) []attribute.KeyValue {
+	return hc.ServerRequestMetrics(server, req)
+}
+
 // HTTPServerStatus returns a span status code and message for an HTTP status code
 // value returned by a server. Status codes in the 400-499 range are not
 // returned as errors.
@@ -217,7 +241,7 @@ func (c *httpConv) ClientRequest(req *http.Request) []attribute.KeyValue {
 	attrs := make([]attribute.KeyValue, 0, n)
 
 	attrs = append(attrs, c.method(req.Method))
-	attrs = append(attrs, c.proto(req.Proto))
+	attrs = append(attrs, c.flavor(req.Proto))
 
 	var u string
 	if req.URL != nil {
@@ -318,7 +342,7 @@ func (c *httpConv) ServerRequest(server string, req *http.Request) []attribute.K
 
 	attrs = append(attrs, c.method(req.Method))
 	attrs = append(attrs, c.scheme(req.TLS != nil))
-	attrs = append(attrs, c.proto(req.Proto))
+	attrs = append(attrs, c.flavor(req.Proto))
 	attrs = append(attrs, c.NetConv.HostName(host))
 
 	if hostPort > 0 {
@@ -349,9 +373,77 @@ func (c *httpConv) ServerRequest(server string, req *http.Request) []attribute.K
 	return attrs
 }
 
+// ServerRequestMetrics returns metric attributes for an HTTP request received
+// by a server.
+//
+// The server must be the primary server name if it is known. For example this
+// would be the ServerName directive
+// (https://httpd.apache.org/docs/2.4/mod/core.html#servername) for an Apache
+// server, and the server_name directive
+// (http://nginx.org/en/docs/http/ngx_http_core_module.html#server_name) for an
+// nginx server. More generically, the primary server name would be the host
+// header value that matches the default virtual host of an HTTP server. It
+// should include the host identifier and if a port is used to route to the
+// server that port identifier should be included as an appropriate port
+// suffix.
+//
+// If the primary server name is not known, server should be an empty string.
+// The req Host will be used to determine the server instead.
+//
+// The following attributes are always returned: "http.method", "http.scheme",
+// "http.flavor", "net.host.name". The following attributes are
+// returned if they related values are defined in req: "net.host.port".
+func (c *httpConv) ServerRequestMetrics(server string, req *http.Request) []attribute.KeyValue {
+	// TODO: This currently does not add the specification required
+	// `http.target` attribute. It has too high of a cardinality to safely be
+	// added. An alternate should be added, or this comment removed, when it is
+	// addressed by the specification. If it is ultimately decided to continue
+	// not including the attribute, the HTTPTargetKey field of the httpConv
+	// should be removed as well.
+
+	n := 4 // Method, scheme, proto, and host name.
+	var host string
+	var p int
+	if server == "" {
+		host, p = splitHostPort(req.Host)
+	} else {
+		// Prioritize the primary server name.
+		host, p = splitHostPort(server)
+		if p < 0 {
+			_, p = splitHostPort(req.Host)
+		}
+	}
+	hostPort := requiredHTTPPort(req.TLS != nil, p)
+	if hostPort > 0 {
+		n++
+	}
+	attrs := make([]attribute.KeyValue, 0, n)
+
+	attrs = append(attrs, c.methodMetric(req.Method))
+	attrs = append(attrs, c.scheme(req.TLS != nil))
+	attrs = append(attrs, c.flavor(req.Proto))
+	attrs = append(attrs, c.NetConv.HostName(host))
+
+	if hostPort > 0 {
+		attrs = append(attrs, c.NetConv.HostPort(hostPort))
+	}
+
+	return attrs
+}
+
 func (c *httpConv) method(method string) attribute.KeyValue {
 	if method == "" {
 		return c.HTTPMethodKey.String(http.MethodGet)
+	}
+	return c.HTTPMethodKey.String(method)
+}
+
+func (c *httpConv) methodMetric(method string) attribute.KeyValue {
+	method = strings.ToUpper(method)
+	switch method {
+	case http.MethodConnect, http.MethodDelete, http.MethodGet, http.MethodHead, http.MethodOptions, http.MethodPatch, http.MethodPost, http.MethodPut, http.MethodTrace:
+	default:
+		method = "_OTHER"
 	}
 	return c.HTTPMethodKey.String(method)
 }
@@ -363,7 +455,7 @@ func (c *httpConv) scheme(https bool) attribute.KeyValue { // nolint:revive
 	return c.HTTPSchemeHTTP
 }
 
-func (c *httpConv) proto(proto string) attribute.KeyValue {
+func (c *httpConv) flavor(proto string) attribute.KeyValue {
 	switch proto {
 	case "HTTP/1.0":
 		return c.HTTPFlavorKey.String("1.0")

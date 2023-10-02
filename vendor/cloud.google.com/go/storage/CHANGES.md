@@ -1,6 +1,13 @@
 # Changes
 
 
+## [1.33.0](https://github.com/googleapis/google-cloud-go/compare/storage/v1.32.0...storage/v1.33.0) (2023-09-07)
+
+
+### Features
+
+* **storage:** Export gRPC client constructor ([#8509](https://github.com/googleapis/google-cloud-go/issues/8509)) ([1a928ae](https://github.com/googleapis/google-cloud-go/commit/1a928ae205f2325cb5206304af4d609dc3c1447a))
+
 ## [1.32.0](https://github.com/googleapis/google-cloud-go/compare/storage/v1.31.0...storage/v1.32.0) (2023-08-15)
 
 
