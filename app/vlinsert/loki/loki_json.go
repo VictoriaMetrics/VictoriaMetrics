@@ -78,7 +78,7 @@ var (
 	lokiRequestJSONDuration = metrics.NewHistogram(`vl_http_request_duration_seconds{path="/insert/loki/api/v1/push",format="json"}`)
 )
 
-func parseJSONRequest(data []byte, processLogMessage func(timestamp int64, fields []logstorage.Field)error) (int, error) {
+func parseJSONRequest(data []byte, processLogMessage func(timestamp int64, fields []logstorage.Field) error) (int, error) {
 	p := parserPool.Get()
 	defer parserPool.Put(p)
 	v, err := p.ParseBytes(data)
