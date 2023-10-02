@@ -88,8 +88,8 @@ absolute path to all .tpl files in root.
 
 	disableAlertGroupLabel = flag.Bool("disableAlertgroupLabel", false, "Whether to disable adding group's Name as label to generated alerts and time series.")
 
-	dryRun           = flag.Bool("dryRun", false, "Whether to check only config files without running vmalert. The rules file are validated. The -rule flag must be specified.")
-	debugShowSecrets = flag.Bool("debugShowSecrets", false, "Whether to show sensitive information in web UI or debug mode. It is hidden by default, since it can contain sensitive information such as auth key")
+	dryRun      = flag.Bool("dryRun", false, "Whether to check only config files without running vmalert. The rules file are validated. The -rule flag must be specified.")
+	showSecrets = flag.Bool("showSecrets", false, "Whether to avoid stripping sensitive information such as auth headers or passwords from URLs in log messages or UI.")
 )
 
 var alertURLGeneratorFn notifier.AlertURLGenerator

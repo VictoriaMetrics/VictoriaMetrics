@@ -2499,8 +2499,6 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      Supports an array of values separated by comma or specified via multiple flags.
   -dryRun
      Whether to check config files without running VictoriaMetrics. The following config files are checked: -promscrape.config, -relabelConfig and -streamAggr.config. Unknown config entries aren't allowed in -promscrape.config by default. This can be changed with -promscrape.config.strictParse=false command-line flag
-  -debugShowSecrets
-     Whether to show sensitive information in web UI or debug mode. It is hidden by default, since it can contain sensitive information such as auth key
   -enableTCP6
      Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP are used
   -envflag.enable

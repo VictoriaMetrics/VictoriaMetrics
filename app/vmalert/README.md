@@ -880,6 +880,19 @@ The same issue can be caused by collision of configured `labels` on [Group](#gro
 To fix it one should avoid collisions by carefully picking label overrides in configuration.
 
 
+## Security
+
+See general recommendations regarding security [here](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#security).
+
+vmalert [web UI](#web) exposes configuration details such as list of [Groups](#groups), active alerts, 
+[alerts state](#alerts-state), [notifiers](#notifier-configuration-file). Consider limiting user's access to the web UI
+is this information is sensitive.
+
+[Alerts state](#alerts-state) page or [debug mode](#debug-mode) could emit additional information about configured
+datasource URL, GET params and headers. Sensitive information such as passwords or auth tokens is stripped by default.
+To disable stripping such info pass `-showSecrets` cmd-line flag to vmalert.
+
+
 ## Profiling
 
 `vmalert` provides handlers for collecting the following [Go profiles](https://blog.golang.org/profiling-go-programs):
@@ -983,8 +996,8 @@ The shortlist of configuration flags is the following:
      Whether to disable adding group's Name as label to generated alerts and time series.
   -dryRun
      Whether to check only config files without running vmalert. The rules file are validated. The -rule flag must be specified.
-  -debugShowSecrets
-     Whether to show sensitive information in web UI or debug mode. It is hidden by default, since it can contain sensitive information such as auth key   
+  -showSecrets
+     Whether to avoid stripping sensitive information such as auth headers or passwords from URLs in log messages or UI.   
   -enableTCP6
      Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP are used
   -envflag.enable
