@@ -125,7 +125,7 @@ export const useFetchQuery = ({
           }
 
           isHistogramResult = isDisplayChart && isHistogramData(resp.data.result);
-          seriesLimit = isHistogramResult ? Infinity : Math.max(totalLength, defaultLimit);
+          seriesLimit = isHistogramResult ? Infinity : defaultLimit;
           const freeTempSize = seriesLimit - tempData.length;
           resp.data.result.slice(0, freeTempSize).forEach((d: MetricBase) => {
             d.group = counter;
@@ -140,7 +140,7 @@ export const useFetchQuery = ({
         counter++;
       }
 
-      const limitText = `Showing ${seriesLimit} series out of ${totalLength} series due to performance reasons. Please narrow down the query, so it returns less series`;
+      const limitText = `Showing ${tempData.length} series out of ${totalLength} series due to performance reasons. Please narrow down the query, so it returns less series`;
       setWarning(totalLength > seriesLimit ? limitText : "");
       isDisplayChart ? setGraphData(tempData as MetricResult[]) : setLiveData(tempData as InstantMetricResult[]);
       setTraces(tempTraces);
