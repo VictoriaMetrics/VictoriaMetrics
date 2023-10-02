@@ -1,29 +1,71 @@
 @use "src/styles/variables" as *;
 
+$color-base-nested-nav: $color-tropical-blue;
+$color-base-nested-nav-dark: $color-background-body;
+
 .vm-nested-nav {
-  margin-left: $padding-medium;
+  position: relative;
+  margin-left: $padding-global;
   border-radius: $border-radius-small;
-  background-color: rgba($color-tropical-blue, 0.4);
+
+  &_dark &-header {
+    background-color: $color-base-nested-nav-dark;
+
+    &:after, &:before {
+      background-color: $color-base-nested-nav-dark;
+    }
+
+    &:hover {
+      box-shadow: rgba($color-white, 0.08) 0 0 0 1px;
+    }
+  }
 
   &_mobile {
     margin-left: $padding-small;
   }
 
-  &_dark {
-    background-color: rgba($color-black, 0.1);
+  &_root > &-header {
+    &:before,
+    &:after {
+      display: none;
+    }
   }
 
   &-header {
+    position: relative;
     display: grid;
     grid-template-columns: auto 1fr;
     gap: $padding-small;
     padding: $padding-small;
     border-radius: $border-radius-small;
-    transition: background-color 200ms ease-in-out;
+    transition: box-shadow 200ms ease-in-out;
     cursor: pointer;
+    background-color: rgba($color-base-nested-nav, 0.4);
+    margin-bottom: $padding-small;
+    z-index: 2;
+
+    &:after {
+      content: "";
+      position: absolute;
+      top: calc(50% - 1px);
+      height: 2px;
+      width: $padding-small;
+      background-color: $color-base-nested-nav;
+      left: calc(-1 * $padding-small);
+    }
+
+    &:before {
+      content: "";
+      position: absolute;
+      bottom: 50%;
+      left: calc($padding-global / -2);
+      height: calc(50% + $padding-small);
+      width: 2px;
+      background-color: $color-base-nested-nav;
+    }
 
     &:hover {
-      background-color: $color-hover-black;
+      box-shadow: rgba($color-black, 0.08) 0 0 0 1px;
     }
 
     &__icon {
@@ -32,9 +74,11 @@
       justify-content: center;
       width: 20px;
       transition: transform 200ms ease-in-out;
+      transform: rotate(-90deg);
+      color: $color-text-secondary;
 
       &_open {
-        transform: rotate(180deg);
+        transform: rotate(0);
       }
     }
 
@@ -70,6 +114,24 @@
       &__duration {
         color: $color-text-secondary;
       }
+    }
+  }
+
+  &__childrens > .vm-nested-nav:not(:last-child) {
+    &:before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: calc($padding-global / -2);
+      height: 100%;
+      width: 2px;
+      background-color: $color-base-nested-nav;
+    }
+  }
+
+  &__childrens > .vm-nested-nav_dark:not(:last-child) {
+    &:before {
+      background-color: $color-base-nested-nav-dark;
     }
   }
 }
