@@ -732,11 +732,3 @@ func (vd *valuesDict) unmarshal(src []byte) ([]byte, error) {
 	}
 	return src, nil
 }
-
-// maxDictSizeBytes is the maximum length of all the keys in the valuesDict
-const maxDictSizeBytes = 256
-
-// maxDictLen is the maximum number of entries in the valuesDict.
-//
-// it shouldn't exceed 255, since the dict len is marshaled into a single byte.
-const maxDictLen = 8
