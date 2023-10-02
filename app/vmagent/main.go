@@ -11,6 +11,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/csvimport"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/datadog"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/graphite"
@@ -39,7 +41,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
-	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
@@ -251,7 +252,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		w.WriteHeader(statusCode)
 		return true
 	}
-	if strings.HasPrefix(path, "datadog/") {
+	if strings.HasPrefix(path, "/datadog/") {
 		// Trim suffix from paths starting from /datadog/ in order to support legacy DataDog agent.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2670
 		path = strings.TrimSuffix(path, "/")
@@ -454,7 +455,7 @@ func processMultitenantRequest(w http.ResponseWriter, r *http.Request, path stri
 		w.WriteHeader(http.StatusNoContent)
 		return true
 	}
-	if strings.HasPrefix(p.Suffix, "datadog/") {
+	if strings.HasPrefix(p.Suffix, "/datadog/") {
 		// Trim suffix from paths starting from /datadog/ in order to support legacy DataDog agent.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2670
 		p.Suffix = strings.TrimSuffix(p.Suffix, "/")
