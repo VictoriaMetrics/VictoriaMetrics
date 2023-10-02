@@ -1270,8 +1270,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1373,8 +1372,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -2389,7 +2387,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 36
+            "y": 4
           },
           "id": 92,
           "options": {
@@ -2492,7 +2490,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 36
+            "y": 4
           },
           "id": 95,
           "options": {
@@ -2598,7 +2596,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 44
+            "y": 12
           },
           "id": 98,
           "options": {
@@ -2704,7 +2702,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 44
+            "y": 12
           },
           "id": 99,
           "options": {
@@ -2809,7 +2807,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 52
+            "y": 20
           },
           "id": 79,
           "links": [],
@@ -2915,7 +2913,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 52
+            "y": 20
           },
           "id": 18,
           "links": [
@@ -3026,7 +3024,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 60
+            "y": 28
           },
           "id": 127,
           "links": [],
@@ -3130,7 +3128,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 60
+            "y": 28
           },
           "id": 50,
           "options": {
@@ -3233,7 +3231,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 68
+            "y": 36
           },
           "id": 130,
           "links": [],
@@ -3283,6 +3281,110 @@
             }
           ],
           "title": "Concurrent inserts ($instance)",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "description": "Shows the number of skipped scrapes.\n\nScrapes could be skipped due to\n1. vmagent overload;\n2. too small scrape interval for configured job or target.\n\nVerify that vmagent has enough CPU/Mem resources, network bandwidth (try increasing `-remoteWrite.queues`).\n\nCheck `Scrape duration` pane to measure the scrape duration. If vmagent has enough resources and scrape duration is very close or exceeds scrape interval - try increasing the scrape interval or debugging why scraped target is responding too slowly.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "links": [],
+              "mappings": [],
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 36
+          },
+          "id": 132,
+          "links": [],
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "9.2.6",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "sum(increase(vm_promscrape_scrapes_skipped_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job, instance)",
+              "interval": "",
+              "legendFormat": "{{instance}} ({{job}})",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Skipped scrapes ($instance)",
           "type": "timeseries"
         },
         {
@@ -3346,7 +3448,7 @@
             "h": 7,
             "w": 24,
             "x": 0,
-            "y": 76
+            "y": 44
           },
           "id": 129,
           "options": {
@@ -3483,7 +3585,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -3499,7 +3602,7 @@
             "h": 7,
             "w": 12,
             "x": 0,
-            "y": 45
+            "y": 52
           },
           "id": 48,
           "options": {
@@ -3587,7 +3690,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -3603,7 +3707,7 @@
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 45
+            "y": 52
           },
           "id": 76,
           "options": {
@@ -3690,7 +3794,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -3706,7 +3811,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 52
+            "y": 59
           },
           "id": 20,
           "options": {
@@ -3792,7 +3897,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -3808,7 +3914,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 52
+            "y": 59
           },
           "id": 126,
           "options": {
@@ -3893,7 +3999,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -3909,7 +4016,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 60
+            "y": 67
           },
           "id": 46,
           "options": {
@@ -3945,6 +4052,109 @@
             }
           ],
           "title": "Scrape response size 0.99 quantile ($instance)",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "description": "",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "links": [],
+              "mappings": [],
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 67
+          },
+          "id": 133,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "9.2.6",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "max(histogram_quantile(0.99, sum(rate(vm_promscrape_scrape_duration_seconds_bucket{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job, vmrange))) by(job)",
+              "format": "time_series",
+              "interval": "",
+              "legendFormat": "__auto",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Scrape duration 0.99 quantile ($instance)",
           "type": "timeseries"
         },
         {
@@ -3994,7 +4204,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -4010,7 +4221,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 60
+            "y": 75
           },
           "id": 31,
           "options": {
@@ -4171,8 +4382,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -4288,8 +4498,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -4392,8 +4601,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
