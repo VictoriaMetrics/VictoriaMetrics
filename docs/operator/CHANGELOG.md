@@ -1,16 +1,22 @@
+---
+sort: 10
+weight: 10
+title: CHANGELOG
+---
+
 # CHANGELOG
 
 ## Next release
 
 ### Features
 
-- [vmoperator](https://docs.victoriametrics.com/operator/): upgrade vmagent/vmauth's default config-reloader image.
+- [vmoperator](./README.md): upgrade vmagent/vmauth's default config-reloader image.
 
 ### Fixes
 
-- [vmcluster](https://docs.victoriametrics.com/operator/api.html#vmcluster): remove redundant annotation `operator.victoriametrics/last-applied-spec` from created workloads like vmstorage statefulset.
-- [vmoperator](https://docs.victoriametrics.com/operator/): properly resize statefulset's multiple pvc when needed and allowable, before they could be updated with wrong size.
-- [vmoperator](https://docs.victoriametrics.com/operator/): fix wrong api group of endpointsices, before vmagent won't able to access endpointsices resources with default rbac rule.
+- [vmcluster](./api.html#vmcluster): remove redundant annotation `operator.victoriametrics/last-applied-spec` from created workloads like vmstorage statefulset.
+- [vmoperator](./README.md): properly resize statefulset's multiple pvc when needed and allowable, before they could be updated with wrong size.
+- [vmoperator](./README.md): fix wrong api group of endpointsices, before vmagent won't able to access endpointsices resources with default rbac rule.
 
 <a name="v0.38.0"></a>
 ## [v0.38.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.38.0) - 11 Sep 2023
@@ -19,13 +25,13 @@
 
 ### Fixes
 
-- [vmuser](https://docs.victoriametrics.com/operator/api.html#vmuser): [Enterprise] fixes ip_filters indent for url_prefix. Previously it wasn't possible to use ip_filters with multiple target refs
-- [vmoperator](https://docs.victoriametrics.com/operator/): turn off `EnableStrictSecurity` by default. Before, upgrade operator to v0.36.0+ could fail components with volume attached, see [this issue](https://github.com/VictoriaMetrics/operator/issues/749) for details.
-- [vmoperator](https://docs.victoriametrics.com/operator/): bump default version of VictoriaMetrics components to [1.93.4](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.4).
+- [vmuser](./api.md#vmuser): [Enterprise] fixes ip_filters indent for url_prefix. Previously it wasn't possible to use ip_filters with multiple target refs
+- [vmoperator](./README.md): turn off `EnableStrictSecurity` by default. Before, upgrade operator to v0.36.0+ could fail components with volume attached, see [this issue](https://github.com/VictoriaMetrics/operator/issues/749) for details.
+- [vmoperator](./README.md): bump default version of VictoriaMetrics components to [1.93.4](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.4).
 
 ### Features
 
-- [vmoperator](https://docs.victoriametrics.com/operator/) add ability to print default values for all [operator variables](https://docs.victoriametrics.com/operator/vars.html). See [this issue](https://github.com/VictoriaMetrics/operator/issues/675) for details.
+- [vmoperator](./README.md) add ability to print default values for all [operator variables](./vars.md). See [this issue](https://github.com/VictoriaMetrics/operator/issues/675) for details.
 
 <a name="v0.37.1"></a>
 ## [v0.37.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.37.1) - 02 Sep 2023
@@ -41,18 +47,18 @@
 
 ### Fixes
 
-- [vmagent](https://docs.victoriametrics.com/operator/api.html#vmagent): fix unmarshalling for streaming aggregation `match` field.
+- [vmagent](./api.md#vmagent): fix unmarshalling for streaming aggregation `match` field.
 
 ### Features
 
-- [vmagent](https://docs.victoriametrics.com/operator/api.html#vmagent): support [multiple if conditions](https://docs.victoriametrics.com/vmagent.html#relabeling:~:text=the%20if%20option%20may%20contain%20more%20than%20one%20filter) for relabeling. See [this issue](https://github.com/VictoriaMetrics/operator/issues/730) for details. 
+- [vmagent](./api.md#vmagent): support [multiple if conditions](https://docs.victoriametrics.com/vmagent.html#relabeling:~:text=the%20if%20option%20may%20contain%20more%20than%20one%20filter) for relabeling. See [this issue](https://github.com/VictoriaMetrics/operator/issues/730) for details. 
 
 <a name="v0.36.1"></a>
 ## [v0.36.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.36.0) - 25 Aug 2023
 
 ### Fixes
 
-- [vmselect](https://docs.victoriametrics.com/operator/api.html#vmcluster): fix cache directory when `cacheDataPath` not specified, before it will use `/tmp` which is protect by default strict securityContext.
+- [vmselect](./api.md#vmcluster): fix cache directory when `cacheDataPath` not specified, before it will use `/tmp` which is protect by default strict securityContext.
 
 ### Features
 
@@ -61,7 +67,7 @@
 
 ### Breaking changes
 
-- **[vmalert](https://docs.victoriametrics.com/operator/api.html#vmalert): Field `OAuth2` was renamed to `oauth2` due to compatibility issue. If you defined `OAuth2` with below fields in vmalert objects using operator before v0.36.0, these fields must be reapplied with new tag `oauth2` after upgrading. See [this issue](https://github.com/VictoriaMetrics/operator/issues/522) and [this PR](https://github.com/VictoriaMetrics/operator/pull/689) for details.**
+- **[vmalert](./api.md#vmalert): Field `OAuth2` was renamed to `oauth2` due to compatibility issue. If you defined `OAuth2` with below fields in vmalert objects using operator before v0.36.0, these fields must be reapplied with new tag `oauth2` after upgrading. See [this issue](https://github.com/VictoriaMetrics/operator/issues/522) and [this PR](https://github.com/VictoriaMetrics/operator/pull/689) for details.**
   - **Affected fields:**
     - **`VMAlert.spec.datasource.OAuth2` -> `VMAlert.spec.datasource.oauth2`,**
     - **`VMAlert.spec.notifier.OAuth2` -> `VMAlert.spec.notifier.oauth2`,**
@@ -69,7 +75,7 @@
     - **`VMAlert.spec.remoteRead.OAuth2` -> `VMAlert.spec.remoteRead.oauth2`,**
     - **`VMAlert.spec.remoteWrite.OAuth2` -> `VMAlert.spec.remoteWrite.oauth2`,**
 
-- **[vmalert](https://docs.victoriametrics.com/operator/api.html#vmalert): Field `bearerTokenFilePath` was renamed to `bearerTokenFile` due to compatibility issue. If you defined `bearerTokenFilePath` with below fields in vmalert objects using operator before v0.36.0, these fields must be reapplied with new tag `bearerTokenFile` after upgrading. See [this issue](https://github.com/VictoriaMetrics/operator/issues/522) and [this PR](https://github.com/VictoriaMetrics/operator/pull/688/) for details.**
+- **[vmalert](./api.md#vmalert): Field `bearerTokenFilePath` was renamed to `bearerTokenFile` due to compatibility issue. If you defined `bearerTokenFilePath` with below fields in vmalert objects using operator before v0.36.0, these fields must be reapplied with new tag `bearerTokenFile` after upgrading. See [this issue](https://github.com/VictoriaMetrics/operator/issues/522) and [this PR](https://github.com/VictoriaMetrics/operator/pull/688/) for details.**
   - **Affected fields:**
     - **`VMAlert.spec.datasource.bearerTokenFilePath` --> `VMAlert.spec.datasource.bearerTokenFile`,**
     - **`VMAlert.spec.notifier.bearerTokenFilePath` --> `VMAlert.spec.notifier.bearerTokenFile`,**
@@ -82,22 +88,22 @@
 - operator set resource requests for config-reloader container by default. See [this PR](https://github.com/VictoriaMetrics/operator/pull/695/) for details.
 - fix `attachMetadata` value miscovert for scrape objects. See [this issue](https://github.com/VictoriaMetrics/operator/issues/697) and [this PR](https://github.com/VictoriaMetrics/operator/pull/698) for details.
 - fix volumeClaimTemplates change check for objects that generate statefulset, like vmstorage, vmselect. Before, the statefulset won't be recreated if additional `claimTemplates` object changed. See [this issue](https://github.com/VictoriaMetrics/operator/issues/507) and [this PR](https://github.com/VictoriaMetrics/operator/pull/719) for details.
-- [vmalert](https://docs.victoriametrics.com/operator/api.html#vmalert): fix `tlsCAFile` argument value generation when using secret or configMap. See [this issue](https://github.com/VictoriaMetrics/operator/issues/699) and [this PR](https://github.com/VictoriaMetrics/operator/issues/699) for details.
-- [vmalertmanager](https://docs.victoriametrics.com/operator/api.html#vmalertmanager): fix default request memory and apply default resources if not set. See [this issue](https://github.com/VictoriaMetrics/operator/issues/706) and [this PR](https://github.com/VictoriaMetrics/operator/pull/710) for details.
-- [vmagent](https://docs.victoriametrics.com/operator/api.html#vmagent): fix missing additional VolumeClaimTemplates when using `ClaimTemplates` under StatefulMode.
+- [vmalert](./api.md#vmalert): fix `tlsCAFile` argument value generation when using secret or configMap. See [this issue](https://github.com/VictoriaMetrics/operator/issues/699) and [this PR](https://github.com/VictoriaMetrics/operator/issues/699) for details.
+- [vmalertmanager](./api.md#vmalertmanager): fix default request memory and apply default resources if not set. See [this issue](https://github.com/VictoriaMetrics/operator/issues/706) and [this PR](https://github.com/VictoriaMetrics/operator/pull/710) for details.
+- [vmagent](./api.md#vmagent): fix missing additional VolumeClaimTemplates when using `ClaimTemplates` under StatefulMode.
 
 ### Features
 
-- [vmagent](https://docs.victoriametrics.com/operator/api.html#vmagent): add [example config](https://github.com/VictoriaMetrics/operator/blob/master/config/examples/vmagent_stateful_with_sharding.yaml) for vmagent statefulmode.
-- [vmagent](https://docs.victoriametrics.com/operator/api.html#vmagent)/[vmsingle](https://docs.victoriametrics.com/operator/api.html#vmsingle): adapt new features in streaming aggregation:
+- [vmagent](./api.md#vmagent): add [example config](https://github.com/VictoriaMetrics/operator/blob/master/config/examples/vmagent_stateful_with_sharding.yaml) for vmagent statefulmode.
+- [vmagent](./api.md#vmagent)/[vmsingle](./api.md#vmsingle): adapt new features in streaming aggregation:
   - support `streamAggr.dropInput`, see [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4243) for details;
   - support list for `match` parameter, see [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4635) for details;
   - support `staleness_interval`, see [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4667) for details.
-- [vmcluster](https://docs.victoriametrics.com/operator/api.html#vmagent): add [example config](https://github.com/VictoriaMetrics/operator/blob/master/config/examples/vmcluster_with_additional_claim.yaml) for cluster with custom storage claims.
-- [vmrule](https://docs.victoriametrics.com/operator/api.html#vmrule): support `update_entries_limit` field in rules, refer to [alerting rules](https://docs.victoriametrics.com/vmalert.html#alerting-rules). See [this PR](https://github.com/VictoriaMetrics/operator/pull/691) for details.
-- [vmrule](https://docs.victoriametrics.com/operator/api.html#vmrule): support `keep_firing_for` field in rules, refer to [alerting rules](https://docs.victoriametrics.com/vmalert.html#alerting-rules). See [this PR](https://github.com/VictoriaMetrics/operator/pull/711) for details.
-- [vmoperator parameters](https://docs.victoriametrics.com/operator/vars.html): Add option `VM_ENABLESTRICTSECURITY` and enable strict security context by default. See [this issue](https://github.com/VictoriaMetrics/operator/issues/637), [this](https://github.com/VictoriaMetrics/operator/pull/692/) and [this](https://github.com/VictoriaMetrics/operator/pull/712) PR for details.
-- [vmoperator parameters](https://docs.victoriametrics.com/operator/vars.html): change option `VM_PSPAUTOCREATEENABLED` default value from `true` to `false` cause PodSecurityPolicy already got deprecated since [kubernetes v1.25](https://kubernetes.io/docs/reference/using-api/deprecation-guide/#psp-v125). See [this pr](https://github.com/VictoriaMetrics/operator/pull/726) for details.
+- [vmcluster](./api.md#vmagent): add [example config](https://github.com/VictoriaMetrics/operator/blob/master/config/examples/vmcluster_with_additional_claim.yaml) for cluster with custom storage claims.
+- [vmrule](./api.md#vmrule): support `update_entries_limit` field in rules, refer to [alerting rules](https://docs.victoriametrics.com/vmalert.html#alerting-rules). See [this PR](https://github.com/VictoriaMetrics/operator/pull/691) for details.
+- [vmrule](./api.md#vmrule): support `keep_firing_for` field in rules, refer to [alerting rules](https://docs.victoriametrics.com/vmalert.html#alerting-rules). See [this PR](https://github.com/VictoriaMetrics/operator/pull/711) for details.
+- [vmoperator parameters](./vars.md): Add option `VM_ENABLESTRICTSECURITY` and enable strict security context by default. See [this issue](https://github.com/VictoriaMetrics/operator/issues/637), [this](https://github.com/VictoriaMetrics/operator/pull/692/) and [this](https://github.com/VictoriaMetrics/operator/pull/712) PR for details.
+- [vmoperator parameters](./vars.md): change option `VM_PSPAUTOCREATEENABLED` default value from `true` to `false` cause PodSecurityPolicy already got deprecated since [kubernetes v1.25](https://kubernetes.io/docs/reference/using-api/deprecation-guide/#psp-v125). See [this pr](https://github.com/VictoriaMetrics/operator/pull/726) for details.
 
 [Changes][v0.36.0]
 
@@ -106,7 +112,7 @@
 
 ### Fixes
 
-- [vmagent](https://docs.victoriametrics.com/operator/api.html#vmagent): fixes regression with remoteWrite authorization (basicAuth/token). When `UseCustomConfigReloader` option was set, operator incorrectly rendered mounts for `vmagent` container. https://github.com/VictoriaMetrics/operator/commit/f2b8cf701a33f91cef19848c857fd6efb7db59dd
+- [vmagent](./api.md#vmagent): fixes regression with remoteWrite authorization (basicAuth/token). When `UseCustomConfigReloader` option was set, operator incorrectly rendered mounts for `vmagent` container. https://github.com/VictoriaMetrics/operator/commit/f2b8cf701a33f91cef19848c857fd6efb7db59dd
 
 [Changes][v0.35.1]
 
@@ -116,19 +122,19 @@
 
 ### Fixes
 
-* [vmuser](https://docs.victoriametrics.com/operator/api.html#vmuser): fix vmselect url_map in vmuser. See [this issue for details](https://github.com/VictoriaMetrics/operator/issues/655). Thanks [@Haleygo](https://github.com/Haleygo)
-* [vmalert](https://docs.victoriametrics.com/operator/api.html#vmalert): correctly set default port for vmauth components discovery. See [this issue for details](https://github.com/VictoriaMetrics/operator/issues/658). Thanks [@Haleygo](https://github.com/Haleygo)
-* [vmuser](https://docs.victoriametrics.com/operator/api.html#vmuser): remove rate limit on delete. In https://github.com/VictoriaMetrics/operator/pull/672. Thanks [@Haleygo](https://github.com/Haleygo)
-* [vmcluster](https://docs.victoriametrics.com/operator/api.html#vmcluster): fix spec change check. See [this issue for details](https://github.com/VictoriaMetrics/operator/issues/677). Thanks [@Haleygo](https://github.com/Haleygo)
+* [vmuser](./api.md#vmuser): fix vmselect url_map in vmuser. See [this issue for details](https://github.com/VictoriaMetrics/operator/issues/655). Thanks [@Haleygo](https://github.com/Haleygo)
+* [vmalert](./api.md#vmalert): correctly set default port for vmauth components discovery. See [this issue for details](https://github.com/VictoriaMetrics/operator/issues/658). Thanks [@Haleygo](https://github.com/Haleygo)
+* [vmuser](./api.md#vmuser): remove rate limit on delete. In https://github.com/VictoriaMetrics/operator/pull/672. Thanks [@Haleygo](https://github.com/Haleygo)
+* [vmcluster](./api.md#vmcluster): fix spec change check. See [this issue for details](https://github.com/VictoriaMetrics/operator/issues/677). Thanks [@Haleygo](https://github.com/Haleygo)
 * Correctly publish multi-arch release at https://github.com/VictoriaMetrics/operator/pull/681. Thanks [@Haleygo](https://github.com/Haleygo)
 
 ### Features
 
-* [vmagent](https://docs.victoriametrics.com/operator/api.html#vmagent): add validation when generate static scrape config. See [this issue for details](https://github.com/VictoriaMetrics/operator/issues/677). Thanks [@Haleygo](https://github.com/Haleygo)
-* [vmalertmanagerconfig](https://docs.victoriametrics.com/operator/api.html#vmalertmanagerconfig): add validation for slack receiver url. See [this issue for details](https://github.com/VictoriaMetrics/operator/issues/661). Thanks [@Haleygo](https://github.com/Haleygo)
-* [vmauth](https://docs.victoriametrics.com/operator/api.html#vmauth)/[vmagent](https://docs.victoriametrics.com/operator/api.html#vmagent): implement configuration initiation for custom config reloader. See [this issue for details](https://github.com/VictoriaMetrics/operator/issues/619). Thanks [@Haleygo](https://github.com/Haleygo)
+* [vmagent](./api.md#vmagent): add validation when generate static scrape config. See [this issue for details](https://github.com/VictoriaMetrics/operator/issues/677). Thanks [@Haleygo](https://github.com/Haleygo)
+* [vmalertmanagerconfig](./api.md#vmalertmanagerconfig): add validation for slack receiver url. See [this issue for details](https://github.com/VictoriaMetrics/operator/issues/661). Thanks [@Haleygo](https://github.com/Haleygo)
+* [vmauth](./api.md#vmauth)/[vmagent](./api.md#vmagent): implement configuration initiation for custom config reloader. See [this issue for details](https://github.com/VictoriaMetrics/operator/issues/619). Thanks [@Haleygo](https://github.com/Haleygo)
 * add more generators  Thanks [@Haleygo](https://github.com/Haleygo) in https://github.com/VictoriaMetrics/operator/pull/668
-* [vmsingle](https://docs.victoriametrics.com/operator/api.html#vmsingle): add status field. See [this issue for details](https://github.com/VictoriaMetrics/operator/issues/670). Thanks [@Haleygo](https://github.com/Haleygo)
+* [vmsingle](./api.md#vmsingle): add status field. See [this issue for details](https://github.com/VictoriaMetrics/operator/issues/670). Thanks [@Haleygo](https://github.com/Haleygo)
 
 [Changes][v0.35.0]
 
@@ -138,9 +144,9 @@
 
 ### Fixes
 
-- [vmcluster](https://docs.victoriametrics.com/operator/api.html#vmcluster): fail fast on misconfigured or missing kubernetes pods. It should prevent rare bug with cascade pod deletion. See this [issue](https://github.com/VictoriaMetrics/operator/issues/643) for details
-- [vmauth](https://docs.victoriametrics.com/operator/api.html#vmauth)/[vmagent](https://docs.victoriametrics.com/operator/api.html#vmagent): correctly renders initConfig image with global container registry domain. See this [issue](https://github.com/VictoriaMetrics/operator/issues/654) for details.
-- [vmagent](https://docs.victoriametrics.com/operator/api.html#vmagent): correctly set RBAC permissions for single namespace mode and custom config reloader image. See this [issue](https://github.com/VictoriaMetrics/operator/issues/653) for details.
+- [vmcluster](./api.md#vmcluster): fail fast on misconfigured or missing kubernetes pods. It should prevent rare bug with cascade pod deletion. See this [issue](https://github.com/VictoriaMetrics/operator/issues/643) for details
+- [vmauth](./api.md#vmauth)/[vmagent](./api.md#vmagent): correctly renders initConfig image with global container registry domain. See this [issue](https://github.com/VictoriaMetrics/operator/issues/654) for details.
+- [vmagent](./api.md#vmagent): correctly set RBAC permissions for single namespace mode and custom config reloader image. See this [issue](https://github.com/VictoriaMetrics/operator/issues/653) for details.
 
 [Changes][v0.34.1]
 
@@ -154,18 +160,18 @@
 
 ### Fixes
 
-- [vmnodescrape](https://docs.victoriametrics.com/operator/api.html#vmnodescrape): fixed selectors for Exists and NotExists operators with empty label Thanks [@Amper](https://github.com/Amper) in https://github.com/VictoriaMetrics/operator/pull/646
-- [vmrule](https://docs.victoriametrics.com/operator/api.html#vmrule): Add config for vmrule in validating webhook Thanks in https://github.com/VictoriaMetrics/operator/pull/650
-- [vmagent](https://docs.victoriametrics.com/operator/api.html#vmagent): skips misconfigured objects with missed secret references: https://github.com/VictoriaMetrics/operator/issues/648
-- [vmagent](https://docs.victoriametrics.com/operator/api.html#vmagent): correctly renders initContainer for configuration download: https://github.com/VictoriaMetrics/operator/issues/649
+- [vmnodescrape](./api.md#vmnodescrape): fixed selectors for Exists and NotExists operators with empty label Thanks [@Amper](https://github.com/Amper) in https://github.com/VictoriaMetrics/operator/pull/646
+- [vmrule](./api.md#vmrule): Add config for vmrule in validating webhook Thanks in https://github.com/VictoriaMetrics/operator/pull/650
+- [vmagent](./api.md#vmagent): skips misconfigured objects with missed secret references: https://github.com/VictoriaMetrics/operator/issues/648
+- [vmagent](./api.md#vmagent): correctly renders initContainer for configuration download: https://github.com/VictoriaMetrics/operator/issues/649
 
 ### Features
 
-- [vmalertmanager](https://docs.victoriametrics.com/operator/api.html#vmalertmanager): Bump alertmanager to v0.25.0 Thanks [@tamcore](https://github.com/tamcore) in https://github.com/VictoriaMetrics/operator/pull/636
-- [vmcluster](https://docs.victoriametrics.com/operator/api.html#vmcluster): added `clusterNativePort` field to VMSelect/VMInsert for multi-level cluster setup ([#634](https://github.com/VictoriaMetrics/operator/issues/634)) Thanks [@Amper](https://github.com/Amper) in https://github.com/VictoriaMetrics/operator/pull/639
-- [vmrule](https://docs.victoriametrics.com/operator/api.html#vmrule): add notifierHeader field in vmrule spec Thanks [@Haleygo](https://github.com/Haleygo) in https://github.com/VictoriaMetrics/operator/pull/622
-- [vmpodscrape](https://docs.victoriametrics.com/operator/api.html#vmpodscrape): adds FilterRunning option as prometheus does in https://github.com/VictoriaMetrics/operator/pull/640
-- [vmauth](https://docs.victoriametrics.com/operator/api.html#vmauth): adds latest features in https://github.com/VictoriaMetrics/operator/pull/642
+- [vmalertmanager](./api.md#vmalertmanager): Bump alertmanager to v0.25.0 Thanks [@tamcore](https://github.com/tamcore) in https://github.com/VictoriaMetrics/operator/pull/636
+- [vmcluster](./api.md#vmcluster): added `clusterNativePort` field to VMSelect/VMInsert for multi-level cluster setup ([#634](https://github.com/VictoriaMetrics/operator/issues/634)) Thanks [@Amper](https://github.com/Amper) in https://github.com/VictoriaMetrics/operator/pull/639
+- [vmrule](./api.md#vmrule): add notifierHeader field in vmrule spec Thanks [@Haleygo](https://github.com/Haleygo) in https://github.com/VictoriaMetrics/operator/pull/622
+- [vmpodscrape](./api.md#vmpodscrape): adds FilterRunning option as prometheus does in https://github.com/VictoriaMetrics/operator/pull/640
+- [vmauth](./api.md#vmauth): adds latest features in https://github.com/VictoriaMetrics/operator/pull/642
 
 [Changes][v0.34.0]
 
@@ -175,22 +181,22 @@
 
 ### Fixes
 
-- [vmalert](https://docs.victoriametrics.com/operator/api.html#vmalert): skip bad rules and improve logging for rules exceed max configmap size https://github.com/VictoriaMetrics/operator/commit/bb754d5c20bb371a197cd6ff5afac1ba86a4d92b
-- [vmalertmanagerconfig](https://docs.victoriametrics.com/operator/api.html#vmalertmanagerconfig): fixed error with headers in VMAlertmanagerConfig.Receivers.EmailConfigs.Headers unmarshalling. Thanks [@Amper](https://github.com/Amper) in https://github.com/VictoriaMetrics/operator/pull/610
-- [vmagent](https://docs.victoriametrics.com/operator/api.html#vmagent): fixed keepInput setting for streaming aggregation. Thanks [@Amper](https://github.com/Amper) in https://github.com/VictoriaMetrics/operator/pull/618
-- [vmalertmanagerconfig](https://docs.victoriametrics.com/operator/api.html#vmalertmanagerconfig): fix webhook config maxAlerts not work. Thanks [@Haleygo](https://github.com/Haleygo) in https://github.com/VictoriaMetrics/operator/pull/625
-- [vmagent](https://docs.victoriametrics.com/operator/api.html#vmagent): Remove single quotes from remote write headers. Thanks [@axelsccp](https://github.com/axelsccp) in https://github.com/VictoriaMetrics/operator/pull/613
-- [vmalertmanagerconfig](https://docs.victoriametrics.com/operator/api.html#vmalertmanagerconfig): fix parse route error and some comments. Thanks [@Haleygo](https://github.com/Haleygo) in https://github.com/VictoriaMetrics/operator/pull/630
-- [vmuser](https://docs.victoriametrics.com/operator/api.html#vmuser): properly removes finalizers for objects https://github.com/VictoriaMetrics/operator/commit/8f10113920a353f21fbcc8637076905f2e57bb34
+- [vmalert](./api.md#vmalert): skip bad rules and improve logging for rules exceed max configmap size https://github.com/VictoriaMetrics/operator/commit/bb754d5c20bb371a197cd6ff5afac1ba86a4d92b
+- [vmalertmanagerconfig](./api.md#vmalertmanagerconfig): fixed error with headers in VMAlertmanagerConfig.Receivers.EmailConfigs.Headers unmarshalling. Thanks [@Amper](https://github.com/Amper) in https://github.com/VictoriaMetrics/operator/pull/610
+- [vmagent](./api.md#vmagent): fixed keepInput setting for streaming aggregation. Thanks [@Amper](https://github.com/Amper) in https://github.com/VictoriaMetrics/operator/pull/618
+- [vmalertmanagerconfig](./api.md#vmalertmanagerconfig): fix webhook config maxAlerts not work. Thanks [@Haleygo](https://github.com/Haleygo) in https://github.com/VictoriaMetrics/operator/pull/625
+- [vmagent](./api.md#vmagent): Remove single quotes from remote write headers. Thanks [@axelsccp](https://github.com/axelsccp) in https://github.com/VictoriaMetrics/operator/pull/613
+- [vmalertmanagerconfig](./api.md#vmalertmanagerconfig): fix parse route error and some comments. Thanks [@Haleygo](https://github.com/Haleygo) in https://github.com/VictoriaMetrics/operator/pull/630
+- [vmuser](./api.md#vmuser): properly removes finalizers for objects https://github.com/VictoriaMetrics/operator/commit/8f10113920a353f21fbcc8637076905f2e57bb34
 
 ### Features
 
-- [vmalertmanager](https://docs.victoriametrics.com/operator/api.html#vmalertmanager): add option to disable route continue enforce. Thanks [@Haleygo](https://github.com/Haleygo) in https://github.com/VictoriaMetrics/operator/pull/621
-- [vmalertmanagerconfig](https://docs.victoriametrics.com/operator/api.html#vmalertmanagerconfig): support set require_tls to false. Thanks [@Haleygo](https://github.com/Haleygo) in https://github.com/VictoriaMetrics/operator/pull/624
-- [vmalertmanagerconfig](https://docs.victoriametrics.com/operator/api.html#vmalertmanagerconfig): add sanity check. Thanks [@Haleygo](https://github.com/Haleygo) in https://github.com/VictoriaMetrics/operator/pull/627
+- [vmalertmanager](./api.md#vmalertmanager): add option to disable route continue enforce. Thanks [@Haleygo](https://github.com/Haleygo) in https://github.com/VictoriaMetrics/operator/pull/621
+- [vmalertmanagerconfig](./api.md#vmalertmanagerconfig): support set require_tls to false. Thanks [@Haleygo](https://github.com/Haleygo) in https://github.com/VictoriaMetrics/operator/pull/624
+- [vmalertmanagerconfig](./api.md#vmalertmanagerconfig): add sanity check. Thanks [@Haleygo](https://github.com/Haleygo) in https://github.com/VictoriaMetrics/operator/pull/627
 - Makefile: bump Alpine base image to latest v3.17.3. Thanks [@denisgolius](https://github.com/denisgolius) in https://github.com/VictoriaMetrics/operator/pull/628
-- [vmalertmanagerconfig](https://docs.victoriametrics.com/operator/api.html#vmalertmanagerconfig): support sound field in pushover config. Thanks [@Haleygo](https://github.com/Haleygo) in https://github.com/VictoriaMetrics/operator/pull/631
-- [vmagent](https://docs.victoriametrics.com/operator/api.html#vmagent)/[vmauth](https://docs.victoriametrics.com/operator/api.html#vmauth): download initial config with initContainer https://github.com/VictoriaMetrics/operator/commit/612e7c8f40659731e7938ef9556eb088c67eb4b7
+- [vmalertmanagerconfig](./api.md#vmalertmanagerconfig): support sound field in pushover config. Thanks [@Haleygo](https://github.com/Haleygo) in https://github.com/VictoriaMetrics/operator/pull/631
+- [vmagent](./api.md#vmagent)/[vmauth](./api.md#vmauth): download initial config with initContainer https://github.com/VictoriaMetrics/operator/commit/612e7c8f40659731e7938ef9556eb088c67eb4b7
 
 [Changes][v0.33.0]
 
@@ -201,7 +207,7 @@
 ### Fixes
 
 - config: fixes typo at default vm apps version https://github.com/VictoriaMetrics/operator/issues/608
-- [vmsingle](https://docs.victoriametrics.com/operator/api.html#vmsingle): conditionally adds stream aggregation config https://github.com/VictoriaMetrics/operator/commit/4a0ca54113afcde439ca4c77e22d3ef1c0d36241
+- [vmsingle](./api.md#vmsingle): conditionally adds stream aggregation config https://github.com/VictoriaMetrics/operator/commit/4a0ca54113afcde439ca4c77e22d3ef1c0d36241
 
 [Changes][v0.32.1]
 
@@ -215,10 +221,10 @@
 
 ### Features
 
-- [vmauth](https://docs.victoriametrics.com/operator/api.html#vmauth): automatically configures `proxy-protocol` client and `reloadAuthKey` for `config-reloader` container. https://github.com/VictoriaMetrics/operator/commit/611819233bf595a4dbd04b07d7be24b7e994379c
-- [vmagent](https://docs.victoriametrics.com/operator/api.html#vmagent): adds `scrapeTimeout` global configuration for `VMAgent` https://github.com/VictoriaMetrics/operator/commit/d1d5024c6befa0961f8d56c82a0554935a4b1878
-- [vmagent](https://docs.victoriametrics.com/operator/api.html#vmagent): adds [streaming aggregation](https://docs.victoriametrics.com/stream-aggregation.html) for `remoteWrite` targets https://github.com/VictoriaMetrics/operator/commit/b8baa6c2b72bdda64ebfcc9c3d86d846cd9b3c98 Thanks [@Amper](https://github.com/Amper)
-- [vmsingle](https://docs.victoriametrics.com/operator/api.html#vmsingle): adds [streaming aggregation](https://docs.victoriametrics.com/stream-aggregation.html) as global configuration for database https://github.com/VictoriaMetrics/operator/commit/b8baa6c2b72bdda64ebfcc9c3d86d846cd9b3c98 Thanks [@Amper](https://github.com/Amper)
+- [vmauth](./api.md#vmauth): automatically configures `proxy-protocol` client and `reloadAuthKey` for `config-reloader` container. https://github.com/VictoriaMetrics/operator/commit/611819233bf595a4dbd04b07d7be24b7e994379c
+- [vmagent](./api.md#vmagent): adds `scrapeTimeout` global configuration for `VMAgent` https://github.com/VictoriaMetrics/operator/commit/d1d5024c6befa0961f8d56c82a0554935a4b1878
+- [vmagent](./api.md#vmagent): adds [streaming aggregation](https://docs.victoriametrics.com/stream-aggregation.html) for `remoteWrite` targets https://github.com/VictoriaMetrics/operator/commit/b8baa6c2b72bdda64ebfcc9c3d86d846cd9b3c98 Thanks [@Amper](https://github.com/Amper)
+- [vmsingle](./api.md#vmsingle): adds [streaming aggregation](https://docs.victoriametrics.com/stream-aggregation.html) as global configuration for database https://github.com/VictoriaMetrics/operator/commit/b8baa6c2b72bdda64ebfcc9c3d86d846cd9b3c98 Thanks [@Amper](https://github.com/Amper)
 
 [Changes][v0.32.0]
 
@@ -233,8 +239,8 @@
 
 ### Features
 
-- [vmalertmanager](https://docs.victoriametrics.com/operator/api.html#vmalertmanager): Add support of vmalertmanager.spec.templates and autoreload dirs for templates and configmaps  thanks [@Amper](https://github.com/Amper) https://github.com/VictoriaMetrics/operator/issues/590 https://github.com/VictoriaMetrics/operator/issues/592
-- [vmalertmanager](https://docs.victoriametrics.com/operator/api.html#vmalertmanager): Add support "%SHARD_NUM%" placeholder for vmagent sts/deployment  Thanks [@Amper](https://github.com/Amper) https://github.com/VictoriaMetrics/operator/issues/508
+- [vmalertmanager](./api.md#vmalertmanager): Add support of vmalertmanager.spec.templates and autoreload dirs for templates and configmaps  thanks [@Amper](https://github.com/Amper) https://github.com/VictoriaMetrics/operator/issues/590 https://github.com/VictoriaMetrics/operator/issues/592
+- [vmalertmanager](./api.md#vmalertmanager): Add support "%SHARD_NUM%" placeholder for vmagent sts/deployment  Thanks [@Amper](https://github.com/Amper) https://github.com/VictoriaMetrics/operator/issues/508
 
 [Changes][v0.31.0]
 
