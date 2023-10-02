@@ -32,7 +32,7 @@ func TestStorageMustAddRows(t *testing.T) {
 		lr := newTestLogRows(1, 1, 0)
 		lr.timestamps[0] = time.Now().UTC().UnixNano()
 		totalRowsCount += uint64(len(lr.timestamps))
-		_ = s.AddRows(lr)
+		s.MustAddRows(lr)
 		sStats.Reset()
 		s.UpdateStats(&sStats)
 		if n := sStats.RowsCount(); n != totalRowsCount {
@@ -56,7 +56,7 @@ func TestStorageMustAddRows(t *testing.T) {
 		lr.timestamps[i] = time.Now().UTC().UnixNano()
 	}
 	totalRowsCount += uint64(len(lr.timestamps))
-	_ = s.AddRows(lr)
+	s.MustAddRows(lr)
 	sStats.Reset()
 	s.UpdateStats(&sStats)
 	if n := sStats.RowsCount(); n != totalRowsCount {
@@ -80,7 +80,7 @@ func TestStorageMustAddRows(t *testing.T) {
 		now += nsecPerDay
 	}
 	totalRowsCount += uint64(len(lr.timestamps))
-	_ = s.AddRows(lr)
+	s.MustAddRows(lr)
 	sStats.Reset()
 	s.UpdateStats(&sStats)
 	if n := sStats.RowsCount(); n != totalRowsCount {

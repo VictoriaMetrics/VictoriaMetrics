@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
@@ -70,6 +69,11 @@ type blockStreamMerger struct {
 	//
 	// It is used for flushing rows to blocks when their size reaches maxUncompressedBlockSize
 	uncompressedRowsSizeBytes uint64
+
+	// uniqueFields is an upper bound estimation for the number of unique fields in either rows or bd
+	//
+	// It is used for limiting the number of columns written per block
+	uniqueFields int
 }
 
 func (bsm *blockStreamMerger) reset() {
@@ -100,6 +104,7 @@ func (bsm *blockStreamMerger) resetRows() {
 	bsm.rowsTmp.reset()
 
 	bsm.uncompressedRowsSizeBytes = 0
+	bsm.uniqueFields = 0
 }
 
 func (bsm *blockStreamMerger) mustInit(bsw *blockStreamWriter, bsrs []*blockStreamReader) {
@@ -118,17 +123,10 @@ func (bsm *blockStreamMerger) mustInit(bsw *blockStreamWriter, bsrs []*blockStre
 	heap.Init(&bsm.readersHeap)
 }
 
-var mergeStreamsExceedLogger = logger.WithThrottler("mergeStreamsExceed", 10*time.Second)
-
-func (bsm *blockStreamMerger) mergeStreamsLimitWarn(bd *blockData) {
-	attempted := bsm.rows.uniqueFields + len(bd.columnsData) + len(bd.constColumns)
-	mergeStreamsExceedLogger.Warnf("cannot perform background merge: too many columns for block after merge: %d, max columns: %d; "+
-		"check ingestion configuration; see: https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/#troubleshooting", attempted, maxColumnsPerBlock)
-}
-
 // mustWriteBlock writes bd to bsm
 func (bsm *blockStreamMerger) mustWriteBlock(bd *blockData, bsw *blockStreamWriter) {
 	bsm.checkNextBlock(bd)
+	uniqueFields := len(bd.columnsData) + len(bd.constColumns)
 	switch {
 	case !bd.streamID.equal(&bsm.streamID):
 		// The bd contains another streamID.
@@ -141,13 +139,20 @@ func (bsm *blockStreamMerger) mustWriteBlock(bd *blockData, bsw *blockStreamWrit
 		} else {
 			// Slow path - copy the bd to the curr bd.
 			bsm.bd.copyFrom(bd)
+			bsm.uniqueFields = uniqueFields
 		}
-	case !bsm.rows.hasCapacityFor(bd):
-		// Cannot merge bd with bsm.rows as too many columns will be created.
-		// Flush bsm.rows and write bd as is.
-		bsm.mergeStreamsLimitWarn(bd)
+	case bsm.uniqueFields+uniqueFields >= maxColumnsPerBlock:
+		// Cannot merge bd with bsm.rows, because too many columns will be created.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4762
+		//
+		// Flush bsm.rows and copy the bd to the curr bd.
 		bsm.mustFlushRows()
-		bsw.MustWriteBlockData(bd)
+		if uniqueFields >= maxColumnsPerBlock {
+			bsw.MustWriteBlockData(bd)
+		} else {
+			bsm.bd.copyFrom(bd)
+			bsm.uniqueFields = uniqueFields
+		}
 	case bd.uncompressedSizeBytes >= maxUncompressedBlockSize:
 		// The bd contains the same streamID and it is full,
 		// so it can be written next after the current log entries
@@ -159,6 +164,7 @@ func (bsm *blockStreamMerger) mustWriteBlock(bd *blockData, bsw *blockStreamWrit
 		// The bd contains the same streamID and it isn't full,
 		// so it must be merged with the current log entries.
 		bsm.mustMergeRows(bd)
+		bsm.uniqueFields += uniqueFields
 	}
 }
 
@@ -214,15 +220,6 @@ func (bsm *blockStreamMerger) mustMergeRows(bd *blockData) {
 		bsm.bd.reset()
 	}
 
-	if !bsm.rows.hasCapacityFor(bd) {
-		// Cannot merge bd with bsm.rows as too many columns will be created.
-		// Flush bsm.rows and write bd as is.
-		bsm.mergeStreamsLimitWarn(bd)
-		bsm.mustFlushRows()
-		bsm.bsw.MustWriteBlockData(bd)
-		return
-	}
-
 	// Unmarshal log entries from bd
 	rowsLen := len(bsm.rows.timestamps)
 	bsm.mustUnmarshalRows(bd)
@@ -232,7 +229,6 @@ func (bsm *blockStreamMerger) mustMergeRows(bd *blockData) {
 	rows := bsm.rows.rows
 	bsm.rowsTmp.mergeRows(timestamps[:rowsLen], timestamps[rowsLen:], rows[:rowsLen], rows[rowsLen:])
 	bsm.rows, bsm.rowsTmp = bsm.rowsTmp, bsm.rows
-	bsm.rows.uniqueFields = bsm.rowsTmp.uniqueFields
 	bsm.rowsTmp.reset()
 
 	if bsm.uncompressedRowsSizeBytes >= maxUncompressedBlockSize {

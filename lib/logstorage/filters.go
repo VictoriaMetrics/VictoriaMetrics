@@ -2976,8 +2976,8 @@ func toUint64Clamp(f float64) uint64 {
 	if f < 0 {
 		return 0
 	}
-	if f > (1<<64)-1 {
-		return (1 << 64) - 1
+	if f > math.MaxUint64 {
+		return math.MaxUint64
 	}
 	return uint64(f)
 }

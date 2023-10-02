@@ -430,7 +430,6 @@ vmselect requests stats via [/api/v1/status/tsdb](#tsdb-stats) API from each vms
 This may lead to inflated values when samples for the same time series are spread across multiple vmstorage nodes
 due to [replication](#replication) or [rerouting](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html?highlight=re-routes#cluster-availability).
 
-
 ## How to apply new config to VictoriaMetrics
 
 VictoriaMetrics is configured via command-line flags, so it must be restarted when new command-line flags should be applied:
@@ -1697,9 +1696,10 @@ See [these docs](https://docs.victoriametrics.com/guides/guide-vmcluster-multipl
 which allow configuring multiple retentions for distinct sets of time series matching the configured [series filters](https://docs.victoriametrics.com/keyConcepts.html#filtering)
 via `-retentionFilter` command-line flag. This flag accepts `filter:duration` options, where `filter` must be
 a valid [series filter](https://docs.victoriametrics.com/keyConcepts.html#filtering), while the `duration`
-must contain valid [retention](#retention) for time series matching the given `filter`. If series doesn't match
-any configured `-retentionFilter`, then the retention configured via [-retentionPeriod](#retention) command-line flag is applied to it.
-If series matches multiple configured retention filters, then the smallest retention is applied.
+must contain valid [retention](#retention) for time series matching the given `filter`. 
+The `duration` of the `-retentionFilter` must be lower or equal to [-retentionPeriod](#retention) flag value.
+If series doesn't match any configured `-retentionFilter`, then the retention configured via [-retentionPeriod](#retention) 
+command-line flag is applied to it. If series matches multiple configured retention filters, then the smallest retention is applied.
 
 For example, the following config sets 3 days retention for time series with `team="juniors"` label,
 30 days retention for time series with `env="dev"` or `env="staging"` label and 1 year retention for the remaining time series:
