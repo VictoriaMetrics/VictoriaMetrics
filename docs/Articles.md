@@ -138,3 +138,4 @@ See also [case studies](https://docs.victoriametrics.com/CaseStudies.html).
 * [Comparing Thanos to VictoriaMetrics cluster](https://faun.pub/comparing-thanos-to-victoriametrics-cluster-b193bea1683)
 * [Evaluation performance and correctness: VictoriaMetrics response](https://valyala.medium.com/evaluating-performance-and-correctness-victoriametrics-response-e27315627e87)
 * [How to reduce expenses on monitoring slides](https://www.slideshare.net/RomanKhavronenko/how-to-reduce-expenses-on-monitoringpdf)
+* [Writing a TSDB from Scratch: Performance Optimization](https://www.youtube.com/watch?v=NdjuW98ep_w)
