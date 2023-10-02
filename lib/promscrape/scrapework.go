@@ -326,7 +326,6 @@ func (sw *scrapeWork) run(stopCh <-chan struct{}, globalStopCh <-chan struct{}) 
 		sw.scrapeAndLogError(timestamp, timestamp)
 	}
 	defer ticker.Stop()
-
 	for {
 		timestamp += scrapeInterval.Milliseconds()
 		select {
@@ -351,16 +350,9 @@ func (sw *scrapeWork) run(stopCh <-chan struct{}, globalStopCh <-chan struct{}) 
 			return
 		case tt := <-ticker.C:
 			t := tt.UnixNano() / 1e6
-			if d := math.Abs(float64(t - timestamp)); d > 0 {
-				intervalDelay := d / float64(scrapeInterval.Milliseconds())
-				if intervalDelay > 0.1 {
-					// Too big jitter. Adjust timestamp
-					timestamp = t
-				}
-				if intervalDelay >= 1 {
-					skipped := math.Floor(intervalDelay)
-					scrapesSkipped.Add(int(skipped))
-				}
+			if d := math.Abs(float64(t - timestamp)); d > 0 && d/float64(scrapeInterval.Milliseconds()) > 0.1 {
+				// Too big jitter. Adjust timestamp
+				timestamp = t
 			}
 			sw.scrapeAndLogError(timestamp, t)
 		}
@@ -403,7 +395,6 @@ var (
 	scrapeDuration              = metrics.NewHistogram("vm_promscrape_scrape_duration_seconds")
 	scrapeResponseSize          = metrics.NewHistogram("vm_promscrape_scrape_response_size_bytes")
 	scrapedSamples              = metrics.NewHistogram("vm_promscrape_scraped_samples")
-	scrapesSkipped              = metrics.NewCounter("vm_promscrape_scrapes_skipped_total")
 	scrapesSkippedBySampleLimit = metrics.NewCounter("vm_promscrape_scrapes_skipped_by_sample_limit_total")
 	scrapesFailed               = metrics.NewCounter("vm_promscrape_scrapes_failed_total")
 	pushDataDuration            = metrics.NewHistogram("vm_promscrape_push_data_duration_seconds")
