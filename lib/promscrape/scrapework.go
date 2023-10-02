@@ -587,7 +587,7 @@ func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 		if err == nil {
 			bodyString = bytesutil.ToUnsafeString(sbr.body)
 			areIdenticalSeries = sw.areIdenticalSeries(lastScrape, bodyString)
-			err = stream.Parse(&sbr, scrapeTimestamp, false, func(rows []parser.Row) error {
+			err = stream.Parse(&sbr, scrapeTimestamp, false, false, func(rows []parser.Row) error {
 				mu.Lock()
 				defer mu.Unlock()
 				samplesScraped += len(rows)
@@ -808,7 +808,7 @@ func (sw *scrapeWork) sendStaleSeries(lastScrape, currScrape string, timestamp i
 		// and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3675
 		var mu sync.Mutex
 		br := bytes.NewBufferString(bodyString)
-		err := stream.Parse(br, timestamp, false, func(rows []parser.Row) error {
+		err := stream.Parse(br, timestamp, false, false, func(rows []parser.Row) error {
 			mu.Lock()
 			defer mu.Unlock()
 			for i := range rows {
