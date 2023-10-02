@@ -1,6 +1,6 @@
 ---
-sort: 18
-weight: 18
+sort: 17
+weight: 17
 title: CHANGELOG for the year 2021
 menu:
   docs:

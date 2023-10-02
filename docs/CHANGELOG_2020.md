@@ -1,6 +1,6 @@
 ---
-sort: 19
-weight: 19
+sort: 16
+weight: 16
 title: CHANGELOG for the year 2020
 menu:
   docs:

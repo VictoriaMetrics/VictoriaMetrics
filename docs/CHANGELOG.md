@@ -1,6 +1,6 @@
 ---
-sort: 16
-weight: 16
+sort: 20
+weight: 20
 title: CHANGELOG
 menu:
   docs:
