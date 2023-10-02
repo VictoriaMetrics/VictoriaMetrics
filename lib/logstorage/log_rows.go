@@ -135,6 +135,8 @@ func (lr *LogRows) NeedFlush() bool {
 //
 // It is OK to modify the args after returning from the function,
 // since lr copies all the args to internal data.
+//
+// field names longer than MaxFieldNameSize are automatically truncated to MaxFieldNameSize length.
 func (lr *LogRows) MustAdd(tenantID TenantID, timestamp int64, fields []Field) {
 	// Compose StreamTags from fields according to lr.streamFields
 	sfs := lr.streamFields
@@ -190,8 +192,12 @@ func (lr *LogRows) mustAddInternal(sid streamID, timestamp int64, fields []Field
 		dstField := &fb[len(fb)-1]
 
 		bufLen = len(buf)
-		if f.Name != "_msg" {
-			buf = append(buf, f.Name...)
+		fieldName := f.Name
+		if len(fieldName) > MaxFieldNameSize {
+			fieldName = fieldName[:MaxFieldNameSize]
+		}
+		if fieldName != "_msg" {
+			buf = append(buf, fieldName...)
 		}
 		dstField.Name = bytesutil.ToUnsafeString(buf[bufLen:])
 
