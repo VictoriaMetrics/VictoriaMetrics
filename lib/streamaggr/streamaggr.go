@@ -210,7 +210,6 @@ func (a *Aggregators) MustStop() {
 // so no further calls to MustStop are needed.
 func (a *Aggregators) UpdateWith(b *Aggregators) int {
 	if b == nil {
-		fmt.Println("lol b is nil")
 		a.MustStop()
 		return 0
 	}
