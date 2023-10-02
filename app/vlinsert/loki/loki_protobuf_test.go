@@ -14,7 +14,7 @@ func TestParseProtobufRequestSuccess(t *testing.T) {
 	f := func(s string, resultExpected string) {
 		t.Helper()
 		var pr PushRequest
-		n, err := parseJSONRequest([]byte(s), func(timestamp int64, fields []logstorage.Field) {
+		n, err := parseJSONRequest([]byte(s), func(timestamp int64, fields []logstorage.Field) error {
 			msg := ""
 			for _, f := range fields {
 				if f.Name == "_msg" {
@@ -39,6 +39,7 @@ func TestParseProtobufRequestSuccess(t *testing.T) {
 					},
 				},
 			})
+			return nil
 		})
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
@@ -54,13 +55,14 @@ func TestParseProtobufRequestSuccess(t *testing.T) {
 		encodedData := snappy.Encode(nil, data)
 
 		var lines []string
-		n, err = parseProtobufRequest(encodedData, func(timestamp int64, fields []logstorage.Field) {
+		n, err = parseProtobufRequest(encodedData, func(timestamp int64, fields []logstorage.Field) error {
 			var a []string
 			for _, f := range fields {
 				a = append(a, f.String())
 			}
 			line := fmt.Sprintf("_time:%d %s", timestamp, strings.Join(a, " "))
 			lines = append(lines, line)
+			return nil
 		})
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)

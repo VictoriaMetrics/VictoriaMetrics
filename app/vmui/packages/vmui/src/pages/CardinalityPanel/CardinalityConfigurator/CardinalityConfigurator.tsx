@@ -11,8 +11,9 @@ import { useSearchParams } from "react-router-dom";
 import CardinalityTotals, { CardinalityTotalsProps } from "../CardinalityTotals/CardinalityTotals";
 import useSearchParamsFromObject from "../../../hooks/useSearchParamsFromObject";
 import useStateSearchParams from "../../../hooks/useStateSearchParams";
+import Hyperlink from "../../../components/Main/Hyperlink/Hyperlink";
 
-const CardinalityConfigurator: FC<CardinalityTotalsProps> = ({ isPrometheus, ...props }) => {
+const CardinalityConfigurator: FC<CardinalityTotalsProps> = ({ isPrometheus, isCluster, ...props }) => {
   const { isMobile } = useDeviceDetect();
   const [searchParams] = useSearchParams();
   const { setSearchParamsFromKeys } = useSearchParamsFromObject();
@@ -105,19 +106,29 @@ const CardinalityConfigurator: FC<CardinalityTotalsProps> = ({ isPrometheus, ...
     <div className="vm-cardinality-configurator-bottom">
       <CardinalityTotals
         isPrometheus={isPrometheus}
+        isCluster={isCluster}
         {...props}
       />
+      {isCluster &&
+        <div className="vm-cardinality-configurator-bottom-helpful">
+          <Hyperlink
+            href="https://docs.victoriametrics.com/#cardinality-explorer-statistic-inaccurancy"
+            withIcon={true}
+          >
+            <WikiIcon/>
+          Statistic inaccuracy explanation
+          </Hyperlink>
+        </div>
+      }
 
       <div className="vm-cardinality-configurator-bottom-helpful">
-        <a
-          className="vm-link vm-link_with-icon"
-          target="_blank"
+        <Hyperlink
           href="https://docs.victoriametrics.com/#cardinality-explorer"
-          rel="help noreferrer"
+          withIcon={true}
         >
           <WikiIcon/>
           Documentation
-        </a>
+        </Hyperlink>
       </div>
 
       <div className="vm-cardinality-configurator-bottom__execute">
