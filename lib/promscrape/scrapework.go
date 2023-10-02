@@ -351,14 +351,15 @@ func (sw *scrapeWork) run(stopCh <-chan struct{}, globalStopCh <-chan struct{}) 
 			return
 		case tt := <-ticker.C:
 			t := tt.UnixNano() / 1e6
-			if lag := math.Abs(float64(t - timestamp)); lag > 0 {
-				si := float64(scrapeInterval.Milliseconds())
-				if lag/si > 0.1 {
+			if d := math.Abs(float64(t - timestamp)); d > 0 {
+				intervalDelay := d / float64(scrapeInterval.Milliseconds())
+				if intervalDelay > 0.1 {
 					// Too big jitter. Adjust timestamp
 					timestamp = t
 				}
-				if lag/si >= 1 {
-					scrapesSkipped.Inc()
+				if intervalDelay >= 1 {
+					skipped := math.Floor(intervalDelay)
+					scrapesSkipped.Add(int(skipped))
 				}
 			}
 			sw.scrapeAndLogError(timestamp, t)
