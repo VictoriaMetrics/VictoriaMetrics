@@ -32,6 +32,10 @@ $padding-modal: $padding-medium;
     &-header {
       padding: $padding-small $padding-small $padding-small $padding-global;
       margin-bottom: $padding-global;
+
+      &__title {
+        max-width: 80vw;
+      }
     }
 
     &-body {
@@ -69,6 +73,10 @@ $padding-modal: $padding-medium;
       &__title {
         font-weight: bold;
         user-select: none;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 50vw;
       }
 
       &__close {
