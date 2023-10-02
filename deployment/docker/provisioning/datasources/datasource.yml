@@ -10,5 +10,5 @@ datasources:
     - name: VictoriaMetrics - cluster
       type: prometheus
       access: proxy
-      url: http://vmselect:8481/select/0/prometheus
+      url: http://vmauth:8427/select/0/prometheus
       isDefault: false

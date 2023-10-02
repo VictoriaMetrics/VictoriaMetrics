@@ -211,16 +211,12 @@ func (s *Search) NextMetricBlock() bool {
 				// Skip the block, since it contains only data outside the configured retention.
 				continue
 			}
-			var err error
-			s.MetricBlockRef.MetricName, err = s.idb.searchMetricNameWithCache(s.MetricBlockRef.MetricName[:0], tsid.MetricID)
-			if err != nil {
-				if err == io.EOF {
-					// Skip missing metricName for tsid.MetricID.
-					// It should be automatically fixed. See indexDB.searchMetricNameWithCache for details.
-					continue
-				}
-				s.err = err
-				return false
+			var ok bool
+			s.MetricBlockRef.MetricName, ok = s.idb.searchMetricNameWithCache(s.MetricBlockRef.MetricName[:0], tsid.MetricID)
+			if !ok {
+				// Skip missing metricName for tsid.MetricID.
+				// It should be automatically fixed. See indexDB.searchMetricNameWithCache for details.
+				continue
 			}
 			s.prevMetricID = tsid.MetricID
 		}

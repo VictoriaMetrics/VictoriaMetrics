@@ -119,8 +119,6 @@ type partition struct {
 	inmemoryAssistedMerges uint64
 	smallAssistedMerges    uint64
 
-	mergeNeedFreeDiskSpace uint64
-
 	mergeIdx uint64
 
 	smallPartsPath string
@@ -354,8 +352,6 @@ type partitionMetrics struct {
 
 	InmemoryAssistedMerges uint64
 	SmallAssistedMerges    uint64
-
-	MergeNeedFreeDiskSpace uint64
 }
 
 // TotalRowsCount returns total number of rows in tm.
@@ -421,8 +417,6 @@ func (pt *partition) UpdateMetrics(m *partitionMetrics) {
 
 	m.InmemoryAssistedMerges += atomic.LoadUint64(&pt.inmemoryAssistedMerges)
 	m.SmallAssistedMerges += atomic.LoadUint64(&pt.smallAssistedMerges)
-
-	m.MergeNeedFreeDiskSpace += atomic.LoadUint64(&pt.mergeNeedFreeDiskSpace)
 }
 
 // AddRows adds the given rows to the partition pt.
@@ -640,45 +634,41 @@ func needAssistedMerge(pws []*partWrapper, maxParts int) bool {
 }
 
 func (pt *partition) assistedMergeForInmemoryParts() {
-	for {
-		pt.partsLock.Lock()
-		needMerge := needAssistedMerge(pt.inmemoryParts, maxInmemoryPartsPerPartition)
-		pt.partsLock.Unlock()
-		if !needMerge {
-			return
-		}
-
-		atomic.AddUint64(&pt.inmemoryAssistedMerges, 1)
-		err := pt.mergeInmemoryParts()
-		if err == nil {
-			continue
-		}
-		if errors.Is(err, errNothingToMerge) || errors.Is(err, errForciblyStopped) {
-			return
-		}
-		logger.Panicf("FATAL: cannot merge inmemory parts: %s", err)
+	pt.partsLock.Lock()
+	needMerge := needAssistedMerge(pt.inmemoryParts, maxInmemoryPartsPerPartition)
+	pt.partsLock.Unlock()
+	if !needMerge {
+		return
 	}
+
+	atomic.AddUint64(&pt.inmemoryAssistedMerges, 1)
+	err := pt.mergeInmemoryParts()
+	if err == nil {
+		return
+	}
+	if errors.Is(err, errNothingToMerge) || errors.Is(err, errForciblyStopped) {
+		return
+	}
+	logger.Panicf("FATAL: cannot merge inmemory parts: %s", err)
 }
 
 func (pt *partition) assistedMergeForSmallParts() {
-	for {
-		pt.partsLock.Lock()
-		needMerge := needAssistedMerge(pt.smallParts, maxSmallPartsPerPartition)
-		pt.partsLock.Unlock()
-		if !needMerge {
-			return
-		}
-
-		atomic.AddUint64(&pt.smallAssistedMerges, 1)
-		err := pt.mergeExistingParts(false)
-		if err == nil {
-			continue
-		}
-		if errors.Is(err, errNothingToMerge) || errors.Is(err, errForciblyStopped) || errors.Is(err, errReadOnlyMode) {
-			return
-		}
-		logger.Panicf("FATAL: cannot merge small parts: %s", err)
+	pt.partsLock.Lock()
+	needMerge := needAssistedMerge(pt.smallParts, maxSmallPartsPerPartition)
+	pt.partsLock.Unlock()
+	if !needMerge {
+		return
 	}
+
+	atomic.AddUint64(&pt.smallAssistedMerges, 1)
+	err := pt.mergeExistingParts(false)
+	if err == nil {
+		return
+	}
+	if errors.Is(err, errNothingToMerge) || errors.Is(err, errForciblyStopped) || errors.Is(err, errReadOnlyMode) {
+		return
+	}
+	logger.Panicf("FATAL: cannot merge small parts: %s", err)
 }
 
 func getNotInMergePartsCount(pws []*partWrapper) int {
@@ -1119,7 +1109,9 @@ func (pt *partition) getMaxSmallPartSize() uint64 {
 }
 
 func (pt *partition) getMaxBigPartSize() uint64 {
-	workersCount := getDefaultMergeConcurrency(4)
+	// Always use 4 workers for big merges due to historical reasons.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4915#issuecomment-1733922830
+	workersCount := 4
 	return getMaxOutBytes(pt.bigPartsPath, workersCount)
 }
 
@@ -1146,10 +1138,9 @@ func (pt *partition) mergeInmemoryParts() error {
 	maxOutBytes := pt.getMaxBigPartSize()
 
 	pt.partsLock.Lock()
-	pws, needFreeSpace := getPartsToMerge(pt.inmemoryParts, maxOutBytes, false)
+	pws := getPartsToMerge(pt.inmemoryParts, maxOutBytes, false)
 	pt.partsLock.Unlock()
 
-	atomicSetBool(&pt.mergeNeedFreeDiskSpace, needFreeSpace)
 	return pt.mergeParts(pws, pt.stopCh, false)
 }
 
@@ -1166,11 +1157,18 @@ func (pt *partition) mergeExistingParts(isFinal bool) error {
 	dst = append(dst, pt.inmemoryParts...)
 	dst = append(dst, pt.smallParts...)
 	dst = append(dst, pt.bigParts...)
-	pws, needFreeSpace := getPartsToMerge(dst, maxOutBytes, isFinal)
+	pws := getPartsToMerge(dst, maxOutBytes, isFinal)
 	pt.partsLock.Unlock()
 
-	atomicSetBool(&pt.mergeNeedFreeDiskSpace, needFreeSpace)
 	return pt.mergeParts(pws, pt.stopCh, isFinal)
+}
+
+func assertIsInMerge(pws []*partWrapper) {
+	for _, pw := range pws {
+		if !pw.isInMerge {
+			logger.Panicf("BUG: partWrapper.isInMerge unexpectedly set to false")
+		}
+	}
 }
 
 func (pt *partition) releasePartsToMerge(pws []*partWrapper) {
@@ -1185,14 +1183,6 @@ func (pt *partition) releasePartsToMerge(pws []*partWrapper) {
 }
 
 var errNothingToMerge = fmt.Errorf("nothing to merge")
-
-func atomicSetBool(p *uint64, b bool) {
-	v := uint64(0)
-	if b {
-		v = 1
-	}
-	atomic.StoreUint64(p, v)
-}
 
 func (pt *partition) runFinalDedup() error {
 	requiredDedupInterval, actualDedupInterval := pt.getRequiredDedupInterval()
@@ -1240,11 +1230,15 @@ func getMinDedupInterval(pws []*partWrapper) int64 {
 // if isFinal is set, then the resulting part will be saved to disk.
 //
 // All the parts inside pws must have isInMerge field set to true.
+// The isInMerge field inside pws parts is set to false before returning from the function.
 func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFinal bool) error {
 	if len(pws) == 0 {
 		// Nothing to merge.
 		return errNothingToMerge
 	}
+
+	assertIsInMerge(pws)
+	defer pt.releasePartsToMerge(pws)
 
 	startTime := time.Now()
 
@@ -1296,7 +1290,6 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFi
 		putBlockStreamReader(bsr)
 	}
 	if err != nil {
-		pt.releasePartsToMerge(pws)
 		return err
 	}
 	if mpNew != nil {
@@ -1629,8 +1622,7 @@ func (pt *partition) removeStaleParts() {
 // getPartsToMerge returns optimal parts to merge from pws.
 //
 // The summary size of the returned parts must be smaller than maxOutBytes.
-// The function returns true if pws contains parts, which cannot be merged because of maxOutBytes limit.
-func getPartsToMerge(pws []*partWrapper, maxOutBytes uint64, isFinal bool) ([]*partWrapper, bool) {
+func getPartsToMerge(pws []*partWrapper, maxOutBytes uint64, isFinal bool) []*partWrapper {
 	pwsRemaining := make([]*partWrapper, 0, len(pws))
 	for _, pw := range pws {
 		if !pw.isInMerge {
@@ -1639,14 +1631,13 @@ func getPartsToMerge(pws []*partWrapper, maxOutBytes uint64, isFinal bool) ([]*p
 	}
 	maxPartsToMerge := defaultPartsToMerge
 	var pms []*partWrapper
-	needFreeSpace := false
 	if isFinal {
 		for len(pms) == 0 && maxPartsToMerge >= finalPartsToMerge {
-			pms, needFreeSpace = appendPartsToMerge(pms[:0], pwsRemaining, maxPartsToMerge, maxOutBytes)
+			pms = appendPartsToMerge(pms[:0], pwsRemaining, maxPartsToMerge, maxOutBytes)
 			maxPartsToMerge--
 		}
 	} else {
-		pms, needFreeSpace = appendPartsToMerge(pms[:0], pwsRemaining, maxPartsToMerge, maxOutBytes)
+		pms = appendPartsToMerge(pms[:0], pwsRemaining, maxPartsToMerge, maxOutBytes)
 	}
 	for _, pw := range pms {
 		if pw.isInMerge {
@@ -1654,7 +1645,7 @@ func getPartsToMerge(pws []*partWrapper, maxOutBytes uint64, isFinal bool) ([]*p
 		}
 		pw.isInMerge = true
 	}
-	return pms, needFreeSpace
+	return pms
 }
 
 // minMergeMultiplier is the minimum multiplier for the size of the output part
@@ -1665,13 +1656,11 @@ func getPartsToMerge(pws []*partWrapper, maxOutBytes uint64, isFinal bool) ([]*p
 // The 1.7 is good enough for production workloads.
 const minMergeMultiplier = 1.7
 
-// appendPartsToMerge finds optimal parts to merge from src, appends
-// them to dst and returns the result.
-// The function returns true if src contains parts, which cannot be merged because of maxOutBytes limit.
-func appendPartsToMerge(dst, src []*partWrapper, maxPartsToMerge int, maxOutBytes uint64) ([]*partWrapper, bool) {
+// appendPartsToMerge finds optimal parts to merge from src, appends them to dst and returns the result.
+func appendPartsToMerge(dst, src []*partWrapper, maxPartsToMerge int, maxOutBytes uint64) []*partWrapper {
 	if len(src) < 2 {
 		// There is no need in merging zero or one part :)
-		return dst, false
+		return dst
 	}
 	if maxPartsToMerge < 2 {
 		logger.Panicf("BUG: maxPartsToMerge cannot be smaller than 2; got %d", maxPartsToMerge)
@@ -1679,18 +1668,15 @@ func appendPartsToMerge(dst, src []*partWrapper, maxPartsToMerge int, maxOutByte
 
 	// Filter out too big parts.
 	// This should reduce N for O(N^2) algorithm below.
-	skippedBigParts := 0
 	maxInPartBytes := uint64(float64(maxOutBytes) / minMergeMultiplier)
 	tmp := make([]*partWrapper, 0, len(src))
 	for _, pw := range src {
 		if pw.p.size > maxInPartBytes {
-			skippedBigParts++
 			continue
 		}
 		tmp = append(tmp, pw)
 	}
 	src = tmp
-	needFreeSpace := skippedBigParts > 1
 
 	sortPartsForOptimalMerge(src)
 
@@ -1709,15 +1695,12 @@ func appendPartsToMerge(dst, src []*partWrapper, maxPartsToMerge int, maxOutByte
 	for i := minSrcParts; i <= maxSrcParts; i++ {
 		for j := 0; j <= len(src)-i; j++ {
 			a := src[j : j+i]
-			outSize := getPartsSize(a)
-			if outSize > maxOutBytes {
-				needFreeSpace = true
-			}
 			if a[0].p.size*uint64(len(a)) < a[len(a)-1].p.size {
 				// Do not merge parts with too big difference in size,
 				// since this results in unbalanced merges.
 				continue
 			}
+			outSize := getPartsSize(a)
 			if outSize > maxOutBytes {
 				// There is no need in verifying remaining parts with bigger sizes.
 				break
@@ -1738,9 +1721,9 @@ func appendPartsToMerge(dst, src []*partWrapper, maxPartsToMerge int, maxOutByte
 	if maxM < minM {
 		// There is no sense in merging parts with too small m,
 		// since this leads to high disk write IO.
-		return dst, needFreeSpace
+		return dst
 	}
-	return append(dst, pws...), needFreeSpace
+	return append(dst, pws...)
 }
 
 func sortPartsForOptimalMerge(pws []*partWrapper) {

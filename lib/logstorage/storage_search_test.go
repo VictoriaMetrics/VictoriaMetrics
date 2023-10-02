@@ -70,7 +70,7 @@ func TestStorageRunQuery(t *testing.T) {
 					})
 					lr.MustAdd(tenantID, timestamp, fields)
 				}
-				s.MustAddRows(lr)
+				_ = s.AddRows(lr)
 				PutLogRows(lr)
 			}
 		}
@@ -366,7 +366,7 @@ func TestStorageSearch(t *testing.T) {
 					})
 					lr.MustAdd(tenantID, timestamp, fields)
 				}
-				s.MustAddRows(lr)
+				_ = s.AddRows(lr)
 				PutLogRows(lr)
 			}
 		}
