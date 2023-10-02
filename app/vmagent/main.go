@@ -455,7 +455,7 @@ func processMultitenantRequest(w http.ResponseWriter, r *http.Request, path stri
 		w.WriteHeader(http.StatusNoContent)
 		return true
 	}
-	if strings.HasPrefix(p.Suffix, "/datadog/") {
+	if strings.HasPrefix(p.Suffix, "datadog/") {
 		// Trim suffix from paths starting from /datadog/ in order to support legacy DataDog agent.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2670
 		p.Suffix = strings.TrimSuffix(p.Suffix, "/")
