@@ -384,6 +384,7 @@ Clusters here are referred to as `source` and `destination`.
   ```console
   $ /vmbackupmanager-prod restore create s3://source_cluster/vmstorage-source-0/daily/2023-04-07
   ```
+1. Restart `vmstorage` pods of *destination* cluster. On pod start `vmbackupmanager` will restore data from the specified backup.
 
 ## Monitoring
 
