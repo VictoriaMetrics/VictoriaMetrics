@@ -18,7 +18,7 @@ You can check vmbackupmanager [documentation](https://docs.victoriametrics.com/v
 
 ### vmbackupmanager is a part of VictoriaMetrics Enterprise offer
 
-*Before using it, you must have signed contract and accept EULA https://victoriametrics.com/assets/VM_EULA.pdf*
+*Before using it, you must have signed contract and accept ESA https://victoriametrics.com/legal/esa/*
 
 ## Usage examples
 
@@ -50,7 +50,7 @@ spec:
   retentionPeriod: "1"
   vmBackup:
     # This is Enterprise Package feature you need to have signed contract to use it
-    # and accept the EULA https://victoriametrics.com/assets/VM_EULA.pdf
+    # and accept the ESA https://victoriametrics.com/legal/esa/
     acceptEULA: true
     destination: "s3://your_bucket/folder"
     credentialsSecret:
@@ -68,7 +68,7 @@ spec:
     replicaCount: 2
     vmBackup:
       # This is Enterprise Package feature you need to have signed contract to use it
-      # and accept the EULA https://victoriametrics.com/assets/VM_EULA.pdf
+      # and accept the ESA https://victoriametrics.com/legal/esa/
       acceptEULA: true
       destination: "s3://your_bucket/folder"
       credentialsSecret:
@@ -128,7 +128,7 @@ Steps:
        - -credsFilePath=/etc/vm/creds/credentials
      vmBackup:
        # This is Enterprise Package feature you need to have signed contract to use it
-       # and accept the EULA https://victoriametrics.com/assets/VM_EULA.pdf
+       # and accept the ESA https://victoriametrics.com/legal/esa/
       acceptEULA: true
       destination: "s3://your_bucket/folder"
       extraArgs:

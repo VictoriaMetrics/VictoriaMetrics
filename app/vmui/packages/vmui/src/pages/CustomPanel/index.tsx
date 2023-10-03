@@ -57,6 +57,7 @@ const CustomPanel: FC = () => {
     graphData,
     error,
     queryErrors,
+    setQueryErrors,
     queryStats,
     warning,
     traces,
@@ -128,7 +129,9 @@ const CustomPanel: FC = () => {
       })}
     >
       <QueryConfigurator
-        errors={!hideError ? queryErrors : []}
+        queryErrors={!hideError ? queryErrors : []}
+        setQueryErrors={setQueryErrors}
+        setHideError={setHideError}
         stats={queryStats}
         queryOptions={queryOptions}
         onHideQuery={handleHideQuery}

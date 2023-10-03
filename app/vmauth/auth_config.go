@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/base64"
 	"flag"
 	"fmt"
@@ -37,21 +38,28 @@ type AuthConfig struct {
 
 // UserInfo is user information read from authConfigPath
 type UserInfo struct {
-	Name                  string     `yaml:"name,omitempty"`
-	BearerToken           string     `yaml:"bearer_token,omitempty"`
-	Username              string     `yaml:"username,omitempty"`
-	Password              string     `yaml:"password,omitempty"`
-	URLPrefix             *URLPrefix `yaml:"url_prefix,omitempty"`
-	URLMaps               []URLMap   `yaml:"url_map,omitempty"`
-	Headers               []Header   `yaml:"headers,omitempty"`
-	MaxConcurrentRequests int        `yaml:"max_concurrent_requests,omitempty"`
-	DefaultURL            *URLPrefix `yaml:"default_url,omitempty"`
+	Name                  string      `yaml:"name,omitempty"`
+	BearerToken           string      `yaml:"bearer_token,omitempty"`
+	Username              string      `yaml:"username,omitempty"`
+	Password              string      `yaml:"password,omitempty"`
+	URLPrefix             *URLPrefix  `yaml:"url_prefix,omitempty"`
+	URLMaps               []URLMap    `yaml:"url_map,omitempty"`
+	HeadersConf           HeadersConf `yaml:",inline"`
+	MaxConcurrentRequests int         `yaml:"max_concurrent_requests,omitempty"`
+	DefaultURL            *URLPrefix  `yaml:"default_url,omitempty"`
+	RetryStatusCodes      []int       `yaml:"retry_status_codes,omitempty"`
 
 	concurrencyLimitCh      chan struct{}
 	concurrencyLimitReached *metrics.Counter
 
 	requests         *metrics.Counter
 	requestsDuration *metrics.Summary
+}
+
+// HeadersConf represents config for request and response headers.
+type HeadersConf struct {
+	RequestHeaders  []Header `yaml:"headers,omitempty"`
+	ResponseHeaders []Header `yaml:"response_headers,omitempty"`
 }
 
 func (ui *UserInfo) beginConcurrencyLimit() error {
@@ -105,9 +113,10 @@ func (h *Header) MarshalYAML() (interface{}, error) {
 
 // URLMap is a mapping from source paths to target urls.
 type URLMap struct {
-	SrcPaths  []*SrcPath `yaml:"src_paths,omitempty"`
-	URLPrefix *URLPrefix `yaml:"url_prefix,omitempty"`
-	Headers   []Header   `yaml:"headers,omitempty"`
+	SrcPaths         []*SrcPath  `yaml:"src_paths,omitempty"`
+	URLPrefix        *URLPrefix  `yaml:"url_prefix,omitempty"`
+	HeadersConf      HeadersConf `yaml:",inline"`
+	RetryStatusCodes []int       `yaml:"retry_status_codes,omitempty"`
 }
 
 // SrcPath represents an src path
@@ -282,6 +291,13 @@ func (sp *SrcPath) MarshalYAML() (interface{}, error) {
 	return sp.sOriginal, nil
 }
 
+var (
+	configReloads      = metrics.NewCounter(`vmauth_config_last_reload_total`)
+	configReloadErrors = metrics.NewCounter(`vmauth_config_last_reload_errors_total`)
+	configSuccess      = metrics.NewCounter(`vmauth_config_last_reload_successful`)
+	configTimestamp    = metrics.NewCounter(`vmauth_config_last_reload_success_timestamp_seconds`)
+)
+
 func initAuthConfig() {
 	if len(*authConfigPath) == 0 {
 		logger.Fatalf("missing required `-auth.config` command-line flag")
@@ -292,10 +308,13 @@ func initAuthConfig() {
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1240
 	sighupCh := procutil.NewSighupChan()
 
-	err := loadAuthConfig()
+	_, err := loadAuthConfig()
 	if err != nil {
 		logger.Fatalf("cannot load auth config: %s", err)
 	}
+
+	configSuccess.Set(1)
+	configTimestamp.Set(fasttime.UnixTimestamp())
 
 	stopCh = make(chan struct{})
 	authConfigWG.Add(1)
@@ -319,52 +338,75 @@ func authConfigReloader(sighupCh <-chan os.Signal) {
 		refreshCh = ticker.C
 	}
 
+	updateFn := func() {
+		configReloads.Inc()
+		updated, err := loadAuthConfig()
+		if err != nil {
+			logger.Errorf("failed to load auth config; using the last successfully loaded config; error: %s", err)
+			configSuccess.Set(0)
+			configReloadErrors.Inc()
+			return
+		}
+		configSuccess.Set(1)
+		if updated {
+			configTimestamp.Set(fasttime.UnixTimestamp())
+		}
+	}
+
 	for {
 		select {
 		case <-stopCh:
 			return
 		case <-refreshCh:
-			procutil.SelfSIGHUP()
+			updateFn()
 		case <-sighupCh:
 			logger.Infof("SIGHUP received; loading -auth.config=%q", *authConfigPath)
-			err := loadAuthConfig()
-			if err != nil {
-				logger.Errorf("failed to load auth config; using the last successfully loaded config; error: %s", err)
-				continue
-			}
+			updateFn()
 		}
 	}
 }
+
+// authConfigData stores the yaml definition for this config.
+// authConfigData needs to be updated each time authConfig is updated.
+var authConfigData atomic.Pointer[[]byte]
 
 var authConfig atomic.Pointer[AuthConfig]
 var authUsers atomic.Pointer[map[string]*UserInfo]
 var authConfigWG sync.WaitGroup
 var stopCh chan struct{}
 
-func loadAuthConfig() error {
-	ac, err := readAuthConfig(*authConfigPath)
+// loadAuthConfig loads and applies the config from *authConfigPath.
+// It returns bool value to identify if new config was applied.
+// The config can be not applied if there is a parsing error
+// or if there are no changes to the current authConfig.
+func loadAuthConfig() (bool, error) {
+	data, err := fs.ReadFileOrHTTP(*authConfigPath)
 	if err != nil {
-		return fmt.Errorf("failed to load -auth.config=%q: %s", *authConfigPath, err)
+		return false, fmt.Errorf("failed to read -auth.config=%q: %w", *authConfigPath, err)
+	}
+
+	oldData := authConfigData.Load()
+	if oldData != nil && bytes.Equal(data, *oldData) {
+		// there are no updates in the config - skip reloading.
+		return false, nil
+	}
+
+	ac, err := parseAuthConfig(data)
+	if err != nil {
+		return false, fmt.Errorf("failed to parse -auth.config=%q: %w", *authConfigPath, err)
 	}
 
 	m, err := parseAuthConfigUsers(ac)
 	if err != nil {
-		return fmt.Errorf("failed to parse users from -auth.config=%q: %s", *authConfigPath, err)
+		return false, fmt.Errorf("failed to parse users from -auth.config=%q: %w", *authConfigPath, err)
 	}
 	logger.Infof("loaded information about %d users from -auth.config=%q", len(m), *authConfigPath)
 
 	authConfig.Store(ac)
+	authConfigData.Store(&data)
 	authUsers.Store(&m)
 
-	return nil
-}
-
-func readAuthConfig(path string) (*AuthConfig, error) {
-	data, err := fs.ReadFileOrHTTP(path)
-	if err != nil {
-		return nil, err
-	}
-	return parseAuthConfig(data)
+	return true, nil
 }
 
 func parseAuthConfig(data []byte) (*AuthConfig, error) {

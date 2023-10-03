@@ -121,6 +121,7 @@ Case studies:
 * [Brandwatch](https://docs.victoriametrics.com/CaseStudies.html#brandwatch)
 * [CERN](https://docs.victoriametrics.com/CaseStudies.html#cern)
 * [COLOPL](https://docs.victoriametrics.com/CaseStudies.html#colopl)
+* [Criteo](https://docs.victoriametrics.com/CaseStudies.html#criteo)
 * [Dig Security](https://docs.victoriametrics.com/CaseStudies.html#dig-security)
 * [Fly.io](https://docs.victoriametrics.com/CaseStudies.html#flyio)
 * [German Research Center for Artificial Intelligence](https://docs.victoriametrics.com/CaseStudies.html#german-research-center-for-artificial-intelligence)
@@ -163,7 +164,7 @@ VictoriaMetrics can also be installed via these installation methods:
 The following command-line flags are used the most:
 
 * `-storageDataPath` - VictoriaMetrics stores all the data in this directory. Default path is `victoria-metrics-data` in the current working directory.
-* `-retentionPeriod` - retention for stored data. Older data is automatically deleted. Default retention is 1 month. The minimum retention period is 24h or 1d. See [the Retention section](#retention) for more details.
+* `-retentionPeriod` - retention for stored data. Older data is automatically deleted. Default retention is 1 month (31 days). The minimum retention period is 24h or 1d. See [these docs](#retention) for more details.
 
 Other flags have good enough default values, so set them only if you really need this. Pass `-help` to see [all the available flags with description and default values](#list-of-command-line-flags).
 
@@ -415,13 +416,16 @@ matching the specified [series selector](https://prometheus.io/docs/prometheus/l
 
 Cardinality explorer is built on top of [/api/v1/status/tsdb](#tsdb-stats).
 
+See [cardinality explorer playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/cardinality).
+See the example of using the cardinality explorer [here](https://victoriametrics.com/blog/cardinality-explorer/).
+
+## Cardinality explorer statistic inaccuracy
+
 In [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) each vmstorage tracks the stored time series individually.
 vmselect requests stats via [/api/v1/status/tsdb](#tsdb-stats) API from each vmstorage node and merges the results by summing per-series stats.
 This may lead to inflated values when samples for the same time series are spread across multiple vmstorage nodes
 due to [replication](#replication) or [rerouting](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html?highlight=re-routes#cluster-availability).
 
-See [cardinality explorer playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/cardinality).
-See the example of using the cardinality explorer [here](https://victoriametrics.com/blog/cardinality-explorer/).
 
 ## How to apply new config to VictoriaMetrics
 
@@ -626,6 +630,28 @@ For example, `/write?extra_label=foo=bar` would add `{foo="bar"}` label to all t
 Some plugins for Telegraf such as [fluentd](https://github.com/fangli/fluent-plugin-influxdb), [Juniper/open-nti](https://github.com/Juniper/open-nti)
 or [Juniper/jitmon](https://github.com/Juniper/jtimon) send `SHOW DATABASES` query to `/query` and expect a particular database name in the response.
 Comma-separated list of expected databases can be passed to VictoriaMetrics via `-influx.databaseNames` command-line flag.
+
+### How to send data in InfluxDB v2 format
+
+VictoriaMetrics exposes endpoint for InfluxDB v2 HTTP API at `/influx/api/v2/write` and `/api/v2/write`.
+
+
+In order to write data with InfluxDB line protocol to local VictoriaMetrics using `curl`:
+
+<div class="with-copy" markdown="1">
+
+```console
+curl -d 'measurement,tag1=value1,tag2=value2 field1=123,field2=1.23' -X POST 'http://localhost:8428/api/v2/write'
+```
+
+</div>
+
+The `/api/v1/export` endpoint should return the following response:
+
+```json
+{"metric":{"__name__":"measurement_field1","tag1":"value1","tag2":"value2"},"values":[123],"timestamps":[1695902762311]}
+{"metric":{"__name__":"measurement_field2","tag1":"value1","tag2":"value2"},"values":[1.23],"timestamps":[1695902762311]}
+```
 
 ## How to send data from Graphite-compatible agents such as [StatsD](https://github.com/etsy/statsd)
 
@@ -926,7 +952,7 @@ to your needs or when testing bugfixes.
 
 ### Development build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.19.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.20.
 1. Run `make victoria-metrics` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `victoria-metrics` binary and puts it into the `bin` folder.
 
@@ -942,7 +968,7 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 
 ### Development ARM build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.19.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.20.
 1. Run `make victoria-metrics-linux-arm` or `make victoria-metrics-linux-arm64` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `victoria-metrics-linux-arm` or `victoria-metrics-linux-arm64` binary respectively and puts it into the `bin` folder.
 
@@ -956,7 +982,7 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 
 `Pure Go` mode builds only Go code without [cgo](https://golang.org/cmd/cgo/) dependencies.
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.19.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.20.
 1. Run `make victoria-metrics-pure` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `victoria-metrics-pure` binary and puts it into the `bin` folder.
 
@@ -1621,8 +1647,8 @@ See also [how to work with snapshots](#how-to-work-with-snapshots).
 ## Retention
 
 Retention is configured with the `-retentionPeriod` command-line flag, which takes a number followed by a time unit 
-character - `h(ours)`, `d(ays)`, `w(eeks)`, `y(ears)`. If the time unit is not specified, a month is assumed. 
-For instance, `-retentionPeriod=3` means that the data will be stored for 3 months and then deleted. 
+character - `h(ours)`, `d(ays)`, `w(eeks)`, `y(ears)`. If the time unit is not specified, a month (31 days) is assumed.
+For instance, `-retentionPeriod=3` means that the data will be stored for 3 months (93 days) and then deleted.
 The default retention period is one month. The **minimum retention** period is 24h or 1d.
 
 Data is split in per-month partitions inside `<-storageDataPath>/data/{small,big}` folders.
@@ -1704,6 +1730,10 @@ It is possible to use [stream aggregation](https://docs.victoriametrics.com/stre
 Downsampling happens during [background merges](https://docs.victoriametrics.com/#storage) 
 and can't be performed if there is not enough of free disk space or if vmstorage 
 is in [read-only mode](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#readonly-mode).
+
+Please, note that intervals of `-downsampling.period` must be multiples of each other. 
+In case [deduplication](https://docs.victoriametrics.com/#deduplication) is enabled value of `-dedup.minScrapeInterval` must also be multiple of `-downsampling.period` intervals.
+This is required to ensure consistency of deduplication and downsampling results.
 
 The downsampling can be evaluated for free by downloading and using enterprise binaries from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
 
@@ -1944,9 +1974,6 @@ and [cardinality explorer docs](#cardinality-explorer).
   has at least 20% of free space. The remaining amount of free space
   can be [monitored](#monitoring) via `vm_free_disk_space_bytes` metric. The total size of data
   stored on the disk can be monitored via sum of `vm_data_size_bytes` metrics.
-  See also `vm_merge_need_free_disk_space` metrics, which are set to values higher than 0
-  if background merge cannot be initiated due to free disk space shortage. The value shows the number of per-month partitions,
-  which would start background merge if they had more free disk space.
 
 * VictoriaMetrics buffers incoming data in memory for up to a few seconds before flushing it to persistent storage.
   This may lead to the following "issues":
@@ -2305,7 +2332,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -envflag.prefix string
      Prefix for environment variables if -envflag.enable is set
   -eula
-     By specifying this flag, you confirm that you have an enterprise license and accept the EULA https://victoriametrics.com/assets/VM_EULA.pdf . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
+     Deprecated, please use -license or -licenseFile flags instead. By specifying this flag, you confirm that you have an enterprise license and accept the ESA https://victoriametrics.com/legal/esa/ . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
   -finalMergeDelay duration
      The delay before starting final merge for per-month partition after no new data is ingested into it. Final merge may require additional disk IO and CPU resources. Final merge may increase query speed and reduce disk space usage in some cases. Zero value disables final merge
   -flagsAuthKey string
@@ -2375,6 +2402,12 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      Whether to disable caches for interned strings. This may reduce memory usage at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning . See also -internStringCacheExpireDuration and -internStringMaxLen
   -internStringMaxLen int
      The maximum length for strings to intern. A lower limit may save memory at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning . See also -internStringDisableCache and -internStringCacheExpireDuration (default 500)
+  -license string
+     See https://victoriametrics.com/products/enterprise/ for trial license. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
+  -license.forceOffline
+     See https://victoriametrics.com/products/enterprise/ for trial license. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
+  -licenseFile string
+     See https://victoriametrics.com/products/enterprise/ for trial license. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
   -logNewSeries
      Whether to log new series. This option is for debug purposes only. It can lead to performance issues when big number of new series are ingested into VictoriaMetrics
   -loggerDisableTimestamps

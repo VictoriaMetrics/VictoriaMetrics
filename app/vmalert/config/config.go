@@ -23,6 +23,7 @@ type Group struct {
 	File        string
 	Name        string              `yaml:"name"`
 	Interval    *promutils.Duration `yaml:"interval,omitempty"`
+	EvalOffset  *promutils.Duration `yaml:"eval_offset,omitempty"`
 	Limit       int                 `yaml:"limit,omitempty"`
 	Rules       []Rule              `yaml:"rules"`
 	Concurrency int                 `yaml:"concurrency"`
@@ -63,10 +64,26 @@ func (g *Group) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	return nil
 }
 
-// Validate check for internal Group or Rule configuration errors
+// Validate checks configuration errors for group and internal rules
 func (g *Group) Validate(validateTplFn ValidateTplFn, validateExpressions bool) error {
 	if g.Name == "" {
 		return fmt.Errorf("group name must be set")
+	}
+	if g.Interval.Duration() < 0 {
+		return fmt.Errorf("interval shouldn't be lower than 0")
+	}
+	if g.EvalOffset.Duration() < 0 {
+		return fmt.Errorf("eval_offset shouldn't be lower than 0")
+	}
+	// if `eval_offset` is set, interval won't use global evaluationInterval flag and must bigger than offset.
+	if g.EvalOffset.Duration() > g.Interval.Duration() {
+		return fmt.Errorf("eval_offset should be smaller than interval; now eval_offset: %v, interval: %v", g.EvalOffset.Duration(), g.Interval.Duration())
+	}
+	if g.Limit < 0 {
+		return fmt.Errorf("invalid limit %d, shouldn't be less than 0", g.Limit)
+	}
+	if g.Concurrency < 0 {
+		return fmt.Errorf("invalid concurrency %d, shouldn't be less than 0", g.Concurrency)
 	}
 
 	uniqueRules := map[uint64]struct{}{}
@@ -76,26 +93,26 @@ func (g *Group) Validate(validateTplFn ValidateTplFn, validateExpressions bool) 
 			ruleName = r.Alert
 		}
 		if _, ok := uniqueRules[r.ID]; ok {
-			return fmt.Errorf("%q is a duplicate within the group %q", r.String(), g.Name)
+			return fmt.Errorf("%q is a duplicate in group", r.String())
 		}
 		uniqueRules[r.ID] = struct{}{}
 		if err := r.Validate(); err != nil {
-			return fmt.Errorf("invalid rule %q.%q: %w", g.Name, ruleName, err)
+			return fmt.Errorf("invalid rule %q: %w", ruleName, err)
 		}
 		if validateExpressions {
 			// its needed only for tests.
 			// because correct types must be inherited after unmarshalling.
 			exprValidator := g.Type.ValidateExpr
 			if err := exprValidator(r.Expr); err != nil {
-				return fmt.Errorf("invalid expression for rule %q.%q: %w", g.Name, ruleName, err)
+				return fmt.Errorf("invalid expression for rule  %q: %w", ruleName, err)
 			}
 		}
 		if validateTplFn != nil {
 			if err := validateTplFn(r.Annotations); err != nil {
-				return fmt.Errorf("invalid annotations for rule %q.%q: %w", g.Name, ruleName, err)
+				return fmt.Errorf("invalid annotations for rule  %q: %w", ruleName, err)
 			}
 			if err := validateTplFn(r.Labels); err != nil {
-				return fmt.Errorf("invalid labels for rule %q.%q: %w", g.Name, ruleName, err)
+				return fmt.Errorf("invalid labels for rule  %q: %w", ruleName, err)
 			}
 		}
 	}

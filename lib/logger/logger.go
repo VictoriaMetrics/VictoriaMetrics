@@ -93,49 +93,77 @@ func StdErrorLogger() *log.Logger {
 
 // Infof logs info message.
 func Infof(format string, args ...interface{}) {
-	logLevel("INFO", format, args...)
+	logLevel("INFO", format, args)
 }
 
 // Warnf logs warn message.
 func Warnf(format string, args ...interface{}) {
-	logLevel("WARN", format, args...)
+	logLevel("WARN", format, args)
 }
 
 // Errorf logs error message.
 func Errorf(format string, args ...interface{}) {
-	logLevel("ERROR", format, args...)
+	logLevel("ERROR", format, args)
 }
 
 // WarnfSkipframes logs warn message and skips the given number of frames for the caller.
 func WarnfSkipframes(skipframes int, format string, args ...interface{}) {
-	logLevelSkipframes(skipframes, "WARN", format, args...)
+	logLevelSkipframes(skipframes, "WARN", format, args)
 }
 
 // ErrorfSkipframes logs error message and skips the given number of frames for the caller.
 func ErrorfSkipframes(skipframes int, format string, args ...interface{}) {
-	logLevelSkipframes(skipframes, "ERROR", format, args...)
+	logLevelSkipframes(skipframes, "ERROR", format, args)
 }
 
 // Fatalf logs fatal message and terminates the app.
 func Fatalf(format string, args ...interface{}) {
-	logLevel("FATAL", format, args...)
+	logLevel("FATAL", format, args)
 }
 
 // Panicf logs panic message and panics.
 func Panicf(format string, args ...interface{}) {
-	logLevel("PANIC", format, args...)
+	logLevel("PANIC", format, args)
 }
 
-func logLevel(level, format string, args ...interface{}) {
-	logLevelSkipframes(1, level, format, args...)
+func logLevel(level, format string, args []interface{}) {
+	logLevelSkipframes(1, level, format, args)
 }
 
-func logLevelSkipframes(skipframes int, level, format string, args ...interface{}) {
+func logLevelSkipframes(skipframes int, level, format string, args []interface{}) {
 	if shouldSkipLog(level) {
 		return
 	}
-	msg := fmt.Sprintf(format, args...)
+	msg := formatLogMessage(500, format, args)
 	logMessage(level, msg, 3+skipframes)
+}
+
+func formatLogMessage(maxArgLen int, format string, args []interface{}) string {
+	x := format
+	// Limit the length of every string-like arg in order to prevent from too long log messages
+	for i := range args {
+		n := strings.IndexByte(x, '%')
+		if n < 0 {
+			break
+		}
+		x = x[n+1:]
+		if strings.HasPrefix(x, "s") || strings.HasPrefix(x, "q") {
+			s := fmt.Sprintf("%s", args[i])
+			args[i] = limitStringLength(maxArgLen, s)
+		}
+	}
+	return fmt.Sprintf(format, args...)
+}
+
+func limitStringLength(maxLen int, s string) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	n := (maxLen / 2) - 1
+	if n < 0 {
+		n = 0
+	}
+	return s[:n] + ".." + s[len(s)-n:]
 }
 
 func logLimiterCleaner() {
@@ -197,7 +225,7 @@ type logWriter struct {
 }
 
 func (lw *logWriter) Write(p []byte) (int, error) {
-	logLevelSkipframes(2, "ERROR", "%s", p)
+	logLevelSkipframes(2, "ERROR", "%s", []interface{}{p})
 	return len(p), nil
 }
 

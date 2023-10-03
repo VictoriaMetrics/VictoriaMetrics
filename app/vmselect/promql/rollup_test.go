@@ -160,7 +160,7 @@ func TestDerivValues(t *testing.T) {
 	testRowsEqual(t, values, timestamps, valuesExpected, timestamps)
 }
 
-func testRollupFunc(t *testing.T, funcName string, args []interface{}, meExpected *metricsql.MetricExpr, vExpected float64) {
+func testRollupFunc(t *testing.T, funcName string, args []interface{}, vExpected float64) {
 	t.Helper()
 	nrf := getRollupFunc(funcName)
 	if nrf == nil {
@@ -203,7 +203,7 @@ func TestRollupDurationOverTime(t *testing.T) {
 		}}
 		var me metricsql.MetricExpr
 		args := []interface{}{&metricsql.RollupExpr{Expr: &me}, maxIntervals}
-		testRollupFunc(t, "duration_over_time", args, &me, dExpected)
+		testRollupFunc(t, "duration_over_time", args, dExpected)
 	}
 	f(-123, 0)
 	f(0, 0)
@@ -224,7 +224,7 @@ func TestRollupShareLEOverTime(t *testing.T) {
 		}}
 		var me metricsql.MetricExpr
 		args := []interface{}{&metricsql.RollupExpr{Expr: &me}, les}
-		testRollupFunc(t, "share_le_over_time", args, &me, vExpected)
+		testRollupFunc(t, "share_le_over_time", args, vExpected)
 	}
 
 	f(-123, 0)
@@ -247,7 +247,7 @@ func TestRollupShareGTOverTime(t *testing.T) {
 		}}
 		var me metricsql.MetricExpr
 		args := []interface{}{&metricsql.RollupExpr{Expr: &me}, gts}
-		testRollupFunc(t, "share_gt_over_time", args, &me, vExpected)
+		testRollupFunc(t, "share_gt_over_time", args, vExpected)
 	}
 
 	f(-123, 1)
@@ -270,7 +270,7 @@ func TestRollupShareEQOverTime(t *testing.T) {
 		}}
 		var me metricsql.MetricExpr
 		args := []interface{}{&metricsql.RollupExpr{Expr: &me}, eqs}
-		testRollupFunc(t, "share_eq_over_time", args, &me, vExpected)
+		testRollupFunc(t, "share_eq_over_time", args, vExpected)
 	}
 
 	f(-123, 0)
@@ -289,7 +289,7 @@ func TestRollupCountLEOverTime(t *testing.T) {
 		}}
 		var me metricsql.MetricExpr
 		args := []interface{}{&metricsql.RollupExpr{Expr: &me}, les}
-		testRollupFunc(t, "count_le_over_time", args, &me, vExpected)
+		testRollupFunc(t, "count_le_over_time", args, vExpected)
 	}
 
 	f(-123, 0)
@@ -312,7 +312,7 @@ func TestRollupCountGTOverTime(t *testing.T) {
 		}}
 		var me metricsql.MetricExpr
 		args := []interface{}{&metricsql.RollupExpr{Expr: &me}, gts}
-		testRollupFunc(t, "count_gt_over_time", args, &me, vExpected)
+		testRollupFunc(t, "count_gt_over_time", args, vExpected)
 	}
 
 	f(-123, 12)
@@ -335,7 +335,7 @@ func TestRollupCountEQOverTime(t *testing.T) {
 		}}
 		var me metricsql.MetricExpr
 		args := []interface{}{&metricsql.RollupExpr{Expr: &me}, eqs}
-		testRollupFunc(t, "count_eq_over_time", args, &me, vExpected)
+		testRollupFunc(t, "count_eq_over_time", args, vExpected)
 	}
 
 	f(-123, 0)
@@ -354,7 +354,7 @@ func TestRollupCountNEOverTime(t *testing.T) {
 		}}
 		var me metricsql.MetricExpr
 		args := []interface{}{&metricsql.RollupExpr{Expr: &me}, nes}
-		testRollupFunc(t, "count_ne_over_time", args, &me, vExpected)
+		testRollupFunc(t, "count_ne_over_time", args, vExpected)
 	}
 
 	f(-123, 12)
@@ -373,7 +373,7 @@ func TestRollupQuantileOverTime(t *testing.T) {
 		}}
 		var me metricsql.MetricExpr
 		args := []interface{}{phis, &metricsql.RollupExpr{Expr: &me}}
-		testRollupFunc(t, "quantile_over_time", args, &me, vExpected)
+		testRollupFunc(t, "quantile_over_time", args, vExpected)
 	}
 
 	f(-123, math.Inf(-1))
@@ -395,7 +395,7 @@ func TestRollupPredictLinear(t *testing.T) {
 		}}
 		var me metricsql.MetricExpr
 		args := []interface{}{&metricsql.RollupExpr{Expr: &me}, secs}
-		testRollupFunc(t, "predict_linear", args, &me, vExpected)
+		testRollupFunc(t, "predict_linear", args, vExpected)
 	}
 
 	f(0e-3, 65.07405077267295)
@@ -434,7 +434,7 @@ func TestRollupHoltWinters(t *testing.T) {
 		}}
 		var me metricsql.MetricExpr
 		args := []interface{}{&metricsql.RollupExpr{Expr: &me}, sfs, tfs}
-		testRollupFunc(t, "holt_winters", args, &me, vExpected)
+		testRollupFunc(t, "holt_winters", args, vExpected)
 	}
 
 	f(-1, 0.5, nan)
@@ -462,7 +462,7 @@ func TestRollupHoeffdingBoundLower(t *testing.T) {
 		}}
 		var me metricsql.MetricExpr
 		args := []interface{}{phis, &metricsql.RollupExpr{Expr: &me}}
-		testRollupFunc(t, "hoeffding_bound_lower", args, &me, vExpected)
+		testRollupFunc(t, "hoeffding_bound_lower", args, vExpected)
 	}
 
 	f(0.5, 28.21949401521037)
@@ -483,7 +483,7 @@ func TestRollupHoeffdingBoundUpper(t *testing.T) {
 		}}
 		var me metricsql.MetricExpr
 		args := []interface{}{phis, &metricsql.RollupExpr{Expr: &me}}
-		testRollupFunc(t, "hoeffding_bound_upper", args, &me, vExpected)
+		testRollupFunc(t, "hoeffding_bound_upper", args, vExpected)
 	}
 
 	f(0.5, 65.9471726514563)
@@ -500,7 +500,7 @@ func TestRollupNewRollupFuncSuccess(t *testing.T) {
 		t.Helper()
 		var me metricsql.MetricExpr
 		args := []interface{}{&metricsql.RollupExpr{Expr: &me}}
-		testRollupFunc(t, funcName, args, &me, vExpected)
+		testRollupFunc(t, funcName, args, vExpected)
 	}
 
 	f("default_rollup", 34)

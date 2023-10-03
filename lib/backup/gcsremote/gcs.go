@@ -262,3 +262,15 @@ func (fs *FS) HasFile(filePath string) (bool, error) {
 	}
 	return true, nil
 }
+
+// ReadFile returns the content of filePath at fs.
+func (fs *FS) ReadFile(filePath string) ([]byte, error) {
+	o := fs.bkt.Object(fs.Dir + filePath)
+	ctx := context.Background()
+	r, err := o.NewReader(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read %q at %s (remote path %q): %w", filePath, fs, o.ObjectName(), err)
+	}
+	defer r.Close()
+	return io.ReadAll(r)
+}

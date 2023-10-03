@@ -328,3 +328,19 @@ func (fs *FS) HasFile(filePath string) (bool, error) {
 
 	return true, nil
 }
+
+// ReadFile returns the content of filePath at fs.
+func (fs *FS) ReadFile(filePath string) ([]byte, error) {
+	resp, err := fs.clientForPath(fs.Dir+filePath).DownloadStream(context.Background(), &blob.DownloadStreamOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("cannot download %q at %s (remote dir %q): %w", filePath, fs, fs.Dir, err)
+	}
+	defer resp.Body.Close()
+
+	b, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read %q at %s (remote dir %q): %w", filePath, fs, fs.Dir, err)
+	}
+
+	return b, nil
+}

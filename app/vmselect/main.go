@@ -413,7 +413,7 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		funcName = strings.TrimPrefix(funcName, "/")
 		if funcName == "" {
 			graphiteFunctionsRequests.Inc()
-			if err := graphite.FunctionsHandler(startTime, w, r); err != nil {
+			if err := graphite.FunctionsHandler(w, r); err != nil {
 				graphiteFunctionsErrors.Inc()
 				httpserver.Errorf(w, r, "%s", err)
 				return true
@@ -421,7 +421,7 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 			return true
 		}
 		graphiteFunctionDetailsRequests.Inc()
-		if err := graphite.FunctionDetailsHandler(startTime, funcName, w, r); err != nil {
+		if err := graphite.FunctionDetailsHandler(funcName, w, r); err != nil {
 			graphiteFunctionDetailsErrors.Inc()
 			httpserver.Errorf(w, r, "%s", err)
 			return true
@@ -661,6 +661,10 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		expandWithExprsRequests.Inc()
 		prometheus.ExpandWithExprs(w, r)
 		return true
+	case "prometheus/prettify-query", "prettify-query":
+		prettifyQueryRequests.Inc()
+		prometheus.PrettifyQuery(w, r)
+		return true
 	case "prometheus/api/v1/rules", "prometheus/rules":
 		rulesRequests.Inc()
 		if len(*vmalertProxyURL) > 0 {
@@ -844,6 +848,7 @@ var (
 	promrelabelTargetRelabelDebugRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/target-relabel-debug"}`)
 
 	expandWithExprsRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/expand-with-exprs"}`)
+	prettifyQueryRequests   = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/prettify-query"}`)
 
 	vmalertRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/vmalert"}`)
 	rulesRequests   = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/rules"}`)

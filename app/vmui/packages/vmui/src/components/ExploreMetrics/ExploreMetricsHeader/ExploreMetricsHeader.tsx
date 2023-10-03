@@ -100,6 +100,7 @@ const ExploreMetricsHeader: FC<ExploreMetricsHeaderProps> = ({
               color={showTips ? "warning" : "gray"}
               startIcon={<TipIcon/>}
               onClick={toggleShowTips}
+              ariaLabel="visibility tips"
             />
           </Tooltip>
         </div>
@@ -134,6 +135,7 @@ const ExploreMetricsHeader: FC<ExploreMetricsHeaderProps> = ({
               size="small"
               startIcon={<CloseIcon/>}
               onClick={setHideTips}
+              ariaLabel="close tips"
             />
           </div>
         </Alert>

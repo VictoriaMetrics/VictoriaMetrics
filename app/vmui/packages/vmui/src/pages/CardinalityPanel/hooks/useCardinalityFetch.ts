@@ -7,12 +7,14 @@ import AppConfigurator from "../appConfigurator";
 import { useSearchParams } from "react-router-dom";
 import dayjs from "dayjs";
 import { DATE_FORMAT } from "../../../constants/date";
+import { getTenantIdFromUrl } from "../../../utils/tenants";
 
 export const useFetchQuery = (): {
   fetchUrl?: string[],
   isLoading: boolean,
   error?: ErrorTypes | string
   appConfigurator: AppConfigurator,
+  isCluster: boolean,
 } => {
   const appConfigurator = new AppConfigurator();
 
@@ -26,6 +28,31 @@ export const useFetchQuery = (): {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<ErrorTypes | string>();
   const [tsdbStatus, setTSDBStatus] = useState<TSDBStatus>(appConfigurator.defaultTSDBStatus);
+  const [isCluster, setIsCluster] = useState<boolean>(false);
+
+  const getResponseJson = async (url: string) => {
+    const response = await fetch(url);
+    if (response.ok) {
+      return await response.json();
+    }
+    throw new Error(`Request failed with status ${response.status}`);
+  };
+
+  const calculateDiffs = (result: TSDBStatus, prevResult: TSDBStatus) => {
+    Object.keys(result).forEach(k => {
+      const key = k as keyof TSDBStatus;
+      const entries = result[key];
+      const prevEntries = prevResult[key];
+
+      if (Array.isArray(entries) && Array.isArray(prevEntries)) {
+        entries.forEach((entry) => {
+          const valuePrev = prevEntries.find(prevEntry => prevEntry.name === entry.name)?.value;
+          entry.diff = valuePrev ? entry.value - valuePrev : 0;
+          entry.valuePrev = valuePrev || 0;
+        });
+      }
+    });
+  };
 
   const fetchCardinalityInfo = async (requestParams: CardinalityRequestsParams) => {
     if (!serverUrl) return;
@@ -34,63 +61,51 @@ export const useFetchQuery = (): {
     setTSDBStatus(appConfigurator.defaultTSDBStatus);
 
     const totalParams = {
+      ...requestParams,
       date: requestParams.date,
       topN: 0,
       match: "",
       focusLabel: ""
-    } as CardinalityRequestsParams;
+    };
 
     const prevDayParams = {
       ...requestParams,
       date: dayjs(requestParams.date).subtract(1, "day").tz().format(DATE_FORMAT),
-    } as CardinalityRequestsParams;
+    };
 
-
-    const urlBase = getCardinalityInfo(serverUrl, requestParams);
-    const urlPrev = getCardinalityInfo(serverUrl, prevDayParams);
-    const uslTotal = getCardinalityInfo(serverUrl, totalParams);
-    const urls = [urlBase, urlPrev, uslTotal];
+    const urls = [
+      getCardinalityInfo(serverUrl, requestParams),
+      getCardinalityInfo(serverUrl, prevDayParams),
+      getCardinalityInfo(serverUrl, totalParams),
+    ];
 
     try {
-      const responses = await Promise.all(urls.map(url => fetch(url)));
-      const [resp, respPrev, respTotals] = await Promise.all(responses.map(resp => resp.json()));
-      if (responses[0].ok) {
-        const { data: dataTotal } = respTotals;
-        const prevResult = { ...respPrev.data } as TSDBStatus;
-        const result = { ...resp.data } as TSDBStatus;
-        result.totalSeriesByAll = dataTotal?.totalSeries;
-        result.totalSeriesPrev = prevResult?.totalSeries;
+      const [resp, respPrev, respTotals] = await Promise.all(urls.map(getResponseJson));
 
-        const name = match?.replace(/[{}"]/g, "");
-        result.seriesCountByLabelValuePair = result.seriesCountByLabelValuePair.filter(s => s.name !== name);
+      const prevResult = { ...respPrev.data };
+      const { data: dataTotal } = respTotals;
+      const result: TSDBStatus = {
+        ...resp.data,
+        totalSeries: resp.data?.totalSeries || resp.data?.headStats?.numSeries || 0,
+        totalLabelValuePairs: resp.data?.totalLabelValuePairs || resp.data?.headStats?.numLabelValuePairs || 0,
+        seriesCountByLabelName: resp.data?.seriesCountByLabelName || [],
+        seriesCountByFocusLabelValue: resp.data?.seriesCountByFocusLabelValue || [],
+        totalSeriesByAll: dataTotal?.totalSeries || dataTotal?.headStats?.numSeries || 0,
+        totalSeriesPrev: prevResult?.totalSeries || prevResult?.headStats?.numSeries || 0,
+      };
 
-        Object.keys(result).forEach(k => {
-          const key = k as keyof TSDBStatus;
-          const entries = result[key];
-          const prevEntries = prevResult[key];
+      const name = match?.replace(/[{}"]/g, "");
+      result.seriesCountByLabelValuePair = result.seriesCountByLabelValuePair.filter(s => s.name !== name);
 
-          if (Array.isArray(entries) && Array.isArray(prevEntries)) {
-            entries.forEach((entry) => {
-              const valuePrev = prevEntries.find(prevEntry => prevEntry.name === entry.name)?.value;
-              entry.diff = valuePrev ? entry.value - valuePrev : 0;
-              entry.valuePrev = valuePrev || 0;
-            });
-          }
-        });
+      calculateDiffs(result, prevResult);
 
-        setTSDBStatus(result);
-        setIsLoading(false);
-      } else {
-        setError(resp.error);
-        setTSDBStatus(appConfigurator.defaultTSDBStatus);
-        setIsLoading(false);
-      }
+      setTSDBStatus(result);
+      setIsLoading(false);
     } catch (e) {
       setIsLoading(false);
       if (e instanceof Error) setError(`${e.name}: ${e.message}`);
     }
   };
-
 
   useEffect(() => {
     fetchCardinalityInfo({ topN, match, date, focusLabel });
@@ -103,6 +118,12 @@ export const useFetchQuery = (): {
     }
   }, [error]);
 
+  useEffect(() => {
+    const id = getTenantIdFromUrl(serverUrl);
+    setIsCluster(!!id);
+  }, [serverUrl]);
+
+
   appConfigurator.tsdbStatusData = tsdbStatus;
-  return { isLoading, appConfigurator: appConfigurator, error };
+  return { isLoading, appConfigurator: appConfigurator, error, isCluster };
 };

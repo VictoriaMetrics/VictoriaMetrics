@@ -123,7 +123,7 @@ func (api *vmstorageAPI) LabelNames(qt *querytracer.Tracer, sq *storage.SearchQu
 	return api.s.SearchLabelNamesWithFiltersOnTimeRange(qt, sq.AccountID, sq.ProjectID, tfss, tr, maxLabelNames, maxMetrics, deadline)
 }
 
-func (api *vmstorageAPI) SeriesCount(qt *querytracer.Tracer, accountID, projectID uint32, deadline uint64) (uint64, error) {
+func (api *vmstorageAPI) SeriesCount(_ *querytracer.Tracer, accountID, projectID uint32, deadline uint64) (uint64, error) {
 	return api.s.GetSeriesCount(accountID, projectID, deadline)
 }
 
@@ -155,7 +155,7 @@ func (api *vmstorageAPI) DeleteSeries(qt *querytracer.Tracer, sq *storage.Search
 	return api.s.DeleteSeries(qt, tfss)
 }
 
-func (api *vmstorageAPI) RegisterMetricNames(qt *querytracer.Tracer, mrs []storage.MetricRow, deadline uint64) error {
+func (api *vmstorageAPI) RegisterMetricNames(qt *querytracer.Tracer, mrs []storage.MetricRow, _ uint64) error {
 	api.s.RegisterMetricNames(qt, mrs)
 	return nil
 }
@@ -178,7 +178,8 @@ func (api *vmstorageAPI) setupTfss(qt *querytracer.Tracer, sq *storage.SearchQue
 				}
 				if len(paths) >= maxMetrics {
 					return nil, fmt.Errorf("more than %d time series match Graphite query %q; "+
-						"either narrow down the query or increase the corresponding -search.max* command-line flag value at vmselect nodes", maxMetrics, query)
+						"either narrow down the query or increase the corresponding -search.max* command-line flag value at vmselect nodes; "+
+						"see https://docs.victoriametrics.com/#resource-usage-limits", maxMetrics, query)
 				}
 				tfs.AddGraphiteQuery(query, paths, tf.IsNegative)
 				continue

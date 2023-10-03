@@ -74,7 +74,7 @@ func Exec(qt *querytracer.Tracer, ec *EvalConfig, q string, isFirstPointOnly boo
 		}
 		qt.Printf("leave only the first point in every series")
 	}
-	maySort := maySortResults(e, rv)
+	maySort := maySortResults(e)
 	result, err := timeseriesToResult(rv, maySort)
 	if err != nil {
 		return nil, err
@@ -96,7 +96,7 @@ func Exec(qt *querytracer.Tracer, ec *EvalConfig, q string, isFirstPointOnly boo
 	return result, nil
 }
 
-func maySortResults(e metricsql.Expr, tss []*timeseries) bool {
+func maySortResults(e metricsql.Expr) bool {
 	switch v := e.(type) {
 	case *metricsql.FuncExpr:
 		switch strings.ToLower(v.Name) {
@@ -110,6 +110,12 @@ func maySortResults(e metricsql.Expr, tss []*timeseries) bool {
 		case "topk", "bottomk", "outliersk",
 			"topk_max", "topk_min", "topk_avg", "topk_median", "topk_last",
 			"bottomk_max", "bottomk_min", "bottomk_avg", "bottomk_median", "bottomk_last":
+			return false
+		}
+	case *metricsql.BinaryOpExpr:
+		if strings.ToLower(v.Op) == "or" {
+			// Do not sort results for `a or b` in the same way as Prometheus does.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4763
 			return false
 		}
 	}

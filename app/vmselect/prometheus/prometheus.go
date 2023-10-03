@@ -3,6 +3,7 @@ package prometheus
 import (
 	"flag"
 	"fmt"
+	"github.com/VictoriaMetrics/metricsql"
 	"math"
 	"net"
 	"net/http"
@@ -75,6 +76,23 @@ func ExpandWithExprs(w http.ResponseWriter, r *http.Request) {
 		WriteExpandWithExprsJSONResponse(bw, query)
 	} else {
 		WriteExpandWithExprsResponse(bw, query)
+	}
+	_ = bw.Flush()
+}
+
+// PrettifyQuery handles the request /prettify-query
+func PrettifyQuery(w http.ResponseWriter, r *http.Request) {
+	query := r.FormValue("query")
+	bw := bufferedwriter.Get(w)
+	defer bufferedwriter.Put(bw)
+	w.Header().Set("Content-Type", "application/json")
+	httpserver.EnableCORS(w, r)
+
+	prettyQuery, err := metricsql.Prettify(query)
+	if err != nil {
+		fmt.Fprintf(bw, `{"status": "error", "msg": %q}`, err)
+	} else {
+		fmt.Fprintf(bw, `{"status": "success", "query": %q}`, prettyQuery)
 	}
 	_ = bw.Flush()
 }
@@ -744,10 +762,7 @@ func SeriesHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, 
 		qt.Donef("start=%d, end=%d", cp.start, cp.end)
 	}
 	WriteSeriesResponse(bw, isPartial, metricNames, qt, qtDone)
-	if err := bw.Flush(); err != nil {
-		return err
-	}
-	return nil
+	return bw.Flush()
 }
 
 var seriesDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/series"}`)

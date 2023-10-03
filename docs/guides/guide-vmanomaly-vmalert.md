@@ -11,10 +11,11 @@ aliases:
 # Getting started with vmanomaly
 
 **Prerequisites**
+- *vmanomaly* is a part of enterprise package. You can get license key [here](https://victoriametrics.com/products/enterprise/trial) to try this tutorial.
 - In the tutorial, we'll be using the following VictoriaMetrics components:
-  -  [VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html) (v.1.83.1)
-  -  [vmalert](https://docs.victoriametrics.com/vmalert.html) (v.1.83.1)
-  -  [vmagent](https://docs.victoriametrics.com/vmagent.html) (v.1.83.1)
+  -  [VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html) (v.1.93.2)
+  -  [vmalert](https://docs.victoriametrics.com/vmalert.html) (v.1.93.2)
+  -  [vmagent](https://docs.victoriametrics.com/vmagent.html) (v.1.93.2)
   
   If you're unfamiliar with the listed components, please read [QuickStart](https://docs.victoriametrics.com/Quick-Start.html) first.
 - It is assumed that you are familiar with [Grafana](https://grafana.com/)(v.9.3.1) and [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/).
@@ -164,6 +165,7 @@ As the result of running vmanomaly, it produces the following metrics:
 Here is an example of how output metric will be written into VictoriaMetrics:
 `anomaly_score{for="node_cpu_rate", cpu="0", instance="node-xporter:9100", job="node-exporter", mode="idle"} 0.85`
 
+
 ____________________________________________
 
 ## 7. vmalert configuration
@@ -251,8 +253,14 @@ scrape_configs:
 
 </div>
 
+### vmanomaly licencing
+We are going to use license stored locally in file `vmanomaly_licence.txt` with key in it.
+You can explore other license options [here](https://docs.victoriametrics.com/vmanomaly.html#licensing)
+
+
 ### Docker-compose
-Let's wrap it all up together into the `docker-compose.yml` file
+
+Let's wrap it all up together into the `docker-compose.yml` file.
 
 <div class="with-copy" markdown="1">
 
@@ -277,7 +285,7 @@ services:
   
   victoriametrics:
     container_name: victoriametrics
-    image: victoriametrics/victoria-metrics:v1.83.1
+    image: victoriametrics/victoria-metrics:v1.93.2
     ports:
       - 8428:8428
       - 8089:8089
@@ -337,7 +345,7 @@ services:
     restart: always
   vmanomaly:
     container_name: vmanomaly
-    image: us-docker.pkg.dev/victoriametrics-test/public/vmanomaly-trial:v1.3.0
+    image: us-docker.pkg.dev/victoriametrics-test/public/vmanomaly-trial:v1.5.0
     depends_on:
       - "victoriametrics"
     ports:
@@ -347,7 +355,11 @@ services:
     restart: always
     volumes:
       - ./vmanomaly_config.yml:/config.yaml
-    command: [ "/config.yaml" ]
+      - ./vmanomaly_license.txt:/license.txt
+    platform: "linux/amd64"
+    command: 
+      - "/config.yaml"
+      - "--license-file=/license.txt"
 
   node-exporter:
     image: quay.io/prometheus/node-exporter:latest
@@ -384,6 +396,18 @@ docker-compose up -d
 ```
 
 </div>
+
+
+To check if vmanomaly is up and running you can check docker logs:
+
+<div class="with-copy" markdown="1">
+
+```
+docker logs vmanomaly
+```
+
+</div>
+
 
 ___________________________________________________________
 

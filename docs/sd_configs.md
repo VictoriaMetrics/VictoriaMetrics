@@ -1,11 +1,11 @@
 ---
-sort: 24
-weight: 24
+sort: 27
+weight: 27
 title: Prometheus service discovery
 menu:
   docs:
     parent: "victoriametrics"
-    weight: 24
+    weight: 27
 aliases:
 - /sd_configs.html
 ---

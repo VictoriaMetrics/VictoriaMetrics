@@ -18,12 +18,11 @@ import (
 	"github.com/valyala/fastjson"
 )
 
-var (
-	rowsIngestedJSONTotal = metrics.NewCounter(`vl_rows_ingested_total{type="loki",format="json"}`)
-	parserPool            fastjson.ParserPool
-)
+var parserPool fastjson.ParserPool
 
 func handleJSON(r *http.Request, w http.ResponseWriter) bool {
+	startTime := time.Now()
+	lokiRequestsJSONTotal.Inc()
 	reader := r.Body
 	if r.Header.Get("Content-Encoding") == "gzip" {
 		zr, err := common.GetGzipReader(reader)
@@ -51,17 +50,35 @@ func handleJSON(r *http.Request, w http.ResponseWriter) bool {
 	lr := logstorage.GetLogRows(cp.StreamFields, cp.IgnoreFields)
 	processLogMessage := cp.GetProcessLogMessageFunc(lr)
 	n, err := parseJSONRequest(data, processLogMessage)
-	vlstorage.MustAddRows(lr)
-	logstorage.PutLogRows(lr)
 	if err != nil {
+		logstorage.PutLogRows(lr)
 		httpserver.Errorf(w, r, "cannot parse Loki request: %s", err)
 		return true
 	}
+
+	err = vlstorage.AddRows(lr)
+	logstorage.PutLogRows(lr)
+	if err != nil {
+		httpserver.Errorf(w, r, "cannot insert rows: %s", err)
+		return true
+	}
 	rowsIngestedJSONTotal.Add(n)
+
+	// update lokiRequestJSONDuration only for successfully parsed requests
+	// There is no need in updating lokiRequestJSONDuration for request errors,
+	// since their timings are usually much smaller than the timing for successful request parsing.
+	lokiRequestJSONDuration.UpdateDuration(startTime)
+
 	return true
 }
 
-func parseJSONRequest(data []byte, processLogMessage func(timestamp int64, fields []logstorage.Field)) (int, error) {
+var (
+	lokiRequestsJSONTotal   = metrics.NewCounter(`vl_http_requests_total{path="/insert/loki/api/v1/push",format="json"}`)
+	rowsIngestedJSONTotal   = metrics.NewCounter(`vl_rows_ingested_total{type="loki",format="json"}`)
+	lokiRequestJSONDuration = metrics.NewHistogram(`vl_http_request_duration_seconds{path="/insert/loki/api/v1/push",format="json"}`)
+)
+
+func parseJSONRequest(data []byte, processLogMessage func(timestamp int64, fields []logstorage.Field)error) (int, error) {
 	p := parserPool.Get()
 	defer parserPool.Put(p)
 	v, err := p.ParseBytes(data)
@@ -154,7 +171,10 @@ func parseJSONRequest(data []byte, processLogMessage func(timestamp int64, field
 				Name:  "_msg",
 				Value: bytesutil.ToUnsafeString(msg),
 			})
-			processLogMessage(ts, fields)
+			err = processLogMessage(ts, fields)
+			if err != nil {
+				return rowsIngested, err
+			}
 
 		}
 		rowsIngested += len(lines)

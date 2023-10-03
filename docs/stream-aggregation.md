@@ -448,6 +448,12 @@ For example, see below time series produced by config with aggregation interval 
 
 <img alt="increase aggregation" src="stream-aggregation-check-increase.png">
 
+`increase` can be used as an alternative for [rate](https://docs.victoriametrics.com/MetricsQL.html#rate) function.
+For example, if we have `increase` with `interval` of `5m` for a counter `some_counter`, then to get `rate` we should divide
+the resulting aggregation by the `interval` in seconds: `some_counter:5m_increase / 5m` is similar to `rate(some_counter[5m])`.
+Please note, opposite to [rate](https://docs.victoriametrics.com/MetricsQL.html#rate), `increase` aggregations can be 
+combined safely afterwards. This is helpful when the aggregation is calculated by more than one vmagent.
+
 Aggregating irregular and sporadic metrics (received from [Lambdas](https://aws.amazon.com/lambda/)
 or [Cloud Functions](https://cloud.google.com/functions)) can be controlled via [staleness_inteval](#stream-aggregation-config).
 
@@ -552,6 +558,9 @@ The `phi` must be in the range `[0..1]`, where `0` means `0th` percentile, while
 
 The results of `quantiles(phi1, ..., phiN)` with aggregation interval of `1m` 
 is equal to the `quantiles_over_time("quantile", phi1, ..., phiN, some_histogram_bucket[1m])` query.
+
+Please note, `quantiles` aggregation won't produce correct results when vmagent is in [cluster mode](#cluster-mode)
+since percentiles should be calculated only on the whole matched data set.
 
 ## Aggregating by labels
 

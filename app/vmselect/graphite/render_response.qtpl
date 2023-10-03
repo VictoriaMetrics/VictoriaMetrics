@@ -47,7 +47,7 @@ See https://graphite.readthedocs.io/en/stable/render_api.html#json
 			{% code timestamps := s.Timestamps %}
 			{% for i, v := range s.Values %}
 				[
-					{% if math.IsNaN(v) %}null{% else %}{%f= v %}{% endif %},
+					{% if math.IsNaN(v) || math.IsInf(v, 0) %}null{% else %}{%f= v %}{% endif %},
 					{%dl= timestamps[i]/1e3 %}
 				]
 				{% if i+1 < len(timestamps) %},{% endif %}

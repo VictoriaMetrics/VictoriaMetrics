@@ -89,6 +89,23 @@ Do not forget to remove old backups when they are no longer needed in order to s
 
 See also [vmbackupmanager tool](https://docs.victoriametrics.com/vmbackupmanager.html) for automating smart backups.
 
+### Server-side copy of the existing backup
+
+Sometimes it is needed to make server-side copy of the existing backup. This can be done by specifying the source backup path via `-origin` command-line flag,
+while the destination path for backup copy must be specified via `-dst` command-line flag. For example, the following command copies backup
+from `gs://bucket/foo` to `gs://bucket/bar`:
+
+```console
+./vmbackup -origin=gs://bucket/foo -dst=gs://bucket/bar
+```
+
+The `-origin` and `-dst` must point to the same object storage bucket or to the same filesystem.
+
+The server-side backup copy is usually performed at much faster speed comparing to the usual backup, since backup data isn't transferred
+between the remote storage and locally running `vmbackup` tool.
+
+If the `-dst` already contains some data, then its' contents is synced with the `-origin` data. This allows making incremental server-side copies of backups.
+
 ## How does it work?
 
 The backup algorithm is the following:
@@ -126,20 +143,23 @@ See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-
 
 ## Advanced usage
 
-* Obtaining credentials from a file.
 
-  Add flag `-credsFilePath=/etc/credentials` with the following content:
+### Providing credentials as a file
 
-    for s3 (aws, minio or other s3 compatible storages):
+Obtaining credentials from a file.
 
+Add flag `-credsFilePath=/etc/credentials` with the following content:
+
+- for S3 (AWS, MinIO or other S3 compatible storages):
+    
      ```console
      [default]
      aws_access_key_id=theaccesskey
      aws_secret_access_key=thesecretaccesskeyvalue
     ```
 
-    for gce cloud storage:
-
+- for GCP cloud storage:
+    
     ```json
     {
            "type": "service_account",
@@ -154,24 +174,99 @@ See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-
            "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/service-account-email"
     }
     ```
-* Obtaining credentials from env variables.
-    - For AWS S3 compatible storages set env variable `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`.
-      Also you can set env variable `AWS_SHARED_CREDENTIALS_FILE` with path to credentials file.
-    - For GCE cloud storage set env variable `GOOGLE_APPLICATION_CREDENTIALS` with path to credentials file.
-    - For Azure storage either set env variables `AZURE_STORAGE_ACCOUNT_NAME` and `AZURE_STORAGE_ACCOUNT_KEY`, or `AZURE_STORAGE_ACCOUNT_CONNECTION_STRING`.
 
-* Usage with s3 custom url endpoint. It is possible to use `vmbackup` with s3 compatible storages like minio, cloudian, etc.
-  You have to add a custom url endpoint via flag:
+### Providing credentials via env variables 
 
-```console
-  # for minio
-  -customS3Endpoint=http://localhost:9000
+Obtaining credentials from env variables.
+- For AWS S3 compatible storages set env variable `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`. 
+  Also you can set env variable `AWS_SHARED_CREDENTIALS_FILE` with path to credentials file.
+- For GCE cloud storage set env variable `GOOGLE_APPLICATION_CREDENTIALS` with path to credentials file.
+- For Azure storage either set env variables `AZURE_STORAGE_ACCOUNT_NAME` and `AZURE_STORAGE_ACCOUNT_KEY`, or `AZURE_STORAGE_ACCOUNT_CONNECTION_STRING`.
 
-  # for aws gov region
-  -customS3Endpoint=https://s3-fips.us-gov-west-1.amazonaws.com
+Please, note that `vmbackup` will use credentials provided by cloud providers metadata service [when applicable](https://docs.victoriametrics.com/vmbackup.html#using-cloud-providers-metadata-service).
+
+### Using cloud providers metadata service
+
+`vmbackup` and `vmbackupmanager` will automatically use cloud providers metadata service in order to obtain credentials if they are running in cloud environment
+and credentials are not explicitly provided via flags or env variables.
+
+### Providing credentials in Kubernetes
+
+The simplest way to provide credentials in Kubernetes is to use [Secrets](https://kubernetes.io/docs/concepts/configuration/secret/)
+and inject them into the pod as environment variables. For example, the following secret can be used for AWS S3 credentials:
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: vmbackup-credentials
+data:
+  access_key: key
+  secret_key: secret
+```
+And then it can be injected into the pod as environment variables:
+```yaml
+...
+env:
+- name: AWS_ACCESS_KEY_ID
+  valueFrom:
+    secretKeyRef:
+      key: access_key
+      name: vmbackup-credentials
+- name: AWS_SECRET_ACCESS_KEY
+  valueFrom:
+    secretKeyRef:
+      key: secret_key
+      name: vmbackup-credentials
+...
 ```
 
-* Run `vmbackup -help` in order to see all the available options:
+A more secure way is to use IAM roles to provide tokens for pods instead of managing credentials manually. 
+
+For AWS deployments it will be required to configure [IAM roles for service accounts](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html).
+In order to use IAM roles for service accounts with `vmbackup` or `vmbackupmanager` it is required to create ServiceAccount with IAM role mapping:
+```yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: monitoring-backups
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::{ACCOUNT_ID}:role/{ROLE_NAME}
+```
+And [configure pod to use service account](https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/).
+After this `vmbackup` and `vmbackupmanager` will automatically use IAM role for service account in order to obtain credentials.
+
+For GCP deployments it will be required to configure [Workload Identity](https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity).
+In order to use Workload Identity with `vmbackup` or `vmbackupmanager` it is required to create ServiceAccount with Workload Identity annotation:
+```yaml
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: monitoring-backups
+  annotations:
+    iam.gke.io/gcp-service-account: {sa_name}@{project_name}.iam.gserviceaccount.com
+```
+And [configure pod to use service account](https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/).
+After this `vmbackup` and `vmbackupmanager` will automatically use Workload Identity for servicpe account in order to obtain credentials.
+
+### Using custom S3 endpoint
+
+Usage with s3 custom url endpoint. It is possible to use `vmbackup` with s3 compatible storages like minio, cloudian, etc.
+You have to add a custom url endpoint via flag:
+
+- for MinIO
+    ```console
+      -customS3Endpoint=http://localhost:9000
+    ```
+
+- for aws gov region
+    ```console
+      -customS3Endpoint=https://s3-fips.us-gov-west-1.amazonaws.com
+    ```
+
+### Command-line flags
+
+Run `vmbackup -help` in order to see all the available options:
 
 ```console
   -concurrency int
@@ -196,7 +291,7 @@ See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-
   -envflag.prefix string
      Prefix for environment variables if -envflag.enable is set
   -eula
-     By specifying this flag, you confirm that you have an enterprise license and accept the EULA https://victoriametrics.com/assets/VM_EULA.pdf . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
+     Deprecated, please use -license or -licenseFile flags instead. By specifying this flag, you confirm that you have an enterprise license and accept the ESA https://victoriametrics.com/legal/esa/ . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
   -flagsAuthKey string
      Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -fs.disableMmap
@@ -225,6 +320,12 @@ See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-
      Whether to disable caches for interned strings. This may reduce memory usage at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning . See also -internStringCacheExpireDuration and -internStringMaxLen
   -internStringMaxLen int
      The maximum length for strings to intern. A lower limit may save memory at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning . See also -internStringDisableCache and -internStringCacheExpireDuration (default 500)
+  -license string
+     See https://victoriametrics.com/products/enterprise/ for trial license. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
+  -license.forceOffline
+     See https://victoriametrics.com/products/enterprise/ for trial license. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
+  -licenseFile string
+     See https://victoriametrics.com/products/enterprise/ for trial license. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
   -loggerDisableTimestamps
      Whether to disable writing timestamps in logs
   -loggerErrorsPerSecondLimit int
@@ -301,7 +402,7 @@ It is recommended using [binary releases](https://github.com/VictoriaMetrics/Vic
 
 ### Development build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.19.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.20.
 1. Run `make vmbackup` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `vmbackup` binary and puts it into the `bin` folder.
 

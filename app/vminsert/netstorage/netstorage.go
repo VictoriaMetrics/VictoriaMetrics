@@ -31,7 +31,12 @@ var (
 		"Higher values for -dedup.minScrapeInterval at vmselect is OK")
 	disableRerouting      = flag.Bool("disableRerouting", true, "Whether to disable re-routing when some of vmstorage nodes accept incoming data at slower speed compared to other storage nodes. Disabled re-routing limits the ingestion rate by the slowest vmstorage node. On the other side, disabled re-routing minimizes the number of active time series in the cluster during rolling restarts and during spikes in series churn rate. See also -dropSamplesOnOverload")
 	dropSamplesOnOverload = flag.Bool("dropSamplesOnOverload", false, "Whether to drop incoming samples if the destination vmstorage node is overloaded and/or unavailable. This prioritizes cluster availability over consistency, e.g. the cluster continues accepting all the ingested samples, but some of them may be dropped if vmstorage nodes are temporarily unavailable and/or overloaded. The drop of samples happens before the replication, so it's not recommended to use this flag with -replicationFactor enabled.")
-	vmstorageDialTimeout  = flag.Duration("vmstorageDialTimeout", 5*time.Second, "Timeout for establishing RPC connections from vminsert to vmstorage")
+	vmstorageDialTimeout  = flag.Duration("vmstorageDialTimeout", 3*time.Second, "Timeout for establishing RPC connections from vminsert to vmstorage. "+
+		"See also -vmstorageUserTimeout")
+	vmstorageUserTimeout = flag.Duration("vmstorageUserTimeout", 3*time.Second, "Network timeout for RPC connections from vminsert to vmstorage (Linux only). "+
+		"Lower values speed up re-rerouting recovery when some of vmstorage nodes become unavailable because of networking issues. "+
+		"Read more about TCP_USER_TIMEOUT at https://blog.cloudflare.com/when-tcp-sockets-refuse-to-die/ . "+
+		"See also -vmstorageDialTimeout")
 )
 
 var errStorageReadOnly = errors.New("storage node is read only")
@@ -320,10 +325,9 @@ var cannotCloseStorageNodeConnLogger = logger.WithThrottler("cannotCloseStorageN
 var cannotSendBufsLogger = logger.WithThrottler("cannotSendBufRows", 5*time.Second)
 
 func sendToConn(bc *handshake.BufferedConn, buf []byte) error {
-	if len(buf) == 0 {
-		// Nothing to send
-		return nil
-	}
+	// if len(buf) == 0, it must be sent to the vmstorage too in order to check for vmstorage health
+	// See checkReadOnlyMode() and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4870
+
 	timeoutSeconds := len(buf) / 3e5
 	if timeoutSeconds < 60 {
 		timeoutSeconds = 60
@@ -516,7 +520,7 @@ func initStorageNodes(addrs []string, hashSeed uint64) *storageNodesBucket {
 			addr += ":8400"
 		}
 		sn := &storageNode{
-			dialer: netutil.NewTCPDialer(ms, "vminsert", addr, *vmstorageDialTimeout),
+			dialer: netutil.NewTCPDialer(ms, "vminsert", addr, *vmstorageDialTimeout, *vmstorageUserTimeout),
 
 			stopCh: stopCh,
 
@@ -809,9 +813,22 @@ func (sn *storageNode) checkReadOnlyMode() {
 		atomic.StoreUint32(&sn.isReadOnly, 0)
 		return
 	}
-	if !errors.Is(err, errStorageReadOnly) {
-		logger.Errorf("cannot check storage readonly mode for -storageNode=%q: %s", sn.dialer.Addr(), err)
+	if errors.Is(err, errStorageReadOnly) {
+		// The storage remains in read-only mode
+		return
 	}
+
+	// There was an error when sending nil buf to the storage.
+	logger.Errorf("cannot check storage readonly mode for -storageNode=%q: %s", sn.dialer.Addr(), err)
+
+	// Mark the connection to the storage as broken.
+	if err = sn.bc.Close(); err != nil {
+		cannotCloseStorageNodeConnLogger.Warnf("cannot close connection to storageNode %q: %s", sn.dialer.Addr(), err)
+	}
+	sn.bc = nil
+	atomic.StoreUint32(&sn.broken, 1)
+	sn.brCond.Broadcast()
+	sn.connectionErrors.Inc()
 }
 
 var (

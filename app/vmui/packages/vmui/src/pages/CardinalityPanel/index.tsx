@@ -31,7 +31,7 @@ const CardinalityPanel: FC = () => {
   const match = searchParams.get("match") || "";
   const focusLabel = searchParams.get("focusLabel") || "";
 
-  const { isLoading, appConfigurator, error } = useFetchQuery();
+  const { isLoading, appConfigurator, error, isCluster } = useFetchQuery();
   const { tsdbStatusData, getDefaultState, tablesHeaders, sectionsTips } = appConfigurator;
   const defaultState = getDefaultState(match, focusLabel);
 
@@ -56,11 +56,13 @@ const CardinalityPanel: FC = () => {
     >
       {isLoading && <Spinner message={spinnerMessage}/>}
       <CardinalityConfigurator
+        isPrometheus={appConfigurator.isPrometheusData}
         totalSeries={tsdbStatusData.totalSeries}
         totalSeriesPrev={tsdbStatusData.totalSeriesPrev}
         totalSeriesAll={tsdbStatusData.totalSeriesByAll}
         totalLabelValuePairs={tsdbStatusData.totalLabelValuePairs}
         seriesCountByMetricName={tsdbStatusData.seriesCountByMetricName}
+        isCluster={isCluster}
       />
 
       {showTips && (
@@ -68,7 +70,7 @@ const CardinalityPanel: FC = () => {
           {!match && !focusLabel && <TipHighNumberOfSeries/>}
           {match && !focusLabel && <TipCardinalityOfSingle/>}
           {!match && !focusLabel && <TipHighNumberOfValues/>}
-          {focusLabel && <TipCardinalityOfLabel/>}
+          {focusLabel && <TipCardinalityOfLabel />}
         </div>
       )}
 
@@ -86,6 +88,7 @@ const CardinalityPanel: FC = () => {
           totalSeriesPrev={appConfigurator.totalSeries(keyName, true)}
           totalSeries={appConfigurator.totalSeries(keyName)}
           tableHeaderCells={tablesHeaders[keyName]}
+          isPrometheus={appConfigurator.isPrometheusData}
         />;
       })}
     </div>

@@ -21,7 +21,7 @@ func newCountSamplesAggrState() *countSamplesAggrState {
 	return &countSamplesAggrState{}
 }
 
-func (as *countSamplesAggrState) pushSample(inputKey, outputKey string, value float64) {
+func (as *countSamplesAggrState) pushSample(_, outputKey string, _ float64) {
 again:
 	v, ok := as.m.Load(outputKey)
 	if !ok {

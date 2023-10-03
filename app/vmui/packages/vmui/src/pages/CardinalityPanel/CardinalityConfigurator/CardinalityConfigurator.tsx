@@ -11,8 +11,9 @@ import { useSearchParams } from "react-router-dom";
 import CardinalityTotals, { CardinalityTotalsProps } from "../CardinalityTotals/CardinalityTotals";
 import useSearchParamsFromObject from "../../../hooks/useSearchParamsFromObject";
 import useStateSearchParams from "../../../hooks/useStateSearchParams";
+import Hyperlink from "../../../components/Main/Hyperlink/Hyperlink";
 
-const CardinalityConfigurator: FC<CardinalityTotalsProps> = (props) => {
+const CardinalityConfigurator: FC<CardinalityTotalsProps> = ({ isPrometheus, isCluster, ...props }) => {
   const { isMobile } = useDeviceDetect();
   const [searchParams] = useSearchParams();
   const { setSearchParamsFromKeys } = useSearchParamsFromObject();
@@ -93,26 +94,41 @@ const CardinalityConfigurator: FC<CardinalityTotalsProps> = (props) => {
         <TextField
           label="Limit entries"
           type="number"
-          value={topN}
+          value={isPrometheus ? 10 : topN}
           error={errorTopN}
+          disabled={isPrometheus}
+          helperText={isPrometheus ? "not available for Prometheus" : ""}
           onChange={handleTopNChange}
           onEnter={handleRunQuery}
         />
       </div>
     </div>
     <div className="vm-cardinality-configurator-bottom">
-      <CardinalityTotals {...props}/>
+      <CardinalityTotals
+        isPrometheus={isPrometheus}
+        isCluster={isCluster}
+        {...props}
+      />
+      {isCluster &&
+        <div className="vm-cardinality-configurator-bottom-helpful">
+          <Hyperlink
+            href="https://docs.victoriametrics.com/#cardinality-explorer-statistic-inaccurancy"
+            withIcon={true}
+          >
+            <WikiIcon/>
+          Statistic inaccuracy explanation
+          </Hyperlink>
+        </div>
+      }
 
       <div className="vm-cardinality-configurator-bottom-helpful">
-        <a
-          className="vm-link vm-link_with-icon"
-          target="_blank"
+        <Hyperlink
           href="https://docs.victoriametrics.com/#cardinality-explorer"
-          rel="help noreferrer"
+          withIcon={true}
         >
           <WikiIcon/>
           Documentation
-        </a>
+        </Hyperlink>
       </div>
 
       <div className="vm-cardinality-configurator-bottom__execute">
@@ -122,6 +138,7 @@ const CardinalityConfigurator: FC<CardinalityTotalsProps> = (props) => {
             color={showTips ? "warning" : "gray"}
             startIcon={<TipIcon/>}
             onClick={handleToggleTips}
+            ariaLabel="visibility tips"
           />
         </Tooltip>
         <Button

@@ -1,10 +1,11 @@
 import React, { FC, useMemo } from "preact/compat";
 import { MouseEvent } from "react";
-import { LegendItemType } from "../../../../../utils/uplot/types";
+import { LegendItemType } from "../../../../../types";
 import "./style.scss";
 import classNames from "classnames";
 import { getFreeFields } from "./helpers";
 import useCopyToClipboard from "../../../../../hooks/useCopyToClipboard";
+import { STATS_ORDER } from "../../../../../constants/graph";
 
 interface LegendItemProps {
   legend: LegendItemType;
@@ -70,8 +71,16 @@ const LegendItem: FC<LegendItemProps> = ({ legend, onChange, isHeatmap }) => {
         </span>
       </div>
       {!isHeatmap && showCalculations && (
-        <div className="vm-legend-item-values">
-          median:{calculations.median}, min:{calculations.min}, max:{calculations.max}, last:{calculations.last}
+        <div className="vm-legend-item-stats">
+          {STATS_ORDER.map((key, i) => (
+            <div
+              className="vm-legend-item-stats-row"
+              key={i}
+            >
+              <span className="vm-legend-item-stats-row__key">{key}:</span>
+              <span className="vm-legend-item-stats-row__value">{calculations[key]}</span>
+            </div>
+          ))}
         </div>
       )}
     </div>

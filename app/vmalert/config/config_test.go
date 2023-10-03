@@ -69,6 +69,10 @@ func TestParseBad(t *testing.T) {
 		expErr string
 	}{
 		{
+			[]string{"testdata/rules/rules_interval_bad.rules"},
+			"eval_offset should be smaller than interval",
+		},
+		{
 			[]string{"testdata/rules/rules0-bad.rules"},
 			"unexpected token",
 		},
@@ -140,6 +144,35 @@ func TestGroup_Validate(t *testing.T) {
 		{
 			group:  &Group{},
 			expErr: "group name must be set",
+		},
+		{
+			group: &Group{
+				Name:     "negative interval",
+				Interval: promutils.NewDuration(-1),
+			},
+			expErr: "interval shouldn't be lower than 0",
+		},
+		{
+			group: &Group{
+				Name:       "wrong eval_offset",
+				Interval:   promutils.NewDuration(time.Minute),
+				EvalOffset: promutils.NewDuration(2 * time.Minute),
+			},
+			expErr: "eval_offset should be smaller than interval",
+		},
+		{
+			group: &Group{
+				Name:  "wrong limit",
+				Limit: -1,
+			},
+			expErr: "invalid limit",
+		},
+		{
+			group: &Group{
+				Name:        "wrong concurrency",
+				Concurrency: -1,
+			},
+			expErr: "invalid concurrency",
 		},
 		{
 			group: &Group{

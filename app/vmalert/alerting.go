@@ -72,6 +72,7 @@ func newAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule
 		q: qb.BuildWithParams(datasource.QuerierParams{
 			DataSourceType:     group.Type.String(),
 			EvaluationInterval: group.Interval,
+			EvalOffset:         group.EvalOffset,
 			QueryParams:        group.Params,
 			Headers:            group.Headers,
 			Debug:              cfg.Debug,

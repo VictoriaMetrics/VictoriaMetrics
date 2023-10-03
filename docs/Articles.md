@@ -1,11 +1,11 @@
 ---
-sort: 17
-weight: 17
+sort: 20
+weight: 20
 title: Articles
 menu:
   docs:
     parent: "victoriametrics"
-    weight: 17
+    weight: 20
 aliases:
 - /Articles.html
 ---
@@ -18,6 +18,7 @@ See also [case studies](https://docs.victoriametrics.com/CaseStudies.html).
 
 * [Why Roblox Picked VictoriaMetrics for Observability Data Overhaul](https://www.datanami.com/2023/05/30/why-roblox-picked-victoriametrics-for-observability-data-overhaul/)
 * [The (Almost) Infinitely Scalable Open Source Monitoring Dream](https://www.forbes.com/sites/adrianbridgwater/2022/08/16/the-almost-infinitely-scalable-open-source-monitoring-dream/)
+* [The Agility In Cloud Observability](https://www.forbes.com/sites/adrianbridgwater/2023/07/05/the-agility-in-cloud-observability/)
 * [Monitoring at scale with Victoria Metrics](https://tech.bedrockstreaming.com/2022/09/06/monitoring-at-scale-with-victoriametrics.html)
 * [Optimizing Linkerd metrics in Prometheus](https://aatarasoff.medium.com/optimizing-linkerd-metrics-in-prometheus-de607ec10f6b)
 * [Optimizing the Storage of Large Volumes of Metrics for a Long Time in VictoriaMetrics](https://percona.community/blog/2022/06/02/long-time-keeping-metrics-victoriametrics/)
@@ -74,6 +75,10 @@ See also [case studies](https://docs.victoriametrics.com/CaseStudies.html).
 * [VictoriaMetrics and Open Cosmos boldly takes edge computing to the edge of space](https://www.iot-now.com/2022/07/19/122423-victoriametrics-and-open-cosmos-boldly-takes-edge-computing-to-the-edge-of-space/)
 * [Evaluating Backend Options For Prometheus Metrics](https://www.techetio.com/2022/08/21/evaluating-backend-options-for-prometheus-metrics/)
 * [Time Series in the Multiverse of Madness (in Korean)](https://www.youtube.com/watch?v=OUyXPgVcdw4), plus [these slides](https://deview.kr/data/deview/session/attach/%5B2B4%5DVictoriaMetrics_%E1%84%89%E1%85%B5%E1%84%80%E1%85%A8%E1%84%8B%E1%85%A7%E1%86%AF_%E1%84%83%E1%85%A6%E1%84%8B%E1%85%B5%E1%84%90%E1%85%A5_%E1%84%83%E1%85%A2%E1%84%92%E1%85%A9%E1%86%AB%E1%84%83%E1%85%A9%E1%86%AB%E1%84%8B%E1%85%B4_%E1%84%86%E1%85%A5%E1%86%AF%E1%84%90%E1%85%B5%E1%84%87%E1%85%A5%E1%84%89%E1%85%B3_Kor+Eng.pdf)
+* [VictoriaMetrics: an overview and its use instead of Prometheus](https://rtfm.co.ua/en/victoriametrics-an-overview-and-its-use-instead-of-prometheus/)
+* [VictoriaMetrics: deploying a Kubernetes monitoring stack](https://rtfm.co.ua/en/victoriametrics-deploying-a-kubernetes-monitoring-stack/)
+* [Better, Faster, Cheaper: How Grammarly Improved Monitoring by Over 10x with VictoriaMetrics](https://www.grammarly.com/blog/engineering/monitoring-with-victoriametrics/)
+* [VictoriaMetrics, a stress-free Prometheus Remote Storage for 1 Billion metrics](https://medium.com/criteo-engineering/victoriametrics-a-prometheus-remote-storage-solution-57081a3d8e61)
 
 ## Our articles
 
@@ -132,3 +137,4 @@ See also [case studies](https://docs.victoriametrics.com/CaseStudies.html).
 * [VictoriaMetrics Meetup December 2022](https://www.youtube.com/watch?v=Mesc6JBFNhQ). See also [slides for "VictoriaMetrics 2022: new features" talk](https://docs.google.com/presentation/d/1jI7XZoodmuzLymdu4MToG9onAKQjzCNwMO2NDupyUkQ/edit?usp=sharing).
 * [Comparing Thanos to VictoriaMetrics cluster](https://faun.pub/comparing-thanos-to-victoriametrics-cluster-b193bea1683)
 * [Evaluation performance and correctness: VictoriaMetrics response](https://valyala.medium.com/evaluating-performance-and-correctness-victoriametrics-response-e27315627e87)
+* [How to reduce expenses on monitoring slides](https://www.slideshare.net/RomanKhavronenko/how-to-reduce-expenses-on-monitoringpdf)

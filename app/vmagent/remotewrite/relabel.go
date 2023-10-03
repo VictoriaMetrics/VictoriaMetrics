@@ -127,9 +127,6 @@ func (rctx *relabelCtx) appendExtraLabels(tss []prompbmarshal.TimeSeries, extraL
 		labels = append(labels, ts.Labels...)
 		for j := range extraLabels {
 			extraLabel := extraLabels[j]
-			if *usePromCompatibleNaming {
-				extraLabel.Name = promrelabel.SanitizeLabelName(extraLabel.Name)
-			}
 			tmp := promrelabel.GetLabelByName(labels[labelsLen:], extraLabel.Name)
 			if tmp != nil {
 				tmp.Value = extraLabel.Value

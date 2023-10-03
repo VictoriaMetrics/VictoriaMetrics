@@ -1,11 +1,11 @@
 ---
-sort: 18
-weight: 18
+sort: 21
+weight: 21
 title: Release process guidance
 menu:
   docs:
     parent: "victoriametrics"
-    weight: 18
+    weight: 21
 aliases:
 - /Release-Guide.html
 ---
@@ -127,6 +127,27 @@ Bumping the limits may significantly improve build speed.
 * Publish message in Telegram at <https://t.me/VictoriaMetrics_en> and <https://t.me/VictoriaMetrics_ru1>
 * Publish message in Google Groups at <https://groups.google.com/forum/#!forum/victorametrics-users>
 
+## Operator
+
+The operator repository [https://github.com/VictoriaMetrics/operator/](https://github.com/VictoriaMetrics/operator/)
+
+### Bump the version of images
+
+- Bump `Version` field in [file `internal/config/config.go`](https://github.com/VictoriaMetrics/operator/blob/master/internal/config/config.go) with new release version for:
+  - `vmalert` in `BaseOperatorConf.VMAlertDefault.Version`,
+  - `vmagent` in `BaseOperatorConf.VMAgentDefault.Version`,
+  - `vmsingle` in `BaseOperatorConf.VMSingleDefault.Version`,
+  - `vmselect` in `BaseOperatorConf.VMClusterDefault.VMSelectDefault.Version`,
+  - `vmstorage` in `BaseOperatorConf.VMClusterDefault.VMStorageDefault.Version`,
+  - `vminsert` in `BaseOperatorConf.VMClusterDefault.VMInsertDefault.Version`,
+  - `vmbackupmanager` in `BaseOperatorConf.VMBackup.Version` (should be enterprise version),
+  - `vmauth` in `BaseOperatorConf.VMAuthDefault.Version`.
+- Run `make operator-conf`.
+- Rename "Next release" section in `CHANGELOG.md` to the *new release version* and create new empty "Next release" section.
+- Commit and push changes to `master`.
+- Create and push a new tag with the *new release version*.
+- Create github release from this tag with "Release notes" from `CHANGELOG` for this version in description.
+
 ## Helm Charts
 
 The helm chart repository [https://github.com/VictoriaMetrics/helm-charts/](https://github.com/VictoriaMetrics/helm-charts/)
@@ -135,7 +156,9 @@ The helm chart repository [https://github.com/VictoriaMetrics/helm-charts/](http
 
 Bump `tag` field in `values.yaml` with new release version.
 Bump `appVersion` field in `Chart.yaml` with new release version.
-Bump `version` field in `Chart.yaml` with incremental semver version.
+Add new line to "Next release" section in `CHANGELOG.md` about version update (the line must always start with "`-`"). Do **NOT** change headers in `CHANGELOG.md`.
+Bump `version` field in `Chart.yaml` with incremental semver version (based on the `CHANGELOG.md` analysis). 
+
 Do these updates to the following charts:
 
 1. Update `vmagent` chart version in [`values.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-agent/values.yaml) and [`Chart.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-agent/Chart.yaml) 
@@ -148,11 +171,10 @@ Do these updates to the following charts:
 
 Once updated, run the following commands:
 
-1. Run `make gen-docs`
-1. Run `make package` that creates or updates zip file with the packed chart
-1. Run `make merge`. It creates or updates metadata for charts in index.yaml
-1. Push changes to master. `master` is a source of truth
-1. Push the same changes to `gh-pages` branch
+1. Commit and push changes to `master`.
+1. Run "Release" action on Github:
+   ![image](Release-Guide_helm-release.png)
+1. Merge new PRs *"Automatic update CHANGELOGs and READMEs"* and *"Synchronize docs"* after pipelines are complete.
 
 ## Ansible Roles 
 

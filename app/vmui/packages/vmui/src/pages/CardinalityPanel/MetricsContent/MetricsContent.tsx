@@ -22,6 +22,7 @@ interface MetricsProperties {
   sectionTitle: string;
   tip?: string;
   tableHeaderCells: HeadCell[];
+  isPrometheus: boolean;
 }
 
 const MetricsContent: FC<MetricsProperties> = ({
@@ -34,9 +35,12 @@ const MetricsContent: FC<MetricsProperties> = ({
   sectionTitle,
   tip,
   tableHeaderCells,
+  isPrometheus,
 }) => {
   const { isMobile } = useDeviceDetect();
   const [activeTab, setActiveTab] = useState("table");
+
+  const noDataPrometheus = isPrometheus && !rows.length;
 
   const tableCells = (row: Data) => (
     <TableCells
@@ -90,8 +94,19 @@ const MetricsContent: FC<MetricsProperties> = ({
           />
         </div>
       </div>
-
-      {activeTab === "table" && (
+      {noDataPrometheus && (
+        <div className="vm-metrics-content-prom-data">
+          <div className="vm-metrics-content-prom-data__icon"><InfoIcon/></div>
+          <h3 className="vm-metrics-content-prom-data__title">
+            Prometheus Data Limitation
+          </h3>
+          <p className="vm-metrics-content-prom-data__text">
+            Due to missing data from your Prometheus source, some tables may appear empty.<br/>
+            This does not indicate an issue with your system or our tool.
+          </p>
+        </div>
+      )}
+      {!noDataPrometheus && activeTab === "table" && (
         <div
           ref={chartContainer}
           className={classNames({
@@ -107,7 +122,7 @@ const MetricsContent: FC<MetricsProperties> = ({
           />
         </div>
       )}
-      {activeTab === "graph" && (
+      {!noDataPrometheus && activeTab === "graph" && (
         <div className="vm-metrics-content__chart">
           <SimpleBarChart data={rows.map(({ name, value }) => ({ name, value }))}/>
         </div>

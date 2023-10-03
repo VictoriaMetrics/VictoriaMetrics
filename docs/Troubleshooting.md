@@ -1,11 +1,11 @@
 ---
-sort: 23
-weight: 23
+sort: 26
+weight: 26
 title: Troubleshooting
 menu:
   docs:
     parent: "victoriametrics"
-    weight: 23
+    weight: 26
 aliases:
 - /Troubleshooting.html
 ---

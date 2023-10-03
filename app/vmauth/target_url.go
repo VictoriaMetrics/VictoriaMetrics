@@ -8,6 +8,9 @@ import (
 
 func mergeURLs(uiURL, requestURI *url.URL) *url.URL {
 	targetURL := *uiURL
+	if strings.HasPrefix(requestURI.Path, "/") {
+		targetURL.Path = strings.TrimSuffix(targetURL.Path, "/")
+	}
 	targetURL.Path += requestURI.Path
 	requestParams := requestURI.Query()
 	// fast path
@@ -29,18 +32,18 @@ func mergeURLs(uiURL, requestURI *url.URL) *url.URL {
 	return &targetURL
 }
 
-func (ui *UserInfo) getURLPrefixAndHeaders(u *url.URL) (*URLPrefix, []Header) {
+func (ui *UserInfo) getURLPrefixAndHeaders(u *url.URL) (*URLPrefix, HeadersConf, []int) {
 	for _, e := range ui.URLMaps {
 		for _, sp := range e.SrcPaths {
 			if sp.match(u.Path) {
-				return e.URLPrefix, e.Headers
+				return e.URLPrefix, e.HeadersConf, e.RetryStatusCodes
 			}
 		}
 	}
 	if ui.URLPrefix != nil {
-		return ui.URLPrefix, ui.Headers
+		return ui.URLPrefix, ui.HeadersConf, ui.RetryStatusCodes
 	}
-	return nil, nil
+	return nil, HeadersConf{}, nil
 }
 
 func normalizeURL(uOrig *url.URL) *url.URL {

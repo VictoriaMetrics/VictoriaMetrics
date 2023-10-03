@@ -356,6 +356,25 @@ func (fs *FS) HasFile(filePath string) (bool, error) {
 	return true, nil
 }
 
+// ReadFile returns the content of filePath at fs.
+func (fs *FS) ReadFile(filePath string) ([]byte, error) {
+	p := fs.Dir + filePath
+	input := &s3.GetObjectInput{
+		Bucket: aws.String(fs.Bucket),
+		Key:    aws.String(p),
+	}
+	o, err := fs.s3.GetObject(context.Background(), input)
+	if err != nil {
+		return nil, fmt.Errorf("cannot open %q at %s (remote path %q): %w", filePath, fs, p, err)
+	}
+	defer o.Body.Close()
+	b, err := io.ReadAll(o.Body)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read %q at %s (remote path %q): %w", filePath, fs, p, err)
+	}
+	return b, nil
+}
+
 func (fs *FS) path(p common.Part) string {
 	return p.RemotePath(fs.Dir)
 }

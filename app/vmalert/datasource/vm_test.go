@@ -597,6 +597,17 @@ func TestRequestParams(t *testing.T) {
 			},
 		},
 		{
+			"allow duplicates in query params",
+			false,
+			storage.Clone().ApplyParams(QuerierParams{
+				QueryParams: url.Values{"extra_labels": {"env=dev", "foo=bar"}},
+			}),
+			func(t *testing.T, r *http.Request) {
+				exp := url.Values{"query": {query}, "round_digits": {"10"}, "extra_labels": {"env=dev", "foo=bar"}, "time": {timestamp.Format(time.RFC3339)}}
+				checkEqualString(t, exp.Encode(), r.URL.RawQuery)
+			},
+		},
+		{
 			"graphite extra params",
 			false,
 			&VMStorage{
@@ -629,10 +640,7 @@ func TestRequestParams(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			req, err := tc.vm.newRequestPOST()
-			if err != nil {
-				t.Fatalf("unexpected error: %s", err)
-			}
+			req := tc.vm.newRequest()
 			switch tc.vm.dataSourceType {
 			case "", datasourcePrometheus:
 				if tc.queryRange {
@@ -727,10 +735,7 @@ func TestHeaders(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			vm := tt.vmFn()
-			req, err := vm.newRequestPOST()
-			if err != nil {
-				t.Fatalf("unexpected error: %s", err)
-			}
+			req := vm.newQueryRequest("foo", time.Now())
 			tt.checkFn(t, req)
 		})
 	}

@@ -93,6 +93,7 @@ export const ExecutionControls: FC = () => {
               color="primary"
               onClick={handleUpdate}
               startIcon={<RefreshIcon/>}
+              ariaLabel="refresh dashboard"
             />
           </Tooltip>
         )}

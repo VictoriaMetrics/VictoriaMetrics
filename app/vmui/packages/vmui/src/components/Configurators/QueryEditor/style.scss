@@ -7,29 +7,4 @@
     max-height: 300px;
     overflow: auto;
   }
-
-  &-warning {
-    position: absolute;
-    top: 50%;
-    right: $padding-global;
-    transform: translateY(-50%);
-    display: grid;
-    align-items: center;
-    justify-content: center;
-    width: 18px;
-    height: 18px;
-    color: $color-warning;
-
-    &__tooltip {
-      white-space: pre-line;
-
-      p {
-        margin-bottom: $padding-small;
-
-        &:last-child {
-          margin-bottom: 0;
-        }
-      }
-    }
-  }
 }

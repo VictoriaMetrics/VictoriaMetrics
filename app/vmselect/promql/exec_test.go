@@ -46,7 +46,7 @@ func TestEscapeDotsInRegexpLabelFilters(t *testing.T) {
 	f("2", "2")
 	f(`foo.bar + 123`, `foo.bar + 123`)
 	f(`foo{bar=~"baz.xx.yyy"}`, `foo{bar=~"baz\\.xx\\.yyy"}`)
-	f(`foo(a.b{c="d.e",x=~"a.b.+[.a]",y!~"aaa.bb|cc.dd"}) + x.y(1,sum({x=~"aa.bb"}))`, `foo(a.b{c="d.e",x=~"a\\.b.+[\\.a]",y!~"aaa\\.bb|cc\\.dd"}) + x.y(1, sum({x=~"aa\\.bb"}))`)
+	f(`sum(a.b{c="d.e",x=~"a.b.+[.a]",y!~"aaa.bb|cc.dd"}) + avg_over_time(1,sum({x=~"aa.bb"}))`, `sum(a.b{c="d.e",x=~"a\\.b.+[\\.a]",y!~"aaa\\.bb|cc\\.dd"}) + avg_over_time(1, sum({x=~"aa\\.bb"}))`)
 }
 
 func TestExecSuccess(t *testing.T) {
@@ -91,6 +91,28 @@ func TestExecSuccess(t *testing.T) {
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
 			Values:     []float64{123, 123, 123, 123, 123, 123},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run("int_with_underscores", func(t *testing.T) {
+		t.Parallel()
+		q := `123_456_789`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{123456789, 123456789, 123456789, 123456789, 123456789, 123456789},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run("float_with_underscores", func(t *testing.T) {
+		t.Parallel()
+		q := `1_2.3_456_789`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{12.3456789, 12.3456789, 12.3456789, 12.3456789, 12.3456789, 12.3456789},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r}
@@ -146,6 +168,17 @@ func TestExecSuccess(t *testing.T) {
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
 			Values:     []float64{1.23 * (1 << 20), 1.23 * (1 << 20), 1.23 * (1 << 20), 1.23 * (1 << 20), 1.23 * (1 << 20), 1.23 * (1 << 20)},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run("num-with-suffix-5", func(t *testing.T) {
+		t.Parallel()
+		q := `1_234M`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1234e6, 1234e6, 1234e6, 1234e6, 1234e6, 1234e6},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r}
@@ -7646,7 +7679,7 @@ func TestExecSuccess(t *testing.T) {
 	})
 	t.Run(`aggr_over_time(multi-func)`, func(t *testing.T) {
 		t.Parallel()
-		q := `sort(aggr_over_time(("min_over_time", "count_over_time", "max_over_time"), round(rand(0),0.1)[:10s]))`
+		q := `sort(aggr_over_time(("min_over_time", "median_over_time", "max_over_time"), round(rand(0),0.1)[:10s]))`
 		r1 := netstorage.Result{
 			MetricName: metricNameExpected,
 			Values:     []float64{0, 0, 0, 0, 0, 0},
@@ -7658,21 +7691,21 @@ func TestExecSuccess(t *testing.T) {
 		}}
 		r2 := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{0.8, 0.9, 1, 0.9, 1, 0.9},
+			Values:     []float64{0.4, 0.5, 0.5, 0.75, 0.6, 0.45},
 			Timestamps: timestampsExpected,
 		}
 		r2.MetricName.Tags = []storage.Tag{{
 			Key:   []byte("rollup"),
-			Value: []byte("max_over_time"),
+			Value: []byte("median_over_time"),
 		}}
 		r3 := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{20, 20, 20, 20, 20, 20},
+			Values:     []float64{0.8, 0.9, 1, 0.9, 1, 0.9},
 			Timestamps: timestampsExpected,
 		}
 		r3.MetricName.Tags = []storage.Tag{{
 			Key:   []byte("rollup"),
-			Value: []byte("count_over_time"),
+			Value: []byte("max_over_time"),
 		}}
 		resultExpected := []netstorage.Result{r1, r2, r3}
 		f(q, resultExpected)
@@ -8456,11 +8489,11 @@ func TestExecSuccess(t *testing.T) {
 	})
 	t.Run(`result sorting`, func(t *testing.T) {
 		t.Parallel()
-		q := `label_set(1, "instance", "localhost:1001", "type", "free")
-			or label_set(1, "instance", "localhost:1001", "type", "buffers")
-			or label_set(1, "instance", "localhost:1000", "type", "buffers")
-			or label_set(1, "instance", "localhost:1000", "type", "free")
-`
+		q := `(label_set(1, "instance", "localhost:1001", "type", "free"),
+			label_set(1, "instance", "localhost:1001", "type", "buffers"),
+			label_set(1, "instance", "localhost:1000", "type", "buffers"),
+			label_set(1, "instance", "localhost:1000", "type", "free"),
+		)`
 		r1 := netstorage.Result{
 			MetricName: metricNameExpected,
 			Values:     []float64{1, 1, 1, 1, 1, 1},
@@ -8490,6 +8523,34 @@ func TestExecSuccess(t *testing.T) {
 		testAddLabels(t, &r4.MetricName,
 			"instance", "localhost:1001", "type", "free")
 		resultExpected := []netstorage.Result{r1, r2, r3, r4}
+		f(q, resultExpected)
+	})
+	t.Run(`no_sorting_for_or`, func(t *testing.T) {
+		t.Parallel()
+		q := `label_set(2, "foo", "bar") or label_set(1, "foo", "baz")`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{2, 2, 2, 2, 2, 2},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("foo"),
+				Value: []byte("bar"),
+			},
+		}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1, 1, 1, 1, 1, 1},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("foo"),
+				Value: []byte("baz"),
+			},
+		}
+		resultExpected := []netstorage.Result{r1, r2}
 		f(q, resultExpected)
 	})
 	t.Run(`sort_by_label_numeric(multiple_labels_only_string)`, func(t *testing.T) {

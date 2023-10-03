@@ -662,14 +662,14 @@ func (tb *Table) flushInmemoryParts(isFinal bool) {
 func (riss *rawItemsShards) flush(tb *Table, dst []*inmemoryBlock, isFinal bool) []*inmemoryBlock {
 	tb.rawItemsPendingFlushesWG.Add(1)
 	for i := range riss.shards {
-		dst = riss.shards[i].appendBlocksToFlush(dst, tb, isFinal)
+		dst = riss.shards[i].appendBlocksToFlush(dst, isFinal)
 	}
 	tb.flushBlocksToParts(dst, isFinal)
 	tb.rawItemsPendingFlushesWG.Done()
 	return dst
 }
 
-func (ris *rawItemsShard) appendBlocksToFlush(dst []*inmemoryBlock, tb *Table, isFinal bool) []*inmemoryBlock {
+func (ris *rawItemsShard) appendBlocksToFlush(dst []*inmemoryBlock, isFinal bool) []*inmemoryBlock {
 	currentTime := fasttime.UnixTimestamp()
 	flushSeconds := int64(pendingItemsFlushInterval.Seconds())
 	if flushSeconds <= 0 {
@@ -1349,6 +1349,18 @@ func mustOpenParts(path string) []*partWrapper {
 	des := fs.MustReadDir(path)
 	m := make(map[string]struct{}, len(partNames))
 	for _, partName := range partNames {
+		// Make sure the partName exists on disk.
+		// If it is missing, then manual action from the user is needed,
+		// since this is unexpected state, which cannot occur under normal operation,
+		// including unclean shutdown.
+		partPath := filepath.Join(path, partName)
+		if !fs.IsPathExist(partPath) {
+			partsFile := filepath.Join(path, partsFilename)
+			logger.Panicf("FATAL: part %q is listed in %q, but is missing on disk; "+
+				"ensure %q contents is not corrupted; remove %q to rebuild its' content from the list of existing parts",
+				partPath, partsFile, partsFile, partsFile)
+		}
+
 		m[partName] = struct{}{}
 	}
 	for _, de := range des {

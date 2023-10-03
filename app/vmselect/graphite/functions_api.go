@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
 )
@@ -14,7 +13,7 @@ import (
 // FunctionsHandler implements /functions handler.
 //
 // See https://graphite.readthedocs.io/en/latest/functions.html#function-api
-func FunctionsHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
+func FunctionsHandler(w http.ResponseWriter, r *http.Request) error {
 	grouped := httputils.GetBool(r, "grouped")
 	group := r.FormValue("group")
 	result := make(map[string]interface{})
@@ -40,7 +39,7 @@ func FunctionsHandler(startTime time.Time, w http.ResponseWriter, r *http.Reques
 // FunctionDetailsHandler implements /functions/<func_name> handler.
 //
 // See https://graphite.readthedocs.io/en/latest/functions.html#function-api
-func FunctionDetailsHandler(startTime time.Time, funcName string, w http.ResponseWriter, r *http.Request) error {
+func FunctionDetailsHandler(funcName string, w http.ResponseWriter, r *http.Request) error {
 	result := funcs[funcName]
 	if result == nil {
 		return fmt.Errorf("cannot find function %q", funcName)

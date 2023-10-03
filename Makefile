@@ -16,6 +16,7 @@ GO_BUILDINFO = -X '$(PKG_PREFIX)/lib/buildinfo.Version=$(APP_NAME)-$(DATEINFO_TA
 
 include app/*/Makefile
 include deployment/*/Makefile
+include dashboards/Makefile
 include package/release/Makefile
 
 all: \
@@ -91,6 +92,7 @@ package: \
 	package-vmstorage
 
 publish-release:
+	rm -rf bin/*
 	git checkout $(TAG) && LATEST_TAG=stable $(MAKE) release publish && \
 		git checkout $(TAG)-cluster && LATEST_TAG=cluster-stable $(MAKE) release publish && \
 		git checkout $(TAG)-enterprise && LATEST_TAG=enterprise-stable $(MAKE) release publish && \
@@ -198,7 +200,7 @@ benchmark-pure:
 vendor-update:
 	go get -u -d ./lib/...
 	go get -u -d ./app/...
-	go mod tidy -compat=1.19
+	go mod tidy -compat=1.20
 	go mod vendor
 
 app-local:
@@ -224,7 +226,7 @@ golangci-lint: install-golangci-lint
 	golangci-lint run
 
 install-golangci-lint:
-	which golangci-lint || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.51.2
+	which golangci-lint || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.54.2
 
 govulncheck: install-govulncheck
 	govulncheck ./...

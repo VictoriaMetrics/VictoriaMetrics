@@ -15,11 +15,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Code checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           path: main
       - name: Checkout private code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: VictoriaMetrics/vmdocs
           token: ${{ secrets.VM_BOT_GH_TOKEN }}

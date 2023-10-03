@@ -120,9 +120,9 @@ func Run(ctx context.Context, f func() error) {
 				}
 				break
 			}
-			if sleepErr := Sleep(ctx, bo); sleepErr != nil {
+			if errSleep := Sleep(ctx, bo); errSleep != nil {
 				if grpclog.V(1) {
-					grpclog.Infof("exit retry loop due to sleep error: %v", sleepErr)
+					grpclog.Infof("exit retry loop due to sleep error: %v", errSleep)
 				}
 				break
 			}

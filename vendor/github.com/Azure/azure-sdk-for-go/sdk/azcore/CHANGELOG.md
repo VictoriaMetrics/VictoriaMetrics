@@ -1,5 +1,17 @@
 # Release History
 
+## 1.7.2 (2023-09-06)
+
+### Bugs Fixed
+
+* Fix default HTTP transport to work in WASM modules.
+
+## 1.7.1 (2023-08-14)
+
+## Bugs Fixed
+
+* Enable TLS renegotiation in the default transport policy.
+
 ## 1.7.0 (2023-07-12)
 
 ### Features Added

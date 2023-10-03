@@ -31,6 +31,9 @@ func Parse(s string) (Expr, error) {
 	}
 	e = removeParensExpr(e)
 	e = simplifyConstants(e)
+	if err := checkSupportedFunctions(e); err != nil {
+		return nil, err
+	}
 	return e, nil
 }
 
@@ -52,7 +55,6 @@ func getDefaultWithArgExprs() []*withArgExpr {
 				clamp_max(step()/300, 1)
 			)`,
 
-			`median_over_time(m) = quantile_over_time(0.5, m)`,
 			`range_median(q) = range_quantile(0.5, q)`,
 			`alias(q, name) = label_set(q, "__name__", name)`,
 		})
@@ -596,7 +598,7 @@ func (p *parser) parseParensExpr() (*parensExpr, error) {
 }
 
 func (p *parser) parseAggrFuncExpr() (*AggrFuncExpr, error) {
-	if !isAggrFunc(p.lex.Token) {
+	if !IsAggrFunc(p.lex.Token) {
 		return nil, fmt.Errorf(`AggrFuncExpr: unexpected token %q; want aggregate func`, p.lex.Token)
 	}
 
@@ -1608,7 +1610,7 @@ func (p *parser) parseIdentExpr() (Expr, error) {
 	}
 	if isIdentPrefix(p.lex.Token) {
 		p.lex.Prev()
-		if isAggrFunc(p.lex.Token) {
+		if IsAggrFunc(p.lex.Token) {
 			return p.parseAggrFuncExpr()
 		}
 		return p.parseMetricExpr()
@@ -1620,7 +1622,7 @@ func (p *parser) parseIdentExpr() (Expr, error) {
 	switch p.lex.Token {
 	case "(":
 		p.lex.Prev()
-		if isAggrFunc(p.lex.Token) {
+		if IsAggrFunc(p.lex.Token) {
 			return p.parseAggrFuncExpr()
 		}
 		return p.parseFuncExpr()
