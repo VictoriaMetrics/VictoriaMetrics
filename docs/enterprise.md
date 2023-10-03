@@ -74,15 +74,15 @@ There are several ways to run VictoriaMetrics enterprise:
 ### Binary releases
 
 Binary releases of VictoriaMetrics enterprise are available [here](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
-Enterprise binaries and packages have `enterprise` suffix in their names. For example, `victoria-metrics-linux-amd64-vX.Y.Z-enterprise.tar.gz`.
+Enterprise binaries and packages have `enterprise` suffix in their names. For example, `victoria-metrics-linux-amd64-v1.94.0-enterprise.tar.gz`.
 
 In order to run binary release of VictoriaMetrics enterprise, download the release for your OS and unpack it.
 Then run `victoria-metrics-enterprise` binary from the unpacked directory.
 
-Before vX.Y.Z all the enterprise apps required `-eula` command-line flag to be passed to them.
+Before v1.94.0 all the enterprise apps required `-eula` command-line flag to be passed to them.
 This flag acknowledges that your usage fits one of the cases listed above.
 
-After vX.Y.Z either `-eula` flag or the following flags are used:
+After v1.94.0 either `-eula` flag or the following flags are used:
 ```console
   -license string
         See https://victoriametrics.com/products/enterprise/ for trial license
@@ -94,8 +94,8 @@ After vX.Y.Z either `-eula` flag or the following flags are used:
 
 For example, the following command runs `victoria-metrics-enterprise` binary with the specified license:
 ```console
-wget https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/vX.Y.Z/victoria-metrics-linux-amd64-vX.Y.Z-enterprise.tar.gz
-tar -xzf victoria-metrics-linux-amd64-vX.Y.Z-enterprise.tar.gz
+wget https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.94.0/victoria-metrics-linux-amd64-v1.94.0-enterprise.tar.gz
+tar -xzf victoria-metrics-linux-amd64-v1.94.0-enterprise.tar.gz
 ./victoria-metrics-prod -license={VM_KEY_VALUE}
 ```
 
@@ -109,19 +109,19 @@ The license file must contain the license key.
 ### Docker images
 
 Docker images for VictoriaMetrics enterprise are available [here](https://hub.docker.com/u/victoriametrics).
-Enterprise docker images have `enterprise` suffix in their names. For example, `victoriametrics/victoria-metrics:vX.Y.Z-enteprise`.
+Enterprise docker images have `enterprise` suffix in their names. For example, `victoriametrics/victoria-metrics:v1.94.0-enteprise`.
 
 In order to run docker image of VictoriaMetrics enterprise component it is required to provide the license key command-line
 flag similar to the one described in the previous section.
 
 For example, the following command runs [VictoriaMetrics single-node](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html) docker image with the specified license:
 ```console
-docker run --name=victoria-metrics victoriametrics/victoria-metrics:vX.Y.Z -license={VM_KEY_VALUE}
+docker run --name=victoria-metrics victoriametrics/victoria-metrics:v1.94.0 -license={VM_KEY_VALUE}
 ```
 
 Alternatively, the license can be specified via `-license-file` command-line flag:
 ```console
-docker run --name=victoria-metrics -v /vm-license:/vm-license  victoriametrics/victoria-metrics:vX.Y.Z -license-file=/vm-license
+docker run --name=victoria-metrics -v /vm-license:/vm-license  victoriametrics/victoria-metrics:v1.94.0 -license-file=/vm-license
 ```
 
 ### Helm charts
@@ -136,7 +136,7 @@ is used to provide key in plain-text:
 ```yaml
 server:
   image:
-    tag: vX.Y.Z-enterprise 
+    tag: v1.94.0-enterprise 
 
 license:
   key: {VM_KEY_VALUE}
@@ -146,7 +146,7 @@ In order to provide key via existing secret, the following values file is used:
 ```yaml
 server:
   image:
-    tag: vX.Y.Z-enterprise 
+    tag: v1.94.0-enterprise 
 
 license:
   secret:
@@ -187,7 +187,7 @@ spec:
   license:
     key: "VM_KEY_VALUE"
   image:
-    tag: vX.Y.Z-enterprise 
+    tag: v1.94.0-enterprise 
 ```
 
 In order to provide key via existing secret, the following custom resource is used:
@@ -203,7 +203,7 @@ spec:
       name: vm-key
       key: license
   image:
-    tag: vX.Y.Z-enterprise 
+    tag: v1.94.0-enterprise 
 ```
 
 Example secret with license key:
