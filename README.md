@@ -1237,6 +1237,24 @@ curl http://source-victoriametrics:8428/api/v1/export -d 'match={__name__!=""}' 
 curl -X POST http://destination-victoriametrics:8428/api/v1/import -T exported_data.jsonl
 ```
 
+The structure of the JSON line format from the previous example is below:
+```
+cat exported_data.jsonl
+
+{"metric":{"__name__":"go_cgo_calls_count","job":"victoria-metrics","instance":"self"},"values":[5],"timestamps":[1696323409458
+]}
+{"metric":{"__name__":"go_gc_forced_count","job":"victoria-metrics","instance":"self"},"values":[0],"timestamps":[1696323409458]}
+{"metric":{"__name__":"vm_merges_total","job":"victoria-metrics","type":"storage/big","instance":"self"},"values":[0],"timestamps":[1696323409458]}
+{"metric":{"__name__":"vm_http_request_errors_total","job":"victoria-metrics","instance":"self"},"values":[0],"timestamps":[1696323409458]}
+```
+
+The JSON line format allows having multiple lines in one batch. On ingestion, it is recommended to batch up to multiple 
+thousands of lines in one payload. Every line is represented by the following objects:
+* `metric` - describes a [time series](https://docs.victoriametrics.com/keyConcepts.html#time-series) with arbitrary
+number of [labels](https://docs.victoriametrics.com/keyConcepts.html#labels). Please note, `__name__` label is required.
+* `values` - list of [values](https://docs.victoriametrics.com/keyConcepts.html#raw-samples) belonging to this time series;
+* `timestamps` - list of unix timestamps in milliseconds associated with each value from `values` list according to their order.
+
 Pass `Content-Encoding: gzip` HTTP request header to `/api/v1/import` for importing gzipped data:
 
 ```console
