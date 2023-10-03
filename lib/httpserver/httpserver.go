@@ -36,7 +36,7 @@ var (
 	tlsCipherSuites = flagutil.NewArrayString("tlsCipherSuites", "Optional list of TLS cipher suites for incoming requests over HTTPS if -tls is set. See the list of supported cipher suites at https://pkg.go.dev/crypto/tls#pkg-constants")
 	tlsMinVersion   = flag.String("tlsMinVersion", "", "Optional minimum TLS version to use for incoming requests over HTTPS if -tls is set. "+
 		"Supported values: TLS10, TLS11, TLS12, TLS13")
-	httpHeader = flagutil.NewArrayString("http.header", "Additional headers to send. Example: 'Strict-Transport-Security: max-age=31536000; includeSubDomains'")
+	httpHSTS = flag.String("http.header.hsts", "", "Value for 'Strict-Transport-Security' header, example: 'max-age=31536000; includeSubDomains'")
 
 	pathPrefix = flag.String("http.pathPrefix", "", "An optional prefix to add to all the paths handled by http server. For example, if '-http.pathPrefix=/foo/bar' is set, "+
 		"then all the http requests will be handled on '/foo/bar/*' paths. This may be useful for proxied requests. "+
@@ -108,7 +108,6 @@ func Serve(addr string, useProxyProtocol bool, rh RequestHandler) {
 	if err != nil {
 		logger.Fatalf("cannot start http server at %s: %s", addr, err)
 	}
-	fillHeaderServerHostname()
 	serveWithListener(addr, ln, rh)
 }
 
@@ -214,7 +213,7 @@ var gzipHandlerWrapper = func() func(http.Handler) http.HandlerFunc {
 var metricsHandlerDuration = metrics.NewHistogram(`vm_http_request_duration_seconds{path="/metrics"}`)
 var connTimeoutClosedConns = metrics.NewCounter(`vm_http_conn_timeout_closed_conns_total`)
 
-func getHostname() string {
+var hostname = func() string {
 	h, err := os.Hostname()
 	if err != nil {
 		// Cannot use logger.Errorf, since it isn't initialized yet.
@@ -223,20 +222,7 @@ func getHostname() string {
 		return "unknown"
 	}
 	return h
-}
-
-func fillHeaderServerHostname() {
-	// Skip user has already provided X-Server-Hostname header
-	for _, h := range *httpHeader {
-		// It's ok if header has no value
-		headerName, _, _ := strings.Cut(h, ": ")
-		if headerName == "X-Server-Hostname" {
-			return
-		}
-	}
-
-	_ = httpHeader.Set("X-Server-Hostname: " + getHostname())
-}
+}()
 
 func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh RequestHandler) {
 	// All the VictoriaMetrics code assumes that panic stops the process.
@@ -253,12 +239,10 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 		}
 	}()
 
-	for _, h := range *httpHeader {
-		// It's ok if header has no value
-		headerName, headerValue, _ := strings.Cut(h, ": ")
-		w.Header().Add(headerName, headerValue)
+	if *httpHSTS != "" {
+		w.Header().Add("Strict-Transport-Security", *httpHSTS)
 	}
-
+	w.Header().Add("X-Server-Hostname", hostname)
 	requestsTotal.Inc()
 	if whetherToCloseConn(r) {
 		connTimeoutClosedConns.Inc()
