@@ -36,7 +36,9 @@ var (
 	tlsCipherSuites = flagutil.NewArrayString("tlsCipherSuites", "Optional list of TLS cipher suites for incoming requests over HTTPS if -tls is set. See the list of supported cipher suites at https://pkg.go.dev/crypto/tls#pkg-constants")
 	tlsMinVersion   = flag.String("tlsMinVersion", "", "Optional minimum TLS version to use for incoming requests over HTTPS if -tls is set. "+
 		"Supported values: TLS10, TLS11, TLS12, TLS13")
-	httpHSTS = flag.String("http.header.hsts", "", "Value for 'Strict-Transport-Security' header, example: 'max-age=31536000; includeSubDomains'")
+	httpHSTS         = flag.String("http.header.hsts", "", "Value for 'Strict-Transport-Security' header, example: 'max-age=31536000; includeSubDomains'")
+	httpFrameOptions = flag.String("http.header.frameOptions", "SAMEORIGIN", "Value for 'X-Frame-Options' header")
+	httpCSP          = flag.String("http.header.csp", "", "Value for 'Content-Security-Policy' header")
 
 	pathPrefix = flag.String("http.pathPrefix", "", "An optional prefix to add to all the paths handled by http server. For example, if '-http.pathPrefix=/foo/bar' is set, "+
 		"then all the http requests will be handled on '/foo/bar/*' paths. This may be useful for proxied requests. "+
@@ -241,6 +243,12 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 
 	if *httpHSTS != "" {
 		w.Header().Add("Strict-Transport-Security", *httpHSTS)
+	}
+	if *httpFrameOptions != "" {
+		w.Header().Add("X-Frame-Options", *httpFrameOptions)
+	}
+	if *httpCSP != "" {
+		w.Header().Add("Content-Security-Policy", *httpCSP)
 	}
 	w.Header().Add("X-Server-Hostname", hostname)
 	requestsTotal.Inc()
