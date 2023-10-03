@@ -1100,7 +1100,9 @@ VictoriaMetrics provides the following handlers for exporting data:
 Send a request to `http://<victoriametrics-addr>:8428/api/v1/export?match[]=<timeseries_selector_for_export>`,
 where `<timeseries_selector_for_export>` may contain any [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors)
 for metrics to export. Use `{__name__!=""}` selector for fetching all the time series.
-The response would contain all the data for the selected time series in [JSON streaming format](http://ndjson.org/).
+
+The response would contain all the data for the selected time series in JSON line format - see [these docs](#json-line-format) for details on this format.
+
 Each JSON line contains samples for a single time series. An example output:
 
 ```json
@@ -1230,6 +1232,8 @@ check for changes in `vm_rows_invalid_total` (exported by server side) metric.
 
 ### How to import data in JSON line format
 
+VictoriaMetrics accepts metrics data in JSON line format at `/api/v1/import` endpoint. See [these docs](#json-line-format) for details on this format.
+
 Example for importing data obtained via [/api/v1/export](#how-to-export-data-in-json-line-format):
 
 ```console
@@ -1239,24 +1243,6 @@ curl http://source-victoriametrics:8428/api/v1/export -d 'match={__name__!=""}' 
 # Import the data to <destination-victoriametrics>:
 curl -X POST http://destination-victoriametrics:8428/api/v1/import -T exported_data.jsonl
 ```
-
-The structure of the JSON line format from the previous example is below:
-```
-cat exported_data.jsonl
-
-{"metric":{"__name__":"go_cgo_calls_count","job":"victoria-metrics","instance":"self"},"values":[5],"timestamps":[1696323409458
-]}
-{"metric":{"__name__":"go_gc_forced_count","job":"victoria-metrics","instance":"self"},"values":[0],"timestamps":[1696323409458]}
-{"metric":{"__name__":"vm_merges_total","job":"victoria-metrics","type":"storage/big","instance":"self"},"values":[0],"timestamps":[1696323409458]}
-{"metric":{"__name__":"vm_http_request_errors_total","job":"victoria-metrics","instance":"self"},"values":[0],"timestamps":[1696323409458]}
-```
-
-The JSON line format allows having multiple lines in one batch. On ingestion, it is recommended to batch up to multiple 
-thousands of lines in one payload. Every line is represented by the following objects:
-* `metric` - describes a [time series](https://docs.victoriametrics.com/keyConcepts.html#time-series) with arbitrary
-number of [labels](https://docs.victoriametrics.com/keyConcepts.html#labels). Please note, `__name__` label is required.
-* `values` - list of [values](https://docs.victoriametrics.com/keyConcepts.html#raw-samples) belonging to this time series;
-* `timestamps` - list of unix timestamps in milliseconds associated with each value from `values` list according to their order.
 
 Pass `Content-Encoding: gzip` HTTP request header to `/api/v1/import` for importing gzipped data:
 
@@ -1412,12 +1398,53 @@ Note that it could be required to flush response cache after importing historica
 
 VictoriaMetrics also may scrape Prometheus targets - see [these docs](#how-to-scrape-prometheus-exporters-such-as-node-exporter).
 
-## Sending data via OpenTelemetry
+### Sending data via OpenTelemetry
 
 VictoriaMetrics supports data ingestion via [OpenTelemetry protocol for metrics](https://github.com/open-telemetry/opentelemetry-specification/blob/ffddc289462dfe0c2041e3ca42a7b1df805706de/specification/metrics/data-model.md) at `/opentelemetry/api/v1/push` path.
 
 VictoriaMetrics expects `protobuf`-encoded requests at `/opentelemetry/api/v1/push`.
 Set HTTP request header `Content-Encoding: gzip` when sending gzip-compressed data to `/opentelemetry/api/v1/push`.
+
+## JSON line format
+
+VictoriaMetrics accepts data in JSON line format at [/api/v1/import](#how-to-import-data-in-json-line-format)
+and exports data in this format at [/api/v1/export](#how-to-export-data-in-json-line-format).
+
+The format follows [JSON streaming concept](http://ndjson.org/), e.g. each line contains JSON object with metrics data in the following format:
+
+```
+{
+  // metric contans metric name plus labels for a particular time series
+  "metric":{
+    "__name__": "metric_name",  // <- this is metric name
+
+    // Other labels for the time series
+
+    "label1": "value1",
+    "label2": "value2",
+    ...
+    "labelN": "valueN"
+  },
+
+  // values contains raw sample values for the given time series
+  "values": [1, 2.345, -678],
+
+  // timestamps contains raw sample UNIX timestamps in milliseconds for the given time series
+  // every timestamp is associated with the value at the corresponding position
+  "timestamps": [1549891472010,1549891487724,1549891503438]
+}
+```
+
+Note that every JSON object must be written in a single line, e.g. all the newline chars must be removed from it.
+Every line length is limited by the value passed to `-import.maxLineLen` command-line flag (by default this is 100MB).
+
+It is recommended passing 1K-10K samples per line for achieving the maximum data ingestion performance at [/api/v1/import](#how-to-import-data-in-json-line-format).
+Too long JSON lines may increase RAM usage at VictoriaMetrics side.
+
+It is OK to split [raw samples](https://docs.victoriametrics.com/keyConcepts.html#raw-samples)
+for the same [time series](https://docs.victoriametrics.com/keyConcepts.html#time-series) across multiple lines.
+
+The number of lines in JSON line document can be arbitrary.
 
 ## Relabeling
 
