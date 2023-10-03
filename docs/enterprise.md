@@ -116,12 +116,12 @@ flag similar to the one described in the previous section.
 
 For example, the following command runs [VictoriaMetrics single-node](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html) docker image with the specified license:
 ```console
-docker run --name=victoria-metrics victoriametrics/victoria-metrics:v1.94.0 -license={VM_KEY_VALUE}
+docker run --name=victoria-metrics victoriametrics/victoria-metrics:v1.94.0-enteprise -license={VM_KEY_VALUE}
 ```
 
 Alternatively, the license can be specified via `-license-file` command-line flag:
 ```console
-docker run --name=victoria-metrics -v /vm-license:/vm-license  victoriametrics/victoria-metrics:v1.94.0 -license-file=/vm-license
+docker run --name=victoria-metrics -v /vm-license:/vm-license  victoriametrics/victoria-metrics:v1.94.0-enteprise -license-file=/vm-license
 ```
 
 ### Helm charts
