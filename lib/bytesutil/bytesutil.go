@@ -90,3 +90,13 @@ func LimitStringLen(s string, maxLen int) string {
 	n := maxLen/2 - 1
 	return s[:n] + ".." + s[len(s)-n:]
 }
+
+// ToStringOwned converts bytes into string and returns its copy
+func ToStringOwned(b []byte) string {
+	if len(b) == 0 {
+		return ""
+	}
+	s := make([]byte, len(b))
+	copy(s, b)
+	return unsafe.String(&s[0], len(s))
+}

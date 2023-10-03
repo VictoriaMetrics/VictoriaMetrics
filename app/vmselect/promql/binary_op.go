@@ -261,7 +261,7 @@ func groupJoin(singleTimeseriesSide string, be *metricsql.BinaryOpExpr, rvsLeft,
 			bb.B = marshalMetricTagsSorted(bb.B[:0], &tsCopy.MetricName)
 			pair, ok := m[string(bb.B)]
 			if !ok {
-				k := bytesutil.InternBytes(bb.B)
+				k := bytesutil.ToStringOwned(bb.B)
 				m[k] = &tsPair{
 					left:  &tsCopy,
 					right: tsRight,
@@ -524,7 +524,7 @@ func createTimeseriesMapByTagSet(be *metricsql.BinaryOpExpr, left, right []*time
 				logger.Panicf("BUG: unexpected binary op modifier %q", groupOp)
 			}
 			bb.B = marshalMetricTagsSorted(bb.B[:0], mn)
-			k := bytesutil.InternBytes(bb.B)
+			k := bytesutil.ToStringOwned(bb.B)
 			m[k] = append(m[k], ts)
 		}
 		storage.PutMetricName(mn)
