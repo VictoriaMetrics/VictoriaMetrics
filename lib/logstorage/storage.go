@@ -541,7 +541,7 @@ func (s *Storage) UpdateStats(ss *StorageStats) {
 // IsReadOnly returns true if s is in read-only mode.
 func (s *Storage) IsReadOnly() bool {
 	available := fs.MustGetFreeSpace(s.path)
-	return available > s.minFreeDiskSpaceBytes
+	return available < s.minFreeDiskSpaceBytes
 }
 
 func (s *Storage) debugFlush() {
