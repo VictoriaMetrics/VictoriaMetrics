@@ -1,3 +1,16 @@
+---
+sort: 6
+weight: 6
+title: VictoriaLogs changelog
+menu:
+  docs:
+    identifier: "victorialogs-changelog"
+    parent: "victorialogs"
+    weight: 6
+aliases:
+- /VictoriaLogs/CHANGELOG.html
+---
+
 # VictoriaLogs changelog
 
 The following `tip` changes can be tested by building VictoriaLogs from the latest commit of [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/) repository

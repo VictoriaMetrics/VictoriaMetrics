@@ -4,6 +4,7 @@ weight: 1
 title: VictoriaLogs FAQ
 menu:
   docs:
+    identifier: "victorialogs-faq"
     parent: "victorialogs"
     weight: 1
 aliases:
