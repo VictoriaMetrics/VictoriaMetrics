@@ -6,7 +6,6 @@ import (
 	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/metricsql"
 )
 
@@ -105,7 +104,7 @@ func (iafc *incrementalAggrFuncContext) updateTimeseries(tsOrig *timeseries, wor
 	removeGroupTags(&ts.MetricName, &iafc.ae.Modifier)
 	bb := bbPool.Get()
 	bb.B = marshalMetricNameSorted(bb.B[:0], &ts.MetricName)
-	k := bytesutil.ToStringOwned(bb.B)
+	k := string(bb.B)
 	iac := m[k]
 	if iac == nil {
 		if iafc.ae.Limit > 0 && len(m) >= iafc.ae.Limit {

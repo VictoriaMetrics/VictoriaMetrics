@@ -8,8 +8,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metrics"
@@ -131,7 +129,7 @@ func aggrPrepareSeries(argOrig []*timeseries, modifier *metricsql.ModifierExpr, 
 	for i, ts := range arg {
 		removeGroupTags(&ts.MetricName, modifier)
 		bb.B = marshalMetricNameSorted(bb.B[:0], &ts.MetricName)
-		k := bytesutil.ToStringOwned(bb.B)
+		k := string(bb.B)
 		if keepOriginal {
 			ts = argOrig[i]
 		}

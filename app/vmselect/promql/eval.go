@@ -563,8 +563,8 @@ func getCommonLabelFilters(tss []*timeseries) []metricsql.LabelFilter {
 		for _, tag := range ts.MetricName.Tags {
 			vc, ok := m[string(tag.Key)]
 			if !ok {
-				k := bytesutil.ToStringOwned(tag.Key)
-				v := bytesutil.ToStringOwned(tag.Value)
+				k := string(tag.Key)
+				v := string(tag.Value)
 				m[k] = &valuesCounter{
 					values: map[string]struct{}{
 						v: {},
@@ -581,8 +581,7 @@ func getCommonLabelFilters(tss []*timeseries) []metricsql.LabelFilter {
 			}
 			vc.count++
 			if _, ok := vc.values[string(tag.Value)]; !ok {
-				v := bytesutil.ToStringOwned(tag.Value)
-				vc.values[v] = struct{}{}
+				vc.values[string(tag.Value)] = struct{}{}
 			}
 		}
 	}
