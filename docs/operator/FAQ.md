@@ -6,6 +6,7 @@ menu:
   docs:
     parent: "operator"
     weight: 9
+    identifier: "operator-faq"
 ---
 
 # FAQ (Frequency Asked Questions)
