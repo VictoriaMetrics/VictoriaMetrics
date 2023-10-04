@@ -2,6 +2,10 @@
 sort: 10
 weight: 10
 title: CHANGELOG
+menu:
+  docs:
+    parent: "operator"
+    weight: 10
 ---
 
 # CHANGELOG
