@@ -8,11 +8,17 @@ title: CHANGELOG
 
 ## Next release
 
+- TODO
+
+<a name="v0.38.0"></a>
+## [v0.39.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.39.0) - 4 Oct 2023
+
 ### Features
 
 - [vmoperator](./README.md): upgrade vmagent/vmauth's default config-reloader image.
 - [vmuser](./api.md#vmuser): adds `retry_status_codes` , `max_concurrent_requests` and `response_headers` settings. It's supported since `v1.94.0` release of [vmauth](https://docs.victoriametrics.com/vmauth.html)
 - [vmoperator](./README.md): adds `useStrictSecurity` for all components. It allows to migrate from insecure to strictly secured deployments per component without breaking changes. See [this issue](https://github.com/VictoriaMetrics/operator/issues/762#issuecomment-1735061532) for details.
+- [vmoperator](./README.md): add ability to provide license key for VictoriaMetrics enterprise components. See [this doc](https://docs.victoriametrics.com/enterprise.html) for the details.
 
 ### Fixes
 
