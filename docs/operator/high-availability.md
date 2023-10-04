@@ -2,10 +2,6 @@
 sort: 8
 weight: 8
 title: High Availability
-menu:
-  docs:
-    parent: "operator"
-    weight: 8
 ---
 
 # High Availability

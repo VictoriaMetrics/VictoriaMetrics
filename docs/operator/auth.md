@@ -2,10 +2,6 @@
 sort: 7
 weight: 7
 title: Authorization and exposing components
-menu:
-  docs:
-    parent: "operator"
-    weight: 7
 ---
 
 # Authorization and exposing components

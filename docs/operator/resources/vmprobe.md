@@ -1,12 +1,3 @@
----
-sort: 9
-weight: 9
-title: VMProbe
-menu:
-  docs:
-    parent: "operator-custom-resources"
-    weight: 9
----
 # VMProbe
 
 The `VMProbe` CRD provides probing target ability with some external prober. 

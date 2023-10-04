@@ -2,11 +2,6 @@
 sort: 9
 weight: 9
 title: FAQ
-menu:
-  docs:
-    parent: "operator"
-    weight: 9
-    identifier: "operator-faq"
 ---
 
 # FAQ (Frequency Asked Questions)

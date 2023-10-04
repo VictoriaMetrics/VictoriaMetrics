@@ -2,10 +2,6 @@
 sort: 6
 weight: 6
 title: Monitoring
-menu:
-  docs:
-    parent: "operator"
-    weight: 6
 ---
 
 # Monitoring of VictoriaMetrics Operator

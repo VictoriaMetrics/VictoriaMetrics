@@ -2,10 +2,6 @@
 sort: 4
 weight: 4
 title: Configuration
-menu:
-  docs:
-    parent: "operator"
-    weight: 4
 ---
 
 # Configuration

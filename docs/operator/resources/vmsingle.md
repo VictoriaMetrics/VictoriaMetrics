@@ -1,13 +1,3 @@
----
-sort: 12
-weight: 12
-title: VMSingle
-menu:
-  docs:
-    parent: "operator-custom-resources"
-    weight: 12
----
-
 # VMSingle
 
 `VMSingle` represents database for storing metrics.

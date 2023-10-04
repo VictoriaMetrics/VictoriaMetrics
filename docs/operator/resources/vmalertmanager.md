@@ -1,13 +1,3 @@
----
-sort: 3
-weight: 3
-title: VMAlertmanager
-menu:
-  docs:
-    parent: "operator-custom-resources"
-    weight: 3
----
-
 # VMAlertmanager
 
 `VMAlertmanager` - represents [alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/) configuration.

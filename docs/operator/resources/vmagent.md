@@ -1,13 +1,3 @@
----
-sort: 1
-weight: 1
-title: VMAgent
-menu:
-  docs:
-    parent: "operator-custom-resources"
-    weight: 1
----
-
 # VMAgent
 
 `VMAgent` represents agent, which helps you collect metrics from various sources and stores them in VictoriaMetrics.
