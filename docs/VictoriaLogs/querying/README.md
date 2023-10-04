@@ -1,12 +1,12 @@
 ---
-sort: 7
+sort: 8
 title: Querying
-weight: 7
+weight: 8
 menu:
   docs:
     identifier: victorialogs-querying
     parent: "victorialogs"
-    weight: 7
+    weight: 8
 ---
 
 # Querying
