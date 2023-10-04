@@ -17,6 +17,21 @@ func AvailableCPUs() int {
 	return runtime.GOMAXPROCS(-1)
 }
 
+// SetGOMAXPROCS sets GOMAXPROCS to the given value.
+// If n is less than or equal to 0, then GOMAXPROCS is set to the number of available CPU cores.
+// If n is greater than the number of available CPU cores, then GOMAXPROCS is set to the number of available CPU cores.
+func SetGOMAXPROCS(n int) {
+	if n <= 0 {
+		n = int(getCPUQuota() + 0.5)
+	}
+
+	if n >= runtime.NumCPU() {
+		n = runtime.NumCPU()
+	}
+
+	runtime.GOMAXPROCS(n)
+}
+
 func init() {
 	cpuQuota := getCPUQuota()
 	if cpuQuota > 0 {

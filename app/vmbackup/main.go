@@ -14,6 +14,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fslocal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fsnil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
@@ -48,6 +49,9 @@ func main() {
 	buildinfo.Init()
 	logger.Init()
 	pushmetrics.Init()
+	// Limit amount of CPU cores used by vmbackup.
+	// Using all the CPU cores may lead to high CPU usage created by usage of FADVISE syscall
+	cgroup.SetGOMAXPROCS(*concurrency)
 
 	// Storing snapshot delete function to be able to call it in case
 	// of error since logger.Fatal will exit the program without
