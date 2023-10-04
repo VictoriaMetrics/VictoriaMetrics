@@ -6,6 +6,7 @@ menu:
   docs:
     parent: "operator"
     weight: 10
+    identifier: "operator-changelog"
 ---
 
 # CHANGELOG
