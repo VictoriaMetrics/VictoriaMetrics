@@ -27,7 +27,7 @@ func TestEvents_Unmarshal(t *testing.T) {
 				{
 					Timestamp: 1690286061000,
 					Tags: []Tag{
-						{Key: "exported_host", Value: "macbook-pro.local"},
+						{Key: "entity_key", Value: "macbook-pro.local"},
 						{Key: "dc", Value: "1"},
 					},
 					Metric: "system_sample_disk_writes_per_second",
@@ -36,7 +36,7 @@ func TestEvents_Unmarshal(t *testing.T) {
 				{
 					Timestamp: 1690286061000,
 					Tags: []Tag{
-						{Key: "exported_host", Value: "macbook-pro.local"},
+						{Key: "entity_key", Value: "macbook-pro.local"},
 						{Key: "dc", Value: "1"},
 					},
 					Metric: "system_sample_uptime",

@@ -10,11 +10,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-)
-
-const (
-	hostNameTagKey         = "entityKey"
-	exportedHostNameTagKey = "exported_host"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 )
 
 var baseEventKeys = map[string]struct{}{
@@ -114,39 +110,37 @@ func (m *Metric) unmarshal(o *fastjson.Object) ([]Metric, error) {
 	if eventType == nil {
 		return nil, fmt.Errorf("error get eventType from Events object: %s", o)
 	}
+	prefix := bytesutil.ToUnsafeString(eventType.GetStringBytes())
+	prefix = camelToSnakeCase(prefix)
 
 	o.Visit(func(key []byte, v *fastjson.Value) {
 
 		k := bytesutil.ToUnsafeString(key)
-		// skip base event keys which have been parsed before
-		// this is keys of BaseEvent type.
-		// this type contains all NewRelic structs
+		// skip base event keys which should have been parsed before this
 		if _, ok := baseEventKeys[k]; ok {
 			return
 		}
 
 		switch v.Type() {
 		case fastjson.TypeString:
-			// this is label with value
-			name := k
+			// this is label-value pair
 			value := v.Get()
 			if value == nil {
-				logger.Errorf("error get NewRelic label value from json: %s", v)
+				logger.Errorf("failed to get label value from NewRelic json: %s", v)
 				return
 			}
-			if name == hostNameTagKey {
-				name = exportedHostNameTagKey
-			}
+			name := camelToSnakeCase(k)
 			val := bytesutil.ToUnsafeString(value.GetStringBytes())
 			tgsBuffer.tags = append(tgsBuffer.tags, Tag{Key: name, Value: val})
 		case fastjson.TypeNumber:
 			// this is metric name with value
-			val := bytesutil.ToUnsafeString(eventType.GetStringBytes())
-			mn := fmt.Sprintf("%s_%s", val, k)
-			metricName := camelToSnakeCase(mn)
+			metricName := camelToSnakeCase(k)
+			if prefix != "" {
+				metricName = fmt.Sprintf("%s_%s", prefix, metricName)
+			}
 			f, err := getFloat64(v)
 			if err != nil {
-				logger.Errorf("error get NewRelic value for metric: %q; %s", k, err)
+				logger.Errorf("failed to get value for NewRelic metric %q: %w", k, err)
 				return
 			}
 			metrics = append(metrics, Metric{Metric: metricName, Value: f})
@@ -179,6 +173,7 @@ type Tag struct {
 }
 
 func camelToSnakeCase(str string) string {
+	str = promrelabel.SanitizeLabelName(str)
 	length := len(str)
 	snakeCase := make([]byte, 0, length*2)
 	tokens := make([]byte, 0, length)
@@ -206,23 +201,24 @@ func camelToSnakeCase(str string) string {
 				tokens = append(tokens, char)
 				allTokensUpper = true
 			}
-		} else {
-			switch {
-			case len(tokens) == 1:
-				tokens = append(tokens, char)
-				allTokensUpper = false
-			case allTokensUpper:
-				tail := tokens[:len(tokens)-1]
-				last := tokens[len(tokens)-1:]
-				flush(tail)
-				snakeCase = append(snakeCase, '_')
-				tokens = tokens[:0]
-				tokens = append(tokens, last...)
-				tokens = append(tokens, char)
-				allTokensUpper = false
-			default:
-				tokens = append(tokens, char)
-			}
+			continue
+		}
+
+		switch {
+		case len(tokens) == 1:
+			tokens = append(tokens, char)
+			allTokensUpper = false
+		case allTokensUpper:
+			tail := tokens[:len(tokens)-1]
+			last := tokens[len(tokens)-1:]
+			flush(tail)
+			snakeCase = append(snakeCase, '_')
+			tokens = tokens[:0]
+			tokens = append(tokens, last...)
+			tokens = append(tokens, char)
+			allTokensUpper = false
+		default:
+			tokens = append(tokens, char)
 		}
 	}
 
