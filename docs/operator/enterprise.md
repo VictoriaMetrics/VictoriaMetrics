@@ -2,10 +2,6 @@
 sort: 13
 weight: 13
 title: Enterprise features
-menu:
-  docs:
-    parent: "operator"
-    weight: 13
 ---
 
 # Using operator with enterprise features 

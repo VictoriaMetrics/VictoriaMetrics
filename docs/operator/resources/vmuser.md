@@ -1,12 +1,3 @@
----
-sort: 14
-weight: 14
-title: VMUser
-menu:
-  docs:
-    parent: "operator-custom-resources"
-    weight: 14
----
 # VMUser
 
 The `VMUser` CRD describes user configuration, its authentication methods `basic auth` or `Authorization` header. 

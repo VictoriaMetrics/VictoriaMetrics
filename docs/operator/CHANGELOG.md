@@ -2,11 +2,6 @@
 sort: 10
 weight: 10
 title: CHANGELOG
-menu:
-  docs:
-    parent: "operator"
-    weight: 10
-    identifier: "operator-changelog"
 ---
 
 # CHANGELOG
@@ -16,12 +11,17 @@ menu:
 ### Features
 
 - [vmoperator](./README.md): upgrade vmagent/vmauth's default config-reloader image.
+- [vmuser](./api.md#vmuser): adds `retry_status_codes` , `max_concurrent_requests` and `response_headers` settings. It's supported since `v1.94.0` release of [vmauth](https://docs.victoriametrics.com/vmauth.html)
+- [vmoperator](./README.md): adds `useStrictSecurity` for all components. It allows to migrate from insecure to strictly secured deployments per component without breaking changes. See [this issue](https://github.com/VictoriaMetrics/operator/issues/762#issuecomment-1735061532) for details.
 
 ### Fixes
 
 - [vmcluster](./api.html#vmcluster): remove redundant annotation `operator.victoriametrics/last-applied-spec` from created workloads like vmstorage statefulset.
 - [vmoperator](./README.md): properly resize statefulset's multiple pvc when needed and allowable, before they could be updated with wrong size.
 - [vmoperator](./README.md): fix wrong api group of endpointsices, before vmagent won't able to access endpointsices resources with default rbac rule.
+- [vmauth/vmagent](./README.md): adds default resources for init container with configuration download. See [this issue](https://github.com/VictoriaMetrics/operator/issues/767) for details.
+- [vmauth/vmagent](./README.md): correctly set flag for custom config reloader image during config initialisation. See [this issue](https://github.com/VictoriaMetrics/operator/issues/770) for details.
+- [vmauth](./api.md#vmauth): correctly set config reloader image for init container.
 
 <a name="v0.38.0"></a>
 ## [v0.38.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.38.0) - 11 Sep 2023
