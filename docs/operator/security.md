@@ -2,10 +2,6 @@
 sort: 3
 weight: 3
 title: Security
-menu:
-  docs:
-    parent: "operator"
-    weight: 3
 ---
 
 # Security

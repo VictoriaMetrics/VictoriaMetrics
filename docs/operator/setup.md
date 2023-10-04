@@ -2,10 +2,6 @@
 sort: 2
 weight: 2
 title: Setup
-menu:
-  docs:
-    parent: "operator"
-    weight: 2
 ---
 
 # VictoriaMetrics Operator Setup
