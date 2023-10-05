@@ -205,11 +205,11 @@ vm_license_expires_at 1.6963776e+09
 vm_license_expires_in_seconds 4.886608e+06
 ```
 
-You can find example alerts for [vmalert](https://docs.victoriametrics.com/vmalert.html):
+Example alerts for [vmalert](https://docs.victoriametrics.com/vmalert.html):
 ```yaml
 groups:
   - name: vm-license
-    # note the `job` filter and update accordingly to your setup
+    # note the `job` label and update accordingly to your setup
     rules:
       - alert: LicenseExpiresInLessThan30Days
         expr: vm_license_expires_in_seconds < 30 * 24 * 3600
