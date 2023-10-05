@@ -1,12 +1,12 @@
 ---
-sort: 1
-weight: 1
+sort: 5
+weight: 5
 title: VictoriaLogs FAQ
 menu:
   docs:
     identifier: "victorialogs-faq"
     parent: "victorialogs"
-    weight: 1
+    weight: 5
 aliases:
 - /VictoriaLogs/FAQ.html
 ---
