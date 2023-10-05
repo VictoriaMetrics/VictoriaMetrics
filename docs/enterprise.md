@@ -85,11 +85,11 @@ This flag acknowledges that your usage fits one of the cases listed above.
 After v1.94.0 either `-eula` flag or the following flags are used:
 ```console
   -license string
-        See https://victoriametrics.com/products/enterprise/ for trial license
-  -license-file string
-        See https://victoriametrics.com/products/enterprise/ for trial license
+     enterprise license key. This flag is available only in VictoriaMetrics enterprise. Documentation - https://docs.victoriametrics.com/enterprise.html, for more information, visit  https://victoriametrics.com/products/enterprise/ . To request a trial license, go to https://victoriametrics.com/products/enterprise/trial/
   -license.forceOffline
-        Force offline verification of license code. License is verified online by default. This flag runs license verification offline.
+     enables offline license verification. License keys issued must support this feature. Contact our support team for license keys with offline check support.
+  -licenseFile string
+     path to file with enterprise license key. This flag is available only in VictoriaMetrics enterprise. Documentation - https://docs.victoriametrics.com/enterprise.html, for more information, visit  https://victoriametrics.com/products/enterprise/ . To request a trial license, go to https://victoriametrics.com/products/enterprise/trial/
 ```
 
 For example, the following command runs `victoria-metrics-enterprise` binary with the specified license:
