@@ -124,6 +124,26 @@ Alternatively, the license can be specified via `-license-file` command-line fla
 docker run --name=victoria-metrics -v /vm-license:/vm-license  victoriametrics/victoria-metrics:v1.94.0-enteprise -license-file=/vm-license
 ```
 
+Example docker-compose configuration:
+```yaml
+version: "3.5"
+services:
+  victoriametrics:
+    container_name: victoriametrics
+    image: victoriametrics/victoria-metrics:v1.94.0
+    ports:
+      - 8428:8428
+    volumes:
+      - vmdata:/storage
+      - /vm-license:/vm-license
+    command:
+      - "--storageDataPath=/storage"
+      - "--license-file=/vm-license"
+volumes:
+  vmdata: {}
+```
+Note, that example assumes that license file is located at `/vm-license` path on the host.
+
 ### Helm charts
 
 Helm charts for VictoriaMetrics components are available [here](https://github.com/VictoriaMetrics/helm-charts).
@@ -200,7 +220,7 @@ spec:
   retentionPeriod: "1"
   license:
     keyRef:
-      name: vm-key
+      name: vm-license
       key: license
   image:
     tag: v1.94.0-enterprise 
