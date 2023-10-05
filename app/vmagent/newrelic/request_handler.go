@@ -64,6 +64,7 @@ func insertRows(at *auth.Token, rows []newrelic.Metric, extraLabels []prompbmars
 			Labels:  labels[labelsLen:],
 			Samples: samples[len(samples)-1:],
 		})
+		labels = append(labels, extraLabels...)
 	}
 	ctx.WriteRequest.Timeseries = tssDst
 	ctx.Labels = labels
