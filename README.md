@@ -771,7 +771,16 @@ For accessing vmalerts UI through vmselect configure `-vmalert.proxyURL` flag an
 
 ## Community and contributions
 
-We are open to third-party pull requests provided they follow the [KISS design principle](https://en.wikipedia.org/wiki/KISS_principle):
+Feel free asking any questions regarding VictoriaMetrics:
+
+* [Slack](https://slack.victoriametrics.com/)
+* [Twitter](https://twitter.com/VictoriaMetrics/)
+* [Linkedin](https://www.linkedin.com/company/victoriametrics/)
+* [Reddit](https://www.reddit.com/r/VictoriaMetrics/)
+* [Telegram-en](https://t.me/VictoriaMetrics_en?)
+* [Telegram-ru](https://t.me/VictoriaMetrics_ru1)
+* [Google groups](https://groups.google.com/forum/#!forum/victorametrics-users)
+* [Mastodon](https://mastodon.social/@victoriametrics/)
 
 - Prefer simple code and architecture.
 - Avoid complex abstractions.
