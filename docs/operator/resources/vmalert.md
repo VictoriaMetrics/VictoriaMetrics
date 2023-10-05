@@ -1,3 +1,13 @@
+---
+sort: 2
+weight: 2
+title: VMAlert
+menu:
+  docs:
+    parent: "operator-custom-resources"
+    weight: 2
+---
+
 # VMAlert
 
 `VMAlert` - executes a list of given [alerting](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/) 

@@ -2,6 +2,10 @@
 sort: 0
 weight: 0
 title: VictoriaMetrics Operator
+menu:
+  docs:
+    parent: "operator"
+    weight: 0
 ---
 
 # VictoriaMetrics Operator

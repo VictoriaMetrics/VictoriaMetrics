@@ -1,3 +1,13 @@
+---
+sort: 4
+weight: 4
+title: VMAlertmanagerConfig
+menu:
+  docs:
+    parent: "operator-custom-resources"
+    weight: 4
+---
+
 # VMAlertmanagerConfig
 
 The `VMAlertmanagerConfig` provides way to configure [VMAlertmanager](./vmalertmanager.md) 
