@@ -638,11 +638,11 @@ var (
 	opentelemetryPushRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/opentelemetry/api/v1/push", protocol="opentelemetry"}`)
 	opentelemetryPushErrors   = metrics.NewCounter(`vmagent_http_request_errors_total{path="/opentelemetry/api/v1/push", protocol="opentelemetry"}`)
 
-	newrelicWriteRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/newrelic/infra/v2/metrics/events/bulk", protocol="newrelic"}`)
-	newrelicWriteErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/api/v1/newrelic/infra/v2/metrics/events/bulk", protocol="newrelic"}`)
+	newrelicWriteRequests = metrics.NewCounter(`vm_http_requests_total{path="/newrelic/api/v1/infra/v2/metrics/events/bulk", protocol="newrelic"}`)
+	newrelicWriteErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/newrelic/api/v1/infra/v2/metrics/events/bulk", protocol="newrelic"}`)
 
-	newrelicInventoryRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/newrelic/inventory/deltas", protocol="newrelic"}`)
-	newrelicCheckRequest      = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/newrelic", protocol="newrelic"}`)
+	newrelicInventoryRequests = metrics.NewCounter(`vm_http_requests_total{path="/newrelic/api/v1/inventory/deltas", protocol="newrelic"}`)
+	newrelicCheckRequest      = metrics.NewCounter(`vm_http_requests_total{path="/newrelic/api/v1", protocol="newrelic"}`)
 
 	promscrapeTargetsRequests          = metrics.NewCounter(`vmagent_http_requests_total{path="/targets"}`)
 	promscrapeServiceDiscoveryRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/service-discovery"}`)
