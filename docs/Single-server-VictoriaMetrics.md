@@ -2287,12 +2287,14 @@ Contact us with any questions regarding VictoriaMetrics at [info@victoriametrics
 
 Feel free asking any questions regarding VictoriaMetrics:
 
-* [slack](https://slack.victoriametrics.com/)
-* [linkedin](https://www.linkedin.com/company/victoriametrics/)
-* [reddit](https://www.reddit.com/r/VictoriaMetrics/)
-* [telegram-en](https://t.me/VictoriaMetrics_en)
-* [telegram-ru](https://t.me/VictoriaMetrics_ru1)
-* [google groups](https://groups.google.com/forum/#!forum/victorametrics-users)
+* [Slack](https://slack.victoriametrics.com/)
+* [Twitter](https://twitter.com/VictoriaMetrics/)
+* [Linkedin](https://www.linkedin.com/company/victoriametrics/)
+* [Reddit](https://www.reddit.com/r/VictoriaMetrics/)
+* [Telegram-en](https://t.me/VictoriaMetrics_en?)
+* [Telegram-ru](https://t.me/VictoriaMetrics_ru1)
+* [Google groups](https://groups.google.com/forum/#!forum/victorametrics-users)
+* [Mastodon](https://mastodon.social/@victoriametrics/)
 
 If you like VictoriaMetrics and want to contribute, then we need the following:
 
