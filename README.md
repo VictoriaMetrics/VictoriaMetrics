@@ -844,15 +844,15 @@ curl -X POST -H 'Content-Type: application/json' --data-binary @newrelic.json ht
 If data was successfully ingested, you'll get `{"status":"ok"}` response. Let's fetch ingested data from VictoriaMetrics
 in vmui via query `{__name__!=""}`:
 ```console
-system_sample_cpu_io_wait_percent{entity_key="macbook-pro.local"}	        0	
-system_sample_cpu_idle_percent{entity_key="macbook-pro.local"}	            74.9433392092	
-system_sample_cpu_percent{entity_key="macbook-pro.local"}	                25.056660790748	
-system_sample_cpu_steal_percent{entity_key="macbook-pro.local"}	            0	
-system_sample_cpu_system_percent{entity_key="macbook-pro.local"}	        16.368672878359	
-system_sample_cpu_user_percent{entity_key="macbook-pro.local"}	            8.687987912389	
-system_sample_load_average_fifteen_minute{entity_key="macbook-pro.local"}	3.58203125	
-system_sample_load_average_five_minute{entity_key="macbook-pro.local"}	    4.099609375	
-system_sample_load_average_one_minute{entity_key="macbook-pro.local"}	    5.42333984375	
+system_sample_cpu_io_wait_percent{entity_key="macbook-pro.local"}           0	
+system_sample_cpu_idle_percent{entity_key="macbook-pro.local"}              74.9433392092	
+system_sample_cpu_percent{entity_key="macbook-pro.local"}                   25.056660790748	
+system_sample_cpu_steal_percent{entity_key="macbook-pro.local"}             0	
+system_sample_cpu_system_percent{entity_key="macbook-pro.local"}            16.368672878359	
+system_sample_cpu_user_percent{entity_key="macbook-pro.local"}              8.687987912389	
+system_sample_load_average_fifteen_minute{entity_key="macbook-pro.local"}   3.58203125	
+system_sample_load_average_five_minute{entity_key="macbook-pro.local"}      4.099609375	
+system_sample_load_average_one_minute{entity_key="macbook-pro.local"}       5.42333984375	
 ```
 
 The fields in `newrelic.json` are transformed in the following way:
