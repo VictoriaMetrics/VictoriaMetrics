@@ -1,11 +1,11 @@
 ---
-sort: 3
-weight: 3
+sort: 2
+weight: 2
 title: VictoriaLogs key concepts
 menu:
   docs:
     parent: "victorialogs"
-    weight: 3
+    weight: 2
 aliases:
 - /VictoriaLogs/keyConcepts.html
 ---

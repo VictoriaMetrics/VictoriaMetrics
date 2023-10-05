@@ -1,11 +1,11 @@
 ---
-sort: 2
-weight: 2
+sort: 5
+weight: 5
 title: LogsQL
 menu:
   docs:
     parent: "victorialogs"
-    weight: 2
+    weight: 5
 aliases:
 - /VictoriaLogs/LogsQL.html
 ---

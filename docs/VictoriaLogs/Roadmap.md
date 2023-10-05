@@ -1,12 +1,12 @@
 ---
-sort: 4
-weight: 4
+sort: 8
+weight: 8
 title: VictoriaLogs roadmap
 disableToc: true
 menu:
   docs:
     parent: "victorialogs"
-    weight: 4
+    weight: 8
 aliases:
 - /VictoriaLogs/Roadmap.html
 ---

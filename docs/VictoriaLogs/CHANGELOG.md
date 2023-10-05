@@ -1,12 +1,12 @@
 ---
-sort: 6
-weight: 6
+sort: 7
+weight: 7
 title: VictoriaLogs changelog
 menu:
   docs:
     identifier: "victorialogs-changelog"
     parent: "victorialogs"
-    weight: 6
+    weight: 7
 aliases:
 - /VictoriaLogs/CHANGELOG.html
 ---
