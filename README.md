@@ -847,6 +847,74 @@ The `/api/v1/export` endpoint should return the following response:
 Extra labels may be added to all the imported time series by passing `extra_label=name=value` query args.
 For example, `/api/put?extra_label=foo=bar` would add `{foo="bar"}` label to all the ingested metrics.
 
+## How to send data from NewRelic agent
+
+VictoriaMetrics accepts data from [NewRelic infrastructure agent](https://docs.newrelic.com/docs/infrastructure/install-infrastructure-agent)
+at `/api/v1/newrelic/infra/v2/metrics/events/bulk` path.
+NewRelic's infrastructure agent sends so-called [Events](https://docs.newrelic.com/docs/infrastructure/manage-your-data/data-instrumentation/default-infrastructure-monitoring-data/#infrastructure-events)
+which then transformed by VictoriaMetrics to the [Prometheus exposition format](https://github.com/prometheus/docs/blob/main/content/docs/instrumenting/exposition_formats.md#text-based-format).
+
+NewRelic's infrastructure agent allows configuring destinations for metrics forwarding via ENV variable `COLLECTOR_URL`.
+It is also required to specify `NRIA_LICENSE_KEY`, which is available only after registration into account of the NewRelic cloud.
+
+To configure NewRelic infrastructure agent for forwarding metrics to VictoriaMetrics use the following example:
+```console
+COLLECTOR_URL="http://localhost:8428/newrelic/api/v1"  NRIA_LICENSE_KEY="YOUR_LICENSE_KEY" ./newrelic-infra
+```
+
+### NewRelic agent data mapping 
+
+As example, lets create `newrelic.json` file with the following content:
+```json
+[
+    {
+      "Events":[
+        {
+          "eventType":"SystemSample",
+          "entityKey":"macbook-pro.local",
+          "cpuPercent":25.056660790748904,
+          "cpuUserPercent":8.687987912389374,
+          "cpuSystemPercent":16.36867287835953,
+          "cpuIOWaitPercent":0,
+          "cpuIdlePercent":74.94333920925109,
+          "cpuStealPercent":0,
+          "loadAverageOneMinute":5.42333984375,
+          "loadAverageFiveMinute":4.099609375,
+          "loadAverageFifteenMinute":3.58203125
+        }
+      ]
+    }
+  ]
+```
+
+Let's use cUrl to send `newrelic.json` to single-node VictoriaMetrics:
+
+```console
+curl -X POST -H 'Content-Type: application/json' --data-binary @newrelic.json http://localhost:8428/newrelic/api/v1/infra/v2/metrics/events/bulk
+```
+
+If data was successfully ingested, you'll get `{"status":"ok"}` response. Let's fetch ingested data from VictoriaMetrics
+in vmui via query `{__name__!=""}`:
+```console
+system_sample_cpu_io_wait_percent{entity_key="macbook-pro.local"}           0	
+system_sample_cpu_idle_percent{entity_key="macbook-pro.local"}              74.9433392092	
+system_sample_cpu_percent{entity_key="macbook-pro.local"}                   25.056660790748	
+system_sample_cpu_steal_percent{entity_key="macbook-pro.local"}             0	
+system_sample_cpu_system_percent{entity_key="macbook-pro.local"}            16.368672878359	
+system_sample_cpu_user_percent{entity_key="macbook-pro.local"}              8.687987912389	
+system_sample_load_average_fifteen_minute{entity_key="macbook-pro.local"}   3.58203125	
+system_sample_load_average_five_minute{entity_key="macbook-pro.local"}      4.099609375	
+system_sample_load_average_one_minute{entity_key="macbook-pro.local"}       5.42333984375	
+```
+
+The fields in `newrelic.json` are transformed in the following way:
+1. `eventType` filed is used as prefix for all metrics in the object;
+2. `entityKey` or any other field with `string` value type is used as label attached to all metrics in the object;
+3. the rest fields with numeric values will be used as metrics;
+4. the additional field `timestamp` can be added to the payload to set the timestamp for all metrics. If omitted,
+current time is used.
+
+
 ## Prometheus querying API usage
 
 VictoriaMetrics supports the following handlers from [Prometheus querying API](https://prometheus.io/docs/prometheus/latest/querying/api/):
