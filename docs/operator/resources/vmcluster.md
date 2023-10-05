@@ -1,3 +1,13 @@
+---
+sort: 6
+weight: 6
+title: VMCluster
+menu:
+  docs:
+    parent: "operator-custom-resources"
+    weight: 6
+---
+
 # VMCluster
 
 `VMCluster` represents a high-available and fault-tolerant version of VictoriaMetrics database.

@@ -2,6 +2,10 @@
 sort: 1
 weight: 1
 title: QuickStart
+menu:
+  docs:
+    parent: "operator"
+    weight: 1
 ---
 
 # VictoriaMetrics Operator QuickStart

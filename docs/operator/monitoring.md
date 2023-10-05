@@ -2,6 +2,10 @@
 sort: 6
 weight: 6
 title: Monitoring
+menu:
+  docs:
+    parent: "operator"
+    weight: 6
 ---
 
 # Monitoring of VictoriaMetrics Operator
@@ -14,7 +18,7 @@ These metrics can be scraped via [vmagent](./resources/vmagent.md) or Prometheus
 
 Official Grafana dashboard available for [vmoperator](https://grafana.com/grafana/dashboards/17869-victoriametrics-operator/).
 
-<img src="monitoring_operator-dashboard.jpeg" width=1200>
+<img src="monitoring_operator-dashboard.png" width=1200>
 
 Graphs on the dashboards contain useful hints - hover the `i` icon in the top left corner of each graph to read it.
 
