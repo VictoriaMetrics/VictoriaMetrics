@@ -1,3 +1,13 @@
+---
+sort: 13
+weight: 13
+title: VMStaticScrape
+menu:
+  docs:
+    parent: "operator-custom-resources"
+    weight: 13
+---
+
 # VMStaticScrape
 
 The `VMStaticScrape` CRD provides mechanism for scraping metrics from static targets, configured by CRD targets.

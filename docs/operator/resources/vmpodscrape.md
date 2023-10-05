@@ -1,3 +1,13 @@
+---
+sort: 8
+weight: 8
+title: VMPodScrape
+menu:
+  docs:
+    parent: "operator-custom-resources"
+    weight: 8
+---
+
 # VMPodScrape
 
 The `VMPodScrape` CRD allows to declaratively define how a dynamic set of pods should be monitored.

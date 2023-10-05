@@ -1,3 +1,13 @@
+---
+sort: 11
+weight: 11
+title: VMServiceScrape
+menu:
+  docs:
+    parent: "operator-custom-resources"
+    weight: 11
+---
+
 # VMServiceScrape
 
 The `VMServiceScrape` CRD allows to define a dynamic set of services for monitoring. Services

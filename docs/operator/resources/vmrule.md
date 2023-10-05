@@ -1,3 +1,13 @@
+---
+sort: 10
+weight: 10
+title: VMRule
+menu:
+  docs:
+    parent: "operator-custom-resources"
+    weight: 10
+---
+
 # VMRule
 
 `VMRule` represents [alerting](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/)
