@@ -1,13 +1,13 @@
 ---
-sort: 5
-weight: 5
+sort: 3
+weight: 3
 title: VictoriaLogs key concepts
 menu:
   docs:
     parent: "victorialogs"
-    weight: 5
+    weight: 3
 aliases:
-- /VictoriaLogs/Roadmap.html
+- /VictoriaLogs/keyConcepts.html
 ---
 
 # VictoriaLogs key concepts

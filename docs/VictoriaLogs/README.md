@@ -1,3 +1,7 @@
+---
+title: VictoriaLogs
+weight: 0
+---
 # VictoriaLogs
 
 VictoriaLogs is [open source](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/app/victoria-logs) user-friendly database for logs

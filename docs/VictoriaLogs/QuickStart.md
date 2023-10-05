@@ -1,11 +1,11 @@
 ---
-sort: 3
-weight: 3
+sort: 1
+weight: 1
 title: VictoriaLogs Quick Start
 menu:
   docs:
     parent: "victorialogs"
-    weight: 3
+    weight: 1
 aliases:
 - /VictoriaLogs/QuickStart.html
 ---
