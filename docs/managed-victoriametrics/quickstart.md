@@ -235,10 +235,10 @@ If you forgot password, it can be restored in the following way:
 ## Creating deployment
 
 Deployments is a page where user can list and manage VictoriaMetrics deployments. 
-To create a deployment click on the button `Create Deployment` button or link in the message:
+To create a deployment click on the button `Create Deployment` button or `link` in the message:
 
 <p>
-  <img src="quickstart_deployments.png" width="800">
+  <img src="create_deployment_start.png" width="800">
 </p>
 
 In the opened form, choose parameters of the new deployment such as:
@@ -250,7 +250,7 @@ In the opened form, choose parameters of the new deployment such as:
 * `Size` of your deployment
 
 <p>
-  <img src="quickstart_deployment-create.png" width="800">
+  <img src="create_deployment_form.png" width="800">
 </p>
 
 When all parameters are entered, click on the `Create` button, and deployment will be created
@@ -260,11 +260,11 @@ while the hardware spins-up, just wait for a couple of minutes and reload the pa
 You'll also be notified via email once provisioning is finished:
 
 <p>
-  <img src="quickstart_deployment-created.png" width="800">
+  <img src="create_deployment_created.png" width="800">
 </p>
 
 <p>
-  <img src="quickstart_deployments-running.png" width="800">
+  <img src="create_deployment_active_email.png" width="800">
 </p>
 
 ## Deployment access
@@ -273,7 +273,7 @@ After transition from `PROVISIONING` to `RUNNING` state, VictoriaMetrics is full
 and ready to accept write or read requests. But first, click on deployment name to get the access token:
 
 <p>
-  <img src="quickstart_deployment-access-token.png" width="800">
+  <img src="deployment_access.png" width="800">
 </p>
 
 Access tokens are used in token-based authentication to allow an application to access the VictoriaMetrics API. 
@@ -281,11 +281,11 @@ Supported token types are `Read-Only`, `Write-Only` and `Read-Write`. Click on t
 to see usage examples:
 
 <p>
-  <img src="quickstart_read-token.png" width="800">
+  <img src="deployment_access_write_example.png" width="800">
 </p>
 
 <p>
-  <img src="quickstart_write-token.png" width="800">
+  <img src="deployment_access_read_example.png" width="800">
 </p>
 
 Follow usage example in order to configure access to VictoriaMetrics for your Prometheus, 
