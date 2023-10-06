@@ -297,14 +297,14 @@ Remember, you always can add, remove or modify existing deployment by changing t
 update form.
 
 <p>
-  <img src="quickstart_update-deployment.png" width="800">
+  <img src="modify_deployment.png" width="800">
 </p>
 
 There is another options present to customise you deployment setup. 
 To discover them click on `Customise` button
 
 <p>
-  <img src="quickstart_customise-deployment.png" width="800">
+  <img src="modify_deployment_additional_settings.png" width="800">
 </p>
 
 In that section additional params can be set:
