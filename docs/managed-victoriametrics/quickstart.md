@@ -57,10 +57,8 @@ There are two different methods to create an account:
    <img src="quick_start_signup_success.png" width="800">
 </p>
 
-After Google Auth process will redirect automatically to the main page.
-
 ### Create an account by filling form:
-1. Fill all fields into [signup page](https://cloud.victoriametrics.com/signUp).
+1. Fill all fields in [signup page](https://cloud.victoriametrics.com/signUp).
 
 <p>
    <img src="quick_start_signup.png" width="800">
@@ -94,7 +92,7 @@ like in the pictures below
 
 It is necessary to confirm the email address. In other case, all actions in the service are not active.
 
-After successfully email confirmation, it is easy to [create deployment](#creating-deployment) or add payment method.
+After successfully email confirmation, it is easy to [create deployment](#creating-deployment) or [add payment method](#how-to-add-payment-method).
 <p>
    <img src="quick_start_signup_email_confirmed.png" width="800">
 </p>
@@ -103,7 +101,7 @@ After successfully email confirmation, it is easy to [create deployment](#creati
 
 To add a payment method it is necessary to:
 
-1. Click into Upgrade button or billing menu item like in the picture below
+1. Click into `Upgrade button` or `billing` menu item like in the picture below
 
 <p>
   <img src="how_to_add_payment_method_upgrade.png" width="800">
@@ -117,19 +115,19 @@ To add a payment method it is necessary to:
 
 ### Add subscription by payment card
 
-1. Click into an Add card panel and fill all fields in the form and press Add card button
+1. Click into an `Add card` panel and fill all fields in the form and press `Add card` button
 
 <p>
   <img src="how_to_add_payment_method_add_card.png" width="800">
 </p>
 
-2. If card was invalid the error message will appear
+2. If the card was invalid, the error message will appear
 
 <p>
   <img src="how_to_add_payment_method_invalid_card.png" width="800">
 </p>
 
-3. If card added successfully 
+3. If the card is added successfully, it will be shown in the interface
 
 <p>
   <img src="how_to_add_payment_method_card_added.png" width="800">
@@ -138,7 +136,7 @@ To add a payment method it is necessary to:
 ### Subscribe via an AWS marketplace
 
 If <a href="https://aws.amazon.com/marketplace/pp/prodview-4tbfq5icmbmyc" target="_blank">AWS Marketplace</a> 
-more preferable for subscription click into AWS Card
+more preferable for subscription click into `AWS Card`
 
 <p>
   <img src="how_to_add_payment_method_aws_click.png" width="800">
@@ -179,42 +177,59 @@ You'll be taken to <a href="https://cloud.victoriametrics.com/billing">Cloud Vic
 
 ### Change payment method
 
-If both payment methods was enabled it is possible to change preferable payment method.
+If both payment methods were enabled, it is possible to change the preferable payment method.
+Click the radio button like in the picture below and confirm payment choice
 
+<p>
+  <img src="change_payment_method.png" width="800">
+</p>
 
+<p>
+  <img src="change_payment_confirmation.png" width="800">
+</p>
+
+If the payment method changed, a success message will appear 
+
+<p>
+  <img src="change_payment_method_success.png" width="800">
+</p>
 
 ## How to restore password
 
 If you forgot password, it can be restored in the following way:
 
-1. Click `Forgot your password?` link at [this page](https://dbaas.victoriametrics.com/signIn):
+1. Click `Forgot password?` link at [this page](https://cloud.victoriametrics.com/signIn):
 
    <p>
-     <img src="quickstart_restore-password.png" width="800">
+     <img src="quick_start_restore_password.png" width="800">
    </p>
 
-1. Enter your email in the field and click `Send Email` button:
+1. Enter your email in the field and click `Reset password` button:
 
    <p>
-     <img src="quickstart_restore-password-email.png" width="800">
+     <img src="quick_start_restore_password_email_field.png" width="800">
+   </p>
+
+   <p>
+     <img src="quick_start_restore_password_message.png" width="800">
    </p>
 
 1. Follow the instruction sent to your email in order to gain access to your VictoriaMetrics cloud account:
 
    <p>
-     <img src="quickstart_password-restore-email.png" width="800">
+     <img src="quick_start_restore_password_email.png" width="800">
    </p>
 
-1. Navigate to the Profile page by clicking the corresponding link at the top right corner:
+1. Navigate to the Profile page by clicking the corresponding link in the top right corner:
 
    <p>
-     <img src="quickstart_restore-password-profile.png" width="800">
+     <img src="quick_start_restore_password_profile_click.png" width="800">
    </p>
 
 1. Enter new password at the Profile page and press `Save` button:
 
    <p>
-     <img src="quickstart_restore-password-save-password.png" width="800">
+     <img src="quick_start_restore_password_profile_fields.png" width="800">
    </p>
 
 ## Creating deployment
