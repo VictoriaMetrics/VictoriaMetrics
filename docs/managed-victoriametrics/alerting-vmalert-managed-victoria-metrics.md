@@ -55,14 +55,14 @@ For instructions on how to create tokens, please refer to this section of the [d
 
 #### Single-Node
 
-<img src="alerting-vmalert-managed-victoria-metrics-single-1.png">
-<img src="alerting-vmalert-managed-victoria-metrics-single-2.png">
+<img src="alerting_token_created_single.png">
+<img src="alerting_copy_datasource_single.png">
 
 #### Cluster
 
-<img src="alerting-vmalert-managed-victoria-metrics-cluster-1.png">
-<img src="alerting-vmalert-managed-victoria-metrics-cluster-2.png">
-<img src="alerting-vmalert-managed-victoria-metrics-cluster-3.png">
+<img src="alerting_token_created_cluster.png">
+<img src="alerting_copy_reading_datasource_cluster.png">
+<img src="alerting_copy_writing_datasource_cluster.png">
 
 ### vmalert configuration 
 

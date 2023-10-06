@@ -307,10 +307,10 @@ To discover them click on `Customise` button
   <img src="modify_deployment_additional_settings.png" width="800">
 </p>
 
-In that section additional params can be set:
+In that section, additional params can be set:
 
 * `Deduplication` defines interval when deployment leaves a single raw sample with the biggest timestamp per each discrete interval;
-* `Maintenance Window` when deployment should start upgrade process if needed;
+* `Maintenance Window` when deployment should start an upgrade process if needed;
 * `Settings` allow to define different flags for the deployment.
 
 However, such an update requires a deployment restart and may result into a couple of minutes of downtime.
