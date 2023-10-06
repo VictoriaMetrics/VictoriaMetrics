@@ -9,176 +9,135 @@ menu:
 aliases:
 - /managed-victoriametrics/quickstart.html
 ---
-# Quick Start in Cloud VictoriaMetrics
+# Quick Start in Managed VictoriaMetrics
 
-
-Cloud VictoriaMetrics - is a database-as-a-service platform, where users can run the VictoriaMetrics 
+Managed VictoriaMetrics – is a database-as-a-service platform, where users can run the VictoriaMetrics 
 that they know and love on AWS without the need to perform typical DevOps tasks such as proper configuration, 
 monitoring, logs collection, access protection, software updates, backups, etc.
 
-The document covers the following topics
-1. [How to register](#how-to-register)
-1. [How to add payment method](#how-to-add-payment-method)
-1. [How to restore password](#how-to-restore-password)
-1. [Creating deployment](#creating-deployment)
-1. [Deployment access](#deployment-access)
-1. [Modifying deployment](#modifying-deployment)
+The document covers the following topics:
+1. [Registration](#registration)
+1. [Adding a payment method](#adding-a-payment-method)
+1. [Restoring a password](#restoring-a-password)
+1. [Creating deployments](#creating-deployments)
+1. [Start writing and reading data](#start-writing-and-reading-data)
+1. [Modifying an existing deployment](#modifying-an-existing-deployment)
 
-## How to register
+## Registration
 
-To register in the service it is easy to made a few steps:
-1. Visit the main page of the [Cloud VictoriaMetrics](https://cloud.victoriametrics.com/signIn) and click into 
-[Create an account link](https://cloud.victoriametrics.com/signUp).
-<p>
-   <img src="quick_start_signin.png" width="800">
-</p>
+Start your registration process by visiting the [Sign Up](https://cloud.victoriametrics.com/signUp?utm_source=website&utm_campaign=docs_quickstart) page.
 
 There are two different methods to create an account:
 1. Create an account via Google Auth service;
-2. Create an account by filling all the form fields;
+1. Create an account by filling in a registration form.
 
 ### Create an account via Google Auth service:
 
-1. In the [signup page](https://cloud.victoriametrics.com/signUp) click into `Continue with Google` button
+1. Click `Continue with Google` button on the [Sign Up page](https://cloud.victoriametrics.com/signUp?utm_source=website&utm_campaign=docs_quickstart)
+   <p>
+      <img src="quick_start_signup_google_click.png" width="800">
+   </p>
+1. Choose Google account you want to use for registration
+   <p>
+      <img src="quick_start_signup_choose_google_account.png" width="800">
+   </p>
+1. You will be automatically redirected to the main page of the Managed VictoriaMetrics
+   <p>
+      <img src="quick_start_signup_success.png" width="800">
+   </p>
 
-<p>
-   <img src="quick_start_signup_google_click.png" width="800">
-</p>
+### Create an account by filling in a registration form:
+1. Fill in your email, password and password confirmation on [Sign Up page](https://cloud.victoriametrics.com/signUp?utm_source=website&utm_campaign=docs_quickstart).
+   <p>
+      <img src="quick_start_signup.png" width="800">
+   </p>
+1. All fields are required. Any errors will be shown in the interface, so it is easy to understand what should be adjusted.
+   <p>
+      <img src="quick_start_signup_errors.png" width="800">
+   </p>
+1. Press `Create account` button when all fields are filled in.
+   <p>
+      <img src="quick_start_signup_create_account_click.png" width="800">
+   </p>
 
-1. Choose email with which the account will be created
-
-<p>
-   <img src="quick_start_signup_choose_google_account.png" width="800">
-</p>
-
-1. If all successfully finished, the system will automatically redirect to the main page of the Cloud VictoriaMetrics.
-
-<p>
-   <img src="quick_start_signup_success.png" width="800">
-</p>
-
-### Create an account by filling form:
-1. Fill all fields in [signup page](https://cloud.victoriametrics.com/signUp).
-
-<p>
-   <img src="quick_start_signup.png" width="800">
-</p>
-
-All fields are required and should be filled. All mistakes will be shown in the interface, 
-so it is easy to understand what should be corrected.
-
-<p>
-   <img src="quick_start_signup_errors.png" width="800">
-</p>
-
-1. When all fields are filled correctly, the next step is to press `Create account` button
-
-<p>
-   <img src="quick_start_signup_create_account_click.png" width="800">
-</p>
-
-After correct signup process service will redirect to the main page with a notification message and email
-like in the pictures below
-
-1. Main page of the Cloud VictoriaMetrics
+You will be redirected to the main page with a notification message to confirm your email.
 <p>
    <img src="quick_start_signup_success.png" width="800">
 </p>
 
-1. Confirmation email
+You will also receive an email with a confirmation link as shown on the picture below:
 <p>
    <img src="quick_start_signup_email_confirm.png" width="800">
 </p>
 
-It is necessary to confirm the email address. In other case, all actions in the service are not active.
+It is necessary to confirm your email address. Otherwise, you won't be able to create a deployment.
 
-After successfully email confirmation, it is easy to [create deployment](#creating-deployment) or [add payment method](#how-to-add-payment-method).
+After successful confirmation of your email address, you'll be able to [create your first deployment](#creating-deployments) or [add a payment method](#adding-a-payment-method).
 <p>
    <img src="quick_start_signup_email_confirmed.png" width="800">
 </p>
 
-## How to add payment method
+## Adding a payment method
 
-To add a payment method it is necessary to:
+1. Navigate to a [Billing](https://cloud.victoriametrics.com/billing?utm_source=website&utm_campaign=docs_quickstart) page or click on `Upgrade` button as shown below:
+   <p>
+     <img src="how_to_add_payment_method_upgrade.png" width="800">
+   </p>
 
-1. Click into `Upgrade button` or `billing` menu item like in the picture below
+1. Choose a payment method
+   <p>
+     <img src="how_to_add_payment_method_choose_method.png" width="800">
+   </p>
 
-<p>
-  <img src="how_to_add_payment_method_upgrade.png" width="800">
-</p>
+### Pay with a card
 
-2. Choose payment method
+1. Click on an `Add card` panel and fill in all the fields in the form and press `Add card` button
+   <p>
+     <img src="how_to_add_payment_method_add_card.png" width="800">
+   </p>
+1. An error message will appear if a card us invalid
+   <p>
+     <img src="how_to_add_payment_method_invalid_card.png" width="800">
+   </p>
+1. Successfully added card will be shown on the page as follows:
+   <p>
+     <img src="how_to_add_payment_method_card_added.png" width="800">
+   </p>
 
-<p>
-  <img src="how_to_add_payment_method_choose_method.png" width="800">
-</p>
+### Pay via AWS Marketplace
 
-### Add subscription by payment card
+When you need to unify your AWS billing, you can start a subscription on AWS Marketplace.
 
-1. Click into an `Add card` panel and fill all fields in the form and press `Add card` button
+1. Click on the `Buy on AWS Marketplace` panel:
+   <p>
+     <img src="how_to_add_payment_method_aws_click.png" width="800">
+   </p>
+1. You will be redirected to the <a href="https://aws.amazon.com/marketplace/pp/prodview-4tbfq5icmbmyc" target="_blank">Managed VictoriaMetrics</a> product page.
+1. Click on `View purchase option` button, and you will be redirected to an AWS login page or to a subscribe page on AWS Marketplace.
+   <p>
+     <img src="quickstart_aws-purchase-click.png" width="800">
+   </p>
+1. Go to the <a href="https://aws.amazon.com/marketplace/pp/prodview-4tbfq5icmbmyc">Managed VictoriaMetrics</a> product page and click `Continue to Subscribe` button:
+   <p>
+     <img src="quickstart_continue-subscribe.png" width="800">
+   </p>
+1. Press the `Subscribe` button:
+   <p>
+     <img src="quickstart_subscribe.png" width="800">
+   </p>
+1. After that you will see a success message where you should click `Set up your account` button:
+   <p>
+     <img src="quickstart_setup-your-account.png" width="800">
+   </p>
+1. You'll be redirected back to Managed VictoriaMetrics <a href="https://cloud.victoriametrics.com/billing?utm_source=website&utm_campaign=docs_quickstart" target="_blank">billing page</a>:
+   <p>
+     <img src="how_to_add_payment_method_aws_finish.png" width="800">
+   </p>
 
-<p>
-  <img src="how_to_add_payment_method_add_card.png" width="800">
-</p>
+### Switching between payment methods
 
-2. If the card was invalid, the error message will appear
-
-<p>
-  <img src="how_to_add_payment_method_invalid_card.png" width="800">
-</p>
-
-3. If the card is added successfully, it will be shown in the interface
-
-<p>
-  <img src="how_to_add_payment_method_card_added.png" width="800">
-</p>
-
-### Subscribe via an AWS marketplace
-
-If <a href="https://aws.amazon.com/marketplace/pp/prodview-4tbfq5icmbmyc" target="_blank">AWS Marketplace</a> 
-more preferable for subscription click into `AWS Card`
-
-<p>
-  <img src="how_to_add_payment_method_aws_click.png" width="800">
-</p>
-
-and service will be redirected to the <a href="https://aws.amazon.com/marketplace/pp/prodview-4tbfq5icmbmyc" target="_blank">VictoriaMetrics product page</a>.
-On that page click on `View purchase option` and you will be redirected to login page or to subscribe page.
-
-<p>
-  <img src="quickstart_aws-purchase-click.png" width="800">
-</p>
-
-Then, go to the
-<a href="https://aws.amazon.com/marketplace/pp/prodview-4tbfq5icmbmyc">VictoriaMetrics product page</a>
-and click `Continue to Subscribe` button:
-
-<p>
-  <img src="quickstart_continue-subscribe.png" width="800">
-</p>
-
-Then on product page press the `Subscribe` button:
-
-<p>
-  <img src="quickstart_subscribe.png" width="800">
-</p>
-
-After that action you will be able to see success message where you should click `Set up your account` button:
-
-<p>
-  <img src="quickstart_setup-your-account.png" width="800">
-</p>
-
-You'll be taken to <a href="https://cloud.victoriametrics.com/billing">Cloud VictoriaMetrics billing page</a>:
-
-<p>
-  <img src="how_to_add_payment_method_aws_finish.png" width="800">
-</p>
-
-### Change payment method
-
-If both payment methods were enabled, it is possible to change the preferable payment method.
-Click the radio button like in the picture below and confirm payment choice
+If both payment methods are added, it is possible to easily switch between them.
+Click on the radio button like on the picture below and confirm the change:
 
 <p>
   <img src="change_payment_method.png" width="800">
@@ -188,24 +147,22 @@ Click the radio button like in the picture below and confirm payment choice
   <img src="change_payment_confirmation.png" width="800">
 </p>
 
-If the payment method changed, a success message will appear 
+If the payment method was changed successfully, the following message will appear: 
 
 <p>
   <img src="change_payment_method_success.png" width="800">
 </p>
 
-## How to restore password
+## Restoring a password
 
-If you forgot password, it can be restored in the following way:
+If you forgot your password, it can be restored in the following way:
 
-1. Click `Forgot password?` link at [this page](https://cloud.victoriametrics.com/signIn):
-
+1. Click `Forgot password?` link on the [Sign In](https://cloud.victoriametrics.com/signIn?utm_source=website&utm_campaign=docs_quickstart) page:
    <p>
      <img src="quick_start_restore_password.png" width="800">
    </p>
 
-1. Enter your email in the field and click `Reset password` button:
-
+1. Enter your email and click `Reset password` button:
    <p>
      <img src="quick_start_restore_password_email_field.png" width="800">
    </p>
@@ -214,50 +171,51 @@ If you forgot password, it can be restored in the following way:
      <img src="quick_start_restore_password_message.png" width="800">
    </p>
 
-1. Follow the instruction sent to your email in order to gain access to your VictoriaMetrics cloud account:
-
+1. Follow the instructions sent to your email in order to get access to your Managed VictoriaMetrics account:
    <p>
      <img src="quick_start_restore_password_email.png" width="800">
    </p>
 
 1. Navigate to the Profile page by clicking the corresponding link in the top right corner:
-
    <p>
      <img src="quick_start_restore_password_profile_click.png" width="800">
    </p>
 
-1. Enter new password at the Profile page and press `Save` button:
-
+1. Enter a new password on the Profile page and press `Save`:
    <p>
      <img src="quick_start_restore_password_profile_fields.png" width="800">
    </p>
 
-## Creating deployment
+## Creating deployments
 
-Deployments is a page where user can list and manage VictoriaMetrics deployments. 
-To create a deployment click on the button `Create Deployment` button or `link` in the message:
+On the [Deployments](https://cloud.victoriametrics.com/deployments?utm_source=website&utm_campaign=docs_quickstart) page you 
+will see a list of your existing deployments and will be able to manage them. 
+
+To create a deployment click on the button `Create Deployment` button:
 
 <p>
   <img src="create_deployment_start.png" width="800">
 </p>
 
-In the opened form, choose parameters of the new deployment such as:
+On the opened screen, choose parameters of your new deployment:
 
-* `Deployment type` from preset single or cluster deployments;
-* `Region` where deployment should run;
+* `Deployment type` 
+  * Single - for affordable, performant single-node deployments;
+  * Cluster - for highly available and multi-tenant deployments;
+* `Region` – AWS region where deployment will run;
 * Desired `storage capacity` for storing metrics (you always can expand disk size later);
 * `Retention` period for stored metrics.
-* `Size` of your deployment
+* `Size` of your deployment [based on your needs](https://docs.victoriametrics.com/guides/understand-your-setup-size.html)
 
 <p>
   <img src="create_deployment_form.png" width="800">
 </p>
 
-When all parameters are entered, click on the `Create` button, and deployment will be created
+When all parameters are configured, click on the `Create` button, and deployment will be created.
 
 Once created, deployment will remain for a short period of time in `PROVISIONING` status 
 while the hardware spins-up, just wait for a couple of minutes and reload the page. 
-You'll also be notified via email once provisioning is finished:
+You'll also be notified via email once your deployment is ready to use:
 
 <p>
   <img src="create_deployment_created.png" width="800">
@@ -267,10 +225,12 @@ You'll also be notified via email once provisioning is finished:
   <img src="create_deployment_active_email.png" width="800">
 </p>
 
-## Deployment access
+## Start writing and reading data
 
-After transition from `PROVISIONING` to `RUNNING` state, VictoriaMetrics is fully operational 
-and ready to accept write or read requests. But first, click on deployment name to get the access token:
+After transition from `PROVISIONING` to `RUNNING` state, Managed VictoriaMetrics deployment is fully operational 
+and is ready to accept write and read requests. 
+
+Click on deployment name and navigate to the Access tab to get the access token:
 
 <p>
   <img src="deployment_access.png" width="800">
@@ -288,20 +248,19 @@ to see usage examples:
   <img src="deployment_access_read_example.png" width="800">
 </p>
 
-Follow usage example in order to configure access to VictoriaMetrics for your Prometheus, 
+Follow usage examples in order to configure access to VictoriaMetrics for your Prometheus, 
 Grafana or any other software.
 
-## Modifying deployment
+## Modifying an existing deployment
 
-Remember, you always can add, remove or modify existing deployment by changing their size or any parameters on the 
-update form.
+Remember, you can always add, remove or modify existing deployment by changing its size or any parameters on the 
+deployment's page.
 
 <p>
   <img src="modify_deployment.png" width="800">
 </p>
-
-There is another options present to customise you deployment setup. 
-To discover them click on `Customise` button
+ 
+To discover additional configuration options click on `Advanced Settings` button, so you should see the following:
 
 <p>
   <img src="modify_deployment_additional_settings.png" width="800">
@@ -313,4 +272,4 @@ In that section, additional params can be set:
 * `Maintenance Window` when deployment should start an upgrade process if needed;
 * `Settings` allow to define different flags for the deployment.
 
-However, such an update requires a deployment restart and may result into a couple of minutes of downtime.
+Please note, such an update requires a deployment restart and may result into a short downtime for single-node deployments.

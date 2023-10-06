@@ -22,21 +22,20 @@ The most common use cases for VictoriaMetrics are:
 * Replacement for InfluxDB and OpenTSDB, which uses lower amounts of RAM, CPU and disk;
 * Cost-efficient alternative for DataDog.
 
-We are glad to announce the availability of Cloud VictoriaMetrics simply create your account and
-pay via card or AWS Marketplace - [try it right now](https://cloud.victoriametrics.com/signIn)!
+We are glad to announce general availability of Managed VictoriaMetrics – [try it right now](https://cloud.victoriametrics.com/signUp?utm_source=website&utm_campaign=docs_overview) and get $200 of credits!
 
-Cloud VictoriaMetrics allows users running VictoriaMetrics at AWS without the need to perform typical 
+Managed VictoriaMetrics allows users to run Enterprise version of VictoriaMetrics, hosted on AWS, without the need to perform typical 
 DevOps tasks such as proper configuration, monitoring, logs collection, access protection, software updates, 
 backups, etc.
 
-We run Cloud VictoriaMetrics instances in our environment at AWS while providing easy-to-use endpoints 
-for data ingestion and querying. And the VictoriaMetrics team takes care of optimal configuration and software 
+We run Managed VictoriaMetrics instances in our environment on AWS and provide easy-to-use endpoints 
+for data ingestion and querying. The VictoriaMetrics team takes care of optimal configuration and software 
 maintenance.
 
-Cloud VictoriaMetrics comes with the following features:
+Managed VictoriaMetrics comes with the following features:
 
-* It can be used as a Managed Prometheus - just configure Prometheus or vmagent to write data to Cloud VictoriaMetrics and then use the provided endpoint as a Prometheus datasource in Grafana;
-* Every Cloud VictoriaMetrics instance runs in an isolated environment, so instances cannot interfere with each other;
-* Cloud VictoriaMetrics instance can be scaled up or scaled down in a few clicks;
+* It can be used as a Managed Prometheus - just configure Prometheus or vmagent to write data to Managed VictoriaMetrics and then use the provided endpoint as a Prometheus datasource in Grafana;
+* Every Managed VictoriaMetrics instance runs in an isolated environment, so instances cannot interfere with each other;
+* Managed VictoriaMetrics instance can be scaled up or scaled down in a few clicks;
 * Automated backups;
-* Pay only for the actually used compute resources - instance type, disk and network.
+* Pay only for the actually used resources - instance type, disk and network.
