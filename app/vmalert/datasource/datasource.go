@@ -48,7 +48,6 @@ type QuerierParams struct {
 	QueryParams        url.Values
 	Headers            map[string]string
 	Debug              bool
-	ShowSecrets        bool
 }
 
 // Metric is the basic entity which should be return by datasource

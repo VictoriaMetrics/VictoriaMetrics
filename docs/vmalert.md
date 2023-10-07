@@ -901,7 +901,7 @@ is this information is sensitive.
 
 [Alerts state](#alerts-state) page or [debug mode](#debug-mode) could emit additional information about configured
 datasource URL, GET params and headers. Sensitive information such as passwords or auth tokens is stripped by default.
-To disable stripping such info pass `-showSecrets` cmd-line flag to vmalert.
+To disable stripping such info pass `-datasource.showURL` cmd-line flag to vmalert.
 
 
 ## Profiling
@@ -986,7 +986,8 @@ The shortlist of configuration flags is the following:
   -datasource.roundDigits int
      Adds "round_digits" GET param to datasource requests. In VM "round_digits" limits the number of digits after the decimal point in response values.
   -datasource.showURL
-     Whether to show -datasource.url in the exported metrics. It is hidden by default, since it can contain sensitive info such as auth key
+     Whether to avoid stripping sensitive information such as auth headers or passwords from URLs in log messages or UI and exported metrics.
+     It is hidden by default, since it can contain sensitive info such as auth key.
   -datasource.tlsCAFile string
      Optional path to TLS CA file to use for verifying connections to -datasource.url. By default, system CA is used
   -datasource.tlsCertFile string
@@ -1006,9 +1007,7 @@ The shortlist of configuration flags is the following:
   -disableAlertgroupLabel
      Whether to disable adding group's Name as label to generated alerts and time series.
   -dryRun
-     Whether to check only config files without running vmalert. The rules file are validated. The -rule flag must be specified.
-  -showSecrets
-     Whether to avoid stripping sensitive information such as auth headers or passwords from URLs in log messages or UI.   
+     Whether to check only config files without running vmalert. The rules file are validated. The -rule flag must be specified.   
   -enableTCP6
      Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP are used
   -envflag.enable

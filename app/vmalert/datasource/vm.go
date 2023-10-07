@@ -198,21 +198,21 @@ func (s *VMStorage) QueryRange(ctx context.Context, query string, start, end tim
 }
 
 func (s *VMStorage) do(ctx context.Context, req *http.Request) (*http.Response, error) {
+	ru := req.URL.Redacted()
+	if *showDatasourceURL {
+		ru = req.URL.String()
+	}
 	if s.debug {
-		ru := req.URL.Redacted()
-		if !*showDatasourceURL {
-			ru = req.URL.RawQuery
-		}
 		logger.Infof("DEBUG datasource request: executing %s request with params %q", req.Method, ru)
 	}
 	resp, err := s.c.Do(req.WithContext(ctx))
 	if err != nil {
-		return nil, fmt.Errorf("error getting response from %s: %w", req.URL.Redacted(), err)
+		return nil, fmt.Errorf("error getting response from %s: %w", ru, err)
 	}
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		_ = resp.Body.Close()
-		return nil, fmt.Errorf("unexpected response code %d for %s. Response body %s", resp.StatusCode, req.URL.Redacted(), body)
+		return nil, fmt.Errorf("unexpected response code %d for %s. Response body %s", resp.StatusCode, ru, body)
 	}
 	return resp, nil
 }

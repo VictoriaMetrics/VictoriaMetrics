@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 )
 
@@ -80,7 +81,7 @@ func requestToCurl(req *http.Request) string {
 
 	schema := req.URL.Scheme
 	requestURL := req.URL.String()
-	if !*alertingRuleShowSecrets {
+	if !datasource.ShowDatasourceURL() {
 		requestURL = req.URL.Redacted()
 	}
 	if schema == "" {
@@ -106,7 +107,7 @@ func requestToCurl(req *http.Request) string {
 
 	for _, k := range keys {
 		cw.add("-H")
-		if !*alertingRuleShowSecrets && isSecreteHeader(k) {
+		if !datasource.ShowDatasourceURL() && isSecreteHeader(k) {
 			cw.addWithEsc(fmt.Sprintf("%s: <secret>", k))
 			continue
 		}
