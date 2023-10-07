@@ -54,8 +54,7 @@ type VMStorage struct {
 
 	// whether to print additional log messages
 	// for each sent request
-	debug       bool
-	showSecrets bool
+	debug bool
 }
 
 type keyValue struct {
@@ -79,8 +78,7 @@ func (s *VMStorage) Clone() *VMStorage {
 		// init map so it can be populated below
 		extraParams: url.Values{},
 
-		debug:       s.debug,
-		showSecrets: s.showSecrets,
+		debug: s.debug,
 	}
 	if len(s.extraHeaders) > 0 {
 		ns.extraHeaders = make([]keyValue, len(s.extraHeaders))
@@ -122,7 +120,6 @@ func (s *VMStorage) ApplyParams(params QuerierParams) *VMStorage {
 		}
 	}
 	s.debug = params.Debug
-	s.showSecrets = params.ShowSecrets
 	return s
 }
 
@@ -203,7 +200,7 @@ func (s *VMStorage) QueryRange(ctx context.Context, query string, start, end tim
 func (s *VMStorage) do(ctx context.Context, req *http.Request) (*http.Response, error) {
 	if s.debug {
 		ru := req.URL.Redacted()
-		if s.showSecrets {
+		if !*showDatasourceURL {
 			ru = req.URL.RawQuery
 		}
 		logger.Infof("DEBUG datasource request: executing %s request with params %q", req.Method, ru)

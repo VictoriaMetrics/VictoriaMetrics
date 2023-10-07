@@ -76,7 +76,6 @@ func newAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule
 			QueryParams:        group.Params,
 			Headers:            group.Headers,
 			Debug:              cfg.Debug,
-			ShowSecrets:        *showSecrets,
 		}),
 		alerts:  make(map[uint64]*notifier.Alert),
 		metrics: &alertingRuleMetrics{},
