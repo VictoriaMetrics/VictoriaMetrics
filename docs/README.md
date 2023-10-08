@@ -32,7 +32,7 @@ If you have questions about VictoriaMetrics, then feel free asking them at [Vict
 [Contact us](mailto:info@victoriametrics.com) if you need enterprise support for VictoriaMetrics. 
 See [features available in enterprise package](https://docs.victoriametrics.com/enterprise.html).
 Enterprise binaries can be downloaded and evaluated for free 
-from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
+from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases). You need to request a [free trial license](https://victoriametrics.com/products/enterprise/trial/) for evaluation.
 
 VictoriaMetrics is developed at a fast pace, so it is recommended periodically checking the [CHANGELOG](https://docs.victoriametrics.com/CHANGELOG.html) and performing [regular upgrades](#how-to-upgrade-victoriametrics).
 
@@ -1877,7 +1877,7 @@ to historical data.
 
 See [how to configure multiple retentions in VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#retention-filters).
 
-Retention filters can be evaluated for free by downloading and using enterprise binaries from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
+Retention filters can be evaluated for free by downloading and using enterprise binaries from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases). You need to request a [free trial license](https://victoriametrics.com/products/enterprise/trial/) for evaluation.
 
 ## Downsampling
 
@@ -1898,7 +1898,7 @@ Please, note that intervals of `-downsampling.period` must be multiples of each 
 In case [deduplication](https://docs.victoriametrics.com/#deduplication) is enabled value of `-dedup.minScrapeInterval` must also be multiple of `-downsampling.period` intervals.
 This is required to ensure consistency of deduplication and downsampling results.
 
-The downsampling can be evaluated for free by downloading and using enterprise binaries from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
+The downsampling can be evaluated for free by downloading and using enterprise binaries from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases). You need to request a [free trial license](https://victoriametrics.com/products/enterprise/trial/) for evaluation.
 
 ## Multi-tenancy
 
@@ -2324,7 +2324,7 @@ See also [high availability docs](#high-availability) and [backup docs](#backups
 VictoriaMetrics supports backups via [vmbackup](https://docs.victoriametrics.com/vmbackup.html)
 and [vmrestore](https://docs.victoriametrics.com/vmrestore.html) tools.
 We also provide [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager.html) tool for enterprise subscribers.
-Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
+Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases). You need to request a [free trial license](https://victoriametrics.com/products/enterprise/trial/) for evaluation.
 
 ## vmalert
 
