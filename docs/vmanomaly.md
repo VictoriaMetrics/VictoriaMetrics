@@ -12,7 +12,7 @@ aliases:
 
 # vmanomaly
 
-**_vmanomaly is a part of [enterprise package](https://docs.victoriametrics.com/enterprise.html).
+**_vmanomaly is a part of [enterprise package](https://docs.victoriametrics.com/enterprise.html). You need to request a [free trial license](https://victoriametrics.com/products/enterprise/trial/) for evaluation.
 Please [contact us](https://victoriametrics.com/contact-us/) to find out more._**
 
 ## About
