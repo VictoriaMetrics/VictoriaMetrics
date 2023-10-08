@@ -1876,6 +1876,7 @@ to historical data.
 See [how to configure multiple retentions in VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#retention-filters).
 
 Retention filters can be evaluated for free by downloading and using enterprise binaries from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
+See how to request a free trial license [here](https://victoriametrics.com/products/enterprise/trial/).
 
 ## Downsampling
 
@@ -1897,6 +1898,7 @@ In case [deduplication](https://docs.victoriametrics.com/#deduplication) is enab
 This is required to ensure consistency of deduplication and downsampling results.
 
 The downsampling can be evaluated for free by downloading and using enterprise binaries from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
+See how to request a free trial license [here](https://victoriametrics.com/products/enterprise/trial/).
 
 ## Multi-tenancy
 
@@ -2323,6 +2325,7 @@ VictoriaMetrics supports backups via [vmbackup](https://docs.victoriametrics.com
 and [vmrestore](https://docs.victoriametrics.com/vmrestore.html) tools.
 We also provide [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager.html) tool for enterprise subscribers.
 Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
+See how to request a free trial license [here](https://victoriametrics.com/products/enterprise/trial/).
 
 ## vmalert
 
