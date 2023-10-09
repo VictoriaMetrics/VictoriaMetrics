@@ -71,7 +71,7 @@ For instructions on how to create tokens, please refer to this section of the [d
 ##### Binary 
 
 ```console
-export TOKEN=81e8226e-4e25-480d-9397-31ba4007f0bf 
+export TOKEN=81e8226e-****-****-****-************ 
 export MANAGED_VM_URL=https://gw-c15-1c.cloud.victoriametrics.com
 export ALERTMANAGER_URL=http://localhost:9093 
 ./vmalert -rule=alerts.yml -datasource.url=$MANAGED_VM_URL -datasource.bearerToken=$TOKEN -notifier.url=$ALERTMANAGER_URL -remoteWrite.url=$MANAGED_VM_URL -remoteWrite.bearerToken=$TOKEN -remoteRead.url=$MANAGED_VM_URL -remoteRead.bearerToken=$TOKEN
@@ -80,7 +80,7 @@ export ALERTMANAGER_URL=http://localhost:9093
 ##### Docker 
 
 ```console
-export TOKEN=81e8226e-4e25-480d-9397-31ba4007f0bf 
+export TOKEN=81e8226e-****-****-****-************ 
 export MANAGED_VM_URL=https://gw-c15-1c.cloud.victoriametrics.com
 export ALERTMANAGER_URL=http://alertmanager:9093 
 docker run -it -p 8080:8080 -v $(pwd)/alerts.yml:/etc/alerts/alerts.yml victoriametrics/vmalert:v1.87.1 -datasource.url=$MANAGED_VM_URL -datasource.bearerToken=$TOKEN -remoteRead.url=$MANAGED_VM_URL -remoteRead.bearerToken=$TOKEN  -remoteWrite.url=$MANAGED_VM_URL -remoteWrite.bearerToken=$TOKEN  -notifier.url=$ALERTMANAGER_URL -rule="/etc/alerts/*.yml"
@@ -89,7 +89,7 @@ docker run -it -p 8080:8080 -v $(pwd)/alerts.yml:/etc/alerts/alerts.yml victoria
 ##### Helm Chart
 
 ```console
-export TOKEN=81e8226e-4e25-480d-9397-31ba4007f0bf
+export TOKEN=81e8226e-****-****-****-************
 export MANAGED_VM_URL=https://gw-c15-1c.cloud.victoriametrics.com
 export ALERTMANAGER=http://alertmanager:9093
 cat <<EOF | helm install vmalert vm/victoria-metrics-alert -f -
@@ -129,7 +129,7 @@ EOF
 ##### VMalert CRD for vmoperator
 
 ```console
-export TOKEN=81e8226e-4e25-480d-9397-31ba4007f0bf
+export TOKEN=81e8226e-****-****-****-************
 export MANAGED_VM_URL=https://gw-c15-1c.cloud.victoriametrics.com
 export ALERTMANAGER=http://alertmanager:9093
 cat << EOF | kubectl apply -f -
@@ -174,7 +174,7 @@ EOF
 You can ingest metric that will raise an alert 
 
 ```console
-export TOKEN=81e8226e-4e25-480d-9397-31ba4007f0bf
+export TOKEN=81e8226e-****-****-****-*************
 export MANAGED_VM_URL=https://gw-c15-1c.cloud.victoriametrics.com/
 curl -H "Authorization: Bearer $TOKEN" -X POST "$MANAGED_VM_URLapi/v1/import/prometheus" -d 'up{job="vmalert-test", instance="localhost"} 0'
 ```
@@ -184,7 +184,7 @@ curl -H "Authorization: Bearer $TOKEN" -X POST "$MANAGED_VM_URLapi/v1/import/pro
 ##### Binary
 
 ```console
-export TOKEN=76bc5470-d340-4e5e-9574-49ed30911cc4
+export TOKEN=76bc5470-****-****-****-************
 export MANAGED_VM_READ_URL=https://gw-c15-1a.cloud.victoriametrics.com/select/0/prometheus/
 export MANAGED_VM_WRITE_URL=https://gw-c15-1a.cloud.victoriametrics.com/insert/0/prometheus/
 export ALERTMANAGER_URL=http://localhost:9093 
@@ -194,7 +194,7 @@ export ALERTMANAGER_URL=http://localhost:9093
 ##### Docker
 
 ```console
-export TOKEN=76bc5470-d340-4e5e-9574-49ed30911cc4
+export TOKEN=76bc5470-****-****-****-************
 export MANAGED_VM_READ_URL=https://gw-c15-1a.cloud.victoriametrics.com/select/0/prometheus/
 export MANAGED_VM_WRITE_URL=https://gw-c15-1a.cloud.victoriametrics.com/insert/0/prometheus/
 export ALERTMANAGER_URL=http://alertmanager:9093 
@@ -204,7 +204,7 @@ docker run -it -p 8080:8080 -v $(pwd)/alerts.yml:/etc/alerts/alerts.yml victoria
 ##### Helm Chart
 
 ```console
-export TOKEN=76bc5470-d340-4e5e-9574-49ed30911cc4
+export TOKEN=76bc5470-****-****-****-************
 export MANAGED_VM_READ_URL=https://gw-c15-1a.cloud.victoriametrics.com/select/0/prometheus/
 export MANAGED_VM_WRITE_URL=https://gw-c15-1a.cloud.victoriametrics.com/insert/0/prometheus/
 export ALERTMANAGER=http://alertmanager:9093
@@ -245,7 +245,7 @@ EOF
 ##### VMalert CRD for vmoperator
 
 ```console
-export TOKEN=76bc5470-d340-4e5e-9574-49ed30911cc4
+export TOKEN=76bc5470-****-****-****-************
 export MANAGED_VM_READ_URL=https://gw-c15-1a.cloud.victoriametrics.com/select/0/prometheus/
 export MANAGED_VM_WRITE_URL=https://gw-c15-1a.cloud.victoriametrics.com/insert/0/prometheus/
 export ALERTMANAGER=http://alertmanager:9093
@@ -291,7 +291,7 @@ EOF
 You can ingest metric that will raise an alert
 
 ```console
-export TOKEN=76bc5470-d340-4e5e-9574-49ed30911cc4
+export TOKEN=76bc5470-****-****-****-************
 export MANAGED_VM_WRITE_URL=https://gw-c15-1a.cloud.victoriametrics.com/insert/0/prometheus/
 curl -H "Authorization: Bearer $TOKEN" -X POST "$MANAGED_VM_WRITE_URLapi/v1/import/prometheus" -d 'up{job="vmalert-test", instance="localhost"} 0'
 ```

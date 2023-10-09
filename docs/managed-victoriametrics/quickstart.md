@@ -104,7 +104,7 @@ After successful confirmation of your email address, you'll be able to [create y
      <img src="how_to_add_payment_method_card_added.png" width="800">
    </p>
 
-### Pay via AWS Marketplace
+### Link your AWS billing account via AWS Marketplace
 
 When you need to unify your AWS billing, you can start a subscription on AWS Marketplace.
 
@@ -153,7 +153,7 @@ If the payment method was changed successfully, the following message will appea
   <img src="change_payment_method_success.png" width="800">
 </p>
 
-## Restoring a password
+## Password restoration
 
 If you forgot your password, it can be restored in the following way:
 
@@ -254,7 +254,8 @@ Grafana or any other software.
 ## Modifying an existing deployment
 
 Remember, you can always add, remove or modify existing deployment by changing its size or any parameters on the 
-deployment's page.
+deployment's page. 
+It is important to know that downgrade for cluster is currently not available.
 
 <p>
   <img src="modify_deployment.png" width="800">
@@ -268,8 +269,11 @@ To discover additional configuration options click on `Advanced Settings` button
 
 In that section, additional params can be set:
 
-* `Deduplication` defines interval when deployment leaves a single raw sample with the biggest timestamp per each discrete interval;
+* [`Deduplication`](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#deduplication) defines interval when deployment leaves a single raw sample with the biggest timestamp per each discrete interval;
 * `Maintenance Window` when deployment should start an upgrade process if needed;
-* `Settings` allow to define different flags for the deployment.
+* `Settings` allow to define different flags for the deployment:
 
-Please note, such an update requires a deployment restart and may result into a short downtime for single-node deployments.
+   1. [cluster components flags](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#list-of-command-line-flags).
+   2. [single version flags](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#list-of-command-line-flags).
+
+Please note, such an update requires a deployment restart and may result in a short downtime for single-node deployments.
