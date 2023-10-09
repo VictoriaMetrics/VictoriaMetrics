@@ -58,6 +58,7 @@ Install the Helm chart in a custom namespace
    </div>
 1. Create a YAML file of Helm values called dbaas.yaml with following content
    <div class="with-copy" markdown="1">
+
    ```yaml
    externalVM:
      read:
