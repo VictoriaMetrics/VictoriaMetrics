@@ -276,7 +276,7 @@ You have to add a custom url endpoint via flag:
       -customS3Endpoint=https://s3-fips.us-gov-west-1.amazonaws.com
     ```
 
-### Permanent deletion of objects in S3 compatible storages
+### Permanent deletion of objects in S3 and compatible storages
 
 By default, when using S3 compatible storages, `vmbackup` and `vmbackupmanager` will use the basic delete operation, 
 which will delete current version of the object only.
