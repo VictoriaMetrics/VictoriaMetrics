@@ -25,10 +25,11 @@ type StorageStats struct {
 	// PartitionsCount is the number of partitions in the storage
 	PartitionsCount uint64
 
-	PartitionStats
-
 	// IsReadOnly indicates whether the storage is read-only.
 	IsReadOnly bool
+
+	// PartitionStats contains partition stats.
+	PartitionStats
 }
 
 // Reset resets s.
@@ -51,6 +52,9 @@ type StorageConfig struct {
 	// Log entries with timestamps bigger than now+FutureRetention are ignored.
 	FutureRetention time.Duration
 
+	// MinFreeDiskSpaceBytes is the minimum free disk space at storage path after which the storage stops accepting new data.
+	MinFreeDiskSpaceBytes int64
+
 	// LogNewStreams indicates whether to log newly created log streams.
 	//
 	// This can be useful for debugging of high cardinality issues.
@@ -61,9 +65,6 @@ type StorageConfig struct {
 	//
 	// This can be useful for debugging of data ingestion.
 	LogIngestedRows bool
-
-	// MinFreeDiskSpaceBytes is the minimum free disk space at -storageDataPath after which the storage stops accepting new data
-	MinFreeDiskSpaceBytes int64
 }
 
 // Storage is the storage for log entries.
@@ -84,6 +85,9 @@ type Storage struct {
 
 	// futureRetention is the maximum allowed interval to write data into the future
 	futureRetention time.Duration
+
+	// minFreeDiskSpaceBytes is the minimum free disk space at path after which the storage stops accepting new data
+	minFreeDiskSpaceBytes uint64
 
 	// logNewStreams instructs to log new streams if it is set to true
 	logNewStreams bool
@@ -132,10 +136,6 @@ type Storage struct {
 	//
 	// It reduces the load on persistent storage during querying by _stream:{...} filter.
 	streamFilterCache *workingsetcache.Cache
-
-	isReadOnly uint32
-
-	freeDiskSpaceWatcherWG sync.WaitGroup
 }
 
 type partitionWrapper struct {
@@ -225,6 +225,11 @@ func MustOpenStorage(path string, cfg *StorageConfig) *Storage {
 		futureRetention = 24 * time.Hour
 	}
 
+	var minFreeDiskSpaceBytes uint64
+	if cfg.MinFreeDiskSpaceBytes >= 0 {
+		minFreeDiskSpaceBytes = uint64(cfg.MinFreeDiskSpaceBytes)
+	}
+
 	if !fs.IsPathExist(path) {
 		mustCreateStorage(path)
 	}
@@ -241,14 +246,15 @@ func MustOpenStorage(path string, cfg *StorageConfig) *Storage {
 	streamFilterCache := workingsetcache.New(mem / 10)
 
 	s := &Storage{
-		path:            path,
-		retention:       retention,
-		flushInterval:   flushInterval,
-		futureRetention: futureRetention,
-		logNewStreams:   cfg.LogNewStreams,
-		logIngestedRows: cfg.LogIngestedRows,
-		flockF:          flockF,
-		stopCh:          make(chan struct{}),
+		path:                  path,
+		retention:             retention,
+		flushInterval:         flushInterval,
+		futureRetention:       futureRetention,
+		minFreeDiskSpaceBytes: minFreeDiskSpaceBytes,
+		logNewStreams:         cfg.LogNewStreams,
+		logIngestedRows:       cfg.LogIngestedRows,
+		flockF:                flockF,
+		stopCh:                make(chan struct{}),
 
 		streamIDCache:     streamIDCache,
 		streamTagsCache:   streamTagsCache,
@@ -298,7 +304,6 @@ func MustOpenStorage(path string, cfg *StorageConfig) *Storage {
 
 	s.partitions = ptws
 	s.runRetentionWatcher()
-	s.startFreeDiskSpaceWatcher(uint64(cfg.MinFreeDiskSpaceBytes))
 	return s
 }
 
@@ -368,7 +373,6 @@ func (s *Storage) MustClose() {
 	// Stop background workers
 	close(s.stopCh)
 	s.wg.Wait()
-	s.freeDiskSpaceWatcherWG.Wait()
 
 	// Close partitions
 	for _, pw := range s.partitions {
@@ -401,12 +405,11 @@ func (s *Storage) MustClose() {
 	s.path = ""
 }
 
-// AddRows adds lr to s.
-func (s *Storage) AddRows(lr *LogRows) error {
-	if s.IsReadOnly() {
-		return errReadOnly
-	}
-
+// MustAddRows adds lr to s.
+//
+// It is recommended checking whether the s is in read-only mode by calling IsReadOnly()
+// before calling MustAddRows.
+func (s *Storage) MustAddRows(lr *LogRows) {
 	// Fast path - try adding all the rows to the hot partition
 	s.partitionsLock.Lock()
 	ptwHot := s.ptwHot
@@ -419,7 +422,7 @@ func (s *Storage) AddRows(lr *LogRows) error {
 		if ptwHot.canAddAllRows(lr) {
 			ptwHot.pt.mustAddRows(lr)
 			ptwHot.decRef()
-			return nil
+			return
 		}
 		ptwHot.decRef()
 	}
@@ -463,7 +466,6 @@ func (s *Storage) AddRows(lr *LogRows) error {
 		ptw.decRef()
 		PutLogRows(lrPart)
 	}
-	return nil
 }
 
 var tooSmallTimestampLogger = logger.WithThrottler("too_small_timestamp", 5*time.Second)
@@ -532,44 +534,14 @@ func (s *Storage) UpdateStats(ss *StorageStats) {
 		ptw.pt.updateStats(&ss.PartitionStats)
 	}
 	s.partitionsLock.Unlock()
+
 	ss.IsReadOnly = s.IsReadOnly()
 }
 
-// IsReadOnly returns information is storage in read only mode
+// IsReadOnly returns true if s is in read-only mode.
 func (s *Storage) IsReadOnly() bool {
-	return atomic.LoadUint32(&s.isReadOnly) == 1
-}
-
-func (s *Storage) startFreeDiskSpaceWatcher(freeDiskSpaceLimitBytes uint64) {
-	f := func() {
-		freeSpaceBytes := fs.MustGetFreeSpace(s.path)
-		if freeSpaceBytes < freeDiskSpaceLimitBytes {
-			// Switch the storage to readonly mode if there is no enough free space left at s.path
-			logger.Warnf("switching the storage at %s to read-only mode, since it has less than -storage.minFreeDiskSpaceBytes=%d of free space: %d bytes left",
-				s.path, freeDiskSpaceLimitBytes, freeSpaceBytes)
-			atomic.StoreUint32(&s.isReadOnly, 1)
-			return
-		}
-		if atomic.CompareAndSwapUint32(&s.isReadOnly, 1, 0) {
-			logger.Warnf("enabling writing to the storage at %s, since it has more than -storage.minFreeDiskSpaceBytes=%d of free space: %d bytes left",
-				s.path, freeDiskSpaceLimitBytes, freeSpaceBytes)
-		}
-	}
-	f()
-	s.freeDiskSpaceWatcherWG.Add(1)
-	go func() {
-		defer s.freeDiskSpaceWatcherWG.Done()
-		ticker := time.NewTicker(time.Second)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-s.stopCh:
-				return
-			case <-ticker.C:
-				f()
-			}
-		}
-	}()
+	available := fs.MustGetFreeSpace(s.path)
+	return available < s.minFreeDiskSpaceBytes
 }
 
 func (s *Storage) debugFlush() {

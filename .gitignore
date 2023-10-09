@@ -22,3 +22,13 @@ Gemfile.lock
 /_site
 _site
 *.tmp
+
+# vm binaries
+app/victoria-metrics/victoria-metrics
+app/vmagent/vmagent
+app/vmctl/vmctl
+app/vmalert/vmalert
+
+# vm default data folder
+app/victoria-metrics/victoria-metrics-data/
+app/vmagent/vmagent-remotewrite-data/

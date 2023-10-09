@@ -3,6 +3,7 @@ package vlstorage
 import (
 	"flag"
 	"fmt"
+	"net/http"
 	"sync"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 )
@@ -30,7 +32,8 @@ var (
 		"see https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#stream-fields ; see also -logIngestedRows")
 	logIngestedRows = flag.Bool("logIngestedRows", false, "Whether to log all the ingested log entries; this can be useful for debugging of data ingestion; "+
 		"see https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/ ; see also -logNewStreams")
-	minFreeDiskSpaceBytes = flagutil.NewBytes("storage.minFreeDiskSpaceBytes", 10e6, "The minimum free disk space at -storageDataPath after which the storage stops accepting new data")
+	minFreeDiskSpaceBytes = flagutil.NewBytes("storage.minFreeDiskSpaceBytes", 10e6, "The minimum free disk space at -storageDataPath after which "+
+		"the storage stops accepting new data")
 )
 
 // Init initializes vlstorage.
@@ -77,9 +80,23 @@ func Stop() {
 var strg *logstorage.Storage
 var storageMetrics *metrics.Set
 
-// AddRows adds lr to vlstorage
-func AddRows(lr *logstorage.LogRows) error {
-	return strg.AddRows(lr)
+// CanWriteData returns non-nil error if it cannot write data to vlstorage.
+func CanWriteData() error {
+	if strg.IsReadOnly() {
+		return &httpserver.ErrorWithStatusCode{
+			Err: fmt.Errorf("cannot add rows into storage in read-only mode; the storage can be in read-only mode "+
+				"because of lack of free disk space at -storageDataPath=%s", *storageDataPath),
+			StatusCode: http.StatusTooManyRequests,
+		}
+	}
+	return nil
+}
+
+// MustAddRows adds lr to vlstorage
+//
+// It is advised to call CanWriteData() before calling MustAddRows()
+func MustAddRows(lr *logstorage.LogRows) {
+	strg.MustAddRows(lr)
 }
 
 // RunQuery runs the given q and calls processBlock for the returned data blocks
@@ -114,7 +131,6 @@ func initStorageMetrics(strg *logstorage.Storage) *metrics.Set {
 		if m().IsReadOnly {
 			return 1
 		}
-
 		return 0
 	})
 

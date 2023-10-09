@@ -24,10 +24,10 @@ type blockData struct {
 	// timestampsData contains the encoded timestamps data for the block
 	timestampsData timestampsData
 
-	// columnsData contains packed per-column data.
+	// columnsData contains packed per-column data
 	columnsData []columnData
 
-	// constColumns contains data for const columns across the block.
+	// constColumns contains data for const columns across the block
 	constColumns []Field
 
 	// a is used for storing byte slices for timestamps and columns.
@@ -97,7 +97,7 @@ func (bd *blockData) unmarshalRows(dst *rows, sbu *stringsBlockUnmarshaler, vd *
 	if err := b.InitFromBlockData(bd, sbu, vd); err != nil {
 		return err
 	}
-	b.appendRows(dst)
+	b.appendRowsTo(dst)
 	return nil
 }
 

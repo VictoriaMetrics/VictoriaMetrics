@@ -1,22 +1,23 @@
 import { getFromStorage, saveToStorage } from "../../utils/storage";
 import { getQueryArray } from "../../utils/query-string";
+import { setQueriesToStorage } from "../../pages/CustomPanel/QueryHistory/utils";
 
-export interface QueryHistory {
+export interface QueryHistoryType {
   index: number;
   values: string[];
 }
 
 export interface QueryState {
   query: string[];
-  queryHistory: QueryHistory[];
+  queryHistory: QueryHistoryType[];
   autocomplete: boolean;
 
 }
 
 export type QueryAction =
   | { type: "SET_QUERY", payload: string[] }
-  | { type: "SET_QUERY_HISTORY_BY_INDEX", payload: {value: QueryHistory, queryNumber: number} }
-  | { type: "SET_QUERY_HISTORY", payload: QueryHistory[] }
+  | { type: "SET_QUERY_HISTORY_BY_INDEX", payload: {value: QueryHistoryType, queryNumber: number} }
+  | { type: "SET_QUERY_HISTORY", payload: QueryHistoryType[] }
   | { type: "TOGGLE_AUTOCOMPLETE"}
 
 const query = getQueryArray();
@@ -34,6 +35,7 @@ export function reducer(state: QueryState, action: QueryAction): QueryState {
         query: action.payload.map(q => q)
       };
     case "SET_QUERY_HISTORY":
+      setQueriesToStorage(action.payload);
       return {
         ...state,
         queryHistory: action.payload

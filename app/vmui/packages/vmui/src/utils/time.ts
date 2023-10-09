@@ -30,6 +30,10 @@ const shortDurations = supportedDurations.map(d => d.short);
 
 export const roundToMilliseconds = (num: number): number => Math.round(num*1000)/1000;
 
+export const humanizeSeconds = (num: number): string => {
+  return getDurationFromMilliseconds(dayjs.duration(num, "seconds").asMilliseconds());
+};
+
 export const roundStep = (step: number) => {
   let result = roundToMilliseconds(step);
   const integerStep = Math.round(step);
@@ -46,8 +50,7 @@ export const roundStep = (step: number) => {
   if (step < 1 && step > 0.01) {
     result = Math.round(step * 40) / 40; // float to thousandths multiple of 5
   }
-
-  const humanize = getDurationFromMilliseconds(dayjs.duration(result || 0.001, "seconds").asMilliseconds());
+  const humanize = humanizeSeconds(result || 0.001);
   return humanize.replace(/\s/g, "");
 };
 

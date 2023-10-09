@@ -249,8 +249,12 @@ func TestExecSuccess(t *testing.T) {
 	t.Run("bitmap_and(NaN, 1)", func(t *testing.T) {
 		t.Parallel()
 		q := `bitmap_and(NaN, 1)`
-		var resultExpected []netstorage.Result
-		f(q, resultExpected)
+		f(q, nil)
+	})
+	t.Run("bitmap_and(1, NaN)", func(t *testing.T) {
+		t.Parallel()
+		q := `bitmap_and(1, NaN)`
+		f(q, nil)
 	})
 	t.Run("bitmap_and(round(rand(1) > 0.5, 1), 1)", func(t *testing.T) {
 		t.Parallel()
@@ -288,8 +292,7 @@ func TestExecSuccess(t *testing.T) {
 	t.Run("bitmap_or(NaN, 1)", func(t *testing.T) {
 		t.Parallel()
 		q := `bitmap_or(NaN, 1)`
-		var resultExpected []netstorage.Result
-		f(q, resultExpected)
+		f(q, nil)
 	})
 	t.Run("bitmap_or(round(rand(1) > 0.5, 1), 1)", func(t *testing.T) {
 		t.Parallel()
@@ -327,8 +330,7 @@ func TestExecSuccess(t *testing.T) {
 	t.Run("bitmap_xor(NaN, 1)", func(t *testing.T) {
 		t.Parallel()
 		q := `bitmap_xor(NaN, 1)`
-		var resultExpected []netstorage.Result
-		f(q, resultExpected)
+		f(q, nil)
 	})
 	t.Run("bitmap_xor(round(rand(1) > 0.5, 1), 1)", func(t *testing.T) {
 		t.Parallel()
