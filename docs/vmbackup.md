@@ -276,6 +276,16 @@ You have to add a custom url endpoint via flag:
       -customS3Endpoint=https://s3-fips.us-gov-west-1.amazonaws.com
     ```
 
+### Permanent deletion of objects in S3 compatible storages
+
+By default, when using S3 compatible storages, `vmbackup` and `vmbackupmanager` will use the basic delete operation, 
+which will delete current version of the object only.
+In order to enforce removing all versions of an object when object is deleted, you need to use `-deleteAllObjectVersions` flag.
+Using this flag will enforce listing all versions of an object and deleting them one by one.
+
+Alternatively, it is possible to use object storage lifecycle rules to remove non-current versions of objects automatically.
+Refer to the respective documentation for your object storage provider for more details.
+
 ### Command-line flags
 
 Run `vmbackup -help` in order to see all the available options:
@@ -293,6 +303,8 @@ Run `vmbackup -help` in order to see all the available options:
      See https://cloud.google.com/iam/docs/creating-managing-service-account-keys and https://docs.aws.amazon.com/general/latest/gr/aws-security-credentials.html
   -customS3Endpoint string
      Custom S3 endpoint for use with S3-compatible storages (e.g. MinIO). S3 is used if not set
+  -deleteAllObjectVersions
+     Whether to prune previous object versions when deleting an object. By default, when object storage has versioning enabled deleting the file removes only current version. This option forces removal of all previous versions. See: https://docs.victoriametrics.com/vmbackup.html#permanent-deletion-of-objects-in-s3-compatible-storages
   -dst string
      Where to put the backup on the remote storage. Example: gs://bucket/path/to/backup, s3://bucket/path/to/backup, azblob://container/path/to/backup or fs:///path/to/local/backup/dir
      -dst can point to the previous backup. In this case incremental backup is performed, i.e. only changed data is uploaded

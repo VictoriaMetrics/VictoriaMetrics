@@ -194,15 +194,7 @@ func (fs *FS) ListParts() ([]common.Part, error) {
 // DeletePart deletes part p from fs.
 func (fs *FS) DeletePart(p common.Part) error {
 	path := fs.path(p)
-	input := &s3.DeleteObjectInput{
-		Bucket: aws.String(fs.Bucket),
-		Key:    aws.String(path),
-	}
-	_, err := fs.s3.DeleteObject(context.Background(), input)
-	if err != nil {
-		return fmt.Errorf("cannot delete %q at %s (remote path %q): %w", p.Path, fs, path, err)
-	}
-	return nil
+	return fs.delete(path)
 }
 
 // RemoveEmptyDirs recursively removes empty dirs in fs.
@@ -301,13 +293,50 @@ func (fs *FS) DeleteFile(filePath string) error {
 	}
 
 	path := fs.Dir + filePath
+	return fs.delete(path)
+}
+
+func (fs *FS) delete(path string) error {
+	if *common.DeleteAllObjectVersions {
+		return fs.deleteObjectWithVersions(path)
+	}
+	return fs.deleteObject(path)
+}
+
+// deleteObject deletes object at path.
+// It does not specify a version ID, so it will delete the latest version of the object.
+func (fs *FS) deleteObject(path string) error {
 	input := &s3.DeleteObjectInput{
 		Bucket: aws.String(fs.Bucket),
 		Key:    aws.String(path),
 	}
 	if _, err := fs.s3.DeleteObject(context.Background(), input); err != nil {
-		return fmt.Errorf("cannot delete %q at %s (remote path %q): %w", filePath, fs, path, err)
+		return fmt.Errorf("cannot delete %q at %s: %w", path, fs, err)
 	}
+	return nil
+}
+
+// deleteObjectWithVersions deletes object at path and all its versions.
+func (fs *FS) deleteObjectWithVersions(path string) error {
+	versions, err := fs.s3.ListObjectVersions(context.Background(), &s3.ListObjectVersionsInput{
+		Bucket: aws.String(fs.Bucket),
+		Prefix: aws.String(path),
+	})
+	if err != nil {
+		return fmt.Errorf("cannot list versions for %q at %s: %w", path, fs, err)
+	}
+
+	for _, version := range versions.Versions {
+		input := &s3.DeleteObjectInput{
+			Bucket:    aws.String(fs.Bucket),
+			Key:       version.Key,
+			VersionId: version.VersionId,
+		}
+		if _, err := fs.s3.DeleteObject(context.Background(), input); err != nil {
+			return fmt.Errorf("cannot delete %q at %s: %w", path, fs, err)
+		}
+	}
+
 	return nil
 }
 
