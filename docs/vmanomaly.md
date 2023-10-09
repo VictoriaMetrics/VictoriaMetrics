@@ -206,6 +206,7 @@ vm_license_expires_in_seconds 4.886608e+06
 ```
 
 Example alerts for [vmalert](https://docs.victoriametrics.com/vmalert.html):
+{% raw %}
 ```yaml
 groups:
   - name: vm-license
@@ -229,3 +230,4 @@ groups:
           description: "{{ $labels.instance }} of job {{ $labels.job }} license expires in {{ $value | humanizeDuration }}. 
             Please make sure to update the license before it expires."
 ```
+{% endraw %}
