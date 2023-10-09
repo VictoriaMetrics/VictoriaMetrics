@@ -31,7 +31,6 @@
   },
   "scripts": {
     "prestart": "npm run update-metricsql",
-    "prebuild": "npm run update-metricsql",
     "start": "react-app-rewired start",
     "start:logs": "cross-env REACT_APP_LOGS=true npm run start",
     "build": "GENERATE_SOURCEMAP=false react-app-rewired build",
@@ -39,7 +38,7 @@
     "lint": "eslint src --ext tsx,ts",
     "lint:fix": "eslint src --ext tsx,ts --fix",
     "analyze": "source-map-explorer 'build/static/js/*.js'",
-    "update-metricsql": "cp ../../../../docs/MetricsQL.md src/assets/MetricsQL.md || true"
+    "copy-metricsql-docs": "cp ../../../../docs/MetricsQL.md src/assets/MetricsQL.md || true"
   },
   "eslintConfig": {
     "extends": [
