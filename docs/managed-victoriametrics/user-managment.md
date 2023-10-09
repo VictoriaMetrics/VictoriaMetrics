@@ -200,7 +200,7 @@ You will be redirected to the main page with a success or error message
 
 ## How to resend invitation
 
-If invitation was expired it is possible to resend email to the user
+If the invitation is expired, it is possible to resend email to the user
 
 Click `Resend invitation` button
 
