@@ -199,12 +199,12 @@ func (c *client) GetStreamReader() (*streamReader, error) {
 	err = c.setHeaders(req)
 	if err != nil {
 		cancel()
-		return nil, fmt.Errorf("failed to send request to %s: %s", c.scrapeURL, err)
+		return nil, fmt.Errorf("failed to create request to %q: %s", c.scrapeURL, err)
 	}
 	err = c.setProxyHeaders(req)
 	if err != nil {
 		cancel()
-		return nil, fmt.Errorf("failed to send request to %s: %s", c.scrapeURL, err)
+		return nil, fmt.Errorf("failed to create request to %q: %s", c.scrapeURL, err)
 	}
 	scrapeRequests.Inc()
 	resp, err := c.sc.Do(req)
@@ -254,11 +254,11 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 	req.Header.Set("X-Prometheus-Scrape-Timeout-Seconds", c.scrapeTimeoutSecondsStr)
 	err := c.setFasthttpHeaders(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to send request to %s: %s", c.scrapeURL, err)
+		return nil, fmt.Errorf("failed to create request to %q: %s", c.scrapeURL, err)
 	}
 	err = c.setFasthttpProxyHeaders(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to send request to %s: %s", c.scrapeURL, err)
+		return nil, fmt.Errorf("failed to create request to %q: %s", c.scrapeURL, err)
 	}
 	if !*disableCompression && !c.disableCompression {
 		req.Header.Set("Accept-Encoding", "gzip")

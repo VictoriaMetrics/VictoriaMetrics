@@ -556,8 +556,7 @@ func (opts *Options) NewConfig() (*Config, error) {
 		return nil, err
 	}
 	ac := &Config{
-		TLSRootCA: tctx.rootCA,
-
+		TLSRootCA:             tctx.rootCA,
 		TLSServerName:         tctx.serverName,
 		TLSInsecureSkipVerify: tctx.insecureSkipVerify,
 		TLSMinVersion:         tctx.minVersion,

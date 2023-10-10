@@ -492,7 +492,7 @@ func (cfg *Config) parseData(data []byte, path string) ([]byte, error) {
 		swc, err := getScrapeWorkConfig(sc, cfg.baseDir, &cfg.Global)
 		if err != nil {
 			// print error and skip invalid scrape config
-			logger.Errorf("cannot parse `scrape_config` for job %s, skip it: %w", sc.JobName, err)
+			logger.Errorf("cannot parse `scrape_config` for job %q, skip it: %w", sc.JobName, err)
 			continue
 		}
 		sc.swc = swc

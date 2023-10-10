@@ -408,7 +408,7 @@ func (sg *scraperGroup) update(sws []*ScrapeWork) {
 		sc, err := newScraper(sw, sg.name, sg.pushData)
 		if err != nil {
 			// print error and skip invalid scraper config
-			logger.Errorf("cannot create scraper to %s in job %s, will skip it: %w", sw.ScrapeURL, sg.name, err)
+			logger.Errorf("cannot create scraper to %q in job %q, will skip it: %w", sw.ScrapeURL, sg.name, err)
 			continue
 		}
 		sg.activeScrapers.Inc()
