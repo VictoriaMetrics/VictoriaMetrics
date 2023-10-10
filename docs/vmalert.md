@@ -148,6 +148,7 @@ name: <string>
 # By default, it's enabled to get more predictable results 
 # and to visually align with results plotted via Grafana or vmui.
 # See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5049 
+# Available starting from v1.95
 [ eval_alignment: <bool> | default true]
 
 # Optional list of HTTP URL parameters
