@@ -46,7 +46,7 @@ Install the Helm chart in a custom namespace
    ```
    </div>
    You can find your access token on the "Access" tab of your deployment
-   <img src="how-to-monitor-k8s_access-token.png" width="800">
+   <img src="kubernetes_monitoring.png" width="800">
 1. Set up a Helm repository using the following commands:
    <div class="with-copy" markdown="1">
    ```bash
