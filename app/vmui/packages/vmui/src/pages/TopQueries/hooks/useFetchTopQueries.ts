@@ -1,15 +1,46 @@
-import { ErrorTypes } from "../../../types";
+import { ErrorTypes, TopQuery } from "../../../types";
 import { useAppState } from "../../../state/common/StateContext";
 import { useMemo, useState } from "preact/compat";
 import { getTopQueries } from "../../../api/top-queries";
 import { TopQueriesData } from "../../../types";
-import { getDurationFromMilliseconds } from "../../../utils/time";
+import { getDurationFromMilliseconds, relativeTimeOptions } from "../../../utils/time";
 import useSearchParamsFromObject from "../../../hooks/useSearchParamsFromObject";
+import router from "../../../router";
 
 interface useFetchTopQueriesProps {
   topN: number;
   maxLifetime: string;
 }
+
+const getQueryUrl = (row: TopQuery, timeRange: string) => {
+  const { query, timeRangeSeconds } = row;
+  const params = [`g0.expr=${encodeURIComponent(query)}`];
+  const relativeTimeId = relativeTimeOptions.find(t => t.duration === timeRange)?.id;
+  if (relativeTimeId) {
+    params.push(`g0.relative_time=${relativeTimeId}`);
+  }
+  if (timeRangeSeconds) {
+    params.push(`g0.range_input=${timeRange}`);
+  }
+  return `${router.home}?${params.join("&")}`;
+};
+
+const processResponse = (data: TopQueriesData) => {
+  const list = ["topByAvgDuration", "topByCount", "topBySumDuration"] as (keyof TopQueriesData)[];
+
+  list.forEach(key => {
+    const target = data[key] as TopQuery[];
+    if (!Array.isArray(target)) return;
+
+    target.forEach(t => {
+      const timeRange = getDurationFromMilliseconds(t.timeRangeSeconds*1000);
+      t.url = getQueryUrl(t, timeRange);
+      t.timeRange = timeRange;
+    });
+  });
+
+  return data;
+};
 
 export const useFetchTopQueries = ({ topN, maxLifetime }: useFetchTopQueriesProps) => {
   const { serverUrl } = useAppState();
@@ -27,17 +58,7 @@ export const useFetchTopQueries = ({ topN, maxLifetime }: useFetchTopQueriesProp
     try {
       const response = await fetch(fetchUrl);
       const resp = await response.json();
-      if (response.ok) {
-        const list = ["topByAvgDuration", "topByCount", "topBySumDuration"] as (keyof TopQueriesData)[];
-        list.forEach(key => {
-          const target = resp[key];
-          if (Array.isArray(target)) {
-            target.forEach(t => t.timeRange = getDurationFromMilliseconds(t.timeRangeSeconds*1000));
-          }
-        });
-      }
-
-      setData(response.ok ? resp : null);
+      setData(response.ok ? processResponse(resp) : null);
       setError(String(resp.error || ""));
     } catch (e) {
       if (e instanceof Error && e.name !== "AbortError") {
