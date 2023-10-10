@@ -44,7 +44,6 @@ type QuerierBuilder interface {
 type QuerierParams struct {
 	DataSourceType     string
 	EvaluationInterval time.Duration
-	EvalOffset         *time.Duration
 	QueryParams        url.Values
 	Headers            map[string]string
 	Debug              bool

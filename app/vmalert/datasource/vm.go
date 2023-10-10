@@ -39,14 +39,8 @@ type VMStorage struct {
 	queryStep        time.Duration
 	dataSourceType   datasourceType
 
-	// evaluationInterval will align the request's timestamp
-	// if `datasource.queryTimeAlignment` is enabled,
-	// will set request's `step` param as well.
+	// evaluationInterval will help setting request's `step` param.
 	evaluationInterval time.Duration
-	// evaluationOffset shifts the request's timestamp, will be equal
-	// to the offset specified evaluationInterval.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4693
-	evaluationOffset *time.Duration
 	// extraParams contains params to be attached to each HTTP request
 	extraParams url.Values
 	// extraHeaders are headers to be attached to each HTTP request
@@ -95,7 +89,6 @@ func (s *VMStorage) Clone() *VMStorage {
 func (s *VMStorage) ApplyParams(params QuerierParams) *VMStorage {
 	s.dataSourceType = toDatasourceType(params.DataSourceType)
 	s.evaluationInterval = params.EvaluationInterval
-	s.evaluationOffset = params.EvalOffset
 	if params.QueryParams != nil {
 		if s.extraParams == nil {
 			s.extraParams = url.Values{}

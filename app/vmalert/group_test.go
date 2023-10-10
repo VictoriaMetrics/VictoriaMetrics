@@ -533,11 +533,11 @@ func TestGroupStartDelay(t *testing.T) {
 
 	f := func(atS, expS string) {
 		t.Helper()
-		at, err := time.Parse(time.DateTime, atS)
+		at, err := time.Parse(time.RFC3339Nano, atS)
 		if err != nil {
 			t.Fatal(err)
 		}
-		expTS, err := time.Parse(time.DateTime, expS)
+		expTS, err := time.Parse(time.RFC3339Nano, expS)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -549,37 +549,91 @@ func TestGroupStartDelay(t *testing.T) {
 	}
 
 	// test group without offset
-	f("2023-01-01 00:00:00", "2023-01-01 00:00:30")
-	f("2023-01-01 00:00:29", "2023-01-01 00:00:30")
-	f("2023-01-01 00:00:31", "2023-01-01 00:05:30")
+	f("2023-01-01T00:00:00.000+00:00", "2023-01-01T00:00:30.000+00:00")
+	f("2023-01-01T00:00:00.999+00:00", "2023-01-01T00:00:30.000+00:00")
+	f("2023-01-01T00:00:29.000+00:00", "2023-01-01T00:00:30.000+00:00")
+	f("2023-01-01T00:00:31.000+00:00", "2023-01-01T00:05:30.000+00:00")
 
 	// test group with offset smaller than above fixed randSleep,
 	// this way randSleep will always be enough
 	offset := 20 * time.Second
 	g.EvalOffset = &offset
 
-	f("2023-01-01 00:00:00", "2023-01-01 00:00:30")
-	f("2023-01-01 00:00:29", "2023-01-01 00:00:30")
-	f("2023-01-01 00:00:31", "2023-01-01 00:05:30")
+	f("2023-01-01T00:00:00.000+00:00", "2023-01-01T00:00:30.000+00:00")
+	f("2023-01-01T00:00:29.000+00:00", "2023-01-01T00:00:30.000+00:00")
+	f("2023-01-01T00:00:31.000+00:00", "2023-01-01T00:05:30.000+00:00")
 
 	// test group with offset bigger than above fixed randSleep,
 	// this way offset will be added to delay
 	offset = 3 * time.Minute
 	g.EvalOffset = &offset
 
-	f("2023-01-01 00:00:00", "2023-01-01 00:03:30")
-	f("2023-01-01 00:00:29", "2023-01-01 00:03:30")
-	f("2023-01-01 00:01:00", "2023-01-01 00:08:30")
-	f("2023-01-01 00:03:30", "2023-01-01 00:08:30")
-	f("2023-01-01 00:07:30", "2023-01-01 00:13:30")
+	f("2023-01-01T00:00:00.000+00:00", "2023-01-01T00:03:30.000+00:00")
+	f("2023-01-01T00:00:29.000+00:00", "2023-01-01T00:03:30.000+00:00")
+	f("2023-01-01T00:01:00.000+00:00", "2023-01-01T00:08:30.000+00:00")
+	f("2023-01-01T00:03:30.000+00:00", "2023-01-01T00:08:30.000+00:00")
+	f("2023-01-01T00:07:30.000+00:00", "2023-01-01T00:13:30.000+00:00")
 
 	offset = 10 * time.Minute
 	g.EvalOffset = &offset
 	// interval of 1h and key generate a static delay of 6m
 	g.Interval = time.Hour
 
-	f("2023-01-01 00:00:00", "2023-01-01 00:16:00")
-	f("2023-01-01 00:05:00", "2023-01-01 00:16:00")
-	f("2023-01-01 00:30:00", "2023-01-01 01:16:00")
+	f("2023-01-01T00:00:00.000+00:00", "2023-01-01T00:16:00.000+00:00")
+	f("2023-01-01T00:05:00.000+00:00", "2023-01-01T00:16:00.000+00:00")
+	f("2023-01-01T00:30:00.000+00:00", "2023-01-01T01:16:00.000+00:00")
+}
 
+func TestGetPrometheusReqTimestamp(t *testing.T) {
+	offset := 30 * time.Minute
+	disableAlign := false
+	testCases := []struct {
+		name            string
+		g               *Group
+		originTS, expTS string
+	}{
+		{
+			"with query align",
+			&Group{
+				Interval: time.Hour,
+			},
+			"2023-08-28T11:11:00+00:00",
+			"2023-08-28T11:00:00+00:00",
+		},
+		{
+			"without query align",
+			&Group{
+				Interval:      time.Hour,
+				evalAlignment: &disableAlign,
+			},
+			"2023-08-28T11:11:00+00:00",
+			"2023-08-28T11:11:00+00:00",
+		},
+		{
+			"with eval_offset, find previous offset point",
+			&Group{
+				EvalOffset: &offset,
+				Interval:   time.Hour,
+			},
+			"2023-08-28T11:11:00+00:00",
+			"2023-08-28T10:30:00+00:00",
+		},
+		{
+			"with eval_offset",
+			&Group{
+				EvalOffset: &offset,
+				Interval:   time.Hour,
+			},
+			"2023-08-28T11:41:00+00:00",
+			"2023-08-28T11:30:00+00:00",
+		},
+	}
+	for _, tc := range testCases {
+		originT, _ := time.Parse(time.RFC3339, tc.originTS)
+		expT, _ := time.Parse(time.RFC3339, tc.expTS)
+		gotTS := tc.g.adjustReqTimestamp(originT)
+		if !gotTS.Equal(expT) {
+			t.Fatalf("get wrong prometheus request timestamp, expect %s, got %s", expT, gotTS)
+		}
+	}
 }
