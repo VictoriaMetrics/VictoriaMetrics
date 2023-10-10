@@ -12,7 +12,7 @@ aliases:
 
 # vmanomaly
 
-**_vmanomaly is a part of [enterprise package](https://docs.victoriametrics.com/enterprise.html).
+**_vmanomaly is a part of [enterprise package](https://docs.victoriametrics.com/enterprise.html). You need to request a [free trial license](https://victoriametrics.com/products/enterprise/trial/) for evaluation.
 Please [contact us](https://victoriametrics.com/contact-us/) to find out more._**
 
 ## About
@@ -206,6 +206,7 @@ vm_license_expires_in_seconds 4.886608e+06
 ```
 
 Example alerts for [vmalert](https://docs.victoriametrics.com/vmalert.html):
+{% raw %}
 ```yaml
 groups:
   - name: vm-license
@@ -229,3 +230,4 @@ groups:
           description: "{{ $labels.instance }} of job {{ $labels.job }} license expires in {{ $value | humanizeDuration }}. 
             Please make sure to update the license before it expires."
 ```
+{% endraw %}

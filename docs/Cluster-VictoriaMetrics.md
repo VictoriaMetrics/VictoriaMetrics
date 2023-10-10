@@ -278,7 +278,7 @@ When `vmselect` runs with `-clusternativeListenAddr` command-line option, then i
 
 See [these docs](https://gist.github.com/f41gh7/76ed8e5fb1ebb9737fe746bae9175ee6) on how to set up mTLS in VictoriaMetrics cluster.
 
-[Enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/enterprise.html) can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
+[Enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/enterprise.html) can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases). You need to request a [free trial license](https://victoriametrics.com/products/enterprise/trial/) for evaluation.
 
 ## Monitoring
 
@@ -731,13 +731,13 @@ For example, the following config sets retention to 5 days for time series with 
 
 See also [these docs](https://docs.victoriametrics.com/#retention-filters) for additional details on retention filters.
 
-Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
+Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases). . You need to request a [free trial license](https://victoriametrics.com/products/enterprise/trial/) for evaluation.
 
 ## Downsampling
 
 Downsampling is available in [enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/enterprise.html). It is configured with `-downsampling.period` command-line flag. The same flag value must be passed to both `vmstorage` and `vmselect` nodes. See [these docs](https://docs.victoriametrics.com/#downsampling) for details.
 
-Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
+Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases). . You need to request a [free trial license](https://victoriametrics.com/products/enterprise/trial/) for evaluation.
 
 ## Profiling
 

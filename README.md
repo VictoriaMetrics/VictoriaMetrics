@@ -30,6 +30,7 @@ If you have questions about VictoriaMetrics, then feel free asking them at [Vict
 See [features available in enterprise package](https://docs.victoriametrics.com/enterprise.html).
 Enterprise binaries can be downloaded and evaluated for free 
 from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
+See how to request a free trial license [here](https://victoriametrics.com/products/enterprise/trial/).
 
 VictoriaMetrics is developed at a fast pace, so it is recommended periodically checking the [CHANGELOG](https://docs.victoriametrics.com/CHANGELOG.html) and performing [regular upgrades](#how-to-upgrade-victoriametrics).
 

@@ -16,7 +16,7 @@ var (
 	addr = flag.String("datasource.url", "", "Datasource compatible with Prometheus HTTP API. It can be single node VictoriaMetrics or vmselect URL. Required parameter. "+
 		"E.g. http://127.0.0.1:8428 . See also -remoteRead.disablePathAppend and -datasource.showURL")
 	appendTypePrefix  = flag.Bool("datasource.appendTypePrefix", false, "Whether to add type prefix to -datasource.url based on the query type. Set to true if sending different query types to the vmselect URL.")
-	showDatasourceURL = flag.Bool("datasource.showURL", false, "Whether to show -datasource.url in the exported metrics. "+
+	showDatasourceURL = flag.Bool("datasource.showURL", false, "Whether to avoid stripping sensitive information such as auth headers or passwords from URLs in log messages or UI and exported metrics. "+
 		"It is hidden by default, since it can contain sensitive info such as auth key")
 
 	headers = flag.String("datasource.headers", "", "Optional HTTP extraHeaders to send with each request to the corresponding -datasource.url. "+
@@ -60,6 +60,11 @@ func InitSecretFlags() {
 	if !*showDatasourceURL {
 		flagutil.RegisterSecretFlag("datasource.url")
 	}
+}
+
+// ShowDatasourceURL whether to show -datasource.url with sensitive information
+func ShowDatasourceURL() bool {
+	return *showDatasourceURL
 }
 
 // Param represents an HTTP GET param

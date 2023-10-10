@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -17,7 +18,7 @@ import (
 // AlertManager represents integration provider with Prometheus alert manager
 // https://github.com/prometheus/alertmanager
 type AlertManager struct {
-	addr    string
+	addr    *url.URL
 	argFunc AlertURLGenerator
 	client  *http.Client
 	timeout time.Duration
@@ -48,7 +49,12 @@ func (am *AlertManager) Close() {
 }
 
 // Addr returns address where alerts are sent.
-func (am AlertManager) Addr() string { return am.addr }
+func (am AlertManager) Addr() string {
+	if *showNotifierURL {
+		return am.addr.String()
+	}
+	return am.addr.Redacted()
+}
 
 // Send an alert or resolve message
 func (am *AlertManager) Send(ctx context.Context, alerts []Alert, headers map[string]string) error {
@@ -64,7 +70,7 @@ func (am *AlertManager) send(ctx context.Context, alerts []Alert, headers map[st
 	b := &bytes.Buffer{}
 	writeamRequest(b, alerts, am.argFunc, am.relabelConfigs)
 
-	req, err := http.NewRequest(http.MethodPost, am.addr, b)
+	req, err := http.NewRequest(http.MethodPost, am.addr.String(), b)
 	if err != nil {
 		return err
 	}
@@ -91,12 +97,16 @@ func (am *AlertManager) send(ctx context.Context, alerts []Alert, headers map[st
 
 	defer func() { _ = resp.Body.Close() }()
 
+	amURL := am.addr.Redacted()
+	if *showNotifierURL {
+		amURL = am.addr.String()
+	}
 	if resp.StatusCode != http.StatusOK {
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
-			return fmt.Errorf("failed to read response from %q: %w", am.addr, err)
+			return fmt.Errorf("failed to read response from %q: %w", amURL, err)
 		}
-		return fmt.Errorf("invalid SC %d from %q; response body: %s", resp.StatusCode, am.addr, string(body))
+		return fmt.Errorf("invalid SC %d from %q; response body: %s", resp.StatusCode, amURL, string(body))
 	}
 	return nil
 }
@@ -136,8 +146,15 @@ func NewAlertManager(alertManagerURL string, fn AlertURLGenerator, authCfg proma
 		return nil, fmt.Errorf("failed to configure auth: %w", err)
 	}
 
+	amURL, err := url.Parse(alertManagerURL)
+	if err != nil {
+		return nil, fmt.Errorf("provided incorrect notifier url: %w", err)
+	}
+	if !*showNotifierURL {
+		alertManagerURL = amURL.Redacted()
+	}
 	return &AlertManager{
-		addr:           alertManagerURL,
+		addr:           amURL,
 		argFunc:        fn,
 		authCfg:        aCfg,
 		relabelConfigs: relabelCfg,

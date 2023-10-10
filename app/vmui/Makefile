@@ -1,9 +1,12 @@
 # All these commands must run from repository root.
 
+copy-metricsql-docs:
+	cp docs/MetricsQL.md app/vmui/packages/vmui/src/assets/MetricsQL.md
+
 vmui-package-base-image:
 	docker build -t vmui-builder-image -f app/vmui/Dockerfile-build ./app/vmui
 
-vmui-build: vmui-package-base-image
+vmui-build: copy-metricsql-docs vmui-package-base-image
 	docker run --rm \
 		--user $(shell id -u):$(shell id -g) \
 		--mount type=bind,src="$(shell pwd)/app/vmui",dst=/build \

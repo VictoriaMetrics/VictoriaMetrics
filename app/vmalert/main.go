@@ -101,6 +101,7 @@ func main() {
 	remoteread.InitSecretFlags()
 	remotewrite.InitSecretFlags()
 	datasource.InitSecretFlags()
+	notifier.InitSecretFlags()
 	buildinfo.Init()
 	logger.Init()
 	pushmetrics.Init()

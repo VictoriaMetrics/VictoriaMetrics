@@ -258,6 +258,7 @@ Please, refer to monitoring section of each component for details on how to scra
 `vm_license_expires_in_seconds` is the amount of seconds until the license expires.
 
 Example alerts for [vmalert](https://docs.victoriametrics.com/vmalert.html):
+{% raw %}
 ```yaml
 groups:
   - name: vm-license
@@ -281,3 +282,4 @@ groups:
           description: "{{ $labels.instance }} of job {{ $labels.job }} license expires in {{ $value | humanizeDuration }}. 
             Please make sure to update the license before it expires."
 ```
+{% endraw %}
