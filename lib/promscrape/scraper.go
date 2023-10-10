@@ -405,7 +405,12 @@ func (sg *scraperGroup) update(sws []*ScrapeWork) {
 
 	// Start new scrapers only after the deleted scrapers are stopped.
 	for _, sw := range swsToStart {
-		sc := newScraper(sw, sg.name, sg.pushData)
+		sc, err := newScraper(sw, sg.name, sg.pushData)
+		if err != nil {
+			// print error and skip invalid scraper config
+			logger.Errorf("cannot create scraper to %s in job %s, will skip it: %w", sw.ScrapeURL, sg.name, err)
+			continue
+		}
 		sg.activeScrapers.Inc()
 		sg.scrapersStarted.Inc()
 		sg.wg.Add(1)
@@ -441,18 +446,21 @@ type scraper struct {
 	stoppedCh chan struct{}
 }
 
-func newScraper(sw *ScrapeWork, group string, pushData func(at *auth.Token, wr *prompbmarshal.WriteRequest)) *scraper {
+func newScraper(sw *ScrapeWork, group string, pushData func(at *auth.Token, wr *prompbmarshal.WriteRequest)) (*scraper, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	sc := &scraper{
 		ctx:       ctx,
 		cancel:    cancel,
 		stoppedCh: make(chan struct{}),
 	}
-	c := newClient(ctx, sw)
+	c, err := newClient(ctx, sw)
+	if err != nil {
+		return &scraper{}, err
+	}
 	sc.sw.Config = sw
 	sc.sw.ScrapeGroup = group
 	sc.sw.ReadData = c.ReadData
 	sc.sw.GetStreamReader = c.GetStreamReader
 	sc.sw.PushData = pushData
-	return sc
+	return sc, nil
 }
