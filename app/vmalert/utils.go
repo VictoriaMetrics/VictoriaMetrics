@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 )
 
@@ -80,6 +81,9 @@ func requestToCurl(req *http.Request) string {
 
 	schema := req.URL.Scheme
 	requestURL := req.URL.String()
+	if !datasource.ShowDatasourceURL() {
+		requestURL = req.URL.Redacted()
+	}
 	if schema == "" {
 		schema = "http"
 		if req.TLS != nil {
@@ -103,9 +107,25 @@ func requestToCurl(req *http.Request) string {
 
 	for _, k := range keys {
 		cw.add("-H")
+		if !datasource.ShowDatasourceURL() && isSecreteHeader(k) {
+			cw.addWithEsc(fmt.Sprintf("%s: <secret>", k))
+			continue
+		}
 		cw.addWithEsc(fmt.Sprintf("%s: %s", k, strings.Join(req.Header[k], " ")))
 	}
 
 	cw.addWithEsc(requestURL)
 	return cw.string()
+}
+
+var secretWords = []string{"auth", "pass", "key", "secret", "token"}
+
+func isSecreteHeader(str string) bool {
+	s := strings.ToLower(str)
+	for _, secret := range secretWords {
+		if strings.Contains(s, secret) {
+			return true
+		}
+	}
+	return false
 }

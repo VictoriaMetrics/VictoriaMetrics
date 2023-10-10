@@ -820,7 +820,8 @@ and check the `Last updates` section:
 Rows in the section represent ordered rule evaluations and their results. The column `curl` contains an example of
 HTTP request sent by vmalert to the `-datasource.url` during evaluation. If specific state shows that there were
 no samples returned and curl command returns data - then it is very likely there was no data in datasource on the
-moment when rule was evaluated.
+moment when rule was evaluated. Sensitive info is stripped from the `curl` examples - see [security](#security) section
+for more details.
 
 ### Debug mode
 
@@ -835,6 +836,8 @@ Just set `debug: true` in rule's configuration and vmalert will start printing a
 ...
 2022-09-15T13:36:56.153Z  DEBUG rule "TestGroup":"Conns" (2601299393013563564) at 2022-09-15T15:36:56+02:00: alert 10705778000901301787 {alertgroup="TestGroup",alertname="Conns",cluster="east-1",instance="localhost:8429",replica="a"} PENDING => FIRING: 1m0s since becoming active at 2022-09-15 15:35:56.126006 +0200 CEST m=+39.384575417
 ```
+
+Sensitive info is stripped from the `curl` examples - see [security](#security) section for more details.
 
 ### Never-firing alerts
 
@@ -878,6 +881,20 @@ foo{bar="baz"} 2 # 'bar' label was overriden by `-external.label=bar=baz
 
 The same issue can be caused by collision of configured `labels` on [Group](#groups) or [Rule](#rules) levels.
 To fix it one should avoid collisions by carefully picking label overrides in configuration.
+
+
+## Security
+
+See general recommendations regarding security [here](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#security).
+
+vmalert [web UI](#web) exposes configuration details such as list of [Groups](#groups), active alerts, 
+[alerts state](#alerts-state), [notifiers](#notifier-configuration-file). Notifier addresses (sanitized) are attached
+as labels to metrics `vmalert_alerts_sent_.*` on `http://<vmalert>/metrics` page. Consider limiting user's access 
+to the web UI or `/metrics` page if this information is sensitive.
+
+[Alerts state](#alerts-state) page or [debug mode](#debug-mode) could emit additional information about configured
+datasource URL, GET params and headers. Sensitive information such as passwords or auth tokens is stripped by default.
+To disable stripping of such info pass `-datasource.showURL` cmd-line flag to vmalert.
 
 
 ## Profiling
@@ -962,7 +979,8 @@ The shortlist of configuration flags is the following:
   -datasource.roundDigits int
      Adds "round_digits" GET param to datasource requests. In VM "round_digits" limits the number of digits after the decimal point in response values.
   -datasource.showURL
-     Whether to show -datasource.url in the exported metrics. It is hidden by default, since it can contain sensitive info such as auth key
+     Whether to avoid stripping sensitive information such as auth headers or passwords from URLs in log messages or UI and exported metrics.
+     It is hidden by default, since it can contain sensitive info such as auth key.
   -datasource.tlsCAFile string
      Optional path to TLS CA file to use for verifying connections to -datasource.url. By default, system CA is used
   -datasource.tlsCertFile string
@@ -982,7 +1000,7 @@ The shortlist of configuration flags is the following:
   -disableAlertgroupLabel
      Whether to disable adding group's Name as label to generated alerts and time series.
   -dryRun
-     Whether to check only config files without running vmalert. The rules file are validated. The -rule flag must be specified.
+     Whether to check only config files without running vmalert. The rules file are validated. The -rule flag must be specified.   
   -enableTCP6
      Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP are used
   -envflag.enable
@@ -1111,6 +1129,9 @@ The shortlist of configuration flags is the following:
   -notifier.url array
      Prometheus Alertmanager URL, e.g. http://127.0.0.1:9093. List all Alertmanager URLs if it runs in the cluster mode to ensure high availability.
      Supports an array of values separated by comma or specified via multiple flags.
+  -notifier.showURL bool
+     Whether to avoid stripping sensitive information such as passwords from URLs in log messages or UI for -notifier.url.
+     It is hidden by default, since it can contain sensitive info such as auth key.
   -notifier.blackhole bool
      Whether to blackhole alerting notifications. Enable this flag if you want vmalert to evaluate alerting rules without sending any notifications to external receivers (eg. alertmanager). `-notifier.url`, `-notifier.config` and `-notifier.blackhole` are mutually exclusive.
   -pprofAuthKey string
