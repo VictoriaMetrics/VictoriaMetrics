@@ -88,6 +88,7 @@ export interface TopQuery {
   timeRangeSeconds: number
   sumDurationSeconds: number
   timeRange: string
+  url?: string
 }
 
 export interface TopQueryStats {
@@ -95,12 +96,13 @@ export interface TopQueryStats {
   "search.queryStats.minQueryDuration": string
 }
 
-export interface TopQueriesData extends TopQueryStats{
+export interface TopQueriesData extends TopQueryStats {
   maxLifetime: string
   topN: string
   topByAvgDuration: TopQuery[]
   topByCount: TopQuery[]
   topBySumDuration: TopQuery[]
+  error?: string
 }
 
 export interface SeriesLimits {
