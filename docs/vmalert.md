@@ -831,7 +831,8 @@ and check the `Last updates` section:
 Rows in the section represent ordered rule evaluations and their results. The column `curl` contains an example of
 HTTP request sent by vmalert to the `-datasource.url` during evaluation. If specific state shows that there were
 no samples returned and curl command returns data - then it is very likely there was no data in datasource on the
-moment when rule was evaluated.
+moment when rule was evaluated. Sensitive info is stripped from the `curl` examples - see [security](#security) section
+for more details.
 
 ### Debug mode
 
@@ -846,6 +847,8 @@ Just set `debug: true` in rule's configuration and vmalert will start printing a
 ...
 2022-09-15T13:36:56.153Z  DEBUG rule "TestGroup":"Conns" (2601299393013563564) at 2022-09-15T15:36:56+02:00: alert 10705778000901301787 {alertgroup="TestGroup",alertname="Conns",cluster="east-1",instance="localhost:8429",replica="a"} PENDING => FIRING: 1m0s since becoming active at 2022-09-15 15:35:56.126006 +0200 CEST m=+39.384575417
 ```
+
+Sensitive info is stripped from the `curl` examples - see [security](#security) section for more details.
 
 ### Never-firing alerts
 
@@ -896,12 +899,13 @@ To fix it one should avoid collisions by carefully picking label overrides in co
 See general recommendations regarding security [here](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#security).
 
 vmalert [web UI](#web) exposes configuration details such as list of [Groups](#groups), active alerts, 
-[alerts state](#alerts-state), [notifiers](#notifier-configuration-file). Consider limiting user's access to the web UI
-is this information is sensitive.
+[alerts state](#alerts-state), [notifiers](#notifier-configuration-file). Notifier addresses (sanitized) are attached
+as labels to metrics `vmalert_alerts_sent_.*` on `http://<vmalert>/metrics` page. Consider limiting user's access 
+to the web UI or `/metrics` page if this information is sensitive.
 
 [Alerts state](#alerts-state) page or [debug mode](#debug-mode) could emit additional information about configured
 datasource URL, GET params and headers. Sensitive information such as passwords or auth tokens is stripped by default.
-To disable stripping such info pass `-datasource.showURL` cmd-line flag to vmalert.
+To disable stripping of such info pass `-datasource.showURL` cmd-line flag to vmalert.
 
 
 ## Profiling
