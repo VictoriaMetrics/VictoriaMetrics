@@ -1027,6 +1027,7 @@ See also [troubleshooting docs](https://docs.victoriametrics.com/Troubleshooting
 
 The enterprise version of vmagent is available for evaluation at [releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) page
 in `vmutils-...-enterprise.tar.gz` archives and in [docker images](https://hub.docker.com/r/victoriametrics/vmagent/tags) with tags containing `enterprise` suffix.
+See how to request a free trial license [here](https://victoriametrics.com/products/enterprise/trial/).
 
 ### Reading metrics from Kafka
 
