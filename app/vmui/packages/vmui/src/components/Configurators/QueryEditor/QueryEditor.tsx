@@ -2,10 +2,11 @@ import React, { FC, useRef, useState } from "preact/compat";
 import { KeyboardEvent } from "react";
 import { ErrorTypes } from "../../../types";
 import TextField from "../../Main/TextField/TextField";
-import Autocomplete from "../../Main/Autocomplete/Autocomplete";
+import QueryEditorAutocomplete from "./QueryEditorAutocomplete";
 import "./style.scss";
 import { QueryStats } from "../../../api/types";
 import { partialWarning, seriesFetchedWarning } from "./warningText";
+import { AutocompleteOptions } from "../../Main/Autocomplete/Autocomplete";
 
 export interface QueryEditorProps {
   onChange: (query: string) => void;
@@ -17,7 +18,6 @@ export interface QueryEditorProps {
   autocomplete: boolean;
   error?: ErrorTypes | string;
   stats?: QueryStats;
-  options: string[];
   label: string;
   disabled?: boolean
 }
@@ -31,13 +31,13 @@ const QueryEditor: FC<QueryEditorProps> = ({
   autocomplete,
   error,
   stats,
-  options,
   label,
   disabled = false
 }) => {
 
   const [openAutocomplete, setOpenAutocomplete] = useState(false);
-  const autocompleteAnchorEl = useRef<HTMLDivElement>(null);
+  const [caretPosition, setCaretPosition] = useState([0, 0]);
+  const autocompleteAnchorEl = useRef<HTMLInputElement>(null);
 
   const warning = [
     {
@@ -88,37 +88,43 @@ const QueryEditor: FC<QueryEditorProps> = ({
     }
   };
 
-  const handleChangeFoundOptions = (val: string[]) => {
+  const handleChangeFoundOptions = (val: AutocompleteOptions[]) => {
     setOpenAutocomplete(!!val.length);
   };
 
-  return <div
-    className="vm-query-editor"
-    ref={autocompleteAnchorEl}
-  >
-    <TextField
-      value={value}
-      label={label}
-      type={"textarea"}
-      autofocus={!!value}
-      error={error}
-      warning={warning}
-      onKeyDown={handleKeyDown}
-      onChange={onChange}
-      disabled={disabled}
-      inputmode={"search"}
-    />
-    {autocomplete && (
-      <Autocomplete
-        disabledFullScreen
+  const handleChangeCaret = (val: number[]) => {
+    setCaretPosition(val);
+  };
+
+  return (
+    <div
+      className="vm-query-editor"
+      ref={autocompleteAnchorEl}
+    >
+      <TextField
         value={value}
-        options={options}
-        anchor={autocompleteAnchorEl}
-        onSelect={handleSelect}
-        onFoundOptions={handleChangeFoundOptions}
+        label={label}
+        type={"textarea"}
+        autofocus={!!value}
+        error={error}
+        warning={warning}
+        onKeyDown={handleKeyDown}
+        onChange={onChange}
+        onChangeCaret={handleChangeCaret}
+        disabled={disabled}
+        inputmode={"search"}
       />
-    )}
-  </div>;
+      {autocomplete && (
+        <QueryEditorAutocomplete
+          value={value}
+          anchorEl={autocompleteAnchorEl}
+          caretPosition={caretPosition}
+          onSelect={handleSelect}
+          onFoundOptions={handleChangeFoundOptions}
+        />
+      )}
+    </div>
+  );
 };
 
 export default QueryEditor;
