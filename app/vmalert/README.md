@@ -132,10 +132,11 @@ name: <string>
 [ type: <string> ]
 
 # Optional
-# The timestamp of group query request will be aligned with interval, instead of
-# using the real one that evaluation happens at.
-# By default it's enabled to get more predictable results and similar with grafana
-# when plotting time series.
+# The evaluation timestamp will be aligned with group's interval, 
+# instead of using the actual timestamp that evaluation happens at.
+# By default, it's enabled to get more predictable results 
+# and to visually align with results plotted via Grafana or vmui.
+# See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5049 
 [ eval_alignment: <bool> | default true]
 
 # Optional list of HTTP URL parameters
