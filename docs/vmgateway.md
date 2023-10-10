@@ -11,7 +11,9 @@ aliases:
 ---
 # vmgateway
 
-***vmgateway is a part of [enterprise package](https://docs.victoriametrics.com/enterprise.html). It is available for download and evaluation at [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases). You need to request a [free trial license](https://victoriametrics.com/products/enterprise/trial/) for evaluation.***
+***vmgateway is a part of [enterprise package](https://docs.victoriametrics.com/enterprise.html). 
+It is available for download and evaluation at [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
+See how to request a free trial license [here](https://victoriametrics.com/products/enterprise/trial/).***
 
 <img alt="vmgateway" src="vmgateway-overview.jpeg">
 
