@@ -1,6 +1,15 @@
-import React, { FC, KeyboardEvent, useEffect, useRef, HTMLInputTypeAttribute, ReactNode } from "react";
+import React, {
+  FC,
+  useEffect,
+  useRef,
+  useMemo,
+  FormEvent,
+  KeyboardEvent,
+  MouseEvent,
+  HTMLInputTypeAttribute,
+  ReactNode
+} from "react";
 import classNames from "classnames";
-import { useMemo } from "preact/compat";
 import { useAppState } from "../../../state/common/StateContext";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import TextFieldMessage from "./TextFieldMessage";
@@ -24,6 +33,7 @@ interface TextFieldProps {
   onKeyDown?: (e: KeyboardEvent) => void
   onFocus?: () => void
   onBlur?: () => void
+  onChangeCaret?: (position: number[]) => void
 }
 
 const TextField: FC<TextFieldProps> = ({
@@ -43,7 +53,8 @@ const TextField: FC<TextFieldProps> = ({
   onEnter,
   onKeyDown,
   onFocus,
-  onBlur
+  onBlur,
+  onChangeCaret,
 }) => {
   const { isDarkTheme } = useAppState();
   const { isMobile } = useDeviceDetect();
@@ -61,9 +72,18 @@ const TextField: FC<TextFieldProps> = ({
     "vm-text-field__input_textarea": type === "textarea",
   });
 
+  const updateCaretPosition = (target: HTMLInputElement | HTMLTextAreaElement) => {
+    const { selectionStart, selectionEnd } = target;
+    onChangeCaret && onChangeCaret([selectionStart || 0, selectionEnd || 0]);
+  };
+
+  const handleMouseUp = (e: MouseEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    updateCaretPosition(e.currentTarget);
+  };
+
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     onKeyDown && onKeyDown(e);
-
+    updateCaretPosition(e.currentTarget);
     const { key, ctrlKey, metaKey } = e;
     const isEnter = key === "Enter";
     const runByEnter = type !== "textarea" ? isEnter : isEnter && (metaKey || ctrlKey);
@@ -73,9 +93,10 @@ const TextField: FC<TextFieldProps> = ({
     }
   };
 
-  const handleChange = (e: React.FormEvent) => {
+  const handleChange = (e: FormEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     if (disabled) return;
-    onChange && onChange((e.target as HTMLInputElement).value);
+    onChange && onChange(e.currentTarget.value);
+    updateCaretPosition(e.currentTarget);
   };
 
   useEffect(() => {
@@ -116,6 +137,7 @@ const TextField: FC<TextFieldProps> = ({
           onKeyDown={handleKeyDown}
           onFocus={handleFocus}
           onBlur={handleBlur}
+          onMouseUp={handleMouseUp}
         />
       )
       : (
@@ -132,6 +154,7 @@ const TextField: FC<TextFieldProps> = ({
           onKeyDown={handleKeyDown}
           onFocus={handleFocus}
           onBlur={handleBlur}
+          onMouseUp={handleMouseUp}
         />
       )
     }

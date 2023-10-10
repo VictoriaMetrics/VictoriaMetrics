@@ -160,11 +160,10 @@ const Select: FC<SelectProps> = ({
       <Autocomplete
         label={label}
         value={autocompleteValue}
-        options={list}
+        options={list.map(el => ({ value: el }))}
         anchor={autocompleteAnchorEl}
         selected={selectedValues}
-        maxWords={10}
-        minLength={0}
+        minLength={1}
         fullWidth
         noOptionsText={noOptionsText}
         onSelect={handleSelected}
