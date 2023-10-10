@@ -131,6 +131,15 @@ name: <string>
 # By default, "prometheus" type is used.
 [ type: <string> ]
 
+# Optional
+# The evaluation timestamp will be aligned with group's interval, 
+# instead of using the actual timestamp that evaluation happens at.
+# By default, it's enabled to get more predictable results 
+# and to visually align with results plotted via Grafana or vmui.
+# See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5049 
+# Available starting from v1.95
+[ eval_alignment: <bool> | default true]
+
 # Optional list of HTTP URL parameters
 # applied for all rules requests within a group
 # For example:
@@ -527,10 +536,6 @@ Alertmanagers.
 To avoid recording rules results and alerts state duplication in VictoriaMetrics server
 don't forget to configure [deduplication](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#deduplication).
 The recommended value for `-dedup.minScrapeInterval` must be multiple of vmalert's `-evaluationInterval`.
-If you observe inconsistent or "jumping" values in series produced by vmalert, try disabling `-datasource.queryTimeAlignment`
-command line flag. Because of alignment, two or more vmalert HA pairs will produce results with the same timestamps.
-But due of backfilling (data delivered to the datasource with some delay) values of such results may differ,
-which would affect deduplication logic and result into "jumping" datapoints.
 
 Alertmanager will automatically deduplicate alerts with identical labels, so ensure that
 all `vmalert`s are having the same config.
@@ -975,6 +980,7 @@ The shortlist of configuration flags is the following:
   -datasource.queryStep duration
      How far a value can fallback to when evaluating queries. For example, if -datasource.queryStep=15s then param "step" with value "15s" will be added to every query. If set to 0, rule's evaluation interval will be used instead. (default 5m0s)
   -datasource.queryTimeAlignment
+     Flag is deprecated and will be removed in next releases, please use `eval_alignment` in rule group instead.
      Whether to align "time" parameter with evaluation interval.Alignment supposed to produce deterministic results despite number of vmalert replicas or time they were started. See more details here https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1257 (default true)
   -datasource.roundDigits int
      Adds "round_digits" GET param to datasource requests. In VM "round_digits" limits the number of digits after the decimal point in response values.

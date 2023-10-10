@@ -52,6 +52,9 @@ type Group struct {
 	evalCancel context.CancelFunc
 
 	metrics *groupMetrics
+	// evalAlignment will make the timestamp of group query
+	// requests be aligned with interval
+	evalAlignment *bool
 }
 
 type groupMetrics struct {
@@ -106,6 +109,7 @@ func newGroup(cfg config.Group, qb datasource.QuerierBuilder, defaultInterval ti
 		Headers:         make(map[string]string),
 		NotifierHeaders: make(map[string]string),
 		Labels:          cfg.Labels,
+		evalAlignment:   cfg.EvalAlignment,
 
 		doneCh:     make(chan struct{}),
 		finishedCh: make(chan struct{}),
@@ -285,10 +289,11 @@ var skipRandSleepOnGroupStart bool
 func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *remotewrite.Client, rr datasource.QuerierBuilder) {
 	defer func() { close(g.finishedCh) }()
 
+	evalTS := time.Now()
 	// sleep random duration to spread group rules evaluation
 	// over time in order to reduce load on datasource.
 	if !skipRandSleepOnGroupStart {
-		sleepBeforeStart := delayBeforeStart(time.Now(), g.ID(), g.Interval, g.EvalOffset)
+		sleepBeforeStart := delayBeforeStart(evalTS, g.ID(), g.Interval, g.EvalOffset)
 		g.infof("will start in %v", sleepBeforeStart)
 
 		sleepTimer := time.NewTimer(sleepBeforeStart)
@@ -301,9 +306,8 @@ func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *r
 			return
 		case <-sleepTimer.C:
 		}
+		evalTS = evalTS.Add(sleepBeforeStart)
 	}
-
-	evalTS := time.Now()
 
 	e := &executor{
 		rw:                       rw,
@@ -326,6 +330,7 @@ func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *r
 		}
 
 		resolveDuration := getResolveDuration(g.Interval, *resendDelay, *maxResolveDuration)
+		ts = g.adjustReqTimestamp(ts)
 		errs := e.execConcurrently(ctx, g.Rules, ts, g.Concurrency, resolveDuration, g.Limit)
 		for err := range errs {
 			if err != nil {
@@ -424,7 +429,7 @@ func delayBeforeStart(ts time.Time, key uint64, interval time.Duration, offset *
 			randSleep += *offset
 		}
 	}
-	return randSleep.Truncate(time.Second)
+	return randSleep
 }
 
 func (g *Group) infof(format string, args ...interface{}) {
@@ -444,6 +449,32 @@ func getResolveDuration(groupInterval, delta, maxDuration time.Duration) time.Du
 		resolveDuration = maxDuration
 	}
 	return resolveDuration
+}
+
+func (g *Group) adjustReqTimestamp(timestamp time.Time) time.Time {
+	if g.EvalOffset != nil {
+		// calculate the min timestamp on the evaluationInterval
+		intervalStart := timestamp.Truncate(g.Interval)
+		ts := intervalStart.Add(*g.EvalOffset)
+		if timestamp.Before(ts) {
+			// if passed timestamp is before the expected evaluation offset,
+			// then we should adjust it to the previous evaluation round.
+			// E.g. request with evaluationInterval=1h and evaluationOffset=30m
+			// was evaluated at 11:20. Then the timestamp should be adjusted
+			// to 10:30, to the previous evaluationInterval.
+			return ts.Add(-g.Interval)
+		}
+		// EvalOffset shouldn't interfere with evalAlignment,
+		// so we return it immediately
+		return ts
+	}
+	if g.evalAlignment == nil || *g.evalAlignment {
+		// align query time with interval to get similar result with grafana when plotting time series.
+		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5049
+		// and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1232
+		return timestamp.Truncate(g.Interval)
+	}
+	return timestamp
 }
 
 type executor struct {
