@@ -365,7 +365,8 @@ func (ctx *vmselectRequestCtx) readAccountIDProjectID() (uint32, uint32, error) 
 }
 
 // maxSearchQuerySize is the maximum size of SearchQuery packet in bytes.
-const maxSearchQuerySize = 1024 * 1024
+// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5154#issuecomment-1757216612
+const maxSearchQuerySize = 5 * 1024 * 1024
 
 func (ctx *vmselectRequestCtx) readSearchQuery() error {
 	if err := ctx.readDataBufBytes(maxSearchQuerySize); err != nil {
