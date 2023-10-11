@@ -135,7 +135,9 @@ Backup retention policy is controlled by:
 * -keepLastWeekly - keep the last N weekly backups. Disabled by default
 * -keepLastMonthly - keep the last N monthly backups. Disabled by default
 
-*Note*: 0 value in every keepLast flag results into deletion ALL backups for particular type (hourly, daily, weekly and monthly)
+> *Note*: 0 value in every keepLast flag results into deletion of ALL backups for particular type (hourly, daily, weekly and monthly)
+
+> *Note*: retention policy does not enforce removing previous versions of objects in object storages such if versioning is enabled. See [these docs](https://docs.victoriametrics.com/vmbackup.html#permanent-deletion-of-objects-in-s3-and-compatible-storages) for more details.
 
 Let’s assume we have a backup manager collecting daily backups for the past 10 days.
 
