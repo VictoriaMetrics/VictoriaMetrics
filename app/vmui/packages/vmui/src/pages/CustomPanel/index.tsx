@@ -8,7 +8,6 @@ import GraphSettings from "../../components/Configurators/GraphSettings/GraphSet
 import { useGraphDispatch, useGraphState } from "../../state/graph/GraphStateContext";
 import { AxisRange } from "../../state/graph/reducer";
 import Spinner from "../../components/Main/Spinner/Spinner";
-import { useFetchQueryOptions } from "../../hooks/useFetchQueryOptions";
 import TracingsView from "../../components/TraceQuery/TracingsView";
 import Trace from "../../components/TraceQuery/Trace";
 import TableSettings from "../../components/Table/TableSettings/TableSettings";
@@ -50,7 +49,6 @@ const CustomPanel: FC = () => {
   const { customStep, yaxis } = useGraphState();
   const graphDispatch = useGraphDispatch();
 
-  const { queryOptions } = useFetchQueryOptions();
   const {
     isLoading,
     liveData,
@@ -133,7 +131,6 @@ const CustomPanel: FC = () => {
         setQueryErrors={setQueryErrors}
         setHideError={setHideError}
         stats={queryStats}
-        queryOptions={queryOptions}
         onHideQuery={handleHideQuery}
         onRunQuery={handleRunQuery}
       />

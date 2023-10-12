@@ -219,7 +219,7 @@ func (h *middleware) serveHTTP(w http.ResponseWriter, r *http.Request, next http
 	setAfterServeAttributes(span, bw.read, rww.written, rww.statusCode, bw.err, rww.err)
 
 	// Add metrics
-	attributes := append(labeler.Get(), semconvutil.HTTPServerRequest(h.server, r)...)
+	attributes := append(labeler.Get(), semconvutil.HTTPServerRequestMetrics(h.server, r)...)
 	if rww.statusCode > 0 {
 		attributes = append(attributes, semconv.HTTPStatusCode(rww.statusCode))
 	}

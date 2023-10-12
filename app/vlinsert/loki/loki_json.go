@@ -47,15 +47,20 @@ func handleJSON(r *http.Request, w http.ResponseWriter) bool {
 		httpserver.Errorf(w, r, "cannot parse common params from request: %s", err)
 		return true
 	}
+	if err := vlstorage.CanWriteData(); err != nil {
+		httpserver.Errorf(w, r, "%s", err)
+		return true
+	}
 	lr := logstorage.GetLogRows(cp.StreamFields, cp.IgnoreFields)
 	processLogMessage := cp.GetProcessLogMessageFunc(lr)
 	n, err := parseJSONRequest(data, processLogMessage)
 	vlstorage.MustAddRows(lr)
 	logstorage.PutLogRows(lr)
 	if err != nil {
-		httpserver.Errorf(w, r, "cannot parse Loki request: %s", err)
+		httpserver.Errorf(w, r, "cannot parse Loki json request: %s", err)
 		return true
 	}
+
 	rowsIngestedJSONTotal.Add(n)
 
 	// update lokiRequestJSONDuration only for successfully parsed requests
@@ -166,7 +171,6 @@ func parseJSONRequest(data []byte, processLogMessage func(timestamp int64, field
 				Value: bytesutil.ToUnsafeString(msg),
 			})
 			processLogMessage(ts, fields)
-
 		}
 		rowsIngested += len(lines)
 	}

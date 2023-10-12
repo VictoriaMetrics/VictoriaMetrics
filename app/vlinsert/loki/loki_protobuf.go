@@ -39,13 +39,17 @@ func handleProtobuf(r *http.Request, w http.ResponseWriter) bool {
 		httpserver.Errorf(w, r, "cannot parse common params from request: %s", err)
 		return true
 	}
+	if err := vlstorage.CanWriteData(); err != nil {
+		httpserver.Errorf(w, r, "%s", err)
+		return true
+	}
 	lr := logstorage.GetLogRows(cp.StreamFields, cp.IgnoreFields)
 	processLogMessage := cp.GetProcessLogMessageFunc(lr)
 	n, err := parseProtobufRequest(data, processLogMessage)
 	vlstorage.MustAddRows(lr)
 	logstorage.PutLogRows(lr)
 	if err != nil {
-		httpserver.Errorf(w, r, "cannot parse loki request: %s", err)
+		httpserver.Errorf(w, r, "cannot parse Loki protobuf request: %s", err)
 		return true
 	}
 

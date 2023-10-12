@@ -11,11 +11,14 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/csvimport"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/datadog"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/graphite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/influx"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/native"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/newrelic"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/opentelemetry"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/opentsdb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/opentsdbhttp"
@@ -39,7 +42,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
-	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
@@ -208,7 +210,7 @@ func getAuthTokenFromPath(path string) (*auth.Token, error) {
 	if p.Suffix != "opentsdb/api/put" {
 		return nil, fmt.Errorf("unsupported path requested: %q; expecting 'opentsdb/api/put'", p.Suffix)
 	}
-	return auth.NewToken(p.AuthToken)
+	return auth.NewTokenPossibleMultitenant(p.AuthToken)
 }
 
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
@@ -251,7 +253,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		w.WriteHeader(statusCode)
 		return true
 	}
-	if strings.HasPrefix(path, "datadog/") {
+	if strings.HasPrefix(path, "/datadog/") {
 		// Trim suffix from paths starting from /datadog/ in order to support legacy DataDog agent.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2670
 		path = strings.TrimSuffix(path, "/")
@@ -317,6 +319,29 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 			return true
 		}
 		w.WriteHeader(http.StatusOK)
+		return true
+	case "/newrelic/api/v1":
+		newrelicCheckRequest.Inc()
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(202)
+		fmt.Fprintf(w, `{"status":"ok"}`)
+		return true
+	case "/newrelic/api/v1/inventory/deltas":
+		newrelicInventoryRequests.Inc()
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(202)
+		fmt.Fprintf(w, `{"payload":{"version": 1, "state": {}, "reset": "false"}}`)
+		return true
+	case "/newrelic/api/v1/infra/v2/metrics/events/bulk":
+		newrelicWriteRequests.Inc()
+		if err := newrelic.InsertHandlerForHTTP(nil, r); err != nil {
+			newrelicWriteErrors.Inc()
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(202)
+		fmt.Fprintf(w, `{"status":"ok"}`)
 		return true
 	case "/datadog/api/v1/series":
 		datadogWriteRequests.Inc()
@@ -518,6 +543,29 @@ func processMultitenantRequest(w http.ResponseWriter, r *http.Request, path stri
 		}
 		w.WriteHeader(http.StatusOK)
 		return true
+	case "/newrelic/api/v1":
+		newrelicCheckRequest.Inc()
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(202)
+		fmt.Fprintf(w, `{"status":"ok"}`)
+		return true
+	case "/newrelic/api/v1/inventory/deltas":
+		newrelicInventoryRequests.Inc()
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(202)
+		fmt.Fprintf(w, `{"payload":{"version": 1, "state": {}, "reset": "false"}}`)
+		return true
+	case "/newrelic/api/v1/infra/v2/metrics/events/bulk":
+		newrelicWriteRequests.Inc()
+		if err := newrelic.InsertHandlerForHTTP(at, r); err != nil {
+			newrelicWriteErrors.Inc()
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(202)
+		fmt.Fprintf(w, `{"status":"ok"}`)
+		return true
 	case "datadog/api/v1/series":
 		datadogWriteRequests.Inc()
 		if err := datadog.InsertHandlerForHTTP(at, r); err != nil {
@@ -589,6 +637,12 @@ var (
 
 	opentelemetryPushRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/opentelemetry/api/v1/push", protocol="opentelemetry"}`)
 	opentelemetryPushErrors   = metrics.NewCounter(`vmagent_http_request_errors_total{path="/opentelemetry/api/v1/push", protocol="opentelemetry"}`)
+
+	newrelicWriteRequests = metrics.NewCounter(`vm_http_requests_total{path="/newrelic/api/v1/infra/v2/metrics/events/bulk", protocol="newrelic"}`)
+	newrelicWriteErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/newrelic/api/v1/infra/v2/metrics/events/bulk", protocol="newrelic"}`)
+
+	newrelicInventoryRequests = metrics.NewCounter(`vm_http_requests_total{path="/newrelic/api/v1/inventory/deltas", protocol="newrelic"}`)
+	newrelicCheckRequest      = metrics.NewCounter(`vm_http_requests_total{path="/newrelic/api/v1", protocol="newrelic"}`)
 
 	promscrapeTargetsRequests          = metrics.NewCounter(`vmagent_http_requests_total{path="/targets"}`)
 	promscrapeServiceDiscoveryRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/service-discovery"}`)

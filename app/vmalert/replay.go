@@ -81,13 +81,15 @@ func replay(groupsCfg []config.Group, qb datasource.QuerierBuilder, rw *remotewr
 func (g *Group) replay(start, end time.Time, rw *remotewrite.Client) int {
 	var total int
 	step := g.Interval * time.Duration(*replayMaxDatapoints)
+	start = g.adjustReqTimestamp(start)
 	ri := rangeIterator{start: start, end: end, step: step}
 	iterations := int(end.Sub(start)/step) + 1
 	fmt.Printf("\nGroup %q"+
 		"\ninterval: \t%v"+
+		"\neval_offset: \t%v"+
 		"\nrequests to make: \t%d"+
 		"\nmax range per request: \t%v\n",
-		g.Name, g.Interval, iterations, step)
+		g.Name, g.Interval, g.EvalOffset, iterations, step)
 	if g.Limit > 0 {
 		fmt.Printf("\nPlease note, `limit: %d` param has no effect during replay.\n",
 			g.Limit)

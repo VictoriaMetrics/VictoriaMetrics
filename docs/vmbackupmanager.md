@@ -11,7 +11,9 @@ aliases:
 ---
 # vmbackupmanager
 
-***vmbackupmanager is a part of [enterprise package](https://docs.victoriametrics.com/enterprise.html). It is available for download and evaluation at [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases)***
+***vmbackupmanager is a part of [enterprise package](https://docs.victoriametrics.com/enterprise.html). 
+It is available for download and evaluation at [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
+See how to request a free trial license [here](https://victoriametrics.com/products/enterprise/trial/).***
 
 The VictoriaMetrics backup manager automates regular backup procedures. It supports the following backup intervals: **hourly**, **daily**, **weekly** and **monthly**.
 Multiple backup intervals may be configured simultaneously. I.e. the backup manager creates hourly backups every hour, while it creates daily backups every day, etc.
@@ -133,7 +135,9 @@ Backup retention policy is controlled by:
 * -keepLastWeekly - keep the last N weekly backups. Disabled by default
 * -keepLastMonthly - keep the last N monthly backups. Disabled by default
 
-*Note*: 0 value in every keepLast flag results into deletion ALL backups for particular type (hourly, daily, weekly and monthly)
+> *Note*: 0 value in every keepLast flag results into deletion of ALL backups for particular type (hourly, daily, weekly and monthly)
+
+> *Note*: retention policy does not enforce removing previous versions of objects in object storages such if versioning is enabled. See [these docs](https://docs.victoriametrics.com/vmbackup.html#permanent-deletion-of-objects-in-s3-and-compatible-storages) for more details.
 
 Let’s assume we have a backup manager collecting daily backups for the past 10 days.
 
@@ -384,6 +388,7 @@ Clusters here are referred to as `source` and `destination`.
   ```console
   $ /vmbackupmanager-prod restore create s3://source_cluster/vmstorage-source-0/daily/2023-04-07
   ```
+1. Restart `vmstorage` pods of *destination* cluster. On pod start `vmbackupmanager` will restore data from the specified backup.
 
 ## Monitoring
 
@@ -426,6 +431,8 @@ command-line flags:
      See https://cloud.google.com/iam/docs/creating-managing-service-account-keys and https://docs.aws.amazon.com/general/latest/gr/aws-security-credentials.html
   -customS3Endpoint string
      Custom S3 endpoint for use with S3-compatible storages (e.g. MinIO). S3 is used if not set
+  -deleteAllObjectVersions
+     Whether to prune previous object versions when deleting an object. By default, when object storage has versioning enabled deleting the file removes only current version. This option forces removal of all previous versions. See: https://docs.victoriametrics.com/vmbackup.html#permanent-deletion-of-objects-in-s3-compatible-storages
   -disableDaily
      Disable daily run. Default false
   -disableHourly
@@ -481,11 +488,11 @@ command-line flags:
   -keepLastWeekly int
      Keep last N weekly backups. If 0 is specified next retention cycle removes all backups for given time period. (default -1)
   -license string
-     See https://victoriametrics.com/products/enterprise/ for trial license. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
+     enterprise license key. This flag is available only in VictoriaMetrics enterprise. Documentation - https://docs.victoriametrics.com/enterprise.html, for more information, visit  https://victoriametrics.com/products/enterprise/ . To request a trial license, go to https://victoriametrics.com/products/enterprise/trial/
   -license.forceOffline
-     See https://victoriametrics.com/products/enterprise/ for trial license. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
+     enables offline license verification. License keys issued must support this feature. Contact our support team for license keys with offline check support.
   -licenseFile string
-     See https://victoriametrics.com/products/enterprise/ for trial license. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
+     path to file with enterprise license key. This flag is available only in VictoriaMetrics enterprise. Documentation - https://docs.victoriametrics.com/enterprise.html, for more information, visit  https://victoriametrics.com/products/enterprise/ . To request a trial license, go to https://victoriametrics.com/products/enterprise/trial/
   -loggerDisableTimestamps
      Whether to disable writing timestamps in logs
   -loggerErrorsPerSecondLimit int

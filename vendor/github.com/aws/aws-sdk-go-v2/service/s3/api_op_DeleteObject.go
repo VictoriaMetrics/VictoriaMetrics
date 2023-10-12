@@ -95,9 +95,11 @@ type DeleteObjectInput struct {
 	MFA *string
 
 	// Confirms that the requester knows that they will be charged for the request.
-	// Bucket owners need not specify this parameter in their requests. For information
-	// about downloading objects from Requester Pays buckets, see Downloading Objects
-	// in Requester Pays Buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
+	// Bucket owners need not specify this parameter in their requests. If either the
+	// source or destination Amazon S3 bucket has Requester Pays enabled, the requester
+	// will pay for corresponding charges to copy the object. For information about
+	// downloading objects from Requester Pays buckets, see Downloading Objects in
+	// Requester Pays Buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
 	// in the Amazon S3 User Guide.
 	RequestPayer types.RequestPayer
 
@@ -109,8 +111,10 @@ type DeleteObjectInput struct {
 
 type DeleteObjectOutput struct {
 
-	// Specifies whether the versioned object that was permanently deleted was (true)
-	// or was not (false) a delete marker.
+	// Indicates whether the specified object version that was permanently deleted was
+	// (true) or was not (false) a delete marker before deletion. In a simple DELETE,
+	// this header indicates whether (true) or not (false) the current version of the
+	// object is a delete marker.
 	DeleteMarker bool
 
 	// If present, indicates that the requester was successfully charged for the

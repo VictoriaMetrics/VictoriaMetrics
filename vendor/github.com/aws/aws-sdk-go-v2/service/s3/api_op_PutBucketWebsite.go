@@ -61,7 +61,7 @@ import (
 // Amazon S3 has a limitation of 50 routing rules per website configuration. If
 // you require more than 50 routing rules, you can use object redirect. For more
 // information, see Configuring an Object Redirect (https://docs.aws.amazon.com/AmazonS3/latest/dev/how-to-page-redirect.html)
-// in the Amazon S3 User Guide.
+// in the Amazon S3 User Guide. The maximum request length is limited to 128 KB.
 func (c *Client) PutBucketWebsite(ctx context.Context, params *PutBucketWebsiteInput, optFns ...func(*Options)) (*PutBucketWebsiteOutput, error) {
 	if params == nil {
 		params = &PutBucketWebsiteInput{}

@@ -1,6 +1,7 @@
 @use "src/styles/variables" as *;
 
 .vm-autocomplete {
+  position: relative;
   max-height: 300px;
   overflow: auto;
   overscroll-behavior: none;
@@ -13,5 +14,35 @@
     padding: $padding-global;
     text-align: center;
     color: $color-text-disabled;
+  }
+
+  &-info {
+    position: absolute;
+    top: calc(100% + 1px);
+    left: 0;
+    right: 0;
+    min-width: 450px;
+    padding: $padding-global;
+    background-color: $color-background-block;
+    box-shadow: $box-shadow-popper;
+    border-radius: $border-radius-small;
+    overflow-wrap: anywhere;
+
+    &__type {
+      color: $color-text-secondary;
+      margin-bottom: $padding-small;
+    }
+
+    &__description {
+      line-height: 130%;
+
+      p {
+        margin: $padding-global 0;
+
+        &:last-child {
+          margin: 0;
+        }
+      }
+    }
   }
 }

@@ -8,8 +8,10 @@ import classNames from "classnames";
 import { useAppState } from "../../../state/common/StateContext";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import Button from "../../Main/Button/Button";
+import { humanizeSeconds } from "../../../utils/time";
 
 interface RecursiveProps {
+  isRoot?: boolean;
   trace: Trace;
   totalMsec: number;
 }
@@ -18,7 +20,7 @@ interface OpenLevels {
   [x: number]: boolean
 }
 
-const NestedNav: FC<RecursiveProps> = ({ trace, totalMsec })  => {
+const NestedNav: FC<RecursiveProps> = ({ isRoot, trace, totalMsec })  => {
   const { isDarkTheme } = useAppState();
   const { isMobile } = useDeviceDetect();
   const [openLevels, setOpenLevels] = useState({} as OpenLevels);
@@ -26,6 +28,8 @@ const NestedNav: FC<RecursiveProps> = ({ trace, totalMsec })  => {
 
   const [isExpanded, setIsExpanded] = useState(false);
   const [showFullMessage, setShowFullMessage] = useState(false);
+
+  const duration = humanizeSeconds(trace.duration / 1000) || `${trace.duration}ms`;
 
   useEffect(() => {
     if (!messageRef.current) return;
@@ -40,24 +44,29 @@ const NestedNav: FC<RecursiveProps> = ({ trace, totalMsec })  => {
     setShowFullMessage(prev => !prev);
   };
 
+  const hasChildren = trace.children && !!trace.children.length;
+  const progress = trace.duration / totalMsec * 100;
   const handleListClick = (level: number) => () => {
+    if (!hasChildren) return;
     setOpenLevels((prevState:OpenLevels) => {
       return { ...prevState, [level]: !prevState[level] };
     });
   };
-  const hasChildren = trace.children && !!trace.children.length;
-  const progress = trace.duration / totalMsec * 100;
 
   return (
     <div
       className={classNames({
         "vm-nested-nav": true,
+        "vm-nested-nav_root": isRoot,
         "vm-nested-nav_dark": isDarkTheme,
         "vm-nested-nav_mobile": isMobile,
       })}
     >
       <div
-        className="vm-nested-nav-header"
+        className={classNames({
+          "vm-nested-nav-header": true,
+          "vm-nested-nav-header_open": openLevels[trace.idValue],
+        })}
         onClick={handleListClick(trace.idValue)}
       >
         {hasChildren && (
@@ -84,7 +93,7 @@ const NestedNav: FC<RecursiveProps> = ({ trace, totalMsec })  => {
         </div>
         <div className="vm-nested-nav-header-bottom">
           <div className="vm-nested-nav-header-bottom__duration">
-            {`duration: ${trace.duration} ms`}
+            {`duration: ${duration}`}
           </div>
           {(isExpanded || showFullMessage) && (
             <Button
@@ -97,15 +106,17 @@ const NestedNav: FC<RecursiveProps> = ({ trace, totalMsec })  => {
           )}
         </div>
       </div>
-      {openLevels[trace.idValue] && <div>
-        {hasChildren && trace.children.map((trace) => (
-          <NestedNav
-            key={trace.duration}
-            trace={trace}
-            totalMsec={totalMsec}
-          />
-        ))}
-      </div>}
+      {openLevels[trace.idValue] && (
+        <div className="vm-nested-nav__childrens">
+          {hasChildren && trace.children.map((trace) => (
+            <NestedNav
+              key={trace.duration}
+              trace={trace}
+              totalMsec={totalMsec}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 };

@@ -3,14 +3,17 @@ package vlstorage
 import (
 	"flag"
 	"fmt"
+	"net/http"
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
-	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
@@ -29,6 +32,8 @@ var (
 		"see https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#stream-fields ; see also -logIngestedRows")
 	logIngestedRows = flag.Bool("logIngestedRows", false, "Whether to log all the ingested log entries; this can be useful for debugging of data ingestion; "+
 		"see https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/ ; see also -logNewStreams")
+	minFreeDiskSpaceBytes = flagutil.NewBytes("storage.minFreeDiskSpaceBytes", 10e6, "The minimum free disk space at -storageDataPath after which "+
+		"the storage stops accepting new data")
 )
 
 // Init initializes vlstorage.
@@ -43,11 +48,12 @@ func Init() {
 		logger.Fatalf("-retentionPeriod cannot be smaller than a day; got %s", retentionPeriod)
 	}
 	cfg := &logstorage.StorageConfig{
-		Retention:       retentionPeriod.Duration(),
-		FlushInterval:   *inmemoryDataFlushInterval,
-		FutureRetention: futureRetention.Duration(),
-		LogNewStreams:   *logNewStreams,
-		LogIngestedRows: *logIngestedRows,
+		Retention:             retentionPeriod.Duration(),
+		FlushInterval:         *inmemoryDataFlushInterval,
+		FutureRetention:       futureRetention.Duration(),
+		LogNewStreams:         *logNewStreams,
+		LogIngestedRows:       *logIngestedRows,
+		MinFreeDiskSpaceBytes: minFreeDiskSpaceBytes.N,
 	}
 	logger.Infof("opening storage at -storageDataPath=%s", *storageDataPath)
 	startTime := time.Now()
@@ -74,7 +80,21 @@ func Stop() {
 var strg *logstorage.Storage
 var storageMetrics *metrics.Set
 
+// CanWriteData returns non-nil error if it cannot write data to vlstorage.
+func CanWriteData() error {
+	if strg.IsReadOnly() {
+		return &httpserver.ErrorWithStatusCode{
+			Err: fmt.Errorf("cannot add rows into storage in read-only mode; the storage can be in read-only mode "+
+				"because of lack of free disk space at -storageDataPath=%s", *storageDataPath),
+			StatusCode: http.StatusTooManyRequests,
+		}
+	}
+	return nil
+}
+
 // MustAddRows adds lr to vlstorage
+//
+// It is advised to call CanWriteData() before calling MustAddRows()
 func MustAddRows(lr *logstorage.LogRows) {
 	strg.MustAddRows(lr)
 }
@@ -106,6 +126,12 @@ func initStorageMetrics(strg *logstorage.Storage) *metrics.Set {
 
 	ms.NewGauge(fmt.Sprintf(`vl_free_disk_space_bytes{path=%q}`, *storageDataPath), func() float64 {
 		return float64(fs.MustGetFreeSpace(*storageDataPath))
+	})
+	ms.NewGauge(fmt.Sprintf(`vl_storage_is_read_only{path=%q}`, *storageDataPath), func() float64 {
+		if m().IsReadOnly {
+			return 1
+		}
+		return 0
 	})
 
 	ms.NewGauge(`vl_active_merges{type="inmemory"}`, func() float64 {

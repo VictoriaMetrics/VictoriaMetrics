@@ -2,7 +2,7 @@ import React, { FC, StateUpdater, useEffect, useState } from "preact/compat";
 import QueryEditor from "../../../components/Configurators/QueryEditor/QueryEditor";
 import AdditionalSettings from "../../../components/Configurators/AdditionalSettings/AdditionalSettings";
 import usePrevious from "../../../hooks/usePrevious";
-import { MAX_QUERY_FIELDS } from "../../../constants/graph";
+import { MAX_QUERIES_HISTORY, MAX_QUERY_FIELDS } from "../../../constants/graph";
 import { useQueryDispatch, useQueryState } from "../../../state/query/QueryStateContext";
 import { useTimeDispatch } from "../../../state/time/TimeStateContext";
 import {
@@ -22,14 +22,13 @@ import { arrayEquals } from "../../../utils/array";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import { QueryStats } from "../../../api/types";
 import { usePrettifyQuery } from "./hooks/usePrettifyQuery";
-import QueryHistoryList from "../QueryHistory/QueryHistoryList";
+import QueryHistory from "../QueryHistory/QueryHistory";
 
 export interface QueryConfiguratorProps {
   queryErrors: string[];
   setQueryErrors: StateUpdater<string[]>;
   setHideError: StateUpdater<boolean>;
   stats: QueryStats[];
-  queryOptions: string[]
   onHideQuery: (queries: number[]) => void
   onRunQuery: () => void
 }
@@ -39,7 +38,6 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
   setQueryErrors,
   setHideError,
   stats,
-  queryOptions,
   onHideQuery,
   onRunQuery
 }) => {
@@ -66,7 +64,7 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
         const newValues = !queryEqual && q ? [...h.values, q] : h.values;
 
         // limit the history
-        if (newValues.length > 25)  newValues.shift();
+        if (newValues.length > MAX_QUERIES_HISTORY)  newValues.shift();
 
         return {
           index: h.values.length - Number(queryEqual),
@@ -189,7 +187,6 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
           <QueryEditor
             value={stateQuery[i]}
             autocomplete={autocomplete}
-            options={queryOptions}
             error={queryErrors[i]}
             stats={stats[i]}
             onArrowUp={createHandlerArrow(-1, i)}
@@ -243,10 +240,7 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
     <div className="vm-query-configurator-settings">
       <AdditionalSettings/>
       <div className="vm-query-configurator-settings__buttons">
-        <QueryHistoryList
-          history={queryHistory}
-          handleSelectQuery={handleSelectHistory}
-        />
+        <QueryHistory handleSelectQuery={handleSelectHistory}/>
         {stateQuery.length < MAX_QUERY_FIELDS && (
           <Button
             variant="outlined"

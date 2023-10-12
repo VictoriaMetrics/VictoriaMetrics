@@ -42,30 +42,36 @@ The communication scheme between components is the following:
   and recording rules back to it;
 * [alertmanager](#alertmanager) is configured to receive notifications from `vmalert`.
 
-To access `vmalert` use link [http://localhost:8428/vmalert](http://localhost:8428/vmalert/).
+To access Grafana use link [http://localhost:3000](http://localhost:3000).
 
 To access [vmui](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#vmui)
 use link [http://localhost:8428/vmui](http://localhost:8428/vmui).
 
+To access `vmalert` use link [http://localhost:8428/vmalert](http://localhost:8428/vmalert/).
+
+
 ## VictoriaMetrics cluster
 
 VictoriaMetrics cluster environment consists of `vminsert`, `vmstorage` and `vmselect` components.
-`vmselect` has exposed port `:8481`, `vminsert` has exposed port `:8480` and the rest of components 
-are available only inside the environment.
+`vminsert` has exposed port `:8480`, access to `vmselect` components goes through `vmauth` on port `:8427`,
+and the rest of components are available only inside the environment.
 
 The communication scheme between components is the following:
 * [vmagent](#vmagent) sends scraped metrics to `vminsert`;
 * `vminsert` forwards data to `vmstorage`;
-* `vmselect` is connected to `vmstorage` for querying data;
-* [grafana](#grafana) is configured with datasource pointing to `vmselect`;
-* [vmalert](#vmalert) is configured to query `vmselect` and send alerts state
+* `vmselect`s are connected to `vmstorage` for querying data;
+* [vmauth](#vmauth) balances incoming read requests among `vmselect`s;
+* [grafana](#grafana) is configured with datasource pointing to `vmauth`;
+* [vmalert](#vmalert) is configured to query `vmselect`s via `vmauth` and send alerts state
   and recording rules to `vminsert`;
 * [alertmanager](#alertmanager) is configured to receive notifications from `vmalert`.
 
-To access `vmalert` use link [http://localhost:8481/select/0/prometheus/vmalert](http://localhost:8481/select/0/prometheus/vmalert/).
+To access Grafana use link [http://localhost:3000](http://localhost:3000).
 
-To access [vmui](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#vmui) 
-use link [http://localhost:8481/select/0/prometheus/vmui](http://localhost:8481/select/0/prometheus/vmui).
+To access [vmui](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#vmui)
+use link [http://localhost:8427/select/0/prometheus/vmui/](http://localhost:8427/select/0/prometheus/vmui/).
+
+To access `vmalert` use link [http://localhost:8427/select/0/prometheus/vmalert/](http://localhost:8427/select/0/prometheus/vmalert/).
 
 ## vmagent
 
@@ -74,6 +80,13 @@ It accepts Prometheus-compatible configuration [prometheus.yml](https://github.c
 with listed targets for scraping.
 
 [Web interface link](http://localhost:8429/).
+
+## vmauth
+
+[vmauth](https://docs.victoriametrics.com/vmauth.html) acts as a [balancer](https://docs.victoriametrics.com/vmauth.html#load-balancing)
+to spread the load across `vmselect`'s. [Grafana](#grafana) and [vmalert](#vmalert) use vmauth for read queries.
+vmauth config is available [here](ttps://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/auth-cluster.yml)
+
 
 ## vmalert
 

@@ -1,12 +1,12 @@
 ---
-sort: 4
-weight: 4
+sort: 8
+weight: 8
 title: VictoriaLogs roadmap
 disableToc: true
 menu:
   docs:
     parent: "victorialogs"
-    weight: 4
+    weight: 8
 aliases:
 - /VictoriaLogs/Roadmap.html
 ---
@@ -44,6 +44,7 @@ The following functionality is planned in the future versions of VictoriaLogs:
 - Web UI with the following abilities:
   - Explore the ingested logs ([partially done](https://docs.victoriametrics.com/VictoriaLogs/querying/#web-ui)).
   - Build graphs over time for the ingested logs.
+- Integration with Grafana.
 - Ability to make instant snapshots and backups in the way [similar to VictoriaMetrics](https://docs.victoriametrics.com/#how-to-work-with-snapshots).
 - Cluster version of VictoriaLogs.
 - Ability to store data to object storage (such as S3, GCS, Minio).

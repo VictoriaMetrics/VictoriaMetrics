@@ -11,12 +11,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/VictoriaMetrics/metricsql"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
-	"github.com/VictoriaMetrics/metricsql"
 )
 
 var transformFuncs = map[string]transformFunc{
@@ -419,7 +420,7 @@ func transformBucketsLimit(tfa *transformFuncArg) ([]*timeseries, error) {
 		mn.CopyFrom(&ts.MetricName)
 		mn.RemoveTag("le")
 		b = marshalMetricNameSorted(b[:0], &mn)
-		k := bytesutil.InternBytes(b)
+		k := bytesutil.ToUnsafeString(b)
 		m[k] = append(m[k], x{
 			le: le,
 			ts: ts,
@@ -522,7 +523,7 @@ func vmrangeBucketsToLE(tss []*timeseries) []*timeseries {
 		ts.MetricName.RemoveTag("le")
 		ts.MetricName.RemoveTag("vmrange")
 		bb.B = marshalMetricNameSorted(bb.B[:0], &ts.MetricName)
-		k := bytesutil.InternBytes(bb.B)
+		k := string(bb.B)
 		m[k] = append(m[k], x{
 			startStr: startStr,
 			endStr:   endStr,
@@ -1022,7 +1023,7 @@ func groupLeTimeseries(tss []*timeseries) map[string][]leTimeseries {
 		ts.MetricName.ResetMetricGroup()
 		ts.MetricName.RemoveTag("le")
 		bb.B = marshalMetricTagsSorted(bb.B[:0], &ts.MetricName)
-		k := bytesutil.InternBytes(bb.B)
+		k := string(bb.B)
 		m[k] = append(m[k], leTimeseries{
 			le: le,
 			ts: ts,
@@ -1656,7 +1657,7 @@ func transformUnion(tfa *transformFuncArg) ([]*timeseries, error) {
 	for _, arg := range args {
 		for _, ts := range arg {
 			bb.B = marshalMetricNameSorted(bb.B[:0], &ts.MetricName)
-			k := bytesutil.InternBytes(bb.B)
+			k := string(bb.B)
 			if m[k] {
 				continue
 			}
@@ -2589,7 +2590,12 @@ func newTransformBitmap(bitmapFunc func(a, b uint64) uint64) func(tfa *transform
 		}
 		tf := func(values []float64) {
 			for i, v := range values {
-				values[i] = float64(bitmapFunc(uint64(v), uint64(ns[i])))
+				w := ns[i]
+				result := nan
+				if !math.IsNaN(v) && !math.IsNaN(w) {
+					result = float64(bitmapFunc(uint64(v), uint64(w)))
+				}
+				values[i] = result
 			}
 		}
 		return doTransformValues(args[0], tf, tfa.fe)

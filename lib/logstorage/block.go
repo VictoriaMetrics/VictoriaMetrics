@@ -127,12 +127,15 @@ func (c *column) reset() {
 	c.values = values[:0]
 }
 
-func (c *column) areSameValues() bool {
+func (c *column) canStoreInConstColumn() bool {
 	values := c.values
-	if len(values) < 2 {
+	if len(values) == 0 {
 		return true
 	}
 	value := values[0]
+	if len(value) > maxConstColumnValueSize {
+		return false
+	}
 	for _, v := range values[1:] {
 		if value != v {
 			return false
@@ -244,7 +247,7 @@ func (b *block) mustInitFromRows(rows [][]Field) {
 		fields := rows[0]
 		for i := range fields {
 			f := &fields[i]
-			if areSameValuesForColumn(rows, i) {
+			if canStoreInConstColumn(rows, i) {
 				cc := b.extendConstColumns()
 				cc.Name = f.Name
 				cc.Value = f.Value
@@ -294,7 +297,7 @@ func (b *block) mustInitFromRows(rows [][]Field) {
 	// Detect const columns
 	for i := len(cs) - 1; i >= 0; i-- {
 		c := &cs[i]
-		if !c.areSameValues() {
+		if !c.canStoreInConstColumn() {
 			continue
 		}
 		cc := b.extendConstColumns()
@@ -314,11 +317,14 @@ func swapColumns(a, b *column) {
 	*a, *b = *b, *a
 }
 
-func areSameValuesForColumn(rows [][]Field, colIdx int) bool {
-	if len(rows) < 2 {
+func canStoreInConstColumn(rows [][]Field, colIdx int) bool {
+	if len(rows) == 0 {
 		return true
 	}
 	value := rows[0][colIdx].Value
+	if len(value) > maxConstColumnValueSize {
+		return false
+	}
 	rows = rows[1:]
 	for i := range rows {
 		if value != rows[i][colIdx].Value {
@@ -471,8 +477,8 @@ func (b *block) mustWriteTo(sid *streamID, bh *blockHeader, sw *streamWriters) {
 	longTermBufPool.Put(bb)
 }
 
-// appendRows appends log entries from b to dst.
-func (b *block) appendRows(dst *rows) {
+// appendRowsTo appends log entries from b to dst.
+func (b *block) appendRowsTo(dst *rows) {
 	// copy timestamps
 	dst.timestamps = append(dst.timestamps, b.timestamps...)
 
@@ -512,6 +518,19 @@ func areSameFieldsInRows(rows [][]Field) bool {
 		return true
 	}
 	fields := rows[0]
+
+	// Verify that all the field names are unique
+	m := make(map[string]struct{}, len(fields))
+	for i := range fields {
+		f := &fields[i]
+		if _, ok := m[f.Name]; ok {
+			// Field name isn't unique
+			return false
+		}
+		m[f.Name] = struct{}{}
+	}
+
+	// Verify that all the fields are the same across rows
 	rows = rows[1:]
 	for i := range rows {
 		leFields := rows[i]
