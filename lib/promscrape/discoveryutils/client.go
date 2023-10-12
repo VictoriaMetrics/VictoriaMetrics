@@ -249,11 +249,11 @@ func (c *Client) getAPIResponseWithParamsAndClientCtx(ctx context.Context, clien
 
 	err = c.setHTTPHeaders(req)
 	if err != nil {
-		return nil, fmt.Errorf("cannot create request for %q: %w", requestURL, err)
+		return nil, fmt.Errorf("cannot set request http header for %q: %w", requestURL, err)
 	}
 	err = c.setHTTPProxyHeaders(req)
 	if err != nil {
-		return nil, fmt.Errorf("cannot create request for %q: %w", requestURL, err)
+		return nil, fmt.Errorf("cannot set request http proxy header for %q: %w", requestURL, err)
 	}
 	if modifyRequest != nil {
 		modifyRequest(req)

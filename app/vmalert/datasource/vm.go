@@ -219,7 +219,7 @@ func (s *VMStorage) do(ctx context.Context, req *http.Request) (*http.Response, 
 func (s *VMStorage) newQueryRangeRequest(query string, start, end time.Time) (*http.Request, error) {
 	req, err := s.newRequest()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("cannot create query_range request to datasource %q: %s", s.datasourceURL, err)
 	}
 	s.setPrometheusRangeReqParams(req, query, start, end)
 	return req, nil
@@ -228,7 +228,7 @@ func (s *VMStorage) newQueryRangeRequest(query string, start, end time.Time) (*h
 func (s *VMStorage) newQueryRequest(query string, ts time.Time) (*http.Request, error) {
 	req, err := s.newRequest()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("cannot create query request to datasource %q: %s", s.datasourceURL, err)
 	}
 	switch s.dataSourceType {
 	case "", datasourcePrometheus:
