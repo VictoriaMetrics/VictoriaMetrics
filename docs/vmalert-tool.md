@@ -1,10 +1,10 @@
 ---
-sort: 11
-weight: 11
+sort: 12
+weight: 12
 menu:
   docs:
     parent: 'victoriametrics'
-    weight: 11
+    weight: 12
 title: vmalert-tool
 ---
 

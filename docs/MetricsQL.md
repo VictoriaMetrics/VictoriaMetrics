@@ -1,11 +1,11 @@
 ---
-sort: 14
-weight: 14
+sort: 23
+weight: 23
 title: MetricsQL
 menu:
   docs:
-    parent: "victoriametrics"
-    weight: 14
+    parent: 'victoriametrics'
+    weight: 23
 aliases:
 - /ExtendedPromQL.html
 - /MetricsQL.html

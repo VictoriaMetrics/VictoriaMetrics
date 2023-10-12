@@ -1,11 +1,11 @@
 ---
-sort: 15
-weight: 15
+sort: 24
+weight: 24
 title: FAQ
 menu:
   docs:
-    parent: "victoriametrics"
-    weight: 15
+    parent: 'victoriametrics'
+    weight: 24
 aliases:
 - /FAQ.html
 ---

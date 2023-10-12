@@ -1,11 +1,11 @@
 ---
-sort: 21
-weight: 21
+sort: 30
+weight: 30
 title: Release process guidance
 menu:
   docs:
-    parent: "victoriametrics"
-    weight: 21
+    parent: 'victoriametrics'
+    weight: 30
 aliases:
 - /Release-Guide.html
 ---

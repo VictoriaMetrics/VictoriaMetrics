@@ -1,11 +1,11 @@
 ---
-sort: 12
-weight: 12
+sort: 21
+weight: 21
 title: Case studies and talks
 menu:
   docs:
-    parent: "victoriametrics"
-    weight: 12
+    parent: 'victoriametrics'
+    weight: 21
 aliases:
 - /CaseStudies.html
 ---

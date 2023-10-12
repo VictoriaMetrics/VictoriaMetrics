@@ -4,7 +4,7 @@ weight: 99
 title: VictoriaMetrics Enterprise
 menu:
   docs:
-    parent: "victoriametrics"
+    parent: 'victoriametrics'
     weight: 99
 aliases:
 - /enterprise.html

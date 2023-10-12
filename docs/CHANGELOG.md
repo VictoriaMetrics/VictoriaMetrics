@@ -1,11 +1,11 @@
 ---
-sort: 16
-weight: 16
+sort: 25
+weight: 25
 title: CHANGELOG
 menu:
   docs:
-    parent: "victoriametrics"
-    weight: 16
+    parent: 'victoriametrics'
+    weight: 25
 aliases:
 - /CHANGELOG.html
 ---

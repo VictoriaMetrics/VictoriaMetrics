@@ -1,11 +1,11 @@
 ---
-sort: 23
-weight: 23
+sort: 32
+weight: 32
 title: VictoriaMetrics best practices
 menu:
   docs:
-    parent: "victoriametrics"
-    weight: 23
+    parent: 'victoriametrics'
+    weight: 32
 aliases:
 - /BestPractices.html
 ---
