@@ -5,7 +5,7 @@ $color-base-nested-nav-dark: $color-background-body;
 
 .vm-nested-nav {
   position: relative;
-  margin-left: $padding-global;
+  margin-left: $padding-small;
   border-radius: $border-radius-small;
 
   &_dark &-header {
@@ -58,7 +58,7 @@ $color-base-nested-nav-dark: $color-background-body;
       content: "";
       position: absolute;
       bottom: 50%;
-      left: calc($padding-global / -2);
+      left: calc(-1 * $padding-small);
       height: calc(50% + $padding-small);
       width: 2px;
       background-color: $color-base-nested-nav;
@@ -103,6 +103,10 @@ $color-base-nested-nav-dark: $color-background-body;
         display: block;
         overflow: visible;
       }
+
+      &_duration {
+        color: $color-text-secondary;
+      }
     }
 
     &-bottom {
@@ -110,10 +114,6 @@ $color-base-nested-nav-dark: $color-background-body;
       grid-template-columns: 1fr auto;
       align-items: center;
       grid-column: 2;
-
-      &__duration {
-        color: $color-text-secondary;
-      }
     }
   }
 
@@ -122,7 +122,7 @@ $color-base-nested-nav-dark: $color-background-body;
       content: "";
       position: absolute;
       top: 0;
-      left: calc($padding-global / -2);
+      left: calc(-1 * $padding-small);
       height: 100%;
       width: 2px;
       background-color: $color-base-nested-nav;
