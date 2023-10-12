@@ -98,23 +98,6 @@ func GetAllRuleState(r Rule) []StateEntry {
 	return []StateEntry{}
 }
 
-// InitRuleState init rule state with given size
-func InitRuleState(r Rule, size int) {
-	if size < 1 {
-		size = 1
-	}
-	if rule, ok := r.(*AlertingRule); ok {
-		rule.state = &ruleState{
-			entries: make([]StateEntry, size),
-		}
-	}
-	if rule, ok := r.(*RecordingRule); ok {
-		rule.state = &ruleState{
-			entries: make([]StateEntry, size),
-		}
-	}
-}
-
 func (s *ruleState) size() int {
 	s.RLock()
 	defer s.RUnlock()

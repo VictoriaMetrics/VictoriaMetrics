@@ -170,9 +170,9 @@ func NewGroup(cfg config.Group, qb datasource.QuerierBuilder, defaultInterval ti
 
 func (g *Group) newRule(qb datasource.QuerierBuilder, r config.Rule) Rule {
 	if r.Alert != "" {
-		return newAlertingRule(qb, g, r)
+		return NewAlertingRule(qb, g, r)
 	}
-	return newRecordingRule(qb, g, r)
+	return NewRecordingRule(qb, g, r)
 }
 
 // ID return unique group ID that consists of

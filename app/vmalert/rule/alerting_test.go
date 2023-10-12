@@ -873,7 +873,7 @@ func TestAlertingRule_Template(t *testing.T) {
 			fq := &datasource.FakeQuerier{}
 			tc.rule.GroupID = fakeGroup.ID()
 			tc.rule.q = fq
-			InitRuleState(tc.rule, 10)
+			tc.rule.state = &ruleState{entries: make([]StateEntry, 10)}
 			fq.Add(tc.metrics...)
 			if _, err := tc.rule.exec(context.TODO(), time.Now(), 0); err != nil {
 				t.Fatalf("unexpected err: %s", err)
@@ -989,8 +989,8 @@ func newTestAlertingRule(name string, waitFor time.Duration) *AlertingRule {
 		For:          waitFor,
 		EvalInterval: waitFor,
 		alerts:       make(map[uint64]*notifier.Alert),
+		state:        &ruleState{entries: make([]StateEntry, 10)},
 	}
-	InitRuleState(&rule, 10)
 	return &rule
 }
 

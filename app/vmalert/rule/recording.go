@@ -49,7 +49,8 @@ func (rr *RecordingRule) ID() uint64 {
 	return rr.RuleID
 }
 
-func newRecordingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule) *RecordingRule {
+// NewRecordingRule creates a new RecordingRule
+func NewRecordingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule) *RecordingRule {
 	rr := &RecordingRule{
 		Type:    group.Type,
 		RuleID:  cfg.ID,
@@ -69,9 +70,13 @@ func newRecordingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rul
 	entrySize := *ruleUpdateEntriesLimit
 	if cfg.UpdateEntriesLimit != nil {
 		entrySize = *cfg.UpdateEntriesLimit
-
 	}
-	InitRuleState(rr, entrySize)
+	if entrySize < 1 {
+		entrySize = 1
+	}
+	rr.state = &ruleState{
+		entries: make([]StateEntry, entrySize),
+	}
 
 	labels := fmt.Sprintf(`recording=%q, group=%q, id="%d"`, rr.Name, group.Name, rr.ID())
 	rr.metrics.errors = utils.GetOrCreateGauge(fmt.Sprintf(`vmalert_recording_rules_error{%s}`, labels),

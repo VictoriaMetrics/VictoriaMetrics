@@ -6,29 +6,9 @@ import (
 	"time"
 )
 
-func TestRule_stateDisabled(t *testing.T) {
-	r := &AlertingRule{}
-	InitRuleState(r, -1)
-	e := r.state.getLast()
-	if !e.At.IsZero() {
-		t.Fatalf("expected entry to be zero")
-	}
-
-	r.state.add(StateEntry{At: time.Now()})
-	r.state.add(StateEntry{At: time.Now()})
-	r.state.add(StateEntry{At: time.Now()})
-
-	if len(r.state.getAll()) != 1 {
-		// state should store at least one update at any circumstances
-		t.Fatalf("expected for state to have %d entries; got %d",
-			1, len(r.state.getAll()),
-		)
-	}
-}
 func TestRule_state(t *testing.T) {
-	r := &AlertingRule{}
 	stateEntriesN := 20
-	InitRuleState(r, stateEntriesN)
+	r := &AlertingRule{state: &ruleState{entries: make([]StateEntry, stateEntriesN)}}
 	e := r.state.getLast()
 	if !e.At.IsZero() {
 		t.Fatalf("expected entry to be zero")
@@ -82,9 +62,7 @@ func TestRule_state(t *testing.T) {
 // execution of state updates.
 // Should be executed with -race flag
 func TestRule_stateConcurrent(_ *testing.T) {
-	r := &AlertingRule{}
-	InitRuleState(r, 20)
-
+	r := &AlertingRule{state: &ruleState{entries: make([]StateEntry, 20)}}
 	const workers = 50
 	const iterations = 100
 	wg := sync.WaitGroup{}

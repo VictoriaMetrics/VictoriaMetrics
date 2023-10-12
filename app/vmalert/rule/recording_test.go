@@ -56,10 +56,12 @@ func TestRecordingRule_Exec(t *testing.T) {
 				Name: "job:foo",
 				Labels: map[string]string{
 					"source": "test",
-				}},
+				},
+			},
 			[]datasource.Metric{
 				metricWithValueAndLabels(t, 2, "__name__", "foo", "job", "foo"),
-				metricWithValueAndLabels(t, 1, "__name__", "bar", "job", "bar")},
+				metricWithValueAndLabels(t, 1, "__name__", "bar", "job", "bar"),
+			},
 			[]prompbmarshal.TimeSeries{
 				newTimeSeries([]float64{2}, []int64{timestamp.UnixNano()}, map[string]string{
 					"__name__": "job:foo",
@@ -79,7 +81,7 @@ func TestRecordingRule_Exec(t *testing.T) {
 			fq := &datasource.FakeQuerier{}
 			fq.Add(tc.metrics...)
 			tc.rule.q = fq
-			InitRuleState(tc.rule, 10)
+			tc.rule.state = &ruleState{entries: make([]StateEntry, 10)}
 			tss, err := tc.rule.exec(context.TODO(), time.Now(), 0)
 			if err != nil {
 				t.Fatalf("unexpected Exec err: %s", err)
@@ -141,7 +143,8 @@ func TestRecordingRule_ExecRange(t *testing.T) {
 			}},
 			[]datasource.Metric{
 				metricWithValueAndLabels(t, 2, "__name__", "foo", "job", "foo"),
-				metricWithValueAndLabels(t, 1, "__name__", "bar", "job", "bar")},
+				metricWithValueAndLabels(t, 1, "__name__", "bar", "job", "bar"),
+			},
 			[]prompbmarshal.TimeSeries{
 				newTimeSeries([]float64{2}, []int64{timestamp.UnixNano()}, map[string]string{
 					"__name__": "job:foo",
@@ -198,10 +201,9 @@ func TestRecordingRuleLimit(t *testing.T) {
 		metricWithValuesAndLabels(t, []float64{2, 3}, "__name__", "bar", "job", "bar"),
 		metricWithValuesAndLabels(t, []float64{4, 5, 6}, "__name__", "baz", "job", "baz"),
 	}
-	rule := &RecordingRule{Name: "job:foo", Labels: map[string]string{
+	rule := &RecordingRule{Name: "job:foo", state: &ruleState{entries: make([]StateEntry, 10)}, Labels: map[string]string{
 		"source": "test_limit",
 	}}
-	InitRuleState(rule, 10)
 	var err error
 	for _, testCase := range testCases {
 		fq := &datasource.FakeQuerier{}
@@ -220,8 +222,8 @@ func TestRecordingRule_ExecNegative(t *testing.T) {
 		Labels: map[string]string{
 			"job": "test",
 		},
+		state: &ruleState{entries: make([]StateEntry, 10)},
 	}
-	InitRuleState(rr, 10)
 	fq := &datasource.FakeQuerier{}
 	expErr := "connection reset by peer"
 	fq.SetErr(errors.New(expErr))

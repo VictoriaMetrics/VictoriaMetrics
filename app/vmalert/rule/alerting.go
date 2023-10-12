@@ -54,7 +54,8 @@ type alertingRuleMetrics struct {
 	seriesFetched *utils.Gauge
 }
 
-func newAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule) *AlertingRule {
+// NewAlertingRule creates a new AlertingRule
+func NewAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule) *AlertingRule {
 	ar := &AlertingRule{
 		Type:          group.Type,
 		RuleID:        cfg.ID,
@@ -82,9 +83,13 @@ func newAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule
 	entrySize := *ruleUpdateEntriesLimit
 	if cfg.UpdateEntriesLimit != nil {
 		entrySize = *cfg.UpdateEntriesLimit
-
 	}
-	InitRuleState(ar, entrySize)
+	if entrySize < 1 {
+		entrySize = 1
+	}
+	ar.state = &ruleState{
+		entries: make([]StateEntry, entrySize),
+	}
 
 	labels := fmt.Sprintf(`alertname=%q, group=%q, id="%d"`, ar.Name, group.Name, ar.ID())
 	ar.metrics.pending = utils.GetOrCreateGauge(fmt.Sprintf(`vmalert_alerts_pending{%s}`, labels),
@@ -162,6 +167,27 @@ func (ar *AlertingRule) ID() uint64 {
 	return ar.RuleID
 }
 
+// GetAlerts returns active alerts of rule
+func (ar *AlertingRule) GetAlerts() []*notifier.Alert {
+	ar.alertsMu.RLock()
+	defer ar.alertsMu.RUnlock()
+	var alerts []*notifier.Alert
+	for _, a := range ar.alerts {
+		alerts = append(alerts, a)
+	}
+	return alerts
+}
+
+// GetAlert returns alert if id exists
+func (ar *AlertingRule) GetAlert(id uint64) *notifier.Alert {
+	ar.alertsMu.RLock()
+	defer ar.alertsMu.RUnlock()
+	if ar.alerts == nil {
+		return nil
+	}
+	return ar.alerts[id]
+}
+
 func (ar *AlertingRule) logDebugf(at time.Time, a *notifier.Alert, format string, args ...interface{}) {
 	if !ar.Debug {
 		return
@@ -186,6 +212,26 @@ func (ar *AlertingRule) logDebugf(at time.Time, a *notifier.Alert, format string
 	}
 	msg := fmt.Sprintf(format, args...)
 	logger.Infof("%s", prefix+msg)
+}
+
+// updateWith copies all significant fields.
+// alerts state isn't copied since
+// it should be updated in next 2 Execs
+func (ar *AlertingRule) updateWith(r Rule) error {
+	nr, ok := r.(*AlertingRule)
+	if !ok {
+		return fmt.Errorf("BUG: attempt to update alerting rule with wrong type %#v", r)
+	}
+	ar.Expr = nr.Expr
+	ar.For = nr.For
+	ar.KeepFiringFor = nr.KeepFiringFor
+	ar.Labels = nr.Labels
+	ar.Annotations = nr.Annotations
+	ar.EvalInterval = nr.EvalInterval
+	ar.Debug = nr.Debug
+	ar.q = nr.q
+	ar.state = nr.state
+	return nil
 }
 
 type labelSet struct {
@@ -379,7 +425,7 @@ func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int) ([]pr
 		a.ID = h
 		a.State = notifier.StatePending
 		a.ActiveAt = ts
-		ar.UpdateRuleAlerts(h, a)
+		ar.alerts[h] = a
 		ar.logDebugf(ts, a, "created in state PENDING")
 	}
 	var numActivePending int
@@ -439,26 +485,6 @@ func (ar *AlertingRule) toTimeSeries(timestamp int64) []prompbmarshal.TimeSeries
 		tss = append(tss, ts...)
 	}
 	return tss
-}
-
-// updateWith copies all significant fields.
-// alerts state isn't copied since
-// it should be updated in next 2 Execs
-func (ar *AlertingRule) updateWith(r Rule) error {
-	nr, ok := r.(*AlertingRule)
-	if !ok {
-		return fmt.Errorf("BUG: attempt to update alerting rule with wrong type %#v", r)
-	}
-	ar.Expr = nr.Expr
-	ar.For = nr.For
-	ar.KeepFiringFor = nr.KeepFiringFor
-	ar.Labels = nr.Labels
-	ar.Annotations = nr.Annotations
-	ar.EvalInterval = nr.EvalInterval
-	ar.Debug = nr.Debug
-	ar.q = nr.q
-	ar.state = nr.state
-	return nil
 }
 
 // TODO: consider hashing algorithm in VM
@@ -636,34 +662,4 @@ func (ar *AlertingRule) alertsToSend(ts time.Time, resolveDuration, resendDelay 
 		alerts = append(alerts, *a)
 	}
 	return alerts
-}
-
-// GetAlerts returns active alerts of rule
-func (ar *AlertingRule) GetAlerts() []*notifier.Alert {
-	ar.alertsMu.RLock()
-	defer ar.alertsMu.RUnlock()
-	var alerts []*notifier.Alert
-	for _, a := range ar.alerts {
-		alerts = append(alerts, a)
-	}
-	return alerts
-}
-
-// GetAlert returns alert if id exists
-func (ar *AlertingRule) GetAlert(id uint64) *notifier.Alert {
-	ar.alertsMu.RLock()
-	defer ar.alertsMu.RUnlock()
-	if ar.alerts == nil {
-		return nil
-	}
-	return ar.alerts[id]
-}
-
-// UpdateRuleAlerts update alert with given hash id
-// Isn't concurrent-safe, callers must be sure to call it from only one goroutine
-func (ar *AlertingRule) UpdateRuleAlerts(id uint64, alert *notifier.Alert) {
-	if ar.alerts == nil {
-		ar.alerts = make(map[uint64]*notifier.Alert)
-	}
-	ar.alerts[id] = alert
 }

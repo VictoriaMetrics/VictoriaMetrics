@@ -508,10 +508,10 @@ func TestFaultyRW(t *testing.T) {
 	fq.Add(metricWithValueAndLabels(t, 1, "__name__", "foo", "job", "bar"))
 
 	r := &RecordingRule{
-		Name: "test",
-		q:    fq,
+		Name:  "test",
+		q:     fq,
+		state: &ruleState{entries: make([]StateEntry, 10)},
 	}
-	InitRuleState(r, 10)
 
 	e := &executor{
 		Rw:                       &remotewrite.Client{},

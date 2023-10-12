@@ -1,36 +1,38 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
 	"testing"
+	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/rule"
 )
 
 func TestHandler(t *testing.T) {
-	ar := &rule.AlertingRule{
-		Name: "alert",
-	}
-	ar.UpdateRuleAlerts(0, &notifier.Alert{State: notifier.StateFiring})
-	rule.InitRuleState(ar, 10)
-
-	rr := &rule.RecordingRule{
-		Name: "record",
-	}
-	rule.InitRuleState(rr, 10)
-
+	fq := &datasource.FakeQuerier{}
+	fq.Add(datasource.Metric{
+		Values: []float64{1}, Timestamps: []int64{0},
+	})
 	g := &rule.Group{
-		Name: "group",
+		Name:        "group",
+		Concurrency: 1,
 	}
-	g.Rules = append(g.Rules, ar)
-	g.Rules = append(g.Rules, rr)
-	m := &manager{groups: make(map[uint64]*rule.Group)}
-	m.groups[0] = g
+	ar := rule.NewAlertingRule(fq, g, config.Rule{Alert: "alert"})
+	rr := rule.NewRecordingRule(fq, g, config.Rule{Record: "record"})
+	g.Rules = []rule.Rule{ar, rr}
+	g.ExecOnce(context.Background(), func() []notifier.Notifier { return nil }, nil, time.Unix(0, 0))
+
+	m := &manager{groups: map[uint64]*rule.Group{
+		g.ID(): g,
+	}}
 	rh := &requestHandler{m: m}
 
 	getResp := func(url string, to interface{}, code int) {
