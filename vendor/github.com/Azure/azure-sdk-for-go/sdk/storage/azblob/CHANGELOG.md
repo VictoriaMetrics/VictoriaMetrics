@@ -1,5 +1,29 @@
 # Release History
 
+## 1.2.0 (2023-10-11)
+
+### Bugs Fixed
+* Fixed null pointer exception when `SetImmutabilityPolicyOptions` is passed as `nil`.
+
+## 1.2.0-beta.1 (2023-09-18)
+
+### Features Added
+* Added support for service version 2020-12-06, 2021-02-12, 2021-04-10, 2021-06-08, 2021-08-06 , 2021-10-04, 2021-12-02, 2022-11-02, 2023-01-03, 2023-05-03, and 2023-08-03
+* Added support for [Cold Tier](https://learn.microsoft.com/azure/storage/blobs/access-tiers-overview?tabs=azure-portal).
+* Added `CopySourceTag` option for `UploadBlobFromURLOptions`
+* Added [FilterBlobs by Tags](https://learn.microsoft.com/rest/api/storageservices/find-blobs-by-tags-container) API for container client.
+* Added `System` option to `ListContainersInclude` to allow listing of system containers (i.e, $web).
+* Updated the SAS Version to `2021-12-02` and added `Encryption Scope` to Account SAS, Service SAS, and User Delegation SAS
+* Added `ArchiveStatusRehydratePendingToCold` value to `ArchiveStatus` enum.
+* Content length limit for `AppendBlob.AppendBlock()` and `AppendBlob.AppendBlockFromURL()` raised from 4 MB to 100 MB.
+
+### Bugs Fixed
+* Fixed issue where some requests fail with mismatch in string to sign.
+* Fixed service SAS creation where expiry time or permissions can be omitted when stored access policy is used. Fixes [#21229](https://github.com/Azure/azure-sdk-for-go/issues/21229).
+
+### Other Changes
+* Updating version of azcore to 1.6.0.
+
 ## 1.1.0 (2023-07-13)
 
 ### Features Added
@@ -15,7 +39,6 @@
 
 * Fixed time formatting for the conditional request headers. Fixes [#20475](https://github.com/Azure/azure-sdk-for-go/issues/20475).
 * Fixed an issue where passing a blob tags map of length 0 would result in the x-ms-tags header to be sent to the service with an empty string as value.
-
 * Fixed block size and number of blocks calculation in `UploadBuffer` and `UploadFile`. Fixes [#20735](https://github.com/Azure/azure-sdk-for-go/issues/20735).
 
 ### Other Changes

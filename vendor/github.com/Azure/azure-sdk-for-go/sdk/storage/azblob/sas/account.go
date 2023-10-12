@@ -25,13 +25,14 @@ type UserDelegationCredential = exported.UserDelegationCredential
 // AccountSignatureValues is used to generate a Shared Access Signature (SAS) for an Azure Storage account.
 // For more information, see https://docs.microsoft.com/rest/api/storageservices/constructing-an-account-sas
 type AccountSignatureValues struct {
-	Version       string    `param:"sv"`  // If not specified, this format to SASVersion
-	Protocol      Protocol  `param:"spr"` // See the SASProtocol* constants
-	StartTime     time.Time `param:"st"`  // Not specified if IsZero
-	ExpiryTime    time.Time `param:"se"`  // Not specified if IsZero
-	Permissions   string    `param:"sp"`  // Create by initializing AccountPermissions and then call String()
-	IPRange       IPRange   `param:"sip"`
-	ResourceTypes string    `param:"srt"` // Create by initializing AccountResourceTypes and then call String()
+	Version         string    `param:"sv"`  // If not specified, this format to SASVersion
+	Protocol        Protocol  `param:"spr"` // See the SASProtocol* constants
+	StartTime       time.Time `param:"st"`  // Not specified if IsZero
+	ExpiryTime      time.Time `param:"se"`  // Not specified if IsZero
+	Permissions     string    `param:"sp"`  // Create by initializing AccountPermissions and then call String()
+	IPRange         IPRange   `param:"sip"`
+	ResourceTypes   string    `param:"srt"` // Create by initializing AccountResourceTypes and then call String()
+	EncryptionScope string    `param:"ses"`
 }
 
 // SignWithSharedKey uses an account's shared key credential to sign this signature values to produce
@@ -68,6 +69,7 @@ func (v AccountSignatureValues) SignWithSharedKey(sharedKeyCredential *SharedKey
 		v.IPRange.String(),
 		string(v.Protocol),
 		v.Version,
+		v.EncryptionScope,
 		""}, // That is right, the account SAS requires a terminating extra newline
 		"\n")
 
@@ -77,12 +79,13 @@ func (v AccountSignatureValues) SignWithSharedKey(sharedKeyCredential *SharedKey
 	}
 	p := QueryParameters{
 		// Common SAS parameters
-		version:     v.Version,
-		protocol:    v.Protocol,
-		startTime:   v.StartTime,
-		expiryTime:  v.ExpiryTime,
-		permissions: v.Permissions,
-		ipRange:     v.IPRange,
+		version:         v.Version,
+		protocol:        v.Protocol,
+		startTime:       v.StartTime,
+		expiryTime:      v.ExpiryTime,
+		permissions:     v.Permissions,
+		ipRange:         v.IPRange,
+		encryptionScope: v.EncryptionScope,
 
 		// Account-specific SAS parameters
 		services:      "b", // will always be "b"

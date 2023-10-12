@@ -8,7 +8,6 @@ package base
 
 import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
-	"github.com/Azure/azure-sdk-for-go/sdk/azcore/runtime"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/internal/exported"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/internal/generated"
 )
@@ -44,23 +43,23 @@ func NewClient[T any](inner *T) *Client[T] {
 	return &Client[T]{inner: inner}
 }
 
-func NewServiceClient(containerURL string, pipeline runtime.Pipeline, credential any) *Client[generated.ServiceClient] {
+func NewServiceClient(containerURL string, azClient *azcore.Client, credential any) *Client[generated.ServiceClient] {
 	return &Client[generated.ServiceClient]{
-		inner:      generated.NewServiceClient(containerURL, pipeline),
+		inner:      generated.NewServiceClient(containerURL, azClient),
 		credential: credential,
 	}
 }
 
-func NewContainerClient(containerURL string, pipeline runtime.Pipeline, credential any) *Client[generated.ContainerClient] {
+func NewContainerClient(containerURL string, azClient *azcore.Client, credential any) *Client[generated.ContainerClient] {
 	return &Client[generated.ContainerClient]{
-		inner:      generated.NewContainerClient(containerURL, pipeline),
+		inner:      generated.NewContainerClient(containerURL, azClient),
 		credential: credential,
 	}
 }
 
-func NewBlobClient(blobURL string, pipeline runtime.Pipeline, credential any) *Client[generated.BlobClient] {
+func NewBlobClient(blobURL string, azClient *azcore.Client, credential any) *Client[generated.BlobClient] {
 	return &Client[generated.BlobClient]{
-		inner:      generated.NewBlobClient(blobURL, pipeline),
+		inner:      generated.NewBlobClient(blobURL, azClient),
 		credential: credential,
 	}
 }
@@ -75,26 +74,26 @@ func InnerClients[T, U any](client *CompositeClient[T, U]) (*Client[T], *U) {
 	return &Client[T]{inner: client.innerT}, client.innerU
 }
 
-func NewAppendBlobClient(blobURL string, pipeline runtime.Pipeline, sharedKey *exported.SharedKeyCredential) *CompositeClient[generated.BlobClient, generated.AppendBlobClient] {
+func NewAppendBlobClient(blobURL string, azClient *azcore.Client, sharedKey *exported.SharedKeyCredential) *CompositeClient[generated.BlobClient, generated.AppendBlobClient] {
 	return &CompositeClient[generated.BlobClient, generated.AppendBlobClient]{
-		innerT:    generated.NewBlobClient(blobURL, pipeline),
-		innerU:    generated.NewAppendBlobClient(blobURL, pipeline),
+		innerT:    generated.NewBlobClient(blobURL, azClient),
+		innerU:    generated.NewAppendBlobClient(blobURL, azClient),
 		sharedKey: sharedKey,
 	}
 }
 
-func NewBlockBlobClient(blobURL string, pipeline runtime.Pipeline, sharedKey *exported.SharedKeyCredential) *CompositeClient[generated.BlobClient, generated.BlockBlobClient] {
+func NewBlockBlobClient(blobURL string, azClient *azcore.Client, sharedKey *exported.SharedKeyCredential) *CompositeClient[generated.BlobClient, generated.BlockBlobClient] {
 	return &CompositeClient[generated.BlobClient, generated.BlockBlobClient]{
-		innerT:    generated.NewBlobClient(blobURL, pipeline),
-		innerU:    generated.NewBlockBlobClient(blobURL, pipeline),
+		innerT:    generated.NewBlobClient(blobURL, azClient),
+		innerU:    generated.NewBlockBlobClient(blobURL, azClient),
 		sharedKey: sharedKey,
 	}
 }
 
-func NewPageBlobClient(blobURL string, pipeline runtime.Pipeline, sharedKey *exported.SharedKeyCredential) *CompositeClient[generated.BlobClient, generated.PageBlobClient] {
+func NewPageBlobClient(blobURL string, azClient *azcore.Client, sharedKey *exported.SharedKeyCredential) *CompositeClient[generated.BlobClient, generated.PageBlobClient] {
 	return &CompositeClient[generated.BlobClient, generated.PageBlobClient]{
-		innerT:    generated.NewBlobClient(blobURL, pipeline),
-		innerU:    generated.NewPageBlobClient(blobURL, pipeline),
+		innerT:    generated.NewBlobClient(blobURL, azClient),
+		innerU:    generated.NewPageBlobClient(blobURL, azClient),
 		sharedKey: sharedKey,
 	}
 }
