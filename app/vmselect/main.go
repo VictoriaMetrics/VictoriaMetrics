@@ -352,35 +352,28 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		httpserver.Redirect(w, newURL)
 		return true
 	}
+	if strings.HasPrefix(p.Suffix, "graph/") || strings.HasPrefix(p.Suffix, "prometheus/graph/") {
+		// This is needed for serving /graph URLs from Prometheus datasource in Grafana.
+		p.Suffix = strings.Replace(p.Suffix, "graph/", "vmui/", 1)
+		r.URL.Path = strings.Replace(r.URL.Path, "/graph/", "/vmui/", 1)
+	}
+	if p.Suffix == "vmui/custom-dashboards" || p.Suffix == "prometheus/vmui/custom-dashboards" {
+		if err := handleVMUICustomDashboards(w); err != nil {
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		return true
+	}
 	if strings.HasPrefix(p.Suffix, "vmui/") || strings.HasPrefix(p.Suffix, "prometheus/vmui/") {
 		// vmui access.
-		if p.Suffix == "vmui/custom-dashboards" || p.Suffix == "prometheus/vmui/custom-dashboards" {
-			if err := handleVMUICustomDashboards(w); err != nil {
-				httpserver.Errorf(w, r, "%s", err)
-				return true
-			}
-			return true
+		if strings.HasPrefix(p.Suffix, "vmui/static/") {
+			// Allow clients caching static contents for long period of time, since it shouldn't change over time.
+			// Path to static contents (such as js and css) must be changed whenever its contents is changed.
+			// See https://developer.chrome.com/docs/lighthouse/performance/uses-long-cache-ttl/
+			w.Header().Set("Cache-Control", "max-age=31536000")
 		}
 		prefix := strings.Join([]string{"", p.Prefix, p.AuthToken}, "/")
 		r.URL.Path = strings.Replace(r.URL.Path, "/prometheus/vmui/", "/vmui/", 1)
-		http.StripPrefix(prefix, vmuiFileServer).ServeHTTP(w, r)
-		return true
-	}
-	if strings.HasPrefix(p.Suffix, "graph/") || strings.HasPrefix(p.Suffix, "prometheus/graph/") {
-		// This is needed for serving /graph URLs from Prometheus datasource in Grafana.
-		if p.Suffix == "graph/custom-dashboards" || p.Suffix == "prometheus/graph/custom-dashboards" {
-			if err := handleVMUICustomDashboards(w); err != nil {
-				httpserver.Errorf(w, r, "%s", err)
-				return true
-			}
-			return true
-		}
-		prefix := strings.Join([]string{"", p.Prefix, p.AuthToken}, "/")
-		if strings.HasPrefix(p.Suffix, "prometheus/graph/") {
-			r.URL.Path = strings.Replace(r.URL.Path, "/prometheus/graph/", "/vmui/", 1)
-		} else {
-			r.URL.Path = strings.Replace(r.URL.Path, "/graph/", "/vmui/", 1)
-		}
 		http.StripPrefix(prefix, vmuiFileServer).ServeHTTP(w, r)
 		return true
 	}
