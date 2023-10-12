@@ -1,23 +1,44 @@
 # Benchmark for VictoriaLogs
 
+Benchmark compares VictoriaLogs with ELK stack and Grafana Loki.
+
 Benchmark is based on:
 
 - Logs from this repository - https://github.com/logpai/loghub
+- [logs generator](./generator)
+
+For ELK suite it uses:
+
 - filebeat - https://www.elastic.co/beats/filebeat
 - elastic + kibana
-- [logs generator](./generator)
+
+For Grafana Loki suite it uses:
+
+- [Promtail](https://grafana.com/docs/loki/latest/send-data/promtail/)
+- rsyslog - required to push logs in RFC5424 format to Promtail
+- [Loki](https://grafana.com/oss/loki/)
 
 ## How it works
 
-docker-compose.yml contains:
+[docker-compose.yml](./docker-compose.yml) contains common configurations for all suites:
 
+- VictoriaLogs instance
+- vmsingle - port forwarded to `localhost:8428` to see UI
+- exporters for system metris
+
+ELK suite uses [docker-compose-elk.yml](./docker-compose-elk.yml) with the following services:
+
+- [logs generator](./generator)  which generates logs and sends them to filebeat instances via syslog
 - 2 filebeat instances - one for elastic and one for VictoriaLogs.
 - elastic instance
-- VictoriaLogs instance
 - kibana instance - port forwarded to `localhost:5601` to see UI
-- vmsingle - port forwarded to `localhost:8428` to see UI
-- [logs generator](./generator)
-- exporters for filebeat/system
+
+Loki suite uses [docker-compose-loki.yml](./docker-compose-loki.yml) with the following services:
+
+- [logs generator](./generator)  which generates logs and sends them rsyslog
+- rsyslog instance - sends logs to Promtail
+- Promtail instance - sends logs to Loki and VictoriaLogs
+- Loki instance
 
 [Logs generator](./generator) generates logs based on logs located at `./source_logs/logs` and sends them to filebeat
 instances via syslog.
@@ -44,6 +65,7 @@ Note that with logs listed in `download.sh` it will require 49GB of free space:
 
 If it is needed to minimize disk footprint, you can download only some of them by commenting out lines in `download.sh`.
 Unarchived logs size per file for reference:
+
 ```shell
 2.3M Linux.log
  73M SSH.log
@@ -52,12 +74,11 @@ Unarchived logs size per file for reference:
  13G hadoop-*.log
 ```
 
-
 2. (optional) If needed, adjust amount of logs sent by generator by modifying `-outputRateLimitItems` and
    `outputRateLimitPeriod` parameters in [docker-compose.yml](./docker-compose.yml). By default, it is configured to
    send 10000 logs per second.
 
-3. Build victoria-logs image and adjust `image` parameter in [docker-compose.yml](./docker-compose.yml):
+3. (optional) Build victoria-logs image and adjust `image` parameter in [docker-compose.yml](./docker-compose.yml):
 
 ```shell
 make package-victoria-logs
@@ -74,8 +95,17 @@ output.elasticsearch:
   hosts: [ "http://vlogs:9428/insert/elasticsearch/" ]
 ```
 
-4. Run `docker-compose up -d` to start benchmark.
+4. Run `make docker-up-elk` to start ELK suite or `make docker-up-loki` to start Loki suite.
 
-5. Navigate to `http://localhost:3000/d/hkm6P6_4z/elastic-vs-vlogs` to see Grafana dashboard with resource usage comparison.
+5. Navigate to `http://localhost:3000/` to see Grafana dashboards with resource usage
+   comparison.
+   Navigate to `http://localhost:3000/d/hkm6P6_4z/elastic-vs-vlogs` to see ELK suite results.
+   Navigate to `http://localhost:3000/d/hkm6P6_4y/loki-vs-vlogs` to see Loki suite results.
 
-![grafana-dashboard.png](grafana-dashboard.png)
+Example results vs ELK:
+
+![elk-grafana-dashboard.png](results/elk-grafana-dashboard.png)
+
+Example results vs Loki:
+
+![loki-grafana-dashboard.png](results/loki-grafana-dashboard.png)
