@@ -21,8 +21,8 @@ const LegendItem: FC<LegendItemProps> = ({ legend, onChange, isHeatmap }) => {
     return isHeatmap ? result.filter(f => f.key !== "vmrange") : result;
   }, [legend, isHeatmap]);
 
-  const calculations = legend.calculations;
-  const showCalculations = Object.values(calculations).some(v => v);
+  const statsFormatted = legend.statsFormatted;
+  const showStats = Object.values(statsFormatted).some(v => v);
 
   const handleClickFreeField = async (val: string) => {
     await copyToClipboard(val, `${val} has been copied`);
@@ -70,7 +70,7 @@ const LegendItem: FC<LegendItemProps> = ({ legend, onChange, isHeatmap }) => {
           {!!freeFormFields.length && <>&#125;</>}
         </span>
       </div>
-      {!isHeatmap && showCalculations && (
+      {!isHeatmap && showStats && (
         <div className="vm-legend-item-stats">
           {STATS_ORDER.map((key, i) => (
             <div
@@ -78,7 +78,7 @@ const LegendItem: FC<LegendItemProps> = ({ legend, onChange, isHeatmap }) => {
               key={i}
             >
               <span className="vm-legend-item-stats-row__key">{key}:</span>
-              <span className="vm-legend-item-stats-row__value">{calculations[key]}</span>
+              <span className="vm-legend-item-stats-row__value">{statsFormatted[key]}</span>
             </div>
           ))}
         </div>
