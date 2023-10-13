@@ -15,17 +15,19 @@ import (
 func main() {
 	start := time.Now()
 	app := &cli.App{
-		Name:    "vmalert-tool",
-		Usage:   "VMAlert command-line tool",
-		Version: buildinfo.Version,
+		Name:      "vmalert-tool",
+		Usage:     "VMAlert command-line tool",
+		UsageText: "More info in https://docs.victoriametrics.com/vmalert-tool.html",
+		Version:   buildinfo.Version,
 		Commands: []*cli.Command{
 			{
-				Name:  "unittest",
-				Usage: "Run unittest for alerting and recording rules.",
+				Name:      "unittest",
+				Usage:     "Run unittest for alerting and recording rules.",
+				UsageText: "More info in https://docs.victoriametrics.com/vmalert-tool.html#Unit-testing-for-rules",
 				Flags: []cli.Flag{
 					&cli.StringSliceFlag{
 						Name:     "files",
-						Usage:    "files to run unittest with.",
+						Usage:    "files to run unittest with. Supports an array of values separated by comma or specified via multiple flags.",
 						Required: true,
 					},
 					&cli.BoolFlag{
