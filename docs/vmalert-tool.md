@@ -12,7 +12,7 @@ title: vmalert-tool
 
 VMAlert command-line tool
 
-## Unit Testing for Rules
+## Unit testing for rules
 
 You can use `vmalert-tool` to run unit tests for alerting and recording rules.
 It will perform the following actions:

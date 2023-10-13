@@ -537,4 +537,4 @@ docs-sync:
 	SRC=app/vmctl/README.md DST=docs/vmctl.md OLD_URL='/vmctl.html' ORDER=8 TITLE=vmctl $(MAKE) copy-docs
 	SRC=app/vmgateway/README.md DST=docs/vmgateway.md OLD_URL='/vmgateway.html' ORDER=9 TITLE=vmgateway $(MAKE) copy-docs
 	SRC=app/vmbackupmanager/README.md DST=docs/vmbackupmanager.md OLD_URL='/vmbackupmanager.html' ORDER=10 TITLE=vmbackupmanager $(MAKE) copy-docs
-	SRC=app/vmalert-tool/README.md DST=docs/vmalert-tool.md OLD_URL='' ORDER=11 TITLE=vmalert-tool $(MAKE) copy-docs
+	SRC=app/vmalert-tool/README.md DST=docs/vmalert-tool.md OLD_URL='' ORDER=12 TITLE=vmalert-tool $(MAKE) copy-docs
