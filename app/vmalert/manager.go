@@ -3,14 +3,13 @@ package main
 import (
 	"context"
 	"fmt"
-	"net/url"
-	"sort"
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/remotewrite"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/rule"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
@@ -19,7 +18,7 @@ type manager struct {
 	querierBuilder datasource.QuerierBuilder
 	notifiers      func() []notifier.Notifier
 
-	rw *remotewrite.Client
+	rw remotewrite.RWClient
 	// remote read builder.
 	rr datasource.QuerierBuilder
 
@@ -27,28 +26,28 @@ type manager struct {
 	labels map[string]string
 
 	groupsMu sync.RWMutex
-	groups   map[uint64]*Group
+	groups   map[uint64]*rule.Group
 }
 
-// RuleAPI generates APIRule object from alert by its ID(hash)
-func (m *manager) RuleAPI(gID, rID uint64) (APIRule, error) {
+// ruleAPI generates apiRule object from alert by its ID(hash)
+func (m *manager) ruleAPI(gID, rID uint64) (apiRule, error) {
 	m.groupsMu.RLock()
 	defer m.groupsMu.RUnlock()
 
 	g, ok := m.groups[gID]
 	if !ok {
-		return APIRule{}, fmt.Errorf("can't find group with id %d", gID)
+		return apiRule{}, fmt.Errorf("can't find group with id %d", gID)
 	}
 	for _, rule := range g.Rules {
 		if rule.ID() == rID {
-			return rule.ToAPI(), nil
+			return ruleToAPI(rule), nil
 		}
 	}
-	return APIRule{}, fmt.Errorf("can't find rule with id %d in group %q", rID, g.Name)
+	return apiRule{}, fmt.Errorf("can't find rule with id %d in group %q", rID, g.Name)
 }
 
-// AlertAPI generates APIAlert object from alert by its ID(hash)
-func (m *manager) AlertAPI(gID, aID uint64) (*APIAlert, error) {
+// alertAPI generates apiAlert object from alert by its ID(hash)
+func (m *manager) alertAPI(gID, aID uint64) (*apiAlert, error) {
 	m.groupsMu.RLock()
 	defer m.groupsMu.RUnlock()
 
@@ -56,12 +55,12 @@ func (m *manager) AlertAPI(gID, aID uint64) (*APIAlert, error) {
 	if !ok {
 		return nil, fmt.Errorf("can't find group with id %d", gID)
 	}
-	for _, rule := range g.Rules {
-		ar, ok := rule.(*AlertingRule)
+	for _, r := range g.Rules {
+		ar, ok := r.(*rule.AlertingRule)
 		if !ok {
 			continue
 		}
-		if apiAlert := ar.AlertAPI(aID); apiAlert != nil {
+		if apiAlert := alertToAPI(ar, aID); apiAlert != nil {
 			return apiAlert, nil
 		}
 	}
@@ -82,15 +81,15 @@ func (m *manager) close() {
 	m.wg.Wait()
 }
 
-func (m *manager) startGroup(ctx context.Context, g *Group, restore bool) error {
+func (m *manager) startGroup(ctx context.Context, g *rule.Group, restore bool) error {
 	m.wg.Add(1)
 	id := g.ID()
 	go func() {
 		defer m.wg.Done()
 		if restore {
-			g.start(ctx, m.notifiers, m.rw, m.rr)
+			g.Start(ctx, m.notifiers, m.rw, m.rr)
 		} else {
-			g.start(ctx, m.notifiers, m.rw, nil)
+			g.Start(ctx, m.notifiers, m.rw, nil)
 		}
 	}()
 	m.groups[id] = g
@@ -99,7 +98,7 @@ func (m *manager) startGroup(ctx context.Context, g *Group, restore bool) error 
 
 func (m *manager) update(ctx context.Context, groupsCfg []config.Group, restore bool) error {
 	var rrPresent, arPresent bool
-	groupsRegistry := make(map[uint64]*Group)
+	groupsRegistry := make(map[uint64]*rule.Group)
 	for _, cfg := range groupsCfg {
 		for _, r := range cfg.Rules {
 			if rrPresent && arPresent {
@@ -112,7 +111,7 @@ func (m *manager) update(ctx context.Context, groupsCfg []config.Group, restore 
 				arPresent = true
 			}
 		}
-		ng := newGroup(cfg, m.querierBuilder, *evaluationInterval, m.labels)
+		ng := rule.NewGroup(cfg, m.querierBuilder, *evaluationInterval, m.labels)
 		groupsRegistry[ng.ID()] = ng
 	}
 
@@ -124,8 +123,8 @@ func (m *manager) update(ctx context.Context, groupsCfg []config.Group, restore 
 	}
 
 	type updateItem struct {
-		old *Group
-		new *Group
+		old *rule.Group
+		new *rule.Group
 	}
 	var toUpdate []updateItem
 
@@ -135,7 +134,7 @@ func (m *manager) update(ctx context.Context, groupsCfg []config.Group, restore 
 		if !ok {
 			// old group is not present in new list,
 			// so must be stopped and deleted
-			og.close()
+			og.Close()
 			delete(m.groups, og.ID())
 			og = nil
 			continue
@@ -157,81 +156,13 @@ func (m *manager) update(ctx context.Context, groupsCfg []config.Group, restore 
 		var wg sync.WaitGroup
 		for _, item := range toUpdate {
 			wg.Add(1)
-			go func(old *Group, new *Group) {
-				old.updateCh <- new
+			go func(old *rule.Group, new *rule.Group) {
+				old.UpdateWith(new)
 				wg.Done()
 			}(item.old, item.new)
-			item.old.interruptEval()
+			item.old.InterruptEval()
 		}
 		wg.Wait()
 	}
 	return nil
-}
-
-func (g *Group) toAPI() APIGroup {
-	g.mu.RLock()
-	defer g.mu.RUnlock()
-
-	ag := APIGroup{
-		// encode as string to avoid rounding
-		ID: fmt.Sprintf("%d", g.ID()),
-
-		Name:            g.Name,
-		Type:            g.Type.String(),
-		File:            g.File,
-		Interval:        g.Interval.Seconds(),
-		LastEvaluation:  g.LastEvaluation,
-		Concurrency:     g.Concurrency,
-		Params:          urlValuesToStrings(g.Params),
-		Headers:         headersToStrings(g.Headers),
-		NotifierHeaders: headersToStrings(g.NotifierHeaders),
-
-		Labels: g.Labels,
-	}
-	ag.Rules = make([]APIRule, 0)
-	for _, r := range g.Rules {
-		ag.Rules = append(ag.Rules, r.ToAPI())
-	}
-	return ag
-}
-
-func urlValuesToStrings(values url.Values) []string {
-	if len(values) < 1 {
-		return nil
-	}
-
-	keys := make([]string, 0, len(values))
-	for k := range values {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-
-	var res []string
-	for _, k := range keys {
-		params := values[k]
-		for _, v := range params {
-			res = append(res, fmt.Sprintf("%s=%s", k, v))
-		}
-	}
-	return res
-}
-
-func headersToStrings(headers map[string]string) []string {
-	if len(headers) < 1 {
-		return nil
-	}
-
-	keys := make([]string, 0, len(headers))
-	for k := range headers {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-
-	var res []string
-	for _, k := range keys {
-		v := headers[k]
-		res = append(res, fmt.Sprintf("%s: %s", k, v))
-	}
-
-	return res
 }

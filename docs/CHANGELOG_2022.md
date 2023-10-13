@@ -1,11 +1,11 @@
 ---
-sort: 17
-weight: 17
+sort: 26
+weight: 26
 title: CHANGELOG for the year 2022
 menu:
   docs:
-    parent: "victoriametrics"
-    weight: 17
+    parent: 'victoriametrics'
+    weight: 26
 aliases:
 - /CHANGELOG.html
 ---

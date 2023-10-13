@@ -1,11 +1,11 @@
 ---
-sort: 13
-weight: 13
+sort: 22
+weight: 22
 title: Quick start
 menu:
   docs:
-    parent: "victoriametrics"
-    weight: 13
+    parent: 'victoriametrics'
+    weight: 22
 aliases:
 - /Quick-Start.html
 ---

@@ -4,7 +4,7 @@ weight: 98
 title: Streaming aggregation
 menu:
   docs:
-    parent: "victoriametrics"
+    parent: 'victoriametrics'
     weight: 98
 aliases:
 - /stream-aggregation.html

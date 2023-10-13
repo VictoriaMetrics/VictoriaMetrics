@@ -53,3 +53,11 @@ func ParseDuration(s string) (time.Duration, error) {
 	}
 	return time.Duration(ms) * time.Millisecond, nil
 }
+
+// ParseTime returns time for pd.
+func (pd *Duration) ParseTime() time.Time {
+	if pd == nil {
+		return time.Time{}
+	}
+	return time.UnixMilli(pd.Duration().Milliseconds())
+}

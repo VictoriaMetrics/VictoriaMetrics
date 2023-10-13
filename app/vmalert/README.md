@@ -754,6 +754,11 @@ See full description for these flags in `./vmalert -help`.
 * `limit` group's param has no effect during replay (might be changed in future);
 * `keep_firing_for` alerting rule param has no effect during replay (might be changed in future).
 
+## Unit Testing for Rules
+
+You can use `vmalert-tool` to test your alerting and recording rules like [promtool does](https://prometheus.io/docs/prometheus/latest/configuration/unit_testing_rules/).
+See more details [here](https://docs.victoriametrics.com/vmalert-tool.html#Unit-testing-for-rules).
+
 ## Monitoring
 
 `vmalert` exports various metrics in Prometheus exposition format at `http://vmalert-host:8880/metrics` page.

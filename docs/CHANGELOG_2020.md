@@ -1,11 +1,11 @@
 ---
-sort: 19
-weight: 19
+sort: 28
+weight: 28
 title: CHANGELOG for the year 2020
 menu:
   docs:
-    parent: "victoriametrics"
-    weight: 19
+    parent: 'victoriametrics'
+    weight: 28
 aliases:
 - /CHANGELOG.html
 ---
