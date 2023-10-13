@@ -808,6 +808,8 @@ Feel free asking any questions regarding VictoriaMetrics:
 * [Google groups](https://groups.google.com/forum/#!forum/victorametrics-users)
 * [Mastodon](https://mastodon.social/@victoriametrics/)
 
+We are open to third-party pull requests provided they follow the [KISS design principle](https://en.wikipedia.org/wiki/KISS_principle):
+
 - Prefer simple code and architecture.
 - Avoid complex abstractions.
 - Avoid magic code and fancy algorithms.
