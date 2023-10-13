@@ -25,8 +25,8 @@ func TestHandler(t *testing.T) {
 		Name:        "group",
 		Concurrency: 1,
 	}
-	ar := rule.NewAlertingRule(fq, g, config.Rule{Alert: "alert"})
-	rr := rule.NewRecordingRule(fq, g, config.Rule{Record: "record"})
+	ar := rule.NewAlertingRule(fq, g, config.Rule{ID: 0, Alert: "alert"})
+	rr := rule.NewRecordingRule(fq, g, config.Rule{ID: 1, Record: "record"})
 	g.Rules = []rule.Rule{ar, rr}
 	g.ExecOnce(context.Background(), func() []notifier.Notifier { return nil }, nil, time.Time{})
 

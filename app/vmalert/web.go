@@ -145,11 +145,11 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 }
 
 func (rh *requestHandler) getRule(r *http.Request) (apiRule, error) {
-	groupID, err := strconv.ParseUint(r.FormValue(paramGroupID), 10, 0)
+	groupID, err := strconv.ParseUint(r.FormValue(paramGroupID), 10, 64)
 	if err != nil {
 		return apiRule{}, fmt.Errorf("failed to read %q param: %s", paramGroupID, err)
 	}
-	ruleID, err := strconv.ParseUint(r.FormValue(paramRuleID), 10, 0)
+	ruleID, err := strconv.ParseUint(r.FormValue(paramRuleID), 10, 64)
 	if err != nil {
 		return apiRule{}, fmt.Errorf("failed to read %q param: %s", paramRuleID, err)
 	}
@@ -161,11 +161,11 @@ func (rh *requestHandler) getRule(r *http.Request) (apiRule, error) {
 }
 
 func (rh *requestHandler) getAlert(r *http.Request) (*apiAlert, error) {
-	groupID, err := strconv.ParseUint(r.FormValue(paramGroupID), 10, 0)
+	groupID, err := strconv.ParseUint(r.FormValue(paramGroupID), 10, 64)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read %q param: %s", paramGroupID, err)
 	}
-	alertID, err := strconv.ParseUint(r.FormValue(paramAlertID), 10, 0)
+	alertID, err := strconv.ParseUint(r.FormValue(paramAlertID), 10, 64)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read %q param: %s", paramAlertID, err)
 	}
