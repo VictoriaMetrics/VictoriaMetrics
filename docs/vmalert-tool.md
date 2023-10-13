@@ -22,6 +22,7 @@ It will perform the following actions:
 * checks whether the firing alerts or resulting recording rules match the expected results.
 
 See how to run vmalert-tool for unit test below:
+
 ```
 # Run vmalert-tool with one or multiple test files via --files cmd-line flag
 ./vmalert-tool unittest --files test1.yaml --files test2.yaml
@@ -35,7 +36,8 @@ which aren't always backward compatible with [PromQL](https://prometheus.io/docs
 ### Test file format
 
 The configuration format for files specified in `--files` cmd-line flag is the following:
-```
+
+```yaml
 # Path to the files or http url containing [rule groups](https://docs.victoriametrics.com/vmalert.html#groups) configuration.
 # Enterprise version of vmalert-tool supports S3 and GCS paths to rules.
 rule_files:
@@ -56,7 +58,7 @@ tests:
 
 #### `<test_group>`
 
-```
+```yaml
 # Interval between samples for input series
 interval: <duration>
 # Time series to persist into the database according to configured <interval> before running tests.
@@ -82,7 +84,7 @@ external_labels:
 
 #### `<series>`
 
-```
+```yaml
 # series in the following format '<metric name>{<label name>=<label value>, ...}'
 # Examples:
 #      series_name{label1="value1", label2="value2"}
@@ -111,7 +113,7 @@ So you will need to specify both `groupname` and `alertname` under a single `<al
 but no need to add them under `exp_alerts`.
 You can also pass `--disableAlertgroupLabel` to skip `alertgroup` check.
 
-```
+```yaml
 # The time elapsed from time=0s when this alerting rule should be checked.
 # Means this rule should be firing at this point, or shouldn't be firing if 'exp_alerts' is empty.
 eval_time: <duration>
@@ -131,7 +133,7 @@ exp_alerts:
 
 #### `<alert>`
 
-```
+```yaml
 # These are the expanded labels and annotations of the expected alert.
 # Note: labels also include the labels of the sample associated with the alert
 exp_labels:
@@ -142,7 +144,7 @@ exp_annotations:
 
 #### `<metricsql_expr_test>`
 
-```
+```yaml
 # Expression to evaluate
 expr: <string>
 
@@ -156,7 +158,7 @@ exp_samples:
 
 #### `<sample>`
 
-```
+```yaml
 # Labels of the sample in usual series notation '<metric name>{<label name>=<label value>, ...}'
 # Examples:
 #      series_name{label1="value1", label2="value2"}
@@ -176,7 +178,7 @@ With `rules.yaml` in the same directory, run `./vmalert-tool unittest --files=./
 
 #### `test.yaml`
 
-```
+```yaml
 rule_files:
   - rules.yaml
 
@@ -227,7 +229,7 @@ tests:
 
 #### `alerts.yaml`
 
-```
+```yaml
 # This is the rules file.
 
 groups:
