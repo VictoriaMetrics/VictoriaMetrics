@@ -9,7 +9,7 @@ menu:
 aliases:
 - /managed-victoriametrics/quickstart.html
 ---
-# Quick Start in Managed VictoriaMetrics
+# Quick Start
 
 Managed VictoriaMetrics – is a database-as-a-service platform, where users can run the VictoriaMetrics 
 that they know and love on AWS without the need to perform typical DevOps tasks such as proper configuration, 
