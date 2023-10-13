@@ -964,7 +964,7 @@ License holds license key for enterprise features. Using license key is supporte
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
-| key | Enterprise license key. This flag is available only in VictoriaMetrics enterprise. Documentation - https://docs.victoriametrics.com/enterprise.html for more information, visit https://victoriametrics.com/products/enterprise/ . To request a trial license, go to https://victoriametrics.com/products/enterprise/trial/ | *string | false |
+| key | Enterprise license key. This flag is available only in Enterprise binaries. Documentation - https://docs.victoriametrics.com/enterprise.html for more information, visit https://victoriametrics.com/products/enterprise/ . To request a trial license, go to https://victoriametrics.com/products/enterprise/trial/ | *string | false |
 | keyRef | KeyRef is reference to secret with license key for enterprise features. | *[v1.SecretKeySelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#secretkeyselector-v1-core) | false |
 
 [Back to TOC](#table-of-contents)
