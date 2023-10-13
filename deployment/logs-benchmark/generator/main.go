@@ -64,6 +64,13 @@ func main() {
 		}
 
 		syslogTag := "logs-benchmark-" + sourceFile + "-" + strconv.FormatInt(startedAt, 10)
+
+		// Loki uses RFC5424 syslog format, which has a 48 character limit on the tag.
+		tagLen := len(syslogTag)
+		if tagLen > 48 {
+			truncate := tagLen - 48
+			syslogTag = syslogTag[truncate:]
+		}
 		logger, err := syslog.Dial("tcp", *syslogAddr, syslog.LOG_INFO, syslogTag)
 		if err != nil {
 			panic(fmt.Errorf("error dialing syslog: %w", err))
