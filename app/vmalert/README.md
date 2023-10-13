@@ -942,7 +942,7 @@ The shortlist of configuration flags is the following:
 {% raw  %}
 ```console
   -clusterMode
-     If clusterMode is enabled, then vmalert automatically adds the tenant specified in config groups to -datasource.url, -remoteWrite.url and -remoteRead.url. See https://docs.victoriametrics.com/vmalert.html#multitenancy . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
+     If clusterMode is enabled, then vmalert automatically adds the tenant specified in config groups to -datasource.url, -remoteWrite.url and -remoteRead.url. See https://docs.victoriametrics.com/vmalert.html#multitenancy . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
   -configCheckInterval duration
      Interval for checking for changes in '-rule' or '-notifier.config' files. By default, the checking is disabled. Send SIGHUP signal in order to force config check for changes.
   -datasource.appendTypePrefix
@@ -980,13 +980,11 @@ The shortlist of configuration flags is the following:
   -datasource.queryStep duration
      How far a value can fallback to when evaluating queries. For example, if -datasource.queryStep=15s then param "step" with value "15s" will be added to every query. If set to 0, rule's evaluation interval will be used instead. (default 5m0s)
   -datasource.queryTimeAlignment
-     Flag is deprecated and will be removed in next releases, please use `eval_alignment` in rule group instead.
-     Whether to align "time" parameter with evaluation interval.Alignment supposed to produce deterministic results despite number of vmalert replicas or time they were started. See more details here https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1257 (default true)
+     Deprecated: please use "eval_alignment" in rule group instead. Whether to align "time" parameter with evaluation interval. Alignment supposed to produce deterministic results despite number of vmalert replicas or time they were started. See more details at https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1257 (default true)
   -datasource.roundDigits int
      Adds "round_digits" GET param to datasource requests. In VM "round_digits" limits the number of digits after the decimal point in response values.
   -datasource.showURL
-     Whether to avoid stripping sensitive information such as auth headers or passwords from URLs in log messages or UI and exported metrics.
-     It is hidden by default, since it can contain sensitive info such as auth key.
+     Whether to avoid stripping sensitive information such as auth headers or passwords from URLs in log messages or UI and exported metrics. It is hidden by default, since it can contain sensitive info such as auth key
   -datasource.tlsCAFile string
      Optional path to TLS CA file to use for verifying connections to -datasource.url. By default, system CA is used
   -datasource.tlsCertFile string
@@ -1000,13 +998,13 @@ The shortlist of configuration flags is the following:
   -datasource.url string
      Datasource compatible with Prometheus HTTP API. It can be single node VictoriaMetrics or vmselect URL. Required parameter. E.g. http://127.0.0.1:8428 . See also -remoteRead.disablePathAppend and -datasource.showURL
   -defaultTenant.graphite string
-     Default tenant for Graphite alerting groups. See https://docs.victoriametrics.com/vmalert.html#multitenancy .This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
+     Default tenant for Graphite alerting groups. See https://docs.victoriametrics.com/vmalert.html#multitenancy .This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
   -defaultTenant.prometheus string
-     Default tenant for Prometheus alerting groups. See https://docs.victoriametrics.com/vmalert.html#multitenancy . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
+     Default tenant for Prometheus alerting groups. See https://docs.victoriametrics.com/vmalert.html#multitenancy . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
   -disableAlertgroupLabel
      Whether to disable adding group's Name as label to generated alerts and time series.
   -dryRun
-     Whether to check only config files without running vmalert. The rules file are validated. The -rule flag must be specified.   
+     Whether to check only config files without running vmalert. The rules file are validated. The -rule flag must be specified.
   -enableTCP6
      Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP are used
   -envflag.enable
@@ -1014,7 +1012,7 @@ The shortlist of configuration flags is the following:
   -envflag.prefix string
      Prefix for environment variables if -envflag.enable is set
   -eula
-     Deprecated, please use -license or -licenseFile flags instead. By specifying this flag, you confirm that you have an enterprise license and accept the ESA https://victoriametrics.com/legal/esa/ . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
+     Deprecated, please use -license or -licenseFile flags instead. By specifying this flag, you confirm that you have an enterprise license and accept the ESA https://victoriametrics.com/legal/esa/ . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
   -evaluationInterval duration
      How often to evaluate the rules (default 1m0s)
   -external.alert.source string
@@ -1024,6 +1022,8 @@ The shortlist of configuration flags is the following:
      Supports an array of values separated by comma or specified via multiple flags.
   -external.url string
      External URL is used as alert's source for sent alerts to the notifier. By default, hostname is used as address.
+  -filestream.disableFadvise
+     Whether to disable fadvise() syscall when reading large data files. The fadvise() syscall prevents from eviction of recently accessed data from OS page cache during background merges and backups. In some rare cases it is better to disable the syscall if it uses too much CPU
   -flagsAuthKey string
      Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -fs.disableMmap
@@ -1055,11 +1055,11 @@ The shortlist of configuration flags is the following:
   -internStringMaxLen int
      The maximum length for strings to intern. A lower limit may save memory at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning . See also -internStringDisableCache and -internStringCacheExpireDuration (default 500)
   -license string
-     enterprise license key. This flag is available only in VictoriaMetrics enterprise. Documentation - https://docs.victoriametrics.com/enterprise.html, for more information, visit  https://victoriametrics.com/products/enterprise/ . To request a trial license, go to https://victoriametrics.com/products/enterprise/trial/
+     Lisense key for VictoriaMetrics Enterprise. See https://victoriametrics.com/products/enterprise/ . Trial Enterprise license can be obtained from https://victoriametrics.com/products/enterprise/trial/ . This flag is available only in Enterprise binaries. The license key can be also passed via file specified by -licenseFile command-line flag
   -license.forceOffline
-     enables offline license verification. License keys issued must support this feature. Contact our support team for license keys with offline check support.
+     Whether to enable offline verification for VictoriaMetrics Enterprise license key, which has been passed either via -license or via -licenseFile command-line flag. The issued license key must support offline verification feature. Contact info@victoriametrics.com if you need offline license verification. This flag is avilable only in Enterprise binaries
   -licenseFile string
-     path to file with enterprise license key. This flag is available only in VictoriaMetrics enterprise. Documentation - https://docs.victoriametrics.com/enterprise.html, for more information, visit  https://victoriametrics.com/products/enterprise/ . To request a trial license, go to https://victoriametrics.com/products/enterprise/trial/
+     Path to file with license key for VictoriaMetrics Enterprise. See https://victoriametrics.com/products/enterprise/ . Trial Enterprise license can be obtained from https://victoriametrics.com/products/enterprise/trial/ . This flag is available only in Enterprise binaries. The license key can be also passed inline via -license command-line flag
   -loggerDisableTimestamps
      Whether to disable writing timestamps in logs
   -loggerErrorsPerSecondLimit int
@@ -1098,6 +1098,8 @@ The shortlist of configuration flags is the following:
   -notifier.bearerTokenFile array
      Optional path to bearer token file for -notifier.url
      Supports an array of values separated by comma or specified via multiple flags.
+  -notifier.blackhole -notifier.url
+     Whether to blackhole alerting notifications. Enable this flag if you want vmalert to evaluate alerting rules without sending any notifications to external receivers (eg. alertmanager). -notifier.url, `-notifier.config` and `-notifier.blackhole` are mutually exclusive.
   -notifier.config string
      Path to configuration file for notifiers
   -notifier.oauth2.clientID array
@@ -1115,6 +1117,8 @@ The shortlist of configuration flags is the following:
   -notifier.oauth2.tokenUrl array
      Optional OAuth2 tokenURL to use for -notifier.url. If multiple args are set, then they are applied independently for the corresponding -notifier.url
      Supports an array of values separated by comma or specified via multiple flags.
+  -notifier.showURL
+     Whether to avoid stripping sensitive information such as passwords from URL in log messages or UI for -notifier.url. It is hidden by default, since it can contain sensitive info such as auth key
   -notifier.suppressDuplicateTargetErrors
      Whether to suppress 'duplicate target' errors during discovery
   -notifier.tlsCAFile array
@@ -1135,11 +1139,6 @@ The shortlist of configuration flags is the following:
   -notifier.url array
      Prometheus Alertmanager URL, e.g. http://127.0.0.1:9093. List all Alertmanager URLs if it runs in the cluster mode to ensure high availability.
      Supports an array of values separated by comma or specified via multiple flags.
-  -notifier.showURL bool
-     Whether to avoid stripping sensitive information such as passwords from URLs in log messages or UI for -notifier.url.
-     It is hidden by default, since it can contain sensitive info such as auth key.
-  -notifier.blackhole bool
-     Whether to blackhole alerting notifications. Enable this flag if you want vmalert to evaluate alerting rules without sending any notifications to external receivers (eg. alertmanager). `-notifier.url`, `-notifier.config` and `-notifier.blackhole` are mutually exclusive.
   -pprofAuthKey string
      Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -promscrape.consul.waitTime duration
@@ -1303,22 +1302,18 @@ The shortlist of configuration flags is the following:
      Whether to validate rules expressions via MetricsQL engine (default true)
   -rule.validateTemplates
      Whether to validate annotation and label templates (default true)
-  -s2a_enable_appengine_dialer
-     If true, opportunistically use AppEngine-specific dialer to call S2A.
-  -s2a_timeout duration
-     Timeout enforced on the connection to the S2A service for handshake. (default 3s)
   -s3.configFilePath string
      Path to file with S3 configs. Configs are loaded from default location if not set.
-     See https://docs.aws.amazon.com/general/latest/gr/aws-security-credentials.html . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
+     See https://docs.aws.amazon.com/general/latest/gr/aws-security-credentials.html . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
   -s3.configProfile string
-     Profile name for S3 configs. If no set, the value of the environment variable will be loaded (AWS_PROFILE or AWS_DEFAULT_PROFILE), or if both not set, DefaultSharedConfigProfile is used. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
+     Profile name for S3 configs. If no set, the value of the environment variable will be loaded (AWS_PROFILE or AWS_DEFAULT_PROFILE), or if both not set, DefaultSharedConfigProfile is used. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
   -s3.credsFilePath string
      Path to file with GCS or S3 credentials. Credentials are loaded from default locations if not set.
-     See https://cloud.google.com/iam/docs/creating-managing-service-account-keys and https://docs.aws.amazon.com/general/latest/gr/aws-security-credentials.html . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
+     See https://cloud.google.com/iam/docs/creating-managing-service-account-keys and https://docs.aws.amazon.com/general/latest/gr/aws-security-credentials.html . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
   -s3.customEndpoint string
-     Custom S3 endpoint for use with S3-compatible storages (e.g. MinIO). S3 is used if not set. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
+     Custom S3 endpoint for use with S3-compatible storages (e.g. MinIO). S3 is used if not set. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
   -s3.forcePathStyle
-     Prefixing endpoint with bucket name when set false, true by default. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html (default true)
+     Prefixing endpoint with bucket name when set false, true by default. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html (default true)
   -tls
      Whether to enable TLS for incoming HTTP requests at -httpListenAddr (aka https). -tlsCertFile and -tlsKeyFile must be set if -tls is set
   -tlsCertFile string
