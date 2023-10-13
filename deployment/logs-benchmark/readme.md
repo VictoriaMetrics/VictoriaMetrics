@@ -95,12 +95,25 @@ output.elasticsearch:
   hosts: [ "http://vlogs:9428/insert/elasticsearch/" ]
 ```
 
-4. Run `make docker-up-elk` to start ELK suite or `make docker-up-loki` to start Loki suite.
+4. Choose a suite to run.
+
+   In order to run ELK suite use the following command:
+   ```
+   make docker-up-elk
+   ```
+   In order to run Loki suite use the following command:
+   ```
+   make docker-up-loki
+   ```
+
 
 5. Navigate to `http://localhost:3000/` to see Grafana dashboards with resource usage
    comparison.
+
    Navigate to `http://localhost:3000/d/hkm6P6_4z/elastic-vs-vlogs` to see ELK suite results.
+
    Navigate to `http://localhost:3000/d/hkm6P6_4y/loki-vs-vlogs` to see Loki suite results.
+
 
 Example results vs ELK:
 
