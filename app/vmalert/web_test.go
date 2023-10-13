@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -9,32 +10,29 @@ import (
 	"testing"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/rule"
 )
 
 func TestHandler(t *testing.T) {
-	ar := &AlertingRule{
-		Name: "alert",
-		alerts: map[uint64]*notifier.Alert{
-			0: {State: notifier.StateFiring},
-		},
-		state: newRuleState(10),
-	}
-	ar.state.add(ruleStateEntry{
-		time:    time.Now(),
-		at:      time.Now(),
-		samples: 10,
+	fq := &datasource.FakeQuerier{}
+	fq.Add(datasource.Metric{
+		Values: []float64{1}, Timestamps: []int64{0},
 	})
-	rr := &RecordingRule{
-		Name:  "record",
-		state: newRuleState(10),
+	g := &rule.Group{
+		Name:        "group",
+		Concurrency: 1,
 	}
-	g := &Group{
-		Name:  "group",
-		Rules: []Rule{ar, rr},
-	}
-	m := &manager{groups: make(map[uint64]*Group)}
-	m.groups[0] = g
+	ar := rule.NewAlertingRule(fq, g, config.Rule{ID: 0, Alert: "alert"})
+	rr := rule.NewRecordingRule(fq, g, config.Rule{ID: 1, Record: "record"})
+	g.Rules = []rule.Rule{ar, rr}
+	g.ExecOnce(context.Background(), func() []notifier.Notifier { return nil }, nil, time.Time{})
+
+	m := &manager{groups: map[uint64]*rule.Group{
+		g.ID(): g,
+	}}
 	rh := &requestHandler{m: m}
 
 	getResp := func(url string, to interface{}, code int) {
@@ -70,13 +68,13 @@ func TestHandler(t *testing.T) {
 	})
 
 	t.Run("/vmalert/rule", func(t *testing.T) {
-		a := ar.ToAPI()
+		a := ruleToAPI(ar)
 		getResp(ts.URL+"/vmalert/"+a.WebLink(), nil, 200)
-		r := rr.ToAPI()
+		r := ruleToAPI(rr)
 		getResp(ts.URL+"/vmalert/"+r.WebLink(), nil, 200)
 	})
 	t.Run("/vmalert/alert", func(t *testing.T) {
-		alerts := ar.AlertsToAPI()
+		alerts := ruleToAPIAlert(ar)
 		for _, a := range alerts {
 			getResp(ts.URL+"/vmalert/"+a.WebLink(), nil, 200)
 		}
@@ -103,14 +101,14 @@ func TestHandler(t *testing.T) {
 		}
 	})
 	t.Run("/api/v1/alert?alertID&groupID", func(t *testing.T) {
-		expAlert := ar.newAlertAPI(*ar.alerts[0])
-		alert := &APIAlert{}
+		expAlert := newAlertAPI(ar, ar.GetAlerts()[0])
+		alert := &apiAlert{}
 		getResp(ts.URL+"/"+expAlert.APILink(), alert, 200)
 		if !reflect.DeepEqual(alert, expAlert) {
 			t.Errorf("expected %v is equal to %v", alert, expAlert)
 		}
 
-		alert = &APIAlert{}
+		alert = &apiAlert{}
 		getResp(ts.URL+"/vmalert/"+expAlert.APILink(), alert, 200)
 		if !reflect.DeepEqual(alert, expAlert) {
 			t.Errorf("expected %v is equal to %v", alert, expAlert)
@@ -148,7 +146,7 @@ func TestHandler(t *testing.T) {
 }
 
 func TestEmptyResponse(t *testing.T) {
-	rhWithNoGroups := &requestHandler{m: &manager{groups: make(map[uint64]*Group)}}
+	rhWithNoGroups := &requestHandler{m: &manager{groups: make(map[uint64]*rule.Group)}}
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { rhWithNoGroups.handler(w, r) }))
 	defer ts.Close()
 
@@ -201,7 +199,7 @@ func TestEmptyResponse(t *testing.T) {
 		}
 	})
 
-	rhWithEmptyGroup := &requestHandler{m: &manager{groups: map[uint64]*Group{0: {Name: "test"}}}}
+	rhWithEmptyGroup := &requestHandler{m: &manager{groups: map[uint64]*rule.Group{0: {Name: "test"}}}}
 	ts.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { rhWithEmptyGroup.handler(w, r) })
 
 	t.Run("empty group /api/v1/rules", func(t *testing.T) {

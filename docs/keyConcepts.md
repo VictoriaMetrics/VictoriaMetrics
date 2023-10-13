@@ -1,11 +1,11 @@
 ---
-sort: 25
-weight: 25
+sort: 34
+weight: 34
 title: Key concepts
 menu:
   docs:
-    parent: "victoriametrics"
-    weight: 25
+    parent: 'victoriametrics'
+    weight: 34
 aliases:
 - /keyConcepts.html
 ---
