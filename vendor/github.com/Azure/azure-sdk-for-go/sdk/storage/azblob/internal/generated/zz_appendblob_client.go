@@ -22,21 +22,10 @@ import (
 )
 
 // AppendBlobClient contains the methods for the AppendBlob group.
-// Don't use this type directly, use NewAppendBlobClient() instead.
+// Don't use this type directly, use a constructor function instead.
 type AppendBlobClient struct {
+	internal *azcore.Client
 	endpoint string
-	pl       runtime.Pipeline
-}
-
-// NewAppendBlobClient creates a new instance of AppendBlobClient with the specified values.
-//   - endpoint - The URL of the service account, container, or blob that is the target of the desired operation.
-//   - pl - the pipeline used for sending requests and handling responses.
-func NewAppendBlobClient(endpoint string, pl runtime.Pipeline) *AppendBlobClient {
-	client := &AppendBlobClient{
-		endpoint: endpoint,
-		pl:       pl,
-	}
-	return client
 }
 
 // AppendBlock - The Append Block operation commits a new block of data to the end of an existing append blob. The Append
@@ -44,7 +33,7 @@ func NewAppendBlobClient(endpoint string, pl runtime.Pipeline) *AppendBlobClient
 // AppendBlob. Append Block is supported only on version 2015-02-21 version or later.
 // If the operation fails it returns an *azcore.ResponseError type.
 //
-// Generated from API version 2020-10-02
+// Generated from API version 2023-08-03
 //   - contentLength - The length of the request.
 //   - body - Initial data
 //   - options - AppendBlobClientAppendBlockOptions contains the optional parameters for the AppendBlobClient.AppendBlock method.
@@ -59,7 +48,7 @@ func (client *AppendBlobClient) AppendBlock(ctx context.Context, contentLength i
 	if err != nil {
 		return AppendBlobClientAppendBlockResponse{}, err
 	}
-	resp, err := client.pl.Do(req)
+	resp, err := client.internal.Pipeline().Do(req)
 	if err != nil {
 		return AppendBlobClientAppendBlockResponse{}, err
 	}
@@ -124,12 +113,15 @@ func (client *AppendBlobClient) appendBlockCreateRequest(ctx context.Context, co
 	if modifiedAccessConditions != nil && modifiedAccessConditions.IfTags != nil {
 		req.Raw().Header["x-ms-if-tags"] = []string{*modifiedAccessConditions.IfTags}
 	}
-	req.Raw().Header["x-ms-version"] = []string{"2020-10-02"}
+	req.Raw().Header["x-ms-version"] = []string{ServiceVersion}
 	if options != nil && options.RequestID != nil {
 		req.Raw().Header["x-ms-client-request-id"] = []string{*options.RequestID}
 	}
 	req.Raw().Header["Accept"] = []string{"application/xml"}
-	return req, req.SetBody(body, "application/octet-stream")
+	if err := req.SetBody(body, "application/octet-stream"); err != nil {
+		return nil, err
+	}
+	return req, nil
 }
 
 // appendBlockHandleResponse handles the AppendBlock response.
@@ -207,7 +199,7 @@ func (client *AppendBlobClient) appendBlockHandleResponse(resp *http.Response) (
 // created with x-ms-blob-type set to AppendBlob. Append Block is supported only on version 2015-02-21 version or later.
 // If the operation fails it returns an *azcore.ResponseError type.
 //
-// Generated from API version 2020-10-02
+// Generated from API version 2023-08-03
 //   - sourceURL - Specify a URL to the copy source.
 //   - contentLength - The length of the request.
 //   - options - AppendBlobClientAppendBlockFromURLOptions contains the optional parameters for the AppendBlobClient.AppendBlockFromURL
@@ -225,7 +217,7 @@ func (client *AppendBlobClient) AppendBlockFromURL(ctx context.Context, sourceUR
 	if err != nil {
 		return AppendBlobClientAppendBlockFromURLResponse{}, err
 	}
-	resp, err := client.pl.Do(req)
+	resp, err := client.internal.Pipeline().Do(req)
 	if err != nil {
 		return AppendBlobClientAppendBlockFromURLResponse{}, err
 	}
@@ -309,7 +301,7 @@ func (client *AppendBlobClient) appendBlockFromURLCreateRequest(ctx context.Cont
 	if sourceModifiedAccessConditions != nil && sourceModifiedAccessConditions.SourceIfNoneMatch != nil {
 		req.Raw().Header["x-ms-source-if-none-match"] = []string{string(*sourceModifiedAccessConditions.SourceIfNoneMatch)}
 	}
-	req.Raw().Header["x-ms-version"] = []string{"2020-10-02"}
+	req.Raw().Header["x-ms-version"] = []string{ServiceVersion}
 	if options != nil && options.RequestID != nil {
 		req.Raw().Header["x-ms-client-request-id"] = []string{*options.RequestID}
 	}
@@ -390,7 +382,7 @@ func (client *AppendBlobClient) appendBlockFromURLHandleResponse(resp *http.Resp
 // Create - The Create Append Blob operation creates a new append blob.
 // If the operation fails it returns an *azcore.ResponseError type.
 //
-// Generated from API version 2020-10-02
+// Generated from API version 2023-08-03
 //   - contentLength - The length of the request.
 //   - options - AppendBlobClientCreateOptions contains the optional parameters for the AppendBlobClient.Create method.
 //   - BlobHTTPHeaders - BlobHTTPHeaders contains a group of parameters for the BlobClient.SetHTTPHeaders method.
@@ -403,7 +395,7 @@ func (client *AppendBlobClient) Create(ctx context.Context, contentLength int64,
 	if err != nil {
 		return AppendBlobClientCreateResponse{}, err
 	}
-	resp, err := client.pl.Do(req)
+	resp, err := client.internal.Pipeline().Do(req)
 	if err != nil {
 		return AppendBlobClientCreateResponse{}, err
 	}
@@ -481,7 +473,7 @@ func (client *AppendBlobClient) createCreateRequest(ctx context.Context, content
 	if modifiedAccessConditions != nil && modifiedAccessConditions.IfTags != nil {
 		req.Raw().Header["x-ms-if-tags"] = []string{*modifiedAccessConditions.IfTags}
 	}
-	req.Raw().Header["x-ms-version"] = []string{"2020-10-02"}
+	req.Raw().Header["x-ms-version"] = []string{ServiceVersion}
 	if options != nil && options.RequestID != nil {
 		req.Raw().Header["x-ms-client-request-id"] = []string{*options.RequestID}
 	}
@@ -560,7 +552,7 @@ func (client *AppendBlobClient) createHandleResponse(resp *http.Response) (Appen
 // or later.
 // If the operation fails it returns an *azcore.ResponseError type.
 //
-// Generated from API version 2020-10-02
+// Generated from API version 2023-08-03
 //   - options - AppendBlobClientSealOptions contains the optional parameters for the AppendBlobClient.Seal method.
 //   - LeaseAccessConditions - LeaseAccessConditions contains a group of parameters for the ContainerClient.GetProperties method.
 //   - ModifiedAccessConditions - ModifiedAccessConditions contains a group of parameters for the ContainerClient.Delete method.
@@ -571,7 +563,7 @@ func (client *AppendBlobClient) Seal(ctx context.Context, options *AppendBlobCli
 	if err != nil {
 		return AppendBlobClientSealResponse{}, err
 	}
-	resp, err := client.pl.Do(req)
+	resp, err := client.internal.Pipeline().Do(req)
 	if err != nil {
 		return AppendBlobClientSealResponse{}, err
 	}
@@ -593,7 +585,7 @@ func (client *AppendBlobClient) sealCreateRequest(ctx context.Context, options *
 		reqQP.Set("timeout", strconv.FormatInt(int64(*options.Timeout), 10))
 	}
 	req.Raw().URL.RawQuery = reqQP.Encode()
-	req.Raw().Header["x-ms-version"] = []string{"2020-10-02"}
+	req.Raw().Header["x-ms-version"] = []string{ServiceVersion}
 	if options != nil && options.RequestID != nil {
 		req.Raw().Header["x-ms-client-request-id"] = []string{*options.RequestID}
 	}

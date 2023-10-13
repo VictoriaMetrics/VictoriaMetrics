@@ -89,12 +89,12 @@ const NestedNav: FC<RecursiveProps> = ({ isRoot, trace, totalMsec })  => {
           })}
           ref={messageRef}
         >
+          <span className="vm-nested-nav-header__message_duration">
+            {duration}
+          </span>:&nbsp;
           <span>{trace.message}</span>
         </div>
         <div className="vm-nested-nav-header-bottom">
-          <div className="vm-nested-nav-header-bottom__duration">
-            {`duration: ${duration}`}
-          </div>
           {(isExpanded || showFullMessage) && (
             <Button
               variant="text"

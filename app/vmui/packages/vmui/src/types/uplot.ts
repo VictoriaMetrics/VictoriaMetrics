@@ -1,6 +1,6 @@
 import { Axis, Series } from "uplot";
 
-export interface SeriesItemStats {
+export interface SeriesItemStatsFormatted {
     min: string,
     max: string,
     median: string,
@@ -9,7 +9,8 @@ export interface SeriesItemStats {
 
 export interface SeriesItem extends Series {
     freeFormFields: {[key: string]: string};
-    calculations: SeriesItemStats
+    statsFormatted: SeriesItemStatsFormatted;
+    median: number
 }
 
 export interface HideSeriesArgs {
@@ -29,12 +30,8 @@ export interface LegendItemType {
     color: string;
     checked: boolean;
     freeFormFields: {[key: string]: string};
-    calculations: {
-        min: string;
-        max: string;
-        median: string;
-        last: string;
-    }
+    statsFormatted: SeriesItemStatsFormatted;
+    median: number
 }
 
 export interface BarSeriesItem {

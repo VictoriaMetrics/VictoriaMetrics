@@ -9,6 +9,7 @@ package appendblob
 import (
 	"context"
 	"errors"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
 	"io"
 	"os"
 	"time"
@@ -35,12 +36,14 @@ type Client base.CompositeClient[generated.BlobClient, generated.AppendBlobClien
 func NewClient(blobURL string, cred azcore.TokenCredential, options *ClientOptions) (*Client, error) {
 	authPolicy := shared.NewStorageChallengePolicy(cred)
 	conOptions := shared.GetClientOptions(options)
-	conOptions.PerRetryPolicies = append(conOptions.PerRetryPolicies, authPolicy)
-	pl := runtime.NewPipeline(exported.ModuleName,
-		exported.ModuleVersion, runtime.PipelineOptions{},
-		&conOptions.ClientOptions)
+	plOpts := runtime.PipelineOptions{PerRetry: []policy.Policy{authPolicy}}
 
-	return (*Client)(base.NewAppendBlobClient(blobURL, pl, nil)), nil
+	azClient, err := azcore.NewClient(shared.AppendBlobClient, exported.ModuleVersion, plOpts, &conOptions.ClientOptions)
+	if err != nil {
+		return nil, err
+	}
+
+	return (*Client)(base.NewAppendBlobClient(blobURL, azClient, nil)), nil
 }
 
 // NewClientWithNoCredential creates an instance of Client with the specified values.
@@ -49,12 +52,13 @@ func NewClient(blobURL string, cred azcore.TokenCredential, options *ClientOptio
 //   - options - client options; pass nil to accept the default values
 func NewClientWithNoCredential(blobURL string, options *ClientOptions) (*Client, error) {
 	conOptions := shared.GetClientOptions(options)
-	pl := runtime.NewPipeline(exported.ModuleName,
-		exported.ModuleVersion,
-		runtime.PipelineOptions{},
-		&conOptions.ClientOptions)
 
-	return (*Client)(base.NewAppendBlobClient(blobURL, pl, nil)), nil
+	azClient, err := azcore.NewClient(shared.AppendBlobClient, exported.ModuleVersion, runtime.PipelineOptions{}, &conOptions.ClientOptions)
+	if err != nil {
+		return nil, err
+	}
+
+	return (*Client)(base.NewAppendBlobClient(blobURL, azClient, nil)), nil
 }
 
 // NewClientWithSharedKeyCredential creates an instance of Client with the specified values.
@@ -64,13 +68,14 @@ func NewClientWithNoCredential(blobURL string, options *ClientOptions) (*Client,
 func NewClientWithSharedKeyCredential(blobURL string, cred *blob.SharedKeyCredential, options *ClientOptions) (*Client, error) {
 	authPolicy := exported.NewSharedKeyCredPolicy(cred)
 	conOptions := shared.GetClientOptions(options)
-	conOptions.PerRetryPolicies = append(conOptions.PerRetryPolicies, authPolicy)
-	pl := runtime.NewPipeline(exported.ModuleName,
-		exported.ModuleVersion,
-		runtime.PipelineOptions{},
-		&conOptions.ClientOptions)
+	plOpts := runtime.PipelineOptions{PerRetry: []policy.Policy{authPolicy}}
 
-	return (*Client)(base.NewAppendBlobClient(blobURL, pl, cred)), nil
+	azClient, err := azcore.NewClient(shared.AppendBlobClient, exported.ModuleVersion, plOpts, &conOptions.ClientOptions)
+	if err != nil {
+		return nil, err
+	}
+
+	return (*Client)(base.NewAppendBlobClient(blobURL, azClient, cred)), nil
 }
 
 // NewClientFromConnectionString creates an instance of Client with the specified values.
@@ -130,7 +135,7 @@ func (ab *Client) WithSnapshot(snapshot string) (*Client, error) {
 	}
 	p.Snapshot = snapshot
 
-	return (*Client)(base.NewAppendBlobClient(p.String(), ab.generated().Pipeline(), ab.sharedKey())), nil
+	return (*Client)(base.NewAppendBlobClient(p.String(), ab.generated().InternalClient(), ab.sharedKey())), nil
 }
 
 // WithVersionID creates a new AppendBlobURL object identical to the source but with the specified version id.
@@ -142,7 +147,7 @@ func (ab *Client) WithVersionID(versionID string) (*Client, error) {
 	}
 	p.VersionID = versionID
 
-	return (*Client)(base.NewAppendBlobClient(p.String(), ab.generated().Pipeline(), ab.sharedKey())), nil
+	return (*Client)(base.NewAppendBlobClient(p.String(), ab.generated().InternalClient(), ab.sharedKey())), nil
 }
 
 // Create creates a 0-size append blob. Call AppendBlock to append data to an append blob.

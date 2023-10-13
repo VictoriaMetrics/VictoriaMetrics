@@ -2118,6 +2118,12 @@ type Object struct {
 	// versioning.
 	Generation int64 `json:"generation,omitempty,string"`
 
+	// HardDeleteTime: This is the time (in the future) when the
+	// soft-deleted object will no longer be restorable. It is equal to the
+	// soft delete time plus the current soft delete retention duration of
+	// the bucket.
+	HardDeleteTime string `json:"hardDeleteTime,omitempty"`
+
 	// Id: The ID of the object, including the bucket name, object name, and
 	// generation number.
 	Id string `json:"id,omitempty"`
@@ -2173,6 +2179,10 @@ type Object struct {
 	// Size: Content-Length of the data in bytes.
 	Size uint64 `json:"size,omitempty,string"`
 
+	// SoftDeleteTime: The time at which the object became soft-deleted in
+	// RFC 3339 format.
+	SoftDeleteTime string `json:"softDeleteTime,omitempty"`
+
 	// StorageClass: Storage class of the object.
 	StorageClass string `json:"storageClass,omitempty"`
 
@@ -2188,9 +2198,9 @@ type Object struct {
 	// TimeCreated: The creation time of the object in RFC 3339 format.
 	TimeCreated string `json:"timeCreated,omitempty"`
 
-	// TimeDeleted: The deletion time of the object in RFC 3339 format. Will
-	// be returned if and only if this version of the object has been
-	// deleted.
+	// TimeDeleted: The time at which the object became noncurrent in RFC
+	// 3339 format. Will be returned if and only if this version of the
+	// object has been deleted.
 	TimeDeleted string `json:"timeDeleted,omitempty"`
 
 	// TimeStorageClassUpdated: The time at which the object's storage class
@@ -11395,6 +11405,14 @@ func (r *ObjectsService) Restore(bucket string, object string, object2 *Object) 
 	return c
 }
 
+// CopySourceAcl sets the optional parameter "copySourceAcl": If true,
+// copies the source object's ACL; otherwise, uses the bucket's default
+// object ACL. The default is false.
+func (c *ObjectsRestoreCall) CopySourceAcl(copySourceAcl bool) *ObjectsRestoreCall {
+	c.urlParams_.Set("copySourceAcl", fmt.Sprint(copySourceAcl))
+	return c
+}
+
 // IfGenerationMatch sets the optional parameter "ifGenerationMatch":
 // Makes the operation conditional on whether the object's one live
 // generation matches the given value. Setting to 0 makes the operation
@@ -11555,6 +11573,11 @@ func (c *ObjectsRestoreCall) Do(opts ...googleapi.CallOption) (*Object, error) {
 	//       "location": "path",
 	//       "required": true,
 	//       "type": "string"
+	//     },
+	//     "copySourceAcl": {
+	//       "description": "If true, copies the source object's ACL; otherwise, uses the bucket's default object ACL. The default is false.",
+	//       "location": "query",
+	//       "type": "boolean"
 	//     },
 	//     "generation": {
 	//       "description": "Selects a specific revision of this object.",
