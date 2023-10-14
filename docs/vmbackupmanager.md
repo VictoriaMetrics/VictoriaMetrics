@@ -536,7 +536,7 @@ command-line flags:
      Prefixing endpoint with bucket name when set false, true by default. (default true)
   -s3StorageClass string
      The Storage Class applied to objects uploaded to AWS S3. Supported values are: GLACIER, DEEP_ARCHIVE, GLACIER_IR, INTELLIGENT_TIERING, ONEZONE_IA, OUTPOSTS, REDUCED_REDUNDANCY, STANDARD, STANDARD_IA.
-     See https://docs.aws.amazon.com/AmazonS3/latest/userguide/storage-class-intro.html/
+     See https://docs.aws.amazon.com/AmazonS3/latest/userguide/storage-class-intro.html
   -snapshot.createURL string
      VictoriaMetrics create snapshot url. When this is given a snapshot will automatically be created during backup.Example: http://victoriametrics:8428/snapshot/create
   -snapshot.deleteURL string
