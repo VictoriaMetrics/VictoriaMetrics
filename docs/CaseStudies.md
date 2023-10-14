@@ -514,7 +514,7 @@ See [the full article](https://smarketshq.com/monitoring-kubernetes-clusters-41a
 
 [Synthesio](https://www.synthesio.com/) is the leading social intelligence tool for social media monitoring and analytics.
 
-> We fully migrated from [Metrictank](https://grafana.com/oss/metrictank/)  to VictoriaMetrics
+> We fully migrated from [Metrictank](https://github.com/grafana/metrictank)  to VictoriaMetrics
 
 Numbers:
 
