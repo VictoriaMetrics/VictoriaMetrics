@@ -1,15 +1,14 @@
 ---
-weight: 4
+weight: 5
 title: Vector setup
 disableToc: true
 menu:
   docs:
     parent: "victorialogs-data-ingestion"
-    weight: 4
+    weight: 5
 aliases:
   - /VictoriaLogs/data-ingestion/Vector.html
 ---
-
 # Vector setup
 
 Specify [Elasticsearch sink type](https://vector.dev/docs/reference/configuration/sinks/elasticsearch/) in the `vector.toml`
