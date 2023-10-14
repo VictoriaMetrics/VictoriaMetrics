@@ -29,7 +29,7 @@ Released at 2023-10-04
 Released at 2023-10-03
 
 * FEATURE: add `-elasticsearch.version` command-line flag, which can be used for specifying Elasticsearch version returned by VictoriaLogs to Filebeat at [elasticsearch bulk API](/VictoriaLogs/data-ingestion/#elasticsearch-bulk-api). This helps resolving [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4777).
-* FEATURE: expose the following metrics at [/metrics](VictoriaLogs/#monitoring) page:
+* FEATURE: expose the following metrics at [/metrics](/VictoriaLogs/#monitoring) page:
   * `vl_data_size_bytes{type="storage"}` - on-disk size for data excluding [log stream](/VictoriaLogs/keyConcepts.html#stream-fields) indexes.
   * `vl_data_size_bytes{type="indexdb"}` - on-disk size for [log stream](/VictoriaLogs/keyConcepts.html#stream-fields) indexes.
 * FEATURE: add `-insert.maxFieldsPerLine` command-line flag, which can be used for limiting the number of fields per line in logs sent to VictoriaLogs via ingestion protocols. This helps to avoid issues like [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4762).

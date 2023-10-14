@@ -1131,7 +1131,7 @@ menu:
 
 ### Features
 
-- Adds additional service for all components, its useful for service exposition  https://github.com/VictoriaMetrics/operator/issues/163 thanks [@TinySong](https://github.com/TinySong)
+- Adds additional service for all components, its useful for service exposition  https://github.com/VictoriaMetrics/operator/issues/163 thanks [@TinySong](https://github.com/bobsongplus)
 
 ### Fixes
 
