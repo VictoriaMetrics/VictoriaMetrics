@@ -37,7 +37,7 @@ func (rs *Rows) Reset() {
 	rs.tagsPool = rs.tagsPool[:0]
 }
 
-// Unmarshal unmarshals grahite plaintext protocol rows from s.
+// Unmarshal unmarshals statsd plaintext protocol rows from s.
 //
 // s shouldn't be modified when rs is in use.
 func (rs *Rows) Unmarshal(s string) {
@@ -73,7 +73,7 @@ func (r *Row) unmarshal(s string, tagsPool []Tag) ([]Tag, error) {
 	valuesSeparatorPosition := strings.LastIndexByte(s, statsdPairsSeparator)
 
 	if valuesSeparatorPosition < 0 {
-		return tagsPool, fmt.Errorf("cannot find separator for %q:", s)
+		return tagsPool, fmt.Errorf("cannot find separator for %q", s)
 	}
 
 	r.Metric = s[:valuesSeparatorPosition]
@@ -91,12 +91,12 @@ func (r *Row) unmarshal(s string, tagsPool []Tag) ([]Tag, error) {
 	if tagsSeparatorPosition < 0 {
 		// no tags
 		return tagsPool, nil
-	} else {
-		tagsStart := len(tagsPool)
-		tagsPool = unmarshalTags(tagsPool, originalString[tagsSeparatorPosition+1:])
-		tags := tagsPool[tagsStart:]
-		r.Tags = tags[:len(tags):len(tags)]
 	}
+
+	tagsStart := len(tagsPool)
+	tagsPool = unmarshalTags(tagsPool, originalString[tagsSeparatorPosition+1:])
+	tags := tagsPool[tagsStart:]
+	r.Tags = tags[:len(tags):len(tags)]
 
 	return tagsPool, nil
 }

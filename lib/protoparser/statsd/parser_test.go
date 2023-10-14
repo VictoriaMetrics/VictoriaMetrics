@@ -105,8 +105,8 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 		}},
 	})
 
-	// // Whitespace in metric name, tag name and tag value
-	// // See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3102
+	// Whitespace in metric name, tag name and tag value
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3102
 	f("s a:1|c|#ta g1:aaa1,tag2:bb b2", &Rows{
 		Rows: []Row{{
 			Metric: "s a",
@@ -125,32 +125,28 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 	})
 
 	// Tags
-	// TODO: fix empty tags tests
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1100
-	// f("foo:1|c", &Rows{
-	// 	Rows: []Row{{
-	// 		Metric: "foo",
-	// 		Tags:   []Tag{},
-	// 		Value:  1,
-	// 	}},
-	// })
-	// f("foo; 1 2", &Rows{
-	// 	Rows: []Row{{
-	// 		Metric:    "foo",
-	// 		Tags:      []Tag{},
-	// 		Value:     1,
-	// 		Timestamp: 2,
-	// 	}},
-	// })
-	// // Empty tag name or value
-	// f("foo;bar 1 2", &Rows{
-	// 	Rows: []Row{{
-	// 		Metric:    "foo",
-	// 		Tags:      []Tag{},
-	// 		Value:     1,
-	// 		Timestamp: 2,
-	// 	}},
-	// })
+	f("foo:1|c", &Rows{
+		Rows: []Row{{
+			Metric: "foo",
+			Value:  1,
+		}},
+	})
+	// Empty tag name
+	f("foo:1|#:123", &Rows{
+		Rows: []Row{{
+			Metric: "foo",
+			Tags:   []Tag{},
+			Value:  1,
+		}},
+	})
+	// Empty tag value
+	f("foo:1|#tag1:", &Rows{
+		Rows: []Row{{
+			Metric: "foo",
+			Tags:   []Tag{},
+			Value:  1,
+		}},
+	})
 	f("foo:1|#bar:baz,aa:,x:y,:z", &Rows{
 		Rows: []Row{{
 			Metric: "foo",
