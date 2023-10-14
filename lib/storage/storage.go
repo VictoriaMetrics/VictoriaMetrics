@@ -1828,7 +1828,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 	for i := range mrs {
 		mr := &mrs[i]
 		if math.IsNaN(mr.Value) {
-			if !decimal.IsStaleNaN(mr.Value) {
+			if decimal.IsStaleNaN(mr.Value) {
 				// Skip NaNs other than Prometheus staleness marker, since the underlying encoding
 				// doesn't know how to work with them.
 				continue
