@@ -90,7 +90,7 @@ See also:
 
 - [How to debug data ingestion](#troubleshooting).
 - [HTTP parameters, which can be passed to the API](#http-parameters).
-- [How to query VictoriaLogs](/VictoriaLogs/querying.html).
+- [How to query VictoriaLogs](/VictoriaLogs/querying/).
 
 ### JSON stream API
 
@@ -144,7 +144,7 @@ See also:
 
 - [How to debug data ingestion](#troubleshooting).
 - [HTTP parameters, which can be passed to the API](#http-parameters).
-- [How to query VictoriaLogs](/VictoriaLogs/querying.html).
+- [How to query VictoriaLogs](/VictoriaLogs/querying/).
 
 ### Loki JSON API
 
@@ -185,7 +185,7 @@ See also:
 
 - [How to debug data ingestion](#troubleshooting).
 - [HTTP parameters, which can be passed to the API](#http-parameters).
-- [How to query VictoriaLogs](/VictoriaLogs/querying.html).
+- [How to query VictoriaLogs](/VictoriaLogs/querying/).
 
 ### HTTP parameters
 
