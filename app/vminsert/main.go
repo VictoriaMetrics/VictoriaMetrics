@@ -119,6 +119,9 @@ func Stop() {
 	if len(*graphiteListenAddr) > 0 {
 		graphiteServer.MustStop()
 	}
+	if len(*statsdListenAddr) > 0 {
+		statsdServer.MustStop()
+	}
 	if len(*influxListenAddr) > 0 {
 		influxServer.MustStop()
 	}

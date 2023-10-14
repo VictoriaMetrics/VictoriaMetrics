@@ -178,6 +178,9 @@ func main() {
 	if len(*graphiteListenAddr) > 0 {
 		graphiteServer.MustStop()
 	}
+	if len(*statsdListenAddr) > 0 {
+		statsdServer.MustStop()
+	}
 	if len(*opentsdbListenAddr) > 0 {
 		opentsdbServer.MustStop()
 	}
