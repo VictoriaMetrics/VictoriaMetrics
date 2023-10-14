@@ -223,7 +223,7 @@ These headers may contain the needed tenant to ingest data to. See [multitenancy
 
 The following command can be used for verifying whether the data is successfully ingested into VictoriaLogs:
 
-```logsql
+```bash
 curl http://localhost:9428/select/logsql/query -d 'query=*' | head
 ```
 
