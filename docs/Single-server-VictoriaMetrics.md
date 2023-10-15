@@ -865,70 +865,75 @@ For example, `/api/put?extra_label=foo=bar` would add `{foo="bar"}` label to all
 ## How to send data from NewRelic agent
 
 VictoriaMetrics accepts data from [NewRelic infrastructure agent](https://docs.newrelic.com/docs/infrastructure/install-infrastructure-agent)
-at `/api/v1/newrelic/infra/v2/metrics/events/bulk` path.
-NewRelic's infrastructure agent sends so-called [Events](https://docs.newrelic.com/docs/infrastructure/manage-your-data/data-instrumentation/default-infrastructure-monitoring-data/#infrastructure-events)
-which then transformed by VictoriaMetrics to the [Prometheus exposition format](https://github.com/prometheus/docs/blob/main/content/docs/instrumenting/exposition_formats.md#text-based-format).
+at `/newrelic/infra/v2/metrics/events/bulk` HTTP path.
+VictoriaMetrics receives [Events](https://docs.newrelic.com/docs/infrastructure/manage-your-data/data-instrumentation/default-infrastructure-monitoring-data/#infrastructure-events)
+from NewRelic agent at the given path, transforms them to [raw samples](https://docs.victoriametrics.com/keyConcepts.html#raw-samples)
+according to [these docs](#newrelic-agent-data-mapping) before storing the raw samples to the database.
 
-NewRelic's infrastructure agent allows configuring destinations for metrics forwarding via ENV variable `COLLECTOR_URL`.
-It is also required to specify `NRIA_LICENSE_KEY`, which is available only after registration into account of the NewRelic cloud.
+You need passing `COLLECTOR_URL` and `NRIA_LICENSE_KEY` environment variables to NewRelic infrastructure agent in order to send the collected metrics to VictoriaMetrics.
+The `COLLECTOR_URL` must point to `/newrelic` HTTP endpoint at VictoriaMetrics, while the `NRIA_LICENSE_KEY` must contain NewRelic license key,
+which can be obtained [here](https://newrelic.com/signup).
+For example, if VictoriaMetrics runs at `localhost:8428`, then the following command can be used for running NewRelic infrastructure agent:
 
-To configure NewRelic infrastructure agent for forwarding metrics to VictoriaMetrics use the following example:
 ```console
-COLLECTOR_URL="http://localhost:8428/newrelic/api/v1"  NRIA_LICENSE_KEY="YOUR_LICENSE_KEY" ./newrelic-infra
+COLLECTOR_URL="http://localhost:8428/newrelic" NRIA_LICENSE_KEY="NEWRELIC_LICENSE_KEY" ./newrelic-infra
 ```
 
-### NewRelic agent data mapping 
+### NewRelic agent data mapping
 
-As example, lets create `newrelic.json` file with the following content:
+VictoriaMetrics maps [NewRelic Events](https://docs.newrelic.com/docs/infrastructure/manage-your-data/data-instrumentation/default-infrastructure-monitoring-data/#infrastructure-events)
+to [raw samples](https://docs.victoriametrics.com/keyConcepts.html#raw-samples) in the following way:
+
+1. Every numeric field is converted into a raw sample with the corresponding name.
+1. The `eventType` and all the other fields with `string` value type are attached to every raw sample as [metric labels](https://docs.victoriametrics.com/keyConcepts.html#labels).
+1. The `timestamp` field is used as timestamp for the ingested [raw sample](https://docs.victoriametrics.com/keyConcepts.html#raw-samples).
+   The `timestamp` field may be specified either in seconds or in milliseconds since the [Unix Epoch](https://en.wikipedia.org/wiki/Unix_time).
+   If the `timestamp` field is missing, then the raw sample is stored with the current timestamp.
+
+For example, let's import the following NewRelic Events request to VictoriaMetrics:
+
 ```json
 [
-    {
-      "Events":[
-        {
-          "eventType":"SystemSample",
-          "entityKey":"macbook-pro.local",
-          "cpuPercent":25.056660790748904,
-          "cpuUserPercent":8.687987912389374,
-          "cpuSystemPercent":16.36867287835953,
-          "cpuIOWaitPercent":0,
-          "cpuIdlePercent":74.94333920925109,
-          "cpuStealPercent":0,
-          "loadAverageOneMinute":5.42333984375,
-          "loadAverageFiveMinute":4.099609375,
-          "loadAverageFifteenMinute":3.58203125
-        }
-      ]
-    }
-  ]
+  {
+    "Events":[
+      {
+        "eventType":"SystemSample",
+        "entityKey":"macbook-pro.local",
+        "cpuPercent":25.056660790748904,
+        "cpuUserPercent":8.687987912389374,
+        "cpuSystemPercent":16.36867287835953,
+        "cpuIOWaitPercent":0,
+        "cpuIdlePercent":74.94333920925109,
+        "cpuStealPercent":0,
+        "loadAverageOneMinute":5.42333984375,
+        "loadAverageFiveMinute":4.099609375,
+        "loadAverageFifteenMinute":3.58203125
+      }
+    ]
+  }
+]
 ```
 
-Let's use cUrl to send `newrelic.json` to single-node VictoriaMetrics:
+Save this JSON into `newrelic.json` file and then use the following command in order to import it into VictoriaMetrics:
 
 ```console
-curl -X POST -H 'Content-Type: application/json' --data-binary @newrelic.json http://localhost:8428/newrelic/api/v1/infra/v2/metrics/events/bulk
+curl -X POST -H 'Content-Type: application/json' --data-binary @newrelic.json http://localhost:8428/newrelic/infra/v2/metrics/events/bulk
 ```
 
-If data was successfully ingested, you'll get `{"status":"ok"}` response. Let's fetch ingested data from VictoriaMetrics
-in vmui via query `{__name__!=""}`:
+Let's fetch the ingested data via [data export API](#how-to-export-data-in-json-line-format):
+
 ```console
-system_sample_cpu_io_wait_percent{entity_key="macbook-pro.local"}           0	
-system_sample_cpu_idle_percent{entity_key="macbook-pro.local"}              74.9433392092	
-system_sample_cpu_percent{entity_key="macbook-pro.local"}                   25.056660790748	
-system_sample_cpu_steal_percent{entity_key="macbook-pro.local"}             0	
-system_sample_cpu_system_percent{entity_key="macbook-pro.local"}            16.368672878359	
-system_sample_cpu_user_percent{entity_key="macbook-pro.local"}              8.687987912389	
-system_sample_load_average_fifteen_minute{entity_key="macbook-pro.local"}   3.58203125	
-system_sample_load_average_five_minute{entity_key="macbook-pro.local"}      4.099609375	
-system_sample_load_average_one_minute{entity_key="macbook-pro.local"}       5.42333984375	
+curl http://localhost:8428/api/v1/export -d 'match={eventType="SystemSample"}'
+{"metric":{"__name__":"cpuStealPercent","entityKey":"macbook-pro.local","eventType":"SystemSample"},"values":[0],"timestamps":[1697407970000]}
+{"metric":{"__name__":"loadAverageFiveMinute","entityKey":"macbook-pro.local","eventType":"SystemSample"},"values":[4.099609375],"timestamps":[1697407970000]}
+{"metric":{"__name__":"cpuIOWaitPercent","entityKey":"macbook-pro.local","eventType":"SystemSample"},"values":[0],"timestamps":[1697407970000]}
+{"metric":{"__name__":"cpuSystemPercent","entityKey":"macbook-pro.local","eventType":"SystemSample"},"values":[16.368672878359],"timestamps":[1697407970000]}
+{"metric":{"__name__":"loadAverageOneMinute","entityKey":"macbook-pro.local","eventType":"SystemSample"},"values":[5.42333984375],"timestamps":[1697407970000]}
+{"metric":{"__name__":"cpuUserPercent","entityKey":"macbook-pro.local","eventType":"SystemSample"},"values":[8.687987912389],"timestamps":[1697407970000]}
+{"metric":{"__name__":"cpuIdlePercent","entityKey":"macbook-pro.local","eventType":"SystemSample"},"values":[74.9433392092],"timestamps":[1697407970000]}
+{"metric":{"__name__":"loadAverageFifteenMinute","entityKey":"macbook-pro.local","eventType":"SystemSample"},"values":[3.58203125],"timestamps":[1697407970000]}
+{"metric":{"__name__":"cpuPercent","entityKey":"macbook-pro.local","eventType":"SystemSample"},"values":[25.056660790748],"timestamps":[1697407970000]}
 ```
-
-The fields in `newrelic.json` are transformed in the following way:
-1. `eventType` filed is used as prefix for all metrics in the object;
-2. `entityKey` or any other field with `string` value type is used as label attached to all metrics in the object;
-3. the rest fields with numeric values will be used as metrics;
-4. the additional field `timestamp` can be added to the payload to set the timestamp for all metrics. If omitted,
-current time is used.
-
 
 ## Prometheus querying API usage
 

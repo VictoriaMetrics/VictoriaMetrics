@@ -1,13 +1,12 @@
 package newrelic
 
 import (
+	"fmt"
 	"testing"
-
-	"github.com/valyala/fastjson"
 )
 
-func BenchmarkRequestUnmarshal(b *testing.B) {
-	reqBody := `[
+func BenchmarkRowsUnmarshal(b *testing.B) {
+	reqBody := []byte(`[
     {
       "EntityID":28257883748326179,
       "IsAgent":true,
@@ -52,25 +51,17 @@ func BenchmarkRequestUnmarshal(b *testing.B) {
       ],
       "ReportingAgentID":28257883748326179
     }
-  ]`
+  ]`)
 	b.SetBytes(int64(len(reqBody)))
 	b.ReportAllocs()
 	b.RunParallel(func(pb *testing.PB) {
-		value, err := fastjson.Parse(reqBody)
-		if err != nil {
-			b.Errorf("cannot parse json error: %s", err)
-		}
-		v, err := value.Array()
-		if err != nil {
-			b.Errorf("cannot get array from json")
-		}
+		var r Rows
 		for pb.Next() {
-			e := &Events{Metrics: []Metric{}}
-			if err := e.Unmarshal(v); err != nil {
-				b.Errorf("Unmarshal() error = %v", err)
+			if err := r.Unmarshal(reqBody); err != nil {
+				panic(fmt.Errorf("unmarshal error: %s", err))
 			}
-			if len(e.Metrics) == 0 {
-				b.Errorf("metrics should have at least one element")
+			if len(r.Rows) != 1 {
+				panic(fmt.Errorf("unexpected number of items unmarshaled; got %d; want %d", len(r.Rows), 1))
 			}
 		}
 	})

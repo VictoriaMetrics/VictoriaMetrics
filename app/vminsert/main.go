@@ -300,19 +300,19 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		w.WriteHeader(http.StatusOK)
 		return true
-	case "newrelic/api/v1":
+	case "newrelic":
 		newrelicCheckRequest.Inc()
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(202)
 		fmt.Fprintf(w, `{"status":"ok"}`)
 		return true
-	case "newrelic/api/v1/inventory/deltas":
+	case "newrelic/inventory/deltas":
 		newrelicInventoryRequests.Inc()
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(202)
 		fmt.Fprintf(w, `{"payload":{"version": 1, "state": {}, "reset": "false"}}`)
 		return true
-	case "newrelic/api/v1/infra/v2/metrics/events/bulk":
+	case "newrelic/infra/v2/metrics/events/bulk":
 		newrelicWriteRequests.Inc()
 		if err := newrelic.InsertHandlerForHTTP(r); err != nil {
 			newrelicWriteErrors.Inc()
@@ -396,11 +396,11 @@ var (
 	opentelemetryPushRequests = metrics.NewCounter(`vm_http_requests_total{path="/insert/{}/opentelemetry/api/v1/push", protocol="opentelemetry"}`)
 	opentelemetryPushErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/insert/{}/opentelemetry/api/v1/push", protocol="opentelemetry"}`)
 
-	newrelicWriteRequests = metrics.NewCounter(`vm_http_requests_total{path="/insert/{}/newrelic/api/v1/infra/v2/metrics/events/bulk", protocol="newrelic"}`)
-	newrelicWriteErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/insert/{}/newrelic/api/v1/infra/v2/metrics/events/bulk", protocol="newrelic"}`)
+	newrelicWriteRequests = metrics.NewCounter(`vm_http_requests_total{path="/insert/{}/newrelic/infra/v2/metrics/events/bulk", protocol="newrelic"}`)
+	newrelicWriteErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/insert/{}/newrelic/infra/v2/metrics/events/bulk", protocol="newrelic"}`)
 
-	newrelicInventoryRequests = metrics.NewCounter(`vm_http_requests_total{path="/insert/{}/newrelic/api/v1/inventory/deltas", protocol="newrelic"}`)
-	newrelicCheckRequest      = metrics.NewCounter(`vm_http_requests_total{path="/insert/{}/newrelic/api/v1", protocol="newrelic"}`)
+	newrelicInventoryRequests = metrics.NewCounter(`vm_http_requests_total{path="/insert/{}/newrelic/inventory/deltas", protocol="newrelic"}`)
+	newrelicCheckRequest      = metrics.NewCounter(`vm_http_requests_total{path="/insert/{}/newrelic", protocol="newrelic"}`)
 
 	datadogWriteRequests = metrics.NewCounter(`vm_http_requests_total{path="/insert/{}/datadog/api/v1/series", protocol="datadog"}`)
 	datadogWriteErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/insert/{}/datadog/api/v1/series", protocol="datadog"}`)
