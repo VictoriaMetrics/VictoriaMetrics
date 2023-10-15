@@ -214,8 +214,8 @@ After changes were made, trigger config re-read with the command `curl 127.0.0.1
 
 ### Running as Windows service
 
-In order to run as a windows service it is required to create a service configuration for [WinSW](https://github.com/winsw/winsw)
-and then install it as a service.
+In order to run VictoriaMetrics as a Windows service it is required to create a service configuration for [WinSW](https://github.com/winsw/winsw)
+and then install it as a service according to the following guide:
 
 1. Create a service configuration:
 
@@ -225,23 +225,23 @@ and then install it as a service.
       <name>VictoriaMetrics</name>
       <description>VictoriaMetrics</description>
       <executable>%BASE%\victoria-metrics-windows-amd64-prod.exe"</executable>
-    
+
       <onfailure action="restart" delay="10 sec"/>
       <onfailure action="restart" delay="20 sec"/>
-      
+
       <resetfailure>1 hour</resetfailure>
-    
+
       <arguments>-envflag.enable</arguments>
-      
+
       <priority>Normal</priority>
-    
+
       <stoptimeout>15 sec</stoptimeout>
-    
+
       <stopparentprocessfirst>true</stopparentprocessfirst>
         <startmode>Automatic</startmode>
         <waithint>15 sec</waithint>
         <sleeptime>1 sec</sleeptime>
-    
+
       <logpath>%BASE%\logs</logpath>
       <log mode="roll">
         <sizeThreshold>10240</sizeThreshold>
@@ -251,7 +251,7 @@ and then install it as a service.
       <env name="loggerFormat" value="json" />
       <env name="loggerOutput" value="stderr" />
       <env name="promscrape_config" value="C:\Program Files\victoria-metrics\promscrape.yml" />
-    
+
     </service>
     ```
 
@@ -263,6 +263,9 @@ and then install it as a service.
     winsw install VictoriaMetrics.xml
     Get-Service VictoriaMetrics | Start-Service
     ```
+
+See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3781) for more details.
+
 
 ## Prometheus setup
 
