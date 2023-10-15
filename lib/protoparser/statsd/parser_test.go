@@ -322,6 +322,22 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 			},
 		},
 	})
+
+	// ignores sample rate
+	f("foo.baz:125|c|@0.5#tag1:12", &Rows{
+		Rows: []Row{
+			{
+				Metric: "foo.baz",
+				Value:  125,
+				Tags: []Tag{
+					{
+						Key:   "tag1",
+						Value: "12",
+					},
+				},
+			},
+		},
+	})
 }
 
 func TestRowsUnmarshalFailure(t *testing.T) {
