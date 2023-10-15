@@ -72,6 +72,10 @@ func (r *Row) unmarshal(s string, tagsPool []Tag) ([]Tag, error) {
 
 	valuesSeparatorPosition := strings.LastIndexByte(s, statsdPairsSeparator)
 
+	if valuesSeparatorPosition == 0 {
+		return tagsPool, fmt.Errorf("cannot find metric name for %q", s)
+	}
+
 	if valuesSeparatorPosition < 0 {
 		return tagsPool, fmt.Errorf("cannot find separator for %q", s)
 	}

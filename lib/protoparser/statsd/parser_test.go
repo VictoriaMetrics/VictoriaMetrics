@@ -5,7 +5,88 @@ import (
 	"testing"
 )
 
-// TODO: add specs for unmarshalTags
+func TestUnmarshalTagsSuccess(t *testing.T) {
+	f := func(dst []Tag, s string, tagsPoolExpected []Tag) {
+		t.Helper()
+
+		tagsPool := unmarshalTags(dst, s)
+		if !reflect.DeepEqual(tagsPool, tagsPoolExpected) {
+			t.Fatalf("unexpected tags;\ngot\n%+v;\nwant\n%+v", tagsPool, tagsPoolExpected)
+		}
+
+		// Try unmarshaling again
+		tagsPool = unmarshalTags(dst, s)
+		if !reflect.DeepEqual(tagsPool, tagsPoolExpected) {
+			t.Fatalf("unexpected tags on second unmarshal;\ngot\n%+v;\nwant\n%+v", tagsPool, tagsPoolExpected)
+		}
+	}
+
+	f([]Tag{}, "foo:bar", []Tag{
+		{
+			Key:   "foo",
+			Value: "bar",
+		},
+	})
+
+	f([]Tag{}, "foo:bar,qwe:123", []Tag{
+		{
+			Key:   "foo",
+			Value: "bar",
+		},
+		{
+			Key:   "qwe",
+			Value: "123",
+		},
+	})
+
+	f([]Tag{}, "foo.qwe:bar", []Tag{
+		{
+			Key:   "foo.qwe",
+			Value: "bar",
+		},
+	})
+
+	f([]Tag{}, "foo:10", []Tag{
+		{
+			Key:   "foo",
+			Value: "10",
+		},
+	})
+
+	f([]Tag{}, "foo: _qwe", []Tag{
+		{
+			Key:   "foo",
+			Value: " _qwe",
+		},
+	})
+
+	f([]Tag{}, "foo:qwe    ", []Tag{
+		{
+			Key:   "foo",
+			Value: "qwe    ",
+		},
+	})
+
+	f([]Tag{}, "foo  asd:qwe    ", []Tag{
+		{
+			Key:   "foo  asd",
+			Value: "qwe    ",
+		},
+	})
+
+	f([]Tag{}, "foo:var:123", []Tag{
+		{
+			Key:   "foo",
+			Value: "var:123",
+		},
+	})
+
+	// invalid tags
+	f([]Tag{}, ":bar", []Tag{})
+	f([]Tag{}, "foo:", []Tag{})
+	f([]Tag{}, "   ", []Tag{})
+}
+
 func TestRowsUnmarshalSuccess(t *testing.T) {
 	f := func(s string, rowsExpected *Rows) {
 		t.Helper()
@@ -106,7 +187,6 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 	})
 
 	// Whitespace in metric name, tag name and tag value
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3102
 	f("s a:1|c|#ta g1:aaa1,tag2:bb b2", &Rows{
 		Rows: []Row{{
 			Metric: "s a",
@@ -182,6 +262,39 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 		},
 	})
 
+	f("foo:0.3|c|#tag1:1,tag2:2\naaa:3|g|#tag3:3,tag4:4", &Rows{
+		Rows: []Row{
+			{
+				Metric: "foo",
+				Value:  0.3,
+				Tags: []Tag{
+					{
+						Key:   "tag1",
+						Value: "1",
+					},
+					{
+						Key:   "tag2",
+						Value: "2",
+					},
+				},
+			},
+			{
+				Metric: "aaa",
+				Value:  3,
+				Tags: []Tag{
+					{
+						Key:   "tag3",
+						Value: "3",
+					},
+					{
+						Key:   "tag4",
+						Value: "4",
+					},
+				},
+			},
+		},
+	})
+
 	// Multi lines with invalid line
 	f("foo:0.3|c\naaa\nbar.baz:0.34\n", &Rows{
 		Rows: []Row{
@@ -209,4 +322,30 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 			},
 		},
 	})
+}
+
+func TestRowsUnmarshalFailure(t *testing.T) {
+	f := func(s string) {
+		t.Helper()
+		var rows Rows
+		rows.Unmarshal(s)
+		if len(rows.Rows) != 0 {
+			t.Fatalf("unexpected number of rows parsed; got %d; want 0", len(rows.Rows))
+		}
+
+		// Try again
+		rows.Unmarshal(s)
+		if len(rows.Rows) != 0 {
+			t.Fatalf("unexpected number of rows parsed; got %d; want 0", len(rows.Rows))
+		}
+	}
+
+	// random string
+	f("aaa")
+
+	// empty value
+	f("foo:")
+
+	// empty metric name
+	f(":12")
 }
