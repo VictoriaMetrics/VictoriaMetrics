@@ -99,6 +99,25 @@ Released at 2023-10-02
 * BUGFIX: [vminsert](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): fix ingestion via [multitenant url](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy-via-labels) for opentsdbhttp. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5061). The bug has been introduced in [v1.93.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.2).
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): fix support of legacy DataDog agent, which adds trailing slashes to urls. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5078). Thanks to @maxb for spotting the issue.
 
+## [v1.93.6](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.6)
+
+Released at 2023-10-16
+
+**v1.93.x is a line of LTS releases (e.g. long-time support). It contains important up-to-date bugfixes.
+The v1.93.x line will be supported for at least 12 months since [v1.93.0](https://docs.victoriametrics.com/CHANGELOG.html#v1930) release**
+
+* SECURITY: upgrade Go builder from Go1.21.1 to Go1.21.3. See [the list of issues addressed in Go1.21.2](https://github.com/golang/go/issues?q=milestone%3AGo1.21.2+label%3ACherryPickApproved) and [the list of issues addressed in Go1.21.3](https://github.com/golang/go/issues?q=milestone%3AGo1.21.3+label%3ACherryPickApproved).
+
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): strip sensitive information such as auth headers or passwords from datasource, remote-read, remote-write or notifier URLs in log messages or UI. This behavior is by default and is controlled via `-datasource.showURL`, `-remoteRead.showURL`, `remoteWrite.showURL` or `-notifier.showURL` cmd-line flags. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5044).
+* BUGFIX: [vmselect](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): improve performance and memory usage during query processing on machines with big number of CPU cores. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5087) for details.
+* BUGFIX: [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): bump hard-coded limit for search query size at `vmstorage` from 1MB to 5MB. The change should be more suitable for real-world scenarios and protect vmstorage from excessive memory usage. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5154) for details
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): fix vmagent ignoring configuration reload for streaming aggregation if it was started with empty streaming aggregation config. Thanks to @aluode99 for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5178).
+* BUGFIX: [vmbackup](https://docs.victoriametrics.com/vmbackup.html): properly copy `appliedRetention.txt` files inside `<-storageDataPath>/{data}` folders during [incremental backups](https://docs.victoriametrics.com/vmbackup.html#incremental-backups). Previously the new `appliedRetention.txt` could be skipped during incremental backups, which could lead to increased load on storage after restoring from backup. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5005).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): suppress `context canceled` error messages in logs when `vmagent` is reloading service discovery config. This error could appear starting from [v1.93.5](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.5). See [this PR](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5048).
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): allow passing [median_over_time](https://docs.victoriametrics.com/MetricsQL.html#median_over_time) to [aggr_over_time](https://docs.victoriametrics.com/MetricsQL.html#aggr_over_time). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5034).
+* BUGFIX: [vminsert](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): fix ingestion via [multitenant url](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy-via-labels) for opentsdbhttp. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5061). The bug has been introduced in [v1.93.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.2).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): fix support of legacy DataDog agent, which adds trailing slashes to urls. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5078). Thanks to @maxb for spotting the issue.
+
 ## [v1.93.5](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.5)
 
 Released at 2023-09-19
