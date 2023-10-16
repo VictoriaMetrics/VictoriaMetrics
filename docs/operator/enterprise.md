@@ -37,4 +37,7 @@ Operator doesn't have enterprise version for itself, but it supports
   - [IP Filters](./resources/vmuser.md#ip-filters) 
 
 More information about enterprise features you can read 
-on [VictoriaMetrics Enterprise page](https://docs.victoriametrics.com/enterprise.html#victoriametrics-enterprise).
+on [VictoriaMetrics Enterprise page](https://docs.victoriametrics.com/enterprise.html#victoriametrics-enterprise-features).
+
+In order to find examples of deploying enterprise components with operator,
+please, check [this](https://docs.victoriametrics.com/enterprise.html#kubernetes-operator) documentation.
