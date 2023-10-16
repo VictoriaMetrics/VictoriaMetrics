@@ -75,6 +75,7 @@ var transformFuncs = map[string]transformFunc{
 	"label_uppercase":            transformLabelUppercase,
 	"label_value":                transformLabelValue,
 	"limit_offset":               transformLimitOffset,
+	"labels_equal":               transformLabelsEqual,
 	"ln":                         newTransformFuncOneArg(transformLn),
 	"log2":                       newTransformFuncOneArg(transformLog2),
 	"log10":                      newTransformFuncOneArg(transformLog10),
@@ -1843,8 +1844,8 @@ func transformDropCommonLabels(tfa *transformFuncArg) ([]*timeseries, error) {
 
 func transformDropEmptySeries(tfa *transformFuncArg) ([]*timeseries, error) {
 	args := tfa.args
-	if len(args) != 1 {
-		return nil, fmt.Errorf("unexpected number of args; got %d; want 1", len(args))
+	if err := expectTransformArgsNum(args, 1); err != nil {
+		return nil, err
 	}
 	rvs := removeEmptySeries(args[0])
 	return rvs, nil
@@ -2021,6 +2022,43 @@ func labelReplace(tss []*timeseries, srcLabel string, r *regexp.Regexp, dstLabel
 		}
 	}
 	return tss, nil
+}
+
+func transformLabelsEqual(tfa *transformFuncArg) ([]*timeseries, error) {
+	args := tfa.args
+	if len(args) < 3 {
+		return nil, fmt.Errorf("unexpected number of args; got %d; want at least 3", len(args))
+	}
+	tss := args[0]
+	var labelNames []string
+	for i, ts := range args[1:] {
+		labelName, err := getString(ts, i+1)
+		if err != nil {
+			return nil, fmt.Errorf("cannot get label name: %w", err)
+		}
+		labelNames = append(labelNames, labelName)
+	}
+	rvs := tss[:0]
+	for _, ts := range tss {
+		if hasIdenticalLabelValues(&ts.MetricName, labelNames) {
+			rvs = append(rvs, ts)
+		}
+	}
+	return rvs, nil
+}
+
+func hasIdenticalLabelValues(mn *storage.MetricName, labelNames []string) bool {
+	if len(labelNames) < 2 {
+		return true
+	}
+	labelValue := mn.GetTagValue(labelNames[0])
+	for _, labelName := range labelNames[1:] {
+		b := mn.GetTagValue(labelName)
+		if string(labelValue) != string(b) {
+			return false
+		}
+	}
+	return true
 }
 
 func transformLabelValue(tfa *transformFuncArg) ([]*timeseries, error) {
