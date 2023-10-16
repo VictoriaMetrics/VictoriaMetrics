@@ -742,13 +742,14 @@ func (rwctx *remoteWriteCtx) pushInternal(tss []prompbmarshal.TimeSeries) {
 }
 
 func (rwctx *remoteWriteCtx) reinitStreamAggr() {
-	sas := rwctx.sas.Load()
-
 	sasFile := streamAggrConfig.GetOptionalArg(rwctx.idx)
 	if sasFile == "" {
 		// There is no stream aggregation for rwctx
 		return
 	}
+
+	sas := rwctx.sas.Load()
+
 	logger.Infof("reloading stream aggregation configs pointed by -remoteWrite.streamAggr.config=%q", sasFile)
 	metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reloads_total{path=%q}`, sasFile)).Inc()
 	dedupInterval := streamAggrDedupInterval.GetOptionalArg(rwctx.idx)
