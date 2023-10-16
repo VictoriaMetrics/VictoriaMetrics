@@ -8,15 +8,15 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 )
 
-// totalAggrState calculates output=total, e.g. the summary counter over input counters.
-type totalAggrState struct {
+// newtotalAggrState calculates output=newtotal, e.g. the summary counter over input counters.
+type newtotalAggrState struct {
 	m sync.Map
 
 	ignoreInputDeadline uint64
 	stalenessSecs       uint64
 }
 
-type totalStateValue struct {
+type newtotalStateValue struct {
 	mu             sync.Mutex
 	lastValues     map[string]*lastValueState
 	total          float64
@@ -24,24 +24,17 @@ type totalStateValue struct {
 	deleted        bool
 }
 
-type lastValueState struct {
-	value          float64
-	firstValue     float64
-	correction     float64
-	deleteDeadline uint64
-}
-
-func newTotalAggrState(interval time.Duration, stalenessInterval time.Duration) *totalAggrState {
+func newnewtotalAggrState(interval time.Duration, stalenessInterval time.Duration) *newtotalAggrState {
 	currentTime := fasttime.UnixTimestamp()
 	intervalSecs := roundDurationToSecs(interval)
 	stalenessSecs := roundDurationToSecs(stalenessInterval)
-	return &totalAggrState{
+	return &newtotalAggrState{
 		ignoreInputDeadline: currentTime + intervalSecs,
 		stalenessSecs:       stalenessSecs,
 	}
 }
 
-func (as *totalAggrState) pushSample(inputKey, outputKey string, value float64) {
+func (as *newtotalAggrState) pushSample(inputKey, outputKey string, value float64) {
 	currentTime := fasttime.UnixTimestamp()
 	deleteDeadline := currentTime + as.stalenessSecs
 
@@ -49,7 +42,7 @@ again:
 	v, ok := as.m.Load(outputKey)
 	if !ok {
 		// The entry is missing in the map. Try creating it.
-		v = &totalStateValue{
+		v = &newtotalStateValue{
 			lastValues: make(map[string]*lastValueState),
 		}
 		vNew, loaded := as.m.LoadOrStore(outputKey, v)
@@ -58,21 +51,37 @@ again:
 			v = vNew
 		}
 	}
-	sv := v.(*totalStateValue)
+	sv := v.(*newtotalStateValue)
 	sv.mu.Lock()
 	deleted := sv.deleted
 	if !deleted {
 		lv, ok := sv.lastValues[inputKey]
 		if !ok {
 			lv = &lastValueState{}
+			lv.firstValue = value
+			lv.value = value
+			lv.correction = 0
 			sv.lastValues[inputKey] = lv
 		}
-		d := value
-		if ok && lv.value <= value {
-			d = value - lv.value
+
+		// process counter reset
+		delta := value - lv.value
+		if delta < 0 {
+			if (-delta * 8) < lv.value {
+				lv.correction += lv.value - value
+			} else {
+				lv.correction += lv.value
+			}
+		}
+
+		// process increasing counter
+		correctedValue := value + lv.correction
+		correctedDelta := correctedValue - lv.firstValue
+		if ok && math.Abs(correctedValue) < 10*(math.Abs(correctedDelta)+1) {
+			correctedDelta = correctedValue
 		}
 		if ok || currentTime > as.ignoreInputDeadline {
-			sv.total += d
+			sv.total = correctedDelta
 		}
 		lv.value = value
 		lv.deleteDeadline = deleteDeadline
@@ -86,10 +95,10 @@ again:
 	}
 }
 
-func (as *totalAggrState) removeOldEntries(currentTime uint64) {
+func (as *newtotalAggrState) removeOldEntries(currentTime uint64) {
 	m := &as.m
 	m.Range(func(k, v interface{}) bool {
-		sv := v.(*totalStateValue)
+		sv := v.(*newtotalStateValue)
 
 		sv.mu.Lock()
 		deleted := currentTime > sv.deleteDeadline
@@ -114,7 +123,7 @@ func (as *totalAggrState) removeOldEntries(currentTime uint64) {
 	})
 }
 
-func (as *totalAggrState) appendSeriesForFlush(ctx *flushCtx) {
+func (as *newtotalAggrState) appendSeriesForFlush(ctx *flushCtx) {
 	currentTime := fasttime.UnixTimestamp()
 	currentTimeMsec := int64(currentTime) * 1000
 
@@ -122,7 +131,7 @@ func (as *totalAggrState) appendSeriesForFlush(ctx *flushCtx) {
 
 	m := &as.m
 	m.Range(func(k, v interface{}) bool {
-		sv := v.(*totalStateValue)
+		sv := v.(*newtotalStateValue)
 		sv.mu.Lock()
 		total := sv.total
 		if math.Abs(sv.total) >= (1 << 53) {
@@ -139,14 +148,14 @@ func (as *totalAggrState) appendSeriesForFlush(ctx *flushCtx) {
 	})
 }
 
-func (as *totalAggrState) getOutputName() string {
-	return "total"
+func (as *newtotalAggrState) getOutputName() string {
+	return "newtotal"
 }
 
-func (as *totalAggrState) getStateRepresentation(suffix string) []aggrStateRepresentation {
+func (as *newtotalAggrState) getStateRepresentation(suffix string) []aggrStateRepresentation {
 	result := make([]aggrStateRepresentation, 0)
 	as.m.Range(func(k, v any) bool {
-		value := v.(*totalStateValue)
+		value := v.(*newtotalStateValue)
 		value.mu.Lock()
 		defer value.mu.Unlock()
 		if value.deleted {

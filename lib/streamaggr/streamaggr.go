@@ -23,7 +23,9 @@ import (
 
 var supportedOutputs = []string{
 	"total",
+	"newtotal",
 	"increase",
+	"newincrease",
 	"count_series",
 	"count_samples",
 	"sum_samples",
@@ -249,6 +251,13 @@ type aggregator struct {
 type aggrState interface {
 	pushSample(inputKey, outputKey string, value float64)
 	appendSeriesForFlush(ctx *flushCtx)
+	getOutputName() string
+	getStateRepresentation(suffix string) []aggrStateRepresentation
+}
+
+type aggrStateRepresentation struct {
+	metric string
+	value  float64
 }
 
 // PushFunc is called by Aggregators when it needs to push its state to metrics storage
@@ -266,9 +275,9 @@ func newAggregator(cfg *Config, pushFunc PushFunc, dedupInterval time.Duration) 
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse `interval: %q`: %w", cfg.Interval, err)
 	}
-	if interval <= time.Second {
-		return nil, fmt.Errorf("the minimum supported aggregation interval is 1s; got %s", interval)
-	}
+	//if interval <= time.Second {
+	//	return nil, fmt.Errorf("the minimum supported aggregation interval is 1s; got %s", interval)
+	//}
 
 	// check cfg.StalenessInterval
 	stalenessInterval := interval * 2
@@ -337,8 +346,12 @@ func newAggregator(cfg *Config, pushFunc PushFunc, dedupInterval time.Duration) 
 		switch output {
 		case "total":
 			aggrStates[i] = newTotalAggrState(interval, stalenessInterval)
+		case "newtotal":
+			aggrStates[i] = newnewtotalAggrState(interval, stalenessInterval)
 		case "increase":
 			aggrStates[i] = newIncreaseAggrState(interval, stalenessInterval)
+		case "newincrease":
+			aggrStates[i] = newnewincreaseAggrState(interval, stalenessInterval)
 		case "count_series":
 			aggrStates[i] = newCountSeriesAggrState()
 		case "count_samples":
@@ -823,4 +836,22 @@ func sortAndRemoveDuplicates(a []string) []string {
 		}
 	}
 	return dst
+}
+
+func getLabelsStringFromKey(
+	key string,
+	suffix string,
+	output string,
+	extraLabels ...prompbmarshal.Label,
+) string {
+	labels := make([]prompbmarshal.Label, 0)
+	labels, _ = unmarshalLabelsFast(labels, []byte(key))
+	labels = addMetricSuffix(labels, 0, suffix, output)
+	labels = append(labels, extraLabels...)
+	a := make([]string, len(labels))
+	for i, label := range labels {
+		a[i] = fmt.Sprintf("%s=%q", label.Name, label.Value)
+	}
+	sort.Strings(a)
+	return "{" + strings.Join(a, ",") + "}"
 }

@@ -209,3 +209,7 @@ func pushAggregateSeries(tss []prompbmarshal.TimeSeries) {
 		logger.Errorf("cannot flush aggregate series: %s", err)
 	}
 }
+
+func GetAggregators() map[string]*streamaggr.Aggregators {
+	return map[string]*streamaggr.Aggregators{"default": sasGlobal.Load()}
+}

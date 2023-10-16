@@ -72,7 +72,29 @@ func (as *countSeriesAggrState) appendSeriesForFlush(ctx *flushCtx) {
 		sv.deleted = true
 		sv.mu.Unlock()
 		key := k.(string)
-		ctx.appendSeries(key, "count_series", currentTimeMsec, float64(n))
+		ctx.appendSeries(key, as.getOutputName(), currentTimeMsec, float64(n))
 		return true
 	})
+}
+
+func (as *countSeriesAggrState) getOutputName() string {
+	return "count_series"
+}
+
+func (as *countSeriesAggrState) getStateRepresentation(suffix string) []aggrStateRepresentation {
+	result := make([]aggrStateRepresentation, 0)
+	as.m.Range(func(k, v any) bool {
+		value := v.(*countSeriesStateValue)
+		value.mu.Lock()
+		defer value.mu.Unlock()
+		if value.deleted {
+			return true
+		}
+		result = append(result, aggrStateRepresentation{
+			metric: getLabelsStringFromKey(k.(string), suffix, as.getOutputName()),
+			value:  float64(value.n),
+		})
+		return true
+	})
+	return result
 }

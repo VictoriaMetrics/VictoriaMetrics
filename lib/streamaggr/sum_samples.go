@@ -65,7 +65,29 @@ func (as *sumSamplesAggrState) appendSeriesForFlush(ctx *flushCtx) {
 		sv.deleted = true
 		sv.mu.Unlock()
 		key := k.(string)
-		ctx.appendSeries(key, "sum_samples", currentTimeMsec, sum)
+		ctx.appendSeries(key, as.getOutputName(), currentTimeMsec, sum)
 		return true
 	})
+}
+
+func (as *sumSamplesAggrState) getOutputName() string {
+	return "sum_samples"
+}
+
+func (as *sumSamplesAggrState) getStateRepresentation(suffix string) []aggrStateRepresentation {
+	result := make([]aggrStateRepresentation, 0)
+	as.m.Range(func(k, v any) bool {
+		value := v.(*sumSamplesStateValue)
+		value.mu.Lock()
+		defer value.mu.Unlock()
+		if value.deleted {
+			return true
+		}
+		result = append(result, aggrStateRepresentation{
+			metric: getLabelsStringFromKey(k.(string), suffix, as.getOutputName()),
+			value:  value.sum,
+		})
+		return true
+	})
+	return result
 }

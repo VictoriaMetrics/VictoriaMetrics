@@ -1,6 +1,7 @@
 package streamaggr
 
 import (
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"math"
 	"sync"
 	"time"
@@ -93,12 +94,39 @@ func (as *histogramBucketAggrState) appendSeriesForFlush(ctx *flushCtx) {
 		if !sv.deleted {
 			key := k.(string)
 			sv.h.VisitNonZeroBuckets(func(vmrange string, count uint64) {
-				ctx.appendSeriesWithExtraLabel(key, "histogram_bucket", currentTimeMsec, float64(count), "vmrange", vmrange)
+				ctx.appendSeriesWithExtraLabel(key, as.getOutputName(), currentTimeMsec, float64(count), "vmrange", vmrange)
 			})
 		}
 		sv.mu.Unlock()
 		return true
 	})
+}
+
+func (as *histogramBucketAggrState) getOutputName() string {
+	return "count_series"
+}
+
+func (as *histogramBucketAggrState) getStateRepresentation(suffix string) []aggrStateRepresentation {
+	result := make([]aggrStateRepresentation, 0)
+	as.m.Range(func(k, v any) bool {
+		value := v.(*histogramBucketStateValue)
+		value.mu.Lock()
+		defer value.mu.Unlock()
+		if value.deleted {
+			return true
+		}
+		value.h.VisitNonZeroBuckets(func(vmrange string, count uint64) {
+			result = append(result, aggrStateRepresentation{
+				metric: getLabelsStringFromKey(k.(string), suffix, as.getOutputName(), prompbmarshal.Label{
+					Name:  vmrange,
+					Value: vmrange,
+				}),
+				value: float64(count),
+			})
+		})
+		return true
+	})
+	return result
 }
 
 func roundDurationToSecs(d time.Duration) uint64 {

@@ -4,6 +4,7 @@ import (
 	"embed"
 	"flag"
 	"fmt"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/streamaggr"
 	"net/http"
 	"strings"
 	"sync/atomic"
@@ -325,6 +326,9 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		promscrapeConfigReloadRequests.Inc()
 		procutil.SelfSIGHUP()
 		w.WriteHeader(http.StatusNoContent)
+		return true
+	case "/stream-agg":
+		streamaggr.WriteHumanReadableState(w, r, vminsertCommon.GetAggregators())
 		return true
 	case "/ready":
 		if rdy := atomic.LoadInt32(&promscrape.PendingScrapeConfigs); rdy > 0 {

@@ -1,0 +1,26 @@
+- match:
+    - '{__name__=~".*total"}'
+    - '{__name__=~".*entries"}'
+    - '{__name__=~".*count"}'
+  interval: 1m
+  by: [instance]
+  outputs:
+    - total
+    - newtotal
+    - increase
+    - newincrease
+    - avg
+    - count_samples
+    - count_series
+    - histogram_bucket
+    - last
+    - max
+    - min
+    - quantiles(0.5, 0.9, 0.95, 0.99, 0.999)
+    - stddev
+    - stdvar
+    - sum_samples
+- match: 'extension.error'
+  interval: 1h
+  without: [instance]
+  outputs: [total, increase, newtotal, newincrease]

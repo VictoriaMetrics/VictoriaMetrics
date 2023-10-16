@@ -67,7 +67,29 @@ func (as *maxAggrState) appendSeriesForFlush(ctx *flushCtx) {
 		sv.deleted = true
 		sv.mu.Unlock()
 		key := k.(string)
-		ctx.appendSeries(key, "max", currentTimeMsec, max)
+		ctx.appendSeries(key, as.getOutputName(), currentTimeMsec, max)
 		return true
 	})
+}
+
+func (as *maxAggrState) getOutputName() string {
+	return "max"
+}
+
+func (as *maxAggrState) getStateRepresentation(suffix string) []aggrStateRepresentation {
+	result := make([]aggrStateRepresentation, 0)
+	as.m.Range(func(k, v any) bool {
+		value := v.(*maxStateValue)
+		value.mu.Lock()
+		defer value.mu.Unlock()
+		if value.deleted {
+			return true
+		}
+		result = append(result, aggrStateRepresentation{
+			metric: getLabelsStringFromKey(k.(string), suffix, as.getOutputName()),
+			value:  value.max,
+		})
+		return true
+	})
+	return result
 }
