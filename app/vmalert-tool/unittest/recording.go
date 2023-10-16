@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"reflect"
 	"sort"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
@@ -29,7 +30,7 @@ func checkMetricsqlCase(cases []metricsqlTestCase, q datasource.QuerierBuilder) 
 	queries := q.BuildWithParams(datasource.QuerierParams{QueryParams: url.Values{"nocache": {"1"}, "latency_offset": {"1ms"}}, DataSourceType: "prometheus"})
 Outer:
 	for _, mt := range cases {
-		result, _, err := queries.Query(context.Background(), mt.Expr, mt.EvalTime.ParseTime())
+		result, _, err := queries.Query(context.Background(), mt.Expr, durationToTime(mt.EvalTime))
 		if err != nil {
 			checkErrs = append(checkErrs, fmt.Errorf("    expr: %q, time: %s, err: %w", mt.Expr,
 				mt.EvalTime.Duration().String(), err))
@@ -89,4 +90,11 @@ Outer:
 
 	}
 	return
+}
+
+func durationToTime(pd *promutils.Duration) time.Time {
+	if pd == nil {
+		return time.Time{}
+	}
+	return time.UnixMilli(pd.Duration().Milliseconds())
 }
