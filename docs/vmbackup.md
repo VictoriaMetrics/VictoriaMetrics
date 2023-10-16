@@ -278,10 +278,11 @@ You have to add a custom url endpoint via flag:
 
 ### Permanent deletion of objects in S3 and compatible storages
 
-By default, when using S3 compatible storages, `vmbackup` and `vmbackupmanager` will use the basic delete operation, 
-which will delete current version of the object only.
-In order to enforce removing all versions of an object when object is deleted, you need to use `-deleteAllObjectVersions` flag.
-Using this flag will enforce listing all versions of an object and deleting them one by one.
+`vmbackup` and [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager.html) use standard delete operation
+for S3-compatible object storage when pefrorming [incremental backups](#incremental-backups).
+This operation removes only the current version of the object. This works OK in most cases.
+
+Sometimes it is needed to remove all the versions of an object. In this case pass `-deleteAllObjectVersions` command-line flag to `vmbackup`.
 
 Alternatively, it is possible to use object storage lifecycle rules to remove non-current versions of objects automatically.
 Refer to the respective documentation for your object storage provider for more details.
