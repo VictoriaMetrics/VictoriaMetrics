@@ -44,10 +44,13 @@ type Client base.Client[generated.ContainerClient]
 func NewClient(containerURL string, cred azcore.TokenCredential, options *ClientOptions) (*Client, error) {
 	authPolicy := shared.NewStorageChallengePolicy(cred)
 	conOptions := shared.GetClientOptions(options)
-	conOptions.PerRetryPolicies = append(conOptions.PerRetryPolicies, authPolicy)
-	pl := runtime.NewPipeline(exported.ModuleName, exported.ModuleVersion, runtime.PipelineOptions{}, &conOptions.ClientOptions)
+	plOpts := runtime.PipelineOptions{PerRetry: []policy.Policy{authPolicy}}
 
-	return (*Client)(base.NewContainerClient(containerURL, pl, &cred)), nil
+	azClient, err := azcore.NewClient(shared.ContainerClient, exported.ModuleVersion, plOpts, &conOptions.ClientOptions)
+	if err != nil {
+		return nil, err
+	}
+	return (*Client)(base.NewContainerClient(containerURL, azClient, &cred)), nil
 }
 
 // NewClientWithNoCredential creates an instance of Client with the specified values.
@@ -56,9 +59,12 @@ func NewClient(containerURL string, cred azcore.TokenCredential, options *Client
 //   - options - client options; pass nil to accept the default values
 func NewClientWithNoCredential(containerURL string, options *ClientOptions) (*Client, error) {
 	conOptions := shared.GetClientOptions(options)
-	pl := runtime.NewPipeline(exported.ModuleName, exported.ModuleVersion, runtime.PipelineOptions{}, &conOptions.ClientOptions)
 
-	return (*Client)(base.NewContainerClient(containerURL, pl, nil)), nil
+	azClient, err := azcore.NewClient(shared.ContainerClient, exported.ModuleVersion, runtime.PipelineOptions{}, &conOptions.ClientOptions)
+	if err != nil {
+		return nil, err
+	}
+	return (*Client)(base.NewContainerClient(containerURL, azClient, nil)), nil
 }
 
 // NewClientWithSharedKeyCredential creates an instance of Client with the specified values.
@@ -68,10 +74,13 @@ func NewClientWithNoCredential(containerURL string, options *ClientOptions) (*Cl
 func NewClientWithSharedKeyCredential(containerURL string, cred *SharedKeyCredential, options *ClientOptions) (*Client, error) {
 	authPolicy := exported.NewSharedKeyCredPolicy(cred)
 	conOptions := shared.GetClientOptions(options)
-	conOptions.PerRetryPolicies = append(conOptions.PerRetryPolicies, authPolicy)
-	pl := runtime.NewPipeline(exported.ModuleName, exported.ModuleVersion, runtime.PipelineOptions{}, &conOptions.ClientOptions)
+	plOpts := runtime.PipelineOptions{PerRetry: []policy.Policy{authPolicy}}
 
-	return (*Client)(base.NewContainerClient(containerURL, pl, cred)), nil
+	azClient, err := azcore.NewClient(shared.ContainerClient, exported.ModuleVersion, plOpts, &conOptions.ClientOptions)
+	if err != nil {
+		return nil, err
+	}
+	return (*Client)(base.NewContainerClient(containerURL, azClient, cred)), nil
 }
 
 // NewClientFromConnectionString creates an instance of Client with the specified values.
@@ -124,7 +133,7 @@ func (c *Client) URL() string {
 func (c *Client) NewBlobClient(blobName string) *blob.Client {
 	blobName = url.PathEscape(blobName)
 	blobURL := runtime.JoinPaths(c.URL(), blobName)
-	return (*blob.Client)(base.NewBlobClient(blobURL, c.generated().Pipeline(), c.credential()))
+	return (*blob.Client)(base.NewBlobClient(blobURL, c.generated().InternalClient().WithClientName(shared.BlobClient), c.credential()))
 }
 
 // NewAppendBlobClient creates a new appendblob.Client object by concatenating blobName to the end of
@@ -133,7 +142,7 @@ func (c *Client) NewBlobClient(blobName string) *blob.Client {
 func (c *Client) NewAppendBlobClient(blobName string) *appendblob.Client {
 	blobName = url.PathEscape(blobName)
 	blobURL := runtime.JoinPaths(c.URL(), blobName)
-	return (*appendblob.Client)(base.NewAppendBlobClient(blobURL, c.generated().Pipeline(), c.sharedKey()))
+	return (*appendblob.Client)(base.NewAppendBlobClient(blobURL, c.generated().InternalClient().WithClientName(shared.AppendBlobClient), c.sharedKey()))
 }
 
 // NewBlockBlobClient creates a new blockblob.Client object by concatenating blobName to the end of
@@ -142,7 +151,7 @@ func (c *Client) NewAppendBlobClient(blobName string) *appendblob.Client {
 func (c *Client) NewBlockBlobClient(blobName string) *blockblob.Client {
 	blobName = url.PathEscape(blobName)
 	blobURL := runtime.JoinPaths(c.URL(), blobName)
-	return (*blockblob.Client)(base.NewBlockBlobClient(blobURL, c.generated().Pipeline(), c.sharedKey()))
+	return (*blockblob.Client)(base.NewBlockBlobClient(blobURL, c.generated().InternalClient().WithClientName(shared.BlockBlobClient), c.sharedKey()))
 }
 
 // NewPageBlobClient creates a new pageblob.Client object by concatenating blobName to the end of
@@ -151,7 +160,7 @@ func (c *Client) NewBlockBlobClient(blobName string) *blockblob.Client {
 func (c *Client) NewPageBlobClient(blobName string) *pageblob.Client {
 	blobName = url.PathEscape(blobName)
 	blobURL := runtime.JoinPaths(c.URL(), blobName)
-	return (*pageblob.Client)(base.NewPageBlobClient(blobURL, c.generated().Pipeline(), c.sharedKey()))
+	return (*pageblob.Client)(base.NewPageBlobClient(blobURL, c.generated().InternalClient().WithClientName(shared.PageBlobClient), c.sharedKey()))
 }
 
 // Create creates a new container within a storage account. If a container with the same name already exists, the operation fails.
@@ -272,7 +281,7 @@ func (c *Client) NewListBlobsFlatPager(o *ListBlobsFlatOptions) *runtime.Pager[L
 			if err != nil {
 				return ListBlobsFlatResponse{}, err
 			}
-			resp, err := c.generated().Pipeline().Do(req)
+			resp, err := c.generated().InternalClient().Pipeline().Do(req)
 			if err != nil {
 				return ListBlobsFlatResponse{}, err
 			}
@@ -308,7 +317,7 @@ func (c *Client) NewListBlobsHierarchyPager(delimiter string, o *ListBlobsHierar
 			if err != nil {
 				return ListBlobsHierarchyResponse{}, err
 			}
-			resp, err := c.generated().Pipeline().Do(req)
+			resp, err := c.generated().InternalClient().Pipeline().Do(req)
 			if err != nil {
 				return ListBlobsHierarchyResponse{}, err
 			}
@@ -411,4 +420,13 @@ func (c *Client) SubmitBatch(ctx context.Context, bb *BatchBuilder, options *Sub
 		RequestID:   resp.RequestID,
 		Version:     resp.Version,
 	}, nil
+}
+
+// FilterBlobs operation finds all blobs in the container whose tags match a given search expression.
+// https://docs.microsoft.com/en-us/rest/api/storageservices/find-blobs-by-tags-container
+// eg. "dog='germanshepherd' and penguin='emperorpenguin'"
+func (c *Client) FilterBlobs(ctx context.Context, where string, o *FilterBlobsOptions) (FilterBlobsResponse, error) {
+	containerClientFilterBlobsOptions := o.format()
+	resp, err := c.generated().FilterBlobs(ctx, where, containerClientFilterBlobsOptions)
+	return resp, err
 }
