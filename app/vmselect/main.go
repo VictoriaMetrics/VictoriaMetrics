@@ -366,7 +366,7 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 	}
 	if strings.HasPrefix(p.Suffix, "vmui/") || strings.HasPrefix(p.Suffix, "prometheus/vmui/") {
 		// vmui access.
-		if strings.HasPrefix(p.Suffix, "vmui/static/") {
+		if strings.HasPrefix(p.Suffix, "vmui/static/") || strings.HasPrefix(p.Suffix, "prometheus/vmui/static/") {
 			// Allow clients caching static contents for long period of time, since it shouldn't change over time.
 			// Path to static contents (such as js and css) must be changed whenever its contents is changed.
 			// See https://developer.chrome.com/docs/lighthouse/performance/uses-long-cache-ttl/
