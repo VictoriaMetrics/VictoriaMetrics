@@ -1,3 +1,15 @@
+# v1.23.2 (2023-10-12)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.23.1 (2023-10-06)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.23.0 (2023-10-02)
+
+* **Feature**: STS API updates for assumeRole
+
 # v1.22.0 (2023-09-18)
 
 * **Announcement**: [BREAKFIX] Change in MaxResults datatype from value to pointer type in cognito-sync service.

@@ -411,6 +411,25 @@ func (r *resolver) ResolveEndpoint(
 			}
 			if _UseFIPS == true {
 				if true == _PartitionResult.SupportsFIPS {
+					if "aws-us-gov" == _PartitionResult.Name {
+						uriString := func() string {
+							var out strings.Builder
+							out.WriteString("https://oidc.")
+							out.WriteString(_Region)
+							out.WriteString(".amazonaws.com")
+							return out.String()
+						}()
+
+						uri, err := url.Parse(uriString)
+						if err != nil {
+							return endpoint, fmt.Errorf("Failed to parse uri: %s", uriString)
+						}
+
+						return smithyendpoints.Endpoint{
+							URI:     *uri,
+							Headers: http.Header{},
+						}, nil
+					}
 					uriString := func() string {
 						var out strings.Builder
 						out.WriteString("https://oidc-fips.")

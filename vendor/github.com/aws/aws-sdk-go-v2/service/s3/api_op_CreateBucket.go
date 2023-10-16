@@ -26,11 +26,12 @@ import (
 // information about bucket naming restrictions, see Bucket naming rules (https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucketnamingrules.html)
 // . If you want to create an Amazon S3 on Outposts bucket, see Create Bucket (https://docs.aws.amazon.com/AmazonS3/latest/API/API_control_CreateBucket.html)
 // . By default, the bucket is created in the US East (N. Virginia) Region. You can
-// optionally specify a Region in the request body. You might choose a Region to
-// optimize latency, minimize costs, or address regulatory requirements. For
-// example, if you reside in Europe, you will probably find it advantageous to
-// create buckets in the Europe (Ireland) Region. For more information, see
-// Accessing a bucket (https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingBucket.html#access-bucket-intro)
+// optionally specify a Region in the request body. To constrain the bucket
+// creation to a specific Region, you can use LocationConstraint (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateBucketConfiguration.html)
+// condition key. You might choose a Region to optimize latency, minimize costs, or
+// address regulatory requirements. For example, if you reside in Europe, you will
+// probably find it advantageous to create buckets in the Europe (Ireland) Region.
+// For more information, see Accessing a bucket (https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingBucket.html#access-bucket-intro)
 // . If you send your create bucket request to the s3.amazonaws.com endpoint, the
 // request goes to the us-east-1 Region. Accordingly, the signature calculations
 // in Signature Version 4 must use us-east-1 as the Region, even if the location
