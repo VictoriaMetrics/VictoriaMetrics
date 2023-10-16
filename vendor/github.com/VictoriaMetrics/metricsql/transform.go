@@ -29,6 +29,7 @@ var transformFuncs = map[string]bool{
 	"days_in_month":              true,
 	"deg":                        true,
 	"drop_common_labels":         true,
+	"drop_empty_series":          true,
 	"end":                        true,
 	"exp":                        true,
 	"floor":                      true,

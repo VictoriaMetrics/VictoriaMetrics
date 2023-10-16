@@ -45,6 +45,7 @@ var transformFuncs = map[string]transformFunc{
 	"days_in_month":              newTransformFuncDateTime(transformDaysInMonth),
 	"deg":                        newTransformFuncOneArg(transformDeg),
 	"drop_common_labels":         transformDropCommonLabels,
+	"drop_empty_series":          transformDropEmptySeries,
 	"end":                        newTransformFuncZeroArgs(transformEnd),
 	"exp":                        newTransformFuncOneArg(transformExp),
 	"floor":                      newTransformFuncOneArg(transformFloor),
@@ -1837,6 +1838,15 @@ func transformDropCommonLabels(tfa *transformFuncArg) ([]*timeseries, error) {
 			}
 		}
 	}
+	return rvs, nil
+}
+
+func transformDropEmptySeries(tfa *transformFuncArg) ([]*timeseries, error) {
+	args := tfa.args
+	if len(args) != 1 {
+		return nil, fmt.Errorf("unexpected number of args; got %d; want 1", len(args))
+	}
+	rvs := removeEmptySeries(args[0])
 	return rvs, nil
 }
 
