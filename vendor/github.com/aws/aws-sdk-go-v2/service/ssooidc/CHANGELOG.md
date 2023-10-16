@@ -1,3 +1,19 @@
+# v1.17.3 (2023-10-12)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.2 (2023-10-06)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.1 (2023-09-22)
+
+* No change notes available for this release.
+
+# v1.17.0 (2023-09-20)
+
+* **Feature**: Update FIPS endpoints in aws-us-gov.
+
 # v1.16.0 (2023-09-18)
 
 * **Announcement**: [BREAKFIX] Change in MaxResults datatype from value to pointer type in cognito-sync service.
