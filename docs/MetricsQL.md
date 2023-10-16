@@ -1057,7 +1057,7 @@ This function is supported by PromQL. See also [rad](#rad).
 
 #### drop_empty_series
 
-`drop_empty_series(q) is a [transform function](#transform-functions), which drops empty series from `q`.
+`drop_empty_series(q)` is a [transform function](#transform-functions), which drops empty series from `q`.
 
 This function can be used when `default` operator should be applied only to non-empty series. For example,
 `drop_empty_series(temperature < 30) default 42` returns series, which have at least a single sample smaller than 30 on the selected time range,
