@@ -420,7 +420,7 @@ func transformBucketsLimit(tfa *transformFuncArg) ([]*timeseries, error) {
 		mn.CopyFrom(&ts.MetricName)
 		mn.RemoveTag("le")
 		b = marshalMetricNameSorted(b[:0], &mn)
-		k := bytesutil.ToUnsafeString(b)
+		k := string(b)
 		m[k] = append(m[k], x{
 			le: le,
 			ts: ts,

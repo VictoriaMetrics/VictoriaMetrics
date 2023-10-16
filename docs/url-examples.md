@@ -1,11 +1,11 @@
 ---
-sort: 24
-weight: 24
+sort: 33
+weight: 33
 title: VictoriaMetrics API examples
 menu:
   docs:
-    parent: "victoriametrics"
-    weight: 24
+    parent: 'victoriametrics'
+    weight: 33
 ---
 
 # VictoriaMetrics API examples

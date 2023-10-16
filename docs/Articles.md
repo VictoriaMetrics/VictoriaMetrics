@@ -1,11 +1,11 @@
 ---
-sort: 20
-weight: 20
+sort: 29
+weight: 29
 title: Articles
 menu:
   docs:
-    parent: "victoriametrics"
-    weight: 20
+    parent: 'victoriametrics'
+    weight: 29
 aliases:
 - /Articles.html
 ---

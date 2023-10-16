@@ -8,6 +8,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/newrelic"
@@ -29,42 +30,48 @@ func InsertHandlerForHTTP(at *auth.Token, req *http.Request) error {
 	}
 	ce := req.Header.Get("Content-Encoding")
 	isGzip := ce == "gzip"
-	return stream.Parse(req.Body, isGzip, func(series []newrelic.Metric) error {
-		return insertRows(at, series, extraLabels)
+	return stream.Parse(req.Body, isGzip, func(rows []newrelic.Row) error {
+		return insertRows(at, rows, extraLabels)
 	})
 }
 
-func insertRows(at *auth.Token, rows []newrelic.Metric, extraLabels []prompbmarshal.Label) error {
+func insertRows(at *auth.Token, rows []newrelic.Row, extraLabels []prompbmarshal.Label) error {
 	ctx := common.GetPushCtx()
 	defer common.PutPushCtx(ctx)
 
-	rowsTotal := 0
+	samplesCount := 0
 	tssDst := ctx.WriteRequest.Timeseries[:0]
 	labels := ctx.Labels[:0]
 	samples := ctx.Samples[:0]
 	for i := range rows {
 		r := &rows[i]
-		labelsLen := len(labels)
-		labels = append(labels, prompbmarshal.Label{
-			Name:  "__name__",
-			Value: r.Metric,
-		})
-		for j := range r.Tags {
-			tag := &r.Tags[j]
+		tags := r.Tags
+		srcSamples := r.Samples
+		for j := range srcSamples {
+			s := &srcSamples[j]
+			labelsLen := len(labels)
 			labels = append(labels, prompbmarshal.Label{
-				Name:  tag.Key,
-				Value: tag.Value,
+				Name:  "__name__",
+				Value: bytesutil.ToUnsafeString(s.Name),
 			})
+			for k := range tags {
+				t := &tags[k]
+				labels = append(labels, prompbmarshal.Label{
+					Name:  bytesutil.ToUnsafeString(t.Key),
+					Value: bytesutil.ToUnsafeString(t.Value),
+				})
+			}
+			samples = append(samples, prompbmarshal.Sample{
+				Value:     s.Value,
+				Timestamp: r.Timestamp,
+			})
+			tssDst = append(tssDst, prompbmarshal.TimeSeries{
+				Labels:  labels[labelsLen:],
+				Samples: samples[len(samples)-1:],
+			})
+			labels = append(labels, extraLabels...)
 		}
-		samples = append(samples, prompbmarshal.Sample{
-			Value:     r.Value,
-			Timestamp: r.Timestamp,
-		})
-		tssDst = append(tssDst, prompbmarshal.TimeSeries{
-			Labels:  labels[labelsLen:],
-			Samples: samples[len(samples)-1:],
-		})
-		labels = append(labels, extraLabels...)
+		samplesCount += len(srcSamples)
 	}
 	ctx.WriteRequest.Timeseries = tssDst
 	ctx.Labels = labels
@@ -72,8 +79,8 @@ func insertRows(at *auth.Token, rows []newrelic.Metric, extraLabels []prompbmars
 	remotewrite.Push(at, &ctx.WriteRequest)
 	rowsInserted.Add(len(rows))
 	if at != nil {
-		rowsTenantInserted.Get(at).Add(rowsTotal)
+		rowsTenantInserted.Get(at).Add(samplesCount)
 	}
-	rowsPerInsert.Update(float64(len(rows)))
+	rowsPerInsert.Update(float64(samplesCount))
 	return nil
 }

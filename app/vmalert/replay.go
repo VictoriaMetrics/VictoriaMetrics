@@ -1,19 +1,16 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"strings"
 	"time"
 
-	"github.com/cheggaaa/pb/v3"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/remotewrite"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/rule"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 )
 
 var (
@@ -33,7 +30,7 @@ var (
 		"Progress bar rendering might be verbose or break the logs parsing, so it is recommended to be disabled when not used in interactive mode.")
 )
 
-func replay(groupsCfg []config.Group, qb datasource.QuerierBuilder, rw *remotewrite.Client) error {
+func replay(groupsCfg []config.Group, qb datasource.QuerierBuilder, rw remotewrite.RWClient) error {
 	if *replayMaxDatapoints < 1 {
 		return fmt.Errorf("replay.maxDatapointsPerQuery can't be lower than 1")
 	}
@@ -68,108 +65,12 @@ func replay(groupsCfg []config.Group, qb datasource.QuerierBuilder, rw *remotewr
 
 	var total int
 	for _, cfg := range groupsCfg {
-		ng := newGroup(cfg, qb, *evaluationInterval, labels)
-		total += ng.replay(tFrom, tTo, rw)
+		ng := rule.NewGroup(cfg, qb, *evaluationInterval, labels)
+		total += ng.Replay(tFrom, tTo, rw, *replayMaxDatapoints, *replayRuleRetryAttempts, *replayRulesDelay, *disableProgressBar)
 	}
 	logger.Infof("replay finished! Imported %d samples", total)
 	if rw != nil {
 		return rw.Close()
 	}
 	return nil
-}
-
-func (g *Group) replay(start, end time.Time, rw *remotewrite.Client) int {
-	var total int
-	step := g.Interval * time.Duration(*replayMaxDatapoints)
-	start = g.adjustReqTimestamp(start)
-	ri := rangeIterator{start: start, end: end, step: step}
-	iterations := int(end.Sub(start)/step) + 1
-	fmt.Printf("\nGroup %q"+
-		"\ninterval: \t%v"+
-		"\neval_offset: \t%v"+
-		"\nrequests to make: \t%d"+
-		"\nmax range per request: \t%v\n",
-		g.Name, g.Interval, g.EvalOffset, iterations, step)
-	if g.Limit > 0 {
-		fmt.Printf("\nPlease note, `limit: %d` param has no effect during replay.\n",
-			g.Limit)
-	}
-	for _, rule := range g.Rules {
-		fmt.Printf("> Rule %q (ID: %d)\n", rule, rule.ID())
-		var bar *pb.ProgressBar
-		if !*disableProgressBar {
-			bar = pb.StartNew(iterations)
-		}
-		ri.reset()
-		for ri.next() {
-			n, err := replayRule(rule, ri.s, ri.e, rw)
-			if err != nil {
-				logger.Fatalf("rule %q: %s", rule, err)
-			}
-			total += n
-			if bar != nil {
-				bar.Increment()
-			}
-		}
-		if bar != nil {
-			bar.Finish()
-		}
-		// sleep to let remote storage to flush data on-disk
-		// so chained rules could be calculated correctly
-		time.Sleep(*replayRulesDelay)
-	}
-	return total
-}
-
-func replayRule(rule Rule, start, end time.Time, rw *remotewrite.Client) (int, error) {
-	var err error
-	var tss []prompbmarshal.TimeSeries
-	for i := 0; i < *replayRuleRetryAttempts; i++ {
-		tss, err = rule.ExecRange(context.Background(), start, end)
-		if err == nil {
-			break
-		}
-		logger.Errorf("attempt %d to execute rule %q failed: %s", i+1, rule, err)
-		time.Sleep(time.Second)
-	}
-	if err != nil { // means all attempts failed
-		return 0, err
-	}
-	if len(tss) < 1 {
-		return 0, nil
-	}
-	var n int
-	for _, ts := range tss {
-		if err := rw.Push(ts); err != nil {
-			return n, fmt.Errorf("remote write failure: %s", err)
-		}
-		n += len(ts.Samples)
-	}
-	return n, nil
-}
-
-type rangeIterator struct {
-	step       time.Duration
-	start, end time.Time
-
-	iter int
-	s, e time.Time
-}
-
-func (ri *rangeIterator) reset() {
-	ri.iter = 0
-	ri.s, ri.e = time.Time{}, time.Time{}
-}
-
-func (ri *rangeIterator) next() bool {
-	ri.s = ri.start.Add(ri.step * time.Duration(ri.iter))
-	if !ri.end.After(ri.s) {
-		return false
-	}
-	ri.e = ri.s.Add(ri.step)
-	if ri.e.After(ri.end) {
-		ri.e = ri.end
-	}
-	ri.iter++
-	return true
 }

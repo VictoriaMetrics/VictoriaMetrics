@@ -18,6 +18,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/remoteread"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/remotewrite"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/rule"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/templates"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
@@ -66,11 +67,6 @@ absolute path to all .tpl files in root.
 
 	validateTemplates   = flag.Bool("rule.validateTemplates", true, "Whether to validate annotation and label templates")
 	validateExpressions = flag.Bool("rule.validateExpressions", true, "Whether to validate rules expressions via MetricsQL engine")
-	maxResolveDuration  = flag.Duration("rule.maxResolveDuration", 0, "Limits the maximum duration for automatic alert expiration, "+
-		"which by default is 4 times evaluationInterval of the parent group.")
-	resendDelay            = flag.Duration("rule.resendDelay", 0, "Minimum amount of time to wait before resending an alert to notifier")
-	ruleUpdateEntriesLimit = flag.Int("rule.updateEntriesLimit", 20, "Defines the max number of rule's state updates stored in-memory. "+
-		"Rule's updates are available on rule's Details page and are used for debugging purposes. The number of stored updates can be overridden per rule via update_entries_limit param.")
 
 	externalURL         = flag.String("external.url", "", "External URL is used as alert's source for sent alerts to the notifier. By default, hostname is used as address.")
 	externalAlertSource = flag.String("external.alert.source", "", `External Alert Source allows to override the Source link for alerts sent to AlertManager `+
@@ -82,11 +78,7 @@ absolute path to all .tpl files in root.
 	externalLabels = flagutil.NewArrayString("external.label", "Optional label in the form 'Name=value' to add to all generated recording rules and alerts. "+
 		"Pass multiple -label flags in order to add multiple label sets.")
 
-	remoteReadLookBack = flag.Duration("remoteRead.lookback", time.Hour, "Lookback defines how far to look into past for alerts timeseries."+
-		" For example, if lookback=1h then range from now() to now()-1h will be scanned.")
 	remoteReadIgnoreRestoreErrors = flag.Bool("remoteRead.ignoreRestoreErrors", true, "Whether to ignore errors from remote storage when restoring alerts state on startup. DEPRECATED - this flag has no effect and will be removed in the next releases.")
-
-	disableAlertGroupLabel = flag.Bool("disableAlertgroupLabel", false, "Whether to disable adding group's Name as label to generated alerts and time series.")
 
 	dryRun = flag.Bool("dryRun", false, "Whether to check only config files without running vmalert. The rules file are validated. The -rule flag must be specified.")
 )
@@ -229,7 +221,7 @@ func newManager(ctx context.Context) (*manager, error) {
 		return nil, fmt.Errorf("failed to init notifier: %w", err)
 	}
 	manager := &manager{
-		groups:         make(map[uint64]*Group),
+		groups:         make(map[uint64]*rule.Group),
 		querierBuilder: q,
 		notifiers:      nts,
 		labels:         labels,

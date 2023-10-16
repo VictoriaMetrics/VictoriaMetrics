@@ -512,12 +512,10 @@
         "current": {
           "selected": true,
           "text": [
-            "logs-benchmark-elastic-1",
-            "logs-benchmark-vlogs-1"
+            "All"
           ],
           "value": [
-            "logs-benchmark-elastic-1",
-            "logs-benchmark-vlogs-1"
+            "$__all"
           ]
         },
         "datasource": {
@@ -536,7 +534,7 @@
           "refId": "StandardVariableQuery"
         },
         "refresh": 1,
-        "regex": ".*vlogs|elastic.*",
+        "regex": ".*benchmark-vlogs|benchmark-elastic.*",
         "skipUrlSync": false,
         "sort": 1,
         "type": "query"
@@ -551,6 +549,6 @@
   "timezone": "",
   "title": "Elastic vs VLogs",
   "uid": "hkm6P6_4z",
-  "version": 2,
+  "version": 3,
   "weekStart": ""
 }

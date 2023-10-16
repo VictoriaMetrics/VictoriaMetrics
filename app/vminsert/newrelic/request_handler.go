@@ -18,7 +18,7 @@ var (
 	rowsPerInsert = metrics.NewHistogram(`vm_rows_per_insert{type="newrelic"}`)
 )
 
-// InsertHandlerForHTTP processes remote write for NewRelic POST /infra/v2/metrics/events/bulk request.
+// InsertHandlerForHTTP processes remote write for request to /newrelic/infra/v2/metrics/events/bulk request.
 func InsertHandlerForHTTP(req *http.Request) error {
 	extraLabels, err := parserCommon.GetExtraLabels(req)
 	if err != nil {
@@ -26,42 +26,52 @@ func InsertHandlerForHTTP(req *http.Request) error {
 	}
 	ce := req.Header.Get("Content-Encoding")
 	isGzip := ce == "gzip"
-	return stream.Parse(req.Body, isGzip, func(series []newrelic.Metric) error {
-		return insertRows(series, extraLabels)
+	return stream.Parse(req.Body, isGzip, func(rows []newrelic.Row) error {
+		return insertRows(rows, extraLabels)
 	})
 }
 
-func insertRows(rows []newrelic.Metric, extraLabels []prompbmarshal.Label) error {
+func insertRows(rows []newrelic.Row, extraLabels []prompbmarshal.Label) error {
 	ctx := common.GetInsertCtx()
 	defer common.PutInsertCtx(ctx)
 
-	ctx.Reset(len(rows))
+	samplesCount := 0
+	for i := range rows {
+		samplesCount += len(rows[i].Samples)
+	}
+	ctx.Reset(samplesCount)
+
 	hasRelabeling := relabel.HasRelabeling()
 	for i := range rows {
 		r := &rows[i]
-		ctx.Labels = ctx.Labels[:0]
-		ctx.AddLabel("", r.Metric)
-		for j := range r.Tags {
-			tag := &r.Tags[j]
-			ctx.AddLabel(tag.Key, tag.Value)
-		}
-		for j := range extraLabels {
-			label := &extraLabels[j]
-			ctx.AddLabel(label.Name, label.Value)
-		}
-		if hasRelabeling {
-			ctx.ApplyRelabeling()
-		}
-		if len(ctx.Labels) == 0 {
-			// Skip metric without labels.
-			continue
-		}
-		ctx.SortLabelsIfNeeded()
-		if err := ctx.WriteDataPoint(nil, ctx.Labels, r.Timestamp, r.Value); err != nil {
-			return err
+		samples := r.Samples
+		for j := range samples {
+			s := &samples[j]
+
+			ctx.Labels = ctx.Labels[:0]
+			ctx.AddLabelBytes(nil, s.Name)
+			for k := range r.Tags {
+				t := &r.Tags[k]
+				ctx.AddLabelBytes(t.Key, t.Value)
+			}
+			for k := range extraLabels {
+				label := &extraLabels[k]
+				ctx.AddLabel(label.Name, label.Value)
+			}
+			if hasRelabeling {
+				ctx.ApplyRelabeling()
+			}
+			if len(ctx.Labels) == 0 {
+				// Skip metric without labels.
+				continue
+			}
+			ctx.SortLabelsIfNeeded()
+			if err := ctx.WriteDataPoint(nil, ctx.Labels, r.Timestamp, s.Value); err != nil {
+				return err
+			}
 		}
 	}
-	rowsInserted.Add(len(rows))
-	rowsPerInsert.Update(float64(len(rows)))
+	rowsInserted.Add(samplesCount)
+	rowsPerInsert.Update(float64(samplesCount))
 	return ctx.FlushBufs()
 }
