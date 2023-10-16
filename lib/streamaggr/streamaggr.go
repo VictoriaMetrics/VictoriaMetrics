@@ -134,7 +134,8 @@ type Config struct {
 
 // Aggregators aggregates metrics passed to Push and calls pushFunc for aggregate data.
 type Aggregators struct {
-	as []*aggregator
+	asMu sync.RWMutex
+	as   []*aggregator
 
 	// configData contains marshaled configs passed to NewAggregators().
 	// It is used in Equal() for comparing Aggregators.
@@ -175,14 +176,90 @@ func NewAggregators(cfgs []*Config, pushFunc PushFunc, dedupInterval time.Durati
 	}, nil
 }
 
+// Len returns number of aggregators
+func (a *Aggregators) Len() int {
+	if a == nil {
+		return 0
+	}
+	a.asMu.RLock()
+	defer a.asMu.RUnlock()
+	return len(a.as)
+}
+
 // MustStop stops a.
 func (a *Aggregators) MustStop() {
 	if a == nil {
 		return
 	}
+
+	a.asMu.Lock()
 	for _, aggr := range a.as {
 		aggr.MustStop()
 	}
+	a.as = nil
+	a.asMu.Unlock()
+}
+
+// UpdateWith updates the list of `aggregator` from `a` with `aggregator`
+// from `b`. UpdateWith keeps original objects from `a` if they have identical
+// match by `configData` field with objects from `b`.
+// UpdateWith returns number of new objects added to `a`.
+// Objects from `a` which were absent in `b` will be stopped.
+// Objects from `b` which had identical `configData` match with objects from `a` will be stopped.
+// UpdateWith stops `aggregator`s from `a` and `b` that won't be used anymore,
+// so no further calls to MustStop are needed.
+func (a *Aggregators) UpdateWith(b *Aggregators) int {
+	if b == nil {
+		a.MustStop()
+		return 0
+	}
+
+	a.asMu.Lock()
+	defer a.asMu.Unlock()
+
+	var updatedAs []*aggregator
+	// keep all aggregators present in a and b
+	for i, oldAs := range a.as {
+		matched := false
+		for j, newAs := range b.as {
+			if newAs == nil {
+				continue
+			}
+			if string(oldAs.configData) == string(newAs.configData) {
+				matched = true
+				updatedAs = append(updatedAs, oldAs)
+				// a already has this aggregator, so we keep it as is unchanged
+				// and stop the aggregator from b instead
+				newAs.MustStop()
+				b.as[j] = nil
+			}
+		}
+		if !matched {
+			// aggregator from a isn't present in b, so we stop it and remove from the list
+			oldAs.MustStop()
+			a.as[i] = nil
+			continue
+		}
+	}
+
+	// by this point, b should contain only new aggregators,
+	// so we simply add them to the final list.
+	var newAsTotal int
+	for j, newAs := range b.as {
+		if newAs == nil {
+			continue
+		}
+		updatedAs = append(updatedAs, newAs)
+		b.as[j] = nil
+		newAsTotal++
+	}
+
+	// replace list of a aggregators with updated list.
+	// all the old aggregators in a should have been
+	// either stopped or added to updatedAs.
+	a.as = updatedAs
+
+	return newAsTotal
 }
 
 // Equal returns true if a and b are initialized from identical configs.
@@ -196,11 +273,11 @@ func (a *Aggregators) Equal(b *Aggregators) bool {
 // Push pushes tss to a.
 //
 // Push sets matchIdxs[idx] to 1 if the corresponding tss[idx] was used in aggregations.
-// Otherwise matchIdxs[idx] is set to 0.
+// Otherwise, matchIdxs[idx] is set to 0.
 //
 // Push returns matchIdxs with len equal to len(tss).
 // It re-uses the matchIdxs if it has enough capacity to hold len(tss) items.
-// Otherwise it allocates new matchIdxs.
+// Otherwise, it allocates new matchIdxs.
 func (a *Aggregators) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) []byte {
 	matchIdxs = bytesutil.ResizeNoCopyMayOverallocate(matchIdxs, len(tss))
 	for i := 0; i < len(matchIdxs); i++ {
@@ -208,9 +285,11 @@ func (a *Aggregators) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) []b
 	}
 
 	if a != nil {
+		a.asMu.RLock()
 		for _, aggr := range a.as {
 			aggr.Push(tss, matchIdxs)
 		}
+		a.asMu.RUnlock()
 	}
 	return matchIdxs
 }
@@ -244,6 +323,8 @@ type aggregator struct {
 
 	wg     sync.WaitGroup
 	stopCh chan struct{}
+
+	configData []byte
 }
 
 type aggrState interface {
@@ -261,6 +342,11 @@ type PushFunc func(tss []prompbmarshal.TimeSeries)
 //
 // The returned aggregator must be stopped when no longer needed by calling MustStop().
 func newAggregator(cfg *Config, pushFunc PushFunc, dedupInterval time.Duration) (*aggregator, error) {
+	configData, err := json.Marshal(cfg)
+	if err != nil {
+		logger.Panicf("BUG: cannot marshal the provided config: %s", err)
+	}
+
 	// check cfg.Interval
 	interval, err := time.ParseDuration(cfg.Interval)
 	if err != nil {
@@ -398,6 +484,8 @@ func newAggregator(cfg *Config, pushFunc PushFunc, dedupInterval time.Duration) 
 		suffix: suffix,
 
 		stopCh: make(chan struct{}),
+
+		configData: configData,
 	}
 
 	if dedupAggr != nil {

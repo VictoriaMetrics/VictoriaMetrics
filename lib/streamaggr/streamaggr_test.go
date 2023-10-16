@@ -814,3 +814,135 @@ func mustParsePromMetrics(s string) []prompbmarshal.TimeSeries {
 	}
 	return tss
 }
+
+func TestAggregators_UpdateWith(t *testing.T) {
+	f := func(oldConfig, newConfig string, expUpdates int) {
+		t.Helper()
+
+		pushFunc := func(tss []prompbmarshal.TimeSeries) {}
+		oldAg, err := NewAggregatorsFromData([]byte(oldConfig), pushFunc, 0)
+		if err != nil {
+			t.Fatalf("unexpected err: %s", err)
+		}
+		newAg, err := NewAggregatorsFromData([]byte(newConfig), pushFunc, 0)
+		if err != nil {
+			t.Fatalf("unexpected err: %s", err)
+		}
+
+		var oldPointers []*aggregator
+		if oldAg != nil {
+			oldPointers = append(oldPointers, oldAg.as...)
+		}
+
+		n := oldAg.UpdateWith(newAg)
+		if newAg == nil {
+			if oldAg != nil {
+				t.Fatalf("expected aggregations to be nil when updated with nil")
+			}
+			return
+		}
+
+		var unchangedPointers int
+		for _, uag := range oldAg.as {
+			for _, oag := range oldPointers {
+				if uag == oag {
+					unchangedPointers++
+				}
+			}
+		}
+
+		updates := len(oldAg.as) - unchangedPointers
+		if updates != expUpdates {
+			t.Fatalf("expected %d objects to change, only %d changed", expUpdates, updates)
+		}
+		if n != expUpdates {
+			t.Fatalf("expected %d objects to change, only %d changed", expUpdates, n)
+		}
+
+	}
+
+	f("", "", 0)
+
+	// identical configs
+	f(`
+- interval: 1m
+  outputs: [last]
+`, `
+- interval: 1m
+  outputs: [last]
+`, 0)
+
+	// the interval field change
+	f(`
+- interval: 1m
+  outputs: [last]
+`, `
+- interval: 5m
+  outputs: [last]
+`, 1)
+
+	// the output field change
+	f(`
+- interval: 1m
+  outputs: [last]
+`, `
+- interval: 1m
+  outputs: [min]
+`, 1)
+
+	// add one more config, old should remain unchanged
+	f(`
+- interval: 1m
+  outputs: [last]
+`, `
+- interval: 1m
+  outputs: [last]
+- interval: 1m
+  outputs: [max]
+`, 1)
+
+	// remove one config, remained config should be unchanged
+	f(`
+- interval: 1m
+  outputs: [last]
+- interval: 1m
+  outputs: [max]
+`, `
+- interval: 1m
+  outputs: [last]
+`, 0)
+
+	// update all three configs
+	f(`
+- interval: 1m
+  outputs: [max]
+- interval: 2m
+  outputs: [max]
+- interval: 3m
+  outputs: [max]
+`, `
+- interval: 1m
+  outputs: [last]
+- interval: 2m
+  outputs: [last]
+- interval: 3m
+  outputs: [last]
+`, 3)
+
+	// change order only
+	f(`
+- interval: 1m
+  outputs: [max]
+- interval: 2m
+  outputs: [max]
+- interval: 3m
+  outputs: [max]
+`, `
+- interval: 3m
+  outputs: [max]
+- interval: 2m
+  outputs: [max]
+- interval: 1m
+  outputs: [max]
+`, 0)
+}
