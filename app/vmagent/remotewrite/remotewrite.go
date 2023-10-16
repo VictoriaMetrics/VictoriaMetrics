@@ -748,8 +748,6 @@ func (rwctx *remoteWriteCtx) reinitStreamAggr() {
 		return
 	}
 
-	sas := rwctx.sas.Load()
-
 	logger.Infof("reloading stream aggregation configs pointed by -remoteWrite.streamAggr.config=%q", sasFile)
 	metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reloads_total{path=%q}`, sasFile)).Inc()
 	dedupInterval := streamAggrDedupInterval.GetOptionalArg(rwctx.idx)
@@ -760,6 +758,7 @@ func (rwctx *remoteWriteCtx) reinitStreamAggr() {
 		logger.Errorf("cannot reload stream aggregation config from -remoteWrite.streamAggr.config=%q; continue using the previously loaded config; error: %s", sasFile, err)
 		return
 	}
+	sas := rwctx.sas.Load()
 	if !sasNew.Equal(sas) {
 		sasOld := rwctx.sas.Swap(sasNew)
 		sasOld.MustStop()
