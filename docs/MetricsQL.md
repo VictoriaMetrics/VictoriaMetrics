@@ -109,7 +109,7 @@ The list of MetricsQL features on top of PromQL:
 * [histogram_quantile](#histogram_quantile) accepts optional third arg - `boundsLabel`.
   In this case it returns `lower` and `upper` bounds for the estimated percentile.
   See [this issue for details](https://github.com/prometheus/prometheus/issues/5706).
-* `default` binary operator. `q1 default q2` fills gaps in `q1` with the corresponding values from `q2`.
+* `default` binary operator. `q1 default q2` fills gaps in `q1` with the corresponding values from `q2`. See also [drop_empty_series](#drop_empty_series).
 * `if` binary operator. `q1 if q2` removes values from `q1` for missing values from `q2`.
 * `ifnot` binary operator. `q1 ifnot q2` removes values from `q1` for existing values from `q2`.
 * `WITH` templates. This feature simplifies writing and managing complex queries.
@@ -1602,7 +1602,7 @@ which maps `label` values from `src_*` to `dst*` for all the time series returne
 which drops time series from `q` with `label` not matching the given `regexp`.
 This function can be useful after [rollup](#rollup)-like functions, which may return multiple time series for every input series.
 
-See also [label_mismatch](#label_mismatch).
+See also [label_mismatch](#label_mismatch) and [labels_equal](#labels_equal).
 
 #### label_mismatch
 
@@ -1610,7 +1610,7 @@ See also [label_mismatch](#label_mismatch).
 which drops time series from `q` with `label` matching the given `regexp`.
 This function can be useful after [rollup](#rollup)-like functions, which may return multiple time series for every input series.
 
-See also [label_match](#label_match).
+See also [label_match](#label_match) and [labels_equal](#labels_equal).
 
 #### label_move
 
@@ -1653,23 +1653,30 @@ for the given `label` for every time series returned by `q`.
 For example, if `label_value(foo, "bar")` is applied to `foo{bar="1.234"}`, then it will return a time series
 `foo{bar="1.234"}` with `1.234` value. Function will return no data for non-numeric label values.
 
+#### labels_equal
+
+`labels_equal(q, "label1", "label2", ...)` is [label manipulation function](#label-manipulation-functions), which returns `q` series with identical values for the listed labels
+"label1", "label2", etc.
+
+See also [label_match](#label_match) and [label_mismatch](#label_mismatch).
+
 #### sort_by_label
 
-`sort_by_label(q, label1, ... labelN)` is [label manipulation function](#label-manipulation-functions), which sorts series in ascending order by the given set of labels.
+`sort_by_label(q, "label1", ... "labelN")` is [label manipulation function](#label-manipulation-functions), which sorts series in ascending order by the given set of labels.
 For example, `sort_by_label(foo, "bar")` would sort `foo` series by values of the label `bar` in these series.
 
 See also [sort_by_label_desc](#sort_by_label_desc) and [sort_by_label_numeric](#sort_by_label_numeric).
 
 #### sort_by_label_desc
 
-`sort_by_label_desc(q, label1, ... labelN)` is [label manipulation function](#label-manipulation-functions), which sorts series in descending order by the given set of labels.
+`sort_by_label_desc(q, "label1", ... "labelN")` is [label manipulation function](#label-manipulation-functions), which sorts series in descending order by the given set of labels.
 For example, `sort_by_label(foo, "bar")` would sort `foo` series by values of the label `bar` in these series.
 
 See also [sort_by_label](#sort_by_label) and [sort_by_label_numeric_desc](#sort_by_label_numeric_desc).
 
 #### sort_by_label_numeric
 
-`sort_by_label_numeric(q, label1, ... labelN)` is [label manipulation function](#label-manipulation-functions), which sorts series in ascending order by the given set of labels
+`sort_by_label_numeric(q, "label1", ... "labelN")` is [label manipulation function](#label-manipulation-functions), which sorts series in ascending order by the given set of labels
 using [numeric sort](https://www.gnu.org/software/coreutils/manual/html_node/Version-sort-is-not-the-same-as-numeric-sort.html).
 For example, if `foo` series have `bar` label with values `1`, `101`, `15` and `2`, then `sort_by_label_numeric(foo, "bar")` would return series
 in the following order of `bar` label values: `1`, `2`, `15` and `101`.
@@ -1678,7 +1685,7 @@ See also [sort_by_label_numeric_desc](#sort_by_label_numeric_desc) and [sort_by_
 
 #### sort_by_label_numeric_desc
 
-`sort_by_label_numeric_desc(q, label1, ... labelN)` is [label manipulation function](#label-manipulation-functions), which sorts series in descending order
+`sort_by_label_numeric_desc(q, "label1", ... "labelN")` is [label manipulation function](#label-manipulation-functions), which sorts series in descending order
 by the given set of labels using [numeric sort](https://www.gnu.org/software/coreutils/manual/html_node/Version-sort-is-not-the-same-as-numeric-sort.html).
 For example, if `foo` series have `bar` label with values `1`, `101`, `15` and `2`, then `sort_by_label_numeric(foo, "bar")`
 would return series in the following order of `bar` label values: `101`, `15`, `2` and `1`.
