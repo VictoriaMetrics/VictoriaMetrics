@@ -1055,6 +1055,17 @@ Metric names are stripped from the resulting series. Add [keep_metric_names](#ke
 
 This function is supported by PromQL. See also [rad](#rad).
 
+#### drop_empty_series
+
+`drop_empty_series(q) is a [transform function](#transform-functions), which drops empty series from `q`.
+
+This function can be used when `default` operator should be applied only to non-empty series. For example,
+`drop_empty_series(temperature < 30) default 42` returns series, which have at least a single sample smaller than 30 on the selected time range,
+while filling gaps in the returned series with 42.
+
+On the other hand `(temperature < 30) default 40` returns all the `temperature` series, even if they have no samples smaller than 30,
+by replacing all the values bigger or equal to 30 with 40.
+
 #### end
 
 `end()` is a [transform function](#transform-functions), which returns the unix timestamp in seconds for the last point.
