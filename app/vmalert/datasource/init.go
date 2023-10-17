@@ -115,6 +115,10 @@ func Init(extraParams url.Values) (QuerierBuilder, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to configure auth: %w", err)
 	}
+	_, err = authCfg.GetAuthHeader()
+	if err != nil {
+		return nil, fmt.Errorf("failed to set request auth header to datasource %q: %s", *addr, err)
+	}
 
 	return &VMStorage{
 		c:                &http.Client{Transport: tr},

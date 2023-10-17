@@ -10,10 +10,11 @@ import (
 
 func TestNewConfig(t *testing.T) {
 	tests := []struct {
-		name         string
-		opts         Options
-		wantErr      bool
-		expectHeader string
+		name                 string
+		opts                 Options
+		wantErr              bool
+		wantErrWhenSetHeader bool
+		expectHeader         string
 	}{
 		{
 			name: "OAuth2 config",
@@ -50,6 +51,21 @@ func TestNewConfig(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name: "OAuth2 with wrong tls",
+			opts: Options{
+				OAuth2: &OAuth2Config{
+					ClientID:     "some-id",
+					ClientSecret: NewSecret("some-secret"),
+					TokenURL:     "http://localhost:8511",
+					TLSConfig: &TLSConfig{
+						InsecureSkipVerify: true,
+						CAFile:             "non-existing-file",
+					},
+				},
+			},
+			wantErrWhenSetHeader: true,
+		},
+		{
 			name: "basic Auth config",
 			opts: Options{
 				BasicAuth: &BasicAuthConfig{
@@ -68,6 +84,16 @@ func TestNewConfig(t *testing.T) {
 				},
 			},
 			expectHeader: "Basic dXNlcjpzZWNyZXQtY29udGVudA==",
+		},
+		{
+			name: "basic Auth config with non-existing file",
+			opts: Options{
+				BasicAuth: &BasicAuthConfig{
+					Username:     "user",
+					PasswordFile: "testdata/non-existing-file",
+				},
+			},
+			wantErrWhenSetHeader: true,
 		},
 		{
 			name: "want Authorization",
@@ -96,6 +122,17 @@ func TestNewConfig(t *testing.T) {
 			},
 			expectHeader: "Bearer some-token",
 		},
+		{
+			name: "tls with non-existing file",
+			opts: Options{
+				BearerToken: "some-token",
+				TLSConfig: &TLSConfig{
+					InsecureSkipVerify: true,
+					CAFile:             "non-existing-file",
+				},
+			},
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -104,7 +141,6 @@ func TestNewConfig(t *testing.T) {
 				r.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
 					w.Header().Set("Content-Type", "application/json")
 					w.Write([]byte(`{"access_token":"some-token","token_type": "Bearer"}`))
-
 				})
 				mock := httptest.NewServer(r)
 				tt.opts.OAuth2.TokenURL = mock.URL
@@ -119,13 +155,19 @@ func TestNewConfig(t *testing.T) {
 				if err != nil {
 					t.Fatalf("unexpected error in http.NewRequest: %s", err)
 				}
-				got.SetHeaders(req, true)
+				err = got.SetHeaders(req, true)
+				if (err != nil) != tt.wantErrWhenSetHeader {
+					t.Errorf("NewConfig() error = %v, wantErr %v", err, tt.wantErrWhenSetHeader)
+				}
 				ah := req.Header.Get("Authorization")
 				if ah != tt.expectHeader {
 					t.Fatalf("unexpected auth header from net/http request; got %q; want %q", ah, tt.expectHeader)
 				}
 				var fhreq fasthttp.Request
-				got.SetFasthttpHeaders(&fhreq, true)
+				err = got.SetFasthttpHeaders(&fhreq, true)
+				if (err != nil) != tt.wantErrWhenSetHeader {
+					t.Errorf("NewConfig() error = %v, wantErr %v", err, tt.wantErrWhenSetHeader)
+				}
 				ahb := fhreq.Header.Peek("Authorization")
 				if string(ahb) != tt.expectHeader {
 					t.Fatalf("unexpected auth header from fasthttp request; got %q; want %q", ahb, tt.expectHeader)
@@ -191,7 +233,7 @@ func TestConfigHeaders(t *testing.T) {
 		if result != resultExpected {
 			t.Fatalf("unexpected result from HeadersNoAuthString; got\n%s\nwant\n%s", result, resultExpected)
 		}
-		c.SetHeaders(req, false)
+		_ = c.SetHeaders(req, false)
 		for _, h := range headersParsed {
 			v := req.Header.Get(h.key)
 			if v != h.value {
@@ -199,7 +241,7 @@ func TestConfigHeaders(t *testing.T) {
 			}
 		}
 		var fhreq fasthttp.Request
-		c.SetFasthttpHeaders(&fhreq, false)
+		_ = c.SetFasthttpHeaders(&fhreq, false)
 		for _, h := range headersParsed {
 			v := fhreq.Header.Peek(h.key)
 			if string(v) != h.value {
