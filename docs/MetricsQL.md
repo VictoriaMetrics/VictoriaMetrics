@@ -21,7 +21,8 @@ However, there are some [intentional differences](https://medium.com/@romanhavro
 
 [Standalone MetricsQL package](https://godoc.org/github.com/VictoriaMetrics/metricsql) can be used for parsing MetricsQL in external apps.
 
-If you are unfamiliar with PromQL, then it is suggested reading [this tutorial for beginners](https://medium.com/@valyala/promql-tutorial-for-beginners-9ab455142085).
+If you are unfamiliar with PromQL, then it is suggested reading [this tutorial for beginners](https://medium.com/@valyala/promql-tutorial-for-beginners-9ab455142085)
+and introduction into [basic querying via MetricsQL](https://docs.victoriametrics.com/keyConcepts.html#metricsql).
 
 The following functionality is implemented differently in MetricsQL compared to PromQL. This improves user experience:
 
