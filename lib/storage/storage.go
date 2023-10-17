@@ -1835,6 +1835,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 
 	// Return only the first error, since it has no sense in returning all errors.
 	var firstWarn error
+	var isStaleNan bool
 	j := 0
 	for i := range mrs {
 		mr := &mrs[i]
@@ -1844,6 +1845,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 				// doesn't know how to work with them.
 				continue
 			}
+			isStaleNan = true
 		}
 		if mr.Timestamp < minTimestamp {
 			// Skip rows with too small timestamps outside the retention.
@@ -1954,6 +1956,13 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 			r.TSID = genTSID.TSID
 			prevTSID = genTSID.TSID
 			prevMetricNameRaw = mr.MetricNameRaw
+			continue
+		}
+
+		// If TSID was not found in cache and in indexdb, it's deleted. If metric contains stale
+		// marker, do not create a new TSID.
+		if isStaleNan {
+			j--
 			continue
 		}
 
