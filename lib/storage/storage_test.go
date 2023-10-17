@@ -12,6 +12,7 @@ import (
 	"testing/quick"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 )
@@ -1358,4 +1359,64 @@ func TestStorageDeleteStaleSnapshots(t *testing.T) {
 	if err := os.RemoveAll(path); err != nil {
 		t.Fatalf("cannot remove %q: %s", path, err)
 	}
+}
+
+func TestStorageSeriesAreNotCreatedOnStaleMarkers(t *testing.T) {
+	rng := rand.New(rand.NewSource(1))
+	path := "TestStorageSeriesAreNotCreatedOnStaleMarkers"
+	s := MustOpenStorage(path, -1, 1e5, 1e6)
+
+	// Verify no label names exist
+	lns, err := s.SearchLabelNamesWithFiltersOnTimeRange(nil, nil, TimeRange{}, 1e5, 1e9, noDeadline)
+	if err != nil {
+		t.Fatalf("error in SearchLabelNamesWithFiltersOnTimeRange() at the start: %s", err)
+	}
+	if len(lns) != 0 {
+		t.Fatalf("found non-empty tag keys at the start: %q", lns)
+	}
+
+	// Add rows with stale markers to the storage
+	mrs := testGenerateStaleMetricRows(rng, 100, 0, 2e10)
+	if err := s.AddRows(mrs, defaultPrecisionBits); err != nil {
+		t.Fatal("error when adding mrs: %w", err)
+	}
+
+	// Verify that tag keys were not created
+	lns, err = s.SearchLabelNamesWithFiltersOnTimeRange(nil, nil, TimeRange{}, 1e5, 1e9, noDeadline)
+	if err != nil {
+		t.Fatalf("error in SearchLabelNamesWithFiltersOnTimeRange() at the start: %s", err)
+	}
+	if len(lns) != 0 {
+		t.Fatalf("found non-empty tag keys at the start: %q", lns)
+	}
+
+	s.MustClose()
+	if err := os.RemoveAll(path); err != nil {
+		t.Fatalf("cannot remove %q: %s", path, err)
+	}
+}
+
+func testGenerateStaleMetricRows(rng *rand.Rand, rows uint64, timestampMin, timestampMax int64) []MetricRow {
+	var mrs []MetricRow
+	var mn MetricName
+	mn.Tags = []Tag{
+		{[]byte("job"), []byte("test_service")},
+		{[]byte("instance"), []byte("1.2.3.4")},
+	}
+
+	for i := 0; i < int(rows); i++ {
+		mn.MetricGroup = []byte(fmt.Sprintf("metric_%d", i))
+		metricNameRaw := mn.marshalRaw(nil)
+		timestamp := rng.Int63n(timestampMax - timestampMin)
+		value := decimal.StaleNaN
+
+		mr := MetricRow{
+			MetricNameRaw: metricNameRaw,
+			Timestamp:     timestamp,
+			Value:         value,
+		}
+		mrs = append(mrs, mr)
+	}
+
+	return mrs
 }
