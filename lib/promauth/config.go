@@ -14,7 +14,6 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/fasthttp"
 	"github.com/cespare/xxhash/v2"
@@ -194,9 +193,6 @@ type oauth2ConfigInternal struct {
 }
 
 func newOAuth2ConfigInternal(baseDir string, o *OAuth2Config) (*oauth2ConfigInternal, error) {
-	if err := o.validate(); err != nil {
-		return nil, err
-	}
 	oi := &oauth2ConfigInternal{
 		cfg: &clientcredentials.Config{
 			ClientID:       o.ClientID,
@@ -280,7 +276,7 @@ type Config struct {
 	getTLSCert    func(*tls.CertificateRequestInfo) (*tls.Certificate, error)
 	tlsCertDigest string
 
-	getAuthHeader      func() string
+	getAuthHeader      func() (string, error)
 	authHeaderLock     sync.Mutex
 	authHeader         string
 	authHeaderDeadline uint64
@@ -325,45 +321,58 @@ func (ac *Config) HeadersNoAuthString() string {
 }
 
 // SetHeaders sets the configured ac headers to req.
-func (ac *Config) SetHeaders(req *http.Request, setAuthHeader bool) {
+func (ac *Config) SetHeaders(req *http.Request, setAuthHeader bool) error {
 	reqHeaders := req.Header
 	for _, h := range ac.headers {
 		reqHeaders.Set(h.key, h.value)
 	}
 	if setAuthHeader {
-		if ah := ac.GetAuthHeader(); ah != "" {
+		ah, err := ac.GetAuthHeader()
+		if err != nil {
+			return fmt.Errorf("failed to set request auth header: %w", err)
+		}
+		if ah != "" {
 			reqHeaders.Set("Authorization", ah)
 		}
 	}
+	return nil
 }
 
 // SetFasthttpHeaders sets the configured ac headers to req.
-func (ac *Config) SetFasthttpHeaders(req *fasthttp.Request, setAuthHeader bool) {
+func (ac *Config) SetFasthttpHeaders(req *fasthttp.Request, setAuthHeader bool) error {
 	reqHeaders := &req.Header
 	for _, h := range ac.headers {
 		reqHeaders.Set(h.key, h.value)
 	}
 	if setAuthHeader {
-		if ah := ac.GetAuthHeader(); ah != "" {
+		ah, err := ac.GetAuthHeader()
+		if err != nil {
+			return err
+		}
+		if ah != "" {
 			reqHeaders.Set("Authorization", ah)
 		}
 	}
+	return nil
 }
 
 // GetAuthHeader returns optional `Authorization: ...` http header.
-func (ac *Config) GetAuthHeader() string {
+func (ac *Config) GetAuthHeader() (string, error) {
 	f := ac.getAuthHeader
 	if f == nil {
-		return ""
+		return "", nil
 	}
 	ac.authHeaderLock.Lock()
 	defer ac.authHeaderLock.Unlock()
 	if fasttime.UnixTimestamp() > ac.authHeaderDeadline {
-		ac.authHeader = f()
+		var err error
+		if ac.authHeader, err = f(); err != nil {
+			return "", err
+		}
 		// Cache the authHeader for a second.
 		ac.authHeaderDeadline = fasttime.UnixTimestamp() + 1
 	}
-	return ac.authHeader
+	return ac.authHeader, nil
 }
 
 // String returns human-readable representation for ac.
@@ -564,7 +573,7 @@ func (opts *Options) NewConfig() (*Config, error) {
 
 type authContext struct {
 	// getAuthHeader must return <value> for 'Authorization: <value>' http request header
-	getAuthHeader func() string
+	getAuthHeader func() (string, error)
 
 	// authDigest must contain the digest for the used authorization
 	// The digest must be changed whenever the original config changes.
@@ -577,8 +586,8 @@ func (actx *authContext) initFromAuthorization(baseDir string, az *Authorization
 		azType = az.Type
 	}
 	if az.CredentialsFile == "" {
-		actx.getAuthHeader = func() string {
-			return azType + " " + az.Credentials.String()
+		actx.getAuthHeader = func() (string, error) {
+			return azType + " " + az.Credentials.String(), nil
 		}
 		actx.authDigest = fmt.Sprintf("custom(type=%q, creds=%q)", az.Type, az.Credentials)
 		return nil
@@ -587,13 +596,12 @@ func (actx *authContext) initFromAuthorization(baseDir string, az *Authorization
 		return fmt.Errorf("both `credentials`=%q and `credentials_file`=%q are set", az.Credentials, az.CredentialsFile)
 	}
 	filePath := fs.GetFilepath(baseDir, az.CredentialsFile)
-	actx.getAuthHeader = func() string {
+	actx.getAuthHeader = func() (string, error) {
 		token, err := readPasswordFromFile(filePath)
 		if err != nil {
-			logger.Errorf("cannot read credentials from `credentials_file`=%q: %s", az.CredentialsFile, err)
-			return ""
+			return "", fmt.Errorf("cannot read credentials from `credentials_file`=%q: %s", az.CredentialsFile, err)
 		}
-		return azType + " " + token
+		return azType + " " + token, nil
 	}
 	actx.authDigest = fmt.Sprintf("custom(type=%q, credsFile=%q)", az.Type, filePath)
 	return nil
@@ -604,11 +612,11 @@ func (actx *authContext) initFromBasicAuthConfig(baseDir string, ba *BasicAuthCo
 		return fmt.Errorf("missing `username` in `basic_auth` section")
 	}
 	if ba.PasswordFile == "" {
-		actx.getAuthHeader = func() string {
+		actx.getAuthHeader = func() (string, error) {
 			// See https://en.wikipedia.org/wiki/Basic_access_authentication
 			token := ba.Username + ":" + ba.Password.String()
 			token64 := base64.StdEncoding.EncodeToString([]byte(token))
-			return "Basic " + token64
+			return "Basic " + token64, nil
 		}
 		actx.authDigest = fmt.Sprintf("basic(username=%q, password=%q)", ba.Username, ba.Password)
 		return nil
@@ -617,16 +625,15 @@ func (actx *authContext) initFromBasicAuthConfig(baseDir string, ba *BasicAuthCo
 		return fmt.Errorf("both `password`=%q and `password_file`=%q are set in `basic_auth` section", ba.Password, ba.PasswordFile)
 	}
 	filePath := fs.GetFilepath(baseDir, ba.PasswordFile)
-	actx.getAuthHeader = func() string {
+	actx.getAuthHeader = func() (string, error) {
 		password, err := readPasswordFromFile(filePath)
 		if err != nil {
-			logger.Errorf("cannot read password from `password_file`=%q set in `basic_auth` section: %s", ba.PasswordFile, err)
-			return ""
+			return "", fmt.Errorf("cannot read password from `password_file`=%q set in `basic_auth` section: %s", ba.PasswordFile, err)
 		}
 		// See https://en.wikipedia.org/wiki/Basic_access_authentication
 		token := ba.Username + ":" + password
 		token64 := base64.StdEncoding.EncodeToString([]byte(token))
-		return "Basic " + token64
+		return "Basic " + token64, nil
 	}
 	actx.authDigest = fmt.Sprintf("basic(username=%q, passwordFile=%q)", ba.Username, filePath)
 	return nil
@@ -634,51 +641,53 @@ func (actx *authContext) initFromBasicAuthConfig(baseDir string, ba *BasicAuthCo
 
 func (actx *authContext) initFromBearerTokenFile(baseDir string, bearerTokenFile string) error {
 	filePath := fs.GetFilepath(baseDir, bearerTokenFile)
-	actx.getAuthHeader = func() string {
+	actx.getAuthHeader = func() (string, error) {
 		token, err := readPasswordFromFile(filePath)
 		if err != nil {
-			logger.Errorf("cannot read bearer token from `bearer_token_file`=%q: %s", bearerTokenFile, err)
-			return ""
+			return "", fmt.Errorf("cannot read bearer token from `bearer_token_file`=%q: %s", bearerTokenFile, err)
 		}
-		return "Bearer " + token
+		return "Bearer " + token, nil
 	}
 	actx.authDigest = fmt.Sprintf("bearer(tokenFile=%q)", filePath)
 	return nil
 }
 
 func (actx *authContext) initFromBearerToken(bearerToken string) error {
-	actx.getAuthHeader = func() string {
-		return "Bearer " + bearerToken
+	actx.getAuthHeader = func() (string, error) {
+		return "Bearer " + bearerToken, nil
 	}
 	actx.authDigest = fmt.Sprintf("bearer(token=%q)", bearerToken)
 	return nil
 }
 
 func (actx *authContext) initFromOAuth2Config(baseDir string, o *OAuth2Config) error {
-	oi, err := newOAuth2ConfigInternal(baseDir, o)
-	if err != nil {
+	if err := o.validate(); err != nil {
 		return err
 	}
-	actx.getAuthHeader = func() string {
+
+	actx.getAuthHeader = func() (string, error) {
+		oi, err := newOAuth2ConfigInternal(baseDir, o)
+		if err != nil {
+			return "", err
+		}
 		ts, err := oi.getTokenSource()
 		if err != nil {
-			logger.Errorf("cannot get OAuth2 tokenSource: %s", err)
-			return ""
+			return "", fmt.Errorf("cannot get OAuth2 tokenSource: %s", err)
 		}
 		t, err := ts.Token()
 		if err != nil {
-			logger.Errorf("cannot get OAuth2 token: %s", err)
-			return ""
+			return "", fmt.Errorf("cannot get OAuth2 token: %s", err)
 		}
-		return t.Type() + " " + t.AccessToken
+		return t.Type() + " " + t.AccessToken, nil
 	}
 	actx.authDigest = fmt.Sprintf("oauth2(%s)", o.String())
 	return nil
 }
 
 type tlsContext struct {
-	getTLSCert         func(*tls.CertificateRequestInfo) (*tls.Certificate, error)
-	tlsCertDigest      string
+	getTLSCert    func(*tls.CertificateRequestInfo) (*tls.Certificate, error)
+	tlsCertDigest string
+
 	rootCA             *x509.CertPool
 	serverName         string
 	insecureSkipVerify bool

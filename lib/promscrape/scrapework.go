@@ -454,7 +454,6 @@ func (sw *scrapeWork) processScrapedData(scrapeTimestamp, realTimestamp int64, b
 	defer func() {
 		<-processScrapedDataConcurrencyLimitCh
 	}()
-
 	endTimestamp := time.Now().UnixNano() / 1e6
 	duration := float64(endTimestamp-realTimestamp) / 1e3
 	scrapeDuration.Update(duration)
