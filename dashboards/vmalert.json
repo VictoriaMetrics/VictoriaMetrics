@@ -1333,7 +1333,7 @@
             },
             "tooltip": {
               "mode": "multi",
-              "sort": "none"
+              "sort": "desc"
             }
           },
           "pluginVersion": "9.2.6",
@@ -1445,7 +1445,7 @@
             },
             "tooltip": {
               "mode": "multi",
-              "sort": "none"
+              "sort": "desc"
             }
           },
           "pluginVersion": "9.2.6",
@@ -1794,7 +1794,7 @@
             },
             "tooltip": {
               "mode": "multi",
-              "sort": "none"
+              "sort": "desc"
             }
           },
           "pluginVersion": "9.2.6",
@@ -2335,7 +2335,7 @@
             },
             "tooltip": {
               "mode": "multi",
-              "sort": "none"
+              "sort": "desc"
             }
           },
           "pluginVersion": "9.2.6",
@@ -2563,7 +2563,7 @@
             },
             "tooltip": {
               "mode": "multi",
-              "sort": "none"
+              "sort": "desc"
             }
           },
           "pluginVersion": "9.2.6",
@@ -2881,7 +2881,7 @@
             },
             "tooltip": {
               "mode": "single",
-              "sort": "none"
+              "sort": "desc"
             }
           },
           "targets": [
@@ -2973,7 +2973,7 @@
             },
             "tooltip": {
               "mode": "single",
-              "sort": "none"
+              "sort": "desc"
             }
           },
           "targets": [
