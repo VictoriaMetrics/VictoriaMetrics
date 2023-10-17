@@ -19,11 +19,14 @@ import (
 // Group contains list of Rules grouped into
 // entity with one name and evaluation interval
 type Group struct {
-	Type        Type `yaml:"type,omitempty"`
-	File        string
-	Name        string              `yaml:"name"`
-	Interval    *promutils.Duration `yaml:"interval,omitempty"`
-	EvalOffset  *promutils.Duration `yaml:"eval_offset,omitempty"`
+	Type       Type `yaml:"type,omitempty"`
+	File       string
+	Name       string              `yaml:"name"`
+	Interval   *promutils.Duration `yaml:"interval,omitempty"`
+	EvalOffset *promutils.Duration `yaml:"eval_offset,omitempty"`
+	// EvalDelay will adjust the `time` parameter of rule evaluation requests to match intentional query delay from datasource.
+	// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5155
+	EvalDelay   *promutils.Duration `yaml:"eval_delay,omitempty"`
 	Limit       int                 `yaml:"limit,omitempty"`
 	Rules       []Rule              `yaml:"rules"`
 	Concurrency int                 `yaml:"concurrency"`

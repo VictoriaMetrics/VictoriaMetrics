@@ -628,6 +628,7 @@ func TestGroupStartDelay(t *testing.T) {
 
 func TestGetPrometheusReqTimestamp(t *testing.T) {
 	offset := 30 * time.Minute
+	evalDelay := 1 * time.Minute
 	disableAlign := false
 	testCases := []struct {
 		name            string
@@ -668,6 +669,25 @@ func TestGetPrometheusReqTimestamp(t *testing.T) {
 			},
 			"2023-08-28T11:41:00+00:00",
 			"2023-08-28T11:30:00+00:00",
+		},
+		{
+			"with eval_delay",
+			&Group{
+				EvalDelay: &evalDelay,
+				Interval:  time.Hour,
+			},
+			"2023-08-28T11:41:00+00:00",
+			"2023-08-28T10:59:00+00:00",
+		},
+		{
+			"disable alignment with eval_delay",
+			&Group{
+				EvalDelay:     &evalDelay,
+				Interval:      time.Hour,
+				evalAlignment: &disableAlign,
+			},
+			"2023-08-28T11:41:00+00:00",
+			"2023-08-28T11:40:00+00:00",
 		},
 	}
 	for _, tc := range testCases {

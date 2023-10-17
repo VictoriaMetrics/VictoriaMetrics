@@ -32,6 +32,8 @@ var (
 	resendDelay        = flag.Duration("rule.resendDelay", 0, "MiniMum amount of time to wait before resending an alert to notifier")
 	maxResolveDuration = flag.Duration("rule.maxResolveDuration", 0, "Limits the maxiMum duration for automatic alert expiration, "+
 		"which by default is 4 times evaluationInterval of the parent ")
+	evalDelay = flag.Duration("rule.evalDelay", 0, "Adjust the `time` parameter of rule evaluation requests to match intentional data query delay from datasource."+
+		"For example, if datasource has `-search.latencyOffset` flag, setting `-rule.evalDelay` equal with `-search.latencyOffset` can help correct the time values in ALERTS/ALERTS_FOR_STATE metrics and alertmanager messages.")
 	disableAlertGroupLabel = flag.Bool("disableAlertgroupLabel", false, "Whether to disable adding group's Name as label to generated alerts and time series.")
 	remoteReadLookBack     = flag.Duration("remoteRead.lookback", time.Hour, "Lookback defines how far to look into past for alerts timeseries."+
 		" For example, if lookback=1h then range from now() to now()-1h will be scanned.")
@@ -39,13 +41,16 @@ var (
 
 // Group is an entity for grouping rules
 type Group struct {
-	mu             sync.RWMutex
-	Name           string
-	File           string
-	Rules          []Rule
-	Type           config.Type
-	Interval       time.Duration
-	EvalOffset     *time.Duration
+	mu         sync.RWMutex
+	Name       string
+	File       string
+	Rules      []Rule
+	Type       config.Type
+	Interval   time.Duration
+	EvalOffset *time.Duration
+	// EvalDelay will adjust the `time` parameter of rule evaluation requests to match intentional query delay from datasource.
+	// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5155
+	EvalDelay      *time.Duration
 	Limit          int
 	Concurrency    int
 	Checksum       string
@@ -138,6 +143,9 @@ func NewGroup(cfg config.Group, qb datasource.QuerierBuilder, defaultInterval ti
 	}
 	if cfg.EvalOffset != nil {
 		g.EvalOffset = &cfg.EvalOffset.D
+	}
+	if cfg.EvalDelay != nil {
+		g.EvalDelay = &cfg.EvalDelay.D
 	}
 	for _, h := range cfg.Headers {
 		g.Headers[h.Key] = h.Value
@@ -581,17 +589,24 @@ func (g *Group) adjustReqTimestamp(timestamp time.Time) time.Time {
 			// to 10:30, to the previous evaluationInterval.
 			return ts.Add(-g.Interval)
 		}
-		// EvalOffset shouldn't interfere with evalAlignment,
-		// so we return it immediately
+		// when `eval_offset` is using, ts shouldn't be effect by `eval_alignment` and `eval_delay`
+		// since it should be always aligned.
 		return ts
 	}
 	if g.evalAlignment == nil || *g.evalAlignment {
 		// align query time with interval to get similar result with grafana when plotting time series.
 		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5049
 		// and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1232
-		return timestamp.Truncate(g.Interval)
+		return timestamp.Truncate(g.Interval).Add(-g.getEvalDelay())
 	}
-	return timestamp
+	return timestamp.Add(-g.getEvalDelay())
+}
+
+func (g *Group) getEvalDelay() time.Duration {
+	if g.EvalDelay != nil {
+		return *g.EvalDelay
+	}
+	return *evalDelay
 }
 
 // executor contains group's notify and rw configs
