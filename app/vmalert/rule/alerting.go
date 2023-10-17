@@ -304,10 +304,16 @@ func (ar *AlertingRule) execRange(ctx context.Context, start, end time.Time) ([]
 		return nil, err
 	}
 	var result []prompbmarshal.TimeSeries
+	holdAlertState := make(map[uint64]*notifier.Alert)
 	qFn := func(query string) ([]datasource.Metric, error) {
 		return nil, fmt.Errorf("`query` template isn't supported in replay mode")
 	}
 	for _, s := range res.Data {
+		ls, err := ar.toLabels(s, qFn)
+		if err != nil {
+			return nil, fmt.Errorf("failed to expand labels: %s", err)
+		}
+		h := hash(ls.processed)
 		a, err := ar.newAlert(s, nil, time.Time{}, qFn) // initial alert
 		if err != nil {
 			return nil, fmt.Errorf("failed to create alert: %w", err)
@@ -324,18 +330,31 @@ func (ar *AlertingRule) execRange(ctx context.Context, start, end time.Time) ([]
 		prevT := time.Time{}
 		for i := range s.Values {
 			at := time.Unix(s.Timestamps[i], 0)
+			// try to restore alert state from last iteration if needed
+			if i == 0 && at.Before(start.Add(ar.EvalInterval)) {
+				if _, ok := ar.alerts[h]; ok {
+					a = ar.alerts[h]
+					prevT = at
+				}
+			}
 			if at.Sub(prevT) > ar.EvalInterval {
 				// reset to Pending if there are gaps > EvalInterval between DPs
 				a.State = notifier.StatePending
 				a.ActiveAt = at
-			} else if at.Sub(a.ActiveAt) >= ar.For {
+				a.Start = time.Time{}
+			} else if at.Sub(a.ActiveAt) >= ar.For && a.State != notifier.StateFiring {
 				a.State = notifier.StateFiring
 				a.Start = at
 			}
 			prevT = at
 			result = append(result, ar.alertToTimeSeries(a, s.Timestamps[i])...)
+			// hold alert state if it can be used in next iteration
+			if i == len(s.Values)-1 && at.After(end.Add(-ar.EvalInterval)) {
+				holdAlertState[h] = a
+			}
 		}
 	}
+	ar.alerts = holdAlertState
 	return result, nil
 }
 
