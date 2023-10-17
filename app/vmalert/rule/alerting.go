@@ -331,7 +331,7 @@ func (ar *AlertingRule) execRange(ctx context.Context, start, end time.Time) ([]
 		for i := range s.Values {
 			at := time.Unix(s.Timestamps[i], 0)
 			// try to restore alert state from last iteration if needed
-			if i == 0 && at.Before(start.Add(ar.EvalInterval)) {
+			if at.Equal(start) {
 				if _, ok := ar.alerts[h]; ok {
 					a = ar.alerts[h]
 					prevT = at
@@ -348,8 +348,8 @@ func (ar *AlertingRule) execRange(ctx context.Context, start, end time.Time) ([]
 			}
 			prevT = at
 			result = append(result, ar.alertToTimeSeries(a, s.Timestamps[i])...)
-			// hold alert state if it can be used in next iteration
-			if i == len(s.Values)-1 && at.After(end.Add(-ar.EvalInterval)) {
+			// save alert state if it can be used in next iteration
+			if at.Equal(end) {
 				holdAlertState[h] = a
 			}
 		}
