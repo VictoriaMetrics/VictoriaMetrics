@@ -1716,10 +1716,11 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 
 	// Return only the first error, since it has no sense in returning all errors.
 	var firstWarn error
-	var isStaleNan bool
+
 	j := 0
 	for i := range mrs {
 		mr := &mrs[i]
+		var isStaleNan bool
 		if math.IsNaN(mr.Value) {
 			if !decimal.IsStaleNaN(mr.Value) {
 				// Skip NaNs other than Prometheus staleness marker, since the underlying encoding
@@ -1840,8 +1841,8 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 			continue
 		}
 
-		// If TSID was not found in cache and in indexdb, it's deleted. If metric contains stale
-		// marker, do not create a new TSID.
+		// If sample is stale and its TSID wasn't found in cache and in indexdb,
+		// then we skip it. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5069
 		if isStaleNan {
 			j--
 			continue
