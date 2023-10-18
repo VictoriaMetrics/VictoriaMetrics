@@ -1,4 +1,5 @@
-import React, { FC, StateUpdater, useEffect, useState } from "preact/compat";
+import React, { FC, useEffect, useState } from "preact/compat";
+import { StateUpdater } from "preact/hooks";
 import QueryEditor from "../../../components/Configurators/QueryEditor/QueryEditor";
 import AdditionalSettings from "../../../components/Configurators/AdditionalSettings/AdditionalSettings";
 import usePrevious from "../../../hooks/usePrevious";
