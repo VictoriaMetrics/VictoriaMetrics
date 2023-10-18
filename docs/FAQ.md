@@ -415,3 +415,44 @@ The query engine may behave differently for some functions. Please see [this art
 Single-node VictoriaMetrics cannot be restarted / upgraded or downgraded without downtime, since it needs to be gracefully shut down and then started again. See [how to upgrade VictoriaMetrics](https://docs.victoriametrics.com/#how-to-upgrade-victoriametrics).
 
 [Cluster version of VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) can be restarted / upgraded / downgraded without downtime according to [these instructions](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#updating--reconfiguring-cluster-nodes).
+
+## Why VictoriaMetrics misses automatic data re-balancing between vmstorage nodes?
+
+VictoriaMetrics doesn't rebalance data between `vmstorage` nodes when new `vmstorage` nodes are added to the cluster.
+This means that newly added `vmstorage` nodes will have less data at `-storageDataPath` comparing to the old `vmstorage` nodes
+until the historical data is removed from the old `vmstorage` nodes when it goes outside the configured [retention](https://docs.victoriametrics.com/#retention).
+
+The automatic rebalancing is the process of moving data between `vmstorage` nodes, so every node has the same amounts of data eventually.
+It is disabled by default because it may consume additional CPU, network bandwidth and disk IO at `vmstorage` nodes for long periods of time,
+which, in turn, can negatively impact VictoriaMetrics cluster availability.
+
+Additionally, it is unclear how to handle the automatic re-balancing if cluster configuration changes when the re-balancing is in progress.
+
+The amounts of data stored in `vmstorage` becomes equal among old `vmstorage` nodes and new `vmstorage` nodes
+after historical data is removed from the old `vmstorage` nodes because it goes outside of configured [retention](https://docs.victoriametrics.com/#retention).
+
+The data ingestion load becomes even between old `vmstorage` nodes and new `vmstorage` nodes almost immediately
+after adding new `vmstorage` nodes to the cluster, since `vminsert` nodes evenly distribute incoming time series
+among the nodes specified in `-storageNode` command-line flag. The newly added `vmstorage` nodes may experience
+increased load during the first couple of minutes because they need to register [active time series](https://docs.victoriametrics.com/FAQ.html#what-is-an-active-time-series).
+
+The query load becomes even between old `vmstorage` nodes and new `vmstorage` nodes after most of queries are executed
+over time ranges with data covered by new `vmstorage` nodes. Usually the most of queries are received
+from [alerting and recording rules](https://docs.victoriametrics.com/vmalert.html), which query data on limited time ranges
+such as a few hours or few days at max. This means that the query load between old `vmstorage` nodes and new `vmstorage` nodes
+should become even in a few hours / days after adding new `vmstorage` nodes.
+
+## Why VictoriaMetrics misses automatic recovery of replication factor?
+
+VictoriaMetrics doesn't restore [replication factor](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#replication-and-data-safety)
+when some of `vmstorage` nodes are removed from the cluster because of the following reasons:
+
+- Automatic replication factor recovery needs copying non-trivial amounts of data between the remaining `vmstorage` nodes.
+  This copying takes additional CPU, disk IO and network bandwidth at `vmstorage` nodes. This may negatively impact
+  VictoriaMetrics cluster availability during extended periods of time.
+
+- It is unclear when the automatic replication factor recovery must be started. How to distiguinsh the expected temporary
+  `vmstorage` node unavailability because of maintenance, upgrade or config changes from permanent loss of data at the `vmstorage` node?
+
+It is recommended reading [replication and data safety docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#replication-and-data-safety)
+for more details.
