@@ -323,7 +323,7 @@ See more details about cardinality limiter in [these docs](https://docs.victoria
 
 ## Troubleshooting
 
-See [troubleshooting docs](https://docs.victoriametrics.com/Troubleshooting.html).
+[Troubleshooting docs for single-node VictoriaMetrics](https://docs.victoriametrics.com/Troubleshooting.html) apply to VictoriaMetrics cluster as well.
 
 ## Readonly mode
 
@@ -1240,6 +1240,8 @@ Below is the output for `/path/to/vmselect -help`:
      The maximum number of tag value suffixes returned from /metrics/find (default 100000)
   -search.maxUniqueTimeseries int
      The maximum number of unique time series, which can be selected during /api/v1/query and /api/v1/query_range queries. This option allows limiting memory usage (default 300000)
+  -search.maxWorkersPerQuery int
+     The maximum number of CPU cores a single query can use. The default value should work good for most cases. The flag can be set to lower values for improving performance of big number of concurrently executed queries. The flag can be set to bigger values for improving performance of heavy queries, which scan big number of time series (>10K) and/or big number of samples (>100M). There is no sense in setting this flag to values bigger than the number of CPU cores available on the system (default 4)
   -search.minStalenessInterval duration
      The minimum interval for staleness calculations. This flag could be useful for removing gaps on graphs generated from time series with irregular intervals between samples. See also '-search.maxStalenessInterval'
   -search.noStaleMarkers
