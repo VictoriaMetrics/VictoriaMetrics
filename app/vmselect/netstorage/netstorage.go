@@ -26,7 +26,11 @@ var (
 	maxTagValuesPerSearch = flag.Int("search.maxTagValues", 100e3, "The maximum number of tag values returned from /api/v1/label/<label_name>/values")
 	maxSamplesPerSeries   = flag.Int("search.maxSamplesPerSeries", 30e6, "The maximum number of raw samples a single query can scan per each time series. This option allows limiting memory usage")
 	maxSamplesPerQuery    = flag.Int("search.maxSamplesPerQuery", 1e9, "The maximum number of raw samples a single query can process across all time series. This protects from heavy queries, which select unexpectedly high number of raw samples. See also -search.maxSamplesPerSeries")
-	maxWorkersPerQuery    = flag.Int("search.maxWorkersPerQuery", 0, "The maximum number of workers for query processing. The default value will be automatically detected based on number of available CPU cores. The flag value might be reduced for systems with high number of CPUs in order to reduce the lock contention for read queries.")
+	maxWorkersPerQuery    = flag.Int("search.maxWorkersPerQuery", defaultMaxWorkersPerQuery, "The maximum number of CPU cores a single query can use. "+
+		"The default value should work good for most cases. "+
+		"The flag can be set to lower values for improving performance of big number of concurrently executed queries. "+
+		"The flag can be set to bigger values for improving performance of heavy queries, which scan big number of time series (>10K) and/or big number of samples (>100M). "+
+		"There is no sense in setting this flag to values bigger than the number of CPU cores available on the system")
 )
 
 // Result is a single timeseries result.
@@ -198,23 +202,33 @@ type result struct {
 
 var resultPool sync.Pool
 
-// maxWorkersLimit defines the max number of concurrently running workers
-// without adding too much contention penalty during query processing.
-const maxWorkersLimit = 32
-
-// MaxWorkers returns the maximum number of workers netstorage can spin when calling RunParallel()
+// MaxWorkers returns the maximum number of concurrent goroutines, which can be used by RunParallel()
 func MaxWorkers() int {
-	if *maxWorkersPerQuery > 0 {
-		return *maxWorkersPerQuery
+	n := *maxWorkersPerQuery
+	if n <= 0 {
+		return defaultMaxWorkersPerQuery
 	}
-	n := gomaxprocs
-	if n > maxWorkersLimit {
-		return maxWorkersLimit
+	if n > gomaxprocs {
+		// There is no sense in running more than gomaxprocs CPU-bound concurrent workers,
+		// since this may worsen the query performance.
+		n = gomaxprocs
 	}
 	return n
 }
 
 var gomaxprocs = cgroup.AvailableCPUs()
+
+var defaultMaxWorkersPerQuery = func() int {
+	// maxWorkersLimit is the maximum number of CPU cores, which can be used in parallel
+	// for processing an average query, without significant impact on inter-CPU communications.
+	const maxWorkersLimit = 32
+
+	n := gomaxprocs
+	if n > maxWorkersLimit {
+		n = maxWorkersLimit
+	}
+	return n
+}()
 
 // RunParallel runs f in parallel for all the results from rss.
 //
