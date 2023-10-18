@@ -87,17 +87,20 @@ and new data is available for querying via Prometheus as usual.
 It is recommended using [vmagent](https://docs.victoriametrics.com/vmagent.html) for scraping Prometheus targets
 and writing data to VictoriaMetrics.
 
-## How does VictoriaMetrics compare to other remote storage solutions for Prometheus such as [M3 from Uber](https://eng.uber.com/m3/), [Thanos](https://github.com/thanos-io/thanos), [Cortex](https://github.com/cortexproject/cortex), etc.?
+## How does VictoriaMetrics compare to other remote storage solutions for Prometheus such as [M3DB](https://github.com/m3db/m3), [Thanos](https://github.com/thanos-io/thanos), [Cortex](https://github.com/cortexproject/cortex), [Mimir](https://github.com/grafana/mimir), etc.?
 
-VictoriaMetrics is simpler, faster, more cost-effective and it provides [MetricsQL query language](MetricsQL) based on PromQL. The simplicity is twofold:
-* It is simpler to configure and operate. There is no need for configuring [sidecars](https://github.com/thanos-io/thanos/blob/master/docs/components/sidecar.md),
-  fighting the [gossip protocol](https://github.com/improbable-eng/thanos/blob/030bc345c12c446962225221795f4973848caab5/docs/proposals/completed/201809_gossip-removal.md)
-  or setting up third-party systems such as [Consul](https://github.com/cortexproject/cortex/issues/157), [Cassandra](https://cortexmetrics.io/docs/chunks-storage/running-chunks-storage-with-cassandra/),
-  [DynamoDB](https://cortexmetrics.io/docs/chunks-storage/aws-tips/) or [Memcached](https://cortexmetrics.io/docs/chunks-storage/caching/).
-* VictoriaMetrics has a simpler architecture. This means fewer bugs and more useful features in the long run compared to competing TSDBs.
+* VictoriaMetrics is easier to configure and operate than competing solutions.
+* VictoriaMetrics is more cost-efficient, since it requires less RAM, disk space, disk IO and network IO than competing solutions.
+* VictoriaMetrics performs typical queries faster than competing solutions.
+* VictoriaMetrics has a simpler architecture, which translates into fewer bugs and more useful features compared to competing TSDBs.
 
-See [comparing Thanos to VictoriaMetrics cluster](https://medium.com/@valyala/comparing-thanos-to-victoriametrics-cluster-b193bea1683)
-and the [Remote Write Storage Wars](https://promcon.io/2019-munich/talks/remote-write-storage-wars/) talk from [PromCon 2019](https://promcon.io/2019-munich/talks/remote-write-storage-wars/).
+See the following articles and talks for details:
+
+* [comparing Thanos to VictoriaMetrics cluster](https://medium.com/@valyala/comparing-thanos-to-victoriametrics-cluster-b193bea1683)
+* [Remote Write Storage Wars](https://promcon.io/2019-munich/talks/remote-write-storage-wars/) talk
+  from [PromCon 2019](https://promcon.io/2019-munich/talks/remote-write-storage-wars/)
+* [Grafana Mimir and VictoriaMetrics: performance tests](https://victoriametrics.com/blog/mimir-benchmark/)
+* [VictoriaMetrics: scaling to 100 million metrics per second](https://www.slideshare.net/NETWAYS/osmc-2022-victoriametrics-scaling-to-100-million-metrics-per-second-by-aliaksandr-valialkin)
 
 VictoriaMetrics also [uses less RAM than Thanos components](https://github.com/thanos-io/thanos/issues/448).
 
