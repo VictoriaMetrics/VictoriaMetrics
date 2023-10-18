@@ -18,7 +18,7 @@ and [Enterprise edition](https://victoriametrics.com/products/enterprise/).
 VictoriaMetrics community components are open source and are free to use - see [the source code](https://github.com/VictoriaMetrics/VictoriaMetrics/)
 and [the license](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/LICENSE).
 
-VictoriaMetrics Enterprise components are available in binary form at [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases)
+VictoriaMetrics Enterprise components are available in binary form at [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest)
 and at [docker hub](https://hub.docker.com/u/victoriametrics). Enterprise binaries and packages have `enterprise` suffix in their names.
 
 ## Valid cases for VictoriaMetrics Enterprise
@@ -79,11 +79,11 @@ VictoriaMetrics Enterprise components are available in the following forms:
 
 It is allowed to run VictoriaMetrics Enterprise components in [cases listed here](#valid-cases-for-victoriametrics-enterprise).
 
-Binary releases of VictoriaMetrics Enterprise are available [at the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
+Binary releases of VictoriaMetrics Enterprise are available [at the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 Enterprise binaries and packages have `enterprise` suffix in their names. For example, `victoria-metrics-linux-amd64-v1.94.0-enterprise.tar.gz`.
 
 In order to run binary release of VictoriaMetrics Enterprise component, please download the `*-enterprise.tar.gz` archive for your OS and architecture
-from the [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) and unpack it. Then run the unpacked binary.
+from the [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) and unpack it. Then run the unpacked binary.
 
 All the VictoriaMetrics Enterprise components prior `v1.94.0` release require `-eula` command-line flag to be passed to them.
 This flag acknowledges that your usage fits one of the cases listed [here](#valid-cases-for-victoriametrics-enterprise).
