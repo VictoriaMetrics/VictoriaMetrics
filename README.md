@@ -1937,6 +1937,11 @@ and [cardinality explorer docs](#cardinality-explorer).
   if background merge cannot be initiated due to free disk space shortage. The value shows the number of per-month partitions,
   which would start background merge if they had more free disk space.
 
+* If you run VictoriaMetrics on a host with 16 or more CPU cores, then it may be needed to tune the `-search.maxWorkersPerQuery` command-line flag
+  in order to improve query performance. If VictoriaMetrics serves big number of concurrent `select` queries, then try reducing the value for this flag.
+  If VcitoriaMetrics serves heavy queries, which select `>10K` of [time series](https://docs.victoriametrics.com/keyConcepts.html#time-series) and/or process `>100M`
+  of [raw samples](https://docs.victoriametrics.com/keyConcepts.html#raw-samples) per query, then try setting the value for this flag to the number of available CPU cores.
+
 * VictoriaMetrics buffers incoming data in memory for up to a few seconds before flushing it to persistent storage.
   This may lead to the following "issues":
   * Data becomes available for querying in a few seconds after inserting. It is possible to flush in-memory buffers to searchable parts
@@ -1973,15 +1978,19 @@ and [cardinality explorer docs](#cardinality-explorer).
   This suppresses default gap filling algorithm used by VictoriaMetrics - by default it assumes
   each time series is continuous instead of discrete, so it fills gaps between real samples with regular intervals.
 
-* Metrics and labels leading to [high cardinality](https://docs.victoriametrics.com/FAQ.html#what-is-high-cardinality) or [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate) can be determined via [cardinality explorer](#cardinality-explorer) and via [/api/v1/status/tsdb](#tsdb-stats) endpoint.
+* Metrics and labels leading to [high cardinality](https://docs.victoriametrics.com/FAQ.html#what-is-high-cardinality)
+  or [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate) can be determined
+  via [cardinality explorer](#cardinality-explorer) and via [/api/v1/status/tsdb](#tsdb-stats) endpoint.
 
 * New time series can be logged if `-logNewSeries` command-line flag is passed to VictoriaMetrics.
 
-* VictoriaMetrics limits the number of labels per each metric with `-maxLabelsPerTimeseries` command-line flag.
-  This prevents from ingesting metrics with too many labels. It is recommended [monitoring](#monitoring) `vm_metrics_with_dropped_labels_total`
+* VictoriaMetrics limits the number of labels per each metric with `-maxLabelsPerTimeseries` command-line flag
+  and drops superflouos labels. This prevents from ingesting metrics with too many labels.
+  It is recommended [monitoring](#monitoring) `vm_metrics_with_dropped_labels_total`
   metric in order to determine whether `-maxLabelsPerTimeseries` must be adjusted for your workload.
 
-* If you store Graphite metrics like `foo.bar.baz` in VictoriaMetrics, then `{__graphite__="foo.*.baz"}` filter can be used for selecting such metrics. See [these docs](#selecting-graphite-metrics) for details.
+* If you store Graphite metrics like `foo.bar.baz` in VictoriaMetrics, then `{__graphite__="foo.*.baz"}` filter can be used for selecting such metrics.
+  See [these docs](#selecting-graphite-metrics) for details. You can also query Graphite metrics with [Graphite querying API](#graphite-render-api-usage).
 
 * VictoriaMetrics ignores `NaN` values during data ingestion.
 
@@ -2603,6 +2612,8 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      The maximum number of tag values returned from /api/v1/label/<label_name>/values (default 100000)
   -search.maxUniqueTimeseries int
      The maximum number of unique time series, which can be selected during /api/v1/query and /api/v1/query_range queries. This option allows limiting memory usage (default 300000)
+  -search.maxWorkersPerQuery int
+     The maximum number of CPU cores a single query can use. The default value should work good for most cases. The flag can be set to lower values for improving performance of big number of concurrently executed queries. The flag can be set to bigger values for improving performance of heavy queries, which scan big number of time series (>10K) and/or big number of samples (>100M). There is no sense in setting this flag to values bigger than the number of CPU cores available on the system (default 4)
   -search.minStalenessInterval duration
      The minimum interval for staleness calculations. This flag could be useful for removing gaps on graphs generated from time series with irregular intervals between samples. See also '-search.maxStalenessInterval'
   -search.noStaleMarkers
