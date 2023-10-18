@@ -50,11 +50,11 @@ VictoriaLogs emits its own logs to stdout. It is recommended to investigate thes
 
 ## Upgrading
 
-It is safe upgrading VictoriaLogs to new versions unless [release notes](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) say otherwise.
-It is safe to skip multiple versions during the upgrade unless [release notes](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) say otherwise.
+It is safe upgrading VictoriaLogs to new versions unless [release notes](https://docs.victoriametrics.com/VictoriaLogs/CHANGELOG.html) say otherwise.
+It is safe to skip multiple versions during the upgrade unless [release notes](https://docs.victoriametrics.com/VictoriaLogs/CHANGELOG.html) say otherwise.
 It is recommended to perform regular upgrades to the latest version, since it may contain important bug fixes, performance optimizations or new features.
 
-It is also safe to downgrade to older versions unless [release notes](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) say otherwise.
+It is also safe to downgrade to older versions unless [release notes](https://docs.victoriametrics.com/VictoriaLogs/CHANGELOG.html) say otherwise.
 
 The following steps must be performed during the upgrade / downgrade procedure:
 

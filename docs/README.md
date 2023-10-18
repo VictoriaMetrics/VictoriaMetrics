@@ -16,7 +16,7 @@ title: VictoriaMetrics
 
 VictoriaMetrics is a fast, cost-effective and scalable monitoring solution and time series database.
 
-VictoriaMetrics is available in [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases),
+VictoriaMetrics is available in [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest),
 [Docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/), [Snap packages](https://snapcraft.io/victoriametrics)
 and [source code](https://github.com/VictoriaMetrics/VictoriaMetrics). 
 
@@ -32,7 +32,7 @@ If you have questions about VictoriaMetrics, then feel free asking them at [Vict
 [Contact us](mailto:info@victoriametrics.com) if you need enterprise support for VictoriaMetrics. 
 See [features available in enterprise package](https://docs.victoriametrics.com/enterprise.html).
 Enterprise binaries can be downloaded and evaluated for free 
-from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
+from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 See how to request a free trial license [here](https://victoriametrics.com/products/enterprise/trial/).
 
 VictoriaMetrics is developed at a fast pace, so it is recommended periodically checking the [CHANGELOG](https://docs.victoriametrics.com/CHANGELOG.html) and performing [regular upgrades](#how-to-upgrade-victoriametrics).
@@ -140,7 +140,8 @@ See also [articles and slides about VictoriaMetrics from our users](https://docs
 
 ### Install
 
-To quickly try VictoriaMetrics, just download [VictoriaMetrics executable](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) or [Docker image](https://hub.docker.com/r/victoriametrics/victoria-metrics/) and start it with the desired command-line flags.
+To quickly try VictoriaMetrics, just download [VictoriaMetrics executable](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest)
+or [Docker image](https://hub.docker.com/r/victoriametrics/victoria-metrics/) and start it with the desired command-line flags.
 See also [QuickStart guide](https://docs.victoriametrics.com/Quick-Start.html) for additional information.
 
 VictoriaMetrics can also be installed via these installation methods:
@@ -331,7 +332,7 @@ too high memory consumption of Prometheus, then try to lower `max_samples_per_se
 Keep in mind that these two params are tightly connected.
 Read more about tuning remote write for Prometheus [here](https://prometheus.io/docs/practices/remote_write).
 
-It is recommended upgrading Prometheus to [v2.12.0](https://github.com/prometheus/prometheus/releases) or newer, 
+It is recommended upgrading Prometheus to [v2.12.0](https://github.com/prometheus/prometheus/releases/latest) or newer,
 since previous versions may have issues with `remote_write`.
 
 Take a look also at [vmagent](https://docs.victoriametrics.com/vmagent.html) 
@@ -358,9 +359,11 @@ See more in [description](https://github.com/VictoriaMetrics/grafana-datasource#
 
 VictoriaMetrics is developed at a fast pace, so it is recommended periodically checking [the CHANGELOG page](https://docs.victoriametrics.com/CHANGELOG.html) and performing regular upgrades.
 
-It is safe upgrading VictoriaMetrics to new versions unless [release notes](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) say otherwise. It is safe skipping multiple versions during the upgrade unless [release notes](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) say otherwise. It is recommended performing regular upgrades to the latest version, since it may contain important bug fixes, performance optimizations or new features.
+It is safe upgrading VictoriaMetrics to new versions unless [release notes](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) say otherwise.
+It is safe skipping multiple versions during the upgrade unless [release notes](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) say otherwise.
+It is recommended performing regular upgrades to the latest version, since it may contain important bug fixes, performance optimizations or new features.
 
-It is also safe downgrading to older versions unless [release notes](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) say otherwise.
+It is also safe downgrading to older versions unless [release notes](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) say otherwise.
 
 The following steps must be performed during the upgrade / downgrade procedure:
 
@@ -1071,7 +1074,7 @@ VictoriaMetrics supports the following handlers from [Graphite Tags API](https:/
 
 ## How to build from sources
 
-We recommend using either [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) or
+We recommend using either [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) or
 [docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/) instead of building VictoriaMetrics
 from sources. Building from sources is reasonable when developing additional features specific
 to your needs or when testing bugfixes.
@@ -1886,7 +1889,7 @@ to historical data.
 
 See [how to configure multiple retentions in VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#retention-filters).
 
-Retention filters can be evaluated for free by downloading and using enterprise binaries from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
+Retention filters can be evaluated for free by downloading and using enterprise binaries from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 See how to request a free trial license [here](https://victoriametrics.com/products/enterprise/trial/).
 
 ## Downsampling
@@ -1908,7 +1911,7 @@ Please, note that intervals of `-downsampling.period` must be multiples of each 
 In case [deduplication](https://docs.victoriametrics.com/#deduplication) is enabled value of `-dedup.minScrapeInterval` must also be multiple of `-downsampling.period` intervals.
 This is required to ensure consistency of deduplication and downsampling results.
 
-The downsampling can be evaluated for free by downloading and using enterprise binaries from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
+The downsampling can be evaluated for free by downloading and using enterprise binaries from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 See how to request a free trial license [here](https://victoriametrics.com/products/enterprise/trial/).
 
 ## Multi-tenancy
@@ -2138,7 +2141,7 @@ and [cardinality explorer docs](#cardinality-explorer).
 
 * It is recommended inspecting logs during troubleshooting, since they may contain useful information.
 
-* It is recommended upgrading to the latest available release from [this page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases),
+* It is recommended upgrading to the latest available release from [this page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest),
   since the encountered issue could be already fixed there.
 
 * It is recommended to have at least 50% of spare resources for CPU, disk IO and RAM, so VictoriaMetrics could handle short spikes in the workload without performance issues.
@@ -2344,7 +2347,7 @@ See also [high availability docs](#high-availability) and [backup docs](#backups
 VictoriaMetrics supports backups via [vmbackup](https://docs.victoriametrics.com/vmbackup.html)
 and [vmrestore](https://docs.victoriametrics.com/vmrestore.html) tools.
 We also provide [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager.html) tool for enterprise subscribers.
-Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
+Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 See how to request a free trial license [here](https://victoriametrics.com/products/enterprise/trial/).
 
 ## vmalert

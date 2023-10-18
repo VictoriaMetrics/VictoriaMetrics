@@ -446,7 +446,7 @@ If `-clusterMode` is enabled and the `tenant` in a particular group is missing, 
 is obtained from `-defaultTenant.prometheus` or `-defaultTenant.graphite` depending on the `type` of the group.
 
 The enterprise version of vmalert is available in `vmutils-*-enterprise.tar.gz` files
-at [release page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) and in `*-enterprise`
+at [release page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) and in `*-enterprise`
 tags at [Docker Hub](https://hub.docker.com/r/victoriametrics/vmalert/tags).
 
 ### Reading rules from object storage
@@ -1519,7 +1519,7 @@ software. Please keep simplicity as the main priority.
 ## How to build from sources
 
 It is recommended using
-[binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases)
+[binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest)
 
 * `vmalert` is located in `vmutils-*` archives there.
 

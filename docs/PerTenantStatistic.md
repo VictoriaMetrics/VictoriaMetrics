@@ -12,7 +12,7 @@ aliases:
 
 # VictoriaMetrics Cluster Per Tenant Statistic
 
-***The per-tenant statistic is a part of [enterprise package](https://docs.victoriametrics.com/enterprise.html). It is available for download and evaluation at [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases). You need to request a [free trial license](https://victoriametrics.com/products/enterprise/trial/) for evaluation.***
+***The per-tenant statistic is a part of [enterprise package](https://docs.victoriametrics.com/enterprise.html). It is available for download and evaluation at [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest). You need to request a [free trial license](https://victoriametrics.com/products/enterprise/trial/) for evaluation.***
 
 <img alt="cluster-per-tenant-stat" src="PerTenantStatistic-stats.jpg">
 
