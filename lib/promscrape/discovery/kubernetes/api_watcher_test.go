@@ -964,6 +964,273 @@ func TestGetScrapeWorkObjects(t *testing.T) {
 	}
 }
 
+func TestUrlWatcher(t *testing.T) {
+	type testCase struct {
+		name                 string
+		expectedTargetsLen   int
+		initAPIObjectsByRole map[string][]byte
+		// will be added for watching api.
+		watchAPIMustAddObjectsByRole map[string][][]byte
+	}
+	sdcs := []*SDConfig{
+		{
+			Role:       "endpoints",
+			Namespaces: Namespaces{Names: []string{"default"}},
+		},
+		{
+			Role:       "endpoints",
+			Namespaces: Namespaces{Names: []string{"default"}},
+		},
+	}
+	cases := []testCase{
+		{
+			name:               "two endpoints with one service deleted",
+			expectedTargetsLen: 2,
+			initAPIObjectsByRole: map[string][]byte{
+				"service": []byte(`{
+  "kind": "ServiceList",
+  "apiVersion": "v1",
+  "metadata": {
+    "resourceVersion": "72425"
+  },
+  "items": []}`),
+				"endpoints": []byte(`{
+  "kind": "EndpointsList",
+  "apiVersion": "v1",
+  "metadata": {
+    "resourceVersion": "72425"
+  },
+  "items": [
+{
+    "apiVersion": "v1",
+    "kind": "Endpoints",
+    "metadata": {
+        "annotations": {
+            "endpoints.kubernetes.io/last-change-trigger-time": "2021-04-27T02:06:55Z"
+        },
+        "labels": {
+            "app.kubernetes.io/managed-by": "Helm"
+        },
+        "name": "stack-kube-state-metrics",
+        "namespace": "default"
+    },
+    "subsets": [
+        {
+            "addresses": [
+                {
+                    "ip": "10.244.0.5",
+                    "nodeName": "kind-control-plane",
+                    "targetRef": {
+                        "kind": "Pod",
+                        "name": "stack-kube-state-metrics-db5879bf8-bg78p",
+                        "namespace": "default"
+                    }
+                }
+            ],
+            "ports": [
+                {
+                    "name": "http",
+                    "port": 8080,
+                    "protocol": "TCP"
+                }
+            ]
+        }
+    ]
+},
+{
+	"apiVersion": "v1",
+	"kind": "Endpoints",
+	"metadata": {
+		"annotations": {
+			"endpoints.kubernetes.io/last-change-trigger-time": "2023-10-13T09:44:52Z"
+		},
+		"labels": {
+			"app": "ack-node-local-dns-admission-controller",
+			"app.kubernetes.io/managed-by": "Helm"
+		},
+		"name": "ack-node-local-dns-admission-controller",
+		"namespace": "default"
+	},
+	"subsets": [
+		{
+			"addresses": [
+				{
+					"ip": "192.168.132.218",
+					"nodeName": "cn-zhangjiakou.192.168.101.217",
+					"targetRef": {
+						"kind": "Pod",
+						"name": "ack-node-local-dns-admission-controller-68dd45948c-qddhj",
+						"namespace": "kube-system",
+						"resourceVersion": "7413472999",
+						"uid": "ad64cf48-95c4-494f-855a-656b1bf92eda"
+					}
+				}
+			],
+			"ports": [
+				{
+					"port": 8443,
+					"protocol": "TCP"
+				}
+			]
+		}
+	]
+}
+]}`),
+				"pod": []byte(`{
+  "kind": "PodList",
+  "apiVersion": "v1",
+  "metadata": {
+    "resourceVersion": "72425"
+  },
+  "items": [
+{
+    "apiVersion": "v1",
+    "kind": "Pod",
+    "metadata": {
+        "labels": {
+            "app.kubernetes.io/instance": "stack"
+        },
+        "name": "stack-kube-state-metrics-db5879bf8-bg78p",
+        "namespace": "default"
+    },
+    "spec": {
+        "containers": [
+            {
+                "image": "k8s.gcr.io/kube-state-metrics/kube-state-metrics:v1.9.8",
+                "name": "kube-state-metrics",
+                "ports": [
+                    {
+                        "containerPort": 8080,
+                        "protocol": "TCP"
+                    }
+                ]
+            }
+        ]
+    },
+    "status": {
+        "phase": "Running",
+        "podIP": "10.244.0.5"
+    }
+},
+{
+	"apiVersion": "v1",
+	"kind": "Pod",
+	"metadata": {
+		"labels": {
+			"app": "ack-node-local-dns-admission-controller",
+			"pod-template-hash": "68dd45948c"
+		},
+		"name": "ack-node-local-dns-admission-controller-68dd45948c-qddhj",
+		"namespace": "default"
+	},
+	"spec": {
+		"containers": [
+			{
+				"image": "registry-cn-zhangjiakou-vpc.ack.aliyuncs.com/acs/node-local-dns-admission-controller:v1.1.2-aliyun",
+				"name": "webhook",
+				"ports": [
+					{
+						"containerPort": 8443,
+						"protocol": "TCP"
+					}
+				]
+			}
+		]
+	},
+	"status": {
+		"phase": "Running",
+		"podIP": "192.168.132.218"
+	}
+}
+]}`),
+			},
+			watchAPIMustAddObjectsByRole: map[string][][]byte{
+				"service": {
+					[]byte(`{
+    "apiVersion": "v1",
+    "kind": "Service",
+    "metadata": {
+        "annotations": {
+            "meta.helm.sh/release-name": "stack"
+        },
+        "labels": {
+            "app.kubernetes.io/managed-by": "Helm",
+            "app.kubernetes.io/name": "kube-state-metrics"
+        },
+        "name": "stack-kube-state-metrics",
+        "namespace": "default"
+    },
+    "spec": {
+        "clusterIP": "10.97.109.249",
+        "ports": [
+            {
+                "name": "http",
+                "port": 8080,
+                "protocol": "TCP",
+                "targetPort": 8080
+            }
+        ],
+        "selector": {
+            "app.kubernetes.io/instance": "stack",
+            "app.kubernetes.io/name": "kube-state-metrics"
+        },
+        "type": "ClusterIP"
+    }
+}`),
+				},
+			},
+		},
+	}
+	tc := cases[0]
+	watchPublishersByRole := make(map[string]*watchObjectBroadcast)
+	mux := http.NewServeMux()
+	for role, obj := range tc.initAPIObjectsByRole {
+		watchBroadCaster := &watchObjectBroadcast{}
+		watchPublishersByRole[role] = watchBroadCaster
+		apiPath := getAPIPath(getObjectTypeByRole(role), "default", "")
+		addAPIURLHandler(t, mux, apiPath, obj, watchBroadCaster)
+	}
+	testAPIServer := httptest.NewServer(mux)
+	var acs []*apiConfig
+	for _, sdc := range sdcs {
+		sdc.APIServer = testAPIServer.URL
+		ac, err := newAPIConfig(sdc, "", func(metaLabels *promutils.Labels) interface{} {
+			var res []interface{}
+			for _, label := range metaLabels.Labels {
+				res = append(res, label.Name)
+			}
+			return res
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		sdc.cfg = ac
+		ac.aw.mustStart()
+		defer ac.aw.mustStop()
+		acs = append(acs, ac)
+	}
+
+	for _, sdc := range sdcs {
+		initialSWOs, err := sdc.GetScrapeWorkObjects()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		// need to wait, for subscribers to start.
+		time.Sleep(80 * time.Millisecond)
+		if len(initialSWOs) != tc.expectedTargetsLen {
+			t.Fatalf("unexpected count of objects, got: %d, want: %d", len(initialSWOs), tc.expectedTargetsLen)
+		}
+	}
+
+	// close a single job
+	sdcs[1].MustStop()
+	time.Sleep(11 * time.Second)
+	// check url watcher
+	if len(acs[0].aw.gw.m) == 1 { // only endpoints left
+		t.Fatalf("unexpected count of urlWatchers")
+	}
+}
+
 type watchObjectBroadcast struct {
 	mu          sync.Mutex
 	subscribers []chan []byte
