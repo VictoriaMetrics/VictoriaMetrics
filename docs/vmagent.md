@@ -57,7 +57,7 @@ additionally to [discovering Prometheus-compatible targets and scraping metrics 
 
 ## Quick Start
 
-Please download `vmutils-*` archive from [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) (
+Please download `vmutils-*` archive from [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) (
 `vmagent` is also available in [docker images](https://hub.docker.com/r/victoriametrics/vmagent/tags)),
 unpack it and pass the following flags to the `vmagent` binary in order to start scraping Prometheus-compatible targets
 and sending the data to the Prometheus-compatible remote storage:
@@ -1036,7 +1036,7 @@ See also [troubleshooting docs](https://docs.victoriametrics.com/Troubleshooting
 * [Reading metrics from Kafka](#reading-metrics-from-kafka)
 * [Writing metrics to Kafka](#writing-metrics-to-kafka)
 
-The enterprise version of vmagent is available for evaluation at [releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) page
+The enterprise version of vmagent is available for evaluation at [releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) page
 in `vmutils-...-enterprise.tar.gz` archives and in [docker images](https://hub.docker.com/r/victoriametrics/vmagent/tags) with tags containing `enterprise` suffix.
 See how to request a free trial license [here](https://victoriametrics.com/products/enterprise/trial/).
 
@@ -1085,7 +1085,7 @@ data_format = "influx"
 #### Command-line flags for Kafka consumer
 
 These command-line flags are available only in [enterprise](https://docs.victoriametrics.com/enterprise.html) version of `vmagent`,
-which can be downloaded for evaluation from [releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) page
+which can be downloaded for evaluation from [releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) page
 (see `vmutils-...-enterprise.tar.gz` archives) and from [docker images](https://hub.docker.com/r/victoriametrics/vmagent/tags) with tags containing `enterprise` suffix.
 
 ```
@@ -1145,7 +1145,7 @@ Two types of auth are supported:
 
 ## How to build from sources
 
-We recommend using [official binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) - `vmagent` is located in the `vmutils-...` archives.
+We recommend using [official binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) - `vmagent` is located in the `vmutils-...` archives.
 
 It may be needed to build `vmagent` from source code when developing or testing new feature or bugfix.
 

@@ -7,7 +7,7 @@ The `-auth.config` can point to either local file or to http url.
 
 ## Quick start
 
-Just download `vmutils-*` archive from [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases), unpack it
+Just download `vmutils-*` archive from [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest), unpack it
 and pass the following flag to `vmauth` binary in order to start authorizing and routing requests:
 
 ```console
@@ -317,7 +317,7 @@ metric without label (if `unauthorized_user` section of config is used).
 
 ## How to build from sources
 
-It is recommended using [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) - `vmauth` is located in `vmutils-*` archives there.
+It is recommended using [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) - `vmauth` is located in `vmutils-*` archives there.
 
 ### Development build
 

@@ -14,7 +14,8 @@ aliases:
 
 ## Install Recommendation
 
-It is recommended running the latest available release of VictoriaMetrics from [this page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases), since it contains all the bugfixes and enhancements.
+It is recommended running the latest available release of VictoriaMetrics from [this page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest),
+since it contains all the bugfixes and enhancements.
 
 There is no need to tune VictoriaMetrics because it uses reasonable defaults for command-line flags.  These flags are automatically adjusted for the available CPU and RAM resources. There is no need in Operating System tuning because VictoriaMetrics is optimized for default OS settings. The only option is to increase the limit on the [number of open files in the OS](https://medium.com/@muhammadtriwibowo/set-permanently-ulimit-n-open-files-in-ubuntu-4d61064429a), so VictoriaMetrics could accept more incoming connections and could keep open more data files.
 
@@ -52,7 +53,9 @@ VictoriaMetrics can run also on MacOS for testing and development purposes.
 
 ## Upgrade procedure
 
-It is safe to upgrade VictoriaMetrics to new versions unless the [release notes](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) say otherwise. It is safe to skip multiple versions during the upgrade unless release notes say otherwise. It is recommended to perform regular upgrades to the latest version, since it may contain important bug fixes, performance optimizations or new features.
+It is safe to upgrade VictoriaMetrics to new versions unless the [release notes](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) say otherwise.
+It is safe to skip multiple versions during the upgrade unless release notes say otherwise. It is recommended to perform regular upgrades to the latest version,
+since it may contain important bug fixes, performance optimizations or new features.
 
 It is also safe to downgrade to the previous version unless release notes say otherwise.
 
