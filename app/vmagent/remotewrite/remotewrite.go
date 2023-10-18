@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -40,6 +41,8 @@ var (
 		"Pass multiple -remoteWrite.multitenantURL flags in order to replicate data to multiple remote storage systems. See also -remoteWrite.url")
 	shardByURL = flag.Bool("remoteWrite.shardByURL", false, "Whether to shard outgoing series across all the remote storage systems enumerated via -remoteWrite.url . "+
 		"By default the data is replicated across all the -remoteWrite.url . See https://docs.victoriametrics.com/vmagent.html#sharding-among-remote-storages")
+	shardByURLLabels = flag.String("remoteWrite.shardByURL.labels", "", "Comma-separated list of label names for sharding across all the -remoteWrite.url. All labels of timeseries are used by default. "+
+		"See also -remoteWrite.shardByURL and https://docs.victoriametrics.com/vmagent.html#sharding-among-remote-storages")
 	tmpDataPath = flag.String("remoteWrite.tmpDataPath", "vmagent-remotewrite-data", "Path to directory where temporary data for remote write component is stored. "+
 		"See also -remoteWrite.maxDiskUsagePerURL")
 	keepDanglingQueues = flag.Bool("remoteWrite.keepDanglingQueues", false, "Keep persistent queues contents at -remoteWrite.tmpDataPath in case there are no matching -remoteWrite.url. "+
@@ -92,6 +95,8 @@ var (
 
 	// Data without tenant id is written to defaultAuthToken if -remoteWrite.multitenantURL is specified.
 	defaultAuthToken = &auth.Token{}
+
+	shardLabelsFilter map[string]struct{}
 )
 
 // MultitenancyEnabled returns true if -remoteWrite.multitenantURL is specified.
@@ -169,6 +174,12 @@ func Init() {
 
 	if len(*remoteWriteURLs) > 0 {
 		rwctxsDefault = newRemoteWriteCtxs(nil, *remoteWriteURLs)
+	}
+
+	if *shardByURLLabels != "" {
+		for _, label := range strings.Split(*shardByURLLabels, ",") {
+			shardLabelsFilter[strings.TrimSpace(label)] = struct{}{}
+		}
 	}
 
 	// Start config reloader.
@@ -419,7 +430,7 @@ func pushBlockToRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []prompbmarsha
 		// Shard the data among rwctxs
 		tssByURL := make([][]prompbmarshal.TimeSeries, len(rwctxs))
 		for _, ts := range tssBlock {
-			h := getLabelsHash(ts.Labels)
+			h := getLabelsHash(ts.Labels, shardLabelsFilter)
 			idx := h % uint64(len(tssByURL))
 			tssByURL[idx] = append(tssByURL[idx], ts)
 		}
@@ -472,7 +483,7 @@ func limitSeriesCardinality(tss []prompbmarshal.TimeSeries) []prompbmarshal.Time
 	dst := make([]prompbmarshal.TimeSeries, 0, len(tss))
 	for i := range tss {
 		labels := tss[i].Labels
-		h := getLabelsHash(labels)
+		h := getLabelsHash(labels, nil)
 		if hourlySeriesLimiter != nil && !hourlySeriesLimiter.Add(h) {
 			hourlySeriesLimitRowsDropped.Add(len(tss[i].Samples))
 			logSkippedSeries(labels, "-remoteWrite.maxHourlySeries", hourlySeriesLimiter.MaxItems())
@@ -496,10 +507,16 @@ var (
 	dailySeriesLimitRowsDropped  = metrics.NewCounter(`vmagent_daily_series_limit_rows_dropped_total`)
 )
 
-func getLabelsHash(labels []prompbmarshal.Label) uint64 {
+func getLabelsHash(labels []prompbmarshal.Label, filterLabels map[string]struct{}) uint64 {
 	bb := labelsHashBufPool.Get()
 	b := bb.B[:0]
 	for _, label := range labels {
+		if len(filterLabels) > 0 {
+			_, ok := filterLabels[label.Name]
+			if !ok {
+				continue
+			}
+		}
 		b = append(b, label.Name...)
 		b = append(b, label.Value...)
 	}
@@ -801,4 +818,24 @@ func CheckStreamAggrConfigs() error {
 		sas.MustStop()
 	}
 	return nil
+}
+
+func GetAggregators() map[string]*streamaggr.Aggregators {
+	var result = map[string]*streamaggr.Aggregators{}
+
+	if len(*remoteWriteMultitenantURLs) > 0 {
+		rwctxsMapLock.Lock()
+		for tenant, rwctxs := range rwctxsMap {
+			for rwNum, rw := range rwctxs {
+				result[fmt.Sprintf("rw %d for tenant %v:%v", rwNum, tenant.AccountID, tenant.ProjectID)] = rw.sas.Load()
+			}
+		}
+		rwctxsMapLock.Unlock()
+	} else {
+		for rwNum, rw := range rwctxsDefault {
+			result[fmt.Sprintf("remote write %d", rwNum)] = rw.sas.Load()
+		}
+	}
+
+	return result
 }

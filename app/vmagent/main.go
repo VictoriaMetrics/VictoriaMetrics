@@ -42,6 +42,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/streamaggr"
 )
 
 var (
@@ -228,7 +229,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 			{"metric-relabel-debug", "debug metric relabeling"},
 			{"api/v1/targets", "advanced information about discovered targets in JSON format"},
 			{"config", "-promscrape.config contents"},
-			//{"stream-agg", "streaming aggregation status"},
+			{"stream-agg", "streaming aggregation status"},
 			{"metrics", "available service metrics"},
 			{"flags", "command-line flags"},
 			{"-/reload", "reload configuration"},
@@ -433,9 +434,9 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		procutil.SelfSIGHUP()
 		w.WriteHeader(http.StatusOK)
 		return true
-	//case "/stream-agg":
-	//	streamaggr.WriteHumanReadableState(w, r)
-	//	return true
+	case "/stream-agg":
+		streamaggr.WriteHumanReadableState(w, r, remotewrite.GetAggregators())
+		return true
 	case "/ready":
 		if rdy := atomic.LoadInt32(&promscrape.PendingScrapeConfigs); rdy > 0 {
 			errMsg := fmt.Sprintf("waiting for scrapes to init, left: %d", rdy)

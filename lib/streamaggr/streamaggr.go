@@ -3,6 +3,7 @@ package streamaggr
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"math"
 	"sort"
 	"strconv"
@@ -23,12 +24,17 @@ import (
 
 var supportedOutputs = []string{
 	"total",
+	"total_pure",
 	"newtotal",
+	"newtotal_pure",
 	"increase",
+	"increase_pure",
 	"newincrease",
+	"newincrease_pure",
 	"count_series",
 	"count_samples",
 	"sum_samples",
+	"sum_samples_total",
 	"last",
 	"min",
 	"max",
@@ -244,8 +250,9 @@ type aggregator struct {
 	// for `interval: 1m`, `by: [job]`
 	suffix string
 
-	wg     sync.WaitGroup
-	stopCh chan struct{}
+	initialTime uint64
+	wg          sync.WaitGroup
+	stopCh      chan struct{}
 }
 
 type aggrState interface {
@@ -256,8 +263,11 @@ type aggrState interface {
 }
 
 type aggrStateRepresentation struct {
-	metric string
-	value  float64
+	metric            string
+	lastPushTimestamp uint64
+	nextPushTimestamp uint64
+	currentValue      float64
+	samplesCount      uint64
 }
 
 // PushFunc is called by Aggregators when it needs to push its state to metrics storage
@@ -340,38 +350,48 @@ func newAggregator(cfg *Config, pushFunc PushFunc, dedupInterval time.Duration) 
 				}
 				phis[j] = phi
 			}
-			aggrStates[i] = newQuantilesAggrState(phis)
+			aggrStates[i] = newQuantilesAggrState(interval, stalenessInterval, phis)
 			continue
 		}
 		switch output {
 		case "total":
 			aggrStates[i] = newTotalAggrState(interval, stalenessInterval)
+		case "total_pure":
+			aggrStates[i] = newTotalPureAggrState(interval, stalenessInterval)
 		case "newtotal":
 			aggrStates[i] = newnewtotalAggrState(interval, stalenessInterval)
+		case "newtotal_pure":
+			aggrStates[i] = newnewotalPureAggrState(interval, stalenessInterval)
 		case "increase":
 			aggrStates[i] = newIncreaseAggrState(interval, stalenessInterval)
+		case "increase_pure":
+			aggrStates[i] = newIncreasePureAggrState(interval, stalenessInterval)
 		case "newincrease":
 			aggrStates[i] = newnewincreaseAggrState(interval, stalenessInterval)
+		case "newincrease_pure":
+			aggrStates[i] = newnewincreasePureAggrState(interval, stalenessInterval)
 		case "count_series":
-			aggrStates[i] = newCountSeriesAggrState()
+			aggrStates[i] = newCountSeriesAggrState(interval, stalenessInterval)
 		case "count_samples":
-			aggrStates[i] = newCountSamplesAggrState()
+			aggrStates[i] = newCountSamplesAggrState(interval, stalenessInterval)
 		case "sum_samples":
-			aggrStates[i] = newSumSamplesAggrState()
+			aggrStates[i] = newSumSamplesAggrState(interval, stalenessInterval)
+		case "sum_samples_total":
+			aggrStates[i] = newSumSamplesTotalAggrState(interval, stalenessInterval)
 		case "last":
-			aggrStates[i] = newLastAggrState()
+			aggrStates[i] = newLastAggrState(interval, stalenessInterval)
 		case "min":
-			aggrStates[i] = newMinAggrState()
+			aggrStates[i] = newMinAggrState(interval, stalenessInterval)
 		case "max":
-			aggrStates[i] = newMaxAggrState()
+			aggrStates[i] = newMaxAggrState(interval, stalenessInterval)
 		case "avg":
-			aggrStates[i] = newAvgAggrState()
+			aggrStates[i] = newAvgAggrState(interval, stalenessInterval)
 		case "stddev":
-			aggrStates[i] = newStddevAggrState()
+			aggrStates[i] = newStddevAggrState(interval, stalenessInterval)
 		case "stdvar":
-			aggrStates[i] = newStdvarAggrState()
+			aggrStates[i] = newStdvarAggrState(interval, stalenessInterval)
 		case "histogram_bucket":
-			aggrStates[i] = newHistogramBucketAggrState(stalenessInterval)
+			aggrStates[i] = newHistogramBucketAggrState(interval, stalenessInterval)
 		default:
 			return nil, fmt.Errorf("unsupported output=%q; supported values: %s; "+
 				"see https://docs.victoriametrics.com/vmagent.html#stream-aggregation", output, supportedOutputs)
@@ -390,7 +410,7 @@ func newAggregator(cfg *Config, pushFunc PushFunc, dedupInterval time.Duration) 
 
 	var dedupAggr *lastAggrState
 	if dedupInterval > 0 {
-		dedupAggr = newLastAggrState()
+		dedupAggr = newLastAggrState(interval, stalenessInterval)
 	}
 
 	// initialize the aggregator
@@ -410,7 +430,8 @@ func newAggregator(cfg *Config, pushFunc PushFunc, dedupInterval time.Duration) 
 
 		suffix: suffix,
 
-		stopCh: make(chan struct{}),
+		initialTime: fasttime.UnixTimestamp(),
+		stopCh:      make(chan struct{}),
 	}
 
 	if dedupAggr != nil {

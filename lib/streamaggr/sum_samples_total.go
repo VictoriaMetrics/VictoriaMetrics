@@ -1,36 +1,37 @@
 package streamaggr
 
 import (
+	"math"
 	"sync"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 )
 
-// lastAggrState calculates output=last, e.g. the last value over input samples.
-type lastAggrState struct {
+// sumSamplesTotalAggrState calculates output=sum_samples, e.g. the sum over input samples.
+type sumSamplesTotalAggrState struct {
 	m                 sync.Map
 	intervalSecs      uint64
 	stalenessSecs     uint64
 	lastPushTimestamp uint64
 }
 
-type lastStateValue struct {
+type sumSamplesTotalStateValue struct {
 	mu             sync.Mutex
-	last           float64
+	sum            float64
 	samplesCount   uint64
 	deleted        bool
 	deleteDeadline uint64
 }
 
-func newLastAggrState(interval time.Duration, stalenessInterval time.Duration) *lastAggrState {
-	return &lastAggrState{
+func newSumSamplesTotalAggrState(interval time.Duration, stalenessInterval time.Duration) *sumSamplesTotalAggrState {
+	return &sumSamplesTotalAggrState{
 		intervalSecs:  roundDurationToSecs(interval),
 		stalenessSecs: roundDurationToSecs(stalenessInterval),
 	}
 }
 
-func (as *lastAggrState) pushSample(_, outputKey string, value float64) {
+func (as *sumSamplesTotalAggrState) pushSample(_, outputKey string, value float64) {
 	currentTime := fasttime.UnixTimestamp()
 	deleteDeadline := currentTime + as.stalenessSecs
 
@@ -38,8 +39,8 @@ again:
 	v, ok := as.m.Load(outputKey)
 	if !ok {
 		// The entry is missing in the map. Try creating it.
-		v = &lastStateValue{
-			last: value,
+		v = &sumSamplesTotalStateValue{
+			sum: value,
 		}
 		vNew, loaded := as.m.LoadOrStore(outputKey, v)
 		if !loaded {
@@ -49,11 +50,11 @@ again:
 		// Use the entry created by a concurrent goroutine.
 		v = vNew
 	}
-	sv := v.(*lastStateValue)
+	sv := v.(*sumSamplesTotalStateValue)
 	sv.mu.Lock()
 	deleted := sv.deleted
 	if !deleted {
-		sv.last = value
+		sv.sum += value
 		sv.samplesCount++
 		sv.deleteDeadline = deleteDeadline
 	}
@@ -65,10 +66,10 @@ again:
 	}
 }
 
-func (as *lastAggrState) removeOldEntries(currentTime uint64) {
+func (as *sumSamplesTotalAggrState) removeOldEntries(currentTime uint64) {
 	m := &as.m
 	m.Range(func(k, v interface{}) bool {
-		sv := v.(*lastStateValue)
+		sv := v.(*sumSamplesTotalStateValue)
 
 		sv.mu.Lock()
 		deleted := currentTime > sv.deleteDeadline
@@ -85,7 +86,7 @@ func (as *lastAggrState) removeOldEntries(currentTime uint64) {
 	})
 }
 
-func (as *lastAggrState) appendSeriesForFlush(ctx *flushCtx) {
+func (as *sumSamplesTotalAggrState) appendSeriesForFlush(ctx *flushCtx) {
 	currentTime := fasttime.UnixTimestamp()
 	currentTimeMsec := int64(currentTime) * 1000
 
@@ -93,25 +94,29 @@ func (as *lastAggrState) appendSeriesForFlush(ctx *flushCtx) {
 
 	m := &as.m
 	m.Range(func(k, v interface{}) bool {
-		sv := v.(*lastStateValue)
+		sv := v.(*sumSamplesTotalStateValue)
 		sv.mu.Lock()
-		last := sv.last
+		sum := sv.sum
+		if math.Abs(sv.sum) >= (1 << 53) {
+			// It is time to reset the entry, since it starts losing float64 precision
+			sv.sum = 0
+		}
 		sv.mu.Unlock()
 		key := k.(string)
-		ctx.appendSeries(key, as.getOutputName(), currentTimeMsec, last)
+		ctx.appendSeries(key, as.getOutputName(), currentTimeMsec, sum)
 		return true
 	})
 	as.lastPushTimestamp = currentTime
 }
 
-func (as *lastAggrState) getOutputName() string {
-	return "last"
+func (as *sumSamplesTotalAggrState) getOutputName() string {
+	return "sum_samples_total"
 }
 
-func (as *lastAggrState) getStateRepresentation(suffix string) []aggrStateRepresentation {
+func (as *sumSamplesTotalAggrState) getStateRepresentation(suffix string) []aggrStateRepresentation {
 	result := make([]aggrStateRepresentation, 0)
 	as.m.Range(func(k, v any) bool {
-		value := v.(*lastStateValue)
+		value := v.(*sumSamplesTotalStateValue)
 		value.mu.Lock()
 		defer value.mu.Unlock()
 		if value.deleted {
@@ -119,7 +124,7 @@ func (as *lastAggrState) getStateRepresentation(suffix string) []aggrStateRepres
 		}
 		result = append(result, aggrStateRepresentation{
 			metric:            getLabelsStringFromKey(k.(string), suffix, as.getOutputName()),
-			currentValue:      value.last,
+			currentValue:      value.sum,
 			lastPushTimestamp: as.lastPushTimestamp,
 			nextPushTimestamp: as.lastPushTimestamp + as.intervalSecs,
 			samplesCount:      value.samplesCount,

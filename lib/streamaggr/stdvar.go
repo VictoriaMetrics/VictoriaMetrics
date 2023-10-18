@@ -2,28 +2,39 @@ package streamaggr
 
 import (
 	"sync"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 )
 
 // stdvarAggrState calculates output=stdvar, e.g. the average value over input samples.
 type stdvarAggrState struct {
-	m sync.Map
+	m                 sync.Map
+	intervalSecs      uint64
+	stalenessSecs     uint64
+	lastPushTimestamp uint64
 }
 
 type stdvarStateValue struct {
-	mu      sync.Mutex
-	count   float64
-	avg     float64
-	q       float64
-	deleted bool
+	mu             sync.Mutex
+	count          float64
+	avg            float64
+	q              float64
+	deleted        bool
+	deleteDeadline uint64
 }
 
-func newStdvarAggrState() *stdvarAggrState {
-	return &stdvarAggrState{}
+func newStdvarAggrState(interval time.Duration, stalenessInterval time.Duration) *stdvarAggrState {
+	return &stdvarAggrState{
+		intervalSecs:  roundDurationToSecs(interval),
+		stalenessSecs: roundDurationToSecs(stalenessInterval),
+	}
 }
 
 func (as *stdvarAggrState) pushSample(_, outputKey string, value float64) {
+	currentTime := fasttime.UnixTimestamp()
+	deleteDeadline := currentTime + as.stalenessSecs
+
 again:
 	v, ok := as.m.Load(outputKey)
 	if !ok {
@@ -44,6 +55,7 @@ again:
 		avg := sv.avg + (value-sv.avg)/sv.count
 		sv.q += (value - sv.avg) * (value - avg)
 		sv.avg = avg
+		sv.deleteDeadline = deleteDeadline
 	}
 	sv.mu.Unlock()
 	if deleted {
@@ -53,23 +65,49 @@ again:
 	}
 }
 
-func (as *stdvarAggrState) appendSeriesForFlush(ctx *flushCtx) {
-	currentTimeMsec := int64(fasttime.UnixTimestamp()) * 1000
+func (as *stdvarAggrState) removeOldEntries(currentTime uint64) {
 	m := &as.m
 	m.Range(func(k, v interface{}) bool {
-		// Atomically delete the entry from the map, so new entry is created for the next flush.
-		m.Delete(k)
+		sv := v.(*stdvarStateValue)
 
+		sv.mu.Lock()
+		deleted := currentTime > sv.deleteDeadline
+		if deleted {
+			// Mark the current entry as deleted
+			sv.deleted = deleted
+		}
+		sv.mu.Unlock()
+
+		if deleted {
+			m.Delete(k)
+		}
+		return true
+	})
+}
+
+func (as *stdvarAggrState) appendSeriesForFlush(ctx *flushCtx) {
+	currentTime := fasttime.UnixTimestamp()
+	currentTimeMsec := int64(currentTime) * 1000
+
+	as.removeOldEntries(currentTime)
+
+	m := &as.m
+	m.Range(func(k, v interface{}) bool {
 		sv := v.(*stdvarStateValue)
 		sv.mu.Lock()
-		stdvar := sv.q / sv.count
-		// Mark the entry as deleted, so it won't be updated anymore by concurrent pushSample() calls.
-		sv.deleted = true
+		var stdvar float64
+		if sv.count > 0 {
+			stdvar = sv.q / sv.count
+		}
+		sv.q = 0
+		sv.avg = 0
+		sv.count = 0
 		sv.mu.Unlock()
 		key := k.(string)
 		ctx.appendSeries(key, as.getOutputName(), currentTimeMsec, stdvar)
 		return true
 	})
+	as.lastPushTimestamp = currentTime
 }
 
 func (as *stdvarAggrState) getOutputName() string {
@@ -86,8 +124,11 @@ func (as *stdvarAggrState) getStateRepresentation(suffix string) []aggrStateRepr
 			return true
 		}
 		result = append(result, aggrStateRepresentation{
-			metric: getLabelsStringFromKey(k.(string), suffix, as.getOutputName()),
-			value:  value.q / value.count,
+			metric:            getLabelsStringFromKey(k.(string), suffix, as.getOutputName()),
+			currentValue:      value.q / value.count,
+			lastPushTimestamp: as.lastPushTimestamp,
+			nextPushTimestamp: as.lastPushTimestamp + as.intervalSecs,
+			samplesCount:      uint64(value.count),
 		})
 		return true
 	})

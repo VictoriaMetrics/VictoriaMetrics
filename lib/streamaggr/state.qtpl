@@ -1,6 +1,8 @@
 {% import (
+    "fmt"
     "sort"
     "strings"
+    "time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/htmlcomponents"
 ) %}
@@ -164,7 +166,10 @@
                                 <thead>
                                     <tr>
                                         <th scope="col">Metric</th>
-                                        <th scope="col">Value</th>
+                                        <th scope="col">Current value</th>
+                                        <th scope="col">Samples count</th>
+                                        <th scope="col">Last push time</th>
+                                        <th scope="col">Next push time</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -174,7 +179,24 @@
                                                 <code>{%s asr.metric %}</code>
                                             </td>
                                             <td class="text-end">
-                                                {%f asr.value %}
+                                                {%f asr.currentValue %}
+                                            </td>
+                                            <td class="text-end">
+                                                {%s fmt.Sprintf("%v", asr.samplesCount) %}
+                                            </td>
+                                            <td>
+                                                {% if asr.lastPushTimestamp == 0 %}
+                                                    {%s time.Unix(int64(agg.initialTime), 0).String() %}
+                                                {% else %}
+                                                    {%s time.Unix(int64(asr.lastPushTimestamp), 0).String() %}
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if asr.lastPushTimestamp == 0 %}
+                                                    {%s time.Unix(int64(asr.nextPushTimestamp + agg.initialTime), 0).Format(time.RFC3339) %}
+                                                {% else %}
+                                                    {%s time.Unix(int64(asr.nextPushTimestamp), 0).Format(time.RFC3339) %}
+                                                {% endif %}
                                             </td>
                                         </tr>
                                     {% endfor %}

@@ -4,6 +4,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
@@ -12,24 +13,33 @@ import (
 
 // quantilesAggrState calculates output=quantiles, e.g. the the given quantiles over the input samples.
 type quantilesAggrState struct {
-	m sync.Map
-
-	phis []float64
+	m                 sync.Map
+	phis              []float64
+	intervalSecs      uint64
+	stalenessSecs     uint64
+	lastPushTimestamp uint64
 }
 
 type quantilesStateValue struct {
-	mu      sync.Mutex
-	h       *histogram.Fast
-	deleted bool
+	mu             sync.Mutex
+	h              *histogram.Fast
+	samplesCount   uint64
+	deleted        bool
+	deleteDeadline uint64
 }
 
-func newQuantilesAggrState(phis []float64) *quantilesAggrState {
+func newQuantilesAggrState(interval time.Duration, stalenessInterval time.Duration, phis []float64) *quantilesAggrState {
 	return &quantilesAggrState{
-		phis: phis,
+		intervalSecs:  roundDurationToSecs(interval),
+		stalenessSecs: roundDurationToSecs(stalenessInterval),
+		phis:          phis,
 	}
 }
 
 func (as *quantilesAggrState) pushSample(_, outputKey string, value float64) {
+	currentTime := fasttime.UnixTimestamp()
+	deleteDeadline := currentTime + as.stalenessSecs
+
 again:
 	v, ok := as.m.Load(outputKey)
 	if !ok {
@@ -50,6 +60,8 @@ again:
 	deleted := sv.deleted
 	if !deleted {
 		sv.h.Update(value)
+		sv.samplesCount++
+		sv.deleteDeadline = deleteDeadline
 	}
 	sv.mu.Unlock()
 	if deleted {
@@ -59,22 +71,42 @@ again:
 	}
 }
 
+func (as *quantilesAggrState) removeOldEntries(currentTime uint64) {
+	m := &as.m
+	m.Range(func(k, v interface{}) bool {
+		sv := v.(*quantilesStateValue)
+
+		sv.mu.Lock()
+		deleted := currentTime > sv.deleteDeadline
+		if deleted {
+			// Mark the current entry as deleted
+			sv.deleted = deleted
+			histogram.PutFast(sv.h)
+		}
+		sv.mu.Unlock()
+
+		if deleted {
+			m.Delete(k)
+		}
+		return true
+	})
+}
+
 func (as *quantilesAggrState) appendSeriesForFlush(ctx *flushCtx) {
-	currentTimeMsec := int64(fasttime.UnixTimestamp()) * 1000
+	currentTime := fasttime.UnixTimestamp()
+	currentTimeMsec := int64(currentTime) * 1000
+
+	as.removeOldEntries(currentTime)
+
 	m := &as.m
 	phis := as.phis
 	var quantiles []float64
 	var b []byte
 	m.Range(func(k, v interface{}) bool {
-		// Atomically delete the entry from the map, so new entry is created for the next flush.
-		m.Delete(k)
-
 		sv := v.(*quantilesStateValue)
 		sv.mu.Lock()
 		quantiles = sv.h.Quantiles(quantiles[:0], phis)
-		histogram.PutFast(sv.h)
-		// Mark the entry as deleted, so it won't be updated anymore by concurrent pushSample() calls.
-		sv.deleted = true
+		sv.h.Reset()
 		sv.mu.Unlock()
 
 		key := k.(string)
@@ -85,6 +117,7 @@ func (as *quantilesAggrState) appendSeriesForFlush(ctx *flushCtx) {
 		}
 		return true
 	})
+	as.lastPushTimestamp = currentTime
 }
 
 func (as *quantilesAggrState) getOutputName() string {
@@ -108,7 +141,10 @@ func (as *quantilesAggrState) getStateRepresentation(suffix string) []aggrStateR
 					Name:  "quantile",
 					Value: bytesutil.InternBytes(b),
 				}),
-				value: quantile,
+				currentValue:      quantile,
+				lastPushTimestamp: as.lastPushTimestamp,
+				nextPushTimestamp: as.lastPushTimestamp + as.intervalSecs,
+				samplesCount:      value.samplesCount,
 			})
 		}
 		return true

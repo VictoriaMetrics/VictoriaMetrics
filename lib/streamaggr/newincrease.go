@@ -10,17 +10,18 @@ import (
 
 // newincreaseAggrState calculates output=newincrease, e.g. the newincrease over input counters.
 type newincreaseAggrState struct {
-	m sync.Map
-
+	m                   sync.Map
+	intervalSecs        uint64
 	ignoreInputDeadline uint64
 	stalenessSecs       uint64
+	lastPushTimestamp   uint64
 }
 
 type newincreaseStateValue struct {
 	mu             sync.Mutex
 	lastValues     map[string]*lastValueState
 	total          float64
-	first          float64
+	samplesCount   uint64
 	deleteDeadline uint64
 	deleted        bool
 }
@@ -30,8 +31,9 @@ func newnewincreaseAggrState(interval time.Duration, stalenessInterval time.Dura
 	intervalSecs := roundDurationToSecs(interval)
 	stalenessSecs := roundDurationToSecs(stalenessInterval)
 	return &newincreaseAggrState{
-		ignoreInputDeadline: currentTime + intervalSecs,
+		intervalSecs:        intervalSecs,
 		stalenessSecs:       stalenessSecs,
+		ignoreInputDeadline: currentTime + intervalSecs,
 	}
 }
 
@@ -87,6 +89,7 @@ again:
 		lv.value = value
 		lv.deleteDeadline = deleteDeadline
 		sv.deleteDeadline = deleteDeadline
+		sv.samplesCount++
 	}
 	sv.mu.Unlock()
 	if deleted {
@@ -144,6 +147,7 @@ func (as *newincreaseAggrState) appendSeriesForFlush(ctx *flushCtx) {
 		}
 		return true
 	})
+	as.lastPushTimestamp = currentTime
 }
 
 func (as *newincreaseAggrState) getOutputName() string {
@@ -160,8 +164,11 @@ func (as *newincreaseAggrState) getStateRepresentation(suffix string) []aggrStat
 			return true
 		}
 		result = append(result, aggrStateRepresentation{
-			metric: getLabelsStringFromKey(k.(string), suffix, as.getOutputName()),
-			value:  value.total,
+			metric:            getLabelsStringFromKey(k.(string), suffix, as.getOutputName()),
+			currentValue:      value.total,
+			lastPushTimestamp: as.lastPushTimestamp,
+			nextPushTimestamp: as.lastPushTimestamp + as.intervalSecs,
+			samplesCount:      value.samplesCount,
 		})
 		return true
 	})

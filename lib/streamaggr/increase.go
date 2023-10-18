@@ -9,16 +9,18 @@ import (
 
 // increaseAggrState calculates output=increase, e.g. the increase over input counters.
 type increaseAggrState struct {
-	m sync.Map
-
+	m                   sync.Map
+	intervalSecs        uint64
 	ignoreInputDeadline uint64
 	stalenessSecs       uint64
+	lastPushTimestamp   uint64
 }
 
 type increaseStateValue struct {
 	mu             sync.Mutex
 	lastValues     map[string]*lastValueState
 	total          float64
+	samplesCount   uint64
 	deleteDeadline uint64
 	deleted        bool
 }
@@ -28,8 +30,9 @@ func newIncreaseAggrState(interval time.Duration, stalenessInterval time.Duratio
 	intervalSecs := roundDurationToSecs(interval)
 	stalenessSecs := roundDurationToSecs(stalenessInterval)
 	return &increaseAggrState{
-		ignoreInputDeadline: currentTime + intervalSecs,
+		intervalSecs:        intervalSecs,
 		stalenessSecs:       stalenessSecs,
+		ignoreInputDeadline: currentTime + intervalSecs,
 	}
 }
 
@@ -69,6 +72,7 @@ again:
 		lv.value = value
 		lv.deleteDeadline = deleteDeadline
 		sv.deleteDeadline = deleteDeadline
+		sv.samplesCount++
 	}
 	sv.mu.Unlock()
 	if deleted {
@@ -126,6 +130,8 @@ func (as *increaseAggrState) appendSeriesForFlush(ctx *flushCtx) {
 		}
 		return true
 	})
+
+	as.lastPushTimestamp = currentTime
 }
 
 func (as *increaseAggrState) getOutputName() string {
@@ -142,8 +148,11 @@ func (as *increaseAggrState) getStateRepresentation(suffix string) []aggrStateRe
 			return true
 		}
 		result = append(result, aggrStateRepresentation{
-			metric: getLabelsStringFromKey(k.(string), suffix, as.getOutputName()),
-			value:  value.total,
+			metric:            getLabelsStringFromKey(k.(string), suffix, as.getOutputName()),
+			currentValue:      value.total,
+			lastPushTimestamp: as.lastPushTimestamp,
+			nextPushTimestamp: as.lastPushTimestamp + as.intervalSecs,
+			samplesCount:      value.samplesCount,
 		})
 		return true
 	})

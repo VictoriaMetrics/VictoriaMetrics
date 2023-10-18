@@ -1,36 +1,38 @@
 package streamaggr
 
 import (
+	"math"
 	"sync"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 )
 
-// lastAggrState calculates output=last, e.g. the last value over input samples.
-type lastAggrState struct {
+// totalPureAggrState calculates output=total_pure, e.g. the summary counter over input counters.
+type totalPureAggrState struct {
 	m                 sync.Map
 	intervalSecs      uint64
 	stalenessSecs     uint64
 	lastPushTimestamp uint64
 }
 
-type lastStateValue struct {
+type totalPureStateValue struct {
 	mu             sync.Mutex
-	last           float64
+	lastValues     map[string]*lastValueState
+	total          float64
 	samplesCount   uint64
-	deleted        bool
 	deleteDeadline uint64
+	deleted        bool
 }
 
-func newLastAggrState(interval time.Duration, stalenessInterval time.Duration) *lastAggrState {
-	return &lastAggrState{
+func newTotalPureAggrState(interval time.Duration, stalenessInterval time.Duration) *totalPureAggrState {
+	return &totalPureAggrState{
 		intervalSecs:  roundDurationToSecs(interval),
 		stalenessSecs: roundDurationToSecs(stalenessInterval),
 	}
 }
 
-func (as *lastAggrState) pushSample(_, outputKey string, value float64) {
+func (as *totalPureAggrState) pushSample(inputKey, outputKey string, value float64) {
 	currentTime := fasttime.UnixTimestamp()
 	deleteDeadline := currentTime + as.stalenessSecs
 
@@ -38,24 +40,33 @@ again:
 	v, ok := as.m.Load(outputKey)
 	if !ok {
 		// The entry is missing in the map. Try creating it.
-		v = &lastStateValue{
-			last: value,
+		v = &totalPureStateValue{
+			lastValues: make(map[string]*lastValueState),
 		}
 		vNew, loaded := as.m.LoadOrStore(outputKey, v)
-		if !loaded {
-			// The new entry has been successfully created.
-			return
+		if loaded {
+			// Use the entry created by a concurrent goroutine.
+			v = vNew
 		}
-		// Use the entry created by a concurrent goroutine.
-		v = vNew
 	}
-	sv := v.(*lastStateValue)
+	sv := v.(*totalPureStateValue)
 	sv.mu.Lock()
 	deleted := sv.deleted
 	if !deleted {
-		sv.last = value
-		sv.samplesCount++
+		lv, ok := sv.lastValues[inputKey]
+		if !ok {
+			lv = &lastValueState{}
+			sv.lastValues[inputKey] = lv
+		}
+		d := value
+		if ok && lv.value <= value {
+			d = value - lv.value
+		}
+		sv.total += d
+		lv.value = value
+		lv.deleteDeadline = deleteDeadline
 		sv.deleteDeadline = deleteDeadline
+		sv.samplesCount++
 	}
 	sv.mu.Unlock()
 	if deleted {
@@ -65,16 +76,24 @@ again:
 	}
 }
 
-func (as *lastAggrState) removeOldEntries(currentTime uint64) {
+func (as *totalPureAggrState) removeOldEntries(currentTime uint64) {
 	m := &as.m
 	m.Range(func(k, v interface{}) bool {
-		sv := v.(*lastStateValue)
+		sv := v.(*totalPureStateValue)
 
 		sv.mu.Lock()
 		deleted := currentTime > sv.deleteDeadline
 		if deleted {
 			// Mark the current entry as deleted
 			sv.deleted = deleted
+		} else {
+			// Delete outdated entries in sv.lastValues
+			m := sv.lastValues
+			for k1, v1 := range m {
+				if currentTime > v1.deleteDeadline {
+					delete(m, k1)
+				}
+			}
 		}
 		sv.mu.Unlock()
 
@@ -85,7 +104,7 @@ func (as *lastAggrState) removeOldEntries(currentTime uint64) {
 	})
 }
 
-func (as *lastAggrState) appendSeriesForFlush(ctx *flushCtx) {
+func (as *totalPureAggrState) appendSeriesForFlush(ctx *flushCtx) {
 	currentTime := fasttime.UnixTimestamp()
 	currentTimeMsec := int64(currentTime) * 1000
 
@@ -93,25 +112,32 @@ func (as *lastAggrState) appendSeriesForFlush(ctx *flushCtx) {
 
 	m := &as.m
 	m.Range(func(k, v interface{}) bool {
-		sv := v.(*lastStateValue)
+		sv := v.(*totalPureStateValue)
 		sv.mu.Lock()
-		last := sv.last
+		totalPure := sv.total
+		if math.Abs(sv.total) >= (1 << 53) {
+			// It is time to reset the entry, since it starts losing float64 precision
+			sv.total = 0
+		}
+		deleted := sv.deleted
 		sv.mu.Unlock()
-		key := k.(string)
-		ctx.appendSeries(key, as.getOutputName(), currentTimeMsec, last)
+		if !deleted {
+			key := k.(string)
+			ctx.appendSeries(key, as.getOutputName(), currentTimeMsec, totalPure)
+		}
 		return true
 	})
 	as.lastPushTimestamp = currentTime
 }
 
-func (as *lastAggrState) getOutputName() string {
-	return "last"
+func (as *totalPureAggrState) getOutputName() string {
+	return "total_pure"
 }
 
-func (as *lastAggrState) getStateRepresentation(suffix string) []aggrStateRepresentation {
+func (as *totalPureAggrState) getStateRepresentation(suffix string) []aggrStateRepresentation {
 	result := make([]aggrStateRepresentation, 0)
 	as.m.Range(func(k, v any) bool {
-		value := v.(*lastStateValue)
+		value := v.(*totalPureStateValue)
 		value.mu.Lock()
 		defer value.mu.Unlock()
 		if value.deleted {
@@ -119,7 +145,7 @@ func (as *lastAggrState) getStateRepresentation(suffix string) []aggrStateRepres
 		}
 		result = append(result, aggrStateRepresentation{
 			metric:            getLabelsStringFromKey(k.(string), suffix, as.getOutputName()),
-			currentValue:      value.last,
+			currentValue:      value.total,
 			lastPushTimestamp: as.lastPushTimestamp,
 			nextPushTimestamp: as.lastPushTimestamp + as.intervalSecs,
 			samplesCount:      value.samplesCount,

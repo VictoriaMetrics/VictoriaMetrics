@@ -1,14 +1,14 @@
-- match:
-    - '{__name__=~".*total"}'
-    - '{__name__=~".*entries"}'
-    - '{__name__=~".*count"}'
-  interval: 1m
-  by: [instance]
+- match: 'extension.error'
+  interval: 5m
+  staleness_interval: 24h
+  without: [instance]
   outputs:
     - total
-    - newtotal
     - increase
+    - newtotal
     - newincrease
+    - total_pure
+    - increase_pure
     - avg
     - count_samples
     - count_series
@@ -20,7 +20,4 @@
     - stddev
     - stdvar
     - sum_samples
-- match: 'extension.error'
-  interval: 1h
-  without: [instance]
-  outputs: [total, increase, newtotal, newincrease]
+    - sum_samples_total

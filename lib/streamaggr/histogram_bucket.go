@@ -12,22 +12,24 @@ import (
 
 // histogramBucketAggrState calculates output=histogramBucket, e.g. VictoriaMetrics histogram over input samples.
 type histogramBucketAggrState struct {
-	m sync.Map
-
-	stalenessSecs uint64
+	m                 sync.Map
+	intervalSecs      uint64
+	stalenessSecs     uint64
+	lastPushTimestamp uint64
 }
 
 type histogramBucketStateValue struct {
 	mu             sync.Mutex
 	h              metrics.Histogram
+	samplesCount   uint64
 	deleteDeadline uint64
 	deleted        bool
 }
 
-func newHistogramBucketAggrState(stalenessInterval time.Duration) *histogramBucketAggrState {
-	stalenessSecs := roundDurationToSecs(stalenessInterval)
+func newHistogramBucketAggrState(interval time.Duration, stalenessInterval time.Duration) *histogramBucketAggrState {
 	return &histogramBucketAggrState{
-		stalenessSecs: stalenessSecs,
+		intervalSecs:  roundDurationToSecs(interval),
+		stalenessSecs: roundDurationToSecs(stalenessInterval),
 	}
 }
 
@@ -51,6 +53,7 @@ again:
 	deleted := sv.deleted
 	if !deleted {
 		sv.h.Update(value)
+		sv.samplesCount++
 		sv.deleteDeadline = deleteDeadline
 	}
 	sv.mu.Unlock()
@@ -100,6 +103,8 @@ func (as *histogramBucketAggrState) appendSeriesForFlush(ctx *flushCtx) {
 		sv.mu.Unlock()
 		return true
 	})
+
+	as.lastPushTimestamp = currentTime
 }
 
 func (as *histogramBucketAggrState) getOutputName() string {
@@ -121,7 +126,10 @@ func (as *histogramBucketAggrState) getStateRepresentation(suffix string) []aggr
 					Name:  vmrange,
 					Value: vmrange,
 				}),
-				value: float64(count),
+				currentValue:      float64(count),
+				lastPushTimestamp: as.lastPushTimestamp,
+				nextPushTimestamp: as.lastPushTimestamp + as.intervalSecs,
+				samplesCount:      value.samplesCount,
 			})
 		})
 		return true

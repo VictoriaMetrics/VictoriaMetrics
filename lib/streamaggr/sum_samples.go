@@ -2,26 +2,38 @@ package streamaggr
 
 import (
 	"sync"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 )
 
 // sumSamplesAggrState calculates output=sum_samples, e.g. the sum over input samples.
 type sumSamplesAggrState struct {
-	m sync.Map
+	m                 sync.Map
+	intervalSecs      uint64
+	stalenessSecs     uint64
+	lastPushTimestamp uint64
 }
 
 type sumSamplesStateValue struct {
-	mu      sync.Mutex
-	sum     float64
-	deleted bool
+	mu             sync.Mutex
+	sum            float64
+	samplesCount   uint64
+	deleted        bool
+	deleteDeadline uint64
 }
 
-func newSumSamplesAggrState() *sumSamplesAggrState {
-	return &sumSamplesAggrState{}
+func newSumSamplesAggrState(interval time.Duration, stalenessInterval time.Duration) *sumSamplesAggrState {
+	return &sumSamplesAggrState{
+		intervalSecs:  roundDurationToSecs(interval),
+		stalenessSecs: roundDurationToSecs(stalenessInterval),
+	}
 }
 
 func (as *sumSamplesAggrState) pushSample(_, outputKey string, value float64) {
+	currentTime := fasttime.UnixTimestamp()
+	deleteDeadline := currentTime + as.stalenessSecs
+
 again:
 	v, ok := as.m.Load(outputKey)
 	if !ok {
@@ -42,6 +54,8 @@ again:
 	deleted := sv.deleted
 	if !deleted {
 		sv.sum += value
+		sv.samplesCount++
+		sv.deleteDeadline = deleteDeadline
 	}
 	sv.mu.Unlock()
 	if deleted {
@@ -51,23 +65,44 @@ again:
 	}
 }
 
-func (as *sumSamplesAggrState) appendSeriesForFlush(ctx *flushCtx) {
-	currentTimeMsec := int64(fasttime.UnixTimestamp()) * 1000
+func (as *sumSamplesAggrState) removeOldEntries(currentTime uint64) {
 	m := &as.m
 	m.Range(func(k, v interface{}) bool {
-		// Atomically delete the entry from the map, so new entry is created for the next flush.
-		m.Delete(k)
+		sv := v.(*sumSamplesStateValue)
 
+		sv.mu.Lock()
+		deleted := currentTime > sv.deleteDeadline
+		if deleted {
+			// Mark the current entry as deleted
+			sv.deleted = deleted
+		}
+		sv.mu.Unlock()
+
+		if deleted {
+			m.Delete(k)
+		}
+		return true
+	})
+}
+
+func (as *sumSamplesAggrState) appendSeriesForFlush(ctx *flushCtx) {
+	currentTime := fasttime.UnixTimestamp()
+	currentTimeMsec := int64(currentTime) * 1000
+
+	as.removeOldEntries(currentTime)
+
+	m := &as.m
+	m.Range(func(k, v interface{}) bool {
 		sv := v.(*sumSamplesStateValue)
 		sv.mu.Lock()
 		sum := sv.sum
-		// Mark the entry as deleted, so it won't be updated anymore by concurrent pushSample() calls.
-		sv.deleted = true
+		sv.sum = 0
 		sv.mu.Unlock()
 		key := k.(string)
 		ctx.appendSeries(key, as.getOutputName(), currentTimeMsec, sum)
 		return true
 	})
+	as.lastPushTimestamp = currentTime
 }
 
 func (as *sumSamplesAggrState) getOutputName() string {
@@ -84,8 +119,11 @@ func (as *sumSamplesAggrState) getStateRepresentation(suffix string) []aggrState
 			return true
 		}
 		result = append(result, aggrStateRepresentation{
-			metric: getLabelsStringFromKey(k.(string), suffix, as.getOutputName()),
-			value:  value.sum,
+			metric:            getLabelsStringFromKey(k.(string), suffix, as.getOutputName()),
+			currentValue:      value.sum,
+			lastPushTimestamp: as.lastPushTimestamp,
+			nextPushTimestamp: as.lastPushTimestamp + as.intervalSecs,
+			samplesCount:      value.samplesCount,
 		})
 		return true
 	})
