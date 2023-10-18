@@ -26,6 +26,7 @@ var (
 	maxTagValuesPerSearch = flag.Int("search.maxTagValues", 100e3, "The maximum number of tag values returned from /api/v1/label/<label_name>/values")
 	maxSamplesPerSeries   = flag.Int("search.maxSamplesPerSeries", 30e6, "The maximum number of raw samples a single query can scan per each time series. This option allows limiting memory usage")
 	maxSamplesPerQuery    = flag.Int("search.maxSamplesPerQuery", 1e9, "The maximum number of raw samples a single query can process across all time series. This protects from heavy queries, which select unexpectedly high number of raw samples. See also -search.maxSamplesPerSeries")
+	maxWorkersPerQuery    = flag.Int("search.maxWorkersPerQuery", 0, "The maximum number of workers for query processing. The default value will be automatically detected based on number of available CPU cores. The flag value might be reduced for systems with high number of CPUs in order to reduce the lock contention for read queries.")
 )
 
 // Result is a single timeseries result.
@@ -197,9 +198,20 @@ type result struct {
 
 var resultPool sync.Pool
 
+// maxWorkersLimit defines the max number of concurrently running workers
+// without adding too much contention penalty during query processing.
+const maxWorkersLimit = 32
+
 // MaxWorkers returns the maximum number of workers netstorage can spin when calling RunParallel()
 func MaxWorkers() int {
-	return gomaxprocs
+	if *maxWorkersPerQuery > 0 {
+		return *maxWorkersPerQuery
+	}
+	n := gomaxprocs
+	if n > maxWorkersLimit {
+		return maxWorkersLimit
+	}
+	return n
 }
 
 var gomaxprocs = cgroup.AvailableCPUs()
