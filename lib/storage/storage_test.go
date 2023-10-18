@@ -1366,7 +1366,7 @@ func TestStorageSeriesAreNotCreatedOnStaleMarkers(t *testing.T) {
 	s := MustOpenStorage(path, -1, 1e5, 1e6)
 
 	tr := TimeRange{MinTimestamp: 0, MaxTimestamp: 2e10}
-	tfsAll := NewTagFilters()
+	tfsAll := NewTagFilters(0, 0)
 	if err := tfsAll.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
 		t.Fatalf("unexpected error in TagFilters.Add: %s", err)
 	}
