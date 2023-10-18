@@ -697,8 +697,6 @@ func (tb *Table) flushBlocksToParts(ibs []*inmemoryBlock, isFinal bool) {
 	if len(ibs) == 0 {
 		return
 	}
-	var pwsLock sync.Mutex
-	pws := make([]*partWrapper, 0, (len(ibs)+defaultPartsToMerge-1)/defaultPartsToMerge)
 	wg := getWaitGroup()
 	for len(ibs) > 0 {
 		n := defaultPartsToMerge
@@ -716,23 +714,15 @@ func (tb *Table) flushBlocksToParts(ibs []*inmemoryBlock, isFinal bool) {
 			if pw == nil {
 				return
 			}
-			pwsLock.Lock()
-			pws = append(pws, pw)
-			pwsLock.Unlock()
+			tb.partsLock.Lock()
+			tb.inmemoryParts = append(tb.inmemoryParts, pw)
+			tb.notifyBackgroundMergers()
+			tb.partsLock.Unlock()
 		}(ibs[:n])
 		ibs = ibs[n:]
 	}
 	wg.Wait()
 	putWaitGroup(wg)
-
-	tb.partsLock.Lock()
-	tb.inmemoryParts = append(tb.inmemoryParts, pws...)
-	for range pws {
-		if !tb.notifyBackgroundMergers() {
-			break
-		}
-	}
-	tb.partsLock.Unlock()
 
 	if tb.flushCallback != nil {
 		if isFinal {
@@ -834,7 +824,10 @@ func putWaitGroup(wg *sync.WaitGroup) {
 
 var wgPool sync.Pool
 
+var inmemoryPartConcurrency = make(chan struct{}, 100)
+
 func (tb *Table) createInmemoryPart(ibs []*inmemoryBlock) *partWrapper {
+	inmemoryPartConcurrency <- struct{}{}
 	outItemsCount := uint64(0)
 	for _, ib := range ibs {
 		outItemsCount += uint64(ib.Len())
@@ -1252,9 +1245,11 @@ func (tb *Table) swapSrcWithDstParts(pws []*partWrapper, pwNew *partWrapper, dst
 
 	tb.inmemoryParts, removedInmemoryParts = removeParts(tb.inmemoryParts, m)
 	tb.fileParts, removedFileParts = removeParts(tb.fileParts, m)
+	addedInmemoryParts := 0
 	switch dstPartType {
 	case partInmemory:
 		tb.inmemoryParts = append(tb.inmemoryParts, pwNew)
+		addedInmemoryParts = 1
 	case partFile:
 		tb.fileParts = append(tb.fileParts, pwNew)
 	default:
@@ -1270,6 +1265,9 @@ func (tb *Table) swapSrcWithDstParts(pws []*partWrapper, pwNew *partWrapper, dst
 	}
 
 	tb.partsLock.Unlock()
+	for i := 0; i < removedInmemoryParts-addedInmemoryParts; i++ {
+		<-inmemoryPartConcurrency
+	}
 
 	removedParts := removedInmemoryParts + removedFileParts
 	if removedParts != len(m) {
