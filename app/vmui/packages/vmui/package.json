@@ -30,7 +30,7 @@
     "web-vitals": "^3.3.2"
   },
   "scripts": {
-    "prestart": "npm run update-metricsql",
+    "prestart": "npm run copy-metricsql-docs",
     "start": "react-app-rewired start",
     "start:logs": "cross-env REACT_APP_LOGS=true npm run start",
     "build": "GENERATE_SOURCEMAP=false react-app-rewired build",
