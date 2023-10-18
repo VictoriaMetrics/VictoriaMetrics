@@ -854,62 +854,68 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 	if sc.SeriesLimit > 0 {
 		seriesLimit = sc.SeriesLimit
 	}
+	var forceHTTPConnect bool
+	if sc.ProxyClientConfig.ForceHTTPConnect != nil {
+		forceHTTPConnect = *sc.ProxyClientConfig.ForceHTTPConnect
+	}
 	swc := &scrapeWorkConfig{
-		scrapeInterval:       scrapeInterval,
-		scrapeIntervalString: scrapeInterval.String(),
-		scrapeTimeout:        scrapeTimeout,
-		scrapeTimeoutString:  scrapeTimeout.String(),
-		jobName:              jobName,
-		metricsPath:          metricsPath,
-		scheme:               scheme,
-		params:               params,
-		proxyURL:             sc.ProxyURL,
-		proxyAuthConfig:      proxyAC,
-		authConfig:           ac,
-		honorLabels:          honorLabels,
-		honorTimestamps:      honorTimestamps,
-		denyRedirects:        denyRedirects,
-		externalLabels:       externalLabels,
-		relabelConfigs:       relabelConfigs,
-		metricRelabelConfigs: metricRelabelConfigs,
-		sampleLimit:          sc.SampleLimit,
-		disableCompression:   sc.DisableCompression,
-		disableKeepAlive:     sc.DisableKeepAlive,
-		streamParse:          sc.StreamParse,
-		scrapeAlignInterval:  sc.ScrapeAlignInterval.Duration(),
-		scrapeOffset:         sc.ScrapeOffset.Duration(),
-		seriesLimit:          seriesLimit,
-		noStaleMarkers:       noStaleTracking,
+		scrapeInterval:        scrapeInterval,
+		scrapeIntervalString:  scrapeInterval.String(),
+		scrapeTimeout:         scrapeTimeout,
+		scrapeTimeoutString:   scrapeTimeout.String(),
+		jobName:               jobName,
+		metricsPath:           metricsPath,
+		scheme:                scheme,
+		params:                params,
+		proxyURL:              sc.ProxyURL,
+		proxyAuthConfig:       proxyAC,
+		proxyForceHTTPConnect: forceHTTPConnect,
+		authConfig:            ac,
+		honorLabels:           honorLabels,
+		honorTimestamps:       honorTimestamps,
+		denyRedirects:         denyRedirects,
+		externalLabels:        externalLabels,
+		relabelConfigs:        relabelConfigs,
+		metricRelabelConfigs:  metricRelabelConfigs,
+		sampleLimit:           sc.SampleLimit,
+		disableCompression:    sc.DisableCompression,
+		disableKeepAlive:      sc.DisableKeepAlive,
+		streamParse:           sc.StreamParse,
+		scrapeAlignInterval:   sc.ScrapeAlignInterval.Duration(),
+		scrapeOffset:          sc.ScrapeOffset.Duration(),
+		seriesLimit:           seriesLimit,
+		noStaleMarkers:        noStaleTracking,
 	}
 	return swc, nil
 }
 
 type scrapeWorkConfig struct {
-	scrapeInterval       time.Duration
-	scrapeIntervalString string
-	scrapeTimeout        time.Duration
-	scrapeTimeoutString  string
-	jobName              string
-	metricsPath          string
-	scheme               string
-	params               map[string][]string
-	proxyURL             *proxy.URL
-	proxyAuthConfig      *promauth.Config
-	authConfig           *promauth.Config
-	honorLabels          bool
-	honorTimestamps      bool
-	denyRedirects        bool
-	externalLabels       *promutils.Labels
-	relabelConfigs       *promrelabel.ParsedConfigs
-	metricRelabelConfigs *promrelabel.ParsedConfigs
-	sampleLimit          int
-	disableCompression   bool
-	disableKeepAlive     bool
-	streamParse          bool
-	scrapeAlignInterval  time.Duration
-	scrapeOffset         time.Duration
-	seriesLimit          int
-	noStaleMarkers       bool
+	scrapeInterval        time.Duration
+	scrapeIntervalString  string
+	scrapeTimeout         time.Duration
+	scrapeTimeoutString   string
+	jobName               string
+	metricsPath           string
+	scheme                string
+	params                map[string][]string
+	proxyURL              *proxy.URL
+	proxyAuthConfig       *promauth.Config
+	proxyForceHTTPConnect bool
+	authConfig            *promauth.Config
+	honorLabels           bool
+	honorTimestamps       bool
+	denyRedirects         bool
+	externalLabels        *promutils.Labels
+	relabelConfigs        *promrelabel.ParsedConfigs
+	metricRelabelConfigs  *promrelabel.ParsedConfigs
+	sampleLimit           int
+	disableCompression    bool
+	disableKeepAlive      bool
+	streamParse           bool
+	scrapeAlignInterval   time.Duration
+	scrapeOffset          time.Duration
+	seriesLimit           int
+	noStaleMarkers        bool
 }
 
 func appendScrapeWorkForTargetLabels(dst []*ScrapeWork, swc *scrapeWorkConfig, targetLabels []*promutils.Labels, discoveryType string) []*ScrapeWork {
@@ -1157,29 +1163,30 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 
 	originalLabels = sortOriginalLabelsIfNeeded(originalLabels)
 	sw := &ScrapeWork{
-		ScrapeURL:            scrapeURL,
-		ScrapeInterval:       scrapeInterval,
-		ScrapeTimeout:        scrapeTimeout,
-		HonorLabels:          swc.honorLabels,
-		HonorTimestamps:      swc.honorTimestamps,
-		DenyRedirects:        swc.denyRedirects,
-		OriginalLabels:       originalLabels,
-		Labels:               labelsCopy,
-		ExternalLabels:       swc.externalLabels,
-		ProxyURL:             swc.proxyURL,
-		ProxyAuthConfig:      swc.proxyAuthConfig,
-		AuthConfig:           swc.authConfig,
-		RelabelConfigs:       swc.relabelConfigs,
-		MetricRelabelConfigs: swc.metricRelabelConfigs,
-		SampleLimit:          swc.sampleLimit,
-		DisableCompression:   swc.disableCompression,
-		DisableKeepAlive:     swc.disableKeepAlive,
-		StreamParse:          streamParse,
-		ScrapeAlignInterval:  swc.scrapeAlignInterval,
-		ScrapeOffset:         swc.scrapeOffset,
-		SeriesLimit:          seriesLimit,
-		NoStaleMarkers:       swc.noStaleMarkers,
-		AuthToken:            at,
+		ScrapeURL:             scrapeURL,
+		ScrapeInterval:        scrapeInterval,
+		ScrapeTimeout:         scrapeTimeout,
+		HonorLabels:           swc.honorLabels,
+		HonorTimestamps:       swc.honorTimestamps,
+		DenyRedirects:         swc.denyRedirects,
+		OriginalLabels:        originalLabels,
+		Labels:                labelsCopy,
+		ExternalLabels:        swc.externalLabels,
+		ProxyURL:              swc.proxyURL,
+		ProxyAuthConfig:       swc.proxyAuthConfig,
+		ProxyForceHTTPConnect: swc.proxyForceHTTPConnect,
+		AuthConfig:            swc.authConfig,
+		RelabelConfigs:        swc.relabelConfigs,
+		MetricRelabelConfigs:  swc.metricRelabelConfigs,
+		SampleLimit:           swc.sampleLimit,
+		DisableCompression:    swc.disableCompression,
+		DisableKeepAlive:      swc.disableKeepAlive,
+		StreamParse:           streamParse,
+		ScrapeAlignInterval:   swc.scrapeAlignInterval,
+		ScrapeOffset:          swc.scrapeOffset,
+		SeriesLimit:           seriesLimit,
+		NoStaleMarkers:        swc.noStaleMarkers,
+		AuthToken:             at,
 
 		jobNameOriginal: swc.jobName,
 	}

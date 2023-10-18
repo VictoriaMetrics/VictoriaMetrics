@@ -1609,6 +1609,10 @@ and in the majority of [supported service discovery configs](#supported-service-
     # - "HeaderName1: HeaderValue"
     # - "HeaderNameN: HeaderValueN"
 
+    # proxy_force_http_connect is an optional boolean to force HTTP bound scrape requests to use HTTP CONNECT Passthrough for proxying.
+    # By default, HTTP CONNECT Passthrough is only used on HTTPS destinations, and HTTP destinations proxy as a GET request.
+    # proxy_force_http_connect: <boolean>
+
     # follow_redirects can be used for disallowing HTTP redirects.
     # By default HTTP redirects are followed.
     # follow_redirects: false

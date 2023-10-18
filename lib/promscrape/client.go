@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -96,10 +97,14 @@ func newClient(ctx context.Context, sw *ScrapeWork) (*client, error) {
 			return nil, fmt.Errorf("cannot initialize tls config: %w", err)
 		}
 	}
+	var proxyURLFunc func(*http.Request) (*url.URL, error)
 	setProxyHeaders := func(req *http.Request) error { return nil }
 	setFasthttpProxyHeaders := func(req *fasthttp.Request) error { return nil }
 	proxyURL := sw.ProxyURL
-	if !isTLS && proxyURL.IsHTTPOrHTTPS() {
+	// If it's not TLS, and the Proxy URL is HTTP(s), and the user didn't request to force HTTP CONNECT Passthrough. The
+	// latter check is to support konnectivity, which only uses HTTP CONNECT passthrough, even for non-TLS requests.
+	// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5109
+	if !isTLS && proxyURL.IsHTTPOrHTTPS() && !sw.ProxyForceHTTPConnect {
 		// Send full sw.ScrapeURL in requests to a proxy host for non-TLS scrape targets
 		// like net/http package from Go does.
 		// See https://en.wikipedia.org/wiki/Proxy_server#Web_proxy_servers
@@ -121,11 +126,15 @@ func newClient(ctx context.Context, sw *ScrapeWork) (*client, error) {
 		setFasthttpProxyHeaders = func(req *fasthttp.Request) error {
 			return proxyURLOrig.SetFasthttpHeaders(sw.ProxyAuthConfig, req)
 		}
+		if pu := proxyURL.GetURL(); pu != nil {
+			proxyURLFunc = http.ProxyURL(pu)
+		}
 		proxyURL = &proxy.URL{}
+
 	}
 	hostPort = addMissingPort(hostPort, isTLS)
 	dialAddr = addMissingPort(dialAddr, isTLS)
-	dialFunc, err := newStatDialFunc(proxyURL, sw.ProxyAuthConfig)
+	dialFunc, err := newStatDialFunc(proxyURL, sw.ProxyAuthConfig, getDefaultDialer())
 	if err != nil {
 		return nil, fmt.Errorf("cannot create dial func: %w", err)
 	}
@@ -144,10 +153,16 @@ func newClient(ctx context.Context, sw *ScrapeWork) (*client, error) {
 		ReadBufferSize:               maxResponseHeadersSize.IntN(),
 	}
 	var sc *http.Client
-	var proxyURLFunc func(*http.Request) (*url.URL, error)
-	if pu := sw.ProxyURL.GetURL(); pu != nil {
-		proxyURLFunc = http.ProxyURL(pu)
+
+	streamDialFunc, err := newStatDialFunc(proxyURL, sw.ProxyAuthConfig, getStreamDialer())
+	if err != nil {
+		return nil, fmt.Errorf("cannot create dial func: %w", err)
 	}
+	// The regular dial func infers network from netutil.GetTCPNetwork().
+	streamDial := func(_, addr string) (net.Conn, error) {
+		return streamDialFunc(addr)
+	}
+
 	sc = &http.Client{
 		Transport: &http.Transport{
 			TLSClientConfig:        tlsCfg,
@@ -156,7 +171,7 @@ func newClient(ctx context.Context, sw *ScrapeWork) (*client, error) {
 			IdleConnTimeout:        2 * sw.ScrapeInterval,
 			DisableCompression:     *disableCompression || sw.DisableCompression,
 			DisableKeepAlives:      *disableKeepAlive || sw.DisableKeepAlive,
-			DialContext:            statStdDial,
+			Dial:                   streamDial,
 			MaxIdleConnsPerHost:    100,
 			MaxResponseHeaderBytes: int64(maxResponseHeadersSize.N),
 		},

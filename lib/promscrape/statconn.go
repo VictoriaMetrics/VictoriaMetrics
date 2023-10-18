@@ -1,7 +1,6 @@
 package promscrape
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"strconv"
@@ -17,43 +16,41 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 )
 
-func statStdDial(ctx context.Context, _, addr string) (net.Conn, error) {
-	d := getStdDialer()
-	network := netutil.GetTCPNetwork()
-	conn, err := d.DialContext(ctx, network, addr)
-	dialsTotal.Inc()
-	if err != nil {
-		dialErrors.Inc()
-		if !netutil.TCP6Enabled() && !isTCPv4Addr(addr) {
-			err = fmt.Errorf("%w; try -enableTCP6 command-line flag if you scrape ipv6 addresses", err)
-		}
-		return nil, err
-	}
-	conns.Inc()
-	sc := &statConn{
-		Conn: conn,
-	}
-	return sc, nil
-}
-
-func getStdDialer() *net.Dialer {
-	stdDialerOnce.Do(func() {
-		stdDialer = &net.Dialer{
+func setDialers() {
+	dialersOnce.Do(func() {
+		streamDialer = &net.Dialer{
 			Timeout:   30 * time.Second,
 			KeepAlive: 30 * time.Second,
 			DualStack: netutil.TCP6Enabled(),
 		}
+
+		// Do not use fasthttp.Dial because of https://github.com/VictoriaMetrics/VictoriaMetrics/issues/987
+		defaultDialer = &net.Dialer{
+			Timeout:   5 * time.Second,
+			KeepAlive: 5 * time.Second,
+			DualStack: netutil.TCP6Enabled(),
+		}
 	})
-	return stdDialer
+}
+
+func getStreamDialer() *net.Dialer {
+	setDialers()
+	return streamDialer
+}
+
+func getDefaultDialer() *net.Dialer {
+	setDialers()
+	return defaultDialer
 }
 
 var (
-	stdDialer     *net.Dialer
-	stdDialerOnce sync.Once
+	streamDialer  *net.Dialer
+	defaultDialer *net.Dialer
+	dialersOnce   sync.Once
 )
 
-func newStatDialFunc(proxyURL *proxy.URL, ac *promauth.Config) (fasthttp.DialFunc, error) {
-	dialFunc, err := proxyURL.NewDialFunc(ac)
+func newStatDialFunc(proxyURL *proxy.URL, ac *promauth.Config, dialer *net.Dialer) (fasthttp.DialFunc, error) {
+	dialFunc, err := proxyURL.NewDialFunc(ac, dialer)
 	if err != nil {
 		return nil, err
 	}
