@@ -969,6 +969,7 @@ func TestUrlWatcher_RefCount(t *testing.T) {
 		name                 string
 		sdcs                 []*SDConfig
 		expectedInitRefCount map[string]int32
+		testShutdown         func(*testing.T, []*SDConfig)
 	}
 	initAPIObjectsByRole := map[string][]byte{
 		"service": []byte(`{
@@ -1140,6 +1141,17 @@ func TestUrlWatcher_RefCount(t *testing.T) {
 				"endpoints": 1,
 				"service":   1,
 				"pod":       1,
+				"node":      0,
+			},
+			testShutdown: func(t *testing.T, configs []*SDConfig) {
+				configs[0].MustStop()
+				time.Sleep(11 * time.Second)
+				configs[0].cfg.aw.gw.verifyAPIWatcherRefCount(t, map[string]int32{
+					"endpoints": 0,
+					"service":   0,
+					"pod":       0,
+					"node":      0,
+				})
 			},
 		},
 		{
@@ -1158,6 +1170,55 @@ func TestUrlWatcher_RefCount(t *testing.T) {
 				"endpoints": 2,
 				"service":   2,
 				"pod":       2,
+				"node":      0,
+			},
+			testShutdown: func(t *testing.T, configs []*SDConfig) {
+				configs[1].MustStop()
+				time.Sleep(11 * time.Second)
+				configs[0].cfg.aw.gw.verifyAPIWatcherRefCount(t, map[string]int32{
+					"endpoints": 1,
+					"service":   1,
+					"pod":       1,
+					"node":      0,
+				})
+			},
+		},
+		{
+			name: "test mixed endpoints and pod",
+			sdcs: []*SDConfig{
+				{
+					Role:       "endpoints",
+					Namespaces: Namespaces{Names: []string{"default"}},
+				},
+				{
+					Role:       "pod",
+					Namespaces: Namespaces{Names: []string{"default"}},
+				},
+			},
+			expectedInitRefCount: map[string]int32{
+				"endpoints": 1,
+				"service":   1,
+				"pod":       2,
+				"node":      0,
+			},
+		},
+		{
+			name: "test mixed endpoints and node",
+			sdcs: []*SDConfig{
+				{
+					Role:       "endpoints",
+					Namespaces: Namespaces{Names: []string{"default"}},
+				},
+				{
+					Role:       "node",
+					Namespaces: Namespaces{Names: []string{"default"}},
+				},
+			},
+			expectedInitRefCount: map[string]int32{
+				"endpoints": 1,
+				"service":   1,
+				"pod":       1,
+				"node":      1,
 			},
 		},
 	}
@@ -1172,7 +1233,6 @@ func TestUrlWatcher_RefCount(t *testing.T) {
 				addAPIURLHandler(t, mux, apiPath, obj, watchBroadCaster)
 			}
 			testAPIServer := httptest.NewServer(mux)
-			var acs []*apiConfig
 			for _, sdc := range tc.sdcs {
 				sdc.APIServer = testAPIServer.URL
 				ac, err := newAPIConfig(sdc, "", func(metaLabels *promutils.Labels) interface{} {
@@ -1188,7 +1248,6 @@ func TestUrlWatcher_RefCount(t *testing.T) {
 				sdc.cfg = ac
 				ac.aw.mustStart()
 				defer ac.aw.mustStop()
-				acs = append(acs, ac)
 			}
 
 			for _, sdc := range tc.sdcs {
@@ -1201,18 +1260,26 @@ func TestUrlWatcher_RefCount(t *testing.T) {
 			}
 
 			// initial assertion
-			for _, ac := range acs {
-				for _, uw := range ac.aw.gw.m {
-					expectedRC, ok := tc.expectedInitRefCount[uw.role]
-					if !ok {
-						t.Fatalf("unexpected occurence of urlWatcher: %s", uw.role)
-					}
-					if expectedRC != uw.getCount() {
-						t.Fatalf("unexpected count of references: got: %d, want: %d", uw.getCount(), expectedRC)
-					}
-				}
+			for _, sdc := range tc.sdcs {
+				sdc.cfg.aw.gw.verifyAPIWatcherRefCount(t, tc.expectedInitRefCount)
+			}
+
+			if tc.testShutdown != nil {
+				tc.testShutdown(t, tc.sdcs)
 			}
 		})
+	}
+}
+
+func (gw *groupWatcher) verifyAPIWatcherRefCount(t *testing.T, expectedMap map[string]int32) {
+	for _, uw := range gw.m {
+		expectedRC, ok := expectedMap[uw.role]
+		if !ok && expectedRC != 0 {
+			t.Fatalf("unexpected occurence of urlWatcher: %s", uw.role)
+		}
+		if expectedRC != uw.getCount() {
+			t.Fatalf("unexpected count of references: got: %d, want: %d", uw.getCount(), expectedRC)
+		}
 	}
 }
 
