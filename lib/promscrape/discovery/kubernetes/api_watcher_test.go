@@ -964,37 +964,21 @@ func TestGetScrapeWorkObjects(t *testing.T) {
 	}
 }
 
-func TestUrlWatcher(t *testing.T) {
+func TestUrlWatcher_RefCount(t *testing.T) {
 	type testCase struct {
 		name                 string
-		expectedTargetsLen   int
-		initAPIObjectsByRole map[string][]byte
-		// will be added for watching api.
-		watchAPIMustAddObjectsByRole map[string][][]byte
+		sdcs                 []*SDConfig
+		expectedInitRefCount map[string]int32
 	}
-	sdcs := []*SDConfig{
-		{
-			Role:       "endpoints",
-			Namespaces: Namespaces{Names: []string{"default"}},
-		},
-		{
-			Role:       "endpoints",
-			Namespaces: Namespaces{Names: []string{"default"}},
-		},
-	}
-	cases := []testCase{
-		{
-			name:               "two endpoints with one service deleted",
-			expectedTargetsLen: 2,
-			initAPIObjectsByRole: map[string][]byte{
-				"service": []byte(`{
+	initAPIObjectsByRole := map[string][]byte{
+		"service": []byte(`{
   "kind": "ServiceList",
   "apiVersion": "v1",
   "metadata": {
     "resourceVersion": "72425"
   },
   "items": []}`),
-				"endpoints": []byte(`{
+		"endpoints": []byte(`{
   "kind": "EndpointsList",
   "apiVersion": "v1",
   "metadata": {
@@ -1076,7 +1060,7 @@ func TestUrlWatcher(t *testing.T) {
 	]
 }
 ]}`),
-				"pod": []byte(`{
+		"pod": []byte(`{
   "kind": "PodList",
   "apiVersion": "v1",
   "metadata": {
@@ -1142,92 +1126,93 @@ func TestUrlWatcher(t *testing.T) {
 		"podIP": "192.168.132.218"
 	}
 }
-]}`),
-			},
-			watchAPIMustAddObjectsByRole: map[string][][]byte{
-				"service": {
-					[]byte(`{
-    "apiVersion": "v1",
-    "kind": "Service",
-    "metadata": {
-        "annotations": {
-            "meta.helm.sh/release-name": "stack"
-        },
-        "labels": {
-            "app.kubernetes.io/managed-by": "Helm",
-            "app.kubernetes.io/name": "kube-state-metrics"
-        },
-        "name": "stack-kube-state-metrics",
-        "namespace": "default"
-    },
-    "spec": {
-        "clusterIP": "10.97.109.249",
-        "ports": [
-            {
-                "name": "http",
-                "port": 8080,
-                "protocol": "TCP",
-                "targetPort": 8080
-            }
-        ],
-        "selector": {
-            "app.kubernetes.io/instance": "stack",
-            "app.kubernetes.io/name": "kube-state-metrics"
-        },
-        "type": "ClusterIP"
-    }
-}`),
+]}`)}
+	cases := []testCase{
+		{
+			name: "test a single endpoints",
+			sdcs: []*SDConfig{
+				{
+					Role:       "endpoints",
+					Namespaces: Namespaces{Names: []string{"default"}},
 				},
+			},
+			expectedInitRefCount: map[string]int32{
+				"endpoints": 1,
+				"service":   1,
+				"pod":       1,
+			},
+		},
+		{
+			name: "test multiple endpoints",
+			sdcs: []*SDConfig{
+				{
+					Role:       "endpoints",
+					Namespaces: Namespaces{Names: []string{"default"}},
+				},
+				{
+					Role:       "endpoints",
+					Namespaces: Namespaces{Names: []string{"default"}},
+				},
+			},
+			expectedInitRefCount: map[string]int32{
+				"endpoints": 2,
+				"service":   2,
+				"pod":       2,
 			},
 		},
 	}
-	tc := cases[0]
-	watchPublishersByRole := make(map[string]*watchObjectBroadcast)
-	mux := http.NewServeMux()
-	for role, obj := range tc.initAPIObjectsByRole {
-		watchBroadCaster := &watchObjectBroadcast{}
-		watchPublishersByRole[role] = watchBroadCaster
-		apiPath := getAPIPath(getObjectTypeByRole(role), "default", "")
-		addAPIURLHandler(t, mux, apiPath, obj, watchBroadCaster)
-	}
-	testAPIServer := httptest.NewServer(mux)
-	var acs []*apiConfig
-	for _, sdc := range sdcs {
-		sdc.APIServer = testAPIServer.URL
-		ac, err := newAPIConfig(sdc, "", func(metaLabels *promutils.Labels) interface{} {
-			var res []interface{}
-			for _, label := range metaLabels.Labels {
-				res = append(res, label.Name)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			watchPublishersByRole := make(map[string]*watchObjectBroadcast)
+			mux := http.NewServeMux()
+			for role, obj := range initAPIObjectsByRole {
+				watchBroadCaster := &watchObjectBroadcast{}
+				watchPublishersByRole[role] = watchBroadCaster
+				apiPath := getAPIPath(getObjectTypeByRole(role), "default", "")
+				addAPIURLHandler(t, mux, apiPath, obj, watchBroadCaster)
 			}
-			return res
+			testAPIServer := httptest.NewServer(mux)
+			var acs []*apiConfig
+			for _, sdc := range tc.sdcs {
+				sdc.APIServer = testAPIServer.URL
+				ac, err := newAPIConfig(sdc, "", func(metaLabels *promutils.Labels) interface{} {
+					var res []interface{}
+					for _, label := range metaLabels.Labels {
+						res = append(res, label.Name)
+					}
+					return res
+				})
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				sdc.cfg = ac
+				ac.aw.mustStart()
+				defer ac.aw.mustStop()
+				acs = append(acs, ac)
+			}
+
+			for _, sdc := range tc.sdcs {
+				_, err := sdc.GetScrapeWorkObjects()
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				// need to wait, for subscribers to start.
+				time.Sleep(80 * time.Millisecond)
+			}
+
+			// initial assertion
+			for _, ac := range acs {
+				for _, uw := range ac.aw.gw.m {
+					expectedRC, ok := tc.expectedInitRefCount[uw.role]
+					if !ok {
+						t.Fatalf("unexpected occurence of urlWatcher: %s", uw.role)
+					}
+					if expectedRC != uw.getCount() {
+						t.Fatalf("unexpected count of references: got: %d, want: %d", uw.getCount(), expectedRC)
+					}
+				}
+			}
 		})
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		sdc.cfg = ac
-		ac.aw.mustStart()
-		defer ac.aw.mustStop()
-		acs = append(acs, ac)
-	}
-
-	for _, sdc := range sdcs {
-		initialSWOs, err := sdc.GetScrapeWorkObjects()
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		// need to wait, for subscribers to start.
-		time.Sleep(80 * time.Millisecond)
-		if len(initialSWOs) != tc.expectedTargetsLen {
-			t.Fatalf("unexpected count of objects, got: %d, want: %d", len(initialSWOs), tc.expectedTargetsLen)
-		}
-	}
-
-	// close a single job
-	sdcs[1].MustStop()
-	time.Sleep(11 * time.Second)
-	// check url watcher
-	if len(acs[0].aw.gw.m) == 1 { // only endpoints left
-		t.Fatalf("unexpected count of urlWatchers")
 	}
 }
 

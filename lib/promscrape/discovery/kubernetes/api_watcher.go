@@ -36,6 +36,23 @@ type WatchEvent struct {
 	Object json.RawMessage
 }
 
+// refCount tracks the references to this object.
+type refCount struct {
+	c atomic.Int32
+}
+
+func (ref *refCount) ref() {
+	ref.c.Add(1)
+}
+
+func (ref *refCount) unref() bool {
+	return ref.c.Add(-1) == 0
+}
+
+func (ref *refCount) getCount() int32 {
+	return ref.c.Load()
+}
+
 // object is any Kubernetes object.
 type object interface {
 	key() string
@@ -63,6 +80,8 @@ type apiWatcher struct {
 	swosByURLWatcher     map[*urlWatcher]map[string][]interface{}
 	swosByURLWatcherLock sync.Mutex
 
+	indirectUrlWatchers map[*urlWatcher]struct{}
+
 	swosCount *metrics.Counter
 }
 
@@ -83,11 +102,21 @@ func newAPIWatcher(apiServer string, ac *promauth.Config, sdc *SDConfig, swcFunc
 	gw := getGroupWatcher(apiServer, ac, namespaces, selectors, attachNodeMetadata, proxyURL)
 	role := sdc.role()
 	return &apiWatcher{
-		role:             role,
-		swcFunc:          swcFunc,
-		gw:               gw,
-		swosByURLWatcher: make(map[*urlWatcher]map[string][]interface{}),
-		swosCount:        metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_discovery_kubernetes_scrape_works{role=%q}`, role)),
+		role:                role,
+		swcFunc:             swcFunc,
+		gw:                  gw,
+		swosByURLWatcher:    make(map[*urlWatcher]map[string][]interface{}),
+		indirectUrlWatchers: make(map[*urlWatcher]struct{}),
+		swosCount:           metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_discovery_kubernetes_scrape_works{role=%q}`, role)),
+	}
+}
+
+func (aw *apiWatcher) refUrlWatchers(uws []*urlWatcher) {
+	for _, uw := range uws {
+		if _, ok := aw.indirectUrlWatchers[uw]; !ok {
+			uw.ref()
+			aw.indirectUrlWatchers[uw] = struct{}{}
+		}
 	}
 }
 
@@ -105,6 +134,9 @@ func (aw *apiWatcher) updateSwosCount(multiplier int, swosByKey map[string][]int
 }
 
 func (aw *apiWatcher) mustStop() {
+	for uw := range aw.indirectUrlWatchers {
+		uw.unref()
+	}
 	aw.gw.unsubscribeAPIWatcher(aw)
 	aw.swosByURLWatcherLock.Lock()
 	for _, swosByKey := range aw.swosByURLWatcher {
@@ -369,16 +401,17 @@ func (gw *groupWatcher) getObjectByRoleLocked(role, namespace, name string) obje
 	return nil
 }
 
-func (gw *groupWatcher) startWatchersForRole(role string, aw *apiWatcher) {
+func (gw *groupWatcher) startWatchersForRole(role string, aw *apiWatcher) []*urlWatcher {
 	if role == "endpoints" || role == "endpointslice" {
 		// endpoints and endpointslice watchers query pod and service objects. So start watchers for these roles as well.
-		gw.startWatchersForRole("pod", nil)
-		gw.startWatchersForRole("service", nil)
+		aw.refUrlWatchers(gw.startWatchersForRole("pod", nil))
+		aw.refUrlWatchers(gw.startWatchersForRole("service", nil))
 	}
 	if gw.attachNodeMetadata && (role == "pod" || role == "endpoints" || role == "endpointslice") {
-		gw.startWatchersForRole("node", nil)
+		aw.refUrlWatchers(gw.startWatchersForRole("node", nil))
 	}
 	paths := getAPIPathsWithNamespaces(role, gw.namespaces, gw.selectors)
+	uws := make([]*urlWatcher, 0, len(paths))
 	for _, path := range paths {
 		apiURL := gw.apiServer + path
 		gw.mu.Lock()
@@ -388,6 +421,7 @@ func (gw *groupWatcher) startWatchersForRole(role string, aw *apiWatcher) {
 			uw = newURLWatcher(role, apiURL, gw)
 			gw.m[apiURL] = uw
 		}
+		uws = append(uws, uw)
 		if aw != nil {
 			uw.subscribeAPIWatcherLocked(aw)
 		}
@@ -404,6 +438,7 @@ func (gw *groupWatcher) startWatchersForRole(role string, aw *apiWatcher) {
 			}
 		}
 	}
+	return uws
 }
 
 // doRequest performs http request to the given requestURL.
@@ -454,7 +489,7 @@ func (gw *groupWatcher) unsubscribeAPIWatcher(aw *apiWatcher) {
 	defer gw.mu.Unlock()
 	for _, uw := range gw.m {
 		uw.unsubscribeAPIWatcherLocked(aw)
-		if len(uw.aws)+len(uw.awsPending) == 0 {
+		if uw.getCount() == 0 {
 			time.AfterFunc(10*time.Second, uw.stopIfNoUsers)
 		}
 	}
@@ -497,6 +532,8 @@ type urlWatcher struct {
 	objectsRemoved        *metrics.Counter
 	objectsUpdated        *metrics.Counter
 	staleResourceVersions *metrics.Counter
+
+	*refCount
 }
 
 func newURLWatcher(role, apiURL string, gw *groupWatcher) *urlWatcher {
@@ -524,6 +561,8 @@ func newURLWatcher(role, apiURL string, gw *groupWatcher) *urlWatcher {
 		objectsRemoved:        metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_discovery_kubernetes_objects_removed_total{role=%q}`, role)),
 		objectsUpdated:        metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_discovery_kubernetes_objects_updated_total{role=%q}`, role)),
 		staleResourceVersions: metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_discovery_kubernetes_stale_resource_versions_total{role=%q}`, role)),
+
+		refCount: new(refCount),
 	}
 	logger.Infof("started %s watcher for %q", uw.role, uw.apiURL)
 	return uw
@@ -532,7 +571,7 @@ func newURLWatcher(role, apiURL string, gw *groupWatcher) *urlWatcher {
 func (uw *urlWatcher) stopIfNoUsers() {
 	gw := uw.gw
 	gw.mu.Lock()
-	if len(uw.aws)+len(uw.awsPending) == 0 {
+	if uw.getCount() == 0 {
 		uw.cancel()
 		delete(gw.m, uw.apiURL)
 	}
@@ -571,6 +610,7 @@ func (uw *urlWatcher) subscribeAPIWatcherLocked(aw *apiWatcher) {
 	if _, ok := uw.aws[aw]; !ok {
 		if _, ok := uw.awsPending[aw]; !ok {
 			uw.awsPending[aw] = struct{}{}
+			uw.ref()
 			metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_discovery_kubernetes_subscribers{role=%q,status="pending"}`, uw.role)).Inc()
 		}
 	}
@@ -621,10 +661,12 @@ func (uw *urlWatcher) removeScrapeWorksLocked(keys []string) {
 func (uw *urlWatcher) unsubscribeAPIWatcherLocked(aw *apiWatcher) {
 	if _, ok := uw.awsPending[aw]; ok {
 		delete(uw.awsPending, aw)
+		uw.unref()
 		metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_discovery_kubernetes_subscribers{role=%q,status="pending"}`, uw.role)).Dec()
 	}
 	if _, ok := uw.aws[aw]; ok {
 		delete(uw.aws, aw)
+		uw.unref()
 		metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_discovery_kubernetes_subscribers{role=%q,status="working"}`, uw.role)).Dec()
 	}
 }
