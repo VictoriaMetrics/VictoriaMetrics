@@ -109,7 +109,6 @@ func newAPIWatcher(apiServer string, ac *promauth.Config, sdc *SDConfig, swcFunc
 		indirectURLWatchers: make(map[*urlWatcher]struct{}),
 		swosCount:           metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_discovery_kubernetes_scrape_works{role=%q}`, role)),
 	}
-	g
 }
 
 func (aw *apiWatcher) refURLWatchers(uws []*urlWatcher) {
