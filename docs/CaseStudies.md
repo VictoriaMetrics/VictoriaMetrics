@@ -529,13 +529,14 @@ Numbers:
 
 ## Wedos.com
 
-> [Wedos](https://www.wedos.com/) is the biggest hosting provider in the Czech Republic. We have our own private data center that holds our servers and technologies. We are in the process of building a second, stae of the art data center where the servers will be cooled in an oil bath. We started using [cluster VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) to store Prometheus metrics from all our infrastructure after receiving positive references from people who had successfully used VictoriaMetrics.
+> [Wedos](https://www.wedos.com/) is the biggest hosting provider in the Czech Republic. We have two our own private data centers that hold our servers and technologies, such as cooling the servers in bath oils. We started using [cluster VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) to store Prometheus metrics from all our infrastructure after receiving positive references from people who had successfully used VictoriaMetrics. We're using it throughout our services, including the new WEDOS Global Protection.
 
 Numbers:
 
-- The number of acitve time series: 5M.
-- Ingestion rate: 170K data points per second.
+- The number of acitve time series: 32M.
+- Ingestion rate: 1.6M data points per second.
 - Query duration: median is ~2ms, 99th percentile is ~50ms.
+- The total number of datapoints per VictoriaMetrics "hot" storage is 5.3 trillion
 
 > We like that VictoriaMetrics is simple to configuree and requires zero maintenance. It works right out of the box and once it's set up you can just forget about it.
 
