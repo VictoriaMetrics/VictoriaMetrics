@@ -10,6 +10,9 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+	"github.com/cespare/xxhash/v2"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bloomfilter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -25,8 +28,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/streamaggr"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
-	"github.com/VictoriaMetrics/metrics"
-	"github.com/cespare/xxhash/v2"
 )
 
 var (
@@ -676,10 +677,13 @@ func (rwctx *remoteWriteCtx) Push(tss []prompbmarshal.TimeSeries) {
 	rwctx.rowsPushedAfterRelabel.Add(rowsCount)
 
 	// Apply stream aggregation if any
-	sas := rwctx.sas.Load()
-	if sas != nil {
+	sasFile := streamAggrConfig.GetOptionalArg(rwctx.idx)
+	if sasFile != "" {
+		sas := rwctx.sas.Load()
 		matchIdxs := matchIdxsPool.Get()
-		matchIdxs.B = sas.Push(tss, matchIdxs.B)
+		if sas != nil {
+			matchIdxs.B = sas.Push(tss, matchIdxs.B)
+		}
 		if !rwctx.streamAggrKeepInput {
 			if rctx == nil {
 				rctx = getRelabelCtx()
