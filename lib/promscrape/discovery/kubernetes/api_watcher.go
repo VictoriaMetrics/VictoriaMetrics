@@ -80,7 +80,7 @@ type apiWatcher struct {
 	swosByURLWatcher     map[*urlWatcher]map[string][]interface{}
 	swosByURLWatcherLock sync.Mutex
 
-	indirectUrlWatchers map[*urlWatcher]struct{}
+	indirectURLWatchers map[*urlWatcher]struct{}
 
 	swosCount *metrics.Counter
 }
@@ -106,16 +106,17 @@ func newAPIWatcher(apiServer string, ac *promauth.Config, sdc *SDConfig, swcFunc
 		swcFunc:             swcFunc,
 		gw:                  gw,
 		swosByURLWatcher:    make(map[*urlWatcher]map[string][]interface{}),
-		indirectUrlWatchers: make(map[*urlWatcher]struct{}),
+		indirectURLWatchers: make(map[*urlWatcher]struct{}),
 		swosCount:           metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_discovery_kubernetes_scrape_works{role=%q}`, role)),
 	}
+	g
 }
 
-func (aw *apiWatcher) refUrlWatchers(uws []*urlWatcher) {
+func (aw *apiWatcher) refURLWatchers(uws []*urlWatcher) {
 	for _, uw := range uws {
-		if _, ok := aw.indirectUrlWatchers[uw]; !ok {
+		if _, ok := aw.indirectURLWatchers[uw]; !ok {
 			uw.ref()
-			aw.indirectUrlWatchers[uw] = struct{}{}
+			aw.indirectURLWatchers[uw] = struct{}{}
 		}
 	}
 }
@@ -134,7 +135,7 @@ func (aw *apiWatcher) updateSwosCount(multiplier int, swosByKey map[string][]int
 }
 
 func (aw *apiWatcher) mustStop() {
-	for uw := range aw.indirectUrlWatchers {
+	for uw := range aw.indirectURLWatchers {
 		uw.unref()
 	}
 	aw.gw.unsubscribeAPIWatcher(aw)
@@ -404,11 +405,11 @@ func (gw *groupWatcher) getObjectByRoleLocked(role, namespace, name string) obje
 func (gw *groupWatcher) startWatchersForRole(role string, aw *apiWatcher) []*urlWatcher {
 	if role == "endpoints" || role == "endpointslice" {
 		// endpoints and endpointslice watchers query pod and service objects. So start watchers for these roles as well.
-		aw.refUrlWatchers(gw.startWatchersForRole("pod", nil))
-		aw.refUrlWatchers(gw.startWatchersForRole("service", nil))
+		aw.refURLWatchers(gw.startWatchersForRole("pod", nil))
+		aw.refURLWatchers(gw.startWatchersForRole("service", nil))
 	}
 	if gw.attachNodeMetadata && (role == "pod" || role == "endpoints" || role == "endpointslice") {
-		aw.refUrlWatchers(gw.startWatchersForRole("node", nil))
+		aw.refURLWatchers(gw.startWatchersForRole("node", nil))
 	}
 	paths := getAPIPathsWithNamespaces(role, gw.namespaces, gw.selectors)
 	uws := make([]*urlWatcher, 0, len(paths))
