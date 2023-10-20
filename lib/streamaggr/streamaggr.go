@@ -150,9 +150,6 @@ type Aggregators struct {
 //
 // MustStop must be called on the returned Aggregators when they are no longer needed.
 func NewAggregators(cfgs []*Config, pushFunc PushFunc, dedupInterval time.Duration) (*Aggregators, error) {
-	if len(cfgs) == 0 {
-		return nil, nil
-	}
 	as := make([]*aggregator, len(cfgs))
 	for i, cfg := range cfgs {
 		a, err := newAggregator(cfg, pushFunc, dedupInterval)
