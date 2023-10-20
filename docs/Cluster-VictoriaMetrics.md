@@ -1200,7 +1200,7 @@ Below is the output for `/path/to/vmselect -help`:
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
   -search.logSlowQueryDuration duration
      Log queries with execution time exceeding this value. Zero disables slow query logging. See also -search.logQueryMemoryUsage (default 5s)
-  -search.maxConcurrentRequests int
+  -search.maxConcurrentRequests int (default 2 per CPU up to 4 CPUs, then 1 per CPU with a max of 16)
      The maximum number of concurrent search requests. It shouldn't be high, since a single request can saturate all the CPU cores, while many concurrently executed requests may require high amounts of memory. See also -search.maxQueueDuration and -search.maxMemoryPerQuery (default 8)
   -search.maxExportDuration duration
      The maximum duration for /api/v1/export call (default 720h0m0s)
