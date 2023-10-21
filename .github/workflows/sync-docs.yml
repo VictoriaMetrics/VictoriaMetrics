@@ -33,8 +33,8 @@ jobs:
         uses: supplypike/setup-bin@v3
         with:
           uri: "https://github.com/CloudCannon/pagefind/releases/download/v${{env.PAGEFIND_VERSION}}/pagefind-v${{env.PAGEFIND_VERSION}}-x86_64-unknown-linux-musl.tar.gz"
-          name: "humane"
-          version: ${{env.HUMANE_VERSION}}
+          name: "pagefind"
+          version: ${{env.PAGEFIND_VERSION}}
       - name: Import GPG key
         uses: crazy-max/ghaction-import-gpg@v5
         with:
