@@ -29,6 +29,7 @@ jobs:
       - uses: peaceiris/actions-hugo@v2
         with:
           hugo-version: 'latest'
+          extended: true
       - name: Install PageFind #install the static search engine for index build
         uses: supplypike/setup-bin@v3
         with:
