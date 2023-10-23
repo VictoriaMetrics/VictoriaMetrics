@@ -323,26 +323,32 @@ func (c *client) runWorker() {
 }
 
 func (c *client) doRequest(url string, body []byte) (*http.Response, error) {
-	req := c.newRequest(url, body)
+	req, err := c.newRequest(url, body)
+	if err != nil {
+		return nil, err
+	}
 	resp, err := c.hc.Do(req)
 	if err != nil && errors.Is(err, io.EOF) {
 		// it is likely connection became stale.
 		// So we do one more attempt in hope request will succeed.
 		// If not, the error should be handled by the caller as usual.
 		// This should help with https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4139
-		req = c.newRequest(url, body)
+		req, _ = c.newRequest(url, body)
 		resp, err = c.hc.Do(req)
 	}
 	return resp, err
 }
 
-func (c *client) newRequest(url string, body []byte) *http.Request {
+func (c *client) newRequest(url string, body []byte) (*http.Request, error) {
 	reqBody := bytes.NewBuffer(body)
 	req, err := http.NewRequest(http.MethodPost, url, reqBody)
 	if err != nil {
 		logger.Panicf("BUG: unexpected error from http.NewRequest(%q): %s", url, err)
 	}
-	c.authCfg.SetHeaders(req, true)
+	err = c.authCfg.SetHeaders(req, true)
+	if err != nil {
+		return nil, err
+	}
 	h := req.Header
 	h.Set("User-Agent", "vmagent")
 	h.Set("Content-Type", "application/x-protobuf")
@@ -360,7 +366,7 @@ func (c *client) newRequest(url string, body []byte) *http.Request {
 			logger.Warnf("cannot sign remoteWrite request with AWS sigv4: %s", err)
 		}
 	}
-	return req
+	return req, nil
 }
 
 // sendBlockHTTP sends the given block to c.remoteWriteURL.

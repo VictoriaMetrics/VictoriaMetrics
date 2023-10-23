@@ -64,3 +64,6 @@ type SubmitBatchResponse struct {
 
 // BatchResponseItem contains the response for the individual sub-requests.
 type BatchResponseItem = exported.BatchResponseItem
+
+// FilterBlobsResponse contains the response from method Client.FilterBlobs.
+type FilterBlobsResponse = generated.ContainerClientFilterBlobsResponse

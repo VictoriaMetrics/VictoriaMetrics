@@ -1075,7 +1075,7 @@ as a proxy between `vmctl` and destination with `-remoteWrite.rateLimit` flag en
 
 ## How to build
 
-It is recommended using [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) - `vmctl` is located in `vmutils-*` archives there.
+It is recommended using [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) - `vmctl` is located in `vmutils-*` archives there.
 
 ### Development build
 

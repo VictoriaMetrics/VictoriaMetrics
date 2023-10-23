@@ -55,18 +55,20 @@ var (
 		"Note that this reduces debuggability for improper per-target relabeling configs")
 	clusterMembersCount = flag.Int("promscrape.cluster.membersCount", 1, "The number of members in a cluster of scrapers. "+
 		"Each member must have a unique -promscrape.cluster.memberNum in the range 0 ... promscrape.cluster.membersCount-1 . "+
-		"Each member then scrapes roughly 1/N of all the targets. By default, cluster scraping is disabled, i.e. a single scraper scrapes all the targets")
+		"Each member then scrapes roughly 1/N of all the targets. By default, cluster scraping is disabled, i.e. a single scraper scrapes all the targets. "+
+		"See https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets for more info")
 	clusterMemberNum = flag.String("promscrape.cluster.memberNum", "0", "The number of vmagent instance in the cluster of scrapers. "+
 		"It must be a unique value in the range 0 ... promscrape.cluster.membersCount-1 across scrapers in the cluster. "+
 		"Can be specified as pod name of Kubernetes StatefulSet - pod-name-Num, where Num is a numeric part of pod name. "+
-		"See also -promscrape.cluster.memberLabel")
+		"See also -promscrape.cluster.memberLabel . See https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets for more info")
 	clusterMemberLabel = flag.String("promscrape.cluster.memberLabel", "", "If non-empty, then the label with this name and the -promscrape.cluster.memberNum value "+
-		"is added to all the scraped metrics")
+		"is added to all the scraped metrics. See https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets for more info")
 	clusterReplicationFactor = flag.Int("promscrape.cluster.replicationFactor", 1, "The number of members in the cluster, which scrape the same targets. "+
-		"If the replication factor is greater than 1, then the deduplication must be enabled at remote storage side. See https://docs.victoriametrics.com/#deduplication")
+		"If the replication factor is greater than 1, then the deduplication must be enabled at remote storage side. "+
+		"See https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets for more info")
 	clusterName = flag.String("promscrape.cluster.name", "", "Optional name of the cluster. If multiple vmagent clusters scrape the same targets, "+
 		"then each cluster must have unique name in order to properly de-duplicate samples received from these clusters. "+
-		"See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2679")
+		"See https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets for more info")
 )
 
 var clusterMemberID int
@@ -480,6 +482,7 @@ func (cfg *Config) parseData(data []byte, path string) ([]byte, error) {
 	}
 
 	// Initialize cfg.ScrapeConfigs
+	var validScrapeConfigs []*ScrapeConfig
 	for i, sc := range cfg.ScrapeConfigs {
 		// Make a copy of sc in order to remove references to `data` memory.
 		// This should prevent from memory leaks on config reload.
@@ -488,10 +491,14 @@ func (cfg *Config) parseData(data []byte, path string) ([]byte, error) {
 
 		swc, err := getScrapeWorkConfig(sc, cfg.baseDir, &cfg.Global)
 		if err != nil {
-			return nil, fmt.Errorf("cannot parse `scrape_config`: %w", err)
+			// print error and skip invalid scrape config
+			logger.Errorf("cannot parse `scrape_config` for job %q, skip it: %w", sc.JobName, err)
+			continue
 		}
 		sc.swc = swc
+		validScrapeConfigs = append(validScrapeConfigs, sc)
 	}
+	cfg.ScrapeConfigs = validScrapeConfigs
 	return dataNew, nil
 }
 

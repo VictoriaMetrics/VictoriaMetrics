@@ -7,6 +7,9 @@ menu:
     identifier: victorialogs-querying
     parent: "victorialogs"
     weight: 4
+aliases:
+  - /VictoriaLogs/querying/
+  - /VictoriaLogs/querying/index.html
 ---
 
 # Querying

@@ -132,18 +132,20 @@ func appendPrettifiedExpr(dst []byte, e Expr, indent int, needParens bool) []byt
 		}
 		dst = appendIndent(dst, indent)
 		dst = appendEscapedIdent(dst, metricName)
-		dst = append(dst, "{\n"...)
-		lfss := t.LabelFilterss
-		for i, lfs := range lfss {
-			dst = appendPrettifiedLabelFilters(dst, indent+1, lfs[offset:])
-			dst = append(dst, '\n')
-			if i+1 < len(lfss) {
-				dst = appendIndent(dst, indent+2)
-				dst = append(dst, "or\n"...)
+		if !t.isOnlyMetricName() {
+			dst = append(dst, "{\n"...)
+			lfss := t.LabelFilterss
+			for i, lfs := range lfss {
+				dst = appendPrettifiedLabelFilters(dst, indent+1, lfs[offset:])
+				dst = append(dst, '\n')
+				if i+1 < len(lfss) {
+					dst = appendIndent(dst, indent+2)
+					dst = append(dst, "or\n"...)
+				}
 			}
+			dst = appendIndent(dst, indent)
+			dst = append(dst, '}')
 		}
-		dst = appendIndent(dst, indent)
-		dst = append(dst, '}')
 	default:
 		// marshal other expressions as is
 		dst = t.AppendString(dst)

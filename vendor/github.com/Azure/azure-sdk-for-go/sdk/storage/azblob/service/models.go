@@ -156,6 +156,9 @@ type ListContainersInclude struct {
 
 	// Tells the service whether to return soft-deleted containers.
 	Deleted bool
+
+	// Tells the service whether to return system containers.
+	System bool
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

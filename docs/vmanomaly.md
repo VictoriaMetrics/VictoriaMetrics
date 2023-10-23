@@ -4,7 +4,7 @@ weight: 11
 title: vmanomaly
 menu:
   docs:
-    parent: "victoriametrics"
+    parent: 'victoriametrics'
     weight: 11
 aliases:
 - /vmanomaly.html

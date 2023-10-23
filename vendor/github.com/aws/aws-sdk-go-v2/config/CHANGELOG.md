@@ -1,3 +1,12 @@
+# v1.18.45 (2023-10-12)
+
+* **Bug Fix**: Fail to load config if an explicitly provided profile doesn't exist.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.18.44 (2023-10-06)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # v1.18.43 (2023-10-02)
 
 * **Dependency Update**: Updated to the latest SDK module versions

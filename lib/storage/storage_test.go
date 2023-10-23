@@ -12,6 +12,7 @@ import (
 	"testing/quick"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 )
@@ -1208,6 +1209,69 @@ func TestStorageDeleteStaleSnapshots(t *testing.T) {
 	if len(snapshots) != 0 {
 		t.Fatalf("expecting zero snapshots; got %q", snapshots)
 	}
+	s.MustClose()
+	if err := os.RemoveAll(path); err != nil {
+		t.Fatalf("cannot remove %q: %s", path, err)
+	}
+}
+
+func TestStorageSeriesAreNotCreatedOnStaleMarkers(t *testing.T) {
+	path := "TestStorageSeriesAreNotCreatedOnStaleMarkers"
+	s := MustOpenStorage(path, -1, 1e5, 1e6)
+
+	tr := TimeRange{MinTimestamp: 0, MaxTimestamp: 2e10}
+	tfsAll := NewTagFilters()
+	if err := tfsAll.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
+		t.Fatalf("unexpected error in TagFilters.Add: %s", err)
+	}
+
+	findN := func(n int) {
+		t.Helper()
+		lns, err := s.SearchMetricNames(nil, []*TagFilters{tfsAll}, tr, 1e5, noDeadline)
+		if err != nil {
+			t.Fatalf("error in SearchLabelNamesWithFiltersOnTimeRange() at the start: %s", err)
+		}
+		if len(lns) != n {
+			fmt.Println(lns)
+			t.Fatalf("expected to find %d metric names, found %d instead", n, len(lns))
+		}
+	}
+
+	// db is empty, so should be search results
+	findN(0)
+
+	rng := rand.New(rand.NewSource(1))
+	mrs := testGenerateMetricRows(rng, 20, tr.MinTimestamp, tr.MaxTimestamp)
+	// populate storage with some rows
+	if err := s.AddRows(mrs[:10], defaultPrecisionBits); err != nil {
+		t.Fatal("error when adding mrs: %w", err)
+	}
+	s.DebugFlush()
+
+	// verify ingested rows are searchable
+	findN(10)
+
+	// clean up ingested data
+	_, err := s.DeleteSeries(nil, []*TagFilters{tfsAll})
+	if err != nil {
+		t.Fatalf("DeleteSeries failed: %s", err)
+	}
+
+	// verify that data was actually deleted
+	findN(0)
+
+	// mark every 2nd row as stale, simulating a stale target
+	for i := 0; i < len(mrs); i = i + 2 {
+		mrs[i].Value = decimal.StaleNaN
+	}
+	if err := s.AddRows(mrs, defaultPrecisionBits); err != nil {
+		t.Fatal("error when adding mrs: %w", err)
+	}
+	s.DebugFlush()
+
+	// verify that rows marked as stale aren't searchable
+	findN(10)
+
 	s.MustClose()
 	if err := os.RemoveAll(path); err != nil {
 		t.Fatalf("cannot remove %q: %s", path, err)

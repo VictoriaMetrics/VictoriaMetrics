@@ -1,49 +1,103 @@
 package newrelic
 
 import (
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
-
-	"github.com/valyala/fastjson"
 )
 
-func TestEvents_Unmarshal(t *testing.T) {
-	tests := []struct {
-		name    string
-		metrics []Metric
-		json    string
-		wantErr bool
-	}{
+func TestRowsUnmarshalFailure(t *testing.T) {
+	f := func(data string) {
+		t.Helper()
+
+		var r Rows
+		if err := r.Unmarshal([]byte(data)); err == nil {
+			t.Fatalf("expecting non-nil error")
+		}
+	}
+
+	// Empty JSON
+	f("")
+
+	// Invalid JSON
+	f("123")
+	f("[foo]")
+	f(`{"foo":123}`)
+}
+
+func TestRowsUnmarshalSuccess(t *testing.T) {
+	f := func(data string, expectedRows []Row) {
+		t.Helper()
+
+		var r Rows
+		if err := r.Unmarshal([]byte(data)); err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		if !reflect.DeepEqual(r.Rows, expectedRows) {
+			t.Fatalf("unexpected rows parsed\ngot\n%s\nwant\n%s", rowsToString(r.Rows), rowsToString(expectedRows))
+		}
+	}
+
+	// empty array
+	f(`[]`, nil)
+
+	// zero events
+	f(`[
+    {
+      "EntityID":28257883748326179,
+      "IsAgent":true,
+      "Events":[],
+      "ReportingAgentID":28257883748326179
+    }]`, nil)
+
+	// A single event
+	f(`[{
+      "EntityID":28257883748326179,
+      "IsAgent":true,
+      "Events":[
+        {
+          "eventType":"SystemSample",
+          "timestamp":1690286061,
+          "entityKey":"macbook-pro.local",
+          "dc": "1",
+          "diskWritesPerSecond":-34.21,
+          "uptime":762376
+        }
+      ],
+      "ReportingAgentID":28257883748326179
+    }]`, []Row{
 		{
-			name:    "empty json",
-			metrics: []Metric{},
-			json:    "",
-			wantErr: true,
-		},
-		{
-			name: "json with correct data",
-			metrics: []Metric{
+			Tags: []Tag{
 				{
-					Timestamp: 1690286061000,
-					Tags: []Tag{
-						{Key: "entity_key", Value: "macbook-pro.local"},
-						{Key: "dc", Value: "1"},
-					},
-					Metric: "system_sample_disk_writes_per_second",
-					Value:  0,
+					Key:   []byte("eventType"),
+					Value: []byte("SystemSample"),
 				},
 				{
-					Timestamp: 1690286061000,
-					Tags: []Tag{
-						{Key: "entity_key", Value: "macbook-pro.local"},
-						{Key: "dc", Value: "1"},
-					},
-					Metric: "system_sample_uptime",
-					Value:  762376,
+					Key:   []byte("entityKey"),
+					Value: []byte("macbook-pro.local"),
+				},
+				{
+					Key:   []byte("dc"),
+					Value: []byte("1"),
 				},
 			},
-			json: `[
+			Samples: []Sample{
+				{
+					Name:  []byte("diskWritesPerSecond"),
+					Value: -34.21,
+				},
+				{
+					Name:  []byte("uptime"),
+					Value: 762376,
+				},
+			},
+			Timestamp: 1690286061000,
+		},
+	})
+
+	// Multiple events
+	f(`[
     {
       "EntityID":28257883748326179,
       "IsAgent":true,
@@ -52,123 +106,124 @@ func TestEvents_Unmarshal(t *testing.T) {
           "eventType":"SystemSample",
           "timestamp":1690286061,
           "entityKey":"macbook-pro.local",
-		  "dc": "1",
-          "diskWritesPerSecond":0,
+          "dc": "1",
+          "diskWritesPerSecond":-34.21,
           "uptime":762376
         }
       ],
       "ReportingAgentID":28257883748326179
-    }
-  ]`,
-			wantErr: false,
-		},
-		{
-			name:    "empty array in json",
-			metrics: []Metric{},
-			json:    `[]`,
-			wantErr: false,
-		},
-		{
-			name:    "empty events in json",
-			metrics: []Metric{},
-			json: `[
+    },
     {
-      "EntityID":28257883748326179,
+      "EntityID":282579,
       "IsAgent":true,
-      "Events":[],
-      "ReportingAgentID":28257883748326179
+      "Events":[
+        {
+          "eventType":"SystemSample",
+          "timestamp":1690286061,
+          "entityKey":"macbook-pro.local",
+	  "diskWritesPerSecond":234.34,
+          "timestamp":1690286061.433,
+          "uptime":762376
+        },
+        {
+          "eventType":"ProcessSample",
+          "timestamp":1690286061987,
+          "uptime":1236
+        }
+      ],
+      "ReportingAgentID":2879
     }
-  ]`,
-			wantErr: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			e := &Events{Metrics: []Metric{}}
-
-			value, err := fastjson.Parse(tt.json)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("cannot parse json error: %s", err)
-			}
-
-			if value != nil {
-				v, err := value.Array()
-				if err != nil {
-					t.Errorf("cannot get array from json")
-				}
-				if err := e.Unmarshal(v); (err != nil) != tt.wantErr {
-					t.Errorf("Unmarshal() error = %v, wantErr %v", err, tt.wantErr)
-				}
-				if !reflect.DeepEqual(e.Metrics, tt.metrics) {
-					t.Errorf("got metrics => %v; expected = %v", e.Metrics, tt.metrics)
-				}
-			}
-		})
-	}
-}
-
-func Test_camelToSnakeCase(t *testing.T) {
-	tests := []struct {
-		name string
-		str  string
-		want string
-	}{
+    ]`, []Row{
 		{
-			name: "empty string",
-			str:  "",
-			want: "",
+			Tags: []Tag{
+				{
+					Key:   []byte("eventType"),
+					Value: []byte("SystemSample"),
+				},
+				{
+					Key:   []byte("entityKey"),
+					Value: []byte("macbook-pro.local"),
+				},
+				{
+					Key:   []byte("dc"),
+					Value: []byte("1"),
+				},
+			},
+			Samples: []Sample{
+				{
+					Name:  []byte("diskWritesPerSecond"),
+					Value: -34.21,
+				},
+				{
+					Name:  []byte("uptime"),
+					Value: 762376,
+				},
+			},
+			Timestamp: 1690286061000,
 		},
 		{
-			name: "lowercase all chars",
-			str:  "somenewstring",
-			want: "somenewstring",
+			Tags: []Tag{
+				{
+					Key:   []byte("eventType"),
+					Value: []byte("SystemSample"),
+				},
+				{
+					Key:   []byte("entityKey"),
+					Value: []byte("macbook-pro.local"),
+				},
+			},
+			Samples: []Sample{
+				{
+					Name:  []byte("diskWritesPerSecond"),
+					Value: 234.34,
+				},
+				{
+					Name:  []byte("uptime"),
+					Value: 762376,
+				},
+			},
+			Timestamp: 1690286061433,
 		},
 		{
-			name: "first letter uppercase",
-			str:  "Teststring",
-			want: "teststring",
+			Tags: []Tag{
+				{
+					Key:   []byte("eventType"),
+					Value: []byte("ProcessSample"),
+				},
+			},
+			Samples: []Sample{
+				{
+					Name:  []byte("uptime"),
+					Value: 1236,
+				},
+			},
+			Timestamp: 1690286061987,
 		},
-		{
-			name: "two uppercase letters",
-			str:  "TestString",
-			want: "test_string",
-		},
-		{
-			name: "first and last uppercase letters",
-			str:  "TeststrinG",
-			want: "teststrin_g",
-		},
-		{
-			name: "three letters uppercase",
-			str:  "TestStrinG",
-			want: "test_strin_g",
-		},
-		{
-			name: "has many upper case letters",
-			str:  "ProgressIOTime",
-			want: "progress_io_time",
-		},
-		{
-			name: "last all uppercase letters",
-			str:  "ProgressTSDB",
-			want: "progress_tsdb",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := camelToSnakeCase(tt.str); got != tt.want {
-				t.Errorf("camelToSnakeCase() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func BenchmarkCameToSnake(b *testing.B) {
-	b.ReportAllocs()
-	str := strings.Repeat("ProgressIOTime", 20)
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			camelToSnakeCase(str)
-		}
 	})
+
+}
+
+func rowsToString(rows []Row) string {
+	var a []string
+	for _, row := range rows {
+		s := row.String()
+		a = append(a, s)
+	}
+	return strings.Join(a, "\n")
+}
+
+func (r *Row) String() string {
+	var a []string
+	for _, t := range r.Tags {
+		s := fmt.Sprintf("%s=%q", t.Key, t.Value)
+		a = append(a, s)
+	}
+	tagsString := "{" + strings.Join(a, ",") + "}"
+	a = a[:0]
+	for _, sample := range r.Samples {
+		s := fmt.Sprintf("[%s %f]", sample.Name, sample.Value)
+		a = append(a, s)
+	}
+	samplesString := strings.Join(a, ",")
+	return fmt.Sprintf("tags=%s, samples=%s, timestamp=%d", tagsString, samplesString, r.Timestamp)
 }

@@ -72,5 +72,5 @@ spec:
 
 See more info about object [VMServiceScrape](./resources/vmservicescrape.md).
 
-You will also need a [vmsingle](https://docs.victoriametrics.com/vmoperatos/resources/vmsingle.html) where the metrics will be collected.
+You will also need a [vmsingle](https://docs.victoriametrics.com/operator/resources/vmsingle.html) where the metrics will be collected.
 
