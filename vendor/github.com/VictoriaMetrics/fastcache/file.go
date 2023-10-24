@@ -87,12 +87,12 @@ func LoadFromFile(filePath string) (*Cache, error) {
 //
 // The function falls back to creating new cache with the given maxBytes
 // capacity if error occurs during loading the cache from file.
-func LoadFromFileOrNew(filePath string, maxBytes int) *Cache {
+func LoadFromFileOrNew(filePath string, maxBytes, buckets int) *Cache {
 	c, err := load(filePath, maxBytes)
 	if err == nil {
 		return c
 	}
-	return New(maxBytes)
+	return New(maxBytes, buckets)
 }
 
 func (c *Cache) save(dir string, workersCount int) error {

@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage/servers"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
@@ -22,7 +24,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
-	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
@@ -66,6 +67,10 @@ var (
 
 	cacheSizeStorageTSID = flagutil.NewBytes("storage.cacheSizeStorageTSID", 0, "Overrides max size for storage/tsid cache. "+
 		"See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning")
+	cacheSizeStorageMetricName = flagutil.NewBytes("storage.cacheSizeStorageMetricName", 0, "Overrides max size for storage/metricName cache. "+
+		"See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning")
+	cacheBucketsStorageMetricName = flag.Int("storage.cacheBucketsStorageMetricName", 0, "Overrides number of buckets used for storage/metricName cache. "+
+		"See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning")
 	cacheSizeIndexDBIndexBlocks = flagutil.NewBytes("storage.cacheSizeIndexDBIndexBlocks", 0, "Overrides max size for indexdb/indexBlocks cache. "+
 		"See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning")
 	cacheSizeIndexDBDataBlocks = flagutil.NewBytes("storage.cacheSizeIndexDBDataBlocks", 0, "Overrides max size for indexdb/dataBlocks cache. "+
@@ -90,6 +95,8 @@ func main() {
 	storage.SetRetentionTimezoneOffset(*retentionTimezoneOffset)
 	storage.SetFreeDiskSpaceLimit(minFreeDiskSpaceBytes.N)
 	storage.SetTSIDCacheSize(cacheSizeStorageTSID.IntN())
+	storage.SetMetricNameCacheSize(cacheSizeStorageMetricName.IntN())
+	storage.SetMetricNameCacheBuckets(*cacheBucketsStorageMetricName)
 	storage.SetTagFiltersCacheSize(cacheSizeIndexDBTagFilters.IntN())
 	mergeset.SetIndexBlocksCacheSize(cacheSizeIndexDBIndexBlocks.IntN())
 	mergeset.SetDataBlocksCacheSize(cacheSizeIndexDBDataBlocks.IntN())

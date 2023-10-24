@@ -239,11 +239,11 @@ func MustOpenStorage(path string, cfg *StorageConfig) *Storage {
 	// Load caches
 	mem := memory.Allowed()
 	streamIDCachePath := filepath.Join(path, cacheDirname, streamIDCacheFilename)
-	streamIDCache := workingsetcache.Load(streamIDCachePath, mem/16)
+	streamIDCache := workingsetcache.Load(streamIDCachePath, mem/16, 0)
 
-	streamTagsCache := workingsetcache.New(mem / 10)
+	streamTagsCache := workingsetcache.New(mem/10, 0)
 
-	streamFilterCache := workingsetcache.New(mem / 10)
+	streamFilterCache := workingsetcache.New(mem/10, 0)
 
 	s := &Storage{
 		path:                  path,

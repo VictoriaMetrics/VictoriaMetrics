@@ -12,13 +12,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/VictoriaMetrics/fastcache"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/mergeset"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
-	"github.com/VictoriaMetrics/fastcache"
 )
 
 func TestMarshalUnmarshalMetricIDs(t *testing.T) {
@@ -2076,9 +2077,9 @@ func newTestStorage() *Storage {
 	s := &Storage{
 		cachePath: "test-storage-cache",
 
-		metricIDCache:     workingsetcache.New(1234),
-		metricNameCache:   workingsetcache.New(1234),
-		tsidCache:         workingsetcache.New(1234),
+		metricIDCache:     workingsetcache.New(1234, 0),
+		metricNameCache:   workingsetcache.New(1234, 0),
+		tsidCache:         workingsetcache.New(1234, 0),
 		dateMetricIDCache: newDateMetricIDCache(),
 		retentionMsecs:    retentionMax.Milliseconds(),
 	}

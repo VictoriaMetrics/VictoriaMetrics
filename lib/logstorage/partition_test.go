@@ -171,8 +171,8 @@ func TestPartitionMustAddRowsConcurrent(t *testing.T) {
 //
 // When the storage is no longer needed, closeTestStorage() must be called.
 func newTestStorage() *Storage {
-	streamIDCache := workingsetcache.New(1024 * 1024)
-	streamFilterCache := workingsetcache.New(1024 * 1024)
+	streamIDCache := workingsetcache.New(1024*1024, 0)
+	streamFilterCache := workingsetcache.New(1024*1024, 0)
 	return &Storage{
 		flushInterval:     time.Second,
 		streamIDCache:     streamIDCache,

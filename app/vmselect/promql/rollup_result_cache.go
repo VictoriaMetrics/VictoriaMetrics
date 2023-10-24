@@ -9,6 +9,10 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/fastcache"
+	"github.com/VictoriaMetrics/metrics"
+	"github.com/VictoriaMetrics/metricsql"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
@@ -19,9 +23,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
-	"github.com/VictoriaMetrics/fastcache"
-	"github.com/VictoriaMetrics/metrics"
-	"github.com/VictoriaMetrics/metricsql"
 )
 
 var (
@@ -31,7 +32,7 @@ var (
 )
 
 var rollupResultCacheV = &rollupResultCache{
-	c: workingsetcache.New(1024 * 1024), // This is a cache for testing.
+	c: workingsetcache.New(1024*1024, 0), // This is a cache for testing.
 }
 var rollupResultCachePath string
 
@@ -64,10 +65,10 @@ func InitRollupResultCache(cachePath string) {
 	var c *workingsetcache.Cache
 	if len(rollupResultCachePath) > 0 {
 		logger.Infof("loading rollupResult cache from %q...", rollupResultCachePath)
-		c = workingsetcache.Load(rollupResultCachePath, cacheSize)
+		c = workingsetcache.Load(rollupResultCachePath, cacheSize, 0)
 		mustLoadRollupResultCacheKeyPrefix(rollupResultCachePath)
 	} else {
-		c = workingsetcache.New(cacheSize)
+		c = workingsetcache.New(cacheSize, 0)
 		rollupResultCacheKeyPrefix = newRollupResultCacheKeyPrefix()
 	}
 	if *disableCache {

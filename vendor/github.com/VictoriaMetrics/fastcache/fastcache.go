@@ -109,7 +109,8 @@ func (bs *BigStats) reset() {
 // Call Reset when the cache is no longer needed. This reclaims the allocated
 // memory.
 type Cache struct {
-	buckets [bucketsCount]bucket
+	bucketsCount uint64
+	buckets []bucket
 
 	bigStats BigStats
 }
@@ -120,12 +121,17 @@ type Cache struct {
 // since the cache holds data in memory.
 //
 // If maxBytes is less than 32MB, then the minimum cache capacity is 32MB.
-func New(maxBytes int) *Cache {
+func New(maxBytes, buckets int) *Cache {
 	if maxBytes <= 0 {
 		panic(fmt.Errorf("maxBytes must be greater than 0; got %d", maxBytes))
 	}
+	if buckets <= 0 {
+		buckets = bucketsCount
+	}
 	var c Cache
-	maxBucketBytes := uint64((maxBytes + bucketsCount - 1) / bucketsCount)
+	c.bucketsCount = uint64(buckets)
+	c.buckets = make([]bucket, buckets)
+	maxBucketBytes := uint64((maxBytes + buckets - 1) / buckets)
 	for i := range c.buckets[:] {
 		c.buckets[i].Init(maxBucketBytes)
 	}
@@ -147,7 +153,7 @@ func New(maxBytes int) *Cache {
 // k and v contents may be modified after returning from Set.
 func (c *Cache) Set(k, v []byte) {
 	h := xxhash.Sum64(k)
-	idx := h % bucketsCount
+	idx := h % c.bucketsCount
 	c.buckets[idx].Set(k, v, h)
 }
 
@@ -160,7 +166,7 @@ func (c *Cache) Set(k, v []byte) {
 // k contents may be modified after returning from Get.
 func (c *Cache) Get(dst, k []byte) []byte {
 	h := xxhash.Sum64(k)
-	idx := h % bucketsCount
+	idx := h % c.bucketsCount
 	dst, _ = c.buckets[idx].Get(dst, k, h, true)
 	return dst
 }
@@ -170,14 +176,14 @@ func (c *Cache) Get(dst, k []byte) []byte {
 // stored nil/empty value versus and non-existing value.
 func (c *Cache) HasGet(dst, k []byte) ([]byte, bool) {
 	h := xxhash.Sum64(k)
-	idx := h % bucketsCount
+	idx := h % c.bucketsCount
 	return c.buckets[idx].Get(dst, k, h, true)
 }
 
 // Has returns true if entry for the given key k exists in the cache.
 func (c *Cache) Has(k []byte) bool {
 	h := xxhash.Sum64(k)
-	idx := h % bucketsCount
+	idx := h % c.bucketsCount
 	_, ok := c.buckets[idx].Get(nil, k, h, false)
 	return ok
 }
@@ -187,7 +193,7 @@ func (c *Cache) Has(k []byte) bool {
 // k contents may be modified after returning from Del.
 func (c *Cache) Del(k []byte) {
 	h := xxhash.Sum64(k)
-	idx := h % bucketsCount
+	idx := h % c.bucketsCount
 	c.buckets[idx].Del(h)
 }
 

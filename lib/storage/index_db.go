@@ -15,6 +15,9 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/VictoriaMetrics/fastcache"
+	"github.com/cespare/xxhash/v2"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
@@ -25,8 +28,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
-	"github.com/VictoriaMetrics/fastcache"
-	"github.com/cespare/xxhash/v2"
 )
 
 const (
@@ -156,9 +157,9 @@ func mustOpenIndexDB(path string, s *Storage, isReadOnly *uint32) *indexDB {
 		tb:         tb,
 		name:       name,
 
-		tagFiltersToMetricIDsCache: workingsetcache.New(tagFiltersCacheSize),
+		tagFiltersToMetricIDsCache: workingsetcache.New(tagFiltersCacheSize, 0),
 		s:                          s,
-		loopsPerDateTagFilterCache: workingsetcache.New(mem / 128),
+		loopsPerDateTagFilterCache: workingsetcache.New(mem/128, 0),
 	}
 	return db
 }

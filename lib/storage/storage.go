@@ -15,6 +15,9 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/VictoriaMetrics/fastcache"
+	"github.com/VictoriaMetrics/metricsql"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/backupnames"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bloomfilter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -28,8 +31,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/snapshot"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
-	"github.com/VictoriaMetrics/fastcache"
-	"github.com/VictoriaMetrics/metricsql"
 )
 
 const (
@@ -217,9 +218,9 @@ func MustOpenStorage(path string, retention time.Duration, maxHourlySeries, maxD
 
 	// Load caches.
 	mem := memory.Allowed()
-	s.tsidCache = s.mustLoadCache("metricName_tsid", getTSIDCacheSize())
-	s.metricIDCache = s.mustLoadCache("metricID_tsid", mem/16)
-	s.metricNameCache = s.mustLoadCache("metricID_metricName", mem/10)
+	s.tsidCache = s.mustLoadCache("metricName_tsid", getTSIDCacheSize(), 0)
+	s.metricIDCache = s.mustLoadCache("metricID_tsid", mem/16, 0)
+	s.metricNameCache = s.mustLoadCache("metricID_metricName", getMetricNameCacheSize(), getMetricNameCacheBuckets())
 	s.dateMetricIDCache = newDateMetricIDCache()
 
 	hour := fasttime.UnixHour()
@@ -307,6 +308,34 @@ func getTSIDCacheSize() int {
 		return int(float64(memory.Allowed()) * 0.37)
 	}
 	return maxTSIDCacheSize
+}
+
+var maxMetricNameCacheSize int
+
+// SetMetricNameCacheSize overrides the default size of storage/metricName cache
+func SetMetricNameCacheSize(size int) {
+	maxMetricNameCacheSize = size
+}
+
+func getMetricNameCacheSize() int {
+	if maxMetricNameCacheSize <= 0 {
+		return int(float64(memory.Allowed()) * 0.1)
+	}
+	return maxMetricNameCacheSize
+}
+
+var metricNameCacheBuckets int
+
+// SetMetricNameCacheBuckets overrides the default number of buckets for storage/metricName cache
+func SetMetricNameCacheBuckets(buckets int) {
+	metricNameCacheBuckets = buckets
+}
+
+func getMetricNameCacheBuckets() int {
+	if metricNameCacheBuckets <= 0 {
+		return 512
+	}
+	return metricNameCacheBuckets
 }
 
 func (s *Storage) getDeletedMetricIDs() *uint64set.Set {
@@ -1105,9 +1134,9 @@ func loadMinTimestampForCompositeIndex(path string) (int64, error) {
 	return encoding.UnmarshalInt64(data), nil
 }
 
-func (s *Storage) mustLoadCache(name string, sizeBytes int) *workingsetcache.Cache {
+func (s *Storage) mustLoadCache(name string, sizeBytes, buckets int) *workingsetcache.Cache {
 	path := filepath.Join(s.cachePath, name)
-	return workingsetcache.Load(path, sizeBytes)
+	return workingsetcache.Load(path, sizeBytes, buckets)
 }
 
 func (s *Storage) mustSaveCache(c *workingsetcache.Cache, name string) {

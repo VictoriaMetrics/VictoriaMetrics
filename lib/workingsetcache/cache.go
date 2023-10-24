@@ -6,9 +6,10 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/fastcache"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
-	"github.com/VictoriaMetrics/fastcache"
 )
 
 var (
@@ -47,6 +48,9 @@ type Cache struct {
 	// The maxBytes value passed to New() or to Load().
 	maxBytes int
 
+	// The buckets value passed to New() or to Load().
+	buckets int
+
 	// mu serializes access to curr, prev and mode
 	// in expirationWatcher, prevCacheWatcher and cacheSizeWatcher.
 	mu sync.Mutex
@@ -59,12 +63,12 @@ type Cache struct {
 // and evicts inactive entries in *cacheExpireDuration minutes.
 //
 // Stop must be called on the returned cache when it is no longer needed.
-func Load(filePath string, maxBytes int) *Cache {
-	return loadWithExpire(filePath, maxBytes, *cacheExpireDuration)
+func Load(filePath string, maxBytes, buckets int) *Cache {
+	return loadWithExpire(filePath, maxBytes, buckets, *cacheExpireDuration)
 }
 
-func loadWithExpire(filePath string, maxBytes int, expireDuration time.Duration) *Cache {
-	curr := fastcache.LoadFromFileOrNew(filePath, maxBytes)
+func loadWithExpire(filePath string, maxBytes, buckets int, expireDuration time.Duration) *Cache {
+	curr := fastcache.LoadFromFileOrNew(filePath, maxBytes, buckets)
 	var cs fastcache.Stats
 	curr.UpdateStats(&cs)
 	if cs.EntriesCount == 0 {
@@ -74,9 +78,9 @@ func loadWithExpire(filePath string, maxBytes int, expireDuration time.Duration)
 		// Try loading it again with maxBytes / 2 size.
 		// Put the loaded cache into `prev` instead of `curr`
 		// in order to limit the growth of the cache for the current period of time.
-		prev := fastcache.LoadFromFileOrNew(filePath, maxBytes/2)
-		curr := fastcache.New(maxBytes / 2)
-		c := newCacheInternal(curr, prev, split, maxBytes)
+		prev := fastcache.LoadFromFileOrNew(filePath, maxBytes/2, buckets)
+		curr := fastcache.New(maxBytes/2, buckets)
+		c := newCacheInternal(curr, prev, split, maxBytes, buckets)
 		c.runWatchers(expireDuration)
 		return c
 	}
@@ -84,28 +88,29 @@ func loadWithExpire(filePath string, maxBytes int, expireDuration time.Duration)
 	// The cache has been successfully loaded in full.
 	// Set its' mode to `whole`.
 	// There is no need in runWatchers call.
-	prev := fastcache.New(1024)
-	return newCacheInternal(curr, prev, whole, maxBytes)
+	prev := fastcache.New(1024, buckets)
+	return newCacheInternal(curr, prev, whole, maxBytes, buckets)
 }
 
 // New creates new cache with the given maxBytes capacity and *cacheExpireDuration expiration.
 //
 // Stop must be called on the returned cache when it is no longer needed.
-func New(maxBytes int) *Cache {
-	return newWithExpire(maxBytes, *cacheExpireDuration)
+func New(maxBytes, buckets int) *Cache {
+	return newWithExpire(maxBytes, buckets, *cacheExpireDuration)
 }
 
-func newWithExpire(maxBytes int, expireDuration time.Duration) *Cache {
-	curr := fastcache.New(maxBytes / 2)
-	prev := fastcache.New(1024)
-	c := newCacheInternal(curr, prev, split, maxBytes)
+func newWithExpire(maxBytes, buckets int, expireDuration time.Duration) *Cache {
+	curr := fastcache.New(maxBytes/2, buckets)
+	prev := fastcache.New(1024, buckets)
+	c := newCacheInternal(curr, prev, split, maxBytes, buckets)
 	c.runWatchers(expireDuration)
 	return c
 }
 
-func newCacheInternal(curr, prev *fastcache.Cache, mode, maxBytes int) *Cache {
+func newCacheInternal(curr, prev *fastcache.Cache, mode, maxBytes, buckets int) *Cache {
 	var c Cache
 	c.maxBytes = maxBytes
+	c.buckets = buckets
 	c.curr.Store(curr)
 	c.prev.Store(prev)
 	c.stopCh = make(chan struct{})
@@ -263,7 +268,7 @@ func (c *Cache) cacheSizeWatcher() {
 	prev.Reset()
 	// use c.maxBytes instead of maxBytesSize*2 for creating new cache, since otherwise the created cache
 	// couldn't be loaded from file with c.maxBytes limit after saving with maxBytesSize*2 limit.
-	c.curr.Store(fastcache.New(c.maxBytes))
+	c.curr.Store(fastcache.New(c.maxBytes, c.buckets))
 	c.mu.Unlock()
 
 	for {
@@ -283,7 +288,7 @@ func (c *Cache) cacheSizeWatcher() {
 	c.mu.Lock()
 	c.setMode(whole)
 	prev = c.prev.Load()
-	c.prev.Store(fastcache.New(1024))
+	c.prev.Store(fastcache.New(1024, c.buckets))
 	cs.Reset()
 	prev.UpdateStats(&cs)
 	updateCacheStatsHistory(&c.csHistory, &cs)
