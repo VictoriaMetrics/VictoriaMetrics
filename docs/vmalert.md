@@ -131,8 +131,8 @@ name: <string>
 [ eval_offset: <duration> ]
 
 # Optional
-# Adjust the `time` parameter of group evaluation requests to match intentional query delay from datasource.
-# This will override global `-rule.evalDelay` flag if both be using.
+# Adjust the `time` parameter of group evaluation requests to compensate intentional query delay from datasource.
+# By default, use flag `-rule.evalDelay` equal to `-search.latencyOffset` (a cmd-line flag configured for VictoriaMetrics single-node or vmselect). But if group has `latency_offset` param which value differs from `-search.latencyOffset`, set `eval_delay` equal to `latency_offset`.
 # See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5155.
 [ eval_delay: <duration> ]
 
@@ -822,7 +822,8 @@ at least two times bigger than the resolution.
 By default, recently written samples to VictoriaMetrics aren't visible for queries for up to 30s
 (see `-search.latencyOffset` command-line flag at vmselect, and it can be overridden by adding `latency_offset` to group's params). Such delay is needed to eliminate risk of incomplete
 data on the moment of querying, since metrics collectors won't be able to deliver the data in time.
-If you see delayed evaluation results caused by this intentional query delay from datasource, you can set `-rule.evalDelay` equal with `-search.latencyOffset` to fix the gap.
+To compensate the latency in timestamps for produced evaluation results, `-rule.evalDelay` is also set to 30s by default.
+If you changed the `-search.latencyOffset`(cmd-line flag configured for VictoriaMetrics single-node or vmselect) value and observed a delay in timestamps for produced evaluation results, try changing `-rule.evalDelay` equal to `-search.latencyOffset`.
 
 ### Alerts state
 
@@ -1308,7 +1309,7 @@ The shortlist of configuration flags is the following:
   -rule.resendDelay duration
      Minimum amount of time to wait before resending an alert to notifier
   -rule.evalDelay duration
-     Adjust the `time` parameter of rule evaluation requests to match intentional query delay from datasource. For example, if datasource has `-search.latencyOffset` flag, setting `-rule.evalDelay` equal with `-search.latencyOffset` can help correct the time values in ALERTS/ALERTS_FOR_STATE metrics and alertmanager messages.
+     Adjust the `time` parameter of rule evaluation requests to compensate intentional query delay from datasource. Normally should equal to `-search.latencyOffset`(a cmd-line flag configured for VictoriaMetrics single-node or vmselect). (default 30s)
      See more details [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5155).
   -rule.templates array
      Path or glob pattern to location with go template definitions

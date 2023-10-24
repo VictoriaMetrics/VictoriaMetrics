@@ -24,7 +24,7 @@ type Group struct {
 	Name       string              `yaml:"name"`
 	Interval   *promutils.Duration `yaml:"interval,omitempty"`
 	EvalOffset *promutils.Duration `yaml:"eval_offset,omitempty"`
-	// EvalDelay will adjust the `time` parameter of rule evaluation requests to match intentional query delay from datasource.
+	// EvalDelay will adjust the `time` parameter of rule evaluation requests to compensate intentional query delay from datasource.
 	// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5155
 	EvalDelay   *promutils.Duration `yaml:"eval_delay,omitempty"`
 	Limit       int                 `yaml:"limit,omitempty"`

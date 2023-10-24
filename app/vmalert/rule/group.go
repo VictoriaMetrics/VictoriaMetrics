@@ -32,8 +32,8 @@ var (
 	resendDelay        = flag.Duration("rule.resendDelay", 0, "MiniMum amount of time to wait before resending an alert to notifier")
 	maxResolveDuration = flag.Duration("rule.maxResolveDuration", 0, "Limits the maxiMum duration for automatic alert expiration, "+
 		"which by default is 4 times evaluationInterval of the parent ")
-	evalDelay = flag.Duration("rule.evalDelay", 0, "Adjust the `time` parameter of rule evaluation requests to match intentional data query delay from datasource."+
-		"For example, if datasource has `-search.latencyOffset` flag, setting `-rule.evalDelay` equal with `-search.latencyOffset` can help correct the time values in ALERTS/ALERTS_FOR_STATE metrics and alertmanager messages.")
+	evalDelay = flag.Duration("rule.evalDelay", 30, "Adjust the `time` parameter of rule evaluation requests to compensate intentional data query delay from datasource."+
+		"Normally should equal to `-search.latencyOffset`(a cmd-line flag configured for VictoriaMetrics single-node or vmselect)")
 	disableAlertGroupLabel = flag.Bool("disableAlertgroupLabel", false, "Whether to disable adding group's Name as label to generated alerts and time series.")
 	remoteReadLookBack     = flag.Duration("remoteRead.lookback", time.Hour, "Lookback defines how far to look into past for alerts timeseries."+
 		" For example, if lookback=1h then range from now() to now()-1h will be scanned.")
@@ -48,7 +48,7 @@ type Group struct {
 	Type       config.Type
 	Interval   time.Duration
 	EvalOffset *time.Duration
-	// EvalDelay will adjust the `time` parameter of rule evaluation requests to match intentional query delay from datasource.
+	// EvalDelay will adjust the `time` parameter of rule evaluation requests to compensate intentional query delay from datasource.
 	// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5155
 	EvalDelay      *time.Duration
 	Limit          int
