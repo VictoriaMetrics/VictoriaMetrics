@@ -40,7 +40,7 @@ groups:
         labels:
           severity: critical
         annotations:
-          summary: "It is more than 80% of memory used by \"{{ $labels.job }}\"(\"{{ $labels.instance }}\") during the last 5m"
+          summary: "It is more than 80% of memory used by \"{{ $labels.job }}\"(\"{{ $labels.instance }}\")"
           description: "Too high memory usage may result into multiple issues such as OOMs or degraded performance.
            Consider to either increase available memory or decrease the load on the process."
 
