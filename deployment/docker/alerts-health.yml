@@ -35,7 +35,7 @@ groups:
           Consider to increase the limit as fast as possible."
 
       - alert: TooHighMemoryUsage
-        expr: (process_resident_memory_anon_bytes / vm_available_memory_bytes) > 0.8
+        expr: (min_over_time(process_resident_memory_anon_bytes[10m]) / vm_available_memory_bytes) > 0.8
         for: 5m
         labels:
           severity: critical
