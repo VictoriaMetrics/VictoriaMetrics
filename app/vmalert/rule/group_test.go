@@ -636,24 +636,24 @@ func TestGetPrometheusReqTimestamp(t *testing.T) {
 		originTS, expTS string
 	}{
 		{
-			"with query align",
+			"with query align + default evalDelay",
 			&Group{
 				Interval: time.Hour,
 			},
 			"2023-08-28T11:11:00+00:00",
-			"2023-08-28T11:00:00+00:00",
+			"2023-08-28T10:59:30+00:00",
 		},
 		{
-			"without query align",
+			"without query align + default evalDelay",
 			&Group{
 				Interval:      time.Hour,
 				evalAlignment: &disableAlign,
 			},
 			"2023-08-28T11:11:00+00:00",
-			"2023-08-28T11:11:00+00:00",
+			"2023-08-28T11:10:30+00:00",
 		},
 		{
-			"with eval_offset, find previous offset point",
+			"with eval_offset, find previous offset point + default evalDelay",
 			&Group{
 				EvalOffset: &offset,
 				Interval:   time.Hour,
@@ -662,7 +662,7 @@ func TestGetPrometheusReqTimestamp(t *testing.T) {
 			"2023-08-28T10:30:00+00:00",
 		},
 		{
-			"with eval_offset",
+			"with eval_offset + default evalDelay",
 			&Group{
 				EvalOffset: &offset,
 				Interval:   time.Hour,
