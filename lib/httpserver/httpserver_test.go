@@ -3,6 +3,8 @@ package httpserver
 import (
 	"encoding/json"
 	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"testing"
 )
 
@@ -33,4 +35,38 @@ func TestGetQuotedRemoteAddr(t *testing.T) {
 	f("1.2.3.4", "", `"1.2.3.4"`)
 	f("1.2.3.4", "foo.bar", `"1.2.3.4, X-Forwarded-For: foo.bar"`)
 	f("1.2\n\"3.4", "foo\nb\"ar", `"1.2\n\"3.4, X-Forwarded-For: foo\nb\"ar"`)
+}
+
+func TestHandlerWrapper(t *testing.T) {
+	f := func(path string) {
+		t.Helper()
+
+		req := &http.Request{
+			URL: &url.URL{
+				Path: path,
+			},
+		}
+		rh := func(_ http.ResponseWriter, _ *http.Request) bool {
+			return true
+		}
+
+		srv := &server{
+			s: &http.Server{},
+		}
+		w := &httptest.ResponseRecorder{}
+
+		handlerWrapper(srv, w, req, rh)
+
+		if w.Header().Get("Strict-Transport-Security") == "" {
+			t.Errorf("HSTS header not set")
+		}
+		if w.Header().Get("Content-Security-Policy") == "" {
+			t.Errorf("CSP header not set")
+		}
+		if w.Header().Get("X-Frame-Options") == "" {
+			t.Errorf("X-Frame-Options header not set")
+		}
+	}
+
+	f("/health")
 }
