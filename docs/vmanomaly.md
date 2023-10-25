@@ -94,6 +94,9 @@ Currently, vmanomaly ships with a few common models:
    A simple moving window of quantiles. Easy to use, easy to understand, but not as powerful as 
    other models.
 
+1. **Isolation Forest**
+   Detects anomalies in *multivariate data* using binary trees. The algorithm has a linear time complexity and a low memory requirement, which works well with high-volume data. See [scikit-learn.org documentation](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.IsolationForest.html) for Isolation Forest.
+
 
 ### Examples
 For example, here’s how Prophet predictions could look like on a real-data example  
