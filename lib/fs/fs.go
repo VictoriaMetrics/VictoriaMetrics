@@ -127,6 +127,18 @@ func mustMkdirSync(path string) {
 // It doesn't remove the dir itself, so the dir may be mounted
 // to a separate partition.
 func RemoveDirContents(dir string) {
+	removeDirContentsWithOpt(dir, false)
+}
+
+// RemoveDirContentsKeepFlock removes all the contents but keeps flock file of the given dir if it exists.
+//
+// It doesn't remove the dir itself, so the dir may be mounted
+// to a separate partition.
+func RemoveDirContentsKeepFlock(dir string) {
+	removeDirContentsWithOpt(dir, true)
+}
+
+func removeDirContentsWithOpt(dir string, keepFlock bool) {
 	if !IsPathExist(dir) {
 		// The path doesn't exist, so nothing to remove.
 		return
@@ -144,6 +156,11 @@ func RemoveDirContents(dir string) {
 		if name == "." || name == ".." || name == "lost+found" {
 			// Skip special dirs.
 			continue
+		}
+		if keepFlock {
+			if name == FlockFilename {
+				continue
+			}
 		}
 		fullPath := filepath.Join(dir, name)
 		MustRemoveAll(fullPath)

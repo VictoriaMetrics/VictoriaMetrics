@@ -188,7 +188,7 @@ func tryOpeningQueue(path, name string, chunkFileSize, maxBlockSize, maxPendingB
 		}
 
 		// path contents is broken or missing. Re-create it from scratch.
-		fs.RemoveDirContents(path)
+		fs.RemoveDirContentsKeepFlock(path)
 		mi.Reset()
 		mi.Name = q.name
 		if err := mi.WriteToFile(metainfoPath); err != nil {
