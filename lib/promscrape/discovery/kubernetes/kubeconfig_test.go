@@ -30,9 +30,9 @@ func TestParseKubeConfigSuccess(t *testing.T) {
 			expectedConfig: &kubeConfig{
 				server: "https://localhost:6443",
 				tlsConfig: &promauth.TLSConfig{
-					CA:   []byte("authority"),
-					Cert: []byte("certificate"),
-					Key:  []byte("key"),
+					CA:   "authority",
+					Cert: "certificate",
+					Key:  "key",
 				},
 			},
 		},
