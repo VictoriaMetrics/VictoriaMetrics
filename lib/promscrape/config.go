@@ -141,9 +141,10 @@ func (cfg *Config) mustStart() {
 }
 
 // mustRestart restarts service discovery routines at cfg if they were changed comparing to prevCfg.
-func (cfg *Config) mustRestart(prevCfg *Config) {
+//
+// It returns true if at least a single scraper has been restarted.
+func (cfg *Config) mustRestart(prevCfg *Config) bool {
 	startTime := time.Now()
-	logger.Infof("restarting service discovery routines...")
 
 	prevScrapeCfgByName := make(map[string]*ScrapeConfig, len(prevCfg.ScrapeConfigs))
 	for _, scPrev := range prevCfg.ScrapeConfigs {
@@ -186,7 +187,12 @@ func (cfg *Config) mustRestart(prevCfg *Config) {
 	}
 	jobNames := cfg.getJobNames()
 	tsmGlobal.registerJobNames(jobNames)
-	logger.Infof("restarted service discovery routines in %.3f seconds, stopped=%d, started=%d, restarted=%d", time.Since(startTime).Seconds(), stopped, started, restarted)
+	hasChanges := started > 0 || stopped > 0 || restarted > 0
+	if hasChanges {
+		logger.Infof("updated %d service discovery routines in %.3f seconds, started=%d, stopped=%d, restarted=%d",
+			len(cfg.ScrapeConfigs), time.Since(startTime).Seconds(), started, stopped, restarted)
+	}
+	return hasChanges
 }
 
 func areEqualGlobalConfigs(a, b *GlobalConfig) bool {
@@ -198,7 +204,20 @@ func areEqualGlobalConfigs(a, b *GlobalConfig) bool {
 func areEqualScrapeConfigs(a, b *ScrapeConfig) bool {
 	sa := a.marshalJSON()
 	sb := b.marshalJSON()
-	return string(sa) == string(sb)
+	if string(sa) != string(sb) {
+		return false
+	}
+	// Compare auth configs for a and b, since they may differ by TLS CA file contents,
+	// which is missing in the marshaled JSON of a and b,
+	// but it existis in the string representation of auth configs.
+	if a.swc.authConfig.String() != b.swc.authConfig.String() {
+		return false
+	}
+	if a.swc.proxyAuthConfig.String() != b.swc.proxyAuthConfig.String() {
+		return false
+	}
+	return true
+
 }
 
 func (sc *ScrapeConfig) unmarshalJSON(data []byte) error {
@@ -400,29 +419,28 @@ func loadStaticConfigs(path string) ([]StaticConfig, error) {
 }
 
 // loadConfig loads Prometheus config from the given path.
-func loadConfig(path string) (*Config, []byte, error) {
+func loadConfig(path string) (*Config, error) {
 	data, err := fs.ReadFileOrHTTP(path)
 	if err != nil {
-		return nil, nil, fmt.Errorf("cannot read Prometheus config from %q: %w", path, err)
+		return nil, fmt.Errorf("cannot read Prometheus config from %q: %w", path, err)
 	}
 	var c Config
-	dataNew, err := c.parseData(data, path)
-	if err != nil {
-		return nil, nil, fmt.Errorf("cannot parse Prometheus config from %q: %w", path, err)
+	if err := c.parseData(data, path); err != nil {
+		return nil, fmt.Errorf("cannot parse Prometheus config from %q: %w", path, err)
 	}
-	return &c, dataNew, nil
+	return &c, nil
 }
 
-func loadScrapeConfigFiles(baseDir string, scrapeConfigFiles []string) ([]*ScrapeConfig, []byte, error) {
+func mustLoadScrapeConfigFiles(baseDir string, scrapeConfigFiles []string) []*ScrapeConfig {
 	var scrapeConfigs []*ScrapeConfig
-	var scsData []byte
 	for _, filePath := range scrapeConfigFiles {
 		filePath := fs.GetFilepath(baseDir, filePath)
 		paths := []string{filePath}
 		if strings.Contains(filePath, "*") {
 			ps, err := filepath.Glob(filePath)
 			if err != nil {
-				return nil, nil, fmt.Errorf("invalid pattern %q: %w", filePath, err)
+				logger.Errorf("skipping pattern %q at `scrape_config_files` because of error: %s", filePath, err)
+				continue
 			}
 			sort.Strings(ps)
 			paths = ps
@@ -430,22 +448,23 @@ func loadScrapeConfigFiles(baseDir string, scrapeConfigFiles []string) ([]*Scrap
 		for _, path := range paths {
 			data, err := fs.ReadFileOrHTTP(path)
 			if err != nil {
-				return nil, nil, fmt.Errorf("cannot load %q: %w", path, err)
+				logger.Errorf("skipping %q at `scrape_config_files` because of error: %s", path, err)
+				continue
 			}
 			data, err = envtemplate.ReplaceBytes(data)
 			if err != nil {
-				return nil, nil, fmt.Errorf("cannot expand environment vars in %q: %w", path, err)
+				logger.Errorf("skipping %q at `scrape_config_files` because of failure to expand environment vars: %s", path, err)
+				continue
 			}
 			var scs []*ScrapeConfig
 			if err = yaml.UnmarshalStrict(data, &scs); err != nil {
-				return nil, nil, fmt.Errorf("cannot parse %q: %w", path, err)
+				logger.Errorf("skipping %q at `scrape_config_files` because of failure to parse it: %s", path, err)
+				continue
 			}
 			scrapeConfigs = append(scrapeConfigs, scs...)
-			scsData = append(scsData, '\n')
-			scsData = append(scsData, data...)
 		}
 	}
-	return scrapeConfigs, scsData, nil
+	return scrapeConfigs
 }
 
 // IsDryRun returns true if -promscrape.config.dryRun command-line flag is set
@@ -453,54 +472,56 @@ func IsDryRun() bool {
 	return *dryRun
 }
 
-func (cfg *Config) parseData(data []byte, path string) ([]byte, error) {
+func (cfg *Config) parseData(data []byte, path string) error {
 	if err := cfg.unmarshal(data, *strictParse); err != nil {
-		return nil, fmt.Errorf("cannot unmarshal data: %w", err)
+		cfg.ScrapeConfigs = nil
+		return fmt.Errorf("cannot unmarshal data: %w", err)
 	}
 	absPath, err := filepath.Abs(path)
 	if err != nil {
-		return nil, fmt.Errorf("cannot obtain abs path for %q: %w", path, err)
+		cfg.ScrapeConfigs = nil
+		return fmt.Errorf("cannot obtain abs path for %q: %w", path, err)
 	}
 	cfg.baseDir = filepath.Dir(absPath)
 
 	// Load cfg.ScrapeConfigFiles into c.ScrapeConfigs
-	scs, scsData, err := loadScrapeConfigFiles(cfg.baseDir, cfg.ScrapeConfigFiles)
-	if err != nil {
-		return nil, fmt.Errorf("cannot load `scrape_config_files` from %q: %w", path, err)
-	}
+	scs := mustLoadScrapeConfigFiles(cfg.baseDir, cfg.ScrapeConfigFiles)
 	cfg.ScrapeConfigFiles = nil
 	cfg.ScrapeConfigs = append(cfg.ScrapeConfigs, scs...)
-	dataNew := append(data, scsData...)
 
 	// Check that all the scrape configs have unique JobName
 	m := make(map[string]struct{}, len(cfg.ScrapeConfigs))
 	for _, sc := range cfg.ScrapeConfigs {
 		jobName := sc.JobName
 		if _, ok := m[jobName]; ok {
-			return nil, fmt.Errorf("duplicate `job_name` in `scrape_configs` loaded from %q: %q", path, jobName)
+			cfg.ScrapeConfigs = nil
+			return fmt.Errorf("duplicate `job_name` in `scrape_configs` loaded from %q: %q", path, jobName)
 		}
 		m[jobName] = struct{}{}
 	}
 
 	// Initialize cfg.ScrapeConfigs
-	var validScrapeConfigs []*ScrapeConfig
-	for i, sc := range cfg.ScrapeConfigs {
+	validScrapeConfigs := cfg.ScrapeConfigs[:0]
+	for _, sc := range cfg.ScrapeConfigs {
 		// Make a copy of sc in order to remove references to `data` memory.
 		// This should prevent from memory leaks on config reload.
 		sc = sc.clone()
-		cfg.ScrapeConfigs[i] = sc
 
 		swc, err := getScrapeWorkConfig(sc, cfg.baseDir, &cfg.Global)
 		if err != nil {
-			// print error and skip invalid scrape config
-			logger.Errorf("cannot parse `scrape_config` for job %q, skip it: %w", sc.JobName, err)
+			logger.Errorf("skipping `scrape_config` for job_name=%s because of error: %s", sc.JobName, err)
 			continue
 		}
 		sc.swc = swc
 		validScrapeConfigs = append(validScrapeConfigs, sc)
 	}
+	tailScrapeConfigs := cfg.ScrapeConfigs[len(validScrapeConfigs):]
 	cfg.ScrapeConfigs = validScrapeConfigs
-	return dataNew, nil
+	for i := range tailScrapeConfigs {
+		tailScrapeConfigs[i] = nil
+	}
+
+	return nil
 }
 
 func (sc *ScrapeConfig) clone() *ScrapeConfig {

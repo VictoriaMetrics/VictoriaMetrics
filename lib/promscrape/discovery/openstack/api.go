@@ -92,10 +92,15 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 		ac, err := opts.NewConfig()
 		if err != nil {
 			cfg.client.CloseIdleConnections()
-			return nil, err
+			return nil, fmt.Errorf("cannot parse TLS config: %w", err)
+		}
+		tlsConfig, err := ac.NewTLSConfig()
+		if err != nil {
+			cfg.client.CloseIdleConnections()
+			return nil, fmt.Errorf("cannot initialize TLS config: %w", err)
 		}
 		cfg.client.Transport = &http.Transport{
-			TLSClientConfig:     ac.NewTLSConfig(),
+			TLSClientConfig:     tlsConfig,
 			MaxIdleConnsPerHost: 100,
 		}
 	}
@@ -121,7 +126,7 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 	parsedURL, err := url.Parse(sdcAuth.IdentityEndpoint)
 	if err != nil {
 		cfg.client.CloseIdleConnections()
-		return nil, fmt.Errorf("cannot parse identity_endpoint: %s as url, err: %w", sdcAuth.IdentityEndpoint, err)
+		return nil, fmt.Errorf("cannot parse identity_endpoint %s as url: %w", sdcAuth.IdentityEndpoint, err)
 	}
 	cfg.endpoint = parsedURL
 	tokenReq, err := buildAuthRequestBody(&sdcAuth)
@@ -144,7 +149,7 @@ func getCreds(cfg *apiConfig) (*apiCredentials, error) {
 
 	resp, err := cfg.client.Post(apiURL.String(), "application/json", bytes.NewBuffer(cfg.authTokenReq))
 	if err != nil {
-		return nil, fmt.Errorf("failed query openstack identity api, url: %s, err: %w", apiURL.String(), err)
+		return nil, fmt.Errorf("failed query openstack identity api at url %s: %w", apiURL.String(), err)
 	}
 	r, err := io.ReadAll(resp.Body)
 	_ = resp.Body.Close()

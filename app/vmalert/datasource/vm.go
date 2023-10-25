@@ -142,24 +142,30 @@ func (s *VMStorage) Query(ctx context.Context, query string, ts time.Time) (Resu
 		return Result{}, nil, err
 	}
 	resp, err := s.do(ctx, req)
-	if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
-		// something in the middle between client and datasource might be closing
-		// the connection. So we do a one more attempt in hope request will succeed.
-		req, _ = s.newQueryRequest(query, ts)
-		resp, err = s.do(ctx, req)
-	}
 	if err != nil {
-		return Result{}, req, err
+		if !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrUnexpectedEOF) {
+			// Return unexpected error to the caller.
+			return Result{}, nil, err
+		}
+		// Something in the middle between client and datasource might be closing
+		// the connection. So we do a one more attempt in hope request will succeed.
+		req, err = s.newQueryRequest(query, ts)
+		if err != nil {
+			return Result{}, nil, fmt.Errorf("second attempt: %w", err)
+		}
+		resp, err = s.do(ctx, req)
+		if err != nil {
+			return Result{}, nil, fmt.Errorf("second attempt: %w", err)
+		}
 	}
-	defer func() {
-		_ = resp.Body.Close()
-	}()
 
+	// Process the received response.
 	parseFn := parsePrometheusResponse
 	if s.dataSourceType != datasourcePrometheus {
 		parseFn = parseGraphiteResponse
 	}
 	result, err := parseFn(req, resp)
+	_ = resp.Body.Close()
 	return result, req, err
 }
 
@@ -178,22 +184,30 @@ func (s *VMStorage) QueryRange(ctx context.Context, query string, start, end tim
 	}
 	req, err := s.newQueryRangeRequest(query, start, end)
 	if err != nil {
-		return Result{}, err
-	}
-	resp, err := s.do(ctx, req)
-	if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
-		// something in the middle between client and datasource might be closing
-		// the connection. So we do a one more attempt in hope request will succeed.
-		req, _ = s.newQueryRangeRequest(query, start, end)
-		resp, err = s.do(ctx, req)
-	}
-	if err != nil {
 		return res, err
 	}
-	defer func() {
-		_ = resp.Body.Close()
-	}()
-	return parsePrometheusResponse(req, resp)
+	resp, err := s.do(ctx, req)
+	if err != nil {
+		if !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrUnexpectedEOF) {
+			// Return unexpected error to the caller.
+			return res, err
+		}
+		// Something in the middle between client and datasource might be closing
+		// the connection. So we do a one more attempt in hope request will succeed.
+		req, err = s.newQueryRangeRequest(query, start, end)
+		if err != nil {
+			return res, fmt.Errorf("second attempt: %w", err)
+		}
+		resp, err = s.do(ctx, req)
+		if err != nil {
+			return res, fmt.Errorf("second attempt: %w", err)
+		}
+	}
+
+	// Process the received response.
+	res, err = parsePrometheusResponse(req, resp)
+	_ = resp.Body.Close()
+	return res, err
 }
 
 func (s *VMStorage) do(ctx context.Context, req *http.Request) (*http.Response, error) {

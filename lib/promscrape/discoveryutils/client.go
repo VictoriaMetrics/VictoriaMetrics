@@ -109,7 +109,11 @@ func NewClient(apiServer string, ac *promauth.Config, proxyURL *proxy.URL, proxy
 	isTLS := u.Scheme == "https"
 	var tlsCfg *tls.Config
 	if isTLS {
-		tlsCfg = ac.NewTLSConfig()
+		var err error
+		tlsCfg, err = ac.NewTLSConfig()
+		if err != nil {
+			return nil, fmt.Errorf("cannot initialize tls config: %w", err)
+		}
 	}
 
 	var proxyURLFunc func(*http.Request) (*url.URL, error)
@@ -247,13 +251,11 @@ func (c *Client) getAPIResponseWithParamsAndClientCtx(ctx context.Context, clien
 		return nil, fmt.Errorf("cannot create request for %q: %w", requestURL, err)
 	}
 
-	err = c.setHTTPHeaders(req)
-	if err != nil {
-		return nil, fmt.Errorf("cannot set request http header for %q: %w", requestURL, err)
+	if err := c.setHTTPHeaders(req); err != nil {
+		return nil, fmt.Errorf("cannot set request headers for %q: %w", requestURL, err)
 	}
-	err = c.setHTTPProxyHeaders(req)
-	if err != nil {
-		return nil, fmt.Errorf("cannot set request http proxy header for %q: %w", requestURL, err)
+	if err := c.setHTTPProxyHeaders(req); err != nil {
+		return nil, fmt.Errorf("cannot set request proxy headers for %q: %w", requestURL, err)
 	}
 	if modifyRequest != nil {
 		modifyRequest(req)
