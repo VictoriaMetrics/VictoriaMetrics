@@ -204,7 +204,7 @@ func gzipHandler(s *server, rh RequestHandler) http.HandlerFunc {
 var gzipHandlerWrapper = func() func(http.Handler) http.HandlerFunc {
 	hw, err := gzhttp.NewWrapper(gzhttp.CompressionLevel(1))
 	if err != nil {
-		panic(fmt.Errorf("BUG: cannot initialize gzip http wrapper: %s", err))
+		panic(fmt.Errorf("BUG: cannot initialize gzip http wrapper: %w", err))
 	}
 	return hw
 }()

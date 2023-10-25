@@ -117,7 +117,7 @@ func Init(extraParams url.Values) (QuerierBuilder, error) {
 	}
 	_, err = authCfg.GetAuthHeader()
 	if err != nil {
-		return nil, fmt.Errorf("failed to set request auth header to datasource %q: %s", *addr, err)
+		return nil, fmt.Errorf("failed to set request auth header to datasource %q: %w", *addr, err)
 	}
 
 	return &VMStorage{

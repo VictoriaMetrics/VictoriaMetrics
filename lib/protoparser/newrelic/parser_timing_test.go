@@ -58,7 +58,7 @@ func BenchmarkRowsUnmarshal(b *testing.B) {
 		var r Rows
 		for pb.Next() {
 			if err := r.Unmarshal(reqBody); err != nil {
-				panic(fmt.Errorf("unmarshal error: %s", err))
+				panic(fmt.Errorf("unmarshal error: %w", err))
 			}
 			if len(r.Rows) != 1 {
 				panic(fmt.Errorf("unexpected number of items unmarshaled; got %d; want %d", len(r.Rows), 1))

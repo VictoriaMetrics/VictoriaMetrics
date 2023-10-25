@@ -166,7 +166,7 @@ func replayRule(r Rule, start, end time.Time, rw remotewrite.RWClient, replayRul
 	var n int
 	for _, ts := range tss {
 		if err := rw.Push(ts); err != nil {
-			return n, fmt.Errorf("remote write failure: %s", err)
+			return n, fmt.Errorf("remote write failure: %w", err)
 		}
 		n += len(ts.Samples)
 	}

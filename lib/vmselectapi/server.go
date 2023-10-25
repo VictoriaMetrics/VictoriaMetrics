@@ -512,7 +512,7 @@ func (s *Server) processRequest(ctx *vmselectRequestCtx) error {
 
 	// Process the rpcName call.
 	if err := s.processRPC(ctx, rpcName); err != nil {
-		return fmt.Errorf("cannot execute %q: %s", rpcName, err)
+		return fmt.Errorf("cannot execute %q: %w", rpcName, err)
 	}
 
 	// Finish query trace.

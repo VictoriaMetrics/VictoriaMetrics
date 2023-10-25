@@ -112,7 +112,7 @@ func getTimestampsForPrecisionBits(timestamps []int64, precisionBits uint8) []in
 	data, marshalType, firstTimestamp := encoding.MarshalTimestamps(nil, timestamps, precisionBits)
 	timestampsAdjusted, err := encoding.UnmarshalTimestamps(nil, data, marshalType, firstTimestamp, len(timestamps))
 	if err != nil {
-		panic(fmt.Errorf("BUG: cannot unmarshal timestamps with precisionBits %d: %s", precisionBits, err))
+		panic(fmt.Errorf("BUG: cannot unmarshal timestamps with precisionBits %d: %w", precisionBits, err))
 	}
 	minTimestamp := timestamps[0]
 	maxTimestamp := timestamps[len(timestamps)-1]
@@ -124,7 +124,7 @@ func getValuesForPrecisionBits(values []int64, precisionBits uint8) []int64 {
 	data, marshalType, firstValue := encoding.MarshalValues(nil, values, precisionBits)
 	valuesAdjusted, err := encoding.UnmarshalValues(nil, data, marshalType, firstValue, len(values))
 	if err != nil {
-		panic(fmt.Errorf("BUG: cannot unmarshal values with precisionBits %d: %s", precisionBits, err))
+		panic(fmt.Errorf("BUG: cannot unmarshal values with precisionBits %d: %w", precisionBits, err))
 	}
 	return valuesAdjusted
 }

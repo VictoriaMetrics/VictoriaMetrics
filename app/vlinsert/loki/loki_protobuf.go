@@ -84,7 +84,7 @@ func parseProtobufRequest(data []byte, processLogMessage func(timestamp int64, f
 
 	err = req.Unmarshal(bb.B)
 	if err != nil {
-		return 0, fmt.Errorf("cannot parse request body: %s", err)
+		return 0, fmt.Errorf("cannot parse request body: %w", err)
 	}
 
 	var commonFields []logstorage.Field
@@ -97,7 +97,7 @@ func parseProtobufRequest(data []byte, processLogMessage func(timestamp int64, f
 		// Labels are same for all entries in the stream.
 		commonFields, err = parsePromLabels(commonFields[:0], stream.Labels)
 		if err != nil {
-			return rowsIngested, fmt.Errorf("cannot parse stream labels %q: %s", stream.Labels, err)
+			return rowsIngested, fmt.Errorf("cannot parse stream labels %q: %w", stream.Labels, err)
 		}
 		fields := commonFields
 

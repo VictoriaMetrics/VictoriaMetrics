@@ -899,7 +899,7 @@ func unmarshalCommonPrefix(dstTenantID *TenantID, src []byte) ([]byte, byte, err
 	src = src[1:]
 	tail, err := dstTenantID.unmarshal(src)
 	if err != nil {
-		return nil, 0, fmt.Errorf("cannot unmarshal tenantID: %s", err)
+		return nil, 0, fmt.Errorf("cannot unmarshal tenantID: %w", err)
 	}
 	return tail, prefix, nil
 }

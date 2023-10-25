@@ -120,10 +120,10 @@ func compressData(s string) string {
 	var bb bytes.Buffer
 	zw := gzip.NewWriter(&bb)
 	if _, err := zw.Write([]byte(s)); err != nil {
-		panic(fmt.Errorf("unexpected error when compressing data: %s", err))
+		panic(fmt.Errorf("unexpected error when compressing data: %w", err))
 	}
 	if err := zw.Close(); err != nil {
-		panic(fmt.Errorf("unexpected error when closing gzip writer: %s", err))
+		panic(fmt.Errorf("unexpected error when closing gzip writer: %w", err))
 	}
 	return bb.String()
 }

@@ -90,7 +90,7 @@ func Init(gen AlertURLGenerator, extLabels map[string]string, extURL string) (fu
 	externalLabels = extLabels
 	eu, err := url.Parse(externalURL)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse external URL: %s", err)
+		return nil, fmt.Errorf("failed to parse external URL: %w", err)
 	}
 
 	templates.UpdateWithFuncs(templates.FuncsWithExternalURL(eu))
@@ -116,7 +116,7 @@ func Init(gen AlertURLGenerator, extLabels map[string]string, extURL string) (fu
 	if len(*addrs) > 0 {
 		notifiers, err := notifiersFromFlags(gen)
 		if err != nil {
-			return nil, fmt.Errorf("failed to create notifier from flag values: %s", err)
+			return nil, fmt.Errorf("failed to create notifier from flag values: %w", err)
 		}
 		staticNotifiersFn = func() []Notifier {
 			return notifiers
@@ -126,7 +126,7 @@ func Init(gen AlertURLGenerator, extLabels map[string]string, extURL string) (fu
 
 	cw, err = newWatcher(*configPath, gen)
 	if err != nil {
-		return nil, fmt.Errorf("failed to init config watcher: %s", err)
+		return nil, fmt.Errorf("failed to init config watcher: %w", err)
 	}
 	return cw.notifiers, nil
 }

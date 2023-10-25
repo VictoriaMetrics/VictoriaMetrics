@@ -49,7 +49,7 @@ func (fs *FS) Read(files []string) (map[string][]byte, error) {
 				path, resp.StatusCode, http.StatusOK, data)
 		}
 		if err != nil {
-			return nil, fmt.Errorf("cannot read %q: %s", path, err)
+			return nil, fmt.Errorf("cannot read %q: %w", path, err)
 		}
 		result[path] = data
 	}
