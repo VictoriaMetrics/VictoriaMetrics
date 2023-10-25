@@ -173,7 +173,7 @@ func (u *URL) NewDialFunc(ac *promauth.Config) (fasthttp.DialFunc, error) {
 		}
 		authHeader, err := u.getAuthHeader(ac)
 		if err != nil {
-			return nil, fmt.Errorf("cannot get auth header: %s", err)
+			return nil, fmt.Errorf("cannot get auth header: %w", err)
 		}
 		if authHeader != "" {
 			authHeader = "Proxy-Authorization: " + authHeader + "\r\n"

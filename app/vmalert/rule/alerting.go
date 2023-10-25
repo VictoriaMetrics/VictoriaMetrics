@@ -269,7 +269,7 @@ func (ar *AlertingRule) toLabels(m datasource.Metric, qFn templates.QueryFn) (*l
 		Expr:   ar.Expr,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to expand labels: %s", err)
+		return nil, fmt.Errorf("failed to expand labels: %w", err)
 	}
 	for k, v := range extraLabels {
 		ls.processed[k] = v
@@ -310,7 +310,7 @@ func (ar *AlertingRule) execRange(ctx context.Context, start, end time.Time) ([]
 	for _, s := range res.Data {
 		a, err := ar.newAlert(s, nil, time.Time{}, qFn) // initial alert
 		if err != nil {
-			return nil, fmt.Errorf("failed to create alert: %s", err)
+			return nil, fmt.Errorf("failed to create alert: %w", err)
 		}
 		if ar.For == 0 { // if alert is instant
 			a.State = notifier.StateFiring
@@ -388,7 +388,7 @@ func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int) ([]pr
 	for _, m := range res.Data {
 		ls, err := ar.toLabels(m, qFn)
 		if err != nil {
-			curState.Err = fmt.Errorf("failed to expand labels: %s", err)
+			curState.Err = fmt.Errorf("failed to expand labels: %w", err)
 			return nil, curState.Err
 		}
 		h := hash(ls.processed)
@@ -513,7 +513,7 @@ func (ar *AlertingRule) newAlert(m datasource.Metric, ls *labelSet, start time.T
 	if ls == nil {
 		ls, err = ar.toLabels(m, qFn)
 		if err != nil {
-			return nil, fmt.Errorf("failed to expand labels: %s", err)
+			return nil, fmt.Errorf("failed to expand labels: %w", err)
 		}
 	}
 	a := &notifier.Alert{

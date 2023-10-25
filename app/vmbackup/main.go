@@ -168,7 +168,7 @@ See the docs at https://docs.victoriametrics.com/vmbackup.html .
 
 func newSrcFS() (*fslocal.FS, error) {
 	if err := snapshot.Validate(*snapshotName); err != nil {
-		return nil, fmt.Errorf("invalid -snapshotName=%q: %s", *snapshotName, err)
+		return nil, fmt.Errorf("invalid -snapshotName=%q: %w", *snapshotName, err)
 	}
 	snapshotPath := filepath.Join(*storageDataPath, "snapshots", *snapshotName)
 

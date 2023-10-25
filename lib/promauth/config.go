@@ -599,7 +599,7 @@ func (actx *authContext) initFromAuthorization(baseDir string, az *Authorization
 	actx.getAuthHeader = func() (string, error) {
 		token, err := readPasswordFromFile(filePath)
 		if err != nil {
-			return "", fmt.Errorf("cannot read credentials from `credentials_file`=%q: %s", az.CredentialsFile, err)
+			return "", fmt.Errorf("cannot read credentials from `credentials_file`=%q: %w", az.CredentialsFile, err)
 		}
 		return azType + " " + token, nil
 	}
@@ -628,7 +628,7 @@ func (actx *authContext) initFromBasicAuthConfig(baseDir string, ba *BasicAuthCo
 	actx.getAuthHeader = func() (string, error) {
 		password, err := readPasswordFromFile(filePath)
 		if err != nil {
-			return "", fmt.Errorf("cannot read password from `password_file`=%q set in `basic_auth` section: %s", ba.PasswordFile, err)
+			return "", fmt.Errorf("cannot read password from `password_file`=%q set in `basic_auth` section: %w", ba.PasswordFile, err)
 		}
 		// See https://en.wikipedia.org/wiki/Basic_access_authentication
 		token := ba.Username + ":" + password
@@ -644,7 +644,7 @@ func (actx *authContext) initFromBearerTokenFile(baseDir string, bearerTokenFile
 	actx.getAuthHeader = func() (string, error) {
 		token, err := readPasswordFromFile(filePath)
 		if err != nil {
-			return "", fmt.Errorf("cannot read bearer token from `bearer_token_file`=%q: %s", bearerTokenFile, err)
+			return "", fmt.Errorf("cannot read bearer token from `bearer_token_file`=%q: %w", bearerTokenFile, err)
 		}
 		return "Bearer " + token, nil
 	}
@@ -672,11 +672,11 @@ func (actx *authContext) initFromOAuth2Config(baseDir string, o *OAuth2Config) e
 		}
 		ts, err := oi.getTokenSource()
 		if err != nil {
-			return "", fmt.Errorf("cannot get OAuth2 tokenSource: %s", err)
+			return "", fmt.Errorf("cannot get OAuth2 tokenSource: %w", err)
 		}
 		t, err := ts.Token()
 		if err != nil {
-			return "", fmt.Errorf("cannot get OAuth2 token: %s", err)
+			return "", fmt.Errorf("cannot get OAuth2 token: %w", err)
 		}
 		return t.Type() + " " + t.AccessToken, nil
 	}
