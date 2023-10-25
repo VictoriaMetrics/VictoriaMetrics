@@ -6,8 +6,6 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-
-	"github.com/stretchr/testify/require"
 )
 
 func TestGetQuotedRemoteAddr(t *testing.T) {
@@ -106,8 +104,9 @@ func TestBasicAuthMetrics(t *testing.T) {
 
 		res := w.Result()
 		defer res.Body.Close()
-		require.Equal(t, tt.expectedCode, res.StatusCode)
-
+		if tt.expectedCode != res.StatusCode {
+			t.Fatalf("Unexpected status code: %d, Expected code is: %d\n", res.StatusCode, tt.expectedCode)
+		}
 	}
 
 	*httpAuthUsername = ""
@@ -121,8 +120,9 @@ func TestBasicAuthMetrics(t *testing.T) {
 
 		res := w.Result()
 		defer res.Body.Close()
-		require.Equal(t, tt.expectedCode, res.StatusCode)
-
+		if tt.expectedCode != res.StatusCode {
+			t.Fatalf("Unexpected status code: %d, Expected code is: %d\n", res.StatusCode, tt.expectedCode)
+		}
 	}
 
 	*httpAuthPassword = origPasswd
@@ -183,7 +183,9 @@ func TestAuthKeyMetrics(t *testing.T) {
 
 		res := w.Result()
 		defer res.Body.Close()
-		require.Equal(t, tt.expectedCode, res.StatusCode)
+		if tt.expectedCode != res.StatusCode {
+			t.Fatalf("Unexpected status code: %d, Expected code is: %d\n", res.StatusCode, tt.expectedCode)
+		}
 	}
 
 	*httpAuthUsername = "test"
@@ -197,8 +199,9 @@ func TestAuthKeyMetrics(t *testing.T) {
 
 		res := w.Result()
 		defer res.Body.Close()
-		require.Equal(t, tt.expectedCode, res.StatusCode)
-
+		if tt.expectedCode != res.StatusCode {
+			t.Fatalf("Unexpected status code: %d, Expected code is: %d\n", res.StatusCode, tt.expectedCode)
+		}
 	}
 
 	*httpAuthPassword = origPasswd
