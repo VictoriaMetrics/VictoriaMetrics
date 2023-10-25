@@ -352,7 +352,7 @@ func (ac *Config) SetFasthttpHeaders(req *fasthttp.Request, setAuthHeader bool) 
 	if setAuthHeader {
 		ah, err := ac.GetAuthHeader()
 		if err != nil {
-			return fmt.Errorf("failed to obtaine Authorization request header: %w", err)
+			return fmt.Errorf("failed to obtain Authorization request header: %w", err)
 		}
 		if ah != "" {
 			reqHeaders.Set("Authorization", ah)
