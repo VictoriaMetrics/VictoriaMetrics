@@ -172,8 +172,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	}
 
 	// vmui access.
-	switch {
-	case path == "/vmui" || path == "/graph":
+	if path == "/vmui" || path == "/graph" {
 		// VMUI access via incomplete url without `/` in the end. Redirect to complete url.
 		// Use relative redirect, since the hostname and path prefix may be incorrect if VictoriaMetrics
 		// is hidden behind vmauth or similar proxy.
@@ -182,27 +181,26 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		newURL := path + "/?" + r.Form.Encode()
 		httpserver.Redirect(w, newURL)
 		return true
-	case strings.HasPrefix(path, "/vmui/"):
-		if path == "/vmui/custom-dashboards" {
-			if err := handleVMUICustomDashboards(w); err != nil {
-				httpserver.Errorf(w, r, "%s", err)
-				return true
-			}
+	}
+	if strings.HasPrefix(path, "/graph/") {
+		// This is needed for serving /graph URLs from Prometheus datasource in Grafana.
+		path = strings.Replace(path, "/graph/", "/vmui/", 1)
+	}
+	if path == "/vmui/custom-dashboards" {
+		if err := handleVMUICustomDashboards(w); err != nil {
+			httpserver.Errorf(w, r, "%s", err)
 			return true
+		}
+		return true
+	}
+	if strings.HasPrefix(path, "/vmui/") {
+		if strings.HasPrefix(path, "/vmui/static/") {
+			// Allow clients caching static contents for long period of time, since it shouldn't change over time.
+			// Path to static contents (such as js and css) must be changed whenever its contents is changed.
+			// See https://developer.chrome.com/docs/lighthouse/performance/uses-long-cache-ttl/
+			w.Header().Set("Cache-Control", "max-age=31536000")
 		}
 		r.URL.Path = path
-		vmuiFileServer.ServeHTTP(w, r)
-		return true
-	case strings.HasPrefix(path, "/graph/"):
-		// This is needed for serving /graph URLs from Prometheus datasource in Grafana.
-		if path == "/graph/custom-dashboards" {
-			if err := handleVMUICustomDashboards(w); err != nil {
-				httpserver.Errorf(w, r, "%s", err)
-				return true
-			}
-			return true
-		}
-		r.URL.Path = strings.Replace(path, "/graph/", "/vmui/", 1)
 		vmuiFileServer.ServeHTTP(w, r)
 		return true
 	}

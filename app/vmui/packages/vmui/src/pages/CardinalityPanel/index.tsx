@@ -31,7 +31,7 @@ const CardinalityPanel: FC = () => {
   const match = searchParams.get("match") || "";
   const focusLabel = searchParams.get("focusLabel") || "";
 
-  const { isLoading, appConfigurator, error } = useFetchQuery();
+  const { isLoading, appConfigurator, error, isCluster } = useFetchQuery();
   const { tsdbStatusData, getDefaultState, tablesHeaders, sectionsTips } = appConfigurator;
   const defaultState = getDefaultState(match, focusLabel);
 
@@ -62,6 +62,7 @@ const CardinalityPanel: FC = () => {
         totalSeriesAll={tsdbStatusData.totalSeriesByAll}
         totalLabelValuePairs={tsdbStatusData.totalLabelValuePairs}
         seriesCountByMetricName={tsdbStatusData.seriesCountByMetricName}
+        isCluster={isCluster}
       />
 
       {showTips && (
@@ -69,7 +70,7 @@ const CardinalityPanel: FC = () => {
           {!match && !focusLabel && <TipHighNumberOfSeries/>}
           {match && !focusLabel && <TipCardinalityOfSingle/>}
           {!match && !focusLabel && <TipHighNumberOfValues/>}
-          {focusLabel && <TipCardinalityOfLabel/>}
+          {focusLabel && <TipCardinalityOfLabel />}
         </div>
       )}
 

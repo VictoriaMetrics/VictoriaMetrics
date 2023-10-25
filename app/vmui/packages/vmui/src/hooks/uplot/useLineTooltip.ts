@@ -64,7 +64,7 @@ const useLineTooltip = ({ u, metrics, series, unit }: LineTooltipHook) => {
       dates: [date ? dayjs(date * 1000).tz().format(DATE_FULL_TIMEZONE_FORMAT) : "-"],
       value: formatPrettyNumber(value, min, max),
       info: getMetricName(metricItem),
-      stats: seriesItem?.calculations,
+      statsFormatted: seriesItem?.statsFormatted,
       marker: `${seriesItem?.stroke}`,
     };
   }, [u, tooltipIdx, metrics, series, unit]);

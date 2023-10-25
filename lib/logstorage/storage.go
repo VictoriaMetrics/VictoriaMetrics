@@ -25,6 +25,10 @@ type StorageStats struct {
 	// PartitionsCount is the number of partitions in the storage
 	PartitionsCount uint64
 
+	// IsReadOnly indicates whether the storage is read-only.
+	IsReadOnly bool
+
+	// PartitionStats contains partition stats.
 	PartitionStats
 }
 
@@ -47,6 +51,9 @@ type StorageConfig struct {
 	//
 	// Log entries with timestamps bigger than now+FutureRetention are ignored.
 	FutureRetention time.Duration
+
+	// MinFreeDiskSpaceBytes is the minimum free disk space at storage path after which the storage stops accepting new data.
+	MinFreeDiskSpaceBytes int64
 
 	// LogNewStreams indicates whether to log newly created log streams.
 	//
@@ -78,6 +85,9 @@ type Storage struct {
 
 	// futureRetention is the maximum allowed interval to write data into the future
 	futureRetention time.Duration
+
+	// minFreeDiskSpaceBytes is the minimum free disk space at path after which the storage stops accepting new data
+	minFreeDiskSpaceBytes uint64
 
 	// logNewStreams instructs to log new streams if it is set to true
 	logNewStreams bool
@@ -215,6 +225,11 @@ func MustOpenStorage(path string, cfg *StorageConfig) *Storage {
 		futureRetention = 24 * time.Hour
 	}
 
+	var minFreeDiskSpaceBytes uint64
+	if cfg.MinFreeDiskSpaceBytes >= 0 {
+		minFreeDiskSpaceBytes = uint64(cfg.MinFreeDiskSpaceBytes)
+	}
+
 	if !fs.IsPathExist(path) {
 		mustCreateStorage(path)
 	}
@@ -231,14 +246,15 @@ func MustOpenStorage(path string, cfg *StorageConfig) *Storage {
 	streamFilterCache := workingsetcache.New(mem / 10)
 
 	s := &Storage{
-		path:            path,
-		retention:       retention,
-		flushInterval:   flushInterval,
-		futureRetention: futureRetention,
-		logNewStreams:   cfg.LogNewStreams,
-		logIngestedRows: cfg.LogIngestedRows,
-		flockF:          flockF,
-		stopCh:          make(chan struct{}),
+		path:                  path,
+		retention:             retention,
+		flushInterval:         flushInterval,
+		futureRetention:       futureRetention,
+		minFreeDiskSpaceBytes: minFreeDiskSpaceBytes,
+		logNewStreams:         cfg.LogNewStreams,
+		logIngestedRows:       cfg.LogIngestedRows,
+		flockF:                flockF,
+		stopCh:                make(chan struct{}),
 
 		streamIDCache:     streamIDCache,
 		streamTagsCache:   streamTagsCache,
@@ -390,6 +406,9 @@ func (s *Storage) MustClose() {
 }
 
 // MustAddRows adds lr to s.
+//
+// It is recommended checking whether the s is in read-only mode by calling IsReadOnly()
+// before calling MustAddRows.
 func (s *Storage) MustAddRows(lr *LogRows) {
 	// Fast path - try adding all the rows to the hot partition
 	s.partitionsLock.Lock()
@@ -515,6 +534,14 @@ func (s *Storage) UpdateStats(ss *StorageStats) {
 		ptw.pt.updateStats(&ss.PartitionStats)
 	}
 	s.partitionsLock.Unlock()
+
+	ss.IsReadOnly = s.IsReadOnly()
+}
+
+// IsReadOnly returns true if s is in read-only mode.
+func (s *Storage) IsReadOnly() bool {
+	available := fs.MustGetFreeSpace(s.path)
+	return available < s.minFreeDiskSpaceBytes
 }
 
 func (s *Storage) debugFlush() {

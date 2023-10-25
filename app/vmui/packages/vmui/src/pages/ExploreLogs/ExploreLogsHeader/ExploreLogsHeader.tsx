@@ -27,7 +27,6 @@ const ExploreLogsHeader: FC<ExploreLogHeaderProps> = ({ query, onChange, onRun }
         <QueryEditor
           value={query}
           autocomplete={false}
-          options={[]}
           onArrowUp={() => null}
           onArrowDown={() => null}
           onEnter={onRun}

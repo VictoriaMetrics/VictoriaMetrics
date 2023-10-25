@@ -3,6 +3,7 @@ package logstorage
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"sort"
@@ -69,13 +70,10 @@ type datadb struct {
 	// stopCh is used for notifying background workers to stop
 	stopCh chan struct{}
 
-	// mergeDoneCond is used for pace-limiting the data ingestion rate
-	mergeDoneCond *sync.Cond
-
-	// inmemoryPartsFlushersCount is the number of currently running in-memory parts flushers
+	// oldInmemoryPartsFlushersCount is the number of currently running flushers for old in-memory parts
 	//
 	// This variable must be accessed under partsLock.
-	inmemoryPartsFlushersCount int
+	oldInmemoryPartsFlushersCount int
 
 	// mergeWorkersCount is the number of currently running merge workers
 	//
@@ -173,7 +171,6 @@ func mustOpenDatadb(pt *partition, path string, flushInterval time.Duration) *da
 		fileParts:     pws,
 		stopCh:        make(chan struct{}),
 	}
-	ddb.mergeDoneCond = sync.NewCond(&ddb.partsLock)
 
 	// Start merge workers in the hope they'll merge the remaining parts
 	ddb.partsLock.Lock()
@@ -186,47 +183,65 @@ func mustOpenDatadb(pt *partition, path string, flushInterval time.Duration) *da
 	return ddb
 }
 
-// startInmemoryPartsFlusherLocked starts flusher for in-memory parts to disk.
+// startOldInmemoryPartsFlusherLocked starts flusher for old in-memory parts to disk.
 //
 // This function must be called under partsLock.
-func (ddb *datadb) startInmemoryPartsFlusherLocked() {
-	if ddb.inmemoryPartsFlushersCount >= 1 {
+func (ddb *datadb) startOldInmemoryPartsFlusherLocked() {
+	maxWorkers := getMergeWorkersCount()
+	if ddb.oldInmemoryPartsFlushersCount >= maxWorkers {
 		return
 	}
-	ddb.inmemoryPartsFlushersCount++
+	ddb.oldInmemoryPartsFlushersCount++
 	ddb.wg.Add(1)
 	go func() {
-		ddb.flushInmemoryParts()
+		ddb.flushOldInmemoryParts()
 		ddb.wg.Done()
 	}()
 }
 
-func (ddb *datadb) flushInmemoryParts() {
+func (ddb *datadb) flushOldInmemoryParts() {
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
-	for {
+	var parts, partsToMerge []*partWrapper
+
+	for !needStop(ddb.stopCh) {
 		ddb.partsLock.Lock()
-		pws := make([]*partWrapper, 0, len(ddb.inmemoryParts))
-		pws = appendNotInMergePartsLocked(pws, ddb.inmemoryParts)
+		parts = appendNotInMergePartsLocked(parts[:0], ddb.inmemoryParts)
 		currentTime := time.Now()
-		partsToFlush := pws[:0]
-		for _, pw := range pws {
+		partsToFlush := parts[:0]
+		for _, pw := range parts {
 			if pw.flushDeadline.Before(currentTime) {
 				partsToFlush = append(partsToFlush, pw)
 			}
 		}
-		setInMergeLocked(partsToFlush)
-		if len(pws) == 0 {
-			ddb.inmemoryPartsFlushersCount--
+		// Do not take into account available disk space when flushing in-memory parts to disk,
+		// since otherwise the outdated in-memory parts may remain in-memory, which, in turn,
+		// may result in increased memory usage plus possible loss of historical data.
+		// It is better to crash on out of disk error in this case.
+		partsToMerge = appendPartsToMerge(partsToMerge[:0], partsToFlush, math.MaxUint64)
+		if len(partsToMerge) == 0 {
+			partsToMerge = append(partsToMerge[:0], partsToFlush...)
+		}
+		setInMergeLocked(partsToMerge)
+		needStop := false
+		if len(ddb.inmemoryParts) == 0 {
+			// There are no in-memory parts, so stop the flusher.
+			needStop = true
+			ddb.oldInmemoryPartsFlushersCount--
 		}
 		ddb.partsLock.Unlock()
 
-		if len(pws) == 0 {
-			// There are no in-memory parts, so stop the flusher.
+		if needStop {
 			return
 		}
-		ddb.mustMergePartsFinal(partsToFlush)
 
+		ddb.mustMergeParts(partsToMerge, true)
+		if len(partsToMerge) < len(partsToFlush) {
+			// Continue merging remaining old in-memory parts from partsToFlush list.
+			continue
+		}
+
+		// There are no old in-memory parts to flush. Sleep for a while until these parts appear.
 		select {
 		case <-ddb.stopCh:
 			return
@@ -239,7 +254,8 @@ func (ddb *datadb) flushInmemoryParts() {
 //
 // This function must be called under locked partsLock.
 func (ddb *datadb) startMergeWorkerLocked() {
-	if ddb.mergeWorkersCount >= getMergeWorkersCount() {
+	maxWorkers := getMergeWorkersCount()
+	if ddb.mergeWorkersCount >= maxWorkers {
 		return
 	}
 	ddb.mergeWorkersCount++
@@ -269,7 +285,7 @@ func getMergeWorkersCount() int {
 
 func (ddb *datadb) mustMergeExistingParts() {
 	for !needStop(ddb.stopCh) {
-		maxOutBytes := ddb.availableDiskSpace()
+		maxOutBytes := availableDiskSpace(ddb.path)
 
 		ddb.partsLock.Lock()
 		parts := make([]*partWrapper, 0, len(ddb.inmemoryParts)+len(ddb.fileParts))
@@ -287,16 +303,7 @@ func (ddb *datadb) mustMergeExistingParts() {
 			return
 		}
 
-		partsSize := getCompressedSize(pws)
-		if !ddb.reserveDiskSpace(partsSize) {
-			// There is no free disk space for the merge,
-			// because concurrent merge workers already reserved the disk space.
-			// Try again with smaller maxOutBytes.
-			ddb.releasePartsToMerge(pws)
-			continue
-		}
 		ddb.mustMergeParts(pws, false)
-		ddb.releaseDiskSpace(partsSize)
 	}
 }
 
@@ -334,19 +341,40 @@ func assertIsInMerge(pws []*partWrapper) {
 
 // mustMergeParts merges pws to a single resulting part.
 //
-// if isFinal is set, then the resulting part will be saved to disk.
+// if isFinal is set, then the resulting part is guaranteed to be saved to disk.
+// The pws may remain unmerged after returning from the function if there is no enough disk space.
 //
 // All the parts inside pws must have isInMerge field set to true.
+// The isInMerge field inside pws parts is set to false before returning from the function.
 func (ddb *datadb) mustMergeParts(pws []*partWrapper, isFinal bool) {
 	if len(pws) == 0 {
 		// Nothing to merge.
 		return
 	}
+
 	assertIsInMerge(pws)
+	defer ddb.releasePartsToMerge(pws)
 
 	startTime := time.Now()
 
 	dstPartType := ddb.getDstPartType(pws, isFinal)
+	if dstPartType == partFile {
+		// Make sure there is enough disk space for performing the merge
+		partsSize := getCompressedSize(pws)
+		needReleaseDiskSpace := tryReserveDiskSpace(ddb.path, partsSize)
+		if needReleaseDiskSpace {
+			defer releaseDiskSpace(partsSize)
+		} else {
+			if !isFinal {
+				// There is no enough disk space for performing the non-final merge.
+				return
+			}
+			// Try performing final merge even if there is no enough disk space
+			// in order to persist in-memory data to disk.
+			// It is better to crash on out of memory error in this case.
+		}
+	}
+
 	if dstPartType == partInmemory {
 		atomic.AddUint64(&ddb.inmemoryMergesTotal, 1)
 		atomic.AddUint64(&ddb.inmemoryActiveMerges, 1)
@@ -414,8 +442,6 @@ func (ddb *datadb) mustMergeParts(pws []*partWrapper, isFinal bool) {
 		fs.MustSyncPath(dstPartPath)
 	}
 	if needStop(stopCh) {
-		ddb.releasePartsToMerge(pws)
-		ddb.mergeDoneCond.Broadcast()
 		// Remove incomplete destination part
 		if dstPartType == partFile {
 			fs.MustRemoveAll(dstPartPath)
@@ -522,15 +548,45 @@ func (ddb *datadb) mustAddRows(lr *LogRows) {
 
 	ddb.partsLock.Lock()
 	ddb.inmemoryParts = append(ddb.inmemoryParts, pw)
-	ddb.startInmemoryPartsFlusherLocked()
+	ddb.startOldInmemoryPartsFlusherLocked()
 	if len(ddb.inmemoryParts) > defaultPartsToMerge {
 		ddb.startMergeWorkerLocked()
 	}
-	for len(ddb.inmemoryParts) > maxInmemoryPartsPerPartition {
-		// limit the pace for data ingestion if too many inmemory parts are created
-		ddb.mergeDoneCond.Wait()
-	}
+	needAssistedMerge := ddb.needAssistedMergeForInmemoryPartsLocked()
 	ddb.partsLock.Unlock()
+
+	if needAssistedMerge {
+		ddb.assistedMergeForInmemoryParts()
+	}
+}
+
+func (ddb *datadb) needAssistedMergeForInmemoryPartsLocked() bool {
+	if len(ddb.inmemoryParts) < maxInmemoryPartsPerPartition {
+		return false
+	}
+	n := 0
+	for _, pw := range ddb.inmemoryParts {
+		if pw.isInMerge {
+			n++
+		}
+	}
+	return n >= defaultPartsToMerge
+}
+
+func (ddb *datadb) assistedMergeForInmemoryParts() {
+	ddb.partsLock.Lock()
+	parts := make([]*partWrapper, 0, len(ddb.inmemoryParts))
+	parts = appendNotInMergePartsLocked(parts, ddb.inmemoryParts)
+	// Do not take into account available disk space when merging in-memory parts,
+	// since otherwise the outdated in-memory parts may remain in-memory, which, in turn,
+	// may result in increased memory usage plus possible loss of historical data.
+	// It is better to crash on out of disk error in this case.
+	pws := make([]*partWrapper, 0, len(parts))
+	pws = appendPartsToMerge(pws[:0], parts, math.MaxUint64)
+	setInMergeLocked(pws)
+	ddb.partsLock.Unlock()
+
+	ddb.mustMergeParts(pws, false)
 }
 
 // DatadbStats contains various stats for datadb.
@@ -619,23 +675,29 @@ func (ddb *datadb) debugFlush() {
 	// Nothing to do, since all the ingested data is available for search via ddb.inmemoryParts.
 }
 
-func (ddb *datadb) mustMergePartsFinal(pws []*partWrapper) {
-	assertIsInMerge(pws)
+func (ddb *datadb) mustFlushInmemoryPartsToDisk() {
+	ddb.partsLock.Lock()
+	pws := append([]*partWrapper{}, ddb.inmemoryParts...)
+	setInMergeLocked(pws)
+	ddb.partsLock.Unlock()
 
 	var pwsChunk []*partWrapper
 	for len(pws) > 0 {
-		pwsChunk = appendPartsToMerge(pwsChunk[:0], pws, (1<<64)-1)
+		// Do not take into account available disk space when performing the final flush of in-memory parts to disk,
+		// since otherwise these parts will be lost.
+		// It is better to crash on out of disk error in this case.
+		pwsChunk = appendPartsToMerge(pwsChunk[:0], pws, math.MaxUint64)
 		if len(pwsChunk) == 0 {
 			pwsChunk = append(pwsChunk[:0], pws...)
 		}
-		ddb.mustMergeParts(pwsChunk, true)
-
 		partsToRemove := partsToMap(pwsChunk)
 		removedParts := 0
 		pws, removedParts = removeParts(pws, partsToRemove)
 		if removedParts != len(pwsChunk) {
 			logger.Panicf("BUG: unexpected number of parts removed; got %d; want %d", removedParts, len(pwsChunk))
 		}
+
+		ddb.mustMergeParts(pwsChunk, true)
 	}
 }
 
@@ -664,7 +726,7 @@ func (ddb *datadb) swapSrcWithDstParts(pws []*partWrapper, pwNew *partWrapper, d
 		switch dstPartType {
 		case partInmemory:
 			ddb.inmemoryParts = append(ddb.inmemoryParts, pwNew)
-			ddb.startInmemoryPartsFlusherLocked()
+			ddb.startOldInmemoryPartsFlusherLocked()
 		case partFile:
 			ddb.fileParts = append(ddb.fileParts, pwNew)
 		default:
@@ -696,8 +758,6 @@ func (ddb *datadb) swapSrcWithDstParts(pws []*partWrapper, pwNew *partWrapper, d
 		atomic.StoreUint32(&pw.mustBeDeleted, 1)
 		pw.decRef()
 	}
-
-	ddb.mergeDoneCond.Broadcast()
 }
 
 func removeParts(pws []*partWrapper, partsToRemove map[*partWrapper]struct{}) ([]*partWrapper, int) {
@@ -781,8 +841,8 @@ func (ddb *datadb) releasePartsToMerge(pws []*partWrapper) {
 	ddb.partsLock.Unlock()
 }
 
-func (ddb *datadb) availableDiskSpace() uint64 {
-	available := fs.MustGetFreeSpace(ddb.path)
+func availableDiskSpace(path string) uint64 {
+	available := fs.MustGetFreeSpace(path)
 	reserved := atomic.LoadUint64(&reservedDiskSpace)
 	if available < reserved {
 		return 0
@@ -790,18 +850,22 @@ func (ddb *datadb) availableDiskSpace() uint64 {
 	return available - reserved
 }
 
-func (ddb *datadb) reserveDiskSpace(n uint64) bool {
-	available := fs.MustGetFreeSpace(ddb.path)
-	reserved := atomic.AddUint64(&reservedDiskSpace, n)
+func tryReserveDiskSpace(path string, n uint64) bool {
+	available := fs.MustGetFreeSpace(path)
+	reserved := reserveDiskSpace(n)
 	if available > reserved {
 		return true
 	}
-	ddb.releaseDiskSpace(n)
+	releaseDiskSpace(n)
 	return false
 }
 
-func (ddb *datadb) releaseDiskSpace(n uint64) {
-	atomic.AddUint64(&reservedDiskSpace, -n)
+func reserveDiskSpace(n uint64) uint64 {
+	return atomic.AddUint64(&reservedDiskSpace, n)
+}
+
+func releaseDiskSpace(n uint64) {
+	atomic.AddUint64(&reservedDiskSpace, ^(n - 1))
 }
 
 // reservedDiskSpace tracks global reserved disk space for currently executed
@@ -826,19 +890,13 @@ func mustCloseDatadb(ddb *datadb) {
 	ddb.wg.Wait()
 
 	// flush in-memory data to disk
-	pws := append([]*partWrapper{}, ddb.inmemoryParts...)
-	setInMergeLocked(pws)
-	ddb.mustMergePartsFinal(pws)
-
-	// There is no need in using ddb.partsLock here, since nobody should acces ddb now.
-	for _, pw := range ddb.inmemoryParts {
-		pw.decRef()
-		if pw.refCount != 0 {
-			logger.Panicf("BUG: there are %d references to inmemoryPart", pw.refCount)
-		}
+	ddb.mustFlushInmemoryPartsToDisk()
+	if len(ddb.inmemoryParts) > 0 {
+		logger.Panicf("BUG: the number of in-memory parts must be zero after flushing them to disk; got %d", len(ddb.inmemoryParts))
 	}
 	ddb.inmemoryParts = nil
 
+	// close file parts
 	for _, pw := range ddb.fileParts {
 		pw.decRef()
 		if pw.refCount != 0 {

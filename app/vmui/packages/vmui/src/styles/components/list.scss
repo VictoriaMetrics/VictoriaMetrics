@@ -35,5 +35,13 @@
         color: $color-primary;
       }
     }
+
+    &_with-icon {
+      display: grid;
+      grid-template-columns: 14px 1fr;
+      gap: calc($padding-small/2);
+      align-items: center;
+      justify-content: flex-start;
+    }
   }
 }

@@ -37,6 +37,11 @@
   color: #b35cec !important;
 }
 
+// hidden in menu pages
+[data-sort="-1"] {
+  display: none;
+}
+
 // Content
 .markdown-body h1,
 .markdown-body h2,

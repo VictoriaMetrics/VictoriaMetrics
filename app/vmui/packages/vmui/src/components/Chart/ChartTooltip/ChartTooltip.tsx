@@ -6,7 +6,7 @@ import classNames from "classnames";
 import uPlot from "uplot";
 import Button from "../../Main/Button/Button";
 import { CloseIcon, DragIcon } from "../../Main/Icons";
-import { SeriesItemStats } from "../../../types";
+import { SeriesItemStatsFormatted } from "../../../types";
 import { STATS_ORDER } from "../../../constants/graph";
 
 export interface ChartTooltipProps {
@@ -17,7 +17,7 @@ export interface ChartTooltipProps {
   value: string | number | null;
   point: { top: number, left: number };
   unit?: string;
-  stats?: SeriesItemStats;
+  statsFormatted?: SeriesItemStatsFormatted;
   isSticky?: boolean;
   info?: string;
   marker?: string;
@@ -34,7 +34,7 @@ const ChartTooltip: FC<ChartTooltipProps> = ({
   point,
   unit = "",
   info,
-  stats,
+  statsFormatted,
   isSticky,
   marker,
   onClose
@@ -159,7 +159,7 @@ const ChartTooltip: FC<ChartTooltipProps> = ({
           <b>{value}</b>{unit}
         </p>
       </div>
-      {stats && (
+      {statsFormatted && (
         <table className="vm-chart-tooltip-stats">
           {STATS_ORDER.map((key, i) => (
             <div
@@ -167,7 +167,7 @@ const ChartTooltip: FC<ChartTooltipProps> = ({
               key={i}
             >
               <span className="vm-chart-tooltip-stats-row__key">{key}:</span>
-              <span className="vm-chart-tooltip-stats-row__value">{stats[key]}</span>
+              <span className="vm-chart-tooltip-stats-row__value">{statsFormatted[key]}</span>
             </div>
           ))}
         </table>

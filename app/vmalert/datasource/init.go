@@ -10,13 +10,14 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 var (
 	addr = flag.String("datasource.url", "", "Datasource compatible with Prometheus HTTP API. It can be single node VictoriaMetrics or vmselect URL. Required parameter. "+
 		"E.g. http://127.0.0.1:8428 . See also -remoteRead.disablePathAppend and -datasource.showURL")
 	appendTypePrefix  = flag.Bool("datasource.appendTypePrefix", false, "Whether to add type prefix to -datasource.url based on the query type. Set to true if sending different query types to the vmselect URL.")
-	showDatasourceURL = flag.Bool("datasource.showURL", false, "Whether to show -datasource.url in the exported metrics. "+
+	showDatasourceURL = flag.Bool("datasource.showURL", false, "Whether to avoid stripping sensitive information such as auth headers or passwords from URLs in log messages or UI and exported metrics. "+
 		"It is hidden by default, since it can contain sensitive info such as auth key")
 
 	headers = flag.String("datasource.headers", "", "Optional HTTP extraHeaders to send with each request to the corresponding -datasource.url. "+
@@ -46,7 +47,8 @@ var (
 	queryStep = flag.Duration("datasource.queryStep", 5*time.Minute, "How far a value can fallback to when evaluating queries. "+
 		"For example, if -datasource.queryStep=15s then param \"step\" with value \"15s\" will be added to every query. "+
 		"If set to 0, rule's evaluation interval will be used instead.")
-	queryTimeAlignment = flag.Bool("datasource.queryTimeAlignment", true, `Whether to align "time" parameter with evaluation interval.`+
+	queryTimeAlignment = flag.Bool("datasource.queryTimeAlignment", true, "Flag is deprecated and will be removed in next releases, please use `eval_alignment` in rule group instead."+
+		`Whether to align "time" parameter with evaluation interval.`+
 		"Alignment supposed to produce deterministic results despite number of vmalert replicas or time they were started. See more details here https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1257")
 	maxIdleConnections = flag.Int("datasource.maxIdleConnections", 100, `Defines the number of idle (keep-alive connections) to each configured datasource. Consider setting this value equal to the value: groups_total * group.concurrency. Too low a value may result in a high number of sockets in TIME_WAIT state.`)
 	disableKeepAlive   = flag.Bool("datasource.disableKeepAlive", false, `Whether to disable long-lived connections to the datasource. `+
@@ -62,6 +64,11 @@ func InitSecretFlags() {
 	}
 }
 
+// ShowDatasourceURL whether to show -datasource.url with sensitive information
+func ShowDatasourceURL() bool {
+	return *showDatasourceURL
+}
+
 // Param represents an HTTP GET param
 type Param struct {
 	Key, Value string
@@ -73,6 +80,9 @@ type Param struct {
 func Init(extraParams url.Values) (QuerierBuilder, error) {
 	if *addr == "" {
 		return nil, fmt.Errorf("datasource.url is empty")
+	}
+	if !*queryTimeAlignment {
+		logger.Warnf("flag `datasource.queryTimeAlignment` is deprecated and will be removed in next releases, please use `eval_alignment` in rule group instead")
 	}
 
 	tr, err := utils.Transport(*addr, *tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify)

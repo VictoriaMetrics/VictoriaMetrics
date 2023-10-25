@@ -142,6 +142,15 @@ name: <string>
 # By default, "prometheus" type is used.
 [ type: <string> ]
 
+# Optional
+# The evaluation timestamp will be aligned with group's interval, 
+# instead of using the actual timestamp that evaluation happens at.
+# By default, it's enabled to get more predictable results 
+# and to visually align with results plotted via Grafana or vmui.
+# See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5049 
+# Available starting from v1.95
+[ eval_alignment: <bool> | default true]
+
 # Optional list of HTTP URL parameters
 # applied for all rules requests within a group
 # For example:
@@ -537,11 +546,7 @@ Alertmanagers.
 
 To avoid recording rules results and alerts state duplication in VictoriaMetrics server
 don't forget to configure [deduplication](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#deduplication).
-The recommended value for `-dedup.minScrapeInterval` must be multiple of vmalert's `evaluation_interval`.
-If you observe inconsistent or "jumping" values in series produced by vmalert, try disabling `-datasource.queryTimeAlignment`
-command line flag. Because of alignment, two or more vmalert HA pairs will produce results with the same timestamps.
-But due of backfilling (data delivered to the datasource with some delay) values of such results may differ,
-which would affect deduplication logic and result into "jumping" datapoints.
+The recommended value for `-dedup.minScrapeInterval` must be multiple of vmalert's `-evaluationInterval`.
 
 Alertmanager will automatically deduplicate alerts with identical labels, so ensure that
 all `vmalert`s are having the same config.
@@ -789,7 +794,7 @@ may get empty response from the datasource and produce empty recording rules or 
 
 Try the following recommendations to reduce the chance of hitting the data delay issue:
 
-* Always configure group's `evaluationInterval` to be bigger or at least equal to 
+* Always configure group's `-evaluationInterval` to be bigger or at least equal to
 [time series resolution](https://docs.victoriametrics.com/keyConcepts.html#time-series-resolution);
 * Ensure that `[duration]` value is at least twice bigger than 
 [time series resolution](https://docs.victoriametrics.com/keyConcepts.html#time-series-resolution). For example,
@@ -831,7 +836,8 @@ and check the `Last updates` section:
 Rows in the section represent ordered rule evaluations and their results. The column `curl` contains an example of
 HTTP request sent by vmalert to the `-datasource.url` during evaluation. If specific state shows that there were
 no samples returned and curl command returns data - then it is very likely there was no data in datasource on the
-moment when rule was evaluated.
+moment when rule was evaluated. Sensitive info is stripped from the `curl` examples - see [security](#security) section
+for more details.
 
 ### Debug mode
 
@@ -846,6 +852,8 @@ Just set `debug: true` in rule's configuration and vmalert will start printing a
 ...
 2022-09-15T13:36:56.153Z  DEBUG rule "TestGroup":"Conns" (2601299393013563564) at 2022-09-15T15:36:56+02:00: alert 10705778000901301787 {alertgroup="TestGroup",alertname="Conns",cluster="east-1",instance="localhost:8429",replica="a"} PENDING => FIRING: 1m0s since becoming active at 2022-09-15 15:35:56.126006 +0200 CEST m=+39.384575417
 ```
+
+Sensitive info is stripped from the `curl` examples - see [security](#security) section for more details.
 
 ### Never-firing alerts
 
@@ -889,6 +897,20 @@ foo{bar="baz"} 2 # 'bar' label was overriden by `-external.label=bar=baz
 
 The same issue can be caused by collision of configured `labels` on [Group](#groups) or [Rule](#rules) levels.
 To fix it one should avoid collisions by carefully picking label overrides in configuration.
+
+
+## Security
+
+See general recommendations regarding security [here](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#security).
+
+vmalert [web UI](#web) exposes configuration details such as list of [Groups](#groups), active alerts, 
+[alerts state](#alerts-state), [notifiers](#notifier-configuration-file). Notifier addresses (sanitized) are attached
+as labels to metrics `vmalert_alerts_sent_.*` on `http://<vmalert>/metrics` page. Consider limiting user's access 
+to the web UI or `/metrics` page if this information is sensitive.
+
+[Alerts state](#alerts-state) page or [debug mode](#debug-mode) could emit additional information about configured
+datasource URL, GET params and headers. Sensitive information such as passwords or auth tokens is stripped by default.
+To disable stripping of such info pass `-datasource.showURL` cmd-line flag to vmalert.
 
 
 ## Profiling
@@ -969,11 +991,13 @@ The shortlist of configuration flags is the following:
   -datasource.queryStep duration
      How far a value can fallback to when evaluating queries. For example, if -datasource.queryStep=15s then param "step" with value "15s" will be added to every query. If set to 0, rule's evaluation interval will be used instead. (default 5m0s)
   -datasource.queryTimeAlignment
+     Flag is deprecated and will be removed in next releases, please use `eval_alignment` in rule group instead.
      Whether to align "time" parameter with evaluation interval.Alignment supposed to produce deterministic results despite number of vmalert replicas or time they were started. See more details here https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1257 (default true)
   -datasource.roundDigits int
      Adds "round_digits" GET param to datasource requests. In VM "round_digits" limits the number of digits after the decimal point in response values.
   -datasource.showURL
-     Whether to show -datasource.url in the exported metrics. It is hidden by default, since it can contain sensitive info such as auth key
+     Whether to avoid stripping sensitive information such as auth headers or passwords from URLs in log messages or UI and exported metrics.
+     It is hidden by default, since it can contain sensitive info such as auth key.
   -datasource.tlsCAFile string
      Optional path to TLS CA file to use for verifying connections to -datasource.url. By default, system CA is used
   -datasource.tlsCertFile string
@@ -993,7 +1017,7 @@ The shortlist of configuration flags is the following:
   -disableAlertgroupLabel
      Whether to disable adding group's Name as label to generated alerts and time series.
   -dryRun
-     Whether to check only config files without running vmalert. The rules file are validated. The -rule flag must be specified.
+     Whether to check only config files without running vmalert. The rules file are validated. The -rule flag must be specified.   
   -enableTCP6
      Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP are used
   -envflag.enable
@@ -1042,11 +1066,11 @@ The shortlist of configuration flags is the following:
   -internStringMaxLen int
      The maximum length for strings to intern. A lower limit may save memory at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning . See also -internStringDisableCache and -internStringCacheExpireDuration (default 500)
   -license string
-     See https://victoriametrics.com/products/enterprise/ for trial license. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
+     enterprise license key. This flag is available only in VictoriaMetrics enterprise. Documentation - https://docs.victoriametrics.com/enterprise.html, for more information, visit  https://victoriametrics.com/products/enterprise/ . To request a trial license, go to https://victoriametrics.com/products/enterprise/trial/
   -license.forceOffline
-     See https://victoriametrics.com/products/enterprise/ for trial license. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
+     enables offline license verification. License keys issued must support this feature. Contact our support team for license keys with offline check support.
   -licenseFile string
-     See https://victoriametrics.com/products/enterprise/ for trial license. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
+     path to file with enterprise license key. This flag is available only in VictoriaMetrics enterprise. Documentation - https://docs.victoriametrics.com/enterprise.html, for more information, visit  https://victoriametrics.com/products/enterprise/ . To request a trial license, go to https://victoriametrics.com/products/enterprise/trial/
   -loggerDisableTimestamps
      Whether to disable writing timestamps in logs
   -loggerErrorsPerSecondLimit int
@@ -1122,6 +1146,9 @@ The shortlist of configuration flags is the following:
   -notifier.url array
      Prometheus Alertmanager URL, e.g. http://127.0.0.1:9093. List all Alertmanager URLs if it runs in the cluster mode to ensure high availability.
      Supports an array of values separated by comma or specified via multiple flags.
+  -notifier.showURL bool
+     Whether to avoid stripping sensitive information such as passwords from URLs in log messages or UI for -notifier.url.
+     It is hidden by default, since it can contain sensitive info such as auth key.
   -notifier.blackhole bool
      Whether to blackhole alerting notifications. Enable this flag if you want vmalert to evaluate alerting rules without sending any notifications to external receivers (eg. alertmanager). `-notifier.url`, `-notifier.config` and `-notifier.blackhole` are mutually exclusive.
   -pprofAuthKey string

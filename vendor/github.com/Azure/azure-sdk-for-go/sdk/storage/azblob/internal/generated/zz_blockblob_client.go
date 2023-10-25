@@ -22,21 +22,10 @@ import (
 )
 
 // BlockBlobClient contains the methods for the BlockBlob group.
-// Don't use this type directly, use NewBlockBlobClient() instead.
+// Don't use this type directly, use a constructor function instead.
 type BlockBlobClient struct {
+	internal *azcore.Client
 	endpoint string
-	pl       runtime.Pipeline
-}
-
-// NewBlockBlobClient creates a new instance of BlockBlobClient with the specified values.
-//   - endpoint - The URL of the service account, container, or blob that is the target of the desired operation.
-//   - pl - the pipeline used for sending requests and handling responses.
-func NewBlockBlobClient(endpoint string, pl runtime.Pipeline) *BlockBlobClient {
-	client := &BlockBlobClient{
-		endpoint: endpoint,
-		pl:       pl,
-	}
-	return client
 }
 
 // CommitBlockList - The Commit Block List operation writes a blob by specifying the list of block IDs that make up the blob.
@@ -48,7 +37,7 @@ func NewBlockBlobClient(endpoint string, pl runtime.Pipeline) *BlockBlobClient {
 // belong to.
 // If the operation fails it returns an *azcore.ResponseError type.
 //
-// Generated from API version 2020-10-02
+// Generated from API version 2023-08-03
 //   - blocks - Blob Blocks.
 //   - options - BlockBlobClientCommitBlockListOptions contains the optional parameters for the BlockBlobClient.CommitBlockList
 //     method.
@@ -62,7 +51,7 @@ func (client *BlockBlobClient) CommitBlockList(ctx context.Context, blocks Block
 	if err != nil {
 		return BlockBlobClientCommitBlockListResponse{}, err
 	}
-	resp, err := client.pl.Do(req)
+	resp, err := client.internal.Pipeline().Do(req)
 	if err != nil {
 		return BlockBlobClientCommitBlockListResponse{}, err
 	}
@@ -148,7 +137,7 @@ func (client *BlockBlobClient) commitBlockListCreateRequest(ctx context.Context,
 	if modifiedAccessConditions != nil && modifiedAccessConditions.IfTags != nil {
 		req.Raw().Header["x-ms-if-tags"] = []string{*modifiedAccessConditions.IfTags}
 	}
-	req.Raw().Header["x-ms-version"] = []string{"2020-10-02"}
+	req.Raw().Header["x-ms-version"] = []string{ServiceVersion}
 	if options != nil && options.RequestID != nil {
 		req.Raw().Header["x-ms-client-request-id"] = []string{*options.RequestID}
 	}
@@ -165,7 +154,10 @@ func (client *BlockBlobClient) commitBlockListCreateRequest(ctx context.Context,
 		req.Raw().Header["x-ms-legal-hold"] = []string{strconv.FormatBool(*options.LegalHold)}
 	}
 	req.Raw().Header["Accept"] = []string{"application/xml"}
-	return req, runtime.MarshalAsXML(req, blocks)
+	if err := runtime.MarshalAsXML(req, blocks); err != nil {
+		return nil, err
+	}
+	return req, nil
 }
 
 // commitBlockListHandleResponse handles the CommitBlockList response.
@@ -233,7 +225,7 @@ func (client *BlockBlobClient) commitBlockListHandleResponse(resp *http.Response
 // GetBlockList - The Get Block List operation retrieves the list of blocks that have been uploaded as part of a block blob
 // If the operation fails it returns an *azcore.ResponseError type.
 //
-// Generated from API version 2020-10-02
+// Generated from API version 2023-08-03
 //   - listType - Specifies whether to return the list of committed blocks, the list of uncommitted blocks, or both lists together.
 //   - options - BlockBlobClientGetBlockListOptions contains the optional parameters for the BlockBlobClient.GetBlockList method.
 //   - LeaseAccessConditions - LeaseAccessConditions contains a group of parameters for the ContainerClient.GetProperties method.
@@ -243,7 +235,7 @@ func (client *BlockBlobClient) GetBlockList(ctx context.Context, listType BlockL
 	if err != nil {
 		return BlockBlobClientGetBlockListResponse{}, err
 	}
-	resp, err := client.pl.Do(req)
+	resp, err := client.internal.Pipeline().Do(req)
 	if err != nil {
 		return BlockBlobClientGetBlockListResponse{}, err
 	}
@@ -275,7 +267,7 @@ func (client *BlockBlobClient) getBlockListCreateRequest(ctx context.Context, li
 	if modifiedAccessConditions != nil && modifiedAccessConditions.IfTags != nil {
 		req.Raw().Header["x-ms-if-tags"] = []string{*modifiedAccessConditions.IfTags}
 	}
-	req.Raw().Header["x-ms-version"] = []string{"2020-10-02"}
+	req.Raw().Header["x-ms-version"] = []string{ServiceVersion}
 	if options != nil && options.RequestID != nil {
 		req.Raw().Header["x-ms-client-request-id"] = []string{*options.RequestID}
 	}
@@ -335,7 +327,7 @@ func (client *BlockBlobClient) getBlockListHandleResponse(resp *http.Response) (
 // Block from URL API in conjunction with Put Block List.
 // If the operation fails it returns an *azcore.ResponseError type.
 //
-// Generated from API version 2020-10-02
+// Generated from API version 2023-08-03
 //   - contentLength - The length of the request.
 //   - copySource - Specifies the name of the source page blob snapshot. This value is a URL of up to 2 KB in length that specifies
 //     a page blob snapshot. The value should be URL-encoded as it would appear in a request
@@ -354,7 +346,7 @@ func (client *BlockBlobClient) PutBlobFromURL(ctx context.Context, contentLength
 	if err != nil {
 		return BlockBlobClientPutBlobFromURLResponse{}, err
 	}
-	resp, err := client.pl.Do(req)
+	resp, err := client.internal.Pipeline().Do(req)
 	if err != nil {
 		return BlockBlobClientPutBlobFromURLResponse{}, err
 	}
@@ -453,7 +445,7 @@ func (client *BlockBlobClient) putBlobFromURLCreateRequest(ctx context.Context, 
 	if sourceModifiedAccessConditions != nil && sourceModifiedAccessConditions.SourceIfTags != nil {
 		req.Raw().Header["x-ms-source-if-tags"] = []string{*sourceModifiedAccessConditions.SourceIfTags}
 	}
-	req.Raw().Header["x-ms-version"] = []string{"2020-10-02"}
+	req.Raw().Header["x-ms-version"] = []string{ServiceVersion}
 	if options != nil && options.RequestID != nil {
 		req.Raw().Header["x-ms-client-request-id"] = []string{*options.RequestID}
 	}
@@ -469,6 +461,9 @@ func (client *BlockBlobClient) putBlobFromURLCreateRequest(ctx context.Context, 
 	}
 	if options != nil && options.CopySourceAuthorization != nil {
 		req.Raw().Header["x-ms-copy-source-authorization"] = []string{*options.CopySourceAuthorization}
+	}
+	if options != nil && options.CopySourceTags != nil {
+		req.Raw().Header["x-ms-copy-source-tag-option"] = []string{string(*options.CopySourceTags)}
 	}
 	req.Raw().Header["Accept"] = []string{"application/xml"}
 	return req, nil
@@ -532,7 +527,7 @@ func (client *BlockBlobClient) putBlobFromURLHandleResponse(resp *http.Response)
 // StageBlock - The Stage Block operation creates a new block to be committed as part of a blob
 // If the operation fails it returns an *azcore.ResponseError type.
 //
-// Generated from API version 2020-10-02
+// Generated from API version 2023-08-03
 //   - blockID - A valid Base64 string value that identifies the block. Prior to encoding, the string must be less than or equal
 //     to 64 bytes in size. For a given blob, the length of the value specified for the blockid
 //     parameter must be the same size for each block.
@@ -547,7 +542,7 @@ func (client *BlockBlobClient) StageBlock(ctx context.Context, blockID string, c
 	if err != nil {
 		return BlockBlobClientStageBlockResponse{}, err
 	}
-	resp, err := client.pl.Do(req)
+	resp, err := client.internal.Pipeline().Do(req)
 	if err != nil {
 		return BlockBlobClientStageBlockResponse{}, err
 	}
@@ -592,12 +587,15 @@ func (client *BlockBlobClient) stageBlockCreateRequest(ctx context.Context, bloc
 	if cpkScopeInfo != nil && cpkScopeInfo.EncryptionScope != nil {
 		req.Raw().Header["x-ms-encryption-scope"] = []string{*cpkScopeInfo.EncryptionScope}
 	}
-	req.Raw().Header["x-ms-version"] = []string{"2020-10-02"}
+	req.Raw().Header["x-ms-version"] = []string{ServiceVersion}
 	if options != nil && options.RequestID != nil {
 		req.Raw().Header["x-ms-client-request-id"] = []string{*options.RequestID}
 	}
 	req.Raw().Header["Accept"] = []string{"application/xml"}
-	return req, req.SetBody(body, "application/octet-stream")
+	if err := req.SetBody(body, "application/octet-stream"); err != nil {
+		return nil, err
+	}
+	return req, nil
 }
 
 // stageBlockHandleResponse handles the StageBlock response.
@@ -653,7 +651,7 @@ func (client *BlockBlobClient) stageBlockHandleResponse(resp *http.Response) (Bl
 // are read from a URL.
 // If the operation fails it returns an *azcore.ResponseError type.
 //
-// Generated from API version 2020-10-02
+// Generated from API version 2023-08-03
 //   - blockID - A valid Base64 string value that identifies the block. Prior to encoding, the string must be less than or equal
 //     to 64 bytes in size. For a given blob, the length of the value specified for the blockid
 //     parameter must be the same size for each block.
@@ -671,7 +669,7 @@ func (client *BlockBlobClient) StageBlockFromURL(ctx context.Context, blockID st
 	if err != nil {
 		return BlockBlobClientStageBlockFromURLResponse{}, err
 	}
-	resp, err := client.pl.Do(req)
+	resp, err := client.internal.Pipeline().Do(req)
 	if err != nil {
 		return BlockBlobClientStageBlockFromURLResponse{}, err
 	}
@@ -732,7 +730,7 @@ func (client *BlockBlobClient) stageBlockFromURLCreateRequest(ctx context.Contex
 	if sourceModifiedAccessConditions != nil && sourceModifiedAccessConditions.SourceIfNoneMatch != nil {
 		req.Raw().Header["x-ms-source-if-none-match"] = []string{string(*sourceModifiedAccessConditions.SourceIfNoneMatch)}
 	}
-	req.Raw().Header["x-ms-version"] = []string{"2020-10-02"}
+	req.Raw().Header["x-ms-version"] = []string{ServiceVersion}
 	if options != nil && options.RequestID != nil {
 		req.Raw().Header["x-ms-client-request-id"] = []string{*options.RequestID}
 	}
@@ -798,7 +796,7 @@ func (client *BlockBlobClient) stageBlockFromURLHandleResponse(resp *http.Respon
 // the content of a block blob, use the Put Block List operation.
 // If the operation fails it returns an *azcore.ResponseError type.
 //
-// Generated from API version 2020-10-02
+// Generated from API version 2023-08-03
 //   - contentLength - The length of the request.
 //   - body - Initial data
 //   - options - BlockBlobClientUploadOptions contains the optional parameters for the BlockBlobClient.Upload method.
@@ -812,7 +810,7 @@ func (client *BlockBlobClient) Upload(ctx context.Context, contentLength int64, 
 	if err != nil {
 		return BlockBlobClientUploadResponse{}, err
 	}
-	resp, err := client.pl.Do(req)
+	resp, err := client.internal.Pipeline().Do(req)
 	if err != nil {
 		return BlockBlobClientUploadResponse{}, err
 	}
@@ -896,7 +894,7 @@ func (client *BlockBlobClient) uploadCreateRequest(ctx context.Context, contentL
 	if modifiedAccessConditions != nil && modifiedAccessConditions.IfTags != nil {
 		req.Raw().Header["x-ms-if-tags"] = []string{*modifiedAccessConditions.IfTags}
 	}
-	req.Raw().Header["x-ms-version"] = []string{"2020-10-02"}
+	req.Raw().Header["x-ms-version"] = []string{ServiceVersion}
 	if options != nil && options.RequestID != nil {
 		req.Raw().Header["x-ms-client-request-id"] = []string{*options.RequestID}
 	}
@@ -912,8 +910,14 @@ func (client *BlockBlobClient) uploadCreateRequest(ctx context.Context, contentL
 	if options != nil && options.LegalHold != nil {
 		req.Raw().Header["x-ms-legal-hold"] = []string{strconv.FormatBool(*options.LegalHold)}
 	}
+	if options != nil && options.TransactionalContentCRC64 != nil {
+		req.Raw().Header["x-ms-content-crc64"] = []string{base64.StdEncoding.EncodeToString(options.TransactionalContentCRC64)}
+	}
 	req.Raw().Header["Accept"] = []string{"application/xml"}
-	return req, req.SetBody(body, "application/octet-stream")
+	if err := req.SetBody(body, "application/octet-stream"); err != nil {
+		return nil, err
+	}
+	return req, nil
 }
 
 // uploadHandleResponse handles the Upload response.

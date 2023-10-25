@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bufferedwriter"
@@ -22,7 +24,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
-	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
@@ -93,16 +94,20 @@ func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
+		if err := vlstorage.CanWriteData(); err != nil {
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
 		lr := logstorage.GetLogRows(cp.StreamFields, cp.IgnoreFields)
 		processLogMessage := cp.GetProcessLogMessageFunc(lr)
 		isGzip := r.Header.Get("Content-Encoding") == "gzip"
 		n, err := readBulkRequest(r.Body, isGzip, cp.TimeField, cp.MsgField, processLogMessage)
+		vlstorage.MustAddRows(lr)
+		logstorage.PutLogRows(lr)
 		if err != nil {
 			logger.Warnf("cannot decode log message #%d in /_bulk request: %s", n, err)
 			return true
 		}
-		vlstorage.MustAddRows(lr)
-		logstorage.PutLogRows(lr)
 
 		tookMs := time.Since(startTime).Milliseconds()
 		bw := bufferedwriter.Get(w)
@@ -220,6 +225,7 @@ func readBulkLine(sc *bufio.Scanner, timeField, msgField string,
 	p.RenameField(msgField, "_msg")
 	processLogMessage(ts, p.Fields)
 	logjson.PutParser(p)
+
 	return true, nil
 }
 

@@ -8,6 +8,7 @@ interface Hyperlink {
   children?: ReactNode;
   colored?: boolean;
   underlined?: boolean;
+  withIcon?: boolean;
 }
 
 const Hyperlink: FC<Hyperlink> = ({
@@ -15,14 +16,16 @@ const Hyperlink: FC<Hyperlink> = ({
   href,
   children,
   colored = true,
-  underlined = false
+  underlined = false,
+  withIcon = false,
 }) => (
   <a
     href={href}
     className={classNames({
       "vm-link": true,
       "vm-link_colored": colored,
-      "vm-link_underlined": underlined
+      "vm-link_underlined": underlined,
+      "vm-link_with-icon": withIcon,
     })}
     target="_blank"
     rel="noreferrer"

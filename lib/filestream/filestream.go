@@ -2,6 +2,7 @@ package filestream
 
 import (
 	"bufio"
+	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -12,6 +13,10 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/metrics"
 )
+
+var disableFadvise = flag.Bool("filestream.disableFadvise", false, "Whether to disable fadvise() syscall when reading large data files. "+
+	"The fadvise() syscall prevents from eviction of recently accessed data from OS page cache during background merges and backups. "+
+	"In some rare cases it is better to disable the syscall if it uses too much CPU")
 
 const dontNeedBlockSize = 16 * 1024 * 1024
 
@@ -88,6 +93,11 @@ func MustOpen(path string, nocache bool) *Reader {
 	r := &Reader{
 		f:  f,
 		br: getBufioReader(f),
+	}
+	if *disableFadvise {
+		// Unconditionally disable fadvise() syscall
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5120 for details on why this is needed
+		nocache = false
 	}
 	if nocache {
 		r.st.fd = f.Fd()

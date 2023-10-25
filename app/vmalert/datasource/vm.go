@@ -39,14 +39,8 @@ type VMStorage struct {
 	queryStep        time.Duration
 	dataSourceType   datasourceType
 
-	// evaluationInterval will align the request's timestamp
-	// if `datasource.queryTimeAlignment` is enabled,
-	// will set request's `step` param as well.
+	// evaluationInterval will help setting request's `step` param.
 	evaluationInterval time.Duration
-	// evaluationOffset shifts the request's timestamp, will be equal
-	// to the offset specified evaluationInterval.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4693
-	evaluationOffset *time.Duration
 	// extraParams contains params to be attached to each HTTP request
 	extraParams url.Values
 	// extraHeaders are headers to be attached to each HTTP request
@@ -95,7 +89,6 @@ func (s *VMStorage) Clone() *VMStorage {
 func (s *VMStorage) ApplyParams(params QuerierParams) *VMStorage {
 	s.dataSourceType = toDatasourceType(params.DataSourceType)
 	s.evaluationInterval = params.EvaluationInterval
-	s.evaluationOffset = params.EvalOffset
 	if params.QueryParams != nil {
 		if s.extraParams == nil {
 			s.extraParams = url.Values{}
@@ -198,17 +191,21 @@ func (s *VMStorage) QueryRange(ctx context.Context, query string, start, end tim
 }
 
 func (s *VMStorage) do(ctx context.Context, req *http.Request) (*http.Response, error) {
+	ru := req.URL.Redacted()
+	if *showDatasourceURL {
+		ru = req.URL.String()
+	}
 	if s.debug {
-		logger.Infof("DEBUG datasource request: executing %s request with params %q", req.Method, req.URL.RawQuery)
+		logger.Infof("DEBUG datasource request: executing %s request with params %q", req.Method, ru)
 	}
 	resp, err := s.c.Do(req.WithContext(ctx))
 	if err != nil {
-		return nil, fmt.Errorf("error getting response from %s: %w", req.URL.Redacted(), err)
+		return nil, fmt.Errorf("error getting response from %s: %w", ru, err)
 	}
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		_ = resp.Body.Close()
-		return nil, fmt.Errorf("unexpected response code %d for %s. Response body %s", resp.StatusCode, req.URL.Redacted(), body)
+		return nil, fmt.Errorf("unexpected response code %d for %s. Response body %s", resp.StatusCode, ru, body)
 	}
 	return resp, nil
 }

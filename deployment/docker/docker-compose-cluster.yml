@@ -2,7 +2,7 @@ version: '3.5'
 services:
   vmagent:
     container_name: vmagent
-    image: victoriametrics/vmagent:v1.93.4
+    image: victoriametrics/vmagent:v1.94.0
     depends_on:
       - "vminsert"
     ports:
@@ -19,7 +19,7 @@ services:
     container_name: grafana
     image: grafana/grafana:9.2.7
     depends_on:
-      - "vmselect"
+      - "vmauth"
     ports:
       - 3000:3000
     restart: always
@@ -32,7 +32,7 @@ services:
 
   vmstorage-1:
     container_name: vmstorage-1
-    image: victoriametrics/vmstorage:v1.93.4-cluster
+    image: victoriametrics/vmstorage:v1.94.0-cluster
     ports:
       - 8482
       - 8400
@@ -44,7 +44,7 @@ services:
     restart: always
   vmstorage-2:
     container_name: vmstorage-2
-    image: victoriametrics/vmstorage:v1.93.4-cluster
+    image: victoriametrics/vmstorage:v1.94.0-cluster
     ports:
       - 8482
       - 8400
@@ -54,9 +54,10 @@ services:
     command:
       - '--storageDataPath=/storage'
     restart: always
+
   vminsert:
     container_name: vminsert
-    image: victoriametrics/vminsert:v1.93.4-cluster
+    image: victoriametrics/vminsert:v1.94.0-cluster
     depends_on:
       - "vmstorage-1"
       - "vmstorage-2"
@@ -66,9 +67,10 @@ services:
     ports:
       - 8480:8480
     restart: always
-  vmselect:
-    container_name: vmselect
-    image: victoriametrics/vmselect:v1.93.4-cluster
+
+  vmselect-1:
+    container_name: vmselect-1
+    image: victoriametrics/vmselect:v1.94.0-cluster
     depends_on:
       - "vmstorage-1"
       - "vmstorage-2"
@@ -77,14 +79,43 @@ services:
       - '--storageNode=vmstorage-2:8401'
       - '--vmalert.proxyURL=http://vmalert:8880'
     ports:
-      - 8481:8481
+      - 8481
+    restart: always
+
+  vmselect-2:
+    container_name: vmselect-2
+    image: victoriametrics/vmselect:v1.94.0-cluster
+    depends_on:
+      - "vmstorage-1"
+      - "vmstorage-2"
+    command:
+      - '--storageNode=vmstorage-1:8401'
+      - '--storageNode=vmstorage-2:8401'
+      - '--vmalert.proxyURL=http://vmalert:8880'
+    ports:
+      - 8481
+    restart: always
+
+  vmauth:
+    container_name: vmauth
+    image: victoriametrics/vmauth:v1.94.0
+    depends_on:
+      - "vmselect-1"
+      - "vmselect-2"
+    volumes:
+      - ./auth-cluster.yml:/etc/auth.yml
+#      - /var/run/docker.sock:/var/run/docker.sock
+    command:
+      - '--auth.config=/etc/auth.yml'
+    ports:
+      - 8427:8427
     restart: always
 
   vmalert:
     container_name: vmalert
-    image: victoriametrics/vmalert:v1.93.4
+    image: victoriametrics/vmalert:v1.94.0
     depends_on:
-      - "vmselect"
+      - "vmauth"
     ports:
       - 8880:8880
     volumes:
@@ -93,8 +124,8 @@ services:
       - ./alerts-vmagent.yml:/etc/alerts/alerts-vmagent.yml
       - ./alerts-vmalert.yml:/etc/alerts/alerts-vmalert.yml
     command:
-      - '--datasource.url=http://vmselect:8481/select/0/prometheus'
-      - '--remoteRead.url=http://vmselect:8481/select/0/prometheus'
+      - '--datasource.url=http://vmauth:8427/select/0/prometheus'
+      - '--remoteRead.url=http://vmauth:8427/select/0/prometheus'
       - '--remoteWrite.url=http://vminsert:8480/insert/0/prometheus'
       - '--notifier.url=http://alertmanager:9093/'
       - '--rule=/etc/alerts/*.yml'

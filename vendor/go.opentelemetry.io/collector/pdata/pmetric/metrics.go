@@ -13,7 +13,8 @@ import (
 type Metrics internal.Metrics
 
 func newMetrics(orig *otlpcollectormetrics.ExportMetricsServiceRequest) Metrics {
-	return Metrics(internal.NewMetrics(orig))
+	state := internal.StateMutable
+	return Metrics(internal.NewMetrics(orig, &state))
 }
 
 func (ms Metrics) getOrig() *otlpcollectormetrics.ExportMetricsServiceRequest {
@@ -32,7 +33,7 @@ func (ms Metrics) CopyTo(dest Metrics) {
 
 // ResourceMetrics returns the ResourceMetricsSlice associated with this Metrics.
 func (ms Metrics) ResourceMetrics() ResourceMetricsSlice {
-	return newResourceMetricsSlice(&ms.getOrig().ResourceMetrics)
+	return newResourceMetricsSlice(&ms.getOrig().ResourceMetrics, internal.GetMetricsState(internal.Metrics(ms)))
 }
 
 // MetricCount calculates the total number of metrics.
@@ -77,4 +78,9 @@ func (ms Metrics) DataPointCount() (dataPointCount int) {
 		}
 	}
 	return
+}
+
+// MarkReadOnly marks the Metrics as shared so that no further modifications can be done on it.
+func (ms Metrics) MarkReadOnly() {
+	internal.SetMetricsState(internal.Metrics(ms), internal.StateReadOnly)
 }

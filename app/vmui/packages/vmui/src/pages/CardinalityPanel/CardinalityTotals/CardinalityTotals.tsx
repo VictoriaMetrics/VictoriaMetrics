@@ -14,6 +14,7 @@ export interface CardinalityTotalsProps {
   totalLabelValuePairs: number;
   seriesCountByMetricName: TopHeapEntry[];
   isPrometheus?: boolean;
+  isCluster: boolean;
 }
 
 const CardinalityTotals: FC<CardinalityTotalsProps> = ({
@@ -21,7 +22,7 @@ const CardinalityTotals: FC<CardinalityTotalsProps> = ({
   totalSeriesPrev = 0,
   totalSeriesAll = 0,
   seriesCountByMetricName = [],
-  isPrometheus
+  isPrometheus,
 }) => {
   const { isMobile } = useDeviceDetect();
 
@@ -50,7 +51,7 @@ const CardinalityTotals: FC<CardinalityTotalsProps> = ({
       value: isNaN(progress) ? "-" : `${progress.toFixed(2)}%`,
       display: isMetric,
       info: "The share of these series in the total number of time series."
-    }
+    },
   ].filter(t => t.display);
 
   if (!totals.length) {
