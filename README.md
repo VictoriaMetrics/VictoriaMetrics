@@ -1948,6 +1948,7 @@ VictoriaMetrics provides the following security-related command-line flags:
 * `-tls`, `-tlsCertFile` and `-tlsKeyFile` for switching from HTTP to HTTPS.
 * `-httpAuth.username` and `-httpAuth.password` for protecting all the HTTP endpoints
   with [HTTP Basic Authentication](https://en.wikipedia.org/wiki/Basic_access_authentication).
+* `-http.header.hsts`, `-http.header.csp`, and `-http.header.frameOptions` for serving HTTP response headers with reasonable defaults.
 * `-deleteAuthKey` for protecting `/api/v1/admin/tsdb/delete_series` endpoint. See [how to delete time series](#how-to-delete-time-series).
 * `-snapshotAuthKey` for protecting `/snapshot*` endpoints. See [how to work with snapshots](#how-to-work-with-snapshots).
 * `-forceMergeAuthKey` for protecting `/internal/force_merge` endpoint. See [force merge docs](#forced-merge).
