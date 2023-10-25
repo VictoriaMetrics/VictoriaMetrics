@@ -71,11 +71,11 @@ func (s *Secret) String() string {
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#tls_config
 type TLSConfig struct {
-	CA                 []byte `yaml:"ca,omitempty"`
+	CA                 string `yaml:"ca,omitempty"`
 	CAFile             string `yaml:"ca_file,omitempty"`
-	Cert               []byte `yaml:"cert,omitempty"`
+	Cert               string `yaml:"cert,omitempty"`
 	CertFile           string `yaml:"cert_file,omitempty"`
-	Key                []byte `yaml:"key,omitempty"`
+	Key                string `yaml:"key,omitempty"`
 	KeyFile            string `yaml:"key_file,omitempty"`
 	ServerName         string `yaml:"server_name,omitempty"`
 	InsecureSkipVerify bool   `yaml:"insecure_skip_verify,omitempty"`
@@ -89,9 +89,9 @@ func (tc *TLSConfig) String() string {
 	if tc == nil {
 		return ""
 	}
-	caHash := xxhash.Sum64(tc.CA)
-	certHash := xxhash.Sum64(tc.Cert)
-	keyHash := xxhash.Sum64(tc.Key)
+	caHash := xxhash.Sum64([]byte(tc.CA))
+	certHash := xxhash.Sum64([]byte(tc.Cert))
+	keyHash := xxhash.Sum64([]byte(tc.Key))
 	return fmt.Sprintf("hash(ca)=%d, ca_file=%q, hash(cert)=%d, cert_file=%q, hash(key)=%d, key_file=%q, server_name=%q, insecure_skip_verify=%v, min_version=%q",
 		caHash, tc.CAFile, certHash, tc.CertFile, keyHash, tc.KeyFile, tc.ServerName, tc.InsecureSkipVerify, tc.MinVersion)
 }
@@ -689,14 +689,14 @@ func (tctx *tlsContext) initFromTLSConfig(baseDir string, tc *TLSConfig) error {
 	tctx.serverName = tc.ServerName
 	tctx.insecureSkipVerify = tc.InsecureSkipVerify
 	if len(tc.Key) != 0 || len(tc.Cert) != 0 {
-		cert, err := tls.X509KeyPair(tc.Cert, tc.Key)
+		cert, err := tls.X509KeyPair([]byte(tc.Cert), []byte(tc.Key))
 		if err != nil {
 			return fmt.Errorf("cannot load TLS certificate from the provided `cert` and `key` values: %w", err)
 		}
 		tctx.getTLSCert = func(*tls.CertificateRequestInfo) (*tls.Certificate, error) {
 			return &cert, nil
 		}
-		h := xxhash.Sum64(tc.Key) ^ xxhash.Sum64(tc.Cert)
+		h := xxhash.Sum64([]byte(tc.Key)) ^ xxhash.Sum64([]byte(tc.Cert))
 		tctx.tlsCertDigest = fmt.Sprintf("digest(key+cert)=%d", h)
 	} else if tc.CertFile != "" || tc.KeyFile != "" {
 		tctx.getTLSCert = func(*tls.CertificateRequestInfo) (*tls.Certificate, error) {
@@ -717,7 +717,7 @@ func (tctx *tlsContext) initFromTLSConfig(baseDir string, tc *TLSConfig) error {
 	}
 	if len(tc.CA) != 0 {
 		tctx.rootCA = x509.NewCertPool()
-		if !tctx.rootCA.AppendCertsFromPEM(tc.CA) {
+		if !tctx.rootCA.AppendCertsFromPEM([]byte(tc.CA)) {
 			return fmt.Errorf("cannot parse data from `ca` value")
 		}
 	} else if tc.CAFile != "" {
