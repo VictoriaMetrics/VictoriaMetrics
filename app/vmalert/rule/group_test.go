@@ -696,7 +696,7 @@ func TestGetPrometheusReqTimestamp(t *testing.T) {
 				evalAlignment: &disableAlign,
 			},
 			"2023-08-28T11:41:00+00:00",
-			"2023-08-28T11:40:00+00:02",
+			"2023-08-28T11:40:00+00:00",
 		},
 	}
 	for _, tc := range testCases {
