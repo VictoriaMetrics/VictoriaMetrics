@@ -628,6 +628,7 @@ func TestGroupStartDelay(t *testing.T) {
 
 func TestGetPrometheusReqTimestamp(t *testing.T) {
 	offset := 30 * time.Minute
+	evalDelay := 1 * time.Minute
 	disableAlign := false
 	testCases := []struct {
 		name            string
@@ -635,24 +636,24 @@ func TestGetPrometheusReqTimestamp(t *testing.T) {
 		originTS, expTS string
 	}{
 		{
-			"with query align",
+			"with query align + default evalDelay",
 			&Group{
 				Interval: time.Hour,
 			},
 			"2023-08-28T11:11:00+00:00",
-			"2023-08-28T11:00:00+00:00",
+			"2023-08-28T10:59:30+00:00",
 		},
 		{
-			"without query align",
+			"without query align + default evalDelay",
 			&Group{
 				Interval:      time.Hour,
 				evalAlignment: &disableAlign,
 			},
 			"2023-08-28T11:11:00+00:00",
-			"2023-08-28T11:11:00+00:00",
+			"2023-08-28T11:10:30+00:00",
 		},
 		{
-			"with eval_offset, find previous offset point",
+			"with eval_offset, find previous offset point + default evalDelay",
 			&Group{
 				EvalOffset: &offset,
 				Interval:   time.Hour,
@@ -661,13 +662,32 @@ func TestGetPrometheusReqTimestamp(t *testing.T) {
 			"2023-08-28T10:30:00+00:00",
 		},
 		{
-			"with eval_offset",
+			"with eval_offset + default evalDelay",
 			&Group{
 				EvalOffset: &offset,
 				Interval:   time.Hour,
 			},
 			"2023-08-28T11:41:00+00:00",
 			"2023-08-28T11:30:00+00:00",
+		},
+		{
+			"with eval_delay",
+			&Group{
+				EvalDelay: &evalDelay,
+				Interval:  time.Hour,
+			},
+			"2023-08-28T11:41:00+00:00",
+			"2023-08-28T10:59:00+00:00",
+		},
+		{
+			"disable alignment with eval_delay",
+			&Group{
+				EvalDelay:     &evalDelay,
+				Interval:      time.Hour,
+				evalAlignment: &disableAlign,
+			},
+			"2023-08-28T11:41:00+00:00",
+			"2023-08-28T11:40:00+00:00",
 		},
 	}
 	for _, tc := range testCases {
