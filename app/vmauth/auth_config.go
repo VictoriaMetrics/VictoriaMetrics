@@ -420,6 +420,18 @@ func parseAuthConfig(data []byte) (*AuthConfig, error) {
 	}
 	ui := ac.UnauthorizedUser
 	if ui != nil {
+		if ui.Username != "" {
+			return nil, fmt.Errorf("field username can't be specified for unauthorized_user section")
+		}
+		if ui.Password != "" {
+			return nil, fmt.Errorf("field password can't be specified for unauthorized_user section")
+		}
+		if ui.BearerToken != "" {
+			return nil, fmt.Errorf("field bearer_token can't be specified for unauthorized_user section")
+		}
+		if ui.Name != "" {
+			return nil, fmt.Errorf("field name can't be specified for unauthorized_user section")
+		}
 		ui.requests = metrics.GetOrCreateCounter(`vmauth_unauthorized_user_requests_total`)
 		ui.requestsDuration = metrics.GetOrCreateSummary(`vmauth_unauthorized_user_request_duration_seconds`)
 		ui.concurrencyLimitCh = make(chan struct{}, ui.getMaxConcurrentRequests())

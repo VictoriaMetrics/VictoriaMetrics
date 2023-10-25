@@ -160,7 +160,14 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 	if up == nil {
 		missingRouteRequests.Inc()
 		if ui.DefaultURL == nil {
-			httpserver.Errorf(w, r, "missing route for %q", u.String())
+			// Authorization should be requested for http requests without credentials
+			// to a route that is not in the configuration for unauthorized user
+			if ui.BearerToken == "" && ui.Username == "" {
+				w.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
+				http.Error(w, fmt.Sprintf("missing unauthorized route for %q", u.String()), http.StatusUnauthorized)
+				return
+			}
+			http.Error(w, fmt.Sprintf("missing route for %q", u.String()), http.StatusForbidden)
 			return
 		}
 		up, hc, retryStatusCodes = ui.DefaultURL, ui.HeadersConf, ui.RetryStatusCodes
