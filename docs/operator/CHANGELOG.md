@@ -756,7 +756,7 @@ menu:
 
 - Adds alertmanager service scrape auto generation https://github.com/VictoriaMetrics/operator/issues/385 thanks [@FRosner](https://github.com/FRosner)
 - Auto-add routing for vminsert and vmselect CRD components for `VMUser` https://github.com/VictoriaMetrics/operator/issues/379
-- Updates docs for `VMAuth`https://github.com/VictoriaMetrics/operator/blob/master/docs/auth.MD
+- Updates docs for `VMAuth`https://github.com/VictoriaMetrics/operator/blob/master/docs/auth.md
 - Allows changing default disk space usage for `VMAgent` https://github.com/VictoriaMetrics/operator/pull/381 thanks [@arctan90](https://github.com/arctan90)
 - Adds Arch labels for clusterversion template https://github.com/VictoriaMetrics/operator/commit/9e89c3b2459fb85faa8e973fa1f1558d924000f3 thanks [@yselkowitz](https://github.com/yselkowitz)
 - improves docs and fixes typos https://github.com/VictoriaMetrics/operator/commit/ae248dcb352a092d9f9caee87454b1ad25650a4c thanks [@flokli](https://github.com/flokli)
@@ -801,7 +801,7 @@ menu:
 
 ### Breaking changes
 
-- **changes default behavior for CR selectors, such serviceScrapeSelector at vmagent.spec. Now it select all targets if is missing https://github.com/VictoriaMetrics/operator/commit/519e89b457576099288af2ea135878f6da25b567 See more at docs https://github.com/VictoriaMetrics/operator/blob/master/docs/quick-start.MD#object-selectors**
+- **changes default behavior for CR selectors, such serviceScrapeSelector at vmagent.spec. Now it select all targets if is missing https://github.com/VictoriaMetrics/operator/commit/519e89b457576099288af2ea135878f6da25b567 See more at docs https://github.com/VictoriaMetrics/operator/blob/master/docs/quick-start.md#object-selectors**
 - **operator doesn't add cluster domain name for in-cluster communication, now its empty value. It should resolve issue with using operator at clusters with custom k8s domain https://github.com/VictoriaMetrics/operator/issues/354 thanks [@flokli](https://github.com/flokli)**
 
 ### Features

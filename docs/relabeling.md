@@ -1,11 +1,11 @@
 ---
-sort: 28
-weight: 28
+sort: 37
+weight: 37
 title: Relabeling cookbook
 menu:
   docs:
-    parent: "victoriametrics"
-    weight: 25
+    parent: 'victoriametrics'
+    weight: 37
 aliases:
 - /relabeling.html
 ---

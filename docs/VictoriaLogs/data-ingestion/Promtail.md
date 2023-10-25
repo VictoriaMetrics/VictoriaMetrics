@@ -1,3 +1,14 @@
+---
+weight: 4
+title: Promtail setup
+disableToc: true
+menu:
+  docs:
+    parent: "victorialogs-data-ingestion"
+    weight: 4
+aliases:
+  - /VictoriaLogs/data-ingestion/Promtail.html
+---
 # Promtail setup
 
 [Promtail](https://grafana.com/docs/loki/latest/clients/promtail/) is a default log shipper for Grafana Loki.

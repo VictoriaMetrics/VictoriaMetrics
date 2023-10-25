@@ -1,4 +1,5 @@
-import { StateUpdater, useCallback, useEffect, useMemo, useState } from "preact/compat";
+import { useCallback, useEffect, useMemo, useState } from "preact/compat";
+import { StateUpdater } from "preact/hooks";
 import { getQueryRangeUrl, getQueryUrl } from "../api/query-range";
 import { useAppState } from "../state/common/StateContext";
 import { InstantMetricResult, MetricBase, MetricResult, QueryStats } from "../api/types";

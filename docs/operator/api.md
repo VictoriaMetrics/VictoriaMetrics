@@ -785,7 +785,7 @@ VMAgentSpec defines the desired state of VMAgent
 | extraEnvs | ExtraEnvs that will be added to VMAgent pod | [][v1.EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#envvar-v1-core) | false |
 | serviceSpec | ServiceSpec that will be added to vmagent service spec | *[ServiceSpec](#servicespec) | false |
 | serviceScrapeSpec | ServiceScrapeSpec that will be added to vmagent VMServiceScrape spec | *[VMServiceScrapeSpec](#vmservicescrapespec) | false |
-| shardCount | ShardCount - numbers of shards of VMAgent in this case operator will use 1 deployment/sts per shard with replicas count according to spec.replicas https://victoriametrics.github.io/vmagent.html#scraping-big-number-of-targets | *int | false |
+| shardCount | ShardCount - numbers of shards of VMAgent in this case operator will use 1 deployment/sts per shard with replicas count according to spec.replicas, see https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets | *int | false |
 | updateStrategy | UpdateStrategy - overrides default update strategy. works only for deployments, statefulset always use OnDelete. | *[appsv1.DeploymentStrategyType](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#deploymentstrategy-v1-apps) | false |
 | rollingUpdate | RollingUpdate - overrides deployment update params. | *[appsv1.RollingUpdateDeployment](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#rollingupdatedeployment-v1-apps) | false |
 | podDisruptionBudget | PodDisruptionBudget created by operator | *[EmbeddedPodDisruptionBudgetSpec](#embeddedpoddisruptionbudgetspec) | false |
@@ -873,7 +873,7 @@ DiscoverySelector can be used at CRD components discovery
 
 ## EmbeddedHPA
 
-EmbeddedHPA embeds HorizontalPodAutoScaler spec v2. https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/horizontal-pod-autoscaler-v2beta2/
+EmbeddedHPA embeds HorizontalPodAutoScaler spec v2. https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/horizontal-pod-autoscaler-v2/
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
@@ -890,9 +890,9 @@ EmbeddedObjectMetadata contains a subset of the fields included in k8s.io/apimac
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
-| name | Name must be unique within a namespace. Is required when creating resources, although some resources may allow a client to request the generation of an appropriate name automatically. Name is primarily intended for creation idempotence and configuration definition. Cannot be updated. More info: http://kubernetes.io/docs/user-guide/identifiers#names | string | false |
-| labels | Labels Map of string keys and values that can be used to organize and categorize (scope and select) objects. May match selectors of replication controllers and services. More info: http://kubernetes.io/docs/user-guide/labels | map[string]string | false |
-| annotations | Annotations is an unstructured key value map stored with a resource that may be set by external tools to store and retrieve arbitrary metadata. They are not queryable and should be preserved when modifying objects. More info: http://kubernetes.io/docs/user-guide/annotations | map[string]string | false |
+| name | Name must be unique within a namespace. Is required when creating resources, although some resources may allow a client to request the generation of an appropriate name automatically. Name is primarily intended for creation idempotence and configuration definition. Cannot be updated. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names#names | string | false |
+| labels | Labels Map of string keys and values that can be used to organize and categorize (scope and select) objects. May match selectors of replication controllers and services. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels | map[string]string | false |
+| annotations | Annotations is an unstructured key value map stored with a resource that may be set by external tools to store and retrieve arbitrary metadata. They are not queryable and should be preserved when modifying objects. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations | map[string]string | false |
 
 [Back to TOC](#table-of-contents)
 
@@ -2098,9 +2098,9 @@ EmbeddedIngress describes ingress configuration options.
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
 | class_name | ClassName defines ingress class name for VMAuth | *string | false |
-| name | Name must be unique within a namespace. Is required when creating resources, although some resources may allow a client to request the generation of an appropriate name automatically. Name is primarily intended for creation idempotence and configuration definition. Cannot be updated. More info: http://kubernetes.io/docs/user-guide/identifiers#names | string | false |
-| labels | Labels Map of string keys and values that can be used to organize and categorize (scope and select) objects. May match selectors of replication controllers and services. More info: http://kubernetes.io/docs/user-guide/labels | map[string]string | false |
-| annotations | Annotations is an unstructured key value map stored with a resource that may be set by external tools to store and retrieve arbitrary metadata. They are not queryable and should be preserved when modifying objects. More info: http://kubernetes.io/docs/user-guide/annotations | map[string]string | false |
+| name | Name must be unique within a namespace. Is required when creating resources, although some resources may allow a client to request the generation of an appropriate name automatically. Name is primarily intended for creation idempotence and configuration definition. Cannot be updated. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names#names | string | false |
+| labels | Labels Map of string keys and values that can be used to organize and categorize (scope and select) objects. May match selectors of replication controllers and services. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels | map[string]string | false |
+| annotations | Annotations is an unstructured key value map stored with a resource that may be set by external tools to store and retrieve arbitrary metadata. They are not queryable and should be preserved when modifying objects. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations | map[string]string | false |
 | tlsHosts | TlsHosts configures TLS access for ingress, tlsSecretName must be defined for it. | []string | false |
 | tlsSecretName | TlsSecretName defines secretname at the VMAuth namespace with cert and key https://kubernetes.io/docs/concepts/services-networking/ingress/#tls | string | false |
 | extraRules | ExtraRules - additional rules for ingress, must be checked for correctness by user. | [][v12.IngressRule](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#ingressrule-v1-networking-k8s-io) | false |

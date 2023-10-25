@@ -142,7 +142,7 @@ func runBackup(src *fslocal.FS, dst common.RemoteFS, origin common.OriginFS, con
 	partsToCopy := common.PartsDifference(srcParts, dstParts)
 	originPartsToCopy := common.PartsIntersect(originParts, partsToCopy)
 	copySize := getPartsSize(originPartsToCopy)
-	if err := copySrcParts(src, dst, originPartsToCopy, concurrency); err != nil {
+	if err := copySrcParts(origin, dst, originPartsToCopy, concurrency); err != nil {
 		return fmt.Errorf("cannot server-side copy origin parts to dst: %w", err)
 	}
 

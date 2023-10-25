@@ -96,7 +96,7 @@ func (ctx *pushCtx) Read() error {
 	}
 	if reqLen > int64(maxInsertRequestSize.N) {
 		readErrors.Inc()
-		return fmt.Errorf("too big packed request; mustn't exceed `-maxInsertRequestSize=%d` bytes", maxInsertRequestSize.N)
+		return fmt.Errorf("too big packed request; mustn't exceed -maxInsertRequestSize=%d bytes", maxInsertRequestSize.N)
 	}
 	return nil
 }
