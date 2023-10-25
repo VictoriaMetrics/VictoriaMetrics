@@ -36,7 +36,7 @@ var (
 	tlsCipherSuites = flagutil.NewArrayString("tlsCipherSuites", "Optional list of TLS cipher suites for incoming requests over HTTPS if -tls is set. See the list of supported cipher suites at https://pkg.go.dev/crypto/tls#pkg-constants")
 	tlsMinVersion   = flag.String("tlsMinVersion", "", "Optional minimum TLS version to use for incoming requests over HTTPS if -tls is set. "+
 		"Supported values: TLS10, TLS11, TLS12, TLS13")
-	httpHSTS         = flag.String("http.header.hsts", "", "Value for 'Strict-Transport-Security' header, example: 'max-age=31536000; includeSubDomains'")
+	httpHSTS         = flag.String("http.header.hsts", "max-age=31536000; includeSubDomains", "Value for 'Strict-Transport-Security' header")
 	httpFrameOptions = flag.String("http.header.frameOptions", "SAMEORIGIN", "Value for 'X-Frame-Options' header")
 	httpCSP          = flag.String("http.header.csp", "", "Value for 'Content-Security-Policy' header")
 
