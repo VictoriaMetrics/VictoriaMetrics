@@ -743,8 +743,9 @@ See how to request a free trial license [here](https://victoriametrics.com/produ
 It is configured with `-downsampling.period` command-line flag. The same flag value must be passed to both `vmstorage`
 and `vmselect` nodes. Configuring `vmselect` node with `-downsampling.period` command-line flag makes query results more
 consistent, as `vmselect` will evenly downsample all received data samples if requested time range will intersect with configured
-`-downsampling.period`. If this flag is omitted for `vmselect`, then query results can be less accurate because of mixing
-raw and downsampled data samples.
+`-downsampling.period`. For example, if `-downsampling.period=30d:5m` and user requests `60d` of data then vmselect will downsample
+all datapoints (newer and older than `30d`) to `5m` intervals. If this flag is omitted for `vmselect`, 
+then query results can be less consistent because of mixing raw and downsampled data.
 
 Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
 See how to request a free trial license [here](https://victoriametrics.com/products/enterprise/trial/).
