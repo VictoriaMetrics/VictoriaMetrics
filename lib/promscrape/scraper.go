@@ -1,7 +1,6 @@
 package promscrape
 
 import (
-	"bytes"
 	"context"
 	"flag"
 	"fmt"
@@ -36,8 +35,8 @@ import (
 )
 
 var (
-	configCheckInterval = flag.Duration("promscrape.configCheckInterval", 0, "Interval for checking for changes in '-promscrape.config' file. "+
-		"By default, the checking is disabled. Send SIGHUP signal in order to force config check for changes")
+	configCheckInterval = flag.Duration("promscrape.configCheckInterval", 0, "Interval for checking for changes in -promscrape.config file. "+
+		"By default, the checking is disabled. See how to reload -promscrape.config file at https://docs.victoriametrics.com/vmagent.html#configuration-update")
 	suppressDuplicateScrapeTargetErrors = flag.Bool("promscrape.suppressDuplicateScrapeTargetErrors", false, "Whether to suppress 'duplicate scrape target' errors; "+
 		"see https://docs.victoriametrics.com/vmagent.html#troubleshooting for details")
 	promscrapeConfigFile = flag.String("promscrape.config", "", "Optional path to Prometheus config file with 'scrape_configs' section containing targets to scrape. "+
@@ -53,7 +52,7 @@ func CheckConfig() error {
 	if *promscrapeConfigFile == "" {
 		return nil
 	}
-	_, _, err := loadConfig(*promscrapeConfigFile)
+	_, err := loadConfig(*promscrapeConfigFile)
 	return err
 }
 
@@ -110,8 +109,8 @@ func runScraper(configFile string, pushData func(at *auth.Token, wr *prompbmarsh
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1240
 	sighupCh := procutil.NewSighupChan()
 
-	logger.Infof("reading Prometheus configs from %q", configFile)
-	cfg, data, err := loadConfig(configFile)
+	logger.Infof("reading scrape configs from %q", configFile)
+	cfg, err := loadConfig(configFile)
 	if err != nil {
 		logger.Fatalf("cannot read %q: %s", configFile, err)
 	}
@@ -154,41 +153,40 @@ func runScraper(configFile string, pushData func(at *auth.Token, wr *prompbmarsh
 		select {
 		case <-sighupCh:
 			logger.Infof("SIGHUP received; reloading Prometheus configs from %q", configFile)
-			cfgNew, dataNew, err := loadConfig(configFile)
+			cfgNew, err := loadConfig(configFile)
 			if err != nil {
 				configReloadErrors.Inc()
 				configSuccess.Set(0)
 				logger.Errorf("cannot read %q on SIGHUP: %s; continuing with the previous config", configFile, err)
 				goto waitForChans
 			}
-			if bytes.Equal(data, dataNew) {
-				configSuccess.Set(1)
+			configSuccess.Set(1)
+			if !cfgNew.mustRestart(cfg) {
 				logger.Infof("nothing changed in %q", configFile)
 				goto waitForChans
 			}
-			cfgNew.mustRestart(cfg)
 			cfg = cfgNew
-			data = dataNew
-			marshaledData = cfgNew.marshal()
+			marshaledData = cfg.marshal()
 			configData.Store(&marshaledData)
+			configReloads.Inc()
+			configTimestamp.Set(fasttime.UnixTimestamp())
 		case <-tickerCh:
-			cfgNew, dataNew, err := loadConfig(configFile)
+			cfgNew, err := loadConfig(configFile)
 			if err != nil {
 				configReloadErrors.Inc()
 				configSuccess.Set(0)
 				logger.Errorf("cannot read %q: %s; continuing with the previous config", configFile, err)
 				goto waitForChans
 			}
-			if bytes.Equal(data, dataNew) {
-				configSuccess.Set(1)
-				// Nothing changed since the previous loadConfig
+			configSuccess.Set(1)
+			if !cfgNew.mustRestart(cfg) {
 				goto waitForChans
 			}
-			cfgNew.mustRestart(cfg)
 			cfg = cfgNew
-			data = dataNew
-			marshaledData = cfgNew.marshal()
+			marshaledData = cfg.marshal()
 			configData.Store(&marshaledData)
+			configReloads.Inc()
+			configTimestamp.Set(fasttime.UnixTimestamp())
 		case <-globalStopCh:
 			cfg.mustStop()
 			logger.Infof("stopping Prometheus scrapers")
@@ -197,10 +195,6 @@ func runScraper(configFile string, pushData func(at *auth.Token, wr *prompbmarsh
 			logger.Infof("stopped Prometheus scrapers in %.3f seconds", time.Since(startTime).Seconds())
 			return
 		}
-		logger.Infof("found changes in %q; applying these changes", configFile)
-		configReloads.Inc()
-		configSuccess.Set(1)
-		configTimestamp.Set(fasttime.UnixTimestamp())
 	}
 }
 
@@ -407,8 +401,7 @@ func (sg *scraperGroup) update(sws []*ScrapeWork) {
 	for _, sw := range swsToStart {
 		sc, err := newScraper(sw, sg.name, sg.pushData)
 		if err != nil {
-			// print error and skip invalid scraper config
-			logger.Errorf("cannot create scraper to %q in job %q, will skip it: %w", sw.ScrapeURL, sg.name, err)
+			logger.Errorf("skipping scraper for url=%s, job=%s because of error: %s", sw.ScrapeURL, sg.name, err)
 			continue
 		}
 		sg.activeScrapers.Inc()
@@ -455,7 +448,7 @@ func newScraper(sw *ScrapeWork, group string, pushData func(at *auth.Token, wr *
 	}
 	c, err := newClient(ctx, sw)
 	if err != nil {
-		return &scraper{}, err
+		return nil, err
 	}
 	sc.sw.Config = sw
 	sc.sw.ScrapeGroup = group

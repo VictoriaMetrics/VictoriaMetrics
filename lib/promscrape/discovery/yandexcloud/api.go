@@ -57,9 +57,13 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 		}
 		ac, err := opts.NewConfig()
 		if err != nil {
+			return nil, fmt.Errorf("cannot parse TLS config: %w", err)
+		}
+		tlsConfig, err := ac.NewTLSConfig()
+		if err != nil {
 			return nil, fmt.Errorf("cannot initialize TLS config: %w", err)
 		}
-		transport.TLSClientConfig = ac.NewTLSConfig()
+		transport.TLSClientConfig = tlsConfig
 	}
 	cfg := &apiConfig{
 		client: &http.Client{

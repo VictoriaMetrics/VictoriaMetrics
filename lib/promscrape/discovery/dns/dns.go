@@ -86,7 +86,7 @@ func getMXAddrLabels(ctx context.Context, sdc *SDConfig) []*promutils.Labels {
 	for range sdc.Names {
 		r := <-ch
 		if r.err != nil {
-			logger.Errorf("error in MX lookup for %q; skipping it; error: %s", r.name, r.err)
+			logger.Errorf("dns_sd_config: skipping MX lookup for %q because of error: %s", r.name, r.err)
 			continue
 		}
 		for _, mx := range r.mx {
@@ -121,7 +121,7 @@ func getSRVAddrLabels(ctx context.Context, sdc *SDConfig) []*promutils.Labels {
 	for range sdc.Names {
 		r := <-ch
 		if r.err != nil {
-			logger.Errorf("error in SRV lookup for %q; skipping it; error: %s", r.name, r.err)
+			logger.Errorf("dns_sd_config: skipping SRV lookup for %q because of error: %s", r.name, r.err)
 			continue
 		}
 		for _, a := range r.as {
