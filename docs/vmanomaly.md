@@ -95,7 +95,9 @@ Currently, vmanomaly ships with a few common models:
    other models.
 
 1. **Isolation Forest**
-   Detects anomalies in *multivariate data* using binary trees. The algorithm has a linear time complexity and a low memory requirement, which works well with high-volume data. See [scikit-learn.org documentation](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.IsolationForest.html) for Isolation Forest.
+   Detects anomalies using binary trees. It works both for univariate and multivariate data. Be aware of about [the curse of dimensionality](https://en.wikipedia.org/wiki/Curse_of_dimensionality) in case of multivariate data. Don't use single multivariate model if you expect your queries to return many time series of less datapoints that the number of vectors returned.
+   
+   The algorithm has a linear time complexity and a low memory requirement, which works well with high-volume data. See [scikit-learn.org documentation](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.IsolationForest.html) for Isolation Forest.
 
 
 ### Examples
