@@ -321,7 +321,7 @@ func TestResolveDuration(t *testing.T) {
 func TestGetStaleSeries(t *testing.T) {
 	ts := time.Now()
 	e := &executor{
-		PreviouslySentSeriesToRW: make(map[uint64]map[string][]prompbmarshal.Label),
+		previouslySentSeriesToRW: make(map[uint64]map[string][]prompbmarshal.Label),
 	}
 	f := func(r Rule, labels, expLabels [][]prompbmarshal.Label) {
 		t.Helper()
@@ -414,7 +414,7 @@ func TestPurgeStaleSeries(t *testing.T) {
 	f := func(curRules, newRules, expStaleRules []Rule) {
 		t.Helper()
 		e := &executor{
-			PreviouslySentSeriesToRW: make(map[uint64]map[string][]prompbmarshal.Label),
+			previouslySentSeriesToRW: make(map[uint64]map[string][]prompbmarshal.Label),
 		}
 		// seed executor with series for
 		// current rules
@@ -424,13 +424,13 @@ func TestPurgeStaleSeries(t *testing.T) {
 
 		e.purgeStaleSeries(newRules)
 
-		if len(e.PreviouslySentSeriesToRW) != len(expStaleRules) {
+		if len(e.previouslySentSeriesToRW) != len(expStaleRules) {
 			t.Fatalf("expected to get %d stale series, got %d",
-				len(expStaleRules), len(e.PreviouslySentSeriesToRW))
+				len(expStaleRules), len(e.previouslySentSeriesToRW))
 		}
 
 		for _, exp := range expStaleRules {
-			if _, ok := e.PreviouslySentSeriesToRW[exp.ID()]; !ok {
+			if _, ok := e.previouslySentSeriesToRW[exp.ID()]; !ok {
 				t.Fatalf("expected to have rule %d; got nil instead", exp.ID())
 			}
 		}
@@ -515,7 +515,7 @@ func TestFaultyRW(t *testing.T) {
 
 	e := &executor{
 		Rw:                       &remotewrite.Client{},
-		PreviouslySentSeriesToRW: make(map[uint64]map[string][]prompbmarshal.Label),
+		previouslySentSeriesToRW: make(map[uint64]map[string][]prompbmarshal.Label),
 	}
 
 	err := e.exec(context.Background(), r, time.Now(), 0, 10)

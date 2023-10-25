@@ -84,10 +84,10 @@ func Init(extraParams url.Values) (QuerierBuilder, error) {
 		return nil, fmt.Errorf("datasource.url is empty")
 	}
 	if !*queryTimeAlignment {
-		logger.Warnf("flag `datasource.queryTimeAlignment` is deprecated and will be removed in next releases, please use `eval_alignment` in rule group instead")
+		logger.Warnf("flag `-datasource.queryTimeAlignment` is deprecated and will be removed in next releases. Please use `eval_alignment` in rule group instead.")
 	}
 	if *lookBack != 0 {
-		logger.Warnf("flag `datasource.lookback` will be deprecated soon, please adjust `-search.latencyOffset`(a cmd-line flag configured for VictoriaMetrics single-node or vmselect) or specify `latency_offset` in rule group's params. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5155.")
+		logger.Warnf("flag `-datasource.lookback` will be deprecated soon. Please use `-rule.evalDelay` command-line flag instead. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5155 for details.")
 	}
 
 	tr, err := utils.Transport(*addr, *tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify)

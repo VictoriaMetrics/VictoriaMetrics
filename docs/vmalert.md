@@ -131,9 +131,10 @@ name: <string>
 [ eval_offset: <duration> ]
 
 # Optional
-# Adjust the `time` parameter of group evaluation requests to compensate intentional query delay from datasource.
-# By default, use flag `-rule.evalDelay` equal to `-search.latencyOffset` (a cmd-line flag configured for VictoriaMetrics single-node or vmselect). But if group has `latency_offset` param which value differs from `-search.latencyOffset`, set `eval_delay` equal to `latency_offset`.
-# See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5155.
+# Adjust the `time` parameter of group evaluation requests to compensate intentional query delay from the datasource.
+# By default, the value is inherited from the `-rule.evalDelay` cmd-line flag - see its description for details.
+# If group has `latency_offset` set in `params`, then it is recommended to set `eval_delay` equal to `latency_offset`.
+# See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5155 and https://docs.victoriametrics.com/keyConcepts.html#query-latency.
 [ eval_delay: <duration> ]
 
 # Limit the number of alerts an alerting rule and series a recording
@@ -819,11 +820,13 @@ at least two times bigger than the resolution.
 
 > Please note, data delay is inevitable in distributed systems. And it is better to account for it instead of ignoring.
 
-By default, recently written samples to VictoriaMetrics aren't visible for queries for up to 30s
-(see `-search.latencyOffset` command-line flag at vmselect, and it can be overridden by adding `latency_offset` to group's params). Such delay is needed to eliminate risk of incomplete
-data on the moment of querying, since metrics collectors won't be able to deliver the data in time.
+By default, recently written samples to VictoriaMetrics [aren't visible for queries](https://docs.victoriametrics.com/keyConcepts.html#query-latency)
+for up to 30s (see `-search.latencyOffset` command-line flag at vmselect). Such delay is needed to eliminate risk of 
+incomplete data on the moment of querying, due to chance that metrics collectors won't be able to deliver that data in time.
 To compensate the latency in timestamps for produced evaluation results, `-rule.evalDelay` is also set to 30s by default.
-If you changed the `-search.latencyOffset`(cmd-line flag configured for VictoriaMetrics single-node or vmselect) value and observed a delay in timestamps for produced evaluation results, try changing `-rule.evalDelay` equal to `-search.latencyOffset`.
+If you changed the `-search.latencyOffset` (cmd-line flag configured for VictoriaMetrics single-node or vmselect) value 
+or specified custom  `latency_offset` param via [Group](#groups) and observed a delay in timestamps for produced 
+evaluation results - try changing `-rule.evalDelay` equal to `-search.latencyOffset`.
 
 ### Alerts state
 
@@ -986,7 +989,7 @@ The shortlist of configuration flags is the following:
   -datasource.headers string
      Optional HTTP extraHeaders to send with each request to the corresponding -datasource.url. For example, -datasource.headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding -datasource.url. Multiple headers must be delimited by '^^': -datasource.headers='header1:value1^^header2:value2'
   -datasource.lookback duration
-     Lookback defines how far into the past to look when evaluating queries. For example, if the datasource.lookback=5m then param "time" with value now()-5m will be added to every query.
+     Will be deprecated soon, please adjust "-search.latencyOffset"  at datasource side or specify "latency_offset" in rule group's params. Lookback defines how far into the past to look when evaluating queries. For example, if the datasource.lookback=5m then param "time" with value now()-5m will be added to every query.
   -datasource.maxIdleConnections int
      Defines the number of idle (keep-alive connections) to each configured datasource. Consider setting this value equal to the value: groups_total * group.concurrency. Too low a value may result in a high number of sockets in TIME_WAIT state. (default 100)
   -datasource.oauth2.clientID string
@@ -1308,9 +1311,8 @@ The shortlist of configuration flags is the following:
      Limits the maximum duration for automatic alert expiration, which by default is 4 times evaluationInterval of the parent group.
   -rule.resendDelay duration
      Minimum amount of time to wait before resending an alert to notifier
-  -rule.evalDelay duration
-     Adjust the `time` parameter of rule evaluation requests to compensate intentional query delay from datasource. Normally should equal to `-search.latencyOffset`(a cmd-line flag configured for VictoriaMetrics single-node or vmselect). (default 30s)
-     See more details [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5155).
+  -rule.evalDelay time
+     Adjustment of the time parameter for rule evaluation requests to compensate intentional data delay from the datasource.Normally, should be equal to `-search.latencyOffset` (cmd-line flag configured for VictoriaMetrics single-node or vmselect). (default 30s)
   -rule.templates array
      Path or glob pattern to location with go template definitions
      	for rules annotations templating. Flag can be specified multiple times.
