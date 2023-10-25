@@ -187,12 +187,13 @@ func (cfg *Config) mustRestart(prevCfg *Config) bool {
 	}
 	jobNames := cfg.getJobNames()
 	tsmGlobal.registerJobNames(jobNames)
-	hasChanges := started > 0 || stopped > 0 || restarted > 0
-	if hasChanges {
-		logger.Infof("updated %d service discovery routines in %.3f seconds, started=%d, stopped=%d, restarted=%d",
-			len(cfg.ScrapeConfigs), time.Since(startTime).Seconds(), started, stopped, restarted)
+	updated := started + stopped + restarted
+	if updated == 0 {
+		return false
 	}
-	return hasChanges
+	logger.Infof("updated %d service discovery routines in %.3f seconds, started=%d, stopped=%d, restarted=%d",
+		updated, time.Since(startTime).Seconds(), started, stopped, restarted)
+	return true
 }
 
 func areEqualGlobalConfigs(a, b *GlobalConfig) bool {
