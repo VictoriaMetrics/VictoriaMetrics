@@ -137,9 +137,10 @@ func (cfg *Config) mustStart() {
 	}
 	jobNames := cfg.getJobNames()
 	tsmGlobal.registerJobNames(jobNames)
-	logger.Infof("started service discovery routines in %.3f seconds", time.Since(startTime).Seconds())
+	logger.Infof("started %d service discovery routines in %.3f seconds", len(cfg.ScrapeConfigs), time.Since(startTime).Seconds())
 }
 
+// mustRestart restarts service discovery routines at cfg if they were changed comparing to prevCfg.
 func (cfg *Config) mustRestart(prevCfg *Config) {
 	startTime := time.Now()
 	logger.Infof("restarting service discovery routines...")
@@ -176,7 +177,7 @@ func (cfg *Config) mustRestart(prevCfg *Config) {
 			restarted++
 		}
 	}
-	// Stop preious jobs which weren't found in the current configuration.
+	// Stop previous jobs which weren't found in the current configuration.
 	for _, scPrev := range prevCfg.ScrapeConfigs {
 		if _, ok := currentJobNames[scPrev.JobName]; !ok {
 			scPrev.mustStop()
@@ -226,7 +227,7 @@ func (cfg *Config) mustStop() {
 	for _, sc := range cfg.ScrapeConfigs {
 		sc.mustStop()
 	}
-	logger.Infof("stopped service discovery routines in %.3f seconds", time.Since(startTime).Seconds())
+	logger.Infof("stopped %d service discovery routines in %.3f seconds", len(cfg.ScrapeConfigs), time.Since(startTime).Seconds())
 }
 
 // getJobNames returns all the scrape job names from the cfg.
@@ -308,7 +309,7 @@ func (sc *ScrapeConfig) mustStart(baseDir string) {
 		target := metaLabels.Get("__address__")
 		sw, err := sc.swc.getScrapeWork(target, nil, metaLabels)
 		if err != nil {
-			logger.Errorf("cannot create kubernetes_sd_config target %q for job_name %q: %s", target, sc.swc.jobName, err)
+			logger.Errorf("cannot create kubernetes_sd_config target %q for job_name=%s: %s", target, sc.swc.jobName, err)
 			return nil
 		}
 		return sw
@@ -521,245 +522,92 @@ func getSWSByJob(sws []*ScrapeWork) map[string][]*ScrapeWork {
 
 // getAzureSDScrapeWork returns `azure_sd_configs` ScrapeWork from cfg.
 func (cfg *Config) getAzureSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
-	swsPrevByJob := getSWSByJob(prev)
-	dst := make([]*ScrapeWork, 0, len(prev))
-	for _, sc := range cfg.ScrapeConfigs {
-		dstLen := len(dst)
-		ok := true
-		for j := range sc.AzureSDConfigs {
-			sdc := &sc.AzureSDConfigs[j]
-			var okLocal bool
-			dst, okLocal = appendSDScrapeWork(dst, sdc, cfg.baseDir, sc.swc, "azure_sd_config")
-			if ok {
-				ok = okLocal
-			}
-		}
-		if ok {
-			continue
-		}
-		swsPrev := swsPrevByJob[sc.swc.jobName]
-		if len(swsPrev) > 0 {
-			logger.Errorf("there were errors when discovering azure targets for job %q, so preserving the previous targets", sc.swc.jobName)
-			dst = append(dst[:dstLen], swsPrev...)
+	visitConfigs := func(sc *ScrapeConfig, visitor func(sdc targetLabelsGetter)) {
+		for i := range sc.AzureSDConfigs {
+			visitor(&sc.AzureSDConfigs[i])
 		}
 	}
-	return dst
+	return cfg.getScrapeWorkGeneric(visitConfigs, "azure_sd_config", prev)
 }
 
 // getConsulSDScrapeWork returns `consul_sd_configs` ScrapeWork from cfg.
 func (cfg *Config) getConsulSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
-	swsPrevByJob := getSWSByJob(prev)
-	dst := make([]*ScrapeWork, 0, len(prev))
-	for _, sc := range cfg.ScrapeConfigs {
-		dstLen := len(dst)
-		ok := true
-		for j := range sc.ConsulSDConfigs {
-			sdc := &sc.ConsulSDConfigs[j]
-			var okLocal bool
-			dst, okLocal = appendSDScrapeWork(dst, sdc, cfg.baseDir, sc.swc, "consul_sd_config")
-			if ok {
-				ok = okLocal
-			}
-		}
-		if ok {
-			continue
-		}
-		swsPrev := swsPrevByJob[sc.swc.jobName]
-		if len(swsPrev) > 0 {
-			logger.Errorf("there were errors when discovering consul targets for job %q, so preserving the previous targets", sc.swc.jobName)
-			dst = append(dst[:dstLen], swsPrev...)
+	visitConfigs := func(sc *ScrapeConfig, visitor func(sdc targetLabelsGetter)) {
+		for i := range sc.ConsulSDConfigs {
+			visitor(&sc.ConsulSDConfigs[i])
 		}
 	}
-	return dst
+	return cfg.getScrapeWorkGeneric(visitConfigs, "consul_sd_config", prev)
 }
 
 // getConsulAgentSDScrapeWork returns `consulagent_sd_configs` ScrapeWork from cfg.
 func (cfg *Config) getConsulAgentSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
-	swsPrevByJob := getSWSByJob(prev)
-	dst := make([]*ScrapeWork, 0, len(prev))
-	for _, sc := range cfg.ScrapeConfigs {
-		dstLen := len(dst)
-		ok := true
-		for j := range sc.ConsulAgentSDConfigs {
-			sdc := &sc.ConsulAgentSDConfigs[j]
-			var okLocal bool
-			dst, okLocal = appendSDScrapeWork(dst, sdc, cfg.baseDir, sc.swc, "consulagent_sd_config")
-			if ok {
-				ok = okLocal
-			}
-		}
-		if ok {
-			continue
-		}
-		swsPrev := swsPrevByJob[sc.swc.jobName]
-		if len(swsPrev) > 0 {
-			logger.Errorf("there were errors when discovering consulagent targets for job %q, so preserving the previous targets", sc.swc.jobName)
-			dst = append(dst[:dstLen], swsPrev...)
+	visitConfigs := func(sc *ScrapeConfig, visitor func(sdc targetLabelsGetter)) {
+		for i := range sc.ConsulAgentSDConfigs {
+			visitor(&sc.ConsulAgentSDConfigs[i])
 		}
 	}
-	return dst
+	return cfg.getScrapeWorkGeneric(visitConfigs, "consulagent_sd_config", prev)
 }
 
 // getDigitalOceanDScrapeWork returns `digitalocean_sd_configs` ScrapeWork from cfg.
 func (cfg *Config) getDigitalOceanDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
-	swsPrevByJob := getSWSByJob(prev)
-	dst := make([]*ScrapeWork, 0, len(prev))
-	for _, sc := range cfg.ScrapeConfigs {
-		dstLen := len(dst)
-		ok := true
-		for j := range sc.DigitaloceanSDConfigs {
-			sdc := &sc.DigitaloceanSDConfigs[j]
-			var okLocal bool
-			dst, okLocal = appendSDScrapeWork(dst, sdc, cfg.baseDir, sc.swc, "digitalocean_sd_config")
-			if ok {
-				ok = okLocal
-			}
-		}
-		if ok {
-			continue
-		}
-		swsPrev := swsPrevByJob[sc.swc.jobName]
-		if len(swsPrev) > 0 {
-			logger.Errorf("there were errors when discovering digitalocean targets for job %q, so preserving the previous targets", sc.swc.jobName)
-			dst = append(dst[:dstLen], swsPrev...)
+	visitConfigs := func(sc *ScrapeConfig, visitor func(sdc targetLabelsGetter)) {
+		for i := range sc.DigitaloceanSDConfigs {
+			visitor(&sc.DigitaloceanSDConfigs[i])
 		}
 	}
-	return dst
+	return cfg.getScrapeWorkGeneric(visitConfigs, "digitalocean_sd_config", prev)
 }
 
 // getDNSSDScrapeWork returns `dns_sd_configs` ScrapeWork from cfg.
 func (cfg *Config) getDNSSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
-	swsPrevByJob := getSWSByJob(prev)
-	dst := make([]*ScrapeWork, 0, len(prev))
-	for _, sc := range cfg.ScrapeConfigs {
-		dstLen := len(dst)
-		ok := true
-		for j := range sc.DNSSDConfigs {
-			sdc := &sc.DNSSDConfigs[j]
-			var okLocal bool
-			dst, okLocal = appendSDScrapeWork(dst, sdc, cfg.baseDir, sc.swc, "dns_sd_config")
-			if ok {
-				ok = okLocal
-			}
-		}
-		if ok {
-			continue
-		}
-		swsPrev := swsPrevByJob[sc.swc.jobName]
-		if len(swsPrev) > 0 {
-			logger.Errorf("there were errors when discovering dns targets for job %q, so preserving the previous targets", sc.swc.jobName)
-			dst = append(dst[:dstLen], swsPrev...)
+	visitConfigs := func(sc *ScrapeConfig, visitor func(sdc targetLabelsGetter)) {
+		for i := range sc.DNSSDConfigs {
+			visitor(&sc.DNSSDConfigs[i])
 		}
 	}
-	return dst
+	return cfg.getScrapeWorkGeneric(visitConfigs, "dns_sd_config", prev)
 }
 
 // getDockerSDScrapeWork returns `docker_sd_configs` ScrapeWork from cfg.
 func (cfg *Config) getDockerSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
-	swsPrevByJob := getSWSByJob(prev)
-	dst := make([]*ScrapeWork, 0, len(prev))
-	for _, sc := range cfg.ScrapeConfigs {
-		dstLen := len(dst)
-		ok := true
-		for j := range sc.DockerSDConfigs {
-			sdc := &sc.DockerSDConfigs[j]
-			var okLocal bool
-			dst, okLocal = appendSDScrapeWork(dst, sdc, cfg.baseDir, sc.swc, "docker_sd_config")
-			if ok {
-				ok = okLocal
-			}
-		}
-		if ok {
-			continue
-		}
-		swsPrev := swsPrevByJob[sc.swc.jobName]
-		if len(swsPrev) > 0 {
-			logger.Errorf("there were errors when discovering docker targets for job %q, so preserving the previous targets", sc.swc.jobName)
-			dst = append(dst[:dstLen], swsPrev...)
+	visitConfigs := func(sc *ScrapeConfig, visitor func(sdc targetLabelsGetter)) {
+		for i := range sc.DockerSDConfigs {
+			visitor(&sc.DockerSDConfigs[i])
 		}
 	}
-	return dst
+	return cfg.getScrapeWorkGeneric(visitConfigs, "docker_sd_config", prev)
 }
 
 // getDockerSwarmSDScrapeWork returns `dockerswarm_sd_configs` ScrapeWork from cfg.
 func (cfg *Config) getDockerSwarmSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
-	swsPrevByJob := getSWSByJob(prev)
-	dst := make([]*ScrapeWork, 0, len(prev))
-	for _, sc := range cfg.ScrapeConfigs {
-		dstLen := len(dst)
-		ok := true
-		for j := range sc.DockerSwarmSDConfigs {
-			sdc := &sc.DockerSwarmSDConfigs[j]
-			var okLocal bool
-			dst, okLocal = appendSDScrapeWork(dst, sdc, cfg.baseDir, sc.swc, "dockerswarm_sd_config")
-			if ok {
-				ok = okLocal
-			}
-		}
-		if ok {
-			continue
-		}
-		swsPrev := swsPrevByJob[sc.swc.jobName]
-		if len(swsPrev) > 0 {
-			logger.Errorf("there were errors when discovering dockerswarm targets for job %q, so preserving the previous targets", sc.swc.jobName)
-			dst = append(dst[:dstLen], swsPrev...)
+	visitConfigs := func(sc *ScrapeConfig, visitor func(sdc targetLabelsGetter)) {
+		for i := range sc.DockerSwarmSDConfigs {
+			visitor(&sc.DockerSwarmSDConfigs[i])
 		}
 	}
-	return dst
+	return cfg.getScrapeWorkGeneric(visitConfigs, "dockerswarm_sd_config", prev)
 }
 
 // getEC2SDScrapeWork returns `ec2_sd_configs` ScrapeWork from cfg.
 func (cfg *Config) getEC2SDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
-	swsPrevByJob := getSWSByJob(prev)
-	dst := make([]*ScrapeWork, 0, len(prev))
-	for _, sc := range cfg.ScrapeConfigs {
-		dstLen := len(dst)
-		ok := true
-		for j := range sc.EC2SDConfigs {
-			sdc := &sc.EC2SDConfigs[j]
-			var okLocal bool
-			dst, okLocal = appendSDScrapeWork(dst, sdc, cfg.baseDir, sc.swc, "ec2_sd_config")
-			if ok {
-				ok = okLocal
-			}
-		}
-		if ok {
-			continue
-		}
-		swsPrev := swsPrevByJob[sc.swc.jobName]
-		if len(swsPrev) > 0 {
-			logger.Errorf("there were errors when discovering ec2 targets for job %q, so preserving the previous targets", sc.swc.jobName)
-			dst = append(dst[:dstLen], swsPrev...)
+	visitConfigs := func(sc *ScrapeConfig, visitor func(sdc targetLabelsGetter)) {
+		for i := range sc.EC2SDConfigs {
+			visitor(&sc.EC2SDConfigs[i])
 		}
 	}
-	return dst
+	return cfg.getScrapeWorkGeneric(visitConfigs, "ec2_sd_config", prev)
 }
 
 // getEurekaSDScrapeWork returns `eureka_sd_configs` ScrapeWork from cfg.
 func (cfg *Config) getEurekaSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
-	swsPrevByJob := getSWSByJob(prev)
-	dst := make([]*ScrapeWork, 0, len(prev))
-	for _, sc := range cfg.ScrapeConfigs {
-		dstLen := len(dst)
-		ok := true
-		for j := range sc.EurekaSDConfigs {
-			sdc := &sc.EurekaSDConfigs[j]
-			var okLocal bool
-			dst, okLocal = appendSDScrapeWork(dst, sdc, cfg.baseDir, sc.swc, "eureka_sd_config")
-			if ok {
-				ok = okLocal
-			}
-		}
-		if ok {
-			continue
-		}
-		swsPrev := swsPrevByJob[sc.swc.jobName]
-		if len(swsPrev) > 0 {
-			logger.Errorf("there were errors when discovering eureka targets for job %q, so preserving the previous targets", sc.swc.jobName)
-			dst = append(dst[:dstLen], swsPrev...)
+	visitConfigs := func(sc *ScrapeConfig, visitor func(sdc targetLabelsGetter)) {
+		for i := range sc.EurekaSDConfigs {
+			visitor(&sc.EurekaSDConfigs[i])
 		}
 	}
-	return dst
+	return cfg.getScrapeWorkGeneric(visitConfigs, "eureka_sd_config", prev)
 }
 
 // getFileSDScrapeWork returns `file_sd_configs` ScrapeWork from cfg.
@@ -776,60 +624,27 @@ func (cfg *Config) getFileSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 
 // getGCESDScrapeWork returns `gce_sd_configs` ScrapeWork from cfg.
 func (cfg *Config) getGCESDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
-	swsPrevByJob := getSWSByJob(prev)
-	dst := make([]*ScrapeWork, 0, len(prev))
-	for _, sc := range cfg.ScrapeConfigs {
-		dstLen := len(dst)
-		ok := true
-		for j := range sc.GCESDConfigs {
-			sdc := &sc.GCESDConfigs[j]
-			var okLocal bool
-			dst, okLocal = appendSDScrapeWork(dst, sdc, cfg.baseDir, sc.swc, "gce_sd_config")
-			if ok {
-				ok = okLocal
-			}
-		}
-		if ok {
-			continue
-		}
-		swsPrev := swsPrevByJob[sc.swc.jobName]
-		if len(swsPrev) > 0 {
-			logger.Errorf("there were errors when discovering gce targets for job %q, so preserving the previous targets", sc.swc.jobName)
-			dst = append(dst[:dstLen], swsPrev...)
+	visitConfigs := func(sc *ScrapeConfig, visitor func(sdc targetLabelsGetter)) {
+		for i := range sc.GCESDConfigs {
+			visitor(&sc.GCESDConfigs[i])
 		}
 	}
-	return dst
+	return cfg.getScrapeWorkGeneric(visitConfigs, "gce_sd_config", prev)
 }
 
 // getHTTPDScrapeWork returns `http_sd_configs` ScrapeWork from cfg.
 func (cfg *Config) getHTTPDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
-	swsPrevByJob := getSWSByJob(prev)
-	dst := make([]*ScrapeWork, 0, len(prev))
-	for _, sc := range cfg.ScrapeConfigs {
-		dstLen := len(dst)
-		ok := true
-		for j := range sc.HTTPSDConfigs {
-			sdc := &sc.HTTPSDConfigs[j]
-			var okLocal bool
-			dst, okLocal = appendSDScrapeWork(dst, sdc, cfg.baseDir, sc.swc, "http_sd_config")
-			if ok {
-				ok = okLocal
-			}
-		}
-		if ok {
-			continue
-		}
-		swsPrev := swsPrevByJob[sc.swc.jobName]
-		if len(swsPrev) > 0 {
-			logger.Errorf("there were errors when discovering http targets for job %q, so preserving the previous targets", sc.swc.jobName)
-			dst = append(dst[:dstLen], swsPrev...)
+	visitConfigs := func(sc *ScrapeConfig, visitor func(sdc targetLabelsGetter)) {
+		for i := range sc.HTTPSDConfigs {
+			visitor(&sc.HTTPSDConfigs[i])
 		}
 	}
-	return dst
+	return cfg.getScrapeWorkGeneric(visitConfigs, "http_sd_config", prev)
 }
 
 // getKubernetesSDScrapeWork returns `kubernetes_sd_configs` ScrapeWork from cfg.
 func (cfg *Config) getKubernetesSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
+	const discoveryType = "kubernetes_sd_config"
 	swsPrevByJob := getSWSByJob(prev)
 	dst := make([]*ScrapeWork, 0, len(prev))
 	for _, sc := range cfg.ScrapeConfigs {
@@ -839,7 +654,7 @@ func (cfg *Config) getKubernetesSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 			sdc := &sc.KubernetesSDConfigs[j]
 			swos, err := sdc.GetScrapeWorkObjects()
 			if err != nil {
-				logger.Errorf("skipping kubernetes_sd_config targets for job_name %q because of error: %s", sc.swc.jobName, err)
+				logger.Errorf("skipping %s targets for job_name=%s because of error: %s", discoveryType, sc.swc.jobName, err)
 				ok = false
 				break
 			}
@@ -848,13 +663,8 @@ func (cfg *Config) getKubernetesSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 				dst = append(dst, sw)
 			}
 		}
-		if ok {
-			continue
-		}
-		swsPrev := swsPrevByJob[sc.swc.jobName]
-		if len(swsPrev) > 0 {
-			logger.Errorf("there were errors when discovering kubernetes_sd_config targets for job %q, so preserving the previous targets", sc.swc.jobName)
-			dst = append(dst[:dstLen], swsPrev...)
+		if !ok {
+			dst = sc.appendPrevTargets(dst[:dstLen], swsPrevByJob, discoveryType)
 		}
 	}
 	return dst
@@ -862,110 +672,80 @@ func (cfg *Config) getKubernetesSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 
 // getKumaSDScrapeWork returns `kuma_sd_configs` ScrapeWork from cfg.
 func (cfg *Config) getKumaSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
-	swsPrevByJob := getSWSByJob(prev)
-	dst := make([]*ScrapeWork, 0, len(prev))
-	for _, sc := range cfg.ScrapeConfigs {
-		dstLen := len(dst)
-		ok := true
-		for j := range sc.KumaSDConfigs {
-			sdc := &sc.KumaSDConfigs[j]
-			var okLocal bool
-			dst, okLocal = appendSDScrapeWork(dst, sdc, cfg.baseDir, sc.swc, "kuma_sd_config")
-			if ok {
-				ok = okLocal
-			}
-		}
-		if ok {
-			continue
-		}
-		swsPrev := swsPrevByJob[sc.swc.jobName]
-		if len(swsPrev) > 0 {
-			logger.Errorf("there were errors when discovering kuma targets for job %q, so preserving the previous targets", sc.swc.jobName)
-			dst = append(dst[:dstLen], swsPrev...)
+	visitConfigs := func(sc *ScrapeConfig, visitor func(sdc targetLabelsGetter)) {
+		for i := range sc.KumaSDConfigs {
+			visitor(&sc.KumaSDConfigs[i])
 		}
 	}
-	return dst
+	return cfg.getScrapeWorkGeneric(visitConfigs, "kuma_sd_config", prev)
 }
 
 // getNomadSDScrapeWork returns `nomad_sd_configs` ScrapeWork from cfg.
 func (cfg *Config) getNomadSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
-	swsPrevByJob := getSWSByJob(prev)
-	dst := make([]*ScrapeWork, 0, len(prev))
-	for _, sc := range cfg.ScrapeConfigs {
-		dstLen := len(dst)
-		ok := true
-		for j := range sc.NomadSDConfigs {
-			sdc := &sc.NomadSDConfigs[j]
-			var okLocal bool
-			dst, okLocal = appendSDScrapeWork(dst, sdc, cfg.baseDir, sc.swc, "nomad_sd_config")
-			if ok {
-				ok = okLocal
-			}
-		}
-		if ok {
-			continue
-		}
-		swsPrev := swsPrevByJob[sc.swc.jobName]
-		if len(swsPrev) > 0 {
-			logger.Errorf("there were errors when discovering nomad_sd_config targets for job %q, so preserving the previous targets", sc.swc.jobName)
-			dst = append(dst[:dstLen], swsPrev...)
+	visitConfigs := func(sc *ScrapeConfig, visitor func(sdc targetLabelsGetter)) {
+		for i := range sc.NomadSDConfigs {
+			visitor(&sc.NomadSDConfigs[i])
 		}
 	}
-	return dst
+	return cfg.getScrapeWorkGeneric(visitConfigs, "nomad_sd_config", prev)
 }
 
 // getOpenStackSDScrapeWork returns `openstack_sd_configs` ScrapeWork from cfg.
 func (cfg *Config) getOpenStackSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
+	visitConfigs := func(sc *ScrapeConfig, visitor func(sdc targetLabelsGetter)) {
+		for i := range sc.OpenStackSDConfigs {
+			visitor(&sc.OpenStackSDConfigs[i])
+		}
+	}
+	return cfg.getScrapeWorkGeneric(visitConfigs, "openstack_sd_config", prev)
+}
+
+// getYandexCloudSDScrapeWork returns `yandexcloud_sd_configs` ScrapeWork from cfg.
+func (cfg *Config) getYandexCloudSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
+	visitConfigs := func(sc *ScrapeConfig, visitor func(sdc targetLabelsGetter)) {
+		for i := range sc.YandexCloudSDConfigs {
+			visitor(&sc.YandexCloudSDConfigs[i])
+		}
+	}
+	return cfg.getScrapeWorkGeneric(visitConfigs, "yandexcloud_sd_config", prev)
+}
+
+type targetLabelsGetter interface {
+	GetLabels(baseDir string) ([]*promutils.Labels, error)
+}
+
+func (cfg *Config) getScrapeWorkGeneric(visitConfigs func(sc *ScrapeConfig, visitor func(sdc targetLabelsGetter)), discoveryType string, prev []*ScrapeWork) []*ScrapeWork {
 	swsPrevByJob := getSWSByJob(prev)
 	dst := make([]*ScrapeWork, 0, len(prev))
 	for _, sc := range cfg.ScrapeConfigs {
 		dstLen := len(dst)
 		ok := true
-		for j := range sc.OpenStackSDConfigs {
-			sdc := &sc.OpenStackSDConfigs[j]
-			var okLocal bool
-			dst, okLocal = appendSDScrapeWork(dst, sdc, cfg.baseDir, sc.swc, "openstack_sd_config")
-			if ok {
-				ok = okLocal
+		visitConfigs(sc, func(sdc targetLabelsGetter) {
+			if !ok {
+				return
 			}
-		}
-		if ok {
-			continue
-		}
-		swsPrev := swsPrevByJob[sc.swc.jobName]
-		if len(swsPrev) > 0 {
-			logger.Errorf("there were errors when discovering openstack targets for job %q, so preserving the previous targets", sc.swc.jobName)
-			dst = append(dst[:dstLen], swsPrev...)
+			targetLabels, err := sdc.GetLabels(cfg.baseDir)
+			if err != nil {
+				logger.Errorf("skipping %s targets for job_name=%s because of error: %s", discoveryType, sc.swc.jobName, err)
+				ok = false
+				return
+			}
+			dst = appendScrapeWorkForTargetLabels(dst, sc.swc, targetLabels, discoveryType)
+		})
+		if !ok {
+			dst = sc.appendPrevTargets(dst[:dstLen], swsPrevByJob, discoveryType)
 		}
 	}
 	return dst
 }
 
-// getYandexCloudSDScrapeWork returns `yandexcloud_sd_configs` ScrapeWork from cfg.
-func (cfg *Config) getYandexCloudSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
-	swsPrevByJob := getSWSByJob(prev)
-	dst := make([]*ScrapeWork, 0, len(prev))
-	for _, sc := range cfg.ScrapeConfigs {
-		dstLen := len(dst)
-		ok := true
-		for j := range sc.YandexCloudSDConfigs {
-			sdc := &sc.YandexCloudSDConfigs[j]
-			var okLocal bool
-			dst, okLocal = appendSDScrapeWork(dst, sdc, cfg.baseDir, sc.swc, "yandexcloud_sd_config")
-			if ok {
-				ok = okLocal
-			}
-		}
-		if ok {
-			continue
-		}
-		swsPrev := swsPrevByJob[sc.swc.jobName]
-		if len(swsPrev) > 0 {
-			logger.Errorf("there were errors when discovering yandexcloud targets for job %q, so preserving the previous targets", sc.swc.jobName)
-			dst = append(dst[:dstLen], swsPrev...)
-		}
+func (sc *ScrapeConfig) appendPrevTargets(dst []*ScrapeWork, swsPrevByJob map[string][]*ScrapeWork, discoveryType string) []*ScrapeWork {
+	swsPrev := swsPrevByJob[sc.swc.jobName]
+	if len(swsPrev) == 0 {
+		return dst
 	}
-	return dst
+	logger.Errorf("preserving the previous %s targets for job_name=%s because of temporary discovery error", discoveryType, sc.swc.jobName)
+	return append(dst, swsPrev...)
 }
 
 // getStaticScrapeWork returns `static_configs` ScrapeWork from cfg.
@@ -1106,19 +886,6 @@ type scrapeWorkConfig struct {
 	noStaleMarkers       bool
 }
 
-type targetLabelsGetter interface {
-	GetLabels(baseDir string) ([]*promutils.Labels, error)
-}
-
-func appendSDScrapeWork(dst []*ScrapeWork, sdc targetLabelsGetter, baseDir string, swc *scrapeWorkConfig, discoveryType string) ([]*ScrapeWork, bool) {
-	targetLabels, err := sdc.GetLabels(baseDir)
-	if err != nil {
-		logger.Errorf("skipping %s targets for job_name %q because of error: %s", discoveryType, swc.jobName, err)
-		return dst, false
-	}
-	return appendScrapeWorkForTargetLabels(dst, swc, targetLabels, discoveryType), true
-}
-
 func appendScrapeWorkForTargetLabels(dst []*ScrapeWork, swc *scrapeWorkConfig, targetLabels []*promutils.Labels, discoveryType string) []*ScrapeWork {
 	startTime := time.Now()
 	// Process targetLabels in parallel in order to reduce processing time for big number of targetLabels.
@@ -1135,7 +902,7 @@ func appendScrapeWorkForTargetLabels(dst []*ScrapeWork, swc *scrapeWorkConfig, t
 				target := metaLabels.Get("__address__")
 				sw, err := swc.getScrapeWork(target, nil, metaLabels)
 				if err != nil {
-					err = fmt.Errorf("skipping %s target %q for job_name %q because of error: %w", discoveryType, target, swc.jobName, err)
+					err = fmt.Errorf("skipping %s target %q for job_name%s because of error: %w", discoveryType, target, swc.jobName, err)
 				}
 				resultCh <- result{
 					sw:  sw,
@@ -1173,7 +940,7 @@ func (sdc *FileSDConfig) appendScrapeWork(dst []*ScrapeWork, baseDir string, swc
 			paths, err = filepath.Glob(pathPattern)
 			if err != nil {
 				// Do not return this error, since other files may contain valid scrape configs.
-				logger.Errorf("invalid pattern %q in `file_sd_config->files` section of job_name=%q: %s; skipping it", file, swc.jobName, err)
+				logger.Errorf("skipping entry %q in `file_sd_config->files` for job_name=%s because of error: %s", file, swc.jobName, err)
 				continue
 			}
 		}
@@ -1181,7 +948,7 @@ func (sdc *FileSDConfig) appendScrapeWork(dst []*ScrapeWork, baseDir string, swc
 			stcs, err := loadStaticConfigs(path)
 			if err != nil {
 				// Do not return this error, since other paths may contain valid scrape configs.
-				logger.Errorf("cannot load file %q for job_name=%q at `file_sd_configs`: %s; skipping this file", path, swc.jobName, err)
+				logger.Errorf("skipping file %s for job_name=%s at `file_sd_configs` because of error: %s", path, swc.jobName, err)
 				continue
 			}
 			pathShort := path
@@ -1205,13 +972,13 @@ func (stc *StaticConfig) appendScrapeWork(dst []*ScrapeWork, swc *scrapeWorkConf
 	for _, target := range stc.Targets {
 		if target == "" {
 			// Do not return this error, since other targets may be valid
-			logger.Errorf("`static_configs` target for `job_name` %q cannot be empty; skipping it", swc.jobName)
+			logger.Errorf("skipping empty `static_configs` target for job_name=%s", swc.jobName)
 			continue
 		}
 		sw, err := swc.getScrapeWork(target, stc.Labels, metaLabels)
 		if err != nil {
 			// Do not return this error, since other targets may be valid
-			logger.Errorf("error when parsing `static_configs` target %q for `job_name` %q: %s; skipping it", target, swc.jobName, err)
+			logger.Errorf("skipping `static_configs` target %q for job_name=%s because of error: %s", target, swc.jobName, err)
 			continue
 		}
 		if sw != nil {
