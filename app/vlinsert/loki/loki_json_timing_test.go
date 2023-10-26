@@ -29,7 +29,7 @@ func benchmarkParseJSONRequest(b *testing.B, streams, rows, labels int) {
 		for pb.Next() {
 			_, err := parseJSONRequest(data, func(timestamp int64, fields []logstorage.Field) {})
 			if err != nil {
-				panic(fmt.Errorf("unexpected error: %s", err))
+				panic(fmt.Errorf("unexpected error: %w", err))
 			}
 		}
 	})

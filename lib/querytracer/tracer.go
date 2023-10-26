@@ -141,7 +141,7 @@ func (t *Tracer) AddJSON(jsonTrace []byte) error {
 	}
 	var s *span
 	if err := json.Unmarshal(jsonTrace, &s); err != nil {
-		return fmt.Errorf("cannot unmarshal json trace: %s", err)
+		return fmt.Errorf("cannot unmarshal json trace: %w", err)
 	}
 	child := &Tracer{
 		span: s,

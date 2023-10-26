@@ -236,7 +236,7 @@ func ParseSilent(pathPatterns []string, validateTplFn ValidateTplFn, validateExp
 
 	files, err := readFromFS(pathPatterns)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read from the config: %s", err)
+		return nil, fmt.Errorf("failed to read from the config: %w", err)
 	}
 	return parse(files, validateTplFn, validateExpressions)
 }
@@ -245,11 +245,11 @@ func ParseSilent(pathPatterns []string, validateTplFn ValidateTplFn, validateExp
 func Parse(pathPatterns []string, validateTplFn ValidateTplFn, validateExpressions bool) ([]Group, error) {
 	files, err := readFromFS(pathPatterns)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read from the config: %s", err)
+		return nil, fmt.Errorf("failed to read from the config: %w", err)
 	}
 	groups, err := parse(files, validateTplFn, validateExpressions)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse %s: %s", pathPatterns, err)
+		return nil, fmt.Errorf("failed to parse %s: %w", pathPatterns, err)
 	}
 	if len(groups) < 1 {
 		cLogger.Warnf("no groups found in %s", strings.Join(pathPatterns, ";"))

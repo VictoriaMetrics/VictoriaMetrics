@@ -282,7 +282,9 @@ func (c *Client) send(ctx context.Context, data []byte) error {
 	if c.authCfg != nil {
 		err = c.authCfg.SetHeaders(req, true)
 		if err != nil {
-			return &nonRetriableError{err: err}
+			return &nonRetriableError{
+				err: err,
+			}
 		}
 	}
 	if !*disablePathAppend {
@@ -306,8 +308,9 @@ func (c *Client) send(ctx context.Context, data []byte) error {
 	case 4:
 		if resp.StatusCode != http.StatusTooManyRequests {
 			// MUST NOT retry write requests on HTTP 4xx responses other than 429
-			return &nonRetriableError{fmt.Errorf("unexpected response code %d for %s. Response body %q",
-				resp.StatusCode, req.URL.Redacted(), body)}
+			return &nonRetriableError{
+				err: fmt.Errorf("unexpected response code %d for %s. Response body %q", resp.StatusCode, req.URL.Redacted(), body),
+			}
 		}
 		fallthrough
 	default:

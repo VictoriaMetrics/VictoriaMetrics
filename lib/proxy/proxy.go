@@ -76,7 +76,7 @@ func (u *URL) String() string {
 func (u *URL) SetHeaders(ac *promauth.Config, req *http.Request) error {
 	ah, err := u.getAuthHeader(ac)
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot obtain Proxy-Authorization headers: %w", err)
 	}
 	if ah != "" {
 		req.Header.Set("Proxy-Authorization", ah)
@@ -88,7 +88,7 @@ func (u *URL) SetHeaders(ac *promauth.Config, req *http.Request) error {
 func (u *URL) SetFasthttpHeaders(ac *promauth.Config, req *fasthttp.Request) error {
 	ah, err := u.getAuthHeader(ac)
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot obtain Proxy-Authorization headers: %w", err)
 	}
 	if ah != "" {
 		req.Header.Set("Proxy-Authorization", ah)
@@ -155,7 +155,11 @@ func (u *URL) NewDialFunc(ac *promauth.Config) (fasthttp.DialFunc, error) {
 	proxyAddr := addMissingPort(pu.Host, isTLS)
 	var tlsCfg *tls.Config
 	if isTLS {
-		tlsCfg = ac.NewTLSConfig()
+		var err error
+		tlsCfg, err = ac.NewTLSConfig()
+		if err != nil {
+			return nil, fmt.Errorf("cannot initialize tls config: %w", err)
+		}
 		if !tlsCfg.InsecureSkipVerify && tlsCfg.ServerName == "" {
 			tlsCfg.ServerName = tlsServerName(proxyAddr)
 		}
@@ -173,7 +177,7 @@ func (u *URL) NewDialFunc(ac *promauth.Config) (fasthttp.DialFunc, error) {
 		}
 		authHeader, err := u.getAuthHeader(ac)
 		if err != nil {
-			return nil, fmt.Errorf("cannot get auth header: %s", err)
+			return nil, fmt.Errorf("cannot obtain Proxy-Authorization header: %w", err)
 		}
 		if authHeader != "" {
 			authHeader = "Proxy-Authorization: " + authHeader + "\r\n"

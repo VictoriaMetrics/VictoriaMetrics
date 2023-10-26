@@ -213,7 +213,7 @@ func unmarshalRow(dst []Row, s string, tagsPool []Tag, fieldsPool []Field, noEsc
 	tagsPool, fieldsPool, err = r.unmarshal(s, tagsPool, fieldsPool, noEscapeChars)
 	if err != nil {
 		dst = dst[:len(dst)-1]
-		logger.Errorf("cannot unmarshal InfluxDB line %q: %s; skipping it", s, err)
+		logger.Errorf("skipping InfluxDB line %q because of error: %s", s, err)
 		invalidLines.Inc()
 	}
 	return dst, tagsPool, fieldsPool
