@@ -295,8 +295,7 @@ func (ar *AlertingRule) toLabels(m datasource.Metric, qFn templates.QueryFn) (*l
 }
 
 // execRange executes alerting rule on the given time range similarly to exec.
-// It doesn't update internal states of the Rule and meant to be used just
-// to get time series for backfilling.
+// It will hold internal states of the Rule since one firing stage could across two `execRange`.
 // It returns ALERT and ALERT_FOR_STATE time series as result.
 func (ar *AlertingRule) execRange(ctx context.Context, start, end time.Time) ([]prompbmarshal.TimeSeries, error) {
 	res, err := ar.q.QueryRange(ctx, ar.Expr, start, end)
