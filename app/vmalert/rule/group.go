@@ -594,10 +594,9 @@ func (g *Group) adjustReqTimestamp(timestamp time.Time) time.Time {
 		return ts
 	}
 
-	// account for delay before adjusting the timestamp.
-	// otherwise, the alignment may be off if `delay!=g.Interval`
 	timestamp = timestamp.Add(-g.getEvalDelay())
 
+	// always apply the alignment as a last step
 	if g.evalAlignment == nil || *g.evalAlignment {
 		// align query time with interval to get similar result with grafana when plotting time series.
 		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5049
