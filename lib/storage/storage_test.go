@@ -1117,6 +1117,31 @@ func TestStorageAddRowsConcurrent(t *testing.T) {
 	}
 }
 
+func testGenerateMetricRowsForTenant(accountID, projectID uint32, rng *rand.Rand, rows uint64, timestampMin, timestampMax int64) []MetricRow {
+	var mrs []MetricRow
+	var mn MetricName
+	mn.Tags = []Tag{
+		{[]byte("job"), []byte("webservice")},
+		{[]byte("instance"), []byte("1.2.3.4")},
+	}
+	for i := 0; i < int(rows); i++ {
+		mn.AccountID = accountID
+		mn.ProjectID = projectID
+		mn.MetricGroup = []byte(fmt.Sprintf("metric_%d", i))
+		metricNameRaw := mn.marshalRaw(nil)
+		timestamp := rng.Int63n(timestampMax-timestampMin) + timestampMin
+		value := rng.NormFloat64() * 1e6
+
+		mr := MetricRow{
+			MetricNameRaw: metricNameRaw,
+			Timestamp:     timestamp,
+			Value:         value,
+		}
+		mrs = append(mrs, mr)
+	}
+	return mrs
+}
+
 func testGenerateMetricRows(rng *rand.Rand, rows uint64, timestampMin, timestampMax int64) []MetricRow {
 	var mrs []MetricRow
 	var mn MetricName
@@ -1363,10 +1388,12 @@ func TestStorageDeleteStaleSnapshots(t *testing.T) {
 
 func TestStorageSeriesAreNotCreatedOnStaleMarkers(t *testing.T) {
 	path := "TestStorageSeriesAreNotCreatedOnStaleMarkers"
+	const accountID = 2344
+	const projectID = 89823
 	s := MustOpenStorage(path, -1, 1e5, 1e6)
 
 	tr := TimeRange{MinTimestamp: 0, MaxTimestamp: 2e10}
-	tfsAll := NewTagFilters()
+	tfsAll := NewTagFilters(accountID, projectID)
 	if err := tfsAll.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
 		t.Fatalf("unexpected error in TagFilters.Add: %s", err)
 	}
@@ -1387,7 +1414,7 @@ func TestStorageSeriesAreNotCreatedOnStaleMarkers(t *testing.T) {
 	findN(0)
 
 	rng := rand.New(rand.NewSource(1))
-	mrs := testGenerateMetricRows(rng, 20, tr.MinTimestamp, tr.MaxTimestamp)
+	mrs := testGenerateMetricRowsForTenant(accountID, projectID, rng, 20, tr.MinTimestamp, tr.MaxTimestamp)
 	// populate storage with some rows
 	if err := s.AddRows(mrs[:10], defaultPrecisionBits); err != nil {
 		t.Fatal("error when adding mrs: %w", err)
