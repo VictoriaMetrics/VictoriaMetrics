@@ -10,7 +10,7 @@ func BenchmarkPodGetTargetLabels(b *testing.B) {
 	r := bytes.NewBufferString(testPodsList)
 	objectsByKey, _, err := parsePodList(r)
 	if err != nil {
-		panic(fmt.Errorf("BUG: unexpected error: %s", err))
+		panic(fmt.Errorf("BUG: unexpected error: %w", err))
 	}
 	var o object
 	for _, srcObject := range objectsByKey {

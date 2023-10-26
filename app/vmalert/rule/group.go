@@ -32,6 +32,8 @@ var (
 	resendDelay        = flag.Duration("rule.resendDelay", 0, "MiniMum amount of time to wait before resending an alert to notifier")
 	maxResolveDuration = flag.Duration("rule.maxResolveDuration", 0, "Limits the maxiMum duration for automatic alert expiration, "+
 		"which by default is 4 times evaluationInterval of the parent ")
+	evalDelay = flag.Duration("rule.evalDelay", 30*time.Second, "Adjustment of the `time` parameter for rule evaluation requests to compensate intentional data delay from the datasource."+
+		"Normally, should be equal to `-search.latencyOffset` (cmd-line flag configured for VictoriaMetrics single-node or vmselect).")
 	disableAlertGroupLabel = flag.Bool("disableAlertgroupLabel", false, "Whether to disable adding group's Name as label to generated alerts and time series.")
 	remoteReadLookBack     = flag.Duration("remoteRead.lookback", time.Hour, "Lookback defines how far to look into past for alerts timeseries."+
 		" For example, if lookback=1h then range from now() to now()-1h will be scanned.")
@@ -39,13 +41,16 @@ var (
 
 // Group is an entity for grouping rules
 type Group struct {
-	mu             sync.RWMutex
-	Name           string
-	File           string
-	Rules          []Rule
-	Type           config.Type
-	Interval       time.Duration
-	EvalOffset     *time.Duration
+	mu         sync.RWMutex
+	Name       string
+	File       string
+	Rules      []Rule
+	Type       config.Type
+	Interval   time.Duration
+	EvalOffset *time.Duration
+	// EvalDelay will adjust timestamp for rule evaluation requests to compensate intentional query delay from datasource.
+	// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5155
+	EvalDelay      *time.Duration
 	Limit          int
 	Concurrency    int
 	Checksum       string
@@ -138,6 +143,9 @@ func NewGroup(cfg config.Group, qb datasource.QuerierBuilder, defaultInterval ti
 	}
 	if cfg.EvalOffset != nil {
 		g.EvalOffset = &cfg.EvalOffset.D
+	}
+	if cfg.EvalDelay != nil {
+		g.EvalDelay = &cfg.EvalDelay.D
 	}
 	for _, h := range cfg.Headers {
 		g.Headers[h.Key] = h.Value
@@ -331,7 +339,7 @@ func (g *Group) Start(ctx context.Context, nts func() []notifier.Notifier, rw re
 		Rw:                       rw,
 		Notifiers:                nts,
 		notifierHeaders:          g.NotifierHeaders,
-		PreviouslySentSeriesToRW: make(map[uint64]map[string][]prompbmarshal.Label),
+		previouslySentSeriesToRW: make(map[uint64]map[string][]prompbmarshal.Label),
 	}
 
 	g.infof("started")
@@ -520,7 +528,7 @@ func (g *Group) ExecOnce(ctx context.Context, nts func() []notifier.Notifier, rw
 		Rw:                       rw,
 		Notifiers:                nts,
 		notifierHeaders:          g.NotifierHeaders,
-		PreviouslySentSeriesToRW: make(map[uint64]map[string][]prompbmarshal.Label),
+		previouslySentSeriesToRW: make(map[uint64]map[string][]prompbmarshal.Label),
 	}
 	if len(g.Rules) < 1 {
 		return nil
@@ -581,10 +589,15 @@ func (g *Group) adjustReqTimestamp(timestamp time.Time) time.Time {
 			// to 10:30, to the previous evaluationInterval.
 			return ts.Add(-g.Interval)
 		}
-		// EvalOffset shouldn't interfere with evalAlignment,
-		// so we return it immediately
+		// when `eval_offset` is using, ts shouldn't be effect by `eval_alignment` and `eval_delay`
+		// since it should be always aligned.
 		return ts
 	}
+
+	// account for delay before adjusting the timestamp.
+	// otherwise, the alignment may be off if `delay!=g.Interval`
+	timestamp = timestamp.Add(-g.getEvalDelay())
+
 	if g.evalAlignment == nil || *g.evalAlignment {
 		// align query time with interval to get similar result with grafana when plotting time series.
 		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5049
@@ -592,6 +605,13 @@ func (g *Group) adjustReqTimestamp(timestamp time.Time) time.Time {
 		return timestamp.Truncate(g.Interval)
 	}
 	return timestamp
+}
+
+func (g *Group) getEvalDelay() time.Duration {
+	if g.EvalDelay != nil {
+		return *g.EvalDelay
+	}
+	return *evalDelay
 }
 
 // executor contains group's notify and rw configs
@@ -602,11 +622,11 @@ type executor struct {
 	Rw remotewrite.RWClient
 
 	previouslySentSeriesToRWMu sync.Mutex
-	// PreviouslySentSeriesToRW stores series sent to RW on previous iteration
+	// previouslySentSeriesToRW stores series sent to RW on previous iteration
 	// map[ruleID]map[ruleLabels][]prompb.Label
 	// where `ruleID` is ID of the Rule within a Group
 	// and `ruleLabels` is []prompb.Label marshalled to a string
-	PreviouslySentSeriesToRW map[uint64]map[string][]prompbmarshal.Label
+	previouslySentSeriesToRW map[uint64]map[string][]prompbmarshal.Label
 }
 
 // execConcurrently executes rules concurrently if concurrency>1
@@ -723,7 +743,7 @@ func (e *executor) getStaleSeries(r Rule, tss []prompbmarshal.TimeSeries, timest
 	var staleS []prompbmarshal.TimeSeries
 	// check whether there are series which disappeared and need to be marked as stale
 	e.previouslySentSeriesToRWMu.Lock()
-	for key, labels := range e.PreviouslySentSeriesToRW[rID] {
+	for key, labels := range e.previouslySentSeriesToRW[rID] {
 		if _, ok := ruleLabels[key]; ok {
 			continue
 		}
@@ -732,7 +752,7 @@ func (e *executor) getStaleSeries(r Rule, tss []prompbmarshal.TimeSeries, timest
 		staleS = append(staleS, ss)
 	}
 	// set previous series to current
-	e.PreviouslySentSeriesToRW[rID] = ruleLabels
+	e.previouslySentSeriesToRW[rID] = ruleLabels
 	e.previouslySentSeriesToRWMu.Unlock()
 
 	return staleS
@@ -750,14 +770,14 @@ func (e *executor) purgeStaleSeries(activeRules []Rule) {
 
 	for _, rule := range activeRules {
 		id := rule.ID()
-		prev, ok := e.PreviouslySentSeriesToRW[id]
+		prev, ok := e.previouslySentSeriesToRW[id]
 		if ok {
 			// keep previous series for staleness detection
 			newPreviouslySentSeriesToRW[id] = prev
 		}
 	}
-	e.PreviouslySentSeriesToRW = nil
-	e.PreviouslySentSeriesToRW = newPreviouslySentSeriesToRW
+	e.previouslySentSeriesToRW = nil
+	e.previouslySentSeriesToRW = newPreviouslySentSeriesToRW
 
 	e.previouslySentSeriesToRWMu.Unlock()
 }

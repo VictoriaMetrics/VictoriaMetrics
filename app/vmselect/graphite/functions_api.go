@@ -81,7 +81,7 @@ var funcs = func() map[string]*funcInfo {
 	var m map[string]*funcInfo
 	if err := json.Unmarshal(funcsJSON, &m); err != nil {
 		// Do not use logger.Panicf, since it isn't ready yet.
-		panic(fmt.Errorf("cannot parse funcsJSON: %s", err))
+		panic(fmt.Errorf("cannot parse funcsJSON: %w", err))
 	}
 	return m
 }()

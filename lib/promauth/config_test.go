@@ -6,175 +6,511 @@ import (
 	"testing"
 
 	"github.com/VictoriaMetrics/fasthttp"
+	"gopkg.in/yaml.v2"
 )
 
-func TestNewConfig(t *testing.T) {
-	tests := []struct {
-		name                 string
-		opts                 Options
-		wantErr              bool
-		wantErrWhenSetHeader bool
-		expectHeader         string
-	}{
-		{
-			name: "OAuth2 config",
-			opts: Options{
-				OAuth2: &OAuth2Config{
-					ClientID:     "some-id",
-					ClientSecret: NewSecret("some-secret"),
-					TokenURL:     "http://localhost:8511",
-				},
-			},
-			expectHeader: "Bearer some-token",
-		},
-		{
-			name: "OAuth2 config with file",
-			opts: Options{
-				OAuth2: &OAuth2Config{
-					ClientID:         "some-id",
-					ClientSecretFile: "testdata/test_secretfile.txt",
-					TokenURL:         "http://localhost:8511",
-				},
-			},
-			expectHeader: "Bearer some-token",
-		},
-		{
-			name: "OAuth2 want err",
-			opts: Options{
-				OAuth2: &OAuth2Config{
-					ClientID:         "some-id",
-					ClientSecret:     NewSecret("some-secret"),
-					ClientSecretFile: "testdata/test_secretfile.txt",
-					TokenURL:         "http://localhost:8511",
-				},
-			},
-			wantErr: true,
-		},
-		{
-			name: "OAuth2 with wrong tls",
-			opts: Options{
-				OAuth2: &OAuth2Config{
-					ClientID:     "some-id",
-					ClientSecret: NewSecret("some-secret"),
-					TokenURL:     "http://localhost:8511",
-					TLSConfig: &TLSConfig{
-						InsecureSkipVerify: true,
-						CAFile:             "non-existing-file",
-					},
-				},
-			},
-			wantErrWhenSetHeader: true,
-		},
-		{
-			name: "basic Auth config",
-			opts: Options{
-				BasicAuth: &BasicAuthConfig{
-					Username: "user",
-					Password: NewSecret("password"),
-				},
-			},
-			expectHeader: "Basic dXNlcjpwYXNzd29yZA==",
-		},
-		{
-			name: "basic Auth config with file",
-			opts: Options{
-				BasicAuth: &BasicAuthConfig{
-					Username:     "user",
-					PasswordFile: "testdata/test_secretfile.txt",
-				},
-			},
-			expectHeader: "Basic dXNlcjpzZWNyZXQtY29udGVudA==",
-		},
-		{
-			name: "basic Auth config with non-existing file",
-			opts: Options{
-				BasicAuth: &BasicAuthConfig{
-					Username:     "user",
-					PasswordFile: "testdata/non-existing-file",
-				},
-			},
-			wantErrWhenSetHeader: true,
-		},
-		{
-			name: "want Authorization",
-			opts: Options{
-				Authorization: &Authorization{
-					Type:        "Bearer",
-					Credentials: NewSecret("Value"),
-				},
-			},
-			expectHeader: "Bearer Value",
-		},
-		{
-			name: "token file",
-			opts: Options{
-				BearerTokenFile: "testdata/test_secretfile.txt",
-			},
-			expectHeader: "Bearer secret-content",
-		},
-		{
-			name: "token with tls",
-			opts: Options{
-				BearerToken: "some-token",
-				TLSConfig: &TLSConfig{
-					InsecureSkipVerify: true,
-				},
-			},
-			expectHeader: "Bearer some-token",
-		},
-		{
-			name: "tls with non-existing file",
-			opts: Options{
-				BearerToken: "some-token",
-				TLSConfig: &TLSConfig{
-					InsecureSkipVerify: true,
-					CAFile:             "non-existing-file",
-				},
-			},
-			wantErr: true,
-		},
+func TestOptionsNewConfigFailure(t *testing.T) {
+	f := func(yamlConfig string) {
+		t.Helper()
+
+		var hcc HTTPClientConfig
+		if err := yaml.UnmarshalStrict([]byte(yamlConfig), &hcc); err != nil {
+			t.Fatalf("cannot parse: %s", err)
+		}
+		cfg, err := hcc.NewConfig("")
+		if err == nil {
+			t.Fatalf("expecting non-nil error")
+		}
+		if cfg != nil {
+			t.Fatalf("expecting nil cfg; got %s", cfg.String())
+		}
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if tt.opts.OAuth2 != nil {
-				r := http.NewServeMux()
-				r.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
-					w.Header().Set("Content-Type", "application/json")
-					w.Write([]byte(`{"access_token":"some-token","token_type": "Bearer"}`))
-				})
-				mock := httptest.NewServer(r)
-				tt.opts.OAuth2.TokenURL = mock.URL
-			}
-			got, err := tt.opts.NewConfig()
-			if (err != nil) != tt.wantErr {
-				t.Errorf("NewConfig() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if got != nil {
-				req, err := http.NewRequest(http.MethodGet, "http://foo", nil)
-				if err != nil {
-					t.Fatalf("unexpected error in http.NewRequest: %s", err)
-				}
-				err = got.SetHeaders(req, true)
-				if (err != nil) != tt.wantErrWhenSetHeader {
-					t.Errorf("NewConfig() error = %v, wantErr %v", err, tt.wantErrWhenSetHeader)
-				}
-				ah := req.Header.Get("Authorization")
-				if ah != tt.expectHeader {
-					t.Fatalf("unexpected auth header from net/http request; got %q; want %q", ah, tt.expectHeader)
-				}
-				var fhreq fasthttp.Request
-				err = got.SetFasthttpHeaders(&fhreq, true)
-				if (err != nil) != tt.wantErrWhenSetHeader {
-					t.Errorf("NewConfig() error = %v, wantErr %v", err, tt.wantErrWhenSetHeader)
-				}
-				ahb := fhreq.Header.Peek("Authorization")
-				if string(ahb) != tt.expectHeader {
-					t.Fatalf("unexpected auth header from fasthttp request; got %q; want %q", ahb, tt.expectHeader)
-				}
-			}
-		})
+
+	// authorization: both credentials and credentials_file are set
+	f(`
+authorization:
+  credentials: foo-bar
+  credentials_file: testdata/test_secretfile.txt
+`)
+
+	// basic_auth: both authorization and basic_auth are set
+	f(`
+authorization:
+  credentials: foo-bar
+basic_auth:
+  username: user
+  password: pass
+`)
+
+	// basic_auth: missing username
+	f(`
+basic_auth:
+  password: pass
+`)
+
+	// basic_auth: password and password_file are set
+	f(`
+basic_auth:
+  username: user
+  password: pass
+  password_file: testdata/test_secretfile.txt
+`)
+
+	// bearer_token: both authorization and bearer_token are set
+	f(`
+authorization:
+  credentials: foo-bar
+bearer_token: bearer-aaa
+`)
+
+	// bearer_token: both basic_auth and bearer_token are set
+	f(`
+bearer_token: bearer-aaa
+basic_auth:
+  username: user
+  password: pass
+`)
+
+	// bearer_token_file: both authorization and bearer_token_file are set
+	f(`
+authorization:
+  credentials: foo-bar
+bearer_token_file: testdata/test_secretfile.txt
+`)
+
+	// bearer_token_file: both basic_auth and bearer_token_file are set
+	f(`
+bearer_token_file: testdata/test_secretfile.txt
+basic_auth:
+  username: user
+  password: pass
+`)
+
+	// both bearer_token_file and bearer_token are set
+	f(`
+bearer_token_file: testdata/test_secretfile.txt
+bearer_token: foo-bar
+`)
+
+	// oauth2: both oauth2 and authorization are set
+	f(`
+authorization:
+  credentials: foo-bar
+oauth2:
+  client_id: some-id
+  client_secret: some-secret
+  token_url: http://some-url
+`)
+
+	// oauth2: both oauth2 and basic_auth are set
+	f(`
+basic_auth:
+  username: user
+  password: pass
+oauth2:
+  client_id: some-id
+  client_secret: some-secret
+  token_url: http://some-url
+`)
+
+	// oauth2: both oauth2 and bearer_token are set
+	f(`
+bearer_token: foo-bar
+oauth2:
+  client_id: some-id
+  client_secret: some-secret
+  token_url: http://some-url
+`)
+
+	// oauth2: both oauth2 and bearer_token_file are set
+	f(`
+bearer_token_file: testdata/test_secretfile.txt
+oauth2:
+  client_id: some-id
+  client_secret: some-secret
+  token_url: http://some-url
+`)
+
+	// oauth2: missing client_id
+	f(`
+oauth2:
+  client_secret: some-secret
+  token_url: http://some-url
+`)
+
+	// oauth2: invalid inline tls config
+	f(`
+oauth2:
+  client_id: some-id
+  client_secret: some-secret
+  token_url: http://some-url
+  tls_config:
+    key: foobar
+    cert: baz
+`)
+
+	// oauth2: invalid ca at tls_config
+	f(`
+oauth2:
+  client_id: some-id
+  client_secret: some-secret
+  token_url: http://some-url
+  tls_config:
+    ca: foobar
+`)
+
+	// oauth2: invalid min_version at tls_config
+	f(`
+oauth2:
+  client_id: some-id
+  client_secret: some-secret
+  token_url: http://some-url
+  tls_config:
+    min_version: foobar
+`)
+
+	// oauth2: invalid proxy_url
+	f(`
+oauth2:
+  client_id: some-id
+  client_secret: some-secret
+  token_url: http://some-url
+  proxy_url: ":invalid-proxy-url"
+`)
+
+	// tls_config: invalid ca
+	f(`
+tls_config:
+  ca: foobar
+`)
+
+	// invalid headers
+	f(`
+headers:
+- foobar
+`)
+
+}
+
+func TestOauth2ConfigParseFailure(t *testing.T) {
+	f := func(yamlConfig string) {
+		t.Helper()
+
+		var cfg OAuth2Config
+		if err := yaml.UnmarshalStrict([]byte(yamlConfig), &cfg); err == nil {
+			t.Fatalf("expecting non-nil error")
+		}
 	}
+
+	// invalid yaml
+	f("afdsfds")
+
+	// unknown fields
+	f("foobar: baz")
+}
+
+func TestOauth2ConfigValidateFailure(t *testing.T) {
+	f := func(yamlConfig string) {
+		t.Helper()
+
+		var cfg OAuth2Config
+		if err := yaml.UnmarshalStrict([]byte(yamlConfig), &cfg); err != nil {
+			t.Fatalf("cannot unmarshal config: %s", err)
+		}
+		if err := cfg.validate(); err == nil {
+			t.Fatalf("expecting non-nil error")
+		}
+	}
+
+	// emtpy client_id
+	f(`
+client_secret: some-secret
+token_url: http://some-url
+`)
+
+	// missing client_secret and client_secret_file
+	f(`
+client_id: some-id
+token_url: http://some-url/
+`)
+
+	// client_secret and client_secret_file are set simultaneously
+	f(`
+client_id: some-id
+client_secret: some-secret
+client_secret_file: testdata/test_secretfile.txt
+token_url: http://some-url/
+`)
+
+	// missing token_url
+	f(`
+client_id: some-id
+client_secret: some-secret
+`)
+}
+
+func TestOauth2ConfigValidateSuccess(t *testing.T) {
+	f := func(yamlConfig string) {
+		t.Helper()
+
+		var cfg OAuth2Config
+		if err := yaml.UnmarshalStrict([]byte(yamlConfig), &cfg); err != nil {
+			t.Fatalf("cannot parse: %s", err)
+		}
+		if err := cfg.validate(); err != nil {
+			t.Fatalf("cannot validate: %s", err)
+		}
+	}
+
+	f(`
+client_id: some-id
+client_secret: some-secret
+token_url: http://some-url/
+proxy_url: http://some-proxy/abc
+scopes: [read, write, execute]
+endpoint_params:
+  foo: bar
+  abc: def
+tls_config:
+  insecure_skip_verify: true
+`)
+}
+
+func TestConfigGetAuthHeaderFailure(t *testing.T) {
+	f := func(yamlConfig string) {
+		t.Helper()
+
+		var hcc HTTPClientConfig
+		if err := yaml.UnmarshalStrict([]byte(yamlConfig), &hcc); err != nil {
+			t.Fatalf("cannot parse: %s", err)
+		}
+		cfg, err := hcc.NewConfig("")
+		if err != nil {
+			t.Fatalf("cannot initialize config: %s", err)
+		}
+
+		// Verify that GetAuthHeader() returns error
+		ah, err := cfg.GetAuthHeader()
+		if err == nil {
+			t.Fatalf("expecting non-nil error from GetAuthHeader()")
+		}
+		if ah != "" {
+			t.Fatalf("expecting empty auth header; got %q", ah)
+		}
+
+		// Verify that SetHeaders() returns error
+		req, err := http.NewRequest(http.MethodGet, "http://foo", nil)
+		if err != nil {
+			t.Fatalf("unexpected error in http.NewRequest: %s", err)
+		}
+		if err := cfg.SetHeaders(req, true); err == nil {
+			t.Fatalf("expecting non-nil error from SetHeaders()")
+		}
+
+		// Verify that cfg.SetFasthttpHeaders() returns error
+		var fhreq fasthttp.Request
+		if err := cfg.SetFasthttpHeaders(&fhreq, true); err == nil {
+			t.Fatalf("expecting non-nil error from SetFasthttpHeaders()")
+		}
+
+		// Verify that the tls cert cannot be loaded properly if it exists
+		if f := cfg.getTLSCertCached; f != nil {
+			cert, err := f(nil)
+			if err == nil {
+				t.Fatalf("expecting non-nil error in getTLSCertCached()")
+			}
+			if cert != nil {
+				t.Fatalf("expecting nil cert from getTLSCertCached()")
+			}
+		}
+	}
+
+	// oauth2 with invalid proxy_url
+	f(`
+oauth2:
+  client_id: some-id
+  client_secret: some-secret
+  token_url: http://some-url
+  proxy_url: invalid-proxy-url
+`)
+
+	// oauth2 with non-existing client_secret_file
+	f(`
+oauth2:
+  client_id: some-id
+  client_secret_file: non-existing-file
+  token_url: http://some-url
+`)
+
+	// non-existing root ca file for oauth2
+	f(`
+oauth2:
+  client_id: some-id
+  client_secret: some-secret
+  token_url: http://some-url
+  tls_config:
+    ca_file: non-existing-file
+`)
+
+	// basic auth via non-existing file
+	f(`
+basic_auth:
+  username: user
+  password_file: non-existing-file
+`)
+
+	// bearer token via non-existing file
+	f(`
+bearer_token_file: non-existing-file
+`)
+
+	// authorization creds via non-existing file
+	f(`
+authorization:
+  type: foobar
+  credentials_file: non-existing-file
+`)
+}
+
+func TestConfigGetAuthHeaderSuccess(t *testing.T) {
+	f := func(yamlConfig string, ahExpected string) {
+		t.Helper()
+
+		var hcc HTTPClientConfig
+		if err := yaml.UnmarshalStrict([]byte(yamlConfig), &hcc); err != nil {
+			t.Fatalf("cannot unmarshal config: %s", err)
+		}
+		if hcc.OAuth2 != nil {
+			if hcc.OAuth2.TokenURL != "replace-with-mock-url" {
+				t.Fatalf("unexpected token_url: %q; want `replace-with-mock-url`", hcc.OAuth2.TokenURL)
+			}
+			r := http.NewServeMux()
+			r.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				w.Write([]byte(`{"access_token":"test-oauth2-token","token_type": "Bearer"}`))
+			})
+			mock := httptest.NewServer(r)
+			hcc.OAuth2.TokenURL = mock.URL
+		}
+		cfg, err := hcc.NewConfig("")
+		if err != nil {
+			t.Fatalf("cannot initialize config: %s", err)
+		}
+
+		// Verify that cfg.String() returns non-empty value
+		cfgString := cfg.String()
+		if cfgString == "" {
+			t.Fatalf("unexpected empty result from Config.String")
+		}
+
+		// Check that GetAuthHeader() returns the correct header
+		ah, err := cfg.GetAuthHeader()
+		if err != nil {
+			t.Fatalf("unexpected auth header; got %q; want %q", ah, ahExpected)
+		}
+
+		// Make sure that cfg.SetHeaders() properly set Authorization header
+		req, err := http.NewRequest(http.MethodGet, "http://foo", nil)
+		if err != nil {
+			t.Fatalf("unexpected error in http.NewRequest: %s", err)
+		}
+		if err := cfg.SetHeaders(req, true); err != nil {
+			t.Fatalf("unexpected error in SetHeaders(): %s", err)
+		}
+		ah = req.Header.Get("Authorization")
+		if ah != ahExpected {
+			t.Fatalf("unexpected auth header from net/http request; got %q; want %q", ah, ahExpected)
+		}
+
+		// Make sure that cfg.SetFasthttpHeaders() properly set Authorization header
+		var fhreq fasthttp.Request
+		if err := cfg.SetFasthttpHeaders(&fhreq, true); err != nil {
+			t.Fatalf("unexpected error in SetFasthttpHeaders(): %s", err)
+		}
+		ahb := fhreq.Header.Peek("Authorization")
+		if string(ahb) != ahExpected {
+			t.Fatalf("unexpected auth header from fasthttp request; got %q; want %q", ahb, ahExpected)
+		}
+	}
+
+	// Zero config
+	f(``, "")
+
+	// no auth config, non-zero tls config
+	f(`
+tls_config:
+  insecure_skip_verify: true
+`, "")
+
+	// no auth config, tls_config with non-existing files
+	f(`
+tls_config:
+  key_file: non-existing-file
+  cert_file: non-existing-file
+`, "")
+
+	// no auth config, tls_config with non-existing ca file
+	f(`
+tls_config:
+  ca_file: non-existing-file
+`, "")
+
+	// inline oauth2 config
+	f(`
+oauth2:
+  client_id: some-id
+  client_secret: some-secret
+  endpoint_params:
+    foo: bar
+  scopes: [foo, bar]
+  token_url: replace-with-mock-url
+`, "Bearer test-oauth2-token")
+
+	// oauth2 config with secrets in the file
+	f(`
+oauth2:
+  client_id: some-id
+  client_secret_file: testdata/test_secretfile.txt
+  token_url: replace-with-mock-url
+`, "Bearer test-oauth2-token")
+
+	// inline basic auth
+	f(`
+basic_auth:
+  username: user
+  password: password
+`, "Basic dXNlcjpwYXNzd29yZA==")
+
+	// basic auth via file
+	f(`
+basic_auth:
+  username: user
+  password_file: testdata/test_secretfile.txt
+`, "Basic dXNlcjpzZWNyZXQtY29udGVudA==")
+
+	// inline authorization config
+	f(`
+authorization:
+  type: My-Super-Auth
+  credentials: some-password
+`, "My-Super-Auth some-password")
+
+	// authorization config via file
+	f(`
+authorization:
+  type: Foo
+  credentials_file: testdata/test_secretfile.txt
+`, "Foo secret-content")
+
+	// inline bearer token
+	f(`
+bearer_token: some-token
+`, "Bearer some-token")
+
+	// bearer token via file
+	f(`
+bearer_token_file: testdata/test_secretfile.txt
+`, "Bearer secret-content")
 }
 
 func TestParseHeadersSuccess(t *testing.T) {
@@ -233,7 +569,9 @@ func TestConfigHeaders(t *testing.T) {
 		if result != resultExpected {
 			t.Fatalf("unexpected result from HeadersNoAuthString; got\n%s\nwant\n%s", result, resultExpected)
 		}
-		_ = c.SetHeaders(req, false)
+		if err := c.SetHeaders(req, false); err != nil {
+			t.Fatalf("unexpected error in SetHeaders(): %s", err)
+		}
 		for _, h := range headersParsed {
 			v := req.Header.Get(h.key)
 			if v != h.value {
@@ -241,7 +579,9 @@ func TestConfigHeaders(t *testing.T) {
 			}
 		}
 		var fhreq fasthttp.Request
-		_ = c.SetFasthttpHeaders(&fhreq, false)
+		if err := c.SetFasthttpHeaders(&fhreq, false); err != nil {
+			t.Fatalf("unexpected error in SetFasthttpHeaders(): %s", err)
+		}
 		for _, h := range headersParsed {
 			v := fhreq.Header.Peek(h.key)
 			if string(v) != h.value {

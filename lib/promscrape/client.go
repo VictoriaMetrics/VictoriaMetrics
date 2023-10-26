@@ -90,7 +90,11 @@ func newClient(ctx context.Context, sw *ScrapeWork) (*client, error) {
 	isTLS := string(u.Scheme()) == "https"
 	var tlsCfg *tls.Config
 	if isTLS {
-		tlsCfg = sw.AuthConfig.NewTLSConfig()
+		var err error
+		tlsCfg, err = sw.AuthConfig.NewTLSConfig()
+		if err != nil {
+			return nil, fmt.Errorf("cannot initialize tls config: %w", err)
+		}
 	}
 	setProxyHeaders := func(req *http.Request) error { return nil }
 	setFasthttpProxyHeaders := func(req *fasthttp.Request) error { return nil }
@@ -104,7 +108,11 @@ func newClient(ctx context.Context, sw *ScrapeWork) (*client, error) {
 		requestURI = sw.ScrapeURL
 		isTLS = pu.Scheme == "https"
 		if isTLS {
-			tlsCfg = sw.ProxyAuthConfig.NewTLSConfig()
+			var err error
+			tlsCfg, err = sw.ProxyAuthConfig.NewTLSConfig()
+			if err != nil {
+				return nil, fmt.Errorf("cannot initialize proxy tls config: %w", err)
+			}
 		}
 		proxyURLOrig := proxyURL
 		setProxyHeaders = func(req *http.Request) error {
@@ -119,7 +127,7 @@ func newClient(ctx context.Context, sw *ScrapeWork) (*client, error) {
 	dialAddr = addMissingPort(dialAddr, isTLS)
 	dialFunc, err := newStatDialFunc(proxyURL, sw.ProxyAuthConfig)
 	if err != nil {
-		return nil, fmt.Errorf("cannot create dial func: %s", err)
+		return nil, fmt.Errorf("cannot create dial func: %w", err)
 	}
 	hc := &fasthttp.HostClient{
 		Addr: dialAddr,
@@ -160,7 +168,7 @@ func newClient(ctx context.Context, sw *ScrapeWork) (*client, error) {
 		}
 	}
 
-	return &client{
+	c := &client{
 		hc:                      hc,
 		ctx:                     ctx,
 		sc:                      sc,
@@ -168,14 +176,19 @@ func newClient(ctx context.Context, sw *ScrapeWork) (*client, error) {
 		scrapeTimeoutSecondsStr: fmt.Sprintf("%.3f", sw.ScrapeTimeout.Seconds()),
 		hostPort:                hostPort,
 		requestURI:              requestURI,
-		setHeaders:              func(req *http.Request) error { return sw.AuthConfig.SetHeaders(req, true) },
-		setProxyHeaders:         setProxyHeaders,
-		setFasthttpHeaders:      func(req *fasthttp.Request) error { return sw.AuthConfig.SetFasthttpHeaders(req, true) },
+		setHeaders: func(req *http.Request) error {
+			return sw.AuthConfig.SetHeaders(req, true)
+		},
+		setProxyHeaders: setProxyHeaders,
+		setFasthttpHeaders: func(req *fasthttp.Request) error {
+			return sw.AuthConfig.SetFasthttpHeaders(req, true)
+		},
 		setFasthttpProxyHeaders: setFasthttpProxyHeaders,
 		denyRedirects:           sw.DenyRedirects,
 		disableCompression:      sw.DisableCompression,
 		disableKeepAlive:        sw.DisableKeepAlive,
-	}, nil
+	}
+	return c, nil
 }
 
 func (c *client) GetStreamReader() (*streamReader, error) {
@@ -196,15 +209,13 @@ func (c *client) GetStreamReader() (*streamReader, error) {
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1179#issuecomment-813117162
 	req.Header.Set("X-Prometheus-Scrape-Timeout-Seconds", c.scrapeTimeoutSecondsStr)
 	req.Header.Set("User-Agent", scrapeUserAgent)
-	err = c.setHeaders(req)
-	if err != nil {
+	if err := c.setHeaders(req); err != nil {
 		cancel()
-		return nil, fmt.Errorf("failed to create request to %q: %s", c.scrapeURL, err)
+		return nil, fmt.Errorf("failed to set request headers for %q: %w", c.scrapeURL, err)
 	}
-	err = c.setProxyHeaders(req)
-	if err != nil {
+	if err := c.setProxyHeaders(req); err != nil {
 		cancel()
-		return nil, fmt.Errorf("failed to create request to %q: %s", c.scrapeURL, err)
+		return nil, fmt.Errorf("failed to set proxy request headers for %q: %w", c.scrapeURL, err)
 	}
 	scrapeRequests.Inc()
 	resp, err := c.sc.Do(req)
@@ -221,12 +232,13 @@ func (c *client) GetStreamReader() (*streamReader, error) {
 			c.scrapeURL, resp.StatusCode, http.StatusOK, respBody)
 	}
 	scrapesOK.Inc()
-	return &streamReader{
+	sr := &streamReader{
 		r:           resp.Body,
 		cancel:      cancel,
 		scrapeURL:   c.scrapeURL,
 		maxBodySize: int64(c.hc.MaxResponseBodySize),
-	}, nil
+	}
+	return sr, nil
 }
 
 // checks fasthttp status code for redirect as standard http/client does.
@@ -252,13 +264,11 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 	// Set X-Prometheus-Scrape-Timeout-Seconds like Prometheus does, since it is used by some exporters such as PushProx.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1179#issuecomment-813117162
 	req.Header.Set("X-Prometheus-Scrape-Timeout-Seconds", c.scrapeTimeoutSecondsStr)
-	err := c.setFasthttpHeaders(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request to %q: %s", c.scrapeURL, err)
+	if err := c.setFasthttpHeaders(req); err != nil {
+		return nil, fmt.Errorf("failed to set request headers for %q: %w", c.scrapeURL, err)
 	}
-	err = c.setFasthttpProxyHeaders(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request to %q: %s", c.scrapeURL, err)
+	if err := c.setFasthttpProxyHeaders(req); err != nil {
+		return nil, fmt.Errorf("failed to set proxy request headers for %q: %w", c.scrapeURL, err)
 	}
 	if !*disableCompression && !c.disableCompression {
 		req.Header.Set("Accept-Encoding", "gzip")
@@ -277,7 +287,7 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 	ctx, cancel := context.WithDeadline(c.ctx, deadline)
 	defer cancel()
 
-	err = doRequestWithPossibleRetry(ctx, c.hc, req, resp)
+	err := doRequestWithPossibleRetry(ctx, c.hc, req, resp)
 	statusCode := resp.StatusCode()
 	redirectsCount := 0
 	for err == nil && isStatusRedirect(statusCode) {

@@ -19,7 +19,7 @@ func newProxyProtocolConn(c net.Conn) (net.Conn, error) {
 	// Limit the time needed for reading the proxy protocol header.
 	d := time.Now().Add(5 * time.Second)
 	if err := c.SetReadDeadline(d); err != nil {
-		return nil, fmt.Errorf("cannot set deadline for reading proxy protocol header: %s", err)
+		return nil, fmt.Errorf("cannot set deadline for reading proxy protocol header: %w", err)
 	}
 
 	remoteAddr, err := readProxyProto(c)
@@ -32,7 +32,7 @@ func newProxyProtocolConn(c net.Conn) (net.Conn, error) {
 
 	// Reset the read deadline.
 	if err := c.SetReadDeadline(time.Time{}); err != nil {
-		return nil, fmt.Errorf("cannot reset deadline after reading proxy protocol header: %s", err)
+		return nil, fmt.Errorf("cannot reset deadline after reading proxy protocol header: %w", err)
 	}
 
 	return &proxyProtocolConn{

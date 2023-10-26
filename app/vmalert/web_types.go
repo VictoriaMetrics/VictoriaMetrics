@@ -94,6 +94,10 @@ type apiGroup struct {
 	NotifierHeaders []string `json:"notifier_headers,omitempty"`
 	// Labels is a set of label value pairs, that will be added to every rule.
 	Labels map[string]string `json:"labels,omitempty"`
+	// EvalOffset Group will be evaluated at the exact time offset on the range of [0...evaluationInterval]
+	EvalOffset float64 `json:"eval_offset,omitempty"`
+	// EvalDelay will adjust the `time` parameter of rule evaluation requests to compensate intentional query delay from datasource.
+	EvalDelay float64 `json:"eval_delay,omitempty"`
 }
 
 // groupAlerts represents a group of alerts for WEB view
@@ -308,6 +312,12 @@ func groupToAPI(g *rule.Group) apiGroup {
 		NotifierHeaders: headersToStrings(g.NotifierHeaders),
 
 		Labels: g.Labels,
+	}
+	if g.EvalOffset != nil {
+		ag.EvalOffset = g.EvalOffset.Seconds()
+	}
+	if g.EvalDelay != nil {
+		ag.EvalDelay = g.EvalDelay.Seconds()
 	}
 	ag.Rules = make([]apiRule, 0)
 	for _, r := range g.Rules {
