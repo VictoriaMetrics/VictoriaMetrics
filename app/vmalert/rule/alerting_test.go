@@ -473,7 +473,7 @@ func TestAlertingRule_ExecRange(t *testing.T) {
 			nil,
 		},
 		{
-			newTestAlertingRule("multi-series-for=>pending=>pending=>firing", 3*time.Second),
+			newTestAlertingRule("multi-series", 3*time.Second),
 			[]datasource.Metric{
 				{Values: []float64{1, 1, 1}, Timestamps: []int64{1, 3, 5}},
 				{
@@ -498,27 +498,29 @@ func TestAlertingRule_ExecRange(t *testing.T) {
 					},
 				},
 			},
-			map[uint64]*notifier.Alert{hash(map[string]string{"alertname": "multi-series-for=>pending=>pending=>firing"}): {
-				GroupID:     fakeGroup.ID(),
-				Name:        "multi-series-for=>pending=>pending=>firing",
-				Labels:      map[string]string{"alertname": "multi-series-for=>pending=>pending=>firing"},
-				Annotations: map[string]string{},
-				State:       notifier.StateFiring,
-				ActiveAt:    time.Unix(1, 0),
-				Start:       time.Unix(5, 0),
-				Value:       1,
-				For:         3 * time.Second,
-			},
-				hash(map[string]string{"alertname": "multi-series-for=>pending=>pending=>firing", "foo": "bar"}): {
+			map[uint64]*notifier.Alert{
+				hash(map[string]string{"alertname": "multi-series"}): {
 					GroupID:     fakeGroup.ID(),
-					Name:        "multi-series-for=>pending=>pending=>firing",
-					Labels:      map[string]string{"alertname": "multi-series-for=>pending=>pending=>firing", "foo": "bar"},
+					Name:        "multi-series",
+					Labels:      map[string]string{"alertname": "multi-series"},
+					Annotations: map[string]string{},
+					State:       notifier.StateFiring,
+					ActiveAt:    time.Unix(1, 0),
+					Start:       time.Unix(5, 0),
+					Value:       1,
+					For:         3 * time.Second,
+				},
+				hash(map[string]string{"alertname": "multi-series", "foo": "bar"}): {
+					GroupID:     fakeGroup.ID(),
+					Name:        "multi-series",
+					Labels:      map[string]string{"alertname": "multi-series", "foo": "bar"},
 					Annotations: map[string]string{},
 					State:       notifier.StatePending,
 					ActiveAt:    time.Unix(5, 0),
 					Value:       1,
 					For:         3 * time.Second,
-				}},
+				},
+			},
 		},
 		{
 			newTestRuleWithLabels("multi-series-firing", "source", "vm"),
