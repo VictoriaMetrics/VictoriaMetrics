@@ -66,13 +66,13 @@ type apiWatcher struct {
 	swosCount *metrics.Counter
 }
 
-func newAPIWatcher(apiServer string, ac *promauth.Config, sdc *SDConfig, swcFunc ScrapeWorkConstructorFunc) *apiWatcher {
+func newAPIWatcher(apiServer string, ac *promauth.Config, sdc *SDConfig, swcFunc ScrapeWorkConstructorFunc) (*apiWatcher, error) {
 	namespaces := sdc.Namespaces.Names
 	if len(namespaces) == 0 {
 		if sdc.Namespaces.OwnNamespace {
 			namespace, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
 			if err != nil {
-				logger.Panicf("FATAL: cannot determine namespace for the current pod according to `own_namespace: true` option in kubernetes_sd_config: %s", err)
+				return nil, fmt.Errorf("cannot determine namespace for the current pod according to `own_namespace: true` option in kubernetes_sd_config: %w", err)
 			}
 			namespaces = []string{string(namespace)}
 		}
@@ -80,15 +80,19 @@ func newAPIWatcher(apiServer string, ac *promauth.Config, sdc *SDConfig, swcFunc
 	selectors := sdc.Selectors
 	attachNodeMetadata := sdc.AttachMetadata.Node
 	proxyURL := sdc.ProxyURL.GetURL()
-	gw := getGroupWatcher(apiServer, ac, namespaces, selectors, attachNodeMetadata, proxyURL)
+	gw, err := getGroupWatcher(apiServer, ac, namespaces, selectors, attachNodeMetadata, proxyURL)
+	if err != nil {
+		return nil, err
+	}
 	role := sdc.role()
-	return &apiWatcher{
+	aw := &apiWatcher{
 		role:             role,
 		swcFunc:          swcFunc,
 		gw:               gw,
 		swosByURLWatcher: make(map[*urlWatcher]map[string][]interface{}),
 		swosCount:        metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_discovery_kubernetes_scrape_works{role=%q}`, role)),
 	}
+	return aw, nil
 }
 
 func (aw *apiWatcher) mustStart() {
@@ -228,15 +232,14 @@ type groupWatcher struct {
 	noAPIWatchers bool
 }
 
-func newGroupWatcher(apiServer string, ac *promauth.Config, namespaces []string, selectors []Selector, attachNodeMetadata bool, proxyURL *url.URL) *groupWatcher {
+func newGroupWatcher(apiServer string, ac *promauth.Config, namespaces []string, selectors []Selector, attachNodeMetadata bool, proxyURL *url.URL) (*groupWatcher, error) {
 	var proxy func(*http.Request) (*url.URL, error)
 	if proxyURL != nil {
 		proxy = http.ProxyURL(proxyURL)
 	}
 	tlsConfig, err := ac.NewTLSConfig()
-	// we should always check tlsconfig in advance to avoid panic here
 	if err != nil {
-		logger.Panicf("FATAL: cannot initialize tls config: %s", err)
+		return nil, fmt.Errorf("cannot initialize tls config: %w", err)
 	}
 	client := &http.Client{
 		Transport: &http.Transport{
@@ -249,7 +252,7 @@ func newGroupWatcher(apiServer string, ac *promauth.Config, namespaces []string,
 		Timeout: *apiServerTimeout,
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	return &groupWatcher{
+	gw := &groupWatcher{
 		apiServer:          apiServer,
 		namespaces:         namespaces,
 		selectors:          selectors,
@@ -264,9 +267,10 @@ func newGroupWatcher(apiServer string, ac *promauth.Config, namespaces []string,
 		ctx:    ctx,
 		cancel: cancel,
 	}
+	return gw, nil
 }
 
-func getGroupWatcher(apiServer string, ac *promauth.Config, namespaces []string, selectors []Selector, attachNodeMetadata bool, proxyURL *url.URL) *groupWatcher {
+func getGroupWatcher(apiServer string, ac *promauth.Config, namespaces []string, selectors []Selector, attachNodeMetadata bool, proxyURL *url.URL) (*groupWatcher, error) {
 	proxyURLStr := "<nil>"
 	if proxyURL != nil {
 		proxyURLStr = proxyURL.String()
@@ -275,12 +279,17 @@ func getGroupWatcher(apiServer string, ac *promauth.Config, namespaces []string,
 		apiServer, namespaces, selectorsKey(selectors), attachNodeMetadata, proxyURLStr, ac.String())
 	groupWatchersLock.Lock()
 	gw := groupWatchers[key]
+	var err error
 	if gw == nil {
-		gw = newGroupWatcher(apiServer, ac, namespaces, selectors, attachNodeMetadata, proxyURL)
-		groupWatchers[key] = gw
+		gw, err = newGroupWatcher(apiServer, ac, namespaces, selectors, attachNodeMetadata, proxyURL)
+		if err != nil {
+			err = fmt.Errorf("cannot initialize watcher for key={%s}: %w", key, err)
+		} else {
+			groupWatchers[key] = gw
+		}
 	}
 	groupWatchersLock.Unlock()
-	return gw
+	return gw, err
 }
 
 func selectorsKey(selectors []Selector) string {
