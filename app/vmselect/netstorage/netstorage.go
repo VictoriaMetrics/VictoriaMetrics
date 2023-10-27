@@ -47,6 +47,11 @@ var (
 		"Lower values reduce the maximum query durations when some vmstorage nodes become unavailable because of networking issues. "+
 		"Read more about TCP_USER_TIMEOUT at https://blog.cloudflare.com/when-tcp-sockets-refuse-to-die/ . "+
 		"See also -vmstorageDialTimeout")
+	maxWorkersPerQuery = flag.Int("search.maxWorkersPerQuery", defaultMaxWorkersPerQuery, "The maximum number of CPU cores a single query can use. "+
+		"The default value should work good for most cases. "+
+		"The flag can be set to lower values for improving performance of big number of concurrently executed queries. "+
+		"The flag can be set to bigger values for improving performance of heavy queries, which scan big number of time series (>10K) and/or big number of samples (>100M). "+
+		"There is no sense in setting this flag to values bigger than the number of CPU cores available on the system")
 )
 
 // Result is a single timeseries result.
@@ -222,12 +227,33 @@ type result struct {
 
 var resultPool sync.Pool
 
-// MaxWorkers returns the maximum number of workers netstorage can spin when calling RunParallel()
+// MaxWorkers returns the maximum number of concurrent goroutines, which can be used by RunParallel()
 func MaxWorkers() int {
-	return gomaxprocs
+	n := *maxWorkersPerQuery
+	if n <= 0 {
+		return defaultMaxWorkersPerQuery
+	}
+	if n > gomaxprocs {
+		// There is no sense in running more than gomaxprocs CPU-bound concurrent workers,
+		// since this may worsen the query performance.
+		n = gomaxprocs
+	}
+	return n
 }
 
 var gomaxprocs = cgroup.AvailableCPUs()
+
+var defaultMaxWorkersPerQuery = func() int {
+	// maxWorkersLimit is the maximum number of CPU cores, which can be used in parallel
+	// for processing an average query, without significant impact on inter-CPU communications.
+	const maxWorkersLimit = 32
+
+	n := gomaxprocs
+	if n > maxWorkersLimit {
+		n = maxWorkersLimit
+	}
+	return n
+}()
 
 // RunParallel runs f in parallel for all the results from rss.
 //

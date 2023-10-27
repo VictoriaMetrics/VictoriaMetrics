@@ -454,7 +454,6 @@ func (sw *scrapeWork) processScrapedData(scrapeTimestamp, realTimestamp int64, b
 	defer func() {
 		<-processScrapedDataConcurrencyLimitCh
 	}()
-
 	endTimestamp := time.Now().UnixNano() / 1e6
 	duration := float64(endTimestamp-realTimestamp) / 1e3
 	scrapeDuration.Update(duration)
@@ -580,7 +579,7 @@ func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 	samplesDropped := 0
 	sr, err := sw.GetStreamReader()
 	if err != nil {
-		err = fmt.Errorf("cannot read data: %s", err)
+		err = fmt.Errorf("cannot read data: %w", err)
 	} else {
 		var mu sync.Mutex
 		err = sbr.Init(sr)
@@ -828,7 +827,7 @@ func (sw *scrapeWork) sendStaleSeries(lastScrape, currScrape string, timestamp i
 			return nil
 		}, sw.logError)
 		if err != nil {
-			sw.logError(fmt.Errorf("cannot send stale markers: %s", err).Error())
+			sw.logError(fmt.Errorf("cannot send stale markers: %w", err).Error())
 		}
 	}
 	if addAutoSeries {

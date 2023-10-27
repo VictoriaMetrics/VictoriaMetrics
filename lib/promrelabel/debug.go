@@ -28,13 +28,13 @@ func writeRelabelDebug(w io.Writer, isTargetRelabel bool, targetID, metric, rela
 	}
 	labels, err := promutils.NewLabelsFromString(metric)
 	if err != nil {
-		err = fmt.Errorf("cannot parse metric: %s", err)
+		err = fmt.Errorf("cannot parse metric: %w", err)
 		WriteRelabelDebugSteps(w, targetURL, targetID, format, nil, metric, relabelConfigs, err)
 		return
 	}
 	pcs, err := ParseRelabelConfigsData([]byte(relabelConfigs))
 	if err != nil {
-		err = fmt.Errorf("cannot parse relabel configs: %s", err)
+		err = fmt.Errorf("cannot parse relabel configs: %w", err)
 		WriteRelabelDebugSteps(w, targetURL, targetID, format, nil, metric, relabelConfigs, err)
 		return
 	}

@@ -85,7 +85,7 @@ func getHTTPTargets(cfg *apiConfig) ([]httpGroupTarget, error) {
 func parseAPIResponse(data []byte, path string) ([]httpGroupTarget, error) {
 	var r []httpGroupTarget
 	if err := json.Unmarshal(data, &r); err != nil {
-		return nil, fmt.Errorf("cannot parse http_sd api response path: %s, err:  %w", path, err)
+		return nil, fmt.Errorf("cannot parse http_sd api response path=%q: %w", path, err)
 	}
 	return r, nil
 }

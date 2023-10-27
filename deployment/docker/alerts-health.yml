@@ -35,12 +35,12 @@ groups:
           Consider to increase the limit as fast as possible."
 
       - alert: TooHighMemoryUsage
-        expr: (process_resident_memory_anon_bytes / vm_available_memory_bytes) > 0.8
+        expr: (min_over_time(process_resident_memory_anon_bytes[10m]) / vm_available_memory_bytes) > 0.8
         for: 5m
         labels:
           severity: critical
         annotations:
-          summary: "It is more than 80% of memory used by \"{{ $labels.job }}\"(\"{{ $labels.instance }}\") during the last 5m"
+          summary: "It is more than 80% of memory used by \"{{ $labels.job }}\"(\"{{ $labels.instance }}\")"
           description: "Too high memory usage may result into multiple issues such as OOMs or degraded performance.
            Consider to either increase available memory or decrease the load on the process."
 

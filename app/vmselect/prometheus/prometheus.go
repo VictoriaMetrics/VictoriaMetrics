@@ -208,7 +208,7 @@ func ExportCSVHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter
 					return err
 				}
 				if err := b.UnmarshalData(); err != nil {
-					return fmt.Errorf("cannot unmarshal block during export: %s", err)
+					return fmt.Errorf("cannot unmarshal block during export: %w", err)
 				}
 				xb := exportBlockPool.Get().(*exportBlock)
 				xb.mn = mn
@@ -421,7 +421,7 @@ func exportHandler(qt *querytracer.Tracer, at *auth.Token, w http.ResponseWriter
 					return err
 				}
 				if err := b.UnmarshalData(); err != nil {
-					return fmt.Errorf("cannot unmarshal block during export: %s", err)
+					return fmt.Errorf("cannot unmarshal block during export: %w", err)
 				}
 				xb := exportBlockPool.Get().(*exportBlock)
 				xb.mn = mn

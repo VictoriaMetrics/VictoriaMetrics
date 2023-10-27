@@ -50,7 +50,7 @@ func benchmarkPartSearch(b *testing.B, p *part, tsids []TSID, tr TimeRange, spar
 				blocksRead++
 			}
 			if err := ps.Error(); err != nil {
-				panic(fmt.Errorf("BUG: unexpected error: %s", err))
+				panic(fmt.Errorf("BUG: unexpected error: %w", err))
 			}
 			blocksWant := len(tsids) / sparseness
 			if blocksRead != blocksWant {

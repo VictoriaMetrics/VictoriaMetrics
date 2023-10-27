@@ -87,17 +87,20 @@ and new data is available for querying via Prometheus as usual.
 It is recommended using [vmagent](https://docs.victoriametrics.com/vmagent.html) for scraping Prometheus targets
 and writing data to VictoriaMetrics.
 
-## How does VictoriaMetrics compare to other remote storage solutions for Prometheus such as [M3 from Uber](https://eng.uber.com/m3/), [Thanos](https://github.com/thanos-io/thanos), [Cortex](https://github.com/cortexproject/cortex), etc.?
+## How does VictoriaMetrics compare to other remote storage solutions for Prometheus such as [M3DB](https://github.com/m3db/m3), [Thanos](https://github.com/thanos-io/thanos), [Cortex](https://github.com/cortexproject/cortex), [Mimir](https://github.com/grafana/mimir), etc.?
 
-VictoriaMetrics is simpler, faster, more cost-effective and it provides [MetricsQL query language](MetricsQL) based on PromQL. The simplicity is twofold:
-* It is simpler to configure and operate. There is no need for configuring [sidecars](https://github.com/thanos-io/thanos/blob/master/docs/components/sidecar.md),
-  fighting the [gossip protocol](https://github.com/improbable-eng/thanos/blob/030bc345c12c446962225221795f4973848caab5/docs/proposals/completed/201809_gossip-removal.md)
-  or setting up third-party systems such as [Consul](https://github.com/cortexproject/cortex/issues/157), [Cassandra](https://cortexmetrics.io/docs/chunks-storage/running-chunks-storage-with-cassandra/),
-  [DynamoDB](https://cortexmetrics.io/docs/chunks-storage/aws-tips/) or [Memcached](https://cortexmetrics.io/docs/chunks-storage/caching/).
-* VictoriaMetrics has a simpler architecture. This means fewer bugs and more useful features in the long run compared to competing TSDBs.
+* VictoriaMetrics is easier to configure and operate than competing solutions.
+* VictoriaMetrics is more cost-efficient, since it requires less RAM, disk space, disk IO and network IO than competing solutions.
+* VictoriaMetrics performs typical queries faster than competing solutions.
+* VictoriaMetrics has a simpler architecture, which translates into fewer bugs and more useful features compared to competing TSDBs.
 
-See [comparing Thanos to VictoriaMetrics cluster](https://medium.com/@valyala/comparing-thanos-to-victoriametrics-cluster-b193bea1683)
-and the [Remote Write Storage Wars](https://promcon.io/2019-munich/talks/remote-write-storage-wars/) talk from [PromCon 2019](https://promcon.io/2019-munich/talks/remote-write-storage-wars/).
+See the following articles and talks for details:
+
+* [comparing Thanos to VictoriaMetrics cluster](https://medium.com/@valyala/comparing-thanos-to-victoriametrics-cluster-b193bea1683)
+* [Remote Write Storage Wars](https://promcon.io/2019-munich/talks/remote-write-storage-wars/) talk
+  from [PromCon 2019](https://promcon.io/2019-munich/talks/remote-write-storage-wars/)
+* [Grafana Mimir and VictoriaMetrics: performance tests](https://victoriametrics.com/blog/mimir-benchmark/)
+* [VictoriaMetrics: scaling to 100 million metrics per second](https://www.slideshare.net/NETWAYS/osmc-2022-victoriametrics-scaling-to-100-million-metrics-per-second-by-aliaksandr-valialkin)
 
 VictoriaMetrics also [uses less RAM than Thanos components](https://github.com/thanos-io/thanos/issues/448).
 
@@ -296,7 +299,9 @@ Memory usage for VictoriaMetrics components can be tuned according to the follow
 
 ## How can I run VictoriaMetrics on FreeBSD/OpenBSD?
 
-VictoriaMetrics is included in [OpenBSD](https://github.com/openbsd/ports/blob/c1bfea520bbb30d6e5f8d0f09115ace341f820d6/infrastructure/db/user.list#L383) and [FreeBSD](https://www.freebsd.org/cgi/ports.cgi?query=victoria&stype=all) ports so just install it from there or use pre-built binaries from [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
+VictoriaMetrics is included in [OpenBSD](https://github.com/openbsd/ports/blob/c1bfea520bbb30d6e5f8d0f09115ace341f820d6/infrastructure/db/user.list#L383)
+and [FreeBSD](https://www.freebsd.org/cgi/ports.cgi?query=victoria&stype=all) ports so just install it from there
+or use pre-built binaries from [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 
 ## Does VictoriaMetrics support the Graphite query language?
 
@@ -412,3 +417,44 @@ The query engine may behave differently for some functions. Please see [this art
 Single-node VictoriaMetrics cannot be restarted / upgraded or downgraded without downtime, since it needs to be gracefully shut down and then started again. See [how to upgrade VictoriaMetrics](https://docs.victoriametrics.com/#how-to-upgrade-victoriametrics).
 
 [Cluster version of VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) can be restarted / upgraded / downgraded without downtime according to [these instructions](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#updating--reconfiguring-cluster-nodes).
+
+## Why VictoriaMetrics misses automatic data re-balancing between vmstorage nodes?
+
+VictoriaMetrics doesn't rebalance data between `vmstorage` nodes when new `vmstorage` nodes are added to the cluster.
+This means that newly added `vmstorage` nodes will have less data at `-storageDataPath` comparing to the old `vmstorage` nodes
+until the historical data is removed from the old `vmstorage` nodes when it goes outside the configured [retention](https://docs.victoriametrics.com/#retention).
+
+The automatic rebalancing is the process of moving data between `vmstorage` nodes, so every node has the same amounts of data eventually.
+It is disabled by default because it may consume additional CPU, network bandwidth and disk IO at `vmstorage` nodes for long periods of time,
+which, in turn, can negatively impact VictoriaMetrics cluster availability.
+
+Additionally, it is unclear how to handle the automatic re-balancing if cluster configuration changes when the re-balancing is in progress.
+
+The amounts of data stored in `vmstorage` becomes equal among old `vmstorage` nodes and new `vmstorage` nodes
+after historical data is removed from the old `vmstorage` nodes because it goes outside of configured [retention](https://docs.victoriametrics.com/#retention).
+
+The data ingestion load becomes even between old `vmstorage` nodes and new `vmstorage` nodes almost immediately
+after adding new `vmstorage` nodes to the cluster, since `vminsert` nodes evenly distribute incoming time series
+among the nodes specified in `-storageNode` command-line flag. The newly added `vmstorage` nodes may experience
+increased load during the first couple of minutes because they need to register [active time series](https://docs.victoriametrics.com/FAQ.html#what-is-an-active-time-series).
+
+The query load becomes even between old `vmstorage` nodes and new `vmstorage` nodes after most of queries are executed
+over time ranges with data covered by new `vmstorage` nodes. Usually the most of queries are received
+from [alerting and recording rules](https://docs.victoriametrics.com/vmalert.html), which query data on limited time ranges
+such as a few hours or few days at max. This means that the query load between old `vmstorage` nodes and new `vmstorage` nodes
+should become even in a few hours / days after adding new `vmstorage` nodes.
+
+## Why VictoriaMetrics misses automatic recovery of replication factor?
+
+VictoriaMetrics doesn't restore [replication factor](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#replication-and-data-safety)
+when some of `vmstorage` nodes are removed from the cluster because of the following reasons:
+
+- Automatic replication factor recovery needs copying non-trivial amounts of data between the remaining `vmstorage` nodes.
+  This copying takes additional CPU, disk IO and network bandwidth at `vmstorage` nodes. This may negatively impact
+  VictoriaMetrics cluster availability during extended periods of time.
+
+- It is unclear when the automatic replication factor recovery must be started. How to distiguinsh the expected temporary
+  `vmstorage` node unavailability because of maintenance, upgrade or config changes from permanent loss of data at the `vmstorage` node?
+
+It is recommended reading [replication and data safety docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#replication-and-data-safety)
+for more details.

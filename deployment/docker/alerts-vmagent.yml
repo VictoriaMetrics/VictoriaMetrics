@@ -64,8 +64,11 @@ groups:
 
       - alert: RemoteWriteConnectionIsSaturated
         expr: |
-          sum(rate(vmagent_remotewrite_send_duration_seconds_total[5m])) by(job, instance, url) 
-          > 0.9 * max(vmagent_remotewrite_queues) by(job, instance, url)
+          (
+           sum(rate(vmagent_remotewrite_send_duration_seconds_total[5m])) by(job, instance, url) 
+           / 
+           max(vmagent_remotewrite_queues) by(job, instance, url)
+          ) > 0.9
         for: 15m
         labels:
           severity: warning

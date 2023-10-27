@@ -56,7 +56,7 @@ type Cache struct {
 }
 
 // Load loads the cache from filePath and limits its size to maxBytes
-// and evicts inactive entries in 20 minutes.
+// and evicts inactive entries in *cacheExpireDuration minutes.
 //
 // Stop must be called on the returned cache when it is no longer needed.
 func Load(filePath string, maxBytes int) *Cache {
@@ -88,7 +88,7 @@ func loadWithExpire(filePath string, maxBytes int, expireDuration time.Duration)
 	return newCacheInternal(curr, prev, whole, maxBytes)
 }
 
-// New creates new cache with the given maxBytes capacity.
+// New creates new cache with the given maxBytes capacity and *cacheExpireDuration expiration.
 //
 // Stop must be called on the returned cache when it is no longer needed.
 func New(maxBytes int) *Cache {

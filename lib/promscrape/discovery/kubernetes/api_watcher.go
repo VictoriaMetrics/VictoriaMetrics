@@ -72,7 +72,7 @@ func newAPIWatcher(apiServer string, ac *promauth.Config, sdc *SDConfig, swcFunc
 		if sdc.Namespaces.OwnNamespace {
 			namespace, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
 			if err != nil {
-				logger.Fatalf("cannot determine namespace for the current pod according to `own_namespace: true` option in kubernetes_sd_config: %s", err)
+				logger.Panicf("FATAL: cannot determine namespace for the current pod according to `own_namespace: true` option in kubernetes_sd_config: %s", err)
 			}
 			namespaces = []string{string(namespace)}
 		}
@@ -211,7 +211,7 @@ type groupWatcher struct {
 	selectors          []Selector
 	attachNodeMetadata bool
 
-	setHeaders func(req *http.Request)
+	setHeaders func(req *http.Request) error
 	client     *http.Client
 
 	mu sync.Mutex
@@ -223,9 +223,13 @@ func newGroupWatcher(apiServer string, ac *promauth.Config, namespaces []string,
 	if proxyURL != nil {
 		proxy = http.ProxyURL(proxyURL)
 	}
+	tlsConfig, err := ac.NewTLSConfig()
+	if err != nil {
+		logger.Panicf("FATAL: cannot initialize tls config: %s", err)
+	}
 	client := &http.Client{
 		Transport: &http.Transport{
-			TLSClientConfig:     ac.NewTLSConfig(),
+			TLSClientConfig:     tlsConfig,
 			Proxy:               proxy,
 			TLSHandshakeTimeout: 10 * time.Second,
 			IdleConnTimeout:     *apiServerTimeout,
@@ -239,9 +243,11 @@ func newGroupWatcher(apiServer string, ac *promauth.Config, namespaces []string,
 		selectors:          selectors,
 		attachNodeMetadata: attachNodeMetadata,
 
-		setHeaders: func(req *http.Request) { ac.SetHeaders(req, true) },
-		client:     client,
-		m:          make(map[string]*urlWatcher),
+		setHeaders: func(req *http.Request) error {
+			return ac.SetHeaders(req, true)
+		},
+		client: client,
+		m:      make(map[string]*urlWatcher),
 	}
 }
 
@@ -418,9 +424,11 @@ func (gw *groupWatcher) doRequest(ctx context.Context, requestURL string) (*http
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, requestURL, nil)
 	if err != nil {
-		logger.Fatalf("cannot create a request for %q: %s", requestURL, err)
+		logger.Panicf("FATAL: cannot create a request for %q: %s", requestURL, err)
 	}
-	gw.setHeaders(req)
+	if err := gw.setHeaders(req); err != nil {
+		return nil, fmt.Errorf("cannot set request headers: %w", err)
+	}
 	resp, err := gw.client.Do(req)
 	if err != nil {
 		return nil, err

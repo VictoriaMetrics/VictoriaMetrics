@@ -204,7 +204,7 @@ var (
 	defaultPromRegex                     = func() *regexutil.PromRegex {
 		pr, err := regexutil.NewPromRegex(".*")
 		if err != nil {
-			panic(fmt.Errorf("BUG: unexpected error: %s", err))
+			panic(fmt.Errorf("BUG: unexpected error: %w", err))
 		}
 		return pr
 	}()

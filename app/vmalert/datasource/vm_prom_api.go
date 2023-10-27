@@ -112,14 +112,14 @@ func parsePrometheusResponse(req *http.Request, resp *http.Response) (res Result
 		return res, fmt.Errorf("response error, query: %s, errorType: %s, error: %s", req.URL.Redacted(), r.ErrorType, r.Error)
 	}
 	if r.Status != statusSuccess {
-		return res, fmt.Errorf("unknown status: %s, Expected success or error ", r.Status)
+		return res, fmt.Errorf("unknown status: %s, Expected success or error", r.Status)
 	}
 	var parseFn func() ([]Metric, error)
 	switch r.Data.ResultType {
 	case rtVector:
 		var pi promInstant
 		if err := json.Unmarshal(r.Data.Result, &pi.Result); err != nil {
-			return res, fmt.Errorf("umarshal err %s; \n %#v", err, string(r.Data.Result))
+			return res, fmt.Errorf("unmarshal err %w; \n %#v", err, string(r.Data.Result))
 		}
 		parseFn = pi.metrics
 	case rtMatrix:

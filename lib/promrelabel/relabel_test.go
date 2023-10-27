@@ -927,7 +927,7 @@ func newTestRegexRelabelConfig(pattern string) *parsedRelabelConfig {
 	}
 	prc, err := parseRelabelConfig(rc)
 	if err != nil {
-		panic(fmt.Errorf("unexpected error in parseRelabelConfig: %s", err))
+		panic(fmt.Errorf("unexpected error in parseRelabelConfig: %w", err))
 	}
 	return prc
 }

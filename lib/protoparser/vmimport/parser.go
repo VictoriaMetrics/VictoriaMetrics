@@ -236,7 +236,7 @@ func unmarshalRow(dst []Row, s string, tu *tagsUnmarshaler) []Row {
 	r := &dst[len(dst)-1]
 	if err := r.unmarshal(s, tu); err != nil {
 		dst = dst[:len(dst)-1]
-		logger.Errorf("cannot unmarshal json line %q: %s; skipping it", s, err)
+		logger.Errorf("skipping json line %q because of error: %s", s, err)
 		invalidLines.Inc()
 	}
 	return dst
