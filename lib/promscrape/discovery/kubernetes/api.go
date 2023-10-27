@@ -90,6 +90,10 @@ func newAPIConfig(sdc *SDConfig, baseDir string, swcFunc ScrapeWorkConstructorFu
 	for strings.HasSuffix(apiServer, "/") {
 		apiServer = apiServer[:len(apiServer)-1]
 	}
+	// pre-check tls config
+	if _, err := ac.NewTLSConfig(); err != nil {
+		return nil, fmt.Errorf("cannot initialize tls config: %w", err)
+	}
 	aw := newAPIWatcher(apiServer, ac, sdc, swcFunc)
 	cfg := &apiConfig{
 		aw: aw,

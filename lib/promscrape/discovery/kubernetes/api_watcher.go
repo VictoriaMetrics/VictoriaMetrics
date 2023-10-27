@@ -234,6 +234,7 @@ func newGroupWatcher(apiServer string, ac *promauth.Config, namespaces []string,
 		proxy = http.ProxyURL(proxyURL)
 	}
 	tlsConfig, err := ac.NewTLSConfig()
+	// we should always check tlsconfig in advance to avoid panic here
 	if err != nil {
 		logger.Panicf("FATAL: cannot initialize tls config: %s", err)
 	}
