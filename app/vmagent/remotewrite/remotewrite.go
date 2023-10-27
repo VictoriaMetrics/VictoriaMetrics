@@ -254,6 +254,11 @@ func newRemoteWriteCtxs(at *auth.Token, urls []string) []*remoteWriteCtx {
 			// Construct full remote_write url for the given tenant according to https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format
 			remoteWriteURL.Path = fmt.Sprintf("%s/insert/%d:%d/prometheus/api/v1/write", remoteWriteURL.Path, at.AccountID, at.ProjectID)
 			sanitizedURL = fmt.Sprintf("%s:%d:%d", sanitizedURL, at.AccountID, at.ProjectID)
+		} else if MultitenancyEnabled() {
+			// Construct full remote_write url for the 'multitenant' endpoint according to
+			// https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy-via-labels
+			remoteWriteURL.Path = fmt.Sprintf("%s/insert/multitenant/prometheus/api/v1/write", remoteWriteURL.Path)
+			sanitizedURL = fmt.Sprintf("%s:multitenant", sanitizedURL)
 		}
 		if *showRemoteWriteURL {
 			sanitizedURL = fmt.Sprintf("%d:%s", i+1, remoteWriteURL)
