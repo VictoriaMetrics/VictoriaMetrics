@@ -148,13 +148,15 @@ const TopQueries: FC = () => {
       {data && (<>
         <div className="vm-top-queries-panels">
           <TopQueryPanel
-            rows={data.topByCount}
-            title={"Most frequently executed queries"}
+            rows={data.topBySumDuration}
+            title={"Queries with most summary time to execute"}
             columns={[
               { key: "query" },
+              { key: "sumDurationSeconds", title: "sum duration, sec" },
               { key: "timeRange", sortBy: "timeRangeSeconds", title: "query time interval" },
               { key: "count" }
             ]}
+            defaultOrderBy={"sumDurationSeconds"}
           />
           <TopQueryPanel
             rows={data.topByAvgDuration}
@@ -168,15 +170,13 @@ const TopQueries: FC = () => {
             defaultOrderBy={"avgDurationSeconds"}
           />
           <TopQueryPanel
-            rows={data.topBySumDuration}
-            title={"Queries with most summary time to execute"}
+            rows={data.topByCount}
+            title={"Most frequently executed queries"}
             columns={[
               { key: "query" },
-              { key: "sumDurationSeconds", title: "sum duration, sec" },
               { key: "timeRange", sortBy: "timeRangeSeconds", title: "query time interval" },
               { key: "count" }
             ]}
-            defaultOrderBy={"sumDurationSeconds"}
           />
         </div>
       </>)}
