@@ -295,8 +295,10 @@ func (ar *AlertingRule) toLabels(m datasource.Metric, qFn templates.QueryFn) (*l
 }
 
 // execRange executes alerting rule on the given time range similarly to exec.
-// It will hold internal states of the Rule since one firing stage could across two `execRange`.
-// It returns ALERT and ALERT_FOR_STATE time series as result.
+// When making consecutive calls make sure to respect time linearity for start and end params,
+// as this function modifies AlertingRule alerts state.
+// It is not thread safe.
+// It returns ALERT and ALERT_FOR_STATE time series as a result.
 func (ar *AlertingRule) execRange(ctx context.Context, start, end time.Time) ([]prompbmarshal.TimeSeries, error) {
 	res, err := ar.q.QueryRange(ctx, ar.Expr, start, end)
 	if err != nil {
@@ -317,7 +319,9 @@ func (ar *AlertingRule) execRange(ctx context.Context, start, end time.Time) ([]
 		if err != nil {
 			return nil, fmt.Errorf("failed to create alert: %w", err)
 		}
-		if ar.For == 0 { // if alert is instant
+
+		// if alert is instant, For: 0
+		if ar.For == 0 {
 			a.State = notifier.StateFiring
 			for i := range s.Values {
 				result = append(result, ar.alertToTimeSeries(a, s.Timestamps[i])...)
@@ -329,7 +333,7 @@ func (ar *AlertingRule) execRange(ctx context.Context, start, end time.Time) ([]
 		prevT := time.Time{}
 		for i := range s.Values {
 			at := time.Unix(s.Timestamps[i], 0)
-			// try to restore alert state from last iteration if needed
+			// try to restore alert's state on the first iteration
 			if at.Equal(start) {
 				if _, ok := ar.alerts[h]; ok {
 					a = ar.alerts[h]
@@ -347,7 +351,8 @@ func (ar *AlertingRule) execRange(ctx context.Context, start, end time.Time) ([]
 			}
 			prevT = at
 			result = append(result, ar.alertToTimeSeries(a, s.Timestamps[i])...)
-			// save alert state if it can be used in next iteration
+
+			// save alert's state on last iteration, so it can be used on the next execRange call
 			if at.Equal(end) {
 				holdAlertState[h] = a
 			}
