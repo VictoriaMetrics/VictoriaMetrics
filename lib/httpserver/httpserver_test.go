@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"testing"
 )
 
@@ -38,35 +37,30 @@ func TestGetQuotedRemoteAddr(t *testing.T) {
 }
 
 func TestHandlerWrapper(t *testing.T) {
-	f := func(path string) {
-		t.Helper()
+	*headerHSTS = "foo"
+	*headerFrameOptions = "bar"
+	*headerCSP = "baz"
+	defer func() {
+		*headerHSTS = ""
+		*headerFrameOptions = ""
+		*headerCSP = ""
+	}()
 
-		req := &http.Request{
-			URL: &url.URL{
-				Path: path,
-			},
-		}
-		rh := func(_ http.ResponseWriter, _ *http.Request) bool {
-			return true
-		}
+	req, _ := http.NewRequest("GET", "/health", nil)
 
-		srv := &server{
-			s: &http.Server{},
-		}
-		w := &httptest.ResponseRecorder{}
+	srv := &server{s: &http.Server{}}
+	w := &httptest.ResponseRecorder{}
+	handlerWrapper(srv, w, req, func(_ http.ResponseWriter, _ *http.Request) bool {
+		return true
+	})
 
-		handlerWrapper(srv, w, req, rh)
-
-		if w.Header().Get("Strict-Transport-Security") == "" {
-			t.Errorf("HSTS header not set")
-		}
-		if w.Header().Get("Content-Security-Policy") == "" {
-			t.Errorf("CSP header not set")
-		}
-		if w.Header().Get("X-Frame-Options") == "" {
-			t.Errorf("X-Frame-Options header not set")
-		}
+	if w.Header().Get("Strict-Transport-Security") != "foo" {
+		t.Errorf("HSTS header not set")
 	}
-
-	f("/health")
+	if w.Header().Get("X-Frame-Options") != "bar" {
+		t.Errorf("X-Frame-Options header not set")
+	}
+	if w.Header().Get("Content-Security-Policy") != "baz" {
+		t.Errorf("CSP header not set")
+	}
 }

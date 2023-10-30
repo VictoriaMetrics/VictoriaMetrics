@@ -328,11 +328,11 @@ Run `vmbackup -help` in order to see all the available options:
   -http.disableResponseCompression
      Disable compression of HTTP responses to save CPU resources. By default, compression is enabled to save network bandwidth
   -http.header.csp string
-     Value for 'Content-Security-Policy' header (default "default-src 'self'")
+     Value for 'Content-Security-Policy' header
   -http.header.frameOptions string
-     Value for 'X-Frame-Options' header (default "SAMEORIGIN")
+     Value for 'X-Frame-Options' header
   -http.header.hsts string
-     Value for 'Strict-Transport-Security' header (default "max-age=31536000; includeSubDomains")
+     Value for 'Strict-Transport-Security' header
   -http.idleConnTimeout duration
      Timeout for incoming idle http connections (default 1m0s)
   -http.maxGracefulShutdownDuration duration
