@@ -271,7 +271,6 @@ General security recommendations:
 - It is recommended using distinct auth tokens for distinct [tenants](#multitenancy) in order to reduce potential damage in case of compromised auth token for some tenants.
 - Prefer using lists of allowed [API endpoints](#url-format), while disallowing access to other endpoints when configuring auth proxy in front of `vminsert` and `vmselect`.
   This minimizes attack surface.
-- All http-serving components also respond with reasonable default headers for HSTS, CSP and Frame-Options, configurable with flags.
 
 See also [security recommendation for single-node VictoriaMetrics](https://docs.victoriametrics.com/#security)
 and [the general security page at VictoriaMetrics website](https://victoriametrics.com/security/).
