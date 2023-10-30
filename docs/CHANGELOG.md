@@ -16,6 +16,7 @@ The following `tip` changes can be tested by building VictoriaMetrics components
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): properly drop samples if `-streamAggr.dropInput` command-line flag is set and `-remoteWrite.streamAggr.config` contains an empty file. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5207).
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): do not print redundant error logs when failed to scrape consul or nomad target. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5239).
 * BUGFIX: [vmstorage](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): prevent deleted series to be searchable via `/api/v1/series` API if they were re-ingested with staleness markers. This situation could happen if user deletes the series from the target and from VM, and then vmagent sends stale markers for absent series. Thanks to @ilyatrefilov for the [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5069) and [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5174).
+* BUGFIX: [vmstorage](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): log warning about switching to ReadOnly mode only on state change. Before, vmstorage would log this warning every 1s. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5159) for details.
 
 ## [v1.93.6](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.6)
 
