@@ -346,14 +346,17 @@ func TestAlertingRule_Exec(t *testing.T) {
 }
 
 func TestAlertingRule_ExecRange(t *testing.T) {
+	fakeGroup := Group{Name: "TestRule_ExecRange"}
 	testCases := []struct {
-		rule      *AlertingRule
-		data      []datasource.Metric
-		expAlerts []*notifier.Alert
+		rule                    *AlertingRule
+		data                    []datasource.Metric
+		expAlerts               []*notifier.Alert
+		expHoldAlertStateAlerts map[uint64]*notifier.Alert
 	}{
 		{
 			newTestAlertingRule("empty", 0),
 			[]datasource.Metric{},
+			nil,
 			nil,
 		},
 		{
@@ -364,6 +367,7 @@ func TestAlertingRule_ExecRange(t *testing.T) {
 			[]*notifier.Alert{
 				{State: notifier.StateFiring},
 			},
+			nil,
 		},
 		{
 			newTestAlertingRule("single-firing", 0),
@@ -376,6 +380,7 @@ func TestAlertingRule_ExecRange(t *testing.T) {
 					State:  notifier.StateFiring,
 				},
 			},
+			nil,
 		},
 		{
 			newTestAlertingRule("single-firing-on-range", 0),
@@ -387,6 +392,7 @@ func TestAlertingRule_ExecRange(t *testing.T) {
 				{State: notifier.StateFiring},
 				{State: notifier.StateFiring},
 			},
+			nil,
 		},
 		{
 			newTestAlertingRule("for-pending", time.Second),
@@ -398,6 +404,16 @@ func TestAlertingRule_ExecRange(t *testing.T) {
 				{State: notifier.StatePending, ActiveAt: time.Unix(3, 0)},
 				{State: notifier.StatePending, ActiveAt: time.Unix(5, 0)},
 			},
+			map[uint64]*notifier.Alert{hash(map[string]string{"alertname": "for-pending"}): {
+				GroupID:     fakeGroup.ID(),
+				Name:        "for-pending",
+				Labels:      map[string]string{"alertname": "for-pending"},
+				Annotations: map[string]string{},
+				State:       notifier.StatePending,
+				ActiveAt:    time.Unix(5, 0),
+				Value:       1,
+				For:         time.Second,
+			}},
 		},
 		{
 			newTestAlertingRule("for-firing", 3*time.Second),
@@ -409,6 +425,38 @@ func TestAlertingRule_ExecRange(t *testing.T) {
 				{State: notifier.StatePending, ActiveAt: time.Unix(1, 0)},
 				{State: notifier.StateFiring, ActiveAt: time.Unix(1, 0)},
 			},
+			map[uint64]*notifier.Alert{hash(map[string]string{"alertname": "for-firing"}): {
+				GroupID:     fakeGroup.ID(),
+				Name:        "for-firing",
+				Labels:      map[string]string{"alertname": "for-firing"},
+				Annotations: map[string]string{},
+				State:       notifier.StateFiring,
+				ActiveAt:    time.Unix(1, 0),
+				Start:       time.Unix(5, 0),
+				Value:       1,
+				For:         3 * time.Second,
+			}},
+		},
+		{
+			newTestAlertingRule("for-hold-pending", time.Second),
+			[]datasource.Metric{
+				{Values: []float64{1, 1, 1}, Timestamps: []int64{1, 2, 5}},
+			},
+			[]*notifier.Alert{
+				{State: notifier.StatePending, ActiveAt: time.Unix(1, 0)},
+				{State: notifier.StateFiring, ActiveAt: time.Unix(1, 0)},
+				{State: notifier.StatePending, ActiveAt: time.Unix(5, 0)},
+			},
+			map[uint64]*notifier.Alert{hash(map[string]string{"alertname": "for-hold-pending"}): {
+				GroupID:     fakeGroup.ID(),
+				Name:        "for-hold-pending",
+				Labels:      map[string]string{"alertname": "for-hold-pending"},
+				Annotations: map[string]string{},
+				State:       notifier.StatePending,
+				ActiveAt:    time.Unix(5, 0),
+				Value:       1,
+				For:         time.Second,
+			}},
 		},
 		{
 			newTestAlertingRule("for=>pending=>firing=>pending=>firing=>pending", time.Second),
@@ -422,9 +470,10 @@ func TestAlertingRule_ExecRange(t *testing.T) {
 				{State: notifier.StateFiring, ActiveAt: time.Unix(5, 0)},
 				{State: notifier.StatePending, ActiveAt: time.Unix(20, 0)},
 			},
+			nil,
 		},
 		{
-			newTestAlertingRule("multi-series-for=>pending=>pending=>firing", 3*time.Second),
+			newTestAlertingRule("multi-series", 3*time.Second),
 			[]datasource.Metric{
 				{Values: []float64{1, 1, 1}, Timestamps: []int64{1, 3, 5}},
 				{
@@ -436,7 +485,6 @@ func TestAlertingRule_ExecRange(t *testing.T) {
 				{State: notifier.StatePending, ActiveAt: time.Unix(1, 0)},
 				{State: notifier.StatePending, ActiveAt: time.Unix(1, 0)},
 				{State: notifier.StateFiring, ActiveAt: time.Unix(1, 0)},
-				//
 				{
 					State: notifier.StatePending, ActiveAt: time.Unix(1, 0),
 					Labels: map[string]string{
@@ -448,6 +496,29 @@ func TestAlertingRule_ExecRange(t *testing.T) {
 					Labels: map[string]string{
 						"foo": "bar",
 					},
+				},
+			},
+			map[uint64]*notifier.Alert{
+				hash(map[string]string{"alertname": "multi-series"}): {
+					GroupID:     fakeGroup.ID(),
+					Name:        "multi-series",
+					Labels:      map[string]string{"alertname": "multi-series"},
+					Annotations: map[string]string{},
+					State:       notifier.StateFiring,
+					ActiveAt:    time.Unix(1, 0),
+					Start:       time.Unix(5, 0),
+					Value:       1,
+					For:         3 * time.Second,
+				},
+				hash(map[string]string{"alertname": "multi-series", "foo": "bar"}): {
+					GroupID:     fakeGroup.ID(),
+					Name:        "multi-series",
+					Labels:      map[string]string{"alertname": "multi-series", "foo": "bar"},
+					Annotations: map[string]string{},
+					State:       notifier.StatePending,
+					ActiveAt:    time.Unix(5, 0),
+					Value:       1,
+					For:         3 * time.Second,
 				},
 			},
 		},
@@ -477,16 +548,16 @@ func TestAlertingRule_ExecRange(t *testing.T) {
 					"source": "vm",
 				}},
 			},
+			nil,
 		},
 	}
-	fakeGroup := Group{Name: "TestRule_ExecRange"}
 	for _, tc := range testCases {
 		t.Run(tc.rule.Name, func(t *testing.T) {
 			fq := &datasource.FakeQuerier{}
 			tc.rule.q = fq
 			tc.rule.GroupID = fakeGroup.ID()
 			fq.Add(tc.data...)
-			gotTS, err := tc.rule.execRange(context.TODO(), time.Now(), time.Now())
+			gotTS, err := tc.rule.execRange(context.TODO(), time.Unix(1, 0), time.Unix(5, 0))
 			if err != nil {
 				t.Fatalf("unexpected err: %s", err)
 			}
@@ -510,6 +581,11 @@ func TestAlertingRule_ExecRange(t *testing.T) {
 				got, exp := gotTS[i], expTS[i]
 				if !reflect.DeepEqual(got, exp) {
 					t.Fatalf("%d: expected \n%v but got \n%v", i, exp, got)
+				}
+			}
+			if tc.expHoldAlertStateAlerts != nil {
+				if !reflect.DeepEqual(tc.expHoldAlertStateAlerts, tc.rule.alerts) {
+					t.Fatalf("expected hold alerts state: \n%v but got \n%v", tc.expHoldAlertStateAlerts, tc.rule.alerts)
 				}
 			}
 		})
