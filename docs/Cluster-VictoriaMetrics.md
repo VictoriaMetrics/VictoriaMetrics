@@ -750,7 +750,13 @@ See how to request a free trial license [here](https://victoriametrics.com/produ
 
 ## Downsampling
 
-Downsampling is available in [enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/enterprise.html). It is configured with `-downsampling.period` command-line flag. The same flag value must be passed to both `vmstorage` and `vmselect` nodes. See [these docs](https://docs.victoriametrics.com/#downsampling) for details.
+[Downsampling](https://docs.victoriametrics.com/#downsampling) is available in [enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/enterprise.html). 
+It is configured with `-downsampling.period` command-line flag. The same flag value must be passed to both `vmstorage`
+and `vmselect` nodes. Configuring `vmselect` node with `-downsampling.period` command-line flag makes query results more
+consistent, as `vmselect` will evenly downsample all received data samples if requested time range will intersect with configured
+`-downsampling.period`. For example, if `-downsampling.period=30d:5m` and user requests `60d` of data then vmselect will downsample
+all datapoints (newer and older than `30d`) to `5m` intervals. If this flag is omitted for `vmselect`, 
+then query results can be less consistent because of mixing raw and downsampled data.
 
 Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 See how to request a free trial license [here](https://victoriametrics.com/products/enterprise/trial/).
