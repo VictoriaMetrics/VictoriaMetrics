@@ -1,12 +1,9 @@
-import React, { FC } from "preact/compat";
-import dayjs from "dayjs";
-import "./style.scss";
+import React, { FC, memo } from "preact/compat";
 import { CodeIcon, IssueIcon, LogoShortIcon, WikiIcon } from "../../components/Main/Icons";
-import useDeviceDetect from "../../hooks/useDeviceDetect";
+import "./style.scss";
 
-const Footer: FC = () => {
-  const { isMobile } = useDeviceDetect();
-  const copyrightYears = `2019-${dayjs().format("YYYY")}`;
+const Footer: FC = memo(() => {
+  const copyrightYears = `2019-${new Date().getFullYear()}`;
 
   return <footer className="vm-footer">
     <a
@@ -34,7 +31,7 @@ const Footer: FC = () => {
       rel="help noreferrer"
     >
       <WikiIcon/>
-      {isMobile ? "Docs" : "Documentation"}
+      Documentation
     </a>
     <a
       className="vm-link vm-footer__link"
@@ -43,12 +40,12 @@ const Footer: FC = () => {
       rel="noreferrer"
     >
       <IssueIcon/>
-      {isMobile ? "New issue" : "Create an issue"}
+      Create an issue
     </a>
     <div className="vm-footer__copyright">
       &copy; {copyrightYears} VictoriaMetrics
     </div>
   </footer>;
-};
+});
 
 export default Footer;
