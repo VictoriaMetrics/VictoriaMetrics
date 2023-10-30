@@ -415,6 +415,14 @@ The most common sources of cluster instability are:
   see [replication and data safety docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#replication-and-data-safety)
   for details.
 
+- Time series sharding. Received time series [are consistently sharded](https://docs.victoriametrics.com/vmalert.html#rules-backfilling)
+  by `vminsert` between configured `vmstorage` nodes. As a sharding key `vminsert` is using time series name and labels,
+  respecting their order. If the order of labels in time series is constantly changing, this could cause wrong sharding
+  calculation and result in un-even and sub-optimal time series distribution across available vmstorages. It is expected
+  that metrics pushing client is responsible for consistent labels order (like `Prometheus` or `vmagent` during scraping).
+  If this can't be guaranteed, set `-sortLabels=true` cmd-line flag to `vminsert`. Please note, sorting may increase
+  CPU usage for `vminsert`.
+
 The obvious solution against VictoriaMetrics cluster instability is to make sure cluster components
 have enough free resources for graceful processing of the increased workload.
 See [capacity planning docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#capacity-planning)
