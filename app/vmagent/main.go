@@ -447,10 +447,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 			staticServer.ServeHTTP(w, r)
 			return true
 		}
-		if remotewrite.MultitenancyEnabled() {
-			return processMultitenantRequest(w, r, path)
-		}
-		return false
+		return processMultitenantRequest(w, r, path)
 	}
 }
 
@@ -464,7 +461,12 @@ func processMultitenantRequest(w http.ResponseWriter, r *http.Request, path stri
 		httpserver.Errorf(w, r, `unsupported multitenant prefix: %q; expected "insert"`, p.Prefix)
 		return true
 	}
-	at, err := auth.NewTokenPossibleMultitenant(p.AuthToken)
+	var at *auth.Token
+	if remotewrite.MultitenancyEnabled() {
+		at, err = auth.NewToken(p.AuthToken)
+	} else {
+		at, err = auth.NewTokenPossibleMultitenant(p.AuthToken)
+	}
 	if err != nil {
 		httpserver.Errorf(w, r, "cannot obtain auth token: %s", err)
 		return true

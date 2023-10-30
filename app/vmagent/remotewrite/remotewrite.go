@@ -254,11 +254,6 @@ func newRemoteWriteCtxs(at *auth.Token, urls []string) []*remoteWriteCtx {
 			// Construct full remote_write url for the given tenant according to https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format
 			remoteWriteURL.Path = fmt.Sprintf("%s/insert/%d:%d/prometheus/api/v1/write", remoteWriteURL.Path, at.AccountID, at.ProjectID)
 			sanitizedURL = fmt.Sprintf("%s:%d:%d", sanitizedURL, at.AccountID, at.ProjectID)
-		} else if MultitenancyEnabled() {
-			// Construct full remote_write url for the 'multitenant' endpoint according to
-			// https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy-via-labels
-			remoteWriteURL.Path = fmt.Sprintf("%s/insert/multitenant/prometheus/api/v1/write", remoteWriteURL.Path)
-			sanitizedURL = fmt.Sprintf("%s:multitenant", sanitizedURL)
 		}
 		if *showRemoteWriteURL {
 			sanitizedURL = fmt.Sprintf("%d:%s", i+1, remoteWriteURL)
@@ -333,16 +328,29 @@ func Stop() {
 //
 // Note that wr may be modified by Push because of relabeling and rounding.
 func Push(at *auth.Token, wr *prompbmarshal.WriteRequest) {
-	if at == nil && len(*remoteWriteMultitenantURLs) > 0 {
-		// Write data to default tenant if at isn't set while -remoteWrite.multitenantURL is set.
-		at = defaultAuthToken
-	}
 	var rwctxs []*remoteWriteCtx
-	if at == nil {
+	if len(*remoteWriteURLs) > 0 {
 		rwctxs = rwctxsDefault
+		if at != nil {
+			// Append labels for -remoteWrite.url writes with specified tenant.
+			for i := range wr.Timeseries {
+				ts := &wr.Timeseries[i]
+				ts.Labels = append(ts.Labels,
+					prompbmarshal.Label{
+						Name:  "vm_account_id",
+						Value: strconv.Itoa(int(at.AccountID)),
+					},
+					prompbmarshal.Label{
+						Name:  "vm_project_id",
+						Value: strconv.Itoa(int(at.ProjectID)),
+					},
+				)
+			}
+		}
 	} else {
-		if len(*remoteWriteMultitenantURLs) == 0 {
-			logger.Panicf("BUG: -remoteWrite.multitenantURL command-line flag must be set when __tenant_id__=%q label is set", at)
+		if at == nil {
+			// Write data to default tenant if at isn't set while -remoteWrite.multitenantURL is set.
+			at = defaultAuthToken
 		}
 		rwctxsMapLock.Lock()
 		tenantID := tenantmetrics.TenantID{
