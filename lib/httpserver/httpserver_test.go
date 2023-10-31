@@ -40,171 +40,86 @@ func TestGetQuotedRemoteAddr(t *testing.T) {
 func TestBasicAuthMetrics(t *testing.T) {
 	origUsername := *httpAuthUsername
 	origPasswd := *httpAuthPassword
-	testsForConfiguredAuth := []struct {
-		username     string
-		passwd       string
-		expectedCode int
-	}{
-		{
-			username:     "test",
-			passwd:       "pass",
-			expectedCode: 200,
-		},
-		{
-			username:     "test",
-			passwd:       "wrong",
-			expectedCode: 401,
-		},
-		{
-			username:     "wrongUser",
-			passwd:       "pass",
-			expectedCode: 401,
-		},
-		{
-			username:     "wrongUser",
-			passwd:       "wrongpass",
-			expectedCode: 401,
-		},
-	}
+	defer func() {
+		*httpAuthPassword = origPasswd
+		*httpAuthUsername = origUsername
+	}()
 
-	testsWhenAuthIsNotConfigured := []struct {
-		username     string
-		passwd       string
-		expectedCode int
-	}{
-		{
-			username:     "test",
-			passwd:       "pass",
-			expectedCode: 200,
-		},
-		{
-			username:     "test",
-			passwd:       "wrong",
-			expectedCode: 200,
-		},
-		{
-			username:     "wrongUser",
-			passwd:       "pass",
-			expectedCode: 200,
-		},
-		{
-			username:     "wrongUser",
-			passwd:       "wrongpass",
-			expectedCode: 200,
-		},
-	}
-	*httpAuthUsername = "test"
-	*httpAuthPassword = "pass"
-	for _, tt := range testsForConfiguredAuth {
+	f := func(user, pass string, expCode int) {
+		t.Helper()
 		req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
-		req.SetBasicAuth(tt.username, tt.passwd)
+		req.SetBasicAuth(user, pass)
 
 		w := httptest.NewRecorder()
 		CheckBasicAuth(w, req)
 
 		res := w.Result()
-		defer res.Body.Close()
-		if tt.expectedCode != res.StatusCode {
-			t.Fatalf("Unexpected status code: %d, Expected code is: %d\n", res.StatusCode, tt.expectedCode)
+		_ = res.Body.Close()
+		if expCode != res.StatusCode {
+			t.Fatalf("wanted status code: %d, got: %d\n", res.StatusCode, expCode)
 		}
 	}
+
+	*httpAuthUsername = "test"
+	*httpAuthPassword = "pass"
+	f("test", "pass", 200)
+	f("test", "wrong", 401)
+	f("wrong", "pass", 401)
+	f("wrong", "wrong", 401)
 
 	*httpAuthUsername = ""
 	*httpAuthPassword = ""
-	for _, tt := range testsWhenAuthIsNotConfigured {
-		req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
-		req.SetBasicAuth(tt.username, tt.passwd)
-
-		w := httptest.NewRecorder()
-		CheckBasicAuth(w, req)
-
-		res := w.Result()
-		defer res.Body.Close()
-		if tt.expectedCode != res.StatusCode {
-			t.Fatalf("Unexpected status code: %d, Expected code is: %d\n", res.StatusCode, tt.expectedCode)
-		}
-	}
-
-	*httpAuthPassword = origPasswd
-	*httpAuthUsername = origUsername
-
+	f("test", "pass", 200)
+	f("test", "wrong", 200)
+	f("wrong", "pass", 200)
+	f("wrong", "wrong", 200)
 }
 
 func TestAuthKeyMetrics(t *testing.T) {
 	origUsername := *httpAuthUsername
 	origPasswd := *httpAuthPassword
-	testsForConfiguredAuthKey := []struct {
-		authKey      string
-		expectedCode int
-	}{
-		{
-			authKey:      "test",
-			expectedCode: 200,
-		},
-		{
-			authKey:      "wrongUser",
-			expectedCode: 401,
-		},
-	}
+	defer func() {
+		*httpAuthPassword = origPasswd
+		*httpAuthUsername = origUsername
+	}()
 
-	testsWhenAuthKeyIsNotConfigured := []struct {
-		username     string
-		passwd       string
-		expectedCode int
-	}{
-		{
-			username:     "test",
-			passwd:       "pass",
-			expectedCode: 200,
-		},
-		{
-			username:     "test",
-			passwd:       "wrong",
-			expectedCode: 401,
-		},
-		{
-			username:     "wrongUser",
-			passwd:       "pass",
-			expectedCode: 401,
-		},
-		{
-			username:     "wrongUser",
-			passwd:       "wrongpass",
-			expectedCode: 401,
-		},
-	}
-	authKey := "test"
-	for _, tt := range testsForConfiguredAuthKey {
-		req := httptest.NewRequest(http.MethodPost, "/metrics", strings.NewReader("authKey="+tt.authKey))
+	tstWithAuthKey := func(key string, expCode int) {
+		t.Helper()
+		req := httptest.NewRequest(http.MethodPost, "/metrics", strings.NewReader("authKey="+key))
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded;param=value")
 		w := httptest.NewRecorder()
 
-		CheckAuthFlag(w, req, authKey, "metricsAuthkey")
+		CheckAuthFlag(w, req, "rightKey", "metricsAuthkey")
 
 		res := w.Result()
 		defer res.Body.Close()
-		if tt.expectedCode != res.StatusCode {
-			t.Fatalf("Unexpected status code: %d, Expected code is: %d\n", res.StatusCode, tt.expectedCode)
+		if expCode != res.StatusCode {
+			t.Fatalf("Unexpected status code: %d, Expected code is: %d\n", res.StatusCode, expCode)
+		}
+	}
+
+	tstWithAuthKey("rightKey", 200)
+	tstWithAuthKey("wrongKey", 401)
+
+	tstWithOutAuthKey := func(user, pass string, expCode int) {
+		t.Helper()
+		req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+		req.SetBasicAuth(user, pass)
+
+		w := httptest.NewRecorder()
+		CheckAuthFlag(w, req, "", "metricsAuthkey")
+
+		res := w.Result()
+		_ = res.Body.Close()
+		if expCode != res.StatusCode {
+			t.Fatalf("wanted status code: %d, got: %d\n", res.StatusCode, expCode)
 		}
 	}
 
 	*httpAuthUsername = "test"
 	*httpAuthPassword = "pass"
-	for _, tt := range testsWhenAuthKeyIsNotConfigured {
-		req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
-		req.SetBasicAuth(tt.username, tt.passwd)
-
-		w := httptest.NewRecorder()
-		CheckAuthFlag(w, req, "", "metricsAuthKey")
-
-		res := w.Result()
-		defer res.Body.Close()
-		if tt.expectedCode != res.StatusCode {
-			t.Fatalf("Unexpected status code: %d, Expected code is: %d\n", res.StatusCode, tt.expectedCode)
-		}
-	}
-
-	*httpAuthPassword = origPasswd
-	*httpAuthUsername = origUsername
-
+	tstWithOutAuthKey("test", "pass", 200)
+	tstWithOutAuthKey("test", "wrong", 401)
+	tstWithOutAuthKey("wrong", "pass", 401)
+	tstWithOutAuthKey("wrong", "wrong", 401)
 }
