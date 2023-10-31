@@ -34,7 +34,7 @@ var (
 		"Queries requiring more memory are rejected. The total memory limit for concurrently executed queries can be estimated "+
 		"as -search.maxMemoryPerQuery multiplied by -search.maxConcurrentRequests . "+
 		"See also -search.logQueryMemoryUsage")
-	logQueryMemoryUsage = flagutil.NewBytes("search.logQueryMemoryUsage", 0, "Log queries, which require more memory than specified by this flag. "+
+	logQueryMemoryUsage = flagutil.NewBytes("search.logQueryMemoryUsage", 0, "Log query and increment vm_memory_intensive_queries_total metric each time when the query requires more memory than specified by this flag. "+
 		"This may help detecting and optimizing heavy queries. Query logging is disabled by default. "+
 		"See also -search.logSlowQueryDuration and -search.maxMemoryPerQuery")
 	noStaleMarkers = flag.Bool("search.noStaleMarkers", false, "Set this flag to true if the database doesn't contain Prometheus stale markers, "+
@@ -1059,6 +1059,8 @@ var (
 	rollupResultCacheFullHits    = metrics.NewCounter(`vm_rollup_result_cache_full_hits_total`)
 	rollupResultCachePartialHits = metrics.NewCounter(`vm_rollup_result_cache_partial_hits_total`)
 	rollupResultCacheMiss        = metrics.NewCounter(`vm_rollup_result_cache_miss_total`)
+
+	memoryIntensiveQueries = metrics.NewCounter(`vm_memory_intensive_queries_total`)
 )
 
 func evalRollupFuncWithMetricExpr(qt *querytracer.Tracer, ec *EvalConfig, funcName string, rf rollupFunc,
@@ -1152,6 +1154,7 @@ func evalRollupFuncWithMetricExpr(qt *querytracer.Tracer, ec *EvalConfig, funcNa
 	rollupPoints := mulNoOverflow(pointsPerTimeseries, int64(timeseriesLen*len(rcs)))
 	rollupMemorySize = sumNoOverflow(mulNoOverflow(int64(rssLen), 1000), mulNoOverflow(rollupPoints, 16))
 	if maxMemory := int64(logQueryMemoryUsage.N); maxMemory > 0 && rollupMemorySize > maxMemory {
+		memoryIntensiveQueries.Inc()
 		requestURI := ec.GetRequestURI()
 		logger.Warnf("remoteAddr=%s, requestURI=%s: the %s requires %d bytes of memory for processing; "+
 			"logging this query, since it exceeds the -search.logQueryMemoryUsage=%d; "+
