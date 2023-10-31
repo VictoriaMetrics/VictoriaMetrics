@@ -51,6 +51,19 @@ groups:
             produces 0 samples over the last 30min. It might be caused by a misconfiguration 
             or incorrect query expression."
 
+      - alert: TooManyMissedIterations
+        expr: sum(increase(vmalert_iteration_missed_total[5m])) by(job, instance, group) > 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "vmalert instance {{ $labels.instance }} is missing rules evaluations"
+          description: "vmalert instance {{ $labels.instance }} is missing rules evaluations for group \"{{ $labels.group }}\".
+            The group evaluation time takes longer than the configured evaluation interval. This may result in missed 
+            alerting notifications or recording rules samples. Try increasing evaluation interval or concurrency of
+            group \"{{ $labels.group }}\". See https://docs.victoriametrics.com/vmalert.html#groups. 
+            If rule expressions are taking longer than expected, please see https://docs.victoriametrics.com/Troubleshooting.html#slow-queries."
+
       - alert: RemoteWriteErrors
         expr: sum(increase(vmalert_remotewrite_errors_total[5m])) by(job, instance) > 0
         for: 15m
