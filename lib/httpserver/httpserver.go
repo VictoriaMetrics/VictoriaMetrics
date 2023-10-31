@@ -242,20 +242,21 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 		}
 	}()
 
+	h := w.Header()
 	if *headerHSTS != "" {
-		w.Header().Add("Strict-Transport-Security", *headerHSTS)
+		h.Add("Strict-Transport-Security", *headerHSTS)
 	}
 	if *headerFrameOptions != "" {
-		w.Header().Add("X-Frame-Options", *headerFrameOptions)
+		h.Add("X-Frame-Options", *headerFrameOptions)
 	}
 	if *headerCSP != "" {
-		w.Header().Add("Content-Security-Policy", *headerCSP)
+		h.Add("Content-Security-Policy", *headerCSP)
 	}
-	w.Header().Add("X-Server-Hostname", hostname)
+	h.Add("X-Server-Hostname", hostname)
 	requestsTotal.Inc()
 	if whetherToCloseConn(r) {
 		connTimeoutClosedConns.Inc()
-		w.Header().Set("Connection", "close")
+		h.Set("Connection", "close")
 	}
 	path := r.URL.Path
 	prefix := GetPathPrefix()
@@ -280,7 +281,7 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 	}
 	switch r.URL.Path {
 	case "/health":
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		h.Set("Content-Type", "text/plain; charset=utf-8")
 		deadline := atomic.LoadInt64(&s.shutdownDelayDeadline)
 		if deadline <= 0 {
 			w.Write([]byte("OK"))
@@ -315,7 +316,7 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 			return
 		}
 		startTime := time.Now()
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		h.Set("Content-Type", "text/plain; charset=utf-8")
 		appmetrics.WritePrometheusMetrics(w)
 		metricsHandlerDuration.UpdateDuration(startTime)
 		return
@@ -323,7 +324,7 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 		if !CheckAuthFlag(w, r, *flagsAuthKey, "flagsAuthKey") {
 			return
 		}
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		h.Set("Content-Type", "text/plain; charset=utf-8")
 		flagutil.WriteFlags(w)
 		return
 	case "/-/healthy":
