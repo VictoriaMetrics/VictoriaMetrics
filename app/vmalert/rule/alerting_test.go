@@ -106,6 +106,7 @@ func TestAlertingRule_ToTimeSeries(t *testing.T) {
 
 func TestAlertingRule_Exec(t *testing.T) {
 	const defaultStep = 5 * time.Millisecond
+	startStamp := time.Unix(0, 0)
 	type testAlert struct {
 		labels []string
 		alert  *notifier.Alert
@@ -269,10 +270,11 @@ func TestAlertingRule_Exec(t *testing.T) {
 				{metricWithLabels(t, "name", "foo")},
 			},
 			map[int][]testAlert{
-				0: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StatePending}}},
-				1: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateFiring}}},
-				2: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateFiring}}},
-				3: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateFiring}}},
+				0: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StatePending, ActiveAt: startStamp}}},
+				1: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateFiring, ActiveAt: startStamp, Start: startStamp.Add(defaultStep)}}},
+				2: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateFiring, ActiveAt: startStamp, Start: startStamp.Add(defaultStep)}}},
+				// reset ActiveAt&Start
+				3: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateFiring, ActiveAt: startStamp.Add(3 * defaultStep), Start: startStamp.Add(3 * defaultStep)}}},
 			},
 		},
 		{
@@ -290,13 +292,13 @@ func TestAlertingRule_Exec(t *testing.T) {
 				{metricWithLabels(t, "name", "foo")},
 			},
 			map[int][]testAlert{
-				0: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StatePending}}},
-				1: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateFiring}}},
-				2: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateFiring}}},
-				3: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateFiring}}},
-				4: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateInactive}}},
-				5: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StatePending}}},
-				6: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateFiring}}},
+				0: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StatePending, ActiveAt: startStamp}}},
+				1: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateFiring, ActiveAt: startStamp, Start: startStamp.Add(defaultStep)}}},
+				2: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateFiring, ActiveAt: startStamp, Start: startStamp.Add(defaultStep)}}},
+				3: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateFiring, ActiveAt: startStamp, Start: startStamp.Add(defaultStep)}}},
+				4: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateInactive, ActiveAt: time.Time{}, Start: time.Time{}}}},
+				5: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StatePending, ActiveAt: startStamp.Add(5 * defaultStep), Start: time.Time{}}}},
+				6: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateFiring, ActiveAt: startStamp.Add(5 * defaultStep), Start: startStamp.Add(6 * defaultStep)}}},
 			},
 		},
 	}
@@ -309,7 +311,7 @@ func TestAlertingRule_Exec(t *testing.T) {
 			for i, step := range tc.steps {
 				fq.Reset()
 				fq.Add(step...)
-				if _, err := tc.rule.exec(context.TODO(), time.Now(), 0); err != nil {
+				if _, err := tc.rule.exec(context.TODO(), startStamp.Add(time.Duration(i)*defaultStep), 0); err != nil {
 					t.Fatalf("unexpected err: %s", err)
 				}
 				// artificial delay between applying steps
@@ -338,6 +340,12 @@ func TestAlertingRule_Exec(t *testing.T) {
 					}
 					if got.State != exp.State {
 						t.Fatalf("evalIndex %d: expected state %d; got %d", i, exp.State, got.State)
+					}
+					if !exp.ActiveAt.IsZero() && !got.ActiveAt.Equal(exp.ActiveAt) {
+						t.Fatalf("evalIndex %d: expected activeAt %q; got %q", i, exp.ActiveAt, got.ActiveAt)
+					}
+					if !exp.Start.IsZero() && !got.Start.Equal(exp.Start) {
+						t.Fatalf("evalIndex %d: expected start %q; got %q", i, exp.Start, got.Start)
 					}
 				}
 			}

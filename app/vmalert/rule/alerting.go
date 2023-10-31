@@ -437,6 +437,12 @@ func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int) ([]pr
 			if err != nil {
 				return nil, err
 			}
+			// reset `ActiveAt` and `Start` when alert becomes firing from previous `Stabilizing`[maintained by `keep_firing_for`]
+			if a.State == notifier.StateFiring && !a.KeepFiringSince.IsZero() {
+				a.ActiveAt = ts
+				a.Start = ts
+				ar.logDebugf(ts, a, "KEEP_FIRING => FIRING")
+			}
 			a.KeepFiringSince = time.Time{}
 			continue
 		}
@@ -473,7 +479,7 @@ func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int) ([]pr
 				}
 				// alerts with ar.KeepFiringFor>0 may remain FIRING
 				// even if their expression isn't true anymore
-				if ts.Sub(a.KeepFiringSince) > ar.KeepFiringFor {
+				if ts.Sub(a.KeepFiringSince) >= ar.KeepFiringFor {
 					a.State = notifier.StateInactive
 					a.ResolvedAt = ts
 					ar.logDebugf(ts, a, "FIRING => INACTIVE: is absent in current evaluation round")
