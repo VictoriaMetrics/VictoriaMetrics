@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -34,6 +35,93 @@ func TestGetQuotedRemoteAddr(t *testing.T) {
 	f("1.2.3.4", "", `"1.2.3.4"`)
 	f("1.2.3.4", "foo.bar", `"1.2.3.4, X-Forwarded-For: foo.bar"`)
 	f("1.2\n\"3.4", "foo\nb\"ar", `"1.2\n\"3.4, X-Forwarded-For: foo\nb\"ar"`)
+}
+
+func TestBasicAuthMetrics(t *testing.T) {
+	origUsername := *httpAuthUsername
+	origPasswd := *httpAuthPassword
+	defer func() {
+		*httpAuthPassword = origPasswd
+		*httpAuthUsername = origUsername
+	}()
+
+	f := func(user, pass string, expCode int) {
+		t.Helper()
+		req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+		req.SetBasicAuth(user, pass)
+
+		w := httptest.NewRecorder()
+		CheckBasicAuth(w, req)
+
+		res := w.Result()
+		_ = res.Body.Close()
+		if expCode != res.StatusCode {
+			t.Fatalf("wanted status code: %d, got: %d\n", res.StatusCode, expCode)
+		}
+	}
+
+	*httpAuthUsername = "test"
+	*httpAuthPassword = "pass"
+	f("test", "pass", 200)
+	f("test", "wrong", 401)
+	f("wrong", "pass", 401)
+	f("wrong", "wrong", 401)
+
+	*httpAuthUsername = ""
+	*httpAuthPassword = ""
+	f("test", "pass", 200)
+	f("test", "wrong", 200)
+	f("wrong", "pass", 200)
+	f("wrong", "wrong", 200)
+}
+
+func TestAuthKeyMetrics(t *testing.T) {
+	origUsername := *httpAuthUsername
+	origPasswd := *httpAuthPassword
+	defer func() {
+		*httpAuthPassword = origPasswd
+		*httpAuthUsername = origUsername
+	}()
+
+	tstWithAuthKey := func(key string, expCode int) {
+		t.Helper()
+		req := httptest.NewRequest(http.MethodPost, "/metrics", strings.NewReader("authKey="+key))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded;param=value")
+		w := httptest.NewRecorder()
+
+		CheckAuthFlag(w, req, "rightKey", "metricsAuthkey")
+
+		res := w.Result()
+		defer res.Body.Close()
+		if expCode != res.StatusCode {
+			t.Fatalf("Unexpected status code: %d, Expected code is: %d\n", res.StatusCode, expCode)
+		}
+	}
+
+	tstWithAuthKey("rightKey", 200)
+	tstWithAuthKey("wrongKey", 401)
+
+	tstWithOutAuthKey := func(user, pass string, expCode int) {
+		t.Helper()
+		req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+		req.SetBasicAuth(user, pass)
+
+		w := httptest.NewRecorder()
+		CheckAuthFlag(w, req, "", "metricsAuthkey")
+
+		res := w.Result()
+		_ = res.Body.Close()
+		if expCode != res.StatusCode {
+			t.Fatalf("wanted status code: %d, got: %d\n", res.StatusCode, expCode)
+		}
+	}
+
+	*httpAuthUsername = "test"
+	*httpAuthPassword = "pass"
+	tstWithOutAuthKey("test", "pass", 200)
+	tstWithOutAuthKey("test", "wrong", 401)
+	tstWithOutAuthKey("wrong", "pass", 401)
+	tstWithOutAuthKey("wrong", "wrong", 401)
 }
 
 func TestHandlerWrapper(t *testing.T) {

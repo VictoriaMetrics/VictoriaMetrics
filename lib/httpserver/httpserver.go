@@ -372,6 +372,7 @@ func CheckAuthFlag(w http.ResponseWriter, r *http.Request, flagValue string, fla
 		return CheckBasicAuth(w, r)
 	}
 	if r.FormValue("authKey") != flagValue {
+		authKeyRequestErrors.Inc()
 		http.Error(w, fmt.Sprintf("The provided authKey doesn't match -%s", flagName), http.StatusUnauthorized)
 		return false
 	}
@@ -386,9 +387,13 @@ func CheckBasicAuth(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 	username, password, ok := r.BasicAuth()
-	if ok && username == *httpAuthUsername && password == *httpAuthPassword {
-		return true
+	if ok {
+		if username == *httpAuthUsername && password == *httpAuthPassword {
+			return true
+		}
+		authBasicRequestErrors.Inc()
 	}
+
 	w.Header().Set("WWW-Authenticate", `Basic realm="VictoriaMetrics"`)
 	http.Error(w, "", http.StatusUnauthorized)
 	return false
@@ -442,6 +447,8 @@ var (
 	pprofDefaultRequests = metrics.NewCounter(`vm_http_requests_total{path="/debug/pprof/default"}`)
 	faviconRequests      = metrics.NewCounter(`vm_http_requests_total{path="/favicon.ico"}`)
 
+	authBasicRequestErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="*", reason="wrong basic auth creds"}`)
+	authKeyRequestErrors     = metrics.NewCounter(`vm_http_request_errors_total{path="*", reason="wrong auth key"}`)
 	unsupportedRequestErrors = metrics.NewCounter(`vm_http_request_errors_total{path="*", reason="unsupported"}`)
 
 	requestsTotal = metrics.NewCounter(`vm_http_requests_all_total`)
