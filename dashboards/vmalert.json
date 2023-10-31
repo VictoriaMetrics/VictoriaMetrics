@@ -2346,13 +2346,13 @@
                 "uid": "$ds"
               },
               "exemplar": false,
-              "expr": "sum(rate(vmalert_alerts_send_errors_total{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"}[$__rate_interval])) by(instance, addr) > 0",
+              "expr": "sum(rate(vmalert_alerts_send_errors_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(instance, addr) > 0",
               "interval": "",
               "legendFormat": "{{instance}} => {{addr}}",
               "refId": "A"
             }
           ],
-          "title": "Errors rate to Alertmanager ($group)",
+          "title": "Errors rate to Alertmanager",
           "type": "timeseries"
         },
         {
