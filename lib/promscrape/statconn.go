@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -22,7 +24,7 @@ func statStdDial(ctx context.Context, _, addr string) (net.Conn, error) {
 	dialsTotal.Inc()
 	if err != nil {
 		dialErrors.Inc()
-		if !netutil.TCP6Enabled() {
+		if !netutil.TCP6Enabled() && !isTCPv4Addr(addr) {
 			err = fmt.Errorf("%w; try -enableTCP6 command-line flag if you scrape ipv6 addresses", err)
 		}
 		return nil, err
@@ -60,7 +62,7 @@ func newStatDialFunc(proxyURL *proxy.URL, ac *promauth.Config) (fasthttp.DialFun
 		dialsTotal.Inc()
 		if err != nil {
 			dialErrors.Inc()
-			if !netutil.TCP6Enabled() {
+			if !netutil.TCP6Enabled() && !isTCPv4Addr(addr) {
 				err = fmt.Errorf("%w; try -enableTCP6 command-line flag if you scrape ipv6 addresses", err)
 			}
 			return nil, err
@@ -121,3 +123,40 @@ var (
 	connBytesRead    = metrics.NewCounter(`vm_promscrape_conn_bytes_read_total`)
 	connBytesWritten = metrics.NewCounter(`vm_promscrape_conn_bytes_written_total`)
 )
+
+func isTCPv4Addr(addr string) bool {
+	s := addr
+	for i := 0; i < 3; i++ {
+		n := strings.IndexByte(s, '.')
+		if n < 0 {
+			return false
+		}
+		if !isUint8NumString(s[:n]) {
+			return false
+		}
+		s = s[n+1:]
+	}
+	n := strings.IndexByte(s, ':')
+	if n < 0 {
+		return false
+	}
+	if !isUint8NumString(s[:n]) {
+		return false
+	}
+	s = s[n+1:]
+
+	// Verify TCP port
+	n, err := strconv.Atoi(s)
+	if err != nil {
+		return false
+	}
+	return n >= 0 && n < (1<<16)
+}
+
+func isUint8NumString(s string) bool {
+	n, err := strconv.Atoi(s)
+	if err != nil {
+		return false
+	}
+	return n >= 0 && n < (1<<8)
+}

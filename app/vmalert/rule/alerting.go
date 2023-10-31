@@ -269,7 +269,7 @@ func (ar *AlertingRule) toLabels(m datasource.Metric, qFn templates.QueryFn) (*l
 		Expr:   ar.Expr,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to expand labels: %s", err)
+		return nil, fmt.Errorf("failed to expand labels: %w", err)
 	}
 	for k, v := range extraLabels {
 		ls.processed[k] = v
@@ -295,24 +295,33 @@ func (ar *AlertingRule) toLabels(m datasource.Metric, qFn templates.QueryFn) (*l
 }
 
 // execRange executes alerting rule on the given time range similarly to exec.
-// It doesn't update internal states of the Rule and meant to be used just
-// to get time series for backfilling.
-// It returns ALERT and ALERT_FOR_STATE time series as result.
+// When making consecutive calls make sure to respect time linearity for start and end params,
+// as this function modifies AlertingRule alerts state.
+// It is not thread safe.
+// It returns ALERT and ALERT_FOR_STATE time series as a result.
 func (ar *AlertingRule) execRange(ctx context.Context, start, end time.Time) ([]prompbmarshal.TimeSeries, error) {
 	res, err := ar.q.QueryRange(ctx, ar.Expr, start, end)
 	if err != nil {
 		return nil, err
 	}
 	var result []prompbmarshal.TimeSeries
+	holdAlertState := make(map[uint64]*notifier.Alert)
 	qFn := func(query string) ([]datasource.Metric, error) {
 		return nil, fmt.Errorf("`query` template isn't supported in replay mode")
 	}
 	for _, s := range res.Data {
+		ls, err := ar.toLabels(s, qFn)
+		if err != nil {
+			return nil, fmt.Errorf("failed to expand labels: %s", err)
+		}
+		h := hash(ls.processed)
 		a, err := ar.newAlert(s, nil, time.Time{}, qFn) // initial alert
 		if err != nil {
-			return nil, fmt.Errorf("failed to create alert: %s", err)
+			return nil, fmt.Errorf("failed to create alert: %w", err)
 		}
-		if ar.For == 0 { // if alert is instant
+
+		// if alert is instant, For: 0
+		if ar.For == 0 {
 			a.State = notifier.StateFiring
 			for i := range s.Values {
 				result = append(result, ar.alertToTimeSeries(a, s.Timestamps[i])...)
@@ -324,18 +333,32 @@ func (ar *AlertingRule) execRange(ctx context.Context, start, end time.Time) ([]
 		prevT := time.Time{}
 		for i := range s.Values {
 			at := time.Unix(s.Timestamps[i], 0)
+			// try to restore alert's state on the first iteration
+			if at.Equal(start) {
+				if _, ok := ar.alerts[h]; ok {
+					a = ar.alerts[h]
+					prevT = at
+				}
+			}
 			if at.Sub(prevT) > ar.EvalInterval {
 				// reset to Pending if there are gaps > EvalInterval between DPs
 				a.State = notifier.StatePending
 				a.ActiveAt = at
-			} else if at.Sub(a.ActiveAt) >= ar.For {
+				a.Start = time.Time{}
+			} else if at.Sub(a.ActiveAt) >= ar.For && a.State != notifier.StateFiring {
 				a.State = notifier.StateFiring
 				a.Start = at
 			}
 			prevT = at
 			result = append(result, ar.alertToTimeSeries(a, s.Timestamps[i])...)
+
+			// save alert's state on last iteration, so it can be used on the next execRange call
+			if at.Equal(end) {
+				holdAlertState[h] = a
+			}
 		}
 	}
+	ar.alerts = holdAlertState
 	return result, nil
 }
 
@@ -388,7 +411,7 @@ func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int) ([]pr
 	for _, m := range res.Data {
 		ls, err := ar.toLabels(m, qFn)
 		if err != nil {
-			curState.Err = fmt.Errorf("failed to expand labels: %s", err)
+			curState.Err = fmt.Errorf("failed to expand labels: %w", err)
 			return nil, curState.Err
 		}
 		h := hash(ls.processed)
@@ -513,7 +536,7 @@ func (ar *AlertingRule) newAlert(m datasource.Metric, ls *labelSet, start time.T
 	if ls == nil {
 		ls, err = ar.toLabels(m, qFn)
 		if err != nil {
-			return nil, fmt.Errorf("failed to expand labels: %s", err)
+			return nil, fmt.Errorf("failed to expand labels: %w", err)
 		}
 	}
 	a := &notifier.Alert{

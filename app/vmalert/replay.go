@@ -36,11 +36,11 @@ func replay(groupsCfg []config.Group, qb datasource.QuerierBuilder, rw remotewri
 	}
 	tFrom, err := time.Parse(time.RFC3339, *replayFrom)
 	if err != nil {
-		return fmt.Errorf("failed to parse %q: %s", *replayFrom, err)
+		return fmt.Errorf("failed to parse %q: %w", *replayFrom, err)
 	}
 	tTo, err := time.Parse(time.RFC3339, *replayTo)
 	if err != nil {
-		return fmt.Errorf("failed to parse %q: %s", *replayTo, err)
+		return fmt.Errorf("failed to parse %q: %w", *replayTo, err)
 	}
 	if !tTo.After(tFrom) {
 		return fmt.Errorf("replay.timeTo must be bigger than replay.timeFrom")

@@ -110,7 +110,7 @@ func (r *listDropletResponse) nextURLPath() (string, error) {
 	}
 	u, err := url.Parse(r.Links.Pages.Next)
 	if err != nil {
-		return "", fmt.Errorf("cannot parse digital ocean next url: %s, err: %s", r.Links.Pages.Next, err)
+		return "", fmt.Errorf("cannot parse digital ocean next url: %s: %w", r.Links.Pages.Next, err)
 	}
 	return u.RequestURI(), nil
 }

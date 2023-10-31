@@ -132,10 +132,10 @@ func checkParseStream(data []byte, checkSeries func(tss []prompbmarshal.TimeSeri
 	var bb bytes.Buffer
 	zw := gzip.NewWriter(&bb)
 	if _, err := zw.Write(data); err != nil {
-		return fmt.Errorf("cannot compress data: %s", err)
+		return fmt.Errorf("cannot compress data: %w", err)
 	}
 	if err := zw.Close(); err != nil {
-		return fmt.Errorf("cannot close gzip writer: %s", err)
+		return fmt.Errorf("cannot close gzip writer: %w", err)
 	}
 	if err := ParseStream(&bb, true, checkSeries); err != nil {
 		return fmt.Errorf("error when parsing compressed data: %w", err)

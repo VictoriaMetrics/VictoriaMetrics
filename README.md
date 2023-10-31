@@ -1897,8 +1897,20 @@ See how to request a free trial license [here](https://victoriametrics.com/produ
 
 * `-downsampling.period=30d:5m,180d:1h` instructs VictoriaMetrics to deduplicate samples older than 30 days with 5 minutes interval and to deduplicate samples older than 180 days with 1 hour interval.
 
-Downsampling is applied independently per each time series. It can reduce disk space usage and improve query performance if it is applied to time series with big number of samples per each series. The downsampling doesn't improve query performance if the database contains big number of time series with small number of samples per each series (aka [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate)), since downsampling doesn't reduce the number of time series. So the majority of time is spent on searching for the matching time series. 
-It is possible to use [stream aggregation](https://docs.victoriametrics.com/stream-aggregation.html) in vmagent or recording rules in [vmalert](https://docs.victoriametrics.com/vmalert.html) in order to [reduce the number of time series](https://docs.victoriametrics.com/vmalert.html#downsampling-and-aggregation-via-vmalert).
+Downsampling is applied independently per each time series and leaves a single [raw sample](https://docs.victoriametrics.com/keyConcepts.html#raw-samples)
+with the biggest [timestamp](https://en.wikipedia.org/wiki/Unix_time) on the interval, in the same way as [deduplication](#deduplication).
+It works the best for [counters](https://docs.victoriametrics.com/keyConcepts.html#counter) and [histograms](https://docs.victoriametrics.com/keyConcepts.html#histogram),
+as their values are always increasing. But downsampling [gauges](https://docs.victoriametrics.com/keyConcepts.html#gauge)
+would mean losing the changes within the downsampling interval. Please note, you can use [recording rules](https://docs.victoriametrics.com/vmalert.html#rules)
+to apply custom aggregation functions, like min/max/avg etc., in order to make gauges more resilient to downsampling.
+
+Downsampling can reduce disk space usage and improve query performance if it is applied to time series with big number 
+of samples per each series. The downsampling doesn't improve query performance if the database contains big number 
+of time series with small number of samples per each series (aka [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate)),
+since downsampling doesn't reduce the number of time series. So the majority of time is spent on searching for the matching time series. 
+It is possible to use [stream aggregation](https://docs.victoriametrics.com/stream-aggregation.html) in vmagent or 
+recording rules in [vmalert](https://docs.victoriametrics.com/vmalert.html) in order to 
+[reduce the number of time series](https://docs.victoriametrics.com/vmalert.html#downsampling-and-aggregation-via-vmalert).
 
 Downsampling happens during [background merges](https://docs.victoriametrics.com/#storage) 
 and can't be performed if there is not enough of free disk space or if vmstorage 
@@ -1948,6 +1960,7 @@ VictoriaMetrics provides the following security-related command-line flags:
 * `-tls`, `-tlsCertFile` and `-tlsKeyFile` for switching from HTTP to HTTPS.
 * `-httpAuth.username` and `-httpAuth.password` for protecting all the HTTP endpoints
   with [HTTP Basic Authentication](https://en.wikipedia.org/wiki/Basic_access_authentication).
+* `-http.header.hsts`, `-http.header.csp`, and `-http.header.frameOptions` for serving `Strict-Transport-Security`, `Content-Security-Policy` and `X-Frame-Options` HTTP response headers.
 * `-deleteAuthKey` for protecting `/api/v1/admin/tsdb/delete_series` endpoint. See [how to delete time series](#how-to-delete-time-series).
 * `-snapshotAuthKey` for protecting `/snapshot*` endpoints. See [how to work with snapshots](#how-to-work-with-snapshots).
 * `-forceMergeAuthKey` for protecting `/internal/force_merge` endpoint. See [force merge docs](#forced-merge).
@@ -2541,6 +2554,12 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      Incoming http connections are closed after the configured timeout. This may help to spread the incoming load among a cluster of services behind a load balancer. Please note that the real timeout may be bigger by up to 10% as a protection against the thundering herd problem (default 2m0s)
   -http.disableResponseCompression
      Disable compression of HTTP responses to save CPU resources. By default, compression is enabled to save network bandwidth
+  -http.header.csp string
+     Value for 'Content-Security-Policy' header
+  -http.header.frameOptions string
+     Value for 'X-Frame-Options' header
+  -http.header.hsts string
+     Value for 'Strict-Transport-Security' header
   -http.idleConnTimeout duration
      Timeout for incoming idle http connections (default 1m0s)
   -http.maxGracefulShutdownDuration duration

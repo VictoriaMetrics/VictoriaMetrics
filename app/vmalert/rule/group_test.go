@@ -641,7 +641,7 @@ func TestGetPrometheusReqTimestamp(t *testing.T) {
 				Interval: time.Hour,
 			},
 			"2023-08-28T11:11:00+00:00",
-			"2023-08-28T10:59:30+00:00",
+			"2023-08-28T11:00:00+00:00",
 		},
 		{
 			"without query align + default evalDelay",
@@ -671,13 +671,22 @@ func TestGetPrometheusReqTimestamp(t *testing.T) {
 			"2023-08-28T11:30:00+00:00",
 		},
 		{
-			"with eval_delay",
+			"1h interval with eval_delay",
 			&Group{
 				EvalDelay: &evalDelay,
 				Interval:  time.Hour,
 			},
 			"2023-08-28T11:41:00+00:00",
-			"2023-08-28T10:59:00+00:00",
+			"2023-08-28T11:00:00+00:00",
+		},
+		{
+			"1m interval with eval_delay",
+			&Group{
+				EvalDelay: &evalDelay,
+				Interval:  time.Minute,
+			},
+			"2023-08-28T11:41:13+00:00",
+			"2023-08-28T11:40:00+00:00",
 		},
 		{
 			"disable alignment with eval_delay",
@@ -691,12 +700,14 @@ func TestGetPrometheusReqTimestamp(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		originT, _ := time.Parse(time.RFC3339, tc.originTS)
-		expT, _ := time.Parse(time.RFC3339, tc.expTS)
-		gotTS := tc.g.adjustReqTimestamp(originT)
-		if !gotTS.Equal(expT) {
-			t.Fatalf("get wrong prometheus request timestamp, expect %s, got %s", expT, gotTS)
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			originT, _ := time.Parse(time.RFC3339, tc.originTS)
+			expT, _ := time.Parse(time.RFC3339, tc.expTS)
+			gotTS := tc.g.adjustReqTimestamp(originT)
+			if !gotTS.Equal(expT) {
+				t.Fatalf("get wrong prometheus request timestamp, expect %s, got %s", expT, gotTS)
+			}
+		})
 	}
 }
 
