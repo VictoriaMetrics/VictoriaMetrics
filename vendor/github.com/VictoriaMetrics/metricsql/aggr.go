@@ -25,6 +25,7 @@ var aggrFuncs = map[string]bool{
 	"median":         true,
 	"min":            true,
 	"mode":           true,
+	"outliers_iqr":   true,
 	"outliers_mad":   true,
 	"outliersk":      true,
 	"quantile":       true,

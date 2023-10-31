@@ -47,6 +47,7 @@ var rollupFuncs = map[string]bool{
 	"median_over_time":        true,
 	"min_over_time":           true,
 	"mode_over_time":          true,
+	"outlier_iqr_over_time":   true,
 	"predict_linear":          true,
 	"present_over_time":       true,
 	"quantile_over_time":      true,

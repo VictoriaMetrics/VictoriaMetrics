@@ -38,6 +38,7 @@ var aggrFuncs = map[string]aggrFunc{
 	"median":         aggrFuncMedian,
 	"min":            newAggrFunc(aggrFuncMin),
 	"mode":           newAggrFunc(aggrFuncMode),
+	"outliers_iqr":   aggrFuncOutliersIQR,
 	"outliers_mad":   aggrFuncOutliersMAD,
 	"outliersk":      aggrFuncOutliersK,
 	"quantile":       aggrFuncQuantile,
@@ -943,6 +944,58 @@ func aggrFuncMAD(tss []*timeseries) []*timeseries {
 	tss[0].Values = append(tss[0].Values[:0], mads...)
 	return tss[:1]
 }
+
+func aggrFuncOutliersIQR(afa *aggrFuncArg) ([]*timeseries, error) {
+	args := afa.args
+	if err := expectTransformArgsNum(args, 1); err != nil {
+		return nil, err
+	}
+	afe := func(tss []*timeseries, modifier *metricsql.ModifierExpr) []*timeseries {
+		// Calculate lower and upper bounds for interquartile range per each point across tss
+		// according to Outliers section at https://en.wikipedia.org/wiki/Interquartile_range
+		lower, upper := getPerPointIQRBounds(tss)
+		// Leave only time series with outliers above upper bound or below lower bound
+		tssDst := tss[:0]
+		for _, ts := range tss {
+			values := ts.Values
+			for i, v := range values {
+				if v > upper[i] || v < lower[i] {
+					tssDst = append(tssDst, ts)
+					break
+				}
+			}
+		}
+		return tssDst
+	}
+	return aggrFuncExt(afe, args[0], &afa.ae.Modifier, afa.ae.Limit, true)
+}
+
+func getPerPointIQRBounds(tss []*timeseries) ([]float64, []float64) {
+	if len(tss) == 0 {
+		return nil, nil
+	}
+	pointsLen := len(tss[0].Values)
+	values := make([]float64, 0, len(tss))
+	var qs []float64
+	lower := make([]float64, pointsLen)
+	upper := make([]float64, pointsLen)
+	for i := 0; i < pointsLen; i++ {
+		values = values[:0]
+		for _, ts := range tss {
+			v := ts.Values[i]
+			if !math.IsNaN(v) {
+				values = append(values, v)
+			}
+		}
+		qs := quantiles(qs[:0], iqrPhis, values)
+		iqr := 1.5 * (qs[1] - qs[0])
+		lower[i] = qs[0] - iqr
+		upper[i] = qs[1] + iqr
+	}
+	return lower, upper
+}
+
+var iqrPhis = []float64{0.25, 0.75}
 
 func aggrFuncOutliersMAD(afa *aggrFuncArg) ([]*timeseries, error) {
 	args := afa.args
