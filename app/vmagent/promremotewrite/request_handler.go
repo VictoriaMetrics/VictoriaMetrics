@@ -9,7 +9,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
-	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/promremotewrite/stream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
 	"github.com/VictoriaMetrics/metrics"
@@ -23,7 +22,7 @@ var (
 
 // InsertHandler processes remote write for prometheus.
 func InsertHandler(at *auth.Token, req *http.Request) error {
-	extraLabels, err := parserCommon.GetExtraLabels(req)
+	extraLabels, err := common.GetExtraLabels(at, req)
 	if err != nil {
 		return err
 	}

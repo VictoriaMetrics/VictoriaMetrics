@@ -7,7 +7,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
-	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/csvimport"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/csvimport/stream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
@@ -22,7 +21,7 @@ var (
 
 // InsertHandler processes csv data from req.
 func InsertHandler(at *auth.Token, req *http.Request) error {
-	extraLabels, err := parserCommon.GetExtraLabels(req)
+	extraLabels, err := common.GetExtraLabels(at, req)
 	if err != nil {
 		return err
 	}

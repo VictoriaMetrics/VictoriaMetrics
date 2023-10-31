@@ -10,7 +10,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
-	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/newrelic"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/newrelic/stream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
@@ -24,7 +23,7 @@ var (
 
 // InsertHandlerForHTTP processes remote write for NewRelic POST /infra/v2/metrics/events/bulk request.
 func InsertHandlerForHTTP(at *auth.Token, req *http.Request) error {
-	extraLabels, err := parserCommon.GetExtraLabels(req)
+	extraLabels, err := common.GetExtraLabels(at, req)
 	if err != nil {
 		return err
 	}

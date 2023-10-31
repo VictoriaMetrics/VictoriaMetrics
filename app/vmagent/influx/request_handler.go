@@ -13,7 +13,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
-	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/influx"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/influx/stream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
@@ -46,7 +45,7 @@ func InsertHandlerForReader(r io.Reader, isGzipped bool) error {
 //
 // See https://github.com/influxdata/influxdb/blob/4cbdc197b8117fee648d62e2e5be75c6575352f0/tsdb/README.md
 func InsertHandlerForHTTP(at *auth.Token, req *http.Request) error {
-	extraLabels, err := parserCommon.GetExtraLabels(req)
+	extraLabels, err := common.GetExtraLabels(at, req)
 	if err != nil {
 		return err
 	}

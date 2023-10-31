@@ -23,7 +23,7 @@ var (
 
 // InsertHandler processes `/api/v1/import/prometheus` request.
 func InsertHandler(at *auth.Token, req *http.Request) error {
-	extraLabels, err := parserCommon.GetExtraLabels(req)
+	extraLabels, err := common.GetExtraLabels(at, req)
 	if err != nil {
 		return err
 	}

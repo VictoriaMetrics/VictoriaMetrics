@@ -321,32 +321,13 @@ func Stop() {
 	}
 }
 
-// Push sends wr to remote storage systems set via `-remoteWrite.url`.
-//
-// If at is nil, then the data is pushed to the configured `-remoteWrite.url`.
-// If at isn't nil, the data is pushed to the configured `-remoteWrite.multitenantURL`.
+// Push sends wr to remote storage systems set via `-remoteWrite.url` or `-remoteWrite.multitenantURL`.
 //
 // Note that wr may be modified by Push because of relabeling and rounding.
 func Push(at *auth.Token, wr *prompbmarshal.WriteRequest) {
 	var rwctxs []*remoteWriteCtx
 	if len(*remoteWriteURLs) > 0 {
 		rwctxs = rwctxsDefault
-		if at != nil {
-			// Append labels for -remoteWrite.url writes with specified tenant.
-			for i := range wr.Timeseries {
-				ts := &wr.Timeseries[i]
-				ts.Labels = append(ts.Labels,
-					prompbmarshal.Label{
-						Name:  "vm_account_id",
-						Value: strconv.Itoa(int(at.AccountID)),
-					},
-					prompbmarshal.Label{
-						Name:  "vm_project_id",
-						Value: strconv.Itoa(int(at.ProjectID)),
-					},
-				)
-			}
-		}
 	} else {
 		if at == nil {
 			// Write data to default tenant if at isn't set while -remoteWrite.multitenantURL is set.

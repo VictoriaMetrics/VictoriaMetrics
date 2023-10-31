@@ -7,7 +7,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
-	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/datadog"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/datadog/stream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
@@ -24,7 +23,7 @@ var (
 //
 // See https://docs.datadoghq.com/api/latest/metrics/#submit-metrics
 func InsertHandlerForHTTP(at *auth.Token, req *http.Request) error {
-	extraLabels, err := parserCommon.GetExtraLabels(req)
+	extraLabels, err := common.GetExtraLabels(at, req)
 	if err != nil {
 		return err
 	}
