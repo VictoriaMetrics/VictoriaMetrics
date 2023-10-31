@@ -1,3 +1,13 @@
+---
+sort: 5
+weight: 5
+title: VMAuth
+menu:
+  docs:
+    parent: "operator-custom-resources"
+    weight: 5
+---
+
 # VMAuth
 
 The `VMAuth` CRD provides mechanism for exposing application with authorization to outside world or to other applications inside kubernetes cluster.

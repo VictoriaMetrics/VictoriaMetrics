@@ -1,3 +1,16 @@
+# v1.18.0 (2023-10-31)
+
+* **Feature**: **BREAKING CHANGE**: Bump minimum go version to 1.19 per the revised [go version support policy](https://aws.amazon.com/blogs/developer/aws-sdk-for-go-aligns-with-go-release-policy-on-supported-runtimes/).
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.3 (2023-10-12)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.2 (2023-10-06)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # v1.17.1 (2023-09-22)
 
 * No change notes available for this release.

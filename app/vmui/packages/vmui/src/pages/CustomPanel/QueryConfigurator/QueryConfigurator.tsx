@@ -1,4 +1,5 @@
-import React, { FC, StateUpdater, useEffect, useState } from "preact/compat";
+import React, { FC, useEffect, useState } from "preact/compat";
+import { StateUpdater } from "preact/hooks";
 import QueryEditor from "../../../components/Configurators/QueryEditor/QueryEditor";
 import AdditionalSettings from "../../../components/Configurators/AdditionalSettings/AdditionalSettings";
 import usePrevious from "../../../hooks/usePrevious";
@@ -29,7 +30,6 @@ export interface QueryConfiguratorProps {
   setQueryErrors: StateUpdater<string[]>;
   setHideError: StateUpdater<boolean>;
   stats: QueryStats[];
-  queryOptions: string[]
   onHideQuery: (queries: number[]) => void
   onRunQuery: () => void
 }
@@ -39,7 +39,6 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
   setQueryErrors,
   setHideError,
   stats,
-  queryOptions,
   onHideQuery,
   onRunQuery
 }) => {
@@ -189,7 +188,6 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
           <QueryEditor
             value={stateQuery[i]}
             autocomplete={autocomplete}
-            options={queryOptions}
             error={queryErrors[i]}
             stats={stats[i]}
             onArrowUp={createHandlerArrow(-1, i)}

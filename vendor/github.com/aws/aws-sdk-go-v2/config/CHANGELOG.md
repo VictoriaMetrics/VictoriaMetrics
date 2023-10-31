@@ -1,3 +1,25 @@
+# v1.20.0 (2023-10-31)
+
+* **Feature**: **BREAKING CHANGE**: Bump minimum go version to 1.19 per the revised [go version support policy](https://aws.amazon.com/blogs/developer/aws-sdk-for-go-aligns-with-go-release-policy-on-supported-runtimes/).
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.19.1 (2023-10-24)
+
+* No change notes available for this release.
+
+# v1.19.0 (2023-10-16)
+
+* **Feature**: Modify logic of retrieving user agent appID from env config
+
+# v1.18.45 (2023-10-12)
+
+* **Bug Fix**: Fail to load config if an explicitly provided profile doesn't exist.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.18.44 (2023-10-06)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # v1.18.43 (2023-10-02)
 
 * **Dependency Update**: Updated to the latest SDK module versions

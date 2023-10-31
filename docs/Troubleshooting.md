@@ -1,11 +1,11 @@
 ---
-sort: 26
-weight: 26
+sort: 35
+weight: 35
 title: Troubleshooting
 menu:
   docs:
-    parent: "victoriametrics"
-    weight: 26
+    parent: 'victoriametrics'
+    weight: 35
 aliases:
 - /Troubleshooting.html
 ---
@@ -177,7 +177,7 @@ If you see unexpected or unreliable query results from VictoriaMetrics, then try
    to the static interval for gaps filling by setting `-search.minStalenessInterval=5m` cmd-line flag (`5m` is
    the static interval used by Prometheus).
 
-1. Try upgrading to the [latest available version of VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/releases)
+1. Try upgrading to the [latest available version of VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest)
    and verifying whether the issue is fixed there.
 
 1. Try executing the query with `trace=1` query arg. This enables query tracing, which may contain
@@ -414,6 +414,14 @@ The most common sources of cluster instability are:
   The recommended number of `vmstorage` nodes should be multiplied by `-replicationFactor` if replication is enabled -
   see [replication and data safety docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#replication-and-data-safety)
   for details.
+
+- Time series sharding. Received time series [are consistently sharded](https://docs.victoriametrics.com/vmalert.html#rules-backfilling)
+  by `vminsert` between configured `vmstorage` nodes. As a sharding key `vminsert` is using time series name and labels,
+  respecting their order. If the order of labels in time series is constantly changing, this could cause wrong sharding
+  calculation and result in un-even and sub-optimal time series distribution across available vmstorages. It is expected
+  that metrics pushing client is responsible for consistent labels order (like `Prometheus` or `vmagent` during scraping).
+  If this can't be guaranteed, set `-sortLabels=true` cmd-line flag to `vminsert`. Please note, sorting may increase
+  CPU usage for `vminsert`.
 
 The obvious solution against VictoriaMetrics cluster instability is to make sure cluster components
 have enough free resources for graceful processing of the increased workload.

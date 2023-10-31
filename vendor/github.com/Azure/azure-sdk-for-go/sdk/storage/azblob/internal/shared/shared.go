@@ -44,6 +44,15 @@ const (
 
 const crc64Polynomial uint64 = 0x9A6C9329AC4BC9B5
 
+const (
+	AppendBlobClient = "azblob/appendblob.Client"
+	BlobClient       = "azblob/blob.Client"
+	BlockBlobClient  = "azblob/blockblob.Client"
+	ContainerClient  = "azblob/container.Client"
+	PageBlobClient   = "azblob/pageblob.Client"
+	ServiceClient    = "azblob/service.Client"
+)
+
 var CRC64Table = crc64.MakeTable(crc64Polynomial)
 
 // CopyOptions returns a zero-value T if opts is nil.

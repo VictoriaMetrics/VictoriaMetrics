@@ -2013,6 +2013,90 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`labels_equal()`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort(labels_equal((
+			label_set(10, "instance", "qwe", "host", "rty"),
+			label_set(20, "instance", "qwe", "host", "qwe"),
+			label_set(30, "aaa", "bbb", "instance", "foo", "host", "foo"),
+		), "instance", "host"))`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{20, 20, 20, 20, 20, 20},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("host"),
+				Value: []byte("qwe"),
+			},
+			{
+				Key:   []byte("instance"),
+				Value: []byte("qwe"),
+			},
+		}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{30, 30, 30, 30, 30, 30},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("aaa"),
+				Value: []byte("bbb"),
+			},
+			{
+				Key:   []byte("host"),
+				Value: []byte("foo"),
+			},
+			{
+				Key:   []byte("instance"),
+				Value: []byte("foo"),
+			},
+		}
+		resultExpected := []netstorage.Result{r1, r2}
+		f(q, resultExpected)
+	})
+	t.Run(`drop_empty_series()`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort(drop_empty_series(
+			(
+				alias(time(), "foo"),
+				alias(500 + time(), "bar"),
+			) > 2000
+		) default 123)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{123, 123, 123, 2100, 2300, 2500},
+			Timestamps: timestampsExpected,
+		}
+		r.MetricName.MetricGroup = []byte("bar")
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`no drop_empty_series()`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort((
+			(
+				alias(time(), "foo"),
+				alias(500 + time(), "bar"),
+			) > 2000
+		) default 123)`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{123, 123, 123, 123, 123, 123},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.MetricGroup = []byte("foo")
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{123, 123, 123, 2100, 2300, 2500},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.MetricGroup = []byte("bar")
+		resultExpected := []netstorage.Result{r1, r2}
+		f(q, resultExpected)
+	})
 	t.Run(`drop_common_labels(single_series)`, func(t *testing.T) {
 		t.Parallel()
 		q := `drop_common_labels(label_set(time(), "foo", "bar", "__name__", "xxx", "q", "we"))`
@@ -8960,6 +9044,9 @@ func TestExecError(t *testing.T) {
 	f(`delta_prometheus()`)
 	f(`rollup_candlestick()`)
 	f(`rollup()`)
+	f(`drop_empty_series()`)
+	f(`drop_common_labels()`)
+	f(`labels_equal()`)
 
 	// Invalid argument type
 	f(`median_over_time({}, 2)`)

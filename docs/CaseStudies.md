@@ -1,11 +1,11 @@
 ---
-sort: 12
-weight: 12
+sort: 21
+weight: 21
 title: Case studies and talks
 menu:
   docs:
-    parent: "victoriametrics"
-    weight: 12
+    parent: 'victoriametrics'
+    weight: 21
 aliases:
 - /CaseStudies.html
 ---
@@ -87,7 +87,7 @@ We ended up with the following configuration:
 We learned that remote write protocol generated too much traffic and connections so after 8 months we started looking for alternatives.
 
 Around the same time, VictoriaMetrics released [vmagent](https://docs.victoriametrics.com/vmagent.html).
-We tried to scrape all the metrics via a single instance of vmagent but it that didn't work because vmgent wasn't able to catch up with writes
+We tried to scrape all the metrics via a single instance of vmagent but it that didn't work because vmagent wasn't able to catch up with writes
 into VictoriaMetrics. We tested different options and end up with the following scheme:
 
 - We removed Prometheus from our setup.
@@ -514,7 +514,7 @@ See [the full article](https://smarketshq.com/monitoring-kubernetes-clusters-41a
 
 [Synthesio](https://www.synthesio.com/) is the leading social intelligence tool for social media monitoring and analytics.
 
-> We fully migrated from [Metrictank](https://grafana.com/oss/metrictank/)  to VictoriaMetrics
+> We fully migrated from [Metrictank](https://github.com/grafana/metrictank)  to VictoriaMetrics
 
 Numbers:
 
@@ -529,13 +529,14 @@ Numbers:
 
 ## Wedos.com
 
-> [Wedos](https://www.wedos.com/) is the biggest hosting provider in the Czech Republic. We have our own private data center that holds our servers and technologies. We are in the process of building a second, stae of the art data center where the servers will be cooled in an oil bath. We started using [cluster VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) to store Prometheus metrics from all our infrastructure after receiving positive references from people who had successfully used VictoriaMetrics.
+> [Wedos](https://www.wedos.com/) is the biggest hosting provider in the Czech Republic. We have two our own private data centers that hold our servers and technologies, such as cooling the servers in bath oils. We started using [cluster VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) to store Prometheus metrics from all our infrastructure after receiving positive references from people who had successfully used VictoriaMetrics. We're using it throughout our services, including the new WEDOS Global Protection.
 
 Numbers:
 
-- The number of acitve time series: 5M.
-- Ingestion rate: 170K data points per second.
+- The number of acitve time series: 32M.
+- Ingestion rate: 1.6M data points per second.
 - Query duration: median is ~2ms, 99th percentile is ~50ms.
+- The total number of datapoints per VictoriaMetrics "hot" storage is 5.3 trillion
 
 > We like that VictoriaMetrics is simple to configuree and requires zero maintenance. It works right out of the box and once it's set up you can just forget about it.
 

@@ -9,6 +9,7 @@ package blob
 import (
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/internal/exported"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/internal/generated"
+	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/internal/shared"
 )
 
 const (
@@ -18,6 +19,9 @@ const (
 
 	// DefaultDownloadBlockSize is default block size
 	DefaultDownloadBlockSize = int64(4 * 1024 * 1024) // 4MB
+
+	// DefaultConcurrency is the default number of blocks downloaded or uploaded in parallel
+	DefaultConcurrency = shared.DefaultConcurrency
 )
 
 // BlobType defines values for BlobType
@@ -53,6 +57,7 @@ type AccessTier = generated.AccessTier
 const (
 	AccessTierArchive AccessTier = generated.AccessTierArchive
 	AccessTierCool    AccessTier = generated.AccessTierCool
+	AccessTierCold    AccessTier = generated.AccessTierCold
 	AccessTierHot     AccessTier = generated.AccessTierHot
 	AccessTierP10     AccessTier = generated.AccessTierP10
 	AccessTierP15     AccessTier = generated.AccessTierP15
@@ -148,6 +153,7 @@ type ArchiveStatus = generated.ArchiveStatus
 const (
 	ArchiveStatusRehydratePendingToCool ArchiveStatus = generated.ArchiveStatusRehydratePendingToCool
 	ArchiveStatusRehydratePendingToHot  ArchiveStatus = generated.ArchiveStatusRehydratePendingToHot
+	ArchiveStatusRehydratePendingToCold ArchiveStatus = generated.ArchiveStatusRehydratePendingToCold
 )
 
 // PossibleArchiveStatusValues returns the possible values for the ArchiveStatus const type.

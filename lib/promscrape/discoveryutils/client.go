@@ -68,8 +68,8 @@ type Client struct {
 
 	apiServer string
 
-	setHTTPHeaders      func(req *http.Request)
-	setHTTPProxyHeaders func(req *http.Request)
+	setHTTPHeaders      func(req *http.Request) error
+	setHTTPProxyHeaders func(req *http.Request) error
 
 	clientCtx    context.Context
 	clientCancel context.CancelFunc
@@ -109,7 +109,11 @@ func NewClient(apiServer string, ac *promauth.Config, proxyURL *proxy.URL, proxy
 	isTLS := u.Scheme == "https"
 	var tlsCfg *tls.Config
 	if isTLS {
-		tlsCfg = ac.NewTLSConfig()
+		var err error
+		tlsCfg, err = ac.NewTLSConfig()
+		if err != nil {
+			return nil, fmt.Errorf("cannot initialize tls config: %w", err)
+		}
 	}
 
 	var proxyURLFunc func(*http.Request) (*url.URL, error)
@@ -140,10 +144,10 @@ func NewClient(apiServer string, ac *promauth.Config, proxyURL *proxy.URL, proxy
 		},
 	}
 
-	setHTTPHeaders := func(req *http.Request) {}
+	setHTTPHeaders := func(req *http.Request) error { return nil }
 	if ac != nil {
-		setHTTPHeaders = func(req *http.Request) {
-			ac.SetHeaders(req, true)
+		setHTTPHeaders = func(req *http.Request) error {
+			return ac.SetHeaders(req, true)
 		}
 	}
 	if httpCfg.FollowRedirects != nil && !*httpCfg.FollowRedirects {
@@ -153,10 +157,10 @@ func NewClient(apiServer string, ac *promauth.Config, proxyURL *proxy.URL, proxy
 		client.CheckRedirect = checkRedirect
 		blockingClient.CheckRedirect = checkRedirect
 	}
-	setHTTPProxyHeaders := func(req *http.Request) {}
+	setHTTPProxyHeaders := func(req *http.Request) error { return nil }
 	if proxyAC != nil {
-		setHTTPProxyHeaders = func(req *http.Request) {
-			proxyURL.SetHeaders(proxyAC, req)
+		setHTTPProxyHeaders = func(req *http.Request) error {
+			return proxyURL.SetHeaders(proxyAC, req)
 		}
 	}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -247,8 +251,12 @@ func (c *Client) getAPIResponseWithParamsAndClientCtx(ctx context.Context, clien
 		return nil, fmt.Errorf("cannot create request for %q: %w", requestURL, err)
 	}
 
-	c.setHTTPHeaders(req)
-	c.setHTTPProxyHeaders(req)
+	if err := c.setHTTPHeaders(req); err != nil {
+		return nil, fmt.Errorf("cannot set request headers for %q: %w", requestURL, err)
+	}
+	if err := c.setHTTPProxyHeaders(req); err != nil {
+		return nil, fmt.Errorf("cannot set request proxy headers for %q: %w", requestURL, err)
+	}
 	if modifyRequest != nil {
 		modifyRequest(req)
 	}

@@ -2,6 +2,11 @@
 sort: 14
 weight: 14
 title: Custom resources
+menu:
+  docs:
+    identifier: operator-custom-resources
+    parent: "operator"
+    weight: 14
 ---
 
 #  Custom resource kinds
@@ -193,7 +198,7 @@ It's not efficient to sync its content immediately, and `kubelet` eventually syn
 
 That's why, applications managed by operator don't receive changes immediately. It usually takes 1-2 min, before content will be updated.
 
-It may trigger errors when an application was deleted, but [`VMAgent`](./README.mdvmagent) still tries to scrape it.
+It may trigger errors when an application was deleted, but [`VMAgent`](./vmagent.md) still tries to scrape it.
 
 ### Possible mitigations
 

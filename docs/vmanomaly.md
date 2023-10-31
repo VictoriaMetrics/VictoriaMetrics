@@ -4,7 +4,7 @@ weight: 11
 title: vmanomaly
 menu:
   docs:
-    parent: "victoriametrics"
+    parent: 'victoriametrics'
     weight: 11
 aliases:
 - /vmanomaly.html
@@ -12,18 +12,18 @@ aliases:
 
 # vmanomaly
 
-**_vmanomaly is a part of [enterprise package](https://docs.victoriametrics.com/enterprise.html).
+**_vmanomaly is a part of [enterprise package](https://docs.victoriametrics.com/enterprise.html). You need to request a [free trial license](https://victoriametrics.com/products/enterprise/trial/) for evaluation.
 Please [contact us](https://victoriametrics.com/contact-us/) to find out more._**
 
 ## About
 
-**VictoriaMetrics Anomaly Detection** is a service that continuously scans Victoria Metrics time
+**VictoriaMetrics Anomaly Detection** is a service that continuously scans VictoriaMetrics time
 series and detects unexpected changes within data patterns in real-time. It does so by utilizing
 user-configurable machine learning models.
 
 It periodically queries user-specified metrics, computes an “anomaly score” for them, based on how
 well they fit a predicted distribution, taking into account periodical data patterns with trends,
-and pushes back the computed “anomaly score” to Victoria Metrics. Then, users can enable alerting
+and pushes back the computed “anomaly score” to VictoriaMetrics. Then, users can enable alerting
 rules based on the “anomaly score”.
 
 Compared to classical alerting rules, anomaly detection is more “hands-off” i.e. it allows users to
@@ -37,7 +37,7 @@ metrics.
 
 ## How?
 
-Victoria Metrics Anomaly Detection service (**vmanomaly**) allows you to apply several built-in
+VictoriaMetrics Anomaly Detection service (**vmanomaly**) allows you to apply several built-in
 anomaly detection algorithms. You can also plug in your own detection models, code doesn’t make any
 distinction between built-in models or external ones.
 
@@ -94,6 +94,12 @@ Currently, vmanomaly ships with a few common models:
    A simple moving window of quantiles. Easy to use, easy to understand, but not as powerful as 
    other models.
 
+1. **Isolation Forest**
+
+   Detects anomalies using binary trees. It works for both univariate and multivariate data. Be aware of [the curse of dimensionality](https://en.wikipedia.org/wiki/Curse_of_dimensionality) in the case of multivariate data - we advise against using a single model when handling multiple time series *if the number of these series significantly exceeds their average length (# of data points)*.
+   
+   The algorithm has a linear time complexity and a low memory requirement, which works well with high-volume data. See [scikit-learn.org documentation](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.IsolationForest.html) for Isolation Forest.
+
 
 ### Examples
 For example, here’s how Prophet predictions could look like on a real-data example  
@@ -115,7 +121,7 @@ Then, reads new data from VictoriaMetrics, according to schedule, and invokes it
 “anomaly score” for each data point. The anomaly score ranges from 0 to positive infinity. 
 Values less than 1.0 are considered “not an anomaly”, values greater or equal than 1.0 are 
 considered “anomalous”, with greater values corresponding to larger anomaly.
-Then, VMAnomaly pushes the metric to vminsert (under the user-configured metric name, 
+Then, vmanomaly pushes the metric to vminsert (under the user-configured metric name, 
 optionally preserving labels).
 
  
@@ -205,11 +211,12 @@ vm_license_expires_at 1.6963776e+09
 vm_license_expires_in_seconds 4.886608e+06
 ```
 
-You can find example alerts for [vmalert](https://docs.victoriametrics.com/vmalert.html):
+Example alerts for [vmalert](https://docs.victoriametrics.com/vmalert.html):
+{% raw %}
 ```yaml
 groups:
   - name: vm-license
-    # note the `job` filter and update accordingly to your setup
+    # note the `job` label and update accordingly to your setup
     rules:
       - alert: LicenseExpiresInLessThan30Days
         expr: vm_license_expires_in_seconds < 30 * 24 * 3600
@@ -229,3 +236,4 @@ groups:
           description: "{{ $labels.instance }} of job {{ $labels.job }} license expires in {{ $value | humanizeDuration }}. 
             Please make sure to update the license before it expires."
 ```
+{% endraw %}

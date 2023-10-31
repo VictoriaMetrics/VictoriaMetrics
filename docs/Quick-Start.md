@@ -1,11 +1,11 @@
 ---
-sort: 13
-weight: 13
+sort: 22
+weight: 22
 title: Quick start
 menu:
   docs:
-    parent: "victoriametrics"
-    weight: 13
+    parent: 'victoriametrics'
+    weight: 22
 aliases:
 - /Quick-Start.html
 ---
@@ -27,7 +27,7 @@ Single-server-VictoriaMetrics VictoriaMetrics is available as:
 * [Docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/)
 * [Snap packages](https://snapcraft.io/victoriametrics)
 * [Helm Charts](https://github.com/VictoriaMetrics/helm-charts#list-of-charts)
-* [Binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases)
+* [Binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest)
 * [Source code](https://github.com/VictoriaMetrics/VictoriaMetrics).
   See [How to build from sources](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-build-from-sources)
 * [VictoriaMetrics on Linode](https://www.linode.com/marketplace/apps/victoriametrics/victoriametrics/)

@@ -1,3 +1,13 @@
+---
+sort: 7
+weight: 7
+title: VMNodeScrape
+menu:
+  docs:
+    parent: "operator-custom-resources"
+    weight: 7
+---
+
 # VMNodeScrape
 
 The `VMNodeScrape` CRD provides discovery mechanism for scraping metrics kubernetes nodes,

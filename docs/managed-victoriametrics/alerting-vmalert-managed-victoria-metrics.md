@@ -17,7 +17,7 @@ This guide explains the different ways in which you can use vmalert in conjuncti
 
 ## Preconditions 
 
-* [vmalert](https://docs.victoriametrics.com/vmalert.html) is installed. You can obtain it by building it from [source](https://docs.victoriametrics.com/vmalert.html#quickstart), downloading it from the [GitHub releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases), or using the [docker image](https://hub.docker.com/r/victoriametrics/vmalert) for the container ecosystem (such as docker, k8s, etc.).
+* [vmalert](https://docs.victoriametrics.com/vmalert.html) is installed. You can obtain it by building it from [source](https://docs.victoriametrics.com/vmalert.html#quickstart), downloading it from the [GitHub releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest), or using the [docker image](https://hub.docker.com/r/victoriametrics/vmalert) for the container ecosystem (such as docker, k8s, etc.).
 * [Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/) is installed.
 * You have a [single or cluster](https://docs.victoriametrics.com/managed-victoriametrics/quickstart.html#creating-deployment) deployment in [Managed VictoriaMetrics](https://docs.victoriametrics.com/managed-victoriametrics/overview.html).
 * If you are using helm, add the [VictoriaMetrics helm chart](https://github.com/VictoriaMetrics/helm-charts/tree/master/charts/victoria-metrics-alert#how-to-install) repository to your helm repositories. This step is optional.
@@ -55,14 +55,14 @@ For instructions on how to create tokens, please refer to this section of the [d
 
 #### Single-Node
 
-<img src="alerting-vmalert-managed-victoria-metrics-single-1.png">
-<img src="alerting-vmalert-managed-victoria-metrics-single-2.png">
+<img src="alerting_token_created_single.png">
+<img src="alerting_copy_datasource_single.png">
 
 #### Cluster
 
-<img src="alerting-vmalert-managed-victoria-metrics-cluster-1.png">
-<img src="alerting-vmalert-managed-victoria-metrics-cluster-2.png">
-<img src="alerting-vmalert-managed-victoria-metrics-cluster-3.png">
+<img src="alerting_token_created_cluster.png">
+<img src="alerting_copy_reading_datasource_cluster.png">
+<img src="alerting_copy_writing_datasource_cluster.png">
 
 ### vmalert configuration 
 
@@ -71,7 +71,7 @@ For instructions on how to create tokens, please refer to this section of the [d
 ##### Binary 
 
 ```console
-export TOKEN=81e8226e-4e25-480d-9397-31ba4007f0bf 
+export TOKEN=81e8226e-****-****-****-************ 
 export MANAGED_VM_URL=https://gw-c15-1c.cloud.victoriametrics.com
 export ALERTMANAGER_URL=http://localhost:9093 
 ./vmalert -rule=alerts.yml -datasource.url=$MANAGED_VM_URL -datasource.bearerToken=$TOKEN -notifier.url=$ALERTMANAGER_URL -remoteWrite.url=$MANAGED_VM_URL -remoteWrite.bearerToken=$TOKEN -remoteRead.url=$MANAGED_VM_URL -remoteRead.bearerToken=$TOKEN
@@ -80,7 +80,7 @@ export ALERTMANAGER_URL=http://localhost:9093
 ##### Docker 
 
 ```console
-export TOKEN=81e8226e-4e25-480d-9397-31ba4007f0bf 
+export TOKEN=81e8226e-****-****-****-************ 
 export MANAGED_VM_URL=https://gw-c15-1c.cloud.victoriametrics.com
 export ALERTMANAGER_URL=http://alertmanager:9093 
 docker run -it -p 8080:8080 -v $(pwd)/alerts.yml:/etc/alerts/alerts.yml victoriametrics/vmalert:v1.87.1 -datasource.url=$MANAGED_VM_URL -datasource.bearerToken=$TOKEN -remoteRead.url=$MANAGED_VM_URL -remoteRead.bearerToken=$TOKEN  -remoteWrite.url=$MANAGED_VM_URL -remoteWrite.bearerToken=$TOKEN  -notifier.url=$ALERTMANAGER_URL -rule="/etc/alerts/*.yml"
@@ -89,7 +89,7 @@ docker run -it -p 8080:8080 -v $(pwd)/alerts.yml:/etc/alerts/alerts.yml victoria
 ##### Helm Chart
 
 ```console
-export TOKEN=81e8226e-4e25-480d-9397-31ba4007f0bf
+export TOKEN=81e8226e-****-****-****-************
 export MANAGED_VM_URL=https://gw-c15-1c.cloud.victoriametrics.com
 export ALERTMANAGER=http://alertmanager:9093
 cat <<EOF | helm install vmalert vm/victoria-metrics-alert -f -
@@ -129,7 +129,7 @@ EOF
 ##### VMalert CRD for vmoperator
 
 ```console
-export TOKEN=81e8226e-4e25-480d-9397-31ba4007f0bf
+export TOKEN=81e8226e-****-****-****-************
 export MANAGED_VM_URL=https://gw-c15-1c.cloud.victoriametrics.com
 export ALERTMANAGER=http://alertmanager:9093
 cat << EOF | kubectl apply -f -
@@ -174,7 +174,7 @@ EOF
 You can ingest metric that will raise an alert 
 
 ```console
-export TOKEN=81e8226e-4e25-480d-9397-31ba4007f0bf
+export TOKEN=81e8226e-****-****-****-*************
 export MANAGED_VM_URL=https://gw-c15-1c.cloud.victoriametrics.com/
 curl -H "Authorization: Bearer $TOKEN" -X POST "$MANAGED_VM_URLapi/v1/import/prometheus" -d 'up{job="vmalert-test", instance="localhost"} 0'
 ```
@@ -184,7 +184,7 @@ curl -H "Authorization: Bearer $TOKEN" -X POST "$MANAGED_VM_URLapi/v1/import/pro
 ##### Binary
 
 ```console
-export TOKEN=76bc5470-d340-4e5e-9574-49ed30911cc4
+export TOKEN=76bc5470-****-****-****-************
 export MANAGED_VM_READ_URL=https://gw-c15-1a.cloud.victoriametrics.com/select/0/prometheus/
 export MANAGED_VM_WRITE_URL=https://gw-c15-1a.cloud.victoriametrics.com/insert/0/prometheus/
 export ALERTMANAGER_URL=http://localhost:9093 
@@ -194,7 +194,7 @@ export ALERTMANAGER_URL=http://localhost:9093
 ##### Docker
 
 ```console
-export TOKEN=76bc5470-d340-4e5e-9574-49ed30911cc4
+export TOKEN=76bc5470-****-****-****-************
 export MANAGED_VM_READ_URL=https://gw-c15-1a.cloud.victoriametrics.com/select/0/prometheus/
 export MANAGED_VM_WRITE_URL=https://gw-c15-1a.cloud.victoriametrics.com/insert/0/prometheus/
 export ALERTMANAGER_URL=http://alertmanager:9093 
@@ -204,7 +204,7 @@ docker run -it -p 8080:8080 -v $(pwd)/alerts.yml:/etc/alerts/alerts.yml victoria
 ##### Helm Chart
 
 ```console
-export TOKEN=76bc5470-d340-4e5e-9574-49ed30911cc4
+export TOKEN=76bc5470-****-****-****-************
 export MANAGED_VM_READ_URL=https://gw-c15-1a.cloud.victoriametrics.com/select/0/prometheus/
 export MANAGED_VM_WRITE_URL=https://gw-c15-1a.cloud.victoriametrics.com/insert/0/prometheus/
 export ALERTMANAGER=http://alertmanager:9093
@@ -245,7 +245,7 @@ EOF
 ##### VMalert CRD for vmoperator
 
 ```console
-export TOKEN=76bc5470-d340-4e5e-9574-49ed30911cc4
+export TOKEN=76bc5470-****-****-****-************
 export MANAGED_VM_READ_URL=https://gw-c15-1a.cloud.victoriametrics.com/select/0/prometheus/
 export MANAGED_VM_WRITE_URL=https://gw-c15-1a.cloud.victoriametrics.com/insert/0/prometheus/
 export ALERTMANAGER=http://alertmanager:9093
@@ -291,7 +291,7 @@ EOF
 You can ingest metric that will raise an alert
 
 ```console
-export TOKEN=76bc5470-d340-4e5e-9574-49ed30911cc4
+export TOKEN=76bc5470-****-****-****-************
 export MANAGED_VM_WRITE_URL=https://gw-c15-1a.cloud.victoriametrics.com/insert/0/prometheus/
 curl -H "Authorization: Bearer $TOKEN" -X POST "$MANAGED_VM_WRITE_URLapi/v1/import/prometheus" -d 'up{job="vmalert-test", instance="localhost"} 0'
 ```

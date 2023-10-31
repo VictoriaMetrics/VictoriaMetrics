@@ -1,6 +1,6 @@
 # Azure Blob Storage module for Go
 
-> Service Version: 2020-10-02
+> Service Version: 2023-08-03
 
 Azure Blob Storage is Microsoft's object storage solution for the cloud. Blob
 Storage is optimized for storing massive amounts of unstructured data - data that does not adhere to a particular data model or

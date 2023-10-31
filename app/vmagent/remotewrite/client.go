@@ -106,12 +106,15 @@ type client struct {
 func newHTTPClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persistentqueue.FastQueue, concurrency int) *client {
 	authCfg, err := getAuthConfig(argIdx)
 	if err != nil {
-		logger.Panicf("FATAL: cannot initialize auth config for remoteWrite.url=%q: %s", remoteWriteURL, err)
+		logger.Fatalf("cannot initialize auth config for -remoteWrite.url=%q: %s", remoteWriteURL, err)
 	}
-	tlsCfg := authCfg.NewTLSConfig()
+	tlsCfg, err := authCfg.NewTLSConfig()
+	if err != nil {
+		logger.Fatalf("cannot initialize tls config for -remoteWrite.url=%q: %s", remoteWriteURL, err)
+	}
 	awsCfg, err := getAWSAPIConfig(argIdx)
 	if err != nil {
-		logger.Fatalf("FATAL: cannot initialize AWS Config for remoteWrite.url=%q: %s", remoteWriteURL, err)
+		logger.Fatalf("cannot initialize AWS Config for -remoteWrite.url=%q: %s", remoteWriteURL, err)
 	}
 	tr := &http.Transport{
 		DialContext:         statDial,
@@ -323,26 +326,42 @@ func (c *client) runWorker() {
 }
 
 func (c *client) doRequest(url string, body []byte) (*http.Response, error) {
-	req := c.newRequest(url, body)
-	resp, err := c.hc.Do(req)
-	if err != nil && errors.Is(err, io.EOF) {
-		// it is likely connection became stale.
-		// So we do one more attempt in hope request will succeed.
-		// If not, the error should be handled by the caller as usual.
-		// This should help with https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4139
-		req = c.newRequest(url, body)
-		resp, err = c.hc.Do(req)
+	req, err := c.newRequest(url, body)
+	if err != nil {
+		return nil, err
 	}
-	return resp, err
+	resp, err := c.hc.Do(req)
+	if err == nil {
+		return resp, nil
+	}
+	if !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrUnexpectedEOF) {
+		return nil, err
+	}
+	// It is likely connection became stale or timed out during the first request.
+	// Make another attempt in hope request will succeed.
+	// If not, the error should be handled by the caller as usual.
+	// This should help with https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4139
+	req, err = c.newRequest(url, body)
+	if err != nil {
+		return nil, fmt.Errorf("second attempt: %w", err)
+	}
+	resp, err = c.hc.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("second attempt: %w", err)
+	}
+	return resp, nil
 }
 
-func (c *client) newRequest(url string, body []byte) *http.Request {
+func (c *client) newRequest(url string, body []byte) (*http.Request, error) {
 	reqBody := bytes.NewBuffer(body)
 	req, err := http.NewRequest(http.MethodPost, url, reqBody)
 	if err != nil {
 		logger.Panicf("BUG: unexpected error from http.NewRequest(%q): %s", url, err)
 	}
-	c.authCfg.SetHeaders(req, true)
+	err = c.authCfg.SetHeaders(req, true)
+	if err != nil {
+		return nil, err
+	}
 	h := req.Header
 	h.Set("User-Agent", "vmagent")
 	h.Set("Content-Type", "application/x-protobuf")
@@ -356,11 +375,10 @@ func (c *client) newRequest(url string, body []byte) *http.Request {
 	if c.awsCfg != nil {
 		sigv4Hash := awsapi.HashHex(body)
 		if err := c.awsCfg.SignRequest(req, sigv4Hash); err != nil {
-			// there is no need in retry, request will be rejected by client.Do and retried by code below
-			logger.Warnf("cannot sign remoteWrite request with AWS sigv4: %s", err)
+			return nil, fmt.Errorf("cannot sign remoteWrite request with AWS sigv4: %w", err)
 		}
 	}
-	return req
+	return req, nil
 }
 
 // sendBlockHTTP sends the given block to c.remoteWriteURL.

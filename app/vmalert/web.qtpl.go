@@ -196,7 +196,7 @@ func buttonActive(filter, expValue string) string {
 }
 
 //line app/vmalert/web.qtpl:41
-func StreamListGroups(qw422016 *qt422016.Writer, r *http.Request, originGroups []APIGroup) {
+func StreamListGroups(qw422016 *qt422016.Writer, r *http.Request, originGroups []apiGroup) {
 //line app/vmalert/web.qtpl:41
 	qw422016.N().S(`
     `)
@@ -216,9 +216,9 @@ func StreamListGroups(qw422016 *qt422016.Writer, r *http.Request, originGroups [
 	rOk := make(map[string]int)
 	rNotOk := make(map[string]int)
 	rNoMatch := make(map[string]int)
-	var groups []APIGroup
+	var groups []apiGroup
 	for _, g := range originGroups {
-		var rules []APIRule
+		var rules []apiRule
 		for _, r := range g.Rules {
 			if r.LastError != "" {
 				rNotOk[g.ID]++
@@ -610,7 +610,7 @@ func StreamListGroups(qw422016 *qt422016.Writer, r *http.Request, originGroups [
 }
 
 //line app/vmalert/web.qtpl:166
-func WriteListGroups(qq422016 qtio422016.Writer, r *http.Request, originGroups []APIGroup) {
+func WriteListGroups(qq422016 qtio422016.Writer, r *http.Request, originGroups []apiGroup) {
 //line app/vmalert/web.qtpl:166
 	qw422016 := qt422016.AcquireWriter(qq422016)
 //line app/vmalert/web.qtpl:166
@@ -621,7 +621,7 @@ func WriteListGroups(qq422016 qtio422016.Writer, r *http.Request, originGroups [
 }
 
 //line app/vmalert/web.qtpl:166
-func ListGroups(r *http.Request, originGroups []APIGroup) string {
+func ListGroups(r *http.Request, originGroups []apiGroup) string {
 //line app/vmalert/web.qtpl:166
 	qb422016 := qt422016.AcquireByteBuffer()
 //line app/vmalert/web.qtpl:166
@@ -636,7 +636,7 @@ func ListGroups(r *http.Request, originGroups []APIGroup) string {
 }
 
 //line app/vmalert/web.qtpl:169
-func StreamListAlerts(qw422016 *qt422016.Writer, r *http.Request, groupAlerts []GroupAlerts) {
+func StreamListAlerts(qw422016 *qt422016.Writer, r *http.Request, groupAlerts []groupAlerts) {
 //line app/vmalert/web.qtpl:169
 	qw422016.N().S(`
     `)
@@ -712,7 +712,7 @@ func StreamListAlerts(qw422016 *qt422016.Writer, r *http.Request, groupAlerts []
             `)
 //line app/vmalert/web.qtpl:185
 			var keys []string
-			alertsByRule := make(map[string][]*APIAlert)
+			alertsByRule := make(map[string][]*apiAlert)
 			for _, alert := range ga.Alerts {
 				if len(alertsByRule[alert.RuleID]) < 1 {
 					keys = append(keys, alert.RuleID)
@@ -891,7 +891,7 @@ func StreamListAlerts(qw422016 *qt422016.Writer, r *http.Request, groupAlerts []
 }
 
 //line app/vmalert/web.qtpl:255
-func WriteListAlerts(qq422016 qtio422016.Writer, r *http.Request, groupAlerts []GroupAlerts) {
+func WriteListAlerts(qq422016 qtio422016.Writer, r *http.Request, groupAlerts []groupAlerts) {
 //line app/vmalert/web.qtpl:255
 	qw422016 := qt422016.AcquireWriter(qq422016)
 //line app/vmalert/web.qtpl:255
@@ -902,7 +902,7 @@ func WriteListAlerts(qq422016 qtio422016.Writer, r *http.Request, groupAlerts []
 }
 
 //line app/vmalert/web.qtpl:255
-func ListAlerts(r *http.Request, groupAlerts []GroupAlerts) string {
+func ListAlerts(r *http.Request, groupAlerts []groupAlerts) string {
 //line app/vmalert/web.qtpl:255
 	qb422016 := qt422016.AcquireByteBuffer()
 //line app/vmalert/web.qtpl:255
@@ -1091,7 +1091,7 @@ func ListTargets(r *http.Request, targets map[notifier.TargetType][]notifier.Tar
 }
 
 //line app/vmalert/web.qtpl:313
-func StreamAlert(qw422016 *qt422016.Writer, r *http.Request, alert *APIAlert) {
+func StreamAlert(qw422016 *qt422016.Writer, r *http.Request, alert *apiAlert) {
 //line app/vmalert/web.qtpl:313
 	qw422016.N().S(`
     `)
@@ -1274,7 +1274,7 @@ func StreamAlert(qw422016 *qt422016.Writer, r *http.Request, alert *APIAlert) {
 }
 
 //line app/vmalert/web.qtpl:397
-func WriteAlert(qq422016 qtio422016.Writer, r *http.Request, alert *APIAlert) {
+func WriteAlert(qq422016 qtio422016.Writer, r *http.Request, alert *apiAlert) {
 //line app/vmalert/web.qtpl:397
 	qw422016 := qt422016.AcquireWriter(qq422016)
 //line app/vmalert/web.qtpl:397
@@ -1285,7 +1285,7 @@ func WriteAlert(qq422016 qtio422016.Writer, r *http.Request, alert *APIAlert) {
 }
 
 //line app/vmalert/web.qtpl:397
-func Alert(r *http.Request, alert *APIAlert) string {
+func Alert(r *http.Request, alert *apiAlert) string {
 //line app/vmalert/web.qtpl:397
 	qb422016 := qt422016.AcquireByteBuffer()
 //line app/vmalert/web.qtpl:397
@@ -1300,7 +1300,7 @@ func Alert(r *http.Request, alert *APIAlert) string {
 }
 
 //line app/vmalert/web.qtpl:400
-func StreamRuleDetails(qw422016 *qt422016.Writer, r *http.Request, rule APIRule) {
+func StreamRuleDetails(qw422016 *qt422016.Writer, r *http.Request, rule apiRule) {
 //line app/vmalert/web.qtpl:400
 	qw422016.N().S(`
     `)
@@ -1331,9 +1331,9 @@ func StreamRuleDetails(qw422016 *qt422016.Writer, r *http.Request, rule APIRule)
 	var seriesFetchedEnabled bool
 	var seriesFetchedWarning bool
 	for _, u := range rule.Updates {
-		if u.seriesFetched != nil {
+		if u.SeriesFetched != nil {
 			seriesFetchedEnabled = true
-			if *u.seriesFetched == 0 && u.samples == 0 {
+			if *u.SeriesFetched == 0 && u.Samples == 0 {
 				seriesFetchedWarning = true
 			}
 		}
@@ -1587,7 +1587,7 @@ func StreamRuleDetails(qw422016 *qt422016.Writer, r *http.Request, rule APIRule)
 		qw422016.N().S(`
              <tr`)
 //line app/vmalert/web.qtpl:540
-		if u.err != nil {
+		if u.Err != nil {
 //line app/vmalert/web.qtpl:540
 			qw422016.N().S(` class="alert-danger"`)
 //line app/vmalert/web.qtpl:540
@@ -1597,13 +1597,13 @@ func StreamRuleDetails(qw422016 *qt422016.Writer, r *http.Request, rule APIRule)
                  <td>
                     <span class="badge bg-primary rounded-pill me-3" title="Updated at">`)
 //line app/vmalert/web.qtpl:542
-		qw422016.E().S(u.time.Format(time.RFC3339))
+		qw422016.E().S(u.Time.Format(time.RFC3339))
 //line app/vmalert/web.qtpl:542
 		qw422016.N().S(`</span>
                  </td>
                  <td class="text-center">`)
 //line app/vmalert/web.qtpl:544
-		qw422016.N().D(u.samples)
+		qw422016.N().D(u.Samples)
 //line app/vmalert/web.qtpl:544
 		qw422016.N().S(`</td>
                  `)
@@ -1612,9 +1612,9 @@ func StreamRuleDetails(qw422016 *qt422016.Writer, r *http.Request, rule APIRule)
 //line app/vmalert/web.qtpl:545
 			qw422016.N().S(`<td class="text-center">`)
 //line app/vmalert/web.qtpl:545
-			if u.seriesFetched != nil {
+			if u.SeriesFetched != nil {
 //line app/vmalert/web.qtpl:545
-				qw422016.N().D(*u.seriesFetched)
+				qw422016.N().D(*u.SeriesFetched)
 //line app/vmalert/web.qtpl:545
 			}
 //line app/vmalert/web.qtpl:545
@@ -1625,18 +1625,18 @@ func StreamRuleDetails(qw422016 *qt422016.Writer, r *http.Request, rule APIRule)
 		qw422016.N().S(`
                  <td class="text-center">`)
 //line app/vmalert/web.qtpl:546
-		qw422016.N().FPrec(u.duration.Seconds(), 3)
+		qw422016.N().FPrec(u.Duration.Seconds(), 3)
 //line app/vmalert/web.qtpl:546
 		qw422016.N().S(`s</td>
                  <td class="text-center">`)
 //line app/vmalert/web.qtpl:547
-		qw422016.E().S(u.at.Format(time.RFC3339))
+		qw422016.E().S(u.At.Format(time.RFC3339))
 //line app/vmalert/web.qtpl:547
 		qw422016.N().S(`</td>
                  <td>
                     <textarea class="curl-area" rows="1" onclick="this.focus();this.select()">`)
 //line app/vmalert/web.qtpl:549
-		qw422016.E().S(u.curl)
+		qw422016.E().S(u.Curl)
 //line app/vmalert/web.qtpl:549
 		qw422016.N().S(`</textarea>
                 </td>
@@ -1644,12 +1644,12 @@ func StreamRuleDetails(qw422016 *qt422016.Writer, r *http.Request, rule APIRule)
           </li>
           `)
 //line app/vmalert/web.qtpl:553
-		if u.err != nil {
+		if u.Err != nil {
 //line app/vmalert/web.qtpl:553
 			qw422016.N().S(`
              <tr`)
 //line app/vmalert/web.qtpl:554
-			if u.err != nil {
+			if u.Err != nil {
 //line app/vmalert/web.qtpl:554
 				qw422016.N().S(` class="alert-danger"`)
 //line app/vmalert/web.qtpl:554
@@ -1671,7 +1671,7 @@ func StreamRuleDetails(qw422016 *qt422016.Writer, r *http.Request, rule APIRule)
 			qw422016.N().S(`">
                    <span class="alert-danger">`)
 //line app/vmalert/web.qtpl:556
-			qw422016.E().V(u.err)
+			qw422016.E().V(u.Err)
 //line app/vmalert/web.qtpl:556
 			qw422016.N().S(`</span>
                </td>
@@ -1697,7 +1697,7 @@ func StreamRuleDetails(qw422016 *qt422016.Writer, r *http.Request, rule APIRule)
 }
 
 //line app/vmalert/web.qtpl:563
-func WriteRuleDetails(qq422016 qtio422016.Writer, r *http.Request, rule APIRule) {
+func WriteRuleDetails(qq422016 qtio422016.Writer, r *http.Request, rule apiRule) {
 //line app/vmalert/web.qtpl:563
 	qw422016 := qt422016.AcquireWriter(qq422016)
 //line app/vmalert/web.qtpl:563
@@ -1708,7 +1708,7 @@ func WriteRuleDetails(qq422016 qtio422016.Writer, r *http.Request, rule APIRule)
 }
 
 //line app/vmalert/web.qtpl:563
-func RuleDetails(r *http.Request, rule APIRule) string {
+func RuleDetails(r *http.Request, rule apiRule) string {
 //line app/vmalert/web.qtpl:563
 	qb422016 := qt422016.AcquireByteBuffer()
 //line app/vmalert/web.qtpl:563
@@ -1853,7 +1853,7 @@ func badgeStabilizing() string {
 }
 
 //line app/vmalert/web.qtpl:585
-func streamseriesFetchedWarn(qw422016 *qt422016.Writer, r APIRule) {
+func streamseriesFetchedWarn(qw422016 *qt422016.Writer, r apiRule) {
 //line app/vmalert/web.qtpl:585
 	qw422016.N().S(`
 `)
@@ -1879,7 +1879,7 @@ func streamseriesFetchedWarn(qw422016 *qt422016.Writer, r APIRule) {
 }
 
 //line app/vmalert/web.qtpl:596
-func writeseriesFetchedWarn(qq422016 qtio422016.Writer, r APIRule) {
+func writeseriesFetchedWarn(qq422016 qtio422016.Writer, r apiRule) {
 //line app/vmalert/web.qtpl:596
 	qw422016 := qt422016.AcquireWriter(qq422016)
 //line app/vmalert/web.qtpl:596
@@ -1890,7 +1890,7 @@ func writeseriesFetchedWarn(qq422016 qtio422016.Writer, r APIRule) {
 }
 
 //line app/vmalert/web.qtpl:596
-func seriesFetchedWarn(r APIRule) string {
+func seriesFetchedWarn(r apiRule) string {
 //line app/vmalert/web.qtpl:596
 	qb422016 := qt422016.AcquireByteBuffer()
 //line app/vmalert/web.qtpl:596
@@ -1905,6 +1905,6 @@ func seriesFetchedWarn(r APIRule) string {
 }
 
 //line app/vmalert/web.qtpl:599
-func isNoMatch(r APIRule) bool {
+func isNoMatch(r apiRule) bool {
 	return r.LastSamples == 0 && r.LastSeriesFetched != nil && *r.LastSeriesFetched == 0
 }

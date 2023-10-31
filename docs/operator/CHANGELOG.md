@@ -2,21 +2,37 @@
 sort: 10
 weight: 10
 title: CHANGELOG
+menu:
+  docs:
+    parent: "operator"
+    weight: 10
+    identifier: "operator-changelog"
 ---
 
 # CHANGELOG
 
 ## Next release
 
+- TODO
+
+<a name="v0.38.0"></a>
+## [v0.39.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.39.0) - 4 Oct 2023
+
 ### Features
 
 - [vmoperator](./README.md): upgrade vmagent/vmauth's default config-reloader image.
+- [vmuser](./api.md#vmuser): adds `retry_status_codes` , `max_concurrent_requests` and `response_headers` settings. It's supported since `v1.94.0` release of [vmauth](https://docs.victoriametrics.com/vmauth.html)
+- [vmoperator](./README.md): adds `useStrictSecurity` for all components. It allows to migrate from insecure to strictly secured deployments per component without breaking changes. See [this issue](https://github.com/VictoriaMetrics/operator/issues/762#issuecomment-1735061532) for details.
+- [vmoperator](./README.md): add ability to provide license key for VictoriaMetrics enterprise components. See [this doc](https://docs.victoriametrics.com/enterprise.html) for the details.
 
 ### Fixes
 
 - [vmcluster](./api.html#vmcluster): remove redundant annotation `operator.victoriametrics/last-applied-spec` from created workloads like vmstorage statefulset.
 - [vmoperator](./README.md): properly resize statefulset's multiple pvc when needed and allowable, before they could be updated with wrong size.
 - [vmoperator](./README.md): fix wrong api group of endpointsices, before vmagent won't able to access endpointsices resources with default rbac rule.
+- [vmauth/vmagent](./README.md): adds default resources for init container with configuration download. See [this issue](https://github.com/VictoriaMetrics/operator/issues/767) for details.
+- [vmauth/vmagent](./README.md): correctly set flag for custom config reloader image during config initialisation. See [this issue](https://github.com/VictoriaMetrics/operator/issues/770) for details.
+- [vmauth](./api.md#vmauth): correctly set config reloader image for init container.
 
 <a name="v0.38.0"></a>
 ## [v0.38.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.38.0) - 11 Sep 2023
@@ -740,7 +756,7 @@ title: CHANGELOG
 
 - Adds alertmanager service scrape auto generation https://github.com/VictoriaMetrics/operator/issues/385 thanks [@FRosner](https://github.com/FRosner)
 - Auto-add routing for vminsert and vmselect CRD components for `VMUser` https://github.com/VictoriaMetrics/operator/issues/379
-- Updates docs for `VMAuth`https://github.com/VictoriaMetrics/operator/blob/master/docs/auth.MD
+- Updates docs for `VMAuth`https://github.com/VictoriaMetrics/operator/blob/master/docs/auth.md
 - Allows changing default disk space usage for `VMAgent` https://github.com/VictoriaMetrics/operator/pull/381 thanks [@arctan90](https://github.com/arctan90)
 - Adds Arch labels for clusterversion template https://github.com/VictoriaMetrics/operator/commit/9e89c3b2459fb85faa8e973fa1f1558d924000f3 thanks [@yselkowitz](https://github.com/yselkowitz)
 - improves docs and fixes typos https://github.com/VictoriaMetrics/operator/commit/ae248dcb352a092d9f9caee87454b1ad25650a4c thanks [@flokli](https://github.com/flokli)
@@ -785,7 +801,7 @@ title: CHANGELOG
 
 ### Breaking changes
 
-- **changes default behavior for CR selectors, such serviceScrapeSelector at vmagent.spec. Now it select all targets if is missing https://github.com/VictoriaMetrics/operator/commit/519e89b457576099288af2ea135878f6da25b567 See more at docs https://github.com/VictoriaMetrics/operator/blob/master/docs/quick-start.MD#object-selectors**
+- **changes default behavior for CR selectors, such serviceScrapeSelector at vmagent.spec. Now it select all targets if is missing https://github.com/VictoriaMetrics/operator/commit/519e89b457576099288af2ea135878f6da25b567 See more at docs https://github.com/VictoriaMetrics/operator/blob/master/docs/quick-start.md#object-selectors**
 - **operator doesn't add cluster domain name for in-cluster communication, now its empty value. It should resolve issue with using operator at clusters with custom k8s domain https://github.com/VictoriaMetrics/operator/issues/354 thanks [@flokli](https://github.com/flokli)**
 
 ### Features

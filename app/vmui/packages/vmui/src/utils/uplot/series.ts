@@ -8,7 +8,7 @@ import { formatPrettyNumber } from "./helpers";
 
 export const getSeriesItemContext = (data: MetricResult[], hideSeries: string[], alias: string[]) => {
   const colorState: {[key: string]: string} = {};
-  const calculations = data.map(d => {
+  const stats = data.map(d => {
     const values = d.values.map(v => promValueToNumber(v[1]));
     return {
       min: getMinFromArray(values),
@@ -27,7 +27,7 @@ export const getSeriesItemContext = (data: MetricResult[], hideSeries: string[],
   return (d: MetricResult, i: number): SeriesItem => {
     const label = getNameForMetric(d, alias[d.group - 1]);
     const color = colorState[label] || getColorFromString(label);
-    const { min, max, median, last } = calculations[i];
+    const { min, max, median, last } = stats[i];
 
     return {
       label,
@@ -40,12 +40,13 @@ export const getSeriesItemContext = (data: MetricResult[], hideSeries: string[],
         size: 4.2,
         width: 1.4
       },
-      calculations: {
+      statsFormatted: {
         min: formatPrettyNumber(min, min, max),
         max: formatPrettyNumber(max, min, max),
         median: formatPrettyNumber(median, min, max),
         last: formatPrettyNumber(last, min, max),
-      }
+      },
+      median: median,
     };
   };
 };
@@ -56,7 +57,8 @@ export const getLegendItem = (s: SeriesItem, group: number): LegendItemType => (
   color: s.stroke as string,
   checked: s.show || false,
   freeFormFields: s.freeFormFields,
-  calculations: s.calculations,
+  statsFormatted: s.statsFormatted,
+  median: s.median,
 });
 
 export const getHideSeries = ({ hideSeries, legend, metaKey, series }: HideSeriesArgs): string[] => {

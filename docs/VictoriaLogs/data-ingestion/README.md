@@ -1,12 +1,15 @@
 ---
-sort: 6
+sort: 3
 title: Data ingestion
-weight: 6
+weight: 3
 menu:
   docs:
     identifier: victorialogs-data-ingestion
     parent: "victorialogs"
-    weight: 6
+    weight: 3
+aliases:
+  - /VictoriaLogs/data-ingestion/
+  - /VictoriaLogs/data-ingestion/index.html
 ---
 
 # Data ingestion
@@ -87,7 +90,7 @@ See also:
 
 - [How to debug data ingestion](#troubleshooting).
 - [HTTP parameters, which can be passed to the API](#http-parameters).
-- [How to query VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/querying.html).
+- [How to query VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/querying/).
 
 ### JSON stream API
 
@@ -141,7 +144,7 @@ See also:
 
 - [How to debug data ingestion](#troubleshooting).
 - [HTTP parameters, which can be passed to the API](#http-parameters).
-- [How to query VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/querying.html).
+- [How to query VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/querying/).
 
 ### Loki JSON API
 
@@ -182,7 +185,7 @@ See also:
 
 - [How to debug data ingestion](#troubleshooting).
 - [HTTP parameters, which can be passed to the API](#http-parameters).
-- [How to query VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/querying.html).
+- [How to query VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/querying/).
 
 ### HTTP parameters
 
@@ -220,7 +223,7 @@ These headers may contain the needed tenant to ingest data to. See [multitenancy
 
 The following command can be used for verifying whether the data is successfully ingested into VictoriaLogs:
 
-```logsql
+```bash
 curl http://localhost:9428/select/logsql/query -d 'query=*' | head
 ```
 

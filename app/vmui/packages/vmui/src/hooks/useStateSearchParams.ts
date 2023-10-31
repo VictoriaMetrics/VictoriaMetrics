@@ -1,4 +1,5 @@
-import { useState, useEffect, StateUpdater } from "preact/compat";
+import { useState, useEffect } from "preact/compat";
+import { StateUpdater } from "preact/hooks";
 import { useSearchParams } from "react-router-dom";
 
 const useStateSearchParams = <T>(defaultState: T, key: string): [T, StateUpdater<T>] => {

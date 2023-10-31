@@ -106,7 +106,7 @@ func TestParseBad(t *testing.T) {
 		},
 		{
 			[]string{"http://unreachable-url"},
-			"failed to read",
+			"failed to",
 		},
 	}
 	for _, tc := range testCases {

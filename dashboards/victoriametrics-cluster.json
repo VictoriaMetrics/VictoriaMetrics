@@ -6141,7 +6141,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Shows the max number of concurrent selects across instances.\n* `max` - equal to number of CPU * 2 by default. May be configured with `search.maxConcurrentRequests` flag\n* `current` - current number of goroutines busy with processing requests\n\nWhen `current` hits `max` constantly, it means one or more vmselect nodes are overloaded and require more CPU or better load balancing. If CPU panel shows there are free resources - try increasing  `search.maxConcurrentRequests`.",
+          "description": "Shows the max number of concurrent selects across instances.\n* `max` limit can be configured via `search.maxConcurrentRequests` flag\n* `current` shows the current number of goroutines busy with processing requests\n\nWhen `current` hits `max` constantly, it means one or more vmselect nodes are overloaded with number of requests. If you observe that CPU for vmselects is saturated, consider adding more vmselect replicas or increase CPU resources. If CPU panel shows a plenty of free resources - try increasing `search.maxConcurrentRequests`.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -8938,8 +8938,8 @@
         },
         "definition": "label_values(vm_app_version{job=~\"$job\", version=~\"^vminsert.*\"}, job)",
         "hide": 2,
-        "includeAll": false,
-        "multi": false,
+        "includeAll": true,
+        "multi": true,
         "name": "job_insert",
         "options": [],
         "query": {
@@ -8963,8 +8963,8 @@
         },
         "definition": "label_values(vm_app_version{job=~\"$job\", version=~\"^vmselect.*\"}, job)",
         "hide": 2,
-        "includeAll": false,
-        "multi": false,
+        "includeAll": true,
+        "multi": true,
         "name": "job_select",
         "options": [],
         "query": {
@@ -8988,8 +8988,8 @@
         },
         "definition": "label_values(vm_app_version{job=~\"$job\", version=~\"^vmstorage.*\"}, job)",
         "hide": 2,
-        "includeAll": false,
-        "multi": false,
+        "includeAll": true,
+        "multi": true,
         "name": "job_storage",
         "options": [],
         "query": {

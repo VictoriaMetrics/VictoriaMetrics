@@ -10,13 +10,14 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 var (
 	addr = flag.String("datasource.url", "", "Datasource compatible with Prometheus HTTP API. It can be single node VictoriaMetrics or vmselect URL. Required parameter. "+
 		"E.g. http://127.0.0.1:8428 . See also -remoteRead.disablePathAppend and -datasource.showURL")
 	appendTypePrefix  = flag.Bool("datasource.appendTypePrefix", false, "Whether to add type prefix to -datasource.url based on the query type. Set to true if sending different query types to the vmselect URL.")
-	showDatasourceURL = flag.Bool("datasource.showURL", false, "Whether to show -datasource.url in the exported metrics. "+
+	showDatasourceURL = flag.Bool("datasource.showURL", false, "Whether to avoid stripping sensitive information such as auth headers or passwords from URLs in log messages or UI and exported metrics. "+
 		"It is hidden by default, since it can contain sensitive info such as auth key")
 
 	headers = flag.String("datasource.headers", "", "Optional HTTP extraHeaders to send with each request to the corresponding -datasource.url. "+
@@ -42,12 +43,15 @@ var (
 	oauth2TokenURL         = flag.String("datasource.oauth2.tokenUrl", "", "Optional OAuth2 tokenURL to use for -datasource.url.")
 	oauth2Scopes           = flag.String("datasource.oauth2.scopes", "", "Optional OAuth2 scopes to use for -datasource.url. Scopes must be delimited by ';'")
 
-	lookBack  = flag.Duration("datasource.lookback", 0, `Lookback defines how far into the past to look when evaluating queries. For example, if the datasource.lookback=5m then param "time" with value now()-5m will be added to every query.`)
+	lookBack = flag.Duration("datasource.lookback", 0, `Will be deprecated soon, please adjust "-search.latencyOffset"  at datasource side or specify "latency_offset" in rule group's params.`+
+		`Lookback defines how far into the past to look when evaluating queries. For example, if the datasource.lookback=5m then param "time" with value now()-5m will be added to every query.`)
 	queryStep = flag.Duration("datasource.queryStep", 5*time.Minute, "How far a value can fallback to when evaluating queries. "+
 		"For example, if -datasource.queryStep=15s then param \"step\" with value \"15s\" will be added to every query. "+
 		"If set to 0, rule's evaluation interval will be used instead.")
-	queryTimeAlignment = flag.Bool("datasource.queryTimeAlignment", true, `Whether to align "time" parameter with evaluation interval.`+
-		"Alignment supposed to produce deterministic results despite number of vmalert replicas or time they were started. See more details here https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1257")
+	queryTimeAlignment = flag.Bool("datasource.queryTimeAlignment", true, `Deprecated: please use "eval_alignment" in rule group instead. `+
+		`Whether to align "time" parameter with evaluation interval. `+
+		"Alignment supposed to produce deterministic results despite number of vmalert replicas or time they were started. "+
+		"See more details at https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1257")
 	maxIdleConnections = flag.Int("datasource.maxIdleConnections", 100, `Defines the number of idle (keep-alive connections) to each configured datasource. Consider setting this value equal to the value: groups_total * group.concurrency. Too low a value may result in a high number of sockets in TIME_WAIT state.`)
 	disableKeepAlive   = flag.Bool("datasource.disableKeepAlive", false, `Whether to disable long-lived connections to the datasource. `+
 		`If true, disables HTTP keep-alives and will only use the connection to the server for a single HTTP request.`)
@@ -62,6 +66,11 @@ func InitSecretFlags() {
 	}
 }
 
+// ShowDatasourceURL whether to show -datasource.url with sensitive information
+func ShowDatasourceURL() bool {
+	return *showDatasourceURL
+}
+
 // Param represents an HTTP GET param
 type Param struct {
 	Key, Value string
@@ -73,6 +82,12 @@ type Param struct {
 func Init(extraParams url.Values) (QuerierBuilder, error) {
 	if *addr == "" {
 		return nil, fmt.Errorf("datasource.url is empty")
+	}
+	if !*queryTimeAlignment {
+		logger.Warnf("flag `-datasource.queryTimeAlignment` is deprecated and will be removed in next releases. Please use `eval_alignment` in rule group instead.")
+	}
+	if *lookBack != 0 {
+		logger.Warnf("flag `-datasource.lookback` will be deprecated soon. Please use `-rule.evalDelay` command-line flag instead. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5155 for details.")
 	}
 
 	tr, err := utils.Transport(*addr, *tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify)
@@ -99,6 +114,10 @@ func Init(extraParams url.Values) (QuerierBuilder, error) {
 		utils.WithHeaders(*headers))
 	if err != nil {
 		return nil, fmt.Errorf("failed to configure auth: %w", err)
+	}
+	_, err = authCfg.GetAuthHeader()
+	if err != nil {
+		return nil, fmt.Errorf("failed to set request auth header to datasource %q: %w", *addr, err)
 	}
 
 	return &VMStorage{

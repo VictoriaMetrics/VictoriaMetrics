@@ -649,9 +649,11 @@ func (s *Storage) startFreeDiskSpaceWatcher() {
 		freeSpaceBytes := fs.MustGetFreeSpace(s.path)
 		if freeSpaceBytes < freeDiskSpaceLimitBytes {
 			// Switch the storage to readonly mode if there is no enough free space left at s.path
-			logger.Warnf("switching the storage at %s to read-only mode, since it has less than -storage.minFreeDiskSpaceBytes=%d of free space: %d bytes left",
-				s.path, freeDiskSpaceLimitBytes, freeSpaceBytes)
-			atomic.StoreUint32(&s.isReadOnly, 1)
+			if atomic.CompareAndSwapUint32(&s.isReadOnly, 0, 1) {
+				// log notification only on state change
+				logger.Warnf("switching the storage at %s to read-only mode, since it has less than -storage.minFreeDiskSpaceBytes=%d of free space: %d bytes left",
+					s.path, freeDiskSpaceLimitBytes, freeSpaceBytes)
+			}
 			return
 		}
 		if atomic.CompareAndSwapUint32(&s.isReadOnly, 1, 0) {
@@ -1716,15 +1718,18 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 
 	// Return only the first error, since it has no sense in returning all errors.
 	var firstWarn error
+
 	j := 0
 	for i := range mrs {
 		mr := &mrs[i]
+		var isStaleNan bool
 		if math.IsNaN(mr.Value) {
 			if !decimal.IsStaleNaN(mr.Value) {
 				// Skip NaNs other than Prometheus staleness marker, since the underlying encoding
 				// doesn't know how to work with them.
 				continue
 			}
+			isStaleNan = true
 		}
 		if mr.Timestamp < minTimestamp {
 			// Skip rows with too small timestamps outside the retention.
@@ -1835,6 +1840,13 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 			r.TSID = genTSID.TSID
 			prevTSID = genTSID.TSID
 			prevMetricNameRaw = mr.MetricNameRaw
+			continue
+		}
+
+		// If sample is stale and its TSID wasn't found in cache and in indexdb,
+		// then we skip it. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5069
+		if isStaleNan {
+			j--
 			continue
 		}
 

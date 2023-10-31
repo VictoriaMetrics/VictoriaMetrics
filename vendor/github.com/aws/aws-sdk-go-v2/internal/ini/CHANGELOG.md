@@ -1,3 +1,16 @@
+# v1.4.0 (2023-10-31)
+
+* **Feature**: **BREAKING CHANGE**: Bump minimum go version to 1.19 per the revised [go version support policy](https://aws.amazon.com/blogs/developer/aws-sdk-for-go-aligns-with-go-release-policy-on-supported-runtimes/).
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.3.45 (2023-10-12)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.3.44 (2023-10-06)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # v1.3.43 (2023-09-22)
 
 * **Bug Fix**: Fixed a bug where merging `max_attempts` or `duration_seconds` fields across shared config files with invalid values would silently default them to 0.

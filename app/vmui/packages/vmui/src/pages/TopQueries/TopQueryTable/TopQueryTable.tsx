@@ -7,7 +7,6 @@ import { ArrowDropDownIcon, CopyIcon, PlayCircleOutlineIcon } from "../../../com
 import Button from "../../../components/Main/Button/Button";
 import Tooltip from "../../../components/Main/Tooltip/Tooltip";
 import { Link } from "react-router-dom";
-import router from "../../../router";
 import useCopyToClipboard from "../../../hooks/useCopyToClipboard";
 
 const TopQueryTable:FC<TopQueryPanelProps> = ({ rows, columns, defaultOrderBy }) => {
@@ -75,20 +74,23 @@ const TopQueryTable:FC<TopQueryPanelProps> = ({ rows, columns, defaultOrderBy })
             ))}
             <td className="vm-table-cell vm-table-cell_no-padding">
               <div className="vm-top-queries-panels__table-actions">
-                <Tooltip title={"Execute query"}>
-                  <Link
-                    to={`${router.home}?g0.expr=${encodeURIComponent(row.query)}`}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    <Button
-                      variant="text"
-                      size="small"
-                      startIcon={<PlayCircleOutlineIcon/>}
-                      ariaLabel="execute query"
-                    />
-                  </Link>
-                </Tooltip>
+                {row.url && (
+                  <Tooltip title={"Execute query"}>
+                    <Link
+                      to={row.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      aria-disabled
+                    >
+                      <Button
+                        variant="text"
+                        size="small"
+                        startIcon={<PlayCircleOutlineIcon/>}
+                        ariaLabel="execute query"
+                      />
+                    </Link>
+                  </Tooltip>
+                )}
                 <Tooltip title={"Copy query"}>
                   <Button
                     variant="text"

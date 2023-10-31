@@ -35,7 +35,7 @@ const Legend: FC<LegendProps> = ({ labels, query, onChange }) => {
             )}
           >
             <div>
-              {labels.filter(l => l.group === group).map((legendItem: LegendItemType) =>
+              {labels.filter(l => l.group === group).sort((x, y) => (y.median || 0) - (x.median || 0)).map((legendItem: LegendItemType) =>
                 <LegendItem
                   key={legendItem.label}
                   legend={legendItem}

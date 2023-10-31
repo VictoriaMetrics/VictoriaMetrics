@@ -25,6 +25,7 @@ all: \
 	victoria-logs-prod \
 	vmagent-prod \
 	vmalert-prod \
+	vmalert-tool-prod \
 	vmauth-prod \
 	vmbackup-prod \
 	vmrestore-prod \
@@ -37,6 +38,7 @@ publish: package-base \
 	publish-victoria-metrics \
 	publish-vmagent \
 	publish-vmalert \
+	publish-vmalert-tool \
 	publish-vmauth \
 	publish-vmbackup \
 	publish-vmrestore \
@@ -47,6 +49,7 @@ package: \
 	package-victoria-logs \
 	package-vmagent \
 	package-vmalert \
+	package-vmalert-tool \
 	package-vmauth \
 	package-vmbackup \
 	package-vmrestore \
@@ -55,6 +58,7 @@ package: \
 vmutils: \
 	vmagent \
 	vmalert \
+	vmalert-tool \
 	vmauth \
 	vmbackup \
 	vmrestore \
@@ -63,6 +67,7 @@ vmutils: \
 vmutils-pure: \
 	vmagent-pure \
 	vmalert-pure \
+	vmalert-tool-pure \
 	vmauth-pure \
 	vmbackup-pure \
 	vmrestore-pure \
@@ -71,6 +76,7 @@ vmutils-pure: \
 vmutils-linux-amd64: \
 	vmagent-linux-amd64 \
 	vmalert-linux-amd64 \
+	vmalert-tool-linux-amd64 \
 	vmauth-linux-amd64 \
 	vmbackup-linux-amd64 \
 	vmrestore-linux-amd64 \
@@ -79,6 +85,7 @@ vmutils-linux-amd64: \
 vmutils-linux-arm64: \
 	vmagent-linux-arm64 \
 	vmalert-linux-arm64 \
+	vmalert-tool-linux-arm64 \
 	vmauth-linux-arm64 \
 	vmbackup-linux-arm64 \
 	vmrestore-linux-arm64 \
@@ -87,6 +94,7 @@ vmutils-linux-arm64: \
 vmutils-linux-arm: \
 	vmagent-linux-arm \
 	vmalert-linux-arm \
+	vmalert-tool-linux-arm \
 	vmauth-linux-arm \
 	vmbackup-linux-arm \
 	vmrestore-linux-arm \
@@ -95,6 +103,7 @@ vmutils-linux-arm: \
 vmutils-linux-386: \
 	vmagent-linux-386 \
 	vmalert-linux-386 \
+	vmalert-tool-linux-386 \
 	vmauth-linux-386 \
 	vmbackup-linux-386 \
 	vmrestore-linux-386 \
@@ -103,6 +112,7 @@ vmutils-linux-386: \
 vmutils-linux-ppc64le: \
 	vmagent-linux-ppc64le \
 	vmalert-linux-ppc64le \
+	vmalert-tool-linux-ppc64le \
 	vmauth-linux-ppc64le \
 	vmbackup-linux-ppc64le \
 	vmrestore-linux-ppc64le \
@@ -111,6 +121,7 @@ vmutils-linux-ppc64le: \
 vmutils-darwin-amd64: \
 	vmagent-darwin-amd64 \
 	vmalert-darwin-amd64 \
+	vmalert-tool-darwin-amd64 \
 	vmauth-darwin-amd64 \
 	vmbackup-darwin-amd64 \
 	vmrestore-darwin-amd64 \
@@ -119,6 +130,7 @@ vmutils-darwin-amd64: \
 vmutils-darwin-arm64: \
 	vmagent-darwin-arm64 \
 	vmalert-darwin-arm64 \
+	vmalert-tool-darwin-arm64 \
 	vmauth-darwin-arm64 \
 	vmbackup-darwin-arm64 \
 	vmrestore-darwin-arm64 \
@@ -127,6 +139,7 @@ vmutils-darwin-arm64: \
 vmutils-freebsd-amd64: \
 	vmagent-freebsd-amd64 \
 	vmalert-freebsd-amd64 \
+	vmalert-tool-freebsd-amd64 \
 	vmauth-freebsd-amd64 \
 	vmbackup-freebsd-amd64 \
 	vmrestore-freebsd-amd64 \
@@ -135,6 +148,7 @@ vmutils-freebsd-amd64: \
 vmutils-openbsd-amd64: \
 	vmagent-openbsd-amd64 \
 	vmalert-openbsd-amd64 \
+	vmalert-tool-openbsd-amd64 \
 	vmauth-openbsd-amd64 \
 	vmbackup-openbsd-amd64 \
 	vmrestore-openbsd-amd64 \
@@ -143,6 +157,7 @@ vmutils-openbsd-amd64: \
 vmutils-windows-amd64: \
 	vmagent-windows-amd64 \
 	vmalert-windows-amd64 \
+	vmalert-tool-windows-amd64 \
 	vmauth-windows-amd64 \
 	vmbackup-windows-amd64 \
 	vmrestore-windows-amd64 \
@@ -339,6 +354,7 @@ release-vmutils-windows-amd64:
 release-vmutils-goos-goarch: \
 	vmagent-$(GOOS)-$(GOARCH)-prod \
 	vmalert-$(GOOS)-$(GOARCH)-prod \
+	vmalert-tool-$(GOOS)-$(GOARCH)-prod \
 	vmauth-$(GOOS)-$(GOARCH)-prod \
 	vmbackup-$(GOOS)-$(GOARCH)-prod \
 	vmrestore-$(GOOS)-$(GOARCH)-prod \
@@ -347,6 +363,7 @@ release-vmutils-goos-goarch: \
 		tar --transform="flags=r;s|-$(GOOS)-$(GOARCH)||" -czf vmutils-$(GOOS)-$(GOARCH)-$(PKG_TAG).tar.gz \
 			vmagent-$(GOOS)-$(GOARCH)-prod \
 			vmalert-$(GOOS)-$(GOARCH)-prod \
+			vmalert-tool-$(GOOS)-$(GOARCH)-prod \
 			vmauth-$(GOOS)-$(GOARCH)-prod \
 			vmbackup-$(GOOS)-$(GOARCH)-prod \
 			vmrestore-$(GOOS)-$(GOARCH)-prod \
@@ -354,6 +371,7 @@ release-vmutils-goos-goarch: \
 		&& sha256sum vmutils-$(GOOS)-$(GOARCH)-$(PKG_TAG).tar.gz \
 			vmagent-$(GOOS)-$(GOARCH)-prod \
 			vmalert-$(GOOS)-$(GOARCH)-prod \
+			vmalert-tool-$(GOOS)-$(GOARCH)-prod \
 			vmauth-$(GOOS)-$(GOARCH)-prod \
 			vmbackup-$(GOOS)-$(GOARCH)-prod \
 			vmrestore-$(GOOS)-$(GOARCH)-prod \
@@ -362,6 +380,7 @@ release-vmutils-goos-goarch: \
 	cd bin && rm -rf \
 		vmagent-$(GOOS)-$(GOARCH)-prod \
 		vmalert-$(GOOS)-$(GOARCH)-prod \
+		vmalert-tool-$(GOOS)-$(GOARCH)-prod \
 		vmauth-$(GOOS)-$(GOARCH)-prod \
 		vmbackup-$(GOOS)-$(GOARCH)-prod \
 		vmrestore-$(GOOS)-$(GOARCH)-prod \
@@ -370,6 +389,7 @@ release-vmutils-goos-goarch: \
 release-vmutils-windows-goarch: \
 	vmagent-windows-$(GOARCH)-prod \
 	vmalert-windows-$(GOARCH)-prod \
+	vmalert-tool-windows-$(GOARCH)-prod \
 	vmauth-windows-$(GOARCH)-prod \
 	vmbackup-windows-$(GOARCH)-prod \
 	vmrestore-windows-$(GOARCH)-prod \
@@ -378,6 +398,7 @@ release-vmutils-windows-goarch: \
 		zip vmutils-windows-$(GOARCH)-$(PKG_TAG).zip \
 			vmagent-windows-$(GOARCH)-prod.exe \
 			vmalert-windows-$(GOARCH)-prod.exe \
+			vmalert-tool-windows-$(GOARCH)-prod.exe \
 			vmauth-windows-$(GOARCH)-prod.exe \
 			vmbackup-windows-$(GOARCH)-prod.exe \
 			vmrestore-windows-$(GOARCH)-prod.exe \
@@ -385,6 +406,7 @@ release-vmutils-windows-goarch: \
 		&& sha256sum vmutils-windows-$(GOARCH)-$(PKG_TAG).zip \
 			vmagent-windows-$(GOARCH)-prod.exe \
 			vmalert-windows-$(GOARCH)-prod.exe \
+			vmalert-tool-windows-$(GOARCH)-prod.exe \
 			vmauth-windows-$(GOARCH)-prod.exe \
 			vmbackup-windows-$(GOARCH)-prod.exe \
 			vmrestore-windows-$(GOARCH)-prod.exe \
@@ -393,6 +415,7 @@ release-vmutils-windows-goarch: \
 	cd bin && rm -rf \
 		vmagent-windows-$(GOARCH)-prod.exe \
 		vmalert-windows-$(GOARCH)-prod.exe \
+		vmalert-tool-windows-$(GOARCH)-prod.exe \
 		vmauth-windows-$(GOARCH)-prod.exe \
 		vmbackup-windows-$(GOARCH)-prod.exe \
 		vmrestore-windows-$(GOARCH)-prod.exe \
@@ -514,3 +537,4 @@ docs-sync:
 	SRC=app/vmctl/README.md DST=docs/vmctl.md OLD_URL='/vmctl.html' ORDER=8 TITLE=vmctl $(MAKE) copy-docs
 	SRC=app/vmgateway/README.md DST=docs/vmgateway.md OLD_URL='/vmgateway.html' ORDER=9 TITLE=vmgateway $(MAKE) copy-docs
 	SRC=app/vmbackupmanager/README.md DST=docs/vmbackupmanager.md OLD_URL='/vmbackupmanager.html' ORDER=10 TITLE=vmbackupmanager $(MAKE) copy-docs
+	SRC=app/vmalert-tool/README.md DST=docs/vmalert-tool.md OLD_URL='' ORDER=12 TITLE=vmalert-tool $(MAKE) copy-docs

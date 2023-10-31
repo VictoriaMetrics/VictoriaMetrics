@@ -34,7 +34,7 @@ func (sdc *SDConfig) GetLabels(baseDir string) ([]*promutils.Labels, error) {
 	case "compute":
 		return getInstancesLabels(cfg)
 	default:
-		return nil, fmt.Errorf("unexpected `service`: %q; only `compute` supported yet; skipping it", sdc.Service)
+		return nil, fmt.Errorf("skipping unexpected service=%q; only `compute` supported for now", sdc.Service)
 	}
 }
 
