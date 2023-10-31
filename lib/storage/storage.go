@@ -648,9 +648,12 @@ func (s *Storage) startFreeDiskSpaceWatcher() {
 	f := func() {
 		freeSpaceBytes := fs.MustGetFreeSpace(s.path)
 		if freeSpaceBytes < freeDiskSpaceLimitBytes {
+			if atomic.LoadUint32(&s.isReadOnly) == 0 {
+				// log notification only on state change
+				logger.Warnf("switching the storage at %s to read-only mode, since it has less than -storage.minFreeDiskSpaceBytes=%d of free space: %d bytes left",
+					s.path, freeDiskSpaceLimitBytes, freeSpaceBytes)
+			}
 			// Switch the storage to readonly mode if there is no enough free space left at s.path
-			logger.Warnf("switching the storage at %s to read-only mode, since it has less than -storage.minFreeDiskSpaceBytes=%d of free space: %d bytes left",
-				s.path, freeDiskSpaceLimitBytes, freeSpaceBytes)
 			atomic.StoreUint32(&s.isReadOnly, 1)
 			return
 		}
