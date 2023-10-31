@@ -448,8 +448,8 @@ var (
 	pprofDefaultRequests = metrics.NewCounter(`vm_http_requests_total{path="/debug/pprof/default"}`)
 	faviconRequests      = metrics.NewCounter(`vm_http_requests_total{path="/favicon.ico"}`)
 
-	authBasicRequestErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="*", reason="wrong basic auth creds"}`)
-	authKeyRequestErrors     = metrics.NewCounter(`vm_http_request_errors_total{path="*", reason="wrong auth key"}`)
+	authBasicRequestErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="*", reason="wrong_basic_auth"}`)
+	authKeyRequestErrors     = metrics.NewCounter(`vm_http_request_errors_total{path="*", reason="wrong_auth_key"}`)
 	unsupportedRequestErrors = metrics.NewCounter(`vm_http_request_errors_total{path="*", reason="unsupported"}`)
 
 	requestsTotal = metrics.NewCounter(`vm_http_requests_all_total`)
