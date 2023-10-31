@@ -33,7 +33,8 @@ var (
 		"Queries requiring more memory are rejected. The total memory limit for concurrently executed queries can be estimated "+
 		"as -search.maxMemoryPerQuery multiplied by -search.maxConcurrentRequests . "+
 		"See also -search.logQueryMemoryUsage")
-	logQueryMemoryUsage = flagutil.NewBytes("search.logQueryMemoryUsage", 0, "Log query and increment vm_memory_intensive_queries_total metric each time when the query requires more memory than specified by this flag. "+
+	logQueryMemoryUsage = flagutil.NewBytes("search.logQueryMemoryUsage", 0, "Log query and increment vm_memory_intensive_queries_total metric each time "+
+		"the query requires more memory than specified by this flag. "+
 		"This may help detecting and optimizing heavy queries. Query logging is disabled by default. "+
 		"See also -search.logSlowQueryDuration and -search.maxMemoryPerQuery")
 	noStaleMarkers = flag.Bool("search.noStaleMarkers", false, "Set this flag to true if the database doesn't contain Prometheus stale markers, "+
