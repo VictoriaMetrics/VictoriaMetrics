@@ -1909,18 +1909,21 @@ See how to request a free trial license [here](https://victoriametrics.com/produ
 * `-downsampling.period=30d:5m,180d:1h` instructs VictoriaMetrics to deduplicate samples older than 30 days with 5 minutes interval and to deduplicate samples older than 180 days with 1 hour interval.
 
 Downsampling is applied independently per each time series and leaves a single [raw sample](https://docs.victoriametrics.com/keyConcepts.html#raw-samples)
-with the biggest [timestamp](https://en.wikipedia.org/wiki/Unix_time) on the interval, in the same way as [deduplication](#deduplication).
+with the biggest [timestamp](https://en.wikipedia.org/wiki/Unix_time) on the configured interval, in the same way as [deduplication](#deduplication) does.
 It works the best for [counters](https://docs.victoriametrics.com/keyConcepts.html#counter) and [histograms](https://docs.victoriametrics.com/keyConcepts.html#histogram),
 as their values are always increasing. But downsampling [gauges](https://docs.victoriametrics.com/keyConcepts.html#gauge)
+and [summaries](https://docs.victoriametrics.com/keyConcepts.html#summary)
 would mean losing the changes within the downsampling interval. Please note, you can use [recording rules](https://docs.victoriametrics.com/vmalert.html#rules)
+or [steaming aggregation](https://docs.victoriametrics.com/stream-aggregation.html)
 to apply custom aggregation functions, like min/max/avg etc., in order to make gauges more resilient to downsampling.
 
-Downsampling can reduce disk space usage and improve query performance if it is applied to time series with big number 
-of samples per each series. The downsampling doesn't improve query performance if the database contains big number 
+Downsampling can reduce disk space usage and improve query performance if it is applied to time series with big number
+of samples per each series. The downsampling doesn't improve query performance if the database contains big number
 of time series with small number of samples per each series (aka [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate)),
-since downsampling doesn't reduce the number of time series. So the majority of time is spent on searching for the matching time series. 
-It is possible to use [stream aggregation](https://docs.victoriametrics.com/stream-aggregation.html) in vmagent or 
-recording rules in [vmalert](https://docs.victoriametrics.com/vmalert.html) in order to 
+since downsampling doesn't reduce the number of time series. In this case the majority of query time is spent on searching for the matching time series
+instead of processing the found samples.
+It is possible to use [stream aggregation](https://docs.victoriametrics.com/stream-aggregation.html) in [vmagent](https://docs.victoriametrics.com/vmagent.html)
+or recording rules in [vmalert](https://docs.victoriametrics.com/vmalert.html) in order to
 [reduce the number of time series](https://docs.victoriametrics.com/vmalert.html#downsampling-and-aggregation-via-vmalert).
 
 Downsampling happens during [background merges](https://docs.victoriametrics.com/#storage) 
@@ -1971,7 +1974,6 @@ VictoriaMetrics provides the following security-related command-line flags:
 * `-tls`, `-tlsCertFile` and `-tlsKeyFile` for switching from HTTP to HTTPS.
 * `-httpAuth.username` and `-httpAuth.password` for protecting all the HTTP endpoints
   with [HTTP Basic Authentication](https://en.wikipedia.org/wiki/Basic_access_authentication).
-* `-http.header.hsts`, `-http.header.csp`, and `-http.header.frameOptions` for serving `Strict-Transport-Security`, `Content-Security-Policy` and `X-Frame-Options` HTTP response headers.
 * `-deleteAuthKey` for protecting `/api/v1/admin/tsdb/delete_series` endpoint. See [how to delete time series](#how-to-delete-time-series).
 * `-snapshotAuthKey` for protecting `/snapshot*` endpoints. See [how to work with snapshots](#how-to-work-with-snapshots).
 * `-forceMergeAuthKey` for protecting `/internal/force_merge` endpoint. See [force merge docs](#forced-merge).
@@ -1980,6 +1982,8 @@ VictoriaMetrics provides the following security-related command-line flags:
 * `-flagsAuthKey` for protecting `/flags` endpoint.
 * `-pprofAuthKey` for protecting `/debug/pprof/*` endpoints, which can be used for [profiling](#profiling).
 * `-denyQueryTracing` for disallowing [query tracing](#query-tracing).
+* `-http.header.hsts`, `-http.header.csp`, and `-http.header.frameOptions` for serving `Strict-Transport-Security`, `Content-Security-Policy`
+  and `X-Frame-Options` HTTP response headers.
 
 Explicitly set internal network interface for TCP and UDP ports for data ingestion with Graphite and OpenTSDB formats.
 For example, substitute `-graphiteListenAddr=:2003` with `-graphiteListenAddr=<internal_iface_ip>:2003`. This protects from unexpected requests from untrusted network interfaces.
