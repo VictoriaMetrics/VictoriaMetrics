@@ -227,12 +227,14 @@ users:
   password: bar
   url_prefix: http://aaa:343/bbb
   max_concurrent_requests: 5
+  tls_insecure_skip_verify: true
 `, map[string]*UserInfo{
 		getAuthToken("", "foo", "bar"): {
 			Username:              "foo",
 			Password:              "bar",
 			URLPrefix:             mustParseURL("http://aaa:343/bbb"),
 			MaxConcurrentRequests: 5,
+			TLSInsecureSkipVerify: true,
 		},
 	})
 
@@ -445,6 +447,42 @@ users:
 			}),
 		},
 	})
+
+}
+
+func TestParseAuthConfigPassesTLSVerificationConfig(t *testing.T) {
+	c := `
+users:
+- username: foo
+  password: bar
+  url_prefix: https://aaa/bbb
+  max_concurrent_requests: 5
+  tls_insecure_skip_verify: true
+
+unauthorized_user:
+  url_prefix: http://aaa:343/bbb
+  max_concurrent_requests: 5
+  tls_insecure_skip_verify: false
+`
+
+	ac, err := parseAuthConfig([]byte(c))
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	m, err := parseAuthConfigUsers(ac)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	ui := m[getAuthToken("", "foo", "bar")]
+	if ui.TLSInsecureSkipVerify != true || ui.httpTransport.TLSClientConfig.InsecureSkipVerify != true {
+		t.Fatalf("unexpected TLSInsecureSkipVerify value for user foo")
+	}
+
+	if ac.UnauthorizedUser.TLSInsecureSkipVerify != false ||
+		ac.UnauthorizedUser.httpTransport.TLSClientConfig.InsecureSkipVerify != false {
+		t.Fatalf("unexpected TLSInsecureSkipVerify value for unauthorized_user")
+	}
 
 }
 

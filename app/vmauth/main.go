@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"flag"
 	"fmt"
@@ -15,6 +16,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
@@ -24,7 +27,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
-	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
@@ -191,7 +193,7 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 		} else { // Update path for regular routes.
 			targetURL = mergeURLs(targetURL, u)
 		}
-		ok := tryProcessingRequest(w, r, targetURL, hc, retryStatusCodes)
+		ok := tryProcessingRequest(w, r, targetURL, hc, retryStatusCodes, ui.httpTransport)
 		bu.put()
 		if ok {
 			return
@@ -205,12 +207,11 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 	httpserver.Errorf(w, r, "%s", err)
 }
 
-func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url.URL, hc HeadersConf, retryStatusCodes []int) bool {
+func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url.URL, hc HeadersConf, retryStatusCodes []int, transport *http.Transport) bool {
 	// This code has been copied from net/http/httputil/reverseproxy.go
 	req := sanitizeRequestHeaders(r)
 	req.URL = targetURL
 	updateHeadersByConfig(req.Header, hc.RequestHeaders)
-	transportOnce.Do(transportInit)
 	res, err := transport.RoundTrip(req)
 	rtb, rtbOK := req.Body.(*readTrackingBody)
 	if err != nil {
@@ -353,12 +354,7 @@ var (
 	missingRouteRequests     = metrics.NewCounter(`vmauth_http_request_errors_total{reason="missing_route"}`)
 )
 
-var (
-	transport     *http.Transport
-	transportOnce sync.Once
-)
-
-func transportInit() {
+func getTransport(skipTLSVerification bool) *http.Transport {
 	tr := http.DefaultTransport.(*http.Transport).Clone()
 	tr.ResponseHeaderTimeout = *responseTimeout
 	// Automatic compression must be disabled in order to fix https://github.com/VictoriaMetrics/VictoriaMetrics/issues/535
@@ -369,7 +365,11 @@ func transportInit() {
 	if tr.MaxIdleConns != 0 && tr.MaxIdleConns < tr.MaxIdleConnsPerHost {
 		tr.MaxIdleConns = tr.MaxIdleConnsPerHost
 	}
-	transport = tr
+	if tr.TLSClientConfig == nil {
+		tr.TLSClientConfig = &tls.Config{}
+	}
+	tr.TLSClientConfig.InsecureSkipVerify = skipTLSVerification
+	return tr
 }
 
 var (
