@@ -122,4 +122,32 @@ func TestAuthKeyMetrics(t *testing.T) {
 	tstWithOutAuthKey("test", "wrong", 401)
 	tstWithOutAuthKey("wrong", "pass", 401)
 	tstWithOutAuthKey("wrong", "wrong", 401)
+
+func TestHandlerWrapper(t *testing.T) {
+	*headerHSTS = "foo"
+	*headerFrameOptions = "bar"
+	*headerCSP = "baz"
+	defer func() {
+		*headerHSTS = ""
+		*headerFrameOptions = ""
+		*headerCSP = ""
+	}()
+
+	req, _ := http.NewRequest("GET", "/health", nil)
+
+	srv := &server{s: &http.Server{}}
+	w := &httptest.ResponseRecorder{}
+	handlerWrapper(srv, w, req, func(_ http.ResponseWriter, _ *http.Request) bool {
+		return true
+	})
+
+	if w.Header().Get("Strict-Transport-Security") != "foo" {
+		t.Errorf("HSTS header not set")
+	}
+	if w.Header().Get("X-Frame-Options") != "bar" {
+		t.Errorf("X-Frame-Options header not set")
+	}
+	if w.Header().Get("Content-Security-Policy") != "baz" {
+		t.Errorf("CSP header not set")
+	}
 }
