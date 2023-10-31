@@ -1334,13 +1334,15 @@ func evalRollupFuncWithMetricExpr(qt *querytracer.Tracer, ec *EvalConfig, funcNa
 	tssCached, start := rollupResultCacheV.GetSeries(qt, ec, expr, window)
 	ec.QueryStats.addSeriesFetched(len(tssCached))
 	if start > ec.End {
-		// The result is fully cached.
+		qt.Printf("the result is fully cached")
 		rollupResultCacheFullHits.Inc()
 		return tssCached, nil
 	}
 	if start > ec.Start {
+		qt.Printf("partial cache hit")
 		rollupResultCachePartialHits.Inc()
 	} else {
+		qt.Printf("cache miss")
 		rollupResultCacheMiss.Inc()
 	}
 
@@ -1373,7 +1375,7 @@ func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName stri
 		qt = qt.NewChild("rollup %s: timeRange=%s, step=%d, window=%d", expr.AppendString(nil), ec.timeRangeString(), ec.Step, window)
 		defer qt.Done()
 	}
-	if window <= 0 {
+	if window < 0 {
 		return nil, nil
 	}
 	// Obtain rollup configs before fetching data from db, so type errors could be caught earlier.
