@@ -1373,7 +1373,7 @@ func evalRollupFuncWithMetricExpr(qt *querytracer.Tracer, ec *EvalConfig, funcNa
 	ecCopy := copyEvalConfig(ec)
 	ecCopy.Start = start
 	pointsPerSeries := 1 + (ec.End-ec.Start)/ec.Step
-	tss, err := evalRollupFuncNoCache(qt, ec, funcName, rf, expr, me, iafc, window, pointsPerSeries)
+	tss, err := evalRollupFuncNoCache(qt, ecCopy, funcName, rf, expr, me, iafc, window, pointsPerSeries)
 	if err != nil {
 		err = &UserReadableError{
 			Err: err,
