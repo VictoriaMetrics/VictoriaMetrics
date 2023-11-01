@@ -49,7 +49,10 @@ func Exec(qt *querytracer.Tracer, ec *EvalConfig, q string, isFirstPointOnly boo
 	if querystats.Enabled() {
 		startTime := time.Now()
 		ac := ec.AuthToken
-		defer querystats.RegisterQuery(ac.AccountID, ac.ProjectID, q, ec.End-ec.Start, startTime)
+		defer func() {
+			querystats.RegisterQuery(ac.AccountID, ac.ProjectID, q, ec.End-ec.Start, startTime)
+			ec.QueryStats.addExecutionTimeMsec(startTime)
+		}()
 	}
 
 	ec.validate()
