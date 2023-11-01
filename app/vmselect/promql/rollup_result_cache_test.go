@@ -61,7 +61,7 @@ func TestRollupResultCache(t *testing.T) {
 
 	// Try obtaining an empty value.
 	t.Run("empty", func(t *testing.T) {
-		tss, newStart := rollupResultCacheV.Get(nil, ec, fe, window)
+		tss, newStart := rollupResultCacheV.GetSeries(nil, ec, fe, window)
 		if newStart != ec.Start {
 			t.Fatalf("unexpected newStart; got %d; want %d", newStart, ec.Start)
 		}
@@ -79,8 +79,8 @@ func TestRollupResultCache(t *testing.T) {
 				Values:     []float64{0, 1, 2},
 			},
 		}
-		rollupResultCacheV.Put(nil, ec, fe, window, tss)
-		tss, newStart := rollupResultCacheV.Get(nil, ec, fe, window)
+		rollupResultCacheV.PutSeries(nil, ec, fe, window, tss)
+		tss, newStart := rollupResultCacheV.GetSeries(nil, ec, fe, window)
 		if newStart != 1400 {
 			t.Fatalf("unexpected newStart; got %d; want %d", newStart, 1400)
 		}
@@ -100,8 +100,8 @@ func TestRollupResultCache(t *testing.T) {
 				Values:     []float64{0, 1, 2},
 			},
 		}
-		rollupResultCacheV.Put(nil, ec, ae, window, tss)
-		tss, newStart := rollupResultCacheV.Get(nil, ec, ae, window)
+		rollupResultCacheV.PutSeries(nil, ec, ae, window, tss)
+		tss, newStart := rollupResultCacheV.GetSeries(nil, ec, ae, window)
 		if newStart != 1400 {
 			t.Fatalf("unexpected newStart; got %d; want %d", newStart, 1400)
 		}
@@ -123,8 +123,8 @@ func TestRollupResultCache(t *testing.T) {
 				Values:     []float64{333, 0, 1, 2},
 			},
 		}
-		rollupResultCacheV.Put(nil, ec, fe, window, tss)
-		tss, newStart := rollupResultCacheV.Get(nil, ec, fe, window)
+		rollupResultCacheV.PutSeries(nil, ec, fe, window, tss)
+		tss, newStart := rollupResultCacheV.GetSeries(nil, ec, fe, window)
 		if newStart != 1000 {
 			t.Fatalf("unexpected newStart; got %d; want %d", newStart, 1000)
 		}
@@ -142,8 +142,8 @@ func TestRollupResultCache(t *testing.T) {
 				Values:     []float64{0, 1, 2},
 			},
 		}
-		rollupResultCacheV.Put(nil, ec, fe, window, tss)
-		tss, newStart := rollupResultCacheV.Get(nil, ec, fe, window)
+		rollupResultCacheV.PutSeries(nil, ec, fe, window, tss)
+		tss, newStart := rollupResultCacheV.GetSeries(nil, ec, fe, window)
 		if newStart != 1000 {
 			t.Fatalf("unexpected newStart; got %d; want %d", newStart, 1000)
 		}
@@ -161,8 +161,8 @@ func TestRollupResultCache(t *testing.T) {
 				Values:     []float64{0, 1, 2},
 			},
 		}
-		rollupResultCacheV.Put(nil, ec, fe, window, tss)
-		tss, newStart := rollupResultCacheV.Get(nil, ec, fe, window)
+		rollupResultCacheV.PutSeries(nil, ec, fe, window, tss)
+		tss, newStart := rollupResultCacheV.GetSeries(nil, ec, fe, window)
 		if newStart != 1000 {
 			t.Fatalf("unexpected newStart; got %d; want %d", newStart, 1000)
 		}
@@ -180,8 +180,8 @@ func TestRollupResultCache(t *testing.T) {
 				Values:     []float64{0, 1, 2},
 			},
 		}
-		rollupResultCacheV.Put(nil, ec, fe, window, tss)
-		tss, newStart := rollupResultCacheV.Get(nil, ec, fe, window)
+		rollupResultCacheV.PutSeries(nil, ec, fe, window, tss)
+		tss, newStart := rollupResultCacheV.GetSeries(nil, ec, fe, window)
 		if newStart != 1000 {
 			t.Fatalf("unexpected newStart; got %d; want %d", newStart, 1000)
 		}
@@ -199,8 +199,8 @@ func TestRollupResultCache(t *testing.T) {
 				Values:     []float64{0, 1, 2, 3, 4, 5, 6, 7},
 			},
 		}
-		rollupResultCacheV.Put(nil, ec, fe, window, tss)
-		tss, newStart := rollupResultCacheV.Get(nil, ec, fe, window)
+		rollupResultCacheV.PutSeries(nil, ec, fe, window, tss)
+		tss, newStart := rollupResultCacheV.GetSeries(nil, ec, fe, window)
 		if newStart != 2200 {
 			t.Fatalf("unexpected newStart; got %d; want %d", newStart, 2200)
 		}
@@ -222,8 +222,8 @@ func TestRollupResultCache(t *testing.T) {
 				Values:     []float64{1, 2, 3, 4, 5, 6},
 			},
 		}
-		rollupResultCacheV.Put(nil, ec, fe, window, tss)
-		tss, newStart := rollupResultCacheV.Get(nil, ec, fe, window)
+		rollupResultCacheV.PutSeries(nil, ec, fe, window, tss)
+		tss, newStart := rollupResultCacheV.GetSeries(nil, ec, fe, window)
 		if newStart != 2200 {
 			t.Fatalf("unexpected newStart; got %d; want %d", newStart, 2200)
 		}
@@ -247,8 +247,8 @@ func TestRollupResultCache(t *testing.T) {
 			}
 			tss = append(tss, ts)
 		}
-		rollupResultCacheV.Put(nil, ec, fe, window, tss)
-		tssResult, newStart := rollupResultCacheV.Get(nil, ec, fe, window)
+		rollupResultCacheV.PutSeries(nil, ec, fe, window, tss)
+		tssResult, newStart := rollupResultCacheV.GetSeries(nil, ec, fe, window)
 		if newStart != 2200 {
 			t.Fatalf("unexpected newStart; got %d; want %d", newStart, 2200)
 		}
@@ -276,10 +276,10 @@ func TestRollupResultCache(t *testing.T) {
 				Values:     []float64{0, 1, 2},
 			},
 		}
-		rollupResultCacheV.Put(nil, ec, fe, window, tss1)
-		rollupResultCacheV.Put(nil, ec, fe, window, tss2)
-		rollupResultCacheV.Put(nil, ec, fe, window, tss3)
-		tss, newStart := rollupResultCacheV.Get(nil, ec, fe, window)
+		rollupResultCacheV.PutSeries(nil, ec, fe, window, tss1)
+		rollupResultCacheV.PutSeries(nil, ec, fe, window, tss2)
+		rollupResultCacheV.PutSeries(nil, ec, fe, window, tss3)
+		tss, newStart := rollupResultCacheV.GetSeries(nil, ec, fe, window)
 		if newStart != 1400 {
 			t.Fatalf("unexpected newStart; got %d; want %d", newStart, 1400)
 		}
@@ -311,7 +311,10 @@ func TestMergeTimeseries(t *testing.T) {
 				Values:     []float64{1, 2, 3, 4, 5, 6},
 			},
 		}
-		tss := mergeTimeseries(a, b, 1000, ec)
+		tss, err := mergeTimeseries(nil, a, b, 1000, ec)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
 		tssExpected := []*timeseries{
 			{
 				Timestamps: []int64{1000, 1200, 1400, 1600, 1800, 2000},
@@ -328,7 +331,10 @@ func TestMergeTimeseries(t *testing.T) {
 				Values:     []float64{3, 4, 5, 6},
 			},
 		}
-		tss := mergeTimeseries(a, b, bStart, ec)
+		tss, err := mergeTimeseries(nil, a, b, bStart, ec)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
 		tssExpected := []*timeseries{
 			{
 				Timestamps: []int64{1000, 1200, 1400, 1600, 1800, 2000},
@@ -345,7 +351,10 @@ func TestMergeTimeseries(t *testing.T) {
 			},
 		}
 		b := []*timeseries{}
-		tss := mergeTimeseries(a, b, bStart, ec)
+		tss, err := mergeTimeseries(nil, a, b, bStart, ec)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
 		tssExpected := []*timeseries{
 			{
 				Timestamps: []int64{1000, 1200, 1400, 1600, 1800, 2000},
@@ -367,7 +376,10 @@ func TestMergeTimeseries(t *testing.T) {
 				Values:     []float64{3, 4, 5, 6},
 			},
 		}
-		tss := mergeTimeseries(a, b, bStart, ec)
+		tss, err := mergeTimeseries(nil, a, b, bStart, ec)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
 		tssExpected := []*timeseries{
 			{
 				Timestamps: []int64{1000, 1200, 1400, 1600, 1800, 2000},
@@ -391,7 +403,10 @@ func TestMergeTimeseries(t *testing.T) {
 			},
 		}
 		b[0].MetricName.MetricGroup = []byte("foo")
-		tss := mergeTimeseries(a, b, bStart, ec)
+		tss, err := mergeTimeseries(nil, a, b, bStart, ec)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
 		tssExpected := []*timeseries{
 			{
 				MetricName: storage.MetricName{
