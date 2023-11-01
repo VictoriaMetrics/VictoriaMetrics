@@ -58,13 +58,17 @@ and send data to multiple remote storage systems, vmagent has the following addi
 * vmagent may accept, relabel and filter data obtained via multiple data ingestion protocols in addition to data scraped from Prometheus targets.
   That means it supports both `pull` and `push` protocols for data ingestion.
   See [these docs](https://docs.victoriametrics.com/vmagent.html#features) for details.
-* vmagent may be used in different use cases:
+* vmagent may be used in different [use cases](https://docs.victoriametrics.com/vmagent.html#use-cases):
   * [IoT and edge monitoring](https://docs.victoriametrics.com/vmagent.html#iot-and-edge-monitoring)
   * [Drop-in replacement for Prometheus](https://docs.victoriametrics.com/vmagent.html#drop-in-replacement-for-prometheus)
-  * [Replication and High Availability](https://docs.victoriametrics.com/vmagent.html#replication-and-high-availability)
-  * [Relabeling and Filtering](https://docs.victoriametrics.com/vmagent.html#relabeling-and-filtering)
+  * [Statsd alternative](https://docs.victoriametrics.com/vmagent.html#statsd-alternative)
+  * [Flexible metrics relay](https://docs.victoriametrics.com/vmagent.html#flexible-metrics-relay)
+  * [Replication and high availability](https://docs.victoriametrics.com/vmagent.html#replication-and-high-availability)
+  * [Sharding among remote storages](https://docs.victoriametrics.com/vmagent.html#sharding-among-remote-storages)
+  * [Relabeling and filtering](https://docs.victoriametrics.com/vmagent.html#relabeling-and-filtering)
   * [Splitting data streams among multiple systems](https://docs.victoriametrics.com/vmagent.html#splitting-data-streams-among-multiple-systems)
   * [Prometheus remote_write proxy](https://docs.victoriametrics.com/vmagent.html#prometheus-remote_write-proxy)
+  * [remote_write for clustered version](https://docs.victoriametrics.com/vmagent.html#remote_write-for-clustered-version)
 
 ## What is the difference between vmagent and Prometheus agent?
 
