@@ -11,6 +11,13 @@ The following `tip` changes can be tested by building VictoriaMetrics components
 
 ## v1.93.x long-time support release (LTS)
 
+## [v1.93.7](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.7)
+
+Released at 2023-11-02
+
+**v1.93.x is a line of LTS releases (e.g. long-time support). It contains important up-to-date bugfixes.
+The v1.93.x line will be supported for at least 12 months since [v1.93.0](https://docs.victoriametrics.com/CHANGELOG.html#v1930) release**
+
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): properly discover Kubernetes targets via [kubernetes_sd_configs](https://docs.victoriametrics.com/sd_configs.html#kubernetes_sd_configs). Previously some targets and some labels could be skipped during service discovery because of the bug introduced in [v1.93.5](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.5) when implementing [this feature](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4850). See [tis issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5216) for more details.
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): properly parse `ca`, `cert` and `key` options at `tls_config` section inside [http client settings](https://docs.victoriametrics.com/sd_configs.html#http-api-client-options). Previously string values couldn't be parsed for these options, since the parser was mistakenly expecting a list of `uint8` values instead.
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): properly drop samples if `-streamAggr.dropInput` command-line flag is set and `-remoteWrite.streamAggr.config` contains an empty file. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5207).
