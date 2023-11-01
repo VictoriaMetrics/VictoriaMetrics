@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
@@ -136,8 +137,7 @@ type EvalConfig struct {
 
 	// QueryStats contains various stats for the currently executed query.
 	//
-	// The caller must initialize the QueryStats if it needs the stats.
-	// Otherwise the stats isn't collected.
+	// The caller must initialize QueryStats, otherwise it isn't collected.
 	QueryStats *QueryStats
 
 	timestamps     []int64
@@ -167,13 +167,24 @@ func copyEvalConfig(src *EvalConfig) *EvalConfig {
 // QueryStats contains various stats for the query.
 type QueryStats struct {
 	// SeriesFetched contains the number of series fetched from storage during the query evaluation.
-	SeriesFetched int
+	SeriesFetched int64
+	// ExecutionTimeMsec contains the number of milliseconds the query took to execute.
+	ExecutionTimeMsec int64
 }
 
 func (qs *QueryStats) addSeriesFetched(n int) {
-	if qs != nil {
-		qs.SeriesFetched += n
+	if qs == nil {
+		return
 	}
+	atomic.AddInt64(&qs.SeriesFetched, int64(n))
+}
+
+func (qs *QueryStats) addExecutionTimeMsec(startTime time.Time) {
+	if qs == nil {
+		return
+	}
+	d := time.Since(startTime).Milliseconds()
+	atomic.AddInt64(&qs.ExecutionTimeMsec, d)
 }
 
 func (ec *EvalConfig) validate() {

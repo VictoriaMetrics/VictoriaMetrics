@@ -29,7 +29,8 @@ See https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries
 		]
 	},
 	"stats":{
-	    "seriesFetched": "{%d qs.SeriesFetched %}"
+		"seriesFetched": {%dl qs.SeriesFetched %},
+		"executionTimeMsec": {%dl qs.ExecutionTimeMsec %}
 	}
 	{% code
 		qt.Printf("generate /api/v1/query_range response for series=%d, points=%d", seriesCount, pointsCount)

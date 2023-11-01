@@ -31,7 +31,8 @@ See https://prometheus.io/docs/prometheus/latest/querying/api/#instant-queries
 		]
 	},
 	"stats":{
-	    "seriesFetched": "{%d qs.SeriesFetched %}"
+		"seriesFetched": {%dl qs.SeriesFetched %},
+		"executionTimeMsec": {%dl qs.ExecutionTimeMsec %}
 	}
 	{% code
 		qt.Printf("generate /api/v1/query response for series=%d", seriesCount)

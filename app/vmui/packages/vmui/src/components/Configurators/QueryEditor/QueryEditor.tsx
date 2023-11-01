@@ -41,7 +41,7 @@ const QueryEditor: FC<QueryEditorProps> = ({
 
   const warning = [
     {
-      show: stats?.seriesFetched === "0" && !stats.resultLength,
+      show: stats?.seriesFetched == 0 && !stats.resultLength,
       text: seriesFetchedWarning
     },
     {
@@ -49,6 +49,10 @@ const QueryEditor: FC<QueryEditorProps> = ({
       text: partialWarning
     }
   ].filter((w) => w.show).map(w => w.text).join("");
+
+  if (stats) {
+    label = `${label} (${stats.executionTimeMsec || 0}ms)`;
+  }
 
   const handleSelect = (val: string) => {
     onChange(val);
