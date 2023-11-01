@@ -158,16 +158,17 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 	up, hc, retryStatusCodes := ui.getURLPrefixAndHeaders(u)
 	isDefault := false
 	if up == nil {
-		missingRouteRequests.Inc()
 		if ui.DefaultURL == nil {
 			// Authorization should be requested for http requests without credentials
-			// to a route that is not in the configuration for unauthorized user
-			if ui.BearerToken == "" && ui.Username == "" {
+			// to a route that is not in the configuration for unauthorized user.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5236
+			if ui.BearerToken == "" && ui.Username == "" && len(*authUsers.Load()) > 0 {
 				w.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
-				http.Error(w, fmt.Sprintf("missing unauthorized route for %q", u.String()), http.StatusUnauthorized)
+				http.Error(w, "missing `Authorization` request header", http.StatusUnauthorized)
 				return
 			}
-			http.Error(w, fmt.Sprintf("missing route for %q", u.String()), http.StatusForbidden)
+			missingRouteRequests.Inc()
+			httpserver.Errorf(w, r, "missing route for %q", u.String())
 			return
 		}
 		up, hc, retryStatusCodes = ui.DefaultURL, ui.HeadersConf, ui.RetryStatusCodes
