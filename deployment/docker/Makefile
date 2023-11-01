@@ -174,13 +174,13 @@ remove-docker-images:
 	docker image ls --format '{{.ID}}' | xargs docker image rm -f
 
 docker-single-up:
-	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose.yml up -d
+	$(DOCKER_COMPOSE) -f docker-compose.yml up -d
 
 docker-single-down:
-	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose.yml down -v
+	$(DOCKER_COMPOSE) -f docker-compose.yml down -v
 
 docker-cluster-up:
-	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose-cluster.yml up -d
+	$(DOCKER_COMPOSE) -f docker-compose-cluster.yml up -d
 
 docker-cluster-down:
-	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose-cluster.yml down -v
+	$(DOCKER_COMPOSE) -f docker-compose-cluster.yml down -v
