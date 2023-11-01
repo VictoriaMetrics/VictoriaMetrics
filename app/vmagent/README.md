@@ -173,6 +173,13 @@ by routing outgoing samples for the same time series of [counter](https://docs.v
 and [histogram](https://docs.victoriametrics.com/keyConcepts.html#histogram) types from top-level `vmagent` instances
 to the same second-level `vmagent` instance, so they are aggregated properly.
 
+If `-remoteWrite.shardByURL` command-line flag is set, then all the metric labels are used for even sharding
+among remote storage systems specified in `-remoteWrite.url`. Sometimes it may be needed to use only a particular
+set of labels for sharding. For example, it may be needed to route all the metrics with the same `instance` label
+to the same `-remoteWrite.url`. In this case you can specify comma-separated list of these labels in the `-remoteWrite.shardByURLLabels`
+command-line flag. For example, `-remoteWrite.shardByURLLabels=instance,__name__` would shard metrics with the same name and `instance`
+label to the same `-remoteWrite.url`.
+
 See also [how to scrape big number of targets](#scraping-big-number-of-targets).
 
 ### Relabeling and filtering
@@ -1601,6 +1608,9 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      Supports array of values separated by comma or specified via multiple flags.
   -remoteWrite.shardByURL
      Whether to shard outgoing series across all the remote storage systems enumerated via -remoteWrite.url . By default the data is replicated across all the -remoteWrite.url . See https://docs.victoriametrics.com/vmagent.html#sharding-among-remote-storages
+  -remoteWrite.shardByURL.labels array
+     Optional list of labels, which must be used for sharding outgoing samples among remote storage systems if -remoteWrite.shardByURL command-line flag is set. By default all the labels are used for sharding in order to gain even distribution of series over the specified -remoteWrite.url systems
+     Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.showURL
      Whether to show -remoteWrite.url in the exported metrics. It is hidden by default, since it can contain sensitive info such as auth key
   -remoteWrite.significantFigures array
