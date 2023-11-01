@@ -614,44 +614,48 @@ func (ar *AlertingRule) restore(ctx context.Context, q datasource.Querier, ts ti
 		return nil
 	}
 
+	nameStr := fmt.Sprintf("%s=%q", alertNameLabel, ar.Name)
+	if !*disableAlertGroupLabel {
+		nameStr = fmt.Sprintf("%s=%q,%s=%q", alertGroupNameLabel, ar.GroupName, alertNameLabel, ar.Name)
+	}
+	var labelsFilter string
+	for k, v := range ar.Labels {
+		labelsFilter += fmt.Sprintf(",%s=%q", k, v)
+	}
+	expr := fmt.Sprintf("last_over_time(%s{%s%s}[%ds])",
+		alertForStateMetricName, nameStr, labelsFilter, int(lookback.Seconds()))
+
+	res, _, err := q.Query(ctx, expr, ts)
+	if err != nil {
+		return fmt.Errorf("failed to execute restore query %q: %w ", expr, err)
+	}
+
+	if len(res.Data) < 1 {
+		ar.logDebugf(ts, nil, "no response was received from restore query")
+		return nil
+	}
+	restoreRes := make(map[uint64]float64, len(res.Data))
+	for _, series := range res.Data {
+		series.DelLabel("__name__")
+		labelSet := make(map[string]string, len(series.Labels))
+		for _, v := range series.Labels {
+			labelSet[v.Name] = v.Value
+		}
+		id := hash(labelSet)
+		// only one series is expected in response
+		restoreRes[id] = series.Values[0]
+	}
+
 	for _, a := range ar.alerts {
 		if a.Restored || a.State != notifier.StatePending {
 			continue
 		}
-
-		var labelsFilter []string
-		for k, v := range a.Labels {
-			labelsFilter = append(labelsFilter, fmt.Sprintf("%s=%q", k, v))
-		}
-		sort.Strings(labelsFilter)
-		expr := fmt.Sprintf("last_over_time(%s{%s}[%ds])",
-			alertForStateMetricName, strings.Join(labelsFilter, ","), int(lookback.Seconds()))
-
-		ar.logDebugf(ts, nil, "restoring alert state via query %q", expr)
-
-		res, _, err := q.Query(ctx, expr, ts)
-		if err != nil {
-			return err
-		}
-
-		qMetrics := res.Data
-		if len(qMetrics) < 1 {
-			ar.logDebugf(ts, nil, "no response was received from restore query")
+		res, ok := restoreRes[a.ID]
+		if !ok {
+			// no state for this alert
 			continue
 		}
-
-		// only one series expected in response
-		m := qMetrics[0]
-		// __name__ supposed to be alertForStateMetricName
-		m.DelLabel("__name__")
-
-		// we assume that restore query contains all label matchers,
-		// so all received labels will match anyway if their number is equal.
-		if len(m.Labels) != len(a.Labels) {
-			ar.logDebugf(ts, nil, "state restore query returned not expected label-set %v", m.Labels)
-			continue
-		}
-		a.ActiveAt = time.Unix(int64(m.Values[0]), 0)
+		a.ActiveAt = time.Unix(int64(res), 0)
 		a.Restored = true
 		logger.Infof("alert %q (%d) restored to state at %v", a.Name, a.ID, a.ActiveAt)
 	}

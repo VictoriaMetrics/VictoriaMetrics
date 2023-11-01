@@ -230,7 +230,9 @@ func newManager(ctx context.Context) (*manager, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to init remoteWrite: %w", err)
 	}
-	manager.rw = rw
+	if rw != nil {
+		manager.rw = rw
+	}
 
 	rr, err := remoteread.Init()
 	if err != nil {
