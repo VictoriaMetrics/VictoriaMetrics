@@ -1171,7 +1171,15 @@ func evalInstantRollup(qt *querytracer.Tracer, ec *EvalConfig, funcName string, 
 			},
 		}
 		return evalExpr(qt, ec, be)
-	case "count_over_time", "sum_over_time", "increase":
+	case
+		"count_eq_over_time",
+		"count_gt_over_time",
+		"count_le_over_time",
+		"count_ne_over_time",
+		"count_over_time",
+		"increase",
+		"increase_pure",
+		"sum_over_time":
 		if iafc != nil && strings.ToLower(iafc.ae.Name) != "sum" {
 			qt.Printf("do not apply instant rollup optimization for non-sum incremental aggregate %s()", iafc.ae.Name)
 			return evalAt(qt, timestamp, window)
