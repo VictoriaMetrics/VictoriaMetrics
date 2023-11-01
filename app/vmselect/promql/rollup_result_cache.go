@@ -625,7 +625,8 @@ func mergeTimeseries(qt *querytracer.Tracer, a, b []*timeseries, bStart int64, e
 		}
 		tmp.Values = append(tmp.Values, tsB.Values...)
 		if len(tmp.Values) != len(tmp.Timestamps) {
-			logger.Panicf("BUG: unexpected values after merging new values; got %d; want %d", len(tmp.Values), len(tmp.Timestamps))
+			logger.Panicf("BUG: unexpected values after merging new values; got %d; want %d; len(a.Values)=%d; len(b.Values)=%d",
+				len(tmp.Values), len(tmp.Timestamps), len(tsA.Values), len(tsB.Values))
 		}
 		rvs = append(rvs, &tmp)
 	}
