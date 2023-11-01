@@ -13,7 +13,9 @@ menu:
 
 ## Next release
 
-- TODO
+### Features
+
+- [vmoperator](./README.md): optimize statefulset update logic, that should reduce some unneeded operations. See [this PR](https://github.com/VictoriaMetrics/operator/pull/801) for details.
 
 <a name="v0.39.1"></a>
 ## [v0.39.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.39.1) - 1 Nov 2023
