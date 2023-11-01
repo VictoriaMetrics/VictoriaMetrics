@@ -48,7 +48,10 @@ func (ure *UserReadableError) Error() string {
 func Exec(qt *querytracer.Tracer, ec *EvalConfig, q string, isFirstPointOnly bool) ([]netstorage.Result, error) {
 	if querystats.Enabled() {
 		startTime := time.Now()
-		defer querystats.RegisterQuery(q, ec.End-ec.Start, startTime)
+		defer func() {
+			querystats.RegisterQuery(q, ec.End-ec.Start, startTime)
+			ec.QueryStats.addExecutionTimeMsec(startTime)
+		}()
 	}
 
 	ec.validate()

@@ -1410,8 +1410,11 @@ For example:
 ```yaml
 static_configs:
   - targets:
+      # support using full url
+      - 'http://alertmanager:9093/test/api/v2/alerts'
+      - 'https://alertmanager:9093/api/v2/alerts'
+      # the following target with only host:port will be used as <scheme>://localhost:9093/<path_prefix>/api/v2/alerts
       - localhost:9093
-      - localhost:9095
 
 consul_sd_configs:
   - server: localhost:8500

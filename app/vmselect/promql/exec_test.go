@@ -6910,6 +6910,30 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`outliers_iqr()`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort(outliers_iqr((
+			alias(time(), "m1"),
+			alias(time()*1.5, "m2"),
+			alias(time()*10, "m3"),
+			alias(time()*1.2, "m4"),
+			alias(time()*0.1, "m5"),
+		)))`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{100, 120, 140, 160, 180, 200},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.MetricGroup = []byte("m5")
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{10000, 12000, 14000, 16000, 18000, 20000},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.MetricGroup = []byte("m3")
+		resultExpected := []netstorage.Result{r1, r2}
+		f(q, resultExpected)
+	})
 	t.Run(`outliers_mad(1)`, func(t *testing.T) {
 		t.Parallel()
 		q := `outliers_mad(1, (

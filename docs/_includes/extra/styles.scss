@@ -49,3 +49,16 @@
 .markdown-body h4 {
   font-family: 'Lato', sans-serif !important;
 }
+
+// try new page button
+.navigation-top {
+    min-height: 32px;
+}
+
+.navigation-top > a:last-child{
+    padding-left: 5px
+}
+
+.navigation-top > .btn {
+    margin-left: auto
+}

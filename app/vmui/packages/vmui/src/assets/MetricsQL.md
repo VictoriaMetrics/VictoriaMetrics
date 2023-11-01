@@ -532,7 +532,7 @@ See also [duration_over_time](#duration_over_time) and [lag](#lag).
 `mad_over_time(series_selector[d])` is a [rollup function](#rollup-functions), which calculates [median absolute deviation](https://en.wikipedia.org/wiki/Median_absolute_deviation)
 over raw samples on the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
 
-See also [mad](#mad) and [range_mad](#range_mad).
+See also [mad](#mad), [range_mad](#range_mad) and [outlier_iqr_over_time](#outlier_iqr_over_time).
 
 #### max_over_time
 
@@ -561,6 +561,18 @@ This function is supported by PromQL. See also [tmin_over_time](#tmin_over_time)
 `mode_over_time(series_selector[d])` is a [rollup function](#rollup-functions), which calculates [mode](https://en.wikipedia.org/wiki/Mode_(statistics))
 for raw samples on the given lookbehind window `d`. It is calculated individually per each time series returned
 from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). It is expected that raw sample values are discrete.
+
+#### outlier_iqr_over_time
+
+`outlier_iqr_over_time(series_selector[d])` is a [rollup function](#rollup-functions), which returns the last sample on the given lookbehind window `d`
+if its value is either smaller than the `q25-1.5*iqr` or bigger than `q75+1.5*iqr` where:
+- `iqr` is an [Interquartile range](https://en.wikipedia.org/wiki/Interquartile_range) over raw samples on the lookbehind window `d`
+- `q25` and `q75` are 25th and 75th [percentiles](https://en.wikipedia.org/wiki/Percentile) over raw samples on the lookbehind window `d`.
+
+The `outlier_iqr_over_time()` is useful for detecting anomalies in gauge values based on the previous history of values.
+For example, `outlier_iqr_over_time(memory_usage_bytes[1h])` triggers when `memory_usage_bytes` suddenly goes outside the usual value range for the last 24 hours.
+
+See also [outliers_iqr](#outliers_iqr).
 
 #### predict_linear
 
@@ -866,7 +878,7 @@ from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.ht
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
-See also [zscore](#zscore) and [range_trim_zscore](#range_trim_zscore).
+See also [zscore](#zscore), [range_trim_zscore](#range_trim_zscore) and [outlier_iqr_over_time](#outlier_iqr_over_time).
 
 
 ### Transform functions
@@ -1858,20 +1870,33 @@ This function is supported by PromQL.
 `mode(q) by (group_labels)` is [aggregate function](#aggregate-functions), which returns [mode](https://en.wikipedia.org/wiki/Mode_(statistics))
 per each `group_labels` for all the time series returned by `q`. The aggregate is calculated individually per each group of points with the same timestamp.
 
+#### outliers_iqr
+
+`outliers_iqr(q)` is [aggregate function](#aggregate-functions), which returns time series from `q` with at least a single point
+outside e.g. [Interquartile range outlier bounds](https://en.wikipedia.org/wiki/Interquartile_range) `[q25-1.5*iqr .. q75+1.5*iqr]`
+comparing to other time series at the given point, where:
+- `iqr` is an [Interquartile range](https://en.wikipedia.org/wiki/Interquartile_range) calculated independently per each point on the graph across `q` series.
+- `q25` and `q75` are 25th and 75th [percentiles](https://en.wikipedia.org/wiki/Percentile) calculated independently per each point on the graph across `q` series.
+
+The `outliers_iqr()` is useful for detecting anomalous series in the group of series. For example, `outliers_iqr(temperature) by (country)` returns
+per-country series with anomalous outlier values comparing to the rest of per-country series.
+
+See also [outliers_mad](#outliers_mad), [outliersk](#outliersk) and [outlier_iqr_over_time](#outlier_iqr_over_time).
+
 #### outliers_mad
 
 `outliers_mad(tolerance, q)` is [aggregate function](#aggregate-functions), which returns time series from `q` with at least
 a single point outside [Median absolute deviation](https://en.wikipedia.org/wiki/Median_absolute_deviation) (aka MAD) multiplied by `tolerance`.
 E.g. it returns time series with at least a single point below `median(q) - mad(q)` or a single point above `median(q) + mad(q)`.
 
-See also [outliersk](#outliersk) and [mad](#mad).
+See also [outliers_iqr](#outliers_iqr), [outliersk](#outliersk) and [mad](#mad).
 
 #### outliersk
 
 `outliersk(k, q)` is [aggregate function](#aggregate-functions), which returns up to `k` time series with the biggest standard deviation (aka outliers)
 out of time series returned by `q`.
 
-See also [outliers_mad](#outliers_mad).
+See also [outliers_iqr](#outliers_iqr) and [outliers_mad](#outliers_mad).
 
 #### quantile
 
@@ -1991,7 +2016,7 @@ See also [bottomk_min](#bottomk_min).
 per each `group_labels` for all the time series returned by `q`. The aggregate is calculated individually per each group of points with the same timestamp.
 This function is useful for detecting anomalies in the group of related time series.
 
-See also [zscore_over_time](#zscore_over_time) and [range_trim_zscore](#range_trim_zscore).
+See also [zscore_over_time](#zscore_over_time), [range_trim_zscore](#range_trim_zscore) and [outliers_iqr](#outliers_iqr).
 
 ## Subqueries
 

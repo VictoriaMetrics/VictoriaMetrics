@@ -750,12 +750,15 @@ See how to request a free trial license [here](https://victoriametrics.com/produ
 
 ## Downsampling
 
-[Downsampling](https://docs.victoriametrics.com/#downsampling) is available in [enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/enterprise.html). 
-It is configured with `-downsampling.period` command-line flag. The same flag value must be passed to both `vmstorage`
-and `vmselect` nodes. Configuring `vmselect` node with `-downsampling.period` command-line flag makes query results more
-consistent, as `vmselect` will evenly downsample all received data samples if requested time range will intersect with configured
-`-downsampling.period`. For example, if `-downsampling.period=30d:5m` and user requests `60d` of data then vmselect will downsample
-all datapoints (newer and older than `30d`) to `5m` intervals. If this flag is omitted for `vmselect`, 
+Downsampling is available in [enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/enterprise.html).
+It is configured with `-downsampling.period` command-line flag according to [these docs](https://docs.victoriametrics.com/#downsampling).
+
+The same flag value must be passed to both `vmstorage` and `vmselect` nodes. Configuring `vmselect` node with `-downsampling.period`
+command-line flag makes query results more consistent, because `vmselect` uses the maximum configured downsampling interval
+on the requested time range if this time range covers multiple downsampling levels.
+For example, if `-downsampling.period=30d:5m` and the query requests the last 60 days of data, then `vmselect`
+downsamples all the [raw samples](https://docs.victoriametrics.com/keyConcepts.html#raw-samples) on the requested time range
+using 5 minute interval. If `-downsampling.period` command-line flag isn't set at `vmselect`,
 then query results can be less consistent because of mixing raw and downsampled data.
 
 Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
@@ -1214,7 +1217,7 @@ Below is the output for `/path/to/vmselect -help`:
   -search.latencyOffset duration
      The time when data points become visible in query results after the collection. It can be overridden on per-query basis via latency_offset arg. Too small value can result in incomplete last points for query results (default 30s)
   -search.logQueryMemoryUsage size
-     Log queries, which require more memory than specified by this flag. This may help detecting and optimizing heavy queries. Query logging is disabled by default. See also -search.logSlowQueryDuration and -search.maxMemoryPerQuery
+     Log query and increment vm_memory_intensive_queries_total metric each time when the query requires more memory than specified by this flag. This may help detecting and optimizing heavy queries. Query logging is disabled by default. See also -search.logSlowQueryDuration and -search.maxMemoryPerQuery
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
   -search.logSlowQueryDuration duration
      Log queries with execution time exceeding this value. Zero disables slow query logging. See also -search.logQueryMemoryUsage (default 5s)

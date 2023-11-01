@@ -172,7 +172,7 @@ export const useFetchQuery = ({
       updatedPeriod.step = customStep;
       return expr.map(q => displayChart
         ? getQueryRangeUrl(serverUrl, q, updatedPeriod, nocache, isTracingEnabled)
-        : getQueryUrl(serverUrl, q, updatedPeriod, isTracingEnabled));
+        : getQueryUrl(serverUrl, q, updatedPeriod, nocache, isTracingEnabled));
     } else {
       setError(ErrorTypes.validServer);
     }
