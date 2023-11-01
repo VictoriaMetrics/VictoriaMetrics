@@ -387,8 +387,6 @@ ever since. In that time, it has grown into one of the most popular globbing
 libraries in the Go ecosystem. So, if **doublestar** is a useful library in
 your project, consider [sponsoring] my work! I'd really appreciate it!
 
-[![reviewpad](../sponsors/reviewpad.png?raw=true)](https://reviewpad.com/)
-
 Thanks for sponsoring me!
 
 ## License
