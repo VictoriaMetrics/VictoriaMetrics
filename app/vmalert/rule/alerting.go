@@ -634,7 +634,6 @@ func (ar *AlertingRule) restore(ctx context.Context, q datasource.Querier, ts ti
 		ar.logDebugf(ts, nil, "no response was received from restore query")
 		return nil
 	}
-	restoreRes := make(map[uint64]float64, len(res.Data))
 	for _, series := range res.Data {
 		series.DelLabel("__name__")
 		labelSet := make(map[string]string, len(series.Labels))
@@ -642,20 +641,14 @@ func (ar *AlertingRule) restore(ctx context.Context, q datasource.Querier, ts ti
 			labelSet[v.Name] = v.Value
 		}
 		id := hash(labelSet)
-		// only one series is expected in response
-		restoreRes[id] = series.Values[0]
-	}
-
-	for _, a := range ar.alerts {
+		a, ok := ar.alerts[id]
+		if !ok {
+			continue
+		}
 		if a.Restored || a.State != notifier.StatePending {
 			continue
 		}
-		res, ok := restoreRes[a.ID]
-		if !ok {
-			// no state for this alert
-			continue
-		}
-		a.ActiveAt = time.Unix(int64(res), 0)
+		a.ActiveAt = time.Unix(int64(series.Values[0]), 0)
 		a.Restored = true
 		logger.Infof("alert %q (%d) restored to state at %v", a.Name, a.ID, a.ActiveAt)
 	}
