@@ -315,12 +315,10 @@ func (rrc *rollupResultCache) GetSeries(qt *querytracer.Tracer, ec *EvalConfig, 
 		i++
 	}
 	if i == len(timestamps) {
-		// no matches.
 		qt.Printf("no datapoints found in the cached series on the given timeRange")
 		return nil, ec.Start
 	}
 	if timestamps[i] != ec.Start {
-		// The cached range doesn't cover the requested range.
 		qt.Printf("cached series don't cover the given timeRange")
 		return nil, ec.Start
 	}
@@ -331,7 +329,7 @@ func (rrc *rollupResultCache) GetSeries(qt *querytracer.Tracer, ec *EvalConfig, 
 	}
 	j++
 	if j <= i {
-		// no matches.
+		qt.Printf("no matching samples for the given timeRange")
 		return nil, ec.Start
 	}
 
