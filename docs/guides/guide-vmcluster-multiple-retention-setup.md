@@ -34,7 +34,7 @@ Solution contains 3 groups of vmstorages + vminserts and one group of vmselects.
 The diagram below shows a proposed solution
 
 <p align="center">
-  <img src="guide-vmcluster-multiple-retention-scheme.png" width="800">
+  <img src="guide-vmcluster-multiple-retention-scheme.webp" width="800">
 </p>
 
 **Implementation Details**

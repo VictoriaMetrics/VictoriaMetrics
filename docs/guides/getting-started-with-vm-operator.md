@@ -232,7 +232,7 @@ To check that `VMAgent` collects metrics from the k8s cluster open in the browse
 You will see something like this:
 
 <p align="center">
-  <img src="guide-vmcluster-k8s-via-vm-operator.png" width="800" alt="">
+  <img src="guide-vmcluster-k8s-via-vm-operator.webp" width="800" alt="">
 </p>
 
 `VMAgent` connects to [kubernetes service discovery](https://kubernetes.io/docs/concepts/services-networking/service/) and gets targets which needs to be scraped. This service discovery is controlled by [VictoriaMetrics Operator](https://github.com/VictoriaMetrics/operator)
@@ -312,13 +312,13 @@ EOF
 To check that [VictoriaMetrics](https://victoriametrics.com) collecting metrics from the k8s cluster open in your browser [http://127.0.0.1:3000/dashboards](http://127.0.0.1:3000/dashboards) and choose the `VictoriaMetrics - cluster` dashboard. Use `admin` for login and the `password` that you previously got from kubectl.
 
 <p align="center">
-  <img src="guide-vmcluster-k8s-via-vm-operator-grafana1.png" width="800" alt="grafana dashboards">
+  <img src="guide-vmcluster-k8s-via-vm-operator-grafana1.webp" width="800" alt="grafana dashboards">
 </p>
 
 The expected output is:
 
 <p align="center">
-  <img src="guide-vmcluster-k8s-via-vm-operator-grafana2.png" width="800" alt="grafana dashboards">
+  <img src="guide-vmcluster-k8s-via-vm-operator-grafana2.webp" width="800" alt="grafana dashboards">
 </p>
 
 ## 6. Summary

@@ -133,7 +133,7 @@ So, the `counter` metric shows the number of observed events since the service s
 
 In programming, `counter` is a variable that you **increment** each time something happens.
 
-<img src="keyConcepts_counter.png">
+<img src="keyConcepts_counter.webp">
 
 `vm_http_requests_total` is a typical example of a counter. The interpretation of a graph
 above is that time series `vm_http_requests_total{instance="localhost:8428", job="victoriametrics", path="api/v1/query_range"}`
@@ -159,7 +159,7 @@ by humans from other metric types.
 
 Gauge is used for measuring a value that can go up and down:
 
-<img src="keyConcepts_gauge.png">
+<img src="keyConcepts_gauge.webp">
 
 The metric `process_resident_memory_anon_bytes` on the graph shows the memory usage of the application at every given time.
 It is changing frequently, going up and down showing how the process allocates and frees the memory.
@@ -257,7 +257,7 @@ Such a combination of `counter` metrics allows
 plotting [Heatmaps in Grafana](https://grafana.com/docs/grafana/latest/visualizations/heatmap/)
 and calculating [quantiles](https://prometheus.io/docs/practices/histograms/#quantiles):
 
-<img src="keyConcepts_histogram.png">
+<img src="keyConcepts_histogram.webp">
 
 Grafana doesn't understand buckets with `vmrange` labels, so the [prometheus_buckets](https://docs.victoriametrics.com/MetricsQL.html#prometheus_buckets)
 function must be used for converting buckets with `vmrange` labels to buckets with `le` labels before building heatmaps in Grafana.
@@ -299,7 +299,7 @@ go_gc_duration_seconds_count 83
 
 The visualisation of summaries is pretty straightforward:
 
-<img src="keyConcepts_summary.png">
+<img src="keyConcepts_summary.webp">
 
 Such an approach makes summaries easier to use but also puts significant limitations compared to [histograms](#histogram):
 
@@ -370,7 +370,7 @@ VictoriaMetrics supports both models used in modern monitoring applications: [pu
 
 Client regularly sends the collected metrics to the server in the push model:
 
-<img src="keyConcepts_push_model.png">
+<img src="keyConcepts_push_model.webp">
 
 The client (application) decides when and where to send its metrics. VictoriaMetrics supports the following protocols
 for data ingestion (aka `push protocols`):
@@ -428,7 +428,7 @@ The cons of push protocol:
 Pull model is an approach popularized by [Prometheus](https://prometheus.io/), where the monitoring system decides when
 and where to pull metrics from:
 
-<img src="keyConcepts_pull_model.png">
+<img src="keyConcepts_pull_model.webp">
 
 In pull model, the monitoring system needs to be aware of all the applications it needs to monitor. The metrics are
 scraped (pulled) from the known applications (aka `scrape targets`) via HTTP protocol on a regular basis (aka `scrape_interval`).
@@ -459,7 +459,7 @@ models for data collection. Many installations use exclusively one of these mode
 
 The most common approach for data collection is using both models:
 
-<img src="keyConcepts_data_collection.png">
+<img src="keyConcepts_data_collection.webp">
 
 In this approach the additional component is used - [vmagent](https://docs.victoriametrics.com/vmagent.html). Vmagent is
 a lightweight agent whose main purpose is to collect, filter, relabel and deliver metrics to VictoriaMetrics.
@@ -474,7 +474,7 @@ installation for querying collected data.
 
 VictoriaMetrics components allow building more advanced topologies. For example, vmagents can push metrics from separate datacenters to the central VictoriaMetrics:
 
-<img src="keyConcepts_two_dcs.png">
+<img src="keyConcepts_two_dcs.webp">
 
 VictoriaMetrics in this example may be either [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html)
 or [VictoriaMetrics Cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html). Vmagent also allows
@@ -532,8 +532,8 @@ The data sample contains a list of samples for `foo_bar` time series with time i
 plot this data sample on the graph, it will have the following form:
 
 <p style="text-align: center">
-    <a href="keyConcepts_data_samples.png" target="_blank">
-        <img src="keyConcepts_data_samples.png" width="500">
+    <a href="keyConcepts_data_samples.webp" target="_blank">
+        <img src="keyConcepts_data_samples.webp" width="500">
     </a>
 </p>
 
@@ -570,8 +570,8 @@ we'll see that there is no raw sample at `2022-05-10 10:03`. What happens here i
 requested timestamp - VictoriaMetrics will try to locate the closest sample on the left to the requested timestamp:
 
 <p style="text-align: center">
-    <a href="keyConcepts_instant_query.png" target="_blank">
-        <img src="keyConcepts_instant_query.png" width="500">
+    <a href="keyConcepts_instant_query.webp" target="_blank">
+        <img src="keyConcepts_instant_query.webp" width="500">
     </a>
 </p>
 
@@ -706,8 +706,8 @@ an [instant query](#instant-query) executed `1 + (start-end)/step` times on the 
 this request in VictoriaMetrics the graph will be shown as the following:
 
 <p style="text-align: center">
-    <a href="keyConcepts_range_query.png" target="_blank">
-        <img src="keyConcepts_range_query.png" width="500">
+    <a href="keyConcepts_range_query.webp" target="_blank">
+        <img src="keyConcepts_range_query.webp" width="500">
     </a>
 </p>
 
@@ -750,12 +750,12 @@ This flag prevents from non-consistent results due to the fact that only part of
 
 Here is an illustration of a potential problem when `-search.latencyOffset` is set to zero:
 
-<img src="keyConcepts_without_latencyOffset.png" width="1000">
+<img src="keyConcepts_without_latencyOffset.webp" width="1000">
 
 When this flag is set, the VM will return the last metric value collected before the `-search.latencyOffset`
 duration throughout the `-search.latencyOffset` duration:
 
-<img src="keyConcepts_with_latencyOffset.png" width="1000">
+<img src="keyConcepts_with_latencyOffset.webp" width="1000">
 
 It can be overridden on per-query basis via `latency_offset` query arg.
 
@@ -944,7 +944,7 @@ VictoriaMetrics has a built-in graphical User Interface for querying and visuali
 [VMUI](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#vmui).
 Open `http://victoriametrics:8428/vmui` page, type the query and see the results:
 
-<img src="keyConcepts_vmui.png">
+<img src="keyConcepts_vmui.webp">
 
 VictoriaMetrics supports [Prometheus HTTP API](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#prometheus-querying-api-usage)
 which makes it possible to [query it with Grafana](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#grafana-setup)

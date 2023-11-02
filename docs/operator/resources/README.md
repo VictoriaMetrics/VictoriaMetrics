@@ -33,7 +33,7 @@ Metrics Operator introduces.
 
 Here is the scheme of relations between the custom resources:
 
-<img src="README_cr-relations.png" width="1200">
+<img src="README_cr-relations.webp" width="1200">
 
 ## Specification
 

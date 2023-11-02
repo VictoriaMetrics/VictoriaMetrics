@@ -378,19 +378,19 @@ To test via Grafana, we need to install it first. [Install and connect Grafana t
 
 
 <p align="center">
-  <img src="guide-vmcluster-k8s-ha-explore.png" width="800" alt="grafana explore">
+  <img src="guide-vmcluster-k8s-ha-explore.webp" width="800" alt="grafana explore">
 </p>
 
 Choose `victoriametrics` from the list of datasources and enter `count(up{kubernetes_pod_name=~".*vmselect.*"})` to the **Metric browser** field as shown on the screenshot, then press **Run query** button:
 
 <p align="center">
-  <img src="guide-vmcluster-k8s-ha-explore-count-up.png" width="800" alt="">
+  <img src="guide-vmcluster-k8s-ha-explore-count-up.webp" width="800" alt="">
 </p>
 
 The expected output is:
 
 <p align="center">
-  <img src="guide-vmcluster-k8s-ha-explore-count-up-graph.png" width="800" alt="">
+  <img src="guide-vmcluster-k8s-ha-explore-count-up-graph.webp" width="800" alt="">
 </p>
 
 ## 5. High Availability
@@ -424,7 +424,7 @@ Return to Grafana Explore and press the  **Run query** button again.
 The expected output is:
 
 <p align="center">
-  <img src="guide-vmcluster-k8s-ha-explore-count-up-graph.png" width="800" alt="">
+  <img src="guide-vmcluster-k8s-ha-explore-count-up-graph.webp" width="800" alt="">
 </p>
 
 As you can see, after we scaled down the `vmstorage` replicas number from three to two pods, metrics are still available and correct. The response is not partial as it was before scaling. Also we see that query `count(up{kubernetes_pod_name=~".*vmselect.*"})` returns the same value as before.
@@ -432,7 +432,7 @@ As you can see, after we scaled down the `vmstorage` replicas number from three 
 To confirm that the number of `vmstorage` pods is equivalent to two, execute the following request in Grafana Explore:
 
 <p align="center">
-  <img src="guide-vmcluster-k8s-ha-explore-count-up-graph2.png" width="800" alt="">
+  <img src="guide-vmcluster-k8s-ha-explore-count-up-graph2.webp" width="800" alt="">
 </p>
 
 

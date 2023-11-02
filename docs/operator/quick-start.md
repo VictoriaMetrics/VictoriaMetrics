@@ -77,7 +77,7 @@ Now you can configure operator - open rendered `values.yaml` file in your text e
 code values.yaml
 ```
 
-<img src="quick-start_values.png" width="1200">
+<img src="quick-start_values.webp" width="1200">
 
 Now you can change configuration in `values.yaml`. For more details about configuration options and methods,
 see [configuration -> victoria-metrics-operator](./configuration.md#victoria-metrics-operator).
@@ -162,7 +162,7 @@ Let's create fullstack monitoring cluster with
 [VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#architecture-overview) 
 consisting of `vmstorage`, `vmselect` and `vminsert`):
 
-<img src="quick-start_cluster-scheme.png" width="1200">
+<img src="quick-start_cluster-scheme.webp" width="1200">
 
 More details about resources of VictoriaMetrics operator you can find on the [resources page](./resources/README.md). 
 
@@ -455,9 +455,9 @@ kubectl get secret -n vm vmuser-demo -o jsonpath="{.data.password}" | base64 --d
 Now you can get access to your data with url `http://vm-demo.k8s.orb.local/vmui`, username `demo` 
 and your given password (`Yt3N2r3cPl` in our case):
 
-<img src="quick-start_select-1.png" width="1200">
+<img src="quick-start_select-1.webp" width="1200">
 
-<img src="quick-start_select-2.png" width="1200">
+<img src="quick-start_select-2.webp" width="1200">
 
 ### Alerting
 
@@ -664,15 +664,15 @@ kubectl apply -f vmuser.yaml -n vm
 And now you can get access to your data with url `http://vm-demo.k8s.orb.local/vmalert` 
 (for your environment it most likely will be different) with username `demo`:
 
-<img src="quick-start_alert-1.png" width="1200">
+<img src="quick-start_alert-1.webp" width="1200">
 
-<img src="quick-start_alert-2.png" width="1200">
+<img src="quick-start_alert-2.webp" width="1200">
 
 ## Anything else
 
 That's it. We obtained a monitoring cluster corresponding to the target topology:
 
-<img src="quick-start_cluster-scheme.png" width="1200">
+<img src="quick-start_cluster-scheme.webp" width="1200">
 
 You have a full-stack monitoring cluster with VictoriaMetrics Operator.
 

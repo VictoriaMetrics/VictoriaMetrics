@@ -505,7 +505,7 @@ rules execution, storing recording rules results and alerts state.
     -notifier.url=http://alertmanager:9093          # AlertManager addr to send alerts when they trigger
 ```
 
-<img alt="vmalert single" width="500" src="vmalert_single.png">
+<img alt="vmalert single" width="500" src="vmalert_single.webp">
 
 #### Cluster VictoriaMetrics
 
@@ -525,7 +525,7 @@ Cluster mode could have multiple `vminsert` and `vmselect` components.
     -notifier.url=http://alertmanager:9093                      # AlertManager addr to send alerts when they trigger
 ```
 
-<img alt="vmalert cluster" src="vmalert_cluster.png">
+<img alt="vmalert cluster" src="vmalert_cluster.webp">
 
 In case when you want to spread the load on these components - add balancers before them and configure
 `vmalert` with balancer addresses. Please, see more about VM's cluster architecture
@@ -549,7 +549,7 @@ Alertmanagers.
     -notifier.url=http://alertmanagerN:9093         # The same alert will be sent to all configured notifiers
 ```
 
-<img alt="vmalert ha" width="800px" src="vmalert_ha.png">
+<img alt="vmalert ha" width="800px" src="vmalert_ha.webp">
 
 To avoid recording rules results and alerts state duplication in VictoriaMetrics server
 don't forget to configure [deduplication](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#deduplication).
@@ -615,7 +615,7 @@ or reducing resolution) and push results to "cold" cluster.
     -remoteWrite.url=http://aggregated-cluster-vminsert:8480/insert/0/prometheus    # vminsert addr to persist recording rules results
 ```
 
-<img alt="vmalert multi cluster" src="vmalert_multicluster.png">
+<img alt="vmalert multi cluster" src="vmalert_multicluster.webp">
 
 Please note, [replay](#rules-backfilling) feature may be used for transforming historical data.
 
@@ -629,7 +629,7 @@ For persisting recording or alerting rule results `vmalert` requires `-remoteWri
 But this flag supports only one destination. To persist rule results to multiple destinations
 we recommend using [vmagent](https://docs.victoriametrics.com/vmagent.html) as fan-out proxy:
 
-<img alt="vmalert multiple remote write destinations" src="vmalert_multiple_rw.png">
+<img alt="vmalert multiple remote write destinations" src="vmalert_multiple_rw.webp">
 
 In this topology, `vmalert` is configured to persist rule results to `vmagent`. And `vmagent`
 is configured to fan-out received data to two or more destinations.
@@ -845,7 +845,7 @@ state updates for each rule starting from [v1.86](https://docs.victoriametrics.c
 To check updates, click on `Details` link next to rule's name on `/vmalert/groups` page 
 and check the `Last updates` section:
 
-<img alt="vmalert state" src="vmalert_state.png">
+<img alt="vmalert state" src="vmalert_state.webp">
 
 Rows in the section represent ordered rule evaluations and their results. The column `curl` contains an example of
 HTTP request sent by vmalert to the `-datasource.url` during evaluation. If specific state shows that there were

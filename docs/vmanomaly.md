@@ -105,14 +105,14 @@ Currently, vmanomaly ships with a few common models:
 For example, here’s how Prophet predictions could look like on a real-data example  
 (Prophet auto-detected seasonality interval):
 
-<img alt="propher-example" src="vmanomaly-prophet-example.png">
+<img alt="propher-example" src="vmanomaly-prophet-example.webp">
 
 And here’s what Holt-Winters predictions real-world data could look like (seasonality manually 
  set to 1 week). Notice that it predicts anomalies in 
 different places than Prophet because the model noticed there are usually spikes on Friday 
 morning, so it accounted for that:
 
-<img alt="holtwinters-example" src="vmanomaly-holtwinters-example.png">
+<img alt="holtwinters-example" src="vmanomaly-holtwinters-example.webp">
 
 ## Process
 Upon starting, vmanomaly queries the initial range of data, and trains its model (“fit” by convention).
