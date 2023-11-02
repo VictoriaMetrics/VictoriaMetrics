@@ -41,7 +41,7 @@ const QueryEditor: FC<QueryEditorProps> = ({
 
   const warning = [
     {
-      show: stats?.seriesFetched == 0 && !stats.resultLength,
+      show: stats?.seriesFetched === "0" && !stats.resultLength,
       text: seriesFetchedWarning
     },
     {

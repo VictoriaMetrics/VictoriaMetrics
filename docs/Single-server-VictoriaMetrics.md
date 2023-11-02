@@ -1163,6 +1163,15 @@ Snapshots are created under `<-storageDataPath>/snapshots` directory, where `<-s
 is the command-line flag value. Snapshots can be archived to backup storage at any time
 with [vmbackup](https://docs.victoriametrics.com/vmbackup.html).
 
+Snapshots consist of a mix of hard-links and soft-links to various files and directories inside `-storageDataPath`.
+See [this article](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282)
+for more details. This adds some restrictions on what can be done with the contents of `<-storageDataPath>/snapshots` directory:
+
+- Do not delete subdirectories inside `<-storageDataPath>/snapshots` with `rm` or similar commands, since this will leave some snapshot data undeleted.
+  Prefer using the `/snapshot/delete` API for deleting snapshot. See below for more details about this API.
+- Do not copy subdirectories inside `<-storageDataPath>/snapshot` with `cp`, `rsync` or similar commands, since there are high chances
+  that these commands won't copy some data stored in the snapshot. Prefer using [vmbackup](https://docs.victoriametrics.com/vmbackup.html) for making copies of snapshot data.
+
 The `http://<victoriametrics-addr>:8428/snapshot/list` page contains the list of available snapshots.
 
 Navigate to `http://<victoriametrics-addr>:8428/snapshot/delete?snapshot=<snapshot-name>` in order

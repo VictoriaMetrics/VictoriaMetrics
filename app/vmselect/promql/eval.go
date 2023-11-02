@@ -41,6 +41,8 @@ var (
 		"See also -search.logSlowQueryDuration and -search.maxMemoryPerQuery")
 	noStaleMarkers = flag.Bool("search.noStaleMarkers", false, "Set this flag to true if the database doesn't contain Prometheus stale markers, "+
 		"so there is no need in spending additional CPU time on its handling. Staleness markers may exist only in data obtained from Prometheus scrape targets")
+	minWindowForInstantRollupOptimization = flag.Duration("search.minWindowForInstantRollupOptimization", 6*time.Hour, "Enable optimization for queries to /api/v1/query "+
+		"(aka instant queries), which contain rollup functions with lookbehind window exceeding the given value")
 )
 
 // The minimum number of points per timeseries for enabling time rounding.
@@ -1056,10 +1058,6 @@ func removeNanValues(dstValues []float64, dstTimestamps []int64, values []float6
 	return dstValues, dstTimestamps
 }
 
-// minWindowForInstantRollupOptimization is the minimum lookbehind window in milliseconds
-// for enabling smart caching of instant rollup function results.
-const minWindowForInstantRollupOptimization = 24 * 3600 * 1000
-
 // evalInstantRollup evaluates instant rollup where ec.Start == ec.End.
 func evalInstantRollup(qt *querytracer.Tracer, ec *EvalConfig, funcName string, rf rollupFunc,
 	expr metricsql.Expr, me *metricsql.MetricExpr, iafc *incrementalAggrFuncContext, window int64) ([]*timeseries, error) {
@@ -1081,8 +1079,8 @@ func evalInstantRollup(qt *querytracer.Tracer, ec *EvalConfig, funcName string, 
 	}
 	tooBigOffset := func(offset int64) bool {
 		maxOffset := window / 2
-		if maxOffset > 3600*1000 {
-			maxOffset = 3600 * 1000
+		if maxOffset > 1800*1000 {
+			maxOffset = 1800 * 1000
 		}
 		return offset >= maxOffset
 	}
@@ -1091,8 +1089,9 @@ func evalInstantRollup(qt *querytracer.Tracer, ec *EvalConfig, funcName string, 
 		qt.Printf("do not apply instant rollup optimization because of disabled cache")
 		return evalAt(qt, timestamp, window)
 	}
-	if window < minWindowForInstantRollupOptimization {
-		qt.Printf("do not apply instant rollup optimization because of too small window=%d; must be equal or bigger than %d", window, minWindowForInstantRollupOptimization)
+	if window < minWindowForInstantRollupOptimization.Milliseconds() {
+		qt.Printf("do not apply instant rollup optimization because of too small window=%d; must be equal or bigger than %d",
+			window, minWindowForInstantRollupOptimization.Milliseconds())
 		return evalAt(qt, timestamp, window)
 	}
 	switch funcName {
