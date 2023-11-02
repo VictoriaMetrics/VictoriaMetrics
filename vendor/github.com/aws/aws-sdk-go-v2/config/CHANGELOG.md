@@ -1,3 +1,8 @@
+# v1.22.0 (2023-11-02)
+
+* **Feature**: Add env and shared config settings for disabling IMDSv1 fallback.
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # v1.21.0 (2023-11-01)
 
 * **Feature**: Adds support for configured endpoints via environment variables and the AWS shared configuration file.
