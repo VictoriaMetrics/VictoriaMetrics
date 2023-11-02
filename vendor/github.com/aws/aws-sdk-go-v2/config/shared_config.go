@@ -79,6 +79,8 @@ const (
 
 	ec2MetadataServiceEndpointKey = "ec2_metadata_service_endpoint"
 
+	ec2MetadataV1DisabledKey = "ec2_metadata_v1_disabled"
+
 	// Use DualStack Endpoint Resolution
 	useDualStackEndpoint = "use_dualstack_endpoint"
 
@@ -246,6 +248,12 @@ type SharedConfig struct {
 	// ec2_metadata_service_endpoint=http://fd00:ec2::254
 	EC2IMDSEndpoint string
 
+	// Specifies that IMDS clients should not fallback to IMDSv1 if token
+	// requests fail.
+	//
+	// ec2_metadata_v1_disabled=true
+	EC2IMDSv1Disabled *bool
+
 	// Specifies if the S3 service should disable support for Multi-Region
 	// access-points
 	//
@@ -395,6 +403,16 @@ func (c SharedConfig) GetEC2IMDSEndpoint() (string, bool, error) {
 	}
 
 	return c.EC2IMDSEndpoint, true, nil
+}
+
+// GetEC2IMDSV1FallbackDisabled implements an EC2IMDSV1FallbackDisabled option
+// resolver interface.
+func (c SharedConfig) GetEC2IMDSV1FallbackDisabled() (bool, bool) {
+	if c.EC2IMDSv1Disabled == nil {
+		return false, false
+	}
+
+	return *c.EC2IMDSv1Disabled, true
 }
 
 // GetUseDualStackEndpoint returns whether the service's dual-stack endpoint should be
@@ -807,6 +825,7 @@ func mergeSections(dst *ini.Sections, src ini.Sections) error {
 			s3DisableMultiRegionAccessPointsKey,
 			ec2MetadataServiceEndpointModeKey,
 			ec2MetadataServiceEndpointKey,
+			ec2MetadataV1DisabledKey,
 			useDualStackEndpoint,
 			useFIPSEndpointKey,
 			defaultsModeKey,
@@ -1040,6 +1059,7 @@ func (c *SharedConfig) setFromIniSection(profile string, section ini.Section) er
 		return fmt.Errorf("failed to load %s from shared config, %v", ec2MetadataServiceEndpointModeKey, err)
 	}
 	updateString(&c.EC2IMDSEndpoint, section, ec2MetadataServiceEndpointKey)
+	updateBoolPtr(&c.EC2IMDSv1Disabled, section, ec2MetadataV1DisabledKey)
 
 	updateUseDualStackEndpoint(&c.UseDualStackEndpoint, section, useDualStackEndpoint)
 	updateUseFIPSEndpoint(&c.UseFIPSEndpoint, section, useFIPSEndpointKey)
