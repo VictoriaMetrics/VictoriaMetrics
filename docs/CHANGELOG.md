@@ -136,6 +136,21 @@ Released at 2023-10-02
 * BUGFIX: [vminsert](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): fix ingestion via [multitenant url](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy-via-labels) for opentsdbhttp. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5061). The bug has been introduced in [v1.93.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.2).
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): fix support of legacy DataDog agent, which adds trailing slashes to urls. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5078). Thanks to @maxb for spotting the issue.
 
+## [v1.93.7](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.7)
+
+Released at 2023-11-02
+
+**v1.93.x is a line of LTS releases (e.g. long-time support). It contains important up-to-date bugfixes.
+The v1.93.x line will be supported for at least 12 months since [v1.93.0](https://docs.victoriametrics.com/CHANGELOG.html#v1930) release**
+
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): properly discover Kubernetes targets via [kubernetes_sd_configs](https://docs.victoriametrics.com/sd_configs.html#kubernetes_sd_configs). Previously some targets and some labels could be skipped during service discovery because of the bug introduced in [v1.93.5](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.5) when implementing [this feature](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4850). See [tis issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5216) for more details.
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): properly parse `ca`, `cert` and `key` options at `tls_config` section inside [http client settings](https://docs.victoriametrics.com/sd_configs.html#http-api-client-options). Previously string values couldn't be parsed for these options, since the parser was mistakenly expecting a list of `uint8` values instead.
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): properly drop samples if `-streamAggr.dropInput` command-line flag is set and `-remoteWrite.streamAggr.config` contains an empty file. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5207).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): do not print redundant error logs when failed to scrape consul or nomad target. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5239).
+* BUGFIX: [vmstorage](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): prevent deleted series to be searchable via `/api/v1/series` API if they were re-ingested with staleness markers. This situation could happen if user deletes the series from the target and from VM, and then vmagent sends stale markers for absent series. Thanks to @ilyatrefilov for the [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5069) and [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5174).
+* BUGFIX: [vmstorage](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): log warning about switching to ReadOnly mode only on state change. Before, vmstorage would log this warning every 1s. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5159) for details.
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth.html): show browser authorization window for unauthorized requests to unsupported paths if the `unauthorized_user` section is specified. This allows properly authorizing the user. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5236) for details.
+
 ## [v1.93.6](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.6)
 
 Released at 2023-10-16
