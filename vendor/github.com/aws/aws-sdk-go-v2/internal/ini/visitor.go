@@ -220,6 +220,20 @@ func NewSection(name string) Section {
 	}
 }
 
+// List will return a list of all
+// services in values
+func (t Section) List() []string {
+	keys := make([]string, len(t.values))
+	i := 0
+	for k := range t.values {
+		keys[i] = k
+		i++
+	}
+
+	sort.Strings(keys)
+	return keys
+}
+
 // UpdateSourceFile updates source file for a property to provided filepath.
 func (t Section) UpdateSourceFile(property string, filepath string) {
 	t.SourceFile[property] = filepath
@@ -252,6 +266,11 @@ func (t Section) Bool(k string) (bool, bool) {
 // Int returns an integer value at k
 func (t Section) Int(k string) (int64, bool) {
 	return t.values[k].IntValue()
+}
+
+// Map returns a map value at k
+func (t Section) Map(k string) map[string]string {
+	return t.values[k].MapValue()
 }
 
 // Float64 returns a float value at k
