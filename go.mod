@@ -2,6 +2,9 @@ module github.com/VictoriaMetrics/VictoriaMetrics
 
 go 1.20
 
+// Newer versions of this package break vmctl build
+replace golang.org/x/exp => golang.org/x/exp v0.0.0-20230713183714-613f0c0eb8a1
+
 require (
 	cloud.google.com/go/storage v1.34.0
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.8.0
