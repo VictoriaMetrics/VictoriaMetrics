@@ -36,8 +36,9 @@ type UploadOptions struct {
 	// Optional. Indicates the tier to be set on the blob.
 	Tier *blob.AccessTier
 
-	// Specify the transactional md5 for the body, to be validated by the service.
-	TransactionalContentMD5 []byte
+	// TransactionalValidation specifies the transfer validation type to use.
+	// The default is nil (no transfer validation).
+	TransactionalValidation blob.TransferValidationType
 
 	HTTPHeaders                  *blob.HTTPHeaders
 	CPKInfo                      *blob.CPKInfo
@@ -46,6 +47,9 @@ type UploadOptions struct {
 	LegalHold                    *bool
 	ImmutabilityPolicyMode       *blob.ImmutabilityPolicySetting
 	ImmutabilityPolicyExpiryTime *time.Time
+
+	// Deprecated: TransactionalContentMD5 can be set by using TransactionalValidation instead
+	TransactionalContentMD5 []byte
 }
 
 func (o *UploadOptions) format() (*generated.BlockBlobClientUploadOptions, *generated.BlobHTTPHeaders, *generated.LeaseAccessConditions,
@@ -81,6 +85,9 @@ type UploadBlobFromURLOptions struct {
 	// Optional, default is true. Indicates if properties from the source blob should be copied.
 	CopySourceBlobProperties *bool
 
+	// Optional, default 'replace'. Indicates if source tags should be copied or replaced with the tags specified by x-ms-tags.
+	CopySourceTags *BlobCopySourceTags
+
 	// Optional. Specifies a user-defined name-value pair associated with the blob.
 	Metadata map[string]*string
 
@@ -109,6 +116,7 @@ func (o *UploadBlobFromURLOptions) format() (*generated.BlockBlobClientPutBlobFr
 		BlobTagsString:           shared.SerializeBlobTagsToStrPtr(o.Tags),
 		CopySourceAuthorization:  o.CopySourceAuthorization,
 		CopySourceBlobProperties: o.CopySourceBlobProperties,
+		CopySourceTags:           o.CopySourceTags,
 		Metadata:                 o.Metadata,
 		SourceContentMD5:         o.SourceContentMD5,
 		Tier:                     o.Tier,
@@ -190,8 +198,6 @@ type CommitBlockListOptions struct {
 	RequestID                    *string
 	Tier                         *blob.AccessTier
 	Timeout                      *int32
-	TransactionalContentCRC64    []byte
-	TransactionalContentMD5      []byte
 	HTTPHeaders                  *blob.HTTPHeaders
 	CPKInfo                      *blob.CPKInfo
 	CPKScopeInfo                 *blob.CPKScopeInfo
@@ -199,6 +205,12 @@ type CommitBlockListOptions struct {
 	LegalHold                    *bool
 	ImmutabilityPolicyMode       *blob.ImmutabilityPolicySetting
 	ImmutabilityPolicyExpiryTime *time.Time
+
+	// Deprecated: TransactionalContentCRC64 cannot be generated
+	TransactionalContentCRC64 []byte
+
+	// Deprecated: TransactionalContentMD5 cannot be generated
+	TransactionalContentMD5 []byte
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -253,9 +265,10 @@ type uploadFromReaderOptions struct {
 
 	TransactionalValidation blob.TransferValidationType
 
-	// Optional header, Specifies the transactional crc64 for the body, to be validated by the service.
+	// Deprecated: TransactionalContentCRC64 cannot be generated at block level
 	TransactionalContentCRC64 uint64
-	// Specify the transactional md5 for the body, to be validated by the service.
+
+	// Deprecated: TransactionalContentMD5 cannot be generated at block level
 	TransactionalContentMD5 []byte
 }
 

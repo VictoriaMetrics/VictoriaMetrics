@@ -101,24 +101,6 @@ func (b BlobHierarchyListSegment) MarshalXML(enc *xml.Encoder, start xml.StartEl
 	return enc.EncodeElement(aux, start)
 }
 
-// UnmarshalXML implements the xml.Unmarshaller interface for type BlobItem.
-func (b *BlobItem) UnmarshalXML(dec *xml.Decoder, start xml.StartElement) error {
-	type alias BlobItem
-	aux := &struct {
-		*alias
-		Metadata   additionalProperties `xml:"Metadata"`
-		OrMetadata additionalProperties `xml:"OrMetadata"`
-	}{
-		alias: (*alias)(b),
-	}
-	if err := dec.DecodeElement(aux, &start); err != nil {
-		return err
-	}
-	b.Metadata = (map[string]*string)(aux.Metadata)
-	b.OrMetadata = (map[string]*string)(aux.OrMetadata)
-	return nil
-}
-
 // MarshalXML implements the xml.Marshaller interface for type BlobProperties.
 func (b BlobProperties) MarshalXML(enc *xml.Encoder, start xml.StartElement) error {
 	type alias BlobProperties
@@ -466,6 +448,16 @@ func populate(m map[string]any, k string, v any) {
 	} else if azcore.IsNullValue(v) {
 		m[k] = nil
 	} else if !reflect.ValueOf(v).IsNil() {
+		m[k] = v
+	}
+}
+
+func populateAny(m map[string]any, k string, v any) {
+	if v == nil {
+		return
+	} else if azcore.IsNullValue(v) {
+		m[k] = nil
+	} else {
 		m[k] = v
 	}
 }

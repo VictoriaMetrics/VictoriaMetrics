@@ -1,3 +1,26 @@
+# v1.5.0 (2023-11-01)
+
+* **Feature**: Adds support for configured endpoints via environment variables and the AWS shared configuration file.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.4.0 (2023-10-31)
+
+* **Feature**: **BREAKING CHANGE**: Bump minimum go version to 1.19 per the revised [go version support policy](https://aws.amazon.com/blogs/developer/aws-sdk-for-go-aligns-with-go-release-policy-on-supported-runtimes/).
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.3.45 (2023-10-12)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.3.44 (2023-10-06)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.3.43 (2023-09-22)
+
+* **Bug Fix**: Fixed a bug where merging `max_attempts` or `duration_seconds` fields across shared config files with invalid values would silently default them to 0.
+* **Bug Fix**: Move type assertion of config values out of the parsing stage, which resolves an issue where the contents of a profile would silently be dropped with certain numeric formats.
+
 # v1.3.42 (2023-08-21)
 
 * **Dependency Update**: Updated to the latest SDK module versions

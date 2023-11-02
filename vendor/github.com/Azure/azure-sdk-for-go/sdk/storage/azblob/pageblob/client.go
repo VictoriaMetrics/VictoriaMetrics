@@ -37,10 +37,13 @@ type Client base.CompositeClient[generated.BlobClient, generated.PageBlobClient]
 func NewClient(blobURL string, cred azcore.TokenCredential, options *ClientOptions) (*Client, error) {
 	authPolicy := shared.NewStorageChallengePolicy(cred)
 	conOptions := shared.GetClientOptions(options)
-	conOptions.PerRetryPolicies = append(conOptions.PerRetryPolicies, authPolicy)
-	pl := runtime.NewPipeline(exported.ModuleName, exported.ModuleVersion, runtime.PipelineOptions{}, &conOptions.ClientOptions)
+	plOpts := runtime.PipelineOptions{PerRetry: []policy.Policy{authPolicy}}
 
-	return (*Client)(base.NewPageBlobClient(blobURL, pl, nil)), nil
+	azClient, err := azcore.NewClient(shared.PageBlobClient, exported.ModuleVersion, plOpts, &conOptions.ClientOptions)
+	if err != nil {
+		return nil, err
+	}
+	return (*Client)(base.NewPageBlobClient(blobURL, azClient, nil)), nil
 }
 
 // NewClientWithNoCredential creates an instance of Client with the specified values.
@@ -49,9 +52,12 @@ func NewClient(blobURL string, cred azcore.TokenCredential, options *ClientOptio
 //   - options - client options; pass nil to accept the default values
 func NewClientWithNoCredential(blobURL string, options *ClientOptions) (*Client, error) {
 	conOptions := shared.GetClientOptions(options)
-	pl := runtime.NewPipeline(exported.ModuleName, exported.ModuleVersion, runtime.PipelineOptions{}, &conOptions.ClientOptions)
 
-	return (*Client)(base.NewPageBlobClient(blobURL, pl, nil)), nil
+	azClient, err := azcore.NewClient(shared.PageBlobClient, exported.ModuleVersion, runtime.PipelineOptions{}, &conOptions.ClientOptions)
+	if err != nil {
+		return nil, err
+	}
+	return (*Client)(base.NewPageBlobClient(blobURL, azClient, nil)), nil
 }
 
 // NewClientWithSharedKeyCredential creates an instance of Client with the specified values.
@@ -61,10 +67,13 @@ func NewClientWithNoCredential(blobURL string, options *ClientOptions) (*Client,
 func NewClientWithSharedKeyCredential(blobURL string, cred *blob.SharedKeyCredential, options *ClientOptions) (*Client, error) {
 	authPolicy := exported.NewSharedKeyCredPolicy(cred)
 	conOptions := shared.GetClientOptions(options)
-	conOptions.PerRetryPolicies = append(conOptions.PerRetryPolicies, authPolicy)
-	pl := runtime.NewPipeline(exported.ModuleName, exported.ModuleVersion, runtime.PipelineOptions{}, &conOptions.ClientOptions)
+	plOpts := runtime.PipelineOptions{PerRetry: []policy.Policy{authPolicy}}
 
-	return (*Client)(base.NewPageBlobClient(blobURL, pl, cred)), nil
+	azClient, err := azcore.NewClient(shared.PageBlobClient, exported.ModuleVersion, plOpts, &conOptions.ClientOptions)
+	if err != nil {
+		return nil, err
+	}
+	return (*Client)(base.NewPageBlobClient(blobURL, azClient, cred)), nil
 }
 
 // NewClientFromConnectionString creates an instance of Client with the specified values.
@@ -119,7 +128,7 @@ func (pb *Client) WithSnapshot(snapshot string) (*Client, error) {
 	}
 	p.Snapshot = snapshot
 
-	return (*Client)(base.NewPageBlobClient(p.String(), pb.generated().Pipeline(), pb.sharedKey())), nil
+	return (*Client)(base.NewPageBlobClient(p.String(), pb.generated().InternalClient(), pb.sharedKey())), nil
 }
 
 // WithVersionID creates a new PageBlobURL object identical to the source but with the specified snapshot timestamp.
@@ -131,7 +140,7 @@ func (pb *Client) WithVersionID(versionID string) (*Client, error) {
 	}
 	p.VersionID = versionID
 
-	return (*Client)(base.NewPageBlobClient(p.String(), pb.generated().Pipeline(), pb.sharedKey())), nil
+	return (*Client)(base.NewPageBlobClient(p.String(), pb.generated().InternalClient(), pb.sharedKey())), nil
 }
 
 // Create creates a page blob of the specified length. Call PutPage to upload data to a page blob.
@@ -228,7 +237,7 @@ func (pb *Client) NewGetPageRangesPager(o *GetPageRangesOptions) *runtime.Pager[
 			if err != nil {
 				return GetPageRangesResponse{}, err
 			}
-			resp, err := pb.generated().Pipeline().Do(req)
+			resp, err := pb.generated().InternalClient().Pipeline().Do(req)
 			if err != nil {
 				return GetPageRangesResponse{}, err
 			}
@@ -261,7 +270,7 @@ func (pb *Client) NewGetPageRangesDiffPager(o *GetPageRangesDiffOptions) *runtim
 			if err != nil {
 				return GetPageRangesDiffResponse{}, err
 			}
-			resp, err := pb.generated().Pipeline().Do(req)
+			resp, err := pb.generated().InternalClient().Pipeline().Do(req)
 			if err != nil {
 				return GetPageRangesDiffResponse{}, err
 			}
