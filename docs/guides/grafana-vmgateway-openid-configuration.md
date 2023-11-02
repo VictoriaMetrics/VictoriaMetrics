@@ -331,15 +331,15 @@ Let's login as user with `team=dev` labels limitation set via claims.
 Using `vmgateway-cluster` results into `No data` response as proxied request will go to tenant `0:1`.
 Since vmagent is only configured to write to `0:0` `No data` is an expected response.
 
-<img src="grafana-vmgateway-openid-configuration/dev-cluster-nodata.png" width="800">
+<img src="grafana-vmgateway-openid-configuration/dev-cluster-nodata.webp" width="800">
 
 Switching to `vmgateway-single` does have data. Note that it is limited to metrics with `team=dev` label.
 
-<img src="grafana-vmgateway-openid-configuration/dev-single-data.png" width="800">
+<img src="grafana-vmgateway-openid-configuration/dev-single-data.webp" width="800">
 
 Now lets login as user with `team=admin`.
 
 Both cluster and single node datasources now return metrics for `team=admin`.
 
-<img src="grafana-vmgateway-openid-configuration/admin-cluster-data.png" width="800">
-<img src="grafana-vmgateway-openid-configuration/admin-single-data.png" width="800">
+<img src="grafana-vmgateway-openid-configuration/admin-cluster-data.webp" width="800">
+<img src="grafana-vmgateway-openid-configuration/admin-single-data.webp" width="800">
