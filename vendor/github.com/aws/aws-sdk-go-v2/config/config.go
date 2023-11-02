@@ -72,6 +72,8 @@ var defaultAWSConfigResolvers = []awsConfigResolver{
 
 	// Sets the sdk app ID if present in shared config profile
 	resolveAppID,
+
+	resolveBaseEndpoint,
 }
 
 // A Config represents a generic configuration value or set of values. This type

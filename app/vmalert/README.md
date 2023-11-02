@@ -1302,15 +1302,14 @@ The shortlist of configuration flags is the following:
      See https://docs.victoriametrics.com/vmalert.html#reading-rules-from-object-storage
      
      Supports an array of values separated by comma or specified via multiple flags.
-  -rule.maxResolveDuration duration
-     Limits the maximum duration for automatic alert expiration, which by default is 4 times evaluationInterval of the parent group.
-  -rule.resendDelay duration
-     Minimum amount of time to wait before resending an alert to notifier
   -rule.evalDelay time
      Adjustment of the time parameter for rule evaluation requests to compensate intentional data delay from the datasource.Normally, should be equal to `-search.latencyOffset` (cmd-line flag configured for VictoriaMetrics single-node or vmselect). (default 30s)
+  -rule.maxResolveDuration duration
+     Limits the maxiMum duration for automatic alert expiration, which by default is 4 times evaluationInterval of the parent group
+  -rule.resendDelay duration
+     MiniMum amount of time to wait before resending an alert to notifier
   -rule.templates array
-     Path or glob pattern to location with go template definitions
-     	for rules annotations templating. Flag can be specified multiple times.
+     Path or glob pattern to location with go template definitions for rules annotations templating. Flag can be specified multiple times.
      Examples:
       -rule.templates="/path/to/file". Path to a single file with go templates
       -rule.templates="dir/*.tpl" -rule.templates="/*.tpl". Relative path to all .tpl files in "dir" folder,
@@ -1399,8 +1398,11 @@ For example:
 ```yaml
 static_configs:
   - targets:
+      # support using full url
+      - 'http://alertmanager:9093/test/api/v2/alerts'
+      - 'https://alertmanager:9093/api/v2/alerts'
+      # the following target with only host:port will be used as <scheme>://localhost:9093/<path_prefix>/api/v2/alerts
       - localhost:9093
-      - localhost:9095
 
 consul_sd_configs:
   - server: localhost:8500

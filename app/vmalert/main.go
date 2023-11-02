@@ -47,8 +47,8 @@ all files with prefix rule_ in folder dir.
 See https://docs.victoriametrics.com/vmalert.html#reading-rules-from-object-storage
 `)
 
-	ruleTemplatesPath = flagutil.NewArrayString("rule.templates", `Path or glob pattern to location with go template definitions
-	for rules annotations templating. Flag can be specified multiple times.
+	ruleTemplatesPath = flagutil.NewArrayString("rule.templates", `Path or glob pattern to location with go template definitions `+
+		`for rules annotations templating. Flag can be specified multiple times.
 Examples:
  -rule.templates="/path/to/file". Path to a single file with go templates
  -rule.templates="dir/*.tpl" -rule.templates="/*.tpl". Relative path to all .tpl files in "dir" folder,
@@ -230,7 +230,9 @@ func newManager(ctx context.Context) (*manager, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to init remoteWrite: %w", err)
 	}
-	manager.rw = rw
+	if rw != nil {
+		manager.rw = rw
+	}
 
 	rr, err := remoteread.Init()
 	if err != nil {

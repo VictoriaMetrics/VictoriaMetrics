@@ -315,12 +315,10 @@ func (rrc *rollupResultCache) GetSeries(qt *querytracer.Tracer, ec *EvalConfig, 
 		i++
 	}
 	if i == len(timestamps) {
-		// no matches.
 		qt.Printf("no datapoints found in the cached series on the given timeRange")
 		return nil, ec.Start
 	}
 	if timestamps[i] != ec.Start {
-		// The cached range doesn't cover the requested range.
 		qt.Printf("cached series don't cover the given timeRange")
 		return nil, ec.Start
 	}
@@ -331,7 +329,7 @@ func (rrc *rollupResultCache) GetSeries(qt *querytracer.Tracer, ec *EvalConfig, 
 	}
 	j++
 	if j <= i {
-		// no matches.
+		qt.Printf("no matching samples for the given timeRange")
 		return nil, ec.Start
 	}
 
@@ -625,7 +623,8 @@ func mergeTimeseries(qt *querytracer.Tracer, a, b []*timeseries, bStart int64, e
 		}
 		tmp.Values = append(tmp.Values, tsB.Values...)
 		if len(tmp.Values) != len(tmp.Timestamps) {
-			logger.Panicf("BUG: unexpected values after merging new values; got %d; want %d", len(tmp.Values), len(tmp.Timestamps))
+			logger.Panicf("BUG: unexpected values after merging new values; got %d; want %d; len(a.Values)=%d; len(b.Values)=%d",
+				len(tmp.Values), len(tmp.Timestamps), len(tsA.Values), len(tsB.Values))
 		}
 		rvs = append(rvs, &tmp)
 	}

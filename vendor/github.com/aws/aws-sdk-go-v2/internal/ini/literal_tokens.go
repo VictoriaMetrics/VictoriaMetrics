@@ -60,7 +60,6 @@ const (
 	NoneType = ValueType(iota)
 	StringType
 	QuotedStringType
-	// FUTURE(2226) MapType
 )
 
 // Value is a union container
@@ -69,7 +68,7 @@ type Value struct {
 	raw  []rune
 
 	str string
-	// FUTURE(2226) mp map[string]string
+	mp  map[string]string
 }
 
 func newValue(t ValueType, base int, raw []rune) (Value, error) {
@@ -81,6 +80,9 @@ func newValue(t ValueType, base int, raw []rune) (Value, error) {
 	switch t {
 	case StringType:
 		v.str = string(raw)
+		if isSubProperty(raw) {
+			v.mp = v.MapValue()
+		}
 	case QuotedStringType:
 		v.str = string(raw[1 : len(raw)-1])
 	}
@@ -114,14 +116,78 @@ func newLitToken(b []rune) (Token, int, error) {
 		if err != nil {
 			return token, n, err
 		}
-
 		token = newToken(TokenLit, b[:n], QuotedStringType)
+	} else if isSubProperty(b) {
+		offset := 0
+		end, err := getSubProperty(b, offset)
+		if err != nil {
+			return token, n, err
+		}
+		token = newToken(TokenLit, b[offset:end], StringType)
+		n = end
 	} else {
 		n, err = getValue(b)
 		token = newToken(TokenLit, b[:n], StringType)
 	}
 
 	return token, n, err
+}
+
+func isSubProperty(runes []rune) bool {
+	// needs at least
+	// (1) newline (2) whitespace (3) literal
+	if len(runes) < 3 {
+		return false
+	}
+
+	// must have an equal expression
+	split := strings.FieldsFunc(string(runes), func(r rune) bool {
+		return isOp([]rune{r})
+	})
+	if len(split) < 2 {
+		return false
+	}
+
+	// must start with a new line
+	if !isNewline(runes) {
+		return false
+	}
+	_, n, err := newNewlineToken(runes)
+	if err != nil {
+		return false
+	}
+
+	// whitespace must follow newline
+	return isWhitespace(runes[n])
+}
+
+// getSubProperty pulls all subproperties and terminates when
+// it hits a newline that is not the start of another subproperty.
+// offset allows for removal of leading newline and whitespace
+// characters
+func getSubProperty(runes []rune, offset int) (int, error) {
+	for idx, val := range runes[offset:] {
+		if val == '\n' && !isSubProperty(runes[offset+idx:]) {
+			return offset + idx, nil
+		}
+	}
+	return 0, fmt.Errorf("no sub property")
+}
+
+// MapValue returns a map value for sub properties
+func (v Value) MapValue() map[string]string {
+	newlineParts := strings.Split(string(v.raw), "\n")
+	mp := make(map[string]string)
+	for _, part := range newlineParts {
+		operandParts := strings.Split(part, "=")
+		if len(operandParts) < 2 {
+			continue
+		}
+		key := strings.TrimSpace(operandParts[0])
+		val := strings.TrimSpace(operandParts[1])
+		mp[key] = val
+	}
+	return mp
 }
 
 // IntValue returns an integer value
@@ -165,6 +231,7 @@ func isTrimmable(r rune) bool {
 // StringValue returns the string value
 func (v Value) StringValue() string {
 	switch v.Type {
+
 	case StringType:
 		return strings.TrimFunc(string(v.raw), isTrimmable)
 	case QuotedStringType:

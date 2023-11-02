@@ -233,6 +233,8 @@ users:
   # For example, request to http://vmauth:8427/non/existing/path are proxied:
   #  - to http://default1:8888/unsupported_url_handler?request_path=/non/existing/path
   #  - or http://default2:8888/unsupported_url_handler?request_path=/non/existing/path
+  #
+  # Regular expressions are allowed in `src_paths` entries.
 - username: "foobar"
   url_map:
   - src_paths:
@@ -259,6 +261,8 @@ users:
 # Requests are routed in round-robin fashion between `url_prefix` backends.
 # The deny_partial_response query arg is added to all the routed requests.
 # The requests are re-tried if url_prefix backends send 500 or 503 response status codes.
+# Note that the unauthorized_user section takes precedence when processing a route without credentials,
+# even if such a route also exists in the users section (see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5236).
 unauthorized_user:
   url_prefix:
   - http://vmselect-az1/?deny_partial_response=1

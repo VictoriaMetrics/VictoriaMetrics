@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
@@ -40,6 +41,8 @@ var (
 		"See also -search.logSlowQueryDuration and -search.maxMemoryPerQuery")
 	noStaleMarkers = flag.Bool("search.noStaleMarkers", false, "Set this flag to true if the database doesn't contain Prometheus stale markers, "+
 		"so there is no need in spending additional CPU time on its handling. Staleness markers may exist only in data obtained from Prometheus scrape targets")
+	minWindowForInstantRollupOptimization = flagutil.NewDuration("search.minWindowForInstantRollupOptimization", "6h", "Enable cache-based optimization for repeated queries "+
+		"to /api/v1/query (aka instant queries), which contain rollup functions with lookbehind window exceeding the given value")
 )
 
 // The minimum number of points per timeseries for enabling time rounding.
@@ -136,8 +139,7 @@ type EvalConfig struct {
 
 	// QueryStats contains various stats for the currently executed query.
 	//
-	// The caller must initialize the QueryStats if it needs the stats.
-	// Otherwise the stats isn't collected.
+	// The caller must initialize QueryStats, otherwise it isn't collected.
 	QueryStats *QueryStats
 
 	timestamps     []int64
@@ -167,13 +169,24 @@ func copyEvalConfig(src *EvalConfig) *EvalConfig {
 // QueryStats contains various stats for the query.
 type QueryStats struct {
 	// SeriesFetched contains the number of series fetched from storage during the query evaluation.
-	SeriesFetched int
+	SeriesFetched int64
+	// ExecutionTimeMsec contains the number of milliseconds the query took to execute.
+	ExecutionTimeMsec int64
 }
 
 func (qs *QueryStats) addSeriesFetched(n int) {
-	if qs != nil {
-		qs.SeriesFetched += n
+	if qs == nil {
+		return
 	}
+	atomic.AddInt64(&qs.SeriesFetched, int64(n))
+}
+
+func (qs *QueryStats) addExecutionTimeMsec(startTime time.Time) {
+	if qs == nil {
+		return
+	}
+	d := time.Since(startTime).Milliseconds()
+	atomic.AddInt64(&qs.ExecutionTimeMsec, d)
 }
 
 func (ec *EvalConfig) validate() {
@@ -1045,10 +1058,6 @@ func removeNanValues(dstValues []float64, dstTimestamps []int64, values []float6
 	return dstValues, dstTimestamps
 }
 
-// minWindowForInstantRollupOptimization is the minimum lookbehind window in milliseconds
-// for enabling smart caching of instant rollup function results.
-const minWindowForInstantRollupOptimization = 24 * 3600 * 1000
-
 // evalInstantRollup evaluates instant rollup where ec.Start == ec.End.
 func evalInstantRollup(qt *querytracer.Tracer, ec *EvalConfig, funcName string, rf rollupFunc,
 	expr metricsql.Expr, me *metricsql.MetricExpr, iafc *incrementalAggrFuncContext, window int64) ([]*timeseries, error) {
@@ -1070,8 +1079,8 @@ func evalInstantRollup(qt *querytracer.Tracer, ec *EvalConfig, funcName string, 
 	}
 	tooBigOffset := func(offset int64) bool {
 		maxOffset := window / 2
-		if maxOffset > 3600*1000 {
-			maxOffset = 3600 * 1000
+		if maxOffset > 1800*1000 {
+			maxOffset = 1800 * 1000
 		}
 		return offset >= maxOffset
 	}
@@ -1080,8 +1089,9 @@ func evalInstantRollup(qt *querytracer.Tracer, ec *EvalConfig, funcName string, 
 		qt.Printf("do not apply instant rollup optimization because of disabled cache")
 		return evalAt(qt, timestamp, window)
 	}
-	if window < minWindowForInstantRollupOptimization {
-		qt.Printf("do not apply instant rollup optimization because of too small window=%d; must be equal or bigger than %d", window, minWindowForInstantRollupOptimization)
+	if window < minWindowForInstantRollupOptimization.Milliseconds() {
+		qt.Printf("do not apply instant rollup optimization because of too small window=%d; must be equal or bigger than %d",
+			window, minWindowForInstantRollupOptimization.Milliseconds())
 		return evalAt(qt, timestamp, window)
 	}
 	switch funcName {
@@ -1149,7 +1159,15 @@ func evalInstantRollup(qt *querytracer.Tracer, ec *EvalConfig, funcName string, 
 			},
 		}
 		return evalExpr(qt, ec, be)
-	case "count_over_time", "sum_over_time", "increase":
+	case
+		"count_eq_over_time",
+		"count_gt_over_time",
+		"count_le_over_time",
+		"count_ne_over_time",
+		"count_over_time",
+		"increase",
+		"increase_pure",
+		"sum_over_time":
 		if iafc != nil && strings.ToLower(iafc.ae.Name) != "sum" {
 			qt.Printf("do not apply instant rollup optimization for non-sum incremental aggregate %s()", iafc.ae.Name)
 			return evalAt(qt, timestamp, window)
@@ -1334,20 +1352,22 @@ func evalRollupFuncWithMetricExpr(qt *querytracer.Tracer, ec *EvalConfig, funcNa
 	tssCached, start := rollupResultCacheV.GetSeries(qt, ec, expr, window)
 	ec.QueryStats.addSeriesFetched(len(tssCached))
 	if start > ec.End {
-		// The result is fully cached.
+		qt.Printf("the result is fully cached")
 		rollupResultCacheFullHits.Inc()
 		return tssCached, nil
 	}
 	if start > ec.Start {
+		qt.Printf("partial cache hit")
 		rollupResultCachePartialHits.Inc()
 	} else {
+		qt.Printf("cache miss")
 		rollupResultCacheMiss.Inc()
 	}
 
 	ecCopy := copyEvalConfig(ec)
 	ecCopy.Start = start
 	pointsPerSeries := 1 + (ec.End-ec.Start)/ec.Step
-	tss, err := evalRollupFuncNoCache(qt, ec, funcName, rf, expr, me, iafc, window, pointsPerSeries)
+	tss, err := evalRollupFuncNoCache(qt, ecCopy, funcName, rf, expr, me, iafc, window, pointsPerSeries)
 	if err != nil {
 		err = &UserReadableError{
 			Err: err,
@@ -1373,7 +1393,7 @@ func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName stri
 		qt = qt.NewChild("rollup %s: timeRange=%s, step=%d, window=%d", expr.AppendString(nil), ec.timeRangeString(), ec.Step, window)
 		defer qt.Done()
 	}
-	if window <= 0 {
+	if window < 0 {
 		return nil, nil
 	}
 	// Obtain rollup configs before fetching data from db, so type errors could be caught earlier.
