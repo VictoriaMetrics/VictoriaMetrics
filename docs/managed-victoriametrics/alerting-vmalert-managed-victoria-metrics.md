@@ -13,7 +13,7 @@ aliases:
 
 This guide explains the different ways in which you can use vmalert in conjunction with Managed VictoriaMetrics
 
-<img src="alerting-vmalert-managed-victoria-metrics-setup.png">
+<img src="alerting-vmalert-managed-victoria-metrics-setup.webp">
 
 ## Preconditions 
 
@@ -55,14 +55,14 @@ For instructions on how to create tokens, please refer to this section of the [d
 
 #### Single-Node
 
-<img src="alerting_token_created_single.png">
-<img src="alerting_copy_datasource_single.png">
+<img src="alerting_token_created_single.webp">
+<img src="alerting_copy_datasource_single.webp">
 
 #### Cluster
 
-<img src="alerting_token_created_cluster.png">
-<img src="alerting_copy_reading_datasource_cluster.png">
-<img src="alerting_copy_writing_datasource_cluster.png">
+<img src="alerting_token_created_cluster.webp">
+<img src="alerting_copy_reading_datasource_cluster.webp">
+<img src="alerting_copy_writing_datasource_cluster.webp">
 
 ### vmalert configuration 
 
