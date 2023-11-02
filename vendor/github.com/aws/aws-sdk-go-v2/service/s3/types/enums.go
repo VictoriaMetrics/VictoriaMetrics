@@ -1006,10 +1006,11 @@ type ReplicationStatus string
 
 // Enum values for ReplicationStatus
 const (
-	ReplicationStatusComplete ReplicationStatus = "COMPLETE"
-	ReplicationStatusPending  ReplicationStatus = "PENDING"
-	ReplicationStatusFailed   ReplicationStatus = "FAILED"
-	ReplicationStatusReplica  ReplicationStatus = "REPLICA"
+	ReplicationStatusComplete  ReplicationStatus = "COMPLETE"
+	ReplicationStatusPending   ReplicationStatus = "PENDING"
+	ReplicationStatusFailed    ReplicationStatus = "FAILED"
+	ReplicationStatusReplica   ReplicationStatus = "REPLICA"
+	ReplicationStatusCompleted ReplicationStatus = "COMPLETED"
 )
 
 // Values returns all known values for ReplicationStatus. Note that this can be
@@ -1021,6 +1022,7 @@ func (ReplicationStatus) Values() []ReplicationStatus {
 		"PENDING",
 		"FAILED",
 		"REPLICA",
+		"COMPLETED",
 	}
 }
 

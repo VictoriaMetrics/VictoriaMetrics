@@ -25,17 +25,19 @@ import (
 // request body. In the replication configuration, you provide the name of the
 // destination bucket or buckets where you want Amazon S3 to replicate objects, the
 // IAM role that Amazon S3 can assume to replicate objects on your behalf, and
-// other relevant information. A replication configuration must include at least
-// one rule, and can contain a maximum of 1,000. Each rule identifies a subset of
-// objects to replicate by filtering the objects in the source bucket. To choose
-// additional subsets of objects to replicate, add a rule for each subset. To
-// specify a subset of the objects in the source bucket to apply a replication rule
-// to, add the Filter element as a child of the Rule element. You can filter
-// objects based on an object key prefix, one or more object tags, or both. When
-// you add the Filter element in the configuration, you must also add the following
-// elements: DeleteMarkerReplication , Status , and Priority . If you are using an
-// earlier version of the replication configuration, Amazon S3 handles replication
-// of delete markers differently. For more information, see Backward Compatibility (https://docs.aws.amazon.com/AmazonS3/latest/dev/replication-add-config.html#replication-backward-compat-considerations)
+// other relevant information. You can invoke this request for a specific Amazon
+// Web Services Region by using the aws:RequestedRegion (https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_condition-keys.html#condition-keys-requestedregion)
+// condition key. A replication configuration must include at least one rule, and
+// can contain a maximum of 1,000. Each rule identifies a subset of objects to
+// replicate by filtering the objects in the source bucket. To choose additional
+// subsets of objects to replicate, add a rule for each subset. To specify a subset
+// of the objects in the source bucket to apply a replication rule to, add the
+// Filter element as a child of the Rule element. You can filter objects based on
+// an object key prefix, one or more object tags, or both. When you add the Filter
+// element in the configuration, you must also add the following elements:
+// DeleteMarkerReplication , Status , and Priority . If you are using an earlier
+// version of the replication configuration, Amazon S3 handles replication of
+// delete markers differently. For more information, see Backward Compatibility (https://docs.aws.amazon.com/AmazonS3/latest/dev/replication-add-config.html#replication-backward-compat-considerations)
 // . For information about enabling versioning on a bucket, see Using Versioning (https://docs.aws.amazon.com/AmazonS3/latest/dev/Versioning.html)
 // . Handling Replication of Encrypted Objects By default, Amazon S3 doesn't
 // replicate objects that are stored at rest using server-side encryption with KMS

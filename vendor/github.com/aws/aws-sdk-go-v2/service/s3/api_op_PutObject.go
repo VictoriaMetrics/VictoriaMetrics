@@ -264,9 +264,11 @@ type PutObjectInput struct {
 	ObjectLockRetainUntilDate *time.Time
 
 	// Confirms that the requester knows that they will be charged for the request.
-	// Bucket owners need not specify this parameter in their requests. For information
-	// about downloading objects from Requester Pays buckets, see Downloading Objects
-	// in Requester Pays Buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
+	// Bucket owners need not specify this parameter in their requests. If either the
+	// source or destination Amazon S3 bucket has Requester Pays enabled, the requester
+	// will pay for corresponding charges to copy the object. For information about
+	// downloading objects from Requester Pays buckets, see Downloading Objects in
+	// Requester Pays Buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
 	// in the Amazon S3 User Guide.
 	RequestPayer types.RequestPayer
 
@@ -294,9 +296,9 @@ type PutObjectInput struct {
 	SSEKMSEncryptionContext *string
 
 	// If x-amz-server-side-encryption has a valid value of aws:kms or aws:kms:dsse ,
-	// this header specifies the ID of the Key Management Service (KMS) symmetric
-	// encryption customer managed key that was used for the object. If you specify
-	// x-amz-server-side-encryption:aws:kms or
+	// this header specifies the ID (Key ID, Key ARN, or Key Alias) of the Key
+	// Management Service (KMS) symmetric encryption customer managed key that was used
+	// for the object. If you specify x-amz-server-side-encryption:aws:kms or
 	// x-amz-server-side-encryption:aws:kms:dsse , but do not provide
 	// x-amz-server-side-encryption-aws-kms-key-id , Amazon S3 uses the Amazon Web
 	// Services managed key ( aws/s3 ) to protect the data. If the KMS key does not

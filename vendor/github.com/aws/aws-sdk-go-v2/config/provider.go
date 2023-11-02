@@ -122,6 +122,58 @@ func getRegion(ctx context.Context, configs configs) (value string, found bool, 
 	return
 }
 
+// IgnoreConfiguredEndpointsProvider is needed to search for all providers
+// that provide a flag to disable configured endpoints.
+type IgnoreConfiguredEndpointsProvider interface {
+	GetIgnoreConfiguredEndpoints(ctx context.Context) (bool, bool, error)
+}
+
+// GetIgnoreConfiguredEndpoints is used in knowing when to disable configured
+// endpoints feature.
+func GetIgnoreConfiguredEndpoints(ctx context.Context, configs []interface{}) (value bool, found bool, err error) {
+	for _, cfg := range configs {
+		if p, ok := cfg.(IgnoreConfiguredEndpointsProvider); ok {
+			value, found, err = p.GetIgnoreConfiguredEndpoints(ctx)
+			if err != nil || found {
+				break
+			}
+		}
+	}
+	return
+}
+
+type baseEndpointProvider interface {
+	getBaseEndpoint(ctx context.Context) (string, bool, error)
+}
+
+func getBaseEndpoint(ctx context.Context, configs configs) (value string, found bool, err error) {
+	for _, cfg := range configs {
+		if p, ok := cfg.(baseEndpointProvider); ok {
+			value, found, err = p.getBaseEndpoint(ctx)
+			if err != nil || found {
+				break
+			}
+		}
+	}
+	return
+}
+
+type servicesObjectProvider interface {
+	getServicesObject(ctx context.Context) (map[string]map[string]string, bool, error)
+}
+
+func getServicesObject(ctx context.Context, configs configs) (value map[string]map[string]string, found bool, err error) {
+	for _, cfg := range configs {
+		if p, ok := cfg.(servicesObjectProvider); ok {
+			value, found, err = p.getServicesObject(ctx)
+			if err != nil || found {
+				break
+			}
+		}
+	}
+	return
+}
+
 // appIDProvider provides access to the sdk app ID value
 type appIDProvider interface {
 	getAppID(ctx context.Context) (string, bool, error)

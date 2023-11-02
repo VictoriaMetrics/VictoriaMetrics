@@ -141,11 +141,11 @@ func (c *grpcStorageClient) GetServiceAccount(ctx context.Context, project strin
 		Project: toProjectResource(project),
 	}
 	var resp *storagepb.ServiceAccount
-	err := run(ctx, func() error {
+	err := run(ctx, func(ctx context.Context) error {
 		var err error
 		resp, err = c.raw.GetServiceAccount(ctx, req, s.gax...)
 		return err
-	}, s.retry, s.idempotent, setRetryHeaderGRPC(ctx))
+	}, s.retry, s.idempotent)
 	if err != nil {
 		return "", err
 	}
@@ -173,13 +173,13 @@ func (c *grpcStorageClient) CreateBucket(ctx context.Context, project, bucket st
 	}
 
 	var battrs *BucketAttrs
-	err := run(ctx, func() error {
+	err := run(ctx, func(ctx context.Context) error {
 		res, err := c.raw.CreateBucket(ctx, req, s.gax...)
 
 		battrs = newBucketFromProto(res)
 
 		return err
-	}, s.retry, s.idempotent, setRetryHeaderGRPC(ctx))
+	}, s.retry, s.idempotent)
 
 	return battrs, err
 }
@@ -193,26 +193,26 @@ func (c *grpcStorageClient) ListBuckets(ctx context.Context, project string, opt
 
 	var gitr *gapic.BucketIterator
 	fetch := func(pageSize int, pageToken string) (token string, err error) {
-		// Initialize GAPIC-based iterator when pageToken is empty, which
-		// indicates that this fetch call is attempting to get the first page.
-		//
-		// Note: Initializing the GAPIC-based iterator lazily is necessary to
-		// capture the BucketIterator.Prefix set by the user *after* the
-		// BucketIterator is returned to them from the veneer.
-		if pageToken == "" {
-			req := &storagepb.ListBucketsRequest{
-				Parent: toProjectResource(it.projectID),
-				Prefix: it.Prefix,
-			}
-			gitr = c.raw.ListBuckets(it.ctx, req, s.gax...)
-		}
 
 		var buckets []*storagepb.Bucket
 		var next string
-		err = run(it.ctx, func() error {
+		err = run(it.ctx, func(ctx context.Context) error {
+			// Initialize GAPIC-based iterator when pageToken is empty, which
+			// indicates that this fetch call is attempting to get the first page.
+			//
+			// Note: Initializing the GAPIC-based iterator lazily is necessary to
+			// capture the BucketIterator.Prefix set by the user *after* the
+			// BucketIterator is returned to them from the veneer.
+			if pageToken == "" {
+				req := &storagepb.ListBucketsRequest{
+					Parent: toProjectResource(it.projectID),
+					Prefix: it.Prefix,
+				}
+				gitr = c.raw.ListBuckets(ctx, req, s.gax...)
+			}
 			buckets, next, err = gitr.InternalFetch(pageSize, pageToken)
 			return err
-		}, s.retry, s.idempotent, setRetryHeaderGRPC(ctx))
+		}, s.retry, s.idempotent)
 		if err != nil {
 			return "", err
 		}
@@ -246,9 +246,9 @@ func (c *grpcStorageClient) DeleteBucket(ctx context.Context, bucket string, con
 		ctx = setUserProjectMetadata(ctx, s.userProject)
 	}
 
-	return run(ctx, func() error {
+	return run(ctx, func(ctx context.Context) error {
 		return c.raw.DeleteBucket(ctx, req, s.gax...)
-	}, s.retry, s.idempotent, setRetryHeaderGRPC(ctx))
+	}, s.retry, s.idempotent)
 }
 
 func (c *grpcStorageClient) GetBucket(ctx context.Context, bucket string, conds *BucketConditions, opts ...storageOption) (*BucketAttrs, error) {
@@ -265,13 +265,13 @@ func (c *grpcStorageClient) GetBucket(ctx context.Context, bucket string, conds 
 	}
 
 	var battrs *BucketAttrs
-	err := run(ctx, func() error {
+	err := run(ctx, func(ctx context.Context) error {
 		res, err := c.raw.GetBucket(ctx, req, s.gax...)
 
 		battrs = newBucketFromProto(res)
 
 		return err
-	}, s.retry, s.idempotent, setRetryHeaderGRPC(ctx))
+	}, s.retry, s.idempotent)
 
 	if s, ok := status.FromError(err); ok && s.Code() == codes.NotFound {
 		return nil, ErrBucketNotExist
@@ -369,11 +369,11 @@ func (c *grpcStorageClient) UpdateBucket(ctx context.Context, bucket string, uat
 	req.UpdateMask = fieldMask
 
 	var battrs *BucketAttrs
-	err := run(ctx, func() error {
+	err := run(ctx, func(ctx context.Context) error {
 		res, err := c.raw.UpdateBucket(ctx, req, s.gax...)
 		battrs = newBucketFromProto(res)
 		return err
-	}, s.retry, s.idempotent, setRetryHeaderGRPC(ctx))
+	}, s.retry, s.idempotent)
 
 	return battrs, err
 }
@@ -386,10 +386,10 @@ func (c *grpcStorageClient) LockBucketRetentionPolicy(ctx context.Context, bucke
 		return err
 	}
 
-	return run(ctx, func() error {
+	return run(ctx, func(ctx context.Context) error {
 		_, err := c.raw.LockBucketRetentionPolicy(ctx, req, s.gax...)
 		return err
-	}, s.retry, s.idempotent, setRetryHeaderGRPC(ctx))
+	}, s.retry, s.idempotent)
 
 }
 func (c *grpcStorageClient) ListObjects(ctx context.Context, bucket string, q *Query, opts ...storageOption) *ObjectIterator {
@@ -408,23 +408,21 @@ func (c *grpcStorageClient) ListObjects(ctx context.Context, bucket string, q *Q
 		LexicographicStart:       it.query.StartOffset,
 		LexicographicEnd:         it.query.EndOffset,
 		IncludeTrailingDelimiter: it.query.IncludeTrailingDelimiter,
+		MatchGlob:                it.query.MatchGlob,
 		ReadMask:                 q.toFieldMask(), // a nil Query still results in a "*" FieldMask
 	}
 	if s.userProject != "" {
 		ctx = setUserProjectMetadata(ctx, s.userProject)
 	}
-	gitr := c.raw.ListObjects(it.ctx, req, s.gax...)
 	fetch := func(pageSize int, pageToken string) (token string, err error) {
-		// MatchGlob not yet supported for gRPC.
-		// TODO: add support when b/287306063 resolved.
-		if q != nil && q.MatchGlob != "" {
-			return "", status.Errorf(codes.Unimplemented, "MatchGlob is not supported for gRPC")
-		}
 		var objects []*storagepb.Object
-		err = run(it.ctx, func() error {
+		var gitr *gapic.ObjectIterator
+		err = run(it.ctx, func(ctx context.Context) error {
+			gitr = c.raw.ListObjects(ctx, req, s.gax...)
+			it.ctx = ctx
 			objects, token, err = gitr.InternalFetch(pageSize, pageToken)
 			return err
-		}, s.retry, s.idempotent, setRetryHeaderGRPC(ctx))
+		}, s.retry, s.idempotent)
 		if err != nil {
 			if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
 				err = ErrBucketNotExist
@@ -467,9 +465,9 @@ func (c *grpcStorageClient) DeleteObject(ctx context.Context, bucket, object str
 	if s.userProject != "" {
 		ctx = setUserProjectMetadata(ctx, s.userProject)
 	}
-	err := run(ctx, func() error {
+	err := run(ctx, func(ctx context.Context) error {
 		return c.raw.DeleteObject(ctx, req, s.gax...)
-	}, s.retry, s.idempotent, setRetryHeaderGRPC(ctx))
+	}, s.retry, s.idempotent)
 	if s, ok := status.FromError(err); ok && s.Code() == codes.NotFound {
 		return ErrObjectNotExist
 	}
@@ -495,12 +493,12 @@ func (c *grpcStorageClient) GetObject(ctx context.Context, bucket, object string
 	}
 
 	var attrs *ObjectAttrs
-	err := run(ctx, func() error {
+	err := run(ctx, func(ctx context.Context) error {
 		res, err := c.raw.GetObject(ctx, req, s.gax...)
 		attrs = newObjectFromProto(res)
 
 		return err
-	}, s.retry, s.idempotent, setRetryHeaderGRPC(ctx))
+	}, s.retry, s.idempotent)
 
 	if s, ok := status.FromError(err); ok && s.Code() == codes.NotFound {
 		return nil, ErrObjectNotExist
@@ -577,11 +575,11 @@ func (c *grpcStorageClient) UpdateObject(ctx context.Context, bucket, object str
 	req.UpdateMask = fieldMask
 
 	var attrs *ObjectAttrs
-	err := run(ctx, func() error {
+	err := run(ctx, func(ctx context.Context) error {
 		res, err := c.raw.UpdateObject(ctx, req, s.gax...)
 		attrs = newObjectFromProto(res)
 		return err
-	}, s.retry, s.idempotent, setRetryHeaderGRPC(ctx))
+	}, s.retry, s.idempotent)
 	if e, ok := status.FromError(err); ok && e.Code() == codes.NotFound {
 		return nil, ErrObjectNotExist
 	}
@@ -820,10 +818,10 @@ func (c *grpcStorageClient) ComposeObject(ctx context.Context, req *composeObjec
 
 	var obj *storagepb.Object
 	var err error
-	if err := run(ctx, func() error {
+	if err := run(ctx, func(ctx context.Context) error {
 		obj, err = c.raw.ComposeObject(ctx, rawReq, s.gax...)
 		return err
-	}, s.retry, s.idempotent, setRetryHeaderGRPC(ctx)); err != nil {
+	}, s.retry, s.idempotent); err != nil {
 		return nil, err
 	}
 
@@ -870,9 +868,9 @@ func (c *grpcStorageClient) RewriteObject(ctx context.Context, req *rewriteObjec
 	var res *storagepb.RewriteResponse
 	var err error
 
-	retryCall := func() error { res, err = c.raw.RewriteObject(ctx, call, s.gax...); return err }
+	retryCall := func(ctx context.Context) error { res, err = c.raw.RewriteObject(ctx, call, s.gax...); return err }
 
-	if err := run(ctx, retryCall, s.retry, s.idempotent, setRetryHeaderGRPC(ctx)); err != nil {
+	if err := run(ctx, retryCall, s.retry, s.idempotent); err != nil {
 		return nil, err
 	}
 
@@ -936,7 +934,7 @@ func (c *grpcStorageClient) NewRangeReader(ctx context.Context, params *newRange
 		var msg *storagepb.ReadObjectResponse
 		var err error
 
-		err = run(cc, func() error {
+		err = run(cc, func(ctx context.Context) error {
 			stream, err = c.raw.ReadObject(cc, req, s.gax...)
 			if err != nil {
 				return err
@@ -950,7 +948,7 @@ func (c *grpcStorageClient) NewRangeReader(ctx context.Context, params *newRange
 			}
 
 			return err
-		}, s.retry, s.idempotent, setRetryHeaderGRPC(ctx))
+		}, s.retry, s.idempotent)
 		if err != nil {
 			// Close the stream context we just created to ensure we don't leak
 			// resources.
@@ -1112,11 +1110,11 @@ func (c *grpcStorageClient) GetIamPolicy(ctx context.Context, resource string, v
 		},
 	}
 	var rp *iampb.Policy
-	err := run(ctx, func() error {
+	err := run(ctx, func(ctx context.Context) error {
 		var err error
 		rp, err = c.raw.GetIamPolicy(ctx, req, s.gax...)
 		return err
-	}, s.retry, s.idempotent, setRetryHeaderGRPC(ctx))
+	}, s.retry, s.idempotent)
 
 	return rp, err
 }
@@ -1130,10 +1128,10 @@ func (c *grpcStorageClient) SetIamPolicy(ctx context.Context, resource string, p
 		Policy:   policy,
 	}
 
-	return run(ctx, func() error {
+	return run(ctx, func(ctx context.Context) error {
 		_, err := c.raw.SetIamPolicy(ctx, req, s.gax...)
 		return err
-	}, s.retry, s.idempotent, setRetryHeaderGRPC(ctx))
+	}, s.retry, s.idempotent)
 }
 
 func (c *grpcStorageClient) TestIamPermissions(ctx context.Context, resource string, permissions []string, opts ...storageOption) ([]string, error) {
@@ -1144,11 +1142,11 @@ func (c *grpcStorageClient) TestIamPermissions(ctx context.Context, resource str
 		Permissions: permissions,
 	}
 	var res *iampb.TestIamPermissionsResponse
-	err := run(ctx, func() error {
+	err := run(ctx, func(ctx context.Context) error {
 		var err error
 		res, err = c.raw.TestIamPermissions(ctx, req, s.gax...)
 		return err
-	}, s.retry, s.idempotent, setRetryHeaderGRPC(ctx))
+	}, s.retry, s.idempotent)
 	if err != nil {
 		return nil, err
 	}
@@ -1167,11 +1165,11 @@ func (c *grpcStorageClient) GetHMACKey(ctx context.Context, project, accessID st
 		ctx = setUserProjectMetadata(ctx, s.userProject)
 	}
 	var metadata *storagepb.HmacKeyMetadata
-	err := run(ctx, func() error {
+	err := run(ctx, func(ctx context.Context) error {
 		var err error
 		metadata, err = c.raw.GetHmacKey(ctx, req, s.gax...)
 		return err
-	}, s.retry, s.idempotent, setRetryHeaderGRPC(ctx))
+	}, s.retry, s.idempotent)
 	if err != nil {
 		return nil, err
 	}
@@ -1193,13 +1191,13 @@ func (c *grpcStorageClient) ListHMACKeys(ctx context.Context, project, serviceAc
 		projectID: project,
 		retry:     s.retry,
 	}
-	gitr := c.raw.ListHmacKeys(it.ctx, req, s.gax...)
 	fetch := func(pageSize int, pageToken string) (token string, err error) {
 		var hmacKeys []*storagepb.HmacKeyMetadata
-		err = run(it.ctx, func() error {
+		err = run(it.ctx, func(ctx context.Context) error {
+			gitr := c.raw.ListHmacKeys(ctx, req, s.gax...)
 			hmacKeys, token, err = gitr.InternalFetch(pageSize, pageToken)
 			return err
-		}, s.retry, s.idempotent, setRetryHeaderGRPC(ctx))
+		}, s.retry, s.idempotent)
 		if err != nil {
 			return "", err
 		}
@@ -1246,11 +1244,11 @@ func (c *grpcStorageClient) UpdateHMACKey(ctx context.Context, project, serviceA
 		ctx = setUserProjectMetadata(ctx, s.userProject)
 	}
 	var metadata *storagepb.HmacKeyMetadata
-	err := run(ctx, func() error {
+	err := run(ctx, func(ctx context.Context) error {
 		var err error
 		metadata, err = c.raw.UpdateHmacKey(ctx, req, s.gax...)
 		return err
-	}, s.retry, s.idempotent, setRetryHeaderGRPC(ctx))
+	}, s.retry, s.idempotent)
 	if err != nil {
 		return nil, err
 	}
@@ -1267,11 +1265,11 @@ func (c *grpcStorageClient) CreateHMACKey(ctx context.Context, project, serviceA
 		ctx = setUserProjectMetadata(ctx, s.userProject)
 	}
 	var res *storagepb.CreateHmacKeyResponse
-	err := run(ctx, func() error {
+	err := run(ctx, func(ctx context.Context) error {
 		var err error
 		res, err = c.raw.CreateHmacKey(ctx, req, s.gax...)
 		return err
-	}, s.retry, s.idempotent, setRetryHeaderGRPC(ctx))
+	}, s.retry, s.idempotent)
 	if err != nil {
 		return nil, err
 	}
@@ -1290,9 +1288,9 @@ func (c *grpcStorageClient) DeleteHMACKey(ctx context.Context, project string, a
 	if s.userProject != "" {
 		ctx = setUserProjectMetadata(ctx, s.userProject)
 	}
-	return run(ctx, func() error {
+	return run(ctx, func(ctx context.Context) error {
 		return c.raw.DeleteHmacKey(ctx, req, s.gax...)
-	}, s.retry, s.idempotent, setRetryHeaderGRPC(ctx))
+	}, s.retry, s.idempotent)
 }
 
 // Notification methods.
@@ -1309,7 +1307,7 @@ func (c *grpcStorageClient) ListNotifications(ctx context.Context, bucket string
 		Parent: bucketResourceName(globalProjectAlias, bucket),
 	}
 	var notifications []*storagepb.NotificationConfig
-	err = run(ctx, func() error {
+	err = run(ctx, func(ctx context.Context) error {
 		gitr := c.raw.ListNotificationConfigs(ctx, req, s.gax...)
 		for {
 			// PageSize is not set and fallbacks to the API default pageSize of 100.
@@ -1324,7 +1322,7 @@ func (c *grpcStorageClient) ListNotifications(ctx context.Context, bucket string
 			}
 			req.PageToken = nextPageToken
 		}
-	}, s.retry, s.idempotent, setRetryHeaderGRPC(ctx))
+	}, s.retry, s.idempotent)
 	if err != nil {
 		return nil, err
 	}
@@ -1342,11 +1340,11 @@ func (c *grpcStorageClient) CreateNotification(ctx context.Context, bucket strin
 		NotificationConfig: toProtoNotification(n),
 	}
 	var pbn *storagepb.NotificationConfig
-	err = run(ctx, func() error {
+	err = run(ctx, func(ctx context.Context) error {
 		var err error
 		pbn, err = c.raw.CreateNotificationConfig(ctx, req, s.gax...)
 		return err
-	}, s.retry, s.idempotent, setRetryHeaderGRPC(ctx))
+	}, s.retry, s.idempotent)
 	if err != nil {
 		return nil, err
 	}
@@ -1359,9 +1357,9 @@ func (c *grpcStorageClient) DeleteNotification(ctx context.Context, bucket strin
 
 	s := callSettings(c.settings, opts...)
 	req := &storagepb.DeleteNotificationConfigRequest{Name: id}
-	return run(ctx, func() error {
+	return run(ctx, func(ctx context.Context) error {
 		return c.raw.DeleteNotificationConfig(ctx, req, s.gax...)
-	}, s.retry, s.idempotent, setRetryHeaderGRPC(ctx))
+	}, s.retry, s.idempotent)
 }
 
 // setUserProjectMetadata appends a project ID to the outgoing Context metadata
@@ -1560,24 +1558,24 @@ func (w *gRPCWriter) startResumableUpload() error {
 	// the upload, but in the future, we must also support sending it
 	// on the *last* message of the stream.
 	req.ObjectChecksums = toProtoChecksums(w.sendCRC32C, w.attrs)
-	return run(w.ctx, func() error {
+	return run(w.ctx, func(ctx context.Context) error {
 		upres, err := w.c.raw.StartResumableWrite(w.ctx, req)
 		w.upid = upres.GetUploadId()
 		return err
-	}, w.settings.retry, w.settings.idempotent, setRetryHeaderGRPC(w.ctx))
+	}, w.settings.retry, w.settings.idempotent)
 }
 
 // queryProgress is a helper that queries the status of the resumable upload
 // associated with the given upload ID.
 func (w *gRPCWriter) queryProgress() (int64, error) {
 	var persistedSize int64
-	err := run(w.ctx, func() error {
+	err := run(w.ctx, func(ctx context.Context) error {
 		q, err := w.c.raw.QueryWriteStatus(w.ctx, &storagepb.QueryWriteStatusRequest{
 			UploadId: w.upid,
 		})
 		persistedSize = q.GetPersistedSize()
 		return err
-	}, w.settings.retry, true, setRetryHeaderGRPC(w.ctx))
+	}, w.settings.retry, true)
 
 	// q.GetCommittedSize() will return 0 if q is nil.
 	return persistedSize, err
@@ -1661,6 +1659,10 @@ func (w *gRPCWriter) uploadBuffer(recvd int, start int64, doneReading bool) (*st
 			// when the backend closes the stream and wants to return an error
 			// status. Closing the stream receives the status as an error.
 			_, err = w.stream.CloseAndRecv()
+
+			// Drop the stream reference as a new one will need to be created if
+			// we can retry the upload
+			w.stream = nil
 
 			// Retriable errors mean we should start over and attempt to
 			// resend the entire buffer via a new stream.

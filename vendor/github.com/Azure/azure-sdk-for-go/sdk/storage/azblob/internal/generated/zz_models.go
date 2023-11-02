@@ -181,6 +181,8 @@ type BlobClientCopyFromURLOptions struct {
 	BlobTagsString *string
 	// Only Bearer type is supported. Credentials should be a valid OAuth access token to copy source.
 	CopySourceAuthorization *string
+	// Optional, default 'replace'. Indicates if source tags should be copied or replaced with the tags specified by x-ms-tags.
+	CopySourceTags *BlobCopySourceTags
 	// Specifies the date time when the blobs immutability policy is set to expire.
 	ImmutabilityPolicyExpiry *time.Time
 	// Specifies the immutability policy mode to set on the blob.
@@ -554,6 +556,14 @@ type BlobItem struct {
 	VersionID  *string            `xml:"VersionId"`
 }
 
+type BlobName struct {
+	// The name of the blob.
+	Content *string `xml:",chardata"`
+
+	// Indicates if the blob name is encoded.
+	Encoded *bool `xml:"Encoded,attr"`
+}
+
 type BlobPrefix struct {
 	// REQUIRED
 	Name *string `xml:"Name"`
@@ -689,6 +699,8 @@ type BlockBlobClientPutBlobFromURLOptions struct {
 	CopySourceAuthorization *string
 	// Optional, default is true. Indicates if properties from the source blob should be copied.
 	CopySourceBlobProperties *bool
+	// Optional, default 'replace'. Indicates if source tags should be copied or replaced with the tags specified by x-ms-tags.
+	CopySourceTags *BlobCopySourceTags
 	// Optional. Specifies a user-defined name-value pair associated with the blob. If no name-value pairs are specified, the
 	// operation will copy the metadata from the source blob or file to the destination
 	// blob. If one or more name-value pairs are specified, the destination blob is created with the specified metadata, and metadata
@@ -767,6 +779,8 @@ type BlockBlobClientUploadOptions struct {
 	// The timeout parameter is expressed in seconds. For more information, see Setting Timeouts for Blob Service Operations.
 	// [https://docs.microsoft.com/en-us/rest/api/storageservices/fileservices/setting-timeouts-for-blob-service-operations]
 	Timeout *int32
+	// Specify the transactional crc64 for the body, to be validated by the service.
+	TransactionalContentCRC64 []byte
 	// Specify the transactional md5 for the body, to be validated by the service.
 	TransactionalContentMD5 []byte
 }
@@ -852,6 +866,30 @@ type ContainerClientCreateOptions struct {
 
 // ContainerClientDeleteOptions contains the optional parameters for the ContainerClient.Delete method.
 type ContainerClientDeleteOptions struct {
+	// Provides a client-generated, opaque value with a 1 KB character limit that is recorded in the analytics logs when storage
+	// analytics logging is enabled.
+	RequestID *string
+	// The timeout parameter is expressed in seconds. For more information, see Setting Timeouts for Blob Service Operations.
+	// [https://docs.microsoft.com/en-us/rest/api/storageservices/fileservices/setting-timeouts-for-blob-service-operations]
+	Timeout *int32
+}
+
+// ContainerClientFilterBlobsOptions contains the optional parameters for the ContainerClient.FilterBlobs method.
+type ContainerClientFilterBlobsOptions struct {
+	// Include this parameter to specify one or more datasets to include in the response.
+	Include []FilterBlobsIncludeItem
+	// A string value that identifies the portion of the list of containers to be returned with the next listing operation. The
+	// operation returns the NextMarker value within the response body if the listing
+	// operation did not return all containers remaining to be listed with the current page. The NextMarker value can be used
+	// as the value for the marker parameter in a subsequent call to request the next
+	// page of list items. The marker value is opaque to the client.
+	Marker *string
+	// Specifies the maximum number of containers to return. If the request does not specify maxresults, or specifies a value
+	// greater than 5000, the server will return up to 5000 items. Note that if the
+	// listing operation crosses a partition boundary, then the service will return a continuation token for retrieving the remainder
+	// of the results. For this reason, it is possible that the service will
+	// return fewer results than specified by maxresults, or than the default of 5000.
+	Maxresults *int32
 	// Provides a client-generated, opaque value with a 1 KB character limit that is recorded in the analytics logs when storage
 	// analytics logging is enabled.
 	RequestID *string
@@ -1140,10 +1178,12 @@ type FilterBlobItem struct {
 	ContainerName *string `xml:"ContainerName"`
 
 	// REQUIRED
-	Name *string `xml:"Name"`
+	Name             *string `xml:"Name"`
+	IsCurrentVersion *bool   `xml:"IsCurrentVersion"`
 
 	// Blob tags
-	Tags *BlobTags `xml:"Tags"`
+	Tags      *BlobTags `xml:"Tags"`
+	VersionID *string   `xml:"VersionId"`
 }
 
 // FilterBlobSegment - The result of a Filter Blobs API call
@@ -1533,6 +1573,8 @@ type SequenceNumberAccessConditions struct {
 
 // ServiceClientFilterBlobsOptions contains the optional parameters for the ServiceClient.FilterBlobs method.
 type ServiceClientFilterBlobsOptions struct {
+	// Include this parameter to specify one or more datasets to include in the response.
+	Include []FilterBlobsIncludeItem
 	// A string value that identifies the portion of the list of containers to be returned with the next listing operation. The
 	// operation returns the NextMarker value within the response body if the listing
 	// operation did not return all containers remaining to be listed with the current page. The NextMarker value can be used
@@ -1674,7 +1716,7 @@ type StaticWebsite struct {
 }
 
 type StorageError struct {
-	Message *string `json:"Message,omitempty"`
+	Message *string
 }
 
 // StorageServiceProperties - Storage Service Properties.

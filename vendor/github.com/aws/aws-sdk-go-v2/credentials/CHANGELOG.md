@@ -1,3 +1,45 @@
+# v1.15.1 (2023-11-02)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.15.0 (2023-11-01)
+
+* **Feature**: Adds support for configured endpoints via environment variables and the AWS shared configuration file.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.14.0 (2023-10-31)
+
+* **Feature**: **BREAKING CHANGE**: Bump minimum go version to 1.19 per the revised [go version support policy](https://aws.amazon.com/blogs/developer/aws-sdk-for-go-aligns-with-go-release-policy-on-supported-runtimes/).
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.13.43 (2023-10-12)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.13.42 (2023-10-06)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.13.41 (2023-10-02)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.13.40 (2023-09-22)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.13.39 (2023-09-20)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.13.38 (2023-09-18)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.13.37 (2023-09-05)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # v1.13.36 (2023-08-31)
 
 * **Dependency Update**: Updated to the latest SDK module versions
