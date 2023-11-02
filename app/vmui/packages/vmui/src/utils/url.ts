@@ -10,4 +10,4 @@ export const isValidHttpUrl = (str: string): boolean => {
   return url.protocol === "http:" || url.protocol === "https:";
 };
 
-export const removeTrailingSlash = (url: string) => url.endsWith("/") ? url.slice(0, -1) : url;
+export const removeTrailingSlash = (url: string) => url.replace(/\/$/, "");
