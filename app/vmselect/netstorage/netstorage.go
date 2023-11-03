@@ -1575,6 +1575,9 @@ func ProcessSearchQuery(qt *querytracer.Tracer, denyPartialResponse bool, sq *st
 					"to use more specific label filters in order to select lower number of series", *maxSamplesPerQuery),
 			}
 		}
+		if deadline.Exceeded() {
+			return &limitExceededErr{fmt.Errorf("timeout exceeded during query processing: %s", deadline.String())}
+		}
 		if err := tbfw.RegisterAndWriteBlock(mb, workerID); err != nil {
 			return fmt.Errorf("cannot write MetricBlock to temporary blocks file: %w", err)
 		}
@@ -1619,7 +1622,7 @@ func processBlocks(qt *querytracer.Tracer, sns []*storageNode, denyPartialRespon
 
 	// Make sure that processBlock is no longer called after the exit from processBlocks() function.
 	// Use per-worker WaitGroup instead of a shared WaitGroup in order to avoid inter-CPU contention,
-	// which may siginificantly slow down the rate of processBlock calls on multi-CPU systems.
+	// which may significantly slow down the rate of processBlock calls on multi-CPU systems.
 	type wgStruct struct {
 		// mu prevents from calling processBlock when stop is set to true
 		mu sync.Mutex
