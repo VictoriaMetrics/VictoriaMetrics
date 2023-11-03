@@ -173,6 +173,9 @@ func getBlockingAPIResponse(ctx context.Context, client *discoveryutils.Client, 
 	path += "&index=" + strconv.FormatInt(index, 10)
 	path += "&wait=" + fmt.Sprintf("%ds", int(maxWaitTime().Seconds()))
 	getMeta := func(resp *http.Response) {
+		if resp.StatusCode != http.StatusOK {
+			return
+		}
 		ind := resp.Header.Get("X-Consul-Index")
 		if len(ind) == 0 {
 			logger.Errorf("cannot find X-Consul-Index header in response from %q", path)

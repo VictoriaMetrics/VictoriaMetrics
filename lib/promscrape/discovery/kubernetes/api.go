@@ -90,7 +90,10 @@ func newAPIConfig(sdc *SDConfig, baseDir string, swcFunc ScrapeWorkConstructorFu
 	for strings.HasSuffix(apiServer, "/") {
 		apiServer = apiServer[:len(apiServer)-1]
 	}
-	aw := newAPIWatcher(apiServer, ac, sdc, swcFunc)
+	aw, err := newAPIWatcher(apiServer, ac, sdc, swcFunc)
+	if err != nil {
+		return nil, fmt.Errorf("cannot initialize Kubernetes API watcher: %w", err)
+	}
 	cfg := &apiConfig{
 		aw: aw,
 	}

@@ -51,6 +51,10 @@ var (
 	shutdownDelay               = flag.Duration("http.shutdownDelay", 0, `Optional delay before http server shutdown. During this delay, the server returns non-OK responses from /health page, so load balancers can route new requests to other servers`)
 	idleConnTimeout             = flag.Duration("http.idleConnTimeout", time.Minute, "Timeout for incoming idle http connections")
 	connTimeout                 = flag.Duration("http.connTimeout", 2*time.Minute, `Incoming http connections are closed after the configured timeout. This may help to spread the incoming load among a cluster of services behind a load balancer. Please note that the real timeout may be bigger by up to 10% as a protection against the thundering herd problem`)
+
+	headerHSTS         = flag.String("http.header.hsts", "", "Value for 'Strict-Transport-Security' header")
+	headerFrameOptions = flag.String("http.header.frameOptions", "", "Value for 'X-Frame-Options' header")
+	headerCSP          = flag.String("http.header.csp", "", "Value for 'Content-Security-Policy' header")
 )
 
 var (
@@ -238,11 +242,21 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 		}
 	}()
 
-	w.Header().Add("X-Server-Hostname", hostname)
+	h := w.Header()
+	if *headerHSTS != "" {
+		h.Add("Strict-Transport-Security", *headerHSTS)
+	}
+	if *headerFrameOptions != "" {
+		h.Add("X-Frame-Options", *headerFrameOptions)
+	}
+	if *headerCSP != "" {
+		h.Add("Content-Security-Policy", *headerCSP)
+	}
+	h.Add("X-Server-Hostname", hostname)
 	requestsTotal.Inc()
 	if whetherToCloseConn(r) {
 		connTimeoutClosedConns.Inc()
-		w.Header().Set("Connection", "close")
+		h.Set("Connection", "close")
 	}
 	path := r.URL.Path
 	prefix := GetPathPrefix()
@@ -267,7 +281,7 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 	}
 	switch r.URL.Path {
 	case "/health":
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		h.Set("Content-Type", "text/plain; charset=utf-8")
 		deadline := atomic.LoadInt64(&s.shutdownDelayDeadline)
 		if deadline <= 0 {
 			w.Write([]byte("OK"))
@@ -302,7 +316,7 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 			return
 		}
 		startTime := time.Now()
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		h.Set("Content-Type", "text/plain; charset=utf-8")
 		appmetrics.WritePrometheusMetrics(w)
 		metricsHandlerDuration.UpdateDuration(startTime)
 		return
@@ -310,7 +324,7 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 		if !CheckAuthFlag(w, r, *flagsAuthKey, "flagsAuthKey") {
 			return
 		}
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		h.Set("Content-Type", "text/plain; charset=utf-8")
 		flagutil.WriteFlags(w)
 		return
 	case "/-/healthy":
@@ -359,6 +373,7 @@ func CheckAuthFlag(w http.ResponseWriter, r *http.Request, flagValue string, fla
 		return CheckBasicAuth(w, r)
 	}
 	if r.FormValue("authKey") != flagValue {
+		authKeyRequestErrors.Inc()
 		http.Error(w, fmt.Sprintf("The provided authKey doesn't match -%s", flagName), http.StatusUnauthorized)
 		return false
 	}
@@ -373,9 +388,13 @@ func CheckBasicAuth(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 	username, password, ok := r.BasicAuth()
-	if ok && username == *httpAuthUsername && password == *httpAuthPassword {
-		return true
+	if ok {
+		if username == *httpAuthUsername && password == *httpAuthPassword {
+			return true
+		}
+		authBasicRequestErrors.Inc()
 	}
+
 	w.Header().Set("WWW-Authenticate", `Basic realm="VictoriaMetrics"`)
 	http.Error(w, "", http.StatusUnauthorized)
 	return false
@@ -429,6 +448,8 @@ var (
 	pprofDefaultRequests = metrics.NewCounter(`vm_http_requests_total{path="/debug/pprof/default"}`)
 	faviconRequests      = metrics.NewCounter(`vm_http_requests_total{path="/favicon.ico"}`)
 
+	authBasicRequestErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="*", reason="wrong_basic_auth"}`)
+	authKeyRequestErrors     = metrics.NewCounter(`vm_http_request_errors_total{path="*", reason="wrong_auth_key"}`)
 	unsupportedRequestErrors = metrics.NewCounter(`vm_http_request_errors_total{path="*", reason="unsupported"}`)
 
 	requestsTotal = metrics.NewCounter(`vm_http_requests_all_total`)

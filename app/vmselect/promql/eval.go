@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
@@ -17,6 +18,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
@@ -34,11 +36,14 @@ var (
 		"Queries requiring more memory are rejected. The total memory limit for concurrently executed queries can be estimated "+
 		"as -search.maxMemoryPerQuery multiplied by -search.maxConcurrentRequests . "+
 		"See also -search.logQueryMemoryUsage")
-	logQueryMemoryUsage = flagutil.NewBytes("search.logQueryMemoryUsage", 0, "Log queries, which require more memory than specified by this flag. "+
+	logQueryMemoryUsage = flagutil.NewBytes("search.logQueryMemoryUsage", 0, "Log query and increment vm_memory_intensive_queries_total metric each time "+
+		"the query requires more memory than specified by this flag. "+
 		"This may help detecting and optimizing heavy queries. Query logging is disabled by default. "+
 		"See also -search.logSlowQueryDuration and -search.maxMemoryPerQuery")
 	noStaleMarkers = flag.Bool("search.noStaleMarkers", false, "Set this flag to true if the database doesn't contain Prometheus stale markers, "+
 		"so there is no need in spending additional CPU time on its handling. Staleness markers may exist only in data obtained from Prometheus scrape targets")
+	minWindowForInstantRollupOptimization = flagutil.NewDuration("search.minWindowForInstantRollupOptimization", "6h", "Enable cache-based optimization for repeated queries "+
+		"to /api/v1/query (aka instant queries), which contain rollup functions with lookbehind window exceeding the given value")
 )
 
 // The minimum number of points per timeseries for enabling time rounding.
@@ -61,7 +66,7 @@ func ValidateMaxPointsPerSeries(start, end, step int64, maxPoints int) error {
 
 // AdjustStartEnd adjusts start and end values, so response caching may be enabled.
 //
-// See EvalConfig.mayCache for details.
+// See EvalConfig.mayCache() for details.
 func AdjustStartEnd(start, end, step int64) (int64, int64) {
 	if *disableCache {
 		// Do not adjust start and end values when cache is disabled.
@@ -142,8 +147,7 @@ type EvalConfig struct {
 
 	// QueryStats contains various stats for the currently executed query.
 	//
-	// The caller must initialize the QueryStats if it needs the stats.
-	// Otherwise the stats isn't collected.
+	// The caller must initialize QueryStats, otherwise it isn't collected.
 	QueryStats *QueryStats
 
 	timestamps     []int64
@@ -176,13 +180,24 @@ func copyEvalConfig(src *EvalConfig) *EvalConfig {
 // QueryStats contains various stats for the query.
 type QueryStats struct {
 	// SeriesFetched contains the number of series fetched from storage during the query evaluation.
-	SeriesFetched int
+	SeriesFetched int64
+	// ExecutionTimeMsec contains the number of milliseconds the query took to execute.
+	ExecutionTimeMsec int64
 }
 
 func (qs *QueryStats) addSeriesFetched(n int) {
-	if qs != nil {
-		qs.SeriesFetched += n
+	if qs == nil {
+		return
 	}
+	atomic.AddInt64(&qs.SeriesFetched, int64(n))
+}
+
+func (qs *QueryStats) addExecutionTimeMsec(startTime time.Time) {
+	if qs == nil {
+		return
+	}
+	d := time.Since(startTime).Milliseconds()
+	atomic.AddInt64(&qs.ExecutionTimeMsec, d)
 }
 
 func (ec *EvalConfig) updateIsPartialResponse(isPartialResponse bool) {
@@ -204,6 +219,11 @@ func (ec *EvalConfig) mayCache() bool {
 	}
 	if !ec.MayCache {
 		return false
+	}
+	if ec.Start == ec.End {
+		// There is no need in aligning start and end to step for instant query
+		// in order to cache its results.
+		return true
 	}
 	if ec.Start%ec.Step != 0 {
 		return false
@@ -1055,46 +1075,356 @@ func removeNanValues(dstValues []float64, dstTimestamps []int64, values []float6
 	return dstValues, dstTimestamps
 }
 
+// evalInstantRollup evaluates instant rollup where ec.Start == ec.End.
+func evalInstantRollup(qt *querytracer.Tracer, ec *EvalConfig, funcName string, rf rollupFunc,
+	expr metricsql.Expr, me *metricsql.MetricExpr, iafc *incrementalAggrFuncContext, window int64) ([]*timeseries, error) {
+	if ec.Start != ec.End {
+		logger.Panicf("BUG: evalInstantRollup cannot be called on non-empty time range; got %s", ec.timeRangeString())
+	}
+	timestamp := ec.Start
+	if qt.Enabled() {
+		qt = qt.NewChild("instant rollup %s; time=%s, window=%d", expr.AppendString(nil), storage.TimestampToHumanReadableFormat(timestamp), window)
+		defer qt.Done()
+	}
+
+	evalAt := func(qt *querytracer.Tracer, timestamp, window int64) ([]*timeseries, error) {
+		ecCopy := copyEvalConfig(ec)
+		ecCopy.Start = timestamp
+		ecCopy.End = timestamp
+		pointsPerSeries := int64(1)
+		tss, err := evalRollupFuncNoCache(qt, ecCopy, funcName, rf, expr, me, iafc, window, pointsPerSeries)
+		if err != nil {
+			return nil, err
+		}
+		ec.updateIsPartialResponse(ecCopy.IsPartialResponse.Load())
+		return tss, nil
+	}
+	tooBigOffset := func(offset int64) bool {
+		maxOffset := window / 2
+		if maxOffset > 1800*1000 {
+			maxOffset = 1800 * 1000
+		}
+		return offset >= maxOffset
+	}
+
+	if !ec.mayCache() {
+		qt.Printf("do not apply instant rollup optimization because of disabled cache")
+		return evalAt(qt, timestamp, window)
+	}
+	if window < minWindowForInstantRollupOptimization.Milliseconds() {
+		qt.Printf("do not apply instant rollup optimization because of too small window=%d; must be equal or bigger than %d",
+			window, minWindowForInstantRollupOptimization.Milliseconds())
+		return evalAt(qt, timestamp, window)
+	}
+	switch funcName {
+	case "avg_over_time":
+		if iafc != nil {
+			qt.Printf("do not apply instant rollup optimization for incremental aggregate %s()", iafc.ae.Name)
+			return evalAt(qt, timestamp, window)
+		}
+		qt.Printf("optimized calculation for instant rollup avg_over_time(m[d]) as (sum_over_time(m[d]) / count_over_time(m[d]))")
+		fe := expr.(*metricsql.FuncExpr)
+		feSum := *fe
+		feSum.Name = "sum_over_time"
+		feCount := *fe
+		feCount.Name = "count_over_time"
+		be := &metricsql.BinaryOpExpr{
+			Op:              "/",
+			KeepMetricNames: fe.KeepMetricNames,
+			Left:            &feSum,
+			Right:           &feCount,
+		}
+		return evalExpr(qt, ec, be)
+	case "rate":
+		if iafc != nil {
+			if strings.ToLower(iafc.ae.Name) != "sum" {
+				qt.Printf("do not apply instant rollup optimization for incremental aggregate %s()", iafc.ae.Name)
+				return evalAt(qt, timestamp, window)
+			}
+			qt.Printf("optimized calculation for sum(rate(m[d])) as (sum(increase(m[d])) / d)")
+			afe := expr.(*metricsql.AggrFuncExpr)
+			fe := afe.Args[0].(*metricsql.FuncExpr)
+			feIncrease := *fe
+			feIncrease.Name = "increase"
+			re := fe.Args[0].(*metricsql.RollupExpr)
+			d := re.Window.Duration(ec.Step)
+			if d == 0 {
+				d = ec.Step
+			}
+			afeIncrease := *afe
+			afeIncrease.Args = []metricsql.Expr{&feIncrease}
+			be := &metricsql.BinaryOpExpr{
+				Op:              "/",
+				KeepMetricNames: true,
+				Left:            &afeIncrease,
+				Right: &metricsql.NumberExpr{
+					N: float64(d) / 1000,
+				},
+			}
+			return evalExpr(qt, ec, be)
+		}
+		qt.Printf("optimized calculation for instant rollup rate(m[d]) as (increase(m[d]) / d)")
+		fe := expr.(*metricsql.FuncExpr)
+		feIncrease := *fe
+		feIncrease.Name = "increase"
+		re := fe.Args[0].(*metricsql.RollupExpr)
+		d := re.Window.Duration(ec.Step)
+		if d == 0 {
+			d = ec.Step
+		}
+		be := &metricsql.BinaryOpExpr{
+			Op:              "/",
+			KeepMetricNames: fe.KeepMetricNames,
+			Left:            &feIncrease,
+			Right: &metricsql.NumberExpr{
+				N: float64(d) / 1000,
+			},
+		}
+		return evalExpr(qt, ec, be)
+	case
+		"count_eq_over_time",
+		"count_gt_over_time",
+		"count_le_over_time",
+		"count_ne_over_time",
+		"count_over_time",
+		"increase",
+		"increase_pure",
+		"sum_over_time":
+		if iafc != nil && strings.ToLower(iafc.ae.Name) != "sum" {
+			qt.Printf("do not apply instant rollup optimization for non-sum incremental aggregate %s()", iafc.ae.Name)
+			return evalAt(qt, timestamp, window)
+		}
+
+		// Calculate
+		//
+		//   rf(m[window] @ timestamp)
+		//
+		// as
+		//
+		//   rf(m[window] @ (timestamp-offset)) + rf(m[offset] @ timestamp) - rf(m[offset] @ (timestamp-window))
+		//
+		// where
+		//
+		// - rf is count_over_time, sum_over_time or increase
+		// - rf(m[window] @ (timestamp-offset)) is obtained from cache
+		// - rf(m[offset] @ timestamp) and rf(m[offset] @ (timestamp-window)) are calculated from the storage
+		//   These rollups are calculated faster than rf(m[window]) because offset is smaller than window.
+		qtChild := qt.NewChild("optimized calculation for instant rollup %s at time=%s with lookbehind window=%d",
+			expr.AppendString(nil), storage.TimestampToHumanReadableFormat(timestamp), window)
+		defer qtChild.Done()
+
+	again:
+		offset := int64(0)
+		tssCached := rollupResultCacheV.GetInstantValues(qtChild, ec.AuthToken, expr, window, ec.Step, ec.EnforcedTagFilterss)
+		ec.QueryStats.addSeriesFetched(len(tssCached))
+		if len(tssCached) == 0 {
+			// Cache miss. Re-populate it
+			start := int64(fasttime.UnixTimestamp()*1000) - cacheTimestampOffset.Milliseconds()
+			offset = timestamp - start
+			if offset < 0 {
+				start = timestamp
+				offset = 0
+			}
+			if tooBigOffset(offset) {
+				qtChild.Printf("cannot apply instant rollup optimization because the -search.cacheTimestampOffset=%s is too big "+
+					"for the requested time=%s and window=%d", cacheTimestampOffset, storage.TimestampToHumanReadableFormat(timestamp), window)
+				return evalAt(qtChild, timestamp, window)
+			}
+			qtChild.Printf("calculating the rollup at time=%s, because it is missing in the cache", storage.TimestampToHumanReadableFormat(start))
+			tss, err := evalAt(qtChild, start, window)
+			if err != nil {
+				return nil, err
+			}
+			if !ec.IsPartialResponse.Load() {
+				rollupResultCacheV.PutInstantValues(qtChild, ec.AuthToken, expr, window, ec.Step, ec.EnforcedTagFilterss, tss)
+			}
+			tssCached = tss
+		} else {
+			offset = timestamp - tssCached[0].Timestamps[0]
+			if offset < 0 {
+				qtChild.Printf("do not apply instant rollup optimization because the cached values have bigger timestamp=%s than the requested one=%s",
+					storage.TimestampToHumanReadableFormat(tssCached[0].Timestamps[0]), storage.TimestampToHumanReadableFormat(timestamp))
+				// Delete the outdated cached values, so the cache could be re-populated with newer values.
+				rollupResultCacheV.DeleteInstantValues(qtChild, ec.AuthToken, expr, window, ec.Step, ec.EnforcedTagFilterss)
+				goto again
+			}
+			if tooBigOffset(offset) {
+				qtChild.Printf("do not apply instant rollup optimization because the offset=%d between the requested timestamp "+
+					"and the cached values is too big comparing to window=%d", offset, window)
+				// Delete the outdated cached values, so the cache could be re-populated with newer values.
+				rollupResultCacheV.DeleteInstantValues(qtChild, ec.AuthToken, expr, window, ec.Step, ec.EnforcedTagFilterss)
+				goto again
+			}
+		}
+		if offset == 0 {
+			qtChild.Printf("return cached values, since they have the requested timestamp=%s", storage.TimestampToHumanReadableFormat(timestamp))
+			return tssCached, nil
+		}
+		// Calculate count_over_time(m[offset] @ timestamp)
+		tssStart, err := evalAt(qtChild, timestamp, offset)
+		if err != nil {
+			return nil, err
+		}
+		// Calculate count_over_time(m[offset] @ (timestamp - window))
+		tssEnd, err := evalAt(qtChild, timestamp-window, offset)
+		if err != nil {
+			return nil, err
+		}
+		tss, err := mergeInstantValues(qtChild, tssCached, tssStart, tssEnd)
+		if err != nil {
+			return nil, fmt.Errorf("cannot merge instant series: %w", err)
+		}
+		return tss, nil
+	default:
+		qt.Printf("instant rollup optimization isn't implemented for %s()", funcName)
+		return evalAt(qt, timestamp, window)
+	}
+}
+
+// mergeInstantValues calculates tssCached + tssStart - tssEnd
+func mergeInstantValues(qt *querytracer.Tracer, tssCached, tssStart, tssEnd []*timeseries) ([]*timeseries, error) {
+	qt = qt.NewChild("merge instant values across series; cached=%d, start=%d, end=%d", len(tssCached), len(tssStart), len(tssEnd))
+	defer qt.Done()
+
+	assertInstantValues(tssCached)
+	assertInstantValues(tssStart)
+	assertInstantValues(tssEnd)
+
+	m := make(map[string]*timeseries, len(tssCached))
+	bb := bbPool.Get()
+	defer bbPool.Put(bb)
+
+	for _, ts := range tssCached {
+		bb.B = marshalMetricNameSorted(bb.B[:0], &ts.MetricName)
+		if tsExisting := m[string(bb.B)]; tsExisting != nil {
+			return nil, fmt.Errorf("duplicate series found: %s", &ts.MetricName)
+		}
+		m[string(bb.B)] = ts
+	}
+
+	for _, ts := range tssStart {
+		bb.B = marshalMetricNameSorted(bb.B[:0], &ts.MetricName)
+		tsCached := m[string(bb.B)]
+		if tsCached != nil && !math.IsNaN(tsCached.Values[0]) {
+			if !math.IsNaN(ts.Values[0]) {
+				tsCached.Values[0] += ts.Values[0]
+			}
+		} else {
+			m[string(bb.B)] = ts
+		}
+	}
+
+	for _, ts := range tssEnd {
+		bb.B = marshalMetricNameSorted(bb.B[:0], &ts.MetricName)
+		tsCached := m[string(bb.B)]
+		if tsCached != nil && !math.IsNaN(tsCached.Values[0]) {
+			if !math.IsNaN(ts.Values[0]) {
+				tsCached.Values[0] -= ts.Values[0]
+			}
+		}
+	}
+
+	rvs := make([]*timeseries, 0, len(m))
+	for _, ts := range m {
+		rvs = append(rvs, ts)
+	}
+	qt.Printf("resulting series=%d", len(rvs))
+	return rvs, nil
+}
+
+func assertInstantValues(tss []*timeseries) {
+	for _, ts := range tss {
+		if len(ts.Values) != 1 {
+			logger.Panicf("BUG: instant series must contain a single value; got %d values", len(ts.Values))
+		}
+		if len(ts.Timestamps) != 1 {
+			logger.Panicf("BUG: instant series must contain a single timestamp; got %d timestamps", len(ts.Timestamps))
+		}
+	}
+}
+
 var (
 	rollupResultCacheFullHits    = metrics.NewCounter(`vm_rollup_result_cache_full_hits_total`)
 	rollupResultCachePartialHits = metrics.NewCounter(`vm_rollup_result_cache_partial_hits_total`)
 	rollupResultCacheMiss        = metrics.NewCounter(`vm_rollup_result_cache_miss_total`)
+
+	memoryIntensiveQueries = metrics.NewCounter(`vm_memory_intensive_queries_total`)
 )
 
 func evalRollupFuncWithMetricExpr(qt *querytracer.Tracer, ec *EvalConfig, funcName string, rf rollupFunc,
 	expr metricsql.Expr, me *metricsql.MetricExpr, iafc *incrementalAggrFuncContext, windowExpr *metricsql.DurationExpr) ([]*timeseries, error) {
-	var rollupMemorySize int64
 	window, err := windowExpr.NonNegativeDuration(ec.Step)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse lookbehind window in square brackets at %s: %w", expr.AppendString(nil), err)
-	}
-	if qt.Enabled() {
-		qt = qt.NewChild("rollup %s(): timeRange=%s, step=%d, window=%d", funcName, ec.timeRangeString(), ec.Step, window)
-		defer func() {
-			qt.Donef("neededMemoryBytes=%d", rollupMemorySize)
-		}()
 	}
 	if me.IsEmpty() {
 		return evalNumber(ec, nan), nil
 	}
 
+	if ec.Start == ec.End {
+		rvs, err := evalInstantRollup(qt, ec, funcName, rf, expr, me, iafc, window)
+		if err != nil {
+			err = &UserReadableError{
+				Err: err,
+			}
+			return nil, err
+		}
+		return rvs, nil
+	}
+
 	// Search for partial results in cache.
-	tssCached, start := rollupResultCacheV.Get(qt, ec, expr, window)
+	tssCached, start := rollupResultCacheV.GetSeries(qt, ec, expr, window)
+	ec.QueryStats.addSeriesFetched(len(tssCached))
 	if start > ec.End {
-		// The result is fully cached.
+		qt.Printf("the result is fully cached")
 		rollupResultCacheFullHits.Inc()
 		return tssCached, nil
 	}
 	if start > ec.Start {
+		qt.Printf("partial cache hit")
 		rollupResultCachePartialHits.Inc()
 	} else {
+		qt.Printf("cache miss")
 		rollupResultCacheMiss.Inc()
 	}
 
-	// Obtain rollup configs before fetching data from db,
-	// so type errors can be caught earlier.
-	sharedTimestamps := getTimestamps(start, ec.End, ec.Step, ec.MaxPointsPerSeries)
-	preFunc, rcs, err := getRollupConfigs(funcName, rf, expr, start, ec.End, ec.Step, ec.MaxPointsPerSeries, window, ec.LookbackDelta, sharedTimestamps)
+	ecCopy := copyEvalConfig(ec)
+	ecCopy.Start = start
+	pointsPerSeries := 1 + (ec.End-ec.Start)/ec.Step
+	tss, err := evalRollupFuncNoCache(qt, ecCopy, funcName, rf, expr, me, iafc, window, pointsPerSeries)
+	if err != nil {
+		err = &UserReadableError{
+			Err: err,
+		}
+		return nil, err
+	}
+	isPartial := ecCopy.IsPartialResponse.Load()
+	ec.updateIsPartialResponse(isPartial)
+	rvs, err := mergeTimeseries(qt, tssCached, tss, start, ec)
+	if err != nil {
+		return nil, fmt.Errorf("cannot merge series: %w", err)
+	}
+	if tss != nil && !isPartial {
+		rollupResultCacheV.PutSeries(qt, ec, expr, window, tss)
+	}
+	return rvs, nil
+}
+
+// evalRollupFuncNoCache calculates the given rf with the given lookbehind window.
+//
+// pointsPerSeries is used only for estimating the needed memory for query processing
+func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName string, rf rollupFunc,
+	expr metricsql.Expr, me *metricsql.MetricExpr, iafc *incrementalAggrFuncContext, window, pointsPerSeries int64) ([]*timeseries, error) {
+	if qt.Enabled() {
+		qt = qt.NewChild("rollup %s: timeRange=%s, step=%d, window=%d", expr.AppendString(nil), ec.timeRangeString(), ec.Step, window)
+		defer qt.Done()
+	}
+	if window < 0 {
+		return nil, nil
+	}
+	// Obtain rollup configs before fetching data from db, so type errors could be caught earlier.
+	sharedTimestamps := getTimestamps(ec.Start, ec.End, ec.Step, ec.MaxPointsPerSeries)
+	preFunc, rcs, err := getRollupConfigs(funcName, rf, expr, ec.Start, ec.End, ec.Step, ec.MaxPointsPerSeries, window, ec.LookbackDelta, sharedTimestamps)
 	if err != nil {
 		return nil, err
 	}
@@ -1102,7 +1432,10 @@ func evalRollupFuncWithMetricExpr(qt *querytracer.Tracer, ec *EvalConfig, funcNa
 	// Fetch the remaining part of the result.
 	tfss := searchutils.ToTagFilterss(me.LabelFilterss)
 	tfss = searchutils.JoinTagFilterss(tfss, ec.EnforcedTagFilterss)
-	minTimestamp := start - maxSilenceInterval
+	minTimestamp := ec.Start
+	if needSilenceIntervalForRollupFunc(funcName) {
+		minTimestamp -= maxSilenceInterval
+	}
 	if window > ec.Step {
 		minTimestamp -= window
 	} else {
@@ -1114,22 +1447,17 @@ func evalRollupFuncWithMetricExpr(qt *querytracer.Tracer, ec *EvalConfig, funcNa
 	sq := storage.NewSearchQuery(ec.AuthToken.AccountID, ec.AuthToken.ProjectID, minTimestamp, ec.End, tfss, ec.MaxSeries)
 	rss, isPartial, err := netstorage.ProcessSearchQuery(qt, ec.DenyPartialResponse, sq, ec.Deadline)
 	if err != nil {
-		return nil, &UserReadableError{
-			Err: err,
-		}
+		return nil, err
 	}
 	ec.updateIsPartialResponse(isPartial)
 	rssLen := rss.Len()
 	if rssLen == 0 {
 		rss.Cancel()
-		tss := mergeTimeseries(tssCached, nil, start, ec)
-		return tss, nil
+		return nil, nil
 	}
 	ec.QueryStats.addSeriesFetched(rssLen)
 
-	// Verify timeseries fit available memory after the rollup.
-	// Take into account points from tssCached.
-	pointsPerTimeseries := 1 + (ec.End-ec.Start)/ec.Step
+	// Verify timeseries fit available memory during rollup calculations.
 	timeseriesLen := rssLen
 	if iafc != nil {
 		// Incremental aggregates require holding only GOMAXPROCS timeseries in memory.
@@ -1149,9 +1477,10 @@ func evalRollupFuncWithMetricExpr(qt *querytracer.Tracer, ec *EvalConfig, funcNa
 			timeseriesLen = rssLen
 		}
 	}
-	rollupPoints := mulNoOverflow(pointsPerTimeseries, int64(timeseriesLen*len(rcs)))
-	rollupMemorySize = sumNoOverflow(mulNoOverflow(int64(rssLen), 1000), mulNoOverflow(rollupPoints, 16))
+	rollupPoints := mulNoOverflow(pointsPerSeries, int64(timeseriesLen*len(rcs)))
+	rollupMemorySize := sumNoOverflow(mulNoOverflow(int64(rssLen), 1000), mulNoOverflow(rollupPoints, 16))
 	if maxMemory := int64(logQueryMemoryUsage.N); maxMemory > 0 && rollupMemorySize > maxMemory {
+		memoryIntensiveQueries.Inc()
 		requestURI := ec.GetRequestURI()
 		logger.Warnf("remoteAddr=%s, requestURI=%s: the %s requires %d bytes of memory for processing; "+
 			"logging this query, since it exceeds the -search.logQueryMemoryUsage=%d; "+
@@ -1160,46 +1489,33 @@ func evalRollupFuncWithMetricExpr(qt *querytracer.Tracer, ec *EvalConfig, funcNa
 	}
 	if maxMemory := int64(maxMemoryPerQuery.N); maxMemory > 0 && rollupMemorySize > maxMemory {
 		rss.Cancel()
-		return nil, &UserReadableError{
-			Err: fmt.Errorf("not enough memory for processing %s, which returns %d data points across %d time series with %d points in each time series "+
-				"according to -search.maxMemoryPerQuery=%d; requested memory: %d bytes; "+
-				"possible solutions are: reducing the number of matching time series; increasing `step` query arg (step=%gs); "+
-				"increasing -search.maxMemoryPerQuery",
-				expr.AppendString(nil), rollupPoints, timeseriesLen*len(rcs), pointsPerTimeseries, maxMemory, rollupMemorySize, float64(ec.Step)/1e3),
-		}
+		err := fmt.Errorf("not enough memory for processing %s, which returns %d data points across %d time series with %d points in each time series "+
+			"according to -search.maxMemoryPerQuery=%d; requested memory: %d bytes; "+
+			"possible solutions are: reducing the number of matching time series; increasing `step` query arg (step=%gs); "+
+			"increasing -search.maxMemoryPerQuery",
+			expr.AppendString(nil), rollupPoints, timeseriesLen*len(rcs), pointsPerSeries, maxMemory, rollupMemorySize, float64(ec.Step)/1e3)
+		return nil, err
 	}
 	rml := getRollupMemoryLimiter()
 	if !rml.Get(uint64(rollupMemorySize)) {
 		rss.Cancel()
-		return nil, &UserReadableError{
-			Err: fmt.Errorf("not enough memory for processing %s, which returns %d data points across %d time series with %d points in each time series; "+
-				"total available memory for concurrent requests: %d bytes; "+
-				"requested memory: %d bytes; "+
-				"possible solutions are: reducing the number of matching time series; increasing `step` query arg (step=%gs); "+
-				"switching to node with more RAM; increasing -memory.allowedPercent",
-				expr.AppendString(nil), rollupPoints, timeseriesLen*len(rcs), pointsPerTimeseries, rml.MaxSize, uint64(rollupMemorySize), float64(ec.Step)/1e3),
-		}
+		err := fmt.Errorf("not enough memory for processing %s, which returns %d data points across %d time series with %d points in each time series; "+
+			"total available memory for concurrent requests: %d bytes; requested memory: %d bytes; "+
+			"possible solutions are: reducing the number of matching time series; increasing `step` query arg (step=%gs); "+
+			"switching to node with more RAM; increasing -memory.allowedPercent",
+			expr.AppendString(nil), rollupPoints, timeseriesLen*len(rcs), pointsPerSeries, rml.MaxSize, uint64(rollupMemorySize), float64(ec.Step)/1e3)
+		return nil, err
 	}
 	defer rml.Put(uint64(rollupMemorySize))
+	qt.Printf("the rollup evaluation needs an estimated %d bytes of RAM for %d series and %d points per series (summary %d points)",
+		rollupMemorySize, timeseriesLen, pointsPerSeries, rollupPoints)
 
 	// Evaluate rollup
 	keepMetricNames := getKeepMetricNames(expr)
-	var tss []*timeseries
 	if iafc != nil {
-		tss, err = evalRollupWithIncrementalAggregate(qt, funcName, keepMetricNames, iafc, rss, rcs, preFunc, sharedTimestamps)
-	} else {
-		tss, err = evalRollupNoIncrementalAggregate(qt, funcName, keepMetricNames, rss, rcs, preFunc, sharedTimestamps)
+		return evalRollupWithIncrementalAggregate(qt, funcName, keepMetricNames, iafc, rss, rcs, preFunc, sharedTimestamps)
 	}
-	if err != nil {
-		return nil, &UserReadableError{
-			Err: err,
-		}
-	}
-	tss = mergeTimeseries(tssCached, tss, start, ec)
-	if !isPartial {
-		rollupResultCacheV.Put(qt, ec, expr, window, tss)
-	}
-	return tss, nil
+	return evalRollupNoIncrementalAggregate(qt, funcName, keepMetricNames, rss, rcs, preFunc, sharedTimestamps)
 }
 
 var (
@@ -1212,6 +1528,53 @@ func getRollupMemoryLimiter() *memoryLimiter {
 		rollupMemoryLimiter.MaxSize = uint64(memory.Allowed()) / 2
 	})
 	return &rollupMemoryLimiter
+}
+
+func needSilenceIntervalForRollupFunc(funcName string) bool {
+	// All rollup the functions, which do not rely on the previous sample
+	// before the lookbehind window (aka prevValue), do not need silence interval.
+	switch strings.ToLower(funcName) {
+	case
+		"absent_over_time",
+		"avg_over_time",
+		"count_eq_over_time",
+		"count_gt_over_time",
+		"count_le_over_time",
+		"count_ne_over_time",
+		"count_over_time",
+		"default_rollup",
+		"first_over_time",
+		"histogram_over_time",
+		"hoeffding_bound_lower",
+		"hoeffding_bound_upper",
+		"last_over_time",
+		"mad_over_time",
+		"max_over_time",
+		"median_over_time",
+		"min_over_time",
+		"predict_linear",
+		"present_over_time",
+		"quantile_over_time",
+		"quantiles_over_time",
+		"range_over_time",
+		"share_gt_over_time",
+		"share_le_over_time",
+		"share_eq_over_time",
+		"stale_samples_over_time",
+		"stddev_over_time",
+		"stdvar_over_time",
+		"sum_over_time",
+		"tfirst_over_time",
+		"timestamp",
+		"timestamp_with_name",
+		"tlast_over_time",
+		"tmax_over_time",
+		"tmin_over_time",
+		"zscore_over_time":
+		return false
+	default:
+		return true
+	}
 }
 
 func evalRollupWithIncrementalAggregate(qt *querytracer.Tracer, funcName string, keepMetricNames bool,

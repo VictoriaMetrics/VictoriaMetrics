@@ -50,6 +50,10 @@ const QueryEditor: FC<QueryEditorProps> = ({
     }
   ].filter((w) => w.show).map(w => w.text).join("");
 
+  if (stats) {
+    label = `${label} (${stats.executionTimeMsec || 0}ms)`;
+  }
+
   const handleSelect = (val: string) => {
     onChange(val);
   };

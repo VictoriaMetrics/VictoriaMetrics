@@ -14,7 +14,8 @@ import (
 //
 // DefaultValue is in months.
 func NewDuration(name string, defaultValue string, description string) *Duration {
-	description += "\nThe following optional suffixes are supported: h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months"
+	description += "\nThe following optional suffixes are supported: s (second), m (minute), h (hour), d (day), w (week), y (year). " +
+		"If suffix isn't set, then the duration is counted in months"
 	d := &Duration{}
 	if err := d.Set(defaultValue); err != nil {
 		panic(fmt.Sprintf("BUG: can not parse default value %s for flag %s", defaultValue, name))

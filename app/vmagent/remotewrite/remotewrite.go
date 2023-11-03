@@ -23,6 +23,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/streamaggr"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
 	"github.com/VictoriaMetrics/metrics"
@@ -40,6 +41,9 @@ var (
 		"Pass multiple -remoteWrite.multitenantURL flags in order to replicate data to multiple remote storage systems. See also -remoteWrite.url")
 	shardByURL = flag.Bool("remoteWrite.shardByURL", false, "Whether to shard outgoing series across all the remote storage systems enumerated via -remoteWrite.url . "+
 		"By default the data is replicated across all the -remoteWrite.url . See https://docs.victoriametrics.com/vmagent.html#sharding-among-remote-storages")
+	shardByURLLabels = flagutil.NewArrayString("remoteWrite.shardByURL.labels", "Optional list of labels, which must be used for sharding outgoing samples "+
+		"among remote storage systems if -remoteWrite.shardByURL command-line flag is set. By default all the labels are used for sharding in order to gain "+
+		"even distribution of series over the specified -remoteWrite.url systems")
 	tmpDataPath = flag.String("remoteWrite.tmpDataPath", "vmagent-remotewrite-data", "Path to directory where temporary data for remote write component is stored. "+
 		"See also -remoteWrite.maxDiskUsagePerURL")
 	keepDanglingQueues = flag.Bool("remoteWrite.keepDanglingQueues", false, "Keep persistent queues contents at -remoteWrite.tmpDataPath in case there are no matching -remoteWrite.url. "+
@@ -116,6 +120,8 @@ func InitSecretFlags() {
 	}
 }
 
+var shardByURLLabelsMap map[string]struct{}
+
 // Init initializes remotewrite.
 //
 // It must be called after flag.Parse().
@@ -151,6 +157,13 @@ func Init() {
 	}
 	if *queues <= 0 {
 		*queues = 1
+	}
+	if len(*shardByURLLabels) > 0 {
+		m := make(map[string]struct{}, len(*shardByURLLabels))
+		for _, label := range *shardByURLLabels {
+			m[label] = struct{}{}
+		}
+		shardByURLLabelsMap = m
 	}
 	initLabelsGlobal()
 
@@ -418,11 +431,23 @@ func pushBlockToRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []prompbmarsha
 	if *shardByURL {
 		// Shard the data among rwctxs
 		tssByURL := make([][]prompbmarshal.TimeSeries, len(rwctxs))
+		tmpLabels := promutils.GetLabels()
 		for _, ts := range tssBlock {
-			h := getLabelsHash(ts.Labels)
+			hashLabels := ts.Labels
+			if len(shardByURLLabelsMap) > 0 {
+				hashLabels = tmpLabels.Labels[:0]
+				for _, label := range ts.Labels {
+					if _, ok := shardByURLLabelsMap[label.Name]; ok {
+						hashLabels = append(hashLabels, label)
+					}
+				}
+			}
+			h := getLabelsHash(hashLabels)
 			idx := h % uint64(len(tssByURL))
 			tssByURL[idx] = append(tssByURL[idx], ts)
 		}
+		promutils.PutLabels(tmpLabels)
+
 		// Push sharded data to remote storages in parallel in order to reduce
 		// the time needed for sending the data to multiple remote storage systems.
 		var wg sync.WaitGroup
