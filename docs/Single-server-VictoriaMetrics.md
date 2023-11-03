@@ -349,7 +349,7 @@ which can be used as faster and less resource-hungry alternative to Prometheus.
 
 ## Grafana setup
 
-Create [Prometheus datasource](http://docs.grafana.org/features/datasources/prometheus/) in Grafana with the following url:
+Create [Prometheus datasource](https://grafana.com/docs/grafana/latest/datasources/prometheus/configure-prometheus-data-source/) in Grafana with the following url:
 
 ```url
 http://<victoriametrics-addr>:8428
@@ -362,6 +362,8 @@ or [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html).
 
 Alternatively, use VictoriaMetrics [datasource plugin](https://github.com/VictoriaMetrics/grafana-datasource) with support of extra features. 
 See more in [description](https://github.com/VictoriaMetrics/grafana-datasource#victoriametrics-data-source-for-grafana).
+
+Creating a datasource requires separate permissions. If you don't see any options to create the data source contact your Grafana administrators.
 
 ## How to upgrade VictoriaMetrics
 
