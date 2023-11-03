@@ -85,7 +85,7 @@ func (s *Server) MustStop() {
 	if err := s.lnUDP.Close(); err != nil {
 		logger.Errorf("cannot close UDP Graphite server: %s", err)
 	}
-	s.cm.CloseAll()
+	s.cm.CloseAll(0 * time.Second)
 	s.wg.Wait()
 	logger.Infof("TCP and UDP Graphite servers at %q have been stopped", s.addr)
 }

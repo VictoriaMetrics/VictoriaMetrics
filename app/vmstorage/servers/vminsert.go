@@ -7,6 +7,9 @@ import (
 	"net"
 	"sync"
 	"sync/atomic"
+	"time"
+
+	"github.com/VictoriaMetrics/metrics"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/handshake"
@@ -15,7 +18,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/clusternative/stream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
-	"github.com/VictoriaMetrics/metrics"
 )
 
 var precisionBits = flag.Int("precisionBits", 64, "The number of precision bits to store per each value. Lower precision bits improves data compression at the cost of precision loss")
@@ -134,7 +136,7 @@ var (
 )
 
 // MustStop gracefully stops s so it no longer touches s.storage after returning.
-func (s *VMInsertServer) MustStop() {
+func (s *VMInsertServer) MustStop(grace time.Duration) {
 	// Mark the server as stoping.
 	s.setIsStopping()
 
@@ -145,7 +147,7 @@ func (s *VMInsertServer) MustStop() {
 
 	// Close existing connections from vminsert, so the goroutines
 	// processing these connections are finished.
-	s.connsMap.CloseAll()
+	s.connsMap.CloseAll(grace)
 
 	// Wait until all the goroutines processing vminsert conns are finished.
 	s.wg.Wait()

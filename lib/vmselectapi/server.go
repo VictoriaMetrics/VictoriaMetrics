@@ -232,7 +232,7 @@ func (s *Server) MustStop() {
 
 	// Close existing connections from vmselect, so the goroutines
 	// processing these connections are finished.
-	s.connsMap.CloseAll()
+	s.connsMap.CloseAll(0)
 
 	// Wait until all the goroutines processing vmselect conns are finished.
 	s.wg.Wait()

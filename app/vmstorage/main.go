@@ -40,6 +40,8 @@ var (
 	snapshotsMaxAge       = flagutil.NewDuration("snapshotsMaxAge", "0", "Automatically delete snapshots older than -snapshotsMaxAge if it is set to non-zero duration. Make sure that backup process has enough time to finish the backup before the corresponding snapshot is automatically deleted")
 	snapshotCreateTimeout = flag.Duration("snapshotCreateTimeout", 0, "The timeout for creating new snapshot. If set, make sure that timeout is lower than backup period")
 
+	gracefulShutdownDelay = flag.Duration("gracefulShutdownDelay", 120*time.Second, "The delay before killing connections during shutdown. ")
+
 	finalMergeDelay = flag.Duration("finalMergeDelay", 0, "The delay before starting final merge for per-month partition after no new data is ingested into it. "+
 		"Final merge may require additional disk IO and CPU resources. Final merge may increase query speed and reduce disk space usage in some cases. "+
 		"Zero value disables final merge")
@@ -142,8 +144,8 @@ func main() {
 	logger.Infof("gracefully shutting down the service")
 	startTime = time.Now()
 	stopStaleSnapshotsRemover()
+	vminsertSrv.MustStop(*gracefulShutdownDelay)
 	vmselectSrv.MustStop()
-	vminsertSrv.MustStop()
 	common.StopUnmarshalWorkers()
 	logger.Infof("successfully shut down the service in %.3f seconds", time.Since(startTime).Seconds())
 

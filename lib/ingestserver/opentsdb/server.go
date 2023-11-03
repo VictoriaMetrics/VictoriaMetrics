@@ -103,7 +103,7 @@ func (s *Server) MustStop() {
 	if err := s.lnUDP.Close(); err != nil {
 		logger.Errorf("cannot stop UDP OpenTSDB server: %s", err)
 	}
-	s.cm.CloseAll()
+	s.cm.CloseAll(0 * time.Second)
 	s.wg.Wait()
 	logger.Infof("TCP and UDP OpenTSDB servers at %q have been stopped", s.addr)
 }

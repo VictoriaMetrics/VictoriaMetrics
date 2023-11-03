@@ -57,7 +57,7 @@ func (s *Server) MustStop() {
 	if err := s.lnTCP.Close(); err != nil {
 		logger.Errorf("cannot close TCP clusternative server: %s", err)
 	}
-	s.cm.CloseAll()
+	s.cm.CloseAll(0 * time.Second)
 	s.wg.Wait()
 	logger.Infof("TCP clusternative server at %q has been stopped", s.addr)
 }
