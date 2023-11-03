@@ -195,11 +195,11 @@ users:
   # All the requests to http://vmauth:8427 with the given Basic Auth (username:password)
   # are proxied to http://localhost:8428 with extra_label=team=dev query arg.
   # For example, http://vmauth:8427/api/v1/query is routed to https://localhost/api/v1/query?extra_label=team=dev
-  # TLS verification is ignored for https://localhost.
+  # TLS verification is skipped for https://localhost.
 - username: "local-single-node-with-tls"
   password: "***"
-  url_prefix: "https://localhost?extra_label=team=dev"
-  tls_insecure_skip_verify: false
+  url_prefix: "https://localhost?extra_label=team=test"
+  tls_insecure_skip_verify: true
 
   # All the requests to http://vmauth:8427 with the given Basic Auth (username:password)
   # are load-balanced among http://vmselect1:8481/select/123/prometheus and http://vmselect2:8481/select/123/prometheus
