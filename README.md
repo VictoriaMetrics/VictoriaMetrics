@@ -442,7 +442,7 @@ This information is obtained from the `/api/v1/status/active_queries` HTTP endpo
 [VMUI](#vmui) provides an ability to explore metrics exported by a particular `job` / `instance` in the following way:
 
 1. Open the `vmui` at `http://victoriametrics:8428/vmui/`.
-1. Click the `Explore metrics` tab.
+1. Click the `Explore Prometheus metrics` tab.
 1. Select the `job` you want to explore.
 1. Optionally select the `instance` for the selected job to explore.
 1. Select metrics you want to explore and compare.
