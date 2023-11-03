@@ -41,8 +41,8 @@ var (
 		"See also -search.logSlowQueryDuration and -search.maxMemoryPerQuery")
 	noStaleMarkers = flag.Bool("search.noStaleMarkers", false, "Set this flag to true if the database doesn't contain Prometheus stale markers, "+
 		"so there is no need in spending additional CPU time on its handling. Staleness markers may exist only in data obtained from Prometheus scrape targets")
-	minWindowForInstantRollupOptimization = flag.Duration("search.minWindowForInstantRollupOptimization", 6*time.Hour, "Enable optimization for queries to /api/v1/query "+
-		"(aka instant queries), which contain rollup functions with lookbehind window exceeding the given value")
+	minWindowForInstantRollupOptimization = flagutil.NewDuration("search.minWindowForInstantRollupOptimization", "6h", "Enable cache-based optimization for repeated queries "+
+		"to /api/v1/query (aka instant queries), which contain rollup functions with lookbehind window exceeding the given value")
 )
 
 // The minimum number of points per timeseries for enabling time rounding.

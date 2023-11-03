@@ -111,6 +111,7 @@
         "deserializers.go",
         "doc.go",
         "endpoints.go",
+        "endpoints_config_test.go",
         "endpoints_test.go",
         "eventstream.go",
         "generated.json",
