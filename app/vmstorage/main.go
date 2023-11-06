@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage/servers"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
@@ -22,7 +24,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
-	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
@@ -39,8 +40,6 @@ var (
 	forceFlushAuthKey     = flag.String("forceFlushAuthKey", "", "authKey, which must be passed in query string to /internal/force_flush pages")
 	snapshotsMaxAge       = flagutil.NewDuration("snapshotsMaxAge", "0", "Automatically delete snapshots older than -snapshotsMaxAge if it is set to non-zero duration. Make sure that backup process has enough time to finish the backup before the corresponding snapshot is automatically deleted")
 	snapshotCreateTimeout = flag.Duration("snapshotCreateTimeout", 0, "The timeout for creating new snapshot. If set, make sure that timeout is lower than backup period")
-
-	gracefulShutdownDelay = flag.Duration("gracefulShutdownDelay", 120*time.Second, "The delay before killing connections during shutdown. ")
 
 	finalMergeDelay = flag.Duration("finalMergeDelay", 0, "The delay before starting final merge for per-month partition after no new data is ingested into it. "+
 		"Final merge may require additional disk IO and CPU resources. Final merge may increase query speed and reduce disk space usage in some cases. "+
@@ -74,6 +73,8 @@ var (
 		"See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning")
 	cacheSizeIndexDBTagFilters = flagutil.NewBytes("storage.cacheSizeIndexDBTagFilters", 0, "Overrides max size for indexdb/tagFiltersToMetricIDs cache. "+
 		"See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning")
+
+	gracefulShutdownDuration = flag.Duration("storage.gracefulShutdownDuration", 25*time.Second, "The maximum duration for a storage graceful shutdown.")
 )
 
 func main() {
@@ -141,10 +142,15 @@ func main() {
 	}
 	logger.Infof("successfully shut down http service in %.3f seconds", time.Since(startTime).Seconds())
 
+	// Graceful shutdown duration is distributed between vminsert connections closing
+	// and stopping storage operations. In order to distribute closing vminsert connections
+	// closing in time 80% of gracefulShutdownDuration is used. The remaining 20%
+	// is used for stopping storage operations.
+	insertGracefulShutdownDuration := time.Duration(float64(*gracefulShutdownDuration) * 0.8)
 	logger.Infof("gracefully shutting down the service")
 	startTime = time.Now()
 	stopStaleSnapshotsRemover()
-	vminsertSrv.MustStop(*gracefulShutdownDelay)
+	vminsertSrv.MustStop(insertGracefulShutdownDuration)
 	vmselectSrv.MustStop()
 	common.StopUnmarshalWorkers()
 	logger.Infof("successfully shut down the service in %.3f seconds", time.Since(startTime).Seconds())

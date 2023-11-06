@@ -2,10 +2,9 @@ package ingestserver
 
 import (
 	"net"
+	"sort"
 	"sync"
 	"time"
-
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 // ConnsMap is used for tracking active connections.
@@ -50,16 +49,19 @@ func (cm *ConnsMap) CloseAll(grace time.Duration) {
 		connCloseInterval = time.Duration(grace.Milliseconds()/int64(conns)) * time.Millisecond
 	}
 
-	logger.Infof("closing %d connections with grace %s and interval %s", conns, grace, connCloseInterval)
-	s := time.Now()
-
+	// Sort addresses in order to make the order of closing connections deterministic.
+	addresses := make([]net.Conn, 0)
 	for c := range cm.m {
+		addresses = append(addresses, c)
+	}
+	sort.Slice(addresses, func(i, j int) bool {
+		return addresses[i].RemoteAddr().String() < addresses[j].RemoteAddr().String()
+	})
+
+	for _, c := range addresses {
 		_ = c.Close()
-		logger.Infof("closed connection from %q, sleeping %s", c.RemoteAddr(), connCloseInterval)
 		time.Sleep(connCloseInterval)
 	}
 	cm.isClosed = true
 	cm.mu.Unlock()
-
-	logger.Infof("all %d connections have been closed in %s", conns, time.Since(s))
 }
