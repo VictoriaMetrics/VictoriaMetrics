@@ -455,9 +455,9 @@ Gracefully restart every node in the cluster one-by-one with the updated config 
 
 It is recommended restarting the nodes in the following order:
 
-1. Restart `vmstorage` nodes.
-1. Restart `vminsert` nodes.
-1. Restart `vmselect` nodes.
+1. Gracefully restart `vmstorage` nodes.
+1. Gracefully restart `vminsert` nodes.
+1. Gracefully restart `vmselect` nodes.
 
 This strategy allows upgrading the cluster without downtime if the following conditions are met:
 
@@ -470,8 +470,28 @@ This strategy allows upgrading the cluster without downtime if the following con
 - The updated config / upgraded binary is compatible with the remaining components in the cluster.
   See the [CHANGELOG](https://docs.victoriametrics.com/CHANGELOG.html) for compatibility notes between different releases.
 
-  If at least a single condition isn't met, then the rolling restart may result in cluster unavailability
-  during the config update / version upgrade. In this case the following strategy is recommended.
+If at least a single condition isn't met, then the rolling restart may result in cluster unavailability
+during the config update / version upgrade. In this case the following strategy is recommended.
+
+#### Improving re-routing performance during restart
+
+[Re-routing](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#cluster-availability) increases load on `vmstorage` nodes
+because of sharding. Each `vmstorage` node stores only a subset of all the time series in the cluster. This improves
+data locality and thus improves performance.
+
+During re-routing `vmstorage` start to receive new to them metrics. These rerouted metrics aren't
+present in `vmstorage` caches or indexes, or page cache. Registering new metrics or missing the cache
+is an orders of magnitude slower than accepting already-seen metrics.
+
+In order to avoid resource usage spikes caused by immediate re-routing of all the metrics to the remaining `vmstorage`
+nodes during rolling restart, it is recommended to increase `-storage.gracefulShutdownDuration` command-line flag value
+and graceful shutdown timeout for the `vmstorage` nodes at workload management side(i.e. Kubernetes, Docker, systemd or others).
+
+Using this flag enables gradual re-routing of the metrics to the remaining `vmstorage` nodes and thus smooths the load spikes.
+During `-storage.gracefulShutdownDuration` period `vmstorage` will close connections from `vminsert` nodes one by one with 
+equal intervals between connections.
+This works best with higher numbers of `vminsert` nodes. 
+
 
 ### Minimum downtime strategy
 
@@ -1500,6 +1520,8 @@ Below is the output for `/path/to/vmstorage -help`:
   -storage.cacheSizeStorageTSID size
      Overrides max size for storage/tsid cache. See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
+  -storage.gracefulShutdownDuration duration
+     The maximum duration for a storage graceful shutdown. (default 25s)
   -storage.maxDailySeries int
      The maximum number of unique series can be added to the storage during the last 24 hours. Excess series are logged and dropped. This can be useful for limiting series churn rate. See https://docs.victoriametrics.com/#cardinality-limiter . See also -storage.maxHourlySeries
   -storage.maxHourlySeries int
