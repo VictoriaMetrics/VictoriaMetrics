@@ -137,7 +137,7 @@ to one sample per 5 minutes per each input time series (this operation is also k
 
 The aggregated output metrics have the following names according to [output metric naming](#output-metric-names):
 
-```
+```text
 # For input metrics ending with _total
 some_metric_total:5m_total
 
