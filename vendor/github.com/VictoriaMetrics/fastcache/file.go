@@ -157,6 +157,8 @@ func load(filePath string, maxBytes, buckets int) (*Cache, error) {
 	results := make(chan error)
 	workersCount := 0
 	var c Cache
+	c.bucketsCount = uint64(buckets)
+	c.buckets = make([]bucket, c.bucketsCount)
 	for _, fi := range fis {
 		fn := fi.Name()
 		if fi.IsDir() || !dataFileRegexp.MatchString(fn) {
