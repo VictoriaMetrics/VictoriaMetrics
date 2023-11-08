@@ -663,9 +663,6 @@ var (
 
 	execTotal  = metrics.NewCounter(`vmalert_execution_total`)
 	execErrors = metrics.NewCounter(`vmalert_execution_errors_total`)
-
-	remoteWriteErrors = metrics.NewCounter(`vmalert_remotewrite_errors_total`)
-	remoteWriteTotal  = metrics.NewCounter(`vmalert_remotewrite_total`)
 )
 
 func (e *executor) exec(ctx context.Context, r Rule, ts time.Time, resolveDuration time.Duration, limit int) error {
@@ -686,9 +683,7 @@ func (e *executor) exec(ctx context.Context, r Rule, ts time.Time, resolveDurati
 		pushToRW := func(tss []prompbmarshal.TimeSeries) error {
 			var lastErr error
 			for _, ts := range tss {
-				remoteWriteTotal.Inc()
 				if err := e.Rw.Push(ts); err != nil {
-					remoteWriteErrors.Inc()
 					lastErr = fmt.Errorf("rule %q: remote write failure: %w", r, err)
 				}
 			}
