@@ -79,8 +79,8 @@ func (c *Cache) SaveToFileConcurrent(filePath string, concurrency int) error {
 // LoadFromFile loads cache data from the given filePath.
 //
 // See SaveToFile* for saving cache data to file.
-func LoadFromFile(filePath string) (*Cache, error) {
-	return load(filePath, 0)
+func LoadFromFile(filePath string, buckets int) (*Cache, error) {
+	return load(filePath, 0, buckets)
 }
 
 // LoadFromFileOrNew tries loading cache data from the given filePath.
@@ -88,7 +88,7 @@ func LoadFromFile(filePath string) (*Cache, error) {
 // The function falls back to creating new cache with the given maxBytes
 // capacity if error occurs during loading the cache from file.
 func LoadFromFileOrNew(filePath string, maxBytes, buckets int) *Cache {
-	c, err := load(filePath, maxBytes)
+	c, err := load(filePath, maxBytes, buckets)
 	if err == nil {
 		return c
 	}
@@ -125,16 +125,20 @@ func (c *Cache) save(dir string, workersCount int) error {
 	return err
 }
 
-func load(filePath string, maxBytes int) (*Cache, error) {
+func load(filePath string, maxBytes, buckets int) (*Cache, error) {
+	if buckets <= 0 {
+		buckets = bucketsCount
+	}
+
 	maxBucketChunks, err := loadMetadata(filePath)
 	if err != nil {
 		return nil, err
 	}
 	if maxBytes > 0 {
-		maxBucketBytes := uint64((maxBytes + bucketsCount - 1) / bucketsCount)
+		maxBucketBytes := uint64((maxBytes + buckets - 1) / buckets)
 		expectedBucketChunks := (maxBucketBytes + chunkSize - 1) / chunkSize
 		if maxBucketChunks != expectedBucketChunks {
-			return nil, fmt.Errorf("cache file %s contains maxBytes=%d; want %d", filePath, maxBytes, expectedBucketChunks*chunkSize*bucketsCount)
+			return nil, fmt.Errorf("cache file %s contains maxBytes=%d; want %d", filePath, maxBytes, expectedBucketChunks*chunkSize*uint64(buckets))
 		}
 	}
 
