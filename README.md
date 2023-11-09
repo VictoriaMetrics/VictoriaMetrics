@@ -1126,6 +1126,18 @@ For example, the following command builds the image on top of [scratch](https://
 ROOT_IMAGE=scratch make package-victoria-metrics
 ```
 
+#### Building VictoriaMetrics with Podman
+
+VictoriaMetrics can be built with Podman in either rootful or rootless mode.
+
+When building via rootlful Podman, simply add `DOCKER=podman` to the relevant `make` commandline.  To build
+via rootless Podman, add `DOCKER=podman DOCKER_RUN="podman run --userns=keep-id"` to the `make`
+commandline.
+
+For example: `make victoria-metrics-pure DOCKER=podman DOCKER_RUN="podman run --userns=keep-id"`
+
+Note that `production` builds are not supported via Podman becuase Podman does not support `buildx`.
+
 ## Start with docker-compose
 
 [Docker-compose](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/docker-compose.yml)
