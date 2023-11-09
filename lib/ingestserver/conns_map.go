@@ -5,6 +5,8 @@ import (
 	"sort"
 	"sync"
 	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 // ConnsMap is used for tracking active connections.
@@ -43,13 +45,16 @@ func (cm *ConnsMap) CloseAll(grace time.Duration) {
 	cm.mu.Lock()
 	var connCloseInterval time.Duration
 	conns := len(cm.m)
-	if conns == 0 {
+	if conns <= 1 {
 		connCloseInterval = 0
 	} else {
 		connCloseInterval = time.Duration(grace.Milliseconds()/int64(conns)) * time.Millisecond
 	}
+	if connCloseInterval > 0 {
+		logger.Infof("closing %d connections with interval %s", conns, connCloseInterval)
+	}
 
-	// Sort addresses in order to make the order of closing connections deterministic.
+	// Sort addresses in order to make the order of closing connections deterministic across vmstorages.
 	addresses := make([]net.Conn, 0)
 	for c := range cm.m {
 		addresses = append(addresses, c)
@@ -58,10 +63,15 @@ func (cm *ConnsMap) CloseAll(grace time.Duration) {
 		return addresses[i].RemoteAddr().String() < addresses[j].RemoteAddr().String()
 	})
 
+	s := time.Now()
 	for _, c := range addresses {
 		_ = c.Close()
 		time.Sleep(connCloseInterval)
 	}
+	if connCloseInterval > 0 {
+		logger.Infof("closed %d connections in %s", conns, time.Since(s))
+	}
+
 	cm.isClosed = true
 	cm.mu.Unlock()
 }

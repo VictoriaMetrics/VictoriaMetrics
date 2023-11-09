@@ -74,7 +74,10 @@ var (
 	cacheSizeIndexDBTagFilters = flagutil.NewBytes("storage.cacheSizeIndexDBTagFilters", 0, "Overrides max size for indexdb/tagFiltersToMetricIDs cache. "+
 		"See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning")
 
-	gracefulShutdownDuration = flag.Duration("storage.gracefulShutdownDuration", 25*time.Second, "The maximum duration for a storage graceful shutdown.")
+	gracefulShutdownDuration = flag.Duration("storage.gracefulShutdownDuration", 25*time.Second, "The maximum duration for a storage graceful shutdown. "+
+		"During graceful shutdown vmstorage closes connections from vminsert one by one with equal time intervals between connections. "+
+		"Setting this to 0 disables gradual close of vminsert connections; in this case vmstorage closes all the connections from vminsert without delay. "+
+		"See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#updating--reconfiguring-cluster-nodes")
 )
 
 func main() {
