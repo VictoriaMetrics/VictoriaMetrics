@@ -477,6 +477,11 @@ During graceful shutdown `vmstorage` closes connections from `vminsert` one by o
 gradually [re-route](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#cluster-availability) the data to the remaining `vmstorage` nodes.
 `-storage.gracefulShutdownDuration` command-line flag controls the duration of graceful shutdown.
 In order to force `vmstorage` to close all `vminsert` connections at once, pass `-storage.gracefulShutdownDuration=0` to `vmstorage`.
+
+When adjusting `-storage.gracefulShutdownDuration` value, ensure that workload scheduler(e.g. Docker, Kubernetes, systemd, etc)
+timeout is greater or equal to `-storage.gracefulShutdownDuration` value. Otherwise, the workload scheduler may kill `vmstorage` process
+before it finishes graceful shutdown.
+
 See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4922) for details.
 
 
