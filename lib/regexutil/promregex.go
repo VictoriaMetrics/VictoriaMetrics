@@ -91,7 +91,9 @@ func (pr *PromRegex) MatchString(s string) bool {
 	if pr.substrDotPlus != "" {
 		// Fast path - pr contains ".+someText.+"
 		n := strings.Index(s, pr.substrDotPlus)
-		return n > 0 && n+len(pr.substrDotPlus) < len(s)
+		if n > 0 && n+len(pr.substrDotPlus) < len(s) {
+			return true
+		}
 	}
 	switch pr.suffix {
 	case ".*":

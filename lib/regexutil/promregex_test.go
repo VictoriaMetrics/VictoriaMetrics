@@ -73,6 +73,7 @@ func TestPromRegex(t *testing.T) {
 	f("foo.*bar.*", "foo_bar_", true)
 	f("foo.*bar.*", "foobaz", false)
 	f(".+foo.+", "foo", false)
+	f(".+;|;.+", "foo;", true)
 	f(".+foo.+", "afoobar", true)
 	f(".+foo.+", "afoo", false)
 	f(".+foo.+", "abc", false)
