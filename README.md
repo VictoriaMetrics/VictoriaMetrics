@@ -802,7 +802,7 @@ Feel free asking any questions regarding VictoriaMetrics:
 * [Twitter](https://twitter.com/VictoriaMetrics/)
 * [Linkedin](https://www.linkedin.com/company/victoriametrics/)
 * [Reddit](https://www.reddit.com/r/VictoriaMetrics/)
-* [Telegram-en](https://t.me/VictoriaMetrics_en?)
+* [Telegram-en](https://t.me/VictoriaMetrics_en)
 * [Telegram-ru](https://t.me/VictoriaMetrics_ru1)
 * [Google groups](https://groups.google.com/forum/#!forum/victorametrics-users)
 * [Mastodon](https://mastodon.social/@victoriametrics/)
@@ -1321,6 +1321,8 @@ Below is the output for `/path/to/vmstorage -help`:
 ```
   -bigMergeConcurrency int
      Deprecated: this flag does nothing. Please use -smallMergeConcurrency for controlling the concurrency of background merges. See https://docs.victoriametrics.com/#storage
+  -blockcache.missesBeforeCaching int
+     The number of cache misses before putting the block into cache. Higher values may reduce indexdb/dataBlocks cache size at the cost of higher CPU and disk read usage (default 2)
   -cacheExpireDuration duration
      Items are removed from in-memory caches after they aren't accessed for this duration. Lower values may reduce memory usage at the cost of higher CPU usage. See also -prevCacheRemovalPercent (default 30m0s)
   -cluster.tls
