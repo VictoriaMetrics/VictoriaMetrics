@@ -71,7 +71,7 @@ and sending the data to the Prometheus-compatible remote storage:
 Example command for writing the data received via [supported push-based protocols](#how-to-push-data-to-vmagent)
 to [single-node VictoriaMetrics](https://docs.victoriametrics.com/) located at `victoria-metrics-host:8428`:
 
-```console
+```bash
 /path/to/vmagent -remoteWrite.url=https://victoria-metrics-host:8428/api/v1/write
 ```
 
@@ -80,7 +80,7 @@ the data to [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-V
 
 Example command for scraping Prometheus targets and writing the data to single-node VictoriaMetrics:
 
-```console
+```bash
 /path/to/vmagent -promscrape.config=/path/to/prometheus.yml -remoteWrite.url=https://victoria-metrics-host:8428/api/v1/write
 ```
 
@@ -121,7 +121,7 @@ additionally to pull-based Prometheus-compatible targets' scraping:
 
 * Sending `SIGHUP` signal to `vmagent` process:
 
-  ```console
+  ```bash
   kill -SIGHUP `pidof vmagent`
   ```
 
@@ -336,7 +336,7 @@ in the `scrape_config_files` section of `-promscrape.config` file. For example, 
 loading scrape configs from all the `*.yml` files under `configs` directory, from `single_scrape_config.yml` local file
 and from `https://config-server/scrape_config.yml` url:
 
-```yml
+```yaml
 scrape_config_files:
 - configs/*.yml
 - single_scrape_config.yml
@@ -346,7 +346,7 @@ scrape_config_files:
 Every referred file can contain arbitrary number of [supported scrape configs](https://docs.victoriametrics.com/sd_configs.html#scrape_configs).
 There is no need in specifying top-level `scrape_configs` section in these files. For example:
 
-```yml
+```yaml
 - job_name: foo
   static_configs:
   - targets: ["vmagent:8429"]
@@ -386,7 +386,7 @@ Extra labels can be added to metrics collected by `vmagent` via the following me
   For example, the following command starts `vmagent`, which adds `{datacenter="foobar"}` label to all the metrics pushed
   to all the configured remote storage systems (all the `-remoteWrite.url` flag values):
 
-  ```
+  ```bash
   /path/to/vmagent -remoteWrite.label=datacenter=foobar ...
   ```
 
@@ -751,7 +751,7 @@ stream parsing mode can be explicitly enabled in the following places:
 
 Examples:
 
-```yml
+```yaml
 scrape_configs:
 - job_name: 'big-federate'
   stream_parse: true
@@ -778,7 +778,7 @@ Each `vmagent` instance in the cluster must use identical `-promscrape.config` f
 in the range `0 ... N-1`, where `N` is the number of `vmagent` instances in the cluster specified via `-promscrape.cluster.membersCount`.
 For example, the following commands spread scrape targets among a cluster of two `vmagent` instances:
 
-```
+```text
 /path/to/vmagent -promscrape.cluster.membersCount=2 -promscrape.cluster.memberNum=0 -promscrape.config=/path/to/config.yml ...
 /path/to/vmagent -promscrape.cluster.membersCount=2 -promscrape.cluster.memberNum=1 -promscrape.config=/path/to/config.yml ...
 ```
@@ -790,7 +790,7 @@ By default, each scrape target is scraped only by a single `vmagent` instance in
 then `-promscrape.cluster.replicationFactor` command-line flag must be set to the desired number of replicas. For example, the following commands
 start a cluster of three `vmagent` instances, where each target is scraped by two `vmagent` instances:
 
-```
+```text
 /path/to/vmagent -promscrape.cluster.membersCount=3 -promscrape.cluster.replicationFactor=2 -promscrape.cluster.memberNum=0 -promscrape.config=/path/to/config.yml ...
 /path/to/vmagent -promscrape.cluster.membersCount=3 -promscrape.cluster.replicationFactor=2 -promscrape.cluster.memberNum=1 -promscrape.config=/path/to/config.yml ...
 /path/to/vmagent -promscrape.cluster.membersCount=3 -promscrape.cluster.replicationFactor=2 -promscrape.cluster.memberNum=2 -promscrape.config=/path/to/config.yml ...
@@ -804,7 +804,7 @@ The `-promscrape.cluster.memberLabel` command-line flag allows specifying a name
 The value of the `member num` label is set to `-promscrape.cluster.memberNum`. For example, the following config instructs adding `vmagent_instance="0"` label
 to all the metrics scraped by the given `vmagent` instance:
 
-```
+```text
 /path/to/vmagent -promscrape.cluster.membersCount=2 -promscrape.cluster.memberNum=0 -promscrape.cluster.memberLabel=vmagent_instance
 ```
 
@@ -831,7 +831,7 @@ See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2679)
 `vmagent` supports scraping targets via http, https and socks5 proxies. Proxy address must be specified in `proxy_url` option. For example, the following scrape config instructs
 target scraping via https proxy at `https://proxy-addr:1234`:
 
-```yml
+```yaml
 scrape_configs:
 - job_name: foo
   proxy_url: https://proxy-addr:1234
@@ -848,7 +848,7 @@ Proxy can be configured with the following optional settings:
 
 For example:
 
-```yml
+```yaml
 scrape_configs:
 - job_name: foo
   proxy_url: https://proxy-addr:1234
@@ -998,7 +998,7 @@ If you have suggestions for improvements or have found a bug - please open an is
 * By default `vmagent` evenly spreads scrape load in time. If a particular scrape target must be scraped at the beginning of some interval,
   then `scrape_align_interval` option  must be used. For example, the following config aligns hourly scrapes to the beginning of hour:
 
-  ```yml
+  ```yaml
   scrape_configs:
   - job_name: foo
     scrape_interval: 1h
@@ -1008,7 +1008,7 @@ If you have suggestions for improvements or have found a bug - please open an is
 * By default `vmagent` evenly spreads scrape load in time. If a particular scrape target must be scraped at specific offset, then `scrape_offset` option must be used.
   For example, the following config instructs `vmagent` to scrape the target at 10 seconds of every minute:
 
-  ```yml
+  ```yaml
   scrape_configs:
   - job_name: foo
     scrape_interval: 1m
@@ -1021,14 +1021,14 @@ If you have suggestions for improvements or have found a bug - please open an is
 
   The following relabeling rule may be added to `relabel_configs` section in order to filter out pods with unneeded ports:
 
-  ```yml
+  ```yaml
   - action: keep_if_equal
     source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_port, __meta_kubernetes_pod_container_port_number]
   ```
 
   The following relabeling rule may be added to `relabel_configs` section in order to filter out init container pods:
 
-  ```yml
+  ```yaml
   - action: drop
     source_labels: [__meta_kubernetes_pod_container_init]
     regex: true
@@ -1072,7 +1072,7 @@ For example, `-kafka.consumer.topic.brokers=host1:9092;host2:9092`.
 The following command starts `vmagent`, which reads metrics in InfluxDB line protocol format from Kafka broker at `localhost:9092`
 from the topic `metrics-by-telegraf` and sends them to remote storage at `http://localhost:8428/api/v1/write`:
 
-```console
+```bash
 ./bin/vmagent -remoteWrite.url=http://localhost:8428/api/v1/write \
        -kafka.consumer.topic.brokers=localhost:9092 \
        -kafka.consumer.topic.format=influx \
@@ -1095,7 +1095,7 @@ These command-line flags are available only in [enterprise](https://docs.victori
 which can be downloaded for evaluation from [releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) page
 (see `vmutils-...-enterprise.tar.gz` archives) and from [docker images](https://hub.docker.com/r/victoriametrics/vmagent/tags) with tags containing `enterprise` suffix.
 
-```
+```text
   -kafka.consumer.topic array
         Kafka topic names for data consumption.
         Supports an array of values separated by comma or specified via multiple flags.
@@ -1140,13 +1140,13 @@ Two types of auth are supported:
 
 * sasl with username and password:
 
-```console
+```bash
 ./bin/vmagent -remoteWrite.url=kafka://localhost:9092/?topic=prom-rw&security.protocol=SASL_SSL&sasl.mechanisms=PLAIN -remoteWrite.basicAuth.username=user -remoteWrite.basicAuth.password=password
 ```
 
 * tls certificates:
 
-```console
+```bash
 ./bin/vmagent -remoteWrite.url=kafka://localhost:9092/?topic=prom-rw&security.protocol=SSL -remoteWrite.tlsCAFile=/opt/ca.pem -remoteWrite.tlsCertFile=/opt/cert.pem -remoteWrite.tlsKeyFile=/opt/key.pem
 ```
 
@@ -1177,7 +1177,7 @@ The `<PKG_TAG>` may be manually set via `PKG_TAG=foobar make package-vmagent`.
 The base docker image is [alpine](https://hub.docker.com/_/alpine) but it is possible to use any other base image
 by setting it via `<ROOT_IMAGE>` environment variable. For example, the following command builds the image on top of [scratch](https://hub.docker.com/_/scratch) image:
 
-```console
+```bash
 ROOT_IMAGE=scratch make package-vmagent
 ```
 
@@ -1205,7 +1205,7 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 
 <div class="with-copy" markdown="1">
 
-```console
+```bash
 curl http://0.0.0.0:8429/debug/pprof/heap > mem.pprof
 ```
 
@@ -1215,7 +1215,7 @@ curl http://0.0.0.0:8429/debug/pprof/heap > mem.pprof
 
 <div class="with-copy" markdown="1">
 
-```console
+```bash
 curl http://0.0.0.0:8429/debug/pprof/profile > cpu.pprof
 ```
 
@@ -1231,7 +1231,7 @@ It is safe sharing the collected profiles from security point of view, since the
 
 `vmagent` can be fine-tuned with various command-line flags. Run `./vmagent -help` in order to see the full list of these flags with their descriptions and default values:
 
-```
+```text
 ./vmagent -help
 
 vmagent collects metrics data via popular data ingestion protocols and routes them to VictoriaMetrics.
