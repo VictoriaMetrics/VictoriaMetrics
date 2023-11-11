@@ -182,12 +182,12 @@ users:
   url_prefix: "http://localhost:8428?extra_label=team=dev"
 
   # All the requests to http://vmauth:8427 with the given Basic Auth (username:password)
-  # are proxied to http://localhost:8428 with extra_label=team=dev query arg.
-  # For example, http://vmauth:8427/api/v1/query is routed to https://localhost/api/v1/query?extra_label=team=dev
+  # are proxied to https://localhost:8428.
+  # For example, http://vmauth:8427/api/v1/query is routed to https://localhost/api/v1/query
   # TLS verification is skipped for https://localhost.
 - username: "local-single-node-with-tls"
   password: "***"
-  url_prefix: "https://localhost?extra_label=team=test"
+  url_prefix: "https://localhost"
   tls_insecure_skip_verify: true
 
   # All the requests to http://vmauth:8427 with the given Basic Auth (username:password)
@@ -266,7 +266,6 @@ unauthorized_user:
   - http://vmselect-az1/?deny_partial_response=1
   - http://vmselect-az2/?deny_partial_response=1
   retry_status_codes: [503, 500]
-  tls_insecure_skip_verify: true
 
 ip_filters:
   allow_list: ["1.2.3.0/24", "127.0.0.1"]
