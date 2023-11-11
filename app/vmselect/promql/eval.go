@@ -23,6 +23,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/VictoriaMetrics/metricsql"
 )
@@ -259,7 +260,7 @@ func getTimestamps(start, end, step int64, maxPointsPerSeries int) []int64 {
 func evalExpr(qt *querytracer.Tracer, ec *EvalConfig, e metricsql.Expr) ([]*timeseries, error) {
 	if qt.Enabled() {
 		query := string(e.AppendString(nil))
-		query = bytesutil.LimitStringLen(query, 300)
+		query = stringsutil.LimitStringLen(query, 300)
 		mayCache := ec.mayCache()
 		qt = qt.NewChild("eval: query=%s, timeRange=%s, step=%d, mayCache=%v", query, ec.timeRangeString(), ec.Step, mayCache)
 	}
@@ -1409,6 +1410,10 @@ func evalInstantRollup(qt *querytracer.Tracer, ec *EvalConfig, funcName string, 
 }
 
 func hasDuplicateSeries(tss []*timeseries) bool {
+	if len(tss) <= 1 {
+		return false
+	}
+
 	m := make(map[string]struct{}, len(tss))
 	bb := bbPool.Get()
 	defer bbPool.Put(bb)
