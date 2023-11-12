@@ -1,10 +1,17 @@
 import { Order } from "../../pages/CardinalityPanel/Table/types";
+import dayjs from "dayjs";
+
+const dateColumns = ["date", "timestamp", "time"];
 
 export function descendingComparator<T>(a: T, b: T, orderBy: keyof T) {
-  if (b[orderBy] < a[orderBy]) {
+  const valueA = a[orderBy];
+  const valueB = b[orderBy];
+  const parsedValueA = dateColumns.includes(`${orderBy}`) ? dayjs(`${valueA}`).unix() : valueA;
+  const parsedValueB = dateColumns.includes(`${orderBy}`) ? dayjs(`${valueB}`).unix() : valueB;
+  if (parsedValueB < parsedValueA) {
     return -1;
   }
-  if (b[orderBy] > a[orderBy]) {
+  if (parsedValueB > parsedValueA) {
     return 1;
   }
   return 0;
