@@ -15,6 +15,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## v1.87.x long-time support release (LTS)
 
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): properly apply [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling) with `regex`, which start and end with `.+` or `.*` and which contain alternate sub-regexps. For example, `.+;|;.+` or `.*foo|bar|baz.*`. Previously such regexps were improperly parsed, which could result in undexpected relabeling results. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5297).
 * BUGFIX: [vmstorage](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): log warning about switching to ReadOnly mode only on state change. Before, vmstorage would log this warning every 1s. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5159) for details.
 
 ## [v1.87.10](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.87.10)
