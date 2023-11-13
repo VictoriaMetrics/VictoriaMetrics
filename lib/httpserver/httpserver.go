@@ -3,6 +3,7 @@ package httpserver
 import (
 	"context"
 	"crypto/tls"
+	_ "embed"
 	"errors"
 	"flag"
 	"fmt"
@@ -259,6 +260,12 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 		h.Set("Connection", "close")
 	}
 	path := r.URL.Path
+	if strings.HasSuffix(path, "/favicon.ico") {
+		w.Header().Set("Cache-Control", "max-age=3600")
+		faviconRequests.Inc()
+		w.Write(faviconData)
+		return
+	}
 	prefix := GetPathPrefix()
 	if prefix != "" {
 		// Trim -http.pathPrefix from path
@@ -305,10 +312,6 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 			status = http.StatusOK
 		}
 		w.WriteHeader(status)
-		return
-	case "/favicon.ico":
-		faviconRequests.Inc()
-		w.WriteHeader(http.StatusNoContent)
 		return
 	case "/metrics":
 		metricsRequests.Inc()
@@ -446,7 +449,7 @@ var (
 	pprofTraceRequests   = metrics.NewCounter(`vm_http_requests_total{path="/debug/pprof/trace"}`)
 	pprofMutexRequests   = metrics.NewCounter(`vm_http_requests_total{path="/debug/pprof/mutex"}`)
 	pprofDefaultRequests = metrics.NewCounter(`vm_http_requests_total{path="/debug/pprof/default"}`)
-	faviconRequests      = metrics.NewCounter(`vm_http_requests_total{path="/favicon.ico"}`)
+	faviconRequests      = metrics.NewCounter(`vm_http_requests_total{path="*/favicon.ico"}`)
 
 	authBasicRequestErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="*", reason="wrong_basic_auth"}`)
 	authKeyRequestErrors     = metrics.NewCounter(`vm_http_request_errors_total{path="*", reason="wrong_auth_key"}`)
@@ -454,6 +457,9 @@ var (
 
 	requestsTotal = metrics.NewCounter(`vm_http_requests_all_total`)
 )
+
+//go:embed favicon.ico
+var faviconData []byte
 
 // GetQuotedRemoteAddr returns quoted remote address.
 func GetQuotedRemoteAddr(r *http.Request) string {
