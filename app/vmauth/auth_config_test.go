@@ -249,6 +249,8 @@ users:
   - http://node1:343/bbb
   - http://node2:343/bbb
   tls_insecure_skip_verify: false
+  retry_status_codes: [500, 501]
+  drop_src_path_prefix_parts: 1
 `, map[string]*UserInfo{
 		getAuthToken("", "foo", "bar"): {
 			Username: "foo",
@@ -257,7 +259,9 @@ users:
 				"http://node1:343/bbb",
 				"http://node2:343/bbb",
 			}),
-			TLSInsecureSkipVerify: &insecureSkipVerifyFalse,
+			TLSInsecureSkipVerify:  &insecureSkipVerifyFalse,
+			RetryStatusCodes:       []int{500, 501},
+			DropSrcPathPrefixParts: 1,
 		},
 	})
 

@@ -32,6 +32,38 @@ Pass `-help` to `vmauth` in order to see all the supported command-line flags wi
 Feel free [contacting us](mailto:info@victoriametrics.com) if you need customized auth proxy for VictoriaMetrics with the support of LDAP, SSO, RBAC, SAML,
 accounting and rate limiting such as [vmgateway](https://docs.victoriametrics.com/vmgateway.html).
 
+## Dropping request path prefix
+
+By default `vmauth` doesn't drop the path prefix from the original request when proxying the request to the matching backend.
+Sometimes it is needed to drop path prefix before routing the request to the backend. This can be done by specifying the number of `/`-delimited
+prefix parts to drop from the request path via `drop_src_path_prefix_parts` option at `url_map` level or at `user` level.
+
+For example, if you need to serve requests to [vmalert](https://docs.victoriametrics.com/vmalert.html) at `/vmalert/` path prefix,
+while serving requests to [vmagent](https://docs.victoriametrics.com/vmagent.html) at `/vmagent/` path prefix for a particular user,
+then the following [-auth.config](#auth-config) can be used:
+
+```yml
+users:
+- username: foo
+  url_map:
+
+    # proxy all the requests, which start with `/vmagent/`, to vmagent backend
+  - src_paths:
+    - "/vmagent/.+"
+
+    # drop /vmagent/ path prefix from the original request before proxying it to url_prefix.
+    drop_src_path_prefix_parts: 1
+    url_prefix: "http://vmagent-backend:8429/"
+
+    # proxy all the requests, which start with `/vmalert`, to vmalert backend
+  - src_paths:
+    - "/vmalert/.+"
+
+    # drop /vmalert/ path prefix from the original request before proxying it to url_prefix.
+    drop_src_path_prefix_parts: 1
+    url_prefix: "http://vmalert-backend:8880/"
+```
+
 ## Load balancing
 
 Each `url_prefix` in the [-auth.config](#auth-config) may contain either a single url or a list of urls.
