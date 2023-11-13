@@ -1,3 +1,20 @@
+# v1.23.0 (2023-11-09.2)
+
+* **Feature**: BREAKFIX: In order to support subproperty parsing, invalid property definitions must not be ignored
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.22.3 (2023-11-09)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.22.2 (2023-11-07)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.22.1 (2023-11-06)
+
+* No change notes available for this release.
+
 # v1.22.0 (2023-11-02)
 
 * **Feature**: Add env and shared config settings for disabling IMDSv1 fallback.

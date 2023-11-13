@@ -42,6 +42,9 @@ type validator struct {
 	// validation. If unspecified, this defaults to time.Now.
 	timeFunc func() time.Time
 
+	// requireExp specifies whether the exp claim is required
+	requireExp bool
+
 	// verifyIat specifies whether the iat (Issued At) claim will be verified.
 	// According to https://www.rfc-editor.org/rfc/rfc7519#section-4.1.6 this
 	// only specifies the age of the token, but no validation check is
@@ -86,8 +89,9 @@ func (v *validator) Validate(claims Claims) error {
 	}
 
 	// We always need to check the expiration time, but usage of the claim
-	// itself is OPTIONAL.
-	if err = v.verifyExpiresAt(claims, now, false); err != nil {
+	// itself is OPTIONAL by default. requireExp overrides this behavior
+	// and makes the exp claim mandatory.
+	if err = v.verifyExpiresAt(claims, now, v.requireExp); err != nil {
 		errs = append(errs, err)
 	}
 

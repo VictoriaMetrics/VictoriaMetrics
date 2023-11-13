@@ -133,6 +133,17 @@ func newLitToken(b []rune) (Token, int, error) {
 	return token, n, err
 }
 
+// replace with slices.Contains when Go 1.21
+// is min supported Go version in the SDK
+func containsRune(runes []rune, val rune) bool {
+	for i := range runes {
+		if val == runes[i] {
+			return true
+		}
+	}
+	return false
+}
+
 func isSubProperty(runes []rune) bool {
 	// needs at least
 	// (1) newline (2) whitespace (3) literal
@@ -141,10 +152,7 @@ func isSubProperty(runes []rune) bool {
 	}
 
 	// must have an equal expression
-	split := strings.FieldsFunc(string(runes), func(r rune) bool {
-		return isOp([]rune{r})
-	})
-	if len(split) < 2 {
+	if !containsRune(runes, '=') && !containsRune(runes, ':') {
 		return false
 	}
 
@@ -156,7 +164,6 @@ func isSubProperty(runes []rune) bool {
 	if err != nil {
 		return false
 	}
-
 	// whitespace must follow newline
 	return isWhitespace(runes[n])
 }
@@ -171,7 +178,7 @@ func getSubProperty(runes []rune, offset int) (int, error) {
 			return offset + idx, nil
 		}
 	}
-	return 0, fmt.Errorf("no sub property")
+	return offset + len(runes), nil
 }
 
 // MapValue returns a map value for sub properties
