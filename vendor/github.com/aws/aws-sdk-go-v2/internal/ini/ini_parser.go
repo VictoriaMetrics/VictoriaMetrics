@@ -187,6 +187,13 @@ loop:
 			stack.Push(k)
 		case StatementState:
 			if k.Kind != ASTKindStart {
+				if tok.Type() == TokenLit && isSubProperty(tok.raw) {
+					return nil, NewParseError(
+						fmt.Sprintf(
+							"Invalid token, remove leading whitespace %s",
+							string(tok.raw)),
+					)
+				}
 				stack.MarkComplete(k)
 			}
 			expr := newExpression(tok)
