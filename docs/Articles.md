@@ -17,7 +17,7 @@ See also [case studies](https://docs.victoriametrics.com/CaseStudies.html).
 ## Third-party articles and slides about VictoriaMetrics
 
 * [Datanami: Why Roblox Picked VictoriaMetrics for Observability Data Overhaul](https://www.datanami.com/2023/05/30/why-roblox-picked-victoriametrics-for-observability-data-overhaul/)
-* [Cludflare: Introducing notifications for HTTP Traffic Anomalies](https://blog.cloudflare.com/introducing-http-traffic-anomalies-notifications/)
+* [Cloudflare: Introducing notifications for HTTP Traffic Anomalies](https://blog.cloudflare.com/introducing-http-traffic-anomalies-notifications/)
 * [Grammarly: Better, Faster, Cheaper: How Grammarly Improved Monitoring by Over 10x with VictoriaMetrics](https://www.grammarly.com/blog/engineering/monitoring-with-victoriametrics/)
 * [CERN: CMS monitoring R&D: Real-time monitoring and alerts](https://indico.cern.ch/event/877333/contributions/3696707/attachments/1972189/3281133/CMS_mon_RD_for_opInt.pdf)
 * [CERN: The CMS monitoring infrastructure and applications](https://arxiv.org/pdf/2007.03630.pdf)
