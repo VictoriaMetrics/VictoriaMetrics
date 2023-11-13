@@ -382,7 +382,7 @@ func (p *part) searchByTenantIDs(so *searchOptions, bhss *blockHeaders, workCh c
 			n = sort.Search(len(ibhs), func(i int) bool {
 				return !ibhs[i].streamID.tenantID.less(tenantID)
 			})
-			if n == len(ibhs) || n > 0 && ibhs[n].streamID.tenantID.equal(tenantID) {
+			if n == len(ibhs) || n > 0 && !ibhs[n].streamID.tenantID.equal(tenantID) {
 				// The end of ibhs[n-1] may contain blocks for the given tenantID, so move it backwards
 				n--
 			}
@@ -493,7 +493,7 @@ func (p *part) searchByStreamIDs(so *searchOptions, bhss *blockHeaders, workCh c
 			n = sort.Search(len(ibhs), func(i int) bool {
 				return !ibhs[i].streamID.less(streamID)
 			})
-			if n == len(ibhs) || n > 0 && ibhs[n].streamID.equal(streamID) {
+			if n == len(ibhs) || n > 0 && !ibhs[n].streamID.equal(streamID) {
 				// The end of ibhs[n-1] may contain blocks for the given streamID, so move it backwards
 				n--
 			}
