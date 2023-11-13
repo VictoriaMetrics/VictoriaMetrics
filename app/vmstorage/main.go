@@ -9,8 +9,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/VictoriaMetrics/metrics"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage/servers"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
@@ -24,6 +22,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
@@ -73,11 +72,6 @@ var (
 		"See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning")
 	cacheSizeIndexDBTagFilters = flagutil.NewBytes("storage.cacheSizeIndexDBTagFilters", 0, "Overrides max size for indexdb/tagFiltersToMetricIDs cache. "+
 		"See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning")
-
-	gracefulShutdownDuration = flag.Duration("storage.gracefulShutdownDuration", 25*time.Second, "The maximum duration for a storage graceful shutdown. "+
-		"During graceful shutdown vmstorage closes connections from vminsert one by one with equal time intervals between connections. "+
-		"Setting this to 0 disables gradual close of vminsert connections; in this case vmstorage closes all the connections from vminsert without delay. "+
-		"See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#updating--reconfiguring-cluster-nodes")
 )
 
 func main() {
@@ -145,16 +139,11 @@ func main() {
 	}
 	logger.Infof("successfully shut down http service in %.3f seconds", time.Since(startTime).Seconds())
 
-	// Graceful shutdown duration is distributed between vminsert connections closing
-	// and stopping storage operations. In order to distribute closing vminsert connections
-	// closing in time 80% of gracefulShutdownDuration is used. The remaining 20%
-	// is used for stopping storage operations.
-	insertGracefulShutdownDuration := time.Duration(float64(*gracefulShutdownDuration) * 0.8)
 	logger.Infof("gracefully shutting down the service")
 	startTime = time.Now()
 	stopStaleSnapshotsRemover()
-	vminsertSrv.MustStop(insertGracefulShutdownDuration)
 	vmselectSrv.MustStop()
+	vminsertSrv.MustStop()
 	common.StopUnmarshalWorkers()
 	logger.Infof("successfully shut down the service in %.3f seconds", time.Since(startTime).Seconds())
 

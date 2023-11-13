@@ -18,7 +18,8 @@ import TableLogs from "./TableLogs";
 import GroupLogs from "./GroupLogs";
 
 export interface ExploreLogBodyProps {
-  data: Logs[]
+  data: Logs[];
+  loaded?: boolean;
 }
 
 enum DisplayType {
@@ -33,7 +34,7 @@ const tabs = [
   { label: "JSON", value: DisplayType.json, icon: <CodeIcon /> },
 ];
 
-const ExploreLogsBody: FC<ExploreLogBodyProps> = ({ data }) => {
+const ExploreLogsBody: FC<ExploreLogBodyProps> = ({ data, loaded }) => {
   const { isMobile } = useDeviceDetect();
   const { timezone } = useTimeState();
   const { setSearchParamsFromKeys } = useSearchParamsFromObject();
@@ -117,6 +118,11 @@ const ExploreLogsBody: FC<ExploreLogBodyProps> = ({ data }) => {
           "vm-explore-logs-body__table_mobile": isMobile,
         })}
       >
+        {!data.length && (
+          <div className="vm-explore-logs-body__empty">
+            {loaded ? "No logs found" : "Run query to see logs"}
+          </div>
+        )}
         {!!data.length && (
           <>
             {activeTab === DisplayType.table && (

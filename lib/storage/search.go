@@ -10,6 +10,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
 
 // BlockRef references a Block.
@@ -320,7 +321,7 @@ type TagFilter struct {
 // String returns string representation of tf.
 func (tf *TagFilter) String() string {
 	op := tf.getOp()
-	value := bytesutil.LimitStringLen(string(tf.Value), 60)
+	value := stringsutil.LimitStringLen(string(tf.Value), 60)
 	if len(tf.Key) == 0 {
 		return fmt.Sprintf("__name__%s%q", op, value)
 	}

@@ -20,7 +20,14 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
-var precisionBits = flag.Int("precisionBits", 64, "The number of precision bits to store per each value. Lower precision bits improves data compression at the cost of precision loss")
+var (
+	precisionBits = flag.Int("precisionBits", 64, "The number of precision bits to store per each value. Lower precision bits improves data compression "+
+		"at the cost of precision loss")
+	vminsertConnsShutdownDuration = flag.Duration("storage.vminsertConnsShutdownDuration", 25*time.Second, "The time needed for gradual closing of vminsert connections during "+
+		"graceful shutdown. Bigger duration reduces spikes in CPU, RAM and disk IO load on the remaining vmstorage nodes during rolling restart. "+
+		"Smaller duration reduces the time needed to close all the vminsert connections, thus reducing the time for graceful shutdown. "+
+		"See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#improving-re-routing-performance-during-restart")
+)
 
 // VMInsertServer processes connections from vminsert.
 type VMInsertServer struct {
@@ -136,7 +143,7 @@ var (
 )
 
 // MustStop gracefully stops s so it no longer touches s.storage after returning.
-func (s *VMInsertServer) MustStop(grace time.Duration) {
+func (s *VMInsertServer) MustStop() {
 	// Mark the server as stoping.
 	s.setIsStopping()
 
@@ -147,7 +154,7 @@ func (s *VMInsertServer) MustStop(grace time.Duration) {
 
 	// Close existing connections from vminsert, so the goroutines
 	// processing these connections are finished.
-	s.connsMap.CloseAll(grace)
+	s.connsMap.CloseAll(*vminsertConnsShutdownDuration)
 
 	// Wait until all the goroutines processing vminsert conns are finished.
 	s.wg.Wait()

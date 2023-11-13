@@ -40,38 +40,44 @@ func (cm *ConnsMap) Delete(c net.Conn) {
 	cm.mu.Unlock()
 }
 
-// CloseAll closes all the added conns.
-func (cm *ConnsMap) CloseAll(grace time.Duration) {
+// CloseAll gradually closes all the cm conns with during the given shutdownDuration.
+func (cm *ConnsMap) CloseAll(shutdownDuration time.Duration) {
 	cm.mu.Lock()
-	var connCloseInterval time.Duration
-	conns := len(cm.m)
-	if conns <= 1 {
-		connCloseInterval = 0
-	} else {
-		connCloseInterval = time.Duration(grace.Milliseconds()/int64(conns)) * time.Millisecond
-	}
-	if connCloseInterval > 0 {
-		logger.Infof("closing %d connections with interval %s", conns, connCloseInterval)
-	}
-
-	// Sort addresses in order to make the order of closing connections deterministic across vmstorages.
-	addresses := make([]net.Conn, 0)
+	conns := make([]net.Conn, len(cm.m))
 	for c := range cm.m {
-		addresses = append(addresses, c)
+		conns = append(conns, c)
+		delete(cm.m, c)
 	}
-	sort.Slice(addresses, func(i, j int) bool {
-		return addresses[i].RemoteAddr().String() < addresses[j].RemoteAddr().String()
-	})
-
-	s := time.Now()
-	for _, c := range addresses {
-		_ = c.Close()
-		time.Sleep(connCloseInterval)
-	}
-	if connCloseInterval > 0 {
-		logger.Infof("closed %d connections in %s", conns, time.Since(s))
-	}
-
 	cm.isClosed = true
 	cm.mu.Unlock()
+
+	if len(conns) == 0 {
+		return
+	}
+	if len(conns) == 1 {
+		// Simple case - just close a single connection and that's it!
+		_ = conns[0].Close()
+		return
+	}
+
+	// Sort vminsert conns in order to make the order of closing connections deterministic across vmstorage nodes.
+	// This should reduce resource usage spikes at vmstorage nodes during rolling restarts.
+	sort.Slice(conns, func(i, j int) bool {
+		return conns[i].RemoteAddr().String() < conns[j].RemoteAddr().String()
+	})
+
+	shutdownInterval := shutdownDuration / time.Duration(len(conns)-1)
+	startTime := time.Now()
+	logger.Infof("closing %d vminsert connections with %dms interval between them", len(conns), shutdownInterval.Milliseconds())
+	remoteAddr := conns[0].RemoteAddr().String()
+	_ = conns[0].Close()
+	logger.Infof("closed vminsert connection %s", remoteAddr)
+	conns = conns[1:]
+	for _, c := range conns {
+		time.Sleep(shutdownInterval)
+		remoteAddr := c.RemoteAddr().String()
+		_ = c.Close()
+		logger.Infof("closed vminsert connection %s", remoteAddr)
+	}
+	logger.Infof("closed %d vminsert connections in %s", time.Since(startTime))
 }

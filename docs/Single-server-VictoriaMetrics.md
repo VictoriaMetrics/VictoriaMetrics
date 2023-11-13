@@ -453,7 +453,7 @@ This information is obtained from the `/api/v1/status/active_queries` HTTP endpo
 [VMUI](#vmui) provides an ability to explore metrics exported by a particular `job` / `instance` in the following way:
 
 1. Open the `vmui` at `http://victoriametrics:8428/vmui/`.
-1. Click the `Explore metrics` tab.
+1. Click the `Explore Prometheus metrics` tab.
 1. Select the `job` you want to explore.
 1. Optionally select the `instance` for the selected job to explore.
 1. Select metrics you want to explore and compare.
@@ -1137,6 +1137,18 @@ For example, the following command builds the image on top of [scratch](https://
 ROOT_IMAGE=scratch make package-victoria-metrics
 ```
 
+#### Building VictoriaMetrics with Podman
+
+VictoriaMetrics can be built with Podman in either rootful or rootless mode.
+
+When building via rootlful Podman, simply add `DOCKER=podman` to the relevant `make` commandline.  To build
+via rootless Podman, add `DOCKER=podman DOCKER_RUN="podman run --userns=keep-id"` to the `make`
+commandline.
+
+For example: `make victoria-metrics-pure DOCKER=podman DOCKER_RUN="podman run --userns=keep-id"`
+
+Note that `production` builds are not supported via Podman becuase Podman does not support `buildx`.
+
 ## Start with docker-compose
 
 [Docker-compose](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/docker-compose.yml)
@@ -1694,43 +1706,44 @@ See also [cardinality limiter](#cardinality-limiter) and [capacity planning docs
 
 ## High availability
 
-* Install multiple VictoriaMetrics instances in distinct datacenters (availability zones).
-* Pass addresses of these instances to [vmagent](https://docs.victoriametrics.com/vmagent.html) via `-remoteWrite.url` command-line flag:
+The general approach for achieving high availability is the following:
+
+- to run two identically configured VictoriaMetrics instances in distinct datacenters (availability zones)
+- to store the collected data simultaneously into these instances via [vmagent](https://docs.victoriametrics.com/vmagent.html) or Prometheus
+- to query the first VictoriaMetrics instance and to fail over to the second instance when the first instance becomes temporarily unavailable.
+
+Such a setup guarantees that the collected data isn't lost when one of VictoriaMetrics instance becomes unavailable.
+The collected data continues to be written to the available VictoriaMetrics instance, so it should be available for querying.
+Both [vmagent](https://docs.victoriametrics.com/vmagent.html) and Prometheus buffer the collected data locally if they cannot send it
+to the configured remote storage. So the collected data will be written to the temporarily unavailable VictoriaMetrics instance
+after it becomes available.
+
+If you use [vmagent](https://docs.victoriametrics.com/vmagent.html) for storing the data into VictoriaMetrics,
+then it can be configured with multiple `-remoteWrite.url` command-line flags, where every flag points to the VictoriaMetrics
+instance in a particular availability zone, in order to replicate the collected data to all the VictoriaMetrics instances.
+For example, the following command instructs `vmagent` to replicate data to `vm-az1` and `vm-az2` instances of VictoriaMetrics:
 
 ```console
-/path/to/vmagent -remoteWrite.url=http://<victoriametrics-addr-1>:8428/api/v1/write -remoteWrite.url=http://<victoriametrics-addr-2>:8428/api/v1/write
+/path/to/vmagent \
+  -remoteWrite.url=http://<vm-az1>:8428/api/v1/write \
+  -remoteWrite.url=http://<vm-az2>:8428/api/v1/write
 ```
 
-Alternatively these addresses may be passed to `remote_write` section in Prometheus config:
+If you use Prometheus for collecting and writing the data to VictoriaMetrics,
+then the following [`remote_write`](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write) section
+in Prometheus config can be used for replicating the collected data to `vm-az1` and `vm-az2` VictoriaMetrics instances:
 
 ```yml
 remote_write:
-  - url: http://<victoriametrics-addr-1>:8428/api/v1/write
-    queue_config:
-      max_samples_per_send: 10000
-  # ...
-  - url: http://<victoriametrics-addr-N>:8428/api/v1/write
-    queue_config:
-      max_samples_per_send: 10000
+  - url: http://<vm-az1>:8428/api/v1/write
+  - url: http://<vm-az2>:8428/api/v1/write
 ```
 
-* Apply the updated config:
+It is recommended to use [vmagent](https://docs.victoriametrics.com/vmagent.html) instead of Prometheus for highly loaded setups,
+since it uses lower amounts of RAM, CPU and network bandwidth than Prometheus.
 
-```console
-kill -HUP `pidof prometheus`
-```
-
-It is recommended to use [vmagent](https://docs.victoriametrics.com/vmagent.html) instead of Prometheus for highly loaded setups.
-
-* Now Prometheus should write data into all the configured `remote_write` urls in parallel.
-* Set up [Promxy](https://github.com/jacksontj/promxy) in front of all the VictoriaMetrics replicas.
-* Set up Prometheus datasource in Grafana that points to Promxy.
-
-If you have Prometheus HA pairs with replicas `r1` and `r2` in each pair, then configure each `r1`
-to write data to `victoriametrics-addr-1`, while each `r2` should write data to `victoriametrics-addr-2`.
-
-Another option is to write data simultaneously from Prometheus HA pair to a pair of VictoriaMetrics instances
-with the enabled de-duplication. See [this section](#deduplication) for details.
+If you use identically configured [vmagent](https://docs.victoriametrics.com/vmagent.html) instances for collecting the same data
+and sending it to VictoriaMetrics, then do not forget enabling [deduplication](#deduplication) at VictoriaMetrics side.
 
 ## Deduplication
 
@@ -2524,6 +2537,8 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
 ```
   -bigMergeConcurrency int
      Deprecated: this flag does nothing. Please use -smallMergeConcurrency for controlling the concurrency of background merges. See https://docs.victoriametrics.com/#storage
+  -blockcache.missesBeforeCaching int
+     The number of cache misses before putting the block into cache. Higher values may reduce indexdb/dataBlocks cache size at the cost of higher CPU and disk read usage (default 2)
   -cacheExpireDuration duration
      Items are removed from in-memory caches after they aren't accessed for this duration. Lower values may reduce memory usage at the cost of higher CPU usage. See also -prevCacheRemovalPercent (default 30m0s)
   -configAuthKey string
@@ -2651,6 +2666,8 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      Allows renaming fields in JSON formatted logs. Example: "ts:timestamp,msg:message" renames "ts" to "timestamp" and "msg" to "message". Supported fields: ts, level, caller, msg
   -loggerLevel string
      Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC (default "INFO")
+  -loggerMaxArgLen int
+     The maximum length of a single logged argument. Longer arguments are replaced with 'arg_start..arg_end', where 'arg_start' and 'arg_end' is prefix and suffix of the arg with the length not exceeding -loggerMaxArgLen / 2 (default 500)
   -loggerOutput string
      Output for the logs. Supported values: stderr, stdout (default "stderr")
   -loggerTimezone string
