@@ -2,6 +2,7 @@ package regexutil
 
 import (
 	"regexp"
+	"regexp/syntax"
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -105,7 +106,22 @@ func (pr *PromRegex) MatchString(s string) bool {
 	return pr.reSuffixMatcher.Match(s)
 }
 
+// getSubstringLiteral returns regex part from expr surrounded by prefixSuffix.
+//
+// For example, if expr=".+foo.+" and prefixSuffix=".+", then the function returns "foo".
+//
+// An empty string is returned if expr doesn't contain the given prefixSuffix prefix and suffix
+// or if the regex part surrounded by prefixSuffix contains alternate regexps.
 func getSubstringLiteral(expr, prefixSuffix string) string {
+	// Verify that the expr doesn't contain alternate regexps. In this case it is unsafe removing prefix and suffix.
+	sre, err := syntax.Parse(expr, syntax.Perl)
+	if err != nil {
+		return ""
+	}
+	if sre.Op == syntax.OpAlternate {
+		return ""
+	}
+
 	if !strings.HasPrefix(expr, prefixSuffix) {
 		return ""
 	}
