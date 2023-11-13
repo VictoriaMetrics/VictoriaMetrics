@@ -106,7 +106,7 @@ The following [metrics](#monitoring) related to concurrency limits are exposed b
 By default `vmauth` uses system settings when performing requests to HTTPS backends specified via `url_prefix` option
 in the [`-auth.config`](https://docs.victoriametrics.com/vmauth.html#auth-config). These settings can be overridden with the following command-line flags:
 
-- `backend.tlsInsecureSkipVerify` allows skipping TLS verification when connecting to HTTPS backends.
+- `-backend.tlsInsecureSkipVerify` allows skipping TLS verification when connecting to HTTPS backends.
   This global setting can be overridden at per-user level inside [`-auth.config`](https://docs.victoriametrics.com/vmauth.html#auth-config)
   via `tls_insecure_skip_verify` option. For example:
 
@@ -116,8 +116,8 @@ in the [`-auth.config`](https://docs.victoriametrics.com/vmauth.html#auth-config
     tls_insecure_skip_verify: true
   ```
 
-- `backend.tlsCAFile` allows specifying the path to TLS Root CA, which will be used for TLS verification when connecting to HTTPS backends.
-  The `backend.tlsCAFile` may point either to local file or to `http` / `https` url.
+- `-backend.tlsCAFile` allows specifying the path to TLS Root CA, which will be used for TLS verification when connecting to HTTPS backends.
+  The `-backend.tlsCAFile` may point either to local file or to `http` / `https` url.
   This global setting can be overridden at per-user level inside [`-auth.config`](https://docs.victoriametrics.com/vmauth.html#auth-config)
   via `tls_ca_file` option. For example:
 
