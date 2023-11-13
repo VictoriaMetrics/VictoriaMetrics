@@ -218,6 +218,7 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 	// This code has been copied from net/http/httputil/reverseproxy.go
 	req := sanitizeRequestHeaders(r)
 	req.URL = targetURL
+	req.Host = targetURL.Host
 	updateHeadersByConfig(req.Header, hc.RequestHeaders)
 	res, err := transport.RoundTrip(req)
 	rtb, rtbOK := req.Body.(*readTrackingBody)
@@ -407,8 +408,6 @@ func newTransport(insecureSkipVerify bool, caFile string) (*http.Transport, erro
 	tr.ResponseHeaderTimeout = *responseTimeout
 	// Automatic compression must be disabled in order to fix https://github.com/VictoriaMetrics/VictoriaMetrics/issues/535
 	tr.DisableCompression = true
-	// Disable HTTP/2.0, since VictoriaMetrics components don't support HTTP/2.0 (because there is no sense in this).
-	tr.ForceAttemptHTTP2 = false
 	tr.MaxIdleConnsPerHost = *maxIdleConnsPerBackend
 	if tr.MaxIdleConns != 0 && tr.MaxIdleConns < tr.MaxIdleConnsPerHost {
 		tr.MaxIdleConns = tr.MaxIdleConnsPerHost
