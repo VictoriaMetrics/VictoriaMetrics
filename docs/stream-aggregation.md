@@ -137,7 +137,7 @@ to one sample per 5 minutes per each input time series (this operation is also k
 
 The aggregated output metrics have the following names according to [output metric naming](#output-metric-names):
 
-```
+```text
 # For input metrics ending with _total
 some_metric_total:5m_total
 
@@ -169,7 +169,7 @@ See [these docs](#aggregating-by-labels) for more details.
 
 The aggregated output metric has the following name according to [output metric naming](#output-metric-names):
 
-```
+```text
 http_requests_total:30s_without_path_user_total
 ```
 
@@ -185,7 +185,7 @@ For example, if an advertising server generates `hits{some="labels"} 1` and `cli
 per each incoming hit and click, then the following [stream aggregation config](#stream-aggregation-config)
 can be used for counting these metrics per every 30 second interval:
 
-```yml
+```yaml
 - match: '{__name__=~"hits|clicks"}'
   interval: 30s
   outputs: [count_samples]
@@ -194,7 +194,7 @@ can be used for counting these metrics per every 30 second interval:
 This config generates the following output metrics for `hits` and `clicks` input metrics
 according to [output metric naming](#output-metric-names):
 
-```
+```text
 hits:30s_count_samples count1
 clicks:30s_count_samples count2
 ```
@@ -221,7 +221,7 @@ can be used for summing these metrics per every minute:
 
 This config generates the following output metrics according to [output metric naming](#output-metric-names):
 
-```
+```text
 hits:1m_sum_samples sum1
 clicks:1m_sum_samples sum2
 ```
@@ -249,7 +249,7 @@ can be used for calculating 50th and 99th percentiles for these metrics every 30
 
 This config generates the following output metrics according to [output metric naming](#output-metric-names):
 
-```
+```text
 request_duration_seconds:30s_quantiles{quantile="0.50"} value1
 request_duration_seconds:30s_quantiles{quantile="0.99"} value2
 
@@ -280,7 +280,7 @@ for these metrics every 60 seconds:
 
 This config generates the following output metrics according to [output metric naming](#output-metric-names).
 
-```
+```text
 request_duration_seconds:60s_histogram_bucket{vmrange="start1...end1"} count1
 request_duration_seconds:60s_histogram_bucket{vmrange="start2...end2"} count2
 ...
@@ -326,6 +326,7 @@ See also [quantiles over input metrics](#quantiles-over-input-metrics) and [aggr
 [Histogram](https://docs.victoriametrics.com/keyConcepts.html#histogram) is a set of [counter](https://docs.victoriametrics.com/keyConcepts.html#counter)
 metrics with different `vmrange` or `le` labels. As they're counters, the applicable aggregation output is 
 [total](https://docs.victoriametrics.com/stream-aggregation.html#total):
+
 ```yaml
 - match: 'http_request_duration_seconds_bucket'
   interval: 1m
@@ -337,7 +338,8 @@ metrics with different `vmrange` or `le` labels. As they're counters, the applic
 ```
 
 This config generates the following output metrics according to [output metric naming](#output-metric-names):
-```
+
+```text
 http_request_duration_seconds_bucket:1m_without_instance_total{le="0.1"} value1
 http_request_duration_seconds_bucket:1m_without_instance_total{le="0.2"} value2
 http_request_duration_seconds_bucket:1m_without_instance_total{le="0.4"} value3
@@ -368,7 +370,7 @@ See also [histograms over input metrics](#histograms-over-input-metrics) and [qu
 
 Output metric names for stream aggregation are constructed according to the following pattern:
 
-```
+```text
 <metric_name>:<interval>[_by_<by_labels>][_without_<without_labels>]_<output>
 ```
 
@@ -391,7 +393,7 @@ during stream aggregation via `input_relabel_configs` and `output_relabel_config
 
 For example, the following config removes the `:1m_sum_samples` suffix added [to the output metric name](#output-metric-names):
 
-```yml
+```yaml
 - interval: 1m
   outputs: [sum_samples]
   output_relabel_configs:
@@ -677,7 +679,7 @@ support the following approaches for hot reloading stream aggregation configs fr
 
 * By sending `SIGHUP` signal to `vmagent` or `victoria-metrics` process:
 
-  ```console
+  ```bash
   kill -SIGHUP `pidof vmagent`
   ```
 

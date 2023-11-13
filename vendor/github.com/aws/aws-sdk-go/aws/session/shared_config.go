@@ -80,6 +80,9 @@ const (
 	// EC2 IMDS Endpoint
 	ec2MetadataServiceEndpointKey = "ec2_metadata_service_endpoint"
 
+	// ECS IMDSv1 disable fallback
+	ec2MetadataV1DisabledKey = "ec2_metadata_v1_disabled"
+
 	// Use DualStack Endpoint Resolution
 	useDualStackEndpoint = "use_dualstack_endpoint"
 
@@ -178,6 +181,12 @@ type sharedConfig struct {
 	//
 	// ec2_metadata_service_endpoint=http://fd00:ec2::254
 	EC2IMDSEndpoint string
+
+	// Specifies that IMDS clients should not fallback to IMDSv1 if token
+	// requests fail.
+	//
+	// ec2_metadata_v1_disabled=true
+	EC2IMDSv1Disabled *bool
 
 	// Specifies that SDK clients must resolve a dual-stack endpoint for
 	// services.
@@ -434,6 +443,7 @@ func (cfg *sharedConfig) setFromIniFile(profile string, file sharedConfigFile, e
 				ec2MetadataServiceEndpointModeKey, file.Filename, err)
 		}
 		updateString(&cfg.EC2IMDSEndpoint, section, ec2MetadataServiceEndpointKey)
+		updateBoolPtr(&cfg.EC2IMDSv1Disabled, section, ec2MetadataV1DisabledKey)
 
 		updateUseDualStackEndpoint(&cfg.UseDualStackEndpoint, section, useDualStackEndpoint)
 

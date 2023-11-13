@@ -1,3 +1,21 @@
+# Release (2023-11-01)
+
+## General Highlights
+* **Feature**: Adds support for configured endpoints via environment variables and the AWS shared configuration file.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+## Module Highlights
+* `github.com/aws/aws-sdk-go-v2/service/connect`: [v1.74.0](service/connect/CHANGELOG.md#v1740-2023-11-01)
+  * **Feature**: Adds the BatchGetFlowAssociation API which returns flow associations (flow-resource) corresponding to the list of resourceArns supplied in the request. This release also adds IsDefault, LastModifiedRegion and LastModifiedTime fields to the responses of several Describe and List APIs.
+* `github.com/aws/aws-sdk-go-v2/service/globalaccelerator`: [v1.19.0](service/globalaccelerator/CHANGELOG.md#v1190-2023-11-01)
+  * **Feature**: Global Accelerator now support accelerators with cross account endpoints.
+* `github.com/aws/aws-sdk-go-v2/service/rds`: [v1.61.0](service/rds/CHANGELOG.md#v1610-2023-11-01)
+  * **Feature**: This release adds support for customized networking resources to Amazon RDS Custom.
+* `github.com/aws/aws-sdk-go-v2/service/redshift`: [v1.35.0](service/redshift/CHANGELOG.md#v1350-2023-11-01)
+  * **Feature**: Added support for Multi-AZ deployments for Provisioned RA3 clusters that provide 99.99% SLA availability.
+* `github.com/aws/aws-sdk-go-v2/service/sagemaker`: [v1.115.0](service/sagemaker/CHANGELOG.md#v11150-2023-11-01)
+  * **Feature**: Support for batch transform input in Model dashboard
+
 # Release (2023-10-31)
 
 ## General Highlights

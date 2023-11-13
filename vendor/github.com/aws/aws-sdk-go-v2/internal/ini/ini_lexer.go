@@ -67,6 +67,8 @@ func (l *iniLexer) tokenize(b []byte) ([]Token, error) {
 
 	for len(runes) > 0 && count < tokenAmount {
 		switch {
+		case isSubProperty(runes):
+			tokens[count], n, err = newLitToken(runes)
 		case isWhitespace(runes[0]):
 			tokens[count], n, err = newWSToken(runes)
 		case isComma(runes[0]):
@@ -101,6 +103,8 @@ func countTokens(runes []rune) int {
 
 	for len(runes) > 0 {
 		switch {
+		case isSubProperty(runes):
+			_, n, err = newLitToken(runes)
 		case isWhitespace(runes[0]):
 			_, n, err = newWSToken(runes)
 		case isComma(runes[0]):

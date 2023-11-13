@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"flag"
 	"fmt"
+	"net/http"
 	"net/url"
 	"os"
 	"regexp"
@@ -14,13 +15,14 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+	"gopkg.in/yaml.v2"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
-	"github.com/VictoriaMetrics/metrics"
-	"gopkg.in/yaml.v2"
 )
 
 var (
@@ -48,9 +50,13 @@ type UserInfo struct {
 	MaxConcurrentRequests int         `yaml:"max_concurrent_requests,omitempty"`
 	DefaultURL            *URLPrefix  `yaml:"default_url,omitempty"`
 	RetryStatusCodes      []int       `yaml:"retry_status_codes,omitempty"`
+	TLSInsecureSkipVerify *bool       `yaml:"tls_insecure_skip_verify,omitempty"`
+	TLSCAFile             string      `yaml:"tls_ca_file,omitempty"`
 
 	concurrencyLimitCh      chan struct{}
 	concurrencyLimitReached *metrics.Counter
+
+	httpTransport *http.Transport
 
 	requests         *metrics.Counter
 	requestsDuration *metrics.Summary
@@ -442,6 +448,11 @@ func parseAuthConfig(data []byte) (*AuthConfig, error) {
 		_ = metrics.GetOrCreateGauge(`vmauth_unauthorized_user_concurrent_requests_current`, func() float64 {
 			return float64(len(ui.concurrencyLimitCh))
 		})
+		tr, err := getTransport(ui.TLSInsecureSkipVerify, ui.TLSCAFile)
+		if err != nil {
+			return nil, fmt.Errorf("cannot initialize HTTP transport: %w", err)
+		}
+		ui.httpTransport = tr
 	}
 	return &ac, nil
 }
@@ -512,6 +523,12 @@ func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, error) {
 		_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vmauth_user_concurrent_requests_current{username=%q}`, name), func() float64 {
 			return float64(len(ui.concurrencyLimitCh))
 		})
+		tr, err := getTransport(ui.TLSInsecureSkipVerify, ui.TLSCAFile)
+		if err != nil {
+			return nil, fmt.Errorf("cannot initialize HTTP transport: %w", err)
+		}
+		ui.httpTransport = tr
+
 		byAuthToken[at1] = ui
 		byAuthToken[at2] = ui
 	}

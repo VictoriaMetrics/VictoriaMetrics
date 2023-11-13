@@ -17,6 +17,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
 	"github.com/VictoriaMetrics/fastcache"
 	"github.com/VictoriaMetrics/metrics"
@@ -205,7 +206,7 @@ func ResetRollupResultCache() {
 func (rrc *rollupResultCache) GetInstantValues(qt *querytracer.Tracer, expr metricsql.Expr, window, step int64, etfss [][]storage.TagFilter) []*timeseries {
 	if qt.Enabled() {
 		query := string(expr.AppendString(nil))
-		query = bytesutil.LimitStringLen(query, 300)
+		query = stringsutil.LimitStringLen(query, 300)
 		qt = qt.NewChild("rollup cache get instant values: query=%s, window=%d, step=%d", query, window, step)
 		defer qt.Done()
 	}
@@ -227,7 +228,7 @@ func (rrc *rollupResultCache) GetInstantValues(qt *querytracer.Tracer, expr metr
 func (rrc *rollupResultCache) PutInstantValues(qt *querytracer.Tracer, expr metricsql.Expr, window, step int64, etfss [][]storage.TagFilter, tss []*timeseries) {
 	if qt.Enabled() {
 		query := string(expr.AppendString(nil))
-		query = bytesutil.LimitStringLen(query, 300)
+		query = stringsutil.LimitStringLen(query, 300)
 		startStr := ""
 		if len(tss) > 0 {
 			startStr = storage.TimestampToHumanReadableFormat(tss[0].Timestamps[0])
@@ -260,7 +261,7 @@ func (rrc *rollupResultCache) DeleteInstantValues(qt *querytracer.Tracer, expr m
 
 	if qt.Enabled() {
 		query := string(expr.AppendString(nil))
-		query = bytesutil.LimitStringLen(query, 300)
+		query = stringsutil.LimitStringLen(query, 300)
 		qt.Printf("rollup result cache delete instant values: query=%s, window=%d, step=%d", query, window, step)
 	}
 }
@@ -268,7 +269,7 @@ func (rrc *rollupResultCache) DeleteInstantValues(qt *querytracer.Tracer, expr m
 func (rrc *rollupResultCache) GetSeries(qt *querytracer.Tracer, ec *EvalConfig, expr metricsql.Expr, window int64) (tss []*timeseries, newStart int64) {
 	if qt.Enabled() {
 		query := string(expr.AppendString(nil))
-		query = bytesutil.LimitStringLen(query, 300)
+		query = stringsutil.LimitStringLen(query, 300)
 		qt = qt.NewChild("rollup cache get series: query=%s, timeRange=%s, window=%d, step=%d", query, ec.timeRangeString(), window, ec.Step)
 		defer qt.Done()
 	}
@@ -353,7 +354,7 @@ var resultBufPool bytesutil.ByteBufferPool
 func (rrc *rollupResultCache) PutSeries(qt *querytracer.Tracer, ec *EvalConfig, expr metricsql.Expr, window int64, tss []*timeseries) {
 	if qt.Enabled() {
 		query := string(expr.AppendString(nil))
-		query = bytesutil.LimitStringLen(query, 300)
+		query = stringsutil.LimitStringLen(query, 300)
 		qt = qt.NewChild("rollup cache put series: query=%s, timeRange=%s, step=%d, window=%d, series=%d", query, ec.timeRangeString(), ec.Step, window, len(tss))
 		defer qt.Done()
 	}
