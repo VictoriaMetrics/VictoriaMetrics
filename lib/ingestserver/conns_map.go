@@ -11,13 +11,16 @@ import (
 
 // ConnsMap is used for tracking active connections.
 type ConnsMap struct {
+	clientName string
+
 	mu       sync.Mutex
 	m        map[net.Conn]struct{}
 	isClosed bool
 }
 
 // Init initializes cm.
-func (cm *ConnsMap) Init() {
+func (cm *ConnsMap) Init(clientName string) {
+	cm.clientName = clientName
 	cm.m = make(map[net.Conn]struct{})
 	cm.isClosed = false
 }
@@ -51,6 +54,13 @@ func (cm *ConnsMap) CloseAll(shutdownDuration time.Duration) {
 	cm.isClosed = true
 	cm.mu.Unlock()
 
+	if shutdownDuration <= 0 {
+		// Close all the connections at once.
+		for _, c := range conns {
+			_ = c.Close()
+		}
+		return
+	}
 	if len(conns) == 0 {
 		return
 	}
@@ -68,16 +78,16 @@ func (cm *ConnsMap) CloseAll(shutdownDuration time.Duration) {
 
 	shutdownInterval := shutdownDuration / time.Duration(len(conns)-1)
 	startTime := time.Now()
-	logger.Infof("closing %d vminsert connections with %dms interval between them", len(conns), shutdownInterval.Milliseconds())
+	logger.Infof("closing %d %s connections with %dms interval between them", len(conns), cm.clientName, shutdownInterval.Milliseconds())
 	remoteAddr := conns[0].RemoteAddr().String()
 	_ = conns[0].Close()
-	logger.Infof("closed vminsert connection %s", remoteAddr)
+	logger.Infof("closed %s connection %s", cm.clientName, remoteAddr)
 	conns = conns[1:]
 	for _, c := range conns {
 		time.Sleep(shutdownInterval)
 		remoteAddr := c.RemoteAddr().String()
 		_ = c.Close()
-		logger.Infof("closed vminsert connection %s", remoteAddr)
+		logger.Infof("closed %s connection %s", cm.clientName, remoteAddr)
 	}
-	logger.Infof("closed %d vminsert connections in %s", time.Since(startTime))
+	logger.Infof("closed %d %s connections in %s", len(conns), cm.clientName, time.Since(startTime))
 }

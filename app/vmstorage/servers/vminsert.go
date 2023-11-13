@@ -61,7 +61,7 @@ func NewVMInsertServer(addr string, storage *storage.Storage) (*VMInsertServer, 
 		storage: storage,
 		ln:      ln,
 	}
-	s.connsMap.Init()
+	s.connsMap.Init("vminsert")
 	s.wg.Add(1)
 	go func() {
 		s.run()
