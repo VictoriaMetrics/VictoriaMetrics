@@ -1,11 +1,11 @@
 ---
-sort: 14
-weight: 14
+sort: 23
+weight: 23
 title: MetricsQL
 menu:
   docs:
-    parent: "victoriametrics"
-    weight: 14
+    parent: 'victoriametrics'
+    weight: 23
 aliases:
 - /ExtendedPromQL.html
 - /MetricsQL.html
@@ -21,7 +21,8 @@ However, there are some [intentional differences](https://medium.com/@romanhavro
 
 [Standalone MetricsQL package](https://godoc.org/github.com/VictoriaMetrics/metricsql) can be used for parsing MetricsQL in external apps.
 
-If you are unfamiliar with PromQL, then it is suggested reading [this tutorial for beginners](https://medium.com/@valyala/promql-tutorial-for-beginners-9ab455142085).
+If you are unfamiliar with PromQL, then it is suggested reading [this tutorial for beginners](https://medium.com/@valyala/promql-tutorial-for-beginners-9ab455142085)
+and introduction into [basic querying via MetricsQL](https://docs.victoriametrics.com/keyConcepts.html#metricsql).
 
 The following functionality is implemented differently in MetricsQL compared to PromQL. This improves user experience:
 
@@ -109,7 +110,7 @@ The list of MetricsQL features on top of PromQL:
 * [histogram_quantile](#histogram_quantile) accepts optional third arg - `boundsLabel`.
   In this case it returns `lower` and `upper` bounds for the estimated percentile.
   See [this issue for details](https://github.com/prometheus/prometheus/issues/5706).
-* `default` binary operator. `q1 default q2` fills gaps in `q1` with the corresponding values from `q2`.
+* `default` binary operator. `q1 default q2` fills gaps in `q1` with the corresponding values from `q2`. See also [drop_empty_series](#drop_empty_series).
 * `if` binary operator. `q1 if q2` removes values from `q1` for missing values from `q2`.
 * `ifnot` binary operator. `q1 ifnot q2` removes values from `q1` for existing values from `q2`.
 * `WITH` templates. This feature simplifies writing and managing complex queries.
@@ -531,7 +532,7 @@ See also [duration_over_time](#duration_over_time) and [lag](#lag).
 `mad_over_time(series_selector[d])` is a [rollup function](#rollup-functions), which calculates [median absolute deviation](https://en.wikipedia.org/wiki/Median_absolute_deviation)
 over raw samples on the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
 
-See also [mad](#mad) and [range_mad](#range_mad).
+See also [mad](#mad), [range_mad](#range_mad) and [outlier_iqr_over_time](#outlier_iqr_over_time).
 
 #### max_over_time
 
@@ -560,6 +561,18 @@ This function is supported by PromQL. See also [tmin_over_time](#tmin_over_time)
 `mode_over_time(series_selector[d])` is a [rollup function](#rollup-functions), which calculates [mode](https://en.wikipedia.org/wiki/Mode_(statistics))
 for raw samples on the given lookbehind window `d`. It is calculated individually per each time series returned
 from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). It is expected that raw sample values are discrete.
+
+#### outlier_iqr_over_time
+
+`outlier_iqr_over_time(series_selector[d])` is a [rollup function](#rollup-functions), which returns the last sample on the given lookbehind window `d`
+if its value is either smaller than the `q25-1.5*iqr` or bigger than `q75+1.5*iqr` where:
+- `iqr` is an [Interquartile range](https://en.wikipedia.org/wiki/Interquartile_range) over raw samples on the lookbehind window `d`
+- `q25` and `q75` are 25th and 75th [percentiles](https://en.wikipedia.org/wiki/Percentile) over raw samples on the lookbehind window `d`.
+
+The `outlier_iqr_over_time()` is useful for detecting anomalies in gauge values based on the previous history of values.
+For example, `outlier_iqr_over_time(memory_usage_bytes[1h])` triggers when `memory_usage_bytes` suddenly goes outside the usual value range for the last 24 hours.
+
+See also [outliers_iqr](#outliers_iqr).
 
 #### predict_linear
 
@@ -865,7 +878,7 @@ from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.ht
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
-See also [zscore](#zscore) and [range_trim_zscore](#range_trim_zscore).
+See also [zscore](#zscore), [range_trim_zscore](#range_trim_zscore) and [outlier_iqr_over_time](#outlier_iqr_over_time).
 
 
 ### Transform functions
@@ -1054,6 +1067,17 @@ for every point of every time series returned by `q`.
 Metric names are stripped from the resulting series. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
 This function is supported by PromQL. See also [rad](#rad).
+
+#### drop_empty_series
+
+`drop_empty_series(q)` is a [transform function](#transform-functions), which drops empty series from `q`.
+
+This function can be used when `default` operator should be applied only to non-empty series. For example,
+`drop_empty_series(temperature < 30) default 42` returns series, which have at least a single sample smaller than 30 on the selected time range,
+while filling gaps in the returned series with 42.
+
+On the other hand `(temperature < 30) default 40` returns all the `temperature` series, even if they have no samples smaller than 30,
+by replacing all the values bigger or equal to 30 with 40.
 
 #### end
 
@@ -1591,7 +1615,7 @@ which maps `label` values from `src_*` to `dst*` for all the time series returne
 which drops time series from `q` with `label` not matching the given `regexp`.
 This function can be useful after [rollup](#rollup)-like functions, which may return multiple time series for every input series.
 
-See also [label_mismatch](#label_mismatch).
+See also [label_mismatch](#label_mismatch) and [labels_equal](#labels_equal).
 
 #### label_mismatch
 
@@ -1599,7 +1623,7 @@ See also [label_mismatch](#label_mismatch).
 which drops time series from `q` with `label` matching the given `regexp`.
 This function can be useful after [rollup](#rollup)-like functions, which may return multiple time series for every input series.
 
-See also [label_match](#label_match).
+See also [label_match](#label_match) and [labels_equal](#labels_equal).
 
 #### label_move
 
@@ -1642,23 +1666,30 @@ for the given `label` for every time series returned by `q`.
 For example, if `label_value(foo, "bar")` is applied to `foo{bar="1.234"}`, then it will return a time series
 `foo{bar="1.234"}` with `1.234` value. Function will return no data for non-numeric label values.
 
+#### labels_equal
+
+`labels_equal(q, "label1", "label2", ...)` is [label manipulation function](#label-manipulation-functions), which returns `q` series with identical values for the listed labels
+"label1", "label2", etc.
+
+See also [label_match](#label_match) and [label_mismatch](#label_mismatch).
+
 #### sort_by_label
 
-`sort_by_label(q, label1, ... labelN)` is [label manipulation function](#label-manipulation-functions), which sorts series in ascending order by the given set of labels.
+`sort_by_label(q, "label1", ... "labelN")` is [label manipulation function](#label-manipulation-functions), which sorts series in ascending order by the given set of labels.
 For example, `sort_by_label(foo, "bar")` would sort `foo` series by values of the label `bar` in these series.
 
 See also [sort_by_label_desc](#sort_by_label_desc) and [sort_by_label_numeric](#sort_by_label_numeric).
 
 #### sort_by_label_desc
 
-`sort_by_label_desc(q, label1, ... labelN)` is [label manipulation function](#label-manipulation-functions), which sorts series in descending order by the given set of labels.
+`sort_by_label_desc(q, "label1", ... "labelN")` is [label manipulation function](#label-manipulation-functions), which sorts series in descending order by the given set of labels.
 For example, `sort_by_label(foo, "bar")` would sort `foo` series by values of the label `bar` in these series.
 
 See also [sort_by_label](#sort_by_label) and [sort_by_label_numeric_desc](#sort_by_label_numeric_desc).
 
 #### sort_by_label_numeric
 
-`sort_by_label_numeric(q, label1, ... labelN)` is [label manipulation function](#label-manipulation-functions), which sorts series in ascending order by the given set of labels
+`sort_by_label_numeric(q, "label1", ... "labelN")` is [label manipulation function](#label-manipulation-functions), which sorts series in ascending order by the given set of labels
 using [numeric sort](https://www.gnu.org/software/coreutils/manual/html_node/Version-sort-is-not-the-same-as-numeric-sort.html).
 For example, if `foo` series have `bar` label with values `1`, `101`, `15` and `2`, then `sort_by_label_numeric(foo, "bar")` would return series
 in the following order of `bar` label values: `1`, `2`, `15` and `101`.
@@ -1667,7 +1698,7 @@ See also [sort_by_label_numeric_desc](#sort_by_label_numeric_desc) and [sort_by_
 
 #### sort_by_label_numeric_desc
 
-`sort_by_label_numeric_desc(q, label1, ... labelN)` is [label manipulation function](#label-manipulation-functions), which sorts series in descending order
+`sort_by_label_numeric_desc(q, "label1", ... "labelN")` is [label manipulation function](#label-manipulation-functions), which sorts series in descending order
 by the given set of labels using [numeric sort](https://www.gnu.org/software/coreutils/manual/html_node/Version-sort-is-not-the-same-as-numeric-sort.html).
 For example, if `foo` series have `bar` label with values `1`, `101`, `15` and `2`, then `sort_by_label_numeric(foo, "bar")`
 would return series in the following order of `bar` label values: `101`, `15`, `2` and `1`.
@@ -1839,20 +1870,33 @@ This function is supported by PromQL.
 `mode(q) by (group_labels)` is [aggregate function](#aggregate-functions), which returns [mode](https://en.wikipedia.org/wiki/Mode_(statistics))
 per each `group_labels` for all the time series returned by `q`. The aggregate is calculated individually per each group of points with the same timestamp.
 
+#### outliers_iqr
+
+`outliers_iqr(q)` is [aggregate function](#aggregate-functions), which returns time series from `q` with at least a single point
+outside e.g. [Interquartile range outlier bounds](https://en.wikipedia.org/wiki/Interquartile_range) `[q25-1.5*iqr .. q75+1.5*iqr]`
+comparing to other time series at the given point, where:
+- `iqr` is an [Interquartile range](https://en.wikipedia.org/wiki/Interquartile_range) calculated independently per each point on the graph across `q` series.
+- `q25` and `q75` are 25th and 75th [percentiles](https://en.wikipedia.org/wiki/Percentile) calculated independently per each point on the graph across `q` series.
+
+The `outliers_iqr()` is useful for detecting anomalous series in the group of series. For example, `outliers_iqr(temperature) by (country)` returns
+per-country series with anomalous outlier values comparing to the rest of per-country series.
+
+See also [outliers_mad](#outliers_mad), [outliersk](#outliersk) and [outlier_iqr_over_time](#outlier_iqr_over_time).
+
 #### outliers_mad
 
 `outliers_mad(tolerance, q)` is [aggregate function](#aggregate-functions), which returns time series from `q` with at least
 a single point outside [Median absolute deviation](https://en.wikipedia.org/wiki/Median_absolute_deviation) (aka MAD) multiplied by `tolerance`.
 E.g. it returns time series with at least a single point below `median(q) - mad(q)` or a single point above `median(q) + mad(q)`.
 
-See also [outliersk](#outliersk) and [mad](#mad).
+See also [outliers_iqr](#outliers_iqr), [outliersk](#outliersk) and [mad](#mad).
 
 #### outliersk
 
 `outliersk(k, q)` is [aggregate function](#aggregate-functions), which returns up to `k` time series with the biggest standard deviation (aka outliers)
 out of time series returned by `q`.
 
-See also [outliers_mad](#outliers_mad).
+See also [outliers_iqr](#outliers_iqr) and [outliers_mad](#outliers_mad).
 
 #### quantile
 
@@ -1972,7 +2016,7 @@ See also [bottomk_min](#bottomk_min).
 per each `group_labels` for all the time series returned by `q`. The aggregate is calculated individually per each group of points with the same timestamp.
 This function is useful for detecting anomalies in the group of related time series.
 
-See also [zscore_over_time](#zscore_over_time) and [range_trim_zscore](#range_trim_zscore).
+See also [zscore_over_time](#zscore_over_time), [range_trim_zscore](#range_trim_zscore) and [outliers_iqr](#outliers_iqr).
 
 ## Subqueries
 

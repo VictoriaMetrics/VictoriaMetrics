@@ -5,6 +5,8 @@ import GraphTips from "../../../Chart/GraphTips/GraphTips";
 
 const ctrlMeta = <code>{isMacOs() ? "Cmd" : "Ctrl"}</code>;
 
+export const AUTOCOMPLETE_KEY = <>{ctrlMeta} + <code>Shift</code> + <code>A</code></>;
+
 const keyList = [
   {
     title: "Query",
@@ -28,6 +30,10 @@ const keyList = [
       {
         keys: <>{ctrlMeta} + <code>click</code> by <VisibilityIcon/></>,
         description: "Toggle multiple queries"
+      },
+      {
+        keys: AUTOCOMPLETE_KEY,
+        description: "Toggle autocomplete"
       }
     ]
   },
