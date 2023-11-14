@@ -82,8 +82,7 @@ func (cm *ConnsMap) CloseAll(shutdownDuration time.Duration) {
 	remoteAddr := conns[0].RemoteAddr().String()
 	_ = conns[0].Close()
 	logger.Infof("closed %s connection %s", cm.clientName, remoteAddr)
-	conns = conns[1:]
-	for _, c := range conns {
+	for _, c := range conns[1:] {
 		time.Sleep(shutdownInterval)
 		remoteAddr := c.RemoteAddr().String()
 		_ = c.Close()
