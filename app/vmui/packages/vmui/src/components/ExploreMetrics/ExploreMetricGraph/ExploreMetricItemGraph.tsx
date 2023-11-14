@@ -70,7 +70,7 @@ with (q = ${queryBase}) (
 )`;
   }, [name, job, instance, rateEnabled, isBucket]);
 
-  const { isLoading, graphData, error, warning, isHistogram } = useFetchQuery({
+  const { isLoading, graphData, error, queryErrors, warning, isHistogram } = useFetchQuery({
     predefinedQuery: [query],
     visible: true,
     customStep: step,
@@ -98,6 +98,7 @@ with (q = ${queryBase}) (
     >
       {isLoading && <Spinner />}
       {error && <Alert variant="error">{error}</Alert>}
+      {queryErrors[0] && <Alert variant="error">{queryErrors[0]}</Alert>}
       {warning && <Alert variant="warning">
         <div className="vm-explore-metrics-graph__warning">
           <p>{warning}</p>

@@ -30,7 +30,7 @@ var (
 
 	maxQueueSize  = flag.Int("remoteWrite.maxQueueSize", 1e5, "Defines the max number of pending datapoints to remote write endpoint")
 	maxBatchSize  = flag.Int("remoteWrite.maxBatchSize", 1e3, "Defines max number of timeseries to be flushed at once")
-	concurrency   = flag.Int("remoteWrite.concurrency", 1, "Defines number of writers for concurrent writing into remote querier")
+	concurrency   = flag.Int("remoteWrite.concurrency", 1, "Defines number of writers for concurrent writing into remote write endpoint")
 	flushInterval = flag.Duration("remoteWrite.flushInterval", 5*time.Second, "Defines interval of flushes to remote write endpoint")
 
 	tlsInsecureSkipVerify = flag.Bool("remoteWrite.tlsInsecureSkipVerify", false, "Whether to skip tls verification when connecting to -remoteWrite.url")
