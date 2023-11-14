@@ -65,7 +65,7 @@
           "uid": "$ds"
         },
         "enable": true,
-        "expr": "sum(ALERTS{alertgroup=\"vmsingle\",alertstate=\"firing\",show_at=\"dashboard\"}) by(alertname)",
+        "expr": "sum(ALERTS{job=~\"$job\", instance=~\"$instance\", alertgroup=\"vmsingle\",alertstate=\"firing\",show_at=\"dashboard\"}) by(alertname)",
         "iconColor": "red",
         "name": "alerts",
         "titleFormat": "{{alertname}}"
