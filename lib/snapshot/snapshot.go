@@ -51,11 +51,11 @@ func Create(createSnapshotURL string) (string, error) {
 	if snap.Status == "ok" {
 		logger.Infof("Snapshot %s created", snap.Snapshot)
 		return snap.Snapshot, nil
-	} else if snap.Status == "error" {
-		return "", errors.New(snap.Msg)
-	} else {
-		return "", fmt.Errorf("Unkown status: %v", snap.Status)
 	}
+	if snap.Status == "error" {
+		return "", errors.New(snap.Msg)
+	}
+	return "", fmt.Errorf("Unkown status: %v", snap.Status)
 }
 
 // Delete deletes a snapshot via the provided api endpoint
@@ -89,11 +89,11 @@ func Delete(deleteSnapshotURL string, snapshotName string) error {
 	if snap.Status == "ok" {
 		logger.Infof("Snapshot %s deleted", snapshotName)
 		return nil
-	} else if snap.Status == "error" {
-		return errors.New(snap.Msg)
-	} else {
-		return fmt.Errorf("Unkown status: %v", snap.Status)
 	}
+	if snap.Status == "error" {
+		return errors.New(snap.Msg)
+	}
+	return fmt.Errorf("Unkown status: %v", snap.Status)
 }
 
 // Validate validates the snapshotName

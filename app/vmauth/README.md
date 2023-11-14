@@ -32,6 +32,38 @@ Pass `-help` to `vmauth` in order to see all the supported command-line flags wi
 Feel free [contacting us](mailto:info@victoriametrics.com) if you need customized auth proxy for VictoriaMetrics with the support of LDAP, SSO, RBAC, SAML,
 accounting and rate limiting such as [vmgateway](https://docs.victoriametrics.com/vmgateway.html).
 
+## Dropping request path prefix
+
+By default `vmauth` doesn't drop the path prefix from the original request when proxying the request to the matching backend.
+Sometimes it is needed to drop path prefix before routing the request to the backend. This can be done by specifying the number of `/`-delimited
+prefix parts to drop from the request path via `drop_src_path_prefix_parts` option at `url_map` level or at `user` level.
+
+For example, if you need to serve requests to [vmalert](https://docs.victoriametrics.com/vmalert.html) at `/vmalert/` path prefix,
+while serving requests to [vmagent](https://docs.victoriametrics.com/vmagent.html) at `/vmagent/` path prefix for a particular user,
+then the following [-auth.config](#auth-config) can be used:
+
+```yml
+users:
+- username: foo
+  url_map:
+
+    # proxy all the requests, which start with `/vmagent/`, to vmagent backend
+  - src_paths:
+    - "/vmagent/.+"
+
+    # drop /vmagent/ path prefix from the original request before proxying it to url_prefix.
+    drop_src_path_prefix_parts: 1
+    url_prefix: "http://vmagent-backend:8429/"
+
+    # proxy all the requests, which start with `/vmalert`, to vmalert backend
+  - src_paths:
+    - "/vmalert/.+"
+
+    # drop /vmalert/ path prefix from the original request before proxying it to url_prefix.
+    drop_src_path_prefix_parts: 1
+    url_prefix: "http://vmalert-backend:8880/"
+```
+
 ## Load balancing
 
 Each `url_prefix` in the [-auth.config](#auth-config) may contain either a single url or a list of urls.
@@ -101,6 +133,31 @@ The following [metrics](#monitoring) related to concurrency limits are exposed b
 - `vmauth_unauthorized_user_concurrent_requests_limit_reached_total` - the number of requests rejected with `429 Too Many Requests` error
   because of the concurrency limit has been reached for unauthorized users (if `unauthorized_user` section is used).
 
+## Backend TLS setup
+
+By default `vmauth` uses system settings when performing requests to HTTPS backends specified via `url_prefix` option
+in the [`-auth.config`](https://docs.victoriametrics.com/vmauth.html#auth-config). These settings can be overridden with the following command-line flags:
+
+- `-backend.tlsInsecureSkipVerify` allows skipping TLS verification when connecting to HTTPS backends.
+  This global setting can be overridden at per-user level inside [`-auth.config`](https://docs.victoriametrics.com/vmauth.html#auth-config)
+  via `tls_insecure_skip_verify` option. For example:
+
+  ```yml
+  - username: "foo"
+    url_prefix: "https://localhost"
+    tls_insecure_skip_verify: true
+  ```
+
+- `-backend.tlsCAFile` allows specifying the path to TLS Root CA, which will be used for TLS verification when connecting to HTTPS backends.
+  The `-backend.tlsCAFile` may point either to local file or to `http` / `https` url.
+  This global setting can be overridden at per-user level inside [`-auth.config`](https://docs.victoriametrics.com/vmauth.html#auth-config)
+  via `tls_ca_file` option. For example:
+
+  ```yml
+  - username: "foo"
+    url_prefix: "https://localhost"
+    tls_ca_file: "/path/to/tls/root/ca"
+  ```
 
 ## IP filters
 
@@ -182,6 +239,15 @@ users:
   url_prefix: "http://localhost:8428?extra_label=team=dev"
 
   # All the requests to http://vmauth:8427 with the given Basic Auth (username:password)
+  # are proxied to https://localhost:8428.
+  # For example, http://vmauth:8427/api/v1/query is routed to https://localhost/api/v1/query
+  # TLS verification is skipped for https://localhost.
+- username: "local-single-node-with-tls"
+  password: "***"
+  url_prefix: "https://localhost"
+  tls_insecure_skip_verify: true
+
+  # All the requests to http://vmauth:8427 with the given Basic Auth (username:password)
   # are load-balanced among http://vmselect1:8481/select/123/prometheus and http://vmselect2:8481/select/123/prometheus
   # For example, http://vmauth:8427/api/v1/query is proxied to the following urls in a round-robin manner:
   #   - http://vmselect1:8481/select/123/prometheus/api/v1/select
@@ -222,6 +288,8 @@ users:
   # For example, request to http://vmauth:8427/non/existing/path are proxied:
   #  - to http://default1:8888/unsupported_url_handler?request_path=/non/existing/path
   #  - or http://default2:8888/unsupported_url_handler?request_path=/non/existing/path
+  #
+  # Regular expressions are allowed in `src_paths` entries.
 - username: "foobar"
   url_map:
   - src_paths:
@@ -248,6 +316,8 @@ users:
 # Requests are routed in round-robin fashion between `url_prefix` backends.
 # The deny_partial_response query arg is added to all the routed requests.
 # The requests are re-tried if url_prefix backends send 500 or 503 response status codes.
+# Note that the unauthorized_user section takes precedence when processing a route without credentials,
+# even if such a route also exists in the users section (see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5236).
 unauthorized_user:
   url_prefix:
   - http://vmselect-az1/?deny_partial_response=1

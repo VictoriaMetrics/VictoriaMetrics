@@ -347,6 +347,7 @@ func NewFromConfig(cfg aws.Config, optFns ...func(*Options)) *Client {
 	resolveDisableMultiRegionAccessPoints(cfg, &opts)
 	resolveUseDualStackEndpoint(cfg, &opts)
 	resolveUseFIPSEndpoint(cfg, &opts)
+	resolveBaseEndpoint(cfg, &opts)
 	return New(opts, optFns...)
 }
 
