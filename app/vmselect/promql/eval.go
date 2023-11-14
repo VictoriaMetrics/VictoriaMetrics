@@ -1472,10 +1472,10 @@ func getMinMaxInstantValues(tssCached, tssStart, tssEnd []*timeseries, f func(a,
 	mStart := make(map[string]*timeseries, len(tssStart))
 	for _, ts := range tssStart {
 		bb.B = marshalMetricNameSorted(bb.B[:0], &ts.MetricName)
-		if _, ok := m[string(bb.B)]; ok {
+		if _, ok := mStart[string(bb.B)]; ok {
 			logger.Panicf("BUG: duplicate series found: %s", &ts.MetricName)
 		}
-		m[string(bb.B)] = ts
+		mStart[string(bb.B)] = ts
 		tsCached := m[string(bb.B)]
 		if tsCached != nil && !math.IsNaN(tsCached.Values[0]) {
 			if !math.IsNaN(ts.Values[0]) {
