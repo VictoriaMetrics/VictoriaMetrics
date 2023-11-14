@@ -1,3 +1,13 @@
+# v1.25.0 (2023-11-14)
+
+* **Feature**: Add support for dynamic auth token from file and EKS container host in absolute/relative URIs in the HTTP credential provider.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.24.0 (2023-11-13)
+
+* **Feature**: Replace the legacy config parser with a modern, less-strict implementation. Parsing failures within a section will now simply ignore the invalid line rather than silently drop the entire section.
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # v1.23.0 (2023-11-09.2)
 
 * **Feature**: BREAKFIX: In order to support subproperty parsing, invalid property definitions must not be ignored
