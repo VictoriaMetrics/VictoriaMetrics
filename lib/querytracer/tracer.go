@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
-	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
@@ -23,7 +23,14 @@ var denyQueryTracing = flag.Bool("denyQueryTracing", false, "Whether to disable 
 // Tracer may contain sub-tracers (branches) in order to build tree-like execution order.
 // Call Tracer.NewChild func for adding sub-tracer.
 type Tracer struct {
-	mu *sync.Mutex
+	// isDone is set to true after Done* call.
+	//
+	// It is used for determining whether it is safe to print the trace.
+	// It is unsafe to print the trace when it isn't closed yet, since it may be modified
+	// by concurrently running goroutines.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5319
+	isDone atomic.Bool
+
 	// startTime is the time when Tracer was created
 	startTime time.Time
 	// doneTime is the time when Done or Donef was called
@@ -32,7 +39,7 @@ type Tracer struct {
 	message string
 	// children is a list of children Tracer objects
 	children []*Tracer
-	// span contains span for the given Tracer. It is added via Tracer.AddSpan().
+	// span contains span for the given Tracer. It is added via Tracer.AddJSON().
 	// If span is non-nil, then the remaining fields aren't used.
 	span *span
 }
@@ -51,7 +58,6 @@ func New(enabled bool, format string, args ...interface{}) *Tracer {
 	return &Tracer{
 		message:   message,
 		startTime: time.Now(),
-		mu:        &sync.Mutex{},
 	}
 }
 
@@ -63,14 +69,18 @@ func (t *Tracer) Enabled() bool {
 // NewChild adds a new child Tracer to t with the given fmt.Sprintf(format, args...) message.
 //
 // The returned child must be closed via Done or Donef calls.
+//
+// NewChild cannot be called from concurrent goroutines.
+// Create children tracers from a single goroutine and then pass them
+// to concurrent goroutines.
 func (t *Tracer) NewChild(format string, args ...interface{}) *Tracer {
 	if t == nil {
 		return nil
 	}
-	t.mu.Lock()
-	defer t.mu.Unlock()
+	if t.isDone.Load() {
+		panic(fmt.Errorf("BUG: NewChild() cannot be called after Donef(%q) call", t.message))
+	}
 	child := &Tracer{
-		mu:        t.mu,
 		message:   fmt.Sprintf(format, args...),
 		startTime: time.Now(),
 	}
@@ -86,12 +96,11 @@ func (t *Tracer) Done() {
 	if t == nil {
 		return
 	}
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	if !t.doneTime.IsZero() {
+	if t.isDone.Load() {
 		panic(fmt.Errorf("BUG: Donef(%q) already called", t.message))
 	}
 	t.doneTime = time.Now()
+	t.isDone.Store(true)
 }
 
 // Donef appends the given fmt.Sprintf(format, args..) message to t and finished it.
@@ -102,23 +111,22 @@ func (t *Tracer) Donef(format string, args ...interface{}) {
 	if t == nil {
 		return
 	}
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	if !t.doneTime.IsZero() {
+	if t.isDone.Load() {
 		panic(fmt.Errorf("BUG: Donef(%q) already called", t.message))
 	}
 	t.message += ": " + fmt.Sprintf(format, args...)
 	t.doneTime = time.Now()
+	t.isDone.Store(true)
 }
 
 // Printf adds new fmt.Sprintf(format, args...) message to t.
+//
+// Printf cannot be called from concurrent goroutines.
 func (t *Tracer) Printf(format string, args ...interface{}) {
 	if t == nil {
 		return
 	}
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	if !t.doneTime.IsZero() {
+	if t.isDone.Load() {
 		panic(fmt.Errorf("BUG: Printf() cannot be called after Done(%q) call", t.message))
 	}
 	now := time.Now()
@@ -127,18 +135,19 @@ func (t *Tracer) Printf(format string, args ...interface{}) {
 		doneTime:  now,
 		message:   fmt.Sprintf(format, args...),
 	}
+	child.isDone.Store(true)
 	t.children = append(t.children, child)
 }
 
 // AddJSON adds a sub-trace to t.
 //
 // The jsonTrace must be encoded with ToJSON.
+//
+// AddJSON cannot be called from concurrent goroutines.
 func (t *Tracer) AddJSON(jsonTrace []byte) error {
 	if t == nil {
 		return nil
 	}
-	t.mu.Lock()
-	defer t.mu.Unlock()
 	if len(jsonTrace) == 0 {
 		return nil
 	}
@@ -154,12 +163,15 @@ func (t *Tracer) AddJSON(jsonTrace []byte) error {
 }
 
 // String returns string representation of t.
+//
+// String must be called when t methods aren't called by other goroutines.
+//
+// It is safe calling String() when child tracers aren't finished yet.
+// In this case they will contain the corresponding message.
 func (t *Tracer) String() string {
 	if t == nil {
 		return ""
 	}
-	t.mu.Lock()
-	defer t.mu.Unlock()
 	s := t.toSpan()
 	var bb bytes.Buffer
 	s.writePlaintextWithIndent(&bb, 0)
@@ -167,12 +179,15 @@ func (t *Tracer) String() string {
 }
 
 // ToJSON returns JSON representation of t.
+//
+// ToJSON must be called when t methods aren't called by other goroutines.
+
+// It is safe calling ToJSON() when child tracers aren't finished yet.
+// In this case they will contain the corresponding message.
 func (t *Tracer) ToJSON() string {
 	if t == nil {
 		return ""
 	}
-	t.mu.Lock()
-	defer t.mu.Unlock()
 	s := t.toSpan()
 	data, err := json.Marshal(s)
 	if err != nil {
@@ -190,6 +205,12 @@ func (t *Tracer) toSpanInternal(prevTime time.Time) (*span, time.Time) {
 	if t.span != nil {
 		return t.span, prevTime
 	}
+	if !t.isDone.Load() {
+		s := &span{
+			Message: fmt.Sprintf("missing Tracer.Done() call for the trace with message=%s", t.message),
+		}
+		return s, prevTime
+	}
 	if t.doneTime == t.startTime {
 		// a single-line trace
 		d := t.startTime.Sub(prevTime)
@@ -202,10 +223,6 @@ func (t *Tracer) toSpanInternal(prevTime time.Time) (*span, time.Time) {
 	// tracer with children
 	msg := t.message
 	doneTime := t.doneTime
-	if doneTime.IsZero() {
-		msg += ": missing Tracer.Done() call"
-		doneTime = t.getLastChildDoneTime(t.startTime)
-	}
 	d := doneTime.Sub(t.startTime)
 	var children []*span
 	var sChild *span
@@ -220,14 +237,6 @@ func (t *Tracer) toSpanInternal(prevTime time.Time) (*span, time.Time) {
 		Children:     children,
 	}
 	return s, doneTime
-}
-
-func (t *Tracer) getLastChildDoneTime(defaultTime time.Time) time.Time {
-	if len(t.children) == 0 {
-		return defaultTime
-	}
-	lastChild := t.children[len(t.children)-1]
-	return lastChild.getLastChildDoneTime(lastChild.startTime)
 }
 
 // span represents a single trace span
