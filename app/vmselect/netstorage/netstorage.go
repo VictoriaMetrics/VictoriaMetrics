@@ -353,11 +353,11 @@ func (rss *Results) runParallel(qt *querytracer.Tracer, f func(rs *Result, worke
 	for i := range workChs {
 		wg.Add(1)
 		qtChild := qt.NewChild("worker #%d", i)
-		go func(workerID uint) {
+		go func(workerID uint, qtChild *querytracer.Tracer) {
 			timeseriesWorker(qtChild, workChs, workerID)
 			qtChild.Done()
 			wg.Done()
-		}(uint(i))
+		}(uint(i), qtChild)
 	}
 	wg.Wait()
 
