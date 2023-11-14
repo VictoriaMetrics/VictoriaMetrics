@@ -484,7 +484,10 @@ during the config update / version upgrade. In this case the following strategy 
 since they need to process higher load when some of `vmstorage` nodes are temporarily unavailable in the cluster.
 It is possible to reduce resource usage spikes by running more `vminsert` nodes and by passing bigger values
 to `-storage.vminsertConnsShutdownDuration` command-line flag at `vmstorage` nodes.
-Make sure that the `-storage.vminsertConnsShutdownDuration` is smaller than the graceful timeout configured at the system which manages `vmstorage`
+In this case `vmstorage` increases the interval between gradual closing of `vminsert` connections during graceful shutdown.
+This reduces data ingestion slowdown during rollout restarts.
+
+Make sure that the `-storage.vminsertConnsShutdownDuration` is smaller than the graceful shutdown timeout configured at the system which manages `vmstorage`
 (e.g. Docker, Kubernetes, systemd, etc.). Otherwise the system may kill `vmstorage` node before it finishes gradual closing of `vminsert` connections.
 
 ### Minimum downtime strategy
