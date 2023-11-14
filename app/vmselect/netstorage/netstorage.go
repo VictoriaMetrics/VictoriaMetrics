@@ -1619,7 +1619,7 @@ func processBlocks(qt *querytracer.Tracer, sns []*storageNode, denyPartialRespon
 
 	// Make sure that processBlock is no longer called after the exit from processBlocks() function.
 	// Use per-worker WaitGroup instead of a shared WaitGroup in order to avoid inter-CPU contention,
-	// which may siginificantly slow down the rate of processBlock calls on multi-CPU systems.
+	// which may significantly slow down the rate of processBlock calls on multi-CPU systems.
 	type wgStruct struct {
 		// mu prevents from calling processBlock when stop is set to true
 		mu sync.Mutex
@@ -2060,8 +2060,12 @@ func (sn *storageNode) execOnConnWithPossibleRetry(qt *querytracer.Tracer, funcN
 	}
 	var er *errRemote
 	var ne net.Error
-	if errors.As(err, &er) || errors.As(err, &ne) && ne.Timeout() {
-		// There is no sense in repeating the query on errors induced by vmstorage (errRemote) or on network timeout errors.
+	if errors.As(err, &er) || errors.As(err, &ne) && ne.Timeout() || deadline.Exceeded() {
+		// There is no sense in repeating the query on the following errors:
+		//
+		//   - induced by vmstorage (errRemote)
+		//   - network timeout errors
+		//   - request deadline exceeded errors
 		return err
 	}
 	// Repeat the query in the hope the error was temporary.
