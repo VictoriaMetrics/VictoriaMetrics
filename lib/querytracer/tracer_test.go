@@ -2,7 +2,9 @@ package querytracer
 
 import (
 	"regexp"
+	"sync"
 	"testing"
+	"time"
 )
 
 func TestTracerDisabled(t *testing.T) {
@@ -182,6 +184,31 @@ func TestZeroJSONDurationInTrace(t *testing.T) {
 	if result != resultExpected {
 		t.Fatalf("unexpected result\ngot\n%s\nwant\n%s", result, resultExpected)
 	}
+}
+
+func TestTraceChildConcurrent(t *testing.T) {
+	qt := New(true, "parent")
+	qt.Printf("parent printf")
+	var wg sync.WaitGroup
+	var tracers []*Tracer
+	for i := 0; i < 10; i++ {
+		qtChild := qt.NewChild("worker idx: %d", i)
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			goroutineChild := qtChild.NewChild("at goroutine: %d", i)
+			time.Sleep(time.Millisecond)
+			goroutineChild.Done()
+		}(i)
+		tracers = append(tracers, qtChild)
+	}
+	time.Sleep(time.Millisecond)
+	for _, qtChild := range tracers {
+		qtChild.Done()
+	}
+	qt.Done()
+	_ = qt.String()
+	wg.Wait()
 }
 
 func areEqualTracesSkipDuration(s1, s2 string) bool {

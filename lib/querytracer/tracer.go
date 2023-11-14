@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
@@ -22,6 +23,7 @@ var denyQueryTracing = flag.Bool("denyQueryTracing", false, "Whether to disable 
 // Tracer may contain sub-tracers (branches) in order to build tree-like execution order.
 // Call Tracer.NewChild func for adding sub-tracer.
 type Tracer struct {
+	mu *sync.Mutex
 	// startTime is the time when Tracer was created
 	startTime time.Time
 	// doneTime is the time when Done or Donef was called
@@ -49,6 +51,7 @@ func New(enabled bool, format string, args ...interface{}) *Tracer {
 	return &Tracer{
 		message:   message,
 		startTime: time.Now(),
+		mu:        &sync.Mutex{},
 	}
 }
 
@@ -60,18 +63,14 @@ func (t *Tracer) Enabled() bool {
 // NewChild adds a new child Tracer to t with the given fmt.Sprintf(format, args...) message.
 //
 // The returned child must be closed via Done or Donef calls.
-//
-// NewChild cannot be called from concurrent goroutines.
-// Create children tracers from a single goroutine and then pass them
-// to concurrent goroutines.
 func (t *Tracer) NewChild(format string, args ...interface{}) *Tracer {
 	if t == nil {
 		return nil
 	}
-	if !t.doneTime.IsZero() {
-		panic(fmt.Errorf("BUG: NewChild() cannot be called after Donef(%q) call", t.message))
-	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	child := &Tracer{
+		mu:        t.mu,
 		message:   fmt.Sprintf(format, args...),
 		startTime: time.Now(),
 	}
@@ -87,6 +86,8 @@ func (t *Tracer) Done() {
 	if t == nil {
 		return
 	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	if !t.doneTime.IsZero() {
 		panic(fmt.Errorf("BUG: Donef(%q) already called", t.message))
 	}
@@ -101,6 +102,8 @@ func (t *Tracer) Donef(format string, args ...interface{}) {
 	if t == nil {
 		return
 	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	if !t.doneTime.IsZero() {
 		panic(fmt.Errorf("BUG: Donef(%q) already called", t.message))
 	}
@@ -109,12 +112,12 @@ func (t *Tracer) Donef(format string, args ...interface{}) {
 }
 
 // Printf adds new fmt.Sprintf(format, args...) message to t.
-//
-// Printf cannot be called from concurrent goroutines.
 func (t *Tracer) Printf(format string, args ...interface{}) {
 	if t == nil {
 		return
 	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	if !t.doneTime.IsZero() {
 		panic(fmt.Errorf("BUG: Printf() cannot be called after Done(%q) call", t.message))
 	}
@@ -130,12 +133,12 @@ func (t *Tracer) Printf(format string, args ...interface{}) {
 // AddJSON adds a sub-trace to t.
 //
 // The jsonTrace must be encoded with ToJSON.
-//
-// AddJSON cannot be called from concurrent goroutines.
 func (t *Tracer) AddJSON(jsonTrace []byte) error {
 	if t == nil {
 		return nil
 	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	if len(jsonTrace) == 0 {
 		return nil
 	}
@@ -151,12 +154,12 @@ func (t *Tracer) AddJSON(jsonTrace []byte) error {
 }
 
 // String returns string representation of t.
-//
-// String must be called when t methods aren't called by other goroutines.
 func (t *Tracer) String() string {
 	if t == nil {
 		return ""
 	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	s := t.toSpan()
 	var bb bytes.Buffer
 	s.writePlaintextWithIndent(&bb, 0)
@@ -164,12 +167,12 @@ func (t *Tracer) String() string {
 }
 
 // ToJSON returns JSON representation of t.
-//
-// ToJSON must be called when t methods aren't called by other goroutines.
 func (t *Tracer) ToJSON() string {
 	if t == nil {
 		return ""
 	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	s := t.toSpan()
 	data, err := json.Marshal(s)
 	if err != nil {
