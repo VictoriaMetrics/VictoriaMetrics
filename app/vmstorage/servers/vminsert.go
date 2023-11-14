@@ -7,6 +7,9 @@ import (
 	"net"
 	"sync"
 	"sync/atomic"
+	"time"
+
+	"github.com/VictoriaMetrics/metrics"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/handshake"
@@ -15,10 +18,16 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/clusternative/stream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
-	"github.com/VictoriaMetrics/metrics"
 )
 
-var precisionBits = flag.Int("precisionBits", 64, "The number of precision bits to store per each value. Lower precision bits improves data compression at the cost of precision loss")
+var (
+	precisionBits = flag.Int("precisionBits", 64, "The number of precision bits to store per each value. Lower precision bits improves data compression "+
+		"at the cost of precision loss")
+	vminsertConnsShutdownDuration = flag.Duration("storage.vminsertConnsShutdownDuration", 25*time.Second, "The time needed for gradual closing of vminsert connections during "+
+		"graceful shutdown. Bigger duration reduces spikes in CPU, RAM and disk IO load on the remaining vmstorage nodes during rolling restart. "+
+		"Smaller duration reduces the time needed to close all the vminsert connections, thus reducing the time for graceful shutdown. "+
+		"See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#improving-re-routing-performance-during-restart")
+)
 
 // VMInsertServer processes connections from vminsert.
 type VMInsertServer struct {
@@ -52,7 +61,7 @@ func NewVMInsertServer(addr string, storage *storage.Storage) (*VMInsertServer, 
 		storage: storage,
 		ln:      ln,
 	}
-	s.connsMap.Init()
+	s.connsMap.Init("vminsert")
 	s.wg.Add(1)
 	go func() {
 		s.run()
@@ -145,7 +154,7 @@ func (s *VMInsertServer) MustStop() {
 
 	// Close existing connections from vminsert, so the goroutines
 	// processing these connections are finished.
-	s.connsMap.CloseAll()
+	s.connsMap.CloseAll(*vminsertConnsShutdownDuration)
 
 	// Wait until all the goroutines processing vminsert conns are finished.
 	s.wg.Wait()

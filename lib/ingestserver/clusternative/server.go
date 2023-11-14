@@ -2,6 +2,7 @@ package clusternative
 
 import (
 	"errors"
+	"flag"
 	"net"
 	"strings"
 	"sync"
@@ -11,6 +12,13 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/metrics"
+)
+
+var (
+	vminsertConnsShutdownDuration = flag.Duration("clusternative.vminsertConnsShutdownDuration", 25*time.Second, "The time needed for gradual closing of upstream "+
+		"vminsert connections during graceful shutdown. Bigger duration reduces spikes in CPU, RAM and disk IO load on the remaining lower-level clusters "+
+		"during rolling restart. Smaller duration reduces the time needed to close all the upstream vminsert connections, thus reducing the time for graceful shutdown. "+
+		"See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#improving-re-routing-performance-during-restart")
 )
 
 var (
@@ -41,7 +49,7 @@ func MustStart(addr string, insertHandler func(c net.Conn) error) *Server {
 		addr:  addr,
 		lnTCP: lnTCP,
 	}
-	s.cm.Init()
+	s.cm.Init("vminsert_upstream")
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
@@ -57,7 +65,7 @@ func (s *Server) MustStop() {
 	if err := s.lnTCP.Close(); err != nil {
 		logger.Errorf("cannot close TCP clusternative server: %s", err)
 	}
-	s.cm.CloseAll()
+	s.cm.CloseAll(*vminsertConnsShutdownDuration)
 	s.wg.Wait()
 	logger.Infof("TCP clusternative server at %q has been stopped", s.addr)
 }
