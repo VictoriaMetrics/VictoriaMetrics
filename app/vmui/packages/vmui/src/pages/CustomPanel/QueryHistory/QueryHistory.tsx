@@ -112,6 +112,7 @@ const QueryHistory: FC<Props> = ({ handleSelectQuery }) => {
           variant="text"
           onClick={handleOpenModal}
           startIcon={<ClockIcon/>}
+          ariaLabel={"Show history"}
         />
       </Tooltip>
 
