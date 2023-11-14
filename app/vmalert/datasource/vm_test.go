@@ -496,7 +496,7 @@ func TestRequestParams(t *testing.T) {
 				QueryParams: url.Values{"extra_labels": {"env=dev", "foo=bar"}},
 			}),
 			func(t *testing.T, r *http.Request) {
-				exp := url.Values{"query": {query}, "round_digits": {"10"}, "extra_labels": {"env=dev", "foo=bar"}, "time": {timestamp.Format(time.RFC3339)}}
+				exp := url.Values{"query": {query}, "round_digits": {"10"}, "extra_labels": {"env=dev", "foo=bar"}, "time": {fmt.Sprintf("%d", timestamp.Unix())}}
 				checkEqualString(t, exp.Encode(), r.URL.RawQuery)
 			},
 		},
