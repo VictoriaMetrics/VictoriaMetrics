@@ -1614,7 +1614,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Percentage of used memory (resident).\nThe application's performance will significantly degrade when memory usage is close to 100%.\n\nClick on the line and choose Drilldown to show Mem usage per instance",
+          "description": "Percentage of used RSS memory (resident).\nThe RSS memory shows the amount of memory recently accessed by the application. It includes anonymous memory and data from recently accessed files (aka page cache).\nThe application's performance will significantly degrade when memory usage is close to 100%.\n\nClick on the line and choose Drilldown to show memory usage per instance",
           "fieldConfig": {
             "defaults": {
               "color": {
