@@ -10,7 +10,7 @@ BUILD_TAGS=-tags "example,codegen,integration,ec2env,perftest"
 
 SMITHY_GO_SRC ?= $(shell pwd)/../smithy-go
 
-SDK_MIN_GO_VERSION ?= 1.15
+SDK_MIN_GO_VERSION ?= 1.19
 
 EACHMODULE_FAILFAST ?= true
 EACHMODULE_FAILFAST_FLAG=-fail-fast=${EACHMODULE_FAILFAST}
@@ -254,7 +254,7 @@ unit-race-modules-%:
 		&& go run . -p $(subst _,/,$(subst unit-race-modules-,,$@)) ${EACHMODULE_FLAGS} \
 		"go vet ${BUILD_TAGS} --all ./..." \
 		"go test ${BUILD_TAGS} ${RUN_NONE} ./..." \
-		"go test -timeout=1m ${UNIT_TEST_TAGS} -race -cpu=4 ./..."
+		"go test -timeout=2m ${UNIT_TEST_TAGS} -race -cpu=4 ./..."
 
 unit-modules-%:
 	@# unit command that uses the pattern to define the root path that the
@@ -266,7 +266,7 @@ unit-modules-%:
 		&& go run . -p $(subst _,/,$(subst unit-modules-,,$@)) ${EACHMODULE_FLAGS} \
 		"go vet ${BUILD_TAGS} --all ./..." \
 		"go test ${BUILD_TAGS} ${RUN_NONE} ./..." \
-		"go test -timeout=1m ${UNIT_TEST_TAGS} ./..."
+		"go test -timeout=2m ${UNIT_TEST_TAGS} ./..."
 
 build: build-modules-.
 
@@ -302,7 +302,7 @@ test-race-modules-%:
 	@# e.g. test-race-modules-internal_protocoltest
 	cd ./internal/repotools/cmd/eachmodule \
 		&& go run . -p $(subst _,/,$(subst test-race-modules-,,$@)) ${EACHMODULE_FLAGS} \
-		"go test -timeout=1m ${UNIT_TEST_TAGS} -race -cpu=4 ./..."
+		"go test -timeout=2m ${UNIT_TEST_TAGS} -race -cpu=4 ./..."
 
 test-modules-%:
 	@# Test command that uses the pattern to define the root path that the
@@ -312,7 +312,7 @@ test-modules-%:
 	@# e.g. test-modules-internal_protocoltest
 	cd ./internal/repotools/cmd/eachmodule \
 		&& go run . -p $(subst _,/,$(subst test-modules-,,$@)) ${EACHMODULE_FLAGS} \
-		"go test -timeout=1m ${UNIT_TEST_TAGS} ./..."
+		"go test -timeout=2m ${UNIT_TEST_TAGS} ./..."
 
 cachedep: cachedep-modules-.
 

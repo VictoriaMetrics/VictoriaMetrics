@@ -43,8 +43,9 @@ var (
 	oauth2TokenURL         = flag.String("datasource.oauth2.tokenUrl", "", "Optional OAuth2 tokenURL to use for -datasource.url.")
 	oauth2Scopes           = flag.String("datasource.oauth2.scopes", "", "Optional OAuth2 scopes to use for -datasource.url. Scopes must be delimited by ';'")
 
-	lookBack = flag.Duration("datasource.lookback", 0, `Will be deprecated soon, please adjust "-search.latencyOffset"  at datasource side or specify "latency_offset" in rule group's params.`+
-		`Lookback defines how far into the past to look when evaluating queries. For example, if the datasource.lookback=5m then param "time" with value now()-5m will be added to every query.`)
+	lookBack = flag.Duration("datasource.lookback", 0, `Will be deprecated soon, please adjust "-search.latencyOffset"  at datasource side `+
+		`or specify "latency_offset" in rule group's params. Lookback defines how far into the past to look when evaluating queries. `+
+		`For example, if the datasource.lookback=5m then param "time" with value now()-5m will be added to every query.`)
 	queryStep = flag.Duration("datasource.queryStep", 5*time.Minute, "How far a value can fallback to when evaluating queries. "+
 		"For example, if -datasource.queryStep=15s then param \"step\" with value \"15s\" will be added to every query. "+
 		"If set to 0, rule's evaluation interval will be used instead.")

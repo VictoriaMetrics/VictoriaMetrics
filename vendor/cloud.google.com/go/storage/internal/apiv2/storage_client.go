@@ -56,11 +56,13 @@ type CallOptions struct {
 	ListNotificationConfigs   []gax.CallOption
 	ComposeObject             []gax.CallOption
 	DeleteObject              []gax.CallOption
+	RestoreObject             []gax.CallOption
 	CancelResumableWrite      []gax.CallOption
 	GetObject                 []gax.CallOption
 	ReadObject                []gax.CallOption
 	UpdateObject              []gax.CallOption
 	WriteObject               []gax.CallOption
+	BidiWriteObject           []gax.CallOption
 	ListObjects               []gax.CallOption
 	RewriteObject             []gax.CallOption
 	StartResumableWrite       []gax.CallOption
@@ -282,6 +284,19 @@ func defaultCallOptions() *CallOptions {
 				})
 			}),
 		},
+		RestoreObject: []gax.CallOption{
+			gax.WithTimeout(60000 * time.Millisecond),
+			gax.WithRetry(func() gax.Retryer {
+				return gax.OnCodes([]codes.Code{
+					codes.DeadlineExceeded,
+					codes.Unavailable,
+				}, gax.Backoff{
+					Initial:    1000 * time.Millisecond,
+					Max:        60000 * time.Millisecond,
+					Multiplier: 2.00,
+				})
+			}),
+		},
 		CancelResumableWrite: []gax.CallOption{
 			gax.WithTimeout(60000 * time.Millisecond),
 			gax.WithRetry(func() gax.Retryer {
@@ -334,6 +349,18 @@ func defaultCallOptions() *CallOptions {
 			}),
 		},
 		WriteObject: []gax.CallOption{
+			gax.WithRetry(func() gax.Retryer {
+				return gax.OnCodes([]codes.Code{
+					codes.DeadlineExceeded,
+					codes.Unavailable,
+				}, gax.Backoff{
+					Initial:    1000 * time.Millisecond,
+					Max:        60000 * time.Millisecond,
+					Multiplier: 2.00,
+				})
+			}),
+		},
+		BidiWriteObject: []gax.CallOption{
 			gax.WithRetry(func() gax.Retryer {
 				return gax.OnCodes([]codes.Code{
 					codes.DeadlineExceeded,
@@ -498,11 +525,13 @@ type internalClient interface {
 	ListNotificationConfigs(context.Context, *storagepb.ListNotificationConfigsRequest, ...gax.CallOption) *NotificationConfigIterator
 	ComposeObject(context.Context, *storagepb.ComposeObjectRequest, ...gax.CallOption) (*storagepb.Object, error)
 	DeleteObject(context.Context, *storagepb.DeleteObjectRequest, ...gax.CallOption) error
+	RestoreObject(context.Context, *storagepb.RestoreObjectRequest, ...gax.CallOption) (*storagepb.Object, error)
 	CancelResumableWrite(context.Context, *storagepb.CancelResumableWriteRequest, ...gax.CallOption) (*storagepb.CancelResumableWriteResponse, error)
 	GetObject(context.Context, *storagepb.GetObjectRequest, ...gax.CallOption) (*storagepb.Object, error)
 	ReadObject(context.Context, *storagepb.ReadObjectRequest, ...gax.CallOption) (storagepb.Storage_ReadObjectClient, error)
 	UpdateObject(context.Context, *storagepb.UpdateObjectRequest, ...gax.CallOption) (*storagepb.Object, error)
 	WriteObject(context.Context, ...gax.CallOption) (storagepb.Storage_WriteObjectClient, error)
+	BidiWriteObject(context.Context, ...gax.CallOption) (storagepb.Storage_BidiWriteObjectClient, error)
 	ListObjects(context.Context, *storagepb.ListObjectsRequest, ...gax.CallOption) *ObjectIterator
 	RewriteObject(context.Context, *storagepb.RewriteObjectRequest, ...gax.CallOption) (*storagepb.RewriteResponse, error)
 	StartResumableWrite(context.Context, *storagepb.StartResumableWriteRequest, ...gax.CallOption) (*storagepb.StartResumableWriteResponse, error)
@@ -598,16 +627,16 @@ func (c *Client) LockBucketRetentionPolicy(ctx context.Context, req *storagepb.L
 
 // GetIamPolicy gets the IAM policy for a specified bucket or object.
 // The resource field in the request should be
-// projects//buckets/<bucket_name> for a bucket or
-// projects//buckets/<bucket_name>/objects/<object_name> for an object.
+// projects/_/buckets/{bucket} for a bucket or
+// projects/_/buckets/{bucket}/objects/{object} for an object.
 func (c *Client) GetIamPolicy(ctx context.Context, req *iampb.GetIamPolicyRequest, opts ...gax.CallOption) (*iampb.Policy, error) {
 	return c.internalClient.GetIamPolicy(ctx, req, opts...)
 }
 
 // SetIamPolicy updates an IAM policy for the specified bucket or object.
 // The resource field in the request should be
-// projects//buckets/<bucket_name> for a bucket or
-// projects//buckets/<bucket_name>/objects/<object_name> for an object.
+// projects/_/buckets/{bucket} for a bucket or
+// projects/_/buckets/{bucket}/objects/{object} for an object.
 func (c *Client) SetIamPolicy(ctx context.Context, req *iampb.SetIamPolicyRequest, opts ...gax.CallOption) (*iampb.Policy, error) {
 	return c.internalClient.SetIamPolicy(ctx, req, opts...)
 }
@@ -615,8 +644,8 @@ func (c *Client) SetIamPolicy(ctx context.Context, req *iampb.SetIamPolicyReques
 // TestIamPermissions tests a set of permissions on the given bucket or object to see which, if
 // any, are held by the caller.
 // The resource field in the request should be
-// projects//buckets/<bucket_name> for a bucket or
-// projects//buckets/<bucket_name>/objects/<object_name> for an object.
+// projects/_/buckets/{bucket} for a bucket or
+// projects/_/buckets/{bucket}/objects/{object} for an object.
 func (c *Client) TestIamPermissions(ctx context.Context, req *iampb.TestIamPermissionsRequest, opts ...gax.CallOption) (*iampb.TestIamPermissionsResponse, error) {
 	return c.internalClient.TestIamPermissions(ctx, req, opts...)
 }
@@ -663,6 +692,11 @@ func (c *Client) ComposeObject(ctx context.Context, req *storagepb.ComposeObject
 // soft delete retention period has passed.
 func (c *Client) DeleteObject(ctx context.Context, req *storagepb.DeleteObjectRequest, opts ...gax.CallOption) error {
 	return c.internalClient.DeleteObject(ctx, req, opts...)
+}
+
+// RestoreObject restores a soft-deleted object.
+func (c *Client) RestoreObject(ctx context.Context, req *storagepb.RestoreObjectRequest, opts ...gax.CallOption) (*storagepb.Object, error) {
+	return c.internalClient.RestoreObject(ctx, req, opts...)
 }
 
 // CancelResumableWrite cancels an in-progress resumable upload.
@@ -752,8 +786,31 @@ func (c *Client) UpdateObject(ctx context.Context, req *storagepb.UpdateObjectRe
 // Attempting to resume an already finalized object will result in an OK
 // status, with a WriteObjectResponse containing the finalized object’s
 // metadata.
+//
+// Alternatively, the BidiWriteObject operation may be used to write an
+// object with controls over flushing and the ability to fetch the ability to
+// determine the current persisted size.
 func (c *Client) WriteObject(ctx context.Context, opts ...gax.CallOption) (storagepb.Storage_WriteObjectClient, error) {
 	return c.internalClient.WriteObject(ctx, opts...)
+}
+
+// BidiWriteObject stores a new object and metadata.
+//
+// This is similar to the WriteObject call with the added support for
+// manual flushing of persisted state, and the ability to determine current
+// persisted size without closing the stream.
+//
+// The client may specify one or both of the state_lookup and flush fields
+// in each BidiWriteObjectRequest. If flush is specified, the data written
+// so far will be persisted to storage. If state_lookup is specified, the
+// service will respond with a BidiWriteObjectResponse that contains the
+// persisted size. If both flush and state_lookup are specified, the flush
+// will always occur before a state_lookup, so that both may be set in the
+// same request and the returned state will be the state of the object
+// post-flush. When the stream is closed, a BidiWriteObjectResponse will
+// always be sent to the client, regardless of the value of state_lookup.
+func (c *Client) BidiWriteObject(ctx context.Context, opts ...gax.CallOption) (storagepb.Storage_BidiWriteObjectClient, error) {
+	return c.internalClient.BidiWriteObject(ctx, opts...)
 }
 
 // ListObjects retrieves a list of objects matching the criteria.
@@ -1375,6 +1432,33 @@ func (c *gRPCClient) DeleteObject(ctx context.Context, req *storagepb.DeleteObje
 	return err
 }
 
+func (c *gRPCClient) RestoreObject(ctx context.Context, req *storagepb.RestoreObjectRequest, opts ...gax.CallOption) (*storagepb.Object, error) {
+	routingHeaders := ""
+	routingHeadersMap := make(map[string]string)
+	if reg := regexp.MustCompile("(?P<bucket>.*)"); reg.MatchString(req.GetBucket()) && len(url.QueryEscape(reg.FindStringSubmatch(req.GetBucket())[1])) > 0 {
+		routingHeadersMap["bucket"] = url.QueryEscape(reg.FindStringSubmatch(req.GetBucket())[1])
+	}
+	for headerName, headerValue := range routingHeadersMap {
+		routingHeaders = fmt.Sprintf("%s%s=%s&", routingHeaders, headerName, headerValue)
+	}
+	routingHeaders = strings.TrimSuffix(routingHeaders, "&")
+	hds := []string{"x-goog-request-params", routingHeaders}
+
+	hds = append(c.xGoogHeaders, hds...)
+	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
+	opts = append((*c.CallOptions).RestoreObject[0:len((*c.CallOptions).RestoreObject):len((*c.CallOptions).RestoreObject)], opts...)
+	var resp *storagepb.Object
+	err := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
+		var err error
+		resp, err = c.client.RestoreObject(ctx, req, settings.GRPC...)
+		return err
+	}, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
 func (c *gRPCClient) CancelResumableWrite(ctx context.Context, req *storagepb.CancelResumableWriteRequest, opts ...gax.CallOption) (*storagepb.CancelResumableWriteResponse, error) {
 	routingHeaders := ""
 	routingHeadersMap := make(map[string]string)
@@ -1490,6 +1574,21 @@ func (c *gRPCClient) WriteObject(ctx context.Context, opts ...gax.CallOption) (s
 	err := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
 		var err error
 		resp, err = c.client.WriteObject(ctx, settings.GRPC...)
+		return err
+	}, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+func (c *gRPCClient) BidiWriteObject(ctx context.Context, opts ...gax.CallOption) (storagepb.Storage_BidiWriteObjectClient, error) {
+	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, c.xGoogHeaders...)
+	var resp storagepb.Storage_BidiWriteObjectClient
+	opts = append((*c.CallOptions).BidiWriteObject[0:len((*c.CallOptions).BidiWriteObject):len((*c.CallOptions).BidiWriteObject)], opts...)
+	err := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
+		var err error
+		resp, err = c.client.BidiWriteObject(ctx, settings.GRPC...)
 		return err
 	}, opts...)
 	if err != nil {
@@ -1821,192 +1920,4 @@ func (c *gRPCClient) UpdateHmacKey(ctx context.Context, req *storagepb.UpdateHma
 		return nil, err
 	}
 	return resp, nil
-}
-
-// BucketIterator manages a stream of *storagepb.Bucket.
-type BucketIterator struct {
-	items    []*storagepb.Bucket
-	pageInfo *iterator.PageInfo
-	nextFunc func() error
-
-	// Response is the raw response for the current page.
-	// It must be cast to the RPC response type.
-	// Calling Next() or InternalFetch() updates this value.
-	Response interface{}
-
-	// InternalFetch is for use by the Google Cloud Libraries only.
-	// It is not part of the stable interface of this package.
-	//
-	// InternalFetch returns results from a single call to the underlying RPC.
-	// The number of results is no greater than pageSize.
-	// If there are no more results, nextPageToken is empty and err is nil.
-	InternalFetch func(pageSize int, pageToken string) (results []*storagepb.Bucket, nextPageToken string, err error)
-}
-
-// PageInfo supports pagination. See the google.golang.org/api/iterator package for details.
-func (it *BucketIterator) PageInfo() *iterator.PageInfo {
-	return it.pageInfo
-}
-
-// Next returns the next result. Its second return value is iterator.Done if there are no more
-// results. Once Next returns Done, all subsequent calls will return Done.
-func (it *BucketIterator) Next() (*storagepb.Bucket, error) {
-	var item *storagepb.Bucket
-	if err := it.nextFunc(); err != nil {
-		return item, err
-	}
-	item = it.items[0]
-	it.items = it.items[1:]
-	return item, nil
-}
-
-func (it *BucketIterator) bufLen() int {
-	return len(it.items)
-}
-
-func (it *BucketIterator) takeBuf() interface{} {
-	b := it.items
-	it.items = nil
-	return b
-}
-
-// HmacKeyMetadataIterator manages a stream of *storagepb.HmacKeyMetadata.
-type HmacKeyMetadataIterator struct {
-	items    []*storagepb.HmacKeyMetadata
-	pageInfo *iterator.PageInfo
-	nextFunc func() error
-
-	// Response is the raw response for the current page.
-	// It must be cast to the RPC response type.
-	// Calling Next() or InternalFetch() updates this value.
-	Response interface{}
-
-	// InternalFetch is for use by the Google Cloud Libraries only.
-	// It is not part of the stable interface of this package.
-	//
-	// InternalFetch returns results from a single call to the underlying RPC.
-	// The number of results is no greater than pageSize.
-	// If there are no more results, nextPageToken is empty and err is nil.
-	InternalFetch func(pageSize int, pageToken string) (results []*storagepb.HmacKeyMetadata, nextPageToken string, err error)
-}
-
-// PageInfo supports pagination. See the google.golang.org/api/iterator package for details.
-func (it *HmacKeyMetadataIterator) PageInfo() *iterator.PageInfo {
-	return it.pageInfo
-}
-
-// Next returns the next result. Its second return value is iterator.Done if there are no more
-// results. Once Next returns Done, all subsequent calls will return Done.
-func (it *HmacKeyMetadataIterator) Next() (*storagepb.HmacKeyMetadata, error) {
-	var item *storagepb.HmacKeyMetadata
-	if err := it.nextFunc(); err != nil {
-		return item, err
-	}
-	item = it.items[0]
-	it.items = it.items[1:]
-	return item, nil
-}
-
-func (it *HmacKeyMetadataIterator) bufLen() int {
-	return len(it.items)
-}
-
-func (it *HmacKeyMetadataIterator) takeBuf() interface{} {
-	b := it.items
-	it.items = nil
-	return b
-}
-
-// NotificationConfigIterator manages a stream of *storagepb.NotificationConfig.
-type NotificationConfigIterator struct {
-	items    []*storagepb.NotificationConfig
-	pageInfo *iterator.PageInfo
-	nextFunc func() error
-
-	// Response is the raw response for the current page.
-	// It must be cast to the RPC response type.
-	// Calling Next() or InternalFetch() updates this value.
-	Response interface{}
-
-	// InternalFetch is for use by the Google Cloud Libraries only.
-	// It is not part of the stable interface of this package.
-	//
-	// InternalFetch returns results from a single call to the underlying RPC.
-	// The number of results is no greater than pageSize.
-	// If there are no more results, nextPageToken is empty and err is nil.
-	InternalFetch func(pageSize int, pageToken string) (results []*storagepb.NotificationConfig, nextPageToken string, err error)
-}
-
-// PageInfo supports pagination. See the google.golang.org/api/iterator package for details.
-func (it *NotificationConfigIterator) PageInfo() *iterator.PageInfo {
-	return it.pageInfo
-}
-
-// Next returns the next result. Its second return value is iterator.Done if there are no more
-// results. Once Next returns Done, all subsequent calls will return Done.
-func (it *NotificationConfigIterator) Next() (*storagepb.NotificationConfig, error) {
-	var item *storagepb.NotificationConfig
-	if err := it.nextFunc(); err != nil {
-		return item, err
-	}
-	item = it.items[0]
-	it.items = it.items[1:]
-	return item, nil
-}
-
-func (it *NotificationConfigIterator) bufLen() int {
-	return len(it.items)
-}
-
-func (it *NotificationConfigIterator) takeBuf() interface{} {
-	b := it.items
-	it.items = nil
-	return b
-}
-
-// ObjectIterator manages a stream of *storagepb.Object.
-type ObjectIterator struct {
-	items    []*storagepb.Object
-	pageInfo *iterator.PageInfo
-	nextFunc func() error
-
-	// Response is the raw response for the current page.
-	// It must be cast to the RPC response type.
-	// Calling Next() or InternalFetch() updates this value.
-	Response interface{}
-
-	// InternalFetch is for use by the Google Cloud Libraries only.
-	// It is not part of the stable interface of this package.
-	//
-	// InternalFetch returns results from a single call to the underlying RPC.
-	// The number of results is no greater than pageSize.
-	// If there are no more results, nextPageToken is empty and err is nil.
-	InternalFetch func(pageSize int, pageToken string) (results []*storagepb.Object, nextPageToken string, err error)
-}
-
-// PageInfo supports pagination. See the google.golang.org/api/iterator package for details.
-func (it *ObjectIterator) PageInfo() *iterator.PageInfo {
-	return it.pageInfo
-}
-
-// Next returns the next result. Its second return value is iterator.Done if there are no more
-// results. Once Next returns Done, all subsequent calls will return Done.
-func (it *ObjectIterator) Next() (*storagepb.Object, error) {
-	var item *storagepb.Object
-	if err := it.nextFunc(); err != nil {
-		return item, err
-	}
-	item = it.items[0]
-	it.items = it.items[1:]
-	return item, nil
-}
-
-func (it *ObjectIterator) bufLen() int {
-	return len(it.items)
-}
-
-func (it *ObjectIterator) takeBuf() interface{} {
-	b := it.items
-	it.items = nil
-	return b
 }

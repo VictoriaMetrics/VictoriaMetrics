@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"flag"
 	"fmt"
@@ -15,16 +17,19 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
-	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
@@ -46,6 +51,10 @@ var (
 	failTimeout               = flag.Duration("failTimeout", 3*time.Second, "Sets a delay period for load balancing to skip a malfunctioning backend")
 	maxRequestBodySizeToRetry = flagutil.NewBytes("maxRequestBodySizeToRetry", 16*1024, "The maximum request body size, which can be cached and re-tried at other backends. "+
 		"Bigger values may require more memory")
+	backendTLSInsecureSkipVerify = flag.Bool("backend.tlsInsecureSkipVerify", false, "Whether to skip TLS verification when connecting to backends over HTTPS. "+
+		"See https://docs.victoriametrics.com/vmauth.html#backend-tls-setup")
+	backendTLSCAFile = flag.String("backend.TLSCAFile", "", "Optional path to TLS root CA file, which is used for TLS verification when connecting to backends over HTTPS. "+
+		"See https://docs.victoriametrics.com/vmauth.html#backend-tls-setup")
 )
 
 func main() {
@@ -155,11 +164,19 @@ func processUserRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 
 func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 	u := normalizeURL(r.URL)
-	up, hc, retryStatusCodes := ui.getURLPrefixAndHeaders(u)
+	up, hc, retryStatusCodes, dropSrcPathPrefixParts := ui.getURLPrefixAndHeaders(u)
 	isDefault := false
 	if up == nil {
-		missingRouteRequests.Inc()
 		if ui.DefaultURL == nil {
+			// Authorization should be requested for http requests without credentials
+			// to a route that is not in the configuration for unauthorized user.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5236
+			if ui.BearerToken == "" && ui.Username == "" && len(*authUsers.Load()) > 0 {
+				w.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
+				http.Error(w, "missing `Authorization` request header", http.StatusUnauthorized)
+				return
+			}
+			missingRouteRequests.Inc()
 			httpserver.Errorf(w, r, "missing route for %q", u.String())
 			return
 		}
@@ -181,9 +198,9 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 			query.Set("request_path", u.Path)
 			targetURL.RawQuery = query.Encode()
 		} else { // Update path for regular routes.
-			targetURL = mergeURLs(targetURL, u)
+			targetURL = mergeURLs(targetURL, u, dropSrcPathPrefixParts)
 		}
-		ok := tryProcessingRequest(w, r, targetURL, hc, retryStatusCodes)
+		ok := tryProcessingRequest(w, r, targetURL, hc, retryStatusCodes, ui.httpTransport)
 		bu.put()
 		if ok {
 			return
@@ -197,12 +214,12 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 	httpserver.Errorf(w, r, "%s", err)
 }
 
-func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url.URL, hc HeadersConf, retryStatusCodes []int) bool {
+func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url.URL, hc HeadersConf, retryStatusCodes []int, transport *http.Transport) bool {
 	// This code has been copied from net/http/httputil/reverseproxy.go
 	req := sanitizeRequestHeaders(r)
 	req.URL = targetURL
+	req.Host = targetURL.Host
 	updateHeadersByConfig(req.Header, hc.RequestHeaders)
-	transportOnce.Do(transportInit)
 	res, err := transport.RoundTrip(req)
 	rtb, rtbOK := req.Body.(*readTrackingBody)
 	if err != nil {
@@ -345,23 +362,77 @@ var (
 	missingRouteRequests     = metrics.NewCounter(`vmauth_http_request_errors_total{reason="missing_route"}`)
 )
 
-var (
-	transport     *http.Transport
-	transportOnce sync.Once
-)
+func getTransport(insecureSkipVerifyP *bool, caFile string) (*http.Transport, error) {
+	if insecureSkipVerifyP == nil {
+		insecureSkipVerifyP = backendTLSInsecureSkipVerify
+	}
+	insecureSkipVerify := *insecureSkipVerifyP
+	if caFile == "" {
+		caFile = *backendTLSCAFile
+	}
 
-func transportInit() {
+	bb := bbPool.Get()
+	defer bbPool.Put(bb)
+
+	bb.B = appendTransportKey(bb.B[:0], insecureSkipVerify, caFile)
+
+	transportMapLock.Lock()
+	defer transportMapLock.Unlock()
+
+	tr := transportMap[string(bb.B)]
+	if tr == nil {
+		trLocal, err := newTransport(insecureSkipVerify, caFile)
+		if err != nil {
+			return nil, err
+		}
+		transportMap[string(bb.B)] = trLocal
+		tr = trLocal
+	}
+
+	return tr, nil
+}
+
+var transportMap = make(map[string]*http.Transport)
+var transportMapLock sync.Mutex
+
+func appendTransportKey(dst []byte, insecureSkipVerify bool, caFile string) []byte {
+	dst = encoding.MarshalBool(dst, insecureSkipVerify)
+	dst = encoding.MarshalBytes(dst, bytesutil.ToUnsafeBytes(caFile))
+	return dst
+}
+
+var bbPool bytesutil.ByteBufferPool
+
+func newTransport(insecureSkipVerify bool, caFile string) (*http.Transport, error) {
 	tr := http.DefaultTransport.(*http.Transport).Clone()
 	tr.ResponseHeaderTimeout = *responseTimeout
 	// Automatic compression must be disabled in order to fix https://github.com/VictoriaMetrics/VictoriaMetrics/issues/535
 	tr.DisableCompression = true
-	// Disable HTTP/2.0, since VictoriaMetrics components don't support HTTP/2.0 (because there is no sense in this).
-	tr.ForceAttemptHTTP2 = false
 	tr.MaxIdleConnsPerHost = *maxIdleConnsPerBackend
 	if tr.MaxIdleConns != 0 && tr.MaxIdleConns < tr.MaxIdleConnsPerHost {
 		tr.MaxIdleConns = tr.MaxIdleConnsPerHost
 	}
-	transport = tr
+	tlsCfg := tr.TLSClientConfig
+	if tlsCfg == nil {
+		tlsCfg = &tls.Config{}
+		tr.TLSClientConfig = tlsCfg
+	}
+	if insecureSkipVerify || caFile != "" {
+		tlsCfg.ClientSessionCache = tls.NewLRUClientSessionCache(0)
+		tlsCfg.InsecureSkipVerify = insecureSkipVerify
+		if caFile != "" {
+			data, err := fs.ReadFileOrHTTP(caFile)
+			if err != nil {
+				return nil, fmt.Errorf("cannot read tls_ca_file: %w", err)
+			}
+			rootCA := x509.NewCertPool()
+			if !rootCA.AppendCertsFromPEM(data) {
+				return nil, fmt.Errorf("cannot parse data read from tls_ca_file %q", caFile)
+			}
+			tlsCfg.RootCAs = rootCA
+		}
+	}
+	return tr, nil
 }
 
 var (

@@ -21,9 +21,18 @@ func (ms Metrics) getOrig() *otlpcollectormetrics.ExportMetricsServiceRequest {
 	return internal.GetOrigMetrics(internal.Metrics(ms))
 }
 
+func (ms Metrics) getState() *internal.State {
+	return internal.GetMetricsState(internal.Metrics(ms))
+}
+
 // NewMetrics creates a new Metrics struct.
 func NewMetrics() Metrics {
 	return newMetrics(&otlpcollectormetrics.ExportMetricsServiceRequest{})
+}
+
+// IsReadOnly returns true if this Metrics instance is read-only.
+func (ms Metrics) IsReadOnly() bool {
+	return *ms.getState() == internal.StateReadOnly
 }
 
 // CopyTo copies the Metrics instance overriding the destination.
