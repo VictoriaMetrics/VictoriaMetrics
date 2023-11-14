@@ -15,6 +15,8 @@ The following `tip` changes can be tested by building VictoriaMetrics components
 
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): properly apply [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling) with `regex`, which start and end with `.+` or `.*` and which contain alternate sub-regexps. For example, `.+;|;.+` or `.*foo|bar|baz.*`. Previously such regexps were improperly parsed, which could result in undexpected relabeling results. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5297).
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): properly decode Snappy-encoded data blocks received via [VictoriaMetrics remote_write protocol](https://docs.victoriametrics.com/vmagent.html#victoriametrics-remote-write-protocol). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5301).
+* BUGFIX: fix panic, which could occur when [query tracing](https://docs.victoriametrics.com/#query-tracing) is enabled. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5319).
+
 
 ## [v1.93.7](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.7)
 
