@@ -34,7 +34,7 @@ all: \
 clean:
 	rm -rf bin/*
 
-publish: package-base \
+publish: \
 	publish-victoria-metrics \
 	publish-vmagent \
 	publish-vmalert \
