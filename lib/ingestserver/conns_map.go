@@ -46,7 +46,7 @@ func (cm *ConnsMap) Delete(c net.Conn) {
 // CloseAll gradually closes all the cm conns with during the given shutdownDuration.
 func (cm *ConnsMap) CloseAll(shutdownDuration time.Duration) {
 	cm.mu.Lock()
-	conns := make([]net.Conn, len(cm.m))
+	conns := make([]net.Conn, 0, len(cm.m))
 	for c := range cm.m {
 		conns = append(conns, c)
 		delete(cm.m, c)
@@ -82,8 +82,7 @@ func (cm *ConnsMap) CloseAll(shutdownDuration time.Duration) {
 	remoteAddr := conns[0].RemoteAddr().String()
 	_ = conns[0].Close()
 	logger.Infof("closed %s connection %s", cm.clientName, remoteAddr)
-	conns = conns[1:]
-	for _, c := range conns {
+	for _, c := range conns[1:] {
 		time.Sleep(shutdownInterval)
 		remoteAddr := c.RemoteAddr().String()
 		_ = c.Close()

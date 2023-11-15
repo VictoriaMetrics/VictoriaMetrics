@@ -821,12 +821,11 @@ at least two times bigger than the resolution.
 > Please note, data delay is inevitable in distributed systems. And it is better to account for it instead of ignoring.
 
 By default, recently written samples to VictoriaMetrics [aren't visible for queries](https://docs.victoriametrics.com/keyConcepts.html#query-latency)
-for up to 30s (see `-search.latencyOffset` command-line flag at vmselect). Such delay is needed to eliminate risk of 
+for up to 30s (see `-search.latencyOffset` command-line flag at vmselect or VictoriaMetrics single-node). Such delay is needed to eliminate risk of 
 incomplete data on the moment of querying, due to chance that metrics collectors won't be able to deliver that data in time.
-To compensate the latency in timestamps for produced evaluation results, `-rule.evalDelay` is also set to 30s by default.
-If you changed the `-search.latencyOffset` (cmd-line flag configured for VictoriaMetrics single-node or vmselect) value 
-or specified custom  `latency_offset` param via [Group](#groups) and observed a delay in timestamps for produced 
-evaluation results - try changing `-rule.evalDelay` equal to `-search.latencyOffset`.
+To compensate the latency in timestamps for produced evaluation results, `-rule.evalDelay` is also set to `30s` by default.
+If you expect data to be delayed for longer intervals (it gets buffered, queued, or just network is slow sometimes)
+- consider increasing the `-rule.evalDelay` value accordingly.
 
 ### Alerts state
 

@@ -28,7 +28,7 @@ The relabeling is mostly used for the following tasks:
 * Removing prefixes from target label names. See [how to remove prefixes from target label names](#how-to-remove-prefixes-from-target-label-names).
 * Removing some labels from discovered targets. See [how to remove labels from targets](#how-to-remove-labels-from-targets).
 * Dropping some metrics during scape. See [how to drop metrics during scrape](#how-to-drop-metrics-during-scrape).
-* Removing some labels from scraped metrics. See [how to remove labels from metrics](#how-to-remove-labels-from-metrics).
+* Removing some labels from scraped metrics. See [how to remove labels from scraped metrics](#how-to-remove-labels-from-scraped-metrics).
 * Removing some labels from metrics matching some [series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors).
   See [how to remove labels from metrics subset](#how-to-remove-labels-from-metrics-subset).
 

@@ -335,7 +335,16 @@ func (w *GzipResponseWriter) Close() error {
 			ce = w.Header().Get(contentEncoding)
 			cr = w.Header().Get(contentRange)
 		)
-		// fmt.Println(len(w.buf) == 0, len(w.buf) < w.minSize, len(w.Header()[HeaderNoCompression]) != 0, ce != "", cr != "", !w.contentTypeFilter(ct))
+		if ct == "" {
+			ct = http.DetectContentType(w.buf)
+
+			// Handles the intended case of setting a nil Content-Type (as for http/server or http/fs)
+			// Set the header only if the key does not exist
+			if _, ok := w.Header()[contentType]; w.setContentType && !ok {
+				w.Header().Set(contentType, ct)
+			}
+		}
+
 		if len(w.buf) == 0 || len(w.buf) < w.minSize || len(w.Header()[HeaderNoCompression]) != 0 || ce != "" || cr != "" || !w.contentTypeFilter(ct) {
 			// GZIP not triggered, write out regular response.
 			return w.startPlain()
