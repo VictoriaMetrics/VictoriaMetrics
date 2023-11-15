@@ -181,7 +181,7 @@ func (t *Tracer) String() string {
 // ToJSON returns JSON representation of t.
 //
 // ToJSON must be called when t methods aren't called by other goroutines.
-
+//
 // It is safe calling ToJSON() when child tracers aren't finished yet.
 // In this case they will contain the corresponding message.
 func (t *Tracer) ToJSON() string {
