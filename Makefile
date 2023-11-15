@@ -81,7 +81,7 @@ vmcluster-crossbuild: \
 	vmcluster-freebsd-amd64 \
 	vmcluster-openbsd-amd64
 
-publish: package-base \
+publish: \
 	publish-vminsert \
 	publish-vmselect \
 	publish-vmstorage
