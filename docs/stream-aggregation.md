@@ -402,6 +402,9 @@ For example, the following config removes the `:1m_sum_samples` suffix added [to
     regex: "(.+):.+"
 ```
 
+`input_relabel_configs` and `output_relabel_config` is applied at the very end, after `-remoteWrite.relabelConfig`
+and scrape relabeling was applied. 
+
 ## Aggregation outputs
 
 The aggregations are calculated during the `interval` specified in the [config](#stream-aggregation-config)
