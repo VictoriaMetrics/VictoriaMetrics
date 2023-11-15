@@ -33,8 +33,8 @@ const AdditionalSettingsControls: FC<{isMobile?: boolean}> = ({ isMobile }) => {
   };
 
   const handleKeyDown = (e: KeyboardEvent) => {
-    const { key, ctrlKey, metaKey, shiftKey } = e;
-    if (key === "a" && shiftKey && (ctrlKey || metaKey)) {
+    const { code, altKey } = e;
+    if (code === "KeyA" && altKey) {
       e.preventDefault();
       onChangeAutocomplete();
     }

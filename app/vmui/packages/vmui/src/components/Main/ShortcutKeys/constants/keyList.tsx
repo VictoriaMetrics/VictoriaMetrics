@@ -4,8 +4,9 @@ import { VisibilityIcon } from "../../Icons";
 import GraphTips from "../../../Chart/GraphTips/GraphTips";
 
 const ctrlMeta = <code>{isMacOs() ? "Cmd" : "Ctrl"}</code>;
+const altMeta = <code>{isMacOs() ? "Option" : "Alt"}</code>;
 
-export const AUTOCOMPLETE_KEY = <>{ctrlMeta} + <code>Shift</code> + <code>A</code></>;
+export const AUTOCOMPLETE_KEY = <>{altMeta} + <code>A</code></>;
 
 const keyList = [
   {
