@@ -143,10 +143,10 @@ The operator repository [https://github.com/VictoriaMetrics/operator/](https://g
   - `vmbackupmanager` in `BaseOperatorConf.VMBackup.Version` (should be enterprise version),
   - `vmauth` in `BaseOperatorConf.VMAuthDefault.Version`.
 - Run `make operator-conf`.
-- Rename "Next release" section in `CHANGELOG.md` to the *new release version* and create new empty "Next release" section.
+- Rename "Next release" section in `docs/CHANGELOG.md` to the *new release version* and create new empty "Next release" section.
 - Commit and push changes to `master`.
 - Create and push a new tag with the *new release version*.
-- Create github release from this tag with "Release notes" from `CHANGELOG` for this version in description.
+- Create github release from this tag with "Release notes" from `docs/CHANGELOG.md` for this version in description.
 
 ## Helm Charts
 
