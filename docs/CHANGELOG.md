@@ -634,6 +634,19 @@ Released at 2023-02-24
 * BUGFIX: properly parse timestamps in milliseconds when [ingesting data via OpenTSDB telnet put protocol](https://docs.victoriametrics.com/#sending-data-via-telnet-put-protocol). Previously timestamps in milliseconds were mistakenly multiplied by 1000. Thanks to @Droxenator for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3810).
 * BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): do not add extrapolated points outside the real points when using [interpolate()](https://docs.victoriametrics.com/MetricsQL.html#interpolate) function. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3816).
 
+## [v1.87.11](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.87.11)
+
+Released at 2023-11-14
+
+**v1.87.x is a line of LTS releases (e.g. long-time support). It contains important up-to-date bugfixes.
+The v1.87.x line will be supported for at least 12 months since [v1.87.0](https://docs.victoriametrics.com/CHANGELOG.html#v1870) release**
+
+* SECURITY: upgrade Go builder from Go1.21.3 to Go1.21.4. [the list of issues addressed in Go1.21.4](https://github.com/golang/go/issues?q=milestone%3AGo1.21.4+label%3ACherryPickApproved).
+
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): properly apply [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling) with `regex`, which start and end with `.+` or `.*` and which contain alternate sub-regexps. For example, `.+;|;.+` or `.*foo|bar|baz.*`. Previously such regexps were improperly parsed, which could result in undexpected relabeling results. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5297).
+* BUGFIX: fix panic, which could occur when [query tracing](https://docs.victoriametrics.com/#query-tracing) is enabled. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5319).
+* BUGFIX: [vmstorage](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): log warning about switching to ReadOnly mode only on state change. Before, vmstorage would log this warning every 1s. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5159) for details.
+
 ## [v1.87.10](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.87.10)
 
 Released at 2023-10-16
