@@ -106,7 +106,7 @@ services:
       - vm_net
   victorialogs:
     container_name: victorialogs
-    image: docker.io/victoriametrics/victoria-logs:v0.4.1-victorialogs
+    image: docker.io/victoriametrics/victoria-logs:v0.4.2-victorialogs
     command:
       - "--storageDataPath=/vlogs"
       - "--httpListenAddr=:9428"
