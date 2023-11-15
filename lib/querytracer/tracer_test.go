@@ -1,7 +1,9 @@
 package querytracer
 
 import (
+	"fmt"
 	"regexp"
+	"sync"
 	"testing"
 )
 
@@ -137,11 +139,39 @@ func TestTraceMissingDonef(t *testing.T) {
 	qtChild.Printf("child printf")
 	qt.Printf("another parent printf")
 	s := qt.String()
-	sExpected := `- 0ms: : parent: missing Tracer.Done() call
-| - 0ms: parent printf
-| - 0ms: child: missing Tracer.Done() call
-| | - 0ms: child printf
-| - 0ms: another parent printf
+	sExpected := `- 0.000ms: missing Tracer.Done() call for the trace with message=: parent
+`
+	if !areEqualTracesSkipDuration(s, sExpected) {
+		t.Fatalf("unexpected trace\ngot\n%s\nwant\n%s", s, sExpected)
+	}
+}
+
+func TestTraceConcurrent(t *testing.T) {
+	qt := New(true, "parent")
+	childLocal := qt.NewChild("local")
+	childLocal.Printf("abc")
+	childLocal.Done()
+	var wg sync.WaitGroup
+	for i := 0; i < 3; i++ {
+		child := qt.NewChild(fmt.Sprintf("child %d", i))
+		wg.Add(1)
+		go func() {
+			for j := 0; j < 100; j++ {
+				child.Printf(fmt.Sprintf("message %d", j))
+			}
+			wg.Done()
+		}()
+	}
+	qt.Done()
+	// Verify that it is safe to call qt.String() when child traces aren't done yet
+	s := qt.String()
+	wg.Wait()
+	sExpected := `- 0.008ms: : parent
+| - 0.002ms: local
+| | - 0.000ms: abc
+| - 0.000ms: missing Tracer.Done() call for the trace with message=child 0
+| - 0.000ms: missing Tracer.Done() call for the trace with message=child 1
+| - 0.000ms: missing Tracer.Done() call for the trace with message=child 2
 `
 	if !areEqualTracesSkipDuration(s, sExpected) {
 		t.Fatalf("unexpected trace\ngot\n%s\nwant\n%s", s, sExpected)
