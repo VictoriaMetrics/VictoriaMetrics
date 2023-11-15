@@ -514,12 +514,15 @@ with [additional enhancements](#relabeling-enhancements). The relabeling can be 
   This relabeling can be debugged via `http://vmagent:8429/metric-relabel-debug` page. See [these docs](#relabel-debug) for details.
 
 * At the `-remoteWrite.urlRelabelConfig` files. This relabeling is used for modifying labels for metrics
-  and for dropping unneeded metrics before sending them to a particular `-remoteWrite.url`.
+  and for dropping unneeded metrics before sending them to the particular `-remoteWrite.url`.
 
   This relabeling can be debugged via `http://vmagent:8429/metric-relabel-debug` page. See [these docs](#relabel-debug) for details.
 
 All the files with relabeling configs can contain special placeholders in the form `%{ENV_VAR}`,
 which are replaced by the corresponding environment variable values.
+
+[Streaming aggregation](https://docs.victoriametrics.com/stream-aggregation.html), if configured,
+is pefrormed after applying all the relabeling stages mentioned above.
 
 The following articles contain useful information about Prometheus relabeling:
 
