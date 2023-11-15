@@ -1,11 +1,10 @@
 package jwt
 
 import (
-	"errors"
-
 	"crypto"
 	"crypto/ed25519"
 	"crypto/rand"
+	"errors"
 )
 
 var (
