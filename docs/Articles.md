@@ -82,6 +82,7 @@ See also [case studies](https://docs.victoriametrics.com/CaseStudies.html).
 * [VictoriaMetrics: VMAuth – Proxy, Authentication, and Authorization](https://rtfm.co.ua/en/victoriametrics-vmauth-proxy-authentication-and-authorization/)
 * [Solving metrics at scale with VictoriaMetrics](https://sarthak-acoustic.medium.com/solving-metrics-at-scale-with-victoriametrics-ac9c306826c3)
 * [VictoriaMetrics: a comprehensive guide](https://medium.com/@seifeddinerajhi/victoriametrics-a-comprehensive-guide-comparing-it-to-prometheus-and-implementing-kubernetes-03eb8feb0cc2)
+* [Unleashing VM histograms for Ruby: Migrating from Prometheus to VictoriaMetrics with vm-client](https://hackernoon.com/unleashing-vm-histograms-for-ruby-migrating-from-prometheus-to-victoriametrics-with-vm-client)
 
 ## Our articles
 
