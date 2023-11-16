@@ -13,6 +13,11 @@ menu:
 
 ## Next release
 
+- TODO
+
+<a name="v0.39.2"></a>
+## [v0.39.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.39.2) - 15 Nov 2023
+
 ### Features
 
 - [vmoperator](./README.md): properly compare difference for `statefulSet` claimTemplate metadata. See [this commit](https://github.com/VictoriaMetrics/operator/commit/49f9c72b504582b06f72eda94055fd964a11d342) for details.
