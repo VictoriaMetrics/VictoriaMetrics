@@ -76,11 +76,11 @@
           "uid": "$ds"
         },
         "enable": true,
-        "expr": "sum(vm_app_version{job=~\"$job\", instance=~\"$instance\"}) by(short_version) unless (sum(vm_app_version{job=~\"$job\", instance=~\"$instance\"} offset 20m) by(short_version))",
+        "expr": "sum(vm_app_version{job=~\"$job\", instance=~\"$instance\"}) by(version) unless (sum(vm_app_version{job=~\"$job\", instance=~\"$instance\"} offset 20m) by(version))",
         "hide": true,
         "iconColor": "dark-blue",
         "name": "version change",
-        "textFormat": "{{short_version}}",
+        "textFormat": "{{version}}",
         "titleFormat": "Version change"
       },
       {
