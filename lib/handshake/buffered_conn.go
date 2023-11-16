@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/zstd"
@@ -21,6 +22,8 @@ type BufferedConn struct {
 
 	br io.Reader
 	bw bufferedWriter
+
+	deadline time.Time
 }
 
 const bufferSize = 64 * 1024
@@ -43,9 +46,19 @@ func newBufferedConn(c net.Conn, compressionLevel int, isReadCompressed bool) *B
 	return bc
 }
 
+// SetDeadline sets the read and write deadlines associated with the connection.
+// Deadline is checked on each Read call.
+func (bc *BufferedConn) SetDeadline(t time.Time) error {
+	bc.deadline = t
+	return bc.Conn.SetDeadline(t)
+}
+
 // Read reads up to len(p) from bc to p.
 func (bc *BufferedConn) Read(p []byte) (int, error) {
 	startTime := time.Now()
+	if startTime.After(bc.deadline) {
+		return 0, os.ErrDeadlineExceeded
+	}
 	n, err := bc.br.Read(p)
 	if err != nil && err != io.EOF {
 		err = fmt.Errorf("cannot read data in %.3f seconds: %w", time.Since(startTime).Seconds(), err)
@@ -58,6 +71,9 @@ func (bc *BufferedConn) Read(p []byte) (int, error) {
 // Do not forget to call Flush if needed.
 func (bc *BufferedConn) Write(p []byte) (int, error) {
 	startTime := time.Now()
+	if startTime.After(bc.deadline) {
+		return 0, os.ErrDeadlineExceeded
+	}
 	n, err := bc.bw.Write(p)
 	if err != nil {
 		err = fmt.Errorf("cannot write data in %.3f seconds: %w", time.Since(startTime).Seconds(), err)
