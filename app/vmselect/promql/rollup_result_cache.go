@@ -273,10 +273,6 @@ func (rrc *rollupResultCache) GetSeries(qt *querytracer.Tracer, ec *EvalConfig, 
 		qt = qt.NewChild("rollup cache get series: query=%s, timeRange=%s, window=%d, step=%d", query, ec.timeRangeString(), window, ec.Step)
 		defer qt.Done()
 	}
-	if !ec.mayCache() {
-		qt.Printf("do not fetch series from cache, since it is disabled in the current context")
-		return nil, ec.Start
-	}
 
 	// Obtain tss from the cache.
 	bb := bbPool.Get()
@@ -358,13 +354,25 @@ func (rrc *rollupResultCache) PutSeries(qt *querytracer.Tracer, ec *EvalConfig, 
 		qt = qt.NewChild("rollup cache put series: query=%s, timeRange=%s, step=%d, window=%d, series=%d", query, ec.timeRangeString(), ec.Step, window, len(tss))
 		defer qt.Done()
 	}
-	if !ec.mayCache() {
-		qt.Printf("do not store series to cache, since it is disabled in the current context")
+	if len(tss) == 0 {
+		qt.Printf("do not cache empty series list")
 		return
 	}
-	if len(tss) == 0 {
-		qt.Printf("do not store empty series list")
-		return
+
+	if len(tss) > 1 {
+		// Verify whether tss contains series with duplicate naming.
+		// There is little sense in storing such series in the cache, since they cannot be merged in mergeSeries() later.
+		bb := bbPool.Get()
+		m := make(map[string]struct{}, len(tss))
+		for _, ts := range tss {
+			bb.B = marshalMetricNameSorted(bb.B[:0], &ts.MetricName)
+			if _, ok := m[string(bb.B)]; ok {
+				qt.Printf("do not cache series with duplicate naming %s", &ts.MetricName)
+				return
+			}
+			m[string(bb.B)] = struct{}{}
+		}
+		bbPool.Put(bb)
 	}
 
 	// Remove values up to currentTime - step - cacheTimestampOffset,
@@ -523,7 +531,7 @@ func mustSaveRollupResultCacheKeyPrefix(path string) {
 var tooBigRollupResults = metrics.NewCounter("vm_too_big_rollup_results_total")
 
 // Increment this value every time the format of the cache changes.
-const rollupResultCacheVersion = 10
+const rollupResultCacheVersion = 11
 
 const (
 	rollupResultCacheTypeSeries        = 0
@@ -564,74 +572,115 @@ func marshalTagFiltersForRollupResultCacheKey(dst []byte, etfs [][]storage.TagFi
 	return dst
 }
 
-// mergeTimeseries concatenates b with a and returns the result.
+func equalTimestamps(a, b []int64) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i, tsA := range a {
+		tsB := b[i]
+		if tsA != tsB {
+			return false
+		}
+	}
+	return true
+}
+
+// mergeSeries concatenates a with b and returns the result.
+//
+// true is returned on successful concatenation, false otherwise.
 //
 // Preconditions:
-// - a mustn't intersect with b by timestamps.
-// - a timestamps must be smaller than b timestamps.
+// - bStart must be in the range [ec.Start .. ec.End]
+// - a must contain series with all the samples on the range [ec.Start ... bStart - ec.Step] with ec.Step interval between them
+// - b must contain series with all the samples on the range [bStart .. ec.End] with ec.Step interval between them
 //
 // Postconditions:
+// - the returned series contain all the samples on the range [ec.Start .. ec.End] with ec.Step interval between them
 // - a and b cannot be used after returning from the call.
-func mergeTimeseries(qt *querytracer.Tracer, a, b []*timeseries, bStart int64, ec *EvalConfig) ([]*timeseries, error) {
-	qt = qt.NewChild("merge series len(a)=%d, len(b)=%d", len(a), len(b))
-	defer qt.Done()
+func mergeSeries(qt *querytracer.Tracer, a, b []*timeseries, bStart int64, ec *EvalConfig) ([]*timeseries, bool) {
+	if qt.Enabled() {
+		qt = qt.NewChild("merge series on time range %s with step=%dms; len(a)=%d, len(b)=%d, bStart=%s",
+			ec.timeRangeString(), ec.Step, len(a), len(b), storage.TimestampToHumanReadableFormat(bStart))
+		defer qt.Done()
+	}
 
 	sharedTimestamps := ec.getSharedTimestamps()
-	if bStart == ec.Start {
-		// Nothing to merge - b covers all the time range.
-		// Verify b is correct.
+	i := 0
+	for i < len(sharedTimestamps) && sharedTimestamps[i] < bStart {
+		i++
+	}
+	aTimestamps := sharedTimestamps[:i]
+	bTimestamps := sharedTimestamps[i:]
+
+	if len(bTimestamps) == len(sharedTimestamps) {
+		// Nothing to merge - just return b to the caller
 		for _, tsB := range b {
+			if !equalTimestamps(tsB.Timestamps, bTimestamps) {
+				logger.Panicf("BUG: invalid timestamps in b series %s; got %d; want %d", &tsB.MetricName, tsB.Timestamps, bTimestamps)
+			}
 			tsB.denyReuse = true
 			tsB.Timestamps = sharedTimestamps
-			if len(tsB.Values) != len(tsB.Timestamps) {
-				logger.Panicf("BUG: unexpected number of values in b; got %d; want %d", len(tsB.Values), len(tsB.Timestamps))
-			}
 		}
-		return b, nil
+		return b, true
 	}
 
-	m := make(map[string]*timeseries, len(a))
 	bb := bbPool.Get()
 	defer bbPool.Put(bb)
+
+	mA := make(map[string]*timeseries, len(a))
 	for _, ts := range a {
-		bb.B = marshalMetricNameSorted(bb.B[:0], &ts.MetricName)
-		if _, ok := m[string(bb.B)]; ok {
-			return nil, fmt.Errorf("duplicate series found: %s", &ts.MetricName)
+		if !equalTimestamps(ts.Timestamps, aTimestamps) {
+			logger.Panicf("BUG: invalid timestamps in a series %s; got %d; want %d", &ts.MetricName, ts.Timestamps, aTimestamps)
 		}
-		m[string(bb.B)] = ts
+		bb.B = marshalMetricNameSorted(bb.B[:0], &ts.MetricName)
+		if _, ok := mA[string(bb.B)]; ok {
+			qt.Printf("cannot merge series because a series contain duplicate %s", &ts.MetricName)
+			return nil, false
+		}
+		mA[string(bb.B)] = ts
 	}
 
+	mB := make(map[string]struct{}, len(b))
 	rvs := make([]*timeseries, 0, len(a))
+	var aNaNs []float64
 	for _, tsB := range b {
+		if !equalTimestamps(tsB.Timestamps, bTimestamps) {
+			logger.Panicf("BUG: invalid timestamps for b series %s; got %d; want %d", &tsB.MetricName, tsB.Timestamps, bTimestamps)
+		}
+		bb.B = marshalMetricNameSorted(bb.B[:0], &tsB.MetricName)
+		if _, ok := mB[string(bb.B)]; ok {
+			qt.Printf("cannot merge series because b series contain duplicate %s", &tsB.MetricName)
+			return nil, false
+		}
+		mB[string(bb.B)] = struct{}{}
+
 		var tmp timeseries
 		tmp.denyReuse = true
 		tmp.Timestamps = sharedTimestamps
 		tmp.Values = make([]float64, 0, len(tmp.Timestamps))
 		tmp.MetricName.MoveFrom(&tsB.MetricName)
 
-		bb.B = marshalMetricNameSorted(bb.B[:0], &tmp.MetricName)
-		k := string(bb.B)
-		tsA := m[k]
+		tsA := mA[string(bb.B)]
 		if tsA == nil {
-			tStart := ec.Start
-			for tStart < bStart {
-				tmp.Values = append(tmp.Values, nan)
-				tStart += ec.Step
+			if aNaNs == nil {
+				tStart := ec.Start
+				for tStart < bStart {
+					aNaNs = append(aNaNs, nan)
+					tStart += ec.Step
+				}
 			}
+			tmp.Values = append(tmp.Values, aNaNs...)
 		} else {
 			tmp.Values = append(tmp.Values, tsA.Values...)
-			delete(m, k)
+			delete(mA, string(bb.B))
 		}
 		tmp.Values = append(tmp.Values, tsB.Values...)
-		if len(tmp.Values) != len(tmp.Timestamps) {
-			logger.Panicf("BUG: unexpected values after merging new values; got %d; want %d; len(a.Values)=%d; len(b.Values)=%d",
-				len(tmp.Values), len(tmp.Timestamps), len(tsA.Values), len(tsB.Values))
-		}
 		rvs = append(rvs, &tmp)
 	}
 
-	// Copy the remaining timeseries from m.
-	for _, tsA := range m {
+	// Copy the remaining timeseries from mA.
+	var bNaNs []float64
+	for _, tsA := range mA {
 		var tmp timeseries
 		tmp.denyReuse = true
 		tmp.Timestamps = sharedTimestamps
@@ -639,18 +688,18 @@ func mergeTimeseries(qt *querytracer.Tracer, a, b []*timeseries, bStart int64, e
 		tmp.MetricName.MoveFrom(&tsA.MetricName)
 		tmp.Values = append(tmp.Values, tsA.Values...)
 
-		tStart := bStart
-		for tStart <= ec.End {
-			tmp.Values = append(tmp.Values, nan)
-			tStart += ec.Step
+		if bNaNs == nil {
+			tStart := bStart
+			for tStart <= ec.End {
+				bNaNs = append(bNaNs, nan)
+				tStart += ec.Step
+			}
 		}
-		if len(tmp.Values) != len(tmp.Timestamps) {
-			logger.Panicf("BUG: unexpected values in the result after adding cached values; got %d; want %d", len(tmp.Values), len(tmp.Timestamps))
-		}
+		tmp.Values = append(tmp.Values, bNaNs...)
 		rvs = append(rvs, &tmp)
 	}
 	qt.Printf("resulting series=%d", len(rvs))
-	return rvs, nil
+	return rvs, true
 }
 
 type rollupResultCacheMetainfo struct {
@@ -733,9 +782,9 @@ func (mi *rollupResultCacheMetainfo) AddKey(key rollupResultCacheKey, start, end
 		end:   end,
 		key:   key,
 	})
-	if len(mi.entries) > 30 {
+	if len(mi.entries) > 10 {
 		// Remove old entries.
-		mi.entries = append(mi.entries[:0], mi.entries[10:]...)
+		mi.entries = append(mi.entries[:0], mi.entries[5:]...)
 	}
 }
 
