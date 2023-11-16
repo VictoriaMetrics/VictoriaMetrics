@@ -891,7 +891,7 @@ func (sw *scrapeWork) addAutoMetrics(am *autoMetrics, wc *writeRequestCtx, times
 	sw.addAutoTimeseries(wc, "scrape_series_added", float64(am.seriesAdded), timestamp)
 	sw.addAutoTimeseries(wc, "scrape_timeout_seconds", sw.Config.ScrapeTimeout.Seconds(), timestamp)
 	if sampleLimit := sw.Config.SampleLimit; sampleLimit > 0 {
-		// Expose scrape_samples_limit metric if sample_limt config is set for the target.
+		// Expose scrape_samples_limit metric if sample_limit config is set for the target.
 		// See https://github.com/VictoriaMetrics/operator/issues/497
 		sw.addAutoTimeseries(wc, "scrape_samples_limit", float64(sampleLimit), timestamp)
 	}
