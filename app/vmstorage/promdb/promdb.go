@@ -104,13 +104,13 @@ func GetLabelNamesOnTimeRange(tr storage.TimeRange, deadline searchutils.Deadlin
 	d := time.Unix(int64(deadline.Deadline()), 0)
 	ctx, cancel := context.WithDeadline(context.Background(), d)
 	defer cancel()
-	q, err := promDB.Querier(ctx, tr.MinTimestamp, tr.MaxTimestamp)
+	q, err := promDB.Querier(tr.MinTimestamp, tr.MaxTimestamp)
 	if err != nil {
 		return nil, err
 	}
 	defer mustCloseQuerier(q)
 
-	names, _, err := q.LabelNames()
+	names, _, err := q.LabelNames(ctx)
 	// Make full copy of names, since they cannot be used after q is closed.
 	names = copyStringsWithMemory(names)
 	return names, err
@@ -124,13 +124,13 @@ func GetLabelValuesOnTimeRange(labelName string, tr storage.TimeRange, deadline 
 	d := time.Unix(int64(deadline.Deadline()), 0)
 	ctx, cancel := context.WithDeadline(context.Background(), d)
 	defer cancel()
-	q, err := promDB.Querier(ctx, tr.MinTimestamp, tr.MaxTimestamp)
+	q, err := promDB.Querier(tr.MinTimestamp, tr.MaxTimestamp)
 	if err != nil {
 		return nil, err
 	}
 	defer mustCloseQuerier(q)
 
-	values, _, err := q.LabelValues(labelName)
+	values, _, err := q.LabelValues(ctx, labelName)
 	// Make full copy of values, since they cannot be used after q is closed.
 	values = copyStringsWithMemory(values)
 	return values, err
@@ -158,7 +158,7 @@ func VisitSeries(sq *storage.SearchQuery, deadline searchutils.Deadline, f Serie
 	ctx, cancel := context.WithDeadline(context.Background(), d)
 	defer cancel()
 	minTime, maxTime := getSearchTimeRange(sq)
-	q, err := promDB.Querier(ctx, minTime, maxTime)
+	q, err := promDB.Querier(minTime, maxTime)
 	if err != nil {
 		return err
 	}
@@ -169,7 +169,7 @@ func VisitSeries(sq *storage.SearchQuery, deadline searchutils.Deadline, f Serie
 		if err != nil {
 			return fmt.Errorf("cannot convert tag filters to matchers: %w", err)
 		}
-		s := q.Select(false, nil, ms...)
+		s := q.Select(ctx, false, nil, ms...)
 		seriesSet = append(seriesSet, s)
 	}
 	ss := promstorage.NewMergeSeriesSet(seriesSet, promstorage.ChainedSeriesMerge)

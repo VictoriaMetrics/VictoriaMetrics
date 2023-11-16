@@ -875,7 +875,7 @@ func evalRollupFuncWithoutAt(qt *querytracer.Tracer, ec *EvalConfig, funcName st
 		}
 	}
 	if funcName == "absent_over_time" {
-		rvs = aggregateAbsentOverTime(ec, re.Expr, rvs)
+		rvs = aggregateAbsentOverTime(ecNew, re.Expr, rvs)
 	}
 	if offset != 0 && len(rvs) > 0 {
 		// Make a copy of timestamps, since they may be used in other values.
@@ -1596,8 +1596,23 @@ func evalRollupFuncWithMetricExpr(qt *querytracer.Tracer, ec *EvalConfig, funcNa
 		}
 		return rvs, nil
 	}
+	pointsPerSeries := 1 + (ec.End-ec.Start)/ec.Step
+	evalWithConfig := func(ec *EvalConfig) ([]*timeseries, error) {
+		tss, err := evalRollupFuncNoCache(qt, ec, funcName, rf, expr, me, iafc, window, pointsPerSeries)
+		if err != nil {
+			err = &UserReadableError{
+				Err: err,
+			}
+			return nil, err
+		}
+		return tss, nil
+	}
+	if !ec.mayCache() {
+		qt.Printf("do not fetch series from cache, since it is disabled in the current context")
+		return evalWithConfig(ec)
+	}
 
-	// Search for partial results in cache.
+	// Search for cached results.
 	tssCached, start := rollupResultCacheV.GetSeries(qt, ec, expr, window)
 	ec.QueryStats.addSeriesFetched(len(tssCached))
 	if start > ec.End {
@@ -1613,23 +1628,28 @@ func evalRollupFuncWithMetricExpr(qt *querytracer.Tracer, ec *EvalConfig, funcNa
 		rollupResultCacheMiss.Inc()
 	}
 
-	ecCopy := copyEvalConfig(ec)
-	ecCopy.Start = start
-	pointsPerSeries := 1 + (ec.End-ec.Start)/ec.Step
-	tss, err := evalRollupFuncNoCache(qt, ecCopy, funcName, rf, expr, me, iafc, window, pointsPerSeries)
+	// Fetch missing results, which aren't cached yet.
+	ecNew := ec
+	if start != ec.Start {
+		ecNew = copyEvalConfig(ec)
+		ecNew.Start = start
+	}
+	tss, err := evalWithConfig(ecNew)
 	if err != nil {
-		err = &UserReadableError{
-			Err: err,
-		}
 		return nil, err
 	}
-	rvs, err := mergeTimeseries(qt, tssCached, tss, start, ec)
-	if err != nil {
-		return nil, fmt.Errorf("cannot merge series: %w", err)
+
+	// Merge cached results with the fetched additional results.
+	rvs, ok := mergeSeries(qt, tssCached, tss, start, ec)
+	if !ok {
+		// Cannot merge series - fall back to non-cached querying.
+		qt.Printf("fall back to non-caching querying")
+		rvs, err = evalWithConfig(ec)
+		if err != nil {
+			return nil, err
+		}
 	}
-	if tss != nil {
-		rollupResultCacheV.PutSeries(qt, ec, expr, window, tss)
-	}
+	rollupResultCacheV.PutSeries(qt, ec, expr, window, rvs)
 	return rvs, nil
 }
 
