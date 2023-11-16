@@ -190,7 +190,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(rate(vm_promscrape_scraped_samples_sum{job=~\"$job\", instance=~\"$instance\", path!~\"/favicon.ico\"}[$__rate_interval]))",
+          "expr": "sum(rate(vm_promscrape_scraped_samples_sum{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
           "interval": "",
           "legendFormat": "__auto",
           "range": true,
@@ -4428,7 +4428,7 @@
                 "uid": "$ds"
               },
               "exemplar": true,
-              "expr": "sum(rate(vm_ingestserver_request_errors_total{job=~\"$job\", instance=~\"$instance\", path!~\"/favicon.ico\"}[$__rate_interval])) by(type, net) > 0",
+              "expr": "sum(rate(vm_ingestserver_request_errors_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(type, net) > 0",
               "interval": "",
               "legendFormat": "{{ type }} ({{net}})",
               "refId": "A"
