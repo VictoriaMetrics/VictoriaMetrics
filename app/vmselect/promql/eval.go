@@ -1675,7 +1675,7 @@ func evalRollupFuncWithMetricExpr(qt *querytracer.Tracer, ec *EvalConfig, funcNa
 	}
 	ec.updateIsPartialResponse(isPartial)
 	if !isPartial {
-		rollupResultCacheV.PutSeries(qt, ec, expr, window, tss)
+		rollupResultCacheV.PutSeries(qt, ec, expr, window, rvs)
 	}
 	return rvs, nil
 }
