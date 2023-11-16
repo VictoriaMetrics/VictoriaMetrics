@@ -23,7 +23,8 @@ type BufferedConn struct {
 	br io.Reader
 	bw bufferedWriter
 
-	deadline time.Time
+	readDeadline  time.Time
+	writeDeadline time.Time
 }
 
 const bufferSize = 64 * 1024
@@ -46,17 +47,35 @@ func newBufferedConn(c net.Conn, compressionLevel int, isReadCompressed bool) *B
 	return bc
 }
 
-// SetDeadline sets the read and write deadlines associated with the connection.
-// Deadline is checked on each Read call.
+// SetDeadline sets read and write deadlines for bc to t.
+//
+// Deadline is checked on each Read and Write call.
 func (bc *BufferedConn) SetDeadline(t time.Time) error {
-	bc.deadline = t
+	bc.readDeadline = t
+	bc.writeDeadline = t
 	return bc.Conn.SetDeadline(t)
+}
+
+// SetReadDeadline sets read deadline for bc to t.
+//
+// Deadline is checked on each Read call.
+func (bc *BufferedConn) SetReadDeadline(t time.Time) error {
+	bc.readDeadline = t
+	return bc.Conn.SetReadDeadline(t)
+}
+
+// SetWriteDeadline sets write deadline for bc to t.
+//
+// Deadline is checked on each Write call.
+func (bc *BufferedConn) SetWriteDeadline(t time.Time) error {
+	bc.writeDeadline = t
+	return bc.Conn.SetReadDeadline(t)
 }
 
 // Read reads up to len(p) from bc to p.
 func (bc *BufferedConn) Read(p []byte) (int, error) {
 	startTime := time.Now()
-	if startTime.After(bc.deadline) {
+	if deadlineExceeded(bc.readDeadline, startTime) {
 		return 0, os.ErrDeadlineExceeded
 	}
 	n, err := bc.br.Read(p)
@@ -71,7 +90,7 @@ func (bc *BufferedConn) Read(p []byte) (int, error) {
 // Do not forget to call Flush if needed.
 func (bc *BufferedConn) Write(p []byte) (int, error) {
 	startTime := time.Now()
-	if startTime.After(bc.deadline) {
+	if deadlineExceeded(bc.writeDeadline, startTime) {
 		return 0, os.ErrDeadlineExceeded
 	}
 	n, err := bc.bw.Write(p)
@@ -79,6 +98,13 @@ func (bc *BufferedConn) Write(p []byte) (int, error) {
 		err = fmt.Errorf("cannot write data in %.3f seconds: %w", time.Since(startTime).Seconds(), err)
 	}
 	return n, err
+}
+
+func deadlineExceeded(deadline, currentTime time.Time) bool {
+	if deadline.IsZero() {
+		return false
+	}
+	return currentTime.After(deadline)
 }
 
 // Close closes bc.
