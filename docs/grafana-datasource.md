@@ -11,7 +11,7 @@ aliases:
 ---
 
 # VictoriaMetrics datasource for Grafana
-The [VictoriaMetrics](http://docs.victoriametrics.com/) datasource plugin allows you to query and visualize 
+The [VictoriaMetrics](http://docs.victoriametrics.com/) datasource plugin allows you to query and visualize
 data from VictoriaMetrics in Grafana.
 
 * [Motivation](#motivation)
@@ -23,10 +23,10 @@ data from VictoriaMetrics in Grafana.
 
 ## Motivation
 
-Thanks to VictoriaMetrics compatibility with Prometheus API users can use 
+Thanks to VictoriaMetrics compatibility with Prometheus API users can use
 [Prometheus datasource](https://docs.victoriametrics.com/#grafana-setup) for Grafana to query data from VictoriaMetrics.
 But with time, Prometheus and VictoriaMetrics diverge more and more. After some unexpected changes to Prometheus datasource
-we decided to create a datasource plugin specifically for VictoriaMetrics. 
+we decided to create a datasource plugin specifically for VictoriaMetrics.
 The benefits of using VictoriaMetrics plugin are the following:
 
 * [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) functions support;
@@ -44,6 +44,14 @@ the following changes to Grafana's `grafana.ini` config:
 allow_loading_unsigned_plugins = victoriametrics-datasource
 ```
 
+For `grafana-operator` users, please adjust `config:` section in your `kind=Grafana` resource as below
+
+```
+  config:
+    plugins:
+      allow_loading_unsigned_plugins: "victoriametrics-datasource"
+```
+
 See [why VictoriaMetrics datasource is unsigned](#why-victoriaMetrics-datasource-is-unsigned).
 
 For detailed instructions on how to install the plugin on Grafana Cloud or
@@ -51,7 +59,7 @@ locally, please checkout the [Plugin installation docs](https://grafana.com/docs
 
 ### Grafana Provisioning
 
-Provision of Grafana plugin requires to create 
+Provision of Grafana plugin requires to create
 [datasource config file](http://docs.grafana.org/administration/provisioning/#datasources).
 
 Example of config file for provisioning VictoriaMetrics datasource is the following:
@@ -62,7 +70,7 @@ apiVersion: 1
 # List of data sources to insert/update depending on what's
 # available in the database.
 datasources:
-   # <string, required> Name of the VictoriaMetrics datasource 
+   # <string, required> Name of the VictoriaMetrics datasource
    # displayed in Grafana panels and queries.
    - name: VictoriaMetrics
       # <string, required> Sets the data source type.
@@ -74,11 +82,11 @@ datasources:
      access: proxy
      # <string> Sets default URL of the single node version of VictoriaMetrics
      url: http://victoriametrics:8428
-     # <string> Sets the pre-selected datasource for new panels. 
+     # <string> Sets the pre-selected datasource for new panels.
      # You can set only one default data source per organization.
      isDefault: true
 
-     # <string, required> Name of the VictoriaMetrics datasource 
+     # <string, required> Name of the VictoriaMetrics datasource
      # displayed in Grafana panels and queries.
    - name: VictoriaMetrics - cluster
      # <string, required> Sets the data source type.
@@ -90,7 +98,7 @@ datasources:
      access: proxy
      # <string> Sets default URL of the cluster version of VictoriaMetrics
      url: http://vmselect:8481/select/0/prometheus
-     # <string> Sets the pre-selected datasource for new panels. 
+     # <string> Sets the pre-selected datasource for new panels.
      # You can set only one default data source per organization.
      isDefault: false
 ```
@@ -164,9 +172,13 @@ extraInitContainers:
        tar -xf /var/lib/grafana/plugins/plugin.tar.gz -C /var/lib/grafana/plugins/
        rm /var/lib/grafana/plugins/plugin.tar.gz
     volumeMounts:
+      # For grafana-operator users, change `name: storage` to `name: grafana-data`
       - name: storage
         mountPath: /var/lib/grafana
 ```
+
+For `grafana-operator` users, the above configuration should be done for the part
+`/spec/deployment/spec/template/spec/initContainers` of your `kind=Grafana` resource.
 
 This example uses init container to download and install plugin. To allow Grafana using this container as a sidecar
 set the following config:
@@ -294,13 +306,13 @@ make victorimetrics-frontend-plugin-build
 This command will build all frontend app into `dist` folder.
 
 ### 5. How to build frontend and backend parts of the plugin:
-When frontend and backend parts of the plugin is required, run the following command from 
+When frontend and backend parts of the plugin is required, run the following command from
 the root folder of the project:
 ```
 make victoriametrics-datasource-plugin-build
 ```
-This command will build frontend part and backend part or the plugin and locate both 
-parts into `dist` folder. 
+This command will build frontend part and backend part or the plugin and locate both
+parts into `dist` folder.
 
 ## How to use WITH templates
 
@@ -313,16 +325,16 @@ WITH expressions are stored in the datasource object. If the dashboard gets expo
 
 ### Defining WITH Expressions
 
-1. Navigate to the dashboard where you want to add a template.<br/> 
+1. Navigate to the dashboard where you want to add a template.<br/>
    *Note: templates are available within the dashboard scope.*
 1. Click the `WITH templates` button.
 1. Enter the expression in the input field. Once done, press the `Save` button to apply the changes. For example:
    ```
    commonFilters = {instance=~"$node:$port",job=~"$job"},
-   
+
    # `cpuCount` is the number of CPUs on the node
    cpuCount = count(count(node_cpu_seconds_total{commonFilters}) by (cpu)),
-   
+
    # `cpuIdle` is the sum of idle CPU cores
    cpuIdle = sum(rate(node_cpu_seconds_total{mode='idle',commonFilters}[5m]))
    ```
@@ -366,7 +378,7 @@ To view the raw query in the interface, enable the `Raw` toggle.
 
 Based on our previous experience of [developing Grafana plugins](https://grafana.com/grafana/plugins/vertamedia-clickhouse-datasource/)
 the signing procedure was a formal act. But when we tried [to sign the plugin](https://grafana.com/docs/grafana/latest/developers/plugins/publish-a-plugin/sign-a-plugin/)
-we were told by GrafanaLabs representative the plugin falls into a Commercial signature level. It matters not 
+we were told by GrafanaLabs representative the plugin falls into a Commercial signature level. It matters not
 if plugin or VictoriaMetrics itself are opensource. The announced cost of Commercial signature level was much higher
 than expected, so we interrupted the procedure.
 
