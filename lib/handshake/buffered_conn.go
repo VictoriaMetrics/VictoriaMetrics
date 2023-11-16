@@ -69,7 +69,7 @@ func (bc *BufferedConn) SetReadDeadline(t time.Time) error {
 // Deadline is checked on each Write call.
 func (bc *BufferedConn) SetWriteDeadline(t time.Time) error {
 	bc.writeDeadline = t
-	return bc.Conn.SetReadDeadline(t)
+	return bc.Conn.SetWriteDeadline(t)
 }
 
 // Read reads up to len(p) from bc to p.
