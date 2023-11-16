@@ -175,7 +175,7 @@ func (p *PresignHTTPRequestMiddleware) HandleFinalize(
 	signerVersion := GetSignerVersion(ctx)
 
 	switch signerVersion {
-	case v4a.Version:
+	case "aws.auth#sigv4a":
 		v4aCredentialProvider, ok := p.credentialsProvider.(v4a.CredentialsProvider)
 		if !ok {
 			return out, metadata, fmt.Errorf("invalid credential-provider provided for sigV4a Signer")
@@ -188,13 +188,15 @@ func (p *PresignHTTPRequestMiddleware) HandleFinalize(
 		})
 		return mw.HandleFinalize(ctx, in, next)
 
-	default:
+	case "aws.auth#sigv4":
 		mw := v4.NewPresignHTTPRequestMiddleware(v4.PresignHTTPRequestMiddlewareOptions{
 			CredentialsProvider: p.credentialsProvider,
 			Presigner:           p.v4Signer,
 			LogSigning:          p.logSigning,
 		})
 		return mw.HandleFinalize(ctx, in, next)
+	default:
+		return out, metadata, fmt.Errorf("unsupported signer type \"%s\"", signerVersion)
 	}
 }
 
