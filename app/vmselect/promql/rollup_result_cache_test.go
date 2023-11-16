@@ -425,6 +425,57 @@ func TestMergeTimeseries(t *testing.T) {
 		}
 		testTimeseriesEqual(t, tss, tssExpected)
 	})
+	t.Run("expect-keep-origin-metrics-names", func(t *testing.T) {
+		a := []*timeseries{
+			{
+				MetricName: storage.MetricName{
+					MetricGroup: []byte("bar"),
+				},
+				Timestamps: []int64{1000, 1200},
+				Values:     []float64{2, 1},
+			},
+		}
+		b := []*timeseries{
+			{
+				MetricName: storage.MetricName{
+					MetricGroup: []byte("foo"),
+				},
+				Timestamps: []int64{1400, 1600, 1800, 2000},
+				Values:     []float64{3, 4, 5, 6},
+			},
+		}
+		tss, err := mergeTimeseries(nil, a, b, bStart, ec)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		tssExpected := []*timeseries{
+			{
+				MetricName: storage.MetricName{
+					MetricGroup: []byte("foo"),
+				},
+				Timestamps: []int64{1000, 1200, 1400, 1600, 1800, 2000},
+				Values:     []float64{nan, nan, 3, 4, 5, 6},
+			},
+			{
+				MetricName: storage.MetricName{
+					MetricGroup: []byte("bar"),
+				},
+				Timestamps: []int64{1000, 1200, 1400, 1600, 1800, 2000},
+				Values:     []float64{2, 1, nan, nan, nan, nan},
+			},
+		}
+		testTimeseriesEqual(t, tss, tssExpected)
+		originBExpected := []*timeseries{
+			{
+				MetricName: storage.MetricName{
+					MetricGroup: []byte("foo"),
+				},
+				Timestamps: []int64{1400, 1600, 1800, 2000},
+				Values:     []float64{3, 4, 5, 6},
+			},
+		}
+		testTimeseriesEqual(t, b, originBExpected)
+	})
 }
 
 func testTimeseriesEqual(t *testing.T, tss, tssExpected []*timeseries) {

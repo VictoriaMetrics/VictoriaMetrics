@@ -381,6 +381,7 @@ func (rrc *rollupResultCache) PutSeries(qt *querytracer.Tracer, ec *EvalConfig, 
 		qt.Printf("nothing to store in the cache, since all the points have timestamps bigger than %d", deadline)
 		return
 	}
+
 	if i < len(timestamps) {
 		timestamps = timestamps[:i]
 		// Make a copy of tss and remove unfit values
@@ -607,7 +608,7 @@ func mergeTimeseries(qt *querytracer.Tracer, a, b []*timeseries, bStart int64, e
 		tmp.denyReuse = true
 		tmp.Timestamps = sharedTimestamps
 		tmp.Values = make([]float64, 0, len(tmp.Timestamps))
-		tmp.MetricName.MoveFrom(&tsB.MetricName)
+		tmp.MetricName.CopyFrom(&tsB.MetricName)
 
 		bb.B = marshalMetricNameSorted(bb.B[:0], &tmp.MetricName)
 		k := string(bb.B)
