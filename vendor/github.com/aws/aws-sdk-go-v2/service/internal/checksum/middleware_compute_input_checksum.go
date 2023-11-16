@@ -9,6 +9,7 @@ import (
 	"strconv"
 
 	v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
+	presignedurlcust "github.com/aws/aws-sdk-go-v2/service/internal/presigned-url"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
@@ -70,8 +71,7 @@ type computeInputPayloadChecksum struct {
 	// when used with trailing checksums, and aws-chunked content-encoding.
 	EnableDecodedContentLengthHeader bool
 
-	buildHandlerRun        bool
-	deferToFinalizeHandler bool
+	useTrailer bool
 }
 
 // ID provides the middleware's identifier.
@@ -102,13 +102,11 @@ func (e computeInputHeaderChecksumError) Unwrap() error { return e.Err }
 //
 // The build handler must be inserted in the stack before ContentPayloadHash
 // and after ComputeContentLength.
-func (m *computeInputPayloadChecksum) HandleBuild(
-	ctx context.Context, in middleware.BuildInput, next middleware.BuildHandler,
+func (m *computeInputPayloadChecksum) HandleFinalize(
+	ctx context.Context, in middleware.FinalizeInput, next middleware.FinalizeHandler,
 ) (
-	out middleware.BuildOutput, metadata middleware.Metadata, err error,
+	out middleware.FinalizeOutput, metadata middleware.Metadata, err error,
 ) {
-	m.buildHandlerRun = true
-
 	req, ok := in.Request.(*smithyhttp.Request)
 	if !ok {
 		return out, metadata, computeInputHeaderChecksumError{
@@ -145,13 +143,13 @@ func (m *computeInputPayloadChecksum) HandleBuild(
 			}
 			algorithm = Algorithm("MD5")
 		}
-		return next.HandleBuild(ctx, in)
+		return next.HandleFinalize(ctx, in)
 	}
 
 	// If the checksum header is already set nothing to do.
 	checksumHeader := AlgorithmHTTPHeader(algorithm)
 	if checksum = req.Header.Get(checksumHeader); checksum != "" {
-		return next.HandleBuild(ctx, in)
+		return next.HandleFinalize(ctx, in)
 	}
 
 	computePayloadHash := m.EnableComputePayloadHash
@@ -169,22 +167,25 @@ func (m *computeInputPayloadChecksum) HandleBuild(
 	}
 
 	// If trailing checksums are supported, the request is HTTPS, and the
-	// stream is not nil or empty, there is nothing to do in the build stage.
-	// The checksum will be added to the request as a trailing checksum in the
-	// finalize handler.
+	// stream is not nil or empty, instead switch to a trailing checksum.
 	//
 	// Nil and empty streams will always be handled as a request header,
 	// regardless if the operation supports trailing checksums or not.
-	if req.IsHTTPS() {
+	if req.IsHTTPS() && !presignedurlcust.GetIsPresigning(ctx) {
 		if stream != nil && streamLength != 0 && m.EnableTrailingChecksum {
 			if m.EnableComputePayloadHash {
-				// payload hash is set as header in Build middleware handler,
-				// ContentSHA256Header.
+				// ContentSHA256Header middleware handles the header
 				ctx = v4.SetPayloadHash(ctx, streamingUnsignedPayloadTrailerPayloadHash)
 			}
 
-			m.deferToFinalizeHandler = true
-			return next.HandleBuild(ctx, in)
+			m.useTrailer = true
+			mw := &addInputChecksumTrailer{
+				EnableTrailingChecksum:           m.EnableTrailingChecksum,
+				RequireChecksum:                  m.RequireChecksum,
+				EnableComputePayloadHash:         m.EnableComputePayloadHash,
+				EnableDecodedContentLengthHeader: m.EnableDecodedContentLengthHeader,
+			}
+			return mw.HandleFinalize(ctx, in, next)
 		}
 
 		// If trailing checksums are not enabled but protocol is still HTTPS
@@ -225,7 +226,7 @@ func (m *computeInputPayloadChecksum) HandleBuild(
 		ctx = v4.SetPayloadHash(ctx, sha256Checksum)
 	}
 
-	return next.HandleBuild(ctx, in)
+	return next.HandleFinalize(ctx, in)
 }
 
 type computeInputTrailingChecksumError struct {
@@ -244,26 +245,28 @@ func (e computeInputTrailingChecksumError) Error() string {
 }
 func (e computeInputTrailingChecksumError) Unwrap() error { return e.Err }
 
-// HandleFinalize handles computing the payload's checksum, in the following cases:
+// addInputChecksumTrailer
 //   - Is HTTPS, not HTTP
 //   - A checksum was specified via the Input
 //   - Trailing checksums are supported.
-//
-// The finalize handler must be inserted in the stack before Signing, and after Retry.
-func (m *computeInputPayloadChecksum) HandleFinalize(
+type addInputChecksumTrailer struct {
+	EnableTrailingChecksum           bool
+	RequireChecksum                  bool
+	EnableComputePayloadHash         bool
+	EnableDecodedContentLengthHeader bool
+}
+
+// ID identifies this middleware.
+func (*addInputChecksumTrailer) ID() string {
+	return "addInputChecksumTrailer"
+}
+
+// HandleFinalize wraps the request body to write the trailing checksum.
+func (m *addInputChecksumTrailer) HandleFinalize(
 	ctx context.Context, in middleware.FinalizeInput, next middleware.FinalizeHandler,
 ) (
 	out middleware.FinalizeOutput, metadata middleware.Metadata, err error,
 ) {
-	if !m.deferToFinalizeHandler {
-		if !m.buildHandlerRun {
-			return out, metadata, computeInputTrailingChecksumError{
-				Msg: "build handler was removed without also removing finalize handler",
-			}
-		}
-		return next.HandleFinalize(ctx, in)
-	}
-
 	req, ok := in.Request.(*smithyhttp.Request)
 	if !ok {
 		return out, metadata, computeInputTrailingChecksumError{
