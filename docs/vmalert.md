@@ -553,10 +553,20 @@ Alertmanagers.
 
 To avoid recording rules results and alerts state duplication in VictoriaMetrics server
 don't forget to configure [deduplication](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#deduplication).
-The recommended value for `-dedup.minScrapeInterval` must be multiple of vmalert's `-evaluationInterval`.
+Multiple equally configured vmalerts should evaluate rules at the same timestamps, so it is recommended 
+to set `-dedup.minScrapeInterval` as equal to vmalert's `-evaluationInterval`.
+
+If you have multiple different `interval` params for distinct rule groups, then set `-dedup.minScrapeInterval` to
+the biggest `interval` value, or value which will be a multiple for all `interval` values. For example, if you have
+two groups with `interval: 10s` and `interval: 15s`, then set `-dedup.minScrapeInterval=30s`. This would consistently
+keep only a single data point on 30s time interval for all rules. However, try to avoid having inconsistent `interval`
+values.
+
+It is not recommended having `-dedup.minScrapeInterval` smaller than `-evaluationInterval`, as it may produce 
+results with inconsistent intervals between data points.
 
 Alertmanager will automatically deduplicate alerts with identical labels, so ensure that
-all `vmalert`s are having the same config.
+all `vmalert`s are having identical config.
 
 Don't forget to configure [cluster mode](https://prometheus.io/docs/alerting/latest/alertmanager/)
 for Alertmanagers for better reliability. List all Alertmanager URLs in vmalert `-notifier.url`
