@@ -54,7 +54,14 @@ func Parse(r io.Reader, isVMRemoteWrite bool, callback func(tss []prompb.TimeSer
 	} else {
 		bb.B, err = snappy.Decode(bb.B[:cap(bb.B)], ctx.reqBuf.B)
 		if err != nil {
-			return fmt.Errorf("cannot decompress snappy-encoded request with length %d: %w", len(ctx.reqBuf.B), err)
+			// Fall back to zstd decompression, since vmagent may send zstd-encoded messages
+			// without 'Content-Encoding: zstd' header if they were put into persistent queue before vmagent restart.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5301#issuecomment-1815871992
+			snappyErr := err
+			bb.B, err = zstd.Decompress(bb.B[:0], ctx.reqBuf.B)
+			if err != nil {
+				return fmt.Errorf("cannot decompress snappy-encoded request with length %d: %w", len(ctx.reqBuf.B), snappyErr)
+			}
 		}
 	}
 	if int64(len(bb.B)) > maxInsertRequestSize.N {
@@ -141,8 +148,10 @@ func putPushCtx(ctx *pushCtx) {
 	}
 }
 
-var pushCtxPool sync.Pool
-var pushCtxPoolCh = make(chan *pushCtx, cgroup.AvailableCPUs())
+var (
+	pushCtxPool   sync.Pool
+	pushCtxPoolCh = make(chan *pushCtx, cgroup.AvailableCPUs())
+)
 
 func getWriteRequest() *prompb.WriteRequest {
 	v := writeRequestPool.Get()
