@@ -105,7 +105,7 @@ func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 		vlstorage.MustAddRows(lr)
 		logstorage.PutLogRows(lr)
 		if err != nil {
-			logger.Warnf("cannot decode log message #%d in /_bulk request: %s", n, err)
+			logger.Warnf("cannot decode log message #%d in /_bulk request: %s, stream fields: %s", n, err, cp.StreamFields)
 			return true
 		}
 
