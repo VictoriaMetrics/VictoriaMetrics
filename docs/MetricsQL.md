@@ -1029,7 +1029,7 @@ for every point of every time series returned by `q`.
 
 Metric names are stripped from the resulting series. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
-This function is supported by PromQL. This function is supported by PromQL. See also [acosh](#acosh).
+This function is supported by PromQL. See also [acosh](#acosh).
 
 #### day_of_month
 
