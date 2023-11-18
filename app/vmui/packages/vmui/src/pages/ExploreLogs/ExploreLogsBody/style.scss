@@ -15,6 +15,15 @@
     }
   }
 
+  &__empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 120px;
+    color: $color-text-disabled;
+    text-align: center;
+  }
+
   &__table {
     padding-top: $padding-medium;
     width: calc(100vw - ($padding-medium * 4) - var(--scrollbar-width));

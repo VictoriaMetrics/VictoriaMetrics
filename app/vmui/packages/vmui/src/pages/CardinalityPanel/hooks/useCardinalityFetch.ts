@@ -8,6 +8,7 @@ import { useSearchParams } from "react-router-dom";
 import dayjs from "dayjs";
 import { DATE_FORMAT } from "../../../constants/date";
 import { getTenantIdFromUrl } from "../../../utils/tenants";
+import usePrevious from "../../../hooks/usePrevious";
 
 export const useFetchQuery = (): {
   fetchUrl?: string[],
@@ -23,6 +24,7 @@ export const useFetchQuery = (): {
   const focusLabel = searchParams.get("focusLabel");
   const topN = +(searchParams.get("topN") || 10);
   const date = searchParams.get("date") || dayjs().tz().format(DATE_FORMAT);
+  const prevDate = usePrevious(date);
 
   const { serverUrl } = useAppState();
   const [isLoading, setIsLoading] = useState(false);
@@ -76,11 +78,14 @@ export const useFetchQuery = (): {
     const urls = [
       getCardinalityInfo(serverUrl, requestParams),
       getCardinalityInfo(serverUrl, prevDayParams),
-      getCardinalityInfo(serverUrl, totalParams),
     ];
 
+    if (prevDate !== date) {
+      urls.push(getCardinalityInfo(serverUrl, totalParams));
+    }
+
     try {
-      const [resp, respPrev, respTotals] = await Promise.all(urls.map(getResponseJson));
+      const [resp, respPrev, respTotals = {}] = await Promise.all(urls.map(getResponseJson));
 
       const prevResult = { ...respPrev.data };
       const { data: dataTotal } = respTotals;
@@ -90,7 +95,7 @@ export const useFetchQuery = (): {
         totalLabelValuePairs: resp.data?.totalLabelValuePairs || resp.data?.headStats?.numLabelValuePairs || 0,
         seriesCountByLabelName: resp.data?.seriesCountByLabelName || [],
         seriesCountByFocusLabelValue: resp.data?.seriesCountByFocusLabelValue || [],
-        totalSeriesByAll: dataTotal?.totalSeries || dataTotal?.headStats?.numSeries || 0,
+        totalSeriesByAll: dataTotal?.totalSeries || dataTotal?.headStats?.numSeries || tsdbStatus.totalSeriesByAll || 0,
         totalSeriesPrev: prevResult?.totalSeries || prevResult?.headStats?.numSeries || 0,
       };
 

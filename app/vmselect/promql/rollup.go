@@ -955,11 +955,11 @@ func newRollupHoltWinters(args []interface{}) (rollupFunc, error) {
 			return rfa.prevValue
 		}
 		sf := sfs[rfa.idx]
-		if sf <= 0 || sf >= 1 {
+		if sf < 0 || sf > 1 {
 			return nan
 		}
 		tf := tfs[rfa.idx]
-		if tf <= 0 || tf >= 1 {
+		if tf < 0 || tf > 1 {
 			return nan
 		}
 

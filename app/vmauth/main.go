@@ -164,7 +164,7 @@ func processUserRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 
 func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 	u := normalizeURL(r.URL)
-	up, hc, retryStatusCodes := ui.getURLPrefixAndHeaders(u)
+	up, hc, retryStatusCodes, dropSrcPathPrefixParts := ui.getURLPrefixAndHeaders(u)
 	isDefault := false
 	if up == nil {
 		if ui.DefaultURL == nil {
@@ -198,7 +198,7 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 			query.Set("request_path", u.Path)
 			targetURL.RawQuery = query.Encode()
 		} else { // Update path for regular routes.
-			targetURL = mergeURLs(targetURL, u)
+			targetURL = mergeURLs(targetURL, u, dropSrcPathPrefixParts)
 		}
 		ok := tryProcessingRequest(w, r, targetURL, hc, retryStatusCodes, ui.httpTransport)
 		bu.put()

@@ -40,18 +40,19 @@ type AuthConfig struct {
 
 // UserInfo is user information read from authConfigPath
 type UserInfo struct {
-	Name                  string      `yaml:"name,omitempty"`
-	BearerToken           string      `yaml:"bearer_token,omitempty"`
-	Username              string      `yaml:"username,omitempty"`
-	Password              string      `yaml:"password,omitempty"`
-	URLPrefix             *URLPrefix  `yaml:"url_prefix,omitempty"`
-	URLMaps               []URLMap    `yaml:"url_map,omitempty"`
-	HeadersConf           HeadersConf `yaml:",inline"`
-	MaxConcurrentRequests int         `yaml:"max_concurrent_requests,omitempty"`
-	DefaultURL            *URLPrefix  `yaml:"default_url,omitempty"`
-	RetryStatusCodes      []int       `yaml:"retry_status_codes,omitempty"`
-	TLSInsecureSkipVerify *bool       `yaml:"tls_insecure_skip_verify,omitempty"`
-	TLSCAFile             string      `yaml:"tls_ca_file,omitempty"`
+	Name                   string      `yaml:"name,omitempty"`
+	BearerToken            string      `yaml:"bearer_token,omitempty"`
+	Username               string      `yaml:"username,omitempty"`
+	Password               string      `yaml:"password,omitempty"`
+	URLPrefix              *URLPrefix  `yaml:"url_prefix,omitempty"`
+	URLMaps                []URLMap    `yaml:"url_map,omitempty"`
+	HeadersConf            HeadersConf `yaml:",inline"`
+	MaxConcurrentRequests  int         `yaml:"max_concurrent_requests,omitempty"`
+	DefaultURL             *URLPrefix  `yaml:"default_url,omitempty"`
+	RetryStatusCodes       []int       `yaml:"retry_status_codes,omitempty"`
+	DropSrcPathPrefixParts int         `yaml:"drop_src_path_prefix_parts,omitempty"`
+	TLSInsecureSkipVerify  *bool       `yaml:"tls_insecure_skip_verify,omitempty"`
+	TLSCAFile              string      `yaml:"tls_ca_file,omitempty"`
 
 	concurrencyLimitCh      chan struct{}
 	concurrencyLimitReached *metrics.Counter
@@ -119,10 +120,11 @@ func (h *Header) MarshalYAML() (interface{}, error) {
 
 // URLMap is a mapping from source paths to target urls.
 type URLMap struct {
-	SrcPaths         []*SrcPath  `yaml:"src_paths,omitempty"`
-	URLPrefix        *URLPrefix  `yaml:"url_prefix,omitempty"`
-	HeadersConf      HeadersConf `yaml:",inline"`
-	RetryStatusCodes []int       `yaml:"retry_status_codes,omitempty"`
+	SrcPaths               []*SrcPath  `yaml:"src_paths,omitempty"`
+	URLPrefix              *URLPrefix  `yaml:"url_prefix,omitempty"`
+	HeadersConf            HeadersConf `yaml:",inline"`
+	RetryStatusCodes       []int       `yaml:"retry_status_codes,omitempty"`
+	DropSrcPathPrefixParts int         `yaml:"drop_src_path_prefix_parts,omitempty"`
 }
 
 // SrcPath represents an src path
