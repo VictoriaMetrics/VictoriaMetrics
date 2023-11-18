@@ -15,7 +15,8 @@ aliases:
 [vmagent](https://docs.victoriametrics.com/vmagent.html) and [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html)
 can aggregate incoming [samples](https://docs.victoriametrics.com/keyConcepts.html#raw-samples) in streaming mode by time and by labels before data is written to remote storage.
 The aggregation is applied to all the metrics received via any [supported data ingestion protocol](https://docs.victoriametrics.com/#how-to-import-time-series-data)
-and/or scraped from [Prometheus-compatible targets](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter).
+and/or scraped from [Prometheus-compatible targets](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter)
+after applying all the configured [relabeling stages](https://docs.victoriametrics.com/vmagent.html#relabeling).
 
 Stream aggregation ignores timestamps associated with the input [samples](https://docs.victoriametrics.com/keyConcepts.html#raw-samples).
 It expects that the ingested samples have timestamps close to the current time.
@@ -389,7 +390,10 @@ Both input and output metric names can be modified if needed via relabeling acco
 ## Relabeling
 
 It is possible to apply [arbitrary relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling) to input and output metrics
-during stream aggregation via `input_relabel_configs` and `output_relabel_config` options in [stream aggregation config](#stream-aggregation-config).
+during stream aggregation via `input_relabel_configs` and `output_relabel_configs` options in [stream aggregation config](#stream-aggregation-config).
+
+Relabeling rules inside `input_relabel_configs` are applied to samples matching the `match` filters.
+Relabeling rules inside `output_relabel_configs` are applied to aggregated samples before sending them to the remote storage.
 
 For example, the following config removes the `:1m_sum_samples` suffix added [to the output metric name](#output-metric-names):
 
@@ -421,7 +425,7 @@ The results of `total` is equal to the `sum(some_counter)` query.
 
 For example, see below time series produced by config with aggregation interval `1m` and `by: ["instance"]` and  the regular query:
 
-<img alt="total aggregation" src="stream-aggregation-check-total.webp">
+<img alt="total aggregation" src="stream-aggregation-check-total.png">
 
 `total` is not affected by [counter resets](https://docs.victoriametrics.com/keyConcepts.html#counter) - 
 it continues to increase monotonically with respect to the previous value.
@@ -429,7 +433,7 @@ The counters are most often reset when the application is restarted.
 
 For example: 
 
-<img alt="total aggregation counter reset" src="stream-aggregation-check-total-reset.webp">
+<img alt="total aggregation counter reset" src="stream-aggregation-check-total-reset.png">
 
 The same behavior will occur when creating or deleting new series in an aggregation group -
 `total` will increase monotonically considering the values of the series set.  
@@ -448,7 +452,7 @@ The results of `increase` with aggregation interval of `1m` is equal to the `inc
 
 For example, see below time series produced by config with aggregation interval `1m` and `by: ["instance"]` and  the regular query:
 
-<img alt="increase aggregation" src="stream-aggregation-check-increase.webp">
+<img alt="increase aggregation" src="stream-aggregation-check-increase.png">
 
 `increase` can be used as an alternative for [rate](https://docs.victoriametrics.com/MetricsQL.html#rate) function.
 For example, if we have `increase` with `interval` of `5m` for a counter `some_counter`, then to get `rate` we should divide
@@ -480,7 +484,7 @@ The results of `sum_samples` with aggregation interval of `1m` is equal to the `
 
 For example, see below time series produced by config with aggregation interval `1m` and the regular query:
 
-<img alt="sum_samples aggregation" src="stream-aggregation-check-sum-samples.webp">
+<img alt="sum_samples aggregation" src="stream-aggregation-check-sum-samples.png">
 
 ### last
 
@@ -499,7 +503,7 @@ The results of `min` with aggregation interval of `1m` is equal to the `min_over
 
 For example, see below time series produced by config with aggregation interval `1m` and the regular query:
 
-<img alt="min aggregation" src="stream-aggregation-check-min.webp">
+<img alt="min aggregation" src="stream-aggregation-check-min.png">
 
 ### max
 
@@ -509,7 +513,7 @@ The results of `max` with aggregation interval of `1m` is equal to the `max_over
 
 For example, see below time series produced by config with aggregation interval `1m` and the regular query:
 
-<img alt="total aggregation" src="stream-aggregation-check-max.webp">
+<img alt="total aggregation" src="stream-aggregation-check-max.png">
 
 ### avg
 
@@ -519,7 +523,7 @@ The results of `avg` with aggregation interval of `1m` is equal to the `avg_over
 
 For example, see below time series produced by config with aggregation interval `1m` and `by: ["instance"]` and  the regular query:
 
-<img alt="avg aggregation" src="stream-aggregation-check-avg.webp">
+<img alt="avg aggregation" src="stream-aggregation-check-avg.png">
 
 ### stddev
 
@@ -537,7 +541,7 @@ The results of `stdvar` with aggregation interval of `1m` is equal to the `stdva
 
 For example, see below time series produced by config with aggregation interval `1m` and the regular query:
 
-<img alt="stdvar aggregation" src="stream-aggregation-check-stdvar.webp">
+<img alt="stdvar aggregation" src="stream-aggregation-check-stdvar.png">
 
 ### histogram_bucket
 
