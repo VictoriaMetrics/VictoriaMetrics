@@ -561,8 +561,7 @@ func sendPrometheusError(w http.ResponseWriter, r *http.Request, err error) {
 
 	var ure *promql.UserReadableError
 	if errors.As(err, &ure) {
-		prometheus.WriteErrorResponse(w, statusCode, ure)
-		return
+		err = ure
 	}
 	prometheus.WriteErrorResponse(w, statusCode, err)
 }

@@ -1128,7 +1128,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(rate(vm_http_requests_total{job=~\"$job\", instance=~\"$instance\", path!~\"/favicon.ico\"}[$__rate_interval])) by (path) > 0",
+          "expr": "sum(rate(vm_http_requests_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (path) > 0",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "{{path}}",
@@ -6126,7 +6126,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(rate(vm_http_requests_total{job=~\"$job_select\", instance=~\"$instance\", path!~\"/favicon.ico|/metrics\"}[$__rate_interval])) by (path) > 0",
+              "expr": "sum(rate(vm_http_requests_total{job=~\"$job_select\", instance=~\"$instance\"}[$__rate_interval])) by (path) > 0",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "__auto",
@@ -7233,7 +7233,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(rate(vm_http_requests_total{job=~\"$job_insert\", instance=~\"$instance\", path!~\"/favicon.ico|/metrics\"}[$__rate_interval])) by (path) > 0",
+              "expr": "sum(rate(vm_http_requests_total{job=~\"$job_insert\", instance=~\"$instance\"}[$__rate_interval])) by (path) > 0",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "__auto",

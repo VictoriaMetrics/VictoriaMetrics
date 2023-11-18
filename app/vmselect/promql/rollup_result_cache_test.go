@@ -1,6 +1,7 @@
 package promql
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
@@ -245,6 +246,7 @@ func TestRollupResultCache(t *testing.T) {
 				Timestamps: []int64{1000, 1200, 1400, 1600, 1800, 2000},
 				Values:     []float64{1, 2, 3, 4, 5, 6},
 			}
+			ts.MetricName.MetricGroup = []byte(fmt.Sprintf("metric %d", i))
 			tss = append(tss, ts)
 		}
 		rollupResultCacheV.PutSeries(nil, ec, fe, window, tss)
@@ -253,6 +255,29 @@ func TestRollupResultCache(t *testing.T) {
 			t.Fatalf("unexpected newStart; got %d; want %d", newStart, 2200)
 		}
 		testTimeseriesEqual(t, tssResult, tss)
+	})
+
+	// Store series with identical naming (they shouldn't be stored)
+	t.Run("duplicate-series", func(t *testing.T) {
+		ResetRollupResultCache()
+		tss := []*timeseries{
+			{
+				Timestamps: []int64{800, 1000, 1200},
+				Values:     []float64{0, 1, 2},
+			},
+			{
+				Timestamps: []int64{800, 1000, 1200},
+				Values:     []float64{0, 1, 2},
+			},
+		}
+		rollupResultCacheV.PutSeries(nil, ec, fe, window, tss)
+		tssResult, newStart := rollupResultCacheV.GetSeries(nil, ec, fe, window)
+		if newStart != ec.Start {
+			t.Fatalf("unexpected newStart; got %d; want %d", newStart, ec.Start)
+		}
+		if len(tssResult) != 0 {
+			t.Fatalf("unexpected non-empty series returned")
+		}
 	})
 
 	// Store multiple time series
@@ -294,7 +319,7 @@ func TestRollupResultCache(t *testing.T) {
 
 }
 
-func TestMergeTimeseries(t *testing.T) {
+func TestMergeSeries(t *testing.T) {
 	ec := &EvalConfig{
 		Start:              1000,
 		End:                2000,
@@ -311,9 +336,9 @@ func TestMergeTimeseries(t *testing.T) {
 				Values:     []float64{1, 2, 3, 4, 5, 6},
 			},
 		}
-		tss, err := mergeTimeseries(nil, a, b, 1000, ec)
-		if err != nil {
-			t.Fatalf("unexpected error: %s", err)
+		tss, ok := mergeSeries(nil, a, b, 1000, ec)
+		if !ok {
+			t.Fatalf("unexpected failure to merge series")
 		}
 		tssExpected := []*timeseries{
 			{
@@ -331,9 +356,9 @@ func TestMergeTimeseries(t *testing.T) {
 				Values:     []float64{3, 4, 5, 6},
 			},
 		}
-		tss, err := mergeTimeseries(nil, a, b, bStart, ec)
-		if err != nil {
-			t.Fatalf("unexpected error: %s", err)
+		tss, ok := mergeSeries(nil, a, b, bStart, ec)
+		if !ok {
+			t.Fatalf("unexpected failure to merge series")
 		}
 		tssExpected := []*timeseries{
 			{
@@ -351,9 +376,9 @@ func TestMergeTimeseries(t *testing.T) {
 			},
 		}
 		b := []*timeseries{}
-		tss, err := mergeTimeseries(nil, a, b, bStart, ec)
-		if err != nil {
-			t.Fatalf("unexpected error: %s", err)
+		tss, ok := mergeSeries(nil, a, b, bStart, ec)
+		if !ok {
+			t.Fatalf("unexpected failure to merge series")
 		}
 		tssExpected := []*timeseries{
 			{
@@ -376,9 +401,9 @@ func TestMergeTimeseries(t *testing.T) {
 				Values:     []float64{3, 4, 5, 6},
 			},
 		}
-		tss, err := mergeTimeseries(nil, a, b, bStart, ec)
-		if err != nil {
-			t.Fatalf("unexpected error: %s", err)
+		tss, ok := mergeSeries(nil, a, b, bStart, ec)
+		if !ok {
+			t.Fatalf("unexpected failure to merge series")
 		}
 		tssExpected := []*timeseries{
 			{
@@ -403,9 +428,9 @@ func TestMergeTimeseries(t *testing.T) {
 			},
 		}
 		b[0].MetricName.MetricGroup = []byte("foo")
-		tss, err := mergeTimeseries(nil, a, b, bStart, ec)
-		if err != nil {
-			t.Fatalf("unexpected error: %s", err)
+		tss, ok := mergeSeries(nil, a, b, bStart, ec)
+		if !ok {
+			t.Fatalf("unexpected failure to merge series")
 		}
 		tssExpected := []*timeseries{
 			{
@@ -424,6 +449,52 @@ func TestMergeTimeseries(t *testing.T) {
 			},
 		}
 		testTimeseriesEqual(t, tss, tssExpected)
+	})
+	t.Run("duplicate-series-a", func(t *testing.T) {
+		a := []*timeseries{
+			{
+				Timestamps: []int64{1000, 1200},
+				Values:     []float64{2, 1},
+			},
+			{
+				Timestamps: []int64{1000, 1200},
+				Values:     []float64{3, 3},
+			},
+		}
+		b := []*timeseries{
+			{
+				Timestamps: []int64{1400, 1600, 1800, 2000},
+				Values:     []float64{3, 4, 5, 6},
+			},
+		}
+		tss, ok := mergeSeries(nil, a, b, bStart, ec)
+		if ok {
+			t.Fatalf("expecting failre to merge series")
+		}
+		testTimeseriesEqual(t, tss, nil)
+	})
+	t.Run("duplicate-series-b", func(t *testing.T) {
+		a := []*timeseries{
+			{
+				Timestamps: []int64{1000, 1200},
+				Values:     []float64{1, 2},
+			},
+		}
+		b := []*timeseries{
+			{
+				Timestamps: []int64{1400, 1600, 1800, 2000},
+				Values:     []float64{3, 4, 5, 6},
+			},
+			{
+				Timestamps: []int64{1400, 1600, 1800, 2000},
+				Values:     []float64{13, 14, 15, 16},
+			},
+		}
+		tss, ok := mergeSeries(nil, a, b, bStart, ec)
+		if ok {
+			t.Fatalf("expecting failre to merge series")
+		}
+		testTimeseriesEqual(t, tss, nil)
 	})
 }
 

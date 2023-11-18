@@ -1,3 +1,7 @@
+# v1.10.1 (2023-11-15)
+
+* No change notes available for this release.
+
 # v1.10.0 (2023-10-31)
 
 * **Feature**: **BREAKING CHANGE**: Bump minimum go version to 1.19 per the revised [go version support policy](https://aws.amazon.com/blogs/developer/aws-sdk-for-go-aligns-with-go-release-policy-on-supported-runtimes/).
