@@ -6,6 +6,13 @@
 
   &-list {
     display: grid;
+    max-height: 100vh;
+    transition: max-height 0.3s ease-out;
+
+    &_hide {
+      overflow: hidden;
+      max-height: 0;
+    }
 
     &-row {
       display: grid;
@@ -41,9 +48,18 @@
     &__buttons {
       flex-grow: 1;
       display: grid;
-      grid-template-columns: repeat(3, auto);
+      grid-template-columns: repeat(4, auto);
       gap: $padding-small;
       justify-content: flex-end;
+    }
+
+    &__sizer {
+      transform: rotate(180deg);
+      transition: tranfrom 0.3s ease-out;
+
+      &_open {
+        transform: rotate(0deg);
+      }
     }
   }
 }

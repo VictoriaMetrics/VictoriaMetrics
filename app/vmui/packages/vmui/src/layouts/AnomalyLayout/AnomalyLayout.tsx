@@ -2,16 +2,16 @@ import Header from "../Header/Header";
 import React, { FC, useEffect } from "preact/compat";
 import { Outlet, useLocation, useSearchParams } from "react-router-dom";
 import qs from "qs";
-import "./style.scss";
+import "../MainLayout/style.scss";
 import { getAppModeEnable } from "../../utils/app-mode";
 import classNames from "classnames";
 import Footer from "../Footer/Footer";
 import { routerOptions } from "../../router";
 import { useFetchDashboards } from "../../pages/PredefinedPanels/hooks/useFetchDashboards";
 import useDeviceDetect from "../../hooks/useDeviceDetect";
-import ControlsMainLayout from "./ControlsMainLayout";
+import ControlsAnomalyLayout from "./ControlsAnomalyLayout";
 
-const MainLayout: FC = () => {
+const AnomalyLayout: FC = () => {
   const appModeEnable = getAppModeEnable();
   const { isMobile } = useDeviceDetect();
   const { pathname } = useLocation();
@@ -20,7 +20,7 @@ const MainLayout: FC = () => {
   useFetchDashboards();
 
   const setDocumentTitle = () => {
-    const defaultTitle = "vmui";
+    const defaultTitle = "vmui for vmanomaly";
     const routeTitle = routerOptions[pathname]?.title;
     document.title = routeTitle ? `${routeTitle} - ${defaultTitle}` : defaultTitle;
   };
@@ -42,7 +42,7 @@ const MainLayout: FC = () => {
   useEffect(redirectSearchToHashParams, []);
 
   return <section className="vm-container">
-    <Header controlsComponent={ControlsMainLayout}/>
+    <Header controlsComponent={ControlsAnomalyLayout}/>
     <div
       className={classNames({
         "vm-container-body": true,
@@ -56,4 +56,4 @@ const MainLayout: FC = () => {
   </section>;
 };
 
-export default MainLayout;
+export default AnomalyLayout;

@@ -5,14 +5,15 @@ import uPlot, {
   Series as uPlotSeries,
 } from "uplot";
 import {
-  getDefaultOptions,
   addSeries,
   delSeries,
+  getAxes,
+  getDefaultOptions,
   getRangeX,
   getRangeY,
   getScales,
   handleDestroy,
-  getAxes,
+  setBand,
   setSelect
 } from "../../../../utils/uplot";
 import { MetricResult } from "../../../../api/types";
@@ -82,6 +83,7 @@ const LineChart: FC<LineChartProps> = ({
       setSelect: [setSelect(setPlotScale)],
       destroy: [handleDestroy],
     },
+    bands: []
   };
 
   useEffect(() => {
@@ -103,6 +105,7 @@ const LineChart: FC<LineChartProps> = ({
     if (!uPlotInst) return;
     delSeries(uPlotInst);
     addSeries(uPlotInst, series);
+    setBand(uPlotInst, series);
     uPlotInst.redraw();
   }, [series]);
 
