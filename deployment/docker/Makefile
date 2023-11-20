@@ -181,8 +181,28 @@ docker-single-up:
 docker-single-down:
 	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose.yml down -v
 
+LATEST_VERSION ?=$(shell curl -s https://api.github.com/repos/VictoriaMetrics/grafana-datasource/releases/latest | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+
+install-grafana-datasource:
+    $(shell curl -L https://github.com/VictoriaMetrics/grafana-datasource/releases/download/$(LATEST_VERSION)/victoriametrics-datasource-$(LATEST_VERSION).tar.gz -o plugin.tar.gz && \
+    tar -xf plugin.tar.gz -C deployment/docker/provisioning/plugins && \
+    rm plugin.tar.gz)
+
+docker-single-compose-merge-up:
+	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose.yml -f deployment/docker/docker-compose-with-datasource.yml up -d
+
+docker-single-compose-merge-down:
+	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose.yml -f deployment/docker/docker-compose-with-datasource.yml down -v
+
+docker-single-up-with-grafana-datasource: install-grafana-datasource \
+    $(MAKE) docker-single-compose-merge-up
+
+docker-single-down-with-grafana-datasource:
+	$(MAKE) docker-single-compose-merge-down
+
 docker-cluster-up:
 	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose-cluster.yml up -d
 
 docker-cluster-down:
 	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose-cluster.yml down -v
+
