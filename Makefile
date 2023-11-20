@@ -1,5 +1,6 @@
 PKG_PREFIX := github.com/VictoriaMetrics/VictoriaMetrics
 
+MAKE_PARALLEL := $(MAKE) -j `cat /proc/cpuinfo | grep -c processor`
 DATEINFO_TAG ?= $(shell date -u +'%Y%m%d-%H%M%S')
 BUILDINFO_TAG ?= $(shell echo $$(git describe --long --all | tr '/' '-')$$( \
 	      git diff-index --quiet HEAD -- || echo '-dirty-'$$(git diff-index -u HEAD | openssl sha1 | cut -d' ' -f2 | cut -c 1-8)))
@@ -72,14 +73,16 @@ vmcluster-windows-amd64: \
 	vmselect-windows-amd64 \
 	vmstorage-windows-amd64
 
-vmcluster-crossbuild: \
-	vmcluster-linux-amd64 \
-	vmcluster-linux-arm64 \
-	vmcluster-linux-arm \
-	vmcluster-linux-ppc64le \
-	vmcluster-linux-386 \
-	vmcluster-freebsd-amd64 \
-	vmcluster-openbsd-amd64
+crossbuild: vmcluster-crossbuild
+
+vmcluster-crossbuild:
+	$(MAKE_PARALLEL) vmcluster-linux-amd64 \
+		vmcluster-linux-arm64 \
+		vmcluster-linux-arm \
+		vmcluster-linux-ppc64le \
+		vmcluster-linux-386 \
+		vmcluster-freebsd-amd64 \
+		vmcluster-openbsd-amd64
 
 publish: \
 	publish-vminsert \
@@ -93,13 +96,13 @@ package: \
 
 publish-release:
 	rm -rf bin/*
-	git checkout $(TAG) && LATEST_TAG=stable $(MAKE) release publish && \
-		git checkout $(TAG)-cluster && LATEST_TAG=cluster-stable $(MAKE) release publish && \
-		git checkout $(TAG)-enterprise && LATEST_TAG=enterprise-stable $(MAKE) release publish && \
-		git checkout $(TAG)-enterprise-cluster && LATEST_TAG=enterprise-cluster-stable $(MAKE) release publish
+	git checkout $(TAG) && $(MAKE) release && LATEST_TAG=stable $(MAKE) publish && \
+		git checkout $(TAG)-cluster && $(MAKE) release && LATEST_TAG=cluster-stable $(MAKE) publish && \
+		git checkout $(TAG)-enterprise && $(MAKE) release && LATEST_TAG=enterprise-stable $(MAKE) publish && \
+		git checkout $(TAG)-enterprise-cluster && $(MAKE) release && LATEST_TAG=enterprise-cluster-stable $(MAKE) publish
 
-release: \
-	release-vmcluster
+release:
+	$(MAKE_PARALLEL) release-vmcluster
 
 release-vmcluster: \
 	release-vmcluster-linux-amd64 \

@@ -92,4 +92,4 @@ jobs:
 
       - name: Build
         run: |
-          make vmcluster-crossbuild
+          make crossbuild
