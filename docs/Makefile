@@ -20,3 +20,16 @@ docs-up-docker:
 		-p 4000:4000 \
 		-v $(PWD):/srv/jekyll \
 		jekyll/jekyll:3.8 jekyll serve --livereload
+
+docs-images-to-webp:
+	docker run -it --rm -v \
+		$(PWD)/$(PATH_TO_IMAGES):/data \
+		elswork/cwebp \
+		find ./ -type f -name '*.$(IMAGES_EXTENSION)' -exec sh -c 'cwebp -q ${IMAGE_QUALITY} -m 6 $$1 -o "$${1%.png}.webp"' _ {} \;
+
+docs-remove-old-images:
+	rm -f $(PWD)/$(PATH_TO_IMAGES)/*.$(IMAGES_EXTENSION)
+
+docs-change-images: \
+	docs-images-to-webp \
+	docs-remove-old-images

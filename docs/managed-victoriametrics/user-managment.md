@@ -106,7 +106,7 @@ You assign the role to the user during the user creation procedure. You can chan
 It shows all users with different roles, and you can apply provided actions with them.
 
 <p>
-  <img src="user_management_list.png" width="800">
+  <img src="user_management_list.webp" width="800">
 </p>
 
 In the table, there is additional information about the users:
@@ -141,7 +141,7 @@ Click on `Invite user` button
 the user invitation button and fill out the form in the modal, which will appear after you click. All fields are mandatory.
 
 <p>
-    <img src="user_management_invite_user.png" width="800">
+    <img src="user_management_invite_user.webp" width="800">
 </p>
 
 After filling out the form, click on the `Invite` button. 
@@ -152,7 +152,7 @@ The user will be saved, and an invitation email to the provided email address wi
 The user will be at Pending Invitation status. After accepting the invitation user status changes to Active.
 
 <p>
-    <img src="user_management_invite_success.png" width="800">
+    <img src="user_management_invite_success.webp" width="800">
 </p>
 
 ## How to Update User
@@ -160,20 +160,20 @@ The user will be at Pending Invitation status. After accepting the invitation us
 To edit the user role and details, activate or deactivate a user, and click on
 
 <p>
-    <img src="user_management_update_user.png" width="800">
+    <img src="user_management_update_user.webp" width="800">
 </p>
 or `user email` to edit the user.
 
 User editing form:
 
 <p>
-    <img src="user_management_user_update_form.png" width="800">
+    <img src="user_management_user_update_form.webp" width="800">
 </p>
 
 To save changes, click the `Save changes` button. If changes are saved successfully, you will see a message at the top of the page.
 
 <p>
-    <img src="user_management_user_updated_success.png" width="800">
+    <img src="user_management_user_updated_success.webp" width="800">
 </p>
 
 ## How to Delete User
@@ -183,19 +183,19 @@ You can delete a user from your account. However, you will need to invite them a
 Click on `Delete` button to delete the user.
 
 <p>
-    <img src="user_management_user_delete.png" width="800">
+    <img src="user_management_user_delete.webp" width="800">
 </p>
 
 To confirm the deletion of a user, you will need to re-enter their email address and press the **Delete** button
 
 <p>
-    <img src="user_management_delete_user_form.png" width="800">
+    <img src="user_management_delete_user_form.webp" width="800">
 </p>
 
 You will be redirected to the main page with a success or error message
 
 <p>
-    <img src="user_management_delete_sucess.png" width="800">
+    <img src="user_management_delete_sucess.webp" width="800">
 </p>
 
 ## How to resend invitation
@@ -205,17 +205,17 @@ If the invitation is expired, it is possible to resend email to the user
 Click `Resend invitation` button
 
 <p>
-    <img src="user_management_resend_invitation.png" width="800">
+    <img src="user_management_resend_invitation.webp" width="800">
 </p>
 
 Confirm resend invitation by clicking `Resend` button in the modal dialog
 
 <p>
-    <img src="user_management_confirm_resend_invitation.png" width="800">
+    <img src="user_management_confirm_resend_invitation.webp" width="800">
 </p>
 
 If invitation successfully resented to the user success message will appear
 
 <p>
-    <img src="user_management_resend_success.png" width="800">
+    <img src="user_management_resend_success.webp" width="800">
 </p>
