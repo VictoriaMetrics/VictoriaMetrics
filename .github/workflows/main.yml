@@ -92,5 +92,4 @@ jobs:
 
       - name: Build
         run: |
-          make victoria-metrics-crossbuild
-          make vmuitils-crossbuild
+          make crossbuild

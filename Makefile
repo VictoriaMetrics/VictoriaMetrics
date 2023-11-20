@@ -1,5 +1,6 @@
 PKG_PREFIX := github.com/VictoriaMetrics/VictoriaMetrics
 
+MAKE_PARALLEL := $(MAKE) -j `cat /proc/cpuinfo | grep -c processor`
 DATEINFO_TAG ?= $(shell date -u +'%Y%m%d-%H%M%S')
 BUILDINFO_TAG ?= $(shell echo $$(git describe --long --all | tr '/' '-')$$( \
 	      git diff-index --quiet HEAD -- || echo '-dirty-'$$(git diff-index -u HEAD | openssl sha1 | cut -d' ' -f2 | cut -c 1-8)))
@@ -55,160 +56,163 @@ package: \
 	package-vmrestore \
 	package-vmctl
 
-vmutils: \
-	vmagent \
-	vmalert \
-	vmalert-tool \
-	vmauth \
-	vmbackup \
-	vmrestore \
-	vmctl
+vmutils:
+	$(MAKE_PARALLEL) vmagent \
+		vmalert \
+		vmalert-tool \
+		vmauth \
+		vmbackup \
+		vmrestore \
+		vmctl
 
-vmutils-pure: \
-	vmagent-pure \
-	vmalert-pure \
-	vmalert-tool-pure \
-	vmauth-pure \
-	vmbackup-pure \
-	vmrestore-pure \
-	vmctl-pure
+vmutils-pure:
+	$(MAKE_PARALLEL) vmagent-pure \
+		vmalert-pure \
+		vmalert-tool-pure \
+		vmauth-pure \
+		vmbackup-pure \
+		vmrestore-pure \
+		vmctl-pure
 
-vmutils-linux-amd64: \
-	vmagent-linux-amd64 \
-	vmalert-linux-amd64 \
-	vmalert-tool-linux-amd64 \
-	vmauth-linux-amd64 \
-	vmbackup-linux-amd64 \
-	vmrestore-linux-amd64 \
-	vmctl-linux-amd64
+vmutils-linux-amd64:
+	$(MAKE_PARALLEL) vmagent-linux-amd64 \
+		vmalert-linux-amd64 \
+		vmalert-tool-linux-amd64 \
+		vmauth-linux-amd64 \
+		vmbackup-linux-amd64 \
+		vmrestore-linux-amd64 \
+		vmctl-linux-amd64
 
-vmutils-linux-arm64: \
-	vmagent-linux-arm64 \
-	vmalert-linux-arm64 \
-	vmalert-tool-linux-arm64 \
-	vmauth-linux-arm64 \
-	vmbackup-linux-arm64 \
-	vmrestore-linux-arm64 \
-	vmctl-linux-arm64
+vmutils-linux-arm64:
+	$(MAKE_PARALLEL) vmagent-linux-arm64 \
+		vmalert-linux-arm64 \
+		vmalert-tool-linux-arm64 \
+		vmauth-linux-arm64 \
+		vmbackup-linux-arm64 \
+		vmrestore-linux-arm64 \
+		vmctl-linux-arm64
 
-vmutils-linux-arm: \
-	vmagent-linux-arm \
-	vmalert-linux-arm \
-	vmalert-tool-linux-arm \
-	vmauth-linux-arm \
-	vmbackup-linux-arm \
-	vmrestore-linux-arm \
-	vmctl-linux-arm
+vmutils-linux-arm:
+	$(MAKE_PARALLEL) vmagent-linux-arm \
+		vmalert-linux-arm \
+		vmalert-tool-linux-arm \
+		vmauth-linux-arm \
+		vmbackup-linux-arm \
+		vmrestore-linux-arm \
+		vmctl-linux-arm
 
-vmutils-linux-386: \
-	vmagent-linux-386 \
-	vmalert-linux-386 \
-	vmalert-tool-linux-386 \
-	vmauth-linux-386 \
-	vmbackup-linux-386 \
-	vmrestore-linux-386 \
-	vmctl-linux-386
+vmutils-linux-386:
+	$(MAKE_PARALLEL) vmagent-linux-386 \
+		vmalert-linux-386 \
+		vmalert-tool-linux-386 \
+		vmauth-linux-386 \
+		vmbackup-linux-386 \
+		vmrestore-linux-386 \
+		vmctl-linux-386
 
-vmutils-linux-ppc64le: \
-	vmagent-linux-ppc64le \
-	vmalert-linux-ppc64le \
-	vmalert-tool-linux-ppc64le \
-	vmauth-linux-ppc64le \
-	vmbackup-linux-ppc64le \
-	vmrestore-linux-ppc64le \
-	vmctl-linux-ppc64le
+vmutils-linux-ppc64le:
+	$(MAKE_PARALLEL) vmagent-linux-ppc64le \
+		vmalert-linux-ppc64le \
+		vmalert-tool-linux-ppc64le \
+		vmauth-linux-ppc64le \
+		vmbackup-linux-ppc64le \
+		vmrestore-linux-ppc64le \
+		vmctl-linux-ppc64le
 
-vmutils-darwin-amd64: \
-	vmagent-darwin-amd64 \
-	vmalert-darwin-amd64 \
-	vmalert-tool-darwin-amd64 \
-	vmauth-darwin-amd64 \
-	vmbackup-darwin-amd64 \
-	vmrestore-darwin-amd64 \
-	vmctl-darwin-amd64
+vmutils-darwin-amd64:
+	$(MAKE_PARALLEL) vmagent-darwin-amd64 \
+		vmalert-darwin-amd64 \
+		vmalert-tool-darwin-amd64 \
+		vmauth-darwin-amd64 \
+		vmbackup-darwin-amd64 \
+		vmrestore-darwin-amd64 \
+		vmctl-darwin-amd64
 
-vmutils-darwin-arm64: \
-	vmagent-darwin-arm64 \
-	vmalert-darwin-arm64 \
-	vmalert-tool-darwin-arm64 \
-	vmauth-darwin-arm64 \
-	vmbackup-darwin-arm64 \
-	vmrestore-darwin-arm64 \
-	vmctl-darwin-arm64
+vmutils-darwin-arm64:
+	$(MAKE_PARALLEL) vmagent-darwin-arm64 \
+		vmalert-darwin-arm64 \
+		vmalert-tool-darwin-arm64 \
+		vmauth-darwin-arm64 \
+		vmbackup-darwin-arm64 \
+		vmrestore-darwin-arm64 \
+		vmctl-darwin-arm64
 
-vmutils-freebsd-amd64: \
-	vmagent-freebsd-amd64 \
-	vmalert-freebsd-amd64 \
-	vmalert-tool-freebsd-amd64 \
-	vmauth-freebsd-amd64 \
-	vmbackup-freebsd-amd64 \
-	vmrestore-freebsd-amd64 \
-	vmctl-freebsd-amd64
+vmutils-freebsd-amd64:
+	$(MAKE_PARALLEL) vmagent-freebsd-amd64 \
+		vmalert-freebsd-amd64 \
+		vmalert-tool-freebsd-amd64 \
+		vmauth-freebsd-amd64 \
+		vmbackup-freebsd-amd64 \
+		vmrestore-freebsd-amd64 \
+		vmctl-freebsd-amd64
 
-vmutils-openbsd-amd64: \
-	vmagent-openbsd-amd64 \
-	vmalert-openbsd-amd64 \
-	vmalert-tool-openbsd-amd64 \
-	vmauth-openbsd-amd64 \
-	vmbackup-openbsd-amd64 \
-	vmrestore-openbsd-amd64 \
-	vmctl-openbsd-amd64
+vmutils-openbsd-amd64:
+	$(MAKE_PARALLEL) vmagent-openbsd-amd64 \
+		vmalert-openbsd-amd64 \
+		vmalert-tool-openbsd-amd64 \
+		vmauth-openbsd-amd64 \
+		vmbackup-openbsd-amd64 \
+		vmrestore-openbsd-amd64 \
+		vmctl-openbsd-amd64
 
-vmutils-windows-amd64: \
-	vmagent-windows-amd64 \
-	vmalert-windows-amd64 \
-	vmalert-tool-windows-amd64 \
-	vmauth-windows-amd64 \
-	vmbackup-windows-amd64 \
-	vmrestore-windows-amd64 \
-	vmctl-windows-amd64
+vmutils-windows-amd64:
+	$(MAKE_PARALLEL) vmagent-windows-amd64 \
+		vmalert-windows-amd64 \
+		vmalert-tool-windows-amd64 \
+		vmauth-windows-amd64 \
+		vmbackup-windows-amd64 \
+		vmrestore-windows-amd64 \
+		vmctl-windows-amd64
 
-victoria-metrics-crossbuild: \
-	victoria-metrics-linux-386 \
-	victoria-metrics-linux-amd64 \
-	victoria-metrics-linux-arm64 \
-	victoria-metrics-linux-arm \
-	victoria-metrics-linux-386 \
-	victoria-metrics-linux-ppc64le \
-	victoria-metrics-darwin-amd64 \
-	victoria-metrics-darwin-arm64 \
-	victoria-metrics-freebsd-amd64 \
-	victoria-metrics-openbsd-amd64
+crossbuild: victoria-metrics-crossbuild vmutils-crossbuild
 
-vmutils-crossbuild: \
-	vmutils-linux-386 \
-	vmutils-linux-amd64 \
-	vmutils-linux-arm64 \
-	vmutils-linux-arm \
-	vmutils-linux-386 \
-	vmutils-linux-ppc64le \
-	vmutils-darwin-amd64 \
-	vmutils-darwin-arm64 \
-	vmutils-freebsd-amd64 \
-	vmutils-openbsd-amd64 \
-	vmutils-windows-amd64
+victoria-metrics-crossbuild:
+	$(MAKE_PARALLEL) victoria-metrics-linux-386 \
+		victoria-metrics-linux-amd64 \
+		victoria-metrics-linux-arm64 \
+		victoria-metrics-linux-arm \
+		victoria-metrics-linux-386 \
+		victoria-metrics-linux-ppc64le \
+		victoria-metrics-darwin-amd64 \
+		victoria-metrics-darwin-arm64 \
+		victoria-metrics-freebsd-amd64 \
+		victoria-metrics-openbsd-amd64
+
+vmutils-crossbuild:
+	# Do not use MAKE_PARALLEL, since every vmutils-* target already runs in parallel
+	$(MAKE) vmutils-linux-386 \
+		vmutils-linux-amd64 \
+		vmutils-linux-arm64 \
+		vmutils-linux-arm \
+		vmutils-linux-386 \
+		vmutils-linux-ppc64le \
+		vmutils-darwin-amd64 \
+		vmutils-darwin-arm64 \
+		vmutils-freebsd-amd64 \
+		vmutils-openbsd-amd64 \
+		vmutils-windows-amd64
 
 publish-release:
 	rm -rf bin/*
-	git checkout $(TAG) && LATEST_TAG=stable $(MAKE) release publish && \
-		git checkout $(TAG)-cluster && LATEST_TAG=cluster-stable $(MAKE) release publish && \
-		git checkout $(TAG)-enterprise && LATEST_TAG=enterprise-stable $(MAKE) release publish && \
-		git checkout $(TAG)-enterprise-cluster && LATEST_TAG=enterprise-cluster-stable $(MAKE) release publish
+	git checkout $(TAG) && $(MAKE) release && LATEST_TAG=stable $(MAKE) publish && \
+		git checkout $(TAG)-cluster && $(MAKE) release && LATEST_TAG=cluster-stable $(MAKE) publish && \
+		git checkout $(TAG)-enterprise && $(MAKE) release && LATEST_TAG=enterprise-stable $(MAKE) publish && \
+		git checkout $(TAG)-enterprise-cluster && $(MAKE) release && LATEST_TAG=enterprise-cluster-stable $(MAKE) publish
 
 release: \
 	release-victoria-metrics \
 	release-vmutils
 
-release-victoria-metrics: \
-	release-victoria-metrics-linux-386 \
-	release-victoria-metrics-linux-amd64 \
-	release-victoria-metrics-linux-arm \
-	release-victoria-metrics-linux-arm64 \
-	release-victoria-metrics-darwin-amd64 \
-	release-victoria-metrics-darwin-arm64 \
-	release-victoria-metrics-freebsd-amd64 \
-	release-victoria-metrics-openbsd-amd64 \
-	release-victoria-metrics-windows-amd64
+release-victoria-metrics:
+	$(MAKE_PARALLEL) release-victoria-metrics-linux-386 \
+		release-victoria-metrics-linux-amd64 \
+		release-victoria-metrics-linux-arm \
+		release-victoria-metrics-linux-arm64 \
+		release-victoria-metrics-darwin-amd64 \
+		release-victoria-metrics-darwin-arm64 \
+		release-victoria-metrics-freebsd-amd64 \
+		release-victoria-metrics-openbsd-amd64 \
+		release-victoria-metrics-windows-amd64
 
 release-victoria-metrics-linux-386:
 	GOOS=linux GOARCH=386 $(MAKE) release-victoria-metrics-goos-goarch
@@ -256,16 +260,16 @@ release-victoria-metrics-windows-goarch: victoria-metrics-windows-$(GOARCH)-prod
 	cd bin && rm -rf \
 		victoria-metrics-windows-$(GOARCH)-prod.exe
 
-release-victoria-logs: \
-	release-victoria-logs-linux-386 \
-	release-victoria-logs-linux-amd64 \
-	release-victoria-logs-linux-arm \
-	release-victoria-logs-linux-arm64 \
-	release-victoria-logs-darwin-amd64 \
-	release-victoria-logs-darwin-arm64 \
-	release-victoria-logs-freebsd-amd64 \
-	release-victoria-logs-openbsd-amd64 \
-	release-victoria-logs-windows-amd64
+release-victoria-logs:
+	$(MAKE_PARALLEL) release-victoria-logs-linux-386 \
+		release-victoria-logs-linux-amd64 \
+		release-victoria-logs-linux-arm \
+		release-victoria-logs-linux-arm64 \
+		release-victoria-logs-darwin-amd64 \
+		release-victoria-logs-darwin-arm64 \
+		release-victoria-logs-freebsd-amd64 \
+		release-victoria-logs-openbsd-amd64 \
+		release-victoria-logs-windows-amd64
 
 release-victoria-logs-linux-386:
 	GOOS=linux GOARCH=386 $(MAKE) release-victoria-logs-goos-goarch
@@ -313,16 +317,16 @@ release-victoria-logs-windows-goarch: victoria-logs-windows-$(GOARCH)-prod
 	cd bin && rm -rf \
 		victoria-logs-windows-$(GOARCH)-prod.exe
 
-release-vmutils: \
-	release-vmutils-linux-386 \
-	release-vmutils-linux-amd64 \
-	release-vmutils-linux-arm64 \
-	release-vmutils-linux-arm \
-	release-vmutils-darwin-amd64 \
-	release-vmutils-darwin-arm64 \
-	release-vmutils-freebsd-amd64 \
-	release-vmutils-openbsd-amd64 \
-	release-vmutils-windows-amd64
+release-vmutils:
+	$(MAKE_PARALLEL) release-vmutils-linux-386 \
+		release-vmutils-linux-amd64 \
+		release-vmutils-linux-arm64 \
+		release-vmutils-linux-arm \
+		release-vmutils-darwin-amd64 \
+		release-vmutils-darwin-arm64 \
+		release-vmutils-freebsd-amd64 \
+		release-vmutils-openbsd-amd64 \
+		release-vmutils-windows-amd64
 
 release-vmutils-linux-386:
 	GOOS=linux GOARCH=386 $(MAKE) release-vmutils-goos-goarch
