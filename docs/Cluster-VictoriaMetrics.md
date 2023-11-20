@@ -483,7 +483,8 @@ during the config update / version upgrade. In this case the following strategy 
 [rolling restarts](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#no-downtime-strategy),
 since they need to process higher load when some of `vmstorage` nodes are temporarily unavailable in the cluster.
 It is possible to reduce resource usage spikes by running more `vminsert` nodes and by passing bigger values
-to `-storage.vminsertConnsShutdownDuration` command-line flag at `vmstorage` nodes.
+to `-storage.vminsertConnsShutdownDuration` (available from [v1.95.0](https://docs.victoriametrics.com/CHANGELOG.html#v1950))
+command-line flag at `vmstorage` nodes.
 In this case `vmstorage` increases the interval between gradual closing of `vminsert` connections during graceful shutdown.
 This reduces data ingestion slowdown during rollout restarts.
 
