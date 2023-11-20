@@ -2524,6 +2524,22 @@ Files included in each folder:
 * Do not change the proportions for any of the design elements or the design itself. 
   You may resize as needed but must retain all proportions.
 
+### Images in documentation
+
+* Images should have `.webp` format
+
+When documentation in the `docs` folder updated and some content should have images
+those images can be added in format `.png`, `jpeg` or `jpg`.
+
+When content is finished and it is ready to be pushed to the repository all images should be converted 
+to the `.webp` format via
+`PATH_TO_IMAGES=path/to/images IMAGES_EXTENSION=image_extension IMAGE_QUALITY=image_quality make docs-change-images`
+
+All images quality set to `IMAGE_QUALITY` but it just reduce the size of image, but not the display quality
+This command will reduce all images with extionsion and folder defined in the command. 
+All images with defined extensions will be removed. 
+After that it is nesessary to update src attribute for image tag
+
 ## List of command-line flags
 
 Pass `-help` to VictoriaMetrics in order to see the list of supported command-line flags with their description:
