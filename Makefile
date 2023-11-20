@@ -1,6 +1,7 @@
 PKG_PREFIX := github.com/VictoriaMetrics/VictoriaMetrics
 
-MAKE_PARALLEL := $(MAKE) -j `cat /proc/cpuinfo | grep -c processor`
+MAKE_CONCURRENCY ?= $(shell cat /proc/cpuinfo | grep -c processor)
+MAKE_PARALLEL := $(MAKE) -j $(MAKE_CONCURRENCY)
 DATEINFO_TAG ?= $(shell date -u +'%Y%m%d-%H%M%S')
 BUILDINFO_TAG ?= $(shell echo $$(git describe --long --all | tr '/' '-')$$( \
 	      git diff-index --quiet HEAD -- || echo '-dirty-'$$(git diff-index -u HEAD | openssl sha1 | cut -d' ' -f2 | cut -c 1-8)))
