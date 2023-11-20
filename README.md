@@ -2494,6 +2494,25 @@ Adhering `KISS` principle simplifies the resulting code and architecture, so it 
 
 Report bugs and propose new features [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues).
 
+## Images in documentation
+
+Please, keep image size and number of images per single page low. Keep the docs page as lightweight as possible.
+
+If the page needs to have many images, consider using WEB-optimized image format [webp](https://developers.google.com/speed/webp).
+When adding a new doc with many images use `webp` format right away. Or use a MAKEFILE command below to
+convert already existing images automatically:
+```console
+PATH_TO_IMAGES=path/to/images IMAGES_EXTENSION={png|jpg|jpeg} IMAGE_QUALITY=0..100 make docs-images-to-webp
+```
+
+_// For this command to work ensure you run it when in `docs` dir (`cd docs`) and have Docker up&running._
+
+Once conversion is done, update the path to images in your docs and verify everything is correct.
+When you're happy with result - remove the originals with the following command:
+```console
+PATH_TO_IMAGES=path/to/images IMAGES_EXTENSION={png|jpg|jpeg} make docs-remove-old-images
+```
+
 ## VictoriaMetrics Logo
 
 [Zip](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/VM_logo.zip) contains three folders with different image orientations (main color and inverted version).
@@ -2523,22 +2542,6 @@ Files included in each folder:
 * Do not change spacing, alignment, or relative locations of the design elements.
 * Do not change the proportions for any of the design elements or the design itself. 
   You may resize as needed but must retain all proportions.
-
-### Images in documentation
-
-* Images should have `.webp` format
-
-When documentation in the `docs` folder updated and some content should have images
-those images can be added in format `.png`, `jpeg` or `jpg`.
-
-When content is finished and it is ready to be pushed to the repository all images should be converted 
-to the `.webp` format via
-`PATH_TO_IMAGES=path/to/images IMAGES_EXTENSION=image_extension IMAGE_QUALITY=image_quality make docs-change-images`
-
-All images quality set to `IMAGE_QUALITY` but it just reduce the size of image, but not the display quality
-This command will reduce all images with extionsion and folder defined in the command. 
-All images with defined extensions will be removed. 
-After that it is nesessary to update src attribute for image tag
 
 ## List of command-line flags
 

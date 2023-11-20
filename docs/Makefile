@@ -2,7 +2,7 @@ docs-install:
 	gem install jekyll bundler
 	bundle install --gemfile=Gemfile
 
-# To run localy you need to use ruby version =< 2.7.6, but not >=3.x , see https://bbs.archlinux.org/viewtopic.php?pid=1976408#p1976408
+# To run locally you need to use ruby version =< 2.7.6, but not >=3.x , see https://bbs.archlinux.org/viewtopic.php?pid=1976408#p1976408
 #
 # run local server for documentation website
 # at http://127.0.0.1:4000/
@@ -21,6 +21,9 @@ docs-up-docker:
 		-v $(PWD):/srv/jekyll \
 		jekyll/jekyll:3.8 jekyll serve --livereload
 
+# Converts $IMAGES_EXTENSION in the specified $PATH_TO_IMAGES
+# to webp format with $IMAGE_QUALITY (0:small..100:big)
+# See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#images-in-documentation
 docs-images-to-webp:
 	docker run -it --rm -v \
 		$(PWD)/$(PATH_TO_IMAGES):/data \
@@ -29,7 +32,3 @@ docs-images-to-webp:
 
 docs-remove-old-images:
 	rm -f $(PWD)/$(PATH_TO_IMAGES)/*.$(IMAGES_EXTENSION)
-
-docs-change-images: \
-	docs-images-to-webp \
-	docs-remove-old-images
