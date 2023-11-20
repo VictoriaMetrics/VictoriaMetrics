@@ -6,7 +6,7 @@ import { MetricBase } from "../../../api/types";
 
 const seriesQuery = `{
   for!="",
-  __name__!~".*yhat.*|.*trend.*|.*anomaly_score.*|.*daily.*|.*additive_terms.*|.*multiplicative_terms.*"
+  __name__!~".*yhat.*|.*trend.*|.*anomaly_score.*|.*daily.*|.*additive_terms.*|.*multiplicative_terms.*|.*weekly.*"
 }`;
 
 export const useFetchAnomalySeries = () => {
