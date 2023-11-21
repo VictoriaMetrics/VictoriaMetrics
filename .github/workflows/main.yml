@@ -30,6 +30,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Go
+        id: go
         uses: actions/setup-go@v4
         with:
           go-version: stable
@@ -42,7 +43,7 @@ jobs:
             ~/.cache/go-build
             ~/go/pkg/mod
             ~/go/bin
-          key: go-artifacts-${{ runner.os }}-check-all-${{ hashFiles('go.sum', 'Makefile', 'app/**/Makefile') }}
+          key: go-artifacts-${{ runner.os }}-check-all-${{ steps.go.outputs.go-version }}-${{ hashFiles('go.sum', 'Makefile', 'app/**/Makefile') }}
           restore-keys: go-artifacts-${{ runner.os }}-check-all-
 
       - name: Run check-all
@@ -72,7 +73,7 @@ jobs:
             ~/.cache/go-build
             ~/go/pkg/mod
             ~/go/bin
-          key: go-artifacts-${{ runner.os }}-crossbuild-${{ hashFiles('go.sum', 'Makefile', 'app/**/Makefile') }}
+          key: go-artifacts-${{ runner.os }}-crossbuild-${{ steps.go.outputs.go-version }}-${{ hashFiles('go.sum', 'Makefile', 'app/**/Makefile') }}
           restore-keys: go-artifacts-${{ runner.os }}-crossbuild-
 
       - name: Build
@@ -90,6 +91,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Go
+        id: go
         uses: actions/setup-go@v4
         with:
           go-version: stable
@@ -102,7 +104,7 @@ jobs:
             ~/.cache/go-build
             ~/go/pkg/mod
             ~/go/bin
-          key: go-artifacts-${{ runner.os }}-${{ matrix.scenario }}-${{ hashFiles('go.sum', 'Makefile', 'app/**/Makefile') }}
+          key: go-artifacts-${{ runner.os }}-${{ matrix.scenario }}-${{ steps.go.outputs.go-version }}-${{ hashFiles('go.sum', 'Makefile', 'app/**/Makefile') }}
           restore-keys: go-artifacts-${{ runner.os }}-${{ matrix.scenario }}-
 
       - name: run tests

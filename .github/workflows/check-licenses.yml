@@ -14,14 +14,16 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
     steps:
+      - name: Code checkout
+        uses: actions/checkout@master
+
       - name: Setup Go
+        id: go
         uses: actions/setup-go@main
         with:
           go-version: stable
           cache: false
-        id: go
-      - name: Code checkout
-        uses: actions/checkout@master
+
       - name: Cache Go artifacts
         uses: actions/cache@v3
         with:
@@ -29,7 +31,8 @@ jobs:
             ~/.cache/go-build
             ~/go/pkg/mod
             ~/go/bin
-          key: go-artifacts-${{ runner.os }}-check-licenses-${{ hashFiles('go.sum', 'Makefile', 'app/**/Makefile') }}
+          key: go-artifacts-${{ runner.os }}-check-licenses-${{ steps.go.outputs.go-version }}-${{ hashFiles('go.sum', 'Makefile', 'app/**/Makefile') }}
           restore-keys: go-artifacts-${{ runner.os }}-check-licenses-
+
       - name: Check License
         run: make check-licenses
