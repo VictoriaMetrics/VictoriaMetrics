@@ -192,7 +192,8 @@ docker-single-merge-up:
 	VM_DS_VER=$$LATEST_VERSION $(DOCKER_COMPOSE) -f deployment/docker/docker-compose.yml -f deployment/docker/docker-compose-with-datasource.yml up -d
 
 docker-single-merge-down:
-	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose.yml -f deployment/docker/docker-compose-with-datasource.yml down -v
+	export LATEST_VERSION=$(shell curl -s https://api.github.com/repos/VictoriaMetrics/grafana-datasource/releases/latest | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -1); \
+	VM_DS_VER=$$LATEST_VERSION $(DOCKER_COMPOSE) -f deployment/docker/docker-compose.yml -f deployment/docker/docker-compose-with-datasource.yml down -v
 
 docker-single-up-with-grafana-datasource: download-datasource \
     $(MAKE) docker-single-merge-up
