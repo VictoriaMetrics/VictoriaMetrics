@@ -80,7 +80,7 @@ jobs:
         run: make crossbuild
 
   test:
-    needs: build
+    needs: lint
     strategy:
       matrix:
         scenario: ["test-full", "test-pure", "test-full-386"]
