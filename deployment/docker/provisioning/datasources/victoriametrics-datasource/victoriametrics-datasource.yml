@@ -30,7 +30,7 @@ datasources:
     # but proxy (Server).
     access: proxy
     # <string> Sets default URL of the cluster version of VictoriaMetrics
-    url: http://vmselect:8481/select/0/prometheus
+    url: http://vmauth:8427/select/0/prometheus
     # <string> Sets the pre-selected datasource for new panels.
     # You can set only one default data source per organization.
     isDefault: false
