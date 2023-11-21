@@ -7,6 +7,7 @@ const ctrlMeta = <code>{isMacOs() ? "Cmd" : "Ctrl"}</code>;
 const altMeta = <code>{isMacOs() ? "Option" : "Alt"}</code>;
 
 export const AUTOCOMPLETE_KEY = <>{altMeta} + <code>A</code></>;
+export const AUTOCOMPLETE_QUICK_KEY = <>{altMeta} + <code>Space</code></>;
 
 const keyList = [
   {

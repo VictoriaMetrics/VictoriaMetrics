@@ -133,7 +133,7 @@ const Autocomplete: FC<AutocompleteProps> = ({
 
   useEffect(() => {
     setOpenAutocomplete(value.length >= minLength);
-  }, [value]);
+  }, [value, options]);
 
   useEventListener("keydown", handleKeyDown);
 

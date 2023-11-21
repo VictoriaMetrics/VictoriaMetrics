@@ -42,7 +42,6 @@ const QueryEditorAutocomplete: FC<QueryEditorAutocompleteProps> = ({
     return match ? match[match.length - 1] : "";
   }, [value]);
 
-
   const metricRegexp = new RegExp(`\\(?(${escapeRegExp(metric)})$`, "g");
   const labelRegexp = /[{.,].?(\w+)$/gm;
   const valueRegexp = new RegExp(`(${escapeRegExp(metric)})?{?.+${escapeRegExp(label)}="?([^"]*)$`, "g");

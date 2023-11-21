@@ -11,7 +11,7 @@ export interface QueryState {
   query: string[];
   queryHistory: QueryHistoryType[];
   autocomplete: boolean;
-
+  quickAutocomplete: boolean;
 }
 
 export type QueryAction =
@@ -19,12 +19,14 @@ export type QueryAction =
   | { type: "SET_QUERY_HISTORY_BY_INDEX", payload: {value: QueryHistoryType, queryNumber: number} }
   | { type: "SET_QUERY_HISTORY", payload: QueryHistoryType[] }
   | { type: "TOGGLE_AUTOCOMPLETE"}
+  | { type: "SET_QUICK_AUTOCOMPLETE", payload: boolean}
 
 const query = getQueryArray();
 export const initialQueryState: QueryState = {
   query,
   queryHistory: query.map(q => ({ index: 0, values: [q] })),
   autocomplete: getFromStorage("AUTOCOMPLETE") as boolean || false,
+  quickAutocomplete: false,
 };
 
 export function reducer(state: QueryState, action: QueryAction): QueryState {
@@ -51,6 +53,11 @@ export function reducer(state: QueryState, action: QueryAction): QueryState {
       return {
         ...state,
         autocomplete: !state.autocomplete
+      };
+    case "SET_QUICK_AUTOCOMPLETE":
+      return {
+        ...state,
+        quickAutocomplete: action.payload
       };
     default:
       throw new Error();

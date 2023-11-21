@@ -6,7 +6,6 @@ import { LabelIcon, MetricIcon, ValueIcon } from "../components/Main/Icons";
 import { useTimeState } from "../state/time/TimeStateContext";
 import { useCallback } from "react";
 import qs from "qs";
-import dayjs from "dayjs";
 
 enum TypeData {
   metric,
@@ -40,14 +39,11 @@ export const useFetchQueryOptions = ({ metric, label }: { metric: string; label:
   const prevParams = useRef<Record<string, URLSearchParams>>({});
 
   const getQueryParams = useCallback((params?: Record<string, string>) => {
-    const roundedStart = dayjs(start).startOf("day").valueOf();
-    const roundedEnd = dayjs(end).endOf("day").valueOf();
-
     return new URLSearchParams({
       ...(params || {}),
       limit: `${QUERY_LIMIT}`,
-      start: `${roundedStart}`,
-      end: `${roundedEnd}`
+      start: `${start}`,
+      end: `${end}`
     });
   }, [start, end]);
 
@@ -112,7 +108,7 @@ export const useFetchQueryOptions = ({ metric, label }: { metric: string; label:
     });
 
     prevParams.current = { ...prevParams.current, labels: params };
-  }, [serverUrl, metric, getQueryParams]);
+  }, [serverUrl, metric, getQueryParams, metrics]);
 
   useEffect(() => {
     const notFoundMetric = !metrics.find(m => m.value === metric);
@@ -134,7 +130,7 @@ export const useFetchQueryOptions = ({ metric, label }: { metric: string; label:
     });
 
     prevParams.current = { ...prevParams.current, values: params };
-  }, [serverUrl, metric, label, getQueryParams]);
+  }, [serverUrl, metric, label, getQueryParams, metrics, labels]);
 
   return {
     metrics,
