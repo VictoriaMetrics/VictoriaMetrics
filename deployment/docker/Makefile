@@ -187,7 +187,7 @@ docker-single-up:
 docker-single-down:
 	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose.yml down -v
 
-docker-single-merge-up:
+docker-single-merge-up: download-datasource
 	export LATEST_VERSION=$(shell curl -s https://api.github.com/repos/VictoriaMetrics/grafana-datasource/releases/latest | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -1); \
 	VM_DS_VER=$$LATEST_VERSION $(DOCKER_COMPOSE) -f deployment/docker/docker-compose.yml -f deployment/docker/docker-compose-with-datasource.yml up -d
 
@@ -195,28 +195,16 @@ docker-single-merge-down:
 	export LATEST_VERSION=$(shell curl -s https://api.github.com/repos/VictoriaMetrics/grafana-datasource/releases/latest | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -1); \
 	VM_DS_VER=$$LATEST_VERSION $(DOCKER_COMPOSE) -f deployment/docker/docker-compose.yml -f deployment/docker/docker-compose-with-datasource.yml down -v
 
-docker-single-up-with-grafana-datasource: download-datasource \
-    $(MAKE) docker-single-merge-up
-
-docker-single-down-with-grafana-datasource:
-	$(MAKE) docker-single-merge-down
-
 docker-cluster-up:
 	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose-cluster.yml up -d
 
 docker-cluster-down:
 	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose-cluster.yml down -v
 
-docker-cluster-merge-up:
+docker-cluster-merge-up: download-datasource
 	export LATEST_VERSION=$(shell curl -s https://api.github.com/repos/VictoriaMetrics/grafana-datasource/releases/latest | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -1); \
 	VM_DS_VER=$$LATEST_VERSION $(DOCKER_COMPOSE) -f deployment/docker/docker-compose-cluster.yml -f deployment/docker/docker-compose-cluster-with-datasource.yml up -d
 
 docker-cluster-merge-down:
 	export LATEST_VERSION=$(shell curl -s https://api.github.com/repos/VictoriaMetrics/grafana-datasource/releases/latest | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -1); \
 	VM_DS_VER=$$LATEST_VERSION $(DOCKER_COMPOSE) -f deployment/docker/docker-compose-cluster.yml -f deployment/docker/docker-compose-cluster-with-datasource.yml down -v
-
-docker-cluster-up-with-datasource: download-datasource \
-	$(MAKE) docker-cluster-merge-up
-
-docker-cluster-down-with-grafana-datasource:
-	$(MAKE) docker-cluster-merge-down
