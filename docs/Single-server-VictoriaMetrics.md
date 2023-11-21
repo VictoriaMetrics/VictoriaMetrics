@@ -1602,7 +1602,7 @@ The format follows [JSON streaming concept](http://ndjson.org/), e.g. each line 
 ```
 
 Note that every JSON object must be written in a single line, e.g. all the newline chars must be removed from it.
-Every line length is limited by the value passed to `-import.maxLineLen` command-line flag (by default this is 100MB).
+Every line length is limited by the value passed to `-import.maxLineLen` command-line flag (by default this is 10MB).
 
 It is recommended passing 1K-10K samples per line for achieving the maximum data ingestion performance at [/api/v1/import](#how-to-import-data-in-json-line-format).
 Too long JSON lines may increase RAM usage at VictoriaMetrics side.
@@ -2641,7 +2641,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      Whether to use proxy protocol for connections accepted at -httpListenAddr . See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing
   -import.maxLineLen size
      The maximum length in bytes of a single line accepted by /api/v1/import; the line length can be limited with 'max_rows_per_line' query arg passed to /api/v1/export
-     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 104857600)
+     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 10485760)
   -influx.databaseNames array
      Comma-separated list of database names to return from /query and /influx/query API. This can be needed for accepting data from Telegraf plugins such as https://github.com/fangli/fluent-plugin-influxdb
      Supports an array of values separated by comma or specified via multiple flags.
