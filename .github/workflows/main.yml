@@ -42,7 +42,7 @@ jobs:
             ~/.cache/go-build
             ~/go/pkg/mod
             ~/go/bin
-          key: go-artifacts-${{ runner.os }}-check-all-${{ hashFiles('go.sum') }}
+          key: go-artifacts-${{ runner.os }}-check-all-${{ hashFiles('go.sum', 'Makefile', 'app/**/Makefile') }}
           restore-keys: go-artifacts-${{ runner.os }}-check-all-
 
       - name: Run check-all
@@ -72,7 +72,7 @@ jobs:
             ~/.cache/go-build
             ~/go/pkg/mod
             ~/go/bin
-          key: go-artifacts-${{ runner.os }}-crossbuild-${{ hashFiles('go.sum') }}
+          key: go-artifacts-${{ runner.os }}-crossbuild-${{ hashFiles('go.sum', 'Makefile', 'app/**/Makefile') }}
           restore-keys: go-artifacts-${{ runner.os }}-crossbuild-
 
       - name: Build
@@ -102,7 +102,7 @@ jobs:
             ~/.cache/go-build
             ~/go/pkg/mod
             ~/go/bin
-          key: go-artifacts-${{ runner.os }}-${{ matrix.scenario }}-${{ hashFiles('go.sum') }}
+          key: go-artifacts-${{ runner.os }}-${{ matrix.scenario }}-${{ hashFiles('go.sum', 'Makefile', 'app/**/Makefile') }}
           restore-keys: go-artifacts-${{ runner.os }}-${{ matrix.scenario }}-
 
       - name: run tests
