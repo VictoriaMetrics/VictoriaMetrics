@@ -19,7 +19,7 @@ jobs:
 
       - name: Setup Go
         id: go
-        uses: actions/setup-go@main
+        uses: actions/setup-go@v4
         with:
           go-version: stable
           cache: false
