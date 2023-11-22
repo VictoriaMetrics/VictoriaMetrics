@@ -1138,8 +1138,8 @@ The shortlist of configuration flags is the following:
   -notifier.bearerTokenFile array
      Optional path to bearer token file for -notifier.url
      Supports an array of values separated by comma or specified via multiple flags.
-  -notifier.blackhole bool
-     Whether to blackhole alerting notifications. Enable this flag if you want vmalert to evaluate alerting rules without sending any notifications to external receivers (eg. alertmanager). -notifier.url, `-notifier.config` and `-notifier.blackhole` are mutually exclusive.
+  -notifier.blackhole
+     Whether to blackhole alerting notifications. Enable this flag if you want vmalert to evaluate alerting rules without sending any notifications to external receivers (eg. alertmanager). -notifier.url, -notifier.config and -notifier.blackhole are mutually exclusive.
   -notifier.config string
      Path to configuration file for notifiers
   -notifier.oauth2.clientID array
