@@ -7,6 +7,9 @@ menu:
     parent: "operator"
     weight: 10
     identifier: "operator-changelog"
+aliases:
+  - /operator/CHANGELOG.html
+  - /operator/changelog.html
 ---
 
 # CHANGELOG

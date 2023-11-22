@@ -6,6 +6,8 @@ menu:
   docs:
     parent: "operator-custom-resources"
     weight: 10
+aliases:
+  - /operator/resources/vmrule.html
 ---
 
 # VMRule

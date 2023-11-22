@@ -6,6 +6,8 @@ menu:
   docs:
     parent: "operator-custom-resources"
     weight: 9
+aliases:
+  - /operator/resources/vmprobe.html
 ---
 
 # VMProbe

@@ -6,6 +6,8 @@ menu:
   docs:
     parent: "operator-custom-resources"
     weight: 8
+aliases:
+  - /operator/resources/vmpodscrape.html
 ---
 
 # VMPodScrape
