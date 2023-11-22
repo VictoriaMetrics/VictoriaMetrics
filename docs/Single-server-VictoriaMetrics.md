@@ -20,7 +20,7 @@ aliases:
 [![Build Status](https://github.com/VictoriaMetrics/VictoriaMetrics/workflows/main/badge.svg)](https://github.com/VictoriaMetrics/VictoriaMetrics/actions)
 [![codecov](https://codecov.io/gh/VictoriaMetrics/VictoriaMetrics/branch/master/graph/badge.svg)](https://codecov.io/gh/VictoriaMetrics/VictoriaMetrics)
 
-<img src="logo.png" width="300" alt="VictoriaMetrics logo">
+<img src="logo.webp" width="300" alt="VictoriaMetrics logo">
 
 VictoriaMetrics is a fast, cost-effective and scalable monitoring solution and time series database.
 
@@ -529,7 +529,7 @@ DataDog agent allows configuring destinations for metrics sending via ENV variab
 or via [configuration file](https://docs.datadoghq.com/agent/guide/agent-configuration-files/) in section `dd_url`.
 
 <p align="center">
-  <img src="Single-server-VictoriaMetrics-sending_DD_metrics_to_VM.png" width="800">
+  <img src="Single-server-VictoriaMetrics-sending_DD_metrics_to_VM.webp" width="800">
 </p>
 
 To configure DataDog agent via ENV variable add the following prefix:
@@ -563,7 +563,7 @@ DataDog allows configuring [Dual Shipping](https://docs.datadoghq.com/agent/guid
 sending via ENV variable `DD_ADDITIONAL_ENDPOINTS` or via configuration file `additional_endpoints`.
  
 <p align="center">
-  <img src="Single-server-VictoriaMetrics-sending_DD_metrics_to_VM_and_DD.png" width="800">
+  <img src="Single-server-VictoriaMetrics-sending_DD_metrics_to_VM_and_DD.webp" width="800">
 </p>
  
 Run DataDog using the following ENV variable with VictoriaMetrics as additional metrics receiver:
@@ -2510,19 +2510,14 @@ Report bugs and propose new features [here](https://github.com/VictoriaMetrics/V
 Please, keep image size and number of images per single page low. Keep the docs page as lightweight as possible.
 
 If the page needs to have many images, consider using WEB-optimized image format [webp](https://developers.google.com/speed/webp).
-When adding a new doc with many images use `webp` format right away. Or use a MAKEFILE command below to
-convert already existing images automatically:
-```console
-PATH_TO_IMAGES=path/to/images IMAGES_EXTENSION={png|jpg|jpeg} IMAGE_QUALITY=0..100 make docs-images-to-webp
-```
+When adding a new doc with many images use `webp` format right away. Or use a Makefile command below to
+convert already existing images at `docs` folder automatically to `web` format:
 
-_// For this command to work ensure you run it when in `docs` dir (`cd docs`) and have Docker up&running._
+```console
+make docs-images-to-webp
+```
 
 Once conversion is done, update the path to images in your docs and verify everything is correct.
-When you're happy with result - remove the originals with the following command:
-```console
-PATH_TO_IMAGES=path/to/images IMAGES_EXTENSION={png|jpg|jpeg} make docs-remove-old-images
-```
 
 ## VictoriaMetrics Logo
 
