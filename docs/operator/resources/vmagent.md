@@ -6,6 +6,8 @@ menu:
   docs:
     parent: "operator-custom-resources"
     weight: 1
+aliases:
+  - /operator/resources/vmagent.html
 ---
 
 # VMAgent

@@ -6,6 +6,8 @@ menu:
   docs:
     parent: "operator-custom-resources"
     weight: 12
+aliases:
+  - /operator/resources/vmsingle.html
 ---
 
 # VMSingle
