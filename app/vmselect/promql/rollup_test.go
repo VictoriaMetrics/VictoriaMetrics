@@ -160,7 +160,7 @@ func TestDerivValues(t *testing.T) {
 	testRowsEqual(t, values, timestamps, valuesExpected, timestamps)
 }
 
-func testRollupFuncWithValues(t *testing.T, funcName string, args []interface{}, vInput []float64, vTimestamps []int64, vExpected float64) {
+func testRollupFunc(t *testing.T, funcName string, args []interface{}, vExpected float64) {
 	t.Helper()
 	nrf := getRollupFunc(funcName)
 	if nrf == nil {
@@ -172,11 +172,9 @@ func testRollupFuncWithValues(t *testing.T, funcName string, args []interface{},
 	}
 	var rfa rollupFuncArg
 	rfa.prevValue = nan
-	rfa.realPrevValue = nan
-	rfa.realNextValue = nan
 	rfa.prevTimestamp = 0
-	rfa.values = append(rfa.values, vInput...)
-	rfa.timestamps = append(rfa.timestamps, vTimestamps...)
+	rfa.values = append(rfa.values, testValues...)
+	rfa.timestamps = append(rfa.timestamps, testTimestamps...)
 	rfa.window = rfa.timestamps[len(rfa.timestamps)-1] - rfa.timestamps[0]
 	if rollupFuncsRemoveCounterResets[funcName] {
 		removeCounterResets(rfa.values)
@@ -194,10 +192,6 @@ func testRollupFuncWithValues(t *testing.T, funcName string, args []interface{},
 			}
 		}
 	}
-}
-
-func testRollupFunc(t *testing.T, funcName string, args []interface{}, vExpected float64) {
-	testRollupFuncWithValues(t, funcName, args, testValues, testTimestamps, vExpected)
 }
 
 func TestRollupDurationOverTime(t *testing.T) {
@@ -1479,122 +1473,4 @@ func TestRollupDelta(t *testing.T) {
 	// Empty values
 	f(1, nan, nan, nil, 0)
 	f(100, nan, nan, nil, 0)
-}
-
-func TestIncrease(t *testing.T) {
-	f := func(funcName string, vInput []float64, vExpected float64) {
-		t.Helper()
-		var me metricsql.MetricExpr
-		args := []interface{}{&metricsql.RollupExpr{Expr: &me}}
-		testRollupFuncWithValues(t, funcName, args, vInput, []int64{1, 2}, vExpected)
-	}
-
-	f(
-		"increase",
-		[]float64{100, 100},
-		0,
-	)
-
-	f(
-		"increase",
-		[]float64{100, 90},
-		0,
-	)
-
-	f(
-		"increase",
-		[]float64{100, 88},
-		0,
-	)
-
-	f(
-		"increase",
-		[]float64{100, 87},
-
-		187,
-	)
-
-	f(
-		"increase",
-		[]float64{100, 187},
-
-		187,
-	)
-
-	f(
-		"increase",
-		[]float64{100, 87, 200, 287},
-
-		387,
-	)
-
-	f(
-		"increase",
-		[]float64{100, 187, 200, 287},
-
-		287,
-	)
-
-	f(
-		"increase",
-		[]float64{100, 87, 200, 87},
-
-		387,
-	)
-
-	f(
-		"increase",
-		[]float64{100, 87, 200, 187},
-
-		300,
-	)
-
-	f(
-		"increase",
-		[]float64{100, 87, 200, 177},
-
-		300,
-	)
-
-	f(
-		"increase",
-		[]float64{100, 13},
-		113,
-	)
-
-	f(
-		"increase",
-		[]float64{100, 9},
-		9,
-	)
-
-	f(
-		"increase",
-		[]float64{100, 1},
-		1,
-	)
-
-	f(
-		"increase",
-		[]float64{100, 0},
-		0,
-	)
-
-	f(
-		"increase",
-		[]float64{100, -1},
-		-1,
-	)
-
-	f(
-		"increase",
-		[]float64{100, -10},
-		90,
-	)
-
-	f(
-		"increase",
-		[]float64{100, -90},
-		10,
-	)
 }

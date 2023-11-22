@@ -25,14 +25,11 @@ import (
 var supportedOutputs = []string{
 	"total",
 	"total_pure",
-	"newtotal",
-	"newtotal_pure",
 	"increase",
 	"increase_pure",
-	"newincrease",
-	"newincrease_pure",
 	"count_series",
 	"count_samples",
+	"count_samples_total",
 	"sum_samples",
 	"sum_samples_total",
 	"last",
@@ -355,22 +352,16 @@ func newAggregator(cfg *Config, pushFunc PushFunc, dedupInterval time.Duration) 
 			aggrStates[i] = newTotalAggrState(interval, stalenessInterval)
 		case "total_pure":
 			aggrStates[i] = newTotalPureAggrState(interval, stalenessInterval)
-		case "newtotal":
-			aggrStates[i] = newnewtotalAggrState(interval, stalenessInterval)
-		case "newtotal_pure":
-			aggrStates[i] = newnewotalPureAggrState(interval, stalenessInterval)
 		case "increase":
 			aggrStates[i] = newIncreaseAggrState(interval, stalenessInterval)
 		case "increase_pure":
 			aggrStates[i] = newIncreasePureAggrState(interval, stalenessInterval)
-		case "newincrease":
-			aggrStates[i] = newnewincreaseAggrState(interval, stalenessInterval)
-		case "newincrease_pure":
-			aggrStates[i] = newnewincreasePureAggrState(interval, stalenessInterval)
 		case "count_series":
 			aggrStates[i] = newCountSeriesAggrState(interval, stalenessInterval)
 		case "count_samples":
 			aggrStates[i] = newCountSamplesAggrState(interval, stalenessInterval)
+		case "count_samples_total":
+			aggrStates[i] = newCountSamplesTotalAggrState(interval, stalenessInterval)
 		case "sum_samples":
 			aggrStates[i] = newSumSamplesAggrState(interval, stalenessInterval)
 		case "sum_samples_total":
