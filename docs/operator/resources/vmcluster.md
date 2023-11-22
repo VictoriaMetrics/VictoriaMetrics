@@ -6,6 +6,8 @@ menu:
   docs:
     parent: "operator-custom-resources"
     weight: 6
+aliases:
+  - /operator/resources/vmcluster.html
 ---
 
 # VMCluster

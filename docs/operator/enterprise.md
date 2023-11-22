@@ -6,6 +6,8 @@ menu:
   docs:
     parent: "operator"
     weight: 13
+aliases:
+  - /operator/enterprise.html
 ---
 
 # Using operator with enterprise features 

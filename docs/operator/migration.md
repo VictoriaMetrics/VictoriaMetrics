@@ -6,6 +6,8 @@ menu:
   docs:
     parent: "operator"
     weight: 5
+aliases:
+  - /operator/migration.html
 ---
 
 # Migration from prometheus-operator
