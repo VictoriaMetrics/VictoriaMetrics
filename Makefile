@@ -1,5 +1,7 @@
 PKG_PREFIX := github.com/VictoriaMetrics/VictoriaMetrics
 
+MAKE_CONCURRENCY ?= $(shell cat /proc/cpuinfo | grep -c processor)
+MAKE_PARALLEL := $(MAKE) -j $(MAKE_CONCURRENCY)
 DATEINFO_TAG ?= $(shell date -u +'%Y%m%d-%H%M%S')
 BUILDINFO_TAG ?= $(shell echo $$(git describe --long --all | tr '/' '-')$$( \
 	      git diff-index --quiet HEAD -- || echo '-dirty-'$$(git diff-index -u HEAD | openssl sha1 | cut -d' ' -f2 | cut -c 1-8)))
@@ -163,6 +165,9 @@ vmutils-windows-amd64: \
 	vmrestore-windows-amd64 \
 	vmctl-windows-amd64
 
+crossbuild:
+	$(MAKE_PARALLEL) victoria-metrics-crossbuild vmutils-crossbuild
+
 victoria-metrics-crossbuild: \
 	victoria-metrics-linux-386 \
 	victoria-metrics-linux-amd64 \
@@ -190,14 +195,15 @@ vmutils-crossbuild: \
 
 publish-release:
 	rm -rf bin/*
-	git checkout $(TAG) && LATEST_TAG=stable $(MAKE) release publish && \
-		git checkout $(TAG)-cluster && LATEST_TAG=cluster-stable $(MAKE) release publish && \
-		git checkout $(TAG)-enterprise && LATEST_TAG=enterprise-stable $(MAKE) release publish && \
-		git checkout $(TAG)-enterprise-cluster && LATEST_TAG=enterprise-cluster-stable $(MAKE) release publish
+	git checkout $(TAG) && $(MAKE) release && LATEST_TAG=stable $(MAKE) publish && \
+		git checkout $(TAG)-cluster && $(MAKE) release && LATEST_TAG=cluster-stable $(MAKE) publish && \
+		git checkout $(TAG)-enterprise && $(MAKE) release && LATEST_TAG=enterprise-stable $(MAKE) publish && \
+		git checkout $(TAG)-enterprise-cluster && $(MAKE) release && LATEST_TAG=enterprise-cluster-stable $(MAKE) publish
 
-release: \
-	release-victoria-metrics \
-	release-vmutils
+release:
+	$(MAKE_PARALLEL) \
+		release-victoria-metrics \
+		release-vmutils
 
 release-victoria-metrics: \
 	release-victoria-metrics-linux-386 \
@@ -256,16 +262,16 @@ release-victoria-metrics-windows-goarch: victoria-metrics-windows-$(GOARCH)-prod
 	cd bin && rm -rf \
 		victoria-metrics-windows-$(GOARCH)-prod.exe
 
-release-victoria-logs: \
-	release-victoria-logs-linux-386 \
-	release-victoria-logs-linux-amd64 \
-	release-victoria-logs-linux-arm \
-	release-victoria-logs-linux-arm64 \
-	release-victoria-logs-darwin-amd64 \
-	release-victoria-logs-darwin-arm64 \
-	release-victoria-logs-freebsd-amd64 \
-	release-victoria-logs-openbsd-amd64 \
-	release-victoria-logs-windows-amd64
+release-victoria-logs:
+	$(MAKE_PARALLEL) release-victoria-logs-linux-386 \
+		release-victoria-logs-linux-amd64 \
+		release-victoria-logs-linux-arm \
+		release-victoria-logs-linux-arm64 \
+		release-victoria-logs-darwin-amd64 \
+		release-victoria-logs-darwin-arm64 \
+		release-victoria-logs-freebsd-amd64 \
+		release-victoria-logs-openbsd-amd64 \
+		release-victoria-logs-windows-amd64
 
 release-victoria-logs-linux-386:
 	GOOS=linux GOARCH=386 $(MAKE) release-victoria-logs-goos-goarch

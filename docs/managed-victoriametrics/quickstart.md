@@ -35,73 +35,73 @@ There are two different methods to create an account:
 
 1. Click `Continue with Google` button on the [Sign Up page](https://cloud.victoriametrics.com/signUp?utm_source=website&utm_campaign=docs_quickstart)
    <p>
-      <img src="quick_start_signup_google_click.png" width="800">
+      <img src="quick_start_signup_google_click.webp" width="800">
    </p>
 1. Choose Google account you want to use for registration
    <p>
-      <img src="quick_start_signup_choose_google_account.png" width="800">
+      <img src="quick_start_signup_choose_google_account.webp" width="800">
    </p>
 1. You will be automatically redirected to the main page of the Managed VictoriaMetrics
    <p>
-      <img src="quick_start_signup_success.png" width="800">
+      <img src="quick_start_signup_success.webp" width="800">
    </p>
 
 ### Create an account by filling in a registration form:
 1. Fill in your email, password and password confirmation on [Sign Up page](https://cloud.victoriametrics.com/signUp?utm_source=website&utm_campaign=docs_quickstart).
    <p>
-      <img src="quick_start_signup.png" width="800">
+      <img src="quick_start_signup.webp" width="800">
    </p>
 1. All fields are required. Any errors will be shown in the interface, so it is easy to understand what should be adjusted.
    <p>
-      <img src="quick_start_signup_errors.png" width="800">
+      <img src="quick_start_signup_errors.webp" width="800">
    </p>
 1. Press `Create account` button when all fields are filled in.
    <p>
-      <img src="quick_start_signup_create_account_click.png" width="800">
+      <img src="quick_start_signup_create_account_click.webp" width="800">
    </p>
 
 You will be redirected to the main page with a notification message to confirm your email.
 <p>
-   <img src="quick_start_signup_success.png" width="800">
+   <img src="quick_start_signup_success.webp" width="800">
 </p>
 
 You will also receive an email with a confirmation link as shown on the picture below:
 <p>
-   <img src="quick_start_signup_email_confirm.png" width="800">
+   <img src="quick_start_signup_email_confirm.webp" width="800">
 </p>
 
 It is necessary to confirm your email address. Otherwise, you won't be able to create a deployment.
 
 After successful confirmation of your email address, you'll be able to [create your first deployment](#creating-deployments) or [add a payment method](#adding-a-payment-method).
 <p>
-   <img src="quick_start_signup_email_confirmed.png" width="800">
+   <img src="quick_start_signup_email_confirmed.webp" width="800">
 </p>
 
 ## Adding a payment method
 
 1. Navigate to a [Billing](https://cloud.victoriametrics.com/billing?utm_source=website&utm_campaign=docs_quickstart) page or click on `Upgrade` button as shown below:
    <p>
-     <img src="how_to_add_payment_method_upgrade.png" width="800">
+     <img src="how_to_add_payment_method_upgrade.webp" width="800">
    </p>
 
 1. Choose a payment method
    <p>
-     <img src="how_to_add_payment_method_choose_method.png" width="800">
+     <img src="how_to_add_payment_method_choose_method.webp" width="800">
    </p>
 
 ### Pay with a card
 
 1. Click on an `Add card` panel and fill in all the fields in the form and press `Add card` button
    <p>
-     <img src="how_to_add_payment_method_add_card.png" width="800">
+     <img src="how_to_add_payment_method_add_card.webp" width="800">
    </p>
 1. An error message will appear if a card us invalid
    <p>
-     <img src="how_to_add_payment_method_invalid_card.png" width="800">
+     <img src="how_to_add_payment_method_invalid_card.webp" width="800">
    </p>
 1. Successfully added card will be shown on the page as follows:
    <p>
-     <img src="how_to_add_payment_method_card_added.png" width="800">
+     <img src="how_to_add_payment_method_card_added.webp" width="800">
    </p>
 
 ### Link your AWS billing account via AWS Marketplace
@@ -110,28 +110,28 @@ When you need to unify your AWS billing, you can start a subscription on AWS Mar
 
 1. Click on the `Buy on AWS Marketplace` panel:
    <p>
-     <img src="how_to_add_payment_method_aws_click.png" width="800">
+     <img src="how_to_add_payment_method_aws_click.webp" width="800">
    </p>
 1. You will be redirected to the <a href="https://aws.amazon.com/marketplace/pp/prodview-4tbfq5icmbmyc" target="_blank">Managed VictoriaMetrics</a> product page.
 1. Click on `View purchase option` button, and you will be redirected to an AWS login page or to a subscribe page on AWS Marketplace.
    <p>
-     <img src="quickstart_aws-purchase-click.png" width="800">
+     <img src="quickstart_aws-purchase-click.webp" width="800">
    </p>
 1. Go to the <a href="https://aws.amazon.com/marketplace/pp/prodview-4tbfq5icmbmyc">Managed VictoriaMetrics</a> product page and click `Continue to Subscribe` button:
    <p>
-     <img src="quickstart_continue-subscribe.png" width="800">
+     <img src="quickstart_continue-subscribe.webp" width="800">
    </p>
 1. Press the `Subscribe` button:
    <p>
-     <img src="quickstart_subscribe.png" width="800">
+     <img src="quickstart_subscribe.webp" width="800">
    </p>
 1. After that you will see a success message where you should click `Set up your account` button:
    <p>
-     <img src="quickstart_setup-your-account.png" width="800">
+     <img src="quickstart_setup-your-account.webp" width="800">
    </p>
 1. You'll be redirected back to Managed VictoriaMetrics <a href="https://cloud.victoriametrics.com/billing?utm_source=website&utm_campaign=docs_quickstart" target="_blank">billing page</a>:
    <p>
-     <img src="how_to_add_payment_method_aws_finish.png" width="800">
+     <img src="how_to_add_payment_method_aws_finish.webp" width="800">
    </p>
 
 ### Switching between payment methods
@@ -140,17 +140,17 @@ If both payment methods are added, it is possible to easily switch between them.
 Click on the radio button like on the picture below and confirm the change:
 
 <p>
-  <img src="change_payment_method.png" width="800">
+  <img src="change_payment_method.webp" width="800">
 </p>
 
 <p>
-  <img src="change_payment_confirmation.png" width="800">
+  <img src="change_payment_confirmation.webp" width="800">
 </p>
 
 If the payment method was changed successfully, the following message will appear: 
 
 <p>
-  <img src="change_payment_method_success.png" width="800">
+  <img src="change_payment_method_success.webp" width="800">
 </p>
 
 ## Password restoration
@@ -159,31 +159,31 @@ If you forgot your password, it can be restored in the following way:
 
 1. Click `Forgot password?` link on the [Sign In](https://cloud.victoriametrics.com/signIn?utm_source=website&utm_campaign=docs_quickstart) page:
    <p>
-     <img src="quick_start_restore_password.png" width="800">
+     <img src="quick_start_restore_password.webp" width="800">
    </p>
 
 1. Enter your email and click `Reset password` button:
    <p>
-     <img src="quick_start_restore_password_email_field.png" width="800">
+     <img src="quick_start_restore_password_email_field.webp" width="800">
    </p>
 
    <p>
-     <img src="quick_start_restore_password_message.png" width="800">
+     <img src="quick_start_restore_password_message.webp" width="800">
    </p>
 
 1. Follow the instructions sent to your email in order to get access to your Managed VictoriaMetrics account:
    <p>
-     <img src="quick_start_restore_password_email.png" width="800">
+     <img src="quick_start_restore_password_email.webp" width="800">
    </p>
 
 1. Navigate to the Profile page by clicking the corresponding link in the top right corner:
    <p>
-     <img src="quick_start_restore_password_profile_click.png" width="800">
+     <img src="quick_start_restore_password_profile_click.webp" width="800">
    </p>
 
 1. Enter a new password on the Profile page and press `Save`:
    <p>
-     <img src="quick_start_restore_password_profile_fields.png" width="800">
+     <img src="quick_start_restore_password_profile_fields.webp" width="800">
    </p>
 
 ## Creating deployments
@@ -194,7 +194,7 @@ will see a list of your existing deployments and will be able to manage them.
 To create a deployment click on the button `Create Deployment` button:
 
 <p>
-  <img src="create_deployment_start.png" width="800">
+  <img src="create_deployment_start.webp" width="800">
 </p>
 
 On the opened screen, choose parameters of your new deployment:
@@ -208,7 +208,7 @@ On the opened screen, choose parameters of your new deployment:
 * `Size` of your deployment [based on your needs](https://docs.victoriametrics.com/guides/understand-your-setup-size.html)
 
 <p>
-  <img src="create_deployment_form.png" width="800">
+  <img src="create_deployment_form.webp" width="800">
 </p>
 
 When all parameters are configured, click on the `Create` button, and deployment will be created.
@@ -218,11 +218,11 @@ while the hardware spins-up, just wait for a couple of minutes and reload the pa
 You'll also be notified via email once your deployment is ready to use:
 
 <p>
-  <img src="create_deployment_created.png" width="800">
+  <img src="create_deployment_created.webp" width="800">
 </p>
 
 <p>
-  <img src="create_deployment_active_email.png" width="800">
+  <img src="create_deployment_active_email.webp" width="800">
 </p>
 
 ## Start writing and reading data
@@ -233,7 +233,7 @@ and is ready to accept write and read requests.
 Click on deployment name and navigate to the Access tab to get the access token:
 
 <p>
-  <img src="deployment_access.png" width="800">
+  <img src="deployment_access.webp" width="800">
 </p>
 
 Access tokens are used in token-based authentication to allow an application to access the VictoriaMetrics API. 
@@ -241,11 +241,11 @@ Supported token types are `Read-Only`, `Write-Only` and `Read-Write`. Click on t
 to see usage examples:
 
 <p>
-  <img src="deployment_access_write_example.png" width="800">
+  <img src="deployment_access_write_example.webp" width="800">
 </p>
 
 <p>
-  <img src="deployment_access_read_example.png" width="800">
+  <img src="deployment_access_read_example.webp" width="800">
 </p>
 
 Follow usage examples in order to configure access to VictoriaMetrics for your Prometheus, 
@@ -258,13 +258,13 @@ deployment's page.
 It is important to know that downgrade for cluster is currently not available.
 
 <p>
-  <img src="modify_deployment.png" width="800">
+  <img src="modify_deployment.webp" width="800">
 </p>
  
 To discover additional configuration options click on `Advanced Settings` button, so you should see the following:
 
 <p>
-  <img src="modify_deployment_additional_settings.png" width="800">
+  <img src="modify_deployment_additional_settings.webp" width="800">
 </p>
 
 In that section, additional params can be set:

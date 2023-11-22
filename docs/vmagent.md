@@ -1154,6 +1154,77 @@ Two types of auth are supported:
 ./bin/vmagent -remoteWrite.url=kafka://localhost:9092/?topic=prom-rw&security.protocol=SSL -remoteWrite.tlsCAFile=/opt/ca.pem -remoteWrite.tlsCertFile=/opt/cert.pem -remoteWrite.tlsKeyFile=/opt/key.pem
 ```
 
+## PubSub integration
+
+[Enterprise version](https://docs.victoriametrics.com/enterprise.html) of `vmagent` can write metrics to GCP PubSub:
+
+* [Writing metrics to PubSub](#writing-metrics-to-pubsub)
+
+The enterprise version of vmagent is available for evaluation at [releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) page
+in `vmutils-...-enterprise.tar.gz` archives and in [docker images](https://hub.docker.com/r/victoriametrics/vmagent/tags) with tags containing `enterprise` suffix.
+
+### Writing metrics to PubSub
+
+[Enterprise version](https://docs.victoriametrics.com/enterprise.html) of `vmagent` can push metrics to PubSub.
+
+#### Usage
+
+1. Create a PubSub topic to publish to:\
+   `gcloud pubsub topics create $TOPIC`
+2. Run vmagent with remoteWrite.url schema set to "pubsub", and value set to the PubSub topic:\
+   `-remoteWrite.url=pubsub:projects/$PROJECT/topics/$TOPIC`
+
+#### Protocol
+`vmagent` performs all the recording rules and streaming aggregation processing before publishing the data.
+
+Data is published with _at-least-once_ semantics. 
+
+Data is published as compressed remotewrite protocol blocks, one *remotewrite* block per a PubSub message.
+Data is compressed as per other vmagent settings (see `-forceVMProto`).
+
+If AccountID/ProjectID are set (multitenant), then each PubSub message contains `project_id` and `account_id`
+attributes, so that PubSub subscriptions can subscribe to particular tenants.
+
+
+#### Auth
+
+If no authentication flags are set, `vmagent` uses default [Application Default Credentials](https://cloud.google.com/docs/authentication/provide-credentials-adc)
+See "Workload Identity" section for Kubernetes.
+
+To provide credentials explicitly, see `-gcp.pubsub.credentialsFile` flag.
+
+Principal must have the following permissions:
+
+| Permission            | Available Role                                                                            |
+|-----------------------|-------------------------------------------------------------------------------------------|
+| pubsub.topics.publish | [Pub/Sub Publisher](https://cloud.google.com/pubsub/docs/access-control#pubsub.publisher) |
+
+
+
+#### Config
+
+`vmagent` supports the following flags for the PubSub publisher:
+
+| Flag                                        | Default | Description                                                                                           |
+|---------------------------------------------|--------|-------------------------------------------------------------------------------------------------------|
+| `gcp.pubsub.credentialsFile`         | ""     | Credentials to use to authenticate to GCP.                                                            |
+| `gcp.pubsub.publish.countThreshold`         | 100    | Publish a batch when it has this many messages.                                                       |
+| `gcp.pubsub.publish.byteThreshold`          | 1000000 | Publish a batch when its size in bytes reaches this value.                                            |
+| `gcp.pubsub.publish.timeout`                | 60s    | The maximum time that the client will attempt to publish a bundle of messages.                        |
+| `gcp.pubsub.publish.delayThreshold`         | 10ms   | Publish a non-empty batch after this delay has passed.                                                |
+| `gcp.pubsub.publish.maxOutstandingMessages` | 100    | Maximum number of buffered messages to be published. If less than or equal to zero, this is disabled. |
+| `gcp.pubsub.publish.maxOutstandingBytes`    | -1     | Maximum size of buffered messages to be published. If less than or equal to zero, this is disabled.   |
+
+
+#### Monitoring
+`vmagent` exposes the following flags related to PubSub publisher:
+
+| Metric                                                                      | Description            |   
+|-----------------------------------------------------------------------------|------------------------|
+| `vmagent_remotewrite_pubsub_sent_messages_total{project,topic}`             | Message/block enqueued |
+| `vmagent_remotewrite_pubsub_published_messages_total{project,topic,status}` | Message published      |   
+
+
 ## How to build from sources
 
 We recommend using [official binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) - `vmagent` is located in the `vmutils-...` archives.

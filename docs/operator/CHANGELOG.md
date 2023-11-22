@@ -15,6 +15,11 @@ menu:
 
 - TODO
 
+<a name="v0.39.3"></a>
+## [v0.39.3](https://github.com/VictoriaMetrics/operator/releases/tag/v0.39.3) - 16 Nov 2023
+
+- update VictoriaMetrics image tags to [v1.95.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.95.1).
+
 <a name="v0.39.2"></a>
 ## [v0.39.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.39.2) - 15 Nov 2023
 

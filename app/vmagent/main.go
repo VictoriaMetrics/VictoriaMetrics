@@ -11,8 +11,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/VictoriaMetrics/metrics"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/csvimport"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/datadog"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/graphite"
@@ -42,6 +40,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
+	"github.com/VictoriaMetrics/metrics"
 )
 
 var (

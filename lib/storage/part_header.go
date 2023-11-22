@@ -173,7 +173,7 @@ func (ph *partHeader) MustWriteMetadata(partPath string) {
 	}
 	metadataPath := filepath.Join(partPath, metadataFilename)
 	// There is no need in calling fs.MustWriteAtomic() here,
-	// since the file is created only once during part creatinng
-	// and the part directory is synced aftewards.
+	// since the file is created only once during part creating
+	// and the part directory is synced afterwards.
 	fs.MustWriteSync(metadataPath, metadata)
 }
