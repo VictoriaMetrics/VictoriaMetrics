@@ -853,6 +853,17 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run("day_of_year()", func(t *testing.T) {
+		t.Parallel()
+		q := `day_of_year(time()*1e4)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{116, 139, 163, 186, 209, 232},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run("days_in_month()", func(t *testing.T) {
 		t.Parallel()
 		q := `days_in_month(time()*2e4)`

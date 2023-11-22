@@ -1049,6 +1049,15 @@ Metric names are stripped from the resulting series. Add [keep_metric_names](#ke
 
 This function is supported by PromQL.
 
+#### day_of_year
+
+`day_of_year(q)` is a [transform function](#transform-functions), which returns the day of year for every point of every time series returned by `q`.
+It is expected that `q` returns unix timestamps. The returned values are in the range `[1...365]` for non-leap years, and `[1 to 366]` in leap years.
+
+Metric names are stripped from the resulting series. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
+
+This function is supported by PromQL.
+
 #### days_in_month
 
 `days_in_month(q)` is a [transform function](#transform-functions), which returns the number of days in the month identified
