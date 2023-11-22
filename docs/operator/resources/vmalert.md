@@ -6,6 +6,8 @@ menu:
   docs:
     parent: "operator-custom-resources"
     weight: 2
+aliases:
+  - /operator/resources/vmalert.html
 ---
 
 # VMAlert

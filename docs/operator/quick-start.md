@@ -6,6 +6,8 @@ menu:
   docs:
     parent: "operator"
     weight: 1
+aliases:
+- /operator/quick-start.html
 ---
 
 # VictoriaMetrics Operator QuickStart

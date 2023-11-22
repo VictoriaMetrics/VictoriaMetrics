@@ -6,6 +6,8 @@ menu:
   docs:
     parent: "operator-custom-resources"
     weight: 14
+aliases:
+  - /operator/resources/vmuser.html
 ---
 
 # VMUser
