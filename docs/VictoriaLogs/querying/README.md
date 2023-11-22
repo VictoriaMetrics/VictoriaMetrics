@@ -81,7 +81,7 @@ with `vl_http_requests_total{path="/select/logsql/query"}` metric.
 VictoriaLogs provides a simple Web UI for logs [querying](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html) and exploration
 at `http://localhost:9428/select/vmui`. The UI allows exploring query results:
 
-<img src="vmui.png" width="800" />
+<img src="vmui.webp" width="800" />
 
 There are three modes of displaying query results:
 
