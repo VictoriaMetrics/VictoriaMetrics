@@ -280,3 +280,37 @@ func TestFastQueueReadWriteConcurrent(t *testing.T) {
 	fq.MustClose()
 	mustDeleteDir(path)
 }
+
+func TestFastQueueWriteReadWithDisabledPQ(t *testing.T) {
+	path := "fast-queue-write-read-inmemory-disabled-pq"
+	mustDeleteDir(path)
+
+	capacity := 20
+	fq := MustOpenFastQueue(path, "foobar", capacity, 0, true)
+	if n := fq.GetInmemoryQueueLen(); n != 0 {
+		t.Fatalf("unexpected non-zero inmemory queue size:  %d", n)
+	}
+	var blocks []string
+	for i := 0; i < capacity; i++ {
+		block := fmt.Sprintf("block %d", i)
+		_ = fq.WriteBlock([]byte(block))
+		blocks = append(blocks, block)
+	}
+	err := fq.WriteBlock([]byte("error-block"))
+	if err != errFullQueue {
+		t.Fatalf("expect full queue")
+	}
+	fq.MustClose()
+	fq = MustOpenFastQueue(path, "foobar", capacity, 0, true)
+	for _, block := range blocks {
+		buf, ok := fq.MustReadBlock(nil)
+		if !ok {
+			t.Fatalf("unexpected ok=false")
+		}
+		if string(buf) != block {
+			t.Fatalf("unexpected block read; got %q; want %q", buf, block)
+		}
+	}
+	fq.MustClose()
+	mustDeleteDir(path)
+}
