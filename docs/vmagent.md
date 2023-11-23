@@ -1040,6 +1040,124 @@ If you have suggestions for improvements or have found a bug - please open an is
 
 See also [troubleshooting docs](https://docs.victoriametrics.com/Troubleshooting.html).
 
+## Google PubSub integration
+[Enterprise version](https://docs.victoriametrics.com/enterprise.html) of `vmagent` can read and write metrics from / to google [PubSub](https://cloud.google.com/pubsub):
+
+
+### Reading metrics from PubSub
+
+[Enterprise version](https://docs.victoriametrics.com/enterprise.html) of `vmagent` can read metrics in various formats from Pub/Sub messages.
+`-gcp.pubsub.subscribe.defaultMessageFormat` and `-gcp.pubsub.subscribe.topicSubscription.messageFormat` allow you to configure the message format.
+We support the following options:
+* `promremotewrite` - [Prometheus remote_write](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write).
+  Messages in this format can be sent by vmagent - see [these docs](#writing-metrics-to-pubsub).
+* `influx` - [InfluxDB line protocol format](https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/).
+* `prometheus` - [Prometheus text exposition format](https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md#text-based-format)
+  and [OpenMetrics format](https://github.com/OpenObservability/OpenMetrics/blob/master/specification/OpenMetrics.md).
+* `graphite` - [Graphite plaintext format](https://graphite.readthedocs.io/en/latest/feeding-carbon.html#the-plaintext-protocol).
+* `jsonline` - [JSON line format](https://docs.victoriametrics.com/#how-to-import-data-in-json-line-format).
+
+Every PubSub message may contain multiple lines in `influx`, `prometheus`, `graphite` and `jsonline` format delimited by `\n`.
+
+`vmagent` consumes messages from PubSub topic subscriptions specified by `-gcp.pubsub.subscribe.topicSubscription` command-line flag. You can configure the multiple topics by specifying -gcp.pubsub.subscribe.topicSubscription command-line flags in vmagent
+Multiple topics can be specified
+by passing multiple `-gcp.pubsub.subscribe.topicSubscription` command-line flags to `vmagent`.
+
+`vmagent` uses standard google authorization mechanism for topic access. It's possible to specify credentials directly via flag `-gcp.pubsub.subscribe.credentialsFile=`.
+
+The following command starts `vmagent`, which reads metrics in InfluxDB line protocol format from PubSub topic:  `projects/victoriametrics-vmagent-pub-sub-test/subscriptions/telegraf-testing`
+from the topic `telegraf-testing` and sends them to remote storage at `http://localhost:8428/api/v1/write`:
+
+```bash
+./bin/vmagent -remoteWrite.url=http://localhost:8428/api/v1/write \
+       -gcp.pubsub.subscribe.topicSubscription=projects/victoriametrics-vmagent-pub-sub-test/subscriptions/telegraf-testing
+       -gcp.pubsub.subscribe.topicSubscription.messageFormat=influx 
+```
+
+It is expected that [Telegraf](https://github.com/influxdata/telegraf) sends metrics to the `metrics-by-telegraf` topic with the following config:
+
+```yaml
+[[outputs.cloud_pubsub]]
+  project = "victoriametrics-vmagent-pub-sub-test"
+  topic = "telegraf-testing"
+  data_format = "influx"
+```
+
+#### Consume metrics from multiple topics
+
+It's possible to configure message consumption from multiple topics. In this case, command-line flag arguments must have the same position at corresponding values.
+
+For example, given configuration configures message reading from:
+1) project `victoriametrics-vmagent-pub-sub-test` topic: `telegraf-testing` message encoding `influx` without `gzip` compression
+2) project `victoriametrics-vmagent-pub-sub-test` topic: `json-line-testing` message encoding `jsonline` with `gzip` compression
+
+```bash
+./bin/vmagent -remoteWrite.url=http://localhost:8428/api/v1/write \
+       -gcp.pubsub.subscribe.topicSubscription=projects/victoriametrics-vmagent-pub-sub-test/subscriptions/telegraf-testing,projects/victoriametrics-vmagent-pub-sub-test/subscriptions/json-line-testing
+       -gcp.pubsub.subscribe.topicSubscription.messageFormat=influx,jsonline
+       -gcp.pubsub.subscribe.topicSubscription.isGzipped=false,true
+```
+
+#### Command-line flags for PubSub consumer
+
+These command-line flags are available only in [enterprise](https://docs.victoriametrics.com/enterprise.html) version of `vmagent`,
+which can be downloaded for evaluation from [releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) page
+(see `vmutils-...-enterprise.tar.gz` archives) and from [docker images](https://hub.docker.com/r/victoriametrics/vmagent/tags) with tags containing `enterprise` suffix.
+
+```text
+  -gcp.pubsub.subscribe.credentialsFile string
+    	Path to file with GCP credentials to use for PubSub client. If not set, default credentials will be used (see Workload Identity for K8S, or https://cloud.google.com/docs/authentication/application-default-credentials. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
+  -gcp.pubsub.subscribe.defaultMessageFormat string
+    	Expected data format in the topic if -gcp.pubsub.consumer.topicSubscription.messageFormat is skipped. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html (default "promremotewrite")
+  -gcp.pubsub.subscribe.topicSubscription array
+    	project topic subscription url in form: projects/<project-id>/subscriptions/<subscription-name> This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
+    	Supports an array of values separated by comma or specified via multiple flags.
+  -gcp.pubsub.subscribe.topicSubscription.concurrency array
+    	Configures the number of concurrently processed messages for topic subscription specified via -gcp.pubsub.consumer.topicSubscription flag.This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html (default 0)
+    	Supports array of values separated by comma or specified via multiple flags.
+  -gcp.pubsub.subscribe.topicSubscription.messageformat array
+    	payload format for corresponding pubsub topic subscription. valid formats: influx, prometheus, promremotewrite, graphite, jsonline . this flag is available only in enterprise binaries. see https://docs.victoriametrics.com/enterprise.html
+    	supports an array of values separated by comma or specified via multiple flags.   	
+  -gcp.pubsub.subscribe.topicSubscription.isGzipped array
+    	Enables gzip decompression for topic subscription messages payload. Only prometheus, jsonline and influx formats accept gzipped messages.This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
+    	Supports array of values separated by comma or specified via multiple flags.
+```
+
+
+### Writing metrics to PubSub
+
+[Enterprise version](https://docs.victoriametrics.com/enterprise.html) of `vmagent` writes data into PubSub if url contains `pubsub` prefix. For example, with remote write url:
+`--remoteWrite.url=pubsub:projects/victoriametrics-vmagent-publish-test/topics/testing-pubsub-push`.
+
+These messages can be read later from PubSub by another `vmagent` - see [these docs](#reading-metrics-from-pubsub) for details.
+
+`vmagent` uses a standard Google authorization mechanism for topic access. It's possible to specify credentials directly via the flag `-gcp.pubsub.subscribe.credentialsFile=`.
+
+#### Command-line flags for PubSub producer
+
+These command-line flags are available only in [enterprise](https://docs.victoriametrics.com/enterprise.html) version of `vmagent`,
+which can be downloaded for evaluation from [releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) page
+(see `vmutils-...-enterprise.tar.gz` archives) and from [docker images](https://hub.docker.com/r/victoriametrics/vmagent/tags) with tags containing `enterprise` suffix.
+
+```text
+  -gcp.pubsub.publish.credentialsFile string
+    	Path to file with GCP credentials to use for PubSub client. If not set, default credentials will be used (see Workload Identity for K8S, or https://cloud.google.com/docs/authentication/application-default-credentials. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
+  -gcp.pubsub.publish.byteThreshold int
+    	Publish a batch when its size in bytes reaches this value. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html (default 1000000)
+  -gcp.pubsub.publish.countThreshold int
+    	Publish a batch when it has this many messages.This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html (default 100)
+  -gcp.pubsub.publish.delayThreshold value
+    	Publish a non-empty batch after this delay has passed. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
+    	The following optional suffixes are supported: s (second), m (minute), h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 10ms)
+  -gcp.pubsub.publish.maxOutstandingBytes int
+    	MaxOutstandingBytes is the maximum size of buffered messages to be published. If less than or equal to zero, this is disabled. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html (default -1)
+  -gcp.pubsub.publish.maxOutstandingMessages int
+    	MaxOutstandingMessages is the maximum number of buffered messages to be published. If less than or equal to zero, this is disabled. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html (default 100)
+  -gcp.pubsub.publish.timeout value
+    	The maximum time that the client will attempt to publish a bundle of messages. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
+    	The following optional suffixes are supported: s (second), m (minute), h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 60s)
+```
+
 ## Kafka integration
 
 [Enterprise version](https://docs.victoriametrics.com/enterprise.html) of `vmagent` can read and write metrics from / to Kafka:
