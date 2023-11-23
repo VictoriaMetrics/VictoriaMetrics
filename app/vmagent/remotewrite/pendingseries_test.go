@@ -26,13 +26,14 @@ func testPushWriteRequest(t *testing.T, rowsCount, expectedBlockLenProm, expecte
 		t.Helper()
 		wr := newTestWriteRequest(rowsCount, 20)
 		pushBlockLen := 0
-		pushBlock := func(block []byte) {
+		pushBlock := func(block []byte) error {
 			if pushBlockLen > 0 {
 				panic(fmt.Errorf("BUG: pushBlock called multiple times; pushBlockLen=%d at first call, len(block)=%d at second call", pushBlockLen, len(block)))
 			}
 			pushBlockLen = len(block)
+			return nil
 		}
-		pushWriteRequest(wr, pushBlock, isVMRemoteWrite)
+		_ = pushWriteRequest(wr, pushBlock, isVMRemoteWrite)
 		if math.Abs(float64(pushBlockLen-expectedBlockLen)/float64(expectedBlockLen)*100) > tolerancePrc {
 			t.Fatalf("unexpected block len for rowsCount=%d, isVMRemoteWrite=%v; got %d bytes; expecting %d bytes +- %.0f%%",
 				rowsCount, isVMRemoteWrite, pushBlockLen, expectedBlockLen, tolerancePrc)

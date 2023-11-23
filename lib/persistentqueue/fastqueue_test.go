@@ -11,7 +11,7 @@ func TestFastQueueOpenClose(_ *testing.T) {
 	path := "fast-queue-open-close"
 	mustDeleteDir(path)
 	for i := 0; i < 10; i++ {
-		fq := MustOpenFastQueue(path, "foobar", 100, 0)
+		fq := MustOpenFastQueue(path, "foobar", 100, 0, true)
 		fq.MustClose()
 	}
 	mustDeleteDir(path)
@@ -22,14 +22,14 @@ func TestFastQueueWriteReadInmemory(t *testing.T) {
 	mustDeleteDir(path)
 
 	capacity := 100
-	fq := MustOpenFastQueue(path, "foobar", capacity, 0)
+	fq := MustOpenFastQueue(path, "foobar", capacity, 0, true)
 	if n := fq.GetInmemoryQueueLen(); n != 0 {
 		t.Fatalf("unexpected non-zero inmemory queue size:  %d", n)
 	}
 	var blocks []string
 	for i := 0; i < capacity; i++ {
 		block := fmt.Sprintf("block %d", i)
-		fq.MustWriteBlock([]byte(block))
+		_ = fq.WriteBlock([]byte(block))
 		blocks = append(blocks, block)
 	}
 	if n := fq.GetInmemoryQueueLen(); n != capacity {
@@ -53,14 +53,16 @@ func TestFastQueueWriteReadMixed(t *testing.T) {
 	mustDeleteDir(path)
 
 	capacity := 100
-	fq := MustOpenFastQueue(path, "foobar", capacity, 0)
+	fq := MustOpenFastQueue(path, "foobar", capacity, 0, false)
 	if n := fq.GetPendingBytes(); n != 0 {
 		t.Fatalf("the number of pending bytes must be 0; got %d", n)
 	}
 	var blocks []string
 	for i := 0; i < 2*capacity; i++ {
 		block := fmt.Sprintf("block %d", i)
-		fq.MustWriteBlock([]byte(block))
+		if err := fq.WriteBlock([]byte(block)); err != nil {
+			t.Fatalf("ff :%s", err)
+		}
 		blocks = append(blocks, block)
 	}
 	if n := fq.GetPendingBytes(); n == 0 {
@@ -87,17 +89,17 @@ func TestFastQueueWriteReadWithCloses(t *testing.T) {
 	mustDeleteDir(path)
 
 	capacity := 100
-	fq := MustOpenFastQueue(path, "foobar", capacity, 0)
+	fq := MustOpenFastQueue(path, "foobar", capacity, 0, false)
 	if n := fq.GetPendingBytes(); n != 0 {
 		t.Fatalf("the number of pending bytes must be 0; got %d", n)
 	}
 	var blocks []string
 	for i := 0; i < 2*capacity; i++ {
 		block := fmt.Sprintf("block %d", i)
-		fq.MustWriteBlock([]byte(block))
+		_ = fq.WriteBlock([]byte(block))
 		blocks = append(blocks, block)
 		fq.MustClose()
-		fq = MustOpenFastQueue(path, "foobar", capacity, 0)
+		fq = MustOpenFastQueue(path, "foobar", capacity, 0, false)
 	}
 	if n := fq.GetPendingBytes(); n == 0 {
 		t.Fatalf("the number of pending bytes must be greater than 0")
@@ -111,7 +113,7 @@ func TestFastQueueWriteReadWithCloses(t *testing.T) {
 			t.Fatalf("unexpected block read; got %q; want %q", buf, block)
 		}
 		fq.MustClose()
-		fq = MustOpenFastQueue(path, "foobar", capacity, 0)
+		fq = MustOpenFastQueue(path, "foobar", capacity, 0, false)
 	}
 	if n := fq.GetPendingBytes(); n != 0 {
 		t.Fatalf("the number of pending bytes must be 0; got %d", n)
@@ -124,7 +126,7 @@ func TestFastQueueReadUnblockByClose(t *testing.T) {
 	path := "fast-queue-read-unblock-by-close"
 	mustDeleteDir(path)
 
-	fq := MustOpenFastQueue(path, "foorbar", 123, 0)
+	fq := MustOpenFastQueue(path, "foorbar", 123, 0, false)
 	resultCh := make(chan error)
 	go func() {
 		data, ok := fq.MustReadBlock(nil)
@@ -154,7 +156,7 @@ func TestFastQueueReadUnblockByWrite(t *testing.T) {
 	path := "fast-queue-read-unblock-by-write"
 	mustDeleteDir(path)
 
-	fq := MustOpenFastQueue(path, "foobar", 13, 0)
+	fq := MustOpenFastQueue(path, "foobar", 13, 0, false)
 	block := "foodsafdsaf sdf"
 	resultCh := make(chan error)
 	go func() {
@@ -169,7 +171,7 @@ func TestFastQueueReadUnblockByWrite(t *testing.T) {
 		}
 		resultCh <- nil
 	}()
-	fq.MustWriteBlock([]byte(block))
+	_ = fq.WriteBlock([]byte(block))
 	select {
 	case err := <-resultCh:
 		if err != nil {
@@ -186,7 +188,7 @@ func TestFastQueueReadWriteConcurrent(t *testing.T) {
 	path := "fast-queue-read-write-concurrent"
 	mustDeleteDir(path)
 
-	fq := MustOpenFastQueue(path, "foobar", 5, 0)
+	fq := MustOpenFastQueue(path, "foobar", 5, 0, false)
 
 	var blocks []string
 	blocksMap := make(map[string]bool)
@@ -226,7 +228,7 @@ func TestFastQueueReadWriteConcurrent(t *testing.T) {
 		go func() {
 			defer writersWG.Done()
 			for block := range blocksCh {
-				fq.MustWriteBlock([]byte(block))
+				_ = fq.WriteBlock([]byte(block))
 			}
 		}()
 	}
@@ -250,7 +252,7 @@ func TestFastQueueReadWriteConcurrent(t *testing.T) {
 	readersWG.Wait()
 
 	// Collect the remaining data
-	fq = MustOpenFastQueue(path, "foobar", 5, 0)
+	fq = MustOpenFastQueue(path, "foobar", 5, 0, false)
 	resultCh := make(chan error)
 	go func() {
 		for len(blocksMap) > 0 {

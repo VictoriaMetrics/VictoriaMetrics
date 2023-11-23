@@ -64,7 +64,9 @@ func insertRows(at *auth.Token, rows []parser.Row, extraLabels []prompbmarshal.L
 	ctx.WriteRequest.Timeseries = tssDst
 	ctx.Labels = labels
 	ctx.Samples = samples
-	remotewrite.Push(at, &ctx.WriteRequest)
+	if err := remotewrite.Push(at, &ctx.WriteRequest); err != nil {
+		return err
+	}
 	rowsInserted.Add(len(rows))
 	rowsPerInsert.Update(float64(len(rows)))
 	return nil

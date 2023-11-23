@@ -59,13 +59,18 @@ func CheckConfig() error {
 // Init initializes Prometheus scraper with config from the `-promscrape.config`.
 //
 // Scraped data is passed to pushData.
-func Init(pushData func(at *auth.Token, wr *prompbmarshal.WriteRequest)) {
+func Init(pushData func(at *auth.Token, wr *prompbmarshal.WriteRequest) error) {
 	mustInitClusterMemberID()
+	pushDataTrackError := func(at *auth.Token, wr *prompbmarshal.WriteRequest) {
+		if err := pushData(at, wr); err != nil {
+			pushDataFailsTotal.Inc()
+		}
+	}
 	globalStopChan = make(chan struct{})
 	scraperWG.Add(1)
 	go func() {
 		defer scraperWG.Done()
-		runScraper(*promscrapeConfigFile, pushData, globalStopChan)
+		runScraper(*promscrapeConfigFile, pushDataTrackError, globalStopChan)
 	}()
 }
 
@@ -84,6 +89,8 @@ var (
 
 	// configData contains -promscrape.config data
 	configData atomic.Pointer[[]byte]
+
+	pushDataFailsTotal = metrics.NewCounter(`vm_promscrape_push_data_errors_total`)
 )
 
 // WriteConfigData writes -promscrape.config contents to w

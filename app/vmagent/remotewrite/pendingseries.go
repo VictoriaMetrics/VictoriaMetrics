@@ -2,6 +2,7 @@ package remotewrite
 
 import (
 	"flag"
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -37,7 +38,7 @@ type pendingSeries struct {
 	periodicFlusherWG sync.WaitGroup
 }
 
-func newPendingSeries(pushBlock func(block []byte), isVMRemoteWrite bool, significantFigures, roundDigits int) *pendingSeries {
+func newPendingSeries(pushBlock func(block []byte) error, isVMRemoteWrite bool, significantFigures, roundDigits int) *pendingSeries {
 	var ps pendingSeries
 	ps.wr.pushBlock = pushBlock
 	ps.wr.isVMRemoteWrite = isVMRemoteWrite
@@ -57,10 +58,11 @@ func (ps *pendingSeries) MustStop() {
 	ps.periodicFlusherWG.Wait()
 }
 
-func (ps *pendingSeries) Push(tss []prompbmarshal.TimeSeries) {
+func (ps *pendingSeries) Push(tss []prompbmarshal.TimeSeries) error {
 	ps.mu.Lock()
-	ps.wr.push(tss)
+	err := ps.wr.push(tss)
 	ps.mu.Unlock()
+	return err
 }
 
 func (ps *pendingSeries) periodicFlusher() {
@@ -81,7 +83,8 @@ func (ps *pendingSeries) periodicFlusher() {
 			}
 		}
 		ps.mu.Lock()
-		ps.wr.flush()
+		// no-op error
+		_ = ps.wr.flush()
 		ps.mu.Unlock()
 	}
 }
@@ -91,7 +94,7 @@ type writeRequest struct {
 	lastFlushTime uint64
 
 	// pushBlock is called when whe write request is ready to be sent.
-	pushBlock func(block []byte)
+	pushBlock func(block []byte) error
 
 	// Whether to encode the write request with VictoriaMetrics remote write protocol.
 	isVMRemoteWrite bool
@@ -130,12 +133,16 @@ func (wr *writeRequest) reset() {
 	wr.buf = wr.buf[:0]
 }
 
-func (wr *writeRequest) flush() {
+func (wr *writeRequest) flush() error {
 	wr.wr.Timeseries = wr.tss
 	wr.adjustSampleValues()
 	atomic.StoreUint64(&wr.lastFlushTime, fasttime.UnixTimestamp())
-	pushWriteRequest(&wr.wr, wr.pushBlock, wr.isVMRemoteWrite)
+	err := pushWriteRequest(&wr.wr, wr.pushBlock, wr.isVMRemoteWrite)
+	if err != nil {
+		return err
+	}
 	wr.reset()
+	return nil
 }
 
 func (wr *writeRequest) adjustSampleValues() {
@@ -154,7 +161,7 @@ func (wr *writeRequest) adjustSampleValues() {
 	}
 }
 
-func (wr *writeRequest) push(src []prompbmarshal.TimeSeries) {
+func (wr *writeRequest) push(src []prompbmarshal.TimeSeries) error {
 	tssDst := wr.tss
 	maxSamplesPerBlock := *maxRowsPerBlock
 	// Allow up to 10x of labels per each block on average.
@@ -164,11 +171,15 @@ func (wr *writeRequest) push(src []prompbmarshal.TimeSeries) {
 		wr.copyTimeSeries(&tssDst[len(tssDst)-1], &src[i])
 		if len(wr.samples) >= maxSamplesPerBlock || len(wr.labels) >= maxLabelsPerBlock {
 			wr.tss = tssDst
-			wr.flush()
+			if err := wr.flush(); err != nil {
+				return err
+			}
 			tssDst = wr.tss
 		}
 	}
+
 	wr.tss = tssDst
+	return nil
 }
 
 func (wr *writeRequest) copyTimeSeries(dst, src *prompbmarshal.TimeSeries) {
@@ -196,10 +207,10 @@ func (wr *writeRequest) copyTimeSeries(dst, src *prompbmarshal.TimeSeries) {
 	wr.buf = buf
 }
 
-func pushWriteRequest(wr *prompbmarshal.WriteRequest, pushBlock func(block []byte), isVMRemoteWrite bool) {
+func pushWriteRequest(wr *prompbmarshal.WriteRequest, pushBlock func(block []byte) error, isVMRemoteWrite bool) error {
 	if len(wr.Timeseries) == 0 {
 		// Nothing to push
-		return
+		return nil
 	}
 	bb := writeRequestBufPool.Get()
 	bb.B = prompbmarshal.MarshalWriteRequest(bb.B[:0], wr)
@@ -212,11 +223,13 @@ func pushWriteRequest(wr *prompbmarshal.WriteRequest, pushBlock func(block []byt
 		}
 		writeRequestBufPool.Put(bb)
 		if len(zb.B) <= persistentqueue.MaxBlockSize {
-			pushBlock(zb.B)
+			if err := pushBlock(zb.B); err != nil {
+				return fmt.Errorf("cannot pushBlock  block into queue: %w", err)
+			}
 			blockSizeRows.Update(float64(len(wr.Timeseries)))
 			blockSizeBytes.Update(float64(len(zb.B)))
 			snappyBufPool.Put(zb)
-			return
+			return nil
 		}
 		snappyBufPool.Put(zb)
 	} else {
@@ -229,23 +242,32 @@ func pushWriteRequest(wr *prompbmarshal.WriteRequest, pushBlock func(block []byt
 		samples := wr.Timeseries[0].Samples
 		if len(samples) == 1 {
 			logger.Warnf("dropping a sample for metric with too long labels exceeding -remoteWrite.maxBlockSize=%d bytes", maxUnpackedBlockSize.N)
-			return
+			return nil
 		}
 		n := len(samples) / 2
 		wr.Timeseries[0].Samples = samples[:n]
-		pushWriteRequest(wr, pushBlock, isVMRemoteWrite)
+		if err := pushWriteRequest(wr, pushBlock, isVMRemoteWrite); err != nil {
+			return err
+		}
 		wr.Timeseries[0].Samples = samples[n:]
-		pushWriteRequest(wr, pushBlock, isVMRemoteWrite)
+		if err := pushWriteRequest(wr, pushBlock, isVMRemoteWrite); err != nil {
+			return err
+		}
 		wr.Timeseries[0].Samples = samples
-		return
+		return nil
 	}
 	timeseries := wr.Timeseries
 	n := len(timeseries) / 2
 	wr.Timeseries = timeseries[:n]
-	pushWriteRequest(wr, pushBlock, isVMRemoteWrite)
+	if err := pushWriteRequest(wr, pushBlock, isVMRemoteWrite); err != nil {
+		return err
+	}
 	wr.Timeseries = timeseries[n:]
-	pushWriteRequest(wr, pushBlock, isVMRemoteWrite)
+	if err := pushWriteRequest(wr, pushBlock, isVMRemoteWrite); err != nil {
+		return err
+	}
 	wr.Timeseries = timeseries
+	return nil
 }
 
 var (

@@ -76,7 +76,9 @@ func insertRows(at *auth.Token, rows []newrelic.Row, extraLabels []prompbmarshal
 	ctx.WriteRequest.Timeseries = tssDst
 	ctx.Labels = labels
 	ctx.Samples = samples
-	remotewrite.Push(at, &ctx.WriteRequest)
+	if err := remotewrite.Push(at, &ctx.WriteRequest); err != nil {
+		return err
+	}
 	rowsInserted.Add(len(rows))
 	if at != nil {
 		rowsTenantInserted.Get(at).Add(samplesCount)

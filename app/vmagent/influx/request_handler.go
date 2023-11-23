@@ -130,7 +130,9 @@ func insertRows(at *auth.Token, db string, rows []parser.Row, extraLabels []prom
 	ctx.ctx.Labels = labels
 	ctx.ctx.Samples = samples
 	ctx.commonLabels = commonLabels
-	remotewrite.Push(at, &ctx.ctx.WriteRequest)
+	if err := remotewrite.Push(at, &ctx.ctx.WriteRequest); err != nil {
+		return err
+	}
 	rowsInserted.Add(rowsTotal)
 	if at != nil {
 		rowsTenantInserted.Get(at).Add(rowsTotal)

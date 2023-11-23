@@ -97,8 +97,9 @@ func Init() {
 	if len(*opentsdbHTTPListenAddr) > 0 {
 		opentsdbhttpServer = opentsdbhttpserver.MustStart(*opentsdbHTTPListenAddr, *opentsdbHTTPUseProxyProtocol, opentsdbhttp.InsertHandler)
 	}
-	promscrape.Init(func(at *auth.Token, wr *prompbmarshal.WriteRequest) {
+	promscrape.Init(func(at *auth.Token, wr *prompbmarshal.WriteRequest) error {
 		prompush.Push(wr)
+		return nil
 	})
 }
 
