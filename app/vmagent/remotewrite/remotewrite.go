@@ -170,6 +170,7 @@ func Init() {
 	if len(*remoteWriteURLs) > 0 {
 		rwctxsDefault = newRemoteWriteCtxs(nil, *remoteWriteURLs)
 	}
+	dropDanglingQueues()
 
 	// Start config reloader.
 	configReloaderWG.Add(1)
@@ -185,6 +186,42 @@ func Init() {
 			reloadStreamAggrConfigs()
 		}
 	}()
+}
+
+func dropDanglingQueues() {
+	if *keepDanglingQueues {
+		return
+	}
+	if len(*remoteWriteMultitenantURLs) > 0 {
+		// Do not drop dangling queues for *remoteWriteMultitenantURLs, since it is impossible to determine
+		// unused queues for multitenant urls - they are created on demand when new sample for the given
+		// tenant is pushed to remote storage.
+		return
+	}
+	// Remove dangling persistent queues, if any.
+	// This is required for the case when the number of queues has been changed or URL have been changed.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4014
+	//
+	existingQueues := make(map[string]struct{}, len(rwctxsDefault))
+	for _, rwctx := range rwctxsDefault {
+		existingQueues[rwctx.fq.Dirname()] = struct{}{}
+	}
+
+	queuesDir := filepath.Join(*tmpDataPath, persistentQueueDirname)
+	files := fs.MustReadDir(queuesDir)
+	removed := 0
+	for _, f := range files {
+		dirname := f.Name()
+		if _, ok := existingQueues[dirname]; !ok {
+			logger.Infof("removing dangling queue %q", dirname)
+			fullPath := filepath.Join(queuesDir, dirname)
+			fs.MustRemoveAll(fullPath)
+			removed++
+		}
+	}
+	if removed > 0 {
+		logger.Infof("removed %d dangling queues from %q, active queues: %d", removed, *tmpDataPath, len(rwctxsDefault))
+	}
 }
 
 func reloadRelabelConfigs() {
@@ -260,33 +297,6 @@ func newRemoteWriteCtxs(at *auth.Token, urls []string) []*remoteWriteCtx {
 		}
 		rwctxs[i] = newRemoteWriteCtx(i, remoteWriteURL, maxInmemoryBlocks, sanitizedURL)
 	}
-
-	if !*keepDanglingQueues {
-		// Remove dangling queues, if any.
-		// This is required for the case when the number of queues has been changed or URL have been changed.
-		// See: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4014
-		existingQueues := make(map[string]struct{}, len(rwctxs))
-		for _, rwctx := range rwctxs {
-			existingQueues[rwctx.fq.Dirname()] = struct{}{}
-		}
-
-		queuesDir := filepath.Join(*tmpDataPath, persistentQueueDirname)
-		files := fs.MustReadDir(queuesDir)
-		removed := 0
-		for _, f := range files {
-			dirname := f.Name()
-			if _, ok := existingQueues[dirname]; !ok {
-				logger.Infof("removing dangling queue %q", dirname)
-				fullPath := filepath.Join(queuesDir, dirname)
-				fs.MustRemoveAll(fullPath)
-				removed++
-			}
-		}
-		if removed > 0 {
-			logger.Infof("removed %d dangling queues from %q, active queues: %d", removed, *tmpDataPath, len(rwctxs))
-		}
-	}
-
 	return rwctxs
 }
 
