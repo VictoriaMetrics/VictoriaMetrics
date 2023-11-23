@@ -22,7 +22,7 @@ func BenchmarkFastQueueThroughputSerial(b *testing.B) {
 				mustDeleteDir(path)
 			}()
 			for i := 0; i < b.N; i++ {
-				writeReadIterationFastQueue(fq, block, iterationsCount)
+				writeReadIterationFastQueue(b, fq, block, iterationsCount)
 			}
 		})
 	}
@@ -44,16 +44,18 @@ func BenchmarkFastQueueThroughputConcurrent(b *testing.B) {
 			}()
 			b.RunParallel(func(pb *testing.PB) {
 				for pb.Next() {
-					writeReadIterationFastQueue(fq, block, iterationsCount)
+					writeReadIterationFastQueue(b, fq, block, iterationsCount)
 				}
 			})
 		})
 	}
 }
 
-func writeReadIterationFastQueue(fq *FastQueue, block []byte, iterationsCount int) {
+func writeReadIterationFastQueue(b *testing.B, fq *FastQueue, block []byte, iterationsCount int) {
 	for i := 0; i < iterationsCount; i++ {
-		_ = fq.WriteBlock(block)
+		if !fq.WriteBlock(block) {
+			b.Fatalf("unexpected false for WriteBlock")
+		}
 	}
 	var ok bool
 	bb := bbPool.Get()

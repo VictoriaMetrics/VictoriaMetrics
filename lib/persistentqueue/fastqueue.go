@@ -1,7 +1,6 @@
 package persistentqueue
 
 import (
-	"errors"
 	"fmt"
 	"path/filepath"
 	"sync"
@@ -11,9 +10,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/metrics"
 )
-
-// errFullQueue indicates that persistent queue is full and can no longer accept write requests
-var errFullQueue = errors.New("queue is full and cannot accept write requests")
 
 // FastQueue is fast persistent queue, which prefers sending data via memory.
 //
@@ -76,7 +72,7 @@ func (fq *FastQueue) IsWritesBlocked() bool {
 	}
 	fq.mu.Lock()
 	defer fq.mu.Unlock()
-	return len(fq.ch) == cap(fq.ch) || fq.getPendingBytesLocked() > 0
+	return len(fq.ch) == cap(fq.ch) || fq.pq.GetPendingBytes() > 0
 }
 
 // UnblockAllReaders unblocks all the readers.
@@ -157,25 +153,28 @@ func (fq *FastQueue) GetInmemoryQueueLen() int {
 // MustWriteBlockIgnoreDisabledPQ writes block to fq, persists data on disk even if persistent disabled by flag.
 // it's needed to gracefully stop service and do not lose data if remote storage is not available.
 func (fq *FastQueue) MustWriteBlockIgnoreDisabledPQ(block []byte) {
-	if err := fq.writeBlock(block, false); err != nil {
-		logger.Fatalf("BUG: mustWriteBlock must always write data even if persistence is disabled: %s", err)
+	if !fq.writeBlock(block, true) {
+		logger.Fatalf("BUG: mustWriteBlock must always write data even if persistence is disabled")
 	}
+	return
 }
 
 // WriteBlock writes block to fq.
-func (fq *FastQueue) WriteBlock(block []byte) error {
-	return fq.writeBlock(block, fq.isPQDisabled)
+func (fq *FastQueue) WriteBlock(block []byte) bool {
+	return fq.writeBlock(block, false)
 }
 
 // WriteBlock writes block to fq.
-func (fq *FastQueue) writeBlock(block []byte, isPQDisabled bool) error {
+func (fq *FastQueue) writeBlock(block []byte, mustIgnoreDisabledPQ bool) bool {
 	fq.mu.Lock()
 	defer fq.mu.Unlock()
 
+	isPQWritesAllowed := !fq.isPQDisabled || mustIgnoreDisabledPQ
+
 	fq.flushInmemoryBlocksToFileIfNeededLocked()
 	if n := fq.pq.GetPendingBytes(); n > 0 {
-		if isPQDisabled {
-			return errFullQueue
+		if !isPQWritesAllowed {
+			return false
 		}
 		// The file-based queue isn't drained yet. This means that in-memory queue cannot be used yet.
 		// So put the block to file-based queue.
@@ -183,16 +182,16 @@ func (fq *FastQueue) writeBlock(block []byte, isPQDisabled bool) error {
 			logger.Panicf("BUG: the in-memory queue must be empty when the file-based queue is non-empty; it contains %d pending bytes", n)
 		}
 		fq.pq.MustWriteBlock(block)
-		return nil
+		return true
 	}
 	if len(fq.ch) == cap(fq.ch) {
 		// There is no space in the in-memory queue. Put the data to file-based queue.
-		if isPQDisabled {
-			return errFullQueue
+		if !isPQWritesAllowed {
+			return false
 		}
 		fq.flushInmemoryBlocksToFileLocked()
 		fq.pq.MustWriteBlock(block)
-		return nil
+		return true
 	}
 	// There is enough space in the in-memory queue.
 	bb := blockBufPool.Get()
@@ -203,7 +202,7 @@ func (fq *FastQueue) writeBlock(block []byte, isPQDisabled bool) error {
 	// Notify potentially blocked reader.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/484 for the context.
 	fq.cond.Signal()
-	return nil
+	return true
 }
 
 // MustReadBlock reads the next block from fq to dst and returns it.

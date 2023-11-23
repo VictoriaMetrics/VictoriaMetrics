@@ -56,8 +56,8 @@ func insertRows(rows []parser.Row) error {
 	ctx.WriteRequest.Timeseries = tssDst
 	ctx.Labels = labels
 	ctx.Samples = samples
-	if err := remotewrite.Push(nil, &ctx.WriteRequest); err != nil {
-		return err
+	if !remotewrite.Push(nil, &ctx.WriteRequest) {
+		return remotewrite.ErrQueueFullHTTPRetry
 	}
 	rowsInserted.Add(len(rows))
 	rowsPerInsert.Update(float64(len(rows)))

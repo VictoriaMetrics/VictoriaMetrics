@@ -65,8 +65,8 @@ func insertRows(at *auth.Token, rows []parser.Row, extraLabels []prompbmarshal.L
 	ctx.WriteRequest.Timeseries = tssDst
 	ctx.Labels = labels
 	ctx.Samples = samples
-	if err := remotewrite.Push(at, &ctx.WriteRequest); err != nil {
-		return err
+	if !remotewrite.Push(at, &ctx.WriteRequest) {
+		return remotewrite.ErrQueueFullHTTPRetry
 	}
 	rowsInserted.Add(len(rows))
 	if at != nil {

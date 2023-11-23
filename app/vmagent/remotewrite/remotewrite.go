@@ -102,6 +102,13 @@ var (
 
 	// Data without tenant id is written to defaultAuthToken if -remoteWrite.multitenantURL is specified.
 	defaultAuthToken = &auth.Token{}
+
+	// ErrQueueFullHTTPRetry returned when -remoteWrite.disableOnDiskQueue enabled
+	// and one of remote storage cannot handle a load
+	ErrQueueFullHTTPRetry = &httpserver.ErrorWithStatusCode{
+		Err:        fmt.Errorf("in-memory queue is full, write requests blocked due to enabled flag -remoteWrite.disableOnDiskQueue=true. Retry request later"),
+		StatusCode: http.StatusTooManyRequests,
+	}
 )
 
 // MultitenancyEnabled returns true if -remoteWrite.multitenantURL is specified.
@@ -346,7 +353,7 @@ func Stop() {
 // If at isn't nil, the data is pushed to the configured `-remoteWrite.multitenantURL`.
 //
 // Note that wr may be modified by Push because of relabeling and rounding.
-func Push(at *auth.Token, wr *prompbmarshal.WriteRequest) error {
+func Push(at *auth.Token, wr *prompbmarshal.WriteRequest) bool {
 	if at == nil && len(*remoteWriteMultitenantURLs) > 0 {
 		// Write data to default tenant if at isn't set while -remoteWrite.multitenantURL is set.
 		at = defaultAuthToken
@@ -371,20 +378,15 @@ func Push(at *auth.Token, wr *prompbmarshal.WriteRequest) error {
 		rwctxsMapLock.Unlock()
 	}
 	var isWritesLocked bool
-	var blockedRWIdx int
-	for idx, rwctx := range rwctxs {
+	for _, rwctx := range rwctxs {
 		if rwctx.fq.IsWritesBlocked() {
 			isWritesLocked = true
-			blockedRWIdx = idx
 			break
 		}
 	}
-	// fast path, write path blocked
+	// fast path, write path is blocked
 	if isWritesLocked {
-		return &httpserver.ErrorWithStatusCode{
-			Err:        fmt.Errorf("in-memory queue is full for remoteWrite idx: %d, write requests blocked. Retry request later", blockedRWIdx),
-			StatusCode: http.StatusTooManyRequests,
-		}
+		return false
 	}
 
 	var rctx *relabelCtx
@@ -427,15 +429,12 @@ func Push(at *auth.Token, wr *prompbmarshal.WriteRequest) error {
 		}
 		sortLabelsIfNeeded(tssBlock)
 		tssBlock = limitSeriesCardinality(tssBlock)
-		if err := pushBlockToRemoteStorages(rwctxs, tssBlock); err != nil {
+		if !pushBlockToRemoteStorages(rwctxs, tssBlock) {
 			if rctx != nil {
 				rctx.reset()
 				putRelabelCtx(rctx)
 			}
-			return &httpserver.ErrorWithStatusCode{
-				Err:        err,
-				StatusCode: http.StatusTooManyRequests,
-			}
+			return false
 		}
 		if rctx != nil {
 			rctx.reset()
@@ -444,13 +443,13 @@ func Push(at *auth.Token, wr *prompbmarshal.WriteRequest) error {
 	if rctx != nil {
 		putRelabelCtx(rctx)
 	}
-	return nil
+	return true
 }
 
-func pushBlockToRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []prompbmarshal.TimeSeries) error {
+func pushBlockToRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []prompbmarshal.TimeSeries) bool {
 	if len(tssBlock) == 0 {
 		// Nothing to push
-		return nil
+		return true
 	}
 
 	if len(rwctxs) == 1 {
@@ -485,8 +484,7 @@ func pushBlockToRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []prompbmarsha
 		// the time needed for sending the data to multiple remote storage systems.
 		var wg sync.WaitGroup
 		wg.Add(len(rwctxs))
-		var firstError error
-		var mu sync.Mutex
+		var anyPushFailed uint64
 		for i, rwctx := range rwctxs {
 			tssShard := tssByURL[i]
 			if len(tssShard) == 0 {
@@ -494,40 +492,31 @@ func pushBlockToRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []prompbmarsha
 			}
 			go func(rwctx *remoteWriteCtx, tss []prompbmarshal.TimeSeries) {
 				defer wg.Done()
-				if err := rwctx.Push(tss); err != nil {
-					mu.Lock()
-					if firstError == nil {
-						firstError = nil
-					}
-					mu.Unlock()
+				if !rwctx.Push(tss) {
+					atomic.StoreUint64(&anyPushFailed, 1)
 				}
 			}(rwctx, tssShard)
 		}
 		wg.Wait()
-		return firstError
+		return atomic.LoadUint64(&anyPushFailed) == 0
 	}
 
 	// Replicate data among rwctxs.
 	// Push block to remote storages in parallel in order to reduce
 	// the time needed for sending the data to multiple remote storage systems.
-	var firstError error
-	var mu sync.Mutex
 	var wg sync.WaitGroup
 	wg.Add(len(rwctxs))
+	var anyPushFailed uint64
 	for _, rwctx := range rwctxs {
 		go func(rwctx *remoteWriteCtx) {
 			defer wg.Done()
-			if err := rwctx.Push(tssBlock); err != nil {
-				mu.Lock()
-				if firstError == nil {
-					firstError = err
-				}
-				mu.Unlock()
+			if !rwctx.Push(tssBlock) {
+				atomic.StoreUint64(&anyPushFailed, 1)
 			}
 		}(rwctx)
 	}
 	wg.Wait()
-	return firstError
+	return atomic.LoadUint64(&anyPushFailed) == 0
 }
 
 // sortLabelsIfNeeded sorts labels if -sortLabels command-line flag is set.
@@ -630,9 +619,9 @@ type remoteWriteCtx struct {
 	pss        []*pendingSeries
 	pssNextIdx uint64
 
-	rowsPushedAfterRelabel *metrics.Counter
-	rowsDroppedByRelabel   *metrics.Counter
-	rowsDroppedOnQueueFull *metrics.Counter
+	rowsPushedAfterRelabel         *metrics.Counter
+	rowsDroppedByRelabel           *metrics.Counter
+	rowsDroppedAtAggregationOnPush *metrics.Counter
 }
 
 func newRemoteWriteCtx(argIdx int, remoteWriteURL *url.URL, maxInmemoryBlocks int, sanitizedURL string) *remoteWriteCtx {
@@ -682,7 +671,7 @@ func newRemoteWriteCtx(argIdx int, remoteWriteURL *url.URL, maxInmemoryBlocks in
 	}
 	pss := make([]*pendingSeries, pssLen)
 	for i := range pss {
-		pss[i] = newPendingSeries(fq.WriteBlock, c.useVMProto, sf, rd)
+		pss[i] = newPendingSeries(fq, c.useVMProto, sf, rd)
 	}
 
 	rwctx := &remoteWriteCtx{
@@ -691,16 +680,16 @@ func newRemoteWriteCtx(argIdx int, remoteWriteURL *url.URL, maxInmemoryBlocks in
 		c:   c,
 		pss: pss,
 
-		rowsPushedAfterRelabel: metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_rows_pushed_after_relabel_total{path=%q, url=%q}`, queuePath, sanitizedURL)),
-		rowsDroppedByRelabel:   metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_relabel_metrics_dropped_total{path=%q, url=%q}`, queuePath, sanitizedURL)),
-		rowsDroppedOnQueueFull: metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_aggregation_metrics_dropped_total{path=%q, url=%q}`, queuePath, sanitizedURL)),
+		rowsPushedAfterRelabel:         metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_rows_pushed_after_relabel_total{path=%q, url=%q}`, queuePath, sanitizedURL)),
+		rowsDroppedByRelabel:           metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_relabel_metrics_dropped_total{path=%q, url=%q}`, queuePath, sanitizedURL)),
+		rowsDroppedAtAggregationOnPush: metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_aggregation_metrics_dropped_total{path=%q, url=%q}`, queuePath, sanitizedURL)),
 	}
 
 	// Initialize sas
 	sasFile := streamAggrConfig.GetOptionalArg(argIdx)
 	if sasFile != "" {
 		dedupInterval := streamAggrDedupInterval.GetOptionalArg(argIdx)
-		sas, err := streamaggr.LoadFromFile(sasFile, rwctx.pushInternalTrackError, dedupInterval)
+		sas, err := streamaggr.LoadFromFile(sasFile, rwctx.pushInternalTrackDropped, dedupInterval)
 		if err != nil {
 			logger.Fatalf("cannot initialize stream aggregators from -remoteWrite.streamAggr.config=%q: %s", sasFile, err)
 		}
@@ -736,7 +725,7 @@ func (rwctx *remoteWriteCtx) MustStop() {
 	rwctx.rowsDroppedByRelabel = nil
 }
 
-func (rwctx *remoteWriteCtx) Push(tss []prompbmarshal.TimeSeries) error {
+func (rwctx *remoteWriteCtx) Push(tss []prompbmarshal.TimeSeries) bool {
 	// Apply relabeling
 	var rctx *relabelCtx
 	var v *[]prompbmarshal.TimeSeries
@@ -803,13 +792,13 @@ func dropAggregatedSeries(src []prompbmarshal.TimeSeries, matchIdxs []byte, drop
 	return dst
 }
 
-func (rwctx *remoteWriteCtx) pushInternalTrackError(tss []prompbmarshal.TimeSeries) {
-	if err := rwctx.pushInternal(tss); err != nil {
-		rwctx.rowsDroppedOnQueueFull.Inc()
+func (rwctx *remoteWriteCtx) pushInternalTrackDropped(tss []prompbmarshal.TimeSeries) {
+	if !rwctx.pushInternal(tss) {
+		rwctx.rowsDroppedAtAggregationOnPush.Inc()
 	}
 }
 
-func (rwctx *remoteWriteCtx) pushInternal(tss []prompbmarshal.TimeSeries) error {
+func (rwctx *remoteWriteCtx) pushInternal(tss []prompbmarshal.TimeSeries) bool {
 	var rctx *relabelCtx
 	var v *[]prompbmarshal.TimeSeries
 	defer func() {
@@ -843,7 +832,7 @@ func (rwctx *remoteWriteCtx) reinitStreamAggr() {
 	logger.Infof("reloading stream aggregation configs pointed by -remoteWrite.streamAggr.config=%q", sasFile)
 	metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reloads_total{path=%q}`, sasFile)).Inc()
 	dedupInterval := streamAggrDedupInterval.GetOptionalArg(rwctx.idx)
-	sasNew, err := streamaggr.LoadFromFile(sasFile, rwctx.pushInternalTrackError, dedupInterval)
+	sasNew, err := streamaggr.LoadFromFile(sasFile, rwctx.pushInternalTrackDropped, dedupInterval)
 	if err != nil {
 		metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reloads_errors_total{path=%q}`, sasFile)).Inc()
 		metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reload_successful{path=%q}`, sasFile)).Set(0)

@@ -29,7 +29,9 @@ func TestFastQueueWriteReadInmemory(t *testing.T) {
 	var blocks []string
 	for i := 0; i < capacity; i++ {
 		block := fmt.Sprintf("block %d", i)
-		_ = fq.WriteBlock([]byte(block))
+		if !fq.WriteBlock([]byte(block)) {
+			t.Fatalf("unexpected false for WriteBlock")
+		}
 		blocks = append(blocks, block)
 	}
 	if n := fq.GetInmemoryQueueLen(); n != capacity {
@@ -60,8 +62,8 @@ func TestFastQueueWriteReadMixed(t *testing.T) {
 	var blocks []string
 	for i := 0; i < 2*capacity; i++ {
 		block := fmt.Sprintf("block %d", i)
-		if err := fq.WriteBlock([]byte(block)); err != nil {
-			t.Fatalf("ff :%s", err)
+		if !fq.WriteBlock([]byte(block)) {
+			t.Fatalf("not expected WriteBlock fail")
 		}
 		blocks = append(blocks, block)
 	}
@@ -96,7 +98,10 @@ func TestFastQueueWriteReadWithCloses(t *testing.T) {
 	var blocks []string
 	for i := 0; i < 2*capacity; i++ {
 		block := fmt.Sprintf("block %d", i)
-		_ = fq.WriteBlock([]byte(block))
+		if !fq.WriteBlock([]byte(block)) {
+			t.Fatalf("unexpected false for WriteBlock")
+		}
+
 		blocks = append(blocks, block)
 		fq.MustClose()
 		fq = MustOpenFastQueue(path, "foobar", capacity, 0, false)
@@ -171,7 +176,9 @@ func TestFastQueueReadUnblockByWrite(t *testing.T) {
 		}
 		resultCh <- nil
 	}()
-	_ = fq.WriteBlock([]byte(block))
+	if !fq.WriteBlock([]byte(block)) {
+		t.Fatalf("unexpected false for WriteBlock")
+	}
 	select {
 	case err := <-resultCh:
 		if err != nil {
@@ -228,7 +235,10 @@ func TestFastQueueReadWriteConcurrent(t *testing.T) {
 		go func() {
 			defer writersWG.Done()
 			for block := range blocksCh {
-				_ = fq.WriteBlock([]byte(block))
+				if !fq.WriteBlock([]byte(block)) {
+					t.Errorf("unexpected false for WriteBlock")
+					return
+				}
 			}
 		}()
 	}
@@ -293,13 +303,58 @@ func TestFastQueueWriteReadWithDisabledPQ(t *testing.T) {
 	var blocks []string
 	for i := 0; i < capacity; i++ {
 		block := fmt.Sprintf("block %d", i)
-		_ = fq.WriteBlock([]byte(block))
+		if !fq.WriteBlock([]byte(block)) {
+			t.Fatalf("unexpected false for WriteBlock")
+		}
 		blocks = append(blocks, block)
 	}
-	err := fq.WriteBlock([]byte("error-block"))
-	if err != errFullQueue {
-		t.Fatalf("expect full queue")
+	if fq.WriteBlock([]byte("error-block")) {
+		t.Fatalf("expect false due to full queue")
 	}
+
+	fq.MustClose()
+	fq = MustOpenFastQueue(path, "foobar", capacity, 0, true)
+	for _, block := range blocks {
+		buf, ok := fq.MustReadBlock(nil)
+		if !ok {
+			t.Fatalf("unexpected ok=false")
+		}
+		if string(buf) != block {
+			t.Fatalf("unexpected block read; got %q; want %q", buf, block)
+		}
+	}
+	fq.MustClose()
+	mustDeleteDir(path)
+}
+
+func TestFastQueueWriteReadWithIgnoreDisabledPQ(t *testing.T) {
+	path := "fast-queue-write-read-inmemory-disabled-pq-force-write"
+	mustDeleteDir(path)
+
+	capacity := 20
+	fq := MustOpenFastQueue(path, "foobar", capacity, 0, true)
+	if n := fq.GetInmemoryQueueLen(); n != 0 {
+		t.Fatalf("unexpected non-zero inmemory queue size:  %d", n)
+	}
+	var blocks []string
+	for i := 0; i < capacity; i++ {
+		block := fmt.Sprintf("block %d", i)
+		if !fq.WriteBlock([]byte(block)) {
+			t.Fatalf("unexpected false for WriteBlock")
+		}
+		blocks = append(blocks, block)
+	}
+	if fq.WriteBlock([]byte("error-block")) {
+		t.Fatalf("expect false due to full queue")
+	}
+	for i := 0; i < capacity; i++ {
+		block := fmt.Sprintf("block %d-%d", i, i)
+		if !fq.MustWriteBlockIgnoreDisabledPQ([]byte(block)) {
+			t.Fatalf("BUG: unexpected false for MustWriteBlockIgnoreDisabledPQ")
+		}
+		blocks = append(blocks, block)
+	}
+
 	fq.MustClose()
 	fq = MustOpenFastQueue(path, "foobar", capacity, 0, true)
 	for _, block := range blocks {
