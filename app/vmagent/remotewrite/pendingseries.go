@@ -146,7 +146,6 @@ func (wr *writeRequest) mustFlushOnStop() {
 		return
 	}
 	wr.reset()
-	return
 }
 
 func (wr *writeRequest) flush() bool {

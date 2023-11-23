@@ -349,9 +349,7 @@ func TestFastQueueWriteReadWithIgnoreDisabledPQ(t *testing.T) {
 	}
 	for i := 0; i < capacity; i++ {
 		block := fmt.Sprintf("block %d-%d", i, i)
-		if !fq.MustWriteBlockIgnoreDisabledPQ([]byte(block)) {
-			t.Fatalf("BUG: unexpected false for MustWriteBlockIgnoreDisabledPQ")
-		}
+		fq.MustWriteBlockIgnoreDisabledPQ([]byte(block))
 		blocks = append(blocks, block)
 	}
 

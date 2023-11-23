@@ -154,9 +154,8 @@ func (fq *FastQueue) GetInmemoryQueueLen() int {
 // it's needed to gracefully stop service and do not lose data if remote storage is not available.
 func (fq *FastQueue) MustWriteBlockIgnoreDisabledPQ(block []byte) {
 	if !fq.writeBlock(block, true) {
-		logger.Fatalf("BUG: mustWriteBlock must always write data even if persistence is disabled")
+		logger.Fatalf("BUG: MustWriteBlockIgnoreDisabledPQ must always write data even if persistence is disabled")
 	}
-	return
 }
 
 // WriteBlock writes block to fq.
