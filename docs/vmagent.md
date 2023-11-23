@@ -869,6 +869,48 @@ scrape_configs:
   - "Proxy-Auth: top-secret"
 ```
 
+## Disabling on-disk queue
+
+On-disk queue aka persistent queue is a temporary folder configured via `-remoteWrite.tmpDataPath` flag. At this folder vmagent may store metric blocks.
+Metric blocks persisted on disk if remote storage is not available or cannot handle ingestion load.
+Size of this disk queue per remote storage can be limited via `-remoteWrite.maxDiskUsagePerURL`. By default, there is no limit.
+In case of reaching those limit metric blocks will be silently dropped by vmagent.
+
+This behaviour can be changed via flag `--remoteWrite.disableOnDiskQueue=true`.
+It prevents vmagent from using on-disk storage for data buffering during ingestion or scraping.
+But on-disk storage is still used for saving in-memory part of the queue and buffers during graceful shutdown.
+
+It's expected that `streaming` aggregation and `scrapping` metrics will be dropped in case of full queue.
+The following metrics help to detect samples drop: `vmagent_remotewrite_aggregation_metrics_dropped_total` and `vm_promscrape_push_samples_dropped_total`.
+
+In case of multiple configured remote storages, vmagent block writes requests even if a single remote storage cannot accept ingested samples.
+
+vmagent guarantees at-least-once delivery semantic.
+It means that metric samples duplication is possible and [deduplication](https://docs.victoriametrics.com/#deduplication) must be configured at remote storage.
+
+### Common patterns
+You may want to disable on-disk queue in the following cases:
+
+1) chaining of vmagents. Intermediate vmagents used for aggregation may loss the data, if vmcluster is not available.
+   With disabled persistent queue aggregation vmagents will back-pressure metrics to the first vmagent.
+
+```mermaid
+flowchart LR
+  A[vmagent] --> B(vmagent-aggregation-0)
+  A[vmagent] --> C(vmagent-aggregation-1)
+  B --> D[vmcluster]
+  C --> D[vmcluster]
+```
+
+2) If you want to replace actual on-disk queue with kafka or another compatible queue. On-disk queue must be disabled at `vmagent-consumer`
+
+```mermaid
+flowchart LR
+    A[vmagent] --> B(kafka)
+    B <--> C(vmagent-consumer)
+    C --> D[vmcluster]
+```
+
 ## Cardinality limiter
 
 By default, `vmagent` doesn't limit the number of time series each scrape target can expose.
