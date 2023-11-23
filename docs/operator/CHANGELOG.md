@@ -16,7 +16,7 @@ aliases:
 
 ## Next release
 
-- TODO
+- [vmalertmanagerconfig](./api.html#vmalertmanagerconfig): add fields `entity`, `actions` and `update_alerts` for opsgenie_configs according to https://prometheus.io/docs/alerting/latest/configuration/#opsgenie_config.
 
 <a name="v0.39.3"></a>
 ## [v0.39.3](https://github.com/VictoriaMetrics/operator/releases/tag/v0.39.3) - 16 Nov 2023
