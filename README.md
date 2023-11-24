@@ -1414,7 +1414,12 @@ For example, `/api/v1/import?extra_label=foo=bar` would add `"foo":"bar"` label 
 
 Note that it could be required to flush response cache after importing historical data. See [these docs](#backfilling) for detail.
 
-VictoriaMetrics parses input JSON lines one-by-one. It loads the whole JSON line in memory, then parses it and then saves the parsed samples into persistent storage. This means that VictoriaMetrics can occupy big amounts of RAM when importing too long JSON lines. The solution is to split too long JSON lines into smaller lines. It is OK if samples for a single time series are split among multiple JSON lines.
+VictoriaMetrics parses input JSON lines one-by-one. It loads the whole JSON line in memory, then parses it and then saves the parsed samples into persistent storage.
+This means that VictoriaMetrics can occupy big amounts of RAM when importing too long JSON lines.
+The solution is to split too long JSON lines into shorter lines. It is OK if samples for a single time series are split among multiple JSON lines.
+JSON line length can be limited via `max_rows_per_line` query arg when exporting via [/api/v1/export](how-to-export-data-in-json-line-format).
+
+The maximum JSON line length, which can be parsed by VictoriaMetrics, is limited by `-import.maxLineLen` command-line flag value.
 
 ### How to import data in native format
 
@@ -1591,15 +1596,18 @@ The format follows [JSON streaming concept](http://ndjson.org/), e.g. each line 
 ```
 
 Note that every JSON object must be written in a single line, e.g. all the newline chars must be removed from it.
-Every line length is limited by the value passed to `-import.maxLineLen` command-line flag (by default this is 10MB).
+[/api/v1/import](#how-to-import-data-in-json-line-format) handler doesn't accept JSON lines longer than the value
+passed to `-import.maxLineLen` command-line flag (by default this is 10MB).
 
 It is recommended passing 1K-10K samples per line for achieving the maximum data ingestion performance at [/api/v1/import](#how-to-import-data-in-json-line-format).
 Too long JSON lines may increase RAM usage at VictoriaMetrics side.
 
+[/api/v1/export](#how-to-export-data-in-json-line-format) handler accepts `max_rows_per_line` query arg, which allows limiting the number of samples per each exported line.
+
 It is OK to split [raw samples](https://docs.victoriametrics.com/keyConcepts.html#raw-samples)
 for the same [time series](https://docs.victoriametrics.com/keyConcepts.html#time-series) across multiple lines.
 
-The number of lines in JSON line document can be arbitrary.
+The number of lines in the request to [/api/v1/import](#how-to-import-data-in-json-line-format) can be arbitrary - they are imported in streaming manner.
 
 ## Relabeling
 
