@@ -6,6 +6,8 @@ menu:
   docs:
     parent: "operator-custom-resources"
     weight: 7
+aliases:
+  - /operator/resources/vmnodescrape.html
 ---
 
 # VMNodeScrape

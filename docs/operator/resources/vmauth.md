@@ -6,6 +6,8 @@ menu:
   docs:
     parent: "operator-custom-resources"
     weight: 5
+aliases:
+  - /operator/resources/vmauth.html
 ---
 
 # VMAuth

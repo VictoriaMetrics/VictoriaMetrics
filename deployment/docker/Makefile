@@ -86,6 +86,12 @@ publish-via-docker:
 		-f app/$(APP_NAME)/multiarch/Dockerfile \
 		--push \
 		bin
+	cd bin && rm -rf \
+		$(APP_NAME)-linux-amd64-prod \
+		$(APP_NAME)-linux-arm-prod \
+		$(APP_NAME)-linux-arm64-prod \
+		$(APP_NAME)-linux-ppc64le-prod \
+		$(APP_NAME)-linux-386-prod
 
 run-via-docker: package-via-docker
 	$(DOCKER_RUN) -it --rm \

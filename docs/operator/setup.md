@@ -6,6 +6,8 @@ menu:
   docs:
     parent: "operator"
     weight: 2
+aliases:
+  - /operator/setup.html
 ---
 
 # VictoriaMetrics Operator Setup
