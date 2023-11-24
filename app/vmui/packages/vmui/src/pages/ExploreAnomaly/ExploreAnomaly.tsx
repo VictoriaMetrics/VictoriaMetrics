@@ -87,7 +87,7 @@ const ExploreAnomaly: FC = () => {
       />
       {(isLoading || isLoadingSeries) && <Spinner />}
       {(error || errorSeries) && <Alert variant="error">{error || errorSeries}</Alert>}
-      {queryErrors[0] && <Alert variant="error">{queryErrors[0]}</Alert>}
+      {!error && !errorSeries && queryErrors[0] && <Alert variant="error">{queryErrors[0]}</Alert>}
       <div
         className={classNames({
           "vm-custom-panel-body": true,

@@ -41,11 +41,13 @@ export const useFetchAnomalySeries = () => {
         setSeries(groupedByFor);
 
         if (!response.ok) {
-          setError(`${resp.errorType}\r\n${resp?.error}`);
+          const errorType = resp.errorType ? `${resp.errorType}\r\n` : "";
+          setError(`${errorType}${resp?.error || resp?.message}`);
         }
       } catch (e) {
         if (e instanceof Error && e.name !== "AbortError") {
-          setError(`${e.name}: ${e.message}`);
+          const message = e.name === "SyntaxError" ? ErrorTypes.checkServerUrl : `${e.name}: ${e.message}`;
+          setError(`${message}`);
         }
       } finally {
         setIsLoading(false);
