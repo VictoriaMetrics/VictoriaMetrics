@@ -16,13 +16,13 @@ func BenchmarkFastQueueThroughputSerial(b *testing.B) {
 			b.SetBytes(int64(blockSize) * iterationsCount)
 			path := fmt.Sprintf("bench-fast-queue-throughput-serial-%d", blockSize)
 			mustDeleteDir(path)
-			fq := MustOpenFastQueue(path, "foobar", iterationsCount*2, 0)
+			fq := MustOpenFastQueue(path, "foobar", iterationsCount*2, 0, false)
 			defer func() {
 				fq.MustClose()
 				mustDeleteDir(path)
 			}()
 			for i := 0; i < b.N; i++ {
-				writeReadIterationFastQueue(fq, block, iterationsCount)
+				writeReadIterationFastQueue(b, fq, block, iterationsCount)
 			}
 		})
 	}
@@ -37,23 +37,25 @@ func BenchmarkFastQueueThroughputConcurrent(b *testing.B) {
 			b.SetBytes(int64(blockSize) * iterationsCount)
 			path := fmt.Sprintf("bench-fast-queue-throughput-concurrent-%d", blockSize)
 			mustDeleteDir(path)
-			fq := MustOpenFastQueue(path, "foobar", iterationsCount*cgroup.AvailableCPUs()*2, 0)
+			fq := MustOpenFastQueue(path, "foobar", iterationsCount*cgroup.AvailableCPUs()*2, 0, false)
 			defer func() {
 				fq.MustClose()
 				mustDeleteDir(path)
 			}()
 			b.RunParallel(func(pb *testing.PB) {
 				for pb.Next() {
-					writeReadIterationFastQueue(fq, block, iterationsCount)
+					writeReadIterationFastQueue(b, fq, block, iterationsCount)
 				}
 			})
 		})
 	}
 }
 
-func writeReadIterationFastQueue(fq *FastQueue, block []byte, iterationsCount int) {
+func writeReadIterationFastQueue(b *testing.B, fq *FastQueue, block []byte, iterationsCount int) {
 	for i := 0; i < iterationsCount; i++ {
-		fq.MustWriteBlock(block)
+		if !fq.WriteBlock(block) {
+			b.Fatalf("unexpected false for WriteBlock")
+		}
 	}
 	var ok bool
 	bb := bbPool.Get()
