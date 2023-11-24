@@ -518,10 +518,16 @@ See also [vmagent](https://docs.victoriametrics.com/vmagent.html), which can be 
 
 ## How to send data from DataDog agent
 
-VictoriaMetrics accepts data from [DataDog agent](https://docs.datadoghq.com/agent/) 
-or [DogStatsD](https://docs.datadoghq.com/developers/dogstatsd/) 
+VictoriaMetrics accepts data from:
+* [DataDog agent](https://docs.datadoghq.com/agent/)
+* [DogStatsD](https://docs.datadoghq.com/developers/dogstatsd/)
+* [DataDog Lambda Extension](https://docs.datadoghq.com/serverless/libraries_integrations/extension/)
+
 via ["submit metrics" API](https://docs.datadoghq.com/api/latest/metrics/#submit-metrics) 
-at `/datadog/api/v1/series` path.
+at:
+* `/datadog/api/v1/series`
+* `/datadog/api/v2/series`
+* `/datadog/api/beta/sketches`
 
 ### Sending metrics to VictoriaMetrics
 
@@ -554,10 +560,10 @@ dd_url: http://victoriametrics:8428/datadog
 
 </div>
 
-vmagent also can accept Datadog metrics format. Depending on where vmagent will forward data, 
+vmagent also can accept DataDog metrics format. Depending on where vmagent will forward data,
 pick [single-node or cluster URL](https://docs.victoriametrics.com/url-examples.html#datadog) formats.
 
-### Sending metrics to Datadog and VictoriaMetrics
+### Sending metrics to DataDog and VictoriaMetrics
  
 DataDog allows configuring [Dual Shipping](https://docs.datadoghq.com/agent/guide/dual-shipping/) for metrics 
 sending via ENV variable `DD_ADDITIONAL_ENDPOINTS` or via configuration file `additional_endpoints`.
@@ -592,6 +598,19 @@ additional_endpoints:
 ```
 
 </div>
+
+### Send via Serverless DataDog plugin
+
+Disable logs (logs ingestion is not supported by Victoria Metrics) and set a custom endpoint in serverless.yaml
+```
+custom:
+  datadog:
+    enableDDLogs: false             # Disabled not supported DD logs
+    apiKey: fakekey                 # Set any key, otherwise plugin fails
+provider:
+  environment:
+    DD_DD_URL: <<vm-url>>/datadog   # Victoria Metrics endpoint for DataDog
+```
 
 ### Send via cURL
 
@@ -2573,7 +2592,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -csvTrimTimestamp duration
      Trim timestamps when importing csv data to this duration. Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data (default 1ms)
   -datadog.maxInsertRequestSize size
-     The maximum size in bytes of a single DataDog POST request to /api/v1/series
+     The maximum size in bytes of a single DataDog POST request to /api/v1/series, /api/v2/series, /api/beta/sketches
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 67108864)
   -datadog.sanitizeMetricName
      Sanitize metric names for the ingested DataDog data to comply with DataDog behaviour described at https://docs.datadoghq.com/metrics/custom_metrics/#naming-custom-metrics (default true)

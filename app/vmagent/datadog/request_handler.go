@@ -8,7 +8,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/datadog"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/datadog/stream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
 	"github.com/VictoriaMetrics/metrics"
@@ -20,7 +19,7 @@ var (
 	rowsPerInsert      = metrics.NewHistogram(`vmagent_rows_per_insert{type="datadog"}`)
 )
 
-// InsertHandlerForHTTP processes remote write for DataDog POST /api/v1/series request.
+// InsertHandlerForHTTP processes remote write for DataDog POST /api/v1/series, /api/v2/series, /api/beta/sketches request.
 //
 // See https://docs.datadoghq.com/api/latest/metrics/#submit-metrics
 func InsertHandlerForHTTP(at *auth.Token, req *http.Request) error {
@@ -28,66 +27,23 @@ func InsertHandlerForHTTP(at *auth.Token, req *http.Request) error {
 	if err != nil {
 		return err
 	}
-	ce := req.Header.Get("Content-Encoding")
-	return stream.Parse(req.Body, ce, func(series []datadog.Series) error {
-		return insertRows(at, series, extraLabels)
-	})
+	return stream.Parse(
+		req, func(series prompbmarshal.TimeSeries) error {
+			series.Labels = append(series.Labels, extraLabels...)
+			return insertRows(at, series)
+		},
+	)
 }
 
-func insertRows(at *auth.Token, series []datadog.Series, extraLabels []prompbmarshal.Label) error {
+func insertRows(at *auth.Token, series prompbmarshal.TimeSeries) error {
 	ctx := common.GetPushCtx()
 	defer common.PutPushCtx(ctx)
 
-	rowsTotal := 0
-	tssDst := ctx.WriteRequest.Timeseries[:0]
-	labels := ctx.Labels[:0]
-	samples := ctx.Samples[:0]
-	for i := range series {
-		ss := &series[i]
-		rowsTotal += len(ss.Points)
-		labelsLen := len(labels)
-		labels = append(labels, prompbmarshal.Label{
-			Name:  "__name__",
-			Value: ss.Metric,
-		})
-		if ss.Host != "" {
-			labels = append(labels, prompbmarshal.Label{
-				Name:  "host",
-				Value: ss.Host,
-			})
-		}
-		if ss.Device != "" {
-			labels = append(labels, prompbmarshal.Label{
-				Name:  "device",
-				Value: ss.Device,
-			})
-		}
-		for _, tag := range ss.Tags {
-			name, value := datadog.SplitTag(tag)
-			if name == "host" {
-				name = "exported_host"
-			}
-			labels = append(labels, prompbmarshal.Label{
-				Name:  name,
-				Value: value,
-			})
-		}
-		labels = append(labels, extraLabels...)
-		samplesLen := len(samples)
-		for _, pt := range ss.Points {
-			samples = append(samples, prompbmarshal.Sample{
-				Timestamp: pt.Timestamp(),
-				Value:     pt.Value(),
-			})
-		}
-		tssDst = append(tssDst, prompbmarshal.TimeSeries{
-			Labels:  labels[labelsLen:],
-			Samples: samples[samplesLen:],
-		})
-	}
-	ctx.WriteRequest.Timeseries = tssDst
-	ctx.Labels = labels
-	ctx.Samples = samples
+	rowsTotal := len(series.Samples)
+
+	ctx.WriteRequest.Timeseries = []prompbmarshal.TimeSeries{series}
+	ctx.Labels = series.Labels
+	ctx.Samples = series.Samples
 	if !remotewrite.TryPush(at, &ctx.WriteRequest) {
 		return remotewrite.ErrQueueFullHTTPRetry
 	}
