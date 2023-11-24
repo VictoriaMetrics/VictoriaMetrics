@@ -89,7 +89,7 @@ github.com/AzureAD/microsoft-authentication-library-for-go/apps/internal/options
 github.com/AzureAD/microsoft-authentication-library-for-go/apps/internal/shared
 github.com/AzureAD/microsoft-authentication-library-for-go/apps/internal/version
 github.com/AzureAD/microsoft-authentication-library-for-go/apps/public
-# github.com/VictoriaMetrics/fastcache v1.12.1
+# github.com/VictoriaMetrics/fastcache v1.12.2
 ## explicit; go 1.13
 github.com/VictoriaMetrics/fastcache
 # github.com/VictoriaMetrics/fasthttp v1.2.0
