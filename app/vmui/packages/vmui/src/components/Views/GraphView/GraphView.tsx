@@ -195,6 +195,7 @@ const GraphView: FC<GraphViewProps> = ({
           setPeriod={setPeriod}
           layoutSize={containerSize}
           height={height}
+          anomalyView={anomalyView}
         />
       )}
       {isHistogram && (

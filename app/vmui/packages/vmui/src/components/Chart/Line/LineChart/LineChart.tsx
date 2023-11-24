@@ -40,6 +40,7 @@ export interface LineChartProps {
   setPeriod: ({ from, to }: { from: Date, to: Date }) => void;
   layoutSize: ElementSize;
   height?: number;
+  anomalyView?: boolean;
 }
 
 const LineChart: FC<LineChartProps> = ({
@@ -51,7 +52,8 @@ const LineChart: FC<LineChartProps> = ({
   unit,
   setPeriod,
   layoutSize,
-  height
+  height,
+  anomalyView
 }) => {
   const { isDarkTheme } = useAppState();
 
@@ -69,7 +71,7 @@ const LineChart: FC<LineChartProps> = ({
     seriesFocus,
     setCursor,
     resetTooltips
-  } = useLineTooltip({ u: uPlotInst, metrics, series, unit });
+  } = useLineTooltip({ u: uPlotInst, metrics, series, unit, anomalyView });
 
   const options: uPlotOptions = {
     ...getDefaultOptions({ width: layoutSize.width, height }),
