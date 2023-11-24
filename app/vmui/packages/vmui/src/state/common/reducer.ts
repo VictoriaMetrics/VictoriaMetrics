@@ -29,6 +29,7 @@ export const initialState: AppState = {
 export function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
     case "SET_SERVER":
+      saveToStorage("SERVER_URL", action.payload);
       return {
         ...state,
         serverUrl: action.payload
