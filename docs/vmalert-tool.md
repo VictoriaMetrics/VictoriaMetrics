@@ -33,6 +33,28 @@ except `promql_expr_test` field. Use `metricsql_expr_test` field name instead. T
 validates and executes [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) expressions,
 which aren't always backward compatible with [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/).
 
+### Limitations
+
+* vmalert-tool evaluates all the groups defined in `rule_files` using `evaluation_interval`[default 1m] instead of `interval` under each rule group.
+* vmalert-tool shares the same limitation with [vmalert](https://docs.victoriametrics.com/vmalert.html#limitations) on chaining rules under one group:
+
+>by default, rules execution is sequential within one group, but persistence of execution results to remote storage is asynchronous. Hence, user shouldn’t rely on chaining of recording rules when result of previous recording rule is reused in the next one;
+
+For example, if you have recording rule A and alerting rule B under the same group, and rule B's expression is based on A's results. Rule B won't get the latest data of A since data haven't be persisted to remote storage yet. The workaround is to divide them into two groups and put groupA in front of groupB[or use `group_eval_order` to define the evaluation order]. In this way, vmalert-tool makes sure that the results of groupA must be written to storage before evaluating groupB:
+
+```yaml
+groups:
+- name: groupA
+  rules:
+  - record: A
+    expr: sum(xxx)
+- name: groupB
+  rules:
+  - alert: B
+    expr: A >= 0.75
+    for: 1m 
+```
+
 ### Test file format
 
 The configuration format for files specified in `--files` cmd-line flag is the following:
