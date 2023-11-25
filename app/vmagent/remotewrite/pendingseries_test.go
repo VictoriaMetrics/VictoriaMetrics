@@ -33,7 +33,9 @@ func testPushWriteRequest(t *testing.T, rowsCount, expectedBlockLenProm, expecte
 			pushBlockLen = len(block)
 			return true
 		}
-		_ = pushWriteRequest(wr, pushBlock, isVMRemoteWrite)
+		if !tryPushWriteRequest(wr, pushBlock, isVMRemoteWrite) {
+			t.Fatalf("cannot push data to to remote storage")
+		}
 		if math.Abs(float64(pushBlockLen-expectedBlockLen)/float64(expectedBlockLen)*100) > tolerancePrc {
 			t.Fatalf("unexpected block len for rowsCount=%d, isVMRemoteWrite=%v; got %d bytes; expecting %d bytes +- %.0f%%",
 				rowsCount, isVMRemoteWrite, pushBlockLen, expectedBlockLen, tolerancePrc)

@@ -84,7 +84,7 @@ func insertRows(at *auth.Token, block *stream.Block, extraLabels []prompbmarshal
 	ctx.WriteRequest.Timeseries = tssDst
 	ctx.Labels = labels
 	ctx.Samples = samples
-	if !remotewrite.Push(at, &ctx.WriteRequest) {
+	if !remotewrite.TryPush(at, &ctx.WriteRequest) {
 		return remotewrite.ErrQueueFullHTTPRetry
 	}
 	return nil
