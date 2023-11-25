@@ -57,11 +57,11 @@ func (ps *pendingSeries) MustStop() {
 	ps.periodicFlusherWG.Wait()
 }
 
-func (ps *pendingSeries) Push(tss []prompbmarshal.TimeSeries) bool {
+func (ps *pendingSeries) TryPush(tss []prompbmarshal.TimeSeries) bool {
 	ps.mu.Lock()
-	wasPushed := ps.wr.push(tss)
+	ok := ps.wr.tryPush(tss)
 	ps.mu.Unlock()
-	return wasPushed
+	return ok
 }
 
 func (ps *pendingSeries) periodicFlusher() {
@@ -84,8 +84,7 @@ func (ps *pendingSeries) periodicFlusher() {
 			}
 		}
 		ps.mu.Lock()
-		// no-op
-		_ = ps.wr.flush()
+		_ = ps.wr.tryFlush()
 		ps.mu.Unlock()
 	}
 }
@@ -94,15 +93,16 @@ type writeRequest struct {
 	// Move lastFlushTime to the top of the struct in order to guarantee atomic access on 32-bit architectures.
 	lastFlushTime uint64
 
+	// The queue to send blocks to.
 	fq *persistentqueue.FastQueue
 
 	// Whether to encode the write request with VictoriaMetrics remote write protocol.
 	isVMRemoteWrite bool
 
-	// How many significant figures must be left before sending the writeRequest to pushBlock.
+	// How many significant figures must be left before sending the writeRequest to fq.
 	significantFigures int
 
-	// How many decimal digits after point must be left before sending the writeRequest to pushBlock.
+	// How many decimal digits after point must be left before sending the writeRequest to fq.
 	roundDigits int
 
 	wr prompbmarshal.WriteRequest
@@ -115,7 +115,7 @@ type writeRequest struct {
 }
 
 func (wr *writeRequest) reset() {
-	// Do not reset lastFlushTime, pushBlock, isVMRemoteWrite, significantFigures and roundDigits, since they are re-used.
+	// Do not reset lastFlushTime, fq, isVMRemoteWrite, significantFigures and roundDigits, since they are re-used.
 
 	wr.wr.Timeseries = nil
 
@@ -133,41 +133,40 @@ func (wr *writeRequest) reset() {
 	wr.buf = wr.buf[:0]
 }
 
-// mustFlushOnStop makes force push into the queue
-// needed to properly save in-memory buffer with disabled disk storage
+// mustFlushOnStop force pushes wr data into wr.fq
+//
+// This is needed in order to properly save in-memory data to persistent queue on graceful shutdown.
 func (wr *writeRequest) mustFlushOnStop() {
 	wr.wr.Timeseries = wr.tss
-	wr.adjustSampleValues()
-	atomic.StoreUint64(&wr.lastFlushTime, fasttime.UnixTimestamp())
-	if !pushWriteRequest(&wr.wr, func(block []byte) bool {
-		wr.fq.MustWriteBlockIgnoreDisabledPQ(block)
-		return true
-	}, wr.isVMRemoteWrite) {
-		return
+	if !tryPushWriteRequest(&wr.wr, wr.mustWriteBlock, wr.isVMRemoteWrite) {
+		logger.Panicf("BUG: final flush must always return true")
 	}
 	wr.reset()
 }
 
-func (wr *writeRequest) flush() bool {
+func (wr *writeRequest) mustWriteBlock(block []byte) bool {
+	wr.fq.MustWriteBlockIgnoreDisabledPQ(block)
+	return true
+}
+
+func (wr *writeRequest) tryFlush() bool {
 	wr.wr.Timeseries = wr.tss
-	wr.adjustSampleValues()
 	atomic.StoreUint64(&wr.lastFlushTime, fasttime.UnixTimestamp())
-	if !pushWriteRequest(&wr.wr, wr.fq.WriteBlock, wr.isVMRemoteWrite) {
+	if !tryPushWriteRequest(&wr.wr, wr.fq.TryWriteBlock, wr.isVMRemoteWrite) {
 		return false
 	}
 	wr.reset()
 	return true
 }
 
-func (wr *writeRequest) adjustSampleValues() {
-	samples := wr.samples
-	if n := wr.significantFigures; n > 0 {
+func adjustSampleValues(samples []prompbmarshal.Sample, significantFigures, roundDigits int) {
+	if n := significantFigures; n > 0 {
 		for i := range samples {
 			s := &samples[i]
 			s.Value = decimal.RoundToSignificantFigures(s.Value, n)
 		}
 	}
-	if n := wr.roundDigits; n < 100 {
+	if n := roundDigits; n < 100 {
 		for i := range samples {
 			s := &samples[i]
 			s.Value = decimal.RoundToDecimalDigits(s.Value, n)
@@ -175,7 +174,7 @@ func (wr *writeRequest) adjustSampleValues() {
 	}
 }
 
-func (wr *writeRequest) push(src []prompbmarshal.TimeSeries) bool {
+func (wr *writeRequest) tryPush(src []prompbmarshal.TimeSeries) bool {
 	tssDst := wr.tss
 	maxSamplesPerBlock := *maxRowsPerBlock
 	// Allow up to 10x of labels per each block on average.
@@ -183,13 +182,15 @@ func (wr *writeRequest) push(src []prompbmarshal.TimeSeries) bool {
 	for i := range src {
 		if len(wr.samples) >= maxSamplesPerBlock || len(wr.labels) >= maxLabelsPerBlock {
 			wr.tss = tssDst
-			if !wr.flush() {
+			if !wr.tryFlush() {
 				return false
 			}
 			tssDst = wr.tss
 		}
+		tsSrc := &src[i]
+		adjustSampleValues(tsSrc.Samples, wr.significantFigures, wr.roundDigits)
 		tssDst = append(tssDst, prompbmarshal.TimeSeries{})
-		wr.copyTimeSeries(&tssDst[len(tssDst)-1], &src[i])
+		wr.copyTimeSeries(&tssDst[len(tssDst)-1], tsSrc)
 	}
 
 	wr.tss = tssDst
@@ -221,7 +222,7 @@ func (wr *writeRequest) copyTimeSeries(dst, src *prompbmarshal.TimeSeries) {
 	wr.buf = buf
 }
 
-func pushWriteRequest(wr *prompbmarshal.WriteRequest, pushBlock func(block []byte) bool, isVMRemoteWrite bool) bool {
+func tryPushWriteRequest(wr *prompbmarshal.WriteRequest, tryPushBlock func(block []byte) bool, isVMRemoteWrite bool) bool {
 	if len(wr.Timeseries) == 0 {
 		// Nothing to push
 		return true
@@ -237,7 +238,7 @@ func pushWriteRequest(wr *prompbmarshal.WriteRequest, pushBlock func(block []byt
 		}
 		writeRequestBufPool.Put(bb)
 		if len(zb.B) <= persistentqueue.MaxBlockSize {
-			if !pushBlock(zb.B) {
+			if !tryPushBlock(zb.B) {
 				return false
 			}
 			blockSizeRows.Update(float64(len(wr.Timeseries)))
@@ -260,11 +261,13 @@ func pushWriteRequest(wr *prompbmarshal.WriteRequest, pushBlock func(block []byt
 		}
 		n := len(samples) / 2
 		wr.Timeseries[0].Samples = samples[:n]
-		if !pushWriteRequest(wr, pushBlock, isVMRemoteWrite) {
+		if !tryPushWriteRequest(wr, tryPushBlock, isVMRemoteWrite) {
+			wr.Timeseries[0].Samples = samples
 			return false
 		}
 		wr.Timeseries[0].Samples = samples[n:]
-		if !pushWriteRequest(wr, pushBlock, isVMRemoteWrite) {
+		if !tryPushWriteRequest(wr, tryPushBlock, isVMRemoteWrite) {
+			wr.Timeseries[0].Samples = samples
 			return false
 		}
 		wr.Timeseries[0].Samples = samples
@@ -273,11 +276,13 @@ func pushWriteRequest(wr *prompbmarshal.WriteRequest, pushBlock func(block []byt
 	timeseries := wr.Timeseries
 	n := len(timeseries) / 2
 	wr.Timeseries = timeseries[:n]
-	if !pushWriteRequest(wr, pushBlock, isVMRemoteWrite) {
+	if !tryPushWriteRequest(wr, tryPushBlock, isVMRemoteWrite) {
+		wr.Timeseries = timeseries
 		return false
 	}
 	wr.Timeseries = timeseries[n:]
-	if !pushWriteRequest(wr, pushBlock, isVMRemoteWrite) {
+	if !tryPushWriteRequest(wr, tryPushBlock, isVMRemoteWrite) {
+		wr.Timeseries = timeseries
 		return false
 	}
 	wr.Timeseries = timeseries

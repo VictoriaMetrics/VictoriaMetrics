@@ -22,7 +22,9 @@ type FastQueue struct {
 	// or when MustClose is called.
 	cond sync.Cond
 
+	// isPQDisabled is set to true when pq is disabled.
 	isPQDisabled bool
+
 	// pq is file-based queue
 	pq *queue
 
@@ -43,7 +45,7 @@ type FastQueue struct {
 // if maxPendingBytes is 0, then the queue size is unlimited.
 // Otherwise its size is limited by maxPendingBytes. The oldest data is dropped when the queue
 // reaches maxPendingSize.
-// if isPQDisabled is set to true, all write requests that exceed in-memory buffer capacity'll be rejected with errQueueIsFull error
+// if isPQDisabled is set to true, then write requests that exceed in-memory buffer capacity are rejected.
 // in-memory queue part can be stored on disk during gracefull shutdown.
 func MustOpenFastQueue(path, name string, maxInmemoryBlocks int, maxPendingBytes int64, isPQDisabled bool) *FastQueue {
 	pq := mustOpen(path, name, maxPendingBytes)
@@ -65,8 +67,8 @@ func MustOpenFastQueue(path, name string, maxInmemoryBlocks int, maxPendingBytes
 	return fq
 }
 
-// IsWritesBlocked checks if data can be pushed into the queue
-func (fq *FastQueue) IsWritesBlocked() bool {
+// IsWriteBlocked checks if data can be pushed into fq
+func (fq *FastQueue) IsWriteBlocked() bool {
 	if !fq.isPQDisabled {
 		return false
 	}
@@ -132,11 +134,6 @@ func (fq *FastQueue) flushInmemoryBlocksToFileLocked() {
 func (fq *FastQueue) GetPendingBytes() uint64 {
 	fq.mu.Lock()
 	defer fq.mu.Unlock()
-	return fq.getPendingBytesLocked()
-}
-
-func (fq *FastQueue) getPendingBytesLocked() uint64 {
-
 	n := fq.pendingInmemoryBytes
 	n += fq.pq.GetPendingBytes()
 	return n
@@ -150,49 +147,53 @@ func (fq *FastQueue) GetInmemoryQueueLen() int {
 	return len(fq.ch)
 }
 
-// MustWriteBlockIgnoreDisabledPQ writes block to fq, persists data on disk even if persistent disabled by flag.
-// it's needed to gracefully stop service and do not lose data if remote storage is not available.
+// MustWriteBlockIgnoreDisabledPQ unconditionally writes block to fq.
+//
+// This method allows perisisting in-memory blocks during graceful shutdown, even if persistence is disabled.
 func (fq *FastQueue) MustWriteBlockIgnoreDisabledPQ(block []byte) {
-	if !fq.writeBlock(block, true) {
-		logger.Fatalf("BUG: MustWriteBlockIgnoreDisabledPQ must always write data even if persistence is disabled")
+	if !fq.tryWriteBlock(block, true) {
+		logger.Fatalf("BUG: tryWriteBlock must always write data even if persistence is disabled")
 	}
 }
 
-// WriteBlock writes block to fq.
-func (fq *FastQueue) WriteBlock(block []byte) bool {
-	return fq.writeBlock(block, false)
+// TryWriteBlock tries writing block to fq.
+//
+// false is returned if the block couldn't be written to fq when the in-memory queue is full
+// and the persistent queue is disabled.
+func (fq *FastQueue) TryWriteBlock(block []byte) bool {
+	return fq.tryWriteBlock(block, false)
 }
 
 // WriteBlock writes block to fq.
-func (fq *FastQueue) writeBlock(block []byte, mustIgnoreDisabledPQ bool) bool {
+func (fq *FastQueue) tryWriteBlock(block []byte, ignoreDisabledPQ bool) bool {
 	fq.mu.Lock()
 	defer fq.mu.Unlock()
 
-	isPQWritesAllowed := !fq.isPQDisabled || mustIgnoreDisabledPQ
+	isPQWriteAllowed := !fq.isPQDisabled || ignoreDisabledPQ
 
 	fq.flushInmemoryBlocksToFileIfNeededLocked()
 	if n := fq.pq.GetPendingBytes(); n > 0 {
-		if !isPQWritesAllowed {
-			return false
-		}
 		// The file-based queue isn't drained yet. This means that in-memory queue cannot be used yet.
 		// So put the block to file-based queue.
 		if len(fq.ch) > 0 {
 			logger.Panicf("BUG: the in-memory queue must be empty when the file-based queue is non-empty; it contains %d pending bytes", n)
 		}
+		if !isPQWriteAllowed {
+			return false
+		}
 		fq.pq.MustWriteBlock(block)
 		return true
 	}
 	if len(fq.ch) == cap(fq.ch) {
-		// There is no space in the in-memory queue. Put the data to file-based queue.
-		if !isPQWritesAllowed {
+		// There is no space left in the in-memory queue. Put the data to file-based queue.
+		if !isPQWriteAllowed {
 			return false
 		}
 		fq.flushInmemoryBlocksToFileLocked()
 		fq.pq.MustWriteBlock(block)
 		return true
 	}
-	// There is enough space in the in-memory queue.
+	// Fast path - put the block to in-memory queue.
 	bb := blockBufPool.Get()
 	bb.B = append(bb.B[:0], block...)
 	fq.ch <- bb

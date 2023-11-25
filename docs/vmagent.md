@@ -869,47 +869,43 @@ scrape_configs:
   - "Proxy-Auth: top-secret"
 ```
 
-## Disabling on-disk queue
+## Disabling on-disk persistence
 
-On-disk queue aka persistent queue is a temporary folder configured via `-remoteWrite.tmpDataPath` flag. At this folder vmagent may store metric blocks.
-Metric blocks persisted on disk if remote storage is not available or cannot handle ingestion load.
-Size of this disk queue per remote storage can be limited via `-remoteWrite.maxDiskUsagePerURL`. By default, there is no limit.
-In case of reaching those limit metric blocks will be silently dropped by vmagent.
+By default `vmagent` stores pending data, which cannot be sent to the configured remote storage systems in a timely manner, in the folder configured
+via `-remoteWrite.tmpDataPath` command-line flag. By default `vmagent` writes all the pending data to this folder until this data is sent to the configured
+remote storage systems or until the folder becomes full. The maximum data size, which can be saved to `-remoteWrite.tmpDataPath`
+per every configured `-remoteWrite.url`, can be limited via `-remoteWrite.maxDiskUsagePerURL` command-line flag.
+When this limit is reached, `vmagent` drops the oldest data from disk in order to save newly ingested data.
 
-This behaviour can be changed via flag `--remoteWrite.disableOnDiskQueue=true`.
-It prevents vmagent from using on-disk storage for data buffering during ingestion or scraping.
-But on-disk storage is still used for saving in-memory part of the queue and buffers during graceful shutdown.
+There are cases when it is better disabling on-disk persistence for pending data at `vmagent` side:
 
-It's expected that `streaming` aggregation and `scrapping` metrics will be dropped in case of full queue.
-The following metrics help to detect samples drop: `vmagent_remotewrite_aggregation_metrics_dropped_total` and `vm_promscrape_push_samples_dropped_total`.
+- When the persistent disk performance isn't enough for the given data processing rate.
+- When it is better to buffer pending data at the client side instead of bufferring it at `vmagent` side in the `-remoteWrite.tmpDataPath` folder.
+- When the data is already buffered at [Kafka side](#reading-metrics-from-kafka) or [Google PubSub side](#pubsub-integration).
+- When it is better to drop pending data instead of buffering it.
 
-In case of multiple configured remote storages, vmagent block writes requests even if a single remote storage cannot accept ingested samples.
+In this case `-remoteWrite.disableOnDiskQueue` command-line flag can be passed to `vmagent`.
+When this flag is specified, `vmagent` works in the following way if the configured remote storage systems cannot keep up with the data ingestion rate:
 
-vmagent guarantees at-least-once delivery semantic.
-It means that metric samples duplication is possible and [deduplication](https://docs.victoriametrics.com/#deduplication) must be configured at remote storage.
+- It returns `429 Too Many Requests` HTTP error to clients, which send data to `vmagent` via [supported HTTP endpoints](#how-to-push-data-to-vmagent).
+  You can specify `-remoteWrite.dropSamplesOnOverload` command-line flag in order to drop the ingested samples instead of returning the error to clients in this case.
+- It suspends consuming data from [Kafka side](#reading-metrics-from-kafka) or [Google PubSub side](#pubsub-integration) until the remote storage becomes available.
+  You can specify `-remoteWrite.dropSamplesOnOverload` command-line flag in order to drop the fetched samples instead of suspending data consumption from Kafka or Google PubSub.
+- It drops samples [scraped from Prometheus-compatible targets](#how-to-collect-metrics-in-prometheus-format), because it is better to drop samples
+  instead of blocking the scrape process.
+- It drops [stream aggregation](https://docs.victoriametrics.com/stream-aggregation.html) output samples, because it is better to drop output samples
+  instead of blocking the stream aggregation process.
 
-### Common patterns
-You may want to disable on-disk queue in the following cases:
+The number of dropped samples because of overloaded remote storage can be [monitored](#monitoring) via `vmagent_remotewrite_samples_dropped_total` metric.
+The number of unsuccessful attempts to send data to overloaded remote storage can be [monitored](#monitoring) via `vmagent_remotewrite_push_failures_total` metric.
 
-1) chaining of vmagents. Intermediate vmagents used for aggregation may loss the data, if vmcluster is not available.
-   With disabled persistent queue aggregation vmagents will back-pressure metrics to the first vmagent.
+`vmagent` still may write pending in-memory data to `-remoteWrite.tmpDataPath` on graceful shutdown
+if `-remoteWrite.disableOnDiskQueue` command-line flag is specified. It may also read buffered data from `-remoteWrite.tmpDataPath`
+on startup.
 
-```mermaid
-flowchart LR
-  A[vmagent] --> B(vmagent-aggregation-0)
-  A[vmagent] --> C(vmagent-aggregation-1)
-  B --> D[vmcluster]
-  C --> D[vmcluster]
-```
-
-2) If you want to replace actual on-disk queue with kafka or another compatible queue. On-disk queue must be disabled at `vmagent-consumer`
-
-```mermaid
-flowchart LR
-    A[vmagent] --> B(kafka)
-    B <--> C(vmagent-consumer)
-    C --> D[vmcluster]
-```
+When `-remoteWrite.disableOnDiskQueue` command-line flag is set, then `vmagent` may send the same samples multiple times to the configured remote storage
+if it cannot keep up with the data ingestion rate. In this case the [deduplication](https://docs.victoriametrics.com/#deduplication)
+must be enabled on all the configured remote storage systems.
 
 ## Cardinality limiter
 
@@ -989,38 +985,39 @@ If you have suggestions for improvements or have found a bug - please open an is
 
 ## Troubleshooting
 
-* We recommend you [set up the official Grafana dashboard](#monitoring) in order to monitor the state of `vmagent'.
+* It is recommended [setting up the official Grafana dashboard](#monitoring) in order to monitor the state of `vmagent'.
 
-* We recommend you increase the maximum number of open files in the system (`ulimit -n`) when scraping a big number of targets,
+* It is recommended increasing the maximum number of open files in the system (`ulimit -n`) when scraping a big number of targets,
   as `vmagent` establishes at least a single TCP connection per target.
 
 * If `vmagent` uses too big amounts of memory, then the following options can help:
-  * Disabling staleness tracking with `-promscrape.noStaleMarkers` option. See [these docs](#prometheus-staleness-markers).
-  * Enabling stream parsing mode if `vmagent` scrapes targets with millions of metrics per target. See [these docs](#stream-parsing-mode).
-  * Reducing the number of output queues with `-remoteWrite.queues` command-line option.
   * Reducing the amounts of RAM vmagent can use for in-memory buffering with `-memory.allowedPercent` or `-memory.allowedBytes` command-line option.
     Another option is to reduce memory limits in Docker and/or Kubernetes if `vmagent` runs under these systems.
   * Reducing the number of CPU cores vmagent can use by passing `GOMAXPROCS=N` environment variable to `vmagent`,
     where `N` is the desired limit on CPU cores. Another option is to reduce CPU limits in Docker or Kubernetes if `vmagent` runs under these systems.
-  * Passing `-promscrape.dropOriginalLabels` command-line option to `vmagent`, so it drops `"discoveredLabels"` and `"droppedTargets"`
-    lists at `/api/v1/targets` page. This reduces memory usage when scraping big number of targets at the cost
-    of reduced debuggability for improperly configured per-target relabeling.
+  * Disabling staleness tracking with `-promscrape.noStaleMarkers` option. See [these docs](#prometheus-staleness-markers).
+  * Enabling stream parsing mode if `vmagent` scrapes targets with millions of metrics per target. See [these docs](#stream-parsing-mode).
+  * Reducing the number of tcp connections to remote storage systems with `-remoteWrite.queues` command-line option.
+  * Passing `-promscrape.dropOriginalLabels` command-line option to `vmagent` if it [discovers](https://docs.victoriametrics.com/sd_configs.html)
+    big number of targets and many of these targets are [dropped](https://docs.victoriametrics.com/relabeling.html#how-to-drop-discovered-targets)
+    before scraping. In this case `vmagent` drops `"discoveredLabels"` and `"droppedTargets"`
+    lists at `http://vmagent-host:8429/service-discovery` page. This reduces memory usage when scraping big number of targets at the cost
+    of reduced debuggability for improperly configured per-target [relabeling](https://docs.victoriametrics.com/relabeling.html).
 
-* When `vmagent` scrapes many unreliable targets, it can flood the error log with scrape errors. These errors can be suppressed
-  by passing `-promscrape.suppressScrapeErrors` command-line flag to `vmagent`. The most recent scrape error per each target can be observed at `http://vmagent-host:8429/targets`
-  and `http://vmagent-host:8429/api/v1/targets`.
+* When `vmagent` scrapes many unreliable targets, it can flood the error log with scrape errors. It is recommended investigating and fixing these errors.
+  If it is unfeasible to fix all the reported errors, then they can be suppressed by passing `-promscrape.suppressScrapeErrors` command-line flag to `vmagent`.
+  The most recent scrape error per each target can be observed at `http://vmagent-host:8429/targets` and `http://vmagent-host:8429/api/v1/targets`.
 
-* The `/service-discovery` page could be useful for debugging relabeling process for scrape targets.
+* The `http://vmagent-host:8429/service-discovery` page could be useful for debugging relabeling process for scrape targets.
   This page contains original labels for targets dropped during relabeling.
   By default, the `-promscrape.maxDroppedTargets` targets are shown here. If your setup drops more targets during relabeling,
   then increase `-promscrape.maxDroppedTargets` command-line flag value to see all the dropped targets.
   Note that tracking each dropped target requires up to 10Kb of RAM. Therefore, big values for `-promscrape.maxDroppedTargets`
   may result in increased memory usage if a big number of scrape targets are dropped during relabeling.
 
-* We recommend you increase `-remoteWrite.queues` if `vmagent_remotewrite_pending_data_bytes` metric exported
-  at `http://vmagent-host:8429/metrics` page grows constantly. It is also recommended increasing `-remoteWrite.maxBlockSize`
-  and `-remoteWrite.maxRowsPerBlock` command-line options in this case. This can improve data ingestion performance
-  to the configured remote storage systems at the cost of higher memory usage.
+* It is recommended increaseing `-remoteWrite.queues` if `vmagent_remotewrite_pending_data_bytes` [metric](#monitoring)
+  grows constantly. It is also recommended increasing `-remoteWrite.maxBlockSize` and `-remoteWrite.maxRowsPerBlock` command-line options in this case.
+  This can improve data ingestion performance to the configured remote storage systems at the cost of higher memory usage.
 
 * If you see gaps in the data pushed by `vmagent` to remote storage when `-remoteWrite.maxDiskUsagePerURL` is set,
   try increasing `-remoteWrite.queues`. Such gaps may appear because `vmagent` cannot keep up with sending the collected data to remote storage.
@@ -1034,8 +1031,12 @@ If you have suggestions for improvements or have found a bug - please open an is
   The best solution is to use remote storage with [backfilling support](https://docs.victoriametrics.com/#backfilling) such as VictoriaMetrics.
 
 * `vmagent` buffers scraped data at the `-remoteWrite.tmpDataPath` directory until it is sent to `-remoteWrite.url`.
-  The directory can grow large when remote storage is unavailable for extended periods of time and if `-remoteWrite.maxDiskUsagePerURL` isn't set.
-  If you don't want to send all the data from the directory to remote storage then simply stop `vmagent` and delete the directory.
+  The directory can grow large when remote storage is unavailable for extended periods of time and if the maximum directory size isn't limited
+  with `-remoteWrite.maxDiskUsagePerURL` command-line flag.
+  If you don't want to send all the buffered data from the directory to remote storage then simply stop `vmagent` and delete the directory.
+
+* If `vmagent` runs on a host with slow persistent storage, which cannot keep up with the volume of processed samples, then is is possible to disable
+  the persistent storage with `-remoteWrite.disableOnDiskQueue` command-line flag. See [these docs](#disabling-on-disk-persistence) for more details.
 
 * By default `vmagent` masks `-remoteWrite.url` with `secret-url` values in logs and at `/metrics` page because
   the url may contain sensitive information such as auth tokens or passwords.
@@ -1080,7 +1081,7 @@ If you have suggestions for improvements or have found a bug - please open an is
     regex: true
   ```
 
-See also [troubleshooting docs](https://docs.victoriametrics.com/Troubleshooting.html).
+See also [general troubleshooting docs](https://docs.victoriametrics.com/Troubleshooting.html).
 
 ## Google PubSub integration
 [Enterprise version](https://docs.victoriametrics.com/enterprise.html) of `vmagent` can read and write metrics from / to google [PubSub](https://cloud.google.com/pubsub):
@@ -1789,8 +1790,9 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      Optional path to bearer token file to use for the corresponding -remoteWrite.url. The token is re-read from the file every second
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.disableOnDiskQueue
-        Whether to disable on-disk queue for metrics ingestion processing. If in-memory queue is full for at least 1 remoteWrite target, all data ingestion is blocked and returns an error. 
-        It allows to build a chain of vmagents and build complicated data pipelines without data-loss. On-disk writes is still possible during graceful shutdown for storing in-memory part of the queue.     
+     Whether to disable storing pending data to -remoteWrite.tmpDataPath when the configured remote storage systems cannot keep up with the data ingestion rate. See https://docs.victoriametrics.com/vmagent.html#disabling-on-disk-persistence .See also -remoteWrite.dropSamplesOnOverload
+  -remoteWrite.dropSamplesOnOverload
+     Whether to drop samples when -remoteWrite.disableOnDiskQueue is set and if the samples cannot be pushed into the configured remote storage systems in a timely manner. See https://docs.victoriametrics.com/vmagent.html#disabling-on-disk-persistence
   -remoteWrite.flushInterval duration
      Interval for flushing the data to remote storage. This option takes effect only when less than 10K data points per second are pushed to -remoteWrite.url (default 1s)
   -remoteWrite.forcePromProto array
@@ -1892,7 +1894,7 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      Optional TLS server name to use for connections to the corresponding -remoteWrite.url. By default, the server name from -remoteWrite.url is used
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.tmpDataPath string
-     Path to directory where temporary data for remote write component is stored. See also -remoteWrite.maxDiskUsagePerURL (default "vmagent-remotewrite-data")
+     Path to directory for storing pending data, which isn't sent to the configured -remoteWrite.url . See also -remoteWrite.maxDiskUsagePerURL and -remoteWrite.disableOnDiskQueue (default "vmagent-remotewrite-data")
   -remoteWrite.url array
      Remote storage URL to write data to. It must support either VictoriaMetrics remote write protocol or Prometheus remote_write protocol. Example url: http://<victoriametrics-host>:8428/api/v1/write . Pass multiple -remoteWrite.url options in order to replicate the collected data to multiple remote storage systems. The data can be sharded among the configured remote storage systems if -remoteWrite.shardByURL flag is set. See also -remoteWrite.multitenantURL
      Supports an array of values separated by comma or specified via multiple flags.

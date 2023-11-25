@@ -37,6 +37,7 @@ import (
 	opentsdbhttpserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/opentsdbhttp"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
@@ -139,7 +140,9 @@ func main() {
 		opentsdbhttpServer = opentsdbhttpserver.MustStart(*opentsdbHTTPListenAddr, *opentsdbHTTPUseProxyProtocol, httpInsertHandler)
 	}
 
-	promscrape.Init(remotewrite.Push)
+	promscrape.Init(func(at *auth.Token, wr *prompbmarshal.WriteRequest) {
+		_ = remotewrite.TryPush(at, wr)
+	})
 
 	if len(*httpListenAddr) > 0 {
 		go httpserver.Serve(*httpListenAddr, *useProxyProtocol, requestHandler)

@@ -11,7 +11,7 @@ func TestFastQueueOpenClose(_ *testing.T) {
 	path := "fast-queue-open-close"
 	mustDeleteDir(path)
 	for i := 0; i < 10; i++ {
-		fq := MustOpenFastQueue(path, "foobar", 100, 0, true)
+		fq := MustOpenFastQueue(path, "foobar", 100, 0, false)
 		fq.MustClose()
 	}
 	mustDeleteDir(path)
@@ -22,15 +22,15 @@ func TestFastQueueWriteReadInmemory(t *testing.T) {
 	mustDeleteDir(path)
 
 	capacity := 100
-	fq := MustOpenFastQueue(path, "foobar", capacity, 0, true)
+	fq := MustOpenFastQueue(path, "foobar", capacity, 0, false)
 	if n := fq.GetInmemoryQueueLen(); n != 0 {
 		t.Fatalf("unexpected non-zero inmemory queue size:  %d", n)
 	}
 	var blocks []string
 	for i := 0; i < capacity; i++ {
 		block := fmt.Sprintf("block %d", i)
-		if !fq.WriteBlock([]byte(block)) {
-			t.Fatalf("unexpected false for WriteBlock")
+		if !fq.TryWriteBlock([]byte(block)) {
+			t.Fatalf("TryWriteBlock must return true in this context")
 		}
 		blocks = append(blocks, block)
 	}
@@ -62,8 +62,8 @@ func TestFastQueueWriteReadMixed(t *testing.T) {
 	var blocks []string
 	for i := 0; i < 2*capacity; i++ {
 		block := fmt.Sprintf("block %d", i)
-		if !fq.WriteBlock([]byte(block)) {
-			t.Fatalf("not expected WriteBlock fail")
+		if !fq.TryWriteBlock([]byte(block)) {
+			t.Fatalf("TryWriteBlock must return true in this context")
 		}
 		blocks = append(blocks, block)
 	}
@@ -98,8 +98,8 @@ func TestFastQueueWriteReadWithCloses(t *testing.T) {
 	var blocks []string
 	for i := 0; i < 2*capacity; i++ {
 		block := fmt.Sprintf("block %d", i)
-		if !fq.WriteBlock([]byte(block)) {
-			t.Fatalf("unexpected false for WriteBlock")
+		if !fq.TryWriteBlock([]byte(block)) {
+			t.Fatalf("TryWriteBlock must return true in this context")
 		}
 
 		blocks = append(blocks, block)
@@ -176,8 +176,8 @@ func TestFastQueueReadUnblockByWrite(t *testing.T) {
 		}
 		resultCh <- nil
 	}()
-	if !fq.WriteBlock([]byte(block)) {
-		t.Fatalf("unexpected false for WriteBlock")
+	if !fq.TryWriteBlock([]byte(block)) {
+		t.Fatalf("TryWriteBlock must return true in this context")
 	}
 	select {
 	case err := <-resultCh:
@@ -235,9 +235,8 @@ func TestFastQueueReadWriteConcurrent(t *testing.T) {
 		go func() {
 			defer writersWG.Done()
 			for block := range blocksCh {
-				if !fq.WriteBlock([]byte(block)) {
-					t.Errorf("unexpected false for WriteBlock")
-					return
+				if !fq.TryWriteBlock([]byte(block)) {
+					panic(fmt.Errorf("TryWriteBlock must return true in this context"))
 				}
 			}
 		}()
@@ -303,12 +302,12 @@ func TestFastQueueWriteReadWithDisabledPQ(t *testing.T) {
 	var blocks []string
 	for i := 0; i < capacity; i++ {
 		block := fmt.Sprintf("block %d", i)
-		if !fq.WriteBlock([]byte(block)) {
-			t.Fatalf("unexpected false for WriteBlock")
+		if !fq.TryWriteBlock([]byte(block)) {
+			t.Fatalf("TryWriteBlock must return true in this context")
 		}
 		blocks = append(blocks, block)
 	}
-	if fq.WriteBlock([]byte("error-block")) {
+	if fq.TryWriteBlock([]byte("error-block")) {
 		t.Fatalf("expect false due to full queue")
 	}
 
@@ -339,12 +338,12 @@ func TestFastQueueWriteReadWithIgnoreDisabledPQ(t *testing.T) {
 	var blocks []string
 	for i := 0; i < capacity; i++ {
 		block := fmt.Sprintf("block %d", i)
-		if !fq.WriteBlock([]byte(block)) {
-			t.Fatalf("unexpected false for WriteBlock")
+		if !fq.TryWriteBlock([]byte(block)) {
+			t.Fatalf("TryWriteBlock must return true in this context")
 		}
 		blocks = append(blocks, block)
 	}
-	if fq.WriteBlock([]byte("error-block")) {
+	if fq.TryWriteBlock([]byte("error-block")) {
 		t.Fatalf("expect false due to full queue")
 	}
 	for i := 0; i < capacity; i++ {
