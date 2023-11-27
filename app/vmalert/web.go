@@ -132,6 +132,20 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		w.Header().Set("Content-Type", "application/json")
 		w.Write(data)
 		return true
+	case "/vmalert/api/v1/rule", "/api/v1/rule":
+		rule, err := rh.getRule(r)
+		if err != nil {
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		data, err := json.Marshal(rule)
+		if err != nil {
+			httpserver.Errorf(w, r, "failed to marshal alert: %s", err)
+			return true
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(data)
+		return true
 	case "/-/reload":
 		logger.Infof("api config reload was called, sending sighup")
 		procutil.SelfSIGHUP()
