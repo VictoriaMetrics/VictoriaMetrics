@@ -589,7 +589,7 @@ metadata:
   name: example-vmagent
 spec:
   image:
-    repository: victoriametrics/victoria-metrics
+    repository: victoriametrics/vmagent
     tag: v1.93.4
     pullPolicy: Always
   # ...
@@ -604,7 +604,7 @@ metadata:
   name: example-vmagent
 spec:
   image:
-    repository: victoriametrics/victoria-metrics
+    repository: victoriametrics/vmagent
     tag: v1.93.4
     pullPolicy: Always
   imagePullSecrets:
