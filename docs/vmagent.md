@@ -1213,9 +1213,10 @@ vmagent exposes `vmagent_remotewrite_bytes_sent_total` metric - counter how many
 
 Check the [monitoring](#monitoring) section and our [official Grafana dashboard](#monitoring) for collection and visualization metrics from vmagent. If you don't have vmagent, run it first, then attach disk.
 
-The following query can help you with defining the suitable disk space for vmagent
-`sum(rate(vmagent_remotewrite_bytes_sent_total))` - bytes sent per second for all remote write. If you want to know per remote write data - run `sum by (url) (rate(vmagent_remotewrite_bytes_sent_total))`.
-`sum_over_time(sum(rate(vmagent_remotewrite_bytes_sent_total))[24h]) / 1Gi `- gigabytes sent for the last 24h to all remote write, if you need per remote write, please use `sum_over_time(sum by(url) (rate(vmagent_remotewrite_bytes_sent_total))[24h]) / 1Gi `. These two queries provide you information on how much disk space you need to provide for vmagent to survive 24h downtime of remote storage(s), change the loop behind window(`[24h]`) to your time frame to adjust the time frame
+The following query can help you with defining the suitable disk space for vmagent:
+
+* `sum(rate(vmagent_remotewrite_bytes_sent_total))` - bytes sent per second for all remote write. If you want to know per remote write data - run `sum by (url) (rate(vmagent_remotewrite_bytes_sent_total))`.
+* `sum_over_time(sum(rate(vmagent_remotewrite_bytes_sent_total))[24h]) / 1Gi `- gigabytes sent for the last 24h to all remote write, if you need per remote write, please use `sum_over_time(sum by(url) (rate(vmagent_remotewrite_bytes_sent_total))[24h]) / 1Gi `. These two queries provide you information on how much disk space you need to provide for vmagent to survive 24h downtime of remote storage(s), change the loop behind window(`[24h]`) to your time frame to adjust the time frame
 
 
 ## Kafka integration
