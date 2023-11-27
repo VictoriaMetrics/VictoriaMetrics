@@ -232,7 +232,7 @@ metadata:
   name: example-vmalert
 spec:
   image:
-    repository: victoriametrics/victoria-metrics
+    repository: victoriametrics/vmalert
     tag: v1.93.4
     pullPolicy: Always
   # ...
@@ -247,7 +247,7 @@ metadata:
   name: example-vmalert
 spec:
   image:
-    repository: victoriametrics/victoria-metrics
+    repository: victoriametrics/vmalert
     tag: v1.93.4
     pullPolicy: Always
   imagePullSecrets:
