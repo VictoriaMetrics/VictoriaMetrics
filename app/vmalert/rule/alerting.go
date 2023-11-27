@@ -237,7 +237,8 @@ type labelSet struct {
 	origin map[string]string
 	// processed labels includes origin labels
 	// plus extra labels (group labels, service labels like alertNameLabel).
-	// in case of conflicts, extra labels are preferred.
+	// in case of conflicts, origin labels are renamed with prefix `exported_` and extra labels are preferred. 
+	// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5161
 	// used as labels attached to notifier.Alert and ALERTS series written to remote storage.
 	processed map[string]string
 }
@@ -267,24 +268,32 @@ func (ar *AlertingRule) toLabels(m datasource.Metric, qFn templates.QueryFn) (*l
 		return nil, fmt.Errorf("failed to expand labels: %w", err)
 	}
 	for k, v := range extraLabels {
-		ls.processed[k] = v
+		// if conflicted, reserve origin labels in ls.origin,
+		// add prefix `exported_` for origin labels in ls.processed.
 		if _, ok := ls.origin[k]; !ok {
 			ls.origin[k] = v
+		} else {
+			ls.processed[fmt.Sprintf("exported_%s", k)] = ls.processed[k]
 		}
+		ls.processed[k] = v
 	}
 
 	// set additional labels to identify group and rule name
 	if ar.Name != "" {
-		ls.processed[alertNameLabel] = ar.Name
 		if _, ok := ls.origin[alertNameLabel]; !ok {
 			ls.origin[alertNameLabel] = ar.Name
+		} else {
+			ls.processed[fmt.Sprintf("exported_%s", alertNameLabel)] = ls.processed[alertNameLabel]
 		}
+		ls.processed[alertNameLabel] = ar.Name
 	}
 	if !*disableAlertGroupLabel && ar.GroupName != "" {
-		ls.processed[alertGroupNameLabel] = ar.GroupName
 		if _, ok := ls.origin[alertGroupNameLabel]; !ok {
 			ls.origin[alertGroupNameLabel] = ar.GroupName
+		} else {
+			ls.processed[fmt.Sprintf("exported_%s", alertGroupNameLabel)] = ls.processed[alertGroupNameLabel]
 		}
+		ls.processed[alertGroupNameLabel] = ar.GroupName
 	}
 	return ls, nil
 }
@@ -414,8 +423,7 @@ func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int) ([]pr
 		}
 		h := hash(ls.processed)
 		if _, ok := updated[h]; ok {
-			// duplicate may be caused by extra labels
-			// conflicting with the metric labels
+			// duplicate may be caused the removal of `__name__` label
 			curState.Err = fmt.Errorf("labels %v: %w", ls.processed, errDuplicate)
 			return nil, curState.Err
 		}

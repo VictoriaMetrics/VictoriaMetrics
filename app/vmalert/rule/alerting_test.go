@@ -1092,3 +1092,51 @@ func newTestAlertingRuleWithKeepFiring(name string, waitFor, keepFiringFor time.
 	rule.KeepFiringFor = keepFiringFor
 	return rule
 }
+
+func TestAlertingRule_ToLabels(t *testing.T) {
+	metric := datasource.Metric{
+		Labels: []datasource.Label{
+			{Name: "instance", Value: "0.0.0.0:8800"},
+			{Name: "group", Value: "vmalert"},
+			{Name: "alertname", Value: "ConfigurationReloadFailure"},
+		},
+		Values:     []float64{1},
+		Timestamps: []int64{time.Now().UnixNano()},
+	}
+
+	ar := &AlertingRule{
+		Labels:    map[string]string{"instance": "override"},
+		Expr:      "sum(vmalert_alerting_rules_error) by(instance, group, alertname) > 0",
+		Name:      "AlertingRulesError",
+		GroupName: "vmalert",
+	}
+
+	expectedOriginLabels := map[string]string{
+		"instance":   "0.0.0.0:8800",
+		"group":      "vmalert",
+		"alertname":  "ConfigurationReloadFailure",
+		"alertgroup": "vmalert",
+	}
+
+	expectedProcessedLabels := map[string]string{
+		"instance":           "override",
+		"exported_instance":  "0.0.0.0:8800",
+		"alertname":          "AlertingRulesError",
+		"exported_alertname": "ConfigurationReloadFailure",
+		"group":              "vmalert",
+		"alertgroup":         "vmalert",
+	}
+
+	ls, err := ar.toLabels(metric, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	if !reflect.DeepEqual(ls.origin, expectedOriginLabels) {
+		t.Errorf("origin labels mismatch, got: %v, want: %v", ls.origin, expectedOriginLabels)
+	}
+
+	if !reflect.DeepEqual(ls.processed, expectedProcessedLabels) {
+		t.Errorf("processed labels mismatch, got: %v, want: %v", ls.processed, expectedProcessedLabels)
+	}
+}
