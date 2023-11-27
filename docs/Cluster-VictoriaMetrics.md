@@ -110,6 +110,11 @@ while the `http_requests_total{path="/bar"} 34` would be stored in the tenant `a
 The `vm_account_id` and `vm_project_id` labels are extracted after applying the [relabeling](https://docs.victoriametrics.com/relabeling.html)
 set via `-relabelConfig` command-line flag, so these labels can be set at this stage.
 
+The `vm_account_id` and `vm_project_id` labels are also taken into account when ingesting data via non-http-based protocols
+such as [Graphite](https://docs.victoriametrics.com/#how-to-send-data-from-graphite-compatible-agents-such-as-statsd),
+[InfluxDB line protocol via TCP and UDP](https://docs.victoriametrics.com/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf) and
+[OpenTSDB telnet put protocol](https://docs.victoriametrics.com/#sending-data-via-telnet-put-protocol).
+
 **Security considerations:** it is recommended restricting access to `multitenant` endpoints only to trusted sources,
 since untrusted source may break per-tenant data by writing unwanted samples to arbitrary tenants.
 
