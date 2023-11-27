@@ -1205,6 +1205,19 @@ which can be downloaded for evaluation from [releases](https://github.com/Victor
     	The following optional suffixes are supported: s (second), m (minute), h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 60s)
 ```
 
+## How much disk space should you provide for the vmagent persistence queue?
+
+vmagent can [buffer data points](#features) on disk in case of offline storage, networking issues, etc.
+
+vmagent exposes `vmagent_remotewrite_bytes_sent_total` metric - counter how many bytes were sent to remote write. It exposes `url` label, which represents remote write URL
+
+Check the [monitoring](#monitoring) section and our [official Grafana dashboard](#monitoring) for collection and visualization metrics from vmagent. If you don't have vmagent, run it first, then attach disk.
+
+The following query can help you with defining the suitable disk space for vmagent
+`sum(rate(vmagent_remotewrite_bytes_sent_total))` - bytes sent per second for all remote write. If you want to know per remote write data - run `sum by (url) (rate(vmagent_remotewrite_bytes_sent_total))`.
+`sum_over_time(sum(rate(vmagent_remotewrite_bytes_sent_total))[24h]) / 1Gi `- gigabytes sent for the last 24h to all remote write, if you need per remote write, please use `sum_over_time(sum by(url) (rate(vmagent_remotewrite_bytes_sent_total))[24h]) / 1Gi `. These two queries provide you information on how much disk space you need to provide for vmagent to survive 24h downtime of remote storage(s), change the loop behind window(`[24h]`) to your time frame to adjust the time frame
+
+
 ## Kafka integration
 
 [Enterprise version](https://docs.victoriametrics.com/enterprise.html) of `vmagent` can read and write metrics from / to Kafka:
