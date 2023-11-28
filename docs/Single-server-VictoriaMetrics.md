@@ -518,13 +518,12 @@ See also [vmagent](https://docs.victoriametrics.com/vmagent.html), which can be 
 
 ## How to send data from DataDog agent
 
-VictoriaMetrics accepts data from:
+VictoriaMetrics accepts data in the following protocols:
 * [DataDog agent](https://docs.datadoghq.com/agent/)
 * [DogStatsD](https://docs.datadoghq.com/developers/dogstatsd/)
 * [DataDog Lambda Extension](https://docs.datadoghq.com/serverless/libraries_integrations/extension/)
 
-via ["submit metrics" API](https://docs.datadoghq.com/api/latest/metrics/#submit-metrics) 
-at:
+Via ["submit metrics" API](https://docs.datadoghq.com/api/latest/metrics/#submit-metrics) at the following path:
 * `/datadog/api/v1/series`
 * `/datadog/api/v2/series`
 * `/datadog/api/beta/sketches`
@@ -560,10 +559,10 @@ dd_url: http://victoriametrics:8428/datadog
 
 </div>
 
-vmagent also can accept DataDog metrics format. Depending on where vmagent will forward data,
+vmagent also can accept Datadog metrics format. Depending on where vmagent will forward data, 
 pick [single-node or cluster URL](https://docs.victoriametrics.com/url-examples.html#datadog) formats.
 
-### Sending metrics to DataDog and VictoriaMetrics
+### Sending metrics to Datadog and VictoriaMetrics
  
 DataDog allows configuring [Dual Shipping](https://docs.datadoghq.com/agent/guide/dual-shipping/) for metrics 
 sending via ENV variable `DD_ADDITIONAL_ENDPOINTS` or via configuration file `additional_endpoints`.
@@ -2072,6 +2071,7 @@ These metrics can be scraped via [vmagent](https://docs.victoriametrics.com/vmag
 Alternatively, single-node VictoriaMetrics can self-scrape the metrics when `-selfScrapeInterval` command-line flag is 
 set to duration greater than 0. For example, `-selfScrapeInterval=10s` would enable self-scraping of `/metrics` page 
 with 10 seconds interval.
+
 _Please note, never use loadbalancer address for scraping metrics. All monitored components should be scraped directly by their address._
 
 Official Grafana dashboards available for [single-node](https://grafana.com/grafana/dashboards/10229-victoriametrics/) 
