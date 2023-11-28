@@ -161,12 +161,10 @@ type apiRule struct {
 	MaxUpdates int `json:"max_updates_entries"`
 	// Updates contains the ordered list of recorded ruleStateEntry objects
 	Updates []rule.StateEntry `json:"updates,omitempty"`
-	// withField defines which field should be enabled for marshaling
-	withField string
 }
 
-func (ar *apiRule) MarshalJSON() ([]byte, error) {
-	if ar.withField != updatesField {
+func (ar apiRule) toJSON(withField string) ([]byte, error) {
+	if withField != updatesField {
 		ar.Updates = nil
 	}
 	return json.Marshal(ar)

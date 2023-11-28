@@ -139,8 +139,7 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
-		rule.withField = withField
-		data, err := json.Marshal(rule)
+		data, err := rule.toJSON(withField)
 		if err != nil {
 			httpserver.Errorf(w, r, "failed to marshal rule: %s", err)
 			return true
