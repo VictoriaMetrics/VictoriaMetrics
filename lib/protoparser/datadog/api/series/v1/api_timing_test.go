@@ -26,7 +26,7 @@ func BenchmarkRequestUnmarshal(b *testing.B) {
 	b.SetBytes(int64(len(reqBody)))
 	b.ReportAllocs()
 	b.RunParallel(func(pb *testing.PB) {
-		var req Request
+		req := new(Request)
 		for pb.Next() {
 			if err := req.Unmarshal(reqBody); err != nil {
 				panic(fmt.Errorf("unexpected error: %w", err))
