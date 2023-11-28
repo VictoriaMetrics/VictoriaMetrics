@@ -881,7 +881,7 @@ There are cases when it is better disabling on-disk persistence for pending data
 
 - When the persistent disk performance isn't enough for the given data processing rate.
 - When it is better to buffer pending data at the client side instead of bufferring it at `vmagent` side in the `-remoteWrite.tmpDataPath` folder.
-- When the data is already buffered at [Kafka side](#reading-metrics-from-kafka) or [Google PubSub side](#pubsub-integration).
+- When the data is already buffered at [Kafka side](#reading-metrics-from-kafka) or [Google PubSub side](#reading-metrics-from-pubsub).
 - When it is better to drop pending data instead of buffering it.
 
 In this case `-remoteWrite.disableOnDiskQueue` command-line flag can be passed to `vmagent`.
@@ -891,6 +891,7 @@ When this flag is specified, `vmagent` works in the following way if the configu
   You can specify `-remoteWrite.dropSamplesOnOverload` command-line flag in order to drop the ingested samples instead of returning the error to clients in this case.
 - It suspends consuming data from [Kafka side](#reading-metrics-from-kafka) or [Google PubSub side](#pubsub-integration) until the remote storage becomes available.
   You can specify `-remoteWrite.dropSamplesOnOverload` command-line flag in order to drop the fetched samples instead of suspending data consumption from Kafka or Google PubSub.
+- It drops samples pushed to `vmagent` via non-HTTP protocols and logs the error. Pass `-remoteWrite.dropSamplesOnOverload` on order to suppress error messages in this case.
 - It drops samples [scraped from Prometheus-compatible targets](#how-to-collect-metrics-in-prometheus-format), because it is better to drop samples
   instead of blocking the scrape process.
 - It drops [stream aggregation](https://docs.victoriametrics.com/stream-aggregation.html) output samples, because it is better to drop output samples
@@ -898,6 +899,9 @@ When this flag is specified, `vmagent` works in the following way if the configu
 
 The number of dropped samples because of overloaded remote storage can be [monitored](#monitoring) via `vmagent_remotewrite_samples_dropped_total` metric.
 The number of unsuccessful attempts to send data to overloaded remote storage can be [monitored](#monitoring) via `vmagent_remotewrite_push_failures_total` metric.
+
+Running `vmagent` on hosts with more RAM or increasing the value for `-memory.allowedPercent` may reduce the number of unsuccessful attempts or dropped samples
+on spiky workloads, since `vmagent` may buffer more data in memory before returning the error or dropping data.
 
 `vmagent` still may write pending in-memory data to `-remoteWrite.tmpDataPath` on graceful shutdown
 if `-remoteWrite.disableOnDiskQueue` command-line flag is specified. It may also read buffered data from `-remoteWrite.tmpDataPath`
@@ -1314,77 +1318,6 @@ Two types of auth are supported:
 ```bash
 ./bin/vmagent -remoteWrite.url=kafka://localhost:9092/?topic=prom-rw&security.protocol=SSL -remoteWrite.tlsCAFile=/opt/ca.pem -remoteWrite.tlsCertFile=/opt/cert.pem -remoteWrite.tlsKeyFile=/opt/key.pem
 ```
-
-## PubSub integration
-
-[Enterprise version](https://docs.victoriametrics.com/enterprise.html) of `vmagent` can write metrics to GCP PubSub:
-
-* [Writing metrics to PubSub](#writing-metrics-to-pubsub)
-
-The enterprise version of vmagent is available for evaluation at [releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) page
-in `vmutils-...-enterprise.tar.gz` archives and in [docker images](https://hub.docker.com/r/victoriametrics/vmagent/tags) with tags containing `enterprise` suffix.
-
-### Writing metrics to PubSub
-
-[Enterprise version](https://docs.victoriametrics.com/enterprise.html) of `vmagent` can push metrics to PubSub.
-
-#### Usage
-
-1. Create a PubSub topic to publish to:\
-   `gcloud pubsub topics create $TOPIC`
-2. Run vmagent with remoteWrite.url schema set to "pubsub", and value set to the PubSub topic:\
-   `-remoteWrite.url=pubsub:projects/$PROJECT/topics/$TOPIC`
-
-#### Protocol
-`vmagent` performs all the recording rules and streaming aggregation processing before publishing the data.
-
-Data is published with _at-least-once_ semantics. 
-
-Data is published as compressed remotewrite protocol blocks, one *remotewrite* block per a PubSub message.
-Data is compressed as per other vmagent settings (see `-forceVMProto`).
-
-If AccountID/ProjectID are set (multitenant), then each PubSub message contains `project_id` and `account_id`
-attributes, so that PubSub subscriptions can subscribe to particular tenants.
-
-
-#### Auth
-
-If no authentication flags are set, `vmagent` uses default [Application Default Credentials](https://cloud.google.com/docs/authentication/provide-credentials-adc)
-See "Workload Identity" section for Kubernetes.
-
-To provide credentials explicitly, see `-gcp.pubsub.credentialsFile` flag.
-
-Principal must have the following permissions:
-
-| Permission            | Available Role                                                                            |
-|-----------------------|-------------------------------------------------------------------------------------------|
-| pubsub.topics.publish | [Pub/Sub Publisher](https://cloud.google.com/pubsub/docs/access-control#pubsub.publisher) |
-
-
-
-#### Config
-
-`vmagent` supports the following flags for the PubSub publisher:
-
-| Flag                                        | Default | Description                                                                                           |
-|---------------------------------------------|--------|-------------------------------------------------------------------------------------------------------|
-| `gcp.pubsub.credentialsFile`         | ""     | Credentials to use to authenticate to GCP.                                                            |
-| `gcp.pubsub.publish.countThreshold`         | 100    | Publish a batch when it has this many messages.                                                       |
-| `gcp.pubsub.publish.byteThreshold`          | 1000000 | Publish a batch when its size in bytes reaches this value.                                            |
-| `gcp.pubsub.publish.timeout`                | 60s    | The maximum time that the client will attempt to publish a bundle of messages.                        |
-| `gcp.pubsub.publish.delayThreshold`         | 10ms   | Publish a non-empty batch after this delay has passed.                                                |
-| `gcp.pubsub.publish.maxOutstandingMessages` | 100    | Maximum number of buffered messages to be published. If less than or equal to zero, this is disabled. |
-| `gcp.pubsub.publish.maxOutstandingBytes`    | -1     | Maximum size of buffered messages to be published. If less than or equal to zero, this is disabled.   |
-
-
-#### Monitoring
-`vmagent` exposes the following flags related to PubSub publisher:
-
-| Metric                                                                      | Description            |   
-|-----------------------------------------------------------------------------|------------------------|
-| `vmagent_remotewrite_pubsub_sent_messages_total{project,topic}`             | Message/block enqueued |
-| `vmagent_remotewrite_pubsub_published_messages_total{project,topic,status}` | Message published      |   
-
 
 ## How to build from sources
 

@@ -360,6 +360,16 @@ func Stop() {
 	}
 }
 
+// PushDropSamplesOnFailure pushes wr to the configured remote storage systems set via -remoteWrite.url and -remoteWrite.multitenantURL
+//
+// If at is nil, then the data is pushed to the configured -remoteWrite.url.
+// If at isn't nil, the data is pushed to the configured -remoteWrite.multitenantURL.
+//
+// PushDropSamplesOnFailure can modify wr contents.
+func PushDropSamplesOnFailure(at *auth.Token, wr *prompbmarshal.WriteRequest) {
+	_ = tryPush(at, wr, true)
+}
+
 // TryPush tries sending wr to the configured remote storage systems set via -remoteWrite.url and -remoteWrite.multitenantURL
 //
 // If at is nil, then the data is pushed to the configured -remoteWrite.url.
@@ -370,6 +380,10 @@ func Stop() {
 //
 // The caller must return ErrQueueFullHTTPRetry to the client, which sends wr, if TryPush returns false.
 func TryPush(at *auth.Token, wr *prompbmarshal.WriteRequest) bool {
+	return tryPush(at, wr, *dropSamplesOnOverload)
+}
+
+func tryPush(at *auth.Token, wr *prompbmarshal.WriteRequest, dropSamplesOnFailure bool) bool {
 	if at == nil && len(*remoteWriteMultitenantURLs) > 0 {
 		// Write data to default tenant if at isn't set while -remoteWrite.multitenantURL is set.
 		at = defaultAuthToken
@@ -404,7 +418,7 @@ func TryPush(at *auth.Token, wr *prompbmarshal.WriteRequest) bool {
 		for _, rwctx := range rwctxs {
 			if rwctx.fq.IsWriteBlocked() {
 				pushFailures.Inc()
-				if *dropSamplesOnOverload {
+				if dropSamplesOnFailure {
 					// Just drop samples
 					samplesDropped.Add(rowsCount)
 					return true
@@ -462,7 +476,7 @@ func TryPush(at *auth.Token, wr *prompbmarshal.WriteRequest) bool {
 				logger.Panicf("BUG: tryPushBlockToRemoteStorages must return true if -remoteWrite.disableOnDiskQueue isn't set")
 			}
 			pushFailures.Inc()
-			if *dropSamplesOnOverload {
+			if dropSamplesOnFailure {
 				samplesDropped.Add(rowsCount)
 				return true
 			}
