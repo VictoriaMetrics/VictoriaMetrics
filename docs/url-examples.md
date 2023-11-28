@@ -631,13 +631,17 @@ curl -Is http://localhost:8428/internal/resetRollupResultCache
 
 </div>
 
-Cluster version of VictoriaMetrics::
+Cluster version of VictoriaMetrics:
 
 <div class="with-copy" markdown="1">
 
 ```console
 curl -Is http://<vmselect>:8481/select/internal/resetRollupResultCache
 ```
+
+vmselect will propagate this call to the rest of the vmselects listed in its `-selectNode` cmd-line flag. If this
+flag isn't set, then cache need to be purged from each vmselect individually.
+
 
 </div>
 
