@@ -25,7 +25,7 @@ func (r *Request) Extract(fn func(prompbmarshal.TimeSeries) error, sanitizeFn fu
 	for _, sketch := range r.SketchPayload.Sketches {
 		sketchSeries := make([]prompbmarshal.TimeSeries, 5)
 		for _, point := range sketch.Dogsketches {
-			timestamp := int64(point.Ts * 1000)
+			timestamp := point.Ts * 1000
 			updateSeries(sketchSeries, sanitizeFn(sketch.Metric), timestamp, map[string]float64{
 				"max": point.Max,
 				"min": point.Min,
@@ -35,7 +35,7 @@ func (r *Request) Extract(fn func(prompbmarshal.TimeSeries) error, sanitizeFn fu
 			})
 		}
 		for _, point := range sketch.Distributions {
-			timestamp := int64(point.Ts * 1000)
+			timestamp := point.Ts * 1000
 			updateSeries(sketchSeries, sanitizeFn(sketch.Metric), timestamp, map[string]float64{
 				"max": point.Max,
 				"min": point.Min,
