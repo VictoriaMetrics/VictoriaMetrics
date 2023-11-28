@@ -30,10 +30,10 @@ func (r *Request) Extract(fn func(prompbmarshal.TimeSeries) error, sanitizeFn fu
 			if ts <= 0 {
 				ts = float64(currentTimestamp)
 			}
-			samples[j] = prompbmarshal.Sample{
+			samples = append(samples, prompbmarshal.Sample{
 				Timestamp: int64(ts * 1000),
 				Value:     val,
-			}
+			})
 		}
 		ts := prompbmarshal.TimeSeries{
 			Samples: samples,
