@@ -42,6 +42,7 @@ var transformFuncs = map[string]transformFunc{
 	"cosh":                       newTransformFuncOneArg(transformCosh),
 	"day_of_month":               newTransformFuncDateTime(transformDayOfMonth),
 	"day_of_week":                newTransformFuncDateTime(transformDayOfWeek),
+	"day_of_year":                newTransformFuncDateTime(transformDayOfYear),
 	"days_in_month":              newTransformFuncDateTime(transformDaysInMonth),
 	"deg":                        newTransformFuncOneArg(transformDeg),
 	"drop_common_labels":         transformDropCommonLabels,
@@ -351,6 +352,10 @@ func newTransformFuncDateTime(f func(t time.Time) int) transformFunc {
 		}
 		return doTransformValues(arg, tf, tfa.fe)
 	}
+}
+
+func transformDayOfYear(t time.Time) int {
+	return t.YearDay()
 }
 
 func transformDayOfMonth(t time.Time) int {
