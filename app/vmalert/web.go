@@ -133,14 +133,16 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		w.Write(data)
 		return true
 	case "/vmalert/api/v1/rule", "/api/v1/rule":
+		withField := r.URL.Query().Get("with_field")
 		rule, err := rh.getRule(r)
 		if err != nil {
 			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
+		rule.withField = withField
 		data, err := json.Marshal(rule)
 		if err != nil {
-			httpserver.Errorf(w, r, "failed to marshal alert: %s", err)
+			httpserver.Errorf(w, r, "failed to marshal rule: %s", err)
 			return true
 		}
 		w.Header().Set("Content-Type", "application/json")

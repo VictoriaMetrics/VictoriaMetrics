@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"sort"
@@ -18,6 +19,8 @@ const (
 	paramAlertID = "alert_id"
 	// ParamRuleID is rule id key in url parameter
 	paramRuleID = "rule_id"
+	// updatesField whether to include to the json
+	updatesField = "updates"
 )
 
 // apiAlert represents a notifier.AlertingRule state
@@ -157,7 +160,16 @@ type apiRule struct {
 	// MaxUpdates is the max number of recorded ruleStateEntry objects
 	MaxUpdates int `json:"max_updates_entries"`
 	// Updates contains the ordered list of recorded ruleStateEntry objects
-	Updates []rule.StateEntry `json:"updates"`
+	Updates []rule.StateEntry `json:"updates,omitempty"`
+	// withField defines which field should be enabled for marshaling
+	withField string
+}
+
+func (ar *apiRule) MarshalJSON() ([]byte, error) {
+	if ar.withField != updatesField {
+		ar.Updates = nil
+	}
+	return json.Marshal(ar)
 }
 
 // WebLink returns a link to the alert which can be used in UI.
