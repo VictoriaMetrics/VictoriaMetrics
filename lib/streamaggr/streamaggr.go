@@ -729,9 +729,11 @@ func (ctx *flushCtx) appendSeries(labelsMarshaled, suffix string, timestamp int6
 		Timestamp: timestamp,
 		Value:     value,
 	})
+	newLabelsLen := len(ctx.labels)
+	newSamplesLen := len(ctx.samples)
 	ctx.tss = append(ctx.tss, prompbmarshal.TimeSeries{
-		Labels:  ctx.labels[labelsLen:],
-		Samples: ctx.samples[samplesLen:],
+		Labels:  ctx.labels[labelsLen:newLabelsLen:newLabelsLen],
+		Samples: ctx.samples[samplesLen:newSamplesLen:newSamplesLen],
 	})
 }
 
@@ -752,9 +754,11 @@ func (ctx *flushCtx) appendSeriesWithExtraLabel(labelsMarshaled, suffix string, 
 		Timestamp: timestamp,
 		Value:     value,
 	})
+	newLabelsLen := len(ctx.labels)
+	newSamplesLen := len(ctx.samples)
 	ctx.tss = append(ctx.tss, prompbmarshal.TimeSeries{
-		Labels:  ctx.labels[labelsLen:],
-		Samples: ctx.samples[samplesLen:],
+		Labels:  ctx.labels[labelsLen:newLabelsLen:newLabelsLen],
+		Samples: ctx.samples[samplesLen:newSamplesLen:newSamplesLen],
 	})
 }
 
