@@ -2043,6 +2043,8 @@ Alternatively, single-node VictoriaMetrics can self-scrape the metrics when `-se
 set to duration greater than 0. For example, `-selfScrapeInterval=10s` would enable self-scraping of `/metrics` page 
 with 10 seconds interval.
 
+_Please note, never use loadbalancer address for scraping metrics. All monitored components should be scraped directly by their address._
+
 Official Grafana dashboards available for [single-node](https://grafana.com/grafana/dashboards/10229-victoriametrics/) 
 and [clustered](https://grafana.com/grafana/dashboards/11176-victoriametrics-cluster/) VictoriaMetrics. 
 See an [alternative dashboard for clustered VictoriaMetrics](https://grafana.com/grafana/dashboards/11831) 
