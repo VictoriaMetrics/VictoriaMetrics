@@ -305,7 +305,7 @@ func (c *client) runWorker() {
 				continue
 			}
 			// Return unsent block to the queue.
-			c.fq.MustWriteBlock(block)
+			c.fq.MustWriteBlockIgnoreDisabledPQ(block)
 			return
 		case <-c.stopCh:
 			// c must be stopped. Wait for a while in the hope the block will be sent.
@@ -314,11 +314,11 @@ func (c *client) runWorker() {
 			case ok := <-ch:
 				if !ok {
 					// Return unsent block to the queue.
-					c.fq.MustWriteBlock(block)
+					c.fq.MustWriteBlockIgnoreDisabledPQ(block)
 				}
 			case <-time.After(graceDuration):
 				// Return unsent block to the queue.
-				c.fq.MustWriteBlock(block)
+				c.fq.MustWriteBlockIgnoreDisabledPQ(block)
 			}
 			return
 		}

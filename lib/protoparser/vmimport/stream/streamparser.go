@@ -15,7 +15,7 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 )
 
-var maxLineLen = flagutil.NewBytes("import.maxLineLen", 100*1024*1024, "The maximum length in bytes of a single line accepted by /api/v1/import; "+
+var maxLineLen = flagutil.NewBytes("import.maxLineLen", 10*1024*1024, "The maximum length in bytes of a single line accepted by /api/v1/import; "+
 	"the line length can be limited with 'max_rows_per_line' query arg passed to /api/v1/export")
 
 // Parse parses /api/v1/import lines from req and calls callback for the parsed rows.

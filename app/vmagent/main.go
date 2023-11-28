@@ -139,7 +139,7 @@ func main() {
 		opentsdbhttpServer = opentsdbhttpserver.MustStart(*opentsdbHTTPListenAddr, *opentsdbHTTPUseProxyProtocol, httpInsertHandler)
 	}
 
-	promscrape.Init(remotewrite.Push)
+	promscrape.Init(remotewrite.PushDropSamplesOnFailure)
 
 	if len(*httpListenAddr) > 0 {
 		go httpserver.Serve(*httpListenAddr, *useProxyProtocol, requestHandler)

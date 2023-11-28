@@ -425,7 +425,7 @@ The results of `total` is equal to the `sum(some_counter)` query.
 
 For example, see below time series produced by config with aggregation interval `1m` and `by: ["instance"]` and  the regular query:
 
-<img alt="total aggregation" src="stream-aggregation-check-total.png">
+<img alt="total aggregation" src="stream-aggregation-check-total.webp">
 
 `total` is not affected by [counter resets](https://docs.victoriametrics.com/keyConcepts.html#counter) - 
 it continues to increase monotonically with respect to the previous value.
@@ -433,7 +433,7 @@ The counters are most often reset when the application is restarted.
 
 For example: 
 
-<img alt="total aggregation counter reset" src="stream-aggregation-check-total-reset.png">
+<img alt="total aggregation counter reset" src="stream-aggregation-check-total-reset.webp">
 
 The same behavior will occur when creating or deleting new series in an aggregation group -
 `total` will increase monotonically considering the values of the series set.  
@@ -452,7 +452,7 @@ The results of `increase` with aggregation interval of `1m` is equal to the `inc
 
 For example, see below time series produced by config with aggregation interval `1m` and `by: ["instance"]` and  the regular query:
 
-<img alt="increase aggregation" src="stream-aggregation-check-increase.png">
+<img alt="increase aggregation" src="stream-aggregation-check-increase.webp">
 
 `increase` can be used as an alternative for [rate](https://docs.victoriametrics.com/MetricsQL.html#rate) function.
 For example, if we have `increase` with `interval` of `5m` for a counter `some_counter`, then to get `rate` we should divide
@@ -484,7 +484,7 @@ The results of `sum_samples` with aggregation interval of `1m` is equal to the `
 
 For example, see below time series produced by config with aggregation interval `1m` and the regular query:
 
-<img alt="sum_samples aggregation" src="stream-aggregation-check-sum-samples.png">
+<img alt="sum_samples aggregation" src="stream-aggregation-check-sum-samples.webp">
 
 ### last
 
@@ -503,7 +503,7 @@ The results of `min` with aggregation interval of `1m` is equal to the `min_over
 
 For example, see below time series produced by config with aggregation interval `1m` and the regular query:
 
-<img alt="min aggregation" src="stream-aggregation-check-min.png">
+<img alt="min aggregation" src="stream-aggregation-check-min.webp">
 
 ### max
 
@@ -513,7 +513,7 @@ The results of `max` with aggregation interval of `1m` is equal to the `max_over
 
 For example, see below time series produced by config with aggregation interval `1m` and the regular query:
 
-<img alt="total aggregation" src="stream-aggregation-check-max.png">
+<img alt="total aggregation" src="stream-aggregation-check-max.webp">
 
 ### avg
 
@@ -523,7 +523,7 @@ The results of `avg` with aggregation interval of `1m` is equal to the `avg_over
 
 For example, see below time series produced by config with aggregation interval `1m` and `by: ["instance"]` and  the regular query:
 
-<img alt="avg aggregation" src="stream-aggregation-check-avg.png">
+<img alt="avg aggregation" src="stream-aggregation-check-avg.webp">
 
 ### stddev
 
@@ -541,7 +541,7 @@ The results of `stdvar` with aggregation interval of `1m` is equal to the `stdva
 
 For example, see below time series produced by config with aggregation interval `1m` and the regular query:
 
-<img alt="stdvar aggregation" src="stream-aggregation-check-stdvar.png">
+<img alt="stdvar aggregation" src="stream-aggregation-check-stdvar.webp">
 
 ### histogram_bucket
 

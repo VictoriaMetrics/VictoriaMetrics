@@ -16,7 +16,7 @@ func BenchmarkFastQueueThroughputSerial(b *testing.B) {
 			b.SetBytes(int64(blockSize) * iterationsCount)
 			path := fmt.Sprintf("bench-fast-queue-throughput-serial-%d", blockSize)
 			mustDeleteDir(path)
-			fq := MustOpenFastQueue(path, "foobar", iterationsCount*2, 0)
+			fq := MustOpenFastQueue(path, "foobar", iterationsCount*2, 0, false)
 			defer func() {
 				fq.MustClose()
 				mustDeleteDir(path)
@@ -37,7 +37,7 @@ func BenchmarkFastQueueThroughputConcurrent(b *testing.B) {
 			b.SetBytes(int64(blockSize) * iterationsCount)
 			path := fmt.Sprintf("bench-fast-queue-throughput-concurrent-%d", blockSize)
 			mustDeleteDir(path)
-			fq := MustOpenFastQueue(path, "foobar", iterationsCount*cgroup.AvailableCPUs()*2, 0)
+			fq := MustOpenFastQueue(path, "foobar", iterationsCount*cgroup.AvailableCPUs()*2, 0, false)
 			defer func() {
 				fq.MustClose()
 				mustDeleteDir(path)
@@ -53,7 +53,9 @@ func BenchmarkFastQueueThroughputConcurrent(b *testing.B) {
 
 func writeReadIterationFastQueue(fq *FastQueue, block []byte, iterationsCount int) {
 	for i := 0; i < iterationsCount; i++ {
-		fq.MustWriteBlock(block)
+		if !fq.TryWriteBlock(block) {
+			panic(fmt.Errorf("TryWriteBlock must return true"))
+		}
 	}
 	var ok bool
 	bb := bbPool.Get()
