@@ -275,7 +275,7 @@ Additional information:
 * [How to export time series](https://docs.victoriametrics.com/#how-to-export-time-series)
 * [URL format for VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format)
 
-## /api/v1/labels
+### /api/v1/labels
 
 **Get a list of label names at the given time range**
 
