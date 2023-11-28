@@ -104,10 +104,10 @@ metadata:
   name: vmrule-recording-example
 spec:
   groups:
-    - name: vmalert
+    - name: vmrule_recording_groupname
       interval: 1m
       rules:
-        - alert: vmalert config reload error
+        - record: vm_http_request_errors_total:sum_by_cluster_namespace_job:rate:5m
           expr: |-
             sum by (cluster, namespace, job) (
               rate(vm_http_request_errors_total[5m])
