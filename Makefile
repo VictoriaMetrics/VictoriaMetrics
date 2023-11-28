@@ -152,7 +152,6 @@ victoria-metrics-crossbuild: \
 	victoria-metrics-linux-amd64 \
 	victoria-metrics-linux-arm64 \
 	victoria-metrics-linux-arm \
-	victoria-metrics-linux-386 \
 	victoria-metrics-linux-ppc64le \
 	victoria-metrics-darwin-amd64 \
 	victoria-metrics-darwin-arm64 \
@@ -164,7 +163,6 @@ vmutils-crossbuild: \
 	vmutils-linux-amd64 \
 	vmutils-linux-arm64 \
 	vmutils-linux-arm \
-	vmutils-linux-386 \
 	vmutils-linux-ppc64le \
 	vmutils-darwin-amd64 \
 	vmutils-darwin-arm64 \
