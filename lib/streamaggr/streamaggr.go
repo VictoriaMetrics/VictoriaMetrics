@@ -471,22 +471,30 @@ func (a *aggregator) flush() {
 
 		tss := ctx.tss
 
-		// Apply output relabeling
-		if a.outputRelabeling != nil {
-			dst := tss[:0]
-			for _, ts := range tss {
-				ts.Labels = a.outputRelabeling.Apply(ts.Labels, 0)
-				if len(ts.Labels) == 0 {
-					// The metric has been deleted by the relabeling
-					continue
-				}
-				dst = append(dst, ts)
-			}
-			tss = dst
+		if a.outputRelabeling == nil {
+			// Fast path - push the output metrics.
+			a.pushFunc(tss)
+			continue
 		}
 
-		// Push the output metrics.
-		a.pushFunc(tss)
+		// Slower path - apply output relabeling and then push the output metrics.
+		auxLabels := promutils.GetLabels()
+		dstLabels := auxLabels.Labels[:0]
+		dst := tss[:0]
+		for _, ts := range tss {
+			dstLabelsLen := len(dstLabels)
+			dstLabels = append(dstLabels, ts.Labels...)
+			dstLabels = a.outputRelabeling.Apply(dstLabels, dstLabelsLen)
+			if len(dstLabels) == dstLabelsLen {
+				// The metric has been deleted by the relabeling
+				continue
+			}
+			ts.Labels = dstLabels[dstLabelsLen:]
+			dst = append(dst, ts)
+		}
+		a.pushFunc(dst)
+		auxLabels.Labels = dstLabels
+		promutils.PutLabels(auxLabels)
 	}
 }
 
