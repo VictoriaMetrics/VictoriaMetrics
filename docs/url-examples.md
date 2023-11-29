@@ -529,6 +529,85 @@ echo '
 
 </div>
 
+### /datadog/api/v2/series
+
+**Imports data in DataDog format into VictoriaMetrics**
+
+Single-node VictoriaMetrics:
+<div class="with-copy" markdown="1">
+
+```console
+echo '
+{
+  "series": [
+    {
+      "interval": 20,
+      "metric": "system.load.1",
+      "resources": [
+        {
+          "name": "test.example.com",
+          "type": "host"
+        }
+      ],
+      "points": [
+        {
+          "timestamp": 1699152159,
+          "value": 0
+        },
+        {
+          "timestamp": 1699152160,
+          "value": 0.5
+        }
+      ],
+      "tags": [
+        "environment:test"
+      ],
+      "type": "rate"
+    }
+  ]
+}
+' | curl -X POST -H 'Content-Type: application/json' --data-binary @- http://localhost:8428/datadog/api/v2/series
+```
+
+</div>
+
+Cluster version of VictoriaMetrics:
+<div class="with-copy" markdown="1">
+
+```console
+echo '
+{
+  "series": [
+    {
+      "interval": 20,
+      "metric": "system.load.1",
+      "resources": [
+        {
+          "name": "test.example.com",
+          "type": "host"
+        }
+      ],
+      "points": [
+        {
+          "timestamp": 1699152159,
+          "value": 0
+        },
+        {
+          "timestamp": 1699152160,
+          "value": 0.5
+        }
+      ],
+      "tags": [
+        "environment:test"
+      ],
+      "type": "rate"
+    }
+  ]
+}
+' | curl -X POST -H 'Content-Type: application/json' --data-binary @- 'http://<vminsert>:8480/insert/0/datadog/api/v2/series
+
+</div>
+
 Additional information:
 
 * [How to send data from datadog agent](https://docs.victoriametrics.com/#how-to-send-data-from-datadog-agent)
