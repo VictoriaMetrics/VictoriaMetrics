@@ -7,7 +7,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
-	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/datadog"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/datadog/stream"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -17,7 +16,7 @@ var (
 	rowsPerInsert = metrics.NewHistogram(`vm_rows_per_insert{type="datadog"}`)
 )
 
-// InsertHandlerForHTTP processes remote write for DataDog POST /api/v1/series request.
+// InsertHandlerForHTTP processes remote write for DataDog POST /api/v1/series, /api/v2/series, /api/v1/sketches, /api/beta/sketches request.
 //
 // See https://docs.datadoghq.com/api/latest/metrics/#submit-metrics
 func InsertHandlerForHTTP(req *http.Request) error {
@@ -25,62 +24,38 @@ func InsertHandlerForHTTP(req *http.Request) error {
 	if err != nil {
 		return err
 	}
-	ce := req.Header.Get("Content-Encoding")
-	return stream.Parse(req.Body, ce, func(series []parser.Series) error {
-		return insertRows(series, extraLabels)
-	})
+	return stream.Parse(
+		req, func(series prompbmarshal.TimeSeries) error {
+			series.Labels = append(series.Labels, extraLabels...)
+			return insertRows(series)
+		},
+	)
 }
 
-func insertRows(series []parser.Series, extraLabels []prompbmarshal.Label) error {
+func insertRows(series prompbmarshal.TimeSeries) error {
 	ctx := common.GetInsertCtx()
 	defer common.PutInsertCtx(ctx)
 
-	rowsLen := 0
-	for i := range series {
-		rowsLen += len(series[i].Points)
-	}
-	ctx.Reset(rowsLen)
-	rowsTotal := 0
 	hasRelabeling := relabel.HasRelabeling()
-	for i := range series {
-		ss := &series[i]
-		rowsTotal += len(ss.Points)
-		ctx.Labels = ctx.Labels[:0]
-		ctx.AddLabel("", ss.Metric)
-		if ss.Host != "" {
-			ctx.AddLabel("host", ss.Host)
-		}
-		if ss.Device != "" {
-			ctx.AddLabel("device", ss.Device)
-		}
-		for _, tag := range ss.Tags {
-			name, value := parser.SplitTag(tag)
-			if name == "host" {
-				name = "exported_host"
-			}
-			ctx.AddLabel(name, value)
-		}
-		for j := range extraLabels {
-			label := &extraLabels[j]
-			ctx.AddLabel(label.Name, label.Value)
-		}
-		if hasRelabeling {
-			ctx.ApplyRelabeling()
-		}
-		if len(ctx.Labels) == 0 {
-			// Skip metric without labels.
-			continue
-		}
-		ctx.SortLabelsIfNeeded()
-		var metricNameRaw []byte
-		var err error
-		for _, pt := range ss.Points {
-			timestamp := pt.Timestamp()
-			value := pt.Value()
-			metricNameRaw, err = ctx.WriteDataPointExt(metricNameRaw, ctx.Labels, timestamp, value)
-			if err != nil {
-				return err
-			}
+	rowsTotal := len(series.Samples)
+
+	ctx.Reset(rowsTotal)
+	ctx.Labels = ctx.Labels[:0]
+	for l := range series.Labels {
+		ctx.AddLabel(series.Labels[l].Name, series.Labels[l].Value)
+	}
+	if hasRelabeling {
+		ctx.ApplyRelabeling()
+	}
+	if len(ctx.Labels) == 0 {
+		return nil
+	}
+	ctx.SortLabelsIfNeeded()
+
+	for _, sample := range series.Samples {
+		_, err := ctx.WriteDataPointExt(nil, ctx.Labels, sample.Timestamp, sample.Value)
+		if err != nil {
+			return err
 		}
 	}
 	rowsInserted.Add(rowsTotal)

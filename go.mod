@@ -6,13 +6,13 @@ require (
 	cloud.google.com/go/storage v1.35.1
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.9.0
 	github.com/Azure/azure-sdk-for-go/sdk/storage/azblob v1.2.0
-	github.com/VictoriaMetrics/fastcache v1.12.1
+	github.com/VictoriaMetrics/fastcache v1.12.2
 
 	// Do not use the original github.com/valyala/fasthttp because of issues
 	// like https://github.com/valyala/fasthttp/commit/996610f021ff45fdc98c2ce7884d5fa4e7f9199b
 	github.com/VictoriaMetrics/fasthttp v1.2.0
 	github.com/VictoriaMetrics/metrics v1.24.0
-	github.com/VictoriaMetrics/metricsql v0.69.0
+	github.com/VictoriaMetrics/metricsql v0.70.0
 	github.com/aws/aws-sdk-go-v2 v1.23.0
 	github.com/aws/aws-sdk-go-v2/config v1.25.1
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.13.8

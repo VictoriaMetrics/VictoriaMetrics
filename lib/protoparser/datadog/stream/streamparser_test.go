@@ -7,7 +7,7 @@ import (
 func TestSanitizeName(t *testing.T) {
 	f := func(s, resultExpected string) {
 		t.Helper()
-		result := sanitizeName(s)
+		result := sanitizeName(true)(s)
 		if result != resultExpected {
 			t.Fatalf("unexpected result for sanitizeName(%q); got\n%q\nwant\n%q", s, result, resultExpected)
 		}

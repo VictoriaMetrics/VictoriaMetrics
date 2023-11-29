@@ -109,7 +109,7 @@ Please find the example of provisioning Grafana instance with VictoriaMetrics da
 
 1. Download the latest release:
    
-   ``` bash
+   ```bash
    ver=$(curl -s https://api.github.com/repos/VictoriaMetrics/grafana-datasource/releases/latest | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -1)
    curl -L https://github.com/VictoriaMetrics/grafana-datasource/releases/download/$ver/victoriametrics-datasource-$ver.tar.gz -o plugin.tar.gz
    tar -xf plugin.tar.gz -C ./victoriametrics-datasource
@@ -143,7 +143,7 @@ docker-compose -f docker-compose.yaml up
 When Grafana starts successfully datasources should be present on the datasources tab
 
 <p>
-  <img src="provision_datasources.png" width="800" alt="Configuration">
+  <img src="grafana-datasource_provision_datasources.webp" width="800" alt="Configuration">
 </p>
 
 ### Install in Kubernetes
@@ -248,7 +248,7 @@ This example uses init container to download and install plugin.
 
 1. To download plugin build and move contents into Grafana plugins directory:
    
-   ``` bash
+   ```bash
    ver=$(curl -s https://api.github.com/repos/VictoriaMetrics/grafana-datasource/releases/latest | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -1)
    curl -L https://github.com/VictoriaMetrics/grafana-datasource/releases/download/$ver/victoriametrics-datasource-$ver.tar.gz -o /var/lib/grafana/plugins/plugin.tar.gz
    tar -xf /var/lib/grafana/plugins/plugin.tar.gz -C /var/lib/grafana/plugins/
@@ -262,14 +262,19 @@ This example uses init container to download and install plugin.
 
 ### 1. Configure Grafana
 Installing dev version of Grafana plugin requires to change `grafana.ini` config to allow loading unsigned plugins:
+
+{% raw %}
 ``` ini
 # Directory where Grafana will automatically scan and look for plugins
 plugins = {{path to directory with plugin}}
 ```
+{% endraw %}
+
 ``` ini
 [plugins]
 allow_loading_unsigned_plugins = victoriametrics-datasource
 ```
+
 ### 2. Run the plugin
 In the project directory, you can run:
 ```

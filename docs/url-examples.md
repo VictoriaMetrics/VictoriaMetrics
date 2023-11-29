@@ -275,7 +275,7 @@ Additional information:
 * [How to export time series](https://docs.victoriametrics.com/#how-to-export-time-series)
 * [URL format for VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format)
 
-## /api/v1/labels
+### /api/v1/labels
 
 **Get a list of label names at the given time range**
 
@@ -529,6 +529,85 @@ echo '
 
 </div>
 
+### /datadog/api/v2/series
+
+**Imports data in DataDog format into VictoriaMetrics**
+
+Single-node VictoriaMetrics:
+<div class="with-copy" markdown="1">
+
+```console
+echo '
+{
+  "series": [
+    {
+      "interval": 20,
+      "metric": "system.load.1",
+      "resources": [
+        {
+          "name": "test.example.com",
+          "type": "host"
+        }
+      ],
+      "points": [
+        {
+          "timestamp": 1699152159,
+          "value": 0
+        },
+        {
+          "timestamp": 1699152160,
+          "value": 0.5
+        }
+      ],
+      "tags": [
+        "environment:test"
+      ],
+      "type": "rate"
+    }
+  ]
+}
+' | curl -X POST -H 'Content-Type: application/json' --data-binary @- http://localhost:8428/datadog/api/v2/series
+```
+
+</div>
+
+Cluster version of VictoriaMetrics:
+<div class="with-copy" markdown="1">
+
+```console
+echo '
+{
+  "series": [
+    {
+      "interval": 20,
+      "metric": "system.load.1",
+      "resources": [
+        {
+          "name": "test.example.com",
+          "type": "host"
+        }
+      ],
+      "points": [
+        {
+          "timestamp": 1699152159,
+          "value": 0
+        },
+        {
+          "timestamp": 1699152160,
+          "value": 0.5
+        }
+      ],
+      "tags": [
+        "environment:test"
+      ],
+      "type": "rate"
+    }
+  ]
+}
+' | curl -X POST -H 'Content-Type: application/json' --data-binary @- 'http://<vminsert>:8480/insert/0/datadog/api/v2/series
+
+</div>
+
 Additional information:
 
 * [How to send data from datadog agent](https://docs.victoriametrics.com/#how-to-send-data-from-datadog-agent)
@@ -631,13 +710,17 @@ curl -Is http://localhost:8428/internal/resetRollupResultCache
 
 </div>
 
-Cluster version of VictoriaMetrics::
+Cluster version of VictoriaMetrics:
 
 <div class="with-copy" markdown="1">
 
 ```console
 curl -Is http://<vmselect>:8481/select/internal/resetRollupResultCache
 ```
+
+vmselect will propagate this call to the rest of the vmselects listed in its `-selectNode` cmd-line flag. If this
+flag isn't set, then cache need to be purged from each vmselect individually.
+
 
 </div>
 

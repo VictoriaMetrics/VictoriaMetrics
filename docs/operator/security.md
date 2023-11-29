@@ -6,6 +6,8 @@ menu:
   docs:
     parent: "operator"
     weight: 3
+aliases:
+  - /operator/security.html
 ---
 
 # Security
