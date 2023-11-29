@@ -70,11 +70,15 @@ func (prc *parsedRelabelConfig) String() string {
 //
 // It returns DebugStep list - one entry per each applied relabeling step.
 func (pcs *ParsedConfigs) ApplyDebug(labels []prompbmarshal.Label) ([]prompbmarshal.Label, []DebugStep) {
-	labels, dss := pcs.applyInternal(labels, 0, true)
+	// Protect from overwriting labels between len(labels) and cap(labels) by limiting labels capacity to its length.
+	labels, dss := pcs.applyInternal(labels[:len(labels):len(labels)], 0, true)
 	return labels, dss
 }
 
 // Apply applies pcs to labels starting from the labelsOffset.
+//
+// Apply() may add additional labels after the len(labels), so make sure it doesn't corrupt in-use labels
+// stored between len(labels) and cap(labels).
 func (pcs *ParsedConfigs) Apply(labels []prompbmarshal.Label, labelsOffset int) []prompbmarshal.Label {
 	labels, _ = pcs.applyInternal(labels, labelsOffset, false)
 	return labels
