@@ -639,6 +639,26 @@ The following articles contain useful information about Prometheus relabeling:
       source_labels: ["instance", "host"]
     ```
 
+  * `keep_if_contains`: keeps the entry if `target_label` contains all the label values listed in `source_labels`,
+    while dropping all the other entries. For example, the following relabeling config keeps targets
+    if `__meta_consul_tags` contains value from the `required_consul_tag` label:
+
+    ```yaml
+    - action: keep_if_contains
+      target_label: __meta_consul_tags
+      source_labels: [required_consul_tag]
+    ```
+
+  * `drop_if_contains`: drops the entry if `target_label` contains all the label values listed in `source_labels`,
+    while keeping all the other entries. For example, the following relabeling config drops targets
+    if `__meta_consul_tag` contains value from the `denied_consul_tag` label:
+
+    ```yaml
+    - action: drop_if_contains
+      target_label: __meta_consul_tags
+      source_labels: [denied_consul_tag]
+    ```
+
   * `keep_metrics`: keeps all the metrics with names matching the given `regex`,
     while dropping all the other metrics. For example, the following relabeling config keeps metrics
     with `foo` and `bar` names, while dropping all the other metrics:

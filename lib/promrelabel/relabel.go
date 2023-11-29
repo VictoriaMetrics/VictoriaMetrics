@@ -256,6 +256,32 @@ func (prc *parsedRelabelConfig) apply(labels []prompbmarshal.Label, labelsOffset
 			labels = setLabelValue(labels, labelsOffset, prc.TargetLabel, valueStr)
 		}
 		return labels
+	case "keep_if_contains":
+		// Keep the entry if target_label contains all the label values listed in source_labels.
+		// For example, the following relabeling rule would leave the entry if __meta_consul_tags
+		// contains values of __meta_required_tag1 and __meta_required_tag2:
+		//
+		//   - action: keep_if_contains
+		//     target_label: __meta_consul_tags
+		//     source_labels: [__meta_required_tag1, __meta_required_tag2]
+		//
+		if containsAllLabelValues(src, prc.TargetLabel, prc.SourceLabels) {
+			return labels
+		}
+		return labels[:labelsOffset]
+	case "drop_if_contains":
+		// Drop the entry if target_label contains all the label values listed in source_labels.
+		// For example, the following relabeling rule would drop the entry if __meta_consul_tags
+		// contains values of __meta_required_tag1 and __meta_required_tag2:
+		//
+		//   - action: drop_if_contains
+		//     target_label: __meta_consul_tags
+		//     source_labels: [__meta_required_tag1, __meta_required_tag2]
+		//
+		if containsAllLabelValues(src, prc.TargetLabel, prc.SourceLabels) {
+			return labels[:labelsOffset]
+		}
+		return labels
 	case "keep_if_equal":
 		// Keep the entry if all the label values in source_labels are equal.
 		// For example:
@@ -488,6 +514,17 @@ func (prc *parsedRelabelConfig) expandCaptureGroups(template, source string, mat
 }
 
 var relabelBufPool bytesutil.ByteBufferPool
+
+func containsAllLabelValues(labels []prompbmarshal.Label, targetLabel string, sourceLabels []string) bool {
+	targetLabelValue := getLabelValue(labels, targetLabel)
+	for _, sourceLabel := range sourceLabels {
+		v := getLabelValue(labels, sourceLabel)
+		if !strings.Contains(targetLabelValue, v) {
+			return false
+		}
+	}
+	return true
+}
 
 func areEqualLabelValues(labels []prompbmarshal.Label, labelNames []string) bool {
 	if len(labelNames) < 2 {
