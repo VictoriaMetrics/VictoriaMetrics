@@ -104,28 +104,28 @@ func (tsm *targetStatusMap) Reset() {
 
 func (tsm *targetStatusMap) registerJobNames(jobNames []string) {
 	tsm.mu.Lock()
-	tsm.registerJobsMetrics(jobNames)
+	tsm.registerJobsMetrics(tsm.jobNames, jobNames)
 	tsm.jobNames = append(tsm.jobNames[:0], jobNames...)
 	tsm.mu.Unlock()
 }
 
 // registerJobsMetrics registers metrics for new jobs and unregisterMetric metrics for removed jobs
-func (tsm *targetStatusMap) registerJobsMetrics(jobNames []string) {
-	preName := make(map[string]struct{}, len(tsm.jobNames))
-	currentName := make(map[string]struct{}, len(jobNames))
-	for _, n := range jobNames {
+func (tsm *targetStatusMap) registerJobsMetrics(prevJobNames, currentJobNames []string) {
+	prevName := make(map[string]struct{}, len(prevJobNames))
+	currentName := make(map[string]struct{}, len(currentJobNames))
+	for _, n := range currentJobNames {
 		currentName[n] = struct{}{}
 	}
-	for _, n := range tsm.jobNames {
-		preName[n] = struct{}{}
+	for _, n := range prevJobNames {
+		prevName[n] = struct{}{}
 		if _, ok := currentName[n]; !ok {
 			metrics.UnregisterMetric(fmt.Sprintf(`vm_promscrape_scrape_pool_targets{scrape_job=%q, status="up"}`, n))
 			metrics.UnregisterMetric(fmt.Sprintf(`vm_promscrape_scrape_pool_targets{scrape_job=%q, status="down"}`, n))
 		}
 	}
 
-	for _, n := range jobNames {
-		if _, ok := preName[n]; !ok {
+	for _, n := range currentJobNames {
+		if _, ok := prevName[n]; !ok {
 			n := n
 			_ = metrics.NewGauge(fmt.Sprintf(`vm_promscrape_scrape_pool_targets{scrape_job=%q, status="up"}`, n), func() float64 {
 				jobStatus := tsm.getTargetsStatusByJob(&requestFilter{
