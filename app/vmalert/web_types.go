@@ -154,6 +154,10 @@ type apiRule struct {
 	ID string `json:"id"`
 	// GroupID is an unique Group's ID
 	GroupID string `json:"group_id"`
+	// GroupName is Group name rule belong to
+	GroupName string `json:"group_name"`
+	// File is file name where rule is defined
+	File string `json:"file"`
 	// Debug shows whether debug mode is enabled
 	Debug bool `json:"debug"`
 
@@ -237,8 +241,10 @@ func alertingToAPI(ar *rule.AlertingRule) apiRule {
 		Debug:             ar.Debug,
 
 		// encode as strings to avoid rounding in JSON
-		ID:      fmt.Sprintf("%d", ar.ID()),
-		GroupID: fmt.Sprintf("%d", ar.GroupID),
+		ID:        fmt.Sprintf("%d", ar.ID()),
+		GroupID:   fmt.Sprintf("%d", ar.GroupID),
+		GroupName: ar.GroupName,
+		File:      ar.File,
 	}
 	if lastState.Err != nil {
 		r.LastError = lastState.Err.Error()
