@@ -11,7 +11,7 @@ require (
 	// Do not use the original github.com/valyala/fasthttp because of issues
 	// like https://github.com/valyala/fasthttp/commit/996610f021ff45fdc98c2ce7884d5fa4e7f9199b
 	github.com/VictoriaMetrics/fasthttp v1.2.0
-	github.com/VictoriaMetrics/metrics v1.24.0
+	github.com/VictoriaMetrics/metrics v1.25.3
 	github.com/VictoriaMetrics/metricsql v0.70.0
 	github.com/aws/aws-sdk-go-v2 v1.23.0
 	github.com/aws/aws-sdk-go-v2/config v1.25.1
@@ -35,7 +35,7 @@ require (
 	github.com/valyala/quicktemplate v1.7.0
 	golang.org/x/net v0.18.0
 	golang.org/x/oauth2 v0.14.0
-	golang.org/x/sys v0.14.0
+	golang.org/x/sys v0.15.0
 	google.golang.org/api v0.150.0
 	gopkg.in/yaml.v2 v2.4.0
 )
