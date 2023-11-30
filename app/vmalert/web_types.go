@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/url"
 	"sort"
@@ -20,7 +19,7 @@ const (
 	// ParamRuleID is rule id key in url parameter
 	paramRuleID = "rule_id"
 	// updatesField whether to include to the json
-	updatesField = "updates"
+	withExtraFields = "with_extra_fields"
 )
 
 // apiAlert represents a notifier.AlertingRule state
@@ -163,15 +162,13 @@ type apiRule struct {
 
 	// MaxUpdates is the max number of recorded ruleStateEntry objects
 	MaxUpdates int `json:"max_updates_entries"`
-	// Updates contains the ordered list of recorded ruleStateEntry objects
-	Updates []rule.StateEntry `json:"updates,omitempty"`
+	// apiRuleExtra represent additional dta
+	*apiRuleExtra
 }
 
-func (ar apiRule) toJSON(withField string) ([]byte, error) {
-	if withField != updatesField {
-		ar.Updates = nil
-	}
-	return json.Marshal(ar)
+type apiRuleExtra struct {
+	// Updates contains the ordered list of recorded ruleStateEntry objects
+	Updates []rule.StateEntry `json:"updates,omitempty"`
 }
 
 // WebLink returns a link to the alert which can be used in UI.
@@ -180,17 +177,17 @@ func (ar apiRule) WebLink() string {
 		paramGroupID, ar.GroupID, paramRuleID, ar.ID)
 }
 
-func ruleToAPI(r interface{}) apiRule {
+func ruleToAPI(r interface{}, useExtraFields bool) apiRule {
 	if ar, ok := r.(*rule.AlertingRule); ok {
-		return alertingToAPI(ar)
+		return alertingToAPI(ar, useExtraFields)
 	}
 	if rr, ok := r.(*rule.RecordingRule); ok {
-		return recordingToAPI(rr)
+		return recordingToAPI(rr, useExtraFields)
 	}
 	return apiRule{}
 }
 
-func recordingToAPI(rr *rule.RecordingRule) apiRule {
+func recordingToAPI(rr *rule.RecordingRule, useExtraFields bool) apiRule {
 	lastState := rule.GetLastEntry(rr)
 	r := apiRule{
 		Type:              "recording",
@@ -204,11 +201,13 @@ func recordingToAPI(rr *rule.RecordingRule) apiRule {
 		LastSamples:       lastState.Samples,
 		LastSeriesFetched: lastState.SeriesFetched,
 		MaxUpdates:        rule.GetRuleStateSize(rr),
-		Updates:           rule.GetAllRuleState(rr),
 
 		// encode as strings to avoid rounding
 		ID:      fmt.Sprintf("%d", rr.ID()),
 		GroupID: fmt.Sprintf("%d", rr.GroupID),
+	}
+	if useExtraFields {
+		r.apiRuleExtra = &apiRuleExtra{Updates: rule.GetAllRuleState(rr)}
 	}
 	if lastState.Err != nil {
 		r.LastError = lastState.Err.Error()
@@ -218,7 +217,7 @@ func recordingToAPI(rr *rule.RecordingRule) apiRule {
 }
 
 // alertingToAPI returns Rule representation in form of apiRule
-func alertingToAPI(ar *rule.AlertingRule) apiRule {
+func alertingToAPI(ar *rule.AlertingRule, useExtraFields bool) apiRule {
 	lastState := rule.GetLastEntry(ar)
 	r := apiRule{
 		Type:              "alerting",
@@ -237,7 +236,6 @@ func alertingToAPI(ar *rule.AlertingRule) apiRule {
 		LastSamples:       lastState.Samples,
 		LastSeriesFetched: lastState.SeriesFetched,
 		MaxUpdates:        rule.GetRuleStateSize(ar),
-		Updates:           rule.GetAllRuleState(ar),
 		Debug:             ar.Debug,
 
 		// encode as strings to avoid rounding in JSON
@@ -245,6 +243,9 @@ func alertingToAPI(ar *rule.AlertingRule) apiRule {
 		GroupID:   fmt.Sprintf("%d", ar.GroupID),
 		GroupName: ar.GroupName,
 		File:      ar.File,
+	}
+	if useExtraFields {
+		r.apiRuleExtra = &apiRuleExtra{Updates: rule.GetAllRuleState(ar)}
 	}
 	if lastState.Err != nil {
 		r.LastError = lastState.Err.Error()
@@ -337,7 +338,7 @@ func groupToAPI(g *rule.Group) apiGroup {
 	}
 	ag.Rules = make([]apiRule, 0)
 	for _, r := range g.Rules {
-		ag.Rules = append(ag.Rules, ruleToAPI(r))
+		ag.Rules = append(ag.Rules, ruleToAPI(r, false))
 	}
 	return ag
 }

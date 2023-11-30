@@ -68,9 +68,9 @@ func TestHandler(t *testing.T) {
 	})
 
 	t.Run("/vmalert/rule", func(t *testing.T) {
-		a := ruleToAPI(ar)
+		a := ruleToAPI(ar, false)
 		getResp(ts.URL+"/vmalert/"+a.WebLink(), nil, 200)
-		r := ruleToAPI(rr)
+		r := ruleToAPI(rr, false)
 		getResp(ts.URL+"/vmalert/"+r.WebLink(), nil, 200)
 	})
 	t.Run("/vmalert/alert", func(t *testing.T) {

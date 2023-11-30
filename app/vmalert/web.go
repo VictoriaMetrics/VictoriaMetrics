@@ -13,6 +13,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/rule"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/tpl"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 )
@@ -133,13 +134,12 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		w.Write(data)
 		return true
 	case "/vmalert/api/v1/rule", "/api/v1/rule":
-		withField := r.URL.Query().Get("with_field")
 		rule, err := rh.getRule(r)
 		if err != nil {
 			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
-		data, err := rule.toJSON(withField)
+		data, err := json.Marshal(rule)
 		if err != nil {
 			httpserver.Errorf(w, r, "failed to marshal rule: %s", err)
 			return true
@@ -168,7 +168,11 @@ func (rh *requestHandler) getRule(r *http.Request) (apiRule, error) {
 	if err != nil {
 		return apiRule{}, fmt.Errorf("failed to read %q param: %w", paramRuleID, err)
 	}
-	obj, err := rh.m.ruleAPI(groupID, ruleID)
+	useExtraFields := true
+	if strings.HasSuffix(r.URL.Path, "/api/v1/rule") {
+		useExtraFields = httputils.GetBool(r, withExtraFields)
+	}
+	obj, err := rh.m.ruleAPI(groupID, ruleID, useExtraFields)
 	if err != nil {
 		return apiRule{}, errResponse(err, http.StatusNotFound)
 	}

@@ -30,7 +30,7 @@ type manager struct {
 }
 
 // ruleAPI generates apiRule object from alert by its ID(hash)
-func (m *manager) ruleAPI(gID, rID uint64) (apiRule, error) {
+func (m *manager) ruleAPI(gID, rID uint64, useExtraFields bool) (apiRule, error) {
 	m.groupsMu.RLock()
 	defer m.groupsMu.RUnlock()
 
@@ -40,7 +40,7 @@ func (m *manager) ruleAPI(gID, rID uint64) (apiRule, error) {
 	}
 	for _, rule := range g.Rules {
 		if rule.ID() == rID {
-			return ruleToAPI(rule), nil
+			return ruleToAPI(rule, useExtraFields), nil
 		}
 	}
 	return apiRule{}, fmt.Errorf("can't find rule with id %d in group %q", rID, g.Name)
