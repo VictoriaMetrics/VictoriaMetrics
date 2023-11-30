@@ -162,7 +162,8 @@ type apiRule struct {
 
 	// MaxUpdates is the max number of recorded ruleStateEntry objects
 	MaxUpdates int `json:"max_updates_entries"`
-	// apiRuleExtra represent additional dta
+	// apiRuleExtra represent additional data which can be included or not depending on
+	// query parameter with_extra_fields. If it is set to true, then extra fields will be included
 	*apiRuleExtra
 }
 
