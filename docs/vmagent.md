@@ -1207,7 +1207,7 @@ which can be downloaded for evaluation from [releases](https://github.com/Victor
 
 ## How much disk space should you provide for the vmagent persistence queue?
 
-vmagent can [buffer data points](#features) on disk in case of offline storage, networking issues, etc.
+vmagent buffers scraped or received data at the `-remoteWrite.tmpDataPath` file system directory (aka persistent queue) until it is sent to `-remoteWrite.url`. The directory can grow large when remote storage is unavailable for extended periods of time and if the maximum directory size isn't limited with `-remoteWrite.maxDiskUsagePerURL` command-line flag. The buffered metrics are sent to remote storage as soon as the connection to the remote storage is repaired.
 
 vmagent exposes `vmagent_remotewrite_bytes_sent_total` metric - counter how many bytes were sent to remote write. It exposes `url` label, which represents remote write URL
 
