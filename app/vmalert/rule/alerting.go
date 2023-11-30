@@ -237,7 +237,7 @@ type labelSet struct {
 	origin map[string]string
 	// processed labels includes origin labels
 	// plus extra labels (group labels, service labels like alertNameLabel).
-	// in case of conflicts, origin labels are renamed with prefix `exported_` and extra labels are preferred. 
+	// in case of conflicts, origin labels are renamed with prefix `exported_` and extra labels are preferred.
 	// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5161
 	// used as labels attached to notifier.Alert and ALERTS series written to remote storage.
 	processed map[string]string

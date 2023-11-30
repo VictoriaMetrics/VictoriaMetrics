@@ -768,17 +768,12 @@ func TestAlertingRule_Exec_Negative(t *testing.T) {
 	ar.q = fq
 
 	// successful attempt
+	// label `job` will be overridden by rule extra label, the original value will be reserved by "exported_job"
 	fq.Add(metricWithValueAndLabels(t, 1, "__name__", "foo", "job", "bar"))
+	fq.Add(metricWithValueAndLabels(t, 1, "__name__", "foo", "job", "baz"))
 	_, err := ar.exec(context.TODO(), time.Now(), 0)
 	if err != nil {
 		t.Fatal(err)
-	}
-
-	// label `job` will collide with rule extra label and will make both time series equal
-	fq.Add(metricWithValueAndLabels(t, 1, "__name__", "foo", "job", "baz"))
-	_, err = ar.exec(context.TODO(), time.Now(), 0)
-	if !errors.Is(err, errDuplicate) {
-		t.Fatalf("expected to have %s error; got %s", errDuplicate, err)
 	}
 
 	fq.Reset()
@@ -899,20 +894,24 @@ func TestAlertingRule_Template(t *testing.T) {
 				metricWithValueAndLabels(t, 10, "__name__", "second", "instance", "bar", alertNameLabel, "override"),
 			},
 			map[uint64]*notifier.Alert{
-				hash(map[string]string{alertNameLabel: "override label", "instance": "foo"}): {
+				hash(map[string]string{alertNameLabel: "override label", "exported_alertname": "override", "instance": "foo", "exported_instance": "foo"}): {
 					Labels: map[string]string{
-						alertNameLabel: "override label",
-						"instance":     "foo",
+						alertNameLabel:       "override label",
+						"exported_alertname": "override",
+						"instance":           "foo",
+						"exported_instance":  "foo",
 					},
 					Annotations: map[string]string{
 						"summary":     `first: Too high connection number for "foo"`,
 						"description": `override: It is 2 connections for "foo"`,
 					},
 				},
-				hash(map[string]string{alertNameLabel: "override label", "instance": "bar"}): {
+				hash(map[string]string{alertNameLabel: "override label", "exported_alertname": "override", "instance": "bar", "exported_instance": "bar"}): {
 					Labels: map[string]string{
-						alertNameLabel: "override label",
-						"instance":     "bar",
+						alertNameLabel:       "override label",
+						"exported_alertname": "override",
+						"instance":           "bar",
+						"exported_instance":  "bar",
 					},
 					Annotations: map[string]string{
 						"summary":     `second: Too high connection number for "bar"`,
@@ -941,14 +940,20 @@ func TestAlertingRule_Template(t *testing.T) {
 			},
 			map[uint64]*notifier.Alert{
 				hash(map[string]string{
-					alertNameLabel:      "OriginLabels",
-					alertGroupNameLabel: "Testing",
-					"instance":          "foo",
+					alertNameLabel:        "OriginLabels",
+					"exported_alertname":  "originAlertname",
+					alertGroupNameLabel:   "Testing",
+					"exported_alertgroup": "originGroupname",
+					"instance":            "foo",
+					"exported_instance":   "foo",
 				}): {
 					Labels: map[string]string{
-						alertNameLabel:      "OriginLabels",
-						alertGroupNameLabel: "Testing",
-						"instance":          "foo",
+						alertNameLabel:        "OriginLabels",
+						"exported_alertname":  "originAlertname",
+						alertGroupNameLabel:   "Testing",
+						"exported_alertgroup": "originGroupname",
+						"instance":            "foo",
+						"exported_instance":   "foo",
 					},
 					Annotations: map[string]string{
 						"summary": `Alert "originAlertname(originGroupname)" for instance foo`,
