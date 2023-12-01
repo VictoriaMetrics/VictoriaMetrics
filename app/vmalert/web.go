@@ -139,7 +139,12 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
-		data, err := json.Marshal(rule)
+		rwu := apiRuleWithUpdates{apiRule: rule}
+		useExtraFields := httputils.GetBool(r, withExtraFields)
+		if useExtraFields {
+			rwu.StateUpdates = rule.Updates
+		}
+		data, err := json.Marshal(rwu)
 		if err != nil {
 			httpserver.Errorf(w, r, "failed to marshal rule: %s", err)
 			return true
@@ -159,6 +164,9 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 	}
 }
 
+// withExtraFields defines whether to add extra fields to JSON response
+const withExtraFields = "with_extra_fields"
+
 func (rh *requestHandler) getRule(r *http.Request) (apiRule, error) {
 	groupID, err := strconv.ParseUint(r.FormValue(paramGroupID), 10, 64)
 	if err != nil {
@@ -168,11 +176,7 @@ func (rh *requestHandler) getRule(r *http.Request) (apiRule, error) {
 	if err != nil {
 		return apiRule{}, fmt.Errorf("failed to read %q param: %w", paramRuleID, err)
 	}
-	useExtraFields := true
-	if strings.HasSuffix(r.URL.Path, "/api/v1/rule") {
-		useExtraFields = httputils.GetBool(r, withExtraFields)
-	}
-	obj, err := rh.m.ruleAPI(groupID, ruleID, useExtraFields)
+	obj, err := rh.m.ruleAPI(groupID, ruleID)
 	if err != nil {
 		return apiRule{}, errResponse(err, http.StatusNotFound)
 	}

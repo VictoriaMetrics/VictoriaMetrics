@@ -68,9 +68,9 @@ func TestHandler(t *testing.T) {
 	})
 
 	t.Run("/vmalert/rule", func(t *testing.T) {
-		a := ruleToAPI(ar, false)
+		a := ruleToAPI(ar)
 		getResp(ts.URL+"/vmalert/"+a.WebLink(), nil, 200)
-		r := ruleToAPI(rr, false)
+		r := ruleToAPI(rr)
 		getResp(ts.URL+"/vmalert/"+r.WebLink(), nil, 200)
 	})
 	t.Run("/vmalert/alert", func(t *testing.T) {
@@ -141,6 +141,33 @@ func TestHandler(t *testing.T) {
 		getResp(ts.URL+"/vmalert/api/v1/rules", &lr, 200)
 		if length := len(lr.Data.Groups); length != 1 {
 			t.Errorf("expected 1 group got %d", length)
+		}
+	})
+	t.Run("/api/v1/rule?ruleID&groupID", func(t *testing.T) {
+		expRule := ruleToAPI(ar)
+		// strip monotonic clock, as it can't be parsed by JSON
+		expRule.LastEvaluation = expRule.LastEvaluation.Round(0)
+		// nullify Updates as we don't send them by default
+		expRule.Updates = nil
+
+		gotRule := apiRule{}
+		getResp(ts.URL+"/"+expRule.APILink(), &gotRule, 200)
+
+		if !reflect.DeepEqual(gotRule, expRule) {
+			t.Errorf("expected \n%+v\n is equal to \n%+v", gotRule, expRule)
+		}
+
+		gotRule = apiRule{}
+		getResp(ts.URL+"/vmalert/"+expRule.APILink(), &gotRule, 200)
+
+		if !reflect.DeepEqual(gotRule, expRule) {
+			t.Errorf("expected \n%+v\n is equal to \n%+v", gotRule, expRule)
+		}
+
+		gotRuleWithUpdates := apiRuleWithUpdates{}
+		getResp(ts.URL+"/"+expRule.APILink()+"&with_extra_fields=1", &gotRuleWithUpdates, 200)
+		if gotRuleWithUpdates.StateUpdates == nil || len(gotRuleWithUpdates.StateUpdates) < 1 {
+			t.Fatalf("expected %+v to have state updates field not empty", gotRuleWithUpdates.StateUpdates)
 		}
 	})
 }
