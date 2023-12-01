@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage/servers"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
@@ -22,7 +24,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
-	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
@@ -68,7 +69,11 @@ var (
 		"See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning")
 	cacheSizeIndexDBIndexBlocks = flagutil.NewBytes("storage.cacheSizeIndexDBIndexBlocks", 0, "Overrides max size for indexdb/indexBlocks cache. "+
 		"See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning")
+	cacheShardsIndexDBIndexBlocks = flag.Int("storage.cacheShardsIndexDBIndexBlocks", 0, "Overrides number of shards for indexdb/indexBlocks cache. "+
+		"See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning")
 	cacheSizeIndexDBDataBlocks = flagutil.NewBytes("storage.cacheSizeIndexDBDataBlocks", 0, "Overrides max size for indexdb/dataBlocks cache. "+
+		"See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning")
+	cacheShardsIndexDBDataBlocks = flag.Int("storage.cacheShardsIndexDBDataBlocks", 0, "Overrides number of shards for indexdb/dataBlocks cache. "+
 		"See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning")
 	cacheSizeIndexDBTagFilters = flagutil.NewBytes("storage.cacheSizeIndexDBTagFilters", 0, "Overrides max size for indexdb/tagFiltersToMetricIDs cache. "+
 		"See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning")
@@ -92,7 +97,9 @@ func main() {
 	storage.SetTSIDCacheSize(cacheSizeStorageTSID.IntN())
 	storage.SetTagFiltersCacheSize(cacheSizeIndexDBTagFilters.IntN())
 	mergeset.SetIndexBlocksCacheSize(cacheSizeIndexDBIndexBlocks.IntN())
+	mergeset.SetIndexBlocksCacheShardsCount(*cacheShardsIndexDBIndexBlocks)
 	mergeset.SetDataBlocksCacheSize(cacheSizeIndexDBDataBlocks.IntN())
+	mergeset.SetDataBlocksCacheShardsCount(*cacheShardsIndexDBDataBlocks)
 
 	if retentionPeriod.Msecs < 24*3600*1000 {
 		logger.Fatalf("-retentionPeriod cannot be smaller than a day; got %s", retentionPeriod)

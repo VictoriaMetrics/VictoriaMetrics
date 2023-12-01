@@ -7,9 +7,10 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/cespare/xxhash/v2"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
-	"github.com/cespare/xxhash/v2"
 )
 
 // Cache caches Block entries.
@@ -26,16 +27,18 @@ type Cache struct {
 //
 // Cache size in bytes is limited by the value returned by getMaxSizeBytes() callback.
 // Call MustStop() in order to free up resources occupied by Cache.
-func NewCache(getMaxSizeBytes func() int) *Cache {
-	cpusCount := cgroup.AvailableCPUs()
-	shardsCount := cgroup.AvailableCPUs()
-	// Increase the number of shards with the increased number of available CPU cores.
-	// This should reduce contention on per-shard mutexes.
-	multiplier := cpusCount
-	if multiplier > 16 {
-		multiplier = 16
+func NewCache(getMaxSizeBytes func() int, shardsCount int) *Cache {
+	if shardsCount <= 0 {
+		cpusCount := cgroup.AvailableCPUs()
+		shardsCount = cgroup.AvailableCPUs()
+		// Increase the number of shards with the increased number of available CPU cores.
+		// This should reduce contention on per-shard mutexes.
+		multiplier := cpusCount
+		if multiplier > 16 {
+			multiplier = 16
+		}
+		shardsCount *= multiplier
 	}
-	shardsCount *= multiplier
 	shards := make([]*cache, shardsCount)
 	getMaxShardBytes := func() int {
 		n := getMaxSizeBytes()

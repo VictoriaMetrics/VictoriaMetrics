@@ -12,7 +12,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 )
 
-var ibCache = blockcache.NewCache(getMaxIndexBlocksCacheSize)
+var ibCache = blockcache.NewCache(getMaxIndexBlocksCacheSize, 0)
 
 func getMaxIndexBlocksCacheSize() int {
 	maxIndexBlockCacheSizeOnce.Do(func() {
