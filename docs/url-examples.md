@@ -604,7 +604,8 @@ echo '
     }
   ]
 }
-' | curl -X POST -H 'Content-Type: application/json' --data-binary @- 'http://<vminsert>:8480/insert/0/datadog/api/v2/series
+' | curl -X POST -H 'Content-Type: application/json' --data-binary @- http://<vminsert>:8480/insert/0/datadog/api/v2/series
+```
 
 </div>
 
