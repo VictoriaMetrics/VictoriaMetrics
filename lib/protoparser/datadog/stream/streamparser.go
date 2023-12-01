@@ -39,7 +39,7 @@ var (
 // Parse parses DataDog POST request for /api/v1/series, /api/v2/series, /api/beta/sketches from reader and calls callback for the parsed request.
 //
 // callback shouldn't hold series after returning.
-func Parse(req *http.Request, callback func(prompbmarshal.TimeSeries) error) error {
+func Parse(req *http.Request, callback func([]prompbmarshal.TimeSeries) error) error {
 	var r io.Reader
 	wcr := writeconcurrencylimiter.GetReader(req.Body)
 	defer writeconcurrencylimiter.PutReader(wcr)
@@ -109,16 +109,18 @@ func Parse(req *http.Request, callback func(prompbmarshal.TimeSeries) error) err
 		return fmt.Errorf("cannot unmarshal DataDog POST request with size %d bytes: %w", len(ctx.reqBuf.B), err)
 	}
 
-	cb := func(series prompbmarshal.TimeSeries) error {
+	tss := make([]prompbmarshal.TimeSeries, 0, ddReq.SeriesLen())
+	cb := func(series prompbmarshal.TimeSeries) {
 		rowsRead.Add(len(series.Samples))
-		return callback(series)
+		tss = append(tss, series)
 	}
 
-	if err := ddReq.Extract(cb, sanitizeName(*sanitizeMetricName)); err != nil {
+	err := ddReq.Extract(cb, sanitizeName(*sanitizeMetricName))
+	if err != nil {
 		return fmt.Errorf("error when processing imported data: %w", err)
 	}
 
-	return nil
+	return callback(tss)
 }
 
 type pushCtx struct {

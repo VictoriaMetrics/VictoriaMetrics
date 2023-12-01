@@ -25,37 +25,48 @@ func InsertHandlerForHTTP(req *http.Request) error {
 		return err
 	}
 	return stream.Parse(
-		req, func(series prompbmarshal.TimeSeries) error {
-			series.Labels = append(series.Labels, extraLabels...)
-			return insertRows(series)
+		req, func(series []prompbmarshal.TimeSeries) error {
+			return insertRows(series, extraLabels)
 		},
 	)
 }
 
-func insertRows(series prompbmarshal.TimeSeries) error {
+func insertRows(series []prompbmarshal.TimeSeries, extraLabels []prompbmarshal.Label) error {
 	ctx := common.GetInsertCtx()
 	defer common.PutInsertCtx(ctx)
 
+	rowsTotal := 0
+	for i := range series {
+		rowsTotal += len(series[i].Samples)
+	}
+
 	hasRelabeling := relabel.HasRelabeling()
-	rowsTotal := len(series.Samples)
-
 	ctx.Reset(rowsTotal)
-	ctx.Labels = ctx.Labels[:0]
-	for l := range series.Labels {
-		ctx.AddLabel(series.Labels[l].Name, series.Labels[l].Value)
-	}
-	if hasRelabeling {
-		ctx.ApplyRelabeling()
-	}
-	if len(ctx.Labels) == 0 {
-		return nil
-	}
-	ctx.SortLabelsIfNeeded()
+	for i := range series {
+		s := &series[i]
 
-	for _, sample := range series.Samples {
-		_, err := ctx.WriteDataPointExt(nil, ctx.Labels, sample.Timestamp, sample.Value)
-		if err != nil {
-			return err
+		ctx.Labels = ctx.Labels[:0]
+		for k := range s.Labels {
+			ctx.AddLabel(s.Labels[k].Name, s.Labels[k].Value)
+		}
+		for j := range extraLabels {
+			label := &extraLabels[j]
+			ctx.AddLabel(label.Name, label.Value)
+		}
+		if hasRelabeling {
+			ctx.ApplyRelabeling()
+		}
+		if len(ctx.Labels) == 0 {
+			// Skip metric without labels.
+			continue
+		}
+		ctx.SortLabelsIfNeeded()
+
+		for _, sample := range s.Samples {
+			_, err := ctx.WriteDataPointExt(nil, ctx.Labels, sample.Timestamp, sample.Value)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	rowsInserted.Add(rowsTotal)

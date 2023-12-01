@@ -22,6 +22,10 @@ func SplitTag(tag string) (string, string) {
 //
 // See https://docs.datadoghq.com/api/latest/metrics/#submit-metrics
 type Request interface {
-	Extract(func(prompbmarshal.TimeSeries) error, func(string) string) error
+	// Extract goes through Series of Request applying sanitize to Series labels,
+	// and calling callback for each Series transformed into prompbmarshal.TimeSeries
+	Extract(callback func(prompbmarshal.TimeSeries), sanitize func(string) string) error
+	// SeriesLen returns number of Series in Request
+	SeriesLen() int
 	Unmarshal([]byte) error
 }

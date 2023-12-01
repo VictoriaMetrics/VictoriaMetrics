@@ -13,13 +13,16 @@ type Request struct {
 	Series []series `json:"series"`
 }
 
+// SeriesLen returns length of Series field
+func (r *Request) SeriesLen() int { return len(r.Series) }
+
 // Unmarshal decodes byte array to series v1 Request struct
 func (r *Request) Unmarshal(b []byte) error {
 	return json.Unmarshal(b, r)
 }
 
 // Extract iterates fn execution over all timeseries from series v1 Request
-func (r *Request) Extract(fn func(prompbmarshal.TimeSeries) error, sanitizeFn func(string) string) error {
+func (r *Request) Extract(callback func(prompbmarshal.TimeSeries), sanitize func(string) string) error {
 	currentTimestamp := int64(fasttime.UnixTimestamp())
 	for i := range r.Series {
 		s := r.Series[i]
@@ -37,11 +40,9 @@ func (r *Request) Extract(fn func(prompbmarshal.TimeSeries) error, sanitizeFn fu
 		}
 		ts := prompbmarshal.TimeSeries{
 			Samples: samples,
-			Labels:  s.getLabels(sanitizeFn),
+			Labels:  s.getLabels(sanitize),
 		}
-		if err := fn(ts); err != nil {
-			return err
-		}
+		callback(ts)
 	}
 	return nil
 }

@@ -34,9 +34,8 @@ func TestRequestExtract(t *testing.T) {
 		}
 
 		var samplesTotal int
-		cb := func(ts prompbmarshal.TimeSeries) error {
+		cb := func(ts prompbmarshal.TimeSeries) {
 			samplesTotal += len(ts.Samples)
-			return nil
 		}
 		sanitizeFn := func(name string) string {
 			return name

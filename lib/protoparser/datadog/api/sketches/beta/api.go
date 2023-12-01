@@ -11,6 +11,11 @@ type Request struct {
 	*pb.SketchPayload
 }
 
+const seriesPerSketch = 5
+
+// SeriesLen returns length of Series field
+func (r *Request) SeriesLen() int { return len(r.SketchPayload.Sketches) * seriesPerSketch }
+
 // Unmarshal is a wrapper around SketchesPayload Unmarshal method which decodes byte array to SketchPayload struct
 func (r *Request) Unmarshal(b []byte) error {
 	if r.SketchPayload == nil {
@@ -20,13 +25,12 @@ func (r *Request) Unmarshal(b []byte) error {
 }
 
 // Extract iterates fn function execution over all timeseries from a sketch payload
-func (r *Request) Extract(fn func(prompbmarshal.TimeSeries) error, sanitizeFn func(string) string) error {
-	var err error
+func (r *Request) Extract(callback func(prompbmarshal.TimeSeries), sanitize func(string) string) error {
 	for _, sketch := range r.SketchPayload.Sketches {
-		sketchSeries := make([]prompbmarshal.TimeSeries, 5)
+		sketchSeries := make([]prompbmarshal.TimeSeries, seriesPerSketch)
 		for _, point := range sketch.Dogsketches {
 			timestamp := point.Ts * 1000
-			updateSeries(sketchSeries, sanitizeFn(sketch.Metric), timestamp, map[string]float64{
+			updateSeries(sketchSeries, sanitize(sketch.Metric), timestamp, map[string]float64{
 				"max": point.Max,
 				"min": point.Min,
 				"cnt": float64(point.Cnt),
@@ -36,7 +40,7 @@ func (r *Request) Extract(fn func(prompbmarshal.TimeSeries) error, sanitizeFn fu
 		}
 		for _, point := range sketch.Distributions {
 			timestamp := point.Ts * 1000
-			updateSeries(sketchSeries, sanitizeFn(sketch.Metric), timestamp, map[string]float64{
+			updateSeries(sketchSeries, sanitize(sketch.Metric), timestamp, map[string]float64{
 				"max": point.Max,
 				"min": point.Min,
 				"cnt": float64(point.Cnt),
@@ -44,12 +48,10 @@ func (r *Request) Extract(fn func(prompbmarshal.TimeSeries) error, sanitizeFn fu
 				"sum": point.Sum,
 			})
 		}
-		labels := getLabels(sketch, sanitizeFn)
+		labels := getLabels(sketch, sanitize)
 		for i := range sketchSeries {
 			sketchSeries[i].Labels = append(sketchSeries[i].Labels, labels...)
-			if err = fn(sketchSeries[i]); err != nil {
-				return err
-			}
+			callback(sketchSeries[i])
 		}
 	}
 	return nil

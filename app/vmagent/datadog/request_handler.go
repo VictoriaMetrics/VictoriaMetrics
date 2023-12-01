@@ -28,22 +28,35 @@ func InsertHandlerForHTTP(at *auth.Token, req *http.Request) error {
 		return err
 	}
 	return stream.Parse(
-		req, func(series prompbmarshal.TimeSeries) error {
-			series.Labels = append(series.Labels, extraLabels...)
-			return insertRows(at, series)
+		req, func(series []prompbmarshal.TimeSeries) error {
+			return insertRows(at, series, extraLabels)
 		},
 	)
 }
 
-func insertRows(at *auth.Token, series prompbmarshal.TimeSeries) error {
+func insertRows(at *auth.Token, series []prompbmarshal.TimeSeries, extraLabels []prompbmarshal.Label) error {
 	ctx := common.GetPushCtx()
 	defer common.PutPushCtx(ctx)
 
-	rowsTotal := len(series.Samples)
+	var rowsTotal int
+	tssDst := ctx.WriteRequest.Timeseries[:0]
+	labels := ctx.Labels[:0]
+	samples := ctx.Samples[:0]
 
-	ctx.WriteRequest.Timeseries = []prompbmarshal.TimeSeries{series}
-	ctx.Labels = series.Labels
-	ctx.Samples = series.Samples
+	for i := range series {
+		s := &series[i]
+		rowsTotal += len(s.Samples)
+
+		s.Labels = append(s.Labels, extraLabels...)
+		tssDst = append(tssDst, *s)
+
+		labels = append(labels, s.Labels...)
+		samples = append(samples, s.Samples...)
+	}
+
+	ctx.WriteRequest.Timeseries = tssDst
+	ctx.Labels = labels
+	ctx.Samples = samples
 	if !remotewrite.TryPush(at, &ctx.WriteRequest) {
 		return remotewrite.ErrQueueFullHTTPRetry
 	}
