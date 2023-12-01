@@ -336,7 +336,7 @@
                         {% elseif t.labels.Len() > 0 %}
                             <span class="badge bg-danger">DOWN</span>
                         {% else %}
-                            <span class="badge bg-warning">DROPPED</span>
+                            <span class="badge bg-warning">DROPPED ({%s string(t.dropReason) %})</span>
                         {% endif %}
                     </td>
                     <td class="labels">
