@@ -1225,6 +1225,25 @@ which can be downloaded for evaluation from [releases](https://github.com/Victor
     	The following optional suffixes are supported: s (second), m (minute), h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 60s)
 ```
 
+## How much disk space should you provide for the vmagent persistence queue?
+
+vmagent buffers scraped or received data at the `-remoteWrite.tmpDataPath` file system directory (aka persistent queue) until it is sent to `-remoteWrite.url`. The directory can grow large when remote storage is unavailable for extended periods of time and if the maximum directory size isn't limited with `-remoteWrite.maxDiskUsagePerURL` command-line flag. The buffered metrics are sent to remote storage as soon as the connection to the remote storage is repaired.
+
+To estimate the disk size allocated or `-remoteWrite.maxDiskUsagePerURL` for a persistent queue take into account the following attributes:
+1. the size in bytes of data stream sent by vmagent:
+Run query `sum(rate(vmagent_remotewrite_bytes_sent_total[1h])) by(instance)` in [vmui](https://docs.victoriametrics.com/#vmui) or Grafana to get the amount of **bytes** sent by each vmagent instance (in k8s you might want to `sum by(pod)` instead) per second.
+2. the amount of **time** a persistent queue should keep the data before starting to drop it.
+If the persistent queue should be able to retain the data for at least 6h, then multiply the amount of bytes sent by vmagent per-second by 6*3600s to get the approximate queue size on disk.
+
+For example, expression [sum(rate(vmagent_remotewrite_bytes_sent_total[1h])) by(instance) * 6 * 3600 / 1Gi](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/?g0.expr=sum%28rate%28vmagent_remotewrite_bytes_sent_total%5B1h%5D%29%29+by%28instance%29+*+6+*+3600+%2F+1Gi&g0.range_input=30m&g0.end_input=2023-11-30T14%3A55%3A14&g0.tab=1&g0.relative_time=last_30_minutes) suggests that there are two vmagents: one needs 2Gi and second 21Gi of disk space available for persistent queue to retain data for 6h.
+
+Additional notes:
+1. For `vmagent_.*` metrics to be available for querying ensure that [monitoring](#monitoring) is configured.
+1. Re-evaluate the estimation each time when:
+    * there is an increase in the amount of metrics to process
+    * there is a change in [relabeling rules](https://docs.victoriametrics.com/vmagent.html#relabeling) which could increase the amount of sent metrics
+    * you add a new  `-remoteWrite.url`
+1. The minimum disk size to allocate for the persistent queue is 500Mi per each `-remoteWrite.url` .
 ## Kafka integration
 
 [Enterprise version](https://docs.victoriametrics.com/enterprise.html) of `vmagent` can read and write metrics from / to Kafka:
