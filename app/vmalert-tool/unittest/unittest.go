@@ -336,7 +336,7 @@ func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]i
 				if disableAlertgroupLabel {
 					g.Name = ""
 				}
-				if _, ok := alertExpResultMap[time.Duration(ts.UnixNano())][g.Name]; !ok {
+				if _, ok := alertExpResultMap[alertEvalTimes[evalIndex]][g.Name]; !ok {
 					continue
 				}
 				if _, ok := gotAlertsMap[g.Name]; !ok {
@@ -347,7 +347,7 @@ func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]i
 					if !isAlertRule {
 						continue
 					}
-					if _, ok := alertExpResultMap[time.Duration(ts.UnixNano())][g.Name][ar.Name]; ok {
+					if _, ok := alertExpResultMap[alertEvalTimes[evalIndex]][g.Name][ar.Name]; ok {
 						for _, got := range ar.GetAlerts() {
 							if got.State != notifier.StateFiring {
 								continue

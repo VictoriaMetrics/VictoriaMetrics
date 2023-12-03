@@ -23,7 +23,7 @@ var (
 		"It is hidden by default, since it can contain sensitive info such as auth key")
 	blackHole = flag.Bool("notifier.blackhole", false, "Whether to blackhole alerting notifications. "+
 		"Enable this flag if you want vmalert to evaluate alerting rules without sending any notifications to external receivers (eg. alertmanager). "+
-		"`-notifier.url`, `-notifier.config` and `-notifier.blackhole` are mutually exclusive.")
+		"-notifier.url, -notifier.config and -notifier.blackhole are mutually exclusive.")
 
 	basicAuthUsername     = flagutil.NewArrayString("notifier.basicAuth.username", "Optional basic auth username for -notifier.url")
 	basicAuthPassword     = flagutil.NewArrayString("notifier.basicAuth.password", "Optional basic auth password for -notifier.url")

@@ -40,10 +40,18 @@ func NewKeyCredentialPolicy(cred *exported.KeyCredential, header string, options
 
 // Do implementes the Do method on the [policy.Polilcy] interface.
 func (k *KeyCredentialPolicy) Do(req *policy.Request) (*http.Response, error) {
-	val := exported.KeyCredentialGet(k.cred)
-	if k.prefix != "" {
-		val = k.prefix + val
+	// skip adding the authorization header if no KeyCredential was provided.
+	// this prevents a panic that might be hard to diagnose and allows testing
+	// against http endpoints that don't require authentication.
+	if k.cred != nil {
+		if err := checkHTTPSForAuth(req); err != nil {
+			return nil, err
+		}
+		val := exported.KeyCredentialGet(k.cred)
+		if k.prefix != "" {
+			val = k.prefix + val
+		}
+		req.Raw().Header.Add(k.header, val)
 	}
-	req.Raw().Header.Add(k.header, val)
 	return req.Next()
 }

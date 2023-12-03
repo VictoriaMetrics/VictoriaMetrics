@@ -11,7 +11,7 @@ aliases:
 ---
 # Cluster version
 
-<img alt="VictoriaMetrics" src="logo.png" width="300">
+<img src="logo.webp" width="300">
 
 VictoriaMetrics is a fast, cost-effective and scalable time series database. It can be used as a long-term remote storage for Prometheus.
 
@@ -57,7 +57,7 @@ This is a [shared nothing architecture](https://en.wikipedia.org/wiki/Shared-not
 It increases cluster availability, and simplifies cluster maintenance as well as cluster scaling.
 
 <p align="center">
-  <img src="Cluster-VictoriaMetrics_cluster-scheme.png" width="800">
+  <img src="Cluster-VictoriaMetrics_cluster-scheme.webp" width="800">
 </p>
 
 ## Multitenancy
@@ -109,6 +109,11 @@ while the `http_requests_total{path="/bar"} 34` would be stored in the tenant `a
 
 The `vm_account_id` and `vm_project_id` labels are extracted after applying the [relabeling](https://docs.victoriametrics.com/relabeling.html)
 set via `-relabelConfig` command-line flag, so these labels can be set at this stage.
+
+The `vm_account_id` and `vm_project_id` labels are also taken into account when ingesting data via non-http-based protocols
+such as [Graphite](https://docs.victoriametrics.com/#how-to-send-data-from-graphite-compatible-agents-such-as-statsd),
+[InfluxDB line protocol via TCP and UDP](https://docs.victoriametrics.com/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf) and
+[OpenTSDB telnet put protocol](https://docs.victoriametrics.com/#sending-data-via-telnet-put-protocol).
 
 **Security considerations:** it is recommended restricting access to `multitenant` endpoints only to trusted sources,
 since untrusted source may break per-tenant data by writing unwanted samples to arbitrary tenants.
@@ -241,7 +246,7 @@ the following approaches for automatic discovery of `vmstorage` nodes:
   The list of discovered `vmstorage` nodes is automatically updated when the file contents changes.
   The update frequency can be controlled with `-storageNode.discoveryInterval` command-line flag.
 
-- [dns+srv](https://en.wikipedia.org/wiki/SRV_record) - pass `dns+src:some-name` value to `-storageNode` command-line flag.
+- [dns+srv](https://en.wikipedia.org/wiki/SRV_record) - pass `dns+srv:some-name` value to `-storageNode` command-line flag.
   In this case the provided `dns+srv` names are resolved into tcp addresses of `vmstorage` nodes.
   The list of discovered `vmstorage` nodes is automatically updated at `vminsert` and `vmselect`
   when it changes behind the corresponding `dns+srv` names.
@@ -323,6 +328,10 @@ See more details about cardinality limiter in [these docs](https://docs.victoria
 
 ## Troubleshooting
 
+- If your VictoriaMetrics cluster experiences data ingestion delays during
+  [rolling restarts and configuration updates](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#updating--reconfiguring-cluster-nodes),
+  then see [these docs](#improving-re-routing-performance-during-restart).
+
 [Troubleshooting docs for single-node VictoriaMetrics](https://docs.victoriametrics.com/Troubleshooting.html) apply to VictoriaMetrics cluster as well.
 
 ## Readonly mode
@@ -354,7 +363,8 @@ Check practical examples of VictoriaMetrics API [here](https://docs.victoriametr
     - `prometheus/api/v1/import/csv` - for importing arbitrary CSV data. See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-import-csv-data) for details.
     - `prometheus/api/v1/import/prometheus` - for importing data in [Prometheus text exposition format](https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md#text-based-format) and in [OpenMetrics format](https://github.com/OpenObservability/OpenMetrics/blob/master/specification/OpenMetrics.md). This endpoint also supports [Pushgateway protocol](https://github.com/prometheus/pushgateway#url). See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-import-data-in-prometheus-exposition-format) for details.
     - `opentelemetry/api/v1/push` - for ingesting data via [OpenTelemetry protocol for metrics](https://github.com/open-telemetry/opentelemetry-specification/blob/ffddc289462dfe0c2041e3ca42a7b1df805706de/specification/metrics/data-model.md). See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#sending-data-via-opentelemetry).
-    - `datadog/api/v1/series` - for ingesting data with [DataDog submit metrics API](https://docs.datadoghq.com/api/latest/metrics/#submit-metrics). See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-datadog-agent) for details.
+    - `datadog/api/v1/series` - for ingesting data with [DataDog submit metrics API v1](https://docs.datadoghq.com/api/latest/metrics/#submit-metrics). See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-datadog-agent) for details.
+    - `datadog/api/v2/series` - for ingesting data with [DataDog submit metrics API v2](https://docs.datadoghq.com/api/latest/metrics/#submit-metrics). See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-datadog-agent) for details.
     - `influx/write` and `influx/api/v2/write` - for ingesting data with [InfluxDB line protocol](https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/). See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf) for details.
     - `newrelic/infra/v2/metrics/events/bulk` - for accepting data from [NewRelic infrastructure agent](https://docs.newrelic.com/docs/infrastructure/install-infrastructure-agent). See [these docs](https://docs.victoriametrics.com/#how-to-send-data-from-newrelic-agent) for details.
     - `opentsdb/api/put` - for accepting [OpenTSDB HTTP /api/put requests](http://opentsdb.net/docs/build/html/api_http/put.html). This handler is disabled by default. It is exposed on a distinct TCP address set via `-opentsdbHTTPListenAddr` command-line flag. See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#sending-opentsdb-data-via-http-apiput-requests) for details.
@@ -470,8 +480,22 @@ This strategy allows upgrading the cluster without downtime if the following con
 - The updated config / upgraded binary is compatible with the remaining components in the cluster.
   See the [CHANGELOG](https://docs.victoriametrics.com/CHANGELOG.html) for compatibility notes between different releases.
 
-  If at least a single condition isn't met, then the rolling restart may result in cluster unavailability
-  during the config update / version upgrade. In this case the following strategy is recommended.
+If at least a single condition isn't met, then the rolling restart may result in cluster unavailability
+during the config update / version upgrade. In this case the following strategy is recommended.
+
+#### Improving re-routing performance during restart
+
+`vmstorage` nodes may experience increased usage for CPU, RAM and disk IO during
+[rolling restarts](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#no-downtime-strategy),
+since they need to process higher load when some of `vmstorage` nodes are temporarily unavailable in the cluster.
+It is possible to reduce resource usage spikes by running more `vminsert` nodes and by passing bigger values
+to `-storage.vminsertConnsShutdownDuration` (available from [v1.95.0](https://docs.victoriametrics.com/CHANGELOG.html#v1950))
+command-line flag at `vmstorage` nodes.
+In this case `vmstorage` increases the interval between gradual closing of `vminsert` connections during graceful shutdown.
+This reduces data ingestion slowdown during rollout restarts.
+
+Make sure that the `-storage.vminsertConnsShutdownDuration` is smaller than the graceful shutdown timeout configured at the system which manages `vmstorage`
+(e.g. Docker, Kubernetes, systemd, etc.). Otherwise the system may kill `vmstorage` node before it finishes gradual closing of `vminsert` connections.
 
 ### Minimum downtime strategy
 
@@ -866,12 +890,14 @@ Below is the output for `/path/to/vminsert -help`:
      Whether to skip verification of TLS certificates provided by -storageNode nodes if -cluster.tls flag is set. Note that disabled TLS certificate verification breaks security. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
   -cluster.tlsKeyFile string
      Path to client-side TLS key file to use when connecting to -storageNode if -cluster.tls flag is set. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
+  -clusternative.vminsertConnsShutdownDuration duration
+     The time needed for gradual closing of upstream vminsert connections during graceful shutdown. Bigger duration reduces spikes in CPU, RAM and disk IO load on the remaining lower-level clusters during rolling restart. Smaller duration reduces the time needed to close all the upstream vminsert connections, thus reducing the time for graceful shutdown. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#improving-re-routing-performance-during-restart (default 25s)
   -clusternativeListenAddr string
      TCP address to listen for data from other vminsert nodes in multi-level cluster setup. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multi-level-cluster-setup . Usually :8400 should be set to match default vmstorage port for vminsert. Disabled work if empty
   -csvTrimTimestamp duration
      Trim timestamps when importing csv data to this duration. Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data (default 1ms)
   -datadog.maxInsertRequestSize size
-     The maximum size in bytes of a single DataDog POST request to /api/v1/series
+     The maximum size in bytes of a single DataDog POST request to /api/v1/series, /api/v2/series, /api/beta/sketches
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 67108864)
   -datadog.sanitizeMetricName
      Sanitize metric names for the ingested DataDog data to comply with DataDog behaviour described at https://docs.datadoghq.com/metrics/custom_metrics/#naming-custom-metrics (default true)
@@ -929,7 +955,7 @@ Below is the output for `/path/to/vminsert -help`:
      Whether to use proxy protocol for connections accepted at -httpListenAddr . See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing
   -import.maxLineLen size
      The maximum length in bytes of a single line accepted by /api/v1/import; the line length can be limited with 'max_rows_per_line' query arg passed to /api/v1/export
-     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 104857600)
+     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 10485760)
   -influx.databaseNames array
      Comma-separated list of database names to return from /query and /influx/query API. This can be needed for accepting data from Telegraf plugins such as https://github.com/fangli/fluent-plugin-influxdb
      Supports an array of values separated by comma or specified via multiple flags.
@@ -974,6 +1000,8 @@ Below is the output for `/path/to/vminsert -help`:
      Allows renaming fields in JSON formatted logs. Example: "ts:timestamp,msg:message" renames "ts" to "timestamp" and "msg" to "message". Supported fields: ts, level, caller, msg
   -loggerLevel string
      Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC (default "INFO")
+  -loggerMaxArgLen int
+     The maximum length of a single logged argument. Longer arguments are replaced with 'arg_start..arg_end', where 'arg_start' and 'arg_end' is prefix and suffix of the arg with the length not exceeding -loggerMaxArgLen / 2 (default 500)
   -loggerOutput string
      Output for the logs. Supported values: stderr, stdout (default "stderr")
   -loggerTimezone string
@@ -1177,6 +1205,8 @@ Below is the output for `/path/to/vmselect -help`:
      Allows renaming fields in JSON formatted logs. Example: "ts:timestamp,msg:message" renames "ts" to "timestamp" and "msg" to "message". Supported fields: ts, level, caller, msg
   -loggerLevel string
      Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC (default "INFO")
+  -loggerMaxArgLen int
+     The maximum length of a single logged argument. Longer arguments are replaced with 'arg_start..arg_end', where 'arg_start' and 'arg_end' is prefix and suffix of the arg with the length not exceeding -loggerMaxArgLen / 2 (default 500)
   -loggerOutput string
      Output for the logs. Supported values: stderr, stdout (default "stderr")
   -loggerTimezone string
@@ -1430,6 +1460,8 @@ Below is the output for `/path/to/vmstorage -help`:
      Allows renaming fields in JSON formatted logs. Example: "ts:timestamp,msg:message" renames "ts" to "timestamp" and "msg" to "message". Supported fields: ts, level, caller, msg
   -loggerLevel string
      Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC (default "INFO")
+  -loggerMaxArgLen int
+     The maximum length of a single logged argument. Longer arguments are replaced with 'arg_start..arg_end', where 'arg_start' and 'arg_end' is prefix and suffix of the arg with the length not exceeding -loggerMaxArgLen / 2 (default 500)
   -loggerOutput string
      Output for the logs. Supported values: stderr, stdout (default "stderr")
   -loggerTimezone string
@@ -1509,6 +1541,8 @@ Below is the output for `/path/to/vmstorage -help`:
   -storage.minFreeDiskSpaceBytes size
      The minimum free disk space at -storageDataPath after which the storage stops accepting new data
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 10000000)
+  -storage.vminsertConnsShutdownDuration duration
+     The time needed for gradual closing of vminsert connections during graceful shutdown. Bigger duration reduces spikes in CPU, RAM and disk IO load on the remaining vmstorage nodes during rolling restart. Smaller duration reduces the time needed to close all the vminsert connections, thus reducing the time for graceful shutdown. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#improving-re-routing-performance-during-restart (default 25s)
   -storageDataPath string
      Path to storage data (default "vmstorage-data")
   -tls

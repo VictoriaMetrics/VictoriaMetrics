@@ -6,6 +6,8 @@ menu:
   docs:
     parent: "operator-custom-resources"
     weight: 10
+aliases:
+  - /operator/resources/vmrule.html
 ---
 
 # VMRule
@@ -42,6 +44,7 @@ you need to **[enable VMAlert Enterprise](./vmalert.md#enterprise-features)**.
 
 After that you can add `tenant` field for groups in `VMRule`:
 
+{% raw %}
 ```yaml
 apiVersion: operator.victoriametrics.com/v1beta1
 kind: VMRule
@@ -64,11 +67,13 @@ spec:
             value: "{{ $value }}"
             description: 'error reloading vmalert config, reload count for 5 min {{ $value }}'
 ```
+{% endraw %}
 
 ## Examples
 
 ### Alerting rule
 
+{% raw %}
 ```yaml
 apiVersion: operator.victoriametrics.com/v1beta1
 kind: VMRule
@@ -88,6 +93,7 @@ spec:
             value: "{{ $value }}"
             description: 'error reloading vmalert config, reload count for 5 min {{ $value }}'
 ```
+{% endraw %}
 
 ### Recording rule
 
@@ -98,10 +104,10 @@ metadata:
   name: vmrule-recording-example
 spec:
   groups:
-    - name: vmalert
+    - name: vmrule_recording_groupname
       interval: 1m
       rules:
-        - alert: vmalert config reload error
+        - record: vm_http_request_errors_total:sum_by_cluster_namespace_job:rate:5m
           expr: |-
             sum by (cluster, namespace, job) (
               rate(vm_http_request_errors_total[5m])

@@ -505,7 +505,7 @@ rules execution, storing recording rules results and alerts state.
     -notifier.url=http://alertmanager:9093          # AlertManager addr to send alerts when they trigger
 ```
 
-<img alt="vmalert single" width="500" src="vmalert_single.png">
+<img alt="vmalert single" width="500" src="vmalert_single.webp">
 
 #### Cluster VictoriaMetrics
 
@@ -525,7 +525,7 @@ Cluster mode could have multiple `vminsert` and `vmselect` components.
     -notifier.url=http://alertmanager:9093                      # AlertManager addr to send alerts when they trigger
 ```
 
-<img alt="vmalert cluster" src="vmalert_cluster.png">
+<img alt="vmalert cluster" src="vmalert_cluster.webp">
 
 In case when you want to spread the load on these components - add balancers before them and configure
 `vmalert` with balancer addresses. Please, see more about VM's cluster architecture
@@ -549,14 +549,24 @@ Alertmanagers.
     -notifier.url=http://alertmanagerN:9093         # The same alert will be sent to all configured notifiers
 ```
 
-<img alt="vmalert ha" width="800px" src="vmalert_ha.png">
+<img alt="vmalert ha" width="800px" src="vmalert_ha.webp">
 
 To avoid recording rules results and alerts state duplication in VictoriaMetrics server
 don't forget to configure [deduplication](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#deduplication).
-The recommended value for `-dedup.minScrapeInterval` must be multiple of vmalert's `-evaluationInterval`.
+Multiple equally configured vmalerts should evaluate rules at the same timestamps, so it is recommended 
+to set `-dedup.minScrapeInterval` as equal to vmalert's `-evaluationInterval`.
+
+If you have multiple different `interval` params for distinct rule groups, then set `-dedup.minScrapeInterval` to
+the biggest `interval` value, or value which will be a multiple for all `interval` values. For example, if you have
+two groups with `interval: 10s` and `interval: 15s`, then set `-dedup.minScrapeInterval=30s`. This would consistently
+keep only a single data point on 30s time interval for all rules. However, try to avoid having inconsistent `interval`
+values.
+
+It is not recommended having `-dedup.minScrapeInterval` smaller than `-evaluationInterval`, as it may produce 
+results with inconsistent intervals between data points.
 
 Alertmanager will automatically deduplicate alerts with identical labels, so ensure that
-all `vmalert`s are having the same config.
+all `vmalert`s are having identical config.
 
 Don't forget to configure [cluster mode](https://prometheus.io/docs/alerting/latest/alertmanager/)
 for Alertmanagers for better reliability. List all Alertmanager URLs in vmalert `-notifier.url`
@@ -615,7 +625,7 @@ or reducing resolution) and push results to "cold" cluster.
     -remoteWrite.url=http://aggregated-cluster-vminsert:8480/insert/0/prometheus    # vminsert addr to persist recording rules results
 ```
 
-<img alt="vmalert multi cluster" src="vmalert_multicluster.png">
+<img alt="vmalert multi cluster" src="vmalert_multicluster.webp">
 
 Please note, [replay](#rules-backfilling) feature may be used for transforming historical data.
 
@@ -629,7 +639,7 @@ For persisting recording or alerting rule results `vmalert` requires `-remoteWri
 But this flag supports only one destination. To persist rule results to multiple destinations
 we recommend using [vmagent](https://docs.victoriametrics.com/vmagent.html) as fan-out proxy:
 
-<img alt="vmalert multiple remote write destinations" src="vmalert_multiple_rw.png">
+<img alt="vmalert multiple remote write destinations" src="vmalert_multiple_rw.webp">
 
 In this topology, `vmalert` is configured to persist rule results to `vmagent`. And `vmagent`
 is configured to fan-out received data to two or more destinations.
@@ -821,12 +831,11 @@ at least two times bigger than the resolution.
 > Please note, data delay is inevitable in distributed systems. And it is better to account for it instead of ignoring.
 
 By default, recently written samples to VictoriaMetrics [aren't visible for queries](https://docs.victoriametrics.com/keyConcepts.html#query-latency)
-for up to 30s (see `-search.latencyOffset` command-line flag at vmselect). Such delay is needed to eliminate risk of 
+for up to 30s (see `-search.latencyOffset` command-line flag at vmselect or VictoriaMetrics single-node). Such delay is needed to eliminate risk of 
 incomplete data on the moment of querying, due to chance that metrics collectors won't be able to deliver that data in time.
-To compensate the latency in timestamps for produced evaluation results, `-rule.evalDelay` is also set to 30s by default.
-If you changed the `-search.latencyOffset` (cmd-line flag configured for VictoriaMetrics single-node or vmselect) value 
-or specified custom  `latency_offset` param via [Group](#groups) and observed a delay in timestamps for produced 
-evaluation results - try changing `-rule.evalDelay` equal to `-search.latencyOffset`.
+To compensate the latency in timestamps for produced evaluation results, `-rule.evalDelay` is also set to `30s` by default.
+If you expect data to be delayed for longer intervals (it gets buffered, queued, or just network is slow sometimes)
+- consider increasing the `-rule.evalDelay` value accordingly.
 
 ### Alerts state
 
@@ -845,7 +854,7 @@ state updates for each rule starting from [v1.86](https://docs.victoriametrics.c
 To check updates, click on `Details` link next to rule's name on `/vmalert/groups` page 
 and check the `Last updates` section:
 
-<img alt="vmalert state" src="vmalert_state.png">
+<img alt="vmalert state" src="vmalert_state.webp">
 
 Rows in the section represent ordered rule evaluations and their results. The column `curl` contains an example of
 HTTP request sent by vmalert to the `-datasource.url` during evaluation. If specific state shows that there were
@@ -1129,8 +1138,8 @@ The shortlist of configuration flags is the following:
   -notifier.bearerTokenFile array
      Optional path to bearer token file for -notifier.url
      Supports an array of values separated by comma or specified via multiple flags.
-  -notifier.blackhole -notifier.url
-     Whether to blackhole alerting notifications. Enable this flag if you want vmalert to evaluate alerting rules without sending any notifications to external receivers (eg. alertmanager). -notifier.url, `-notifier.config` and `-notifier.blackhole` are mutually exclusive.
+  -notifier.blackhole
+     Whether to blackhole alerting notifications. Enable this flag if you want vmalert to evaluate alerting rules without sending any notifications to external receivers (eg. alertmanager). -notifier.url, -notifier.config and -notifier.blackhole are mutually exclusive.
   -notifier.config string
      Path to configuration file for notifiers
   -notifier.oauth2.clientID array

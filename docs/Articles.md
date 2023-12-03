@@ -17,7 +17,7 @@ See also [case studies](https://docs.victoriametrics.com/CaseStudies.html).
 ## Third-party articles and slides about VictoriaMetrics
 
 * [Datanami: Why Roblox Picked VictoriaMetrics for Observability Data Overhaul](https://www.datanami.com/2023/05/30/why-roblox-picked-victoriametrics-for-observability-data-overhaul/)
-* [Cludflare: Introducing notifications for HTTP Traffic Anomalies](https://blog.cloudflare.com/introducing-http-traffic-anomalies-notifications/)
+* [Cloudflare: Introducing notifications for HTTP Traffic Anomalies](https://blog.cloudflare.com/introducing-http-traffic-anomalies-notifications/)
 * [Grammarly: Better, Faster, Cheaper: How Grammarly Improved Monitoring by Over 10x with VictoriaMetrics](https://www.grammarly.com/blog/engineering/monitoring-with-victoriametrics/)
 * [CERN: CMS monitoring R&D: Real-time monitoring and alerts](https://indico.cern.ch/event/877333/contributions/3696707/attachments/1972189/3281133/CMS_mon_RD_for_opInt.pdf)
 * [CERN: The CMS monitoring infrastructure and applications](https://arxiv.org/pdf/2007.03630.pdf)
@@ -82,6 +82,8 @@ See also [case studies](https://docs.victoriametrics.com/CaseStudies.html).
 * [VictoriaMetrics: VMAuth – Proxy, Authentication, and Authorization](https://rtfm.co.ua/en/victoriametrics-vmauth-proxy-authentication-and-authorization/)
 * [Solving metrics at scale with VictoriaMetrics](https://sarthak-acoustic.medium.com/solving-metrics-at-scale-with-victoriametrics-ac9c306826c3)
 * [VictoriaMetrics: a comprehensive guide](https://medium.com/@seifeddinerajhi/victoriametrics-a-comprehensive-guide-comparing-it-to-prometheus-and-implementing-kubernetes-03eb8feb0cc2)
+* [Unleashing VM histograms for Ruby: Migrating from Prometheus to VictoriaMetrics with vm-client](https://hackernoon.com/unleashing-vm-histograms-for-ruby-migrating-from-prometheus-to-victoriametrics-with-vm-client)
+* [Observe and record performance of Spark jobs with Victoria Metrics](https://medium.com/constructor-engineering/observe-and-record-performance-of-databricks-jobs-11ffe236555e)
 
 ## Our articles
 

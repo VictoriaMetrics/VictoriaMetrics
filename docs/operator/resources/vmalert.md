@@ -6,6 +6,8 @@ menu:
   docs:
     parent: "operator-custom-resources"
     weight: 2
+aliases:
+  - /operator/resources/vmalert.html
 ---
 
 # VMAlert
@@ -230,7 +232,7 @@ metadata:
   name: example-vmalert
 spec:
   image:
-    repository: victoriametrics/victoria-metrics
+    repository: victoriametrics/vmalert
     tag: v1.93.4
     pullPolicy: Always
   # ...
@@ -245,7 +247,7 @@ metadata:
   name: example-vmalert
 spec:
   image:
-    repository: victoriametrics/victoria-metrics
+    repository: victoriametrics/vmalert
     tag: v1.93.4
     pullPolicy: Always
   imagePullSecrets:
@@ -308,6 +310,7 @@ with [extraArgs](./README.md#extra-arguments)
 and specify `tenant` field for groups 
 in [VMRule](./vmrule.md#enterprise-features):
 
+{% raw %}
 ```yaml
 apiVersion: operator.victoriametrics.com/v1beta1
 kind: VMAlert
@@ -353,6 +356,7 @@ spec:
             value: "{{ $value }}"
             description: 'error reloading vmalert config, reload count for 5 min {{ $value }}'
 ```
+{% endraw %}
 
 ## Examples
 

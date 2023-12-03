@@ -221,6 +221,7 @@ func TestParseAuthConfigSuccess(t *testing.T) {
 	}
 
 	// Single user
+	insecureSkipVerifyTrue := true
 	f(`
 users:
 - username: foo
@@ -234,11 +235,12 @@ users:
 			Password:              "bar",
 			URLPrefix:             mustParseURL("http://aaa:343/bbb"),
 			MaxConcurrentRequests: 5,
-			TLSInsecureSkipVerify: true,
+			TLSInsecureSkipVerify: &insecureSkipVerifyTrue,
 		},
 	})
 
 	// Multiple url_prefix entries
+	insecureSkipVerifyFalse := false
 	f(`
 users:
 - username: foo
@@ -246,6 +248,9 @@ users:
   url_prefix:
   - http://node1:343/bbb
   - http://node2:343/bbb
+  tls_insecure_skip_verify: false
+  retry_status_codes: [500, 501]
+  drop_src_path_prefix_parts: 1
 `, map[string]*UserInfo{
 		getAuthToken("", "foo", "bar"): {
 			Username: "foo",
@@ -254,6 +259,9 @@ users:
 				"http://node1:343/bbb",
 				"http://node2:343/bbb",
 			}),
+			TLSInsecureSkipVerify:  &insecureSkipVerifyFalse,
+			RetryStatusCodes:       []int{500, 501},
+			DropSrcPathPrefixParts: 1,
 		},
 	})
 
@@ -475,15 +483,20 @@ unauthorized_user:
 	}
 
 	ui := m[getAuthToken("", "foo", "bar")]
-	if ui.TLSInsecureSkipVerify != true || ui.httpTransport.TLSClientConfig.InsecureSkipVerify != true {
+	if !isSetBool(ui.TLSInsecureSkipVerify, true) || !ui.httpTransport.TLSClientConfig.InsecureSkipVerify {
 		t.Fatalf("unexpected TLSInsecureSkipVerify value for user foo")
 	}
 
-	if ac.UnauthorizedUser.TLSInsecureSkipVerify != false ||
-		ac.UnauthorizedUser.httpTransport.TLSClientConfig.InsecureSkipVerify != false {
+	if !isSetBool(ac.UnauthorizedUser.TLSInsecureSkipVerify, false) || ac.UnauthorizedUser.httpTransport.TLSClientConfig.InsecureSkipVerify {
 		t.Fatalf("unexpected TLSInsecureSkipVerify value for unauthorized_user")
 	}
+}
 
+func isSetBool(boolP *bool, expectedValue bool) bool {
+	if boolP == nil {
+		return false
+	}
+	return *boolP == expectedValue
 }
 
 func getSrcPaths(paths []string) []*SrcPath {

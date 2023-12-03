@@ -166,12 +166,12 @@ func (rrs *RemoteReadServer) getStreamReadHandler(t *testing.T) http.Handler {
 
 			c := remote.NewSampleAndChunkQueryableClient(rrs.storage, nil, matchers, true, cb)
 
-			q, err := c.ChunkQuerier(ctx, startTs, endTs)
+			q, err := c.ChunkQuerier(startTs, endTs)
 			if err != nil {
 				t.Fatalf("error init chunk querier: %s", err)
 			}
 
-			ss := q.Select(false, nil, matchers...)
+			ss := q.Select(ctx, false, nil, matchers...)
 			var iter chunks.Iterator
 			for ss.Next() {
 				series := ss.At()
