@@ -7,10 +7,12 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/newrelic"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/newrelic/stream"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
 var (
@@ -19,7 +21,7 @@ var (
 )
 
 // InsertHandlerForHTTP processes remote write for request to /newrelic/infra/v2/metrics/events/bulk request.
-func InsertHandlerForHTTP(req *http.Request) error {
+func InsertHandlerForHTTP(at *auth.Token, req *http.Request) error {
 	extraLabels, err := parserCommon.GetExtraLabels(req)
 	if err != nil {
 		return err
@@ -27,11 +29,11 @@ func InsertHandlerForHTTP(req *http.Request) error {
 	ce := req.Header.Get("Content-Encoding")
 	isGzip := ce == "gzip"
 	return stream.Parse(req.Body, isGzip, func(rows []newrelic.Row) error {
-		return insertRows(rows, extraLabels)
+		return insertRows(at, rows, extraLabels)
 	})
 }
 
-func insertRows(rows []newrelic.Row, extraLabels []prompbmarshal.Label) error {
+func insertRows(at *auth.Token, rows []newrelic.Row, extraLabels []prompbmarshal.Label) error {
 	ctx := netstorage.GetInsertCtx()
 	defer netstorage.PutInsertCtx(ctx)
 
@@ -62,7 +64,10 @@ func insertRows(rows []newrelic.Row, extraLabels []prompbmarshal.Label) error {
 				continue
 			}
 			ctx.SortLabelsIfNeeded()
-			if err := ctx.WriteDataPoint(nil, ctx.Labels, r.Timestamp, s.Value); err != nil {
+			atLocal := ctx.GetLocalAuthToken(at)
+			ctx.MetricNameBuf = storage.MarshalMetricNameRaw(ctx.MetricNameBuf[:0], atLocal.AccountID, atLocal.ProjectID, ctx.Labels)
+			storageNodeIdx := ctx.GetStorageNodeIdx(atLocal, ctx.Labels)
+			if err := ctx.WriteDataPointExt(storageNodeIdx, ctx.MetricNameBuf, r.Timestamp, s.Value); err != nil {
 				return err
 			}
 		}
