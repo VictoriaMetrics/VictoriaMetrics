@@ -18,7 +18,7 @@ The monitoring setup is in the dedicated regions as shown below:
 
 <p align="center">
   <img 
-        src="multi-regional-setup-dedicated-regions.png" 
+        src="multi-regional-setup-dedicated-regions.webp" 
         width="800" 
         alt="Multi-regional setup with VictoriaMetrics: Dedicated regions for monitoring">
 </p>

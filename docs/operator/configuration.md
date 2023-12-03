@@ -6,6 +6,8 @@ menu:
   docs:
     parent: "operator"
     weight: 4
+aliases:
+  - /operator/configuration.html
 ---
 
 # Configuration

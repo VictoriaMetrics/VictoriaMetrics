@@ -12,20 +12,23 @@ aliases:
 # vmauth
 
 `vmauth` is a simple auth proxy, router and [load balancer](#load-balancing) for [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics).
-It reads auth credentials from `Authorization` http header ([Basic Auth](https://en.wikipedia.org/wiki/Basic_access_authentication), `Bearer token` and [InfluxDB authorization](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1897) is supported),
+It reads auth credentials from `Authorization` http header ([Basic Auth](https://en.wikipedia.org/wiki/Basic_access_authentication),
+`Bearer token` and [InfluxDB authorization](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1897) is supported),
 matches them against configs pointed by [-auth.config](#auth-config) command-line flag and proxies incoming HTTP requests to the configured per-user `url_prefix` on successful match.
 The `-auth.config` can point to either local file or to http url.
 
 ## Quick start
 
 Just download `vmutils-*` archive from [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest), unpack it
-and pass the following flag to `vmauth` binary in order to start authorizing and routing requests:
+and pass the following flag to `vmauth` binary in order to start authorizing and proxying requests:
 
 ```console
 /path/to/vmauth -auth.config=/path/to/auth/config.yml
 ```
 
-After that `vmauth` starts accepting HTTP requests on port `8427` and routing them according to the provided [-auth.config](#auth-config).
+The `-auth.config` command-line flag must point to valid [config](#auth-config). See [use cases](#use-cases) with typical `-auth.config` examples.
+
+`vmauth` accepts HTTP requests on port `8427` and proxies them according to the provided [-auth.config](#auth-config).
 The port can be modified via `-httpListenAddr` command-line flag.
 
 The auth config can be reloaded via the following ways:
@@ -43,10 +46,203 @@ Pass `-help` to `vmauth` in order to see all the supported command-line flags wi
 Feel free [contacting us](mailto:info@victoriametrics.com) if you need customized auth proxy for VictoriaMetrics with the support of LDAP, SSO, RBAC, SAML,
 accounting and rate limiting such as [vmgateway](https://docs.victoriametrics.com/vmgateway.html).
 
+## Use cases
+
+* [Simple HTTP proxy](#simple-http-proxy)
+* [Generic HTTP proxy for different backends](#generic-http-proxy-for-different-backends)
+* [Generic HTTP load balancer](#generic-http-load-balancer)
+* [Load balancer for vmagent](#load-balancer-for-vmagent)
+* [Load balancer for VictoriaMetrics cluster](#load-balancer-for-victoriametrics-cluster)
+* [TLS termination proxy](#tls-termination-proxy)
+* [Basic Auth proxy](#basic-auth-proxy)
+* [Bearer Token auth proxy](#bearer-token-auth-proxy)
+* [Per-tenant authorization](#per-tenant-authorization)
+* [Enforcing query args](#enforcing-query-args)
+
+### Simple HTTP proxy
+
+The following [`-auth.config`](#auth-config) instructs `vmauth` to proxy all the incoming requests to the given backend.
+For example, requests to `http://vmauth:8427/foo/bar` are proxied to `http://backend/foo/bar`:
+
+```yml
+unauthorized_user:
+  url_prefix: "http://backend/"
+```
+
+### Generic HTTP proxy for different backends
+
+`vmauth` can proxy requests to different backends depending on the requested path.
+For example, the following [`-auth.config`](#auth-config) instructs `vmauth` to make the following:
+
+- Requests starting with `/app1/` are proxied to `http://app1-backend/`. For example, the request to `http://vmauth:8427/app1/foo/bar?baz=qwe`
+  is proxied to `http://app1-backend/foo/bar?baz=qwe`.
+- Requests starting with `/app2/` are proxied to `http://app2-backend/`. For example, the request to `http://vmauth:8427/app2/index.html`
+  is proxied to `http://app2-backend/index.html`.
+- Other requests are proxied to `http://some-backend/404-page.html`, while the requested path is passed via `request_path` query arg.
+  For example, the request to `http://vmauth:8427/foo/bar?baz=qwe` is proxied to `http://some-backend/404-page.html?request_path=%2Ffoo%2Fbar%3Fbaz%3Dqwe`.
+
+```yml
+unauthorized_user:
+  url_map:
+  - src_paths:
+    - "/app1/.*"
+    drop_src_path_prefix_parts: 1
+    url_prefix: "http://app1-backend/"
+  - src_paths:
+    - "/app2/.*"
+    drop_src_path_prefix_parts: 1
+    url_prefix: "http://app2-backend/"
+  default_url: http://some-backend/404-page.html
+```
+
+### Generic HTTP load balancer
+
+`vmauth` can balance load among multiple HTTP backends in least-loaded round-robin mode.
+For example, the following [`-auth.config`](#auth-config) instructs `vmauth` to spread load load among multiple application instances:
+
+```yml
+unauthorized_user:
+  url_prefix:
+  - "http://app-instance-1/"
+  - "http://app-instance-2/"
+  - "http://app-instance-3/"
+```
+
+### Load balancer for vmagent
+
+If [vmagent](https://docs.victoriametrics.com/vmagent.html) is used for processing [data push requests](https://docs.victoriametrics.com/vmagent.html#how-to-push-data-to-vmagent),
+then it is possible to scale the performance of data processing at `vmagent` by spreading load among multiple identically configured `vmagent` instances.
+This can be done with the following [config](#auth-config) for `vmagent`:
+
+```yml
+unauthorized_user:
+  url_map:
+  - src_paths:
+    - "/prometheus/api/v1/write"
+    - "/influx/write"
+    - "/api/v1/import"
+    - "/api/v1/import/.+"
+    url_prefix:
+    - "http://vmagent-1:8429/"
+    - "http://vmagent-2:8429/"
+    - "http://vmagent-3:8429/"
+```
+
+### Load balancer for VictoriaMetrics cluster
+
+[VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) accepts incoming data via `vminsert` nodes
+and processes incoming requests via `vmselect` nodes according to [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#architecture-overview).
+`vmauth` can be used for balancing both `insert` and `select` requests among `vminsert` and `vmselect` nodes, when the following [`-auth.config`](#auth-config) is used:
+
+```yml
+unauthorized_user:
+  url_map:
+  - src_paths:
+    - "/insert/.+"
+    url_prefix:
+    - "http://vminsert-1:8480/"
+    - "http://vminsert-2:8480/"
+    - "http://vminsert-3:8480/"
+  - src_paths:
+    - "/select/.+"
+    url_prefix:
+    - "http://vmselect-1:8481/"
+    - "http://vmselect-2:8481/"
+```
+
+### TLS termination proxy
+
+`vmauth` can terminate HTTPS requests to backend services when it runs with the following command-line flags:
+
+```
+/path/to/vmauth -tls -tlsKeyFile=/path/to/tls_key_file -tlsCertFile=/path/to/tls_cert_file -httpListenAddr=0.0.0.0:443
+```
+
+* `-httpListenAddr` sets the address to listen for incoming HTTPS requests
+* `-tls` enables accepting TLS connections at `-httpListenAddr`
+* `-tlsKeyFile` sets the path to TLS certificate key file
+* `-tlsCertFile` sets the path to TLS certificate file
+
+### Basic Auth proxy
+
+`vmauth` can authorize access to backends depending on the provided [Basic Auth](https://en.wikipedia.org/wiki/Basic_access_authentication) request headers.
+For example, the following [config](#auth-config) proxies requests to [single-node VictoriaMetrics](https://docs.victoriametrics.com/)
+if they contain Basic Auth header with the given `username` and `password`:
+
+```yml
+users:
+- username: foo
+  password: bar
+  url_prefix: "http://victoria-metrics:8428/"
+```
+
+See also [security docs](#security).
+
+### Bearer Token auth proxy
+
+`vmauth` can authorize access to backends depending on the provided `Bearer Token` request headers.
+For example, the following [config](#auth-config) proxies requests to [single-node VictoriaMetrics](https://docs.victoriametrics.com/)
+if they contain the given `bearer_token`:
+
+```yml
+users:
+- bearer_token: ABCDEF
+  url_prefix: "http://victoria-metrics:8428/"
+```
+
+See also [security docs](#security).
+
+### Per-tenant authorization
+
+The following [`-auth.config`](#auth-config) instructs proxying `insert` and `select` requests from the [Basic Auth](https://en.wikipedia.org/wiki/Basic_access_authentication)
+user `tenant1` to the [tenant](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy) `1`,
+while requests from the user `tenant2` are sent to tenant `2`:
+
+```yml
+users:
+- username: tenant1
+  password: "***"
+  url_map:
+  - src_paths:
+    - "/api/v1/write"
+    url_prefix: "http://vminsert-backend:8480/insert/1/prometheus/"
+  - src_paths:
+    - "/api/v1/query"
+    - "/api/v1/query_range"
+    - "/api/v1/series"
+    - "/api/v1/labels"
+    - "/api/v1/label/.+/values"
+    url_prefix: "http://vmselect-backend:8481/select/1/prometheus/"
+- username: tenant2
+  password: "***"
+  url_map:
+  - src_paths:
+    - "/api/v1/write"
+    url_prefix: "http://vminsert-backend:8480/insert/2/prometheus/"
+  - src_paths:
+    - "/api/v1/query"
+    - "/api/v1/query_range"
+    - "/api/v1/series"
+    - "/api/v1/labels"
+    - "/api/v1/label/.+/values"
+    url_prefix: "http://vmselect-backend:8481/select/2/prometheus/"
+```
+
+### Enforcing query args
+
+`vmauth` can be configured for adding some mandatory query args before proxying requests to backends.
+For example, the following [config](#auth-config) adds [`extra_label`](https://docs.victoriametrics.com/#prometheus-querying-api-enhancements)
+to all the requests, which are proxied to [single-node VictoriaMetrics](https://docs.victoriametrics.com/):
+
+```yml
+unauthorized_user:
+  url_prefix: "http://victoria-metrics:8428/?extra_label=foo=bar"
+```
+
 ## Dropping request path prefix
 
 By default `vmauth` doesn't drop the path prefix from the original request when proxying the request to the matching backend.
-Sometimes it is needed to drop path prefix before routing the request to the backend. This can be done by specifying the number of `/`-delimited
+Sometimes it is needed to drop path prefix before proxying the request to the backend. This can be done by specifying the number of `/`-delimited
 prefix parts to drop from the request path via `drop_src_path_prefix_parts` option at `url_map` level or at `user` level.
 
 For example, if you need to serve requests to [vmalert](https://docs.victoriametrics.com/vmalert.html) at `/vmalert/` path prefix,
@@ -244,14 +440,14 @@ users:
 
   # All the requests to http://vmauth:8427 with the given Basic Auth (username:password)
   # are proxied to http://localhost:8428 with extra_label=team=dev query arg.
-  # For example, http://vmauth:8427/api/v1/query is routed to http://localhost:8428/api/v1/query?extra_label=team=dev
+  # For example, http://vmauth:8427/api/v1/query is proxied to http://localhost:8428/api/v1/query?extra_label=team=dev
 - username: "local-single-node2"
   password: "***"
   url_prefix: "http://localhost:8428?extra_label=team=dev"
 
   # All the requests to http://vmauth:8427 with the given Basic Auth (username:password)
   # are proxied to https://localhost:8428.
-  # For example, http://vmauth:8427/api/v1/query is routed to https://localhost/api/v1/query
+  # For example, http://vmauth:8427/api/v1/query is proxied to https://localhost/api/v1/query
   # TLS verification is skipped for https://localhost.
 - username: "local-single-node-with-tls"
   password: "***"
@@ -323,9 +519,9 @@ users:
   - "http://default1:8888/unsupported_url_handler"
   - "http://default2:8888/unsupported_url_handler"
 
-# Requests without Authorization header are routed according to `unauthorized_user` section.
-# Requests are routed in round-robin fashion between `url_prefix` backends.
-# The deny_partial_response query arg is added to all the routed requests.
+# Requests without Authorization header are proxied according to `unauthorized_user` section.
+# Requests are proxied in round-robin fashion between `url_prefix` backends.
+# The deny_partial_response query arg is added to all the proxied requests.
 # The requests are re-tried if url_prefix backends send 500 or 503 response status codes.
 # Note that the unauthorized_user section takes precedence when processing a route without credentials,
 # even if such a route also exists in the users section (see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5236).

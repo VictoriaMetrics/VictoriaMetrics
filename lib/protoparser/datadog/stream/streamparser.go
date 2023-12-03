@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net/http"
 	"regexp"
 	"sync"
 
@@ -12,15 +13,19 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/datadog"
+	apiSeriesV1 "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/datadog/api/series/v1"
+	apiSeriesV2 "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/datadog/api/series/v2"
+	apiSketchesBeta "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/datadog/api/sketches/beta"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
 	// The maximum request size is defined at https://docs.datadoghq.com/api/latest/metrics/#submit-metrics
-	maxInsertRequestSize = flagutil.NewBytes("datadog.maxInsertRequestSize", 64*1024*1024, "The maximum size in bytes of a single DataDog POST request to /api/v1/series")
+	maxInsertRequestSize = flagutil.NewBytes("datadog.maxInsertRequestSize", 64*1024*1024, "The maximum size in bytes of a single DataDog POST request to /api/v1/series, /api/v2/series, /api/beta/sketches")
 
 	// If all metrics in Datadog have the same naming schema as custom metrics, then the following rules apply:
 	// https://docs.datadoghq.com/metrics/custom_metrics/#naming-custom-metrics
@@ -31,13 +36,15 @@ var (
 		"https://docs.datadoghq.com/metrics/custom_metrics/#naming-custom-metrics")
 )
 
-// Parse parses DataDog POST request for /api/v1/series from reader and calls callback for the parsed request.
+// Parse parses DataDog POST request for /api/v1/series, /api/v2/series, /api/beta/sketches from reader and calls callback for the parsed request.
 //
 // callback shouldn't hold series after returning.
-func Parse(r io.Reader, contentEncoding string, callback func(series []datadog.Series) error) error {
-	wcr := writeconcurrencylimiter.GetReader(r)
+func Parse(req *http.Request, callback func(prompbmarshal.TimeSeries) error) error {
+	var r io.Reader
+	wcr := writeconcurrencylimiter.GetReader(req.Body)
 	defer writeconcurrencylimiter.PutReader(wcr)
 	r = wcr
+	contentEncoding := req.Header.Get("Content-Encoding")
 
 	switch contentEncoding {
 	case "gzip":
@@ -60,25 +67,57 @@ func Parse(r io.Reader, contentEncoding string, callback func(series []datadog.S
 	if err := ctx.Read(); err != nil {
 		return err
 	}
-	req := getRequest()
-	defer putRequest(req)
-	if err := req.Unmarshal(ctx.reqBuf.B); err != nil {
+	apiVersion := insertApisVersionRegex.ReplaceAllString(req.URL.Path, "${version}")
+	apiKind := insertApisVersionRegex.ReplaceAllString(req.URL.Path, "${kind}")
+
+	var ddReq datadog.Request
+	switch apiKind {
+	case "series":
+		switch apiVersion {
+		case "v1":
+			ddReq = getSeriesV1Request()
+			defer putSeriesV1Request(ddReq)
+		case "v2":
+			ddReq = getSeriesV2Request()
+			defer putSeriesV2Request(ddReq)
+		default:
+			return fmt.Errorf(
+				"API version %q of DataDog series endpoint is not supported",
+				apiVersion,
+			)
+		}
+	case "sketches":
+		switch apiVersion {
+		case "beta":
+			ddReq = getSketchesBetaRequest()
+			defer putSketchesBetaRequest(ddReq)
+		default:
+			return fmt.Errorf(
+				"API version %q of DataDog sketches endpoint is not supported",
+				apiVersion,
+			)
+		}
+	default:
+		return fmt.Errorf(
+			"API kind %q of DataDog API is not supported",
+			apiKind,
+		)
+	}
+
+	if err := ddReq.Unmarshal(ctx.reqBuf.B); err != nil {
 		unmarshalErrors.Inc()
 		return fmt.Errorf("cannot unmarshal DataDog POST request with size %d bytes: %w", len(ctx.reqBuf.B), err)
 	}
-	rows := 0
-	series := req.Series
-	for i := range series {
-		rows += len(series[i].Points)
-		if *sanitizeMetricName {
-			series[i].Metric = sanitizeName(series[i].Metric)
-		}
-	}
-	rowsRead.Add(rows)
 
-	if err := callback(series); err != nil {
+	cb := func(series prompbmarshal.TimeSeries) error {
+		rowsRead.Add(len(series.Samples))
+		return callback(series)
+	}
+
+	if err := ddReq.Extract(cb, sanitizeName(*sanitizeMetricName)); err != nil {
 		return fmt.Errorf("error when processing imported data: %w", err)
 	}
+
 	return nil
 }
 
@@ -144,25 +183,60 @@ func putPushCtx(ctx *pushCtx) {
 var pushCtxPool sync.Pool
 var pushCtxPoolCh = make(chan *pushCtx, cgroup.AvailableCPUs())
 
-func getRequest() *datadog.Request {
-	v := requestPool.Get()
+func getSeriesV1Request() *apiSeriesV1.Request {
+	v := seriesV1RequestPool.Get()
 	if v == nil {
-		return &datadog.Request{}
+		return &apiSeriesV1.Request{}
 	}
-	return v.(*datadog.Request)
+	return v.(*apiSeriesV1.Request)
 }
 
-func putRequest(req *datadog.Request) {
-	requestPool.Put(req)
+func putSeriesV1Request(req datadog.Request) {
+	seriesV1RequestPool.Put(req)
 }
 
-var requestPool sync.Pool
+var seriesV1RequestPool sync.Pool
+
+func getSeriesV2Request() *apiSeriesV2.Request {
+	v := seriesV2RequestPool.Get()
+	if v == nil {
+		return &apiSeriesV2.Request{}
+	}
+	return v.(*apiSeriesV2.Request)
+}
+
+func putSeriesV2Request(req datadog.Request) {
+	seriesV2RequestPool.Put(req)
+}
+
+var seriesV2RequestPool sync.Pool
+
+func getSketchesBetaRequest() *apiSketchesBeta.Request {
+	v := sketchesBetaRequestPool.Get()
+	if v == nil {
+		return &apiSketchesBeta.Request{}
+	}
+	return v.(*apiSketchesBeta.Request)
+}
+
+func putSketchesBetaRequest(req datadog.Request) {
+	sketchesBetaRequestPool.Put(req)
+}
+
+var sketchesBetaRequestPool sync.Pool
 
 // sanitizeName performs DataDog-compatible sanitizing for metric names
 //
 // See https://docs.datadoghq.com/metrics/custom_metrics/#naming-custom-metrics
-func sanitizeName(name string) string {
-	return namesSanitizer.Transform(name)
+func sanitizeName(sanitize bool) func(string) string {
+	if sanitize {
+		return func(name string) string {
+			return namesSanitizer.Transform(name)
+		}
+	}
+	return func(name string) string {
+		return name
+	}
 }
 
 var namesSanitizer = bytesutil.NewFastStringTransformer(func(s string) string {
@@ -176,4 +250,5 @@ var (
 	unsupportedDatadogChars = regexp.MustCompile(`[^0-9a-zA-Z_\.]+`)
 	multiUnderscores        = regexp.MustCompile(`_+`)
 	underscoresWithDots     = regexp.MustCompile(`_?\._?`)
+	insertApisVersionRegex  = regexp.MustCompile(`.*/api/(?P<version>[\w]+)/(?P<kind>[\w]+)`)
 )

@@ -6,6 +6,8 @@ menu:
   docs:
     parent: "operator"
     weight: 6
+aliases:
+  - /operator/monitoring.html
 ---
 
 # Monitoring of VictoriaMetrics Operator

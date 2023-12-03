@@ -12,7 +12,7 @@ title: VictoriaMetrics
 [![Build Status](https://github.com/VictoriaMetrics/VictoriaMetrics/workflows/main/badge.svg)](https://github.com/VictoriaMetrics/VictoriaMetrics/actions)
 [![codecov](https://codecov.io/gh/VictoriaMetrics/VictoriaMetrics/branch/master/graph/badge.svg)](https://codecov.io/gh/VictoriaMetrics/VictoriaMetrics)
 
-<img src="logo.png" width="300" alt="VictoriaMetrics logo">
+<img src="logo.webp" width="300" alt="VictoriaMetrics logo">
 
 VictoriaMetrics is a fast, cost-effective and scalable monitoring solution and time series database.
 
@@ -510,10 +510,15 @@ See also [vmagent](https://docs.victoriametrics.com/vmagent.html), which can be 
 
 ## How to send data from DataDog agent
 
-VictoriaMetrics accepts data from [DataDog agent](https://docs.datadoghq.com/agent/) 
-or [DogStatsD](https://docs.datadoghq.com/developers/dogstatsd/) 
-via ["submit metrics" API](https://docs.datadoghq.com/api/latest/metrics/#submit-metrics) 
-at `/datadog/api/v1/series` path.
+VictoriaMetrics accepts data in the following protocols:
+* [DataDog agent](https://docs.datadoghq.com/agent/)
+* [DogStatsD](https://docs.datadoghq.com/developers/dogstatsd/)
+* [DataDog Lambda Extension](https://docs.datadoghq.com/serverless/libraries_integrations/extension/)
+
+Via ["submit metrics" API](https://docs.datadoghq.com/api/latest/metrics/#submit-metrics) at the following path:
+* `/datadog/api/v1/series`
+* `/datadog/api/v2/series`
+* `/datadog/api/beta/sketches`
 
 ### Sending metrics to VictoriaMetrics
 
@@ -521,7 +526,7 @@ DataDog agent allows configuring destinations for metrics sending via ENV variab
 or via [configuration file](https://docs.datadoghq.com/agent/guide/agent-configuration-files/) in section `dd_url`.
 
 <p align="center">
-  <img src="Single-server-VictoriaMetrics-sending_DD_metrics_to_VM.png" width="800">
+  <img src="Single-server-VictoriaMetrics-sending_DD_metrics_to_VM.webp" width="800">
 </p>
 
 To configure DataDog agent via ENV variable add the following prefix:
@@ -555,7 +560,7 @@ DataDog allows configuring [Dual Shipping](https://docs.datadoghq.com/agent/guid
 sending via ENV variable `DD_ADDITIONAL_ENDPOINTS` or via configuration file `additional_endpoints`.
  
 <p align="center">
-  <img src="Single-server-VictoriaMetrics-sending_DD_metrics_to_VM_and_DD.png" width="800">
+  <img src="Single-server-VictoriaMetrics-sending_DD_metrics_to_VM_and_DD.webp" width="800">
 </p>
  
 Run DataDog using the following ENV variable with VictoriaMetrics as additional metrics receiver:
@@ -584,6 +589,19 @@ additional_endpoints:
 ```
 
 </div>
+
+### Send via Serverless DataDog plugin
+
+Disable logs (logs ingestion is not supported by Victoria Metrics) and set a custom endpoint in serverless.yaml
+```
+custom:
+  datadog:
+    enableDDLogs: false             # Disabled not supported DD logs
+    apiKey: fakekey                 # Set any key, otherwise plugin fails
+provider:
+  environment:
+    DD_DD_URL: <<vm-url>>/datadog   # Victoria Metrics endpoint for DataDog
+```
 
 ### Send via cURL
 
@@ -1417,7 +1435,12 @@ For example, `/api/v1/import?extra_label=foo=bar` would add `"foo":"bar"` label 
 
 Note that it could be required to flush response cache after importing historical data. See [these docs](#backfilling) for detail.
 
-VictoriaMetrics parses input JSON lines one-by-one. It loads the whole JSON line in memory, then parses it and then saves the parsed samples into persistent storage. This means that VictoriaMetrics can occupy big amounts of RAM when importing too long JSON lines. The solution is to split too long JSON lines into smaller lines. It is OK if samples for a single time series are split among multiple JSON lines.
+VictoriaMetrics parses input JSON lines one-by-one. It loads the whole JSON line in memory, then parses it and then saves the parsed samples into persistent storage.
+This means that VictoriaMetrics can occupy big amounts of RAM when importing too long JSON lines.
+The solution is to split too long JSON lines into shorter lines. It is OK if samples for a single time series are split among multiple JSON lines.
+JSON line length can be limited via `max_rows_per_line` query arg when exporting via [/api/v1/export](how-to-export-data-in-json-line-format).
+
+The maximum JSON line length, which can be parsed by VictoriaMetrics, is limited by `-import.maxLineLen` command-line flag value.
 
 ### How to import data in native format
 
@@ -1594,15 +1617,18 @@ The format follows [JSON streaming concept](http://ndjson.org/), e.g. each line 
 ```
 
 Note that every JSON object must be written in a single line, e.g. all the newline chars must be removed from it.
-Every line length is limited by the value passed to `-import.maxLineLen` command-line flag (by default this is 100MB).
+[/api/v1/import](#how-to-import-data-in-json-line-format) handler doesn't accept JSON lines longer than the value
+passed to `-import.maxLineLen` command-line flag (by default this is 10MB).
 
 It is recommended passing 1K-10K samples per line for achieving the maximum data ingestion performance at [/api/v1/import](#how-to-import-data-in-json-line-format).
 Too long JSON lines may increase RAM usage at VictoriaMetrics side.
 
+[/api/v1/export](#how-to-export-data-in-json-line-format) handler accepts `max_rows_per_line` query arg, which allows limiting the number of samples per each exported line.
+
 It is OK to split [raw samples](https://docs.victoriametrics.com/keyConcepts.html#raw-samples)
 for the same [time series](https://docs.victoriametrics.com/keyConcepts.html#time-series) across multiple lines.
 
-The number of lines in JSON line document can be arbitrary.
+The number of lines in the request to [/api/v1/import](#how-to-import-data-in-json-line-format) can be arbitrary - they are imported in streaming manner.
 
 ## Relabeling
 
@@ -2038,6 +2064,8 @@ Alternatively, single-node VictoriaMetrics can self-scrape the metrics when `-se
 set to duration greater than 0. For example, `-selfScrapeInterval=10s` would enable self-scraping of `/metrics` page 
 with 10 seconds interval.
 
+_Please note, never use loadbalancer address for scraping metrics. All monitored components should be scraped directly by their address._
+
 Official Grafana dashboards available for [single-node](https://grafana.com/grafana/dashboards/10229-victoriametrics/) 
 and [clustered](https://grafana.com/grafana/dashboards/11176-victoriametrics-cluster/) VictoriaMetrics. 
 See an [alternative dashboard for clustered VictoriaMetrics](https://grafana.com/grafana/dashboards/11831) 
@@ -2364,7 +2392,7 @@ It is recommended disabling query cache with `-search.disableCache` command-line
 historical data with timestamps from the past, since the cache assumes that the data is written with
 the current timestamps. Query cache can be enabled after the backfilling is complete.
 
-An alternative solution is to query [/internal/resetRollupResultCache](https://docs.victoriametrics.com/url-examples.html#internalresetRollupResultCache) handler after the backfilling is complete. This will reset the query cache, which could contain incomplete data cached during the backfilling.
+An alternative solution is to query [/internal/resetRollupResultCache](https://docs.victoriametrics.com/url-examples.html#internalresetrollupresultcache) handler after the backfilling is complete. This will reset the query cache, which could contain incomplete data cached during the backfilling.
 
 Yet another solution is to increase `-search.cacheTimestampOffset` flag value in order to disable caching
 for data with timestamps close to the current time. Single-node VictoriaMetrics automatically resets response
@@ -2502,19 +2530,14 @@ Report bugs and propose new features [here](https://github.com/VictoriaMetrics/V
 Please, keep image size and number of images per single page low. Keep the docs page as lightweight as possible.
 
 If the page needs to have many images, consider using WEB-optimized image format [webp](https://developers.google.com/speed/webp).
-When adding a new doc with many images use `webp` format right away. Or use a MAKEFILE command below to
-convert already existing images automatically:
-```console
-PATH_TO_IMAGES=path/to/images IMAGES_EXTENSION={png|jpg|jpeg} IMAGE_QUALITY=0..100 make docs-images-to-webp
-```
+When adding a new doc with many images use `webp` format right away. Or use a Makefile command below to
+convert already existing images at `docs` folder automatically to `web` format:
 
-_// For this command to work ensure you run it when in `docs` dir (`cd docs`) and have Docker up&running._
+```console
+make docs-images-to-webp
+```
 
 Once conversion is done, update the path to images in your docs and verify everything is correct.
-When you're happy with result - remove the originals with the following command:
-```console
-PATH_TO_IMAGES=path/to/images IMAGES_EXTENSION={png|jpg|jpeg} make docs-remove-old-images
-```
 
 ## VictoriaMetrics Logo
 
@@ -2562,7 +2585,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -csvTrimTimestamp duration
      Trim timestamps when importing csv data to this duration. Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data (default 1ms)
   -datadog.maxInsertRequestSize size
-     The maximum size in bytes of a single DataDog POST request to /api/v1/series
+     The maximum size in bytes of a single DataDog POST request to /api/v1/series, /api/v2/series, /api/beta/sketches
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 67108864)
   -datadog.sanitizeMetricName
      Sanitize metric names for the ingested DataDog data to comply with DataDog behaviour described at https://docs.datadoghq.com/metrics/custom_metrics/#naming-custom-metrics (default true)
@@ -2633,7 +2656,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      Whether to use proxy protocol for connections accepted at -httpListenAddr . See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing
   -import.maxLineLen size
      The maximum length in bytes of a single line accepted by /api/v1/import; the line length can be limited with 'max_rows_per_line' query arg passed to /api/v1/export
-     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 104857600)
+     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 10485760)
   -influx.databaseNames array
      Comma-separated list of database names to return from /query and /influx/query API. This can be needed for accepting data from Telegraf plugins such as https://github.com/fangli/fluent-plugin-influxdb
      Supports an array of values separated by comma or specified via multiple flags.
