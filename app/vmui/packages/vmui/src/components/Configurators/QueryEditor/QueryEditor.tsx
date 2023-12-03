@@ -103,7 +103,7 @@ const QueryEditor: FC<QueryEditorProps> = ({
   };
 
   useEffect(() => {
-    queryDispatch({ type: "SET_QUICK_AUTOCOMPLETE", payload: false });
+    queryDispatch({ type: "SET_AUTOCOMPLETE_QUICK", payload: false });
   }, [value]);
 
   return (

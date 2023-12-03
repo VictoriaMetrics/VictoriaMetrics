@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from "preact/compat";
+import React, { useEffect } from "preact/compat";
 import { FunctionIcon } from "../components/Main/Icons";
 import { AutocompleteOptions } from "../components/Main/Autocomplete/Autocomplete";
 import { marked } from "marked";
 import MetricsQL from "../assets/MetricsQL.md";
+import { useQueryDispatch, useQueryState } from "../state/query/QueryStateContext";
 
 const CATEGORY_TAG = "h3";
 const FUNCTION_TAG = "h4";
@@ -48,14 +49,14 @@ const processGroups = (groups: NodeListOf<Element>): AutocompleteOptions[] => {
 };
 
 const useGetMetricsQL = () => {
-  const [metricsQLFunctions, setMetricsQLFunctions] = useState<AutocompleteOptions[]>([]);
+  const { metricsQLFunctions } = useQueryState();
+  const queryDispatch = useQueryDispatch();
 
   const processMarkdown = (text: string) => {
     const div = document.createElement("div");
     div.innerHTML = marked(text);
     const groups = div.querySelectorAll(`${CATEGORY_TAG}, ${FUNCTION_TAG}`);
-    const result = processGroups(groups);
-    setMetricsQLFunctions(result);
+    return processGroups(groups);
   };
 
   useEffect(() => {
@@ -63,12 +64,14 @@ const useGetMetricsQL = () => {
       try {
         const resp = await fetch(MetricsQL);
         const text = await resp.text();
-        processMarkdown(text);
+        const result = processMarkdown(text);
+        queryDispatch({ type: "SET_METRICSQL_FUNCTIONS", payload: result });
       } catch (e) {
         console.error("Error fetching or processing the MetricsQL.md file:", e);
       }
     };
 
+    if (metricsQLFunctions.length) return;
     fetchMarkdown();
   }, []);
 

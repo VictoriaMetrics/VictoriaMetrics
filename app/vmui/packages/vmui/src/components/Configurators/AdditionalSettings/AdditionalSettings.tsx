@@ -11,7 +11,7 @@ import classNames from "classnames";
 import useBoolean from "../../../hooks/useBoolean";
 import useEventListener from "../../../hooks/useEventListener";
 import Tooltip from "../../Main/Tooltip/Tooltip";
-import { AUTOCOMPLETE_KEY, AUTOCOMPLETE_QUICK_KEY } from "../../Main/ShortcutKeys/constants/keyList";
+import { AUTOCOMPLETE_QUICK_KEY } from "../../Main/ShortcutKeys/constants/keyList";
 
 const AdditionalSettingsControls: FC<{isMobile?: boolean}> = ({ isMobile }) => {
   const { autocomplete } = useQueryState();
@@ -33,16 +33,12 @@ const AdditionalSettingsControls: FC<{isMobile?: boolean}> = ({ isMobile }) => {
   };
 
   const onChangeQuickAutocomplete = () => {
-    queryDispatch({ type: "SET_QUICK_AUTOCOMPLETE", payload: true });
+    queryDispatch({ type: "SET_AUTOCOMPLETE_QUICK", payload: true });
   };
 
   const handleKeyDown = (e: KeyboardEvent) => {
     const { code, altKey } = e;
     if (code === "KeyA" && altKey) {
-      e.preventDefault();
-      onChangeAutocomplete();
-    }
-    if (code === "Space" && altKey) {
       e.preventDefault();
       onChangeQuickAutocomplete();
     }
@@ -57,14 +53,7 @@ const AdditionalSettingsControls: FC<{isMobile?: boolean}> = ({ isMobile }) => {
         "vm-additional-settings_mobile": isMobile
       })}
     >
-      <Tooltip
-        title={(
-          <>
-            <p>Toggle autocomplete: {AUTOCOMPLETE_KEY}</p>
-            <p>Quick tip: {AUTOCOMPLETE_QUICK_KEY}</p>
-          </>
-        )}
-      >
+      <Tooltip title={<>Quick tip: {AUTOCOMPLETE_QUICK_KEY}</>}>
         <Switch
           label={"Autocomplete"}
           value={autocomplete}
