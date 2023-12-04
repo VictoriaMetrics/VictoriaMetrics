@@ -1,3 +1,5 @@
+import { AUTOCOMPLETE_LIMITS } from "../../../constants/queryAutocomplete";
+
 export type QueryAutocompleteCacheItem = {
   type: string;
   value: string;
@@ -5,12 +7,6 @@ export type QueryAutocompleteCacheItem = {
   end: string;
   match: string;
 }
-
-export const AUTOCOMPLETE_LIMITS = {
-  displayResults: 50,
-  queryLimit: 1000,
-  cacheLimit: 1000,
-};
 
 export class QueryAutocompleteCache {
   private maxSize: number;

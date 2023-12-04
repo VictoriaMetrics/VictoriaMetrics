@@ -6,7 +6,6 @@ import { DoneIcon } from "../Icons";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import useBoolean from "../../../hooks/useBoolean";
 import useEventListener from "../../../hooks/useEventListener";
-import { AUTOCOMPLETE_LIMITS } from "../../Configurators/QueryEditor/QueryAutocompleteCache";
 
 export interface AutocompleteOptions {
   value: string;
@@ -206,7 +205,7 @@ const Autocomplete: FC<AutocompleteProps> = ({
       </div>
       {showMessage && (
         <div className="vm-autocomplete-message">
-          Shown {AUTOCOMPLETE_LIMITS.displayResults} results out of {totalFound}. {showMessage}
+          Shown {maxDisplayResults?.limit} results out of {totalFound}. {showMessage}
         </div>
       )}
       {foundOptions[focusOption.index]?.description && (

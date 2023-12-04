@@ -4,15 +4,9 @@ import { useFetchQueryOptions } from "../../../hooks/useFetchQueryOptions";
 import { getTextWidth } from "../../../utils/uplot";
 import { escapeRegExp } from "../../../utils/regexp";
 import useGetMetricsQL from "../../../hooks/useGetMetricsQL";
-import { AUTOCOMPLETE_LIMITS } from "./QueryAutocompleteCache";
 import { RefreshIcon } from "../../Main/Icons";
-
-export enum QueryContextType {
-  empty = "empty",
-  metricsql = "metricsql",
-  label = "label",
-  value = "value",
-}
+import { QueryContextType } from "../../../types";
+import { AUTOCOMPLETE_LIMITS, AUTOCOMPLETE_MIN_SYMBOLS } from "../../../constants/queryAutocomplete";
 
 interface QueryEditorAutocompleteProps {
   value: string;
@@ -126,7 +120,7 @@ const QueryEditorAutocomplete: FC<QueryEditorAutocompleteProps> = ({
         value={valueByContext}
         options={options?.length < AUTOCOMPLETE_LIMITS.queryLimit ? options : []}
         anchor={anchorEl}
-        minLength={context === QueryContextType.metricsql ? 2 : 0}
+        minLength={AUTOCOMPLETE_MIN_SYMBOLS[context]}
         offset={{ top: 0, left: leftOffset }}
         onSelect={handleSelect}
         onFoundOptions={onFoundOptions}

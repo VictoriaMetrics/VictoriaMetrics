@@ -5,10 +5,10 @@ import { AutocompleteOptions } from "../components/Main/Autocomplete/Autocomplet
 import { LabelIcon, MetricIcon, ValueIcon } from "../components/Main/Icons";
 import { useTimeState } from "../state/time/TimeStateContext";
 import { useCallback } from "react";
-import { QueryContextType } from "../components/Configurators/QueryEditor/QueryEditorAutocomplete";
 import debounce from "lodash.debounce";
 import { useQueryDispatch, useQueryState } from "../state/query/QueryStateContext";
-import { AUTOCOMPLETE_LIMITS } from "../components/Configurators/QueryEditor/QueryAutocompleteCache";
+import { QueryContextType } from "../types";
+import { AUTOCOMPLETE_LIMITS } from "../constants/queryAutocomplete";
 
 enum TypeData {
   metric = "metric",

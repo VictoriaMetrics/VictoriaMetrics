@@ -153,3 +153,10 @@ export interface ActiveQueriesType {
   args?: string;
   data?: string;
 }
+
+export enum QueryContextType {
+  empty = "empty",
+  metricsql = "metricsql",
+  label = "label",
+  value = "value",
+}
