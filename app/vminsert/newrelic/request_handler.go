@@ -12,7 +12,6 @@ import (
 	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/newrelic"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/newrelic/stream"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
 var (
@@ -65,9 +64,7 @@ func insertRows(at *auth.Token, rows []newrelic.Row, extraLabels []prompbmarshal
 			}
 			ctx.SortLabelsIfNeeded()
 			atLocal := ctx.GetLocalAuthToken(at)
-			ctx.MetricNameBuf = storage.MarshalMetricNameRaw(ctx.MetricNameBuf[:0], atLocal.AccountID, atLocal.ProjectID, ctx.Labels)
-			storageNodeIdx := ctx.GetStorageNodeIdx(atLocal, ctx.Labels)
-			if err := ctx.WriteDataPointExt(storageNodeIdx, ctx.MetricNameBuf, r.Timestamp, s.Value); err != nil {
+			if err := ctx.WriteDataPoint(atLocal, ctx.Labels, r.Timestamp, s.Value); err != nil {
 				return err
 			}
 		}
