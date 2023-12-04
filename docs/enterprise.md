@@ -51,6 +51,7 @@ plus the following additional features:
 - [Advanced auth and rate limiter](https://docs.victoriametrics.com/vmgateway.html).
 - [mTLS for cluster components](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection).
 - [Kafka integration](https://docs.victoriametrics.com/vmagent.html#kafka-integration).
+- [Google PubSub integration](https://docs.victoriametrics.com/vmagent.html#google-pubsub-integration).
 - [Multitenant support in vmalert](https://docs.victoriametrics.com/vmalert.html#multitenancy).
 - [Ability to read alerting and recording rules from Object Storage](https://docs.victoriametrics.com/vmalert.html#reading-rules-from-object-storage).
 - [Ability to filter incoming requests by IP at vmauth](https://docs.victoriametrics.com/vmauth.html#ip-filters).
