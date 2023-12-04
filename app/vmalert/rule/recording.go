@@ -17,12 +17,14 @@ import (
 // to evaluate configured Expression and
 // return TimeSeries as result.
 type RecordingRule struct {
-	Type    config.Type
-	RuleID  uint64
-	Name    string
-	Expr    string
-	Labels  map[string]string
-	GroupID uint64
+	Type      config.Type
+	RuleID    uint64
+	Name      string
+	Expr      string
+	Labels    map[string]string
+	GroupID   uint64
+	GroupName string
+	File      string
 
 	q datasource.Querier
 
@@ -52,13 +54,15 @@ func (rr *RecordingRule) ID() uint64 {
 // NewRecordingRule creates a new RecordingRule
 func NewRecordingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule) *RecordingRule {
 	rr := &RecordingRule{
-		Type:    group.Type,
-		RuleID:  cfg.ID,
-		Name:    cfg.Record,
-		Expr:    cfg.Expr,
-		Labels:  cfg.Labels,
-		GroupID: group.ID(),
-		metrics: &recordingRuleMetrics{},
+		Type:      group.Type,
+		RuleID:    cfg.ID,
+		Name:      cfg.Record,
+		Expr:      cfg.Expr,
+		Labels:    cfg.Labels,
+		GroupID:   group.ID(),
+		GroupName: group.Name,
+		File:      group.File,
+		metrics:   &recordingRuleMetrics{},
 		q: qb.BuildWithParams(datasource.QuerierParams{
 			DataSourceType:     group.Type.String(),
 			EvaluationInterval: group.Interval,
