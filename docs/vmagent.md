@@ -250,41 +250,31 @@ by specifying `-remoteWrite.forcePromProto` command-line flag for the correspond
 
 ## Multitenancy
 
-By default `vmagent` collects the data without tenant identifiers and routes it to the configured `-remoteWrite.url`.
+By default `vmagent` collects the data without [tenant](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy) identifiers
+and routes it to the remote storage specified via `-remoteWrite.url` command-line flag. The `-remoteWrite.url` can point to `/insert/<tenant_id>/prometheus/api/v1/write` path
+at `vminsert` according to [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format). In this case all the metrics are written to the given `<tenant_id>` tenant.
 
-[VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) supports writing data to multiple tenants
-specified via special labels - see [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy-via-labels).
-This allows specifying tenant ids via [relabeling](#relabeling) and writing multitenant data
-to a single `-remoteWrite.url=http://<vminsert-addr>/insert/multitenant/prometheus/api/v1/write`.
+The easiest way to write data to multiple distinct tenants is to specify the needed tenants via `vm_account_id` and `vm_project_id` labels
+and then to push metrics with these labels to [multitenant url at VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy-via-labels).
+The `vm_account_id` and `vm_project_id` labels can be specified via [relabeling](#relabeling) before sending the metrics to `-remoteWrite.url`.
 
-`vmagent` can accept data from the same multitenant endpoints as `vminsert` from [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html)
-does according to [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format) and route the accepted data
-to the corresponding [tenants](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy) in VictoriaMetrics cluster
-pointed by the `-remoteWrite.multitenantURL` command-line flag. For example, if `-remoteWrite.multitenantURL` is set to `http://vminsert-service`,
-then `vmagent` would accept multitenant data at `http://vmagent:8429/insert/<accountID>/...` endpoints in the same way
-as [VictoriaMetrics cluster does](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format) and route
-it to `http://vminsert-service/insert/<accountID>/prometheus/api/v1/write`.
-
-If multiple `-remoteWrite.multitenantURL` command-line options are set, then `vmagent` replicates the collected data across all the configured urls.
-This allows using a single `vmagent` instance in front of multiple VictoriaMetrics clusters.
-
-If `-remoteWrite.multitenantURL` command-line flag is set and `vmagent` is configured to scrape Prometheus-compatible targets
-(e.g. if `-promscrape.config` command-line flag is set) then `vmagent` reads tenantID from `__tenant_id__` label
-for the discovered targets and routes all the metrics from this target to the given `__tenant_id__`,
-e.g. to the url `<-remoteWrite.multitenantURL>/insert/<__tenant_id__>/prometheus/api/v1/write`.
-
-For example, the following relabeling rule instructs sending metrics to tenantID defined in the `prometheus.io/tenant` annotation of Kubernetes pod deployment:
+For example, the following relabeling rule instructs sending metrics to `<account_id>:0` [tenant](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy)
+defined in the `prometheus.io/account_id` annotation of Kubernetes pod deployment:
 
 ```yaml
 scrape_configs:
 - kubernetes_sd_configs:
   - role: pod
   relabel_configs:
-  - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_tenant]
-    target_label: __tenant_id__
+  - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_account_id]
+    target_label: vm_account_id
 ```
 
-If the target has no associated `__tenant_id__` label, then its' metrics are routed to zero tenantID, e.g. to `<-remoteWrite.multitenantURL>/insert/0/prometheus/api/v1/write`.
+`vmagent` can accept data via the same multitenant endpoints as `vminsert` at [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html)
+does according to [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format) if `-enableMultitenantHandlers` command-line flag is set.
+In this case it automatically converts tenant identifiers to `vm_account_id` and `vm_project_id` labels before applying [relabeling](#relabeling) specified via `-remoteWrite.relabelConfig`
+and `-remoteWrite.urlRelabelConfig` command-line flags. Metrics with `vm_account_id` and `vm_project_id` labels can be routed to the corresponding tenants
+when specifying `-remoteWrite.url` to [multitenant url at VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy-via-labels).
 
 ## How to collect metrics in Prometheus format
 
@@ -1190,6 +1180,8 @@ with the following config:
 In this case it may be useful to disable on-disk data persistence in order to prevent from unbounded growth of the on-disk queue.
 See [these docs](https://docs.victoriametrics.com/vmagent.html#disabling-on-disk-persistence).
 
+See also [how to write metrics to multiple distinct tenants](https://docs.victoriametrics.com/vmagent.html#multitenancy).
+
 #### Consume metrics from multiple topics
 
 `vmagent` can read messages from different topics in different formats. For example, the following command starts `vmagent`, which reads plaintext
@@ -1321,6 +1313,8 @@ data_format = "influx"
 `vmagent` buffers messages read from Kafka topic on local disk if the remote storage at `-remoteWrite.url` cannot keep up with the data ingestion rate.
 In this case it may be useful to disable on-disk data persistence in order to prevent from unbounded growth of the on-disk queue.
 See [these docs](https://docs.victoriametrics.com/vmagent.html#disabling-on-disk-persistence).
+
+See also [how to write metrics to multiple distinct tenants](https://docs.victoriametrics.com/vmagent.html#multitenancy).
 
 #### Command-line flags for Kafka consumer
 
