@@ -30,6 +30,7 @@ type AlertingRule struct {
 	Annotations   map[string]string
 	GroupID       uint64
 	GroupName     string
+	File          string
 	EvalInterval  time.Duration
 	Debug         bool
 
@@ -67,6 +68,7 @@ func NewAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule
 		Annotations:   cfg.Annotations,
 		GroupID:       group.ID(),
 		GroupName:     group.Name,
+		File:          group.File,
 		EvalInterval:  group.Interval,
 		Debug:         cfg.Debug,
 		q: qb.BuildWithParams(datasource.QuerierParams{
