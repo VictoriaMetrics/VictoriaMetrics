@@ -13,7 +13,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/rule"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/tpl"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 )
@@ -139,10 +138,9 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
-		rwu := apiRuleWithUpdates{apiRule: rule}
-		useExtraFields := httputils.GetBool(r, withExtraFields)
-		if useExtraFields {
-			rwu.StateUpdates = rule.Updates
+		rwu := apiRuleWithUpdates{
+			apiRule:      rule,
+			StateUpdates: rule.Updates,
 		}
 		data, err := json.Marshal(rwu)
 		if err != nil {
@@ -163,9 +161,6 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		return false
 	}
 }
-
-// withExtraFields defines whether to add extra fields to JSON response
-const withExtraFields = "with_extra_fields"
 
 func (rh *requestHandler) getRule(r *http.Request) (apiRule, error) {
 	groupID, err := strconv.ParseUint(r.FormValue(paramGroupID), 10, 64)

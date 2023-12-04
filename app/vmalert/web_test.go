@@ -165,7 +165,7 @@ func TestHandler(t *testing.T) {
 		}
 
 		gotRuleWithUpdates := apiRuleWithUpdates{}
-		getResp(ts.URL+"/"+expRule.APILink()+"&with_extra_fields=1", &gotRuleWithUpdates, 200)
+		getResp(ts.URL+"/"+expRule.APILink(), &gotRuleWithUpdates, 200)
 		if gotRuleWithUpdates.StateUpdates == nil || len(gotRuleWithUpdates.StateUpdates) < 1 {
 			t.Fatalf("expected %+v to have state updates field not empty", gotRuleWithUpdates.StateUpdates)
 		}

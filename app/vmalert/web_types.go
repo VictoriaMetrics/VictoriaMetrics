@@ -164,6 +164,7 @@ type apiRule struct {
 	Updates []rule.StateEntry `json:"-"`
 }
 
+// apiRuleWithUpdates represents apiRule but with extra fields for marshalling
 type apiRuleWithUpdates struct {
 	apiRule
 	// Updates contains the ordered list of recorded ruleStateEntry objects
