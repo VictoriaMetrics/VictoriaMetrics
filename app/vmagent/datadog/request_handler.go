@@ -47,10 +47,13 @@ func insertRows(at *auth.Token, series []prompbmarshal.TimeSeries, extraLabels [
 		s := &series[i]
 		rowsTotal += len(s.Samples)
 
-		s.Labels = append(s.Labels, extraLabels...)
-		tssDst = append(tssDst, *s)
-
+		n := len(labels)
 		labels = append(labels, s.Labels...)
+		labels = append(labels, extraLabels...)
+		// avoid extra allocs by referencing labels
+		s.Labels = labels[n:]
+
+		tssDst = append(tssDst, *s)
 		samples = append(samples, s.Samples...)
 	}
 
