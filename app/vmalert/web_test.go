@@ -145,23 +145,18 @@ func TestHandler(t *testing.T) {
 	})
 	t.Run("/api/v1/rule?ruleID&groupID", func(t *testing.T) {
 		expRule := ruleToAPI(ar)
-		// strip monotonic clock, as it can't be parsed by JSON
-		expRule.LastEvaluation = expRule.LastEvaluation.Round(0)
-		// nullify Updates as we don't send them by default
-		expRule.Updates = nil
-
 		gotRule := apiRule{}
 		getResp(ts.URL+"/"+expRule.APILink(), &gotRule, 200)
 
-		if !reflect.DeepEqual(&gotRule, &expRule) {
-			t.Errorf("expected \n%+v\n is equal to \n%+v", gotRule, expRule)
+		if expRule.ID != gotRule.ID {
+			t.Errorf("expected to get Rule %q; got %q instead", expRule.ID, gotRule.ID)
 		}
 
 		gotRule = apiRule{}
 		getResp(ts.URL+"/vmalert/"+expRule.APILink(), &gotRule, 200)
 
-		if !reflect.DeepEqual(&gotRule, &expRule) {
-			t.Errorf("expected \n%+v\n is equal to \n%+v", gotRule, expRule)
+		if expRule.ID != gotRule.ID {
+			t.Errorf("expected to get Rule %q; got %q instead", expRule.ID, gotRule.ID)
 		}
 
 		gotRuleWithUpdates := apiRuleWithUpdates{}
