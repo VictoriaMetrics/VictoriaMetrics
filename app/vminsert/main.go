@@ -11,6 +11,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/clusternative"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/csvimport"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/datadog"
@@ -43,7 +45,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
-	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
@@ -314,7 +315,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "newrelic/infra/v2/metrics/events/bulk":
 		newrelicWriteRequests.Inc()
-		if err := newrelic.InsertHandlerForHTTP(r); err != nil {
+		if err := newrelic.InsertHandlerForHTTP(at, r); err != nil {
 			newrelicWriteErrors.Inc()
 			httpserver.Errorf(w, r, "%s", err)
 			return true
