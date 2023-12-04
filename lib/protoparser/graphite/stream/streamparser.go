@@ -27,10 +27,19 @@ var (
 // The callback can be called concurrently multiple times for streamed data from r.
 //
 // callback shouldn't hold rows after returning.
-func Parse(r io.Reader, callback func(rows []graphite.Row) error) error {
+func Parse(r io.Reader, isGzipped bool, callback func(rows []graphite.Row) error) error {
 	wcr := writeconcurrencylimiter.GetReader(r)
 	defer writeconcurrencylimiter.PutReader(wcr)
 	r = wcr
+
+	if isGzipped {
+		zr, err := common.GetGzipReader(r)
+		if err != nil {
+			return fmt.Errorf("cannot read gzipped graphite data: %w", err)
+		}
+		defer common.PutGzipReader(zr)
+		r = zr
+	}
 
 	ctx := getStreamContext(r)
 	defer putStreamContext(ctx)
