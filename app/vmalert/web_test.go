@@ -149,21 +149,18 @@ func TestHandler(t *testing.T) {
 		expRule.LastEvaluation = expRule.LastEvaluation.Round(0)
 		// nullify Updates as we don't send them by default
 		expRule.Updates = nil
-		expRule.Alerts = nil
 
 		gotRule := apiRule{}
 		getResp(ts.URL+"/"+expRule.APILink(), &gotRule, 200)
-		gotRule.Alerts = nil
 
-		if !reflect.DeepEqual(gotRule, expRule) {
+		if !reflect.DeepEqual(&gotRule, &expRule) {
 			t.Errorf("expected \n%+v\n is equal to \n%+v", gotRule, expRule)
 		}
 
 		gotRule = apiRule{}
 		getResp(ts.URL+"/vmalert/"+expRule.APILink(), &gotRule, 200)
-		gotRule.Alerts = nil
 
-		if !reflect.DeepEqual(gotRule, expRule) {
+		if !reflect.DeepEqual(&gotRule, &expRule) {
 			t.Errorf("expected \n%+v\n is equal to \n%+v", gotRule, expRule)
 		}
 
