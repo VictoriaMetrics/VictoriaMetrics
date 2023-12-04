@@ -1186,6 +1186,10 @@ with the following config:
   data_format = "influx"
 ```
 
+`vmagent` buffers messages read from Google PubSub topic on local disk if the remote storage at `-remoteWrite.url` cannot keep up with the data ingestion rate.
+In this case it may be useful to disable on-disk data persistence in order to prevent from unbounded growth of the on-disk queue.
+See [these docs](https://docs.victoriametrics.com/vmagent.html#disabling-on-disk-persistence).
+
 #### Consume metrics from multiple topics
 
 `vmagent` can read messages from different topics in different formats. For example, the following command starts `vmagent`, which reads plaintext
@@ -1292,7 +1296,7 @@ by passing multiple `-kafka.consumer.topic` command-line flags to `vmagent`.
 
 `vmagent` consumes messages from Kafka brokers specified by `-kafka.consumer.topic.brokers` command-line flag.
 Multiple brokers can be specified per each `-kafka.consumer.topic` by passing a list of brokers delimited by `;`.
-For example, `-kafka.consumer.topic.brokers=host1:9092;host2:9092`.
+For example, `-kafka.consumer.topic.brokers='host1:9092;host2:9092'`.
 
 The following command starts `vmagent`, which reads metrics in InfluxDB line protocol format from Kafka broker at `localhost:9092`
 from the topic `metrics-by-telegraf` and sends them to remote storage at `http://localhost:8428/api/v1/write`:
@@ -1313,6 +1317,10 @@ brokers = ["localhost:9092"]
 topic = "influx"
 data_format = "influx"
 ```
+
+`vmagent` buffers messages read from Kafka topic on local disk if the remote storage at `-remoteWrite.url` cannot keep up with the data ingestion rate.
+In this case it may be useful to disable on-disk data persistence in order to prevent from unbounded growth of the on-disk queue.
+See [these docs](https://docs.victoriametrics.com/vmagent.html#disabling-on-disk-persistence).
 
 #### Command-line flags for Kafka consumer
 
