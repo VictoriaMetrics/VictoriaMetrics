@@ -1,4 +1,5 @@
-import { StateUpdater, useCallback, useEffect, useMemo, useState } from "preact/compat";
+import { useCallback, useEffect, useMemo, useState } from "preact/compat";
+import { StateUpdater } from "preact/hooks";
 import { getQueryRangeUrl, getQueryUrl } from "../api/query-range";
 import { useAppState } from "../state/common/StateContext";
 import { InstantMetricResult, MetricBase, MetricResult, QueryStats } from "../api/types";
@@ -125,7 +126,7 @@ export const useFetchQuery = ({
           }
 
           isHistogramResult = isDisplayChart && isHistogramData(resp.data.result);
-          seriesLimit = isHistogramResult ? Infinity : Math.max(totalLength, defaultLimit);
+          seriesLimit = isHistogramResult ? Infinity : defaultLimit;
           const freeTempSize = seriesLimit - tempData.length;
           resp.data.result.slice(0, freeTempSize).forEach((d: MetricBase) => {
             d.group = counter;
@@ -140,7 +141,7 @@ export const useFetchQuery = ({
         counter++;
       }
 
-      const limitText = `Showing ${seriesLimit} series out of ${totalLength} series due to performance reasons. Please narrow down the query, so it returns less series`;
+      const limitText = `Showing ${tempData.length} series out of ${totalLength} series due to performance reasons. Please narrow down the query, so it returns less series`;
       setWarning(totalLength > seriesLimit ? limitText : "");
       isDisplayChart ? setGraphData(tempData as MetricResult[]) : setLiveData(tempData as InstantMetricResult[]);
       setTraces(tempTraces);
@@ -171,7 +172,7 @@ export const useFetchQuery = ({
       updatedPeriod.step = customStep;
       return expr.map(q => displayChart
         ? getQueryRangeUrl(serverUrl, q, updatedPeriod, nocache, isTracingEnabled)
-        : getQueryUrl(serverUrl, q, updatedPeriod, isTracingEnabled));
+        : getQueryUrl(serverUrl, q, updatedPeriod, nocache, isTracingEnabled));
     } else {
       setError(ErrorTypes.validServer);
     }

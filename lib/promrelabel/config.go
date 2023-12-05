@@ -204,7 +204,7 @@ var (
 	defaultPromRegex                     = func() *regexutil.PromRegex {
 		pr, err := regexutil.NewPromRegex(".*")
 		if err != nil {
-			panic(fmt.Errorf("BUG: unexpected error: %s", err))
+			panic(fmt.Errorf("BUG: unexpected error: %w", err))
 		}
 		return pr
 	}()
@@ -290,6 +290,26 @@ func parseRelabelConfig(rc *RelabelConfig) (*parsedRelabelConfig, error) {
 		}
 		if targetLabel == "" {
 			return nil, fmt.Errorf("missing `target_label` for `action=replace_all`")
+		}
+	case "keep_if_contains":
+		if targetLabel == "" {
+			return nil, fmt.Errorf("`target_label` must be set for `action=keep_if_containes`")
+		}
+		if len(sourceLabels) == 0 {
+			return nil, fmt.Errorf("`source_labels` must contain at least a single entry for `action=keep_if_contains`")
+		}
+		if rc.Regex != nil {
+			return nil, fmt.Errorf("`regex` cannot be used for `action=keep_if_contains`")
+		}
+	case "drop_if_contains":
+		if targetLabel == "" {
+			return nil, fmt.Errorf("`target_label` must be set for `action=drop_if_containes`")
+		}
+		if len(sourceLabels) == 0 {
+			return nil, fmt.Errorf("`source_labels` must contain at least a single entry for `action=drop_if_contains`")
+		}
+		if rc.Regex != nil {
+			return nil, fmt.Errorf("`regex` cannot be used for `action=drop_if_contains`")
 		}
 	case "keep_if_equal":
 		if len(sourceLabels) < 2 {

@@ -13,7 +13,6 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 	"github.com/cespare/xxhash/v2"
@@ -248,16 +247,24 @@ func (ts *targetStatus) getDurationFromLastScrape() time.Duration {
 }
 
 type droppedTargets struct {
-	mu              sync.Mutex
-	m               map[uint64]droppedTarget
-	lastCleanupTime uint64
+	mu sync.Mutex
+	m  map[uint64]droppedTarget
 }
 
 type droppedTarget struct {
 	originalLabels *promutils.Labels
 	relabelConfigs *promrelabel.ParsedConfigs
-	deadline       uint64
+	dropReason     targetDropReason
 }
+
+type targetDropReason string
+
+const (
+	targetDropReasonRelabeling       = targetDropReason("relabeling")         // target dropped because of relabeling
+	targetDropReasonMissingScrapeURL = targetDropReason("missing scrape URL") // target dropped because of missing scrape URL
+	targetDropReasonDuplicate        = targetDropReason("duplicate")          // target with the given set of labels already exists
+	targetDropReasonSharding         = targetDropReason("sharding")           // target is dropped becase of sharding https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets
+)
 
 func (dt *droppedTargets) getTargetsList() []droppedTarget {
 	dt.mu.Lock()
@@ -275,30 +282,30 @@ func (dt *droppedTargets) getTargetsList() []droppedTarget {
 	return dts
 }
 
-func (dt *droppedTargets) Register(originalLabels *promutils.Labels, relabelConfigs *promrelabel.ParsedConfigs) {
-	if *dropOriginalLabels {
-		// The originalLabels must be dropped, so do not register it.
+// Register registers dropped target with the given originalLabels.
+//
+// The relabelConfigs must contain relabel configs, which were applied to originalLabels.
+// The reason must contain the reason why the target has been dropped.
+func (dt *droppedTargets) Register(originalLabels *promutils.Labels, relabelConfigs *promrelabel.ParsedConfigs, reason targetDropReason) {
+	if originalLabels == nil {
+		// Do not register target without originalLabels. This is the case when *dropOriginalLabels is set to true.
 		return
 	}
 	// It is better to have hash collisions instead of spending additional CPU on originalLabels.String() call.
 	key := labelsHash(originalLabels)
-	currentTime := fasttime.UnixTimestamp()
 	dt.mu.Lock()
-	_, ok := dt.m[key]
-	if ok || len(dt.m) < *maxDroppedTargets {
-		dt.m[key] = droppedTarget{
-			originalLabels: originalLabels,
-			relabelConfigs: relabelConfigs,
-			deadline:       currentTime + 10*60,
-		}
+	dt.m[key] = droppedTarget{
+		originalLabels: originalLabels,
+		relabelConfigs: relabelConfigs,
+		dropReason:     reason,
 	}
-	if currentTime-dt.lastCleanupTime > 60 {
-		for k, v := range dt.m {
-			if currentTime > v.deadline {
-				delete(dt.m, k)
+	if len(dt.m) >= *maxDroppedTargets {
+		for k := range dt.m {
+			delete(dt.m, k)
+			if len(dt.m) < *maxDroppedTargets {
+				break
 			}
 		}
-		dt.lastCleanupTime = currentTime
 	}
 	dt.mu.Unlock()
 }
@@ -514,6 +521,7 @@ type targetLabels struct {
 	up             bool
 	originalLabels *promutils.Labels
 	labels         *promutils.Labels
+	dropReason     targetDropReason
 }
 type targetLabelsByJob struct {
 	jobName        string
@@ -604,6 +612,7 @@ func (tsr *targetsStatusResult) getTargetLabelsByJob() []*targetLabelsByJob {
 		m.droppedTargets++
 		m.targets = append(m.targets, targetLabels{
 			originalLabels: dt.originalLabels,
+			dropReason:     dt.dropReason,
 		})
 	}
 	a := make([]*targetLabelsByJob, 0, len(byJob))

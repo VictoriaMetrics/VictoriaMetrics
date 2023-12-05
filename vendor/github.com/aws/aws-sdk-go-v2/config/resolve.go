@@ -27,7 +27,6 @@ func resolveDefaultAWSConfig(ctx context.Context, cfg *aws.Config, cfgs configs)
 	}
 
 	*cfg = aws.Config{
-		Credentials:   aws.AnonymousCredentials{},
 		Logger:        logging.NewStandardLogger(os.Stderr),
 		ConfigSources: sources,
 	}
@@ -106,6 +105,29 @@ func resolveRegion(ctx context.Context, cfg *aws.Config, configs configs) error 
 	return nil
 }
 
+func resolveBaseEndpoint(ctx context.Context, cfg *aws.Config, configs configs) error {
+	var downcastCfgSources []interface{}
+	for _, cs := range configs {
+		downcastCfgSources = append(downcastCfgSources, interface{}(cs))
+	}
+
+	if val, found, err := GetIgnoreConfiguredEndpoints(ctx, downcastCfgSources); found && val && err == nil {
+		cfg.BaseEndpoint = nil
+		return nil
+	}
+
+	v, found, err := getBaseEndpoint(ctx, configs)
+	if err != nil {
+		return err
+	}
+
+	if !found {
+		return nil
+	}
+	cfg.BaseEndpoint = aws.String(v)
+	return nil
+}
+
 // resolveAppID extracts the sdk app ID from the configs slice's SharedConfig or env var
 func resolveAppID(ctx context.Context, cfg *aws.Config, configs configs) error {
 	ID, _, err := getAppID(ctx, configs)
@@ -113,10 +135,6 @@ func resolveAppID(ctx context.Context, cfg *aws.Config, configs configs) error {
 		return err
 	}
 
-	// if app ID is set in env var, it should precedence shared config value
-	if appID := os.Getenv(`AWS_SDK_UA_APP_ID`); len(appID) > 0 {
-		ID = appID
-	}
 	cfg.AppID = ID
 	return nil
 }

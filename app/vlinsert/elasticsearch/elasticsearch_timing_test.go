@@ -33,7 +33,7 @@ func benchmarkReadBulkRequest(b *testing.B, isGzip bool) {
 
 	timeField := "@timestamp"
 	msgField := "message"
-	processLogMessage := func(timestmap int64, fields []logstorage.Field) error { return nil }
+	processLogMessage := func(timestmap int64, fields []logstorage.Field) {}
 
 	b.ReportAllocs()
 	b.SetBytes(int64(len(data)))
@@ -43,7 +43,7 @@ func benchmarkReadBulkRequest(b *testing.B, isGzip bool) {
 			r.Reset(dataBytes)
 			_, err := readBulkRequest(r, isGzip, timeField, msgField, processLogMessage)
 			if err != nil {
-				panic(fmt.Errorf("unexpected error: %s", err))
+				panic(fmt.Errorf("unexpected error: %w", err))
 			}
 		}
 	})

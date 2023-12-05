@@ -12,8 +12,9 @@ linters:
     - depguard
     - errcheck
     - godot
-    - gofmt
+    - gofumpt
     - goimports
+    - gosec
     - gosimple
     - govet
     - ineffassign
@@ -53,6 +54,20 @@ issues:
       text: "calls to (.+) only in main[(][)] or init[(][)] functions"
       linters:
         - revive
+    # It's okay to not run gosec in a test.
+    - path: _test\.go
+      linters:
+        - gosec
+    # Igonoring gosec G404: Use of weak random number generator (math/rand instead of crypto/rand)
+    # as we commonly use it in tests and examples.
+    - text: "G404:"
+      linters:
+        - gosec
+    # Igonoring gosec G402: TLS MinVersion too low
+    # as the https://pkg.go.dev/crypto/tls#Config handles MinVersion default well.
+    - text: "G402: TLS MinVersion too low."
+      linters:
+        - gosec
   include:
     # revive exported should have comment or be unexported.
     - EXC0012
@@ -76,11 +91,6 @@ linters-settings:
       otlp-internal:
         files:
           - "!**/exporters/otlp/internal/**/*.go"
-          # TODO: remove the following when otlpmetric/internal is removed.
-          - "!**/exporters/otlp/otlpmetric/internal/oconf/envconfig.go"
-          - "!**/exporters/otlp/otlpmetric/internal/oconf/options.go"
-          - "!**/exporters/otlp/otlpmetric/internal/oconf/options_test.go"
-          - "!**/exporters/otlp/otlpmetric/internal/otest/client_test.go"
         deny:
           - pkg: "go.opentelemetry.io/otel/exporters/otlp/internal"
             desc: Do not use cross-module internal packages.

@@ -47,21 +47,20 @@ func handleJSON(r *http.Request, w http.ResponseWriter) bool {
 		httpserver.Errorf(w, r, "cannot parse common params from request: %s", err)
 		return true
 	}
+	if err := vlstorage.CanWriteData(); err != nil {
+		httpserver.Errorf(w, r, "%s", err)
+		return true
+	}
 	lr := logstorage.GetLogRows(cp.StreamFields, cp.IgnoreFields)
 	processLogMessage := cp.GetProcessLogMessageFunc(lr)
 	n, err := parseJSONRequest(data, processLogMessage)
+	vlstorage.MustAddRows(lr)
+	logstorage.PutLogRows(lr)
 	if err != nil {
-		logstorage.PutLogRows(lr)
-		httpserver.Errorf(w, r, "cannot parse Loki request: %s", err)
+		httpserver.Errorf(w, r, "cannot parse Loki json request: %s", err)
 		return true
 	}
 
-	err = vlstorage.AddRows(lr)
-	logstorage.PutLogRows(lr)
-	if err != nil {
-		httpserver.Errorf(w, r, "cannot insert rows: %s", err)
-		return true
-	}
 	rowsIngestedJSONTotal.Add(n)
 
 	// update lokiRequestJSONDuration only for successfully parsed requests
@@ -78,7 +77,7 @@ var (
 	lokiRequestJSONDuration = metrics.NewHistogram(`vl_http_request_duration_seconds{path="/insert/loki/api/v1/push",format="json"}`)
 )
 
-func parseJSONRequest(data []byte, processLogMessage func(timestamp int64, fields []logstorage.Field)error) (int, error) {
+func parseJSONRequest(data []byte, processLogMessage func(timestamp int64, fields []logstorage.Field)) (int, error) {
 	p := parserPool.Get()
 	defer parserPool.Put(p)
 	v, err := p.ParseBytes(data)
@@ -171,11 +170,7 @@ func parseJSONRequest(data []byte, processLogMessage func(timestamp int64, field
 				Name:  "_msg",
 				Value: bytesutil.ToUnsafeString(msg),
 			})
-			err = processLogMessage(ts, fields)
-			if err != nil {
-				return rowsIngested, err
-			}
-
+			processLogMessage(ts, fields)
 		}
 		rowsIngested += len(lines)
 	}

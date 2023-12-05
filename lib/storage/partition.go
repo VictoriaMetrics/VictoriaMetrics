@@ -257,7 +257,7 @@ func mustOpenPartition(smallPartsPath, bigPartsPath string, s *Storage) *partiti
 
 	name := filepath.Base(smallPartsPath)
 	if !strings.HasSuffix(bigPartsPath, name) {
-		logger.Panicf("FATAL: patititon name in bigPartsPath %q doesn't match smallPartsPath %q; want %q", bigPartsPath, smallPartsPath, name)
+		logger.Panicf("FATAL: partition name in bigPartsPath %q doesn't match smallPartsPath %q; want %q", bigPartsPath, smallPartsPath, name)
 	}
 
 	partNamesSmall, partNamesBig := mustReadPartNames(smallPartsPath, bigPartsPath)
@@ -634,45 +634,41 @@ func needAssistedMerge(pws []*partWrapper, maxParts int) bool {
 }
 
 func (pt *partition) assistedMergeForInmemoryParts() {
-	for {
-		pt.partsLock.Lock()
-		needMerge := needAssistedMerge(pt.inmemoryParts, maxInmemoryPartsPerPartition)
-		pt.partsLock.Unlock()
-		if !needMerge {
-			return
-		}
-
-		atomic.AddUint64(&pt.inmemoryAssistedMerges, 1)
-		err := pt.mergeInmemoryParts()
-		if err == nil {
-			continue
-		}
-		if errors.Is(err, errNothingToMerge) || errors.Is(err, errForciblyStopped) {
-			return
-		}
-		logger.Panicf("FATAL: cannot merge inmemory parts: %s", err)
+	pt.partsLock.Lock()
+	needMerge := needAssistedMerge(pt.inmemoryParts, maxInmemoryPartsPerPartition)
+	pt.partsLock.Unlock()
+	if !needMerge {
+		return
 	}
+
+	atomic.AddUint64(&pt.inmemoryAssistedMerges, 1)
+	err := pt.mergeInmemoryParts()
+	if err == nil {
+		return
+	}
+	if errors.Is(err, errNothingToMerge) || errors.Is(err, errForciblyStopped) {
+		return
+	}
+	logger.Panicf("FATAL: cannot merge inmemory parts: %s", err)
 }
 
 func (pt *partition) assistedMergeForSmallParts() {
-	for {
-		pt.partsLock.Lock()
-		needMerge := needAssistedMerge(pt.smallParts, maxSmallPartsPerPartition)
-		pt.partsLock.Unlock()
-		if !needMerge {
-			return
-		}
-
-		atomic.AddUint64(&pt.smallAssistedMerges, 1)
-		err := pt.mergeExistingParts(false)
-		if err == nil {
-			continue
-		}
-		if errors.Is(err, errNothingToMerge) || errors.Is(err, errForciblyStopped) || errors.Is(err, errReadOnlyMode) {
-			return
-		}
-		logger.Panicf("FATAL: cannot merge small parts: %s", err)
+	pt.partsLock.Lock()
+	needMerge := needAssistedMerge(pt.smallParts, maxSmallPartsPerPartition)
+	pt.partsLock.Unlock()
+	if !needMerge {
+		return
 	}
+
+	atomic.AddUint64(&pt.smallAssistedMerges, 1)
+	err := pt.mergeExistingParts(false)
+	if err == nil {
+		return
+	}
+	if errors.Is(err, errNothingToMerge) || errors.Is(err, errForciblyStopped) || errors.Is(err, errReadOnlyMode) {
+		return
+	}
+	logger.Panicf("FATAL: cannot merge small parts: %s", err)
 }
 
 func getNotInMergePartsCount(pws []*partWrapper) int {
@@ -1167,6 +1163,14 @@ func (pt *partition) mergeExistingParts(isFinal bool) error {
 	return pt.mergeParts(pws, pt.stopCh, isFinal)
 }
 
+func assertIsInMerge(pws []*partWrapper) {
+	for _, pw := range pws {
+		if !pw.isInMerge {
+			logger.Panicf("BUG: partWrapper.isInMerge unexpectedly set to false")
+		}
+	}
+}
+
 func (pt *partition) releasePartsToMerge(pws []*partWrapper) {
 	pt.partsLock.Lock()
 	for _, pw := range pws {
@@ -1226,11 +1230,15 @@ func getMinDedupInterval(pws []*partWrapper) int64 {
 // if isFinal is set, then the resulting part will be saved to disk.
 //
 // All the parts inside pws must have isInMerge field set to true.
+// The isInMerge field inside pws parts is set to false before returning from the function.
 func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFinal bool) error {
 	if len(pws) == 0 {
 		// Nothing to merge.
 		return errNothingToMerge
 	}
+
+	assertIsInMerge(pws)
+	defer pt.releasePartsToMerge(pws)
 
 	startTime := time.Now()
 
@@ -1282,7 +1290,6 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFi
 		putBlockStreamReader(bsr)
 	}
 	if err != nil {
-		pt.releasePartsToMerge(pws)
 		return err
 	}
 	if mpNew != nil {

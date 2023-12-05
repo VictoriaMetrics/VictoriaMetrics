@@ -848,7 +848,7 @@ Importing tips:
     
    # Migrating from single to cluster specific tenantID
    --vm-native-src-addr=http://<src-vmsingle>:8428
-   --vm-native-src-addr=http://<dst-vminsert>:8480/insert/0/prometheus
+   --vm-native-dst-addr=http://<dst-vminsert>:8480/insert/0/prometheus
     
    # Migrating single to single
    --vm-native-src-addr=http://<src-vmsingle>:8428
@@ -1075,7 +1075,7 @@ as a proxy between `vmctl` and destination with `-remoteWrite.rateLimit` flag en
 
 ## How to build
 
-It is recommended using [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) - `vmctl` is located in `vmutils-*` archives there.
+It is recommended using [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) - `vmctl` is located in `vmutils-*` archives there.
 
 ### Development build
 

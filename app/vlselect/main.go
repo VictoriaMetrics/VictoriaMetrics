@@ -88,6 +88,12 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 	if strings.HasPrefix(path, "/vmui/") {
+		if strings.HasPrefix(path, "/vmui/static/") {
+			// Allow clients caching static contents for long period of time, since it shouldn't change over time.
+			// Path to static contents (such as js and css) must be changed whenever its contents is changed.
+			// See https://developer.chrome.com/docs/lighthouse/performance/uses-long-cache-ttl/
+			w.Header().Set("Cache-Control", "max-age=31536000")
+		}
 		r.URL.Path = path
 		vmuiFileServer.ServeHTTP(w, r)
 		return true

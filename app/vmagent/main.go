@@ -16,6 +16,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/graphite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/influx"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/native"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/newrelic"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/opentelemetry"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/opentsdb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/opentsdbhttp"
@@ -123,7 +124,7 @@ func main() {
 	common.StartUnmarshalWorkers()
 	if len(*influxListenAddr) > 0 {
 		influxServer = influxserver.MustStart(*influxListenAddr, *influxUseProxyProtocol, func(r io.Reader) error {
-			return influx.InsertHandlerForReader(r, false)
+			return influx.InsertHandlerForReader(nil, r, false)
 		})
 	}
 	if len(*graphiteListenAddr) > 0 {
@@ -138,7 +139,7 @@ func main() {
 		opentsdbhttpServer = opentsdbhttpserver.MustStart(*opentsdbHTTPListenAddr, *opentsdbHTTPUseProxyProtocol, httpInsertHandler)
 	}
 
-	promscrape.Init(remotewrite.Push)
+	promscrape.Init(remotewrite.PushDropSamplesOnFailure)
 
 	if len(*httpListenAddr) > 0 {
 		go httpserver.Serve(*httpListenAddr, *useProxyProtocol, requestHandler)
@@ -251,7 +252,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		w.WriteHeader(statusCode)
 		return true
 	}
-	if strings.HasPrefix(path, "datadog/") {
+	if strings.HasPrefix(path, "/datadog/") {
 		// Trim suffix from paths starting from /datadog/ in order to support legacy DataDog agent.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2670
 		path = strings.TrimSuffix(path, "/")
@@ -317,6 +318,29 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 			return true
 		}
 		w.WriteHeader(http.StatusOK)
+		return true
+	case "/newrelic":
+		newrelicCheckRequest.Inc()
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(202)
+		fmt.Fprintf(w, `{"status":"ok"}`)
+		return true
+	case "/newrelic/inventory/deltas":
+		newrelicInventoryRequests.Inc()
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(202)
+		fmt.Fprintf(w, `{"payload":{"version": 1, "state": {}, "reset": "false"}}`)
+		return true
+	case "/newrelic/infra/v2/metrics/events/bulk":
+		newrelicWriteRequests.Inc()
+		if err := newrelic.InsertHandlerForHTTP(nil, r); err != nil {
+			newrelicWriteErrors.Inc()
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(202)
+		fmt.Fprintf(w, `{"status":"ok"}`)
 		return true
 	case "/datadog/api/v1/series":
 		datadogWriteRequests.Inc()
@@ -518,6 +542,29 @@ func processMultitenantRequest(w http.ResponseWriter, r *http.Request, path stri
 		}
 		w.WriteHeader(http.StatusOK)
 		return true
+	case "newrelic":
+		newrelicCheckRequest.Inc()
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(202)
+		fmt.Fprintf(w, `{"status":"ok"}`)
+		return true
+	case "newrelic/inventory/deltas":
+		newrelicInventoryRequests.Inc()
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(202)
+		fmt.Fprintf(w, `{"payload":{"version": 1, "state": {}, "reset": "false"}}`)
+		return true
+	case "newrelic/infra/v2/metrics/events/bulk":
+		newrelicWriteRequests.Inc()
+		if err := newrelic.InsertHandlerForHTTP(at, r); err != nil {
+			newrelicWriteErrors.Inc()
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(202)
+		fmt.Fprintf(w, `{"status":"ok"}`)
+		return true
 	case "datadog/api/v1/series":
 		datadogWriteRequests.Inc()
 		if err := datadog.InsertHandlerForHTTP(at, r); err != nil {
@@ -589,6 +636,12 @@ var (
 
 	opentelemetryPushRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/opentelemetry/api/v1/push", protocol="opentelemetry"}`)
 	opentelemetryPushErrors   = metrics.NewCounter(`vmagent_http_request_errors_total{path="/opentelemetry/api/v1/push", protocol="opentelemetry"}`)
+
+	newrelicWriteRequests = metrics.NewCounter(`vm_http_requests_total{path="/newrelic/infra/v2/metrics/events/bulk", protocol="newrelic"}`)
+	newrelicWriteErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/newrelic/infra/v2/metrics/events/bulk", protocol="newrelic"}`)
+
+	newrelicInventoryRequests = metrics.NewCounter(`vm_http_requests_total{path="/newrelic/inventory/deltas", protocol="newrelic"}`)
+	newrelicCheckRequest      = metrics.NewCounter(`vm_http_requests_total{path="/newrelic", protocol="newrelic"}`)
 
 	promscrapeTargetsRequests          = metrics.NewCounter(`vmagent_http_requests_total{path="/targets"}`)
 	promscrapeServiceDiscoveryRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/service-discovery"}`)

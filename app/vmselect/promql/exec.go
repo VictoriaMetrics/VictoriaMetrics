@@ -12,7 +12,6 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/querystats"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
@@ -50,7 +49,10 @@ func Exec(qt *querytracer.Tracer, ec *EvalConfig, q string, isFirstPointOnly boo
 	if querystats.Enabled() {
 		startTime := time.Now()
 		ac := ec.AuthToken
-		defer querystats.RegisterQuery(ac.AccountID, ac.ProjectID, q, ec.End-ec.Start, startTime)
+		defer func() {
+			querystats.RegisterQuery(ac.AccountID, ac.ProjectID, q, ec.End-ec.Start, startTime)
+			ec.QueryStats.addExecutionTimeMsec(startTime)
+		}()
 	}
 
 	ec.validate()
@@ -129,7 +131,7 @@ func timeseriesToResult(tss []*timeseries, maySort bool) ([]netstorage.Result, e
 	bb := bbPool.Get()
 	for i, ts := range tss {
 		bb.B = marshalMetricNameSorted(bb.B[:0], &ts.MetricName)
-		k := bytesutil.InternBytes(bb.B)
+		k := string(bb.B)
 		if _, ok := m[k]; ok {
 			return nil, fmt.Errorf(`duplicate output timeseries: %s`, stringMetricName(&ts.MetricName))
 		}

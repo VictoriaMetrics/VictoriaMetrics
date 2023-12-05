@@ -29,9 +29,9 @@ func benchmarkParseProtobufRequest(b *testing.B, streams, rows, labels int) {
 	b.RunParallel(func(pb *testing.PB) {
 		body := getProtobufBody(streams, rows, labels)
 		for pb.Next() {
-			_, err := parseProtobufRequest(body, func(timestamp int64, fields []logstorage.Field) error { return nil })
+			_, err := parseProtobufRequest(body, func(timestamp int64, fields []logstorage.Field) {})
 			if err != nil {
-				panic(fmt.Errorf("unexpected error: %s", err))
+				panic(fmt.Errorf("unexpected error: %w", err))
 			}
 		}
 	})

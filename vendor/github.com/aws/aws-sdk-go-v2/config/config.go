@@ -2,17 +2,10 @@ package config
 
 import (
 	"context"
+	"os"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 )
-
-// defaultLoaders are a slice of functions that will read external configuration
-// sources for configuration values. These values are read by the AWSConfigResolvers
-// using interfaces to extract specific information from the external configuration.
-var defaultLoaders = []loader{
-	loadEnvConfig,
-	loadSharedConfigIgnoreNotExist,
-}
 
 // defaultAWSConfigResolvers are a slice of functions that will resolve external
 // configuration values into AWS configuration values.
@@ -79,6 +72,8 @@ var defaultAWSConfigResolvers = []awsConfigResolver{
 
 	// Sets the sdk app ID if present in shared config profile
 	resolveAppID,
+
+	resolveBaseEndpoint,
 }
 
 // A Config represents a generic configuration value or set of values. This type
@@ -170,7 +165,7 @@ func (cs configs) ResolveConfig(f func(configs []interface{}) error) error {
 // or the custom data will be ignored by the resolvers and config loaders.
 //
 //	cfg, err := config.LoadDefaultConfig( context.TODO(),
-//	   WithSharedConfigProfile("test-profile"),
+//	   config.WithSharedConfigProfile("test-profile"),
 //	)
 //	if err != nil {
 //	   panic(fmt.Sprintf("failed loading config, %v", err))
@@ -190,7 +185,7 @@ func LoadDefaultConfig(ctx context.Context, optFns ...func(*LoadOptions) error) 
 	// assign Load Options to configs
 	var cfgCpy = configs{options}
 
-	cfgCpy, err = cfgCpy.AppendFromLoaders(ctx, defaultLoaders)
+	cfgCpy, err = cfgCpy.AppendFromLoaders(ctx, resolveConfigLoaders(&options))
 	if err != nil {
 		return aws.Config{}, err
 	}
@@ -201,4 +196,18 @@ func LoadDefaultConfig(ctx context.Context, optFns ...func(*LoadOptions) error) 
 	}
 
 	return cfg, nil
+}
+
+func resolveConfigLoaders(options *LoadOptions) []loader {
+	loaders := make([]loader, 2)
+	loaders[0] = loadEnvConfig
+
+	// specification of a profile should cause a load failure if it doesn't exist
+	if os.Getenv(awsProfileEnvVar) != "" || options.SharedConfigProfile != "" {
+		loaders[1] = loadSharedConfig
+	} else {
+		loaders[1] = loadSharedConfigIgnoreNotExist
+	}
+
+	return loaders
 }

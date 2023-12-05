@@ -11,6 +11,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/clusternative"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/csvimport"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/datadog"
@@ -18,6 +20,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/influx"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/native"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/netstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/newrelic"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/opentelemetry"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/opentsdb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/opentsdbhttp"
@@ -43,7 +46,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
-	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
@@ -308,6 +310,29 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		w.WriteHeader(http.StatusOK)
 		return true
+	case "newrelic":
+		newrelicCheckRequest.Inc()
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(202)
+		fmt.Fprintf(w, `{"status":"ok"}`)
+		return true
+	case "newrelic/inventory/deltas":
+		newrelicInventoryRequests.Inc()
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(202)
+		fmt.Fprintf(w, `{"payload":{"version": 1, "state": {}, "reset": "false"}}`)
+		return true
+	case "newrelic/infra/v2/metrics/events/bulk":
+		newrelicWriteRequests.Inc()
+		if err := newrelic.InsertHandlerForHTTP(at, r); err != nil {
+			newrelicWriteErrors.Inc()
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(202)
+		fmt.Fprintf(w, `{"status":"ok"}`)
+		return true
 	case "datadog/api/v1/series":
 		datadogWriteRequests.Inc()
 		if err := datadog.InsertHandlerForHTTP(at, r); err != nil {
@@ -380,6 +405,12 @@ var (
 
 	opentelemetryPushRequests = metrics.NewCounter(`vm_http_requests_total{path="/insert/{}/opentelemetry/api/v1/push", protocol="opentelemetry"}`)
 	opentelemetryPushErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/insert/{}/opentelemetry/api/v1/push", protocol="opentelemetry"}`)
+
+	newrelicWriteRequests = metrics.NewCounter(`vm_http_requests_total{path="/insert/{}/newrelic/infra/v2/metrics/events/bulk", protocol="newrelic"}`)
+	newrelicWriteErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/insert/{}/newrelic/infra/v2/metrics/events/bulk", protocol="newrelic"}`)
+
+	newrelicInventoryRequests = metrics.NewCounter(`vm_http_requests_total{path="/insert/{}/newrelic/inventory/deltas", protocol="newrelic"}`)
+	newrelicCheckRequest      = metrics.NewCounter(`vm_http_requests_total{path="/insert/{}/newrelic", protocol="newrelic"}`)
 
 	datadogWriteRequests = metrics.NewCounter(`vm_http_requests_total{path="/insert/{}/datadog/api/v1/series", protocol="datadog"}`)
 	datadogWriteErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/insert/{}/datadog/api/v1/series", protocol="datadog"}`)

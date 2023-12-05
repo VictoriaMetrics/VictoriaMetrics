@@ -39,19 +39,17 @@ func handleProtobuf(r *http.Request, w http.ResponseWriter) bool {
 		httpserver.Errorf(w, r, "cannot parse common params from request: %s", err)
 		return true
 	}
+	if err := vlstorage.CanWriteData(); err != nil {
+		httpserver.Errorf(w, r, "%s", err)
+		return true
+	}
 	lr := logstorage.GetLogRows(cp.StreamFields, cp.IgnoreFields)
 	processLogMessage := cp.GetProcessLogMessageFunc(lr)
 	n, err := parseProtobufRequest(data, processLogMessage)
-	if err != nil {
-		logstorage.PutLogRows(lr)
-		httpserver.Errorf(w, r, "cannot parse Loki request: %s", err)
-		return true
-	}
-
-	err = vlstorage.AddRows(lr)
+	vlstorage.MustAddRows(lr)
 	logstorage.PutLogRows(lr)
 	if err != nil {
-		httpserver.Errorf(w, r, "cannot insert rows: %s", err)
+		httpserver.Errorf(w, r, "cannot parse Loki protobuf request: %s", err)
 		return true
 	}
 
@@ -71,7 +69,7 @@ var (
 	lokiRequestProtobufDuration = metrics.NewHistogram(`vl_http_request_duration_seconds{path="/insert/loki/api/v1/push",format="protobuf"}`)
 )
 
- func parseProtobufRequest(data []byte, processLogMessage func(timestamp int64, fields []logstorage.Field) error) (int, error) {
+func parseProtobufRequest(data []byte, processLogMessage func(timestamp int64, fields []logstorage.Field)) (int, error) {
 	bb := bytesBufPool.Get()
 	defer bytesBufPool.Put(bb)
 
@@ -86,7 +84,7 @@ var (
 
 	err = req.Unmarshal(bb.B)
 	if err != nil {
-		return 0, fmt.Errorf("cannot parse request body: %s", err)
+		return 0, fmt.Errorf("cannot parse request body: %w", err)
 	}
 
 	var commonFields []logstorage.Field
@@ -99,7 +97,7 @@ var (
 		// Labels are same for all entries in the stream.
 		commonFields, err = parsePromLabels(commonFields[:0], stream.Labels)
 		if err != nil {
-			return rowsIngested, fmt.Errorf("cannot parse stream labels %q: %s", stream.Labels, err)
+			return rowsIngested, fmt.Errorf("cannot parse stream labels %q: %w", stream.Labels, err)
 		}
 		fields := commonFields
 
@@ -114,10 +112,7 @@ var (
 			if ts == 0 {
 				ts = currentTimestamp
 			}
-			err = processLogMessage(ts, fields)
-			if err != nil {
-				return rowsIngested, err
-			}
+			processLogMessage(ts, fields)
 		}
 		rowsIngested += len(stream.Entries)
 	}

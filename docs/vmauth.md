@@ -12,20 +12,23 @@ aliases:
 # vmauth
 
 `vmauth` is a simple auth proxy, router and [load balancer](#load-balancing) for [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics).
-It reads auth credentials from `Authorization` http header ([Basic Auth](https://en.wikipedia.org/wiki/Basic_access_authentication), `Bearer token` and [InfluxDB authorization](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1897) is supported),
+It reads auth credentials from `Authorization` http header ([Basic Auth](https://en.wikipedia.org/wiki/Basic_access_authentication),
+`Bearer token` and [InfluxDB authorization](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1897) is supported),
 matches them against configs pointed by [-auth.config](#auth-config) command-line flag and proxies incoming HTTP requests to the configured per-user `url_prefix` on successful match.
 The `-auth.config` can point to either local file or to http url.
 
 ## Quick start
 
-Just download `vmutils-*` archive from [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases), unpack it
-and pass the following flag to `vmauth` binary in order to start authorizing and routing requests:
+Just download `vmutils-*` archive from [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest), unpack it
+and pass the following flag to `vmauth` binary in order to start authorizing and proxying requests:
 
 ```console
 /path/to/vmauth -auth.config=/path/to/auth/config.yml
 ```
 
-After that `vmauth` starts accepting HTTP requests on port `8427` and routing them according to the provided [-auth.config](#auth-config).
+The `-auth.config` command-line flag must point to valid [config](#auth-config). See [use cases](#use-cases) with typical `-auth.config` examples.
+
+`vmauth` accepts HTTP requests on port `8427` and proxies them according to the provided [-auth.config](#auth-config).
 The port can be modified via `-httpListenAddr` command-line flag.
 
 The auth config can be reloaded via the following ways:
@@ -42,6 +45,231 @@ Pass `-help` to `vmauth` in order to see all the supported command-line flags wi
 
 Feel free [contacting us](mailto:info@victoriametrics.com) if you need customized auth proxy for VictoriaMetrics with the support of LDAP, SSO, RBAC, SAML,
 accounting and rate limiting such as [vmgateway](https://docs.victoriametrics.com/vmgateway.html).
+
+## Use cases
+
+* [Simple HTTP proxy](#simple-http-proxy)
+* [Generic HTTP proxy for different backends](#generic-http-proxy-for-different-backends)
+* [Generic HTTP load balancer](#generic-http-load-balancer)
+* [Load balancer for vmagent](#load-balancer-for-vmagent)
+* [Load balancer for VictoriaMetrics cluster](#load-balancer-for-victoriametrics-cluster)
+* [TLS termination proxy](#tls-termination-proxy)
+* [Basic Auth proxy](#basic-auth-proxy)
+* [Bearer Token auth proxy](#bearer-token-auth-proxy)
+* [Per-tenant authorization](#per-tenant-authorization)
+* [Enforcing query args](#enforcing-query-args)
+
+### Simple HTTP proxy
+
+The following [`-auth.config`](#auth-config) instructs `vmauth` to proxy all the incoming requests to the given backend.
+For example, requests to `http://vmauth:8427/foo/bar` are proxied to `http://backend/foo/bar`:
+
+```yml
+unauthorized_user:
+  url_prefix: "http://backend/"
+```
+
+### Generic HTTP proxy for different backends
+
+`vmauth` can proxy requests to different backends depending on the requested path.
+For example, the following [`-auth.config`](#auth-config) instructs `vmauth` to make the following:
+
+- Requests starting with `/app1/` are proxied to `http://app1-backend/`. For example, the request to `http://vmauth:8427/app1/foo/bar?baz=qwe`
+  is proxied to `http://app1-backend/foo/bar?baz=qwe`.
+- Requests starting with `/app2/` are proxied to `http://app2-backend/`. For example, the request to `http://vmauth:8427/app2/index.html`
+  is proxied to `http://app2-backend/index.html`.
+- Other requests are proxied to `http://some-backend/404-page.html`, while the requested path is passed via `request_path` query arg.
+  For example, the request to `http://vmauth:8427/foo/bar?baz=qwe` is proxied to `http://some-backend/404-page.html?request_path=%2Ffoo%2Fbar%3Fbaz%3Dqwe`.
+
+```yml
+unauthorized_user:
+  url_map:
+  - src_paths:
+    - "/app1/.*"
+    drop_src_path_prefix_parts: 1
+    url_prefix: "http://app1-backend/"
+  - src_paths:
+    - "/app2/.*"
+    drop_src_path_prefix_parts: 1
+    url_prefix: "http://app2-backend/"
+  default_url: http://some-backend/404-page.html
+```
+
+### Generic HTTP load balancer
+
+`vmauth` can balance load among multiple HTTP backends in least-loaded round-robin mode.
+For example, the following [`-auth.config`](#auth-config) instructs `vmauth` to spread load load among multiple application instances:
+
+```yml
+unauthorized_user:
+  url_prefix:
+  - "http://app-instance-1/"
+  - "http://app-instance-2/"
+  - "http://app-instance-3/"
+```
+
+### Load balancer for vmagent
+
+If [vmagent](https://docs.victoriametrics.com/vmagent.html) is used for processing [data push requests](https://docs.victoriametrics.com/vmagent.html#how-to-push-data-to-vmagent),
+then it is possible to scale the performance of data processing at `vmagent` by spreading load among multiple identically configured `vmagent` instances.
+This can be done with the following [config](#auth-config) for `vmagent`:
+
+```yml
+unauthorized_user:
+  url_map:
+  - src_paths:
+    - "/prometheus/api/v1/write"
+    - "/influx/write"
+    - "/api/v1/import"
+    - "/api/v1/import/.+"
+    url_prefix:
+    - "http://vmagent-1:8429/"
+    - "http://vmagent-2:8429/"
+    - "http://vmagent-3:8429/"
+```
+
+### Load balancer for VictoriaMetrics cluster
+
+[VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) accepts incoming data via `vminsert` nodes
+and processes incoming requests via `vmselect` nodes according to [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#architecture-overview).
+`vmauth` can be used for balancing both `insert` and `select` requests among `vminsert` and `vmselect` nodes, when the following [`-auth.config`](#auth-config) is used:
+
+```yml
+unauthorized_user:
+  url_map:
+  - src_paths:
+    - "/insert/.+"
+    url_prefix:
+    - "http://vminsert-1:8480/"
+    - "http://vminsert-2:8480/"
+    - "http://vminsert-3:8480/"
+  - src_paths:
+    - "/select/.+"
+    url_prefix:
+    - "http://vmselect-1:8481/"
+    - "http://vmselect-2:8481/"
+```
+
+### TLS termination proxy
+
+`vmauth` can terminate HTTPS requests to backend services when it runs with the following command-line flags:
+
+```
+/path/to/vmauth -tls -tlsKeyFile=/path/to/tls_key_file -tlsCertFile=/path/to/tls_cert_file -httpListenAddr=0.0.0.0:443
+```
+
+* `-httpListenAddr` sets the address to listen for incoming HTTPS requests
+* `-tls` enables accepting TLS connections at `-httpListenAddr`
+* `-tlsKeyFile` sets the path to TLS certificate key file
+* `-tlsCertFile` sets the path to TLS certificate file
+
+### Basic Auth proxy
+
+`vmauth` can authorize access to backends depending on the provided [Basic Auth](https://en.wikipedia.org/wiki/Basic_access_authentication) request headers.
+For example, the following [config](#auth-config) proxies requests to [single-node VictoriaMetrics](https://docs.victoriametrics.com/)
+if they contain Basic Auth header with the given `username` and `password`:
+
+```yml
+users:
+- username: foo
+  password: bar
+  url_prefix: "http://victoria-metrics:8428/"
+```
+
+See also [security docs](#security).
+
+### Bearer Token auth proxy
+
+`vmauth` can authorize access to backends depending on the provided `Bearer Token` request headers.
+For example, the following [config](#auth-config) proxies requests to [single-node VictoriaMetrics](https://docs.victoriametrics.com/)
+if they contain the given `bearer_token`:
+
+```yml
+users:
+- bearer_token: ABCDEF
+  url_prefix: "http://victoria-metrics:8428/"
+```
+
+See also [security docs](#security).
+
+### Per-tenant authorization
+
+The following [`-auth.config`](#auth-config) instructs proxying `insert` and `select` requests from the [Basic Auth](https://en.wikipedia.org/wiki/Basic_access_authentication)
+user `tenant1` to the [tenant](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy) `1`,
+while requests from the user `tenant2` are sent to tenant `2`:
+
+```yml
+users:
+- username: tenant1
+  password: "***"
+  url_map:
+  - src_paths:
+    - "/api/v1/write"
+    url_prefix: "http://vminsert-backend:8480/insert/1/prometheus/"
+  - src_paths:
+    - "/api/v1/query"
+    - "/api/v1/query_range"
+    - "/api/v1/series"
+    - "/api/v1/labels"
+    - "/api/v1/label/.+/values"
+    url_prefix: "http://vmselect-backend:8481/select/1/prometheus/"
+- username: tenant2
+  password: "***"
+  url_map:
+  - src_paths:
+    - "/api/v1/write"
+    url_prefix: "http://vminsert-backend:8480/insert/2/prometheus/"
+  - src_paths:
+    - "/api/v1/query"
+    - "/api/v1/query_range"
+    - "/api/v1/series"
+    - "/api/v1/labels"
+    - "/api/v1/label/.+/values"
+    url_prefix: "http://vmselect-backend:8481/select/2/prometheus/"
+```
+
+### Enforcing query args
+
+`vmauth` can be configured for adding some mandatory query args before proxying requests to backends.
+For example, the following [config](#auth-config) adds [`extra_label`](https://docs.victoriametrics.com/#prometheus-querying-api-enhancements)
+to all the requests, which are proxied to [single-node VictoriaMetrics](https://docs.victoriametrics.com/):
+
+```yml
+unauthorized_user:
+  url_prefix: "http://victoria-metrics:8428/?extra_label=foo=bar"
+```
+
+## Dropping request path prefix
+
+By default `vmauth` doesn't drop the path prefix from the original request when proxying the request to the matching backend.
+Sometimes it is needed to drop path prefix before proxying the request to the backend. This can be done by specifying the number of `/`-delimited
+prefix parts to drop from the request path via `drop_src_path_prefix_parts` option at `url_map` level or at `user` level.
+
+For example, if you need to serve requests to [vmalert](https://docs.victoriametrics.com/vmalert.html) at `/vmalert/` path prefix,
+while serving requests to [vmagent](https://docs.victoriametrics.com/vmagent.html) at `/vmagent/` path prefix for a particular user,
+then the following [-auth.config](#auth-config) can be used:
+
+```yml
+users:
+- username: foo
+  url_map:
+
+    # proxy all the requests, which start with `/vmagent/`, to vmagent backend
+  - src_paths:
+    - "/vmagent/.+"
+
+    # drop /vmagent/ path prefix from the original request before proxying it to url_prefix.
+    drop_src_path_prefix_parts: 1
+    url_prefix: "http://vmagent-backend:8429/"
+
+    # proxy all the requests, which start with `/vmalert`, to vmalert backend
+  - src_paths:
+    - "/vmalert/.+"
+
+    # drop /vmalert/ path prefix from the original request before proxying it to url_prefix.
+    drop_src_path_prefix_parts: 1
+    url_prefix: "http://vmalert-backend:8880/"
+```
 
 ## Load balancing
 
@@ -112,6 +340,31 @@ The following [metrics](#monitoring) related to concurrency limits are exposed b
 - `vmauth_unauthorized_user_concurrent_requests_limit_reached_total` - the number of requests rejected with `429 Too Many Requests` error
   because of the concurrency limit has been reached for unauthorized users (if `unauthorized_user` section is used).
 
+## Backend TLS setup
+
+By default `vmauth` uses system settings when performing requests to HTTPS backends specified via `url_prefix` option
+in the [`-auth.config`](https://docs.victoriametrics.com/vmauth.html#auth-config). These settings can be overridden with the following command-line flags:
+
+- `-backend.tlsInsecureSkipVerify` allows skipping TLS verification when connecting to HTTPS backends.
+  This global setting can be overridden at per-user level inside [`-auth.config`](https://docs.victoriametrics.com/vmauth.html#auth-config)
+  via `tls_insecure_skip_verify` option. For example:
+
+  ```yml
+  - username: "foo"
+    url_prefix: "https://localhost"
+    tls_insecure_skip_verify: true
+  ```
+
+- `-backend.tlsCAFile` allows specifying the path to TLS Root CA, which will be used for TLS verification when connecting to HTTPS backends.
+  The `-backend.tlsCAFile` may point either to local file or to `http` / `https` url.
+  This global setting can be overridden at per-user level inside [`-auth.config`](https://docs.victoriametrics.com/vmauth.html#auth-config)
+  via `tls_ca_file` option. For example:
+
+  ```yml
+  - username: "foo"
+    url_prefix: "https://localhost"
+    tls_ca_file: "/path/to/tls/root/ca"
+  ```
 
 ## IP filters
 
@@ -187,10 +440,19 @@ users:
 
   # All the requests to http://vmauth:8427 with the given Basic Auth (username:password)
   # are proxied to http://localhost:8428 with extra_label=team=dev query arg.
-  # For example, http://vmauth:8427/api/v1/query is routed to http://localhost:8428/api/v1/query?extra_label=team=dev
+  # For example, http://vmauth:8427/api/v1/query is proxied to http://localhost:8428/api/v1/query?extra_label=team=dev
 - username: "local-single-node2"
   password: "***"
   url_prefix: "http://localhost:8428?extra_label=team=dev"
+
+  # All the requests to http://vmauth:8427 with the given Basic Auth (username:password)
+  # are proxied to https://localhost:8428.
+  # For example, http://vmauth:8427/api/v1/query is proxied to https://localhost/api/v1/query
+  # TLS verification is skipped for https://localhost.
+- username: "local-single-node-with-tls"
+  password: "***"
+  url_prefix: "https://localhost"
+  tls_insecure_skip_verify: true
 
   # All the requests to http://vmauth:8427 with the given Basic Auth (username:password)
   # are load-balanced among http://vmselect1:8481/select/123/prometheus and http://vmselect2:8481/select/123/prometheus
@@ -233,6 +495,8 @@ users:
   # For example, request to http://vmauth:8427/non/existing/path are proxied:
   #  - to http://default1:8888/unsupported_url_handler?request_path=/non/existing/path
   #  - or http://default2:8888/unsupported_url_handler?request_path=/non/existing/path
+  #
+  # Regular expressions are allowed in `src_paths` entries.
 - username: "foobar"
   url_map:
   - src_paths:
@@ -255,10 +519,12 @@ users:
   - "http://default1:8888/unsupported_url_handler"
   - "http://default2:8888/unsupported_url_handler"
 
-# Requests without Authorization header are routed according to `unauthorized_user` section.
-# Requests are routed in round-robin fashion between `url_prefix` backends.
-# The deny_partial_response query arg is added to all the routed requests.
+# Requests without Authorization header are proxied according to `unauthorized_user` section.
+# Requests are proxied in round-robin fashion between `url_prefix` backends.
+# The deny_partial_response query arg is added to all the proxied requests.
 # The requests are re-tried if url_prefix backends send 500 or 503 response status codes.
+# Note that the unauthorized_user section takes precedence when processing a route without credentials,
+# even if such a route also exists in the users section (see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5236).
 unauthorized_user:
   url_prefix:
   - http://vmselect-az1/?deny_partial_response=1
@@ -328,7 +594,7 @@ metric without label (if `unauthorized_user` section of config is used).
 
 ## How to build from sources
 
-It is recommended using [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) - `vmauth` is located in `vmutils-*` archives there.
+It is recommended using [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) - `vmauth` is located in `vmutils-*` archives there.
 
 ### Development build
 
@@ -406,9 +672,11 @@ See the docs at https://docs.victoriametrics.com/vmauth.html .
   -envflag.prefix string
      Prefix for environment variables if -envflag.enable is set
   -eula
-     Deprecated, please use -license or -licenseFile flags instead. By specifying this flag, you confirm that you have an enterprise license and accept the ESA https://victoriametrics.com/legal/esa/ . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
+     Deprecated, please use -license or -licenseFile flags instead. By specifying this flag, you confirm that you have an enterprise license and accept the ESA https://victoriametrics.com/legal/esa/ . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
   -failTimeout duration
-     Sets a delay period for load balancing to skip a malfunctioning backend. (defaults 3s)
+     Sets a delay period for load balancing to skip a malfunctioning backend (default 3s)
+  -filestream.disableFadvise
+     Whether to disable fadvise() syscall when reading large data files. The fadvise() syscall prevents from eviction of recently accessed data from OS page cache during background merges and backups. In some rare cases it is better to disable the syscall if it uses too much CPU
   -flagsAuthKey string
      Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -fs.disableMmap
@@ -417,6 +685,12 @@ See the docs at https://docs.victoriametrics.com/vmauth.html .
      Incoming http connections are closed after the configured timeout. This may help to spread the incoming load among a cluster of services behind a load balancer. Please note that the real timeout may be bigger by up to 10% as a protection against the thundering herd problem (default 2m0s)
   -http.disableResponseCompression
      Disable compression of HTTP responses to save CPU resources. By default, compression is enabled to save network bandwidth
+  -http.header.csp string
+     Value for 'Content-Security-Policy' header
+  -http.header.frameOptions string
+     Value for 'X-Frame-Options' header
+  -http.header.hsts string
+     Value for 'Strict-Transport-Security' header
   -http.idleConnTimeout duration
      Timeout for incoming idle http connections (default 1m0s)
   -http.maxGracefulShutdownDuration duration
@@ -440,11 +714,11 @@ See the docs at https://docs.victoriametrics.com/vmauth.html .
   -internStringMaxLen int
      The maximum length for strings to intern. A lower limit may save memory at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning . See also -internStringDisableCache and -internStringCacheExpireDuration (default 500)
   -license string
-     See https://victoriametrics.com/products/enterprise/ for trial license. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
+     Lisense key for VictoriaMetrics Enterprise. See https://victoriametrics.com/products/enterprise/ . Trial Enterprise license can be obtained from https://victoriametrics.com/products/enterprise/trial/ . This flag is available only in Enterprise binaries. The license key can be also passed via file specified by -licenseFile command-line flag
   -license.forceOffline
-     See https://victoriametrics.com/products/enterprise/ for trial license. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
+     Whether to enable offline verification for VictoriaMetrics Enterprise license key, which has been passed either via -license or via -licenseFile command-line flag. The issued license key must support offline verification feature. Contact info@victoriametrics.com if you need offline license verification. This flag is avilable only in Enterprise binaries
   -licenseFile string
-     See https://victoriametrics.com/products/enterprise/ for trial license. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
+     Path to file with license key for VictoriaMetrics Enterprise. See https://victoriametrics.com/products/enterprise/ . Trial Enterprise license can be obtained from https://victoriametrics.com/products/enterprise/trial/ . This flag is available only in Enterprise binaries. The license key can be also passed inline via -license command-line flag
   -logInvalidAuthTokens
      Whether to log requests with invalid auth tokens. Such requests are always counted at vmauth_http_request_errors_total{reason="invalid_auth_token"} metric, which is exposed at /metrics page
   -loggerDisableTimestamps

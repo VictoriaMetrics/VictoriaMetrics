@@ -109,6 +109,14 @@ func TestSimplify(t *testing.T) {
 
 	// The transformed regexp mustn't match barx
 	f("(foo|bar$)x*", "", "(?:foo|bar$)x*")
+
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5297
+	f(".+;|;.+", "", ".+;|;.+")
+	f("^(.+);|;(.+)$", "", ".+;|;.+")
+	f("^(.+);$|^;(.+)$", "", ".+;|;.+")
+	f(".*;|;.*", "", ".*;|;.*")
+	f("^(.*);|;(.*)$", "", ".*;|;.*")
+	f("^(.*);$|^;(.*)$", "", ".*;|;.*")
 }
 
 func TestRemoveStartEndAnchors(t *testing.T) {

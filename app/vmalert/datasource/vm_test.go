@@ -506,8 +506,7 @@ func TestRequestParams(t *testing.T) {
 			},
 			func(t *testing.T, r *http.Request) {
 				evalInterval := 15 * time.Second
-				tt := timestamp.Truncate(evalInterval)
-				exp := url.Values{"query": {query}, "step": {evalInterval.String()}, "time": {tt.Format(time.RFC3339)}}
+				exp := url.Values{"query": {query}, "step": {evalInterval.String()}, "time": {timestamp.Format(time.RFC3339)}}
 				checkEqualString(t, exp.Encode(), r.URL.RawQuery)
 			},
 		},
@@ -521,7 +520,6 @@ func TestRequestParams(t *testing.T) {
 			func(t *testing.T, r *http.Request) {
 				evalInterval := 15 * time.Second
 				tt := timestamp.Add(-time.Minute)
-				tt = tt.Truncate(evalInterval)
 				exp := url.Values{"query": {query}, "step": {evalInterval.String()}, "time": {tt.Format(time.RFC3339)}}
 				checkEqualString(t, exp.Encode(), r.URL.RawQuery)
 			},
@@ -549,8 +547,7 @@ func TestRequestParams(t *testing.T) {
 			},
 			func(t *testing.T, r *http.Request) {
 				evalInterval := 3 * time.Hour
-				tt := timestamp.Truncate(evalInterval)
-				exp := url.Values{"query": {query}, "step": {fmt.Sprintf("%ds", int(evalInterval.Seconds()))}, "time": {tt.Format(time.RFC3339)}}
+				exp := url.Values{"query": {query}, "step": {fmt.Sprintf("%ds", int(evalInterval.Seconds()))}, "time": {timestamp.Format(time.RFC3339)}}
 				checkEqualString(t, exp.Encode(), r.URL.RawQuery)
 			},
 		},
@@ -640,7 +637,10 @@ func TestRequestParams(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			req := tc.vm.newRequest()
+			req, err := tc.vm.newRequest()
+			if err != nil {
+				t.Fatal(err)
+			}
 			switch tc.vm.dataSourceType {
 			case "", datasourcePrometheus:
 				if tc.queryRange {
@@ -735,7 +735,10 @@ func TestHeaders(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			vm := tt.vmFn()
-			req := vm.newQueryRequest("foo", time.Now())
+			req, err := vm.newQueryRequest("foo", time.Now())
+			if err != nil {
+				t.Fatal(err)
+			}
 			tt.checkFn(t, req)
 		})
 	}

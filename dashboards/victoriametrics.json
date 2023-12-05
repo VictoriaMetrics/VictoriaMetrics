@@ -65,7 +65,7 @@
           "uid": "$ds"
         },
         "enable": true,
-        "expr": "sum(ALERTS{alertgroup=\"vmsingle\",alertstate=\"firing\",show_at=\"dashboard\"}) by(alertname)",
+        "expr": "sum(ALERTS{job=~\"$job\", instance=~\"$instance\", alertgroup=\"vmsingle\",alertstate=\"firing\",show_at=\"dashboard\"}) by(alertname)",
         "iconColor": "red",
         "name": "alerts",
         "titleFormat": "{{alertname}}"
@@ -76,11 +76,11 @@
           "uid": "$ds"
         },
         "enable": true,
-        "expr": "sum(vm_app_version{job=~\"$job\", instance=~\"$instance\"}) by(short_version) unless (sum(vm_app_version{job=~\"$job\", instance=~\"$instance\"} offset 20m) by(short_version))",
+        "expr": "sum(vm_app_version{job=~\"$job\", instance=~\"$instance\"}) by(version) unless (sum(vm_app_version{job=~\"$job\", instance=~\"$instance\"} offset 20m) by(short_versionversion))",
         "hide": true,
         "iconColor": "dark-blue",
         "name": "version",
-        "textFormat": "{{short_version}}",
+        "textFormat": "{{version}}",
         "titleFormat": "Version change"
       }
     ]
@@ -1035,7 +1035,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(rate(vm_http_requests_total{job=~\"$job\", instance=~\"$instance\", path!~\"/favicon.ico\"}[$__rate_interval])) by (path) > 0",
+          "expr": "sum(rate(vm_http_requests_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (path) > 0",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 1,
@@ -1485,7 +1485,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Percentage of used memory (resident).\nThe application's performance will significantly degrade when memory usage is close to 100%.",
+          "description": "Percentage of used RSS memory (resident).\nThe RSS memory shows the amount of memory recently accessed by the application. It includes anonymous memory and data from recently accessed files (aka page cache).\nThe application's performance will significantly degrade when memory usage is close to 100%.\n\nClick on the line and choose Drilldown to show memory usage per instance",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -1747,7 +1747,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Share for memory allocated by the process itself. When memory usage reaches 100% it will be likely OOM-killed.\nSafe memory usage % considered to be below 80%",
+          "description": "Share for memory allocated by the process itself. When memory usage reaches 100% it will be likely OOM-killed.\nSafe memory usage % considered to be below 80%\n\nClick on the line and choose Drilldown to show memory usage per instance",
           "fieldConfig": {
             "defaults": {
               "color": {

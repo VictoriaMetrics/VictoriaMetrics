@@ -145,7 +145,7 @@ func NewServer(addr string, api API, limits Limits, disableResponseCompression b
 		metricRowsRead:   metrics.NewCounter(fmt.Sprintf(`vm_vmselect_metric_rows_read_total{addr=%q}`, addr)),
 	}
 
-	s.connsMap.Init()
+	s.connsMap.Init("vmselect")
 	s.wg.Add(1)
 	go func() {
 		s.run()
@@ -232,7 +232,7 @@ func (s *Server) MustStop() {
 
 	// Close existing connections from vmselect, so the goroutines
 	// processing these connections are finished.
-	s.connsMap.CloseAll()
+	s.connsMap.CloseAll(0)
 
 	// Wait until all the goroutines processing vmselect conns are finished.
 	s.wg.Wait()
@@ -365,7 +365,8 @@ func (ctx *vmselectRequestCtx) readAccountIDProjectID() (uint32, uint32, error) 
 }
 
 // maxSearchQuerySize is the maximum size of SearchQuery packet in bytes.
-const maxSearchQuerySize = 1024 * 1024
+// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5154#issuecomment-1757216612
+const maxSearchQuerySize = 5 * 1024 * 1024
 
 func (ctx *vmselectRequestCtx) readSearchQuery() error {
 	if err := ctx.readDataBufBytes(maxSearchQuerySize); err != nil {
@@ -511,7 +512,7 @@ func (s *Server) processRequest(ctx *vmselectRequestCtx) error {
 
 	// Process the rpcName call.
 	if err := s.processRPC(ctx, rpcName); err != nil {
-		return fmt.Errorf("cannot execute %q: %s", rpcName, err)
+		return fmt.Errorf("cannot execute %q: %w", rpcName, err)
 	}
 
 	// Finish query trace.

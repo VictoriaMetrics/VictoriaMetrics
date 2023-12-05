@@ -172,7 +172,7 @@ func (c *SharedKeyCredential) buildCanonicalizedResource(u *url.URL) (string, er
 
 			// Join the sorted key values separated by ','
 			// Then prepend "keyName:"; then add this string to the buffer
-			cr.WriteString("\n" + paramName + ":" + strings.Join(paramValues, ","))
+			cr.WriteString("\n" + strings.ToLower(paramName) + ":" + strings.Join(paramValues, ","))
 		}
 	}
 	return cr.String(), nil

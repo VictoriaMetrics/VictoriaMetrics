@@ -458,7 +458,7 @@ type SetImmutabilityPolicyOptions struct {
 
 func (o *SetImmutabilityPolicyOptions) format() (*generated.BlobClientSetImmutabilityPolicyOptions, *ModifiedAccessConditions) {
 	if o == nil {
-		return nil, nil
+		return &generated.BlobClientSetImmutabilityPolicyOptions{}, nil
 	}
 	ac := &exported.BlobAccessConditions{
 		ModifiedAccessConditions: o.ModifiedAccessConditions,
@@ -544,11 +544,13 @@ type CopyFromURLOptions struct {
 	SourceModifiedAccessConditions *SourceModifiedAccessConditions
 
 	BlobAccessConditions *AccessConditions
+
+	CPKScopeInfo *CPKScopeInfo
 }
 
-func (o *CopyFromURLOptions) format() (*generated.BlobClientCopyFromURLOptions, *generated.SourceModifiedAccessConditions, *generated.ModifiedAccessConditions, *generated.LeaseAccessConditions) {
+func (o *CopyFromURLOptions) format() (*generated.BlobClientCopyFromURLOptions, *generated.SourceModifiedAccessConditions, *generated.ModifiedAccessConditions, *generated.LeaseAccessConditions, *generated.CPKScopeInfo) {
 	if o == nil {
-		return nil, nil, nil, nil
+		return nil, nil, nil, nil, nil
 	}
 
 	options := &generated.BlobClientCopyFromURLOptions{
@@ -563,7 +565,7 @@ func (o *CopyFromURLOptions) format() (*generated.BlobClientCopyFromURLOptions, 
 	}
 
 	leaseAccessConditions, modifiedAccessConditions := exported.FormatBlobAccessConditions(o.BlobAccessConditions)
-	return options, o.SourceModifiedAccessConditions, modifiedAccessConditions, leaseAccessConditions
+	return options, o.SourceModifiedAccessConditions, modifiedAccessConditions, leaseAccessConditions, o.CPKScopeInfo
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

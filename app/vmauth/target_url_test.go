@@ -7,20 +7,91 @@ import (
 	"testing"
 )
 
+func TestDropPrefixParts(t *testing.T) {
+	f := func(path string, parts int, expectedResult string) {
+		t.Helper()
+
+		result := dropPrefixParts(path, parts)
+		if result != expectedResult {
+			t.Fatalf("unexpected result; got %q; want %q", result, expectedResult)
+		}
+	}
+
+	f("", 0, "")
+	f("", 1, "")
+	f("", 10, "")
+	f("foo", 0, "foo")
+	f("foo", -1, "foo")
+	f("foo", 1, "")
+
+	f("/foo", 0, "/foo")
+	f("/foo/bar", 0, "/foo/bar")
+	f("/foo/bar/baz", 0, "/foo/bar/baz")
+
+	f("foo", 0, "foo")
+	f("foo/bar", 0, "foo/bar")
+	f("foo/bar/baz", 0, "foo/bar/baz")
+
+	f("/foo/", 0, "/foo/")
+	f("/foo/bar/", 0, "/foo/bar/")
+	f("/foo/bar/baz/", 0, "/foo/bar/baz/")
+
+	f("/foo", 1, "")
+	f("/foo/bar", 1, "/bar")
+	f("/foo/bar/baz", 1, "/bar/baz")
+
+	f("foo", 1, "")
+	f("foo/bar", 1, "/bar")
+	f("foo/bar/baz", 1, "/bar/baz")
+
+	f("/foo/", 1, "/")
+	f("/foo/bar/", 1, "/bar/")
+	f("/foo/bar/baz/", 1, "/bar/baz/")
+
+	f("/foo", 2, "")
+	f("/foo/bar", 2, "")
+	f("/foo/bar/baz", 2, "/baz")
+
+	f("foo", 2, "")
+	f("foo/bar", 2, "")
+	f("foo/bar/baz", 2, "/baz")
+
+	f("/foo/", 2, "")
+	f("/foo/bar/", 2, "/")
+	f("/foo/bar/baz/", 2, "/baz/")
+
+	f("/foo", 3, "")
+	f("/foo/bar", 3, "")
+	f("/foo/bar/baz", 3, "")
+
+	f("foo", 3, "")
+	f("foo/bar", 3, "")
+	f("foo/bar/baz", 3, "")
+
+	f("/foo/", 3, "")
+	f("/foo/bar/", 3, "")
+	f("/foo/bar/baz/", 3, "/")
+
+	f("/foo/", 4, "")
+	f("/foo/bar/", 4, "")
+	f("/foo/bar/baz/", 4, "")
+}
+
 func TestCreateTargetURLSuccess(t *testing.T) {
-	f := func(ui *UserInfo, requestURI, expectedTarget, expectedRequestHeaders, expectedResponseHeaders string, expectedRetryStatusCodes []int) {
+	f := func(ui *UserInfo, requestURI, expectedTarget, expectedRequestHeaders, expectedResponseHeaders string,
+		expectedRetryStatusCodes []int, expectedDropSrcPathPrefixParts int) {
 		t.Helper()
 		u, err := url.Parse(requestURI)
 		if err != nil {
 			t.Fatalf("cannot parse %q: %s", requestURI, err)
 		}
 		u = normalizeURL(u)
-		up, hc, retryStatusCodes := ui.getURLPrefixAndHeaders(u)
+		up, hc, retryStatusCodes, dropSrcPathPrefixParts := ui.getURLPrefixAndHeaders(u)
 		if up == nil {
 			t.Fatalf("cannot determie backend: %s", err)
 		}
 		bu := up.getLeastLoadedBackendURL()
-		target := mergeURLs(bu.url, u)
+		target := mergeURLs(bu.url, u, dropSrcPathPrefixParts)
 		bu.put()
 		if target.String() != expectedTarget {
 			t.Fatalf("unexpected target; got %q; want %q", target, expectedTarget)
@@ -32,11 +103,14 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 		if !reflect.DeepEqual(retryStatusCodes, expectedRetryStatusCodes) {
 			t.Fatalf("unexpected retryStatusCodes; got %d; want %d", retryStatusCodes, expectedRetryStatusCodes)
 		}
+		if dropSrcPathPrefixParts != expectedDropSrcPathPrefixParts {
+			t.Fatalf("unexpected dropSrcPathPrefixParts; got %d; want %d", dropSrcPathPrefixParts, expectedDropSrcPathPrefixParts)
+		}
 	}
 	// Simple routing with `url_prefix`
 	f(&UserInfo{
 		URLPrefix: mustParseURL("http://foo.bar"),
-	}, "", "http://foo.bar/.", "[]", "[]", nil)
+	}, "", "http://foo.bar/.", "[]", "[]", nil, 0)
 	f(&UserInfo{
 		URLPrefix: mustParseURL("http://foo.bar"),
 		HeadersConf: HeadersConf{
@@ -45,29 +119,30 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 				Value: "aaa",
 			}},
 		},
-		RetryStatusCodes: []int{503, 501},
-	}, "/", "http://foo.bar", `[{"bb" "aaa"}]`, `[]`, []int{503, 501})
+		RetryStatusCodes:       []int{503, 501},
+		DropSrcPathPrefixParts: 2,
+	}, "/a/b/c", "http://foo.bar/c", `[{"bb" "aaa"}]`, `[]`, []int{503, 501}, 2)
 	f(&UserInfo{
 		URLPrefix: mustParseURL("http://foo.bar/federate"),
-	}, "/", "http://foo.bar/federate", "[]", "[]", nil)
+	}, "/", "http://foo.bar/federate", "[]", "[]", nil, 0)
 	f(&UserInfo{
 		URLPrefix: mustParseURL("http://foo.bar"),
-	}, "a/b?c=d", "http://foo.bar/a/b?c=d", "[]", "[]", nil)
+	}, "a/b?c=d", "http://foo.bar/a/b?c=d", "[]", "[]", nil, 0)
 	f(&UserInfo{
 		URLPrefix: mustParseURL("https://sss:3894/x/y"),
-	}, "/z", "https://sss:3894/x/y/z", "[]", "[]", nil)
+	}, "/z", "https://sss:3894/x/y/z", "[]", "[]", nil, 0)
 	f(&UserInfo{
 		URLPrefix: mustParseURL("https://sss:3894/x/y"),
-	}, "/../../aaa", "https://sss:3894/x/y/aaa", "[]", "[]", nil)
+	}, "/../../aaa", "https://sss:3894/x/y/aaa", "[]", "[]", nil, 0)
 	f(&UserInfo{
 		URLPrefix: mustParseURL("https://sss:3894/x/y"),
-	}, "/./asd/../../aaa?a=d&s=s/../d", "https://sss:3894/x/y/aaa?a=d&s=s%2F..%2Fd", "[]", "[]", nil)
+	}, "/./asd/../../aaa?a=d&s=s/../d", "https://sss:3894/x/y/aaa?a=d&s=s%2F..%2Fd", "[]", "[]", nil, 0)
 
 	// Complex routing with `url_map`
 	ui := &UserInfo{
 		URLMaps: []URLMap{
 			{
-				SrcPaths:  getSrcPaths([]string{"/api/v1/query"}),
+				SrcPaths:  getSrcPaths([]string{"/vmsingle/api/v1/query"}),
 				URLPrefix: mustParseURL("http://vmselect/0/prometheus"),
 				HeadersConf: HeadersConf{
 					RequestHeaders: []Header{
@@ -87,7 +162,8 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 						},
 					},
 				},
-				RetryStatusCodes: []int{503, 500, 501},
+				RetryStatusCodes:       []int{503, 500, 501},
+				DropSrcPathPrefixParts: 1,
 			},
 			{
 				SrcPaths:  getSrcPaths([]string{"/api/v1/write"}),
@@ -105,11 +181,12 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 				Value: "y",
 			}},
 		},
-		RetryStatusCodes: []int{502},
+		RetryStatusCodes:       []int{502},
+		DropSrcPathPrefixParts: 2,
 	}
-	f(ui, "/api/v1/query?query=up", "http://vmselect/0/prometheus/api/v1/query?query=up", `[{"xx" "aa"} {"yy" "asdf"}]`, `[{"qwe" "rty"}]`, []int{503, 500, 501})
-	f(ui, "/api/v1/write", "http://vminsert/0/prometheus/api/v1/write", "[]", "[]", nil)
-	f(ui, "/api/v1/query_range", "http://default-server/api/v1/query_range", `[{"bb" "aaa"}]`, `[{"x" "y"}]`, []int{502})
+	f(ui, "/vmsingle/api/v1/query?query=up", "http://vmselect/0/prometheus/api/v1/query?query=up", `[{"xx" "aa"} {"yy" "asdf"}]`, `[{"qwe" "rty"}]`, []int{503, 500, 501}, 1)
+	f(ui, "/api/v1/write", "http://vminsert/0/prometheus/api/v1/write", "[]", "[]", nil, 0)
+	f(ui, "/foo/bar/api/v1/query_range", "http://default-server/api/v1/query_range", `[{"bb" "aaa"}]`, `[{"x" "y"}]`, []int{502}, 2)
 
 	// Complex routing regexp paths in `url_map`
 	ui = &UserInfo{
@@ -125,17 +202,17 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 		},
 		URLPrefix: mustParseURL("http://default-server"),
 	}
-	f(ui, "/api/v1/query?query=up", "http://vmselect/0/prometheus/api/v1/query?query=up", "[]", "[]", nil)
-	f(ui, "/api/v1/query_range?query=up", "http://vmselect/0/prometheus/api/v1/query_range?query=up", "[]", "[]", nil)
-	f(ui, "/api/v1/label/foo/values", "http://vmselect/0/prometheus/api/v1/label/foo/values", "[]", "[]", nil)
-	f(ui, "/api/v1/write", "http://vminsert/0/prometheus/api/v1/write", "[]", "[]", nil)
-	f(ui, "/api/v1/foo/bar", "http://default-server/api/v1/foo/bar", "[]", "[]", nil)
+	f(ui, "/api/v1/query?query=up", "http://vmselect/0/prometheus/api/v1/query?query=up", "[]", "[]", nil, 0)
+	f(ui, "/api/v1/query_range?query=up", "http://vmselect/0/prometheus/api/v1/query_range?query=up", "[]", "[]", nil, 0)
+	f(ui, "/api/v1/label/foo/values", "http://vmselect/0/prometheus/api/v1/label/foo/values", "[]", "[]", nil, 0)
+	f(ui, "/api/v1/write", "http://vminsert/0/prometheus/api/v1/write", "[]", "[]", nil, 0)
+	f(ui, "/api/v1/foo/bar", "http://default-server/api/v1/foo/bar", "[]", "[]", nil, 0)
 	f(&UserInfo{
 		URLPrefix: mustParseURL("http://foo.bar?extra_label=team=dev"),
-	}, "/api/v1/query", "http://foo.bar/api/v1/query?extra_label=team=dev", "[]", "[]", nil)
+	}, "/api/v1/query", "http://foo.bar/api/v1/query?extra_label=team=dev", "[]", "[]", nil, 0)
 	f(&UserInfo{
 		URLPrefix: mustParseURL("http://foo.bar?extra_label=team=mobile"),
-	}, "/api/v1/query?extra_label=team=dev", "http://foo.bar/api/v1/query?extra_label=team%3Dmobile", "[]", "[]", nil)
+	}, "/api/v1/query?extra_label=team=dev", "http://foo.bar/api/v1/query?extra_label=team%3Dmobile", "[]", "[]", nil, 0)
 }
 
 func TestCreateTargetURLFailure(t *testing.T) {
@@ -146,7 +223,7 @@ func TestCreateTargetURLFailure(t *testing.T) {
 			t.Fatalf("cannot parse %q: %s", requestURI, err)
 		}
 		u = normalizeURL(u)
-		up, hc, retryStatusCodes := ui.getURLPrefixAndHeaders(u)
+		up, hc, retryStatusCodes, dropSrcPathPrefixParts := ui.getURLPrefixAndHeaders(u)
 		if up != nil {
 			t.Fatalf("unexpected non-empty up=%#v", up)
 		}
@@ -158,6 +235,9 @@ func TestCreateTargetURLFailure(t *testing.T) {
 		}
 		if retryStatusCodes != nil {
 			t.Fatalf("unexpected non-empty retryStatusCodes=%d", retryStatusCodes)
+		}
+		if dropSrcPathPrefixParts != 0 {
+			t.Fatalf("unexpected non-zero dropSrcPathPrefixParts=%d", dropSrcPathPrefixParts)
 		}
 	}
 	f(&UserInfo{}, "/foo/bar")

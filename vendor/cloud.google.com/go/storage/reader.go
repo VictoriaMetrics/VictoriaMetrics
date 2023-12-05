@@ -187,16 +187,6 @@ func setConditionsHeaders(headers http.Header, conds *Conditions) error {
 	return nil
 }
 
-// Wrap a request to look similar to an apiary library request, in order to
-// be used by run().
-type readerRequestWrapper struct {
-	req *http.Request
-}
-
-func (w *readerRequestWrapper) Header() http.Header {
-	return w.req.Header
-}
-
 var emptyBody = ioutil.NopCloser(strings.NewReader(""))
 
 // Reader reads a Cloud Storage object.

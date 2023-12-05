@@ -773,45 +773,41 @@ func needAssistedMerge(pws []*partWrapper, maxParts int) bool {
 }
 
 func (tb *Table) assistedMergeForInmemoryParts() {
-	for {
-		tb.partsLock.Lock()
-		needMerge := needAssistedMerge(tb.inmemoryParts, maxInmemoryParts)
-		tb.partsLock.Unlock()
-		if !needMerge {
-			return
-		}
-
-		atomic.AddUint64(&tb.inmemoryAssistedMerges, 1)
-		err := tb.mergeInmemoryParts()
-		if err == nil {
-			continue
-		}
-		if errors.Is(err, errNothingToMerge) || errors.Is(err, errForciblyStopped) {
-			return
-		}
-		logger.Panicf("FATAL: cannot assist with merging inmemory parts: %s", err)
+	tb.partsLock.Lock()
+	needMerge := needAssistedMerge(tb.inmemoryParts, maxInmemoryParts)
+	tb.partsLock.Unlock()
+	if !needMerge {
+		return
 	}
+
+	atomic.AddUint64(&tb.inmemoryAssistedMerges, 1)
+	err := tb.mergeInmemoryParts()
+	if err == nil {
+		return
+	}
+	if errors.Is(err, errNothingToMerge) || errors.Is(err, errForciblyStopped) {
+		return
+	}
+	logger.Panicf("FATAL: cannot assist with merging inmemory parts: %s", err)
 }
 
 func (tb *Table) assistedMergeForFileParts() {
-	for {
-		tb.partsLock.Lock()
-		needMerge := needAssistedMerge(tb.fileParts, maxFileParts)
-		tb.partsLock.Unlock()
-		if !needMerge {
-			return
-		}
-
-		atomic.AddUint64(&tb.fileAssistedMerges, 1)
-		err := tb.mergeExistingParts(false)
-		if err == nil {
-			continue
-		}
-		if errors.Is(err, errNothingToMerge) || errors.Is(err, errForciblyStopped) || errors.Is(err, errReadOnlyMode) {
-			return
-		}
-		logger.Panicf("FATAL: cannot assist with merging file parts: %s", err)
+	tb.partsLock.Lock()
+	needMerge := needAssistedMerge(tb.fileParts, maxFileParts)
+	tb.partsLock.Unlock()
+	if !needMerge {
+		return
 	}
+
+	atomic.AddUint64(&tb.fileAssistedMerges, 1)
+	err := tb.mergeExistingParts(false)
+	if err == nil {
+		return
+	}
+	if errors.Is(err, errNothingToMerge) || errors.Is(err, errForciblyStopped) || errors.Is(err, errReadOnlyMode) {
+		return
+	}
+	logger.Panicf("FATAL: cannot assist with merging file parts: %s", err)
 }
 
 func getNotInMergePartsCount(pws []*partWrapper) int {
@@ -1022,6 +1018,14 @@ func SetFinalMergeDelay(delay time.Duration) {
 
 var errNothingToMerge = fmt.Errorf("nothing to merge")
 
+func assertIsInMerge(pws []*partWrapper) {
+	for _, pw := range pws {
+		if !pw.isInMerge {
+			logger.Panicf("BUG: partWrapper.isInMerge unexpectedly set to false")
+		}
+	}
+}
+
 func (tb *Table) releasePartsToMerge(pws []*partWrapper) {
 	tb.partsLock.Lock()
 	for _, pw := range pws {
@@ -1040,11 +1044,15 @@ func (tb *Table) releasePartsToMerge(pws []*partWrapper) {
 // If isFinal is set, then the resulting part will be stored to disk.
 //
 // All the parts inside pws must have isInMerge field set to true.
+// The isInMerge field inside pws parts is set to false before returning from the function.
 func (tb *Table) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFinal bool) error {
 	if len(pws) == 0 {
 		// Nothing to merge.
 		return errNothingToMerge
 	}
+
+	assertIsInMerge(pws)
+	defer tb.releasePartsToMerge(pws)
 
 	startTime := time.Now()
 
@@ -1095,7 +1103,6 @@ func (tb *Table) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFinal 
 		putBlockStreamReader(bsr)
 	}
 	if err != nil {
-		tb.releasePartsToMerge(pws)
 		return err
 	}
 	if mpNew != nil {

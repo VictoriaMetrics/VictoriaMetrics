@@ -17,6 +17,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/lrucache"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/regexutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
 
 // convertToCompositeTagFilterss converts tfss to composite filters.
@@ -301,7 +302,7 @@ func (tf *tagFilter) Less(other *tagFilter) bool {
 // String returns human-readable tf value.
 func (tf *tagFilter) String() string {
 	op := tf.getOp()
-	value := bytesutil.LimitStringLen(string(tf.value), 60)
+	value := stringsutil.LimitStringLen(string(tf.value), 60)
 	if bytes.Equal(tf.key, graphiteReverseTagKey) {
 		return fmt.Sprintf("__graphite_reverse__%s%q", op, value)
 	}

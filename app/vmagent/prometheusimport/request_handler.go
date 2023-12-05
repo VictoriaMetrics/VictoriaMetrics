@@ -32,7 +32,7 @@ func InsertHandler(at *auth.Token, req *http.Request) error {
 		return err
 	}
 	isGzipped := req.Header.Get("Content-Encoding") == "gzip"
-	return stream.Parse(req.Body, defaultTimestamp, isGzipped, func(rows []parser.Row) error {
+	return stream.Parse(req.Body, defaultTimestamp, isGzipped, true, func(rows []parser.Row) error {
 		return insertRows(at, rows, extraLabels)
 	}, func(s string) {
 		httpserver.LogError(req, s)
@@ -73,7 +73,9 @@ func insertRows(at *auth.Token, rows []parser.Row, extraLabels []prompbmarshal.L
 	ctx.WriteRequest.Timeseries = tssDst
 	ctx.Labels = labels
 	ctx.Samples = samples
-	remotewrite.Push(at, &ctx.WriteRequest)
+	if !remotewrite.TryPush(at, &ctx.WriteRequest) {
+		return remotewrite.ErrQueueFullHTTPRetry
+	}
 	rowsInserted.Add(len(rows))
 	if at != nil {
 		rowsTenantInserted.Get(at).Add(len(rows))

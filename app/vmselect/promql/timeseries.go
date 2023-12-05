@@ -79,7 +79,10 @@ var timeseriesPool sync.Pool
 
 func marshalTimeseriesFast(dst []byte, tss []*timeseries, maxSize int, step int64) []byte {
 	if len(tss) == 0 {
-		logger.Panicf("BUG: tss cannot be empty")
+		// marshal zero timeseries and zero timestamps
+		dst = encoding.MarshalUint64(dst, 0)
+		dst = encoding.MarshalUint64(dst, 0)
+		return dst
 	}
 
 	// timestamps are stored only once for all the tss, since they must be identical

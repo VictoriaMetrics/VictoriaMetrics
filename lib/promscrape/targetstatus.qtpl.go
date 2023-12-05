@@ -875,7 +875,11 @@ func streamdiscoveredJobTargets(qw422016 *qt422016.Writer, num int, tlj *targetL
 //line lib/promscrape/targetstatus.qtpl:338
 		} else {
 //line lib/promscrape/targetstatus.qtpl:338
-			qw422016.N().S(`<span class="badge bg-warning">DROPPED</span>`)
+			qw422016.N().S(`<span class="badge bg-warning">DROPPED (`)
+//line lib/promscrape/targetstatus.qtpl:339
+			qw422016.E().S(string(t.dropReason))
+//line lib/promscrape/targetstatus.qtpl:339
+			qw422016.N().S(`)</span>`)
 //line lib/promscrape/targetstatus.qtpl:340
 		}
 //line lib/promscrape/targetstatus.qtpl:340

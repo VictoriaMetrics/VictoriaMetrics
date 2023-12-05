@@ -5,7 +5,6 @@ import (
 	"math"
 	"strings"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metricsql"
@@ -261,8 +260,7 @@ func groupJoin(singleTimeseriesSide string, be *metricsql.BinaryOpExpr, rvsLeft,
 			bb.B = marshalMetricTagsSorted(bb.B[:0], &tsCopy.MetricName)
 			pair, ok := m[string(bb.B)]
 			if !ok {
-				k := bytesutil.InternBytes(bb.B)
-				m[k] = &tsPair{
+				m[string(bb.B)] = &tsPair{
 					left:  &tsCopy,
 					right: tsRight,
 				}
@@ -524,7 +522,7 @@ func createTimeseriesMapByTagSet(be *metricsql.BinaryOpExpr, left, right []*time
 				logger.Panicf("BUG: unexpected binary op modifier %q", groupOp)
 			}
 			bb.B = marshalMetricTagsSorted(bb.B[:0], mn)
-			k := bytesutil.InternBytes(bb.B)
+			k := string(bb.B)
 			m[k] = append(m[k], ts)
 		}
 		storage.PutMetricName(mn)

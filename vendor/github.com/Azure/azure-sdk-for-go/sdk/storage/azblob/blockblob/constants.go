@@ -37,3 +37,16 @@ const (
 func PossibleBlockListTypeValues() []BlockListType {
 	return generated.PossibleBlockListTypeValues()
 }
+
+// BlobCopySourceTags - can be 'COPY' or 'REPLACE'
+type BlobCopySourceTags = generated.BlobCopySourceTags
+
+const (
+	BlobCopySourceTagsCopy    = generated.BlobCopySourceTagsCOPY
+	BlobCopySourceTagsReplace = generated.BlobCopySourceTagsREPLACE
+)
+
+// PossibleBlobCopySourceTagsValues returns the possible values for the BlobCopySourceTags const type.
+func PossibleBlobCopySourceTagsValues() []BlobCopySourceTags {
+	return generated.PossibleBlobCopySourceTagsValues()
+}

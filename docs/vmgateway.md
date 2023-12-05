@@ -11,9 +11,11 @@ aliases:
 ---
 # vmgateway
 
-***vmgateway is a part of [enterprise package](https://docs.victoriametrics.com/enterprise.html). It is available for download and evaluation at [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases)***
+***vmgateway is a part of [enterprise package](https://docs.victoriametrics.com/enterprise.html). 
+It is available for download and evaluation at [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+See how to request a free trial license [here](https://victoriametrics.com/products/enterprise/trial/).***
 
-<img alt="vmgateway" src="vmgateway-overview.jpeg">
+<img alt="vmgateway" src="vmgateway-overview.webp">
 
 `vmgateway` is a proxy for the VictoriaMetrics Time Series Database (TSDB). It provides the following features:
 
@@ -28,7 +30,7 @@ aliases:
 
 ## Access Control
 
-<img alt="vmgateway-ac" src="vmgateway-access-control.jpg">
+<img alt="vmgateway-ac" src="vmgateway-access-control.webp">
 
 `vmgateway` supports jwt based authentication. With jwt payload can be configured to give access to specific tenants and labels as well as to read/write.
 
@@ -93,7 +95,7 @@ curl 'http://localhost:8431/api/v1/series/count' -H 'Authorization: Bearer incor
 
 ## Rate Limiter
 
-<img alt="vmgateway-rl" src="vmgateway-rate-limiting.jpg">
+<img alt="vmgateway-rl" src="vmgateway-rate-limiting.webp">
 
 Limits incoming requests by given, pre-configured limits. It supports read and write limiting by tenant.
 
@@ -302,6 +304,8 @@ The shortlist of configuration flags include the following:
      Optional path to bearer token file to use for -datasource.url.
   -datasource.disableKeepAlive
      Whether to disable long-lived connections to the datasource. If true, disables HTTP keep-alives and will only use the connection to the server for a single HTTP request.
+  -datasource.disableStepParam
+     Whether to disable adding 'step' param to the issued instant queries. This might be useful when using vmalert with datasources that do not support 'step' param for instant queries, like Google Managed Prometheus. It is not recommended to enable this flag if you use vmalert with VictoriaMetrics.
   -datasource.headers string
      Optional HTTP extraHeaders to send with each request to the corresponding -datasource.url. For example, -datasource.headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding -datasource.url. Multiple headers must be delimited by '^^': -datasource.headers='header1:value1^^header2:value2'
   -datasource.lookback duration
@@ -321,11 +325,11 @@ The shortlist of configuration flags include the following:
   -datasource.queryStep duration
      How far a value can fallback to when evaluating queries. For example, if -datasource.queryStep=15s then param "step" with value "15s" will be added to every query. If set to 0, rule's evaluation interval will be used instead. (default 5m0s)
   -datasource.queryTimeAlignment
-     Whether to align "time" parameter with evaluation interval.Alignment supposed to produce deterministic results despite number of vmalert replicas or time they were started. See more details here https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1257 (default true)
+     Deprecated: please use "eval_alignment" in rule group instead. Whether to align "time" parameter with evaluation interval. Alignment supposed to produce deterministic results despite number of vmalert replicas or time they were started. See more details at https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1257 (default true)
   -datasource.roundDigits int
      Adds "round_digits" GET param to datasource requests. In VM "round_digits" limits the number of digits after the decimal point in response values.
   -datasource.showURL
-     Whether to show -datasource.url in the exported metrics. It is hidden by default, since it can contain sensitive info such as auth key
+     Whether to avoid stripping sensitive information such as auth headers or passwords from URLs in log messages or UI and exported metrics. It is hidden by default, since it can contain sensitive info such as auth key
   -datasource.tlsCAFile string
      Optional path to TLS CA file to use for verifying connections to -datasource.url. By default, system CA is used
   -datasource.tlsCertFile string
@@ -349,7 +353,9 @@ The shortlist of configuration flags include the following:
   -envflag.prefix string
      Prefix for environment variables if -envflag.enable is set
   -eula
-     Deprecated, please use -license or -licenseFile flags instead. By specifying this flag, you confirm that you have an enterprise license and accept the ESA https://victoriametrics.com/legal/esa/ . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
+     Deprecated, please use -license or -licenseFile flags instead. By specifying this flag, you confirm that you have an enterprise license and accept the ESA https://victoriametrics.com/legal/esa/ . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
+  -filestream.disableFadvise
+     Whether to disable fadvise() syscall when reading large data files. The fadvise() syscall prevents from eviction of recently accessed data from OS page cache during background merges and backups. In some rare cases it is better to disable the syscall if it uses too much CPU
   -flagsAuthKey string
      Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -fs.disableMmap
@@ -358,6 +364,12 @@ The shortlist of configuration flags include the following:
      Incoming http connections are closed after the configured timeout. This may help to spread the incoming load among a cluster of services behind a load balancer. Please note that the real timeout may be bigger by up to 10% as a protection against the thundering herd problem (default 2m0s)
   -http.disableResponseCompression
      Disable compression of HTTP responses to save CPU resources. By default, compression is enabled to save network bandwidth
+  -http.header.csp string
+     Value for 'Content-Security-Policy' header
+  -http.header.frameOptions string
+     Value for 'X-Frame-Options' header
+  -http.header.hsts string
+     Value for 'Strict-Transport-Security' header
   -http.idleConnTimeout duration
      Timeout for incoming idle http connections (default 1m0s)
   -http.maxGracefulShutdownDuration duration
@@ -381,11 +393,11 @@ The shortlist of configuration flags include the following:
   -internStringMaxLen int
      The maximum length for strings to intern. A lower limit may save memory at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning . See also -internStringDisableCache and -internStringCacheExpireDuration (default 500)
   -license string
-     See https://victoriametrics.com/products/enterprise/ for trial license. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
+     Lisense key for VictoriaMetrics Enterprise. See https://victoriametrics.com/products/enterprise/ . Trial Enterprise license can be obtained from https://victoriametrics.com/products/enterprise/trial/ . This flag is available only in Enterprise binaries. The license key can be also passed via file specified by -licenseFile command-line flag
   -license.forceOffline
-     See https://victoriametrics.com/products/enterprise/ for trial license. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
+     Whether to enable offline verification for VictoriaMetrics Enterprise license key, which has been passed either via -license or via -licenseFile command-line flag. The issued license key must support offline verification feature. Contact info@victoriametrics.com if you need offline license verification. This flag is avilable only in Enterprise binaries
   -licenseFile string
-     See https://victoriametrics.com/products/enterprise/ for trial license. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
+     Path to file with license key for VictoriaMetrics Enterprise. See https://victoriametrics.com/products/enterprise/ . Trial Enterprise license can be obtained from https://victoriametrics.com/products/enterprise/trial/ . This flag is available only in Enterprise binaries. The license key can be also passed inline via -license command-line flag
   -loggerDisableTimestamps
      Whether to disable writing timestamps in logs
   -loggerErrorsPerSecondLimit int

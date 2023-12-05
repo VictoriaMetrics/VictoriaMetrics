@@ -1,14 +1,13 @@
 {
   "files": {
-    "main.css": "./static/css/main.e95426eb.css",
-    "main.js": "./static/js/main.8d3e794d.js",
-    "static/js/522.b5ae4365.chunk.js": "./static/js/522.b5ae4365.chunk.js",
-    "static/media/Lato-Regular.ttf": "./static/media/Lato-Regular.d714fec1633b69a9c2e9.ttf",
-    "static/media/Lato-Bold.ttf": "./static/media/Lato-Bold.32360ba4b57802daa4d6.ttf",
+    "main.css": "./static/css/main.349e6522.css",
+    "main.js": "./static/js/main.c93073e5.js",
+    "static/js/522.da77e7b3.chunk.js": "./static/js/522.da77e7b3.chunk.js",
+    "static/media/MetricsQL.md": "./static/media/MetricsQL.8644fd7c964802dd34a9.md",
     "index.html": "./index.html"
   },
   "entrypoints": [
-    "static/css/main.e95426eb.css",
-    "static/js/main.8d3e794d.js"
+    "static/css/main.349e6522.css",
+    "static/js/main.c93073e5.js"
   ]
 }

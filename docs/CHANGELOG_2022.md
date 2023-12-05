@@ -1,11 +1,11 @@
 ---
-sort: 17
-weight: 17
+sort: 26
+weight: 26
 title: CHANGELOG for the year 2022
 menu:
   docs:
-    parent: "victoriametrics"
-    weight: 17
+    parent: 'victoriametrics'
+    weight: 26
 aliases:
 - /CHANGELOG.html
 ---
@@ -32,7 +32,7 @@ Released at 2022-12-19
 
 * FEATURE: support overriding of `-search.latencyOffset` value via URL param `latency_offset` when performing requests to [/api/v1/query](https://docs.victoriametrics.com/keyConcepts.html#instant-query) and [/api/v1/query_range](https://docs.victoriametrics.com/keyConcepts.html#range-query). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3481).
 * FEATURE: allow changing field names in JSON logs if VictoriaMetrics components are started with `-loggerFormat=json` command-line flags. The field names can be changed with the `-loggerJSONFields` command-line flag. For example `-loggerJSONFields=ts:timestamp,msg:message` would rename `ts` and `msg` fields on the output JSON to `timestamp` and `message` fields. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2348). Thanks to @michal-kralik for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3488).
-* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): expose `__meta_consul_tag_<tagname>` and `__meta_consul_tagpresent_<tagname>` labels for targets discovered via [consul_sd_configs](https://docs.victoriametrics.com/sd_configs.html#consul_sd_configs). This simplifies converting [Consul service tags](https://developer.hashicorp.com/consul/docs/discovery/services#service-definition) to target labels with a simple [relabeling rule](https://docs.victoriametrics.com/vmagent.html#relabeling):
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): expose `__meta_consul_tag_<tagname>` and `__meta_consul_tagpresent_<tagname>` labels for targets discovered via [consul_sd_configs](https://docs.victoriametrics.com/sd_configs.html#consul_sd_configs). This simplifies converting [Consul service tags](https://developer.hashicorp.com/consul/docs/services/discovery/dns-overview) to target labels with a simple [relabeling rule](https://docs.victoriametrics.com/vmagent.html#relabeling):
 
   ```yml
   - action: labelmap
@@ -425,7 +425,7 @@ The v1.79.x line will be supported for at least 12 months since [v1.79.0](https:
 * SECURITY: upgrade base docker image (alpine) from 3.17.2 to 3.17.3. See [alpine 3.17.3 release notes](https://alpinelinux.org/posts/Alpine-3.17.3-released.html).
 * SECURITY: upgrade Go builder from Go1.20.2 to Go1.20.3. See [the list of issues addressed in Go1.20.3](https://github.com/golang/go/issues?q=milestone%3AGo1.20.3+label%3ACherryPickApproved).
 
-* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmgent.html): fix CPU and memory usage spikes when files pointed by [file_sd_config](https://docs.victoriametrics.com/sd_configs.html#file_sd_configs) cannot be re-read. See [this_issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3989).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): fix CPU and memory usage spikes when files pointed by [file_sd_config](https://docs.victoriametrics.com/sd_configs.html#file_sd_configs) cannot be re-read. See [this_issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3989).
 * BUGFIX: prevent unexpected merges on start-up when `-storage.minFreeDiskSpaceBytes` is set. See [the issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4023).
 * BUGFIX: verify response code when fetching configuration files via HTTP. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4034).
 

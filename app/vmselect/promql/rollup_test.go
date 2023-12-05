@@ -12,6 +12,35 @@ var (
 	testTimestamps = []int64{5, 15, 24, 36, 49, 60, 78, 80, 97, 115, 120, 130}
 )
 
+func TestRollupOutlierIQR(t *testing.T) {
+	f := func(values []float64, resultExpected float64) {
+		t.Helper()
+		rfa := &rollupFuncArg{
+			values:     values,
+			timestamps: nil,
+		}
+		result := rollupOutlierIQR(rfa)
+		if math.IsNaN(result) {
+			if !math.IsNaN(resultExpected) {
+				t.Fatalf("unexpected value; got %v; want %v", result, resultExpected)
+			}
+		} else {
+			if math.IsNaN(resultExpected) {
+				t.Fatalf("unexpected value; got %v; want %v", result, resultExpected)
+			}
+			if result != resultExpected {
+				t.Fatalf("unexpected value; got %v; want %v", result, resultExpected)
+			}
+		}
+	}
+
+	f([]float64{1, 2, 3, 4, 5}, nan)
+	f([]float64{1, 2, 3, 4, 7}, nan)
+	f([]float64{1, 2, 3, 4, 8}, 8)
+	f([]float64{1, 2, 3, 4, -2}, nan)
+	f([]float64{1, 2, 3, 4, -3}, -3)
+}
+
 func TestRollupIderivDuplicateTimestamps(t *testing.T) {
 	rfa := &rollupFuncArg{
 		values:     []float64{1, 2, 3, 4, 5},
@@ -186,6 +215,9 @@ func testRollupFunc(t *testing.T, funcName string, args []interface{}, vExpected
 				t.Fatalf("unexpected value; got %v; want %v", v, vExpected)
 			}
 		} else {
+			if math.IsNaN(v) {
+				t.Fatalf("unexpected value; got %v want %v", v, vExpected)
+			}
 			eps := math.Abs(v - vExpected)
 			if eps > 1e-14 {
 				t.Fatalf("unexpected value; got %v; want %v", v, vExpected)
@@ -438,12 +470,12 @@ func TestRollupHoltWinters(t *testing.T) {
 	}
 
 	f(-1, 0.5, nan)
-	f(0, 0.5, nan)
-	f(1, 0.5, nan)
+	f(0, 0.5, -856)
+	f(1, 0.5, 34)
 	f(2, 0.5, nan)
 	f(0.5, -1, nan)
-	f(0.5, 0, nan)
-	f(0.5, 1, nan)
+	f(0.5, 0, -54.1474609375)
+	f(0.5, 1, 25.25)
 	f(0.5, 2, nan)
 	f(0.5, 0.5, 34.97794532775879)
 	f(0.1, 0.5, -131.30529492371622)
@@ -514,6 +546,7 @@ func TestRollupNewRollupFuncSuccess(t *testing.T) {
 	f("increase", 398)
 	f("increase_prometheus", 275)
 	f("irate", 0)
+	f("outlier_iqr_over_time", nan)
 	f("rate", 2200)
 	f("resets", 5)
 	f("range_over_time", 111)

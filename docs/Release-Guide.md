@@ -1,11 +1,11 @@
 ---
-sort: 21
-weight: 21
+sort: 30
+weight: 30
 title: Release process guidance
 menu:
   docs:
-    parent: "victoriametrics"
-    weight: 21
+    parent: 'victoriametrics'
+    weight: 30
 aliases:
 - /Release-Guide.html
 ---
@@ -143,10 +143,10 @@ The operator repository [https://github.com/VictoriaMetrics/operator/](https://g
   - `vmbackupmanager` in `BaseOperatorConf.VMBackup.Version` (should be enterprise version),
   - `vmauth` in `BaseOperatorConf.VMAuthDefault.Version`.
 - Run `make operator-conf`.
-- Rename "Next release" section in `CHANGELOG.md` to the *new release version* and create new empty "Next release" section.
+- Rename "Next release" section in `docs/CHANGELOG.md` to the *new release version* and create new empty "Next release" section.
 - Commit and push changes to `master`.
 - Create and push a new tag with the *new release version*.
-- Create github release from this tag with "Release notes" from `CHANGELOG` for this version in description.
+- Create github release from this tag with "Release notes" from `docs/CHANGELOG.md` for this version in description.
 
 ## Helm Charts
 
@@ -167,13 +167,13 @@ Do these updates to the following charts:
 1. Update `cluster` chart versions in [`values.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-cluster/values.yaml), bump version for `vmselect`, `vminsert` and `vmstorage` and [`Chart.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-cluster/Chart.yaml)
 1. Update `k8s-stack` chart versions in [`values.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-k8s-stack/values.yaml), bump version for `vmselect`, `vminsert`, `vmstorage`, `vmsingle`, `vmalert`, `vmagent` and [`Chart.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-k8s-stack/Chart.yaml)
 1. Update `single-node` chart version in [`values.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-single/values.yaml) and [`Chart.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-single/Chart.yaml)
-1. Update `vmgateway` chart version in [`values.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-gateway/values.yamll) and [`Chart.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-gateway/Chart.yaml)
+1. Update `vmgateway` chart version in [`values.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-gateway/values.yaml) and [`Chart.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-gateway/Chart.yaml)
 
 Once updated, run the following commands:
 
 1. Commit and push changes to `master`.
 1. Run "Release" action on Github:
-   ![image](Release-Guide_helm-release.png)
+   ![image](Release-Guide_helm-release.webp)
 1. Merge new PRs *"Automatic update CHANGELOGs and READMEs"* and *"Synchronize docs"* after pipelines are complete.
 
 ## Ansible Roles 

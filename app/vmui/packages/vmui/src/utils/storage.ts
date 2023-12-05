@@ -1,7 +1,4 @@
-export type StorageKeys = "BASIC_AUTH_DATA"
-    | "BEARER_AUTH_DATA"
-    | "AUTH_TYPE"
-    | "AUTOCOMPLETE"
+export type StorageKeys = "AUTOCOMPLETE"
     | "NO_CACHE"
     | "QUERY_TRACING"
     | "SERIES_LIMITS"
@@ -10,6 +7,8 @@ export type StorageKeys = "BASIC_AUTH_DATA"
     | "THEME"
     | "LOGS_LIMIT"
     | "EXPLORE_METRICS_TIPS"
+    | "QUERY_HISTORY"
+    | "QUERY_FAVORITES"
 
 export const saveToStorage = (key: StorageKeys, value: string | boolean | Record<string, unknown>): void => {
   if (value) {
@@ -22,7 +21,7 @@ export const saveToStorage = (key: StorageKeys, value: string | boolean | Record
 };
 
 // TODO: make this aware of data type that is stored
-export const getFromStorage = (key: StorageKeys): undefined | boolean | string | Record<string, unknown>  => {
+export const getFromStorage = (key: StorageKeys): undefined | boolean | string | Record<string, unknown> => {
   const valueObj = window.localStorage.getItem(key);
   if (valueObj === null) {
     return undefined;
@@ -36,6 +35,3 @@ export const getFromStorage = (key: StorageKeys): undefined | boolean | string |
 };
 
 export const removeFromStorage = (keys: StorageKeys[]): void => keys.forEach(k => window.localStorage.removeItem(k));
-
-export const authKeys: StorageKeys[] = ["BASIC_AUTH_DATA", "BEARER_AUTH_DATA"];
-

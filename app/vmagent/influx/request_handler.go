@@ -36,9 +36,9 @@ var (
 // InsertHandlerForReader processes remote write for influx line protocol.
 //
 // See https://github.com/influxdata/telegraf/tree/master/plugins/inputs/socket_listener/
-func InsertHandlerForReader(r io.Reader, isGzipped bool) error {
+func InsertHandlerForReader(at *auth.Token, r io.Reader, isGzipped bool) error {
 	return stream.Parse(r, isGzipped, "", "", func(db string, rows []parser.Row) error {
-		return insertRows(nil, db, rows, nil)
+		return insertRows(at, db, rows, nil)
 	})
 }
 
@@ -130,7 +130,9 @@ func insertRows(at *auth.Token, db string, rows []parser.Row, extraLabels []prom
 	ctx.ctx.Labels = labels
 	ctx.ctx.Samples = samples
 	ctx.commonLabels = commonLabels
-	remotewrite.Push(at, &ctx.ctx.WriteRequest)
+	if !remotewrite.TryPush(at, &ctx.ctx.WriteRequest) {
+		return remotewrite.ErrQueueFullHTTPRetry
+	}
 	rowsInserted.Add(rowsTotal)
 	if at != nil {
 		rowsTenantInserted.Get(at).Add(rowsTotal)

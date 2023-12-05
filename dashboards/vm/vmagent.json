@@ -191,7 +191,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(rate(vm_promscrape_scraped_samples_sum{job=~\"$job\", instance=~\"$instance\", path!~\"/favicon.ico\"}[$__rate_interval]))",
+          "expr": "sum(rate(vm_promscrape_scraped_samples_sum{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
           "interval": "",
           "legendFormat": "__auto",
           "range": true,
@@ -1615,7 +1615,7 @@
             "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
-          "description": "Percentage of used memory (resident).\nThe application's performance will significantly degrade when memory usage is close to 100%.\n\nClick on the line and choose Drilldown to show Mem usage per instance",
+          "description": "Percentage of used RSS memory (resident).\nThe RSS memory shows the amount of memory recently accessed by the application. It includes anonymous memory and data from recently accessed files (aka page cache).\nThe application's performance will significantly degrade when memory usage is close to 100%.\n\nClick on the line and choose Drilldown to show memory usage per instance",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -2373,8 +2373,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2390,7 +2389,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 36
+            "y": 4
           },
           "id": 92,
           "options": {
@@ -2476,8 +2475,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2493,7 +2491,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 36
+            "y": 4
           },
           "id": 95,
           "options": {
@@ -2582,8 +2580,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "transparent",
-                    "value": null
+                    "color": "transparent"
                   },
                   {
                     "color": "red",
@@ -2599,7 +2596,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 44
+            "y": 12
           },
           "id": 98,
           "options": {
@@ -2688,8 +2685,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "transparent",
-                    "value": null
+                    "color": "transparent"
                   },
                   {
                     "color": "red",
@@ -2705,7 +2701,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 44
+            "y": 12
           },
           "id": 99,
           "options": {
@@ -2793,8 +2789,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2810,7 +2805,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 52
+            "y": 20
           },
           "id": 79,
           "links": [],
@@ -2899,8 +2894,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2916,7 +2910,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 52
+            "y": 20
           },
           "id": 18,
           "links": [
@@ -3010,8 +3004,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -3027,7 +3020,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 60
+            "y": 28
           },
           "id": 127,
           "links": [],
@@ -3114,8 +3107,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -3131,7 +3123,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 60
+            "y": 28
           },
           "id": 50,
           "options": {
@@ -3174,123 +3166,6 @@
             "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
-          "description": "Shows how many concurrent inserts (parsing and processing of scraped or ingested data) are taking place.\n\nIf the number of concurrent inserts hits the `limit` or is close to the `limit` constantly - it might be a sign of a resource shortage.\n\nIf vmagent's CPU usage and remote write connection saturation are at normal level, it might be that `-maxConcurrentInserts` cmd-line flag needs to be increased.",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "drawStyle": "line",
-                "fillOpacity": 0,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "never",
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "links": [],
-              "mappings": [],
-              "min": 0,
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              },
-              "unit": "short"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 0,
-            "y": 68
-          },
-          "id": 130,
-          "links": [],
-          "options": {
-            "legend": {
-              "calcs": [
-                "mean",
-                "lastNotNull",
-                "max"
-              ],
-              "displayMode": "table",
-              "placement": "bottom",
-              "showLegend": true
-            },
-            "tooltip": {
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "pluginVersion": "9.2.6",
-          "targets": [
-            {
-              "datasource": {
-                "type": "victoriametrics-datasource",
-                "uid": "$ds"
-              },
-              "editorMode": "code",
-              "exemplar": true,
-              "expr": "max_over_time(vm_concurrent_insert_current{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])",
-              "interval": "",
-              "legendFormat": "{{instance}} ({{job}})",
-              "range": true,
-              "refId": "A"
-            },
-            {
-              "datasource": {
-                "type": "victoriametrics-datasource",
-                "uid": "$ds"
-              },
-              "editorMode": "code",
-              "exemplar": true,
-              "expr": "min(vm_concurrent_insert_capacity{job=~\"$job\", instance=~\"$instance\"}) by(job)",
-              "interval": "",
-              "legendFormat": "limit ({{job}})",
-              "range": true,
-              "refId": "B"
-            }
-          ],
-          "title": "Concurrent inserts ($instance)",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "victoriametrics-datasource",
-            "uid": "$ds"
-          },
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -3306,8 +3181,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -3347,7 +3221,7 @@
             "h": 7,
             "w": 24,
             "x": 0,
-            "y": 76
+            "y": 36
           },
           "id": 129,
           "options": {
@@ -3366,7 +3240,7 @@
               }
             ]
           },
-          "pluginVersion": "9.2.7",
+          "pluginVersion": "9.2.6",
           "targets": [
             {
               "datasource": {
@@ -4189,7 +4063,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 85
+            "y": 38
           },
           "id": 73,
           "links": [],
@@ -4306,7 +4180,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 85
+            "y": 38
           },
           "id": 131,
           "links": [],
@@ -4343,6 +4217,123 @@
             }
           ],
           "title": "Rows rate  ($instance)",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-datasource",
+            "uid": "$ds"
+          },
+          "description": "Shows how many concurrent inserts are taking place.\n\nIf the number of concurrent inserts hitting the `limit` or is close to the `limit` constantly - it might be a sign of a resource shortage.\n\n If vmagent's CPU usage and remote write connection saturation are at normal level, it might be that `-maxConcurrentInserts` cmd-line flag need to be increased.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "links": [],
+              "mappings": [],
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 46
+          },
+          "id": 130,
+          "links": [],
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "9.2.6",
+          "targets": [
+            {
+              "datasource": {
+                "type": "victoriametrics-datasource",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "exemplar": true,
+              "expr": "max_over_time(vm_concurrent_insert_current{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])",
+              "interval": "",
+              "legendFormat": "{{instance}} ({{job}})",
+              "range": true,
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "victoriametrics-datasource",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "exemplar": true,
+              "expr": "min(vm_concurrent_insert_capacity{job=~\"$job\", instance=~\"$instance\"}) by(job)",
+              "interval": "",
+              "legendFormat": "limit ({{job}})",
+              "range": true,
+              "refId": "B"
+            }
+          ],
+          "title": "Concurrent inserts ($instance)",
           "type": "timeseries"
         },
         {
@@ -4409,8 +4400,8 @@
           "gridPos": {
             "h": 8,
             "w": 12,
-            "x": 0,
-            "y": 93
+            "x": 12,
+            "y": 46
           },
           "id": 77,
           "links": [],
@@ -4438,7 +4429,7 @@
                 "uid": "$ds"
               },
               "exemplar": true,
-              "expr": "sum(rate(vm_ingestserver_request_errors_total{job=~\"$job\", instance=~\"$instance\", path!~\"/favicon.ico\"}[$__rate_interval])) by(type, net) > 0",
+              "expr": "sum(rate(vm_ingestserver_request_errors_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(type, net) > 0",
               "interval": "",
               "legendFormat": "{{ type }} ({{net}})",
               "refId": "A"

@@ -40,6 +40,7 @@ type BlobSignatureValues struct {
 	AuthorizedObjectID   string // saoid
 	UnauthorizedObjectID string // suoid
 	CorrelationID        string // scid
+	EncryptionScope      string `param:"ses"`
 }
 
 func getDirectoryDepth(path string) string {
@@ -51,17 +52,11 @@ func getDirectoryDepth(path string) string {
 
 // SignWithSharedKey uses an account's SharedKeyCredential to sign this signature values to produce the proper SAS query parameters.
 func (v BlobSignatureValues) SignWithSharedKey(sharedKeyCredential *SharedKeyCredential) (QueryParameters, error) {
-	if v.ExpiryTime.IsZero() || v.Permissions == "" {
+	if v.Identifier == "" && (v.ExpiryTime.IsZero() || v.Permissions == "") {
 		return QueryParameters{}, errors.New("service SAS is missing at least one of these: ExpiryTime or Permissions")
 	}
 
-	//Make sure the permission characters are in the correct order
-	perms, err := parseBlobPermissions(v.Permissions)
-	if err != nil {
-		return QueryParameters{}, err
-	}
-	v.Permissions = perms.String()
-
+	// Parse the resource
 	resource := "c"
 	if !v.SnapshotTime.IsZero() {
 		resource = "bs"
@@ -74,6 +69,21 @@ func (v BlobSignatureValues) SignWithSharedKey(sharedKeyCredential *SharedKeyCre
 		// do nothing
 	} else {
 		resource = "b"
+	}
+
+	// make sure the permission characters are in the correct order
+	if resource == "c" {
+		perms, err := parseContainerPermissions(v.Permissions)
+		if err != nil {
+			return QueryParameters{}, err
+		}
+		v.Permissions = perms.String()
+	} else {
+		perms, err := parseBlobPermissions(v.Permissions)
+		if err != nil {
+			return QueryParameters{}, err
+		}
+		v.Permissions = perms.String()
 	}
 
 	if v.Version == "" {
@@ -94,7 +104,8 @@ func (v BlobSignatureValues) SignWithSharedKey(sharedKeyCredential *SharedKeyCre
 		string(v.Protocol),
 		v.Version,
 		resource,
-		snapshotTime,         // signed timestamp
+		snapshotTime, // signed timestamp
+		v.EncryptionScope,
 		v.CacheControl,       // rscc
 		v.ContentDisposition, // rscd
 		v.ContentEncoding,    // rsce
@@ -109,12 +120,13 @@ func (v BlobSignatureValues) SignWithSharedKey(sharedKeyCredential *SharedKeyCre
 
 	p := QueryParameters{
 		// Common SAS parameters
-		version:     v.Version,
-		protocol:    v.Protocol,
-		startTime:   v.StartTime,
-		expiryTime:  v.ExpiryTime,
-		permissions: v.Permissions,
-		ipRange:     v.IPRange,
+		version:         v.Version,
+		protocol:        v.Protocol,
+		startTime:       v.StartTime,
+		expiryTime:      v.ExpiryTime,
+		permissions:     v.Permissions,
+		ipRange:         v.IPRange,
+		encryptionScope: v.EncryptionScope,
 
 		// Container/Blob-specific SAS parameters
 		resource:             resource,
@@ -202,7 +214,8 @@ func (v BlobSignatureValues) SignWithUserDelegation(userDelegationCredential *Us
 		string(v.Protocol),
 		v.Version,
 		resource,
-		snapshotTime,         // signed timestamp
+		snapshotTime, // signed timestamp
+		v.EncryptionScope,
 		v.CacheControl,       // rscc
 		v.ContentDisposition, // rscd
 		v.ContentEncoding,    // rsce
@@ -217,12 +230,13 @@ func (v BlobSignatureValues) SignWithUserDelegation(userDelegationCredential *Us
 
 	p := QueryParameters{
 		// Common SAS parameters
-		version:     v.Version,
-		protocol:    v.Protocol,
-		startTime:   v.StartTime,
-		expiryTime:  v.ExpiryTime,
-		permissions: v.Permissions,
-		ipRange:     v.IPRange,
+		version:         v.Version,
+		protocol:        v.Protocol,
+		startTime:       v.StartTime,
+		expiryTime:      v.ExpiryTime,
+		permissions:     v.Permissions,
+		ipRange:         v.IPRange,
+		encryptionScope: v.EncryptionScope,
 
 		// Container/Blob-specific SAS parameters
 		resource:             resource,

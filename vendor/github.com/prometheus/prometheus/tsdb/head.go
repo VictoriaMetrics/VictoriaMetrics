@@ -14,6 +14,7 @@
 package tsdb
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"math"
@@ -257,7 +258,6 @@ func NewHead(r prometheus.Registerer, l log.Logger, wal, wbl *wlog.WL, opts *Hea
 	if err := h.resetInMemoryState(); err != nil {
 		return nil, err
 	}
-	h.metrics = newHeadMetrics(h, r)
 
 	if opts.ChunkPool == nil {
 		opts.ChunkPool = chunkenc.NewPool()
@@ -277,6 +277,7 @@ func NewHead(r prometheus.Registerer, l log.Logger, wal, wbl *wlog.WL, opts *Hea
 	if err != nil {
 		return nil, err
 	}
+	h.metrics = newHeadMetrics(h, r)
 
 	return h, nil
 }
@@ -764,17 +765,17 @@ func (h *Head) Init(minValidTime int64) error {
 
 	wblReplayStart := time.Now()
 	if h.wbl != nil {
-		// Replay OOO WAL.
+		// Replay WBL.
 		startFrom, endAt, e = wlog.Segments(h.wbl.Dir())
 		if e != nil {
-			return errors.Wrap(e, "finding OOO WAL segments")
+			return &errLoadWbl{errors.Wrap(e, "finding WBL segments")}
 		}
 		h.startWALReplayStatus(startFrom, endAt)
 
 		for i := startFrom; i <= endAt; i++ {
 			s, err := wlog.OpenReadSegment(wlog.SegmentName(h.wbl.Dir(), i))
 			if err != nil {
-				return errors.Wrap(err, fmt.Sprintf("open WBL segment: %d", i))
+				return &errLoadWbl{errors.Wrap(err, fmt.Sprintf("open WBL segment: %d", i))}
 			}
 
 			sr := wlog.NewSegmentBufReader(s)
@@ -783,7 +784,7 @@ func (h *Head) Init(minValidTime int64) error {
 				level.Warn(h.logger).Log("msg", "Error while closing the wbl segments reader", "err", err)
 			}
 			if err != nil {
-				return err
+				return &errLoadWbl{err}
 			}
 			level.Info(h.logger).Log("msg", "WBL segment loaded", "segment", i, "maxSegment", endAt)
 			h.updateWALReplayStatusRead(i)
@@ -1426,19 +1427,23 @@ func (h *RangeHead) String() string {
 
 // Delete all samples in the range of [mint, maxt] for series that satisfy the given
 // label matchers.
-func (h *Head) Delete(mint, maxt int64, ms ...*labels.Matcher) error {
+func (h *Head) Delete(ctx context.Context, mint, maxt int64, ms ...*labels.Matcher) error {
 	// Do not delete anything beyond the currently valid range.
 	mint, maxt = clampInterval(mint, maxt, h.MinTime(), h.MaxTime())
 
 	ir := h.indexRange(mint, maxt)
 
-	p, err := PostingsForMatchers(ir, ms...)
+	p, err := PostingsForMatchers(ctx, ir, ms...)
 	if err != nil {
 		return errors.Wrap(err, "select series")
 	}
 
 	var stones []tombstones.Stone
 	for p.Next() {
+		if err := ctx.Err(); err != nil {
+			return errors.Wrap(err, "select series")
+		}
+
 		series := h.series.getByID(chunks.HeadSeriesRef(p.At()))
 		if series == nil {
 			level.Debug(h.logger).Log("msg", "Series not found in Head.Delete")
@@ -1458,6 +1463,10 @@ func (h *Head) Delete(mint, maxt int64, ms ...*labels.Matcher) error {
 	if p.Err() != nil {
 		return p.Err()
 	}
+	if ctx.Err() != nil {
+		return errors.Wrap(err, "select series")
+	}
+
 	if h.wal != nil {
 		var enc record.Encoder
 		if err := h.wal.Log(enc.Tombstones(stones, nil)); err != nil {

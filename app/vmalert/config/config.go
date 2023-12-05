@@ -19,11 +19,14 @@ import (
 // Group contains list of Rules grouped into
 // entity with one name and evaluation interval
 type Group struct {
-	Type        Type `yaml:"type,omitempty"`
-	File        string
-	Name        string              `yaml:"name"`
-	Interval    *promutils.Duration `yaml:"interval,omitempty"`
-	EvalOffset  *promutils.Duration `yaml:"eval_offset,omitempty"`
+	Type       Type `yaml:"type,omitempty"`
+	File       string
+	Name       string              `yaml:"name"`
+	Interval   *promutils.Duration `yaml:"interval,omitempty"`
+	EvalOffset *promutils.Duration `yaml:"eval_offset,omitempty"`
+	// EvalDelay will adjust the `time` parameter of rule evaluation requests to compensate intentional query delay from datasource.
+	// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5155
+	EvalDelay   *promutils.Duration `yaml:"eval_delay,omitempty"`
 	Limit       int                 `yaml:"limit,omitempty"`
 	Rules       []Rule              `yaml:"rules"`
 	Concurrency int                 `yaml:"concurrency"`
@@ -39,6 +42,8 @@ type Group struct {
 	Headers []Header `yaml:"headers,omitempty"`
 	// NotifierHeaders contains optional HTTP headers sent to notifiers for generated notifications
 	NotifierHeaders []Header `yaml:"notifier_headers,omitempty"`
+	// EvalAlignment will make the timestamp of group query requests be aligned with interval
+	EvalAlignment *bool `yaml:"eval_alignment,omitempty"`
 	// Catches all undefined fields and must be empty after parsing.
 	XXX map[string]interface{} `yaml:",inline"`
 }
@@ -231,7 +236,7 @@ func ParseSilent(pathPatterns []string, validateTplFn ValidateTplFn, validateExp
 
 	files, err := readFromFS(pathPatterns)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read from the config: %s", err)
+		return nil, fmt.Errorf("failed to read from the config: %w", err)
 	}
 	return parse(files, validateTplFn, validateExpressions)
 }
@@ -240,11 +245,11 @@ func ParseSilent(pathPatterns []string, validateTplFn ValidateTplFn, validateExp
 func Parse(pathPatterns []string, validateTplFn ValidateTplFn, validateExpressions bool) ([]Group, error) {
 	files, err := readFromFS(pathPatterns)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read from the config: %s", err)
+		return nil, fmt.Errorf("failed to read from the config: %w", err)
 	}
 	groups, err := parse(files, validateTplFn, validateExpressions)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse %s: %s", pathPatterns, err)
+		return nil, fmt.Errorf("failed to parse %s: %w", pathPatterns, err)
 	}
 	if len(groups) < 1 {
 		cLogger.Warnf("no groups found in %s", strings.Join(pathPatterns, ";"))

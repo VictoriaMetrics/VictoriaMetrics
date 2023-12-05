@@ -15,9 +15,8 @@ func TestReadBulkRequestFailure(t *testing.T) {
 	f := func(data string) {
 		t.Helper()
 
-		processLogMessage := func(timestamp int64, fields []logstorage.Field) error {
+		processLogMessage := func(timestamp int64, fields []logstorage.Field) {
 			t.Fatalf("unexpected call to processLogMessage with timestamp=%d, fields=%s", timestamp, fields)
-			return nil
 		}
 
 		r := bytes.NewBufferString(data)
@@ -44,7 +43,7 @@ func TestReadBulkRequestSuccess(t *testing.T) {
 
 		var timestamps []int64
 		var result string
-		processLogMessage := func(timestamp int64, fields []logstorage.Field) error {
+		processLogMessage := func(timestamp int64, fields []logstorage.Field) {
 			timestamps = append(timestamps, timestamp)
 
 			a := make([]string, len(fields))
@@ -53,7 +52,6 @@ func TestReadBulkRequestSuccess(t *testing.T) {
 			}
 			s := "{" + strings.Join(a, ",") + "}\n"
 			result += s
-			return nil
 		}
 
 		// Read the request without compression
@@ -122,10 +120,10 @@ func compressData(s string) string {
 	var bb bytes.Buffer
 	zw := gzip.NewWriter(&bb)
 	if _, err := zw.Write([]byte(s)); err != nil {
-		panic(fmt.Errorf("unexpected error when compressing data: %s", err))
+		panic(fmt.Errorf("unexpected error when compressing data: %w", err))
 	}
 	if err := zw.Close(); err != nil {
-		panic(fmt.Errorf("unexpected error when closing gzip writer: %s", err))
+		panic(fmt.Errorf("unexpected error when closing gzip writer: %w", err))
 	}
 	return bb.String()
 }

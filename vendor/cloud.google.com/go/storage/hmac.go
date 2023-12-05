@@ -289,12 +289,11 @@ func (it *HMACKeysIterator) fetch(pageSize int, pageToken string) (token string,
 		call = call.MaxResults(int64(pageSize))
 	}
 
-	ctx := it.ctx
 	var resp *raw.HmacKeysMetadata
-	err = run(it.ctx, func() error {
+	err = run(it.ctx, func(ctx context.Context) error {
 		resp, err = call.Context(ctx).Do()
 		return err
-	}, it.retry, true, setRetryHeaderHTTP(call))
+	}, it.retry, true)
 	if err != nil {
 		return "", err
 	}
