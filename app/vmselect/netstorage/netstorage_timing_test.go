@@ -116,7 +116,10 @@ func BenchmarkMergeResults(b *testing.B) {
 		if len(update.Values) != len(update.Timestamps) {
 			b.Fatalf("bad input data, update timestamp and values must match")
 		}
-		var toMerge Result
+		toMerge := Result{
+			valuesBuf:     make([]float64, 0, 256),
+			timestampsBuf: make([]int64, 0, 256),
+		}
 		b.Run(name, func(b *testing.B) {
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
@@ -124,8 +127,8 @@ func BenchmarkMergeResults(b *testing.B) {
 				toMerge.Values = append(toMerge.Values, dst.Values...)
 				toMerge.Timestamps = append(toMerge.Timestamps, dst.Timestamps...)
 				mergeResult(&toMerge, update)
-				if !reflect.DeepEqual(&toMerge, expect) {
-					b.Fatalf("unexpected result, got: \n%v\nwant: \n%v", &toMerge, expect)
+				if !reflect.DeepEqual(toMerge.Timestamps, expect.Timestamps) || !reflect.DeepEqual(toMerge.Values, expect.Values) {
+					b.Fatalf("unexpected result, got \ntimestamps: \n%v\nvalues: \n%v\nwant: timestamps: \n%v\n values: \n%v", toMerge.Timestamps, toMerge.Values, expect.Timestamps, expect.Values)
 				}
 			}
 		})

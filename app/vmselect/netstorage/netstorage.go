@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"math/bits"
 	"net"
 	"net/http"
 	"os"
@@ -54,6 +55,9 @@ type Result struct {
 	// Values are sorted by Timestamps.
 	Values     []float64
 	Timestamps []int64
+
+	valuesBuf     []float64
+	timestampsBuf []int64
 
 	// statistic for series updates
 	updateRows int
@@ -394,87 +398,95 @@ func mergeResult(dst, update *Result) {
 	lastUpdateTs := update.Timestamps[len(update.Timestamps)-1]
 
 	// check lower bound
-	if firstUpdateTs < firstDstTs {
+	// [5,6,7] [1,2,3]
+	if lastUpdateTs <= firstDstTs {
 		// fast path
-		pos := position(dst.Timestamps, lastUpdateTs)
-		if lastUpdateTs == dst.Timestamps[pos] {
-			pos++
+		if lastUpdateTs == firstDstTs {
+			dst.Timestamps = dst.Timestamps[1:]
+			dst.Values = dst.Values[1:]
 		}
-		tailTs := dst.Timestamps[pos:]
-		tailVs := dst.Values[pos:]
+		newLen := len(dst.Timestamps) + len(update.Timestamps)
+		dst.timestampsBuf = reuseMayAllocateInt64(dst.timestampsBuf, newLen)
+		dst.timestampsBuf = append(dst.timestampsBuf, update.Timestamps...)
+		dst.timestampsBuf = append(dst.timestampsBuf, dst.Timestamps...)
 
-		if len(update.Timestamps) <= pos {
-			// fast path, no need in memory reallocation
-			dst.Timestamps = append(dst.Timestamps[:0], update.Timestamps...)
-			dst.Timestamps = append(dst.Timestamps, tailTs...)
-			dst.Values = append(dst.Values[:0], update.Values...)
-			dst.Values = append(dst.Values, tailVs...)
-			return
-		}
-		// slow path, reallocate memory
-		reallocatedLen := len(tailTs) + len(update.Timestamps)
-		dst.Timestamps = make([]int64, 0, reallocatedLen)
-		dst.Values = make([]float64, 0, reallocatedLen)
-		dst.Timestamps = append(dst.Timestamps, update.Timestamps...)
-		dst.Timestamps = append(dst.Timestamps, tailTs...)
-		dst.Values = append(dst.Values, update.Values...)
-		dst.Values = append(dst.Values, tailVs...)
+		dst.valuesBuf = reuseMayAllocateFloat64(dst.valuesBuf, newLen)
+		dst.valuesBuf = append(dst.valuesBuf, update.Values...)
+		dst.valuesBuf = append(dst.valuesBuf, dst.Values...)
+		// swap buffers
+		dst.timestampsBuf, dst.Timestamps = dst.Timestamps, dst.timestampsBuf
+		dst.valuesBuf, dst.Values = dst.Values, dst.valuesBuf
 		return
 	}
 
 	// check upper bound
 	// fast path, memory allocation possible
-	if lastUpdateTs > lastDstTs {
-		// no need to check bounds
-		if firstUpdateTs > firstDstTs {
-			dst.Timestamps = append(dst.Timestamps, update.Timestamps...)
-			dst.Values = append(dst.Values, update.Values...)
+	// [1,2,3] [5,6,7]
+	if firstUpdateTs >= lastDstTs {
+		if firstUpdateTs == lastDstTs {
+			dst.Timestamps = dst.Timestamps[:len(dst.Timestamps)-1]
+			dst.Values = dst.Values[:len(dst.Values)-1]
 		}
-		pos := position(dst.Timestamps, firstUpdateTs)
-		dst.Timestamps = append(dst.Timestamps[:pos], update.Timestamps...)
-		dst.Values = append(dst.Values[:pos], update.Values...)
+		dst.Timestamps = append(dst.Timestamps, update.Timestamps...)
+		dst.Values = append(dst.Values, update.Values...)
 		return
 	}
 
 	// changes inside given range
+	// [1,5,7] [2,3,6]
 	firstPos := position(dst.Timestamps, firstUpdateTs)
 	lastPos := position(dst.Timestamps, lastUpdateTs)
 	// corner case last timestamp overlaps
-	if lastUpdateTs == dst.Timestamps[lastPos] {
+	if lastPos != len(dst.Timestamps) && lastUpdateTs == dst.Timestamps[lastPos] {
 		lastPos++
 	}
+
 	headTs := dst.Timestamps[:firstPos]
 	tailTs := dst.Timestamps[lastPos:]
 	headVs := dst.Values[:firstPos]
 	tailValues := dst.Values[lastPos:]
-	if len(update.Timestamps) <= lastPos {
-		// fast path, no need to reallocate
-		dst.Timestamps = append(dst.Timestamps[:0], headTs...)
-		dst.Timestamps = append(dst.Timestamps, update.Timestamps...)
-		dst.Timestamps = append(dst.Timestamps, tailTs...)
 
-		dst.Values = append(dst.Values[:0], headVs...)
-		dst.Values = append(headVs, update.Values...)
-		dst.Values = append(dst.Values, tailValues...)
-		return
+	newLen := len(headTs) + len(update.Timestamps) + len(tailTs)
+	dst.timestampsBuf = reuseMayAllocateInt64(dst.timestampsBuf, newLen)
+	dst.timestampsBuf = append(dst.timestampsBuf, headTs...)
+	dst.timestampsBuf = append(dst.timestampsBuf, update.Timestamps...)
+	dst.timestampsBuf = append(dst.timestampsBuf, tailTs...)
+
+	dst.valuesBuf = reuseMayAllocateFloat64(dst.valuesBuf, newLen)
+	dst.valuesBuf = append(dst.valuesBuf, headVs...)
+	dst.valuesBuf = append(dst.valuesBuf, update.Values...)
+	dst.valuesBuf = append(dst.valuesBuf, tailValues...)
+
+	// swap buffers
+	dst.timestampsBuf, dst.Timestamps = dst.Timestamps, dst.timestampsBuf
+	dst.valuesBuf, dst.Values = dst.Values, dst.valuesBuf
+}
+
+func reuseMayAllocateInt64(src []int64, n int) []int64 {
+	if n <= cap(src) {
+		return src[:0]
 	}
-	// slow path, allocate new slice and copy values
-	reallocateLen := len(headTs) + len(update.Timestamps) + len(tailTs)
-	dst.Timestamps = make([]int64, 0, reallocateLen)
-	dst.Values = make([]float64, 0, reallocateLen)
+	nNew := roundToNearestPow2(n)
+	bNew := make([]int64, nNew)
+	return bNew[:0]
+}
 
-	dst.Timestamps = append(dst.Timestamps, headTs...)
-	dst.Timestamps = append(dst.Timestamps, update.Timestamps...)
-	dst.Timestamps = append(dst.Timestamps, tailTs...)
+func reuseMayAllocateFloat64(src []float64, n int) []float64 {
+	if n <= cap(src) {
+		return src[:0]
+	}
+	nNew := roundToNearestPow2(n)
+	bNew := make([]float64, nNew)
+	return bNew[:0]
+}
 
-	dst.Values = append(dst.Values, headVs...)
-	dst.Values = append(dst.Values, update.Values...)
-	dst.Values = append(dst.Values, tailValues...)
+func roundToNearestPow2(n int) int {
+	pow2 := uint8(bits.Len(uint(n - 1)))
+	return 1 << pow2
 }
 
 // position searches element position at given src with binary search
 // copied and modified from sort.SearchInts
-// returns safe slice index
 func position(src []int64, value int64) int {
 	// fast path
 	if len(src) < 1 || src[0] > value {
@@ -494,9 +506,6 @@ func position(src []int64, value int64) int {
 		}
 	}
 	// i == j, f(i-1) == false, and f(j) (= f(i)) == true  =>  answer is i.
-	if len(src) == int(i) {
-		i--
-	}
 	return int(i)
 }
 

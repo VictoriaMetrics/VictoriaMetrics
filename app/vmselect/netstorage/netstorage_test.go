@@ -229,7 +229,7 @@ func TestMergeResult(t *testing.T) {
 		t.Helper()
 		t.Run(name, func(t *testing.T) {
 			mergeResult(dst, update)
-			if !reflect.DeepEqual(dst, expect) {
+			if !reflect.DeepEqual(dst.Values, expect.Values) || !reflect.DeepEqual(dst.Timestamps, expect.Timestamps) {
 				t.Fatalf(" unexpected result \ngot: \n%v\nwant: \n%v", dst, expect)
 			}
 		})
@@ -239,6 +239,11 @@ func TestMergeResult(t *testing.T) {
 		&Result{Timestamps: []int64{1, 2}, Values: []float64{5.0, 6.0}},
 		&Result{Timestamps: []int64{2, 3}, Values: []float64{10.0, 30.0}},
 		&Result{Timestamps: []int64{1, 2, 3}, Values: []float64{5.0, 10.0, 30.0}})
+	f("extend and replace overlap",
+		&Result{Timestamps: []int64{2, 3}, Values: []float64{10.0, 30.0}},
+		&Result{Timestamps: []int64{1, 2}, Values: []float64{5.0, 6.0}},
+		&Result{Timestamps: []int64{1, 2, 3}, Values: []float64{5.0, 6.0, 30.0}})
+
 	f("extend and replace",
 		&Result{Timestamps: []int64{1, 2, 3}, Values: []float64{5.0, 6.0, 7.0}},
 		&Result{Timestamps: []int64{0, 1, 2}, Values: []float64{10.0, 15.0, 30.0}},
@@ -247,6 +252,11 @@ func TestMergeResult(t *testing.T) {
 		&Result{Timestamps: []int64{1, 2, 3}, Values: []float64{5.0, 6.0, 7.0}},
 		&Result{Timestamps: []int64{15}, Values: []float64{35.0}},
 		&Result{Timestamps: []int64{1, 2, 3, 15}, Values: []float64{5.0, 6.0, 7.0, 35.0}})
+	f("append",
+		&Result{Timestamps: []int64{6, 7, 8}, Values: []float64{10.0, 15.0, 30.0}},
+		&Result{Timestamps: []int64{1, 2, 3}, Values: []float64{5.0, 6.0, 7.0}},
+		&Result{Timestamps: []int64{1, 2, 3, 6, 7, 8}, Values: []float64{5, 6, 7, 10, 15, 30}})
+
 	f("extend",
 		&Result{Timestamps: []int64{1, 2, 3}, Values: []float64{5.0, 6.0, 7.0}},
 		&Result{Timestamps: []int64{6, 7, 8}, Values: []float64{10.0, 15.0, 30.0}},
@@ -272,6 +282,19 @@ func TestMergeResult(t *testing.T) {
 		&Result{
 			Timestamps: []int64{10, 20, 30, 35, 45, 50, 55, 60, 90},
 			Values:     []float64{1.1, 2.0, 2.3, 2.35, 2.45, 2.50, 2.55, 2.6, 1.6},
+		})
+	f("update at the end",
+		&Result{
+			Timestamps: []int64{10, 20, 30, 40, 50, 60, 90},
+			Values:     []float64{2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.9},
+		},
+		&Result{
+			Timestamps: []int64{50, 70, 100},
+			Values:     []float64{0.0, 5.7, 5.1},
+		},
+		&Result{
+			Timestamps: []int64{10, 20, 30, 40, 50, 70, 100},
+			Values:     []float64{2.1, 2.2, 2.3, 2.4, 0.0, 5.7, 5.1},
 		})
 }
 
@@ -317,7 +340,6 @@ func TestPackedTimeseries_Unpack(t *testing.T) {
 	}
 	f := func(name string, dataBlocks []blockData, updateBlocks []blockData, wantResult *Result) {
 		t.Run(name, func(t *testing.T) {
-
 			pts := packedTimeseries{
 				metricName: metricName,
 			}
@@ -450,11 +472,16 @@ func TestPosition(t *testing.T) {
 		if wantPosition != int64(gotPos) {
 			t.Fatalf("incorrect position: \ngot:\n%d\nwant: \n%d", gotPos, wantPosition)
 		}
-		_ = src[int64(gotPos)]
+		if gotPos == len(src) {
+			_ = src[int64(gotPos)-1]
+		} else {
+			_ = src[int64(gotPos)]
+		}
 	}
-	f([]int64{1, 2, 3, 4}, 5, 3)
+	f([]int64{1, 2, 3, 4}, 5, 4)
 	f([]int64{1, 2, 3, 4}, 0, 0)
 	f([]int64{1, 2, 3, 4}, 1, 0)
 	f([]int64{1, 2, 3, 4}, 4, 3)
 	f([]int64{1, 2, 3, 4}, 3, 2)
+	f([]int64{10, 20, 30, 40, 50, 60, 90}, 100, 7)
 }
