@@ -8,6 +8,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
+	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/datadog"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/datadog/stream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
@@ -20,7 +21,7 @@ var (
 	rowsPerInsert      = metrics.NewHistogram(`vm_rows_per_insert{type="datadog"}`)
 )
 
-// InsertHandlerForHTTP processes remote write for DataDog POST /api/v1/series, /api/v2/series, /api/v1/sketches, /api/beta/sketches request.
+// InsertHandlerForHTTP processes remote write for DataDog POST /api/v1/series request.
 //
 // See https://docs.datadoghq.com/api/latest/metrics/#submit-metrics
 func InsertHandlerForHTTP(at *auth.Token, req *http.Request) error {
@@ -28,44 +29,62 @@ func InsertHandlerForHTTP(at *auth.Token, req *http.Request) error {
 	if err != nil {
 		return err
 	}
-	return stream.Parse(
-		req, func(series prompbmarshal.TimeSeries) error {
-			series.Labels = append(series.Labels, extraLabels...)
-			return insertRows(at, series)
-		},
-	)
+	ce := req.Header.Get("Content-Encoding")
+	return stream.Parse(req.Body, ce, func(series []parser.Series) error {
+		return insertRows(at, series, extraLabels)
+	})
 }
 
-func insertRows(at *auth.Token, series prompbmarshal.TimeSeries) error {
+func insertRows(at *auth.Token, series []parser.Series, extraLabels []prompbmarshal.Label) error {
 	ctx := netstorage.GetInsertCtx()
 	defer netstorage.PutInsertCtx(ctx)
 
 	ctx.Reset()
+	rowsTotal := 0
 	perTenantRows := make(map[auth.Token]int)
 	hasRelabeling := relabel.HasRelabeling()
-	rowsTotal := len(series.Samples)
-
-	ctx.Labels = ctx.Labels[:0]
-	for l := range series.Labels {
-		ctx.AddLabel(series.Labels[l].Name, series.Labels[l].Value)
-	}
-	if hasRelabeling {
-		ctx.ApplyRelabeling()
-	}
-	if len(ctx.Labels) == 0 {
-		return nil
-	}
-	ctx.SortLabelsIfNeeded()
-	atLocal := ctx.GetLocalAuthToken(at)
-	ctx.MetricNameBuf = storage.MarshalMetricNameRaw(ctx.MetricNameBuf[:0], atLocal.AccountID, atLocal.ProjectID, ctx.Labels)
-	storageNodeIdx := ctx.GetStorageNodeIdx(atLocal, ctx.Labels)
-	for _, sample := range series.Samples {
-		err := ctx.WriteDataPointExt(storageNodeIdx, ctx.MetricNameBuf, sample.Timestamp, sample.Value)
-		if err != nil {
-			return err
+	for i := range series {
+		ss := &series[i]
+		rowsTotal += len(ss.Points)
+		ctx.Labels = ctx.Labels[:0]
+		ctx.AddLabel("", ss.Metric)
+		if ss.Host != "" {
+			ctx.AddLabel("host", ss.Host)
 		}
+		if ss.Device != "" {
+			ctx.AddLabel("device", ss.Device)
+		}
+		for _, tag := range ss.Tags {
+			name, value := parser.SplitTag(tag)
+			if name == "host" {
+				name = "exported_host"
+			}
+			ctx.AddLabel(name, value)
+		}
+		for j := range extraLabels {
+			label := &extraLabels[j]
+			ctx.AddLabel(label.Name, label.Value)
+		}
+		if hasRelabeling {
+			ctx.ApplyRelabeling()
+		}
+		if len(ctx.Labels) == 0 {
+			// Skip metric without labels.
+			continue
+		}
+		ctx.SortLabelsIfNeeded()
+		atLocal := ctx.GetLocalAuthToken(at)
+		ctx.MetricNameBuf = storage.MarshalMetricNameRaw(ctx.MetricNameBuf[:0], atLocal.AccountID, atLocal.ProjectID, ctx.Labels)
+		storageNodeIdx := ctx.GetStorageNodeIdx(atLocal, ctx.Labels)
+		for _, pt := range ss.Points {
+			timestamp := pt.Timestamp()
+			value := pt.Value()
+			if err := ctx.WriteDataPointExt(storageNodeIdx, ctx.MetricNameBuf, timestamp, value); err != nil {
+				return err
+			}
+		}
+		perTenantRows[*atLocal] += len(ss.Points)
 	}
-	perTenantRows[*atLocal] = rowsTotal
 	rowsInserted.Add(rowsTotal)
 	rowsTenantInserted.MultiAdd(perTenantRows)
 	rowsPerInsert.Update(float64(rowsTotal))
