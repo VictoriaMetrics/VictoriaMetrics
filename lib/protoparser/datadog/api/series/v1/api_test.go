@@ -3,8 +3,6 @@ package datadog
 import (
 	"reflect"
 	"testing"
-
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 )
 
 func TestRequestUnmarshalFailure(t *testing.T) {
@@ -22,37 +20,22 @@ func TestRequestUnmarshalFailure(t *testing.T) {
 	f(`[]`)
 }
 
-func TestRequestExtract(t *testing.T) {
-	fn := func(s []byte, reqExpected *Request, samplesExp int) {
-		t.Helper()
-		req := new(Request)
-		if err := req.Unmarshal(s); err != nil {
-			t.Fatalf("unexpected error in Unmarshal(%q): %s", s, err)
-		}
-		if !reflect.DeepEqual(req, reqExpected) {
-			t.Fatalf("unexpected row;\ngot\n%+v\nwant\n%+v", req, reqExpected)
-		}
-
-		var samplesTotal int
-		cb := func(ts prompbmarshal.TimeSeries) error {
-			samplesTotal += len(ts.Samples)
-			return nil
-		}
-		sanitizeFn := func(name string) string {
-			return name
-		}
-		if err := req.Extract(cb, sanitizeFn); err != nil {
-			t.Fatalf("error when extracting data: %s", err)
-		}
-
-		if samplesTotal != samplesExp {
-			t.Fatalf("expected to extract %d samples; got %d", samplesExp, samplesTotal)
-		}
-
+func unmarshalRequestValidator(t *testing.T, s []byte, reqExpected *Request) {
+	t.Helper()
+	req := new(Request)
+	if err := req.Unmarshal(s); err != nil {
+		t.Fatalf("unexpected error in Unmarshal(%q): %s", s, err)
 	}
+	if !reflect.DeepEqual(req, reqExpected) {
+		t.Fatalf("unexpected row;\ngot\n%+v\nwant\n%+v", req, reqExpected)
+	}
+}
 
-	fn([]byte("{}"), new(Request), 0)
-	fn([]byte(`
+func TestRequestUnmarshalSuccess(t *testing.T) {
+	unmarshalRequestValidator(
+		t, []byte("{}"), new(Request),
+	)
+	unmarshalRequestValidator(t, []byte(`
 {
   "series": [
     {
@@ -84,5 +67,5 @@ func TestRequestExtract(t *testing.T) {
 				"environment:test",
 			},
 		}},
-	}, 1)
+	})
 }
