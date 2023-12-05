@@ -1420,7 +1420,7 @@ Note that it could be required to flush response cache after importing historica
 VictoriaMetrics parses input JSON lines one-by-one. It loads the whole JSON line in memory, then parses it and then saves the parsed samples into persistent storage.
 This means that VictoriaMetrics can occupy big amounts of RAM when importing too long JSON lines.
 The solution is to split too long JSON lines into shorter lines. It is OK if samples for a single time series are split among multiple JSON lines.
-JSON line length can be limited via `max_rows_per_line` query arg when exporting via [/api/v1/export](how-to-export-data-in-json-line-format).
+JSON line length can be limited via `max_rows_per_line` query arg when exporting via [/api/v1/export](#how-to-export-data-in-json-line-format).
 
 The maximum JSON line length, which can be parsed by VictoriaMetrics, is limited by `-import.maxLineLen` command-line flag value.
 
