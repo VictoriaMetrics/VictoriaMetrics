@@ -58,6 +58,7 @@ var (
 	oauth2ClientID         = flagutil.NewArrayString("remoteWrite.oauth2.clientID", "Optional OAuth2 clientID to use for the corresponding -remoteWrite.url")
 	oauth2ClientSecret     = flagutil.NewArrayString("remoteWrite.oauth2.clientSecret", "Optional OAuth2 clientSecret to use for the corresponding -remoteWrite.url")
 	oauth2ClientSecretFile = flagutil.NewArrayString("remoteWrite.oauth2.clientSecretFile", "Optional OAuth2 clientSecretFile to use for the corresponding -remoteWrite.url")
+	oauth2EndpointParams   = flagutil.NewMapString("remoteWrite.oauth2.endpointParams", "Optional OAuth2 endpoint parameters to use for the corresponding -remoteWrite.url")
 	oauth2TokenURL         = flagutil.NewArrayString("remoteWrite.oauth2.tokenUrl", "Optional OAuth2 tokenURL to use for the corresponding -remoteWrite.url")
 	oauth2Scopes           = flagutil.NewArrayString("remoteWrite.oauth2.scopes", "Optional OAuth2 scopes to use for the corresponding -remoteWrite.url. Scopes must be delimited by ';'")
 
@@ -238,6 +239,7 @@ func getAuthConfig(argIdx int) (*promauth.Config, error) {
 			ClientID:         oauth2ClientID.GetOptionalArg(argIdx),
 			ClientSecret:     promauth.NewSecret(clientSecret),
 			ClientSecretFile: clientSecretFile,
+			EndpointParams:   *oauth2EndpointParams,
 			TokenURL:         oauth2TokenURL.GetOptionalArg(argIdx),
 			Scopes:           strings.Split(oauth2Scopes.GetOptionalArg(argIdx), ";"),
 		}
