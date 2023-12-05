@@ -51,10 +51,10 @@ func insertRows(series prompbmarshal.TimeSeries) error {
 		return nil
 	}
 	ctx.SortLabelsIfNeeded()
-
 	for _, sample := range series.Samples {
-		_, err := ctx.WriteDataPointExt(nil, ctx.Labels, sample.Timestamp, sample.Value)
-		if err != nil {
+		if _, err := ctx.WriteDataPointExt(
+			[]byte{}, ctx.Labels, sample.Timestamp, sample.Value,
+		); err != nil {
 			return err
 		}
 	}

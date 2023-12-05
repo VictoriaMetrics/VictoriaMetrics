@@ -70,36 +70,35 @@ func Parse(req *http.Request, callback func(prompbmarshal.TimeSeries) error) err
 	apiVersion := insertApisVersionRegex.ReplaceAllString(req.URL.Path, "${version}")
 	apiKind := insertApisVersionRegex.ReplaceAllString(req.URL.Path, "${kind}")
 
-	var ddReq datadog.Request
+	ddReq := getRequest()
+	defer putRequest(ddReq)
+
 	switch apiKind {
 	case "series":
 		switch apiVersion {
 		case "v1":
-			ddReq = getSeriesV1Request()
-			defer putSeriesV1Request(ddReq)
+			ddReq = new(apiSeriesV1.Request)
 		case "v2":
-			ddReq = getSeriesV2Request()
-			defer putSeriesV2Request(ddReq)
+			ddReq = new(apiSeriesV2.Request)
 		default:
 			return fmt.Errorf(
-				"API version %q of DataDog series endpoint is not supported",
+				"API version %q of Datadog series endpoint is not supported",
 				apiVersion,
 			)
 		}
 	case "sketches":
 		switch apiVersion {
 		case "beta":
-			ddReq = getSketchesBetaRequest()
-			defer putSketchesBetaRequest(ddReq)
+			ddReq = new(apiSketchesBeta.Request)
 		default:
 			return fmt.Errorf(
-				"API version %q of DataDog sketches endpoint is not supported",
+				"API version %q of Datadog sketches endpoint is not supported",
 				apiVersion,
 			)
 		}
 	default:
 		return fmt.Errorf(
-			"API kind %q of DataDog API is not supported",
+			"API kind %q of Datadog API is not supported",
 			apiKind,
 		)
 	}
@@ -183,47 +182,19 @@ func putPushCtx(ctx *pushCtx) {
 var pushCtxPool sync.Pool
 var pushCtxPoolCh = make(chan *pushCtx, cgroup.AvailableCPUs())
 
-func getSeriesV1Request() *apiSeriesV1.Request {
-	v := seriesV1RequestPool.Get()
+func getRequest() datadog.Request {
+	v := requestPool.Get()
 	if v == nil {
-		return &apiSeriesV1.Request{}
+		return nil
 	}
-	return v.(*apiSeriesV1.Request)
+	return v.(datadog.Request)
 }
 
-func putSeriesV1Request(req datadog.Request) {
-	seriesV1RequestPool.Put(req)
+func putRequest(req datadog.Request) {
+	requestPool.Put(req)
 }
 
-var seriesV1RequestPool sync.Pool
-
-func getSeriesV2Request() *apiSeriesV2.Request {
-	v := seriesV2RequestPool.Get()
-	if v == nil {
-		return &apiSeriesV2.Request{}
-	}
-	return v.(*apiSeriesV2.Request)
-}
-
-func putSeriesV2Request(req datadog.Request) {
-	seriesV2RequestPool.Put(req)
-}
-
-var seriesV2RequestPool sync.Pool
-
-func getSketchesBetaRequest() *apiSketchesBeta.Request {
-	v := sketchesBetaRequestPool.Get()
-	if v == nil {
-		return &apiSketchesBeta.Request{}
-	}
-	return v.(*apiSketchesBeta.Request)
-}
-
-func putSketchesBetaRequest(req datadog.Request) {
-	sketchesBetaRequestPool.Put(req)
-}
-
-var sketchesBetaRequestPool sync.Pool
+var requestPool sync.Pool
 
 // sanitizeName performs DataDog-compatible sanitizing for metric names
 //
