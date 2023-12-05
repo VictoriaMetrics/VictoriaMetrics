@@ -328,5 +328,6 @@ func initConfigVM(c *cli.Context) vm.Config {
 		ExtraLabels:        c.StringSlice(vmExtraLabel),
 		RateLimit:          c.Int64(vmRateLimit),
 		DisableProgressBar: c.Bool(vmDisableProgressBar),
+		InsecureSkipVerify: c.Bool(vmInsecureSkipVerify),
 	}
 }

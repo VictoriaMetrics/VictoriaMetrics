@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"compress/gzip"
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
@@ -55,17 +56,20 @@ type Config struct {
 	RateLimit int64
 	// Whether to disable progress bar per VM worker
 	DisableProgressBar bool
+	// Whether to skip TLS certificate verification
+	InsecureSkipVerify bool
 }
 
 // Importer performs insertion of timeseries
 // via VictoriaMetrics import protocol
 // see https://docs.victoriametrics.com/#how-to-import-time-series-data
 type Importer struct {
-	addr       string
-	importPath string
-	compress   bool
-	user       string
-	password   string
+	addr               string
+	importPath         string
+	compress           bool
+	user               string
+	password           string
+	insecureSkipVerify bool
 
 	close  chan struct{}
 	input  chan *TimeSeries
@@ -129,16 +133,17 @@ func NewImporter(ctx context.Context, cfg Config) (*Importer, error) {
 	}
 
 	im := &Importer{
-		addr:       addr,
-		importPath: importPath,
-		compress:   cfg.Compress,
-		user:       cfg.User,
-		password:   cfg.Password,
-		rl:         limiter.NewLimiter(cfg.RateLimit),
-		close:      make(chan struct{}),
-		input:      make(chan *TimeSeries, cfg.Concurrency*4),
-		errors:     make(chan *ImportError, cfg.Concurrency),
-		backoff:    backoff.New(),
+		addr:               addr,
+		importPath:         importPath,
+		compress:           cfg.Compress,
+		user:               cfg.User,
+		password:           cfg.Password,
+		insecureSkipVerify: cfg.InsecureSkipVerify,
+		rl:                 limiter.NewLimiter(cfg.RateLimit),
+		close:              make(chan struct{}),
+		input:              make(chan *TimeSeries, cfg.Concurrency*4),
+		errors:             make(chan *ImportError, cfg.Concurrency),
+		backoff:            backoff.New(),
 	}
 	if err := im.Ping(); err != nil {
 		return nil, fmt.Errorf("ping to %q failed: %s", addr, err)
@@ -281,6 +286,19 @@ func (im *Importer) flush(ctx context.Context, b []*TimeSeries) error {
 	return nil
 }
 
+func (im *Importer) getHTTPClient() *http.Client {
+	var client *http.Client
+	if im.insecureSkipVerify {
+		tr := &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+		client = &http.Client{Transport: tr}
+	} else {
+		client = http.DefaultClient
+	}
+	return client
+}
+
 // Ping sends a ping to im.addr.
 func (im *Importer) Ping() error {
 	url := fmt.Sprintf("%s/health", im.addr)
@@ -291,7 +309,7 @@ func (im *Importer) Ping() error {
 	if im.user != "" {
 		req.SetBasicAuth(im.user, im.password)
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := im.getHTTPClient().Do(req)
 	if err != nil {
 		return err
 	}
@@ -321,7 +339,7 @@ func (im *Importer) Import(tsBatch []*TimeSeries) error {
 
 	errCh := make(chan error)
 	go func() {
-		errCh <- do(req)
+		errCh <- do(im.getHTTPClient(), req)
 		close(errCh)
 	}()
 
@@ -375,8 +393,8 @@ func (im *Importer) Import(tsBatch []*TimeSeries) error {
 // ErrBadRequest represents bad request error.
 var ErrBadRequest = errors.New("bad request")
 
-func do(req *http.Request) error {
-	resp, err := http.DefaultClient.Do(req)
+func do(client *http.Client, req *http.Request) error {
+	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("unexpected error when performing request: %s", err)
 	}

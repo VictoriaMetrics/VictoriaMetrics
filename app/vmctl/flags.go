@@ -40,6 +40,7 @@ const (
 	vmSignificantFigures = "vm-significant-figures"
 	vmRoundDigits        = "vm-round-digits"
 	vmDisableProgressBar = "vm-disable-progress-bar"
+	vmInsecureSkipVerify = "vm-insecure-skip-verify"
 
 	// also used in vm-native
 	vmExtraLabel = "vm-extra-label"
@@ -118,6 +119,10 @@ var (
 		&cli.BoolFlag{
 			Name:  vmDisableProgressBar,
 			Usage: "Whether to disable progress bar per each worker during the import.",
+		},
+		&cli.BoolFlag{
+			Name:  vmInsecureSkipVerify,
+			Usage: "Whether to skip TLS certificate verification.",
 		},
 	}
 )
