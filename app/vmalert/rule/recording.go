@@ -36,7 +36,7 @@ type RecordingRule struct {
 }
 
 type recordingRuleMetrics struct {
-	errors  *utils.Gauge
+	errors  *utils.Counter
 	samples *utils.Gauge
 }
 
@@ -83,14 +83,7 @@ func NewRecordingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rul
 	}
 
 	labels := fmt.Sprintf(`recording=%q, group=%q, file=%q, id="%d"`, rr.Name, group.Name, group.File, rr.ID())
-	rr.metrics.errors = utils.GetOrCreateGauge(fmt.Sprintf(`vmalert_recording_rules_error{%s}`, labels),
-		func() float64 {
-			e := rr.state.getLast()
-			if e.Err == nil {
-				return 0
-			}
-			return 1
-		})
+	rr.metrics.errors = utils.GetOrCreateCounter(fmt.Sprintf(`vmalert_recording_rules_errors_total{%s}`, labels))
 	rr.metrics.samples = utils.GetOrCreateGauge(fmt.Sprintf(`vmalert_recording_rules_last_evaluation_samples{%s}`, labels),
 		func() float64 {
 			e := rr.state.getLast()
@@ -142,6 +135,9 @@ func (rr *RecordingRule) exec(ctx context.Context, ts time.Time, limit int) ([]p
 
 	defer func() {
 		rr.state.add(curState)
+		if curState.Err != nil {
+			rr.metrics.errors.Inc()
+		}
 	}()
 
 	if err != nil {

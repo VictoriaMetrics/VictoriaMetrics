@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 )
 
@@ -201,9 +202,15 @@ func TestRecordingRuleLimit(t *testing.T) {
 		metricWithValuesAndLabels(t, []float64{2, 3}, "__name__", "bar", "job", "bar"),
 		metricWithValuesAndLabels(t, []float64{4, 5, 6}, "__name__", "baz", "job", "baz"),
 	}
-	rule := &RecordingRule{Name: "job:foo", state: &ruleState{entries: make([]StateEntry, 10)}, Labels: map[string]string{
-		"source": "test_limit",
-	}}
+	rule := &RecordingRule{Name: "job:foo",
+		state: &ruleState{entries: make([]StateEntry, 10)},
+		Labels: map[string]string{
+			"source": "test_limit",
+		},
+		metrics: &recordingRuleMetrics{
+			errors: utils.GetOrCreateCounter(`vmalert_recording_rules_errors_total{alertname="job:foo"}`),
+		},
+	}
 	var err error
 	for _, testCase := range testCases {
 		fq := &datasource.FakeQuerier{}
@@ -223,6 +230,9 @@ func TestRecordingRule_ExecNegative(t *testing.T) {
 			"job": "test",
 		},
 		state: &ruleState{entries: make([]StateEntry, 10)},
+		metrics: &recordingRuleMetrics{
+			errors: utils.GetOrCreateCounter(`vmalert_recording_rules_errors_total{alertname="job:foo"}`),
+		},
 	}
 	fq := &datasource.FakeQuerier{}
 	expErr := "connection reset by peer"
