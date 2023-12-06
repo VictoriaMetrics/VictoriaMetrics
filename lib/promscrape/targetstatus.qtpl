@@ -1,6 +1,5 @@
 {% import (
 	"net/url"
-	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/htmlcomponents"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
@@ -26,7 +25,7 @@
 		{% if filter.showOriginalLabels %}originalLabels={%s= ts.sw.Config.OriginalLabels.String() %},{% space %}{% endif %}
 		scrapes_total={%d ts.scrapesTotal %},{% space %}
 		scrapes_failed={%d ts.scrapesFailed %},{% space %}
-		last_scrape={%d int(ts.getDurationFromLastScrape().Milliseconds()) %}ms ago,{% space %}
+		last_scrape={%s ts.getDurationFromLastScrape() %},{% space %}
 		scrape_duration={%d int(ts.scrapeDuration) %}ms,{% space %}
 		samples_scraped={%d ts.samplesScraped %},{% space %}
 		error={% if ts.err != nil %}{%s= ts.err.Error() %}{% endif %}
@@ -228,7 +227,6 @@
 
                         // The target is uniquely identified by a pointer to its original labels.
                         targetID := getLabelsID(originalLabels)
-                        lastScrapeDuration := ts.getDurationFromLastScrape()
                     %}
                         <tr {% if !ts.up %}{%space%}class="alert alert-danger" role="alert" {% endif %}>
                             <td class="endpoint">
@@ -269,12 +267,7 @@
                             {% endif %}
                             <td>{%d ts.scrapesTotal %}</td>
                             <td>{%d ts.scrapesFailed %}</td>
-                            <td>
-                                {% if lastScrapeDuration < 365*24*time.Hour %}
-                                    {%d int(lastScrapeDuration.Milliseconds()) %}ms ago
-                                {% else %}
-                                    none
-                                {% endif %}
+                            <td>{%s ts.getDurationFromLastScrape() %}
                             <td>{%d int(ts.scrapeDuration) %}ms</td>
                             <td>{%d ts.samplesScraped %}</td>
                             <td>{% if ts.err != nil %}{%s ts.err.Error() %}{% endif %}</td>

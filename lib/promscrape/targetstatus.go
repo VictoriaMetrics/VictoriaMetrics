@@ -304,8 +304,12 @@ type targetStatus struct {
 	err            error
 }
 
-func (ts *targetStatus) getDurationFromLastScrape() time.Duration {
-	return time.Since(time.Unix(ts.scrapeTime/1000, (ts.scrapeTime%1000)*1e6))
+func (ts *targetStatus) getDurationFromLastScrape() string {
+	if ts.scrapeTime <= 0 {
+		return "never scraped"
+	}
+	d := time.Since(time.Unix(ts.scrapeTime/1000, (ts.scrapeTime%1000)*1e6))
+	return fmt.Sprintf("%.3fs ago", d.Seconds())
 }
 
 type droppedTargets struct {
