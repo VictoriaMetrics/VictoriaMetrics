@@ -104,9 +104,11 @@ func TestScrapeWorkScrapeInternalFailure(t *testing.T) {
 	}
 
 	timestamp := int64(123000)
+	tsmGlobal.Register(&sw)
 	if err := sw.scrapeInternal(timestamp, timestamp); err == nil {
 		t.Fatalf("expecting non-nil error")
 	}
+	tsmGlobal.Unregister(&sw)
 	if pushDataErr != nil {
 		t.Fatalf("unexpected error: %s", pushDataErr)
 	}
@@ -152,11 +154,13 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		}
 
 		timestamp := int64(123000)
+		tsmGlobal.Register(&sw)
 		if err := sw.scrapeInternal(timestamp, timestamp); err != nil {
 			if !strings.Contains(err.Error(), "sample_limit") {
 				t.Fatalf("unexpected error: %s", err)
 			}
 		}
+		tsmGlobal.Unregister(&sw)
 		if pushDataErr != nil {
 			t.Fatalf("unexpected error: %s", pushDataErr)
 		}
