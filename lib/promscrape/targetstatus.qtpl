@@ -330,6 +330,15 @@
                             <span class="badge bg-danger">DOWN</span>
                         {% else %}
                             <span class="badge bg-warning">DROPPED ({%s string(t.dropReason) %})</span>
+                            {% if len(t.clusterMemberNums) > 0 %}
+                                <br/>
+                                <span title="The target exists at vmagent instances with the given -promscrape.cluster.memberNum values">
+                                exists at{% space %}
+                                {% for i, memberNum := range t.clusterMemberNums %}
+                                    {%d memberNum %}
+                                    {% if i+1 < len(t.clusterMemberNums) %},{% space %}{% endif %}
+                                {% endfor %}
+                            {% endif %}
                         {% endif %}
                     </td>
                     <td class="labels">

@@ -810,6 +810,11 @@ start a cluster of three `vmagent` instances, where each target is scraped by tw
 /path/to/vmagent -promscrape.cluster.membersCount=3 -promscrape.cluster.replicationFactor=2 -promscrape.cluster.memberNum=2 -promscrape.config=/path/to/config.yml ...
 ```
 
+Every `vmagent` in the cluster exposes all the discovered targets at `http://vmagent:8429/service-discovery` page.
+Each discovered target on this page contains its status (`UP`, `DOWN` or `DROPPED` with the reason why the target has been dropped).
+If the target is dropped because of sharding to other `vmagent` instances in the cluster, then the status column contains
+`-promscrape.cluster.memberNum` values for `vmagent` instances where the given target is scraped.
+
 If each target is scraped by multiple `vmagent` instances, then data deduplication must be enabled at remote storage pointed by `-remoteWrite.url`.
 The `-dedup.minScrapeInterval` must be set to the `scrape_interval` configured at `-promscrape.config`.
 See [these docs](https://docs.victoriametrics.com/#deduplication) for details.
