@@ -218,7 +218,6 @@ func areEqualScrapeConfigs(a, b *ScrapeConfig) bool {
 		return false
 	}
 	return true
-
 }
 
 func (sc *ScrapeConfig) unmarshalJSON(data []byte) error {

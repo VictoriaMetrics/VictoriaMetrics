@@ -15,6 +15,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/metrics"
 	"github.com/cespare/xxhash/v2"
 )
 
@@ -103,8 +104,51 @@ func (tsm *targetStatusMap) Reset() {
 
 func (tsm *targetStatusMap) registerJobNames(jobNames []string) {
 	tsm.mu.Lock()
+	tsm.registerJobsMetrics(tsm.jobNames, jobNames)
 	tsm.jobNames = append(tsm.jobNames[:0], jobNames...)
 	tsm.mu.Unlock()
+}
+
+// registerJobsMetrics registers metrics for new jobs and unregisterMetric metrics for removed jobs
+func (tsm *targetStatusMap) registerJobsMetrics(prevJobNames, currentJobNames []string) {
+	prevName := make(map[string]struct{}, len(prevJobNames))
+	currentName := make(map[string]struct{}, len(currentJobNames))
+	for _, n := range currentJobNames {
+		currentName[n] = struct{}{}
+	}
+	for _, n := range prevJobNames {
+		prevName[n] = struct{}{}
+		if _, ok := currentName[n]; !ok {
+			metrics.UnregisterMetric(fmt.Sprintf(`vm_promscrape_scrape_pool_targets{scrape_job=%q, status="up"}`, n))
+			metrics.UnregisterMetric(fmt.Sprintf(`vm_promscrape_scrape_pool_targets{scrape_job=%q, status="down"}`, n))
+		}
+	}
+
+	for _, n := range currentJobNames {
+		if _, ok := prevName[n]; !ok {
+			n := n
+			_ = metrics.NewGauge(fmt.Sprintf(`vm_promscrape_scrape_pool_targets{scrape_job=%q, status="up"}`, n), func() float64 {
+				jobStatus := tsm.getTargetsStatusByJob(&requestFilter{
+					originalJobName: n,
+				})
+				var up float64
+				for _, status := range jobStatus.jobTargetsStatuses {
+					up = +float64(status.upCount)
+				}
+				return up
+			})
+			_ = metrics.NewGauge(fmt.Sprintf(`vm_promscrape_scrape_pool_targets{scrape_job=%q, status="down"}`, n), func() float64 {
+				jobStatus := tsm.getTargetsStatusByJob(&requestFilter{
+					originalJobName: n,
+				})
+				var down float64
+				for _, status := range jobStatus.jobTargetsStatuses {
+					down = +float64(status.targetsTotal - status.upCount)
+				}
+				return down
+			})
+		}
+	}
 }
 
 func (tsm *targetStatusMap) Register(sw *scrapeWork) {
@@ -359,6 +403,9 @@ func (tsm *targetStatusMap) getTargetsStatusByJob(filter *requestFilter) *target
 	tsm.mu.Lock()
 	for _, ts := range tsm.m {
 		jobName := ts.sw.Config.jobNameOriginal
+		if filter.originalJobName != "" && jobName != filter.originalJobName {
+			continue
+		}
 		byJob[jobName] = append(byJob[jobName], *ts)
 	}
 	jobNames := append([]string{}, tsm.jobNames...)
@@ -494,6 +541,7 @@ type requestFilter struct {
 	showOnlyUnhealthy  bool
 	endpointSearch     string
 	labelSearch        string
+	originalJobName    string
 }
 
 func getRequestFilter(r *http.Request) *requestFilter {
