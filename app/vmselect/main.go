@@ -710,7 +710,10 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 	case "prometheus/api/v1/status/buildinfo":
 		buildInfoRequests.Inc()
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprintf(w, "%s", `{"status":"success","data":{}}`)
+		// prometheus version is used here, which affects what API Grafana uses when retrieving label values.
+		// as new Grafana features are added that are customized for the Prometheus version, maybe the version will need to be increased.
+		// see this issue for more info: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5370
+		fmt.Fprintf(w, "%s", `{"status":"success","data":{"version":"2.24.0"}}`)
 		return true
 	case "prometheus/api/v1/query_exemplars":
 		// Return dumb placeholder for https://prometheus.io/docs/prometheus/latest/querying/api/#querying-exemplars
