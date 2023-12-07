@@ -348,6 +348,12 @@ http://<victoriametrics-addr>:8428
 
 Substitute `<victoriametrics-addr>` with the hostname or IP address of VictoriaMetrics.
 
+In the "Type and version" section it is recommended to set the type to "Prometheus" and the version to at least "2.24.x":
+
+<img src="docs/grafana-datasource-prometheus.png" alt="Grafana datasource" />
+
+This allows Grafana to use a more efficient API to get label values.
+
 Then build graphs and dashboards for the created datasource using [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/)
 or [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html).
 
