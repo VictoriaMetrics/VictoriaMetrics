@@ -353,7 +353,7 @@ Substitute `<victoriametrics-addr>` with the hostname or IP address of VictoriaM
 
 In the "Type and version" section it is recommended to set the type to "Prometheus" and the version to at least "2.24.x":
 
-<img src="grafana-datasource-prometheus.png" alt="Grafana datasource" />
+<img src="grafana-datasource-prometheus.webp" alt="Grafana datasource" />
 
 This allows Grafana to use a more efficient API to get label values.
 
