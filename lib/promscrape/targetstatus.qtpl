@@ -1,5 +1,7 @@
 {% import (
 	"net/url"
+	"strconv"
+	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/htmlcomponents"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
@@ -335,7 +337,11 @@
                                 <span title="The target exists at vmagent instances with the given -promscrape.cluster.memberNum values">
                                 exists at{% space %}
                                 {% for i, memberNum := range t.clusterMemberNums %}
-                                    {%d memberNum %}
+                                    {% if *clusterMemberURLTemplate == "" %}
+                                        {%d memberNum %}
+                                    {% else %}
+                                        <a href="{%s strings.ReplaceAll(*clusterMemberURLTemplate, "%d", strconv.Itoa(memberNum)) %}">{%d memberNum %}</a>
+                                    {% endif %}
                                     {% if i+1 < len(t.clusterMemberNums) %},{% space %}{% endif %}
                                 {% endfor %}
                             {% endif %}

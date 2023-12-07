@@ -813,9 +813,15 @@ start a cluster of three `vmagent` instances, where each target is scraped by tw
 Every `vmagent` in the cluster exposes all the discovered targets at `http://vmagent:8429/service-discovery` page.
 Each discovered target on this page contains its status (`UP`, `DOWN` or `DROPPED` with the reason why the target has been dropped).
 If the target is dropped because of sharding to other `vmagent` instances in the cluster, then the status column contains
-`-promscrape.cluster.memberNum` values for `vmagent` instances where the given target is scraped. Note that `vmagent` shows
-up to `-promscrape.maxDroppedTargets` dropped targets on the `/service-discovery` page. Increase the `-promscrape.maxDroppedTargets` command-line flag value
-if the `/service-discovery` page misses some dropped targets.
+`-promscrape.cluster.memberNum` values for `vmagent` instances where the given target is scraped.
+
+The `/service-discovery` page provides links to the corresponding `vmagent` instances if `-promscrape.cluster.memberURLTemplate` command-line flag is set.
+Every occurrence of `%d` inside the `-promscrape.cluster.memberURLTemplate` is substituted with the `-promscrape.cluster.memberNum`
+for the corresponding `vmagent` instance. For examle, `-promscrape.cluster.memberURLTemplate='http://vmagent-instance-%d:8429/targets'`
+generates `http://vmagent-instance-42:8429/targets` url for `vmagent` instance, which runs with `-promscrape.cluster.memberNum=42`.
+
+Note that `vmagent` shows up to `-promscrape.maxDroppedTargets` dropped targets on the `/service-discovery` page.
+Increase the `-promscrape.maxDroppedTargets` command-line flag value if the `/service-discovery` page misses some dropped targets.
 
 If each target is scraped by multiple `vmagent` instances, then data deduplication must be enabled at remote storage pointed by `-remoteWrite.url`.
 The `-dedup.minScrapeInterval` must be set to the `scrape_interval` configured at `-promscrape.config`.
