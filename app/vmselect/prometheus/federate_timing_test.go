@@ -18,7 +18,7 @@ func BenchmarkFederate(b *testing.B) {
 					Value: []byte("foobarbaz:2344"),
 				},
 				{
-					Key: []byte("job"),
+					Key:   []byte("job"),
 					Value: []byte("aaabbbccc"),
 				},
 			},

@@ -27,7 +27,7 @@ func TestFederate(t *testing.T) {
 					Value: []byte("b"),
 				},
 				{
-					Key: []byte("qqq"),
+					Key:   []byte("qqq"),
 					Value: []byte("\\"),
 				},
 				{
