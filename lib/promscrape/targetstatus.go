@@ -304,8 +304,12 @@ type targetStatus struct {
 	err            error
 }
 
-func (ts *targetStatus) getDurationFromLastScrape() time.Duration {
-	return time.Since(time.Unix(ts.scrapeTime/1000, (ts.scrapeTime%1000)*1e6))
+func (ts *targetStatus) getDurationFromLastScrape() string {
+	if ts.scrapeTime <= 0 {
+		return "never scraped"
+	}
+	d := time.Since(time.Unix(ts.scrapeTime/1000, (ts.scrapeTime%1000)*1e6))
+	return fmt.Sprintf("%.3fs ago", d.Seconds())
 }
 
 type droppedTargets struct {
@@ -314,9 +318,10 @@ type droppedTargets struct {
 }
 
 type droppedTarget struct {
-	originalLabels *promutils.Labels
-	relabelConfigs *promrelabel.ParsedConfigs
-	dropReason     targetDropReason
+	originalLabels    *promutils.Labels
+	relabelConfigs    *promrelabel.ParsedConfigs
+	dropReason        targetDropReason
+	clusterMemberNums []int
 }
 
 type targetDropReason string
@@ -348,7 +353,7 @@ func (dt *droppedTargets) getTargetsList() []droppedTarget {
 //
 // The relabelConfigs must contain relabel configs, which were applied to originalLabels.
 // The reason must contain the reason why the target has been dropped.
-func (dt *droppedTargets) Register(originalLabels *promutils.Labels, relabelConfigs *promrelabel.ParsedConfigs, reason targetDropReason) {
+func (dt *droppedTargets) Register(originalLabels *promutils.Labels, relabelConfigs *promrelabel.ParsedConfigs, reason targetDropReason, clusterMemberNums []int) {
 	if originalLabels == nil {
 		// Do not register target without originalLabels. This is the case when *dropOriginalLabels is set to true.
 		return
@@ -357,9 +362,10 @@ func (dt *droppedTargets) Register(originalLabels *promutils.Labels, relabelConf
 	key := labelsHash(originalLabels)
 	dt.mu.Lock()
 	dt.m[key] = droppedTarget{
-		originalLabels: originalLabels,
-		relabelConfigs: relabelConfigs,
-		dropReason:     reason,
+		originalLabels:    originalLabels,
+		relabelConfigs:    relabelConfigs,
+		dropReason:        reason,
+		clusterMemberNums: clusterMemberNums,
 	}
 	if len(dt.m) >= *maxDroppedTargets {
 		for k := range dt.m {
@@ -584,10 +590,11 @@ type targetsStatusResult struct {
 }
 
 type targetLabels struct {
-	up             bool
-	originalLabels *promutils.Labels
-	labels         *promutils.Labels
-	dropReason     targetDropReason
+	up                bool
+	originalLabels    *promutils.Labels
+	labels            *promutils.Labels
+	dropReason        targetDropReason
+	clusterMemberNums []int
 }
 type targetLabelsByJob struct {
 	jobName        string
@@ -677,8 +684,9 @@ func (tsr *targetsStatusResult) getTargetLabelsByJob() []*targetLabelsByJob {
 		}
 		m.droppedTargets++
 		m.targets = append(m.targets, targetLabels{
-			originalLabels: dt.originalLabels,
-			dropReason:     dt.dropReason,
+			originalLabels:    dt.originalLabels,
+			dropReason:        dt.dropReason,
+			clusterMemberNums: dt.clusterMemberNums,
 		})
 	}
 	a := make([]*targetLabelsByJob, 0, len(byJob))
