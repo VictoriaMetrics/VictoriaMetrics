@@ -199,7 +199,7 @@ URL should point to the vmgateway instance.
 
 In the "Type and version" section it is recommended to set the type to "Prometheus" and the version to at least "2.24.x":
 
-<img src="grafana-vmgateway-openid-configuration/grafana-datasource-prometheus.png" alt="Grafana datasource" />
+<img src="grafana-vmgateway-openid-configuration/grafana-datasource-prometheus.webp" alt="Grafana datasource" />
 
 This allows Grafana to use a more efficient API to get label values.
 
