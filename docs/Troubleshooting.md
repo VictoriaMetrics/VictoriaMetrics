@@ -417,7 +417,7 @@ The most common sources of cluster instability are:
   see [replication and data safety docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#replication-and-data-safety)
   for details.
 
-- Time series sharding. Received time series [are consistently sharded](https://docs.victoriametrics.com/vmalert.html#rules-backfilling)
+- Time series sharding. Received time series [are consistently sharded](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#architecture-overview)
   by `vminsert` between configured `vmstorage` nodes. As a sharding key `vminsert` is using time series name and labels,
   respecting their order. If the order of labels in time series is constantly changing, this could cause wrong sharding
   calculation and result in un-even and sub-optimal time series distribution across available vmstorages. It is expected
