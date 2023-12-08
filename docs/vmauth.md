@@ -392,7 +392,7 @@ Load balancing feature can be used in the following cases:
 
 Load balancig can be configured independently per each `user` entry and per each `url_map` entry. See [auth config docs](#auth-config) for more details.
 
-### Modifying HTTP headers
+## Modifying HTTP headers
 
 `vmauth` supports the ability to set and remove HTTP request headers before sending the requests to backends.
 This is done via `headers` option. For example, the following [`-auth.config`](#auth-config) adds `TenantID: foobar` header
