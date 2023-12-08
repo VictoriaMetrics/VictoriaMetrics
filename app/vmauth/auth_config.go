@@ -20,6 +20,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
@@ -30,6 +31,10 @@ var (
 		"See https://docs.victoriametrics.com/vmauth.html for details on the format of this auth config")
 	configCheckInterval = flag.Duration("configCheckInterval", 0, "interval for config file re-read. "+
 		"Zero value disables config re-reading. By default, refreshing is disabled, send SIGHUP for config refresh.")
+	defaultRetryStatusCodes = flagutil.NewArrayInt("retryStatusCodes", 0, "Comma-separated list of default HTTP response status codes when vmauth re-tries the request on other backends. "+
+		"See https://docs.victoriametrics.com/vmauth.html#load-balancing for details")
+	defaultLoadBalancingPolicy = flag.String("loadBalancingPolicy", "least_loaded", "The default load balancing policy to use for backend urls specified inside url_prefix section. "+
+		"Supported policies: least_loaded, first_available. See https://docs.victoriametrics.com/vmauth.html#load-balancing for more details")
 )
 
 // AuthConfig represents auth config.
@@ -50,6 +55,7 @@ type UserInfo struct {
 	MaxConcurrentRequests  int         `yaml:"max_concurrent_requests,omitempty"`
 	DefaultURL             *URLPrefix  `yaml:"default_url,omitempty"`
 	RetryStatusCodes       []int       `yaml:"retry_status_codes,omitempty"`
+	LoadBalancingPolicy    string      `yaml:"load_balancing_policy,omitempty"`
 	DropSrcPathPrefixParts int         `yaml:"drop_src_path_prefix_parts,omitempty"`
 	TLSInsecureSkipVerify  *bool       `yaml:"tls_insecure_skip_verify,omitempty"`
 	TLSCAFile              string      `yaml:"tls_ca_file,omitempty"`
@@ -124,6 +130,7 @@ type URLMap struct {
 	URLPrefix              *URLPrefix  `yaml:"url_prefix,omitempty"`
 	HeadersConf            HeadersConf `yaml:",inline"`
 	RetryStatusCodes       []int       `yaml:"retry_status_codes,omitempty"`
+	LoadBalancingPolicy    string      `yaml:"load_balancing_policy,omitempty"`
 	DropSrcPathPrefixParts int         `yaml:"drop_src_path_prefix_parts,omitempty"`
 }
 
@@ -135,8 +142,28 @@ type SrcPath struct {
 
 // URLPrefix represents passed `url_prefix`
 type URLPrefix struct {
-	n   uint32
+	n uint32
+
+	// the list of backend urls
 	bus []*backendURL
+
+	// requests are re-tried on other backend urls for these http response status codes
+	retryStatusCodes []int
+
+	// load balancing policy used
+	loadBalancingPolicy string
+}
+
+func (up *URLPrefix) setLoadBalancingPolicy(loadBalancingPolicy string) error {
+	switch loadBalancingPolicy {
+	case "", // empty string is equivalent to least_loaded
+		"least_loaded",
+		"first_available":
+		up.loadBalancingPolicy = loadBalancingPolicy
+		return nil
+	default:
+		return fmt.Errorf("unexpected load_balancing_policy: %q; want least_loaded or first_available", loadBalancingPolicy)
+	}
 }
 
 type backendURL struct {
@@ -155,12 +182,50 @@ func (bu *backendURL) setBroken() {
 	atomic.StoreUint64(&bu.brokenDeadline, deadline)
 }
 
+func (bu *backendURL) get() {
+	atomic.AddInt32(&bu.concurrentRequests, 1)
+}
+
 func (bu *backendURL) put() {
 	atomic.AddInt32(&bu.concurrentRequests, -1)
 }
 
 func (up *URLPrefix) getBackendsCount() int {
 	return len(up.bus)
+}
+
+// getBackendURL returns the backendURL depending on the load balance policy.
+//
+// backendURL.put() must be called on the returned backendURL after the request is complete.
+func (up *URLPrefix) getBackendURL() *backendURL {
+	if up.loadBalancingPolicy == "first_available" {
+		return up.getFirstAvailableBackendURL()
+	}
+	return up.getLeastLoadedBackendURL()
+}
+
+// getFirstAvailableBackendURL returns the first available backendURL, which isn't broken.
+//
+// backendURL.put() must be called on the returned backendURL after the request is complete.
+func (up *URLPrefix) getFirstAvailableBackendURL() *backendURL {
+	bus := up.bus
+
+	bu := bus[0]
+	if !bu.isBroken() {
+		// Fast path - send the request to the first url.
+		bu.get()
+		return bu
+	}
+
+	// Slow path - the first url is temporarily unavailabel. Fall back to the remaining urls.
+	for i := 1; i < len(bus); i++ {
+		if !bus[i].isBroken() {
+			bu = bus[i]
+			break
+		}
+	}
+	bu.get()
+	return bu
 }
 
 // getLeastLoadedBackendURL returns the backendURL with the minimum number of concurrent requests.
@@ -171,7 +236,7 @@ func (up *URLPrefix) getLeastLoadedBackendURL() *backendURL {
 	if len(bus) == 1 {
 		// Fast path - return the only backend url.
 		bu := bus[0]
-		atomic.AddInt32(&bu.concurrentRequests, 1)
+		bu.get()
 		return bu
 	}
 
@@ -202,7 +267,7 @@ func (up *URLPrefix) getLeastLoadedBackendURL() *backendURL {
 			minRequests = n
 		}
 	}
-	atomic.AddInt32(&buMin.concurrentRequests, 1)
+	buMin.get()
 	return buMin
 }
 
@@ -212,6 +277,7 @@ func (up *URLPrefix) UnmarshalYAML(f func(interface{}) error) error {
 	if err := f(&v); err != nil {
 		return err
 	}
+
 	var urls []string
 	switch x := v.(type) {
 	case string:
@@ -232,6 +298,7 @@ func (up *URLPrefix) UnmarshalYAML(f func(interface{}) error) error {
 	default:
 		return fmt.Errorf("unexpected type for `url_prefix`: %T; want string or []string", v)
 	}
+
 	bus := make([]*backendURL, len(urls))
 	for i, u := range urls {
 		pu, err := url.Parse(u)
@@ -440,6 +507,9 @@ func parseAuthConfig(data []byte) (*AuthConfig, error) {
 		if ui.Name != "" {
 			return nil, fmt.Errorf("field name can't be specified for unauthorized_user section")
 		}
+		if err := ui.initURLs(); err != nil {
+			return nil, err
+		}
 		ui.requests = metrics.GetOrCreateCounter(`vmauth_unauthorized_user_requests_total`)
 		ui.requestsDuration = metrics.GetOrCreateSummary(`vmauth_unauthorized_user_request_duration_seconds`)
 		ui.concurrencyLimitCh = make(chan struct{}, ui.getMaxConcurrentRequests())
@@ -480,30 +550,11 @@ func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, error) {
 		if byAuthToken[at2] != nil {
 			return nil, fmt.Errorf("duplicate auth token found for bearer_token=%q, username=%q: %q", ui.BearerToken, ui.Username, at2)
 		}
-		if ui.URLPrefix != nil {
-			if err := ui.URLPrefix.sanitize(); err != nil {
-				return nil, err
-			}
+
+		if err := ui.initURLs(); err != nil {
+			return nil, err
 		}
-		if ui.DefaultURL != nil {
-			if err := ui.DefaultURL.sanitize(); err != nil {
-				return nil, err
-			}
-		}
-		for _, e := range ui.URLMaps {
-			if len(e.SrcPaths) == 0 {
-				return nil, fmt.Errorf("missing `src_paths` in `url_map`")
-			}
-			if e.URLPrefix == nil {
-				return nil, fmt.Errorf("missing `url_prefix` in `url_map`")
-			}
-			if err := e.URLPrefix.sanitize(); err != nil {
-				return nil, err
-			}
-		}
-		if len(ui.URLMaps) == 0 && ui.URLPrefix == nil {
-			return nil, fmt.Errorf("missing `url_prefix`")
-		}
+
 		name := ui.name()
 		if ui.BearerToken != "" {
 			if ui.Password != "" {
@@ -525,6 +576,7 @@ func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, error) {
 		_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vmauth_user_concurrent_requests_current{username=%q}`, name), func() float64 {
 			return float64(len(ui.concurrencyLimitCh))
 		})
+
 		tr, err := getTransport(ui.TLSInsecureSkipVerify, ui.TLSCAFile)
 		if err != nil {
 			return nil, fmt.Errorf("cannot initialize HTTP transport: %w", err)
@@ -535,6 +587,58 @@ func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, error) {
 		byAuthToken[at2] = ui
 	}
 	return byAuthToken, nil
+}
+
+func (ui *UserInfo) initURLs() error {
+	retryStatusCodes := defaultRetryStatusCodes.Values()
+	loadBalancingPolicy := *defaultLoadBalancingPolicy
+	if ui.URLPrefix != nil {
+		if err := ui.URLPrefix.sanitize(); err != nil {
+			return err
+		}
+		if len(ui.RetryStatusCodes) > 0 {
+			retryStatusCodes = ui.RetryStatusCodes
+		}
+		if ui.LoadBalancingPolicy != "" {
+			loadBalancingPolicy = ui.LoadBalancingPolicy
+		}
+		ui.URLPrefix.retryStatusCodes = retryStatusCodes
+		if err := ui.URLPrefix.setLoadBalancingPolicy(loadBalancingPolicy); err != nil {
+			return err
+		}
+	}
+	if ui.DefaultURL != nil {
+		if err := ui.DefaultURL.sanitize(); err != nil {
+			return err
+		}
+	}
+	for _, e := range ui.URLMaps {
+		if len(e.SrcPaths) == 0 {
+			return fmt.Errorf("missing `src_paths` in `url_map`")
+		}
+		if e.URLPrefix == nil {
+			return fmt.Errorf("missing `url_prefix` in `url_map`")
+		}
+		if err := e.URLPrefix.sanitize(); err != nil {
+			return err
+		}
+		rscs := retryStatusCodes
+		lbp := loadBalancingPolicy
+		if len(e.RetryStatusCodes) > 0 {
+			rscs = e.RetryStatusCodes
+		}
+		if e.LoadBalancingPolicy != "" {
+			lbp = e.LoadBalancingPolicy
+		}
+		e.URLPrefix.retryStatusCodes = rscs
+		if err := e.URLPrefix.setLoadBalancingPolicy(lbp); err != nil {
+			return err
+		}
+	}
+	if len(ui.URLMaps) == 0 && ui.URLPrefix == nil {
+		return fmt.Errorf("missing `url_prefix`")
+	}
+	return nil
 }
 
 func (ui *UserInfo) name() string {
