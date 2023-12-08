@@ -303,7 +303,7 @@ func newAggregator(cfg *Config, pushFunc PushFunc, dedupInterval time.Duration) 
 	// initialize outputs list
 	if len(cfg.Outputs) == 0 {
 		return nil, fmt.Errorf("`outputs` list must contain at least a single entry from the list %s; "+
-			"see https://docs.victoriametrics.com/vmagent.html#stream-aggregation", supportedOutputs)
+			"see https://docs.victoriametrics.com/stream-aggregation.html", supportedOutputs)
 	}
 	aggrStates := make([]aggrState, len(cfg.Outputs))
 	for i, output := range cfg.Outputs {
@@ -358,7 +358,7 @@ func newAggregator(cfg *Config, pushFunc PushFunc, dedupInterval time.Duration) 
 			aggrStates[i] = newHistogramBucketAggrState(stalenessInterval)
 		default:
 			return nil, fmt.Errorf("unsupported output=%q; supported values: %s; "+
-				"see https://docs.victoriametrics.com/vmagent.html#stream-aggregation", output, supportedOutputs)
+				"see https://docs.victoriametrics.com/stream-aggregation.html", output, supportedOutputs)
 		}
 	}
 
