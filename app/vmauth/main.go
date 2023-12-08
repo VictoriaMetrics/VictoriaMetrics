@@ -164,7 +164,7 @@ func processUserRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 
 func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 	u := normalizeURL(r.URL)
-	up, hc, retryStatusCodes, dropSrcPathPrefixParts := ui.getURLPrefixAndHeaders(u)
+	up, hc, dropSrcPathPrefixParts := ui.getURLPrefixAndHeaders(u)
 	isDefault := false
 	if up == nil {
 		if ui.DefaultURL == nil {
@@ -180,7 +180,7 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 			httpserver.Errorf(w, r, "missing route for %q", u.String())
 			return
 		}
-		up, hc, retryStatusCodes = ui.DefaultURL, ui.HeadersConf, ui.RetryStatusCodes
+		up, hc = ui.DefaultURL, ui.HeadersConf
 		isDefault = true
 	}
 	maxAttempts := up.getBackendsCount()
@@ -190,7 +190,7 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 		}
 	}
 	for i := 0; i < maxAttempts; i++ {
-		bu := up.getLeastLoadedBackendURL()
+		bu := up.getBackendURL()
 		targetURL := bu.url
 		// Don't change path and add request_path query param for default route.
 		if isDefault {
@@ -200,7 +200,7 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 		} else { // Update path for regular routes.
 			targetURL = mergeURLs(targetURL, u, dropSrcPathPrefixParts)
 		}
-		ok := tryProcessingRequest(w, r, targetURL, hc, retryStatusCodes, ui.httpTransport)
+		ok := tryProcessingRequest(w, r, targetURL, hc, up.retryStatusCodes, ui.httpTransport)
 		bu.put()
 		if ok {
 			return
