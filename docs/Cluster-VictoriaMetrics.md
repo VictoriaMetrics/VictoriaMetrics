@@ -552,7 +552,8 @@ The cluster works in the following way when some of `vmstorage` nodes are unavai
   This guarantees that the newly ingested data is properly saved if the healthy `vmstorage` nodes have enough CPU, RAM, disk IO and network bandwidth
   for processing the increased data ingestion workload.
   `vminsert` spreads evenly the additional data among the healthy `vmstorage` nodes in order to spread evenly
-  the increased load on these nodes.
+  the increased load on these nodes. During re-routing, healthy `vmstorage` nodes will experience higher resource usage
+  and increase in number of [active time series](https://docs.victoriametrics.com/FAQ.html#what-is-an-active-time-series).
 
 - `vmselect` continues serving queries if at least a single `vmstorage` nodes is available.
   It marks responses as partial for queries served from the remaining healthy `vmstorage` nodes,
