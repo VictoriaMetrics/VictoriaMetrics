@@ -18,6 +18,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 * SECURITY: upgrade base docker image (Alpine) from 3.18.4 to 3.18.5. See [alpine 3.18.5 release notes](https://www.alpinelinux.org/posts/Alpine-3.15.11-3.16.8-3.17.6-3.18.5-released.html).
 * SECURITY: upgrade Go builder from Go1.21.4 to Go1.21.5. See [the list of issues addressed in Go1.21.5](https://github.com/golang/go/issues?q=milestone%3AGo1.21.5+label%3ACherryPickApproved).
 
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): sanitize label names before sending the alert notification to Alertmanager. Before, vmalert would send notifications with labels containing characters not supported by Alertmanager validator, resulting into validation errors like `msg="Failed to validate alerts" err="invalid label set: invalid name "foo.bar"`.
 * BUGFIX: properly escape `<` character in responses returned via [`/federate`](https://docs.victoriametrics.com/#federation) endpoint. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5431).
 
 ## [v1.87.11](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.87.11)
