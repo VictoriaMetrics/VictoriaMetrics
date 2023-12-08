@@ -4,10 +4,11 @@ import "fmt"
 
 // Filter represents request filter
 type Filter struct {
-	Match     string
-	TimeStart string
-	TimeEnd   string
-	Chunk     string
+	Match         string
+	TimeStart     string
+	TimeEnd       string
+	Chunk         string
+	ReverseChunks bool
 }
 
 func (f Filter) String() string {
