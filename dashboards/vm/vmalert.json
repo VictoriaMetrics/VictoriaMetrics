@@ -81,7 +81,7 @@
       }
     ]
   },
-  "description": "Overview for VictoriaMetrics vmalert v1.83.0 or higher",
+  "description": "Overview for VictoriaMetrics vmalert v1.96.0 or higher",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -273,7 +273,7 @@
             "uid": "$ds"
           },
           "exemplar": false,
-          "expr": "count(vmalert_alerting_rules_error{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"})",
+          "expr": "count(vmalert_alerting_rules_last_evaluation_samples{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"})",
           "interval": "",
           "legendFormat": "",
           "refId": "A"
@@ -333,7 +333,7 @@
             "uid": "$ds"
           },
           "exemplar": false,
-          "expr": "count(vmalert_recording_rules_error{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"})",
+          "expr": "count(vmalert_recording_rules_last_evaluation_samples{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"})",
           "interval": "",
           "legendFormat": "",
           "refId": "A"
@@ -397,7 +397,7 @@
             "uid": "$ds"
           },
           "exemplar": false,
-          "expr": "(sum(vmalert_alerting_rules_error{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"}) or vector(0)) + \n(sum(vmalert_recording_rules_error{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"}) or vector(0))",
+          "expr": "(sum(increase(vmalert_alerting_rules_errors_total{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"}[$__rate_interval])) or vector(0)) + \n(sum(increase(vmalert_recording_rules_errors_total{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"}[$__rate_interval])) or vector(0))",
           "interval": "",
           "legendFormat": "",
           "refId": "A"
@@ -2240,7 +2240,7 @@
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "sum(vmalert_alerting_rules_error{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"}) by(job, group, alertname) > 0",
+              "expr": "sum(increase(vmalert_alerting_rules_errors_total{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"}[$__rate_interval])) by(job, group, alertname) > 0",
               "interval": "",
               "legendFormat": "{{group}}.{{alertname}} ({{job}})",
               "range": true,
@@ -2872,7 +2872,7 @@
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "sum(vmalert_recording_rules_error{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"}) by(job, group, recording) > 0",
+              "expr": "sum(increase(vmalert_recording_rules_errors_total{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"}[$__rate_interval])) by(job, group, recording) > 0",
               "interval": "",
               "legendFormat": "{{group}}.{{recording}} ({{job}})",
               "range": true,

@@ -1063,9 +1063,7 @@ func getLatencyOffsetMilliseconds(r *http.Request) (int64, error) {
 }
 
 // QueryStatsHandler returns query stats at `/api/v1/status/top_queries`
-func QueryStatsHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
-	defer queryStatsDuration.UpdateDuration(startTime)
-
+func QueryStatsHandler(w http.ResponseWriter, r *http.Request) error {
 	topN := 20
 	topNStr := r.FormValue("topN")
 	if len(topNStr) > 0 {
@@ -1089,8 +1087,6 @@ func QueryStatsHandler(startTime time.Time, w http.ResponseWriter, r *http.Reque
 	}
 	return nil
 }
-
-var queryStatsDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/status/top_queries"}`)
 
 // commonParams contains common parameters for all /api/v1/* handlers
 //

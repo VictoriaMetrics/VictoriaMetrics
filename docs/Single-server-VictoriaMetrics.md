@@ -359,6 +359,12 @@ http://<victoriametrics-addr>:8428
 
 Substitute `<victoriametrics-addr>` with the hostname or IP address of VictoriaMetrics.
 
+In the "Type and version" section it is recommended to set the type to "Prometheus" and the version to at least "2.24.x":
+
+<img src="grafana-datasource-prometheus.webp" alt="Grafana datasource" />
+
+This allows Grafana to use a more efficient API to get label values.
+
 Then build graphs and dashboards for the created datasource using [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/)
 or [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html).
 
@@ -518,15 +524,10 @@ See also [vmagent](https://docs.victoriametrics.com/vmagent.html), which can be 
 
 ## How to send data from DataDog agent
 
-VictoriaMetrics accepts data in the following protocols:
-* [DataDog agent](https://docs.datadoghq.com/agent/)
-* [DogStatsD](https://docs.datadoghq.com/developers/dogstatsd/)
-* [DataDog Lambda Extension](https://docs.datadoghq.com/serverless/libraries_integrations/extension/)
-
-Via ["submit metrics" API](https://docs.datadoghq.com/api/latest/metrics/#submit-metrics) at the following path:
-* `/datadog/api/v1/series`
-* `/datadog/api/v2/series`
-* `/datadog/api/beta/sketches`
+VictoriaMetrics accepts data from [DataDog agent](https://docs.datadoghq.com/agent/)
+or [DogStatsD](https://docs.datadoghq.com/developers/dogstatsd/)
+via ["submit metrics" API](https://docs.datadoghq.com/api/latest/metrics/#submit-metrics)
+at `/datadog/api/v1/series` path.
 
 ### Sending metrics to VictoriaMetrics
 
@@ -597,19 +598,6 @@ additional_endpoints:
 ```
 
 </div>
-
-### Send via Serverless DataDog plugin
-
-Disable logs (logs ingestion is not supported by Victoria Metrics) and set a custom endpoint in serverless.yaml
-```
-custom:
-  datadog:
-    enableDDLogs: false             # Disabled not supported DD logs
-    apiKey: fakekey                 # Set any key, otherwise plugin fails
-provider:
-  environment:
-    DD_DD_URL: <<vm-url>>/datadog   # Victoria Metrics endpoint for DataDog
-```
 
 ### Send via cURL
 
@@ -1446,7 +1434,7 @@ Note that it could be required to flush response cache after importing historica
 VictoriaMetrics parses input JSON lines one-by-one. It loads the whole JSON line in memory, then parses it and then saves the parsed samples into persistent storage.
 This means that VictoriaMetrics can occupy big amounts of RAM when importing too long JSON lines.
 The solution is to split too long JSON lines into shorter lines. It is OK if samples for a single time series are split among multiple JSON lines.
-JSON line length can be limited via `max_rows_per_line` query arg when exporting via [/api/v1/export](how-to-export-data-in-json-line-format).
+JSON line length can be limited via `max_rows_per_line` query arg when exporting via [/api/v1/export](#how-to-export-data-in-json-line-format).
 
 The maximum JSON line length, which can be parsed by VictoriaMetrics, is limited by `-import.maxLineLen` command-line flag value.
 
@@ -2593,7 +2581,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -csvTrimTimestamp duration
      Trim timestamps when importing csv data to this duration. Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data (default 1ms)
   -datadog.maxInsertRequestSize size
-     The maximum size in bytes of a single DataDog POST request to /api/v1/series, /api/v2/series, /api/beta/sketches
+     The maximum size in bytes of a single DataDog POST request to /api/v1/series
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 67108864)
   -datadog.sanitizeMetricName
      Sanitize metric names for the ingested DataDog data to comply with DataDog behaviour described at https://docs.datadoghq.com/metrics/custom_metrics/#naming-custom-metrics (default true)

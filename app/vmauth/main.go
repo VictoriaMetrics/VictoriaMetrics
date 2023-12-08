@@ -195,7 +195,7 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 		// Don't change path and add request_path query param for default route.
 		if isDefault {
 			query := targetURL.Query()
-			query.Set("request_path", u.Path)
+			query.Set("request_path", u.String())
 			targetURL.RawQuery = query.Encode()
 		} else { // Update path for regular routes.
 			targetURL = mergeURLs(targetURL, u, dropSrcPathPrefixParts)

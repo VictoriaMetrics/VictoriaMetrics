@@ -18,7 +18,7 @@ groups:
             Check vmalert's logs for detailed error message."
 
       - alert: AlertingRulesError
-        expr: sum(vmalert_alerting_rules_error) by(job, instance, group, file) > 0
+        expr: sum(increase(vmalert_alerting_rules_errors_total[5m])) by(job, instance, group, file) > 0
         for: 5m
         labels:
           severity: warning
@@ -29,7 +29,7 @@ groups:
             Check vmalert's logs for detailed error message."
 
       - alert: RecordingRulesError
-        expr: sum(vmalert_recording_rules_error) by(job, instance, group, file) > 0
+        expr: sum(increase(vmalert_recording_rules_errors_total[5m])) by(job, instance, group, file) > 0
         for: 5m
         labels:
           severity: warning

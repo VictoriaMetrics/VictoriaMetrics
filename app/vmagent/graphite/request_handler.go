@@ -5,6 +5,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/remotewrite"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/graphite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/graphite/stream"
@@ -20,10 +21,12 @@ var (
 //
 // See https://graphite.readthedocs.io/en/latest/feeding-carbon.html#the-plaintext-protocol
 func InsertHandler(r io.Reader) error {
-	return stream.Parse(r, insertRows)
+	return stream.Parse(r, false, func(rows []parser.Row) error {
+		return insertRows(nil, rows)
+	})
 }
 
-func insertRows(rows []parser.Row) error {
+func insertRows(at *auth.Token, rows []parser.Row) error {
 	ctx := common.GetPushCtx()
 	defer common.PutPushCtx(ctx)
 
@@ -56,7 +59,7 @@ func insertRows(rows []parser.Row) error {
 	ctx.WriteRequest.Timeseries = tssDst
 	ctx.Labels = labels
 	ctx.Samples = samples
-	if !remotewrite.TryPush(nil, &ctx.WriteRequest) {
+	if !remotewrite.TryPush(at, &ctx.WriteRequest) {
 		return remotewrite.ErrQueueFullHTTPRetry
 	}
 	rowsInserted.Add(len(rows))
