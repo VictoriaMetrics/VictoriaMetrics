@@ -654,11 +654,11 @@ location is supported in vmauth `url_map` config.
 
 It is expected that all the backend services protected by `vmauth` are located in an isolated private network, so they can be accessed by external users only via `vmauth`.
 
-Do not transfer Basic Auth headers in plaintext over untrusted networks. Enable https. This can be done by passing the following `-tls*` command-line flags to `vmauth`:
+Do not transfer Basic Auth headers in plaintext over untrusted networks. Enable https at `-httpListenAddr`. This can be done by passing the following `-tls*` command-line flags to `vmauth`:
 
 ```console
   -tls
-     Whether to enable TLS (aka HTTPS) for incoming requests. -tlsCertFile and -tlsKeyFile must be set if -tls is set
+     Whether to enable TLS for incoming HTTP requests at -httpListenAddr (aka https). -tlsCertFile and -tlsKeyFile must be set if -tls is set
   -tlsCertFile string
      Path to file with TLS certificate. Used only if -tls is set. Prefer ECDSA certs instead of RSA certs, since RSA certs are slow
   -tlsKeyFile string
