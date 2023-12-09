@@ -630,6 +630,8 @@ Some workloads may need fine-grained resource usage limits. In these cases the f
   The `-search.maxSamplesPerSeries` command-line flag allows limiting memory usage at `vmselect` in the case when the query is executed on a time range,
   which contains hundreds of millions of raw samples per each located time series.
 - `-search.maxSamplesPerQuery` at `vmselect` limits the number of raw samples a single query can process. This allows limiting CPU usage at `vmselect` for heavy queries.
+- `-search.maxResponseSeries` at `vmselect` limits the number of time series a single query can return
+  from [`/api/v1/query`](https://docs.victoriametrics.com/keyConcepts.html#instant-query) and [`/api/v1/query_range`](https://docs.victoriametrics.com/keyConcepts.html#range-query).
 - `-search.maxPointsPerTimeseries` limits the number of calculated points, which can be returned per each
   matching time series from [range query](https://docs.victoriametrics.com/keyConcepts.html#range-query).
 - `-search.maxPointsSubqueryPerTimeseries` limits the number of calculated points, which can be generated

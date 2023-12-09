@@ -541,7 +541,8 @@ The cluster works in the following way when some of `vmstorage` nodes are unavai
   This guarantees that the newly ingested data is properly saved if the healthy `vmstorage` nodes have enough CPU, RAM, disk IO and network bandwidth
   for processing the increased data ingestion workload.
   `vminsert` spreads evenly the additional data among the healthy `vmstorage` nodes in order to spread evenly
-  the increased load on these nodes.
+  the increased load on these nodes. During re-routing, healthy `vmstorage` nodes will experience higher resource usage
+  and increase in number of [active time series](https://docs.victoriametrics.com/FAQ.html#what-is-an-active-time-series).
 
 - `vmselect` continues serving queries if at least a single `vmstorage` nodes is available.
   It marks responses as partial for queries served from the remaining healthy `vmstorage` nodes,
@@ -618,6 +619,8 @@ Some workloads may need fine-grained resource usage limits. In these cases the f
   The `-search.maxSamplesPerSeries` command-line flag allows limiting memory usage at `vmselect` in the case when the query is executed on a time range,
   which contains hundreds of millions of raw samples per each located time series.
 - `-search.maxSamplesPerQuery` at `vmselect` limits the number of raw samples a single query can process. This allows limiting CPU usage at `vmselect` for heavy queries.
+- `-search.maxResponseSeries` at `vmselect` limits the number of time series a single query can return
+  from [`/api/v1/query`](https://docs.victoriametrics.com/keyConcepts.html#instant-query) and [`/api/v1/query_range`](https://docs.victoriametrics.com/keyConcepts.html#range-query).
 - `-search.maxPointsPerTimeseries` limits the number of calculated points, which can be returned per each
   matching time series from [range query](https://docs.victoriametrics.com/keyConcepts.html#range-query).
 - `-search.maxPointsSubqueryPerTimeseries` limits the number of calculated points, which can be generated
@@ -885,7 +888,7 @@ Below is the output for `/path/to/vminsert -help`:
   -csvTrimTimestamp duration
      Trim timestamps when importing csv data to this duration. Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data (default 1ms)
   -datadog.maxInsertRequestSize size
-     The maximum size in bytes of a single DataDog POST request to /api/v1/series, /api/v2/series, /api/beta/sketches
+     The maximum size in bytes of a single DataDog POST request to /api/v1/series
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 67108864)
   -datadog.sanitizeMetricName
      Sanitize metric names for the ingested DataDog data to comply with DataDog behaviour described at https://docs.datadoghq.com/metrics/custom_metrics/#naming-custom-metrics (default true)
