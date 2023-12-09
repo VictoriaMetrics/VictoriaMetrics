@@ -108,6 +108,14 @@ export const useFetchQueryOptions = ({ valueByContext, metric, label, context }:
     }
   };
 
+  const escapeRegexp = (s: string) => {
+    // taken from https://stackoverflow.com/a/3561711/274937
+    return s.replace(/[/\-\\^$*+?.()|[\]{}]/g, "\\$&");
+  };
+  const escapeDoubleQuotes = (s: string) => {
+    return JSON.stringify(s).slice(1,-1);
+  };
+
   // fetch metrics
   useEffect(() => {
     const isInvalidContext = context !== QueryContextType.metricsql && context !== QueryContextType.empty;
@@ -116,12 +124,14 @@ export const useFetchQueryOptions = ({ valueByContext, metric, label, context }:
     }
     setMetrics([]);
 
+    const metricReEscaped = escapeDoubleQuotes(escapeRegexp(metric));
+
     fetchData({
       value,
       urlSuffix: "label/__name__/values",
       setter: setMetrics,
       type: TypeData.metric,
-      params: getQueryParams({ "match[]": `{__name__=~".*${metric}.*"}` })
+      params: getQueryParams({ "match[]": `{__name__=~".*${metricReEscaped}.*"}` })
     });
 
     return () => abortControllerRef.current?.abort();
@@ -134,12 +144,14 @@ export const useFetchQueryOptions = ({ valueByContext, metric, label, context }:
     }
     setLabels([]);
 
+    const metricEscaped = escapeDoubleQuotes(metric);
+
     fetchData({
       value,
       urlSuffix: "labels",
       setter: setLabels,
       type: TypeData.label,
-      params: getQueryParams({ "match[]": `{__name__=~".*${metric}.*"}` })
+      params: getQueryParams({ "match[]": `{__name__="${metricEscaped}"}` })
     });
 
     return () => abortControllerRef.current?.abort();
@@ -152,12 +164,15 @@ export const useFetchQueryOptions = ({ valueByContext, metric, label, context }:
     }
     setValues([]);
 
+    const metricEscaped = escapeDoubleQuotes(metric);
+    const valueReEscaped = escapeDoubleQuotes(escapeRegexp(value));
+
     fetchData({
       value,
       urlSuffix: `label/${label}/values`,
       setter: setValues,
       type: TypeData.value,
-      params: getQueryParams({ "match[]": `{__name__=~".*${metric}.*", ${label}=~".*${value}.*"}` })
+      params: getQueryParams({ "match[]": `{__name__="${metricEscaped}", ${label}=~".*${valueReEscaped}.*"}` })
     });
 
     return () => abortControllerRef.current?.abort();
