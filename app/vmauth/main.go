@@ -33,7 +33,7 @@ import (
 )
 
 var (
-	httpListenAddr   = flag.String("httpListenAddr", ":8427", "TCP address to listen for http connections. See also -httpListenAddr.useProxyProtocol")
+	httpListenAddr   = flag.String("httpListenAddr", ":8427", "TCP address to listen for http connections. See also -tls and -httpListenAddr.useProxyProtocol")
 	useProxyProtocol = flag.Bool("httpListenAddr.useProxyProtocol", false, "Whether to use proxy protocol for connections accepted at -httpListenAddr . "+
 		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . "+
 		"With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing")
@@ -164,7 +164,7 @@ func processUserRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 
 func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 	u := normalizeURL(r.URL)
-	up, hc, retryStatusCodes, dropSrcPathPrefixParts := ui.getURLPrefixAndHeaders(u)
+	up, hc, dropSrcPathPrefixParts := ui.getURLPrefixAndHeaders(u)
 	isDefault := false
 	if up == nil {
 		if ui.DefaultURL == nil {
@@ -180,7 +180,7 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 			httpserver.Errorf(w, r, "missing route for %q", u.String())
 			return
 		}
-		up, hc, retryStatusCodes = ui.DefaultURL, ui.HeadersConf, ui.RetryStatusCodes
+		up, hc = ui.DefaultURL, ui.HeadersConf
 		isDefault = true
 	}
 	maxAttempts := up.getBackendsCount()
@@ -190,7 +190,7 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 		}
 	}
 	for i := 0; i < maxAttempts; i++ {
-		bu := up.getLeastLoadedBackendURL()
+		bu := up.getBackendURL()
 		targetURL := bu.url
 		// Don't change path and add request_path query param for default route.
 		if isDefault {
@@ -200,7 +200,7 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 		} else { // Update path for regular routes.
 			targetURL = mergeURLs(targetURL, u, dropSrcPathPrefixParts)
 		}
-		ok := tryProcessingRequest(w, r, targetURL, hc, retryStatusCodes, ui.httpTransport)
+		ok := tryProcessingRequest(w, r, targetURL, hc, up.retryStatusCodes, ui.httpTransport)
 		bu.put()
 		if ok {
 			return

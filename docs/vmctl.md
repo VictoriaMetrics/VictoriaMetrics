@@ -848,7 +848,7 @@ Importing tips:
     
    # Migrating from single to cluster specific tenantID
    --vm-native-src-addr=http://<src-vmsingle>:8428
-   --vm-native-src-addr=http://<dst-vminsert>:8480/insert/0/prometheus
+   --vm-native-dst-addr=http://<dst-vminsert>:8480/insert/0/prometheus
     
    # Migrating single to single
    --vm-native-src-addr=http://<src-vmsingle>:8428

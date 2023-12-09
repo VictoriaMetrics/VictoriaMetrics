@@ -37,11 +37,15 @@ var (
 	remoteWriteURLs = flagutil.NewArrayString("remoteWrite.url", "Remote storage URL to write data to. It must support either VictoriaMetrics remote write protocol "+
 		"or Prometheus remote_write protocol. Example url: http://<victoriametrics-host>:8428/api/v1/write . "+
 		"Pass multiple -remoteWrite.url options in order to replicate the collected data to multiple remote storage systems. "+
-		"The data can be sharded among the configured remote storage systems if -remoteWrite.shardByURL flag is set. "+
-		"See also -remoteWrite.multitenantURL")
+		"The data can be sharded among the configured remote storage systems if -remoteWrite.shardByURL flag is set")
 	remoteWriteMultitenantURLs = flagutil.NewArrayString("remoteWrite.multitenantURL", "Base path for multitenant remote storage URL to write data to. "+
 		"See https://docs.victoriametrics.com/vmagent.html#multitenancy for details. Example url: http://<vminsert>:8480 . "+
-		"Pass multiple -remoteWrite.multitenantURL flags in order to replicate data to multiple remote storage systems. See also -remoteWrite.url")
+		"Pass multiple -remoteWrite.multitenantURL flags in order to replicate data to multiple remote storage systems. "+
+		"This flag is deprecated in favor of -enableMultitenantHandlers . See https://docs.victoriametrics.com/vmagent.html#multitenancy")
+	enableMultitenantHandlers = flag.Bool("enableMultitenantHandlers", false, "Whether to process incoming data via multitenant insert handlers according to "+
+		"https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format . By default incoming data is processed via single-node insert handlers "+
+		"according to https://docs.victoriametrics.com/#how-to-import-time-series-data ."+
+		"See https://docs.victoriametrics.com/vmagent.html#multitenancy for details")
 	shardByURL = flag.Bool("remoteWrite.shardByURL", false, "Whether to shard outgoing series across all the remote storage systems enumerated via -remoteWrite.url . "+
 		"By default the data is replicated across all the -remoteWrite.url . See https://docs.victoriametrics.com/vmagent.html#sharding-among-remote-storages")
 	shardByURLLabels = flagutil.NewArrayString("remoteWrite.shardByURL.labels", "Optional list of labels, which must be used for sharding outgoing samples "+
@@ -114,9 +118,9 @@ var (
 	}
 )
 
-// MultitenancyEnabled returns true if -remoteWrite.multitenantURL is specified.
+// MultitenancyEnabled returns true if -enableMultitenantHandlers or -remoteWrite.multitenantURL is specified.
 func MultitenancyEnabled() bool {
-	return len(*remoteWriteMultitenantURLs) > 0
+	return *enableMultitenantHandlers || len(*remoteWriteMultitenantURLs) > 0
 }
 
 // Contains the current relabelConfigs.
@@ -384,17 +388,23 @@ func TryPush(at *auth.Token, wr *prompbmarshal.WriteRequest) bool {
 }
 
 func tryPush(at *auth.Token, wr *prompbmarshal.WriteRequest, dropSamplesOnFailure bool) bool {
-	if at == nil && len(*remoteWriteMultitenantURLs) > 0 {
-		// Write data to default tenant if at isn't set while -remoteWrite.multitenantURL is set.
+	tss := wr.Timeseries
+
+	if at == nil && MultitenancyEnabled() {
+		// Write data to default tenant if at isn't set when multitenancy is enabled.
 		at = defaultAuthToken
 	}
+
+	var tenantRctx *relabelCtx
 	var rwctxs []*remoteWriteCtx
 	if at == nil {
 		rwctxs = rwctxsDefault
+	} else if len(*remoteWriteMultitenantURLs) == 0 {
+		// Convert at to (vm_account_id, vm_project_id) labels.
+		tenantRctx = getRelabelCtx()
+		defer putRelabelCtx(tenantRctx)
+		rwctxs = rwctxsDefault
 	} else {
-		if len(*remoteWriteMultitenantURLs) == 0 {
-			logger.Panicf("BUG: -remoteWrite.multitenantURL command-line flag must be set when __tenant_id__=%q label is set", at)
-		}
 		rwctxsMapLock.Lock()
 		tenantID := tenantmetrics.TenantID{
 			AccountID: at.AccountID,
@@ -408,7 +418,6 @@ func tryPush(at *auth.Token, wr *prompbmarshal.WriteRequest, dropSamplesOnFailur
 		rwctxsMapLock.Unlock()
 	}
 
-	tss := wr.Timeseries
 	rowsCount := getRowsCount(tss)
 
 	if *disableOnDiskQueue {
@@ -433,10 +442,7 @@ func tryPush(at *auth.Token, wr *prompbmarshal.WriteRequest, dropSamplesOnFailur
 	pcsGlobal := rcs.global
 	if pcsGlobal.Len() > 0 {
 		rctx = getRelabelCtx()
-		defer func() {
-			rctx.reset()
-			putRelabelCtx(rctx)
-		}()
+		defer putRelabelCtx(rctx)
 	}
 	globalRowsPushedBeforeRelabel.Add(rowsCount)
 	maxSamplesPerBlock := *maxRowsPerBlock
@@ -463,6 +469,9 @@ func tryPush(at *auth.Token, wr *prompbmarshal.WriteRequest, dropSamplesOnFailur
 		} else {
 			tss = nil
 		}
+		if tenantRctx != nil {
+			tenantRctx.tenantToLabels(tssBlock, at.AccountID, at.ProjectID)
+		}
 		if rctx != nil {
 			rowsCountBeforeRelabel := getRowsCount(tssBlock)
 			tssBlock = rctx.applyRelabeling(tssBlock, pcsGlobal)
@@ -481,9 +490,6 @@ func tryPush(at *auth.Token, wr *prompbmarshal.WriteRequest, dropSamplesOnFailur
 				return true
 			}
 			return false
-		}
-		if rctx != nil {
-			rctx.reset()
 		}
 	}
 	return true

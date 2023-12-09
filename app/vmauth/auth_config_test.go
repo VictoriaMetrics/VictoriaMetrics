@@ -250,6 +250,7 @@ users:
   - http://node2:343/bbb
   tls_insecure_skip_verify: false
   retry_status_codes: [500, 501]
+  load_balancing_policy: first_available
   drop_src_path_prefix_parts: 1
 `, map[string]*UserInfo{
 		getAuthToken("", "foo", "bar"): {
@@ -261,6 +262,7 @@ users:
 			}),
 			TLSInsecureSkipVerify:  &insecureSkipVerifyFalse,
 			RetryStatusCodes:       []int{500, 501},
+			LoadBalancingPolicy:    "first_available",
 			DropSrcPathPrefixParts: 1,
 		},
 	})

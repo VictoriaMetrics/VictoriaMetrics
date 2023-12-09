@@ -3,6 +3,7 @@ package remotewrite
 import (
 	"flag"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -92,6 +93,7 @@ func (rctx *relabelCtx) applyRelabeling(tss []prompbmarshal.TimeSeries, pcs *pro
 		// Nothing to change.
 		return tss
 	}
+	rctx.reset()
 	tssDst := tss[:0]
 	labels := rctx.labels[:0]
 	for i := range tss {
@@ -120,6 +122,7 @@ func (rctx *relabelCtx) appendExtraLabels(tss []prompbmarshal.TimeSeries, extraL
 	if len(extraLabels) == 0 {
 		return
 	}
+	rctx.reset()
 	labels := rctx.labels[:0]
 	for i := range tss {
 		ts := &tss[i]
@@ -134,6 +137,34 @@ func (rctx *relabelCtx) appendExtraLabels(tss []prompbmarshal.TimeSeries, extraL
 				labels = append(labels, extraLabel)
 			}
 		}
+		ts.Labels = labels[labelsLen:]
+	}
+	rctx.labels = labels
+}
+
+func (rctx *relabelCtx) tenantToLabels(tss []prompbmarshal.TimeSeries, accountID, projectID uint32) {
+	rctx.reset()
+	accountIDStr := strconv.FormatUint(uint64(accountID), 10)
+	projectIDStr := strconv.FormatUint(uint64(projectID), 10)
+	labels := rctx.labels[:0]
+	for i := range tss {
+		ts := &tss[i]
+		labelsLen := len(labels)
+		for _, label := range ts.Labels {
+			labelName := label.Name
+			if labelName == "vm_account_id" || labelName == "vm_project_id" {
+				continue
+			}
+			labels = append(labels, label)
+		}
+		labels = append(labels, prompbmarshal.Label{
+			Name:  "vm_account_id",
+			Value: accountIDStr,
+		})
+		labels = append(labels, prompbmarshal.Label{
+			Name:  "vm_project_id",
+			Value: projectIDStr,
+		})
 		ts.Labels = labels[labelsLen:]
 	}
 	rctx.labels = labels
@@ -160,7 +191,7 @@ func getRelabelCtx() *relabelCtx {
 }
 
 func putRelabelCtx(rctx *relabelCtx) {
-	rctx.labels = rctx.labels[:0]
+	rctx.reset()
 	relabelCtxPool.Put(rctx)
 }
 

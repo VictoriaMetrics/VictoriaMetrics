@@ -561,9 +561,6 @@ var (
 	inf = math.Inf(1)
 )
 
-// The maximum interval without previous rows.
-const maxSilenceInterval = 5 * 60 * 1000
-
 type timeseriesMap struct {
 	origin *timeseries
 	h      metrics.Histogram
@@ -620,7 +617,7 @@ func (tsm *timeseriesMap) GetOrCreateTimeseries(labelName, labelValue string) *t
 //
 // rc.Timestamps are used as timestamps for dstValues.
 //
-// timestamps must cover time range [rc.Start - rc.Window - maxSilenceInterval ... rc.End].
+// It is expected that timestamps cover the time range [rc.Start - rc.Window ... rc.End].
 //
 // Do cannot be called from concurrent goroutines.
 func (rc *rollupConfig) Do(dstValues []float64, values []float64, timestamps []int64) ([]float64, uint64) {

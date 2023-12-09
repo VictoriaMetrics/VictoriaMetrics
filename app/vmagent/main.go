@@ -46,7 +46,7 @@ import (
 var (
 	httpListenAddr = flag.String("httpListenAddr", ":8429", "TCP address to listen for http connections. "+
 		"Set this flag to empty value in order to disable listening on any port. This mode may be useful for running multiple vmagent instances on the same server. "+
-		"Note that /targets and /metrics pages aren't available if -httpListenAddr=''. See also -httpListenAddr.useProxyProtocol")
+		"Note that /targets and /metrics pages aren't available if -httpListenAddr=''. See also -tls and -httpListenAddr.useProxyProtocol")
 	useProxyProtocol = flag.Bool("httpListenAddr.useProxyProtocol", false, "Whether to use proxy protocol for connections accepted at -httpListenAddr . "+
 		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . "+
 		"With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing")
@@ -124,7 +124,7 @@ func main() {
 	common.StartUnmarshalWorkers()
 	if len(*influxListenAddr) > 0 {
 		influxServer = influxserver.MustStart(*influxListenAddr, *influxUseProxyProtocol, func(r io.Reader) error {
-			return influx.InsertHandlerForReader(r, false)
+			return influx.InsertHandlerForReader(nil, r, false)
 		})
 	}
 	if len(*graphiteListenAddr) > 0 {
@@ -343,9 +343,9 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		fmt.Fprintf(w, `{"status":"ok"}`)
 		return true
 	case "/datadog/api/v1/series":
-		datadogWriteSeriesV1Requests.Inc()
+		datadogWriteRequests.Inc()
 		if err := datadog.InsertHandlerForHTTP(nil, r); err != nil {
-			datadogWriteSeriesV1Errors.Inc()
+			datadogWriteErrors.Inc()
 			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
@@ -353,27 +353,6 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(202)
 		fmt.Fprintf(w, `{"status":"ok"}`)
-		return true
-	case "/datadog/api/v2/series":
-		datadogWriteSeriesV2Requests.Inc()
-		if err := datadog.InsertHandlerForHTTP(nil, r); err != nil {
-			datadogWriteSeriesV2Errors.Inc()
-			httpserver.Errorf(w, r, "%s", err)
-			return true
-		}
-		// See https://docs.datadoghq.com/api/latest/metrics/#submit-metrics
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(202)
-		fmt.Fprintf(w, `{"errors":[]}`)
-		return true
-	case "/datadog/api/beta/sketches":
-		datadogWriteSketchesBetaRequests.Inc()
-		if err := datadog.InsertHandlerForHTTP(nil, r); err != nil {
-			datadogWriteSketchesBetaErrors.Inc()
-			httpserver.Errorf(w, r, "%s", err)
-			return true
-		}
-		w.WriteHeader(202)
 		return true
 	case "/datadog/api/v1/validate":
 		datadogValidateRequests.Inc()
@@ -587,35 +566,15 @@ func processMultitenantRequest(w http.ResponseWriter, r *http.Request, path stri
 		fmt.Fprintf(w, `{"status":"ok"}`)
 		return true
 	case "datadog/api/v1/series":
-		datadogWriteSeriesV1Requests.Inc()
+		datadogWriteRequests.Inc()
 		if err := datadog.InsertHandlerForHTTP(at, r); err != nil {
-			datadogWriteSeriesV1Errors.Inc()
+			datadogWriteErrors.Inc()
 			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
 		// See https://docs.datadoghq.com/api/latest/metrics/#submit-metrics
 		w.WriteHeader(202)
 		fmt.Fprintf(w, `{"status":"ok"}`)
-		return true
-	case "datadog/api/v2/series":
-		datadogWriteSeriesV2Requests.Inc()
-		if err := datadog.InsertHandlerForHTTP(at, r); err != nil {
-			datadogWriteSeriesV2Errors.Inc()
-			httpserver.Errorf(w, r, "%s", err)
-			return true
-		}
-		// See https://docs.datadoghq.com/api/latest/metrics/#submit-metrics
-		w.WriteHeader(202)
-		fmt.Fprintf(w, `{"errors":[]}`)
-		return true
-	case "datadog/api/beta/sketches":
-		datadogWriteSketchesBetaRequests.Inc()
-		if err := datadog.InsertHandlerForHTTP(at, r); err != nil {
-			datadogWriteSketchesBetaErrors.Inc()
-			httpserver.Errorf(w, r, "%s", err)
-			return true
-		}
-		w.WriteHeader(202)
 		return true
 	case "datadog/api/v1/validate":
 		datadogValidateRequests.Inc()
@@ -667,14 +626,8 @@ var (
 
 	influxQueryRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/influx/query", protocol="influx"}`)
 
-	datadogWriteSeriesV1Requests = metrics.NewCounter(`vmagent_http_requests_total{path="/datadog/api/v1/series", protocol="datadog"}`)
-	datadogWriteSeriesV1Errors   = metrics.NewCounter(`vmagent_http_request_errors_total{path="/datadog/api/v1/series", protocol="datadog"}`)
-
-	datadogWriteSeriesV2Requests = metrics.NewCounter(`vmagent_http_requests_total{path="/datadog/api/v2/series", protocol="datadog"}`)
-	datadogWriteSeriesV2Errors   = metrics.NewCounter(`vmagent_http_request_errors_total{path="/datadog/api/v2/series", protocol="datadog"}`)
-
-	datadogWriteSketchesBetaRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/datadog/api/beta/sketches", protocol="datadog"}`)
-	datadogWriteSketchesBetaErrors   = metrics.NewCounter(`vmagent_http_request_errors_total{path="/datadog/api/beta/sketches", protocol="datadog"}`)
+	datadogWriteRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/datadog/api/v1/series", protocol="datadog"}`)
+	datadogWriteErrors   = metrics.NewCounter(`vmagent_http_request_errors_total{path="/datadog/api/v1/series", protocol="datadog"}`)
 
 	datadogValidateRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/datadog/api/v1/validate", protocol="datadog"}`)
 	datadogCheckRunRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/datadog/api/v1/check_run", protocol="datadog"}`)
