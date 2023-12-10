@@ -4,32 +4,49 @@ package s3
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"github.com/aws/aws-sdk-go-v2/aws"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
 	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
-	internalauth "github.com/aws/aws-sdk-go-v2/internal/auth"
-	"github.com/aws/aws-sdk-go-v2/internal/v4a"
 	s3cust "github.com/aws/aws-sdk-go-v2/service/s3/internal/customizations"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
-	smithyendpoints "github.com/aws/smithy-go/endpoints"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// This action aborts a multipart upload. After a multipart upload is aborted, no
-// additional parts can be uploaded using that upload ID. The storage consumed by
-// any previously uploaded parts will be freed. However, if any part uploads are
+// This operation aborts a multipart upload. After a multipart upload is aborted,
+// no additional parts can be uploaded using that upload ID. The storage consumed
+// by any previously uploaded parts will be freed. However, if any part uploads are
 // currently in progress, those part uploads might or might not succeed. As a
 // result, it might be necessary to abort a given multipart upload multiple times
 // in order to completely free all storage consumed by all parts. To verify that
-// all parts have been removed, so you don't get charged for the part storage, you
-// should call the ListParts (https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListParts.html)
-// action and ensure that the parts list is empty. For information about
-// permissions required to use the multipart upload, see Multipart Upload and
-// Permissions (https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuAndPermissions.html)
-// . The following operations are related to AbortMultipartUpload :
+// all parts have been removed and prevent getting charged for the part storage,
+// you should call the ListParts (https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListParts.html)
+// API operation and ensure that the parts list is empty. Directory buckets - For
+// directory buckets, you must make requests for this API operation to the Zonal
+// endpoint. These endpoints support virtual-hosted-style requests in the format
+// https://bucket_name.s3express-az_id.region.amazonaws.com/key-name . Path-style
+// requests are not supported. For more information, see Regional and Zonal
+// endpoints (https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-Regions-and-Zones.html)
+// in the Amazon S3 User Guide. Permissions
+//   - General purpose bucket permissions - For information about permissions
+//     required to use the multipart upload, see Multipart Upload and Permissions (https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuAndPermissions.html)
+//     in the Amazon S3 User Guide.
+//   - Directory bucket permissions - To grant access to this API operation on a
+//     directory bucket, we recommend that you use the CreateSession (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateSession.html)
+//     API operation for session-based authorization. Specifically, you grant the
+//     s3express:CreateSession permission to the directory bucket in a bucket policy
+//     or an IAM identity-based policy. Then, you make the CreateSession API call on
+//     the bucket to obtain a session token. With the session token in your request
+//     header, you can make API requests to this operation. After the session token
+//     expires, you make another CreateSession API call to generate a new session
+//     token for use. Amazon Web Services CLI or SDKs create session and refresh the
+//     session token automatically to avoid service interruptions when a session
+//     expires. For more information about authorization, see CreateSession (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateSession.html)
+//     .
+//
+// HTTP Host header syntax Directory buckets - The HTTP Host header syntax is
+// Bucket_name.s3express-az_id.region.amazonaws.com . The following operations are
+// related to AbortMultipartUpload :
 //   - CreateMultipartUpload (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateMultipartUpload.html)
 //   - UploadPart (https://docs.aws.amazon.com/AmazonS3/latest/API/API_UploadPart.html)
 //   - CompleteMultipartUpload (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CompleteMultipartUpload.html)
@@ -52,16 +69,26 @@ func (c *Client) AbortMultipartUpload(ctx context.Context, params *AbortMultipar
 
 type AbortMultipartUploadInput struct {
 
-	// The bucket name to which the upload was taking place. When using this action
-	// with an access point, you must direct requests to the access point hostname. The
-	// access point hostname takes the form
-	// AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com. When using this
-	// action with an access point through the Amazon Web Services SDKs, you provide
-	// the access point ARN in place of the bucket name. For more information about
-	// access point ARNs, see Using access points (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html)
-	// in the Amazon S3 User Guide. When you use this action with Amazon S3 on
-	// Outposts, you must direct requests to the S3 on Outposts hostname. The S3 on
-	// Outposts hostname takes the form
+	// The bucket name to which the upload was taking place. Directory buckets - When
+	// you use this operation with a directory bucket, you must use
+	// virtual-hosted-style requests in the format
+	// Bucket_name.s3express-az_id.region.amazonaws.com . Path-style requests are not
+	// supported. Directory bucket names must be unique in the chosen Availability
+	// Zone. Bucket names must follow the format bucket_base_name--az-id--x-s3 (for
+	// example, DOC-EXAMPLE-BUCKET--usw2-az2--x-s3 ). For information about bucket
+	// naming restrictions, see Directory bucket naming rules (https://docs.aws.amazon.com/AmazonS3/latest/userguide/directory-bucket-naming-rules.html)
+	// in the Amazon S3 User Guide. Access points - When you use this action with an
+	// access point, you must provide the alias of the access point in place of the
+	// bucket name or specify the access point ARN. When using the access point ARN,
+	// you must direct requests to the access point hostname. The access point hostname
+	// takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
+	// When using this action with an access point through the Amazon Web Services
+	// SDKs, you provide the access point ARN in place of the bucket name. For more
+	// information about access point ARNs, see Using access points (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html)
+	// in the Amazon S3 User Guide. Access points and Object Lambda access points are
+	// not supported by directory buckets. S3 on Outposts - When you use this action
+	// with Amazon S3 on Outposts, you must direct requests to the S3 on Outposts
+	// hostname. The S3 on Outposts hostname takes the form
 	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com . When you
 	// use this action with S3 on Outposts through the Amazon Web Services SDKs, you
 	// provide the Outposts access point ARN in place of the bucket name. For more
@@ -81,27 +108,34 @@ type AbortMultipartUploadInput struct {
 	// This member is required.
 	UploadId *string
 
-	// The account ID of the expected bucket owner. If the bucket is owned by a
-	// different account, the request fails with the HTTP status code 403 Forbidden
-	// (access denied).
+	// The account ID of the expected bucket owner. If the account ID that you provide
+	// does not match the actual owner of the bucket, the request fails with the HTTP
+	// status code 403 Forbidden (access denied).
 	ExpectedBucketOwner *string
 
 	// Confirms that the requester knows that they will be charged for the request.
 	// Bucket owners need not specify this parameter in their requests. If either the
-	// source or destination Amazon S3 bucket has Requester Pays enabled, the requester
-	// will pay for corresponding charges to copy the object. For information about
+	// source or destination S3 bucket has Requester Pays enabled, the requester will
+	// pay for corresponding charges to copy the object. For information about
 	// downloading objects from Requester Pays buckets, see Downloading Objects in
 	// Requester Pays Buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
-	// in the Amazon S3 User Guide.
+	// in the Amazon S3 User Guide. This functionality is not supported for directory
+	// buckets.
 	RequestPayer types.RequestPayer
 
 	noSmithyDocumentSerde
 }
 
+func (in *AbortMultipartUploadInput) bindEndpointParams(p *EndpointParameters) {
+	p.Bucket = in.Bucket
+	p.Key = in.Key
+
+}
+
 type AbortMultipartUploadOutput struct {
 
 	// If present, indicates that the requester was successfully charged for the
-	// request.
+	// request. This functionality is not supported for directory buckets.
 	RequestCharged types.RequestCharged
 
 	// Metadata pertaining to the operation's result.
@@ -111,6 +145,9 @@ type AbortMultipartUploadOutput struct {
 }
 
 func (c *Client) addOperationAbortMultipartUploadMiddlewares(stack *middleware.Stack, options Options) (err error) {
+	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
+		return err
+	}
 	err = stack.Serialize.Add(&awsRestxml_serializeOpAbortMultipartUpload{}, middleware.After)
 	if err != nil {
 		return err
@@ -119,6 +156,10 @@ func (c *Client) addOperationAbortMultipartUploadMiddlewares(stack *middleware.S
 	if err != nil {
 		return err
 	}
+	if err := addProtocolFinalizerMiddlewares(stack, options, "AbortMultipartUpload"); err != nil {
+		return fmt.Errorf("add protocol finalizers: %v", err)
+	}
+
 	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
 		return err
 	}
@@ -140,9 +181,6 @@ func (c *Client) addOperationAbortMultipartUploadMiddlewares(stack *middleware.S
 	if err = addRetryMiddlewares(stack, options); err != nil {
 		return err
 	}
-	if err = addHTTPSignerV4Middleware(stack, options); err != nil {
-		return err
-	}
 	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
 		return err
 	}
@@ -158,10 +196,10 @@ func (c *Client) addOperationAbortMultipartUploadMiddlewares(stack *middleware.S
 	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
 		return err
 	}
-	if err = swapWithCustomHTTPSignerMiddleware(stack, options); err != nil {
+	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
 		return err
 	}
-	if err = addAbortMultipartUploadResolveEndpointMiddleware(stack, options); err != nil {
+	if err = addPutBucketContextMiddleware(stack); err != nil {
 		return err
 	}
 	if err = addOpAbortMultipartUploadValidationMiddleware(stack); err != nil {
@@ -191,7 +229,7 @@ func (c *Client) addOperationAbortMultipartUploadMiddlewares(stack *middleware.S
 	if err = addRequestResponseLogging(stack, options); err != nil {
 		return err
 	}
-	if err = addendpointDisableHTTPSMiddleware(stack, options); err != nil {
+	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
 	if err = addSerializeImmutableHostnameBucketMiddleware(stack, options); err != nil {
@@ -211,7 +249,6 @@ func newServiceMetadataMiddleware_opAbortMultipartUpload(region string) *awsmidd
 	return &awsmiddleware.RegisterServiceMetadata{
 		Region:        region,
 		ServiceID:     ServiceID,
-		SigningName:   "s3",
 		OperationName: "AbortMultipartUpload",
 	}
 }
@@ -240,140 +277,4 @@ func addAbortMultipartUploadUpdateEndpoint(stack *middleware.Stack, options Opti
 		UseARNRegion:                   options.UseARNRegion,
 		DisableMultiRegionAccessPoints: options.DisableMultiRegionAccessPoints,
 	})
-}
-
-type opAbortMultipartUploadResolveEndpointMiddleware struct {
-	EndpointResolver EndpointResolverV2
-	BuiltInResolver  builtInParameterResolver
-}
-
-func (*opAbortMultipartUploadResolveEndpointMiddleware) ID() string {
-	return "ResolveEndpointV2"
-}
-
-func (m *opAbortMultipartUploadResolveEndpointMiddleware) HandleSerialize(ctx context.Context, in middleware.SerializeInput, next middleware.SerializeHandler) (
-	out middleware.SerializeOutput, metadata middleware.Metadata, err error,
-) {
-	if awsmiddleware.GetRequiresLegacyEndpoints(ctx) {
-		return next.HandleSerialize(ctx, in)
-	}
-
-	req, ok := in.Request.(*smithyhttp.Request)
-	if !ok {
-		return out, metadata, fmt.Errorf("unknown transport type %T", in.Request)
-	}
-
-	input, ok := in.Parameters.(*AbortMultipartUploadInput)
-	if !ok {
-		return out, metadata, fmt.Errorf("unknown transport type %T", in.Request)
-	}
-
-	if m.EndpointResolver == nil {
-		return out, metadata, fmt.Errorf("expected endpoint resolver to not be nil")
-	}
-
-	params := EndpointParameters{}
-
-	m.BuiltInResolver.ResolveBuiltIns(&params)
-
-	params.Bucket = input.Bucket
-
-	var resolvedEndpoint smithyendpoints.Endpoint
-	resolvedEndpoint, err = m.EndpointResolver.ResolveEndpoint(ctx, params)
-	if err != nil {
-		return out, metadata, fmt.Errorf("failed to resolve service endpoint, %w", err)
-	}
-
-	req.URL = &resolvedEndpoint.URI
-
-	for k := range resolvedEndpoint.Headers {
-		req.Header.Set(
-			k,
-			resolvedEndpoint.Headers.Get(k),
-		)
-	}
-
-	authSchemes, err := internalauth.GetAuthenticationSchemes(&resolvedEndpoint.Properties)
-	if err != nil {
-		var nfe *internalauth.NoAuthenticationSchemesFoundError
-		if errors.As(err, &nfe) {
-			// if no auth scheme is found, default to sigv4
-			signingName := "s3"
-			signingRegion := m.BuiltInResolver.(*builtInResolver).Region
-			ctx = awsmiddleware.SetSigningName(ctx, signingName)
-			ctx = awsmiddleware.SetSigningRegion(ctx, signingRegion)
-			ctx = s3cust.SetSignerVersion(ctx, internalauth.SigV4)
-		}
-		var ue *internalauth.UnSupportedAuthenticationSchemeSpecifiedError
-		if errors.As(err, &ue) {
-			return out, metadata, fmt.Errorf(
-				"This operation requests signer version(s) %v but the client only supports %v",
-				ue.UnsupportedSchemes,
-				internalauth.SupportedSchemes,
-			)
-		}
-	}
-
-	for _, authScheme := range authSchemes {
-		switch authScheme.(type) {
-		case *internalauth.AuthenticationSchemeV4:
-			v4Scheme, _ := authScheme.(*internalauth.AuthenticationSchemeV4)
-			var signingName, signingRegion string
-			if v4Scheme.SigningName == nil {
-				signingName = "s3"
-			} else {
-				signingName = *v4Scheme.SigningName
-			}
-			if v4Scheme.SigningRegion == nil {
-				signingRegion = m.BuiltInResolver.(*builtInResolver).Region
-			} else {
-				signingRegion = *v4Scheme.SigningRegion
-			}
-			if v4Scheme.DisableDoubleEncoding != nil {
-				// The signer sets an equivalent value at client initialization time.
-				// Setting this context value will cause the signer to extract it
-				// and override the value set at client initialization time.
-				ctx = internalauth.SetDisableDoubleEncoding(ctx, *v4Scheme.DisableDoubleEncoding)
-			}
-			ctx = awsmiddleware.SetSigningName(ctx, signingName)
-			ctx = awsmiddleware.SetSigningRegion(ctx, signingRegion)
-			ctx = s3cust.SetSignerVersion(ctx, v4Scheme.Name)
-			break
-		case *internalauth.AuthenticationSchemeV4A:
-			v4aScheme, _ := authScheme.(*internalauth.AuthenticationSchemeV4A)
-			if v4aScheme.SigningName == nil {
-				v4aScheme.SigningName = aws.String("s3")
-			}
-			if v4aScheme.DisableDoubleEncoding != nil {
-				// The signer sets an equivalent value at client initialization time.
-				// Setting this context value will cause the signer to extract it
-				// and override the value set at client initialization time.
-				ctx = internalauth.SetDisableDoubleEncoding(ctx, *v4aScheme.DisableDoubleEncoding)
-			}
-			ctx = awsmiddleware.SetSigningName(ctx, *v4aScheme.SigningName)
-			ctx = awsmiddleware.SetSigningRegion(ctx, v4aScheme.SigningRegionSet[0])
-			ctx = s3cust.SetSignerVersion(ctx, v4a.Version)
-			break
-		case *internalauth.AuthenticationSchemeNone:
-			break
-		}
-	}
-
-	return next.HandleSerialize(ctx, in)
-}
-
-func addAbortMultipartUploadResolveEndpointMiddleware(stack *middleware.Stack, options Options) error {
-	return stack.Serialize.Insert(&opAbortMultipartUploadResolveEndpointMiddleware{
-		EndpointResolver: options.EndpointResolverV2,
-		BuiltInResolver: &builtInResolver{
-			Region:                         options.Region,
-			UseFIPS:                        options.EndpointOptions.UseFIPSEndpoint,
-			UseDualStack:                   options.EndpointOptions.UseDualStackEndpoint,
-			Endpoint:                       options.BaseEndpoint,
-			ForcePathStyle:                 options.UsePathStyle,
-			Accelerate:                     options.UseAccelerate,
-			DisableMultiRegionAccessPoints: options.DisableMultiRegionAccessPoints,
-			UseArnRegion:                   options.UseARNRegion,
-		},
-	}, "ResolveEndpoint", middleware.After)
 }

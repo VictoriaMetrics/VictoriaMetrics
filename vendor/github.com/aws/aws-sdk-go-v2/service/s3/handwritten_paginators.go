@@ -3,6 +3,8 @@ package s3
 import (
 	"context"
 	"fmt"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
 )
 
 // ListObjectVersionsAPIClient is a client that implements the ListObjectVersions
@@ -42,7 +44,9 @@ func NewListObjectVersionsPaginator(client ListObjectVersionsAPIClient, params *
 	}
 
 	options := ListObjectVersionsPaginatorOptions{}
-	options.Limit = params.MaxKeys
+	if params.MaxKeys != nil {
+		options.Limit = aws.ToInt32(params.MaxKeys)
+	}
 
 	for _, fn := range optFns {
 		fn(&options)
@@ -77,7 +81,9 @@ func (p *ListObjectVersionsPaginator) NextPage(ctx context.Context, optFns ...fu
 	if p.options.Limit > 0 {
 		limit = p.options.Limit
 	}
-	params.MaxKeys = limit
+	if limit > 0 {
+		params.MaxKeys = aws.Int32(limit)
+	}
 
 	result, err := p.client.ListObjectVersions(ctx, &params, optFns...)
 	if err != nil {
@@ -86,10 +92,10 @@ func (p *ListObjectVersionsPaginator) NextPage(ctx context.Context, optFns ...fu
 	p.firstPage = false
 
 	prevToken := p.keyMarker
-	p.isTruncated = result.IsTruncated
+	p.isTruncated = aws.ToBool(result.IsTruncated)
 	p.keyMarker = nil
 	p.versionIDMarker = nil
-	if result.IsTruncated {
+	if aws.ToBool(result.IsTruncated) {
 		p.keyMarker = result.NextKeyMarker
 		p.versionIDMarker = result.NextVersionIdMarker
 	}
@@ -141,7 +147,9 @@ func NewListMultipartUploadsPaginator(client ListMultipartUploadsAPIClient, para
 	}
 
 	options := ListMultipartUploadsPaginatorOptions{}
-	options.Limit = params.MaxUploads
+	if params.MaxUploads != nil {
+		options.Limit = aws.ToInt32(params.MaxUploads)
+	}
 
 	for _, fn := range optFns {
 		fn(&options)
@@ -176,7 +184,9 @@ func (p *ListMultipartUploadsPaginator) NextPage(ctx context.Context, optFns ...
 	if p.options.Limit > 0 {
 		limit = p.options.Limit
 	}
-	params.MaxUploads = limit
+	if limit > 0 {
+		params.MaxUploads = aws.Int32(limit)
+	}
 
 	result, err := p.client.ListMultipartUploads(ctx, &params, optFns...)
 	if err != nil {
@@ -185,10 +195,10 @@ func (p *ListMultipartUploadsPaginator) NextPage(ctx context.Context, optFns ...
 	p.firstPage = false
 
 	prevToken := p.keyMarker
-	p.isTruncated = result.IsTruncated
+	p.isTruncated = aws.ToBool(result.IsTruncated)
 	p.keyMarker = nil
 	p.uploadIDMarker = nil
-	if result.IsTruncated {
+	if aws.ToBool(result.IsTruncated) {
 		p.keyMarker = result.NextKeyMarker
 		p.uploadIDMarker = result.NextUploadIdMarker
 	}

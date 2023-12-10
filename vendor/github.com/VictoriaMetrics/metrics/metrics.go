@@ -134,9 +134,25 @@ func WritePrometheus(w io.Writer, exposeProcessMetrics bool) {
 //
 //   - process_io_storage_written_bytes_total - the number of bytes actually written to disk
 //
+//   - go_sched_latencies_seconds - time spent by goroutines in ready state before they start execution
+//
+//   - go_mutex_wait_seconds_total - summary time spent by all the goroutines while waiting for locked mutex
+//
+//   - go_gc_mark_assist_cpu_seconds_total - summary CPU time spent by goroutines in GC mark assist state
+//
+//   - go_gc_cpu_seconds_total - summary time spent in GC
+//
+//   - go_gc_pauses_seconds - duration of GC pauses
+//
+//   - go_scavenge_cpu_seconds_total - CPU time spent on returning the memory to OS
+//
+//   - go_memlimit_bytes - the GOMEMLIMIT env var value
+//
 //   - go_memstats_alloc_bytes - memory usage for Go objects in the heap
 //
 //   - go_memstats_alloc_bytes_total - the cumulative counter for total size of allocated Go objects
+//
+//   - go_memstats_buck_hash_sys_bytes - bytes of memory in profiling bucket hash tables
 //
 //   - go_memstats_frees_total - the cumulative counter for number of freed Go objects
 //
@@ -148,19 +164,41 @@ func WritePrometheus(w io.Writer, exposeProcessMetrics bool) {
 //
 //   - go_memstats_heap_idle_bytes - idle memory ready for new Go object allocations
 //
+//   - go_memstats_heap_inuse_bytes - bytes in in-use spans
+//
 //   - go_memstats_heap_objects - the number of Go objects in the heap
+//
+//   - go_memstats_heap_released_bytes - bytes of physical memory returned to the OS
 //
 //   - go_memstats_heap_sys_bytes - memory requested for Go objects from the OS
 //
+//   - go_memstats_last_gc_time_seconds - unix timestamp the last garbage collection finished
+//
+//   - go_memstats_lookups_total - the number of pointer lookups performed by the runtime
+//
 //   - go_memstats_mallocs_total - the number of allocations for Go objects
 //
+//   - go_memstats_mcache_inuse_bytes - bytes of allocated mcache structures
+//
+//   - go_memstats_mcache_sys_bytes - bytes of memory obtained from the OS for mcache structures
+//
+//   - go_memstats_mspan_inuse_bytes - bytes of allocated mspan structures
+//
+//   - go_memstats_mspan_sys_bytes - bytes of memory obtained from the OS for mspan structures
+//
 //   - go_memstats_next_gc_bytes - the target heap size when the next garbage collection should start
+//
+//   - go_memstats_other_sys_bytes - bytes of memory in miscellaneous off-heap runtime allocations
 //
 //   - go_memstats_stack_inuse_bytes - memory used for goroutine stacks
 //
 //   - go_memstats_stack_sys_bytes - memory requested fromthe OS for goroutine stacks
 //
 //   - go_memstats_sys_bytes - memory requested by Go runtime from the OS
+//
+//   - go_cgo_calls_count - the total number of CGO calls
+//
+//   - go_cpu_count - the number of CPU cores on the host where the app runs
 //
 // The WriteProcessMetrics func is usually called in combination with writing Set metrics
 // inside "/metrics" handler:
