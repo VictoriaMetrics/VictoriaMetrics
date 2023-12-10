@@ -53,6 +53,8 @@ func Init() {
 		// Then the remaining workers may continue performing merges
 		// for newly added small parts.
 		n = 4
+	} else if n > cgroup.AvailableCPUs() {
+		logger.Warnf("It is not recommended to use more merge worker(%d) than available cores(%d)", n, cgroup.AvailableCPUs())
 	}
 
 	if retentionPeriod.Duration() < 24*time.Hour {
