@@ -700,6 +700,19 @@ Released at 2023-02-24
 * BUGFIX: properly parse timestamps in milliseconds when [ingesting data via OpenTSDB telnet put protocol](https://docs.victoriametrics.com/#sending-data-via-telnet-put-protocol). Previously timestamps in milliseconds were mistakenly multiplied by 1000. Thanks to @Droxenator for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3810).
 * BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): do not add extrapolated points outside the real points when using [interpolate()](https://docs.victoriametrics.com/MetricsQL.html#interpolate) function. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3816).
 
+# [v1.87.12](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.87.12)
+
+Released at 2023-12-10
+
+**v1.87.x is a line of LTS releases (e.g. long-time support). It contains important up-to-date bugfixes.
+The v1.87.x line will be supported for at least 12 months since [v1.87.0](https://docs.victoriametrics.com/CHANGELOG.html#v1870) release**
+
+* SECURITY: upgrade base docker image (Alpine) from 3.18.4 to 3.19.0. See [alpine 3.19.0 release notes](https://www.alpinelinux.org/posts/Alpine-3.19.0-released.html).
+* SECURITY: upgrade Go builder from Go1.21.4 to Go1.21.5. See [the list of issues addressed in Go1.21.5](https://github.com/golang/go/issues?q=milestone%3AGo1.21.5+label%3ACherryPickApproved).
+
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): sanitize label names before sending the alert notification to Alertmanager. Before, vmalert would send notifications with labels containing characters not supported by Alertmanager validator, resulting into validation errors like `msg="Failed to validate alerts" err="invalid label set: invalid name "foo.bar"`.
+* BUGFIX: properly escape `<` character in responses returned via [`/federate`](https://docs.victoriametrics.com/#federation) endpoint. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5431).
+
 ## [v1.87.11](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.87.11)
 
 Released at 2023-11-14
