@@ -3,6 +3,7 @@ package vlstorage
 import (
 	"flag"
 	"fmt"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"net/http"
 	"sync"
 	"time"
@@ -34,6 +35,7 @@ var (
 		"see https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/ ; see also -logNewStreams")
 	minFreeDiskSpaceBytes = flagutil.NewBytes("storage.minFreeDiskSpaceBytes", 10e6, "The minimum free disk space at -storageDataPath after which "+
 		"the storage stops accepting new data")
+	globalMergeWorkerCount = flag.Int("storage.globalMergeWorkerCount", cgroup.AvailableCPUs(), "The maximum global merge worker; Minimum supported value is 4")
 )
 
 // Init initializes vlstorage.
@@ -44,16 +46,26 @@ func Init() {
 		logger.Panicf("BUG: Init() has been already called")
 	}
 
+	n := *globalMergeWorkerCount
+	if n < 4 {
+		// Use bigger number of workers on systems with small number of CPU cores,
+		// since a single worker may become busy for long time when merging big parts.
+		// Then the remaining workers may continue performing merges
+		// for newly added small parts.
+		n = 4
+	}
+
 	if retentionPeriod.Duration() < 24*time.Hour {
 		logger.Fatalf("-retentionPeriod cannot be smaller than a day; got %s", retentionPeriod)
 	}
 	cfg := &logstorage.StorageConfig{
-		Retention:             retentionPeriod.Duration(),
-		FlushInterval:         *inmemoryDataFlushInterval,
-		FutureRetention:       futureRetention.Duration(),
-		LogNewStreams:         *logNewStreams,
-		LogIngestedRows:       *logIngestedRows,
-		MinFreeDiskSpaceBytes: minFreeDiskSpaceBytes.N,
+		Retention:              retentionPeriod.Duration(),
+		FlushInterval:          *inmemoryDataFlushInterval,
+		FutureRetention:        futureRetention.Duration(),
+		LogNewStreams:          *logNewStreams,
+		LogIngestedRows:        *logIngestedRows,
+		MinFreeDiskSpaceBytes:  minFreeDiskSpaceBytes.N,
+		GlobalMergeWorkerCount: n,
 	}
 	logger.Infof("opening storage at -storageDataPath=%s", *storageDataPath)
 	startTime := time.Now()

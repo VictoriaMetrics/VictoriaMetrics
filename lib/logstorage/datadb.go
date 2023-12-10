@@ -11,7 +11,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
@@ -269,18 +268,13 @@ func (ddb *datadb) startMergeWorkerLocked() {
 }
 
 // globalMergeLimitCh limits the number of concurrent merges across all the partitions
-var globalMergeLimitCh = make(chan struct{}, getMergeWorkersCount())
+var (
+	mergeWorkerCount   int
+	globalMergeLimitCh chan struct{}
+)
 
 func getMergeWorkersCount() int {
-	n := cgroup.AvailableCPUs()
-	if n < 4 {
-		// Use bigger number of workers on systems with small number of CPU cores,
-		// since a single worker may become busy for long time when merging big parts.
-		// Then the remaining workers may continue performing merges
-		// for newly added small parts.
-		return 4
-	}
-	return n
+	return mergeWorkerCount
 }
 
 func (ddb *datadb) mustMergeExistingParts() {

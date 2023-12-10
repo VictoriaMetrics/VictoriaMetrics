@@ -65,6 +65,8 @@ type StorageConfig struct {
 	//
 	// This can be useful for debugging of data ingestion.
 	LogIngestedRows bool
+
+	GlobalMergeWorkerCount int
 }
 
 // Storage is the storage for log entries.
@@ -229,6 +231,9 @@ func MustOpenStorage(path string, cfg *StorageConfig) *Storage {
 	if cfg.MinFreeDiskSpaceBytes >= 0 {
 		minFreeDiskSpaceBytes = uint64(cfg.MinFreeDiskSpaceBytes)
 	}
+
+	mergeWorkerCount = cfg.GlobalMergeWorkerCount
+	globalMergeLimitCh = make(chan struct{}, mergeWorkerCount)
 
 	if !fs.IsPathExist(path) {
 		mustCreateStorage(path)
