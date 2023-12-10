@@ -206,6 +206,15 @@ type LoadOptions struct {
 
 	// The sdk app ID retrieved from env var or shared config to be added to request user agent header
 	AppID string
+
+	// Specifies whether an operation request could be compressed
+	DisableRequestCompression *bool
+
+	// The inclusive min bytes of a request body that could be compressed
+	RequestMinCompressSizeBytes *int64
+
+	// Whether S3 Express auth is disabled.
+	S3DisableExpressAuth *bool
 }
 
 func (o LoadOptions) getDefaultsMode(ctx context.Context) (aws.DefaultsMode, bool, error) {
@@ -253,6 +262,22 @@ func (o LoadOptions) getAppID(ctx context.Context) (string, bool, error) {
 	return o.AppID, len(o.AppID) > 0, nil
 }
 
+// getDisableRequestCompression returns DisableRequestCompression from config's LoadOptions
+func (o LoadOptions) getDisableRequestCompression(ctx context.Context) (bool, bool, error) {
+	if o.DisableRequestCompression == nil {
+		return false, false, nil
+	}
+	return *o.DisableRequestCompression, true, nil
+}
+
+// getRequestMinCompressSizeBytes returns RequestMinCompressSizeBytes from config's LoadOptions
+func (o LoadOptions) getRequestMinCompressSizeBytes(ctx context.Context) (int64, bool, error) {
+	if o.RequestMinCompressSizeBytes == nil {
+		return 0, false, nil
+	}
+	return *o.RequestMinCompressSizeBytes, true, nil
+}
+
 // WithRegion is a helper function to construct functional options
 // that sets Region on config's LoadOptions. Setting the region to
 // an empty string, will result in the region value being ignored.
@@ -270,6 +295,30 @@ func WithRegion(v string) LoadOptionsFunc {
 func WithAppID(ID string) LoadOptionsFunc {
 	return func(o *LoadOptions) error {
 		o.AppID = ID
+		return nil
+	}
+}
+
+// WithDisableRequestCompression is a helper function to construct functional options
+// that sets DisableRequestCompression on config's LoadOptions.
+func WithDisableRequestCompression(DisableRequestCompression *bool) LoadOptionsFunc {
+	return func(o *LoadOptions) error {
+		if DisableRequestCompression == nil {
+			return nil
+		}
+		o.DisableRequestCompression = DisableRequestCompression
+		return nil
+	}
+}
+
+// WithRequestMinCompressSizeBytes is a helper function to construct functional options
+// that sets RequestMinCompressSizeBytes on config's LoadOptions.
+func WithRequestMinCompressSizeBytes(RequestMinCompressSizeBytes *int64) LoadOptionsFunc {
+	return func(o *LoadOptions) error {
+		if RequestMinCompressSizeBytes == nil {
+			return nil
+		}
+		o.RequestMinCompressSizeBytes = RequestMinCompressSizeBytes
 		return nil
 	}
 }
@@ -1041,6 +1090,25 @@ func WithDefaultsMode(mode aws.DefaultsMode, optFns ...func(options *DefaultsMod
 	}
 	return func(options *LoadOptions) error {
 		options.DefaultsModeOptions = do
+		return nil
+	}
+}
+
+// GetS3DisableExpressAuth returns the configured value for
+// [EnvConfig.S3DisableExpressAuth].
+func (o LoadOptions) GetS3DisableExpressAuth() (value, ok bool) {
+	if o.S3DisableExpressAuth == nil {
+		return false, false
+	}
+
+	return *o.S3DisableExpressAuth, true
+}
+
+// WithS3DisableExpressAuth sets [LoadOptions.S3DisableExpressAuth]
+// to the value provided.
+func WithS3DisableExpressAuth(v bool) LoadOptionsFunc {
+	return func(o *LoadOptions) error {
+		o.S3DisableExpressAuth = &v
 		return nil
 	}
 }

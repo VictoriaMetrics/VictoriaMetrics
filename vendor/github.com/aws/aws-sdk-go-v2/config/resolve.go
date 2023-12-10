@@ -27,7 +27,6 @@ func resolveDefaultAWSConfig(ctx context.Context, cfg *aws.Config, cfgs configs)
 	}
 
 	*cfg = aws.Config{
-		Credentials:   aws.AnonymousCredentials{},
 		Logger:        logging.NewStandardLogger(os.Stderr),
 		ConfigSources: sources,
 	}
@@ -137,6 +136,33 @@ func resolveAppID(ctx context.Context, cfg *aws.Config, configs configs) error {
 	}
 
 	cfg.AppID = ID
+	return nil
+}
+
+// resolveDisableRequestCompression extracts the DisableRequestCompression from the configs slice's
+// SharedConfig or EnvConfig
+func resolveDisableRequestCompression(ctx context.Context, cfg *aws.Config, configs configs) error {
+	disable, _, err := getDisableRequestCompression(ctx, configs)
+	if err != nil {
+		return err
+	}
+
+	cfg.DisableRequestCompression = disable
+	return nil
+}
+
+// resolveRequestMinCompressSizeBytes extracts the RequestMinCompressSizeBytes from the configs slice's
+// SharedConfig or EnvConfig
+func resolveRequestMinCompressSizeBytes(ctx context.Context, cfg *aws.Config, configs configs) error {
+	minBytes, found, err := getRequestMinCompressSizeBytes(ctx, configs)
+	if err != nil {
+		return err
+	}
+	// must set a default min size 10240 if not configured
+	if !found {
+		minBytes = 10240
+	}
+	cfg.RequestMinCompressSizeBytes = minBytes
 	return nil
 }
 
