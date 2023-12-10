@@ -2,8 +2,8 @@
 
 DOCKER_NAMESPACE := victoriametrics
 
-ROOT_IMAGE ?= alpine:3.18.5
-CERTS_IMAGE := alpine:3.18.5
+ROOT_IMAGE ?= alpine:3.19.0
+CERTS_IMAGE := alpine:3.19.0
 
 GO_BUILDER_IMAGE := golang:1.21.5-alpine
 BUILDER_IMAGE := local/builder:2.0.0-$(shell echo $(GO_BUILDER_IMAGE) | tr :/ __)-1
