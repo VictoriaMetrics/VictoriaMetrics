@@ -13,8 +13,11 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws/middleware"
 	"github.com/aws/aws-sdk-go-v2/internal/awsutil"
+	internalcontext "github.com/aws/aws-sdk-go-v2/internal/context"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
+	smithymiddleware "github.com/aws/smithy-go/middleware"
+	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
 // MaxUploadParts is the maximum allowed number of parts in a multi-part upload
@@ -308,6 +311,9 @@ func (u Uploader) Upload(ctx context.Context, input *s3.PutObjectInput, opts ...
 	clientOptions = append(clientOptions, func(o *s3.Options) {
 		o.APIOptions = append(o.APIOptions,
 			middleware.AddSDKAgentKey(middleware.FeatureMetadata, userAgentKey),
+			func(s *smithymiddleware.Stack) error {
+				return s.Finalize.Insert(&setS3ExpressDefaultChecksum{}, "ResolveEndpointV2", smithymiddleware.After)
+			},
 		)
 	})
 	clientOptions = append(clientOptions, i.cfg.ClientOptions...)
@@ -501,7 +507,7 @@ func (u *uploader) singlePart(r io.ReadSeeker, cleanup func()) (*UploadOutput, e
 	return &UploadOutput{
 		Location: locationRecorder.location,
 
-		BucketKeyEnabled:     out.BucketKeyEnabled,
+		BucketKeyEnabled:     aws.ToBool(out.BucketKeyEnabled),
 		ChecksumCRC32:        out.ChecksumCRC32,
 		ChecksumCRC32C:       out.ChecksumCRC32C,
 		ChecksumSHA1:         out.ChecksumSHA1,
@@ -568,9 +574,11 @@ type chunk struct {
 // since S3 required this list to be sent in sorted order.
 type completedParts []types.CompletedPart
 
-func (a completedParts) Len() int           { return len(a) }
-func (a completedParts) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-func (a completedParts) Less(i, j int) bool { return a[i].PartNumber < a[j].PartNumber }
+func (a completedParts) Len() int      { return len(a) }
+func (a completedParts) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
+func (a completedParts) Less(i, j int) bool {
+	return aws.ToInt32(a[i].PartNumber) < aws.ToInt32(a[j].PartNumber)
+}
 
 // upload will perform a multipart upload using the firstBuf buffer containing
 // the first chunk of data.
@@ -639,7 +647,7 @@ func (u *multiuploader) upload(firstBuf io.ReadSeeker, cleanup func()) (*UploadO
 		UploadID:       u.uploadID,
 		CompletedParts: u.parts,
 
-		BucketKeyEnabled:     completeOut.BucketKeyEnabled,
+		BucketKeyEnabled:     aws.ToBool(completeOut.BucketKeyEnabled),
 		ChecksumCRC32:        completeOut.ChecksumCRC32,
 		ChecksumCRC32C:       completeOut.ChecksumCRC32C,
 		ChecksumSHA1:         completeOut.ChecksumSHA1,
@@ -722,7 +730,7 @@ func (u *multiuploader) send(c chunk) error {
 		// PutObject as they are never valid for individual parts of a
 		// multipart upload.
 
-		PartNumber: c.num,
+		PartNumber: aws.Int32(c.num),
 		UploadId:   &u.uploadID,
 	}
 	// TODO should do copy then clear?
@@ -734,7 +742,7 @@ func (u *multiuploader) send(c chunk) error {
 
 	var completed types.CompletedPart
 	awsutil.Copy(&completed, resp)
-	completed.PartNumber = c.num
+	completed.PartNumber = aws.Int32(c.num)
 
 	u.m.Lock()
 	u.parts = append(u.parts, completed)
@@ -805,4 +813,43 @@ func (u *multiuploader) complete() *s3.CompleteMultipartUploadOutput {
 type readerAtSeeker interface {
 	io.ReaderAt
 	io.ReadSeeker
+}
+
+// setS3ExpressDefaultChecksum defaults to CRC32 for S3Express buckets,
+// which is required when uploading to those through transfer manager.
+type setS3ExpressDefaultChecksum struct{}
+
+func (*setS3ExpressDefaultChecksum) ID() string {
+	return "setS3ExpressDefaultChecksum"
+}
+
+func (*setS3ExpressDefaultChecksum) HandleFinalize(
+	ctx context.Context, in smithymiddleware.FinalizeInput, next smithymiddleware.FinalizeHandler,
+) (
+	out smithymiddleware.FinalizeOutput, metadata smithymiddleware.Metadata, err error,
+) {
+	const checksumHeader = "x-amz-checksum-algorithm"
+
+	if internalcontext.GetS3Backend(ctx) != internalcontext.S3BackendS3Express {
+		return next.HandleFinalize(ctx, in)
+	}
+
+	// If this is CreateMultipartUpload we need to ensure the checksum
+	// algorithm header is present. Otherwise everything is driven off the
+	// context setting and we can let it flow from there.
+	if middleware.GetOperationName(ctx) == "CreateMultipartUpload" {
+		r, ok := in.Request.(*smithyhttp.Request)
+		if !ok {
+			return out, metadata, fmt.Errorf("unknown transport type %T", in.Request)
+		}
+
+		if internalcontext.GetChecksumInputAlgorithm(ctx) == "" {
+			r.Header.Set(checksumHeader, "CRC32")
+		}
+		return next.HandleFinalize(ctx, in)
+	} else if internalcontext.GetChecksumInputAlgorithm(ctx) == "" {
+		ctx = internalcontext.SetChecksumInputAlgorithm(ctx, string(types.ChecksumAlgorithmCrc32))
+	}
+
+	return next.HandleFinalize(ctx, in)
 }

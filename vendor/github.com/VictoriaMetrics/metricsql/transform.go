@@ -24,6 +24,7 @@ var transformFuncs = map[string]bool{
 	"clamp_min":                  true,
 	"cos":                        true,
 	"cosh":                       true,
+	"day_of_year":                true,
 	"day_of_month":               true,
 	"day_of_week":                true,
 	"days_in_month":              true,
