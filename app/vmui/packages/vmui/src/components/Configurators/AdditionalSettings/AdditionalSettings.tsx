@@ -37,8 +37,9 @@ const AdditionalSettingsControls: FC<{isMobile?: boolean}> = ({ isMobile }) => {
   };
 
   const handleKeyDown = (e: KeyboardEvent) => {
-    const { code, altKey } = e;
-    if (code === "KeyA" && altKey) {
+    /** @see AUTOCOMPLETE_QUICK_KEY */
+    const { code, ctrlKey, altKey } = e;
+    if (code === "Space" && (ctrlKey || altKey)) {
       e.preventDefault();
       onChangeQuickAutocomplete();
     }

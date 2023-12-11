@@ -9,11 +9,12 @@ import debounce from "lodash.debounce";
 import { useQueryDispatch, useQueryState } from "../state/query/QueryStateContext";
 import { QueryContextType } from "../types";
 import { AUTOCOMPLETE_LIMITS } from "../constants/queryAutocomplete";
+import { escapeDoubleQuotes, escapeRegexp } from "../utils/regexp";
 
 enum TypeData {
   metric = "metric",
   label = "label",
-  value = "value"
+  labelValue = "labelValue"
 }
 
 type FetchDataArgs = {
@@ -34,7 +35,7 @@ type FetchQueryArguments = {
 const icons = {
   [TypeData.metric]: <MetricIcon/>,
   [TypeData.label]: <LabelIcon/>,
-  [TypeData.value]: <ValueIcon/>,
+  [TypeData.labelValue]: <ValueIcon/>,
 };
 
 export const useFetchQueryOptions = ({ valueByContext, metric, label, context }: FetchQueryArguments) => {
@@ -53,7 +54,7 @@ export const useFetchQueryOptions = ({ valueByContext, metric, label, context }:
 
   const [metrics, setMetrics] = useState<AutocompleteOptions[]>([]);
   const [labels, setLabels] = useState<AutocompleteOptions[]>([]);
-  const [values, setValues] = useState<AutocompleteOptions[]>([]);
+  const [labelValues, setLabelValues] = useState<AutocompleteOptions[]>([]);
 
   const abortControllerRef = useRef(new AbortController());
 
@@ -108,14 +109,6 @@ export const useFetchQueryOptions = ({ valueByContext, metric, label, context }:
     }
   };
 
-  const escapeRegexp = (s: string) => {
-    // taken from https://stackoverflow.com/a/3561711/274937
-    return s.replace(/[/\-\\^$*+?.()|[\]{}]/g, "\\$&");
-  };
-  const escapeDoubleQuotes = (s: string) => {
-    return JSON.stringify(s).slice(1,-1);
-  };
-
   // fetch metrics
   useEffect(() => {
     const isInvalidContext = context !== QueryContextType.metricsql && context !== QueryContextType.empty;
@@ -157,12 +150,12 @@ export const useFetchQueryOptions = ({ valueByContext, metric, label, context }:
     return () => abortControllerRef.current?.abort();
   }, [serverUrl, value, context, metric]);
 
-  // fetch values
+  // fetch labelValues
   useEffect(() => {
-    if (!serverUrl || !metric || !label || context !== QueryContextType.value) {
+    if (!serverUrl || !metric || !label || context !== QueryContextType.labelValue) {
       return;
     }
-    setValues([]);
+    setLabelValues([]);
 
     const metricEscaped = escapeDoubleQuotes(metric);
     const valueReEscaped = escapeDoubleQuotes(escapeRegexp(value));
@@ -170,8 +163,8 @@ export const useFetchQueryOptions = ({ valueByContext, metric, label, context }:
     fetchData({
       value,
       urlSuffix: `label/${label}/values`,
-      setter: setValues,
-      type: TypeData.value,
+      setter: setLabelValues,
+      type: TypeData.labelValue,
       params: getQueryParams({ "match[]": `{__name__="${metricEscaped}", ${label}=~".*${valueReEscaped}.*"}` })
     });
 
@@ -181,7 +174,7 @@ export const useFetchQueryOptions = ({ valueByContext, metric, label, context }:
   return {
     metrics,
     labels,
-    values,
+    labelValues,
     loading,
   };
 };

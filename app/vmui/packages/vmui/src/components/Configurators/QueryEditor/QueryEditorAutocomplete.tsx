@@ -2,7 +2,7 @@ import React, { FC, Ref, useState, useEffect, useMemo } from "preact/compat";
 import Autocomplete, { AutocompleteOptions } from "../../Main/Autocomplete/Autocomplete";
 import { useFetchQueryOptions } from "../../../hooks/useFetchQueryOptions";
 import { getTextWidth } from "../../../utils/uplot";
-import { escapeRegExp } from "../../../utils/regexp";
+import { escapeRegexp } from "../../../utils/regexp";
 import useGetMetricsQL from "../../../hooks/useGetMetricsQL";
 import { RefreshIcon } from "../../Main/Icons";
 import { QueryContextType } from "../../../types";
@@ -33,38 +33,33 @@ const QueryEditorAutocomplete: FC<QueryEditorAutocompleteProps> = ({
   }, [value]);
 
   const label = useMemo(() => {
-    const regexp = /[a-z_]\w*(?=\s*(=|!=|=~|!~))/g;
+    const regexp = /[a-z_:-][\w\-.:/]*\b(?=\s*(=|!=|=~|!~))/g;
     const match = value.match(regexp);
     return match ? match[match.length - 1] : "";
   }, [value]);
 
-  const metricRegexp = new RegExp(`\\(?(${escapeRegExp(metric)})$`, "g");
-  const labelRegexp = /[{.,].?(\w+)$/gm;
-  const valueRegexp = new RegExp(`(${escapeRegExp(metric)})?{?.+${escapeRegExp(label)}="?([^"]*)$`, "g");
-
   const context = useMemo(() => {
     if (!value) return QueryContextType.empty;
-    [metricRegexp, labelRegexp, valueRegexp].forEach(regexp => regexp.lastIndex = 0);
+
+    const labelRegexp = /\{[^}]*?(\w+)$/gm;
+    const labelValueRegexp = new RegExp(`(${escapeRegexp(metric)})?{?.+${escapeRegexp(label)}(=|!=|=~|!~)"?([^"]*)$`, "g");
+
     switch (true) {
-      case valueRegexp.test(value):
-        return QueryContextType.value;
+      case labelValueRegexp.test(value):
+        return QueryContextType.labelValue;
       case labelRegexp.test(value):
         return QueryContextType.label;
-      case metricRegexp.test(value):
-        return QueryContextType.metricsql;
       default:
-        return QueryContextType.empty;
+        return QueryContextType.metricsql;
     }
-  }, [value, valueRegexp, labelRegexp, metricRegexp]);
+  }, [value, metric, label]);
 
   const valueByContext = useMemo(() => {
-    if (value.length !== caretPosition[1]) return value;
+    const wordMatch = value.match(/([\w_\-.:/]+(?![},]))$/);
+    return wordMatch ? wordMatch[0] : "";
+  }, [value]);
 
-    const wordMatch = value.match(/([\w_]+)$/) || [];
-    return wordMatch[1] || "";
-  }, [context, caretPosition, value]);
-
-  const { metrics, labels, values, loading } = useFetchQueryOptions({
+  const { metrics, labels, labelValues, loading } = useFetchQueryOptions({
     valueByContext,
     metric,
     label,
@@ -77,26 +72,31 @@ const QueryEditorAutocomplete: FC<QueryEditorAutocompleteProps> = ({
         return [...metrics, ...metricsqlFunctions];
       case QueryContextType.label:
         return labels;
-      case QueryContextType.value:
-        return values;
+      case QueryContextType.labelValue:
+        return labelValues;
       default:
         return [];
     }
-  }, [context, metrics, labels, values]);
+  }, [context, metrics, labels, labelValues]);
 
   const handleSelect = (insert: string) => {
-    const wordMatch = value.match(/([\w_]+)$/);
-    const wordMatchIndex = wordMatch?.index !== undefined ? wordMatch.index : value.length;
-    const beforeInsert = value.substring(0, wordMatchIndex);
-    const afterInsert = value.substring(wordMatchIndex + (wordMatch?.[1].length || 0));
+    // Find the start and end of valueByContext in the query string
+    const startIndexOfValueByContext = value.lastIndexOf(valueByContext, caretPosition[0]);
+    const endIndexOfValueByContext = startIndexOfValueByContext + valueByContext.length;
 
-    if (context === QueryContextType.value) {
+    // Split the original string into parts: before, during, and after valueByContext
+    const beforeValueByContext = value.substring(0, startIndexOfValueByContext);
+    const afterValueByContext = value.substring(endIndexOfValueByContext);
+
+    // Add quotes around the value if the context is labelValue
+    if (context === QueryContextType.labelValue) {
       const quote = "\"";
-      const needsQuote = beforeInsert[beforeInsert.length - 1] !== quote;
+      const needsQuote = !beforeValueByContext.endsWith(quote);
       insert = `${needsQuote ? quote : ""}${insert}${quote}`;
     }
 
-    const newVal = `${beforeInsert}${insert}${afterInsert}`;
+    // Assemble the new value with the inserted text
+    const newVal = `${beforeValueByContext}${insert}${afterValueByContext}`;
     onSelect(newVal);
   };
 

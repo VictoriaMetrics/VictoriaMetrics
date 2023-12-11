@@ -158,5 +158,5 @@ export enum QueryContextType {
   empty = "empty",
   metricsql = "metricsql",
   label = "label",
-  value = "value",
+  labelValue = "labelValue",
 }

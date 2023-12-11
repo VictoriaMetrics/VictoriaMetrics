@@ -10,5 +10,5 @@ export const AUTOCOMPLETE_MIN_SYMBOLS = {
   [QueryContextType.metricsql]: 2,
   [QueryContextType.empty]: 2,
   [QueryContextType.label]: 0,
-  [QueryContextType.value]: 0,
+  [QueryContextType.labelValue]: 0,
 };
