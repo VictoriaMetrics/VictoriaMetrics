@@ -10,12 +10,14 @@ import (
 	s3cust "github.com/aws/aws-sdk-go-v2/service/s3/internal/customizations"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/smithy-go/middleware"
+	"github.com/aws/smithy-go/ptr"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Retrieves OwnershipControls for an Amazon S3 bucket. To use this operation, you
-// must have the s3:GetBucketOwnershipControls permission. For more information
-// about Amazon S3 permissions, see Specifying permissions in a policy (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-with-s3-actions.html)
+// This operation is not supported by directory buckets. Retrieves
+// OwnershipControls for an Amazon S3 bucket. To use this operation, you must have
+// the s3:GetBucketOwnershipControls permission. For more information about Amazon
+// S3 permissions, see Specifying permissions in a policy (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-with-s3-actions.html)
 // . For information about Amazon S3 Object Ownership, see Using Object Ownership (https://docs.aws.amazon.com/AmazonS3/latest/userguide/about-object-ownership.html)
 // . The following operations are related to GetBucketOwnershipControls :
 //   - PutBucketOwnershipControls
@@ -42,9 +44,9 @@ type GetBucketOwnershipControlsInput struct {
 	// This member is required.
 	Bucket *string
 
-	// The account ID of the expected bucket owner. If the bucket is owned by a
-	// different account, the request fails with the HTTP status code 403 Forbidden
-	// (access denied).
+	// The account ID of the expected bucket owner. If the account ID that you provide
+	// does not match the actual owner of the bucket, the request fails with the HTTP
+	// status code 403 Forbidden (access denied).
 	ExpectedBucketOwner *string
 
 	noSmithyDocumentSerde
@@ -52,7 +54,7 @@ type GetBucketOwnershipControlsInput struct {
 
 func (in *GetBucketOwnershipControlsInput) bindEndpointParams(p *EndpointParameters) {
 	p.Bucket = in.Bucket
-
+	p.UseS3ExpressControlEndpoint = ptr.Bool(true)
 }
 
 type GetBucketOwnershipControlsOutput struct {
@@ -120,6 +122,9 @@ func (c *Client) addOperationGetBucketOwnershipControlsMiddlewares(stack *middle
 		return err
 	}
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addPutBucketContextMiddleware(stack); err != nil {
 		return err
 	}
 	if err = addOpGetBucketOwnershipControlsValidationMiddleware(stack); err != nil {

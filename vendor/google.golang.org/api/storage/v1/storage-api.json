@@ -26,7 +26,7 @@
   "description": "Stores and retrieves potentially large, immutable data objects.",
   "discoveryVersion": "v1",
   "documentationLink": "https://developers.google.com/storage/docs/json_api/",
-  "etag": "\"39383633393336373936373236333033393737\"",
+  "etag": "\"38383938373230313033363637363637353533\"",
   "icons": {
     "x16": "https://www.google.com/images/icons/product/cloud_storage-16.png",
     "x32": "https://www.google.com/images/icons/product/cloud_storage-32.png"
@@ -215,7 +215,7 @@
               "type": "string"
             }
           },
-          "path": "b/{bucket}/anywhereCache",
+          "path": "b/{bucket}/anywhereCaches",
           "response": {
             "$ref": "AnywhereCaches"
           },
@@ -3799,7 +3799,7 @@
       }
     }
   },
-  "revision": "20231028",
+  "revision": "20231117",
   "rootUrl": "https://storage.googleapis.com/",
   "schemas": {
     "AnywhereCache": {

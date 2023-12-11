@@ -9,13 +9,15 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	s3cust "github.com/aws/aws-sdk-go-v2/service/s3/internal/customizations"
 	"github.com/aws/smithy-go/middleware"
+	"github.com/aws/smithy-go/ptr"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Deletes the tags from the bucket. To use this operation, you must have
-// permission to perform the s3:PutBucketTagging action. By default, the bucket
-// owner has this permission and can grant this permission to others. The following
-// operations are related to DeleteBucketTagging :
+// This operation is not supported by directory buckets. Deletes the tags from the
+// bucket. To use this operation, you must have permission to perform the
+// s3:PutBucketTagging action. By default, the bucket owner has this permission and
+// can grant this permission to others. The following operations are related to
+// DeleteBucketTagging :
 //   - GetBucketTagging (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketTagging.html)
 //   - PutBucketTagging (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketTagging.html)
 func (c *Client) DeleteBucketTagging(ctx context.Context, params *DeleteBucketTaggingInput, optFns ...func(*Options)) (*DeleteBucketTaggingOutput, error) {
@@ -40,9 +42,9 @@ type DeleteBucketTaggingInput struct {
 	// This member is required.
 	Bucket *string
 
-	// The account ID of the expected bucket owner. If the bucket is owned by a
-	// different account, the request fails with the HTTP status code 403 Forbidden
-	// (access denied).
+	// The account ID of the expected bucket owner. If the account ID that you provide
+	// does not match the actual owner of the bucket, the request fails with the HTTP
+	// status code 403 Forbidden (access denied).
 	ExpectedBucketOwner *string
 
 	noSmithyDocumentSerde
@@ -50,7 +52,7 @@ type DeleteBucketTaggingInput struct {
 
 func (in *DeleteBucketTaggingInput) bindEndpointParams(p *EndpointParameters) {
 	p.Bucket = in.Bucket
-
+	p.UseS3ExpressControlEndpoint = ptr.Bool(true)
 }
 
 type DeleteBucketTaggingOutput struct {
@@ -113,6 +115,9 @@ func (c *Client) addOperationDeleteBucketTaggingMiddlewares(stack *middleware.St
 		return err
 	}
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addPutBucketContextMiddleware(stack); err != nil {
 		return err
 	}
 	if err = addOpDeleteBucketTaggingValidationMiddleware(stack); err != nil {

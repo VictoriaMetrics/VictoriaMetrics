@@ -11,20 +11,21 @@ import (
 	s3cust "github.com/aws/aws-sdk-go-v2/service/s3/internal/customizations"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/smithy-go/middleware"
+	"github.com/aws/smithy-go/ptr"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Set the logging parameters for a bucket and to specify permissions for who can
-// view and modify the logging parameters. All logs are saved to buckets in the
-// same Amazon Web Services Region as the source bucket. To set the logging status
-// of a bucket, you must be the bucket owner. The bucket owner is automatically
-// granted FULL_CONTROL to all logs. You use the Grantee request element to grant
-// access to other people. The Permissions request element specifies the kind of
-// access the grantee has to the logs. If the target bucket for log delivery uses
-// the bucket owner enforced setting for S3 Object Ownership, you can't use the
-// Grantee request element to grant access to others. Permissions can only be
-// granted using policies. For more information, see Permissions for server access
-// log delivery (https://docs.aws.amazon.com/AmazonS3/latest/userguide/enable-server-access-logging.html#grant-log-delivery-permissions-general)
+// This operation is not supported by directory buckets. Set the logging
+// parameters for a bucket and to specify permissions for who can view and modify
+// the logging parameters. All logs are saved to buckets in the same Amazon Web
+// Services Region as the source bucket. To set the logging status of a bucket, you
+// must be the bucket owner. The bucket owner is automatically granted FULL_CONTROL
+// to all logs. You use the Grantee request element to grant access to other
+// people. The Permissions request element specifies the kind of access the
+// grantee has to the logs. If the target bucket for log delivery uses the bucket
+// owner enforced setting for S3 Object Ownership, you can't use the Grantee
+// request element to grant access to others. Permissions can only be granted using
+// policies. For more information, see Permissions for server access log delivery (https://docs.aws.amazon.com/AmazonS3/latest/userguide/enable-server-access-logging.html#grant-log-delivery-permissions-general)
 // in the Amazon S3 User Guide. Grantee Values You can specify the person (grantee)
 // to whom you're assigning access rights (by using request elements) in the
 // following ways:
@@ -74,12 +75,12 @@ type PutBucketLoggingInput struct {
 	// This member is required.
 	BucketLoggingStatus *types.BucketLoggingStatus
 
-	// Indicates the algorithm used to create the checksum for the object when using
-	// the SDK. This header will not provide any additional functionality if not using
-	// the SDK. When sending this header, there must be a corresponding x-amz-checksum
-	// or x-amz-trailer header sent. Otherwise, Amazon S3 fails the request with the
-	// HTTP status code 400 Bad Request . For more information, see Checking object
-	// integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
+	// Indicates the algorithm used to create the checksum for the object when you use
+	// the SDK. This header will not provide any additional functionality if you don't
+	// use the SDK. When you send this header, there must be a corresponding
+	// x-amz-checksum or x-amz-trailer header sent. Otherwise, Amazon S3 fails the
+	// request with the HTTP status code 400 Bad Request . For more information, see
+	// Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
 	// in the Amazon S3 User Guide. If you provide an individual checksum, Amazon S3
 	// ignores any provided ChecksumAlgorithm parameter.
 	ChecksumAlgorithm types.ChecksumAlgorithm
@@ -89,9 +90,9 @@ type PutBucketLoggingInput struct {
 	// this field is calculated automatically.
 	ContentMD5 *string
 
-	// The account ID of the expected bucket owner. If the bucket is owned by a
-	// different account, the request fails with the HTTP status code 403 Forbidden
-	// (access denied).
+	// The account ID of the expected bucket owner. If the account ID that you provide
+	// does not match the actual owner of the bucket, the request fails with the HTTP
+	// status code 403 Forbidden (access denied).
 	ExpectedBucketOwner *string
 
 	noSmithyDocumentSerde
@@ -99,7 +100,7 @@ type PutBucketLoggingInput struct {
 
 func (in *PutBucketLoggingInput) bindEndpointParams(p *EndpointParameters) {
 	p.Bucket = in.Bucket
-
+	p.UseS3ExpressControlEndpoint = ptr.Bool(true)
 }
 
 type PutBucketLoggingOutput struct {
@@ -164,6 +165,9 @@ func (c *Client) addOperationPutBucketLoggingMiddlewares(stack *middleware.Stack
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addPutBucketContextMiddleware(stack); err != nil {
+		return err
+	}
 	if err = addOpPutBucketLoggingValidationMiddleware(stack); err != nil {
 		return err
 	}
@@ -198,6 +202,9 @@ func (c *Client) addOperationPutBucketLoggingMiddlewares(stack *middleware.Stack
 		return err
 	}
 	if err = addSerializeImmutableHostnameBucketMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = s3cust.AddExpressDefaultChecksumMiddleware(stack); err != nil {
 		return err
 	}
 	return nil

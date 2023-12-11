@@ -204,6 +204,17 @@ func (ms ExponentialHistogramDataPoint) RemoveMax() {
 	ms.orig.Max_ = nil
 }
 
+// ZeroThreshold returns the zerothreshold associated with this ExponentialHistogramDataPoint.
+func (ms ExponentialHistogramDataPoint) ZeroThreshold() float64 {
+	return ms.orig.ZeroThreshold
+}
+
+// SetZeroThreshold replaces the zerothreshold associated with this ExponentialHistogramDataPoint.
+func (ms ExponentialHistogramDataPoint) SetZeroThreshold(v float64) {
+	ms.state.AssertMutable()
+	ms.orig.ZeroThreshold = v
+}
+
 // CopyTo copies all properties from the current struct overriding the destination.
 func (ms ExponentialHistogramDataPoint) CopyTo(dest ExponentialHistogramDataPoint) {
 	dest.state.AssertMutable()
@@ -229,4 +240,5 @@ func (ms ExponentialHistogramDataPoint) CopyTo(dest ExponentialHistogramDataPoin
 		dest.SetMax(ms.Max())
 	}
 
+	dest.SetZeroThreshold(ms.ZeroThreshold())
 }

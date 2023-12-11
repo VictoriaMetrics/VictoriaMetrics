@@ -11,17 +11,19 @@ import (
 	s3cust "github.com/aws/aws-sdk-go-v2/service/s3/internal/customizations"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/smithy-go/middleware"
+	"github.com/aws/smithy-go/ptr"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// This action uses the encryption subresource to configure default encryption and
-// Amazon S3 Bucket Keys for an existing bucket. By default, all buckets have a
-// default encryption configuration that uses server-side encryption with Amazon S3
-// managed keys (SSE-S3). You can optionally configure default encryption for a
-// bucket by using server-side encryption with Key Management Service (KMS) keys
-// (SSE-KMS) or dual-layer server-side encryption with Amazon Web Services KMS keys
-// (DSSE-KMS). If you specify default encryption by using SSE-KMS, you can also
-// configure Amazon S3 Bucket Keys (https://docs.aws.amazon.com/AmazonS3/latest/dev/bucket-key.html)
+// This operation is not supported by directory buckets. This action uses the
+// encryption subresource to configure default encryption and Amazon S3 Bucket Keys
+// for an existing bucket. By default, all buckets have a default encryption
+// configuration that uses server-side encryption with Amazon S3 managed keys
+// (SSE-S3). You can optionally configure default encryption for a bucket by using
+// server-side encryption with Key Management Service (KMS) keys (SSE-KMS) or
+// dual-layer server-side encryption with Amazon Web Services KMS keys (DSSE-KMS).
+// If you specify default encryption by using SSE-KMS, you can also configure
+// Amazon S3 Bucket Keys (https://docs.aws.amazon.com/AmazonS3/latest/dev/bucket-key.html)
 // . If you use PutBucketEncryption to set your default bucket encryption (https://docs.aws.amazon.com/AmazonS3/latest/dev/bucket-encryption.html)
 // to SSE-KMS, you should verify that your KMS key ID is correct. Amazon S3 does
 // not validate the KMS key ID provided in PutBucketEncryption requests. This
@@ -71,12 +73,12 @@ type PutBucketEncryptionInput struct {
 	// This member is required.
 	ServerSideEncryptionConfiguration *types.ServerSideEncryptionConfiguration
 
-	// Indicates the algorithm used to create the checksum for the object when using
-	// the SDK. This header will not provide any additional functionality if not using
-	// the SDK. When sending this header, there must be a corresponding x-amz-checksum
-	// or x-amz-trailer header sent. Otherwise, Amazon S3 fails the request with the
-	// HTTP status code 400 Bad Request . For more information, see Checking object
-	// integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
+	// Indicates the algorithm used to create the checksum for the object when you use
+	// the SDK. This header will not provide any additional functionality if you don't
+	// use the SDK. When you send this header, there must be a corresponding
+	// x-amz-checksum or x-amz-trailer header sent. Otherwise, Amazon S3 fails the
+	// request with the HTTP status code 400 Bad Request . For more information, see
+	// Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
 	// in the Amazon S3 User Guide. If you provide an individual checksum, Amazon S3
 	// ignores any provided ChecksumAlgorithm parameter.
 	ChecksumAlgorithm types.ChecksumAlgorithm
@@ -87,9 +89,9 @@ type PutBucketEncryptionInput struct {
 	// automatically.
 	ContentMD5 *string
 
-	// The account ID of the expected bucket owner. If the bucket is owned by a
-	// different account, the request fails with the HTTP status code 403 Forbidden
-	// (access denied).
+	// The account ID of the expected bucket owner. If the account ID that you provide
+	// does not match the actual owner of the bucket, the request fails with the HTTP
+	// status code 403 Forbidden (access denied).
 	ExpectedBucketOwner *string
 
 	noSmithyDocumentSerde
@@ -97,7 +99,7 @@ type PutBucketEncryptionInput struct {
 
 func (in *PutBucketEncryptionInput) bindEndpointParams(p *EndpointParameters) {
 	p.Bucket = in.Bucket
-
+	p.UseS3ExpressControlEndpoint = ptr.Bool(true)
 }
 
 type PutBucketEncryptionOutput struct {
@@ -162,6 +164,9 @@ func (c *Client) addOperationPutBucketEncryptionMiddlewares(stack *middleware.St
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addPutBucketContextMiddleware(stack); err != nil {
+		return err
+	}
 	if err = addOpPutBucketEncryptionValidationMiddleware(stack); err != nil {
 		return err
 	}
@@ -196,6 +201,9 @@ func (c *Client) addOperationPutBucketEncryptionMiddlewares(stack *middleware.St
 		return err
 	}
 	if err = addSerializeImmutableHostnameBucketMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = s3cust.AddExpressDefaultChecksumMiddleware(stack); err != nil {
 		return err
 	}
 	return nil

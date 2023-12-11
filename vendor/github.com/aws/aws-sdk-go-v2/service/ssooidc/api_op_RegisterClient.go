@@ -50,7 +50,7 @@ type RegisterClientInput struct {
 
 type RegisterClientOutput struct {
 
-	// The endpoint where the client can request authorization.
+	// An endpoint that the client can use to request authorization.
 	AuthorizationEndpoint *string
 
 	// The unique identifier string for each client. This client uses this identifier
@@ -67,7 +67,7 @@ type RegisterClientOutput struct {
 	// Indicates the time at which the clientId and clientSecret will become invalid.
 	ClientSecretExpiresAt int64
 
-	// The endpoint where the client can get an access token.
+	// An endpoint that the client can use to create tokens.
 	TokenEndpoint *string
 
 	// Metadata pertaining to the operation's result.
