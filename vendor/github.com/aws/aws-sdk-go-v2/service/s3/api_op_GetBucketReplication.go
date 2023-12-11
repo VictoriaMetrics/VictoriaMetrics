@@ -10,13 +10,15 @@ import (
 	s3cust "github.com/aws/aws-sdk-go-v2/service/s3/internal/customizations"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/smithy-go/middleware"
+	"github.com/aws/smithy-go/ptr"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Returns the replication configuration of a bucket. It can take a while to
-// propagate the put or delete a replication configuration to all Amazon S3
-// systems. Therefore, a get request soon after put or delete can return a wrong
-// result. For information about replication configuration, see Replication (https://docs.aws.amazon.com/AmazonS3/latest/dev/replication.html)
+// This operation is not supported by directory buckets. Returns the replication
+// configuration of a bucket. It can take a while to propagate the put or delete a
+// replication configuration to all Amazon S3 systems. Therefore, a get request
+// soon after put or delete can return a wrong result. For information about
+// replication configuration, see Replication (https://docs.aws.amazon.com/AmazonS3/latest/dev/replication.html)
 // in the Amazon S3 User Guide. This action requires permissions for the
 // s3:GetReplicationConfiguration action. For more information about permissions,
 // see Using Bucket Policies and User Policies (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-iam-policies.html)
@@ -49,9 +51,9 @@ type GetBucketReplicationInput struct {
 	// This member is required.
 	Bucket *string
 
-	// The account ID of the expected bucket owner. If the bucket is owned by a
-	// different account, the request fails with the HTTP status code 403 Forbidden
-	// (access denied).
+	// The account ID of the expected bucket owner. If the account ID that you provide
+	// does not match the actual owner of the bucket, the request fails with the HTTP
+	// status code 403 Forbidden (access denied).
 	ExpectedBucketOwner *string
 
 	noSmithyDocumentSerde
@@ -59,7 +61,7 @@ type GetBucketReplicationInput struct {
 
 func (in *GetBucketReplicationInput) bindEndpointParams(p *EndpointParameters) {
 	p.Bucket = in.Bucket
-
+	p.UseS3ExpressControlEndpoint = ptr.Bool(true)
 }
 
 type GetBucketReplicationOutput struct {
@@ -127,6 +129,9 @@ func (c *Client) addOperationGetBucketReplicationMiddlewares(stack *middleware.S
 		return err
 	}
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addPutBucketContextMiddleware(stack); err != nil {
 		return err
 	}
 	if err = addOpGetBucketReplicationValidationMiddleware(stack); err != nil {

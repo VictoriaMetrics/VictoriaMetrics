@@ -9,13 +9,15 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	s3cust "github.com/aws/aws-sdk-go-v2/service/s3/internal/customizations"
 	"github.com/aws/smithy-go/middleware"
+	"github.com/aws/smithy-go/ptr"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Deletes the cors configuration information set for the bucket. To use this
-// operation, you must have permission to perform the s3:PutBucketCORS action. The
-// bucket owner has this permission by default and can grant this permission to
-// others. For information about cors , see Enabling Cross-Origin Resource Sharing (https://docs.aws.amazon.com/AmazonS3/latest/dev/cors.html)
+// This operation is not supported by directory buckets. Deletes the cors
+// configuration information set for the bucket. To use this operation, you must
+// have permission to perform the s3:PutBucketCORS action. The bucket owner has
+// this permission by default and can grant this permission to others. For
+// information about cors , see Enabling Cross-Origin Resource Sharing (https://docs.aws.amazon.com/AmazonS3/latest/dev/cors.html)
 // in the Amazon S3 User Guide. Related Resources
 //   - PutBucketCors (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketCors.html)
 //   - RESTOPTIONSobject (https://docs.aws.amazon.com/AmazonS3/latest/API/RESTOPTIONSobject.html)
@@ -41,9 +43,9 @@ type DeleteBucketCorsInput struct {
 	// This member is required.
 	Bucket *string
 
-	// The account ID of the expected bucket owner. If the bucket is owned by a
-	// different account, the request fails with the HTTP status code 403 Forbidden
-	// (access denied).
+	// The account ID of the expected bucket owner. If the account ID that you provide
+	// does not match the actual owner of the bucket, the request fails with the HTTP
+	// status code 403 Forbidden (access denied).
 	ExpectedBucketOwner *string
 
 	noSmithyDocumentSerde
@@ -51,7 +53,7 @@ type DeleteBucketCorsInput struct {
 
 func (in *DeleteBucketCorsInput) bindEndpointParams(p *EndpointParameters) {
 	p.Bucket = in.Bucket
-
+	p.UseS3ExpressControlEndpoint = ptr.Bool(true)
 }
 
 type DeleteBucketCorsOutput struct {
@@ -114,6 +116,9 @@ func (c *Client) addOperationDeleteBucketCorsMiddlewares(stack *middleware.Stack
 		return err
 	}
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addPutBucketContextMiddleware(stack); err != nil {
 		return err
 	}
 	if err = addOpDeleteBucketCorsValidationMiddleware(stack); err != nil {

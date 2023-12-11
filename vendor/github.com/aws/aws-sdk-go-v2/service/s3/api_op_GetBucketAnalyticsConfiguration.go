@@ -10,15 +10,17 @@ import (
 	s3cust "github.com/aws/aws-sdk-go-v2/service/s3/internal/customizations"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/smithy-go/middleware"
+	"github.com/aws/smithy-go/ptr"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// This implementation of the GET action returns an analytics configuration
-// (identified by the analytics configuration ID) from the bucket. To use this
-// operation, you must have permissions to perform the s3:GetAnalyticsConfiguration
-// action. The bucket owner has this permission by default. The bucket owner can
-// grant this permission to others. For more information about permissions, see
-// Permissions Related to Bucket Subresource Operations (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-with-s3-actions.html#using-with-s3-actions-related-to-bucket-subresources)
+// This operation is not supported by directory buckets. This implementation of
+// the GET action returns an analytics configuration (identified by the analytics
+// configuration ID) from the bucket. To use this operation, you must have
+// permissions to perform the s3:GetAnalyticsConfiguration action. The bucket
+// owner has this permission by default. The bucket owner can grant this permission
+// to others. For more information about permissions, see Permissions Related to
+// Bucket Subresource Operations (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-with-s3-actions.html#using-with-s3-actions-related-to-bucket-subresources)
 // and Managing Access Permissions to Your Amazon S3 Resources (https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-access-control.html)
 // in the Amazon S3 User Guide. For information about Amazon S3 analytics feature,
 // see Amazon S3 Analytics – Storage Class Analysis (https://docs.aws.amazon.com/AmazonS3/latest/dev/analytics-storage-class.html)
@@ -54,9 +56,9 @@ type GetBucketAnalyticsConfigurationInput struct {
 	// This member is required.
 	Id *string
 
-	// The account ID of the expected bucket owner. If the bucket is owned by a
-	// different account, the request fails with the HTTP status code 403 Forbidden
-	// (access denied).
+	// The account ID of the expected bucket owner. If the account ID that you provide
+	// does not match the actual owner of the bucket, the request fails with the HTTP
+	// status code 403 Forbidden (access denied).
 	ExpectedBucketOwner *string
 
 	noSmithyDocumentSerde
@@ -64,7 +66,7 @@ type GetBucketAnalyticsConfigurationInput struct {
 
 func (in *GetBucketAnalyticsConfigurationInput) bindEndpointParams(p *EndpointParameters) {
 	p.Bucket = in.Bucket
-
+	p.UseS3ExpressControlEndpoint = ptr.Bool(true)
 }
 
 type GetBucketAnalyticsConfigurationOutput struct {
@@ -131,6 +133,9 @@ func (c *Client) addOperationGetBucketAnalyticsConfigurationMiddlewares(stack *m
 		return err
 	}
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addPutBucketContextMiddleware(stack); err != nil {
 		return err
 	}
 	if err = addOpGetBucketAnalyticsConfigurationValidationMiddleware(stack); err != nil {

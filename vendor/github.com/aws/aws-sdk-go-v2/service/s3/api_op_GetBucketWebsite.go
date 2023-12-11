@@ -10,12 +10,14 @@ import (
 	s3cust "github.com/aws/aws-sdk-go-v2/service/s3/internal/customizations"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/smithy-go/middleware"
+	"github.com/aws/smithy-go/ptr"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Returns the website configuration for a bucket. To host website on Amazon S3,
-// you can configure a bucket as website by adding a website configuration. For
-// more information about hosting websites, see Hosting Websites on Amazon S3 (https://docs.aws.amazon.com/AmazonS3/latest/dev/WebsiteHosting.html)
+// This operation is not supported by directory buckets. Returns the website
+// configuration for a bucket. To host website on Amazon S3, you can configure a
+// bucket as website by adding a website configuration. For more information about
+// hosting websites, see Hosting Websites on Amazon S3 (https://docs.aws.amazon.com/AmazonS3/latest/dev/WebsiteHosting.html)
 // . This GET action requires the S3:GetBucketWebsite permission. By default, only
 // the bucket owner can read the bucket website configuration. However, bucket
 // owners can allow other users to read the website configuration by writing a
@@ -45,9 +47,9 @@ type GetBucketWebsiteInput struct {
 	// This member is required.
 	Bucket *string
 
-	// The account ID of the expected bucket owner. If the bucket is owned by a
-	// different account, the request fails with the HTTP status code 403 Forbidden
-	// (access denied).
+	// The account ID of the expected bucket owner. If the account ID that you provide
+	// does not match the actual owner of the bucket, the request fails with the HTTP
+	// status code 403 Forbidden (access denied).
 	ExpectedBucketOwner *string
 
 	noSmithyDocumentSerde
@@ -55,7 +57,7 @@ type GetBucketWebsiteInput struct {
 
 func (in *GetBucketWebsiteInput) bindEndpointParams(p *EndpointParameters) {
 	p.Bucket = in.Bucket
-
+	p.UseS3ExpressControlEndpoint = ptr.Bool(true)
 }
 
 type GetBucketWebsiteOutput struct {
@@ -132,6 +134,9 @@ func (c *Client) addOperationGetBucketWebsiteMiddlewares(stack *middleware.Stack
 		return err
 	}
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addPutBucketContextMiddleware(stack); err != nil {
 		return err
 	}
 	if err = addOpGetBucketWebsiteValidationMiddleware(stack); err != nil {
