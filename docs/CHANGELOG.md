@@ -216,6 +216,22 @@ Released at 2023-10-02
 * BUGFIX: [vminsert](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): fix ingestion via [multitenant url](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy-via-labels) for opentsdbhttp. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5061). The bug has been introduced in [v1.93.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.2).
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): fix support of legacy DataDog agent, which adds trailing slashes to urls. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5078). Thanks to @maxb for spotting the issue.
 
+## [v1.93.9](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.9)
+
+Released at 2023-12-10
+
+**v1.93.x is a line of LTS releases (e.g. long-time support). It contains important up-to-date bugfixes.
+The v1.93.x line will be supported for at least 12 months since [v1.93.0](https://docs.victoriametrics.com/CHANGELOG.html#v1930) release**
+
+* SECURITY: upgrade base docker image (Alpine) from 3.18.4 to 3.19.0. See [alpine 3.19.0 release notes](https://www.alpinelinux.org/posts/Alpine-3.19.0-released.html).
+* SECURITY: upgrade Go builder from Go1.21.4 to Go1.21.5. See [the list of issues addressed in Go1.21.5](https://github.com/golang/go/issues?q=milestone%3AGo1.21.5+label%3ACherryPickApproved).
+
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): prevent from `FATAL: cannot flush metainfo` panic when [`-remoteWrite.multitenantURL`](https://docs.victoriametrics.com/vmagent.html#multitenancy) command-line flag is set. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5357).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): properly decode zstd-encoded data blocks received via [VictoriaMetrics remote_write protocol](https://docs.victoriametrics.com/vmagent.html#victoriametrics-remote-write-protocol). See [this issue comment](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5301#issuecomment-1815871992).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): properly add new labels at `output_relabel_configs` during [stream aggregation](https://docs.victoriametrics.com/stream-aggregation.html). Previously this could lead to corrupted labels in output samples. Thanks to @ChengChung for providing [detailed report for this bug](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5402).
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): sanitize label names before sending the alert notification to Alertmanager. Before, vmalert would send notifications with labels containing characters not supported by Alertmanager validator, resulting into validation errors like `msg="Failed to validate alerts" err="invalid label set: invalid name "foo.bar"`.
+* BUGFIX: properly escape `<` character in responses returned via [`/federate`](https://docs.victoriametrics.com/#federation) endpoint. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5431).
+
 ## [v1.93.8](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.8)
 
 Released at 2023-11-15
