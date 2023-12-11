@@ -1,3 +1,61 @@
+# v1.15.7 (2023-12-08)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.15.6 (2023-12-07)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.15.5 (2023-12-06)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.15.4 (2023-12-01)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.15.3 (2023-11-30)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.15.2 (2023-11-29)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.15.1 (2023-11-28.3)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.15.0 (2023-11-28.2)
+
+* **Feature**: Add S3Express support.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.14.4 (2023-11-28)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.14.3 (2023-11-27)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.14.2 (2023-11-21)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.14.1 (2023-11-20)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.14.0 (2023-11-17)
+
+* **Feature**: **BREAKING CHANGE** Correct nullability of a large number of S3 structure fields. See https://github.com/aws/aws-sdk-go-v2/issues/2162.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.13.9 (2023-11-16)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # v1.13.8 (2023-11-15)
 
 * **Dependency Update**: Updated to the latest SDK module versions

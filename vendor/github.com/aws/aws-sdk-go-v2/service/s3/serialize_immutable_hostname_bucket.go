@@ -3,8 +3,9 @@ package s3
 import (
 	"context"
 	"fmt"
-	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
 	"path"
+
+	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
 
 	"github.com/aws/aws-sdk-go-v2/internal/endpoints/awsrulesfn"
 	smithy "github.com/aws/smithy-go"
@@ -38,13 +39,17 @@ func (m *serializeImmutableHostnameBucketMiddleware) HandleSerialize(
 	if !ok {
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown transport type %T", in.Request)}
 	}
-	if !smithyhttp.GetHostnameImmutable(ctx) &&
-		!(awsmiddleware.GetRequiresLegacyEndpoints(ctx) && m.UsePathStyle) {
-		return next.HandleSerialize(ctx, in)
-	}
 
 	bucket, ok := bucketFromInput(in.Parameters)
 	if !ok {
+		return next.HandleSerialize(ctx, in)
+	}
+
+	// a bucket being un-vhostable will also force us to use path style
+	usePathStyle := m.UsePathStyle || !awsrulesfn.IsVirtualHostableS3Bucket(bucket, request.URL.Scheme != "https")
+
+	if !smithyhttp.GetHostnameImmutable(ctx) &&
+		!(awsmiddleware.GetRequiresLegacyEndpoints(ctx) && usePathStyle) {
 		return next.HandleSerialize(ctx, in)
 	}
 

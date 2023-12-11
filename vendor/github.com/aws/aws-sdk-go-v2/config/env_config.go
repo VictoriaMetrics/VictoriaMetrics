@@ -12,6 +12,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/feature/ec2/imds"
+	smithyrequestcompression "github.com/aws/smithy-go/private/requestcompression"
 )
 
 // CredentialsSourceName provides a name of the provider when config is
@@ -74,6 +75,11 @@ const (
 
 	awsIgnoreConfiguredEndpoints = "AWS_IGNORE_CONFIGURED_ENDPOINT_URLS"
 	awsEndpointURL               = "AWS_ENDPOINT_URL"
+
+	awsDisableRequestCompression      = "AWS_DISABLE_REQUEST_COMPRESSION"
+	awsRequestMinCompressionSizeBytes = "AWS_REQUEST_MIN_COMPRESSION_SIZE_BYTES"
+
+	awsS3DisableExpressSessionAuthEnv = "AWS_S3_DISABLE_EXPRESS_SESSION_AUTH"
 )
 
 var (
@@ -268,6 +274,22 @@ type EnvConfig struct {
 	// Value to contain configured endpoints to be propagated to
 	// corresponding endpoint resolution field.
 	BaseEndpoint string
+
+	// determine if request compression is allowed, default to false
+	// retrieved from env var AWS_DISABLE_REQUEST_COMPRESSION
+	DisableRequestCompression *bool
+
+	// inclusive threshold request body size to trigger compression,
+	// default to 10240 and must be within 0 and 10485760 bytes inclusive
+	// retrieved from env var AWS_REQUEST_MIN_COMPRESSION_SIZE_BYTES
+	RequestMinCompressSizeBytes *int64
+
+	// Whether S3Express auth is disabled.
+	//
+	// This will NOT prevent requests from being made to S3Express buckets, it
+	// will only bypass the modified endpoint routing and signing behaviors
+	// associated with the feature.
+	S3DisableExpressAuth *bool
 }
 
 // loadEnvConfig reads configuration values from the OS's environment variables.
@@ -309,6 +331,13 @@ func NewEnvConfig() (EnvConfig, error) {
 	cfg.RoleSessionName = os.Getenv(awsRoleSessionNameEnvVar)
 
 	cfg.AppID = os.Getenv(awsSdkAppID)
+
+	if err := setBoolPtrFromEnvVal(&cfg.DisableRequestCompression, []string{awsDisableRequestCompression}); err != nil {
+		return cfg, err
+	}
+	if err := setInt64PtrFromEnvVal(&cfg.RequestMinCompressSizeBytes, []string{awsRequestMinCompressionSizeBytes}, smithyrequestcompression.MaxRequestMinCompressSizeBytes); err != nil {
+		return cfg, err
+	}
 
 	if err := setEndpointDiscoveryTypeFromEnvVal(&cfg.EnableEndpointDiscovery, []string{awsEnableEndpointDiscoveryEnvVar}); err != nil {
 		return cfg, err
@@ -356,6 +385,10 @@ func NewEnvConfig() (EnvConfig, error) {
 		return cfg, err
 	}
 
+	if err := setBoolPtrFromEnvVal(&cfg.S3DisableExpressAuth, []string{awsS3DisableExpressSessionAuthEnv}); err != nil {
+		return cfg, err
+	}
+
 	return cfg, nil
 }
 
@@ -368,6 +401,20 @@ func (c EnvConfig) getDefaultsMode(ctx context.Context) (aws.DefaultsMode, bool,
 
 func (c EnvConfig) getAppID(context.Context) (string, bool, error) {
 	return c.AppID, len(c.AppID) > 0, nil
+}
+
+func (c EnvConfig) getDisableRequestCompression(context.Context) (bool, bool, error) {
+	if c.DisableRequestCompression == nil {
+		return false, false, nil
+	}
+	return *c.DisableRequestCompression, true, nil
+}
+
+func (c EnvConfig) getRequestMinCompressSizeBytes(context.Context) (int64, bool, error) {
+	if c.RequestMinCompressSizeBytes == nil {
+		return 0, false, nil
+	}
+	return *c.RequestMinCompressSizeBytes, true, nil
 }
 
 // GetRetryMaxAttempts returns the value of AWS_MAX_ATTEMPTS if was specified,
@@ -626,6 +673,30 @@ func setBoolPtrFromEnvVal(dst **bool, keys []string) error {
 	return nil
 }
 
+func setInt64PtrFromEnvVal(dst **int64, keys []string, max int64) error {
+	for _, k := range keys {
+		value := os.Getenv(k)
+		if len(value) == 0 {
+			continue
+		}
+
+		v, err := strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			return fmt.Errorf("invalid value for env var, %s=%s, need int64", k, value)
+		} else if v < 0 || v > max {
+			return fmt.Errorf("invalid range for env var min request compression size bytes %q, must be within 0 and 10485760 inclusively", v)
+		}
+		if *dst == nil {
+			*dst = new(int64)
+		}
+
+		**dst = v
+		break
+	}
+
+	return nil
+}
+
 func setEndpointDiscoveryTypeFromEnvVal(dst *aws.EndpointDiscoveryEnableState, keys []string) error {
 	for _, k := range keys {
 		value := os.Getenv(k)
@@ -735,4 +806,14 @@ func (c EnvConfig) GetEC2IMDSV1FallbackDisabled() (bool, bool) {
 	}
 
 	return *c.EC2IMDSv1Disabled, true
+}
+
+// GetS3DisableExpressAuth returns the configured value for
+// [EnvConfig.S3DisableExpressAuth].
+func (c EnvConfig) GetS3DisableExpressAuth() (value, ok bool) {
+	if c.S3DisableExpressAuth == nil {
+		return false, false
+	}
+
+	return *c.S3DisableExpressAuth, true
 }

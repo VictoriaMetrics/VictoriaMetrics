@@ -10,10 +10,12 @@ import (
 	s3cust "github.com/aws/aws-sdk-go-v2/service/s3/internal/customizations"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/smithy-go/middleware"
+	"github.com/aws/smithy-go/ptr"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Gets the S3 Intelligent-Tiering configuration from the specified bucket. The S3
+// This operation is not supported by directory buckets. Gets the S3
+// Intelligent-Tiering configuration from the specified bucket. The S3
 // Intelligent-Tiering storage class is designed to optimize storage costs by
 // automatically moving data to the most cost-effective storage access tier,
 // without performance impact or operational overhead. S3 Intelligent-Tiering
@@ -64,7 +66,7 @@ type GetBucketIntelligentTieringConfigurationInput struct {
 
 func (in *GetBucketIntelligentTieringConfigurationInput) bindEndpointParams(p *EndpointParameters) {
 	p.Bucket = in.Bucket
-
+	p.UseS3ExpressControlEndpoint = ptr.Bool(true)
 }
 
 type GetBucketIntelligentTieringConfigurationOutput struct {
@@ -131,6 +133,9 @@ func (c *Client) addOperationGetBucketIntelligentTieringConfigurationMiddlewares
 		return err
 	}
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addPutBucketContextMiddleware(stack); err != nil {
 		return err
 	}
 	if err = addOpGetBucketIntelligentTieringConfigurationValidationMiddleware(stack); err != nil {

@@ -115,7 +115,7 @@ func (m *ResolveEndpoint) HandleSerialize(ctx context.Context, in middleware.Ser
 	if len(awsmiddleware.GetSigningName(ctx)) == 0 {
 		signingName := endpoint.SigningName
 		if len(signingName) == 0 {
-			signingName = "awsssooidc"
+			signingName = "sso-oauth"
 		}
 		ctx = awsmiddleware.SetSigningName(ctx, signingName)
 	}
@@ -366,8 +366,8 @@ func (r *resolver) ResolveEndpoint(
 				}
 			}
 			if _UseFIPS == true {
-				if true == _PartitionResult.SupportsFIPS {
-					if "aws-us-gov" == _PartitionResult.Name {
+				if _PartitionResult.SupportsFIPS == true {
+					if _PartitionResult.Name == "aws-us-gov" {
 						uriString := func() string {
 							var out strings.Builder
 							out.WriteString("https://oidc.")
