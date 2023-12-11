@@ -363,7 +363,7 @@ var (
 		},
 		&cli.StringFlag{
 			Name: vmNativeStepInterval,
-			Usage: fmt.Sprintf("Split export data into chunks. By default, the migration will start from the oldest to the newest intervals. When set '--vm-native-filter-time-reverse', the migration will start from the newest to the oldest intervals. Valid values are '%s','%s','%s','%s','%s'.", vmNativeFilterTimeStart,
+			Usage: fmt.Sprintf("Split export data into chunks. By default, the migration will start from the oldest to the newest intervals. When set '--vm-native-filter-time-reverse', the migration will start from the newest to the oldest intervals. Requires setting --%s. Valid values are '%s','%s','%s','%s','%s'.", vmNativeFilterTimeStart,
 				stepper.StepMonth, stepper.StepWeek, stepper.StepDay, stepper.StepHour, stepper.StepMinute),
 			Value: stepper.StepMonth,
 		},
