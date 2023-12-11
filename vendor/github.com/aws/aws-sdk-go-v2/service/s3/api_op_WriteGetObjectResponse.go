@@ -18,9 +18,10 @@ import (
 	"time"
 )
 
-// Passes transformed objects to a GetObject operation when using Object Lambda
-// access points. For information about Object Lambda access points, see
-// Transforming objects with Object Lambda access points (https://docs.aws.amazon.com/AmazonS3/latest/userguide/transforming-objects.html)
+// This operation is not supported by directory buckets. Passes transformed
+// objects to a GetObject operation when using Object Lambda access points. For
+// information about Object Lambda access points, see Transforming objects with
+// Object Lambda access points (https://docs.aws.amazon.com/AmazonS3/latest/userguide/transforming-objects.html)
 // in the Amazon S3 User Guide. This operation supports metadata that can be
 // returned by GetObject (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html)
 // , in addition to RequestRoute , RequestToken , StatusCode , ErrorCode , and
@@ -89,7 +90,7 @@ type WriteGetObjectResponseInput struct {
 
 	// Indicates whether the object stored in Amazon S3 uses an S3 bucket key for
 	// server-side encryption with Amazon Web Services KMS (SSE-KMS).
-	BucketKeyEnabled bool
+	BucketKeyEnabled *bool
 
 	// Specifies caching behavior along the request/reply chain.
 	CacheControl *string
@@ -150,7 +151,7 @@ type WriteGetObjectResponseInput struct {
 	ContentLanguage *string
 
 	// The size of the content body in bytes.
-	ContentLength int64
+	ContentLength *int64
 
 	// The portion of the object returned in the response.
 	ContentRange *string
@@ -160,7 +161,7 @@ type WriteGetObjectResponseInput struct {
 
 	// Specifies whether an object stored in Amazon S3 is ( true ) or is not ( false )
 	// a delete marker.
-	DeleteMarker bool
+	DeleteMarker *bool
 
 	// An opaque identifier assigned by a web server to a specific version of a
 	// resource found at a URL.
@@ -198,7 +199,7 @@ type WriteGetObjectResponseInput struct {
 	// can happen if you create metadata using an API like SOAP that supports more
 	// flexible metadata than the REST API. For example, using SOAP, you can create
 	// metadata whose values are not legal HTTP headers.
-	MissingMeta int32
+	MissingMeta *int32
 
 	// Indicates whether an object stored in Amazon S3 has an active legal hold.
 	ObjectLockLegalHoldStatus types.ObjectLockLegalHoldStatus
@@ -212,7 +213,7 @@ type WriteGetObjectResponseInput struct {
 	ObjectLockRetainUntilDate *time.Time
 
 	// The count of parts this object has.
-	PartsCount int32
+	PartsCount *int32
 
 	// Indicates if request involves bucket that is either a source or destination in
 	// a Replication rule. For more information about S3 Replication, see Replication (https://docs.aws.amazon.com/AmazonS3/latest/userguide/replication.html)
@@ -220,7 +221,7 @@ type WriteGetObjectResponseInput struct {
 	ReplicationStatus types.ReplicationStatus
 
 	// If present, indicates that the requester was successfully charged for the
-	// request.
+	// request. This functionality is not supported for directory buckets.
 	RequestCharged types.RequestCharged
 
 	// Provides information about object restoration operation and expiration time of
@@ -262,7 +263,7 @@ type WriteGetObjectResponseInput struct {
 	//   - 416 - Range Not Satisfiable
 	//   - 500 - Internal Server Error
 	//   - 503 - Service Unavailable
-	StatusCode int32
+	StatusCode *int32
 
 	// Provides storage class information of the object. Amazon S3 returns this header
 	// for all objects except for S3 Standard storage class objects. For more
@@ -271,7 +272,7 @@ type WriteGetObjectResponseInput struct {
 	StorageClass types.StorageClass
 
 	// The number of tags, if any, on the object.
-	TagCount int32
+	TagCount *int32
 
 	// An ID used to reference a specific version of the object.
 	VersionId *string
@@ -347,6 +348,9 @@ func (c *Client) addOperationWriteGetObjectResponseMiddlewares(stack *middleware
 		return err
 	}
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addPutBucketContextMiddleware(stack); err != nil {
 		return err
 	}
 	if err = addEndpointPrefix_opWriteGetObjectResponseMiddleware(stack); err != nil {

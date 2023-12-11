@@ -1,6 +1,5 @@
 package rulesfn
 
-
 // Substring returns the substring of the input provided. If the start or stop
 // indexes are not valid for the input nil will be returned. If errors occur
 // they will be added to the provided [ErrorCollector].

@@ -42,8 +42,8 @@ type StartDeviceAuthorizationInput struct {
 	// This member is required.
 	ClientSecret *string
 
-	// The URL for the AWS access portal. For more information, see Using the AWS
-	// access portal (https://docs.aws.amazon.com/singlesignon/latest/userguide/using-the-portal.html)
+	// The URL for the Amazon Web Services access portal. For more information, see
+	// Using the Amazon Web Services access portal (https://docs.aws.amazon.com/singlesignon/latest/userguide/using-the-portal.html)
 	// in the IAM Identity Center User Guide.
 	//
 	// This member is required.

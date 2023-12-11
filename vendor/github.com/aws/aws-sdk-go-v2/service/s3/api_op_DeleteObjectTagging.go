@@ -12,8 +12,9 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Removes the entire tag set from the specified object. For more information
-// about managing object tags, see Object Tagging (https://docs.aws.amazon.com/AmazonS3/latest/dev/object-tagging.html)
+// This operation is not supported by directory buckets. Removes the entire tag
+// set from the specified object. For more information about managing object tags,
+// see Object Tagging (https://docs.aws.amazon.com/AmazonS3/latest/dev/object-tagging.html)
 // . To use this operation, you must have permission to perform the
 // s3:DeleteObjectTagging action. To delete tags of a specific object version, add
 // the versionId query parameter in the request. You will need permission for the
@@ -38,16 +39,18 @@ func (c *Client) DeleteObjectTagging(ctx context.Context, params *DeleteObjectTa
 
 type DeleteObjectTaggingInput struct {
 
-	// The bucket name containing the objects from which to remove the tags. When
-	// using this action with an access point, you must direct requests to the access
-	// point hostname. The access point hostname takes the form
+	// The bucket name containing the objects from which to remove the tags. Access
+	// points - When you use this action with an access point, you must provide the
+	// alias of the access point in place of the bucket name or specify the access
+	// point ARN. When using the access point ARN, you must direct requests to the
+	// access point hostname. The access point hostname takes the form
 	// AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com. When using this
 	// action with an access point through the Amazon Web Services SDKs, you provide
 	// the access point ARN in place of the bucket name. For more information about
 	// access point ARNs, see Using access points (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html)
-	// in the Amazon S3 User Guide. When you use this action with Amazon S3 on
-	// Outposts, you must direct requests to the S3 on Outposts hostname. The S3 on
-	// Outposts hostname takes the form
+	// in the Amazon S3 User Guide. S3 on Outposts - When you use this action with
+	// Amazon S3 on Outposts, you must direct requests to the S3 on Outposts hostname.
+	// The S3 on Outposts hostname takes the form
 	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com . When you
 	// use this action with S3 on Outposts through the Amazon Web Services SDKs, you
 	// provide the Outposts access point ARN in place of the bucket name. For more
@@ -62,9 +65,9 @@ type DeleteObjectTaggingInput struct {
 	// This member is required.
 	Key *string
 
-	// The account ID of the expected bucket owner. If the bucket is owned by a
-	// different account, the request fails with the HTTP status code 403 Forbidden
-	// (access denied).
+	// The account ID of the expected bucket owner. If the account ID that you provide
+	// does not match the actual owner of the bucket, the request fails with the HTTP
+	// status code 403 Forbidden (access denied).
 	ExpectedBucketOwner *string
 
 	// The versionId of the object that the tag-set will be removed from.
@@ -142,6 +145,9 @@ func (c *Client) addOperationDeleteObjectTaggingMiddlewares(stack *middleware.St
 		return err
 	}
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addPutBucketContextMiddleware(stack); err != nil {
 		return err
 	}
 	if err = addOpDeleteObjectTaggingValidationMiddleware(stack); err != nil {

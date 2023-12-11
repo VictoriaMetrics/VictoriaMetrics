@@ -10,6 +10,7 @@
         "api_client.go",
         "api_client_test.go",
         "api_op_CreateToken.go",
+        "api_op_CreateTokenWithIAM.go",
         "api_op_RegisterClient.go",
         "api_op_StartDeviceAuthorization.go",
         "auth.go",

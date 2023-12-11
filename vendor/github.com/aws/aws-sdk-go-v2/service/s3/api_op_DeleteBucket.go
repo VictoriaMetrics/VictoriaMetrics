@@ -9,12 +9,37 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	s3cust "github.com/aws/aws-sdk-go-v2/service/s3/internal/customizations"
 	"github.com/aws/smithy-go/middleware"
+	"github.com/aws/smithy-go/ptr"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
 // Deletes the S3 bucket. All objects (including all object versions and delete
 // markers) in the bucket must be deleted before the bucket itself can be deleted.
-// The following operations are related to DeleteBucket :
+//   - Directory buckets - If multipart uploads in a directory bucket are in
+//     progress, you can't delete the bucket until all the in-progress multipart
+//     uploads are aborted or completed.
+//   - Directory buckets - For directory buckets, you must make requests for this
+//     API operation to the Regional endpoint. These endpoints support path-style
+//     requests in the format
+//     https://s3express-control.region_code.amazonaws.com/bucket-name .
+//     Virtual-hosted-style requests aren't supported. For more information, see
+//     Regional and Zonal endpoints (https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-Regions-and-Zones.html)
+//     in the Amazon S3 User Guide.
+//
+// Permissions
+//   - General purpose bucket permissions - You must have the s3:DeleteBucket
+//     permission on the specified bucket in a policy.
+//   - Directory bucket permissions - You must have the s3express:DeleteBucket
+//     permission in an IAM identity-based policy instead of a bucket policy.
+//     Cross-account access to this API operation isn't supported. This operation can
+//     only be performed by the Amazon Web Services account that owns the resource. For
+//     more information about directory bucket policies and permissions, see Amazon
+//     Web Services Identity and Access Management (IAM) for S3 Express One Zone (https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-security-iam.html)
+//     in the Amazon S3 User Guide.
+//
+// HTTP Host header syntax Directory buckets - The HTTP Host header syntax is
+// s3express-control.region.amazonaws.com . The following operations are related to
+// DeleteBucket :
 //   - CreateBucket (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateBucket.html)
 //   - DeleteObject (https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteObject.html)
 func (c *Client) DeleteBucket(ctx context.Context, params *DeleteBucketInput, optFns ...func(*Options)) (*DeleteBucketOutput, error) {
@@ -34,14 +59,24 @@ func (c *Client) DeleteBucket(ctx context.Context, params *DeleteBucketInput, op
 
 type DeleteBucketInput struct {
 
-	// Specifies the bucket being deleted.
+	// Specifies the bucket being deleted. Directory buckets - When you use this
+	// operation with a directory bucket, you must use path-style requests in the
+	// format https://s3express-control.region_code.amazonaws.com/bucket-name .
+	// Virtual-hosted-style requests aren't supported. Directory bucket names must be
+	// unique in the chosen Availability Zone. Bucket names must also follow the format
+	// bucket_base_name--az_id--x-s3 (for example,  DOC-EXAMPLE-BUCKET--usw2-az2--x-s3
+	// ). For information about bucket naming restrictions, see Directory bucket
+	// naming rules (https://docs.aws.amazon.com/AmazonS3/latest/userguide/directory-bucket-naming-rules.html)
+	// in the Amazon S3 User Guide
 	//
 	// This member is required.
 	Bucket *string
 
-	// The account ID of the expected bucket owner. If the bucket is owned by a
-	// different account, the request fails with the HTTP status code 403 Forbidden
-	// (access denied).
+	// The account ID of the expected bucket owner. If the account ID that you provide
+	// does not match the actual owner of the bucket, the request fails with the HTTP
+	// status code 403 Forbidden (access denied). For directory buckets, this header
+	// is not supported in this API operation. If you specify this header, the request
+	// fails with the HTTP status code 501 Not Implemented .
 	ExpectedBucketOwner *string
 
 	noSmithyDocumentSerde
@@ -49,7 +84,7 @@ type DeleteBucketInput struct {
 
 func (in *DeleteBucketInput) bindEndpointParams(p *EndpointParameters) {
 	p.Bucket = in.Bucket
-
+	p.UseS3ExpressControlEndpoint = ptr.Bool(true)
 }
 
 type DeleteBucketOutput struct {
@@ -112,6 +147,9 @@ func (c *Client) addOperationDeleteBucketMiddlewares(stack *middleware.Stack, op
 		return err
 	}
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addPutBucketContextMiddleware(stack); err != nil {
 		return err
 	}
 	if err = addOpDeleteBucketValidationMiddleware(stack); err != nil {
