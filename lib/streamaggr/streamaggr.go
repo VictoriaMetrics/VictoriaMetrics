@@ -253,15 +253,19 @@ type aggrState interface {
 	pushSample(inputKey, outputKey string, value float64)
 	appendSeriesForFlush(ctx *flushCtx)
 	getOutputName() string
-	getStateRepresentation(suffix string) []aggrStateRepresentation
+	getStateRepresentation(suffix string) aggrStateRepresentation
 }
 
 type aggrStateRepresentation struct {
-	metric            string
+	intervalSecs      uint64
 	lastPushTimestamp uint64
-	nextPushTimestamp uint64
-	currentValue      float64
-	samplesCount      uint64
+	metrics           []aggrStateRepresentationMetric
+}
+
+type aggrStateRepresentationMetric struct {
+	metric       string
+	currentValue float64
+	samplesCount uint64
 }
 
 // PushFunc is called by Aggregators when it needs to push its state to metrics storage
@@ -344,7 +348,7 @@ func newAggregator(cfg *Config, pushFunc PushFunc, dedupInterval time.Duration) 
 				}
 				phis[j] = phi
 			}
-			aggrStates[i] = newQuantilesAggrState(interval, stalenessInterval, phis)
+			aggrStates[i] = newQuantilesAggrState(interval, phis)
 			continue
 		}
 		switch output {
@@ -357,27 +361,27 @@ func newAggregator(cfg *Config, pushFunc PushFunc, dedupInterval time.Duration) 
 		case "increase_pure":
 			aggrStates[i] = newIncreasePureAggrState(interval, stalenessInterval)
 		case "count_series":
-			aggrStates[i] = newCountSeriesAggrState(interval, stalenessInterval)
+			aggrStates[i] = newCountSeriesAggrState(interval)
 		case "count_samples":
-			aggrStates[i] = newCountSamplesAggrState(interval, stalenessInterval)
+			aggrStates[i] = newCountSamplesAggrState(interval)
 		case "count_samples_total":
 			aggrStates[i] = newCountSamplesTotalAggrState(interval, stalenessInterval)
 		case "sum_samples":
-			aggrStates[i] = newSumSamplesAggrState(interval, stalenessInterval)
+			aggrStates[i] = newSumSamplesAggrState(interval)
 		case "sum_samples_total":
 			aggrStates[i] = newSumSamplesTotalAggrState(interval, stalenessInterval)
 		case "last":
-			aggrStates[i] = newLastAggrState(interval, stalenessInterval)
+			aggrStates[i] = newLastAggrState(interval)
 		case "min":
-			aggrStates[i] = newMinAggrState(interval, stalenessInterval)
+			aggrStates[i] = newMinAggrState(interval)
 		case "max":
-			aggrStates[i] = newMaxAggrState(interval, stalenessInterval)
+			aggrStates[i] = newMaxAggrState(interval)
 		case "avg":
-			aggrStates[i] = newAvgAggrState(interval, stalenessInterval)
+			aggrStates[i] = newAvgAggrState(interval)
 		case "stddev":
-			aggrStates[i] = newStddevAggrState(interval, stalenessInterval)
+			aggrStates[i] = newStddevAggrState(interval)
 		case "stdvar":
-			aggrStates[i] = newStdvarAggrState(interval, stalenessInterval)
+			aggrStates[i] = newStdvarAggrState(interval)
 		case "histogram_bucket":
 			aggrStates[i] = newHistogramBucketAggrState(interval, stalenessInterval)
 		default:
@@ -398,7 +402,7 @@ func newAggregator(cfg *Config, pushFunc PushFunc, dedupInterval time.Duration) 
 
 	var dedupAggr *lastAggrState
 	if dedupInterval > 0 {
-		dedupAggr = newLastAggrState(interval, stalenessInterval)
+		dedupAggr = newLastAggrState(interval)
 	}
 
 	// initialize the aggregator

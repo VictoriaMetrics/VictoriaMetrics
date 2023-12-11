@@ -2,6 +2,7 @@ package streamaggr
 
 import (
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
@@ -11,29 +12,23 @@ import (
 type avgAggrState struct {
 	m                 sync.Map
 	intervalSecs      uint64
-	stalenessSecs     uint64
-	lastPushTimestamp uint64
+	lastPushTimestamp atomic.Uint64
 }
 
 type avgStateValue struct {
-	mu             sync.Mutex
-	sum            float64
-	count          uint64
-	deleted        bool
-	deleteDeadline uint64
+	mu      sync.Mutex
+	sum     float64
+	count   uint64
+	deleted bool
 }
 
-func newAvgAggrState(interval time.Duration, stalenessInterval time.Duration) *avgAggrState {
+func newAvgAggrState(interval time.Duration) *avgAggrState {
 	return &avgAggrState{
-		intervalSecs:  roundDurationToSecs(interval),
-		stalenessSecs: roundDurationToSecs(stalenessInterval),
+		intervalSecs: roundDurationToSecs(interval),
 	}
 }
 
 func (as *avgAggrState) pushSample(_, outputKey string, value float64) {
-	currentTime := fasttime.UnixTimestamp()
-	deleteDeadline := currentTime + as.stalenessSecs
-
 again:
 	v, ok := as.m.Load(outputKey)
 	if !ok {
@@ -56,7 +51,6 @@ again:
 	if !deleted {
 		sv.sum += value
 		sv.count++
-		sv.deleteDeadline = deleteDeadline
 	}
 	sv.mu.Unlock()
 	if deleted {
@@ -66,56 +60,37 @@ again:
 	}
 }
 
-func (as *avgAggrState) removeOldEntries(currentTime uint64) {
-	m := &as.m
-	m.Range(func(k, v interface{}) bool {
-		sv := v.(*avgStateValue)
-
-		sv.mu.Lock()
-		deleted := currentTime > sv.deleteDeadline
-		if deleted {
-			// Mark the current entry as deleted
-			sv.deleted = deleted
-		}
-		sv.mu.Unlock()
-
-		if deleted {
-			m.Delete(k)
-		}
-		return true
-	})
-}
-
 func (as *avgAggrState) appendSeriesForFlush(ctx *flushCtx) {
 	currentTime := fasttime.UnixTimestamp()
 	currentTimeMsec := int64(currentTime) * 1000
 
-	as.removeOldEntries(currentTime)
-
 	m := &as.m
 	m.Range(func(k, v interface{}) bool {
+		// Atomically delete the entry from the map, so new entry is created for the next flush.
+		m.Delete(k)
+
 		sv := v.(*avgStateValue)
 		sv.mu.Lock()
 		var avg float64
 		if sv.count > 0 {
 			avg = sv.sum / float64(sv.count)
 		}
-		sv.sum = 0
-		sv.count = 0
+		// Mark the entry as deleted, so it won't be updated anymore by concurrent pushSample() calls.
+		sv.deleted = true
 		sv.mu.Unlock()
 		key := k.(string)
 		ctx.appendSeries(key, as.getOutputName(), currentTimeMsec, avg)
 		return true
 	})
-	as.lastPushTimestamp = currentTime
+	as.lastPushTimestamp.Store(currentTime)
 }
 
 func (as *avgAggrState) getOutputName() string {
 	return "avg"
 }
 
-func (as *avgAggrState) getStateRepresentation(suffix string) []aggrStateRepresentation {
-	result := make([]aggrStateRepresentation, 0)
+func (as *avgAggrState) getStateRepresentation(suffix string) aggrStateRepresentation {
+	metrics := make([]aggrStateRepresentationMetric, 0)
 	as.m.Range(func(k, v any) bool {
 		value := v.(*avgStateValue)
 		value.mu.Lock()
@@ -123,14 +98,16 @@ func (as *avgAggrState) getStateRepresentation(suffix string) []aggrStateReprese
 		if value.deleted {
 			return true
 		}
-		result = append(result, aggrStateRepresentation{
-			metric:            getLabelsStringFromKey(k.(string), suffix, as.getOutputName()),
-			currentValue:      value.sum / float64(value.count),
-			lastPushTimestamp: as.lastPushTimestamp,
-			nextPushTimestamp: as.lastPushTimestamp + as.intervalSecs,
-			samplesCount:      value.count,
+		metrics = append(metrics, aggrStateRepresentationMetric{
+			metric:       getLabelsStringFromKey(k.(string), suffix, as.getOutputName()),
+			currentValue: value.sum / float64(value.count),
+			samplesCount: value.count,
 		})
 		return true
 	})
-	return result
+	return aggrStateRepresentation{
+		intervalSecs:      as.intervalSecs,
+		lastPushTimestamp: as.lastPushTimestamp.Load(),
+		metrics:           metrics,
+	}
 }

@@ -2,6 +2,7 @@ package streamaggr
 
 import (
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
@@ -11,29 +12,23 @@ import (
 type lastAggrState struct {
 	m                 sync.Map
 	intervalSecs      uint64
-	stalenessSecs     uint64
-	lastPushTimestamp uint64
+	lastPushTimestamp atomic.Uint64
 }
 
 type lastStateValue struct {
-	mu             sync.Mutex
-	last           float64
-	samplesCount   uint64
-	deleted        bool
-	deleteDeadline uint64
+	mu           sync.Mutex
+	last         float64
+	samplesCount uint64
+	deleted      bool
 }
 
-func newLastAggrState(interval time.Duration, stalenessInterval time.Duration) *lastAggrState {
+func newLastAggrState(interval time.Duration) *lastAggrState {
 	return &lastAggrState{
-		intervalSecs:  roundDurationToSecs(interval),
-		stalenessSecs: roundDurationToSecs(stalenessInterval),
+		intervalSecs: roundDurationToSecs(interval),
 	}
 }
 
 func (as *lastAggrState) pushSample(_, outputKey string, value float64) {
-	currentTime := fasttime.UnixTimestamp()
-	deleteDeadline := currentTime + as.stalenessSecs
-
 again:
 	v, ok := as.m.Load(outputKey)
 	if !ok {
@@ -55,7 +50,6 @@ again:
 	if !deleted {
 		sv.last = value
 		sv.samplesCount++
-		sv.deleteDeadline = deleteDeadline
 	}
 	sv.mu.Unlock()
 	if deleted {
@@ -65,51 +59,33 @@ again:
 	}
 }
 
-func (as *lastAggrState) removeOldEntries(currentTime uint64) {
-	m := &as.m
-	m.Range(func(k, v interface{}) bool {
-		sv := v.(*lastStateValue)
-
-		sv.mu.Lock()
-		deleted := currentTime > sv.deleteDeadline
-		if deleted {
-			// Mark the current entry as deleted
-			sv.deleted = deleted
-		}
-		sv.mu.Unlock()
-
-		if deleted {
-			m.Delete(k)
-		}
-		return true
-	})
-}
-
 func (as *lastAggrState) appendSeriesForFlush(ctx *flushCtx) {
 	currentTime := fasttime.UnixTimestamp()
 	currentTimeMsec := int64(currentTime) * 1000
 
-	as.removeOldEntries(currentTime)
-
 	m := &as.m
 	m.Range(func(k, v interface{}) bool {
+		// Atomically delete the entry from the map, so new entry is created for the next flush.
+		m.Delete(k)
 		sv := v.(*lastStateValue)
 		sv.mu.Lock()
 		last := sv.last
+		// Mark the entry as deleted, so it won't be updated anymore by concurrent pushSample() calls.
+		sv.deleted = true
 		sv.mu.Unlock()
 		key := k.(string)
 		ctx.appendSeries(key, as.getOutputName(), currentTimeMsec, last)
 		return true
 	})
-	as.lastPushTimestamp = currentTime
+	as.lastPushTimestamp.Store(currentTime)
 }
 
 func (as *lastAggrState) getOutputName() string {
 	return "last"
 }
 
-func (as *lastAggrState) getStateRepresentation(suffix string) []aggrStateRepresentation {
-	result := make([]aggrStateRepresentation, 0)
+func (as *lastAggrState) getStateRepresentation(suffix string) aggrStateRepresentation {
+	metrics := make([]aggrStateRepresentationMetric, 0)
 	as.m.Range(func(k, v any) bool {
 		value := v.(*lastStateValue)
 		value.mu.Lock()
@@ -117,14 +93,16 @@ func (as *lastAggrState) getStateRepresentation(suffix string) []aggrStateRepres
 		if value.deleted {
 			return true
 		}
-		result = append(result, aggrStateRepresentation{
-			metric:            getLabelsStringFromKey(k.(string), suffix, as.getOutputName()),
-			currentValue:      value.last,
-			lastPushTimestamp: as.lastPushTimestamp,
-			nextPushTimestamp: as.lastPushTimestamp + as.intervalSecs,
-			samplesCount:      value.samplesCount,
+		metrics = append(metrics, aggrStateRepresentationMetric{
+			metric:       getLabelsStringFromKey(k.(string), suffix, as.getOutputName()),
+			currentValue: value.last,
+			samplesCount: value.samplesCount,
 		})
 		return true
 	})
-	return result
+	return aggrStateRepresentation{
+		intervalSecs:      as.intervalSecs,
+		lastPushTimestamp: as.lastPushTimestamp.Load(),
+		metrics:           metrics,
+	}
 }

@@ -3,6 +3,7 @@ package streamaggr
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 )
 
@@ -70,5 +71,11 @@ func WriteHumanReadableState(w http.ResponseWriter, r *http.Request, rws map[str
 		}
 	}
 
-	WriteStreamAggOutputStateHTML(w, rwActive, aggNum, agg, as, limitNum)
+	filter, err := url.QueryUnescape(r.FormValue("filter"))
+	if err != nil {
+		_, _ = fmt.Fprintf(w, "incorrect parameter 'filter': %v", err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	WriteStreamAggOutputStateHTML(w, rwActive, aggNum, agg, as, limitNum, filter)
 }

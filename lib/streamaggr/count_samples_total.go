@@ -2,6 +2,7 @@ package streamaggr
 
 import (
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
@@ -12,7 +13,7 @@ type countSamplesTotalAggrState struct {
 	m                 sync.Map
 	intervalSecs      uint64
 	stalenessSecs     uint64
-	lastPushTimestamp uint64
+	lastPushTimestamp atomic.Uint64
 }
 
 type countSamplesTotalStateValue struct {
@@ -99,15 +100,15 @@ func (as *countSamplesTotalAggrState) appendSeriesForFlush(ctx *flushCtx) {
 		ctx.appendSeries(key, as.getOutputName(), currentTimeMsec, float64(n))
 		return true
 	})
-	as.lastPushTimestamp = currentTime
+	as.lastPushTimestamp.Store(currentTime)
 }
 
 func (as *countSamplesTotalAggrState) getOutputName() string {
 	return "count_samples_total"
 }
 
-func (as *countSamplesTotalAggrState) getStateRepresentation(suffix string) []aggrStateRepresentation {
-	result := make([]aggrStateRepresentation, 0)
+func (as *countSamplesTotalAggrState) getStateRepresentation(suffix string) aggrStateRepresentation {
+	metrics := make([]aggrStateRepresentationMetric, 0)
 	as.m.Range(func(k, v any) bool {
 		value := v.(*countSamplesTotalStateValue)
 		value.mu.Lock()
@@ -115,14 +116,16 @@ func (as *countSamplesTotalAggrState) getStateRepresentation(suffix string) []ag
 		if value.deleted {
 			return true
 		}
-		result = append(result, aggrStateRepresentation{
-			metric:            getLabelsStringFromKey(k.(string), suffix, as.getOutputName()),
-			currentValue:      float64(value.n),
-			lastPushTimestamp: as.lastPushTimestamp,
-			nextPushTimestamp: as.lastPushTimestamp + as.intervalSecs,
-			samplesCount:      value.n,
+		metrics = append(metrics, aggrStateRepresentationMetric{
+			metric:       getLabelsStringFromKey(k.(string), suffix, as.getOutputName()),
+			currentValue: float64(value.n),
+			samplesCount: value.n,
 		})
 		return true
 	})
-	return result
+	return aggrStateRepresentation{
+		intervalSecs:      as.intervalSecs,
+		lastPushTimestamp: as.lastPushTimestamp.Load(),
+		metrics:           metrics,
+	}
 }

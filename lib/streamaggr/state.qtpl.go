@@ -14,335 +14,420 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/htmlcomponents"
 )
 
-//line lib/streamaggr/state.qtpl:12
+//line lib/streamaggr/state.qtpl:10
 import (
 	qtio422016 "io"
 
 	qt422016 "github.com/valyala/quicktemplate"
 )
 
-//line lib/streamaggr/state.qtpl:12
+//line lib/streamaggr/state.qtpl:10
 var (
 	_ = qtio422016.Copy
 	_ = qt422016.AcquireByteBuffer
 )
 
-//line lib/streamaggr/state.qtpl:12
+//line lib/streamaggr/state.qtpl:11
+const DEFAULT_LIMIT = 1000
+
+//line lib/streamaggr/state.qtpl:16
 func StreamStreamAggHTML(qw422016 *qt422016.Writer, rws map[string]*Aggregators, rwActive string) {
-//line lib/streamaggr/state.qtpl:12
+//line lib/streamaggr/state.qtpl:16
 	qw422016.N().S(`<!DOCTYPE html><html lang="en"><head>`)
-//line lib/streamaggr/state.qtpl:16
+//line lib/streamaggr/state.qtpl:20
 	htmlcomponents.StreamCommonHeader(qw422016)
-//line lib/streamaggr/state.qtpl:16
+//line lib/streamaggr/state.qtpl:20
 	qw422016.N().S(`<title>Stream aggregation</title></head><body>`)
-//line lib/streamaggr/state.qtpl:20
+//line lib/streamaggr/state.qtpl:24
 	htmlcomponents.StreamNavbar(qw422016)
-//line lib/streamaggr/state.qtpl:20
+//line lib/streamaggr/state.qtpl:24
 	qw422016.N().S(`<div class="container-fluid"><div class="row"><main class="col-12"><h1>Aggregations</h1><hr /><ul class="nav nav-tabs" id="rw-tab" role="tablist">`)
-//line lib/streamaggr/state.qtpl:27
+//line lib/streamaggr/state.qtpl:31
 	for rwKey, _ := range rws {
-//line lib/streamaggr/state.qtpl:27
+//line lib/streamaggr/state.qtpl:31
 		qw422016.N().S(`<li class="nav-item" role="presentation"><button class="nav-link`)
-//line lib/streamaggr/state.qtpl:29
+//line lib/streamaggr/state.qtpl:33
 		if rwKey == rwActive {
-//line lib/streamaggr/state.qtpl:29
+//line lib/streamaggr/state.qtpl:33
 			qw422016.N().S(` `)
-//line lib/streamaggr/state.qtpl:29
+//line lib/streamaggr/state.qtpl:33
 			qw422016.N().S(`active`)
-//line lib/streamaggr/state.qtpl:29
+//line lib/streamaggr/state.qtpl:33
 		}
-//line lib/streamaggr/state.qtpl:29
+//line lib/streamaggr/state.qtpl:33
 		qw422016.N().S(`" type="button" role="tab"onclick="location.href='?rw=`)
-//line lib/streamaggr/state.qtpl:30
+//line lib/streamaggr/state.qtpl:34
 		qw422016.E().S(rwKey)
-//line lib/streamaggr/state.qtpl:30
+//line lib/streamaggr/state.qtpl:34
 		qw422016.N().S(`'">`)
-//line lib/streamaggr/state.qtpl:31
+//line lib/streamaggr/state.qtpl:35
 		qw422016.E().S(rwKey)
-//line lib/streamaggr/state.qtpl:31
+//line lib/streamaggr/state.qtpl:35
 		qw422016.N().S(`</button></li>`)
-//line lib/streamaggr/state.qtpl:34
+//line lib/streamaggr/state.qtpl:38
 	}
-//line lib/streamaggr/state.qtpl:34
+//line lib/streamaggr/state.qtpl:38
 	qw422016.N().S(`</ul><div class="tab-content"><div class="tab-pane active" role="tabpanel"><div id="aggregations" class="table-responsive"><table class="table table-striped table-hover table-bordered table-sm"><thead><tr><th scope="col" style="width: 5%">Num</th><th scope="col" style="width: 35%">Match</th><th scope="col" style="width: 10%">By</th><th scope="col" style="width: 10%">Without</a><th scope="col" style="width: 40%">Outputs</a></tr></thead><tbody>`)
-//line lib/streamaggr/state.qtpl:50
+//line lib/streamaggr/state.qtpl:54
 	aggs := rws[rwActive]
 
-//line lib/streamaggr/state.qtpl:51
+//line lib/streamaggr/state.qtpl:55
 	for an, agg := range aggs.as {
-//line lib/streamaggr/state.qtpl:51
+//line lib/streamaggr/state.qtpl:55
 		qw422016.N().S(`<tr><td>`)
-//line lib/streamaggr/state.qtpl:53
+//line lib/streamaggr/state.qtpl:57
 		qw422016.N().D(an)
-//line lib/streamaggr/state.qtpl:53
+//line lib/streamaggr/state.qtpl:57
 		qw422016.N().S(`</td><td><code>`)
-//line lib/streamaggr/state.qtpl:55
+//line lib/streamaggr/state.qtpl:59
 		qw422016.E().S(agg.match.String())
-//line lib/streamaggr/state.qtpl:55
+//line lib/streamaggr/state.qtpl:59
 		qw422016.N().S(`</code></td><td class="labels">`)
-//line lib/streamaggr/state.qtpl:58
+//line lib/streamaggr/state.qtpl:62
 		for abn, ab := range agg.by {
-//line lib/streamaggr/state.qtpl:59
+//line lib/streamaggr/state.qtpl:63
 			if abn > 0 {
-//line lib/streamaggr/state.qtpl:59
-				qw422016.N().S(`<span>, </span>`)
-//line lib/streamaggr/state.qtpl:61
-			}
-//line lib/streamaggr/state.qtpl:61
-			qw422016.N().S(`<span class="badge bg-secondary">`)
 //line lib/streamaggr/state.qtpl:63
+				qw422016.N().S(`<span>, </span>`)
+//line lib/streamaggr/state.qtpl:65
+			}
+//line lib/streamaggr/state.qtpl:65
+			qw422016.N().S(`<span class="badge bg-secondary">`)
+//line lib/streamaggr/state.qtpl:67
 			qw422016.E().S(ab)
-//line lib/streamaggr/state.qtpl:63
+//line lib/streamaggr/state.qtpl:67
 			qw422016.N().S(`</span>`)
-//line lib/streamaggr/state.qtpl:65
+//line lib/streamaggr/state.qtpl:69
 		}
-//line lib/streamaggr/state.qtpl:65
+//line lib/streamaggr/state.qtpl:69
 		qw422016.N().S(`</td><td class="labels">`)
-//line lib/streamaggr/state.qtpl:68
+//line lib/streamaggr/state.qtpl:72
 		for awn, aw := range agg.without {
-//line lib/streamaggr/state.qtpl:69
+//line lib/streamaggr/state.qtpl:73
 			if awn > 0 {
-//line lib/streamaggr/state.qtpl:69
+//line lib/streamaggr/state.qtpl:73
 				qw422016.N().S(`<span>, </span>`)
-//line lib/streamaggr/state.qtpl:71
+//line lib/streamaggr/state.qtpl:75
 			}
-//line lib/streamaggr/state.qtpl:71
+//line lib/streamaggr/state.qtpl:75
 			qw422016.N().S(`<span class="badge bg-secondary">`)
-//line lib/streamaggr/state.qtpl:73
+//line lib/streamaggr/state.qtpl:77
 			qw422016.E().S(aw)
-//line lib/streamaggr/state.qtpl:73
+//line lib/streamaggr/state.qtpl:77
 			qw422016.N().S(`</span>`)
-//line lib/streamaggr/state.qtpl:75
+//line lib/streamaggr/state.qtpl:79
 		}
-//line lib/streamaggr/state.qtpl:75
+//line lib/streamaggr/state.qtpl:79
 		qw422016.N().S(`</td><td class="labels">`)
-//line lib/streamaggr/state.qtpl:78
+//line lib/streamaggr/state.qtpl:82
 		for asn, as := range agg.aggrStates {
-//line lib/streamaggr/state.qtpl:79
+//line lib/streamaggr/state.qtpl:83
 			if asn > 0 {
-//line lib/streamaggr/state.qtpl:79
+//line lib/streamaggr/state.qtpl:83
 				qw422016.N().S(`<span>, </span>`)
-//line lib/streamaggr/state.qtpl:81
+//line lib/streamaggr/state.qtpl:85
 			}
-//line lib/streamaggr/state.qtpl:81
+//line lib/streamaggr/state.qtpl:85
 			qw422016.N().S(`<a href="?rw=`)
-//line lib/streamaggr/state.qtpl:82
+//line lib/streamaggr/state.qtpl:86
 			qw422016.E().S(rwActive)
-//line lib/streamaggr/state.qtpl:82
+//line lib/streamaggr/state.qtpl:86
 			qw422016.N().S(`&agg=`)
-//line lib/streamaggr/state.qtpl:82
+//line lib/streamaggr/state.qtpl:86
 			qw422016.N().D(an)
-//line lib/streamaggr/state.qtpl:82
+//line lib/streamaggr/state.qtpl:86
 			qw422016.N().S(`&output=`)
-//line lib/streamaggr/state.qtpl:82
+//line lib/streamaggr/state.qtpl:86
 			qw422016.E().S(as.getOutputName())
-//line lib/streamaggr/state.qtpl:82
+//line lib/streamaggr/state.qtpl:86
+			qw422016.N().S(`&limit=`)
+//line lib/streamaggr/state.qtpl:86
+			qw422016.N().D(DEFAULT_LIMIT)
+//line lib/streamaggr/state.qtpl:86
 			qw422016.N().S(`">`)
-//line lib/streamaggr/state.qtpl:83
+//line lib/streamaggr/state.qtpl:87
 			qw422016.E().S(as.getOutputName())
-//line lib/streamaggr/state.qtpl:83
+//line lib/streamaggr/state.qtpl:87
 			qw422016.N().S(`</a>`)
-//line lib/streamaggr/state.qtpl:85
+//line lib/streamaggr/state.qtpl:89
 		}
-//line lib/streamaggr/state.qtpl:85
+//line lib/streamaggr/state.qtpl:89
 		qw422016.N().S(`</td></tr>`)
-//line lib/streamaggr/state.qtpl:88
+//line lib/streamaggr/state.qtpl:92
 	}
-//line lib/streamaggr/state.qtpl:88
+//line lib/streamaggr/state.qtpl:92
 	qw422016.N().S(`</tbody></table></div></div></div></main></div></div></body></html>`)
-//line lib/streamaggr/state.qtpl:99
+//line lib/streamaggr/state.qtpl:103
 }
 
-//line lib/streamaggr/state.qtpl:99
+//line lib/streamaggr/state.qtpl:103
 func WriteStreamAggHTML(qq422016 qtio422016.Writer, rws map[string]*Aggregators, rwActive string) {
-//line lib/streamaggr/state.qtpl:99
+//line lib/streamaggr/state.qtpl:103
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line lib/streamaggr/state.qtpl:99
+//line lib/streamaggr/state.qtpl:103
 	StreamStreamAggHTML(qw422016, rws, rwActive)
-//line lib/streamaggr/state.qtpl:99
+//line lib/streamaggr/state.qtpl:103
 	qt422016.ReleaseWriter(qw422016)
-//line lib/streamaggr/state.qtpl:99
+//line lib/streamaggr/state.qtpl:103
 }
 
-//line lib/streamaggr/state.qtpl:99
+//line lib/streamaggr/state.qtpl:103
 func StreamAggHTML(rws map[string]*Aggregators, rwActive string) string {
-//line lib/streamaggr/state.qtpl:99
+//line lib/streamaggr/state.qtpl:103
 	qb422016 := qt422016.AcquireByteBuffer()
-//line lib/streamaggr/state.qtpl:99
+//line lib/streamaggr/state.qtpl:103
 	WriteStreamAggHTML(qb422016, rws, rwActive)
-//line lib/streamaggr/state.qtpl:99
+//line lib/streamaggr/state.qtpl:103
 	qs422016 := string(qb422016.B)
-//line lib/streamaggr/state.qtpl:99
+//line lib/streamaggr/state.qtpl:103
 	qt422016.ReleaseByteBuffer(qb422016)
-//line lib/streamaggr/state.qtpl:99
+//line lib/streamaggr/state.qtpl:103
 	return qs422016
-//line lib/streamaggr/state.qtpl:99
+//line lib/streamaggr/state.qtpl:103
 }
 
-//line lib/streamaggr/state.qtpl:101
-func StreamStreamAggOutputStateHTML(qw422016 *qt422016.Writer, rwActive string, aggNum int, agg *aggregator, as aggrState, limit int) {
-//line lib/streamaggr/state.qtpl:101
+//line lib/streamaggr/state.qtpl:105
+func StreamStreamAggOutputStateHTML(qw422016 *qt422016.Writer, rwActive string, aggNum int, agg *aggregator, as aggrState, limit int, filter string) {
+//line lib/streamaggr/state.qtpl:105
 	qw422016.N().S(`<!DOCTYPE html><html lang="en"><head>`)
-//line lib/streamaggr/state.qtpl:105
+//line lib/streamaggr/state.qtpl:109
 	htmlcomponents.StreamCommonHeader(qw422016)
-//line lib/streamaggr/state.qtpl:105
+//line lib/streamaggr/state.qtpl:109
 	qw422016.N().S(`<title>Stream aggregation</title></head><body>`)
-//line lib/streamaggr/state.qtpl:109
+//line lib/streamaggr/state.qtpl:113
 	htmlcomponents.StreamNavbar(qw422016)
-//line lib/streamaggr/state.qtpl:109
-	qw422016.N().S(`<div class="container-fluid"><div class="row"><main class="col-12"><h1>Aggregation state</h1><h4> [ <a href="?rw=`)
-//line lib/streamaggr/state.qtpl:114
-	qw422016.E().S(rwActive)
-//line lib/streamaggr/state.qtpl:114
-	qw422016.N().S(`">back to aggregations</a> ] </h3><hr /><h6><div class="row"><div class="col-xxl-1">Remote write:</div><code class="col w-100">`)
-//line lib/streamaggr/state.qtpl:119
-	qw422016.E().S(rwActive)
-//line lib/streamaggr/state.qtpl:119
-	qw422016.N().S(`</code><div class="w-100"></div><div class="col-xxl-1">Aggregation num:</div><code class="col w-100">`)
-//line lib/streamaggr/state.qtpl:123
-	qw422016.N().D(aggNum)
-//line lib/streamaggr/state.qtpl:123
-	qw422016.N().S(`</code><div class="w-100"></div><div class="col-xxl-1">Match:</div><code class="col w-100">`)
-//line lib/streamaggr/state.qtpl:127
-	qw422016.E().S(agg.match.String())
-//line lib/streamaggr/state.qtpl:127
-	qw422016.N().S(`</code><div class="w-100"></div>`)
-//line lib/streamaggr/state.qtpl:130
-	if len(agg.by) > 0 {
-//line lib/streamaggr/state.qtpl:130
-		qw422016.N().S(`<div class="col-xxl-1">By:</div><code class="col w-100">`)
-//line lib/streamaggr/state.qtpl:132
-		qw422016.E().S(strings.Join(agg.by, ", "))
-//line lib/streamaggr/state.qtpl:132
-		qw422016.N().S(`</code><div class="w-100"></div>`)
-//line lib/streamaggr/state.qtpl:134
-	}
-//line lib/streamaggr/state.qtpl:135
-	if len(agg.without) > 0 {
-//line lib/streamaggr/state.qtpl:135
-		qw422016.N().S(`<div class="col-xxl-1">Without:</div><code class="col w-100">`)
-//line lib/streamaggr/state.qtpl:137
-		qw422016.E().S(strings.Join(agg.without, ", "))
-//line lib/streamaggr/state.qtpl:137
-		qw422016.N().S(`</code><div class="w-100"></div>`)
-//line lib/streamaggr/state.qtpl:139
-	}
-//line lib/streamaggr/state.qtpl:139
-	qw422016.N().S(`</div></h6><hr /><ul class="nav nav-tabs" id="rw-tab" role="tablist">`)
-//line lib/streamaggr/state.qtpl:144
-	for _, a := range agg.aggrStates {
-//line lib/streamaggr/state.qtpl:144
-		qw422016.N().S(`<li class="nav-item" role="presentation"><button class="nav-link`)
-//line lib/streamaggr/state.qtpl:146
-		if a.getOutputName() == as.getOutputName() {
-//line lib/streamaggr/state.qtpl:146
-			qw422016.N().S(` `)
-//line lib/streamaggr/state.qtpl:146
-			qw422016.N().S(`active`)
-//line lib/streamaggr/state.qtpl:146
-		}
-//line lib/streamaggr/state.qtpl:146
-		qw422016.N().S(`" type="button" role="tab"onclick="location.href='?rw=`)
-//line lib/streamaggr/state.qtpl:147
-		qw422016.E().S(rwActive)
-//line lib/streamaggr/state.qtpl:147
-		qw422016.N().S(`&agg=`)
-//line lib/streamaggr/state.qtpl:147
-		qw422016.N().D(aggNum)
-//line lib/streamaggr/state.qtpl:147
-		qw422016.N().S(`&output=`)
-//line lib/streamaggr/state.qtpl:147
-		qw422016.E().S(a.getOutputName())
-//line lib/streamaggr/state.qtpl:147
-		qw422016.N().S(`'">`)
-//line lib/streamaggr/state.qtpl:148
-		qw422016.E().S(a.getOutputName())
-//line lib/streamaggr/state.qtpl:148
-		qw422016.N().S(`</button></li>`)
-//line lib/streamaggr/state.qtpl:151
-	}
-//line lib/streamaggr/state.qtpl:151
-	qw422016.N().S(`</ul><div class="tab-content"><div class="tab-pane active" role="tabpanel"><div id="aggregation-state" class="table-responsive"><table class="table table-striped table-hover table-bordered table-sm">`)
-//line lib/streamaggr/state.qtpl:158
+//line lib/streamaggr/state.qtpl:113
+	qw422016.N().S(`<div class="container-fluid"><div class="row"><main class="col-12">`)
+//line lib/streamaggr/state.qtpl:118
 	sr := as.getStateRepresentation(agg.suffix)
-	sort.Slice(sr, func(i, j int) bool {
-		return sr[i].metric < sr[j].metric
+	if filter != "" {
+		filter = strings.ToLower(filter)
+		metrics := sr.metrics[:0]
+		for _, m := range sr.metrics {
+			if strings.Contains(strings.ToLower(m.metric), filter) {
+				metrics = append(metrics, m)
+			}
+		}
+		sr.metrics = metrics
+	}
+	sort.Slice(sr.metrics, func(i, j int) bool {
+		return sr.metrics[i].metric < sr.metrics[j].metric
 	})
-	if len(sr) > limit {
-		sr = sr[:limit]
+	if len(sr.metrics) > limit {
+		sr.metrics = sr.metrics[:limit]
 	}
 
-//line lib/streamaggr/state.qtpl:165
-	qw422016.N().S(`<thead><tr><th scope="col">Metric</th><th scope="col">Current value</th><th scope="col">Samples count</th><th scope="col">Last push time</th><th scope="col">Next push time</th></tr></thead><tbody>`)
-//line lib/streamaggr/state.qtpl:176
-	for _, asr := range sr {
-//line lib/streamaggr/state.qtpl:176
-		qw422016.N().S(`<tr><td><code>`)
-//line lib/streamaggr/state.qtpl:179
-		qw422016.E().S(asr.metric)
-//line lib/streamaggr/state.qtpl:179
-		qw422016.N().S(`</code></td><td class="text-end">`)
+//line lib/streamaggr/state.qtpl:135
+	qw422016.N().S(`<h1>Aggregation state</h1><h4> [ <a href="?rw=`)
+//line lib/streamaggr/state.qtpl:138
+	qw422016.E().S(rwActive)
+//line lib/streamaggr/state.qtpl:138
+	qw422016.N().S(`">back to aggregations</a> ] </h3><hr /><h6><div class="row container-sm"><div class="input-group input-group-sm mb-1"><span class="input-group-text" id="remote-write" style="width: 200px">Remote write:</span><input type="text" class="form-control" aria-label="Remote write" aria-describedby="remote-write" value="`)
+//line lib/streamaggr/state.qtpl:144
+	qw422016.E().S(rwActive)
+//line lib/streamaggr/state.qtpl:144
+	qw422016.N().S(`" readonly /></div><div class="input-group input-group-sm mb-1"><span class="input-group-text" id="agg-num" style="width: 200px">Aggregation num:</span><input type="number" class="form-control" aria-label="Aggregation num" aria-describedby="agg-num" value="`)
+//line lib/streamaggr/state.qtpl:149
+	qw422016.N().D(aggNum)
+//line lib/streamaggr/state.qtpl:149
+	qw422016.N().S(`" readonly /></div><div class="input-group input-group-sm mb-1"><span class="input-group-text" id="match" style="width: 200px">Match:</span><input type="string" class="form-control" aria-label="Match" aria-describedby="match" value="`)
+//line lib/streamaggr/state.qtpl:154
+	qw422016.E().S(agg.match.String())
+//line lib/streamaggr/state.qtpl:154
+	qw422016.N().S(`" readonly /></div>`)
+//line lib/streamaggr/state.qtpl:157
+	if len(agg.by) > 0 {
+//line lib/streamaggr/state.qtpl:157
+		qw422016.N().S(`<div class="input-group input-group-sm mb-1"><span class="input-group-text" id="by" style="width: 200px">By:</span><input type="string" class="form-control" aria-label="By" aria-describedby="by" value="`)
+//line lib/streamaggr/state.qtpl:160
+		qw422016.E().S(strings.Join(agg.by, ", "))
+//line lib/streamaggr/state.qtpl:160
+		qw422016.N().S(`" readonly /></div>`)
+//line lib/streamaggr/state.qtpl:162
+	}
+//line lib/streamaggr/state.qtpl:163
+	if len(agg.without) > 0 {
+//line lib/streamaggr/state.qtpl:163
+		qw422016.N().S(`<div class="input-group input-group-sm mb-1"><span class="input-group-text" id="without" style="width: 200px">Without:</span><input type="string" class="form-control" aria-label="Without" aria-describedby="without" value="`)
+//line lib/streamaggr/state.qtpl:166
+		qw422016.E().S(strings.Join(agg.without, ", "))
+//line lib/streamaggr/state.qtpl:166
+		qw422016.N().S(`" readonly /></div>`)
+//line lib/streamaggr/state.qtpl:168
+	}
+//line lib/streamaggr/state.qtpl:168
+	qw422016.N().S(`<div class="input-group input-group-sm mb-1"><span class="input-group-text" id="interval" style="width: 200px">Interval (seconds):</span><input type="number" class="form-control" aria-label="Interval (seconds)" aria-describedby="interval" value="`)
+//line lib/streamaggr/state.qtpl:172
+	qw422016.E().V(sr.intervalSecs)
+//line lib/streamaggr/state.qtpl:172
+	qw422016.N().S(`" readonly /></div><div class="input-group input-group-sm mb-1"><span class="input-group-text" id="last-push-time" style="width: 200px">Last push time:</span><input type="string" class="form-control" aria-label="Last push time" aria-describedby="last-push-time" value="`)
+//line lib/streamaggr/state.qtpl:177
+	if sr.lastPushTimestamp == 0 {
+//line lib/streamaggr/state.qtpl:177
+		qw422016.N().S(`-`)
+//line lib/streamaggr/state.qtpl:177
+	} else {
+//line lib/streamaggr/state.qtpl:177
+		qw422016.E().S(time.Unix(int64(sr.lastPushTimestamp), 0).Format(time.RFC3339))
+//line lib/streamaggr/state.qtpl:177
+	}
+//line lib/streamaggr/state.qtpl:177
+	qw422016.N().S(`" readonly /></div><div class="input-group input-group-sm mb-1"><span class="input-group-text" id="next-push-time" style="width: 200px">Next push time:</span><input type="string" class="form-control" aria-label="Next push time" aria-describedby="next-push-time" value="`)
 //line lib/streamaggr/state.qtpl:182
-		qw422016.N().F(asr.currentValue)
+	if sr.lastPushTimestamp == 0 {
 //line lib/streamaggr/state.qtpl:182
-		qw422016.N().S(`</td><td class="text-end">`)
-//line lib/streamaggr/state.qtpl:185
-		qw422016.E().S(fmt.Sprintf("%v", asr.samplesCount))
-//line lib/streamaggr/state.qtpl:185
-		qw422016.N().S(`</td><td>`)
+		qw422016.E().S(time.Unix(int64(agg.initialTime+sr.intervalSecs), 0).Format(time.RFC3339))
+//line lib/streamaggr/state.qtpl:182
+	} else {
+//line lib/streamaggr/state.qtpl:182
+		qw422016.E().S(time.Unix(int64(sr.lastPushTimestamp+sr.intervalSecs), 0).Format(time.RFC3339))
+//line lib/streamaggr/state.qtpl:182
+	}
+//line lib/streamaggr/state.qtpl:182
+	qw422016.N().S(`" readonly /></div><div class="input-group input-group-sm mb-1"><span class="input-group-text" id="limit-label" style="width: 200px">Items on the page:</span><input id="limit" type="number" class="form-control" aria-label="Limit" aria-describedby="limit-label" value="`)
+//line lib/streamaggr/state.qtpl:187
+	qw422016.N().D(limit)
+//line lib/streamaggr/state.qtpl:187
+	qw422016.N().S(`" /><button type="button" class="btn btn-outline-secondary" onclick="location.href='?rw=`)
 //line lib/streamaggr/state.qtpl:188
-		if asr.lastPushTimestamp == 0 {
-//line lib/streamaggr/state.qtpl:189
-			qw422016.E().S(time.Unix(int64(agg.initialTime), 0).String())
-//line lib/streamaggr/state.qtpl:190
-		} else {
-//line lib/streamaggr/state.qtpl:191
-			qw422016.E().S(time.Unix(int64(asr.lastPushTimestamp), 0).String())
-//line lib/streamaggr/state.qtpl:192
-		}
-//line lib/streamaggr/state.qtpl:192
-		qw422016.N().S(`</td><td>`)
-//line lib/streamaggr/state.qtpl:195
-		if asr.lastPushTimestamp == 0 {
-//line lib/streamaggr/state.qtpl:196
-			qw422016.E().S(time.Unix(int64(asr.nextPushTimestamp+agg.initialTime), 0).Format(time.RFC3339))
-//line lib/streamaggr/state.qtpl:197
-		} else {
-//line lib/streamaggr/state.qtpl:198
-			qw422016.E().S(time.Unix(int64(asr.nextPushTimestamp), 0).Format(time.RFC3339))
-//line lib/streamaggr/state.qtpl:199
-		}
-//line lib/streamaggr/state.qtpl:199
-		qw422016.N().S(`</td></tr>`)
+	qw422016.E().S(rwActive)
+//line lib/streamaggr/state.qtpl:188
+	qw422016.N().S(`&agg=`)
+//line lib/streamaggr/state.qtpl:188
+	qw422016.N().D(aggNum)
+//line lib/streamaggr/state.qtpl:188
+	qw422016.N().S(`&output=`)
+//line lib/streamaggr/state.qtpl:188
+	qw422016.E().S(as.getOutputName())
+//line lib/streamaggr/state.qtpl:188
+	qw422016.N().S(`&limit='+document.querySelector(`)
+//line lib/streamaggr/state.qtpl:188
+	qw422016.N().S("`")
+//line lib/streamaggr/state.qtpl:188
+	qw422016.N().S(`#limit`)
+//line lib/streamaggr/state.qtpl:188
+	qw422016.N().S("`")
+//line lib/streamaggr/state.qtpl:188
+	qw422016.N().S(`).value+'&filter='+encodeURIComponent(document.querySelector(`)
+//line lib/streamaggr/state.qtpl:188
+	qw422016.N().S("`")
+//line lib/streamaggr/state.qtpl:188
+	qw422016.N().S(`#filter`)
+//line lib/streamaggr/state.qtpl:188
+	qw422016.N().S("`")
+//line lib/streamaggr/state.qtpl:188
+	qw422016.N().S(`).value)">apply</button></div><div class="input-group input-group-sm mb-1"><span class="input-group-text" id="filter-label" style="width: 200px">Filter:</span><input id="filter" type="text" class="form-control" aria-label="Filter" aria-describedby="filter-label" value="`)
+//line lib/streamaggr/state.qtpl:193
+	qw422016.E().S(filter)
+//line lib/streamaggr/state.qtpl:193
+	qw422016.N().S(`" /><button type="button" class="btn btn-outline-secondary" onclick="location.href='?rw=`)
+//line lib/streamaggr/state.qtpl:194
+	qw422016.E().S(rwActive)
+//line lib/streamaggr/state.qtpl:194
+	qw422016.N().S(`&agg=`)
+//line lib/streamaggr/state.qtpl:194
+	qw422016.N().D(aggNum)
+//line lib/streamaggr/state.qtpl:194
+	qw422016.N().S(`&output=`)
+//line lib/streamaggr/state.qtpl:194
+	qw422016.E().S(as.getOutputName())
+//line lib/streamaggr/state.qtpl:194
+	qw422016.N().S(`&limit=`)
+//line lib/streamaggr/state.qtpl:194
+	qw422016.N().D(limit)
+//line lib/streamaggr/state.qtpl:194
+	qw422016.N().S(`&filter='+encodeURIComponent(document.querySelector(`)
+//line lib/streamaggr/state.qtpl:194
+	qw422016.N().S("`")
+//line lib/streamaggr/state.qtpl:194
+	qw422016.N().S(`#filter`)
+//line lib/streamaggr/state.qtpl:194
+	qw422016.N().S("`")
+//line lib/streamaggr/state.qtpl:194
+	qw422016.N().S(`).value)">apply</button></div></div></h6><hr /><ul class="nav nav-tabs" id="rw-tab" role="tablist">`)
+//line lib/streamaggr/state.qtpl:200
+	for _, a := range agg.aggrStates {
+//line lib/streamaggr/state.qtpl:200
+		qw422016.N().S(`<li class="nav-item" role="presentation"><button class="nav-link`)
 //line lib/streamaggr/state.qtpl:202
+		if a.getOutputName() == as.getOutputName() {
+//line lib/streamaggr/state.qtpl:202
+			qw422016.N().S(` `)
+//line lib/streamaggr/state.qtpl:202
+			qw422016.N().S(`active`)
+//line lib/streamaggr/state.qtpl:202
+		}
+//line lib/streamaggr/state.qtpl:202
+		qw422016.N().S(`" type="button" role="tab"onclick="location.href='?rw=`)
+//line lib/streamaggr/state.qtpl:203
+		qw422016.E().S(rwActive)
+//line lib/streamaggr/state.qtpl:203
+		qw422016.N().S(`&agg=`)
+//line lib/streamaggr/state.qtpl:203
+		qw422016.N().D(aggNum)
+//line lib/streamaggr/state.qtpl:203
+		qw422016.N().S(`&output=`)
+//line lib/streamaggr/state.qtpl:203
+		qw422016.E().S(a.getOutputName())
+//line lib/streamaggr/state.qtpl:203
+		qw422016.N().S(`&limit=`)
+//line lib/streamaggr/state.qtpl:203
+		qw422016.N().D(limit)
+//line lib/streamaggr/state.qtpl:203
+		qw422016.N().S(`'">`)
+//line lib/streamaggr/state.qtpl:204
+		qw422016.E().S(a.getOutputName())
+//line lib/streamaggr/state.qtpl:204
+		qw422016.N().S(`</button></li>`)
+//line lib/streamaggr/state.qtpl:207
 	}
-//line lib/streamaggr/state.qtpl:202
+//line lib/streamaggr/state.qtpl:207
+	qw422016.N().S(`</ul><div class="tab-content"><div class="tab-pane active" role="tabpanel"><div id="aggregation-state" class="table-responsive"><table class="table table-striped table-hover table-bordered table-sm"><thead><tr><th scope="col">Metric</th><th scope="col">Current value</th><th scope="col">Samples count</th></tr></thead><tbody>`)
+//line lib/streamaggr/state.qtpl:221
+	for _, asr := range sr.metrics {
+//line lib/streamaggr/state.qtpl:221
+		qw422016.N().S(`<tr><td><code>`)
+//line lib/streamaggr/state.qtpl:224
+		qw422016.E().S(asr.metric)
+//line lib/streamaggr/state.qtpl:224
+		qw422016.N().S(`</code></td><td class="text-end">`)
+//line lib/streamaggr/state.qtpl:227
+		qw422016.N().F(asr.currentValue)
+//line lib/streamaggr/state.qtpl:227
+		qw422016.N().S(`</td><td class="text-end">`)
+//line lib/streamaggr/state.qtpl:230
+		qw422016.E().S(fmt.Sprintf("%v", asr.samplesCount))
+//line lib/streamaggr/state.qtpl:230
+		qw422016.N().S(`</td></tr>`)
+//line lib/streamaggr/state.qtpl:233
+	}
+//line lib/streamaggr/state.qtpl:233
 	qw422016.N().S(`</tbody></table></div></div></div></main></div></div></body></html>`)
-//line lib/streamaggr/state.qtpl:213
+//line lib/streamaggr/state.qtpl:244
 }
 
-//line lib/streamaggr/state.qtpl:213
-func WriteStreamAggOutputStateHTML(qq422016 qtio422016.Writer, rwActive string, aggNum int, agg *aggregator, as aggrState, limit int) {
-//line lib/streamaggr/state.qtpl:213
+//line lib/streamaggr/state.qtpl:244
+func WriteStreamAggOutputStateHTML(qq422016 qtio422016.Writer, rwActive string, aggNum int, agg *aggregator, as aggrState, limit int, filter string) {
+//line lib/streamaggr/state.qtpl:244
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line lib/streamaggr/state.qtpl:213
-	StreamStreamAggOutputStateHTML(qw422016, rwActive, aggNum, agg, as, limit)
-//line lib/streamaggr/state.qtpl:213
+//line lib/streamaggr/state.qtpl:244
+	StreamStreamAggOutputStateHTML(qw422016, rwActive, aggNum, agg, as, limit, filter)
+//line lib/streamaggr/state.qtpl:244
 	qt422016.ReleaseWriter(qw422016)
-//line lib/streamaggr/state.qtpl:213
+//line lib/streamaggr/state.qtpl:244
 }
 
-//line lib/streamaggr/state.qtpl:213
-func StreamAggOutputStateHTML(rwActive string, aggNum int, agg *aggregator, as aggrState, limit int) string {
-//line lib/streamaggr/state.qtpl:213
+//line lib/streamaggr/state.qtpl:244
+func StreamAggOutputStateHTML(rwActive string, aggNum int, agg *aggregator, as aggrState, limit int, filter string) string {
+//line lib/streamaggr/state.qtpl:244
 	qb422016 := qt422016.AcquireByteBuffer()
-//line lib/streamaggr/state.qtpl:213
-	WriteStreamAggOutputStateHTML(qb422016, rwActive, aggNum, agg, as, limit)
-//line lib/streamaggr/state.qtpl:213
+//line lib/streamaggr/state.qtpl:244
+	WriteStreamAggOutputStateHTML(qb422016, rwActive, aggNum, agg, as, limit, filter)
+//line lib/streamaggr/state.qtpl:244
 	qs422016 := string(qb422016.B)
-//line lib/streamaggr/state.qtpl:213
+//line lib/streamaggr/state.qtpl:244
 	qt422016.ReleaseByteBuffer(qb422016)
-//line lib/streamaggr/state.qtpl:213
+//line lib/streamaggr/state.qtpl:244
 	return qs422016
-//line lib/streamaggr/state.qtpl:213
+//line lib/streamaggr/state.qtpl:244
 }

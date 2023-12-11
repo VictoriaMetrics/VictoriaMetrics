@@ -3,6 +3,7 @@ package streamaggr
 import (
 	"math"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
@@ -13,7 +14,7 @@ type totalPureAggrState struct {
 	m                 sync.Map
 	intervalSecs      uint64
 	stalenessSecs     uint64
-	lastPushTimestamp uint64
+	lastPushTimestamp atomic.Uint64
 }
 
 type totalPureStateValue struct {
@@ -127,15 +128,15 @@ func (as *totalPureAggrState) appendSeriesForFlush(ctx *flushCtx) {
 		}
 		return true
 	})
-	as.lastPushTimestamp = currentTime
+	as.lastPushTimestamp.Store(currentTime)
 }
 
 func (as *totalPureAggrState) getOutputName() string {
 	return "total_pure"
 }
 
-func (as *totalPureAggrState) getStateRepresentation(suffix string) []aggrStateRepresentation {
-	result := make([]aggrStateRepresentation, 0)
+func (as *totalPureAggrState) getStateRepresentation(suffix string) aggrStateRepresentation {
+	metrics := make([]aggrStateRepresentationMetric, 0)
 	as.m.Range(func(k, v any) bool {
 		value := v.(*totalPureStateValue)
 		value.mu.Lock()
@@ -143,14 +144,16 @@ func (as *totalPureAggrState) getStateRepresentation(suffix string) []aggrStateR
 		if value.deleted {
 			return true
 		}
-		result = append(result, aggrStateRepresentation{
-			metric:            getLabelsStringFromKey(k.(string), suffix, as.getOutputName()),
-			currentValue:      value.total,
-			lastPushTimestamp: as.lastPushTimestamp,
-			nextPushTimestamp: as.lastPushTimestamp + as.intervalSecs,
-			samplesCount:      value.samplesCount,
+		metrics = append(metrics, aggrStateRepresentationMetric{
+			metric:       getLabelsStringFromKey(k.(string), suffix, as.getOutputName()),
+			currentValue: value.total,
+			samplesCount: value.samplesCount,
 		})
 		return true
 	})
-	return result
+	return aggrStateRepresentation{
+		intervalSecs:      as.intervalSecs,
+		lastPushTimestamp: as.lastPushTimestamp.Load(),
+		metrics:           metrics,
+	}
 }

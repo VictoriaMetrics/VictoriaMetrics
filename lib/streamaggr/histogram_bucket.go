@@ -1,12 +1,13 @@
 package streamaggr
 
 import (
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"math"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -15,7 +16,7 @@ type histogramBucketAggrState struct {
 	m                 sync.Map
 	intervalSecs      uint64
 	stalenessSecs     uint64
-	lastPushTimestamp uint64
+	lastPushTimestamp atomic.Uint64
 }
 
 type histogramBucketStateValue struct {
@@ -104,15 +105,15 @@ func (as *histogramBucketAggrState) appendSeriesForFlush(ctx *flushCtx) {
 		return true
 	})
 
-	as.lastPushTimestamp = currentTime
+	as.lastPushTimestamp.Store(currentTime)
 }
 
 func (as *histogramBucketAggrState) getOutputName() string {
-	return "count_series"
+	return "histogram_bucket"
 }
 
-func (as *histogramBucketAggrState) getStateRepresentation(suffix string) []aggrStateRepresentation {
-	result := make([]aggrStateRepresentation, 0)
+func (as *histogramBucketAggrState) getStateRepresentation(suffix string) aggrStateRepresentation {
+	rmetrics := make([]aggrStateRepresentationMetric, 0)
 	as.m.Range(func(k, v any) bool {
 		value := v.(*histogramBucketStateValue)
 		value.mu.Lock()
@@ -121,20 +122,22 @@ func (as *histogramBucketAggrState) getStateRepresentation(suffix string) []aggr
 			return true
 		}
 		value.h.VisitNonZeroBuckets(func(vmrange string, count uint64) {
-			result = append(result, aggrStateRepresentation{
+			rmetrics = append(rmetrics, aggrStateRepresentationMetric{
 				metric: getLabelsStringFromKey(k.(string), suffix, as.getOutputName(), prompbmarshal.Label{
-					Name:  vmrange,
+					Name:  "vmrange",
 					Value: vmrange,
 				}),
-				currentValue:      float64(count),
-				lastPushTimestamp: as.lastPushTimestamp,
-				nextPushTimestamp: as.lastPushTimestamp + as.intervalSecs,
-				samplesCount:      value.samplesCount,
+				currentValue: float64(count),
+				samplesCount: value.samplesCount,
 			})
 		})
 		return true
 	})
-	return result
+	return aggrStateRepresentation{
+		intervalSecs:      as.intervalSecs,
+		lastPushTimestamp: as.lastPushTimestamp.Load(),
+		metrics:           rmetrics,
+	}
 }
 
 func roundDurationToSecs(d time.Duration) uint64 {

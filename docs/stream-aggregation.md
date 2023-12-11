@@ -631,6 +631,7 @@ at [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-
   #   (it's like this series didn't exist until now).
   # Increase this parameter if it is expected for matched metrics to be delayed or collected with irregular intervals exceeding the `interval` value.
   # By default, is equal to x2 of the `interval` field.
+  # The parameter is only relevant for outputs: total, increase and histogram_bucket.
   #
   # staleness_interval: 2m
 

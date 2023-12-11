@@ -2,6 +2,7 @@ package streamaggr
 
 import (
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
@@ -11,8 +12,7 @@ import (
 type sumSamplesAggrState struct {
 	m                 sync.Map
 	intervalSecs      uint64
-	stalenessSecs     uint64
-	lastPushTimestamp uint64
+	lastPushTimestamp atomic.Uint64
 }
 
 type sumSamplesStateValue struct {
@@ -23,17 +23,13 @@ type sumSamplesStateValue struct {
 	deleteDeadline uint64
 }
 
-func newSumSamplesAggrState(interval time.Duration, stalenessInterval time.Duration) *sumSamplesAggrState {
+func newSumSamplesAggrState(interval time.Duration) *sumSamplesAggrState {
 	return &sumSamplesAggrState{
-		intervalSecs:  roundDurationToSecs(interval),
-		stalenessSecs: roundDurationToSecs(stalenessInterval),
+		intervalSecs: roundDurationToSecs(interval),
 	}
 }
 
 func (as *sumSamplesAggrState) pushSample(_, outputKey string, value float64) {
-	currentTime := fasttime.UnixTimestamp()
-	deleteDeadline := currentTime + as.stalenessSecs
-
 again:
 	v, ok := as.m.Load(outputKey)
 	if !ok {
@@ -55,7 +51,6 @@ again:
 	if !deleted {
 		sv.sum += value
 		sv.samplesCount++
-		sv.deleteDeadline = deleteDeadline
 	}
 	sv.mu.Unlock()
 	if deleted {
@@ -65,52 +60,34 @@ again:
 	}
 }
 
-func (as *sumSamplesAggrState) removeOldEntries(currentTime uint64) {
-	m := &as.m
-	m.Range(func(k, v interface{}) bool {
-		sv := v.(*sumSamplesStateValue)
-
-		sv.mu.Lock()
-		deleted := currentTime > sv.deleteDeadline
-		if deleted {
-			// Mark the current entry as deleted
-			sv.deleted = deleted
-		}
-		sv.mu.Unlock()
-
-		if deleted {
-			m.Delete(k)
-		}
-		return true
-	})
-}
-
 func (as *sumSamplesAggrState) appendSeriesForFlush(ctx *flushCtx) {
 	currentTime := fasttime.UnixTimestamp()
 	currentTimeMsec := int64(currentTime) * 1000
 
-	as.removeOldEntries(currentTime)
-
 	m := &as.m
 	m.Range(func(k, v interface{}) bool {
+		// Atomically delete the entry from the map, so new entry is created for the next flush.
+		m.Delete(k)
 		sv := v.(*sumSamplesStateValue)
 		sv.mu.Lock()
 		sum := sv.sum
 		sv.sum = 0
+		// Mark the entry as deleted, so it won't be updated anymore by concurrent pushSample() calls.
+		sv.deleted = true
 		sv.mu.Unlock()
 		key := k.(string)
 		ctx.appendSeries(key, as.getOutputName(), currentTimeMsec, sum)
 		return true
 	})
-	as.lastPushTimestamp = currentTime
+	as.lastPushTimestamp.Store(currentTime)
 }
 
 func (as *sumSamplesAggrState) getOutputName() string {
 	return "sum_samples"
 }
 
-func (as *sumSamplesAggrState) getStateRepresentation(suffix string) []aggrStateRepresentation {
-	result := make([]aggrStateRepresentation, 0)
+func (as *sumSamplesAggrState) getStateRepresentation(suffix string) aggrStateRepresentation {
+	metrics := make([]aggrStateRepresentationMetric, 0)
 	as.m.Range(func(k, v any) bool {
 		value := v.(*sumSamplesStateValue)
 		value.mu.Lock()
@@ -118,14 +95,16 @@ func (as *sumSamplesAggrState) getStateRepresentation(suffix string) []aggrState
 		if value.deleted {
 			return true
 		}
-		result = append(result, aggrStateRepresentation{
-			metric:            getLabelsStringFromKey(k.(string), suffix, as.getOutputName()),
-			currentValue:      value.sum,
-			lastPushTimestamp: as.lastPushTimestamp,
-			nextPushTimestamp: as.lastPushTimestamp + as.intervalSecs,
-			samplesCount:      value.samplesCount,
+		metrics = append(metrics, aggrStateRepresentationMetric{
+			metric:       getLabelsStringFromKey(k.(string), suffix, as.getOutputName()),
+			currentValue: value.sum,
+			samplesCount: value.samplesCount,
 		})
 		return true
 	})
-	return result
+	return aggrStateRepresentation{
+		intervalSecs:      as.intervalSecs,
+		lastPushTimestamp: as.lastPushTimestamp.Load(),
+		metrics:           metrics,
+	}
 }
