@@ -76,7 +76,6 @@ func SplitDateRange(start, end time.Time, step string, timeReverse bool) ([][]ti
 		sort.SliceStable(ranges, func(i, j int) bool {
 			return ranges[i][0].After(ranges[j][0])
 		})
-		return ranges, nil
 	}
 
 	return ranges, nil

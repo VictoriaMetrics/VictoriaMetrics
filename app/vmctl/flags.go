@@ -363,13 +363,13 @@ var (
 		},
 		&cli.StringFlag{
 			Name: vmNativeStepInterval,
-			Usage: fmt.Sprintf("Split export data into chunks. Requires setting --%s. Valid values are '%s','%s','%s','%s','%s'.", vmNativeFilterTimeStart,
+			Usage: fmt.Sprintf("Split export data into chunks. By default, the migration will start from the oldest to the newest intervals. When set '--vm-native-filter-time-reverse', the migration will start from the newest to the oldest intervals. Valid values are '%s','%s','%s','%s','%s'.", vmNativeFilterTimeStart,
 				stepper.StepMonth, stepper.StepWeek, stepper.StepDay, stepper.StepHour, stepper.StepMinute),
 			Value: stepper.StepMonth,
 		},
 		&cli.BoolFlag{
 			Name:  vmNativeFilterTimeReverse,
-			Usage: "Whether to reverse order of time intervals split by '-vm-native-step-interval' cmd-line flag. When set, the migration will start from the newest to the oldest intervals.",
+			Usage: "Whether to reverse order of time intervals split by '--vm-native-step-interval' cmd-line flag. When set, the migration will start from the newest to the oldest intervals.",
 			Value: false,
 		},
 		&cli.BoolFlag{
@@ -528,12 +528,12 @@ var (
 		},
 		&cli.StringFlag{
 			Name:     remoteReadStepInterval,
-			Usage:    fmt.Sprintf("Split export data into chunks. Requires setting --%s. Valid values are %q,%q,%q,%q.", remoteReadFilterTimeStart, stepper.StepMonth, stepper.StepDay, stepper.StepHour, stepper.StepMinute),
+			Usage:    fmt.Sprintf("Split export data into chunks. By default, the migration will start from the oldest to the newest intervals. When set '--remote-read-filter-time-reverse', the migration will start from the newest to the oldest intervals. Requires setting --%s. Valid values are %q,%q,%q,%q.", remoteReadFilterTimeStart, stepper.StepMonth, stepper.StepDay, stepper.StepHour, stepper.StepMinute),
 			Required: true,
 		},
 		&cli.BoolFlag{
 			Name:  remoteReadFilterTimeReverse,
-			Usage: "Whether to reverse order of time intervals split by '-vm-native-step-interval' cmd-line flag. When set, the migration will start from the newest to the oldest intervals.",
+			Usage: "Whether to reverse order of time intervals split by '--remote-read-step-interval' cmd-line flag. When set, the migration will start from the newest to the oldest intervals.",
 			Value: false,
 		},
 		&cli.StringFlag{
