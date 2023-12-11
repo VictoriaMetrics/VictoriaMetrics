@@ -315,6 +315,9 @@ func (ts *targetStatus) getDurationFromLastScrape() string {
 type droppedTargets struct {
 	mu sync.Mutex
 	m  map[uint64]droppedTarget
+
+	// totalTargets contains the total number of dropped targets registered via Register() call.
+	totalTargets int
 }
 
 type droppedTarget struct {
@@ -361,21 +364,31 @@ func (dt *droppedTargets) Register(originalLabels *promutils.Labels, relabelConf
 	// It is better to have hash collisions instead of spending additional CPU on originalLabels.String() call.
 	key := labelsHash(originalLabels)
 	dt.mu.Lock()
+	if _, ok := dt.m[key]; !ok {
+		dt.totalTargets++
+	}
 	dt.m[key] = droppedTarget{
 		originalLabels:    originalLabels,
 		relabelConfigs:    relabelConfigs,
 		dropReason:        reason,
 		clusterMemberNums: clusterMemberNums,
 	}
-	if len(dt.m) >= *maxDroppedTargets {
+	if len(dt.m) > *maxDroppedTargets {
 		for k := range dt.m {
 			delete(dt.m, k)
-			if len(dt.m) < *maxDroppedTargets {
+			if len(dt.m) <= *maxDroppedTargets {
 				break
 			}
 		}
 	}
 	dt.mu.Unlock()
+}
+
+func (dt *droppedTargets) getTotalTargets() int {
+	dt.mu.Lock()
+	n := dt.totalTargets
+	dt.mu.Unlock()
+	return n
 }
 
 func labelsHash(labels *promutils.Labels) uint64 {

@@ -17,30 +17,44 @@ import (
 	"time"
 )
 
-// This action is useful to determine if a bucket exists and you have permission
-// to access it. The action returns a 200 OK if the bucket exists and you have
-// permission to access it. If the bucket does not exist or you do not have
-// permission to access it, the HEAD request returns a generic 400 Bad Request ,
-// 403 Forbidden or 404 Not Found code. A message body is not included, so you
-// cannot determine the exception beyond these error codes. To use this operation,
-// you must have permissions to perform the s3:ListBucket action. The bucket owner
-// has this permission by default and can grant this permission to others. For more
-// information about permissions, see Permissions Related to Bucket Subresource
-// Operations (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-with-s3-actions.html#using-with-s3-actions-related-to-bucket-subresources)
-// and Managing Access Permissions to Your Amazon S3 Resources (https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-access-control.html)
-// . To use this API operation against an access point, you must provide the alias
-// of the access point in place of the bucket name or specify the access point ARN.
-// When using the access point ARN, you must direct requests to the access point
-// hostname. The access point hostname takes the form
-// AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com. When using the
-// Amazon Web Services SDKs, you provide the ARN in place of the bucket name. For
-// more information, see Using access points (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html)
-// . To use this API operation against an Object Lambda access point, provide the
-// alias of the Object Lambda access point in place of the bucket name. If the
-// Object Lambda access point alias in a request is not valid, the error code
-// InvalidAccessPointAliasError is returned. For more information about
-// InvalidAccessPointAliasError , see List of Error Codes (https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html#ErrorCodeList)
-// .
+// You can use this operation to determine if a bucket exists and if you have
+// permission to access it. The action returns a 200 OK if the bucket exists and
+// you have permission to access it. If the bucket does not exist or you do not
+// have permission to access it, the HEAD request returns a generic 400 Bad Request
+// , 403 Forbidden or 404 Not Found code. A message body is not included, so you
+// cannot determine the exception beyond these error codes. Directory buckets - You
+// must make requests for this API operation to the Zonal endpoint. These endpoints
+// support virtual-hosted-style requests in the format
+// https://bucket_name.s3express-az_id.region.amazonaws.com . Path-style requests
+// are not supported. For more information, see Regional and Zonal endpoints (https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-Regions-and-Zones.html)
+// in the Amazon S3 User Guide. Authentication and authorization All HeadBucket
+// requests must be authenticated and signed by using IAM credentials (access key
+// ID and secret access key for the IAM identities). All headers with the x-amz-
+// prefix, including x-amz-copy-source , must be signed. For more information, see
+// REST Authentication (https://docs.aws.amazon.com/AmazonS3/latest/dev/RESTAuthentication.html)
+// . Directory bucket - You must use IAM credentials to authenticate and authorize
+// your access to the HeadBucket API operation, instead of using the temporary
+// security credentials through the CreateSession API operation. Amazon Web
+// Services CLI or SDKs handles authentication and authorization on your behalf.
+// Permissions
+//   - General purpose bucket permissions - To use this operation, you must have
+//     permissions to perform the s3:ListBucket action. The bucket owner has this
+//     permission by default and can grant this permission to others. For more
+//     information about permissions, see Managing access permissions to your Amazon
+//     S3 resources (https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-access-control.html)
+//     in the Amazon S3 User Guide.
+//   - Directory bucket permissions - You must have the s3express:CreateSession
+//     permission in the Action element of a policy. By default, the session is in
+//     the ReadWrite mode. If you want to restrict the access, you can explicitly set
+//     the s3express:SessionMode condition key to ReadOnly on the bucket. For more
+//     information about example bucket policies, see Example bucket policies for S3
+//     Express One Zone (https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-security-iam-example-bucket-policies.html)
+//     and Amazon Web Services Identity and Access Management (IAM) identity-based
+//     policies for S3 Express One Zone (https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-security-iam-identity-policies.html)
+//     in the Amazon S3 User Guide.
+//
+// HTTP Host header syntax Directory buckets - The HTTP Host header syntax is
+// Bucket_name.s3express-az_id.region.amazonaws.com .
 func (c *Client) HeadBucket(ctx context.Context, params *HeadBucketInput, optFns ...func(*Options)) (*HeadBucketOutput, error) {
 	if params == nil {
 		params = &HeadBucketInput{}
@@ -58,19 +72,31 @@ func (c *Client) HeadBucket(ctx context.Context, params *HeadBucketInput, optFns
 
 type HeadBucketInput struct {
 
-	// The bucket name. When using this action with an access point, you must direct
-	// requests to the access point hostname. The access point hostname takes the form
-	// AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com. When using this
-	// action with an access point through the Amazon Web Services SDKs, you provide
-	// the access point ARN in place of the bucket name. For more information about
-	// access point ARNs, see Using access points (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html)
-	// in the Amazon S3 User Guide. When you use this action with an Object Lambda
-	// access point, provide the alias of the Object Lambda access point in place of
-	// the bucket name. If the Object Lambda access point alias in a request is not
-	// valid, the error code InvalidAccessPointAliasError is returned. For more
-	// information about InvalidAccessPointAliasError , see List of Error Codes (https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html#ErrorCodeList)
-	// . When you use this action with Amazon S3 on Outposts, you must direct requests
-	// to the S3 on Outposts hostname. The S3 on Outposts hostname takes the form
+	// The bucket name. Directory buckets - When you use this operation with a
+	// directory bucket, you must use virtual-hosted-style requests in the format
+	// Bucket_name.s3express-az_id.region.amazonaws.com . Path-style requests are not
+	// supported. Directory bucket names must be unique in the chosen Availability
+	// Zone. Bucket names must follow the format bucket_base_name--az-id--x-s3 (for
+	// example, DOC-EXAMPLE-BUCKET--usw2-az2--x-s3 ). For information about bucket
+	// naming restrictions, see Directory bucket naming rules (https://docs.aws.amazon.com/AmazonS3/latest/userguide/directory-bucket-naming-rules.html)
+	// in the Amazon S3 User Guide. Access points - When you use this action with an
+	// access point, you must provide the alias of the access point in place of the
+	// bucket name or specify the access point ARN. When using the access point ARN,
+	// you must direct requests to the access point hostname. The access point hostname
+	// takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
+	// When using this action with an access point through the Amazon Web Services
+	// SDKs, you provide the access point ARN in place of the bucket name. For more
+	// information about access point ARNs, see Using access points (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html)
+	// in the Amazon S3 User Guide. Object Lambda access points - When you use this API
+	// operation with an Object Lambda access point, provide the alias of the Object
+	// Lambda access point in place of the bucket name. If the Object Lambda access
+	// point alias in a request is not valid, the error code
+	// InvalidAccessPointAliasError is returned. For more information about
+	// InvalidAccessPointAliasError , see List of Error Codes (https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html#ErrorCodeList)
+	// . Access points and Object Lambda access points are not supported by directory
+	// buckets. S3 on Outposts - When you use this action with Amazon S3 on Outposts,
+	// you must direct requests to the S3 on Outposts hostname. The S3 on Outposts
+	// hostname takes the form
 	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com . When you
 	// use this action with S3 on Outposts through the Amazon Web Services SDKs, you
 	// provide the Outposts access point ARN in place of the bucket name. For more
@@ -80,9 +106,9 @@ type HeadBucketInput struct {
 	// This member is required.
 	Bucket *string
 
-	// The account ID of the expected bucket owner. If the bucket is owned by a
-	// different account, the request fails with the HTTP status code 403 Forbidden
-	// (access denied).
+	// The account ID of the expected bucket owner. If the account ID that you provide
+	// does not match the actual owner of the bucket, the request fails with the HTTP
+	// status code 403 Forbidden (access denied).
 	ExpectedBucketOwner *string
 
 	noSmithyDocumentSerde
@@ -94,6 +120,25 @@ func (in *HeadBucketInput) bindEndpointParams(p *EndpointParameters) {
 }
 
 type HeadBucketOutput struct {
+
+	// Indicates whether the bucket name used in the request is an access point alias.
+	// This functionality is not supported for directory buckets.
+	AccessPointAlias *bool
+
+	// The name of the location where the bucket will be created. For directory
+	// buckets, the AZ ID of the Availability Zone where the bucket is created. An
+	// example AZ ID value is usw2-az2 . This functionality is only supported by
+	// directory buckets.
+	BucketLocationName *string
+
+	// The type of location where the bucket is created. This functionality is only
+	// supported by directory buckets.
+	BucketLocationType types.LocationType
+
+	// The Region that the bucket is located. This functionality is not supported for
+	// directory buckets.
+	BucketRegion *string
+
 	// Metadata pertaining to the operation's result.
 	ResultMetadata middleware.Metadata
 
@@ -153,6 +198,9 @@ func (c *Client) addOperationHeadBucketMiddlewares(stack *middleware.Stack, opti
 		return err
 	}
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addPutBucketContextMiddleware(stack); err != nil {
 		return err
 	}
 	if err = addOpHeadBucketValidationMiddleware(stack); err != nil {

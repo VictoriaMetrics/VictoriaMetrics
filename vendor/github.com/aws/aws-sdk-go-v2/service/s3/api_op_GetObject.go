@@ -16,95 +16,98 @@ import (
 	"time"
 )
 
-// Retrieves objects from Amazon S3. To use GET , you must have READ access to the
-// object. If you grant READ access to the anonymous user, you can return the
-// object without using an authorization header. An Amazon S3 bucket has no
-// directory hierarchy such as you would find in a typical computer file system.
-// You can, however, create a logical hierarchy by using object key names that
-// imply a folder structure. For example, instead of naming an object sample.jpg ,
-// you can name it photos/2006/February/sample.jpg . To get an object from such a
-// logical hierarchy, specify the full key name for the object in the GET
-// operation. For a virtual hosted-style request example, if you have the object
-// photos/2006/February/sample.jpg , specify the resource as
-// /photos/2006/February/sample.jpg . For a path-style request example, if you have
-// the object photos/2006/February/sample.jpg in the bucket named examplebucket ,
-// specify the resource as /examplebucket/photos/2006/February/sample.jpg . For
-// more information about request types, see HTTP Host Header Bucket Specification (https://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html#VirtualHostingSpecifyBucket)
-// . For more information about returning the ACL of an object, see GetObjectAcl (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectAcl.html)
-// . If the object you are retrieving is stored in the S3 Glacier Flexible
-// Retrieval or S3 Glacier Deep Archive storage class, or S3 Intelligent-Tiering
-// Archive or S3 Intelligent-Tiering Deep Archive tiers, before you can retrieve
-// the object you must first restore a copy using RestoreObject (https://docs.aws.amazon.com/AmazonS3/latest/API/API_RestoreObject.html)
-// . Otherwise, this action returns an InvalidObjectState error. For information
-// about restoring archived objects, see Restoring Archived Objects (https://docs.aws.amazon.com/AmazonS3/latest/dev/restoring-objects.html)
-// . Encryption request headers, like x-amz-server-side-encryption , should not be
-// sent for GET requests if your object uses server-side encryption with Key
-// Management Service (KMS) keys (SSE-KMS), dual-layer server-side encryption with
-// Amazon Web Services KMS keys (DSSE-KMS), or server-side encryption with Amazon
-// S3 managed encryption keys (SSE-S3). If your object does use these types of
-// keys, you’ll get an HTTP 400 Bad Request error. If you encrypt an object by
-// using server-side encryption with customer-provided encryption keys (SSE-C) when
-// you store the object in Amazon S3, then when you GET the object, you must use
-// the following headers:
-//   - x-amz-server-side-encryption-customer-algorithm
-//   - x-amz-server-side-encryption-customer-key
-//   - x-amz-server-side-encryption-customer-key-MD5
+// Retrieves an object from Amazon S3. In the GetObject request, specify the full
+// key name for the object. General purpose buckets - Both the virtual-hosted-style
+// requests and the path-style requests are supported. For a virtual hosted-style
+// request example, if you have the object photos/2006/February/sample.jpg ,
+// specify the object key name as /photos/2006/February/sample.jpg . For a
+// path-style request example, if you have the object
+// photos/2006/February/sample.jpg in the bucket named examplebucket , specify the
+// object key name as /examplebucket/photos/2006/February/sample.jpg . For more
+// information about request types, see HTTP Host Header Bucket Specification (https://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html#VirtualHostingSpecifyBucket)
+// in the Amazon S3 User Guide. Directory buckets - Only virtual-hosted-style
+// requests are supported. For a virtual hosted-style request example, if you have
+// the object photos/2006/February/sample.jpg in the bucket named
+// examplebucket--use1-az5--x-s3 , specify the object key name as
+// /photos/2006/February/sample.jpg . Also, when you make requests to this API
+// operation, your requests are sent to the Zonal endpoint. These endpoints support
+// virtual-hosted-style requests in the format
+// https://bucket_name.s3express-az_id.region.amazonaws.com/key-name . Path-style
+// requests are not supported. For more information, see Regional and Zonal
+// endpoints (https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-Regions-and-Zones.html)
+// in the Amazon S3 User Guide. Permissions
+//   - General purpose bucket permissions - You must have the required permissions
+//     in a policy. To use GetObject , you must have the READ access to the object
+//     (or version). If you grant READ access to the anonymous user, the GetObject
+//     operation returns the object without using an authorization header. For more
+//     information, see Specifying permissions in a policy (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-with-s3-actions.html)
+//     in the Amazon S3 User Guide. If you include a versionId in your request
+//     header, you must have the s3:GetObjectVersion permission to access a specific
+//     version of an object. The s3:GetObject permission is not required in this
+//     scenario. If you request the current version of an object without a specific
+//     versionId in the request header, only the s3:GetObject permission is required.
+//     The s3:GetObjectVersion permission is not required in this scenario. If the
+//     object that you request doesn’t exist, the error that Amazon S3 returns depends
+//     on whether you also have the s3:ListBucket permission.
+//   - If you have the s3:ListBucket permission on the bucket, Amazon S3 returns an
+//     HTTP status code 404 Not Found error.
+//   - If you don’t have the s3:ListBucket permission, Amazon S3 returns an HTTP
+//     status code 403 Access Denied error.
+//   - Directory bucket permissions - To grant access to this API operation on a
+//     directory bucket, we recommend that you use the CreateSession (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateSession.html)
+//     API operation for session-based authorization. Specifically, you grant the
+//     s3express:CreateSession permission to the directory bucket in a bucket policy
+//     or an IAM identity-based policy. Then, you make the CreateSession API call on
+//     the bucket to obtain a session token. With the session token in your request
+//     header, you can make API requests to this operation. After the session token
+//     expires, you make another CreateSession API call to generate a new session
+//     token for use. Amazon Web Services CLI or SDKs create session and refresh the
+//     session token automatically to avoid service interruptions when a session
+//     expires. For more information about authorization, see CreateSession (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateSession.html)
+//     .
 //
-// For more information about SSE-C, see Server-Side Encryption (Using
-// Customer-Provided Encryption Keys) (https://docs.aws.amazon.com/AmazonS3/latest/dev/ServerSideEncryptionCustomerKeys.html)
-// . Assuming you have the relevant permission to read object tags, the response
-// also returns the x-amz-tagging-count header that provides the count of number
-// of tags associated with the object. You can use GetObjectTagging (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectTagging.html)
-// to retrieve the tag set associated with an object. Permissions You need the
-// relevant read object (or version) permission for this operation. For more
-// information, see Specifying Permissions in a Policy (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-with-s3-actions.html)
-// . If the object that you request doesn’t exist, the error that Amazon S3 returns
-// depends on whether you also have the s3:ListBucket permission. If you have the
-// s3:ListBucket permission on the bucket, Amazon S3 returns an HTTP status code
-// 404 (Not Found) error. If you don’t have the s3:ListBucket permission, Amazon
-// S3 returns an HTTP status code 403 ("access denied") error. Versioning By
-// default, the GET action returns the current version of an object. To return a
-// different version, use the versionId subresource.
-//   - If you supply a versionId , you need the s3:GetObjectVersion permission to
-//     access a specific version of an object. If you request a specific version, you
-//     do not need to have the s3:GetObject permission. If you request the current
-//     version without a specific version ID, only s3:GetObject permission is
-//     required. s3:GetObjectVersion permission won't be required.
-//   - If the current version of the object is a delete marker, Amazon S3 behaves
-//     as if the object was deleted and includes x-amz-delete-marker: true in the
-//     response.
-//
-// For more information about versioning, see PutBucketVersioning (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketVersioning.html)
-// . Overriding Response Header Values There are times when you want to override
-// certain response header values in a GET response. For example, you might
-// override the Content-Disposition response header value in your GET request. You
-// can override values for a set of response headers using the following query
-// parameters. These response header values are sent only on a successful request,
-// that is, when status code 200 OK is returned. The set of headers you can
-// override using these parameters is a subset of the headers that Amazon S3
-// accepts when you create an object. The response headers that you can override
-// for the GET response are Content-Type , Content-Language , Expires ,
-// Cache-Control , Content-Disposition , and Content-Encoding . To override these
-// header values in the GET response, you use the following request parameters.
-// You must sign the request, either using an Authorization header or a presigned
-// URL, when using these parameters. They cannot be used with an unsigned
-// (anonymous) request.
-//   - response-content-type
-//   - response-content-language
-//   - response-expires
+// Storage classes If the object you are retrieving is stored in the S3 Glacier
+// Flexible Retrieval storage class, the S3 Glacier Deep Archive storage class, the
+// S3 Intelligent-Tiering Archive Access tier, or the S3 Intelligent-Tiering Deep
+// Archive Access tier, before you can retrieve the object you must first restore a
+// copy using RestoreObject (https://docs.aws.amazon.com/AmazonS3/latest/API/API_RestoreObject.html)
+// . Otherwise, this operation returns an InvalidObjectState error. For
+// information about restoring archived objects, see Restoring Archived Objects (https://docs.aws.amazon.com/AmazonS3/latest/dev/restoring-objects.html)
+// in the Amazon S3 User Guide. Directory buckets - For directory buckets, only the
+// S3 Express One Zone storage class is supported to store newly created objects.
+// Unsupported storage class values won't write a destination object and will
+// respond with the HTTP status code 400 Bad Request . Encryption Encryption
+// request headers, like x-amz-server-side-encryption , should not be sent for the
+// GetObject requests, if your object uses server-side encryption with Amazon S3
+// managed encryption keys (SSE-S3), server-side encryption with Key Management
+// Service (KMS) keys (SSE-KMS), or dual-layer server-side encryption with Amazon
+// Web Services KMS keys (DSSE-KMS). If you include the header in your GetObject
+// requests for the object that uses these types of keys, you’ll get an HTTP 400
+// Bad Request error. Overriding response header values through the request There
+// are times when you want to override certain response header values of a
+// GetObject response. For example, you might override the Content-Disposition
+// response header value through your GetObject request. You can override values
+// for a set of response headers. These modified response header values are
+// included only in a successful response, that is, when the HTTP status code 200
+// OK is returned. The headers you can override using the following query
+// parameters in the request are a subset of the headers that Amazon S3 accepts
+// when you create an object. The response headers that you can override for the
+// GetObject response are Cache-Control , Content-Disposition , Content-Encoding ,
+// Content-Language , Content-Type , and Expires . To override values for a set of
+// response headers in the GetObject response, you can use the following query
+// parameters in the request.
 //   - response-cache-control
 //   - response-content-disposition
 //   - response-content-encoding
+//   - response-content-language
+//   - response-content-type
+//   - response-expires
 //
-// Overriding Response Header Values If both of the If-Match and
-// If-Unmodified-Since headers are present in the request as follows: If-Match
-// condition evaluates to true , and; If-Unmodified-Since condition evaluates to
-// false ; then, S3 returns 200 OK and the data requested. If both of the
-// If-None-Match and If-Modified-Since headers are present in the request as
-// follows: If-None-Match condition evaluates to false , and; If-Modified-Since
-// condition evaluates to true ; then, S3 returns 304 Not Modified response code.
-// For more information about conditional requests, see RFC 7232 (https://tools.ietf.org/html/rfc7232)
-// . The following operations are related to GetObject :
+// When you use these parameters, you must sign the request by using either an
+// Authorization header or a presigned URL. These parameters cannot be used with an
+// unsigned (anonymous) request. HTTP Host header syntax Directory buckets - The
+// HTTP Host header syntax is Bucket_name.s3express-az_id.region.amazonaws.com .
+// The following operations are related to GetObject :
 //   - ListBuckets (https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListBuckets.html)
 //   - GetObjectAcl (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectAcl.html)
 func (c *Client) GetObject(ctx context.Context, params *GetObjectInput, optFns ...func(*Options)) (*GetObjectOutput, error) {
@@ -124,18 +127,30 @@ func (c *Client) GetObject(ctx context.Context, params *GetObjectInput, optFns .
 
 type GetObjectInput struct {
 
-	// The bucket name containing the object. When using this action with an access
-	// point, you must direct requests to the access point hostname. The access point
+	// The bucket name containing the object. Directory buckets - When you use this
+	// operation with a directory bucket, you must use virtual-hosted-style requests in
+	// the format Bucket_name.s3express-az_id.region.amazonaws.com . Path-style
+	// requests are not supported. Directory bucket names must be unique in the chosen
+	// Availability Zone. Bucket names must follow the format
+	// bucket_base_name--az-id--x-s3 (for example,  DOC-EXAMPLE-BUCKET--usw2-az2--x-s3
+	// ). For information about bucket naming restrictions, see Directory bucket
+	// naming rules (https://docs.aws.amazon.com/AmazonS3/latest/userguide/directory-bucket-naming-rules.html)
+	// in the Amazon S3 User Guide. Access points - When you use this action with an
+	// access point, you must provide the alias of the access point in place of the
+	// bucket name or specify the access point ARN. When using the access point ARN,
+	// you must direct requests to the access point hostname. The access point hostname
+	// takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
+	// When using this action with an access point through the Amazon Web Services
+	// SDKs, you provide the access point ARN in place of the bucket name. For more
+	// information about access point ARNs, see Using access points (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html)
+	// in the Amazon S3 User Guide. Object Lambda access points - When you use this
+	// action with an Object Lambda access point, you must direct requests to the
+	// Object Lambda access point hostname. The Object Lambda access point hostname
+	// takes the form AccessPointName-AccountId.s3-object-lambda.Region.amazonaws.com.
+	// Access points and Object Lambda access points are not supported by directory
+	// buckets. S3 on Outposts - When you use this action with Amazon S3 on Outposts,
+	// you must direct requests to the S3 on Outposts hostname. The S3 on Outposts
 	// hostname takes the form
-	// AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com. When using this
-	// action with an access point through the Amazon Web Services SDKs, you provide
-	// the access point ARN in place of the bucket name. For more information about
-	// access point ARNs, see Using access points (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html)
-	// in the Amazon S3 User Guide. When using an Object Lambda access point the
-	// hostname takes the form
-	// AccessPointName-AccountId.s3-object-lambda.Region.amazonaws.com. When you use
-	// this action with Amazon S3 on Outposts, you must direct requests to the S3 on
-	// Outposts hostname. The S3 on Outposts hostname takes the form
 	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com . When you
 	// use this action with S3 on Outposts through the Amazon Web Services SDKs, you
 	// provide the Outposts access point ARN in place of the bucket name. For more
@@ -153,51 +168,69 @@ type GetObjectInput struct {
 	// To retrieve the checksum, this mode must be enabled.
 	ChecksumMode types.ChecksumMode
 
-	// The account ID of the expected bucket owner. If the bucket is owned by a
-	// different account, the request fails with the HTTP status code 403 Forbidden
-	// (access denied).
+	// The account ID of the expected bucket owner. If the account ID that you provide
+	// does not match the actual owner of the bucket, the request fails with the HTTP
+	// status code 403 Forbidden (access denied).
 	ExpectedBucketOwner *string
 
 	// Return the object only if its entity tag (ETag) is the same as the one
-	// specified; otherwise, return a 412 (precondition failed) error.
+	// specified in this header; otherwise, return a 412 Precondition Failed error. If
+	// both of the If-Match and If-Unmodified-Since headers are present in the request
+	// as follows: If-Match condition evaluates to true , and; If-Unmodified-Since
+	// condition evaluates to false ; then, S3 returns 200 OK and the data requested.
+	// For more information about conditional requests, see RFC 7232 (https://tools.ietf.org/html/rfc7232)
+	// .
 	IfMatch *string
 
 	// Return the object only if it has been modified since the specified time;
-	// otherwise, return a 304 (not modified) error.
+	// otherwise, return a 304 Not Modified error. If both of the If-None-Match and
+	// If-Modified-Since headers are present in the request as follows: If-None-Match
+	// condition evaluates to false , and; If-Modified-Since condition evaluates to
+	// true ; then, S3 returns 304 Not Modified status code. For more information
+	// about conditional requests, see RFC 7232 (https://tools.ietf.org/html/rfc7232) .
 	IfModifiedSince *time.Time
 
 	// Return the object only if its entity tag (ETag) is different from the one
-	// specified; otherwise, return a 304 (not modified) error.
+	// specified in this header; otherwise, return a 304 Not Modified error. If both
+	// of the If-None-Match and If-Modified-Since headers are present in the request
+	// as follows: If-None-Match condition evaluates to false , and; If-Modified-Since
+	// condition evaluates to true ; then, S3 returns 304 Not Modified HTTP status
+	// code. For more information about conditional requests, see RFC 7232 (https://tools.ietf.org/html/rfc7232)
+	// .
 	IfNoneMatch *string
 
 	// Return the object only if it has not been modified since the specified time;
-	// otherwise, return a 412 (precondition failed) error.
+	// otherwise, return a 412 Precondition Failed error. If both of the If-Match and
+	// If-Unmodified-Since headers are present in the request as follows: If-Match
+	// condition evaluates to true , and; If-Unmodified-Since condition evaluates to
+	// false ; then, S3 returns 200 OK and the data requested. For more information
+	// about conditional requests, see RFC 7232 (https://tools.ietf.org/html/rfc7232) .
 	IfUnmodifiedSince *time.Time
 
 	// Part number of the object being read. This is a positive integer between 1 and
 	// 10,000. Effectively performs a 'ranged' GET request for the part specified.
 	// Useful for downloading just a part of an object.
-	PartNumber int32
+	PartNumber *int32
 
-	// Downloads the specified range bytes of an object. For more information about
-	// the HTTP Range header, see
-	// https://www.rfc-editor.org/rfc/rfc9110.html#name-range (https://www.rfc-editor.org/rfc/rfc9110.html#name-range)
+	// Downloads the specified byte range of an object. For more information about the
+	// HTTP Range header, see https://www.rfc-editor.org/rfc/rfc9110.html#name-range (https://www.rfc-editor.org/rfc/rfc9110.html#name-range)
 	// . Amazon S3 doesn't support retrieving multiple ranges of data per GET request.
 	Range *string
 
 	// Confirms that the requester knows that they will be charged for the request.
 	// Bucket owners need not specify this parameter in their requests. If either the
-	// source or destination Amazon S3 bucket has Requester Pays enabled, the requester
-	// will pay for corresponding charges to copy the object. For information about
+	// source or destination S3 bucket has Requester Pays enabled, the requester will
+	// pay for corresponding charges to copy the object. For information about
 	// downloading objects from Requester Pays buckets, see Downloading Objects in
 	// Requester Pays Buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
-	// in the Amazon S3 User Guide.
+	// in the Amazon S3 User Guide. This functionality is not supported for directory
+	// buckets.
 	RequestPayer types.RequestPayer
 
 	// Sets the Cache-Control header of the response.
 	ResponseCacheControl *string
 
-	// Sets the Content-Disposition header of the response
+	// Sets the Content-Disposition header of the response.
 	ResponseContentDisposition *string
 
 	// Sets the Content-Encoding header of the response.
@@ -212,23 +245,66 @@ type GetObjectInput struct {
 	// Sets the Expires header of the response.
 	ResponseExpires *time.Time
 
-	// Specifies the algorithm to use to when decrypting the object (for example,
-	// AES256).
+	// Specifies the algorithm to use when decrypting the object (for example, AES256
+	// ). If you encrypt an object by using server-side encryption with
+	// customer-provided encryption keys (SSE-C) when you store the object in Amazon
+	// S3, then when you GET the object, you must use the following headers:
+	//   - x-amz-server-side-encryption-customer-algorithm
+	//   - x-amz-server-side-encryption-customer-key
+	//   - x-amz-server-side-encryption-customer-key-MD5
+	// For more information about SSE-C, see Server-Side Encryption (Using
+	// Customer-Provided Encryption Keys) (https://docs.aws.amazon.com/AmazonS3/latest/dev/ServerSideEncryptionCustomerKeys.html)
+	// in the Amazon S3 User Guide. This functionality is not supported for directory
+	// buckets.
 	SSECustomerAlgorithm *string
 
-	// Specifies the customer-provided encryption key for Amazon S3 used to encrypt
-	// the data. This value is used to decrypt the object when recovering it and must
-	// match the one used when storing the data. The key must be appropriate for use
-	// with the algorithm specified in the
-	// x-amz-server-side-encryption-customer-algorithm header.
+	// Specifies the customer-provided encryption key that you originally provided for
+	// Amazon S3 to encrypt the data before storing it. This value is used to decrypt
+	// the object when recovering it and must match the one used when storing the data.
+	// The key must be appropriate for use with the algorithm specified in the
+	// x-amz-server-side-encryption-customer-algorithm header. If you encrypt an object
+	// by using server-side encryption with customer-provided encryption keys (SSE-C)
+	// when you store the object in Amazon S3, then when you GET the object, you must
+	// use the following headers:
+	//   - x-amz-server-side-encryption-customer-algorithm
+	//   - x-amz-server-side-encryption-customer-key
+	//   - x-amz-server-side-encryption-customer-key-MD5
+	// For more information about SSE-C, see Server-Side Encryption (Using
+	// Customer-Provided Encryption Keys) (https://docs.aws.amazon.com/AmazonS3/latest/dev/ServerSideEncryptionCustomerKeys.html)
+	// in the Amazon S3 User Guide. This functionality is not supported for directory
+	// buckets.
 	SSECustomerKey *string
 
-	// Specifies the 128-bit MD5 digest of the encryption key according to RFC 1321.
-	// Amazon S3 uses this header for a message integrity check to ensure that the
-	// encryption key was transmitted without error.
+	// Specifies the 128-bit MD5 digest of the customer-provided encryption key
+	// according to RFC 1321. Amazon S3 uses this header for a message integrity check
+	// to ensure that the encryption key was transmitted without error. If you encrypt
+	// an object by using server-side encryption with customer-provided encryption keys
+	// (SSE-C) when you store the object in Amazon S3, then when you GET the object,
+	// you must use the following headers:
+	//   - x-amz-server-side-encryption-customer-algorithm
+	//   - x-amz-server-side-encryption-customer-key
+	//   - x-amz-server-side-encryption-customer-key-MD5
+	// For more information about SSE-C, see Server-Side Encryption (Using
+	// Customer-Provided Encryption Keys) (https://docs.aws.amazon.com/AmazonS3/latest/dev/ServerSideEncryptionCustomerKeys.html)
+	// in the Amazon S3 User Guide. This functionality is not supported for directory
+	// buckets.
 	SSECustomerKeyMD5 *string
 
-	// VersionId used to reference a specific version of the object.
+	// Version ID used to reference a specific version of the object. By default, the
+	// GetObject operation returns the current version of an object. To return a
+	// different version, use the versionId subresource.
+	//   - If you include a versionId in your request header, you must have the
+	//   s3:GetObjectVersion permission to access a specific version of an object. The
+	//   s3:GetObject permission is not required in this scenario.
+	//   - If you request the current version of an object without a specific versionId
+	//   in the request header, only the s3:GetObject permission is required. The
+	//   s3:GetObjectVersion permission is not required in this scenario.
+	//   - Directory buckets - S3 Versioning isn't enabled and supported for directory
+	//   buckets. For this API operation, only the null value of the version ID is
+	//   supported by directory buckets. You can only specify null to the versionId
+	//   query parameter in the request.
+	// For more information about versioning, see PutBucketVersioning (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketVersioning.html)
+	// .
 	VersionId *string
 
 	noSmithyDocumentSerde
@@ -236,56 +312,54 @@ type GetObjectInput struct {
 
 func (in *GetObjectInput) bindEndpointParams(p *EndpointParameters) {
 	p.Bucket = in.Bucket
+	p.Key = in.Key
 
 }
 
 type GetObjectOutput struct {
 
-	// Indicates that a range of bytes was specified.
+	// Indicates that a range of bytes was specified in the request.
 	AcceptRanges *string
 
 	// Object data.
 	Body io.ReadCloser
 
 	// Indicates whether the object uses an S3 Bucket Key for server-side encryption
-	// with Key Management Service (KMS) keys (SSE-KMS).
-	BucketKeyEnabled bool
+	// with Key Management Service (KMS) keys (SSE-KMS). This functionality is not
+	// supported for directory buckets.
+	BucketKeyEnabled *bool
 
 	// Specifies caching behavior along the request/reply chain.
 	CacheControl *string
 
 	// The base64-encoded, 32-bit CRC32 checksum of the object. This will only be
-	// present if it was uploaded with the object. With multipart uploads, this may not
-	// be a checksum value of the object. For more information about how checksums are
-	// calculated with multipart uploads, see Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
+	// present if it was uploaded with the object. For more information, see Checking
+	// object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
 	// in the Amazon S3 User Guide.
 	ChecksumCRC32 *string
 
 	// The base64-encoded, 32-bit CRC32C checksum of the object. This will only be
-	// present if it was uploaded with the object. With multipart uploads, this may not
-	// be a checksum value of the object. For more information about how checksums are
-	// calculated with multipart uploads, see Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
+	// present if it was uploaded with the object. For more information, see Checking
+	// object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
 	// in the Amazon S3 User Guide.
 	ChecksumCRC32C *string
 
 	// The base64-encoded, 160-bit SHA-1 digest of the object. This will only be
-	// present if it was uploaded with the object. With multipart uploads, this may not
-	// be a checksum value of the object. For more information about how checksums are
-	// calculated with multipart uploads, see Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
+	// present if it was uploaded with the object. For more information, see Checking
+	// object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
 	// in the Amazon S3 User Guide.
 	ChecksumSHA1 *string
 
 	// The base64-encoded, 256-bit SHA-256 digest of the object. This will only be
-	// present if it was uploaded with the object. With multipart uploads, this may not
-	// be a checksum value of the object. For more information about how checksums are
-	// calculated with multipart uploads, see Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
+	// present if it was uploaded with the object. For more information, see Checking
+	// object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
 	// in the Amazon S3 User Guide.
 	ChecksumSHA256 *string
 
 	// Specifies presentational information for the object.
 	ContentDisposition *string
 
-	// Specifies what content encodings have been applied to the object and thus what
+	// Indicates what content encodings have been applied to the object and thus what
 	// decoding mechanisms must be applied to obtain the media-type referenced by the
 	// Content-Type header field.
 	ContentEncoding *string
@@ -294,7 +368,7 @@ type GetObjectOutput struct {
 	ContentLanguage *string
 
 	// Size of the body in bytes.
-	ContentLength int64
+	ContentLength *int64
 
 	// The portion of the object returned in the response.
 	ContentRange *string
@@ -302,24 +376,34 @@ type GetObjectOutput struct {
 	// A standard MIME type describing the format of the object data.
 	ContentType *string
 
-	// Specifies whether the object retrieved was (true) or was not (false) a Delete
+	// Indicates whether the object retrieved was (true) or was not (false) a Delete
 	// Marker. If false, this response header does not appear in the response.
-	DeleteMarker bool
+	//   - If the current version of the object is a delete marker, Amazon S3 behaves
+	//   as if the object was deleted and includes x-amz-delete-marker: true in the
+	//   response.
+	//   - If the specified version in the request is a delete marker, the response
+	//   returns a 405 Method Not Allowed error and the Last-Modified: timestamp
+	//   response header.
+	DeleteMarker *bool
 
 	// An entity tag (ETag) is an opaque identifier assigned by a web server to a
 	// specific version of a resource found at a URL.
 	ETag *string
 
-	// If the object expiration is configured (see PUT Bucket lifecycle), the response
-	// includes this header. It includes the expiry-date and rule-id key-value pairs
-	// providing object expiration information. The value of the rule-id is
-	// URL-encoded.
+	// If the object expiration is configured (see PutBucketLifecycleConfiguration (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketLifecycleConfiguration.html)
+	// ), the response includes this header. It includes the expiry-date and rule-id
+	// key-value pairs providing object expiration information. The value of the
+	// rule-id is URL-encoded. This functionality is not supported for directory
+	// buckets.
 	Expiration *string
 
 	// The date and time at which the object is no longer cacheable.
 	Expires *time.Time
 
-	// Creation date of the object.
+	// Date and time when the object was last modified. General purpose buckets - When
+	// you specify a versionId of the object in your request, if the specified version
+	// in the request is a delete marker, the response returns a 405 Method Not Allowed
+	// error and the Last-Modified: timestamp response header.
 	LastModified *time.Time
 
 	// A map of metadata to store with the object in S3.
@@ -327,69 +411,88 @@ type GetObjectOutput struct {
 	// Map keys will be normalized to lower-case.
 	Metadata map[string]string
 
-	// This is set to the number of metadata entries not returned in x-amz-meta
-	// headers. This can happen if you create metadata using an API like SOAP that
-	// supports more flexible metadata than the REST API. For example, using SOAP, you
-	// can create metadata whose values are not legal HTTP headers.
-	MissingMeta int32
+	// This is set to the number of metadata entries not returned in the headers that
+	// are prefixed with x-amz-meta- . This can happen if you create metadata using an
+	// API like SOAP that supports more flexible metadata than the REST API. For
+	// example, using SOAP, you can create metadata whose values are not legal HTTP
+	// headers. This functionality is not supported for directory buckets.
+	MissingMeta *int32
 
 	// Indicates whether this object has an active legal hold. This field is only
-	// returned if you have permission to view an object's legal hold status.
+	// returned if you have permission to view an object's legal hold status. This
+	// functionality is not supported for directory buckets.
 	ObjectLockLegalHoldStatus types.ObjectLockLegalHoldStatus
 
-	// The Object Lock mode currently in place for this object.
+	// The Object Lock mode that's currently in place for this object. This
+	// functionality is not supported for directory buckets.
 	ObjectLockMode types.ObjectLockMode
 
-	// The date and time when this object's Object Lock will expire.
+	// The date and time when this object's Object Lock will expire. This
+	// functionality is not supported for directory buckets.
 	ObjectLockRetainUntilDate *time.Time
 
 	// The count of parts this object has. This value is only returned if you specify
 	// partNumber in your request and the object was uploaded as a multipart upload.
-	PartsCount int32
+	PartsCount *int32
 
 	// Amazon S3 can return this if your request involves a bucket that is either a
-	// source or destination in a replication rule.
+	// source or destination in a replication rule. This functionality is not supported
+	// for directory buckets.
 	ReplicationStatus types.ReplicationStatus
 
 	// If present, indicates that the requester was successfully charged for the
-	// request.
+	// request. This functionality is not supported for directory buckets.
 	RequestCharged types.RequestCharged
 
 	// Provides information about object restoration action and expiration time of the
-	// restored object copy.
+	// restored object copy. This functionality is not supported for directory buckets.
+	// Only the S3 Express One Zone storage class is supported by directory buckets to
+	// store objects.
 	Restore *string
 
 	// If server-side encryption with a customer-provided encryption key was
-	// requested, the response will include this header confirming the encryption
-	// algorithm used.
+	// requested, the response will include this header to confirm the encryption
+	// algorithm that's used. This functionality is not supported for directory
+	// buckets.
 	SSECustomerAlgorithm *string
 
 	// If server-side encryption with a customer-provided encryption key was
-	// requested, the response will include this header to provide round-trip message
-	// integrity verification of the customer-provided encryption key.
+	// requested, the response will include this header to provide the round-trip
+	// message integrity verification of the customer-provided encryption key. This
+	// functionality is not supported for directory buckets.
 	SSECustomerKeyMD5 *string
 
-	// If present, specifies the ID of the Key Management Service (KMS) symmetric
-	// encryption customer managed key that was used for the object.
+	// If present, indicates the ID of the Key Management Service (KMS) symmetric
+	// encryption customer managed key that was used for the object. This functionality
+	// is not supported for directory buckets.
 	SSEKMSKeyId *string
 
-	// The server-side encryption algorithm used when storing this object in Amazon S3
-	// (for example, AES256 , aws:kms , aws:kms:dsse ).
+	// The server-side encryption algorithm used when you store this object in Amazon
+	// S3 (for example, AES256 , aws:kms , aws:kms:dsse ). For directory buckets, only
+	// server-side encryption with Amazon S3 managed keys (SSE-S3) ( AES256 ) is
+	// supported.
 	ServerSideEncryption types.ServerSideEncryption
 
 	// Provides storage class information of the object. Amazon S3 returns this header
-	// for all objects except for S3 Standard storage class objects.
+	// for all objects except for S3 Standard storage class objects. Directory buckets
+	// - Only the S3 Express One Zone storage class is supported by directory buckets
+	// to store objects.
 	StorageClass types.StorageClass
 
-	// The number of tags, if any, on the object.
-	TagCount int32
+	// The number of tags, if any, on the object, when you have the relevant
+	// permission to read object tags. You can use GetObjectTagging (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectTagging.html)
+	// to retrieve the tag set associated with an object. This functionality is not
+	// supported for directory buckets.
+	TagCount *int32
 
-	// Version of the object.
+	// Version ID of the object. This functionality is not supported for directory
+	// buckets.
 	VersionId *string
 
 	// If the bucket is configured as a website, redirects requests for this object to
 	// another object in the same bucket or to an external URL. Amazon S3 stores the
-	// value of this header in the object metadata.
+	// value of this header in the object metadata. This functionality is not supported
+	// for directory buckets.
 	WebsiteRedirectLocation *string
 
 	// Metadata pertaining to the operation's result.
@@ -448,6 +551,9 @@ func (c *Client) addOperationGetObjectMiddlewares(stack *middleware.Stack, optio
 		return err
 	}
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addPutBucketContextMiddleware(stack); err != nil {
 		return err
 	}
 	if err = addOpGetObjectValidationMiddleware(stack); err != nil {

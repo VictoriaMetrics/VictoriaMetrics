@@ -286,7 +286,7 @@ func TestArrayInt(t *testing.T) {
 }
 
 func TestArrayInt_Set(t *testing.T) {
-	f := func(s, expectedResult string) {
+	f := func(s, expectedResult string, expectedValues []int) {
 		t.Helper()
 		var a ArrayInt
 		if err := a.Set(s); err != nil {
@@ -296,10 +296,14 @@ func TestArrayInt_Set(t *testing.T) {
 		if result != expectedResult {
 			t.Fatalf("unexpected values parsed;\ngot\n%q\nwant\n%q", result, expectedResult)
 		}
+		values := a.Values()
+		if !reflect.DeepEqual(values, expectedValues) {
+			t.Fatalf("unexpected values;\ngot\n%d\nwant\n%d", values, expectedValues)
+		}
 	}
-	f("", "")
-	f(`1`, `1`)
-	f(`-2,3,-64`, `-2,3,-64`)
+	f("", "", nil)
+	f(`1`, `1`, []int{1})
+	f(`-2,3,-64`, `-2,3,-64`, []int{-2, 3, -64})
 }
 
 func TestArrayInt_GetOptionalArg(t *testing.T) {

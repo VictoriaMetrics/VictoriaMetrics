@@ -10,22 +10,23 @@ import (
 	s3cust "github.com/aws/aws-sdk-go-v2/service/s3/internal/customizations"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/smithy-go/middleware"
+	"github.com/aws/smithy-go/ptr"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// This implementation of the PUT action adds an inventory configuration
-// (identified by the inventory ID) to the bucket. You can have up to 1,000
-// inventory configurations per bucket. Amazon S3 inventory generates inventories
-// of the objects in the bucket on a daily or weekly basis, and the results are
-// published to a flat file. The bucket that is inventoried is called the source
-// bucket, and the bucket where the inventory flat file is stored is called the
-// destination bucket. The destination bucket must be in the same Amazon Web
-// Services Region as the source bucket. When you configure an inventory for a
-// source bucket, you specify the destination bucket where you want the inventory
-// to be stored, and whether to generate the inventory daily or weekly. You can
-// also configure what object metadata to include and whether to inventory all
-// object versions or only current versions. For more information, see Amazon S3
-// Inventory (https://docs.aws.amazon.com/AmazonS3/latest/dev/storage-inventory.html)
+// This operation is not supported by directory buckets. This implementation of
+// the PUT action adds an inventory configuration (identified by the inventory ID)
+// to the bucket. You can have up to 1,000 inventory configurations per bucket.
+// Amazon S3 inventory generates inventories of the objects in the bucket on a
+// daily or weekly basis, and the results are published to a flat file. The bucket
+// that is inventoried is called the source bucket, and the bucket where the
+// inventory flat file is stored is called the destination bucket. The destination
+// bucket must be in the same Amazon Web Services Region as the source bucket. When
+// you configure an inventory for a source bucket, you specify the destination
+// bucket where you want the inventory to be stored, and whether to generate the
+// inventory daily or weekly. You can also configure what object metadata to
+// include and whether to inventory all object versions or only current versions.
+// For more information, see Amazon S3 Inventory (https://docs.aws.amazon.com/AmazonS3/latest/dev/storage-inventory.html)
 // in the Amazon S3 User Guide. You must create a bucket policy on the destination
 // bucket to grant permissions to Amazon S3 to write objects to the bucket in the
 // defined location. For an example policy, see Granting Permissions for Amazon S3
@@ -87,9 +88,9 @@ type PutBucketInventoryConfigurationInput struct {
 	// This member is required.
 	InventoryConfiguration *types.InventoryConfiguration
 
-	// The account ID of the expected bucket owner. If the bucket is owned by a
-	// different account, the request fails with the HTTP status code 403 Forbidden
-	// (access denied).
+	// The account ID of the expected bucket owner. If the account ID that you provide
+	// does not match the actual owner of the bucket, the request fails with the HTTP
+	// status code 403 Forbidden (access denied).
 	ExpectedBucketOwner *string
 
 	noSmithyDocumentSerde
@@ -97,7 +98,7 @@ type PutBucketInventoryConfigurationInput struct {
 
 func (in *PutBucketInventoryConfigurationInput) bindEndpointParams(p *EndpointParameters) {
 	p.Bucket = in.Bucket
-
+	p.UseS3ExpressControlEndpoint = ptr.Bool(true)
 }
 
 type PutBucketInventoryConfigurationOutput struct {
@@ -160,6 +161,9 @@ func (c *Client) addOperationPutBucketInventoryConfigurationMiddlewares(stack *m
 		return err
 	}
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addPutBucketContextMiddleware(stack); err != nil {
 		return err
 	}
 	if err = addOpPutBucketInventoryConfigurationValidationMiddleware(stack); err != nil {

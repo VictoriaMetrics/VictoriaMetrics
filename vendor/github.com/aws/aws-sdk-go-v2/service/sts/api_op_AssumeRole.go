@@ -200,7 +200,12 @@ type AssumeRoleInput struct {
 	// in the IAM User Guide.
 	PolicyArns []types.PolicyDescriptorType
 
-	// Reserved for future use.
+	// A list of previously acquired trusted context assertions in the format of a
+	// JSON array. The trusted context assertion is signed and encrypted by Amazon Web
+	// Services STS. The following is an example of a ProvidedContext value that
+	// includes a single trusted context assertion and the ARN of the context provider
+	// from which the trusted context assertion was generated.
+	// [{"ProviderArn":"arn:aws:iam::aws:contextProvider/IdentityCenter","ContextAssertion":"trusted-context-assertion"}]
 	ProvidedContexts []types.ProvidedContext
 
 	// The identification number of the MFA device that is associated with the user

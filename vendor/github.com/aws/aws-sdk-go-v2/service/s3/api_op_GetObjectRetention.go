@@ -13,10 +13,10 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Retrieves an object's retention settings. For more information, see Locking
-// Objects (https://docs.aws.amazon.com/AmazonS3/latest/dev/object-lock.html) .
-// This action is not supported by Amazon S3 on Outposts. The following action is
-// related to GetObjectRetention :
+// This operation is not supported by directory buckets. Retrieves an object's
+// retention settings. For more information, see Locking Objects (https://docs.aws.amazon.com/AmazonS3/latest/dev/object-lock.html)
+// . This functionality is not supported for Amazon S3 on Outposts. The following
+// action is related to GetObjectRetention :
 //   - GetObjectAttributes (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectAttributes.html)
 func (c *Client) GetObjectRetention(ctx context.Context, params *GetObjectRetentionInput, optFns ...func(*Options)) (*GetObjectRetentionOutput, error) {
 	if params == nil {
@@ -36,8 +36,10 @@ func (c *Client) GetObjectRetention(ctx context.Context, params *GetObjectRetent
 type GetObjectRetentionInput struct {
 
 	// The bucket name containing the object whose retention settings you want to
-	// retrieve. When using this action with an access point, you must direct requests
-	// to the access point hostname. The access point hostname takes the form
+	// retrieve. Access points - When you use this action with an access point, you
+	// must provide the alias of the access point in place of the bucket name or
+	// specify the access point ARN. When using the access point ARN, you must direct
+	// requests to the access point hostname. The access point hostname takes the form
 	// AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com. When using this
 	// action with an access point through the Amazon Web Services SDKs, you provide
 	// the access point ARN in place of the bucket name. For more information about
@@ -52,18 +54,19 @@ type GetObjectRetentionInput struct {
 	// This member is required.
 	Key *string
 
-	// The account ID of the expected bucket owner. If the bucket is owned by a
-	// different account, the request fails with the HTTP status code 403 Forbidden
-	// (access denied).
+	// The account ID of the expected bucket owner. If the account ID that you provide
+	// does not match the actual owner of the bucket, the request fails with the HTTP
+	// status code 403 Forbidden (access denied).
 	ExpectedBucketOwner *string
 
 	// Confirms that the requester knows that they will be charged for the request.
 	// Bucket owners need not specify this parameter in their requests. If either the
-	// source or destination Amazon S3 bucket has Requester Pays enabled, the requester
-	// will pay for corresponding charges to copy the object. For information about
+	// source or destination S3 bucket has Requester Pays enabled, the requester will
+	// pay for corresponding charges to copy the object. For information about
 	// downloading objects from Requester Pays buckets, see Downloading Objects in
 	// Requester Pays Buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
-	// in the Amazon S3 User Guide.
+	// in the Amazon S3 User Guide. This functionality is not supported for directory
+	// buckets.
 	RequestPayer types.RequestPayer
 
 	// The version ID for the object whose retention settings you want to retrieve.
@@ -141,6 +144,9 @@ func (c *Client) addOperationGetObjectRetentionMiddlewares(stack *middleware.Sta
 		return err
 	}
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addPutBucketContextMiddleware(stack); err != nil {
 		return err
 	}
 	if err = addOpGetObjectRetentionValidationMiddleware(stack); err != nil {
