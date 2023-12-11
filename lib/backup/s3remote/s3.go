@@ -182,7 +182,7 @@ func (fs *FS) ListParts() ([]common.Part, error) {
 				continue
 			}
 
-			p.ActualSize = uint64(o.Size)
+			p.ActualSize = uint64(*o.Size)
 			parts = append(parts, p)
 		}
 
