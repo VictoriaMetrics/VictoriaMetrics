@@ -136,7 +136,13 @@ export const useFetchQuery = ({
           totalLength += resp.data.result.length;
         } else {
           tempData.push({ metric: {}, values: [], group: counter } as MetricBase);
-          setQueryErrors(prev => [...prev, `${resp.errorType}\r\n${resp?.error}`]);
+          if (resp.errorType !== undefined) {
+            setQueryErrors(prev => [...prev, `${resp.errorType}\r\n${resp?.error}`]);
+          } else {
+            console.log("Unknown server response format:", resp);
+            setQueryErrors(prev => [...prev,
+              "Unknown server response format: must have 'errorType', see console for more details"]);
+          }
         }
         counter++;
       }
