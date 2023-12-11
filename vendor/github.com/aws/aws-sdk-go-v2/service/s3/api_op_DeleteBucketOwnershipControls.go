@@ -9,12 +9,14 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	s3cust "github.com/aws/aws-sdk-go-v2/service/s3/internal/customizations"
 	"github.com/aws/smithy-go/middleware"
+	"github.com/aws/smithy-go/ptr"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Removes OwnershipControls for an Amazon S3 bucket. To use this operation, you
-// must have the s3:PutBucketOwnershipControls permission. For more information
-// about Amazon S3 permissions, see Specifying Permissions in a Policy (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-with-s3-actions.html)
+// This operation is not supported by directory buckets. Removes OwnershipControls
+// for an Amazon S3 bucket. To use this operation, you must have the
+// s3:PutBucketOwnershipControls permission. For more information about Amazon S3
+// permissions, see Specifying Permissions in a Policy (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-with-s3-actions.html)
 // . For information about Amazon S3 Object Ownership, see Using Object Ownership (https://docs.aws.amazon.com/AmazonS3/latest/dev/about-object-ownership.html)
 // . The following operations are related to DeleteBucketOwnershipControls :
 //   - GetBucketOwnershipControls
@@ -41,9 +43,9 @@ type DeleteBucketOwnershipControlsInput struct {
 	// This member is required.
 	Bucket *string
 
-	// The account ID of the expected bucket owner. If the bucket is owned by a
-	// different account, the request fails with the HTTP status code 403 Forbidden
-	// (access denied).
+	// The account ID of the expected bucket owner. If the account ID that you provide
+	// does not match the actual owner of the bucket, the request fails with the HTTP
+	// status code 403 Forbidden (access denied).
 	ExpectedBucketOwner *string
 
 	noSmithyDocumentSerde
@@ -51,7 +53,7 @@ type DeleteBucketOwnershipControlsInput struct {
 
 func (in *DeleteBucketOwnershipControlsInput) bindEndpointParams(p *EndpointParameters) {
 	p.Bucket = in.Bucket
-
+	p.UseS3ExpressControlEndpoint = ptr.Bool(true)
 }
 
 type DeleteBucketOwnershipControlsOutput struct {
@@ -114,6 +116,9 @@ func (c *Client) addOperationDeleteBucketOwnershipControlsMiddlewares(stack *mid
 		return err
 	}
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addPutBucketContextMiddleware(stack); err != nil {
 		return err
 	}
 	if err = addOpDeleteBucketOwnershipControlsValidationMiddleware(stack); err != nil {

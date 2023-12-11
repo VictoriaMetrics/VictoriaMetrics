@@ -15,17 +15,19 @@ import (
 	smithyxml "github.com/aws/smithy-go/encoding/xml"
 	smithyio "github.com/aws/smithy-go/io"
 	"github.com/aws/smithy-go/middleware"
+	"github.com/aws/smithy-go/ptr"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 	"io"
 )
 
-// Returns the Region the bucket resides in. You set the bucket's Region using the
-// LocationConstraint request parameter in a CreateBucket request. For more
-// information, see CreateBucket (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateBucket.html)
-// . To use this API operation against an access point, provide the alias of the
-// access point in place of the bucket name. To use this API operation against an
-// Object Lambda access point, provide the alias of the Object Lambda access point
-// in place of the bucket name. If the Object Lambda access point alias in a
+// This operation is not supported by directory buckets. Returns the Region the
+// bucket resides in. You set the bucket's Region using the LocationConstraint
+// request parameter in a CreateBucket request. For more information, see
+// CreateBucket (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateBucket.html)
+// . When you use this API operation with an access point, provide the alias of the
+// access point in place of the bucket name. When you use this API operation with
+// an Object Lambda access point, provide the alias of the Object Lambda access
+// point in place of the bucket name. If the Object Lambda access point alias in a
 // request is not valid, the error code InvalidAccessPointAliasError is returned.
 // For more information about InvalidAccessPointAliasError , see List of Error
 // Codes (https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html#ErrorCodeList)
@@ -52,21 +54,21 @@ func (c *Client) GetBucketLocation(ctx context.Context, params *GetBucketLocatio
 
 type GetBucketLocationInput struct {
 
-	// The name of the bucket for which to get the location. To use this API operation
-	// against an access point, provide the alias of the access point in place of the
-	// bucket name. To use this API operation against an Object Lambda access point,
-	// provide the alias of the Object Lambda access point in place of the bucket name.
-	// If the Object Lambda access point alias in a request is not valid, the error
-	// code InvalidAccessPointAliasError is returned. For more information about
-	// InvalidAccessPointAliasError , see List of Error Codes (https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html#ErrorCodeList)
+	// The name of the bucket for which to get the location. When you use this API
+	// operation with an access point, provide the alias of the access point in place
+	// of the bucket name. When you use this API operation with an Object Lambda access
+	// point, provide the alias of the Object Lambda access point in place of the
+	// bucket name. If the Object Lambda access point alias in a request is not valid,
+	// the error code InvalidAccessPointAliasError is returned. For more information
+	// about InvalidAccessPointAliasError , see List of Error Codes (https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html#ErrorCodeList)
 	// .
 	//
 	// This member is required.
 	Bucket *string
 
-	// The account ID of the expected bucket owner. If the bucket is owned by a
-	// different account, the request fails with the HTTP status code 403 Forbidden
-	// (access denied).
+	// The account ID of the expected bucket owner. If the account ID that you provide
+	// does not match the actual owner of the bucket, the request fails with the HTTP
+	// status code 403 Forbidden (access denied).
 	ExpectedBucketOwner *string
 
 	noSmithyDocumentSerde
@@ -74,7 +76,7 @@ type GetBucketLocationInput struct {
 
 func (in *GetBucketLocationInput) bindEndpointParams(p *EndpointParameters) {
 	p.Bucket = in.Bucket
-
+	p.UseS3ExpressControlEndpoint = ptr.Bool(true)
 }
 
 type GetBucketLocationOutput struct {
@@ -146,6 +148,9 @@ func (c *Client) addOperationGetBucketLocationMiddlewares(stack *middleware.Stac
 		return err
 	}
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addPutBucketContextMiddleware(stack); err != nil {
 		return err
 	}
 	if err = addOpGetBucketLocationValidationMiddleware(stack); err != nil {

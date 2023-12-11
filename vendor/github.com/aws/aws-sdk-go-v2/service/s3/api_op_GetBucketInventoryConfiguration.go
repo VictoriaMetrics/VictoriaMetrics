@@ -10,13 +10,15 @@ import (
 	s3cust "github.com/aws/aws-sdk-go-v2/service/s3/internal/customizations"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/smithy-go/middleware"
+	"github.com/aws/smithy-go/ptr"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Returns an inventory configuration (identified by the inventory configuration
-// ID) from the bucket. To use this operation, you must have permissions to perform
-// the s3:GetInventoryConfiguration action. The bucket owner has this permission
-// by default and can grant this permission to others. For more information about
+// This operation is not supported by directory buckets. Returns an inventory
+// configuration (identified by the inventory configuration ID) from the bucket. To
+// use this operation, you must have permissions to perform the
+// s3:GetInventoryConfiguration action. The bucket owner has this permission by
+// default and can grant this permission to others. For more information about
 // permissions, see Permissions Related to Bucket Subresource Operations (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-with-s3-actions.html#using-with-s3-actions-related-to-bucket-subresources)
 // and Managing Access Permissions to Your Amazon S3 Resources (https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-access-control.html)
 // . For information about the Amazon S3 inventory feature, see Amazon S3 Inventory (https://docs.aws.amazon.com/AmazonS3/latest/dev/storage-inventory.html)
@@ -51,9 +53,9 @@ type GetBucketInventoryConfigurationInput struct {
 	// This member is required.
 	Id *string
 
-	// The account ID of the expected bucket owner. If the bucket is owned by a
-	// different account, the request fails with the HTTP status code 403 Forbidden
-	// (access denied).
+	// The account ID of the expected bucket owner. If the account ID that you provide
+	// does not match the actual owner of the bucket, the request fails with the HTTP
+	// status code 403 Forbidden (access denied).
 	ExpectedBucketOwner *string
 
 	noSmithyDocumentSerde
@@ -61,7 +63,7 @@ type GetBucketInventoryConfigurationInput struct {
 
 func (in *GetBucketInventoryConfigurationInput) bindEndpointParams(p *EndpointParameters) {
 	p.Bucket = in.Bucket
-
+	p.UseS3ExpressControlEndpoint = ptr.Bool(true)
 }
 
 type GetBucketInventoryConfigurationOutput struct {
@@ -128,6 +130,9 @@ func (c *Client) addOperationGetBucketInventoryConfigurationMiddlewares(stack *m
 		return err
 	}
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addPutBucketContextMiddleware(stack); err != nil {
 		return err
 	}
 	if err = addOpGetBucketInventoryConfigurationValidationMiddleware(stack); err != nil {
