@@ -281,7 +281,7 @@ func Test_splitDateRange_reverse(t *testing.T) {
 		start       string
 		end         string
 		granularity string
-		useReverse  bool
+		timeReverse bool
 	}
 	tests := []struct {
 		name    string
@@ -295,7 +295,7 @@ func Test_splitDateRange_reverse(t *testing.T) {
 				start:       "2022-02-01T00:00:00Z",
 				end:         "2022-01-01T00:00:00Z",
 				granularity: StepMonth,
-				useReverse:  true,
+				timeReverse: true,
 			},
 			want:    nil,
 			wantErr: true,
@@ -306,7 +306,7 @@ func Test_splitDateRange_reverse(t *testing.T) {
 				start:       "2022-01-01T00:00:00Z",
 				end:         "2022-02-01T00:00:00Z",
 				granularity: "non-existent-format",
-				useReverse:  true,
+				timeReverse: true,
 			},
 			want:    nil,
 			wantErr: true,
@@ -317,7 +317,7 @@ func Test_splitDateRange_reverse(t *testing.T) {
 				start:       "2022-01-03T11:11:11Z",
 				end:         "2022-03-03T12:12:12Z",
 				granularity: StepMonth,
-				useReverse:  true,
+				timeReverse: true,
 			},
 			want: []testTimeRange{
 				{
@@ -341,7 +341,7 @@ func Test_splitDateRange_reverse(t *testing.T) {
 				start:       "2022-01-03T11:11:11Z",
 				end:         "2022-01-05T12:12:12Z",
 				granularity: StepDay,
-				useReverse:  true,
+				timeReverse: true,
 			},
 			want: []testTimeRange{
 				{
@@ -365,7 +365,7 @@ func Test_splitDateRange_reverse(t *testing.T) {
 				start:       "2022-01-03T11:11:11Z",
 				end:         "2022-01-03T14:14:14Z",
 				granularity: StepHour,
-				useReverse:  true,
+				timeReverse: true,
 			},
 			want: []testTimeRange{
 				{
@@ -393,7 +393,7 @@ func Test_splitDateRange_reverse(t *testing.T) {
 				start:       "2022-01-03T11:11:11Z",
 				end:         "2022-01-04T12:12:12Z",
 				granularity: StepMonth,
-				useReverse:  true,
+				timeReverse: true,
 			},
 			want: []testTimeRange{
 				{
@@ -409,7 +409,7 @@ func Test_splitDateRange_reverse(t *testing.T) {
 				start:       "2022-01-03T11:11:11Z",
 				end:         "2022-01-03T12:12:12Z",
 				granularity: StepMonth,
-				useReverse:  true,
+				timeReverse: true,
 			},
 			want: []testTimeRange{
 				{
@@ -425,7 +425,7 @@ func Test_splitDateRange_reverse(t *testing.T) {
 				start:       "2022-01-03T11:11:11Z",
 				end:         "2022-02-03T00:00:00Z",
 				granularity: StepMonth,
-				useReverse:  true,
+				timeReverse: true,
 			},
 			want: []testTimeRange{
 				{
@@ -445,7 +445,7 @@ func Test_splitDateRange_reverse(t *testing.T) {
 				start:       "2023-07-30T00:00:00Z",
 				end:         "2023-08-05T23:59:59.999999999Z",
 				granularity: StepWeek,
-				useReverse:  true,
+				timeReverse: true,
 			},
 			want: []testTimeRange{
 				{
@@ -460,7 +460,7 @@ func Test_splitDateRange_reverse(t *testing.T) {
 				start:       "2023-07-30T00:00:00Z",
 				end:         "2023-08-06T00:00:00Z",
 				granularity: StepWeek,
-				useReverse:  true,
+				timeReverse: true,
 			},
 			want: []testTimeRange{
 				{
@@ -475,7 +475,7 @@ func Test_splitDateRange_reverse(t *testing.T) {
 				start:       "2023-07-30T00:00:00Z",
 				end:         "2023-08-07T01:12:00Z",
 				granularity: StepWeek,
-				useReverse:  true,
+				timeReverse: true,
 			},
 			want: []testTimeRange{
 				{
@@ -494,7 +494,7 @@ func Test_splitDateRange_reverse(t *testing.T) {
 				start:       "2023-07-30T00:00:00Z",
 				end:         "2023-09-01T01:12:00Z",
 				granularity: StepWeek,
-				useReverse:  true,
+				timeReverse: true,
 			},
 			want: []testTimeRange{
 				{
@@ -525,7 +525,7 @@ func Test_splitDateRange_reverse(t *testing.T) {
 			start := mustParseDatetime(tt.args.start)
 			end := mustParseDatetime(tt.args.end)
 
-			got, err := SplitDateRange(start, end, tt.args.granularity, tt.args.useReverse)
+			got, err := SplitDateRange(start, end, tt.args.granularity, tt.args.timeReverse)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("splitDateRange() error = %v, wantErr %v", err, tt.wantErr)
 				return

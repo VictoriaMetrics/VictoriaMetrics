@@ -27,10 +27,10 @@ type remoteReadProcessor struct {
 }
 
 type remoteReadFilter struct {
-	timeStart     *time.Time
-	timeEnd       *time.Time
-	chunk         string
-	reverseChunks bool
+	timeStart   *time.Time
+	timeEnd     *time.Time
+	chunk       string
+	timeReverse bool
 }
 
 func (rrp *remoteReadProcessor) run(ctx context.Context) error {
@@ -43,7 +43,7 @@ func (rrp *remoteReadProcessor) run(ctx context.Context) error {
 		rrp.cc = 1
 	}
 
-	ranges, err := stepper.SplitDateRange(*rrp.filter.timeStart, *rrp.filter.timeEnd, rrp.filter.chunk, rrp.filter.reverseChunks)
+	ranges, err := stepper.SplitDateRange(*rrp.filter.timeStart, *rrp.filter.timeEnd, rrp.filter.chunk, rrp.filter.timeReverse)
 	if err != nil {
 		return fmt.Errorf("failed to create date ranges for the given time filters: %v", err)
 	}

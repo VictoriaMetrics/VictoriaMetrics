@@ -320,11 +320,11 @@ var (
 )
 
 const (
-	vmNativeFilterMatch             = "vm-native-filter-match"
-	vmNativeFilterTimeStart         = "vm-native-filter-time-start"
-	vmNativeFilterTimeEnd           = "vm-native-filter-time-end"
-	vmNativeFilterTimeReverseChunks = "vm-native-filter-time-reverse-chunks"
-	vmNativeStepInterval            = "vm-native-step-interval"
+	vmNativeFilterMatch       = "vm-native-filter-match"
+	vmNativeFilterTimeStart   = "vm-native-filter-time-start"
+	vmNativeFilterTimeEnd     = "vm-native-filter-time-end"
+	vmNativeFilterTimeReverse = "vm-native-filter-time-reverse"
+	vmNativeStepInterval      = "vm-native-step-interval"
 
 	vmNativeDisableBinaryProtocol = "vm-native-disable-binary-protocol"
 	vmNativeDisableHTTPKeepAlive  = "vm-native-disable-http-keep-alive"
@@ -368,8 +368,8 @@ var (
 			Value: stepper.StepMonth,
 		},
 		&cli.BoolFlag{
-			Name:  vmNativeFilterTimeReverseChunks,
-			Usage: "Sort time chunks in reverse mode. In that mode time ranges will be sorted from newest to oldest time ranges.",
+			Name:  vmNativeFilterTimeReverse,
+			Usage: "Whether to reverse order of time intervals split by '-vm-native-step-interval' cmd-line flag. When set, the migration will start from the newest to the oldest intervals.",
 			Value: false,
 		},
 		&cli.BoolFlag{
@@ -470,22 +470,22 @@ var (
 )
 
 const (
-	remoteRead                    = "remote-read"
-	remoteReadUseStream           = "remote-read-use-stream"
-	remoteReadConcurrency         = "remote-read-concurrency"
-	remoteReadFilterTimeStart     = "remote-read-filter-time-start"
-	remoteReadFilterTimeEnd       = "remote-read-filter-time-end"
-	remoteReadFilterReverseChunks = "remote-read-filter-reverse-chunks"
-	remoteReadFilterLabel         = "remote-read-filter-label"
-	remoteReadFilterLabelValue    = "remote-read-filter-label-value"
-	remoteReadStepInterval        = "remote-read-step-interval"
-	remoteReadSrcAddr             = "remote-read-src-addr"
-	remoteReadUser                = "remote-read-user"
-	remoteReadPassword            = "remote-read-password"
-	remoteReadHTTPTimeout         = "remote-read-http-timeout"
-	remoteReadHeaders             = "remote-read-headers"
-	remoteReadInsecureSkipVerify  = "remote-read-insecure-skip-verify"
-	remoteReadDisablePathAppend   = "remote-read-disable-path-append"
+	remoteRead                   = "remote-read"
+	remoteReadUseStream          = "remote-read-use-stream"
+	remoteReadConcurrency        = "remote-read-concurrency"
+	remoteReadFilterTimeStart    = "remote-read-filter-time-start"
+	remoteReadFilterTimeEnd      = "remote-read-filter-time-end"
+	remoteReadFilterTimeReverse  = "remote-read-filter-time-reverse"
+	remoteReadFilterLabel        = "remote-read-filter-label"
+	remoteReadFilterLabelValue   = "remote-read-filter-label-value"
+	remoteReadStepInterval       = "remote-read-step-interval"
+	remoteReadSrcAddr            = "remote-read-src-addr"
+	remoteReadUser               = "remote-read-user"
+	remoteReadPassword           = "remote-read-password"
+	remoteReadHTTPTimeout        = "remote-read-http-timeout"
+	remoteReadHeaders            = "remote-read-headers"
+	remoteReadInsecureSkipVerify = "remote-read-insecure-skip-verify"
+	remoteReadDisablePathAppend  = "remote-read-disable-path-append"
 )
 
 var (
@@ -532,8 +532,8 @@ var (
 			Required: true,
 		},
 		&cli.BoolFlag{
-			Name:  remoteReadFilterReverseChunks,
-			Usage: "Sort time chunks in reverse mode. In that mode time ranges will be sorted from newest to oldest time ranges.",
+			Name:  remoteReadFilterTimeReverse,
+			Usage: "Whether to reverse order of time intervals split by '-vm-native-step-interval' cmd-line flag. When set, the migration will start from the newest to the oldest intervals.",
 			Value: false,
 		},
 		&cli.StringFlag{

@@ -68,7 +68,7 @@ func (p *vmNativeProcessor) run(ctx context.Context) error {
 
 	ranges := [][]time.Time{{start, end}}
 	if p.filter.Chunk != "" {
-		ranges, err = stepper.SplitDateRange(start, end, p.filter.Chunk, p.filter.ReverseChunks)
+		ranges, err = stepper.SplitDateRange(start, end, p.filter.Chunk, p.filter.TimeReverse)
 		if err != nil {
 			return fmt.Errorf("failed to create date ranges for the given time filters: %w", err)
 		}
