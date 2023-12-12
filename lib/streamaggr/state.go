@@ -11,7 +11,7 @@ import (
 func WriteHumanReadableState(w http.ResponseWriter, r *http.Request, rws map[string]*Aggregators) {
 	rwActive := r.FormValue("rw")
 	if rwActive == "" {
-		for key, _ := range rws {
+		for key := range rws {
 			rwActive = key
 			break
 		}

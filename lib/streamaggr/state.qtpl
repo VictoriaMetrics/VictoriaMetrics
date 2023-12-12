@@ -28,7 +28,7 @@ const DEFAULT_LIMIT = 1000
                 <h1>Aggregations</h1>
                 <hr />
                 <ul class="nav nav-tabs" id="rw-tab" role="tablist">
-                    {% for rwKey, _ := range rws  %}
+                    {% for rwKey := range rws  %}
                         <li class="nav-item" role="presentation">
                             <button class="nav-link{%if rwKey==rwActive %}{% space %}active{%endif%}" type="button" role="tab"
                               onclick="location.href='?rw={%s rwKey %}'">

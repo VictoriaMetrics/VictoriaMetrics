@@ -43,7 +43,7 @@ func StreamStreamAggHTML(qw422016 *qt422016.Writer, rws map[string]*Aggregators,
 //line lib/streamaggr/state.qtpl:24
 	qw422016.N().S(`<div class="container-fluid"><div class="row"><main class="col-12"><h1>Aggregations</h1><hr /><ul class="nav nav-tabs" id="rw-tab" role="tablist">`)
 //line lib/streamaggr/state.qtpl:31
-	for rwKey, _ := range rws {
+	for rwKey := range rws {
 //line lib/streamaggr/state.qtpl:31
 		qw422016.N().S(`<li class="nav-item" role="presentation"><button class="nav-link`)
 //line lib/streamaggr/state.qtpl:33
