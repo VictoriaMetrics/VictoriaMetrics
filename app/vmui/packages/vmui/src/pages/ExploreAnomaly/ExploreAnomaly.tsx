@@ -42,7 +42,7 @@ const ExploreAnomaly: FC = () => {
     const lowerData = graphData.filter(d => d.group === 4);
     const anomalyData: MetricResult[] = realData.map((d) => ({
       group,
-      metric: { __name__: ForecastType.anomaly, ...d.metric },
+      metric: { ...d.metric, __name__: ForecastType.anomaly },
       values: d.values.filter(([t, v]) => {
         const id = extractFields(d.metric);
         const upperDataByLabels = upperData.find(du => extractFields(du.metric) === id);

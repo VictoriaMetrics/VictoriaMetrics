@@ -4,6 +4,7 @@ import { ErrorTypes } from "../../../types";
 import { useEffect } from "react";
 import { MetricBase } from "../../../api/types";
 
+// TODO: Change the method of retrieving aliases from the configuration after the API has been added
 const seriesQuery = `{
   for!="",
   __name__!~".*yhat.*|.*trend.*|.*anomaly_score.*|.*daily.*|.*additive_terms.*|.*multiplicative_terms.*|.*weekly.*"
