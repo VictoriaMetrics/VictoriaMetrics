@@ -83,7 +83,6 @@ const TextField: FC<TextFieldProps> = ({
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     onKeyDown && onKeyDown(e);
-    updateCaretPosition(e.currentTarget);
     const { key, ctrlKey, metaKey } = e;
     const isEnter = key === "Enter";
     const runByEnter = type !== "textarea" ? isEnter : isEnter && (metaKey || ctrlKey);
@@ -91,6 +90,10 @@ const TextField: FC<TextFieldProps> = ({
       e.preventDefault();
       onEnter();
     }
+  };
+
+  const handleKeyUp = (e: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    updateCaretPosition(e.currentTarget);
   };
 
   const handleChange = (e: FormEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -135,6 +138,7 @@ const TextField: FC<TextFieldProps> = ({
           autoCapitalize={"none"}
           onInput={handleChange}
           onKeyDown={handleKeyDown}
+          onKeyUp={handleKeyUp}
           onFocus={handleFocus}
           onBlur={handleBlur}
           onMouseUp={handleMouseUp}
@@ -152,6 +156,7 @@ const TextField: FC<TextFieldProps> = ({
           autoCapitalize={"none"}
           onInput={handleChange}
           onKeyDown={handleKeyDown}
+          onKeyUp={handleKeyUp}
           onFocus={handleFocus}
           onBlur={handleBlur}
           onMouseUp={handleMouseUp}

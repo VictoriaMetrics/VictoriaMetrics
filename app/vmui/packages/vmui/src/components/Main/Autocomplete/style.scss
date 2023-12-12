@@ -16,16 +16,33 @@
     color: $color-text-disabled;
   }
 
-  &-info {
-    position: absolute;
-    top: calc(100% + 1px);
-    left: 0;
-    right: 0;
-    min-width: 450px;
+  &-info,
+  &-message {
     padding: $padding-global;
     background-color: $color-background-block;
-    box-shadow: $box-shadow-popper;
-    border-radius: $border-radius-small;
+    border-top: $border-divider;
+  }
+
+  &-message {
+    position: relative;
+    color: $color-warning;
+    font-size: $font-size-small;
+
+    &:after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: $color-warning;
+      opacity: 0.1;
+    }
+  }
+
+  &-info {
+    min-width: 450px;
+    max-width: 500px;
     overflow-wrap: anywhere;
 
     &__type {
