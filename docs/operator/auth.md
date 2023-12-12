@@ -6,6 +6,8 @@ menu:
   docs:
     parent: "operator"
     weight: 7
+aliases:
+  - /operator/auth.html
 ---
 
 # Authorization and exposing components

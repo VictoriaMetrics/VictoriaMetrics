@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cheggaaa/pb/v3"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/backoff"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/barpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/limiter"
@@ -18,7 +20,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/cheggaaa/pb/v3"
 )
 
 type vmNativeProcessor struct {
@@ -67,12 +68,11 @@ func (p *vmNativeProcessor) run(ctx context.Context) error {
 
 	ranges := [][]time.Time{{start, end}}
 	if p.filter.Chunk != "" {
-		ranges, err = stepper.SplitDateRange(start, end, p.filter.Chunk)
+		ranges, err = stepper.SplitDateRange(start, end, p.filter.Chunk, p.filter.TimeReverse)
 		if err != nil {
 			return fmt.Errorf("failed to create date ranges for the given time filters: %w", err)
 		}
 	}
-
 	tenants := []string{""}
 	if p.interCluster {
 		log.Printf("Discovering tenants...")

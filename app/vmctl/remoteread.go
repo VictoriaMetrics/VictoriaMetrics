@@ -7,11 +7,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cheggaaa/pb/v3"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/barpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/remoteread"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/stepper"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
-	"github.com/cheggaaa/pb/v3"
 )
 
 type remoteReadProcessor struct {
@@ -26,9 +27,10 @@ type remoteReadProcessor struct {
 }
 
 type remoteReadFilter struct {
-	timeStart *time.Time
-	timeEnd   *time.Time
-	chunk     string
+	timeStart   *time.Time
+	timeEnd     *time.Time
+	chunk       string
+	timeReverse bool
 }
 
 func (rrp *remoteReadProcessor) run(ctx context.Context) error {
@@ -41,7 +43,7 @@ func (rrp *remoteReadProcessor) run(ctx context.Context) error {
 		rrp.cc = 1
 	}
 
-	ranges, err := stepper.SplitDateRange(*rrp.filter.timeStart, *rrp.filter.timeEnd, rrp.filter.chunk)
+	ranges, err := stepper.SplitDateRange(*rrp.filter.timeStart, *rrp.filter.timeEnd, rrp.filter.chunk, rrp.filter.timeReverse)
 	if err != nil {
 		return fmt.Errorf("failed to create date ranges for the given time filters: %v", err)
 	}

@@ -1,6 +1,7 @@
 {% import (
 	"net/url"
-	"time"
+	"strconv"
+	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/htmlcomponents"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
@@ -26,7 +27,7 @@
 		{% if filter.showOriginalLabels %}originalLabels={%s= ts.sw.Config.OriginalLabels.String() %},{% space %}{% endif %}
 		scrapes_total={%d ts.scrapesTotal %},{% space %}
 		scrapes_failed={%d ts.scrapesFailed %},{% space %}
-		last_scrape={%d int(ts.getDurationFromLastScrape().Milliseconds()) %}ms ago,{% space %}
+		last_scrape={%s ts.getDurationFromLastScrape() %},{% space %}
 		scrape_duration={%d int(ts.scrapeDuration) %}ms,{% space %}
 		samples_scraped={%d ts.samplesScraped %},{% space %}
 		error={% if ts.err != nil %}{%s= ts.err.Error() %}{% endif %}
@@ -228,7 +229,6 @@
 
                         // The target is uniquely identified by a pointer to its original labels.
                         targetID := getLabelsID(originalLabels)
-                        lastScrapeDuration := ts.getDurationFromLastScrape()
                     %}
                         <tr {% if !ts.up %}{%space%}class="alert alert-danger" role="alert" {% endif %}>
                             <td class="endpoint">
@@ -269,12 +269,7 @@
                             {% endif %}
                             <td>{%d ts.scrapesTotal %}</td>
                             <td>{%d ts.scrapesFailed %}</td>
-                            <td>
-                                {% if lastScrapeDuration < 365*24*time.Hour %}
-                                    {%d int(lastScrapeDuration.Milliseconds()) %}ms ago
-                                {% else %}
-                                    none
-                                {% endif %}
+                            <td>{%s ts.getDurationFromLastScrape() %}
                             <td>{%d int(ts.scrapeDuration) %}ms</td>
                             <td>{%d ts.samplesScraped %}</td>
                             <td>{% if ts.err != nil %}{%s ts.err.Error() %}{% endif %}</td>
@@ -289,8 +284,18 @@
 
 {% func discoveredTargets(tsr *targetsStatusResult) %}
     {% if !tsr.hasOriginalLabels %}
-        Discovered targets are unavailable when -promscrape.dropOriginalLabels command-line flag is set
+        <div class="alert alert-warning" role="alert">
+            Discovered targets are unavailable when <b>-promscrape.dropOriginalLabels</b> command-line flag is set
+        </div>
         {% return %}
+    {% endif %}
+
+    {% if n := droppedTargetsMap.getTotalTargets(); n > *maxDroppedTargets %}
+        <div class="alert alert-warning" role="alert">
+            Dropped targets' list below is incomplete, because the number of dropped targets exceeds <b>-promscrape.maxDroppedTargets={%d *maxDroppedTargets %}</b>.<br/>
+            If you want to see the full list of dropped targets, then increase <b>-promscrape.maxDroppedTargets</b> command-line flag value to at least{% space %}<b>{%d n %}</b>.<br/>
+            Note that this may increase memory usage.
+        </div>
     {% endif %}
 
     {% code tljs := tsr.getTargetLabelsByJob() %}
@@ -336,7 +341,20 @@
                         {% elseif t.labels.Len() > 0 %}
                             <span class="badge bg-danger">DOWN</span>
                         {% else %}
-                            <span class="badge bg-warning">DROPPED</span>
+                            <span class="badge bg-warning">DROPPED ({%s string(t.dropReason) %})</span>
+                            {% if len(t.clusterMemberNums) > 0 %}
+                                <br/>
+                                <span title="The target exists at vmagent instances with the given -promscrape.cluster.memberNum values">
+                                exists at{% space %}
+                                {% for i, memberNum := range t.clusterMemberNums %}
+                                    {% if *clusterMemberURLTemplate == "" %}
+                                        shard-{%d memberNum %}
+                                    {% else %}
+                                        <a href="{%s strings.ReplaceAll(*clusterMemberURLTemplate, "%d", strconv.Itoa(memberNum)) %}" target="_blank">shard-{%d memberNum %}</a>
+                                    {% endif %}
+                                    {% if i+1 < len(t.clusterMemberNums) %},{% space %}{% endif %}
+                                {% endfor %}
+                            {% endif %}
                         {% endif %}
                     </td>
                     <td class="labels">

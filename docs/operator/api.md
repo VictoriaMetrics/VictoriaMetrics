@@ -346,6 +346,9 @@ OpsGenieConfig configures notifications via OpsGenie. See https://prometheus.io/
 | priority | Priority level of alert. Possible values are P1, P2, P3, P4, and P5. | string | false |
 | details | A set of arbitrary key/value pairs that provide further detail about the incident. | map[string]string | false |
 | responders | List of responders responsible for notifications. | [][OpsGenieConfigResponder](#opsgenieconfigresponder) | false |
+| entity | Optional field that can be used to specify which domain alert is related to. | string | false |
+| actions | Comma separated list of actions that will be available for the alert. | string | false |
+| update_alerts | Whether to update message and description of the alert in OpsGenie if it already exists By default, the alert is never updated in OpsGenie, the new message only appears in activity log. | bool | false |
 | http_config | HTTP client configuration. | *[HTTPConfig](#httpconfig) | false |
 
 [Back to TOC](#table-of-contents)

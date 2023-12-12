@@ -46,7 +46,7 @@ Install the Helm chart in a custom namespace
    ```
    </div>
    You can find your access token on the "Access" tab of your deployment
-   <img src="kubernetes_monitoring.png" width="800">
+   <img src="kubernetes_monitoring.webp" width="800">
 1. Set up a Helm repository using the following commands:
    <div class="with-copy" markdown="1">
    ```bash
@@ -129,7 +129,7 @@ Connect to grafana and create your datasource
    Choose VictoriaMetrics or Prometheus as datasource type. Make sure you made this datasource as default for dashboards to work.
    > You can find token and URL in your deployment, on Access tab
   
-   <img src="how-to-monitor-k8s_datasource.png" width="800">
+   <img src="how-to-monitor-k8s_datasource.webp" width="800">
 
 ## Test it
 

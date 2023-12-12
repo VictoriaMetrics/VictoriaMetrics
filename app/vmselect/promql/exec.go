@@ -20,6 +20,8 @@ import (
 )
 
 var (
+	maxResponseSeries = flag.Int("search.maxResponseSeries", 0, "The maximum number of time series which can be returned from /api/v1/query and /api/v1/query_range . "+
+		"The limit is disabled if it equals to 0. See also -search.maxPointsPerTimeseries and -search.maxUniqueTimeseries")
 	treatDotsAsIsInRegexps = flag.Bool("search.treatDotsAsIsInRegexps", false, "Whether to treat dots as is in regexp label filters used in queries. "+
 		`For example, foo{bar=~"a.b.c"} will be automatically converted to foo{bar=~"a\\.b\\.c"}, i.e. all the dots in regexp filters will be automatically escaped `+
 		`in order to match only dot char instead of matching any char. Dots in ".+", ".*" and ".{n}" regexps aren't escaped. `+
@@ -77,6 +79,10 @@ func Exec(qt *querytracer.Tracer, ec *EvalConfig, q string, isFirstPointOnly boo
 	}
 	maySort := maySortResults(e)
 	result, err := timeseriesToResult(rv, maySort)
+	if *maxResponseSeries > 0 && len(result) > *maxResponseSeries {
+		return nil, fmt.Errorf("the response contains more than -search.maxResponseSeries=%d time series: %d series; either increase -search.maxResponseSeries "+
+			"or change the query in order to return smaller number of series", *maxResponseSeries, len(result))
+	}
 	if err != nil {
 		return nil, err
 	}

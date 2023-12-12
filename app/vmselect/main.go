@@ -94,6 +94,23 @@ var vmuiFileServer = http.FileServer(http.FS(vmuiFiles))
 
 // RequestHandler handles remote read API requests
 func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
+	path := strings.Replace(r.URL.Path, "//", "/", -1)
+
+	// Strip /prometheus and /graphite prefixes in order to provide path compatibility with cluster version
+	//
+	// See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format
+	switch {
+	case strings.HasPrefix(path, "/prometheus/"):
+		path = path[len("/prometheus"):]
+	case strings.HasPrefix(path, "/graphite/"):
+		path = path[len("/graphite"):]
+	}
+
+	if handleStaticAndSimpleRequests(w, r, path) {
+		return true
+	}
+
+	// Handle non-trivial dynamic requests, which may take big amounts of time and resources.
 	startTime := time.Now()
 	defer requestDuration.UpdateDuration(startTime)
 	tracerEnabled := httputils.GetBool(r, "trace")
@@ -152,56 +169,11 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}()
 	}
 
-	path := strings.Replace(r.URL.Path, "//", "/", -1)
 	if path == "/internal/resetRollupResultCache" {
 		if !httpserver.CheckAuthFlag(w, r, *resetCacheAuthKey, "resetCacheAuthKey") {
 			return true
 		}
 		promql.ResetRollupResultCache()
-		return true
-	}
-
-	// Strip /prometheus and /graphite prefixes in order to provide path compatibility with cluster version
-	//
-	// See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format
-	switch {
-	case strings.HasPrefix(path, "/prometheus/"):
-		path = path[len("/prometheus"):]
-	case strings.HasPrefix(path, "/graphite/"):
-		path = path[len("/graphite"):]
-	}
-
-	// vmui access.
-	if path == "/vmui" || path == "/graph" {
-		// VMUI access via incomplete url without `/` in the end. Redirect to complete url.
-		// Use relative redirect, since the hostname and path prefix may be incorrect if VictoriaMetrics
-		// is hidden behind vmauth or similar proxy.
-		_ = r.ParseForm()
-		path = strings.TrimPrefix(path, "/")
-		newURL := path + "/?" + r.Form.Encode()
-		httpserver.Redirect(w, newURL)
-		return true
-	}
-	if strings.HasPrefix(path, "/graph/") {
-		// This is needed for serving /graph URLs from Prometheus datasource in Grafana.
-		path = strings.Replace(path, "/graph/", "/vmui/", 1)
-	}
-	if path == "/vmui/custom-dashboards" {
-		if err := handleVMUICustomDashboards(w); err != nil {
-			httpserver.Errorf(w, r, "%s", err)
-			return true
-		}
-		return true
-	}
-	if strings.HasPrefix(path, "/vmui/") {
-		if strings.HasPrefix(path, "/vmui/static/") {
-			// Allow clients caching static contents for long period of time, since it shouldn't change over time.
-			// Path to static contents (such as js and css) must be changed whenever its contents is changed.
-			// See https://developer.chrome.com/docs/lighthouse/performance/uses-long-cache-ttl/
-			w.Header().Set("Cache-Control", "max-age=31536000")
-		}
-		r.URL.Path = path
-		vmuiFileServer.ServeHTTP(w, r)
 		return true
 	}
 
@@ -227,45 +199,6 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
-		return true
-	}
-	if strings.HasPrefix(path, "/functions") {
-		funcName := path[len("/functions"):]
-		funcName = strings.TrimPrefix(funcName, "/")
-		if funcName == "" {
-			graphiteFunctionsRequests.Inc()
-			if err := graphite.FunctionsHandler(w, r); err != nil {
-				graphiteFunctionsErrors.Inc()
-				httpserver.Errorf(w, r, "%s", err)
-				return true
-			}
-			return true
-		}
-		graphiteFunctionDetailsRequests.Inc()
-		if err := graphite.FunctionDetailsHandler(funcName, w, r); err != nil {
-			graphiteFunctionDetailsErrors.Inc()
-			httpserver.Errorf(w, r, "%s", err)
-			return true
-		}
-		return true
-	}
-
-	if path == "/vmalert" {
-		// vmalert access via incomplete url without `/` in the end. Redirect to complete url.
-		// Use relative redirect, since the hostname and path prefix may be incorrect if VictoriaMetrics
-		// is hidden behind vmauth or similar proxy.
-		httpserver.Redirect(w, "vmalert/")
-		return true
-	}
-	if strings.HasPrefix(path, "/vmalert/") {
-		vmalertRequests.Inc()
-		if len(*vmalertProxyURL) == 0 {
-			w.WriteHeader(http.StatusBadRequest)
-			w.Header().Set("Content-Type", "application/json")
-			fmt.Fprintf(w, "%s", `{"status":"error","msg":"for accessing vmalert flag '-vmalert.proxyURL' must be configured"}`)
-			return true
-		}
-		proxyVMAlertRequests(w, r)
 		return true
 	}
 
@@ -321,20 +254,6 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		if err := prometheus.TSDBStatusHandler(qt, startTime, w, r); err != nil {
 			statusTSDBErrors.Inc()
 			sendPrometheusError(w, r, err)
-			return true
-		}
-		return true
-	case "/api/v1/status/active_queries":
-		statusActiveQueriesRequests.Inc()
-		httpserver.EnableCORS(w, r)
-		promql.ActiveQueriesHandler(w, r)
-		return true
-	case "/api/v1/status/top_queries":
-		topQueriesRequests.Inc()
-		httpserver.EnableCORS(w, r)
-		if err := prometheus.QueryStatsHandler(startTime, w, r); err != nil {
-			topQueriesErrors.Inc()
-			sendPrometheusError(w, r, fmt.Errorf("cannot query status endpoint: %w", err))
 			return true
 		}
 		return true
@@ -466,6 +385,113 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 			return true
 		}
 		return true
+	case "/api/v1/admin/tsdb/delete_series":
+		if !httpserver.CheckAuthFlag(w, r, *deleteAuthKey, "deleteAuthKey") {
+			return true
+		}
+		deleteRequests.Inc()
+		if err := prometheus.DeleteHandler(startTime, r); err != nil {
+			deleteErrors.Inc()
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		w.WriteHeader(http.StatusNoContent)
+		return true
+	default:
+		return false
+	}
+}
+
+func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path string) bool {
+	// vmui access.
+	if path == "/vmui" || path == "/graph" {
+		// VMUI access via incomplete url without `/` in the end. Redirect to complete url.
+		// Use relative redirect, since the hostname and path prefix may be incorrect if VictoriaMetrics
+		// is hidden behind vmauth or similar proxy.
+		_ = r.ParseForm()
+		path = strings.TrimPrefix(path, "/")
+		newURL := path + "/?" + r.Form.Encode()
+		httpserver.Redirect(w, newURL)
+		return true
+	}
+	if strings.HasPrefix(path, "/graph/") {
+		// This is needed for serving /graph URLs from Prometheus datasource in Grafana.
+		path = strings.Replace(path, "/graph/", "/vmui/", 1)
+	}
+	if path == "/vmui/custom-dashboards" {
+		if err := handleVMUICustomDashboards(w); err != nil {
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		return true
+	}
+	if strings.HasPrefix(path, "/vmui/") {
+		if strings.HasPrefix(path, "/vmui/static/") {
+			// Allow clients caching static contents for long period of time, since it shouldn't change over time.
+			// Path to static contents (such as js and css) must be changed whenever its contents is changed.
+			// See https://developer.chrome.com/docs/lighthouse/performance/uses-long-cache-ttl/
+			w.Header().Set("Cache-Control", "max-age=31536000")
+		}
+		r.URL.Path = path
+		vmuiFileServer.ServeHTTP(w, r)
+		return true
+	}
+
+	if strings.HasPrefix(path, "/functions") {
+		funcName := path[len("/functions"):]
+		funcName = strings.TrimPrefix(funcName, "/")
+		if funcName == "" {
+			graphiteFunctionsRequests.Inc()
+			if err := graphite.FunctionsHandler(w, r); err != nil {
+				graphiteFunctionsErrors.Inc()
+				httpserver.Errorf(w, r, "%s", err)
+				return true
+			}
+			return true
+		}
+		graphiteFunctionDetailsRequests.Inc()
+		if err := graphite.FunctionDetailsHandler(funcName, w, r); err != nil {
+			graphiteFunctionDetailsErrors.Inc()
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		return true
+	}
+
+	if path == "/vmalert" {
+		// vmalert access via incomplete url without `/` in the end. Redirect to complete url.
+		// Use relative redirect, since the hostname and path prefix may be incorrect if VictoriaMetrics
+		// is hidden behind vmauth or similar proxy.
+		httpserver.Redirect(w, "vmalert/")
+		return true
+	}
+	if strings.HasPrefix(path, "/vmalert/") {
+		vmalertRequests.Inc()
+		if len(*vmalertProxyURL) == 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprintf(w, "%s", `{"status":"error","msg":"for accessing vmalert flag '-vmalert.proxyURL' must be configured"}`)
+			return true
+		}
+		proxyVMAlertRequests(w, r)
+		return true
+	}
+
+	switch path {
+	case "/api/v1/status/active_queries":
+		statusActiveQueriesRequests.Inc()
+		httpserver.EnableCORS(w, r)
+		promql.ActiveQueriesHandler(w, r)
+		return true
+	case "/api/v1/status/top_queries":
+		topQueriesRequests.Inc()
+		httpserver.EnableCORS(w, r)
+		if err := prometheus.QueryStatsHandler(w, r); err != nil {
+			topQueriesErrors.Inc()
+			sendPrometheusError(w, r, fmt.Errorf("cannot query status endpoint: %w", err))
+			return true
+		}
+		return true
 	case "/metric-relabel-debug":
 		promscrapeMetricRelabelDebugRequests.Inc()
 		promscrape.WriteMetricRelabelDebug(w, r)
@@ -511,25 +537,16 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	case "/api/v1/status/buildinfo":
 		buildInfoRequests.Inc()
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprintf(w, "%s", `{"status":"success","data":{}}`)
+		// prometheus version is used here, which affects what API Grafana uses when retrieving label values.
+		// as new Grafana features are added that are customized for the Prometheus version, maybe the version will need to be increased.
+		// see this issue for more info: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5370
+		fmt.Fprintf(w, "%s", `{"status":"success","data":{"version":"2.24.0"}}`)
 		return true
 	case "/api/v1/query_exemplars":
 		// Return dumb placeholder for https://prometheus.io/docs/prometheus/latest/querying/api/#querying-exemplars
 		queryExemplarsRequests.Inc()
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprintf(w, "%s", `{"status":"success","data":[]}`)
-		return true
-	case "/api/v1/admin/tsdb/delete_series":
-		if !httpserver.CheckAuthFlag(w, r, *deleteAuthKey, "deleteAuthKey") {
-			return true
-		}
-		deleteRequests.Inc()
-		if err := prometheus.DeleteHandler(startTime, r); err != nil {
-			deleteErrors.Inc()
-			httpserver.Errorf(w, r, "%s", err)
-			return true
-		}
-		w.WriteHeader(http.StatusNoContent)
 		return true
 	default:
 		return false

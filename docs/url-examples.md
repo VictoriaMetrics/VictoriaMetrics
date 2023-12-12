@@ -275,7 +275,7 @@ Additional information:
 * [How to export time series](https://docs.victoriametrics.com/#how-to-export-time-series)
 * [URL format for VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format)
 
-## /api/v1/labels
+### /api/v1/labels
 
 **Get a list of label names at the given time range**
 
@@ -631,13 +631,17 @@ curl -Is http://localhost:8428/internal/resetRollupResultCache
 
 </div>
 
-Cluster version of VictoriaMetrics::
+Cluster version of VictoriaMetrics:
 
 <div class="with-copy" markdown="1">
 
 ```console
 curl -Is http://<vmselect>:8481/select/internal/resetRollupResultCache
 ```
+
+vmselect will propagate this call to the rest of the vmselects listed in its `-selectNode` cmd-line flag. If this
+flag isn't set, then cache need to be purged from each vmselect individually.
+
 
 </div>
 

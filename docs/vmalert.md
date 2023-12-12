@@ -505,7 +505,7 @@ rules execution, storing recording rules results and alerts state.
     -notifier.url=http://alertmanager:9093          # AlertManager addr to send alerts when they trigger
 ```
 
-<img alt="vmalert single" width="500" src="vmalert_single.png">
+<img alt="vmalert single" width="500" src="vmalert_single.webp">
 
 #### Cluster VictoriaMetrics
 
@@ -525,7 +525,7 @@ Cluster mode could have multiple `vminsert` and `vmselect` components.
     -notifier.url=http://alertmanager:9093                      # AlertManager addr to send alerts when they trigger
 ```
 
-<img alt="vmalert cluster" src="vmalert_cluster.png">
+<img alt="vmalert cluster" src="vmalert_cluster.webp">
 
 In case when you want to spread the load on these components - add balancers before them and configure
 `vmalert` with balancer addresses. Please, see more about VM's cluster architecture
@@ -549,7 +549,7 @@ Alertmanagers.
     -notifier.url=http://alertmanagerN:9093         # The same alert will be sent to all configured notifiers
 ```
 
-<img alt="vmalert ha" width="800px" src="vmalert_ha.png">
+<img alt="vmalert ha" width="800px" src="vmalert_ha.webp">
 
 To avoid recording rules results and alerts state duplication in VictoriaMetrics server
 don't forget to configure [deduplication](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#deduplication).
@@ -625,7 +625,7 @@ or reducing resolution) and push results to "cold" cluster.
     -remoteWrite.url=http://aggregated-cluster-vminsert:8480/insert/0/prometheus    # vminsert addr to persist recording rules results
 ```
 
-<img alt="vmalert multi cluster" src="vmalert_multicluster.png">
+<img alt="vmalert multi cluster" src="vmalert_multicluster.webp">
 
 Please note, [replay](#rules-backfilling) feature may be used for transforming historical data.
 
@@ -639,7 +639,7 @@ For persisting recording or alerting rule results `vmalert` requires `-remoteWri
 But this flag supports only one destination. To persist rule results to multiple destinations
 we recommend using [vmagent](https://docs.victoriametrics.com/vmagent.html) as fan-out proxy:
 
-<img alt="vmalert multiple remote write destinations" src="vmalert_multiple_rw.png">
+<img alt="vmalert multiple remote write destinations" src="vmalert_multiple_rw.webp">
 
 In this topology, `vmalert` is configured to persist rule results to `vmagent`. And `vmagent`
 is configured to fan-out received data to two or more destinations.
@@ -659,6 +659,7 @@ or time series modification via [relabeling](https://docs.victoriametrics.com/vm
   Used as alert source in AlertManager.
 * `http://<vmalert-addr>/vmalert/alert?group_id=<group_id>&alert_id=<alert_id>` - get alert status in web UI.
 * `http://<vmalert-addr>/vmalert/rule?group_id=<group_id>&rule_id=<rule_id>` - get rule status in web UI.
+* `http://<vmalert-addr>/vmalert/api/v1/rule?group_id=<group_id>&alert_id=<alert_id>` - get rule status in JSON format.
 * `http://<vmalert-addr>/metrics` - application metrics.
 * `http://<vmalert-addr>/-/reload` - hot configuration reload.
 
@@ -854,7 +855,7 @@ state updates for each rule starting from [v1.86](https://docs.victoriametrics.c
 To check updates, click on `Details` link next to rule's name on `/vmalert/groups` page 
 and check the `Last updates` section:
 
-<img alt="vmalert state" src="vmalert_state.png">
+<img alt="vmalert state" src="vmalert_state.webp">
 
 Rows in the section represent ordered rule evaluations and their results. The column `curl` contains an example of
 HTTP request sent by vmalert to the `-datasource.url` during evaluation. If specific state shows that there were
@@ -1085,7 +1086,7 @@ The shortlist of configuration flags is the following:
   -httpAuth.username string
      Username for HTTP server's Basic Auth. The authentication is disabled if empty. See also -httpAuth.password
   -httpListenAddr string
-     Address to listen for http connections. See also -httpListenAddr.useProxyProtocol (default ":8880")
+     Address to listen for http connections. See also -tls and -httpListenAddr.useProxyProtocol (default ":8880")
   -httpListenAddr.useProxyProtocol
      Whether to use proxy protocol for connections accepted at -httpListenAddr . See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing
   -internStringCacheExpireDuration duration
@@ -1110,6 +1111,8 @@ The shortlist of configuration flags is the following:
      Allows renaming fields in JSON formatted logs. Example: "ts:timestamp,msg:message" renames "ts" to "timestamp" and "msg" to "message". Supported fields: ts, level, caller, msg
   -loggerLevel string
      Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC (default "INFO")
+  -loggerMaxArgLen int
+     The maximum length of a single logged argument. Longer arguments are replaced with 'arg_start..arg_end', where 'arg_start' and 'arg_end' is prefix and suffix of the arg with the length not exceeding -loggerMaxArgLen / 2 (default 1000)
   -loggerOutput string
      Output for the logs. Supported values: stderr, stdout (default "stderr")
   -loggerTimezone string
@@ -1138,8 +1141,8 @@ The shortlist of configuration flags is the following:
   -notifier.bearerTokenFile array
      Optional path to bearer token file for -notifier.url
      Supports an array of values separated by comma or specified via multiple flags.
-  -notifier.blackhole -notifier.url
-     Whether to blackhole alerting notifications. Enable this flag if you want vmalert to evaluate alerting rules without sending any notifications to external receivers (eg. alertmanager). -notifier.url, `-notifier.config` and `-notifier.blackhole` are mutually exclusive.
+  -notifier.blackhole
+     Whether to blackhole alerting notifications. Enable this flag if you want vmalert to evaluate alerting rules without sending any notifications to external receivers (eg. alertmanager). -notifier.url, -notifier.config and -notifier.blackhole are mutually exclusive.
   -notifier.config string
      Path to configuration file for notifiers
   -notifier.oauth2.clientID array

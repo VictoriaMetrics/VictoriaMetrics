@@ -18,6 +18,7 @@ import (
 
 	"cloud.google.com/go/compute/metadata"
 	"go.opencensus.io/plugin/ocgrpc"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"golang.org/x/oauth2"
 	"golang.org/x/time/rate"
 	"google.golang.org/api/internal"
@@ -42,6 +43,9 @@ var timeoutDialerOption grpc.DialOption
 
 // Log rate limiter
 var logRateLimiter = rate.Sometimes{Interval: 1 * time.Second}
+
+// Assign to var for unit test replacement
+var dialContext = grpc.DialContext
 
 // Dial returns a GRPC connection for use communicating with a Google cloud
 // service, configured with the given ClientOptions.
@@ -195,12 +199,13 @@ func dial(ctx context.Context, insecure bool, o *internal.DialSettings) (*grpc.C
 	// gRPC stats handler.
 	// This assumes that gRPC options are processed in order, left to right.
 	grpcOpts = addOCStatsHandler(grpcOpts, o)
+	grpcOpts = addOpenTelemetryStatsHandler(grpcOpts, o)
 	grpcOpts = append(grpcOpts, o.GRPCDialOpts...)
 	if o.UserAgent != "" {
 		grpcOpts = append(grpcOpts, grpc.WithUserAgent(o.UserAgent))
 	}
 
-	return grpc.DialContext(ctx, endpoint, grpcOpts...)
+	return dialContext(ctx, endpoint, grpcOpts...)
 }
 
 func addOCStatsHandler(opts []grpc.DialOption, settings *internal.DialSettings) []grpc.DialOption {
@@ -208,6 +213,13 @@ func addOCStatsHandler(opts []grpc.DialOption, settings *internal.DialSettings) 
 		return opts
 	}
 	return append(opts, grpc.WithStatsHandler(&ocgrpc.ClientHandler{}))
+}
+
+func addOpenTelemetryStatsHandler(opts []grpc.DialOption, settings *internal.DialSettings) []grpc.DialOption {
+	if settings.TelemetryDisabled {
+		return opts
+	}
+	return append(opts, grpc.WithStatsHandler(otelgrpc.NewClientHandler()))
 }
 
 // grpcTokenSource supplies PerRPCCredentials from an oauth.TokenSource.

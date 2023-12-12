@@ -117,11 +117,11 @@ The result on the GCS bucket
 
 * The root folder
 
-  <img alt="root folder" src="vmbackupmanager_root_folder.png">
+  <img alt="root folder" src="vmbackupmanager_root_folder.webp">
 
 * The latest folder
 
-  <img alt="latest folder" src="vmbackupmanager_latest_folder.png">
+  <img alt="latest folder" src="vmbackupmanager_latest_folder.webp">
 
 Please, see [vmbackup docs](https://docs.victoriametrics.com/vmbackup.html#advanced-usage) for more examples of authentication with different
 storage types.
@@ -141,7 +141,7 @@ Backup retention policy is controlled by:
 
 Let’s assume we have a backup manager collecting daily backups for the past 10 days.
 
-<img alt="retention policy daily before retention cycle" src="vmbackupmanager_rp_daily_1.png">
+<img alt="retention policy daily before retention cycle" src="vmbackupmanager_rp_daily_1.webp">
 
 We enable backup retention policy for backup manager by using following configuration:
 
@@ -166,7 +166,7 @@ info    app/vmbackupmanager/retention.go:106    daily backups to delete [daily/2
 
 The result on the GCS bucket. We see only 3 daily backups:
 
-<img alt="retention policy daily after retention cycle" src="vmbackupmanager_rp_daily_2.png">
+<img alt="retention policy daily after retention cycle" src="vmbackupmanager_rp_daily_2.webp">
 
 ### Protection backups against deletion by retention policy
 
@@ -511,6 +511,8 @@ command-line flags:
      Allows renaming fields in JSON formatted logs. Example: "ts:timestamp,msg:message" renames "ts" to "timestamp" and "msg" to "message". Supported fields: ts, level, caller, msg
   -loggerLevel string
      Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC (default "INFO")
+  -loggerMaxArgLen int
+     The maximum length of a single logged argument. Longer arguments are replaced with 'arg_start..arg_end', where 'arg_start' and 'arg_end' is prefix and suffix of the arg with the length not exceeding -loggerMaxArgLen / 2 (default 1000)
   -loggerOutput string
      Output for the logs. Supported values: stderr, stdout (default "stderr")
   -loggerTimezone string

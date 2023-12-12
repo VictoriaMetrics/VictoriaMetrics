@@ -257,7 +257,7 @@ func mustOpenPartition(smallPartsPath, bigPartsPath string, s *Storage) *partiti
 
 	name := filepath.Base(smallPartsPath)
 	if !strings.HasSuffix(bigPartsPath, name) {
-		logger.Panicf("FATAL: patititon name in bigPartsPath %q doesn't match smallPartsPath %q; want %q", bigPartsPath, smallPartsPath, name)
+		logger.Panicf("FATAL: partition name in bigPartsPath %q doesn't match smallPartsPath %q; want %q", bigPartsPath, smallPartsPath, name)
 	}
 
 	partNamesSmall, partNamesBig := mustReadPartNames(smallPartsPath, bigPartsPath)

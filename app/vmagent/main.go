@@ -11,8 +11,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/VictoriaMetrics/metrics"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/csvimport"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/datadog"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/graphite"
@@ -42,12 +40,13 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
+	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
 	httpListenAddr = flag.String("httpListenAddr", ":8429", "TCP address to listen for http connections. "+
 		"Set this flag to empty value in order to disable listening on any port. This mode may be useful for running multiple vmagent instances on the same server. "+
-		"Note that /targets and /metrics pages aren't available if -httpListenAddr=''. See also -httpListenAddr.useProxyProtocol")
+		"Note that /targets and /metrics pages aren't available if -httpListenAddr=''. See also -tls and -httpListenAddr.useProxyProtocol")
 	useProxyProtocol = flag.Bool("httpListenAddr.useProxyProtocol", false, "Whether to use proxy protocol for connections accepted at -httpListenAddr . "+
 		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . "+
 		"With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing")
@@ -125,7 +124,7 @@ func main() {
 	common.StartUnmarshalWorkers()
 	if len(*influxListenAddr) > 0 {
 		influxServer = influxserver.MustStart(*influxListenAddr, *influxUseProxyProtocol, func(r io.Reader) error {
-			return influx.InsertHandlerForReader(r, false)
+			return influx.InsertHandlerForReader(nil, r, false)
 		})
 	}
 	if len(*graphiteListenAddr) > 0 {
@@ -140,7 +139,7 @@ func main() {
 		opentsdbhttpServer = opentsdbhttpserver.MustStart(*opentsdbHTTPListenAddr, *opentsdbHTTPUseProxyProtocol, httpInsertHandler)
 	}
 
-	promscrape.Init(remotewrite.Push)
+	promscrape.Init(remotewrite.PushDropSamplesOnFailure)
 
 	if len(*httpListenAddr) > 0 {
 		go httpserver.Serve(*httpListenAddr, *useProxyProtocol, requestHandler)
