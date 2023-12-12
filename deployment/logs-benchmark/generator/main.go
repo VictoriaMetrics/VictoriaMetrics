@@ -71,11 +71,11 @@ func main() {
 			truncate := tagLen - 48
 			syslogTag = syslogTag[truncate:]
 		}
-		logger, err := syslog.Dial("tcp", *syslogAddr, syslog.LOG_INFO, syslogTag)
+		logger, err := syslog.Dial("udp", *syslogAddr, syslog.LOG_INFO, syslogTag)
 		if err != nil {
 			panic(fmt.Errorf("error dialing syslog: %w", err))
 		}
-		logger2, err := syslog.Dial("tcp", *syslogAddr2, syslog.LOG_INFO, syslogTag)
+		logger2, err := syslog.Dial("udp", *syslogAddr2, syslog.LOG_INFO, syslogTag)
 		if err != nil {
 			panic(fmt.Errorf("error dialing syslog: %w", err))
 		}

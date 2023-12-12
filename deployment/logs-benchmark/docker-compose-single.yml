@@ -33,13 +33,13 @@ services:
       - -syslog.addr=fluentbit:5140
       - -syslog.addr2=fluentbit:5140
       - -logs.randomSuffix=false
-    depends_on: [ rsyslog ]
+    depends_on: [ fluentbit ]
 
   fluentbit:
     image: cr.fluentbit.io/fluent/fluent-bit:2.1.4
     volumes:
       - ./single/fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf
-    depends_on: [victorialogs]
+    depends_on: [vlogs]
     ports:
       - "5140:5140"
 
