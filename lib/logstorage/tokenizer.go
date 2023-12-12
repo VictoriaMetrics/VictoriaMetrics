@@ -37,9 +37,10 @@ type tokenizer struct {
 
 func (t *tokenizer) reset() {
 	m := t.m
-	for k := range m {
-		delete(m, k)
-	}
+	t.m = make(map[string]struct{})
+	//for k := range m {
+	//	delete(m, k)
+	//}
 }
 
 func tokenizeString(dst map[string]struct{}, s string) {
@@ -69,6 +70,7 @@ func tokenizeString(dst map[string]struct{}, s string) {
 	}
 }
 
+// go:inline
 func isTokenRune(c rune) bool {
 	return unicode.IsLetter(c) || unicode.IsDigit(c) || c == '_'
 }

@@ -1,6 +1,21 @@
 version: '3'
 
 services:
+  vlogs:
+    image: golang:1.21.5-alpine
+    restart: always
+    working_dir: /go/src/app/vm
+    volumes:
+      - ./../..:/go/src/app/vm
+      - /mnt/vlogs:/vlogs
+    command:
+      - go
+      - run
+      - app/victoria-logs/main.go
+      - -storageDataPath=/vlogs
+    ports:
+      - '9429:9428'
+
   generator:
     image: golang:1.21.5-alpine
     restart: always
@@ -15,27 +30,18 @@ services:
       - -logsPath=/go/src/source_logs/logs
       - -outputRateLimitItems=10000
       - -outputRateLimitPeriod=1s
-      - -syslog.addr=rsyslog:514
-      - -syslog.addr2=rsyslog:514
+      - -syslog.addr=fluentbit:5140
+      - -syslog.addr2=fluentbit:5140
       - -logs.randomSuffix=false
     depends_on: [ rsyslog ]
 
-  promtail:
-    image: grafana/promtail:2.9.0
-    command: -config.file=/etc/promtail/promtail-config.yaml
+  fluentbit:
+    image: cr.fluentbit.io/fluent/fluent-bit:2.1.4
     volumes:
-      - ./single/:/etc/promtail/
-    depends_on:
-      - vlogs
-
-  rsyslog:
-    build:
-      dockerfile: Dockerfile
-      context: single
-    volumes:
-      - ./single/rsyslog.conf:/etc/rsyslog.conf
-    depends_on: [ promtail ]
-
+      - ./single/fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf
+    depends_on: [victorialogs]
+    ports:
+      - "5140:5140"
 
 volumes:
   loki:
