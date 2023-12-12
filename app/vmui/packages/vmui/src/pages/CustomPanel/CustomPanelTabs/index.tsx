@@ -3,7 +3,7 @@ import GraphTab from "./GraphTab";
 import JsonView from "../../../components/Views/JsonView/JsonView";
 import TableTab from "./TableTab";
 import { InstantMetricResult, MetricResult } from "../../../api/types";
-import { DisplayType } from "../DisplayTypeSwitch";
+import { DisplayType } from "../../../types";
 
 type Props = {
   graphData?: MetricResult[];
@@ -20,18 +20,18 @@ const CustomPanelTabs: FC<Props> = ({
   displayType,
   controlsRef
 }) => {
-  if (displayType === "code" && liveData) {
+  if (displayType === DisplayType.code && liveData) {
     return <JsonView data={liveData} />;
   }
 
-  if (displayType === "table" && liveData) {
+  if (displayType === DisplayType.table && liveData) {
     return <TableTab
       liveData={liveData}
       controlsRef={controlsRef}
     />;
   }
 
-  if (displayType === "chart" && graphData) {
+  if (displayType === DisplayType.chart && graphData) {
     return <GraphTab
       graphData={graphData}
       isHistogram={isHistogram}

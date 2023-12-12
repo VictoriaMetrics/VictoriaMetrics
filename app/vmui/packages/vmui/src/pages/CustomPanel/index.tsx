@@ -1,4 +1,4 @@
-import React, { FC, useState, useEffect } from "preact/compat";
+import React, { FC, useEffect, useState } from "preact/compat";
 import QueryConfigurator from "./QueryConfigurator/QueryConfigurator";
 import { useFetchQuery } from "../../hooks/useFetchQuery";
 import { DisplayTypeSwitch } from "./DisplayTypeSwitch";
@@ -17,6 +17,7 @@ import { useRef } from "react";
 import CustomPanelTraces from "./CustomPanelTraces/CustomPanelTraces";
 import WarningLimitSeries from "./WarningLimitSeries/WarningLimitSeries";
 import CustomPanelTabs from "./CustomPanelTabs";
+import { DisplayType } from "../../types";
 
 const CustomPanel: FC = () => {
   useSetQueryParams();
@@ -51,7 +52,7 @@ const CustomPanel: FC = () => {
     showAllSeries
   });
 
-  const showInstantQueryTip = !liveData?.length && (displayType !== "chart");
+  const showInstantQueryTip = !liveData?.length && (displayType !== DisplayType.chart);
   const showError = !hideError && error;
 
   const handleHideQuery = (queries: number[]) => {

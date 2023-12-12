@@ -50,8 +50,7 @@ const ExploreAnomalyHeader: FC<Props> = ({ queries, series, onChange }) => {
     const prevValues = Object.values(prevUniqueKeysWithValues || {}).flat();
     if (arrayEquals(prevValues, nextValues)) return;
     const newSelectedValues: Record<string, string> = {};
-    const keys = Object.keys(uniqueKeysWithValues);
-    keys.forEach((key) => {
+    Object.keys(uniqueKeysWithValues).forEach((key) => {
       const value = getQueryStringValue(key, "") as string;
       newSelectedValues[key] = value || uniqueKeysWithValues[key]?.[0];
     });

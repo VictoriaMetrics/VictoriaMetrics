@@ -14,7 +14,6 @@ module.exports = override(
     new webpack.NormalModuleReplacementPlugin(
       /\.\/App/,
       function (resource) {
-        // eslint-disable-next-line no-undef
         if (process.env.REACT_APP_TYPE === "logs") {
           resource.request = "./AppLogs";
         }

@@ -2,7 +2,7 @@ import { useCustomPanelState } from "../../../state/customPanel/CustomPanelState
 import TracingsView from "../../../components/TraceQuery/TracingsView";
 import React, { FC, useEffect, useState } from "preact/compat";
 import Trace from "../../../components/TraceQuery/Trace";
-import { DisplayType } from "../DisplayTypeSwitch";
+import { DisplayType } from "../../../types";
 
 type Props = {
   traces?: Trace[];
@@ -28,16 +28,16 @@ const CustomPanelTraces: FC<Props> = ({ traces, displayType }) => {
     setTracesState([]);
   }, [displayType]);
 
-  if (!isTracingEnabled) return null;
-
-  return (
-    <div className="vm-custom-panel__trace">
-      <TracingsView
-        traces={tracesState}
-        onDeleteClick={handleTraceDelete}
-      />
-    </div>
-  );
+  return <>
+    {isTracingEnabled && (
+      <div className="vm-custom-panel__trace">
+        <TracingsView
+          traces={tracesState}
+          onDeleteClick={handleTraceDelete}
+        />
+      </div>
+    )}
+  </>;
 };
 
 export default CustomPanelTraces;

@@ -22,13 +22,13 @@ const ExploreAnomaly: FC = () => {
 
   const queryDispatch = useQueryDispatch();
   const timeDispatch = useTimeDispatch();
-  const { series, error: errorSeries, isLoading: isLoadingSeries } = useFetchAnomalySeries();
+  const { series, error: errorSeries, isLoading: isAnomalySeriesLoading } = useFetchAnomalySeries();
   const queries = useMemo(() => series ? Object.keys(series) : [], [series]);
 
   const controlsRef = useRef<HTMLDivElement>(null);
   const { customStep } = useGraphState();
 
-  const { isLoading, graphData, error, queryErrors, isHistogram } = useFetchQuery({
+  const { graphData, error, queryErrors, isHistogram, isLoading: isGraphDataLoading } = useFetchQuery({
     visible: true,
     customStep,
     showAllSeries: true,
@@ -64,7 +64,7 @@ const ExploreAnomaly: FC = () => {
     let prefix = __name__.replace(/y|_y/, "");
     if (prefix) prefix += "_";
     const metrics = [__name__, ForecastType.yhat, ForecastType.yhatUpper, ForecastType.yhatLower];
-    const filters = Object.entries(labelValue).map(([key, value]) => `${key}="${value}"`).join(", ");
+    const filters = Object.entries(labelValue).map(([key, value]) => `${key}="${value}"`).join(",");
     const queries = metrics.map((m, i) => `${i ? prefix : ""}${m}{${filters}}`);
     queryDispatch({ type: "SET_QUERY", payload: queries });
     timeDispatch({ type: "RUN_QUERY" });
@@ -85,9 +85,9 @@ const ExploreAnomaly: FC = () => {
         series={series}
         onChange={onChangeFilter}
       />
-      {(isLoading || isLoadingSeries) && <Spinner />}
+      {(isGraphDataLoading || isAnomalySeriesLoading) && <Spinner />}
       {(error || errorSeries) && <Alert variant="error">{error || errorSeries}</Alert>}
-      {!error && !errorSeries && queryErrors[0] && <Alert variant="error">{queryErrors[0]}</Alert>}
+      {!error && !errorSeries && queryErrors?.[0] && <Alert variant="error">{queryErrors[0]}</Alert>}
       <div
         className={classNames({
           "vm-custom-panel-body": true,

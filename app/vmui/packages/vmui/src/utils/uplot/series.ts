@@ -51,26 +51,19 @@ export const getSeriesItemContext = (data: MetricResult[], hideSeries: string[],
     };
 
     let dash: number[] = [];
-    switch (true) {
-      case forecast.isLower || forecast.isUpper:
-        dash = [10, 5];
-        break;
-      case forecast.isYhat:
-        dash = [10, 2];
-        break;
+    if (forecast.isLower || forecast.isUpper) {
+      dash = [10, 5];
+    } else if (forecast.isYhat) {
+      dash = [10, 2];
     }
 
     let width = 1.4;
-    switch (true) {
-      case forecast.isUpper || forecast.isLower:
-        width = 0.7;
-        break;
-      case forecast.isYhat:
-        width = 1;
-        break;
-      case forecast.isAnomaly:
-        width = 0;
-        break;
+    if (forecast.isUpper || forecast.isLower) {
+      width = 0.7;
+    } else if (forecast.isYhat) {
+      width = 1;
+    } else if (forecast.isAnomaly) {
+      width = 0;
     }
 
     let points: uPlotSeries.Points = { size: 4.2, width: 1.4 };
