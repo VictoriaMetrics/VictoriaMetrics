@@ -497,7 +497,7 @@ Remote read API has two implementations of remote read API: default (`SAMPLES`) 
 Streamed version is more efficient but has lower adoption (e.g. [Promscale](#migrating-data-from-promscale)
 doesn't support it).
 
-See `./vmctl remote-read --help` for details and full list of flags.
+See `./vmctl remote-read --help` for details and the full list of flags.
 
 To start the migration process configure the following flags:
 
@@ -878,21 +878,14 @@ Importing tips:
 
 ### Using time-based chunking of migration
 
-It is possible split migration process into set of smaller batches based on time. This is especially useful when 
-migrating large volumes of data as this adds indication of progress and ability to restore process from certain point 
-in case of failure.
+It is possible to split the migration process into steps based on time via `--vm-native-step-interval` cmd-line flag.
+Supported values are: `month`, `week`, `day`, `hour`, `minute`. For example, when migrating 1 year of data with
+`--vm-native-step-interval=month` vmctl will execute it in 12 separate requests from the beginning of the interval
+to its end. To reverse the order set `--vm-native-filter-time-reverse` and migration will start from the newest to the 
+oldest data. `--vm-native-filter-time-start` is required to be set when using `--vm-native-step-interval`.
 
-To use this you need to specify `--vm-native-step-interval` flag. Supported values are: `month`, `week`, `day`, `hour`, `minute`.
-Note that in order to use this it is required `--vm-native-filter-time-start` to be set to calculate time ranges for 
-export process.
-
-Every range is being processed independently, which means that:
-- after range processing is finished all data within range is migrated
-- if process fails on one of stages it is guaranteed that data of prior stages is already written,
-so it is possible to restart process starting from failed range.
-
-It is recommended using the `month` step when migrating the data over multiple months, 
-since the migration with `week`, `day` and `hour` steps may take longer time to complete because of additional overhead.
+It is recommended using default `month` step when migrating the data over the long time intervals. If you hit complexity
+limits on `--vm-native-src-addr` and can't or don't want to change them, try lowering the step interval to `week`, `day` or `hour`.
 
 Usage example:
 ```console
