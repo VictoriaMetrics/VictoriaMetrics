@@ -3,7 +3,6 @@ package streamaggr
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"math"
 	"sort"
 	"strconv"
@@ -14,6 +13,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
@@ -240,9 +240,10 @@ type aggregator struct {
 	// for `interval: 1m`, `by: [job]`
 	suffix string
 
+	wg     sync.WaitGroup
+	stopCh chan struct{}
+
 	initialTime uint64
-	wg          sync.WaitGroup
-	stopCh      chan struct{}
 }
 
 type aggrState interface {
@@ -279,9 +280,9 @@ func newAggregator(cfg *Config, pushFunc PushFunc, dedupInterval time.Duration) 
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse `interval: %q`: %w", cfg.Interval, err)
 	}
-	//if interval <= time.Second {
-	//	return nil, fmt.Errorf("the minimum supported aggregation interval is 1s; got %s", interval)
-	//}
+	if interval <= time.Second {
+		return nil, fmt.Errorf("the minimum supported aggregation interval is 1s; got %s", interval)
+	}
 
 	// check cfg.StalenessInterval
 	stalenessInterval := interval * 2
@@ -410,8 +411,9 @@ func newAggregator(cfg *Config, pushFunc PushFunc, dedupInterval time.Duration) 
 
 		suffix: suffix,
 
+		stopCh: make(chan struct{}),
+
 		initialTime: fasttime.UnixTimestamp(),
-		stopCh:      make(chan struct{}),
 	}
 
 	if dedupAggr != nil {

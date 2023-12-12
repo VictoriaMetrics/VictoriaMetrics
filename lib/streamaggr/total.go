@@ -29,8 +29,6 @@ type totalStateValue struct {
 
 type lastValueState struct {
 	value          float64
-	firstValue     float64
-	correction     float64
 	deleteDeadline uint64
 }
 
@@ -39,9 +37,9 @@ func newTotalAggrState(interval time.Duration, stalenessInterval time.Duration) 
 	intervalSecs := roundDurationToSecs(interval)
 	stalenessSecs := roundDurationToSecs(stalenessInterval)
 	return &totalAggrState{
-		intervalSecs:        intervalSecs,
-		stalenessSecs:       stalenessSecs,
 		ignoreInputDeadline: currentTime + intervalSecs,
+		stalenessSecs:       stalenessSecs,
+		intervalSecs:        intervalSecs,
 	}
 }
 

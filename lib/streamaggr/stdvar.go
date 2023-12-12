@@ -67,6 +67,7 @@ func (as *stdvarAggrState) appendSeriesForFlush(ctx *flushCtx) {
 	m.Range(func(k, v interface{}) bool {
 		// Atomically delete the entry from the map, so new entry is created for the next flush.
 		m.Delete(k)
+
 		sv := v.(*stdvarStateValue)
 		sv.mu.Lock()
 		stdvar := sv.q / sv.count

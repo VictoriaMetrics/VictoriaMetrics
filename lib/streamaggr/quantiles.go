@@ -1,7 +1,6 @@
 package streamaggr
 
 import (
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -9,6 +8,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/valyala/histogram"
 )
 

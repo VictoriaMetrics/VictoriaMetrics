@@ -10,10 +10,11 @@ import (
 
 // increaseAggrState calculates output=increase, e.g. the increase over input counters.
 type increaseAggrState struct {
-	m                   sync.Map
-	intervalSecs        uint64
+	m sync.Map
+
 	ignoreInputDeadline uint64
 	stalenessSecs       uint64
+	intervalSecs        uint64
 	lastPushTimestamp   atomic.Uint64
 }
 
@@ -31,9 +32,9 @@ func newIncreaseAggrState(interval time.Duration, stalenessInterval time.Duratio
 	intervalSecs := roundDurationToSecs(interval)
 	stalenessSecs := roundDurationToSecs(stalenessInterval)
 	return &increaseAggrState{
-		intervalSecs:        intervalSecs,
-		stalenessSecs:       stalenessSecs,
 		ignoreInputDeadline: currentTime + intervalSecs,
+		stalenessSecs:       stalenessSecs,
+		intervalSecs:        intervalSecs,
 	}
 }
 

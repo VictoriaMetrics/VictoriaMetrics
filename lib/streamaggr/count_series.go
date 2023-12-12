@@ -74,10 +74,10 @@ func (as *countSeriesAggrState) appendSeriesForFlush(ctx *flushCtx) {
 	m.Range(func(k, v interface{}) bool {
 		// Atomically delete the entry from the map, so new entry is created for the next flush.
 		m.Delete(k)
+
 		sv := v.(*countSeriesStateValue)
 		sv.mu.Lock()
 		n := sv.n
-		sv.n = 0
 		// Mark the entry as deleted, so it won't be updated anymore by concurrent pushSample() calls.
 		sv.deleted = true
 		sv.mu.Unlock()

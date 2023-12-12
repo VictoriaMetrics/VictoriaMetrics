@@ -18,7 +18,7 @@ type avgAggrState struct {
 type avgStateValue struct {
 	mu      sync.Mutex
 	sum     float64
-	count   uint64
+	count   int64
 	deleted bool
 }
 
@@ -71,10 +71,7 @@ func (as *avgAggrState) appendSeriesForFlush(ctx *flushCtx) {
 
 		sv := v.(*avgStateValue)
 		sv.mu.Lock()
-		var avg float64
-		if sv.count > 0 {
-			avg = sv.sum / float64(sv.count)
-		}
+		avg := sv.sum / float64(sv.count)
 		// Mark the entry as deleted, so it won't be updated anymore by concurrent pushSample() calls.
 		sv.deleted = true
 		sv.mu.Unlock()
@@ -101,7 +98,7 @@ func (as *avgAggrState) getStateRepresentation(suffix string) aggrStateRepresent
 		metrics = append(metrics, aggrStateRepresentationMetric{
 			metric:       getLabelsStringFromKey(k.(string), suffix, as.getOutputName()),
 			currentValue: value.sum / float64(value.count),
-			samplesCount: value.count,
+			samplesCount: uint64(value.count),
 		})
 		return true
 	})

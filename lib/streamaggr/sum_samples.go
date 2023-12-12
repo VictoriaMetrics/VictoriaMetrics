@@ -16,11 +16,10 @@ type sumSamplesAggrState struct {
 }
 
 type sumSamplesStateValue struct {
-	mu             sync.Mutex
-	sum            float64
-	samplesCount   uint64
-	deleted        bool
-	deleteDeadline uint64
+	mu           sync.Mutex
+	sum          float64
+	samplesCount uint64
+	deleted      bool
 }
 
 func newSumSamplesAggrState(interval time.Duration) *sumSamplesAggrState {
@@ -68,6 +67,7 @@ func (as *sumSamplesAggrState) appendSeriesForFlush(ctx *flushCtx) {
 	m.Range(func(k, v interface{}) bool {
 		// Atomically delete the entry from the map, so new entry is created for the next flush.
 		m.Delete(k)
+
 		sv := v.(*sumSamplesStateValue)
 		sv.mu.Lock()
 		sum := sv.sum

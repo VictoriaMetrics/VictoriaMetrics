@@ -69,6 +69,7 @@ func (as *maxAggrState) appendSeriesForFlush(ctx *flushCtx) {
 	m.Range(func(k, v interface{}) bool {
 		// Atomically delete the entry from the map, so new entry is created for the next flush.
 		m.Delete(k)
+
 		sv := v.(*maxStateValue)
 		sv.mu.Lock()
 		value := sv.max
