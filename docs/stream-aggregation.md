@@ -710,7 +710,8 @@ of [vmagent](https://docs.victoriametrics.com/vmagent.html) and [single-node Vic
 
 On this page you can see the list of active aggregations for each remote write:
 
-<img alt="stream aggregation -> aggregations list" src="stream-aggregation-ui-1.png">
+<img alt="stream aggregation -> aggregations list" src="stream-aggregation-ui-1.webp">
 
 By clicking on the output name you can see the list of time series for this output with theirs current state:
 
+<img alt="stream aggregation -> aggregation state" src="stream-aggregation-ui-2.webp">
