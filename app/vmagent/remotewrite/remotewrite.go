@@ -947,6 +947,7 @@ func CheckStreamAggrConfigs() error {
 	return nil
 }
 
+// GetAggregators returns aggregators for all the configured remote writes.
 func GetAggregators() map[string]*streamaggr.Aggregators {
 	var result = map[string]*streamaggr.Aggregators{}
 

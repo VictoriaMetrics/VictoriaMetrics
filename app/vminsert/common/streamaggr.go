@@ -212,6 +212,7 @@ func pushAggregateSeries(tss []prompbmarshal.TimeSeries) {
 	}
 }
 
+// GetAggregators returns default aggregator for vmsingle.
 func GetAggregators() map[string]*streamaggr.Aggregators {
 	return map[string]*streamaggr.Aggregators{"default": sasGlobal.Load()}
 }
