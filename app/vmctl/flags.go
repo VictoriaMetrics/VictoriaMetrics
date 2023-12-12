@@ -363,7 +363,7 @@ var (
 		},
 		&cli.StringFlag{
 			Name: vmNativeStepInterval,
-			Usage: fmt.Sprintf("Split export data into chunks. By default, the migration will start from the oldest to the newest intervals. When set '--vm-native-filter-time-reverse', the migration will start from the newest to the oldest intervals. Requires setting --%s. Valid values are '%s','%s','%s','%s','%s'.", vmNativeFilterTimeStart,
+			Usage: fmt.Sprintf("Split export data into chunks. By default, the migration will start from the oldest to the newest intervals. See also '--vm-native-filter-time-reverse'. Requires setting --%s. Valid values are '%s','%s','%s','%s','%s'.", vmNativeFilterTimeStart,
 				stepper.StepMonth, stepper.StepWeek, stepper.StepDay, stepper.StepHour, stepper.StepMinute),
 			Value: stepper.StepMonth,
 		},
@@ -528,7 +528,7 @@ var (
 		},
 		&cli.StringFlag{
 			Name:     remoteReadStepInterval,
-			Usage:    fmt.Sprintf("Split export data into chunks. By default, the migration will start from the oldest to the newest intervals. When set '--remote-read-filter-time-reverse', the migration will start from the newest to the oldest intervals. Requires setting --%s. Valid values are %q,%q,%q,%q.", remoteReadFilterTimeStart, stepper.StepMonth, stepper.StepDay, stepper.StepHour, stepper.StepMinute),
+			Usage:    fmt.Sprintf("Split export data into chunks. By default, the migration will start from the oldest to the newest intervals. See also '--remote-read-filter-time-reverse'. Requires setting --%s. Valid values are %q,%q,%q,%q.", remoteReadFilterTimeStart, stepper.StepMonth, stepper.StepDay, stepper.StepHour, stepper.StepMinute),
 			Required: true,
 		},
 		&cli.BoolFlag{
