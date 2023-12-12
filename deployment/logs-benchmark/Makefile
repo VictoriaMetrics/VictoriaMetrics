@@ -14,4 +14,10 @@ docker-stop-loki:
 	docker-compose -f docker-compose.yml -f docker-compose-loki.yml stop
 
 docker-cleanup:
-	docker-compose -f docker-compose.yml -f docker-compose-elk.yml -f docker-compose-loki.yml down -v --remove-orphans
+	docker-compose -f docker-compose.yml -f docker-compose-elk.yml -f docker-compose-loki.yml -f docker-compose-single.yml down -v --remove-orphans
+
+docker-up-single:
+	docker-compose -f docker-compose.yml -f docker-compose-single.yml up -d
+
+docker-stop-single:
+	docker-compose -f docker-compose.yml -f docker-compose-single.yml stop
