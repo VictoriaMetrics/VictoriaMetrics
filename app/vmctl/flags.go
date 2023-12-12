@@ -320,10 +320,11 @@ var (
 )
 
 const (
-	vmNativeFilterMatch     = "vm-native-filter-match"
-	vmNativeFilterTimeStart = "vm-native-filter-time-start"
-	vmNativeFilterTimeEnd   = "vm-native-filter-time-end"
-	vmNativeStepInterval    = "vm-native-step-interval"
+	vmNativeFilterMatch       = "vm-native-filter-match"
+	vmNativeFilterTimeStart   = "vm-native-filter-time-start"
+	vmNativeFilterTimeEnd     = "vm-native-filter-time-end"
+	vmNativeFilterTimeReverse = "vm-native-filter-time-reverse"
+	vmNativeStepInterval      = "vm-native-step-interval"
 
 	vmNativeDisableBinaryProtocol = "vm-native-disable-binary-protocol"
 	vmNativeDisableHTTPKeepAlive  = "vm-native-disable-http-keep-alive"
@@ -362,9 +363,14 @@ var (
 		},
 		&cli.StringFlag{
 			Name: vmNativeStepInterval,
-			Usage: fmt.Sprintf("Split export data into chunks. Requires setting --%s. Valid values are '%s','%s','%s','%s','%s'.", vmNativeFilterTimeStart,
+			Usage: fmt.Sprintf("Split export data into chunks. By default, the migration will start from the oldest to the newest intervals. See also '--vm-native-filter-time-reverse'. Requires setting --%s. Valid values are '%s','%s','%s','%s','%s'.", vmNativeFilterTimeStart,
 				stepper.StepMonth, stepper.StepWeek, stepper.StepDay, stepper.StepHour, stepper.StepMinute),
 			Value: stepper.StepMonth,
+		},
+		&cli.BoolFlag{
+			Name:  vmNativeFilterTimeReverse,
+			Usage: "Whether to reverse order of time intervals split by '--vm-native-step-interval' cmd-line flag. When set, the migration will start from the newest to the oldest intervals.",
+			Value: false,
 		},
 		&cli.BoolFlag{
 			Name:  vmNativeDisableHTTPKeepAlive,
@@ -469,6 +475,7 @@ const (
 	remoteReadConcurrency        = "remote-read-concurrency"
 	remoteReadFilterTimeStart    = "remote-read-filter-time-start"
 	remoteReadFilterTimeEnd      = "remote-read-filter-time-end"
+	remoteReadFilterTimeReverse  = "remote-read-filter-time-reverse"
 	remoteReadFilterLabel        = "remote-read-filter-label"
 	remoteReadFilterLabelValue   = "remote-read-filter-label-value"
 	remoteReadStepInterval       = "remote-read-step-interval"
@@ -521,8 +528,13 @@ var (
 		},
 		&cli.StringFlag{
 			Name:     remoteReadStepInterval,
-			Usage:    fmt.Sprintf("Split export data into chunks. Requires setting --%s. Valid values are %q,%q,%q,%q.", remoteReadFilterTimeStart, stepper.StepMonth, stepper.StepDay, stepper.StepHour, stepper.StepMinute),
+			Usage:    fmt.Sprintf("Split export data into chunks. By default, the migration will start from the oldest to the newest intervals. See also '--remote-read-filter-time-reverse'. Requires setting --%s. Valid values are %q,%q,%q,%q.", remoteReadFilterTimeStart, stepper.StepMonth, stepper.StepDay, stepper.StepHour, stepper.StepMinute),
 			Required: true,
+		},
+		&cli.BoolFlag{
+			Name:  remoteReadFilterTimeReverse,
+			Usage: "Whether to reverse order of time intervals split by '--remote-read-step-interval' cmd-line flag. When set, the migration will start from the newest to the oldest intervals.",
+			Value: false,
 		},
 		&cli.StringFlag{
 			Name:     remoteReadSrcAddr,
