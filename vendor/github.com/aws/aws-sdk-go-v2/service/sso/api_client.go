@@ -56,7 +56,11 @@ func New(options Options, optFns ...func(*Options)) *Client {
 		fn(&options)
 	}
 
+	finalizeRetryMaxAttempts(&options)
+
 	ignoreAnonymousAuth(&options)
+
+	wrapWithAnonymousAuth(&options)
 
 	resolveAuthSchemes(&options)
 
@@ -65,6 +69,15 @@ func New(options Options, optFns ...func(*Options)) *Client {
 	}
 
 	return client
+}
+
+// Options returns a copy of the client configuration.
+//
+// Callers SHOULD NOT perform mutations on any inner structures within client
+// config. Config overrides should instead be made on a per-operation basis through
+// functional options.
+func (c *Client) Options() Options {
+	return c.options.Copy()
 }
 
 func (c *Client) invokeOperation(ctx context.Context, opID string, params interface{}, optFns []func(*Options), stackFns ...func(*middleware.Stack, Options) error) (result interface{}, metadata middleware.Metadata, err error) {
@@ -76,7 +89,7 @@ func (c *Client) invokeOperation(ctx context.Context, opID string, params interf
 		fn(&options)
 	}
 
-	finalizeRetryMaxAttemptOptions(&options, *c)
+	finalizeOperationRetryMaxAttempts(&options, *c)
 
 	finalizeClientEndpointResolverOptions(&options)
 
@@ -130,7 +143,7 @@ func (m *setOperationInputMiddleware) HandleSerialize(ctx context.Context, in mi
 
 func addProtocolFinalizerMiddlewares(stack *middleware.Stack, options Options, operation string) error {
 	if err := stack.Finalize.Add(&resolveAuthSchemeMiddleware{operation: operation, options: options}, middleware.Before); err != nil {
-		return fmt.Errorf("add ResolveAuthScheme: %v", err)
+		return fmt.Errorf("add ResolveAuthScheme: %w", err)
 	}
 	if err := stack.Finalize.Insert(&getIdentityMiddleware{options: options}, "ResolveAuthScheme", middleware.After); err != nil {
 		return fmt.Errorf("add GetIdentity: %v", err)
@@ -139,7 +152,7 @@ func addProtocolFinalizerMiddlewares(stack *middleware.Stack, options Options, o
 		return fmt.Errorf("add ResolveEndpointV2: %v", err)
 	}
 	if err := stack.Finalize.Insert(&signRequestMiddleware{}, "ResolveEndpointV2", middleware.After); err != nil {
-		return fmt.Errorf("add Signing: %v", err)
+		return fmt.Errorf("add Signing: %w", err)
 	}
 	return nil
 }
@@ -324,7 +337,15 @@ func resolveAWSRetryMaxAttempts(cfg aws.Config, o *Options) {
 	o.RetryMaxAttempts = cfg.RetryMaxAttempts
 }
 
-func finalizeRetryMaxAttemptOptions(o *Options, client Client) {
+func finalizeRetryMaxAttempts(o *Options) {
+	if o.RetryMaxAttempts == 0 {
+		return
+	}
+
+	o.Retryer = retry.AddWithMaxAttempts(o.Retryer, o.RetryMaxAttempts)
+}
+
+func finalizeOperationRetryMaxAttempts(o *Options, client Client) {
 	if v := o.RetryMaxAttempts; v == 0 || v == client.options.RetryMaxAttempts {
 		return
 	}

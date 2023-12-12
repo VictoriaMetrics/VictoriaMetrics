@@ -9,20 +9,21 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	s3cust "github.com/aws/aws-sdk-go-v2/service/s3/internal/customizations"
 	"github.com/aws/smithy-go/middleware"
+	"github.com/aws/smithy-go/ptr"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// This action removes the website configuration for a bucket. Amazon S3 returns a
-// 200 OK response upon successfully deleting a website configuration on the
-// specified bucket. You will get a 200 OK response if the website configuration
-// you are trying to delete does not exist on the bucket. Amazon S3 returns a 404
-// response if the bucket specified in the request does not exist. This DELETE
-// action requires the S3:DeleteBucketWebsite permission. By default, only the
-// bucket owner can delete the website configuration attached to a bucket. However,
-// bucket owners can grant other users permission to delete the website
-// configuration by writing a bucket policy granting them the
-// S3:DeleteBucketWebsite permission. For more information about hosting websites,
-// see Hosting Websites on Amazon S3 (https://docs.aws.amazon.com/AmazonS3/latest/dev/WebsiteHosting.html)
+// This operation is not supported by directory buckets. This action removes the
+// website configuration for a bucket. Amazon S3 returns a 200 OK response upon
+// successfully deleting a website configuration on the specified bucket. You will
+// get a 200 OK response if the website configuration you are trying to delete
+// does not exist on the bucket. Amazon S3 returns a 404 response if the bucket
+// specified in the request does not exist. This DELETE action requires the
+// S3:DeleteBucketWebsite permission. By default, only the bucket owner can delete
+// the website configuration attached to a bucket. However, bucket owners can grant
+// other users permission to delete the website configuration by writing a bucket
+// policy granting them the S3:DeleteBucketWebsite permission. For more
+// information about hosting websites, see Hosting Websites on Amazon S3 (https://docs.aws.amazon.com/AmazonS3/latest/dev/WebsiteHosting.html)
 // . The following operations are related to DeleteBucketWebsite :
 //   - GetBucketWebsite (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketWebsite.html)
 //   - PutBucketWebsite (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketWebsite.html)
@@ -48,9 +49,9 @@ type DeleteBucketWebsiteInput struct {
 	// This member is required.
 	Bucket *string
 
-	// The account ID of the expected bucket owner. If the bucket is owned by a
-	// different account, the request fails with the HTTP status code 403 Forbidden
-	// (access denied).
+	// The account ID of the expected bucket owner. If the account ID that you provide
+	// does not match the actual owner of the bucket, the request fails with the HTTP
+	// status code 403 Forbidden (access denied).
 	ExpectedBucketOwner *string
 
 	noSmithyDocumentSerde
@@ -58,7 +59,7 @@ type DeleteBucketWebsiteInput struct {
 
 func (in *DeleteBucketWebsiteInput) bindEndpointParams(p *EndpointParameters) {
 	p.Bucket = in.Bucket
-
+	p.UseS3ExpressControlEndpoint = ptr.Bool(true)
 }
 
 type DeleteBucketWebsiteOutput struct {
@@ -121,6 +122,9 @@ func (c *Client) addOperationDeleteBucketWebsiteMiddlewares(stack *middleware.St
 		return err
 	}
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addPutBucketContextMiddleware(stack); err != nil {
 		return err
 	}
 	if err = addOpDeleteBucketWebsiteValidationMiddleware(stack); err != nil {

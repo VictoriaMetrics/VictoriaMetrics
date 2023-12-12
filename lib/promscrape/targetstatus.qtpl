@@ -348,9 +348,9 @@
                                 exists at{% space %}
                                 {% for i, memberNum := range t.clusterMemberNums %}
                                     {% if *clusterMemberURLTemplate == "" %}
-                                        {%d memberNum %}
+                                        shard-{%d memberNum %}
                                     {% else %}
-                                        <a href="{%s strings.ReplaceAll(*clusterMemberURLTemplate, "%d", strconv.Itoa(memberNum)) %}">{%d memberNum %}</a>
+                                        <a href="{%s strings.ReplaceAll(*clusterMemberURLTemplate, "%d", strconv.Itoa(memberNum)) %}" target="_blank">shard-{%d memberNum %}</a>
                                     {% endif %}
                                     {% if i+1 < len(t.clusterMemberNums) %},{% space %}{% endif %}
                                 {% endfor %}
