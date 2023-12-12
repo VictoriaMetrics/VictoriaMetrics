@@ -7,13 +7,37 @@ menu:
     parent: "operator"
     weight: 10
     identifier: "operator-changelog"
+aliases:
+  - /operator/CHANGELOG.html
+  - /operator/changelog.html
 ---
 
 # CHANGELOG
 
 ## Next release
 
-- TODO
+- [vmalertmanagerconfig](./api.html#vmalertmanagerconfig): add fields `entity`, `actions` and `update_alerts` for opsgenie_configs according to https://prometheus.io/docs/alerting/latest/configuration/#opsgenie_config.
+
+<a name="v0.39.3"></a>
+## [v0.39.3](https://github.com/VictoriaMetrics/operator/releases/tag/v0.39.3) - 16 Nov 2023
+
+- update VictoriaMetrics image tags to [v1.95.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.95.1).
+
+<a name="v0.39.2"></a>
+## [v0.39.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.39.2) - 15 Nov 2023
+
+### Features
+
+- [vmoperator](./README.md): properly compare difference for `statefulSet` claimTemplate metadata. See [this commit](https://github.com/VictoriaMetrics/operator/commit/49f9c72b504582b06f72eda94055fd964a11d342) for details.
+- [vmoperator](./README.md): sort `statefulSet` pods by id for rolling update order. See [this commit](https://github.com/VictoriaMetrics/operator/commit/e73b03acd073ec3eda34231083a48c6f79a6757b) for details.
+- [vmoperator](./README.md): optimize statefulset update logic, that should reduce some unneeded operations. See [this PR](https://github.com/VictoriaMetrics/operator/pull/801) for details.
+
+<a name="v0.39.1"></a>
+## [v0.39.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.39.1) - 1 Nov 2023
+
+- [vmuser](./api.md#vmuser):  adds new paths for vminsert/vmselect routing with enabled dynamic discovery feature for `VMUser`. See [this PR](https://github.com/VictoriaMetrics/operator/pull/791) for details.
+- [vmcluster](./api.md#vmcluster): from now on operator passes `-replicationFactor` (if it set in `vmcluster`) for `vmselect`. See [this issue](https://github.com/VictoriaMetrics/operator/issues/778).
+- [vmagent](./api.md#vmagent): updated dependency for properly parsing chained `if` expressions in validation webhook. 
 
 <a name="v0.38.0"></a>
 ## [v0.39.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.39.0) - 4 Oct 2023

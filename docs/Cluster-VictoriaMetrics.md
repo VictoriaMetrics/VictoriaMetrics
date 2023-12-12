@@ -11,7 +11,7 @@ aliases:
 ---
 # Cluster version
 
-<img alt="VictoriaMetrics" src="logo.png" width="300">
+<img src="logo.webp" width="300">
 
 VictoriaMetrics is a fast, cost-effective and scalable time series database. It can be used as a long-term remote storage for Prometheus.
 
@@ -57,7 +57,7 @@ This is a [shared nothing architecture](https://en.wikipedia.org/wiki/Shared-not
 It increases cluster availability, and simplifies cluster maintenance as well as cluster scaling.
 
 <p align="center">
-  <img src="Cluster-VictoriaMetrics_cluster-scheme.png" width="800">
+  <img src="Cluster-VictoriaMetrics_cluster-scheme.webp" width="800">
 </p>
 
 ## Multitenancy
@@ -109,6 +109,11 @@ while the `http_requests_total{path="/bar"} 34` would be stored in the tenant `a
 
 The `vm_account_id` and `vm_project_id` labels are extracted after applying the [relabeling](https://docs.victoriametrics.com/relabeling.html)
 set via `-relabelConfig` command-line flag, so these labels can be set at this stage.
+
+The `vm_account_id` and `vm_project_id` labels are also taken into account when ingesting data via non-http-based protocols
+such as [Graphite](https://docs.victoriametrics.com/#how-to-send-data-from-graphite-compatible-agents-such-as-statsd),
+[InfluxDB line protocol via TCP and UDP](https://docs.victoriametrics.com/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf) and
+[OpenTSDB telnet put protocol](https://docs.victoriametrics.com/#sending-data-via-telnet-put-protocol).
 
 **Security considerations:** it is recommended restricting access to `multitenant` endpoints only to trusted sources,
 since untrusted source may break per-tenant data by writing unwanted samples to arbitrary tenants.
@@ -241,7 +246,7 @@ the following approaches for automatic discovery of `vmstorage` nodes:
   The list of discovered `vmstorage` nodes is automatically updated when the file contents changes.
   The update frequency can be controlled with `-storageNode.discoveryInterval` command-line flag.
 
-- [dns+srv](https://en.wikipedia.org/wiki/SRV_record) - pass `dns+src:some-name` value to `-storageNode` command-line flag.
+- [dns+srv](https://en.wikipedia.org/wiki/SRV_record) - pass `dns+srv:some-name` value to `-storageNode` command-line flag.
   In this case the provided `dns+srv` names are resolved into tcp addresses of `vmstorage` nodes.
   The list of discovered `vmstorage` nodes is automatically updated at `vminsert` and `vmselect`
   when it changes behind the corresponding `dns+srv` names.
@@ -267,7 +272,7 @@ General security recommendations:
 - All the VictoriaMetrics cluster components must run in protected private network without direct access from untrusted networks such as Internet.
 - External clients must access `vminsert` and `vmselect` via auth proxy such as [vmauth](https://docs.victoriametrics.com/vmauth.html)
   or [vmgateway](https://docs.victoriametrics.com/vmgateway.html).
-- The auth proxy must accept auth tokens from untrusted networks only via https in order to protect the auth tokens from eavesdropping.
+- The auth proxy must accept auth tokens from untrusted networks only via https in order to protect the auth tokens from MitM attacks.
 - It is recommended using distinct auth tokens for distinct [tenants](#multitenancy) in order to reduce potential damage in case of compromised auth token for some tenants.
 - Prefer using lists of allowed [API endpoints](#url-format), while disallowing access to other endpoints when configuring auth proxy in front of `vminsert` and `vmselect`.
   This minimizes attack surface.
@@ -322,6 +327,10 @@ Note that these limits are set and applied individually per each `vmstorage` nod
 See more details about cardinality limiter in [these docs](https://docs.victoriametrics.com/#cardinality-limiter).
 
 ## Troubleshooting
+
+- If your VictoriaMetrics cluster experiences data ingestion delays during
+  [rolling restarts and configuration updates](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#updating--reconfiguring-cluster-nodes),
+  then see [these docs](#improving-re-routing-performance-during-restart).
 
 [Troubleshooting docs for single-node VictoriaMetrics](https://docs.victoriametrics.com/Troubleshooting.html) apply to VictoriaMetrics cluster as well.
 
@@ -470,8 +479,22 @@ This strategy allows upgrading the cluster without downtime if the following con
 - The updated config / upgraded binary is compatible with the remaining components in the cluster.
   See the [CHANGELOG](https://docs.victoriametrics.com/CHANGELOG.html) for compatibility notes between different releases.
 
-  If at least a single condition isn't met, then the rolling restart may result in cluster unavailability
-  during the config update / version upgrade. In this case the following strategy is recommended.
+If at least a single condition isn't met, then the rolling restart may result in cluster unavailability
+during the config update / version upgrade. In this case the following strategy is recommended.
+
+#### Improving re-routing performance during restart
+
+`vmstorage` nodes may experience increased usage for CPU, RAM and disk IO during
+[rolling restarts](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#no-downtime-strategy),
+since they need to process higher load when some of `vmstorage` nodes are temporarily unavailable in the cluster.
+It is possible to reduce resource usage spikes by running more `vminsert` nodes and by passing bigger values
+to `-storage.vminsertConnsShutdownDuration` (available from [v1.95.0](https://docs.victoriametrics.com/CHANGELOG.html#v1950))
+command-line flag at `vmstorage` nodes.
+In this case `vmstorage` increases the interval between gradual closing of `vminsert` connections during graceful shutdown.
+This reduces data ingestion slowdown during rollout restarts.
+
+Make sure that the `-storage.vminsertConnsShutdownDuration` is smaller than the graceful shutdown timeout configured at the system which manages `vmstorage`
+(e.g. Docker, Kubernetes, systemd, etc.). Otherwise the system may kill `vmstorage` node before it finishes gradual closing of `vminsert` connections.
 
 ### Minimum downtime strategy
 
@@ -529,7 +552,8 @@ The cluster works in the following way when some of `vmstorage` nodes are unavai
   This guarantees that the newly ingested data is properly saved if the healthy `vmstorage` nodes have enough CPU, RAM, disk IO and network bandwidth
   for processing the increased data ingestion workload.
   `vminsert` spreads evenly the additional data among the healthy `vmstorage` nodes in order to spread evenly
-  the increased load on these nodes.
+  the increased load on these nodes. During re-routing, healthy `vmstorage` nodes will experience higher resource usage
+  and increase in number of [active time series](https://docs.victoriametrics.com/FAQ.html#what-is-an-active-time-series).
 
 - `vmselect` continues serving queries if at least a single `vmstorage` nodes is available.
   It marks responses as partial for queries served from the remaining healthy `vmstorage` nodes,
@@ -606,6 +630,8 @@ Some workloads may need fine-grained resource usage limits. In these cases the f
   The `-search.maxSamplesPerSeries` command-line flag allows limiting memory usage at `vmselect` in the case when the query is executed on a time range,
   which contains hundreds of millions of raw samples per each located time series.
 - `-search.maxSamplesPerQuery` at `vmselect` limits the number of raw samples a single query can process. This allows limiting CPU usage at `vmselect` for heavy queries.
+- `-search.maxResponseSeries` at `vmselect` limits the number of time series a single query can return
+  from [`/api/v1/query`](https://docs.victoriametrics.com/keyConcepts.html#instant-query) and [`/api/v1/query_range`](https://docs.victoriametrics.com/keyConcepts.html#range-query).
 - `-search.maxPointsPerTimeseries` limits the number of calculated points, which can be returned per each
   matching time series from [range query](https://docs.victoriametrics.com/keyConcepts.html#range-query).
 - `-search.maxPointsSubqueryPerTimeseries` limits the number of calculated points, which can be generated
@@ -750,7 +776,16 @@ See how to request a free trial license [here](https://victoriametrics.com/produ
 
 ## Downsampling
 
-Downsampling is available in [enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/enterprise.html). It is configured with `-downsampling.period` command-line flag. The same flag value must be passed to both `vmstorage` and `vmselect` nodes. See [these docs](https://docs.victoriametrics.com/#downsampling) for details.
+Downsampling is available in [enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/enterprise.html).
+It is configured with `-downsampling.period` command-line flag according to [these docs](https://docs.victoriametrics.com/#downsampling).
+
+The same flag value must be passed to both `vmstorage` and `vmselect` nodes. Configuring `vmselect` node with `-downsampling.period`
+command-line flag makes query results more consistent, because `vmselect` uses the maximum configured downsampling interval
+on the requested time range if this time range covers multiple downsampling levels.
+For example, if `-downsampling.period=30d:5m` and the query requests the last 60 days of data, then `vmselect`
+downsamples all the [raw samples](https://docs.victoriametrics.com/keyConcepts.html#raw-samples) on the requested time range
+using 5 minute interval. If `-downsampling.period` command-line flag isn't set at `vmselect`,
+then query results can be less consistent because of mixing raw and downsampled data.
 
 Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 See how to request a free trial license [here](https://victoriametrics.com/products/enterprise/trial/).
@@ -804,7 +839,7 @@ Feel free asking any questions regarding VictoriaMetrics:
 * [Twitter](https://twitter.com/VictoriaMetrics/)
 * [Linkedin](https://www.linkedin.com/company/victoriametrics/)
 * [Reddit](https://www.reddit.com/r/VictoriaMetrics/)
-* [Telegram-en](https://t.me/VictoriaMetrics_en?)
+* [Telegram-en](https://t.me/VictoriaMetrics_en)
 * [Telegram-ru](https://t.me/VictoriaMetrics_ru1)
 * [Google groups](https://groups.google.com/forum/#!forum/victorametrics-users)
 * [Mastodon](https://mastodon.social/@victoriametrics/)
@@ -845,6 +880,8 @@ Report bugs and propose new features [here](https://github.com/VictoriaMetrics/V
 Below is the output for `/path/to/vminsert -help`:
 
 ```
+  -blockcache.missesBeforeCaching int
+     The number of cache misses before putting the block into cache. Higher values may reduce indexdb/dataBlocks cache size at the cost of higher CPU and disk read usage (default 2)
   -cacheExpireDuration duration
      Items are removed from in-memory caches after they aren't accessed for this duration. Lower values may reduce memory usage at the cost of higher CPU usage. See also -prevCacheRemovalPercent (default 30m0s)
   -cluster.tls
@@ -857,6 +894,8 @@ Below is the output for `/path/to/vminsert -help`:
      Whether to skip verification of TLS certificates provided by -storageNode nodes if -cluster.tls flag is set. Note that disabled TLS certificate verification breaks security. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
   -cluster.tlsKeyFile string
      Path to client-side TLS key file to use when connecting to -storageNode if -cluster.tls flag is set. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
+  -clusternative.vminsertConnsShutdownDuration duration
+     The time needed for gradual closing of upstream vminsert connections during graceful shutdown. Bigger duration reduces spikes in CPU, RAM and disk IO load on the remaining lower-level clusters during rolling restart. Smaller duration reduces the time needed to close all the upstream vminsert connections, thus reducing the time for graceful shutdown. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#improving-re-routing-performance-during-restart (default 25s)
   -clusternativeListenAddr string
      TCP address to listen for data from other vminsert nodes in multi-level cluster setup. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multi-level-cluster-setup . Usually :8400 should be set to match default vmstorage port for vminsert. Disabled work if empty
   -csvTrimTimestamp duration
@@ -896,6 +935,12 @@ Below is the output for `/path/to/vminsert -help`:
      Incoming http connections are closed after the configured timeout. This may help to spread the incoming load among a cluster of services behind a load balancer. Please note that the real timeout may be bigger by up to 10% as a protection against the thundering herd problem (default 2m0s)
   -http.disableResponseCompression
      Disable compression of HTTP responses to save CPU resources. By default, compression is enabled to save network bandwidth
+  -http.header.csp string
+     Value for 'Content-Security-Policy' header
+  -http.header.frameOptions string
+     Value for 'X-Frame-Options' header
+  -http.header.hsts string
+     Value for 'Strict-Transport-Security' header
   -http.idleConnTimeout duration
      Timeout for incoming idle http connections (default 1m0s)
   -http.maxGracefulShutdownDuration duration
@@ -914,7 +959,7 @@ Below is the output for `/path/to/vminsert -help`:
      Whether to use proxy protocol for connections accepted at -httpListenAddr . See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing
   -import.maxLineLen size
      The maximum length in bytes of a single line accepted by /api/v1/import; the line length can be limited with 'max_rows_per_line' query arg passed to /api/v1/export
-     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 104857600)
+     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 10485760)
   -influx.databaseNames array
      Comma-separated list of database names to return from /query and /influx/query API. This can be needed for accepting data from Telegraf plugins such as https://github.com/fangli/fluent-plugin-influxdb
      Supports an array of values separated by comma or specified via multiple flags.
@@ -959,6 +1004,8 @@ Below is the output for `/path/to/vminsert -help`:
      Allows renaming fields in JSON formatted logs. Example: "ts:timestamp,msg:message" renames "ts" to "timestamp" and "msg" to "message". Supported fields: ts, level, caller, msg
   -loggerLevel string
      Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC (default "INFO")
+  -loggerMaxArgLen int
+     The maximum length of a single logged argument. Longer arguments are replaced with 'arg_start..arg_end', where 'arg_start' and 'arg_end' is prefix and suffix of the arg with the length not exceeding -loggerMaxArgLen / 2 (default 1000)
   -loggerOutput string
      Output for the logs. Supported values: stderr, stdout (default "stderr")
   -loggerTimezone string
@@ -966,7 +1013,7 @@ Below is the output for `/path/to/vminsert -help`:
   -loggerWarnsPerSecondLimit int
      Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero values disable the rate limit
   -maxConcurrentInserts int
-     The maximum number of concurrent insert requests. Default value should work for most cases, since it minimizes the memory usage. The default value can be increased when clients send data over slow networks. See also -insert.maxQueueDuration (default 8)
+     The maximum number of concurrent insert requests. Default value should work for most cases, since it minimizes the memory usage. The default value can be increased when clients send data over slow networks. See also -insert.maxQueueDuration (default 32)
   -maxInsertRequestSize size
      The maximum size in bytes of a single Prometheus remote_write API request
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 33554432)
@@ -982,7 +1029,7 @@ Below is the output for `/path/to/vminsert -help`:
   -metricsAuthKey string
      Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -newrelic.maxInsertRequestSize size
-     The maximum size in bytes of a single NewRelic POST request to /infra/v2/metrics/events/bulk
+     The maximum size in bytes of a single NewRelic request to /newrelic/infra/v2/metrics/events/bulk
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 67108864)
   -opentsdbHTTPListenAddr string
      TCP address to listen for OpenTSDB HTTP put requests. Usually :4242 must be set. Doesn't work if empty. See also -opentsdbHTTPListenAddr.useProxyProtocol
@@ -1052,6 +1099,8 @@ Below is the output for `/path/to/vminsert -help`:
 Below is the output for `/path/to/vmselect -help`:
 
 ```
+  -blockcache.missesBeforeCaching int
+     The number of cache misses before putting the block into cache. Higher values may reduce indexdb/dataBlocks cache size at the cost of higher CPU and disk read usage (default 2)
   -cacheDataPath string
      Path to directory for cache files. Cache isn't saved if empty
   -cacheExpireDuration duration
@@ -1069,7 +1118,7 @@ Below is the output for `/path/to/vmselect -help`:
   -clusternative.disableCompression
      Whether to disable compression of the data sent to vmselect via -clusternativeListenAddr. This reduces CPU usage at the cost of higher network bandwidth usage
   -clusternative.maxConcurrentRequests int
-     The maximum number of concurrent vmselect requests the server can process at -clusternativeListenAddr. It shouldn't be high, since a single request usually saturates a CPU core at the underlying vmstorage nodes, and many concurrently executed requests may require high amounts of memory. See also -clusternative.maxQueueDuration (default 8)
+     The maximum number of concurrent vmselect requests the server can process at -clusternativeListenAddr. It shouldn't be high, since a single request usually saturates a CPU core at the underlying vmstorage nodes, and many concurrently executed requests may require high amounts of memory. See also -clusternative.maxQueueDuration (default 32)
   -clusternative.maxQueueDuration duration
      The maximum time the incoming query to -clusternativeListenAddr waits for execution when -clusternative.maxConcurrentRequests limit is reached (default 10s)
   -clusternative.maxTagKeys int
@@ -1118,6 +1167,12 @@ Below is the output for `/path/to/vmselect -help`:
      Incoming http connections are closed after the configured timeout. This may help to spread the incoming load among a cluster of services behind a load balancer. Please note that the real timeout may be bigger by up to 10% as a protection against the thundering herd problem (default 2m0s)
   -http.disableResponseCompression
      Disable compression of HTTP responses to save CPU resources. By default, compression is enabled to save network bandwidth
+  -http.header.csp string
+     Value for 'Content-Security-Policy' header
+  -http.header.frameOptions string
+     Value for 'X-Frame-Options' header
+  -http.header.hsts string
+     Value for 'Strict-Transport-Security' header
   -http.idleConnTimeout duration
      Timeout for incoming idle http connections (default 1m0s)
   -http.maxGracefulShutdownDuration duration
@@ -1156,6 +1211,8 @@ Below is the output for `/path/to/vmselect -help`:
      Allows renaming fields in JSON formatted logs. Example: "ts:timestamp,msg:message" renames "ts" to "timestamp" and "msg" to "message". Supported fields: ts, level, caller, msg
   -loggerLevel string
      Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC (default "INFO")
+  -loggerMaxArgLen int
+     The maximum length of a single logged argument. Longer arguments are replaced with 'arg_start..arg_end', where 'arg_start' and 'arg_end' is prefix and suffix of the arg with the length not exceeding -loggerMaxArgLen / 2 (default 1000)
   -loggerOutput string
      Output for the logs. Supported values: stderr, stdout (default "stderr")
   -loggerTimezone string
@@ -1196,12 +1253,12 @@ Below is the output for `/path/to/vmselect -help`:
   -search.latencyOffset duration
      The time when data points become visible in query results after the collection. It can be overridden on per-query basis via latency_offset arg. Too small value can result in incomplete last points for query results (default 30s)
   -search.logQueryMemoryUsage size
-     Log queries, which require more memory than specified by this flag. This may help detecting and optimizing heavy queries. Query logging is disabled by default. See also -search.logSlowQueryDuration and -search.maxMemoryPerQuery
+     Log query and increment vm_memory_intensive_queries_total metric each time the query requires more memory than specified by this flag. This may help detecting and optimizing heavy queries. Query logging is disabled by default. See also -search.logSlowQueryDuration and -search.maxMemoryPerQuery
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
   -search.logSlowQueryDuration duration
      Log queries with execution time exceeding this value. Zero disables slow query logging. See also -search.logQueryMemoryUsage (default 5s)
   -search.maxConcurrentRequests int
-     The maximum number of concurrent search requests. It shouldn't be high, since a single request can saturate all the CPU cores, while many concurrently executed requests may require high amounts of memory. See also -search.maxQueueDuration and -search.maxMemoryPerQuery (default 8)
+     The maximum number of concurrent search requests. It shouldn't be high, since a single request can saturate all the CPU cores, while many concurrently executed requests may require high amounts of memory. See also -search.maxQueueDuration and -search.maxMemoryPerQuery (default 16)
   -search.maxExportDuration duration
      The maximum duration for /api/v1/export call (default 720h0m0s)
   -search.maxExportSeries int
@@ -1220,7 +1277,7 @@ Below is the output for `/path/to/vmselect -help`:
      The maximum amounts of memory a single query may consume. Queries requiring more memory are rejected. The total memory limit for concurrently executed queries can be estimated as -search.maxMemoryPerQuery multiplied by -search.maxConcurrentRequests . See also -search.logQueryMemoryUsage
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
   -search.maxPointsPerTimeseries int
-     The maximum points per a single timeseries returned from /api/v1/query_range. This option doesn't limit the number of scanned raw samples in the database. The main purpose of this option is to limit the number of per-series points returned to graphing UI such as VMUI or Grafana. There is no sense in setting this limit to values bigger than the horizontal resolution of the graph (default 30000)
+     The maximum points per a single timeseries returned from /api/v1/query_range. This option doesn't limit the number of scanned raw samples in the database. The main purpose of this option is to limit the number of per-series points returned to graphing UI such as VMUI or Grafana. There is no sense in setting this limit to values bigger than the horizontal resolution of the graph. See also -search.maxResponseSeries (default 30000)
   -search.maxPointsSubqueryPerTimeseries int
      The maximum number of points per series, which can be generated by subquery. See https://valyala.medium.com/prometheus-subqueries-in-victoriametrics-9b1492b720b3 (default 100000)
   -search.maxQueryDuration duration
@@ -1230,6 +1287,8 @@ Below is the output for `/path/to/vmselect -help`:
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 16384)
   -search.maxQueueDuration duration
      The maximum time the request waits for execution when -search.maxConcurrentRequests limit is reached; see also -search.maxQueryDuration (default 10s)
+  -search.maxResponseSeries int
+     The maximum number of time series which can be returned from /api/v1/query and /api/v1/query_range . The limit is disabled if it equals to 0. See also -search.maxPointsPerTimeseries and -search.maxUniqueTimeseries
   -search.maxSamplesPerQuery int
      The maximum number of raw samples a single query can process across all time series. This protects from heavy queries, which select unexpectedly high number of raw samples. See also -search.maxSamplesPerSeries (default 1000000000)
   -search.maxSamplesPerSeries int
@@ -1251,9 +1310,12 @@ Below is the output for `/path/to/vmselect -help`:
   -search.maxUniqueTimeseries int
      The maximum number of unique time series, which can be selected during /api/v1/query and /api/v1/query_range queries. This option allows limiting memory usage (default 300000)
   -search.maxWorkersPerQuery int
-     The maximum number of CPU cores a single query can use. The default value should work good for most cases. The flag can be set to lower values for improving performance of big number of concurrently executed queries. The flag can be set to bigger values for improving performance of heavy queries, which scan big number of time series (>10K) and/or big number of samples (>100M). There is no sense in setting this flag to values bigger than the number of CPU cores available on the system (default 4)
+     The maximum number of CPU cores a single query can use. The default value should work good for most cases. The flag can be set to lower values for improving performance of big number of concurrently executed queries. The flag can be set to bigger values for improving performance of heavy queries, which scan big number of time series (>10K) and/or big number of samples (>100M). There is no sense in setting this flag to values bigger than the number of CPU cores available on the system (default 16)
   -search.minStalenessInterval duration
      The minimum interval for staleness calculations. This flag could be useful for removing gaps on graphs generated from time series with irregular intervals between samples. See also '-search.maxStalenessInterval'
+  -search.minWindowForInstantRollupOptimization value
+     Enable cache-based optimization for repeated queries to /api/v1/query (aka instant queries), which contain rollup functions with lookbehind window exceeding the given value
+     The following optional suffixes are supported: s (second), m (minute), h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 3h)
   -search.noStaleMarkers
      Set this flag to true if the database doesn't contain Prometheus stale markers, so there is no need in spending additional CPU time on its handling. Staleness markers may exist only in data obtained from Prometheus scrape targets
   -search.queryStats.lastQueriesCount int
@@ -1308,6 +1370,8 @@ Below is the output for `/path/to/vmstorage -help`:
 ```
   -bigMergeConcurrency int
      Deprecated: this flag does nothing. Please use -smallMergeConcurrency for controlling the concurrency of background merges. See https://docs.victoriametrics.com/#storage
+  -blockcache.missesBeforeCaching int
+     The number of cache misses before putting the block into cache. Higher values may reduce indexdb/dataBlocks cache size at the cost of higher CPU and disk read usage (default 2)
   -cacheExpireDuration duration
      Items are removed from in-memory caches after they aren't accessed for this duration. Lower values may reduce memory usage at the cost of higher CPU usage. See also -prevCacheRemovalPercent (default 30m0s)
   -cluster.tls
@@ -1356,6 +1420,12 @@ Below is the output for `/path/to/vmstorage -help`:
      Incoming http connections are closed after the configured timeout. This may help to spread the incoming load among a cluster of services behind a load balancer. Please note that the real timeout may be bigger by up to 10% as a protection against the thundering herd problem (default 2m0s)
   -http.disableResponseCompression
      Disable compression of HTTP responses to save CPU resources. By default, compression is enabled to save network bandwidth
+  -http.header.csp string
+     Value for 'Content-Security-Policy' header
+  -http.header.frameOptions string
+     Value for 'X-Frame-Options' header
+  -http.header.hsts string
+     Value for 'Strict-Transport-Security' header
   -http.idleConnTimeout duration
      Timeout for incoming idle http connections (default 1m0s)
   -http.maxGracefulShutdownDuration duration
@@ -1398,6 +1468,8 @@ Below is the output for `/path/to/vmstorage -help`:
      Allows renaming fields in JSON formatted logs. Example: "ts:timestamp,msg:message" renames "ts" to "timestamp" and "msg" to "message". Supported fields: ts, level, caller, msg
   -loggerLevel string
      Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC (default "INFO")
+  -loggerMaxArgLen int
+     The maximum length of a single logged argument. Longer arguments are replaced with 'arg_start..arg_end', where 'arg_start' and 'arg_end' is prefix and suffix of the arg with the length not exceeding -loggerMaxArgLen / 2 (default 1000)
   -loggerOutput string
      Output for the logs. Supported values: stderr, stdout (default "stderr")
   -loggerTimezone string
@@ -1405,7 +1477,7 @@ Below is the output for `/path/to/vmstorage -help`:
   -loggerWarnsPerSecondLimit int
      Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero values disable the rate limit
   -maxConcurrentInserts int
-     The maximum number of concurrent insert requests. Default value should work for most cases, since it minimizes the memory usage. The default value can be increased when clients send data over slow networks. See also -insert.maxQueueDuration (default 8)
+     The maximum number of concurrent insert requests. Default value should work for most cases, since it minimizes the memory usage. The default value can be increased when clients send data over slow networks. See also -insert.maxQueueDuration (default 32)
   -memory.allowedBytes size
      Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache resulting in higher disk IO usage
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
@@ -1432,13 +1504,13 @@ Below is the output for `/path/to/vmstorage -help`:
      Supports an array of values separated by comma or specified via multiple flags.
   -retentionPeriod value
      Data with timestamps outside the retentionPeriod is automatically deleted. The minimum retentionPeriod is 24h or 1d. See also -retentionFilter
-     The following optional suffixes are supported: h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 1)
+     The following optional suffixes are supported: s (second), m (minute), h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 1)
   -retentionTimezoneOffset duration
      The offset for performing indexdb rotation. If set to 0, then the indexdb rotation is performed at 4am UTC time per each -retentionPeriod. If set to 2h, then the indexdb rotation is performed at 4am EET time (the timezone with +2h offset)
   -rpc.disableCompression
      Whether to disable compression of the data sent from vmstorage to vmselect. This reduces CPU usage at the cost of higher network bandwidth usage
   -search.maxConcurrentRequests int
-     The maximum number of concurrent vmselect requests the vmstorage can process at -vmselectAddr. It shouldn't be high, since a single request usually saturates a CPU core, and many concurrently executed requests may require high amounts of memory. See also -search.maxQueueDuration (default 8)
+     The maximum number of concurrent vmselect requests the vmstorage can process at -vmselectAddr. It shouldn't be high, since a single request usually saturates a CPU core, and many concurrently executed requests may require high amounts of memory. See also -search.maxQueueDuration (default 32)
   -search.maxQueueDuration duration
      The maximum time the incoming vmselect request waits for execution when -search.maxConcurrentRequests limit is reached (default 10s)
   -search.maxTagKeys int
@@ -1457,7 +1529,7 @@ Below is the output for `/path/to/vmstorage -help`:
      The timeout for creating new snapshot. If set, make sure that timeout is lower than backup period
   -snapshotsMaxAge value
      Automatically delete snapshots older than -snapshotsMaxAge if it is set to non-zero duration. Make sure that backup process has enough time to finish the backup before the corresponding snapshot is automatically deleted
-     The following optional suffixes are supported: h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 0)
+     The following optional suffixes are supported: s (second), m (minute), h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 0)
   -storage.cacheSizeIndexDBDataBlocks size
      Overrides max size for indexdb/dataBlocks cache. See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
@@ -1477,6 +1549,8 @@ Below is the output for `/path/to/vmstorage -help`:
   -storage.minFreeDiskSpaceBytes size
      The minimum free disk space at -storageDataPath after which the storage stops accepting new data
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 10000000)
+  -storage.vminsertConnsShutdownDuration duration
+     The time needed for gradual closing of vminsert connections during graceful shutdown. Bigger duration reduces spikes in CPU, RAM and disk IO load on the remaining vmstorage nodes during rolling restart. Smaller duration reduces the time needed to close all the vminsert connections, thus reducing the time for graceful shutdown. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#improving-re-routing-performance-during-restart (default 25s)
   -storageDataPath string
      Path to storage data (default "vmstorage-data")
   -tls

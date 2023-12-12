@@ -1,6 +1,46 @@
 # Changes
 
 
+## [1.35.1](https://github.com/googleapis/google-cloud-go/compare/storage/v1.35.0...storage/v1.35.1) (2023-11-09)
+
+
+### Bug Fixes
+
+* **storage:** Rename aux.go to auxiliary.go fixing windows build ([ba23673](https://github.com/googleapis/google-cloud-go/commit/ba23673da7707c31292e4aa29d65b7ac1446d4a6))
+
+## [1.35.0](https://github.com/googleapis/google-cloud-go/compare/storage/v1.34.1...storage/v1.35.0) (2023-11-09)
+
+
+### Features
+
+* **storage:** Change gRPC writes to use bi-directional streams ([#8930](https://github.com/googleapis/google-cloud-go/issues/8930)) ([3e23a36](https://github.com/googleapis/google-cloud-go/commit/3e23a364b1a20c4fda7aef257e4136586ec769a4))
+
+## [1.34.1](https://github.com/googleapis/google-cloud-go/compare/storage/v1.34.0...storage/v1.34.1) (2023-11-01)
+
+
+### Bug Fixes
+
+* **storage:** Bump google.golang.org/api to v0.149.0 ([8d2ab9f](https://github.com/googleapis/google-cloud-go/commit/8d2ab9f320a86c1c0fab90513fc05861561d0880))
+
+## [1.34.0](https://github.com/googleapis/google-cloud-go/compare/storage/v1.33.0...storage/v1.34.0) (2023-10-31)
+
+
+### Features
+
+* **storage/internal:** Add match_glob field to ListObjectsRequest ([#8618](https://github.com/googleapis/google-cloud-go/issues/8618)) ([e9ae601](https://github.com/googleapis/google-cloud-go/commit/e9ae6018983ae09781740e4ff939e6e365863dbb))
+* **storage/internal:** Add terminal_storage_class fields to Autoclass message ([57fc1a6](https://github.com/googleapis/google-cloud-go/commit/57fc1a6de326456eb68ef25f7a305df6636ed386))
+* **storage/internal:** Adds the RestoreObject operation ([56ce871](https://github.com/googleapis/google-cloud-go/commit/56ce87195320634b07ae0b012efcc5f2b3813fb0))
+* **storage:** Support autoclass v2.1 ([#8721](https://github.com/googleapis/google-cloud-go/issues/8721)) ([fe1e195](https://github.com/googleapis/google-cloud-go/commit/fe1e19590a252c6adc6ca6c51a69b6e561e143b8))
+* **storage:** Support MatchGlob for gRPC ([#8670](https://github.com/googleapis/google-cloud-go/issues/8670)) ([3df0287](https://github.com/googleapis/google-cloud-go/commit/3df0287f88d5e2c4526e9e6b8dc2a4ca54f88918)), refs [#7727](https://github.com/googleapis/google-cloud-go/issues/7727)
+
+
+### Bug Fixes
+
+* **storage:** Drop stream reference after closing it for gRPC writes ([#8872](https://github.com/googleapis/google-cloud-go/issues/8872)) ([525abde](https://github.com/googleapis/google-cloud-go/commit/525abdee433864d4d456f1f1fff5599017b557ff))
+* **storage:** Update golang.org/x/net to v0.17.0 ([174da47](https://github.com/googleapis/google-cloud-go/commit/174da47254fefb12921bbfc65b7829a453af6f5d))
+* **storage:** Update grpc-go to v1.56.3 ([343cea8](https://github.com/googleapis/google-cloud-go/commit/343cea8c43b1e31ae21ad50ad31d3b0b60143f8c))
+* **storage:** Update grpc-go to v1.59.0 ([81a97b0](https://github.com/googleapis/google-cloud-go/commit/81a97b06cb28b25432e4ece595c55a9857e960b7))
+
 ## [1.33.0](https://github.com/googleapis/google-cloud-go/compare/storage/v1.32.0...storage/v1.33.0) (2023-09-07)
 
 

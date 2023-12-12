@@ -70,8 +70,16 @@ var defaultAWSConfigResolvers = []awsConfigResolver{
 	// httpBearerAuth authentication scheme.
 	resolveBearerAuthToken,
 
-	// Sets the sdk app ID if present in shared config profile
+	// Sets the sdk app ID if present in env var or shared config profile
 	resolveAppID,
+
+	resolveBaseEndpoint,
+
+	// Sets the DisableRequestCompression if present in env var or shared config profile
+	resolveDisableRequestCompression,
+
+	// Sets the RequestMinCompressSizeBytes if present in env var or shared config profile
+	resolveRequestMinCompressSizeBytes,
 }
 
 // A Config represents a generic configuration value or set of values. This type
@@ -163,7 +171,7 @@ func (cs configs) ResolveConfig(f func(configs []interface{}) error) error {
 // or the custom data will be ignored by the resolvers and config loaders.
 //
 //	cfg, err := config.LoadDefaultConfig( context.TODO(),
-//	   WithSharedConfigProfile("test-profile"),
+//	   config.WithSharedConfigProfile("test-profile"),
 //	)
 //	if err != nil {
 //	   panic(fmt.Sprintf("failed loading config, %v", err))

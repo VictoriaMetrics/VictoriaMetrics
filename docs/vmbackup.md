@@ -276,7 +276,7 @@ You have to add a custom url endpoint via flag:
       -customS3Endpoint=https://s3-fips.us-gov-west-1.amazonaws.com
     ```
 
-### Permanent deletion of objects in S3 and compatible storages
+### Permanent deletion of objects in S3-compatible storages
 
 `vmbackup` and [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager.html) use standard delete operation
 for S3-compatible object storage when pefrorming [incremental backups](#incremental-backups).
@@ -327,6 +327,12 @@ Run `vmbackup -help` in order to see all the available options:
      Incoming http connections are closed after the configured timeout. This may help to spread the incoming load among a cluster of services behind a load balancer. Please note that the real timeout may be bigger by up to 10% as a protection against the thundering herd problem (default 2m0s)
   -http.disableResponseCompression
      Disable compression of HTTP responses to save CPU resources. By default, compression is enabled to save network bandwidth
+  -http.header.csp string
+     Value for 'Content-Security-Policy' header
+  -http.header.frameOptions string
+     Value for 'X-Frame-Options' header
+  -http.header.hsts string
+     Value for 'Strict-Transport-Security' header
   -http.idleConnTimeout duration
      Timeout for incoming idle http connections (default 1m0s)
   -http.maxGracefulShutdownDuration duration
@@ -363,6 +369,8 @@ Run `vmbackup -help` in order to see all the available options:
      Allows renaming fields in JSON formatted logs. Example: "ts:timestamp,msg:message" renames "ts" to "timestamp" and "msg" to "message". Supported fields: ts, level, caller, msg
   -loggerLevel string
      Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC (default "INFO")
+  -loggerMaxArgLen int
+     The maximum length of a single logged argument. Longer arguments are replaced with 'arg_start..arg_end', where 'arg_start' and 'arg_end' is prefix and suffix of the arg with the length not exceeding -loggerMaxArgLen / 2 (default 1000)
   -loggerOutput string
      Output for the logs. Supported values: stderr, stdout (default "stderr")
   -loggerTimezone string

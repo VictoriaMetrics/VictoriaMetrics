@@ -747,7 +747,7 @@ func (is *indexSearch) getLabelNamesForMetricIDs(qt *querytracer.Tracer, metricI
 			continue
 		}
 		if err := mn.Unmarshal(buf); err != nil {
-			logger.Panicf("FATAL: cannot unmarshal metricName %q: %w", buf, err)
+			logger.Panicf("FATAL: cannot unmarshal metricName %q: %s", buf, err)
 		}
 		for _, tag := range mn.Tags {
 			if _, ok := lns[string(tag.Key)]; !ok {
@@ -1610,7 +1610,7 @@ func (db *indexDB) searchMetricIDs(qt *querytracer.Tracer, tfss []*TagFilters, t
 	localMetricIDs, err := is.searchMetricIDs(qtChild, tfss, tr, maxMetrics)
 	db.putIndexSearch(is)
 	if err != nil {
-		return nil, fmt.Errorf("error when searching for metricIDs in the current indexdb: %s", err)
+		return nil, fmt.Errorf("error when searching for metricIDs in the current indexdb: %w", err)
 	}
 	qtChild.Done()
 
@@ -1635,7 +1635,7 @@ func (db *indexDB) searchMetricIDs(qt *querytracer.Tracer, tfss []*TagFilters, t
 		extDB.putMetricIDsToTagFiltersCache(qtChild, extMetricIDs, tfKeyExtBuf.B)
 	})
 	if err != nil {
-		return nil, fmt.Errorf("error when searching for metricIDs in the previous indexdb: %s", err)
+		return nil, fmt.Errorf("error when searching for metricIDs in the previous indexdb: %w", err)
 	}
 
 	// Merge localMetricIDs with extMetricIDs.
@@ -1834,7 +1834,7 @@ func (is *indexSearch) searchMetricName(dst []byte, metricID uint64) ([]byte, bo
 		if err == io.EOF {
 			return dst, false
 		}
-		logger.Panicf("FATAL: error when searching metricName by metricID; searchPrefix %q: %w", kb.B, err)
+		logger.Panicf("FATAL: error when searching metricName by metricID; searchPrefix %q: %s", kb.B, err)
 	}
 	v := ts.Item[len(kb.B):]
 	dst = append(dst, v...)

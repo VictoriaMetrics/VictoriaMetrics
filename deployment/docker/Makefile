@@ -2,15 +2,17 @@
 
 DOCKER_NAMESPACE ?= victoriametrics
 
-ROOT_IMAGE ?= alpine:3.18.4
-CERTS_IMAGE := alpine:3.18.4
+ROOT_IMAGE ?= alpine:3.19.0
+CERTS_IMAGE := alpine:3.19.0
 
-GO_BUILDER_IMAGE := golang:1.21.3-alpine
+GO_BUILDER_IMAGE := golang:1.21.5-alpine
 BUILDER_IMAGE := local/builder:2.0.0-$(shell echo $(GO_BUILDER_IMAGE) | tr :/ __)-1
 BASE_IMAGE := local/base:1.1.4-$(shell echo $(ROOT_IMAGE) | tr :/ __)-$(shell echo $(CERTS_IMAGE) | tr :/ __)
-DOCKER_BUILD ?= docker build
-DOCKER_COMPOSE ?= docker compose
-DOCKER_IMAGE_LS ?= docker image ls --format '{{.Repository}}:{{.Tag}}'
+DOCKER ?= docker
+DOCKER_RUN ?= $(DOCKER) run
+DOCKER_BUILD ?= $(DOCKER) build
+DOCKER_COMPOSE ?= $(DOCKER) compose
+DOCKER_IMAGE_LS ?= $(DOCKER) image ls --format '{{.Repository}}:{{.Tag}}'
 
 package-base:
 	($(DOCKER_IMAGE_LS) | grep -q '$(BASE_IMAGE)$$') \
@@ -29,7 +31,7 @@ package-builder:
 
 app-via-docker: package-builder
 	mkdir -p gocache-for-docker
-	docker run --rm \
+	$(DOCKER_RUN) --rm \
 		--user $(shell id -u):$(shell id -g) \
 		--mount type=bind,src="$(shell pwd)",dst=/VictoriaMetrics \
 		-w /VictoriaMetrics \
@@ -44,7 +46,7 @@ app-via-docker: package-builder
 
 app-via-docker-windows: package-builder
 	mkdir -p gocache-for-docker
-	docker run --rm \
+	$(DOCKER_RUN) --rm \
 		--user $(shell id -u):$(shell id -g) \
 		--mount type=bind,src="$(shell pwd)",dst=/VictoriaMetrics \
 		-w /VictoriaMetrics \
@@ -66,13 +68,13 @@ package-via-docker: package-base
 			--tag $(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(APP_SUFFIX)$(RACE) \
 			-f app/$(APP_NAME)/deployment/Dockerfile bin)
 
-publish-via-docker: \
-	app-via-docker-linux-amd64 \
-	app-via-docker-linux-arm \
-	app-via-docker-linux-arm64 \
-	app-via-docker-linux-ppc64le \
-	app-via-docker-linux-386
-	docker buildx build \
+publish-via-docker:
+	$(MAKE_PARALLEL) app-via-docker-linux-amd64 \
+		app-via-docker-linux-arm \
+		app-via-docker-linux-arm64 \
+		app-via-docker-linux-ppc64le \
+		app-via-docker-linux-386
+	$(DOCKER) buildx build \
 		--platform=linux/amd64,linux/arm,linux/arm64,linux/ppc64le,linux/386 \
 		--build-arg certs_image=$(CERTS_IMAGE) \
 		--build-arg root_image=$(ROOT_IMAGE) \
@@ -84,9 +86,15 @@ publish-via-docker: \
 		-f app/$(APP_NAME)/multiarch/Dockerfile \
 		--push \
 		bin
+	cd bin && rm -rf \
+		$(APP_NAME)-linux-amd64-prod \
+		$(APP_NAME)-linux-arm-prod \
+		$(APP_NAME)-linux-arm64-prod \
+		$(APP_NAME)-linux-ppc64le-prod \
+		$(APP_NAME)-linux-386-prod
 
 run-via-docker: package-via-docker
-	docker run -it --rm \
+	$(DOCKER_RUN) -it --rm \
 		--user $(shell id -u):$(shell id -g) \
 		--net host \
 		$(DOCKER_OPTS) \

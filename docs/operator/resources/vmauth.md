@@ -6,6 +6,8 @@ menu:
   docs:
     parent: "operator-custom-resources"
     weight: 5
+aliases:
+  - /operator/resources/vmauth.html
 ---
 
 # VMAuth
@@ -134,7 +136,7 @@ metadata:
   name: example-vmauth
 spec:
   image:
-    repository: victoriametrics/victoria-metrics
+    repository: victoriametrics/vmauth
     tag: v1.93.4
     pullPolicy: Always
   # ...
@@ -149,7 +151,7 @@ metadata:
   name: example-vmauth
 spec:
   image:
-    repository: victoriametrics/victoria-metrics
+    repository: victoriametrics/vmauth
     tag: v1.93.4
     pullPolicy: Always
   imagePullSecrets:

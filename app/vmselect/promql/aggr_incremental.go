@@ -79,6 +79,13 @@ type incrementalAggrFuncContext struct {
 	callbacks *incrementalAggrFuncCallbacks
 }
 
+func (iafc *incrementalAggrFuncContext) resetState() {
+	byWorkerID := iafc.byWorkerID
+	for i := range byWorkerID {
+		byWorkerID[i].m = make(map[string]*incrementalAggrContext, len(byWorkerID[i].m))
+	}
+}
+
 func newIncrementalAggrFuncContext(ae *metricsql.AggrFuncExpr, callbacks *incrementalAggrFuncCallbacks) *incrementalAggrFuncContext {
 	return &incrementalAggrFuncContext{
 		ae:         ae,
@@ -154,6 +161,8 @@ func (iafc *incrementalAggrFuncContext) finalizeTimeseries() []*timeseries {
 		finalizeAggrFunc(iac)
 		tss = append(tss, iac.ts)
 	}
+	// reset iafc state, so it could be re-used
+	iafc.resetState()
 	return tss
 }
 

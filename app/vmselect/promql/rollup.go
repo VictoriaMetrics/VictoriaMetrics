@@ -62,6 +62,7 @@ var rollupFuncs = map[string]newRollupFunc{
 	"median_over_time":        newRollupFuncOneArg(rollupMedian),
 	"min_over_time":           newRollupFuncOneArg(rollupMin),
 	"mode_over_time":          newRollupFuncOneArg(rollupModeOverTime),
+	"outlier_iqr_over_time":   newRollupFuncOneArg(rollupOutlierIQR),
 	"predict_linear":          newRollupPredictLinear,
 	"present_over_time":       newRollupFuncOneArg(rollupPresent),
 	"quantile_over_time":      newRollupQuantile,
@@ -122,6 +123,7 @@ var rollupAggrFuncs = map[string]rollupFunc{
 	"increases_over_time":     rollupIncreases,
 	"integrate":               rollupIntegrate,
 	"irate":                   rollupIderiv,
+	"iqr_over_time":           rollupOutlierIQR,
 	"lag":                     rollupLag,
 	"last_over_time":          rollupLast,
 	"lifetime":                rollupLifetime,
@@ -225,6 +227,7 @@ var rollupFuncsKeepMetricName = map[string]bool{
 	"hoeffding_bound_lower": true,
 	"hoeffding_bound_upper": true,
 	"holt_winters":          true,
+	"iqr_over_time":         true,
 	"last_over_time":        true,
 	"max_over_time":         true,
 	"median_over_time":      true,
@@ -558,9 +561,6 @@ var (
 	inf = math.Inf(1)
 )
 
-// The maximum interval without previous rows.
-const maxSilenceInterval = 5 * 60 * 1000
-
 type timeseriesMap struct {
 	origin *timeseries
 	h      metrics.Histogram
@@ -617,7 +617,7 @@ func (tsm *timeseriesMap) GetOrCreateTimeseries(labelName, labelValue string) *t
 //
 // rc.Timestamps are used as timestamps for dstValues.
 //
-// timestamps must cover time range [rc.Start - rc.Window - maxSilenceInterval ... rc.End].
+// It is expected that timestamps cover the time range [rc.Start - rc.Window ... rc.End].
 //
 // Do cannot be called from concurrent goroutines.
 func (rc *rollupConfig) Do(dstValues []float64, values []float64, timestamps []int64) ([]float64, uint64) {
@@ -952,11 +952,11 @@ func newRollupHoltWinters(args []interface{}) (rollupFunc, error) {
 			return rfa.prevValue
 		}
 		sf := sfs[rfa.idx]
-		if sf <= 0 || sf >= 1 {
+		if sf < 0 || sf > 1 {
 			return nan
 		}
 		tf := tfs[rfa.idx]
-		if tf <= 0 || tf >= 1 {
+		if tf < 0 || tf > 1 {
 			return nan
 		}
 
@@ -1285,6 +1285,29 @@ func newRollupQuantiles(args []interface{}) (rollupFunc, error) {
 		return nan
 	}
 	return rf, nil
+}
+
+func rollupOutlierIQR(rfa *rollupFuncArg) float64 {
+	// There is no need in handling NaNs here, since they must be cleaned up
+	// before calling rollup funcs.
+
+	// See Outliers section at https://en.wikipedia.org/wiki/Interquartile_range
+	values := rfa.values
+	if len(values) < 2 {
+		return nan
+	}
+	qs := getFloat64s()
+	qs.A = quantiles(qs.A[:0], iqrPhis, values)
+	q25 := qs.A[0]
+	q75 := qs.A[1]
+	iqr := 1.5 * (q75 - q25)
+	putFloat64s(qs)
+
+	v := values[len(values)-1]
+	if v > q75+iqr || v < q25-iqr {
+		return v
+	}
+	return nan
 }
 
 func newRollupQuantile(args []interface{}) (rollupFunc, error) {

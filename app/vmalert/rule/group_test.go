@@ -321,7 +321,7 @@ func TestResolveDuration(t *testing.T) {
 func TestGetStaleSeries(t *testing.T) {
 	ts := time.Now()
 	e := &executor{
-		PreviouslySentSeriesToRW: make(map[uint64]map[string][]prompbmarshal.Label),
+		previouslySentSeriesToRW: make(map[uint64]map[string][]prompbmarshal.Label),
 	}
 	f := func(r Rule, labels, expLabels [][]prompbmarshal.Label) {
 		t.Helper()
@@ -414,7 +414,7 @@ func TestPurgeStaleSeries(t *testing.T) {
 	f := func(curRules, newRules, expStaleRules []Rule) {
 		t.Helper()
 		e := &executor{
-			PreviouslySentSeriesToRW: make(map[uint64]map[string][]prompbmarshal.Label),
+			previouslySentSeriesToRW: make(map[uint64]map[string][]prompbmarshal.Label),
 		}
 		// seed executor with series for
 		// current rules
@@ -424,13 +424,13 @@ func TestPurgeStaleSeries(t *testing.T) {
 
 		e.purgeStaleSeries(newRules)
 
-		if len(e.PreviouslySentSeriesToRW) != len(expStaleRules) {
+		if len(e.previouslySentSeriesToRW) != len(expStaleRules) {
 			t.Fatalf("expected to get %d stale series, got %d",
-				len(expStaleRules), len(e.PreviouslySentSeriesToRW))
+				len(expStaleRules), len(e.previouslySentSeriesToRW))
 		}
 
 		for _, exp := range expStaleRules {
-			if _, ok := e.PreviouslySentSeriesToRW[exp.ID()]; !ok {
+			if _, ok := e.previouslySentSeriesToRW[exp.ID()]; !ok {
 				t.Fatalf("expected to have rule %d; got nil instead", exp.ID())
 			}
 		}
@@ -515,7 +515,7 @@ func TestFaultyRW(t *testing.T) {
 
 	e := &executor{
 		Rw:                       &remotewrite.Client{},
-		PreviouslySentSeriesToRW: make(map[uint64]map[string][]prompbmarshal.Label),
+		previouslySentSeriesToRW: make(map[uint64]map[string][]prompbmarshal.Label),
 	}
 
 	err := e.exec(context.Background(), r, time.Now(), 0, 10)
@@ -628,6 +628,7 @@ func TestGroupStartDelay(t *testing.T) {
 
 func TestGetPrometheusReqTimestamp(t *testing.T) {
 	offset := 30 * time.Minute
+	evalDelay := 1 * time.Minute
 	disableAlign := false
 	testCases := []struct {
 		name            string
@@ -635,7 +636,7 @@ func TestGetPrometheusReqTimestamp(t *testing.T) {
 		originTS, expTS string
 	}{
 		{
-			"with query align",
+			"with query align + default evalDelay",
 			&Group{
 				Interval: time.Hour,
 			},
@@ -643,16 +644,16 @@ func TestGetPrometheusReqTimestamp(t *testing.T) {
 			"2023-08-28T11:00:00+00:00",
 		},
 		{
-			"without query align",
+			"without query align + default evalDelay",
 			&Group{
 				Interval:      time.Hour,
 				evalAlignment: &disableAlign,
 			},
 			"2023-08-28T11:11:00+00:00",
-			"2023-08-28T11:11:00+00:00",
+			"2023-08-28T11:10:30+00:00",
 		},
 		{
-			"with eval_offset, find previous offset point",
+			"with eval_offset, find previous offset point + default evalDelay",
 			&Group{
 				EvalOffset: &offset,
 				Interval:   time.Hour,
@@ -661,7 +662,7 @@ func TestGetPrometheusReqTimestamp(t *testing.T) {
 			"2023-08-28T10:30:00+00:00",
 		},
 		{
-			"with eval_offset",
+			"with eval_offset + default evalDelay",
 			&Group{
 				EvalOffset: &offset,
 				Interval:   time.Hour,
@@ -669,14 +670,44 @@ func TestGetPrometheusReqTimestamp(t *testing.T) {
 			"2023-08-28T11:41:00+00:00",
 			"2023-08-28T11:30:00+00:00",
 		},
+		{
+			"1h interval with eval_delay",
+			&Group{
+				EvalDelay: &evalDelay,
+				Interval:  time.Hour,
+			},
+			"2023-08-28T11:41:00+00:00",
+			"2023-08-28T11:00:00+00:00",
+		},
+		{
+			"1m interval with eval_delay",
+			&Group{
+				EvalDelay: &evalDelay,
+				Interval:  time.Minute,
+			},
+			"2023-08-28T11:41:13+00:00",
+			"2023-08-28T11:40:00+00:00",
+		},
+		{
+			"disable alignment with eval_delay",
+			&Group{
+				EvalDelay:     &evalDelay,
+				Interval:      time.Hour,
+				evalAlignment: &disableAlign,
+			},
+			"2023-08-28T11:41:00+00:00",
+			"2023-08-28T11:40:00+00:00",
+		},
 	}
 	for _, tc := range testCases {
-		originT, _ := time.Parse(time.RFC3339, tc.originTS)
-		expT, _ := time.Parse(time.RFC3339, tc.expTS)
-		gotTS := tc.g.adjustReqTimestamp(originT)
-		if !gotTS.Equal(expT) {
-			t.Fatalf("get wrong prometheus request timestamp, expect %s, got %s", expT, gotTS)
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			originT, _ := time.Parse(time.RFC3339, tc.originTS)
+			expT, _ := time.Parse(time.RFC3339, tc.expTS)
+			gotTS := tc.g.adjustReqTimestamp(originT)
+			if !gotTS.Equal(expT) {
+				t.Fatalf("get wrong prometheus request timestamp, expect %s, got %s", expT, gotTS)
+			}
+		})
 	}
 }
 

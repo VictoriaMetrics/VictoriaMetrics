@@ -65,7 +65,7 @@
           "uid": "$ds"
         },
         "enable": true,
-        "expr": "sum(ALERTS{alertgroup=\"vmcluster\",alertstate=\"firing\",show_at=\"dashboard\"}) by(alertname)",
+        "expr": "sum(ALERTS{job=~\"$job\", instance=~\"$instance\", alertgroup=\"vmcluster\",alertstate=\"firing\",show_at=\"dashboard\"}) by(alertname)",
         "iconColor": "red",
         "name": "alerts",
         "titleFormat": "{{alertname}}"
@@ -76,11 +76,11 @@
           "uid": "$ds"
         },
         "enable": true,
-        "expr": "sum(vm_app_version{job=~\"$job\", instance=~\"$instance\"}) by(short_version) unless (sum(vm_app_version{job=~\"$job\", instance=~\"$instance\"} offset 20m) by(short_version))",
+        "expr": "sum(vm_app_version{job=~\"$job\", instance=~\"$instance\"}) by(version) unless (sum(vm_app_version{job=~\"$job\", instance=~\"$instance\"} offset 20m) by(version))",
         "hide": true,
         "iconColor": "dark-blue",
         "name": "version change",
-        "textFormat": "{{short_version}}",
+        "textFormat": "{{version}}",
         "titleFormat": "Version change"
       },
       {
@@ -1127,7 +1127,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(rate(vm_http_requests_total{job=~\"$job\", instance=~\"$instance\", path!~\"/favicon.ico\"}[$__rate_interval])) by (path) > 0",
+          "expr": "sum(rate(vm_http_requests_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (path) > 0",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "{{path}}",
@@ -1594,7 +1594,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Percentage of used memory (resident).\nThe application's performance will significantly degrade when memory usage is close to 100%.",
+          "description": "Percentage of used RSS memory (resident).\nThe RSS memory shows the amount of memory recently accessed by the application. It includes anonymous memory and data from recently accessed files (aka page cache).\nThe application's performance will significantly degrade when memory usage is close to 100%.\n\nClick on the line and choose Drilldown to show memory usage per instance",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -1706,7 +1706,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Share for memory allocated by the process itself. When memory usage reaches 100% it will be likely OOM-killed.",
+          "description": "Share for memory allocated by the process itself. When memory usage reaches 100% it will be likely OOM-killed.\nSafe memory usage % considered to be below 80%\n\nClick on the line and choose Drilldown to show memory usage per instance",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -6125,7 +6125,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(rate(vm_http_requests_total{job=~\"$job_select\", instance=~\"$instance\", path!~\"/favicon.ico|/metrics\"}[$__rate_interval])) by (path) > 0",
+              "expr": "sum(rate(vm_http_requests_total{job=~\"$job_select\", instance=~\"$instance\"}[$__rate_interval])) by (path) > 0",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "__auto",
@@ -6141,7 +6141,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Shows the max number of concurrent selects across instances.\n* `max` - equal to number of CPU * 2 by default. May be configured with `search.maxConcurrentRequests` flag\n* `current` - current number of goroutines busy with processing requests\n\nWhen `current` hits `max` constantly, it means one or more vmselect nodes are overloaded and require more CPU or better load balancing. If CPU panel shows there are free resources - try increasing  `search.maxConcurrentRequests`.",
+          "description": "Shows the max number of concurrent selects across instances.\n* `max` limit can be configured via `search.maxConcurrentRequests` flag\n* `current` shows the current number of goroutines busy with processing requests\n\nWhen `current` hits `max` constantly, it means one or more vmselect nodes are overloaded with number of requests. If you observe that CPU for vmselects is saturated, consider adding more vmselect replicas or increase CPU resources. If CPU panel shows a plenty of free resources - try increasing `search.maxConcurrentRequests`.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -7232,7 +7232,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(rate(vm_http_requests_total{job=~\"$job_insert\", instance=~\"$instance\", path!~\"/favicon.ico|/metrics\"}[$__rate_interval])) by (path) > 0",
+              "expr": "sum(rate(vm_http_requests_total{job=~\"$job_insert\", instance=~\"$instance\"}[$__rate_interval])) by (path) > 0",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "__auto",

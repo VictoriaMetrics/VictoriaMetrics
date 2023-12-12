@@ -251,6 +251,62 @@ func TestParseRelabelConfigsFailure(t *testing.T) {
 			},
 		})
 	})
+	t.Run("keep_if_contains-missing-target-label", func(t *testing.T) {
+		f([]RelabelConfig{
+			{
+				Action:       "keep_if_contains",
+				SourceLabels: []string{"foo"},
+			},
+		})
+	})
+	t.Run("keep_if_contains-missing-source-labels", func(t *testing.T) {
+		f([]RelabelConfig{
+			{
+				Action:      "keep_if_contains",
+				TargetLabel: "foo",
+			},
+		})
+	})
+	t.Run("keep_if_contains-unused-regex", func(t *testing.T) {
+		f([]RelabelConfig{
+			{
+				Action:       "keep_if_contains",
+				TargetLabel:  "foo",
+				SourceLabels: []string{"bar"},
+				Regex: &MultiLineRegex{
+					S: "bar",
+				},
+			},
+		})
+	})
+	t.Run("drop_if_contains-missing-target-label", func(t *testing.T) {
+		f([]RelabelConfig{
+			{
+				Action:       "drop_if_contains",
+				SourceLabels: []string{"foo"},
+			},
+		})
+	})
+	t.Run("drop_if_contains-missing-source-labels", func(t *testing.T) {
+		f([]RelabelConfig{
+			{
+				Action:      "drop_if_contains",
+				TargetLabel: "foo",
+			},
+		})
+	})
+	t.Run("drop_if_contains-unused-regex", func(t *testing.T) {
+		f([]RelabelConfig{
+			{
+				Action:       "drop_if_contains",
+				TargetLabel:  "foo",
+				SourceLabels: []string{"bar"},
+				Regex: &MultiLineRegex{
+					S: "bar",
+				},
+			},
+		})
+	})
 	t.Run("keep_if_equal-missing-source-labels", func(t *testing.T) {
 		f([]RelabelConfig{
 			{

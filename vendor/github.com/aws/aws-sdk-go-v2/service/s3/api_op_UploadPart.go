@@ -4,37 +4,61 @@ package s3
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"github.com/aws/aws-sdk-go-v2/aws"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
 	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
-	internalauth "github.com/aws/aws-sdk-go-v2/internal/auth"
-	"github.com/aws/aws-sdk-go-v2/internal/v4a"
 	internalChecksum "github.com/aws/aws-sdk-go-v2/service/internal/checksum"
 	s3cust "github.com/aws/aws-sdk-go-v2/service/s3/internal/customizations"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
-	smithyendpoints "github.com/aws/smithy-go/endpoints"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 	"io"
 )
 
-// Uploads a part in a multipart upload. In this operation, you provide part data
-// in your request. However, you have an option to specify your existing Amazon S3
-// object as a data source for the part you are uploading. To upload a part from an
-// existing object, you use the UploadPartCopy (https://docs.aws.amazon.com/AmazonS3/latest/API/API_UploadPartCopy.html)
+// Uploads a part in a multipart upload. In this operation, you provide new data
+// as a part of an object in your request. However, you have an option to specify
+// your existing Amazon S3 object as a data source for the part you are uploading.
+// To upload a part from an existing object, you use the UploadPartCopy (https://docs.aws.amazon.com/AmazonS3/latest/API/API_UploadPartCopy.html)
 // operation. You must initiate a multipart upload (see CreateMultipartUpload (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateMultipartUpload.html)
 // ) before you can upload any part. In response to your initiate request, Amazon
-// S3 returns an upload ID, a unique identifier, that you must include in your
+// S3 returns an upload ID, a unique identifier that you must include in your
 // upload part request. Part numbers can be any number from 1 to 10,000, inclusive.
 // A part number uniquely identifies a part and also defines its position within
 // the object being created. If you upload a new part using the same part number
 // that was used with a previous part, the previously uploaded part is overwritten.
 // For information about maximum and minimum part sizes and other multipart upload
 // specifications, see Multipart upload limits (https://docs.aws.amazon.com/AmazonS3/latest/userguide/qfacts.html)
-// in the Amazon S3 User Guide. To ensure that data is not corrupted when
+// in the Amazon S3 User Guide. After you initiate multipart upload and upload one
+// or more parts, you must either complete or abort multipart upload in order to
+// stop getting charged for storage of the uploaded parts. Only after you either
+// complete or abort multipart upload, Amazon S3 frees up the parts storage and
+// stops charging you for the parts storage. For more information on multipart
+// uploads, go to Multipart Upload Overview (https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuoverview.html)
+// in the Amazon S3 User Guide . Directory buckets - For directory buckets, you
+// must make requests for this API operation to the Zonal endpoint. These endpoints
+// support virtual-hosted-style requests in the format
+// https://bucket_name.s3express-az_id.region.amazonaws.com/key-name . Path-style
+// requests are not supported. For more information, see Regional and Zonal
+// endpoints (https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-Regions-and-Zones.html)
+// in the Amazon S3 User Guide. Permissions
+//   - General purpose bucket permissions - For information on the permissions
+//     required to use the multipart upload API, see Multipart Upload and Permissions (https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuAndPermissions.html)
+//     in the Amazon S3 User Guide.
+//   - Directory bucket permissions - To grant access to this API operation on a
+//     directory bucket, we recommend that you use the CreateSession (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateSession.html)
+//     API operation for session-based authorization. Specifically, you grant the
+//     s3express:CreateSession permission to the directory bucket in a bucket policy
+//     or an IAM identity-based policy. Then, you make the CreateSession API call on
+//     the bucket to obtain a session token. With the session token in your request
+//     header, you can make API requests to this operation. After the session token
+//     expires, you make another CreateSession API call to generate a new session
+//     token for use. Amazon Web Services CLI or SDKs create session and refresh the
+//     session token automatically to avoid service interruptions when a session
+//     expires. For more information about authorization, see CreateSession (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateSession.html)
+//     .
+//
+// Data integrity General purpose bucket - To ensure that data is not corrupted
 // traversing the network, specify the Content-MD5 header in the upload part
 // request. Amazon S3 checks the part data against the provided MD5 value. If they
 // do not match, Amazon S3 returns an error. If the upload request is signed with
@@ -42,51 +66,44 @@ import (
 // header as a checksum instead of Content-MD5 . For more information see
 // Authenticating Requests: Using the Authorization Header (Amazon Web Services
 // Signature Version 4) (https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-auth-using-authorization-header.html)
-// . Note: After you initiate multipart upload and upload one or more parts, you
-// must either complete or abort multipart upload in order to stop getting charged
-// for storage of the uploaded parts. Only after you either complete or abort
-// multipart upload, Amazon S3 frees up the parts storage and stops charging you
-// for the parts storage. For more information on multipart uploads, go to
-// Multipart Upload Overview (https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuoverview.html)
-// in the Amazon S3 User Guide . For information on the permissions required to use
-// the multipart upload API, go to Multipart Upload and Permissions (https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuAndPermissions.html)
-// in the Amazon S3 User Guide. Server-side encryption is for data encryption at
-// rest. Amazon S3 encrypts your data as it writes it to disks in its data centers
-// and decrypts it when you access it. You have three mutually exclusive options to
-// protect data using server-side encryption in Amazon S3, depending on how you
-// choose to manage the encryption keys. Specifically, the encryption key options
-// are Amazon S3 managed keys (SSE-S3), Amazon Web Services KMS keys (SSE-KMS), and
-// Customer-Provided Keys (SSE-C). Amazon S3 encrypts data with server-side
-// encryption using Amazon S3 managed keys (SSE-S3) by default. You can optionally
-// tell Amazon S3 to encrypt data at rest using server-side encryption with other
-// key options. The option you use depends on whether you want to use KMS keys
-// (SSE-KMS) or provide your own encryption key (SSE-C). If you choose to provide
-// your own encryption key, the request headers you provide in the request must
-// match the headers you used in the request to initiate the upload by using
-// CreateMultipartUpload (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateMultipartUpload.html)
-// . For more information, go to Using Server-Side Encryption (https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingServerSideEncryption.html)
-// in the Amazon S3 User Guide. Server-side encryption is supported by the S3
-// Multipart Upload actions. Unless you are using a customer-provided encryption
-// key (SSE-C), you don't need to specify the encryption parameters in each
-// UploadPart request. Instead, you only need to specify the server-side encryption
-// parameters in the initial Initiate Multipart request. For more information, see
-// CreateMultipartUpload (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateMultipartUpload.html)
-// . If you requested server-side encryption using a customer-provided encryption
-// key (SSE-C) in your initiate multipart upload request, you must provide
-// identical encryption information in each part upload using the following
-// headers.
+// . Directory buckets - MD5 is not supported by directory buckets. You can use
+// checksum algorithms to check object integrity. Encryption
+//   - General purpose bucket - Server-side encryption is for data encryption at
+//     rest. Amazon S3 encrypts your data as it writes it to disks in its data centers
+//     and decrypts it when you access it. You have mutually exclusive options to
+//     protect data using server-side encryption in Amazon S3, depending on how you
+//     choose to manage the encryption keys. Specifically, the encryption key options
+//     are Amazon S3 managed keys (SSE-S3), Amazon Web Services KMS keys (SSE-KMS), and
+//     Customer-Provided Keys (SSE-C). Amazon S3 encrypts data with server-side
+//     encryption using Amazon S3 managed keys (SSE-S3) by default. You can optionally
+//     tell Amazon S3 to encrypt data at rest using server-side encryption with other
+//     key options. The option you use depends on whether you want to use KMS keys
+//     (SSE-KMS) or provide your own encryption key (SSE-C). Server-side encryption is
+//     supported by the S3 Multipart Upload operations. Unless you are using a
+//     customer-provided encryption key (SSE-C), you don't need to specify the
+//     encryption parameters in each UploadPart request. Instead, you only need to
+//     specify the server-side encryption parameters in the initial Initiate Multipart
+//     request. For more information, see CreateMultipartUpload (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateMultipartUpload.html)
+//     . If you request server-side encryption using a customer-provided encryption key
+//     (SSE-C) in your initiate multipart upload request, you must provide identical
+//     encryption information in each part upload using the following request headers.
 //   - x-amz-server-side-encryption-customer-algorithm
 //   - x-amz-server-side-encryption-customer-key
 //   - x-amz-server-side-encryption-customer-key-MD5
+//   - Directory bucket - For directory buckets, only server-side encryption with
+//     Amazon S3 managed keys (SSE-S3) ( AES256 ) is supported.
 //
-// UploadPart has the following special errors:
-//   - Code: NoSuchUpload
-//   - Cause: The specified multipart upload does not exist. The upload ID might
-//     be invalid, or the multipart upload might have been aborted or completed.
+// For more information, see Using Server-Side Encryption (https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingServerSideEncryption.html)
+// in the Amazon S3 User Guide. Special errors
+//   - Error Code: NoSuchUpload
+//   - Description: The specified multipart upload does not exist. The upload ID
+//     might be invalid, or the multipart upload might have been aborted or completed.
 //   - HTTP Status Code: 404 Not Found
 //   - SOAP Fault Code Prefix: Client
 //
-// The following operations are related to UploadPart :
+// HTTP Host header syntax Directory buckets - The HTTP Host header syntax is
+// Bucket_name.s3express-az_id.region.amazonaws.com . The following operations are
+// related to UploadPart :
 //   - CreateMultipartUpload (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateMultipartUpload.html)
 //   - CompleteMultipartUpload (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CompleteMultipartUpload.html)
 //   - AbortMultipartUpload (https://docs.aws.amazon.com/AmazonS3/latest/API/API_AbortMultipartUpload.html)
@@ -109,16 +126,26 @@ func (c *Client) UploadPart(ctx context.Context, params *UploadPartInput, optFns
 
 type UploadPartInput struct {
 
-	// The name of the bucket to which the multipart upload was initiated. When using
-	// this action with an access point, you must direct requests to the access point
-	// hostname. The access point hostname takes the form
-	// AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com. When using this
-	// action with an access point through the Amazon Web Services SDKs, you provide
-	// the access point ARN in place of the bucket name. For more information about
-	// access point ARNs, see Using access points (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html)
-	// in the Amazon S3 User Guide. When you use this action with Amazon S3 on
-	// Outposts, you must direct requests to the S3 on Outposts hostname. The S3 on
-	// Outposts hostname takes the form
+	// The name of the bucket to which the multipart upload was initiated. Directory
+	// buckets - When you use this operation with a directory bucket, you must use
+	// virtual-hosted-style requests in the format
+	// Bucket_name.s3express-az_id.region.amazonaws.com . Path-style requests are not
+	// supported. Directory bucket names must be unique in the chosen Availability
+	// Zone. Bucket names must follow the format bucket_base_name--az-id--x-s3 (for
+	// example, DOC-EXAMPLE-BUCKET--usw2-az2--x-s3 ). For information about bucket
+	// naming restrictions, see Directory bucket naming rules (https://docs.aws.amazon.com/AmazonS3/latest/userguide/directory-bucket-naming-rules.html)
+	// in the Amazon S3 User Guide. Access points - When you use this action with an
+	// access point, you must provide the alias of the access point in place of the
+	// bucket name or specify the access point ARN. When using the access point ARN,
+	// you must direct requests to the access point hostname. The access point hostname
+	// takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
+	// When using this action with an access point through the Amazon Web Services
+	// SDKs, you provide the access point ARN in place of the bucket name. For more
+	// information about access point ARNs, see Using access points (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html)
+	// in the Amazon S3 User Guide. Access points and Object Lambda access points are
+	// not supported by directory buckets. S3 on Outposts - When you use this action
+	// with Amazon S3 on Outposts, you must direct requests to the S3 on Outposts
+	// hostname. The S3 on Outposts hostname takes the form
 	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com . When you
 	// use this action with S3 on Outposts through the Amazon Web Services SDKs, you
 	// provide the Outposts access point ARN in place of the bucket name. For more
@@ -137,7 +164,7 @@ type UploadPartInput struct {
 	// 10,000.
 	//
 	// This member is required.
-	PartNumber int32
+	PartNumber *int32
 
 	// Upload ID identifying the multipart upload whose part is being uploaded.
 	//
@@ -147,12 +174,12 @@ type UploadPartInput struct {
 	// Object data.
 	Body io.Reader
 
-	// Indicates the algorithm used to create the checksum for the object when using
-	// the SDK. This header will not provide any additional functionality if not using
-	// the SDK. When sending this header, there must be a corresponding x-amz-checksum
-	// or x-amz-trailer header sent. Otherwise, Amazon S3 fails the request with the
-	// HTTP status code 400 Bad Request . For more information, see Checking object
-	// integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
+	// Indicates the algorithm used to create the checksum for the object when you use
+	// the SDK. This header will not provide any additional functionality if you don't
+	// use the SDK. When you send this header, there must be a corresponding
+	// x-amz-checksum or x-amz-trailer header sent. Otherwise, Amazon S3 fails the
+	// request with the HTTP status code 400 Bad Request . For more information, see
+	// Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
 	// in the Amazon S3 User Guide. If you provide an individual checksum, Amazon S3
 	// ignores any provided ChecksumAlgorithm parameter. This checksum algorithm must
 	// be the same for all parts and it match the checksum value supplied in the
@@ -189,29 +216,31 @@ type UploadPartInput struct {
 
 	// Size of the body in bytes. This parameter is useful when the size of the body
 	// cannot be determined automatically.
-	ContentLength int64
+	ContentLength *int64
 
 	// The base64-encoded 128-bit MD5 digest of the part data. This parameter is
 	// auto-populated when using the command from the CLI. This parameter is required
-	// if object lock parameters are specified.
+	// if object lock parameters are specified. This functionality is not supported for
+	// directory buckets.
 	ContentMD5 *string
 
-	// The account ID of the expected bucket owner. If the bucket is owned by a
-	// different account, the request fails with the HTTP status code 403 Forbidden
-	// (access denied).
+	// The account ID of the expected bucket owner. If the account ID that you provide
+	// does not match the actual owner of the bucket, the request fails with the HTTP
+	// status code 403 Forbidden (access denied).
 	ExpectedBucketOwner *string
 
 	// Confirms that the requester knows that they will be charged for the request.
 	// Bucket owners need not specify this parameter in their requests. If either the
-	// source or destination Amazon S3 bucket has Requester Pays enabled, the requester
-	// will pay for corresponding charges to copy the object. For information about
+	// source or destination S3 bucket has Requester Pays enabled, the requester will
+	// pay for corresponding charges to copy the object. For information about
 	// downloading objects from Requester Pays buckets, see Downloading Objects in
 	// Requester Pays Buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
-	// in the Amazon S3 User Guide.
+	// in the Amazon S3 User Guide. This functionality is not supported for directory
+	// buckets.
 	RequestPayer types.RequestPayer
 
-	// Specifies the algorithm to use to when encrypting the object (for example,
-	// AES256).
+	// Specifies the algorithm to use when encrypting the object (for example,
+	// AES256). This functionality is not supported for directory buckets.
 	SSECustomerAlgorithm *string
 
 	// Specifies the customer-provided encryption key for Amazon S3 to use in
@@ -219,48 +248,65 @@ type UploadPartInput struct {
 	// discarded; Amazon S3 does not store the encryption key. The key must be
 	// appropriate for use with the algorithm specified in the
 	// x-amz-server-side-encryption-customer-algorithm header . This must be the same
-	// encryption key specified in the initiate multipart upload request.
+	// encryption key specified in the initiate multipart upload request. This
+	// functionality is not supported for directory buckets.
 	SSECustomerKey *string
 
 	// Specifies the 128-bit MD5 digest of the encryption key according to RFC 1321.
 	// Amazon S3 uses this header for a message integrity check to ensure that the
-	// encryption key was transmitted without error.
+	// encryption key was transmitted without error. This functionality is not
+	// supported for directory buckets.
 	SSECustomerKeyMD5 *string
 
 	noSmithyDocumentSerde
 }
 
+func (in *UploadPartInput) bindEndpointParams(p *EndpointParameters) {
+	p.Bucket = in.Bucket
+	p.Key = in.Key
+
+}
+
 type UploadPartOutput struct {
 
 	// Indicates whether the multipart upload uses an S3 Bucket Key for server-side
-	// encryption with Key Management Service (KMS) keys (SSE-KMS).
-	BucketKeyEnabled bool
+	// encryption with Key Management Service (KMS) keys (SSE-KMS). This functionality
+	// is not supported for directory buckets.
+	BucketKeyEnabled *bool
 
 	// The base64-encoded, 32-bit CRC32 checksum of the object. This will only be
-	// present if it was uploaded with the object. With multipart uploads, this may not
-	// be a checksum value of the object. For more information about how checksums are
-	// calculated with multipart uploads, see Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
+	// present if it was uploaded with the object. When you use an API operation on an
+	// object that was uploaded using multipart uploads, this value may not be a direct
+	// checksum value of the full object. Instead, it's a calculation based on the
+	// checksum values of each individual part. For more information about how
+	// checksums are calculated with multipart uploads, see Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
 	// in the Amazon S3 User Guide.
 	ChecksumCRC32 *string
 
 	// The base64-encoded, 32-bit CRC32C checksum of the object. This will only be
-	// present if it was uploaded with the object. With multipart uploads, this may not
-	// be a checksum value of the object. For more information about how checksums are
-	// calculated with multipart uploads, see Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
+	// present if it was uploaded with the object. When you use an API operation on an
+	// object that was uploaded using multipart uploads, this value may not be a direct
+	// checksum value of the full object. Instead, it's a calculation based on the
+	// checksum values of each individual part. For more information about how
+	// checksums are calculated with multipart uploads, see Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
 	// in the Amazon S3 User Guide.
 	ChecksumCRC32C *string
 
 	// The base64-encoded, 160-bit SHA-1 digest of the object. This will only be
-	// present if it was uploaded with the object. With multipart uploads, this may not
-	// be a checksum value of the object. For more information about how checksums are
-	// calculated with multipart uploads, see Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
+	// present if it was uploaded with the object. When you use the API operation on an
+	// object that was uploaded using multipart uploads, this value may not be a direct
+	// checksum value of the full object. Instead, it's a calculation based on the
+	// checksum values of each individual part. For more information about how
+	// checksums are calculated with multipart uploads, see Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
 	// in the Amazon S3 User Guide.
 	ChecksumSHA1 *string
 
 	// The base64-encoded, 256-bit SHA-256 digest of the object. This will only be
-	// present if it was uploaded with the object. With multipart uploads, this may not
-	// be a checksum value of the object. For more information about how checksums are
-	// calculated with multipart uploads, see Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
+	// present if it was uploaded with the object. When you use an API operation on an
+	// object that was uploaded using multipart uploads, this value may not be a direct
+	// checksum value of the full object. Instead, it's a calculation based on the
+	// checksum values of each individual part. For more information about how
+	// checksums are calculated with multipart uploads, see Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
 	// in the Amazon S3 User Guide.
 	ChecksumSHA256 *string
 
@@ -268,25 +314,29 @@ type UploadPartOutput struct {
 	ETag *string
 
 	// If present, indicates that the requester was successfully charged for the
-	// request.
+	// request. This functionality is not supported for directory buckets.
 	RequestCharged types.RequestCharged
 
 	// If server-side encryption with a customer-provided encryption key was
-	// requested, the response will include this header confirming the encryption
-	// algorithm used.
+	// requested, the response will include this header to confirm the encryption
+	// algorithm that's used. This functionality is not supported for directory
+	// buckets.
 	SSECustomerAlgorithm *string
 
 	// If server-side encryption with a customer-provided encryption key was
-	// requested, the response will include this header to provide round-trip message
-	// integrity verification of the customer-provided encryption key.
+	// requested, the response will include this header to provide the round-trip
+	// message integrity verification of the customer-provided encryption key. This
+	// functionality is not supported for directory buckets.
 	SSECustomerKeyMD5 *string
 
-	// If present, specifies the ID of the Key Management Service (KMS) symmetric
-	// encryption customer managed key was used for the object.
+	// If present, indicates the ID of the Key Management Service (KMS) symmetric
+	// encryption customer managed key that was used for the object. This functionality
+	// is not supported for directory buckets.
 	SSEKMSKeyId *string
 
-	// The server-side encryption algorithm used when storing this object in Amazon S3
-	// (for example, AES256 , aws:kms ).
+	// The server-side encryption algorithm used when you store this object in Amazon
+	// S3 (for example, AES256 , aws:kms ). For directory buckets, only server-side
+	// encryption with Amazon S3 managed keys (SSE-S3) ( AES256 ) is supported.
 	ServerSideEncryption types.ServerSideEncryption
 
 	// Metadata pertaining to the operation's result.
@@ -296,6 +346,9 @@ type UploadPartOutput struct {
 }
 
 func (c *Client) addOperationUploadPartMiddlewares(stack *middleware.Stack, options Options) (err error) {
+	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
+		return err
+	}
 	err = stack.Serialize.Add(&awsRestxml_serializeOpUploadPart{}, middleware.After)
 	if err != nil {
 		return err
@@ -304,6 +357,10 @@ func (c *Client) addOperationUploadPartMiddlewares(stack *middleware.Stack, opti
 	if err != nil {
 		return err
 	}
+	if err := addProtocolFinalizerMiddlewares(stack, options, "UploadPart"); err != nil {
+		return fmt.Errorf("add protocol finalizers: %v", err)
+	}
+
 	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
 		return err
 	}
@@ -325,9 +382,6 @@ func (c *Client) addOperationUploadPartMiddlewares(stack *middleware.Stack, opti
 	if err = addRetryMiddlewares(stack, options); err != nil {
 		return err
 	}
-	if err = addHTTPSignerV4Middleware(stack, options); err != nil {
-		return err
-	}
 	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
 		return err
 	}
@@ -343,10 +397,10 @@ func (c *Client) addOperationUploadPartMiddlewares(stack *middleware.Stack, opti
 	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
 		return err
 	}
-	if err = swapWithCustomHTTPSignerMiddleware(stack, options); err != nil {
+	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
 		return err
 	}
-	if err = addUploadPartResolveEndpointMiddleware(stack, options); err != nil {
+	if err = addPutBucketContextMiddleware(stack); err != nil {
 		return err
 	}
 	if err = addOpUploadPartValidationMiddleware(stack); err != nil {
@@ -385,7 +439,7 @@ func (c *Client) addOperationUploadPartMiddlewares(stack *middleware.Stack, opti
 	if err = addRequestResponseLogging(stack, options); err != nil {
 		return err
 	}
-	if err = addendpointDisableHTTPSMiddleware(stack, options); err != nil {
+	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
 	if err = addSerializeImmutableHostnameBucketMiddleware(stack, options); err != nil {
@@ -405,7 +459,6 @@ func newServiceMetadataMiddleware_opUploadPart(region string) *awsmiddleware.Reg
 	return &awsmiddleware.RegisterServiceMetadata{
 		Region:        region,
 		ServiceID:     ServiceID,
-		SigningName:   "s3",
 		OperationName: "UploadPart",
 	}
 }
@@ -488,140 +541,4 @@ func addUploadPartPayloadAsUnsigned(stack *middleware.Stack, options Options) er
 	v4.RemoveContentSHA256HeaderMiddleware(stack)
 	v4.RemoveComputePayloadSHA256Middleware(stack)
 	return v4.AddUnsignedPayloadMiddleware(stack)
-}
-
-type opUploadPartResolveEndpointMiddleware struct {
-	EndpointResolver EndpointResolverV2
-	BuiltInResolver  builtInParameterResolver
-}
-
-func (*opUploadPartResolveEndpointMiddleware) ID() string {
-	return "ResolveEndpointV2"
-}
-
-func (m *opUploadPartResolveEndpointMiddleware) HandleSerialize(ctx context.Context, in middleware.SerializeInput, next middleware.SerializeHandler) (
-	out middleware.SerializeOutput, metadata middleware.Metadata, err error,
-) {
-	if awsmiddleware.GetRequiresLegacyEndpoints(ctx) {
-		return next.HandleSerialize(ctx, in)
-	}
-
-	req, ok := in.Request.(*smithyhttp.Request)
-	if !ok {
-		return out, metadata, fmt.Errorf("unknown transport type %T", in.Request)
-	}
-
-	input, ok := in.Parameters.(*UploadPartInput)
-	if !ok {
-		return out, metadata, fmt.Errorf("unknown transport type %T", in.Request)
-	}
-
-	if m.EndpointResolver == nil {
-		return out, metadata, fmt.Errorf("expected endpoint resolver to not be nil")
-	}
-
-	params := EndpointParameters{}
-
-	m.BuiltInResolver.ResolveBuiltIns(&params)
-
-	params.Bucket = input.Bucket
-
-	var resolvedEndpoint smithyendpoints.Endpoint
-	resolvedEndpoint, err = m.EndpointResolver.ResolveEndpoint(ctx, params)
-	if err != nil {
-		return out, metadata, fmt.Errorf("failed to resolve service endpoint, %w", err)
-	}
-
-	req.URL = &resolvedEndpoint.URI
-
-	for k := range resolvedEndpoint.Headers {
-		req.Header.Set(
-			k,
-			resolvedEndpoint.Headers.Get(k),
-		)
-	}
-
-	authSchemes, err := internalauth.GetAuthenticationSchemes(&resolvedEndpoint.Properties)
-	if err != nil {
-		var nfe *internalauth.NoAuthenticationSchemesFoundError
-		if errors.As(err, &nfe) {
-			// if no auth scheme is found, default to sigv4
-			signingName := "s3"
-			signingRegion := m.BuiltInResolver.(*builtInResolver).Region
-			ctx = awsmiddleware.SetSigningName(ctx, signingName)
-			ctx = awsmiddleware.SetSigningRegion(ctx, signingRegion)
-			ctx = s3cust.SetSignerVersion(ctx, internalauth.SigV4)
-		}
-		var ue *internalauth.UnSupportedAuthenticationSchemeSpecifiedError
-		if errors.As(err, &ue) {
-			return out, metadata, fmt.Errorf(
-				"This operation requests signer version(s) %v but the client only supports %v",
-				ue.UnsupportedSchemes,
-				internalauth.SupportedSchemes,
-			)
-		}
-	}
-
-	for _, authScheme := range authSchemes {
-		switch authScheme.(type) {
-		case *internalauth.AuthenticationSchemeV4:
-			v4Scheme, _ := authScheme.(*internalauth.AuthenticationSchemeV4)
-			var signingName, signingRegion string
-			if v4Scheme.SigningName == nil {
-				signingName = "s3"
-			} else {
-				signingName = *v4Scheme.SigningName
-			}
-			if v4Scheme.SigningRegion == nil {
-				signingRegion = m.BuiltInResolver.(*builtInResolver).Region
-			} else {
-				signingRegion = *v4Scheme.SigningRegion
-			}
-			if v4Scheme.DisableDoubleEncoding != nil {
-				// The signer sets an equivalent value at client initialization time.
-				// Setting this context value will cause the signer to extract it
-				// and override the value set at client initialization time.
-				ctx = internalauth.SetDisableDoubleEncoding(ctx, *v4Scheme.DisableDoubleEncoding)
-			}
-			ctx = awsmiddleware.SetSigningName(ctx, signingName)
-			ctx = awsmiddleware.SetSigningRegion(ctx, signingRegion)
-			ctx = s3cust.SetSignerVersion(ctx, v4Scheme.Name)
-			break
-		case *internalauth.AuthenticationSchemeV4A:
-			v4aScheme, _ := authScheme.(*internalauth.AuthenticationSchemeV4A)
-			if v4aScheme.SigningName == nil {
-				v4aScheme.SigningName = aws.String("s3")
-			}
-			if v4aScheme.DisableDoubleEncoding != nil {
-				// The signer sets an equivalent value at client initialization time.
-				// Setting this context value will cause the signer to extract it
-				// and override the value set at client initialization time.
-				ctx = internalauth.SetDisableDoubleEncoding(ctx, *v4aScheme.DisableDoubleEncoding)
-			}
-			ctx = awsmiddleware.SetSigningName(ctx, *v4aScheme.SigningName)
-			ctx = awsmiddleware.SetSigningRegion(ctx, v4aScheme.SigningRegionSet[0])
-			ctx = s3cust.SetSignerVersion(ctx, v4a.Version)
-			break
-		case *internalauth.AuthenticationSchemeNone:
-			break
-		}
-	}
-
-	return next.HandleSerialize(ctx, in)
-}
-
-func addUploadPartResolveEndpointMiddleware(stack *middleware.Stack, options Options) error {
-	return stack.Serialize.Insert(&opUploadPartResolveEndpointMiddleware{
-		EndpointResolver: options.EndpointResolverV2,
-		BuiltInResolver: &builtInResolver{
-			Region:                         options.Region,
-			UseFIPS:                        options.EndpointOptions.UseFIPSEndpoint,
-			UseDualStack:                   options.EndpointOptions.UseDualStackEndpoint,
-			Endpoint:                       options.BaseEndpoint,
-			ForcePathStyle:                 options.UsePathStyle,
-			Accelerate:                     options.UseAccelerate,
-			DisableMultiRegionAccessPoints: options.DisableMultiRegionAccessPoints,
-			UseArnRegion:                   options.UseARNRegion,
-		},
-	}, "ResolveEndpoint", middleware.After)
 }

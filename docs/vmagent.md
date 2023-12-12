@@ -19,7 +19,7 @@ or via [VictoriaMetrics `remote_write` protocol](#victoriametrics-remote-write-p
 
 See [Quick Start](#quick-start) for details.
 
-<img alt="vmagent" src="vmagent.png">
+<img alt="vmagent" src="vmagent.webp">
 
 ## Motivation
 
@@ -52,8 +52,8 @@ additionally to [discovering Prometheus-compatible targets and scraping metrics 
   and [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate) issues by limiting the number of unique time series at scrape time
   and before sending them to remote storage systems. See [these docs](#cardinality-limiter).
 * Can write collected metrics to multiple tenants. See [these docs](#multitenancy).
-* Can read data from Kafka. See [these docs](#reading-metrics-from-kafka).
-* Can write data to Kafka. See [these docs](#writing-metrics-to-kafka).
+* Can read and write data from / to Kafka. See [these docs](#kafka-integration).
+* Can read and write data from / to Google PubSub. See [these docs](#google-pubsub-integration).
 
 ## Quick Start
 
@@ -71,7 +71,7 @@ and sending the data to the Prometheus-compatible remote storage:
 Example command for writing the data received via [supported push-based protocols](#how-to-push-data-to-vmagent)
 to [single-node VictoriaMetrics](https://docs.victoriametrics.com/) located at `victoria-metrics-host:8428`:
 
-```console
+```bash
 /path/to/vmagent -remoteWrite.url=https://victoria-metrics-host:8428/api/v1/write
 ```
 
@@ -80,7 +80,7 @@ the data to [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-V
 
 Example command for scraping Prometheus targets and writing the data to single-node VictoriaMetrics:
 
-```console
+```bash
 /path/to/vmagent -promscrape.config=/path/to/prometheus.yml -remoteWrite.url=https://victoria-metrics-host:8428/api/v1/write
 ```
 
@@ -106,6 +106,7 @@ additionally to pull-based Prometheus-compatible targets' scraping:
 * InfluxDB line protocol via `http://<vmagent>:8429/write`. See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf).
 * Graphite plaintext protocol if `-graphiteListenAddr` command-line flag is set. See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-graphite-compatible-agents-such-as-statsd).
 * OpenTelemetry http API. See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#sending-data-via-opentelemetry).
+* NewRelic API. See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-newrelic-agent).
 * OpenTSDB telnet and http protocols if `-opentsdbListenAddr` command-line flag is set. See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-opentsdb-compatible-agents).
 * Prometheus remote write protocol via `http://<vmagent>:8429/api/v1/write`.
 * JSON lines import protocol via `http://<vmagent>:8429/api/v1/import`. See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-import-data-in-json-line-format).
@@ -121,7 +122,7 @@ additionally to pull-based Prometheus-compatible targets' scraping:
 
 * Sending `SIGHUP` signal to `vmagent` process:
 
-  ```console
+  ```bash
   kill -SIGHUP `pidof vmagent`
   ```
 
@@ -184,6 +185,13 @@ by routing outgoing samples for the same time series of [counter](https://docs.v
 and [histogram](https://docs.victoriametrics.com/keyConcepts.html#histogram) types from top-level `vmagent` instances
 to the same second-level `vmagent` instance, so they are aggregated properly.
 
+If `-remoteWrite.shardByURL` command-line flag is set, then all the metric labels are used for even sharding
+among remote storage systems specified in `-remoteWrite.url`. Sometimes it may be needed to use only a particular
+set of labels for sharding. For example, it may be needed to route all the metrics with the same `instance` label
+to the same `-remoteWrite.url`. In this case you can specify comma-separated list of these labels in the `-remoteWrite.shardByURL.labels`
+command-line flag. For example, `-remoteWrite.shardByURL.labels=instance,__name__` would shard metrics with the same name and `instance`
+label to the same `-remoteWrite.url`.
+
 See also [how to scrape big number of targets](#scraping-big-number-of-targets).
 
 ### Relabeling and filtering
@@ -242,41 +250,31 @@ by specifying `-remoteWrite.forcePromProto` command-line flag for the correspond
 
 ## Multitenancy
 
-By default `vmagent` collects the data without tenant identifiers and routes it to the configured `-remoteWrite.url`.
+By default `vmagent` collects the data without [tenant](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy) identifiers
+and routes it to the remote storage specified via `-remoteWrite.url` command-line flag. The `-remoteWrite.url` can point to `/insert/<tenant_id>/prometheus/api/v1/write` path
+at `vminsert` according to [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format). In this case all the metrics are written to the given `<tenant_id>` tenant.
 
-[VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) supports writing data to multiple tenants
-specified via special labels - see [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy-via-labels).
-This allows specifying tenant ids via [relabeling](#relabeling) and writing multitenant data
-to a single `-remoteWrite.url=http://<vminsert-addr>/insert/multitenant/prometheus/api/v1/write`.
+The easiest way to write data to multiple distinct tenants is to specify the needed tenants via `vm_account_id` and `vm_project_id` labels
+and then to push metrics with these labels to [multitenant url at VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy-via-labels).
+The `vm_account_id` and `vm_project_id` labels can be specified via [relabeling](#relabeling) before sending the metrics to `-remoteWrite.url`.
 
-`vmagent` can accept data from the same multitenant endpoints as `vminsert` from [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html)
-does according to [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format) and route the accepted data
-to the corresponding [tenants](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy) in VictoriaMetrics cluster
-pointed by the `-remoteWrite.multitenantURL` command-line flag. For example, if `-remoteWrite.multitenantURL` is set to `http://vminsert-service`,
-then `vmagent` would accept multitenant data at `http://vmagent:8429/insert/<accountID>/...` endpoints in the same way
-as [VictoriaMetrics cluster does](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format) and route
-it to `http://vminsert-service/insert/<accountID>/prometheus/api/v1/write`.
-
-If multiple `-remoteWrite.multitenantURL` command-line options are set, then `vmagent` replicates the collected data across all the configured urls.
-This allows using a single `vmagent` instance in front of multiple VictoriaMetrics clusters.
-
-If `-remoteWrite.multitenantURL` command-line flag is set and `vmagent` is configured to scrape Prometheus-compatible targets
-(e.g. if `-promscrape.config` command-line flag is set) then `vmagent` reads tenantID from `__tenant_id__` label
-for the discovered targets and routes all the metrics from this target to the given `__tenant_id__`,
-e.g. to the url `<-remoteWrite.multitenantURL>/insert/<__tenant_id__>/prometheus/api/v1/write`.
-
-For example, the following relabeling rule instructs sending metrics to tenantID defined in the `prometheus.io/tenant` annotation of Kubernetes pod deployment:
+For example, the following relabeling rule instructs sending metrics to `<account_id>:0` [tenant](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy)
+defined in the `prometheus.io/account_id` annotation of Kubernetes pod deployment:
 
 ```yaml
 scrape_configs:
 - kubernetes_sd_configs:
   - role: pod
   relabel_configs:
-  - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_tenant]
-    target_label: __tenant_id__
+  - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_account_id]
+    target_label: vm_account_id
 ```
 
-If the target has no associated `__tenant_id__` label, then its' metrics are routed to zero tenantID, e.g. to `<-remoteWrite.multitenantURL>/insert/0/prometheus/api/v1/write`.
+`vmagent` can accept data via the same multitenant endpoints as `vminsert` at [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html)
+does according to [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format) if `-enableMultitenantHandlers` command-line flag is set.
+In this case it automatically converts tenant identifiers to `vm_account_id` and `vm_project_id` labels before applying [relabeling](#relabeling) specified via `-remoteWrite.relabelConfig`
+and `-remoteWrite.urlRelabelConfig` command-line flags. Metrics with `vm_account_id` and `vm_project_id` labels can be routed to the corresponding tenants
+when specifying `-remoteWrite.url` to [multitenant url at VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy-via-labels).
 
 ## How to collect metrics in Prometheus format
 
@@ -329,7 +327,7 @@ in the `scrape_config_files` section of `-promscrape.config` file. For example, 
 loading scrape configs from all the `*.yml` files under `configs` directory, from `single_scrape_config.yml` local file
 and from `https://config-server/scrape_config.yml` url:
 
-```yml
+```yaml
 scrape_config_files:
 - configs/*.yml
 - single_scrape_config.yml
@@ -339,7 +337,7 @@ scrape_config_files:
 Every referred file can contain arbitrary number of [supported scrape configs](https://docs.victoriametrics.com/sd_configs.html#scrape_configs).
 There is no need in specifying top-level `scrape_configs` section in these files. For example:
 
-```yml
+```yaml
 - job_name: foo
   static_configs:
   - targets: ["vmagent:8429"]
@@ -379,7 +377,7 @@ Extra labels can be added to metrics collected by `vmagent` via the following me
   For example, the following command starts `vmagent`, which adds `{datacenter="foobar"}` label to all the metrics pushed
   to all the configured remote storage systems (all the `-remoteWrite.url` flag values):
 
-  ```
+  ```bash
   /path/to/vmagent -remoteWrite.label=datacenter=foobar ...
   ```
 
@@ -507,12 +505,15 @@ with [additional enhancements](#relabeling-enhancements). The relabeling can be 
   This relabeling can be debugged via `http://vmagent:8429/metric-relabel-debug` page. See [these docs](#relabel-debug) for details.
 
 * At the `-remoteWrite.urlRelabelConfig` files. This relabeling is used for modifying labels for metrics
-  and for dropping unneeded metrics before sending them to a particular `-remoteWrite.url`.
+  and for dropping unneeded metrics before sending them to the particular `-remoteWrite.url`.
 
   This relabeling can be debugged via `http://vmagent:8429/metric-relabel-debug` page. See [these docs](#relabel-debug) for details.
 
 All the files with relabeling configs can contain special placeholders in the form `%{ENV_VAR}`,
 which are replaced by the corresponding environment variable values.
+
+[Streaming aggregation](https://docs.victoriametrics.com/stream-aggregation.html), if configured,
+is pefrormed after applying all the relabeling stages mentioned above.
 
 The following articles contain useful information about Prometheus relabeling:
 
@@ -626,6 +627,26 @@ The following articles contain useful information about Prometheus relabeling:
     ```yaml
     - action: drop_if_equal
       source_labels: ["instance", "host"]
+    ```
+
+  * `keep_if_contains`: keeps the entry if `target_label` contains all the label values listed in `source_labels`,
+    while dropping all the other entries. For example, the following relabeling config keeps targets
+    if `__meta_consul_tags` contains value from the `required_consul_tag` label:
+
+    ```yaml
+    - action: keep_if_contains
+      target_label: __meta_consul_tags
+      source_labels: [required_consul_tag]
+    ```
+
+  * `drop_if_contains`: drops the entry if `target_label` contains all the label values listed in `source_labels`,
+    while keeping all the other entries. For example, the following relabeling config drops targets
+    if `__meta_consul_tag` contains value from the `denied_consul_tag` label:
+
+    ```yaml
+    - action: drop_if_contains
+      target_label: __meta_consul_tags
+      source_labels: [denied_consul_tag]
     ```
 
   * `keep_metrics`: keeps all the metrics with names matching the given `regex`,
@@ -744,7 +765,7 @@ stream parsing mode can be explicitly enabled in the following places:
 
 Examples:
 
-```yml
+```yaml
 scrape_configs:
 - job_name: 'big-federate'
   stream_parse: true
@@ -771,7 +792,7 @@ Each `vmagent` instance in the cluster must use identical `-promscrape.config` f
 in the range `0 ... N-1`, where `N` is the number of `vmagent` instances in the cluster specified via `-promscrape.cluster.membersCount`.
 For example, the following commands spread scrape targets among a cluster of two `vmagent` instances:
 
-```
+```text
 /path/to/vmagent -promscrape.cluster.membersCount=2 -promscrape.cluster.memberNum=0 -promscrape.config=/path/to/config.yml ...
 /path/to/vmagent -promscrape.cluster.membersCount=2 -promscrape.cluster.memberNum=1 -promscrape.config=/path/to/config.yml ...
 ```
@@ -783,11 +804,24 @@ By default, each scrape target is scraped only by a single `vmagent` instance in
 then `-promscrape.cluster.replicationFactor` command-line flag must be set to the desired number of replicas. For example, the following commands
 start a cluster of three `vmagent` instances, where each target is scraped by two `vmagent` instances:
 
-```
+```text
 /path/to/vmagent -promscrape.cluster.membersCount=3 -promscrape.cluster.replicationFactor=2 -promscrape.cluster.memberNum=0 -promscrape.config=/path/to/config.yml ...
 /path/to/vmagent -promscrape.cluster.membersCount=3 -promscrape.cluster.replicationFactor=2 -promscrape.cluster.memberNum=1 -promscrape.config=/path/to/config.yml ...
 /path/to/vmagent -promscrape.cluster.membersCount=3 -promscrape.cluster.replicationFactor=2 -promscrape.cluster.memberNum=2 -promscrape.config=/path/to/config.yml ...
 ```
+
+Every `vmagent` in the cluster exposes all the discovered targets at `http://vmagent:8429/service-discovery` page.
+Each discovered target on this page contains its status (`UP`, `DOWN` or `DROPPED` with the reason why the target has been dropped).
+If the target is dropped because of sharding to other `vmagent` instances in the cluster, then the status column contains
+`-promscrape.cluster.memberNum` values for `vmagent` instances where the given target is scraped.
+
+The `/service-discovery` page provides links to the corresponding `vmagent` instances if `-promscrape.cluster.memberURLTemplate` command-line flag is set.
+Every occurrence of `%d` inside the `-promscrape.cluster.memberURLTemplate` is substituted with the `-promscrape.cluster.memberNum`
+for the corresponding `vmagent` instance. For example, `-promscrape.cluster.memberURLTemplate='http://vmagent-instance-%d:8429/targets'`
+generates `http://vmagent-instance-42:8429/targets` url for `vmagent` instance, which runs with `-promscrape.cluster.memberNum=42`.
+
+Note that `vmagent` shows up to `-promscrape.maxDroppedTargets` dropped targets on the `/service-discovery` page.
+Increase the `-promscrape.maxDroppedTargets` command-line flag value if the `/service-discovery` page misses some dropped targets.
 
 If each target is scraped by multiple `vmagent` instances, then data deduplication must be enabled at remote storage pointed by `-remoteWrite.url`.
 The `-dedup.minScrapeInterval` must be set to the `scrape_interval` configured at `-promscrape.config`.
@@ -797,7 +831,7 @@ The `-promscrape.cluster.memberLabel` command-line flag allows specifying a name
 The value of the `member num` label is set to `-promscrape.cluster.memberNum`. For example, the following config instructs adding `vmagent_instance="0"` label
 to all the metrics scraped by the given `vmagent` instance:
 
-```
+```text
 /path/to/vmagent -promscrape.cluster.membersCount=2 -promscrape.cluster.memberNum=0 -promscrape.cluster.memberLabel=vmagent_instance
 ```
 
@@ -824,7 +858,7 @@ See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2679)
 `vmagent` supports scraping targets via http, https and socks5 proxies. Proxy address must be specified in `proxy_url` option. For example, the following scrape config instructs
 target scraping via https proxy at `https://proxy-addr:1234`:
 
-```yml
+```yaml
 scrape_configs:
 - job_name: foo
   proxy_url: https://proxy-addr:1234
@@ -841,7 +875,7 @@ Proxy can be configured with the following optional settings:
 
 For example:
 
-```yml
+```yaml
 scrape_configs:
 - job_name: foo
   proxy_url: https://proxy-addr:1234
@@ -857,6 +891,48 @@ scrape_configs:
   proxy_headers:
   - "Proxy-Auth: top-secret"
 ```
+
+## Disabling on-disk persistence
+
+By default `vmagent` stores pending data, which cannot be sent to the configured remote storage systems in a timely manner, in the folder configured
+via `-remoteWrite.tmpDataPath` command-line flag. By default `vmagent` writes all the pending data to this folder until this data is sent to the configured
+remote storage systems or until the folder becomes full. The maximum data size, which can be saved to `-remoteWrite.tmpDataPath`
+per every configured `-remoteWrite.url`, can be limited via `-remoteWrite.maxDiskUsagePerURL` command-line flag.
+When this limit is reached, `vmagent` drops the oldest data from disk in order to save newly ingested data.
+
+There are cases when it is better disabling on-disk persistence for pending data at `vmagent` side:
+
+- When the persistent disk performance isn't enough for the given data processing rate.
+- When it is better to buffer pending data at the client side instead of bufferring it at `vmagent` side in the `-remoteWrite.tmpDataPath` folder.
+- When the data is already buffered at [Kafka side](#reading-metrics-from-kafka) or [Google PubSub side](#reading-metrics-from-pubsub).
+- When it is better to drop pending data instead of buffering it.
+
+In this case `-remoteWrite.disableOnDiskQueue` command-line flag can be passed to `vmagent`.
+When this flag is specified, `vmagent` works in the following way if the configured remote storage systems cannot keep up with the data ingestion rate:
+
+- It returns `429 Too Many Requests` HTTP error to clients, which send data to `vmagent` via [supported HTTP endpoints](#how-to-push-data-to-vmagent).
+  You can specify `-remoteWrite.dropSamplesOnOverload` command-line flag in order to drop the ingested samples instead of returning the error to clients in this case.
+- It suspends consuming data from [Kafka side](#reading-metrics-from-kafka) or [Google PubSub side](#pubsub-integration) until the remote storage becomes available.
+  You can specify `-remoteWrite.dropSamplesOnOverload` command-line flag in order to drop the fetched samples instead of suspending data consumption from Kafka or Google PubSub.
+- It drops samples pushed to `vmagent` via non-HTTP protocols and logs the error. Pass `-remoteWrite.dropSamplesOnOverload` on order to suppress error messages in this case.
+- It drops samples [scraped from Prometheus-compatible targets](#how-to-collect-metrics-in-prometheus-format), because it is better to drop samples
+  instead of blocking the scrape process.
+- It drops [stream aggregation](https://docs.victoriametrics.com/stream-aggregation.html) output samples, because it is better to drop output samples
+  instead of blocking the stream aggregation process.
+
+The number of dropped samples because of overloaded remote storage can be [monitored](#monitoring) via `vmagent_remotewrite_samples_dropped_total` metric.
+The number of unsuccessful attempts to send data to overloaded remote storage can be [monitored](#monitoring) via `vmagent_remotewrite_push_failures_total` metric.
+
+Running `vmagent` on hosts with more RAM or increasing the value for `-memory.allowedPercent` may reduce the number of unsuccessful attempts or dropped samples
+on spiky workloads, since `vmagent` may buffer more data in memory before returning the error or dropping data.
+
+`vmagent` still may write pending in-memory data to `-remoteWrite.tmpDataPath` on graceful shutdown
+if `-remoteWrite.disableOnDiskQueue` command-line flag is specified. It may also read buffered data from `-remoteWrite.tmpDataPath`
+on startup.
+
+When `-remoteWrite.disableOnDiskQueue` command-line flag is set, then `vmagent` may send the same samples multiple times to the configured remote storage
+if it cannot keep up with the data ingestion rate. In this case the [deduplication](https://docs.victoriametrics.com/#deduplication)
+must be enabled on all the configured remote storage systems.
 
 ## Cardinality limiter
 
@@ -936,38 +1012,39 @@ If you have suggestions for improvements or have found a bug - please open an is
 
 ## Troubleshooting
 
-* We recommend you [set up the official Grafana dashboard](#monitoring) in order to monitor the state of `vmagent'.
+* It is recommended [setting up the official Grafana dashboard](#monitoring) in order to monitor the state of `vmagent'.
 
-* We recommend you increase the maximum number of open files in the system (`ulimit -n`) when scraping a big number of targets,
+* It is recommended increasing the maximum number of open files in the system (`ulimit -n`) when scraping a big number of targets,
   as `vmagent` establishes at least a single TCP connection per target.
 
 * If `vmagent` uses too big amounts of memory, then the following options can help:
-  * Disabling staleness tracking with `-promscrape.noStaleMarkers` option. See [these docs](#prometheus-staleness-markers).
-  * Enabling stream parsing mode if `vmagent` scrapes targets with millions of metrics per target. See [these docs](#stream-parsing-mode).
-  * Reducing the number of output queues with `-remoteWrite.queues` command-line option.
   * Reducing the amounts of RAM vmagent can use for in-memory buffering with `-memory.allowedPercent` or `-memory.allowedBytes` command-line option.
     Another option is to reduce memory limits in Docker and/or Kubernetes if `vmagent` runs under these systems.
   * Reducing the number of CPU cores vmagent can use by passing `GOMAXPROCS=N` environment variable to `vmagent`,
     where `N` is the desired limit on CPU cores. Another option is to reduce CPU limits in Docker or Kubernetes if `vmagent` runs under these systems.
-  * Passing `-promscrape.dropOriginalLabels` command-line option to `vmagent`, so it drops `"discoveredLabels"` and `"droppedTargets"`
-    lists at `/api/v1/targets` page. This reduces memory usage when scraping big number of targets at the cost
-    of reduced debuggability for improperly configured per-target relabeling.
+  * Disabling staleness tracking with `-promscrape.noStaleMarkers` option. See [these docs](#prometheus-staleness-markers).
+  * Enabling stream parsing mode if `vmagent` scrapes targets with millions of metrics per target. See [these docs](#stream-parsing-mode).
+  * Reducing the number of tcp connections to remote storage systems with `-remoteWrite.queues` command-line option.
+  * Passing `-promscrape.dropOriginalLabels` command-line option to `vmagent` if it [discovers](https://docs.victoriametrics.com/sd_configs.html)
+    big number of targets and many of these targets are [dropped](https://docs.victoriametrics.com/relabeling.html#how-to-drop-discovered-targets)
+    before scraping. In this case `vmagent` drops `"discoveredLabels"` and `"droppedTargets"`
+    lists at `http://vmagent-host:8429/service-discovery` page. This reduces memory usage when scraping big number of targets at the cost
+    of reduced debuggability for improperly configured per-target [relabeling](https://docs.victoriametrics.com/relabeling.html).
 
-* When `vmagent` scrapes many unreliable targets, it can flood the error log with scrape errors. These errors can be suppressed
-  by passing `-promscrape.suppressScrapeErrors` command-line flag to `vmagent`. The most recent scrape error per each target can be observed at `http://vmagent-host:8429/targets`
-  and `http://vmagent-host:8429/api/v1/targets`.
+* When `vmagent` scrapes many unreliable targets, it can flood the error log with scrape errors. It is recommended investigating and fixing these errors.
+  If it is unfeasible to fix all the reported errors, then they can be suppressed by passing `-promscrape.suppressScrapeErrors` command-line flag to `vmagent`.
+  The most recent scrape error per each target can be observed at `http://vmagent-host:8429/targets` and `http://vmagent-host:8429/api/v1/targets`.
 
-* The `/service-discovery` page could be useful for debugging relabeling process for scrape targets.
+* The `http://vmagent-host:8429/service-discovery` page could be useful for debugging relabeling process for scrape targets.
   This page contains original labels for targets dropped during relabeling.
   By default, the `-promscrape.maxDroppedTargets` targets are shown here. If your setup drops more targets during relabeling,
   then increase `-promscrape.maxDroppedTargets` command-line flag value to see all the dropped targets.
   Note that tracking each dropped target requires up to 10Kb of RAM. Therefore, big values for `-promscrape.maxDroppedTargets`
   may result in increased memory usage if a big number of scrape targets are dropped during relabeling.
 
-* We recommend you increase `-remoteWrite.queues` if `vmagent_remotewrite_pending_data_bytes` metric exported
-  at `http://vmagent-host:8429/metrics` page grows constantly. It is also recommended increasing `-remoteWrite.maxBlockSize`
-  and `-remoteWrite.maxRowsPerBlock` command-line options in this case. This can improve data ingestion performance
-  to the configured remote storage systems at the cost of higher memory usage.
+* It is recommended increaseing `-remoteWrite.queues` if `vmagent_remotewrite_pending_data_bytes` [metric](#monitoring)
+  grows constantly. It is also recommended increasing `-remoteWrite.maxBlockSize` and `-remoteWrite.maxRowsPerBlock` command-line options in this case.
+  This can improve data ingestion performance to the configured remote storage systems at the cost of higher memory usage.
 
 * If you see gaps in the data pushed by `vmagent` to remote storage when `-remoteWrite.maxDiskUsagePerURL` is set,
   try increasing `-remoteWrite.queues`. Such gaps may appear because `vmagent` cannot keep up with sending the collected data to remote storage.
@@ -981,8 +1058,12 @@ If you have suggestions for improvements or have found a bug - please open an is
   The best solution is to use remote storage with [backfilling support](https://docs.victoriametrics.com/#backfilling) such as VictoriaMetrics.
 
 * `vmagent` buffers scraped data at the `-remoteWrite.tmpDataPath` directory until it is sent to `-remoteWrite.url`.
-  The directory can grow large when remote storage is unavailable for extended periods of time and if `-remoteWrite.maxDiskUsagePerURL` isn't set.
-  If you don't want to send all the data from the directory to remote storage then simply stop `vmagent` and delete the directory.
+  The directory can grow large when remote storage is unavailable for extended periods of time and if the maximum directory size isn't limited
+  with `-remoteWrite.maxDiskUsagePerURL` command-line flag.
+  If you don't want to send all the buffered data from the directory to remote storage then simply stop `vmagent` and delete the directory.
+
+* If `vmagent` runs on a host with slow persistent storage, which cannot keep up with the volume of processed samples, then is is possible to disable
+  the persistent storage with `-remoteWrite.disableOnDiskQueue` command-line flag. See [these docs](#disabling-on-disk-persistence) for more details.
 
 * By default `vmagent` masks `-remoteWrite.url` with `secret-url` values in logs and at `/metrics` page because
   the url may contain sensitive information such as auth tokens or passwords.
@@ -991,7 +1072,7 @@ If you have suggestions for improvements or have found a bug - please open an is
 * By default `vmagent` evenly spreads scrape load in time. If a particular scrape target must be scraped at the beginning of some interval,
   then `scrape_align_interval` option  must be used. For example, the following config aligns hourly scrapes to the beginning of hour:
 
-  ```yml
+  ```yaml
   scrape_configs:
   - job_name: foo
     scrape_interval: 1h
@@ -1001,7 +1082,7 @@ If you have suggestions for improvements or have found a bug - please open an is
 * By default `vmagent` evenly spreads scrape load in time. If a particular scrape target must be scraped at specific offset, then `scrape_offset` option must be used.
   For example, the following config instructs `vmagent` to scrape the target at 10 seconds of every minute:
 
-  ```yml
+  ```yaml
   scrape_configs:
   - job_name: foo
     scrape_interval: 1m
@@ -1014,20 +1095,180 @@ If you have suggestions for improvements or have found a bug - please open an is
 
   The following relabeling rule may be added to `relabel_configs` section in order to filter out pods with unneeded ports:
 
-  ```yml
+  ```yaml
   - action: keep_if_equal
     source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_port, __meta_kubernetes_pod_container_port_number]
   ```
 
   The following relabeling rule may be added to `relabel_configs` section in order to filter out init container pods:
 
-  ```yml
+  ```yaml
   - action: drop
     source_labels: [__meta_kubernetes_pod_container_init]
     regex: true
   ```
 
-See also [troubleshooting docs](https://docs.victoriametrics.com/Troubleshooting.html).
+See also [general troubleshooting docs](https://docs.victoriametrics.com/Troubleshooting.html).
+
+## Calculating disk space for persistence queue
+
+`vmagent` buffers collected metrics on disk at the directory specified via `-remoteWrite.tmpDataPath` command-line flag
+until the metrics are sent to remote storage configured via `-remoteWrite.url` command-line flag.
+The `-remoteWrite.tmpDataPath` directory can grow large when remote storage is unavailable for extended
+periods of time and if the maximum directory size isn't limited with `-remoteWrite.maxDiskUsagePerURL` command-line flag.
+
+To estimate the allocated disk size for persistent queue, or to estimate `-remoteWrite.maxDiskUsagePerURL` command-line flag value,
+take into account the following attributes:
+
+1. The **size in bytes** of data stream sent by vmagent:
+
+   Run the query `sum(rate(vmagent_remotewrite_bytes_sent_total[1h])) by(instance,url)` in [vmui](https://docs.victoriametrics.com/#vmui)
+   or Grafana to get the amount of bytes sent by each vmagent instance per second.
+
+1. The amount of **time** a persistent queue should keep the data before starting to drop it.
+
+   For example, if `vmagent` should be able to buffer the data for at least 6 hours, then the following query
+   can be used for estimating the needed amounts of disk space in gigabytes:
+
+   ```
+   sum(rate(vmagent_remotewrite_bytes_sent_total[1h])) by(instance,url) * 6h / 1Gi
+   ```
+
+Additional notes:
+
+1. Ensure that `vmagent` [monitoring](#monitoring) is configured properly.
+1. Re-evaluate the estimation each time when:
+    * there is an increase in the vmagent's workload
+    * there is a change in [relabeling rules](https://docs.victoriametrics.com/vmagent.html#relabeling) which could increase the amount metrics to send
+    * there is a change in number of configured `-remoteWrite.url` addresses
+1. The minimum disk size to allocate for the persistent queue is 500Mi per each `-remoteWrite.url`.
+1. On-disk persistent queue can be disabled if needed. See [these docs](https://docs.victoriametrics.com/vmagent.html#disabling-on-disk-persistence).
+
+
+## Google PubSub integration
+
+[Enterprise version](https://docs.victoriametrics.com/enterprise.html) of `vmagent` can read and write metrics from / to [Google PubSub](https://cloud.google.com/pubsub):
+
+### Reading metrics from PubSub
+
+[Enterprise version](https://docs.victoriametrics.com/enterprise.html) of `vmagent` can read metrics in various formats from Google PubSub messages.
+`-gcp.pubsub.subscribe.defaultMessageFormat` and `-gcp.pubsub.subscribe.topicSubscription.messageFormat` command-line flags allow configuring the needed message format.
+The following message formats are supported:
+
+* `promremotewrite` - [Prometheus remote_write](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write).
+  Messages in this format can be sent by vmagent - see [these docs](#writing-metrics-to-pubsub).
+* `influx` - [InfluxDB line protocol format](https://docs.influxdata.com/influxdb/cloud/reference/syntax/line-protocol/).
+* `prometheus` - [Prometheus text exposition format](https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md#text-based-format)
+  and [OpenMetrics format](https://github.com/OpenObservability/OpenMetrics/blob/master/specification/OpenMetrics.md).
+* `graphite` - [Graphite plaintext format](https://graphite.readthedocs.io/en/latest/feeding-carbon.html#the-plaintext-protocol).
+* `jsonline` - [JSON line format](https://docs.victoriametrics.com/#how-to-import-data-in-json-line-format).
+
+Every PubSub message may contain multiple lines in `influx`, `prometheus`, `graphite` and `jsonline` format delimited by `\n`.
+
+`vmagent` consumes messages from PubSub topic subscriptions specified by `-gcp.pubsub.subscribe.topicSubscription` command-line flag.
+Multiple topics can be specified by passing multiple `-gcp.pubsub.subscribe.topicSubscription` command-line flags to `vmagent`.
+
+`vmagent` uses standard Google authorization mechanism for topic access. It's possible to specify credentials directly via `-gcp.pubsub.subscribe.credentialsFile` command-line flag.
+
+For example, the following command starts `vmagent`, which reads metrics in [InfluxDB line protocol format](https://docs.influxdata.com/influxdb/cloud/reference/syntax/line-protocol/)
+from PubSub `projects/victoriametrics-vmagent-pub-sub-test/subscriptions/telegraf-testing` and sends them to remote storage at `http://localhost:8428/api/v1/write`:
+
+```bash
+./bin/vmagent -remoteWrite.url=http://localhost:8428/api/v1/write \
+       -gcp.pubsub.subscribe.topicSubscription=projects/victoriametrics-vmagent-pub-sub-test/subscriptions/telegraf-testing \
+       -gcp.pubsub.subscribe.topicSubscription.messageFormat=influx
+```
+
+It is expected that [Telegraf](https://github.com/influxdata/telegraf) sends metrics to the `telegraf-testing` topic at the `victoriametrics-vmagent-pub-sub-test` project
+with the following config:
+
+```yaml
+[[outputs.cloud_pubsub]]
+  project = "victoriametrics-vmagent-pub-sub-test"
+  topic = "telegraf-testing"
+  data_format = "influx"
+```
+
+`vmagent` buffers messages read from Google PubSub topic on local disk if the remote storage at `-remoteWrite.url` cannot keep up with the data ingestion rate.
+In this case it may be useful to disable on-disk data persistence in order to prevent from unbounded growth of the on-disk queue.
+See [these docs](https://docs.victoriametrics.com/vmagent.html#disabling-on-disk-persistence).
+
+See also [how to write metrics to multiple distinct tenants](https://docs.victoriametrics.com/vmagent.html#multitenancy).
+
+#### Consume metrics from multiple topics
+
+`vmagent` can read messages from different topics in different formats. For example, the following command starts `vmagent`, which reads plaintext
+[Influx](https://docs.influxdata.com/influxdb/cloud/reference/syntax/line-protocol/) messages from `telegraf-testing` topic
+and gzipp'ed [JSON line](https://docs.victoriametrics.com/#json-line-format) messages from `json-line-testing` topic:
+
+```bash
+./bin/vmagent -remoteWrite.url=http://localhost:8428/api/v1/write \
+       -gcp.pubsub.subscribe.topicSubscription=projects/victoriametrics-vmagent-pub-sub-test/subscriptions/telegraf-testing \
+       -gcp.pubsub.subscribe.topicSubscription.messageFormat=influx \
+       -gcp.pubsub.subscribe.topicSubscription.isGzipped=false \
+       -gcp.pubsub.subscribe.topicSubscription=projects/victoriametrics-vmagent-pub-sub-test/subscriptions/json-line-testing \
+       -gcp.pubsub.subscribe.topicSubscription.messageFormat=jsonline \
+       -gcp.pubsub.subscribe.topicSubscription.isGzipped=true
+```
+
+#### Command-line flags for PubSub consumer
+
+These command-line flags are available only in [enterprise](https://docs.victoriametrics.com/enterprise.html) version of `vmagent`,
+which can be downloaded for evaluation from [releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) page
+(see `vmutils-...-enterprise.tar.gz` archives) and from [docker images](https://hub.docker.com/r/victoriametrics/vmagent/tags) with tags containing `enterprise` suffix.
+
+```text
+  -gcp.pubsub.subscribe.credentialsFile string
+        Path to file with GCP credentials to use for PubSub client. If not set, default credentials are used (see Workload Identity for K8S or https://cloud.google.com/docs/authentication/application-default-credentials ). See https://docs.victoriametrics.com/vmagent.html#reading-metrics-from-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
+  -gcp.pubsub.subscribe.defaultMessageFormat string
+        Default message format if -gcp.pubsub.subscribe.topicSubscription.messageFormat is missing. See https://docs.victoriametrics.com/vmagent.html#reading-metrics-from-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html (default "promremotewrite")
+  -gcp.pubsub.subscribe.topicSubscription array
+        GCP PubSub topic subscription in the format: projects/<project-id>/subscriptions/<subscription-name>. See https://docs.victoriametrics.com/vmagent.html#reading-metrics-from-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
+        Supports an array of values separated by comma or specified via multiple flags.
+  -gcp.pubsub.subscribe.topicSubscription.concurrency array
+        The number of concurrently processed messages for topic subscription specified via -gcp.pubsub.subscribe.topicSubscription flag. See https://docs.victoriametrics.com/vmagent.html#reading-metrics-from-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html (default 0)
+        Supports array of values separated by comma or specified via multiple flags.
+  -gcp.pubsub.subscribe.topicSubscription.isGzipped array
+        Enables gzip decompression for messages payload at the corresponding -gcp.pubsub.subscribe.topicSubscription. Only prometheus, jsonline, graphite and influx formats accept gzipped messages. See https://docs.victoriametrics.com/vmagent.html#reading-metrics-from-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
+        Supports array of values separated by comma or specified via multiple flags.
+  -gcp.pubsub.subscribe.topicSubscription.messageFormat array
+        Message format for the corresponding -gcp.pbusub.subcribe.topicSubscription. Valid formats: influx, prometheus, promremotewrite, graphite, jsonline . See https://docs.victoriametrics.com/vmagent.html#reading-metrics-from-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
+        Supports an array of values separated by comma or specified via multiple flags.
+```
+
+### Writing metrics to PubSub
+
+[Enterprise version](https://docs.victoriametrics.com/enterprise.html) of `vmagent` writes data into Google PubSub if `-remoteWrite.url` command-line flag starts witht `pubsub:` prefix.
+For example, `-remoteWrite.url=pubsub:projects/victoriametrics-vmagent-publish-test/topics/testing-pubsub-push`.
+
+These messages can be read later from Google PubSub by another `vmagent` instance - see [these docs](#reading-metrics-from-pubsub) for details.
+
+`vmagent` uses standard Google authorization mechanism for PubSub topic access. Custom auth credentials can be specified via `-gcp.pubsub.subscribe.credentialsFile` command-line flag.
+
+#### Command-line flags for PubSub producer
+
+These command-line flags are available only in [enterprise](https://docs.victoriametrics.com/enterprise.html) version of `vmagent`,
+which can be downloaded for evaluation from [releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) page
+(see `vmutils-...-enterprise.tar.gz` archives) and from [docker images](https://hub.docker.com/r/victoriametrics/vmagent/tags) with tags containing `enterprise` suffix.
+
+```text
+  -gcp.pubsub.publish.byteThreshold int
+        Publish a batch when its size in bytes reaches this value. See https://docs.victoriametrics.com/vmagent.html#writing-metrics-to-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html (default 1000000)
+  -gcp.pubsub.publish.countThreshold int
+        Publish a batch when it has this many messages. See https://docs.victoriametrics.com/vmagent.html#writing-metrics-to-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html (default 100)
+  -gcp.pubsub.publish.credentialsFile string
+        Path to file with GCP credentials to use for PubSub client. If not set, default credentials will be used (see Workload Identity for K8S or https://cloud.google.com/docs/authentication/application-default-credentials). See https://docs.victoriametrics.com/vmagent.html#writing-metrics-to-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
+  -gcp.pubsub.publish.delayThreshold value
+        Publish a non-empty batch after this delay has passed. See https://docs.victoriametrics.com/vmagent.html#writing-metrics-to-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
+        The following optional suffixes are supported: s (second), m (minute), h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 10ms)
+  -gcp.pubsub.publish.maxOutstandingBytes int
+        The maximum size of buffered messages to be published. If less than or equal to zero, this is disabled. See https://docs.victoriametrics.com/vmagent.html#writing-metrics-to-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html (default -1)
+  -gcp.pubsub.publish.maxOutstandingMessages int
+        The maximum number of buffered messages to be published. If less than or equal to zero, this is disabled. See https://docs.victoriametrics.com/vmagent.html#writing-metrics-to-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html (default 100)
+  -gcp.pubsub.publish.timeout value
+        The maximum time that the client will attempt to publish a bundle of messages. See https://docs.victoriametrics.com/vmagent.html#writing-metrics-to-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
+        The following optional suffixes are supported: s (second), m (minute), h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 60s)
+```
 
 ## Kafka integration
 
@@ -1047,7 +1288,7 @@ These formats can be configured with `-kafka.consumer.topic.defaultFormat` or `-
 
 * `promremotewrite` - [Prometheus remote_write](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write).
   Messages in this format can be sent by vmagent - see [these docs](#writing-metrics-to-kafka).
-* `influx` - [InfluxDB line protocol format](https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/).
+* `influx` - [InfluxDB line protocol format](https://docs.influxdata.com/influxdb/cloud/reference/syntax/line-protocol/).
 * `prometheus` - [Prometheus text exposition format](https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md#text-based-format)
   and [OpenMetrics format](https://github.com/OpenObservability/OpenMetrics/blob/master/specification/OpenMetrics.md).
 * `graphite` - [Graphite plaintext format](https://graphite.readthedocs.io/en/latest/feeding-carbon.html#the-plaintext-protocol).
@@ -1060,12 +1301,12 @@ by passing multiple `-kafka.consumer.topic` command-line flags to `vmagent`.
 
 `vmagent` consumes messages from Kafka brokers specified by `-kafka.consumer.topic.brokers` command-line flag.
 Multiple brokers can be specified per each `-kafka.consumer.topic` by passing a list of brokers delimited by `;`.
-For example, `-kafka.consumer.topic.brokers=host1:9092;host2:9092`.
+For example, `-kafka.consumer.topic.brokers='host1:9092;host2:9092'`.
 
 The following command starts `vmagent`, which reads metrics in InfluxDB line protocol format from Kafka broker at `localhost:9092`
 from the topic `metrics-by-telegraf` and sends them to remote storage at `http://localhost:8428/api/v1/write`:
 
-```console
+```bash
 ./bin/vmagent -remoteWrite.url=http://localhost:8428/api/v1/write \
        -kafka.consumer.topic.brokers=localhost:9092 \
        -kafka.consumer.topic.format=influx \
@@ -1082,38 +1323,47 @@ topic = "influx"
 data_format = "influx"
 ```
 
+`vmagent` buffers messages read from Kafka topic on local disk if the remote storage at `-remoteWrite.url` cannot keep up with the data ingestion rate.
+In this case it may be useful to disable on-disk data persistence in order to prevent from unbounded growth of the on-disk queue.
+See [these docs](https://docs.victoriametrics.com/vmagent.html#disabling-on-disk-persistence).
+
+See also [how to write metrics to multiple distinct tenants](https://docs.victoriametrics.com/vmagent.html#multitenancy).
+
 #### Command-line flags for Kafka consumer
 
 These command-line flags are available only in [enterprise](https://docs.victoriametrics.com/enterprise.html) version of `vmagent`,
 which can be downloaded for evaluation from [releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) page
 (see `vmutils-...-enterprise.tar.gz` archives) and from [docker images](https://hub.docker.com/r/victoriametrics/vmagent/tags) with tags containing `enterprise` suffix.
 
-```
+```text
   -kafka.consumer.topic array
-        Kafka topic names for data consumption.
+        Kafka topic names for data consumption. See https://docs.victoriametrics.com/vmagent.html#reading-metrics-from-kafka . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
         Supports an array of values separated by comma or specified via multiple flags.
   -kafka.consumer.topic.basicAuth.password array
-        Optional basic auth password for -kafka.consumer.topic. Must be used in conjunction with any supported auth methods for kafka client, specified by flag -kafka.consumer.topic.options='security.protocol=SASL_SSL;sasl.mechanisms=PLAIN'
+        Optional basic auth password for -kafka.consumer.topic.  Must be used in conjunction with any supported auth methods for kafka client, specified by flag -kafka.consumer.topic.options='security.protocol=SASL_SSL;sasl.mechanisms=PLAIN' . See https://docs.victoriametrics.com/vmagent.html#reading-metrics-from-kafka . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
         Supports an array of values separated by comma or specified via multiple flags.
   -kafka.consumer.topic.basicAuth.username array
-        Optional basic auth username for -kafka.consumer.topic. Must be used in conjunction with any supported auth methods for kafka client, specified by flag -kafka.consumer.topic.options='security.protocol=SASL_SSL;sasl.mechanisms=PLAIN'
+        Optional basic auth username for -kafka.consumer.topic. Must be used in conjunction with any supported auth methods for kafka client, specified by flag -kafka.consumer.topic.options='security.protocol=SASL_SSL;sasl.mechanisms=PLAIN' . See https://docs.victoriametrics.com/vmagent.html#reading-metrics-from-kafka . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
         Supports an array of values separated by comma or specified via multiple flags.
   -kafka.consumer.topic.brokers array
-        List of brokers to connect for given topic, e.g. -kafka.consumer.topic.broker=host-1:9092;host-2:9092
+        List of brokers to connect for given topic, e.g. -kafka.consumer.topic.broker=host-1:9092;host-2:9092 . See https://docs.victoriametrics.com/vmagent.html#reading-metrics-from-kafka . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
         Supports an array of values separated by comma or specified via multiple flags.
+  -kafka.consumer.topic.concurrency array
+        Configures consumer concurrency for topic specified via -kafka.consumer.topic flag. See https://docs.victoriametrics.com/vmagent.html#reading-metrics-from-kafka . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html (default 1)
+        Supports array of values separated by comma or specified via multiple flags.
   -kafka.consumer.topic.defaultFormat string
-        Expected data format in the topic if -kafka.consumer.topic.format is skipped. (default "promremotewrite")
+        Expected data format in the topic if -kafka.consumer.topic.format is skipped. See https://docs.victoriametrics.com/vmagent.html#reading-metrics-from-kafka . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html (default "promremotewrite")
   -kafka.consumer.topic.format array
-        data format for corresponding kafka topic. Valid formats: influx, prometheus, promremotewrite, graphite, jsonline
+        data format for corresponding kafka topic. Valid formats: influx, prometheus, promremotewrite, graphite, jsonline . See https://docs.victoriametrics.com/vmagent.html#reading-metrics-from-kafka . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
         Supports an array of values separated by comma or specified via multiple flags.
   -kafka.consumer.topic.groupID array
-        Defines group.id for topic
+        Defines group.id for topic. See https://docs.victoriametrics.com/vmagent.html#reading-metrics-from-kafka . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
         Supports an array of values separated by comma or specified via multiple flags.
   -kafka.consumer.topic.isGzipped array
-        Enables gzip setting for topic messages payload. Only prometheus, jsonline and influx formats accept gzipped messages.
+        Enables gzip setting for topic messages payload. Only prometheus, jsonline, graphite and influx formats accept gzipped messages.See https://docs.victoriametrics.com/vmagent.html#reading-metrics-from-kafka . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
         Supports array of values separated by comma or specified via multiple flags.
   -kafka.consumer.topic.options array
-        Optional key=value;key1=value2 settings for topic consumer. See full configuration options at https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md.
+        Optional key=value;key1=value2 settings for topic consumer. See full configuration options at https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md . See https://docs.victoriametrics.com/vmagent.html#reading-metrics-from-kafka . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
         Supports an array of values separated by comma or specified via multiple flags.
 ```
 
@@ -1133,14 +1383,19 @@ Two types of auth are supported:
 
 * sasl with username and password:
 
-```console
-./bin/vmagent -remoteWrite.url=kafka://localhost:9092/?topic=prom-rw&security.protocol=SASL_SSL&sasl.mechanisms=PLAIN -remoteWrite.basicAuth.username=user -remoteWrite.basicAuth.password=password
+```bash
+./bin/vmagent -remoteWrite.url='kafka://localhost:9092/?topic=prom-rw&security.protocol=SASL_SSL&sasl.mechanisms=PLAIN' \
+    -remoteWrite.basicAuth.username=user \
+    -remoteWrite.basicAuth.password=password
 ```
 
 * tls certificates:
 
-```console
-./bin/vmagent -remoteWrite.url=kafka://localhost:9092/?topic=prom-rw&security.protocol=SSL -remoteWrite.tlsCAFile=/opt/ca.pem -remoteWrite.tlsCertFile=/opt/cert.pem -remoteWrite.tlsKeyFile=/opt/key.pem
+```bash
+./bin/vmagent -remoteWrite.url='kafka://localhost:9092/?topic=prom-rw&security.protocol=SSL' \
+    -remoteWrite.tlsCAFile=/opt/ca.pem \
+    -remoteWrite.tlsCertFile=/opt/cert.pem \
+    -remoteWrite.tlsKeyFile=/opt/key.pem
 ```
 
 ## How to build from sources
@@ -1170,7 +1425,7 @@ The `<PKG_TAG>` may be manually set via `PKG_TAG=foobar make package-vmagent`.
 The base docker image is [alpine](https://hub.docker.com/_/alpine) but it is possible to use any other base image
 by setting it via `<ROOT_IMAGE>` environment variable. For example, the following command builds the image on top of [scratch](https://hub.docker.com/_/scratch) image:
 
-```console
+```bash
 ROOT_IMAGE=scratch make package-vmagent
 ```
 
@@ -1198,7 +1453,7 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 
 <div class="with-copy" markdown="1">
 
-```console
+```bash
 curl http://0.0.0.0:8429/debug/pprof/heap > mem.pprof
 ```
 
@@ -1208,7 +1463,7 @@ curl http://0.0.0.0:8429/debug/pprof/heap > mem.pprof
 
 <div class="with-copy" markdown="1">
 
-```console
+```bash
 curl http://0.0.0.0:8429/debug/pprof/profile > cpu.pprof
 ```
 
@@ -1224,19 +1479,17 @@ It is safe sharing the collected profiles from security point of view, since the
 
 `vmagent` can be fine-tuned with various command-line flags. Run `./vmagent -help` in order to see the full list of these flags with their descriptions and default values:
 
-```
+```text
 ./vmagent -help
 
 vmagent collects metrics data via popular data ingestion protocols and routes them to VictoriaMetrics.
 
 See the docs at https://docs.victoriametrics.com/vmagent.html .
 
+  -blockcache.missesBeforeCaching int
+     The number of cache misses before putting the block into cache. Higher values may reduce indexdb/dataBlocks cache size at the cost of higher CPU and disk read usage (default 2)
   -cacheExpireDuration duration
      Items are removed from in-memory caches after they aren't accessed for this duration. Lower values may reduce memory usage at the cost of higher CPU usage. See also -prevCacheRemovalPercent (default 30m0s)
-  -clients.docker
-     Decides whether a docker container be brought up automatically
-  -clients.semaphore
-     Tells if the job is running on Semaphore
   -configAuthKey string
      Authorization key for accessing /config page. It must be passed via authKey query arg
   -csvTrimTimestamp duration
@@ -1250,6 +1503,8 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      Whether to disable the ability to trace queries. See https://docs.victoriametrics.com/#query-tracing
   -dryRun
      Whether to check config files without running vmagent. The following files are checked: -promscrape.config, -remoteWrite.relabelConfig, -remoteWrite.urlRelabelConfig, -remoteWrite.streamAggr.config . Unknown config entries aren't allowed in -promscrape.config by default. This can be changed by passing -promscrape.config.strictParse=false command-line flag
+  -enableMultitenantHandlers
+     Whether to process incoming data via multitenant insert handlers according to https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format . By default incoming data is processed via single-node insert handlers according to https://docs.victoriametrics.com/#how-to-import-time-series-data .See https://docs.victoriametrics.com/vmagent.html#multitenancy for details
   -enableTCP6
      Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP are used
   -envflag.enable
@@ -1264,6 +1519,38 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -fs.disableMmap
      Whether to use pread() instead of mmap() for reading data files. By default, mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
+  -gcp.pubsub.publish.byteThreshold int
+     Publish a batch when its size in bytes reaches this value. See https://docs.victoriametrics.com/vmagent.html#writing-metrics-to-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html (default 1000000)
+  -gcp.pubsub.publish.countThreshold int
+     Publish a batch when it has this many messages. See https://docs.victoriametrics.com/vmagent.html#writing-metrics-to-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html (default 100)
+  -gcp.pubsub.publish.credentialsFile string
+     Path to file with GCP credentials to use for PubSub client. If not set, default credentials will be used (see Workload Identity for K8S or https://cloud.google.com/docs/authentication/application-default-credentials). See https://docs.victoriametrics.com/vmagent.html#writing-metrics-to-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
+  -gcp.pubsub.publish.delayThreshold value
+     Publish a non-empty batch after this delay has passed. See https://docs.victoriametrics.com/vmagent.html#writing-metrics-to-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
+     The following optional suffixes are supported: s (second), m (minute), h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 10ms)
+  -gcp.pubsub.publish.maxOutstandingBytes int
+     The maximum size of buffered messages to be published. If less than or equal to zero, this is disabled. See https://docs.victoriametrics.com/vmagent.html#writing-metrics-to-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html (default -1)
+  -gcp.pubsub.publish.maxOutstandingMessages int
+     The maximum number of buffered messages to be published. If less than or equal to zero, this is disabled. See https://docs.victoriametrics.com/vmagent.html#writing-metrics-to-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html (default 100)
+  -gcp.pubsub.publish.timeout value
+     The maximum time that the client will attempt to publish a bundle of messages. See https://docs.victoriametrics.com/vmagent.html#writing-metrics-to-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
+     The following optional suffixes are supported: s (second), m (minute), h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 60s)
+  -gcp.pubsub.subscribe.credentialsFile string
+     Path to file with GCP credentials to use for PubSub client. If not set, default credentials are used (see Workload Identity for K8S or https://cloud.google.com/docs/authentication/application-default-credentials ). See https://docs.victoriametrics.com/vmagent.html#reading-metrics-from-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
+  -gcp.pubsub.subscribe.defaultMessageFormat string
+     Default message format if -gcp.pubsub.subscribe.topicSubscription.messageFormat is missing. See https://docs.victoriametrics.com/vmagent.html#reading-metrics-from-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html (default "promremotewrite")
+  -gcp.pubsub.subscribe.topicSubscription array
+     GCP PubSub topic subscription in the format: projects/<project-id>/subscriptions/<subscription-name>. See https://docs.victoriametrics.com/vmagent.html#reading-metrics-from-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
+     Supports an array of values separated by comma or specified via multiple flags.
+  -gcp.pubsub.subscribe.topicSubscription.concurrency array
+     The number of concurrently processed messages for topic subscription specified via -gcp.pubsub.subscribe.topicSubscription flag. See https://docs.victoriametrics.com/vmagent.html#reading-metrics-from-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html (default 0)
+     Supports array of values separated by comma or specified via multiple flags.
+  -gcp.pubsub.subscribe.topicSubscription.isGzipped array
+     Enables gzip decompression for messages payload at the corresponding -gcp.pubsub.subscribe.topicSubscription. Only prometheus, jsonline, graphite and influx formats accept gzipped messages. See https://docs.victoriametrics.com/vmagent.html#reading-metrics-from-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
+     Supports array of values separated by comma or specified via multiple flags.
+  -gcp.pubsub.subscribe.topicSubscription.messageFormat array
+     Message format for the corresponding -gcp.pbusub.subcribe.topicSubscription. Valid formats: influx, prometheus, promremotewrite, graphite, jsonline . See https://docs.victoriametrics.com/vmagent.html#reading-metrics-from-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
+     Supports an array of values separated by comma or specified via multiple flags.
   -graphiteListenAddr string
      TCP and UDP address to listen for Graphite plaintext data. Usually :2003 must be set. Doesn't work if empty. See also -graphiteListenAddr.useProxyProtocol
   -graphiteListenAddr.useProxyProtocol
@@ -1274,6 +1561,12 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      Incoming http connections are closed after the configured timeout. This may help to spread the incoming load among a cluster of services behind a load balancer. Please note that the real timeout may be bigger by up to 10% as a protection against the thundering herd problem (default 2m0s)
   -http.disableResponseCompression
      Disable compression of HTTP responses to save CPU resources. By default, compression is enabled to save network bandwidth
+  -http.header.csp string
+     Value for 'Content-Security-Policy' header
+  -http.header.frameOptions string
+     Value for 'X-Frame-Options' header
+  -http.header.hsts string
+     Value for 'Strict-Transport-Security' header
   -http.idleConnTimeout duration
      Timeout for incoming idle http connections (default 1m0s)
   -http.maxGracefulShutdownDuration duration
@@ -1287,12 +1580,12 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -httpAuth.username string
      Username for HTTP server's Basic Auth. The authentication is disabled if empty. See also -httpAuth.password
   -httpListenAddr string
-     TCP address to listen for http connections. Set this flag to empty value in order to disable listening on any port. This mode may be useful for running multiple vmagent instances on the same server. Note that /targets and /metrics pages aren't available if -httpListenAddr=''. See also -httpListenAddr.useProxyProtocol (default ":8429")
+     TCP address to listen for http connections. Set this flag to empty value in order to disable listening on any port. This mode may be useful for running multiple vmagent instances on the same server. Note that /targets and /metrics pages aren't available if -httpListenAddr=''. See also -tls and -httpListenAddr.useProxyProtocol (default ":8429")
   -httpListenAddr.useProxyProtocol
      Whether to use proxy protocol for connections accepted at -httpListenAddr . See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing
   -import.maxLineLen size
      The maximum length in bytes of a single line accepted by /api/v1/import; the line length can be limited with 'max_rows_per_line' query arg passed to /api/v1/export
-     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 104857600)
+     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 10485760)
   -influx.databaseNames array
      Comma-separated list of database names to return from /query and /influx/query API. This can be needed for accepting data from Telegraf plugins such as https://github.com/fangli/fluent-plugin-influxdb
      Supports an array of values separated by comma or specified via multiple flags.
@@ -1322,33 +1615,33 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -internStringMaxLen int
      The maximum length for strings to intern. A lower limit may save memory at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning . See also -internStringDisableCache and -internStringCacheExpireDuration (default 500)
   -kafka.consumer.topic array
-     Kafka topic names for data consumption. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
+     Kafka topic names for data consumption. See https://docs.victoriametrics.com/vmagent.html#reading-metrics-from-kafka . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
      Supports an array of values separated by comma or specified via multiple flags.
   -kafka.consumer.topic.basicAuth.password array
-     Optional basic auth password for -kafka.consumer.topic. Must be used in conjunction with any supported auth methods for kafka client, specified by flag -kafka.consumer.topic.options='security.protocol=SASL_SSL;sasl.mechanisms=PLAIN' . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
+     Optional basic auth password for -kafka.consumer.topic.  Must be used in conjunction with any supported auth methods for kafka client, specified by flag -kafka.consumer.topic.options='security.protocol=SASL_SSL;sasl.mechanisms=PLAIN' . See https://docs.victoriametrics.com/vmagent.html#reading-metrics-from-kafka . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
      Supports an array of values separated by comma or specified via multiple flags.
   -kafka.consumer.topic.basicAuth.username array
-     Optional basic auth username for -kafka.consumer.topic. Must be used in conjunction with any supported auth methods for kafka client, specified by flag -kafka.consumer.topic.options='security.protocol=SASL_SSL;sasl.mechanisms=PLAIN' . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
+     Optional basic auth username for -kafka.consumer.topic. Must be used in conjunction with any supported auth methods for kafka client, specified by flag -kafka.consumer.topic.options='security.protocol=SASL_SSL;sasl.mechanisms=PLAIN' . See https://docs.victoriametrics.com/vmagent.html#reading-metrics-from-kafka . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
      Supports an array of values separated by comma or specified via multiple flags.
   -kafka.consumer.topic.brokers array
-     List of brokers to connect for given topic, e.g. -kafka.consumer.topic.broker=host-1:9092;host-2:9092 . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
+     List of brokers to connect for given topic, e.g. -kafka.consumer.topic.broker=host-1:9092;host-2:9092 . See https://docs.victoriametrics.com/vmagent.html#reading-metrics-from-kafka . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
      Supports an array of values separated by comma or specified via multiple flags.
   -kafka.consumer.topic.concurrency array
-     Configures consumer concurrency for topic specified via -kafka.consumer.topic flag.This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html (default 1)
+     Configures consumer concurrency for topic specified via -kafka.consumer.topic flag. See https://docs.victoriametrics.com/vmagent.html#reading-metrics-from-kafka . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html (default 1)
      Supports array of values separated by comma or specified via multiple flags.
   -kafka.consumer.topic.defaultFormat string
-     Expected data format in the topic if -kafka.consumer.topic.format is skipped. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html (default "promremotewrite")
+     Expected data format in the topic if -kafka.consumer.topic.format is skipped. See https://docs.victoriametrics.com/vmagent.html#reading-metrics-from-kafka . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html (default "promremotewrite")
   -kafka.consumer.topic.format array
-     data format for corresponding kafka topic. Valid formats: influx, prometheus, promremotewrite, graphite, jsonline . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
+     data format for corresponding kafka topic. Valid formats: influx, prometheus, promremotewrite, graphite, jsonline . See https://docs.victoriametrics.com/vmagent.html#reading-metrics-from-kafka . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
      Supports an array of values separated by comma or specified via multiple flags.
   -kafka.consumer.topic.groupID array
-     Defines group.id for topic. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
+     Defines group.id for topic. See https://docs.victoriametrics.com/vmagent.html#reading-metrics-from-kafka . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
      Supports an array of values separated by comma or specified via multiple flags.
   -kafka.consumer.topic.isGzipped array
-     Enables gzip setting for topic messages payload. Only prometheus, jsonline and influx formats accept gzipped messages.This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
+     Enables gzip setting for topic messages payload. Only prometheus, jsonline, graphite and influx formats accept gzipped messages.See https://docs.victoriametrics.com/vmagent.html#reading-metrics-from-kafka . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
      Supports array of values separated by comma or specified via multiple flags.
   -kafka.consumer.topic.options array
-     Optional key=value;key1=value2 settings for topic consumer. See full configuration options at https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
+     Optional key=value;key1=value2 settings for topic consumer. See full configuration options at https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md . See https://docs.victoriametrics.com/vmagent.html#reading-metrics-from-kafka . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
      Supports an array of values separated by comma or specified via multiple flags.
   -license string
      Lisense key for VictoriaMetrics Enterprise. See https://victoriametrics.com/products/enterprise/ . Trial Enterprise license can be obtained from https://victoriametrics.com/products/enterprise/trial/ . This flag is available only in Enterprise binaries. The license key can be also passed via file specified by -licenseFile command-line flag
@@ -1366,6 +1659,8 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      Allows renaming fields in JSON formatted logs. Example: "ts:timestamp,msg:message" renames "ts" to "timestamp" and "msg" to "message". Supported fields: ts, level, caller, msg
   -loggerLevel string
      Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC (default "INFO")
+  -loggerMaxArgLen int
+     The maximum length of a single logged argument. Longer arguments are replaced with 'arg_start..arg_end', where 'arg_start' and 'arg_end' is prefix and suffix of the arg with the length not exceeding -loggerMaxArgLen / 2 (default 1000)
   -loggerOutput string
      Output for the logs. Supported values: stderr, stdout (default "stderr")
   -loggerTimezone string
@@ -1373,7 +1668,7 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -loggerWarnsPerSecondLimit int
      Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero values disable the rate limit
   -maxConcurrentInserts int
-     The maximum number of concurrent insert requests. Default value should work for most cases, since it minimizes the memory usage. The default value can be increased when clients send data over slow networks. See also -insert.maxQueueDuration (default 8)
+     The maximum number of concurrent insert requests. Default value should work for most cases, since it minimizes the memory usage. The default value can be increased when clients send data over slow networks. See also -insert.maxQueueDuration (default 32)
   -maxInsertRequestSize size
      The maximum size in bytes of a single Prometheus remote_write API request
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 33554432)
@@ -1384,6 +1679,9 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache which will result in higher disk IO usage (default 60)
   -metricsAuthKey string
      Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
+  -newrelic.maxInsertRequestSize size
+     The maximum size in bytes of a single NewRelic request to /newrelic/infra/v2/metrics/events/bulk
+     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 67108864)
   -opentsdbHTTPListenAddr string
      TCP address to listen for OpenTSDB HTTP put requests. Usually :4242 must be set. Doesn't work if empty. See also -opentsdbHTTPListenAddr.useProxyProtocol
   -opentsdbHTTPListenAddr.useProxyProtocol
@@ -1409,6 +1707,8 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      If non-empty, then the label with this name and the -promscrape.cluster.memberNum value is added to all the scraped metrics. See https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets for more info
   -promscrape.cluster.memberNum string
      The number of vmagent instance in the cluster of scrapers. It must be a unique value in the range 0 ... promscrape.cluster.membersCount-1 across scrapers in the cluster. Can be specified as pod name of Kubernetes StatefulSet - pod-name-Num, where Num is a numeric part of pod name. See also -promscrape.cluster.memberLabel . See https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets for more info (default "0")
+  -promscrape.cluster.memberURLTemplate string
+     An optional template for URL to access vmagent instance with the given -promscrape.cluster.memberNum value. Every %d occurrence in the template is substituted with -promscrape.cluster.memberNum at urls to vmagent instances responsible for scraping the given target at /service-discovery page. For example -promscrape.cluster.memberURLTemplate='http://vmagent-%d:8429/targets'. See https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets for more details
   -promscrape.cluster.membersCount int
      The number of members in a cluster of scrapers. Each member must have a unique -promscrape.cluster.memberNum in the range 0 ... promscrape.cluster.membersCount-1 . Each member then scrapes roughly 1/N of all the targets. By default, cluster scraping is disabled, i.e. a single scraper scrapes all the targets. See https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets for more info (default 1)
   -promscrape.cluster.name string
@@ -1422,7 +1722,7 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -promscrape.config.strictParse
      Whether to deny unsupported fields in -promscrape.config . Set to false in order to silently skip unsupported fields (default true)
   -promscrape.configCheckInterval duration
-     Interval for checking for changes in '-promscrape.config' file. By default, the checking is disabled. Send SIGHUP signal in order to force config check for changes
+     Interval for checking for changes in -promscrape.config file. By default, the checking is disabled. See how to reload -promscrape.config file at https://docs.victoriametrics.com/vmagent.html#configuration-update
   -promscrape.consul.waitTime duration
      Wait time used by Consul service discovery. Default value is used if not set
   -promscrape.consulSDCheckInterval duration
@@ -1541,6 +1841,10 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -remoteWrite.bearerTokenFile array
      Optional path to bearer token file to use for the corresponding -remoteWrite.url. The token is re-read from the file every second
      Supports an array of values separated by comma or specified via multiple flags.
+  -remoteWrite.disableOnDiskQueue
+     Whether to disable storing pending data to -remoteWrite.tmpDataPath when the configured remote storage systems cannot keep up with the data ingestion rate. See https://docs.victoriametrics.com/vmagent.html#disabling-on-disk-persistence .See also -remoteWrite.dropSamplesOnOverload
+  -remoteWrite.dropSamplesOnOverload
+     Whether to drop samples when -remoteWrite.disableOnDiskQueue is set and if the samples cannot be pushed into the configured remote storage systems in a timely manner. See https://docs.victoriametrics.com/vmagent.html#disabling-on-disk-persistence
   -remoteWrite.flushInterval duration
      Interval for flushing the data to remote storage. This option takes effect only when less than 10K data points per second are pushed to -remoteWrite.url (default 1s)
   -remoteWrite.forcePromProto array
@@ -1571,7 +1875,7 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -remoteWrite.maxRowsPerBlock int
      The maximum number of samples to send in each block to remote storage. Higher number may improve performance at the cost of the increased memory usage. See also -remoteWrite.maxBlockSize (default 10000)
   -remoteWrite.multitenantURL array
-     Base path for multitenant remote storage URL to write data to. See https://docs.victoriametrics.com/vmagent.html#multitenancy for details. Example url: http://<vminsert>:8480 . Pass multiple -remoteWrite.multitenantURL flags in order to replicate data to multiple remote storage systems. See also -remoteWrite.url
+     Base path for multitenant remote storage URL to write data to. See https://docs.victoriametrics.com/vmagent.html#multitenancy for details. Example url: http://<vminsert>:8480 . Pass multiple -remoteWrite.multitenantURL flags in order to replicate data to multiple remote storage systems. This flag is deprecated in favor of -enableMultitenantHandlers . See https://docs.victoriametrics.com/vmagent.html#multitenancy
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.oauth2.clientID array
      Optional OAuth2 clientID to use for the corresponding -remoteWrite.url
@@ -1592,7 +1896,7 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      Optional proxy URL for writing data to the corresponding -remoteWrite.url. Supported proxies: http, https, socks5. Example: -remoteWrite.proxyURL=socks5://proxy:1234
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.queues int
-     The number of concurrent queues to each -remoteWrite.url. Set more queues if default number of queues isn't enough for sending high volume of collected data to remote storage. Default value is 2 * numberOfAvailableCPUs (default 8)
+     The number of concurrent queues to each -remoteWrite.url. Set more queues if default number of queues isn't enough for sending high volume of collected data to remote storage. Default value is 2 * numberOfAvailableCPUs (default 32)
   -remoteWrite.rateLimit array
      Optional rate limit in bytes per second for data sent to the corresponding -remoteWrite.url. By default, the rate limit is disabled. It can be useful for limiting load on remote storage when big amounts of buffered data is sent after temporary unavailability of the remote storage (default 0)
      Supports array of values separated by comma or specified via multiple flags.
@@ -1606,6 +1910,9 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      Supports array of values separated by comma or specified via multiple flags.
   -remoteWrite.shardByURL
      Whether to shard outgoing series across all the remote storage systems enumerated via -remoteWrite.url . By default the data is replicated across all the -remoteWrite.url . See https://docs.victoriametrics.com/vmagent.html#sharding-among-remote-storages
+  -remoteWrite.shardByURL.labels array
+     Optional list of labels, which must be used for sharding outgoing samples among remote storage systems if -remoteWrite.shardByURL command-line flag is set. By default all the labels are used for sharding in order to gain even distribution of series over the specified -remoteWrite.url systems
+     Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.showURL
      Whether to show -remoteWrite.url in the exported metrics. It is hidden by default, since it can contain sensitive info such as auth key
   -remoteWrite.significantFigures array
@@ -1639,9 +1946,9 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      Optional TLS server name to use for connections to the corresponding -remoteWrite.url. By default, the server name from -remoteWrite.url is used
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.tmpDataPath string
-     Path to directory where temporary data for remote write component is stored. See also -remoteWrite.maxDiskUsagePerURL (default "vmagent-remotewrite-data")
+     Path to directory for storing pending data, which isn't sent to the configured -remoteWrite.url . See also -remoteWrite.maxDiskUsagePerURL and -remoteWrite.disableOnDiskQueue (default "vmagent-remotewrite-data")
   -remoteWrite.url array
-     Remote storage URL to write data to. It must support either VictoriaMetrics remote write protocol or Prometheus remote_write protocol. Example url: http://<victoriametrics-host>:8428/api/v1/write . Pass multiple -remoteWrite.url options in order to replicate the collected data to multiple remote storage systems. The data can be sharded among the configured remote storage systems if -remoteWrite.shardByURL flag is set. See also -remoteWrite.multitenantURL
+     Remote storage URL to write data to. It must support either VictoriaMetrics remote write protocol or Prometheus remote_write protocol. Example url: http://<victoriametrics-host>:8428/api/v1/write . Pass multiple -remoteWrite.url options in order to replicate the collected data to multiple remote storage systems. The data can be sharded among the configured remote storage systems if -remoteWrite.shardByURL flag is set
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.urlRelabelConfig array
      Optional path to relabel configs for the corresponding -remoteWrite.url. See also -remoteWrite.relabelConfig. The path can point either to local file or to http url. See https://docs.victoriametrics.com/vmagent.html#relabeling

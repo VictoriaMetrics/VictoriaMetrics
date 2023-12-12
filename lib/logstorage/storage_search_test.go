@@ -310,7 +310,7 @@ func TestStorageRunQuery(t *testing.T) {
 func mustParseQuery(query string) *Query {
 	q, err := ParseQuery(query)
 	if err != nil {
-		panic(fmt.Errorf("BUG: cannot parse %s: %s", query, err))
+		panic(fmt.Errorf("BUG: cannot parse %s: %w", query, err))
 	}
 	return q
 }
@@ -657,7 +657,7 @@ func TestStorageSearch(t *testing.T) {
 func mustNewStreamFilter(s string) *StreamFilter {
 	sf, err := newStreamFilter(s)
 	if err != nil {
-		panic(fmt.Errorf("unexpected error in newStreamFilter(%q): %s", s, err))
+		panic(fmt.Errorf("unexpected error in newStreamFilter(%q): %w", s, err))
 	}
 	return sf
 }

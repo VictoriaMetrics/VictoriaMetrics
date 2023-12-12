@@ -80,7 +80,7 @@
       }
     ]
   },
-  "description": "Overview for VictoriaMetrics vmalert v1.83.0 or higher",
+  "description": "Overview for VictoriaMetrics vmalert v1.96.0 or higher",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -272,7 +272,7 @@
             "uid": "$ds"
           },
           "exemplar": false,
-          "expr": "count(vmalert_alerting_rules_error{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"})",
+          "expr": "count(vmalert_alerting_rules_last_evaluation_samples{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"})",
           "interval": "",
           "legendFormat": "",
           "refId": "A"
@@ -332,7 +332,7 @@
             "uid": "$ds"
           },
           "exemplar": false,
-          "expr": "count(vmalert_recording_rules_error{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"})",
+          "expr": "count(vmalert_recording_rules_last_evaluation_samples{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"})",
           "interval": "",
           "legendFormat": "",
           "refId": "A"
@@ -396,7 +396,7 @@
             "uid": "$ds"
           },
           "exemplar": false,
-          "expr": "(sum(vmalert_alerting_rules_error{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"}) or vector(0)) + \n(sum(vmalert_recording_rules_error{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"}) or vector(0))",
+          "expr": "(sum(increase(vmalert_alerting_rules_errors_total{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"}[$__rate_interval])) or vector(0)) + \n(sum(increase(vmalert_recording_rules_errors_total{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"}[$__rate_interval])) or vector(0))",
           "interval": "",
           "legendFormat": "",
           "refId": "A"
@@ -1161,7 +1161,7 @@
       },
       "gridPos": {
         "h": 7,
-        "w": 24,
+        "w": 12,
         "x": 0,
         "y": 25
       },
@@ -1230,6 +1230,107 @@
       "type": "table"
     },
     {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$ds"
+      },
+      "description": "Missed evaluation means that group evaluation time takes longer than the configured evaluation interval. \nThis may result in missed alerting notifications or recording rules samples. Try increasing evaluation interval or concurrency for such groups. See https://docs.victoriametrics.com/vmalert.html#groups\n\nIf rule expressions are taking longer than expected, please see https://docs.victoriametrics.com/Troubleshooting.html#slow-queries.\"",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "bars",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 25
+      },
+      "id": 58,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "lastNotNull",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "9.2.6",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "sum(increase(vmalert_iteration_missed_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job, group) > 0",
+          "interval": "1m",
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Missed evaluations ($instance)",
+      "type": "timeseries"
+    },
+    {
       "collapsed": true,
       "datasource": {
         "type": "datasource",
@@ -1291,8 +1392,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -1403,8 +1503,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -1515,8 +1614,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -1629,8 +1727,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -1760,8 +1857,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -1866,8 +1962,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2144,7 +2239,7 @@
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "sum(vmalert_alerting_rules_error{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"}) by(job, group, alertname) > 0",
+              "expr": "sum(increase(vmalert_alerting_rules_errors_total{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"}[$__rate_interval])) by(job, group, alertname) > 0",
               "interval": "",
               "legendFormat": "{{group}}.{{alertname}} ({{job}})",
               "range": true,
@@ -2346,13 +2441,13 @@
                 "uid": "$ds"
               },
               "exemplar": false,
-              "expr": "sum(rate(vmalert_alerts_send_errors_total{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"}[$__rate_interval])) by(instance, addr) > 0",
+              "expr": "sum(rate(vmalert_alerts_send_errors_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(instance, addr) > 0",
               "interval": "",
               "legendFormat": "{{instance}} => {{addr}}",
               "refId": "A"
             }
           ],
-          "title": "Errors rate to Alertmanager ($group)",
+          "title": "Errors rate to Alertmanager",
           "type": "timeseries"
         },
         {
@@ -2776,7 +2871,7 @@
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "sum(vmalert_recording_rules_error{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"}) by(job, group, recording) > 0",
+              "expr": "sum(increase(vmalert_recording_rules_errors_total{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"}[$__rate_interval])) by(job, group, recording) > 0",
               "interval": "",
               "legendFormat": "{{group}}.{{recording}} ({{job}})",
               "range": true,

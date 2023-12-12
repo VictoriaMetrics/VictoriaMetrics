@@ -6,6 +6,8 @@ menu:
   docs:
     parent: "operator"
     weight: 8
+aliases:
+  - /operator/high-availability.html
 ---
 
 # High Availability

@@ -130,6 +130,13 @@ name: <string>
 # `eval_offset` can't be bigger than `interval`.
 [ eval_offset: <duration> ]
 
+# Optional
+# Adjust the `time` parameter of group evaluation requests to compensate intentional query delay from the datasource.
+# By default, the value is inherited from the `-rule.evalDelay` cmd-line flag - see its description for details.
+# If group has `latency_offset` set in `params`, then it is recommended to set `eval_delay` equal to `latency_offset`.
+# See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5155 and https://docs.victoriametrics.com/keyConcepts.html#query-latency.
+[ eval_delay: <duration> ]
+
 # Limit the number of alerts an alerting rule and series a recording
 # rule can produce. 0 is no limit.
 [ limit: <int> | default = 0 ]
@@ -498,7 +505,7 @@ rules execution, storing recording rules results and alerts state.
     -notifier.url=http://alertmanager:9093          # AlertManager addr to send alerts when they trigger
 ```
 
-<img alt="vmalert single" width="500" src="vmalert_single.png">
+<img alt="vmalert single" width="500" src="vmalert_single.webp">
 
 #### Cluster VictoriaMetrics
 
@@ -518,7 +525,7 @@ Cluster mode could have multiple `vminsert` and `vmselect` components.
     -notifier.url=http://alertmanager:9093                      # AlertManager addr to send alerts when they trigger
 ```
 
-<img alt="vmalert cluster" src="vmalert_cluster.png">
+<img alt="vmalert cluster" src="vmalert_cluster.webp">
 
 In case when you want to spread the load on these components - add balancers before them and configure
 `vmalert` with balancer addresses. Please, see more about VM's cluster architecture
@@ -542,14 +549,24 @@ Alertmanagers.
     -notifier.url=http://alertmanagerN:9093         # The same alert will be sent to all configured notifiers
 ```
 
-<img alt="vmalert ha" width="800px" src="vmalert_ha.png">
+<img alt="vmalert ha" width="800px" src="vmalert_ha.webp">
 
 To avoid recording rules results and alerts state duplication in VictoriaMetrics server
 don't forget to configure [deduplication](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#deduplication).
-The recommended value for `-dedup.minScrapeInterval` must be multiple of vmalert's `-evaluationInterval`.
+Multiple equally configured vmalerts should evaluate rules at the same timestamps, so it is recommended 
+to set `-dedup.minScrapeInterval` as equal to vmalert's `-evaluationInterval`.
+
+If you have multiple different `interval` params for distinct rule groups, then set `-dedup.minScrapeInterval` to
+the biggest `interval` value, or value which will be a multiple for all `interval` values. For example, if you have
+two groups with `interval: 10s` and `interval: 15s`, then set `-dedup.minScrapeInterval=30s`. This would consistently
+keep only a single data point on 30s time interval for all rules. However, try to avoid having inconsistent `interval`
+values.
+
+It is not recommended having `-dedup.minScrapeInterval` smaller than `-evaluationInterval`, as it may produce 
+results with inconsistent intervals between data points.
 
 Alertmanager will automatically deduplicate alerts with identical labels, so ensure that
-all `vmalert`s are having the same config.
+all `vmalert`s are having identical config.
 
 Don't forget to configure [cluster mode](https://prometheus.io/docs/alerting/latest/alertmanager/)
 for Alertmanagers for better reliability. List all Alertmanager URLs in vmalert `-notifier.url`
@@ -608,7 +625,7 @@ or reducing resolution) and push results to "cold" cluster.
     -remoteWrite.url=http://aggregated-cluster-vminsert:8480/insert/0/prometheus    # vminsert addr to persist recording rules results
 ```
 
-<img alt="vmalert multi cluster" src="vmalert_multicluster.png">
+<img alt="vmalert multi cluster" src="vmalert_multicluster.webp">
 
 Please note, [replay](#rules-backfilling) feature may be used for transforming historical data.
 
@@ -622,7 +639,7 @@ For persisting recording or alerting rule results `vmalert` requires `-remoteWri
 But this flag supports only one destination. To persist rule results to multiple destinations
 we recommend using [vmagent](https://docs.victoriametrics.com/vmagent.html) as fan-out proxy:
 
-<img alt="vmalert multiple remote write destinations" src="vmalert_multiple_rw.png">
+<img alt="vmalert multiple remote write destinations" src="vmalert_multiple_rw.webp">
 
 In this topology, `vmalert` is configured to persist rule results to `vmagent`. And `vmagent`
 is configured to fan-out received data to two or more destinations.
@@ -642,6 +659,7 @@ or time series modification via [relabeling](https://docs.victoriametrics.com/vm
   Used as alert source in AlertManager.
 * `http://<vmalert-addr>/vmalert/alert?group_id=<group_id>&alert_id=<alert_id>` - get alert status in web UI.
 * `http://<vmalert-addr>/vmalert/rule?group_id=<group_id>&rule_id=<rule_id>` - get rule status in web UI.
+* `http://<vmalert-addr>/vmalert/api/v1/rule?group_id=<group_id>&alert_id=<alert_id>` - get rule status in JSON format.
 * `http://<vmalert-addr>/metrics` - application metrics.
 * `http://<vmalert-addr>/-/reload` - hot configuration reload.
 
@@ -805,9 +823,7 @@ Try the following recommendations to reduce the chance of hitting the data delay
 [time series resolution](https://docs.victoriametrics.com/keyConcepts.html#time-series-resolution). For example,
 if expression is `rate(my_metric[2m]) > 0` then ensure that `my_metric` resolution is at least `1m` or better `30s`. 
 If you use VictoriaMetrics as datasource, `[duration]` can be omitted and VictoriaMetrics will adjust it automatically.
-* If you know in advance, that data in datasource is delayed - try changing vmalerts `-datasource.lookback`
-command-line flag to add a time shift for evaluations. Or extend `[duration]` to tolerate the delay.
-For example, `max_over_time(errors_total[10m]) > 0` will be active even if there is no data in datasource for last `9m`.
+* Extend `[duration]` in expr to help tolerate the delay. For example, `max_over_time(errors_total[10m]) > 0` will be active even if there is no data in datasource for last `9m`.
 * If [time series resolution](https://docs.victoriametrics.com/keyConcepts.html#time-series-resolution)
 in datasource is inconsistent or `>=5min` - try changing vmalerts `-datasource.queryStep` command-line flag to specify
 how far search query can lookback for the recent datapoint. The recommendation is to have the step 
@@ -815,9 +831,12 @@ at least two times bigger than the resolution.
 
 > Please note, data delay is inevitable in distributed systems. And it is better to account for it instead of ignoring.
 
-By default, recently written samples to VictoriaMetrics aren't visible for queries for up to 30s
-(see `-search.latencyOffset` command-line flag at vmselect). Such delay is needed to eliminate risk of incomplete
-data on the moment of querying, since metrics collectors won't be able to deliver the data in time.
+By default, recently written samples to VictoriaMetrics [aren't visible for queries](https://docs.victoriametrics.com/keyConcepts.html#query-latency)
+for up to 30s (see `-search.latencyOffset` command-line flag at vmselect or VictoriaMetrics single-node). Such delay is needed to eliminate risk of 
+incomplete data on the moment of querying, due to chance that metrics collectors won't be able to deliver that data in time.
+To compensate the latency in timestamps for produced evaluation results, `-rule.evalDelay` is also set to `30s` by default.
+If you expect data to be delayed for longer intervals (it gets buffered, queued, or just network is slow sometimes)
+- consider increasing the `-rule.evalDelay` value accordingly.
 
 ### Alerts state
 
@@ -836,7 +855,7 @@ state updates for each rule starting from [v1.86](https://docs.victoriametrics.c
 To check updates, click on `Details` link next to rule's name on `/vmalert/groups` page 
 and check the `Last updates` section:
 
-<img alt="vmalert state" src="vmalert_state.png">
+<img alt="vmalert state" src="vmalert_state.webp">
 
 Rows in the section represent ordered rule evaluations and their results. The column `curl` contains an example of
 HTTP request sent by vmalert to the `-datasource.url` during evaluation. If specific state shows that there were
@@ -980,7 +999,7 @@ The shortlist of configuration flags is the following:
   -datasource.headers string
      Optional HTTP extraHeaders to send with each request to the corresponding -datasource.url. For example, -datasource.headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding -datasource.url. Multiple headers must be delimited by '^^': -datasource.headers='header1:value1^^header2:value2'
   -datasource.lookback duration
-     Lookback defines how far into the past to look when evaluating queries. For example, if the datasource.lookback=5m then param "time" with value now()-5m will be added to every query.
+     Will be deprecated soon, please adjust "-search.latencyOffset"  at datasource side or specify "latency_offset" in rule group's params. Lookback defines how far into the past to look when evaluating queries. For example, if the datasource.lookback=5m then param "time" with value now()-5m will be added to every query.
   -datasource.maxIdleConnections int
      Defines the number of idle (keep-alive connections) to each configured datasource. Consider setting this value equal to the value: groups_total * group.concurrency. Too low a value may result in a high number of sockets in TIME_WAIT state. (default 100)
   -datasource.oauth2.clientID string
@@ -1048,6 +1067,12 @@ The shortlist of configuration flags is the following:
      Incoming http connections are closed after the configured timeout. This may help to spread the incoming load among a cluster of services behind a load balancer. Please note that the real timeout may be bigger by up to 10% as a protection against the thundering herd problem (default 2m0s)
   -http.disableResponseCompression
      Disable compression of HTTP responses to save CPU resources. By default, compression is enabled to save network bandwidth
+  -http.header.csp string
+     Value for 'Content-Security-Policy' header
+  -http.header.frameOptions string
+     Value for 'X-Frame-Options' header
+  -http.header.hsts string
+     Value for 'Strict-Transport-Security' header
   -http.idleConnTimeout duration
      Timeout for incoming idle http connections (default 1m0s)
   -http.maxGracefulShutdownDuration duration
@@ -1061,7 +1086,7 @@ The shortlist of configuration flags is the following:
   -httpAuth.username string
      Username for HTTP server's Basic Auth. The authentication is disabled if empty. See also -httpAuth.password
   -httpListenAddr string
-     Address to listen for http connections. See also -httpListenAddr.useProxyProtocol (default ":8880")
+     Address to listen for http connections. See also -tls and -httpListenAddr.useProxyProtocol (default ":8880")
   -httpListenAddr.useProxyProtocol
      Whether to use proxy protocol for connections accepted at -httpListenAddr . See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing
   -internStringCacheExpireDuration duration
@@ -1086,6 +1111,8 @@ The shortlist of configuration flags is the following:
      Allows renaming fields in JSON formatted logs. Example: "ts:timestamp,msg:message" renames "ts" to "timestamp" and "msg" to "message". Supported fields: ts, level, caller, msg
   -loggerLevel string
      Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC (default "INFO")
+  -loggerMaxArgLen int
+     The maximum length of a single logged argument. Longer arguments are replaced with 'arg_start..arg_end', where 'arg_start' and 'arg_end' is prefix and suffix of the arg with the length not exceeding -loggerMaxArgLen / 2 (default 1000)
   -loggerOutput string
      Output for the logs. Supported values: stderr, stdout (default "stderr")
   -loggerTimezone string
@@ -1114,8 +1141,8 @@ The shortlist of configuration flags is the following:
   -notifier.bearerTokenFile array
      Optional path to bearer token file for -notifier.url
      Supports an array of values separated by comma or specified via multiple flags.
-  -notifier.blackhole -notifier.url
-     Whether to blackhole alerting notifications. Enable this flag if you want vmalert to evaluate alerting rules without sending any notifications to external receivers (eg. alertmanager). -notifier.url, `-notifier.config` and `-notifier.blackhole` are mutually exclusive.
+  -notifier.blackhole
+     Whether to blackhole alerting notifications. Enable this flag if you want vmalert to evaluate alerting rules without sending any notifications to external receivers (eg. alertmanager). -notifier.url, -notifier.config and -notifier.blackhole are mutually exclusive.
   -notifier.config string
      Path to configuration file for notifiers
   -notifier.oauth2.clientID array
@@ -1228,7 +1255,7 @@ The shortlist of configuration flags is the following:
   -remoteWrite.bearerTokenFile string
      Optional path to bearer token file to use for -remoteWrite.url.
   -remoteWrite.concurrency int
-     Defines number of writers for concurrent writing into remote querier (default 1)
+     Defines number of writers for concurrent writing into remote write endpoint (default 1)
   -remoteWrite.disablePathAppend
      Whether to disable automatic appending of '/api/v1/write' path to the configured -remoteWrite.url.
   -remoteWrite.flushInterval duration
@@ -1298,13 +1325,14 @@ The shortlist of configuration flags is the following:
      See https://docs.victoriametrics.com/vmalert.html#reading-rules-from-object-storage
      
      Supports an array of values separated by comma or specified via multiple flags.
+  -rule.evalDelay time
+     Adjustment of the time parameter for rule evaluation requests to compensate intentional data delay from the datasource.Normally, should be equal to `-search.latencyOffset` (cmd-line flag configured for VictoriaMetrics single-node or vmselect). (default 30s)
   -rule.maxResolveDuration duration
-     Limits the maximum duration for automatic alert expiration, which by default is 4 times evaluationInterval of the parent group.
+     Limits the maxiMum duration for automatic alert expiration, which by default is 4 times evaluationInterval of the parent group
   -rule.resendDelay duration
-     Minimum amount of time to wait before resending an alert to notifier
+     MiniMum amount of time to wait before resending an alert to notifier
   -rule.templates array
-     Path or glob pattern to location with go template definitions
-     	for rules annotations templating. Flag can be specified multiple times.
+     Path or glob pattern to location with go template definitions for rules annotations templating. Flag can be specified multiple times.
      Examples:
       -rule.templates="/path/to/file". Path to a single file with go templates
       -rule.templates="dir/*.tpl" -rule.templates="/*.tpl". Relative path to all .tpl files in "dir" folder,
@@ -1393,8 +1421,11 @@ For example:
 ```yaml
 static_configs:
   - targets:
+      # support using full url
+      - 'http://alertmanager:9093/test/api/v2/alerts'
+      - 'https://alertmanager:9093/api/v2/alerts'
+      # the following target with only host:port will be used as <scheme>://localhost:9093/<path_prefix>/api/v2/alerts
       - localhost:9093
-      - localhost:9095
 
 consul_sd_configs:
   - server: localhost:8500

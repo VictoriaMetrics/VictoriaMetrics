@@ -1,5 +1,7 @@
 PKG_PREFIX := github.com/VictoriaMetrics/VictoriaMetrics
 
+MAKE_CONCURRENCY ?= $(shell cat /proc/cpuinfo | grep -c processor)
+MAKE_PARALLEL := $(MAKE) -j $(MAKE_CONCURRENCY)
 DATEINFO_TAG ?= $(shell date -u +'%Y%m%d-%H%M%S')
 BUILDINFO_TAG ?= $(shell echo $$(git describe --long --all | tr '/' '-')$$( \
 	      git diff-index --quiet HEAD -- || echo '-dirty-'$$(git diff-index -u HEAD | openssl sha1 | cut -d' ' -f2 | cut -c 1-8)))
@@ -15,6 +17,7 @@ GO_BUILDINFO = -X '$(PKG_PREFIX)/lib/buildinfo.Version=$(APP_NAME)-$(DATEINFO_TA
 .PHONY: $(MAKECMDGOALS)
 
 include app/*/Makefile
+include docs/Makefile
 include deployment/*/Makefile
 include dashboards/Makefile
 include snap/local/Makefile
@@ -25,150 +28,152 @@ all: \
 	victoria-logs-prod \
 	vmagent-prod \
 	vmalert-prod \
+	vmalert-tool-prod \
 	vmauth-prod \
 	vmbackup-prod \
 	vmrestore-prod \
-	vmctl-prod \
-	vmalert-tool-prod
+	vmctl-prod
 
 clean:
 	rm -rf bin/*
 
-publish: package-base \
+publish: \
 	publish-victoria-metrics \
 	publish-vmagent \
 	publish-vmalert \
+	publish-vmalert-tool \
 	publish-vmauth \
 	publish-vmbackup \
 	publish-vmrestore \
-	publish-vmctl \
-	publish-vmalert-tool
+	publish-vmctl
 
 package: \
 	package-victoria-metrics \
 	package-victoria-logs \
 	package-vmagent \
 	package-vmalert \
+	package-vmalert-tool \
 	package-vmauth \
 	package-vmbackup \
 	package-vmrestore \
-	package-vmctl \
-	package-vmalert-tool
+	package-vmctl
 
 vmutils: \
 	vmagent \
 	vmalert \
+	vmalert-tool \
 	vmauth \
 	vmbackup \
 	vmrestore \
-	vmctl \
-	vmalert-tool
+	vmctl
 
 vmutils-pure: \
 	vmagent-pure \
 	vmalert-pure \
+	vmalert-tool-pure \
 	vmauth-pure \
 	vmbackup-pure \
 	vmrestore-pure \
-	vmctl-pure \
-	vmalert-tool-pure
+	vmctl-pure
 
 vmutils-linux-amd64: \
 	vmagent-linux-amd64 \
 	vmalert-linux-amd64 \
+	vmalert-tool-linux-amd64 \
 	vmauth-linux-amd64 \
 	vmbackup-linux-amd64 \
 	vmrestore-linux-amd64 \
-	vmctl-linux-amd64 \
-	vmalert-tool-linux-amd64
+	vmctl-linux-amd64
 
 vmutils-linux-arm64: \
 	vmagent-linux-arm64 \
 	vmalert-linux-arm64 \
+	vmalert-tool-linux-arm64 \
 	vmauth-linux-arm64 \
 	vmbackup-linux-arm64 \
 	vmrestore-linux-arm64 \
-	vmctl-linux-arm64 \
-	vmalert-tool-linux-arm64
+	vmctl-linux-arm64
 
 vmutils-linux-arm: \
 	vmagent-linux-arm \
 	vmalert-linux-arm \
+	vmalert-tool-linux-arm \
 	vmauth-linux-arm \
 	vmbackup-linux-arm \
 	vmrestore-linux-arm \
-	vmctl-linux-arm \
-	vmalert-tool-linux-arm
+	vmctl-linux-arm
 
 vmutils-linux-386: \
 	vmagent-linux-386 \
 	vmalert-linux-386 \
+	vmalert-tool-linux-386 \
 	vmauth-linux-386 \
 	vmbackup-linux-386 \
 	vmrestore-linux-386 \
-	vmctl-linux-386 \
-	vmalert-tool-linux-386
+	vmctl-linux-386
 
 vmutils-linux-ppc64le: \
 	vmagent-linux-ppc64le \
 	vmalert-linux-ppc64le \
+	vmalert-tool-linux-ppc64le \
 	vmauth-linux-ppc64le \
 	vmbackup-linux-ppc64le \
 	vmrestore-linux-ppc64le \
-	vmctl-linux-ppc64le \
-	vmalert-tool-linux-ppc64le
+	vmctl-linux-ppc64le
 
 vmutils-darwin-amd64: \
 	vmagent-darwin-amd64 \
 	vmalert-darwin-amd64 \
+	vmalert-tool-darwin-amd64 \
 	vmauth-darwin-amd64 \
 	vmbackup-darwin-amd64 \
 	vmrestore-darwin-amd64 \
-	vmctl-darwin-amd64 \
-	vmalert-tool-darwin-amd64
+	vmctl-darwin-amd64
 
 vmutils-darwin-arm64: \
 	vmagent-darwin-arm64 \
 	vmalert-darwin-arm64 \
+	vmalert-tool-darwin-arm64 \
 	vmauth-darwin-arm64 \
 	vmbackup-darwin-arm64 \
 	vmrestore-darwin-arm64 \
-	vmctl-darwin-arm64 \
-	vmalert-tool-darwin-arm64
+	vmctl-darwin-arm64
 
 vmutils-freebsd-amd64: \
 	vmagent-freebsd-amd64 \
 	vmalert-freebsd-amd64 \
+	vmalert-tool-freebsd-amd64 \
 	vmauth-freebsd-amd64 \
 	vmbackup-freebsd-amd64 \
 	vmrestore-freebsd-amd64 \
-	vmctl-freebsd-amd64 \
-	vmalert-tool-freebsd-amd64
+	vmctl-freebsd-amd64
 
 vmutils-openbsd-amd64: \
 	vmagent-openbsd-amd64 \
 	vmalert-openbsd-amd64 \
+	vmalert-tool-openbsd-amd64 \
 	vmauth-openbsd-amd64 \
 	vmbackup-openbsd-amd64 \
 	vmrestore-openbsd-amd64 \
-	vmctl-openbsd-amd64 \
-	vmalert-tool-openbsd-amd64
+	vmctl-openbsd-amd64
 
 vmutils-windows-amd64: \
 	vmagent-windows-amd64 \
 	vmalert-windows-amd64 \
+	vmalert-tool-windows-amd64 \
 	vmauth-windows-amd64 \
 	vmbackup-windows-amd64 \
 	vmrestore-windows-amd64 \
-	vmctl-windows-amd64 \
-	vmalert-tool-windows-amd64
+	vmctl-windows-amd64
+
+crossbuild:
+	$(MAKE_PARALLEL) victoria-metrics-crossbuild vmutils-crossbuild
 
 victoria-metrics-crossbuild: \
 	victoria-metrics-linux-386 \
 	victoria-metrics-linux-amd64 \
 	victoria-metrics-linux-arm64 \
 	victoria-metrics-linux-arm \
-	victoria-metrics-linux-386 \
 	victoria-metrics-linux-ppc64le \
 	victoria-metrics-darwin-amd64 \
 	victoria-metrics-darwin-arm64 \
@@ -180,7 +185,6 @@ vmutils-crossbuild: \
 	vmutils-linux-amd64 \
 	vmutils-linux-arm64 \
 	vmutils-linux-arm \
-	vmutils-linux-386 \
 	vmutils-linux-ppc64le \
 	vmutils-darwin-amd64 \
 	vmutils-darwin-arm64 \
@@ -190,14 +194,15 @@ vmutils-crossbuild: \
 
 publish-release:
 	rm -rf bin/*
-	git checkout $(TAG) && LATEST_TAG=stable $(MAKE) release publish && \
-		git checkout $(TAG)-cluster && LATEST_TAG=cluster-stable $(MAKE) release publish && \
-		git checkout $(TAG)-enterprise && LATEST_TAG=enterprise-stable $(MAKE) release publish && \
-		git checkout $(TAG)-enterprise-cluster && LATEST_TAG=enterprise-cluster-stable $(MAKE) release publish
+	git checkout $(TAG) && $(MAKE) release && LATEST_TAG=stable $(MAKE) publish && \
+		git checkout $(TAG)-cluster && $(MAKE) release && LATEST_TAG=cluster-stable $(MAKE) publish && \
+		git checkout $(TAG)-enterprise && $(MAKE) release && LATEST_TAG=enterprise-stable $(MAKE) publish && \
+		git checkout $(TAG)-enterprise-cluster && $(MAKE) release && LATEST_TAG=enterprise-cluster-stable $(MAKE) publish
 
-release: \
-	release-victoria-metrics \
-	release-vmutils
+release:
+	$(MAKE_PARALLEL) \
+		release-victoria-metrics \
+		release-vmutils
 
 release-victoria-metrics: \
 	release-victoria-metrics-linux-386 \
@@ -256,16 +261,16 @@ release-victoria-metrics-windows-goarch: victoria-metrics-windows-$(GOARCH)-prod
 	cd bin && rm -rf \
 		victoria-metrics-windows-$(GOARCH)-prod.exe
 
-release-victoria-logs: \
-	release-victoria-logs-linux-386 \
-	release-victoria-logs-linux-amd64 \
-	release-victoria-logs-linux-arm \
-	release-victoria-logs-linux-arm64 \
-	release-victoria-logs-darwin-amd64 \
-	release-victoria-logs-darwin-arm64 \
-	release-victoria-logs-freebsd-amd64 \
-	release-victoria-logs-openbsd-amd64 \
-	release-victoria-logs-windows-amd64
+release-victoria-logs:
+	$(MAKE_PARALLEL) release-victoria-logs-linux-386 \
+		release-victoria-logs-linux-amd64 \
+		release-victoria-logs-linux-arm \
+		release-victoria-logs-linux-arm64 \
+		release-victoria-logs-darwin-amd64 \
+		release-victoria-logs-darwin-arm64 \
+		release-victoria-logs-freebsd-amd64 \
+		release-victoria-logs-openbsd-amd64 \
+		release-victoria-logs-windows-amd64
 
 release-victoria-logs-linux-386:
 	GOOS=linux GOARCH=386 $(MAKE) release-victoria-logs-goos-goarch
@@ -354,72 +359,72 @@ release-vmutils-windows-amd64:
 release-vmutils-goos-goarch: \
 	vmagent-$(GOOS)-$(GOARCH)-prod \
 	vmalert-$(GOOS)-$(GOARCH)-prod \
+	vmalert-tool-$(GOOS)-$(GOARCH)-prod \
 	vmauth-$(GOOS)-$(GOARCH)-prod \
 	vmbackup-$(GOOS)-$(GOARCH)-prod \
 	vmrestore-$(GOOS)-$(GOARCH)-prod \
-	vmctl-$(GOOS)-$(GOARCH)-prod \
-	vmalert-tool-$(GOOS)-$(GOARCH)-prod
+	vmctl-$(GOOS)-$(GOARCH)-prod
 	cd bin && \
 		tar --transform="flags=r;s|-$(GOOS)-$(GOARCH)||" -czf vmutils-$(GOOS)-$(GOARCH)-$(PKG_TAG).tar.gz \
 			vmagent-$(GOOS)-$(GOARCH)-prod \
 			vmalert-$(GOOS)-$(GOARCH)-prod \
+			vmalert-tool-$(GOOS)-$(GOARCH)-prod \
 			vmauth-$(GOOS)-$(GOARCH)-prod \
 			vmbackup-$(GOOS)-$(GOARCH)-prod \
 			vmrestore-$(GOOS)-$(GOARCH)-prod \
 			vmctl-$(GOOS)-$(GOARCH)-prod \
-			vmalert-tool-$(GOOS)-$(GOARCH)-prod
 		&& sha256sum vmutils-$(GOOS)-$(GOARCH)-$(PKG_TAG).tar.gz \
 			vmagent-$(GOOS)-$(GOARCH)-prod \
 			vmalert-$(GOOS)-$(GOARCH)-prod \
+			vmalert-tool-$(GOOS)-$(GOARCH)-prod \
 			vmauth-$(GOOS)-$(GOARCH)-prod \
 			vmbackup-$(GOOS)-$(GOARCH)-prod \
 			vmrestore-$(GOOS)-$(GOARCH)-prod \
 			vmctl-$(GOOS)-$(GOARCH)-prod \
-			vmalert-tool-$(GOOS)-$(GOARCH)-prod \
 			| sed s/-$(GOOS)-$(GOARCH)-prod/-prod/ > vmutils-$(GOOS)-$(GOARCH)-$(PKG_TAG)_checksums.txt
 	cd bin && rm -rf \
 		vmagent-$(GOOS)-$(GOARCH)-prod \
 		vmalert-$(GOOS)-$(GOARCH)-prod \
+		vmalert-tool-$(GOOS)-$(GOARCH)-prod \
 		vmauth-$(GOOS)-$(GOARCH)-prod \
 		vmbackup-$(GOOS)-$(GOARCH)-prod \
 		vmrestore-$(GOOS)-$(GOARCH)-prod \
-		vmctl-$(GOOS)-$(GOARCH)-prod \
-		vmalert-tool-$(GOOS)-$(GOARCH)-prod
+		vmctl-$(GOOS)-$(GOARCH)-prod
 
 release-vmutils-windows-goarch: \
 	vmagent-windows-$(GOARCH)-prod \
 	vmalert-windows-$(GOARCH)-prod \
+	vmalert-tool-windows-$(GOARCH)-prod \
 	vmauth-windows-$(GOARCH)-prod \
 	vmbackup-windows-$(GOARCH)-prod \
 	vmrestore-windows-$(GOARCH)-prod \
-	vmctl-windows-$(GOARCH)-prod \
-	vmalert-tool-windows-$(GOARCH)-prod
+	vmctl-windows-$(GOARCH)-prod
 	cd bin && \
 		zip vmutils-windows-$(GOARCH)-$(PKG_TAG).zip \
 			vmagent-windows-$(GOARCH)-prod.exe \
 			vmalert-windows-$(GOARCH)-prod.exe \
+			vmalert-tool-windows-$(GOARCH)-prod.exe \
 			vmauth-windows-$(GOARCH)-prod.exe \
 			vmbackup-windows-$(GOARCH)-prod.exe \
 			vmrestore-windows-$(GOARCH)-prod.exe \
 			vmctl-windows-$(GOARCH)-prod.exe \
-			vmalert-tool-windows-$(GOARCH)-prod.exe \
 		&& sha256sum vmutils-windows-$(GOARCH)-$(PKG_TAG).zip \
 			vmagent-windows-$(GOARCH)-prod.exe \
 			vmalert-windows-$(GOARCH)-prod.exe \
+			vmalert-tool-windows-$(GOARCH)-prod.exe \
 			vmauth-windows-$(GOARCH)-prod.exe \
 			vmbackup-windows-$(GOARCH)-prod.exe \
 			vmrestore-windows-$(GOARCH)-prod.exe \
 			vmctl-windows-$(GOARCH)-prod.exe \
-			vmalert-tool-windows-$(GOARCH)-prod.exe \
 			> vmutils-windows-$(GOARCH)-$(PKG_TAG)_checksums.txt
 	cd bin && rm -rf \
 		vmagent-windows-$(GOARCH)-prod.exe \
 		vmalert-windows-$(GOARCH)-prod.exe \
+		vmalert-tool-windows-$(GOARCH)-prod.exe \
 		vmauth-windows-$(GOARCH)-prod.exe \
 		vmbackup-windows-$(GOARCH)-prod.exe \
 		vmrestore-windows-$(GOARCH)-prod.exe \
-		vmctl-windows-$(GOARCH)-prod.exe \
-		vmalert-tool-windows-$(GOARCH)-prod.exe
+		vmctl-windows-$(GOARCH)-prod.exe
 
 pprof-cpu:
 	go tool pprof -trim_path=github.com/VictoriaMetrics/VictoriaMetrics@ $(PPROF_FILE)
@@ -486,7 +491,7 @@ golangci-lint: install-golangci-lint
 	golangci-lint run
 
 install-golangci-lint:
-	which golangci-lint || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.54.2
+	which golangci-lint || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.55.1
 
 govulncheck: install-govulncheck
 	govulncheck ./...
@@ -529,12 +534,3 @@ copy-docs:
 docs-sync:
 	SRC=README.md DST=docs/README.md OLD_URL='' ORDER=0 TITLE=VictoriaMetrics $(MAKE) copy-docs
 	SRC=README.md DST=docs/Single-server-VictoriaMetrics.md OLD_URL='/Single-server-VictoriaMetrics.html' TITLE=VictoriaMetrics ORDER=1 $(MAKE) copy-docs
-	SRC=app/vmagent/README.md DST=docs/vmagent.md OLD_URL='/vmagent.html' ORDER=3 TITLE=vmagent $(MAKE) copy-docs
-	SRC=app/vmalert/README.md DST=docs/vmalert.md OLD_URL='/vmalert.html' ORDER=4 TITLE=vmalert $(MAKE) copy-docs
-	SRC=app/vmauth/README.md DST=docs/vmauth.md OLD_URL='/vmauth.html' ORDER=5 TITLE=vmauth $(MAKE) copy-docs
-	SRC=app/vmbackup/README.md DST=docs/vmbackup.md OLD_URL='/vmbackup.html' ORDER=6 TITLE=vmbackup $(MAKE) copy-docs
-	SRC=app/vmrestore/README.md DST=docs/vmrestore.md OLD_URL='/vmrestore.html' ORDER=7 TITLE=vmrestore $(MAKE) copy-docs
-	SRC=app/vmctl/README.md DST=docs/vmctl.md OLD_URL='/vmctl.html' ORDER=8 TITLE=vmctl $(MAKE) copy-docs
-	SRC=app/vmgateway/README.md DST=docs/vmgateway.md OLD_URL='/vmgateway.html' ORDER=9 TITLE=vmgateway $(MAKE) copy-docs
-	SRC=app/vmbackupmanager/README.md DST=docs/vmbackupmanager.md OLD_URL='/vmbackupmanager.html' ORDER=10 TITLE=vmbackupmanager $(MAKE) copy-docs
-	SRC=app/vmalert-tool/README.md DST=docs/vmalert-tool.md OLD_URL='' ORDER=12 TITLE=vmalert-tool $(MAKE) copy-docs

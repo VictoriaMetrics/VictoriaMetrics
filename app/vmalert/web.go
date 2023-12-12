@@ -132,6 +132,24 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		w.Header().Set("Content-Type", "application/json")
 		w.Write(data)
 		return true
+	case "/vmalert/api/v1/rule", "/api/v1/rule":
+		rule, err := rh.getRule(r)
+		if err != nil {
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		rwu := apiRuleWithUpdates{
+			apiRule:      rule,
+			StateUpdates: rule.Updates,
+		}
+		data, err := json.Marshal(rwu)
+		if err != nil {
+			httpserver.Errorf(w, r, "failed to marshal rule: %s", err)
+			return true
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(data)
+		return true
 	case "/-/reload":
 		logger.Infof("api config reload was called, sending sighup")
 		procutil.SelfSIGHUP()
@@ -147,11 +165,11 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 func (rh *requestHandler) getRule(r *http.Request) (apiRule, error) {
 	groupID, err := strconv.ParseUint(r.FormValue(paramGroupID), 10, 64)
 	if err != nil {
-		return apiRule{}, fmt.Errorf("failed to read %q param: %s", paramGroupID, err)
+		return apiRule{}, fmt.Errorf("failed to read %q param: %w", paramGroupID, err)
 	}
 	ruleID, err := strconv.ParseUint(r.FormValue(paramRuleID), 10, 64)
 	if err != nil {
-		return apiRule{}, fmt.Errorf("failed to read %q param: %s", paramRuleID, err)
+		return apiRule{}, fmt.Errorf("failed to read %q param: %w", paramRuleID, err)
 	}
 	obj, err := rh.m.ruleAPI(groupID, ruleID)
 	if err != nil {
@@ -163,11 +181,11 @@ func (rh *requestHandler) getRule(r *http.Request) (apiRule, error) {
 func (rh *requestHandler) getAlert(r *http.Request) (*apiAlert, error) {
 	groupID, err := strconv.ParseUint(r.FormValue(paramGroupID), 10, 64)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read %q param: %s", paramGroupID, err)
+		return nil, fmt.Errorf("failed to read %q param: %w", paramGroupID, err)
 	}
 	alertID, err := strconv.ParseUint(r.FormValue(paramAlertID), 10, 64)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read %q param: %s", paramAlertID, err)
+		return nil, fmt.Errorf("failed to read %q param: %w", paramAlertID, err)
 	}
 	a, err := rh.m.alertAPI(groupID, alertID)
 	if err != nil {

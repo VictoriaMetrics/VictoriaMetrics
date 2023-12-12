@@ -579,7 +579,7 @@ func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 	samplesDropped := 0
 	sr, err := sw.GetStreamReader()
 	if err != nil {
-		err = fmt.Errorf("cannot read data: %s", err)
+		err = fmt.Errorf("cannot read data: %w", err)
 	} else {
 		var mu sync.Mutex
 		err = sbr.Init(sr)
@@ -827,7 +827,7 @@ func (sw *scrapeWork) sendStaleSeries(lastScrape, currScrape string, timestamp i
 			return nil
 		}, sw.logError)
 		if err != nil {
-			sw.logError(fmt.Errorf("cannot send stale markers: %s", err).Error())
+			sw.logError(fmt.Errorf("cannot send stale markers: %w", err).Error())
 		}
 	}
 	if addAutoSeries {
@@ -891,7 +891,7 @@ func (sw *scrapeWork) addAutoMetrics(am *autoMetrics, wc *writeRequestCtx, times
 	sw.addAutoTimeseries(wc, "scrape_series_added", float64(am.seriesAdded), timestamp)
 	sw.addAutoTimeseries(wc, "scrape_timeout_seconds", sw.Config.ScrapeTimeout.Seconds(), timestamp)
 	if sampleLimit := sw.Config.SampleLimit; sampleLimit > 0 {
-		// Expose scrape_samples_limit metric if sample_limt config is set for the target.
+		// Expose scrape_samples_limit metric if sample_limit config is set for the target.
 		// See https://github.com/VictoriaMetrics/operator/issues/497
 		sw.addAutoTimeseries(wc, "scrape_samples_limit", float64(sampleLimit), timestamp)
 	}

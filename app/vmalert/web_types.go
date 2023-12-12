@@ -94,6 +94,10 @@ type apiGroup struct {
 	NotifierHeaders []string `json:"notifier_headers,omitempty"`
 	// Labels is a set of label value pairs, that will be added to every rule.
 	Labels map[string]string `json:"labels,omitempty"`
+	// EvalOffset Group will be evaluated at the exact time offset on the range of [0...evaluationInterval]
+	EvalOffset float64 `json:"eval_offset,omitempty"`
+	// EvalDelay will adjust the `time` parameter of rule evaluation requests to compensate intentional query delay from datasource.
+	EvalDelay float64 `json:"eval_delay,omitempty"`
 }
 
 // groupAlerts represents a group of alerts for WEB view
@@ -147,6 +151,10 @@ type apiRule struct {
 	ID string `json:"id"`
 	// GroupID is an unique Group's ID
 	GroupID string `json:"group_id"`
+	// GroupName is Group name rule belong to
+	GroupName string `json:"group_name"`
+	// File is file name where rule is defined
+	File string `json:"file"`
 	// Debug shows whether debug mode is enabled
 	Debug bool `json:"debug"`
 
@@ -154,6 +162,19 @@ type apiRule struct {
 	MaxUpdates int `json:"max_updates_entries"`
 	// Updates contains the ordered list of recorded ruleStateEntry objects
 	Updates []rule.StateEntry `json:"-"`
+}
+
+// apiRuleWithUpdates represents apiRule but with extra fields for marshalling
+type apiRuleWithUpdates struct {
+	apiRule
+	// Updates contains the ordered list of recorded ruleStateEntry objects
+	StateUpdates []rule.StateEntry `json:"updates,omitempty"`
+}
+
+// APILink returns a link to the rule's JSON representation.
+func (ar apiRule) APILink() string {
+	return fmt.Sprintf("api/v1/rule?%s=%s&%s=%s",
+		paramGroupID, ar.GroupID, paramRuleID, ar.ID)
 }
 
 // WebLink returns a link to the alert which can be used in UI.
@@ -223,8 +244,10 @@ func alertingToAPI(ar *rule.AlertingRule) apiRule {
 		Debug:             ar.Debug,
 
 		// encode as strings to avoid rounding in JSON
-		ID:      fmt.Sprintf("%d", ar.ID()),
-		GroupID: fmt.Sprintf("%d", ar.GroupID),
+		ID:        fmt.Sprintf("%d", ar.ID()),
+		GroupID:   fmt.Sprintf("%d", ar.GroupID),
+		GroupName: ar.GroupName,
+		File:      ar.File,
 	}
 	if lastState.Err != nil {
 		r.LastError = lastState.Err.Error()
@@ -308,6 +331,12 @@ func groupToAPI(g *rule.Group) apiGroup {
 		NotifierHeaders: headersToStrings(g.NotifierHeaders),
 
 		Labels: g.Labels,
+	}
+	if g.EvalOffset != nil {
+		ag.EvalOffset = g.EvalOffset.Seconds()
+	}
+	if g.EvalDelay != nil {
+		ag.EvalDelay = g.EvalDelay.Seconds()
 	}
 	ag.Rules = make([]apiRule, 0)
 	for _, r := range g.Rules {

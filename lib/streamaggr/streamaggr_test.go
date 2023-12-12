@@ -686,6 +686,35 @@ cpu_usage{cpu="2"} 90
 cpu_usage:1m_without_cpu_quantiles{quantile="0.5"} 13.3
 cpu_usage:1m_without_cpu_quantiles{quantile="1"} 90
 `, "1111111")
+
+	// append additional label
+	f(`
+- interval: 1m
+  without: [abc]
+  outputs: [count_samples, sum_samples, count_series]
+  output_relabel_configs:
+  - action: replace_all
+    source_labels: [__name__]
+    regex: ":|_"
+    replacement: "-"
+    target_label: __name__
+  - action: drop
+    source_labels: [de]
+    regex: fg
+  - target_label: new_label
+    replacement: must_keep_metric_name
+`, `
+foo{abc="123"} 4
+bar 5
+foo{abc="123"} 8.5
+foo{abc="456",de="fg"} 8
+`, `bar-1m-without-abc-count-samples{new_label="must_keep_metric_name"} 1
+bar-1m-without-abc-count-series{new_label="must_keep_metric_name"} 1
+bar-1m-without-abc-sum-samples{new_label="must_keep_metric_name"} 5
+foo-1m-without-abc-count-samples{new_label="must_keep_metric_name"} 2
+foo-1m-without-abc-count-series{new_label="must_keep_metric_name"} 1
+foo-1m-without-abc-sum-samples{new_label="must_keep_metric_name"} 12.5
+`, "1111")
 }
 
 func TestAggregatorsWithDedupInterval(t *testing.T) {
