@@ -1029,7 +1029,7 @@ for every point of every time series returned by `q`.
 
 Metric names are stripped from the resulting series. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
-This function is supported by PromQL. This function is supported by PromQL. See also [acosh](#acosh).
+This function is supported by PromQL. See also [acosh](#acosh).
 
 #### day_of_month
 
@@ -1044,6 +1044,15 @@ This function is supported by PromQL.
 
 `day_of_week(q)` is a [transform function](#transform-functions), which returns the day of week for every point of every time series returned by `q`.
 It is expected that `q` returns unix timestamps. The returned values are in the range `[0...6]`, where `0` means Sunday and `6` means Saturday.
+
+Metric names are stripped from the resulting series. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
+
+This function is supported by PromQL.
+
+#### day_of_year
+
+`day_of_year(q)` is a [transform function](#transform-functions), which returns the day of year for every point of every time series returned by `q`.
+It is expected that `q` returns unix timestamps. The returned values are in the range `[1...365]` for non-leap years, and `[1 to 366]` in leap years.
 
 Metric names are stripped from the resulting series. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
