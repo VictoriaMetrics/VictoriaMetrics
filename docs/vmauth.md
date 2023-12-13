@@ -74,13 +74,13 @@ unauthorized_user:
 
 ### Generic HTTP proxy for different backends
 
-`vmauth` can proxy requests to different backends depending on the requested path.
+`vmauth` can proxy requests to different backends depending on the requested host and/or path.
 For example, the following [`-auth.config`](#auth-config) instructs `vmauth` to make the following:
 
-- Requests starting with `/app1/` are proxied to `http://app1-backend/`. For example, the request to `http://vmauth:8427/app1/foo/bar?baz=qwe`
-  is proxied to `http://app1-backend/foo/bar?baz=qwe`.
-- Requests starting with `/app2/` are proxied to `http://app2-backend/`. For example, the request to `http://vmauth:8427/app2/index.html`
-  is proxied to `http://app2-backend/index.html`.
+- Requests starting with `/app1/` are proxied to `http://app1-backend/`, while the `/app1/` path prefix is dropped according to [`drop_src_path_prefix_parts`](#dropping-request-path-prefix).
+  For example, the request to `http://vmauth:8427/app1/foo/bar?baz=qwe` is proxied to `http://app1-backend/foo/bar?baz=qwe`.
+- Requests starting with `/app2/` are proxied to `http://app2-backend/`, while the `/app2/` path prefix is dropped according to [`drop_src_path_prefix_parts`](#dropping-request-path-prefix).
+  For example, the request to `http://vmauth:8427/app2/index.html` is proxied to `http://app2-backend/index.html`.
 - Other requests are proxied to `http://some-backend/404-page.html`, while the requested path is passed via `request_path` query arg.
   For example, the request to `http://vmauth:8427/foo/bar?baz=qwe` is proxied to `http://some-backend/404-page.html?request_path=%2Ffoo%2Fbar%3Fbaz%3Dqwe`.
 
@@ -98,8 +98,23 @@ unauthorized_user:
   default_url: http://some-backend/404-page.html
 ```
 
-See [these docs](#dropping-request-path-prefix) for more details.
+The following config routes requests to host `app1.my-host.com` to `http://app1-backend`, while routing requests to `app2.my-host.com` to `http://app2-backend`:
 
+```yml
+unauthorized_user:
+  url_map:
+  - src_hosts:
+    - "app1\\.my-host\\.com"
+    url_prefix: "http://app1-backend/"
+  - src_paths:
+    - "app2\\.my-host\\.com"
+    url_prefix: "http://app2-backend/"
+```
+
+`src_paths` and `src_hosts` accept a list of [regular expressions](https://github.com/google/re2/wiki/Syntax). The incoming request is routed to the given `url_prefix`
+if the whole request path matches at least one `src_paths` entry. The incoming request is routed to the given `url_prefix` if the whole request host matches at least one `src_hosts` entry.
+If both `src_paths` and `src_hosts` lists are specified, then the request is routed to the given `url_prefix` when both request path and request host match at least one entry
+in the corresponding lists.
 
 ### Generic HTTP load balancer
 
@@ -603,7 +618,7 @@ users:
   #  - to http://default1:8888/unsupported_url_handler?request_path=/non/existing/path
   #  - or http://default2:8888/unsupported_url_handler?request_path=/non/existing/path
   #
-  # Regular expressions are allowed in `src_paths` entries.
+  # Regular expressions are allowed in `src_paths` and `src_hosts` entries.
 - username: "foobar"
   url_map:
   - src_paths:

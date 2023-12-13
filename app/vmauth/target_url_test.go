@@ -149,7 +149,8 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 	ui := &UserInfo{
 		URLMaps: []URLMap{
 			{
-				SrcPaths:  getSrcPaths([]string{"/vmsingle/api/v1/query"}),
+				SrcHosts:  getRegexs([]string{"host42"}),
+				SrcPaths:  getRegexs([]string{"/vmsingle/api/v1/query"}),
 				URLPrefix: mustParseURL("http://vmselect/0/prometheus"),
 				HeadersConf: HeadersConf{
 					RequestHeaders: []Header{
@@ -174,7 +175,7 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 				DropSrcPathPrefixParts: 1,
 			},
 			{
-				SrcPaths:  getSrcPaths([]string{"/api/v1/write"}),
+				SrcPaths:  getRegexs([]string{"/api/v1/write"}),
 				URLPrefix: mustParseURL("http://vminsert/0/prometheus"),
 			},
 		},
@@ -192,20 +193,27 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 		RetryStatusCodes:       []int{502},
 		DropSrcPathPrefixParts: 2,
 	}
-	f(ui, "/vmsingle/api/v1/query?query=up", "http://vmselect/0/prometheus/api/v1/query?query=up", `[{"xx" "aa"} {"yy" "asdf"}]`, `[{"qwe" "rty"}]`, []int{503, 500, 501}, "first_available", 1)
-	f(ui, "/api/v1/write", "http://vminsert/0/prometheus/api/v1/write", "[]", "[]", []int{502}, "least_loaded", 0)
-	f(ui, "/foo/bar/api/v1/query_range", "http://default-server/api/v1/query_range", `[{"bb" "aaa"}]`, `[{"x" "y"}]`, []int{502}, "least_loaded", 2)
+	f(ui, "http://host42/vmsingle/api/v1/query?query=up", "http://vmselect/0/prometheus/api/v1/query?query=up",
+		`[{"xx" "aa"} {"yy" "asdf"}]`, `[{"qwe" "rty"}]`, []int{503, 500, 501}, "first_available", 1)
+	f(ui, "http://host123/vmsingle/api/v1/query?query=up", "http://default-server/v1/query?query=up",
+		`[{"bb" "aaa"}]`, `[{"x" "y"}]`, []int{502}, "least_loaded", 2)
+	f(ui, "https://foo-host/api/v1/write", "http://vminsert/0/prometheus/api/v1/write", "[]", "[]", []int{502}, "least_loaded", 0)
+	f(ui, "https://foo-host/foo/bar/api/v1/query_range", "http://default-server/api/v1/query_range", `[{"bb" "aaa"}]`, `[{"x" "y"}]`, []int{502}, "least_loaded", 2)
 
 	// Complex routing regexp paths in `url_map`
 	ui = &UserInfo{
 		URLMaps: []URLMap{
 			{
-				SrcPaths:  getSrcPaths([]string{"/api/v1/query(_range)?", "/api/v1/label/[^/]+/values"}),
+				SrcPaths:  getRegexs([]string{"/api/v1/query(_range)?", "/api/v1/label/[^/]+/values"}),
 				URLPrefix: mustParseURL("http://vmselect/0/prometheus"),
 			},
 			{
-				SrcPaths:  getSrcPaths([]string{"/api/v1/write"}),
+				SrcPaths:  getRegexs([]string{"/api/v1/write"}),
 				URLPrefix: mustParseURL("http://vminsert/0/prometheus"),
+			},
+			{
+				SrcHosts:  getRegexs([]string{"vmui\\..+"}),
+				URLPrefix: mustParseURL("http://vmui.host:1234/vmui/"),
 			},
 		},
 		URLPrefix: mustParseURL("http://default-server"),
@@ -215,6 +223,8 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 	f(ui, "/api/v1/label/foo/values", "http://vmselect/0/prometheus/api/v1/label/foo/values", "[]", "[]", nil, "least_loaded", 0)
 	f(ui, "/api/v1/write", "http://vminsert/0/prometheus/api/v1/write", "[]", "[]", nil, "least_loaded", 0)
 	f(ui, "/api/v1/foo/bar", "http://default-server/api/v1/foo/bar", "[]", "[]", nil, "least_loaded", 0)
+	f(ui, "https://vmui.foobar.com/a/b?c=d", "http://vmui.host:1234/vmui/a/b?c=d", "[]", "[]", nil, "least_loaded", 0)
+
 	f(&UserInfo{
 		URLPrefix: mustParseURL("http://foo.bar?extra_label=team=dev"),
 	}, "/api/v1/query", "http://foo.bar/api/v1/query?extra_label=team=dev", "[]", "[]", nil, "least_loaded", 0)
@@ -249,7 +259,7 @@ func TestCreateTargetURLFailure(t *testing.T) {
 	f(&UserInfo{
 		URLMaps: []URLMap{
 			{
-				SrcPaths:  getSrcPaths([]string{"/api/v1/query"}),
+				SrcPaths:  getRegexs([]string{"/api/v1/query"}),
 				URLPrefix: mustParseURL("http://foobar/baz"),
 			},
 		},
