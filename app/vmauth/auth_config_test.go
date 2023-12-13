@@ -292,7 +292,7 @@ users:
 			TLSInsecureSkipVerify:  &insecureSkipVerifyFalse,
 			RetryStatusCodes:       []int{500, 501},
 			LoadBalancingPolicy:    "first_available",
-			DropSrcPathPrefixParts: 1,
+			DropSrcPathPrefixParts: intp(1),
 		},
 	})
 
@@ -583,4 +583,8 @@ func mustParseURLs(us []string) *URLPrefix {
 	return &URLPrefix{
 		bus: bus,
 	}
+}
+
+func intp(n int) *int {
+	return &n
 }
