@@ -56,7 +56,7 @@ type UserInfo struct {
 	DefaultURL             *URLPrefix  `yaml:"default_url,omitempty"`
 	RetryStatusCodes       []int       `yaml:"retry_status_codes,omitempty"`
 	LoadBalancingPolicy    string      `yaml:"load_balancing_policy,omitempty"`
-	DropSrcPathPrefixParts int         `yaml:"drop_src_path_prefix_parts,omitempty"`
+	DropSrcPathPrefixParts *int        `yaml:"drop_src_path_prefix_parts,omitempty"`
 	TLSInsecureSkipVerify  *bool       `yaml:"tls_insecure_skip_verify,omitempty"`
 	TLSCAFile              string      `yaml:"tls_ca_file,omitempty"`
 
@@ -145,7 +145,7 @@ type URLMap struct {
 	LoadBalancingPolicy string `yaml:"load_balancing_policy,omitempty"`
 
 	// DropSrcPathPrefixParts is the number of `/`-delimited request path prefix parts to drop before proxying the request to backend.
-	DropSrcPathPrefixParts int `yaml:"drop_src_path_prefix_parts,omitempty"`
+	DropSrcPathPrefixParts *int `yaml:"drop_src_path_prefix_parts,omitempty"`
 }
 
 // Regex represents a regex
@@ -166,6 +166,9 @@ type URLPrefix struct {
 
 	// load balancing policy used
 	loadBalancingPolicy string
+
+	// how many request path prefix parts to drop before routing the request to backendURL.
+	dropSrcPathPrefixParts int
 }
 
 func (up *URLPrefix) setLoadBalancingPolicy(loadBalancingPolicy string) error {
@@ -606,17 +609,22 @@ func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, error) {
 func (ui *UserInfo) initURLs() error {
 	retryStatusCodes := defaultRetryStatusCodes.Values()
 	loadBalancingPolicy := *defaultLoadBalancingPolicy
+	dropSrcPathPrefixParts := 0
 	if ui.URLPrefix != nil {
 		if err := ui.URLPrefix.sanitize(); err != nil {
 			return err
 		}
-		if len(ui.RetryStatusCodes) > 0 {
+		if ui.RetryStatusCodes != nil {
 			retryStatusCodes = ui.RetryStatusCodes
 		}
 		if ui.LoadBalancingPolicy != "" {
 			loadBalancingPolicy = ui.LoadBalancingPolicy
 		}
+		if ui.DropSrcPathPrefixParts != nil {
+			dropSrcPathPrefixParts = *ui.DropSrcPathPrefixParts
+		}
 		ui.URLPrefix.retryStatusCodes = retryStatusCodes
+		ui.URLPrefix.dropSrcPathPrefixParts = dropSrcPathPrefixParts
 		if err := ui.URLPrefix.setLoadBalancingPolicy(loadBalancingPolicy); err != nil {
 			return err
 		}
@@ -638,16 +646,21 @@ func (ui *UserInfo) initURLs() error {
 		}
 		rscs := retryStatusCodes
 		lbp := loadBalancingPolicy
-		if len(e.RetryStatusCodes) > 0 {
+		dsp := dropSrcPathPrefixParts
+		if e.RetryStatusCodes != nil {
 			rscs = e.RetryStatusCodes
 		}
 		if e.LoadBalancingPolicy != "" {
 			lbp = e.LoadBalancingPolicy
 		}
+		if e.DropSrcPathPrefixParts != nil {
+			dsp = *e.DropSrcPathPrefixParts
+		}
 		e.URLPrefix.retryStatusCodes = rscs
 		if err := e.URLPrefix.setLoadBalancingPolicy(lbp); err != nil {
 			return err
 		}
+		e.URLPrefix.dropSrcPathPrefixParts = dsp
 	}
 	if len(ui.URLMaps) == 0 && ui.URLPrefix == nil {
 		return fmt.Errorf("missing `url_prefix`")
