@@ -52,6 +52,10 @@ var (
 		"If set to 2h, then the indexdb rotation is performed at 4am EET time (the timezone with +2h offset)")
 	minScrapeInterval = flag.Duration("dedup.minScrapeInterval", 0, "Leave only the last sample in every time series per each discrete interval "+
 		"equal to -dedup.minScrapeInterval > 0. See https://docs.victoriametrics.com/#deduplication for details")
+	inmemoryDataFlushInterval = flag.Duration("inmemoryDataFlushInterval", 5*time.Second, "The interval for guaranteed saving of in-memory data to disk. "+
+		"The saved data survives unclean shutdowns such as OOM crash, hardware reset, SIGKILL, etc. "+
+		"Bigger intervals may help increase the lifetime of flash storage with limited write cycles (e.g. Raspberry PI). "+
+		"Smaller intervals increase disk IO load. Minimum supported value is 1s")
 
 	logNewSeries = flag.Bool("logNewSeries", false, "Whether to log new series. This option is for debug purposes only. It can lead to performance issues "+
 		"when big number of new series are ingested into VictoriaMetrics")
@@ -84,6 +88,7 @@ func main() {
 	pushmetrics.Init()
 
 	storage.SetDedupInterval(*minScrapeInterval)
+	storage.SetDataFlushInterval(*inmemoryDataFlushInterval)
 	storage.SetLogNewSeries(*logNewSeries)
 	storage.SetFinalMergeDelay(*finalMergeDelay)
 	storage.SetMergeWorkersCount(*smallMergeConcurrency)
