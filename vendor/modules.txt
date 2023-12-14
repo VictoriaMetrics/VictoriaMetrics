@@ -304,6 +304,13 @@ github.com/davecgh/go-spew/spew
 # github.com/dennwc/varint v1.0.0
 ## explicit; go 1.12
 github.com/dennwc/varint
+# github.com/dolthub/maphash v0.1.0
+## explicit; go 1.18
+github.com/dolthub/maphash
+# github.com/dolthub/swiss v0.2.1
+## explicit; go 1.18
+github.com/dolthub/swiss
+github.com/dolthub/swiss/simd
 # github.com/fatih/color v1.16.0
 ## explicit; go 1.17
 github.com/fatih/color
