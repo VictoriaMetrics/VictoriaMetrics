@@ -636,10 +636,7 @@ func tryGetArgRollupFuncWithMetricExpr(ae *metricsql.AggrFuncExpr) (*metricsql.F
 			return nil, nil
 		}
 		// e = rollupFunc(metricExpr)
-		return &metricsql.FuncExpr{
-			Name: fe.Name,
-			Args: []metricsql.Expr{me},
-		}, nrf
+		return fe, nrf
 	}
 	if re, ok := arg.(*metricsql.RollupExpr); ok {
 		if me, ok := re.Expr.(*metricsql.MetricExpr); !ok || me.IsEmpty() || re.ForSubquery() {
