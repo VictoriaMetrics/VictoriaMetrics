@@ -11,6 +11,7 @@ The following `tip` changes can be tested by building VictoriaMetrics components
 
 ## v1.93.x long-time support release (LTS)
 
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): properly handle queries, which wrap [rollup functions](https://docs.victoriametrics.com/MetricsQL.html#rollup-functions) with multiple arguments without explicitly specified lookbehind window in square brackets into [aggregate functions](https://docs.victoriametrics.com/MetricsQL.html#aggregate-functions). For example, `sum(quantile_over_time(0.5, process_resident_memory_bytes))` was resulting to `expecting at least 2 args to ...; got 1 args' error. Thanks to @atykhyy for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5414).
 * BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl.html): check for Error field in response from influx client during migration. Before, only network errors were checked. Thanks to @wozz for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5446).
 
 ## [v1.93.9](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.9)
