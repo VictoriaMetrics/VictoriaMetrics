@@ -4,6 +4,8 @@ import (
 	"sort"
 	"sync"
 	"unicode"
+
+	"github.com/dolthub/swiss"
 )
 
 // tokenizeStrings extracts word tokens from a, appends them to dst and returns the result.
@@ -18,9 +20,10 @@ func tokenizeStrings(dst, a []string) []string {
 		tokenizeString(m, s)
 	}
 	dstLen := len(dst)
-	for k := range t.m {
+	t.m.Iter(func(k string, v struct{}) bool {
 		dst = append(dst, k)
-	}
+		return false
+	})
 	putTokenizer(t)
 
 	// Sort tokens with zero memory allocations
@@ -32,17 +35,15 @@ func tokenizeStrings(dst, a []string) []string {
 }
 
 type tokenizer struct {
-	m map[string]struct{}
+	m *swiss.Map[string, struct{}]
 }
 
 func (t *tokenizer) reset() {
 	m := t.m
-	for k := range m {
-		delete(m, k)
-	}
+	m.Clear()
 }
 
-func tokenizeString(dst map[string]struct{}, s string) {
+func tokenizeString(dst *swiss.Map[string, struct{}], s string) {
 	for len(s) > 0 {
 		// Search for the next token.
 		nextIdx := len(s)
@@ -63,7 +64,7 @@ func tokenizeString(dst map[string]struct{}, s string) {
 		}
 		token := s[:nextIdx]
 		if len(token) > 0 {
-			dst[token] = struct{}{}
+			dst.Put(token, struct{}{})
 		}
 		s = s[nextIdx:]
 	}
@@ -78,7 +79,7 @@ func getTokenizer() *tokenizer {
 	v := tokenizerPool.Get()
 	if v == nil {
 		return &tokenizer{
-			m: make(map[string]struct{}),
+			m: swiss.NewMap[string, struct{}](50),
 		}
 	}
 	return v.(*tokenizer)
