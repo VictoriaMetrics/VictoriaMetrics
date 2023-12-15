@@ -23,13 +23,13 @@ func init() {
 
 func TestGetExternalURL(t *testing.T) {
 	invalidURL := "vicotriametrics.com/path"
-	u, err := getExternalURL(invalidURL)
+	_, err := getExternalURL(invalidURL)
 	if err == nil {
 		t.Errorf("expected error, got nil")
 	}
 
 	expURL := "https://vicotriametrics.com/path"
-	u, err = getExternalURL(expURL)
+	u, err := getExternalURL(expURL)
 	if err != nil {
 		t.Errorf("unexpected error %s", err)
 	}
