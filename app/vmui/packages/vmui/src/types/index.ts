@@ -47,7 +47,8 @@ export enum ErrorTypes {
   traceNotFound = "Not found the tracing information",
   emptyTitle = "Please enter title",
   positiveNumber = "Please enter positive number",
-  validStep = "Please enter a valid step"
+  validStep = "Please enter a valid step",
+  unknownType = "Unknown server response format: must have 'errorType'",
 }
 
 export interface PanelSettings {
