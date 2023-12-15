@@ -124,8 +124,9 @@ Case studies:
 * [Idealo.de](https://docs.victoriametrics.com/CaseStudies.html#idealode)
 * [MHI Vestas Offshore Wind](https://docs.victoriametrics.com/CaseStudies.html#mhi-vestas-offshore-wind)
 * [Naver](https://docs.victoriametrics.com/CaseStudies.html#naver)
-* [Razorpay](https://docs.victoriametrics.com/CaseStudies.html#razorpay)
 * [Percona](https://docs.victoriametrics.com/CaseStudies.html#percona)
+* [Razorpay](https://docs.victoriametrics.com/CaseStudies.html#razorpay)
+* [RELEX Solutions](https://docs.victoriametrics.com/CaseStudies.html#relex-solutions)
 * [Roblox](https://docs.victoriametrics.com/CaseStudies.html#roblox)
 * [Sensedia](https://docs.victoriametrics.com/CaseStudies.html#sensedia)
 * [Smarkets](https://docs.victoriametrics.com/CaseStudies.html#smarkets)
@@ -1725,9 +1726,10 @@ See also [resource usage limits at VictoriaMetrics cluster](https://docs.victori
 
 The general approach for achieving high availability is the following:
 
-- to run two identically configured VictoriaMetrics instances in distinct datacenters (availability zones)
-- to store the collected data simultaneously into these instances via [vmagent](https://docs.victoriametrics.com/vmagent.html) or Prometheus
-- to query the first VictoriaMetrics instance and to fail over to the second instance when the first instance becomes temporarily unavailable.
+- To run two identically configured VictoriaMetrics instances in distinct datacenters (availability zones);
+- To store the collected data simultaneously into these instances via [vmagent](https://docs.victoriametrics.com/vmagent.html) or Prometheus.
+- To query the first VictoriaMetrics instance and to fail over to the second instance when the first instance becomes temporarily unavailable.
+  This can be done via [vmauth](https://docs.victoriametrics.com/vmauth.html) according to [these docs](https://docs.victoriametrics.com/vmauth.html#high-availability).
 
 Such a setup guarantees that the collected data isn't lost when one of VictoriaMetrics instance becomes unavailable.
 The collected data continues to be written to the available VictoriaMetrics instance, so it should be available for querying.
