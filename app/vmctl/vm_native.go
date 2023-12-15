@@ -125,13 +125,10 @@ func (p *vmNativeProcessor) runSingle(ctx context.Context, f native.Filter, srcU
 	}
 
 	pr, pw := io.Pipe()
-	done := make(chan struct{})
+	importCh := make(chan error)
 	go func() {
-		defer func() { close(done) }()
-		if err := p.dst.ImportPipe(ctx, dstURL, pr); err != nil {
-			logger.Errorf("error initialize import pipe: %s", err)
-			return
-		}
+		importCh <- p.dst.ImportPipe(ctx, dstURL, pr)
+		close(importCh)
 	}()
 
 	w := io.Writer(pw)
@@ -153,9 +150,8 @@ func (p *vmNativeProcessor) runSingle(ctx context.Context, f native.Filter, srcU
 	if err := pw.Close(); err != nil {
 		return err
 	}
-	<-done
 
-	return nil
+	return <-importCh
 }
 
 func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string, ranges [][]time.Time, silent bool) error {
