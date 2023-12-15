@@ -118,15 +118,7 @@ func main() {
 		return
 	}
 
-	var eu *url.URL
-	if *externalURL != "" {
-		eu, err = url.Parse(*externalURL)
-		if err == nil && eu.Scheme != "http" && eu.Scheme != "https" {
-			logger.Fatalf("`-external.url` %q has invalid scheme %q, only 'http' and 'https' are supported", eu.String(), eu.Scheme)
-		}
-	} else {
-		eu, err = getHostnameAsExternalURL(*httpListenAddr, httpserver.IsTLS())
-	}
+	eu, err := getExternalURL(*externalURL)
 	if err != nil {
 		logger.Fatalf("failed to init `-external.url`: %s", err)
 	}
@@ -249,6 +241,21 @@ func newManager(ctx context.Context) (*manager, error) {
 	manager.rr = rr
 
 	return manager, nil
+}
+
+func getExternalURL(customURL string) (*url.URL, error) {
+	if customURL == "" {
+		// use local hostname as external URL
+		return getHostnameAsExternalURL(*httpListenAddr, httpserver.IsTLS())
+	}
+	u, err := url.Parse(customURL)
+	if err != nil {
+		return nil, err
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return nil, fmt.Errorf("invalid scheme %q in url %q, only 'http' and 'https' are supported", u.Scheme, u.String())
+	}
+	return u, nil
 }
 
 func getHostnameAsExternalURL(httpListenAddr string, isSecure bool) (*url.URL, error) {
