@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
@@ -14,7 +16,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/pb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
-	"github.com/VictoriaMetrics/metrics"
 )
 
 // ParseStream parses OpenTelemetry protobuf or json data from r and calls callback for the parsed rows.
@@ -273,6 +274,7 @@ func (wr *writeContext) parseRequestToTss(req *pb.ExportMetricsServiceRequest) {
 	for _, rm := range req.ResourceMetrics {
 		if rm.Resource == nil {
 			// skip metrics without resource part.
+			rowsDroppedResourceNotSet.Inc()
 			continue
 		}
 		wr.baseLabels = appendAttributesToPromLabels(wr.baseLabels[:0], rm.Resource.Attributes)
@@ -302,4 +304,5 @@ var (
 	rowsDroppedUnsupportedHistogram  = metrics.NewCounter(`vm_protoparser_rows_dropped_total{type="opentelemetry",reason="unsupported_histogram_aggregation"}`)
 	rowsDroppedUnsupportedSum        = metrics.NewCounter(`vm_protoparser_rows_dropped_total{type="opentelemetry",reason="unsupported_sum_aggregation"}`)
 	rowsDroppedUnsupportedMetricType = metrics.NewCounter(`vm_protoparser_rows_dropped_total{type="opentelemetry",reason="unsupported_metric_type"}`)
+	rowsDroppedResourceNotSet        = metrics.NewCounter(`vm_protoparser_rows_dropped_total{type="opentelemetry",reason="resource_not_set"}`)
 )
