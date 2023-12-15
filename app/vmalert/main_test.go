@@ -22,19 +22,19 @@ func init() {
 }
 
 func TestGetExternalURL(t *testing.T) {
-	invalidURL := "vicotriametrics.com/path"
+	invalidURL := "victoriametrics.com/path"
 	_, err := getExternalURL(invalidURL)
 	if err == nil {
 		t.Errorf("expected error, got nil")
 	}
 
-	expURL := "https://vicotriametrics.com/path"
+	expURL := "https://victoriametrics.com/path"
 	u, err := getExternalURL(expURL)
 	if err != nil {
 		t.Errorf("unexpected error %s", err)
 	}
 	if u.String() != expURL {
-		t.Errorf("unexpected url want %s, got %s", expURL, u.String())
+		t.Errorf("unexpected url: want %q, got %s", expURL, u.String())
 	}
 
 	h, _ := os.Hostname()
@@ -44,7 +44,7 @@ func TestGetExternalURL(t *testing.T) {
 		t.Errorf("unexpected error %s", err)
 	}
 	if u.String() != expURL {
-		t.Errorf("unexpected url want %s, got %s", expURL, u.String())
+		t.Errorf("unexpected url: want %s, got %s", expURL, u.String())
 	}
 }
 
