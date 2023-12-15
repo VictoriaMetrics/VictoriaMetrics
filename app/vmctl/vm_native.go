@@ -29,13 +29,14 @@ type vmNativeProcessor struct {
 	src     *native.Client
 	backoff *backoff.Backoff
 
-	s              *stats
-	rateLimit      int64
-	interCluster   bool
-	cc             int
-	disableRetries bool
-	isSilent       bool
-	isNative       bool
+	s            *stats
+	rateLimit    int64
+	interCluster bool
+	cc           int
+	isSilent     bool
+	isNative     bool
+
+	disablePerMetricRequests bool
 }
 
 const (
@@ -119,7 +120,7 @@ func (p *vmNativeProcessor) runSingle(ctx context.Context, f native.Filter, srcU
 		return fmt.Errorf("failed to init export pipe: %w", err)
 	}
 
-	if p.disableRetries && bar != nil {
+	if p.disablePerMetricRequests && bar != nil {
 		fmt.Printf("Continue import process with filter %s:\n", f.String())
 		reader = bar.NewProxyReader(reader)
 	}
@@ -189,7 +190,7 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 	var foundSeriesMsg string
 
 	metrics := []string{p.filter.Match}
-	if !p.disableRetries {
+	if !p.disablePerMetricRequests {
 		log.Printf("Exploring metrics...")
 		metrics, err = p.src.Explore(ctx, p.filter, tenantID)
 		if err != nil {
@@ -227,7 +228,7 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 	var bar *pb.ProgressBar
 	if !silent {
 		bar = barpool.NewSingleProgress(fmt.Sprintf(nativeWithBackoffTpl, barPrefix), len(metrics)*len(ranges))
-		if p.disableRetries {
+		if p.disablePerMetricRequests {
 			bar = barpool.NewSingleProgress(nativeSingleProcessTpl, 0)
 		}
 		bar.Start()
@@ -243,7 +244,7 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 		go func() {
 			defer wg.Done()
 			for f := range filterCh {
-				if !p.disableRetries {
+				if !p.disablePerMetricRequests {
 					if err := p.do(ctx, f, srcURL, dstURL, nil); err != nil {
 						errCh <- err
 						return

@@ -254,11 +254,11 @@ func main() {
 							ExtraLabels: dstExtraLabels,
 							HTTPClient:  dstHTTPClient,
 						},
-						backoff:        backoff.New(),
-						cc:             c.Int(vmConcurrency),
-						disableRetries: c.Bool(vmNativeDisableRetries),
-						isSilent:       c.Bool(globalSilent),
-						isNative:       !c.Bool(vmNativeDisableBinaryProtocol),
+						backoff:                  backoff.New(),
+						cc:                       c.Int(vmConcurrency),
+						disablePerMetricRequests: c.Bool(vmNativeDisablePerMetricMigration),
+						isSilent:                 c.Bool(globalSilent),
+						isNative:                 !c.Bool(vmNativeDisableBinaryProtocol),
 					}
 					return p.run(ctx)
 				},
