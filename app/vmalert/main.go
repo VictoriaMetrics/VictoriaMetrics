@@ -126,9 +126,9 @@ func main() {
 		return
 	}
 
-	eu, err := getExternalURL(*externalURL, *httpListenAddr, httpserver.IsTLS())
+	eu, err := getExternalURL(*externalURL)
 	if err != nil {
-		logger.Fatalf("failed to init `external.url`: %s", err)
+		logger.Fatalf("failed to init `-external.url`: %s", err)
 	}
 
 	alertURLGeneratorFn, err = getAlertURLGenerator(eu, *externalAlertSource, *validateTemplates)
@@ -249,13 +249,25 @@ func newManager(ctx context.Context) (*manager, error) {
 	return manager, nil
 }
 
-func getExternalURL(externalURL, httpListenAddr string, isSecure bool) (*url.URL, error) {
-	if externalURL != "" {
-		return url.Parse(externalURL)
+func getExternalURL(customURL string) (*url.URL, error) {
+	if customURL == "" {
+		// use local hostname as external URL
+		return getHostnameAsExternalURL(*httpListenAddr, httpserver.IsTLS())
 	}
-	hname, err := os.Hostname()
+	u, err := url.Parse(customURL)
 	if err != nil {
 		return nil, err
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return nil, fmt.Errorf("invalid scheme %q in url %q, only 'http' and 'https' are supported", u.Scheme, u.String())
+	}
+	return u, nil
+}
+
+func getHostnameAsExternalURL(httpListenAddr string, isSecure bool) (*url.URL, error) {
+	hname, err := os.Hostname()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get hostname: %w", err)
 	}
 	port := ""
 	if ipport := strings.Split(httpListenAddr, ":"); len(ipport) > 1 {
