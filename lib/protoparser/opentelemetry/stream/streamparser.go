@@ -272,12 +272,11 @@ func (wr *writeContext) readAndUnpackRequest(r io.Reader) (*pb.ExportMetricsServ
 
 func (wr *writeContext) parseRequestToTss(req *pb.ExportMetricsServiceRequest) {
 	for _, rm := range req.ResourceMetrics {
-		if rm.Resource == nil {
-			// skip metrics without resource part.
-			rowsDroppedResourceNotSet.Inc()
-			continue
+		var attributes []*pb.KeyValue
+		if rm.Resource != nil {
+			attributes = rm.Resource.Attributes
 		}
-		wr.baseLabels = appendAttributesToPromLabels(wr.baseLabels[:0], rm.Resource.Attributes)
+		wr.baseLabels = appendAttributesToPromLabels(wr.baseLabels[:0], attributes)
 		for _, sc := range rm.ScopeMetrics {
 			wr.appendSamplesFromScopeMetrics(sc)
 		}
@@ -304,5 +303,4 @@ var (
 	rowsDroppedUnsupportedHistogram  = metrics.NewCounter(`vm_protoparser_rows_dropped_total{type="opentelemetry",reason="unsupported_histogram_aggregation"}`)
 	rowsDroppedUnsupportedSum        = metrics.NewCounter(`vm_protoparser_rows_dropped_total{type="opentelemetry",reason="unsupported_sum_aggregation"}`)
 	rowsDroppedUnsupportedMetricType = metrics.NewCounter(`vm_protoparser_rows_dropped_total{type="opentelemetry",reason="unsupported_metric_type"}`)
-	rowsDroppedResourceNotSet        = metrics.NewCounter(`vm_protoparser_rows_dropped_total{type="opentelemetry",reason="resource_not_set"}`)
 )
