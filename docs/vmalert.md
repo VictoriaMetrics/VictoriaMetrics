@@ -533,7 +533,7 @@ In case when you want to spread the load on these components - add balancers bef
 
 #### HA vmalert
 
-For HA user can run multiple identically configured `vmalert` instances.
+For High Availability(HA) user can run multiple identically configured `vmalert` instances.
 It means all of them will execute the same rules, write state and results to
 the same destinations, and send alert notifications to multiple configured
 Alertmanagers.
