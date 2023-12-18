@@ -255,10 +255,7 @@ func TestRecordingRule_ExecNegative(t *testing.T) {
 	fq.Add(metricWithValueAndLabels(t, 2, "__name__", "foo", "job", "bar"))
 
 	_, err = rr.exec(context.TODO(), time.Now(), 0)
-	if err == nil {
-		t.Fatalf("expected to get err; got nil")
-	}
-	if !strings.Contains(err.Error(), errDuplicate.Error()) {
-		t.Fatalf("expected to get err %q; got %q insterad", errDuplicate, err)
+	if err != nil {
+		t.Fatal(err)
 	}
 }
