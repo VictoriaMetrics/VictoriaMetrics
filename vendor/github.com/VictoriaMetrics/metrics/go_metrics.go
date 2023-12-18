@@ -3,6 +3,7 @@ package metrics
 import (
 	"fmt"
 	"io"
+	"log"
 	"math"
 	"runtime"
 	runtimemetrics "runtime/metrics"
@@ -20,6 +21,25 @@ var runtimeMetrics = [][2]string{
 	{"/gc/pauses:seconds", "go_gc_pauses_seconds"},
 	{"/cpu/classes/scavenge/total:cpu-seconds", "go_scavenge_cpu_seconds_total"},
 	{"/gc/gomemlimit:bytes", "go_memlimit_bytes"},
+}
+
+var supportedRuntimeMetrics = initSupportedRuntimeMetrics(runtimeMetrics)
+
+func initSupportedRuntimeMetrics(rms [][2]string) [][2]string {
+	exposedMetrics := make(map[string]struct{})
+	for _, d := range runtimemetrics.All() {
+		exposedMetrics[d.Name] = struct{}{}
+	}
+	var supportedMetrics [][2]string
+	for _, rm := range rms {
+		metricName := rm[0]
+		if _, ok := exposedMetrics[metricName]; ok {
+			supportedMetrics = append(supportedMetrics, rm)
+		} else {
+			log.Printf("github.com/VictoriaMetrics/metrics: do not expose %s metric, since the corresponding metric %s isn't supported in the current Go runtime", rm[1], metricName)
+		}
+	}
+	return supportedMetrics
 }
 
 func writeGoMetrics(w io.Writer) {
@@ -81,18 +101,19 @@ func writeGoMetrics(w io.Writer) {
 }
 
 func writeRuntimeMetrics(w io.Writer) {
-	samples := make([]runtimemetrics.Sample, len(runtimeMetrics))
-	for i, rm := range runtimeMetrics {
+	samples := make([]runtimemetrics.Sample, len(supportedRuntimeMetrics))
+	for i, rm := range supportedRuntimeMetrics {
 		samples[i].Name = rm[0]
 	}
 	runtimemetrics.Read(samples)
-	for i, rm := range runtimeMetrics {
+	for i, rm := range supportedRuntimeMetrics {
 		writeRuntimeMetric(w, rm[1], &samples[i])
 	}
 }
 
 func writeRuntimeMetric(w io.Writer, name string, sample *runtimemetrics.Sample) {
-	switch sample.Value.Kind() {
+	kind := sample.Value.Kind()
+	switch kind {
 	case runtimemetrics.KindBad:
 		panic(fmt.Errorf("BUG: unexpected runtimemetrics.KindBad for sample.Name=%q", sample.Name))
 	case runtimemetrics.KindUint64:
@@ -101,6 +122,8 @@ func writeRuntimeMetric(w io.Writer, name string, sample *runtimemetrics.Sample)
 		fmt.Fprintf(w, "%s %g\n", name, sample.Value.Float64())
 	case runtimemetrics.KindFloat64Histogram:
 		writeRuntimeHistogramMetric(w, name, sample.Value.Float64Histogram())
+	default:
+		panic(fmt.Errorf("unexpected metric kind=%d", kind))
 	}
 }
 

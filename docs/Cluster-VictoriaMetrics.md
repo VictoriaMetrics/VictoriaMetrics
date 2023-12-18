@@ -1109,11 +1109,16 @@ Below is the output for `/path/to/vminsert -help`:
      Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -prevCacheRemovalPercent float
      Items in the previous caches are removed when the percent of requests it serves becomes lower than this value. Higher values reduce memory usage at the cost of higher CPU usage. See also -cacheExpireDuration (default 0.1)
+  -pushmetrics.disableCompression
+     Whether to disable request body compression when pushing metrics to every -pushmetrics.url
   -pushmetrics.extraLabel array
-     Optional labels to add to metrics pushed to -pushmetrics.url . For example, -pushmetrics.extraLabel='instance="foo"' adds instance="foo" label to all the metrics pushed to -pushmetrics.url
+     Optional labels to add to metrics pushed to every -pushmetrics.url . For example, -pushmetrics.extraLabel='instance="foo"' adds instance="foo" label to all the metrics pushed to every -pushmetrics.url
+     Supports an array of values separated by comma or specified via multiple flags.
+  -pushmetrics.header array
+     Optional HTTP request header to send to every -pushmetrics.url . For example, -pushmetrics.header='Authorization: Basic foobar' adds 'Authorization: Basic foobar' header to every request to every -pushmetrics.url
      Supports an array of values separated by comma or specified via multiple flags.
   -pushmetrics.interval duration
-     Interval for pushing metrics to -pushmetrics.url (default 10s)
+     Interval for pushing metrics to every -pushmetrics.url (default 10s)
   -pushmetrics.url array
      Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/#push-metrics . By default, metrics exposed at /metrics page aren't pushed to any remote storage
      Supports an array of values separated by comma or specified via multiple flags.
@@ -1289,11 +1294,16 @@ Below is the output for `/path/to/vmselect -help`:
      Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -prevCacheRemovalPercent float
      Items in the previous caches are removed when the percent of requests it serves becomes lower than this value. Higher values reduce memory usage at the cost of higher CPU usage. See also -cacheExpireDuration (default 0.1)
+  -pushmetrics.disableCompression
+     Whether to disable request body compression when pushing metrics to every -pushmetrics.url
   -pushmetrics.extraLabel array
-     Optional labels to add to metrics pushed to -pushmetrics.url . For example, -pushmetrics.extraLabel='instance="foo"' adds instance="foo" label to all the metrics pushed to -pushmetrics.url
+     Optional labels to add to metrics pushed to every -pushmetrics.url . For example, -pushmetrics.extraLabel='instance="foo"' adds instance="foo" label to all the metrics pushed to every -pushmetrics.url
+     Supports an array of values separated by comma or specified via multiple flags.
+  -pushmetrics.header array
+     Optional HTTP request header to send to every -pushmetrics.url . For example, -pushmetrics.header='Authorization: Basic foobar' adds 'Authorization: Basic foobar' header to every request to every -pushmetrics.url
      Supports an array of values separated by comma or specified via multiple flags.
   -pushmetrics.interval duration
-     Interval for pushing metrics to -pushmetrics.url (default 10s)
+     Interval for pushing metrics to every -pushmetrics.url (default 10s)
   -pushmetrics.url array
      Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/#push-metrics . By default, metrics exposed at /metrics page aren't pushed to any remote storage
      Supports an array of values separated by comma or specified via multiple flags.
@@ -1501,6 +1511,8 @@ Below is the output for `/path/to/vmstorage -help`:
      Address to listen for http connections. See also -httpListenAddr.useProxyProtocol (default ":8482")
   -httpListenAddr.useProxyProtocol
      Whether to use proxy protocol for connections accepted at -httpListenAddr . See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing
+  -inmemoryDataFlushInterval duration
+     The interval for guaranteed saving of in-memory data to disk. The saved data survives unclean shutdowns such as OOM crash, hardware reset, SIGKILL, etc. Bigger intervals may help increase the lifetime of flash storage with limited write cycles (e.g. Raspberry PI). Smaller intervals increase disk IO load. Minimum supported value is 1s (default 5s)
   -insert.maxQueueDuration duration
      The maximum duration to wait in the queue when -maxConcurrentInserts concurrent insert requests are executed (default 1m0s)
   -internStringCacheExpireDuration duration
@@ -1550,11 +1562,16 @@ Below is the output for `/path/to/vmstorage -help`:
      The number of precision bits to store per each value. Lower precision bits improves data compression at the cost of precision loss (default 64)
   -prevCacheRemovalPercent float
      Items in the previous caches are removed when the percent of requests it serves becomes lower than this value. Higher values reduce memory usage at the cost of higher CPU usage. See also -cacheExpireDuration (default 0.1)
+  -pushmetrics.disableCompression
+     Whether to disable request body compression when pushing metrics to every -pushmetrics.url
   -pushmetrics.extraLabel array
-     Optional labels to add to metrics pushed to -pushmetrics.url . For example, -pushmetrics.extraLabel='instance="foo"' adds instance="foo" label to all the metrics pushed to -pushmetrics.url
+     Optional labels to add to metrics pushed to every -pushmetrics.url . For example, -pushmetrics.extraLabel='instance="foo"' adds instance="foo" label to all the metrics pushed to every -pushmetrics.url
+     Supports an array of values separated by comma or specified via multiple flags.
+  -pushmetrics.header array
+     Optional HTTP request header to send to every -pushmetrics.url . For example, -pushmetrics.header='Authorization: Basic foobar' adds 'Authorization: Basic foobar' header to every request to every -pushmetrics.url
      Supports an array of values separated by comma or specified via multiple flags.
   -pushmetrics.interval duration
-     Interval for pushing metrics to -pushmetrics.url (default 10s)
+     Interval for pushing metrics to every -pushmetrics.url (default 10s)
   -pushmetrics.url array
      Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/#push-metrics . By default, metrics exposed at /metrics page aren't pushed to any remote storage
      Supports an array of values separated by comma or specified via multiple flags.

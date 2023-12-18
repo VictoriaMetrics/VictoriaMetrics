@@ -1733,9 +1733,10 @@ See also [resource usage limits at VictoriaMetrics cluster](https://docs.victori
 
 The general approach for achieving high availability is the following:
 
-- to run two identically configured VictoriaMetrics instances in distinct datacenters (availability zones)
-- to store the collected data simultaneously into these instances via [vmagent](https://docs.victoriametrics.com/vmagent.html) or Prometheus
-- to query the first VictoriaMetrics instance and to fail over to the second instance when the first instance becomes temporarily unavailable.
+- To run two identically configured VictoriaMetrics instances in distinct datacenters (availability zones);
+- To store the collected data simultaneously into these instances via [vmagent](https://docs.victoriametrics.com/vmagent.html) or Prometheus.
+- To query the first VictoriaMetrics instance and to fail over to the second instance when the first instance becomes temporarily unavailable.
+  This can be done via [vmauth](https://docs.victoriametrics.com/vmauth.html) according to [these docs](https://docs.victoriametrics.com/vmauth.html#high-availability).
 
 Such a setup guarantees that the collected data isn't lost when one of VictoriaMetrics instance becomes unavailable.
 The collected data continues to be written to the available VictoriaMetrics instance, so it should be available for querying.
@@ -2298,11 +2299,14 @@ The following command-line flags are related to pushing metrics from VictoriaMet
   The `-pushmetrics.url` can be specified multiple times. In this case metrics are pushed to all the specified urls.
   The url can contain basic auth params in the form `http://user:pass@hostname/api/v1/import/prometheus`.
   Metrics are pushed to the provided `-pushmetrics.url` in a compressed form with `Content-Encoding: gzip` request header.
-  This allows reducing the required network bandwidth for metrics push.
-* `-pushmetrics.extraLabel` - labels to add to all the metrics before sending them to `-pushmetrics.url`. Each label must be specified in the format `label="value"`.
+  This allows reducing the required network bandwidth for metrics push. The compression can be disabled by passing `-pushmetrics.disableCompression` command-line flag.
+* `-pushmetrics.extraLabel` - labels to add to all the metrics before sending them to every `-pushmetrics.url`. Each label must be specified in the format `label="value"`.
   It is OK to specify multiple `-pushmetrics.extraLabel` command-line flags. In this case all the specified labels
   are added to all the metrics before sending them to all the configured `-pushmetrics.url` addresses.
 * `-pushmetrics.interval` - the interval between pushes. By default it is set to 10 seconds.
+* `-pushmetrics.header` - an optional HTTP header to send to every `-pushmetrics.url`. For example, `-pushmetrics.header='Authorization: Basic foo'` instructs to send
+  `Authorization: Basic foo` HTTP header with every request to every `-pushmetrics.url`. It is possible to set multiple `-pushmetrics.header` command-line flags
+  for sending multiple different HTTP headers to `-pushmetrics.url`.
 
 For example, the following command instructs VictoriaMetrics to push metrics from `/metrics` page to `https://maas.victoriametrics.com/api/v1/import/prometheus`
 with `user:pass` [Basic auth](https://en.wikipedia.org/wiki/Basic_access_authentication). The `instance="foobar"` and `job="vm"` labels
@@ -2848,11 +2852,16 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      The delay for suppressing repeated scrape errors logging per each scrape targets. This may be used for reducing the number of log lines related to scrape errors. See also -promscrape.suppressScrapeErrors
   -promscrape.yandexcloudSDCheckInterval duration
      Interval for checking for changes in Yandex Cloud API. This works only if yandexcloud_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#yandexcloud_sd_configs for details (default 30s)
+  -pushmetrics.disableCompression
+     Whether to disable request body compression when pushing metrics to every -pushmetrics.url
   -pushmetrics.extraLabel array
-     Optional labels to add to metrics pushed to -pushmetrics.url . For example, -pushmetrics.extraLabel='instance="foo"' adds instance="foo" label to all the metrics pushed to -pushmetrics.url
+     Optional labels to add to metrics pushed to every -pushmetrics.url . For example, -pushmetrics.extraLabel='instance="foo"' adds instance="foo" label to all the metrics pushed to every -pushmetrics.url
+     Supports an array of values separated by comma or specified via multiple flags.
+  -pushmetrics.header array
+     Optional HTTP request header to send to every -pushmetrics.url . For example, -pushmetrics.header='Authorization: Basic foobar' adds 'Authorization: Basic foobar' header to every request to every -pushmetrics.url
      Supports an array of values separated by comma or specified via multiple flags.
   -pushmetrics.interval duration
-     Interval for pushing metrics to -pushmetrics.url (default 10s)
+     Interval for pushing metrics to every -pushmetrics.url (default 10s)
   -pushmetrics.url array
      Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/#push-metrics . By default, metrics exposed at /metrics page aren't pushed to any remote storage
      Supports an array of values separated by comma or specified via multiple flags.
