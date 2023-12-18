@@ -207,6 +207,34 @@ which is applied independently for each configured `-remoteWrite.url` destinatio
 data among long-term remote storage, short-term remote storage and a real-time analytical system [built on top of Kafka](https://github.com/Telefonica/prometheus-kafka-adapter).
 Note that each destination can receive its own subset of the collected data due to per-destination relabeling via `-remoteWrite.urlRelabelConfig`.
 
+For example, let's assume all the scraped or received metrics by `vmagent` have label `env` with values `dev` or `prod`.
+To route metrics `env=dev` to destination `dev` and metrics with `env=prod` to destination `prod` apply the following config:
+1. Create relabeling config file `relabelDev.yml` to drop all metrics that don't have label `env=dev`:
+```yaml
+- action: keep
+  source_labels: [env]
+  regex: "dev"
+```
+1. Create relabeling config file `relabelProd.yml` to drop all metrics that don't have label `env=prod`:
+```yaml
+- action: keep
+  source_labels: [env]
+  regex: "prod"
+```
+1. Configure `vmagent` with 2 `-remoteWrite.url` flags pointing to destinations `dev` and `prod` with corresponding
+`-remoteWrite.urlRelabelConfig` configs:
+```console
+./vmagent \
+  -remoteWrite.url=http://<dev-url> -remoteWrite.urlRelabelConfig=relabelDev.yml \
+  -remoteWrite.url=http://<prod-url> -remoteWrite.urlRelabelConfig=relabelProd.yml 
+```
+With this configuration `vmagent` will forward to `http://<dev-url>` only metrics that have `env=dev` label.
+And to `http://<prod-url>` it will forward only metrics that have `env=prod` label.
+
+Please note, order of flags is important: 1st mentioned `-remoteWrite.urlRelabelConfig` will be applied to the
+1st mentioned `-remoteWrite.url`, and so on.
+
+
 ### Prometheus remote_write proxy
 
 `vmagent` can be used as a proxy for Prometheus data sent via Prometheus `remote_write` protocol. It can accept data via the `remote_write` API
