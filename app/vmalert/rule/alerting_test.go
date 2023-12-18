@@ -776,6 +776,13 @@ func TestAlertingRule_Exec_Negative(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// label `__name__` will be omitted and get duplicated results here
+	fq.Add(metricWithValueAndLabels(t, 1, "__name__", "foo_1", "job", "bar"))
+	_, err = ar.exec(context.TODO(), time.Now(), 0)
+	if !errors.Is(err, errDuplicate) {
+		t.Fatalf("expected to have %s error; got %s", errDuplicate, err)
+	}
+
 	fq.Reset()
 
 	expErr := "connection reset by peer"

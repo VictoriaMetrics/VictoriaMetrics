@@ -61,7 +61,7 @@ func TestRecordingRule_Exec(t *testing.T) {
 			},
 			[]datasource.Metric{
 				metricWithValueAndLabels(t, 2, "__name__", "foo", "job", "foo"),
-				metricWithValueAndLabels(t, 1, "__name__", "bar", "job", "bar"),
+				metricWithValueAndLabels(t, 1, "__name__", "bar", "job", "bar", "source", "origin"),
 			},
 			[]prompbmarshal.TimeSeries{
 				newTimeSeries([]float64{2}, []int64{timestamp.UnixNano()}, map[string]string{
@@ -70,9 +70,10 @@ func TestRecordingRule_Exec(t *testing.T) {
 					"source":   "test",
 				}),
 				newTimeSeries([]float64{1}, []int64{timestamp.UnixNano()}, map[string]string{
-					"__name__": "job:foo",
-					"job":      "bar",
-					"source":   "test",
+					"__name__":        "job:foo",
+					"job":             "bar",
+					"source":          "test",
+					"exported_source": "origin",
 				}),
 			},
 		},
