@@ -10,16 +10,17 @@ import (
 	s3cust "github.com/aws/aws-sdk-go-v2/service/s3/internal/customizations"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/smithy-go/middleware"
+	"github.com/aws/smithy-go/ptr"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Bucket lifecycle configuration now supports specifying a lifecycle rule using
-// an object key name prefix, one or more object tags, or a combination of both.
-// Accordingly, this section describes the latest API. The response describes the
-// new filter element that you can use to specify a filter to select a subset of
-// objects to which the rule applies. If you are using a previous version of the
-// lifecycle configuration, it still works. For the earlier action, see
-// GetBucketLifecycle (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketLifecycle.html)
+// This operation is not supported by directory buckets. Bucket lifecycle
+// configuration now supports specifying a lifecycle rule using an object key name
+// prefix, one or more object tags, or a combination of both. Accordingly, this
+// section describes the latest API. The response describes the new filter element
+// that you can use to specify a filter to select a subset of objects to which the
+// rule applies. If you are using a previous version of the lifecycle
+// configuration, it still works. For the earlier action, see GetBucketLifecycle (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketLifecycle.html)
 // . Returns the lifecycle configuration information set on the bucket. For
 // information about lifecycle configuration, see Object Lifecycle Management (https://docs.aws.amazon.com/AmazonS3/latest/dev/object-lifecycle-mgmt.html)
 // . To use this operation, you must have permission to perform the
@@ -60,9 +61,9 @@ type GetBucketLifecycleConfigurationInput struct {
 	// This member is required.
 	Bucket *string
 
-	// The account ID of the expected bucket owner. If the bucket is owned by a
-	// different account, the request fails with the HTTP status code 403 Forbidden
-	// (access denied).
+	// The account ID of the expected bucket owner. If the account ID that you provide
+	// does not match the actual owner of the bucket, the request fails with the HTTP
+	// status code 403 Forbidden (access denied).
 	ExpectedBucketOwner *string
 
 	noSmithyDocumentSerde
@@ -70,7 +71,7 @@ type GetBucketLifecycleConfigurationInput struct {
 
 func (in *GetBucketLifecycleConfigurationInput) bindEndpointParams(p *EndpointParameters) {
 	p.Bucket = in.Bucket
-
+	p.UseS3ExpressControlEndpoint = ptr.Bool(true)
 }
 
 type GetBucketLifecycleConfigurationOutput struct {
@@ -137,6 +138,9 @@ func (c *Client) addOperationGetBucketLifecycleConfigurationMiddlewares(stack *m
 		return err
 	}
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addPutBucketContextMiddleware(stack); err != nil {
 		return err
 	}
 	if err = addOpGetBucketLifecycleConfigurationValidationMiddleware(stack); err != nil {

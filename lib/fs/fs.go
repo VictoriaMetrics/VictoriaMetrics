@@ -190,24 +190,6 @@ func mustSyncParentDirIfExists(path string) {
 	MustSyncPath(parentDirPath)
 }
 
-// IsEmptyDir returns true if path points to empty directory.
-func IsEmptyDir(path string) bool {
-	// See https://stackoverflow.com/a/30708914/274937
-	f, err := os.Open(path)
-	if err != nil {
-		logger.Panicf("FATAL: cannot open dir: %s", err)
-	}
-	_, err = f.Readdirnames(1)
-	MustClose(f)
-	if err != nil {
-		if err == io.EOF {
-			return true
-		}
-		logger.Panicf("FATAL: unexpected error when reading directory %q: %s", path, err)
-	}
-	return false
-}
-
 // MustRemoveDirAtomic removes the given dir atomically.
 //
 // It uses the following algorithm:

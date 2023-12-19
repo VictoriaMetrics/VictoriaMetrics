@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/url"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -63,6 +64,10 @@ var (
 		"See also -promscrape.cluster.memberLabel . See https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets for more info")
 	clusterMemberLabel = flag.String("promscrape.cluster.memberLabel", "", "If non-empty, then the label with this name and the -promscrape.cluster.memberNum value "+
 		"is added to all the scraped metrics. See https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets for more info")
+	clusterMemberURLTemplate = flag.String("promscrape.cluster.memberURLTemplate", "", "An optional template for URL to access vmagent instance with the given -promscrape.cluster.memberNum value. "+
+		"Every %d occurrence in the template is substituted with -promscrape.cluster.memberNum at urls to vmagent instances responsible for scraping the given target "+
+		"at /service-discovery page. For example -promscrape.cluster.memberURLTemplate='http://vmagent-%d:8429/targets'. "+
+		"See https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets for more details")
 	clusterReplicationFactor = flag.Int("promscrape.cluster.replicationFactor", 1, "The number of members in the cluster, which scrape the same targets. "+
 		"If the replication factor is greater than 1, then the deduplication must be enabled at remote storage side. "+
 		"See https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets for more info")
@@ -218,7 +223,6 @@ func areEqualScrapeConfigs(a, b *ScrapeConfig) bool {
 		return false
 	}
 	return true
-
 }
 
 func (sc *ScrapeConfig) unmarshalJSON(data []byte) error {
@@ -1021,25 +1025,24 @@ func appendScrapeWorkKey(dst []byte, labels *promutils.Labels) []byte {
 	return dst
 }
 
-func needSkipScrapeWork(key string, membersCount, replicasCount, memberNum int) bool {
+func getClusterMemberNumsForScrapeWork(key string, membersCount, replicasCount int) []int {
 	if membersCount <= 1 {
-		return false
+		return []int{0}
 	}
 	h := xxhash.Sum64(bytesutil.ToUnsafeBytes(key))
 	idx := int(h % uint64(membersCount))
 	if replicasCount < 1 {
 		replicasCount = 1
 	}
+	memberNums := make([]int, replicasCount)
 	for i := 0; i < replicasCount; i++ {
-		if idx == memberNum {
-			return false
-		}
+		memberNums[i] = idx
 		idx++
 		if idx >= membersCount {
 			idx = 0
 		}
 	}
-	return true
+	return memberNums
 }
 
 var scrapeWorkKeyBufPool bytesutil.ByteBufferPool
@@ -1057,7 +1060,7 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 	if labels.Len() == 0 {
 		// Drop target without labels.
 		originalLabels = sortOriginalLabelsIfNeeded(originalLabels)
-		droppedTargetsMap.Register(originalLabels, swc.relabelConfigs, targetDropReasonRelabeling)
+		droppedTargetsMap.Register(originalLabels, swc.relabelConfigs, targetDropReasonRelabeling, nil)
 		return nil, nil
 	}
 
@@ -1068,11 +1071,11 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 	if *clusterMembersCount > 1 {
 		bb := scrapeWorkKeyBufPool.Get()
 		bb.B = appendScrapeWorkKey(bb.B[:0], labels)
-		needSkip := needSkipScrapeWork(bytesutil.ToUnsafeString(bb.B), *clusterMembersCount, *clusterReplicationFactor, clusterMemberID)
+		memberNums := getClusterMemberNumsForScrapeWork(bytesutil.ToUnsafeString(bb.B), *clusterMembersCount, *clusterReplicationFactor)
 		scrapeWorkKeyBufPool.Put(bb)
-		if needSkip {
+		if !slices.Contains(memberNums, clusterMemberID) {
 			originalLabels = sortOriginalLabelsIfNeeded(originalLabels)
-			droppedTargetsMap.Register(originalLabels, swc.relabelConfigs, targetDropReasonSharding)
+			droppedTargetsMap.Register(originalLabels, swc.relabelConfigs, targetDropReasonSharding, memberNums)
 			return nil, nil
 		}
 	}
@@ -1080,7 +1083,7 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 	if scrapeURL == "" {
 		// Drop target without URL.
 		originalLabels = sortOriginalLabelsIfNeeded(originalLabels)
-		droppedTargetsMap.Register(originalLabels, swc.relabelConfigs, targetDropReasonMissingScrapeURL)
+		droppedTargetsMap.Register(originalLabels, swc.relabelConfigs, targetDropReasonMissingScrapeURL, nil)
 		return nil, nil
 	}
 	if _, err := url.Parse(scrapeURL); err != nil {

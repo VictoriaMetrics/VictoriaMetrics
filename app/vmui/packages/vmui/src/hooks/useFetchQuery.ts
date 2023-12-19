@@ -136,7 +136,11 @@ export const useFetchQuery = ({
           totalLength += resp.data.result.length;
         } else {
           tempData.push({ metric: {}, values: [], group: counter } as MetricBase);
-          setQueryErrors(prev => [...prev, `${resp.errorType}\r\n${resp?.error}`]);
+          const errorType = resp.errorType || ErrorTypes.unknownType;
+          const errorMessage = resp?.error || resp?.message || "see console for more details";
+          const error = [errorType, errorMessage].join(",\r\n");
+          setQueryErrors(prev => [...prev, `${error}`]);
+          console.error(`Fetch query error: ${errorType}`, resp);
         }
         counter++;
       }

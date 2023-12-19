@@ -22,11 +22,13 @@ const (
 	HeaderLocation               = "Location"
 	HeaderOperationLocation      = "Operation-Location"
 	HeaderRetryAfter             = "Retry-After"
+	HeaderRetryAfterMS           = "Retry-After-Ms"
 	HeaderUserAgent              = "User-Agent"
 	HeaderWWWAuthenticate        = "WWW-Authenticate"
 	HeaderXMSClientRequestID     = "x-ms-client-request-id"
 	HeaderXMSRequestID           = "x-ms-request-id"
 	HeaderXMSErrorCode           = "x-ms-error-code"
+	HeaderXMSRetryAfterMS        = "x-ms-retry-after-ms"
 )
 
 const BearerTokenPrefix = "Bearer "
@@ -38,5 +40,5 @@ const (
 	Module = "azcore"
 
 	// Version is the semantic version (see http://semver.org) of this module.
-	Version = "v1.9.0"
+	Version = "v1.9.1"
 )

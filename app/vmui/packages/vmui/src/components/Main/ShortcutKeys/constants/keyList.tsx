@@ -4,9 +4,8 @@ import { VisibilityIcon } from "../../Icons";
 import GraphTips from "../../../Chart/GraphTips/GraphTips";
 
 const ctrlMeta = <code>{isMacOs() ? "Cmd" : "Ctrl"}</code>;
-const altMeta = <code>{isMacOs() ? "Option" : "Alt"}</code>;
 
-export const AUTOCOMPLETE_KEY = <>{altMeta} + <code>A</code></>;
+export const AUTOCOMPLETE_QUICK_KEY = <>{<code>{isMacOs() ? "Option" : "Ctrl"}</code>} + <code>Space</code></>;
 
 const keyList = [
   {
@@ -33,8 +32,8 @@ const keyList = [
         description: "Toggle multiple queries"
       },
       {
-        keys: AUTOCOMPLETE_KEY,
-        description: "Toggle autocomplete"
+        keys: AUTOCOMPLETE_QUICK_KEY,
+        description: "Show quick autocomplete tips"
       }
     ]
   },

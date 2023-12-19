@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
@@ -14,7 +16,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/pb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
-	"github.com/VictoriaMetrics/metrics"
 )
 
 // ParseStream parses OpenTelemetry protobuf or json data from r and calls callback for the parsed rows.
@@ -271,11 +272,11 @@ func (wr *writeContext) readAndUnpackRequest(r io.Reader) (*pb.ExportMetricsServ
 
 func (wr *writeContext) parseRequestToTss(req *pb.ExportMetricsServiceRequest) {
 	for _, rm := range req.ResourceMetrics {
-		if rm.Resource == nil {
-			// skip metrics without resource part.
-			continue
+		var attributes []*pb.KeyValue
+		if rm.Resource != nil {
+			attributes = rm.Resource.Attributes
 		}
-		wr.baseLabels = appendAttributesToPromLabels(wr.baseLabels[:0], rm.Resource.Attributes)
+		wr.baseLabels = appendAttributesToPromLabels(wr.baseLabels[:0], attributes)
 		for _, sc := range rm.ScopeMetrics {
 			wr.appendSamplesFromScopeMetrics(sc)
 		}

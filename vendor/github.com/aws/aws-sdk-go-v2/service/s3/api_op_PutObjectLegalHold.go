@@ -14,9 +14,9 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Applies a legal hold configuration to the specified object. For more
-// information, see Locking Objects (https://docs.aws.amazon.com/AmazonS3/latest/dev/object-lock.html)
-// . This action is not supported by Amazon S3 on Outposts.
+// This operation is not supported by directory buckets. Applies a legal hold
+// configuration to the specified object. For more information, see Locking Objects (https://docs.aws.amazon.com/AmazonS3/latest/dev/object-lock.html)
+// . This functionality is not supported for Amazon S3 on Outposts.
 func (c *Client) PutObjectLegalHold(ctx context.Context, params *PutObjectLegalHoldInput, optFns ...func(*Options)) (*PutObjectLegalHoldOutput, error) {
 	if params == nil {
 		params = &PutObjectLegalHoldInput{}
@@ -35,7 +35,9 @@ func (c *Client) PutObjectLegalHold(ctx context.Context, params *PutObjectLegalH
 type PutObjectLegalHoldInput struct {
 
 	// The bucket name containing the object that you want to place a legal hold on.
-	// When using this action with an access point, you must direct requests to the
+	// Access points - When you use this action with an access point, you must provide
+	// the alias of the access point in place of the bucket name or specify the access
+	// point ARN. When using the access point ARN, you must direct requests to the
 	// access point hostname. The access point hostname takes the form
 	// AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com. When using this
 	// action with an access point through the Amazon Web Services SDKs, you provide
@@ -51,12 +53,12 @@ type PutObjectLegalHoldInput struct {
 	// This member is required.
 	Key *string
 
-	// Indicates the algorithm used to create the checksum for the object when using
-	// the SDK. This header will not provide any additional functionality if not using
-	// the SDK. When sending this header, there must be a corresponding x-amz-checksum
-	// or x-amz-trailer header sent. Otherwise, Amazon S3 fails the request with the
-	// HTTP status code 400 Bad Request . For more information, see Checking object
-	// integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
+	// Indicates the algorithm used to create the checksum for the object when you use
+	// the SDK. This header will not provide any additional functionality if you don't
+	// use the SDK. When you send this header, there must be a corresponding
+	// x-amz-checksum or x-amz-trailer header sent. Otherwise, Amazon S3 fails the
+	// request with the HTTP status code 400 Bad Request . For more information, see
+	// Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
 	// in the Amazon S3 User Guide. If you provide an individual checksum, Amazon S3
 	// ignores any provided ChecksumAlgorithm parameter.
 	ChecksumAlgorithm types.ChecksumAlgorithm
@@ -66,9 +68,9 @@ type PutObjectLegalHoldInput struct {
 	// calculated automatically.
 	ContentMD5 *string
 
-	// The account ID of the expected bucket owner. If the bucket is owned by a
-	// different account, the request fails with the HTTP status code 403 Forbidden
-	// (access denied).
+	// The account ID of the expected bucket owner. If the account ID that you provide
+	// does not match the actual owner of the bucket, the request fails with the HTTP
+	// status code 403 Forbidden (access denied).
 	ExpectedBucketOwner *string
 
 	// Container element for the legal hold configuration you want to apply to the
@@ -77,11 +79,12 @@ type PutObjectLegalHoldInput struct {
 
 	// Confirms that the requester knows that they will be charged for the request.
 	// Bucket owners need not specify this parameter in their requests. If either the
-	// source or destination Amazon S3 bucket has Requester Pays enabled, the requester
-	// will pay for corresponding charges to copy the object. For information about
+	// source or destination S3 bucket has Requester Pays enabled, the requester will
+	// pay for corresponding charges to copy the object. For information about
 	// downloading objects from Requester Pays buckets, see Downloading Objects in
 	// Requester Pays Buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
-	// in the Amazon S3 User Guide.
+	// in the Amazon S3 User Guide. This functionality is not supported for directory
+	// buckets.
 	RequestPayer types.RequestPayer
 
 	// The version ID of the object that you want to place a legal hold on.
@@ -98,7 +101,7 @@ func (in *PutObjectLegalHoldInput) bindEndpointParams(p *EndpointParameters) {
 type PutObjectLegalHoldOutput struct {
 
 	// If present, indicates that the requester was successfully charged for the
-	// request.
+	// request. This functionality is not supported for directory buckets.
 	RequestCharged types.RequestCharged
 
 	// Metadata pertaining to the operation's result.
@@ -162,6 +165,9 @@ func (c *Client) addOperationPutObjectLegalHoldMiddlewares(stack *middleware.Sta
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addPutBucketContextMiddleware(stack); err != nil {
+		return err
+	}
 	if err = addOpPutObjectLegalHoldValidationMiddleware(stack); err != nil {
 		return err
 	}
@@ -196,6 +202,9 @@ func (c *Client) addOperationPutObjectLegalHoldMiddlewares(stack *middleware.Sta
 		return err
 	}
 	if err = addSerializeImmutableHostnameBucketMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = s3cust.AddExpressDefaultChecksumMiddleware(stack); err != nil {
 		return err
 	}
 	return nil

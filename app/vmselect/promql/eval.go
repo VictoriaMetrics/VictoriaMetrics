@@ -686,10 +686,7 @@ func tryGetArgRollupFuncWithMetricExpr(ae *metricsql.AggrFuncExpr) (*metricsql.F
 			return nil, nil
 		}
 		// e = rollupFunc(metricExpr)
-		return &metricsql.FuncExpr{
-			Name: fe.Name,
-			Args: []metricsql.Expr{me},
-		}, nrf
+		return fe, nrf
 	}
 	if re, ok := arg.(*metricsql.RollupExpr); ok {
 		if me, ok := re.Expr.(*metricsql.MetricExpr); !ok || me.IsEmpty() || re.ForSubquery() {
@@ -929,7 +926,7 @@ func evalRollupFuncWithSubquery(qt *querytracer.Tracer, ec *EvalConfig, funcName
 	}
 
 	ecSQ := copyEvalConfig(ec)
-	ecSQ.Start -= window + maxSilenceInterval + step
+	ecSQ.Start -= window + step + maxSilenceInterval()
 	ecSQ.End += step
 	ecSQ.Step = step
 	ecSQ.MaxPointsPerSeries = *maxPointsSubqueryPerTimeseries
@@ -1672,12 +1669,12 @@ func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName stri
 		return nil, err
 	}
 
-	// Fetch the remaining part of the result.
+	// Fetch the result.
 	tfss := searchutils.ToTagFilterss(me.LabelFilterss)
 	tfss = searchutils.JoinTagFilterss(tfss, ec.EnforcedTagFilterss)
 	minTimestamp := ec.Start
 	if needSilenceIntervalForRollupFunc(funcName) {
-		minTimestamp -= maxSilenceInterval
+		minTimestamp -= maxSilenceInterval()
 	}
 	if window > ec.Step {
 		minTimestamp -= window
@@ -1772,10 +1769,22 @@ func getRollupMemoryLimiter() *memoryLimiter {
 	return &rollupMemoryLimiter
 }
 
+func maxSilenceInterval() int64 {
+	d := minStalenessInterval.Milliseconds()
+	if d <= 0 {
+		d = 5 * 60 * 1000
+	}
+	return d
+}
+
 func needSilenceIntervalForRollupFunc(funcName string) bool {
-	// All rollup the functions, which do not rely on the previous sample
-	// before the lookbehind window (aka prevValue), do not need silence interval.
+	// All the rollup functions, which do not rely on the previous sample
+	// before the lookbehind window (aka prevValue and realPrevValue), do not need silence interval.
 	switch strings.ToLower(funcName) {
+	case "default_rollup":
+		// The default_rollup implicitly relies on the previous samples in order to fill gaps.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5388
+		return true
 	case
 		"absent_over_time",
 		"avg_over_time",
@@ -1784,7 +1793,6 @@ func needSilenceIntervalForRollupFunc(funcName string) bool {
 		"count_le_over_time",
 		"count_ne_over_time",
 		"count_over_time",
-		"default_rollup",
 		"first_over_time",
 		"histogram_over_time",
 		"hoeffding_bound_lower",

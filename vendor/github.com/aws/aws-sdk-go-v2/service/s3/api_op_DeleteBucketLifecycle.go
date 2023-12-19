@@ -9,17 +9,19 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	s3cust "github.com/aws/aws-sdk-go-v2/service/s3/internal/customizations"
 	"github.com/aws/smithy-go/middleware"
+	"github.com/aws/smithy-go/ptr"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Deletes the lifecycle configuration from the specified bucket. Amazon S3
-// removes all the lifecycle configuration rules in the lifecycle subresource
-// associated with the bucket. Your objects never expire, and Amazon S3 no longer
-// automatically deletes any objects on the basis of rules contained in the deleted
-// lifecycle configuration. To use this operation, you must have permission to
-// perform the s3:PutLifecycleConfiguration action. By default, the bucket owner
-// has this permission and the bucket owner can grant this permission to others.
-// There is usually some time lag before lifecycle configuration deletion is fully
+// This operation is not supported by directory buckets. Deletes the lifecycle
+// configuration from the specified bucket. Amazon S3 removes all the lifecycle
+// configuration rules in the lifecycle subresource associated with the bucket.
+// Your objects never expire, and Amazon S3 no longer automatically deletes any
+// objects on the basis of rules contained in the deleted lifecycle configuration.
+// To use this operation, you must have permission to perform the
+// s3:PutLifecycleConfiguration action. By default, the bucket owner has this
+// permission and the bucket owner can grant this permission to others. There is
+// usually some time lag before lifecycle configuration deletion is fully
 // propagated to all the Amazon S3 systems. For more information about the object
 // expiration, see Elements to Describe Lifecycle Actions (https://docs.aws.amazon.com/AmazonS3/latest/dev/intro-lifecycle-rules.html#intro-lifecycle-rules-actions)
 // . Related actions include:
@@ -47,9 +49,9 @@ type DeleteBucketLifecycleInput struct {
 	// This member is required.
 	Bucket *string
 
-	// The account ID of the expected bucket owner. If the bucket is owned by a
-	// different account, the request fails with the HTTP status code 403 Forbidden
-	// (access denied).
+	// The account ID of the expected bucket owner. If the account ID that you provide
+	// does not match the actual owner of the bucket, the request fails with the HTTP
+	// status code 403 Forbidden (access denied).
 	ExpectedBucketOwner *string
 
 	noSmithyDocumentSerde
@@ -57,7 +59,7 @@ type DeleteBucketLifecycleInput struct {
 
 func (in *DeleteBucketLifecycleInput) bindEndpointParams(p *EndpointParameters) {
 	p.Bucket = in.Bucket
-
+	p.UseS3ExpressControlEndpoint = ptr.Bool(true)
 }
 
 type DeleteBucketLifecycleOutput struct {
@@ -120,6 +122,9 @@ func (c *Client) addOperationDeleteBucketLifecycleMiddlewares(stack *middleware.
 		return err
 	}
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addPutBucketContextMiddleware(stack); err != nil {
 		return err
 	}
 	if err = addOpDeleteBucketLifecycleValidationMiddleware(stack); err != nil {

@@ -22,22 +22,29 @@ func init() {
 }
 
 func TestGetExternalURL(t *testing.T) {
-	expURL := "https://vicotriametrics.com/path"
-	u, err := getExternalURL(expURL, "", false)
+	invalidURL := "victoriametrics.com/path"
+	_, err := getExternalURL(invalidURL)
+	if err == nil {
+		t.Errorf("expected error, got nil")
+	}
+
+	expURL := "https://victoriametrics.com/path"
+	u, err := getExternalURL(expURL)
 	if err != nil {
 		t.Errorf("unexpected error %s", err)
 	}
 	if u.String() != expURL {
-		t.Errorf("unexpected url want %s, got %s", expURL, u.String())
+		t.Errorf("unexpected url: want %q, got %s", expURL, u.String())
 	}
+
 	h, _ := os.Hostname()
-	expURL = fmt.Sprintf("https://%s:4242", h)
-	u, err = getExternalURL("", "0.0.0.0:4242", true)
+	expURL = fmt.Sprintf("http://%s:8880", h)
+	u, err = getExternalURL("")
 	if err != nil {
 		t.Errorf("unexpected error %s", err)
 	}
 	if u.String() != expURL {
-		t.Errorf("unexpected url want %s, got %s", expURL, u.String())
+		t.Errorf("unexpected url: want %s, got %s", expURL, u.String())
 	}
 }
 

@@ -30,6 +30,7 @@ type AlertingRule struct {
 	Annotations   map[string]string
 	GroupID       uint64
 	GroupName     string
+	File          string
 	EvalInterval  time.Duration
 	Debug         bool
 
@@ -47,7 +48,7 @@ type AlertingRule struct {
 }
 
 type alertingRuleMetrics struct {
-	errors        *utils.Gauge
+	errors        *utils.Counter
 	pending       *utils.Gauge
 	active        *utils.Gauge
 	samples       *utils.Gauge
@@ -67,6 +68,7 @@ func NewAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule
 		Annotations:   cfg.Annotations,
 		GroupID:       group.ID(),
 		GroupName:     group.Name,
+		File:          group.File,
 		EvalInterval:  group.Interval,
 		Debug:         cfg.Debug,
 		q: qb.BuildWithParams(datasource.QuerierParams{
@@ -116,14 +118,7 @@ func NewAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule
 			}
 			return float64(num)
 		})
-	ar.metrics.errors = utils.GetOrCreateGauge(fmt.Sprintf(`vmalert_alerting_rules_error{%s}`, labels),
-		func() float64 {
-			e := ar.state.getLast()
-			if e.Err == nil {
-				return 0
-			}
-			return 1
-		})
+	ar.metrics.errors = utils.GetOrCreateCounter(fmt.Sprintf(`vmalert_alerting_rules_errors_total{%s}`, labels))
 	ar.metrics.samples = utils.GetOrCreateGauge(fmt.Sprintf(`vmalert_alerting_rules_last_evaluation_samples{%s}`, labels),
 		func() float64 {
 			e := ar.state.getLast()
@@ -383,6 +378,9 @@ func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int) ([]pr
 
 	defer func() {
 		ar.state.add(curState)
+		if curState.Err != nil {
+			ar.metrics.errors.Inc()
+		}
 	}()
 
 	ar.alertsMu.Lock()

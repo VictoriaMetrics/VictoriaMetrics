@@ -10,11 +10,13 @@ import (
 	s3cust "github.com/aws/aws-sdk-go-v2/service/s3/internal/customizations"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/smithy-go/middleware"
+	"github.com/aws/smithy-go/ptr"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Lists the S3 Intelligent-Tiering configuration from the specified bucket. The
-// S3 Intelligent-Tiering storage class is designed to optimize storage costs by
+// This operation is not supported by directory buckets. Lists the S3
+// Intelligent-Tiering configuration from the specified bucket. The S3
+// Intelligent-Tiering storage class is designed to optimize storage costs by
 // automatically moving data to the most cost-effective storage access tier,
 // without performance impact or operational overhead. S3 Intelligent-Tiering
 // delivers automatic cost savings in three low latency and high throughput access
@@ -63,7 +65,7 @@ type ListBucketIntelligentTieringConfigurationsInput struct {
 
 func (in *ListBucketIntelligentTieringConfigurationsInput) bindEndpointParams(p *EndpointParameters) {
 	p.Bucket = in.Bucket
-
+	p.UseS3ExpressControlEndpoint = ptr.Bool(true)
 }
 
 type ListBucketIntelligentTieringConfigurationsOutput struct {
@@ -78,7 +80,7 @@ type ListBucketIntelligentTieringConfigurationsOutput struct {
 	// Indicates whether the returned list of analytics configurations is complete. A
 	// value of true indicates that the list is not complete and the
 	// NextContinuationToken will be provided for a subsequent request.
-	IsTruncated bool
+	IsTruncated *bool
 
 	// The marker used to continue this inventory configuration listing. Use the
 	// NextContinuationToken from this response to continue the listing in a subsequent
@@ -144,6 +146,9 @@ func (c *Client) addOperationListBucketIntelligentTieringConfigurationsMiddlewar
 		return err
 	}
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addPutBucketContextMiddleware(stack); err != nil {
 		return err
 	}
 	if err = addOpListBucketIntelligentTieringConfigurationsValidationMiddleware(stack); err != nil {

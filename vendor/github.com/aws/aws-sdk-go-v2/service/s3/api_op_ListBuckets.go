@@ -13,10 +13,10 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Returns a list of all buckets owned by the authenticated sender of the request.
-// To use this operation, you must have the s3:ListAllMyBuckets permission. For
-// information about Amazon S3 buckets, see Creating, configuring, and working
-// with Amazon S3 buckets (https://docs.aws.amazon.com/AmazonS3/latest/userguide/creating-buckets-s3.html)
+// This operation is not supported by directory buckets. Returns a list of all
+// buckets owned by the authenticated sender of the request. To use this operation,
+// you must have the s3:ListAllMyBuckets permission. For information about Amazon
+// S3 buckets, see Creating, configuring, and working with Amazon S3 buckets (https://docs.aws.amazon.com/AmazonS3/latest/userguide/creating-buckets-s3.html)
 // .
 func (c *Client) ListBuckets(ctx context.Context, params *ListBucketsInput, optFns ...func(*Options)) (*ListBucketsOutput, error) {
 	if params == nil {
@@ -104,6 +104,9 @@ func (c *Client) addOperationListBucketsMiddlewares(stack *middleware.Stack, opt
 		return err
 	}
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addPutBucketContextMiddleware(stack); err != nil {
 		return err
 	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opListBuckets(options.Region), middleware.Before); err != nil {

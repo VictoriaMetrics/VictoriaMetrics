@@ -18,7 +18,7 @@ groups:
             Check vmalert's logs for detailed error message."
 
       - alert: AlertingRulesError
-        expr: sum(vmalert_alerting_rules_error) by(job, instance, group, file) > 0
+        expr: sum(increase(vmalert_alerting_rules_errors_total[5m])) without(alertname, id) > 0
         for: 5m
         labels:
           severity: warning
@@ -29,7 +29,7 @@ groups:
             Check vmalert's logs for detailed error message."
 
       - alert: RecordingRulesError
-        expr: sum(vmalert_recording_rules_error) by(job, instance, group, file) > 0
+        expr: sum(increase(vmalert_recording_rules_errors_total[5m])) without(recording, id) > 0
         for: 5m
         labels:
           severity: warning
@@ -40,7 +40,7 @@ groups:
             Check vmalert's logs for detailed error message."
 
       - alert: RecordingRulesNoData
-        expr: sum(vmalert_recording_rules_last_evaluation_samples) by(job, group, recording, file) < 1
+        expr: sum(vmalert_recording_rules_last_evaluation_samples) without(recording, id) < 1
         for: 30m
         labels:
           severity: info
@@ -52,7 +52,7 @@ groups:
             or incorrect query expression."
 
       - alert: TooManyMissedIterations
-        expr: sum(increase(vmalert_iteration_missed_total[5m])) by(job, instance, group, file) > 0
+        expr: increase(vmalert_iteration_missed_total[5m]) > 0
         for: 15m
         labels:
           severity: warning
@@ -65,7 +65,7 @@ groups:
             If rule expressions are taking longer than expected, please see https://docs.victoriametrics.com/Troubleshooting.html#slow-queries."
 
       - alert: RemoteWriteErrors
-        expr: sum(increase(vmalert_remotewrite_errors_total[5m])) by(job, instance) > 0
+        expr: increase(vmalert_remotewrite_errors_total[5m]) > 0
         for: 15m
         labels:
           severity: warning
@@ -75,7 +75,7 @@ groups:
             or recording rules to the configured remote write URL. Check vmalert's logs for detailed error message."
 
       - alert: AlertmanagerErrors
-        expr: sum(increase(vmalert_alerts_send_errors_total[5m])) by(job, instance, addr) > 0
+        expr: increase(vmalert_alerts_send_errors_total[5m]) > 0
         for: 15m
         labels:
           severity: warning

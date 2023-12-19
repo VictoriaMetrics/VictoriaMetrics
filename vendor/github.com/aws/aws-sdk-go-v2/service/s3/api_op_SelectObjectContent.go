@@ -15,18 +15,20 @@ import (
 	"sync"
 )
 
-// This action filters the contents of an Amazon S3 object based on a simple
-// structured query language (SQL) statement. In the request, along with the SQL
-// expression, you must also specify a data serialization format (JSON, CSV, or
-// Apache Parquet) of the object. Amazon S3 uses this format to parse object data
-// into records, and returns only records that match the specified SQL expression.
-// You must also specify the data serialization format for the response. This
-// action is not supported by Amazon S3 on Outposts. For more information about
-// Amazon S3 Select, see Selecting Content from Objects (https://docs.aws.amazon.com/AmazonS3/latest/dev/selecting-content-from-objects.html)
+// This operation is not supported by directory buckets. This action filters the
+// contents of an Amazon S3 object based on a simple structured query language
+// (SQL) statement. In the request, along with the SQL expression, you must also
+// specify a data serialization format (JSON, CSV, or Apache Parquet) of the
+// object. Amazon S3 uses this format to parse object data into records, and
+// returns only records that match the specified SQL expression. You must also
+// specify the data serialization format for the response. This functionality is
+// not supported for Amazon S3 on Outposts. For more information about Amazon S3
+// Select, see Selecting Content from Objects (https://docs.aws.amazon.com/AmazonS3/latest/dev/selecting-content-from-objects.html)
 // and SELECT Command (https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-glacier-select-sql-reference-select.html)
-// in the Amazon S3 User Guide. Permissions You must have s3:GetObject permission
-// for this operation. Amazon S3 Select does not support anonymous access. For more
-// information about permissions, see Specifying Permissions in a Policy (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-with-s3-actions.html)
+// in the Amazon S3 User Guide. Permissions You must have the s3:GetObject
+// permission for this operation. Amazon S3 Select does not support anonymous
+// access. For more information about permissions, see Specifying Permissions in a
+// Policy (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-with-s3-actions.html)
 // in the Amazon S3 User Guide. Object Data Formats You can use Amazon S3 Select to
 // query objects that have the following format properties:
 //   - CSV, JSON, and Parquet - Objects must be in CSV, JSON, or Parquet format.
@@ -129,9 +131,9 @@ type SelectObjectContentInput struct {
 	// This member is required.
 	OutputSerialization *types.OutputSerialization
 
-	// The account ID of the expected bucket owner. If the bucket is owned by a
-	// different account, the request fails with the HTTP status code 403 Forbidden
-	// (access denied).
+	// The account ID of the expected bucket owner. If the account ID that you provide
+	// does not match the actual owner of the bucket, the request fails with the HTTP
+	// status code 403 Forbidden (access denied).
 	ExpectedBucketOwner *string
 
 	// Specifies if periodic request progress information should be enabled.
@@ -238,6 +240,9 @@ func (c *Client) addOperationSelectObjectContentMiddlewares(stack *middleware.St
 		return err
 	}
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addPutBucketContextMiddleware(stack); err != nil {
 		return err
 	}
 	if err = addOpSelectObjectContentValidationMiddleware(stack); err != nil {
