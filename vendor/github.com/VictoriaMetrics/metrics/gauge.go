@@ -46,6 +46,10 @@ func (g *Gauge) marshalTo(prefix string, w io.Writer) {
 	}
 }
 
+func (g *Gauge) metricType() string {
+	return "gauge"
+}
+
 // GetOrCreateGauge returns registered gauge with the given name
 // or creates new gauge if the registry doesn't contain gauge with
 // the given name.
