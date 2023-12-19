@@ -761,7 +761,7 @@ func TestAggregatorsWithDedupInterval(t *testing.T) {
 		matchIdxs := a.Push(tssInput, nil)
 		if a != nil {
 			for _, aggr := range a.as {
-				aggr.dedupFlush()
+				aggr.dedup.flush()
 				aggr.flush()
 			}
 		}
