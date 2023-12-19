@@ -85,6 +85,7 @@ Released at 2023-12-13
 * BUGFIX: [vminsert](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): fix panic when ingesting data via [NewRelic protocol](https://docs.victoriametrics.com/#how-to-send-data-from-newrelic-agent) into VictoriaMetrics cluster. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5416).
 * BUGFIX: properly escape `<` character in responses returned via [`/federate`](https://docs.victoriametrics.com/#federation) endpoint. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5431).
 * BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl.html): check for Error field in response from influx client during migration. Before, only network errors were checked. Thanks to @wozz for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5446).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): fix high memory consumption in streaming aggregation with `streamAggr.dedupInterval` flag.
 
 ## [v1.95.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.95.1)
 
