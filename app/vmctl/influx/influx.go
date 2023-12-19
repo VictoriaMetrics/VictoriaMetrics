@@ -358,10 +358,13 @@ func (c *Client) getSeries() ([]*Series, error) {
 func (c *Client) do(q influx.Query) ([]queryValues, error) {
 	res, err := c.Query(q)
 	if err != nil {
-		return nil, fmt.Errorf("query %q err: %s", q.Command, err)
+		return nil, fmt.Errorf("query error: %s", err)
+	}
+	if res.Error() != nil {
+		return nil, fmt.Errorf("response error: %s", res.Error())
 	}
 	if len(res.Results) < 1 {
-		return nil, fmt.Errorf("exploration query %q returned 0 results", q.Command)
+		return nil, fmt.Errorf("query returned 0 results")
 	}
 	return parseResult(res.Results[0])
 }

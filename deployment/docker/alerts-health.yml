@@ -55,7 +55,7 @@ groups:
                Consider to either increase available CPU resources or decrease the load on the process."
 
       - alert: TooManyLogs
-        expr: sum(increase(vm_log_messages_total{level="error"}[5m])) by (job, instance) > 0
+        expr: sum(increase(vm_log_messages_total{level="error"}[5m])) without (app_version, location) > 0
         for: 15m
         labels:
           severity: warning
@@ -65,7 +65,7 @@ groups:
          Worth to check logs for specific error messages."
 
       - alert: TooManyTSIDMisses
-        expr: sum(rate(vm_missing_tsids_for_metric_id_total[5m])) by (job, instance) > 0
+        expr: rate(vm_missing_tsids_for_metric_id_total[5m]) > 0
         for: 10m
         labels:
           severity: critical

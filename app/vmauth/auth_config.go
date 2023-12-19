@@ -56,7 +56,7 @@ type UserInfo struct {
 	DefaultURL             *URLPrefix  `yaml:"default_url,omitempty"`
 	RetryStatusCodes       []int       `yaml:"retry_status_codes,omitempty"`
 	LoadBalancingPolicy    string      `yaml:"load_balancing_policy,omitempty"`
-	DropSrcPathPrefixParts int         `yaml:"drop_src_path_prefix_parts,omitempty"`
+	DropSrcPathPrefixParts *int        `yaml:"drop_src_path_prefix_parts,omitempty"`
 	TLSInsecureSkipVerify  *bool       `yaml:"tls_insecure_skip_verify,omitempty"`
 	TLSCAFile              string      `yaml:"tls_ca_file,omitempty"`
 
@@ -126,16 +126,30 @@ func (h *Header) MarshalYAML() (interface{}, error) {
 
 // URLMap is a mapping from source paths to target urls.
 type URLMap struct {
-	SrcPaths               []*SrcPath  `yaml:"src_paths,omitempty"`
-	URLPrefix              *URLPrefix  `yaml:"url_prefix,omitempty"`
-	HeadersConf            HeadersConf `yaml:",inline"`
-	RetryStatusCodes       []int       `yaml:"retry_status_codes,omitempty"`
-	LoadBalancingPolicy    string      `yaml:"load_balancing_policy,omitempty"`
-	DropSrcPathPrefixParts int         `yaml:"drop_src_path_prefix_parts,omitempty"`
+	// SrcHosts is the list of regular expressions, which match the request hostname.
+	SrcHosts []*Regex `yaml:"src_hosts,omitempty"`
+
+	// SrcPaths is the list of regular expressions, which match the request path.
+	SrcPaths []*Regex `yaml:"src_paths,omitempty"`
+
+	// UrlPrefix contains backend url prefixes for the proxied request url.
+	URLPrefix *URLPrefix `yaml:"url_prefix,omitempty"`
+
+	// HeadersConf is the config for augumenting request and response headers.
+	HeadersConf HeadersConf `yaml:",inline"`
+
+	// RetryStatusCodes is the list of response status codes used for retrying requests.
+	RetryStatusCodes []int `yaml:"retry_status_codes,omitempty"`
+
+	// LoadBalancingPolicy is load balancing policy among UrlPrefix backends.
+	LoadBalancingPolicy string `yaml:"load_balancing_policy,omitempty"`
+
+	// DropSrcPathPrefixParts is the number of `/`-delimited request path prefix parts to drop before proxying the request to backend.
+	DropSrcPathPrefixParts *int `yaml:"drop_src_path_prefix_parts,omitempty"`
 }
 
-// SrcPath represents an src path
-type SrcPath struct {
+// Regex represents a regex
+type Regex struct {
 	sOriginal string
 	re        *regexp.Regexp
 }
@@ -152,6 +166,9 @@ type URLPrefix struct {
 
 	// load balancing policy used
 	loadBalancingPolicy string
+
+	// how many request path prefix parts to drop before routing the request to backendURL.
+	dropSrcPathPrefixParts int
 }
 
 func (up *URLPrefix) setLoadBalancingPolicy(loadBalancingPolicy string) error {
@@ -333,8 +350,8 @@ func (up *URLPrefix) MarshalYAML() (interface{}, error) {
 	return string(b), nil
 }
 
-func (sp *SrcPath) match(s string) bool {
-	prefix, ok := sp.re.LiteralPrefix()
+func (r *Regex) match(s string) bool {
+	prefix, ok := r.re.LiteralPrefix()
 	if ok {
 		// Fast path - literal match
 		return s == prefix
@@ -342,11 +359,11 @@ func (sp *SrcPath) match(s string) bool {
 	if !strings.HasPrefix(s, prefix) {
 		return false
 	}
-	return sp.re.MatchString(s)
+	return r.re.MatchString(s)
 }
 
 // UnmarshalYAML implements yaml.Unmarshaler
-func (sp *SrcPath) UnmarshalYAML(f func(interface{}) error) error {
+func (r *Regex) UnmarshalYAML(f func(interface{}) error) error {
 	var s string
 	if err := f(&s); err != nil {
 		return err
@@ -356,14 +373,14 @@ func (sp *SrcPath) UnmarshalYAML(f func(interface{}) error) error {
 	if err != nil {
 		return fmt.Errorf("cannot build regexp from %q: %w", s, err)
 	}
-	sp.sOriginal = s
-	sp.re = re
+	r.sOriginal = s
+	r.re = re
 	return nil
 }
 
 // MarshalYAML implements yaml.Marshaler.
-func (sp *SrcPath) MarshalYAML() (interface{}, error) {
-	return sp.sOriginal, nil
+func (r *Regex) MarshalYAML() (interface{}, error) {
+	return r.sOriginal, nil
 }
 
 var (
@@ -592,17 +609,22 @@ func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, error) {
 func (ui *UserInfo) initURLs() error {
 	retryStatusCodes := defaultRetryStatusCodes.Values()
 	loadBalancingPolicy := *defaultLoadBalancingPolicy
+	dropSrcPathPrefixParts := 0
 	if ui.URLPrefix != nil {
 		if err := ui.URLPrefix.sanitize(); err != nil {
 			return err
 		}
-		if len(ui.RetryStatusCodes) > 0 {
+		if ui.RetryStatusCodes != nil {
 			retryStatusCodes = ui.RetryStatusCodes
 		}
 		if ui.LoadBalancingPolicy != "" {
 			loadBalancingPolicy = ui.LoadBalancingPolicy
 		}
+		if ui.DropSrcPathPrefixParts != nil {
+			dropSrcPathPrefixParts = *ui.DropSrcPathPrefixParts
+		}
 		ui.URLPrefix.retryStatusCodes = retryStatusCodes
+		ui.URLPrefix.dropSrcPathPrefixParts = dropSrcPathPrefixParts
 		if err := ui.URLPrefix.setLoadBalancingPolicy(loadBalancingPolicy); err != nil {
 			return err
 		}
@@ -613,8 +635,8 @@ func (ui *UserInfo) initURLs() error {
 		}
 	}
 	for _, e := range ui.URLMaps {
-		if len(e.SrcPaths) == 0 {
-			return fmt.Errorf("missing `src_paths` in `url_map`")
+		if len(e.SrcPaths) == 0 && len(e.SrcHosts) == 0 {
+			return fmt.Errorf("missing `src_paths` and `src_hosts` in `url_map`")
 		}
 		if e.URLPrefix == nil {
 			return fmt.Errorf("missing `url_prefix` in `url_map`")
@@ -624,16 +646,21 @@ func (ui *UserInfo) initURLs() error {
 		}
 		rscs := retryStatusCodes
 		lbp := loadBalancingPolicy
-		if len(e.RetryStatusCodes) > 0 {
+		dsp := dropSrcPathPrefixParts
+		if e.RetryStatusCodes != nil {
 			rscs = e.RetryStatusCodes
 		}
 		if e.LoadBalancingPolicy != "" {
 			lbp = e.LoadBalancingPolicy
 		}
+		if e.DropSrcPathPrefixParts != nil {
+			dsp = *e.DropSrcPathPrefixParts
+		}
 		e.URLPrefix.retryStatusCodes = rscs
 		if err := e.URLPrefix.setLoadBalancingPolicy(lbp); err != nil {
 			return err
 		}
+		e.URLPrefix.dropSrcPathPrefixParts = dsp
 	}
 	if len(ui.URLMaps) == 0 && ui.URLPrefix == nil {
 		return fmt.Errorf("missing `url_prefix`")

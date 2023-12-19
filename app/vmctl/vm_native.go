@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cheggaaa/pb/v3"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/backoff"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/barpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/limiter"
@@ -18,7 +20,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/cheggaaa/pb/v3"
 )
 
 type vmNativeProcessor struct {
@@ -28,13 +29,14 @@ type vmNativeProcessor struct {
 	src     *native.Client
 	backoff *backoff.Backoff
 
-	s              *stats
-	rateLimit      int64
-	interCluster   bool
-	cc             int
-	disableRetries bool
-	isSilent       bool
-	isNative       bool
+	s            *stats
+	rateLimit    int64
+	interCluster bool
+	cc           int
+	isSilent     bool
+	isNative     bool
+
+	disablePerMetricRequests bool
 }
 
 const (
@@ -67,12 +69,11 @@ func (p *vmNativeProcessor) run(ctx context.Context) error {
 
 	ranges := [][]time.Time{{start, end}}
 	if p.filter.Chunk != "" {
-		ranges, err = stepper.SplitDateRange(start, end, p.filter.Chunk)
+		ranges, err = stepper.SplitDateRange(start, end, p.filter.Chunk, p.filter.TimeReverse)
 		if err != nil {
 			return fmt.Errorf("failed to create date ranges for the given time filters: %w", err)
 		}
 	}
-
 	tenants := []string{""}
 	if p.interCluster {
 		log.Printf("Discovering tenants...")
@@ -119,19 +120,16 @@ func (p *vmNativeProcessor) runSingle(ctx context.Context, f native.Filter, srcU
 		return fmt.Errorf("failed to init export pipe: %w", err)
 	}
 
-	if p.disableRetries && bar != nil {
+	if p.disablePerMetricRequests && bar != nil {
 		fmt.Printf("Continue import process with filter %s:\n", f.String())
 		reader = bar.NewProxyReader(reader)
 	}
 
 	pr, pw := io.Pipe()
-	done := make(chan struct{})
+	importCh := make(chan error)
 	go func() {
-		defer func() { close(done) }()
-		if err := p.dst.ImportPipe(ctx, dstURL, pr); err != nil {
-			logger.Errorf("error initialize import pipe: %s", err)
-			return
-		}
+		importCh <- p.dst.ImportPipe(ctx, dstURL, pr)
+		close(importCh)
 	}()
 
 	w := io.Writer(pw)
@@ -153,9 +151,8 @@ func (p *vmNativeProcessor) runSingle(ctx context.Context, f native.Filter, srcU
 	if err := pw.Close(); err != nil {
 		return err
 	}
-	<-done
 
-	return nil
+	return <-importCh
 }
 
 func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string, ranges [][]time.Time, silent bool) error {
@@ -193,7 +190,7 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 	var foundSeriesMsg string
 
 	metrics := []string{p.filter.Match}
-	if !p.disableRetries {
+	if !p.disablePerMetricRequests {
 		log.Printf("Exploring metrics...")
 		metrics, err = p.src.Explore(ctx, p.filter, tenantID)
 		if err != nil {
@@ -231,7 +228,7 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 	var bar *pb.ProgressBar
 	if !silent {
 		bar = barpool.NewSingleProgress(fmt.Sprintf(nativeWithBackoffTpl, barPrefix), len(metrics)*len(ranges))
-		if p.disableRetries {
+		if p.disablePerMetricRequests {
 			bar = barpool.NewSingleProgress(nativeSingleProcessTpl, 0)
 		}
 		bar.Start()
@@ -247,7 +244,7 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 		go func() {
 			defer wg.Done()
 			for f := range filterCh {
-				if !p.disableRetries {
+				if !p.disablePerMetricRequests {
 					if err := p.do(ctx, f, srcURL, dstURL, nil); err != nil {
 						errCh <- err
 						return
