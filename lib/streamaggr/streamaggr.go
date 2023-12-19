@@ -132,6 +132,10 @@ type Config struct {
 	// OutputRelabelConfigs is an optional relabeling rules, which are applied
 	// on the aggregated output before being sent to remote storage.
 	OutputRelabelConfigs []promrelabel.RelabelConfig `yaml:"output_relabel_configs,omitempty"`
+
+	// DiscardSamplesOlderThan is an optional duration for discarding samples older
+	// than the given duration relative to the beginning of the aggregation window.
+	DiscardSamplesOlderThan string `yaml:"discard_samples_older_than,omitempty"`
 }
 
 // Aggregators aggregates metrics passed to Push and calls pushFunc for aggregate data.
@@ -228,6 +232,10 @@ type aggregator struct {
 	// interval is the interval for aggregating input samples
 	interval time.Duration
 
+	// discardSamplesOlderThan is an optional duration for discarding samples older
+	// than the given duration relative to the beginning of the aggregation window.
+	discardSamplesOlderThan *time.Duration `yaml:"pass_samples_older_than,omitempty"`
+
 	// dedup is set to non-nil if input samples must be de-duplicated according
 	// to the interval passed to newAggregator().
 	dedup *deduplicator
@@ -286,6 +294,16 @@ func newAggregator(cfg *Config, pushFunc PushFunc, dedupInterval time.Duration) 
 		if stalenessInterval < interval {
 			return nil, fmt.Errorf("staleness_interval cannot be less than interval (%s); got %s", cfg.Interval, cfg.StalenessInterval)
 		}
+	}
+
+	// check cfg.DiscardSamplesOlderThan
+	var discardSamplesOlderThan *time.Duration
+	if cfg.DiscardSamplesOlderThan != "" {
+		d, err := time.ParseDuration(cfg.DiscardSamplesOlderThan)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse `discard_samples_older_than: %q`: %w", cfg.DiscardSamplesOlderThan, err)
+		}
+		discardSamplesOlderThan = &d
 	}
 
 	// initialize input_relabel_configs and output_relabel_configs
@@ -393,10 +411,11 @@ func newAggregator(cfg *Config, pushFunc PushFunc, dedupInterval time.Duration) 
 		inputRelabeling:  inputRelabeling,
 		outputRelabeling: outputRelabeling,
 
-		by:                  by,
-		without:             without,
-		aggregateOnlyByTime: aggregateOnlyByTime,
-		interval:            interval,
+		by:                      by,
+		without:                 without,
+		aggregateOnlyByTime:     aggregateOnlyByTime,
+		interval:                interval,
+		discardSamplesOlderThan: discardSamplesOlderThan,
 
 		dedup:      dedup,
 		aggrStates: aggrStates,
@@ -498,7 +517,10 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 	labels := promutils.GetLabels()
 	tmpLabels := promutils.GetLabels()
 	bb := bbPool.Get()
-	minAllowedTimestamp := int64(float64(fasttime.UnixTimestamp())-a.interval.Seconds()) * 1000
+	var minAllowedTimestamp int64
+	if a.discardSamplesOlderThan != nil {
+		minAllowedTimestamp = int64(1000 * (float64(fasttime.UnixTimestamp()) - a.interval.Seconds() - a.discardSamplesOlderThan.Seconds()))
+	}
 	applyFilters := matchIdxs != nil
 	for idx, ts := range tss {
 		if applyFilters {
@@ -523,9 +545,9 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 				bb.B = marshalLabelsFast(bb.B[:0], labels.Labels)
 				key := bytesutil.InternBytes(bb.B)
 
-				if sample.Timestamp < minAllowedTimestamp {
+				if a.discardSamplesOlderThan != nil && sample.Timestamp < minAllowedTimestamp {
 					// Skip too old samples.
-					trackDroppedSample(&ts, sample.Timestamp, minAllowedTimestamp, a.tooOldSamplesDroppedTotal)
+					a.trackDroppedSample(&ts, sample.Timestamp, minAllowedTimestamp)
 					continue
 				}
 				a.dedup.pushSample(key, sample.Value)
@@ -535,9 +557,9 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 
 		inputKey, outputKey := a.extractKeys(bb, labels, tmpLabels)
 		for _, sample := range ts.Samples {
-			if sample.Timestamp < minAllowedTimestamp {
+			if a.discardSamplesOlderThan != nil && sample.Timestamp < minAllowedTimestamp {
 				// Skip too old samples.
-				trackDroppedSample(&ts, sample.Timestamp, minAllowedTimestamp, a.tooOldSamplesDroppedTotal)
+				a.trackDroppedSample(&ts, sample.Timestamp, minAllowedTimestamp)
 				continue
 			}
 			a.pushSample(inputKey, outputKey, sample.Value)
@@ -584,7 +606,7 @@ func (a *aggregator) extractKeys(bb *bytesutil.ByteBuffer, labels *promutils.Lab
 	return inputKey, outputKey
 }
 
-func trackDroppedSample(ts *prompbmarshal.TimeSeries, actualTs, minTs int64, m *metrics.Counter) {
+func (a *aggregator) trackDroppedSample(ts *prompbmarshal.TimeSeries, actualTs, minTs int64) {
 	select {
 	case <-droppedSamplesLogTicker.C:
 		// Do not call logger.WithThrottler() here, since this will result in increased CPU usage
@@ -594,7 +616,7 @@ func trackDroppedSample(ts *prompbmarshal.TimeSeries, actualTs, minTs int64, m *
 	default:
 	}
 
-	m.Inc()
+	a.tooOldSamplesDroppedTotal.Inc()
 }
 
 var droppedSamplesLogTicker = time.NewTicker(5 * time.Second)

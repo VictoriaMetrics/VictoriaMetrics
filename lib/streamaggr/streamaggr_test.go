@@ -725,6 +725,7 @@ func TestDiscardsSamplesWithOldTimestamps(t *testing.T) {
 		config := fmt.Sprintf(`
 - interval: %s
   outputs: ["avg"]
+  discard_samples_older_than: 0s
 `, interval)
 		input := `
 cpu_usage{cpu="1"} 1
@@ -757,7 +758,7 @@ cpu_usage{cpu="1"} 1
 
 		// Push the inputMetrics to Aggregators
 		tssInput := mustParsePromMetricsSetTS(input, inputTs)
-		a.Push(tssInput)
+		a.Push(tssInput, nil)
 		a.MustStop()
 
 		// Verify the tssOutput contains the expected metrics
