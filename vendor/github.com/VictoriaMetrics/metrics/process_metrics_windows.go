@@ -4,7 +4,6 @@
 package metrics
 
 import (
-	"fmt"
 	"io"
 	"log"
 	"syscall"
@@ -55,16 +54,16 @@ func writeProcessMetrics(w io.Writer) {
 		log.Printf("ERROR: metrics: cannot read process memory information: %s", err)
 		return
 	}
-	stimeSeconds := (uint64(stime.HighDateTime)<<32 + uint64(stime.LowDateTime)) / 1e7
-	utimeSeconds := (uint64(utime.HighDateTime)<<32 + uint64(utime.LowDateTime)) / 1e7
-	fmt.Fprintf(w, "process_cpu_seconds_system_total %d\n", stimeSeconds)
-	fmt.Fprintf(w, "process_cpu_seconds_total %d\n", stimeSeconds+utimeSeconds)
-	fmt.Fprintf(w, "process_cpu_seconds_user_total %d\n", stimeSeconds)
-	fmt.Fprintf(w, "process_pagefaults_total %d\n", mc.PageFaultCount)
-	fmt.Fprintf(w, "process_start_time_seconds %d\n", startTime.Nanoseconds()/1e9)
-	fmt.Fprintf(w, "process_virtual_memory_bytes %d\n", mc.PrivateUsage)
-	fmt.Fprintf(w, "process_resident_memory_peak_bytes %d\n", mc.PeakWorkingSetSize)
-	fmt.Fprintf(w, "process_resident_memory_bytes %d\n", mc.WorkingSetSize)
+	stimeSeconds := float64(uint64(stime.HighDateTime)<<32+uint64(stime.LowDateTime)) / 1e7
+	utimeSeconds := float64(uint64(utime.HighDateTime)<<32+uint64(utime.LowDateTime)) / 1e7
+	WriteCounterFloat64(w, "process_cpu_seconds_system_total", stimeSeconds)
+	WriteCounterFloat64(w, "process_cpu_seconds_total", stimeSeconds+utimeSeconds)
+	WriteCounterFloat64(w, "process_cpu_seconds_user_total", stimeSeconds)
+	WriteCounterUint64(w, "process_pagefaults_total", uint64(mc.PageFaultCount))
+	WriteGaugeUint64(w, "process_start_time_seconds", uint64(startTime.Nanoseconds())/1e9)
+	WriteGaugeUint64(w, "process_virtual_memory_bytes", uint64(mc.PrivateUsage))
+	WriteGaugeUint64(w, "process_resident_memory_peak_bytes", uint64(mc.PeakWorkingSetSize))
+	WriteGaugeUint64(w, "process_resident_memory_bytes", uint64(mc.WorkingSetSize))
 }
 
 func writeFDMetrics(w io.Writer) {
@@ -80,6 +79,6 @@ func writeFDMetrics(w io.Writer) {
 	}
 	// it seems to be hard-coded limit for 64-bit systems
 	// https://learn.microsoft.com/en-us/archive/blogs/markrussinovich/pushing-the-limits-of-windows-handles#maximum-number-of-handles
-	fmt.Fprintf(w, "process_max_fds %d\n", 16777216)
-	fmt.Fprintf(w, "process_open_fds %d\n", count)
+	WriteGaugeUint64(w, "process_max_fds", 16777216)
+	WriteGaugeUint64(w, "process_open_fds", uint64(count))
 }
