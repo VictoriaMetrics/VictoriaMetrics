@@ -209,5 +209,17 @@ export const useFetchQuery = ({
     if (defaultStep === customStep) setGraphData([]);
   }, [isHistogram]);
 
-  return { fetchUrl, isLoading, graphData, liveData, error, queryErrors, setQueryErrors, queryStats, warning, traces, isHistogram };
+  return {
+    fetchUrl,
+    isLoading,
+    graphData,
+    liveData,
+    error,
+    queryErrors,
+    setQueryErrors,
+    queryStats,
+    warning,
+    traces,
+    isHistogram
+  };
 };

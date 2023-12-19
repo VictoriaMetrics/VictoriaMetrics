@@ -1,0 +1,28 @@
+@use "src/styles/variables" as *;
+
+.vm-query-analyzer-info {
+  display: grid;
+  gap: $padding-large;
+  min-width: 300px;
+
+  &-type {
+    text-align: center;
+    font-style: italic;
+    color: $color-text-secondary;
+  }
+
+  &-item {
+    display: grid;
+    padding-bottom: $padding-large;
+    border-bottom: $border-divider;
+    line-height: 130%;
+
+    &__title {
+      font-weight: bold;
+    }
+
+    &__text {
+      white-space: pre-wrap;
+    }
+  }
+}

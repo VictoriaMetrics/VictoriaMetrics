@@ -26,6 +26,7 @@ import InstantQueryTip from "./InstantQueryTip/InstantQueryTip";
 import useBoolean from "../../hooks/useBoolean";
 import { getColumns } from "../../hooks/useSortedCategories";
 import useEventListener from "../../hooks/useEventListener";
+import DownloadReport from "./DownloadReport/DownloadReport";
 
 const CustomPanel: FC = () => {
   const { displayType, isTracingEnabled } = useCustomPanelState();
@@ -50,6 +51,7 @@ const CustomPanel: FC = () => {
   const graphDispatch = useGraphDispatch();
 
   const {
+    fetchUrl,
     isLoading,
     liveData,
     graphData,
@@ -172,25 +174,26 @@ const CustomPanel: FC = () => {
       >
         <div className="vm-custom-panel-body-header">
           <DisplayTypeSwitch/>
-          {displayType === "chart" && (
-            <div className="vm-custom-panel-body-header__left">
-              <GraphTips/>
+          <div className="vm-custom-panel-body-header__left">
+            {displayType === "chart" && <GraphTips/>}
+            <DownloadReport fetchUrl={fetchUrl}/>
+            {displayType === "chart" && (
               <GraphSettings
                 yaxis={yaxis}
                 setYaxisLimits={setYaxisLimits}
                 toggleEnableLimits={toggleEnableLimits}
               />
-            </div>
-          )}
-          {displayType === "table" && (
-            <TableSettings
-              columns={columns}
-              defaultColumns={displayColumns}
-              onChangeColumns={setDisplayColumns}
-              tableCompact={tableCompact}
-              toggleTableCompact={toggleTableCompact}
-            />
-          )}
+            )}
+            {displayType === "table" && (
+              <TableSettings
+                columns={columns}
+                defaultColumns={displayColumns}
+                onChangeColumns={setDisplayColumns}
+                tableCompact={tableCompact}
+                toggleTableCompact={toggleTableCompact}
+              />
+            )}
+          </div>
         </div>
         {graphData && period && (displayType === "chart") && (
           <GraphView

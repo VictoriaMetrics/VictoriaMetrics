@@ -1,0 +1,24 @@
+@use "src/styles/variables" as *;
+
+.vm-download-report {
+  display: grid;
+  gap: $padding-large;
+  padding-top: calc($padding-large - $padding-global);
+  min-width: 400px;
+
+  &-settings {
+    display: grid;
+    gap: $padding-global;
+
+    textarea {
+      min-height: 100px;
+    }
+  }
+
+  &__buttons {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: $padding-global;
+  }
+}

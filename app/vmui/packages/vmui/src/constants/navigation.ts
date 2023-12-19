@@ -48,6 +48,10 @@ export const defaultNavigation: NavigationItem[] = [
         value: router.trace,
       },
       {
+        label: routerOptions[router.queryAnalyzer].title,
+        value: router.queryAnalyzer,
+      },
+      {
         label: routerOptions[router.withTemplate].title,
         value: router.withTemplate,
       },
