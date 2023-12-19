@@ -13,12 +13,12 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Returns some or all (up to 1,000) of the objects in a bucket. You can use the
-// request parameters as selection criteria to return a subset of the objects in a
-// bucket. A 200 OK response can contain valid or invalid XML. Be sure to design
-// your application to parse the contents of the response and handle it
-// appropriately. This action has been revised. We recommend that you use the newer
-// version, ListObjectsV2 (https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListObjectsV2.html)
+// This operation is not supported by directory buckets. Returns some or all (up
+// to 1,000) of the objects in a bucket. You can use the request parameters as
+// selection criteria to return a subset of the objects in a bucket. A 200 OK
+// response can contain valid or invalid XML. Be sure to design your application to
+// parse the contents of the response and handle it appropriately. This action has
+// been revised. We recommend that you use the newer version, ListObjectsV2 (https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListObjectsV2.html)
 // , when developing applications. For backward compatibility, Amazon S3 continues
 // to support ListObjects . The following operations are related to ListObjects :
 //   - ListObjectsV2 (https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListObjectsV2.html)
@@ -43,16 +43,26 @@ func (c *Client) ListObjects(ctx context.Context, params *ListObjectsInput, optF
 
 type ListObjectsInput struct {
 
-	// The name of the bucket containing the objects. When using this action with an
-	// access point, you must direct requests to the access point hostname. The access
-	// point hostname takes the form
-	// AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com. When using this
-	// action with an access point through the Amazon Web Services SDKs, you provide
-	// the access point ARN in place of the bucket name. For more information about
-	// access point ARNs, see Using access points (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html)
-	// in the Amazon S3 User Guide. When you use this action with Amazon S3 on
-	// Outposts, you must direct requests to the S3 on Outposts hostname. The S3 on
-	// Outposts hostname takes the form
+	// The name of the bucket containing the objects. Directory buckets - When you use
+	// this operation with a directory bucket, you must use virtual-hosted-style
+	// requests in the format Bucket_name.s3express-az_id.region.amazonaws.com .
+	// Path-style requests are not supported. Directory bucket names must be unique in
+	// the chosen Availability Zone. Bucket names must follow the format
+	// bucket_base_name--az-id--x-s3 (for example,  DOC-EXAMPLE-BUCKET--usw2-az2--x-s3
+	// ). For information about bucket naming restrictions, see Directory bucket
+	// naming rules (https://docs.aws.amazon.com/AmazonS3/latest/userguide/directory-bucket-naming-rules.html)
+	// in the Amazon S3 User Guide. Access points - When you use this action with an
+	// access point, you must provide the alias of the access point in place of the
+	// bucket name or specify the access point ARN. When using the access point ARN,
+	// you must direct requests to the access point hostname. The access point hostname
+	// takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
+	// When using this action with an access point through the Amazon Web Services
+	// SDKs, you provide the access point ARN in place of the bucket name. For more
+	// information about access point ARNs, see Using access points (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html)
+	// in the Amazon S3 User Guide. Access points and Object Lambda access points are
+	// not supported by directory buckets. S3 on Outposts - When you use this action
+	// with Amazon S3 on Outposts, you must direct requests to the S3 on Outposts
+	// hostname. The S3 on Outposts hostname takes the form
 	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com . When you
 	// use this action with S3 on Outposts through the Amazon Web Services SDKs, you
 	// provide the Outposts access point ARN in place of the bucket name. For more
@@ -73,9 +83,9 @@ type ListObjectsInput struct {
 	// response.
 	EncodingType types.EncodingType
 
-	// The account ID of the expected bucket owner. If the bucket is owned by a
-	// different account, the request fails with the HTTP status code 403 Forbidden
-	// (access denied).
+	// The account ID of the expected bucket owner. If the account ID that you provide
+	// does not match the actual owner of the bucket, the request fails with the HTTP
+	// status code 403 Forbidden (access denied).
 	ExpectedBucketOwner *string
 
 	// Marker is where you want Amazon S3 to start listing from. Amazon S3 starts
@@ -85,7 +95,7 @@ type ListObjectsInput struct {
 	// Sets the maximum number of keys returned in the response. By default, the
 	// action returns up to 1,000 key names. The response might contain fewer keys but
 	// will never contain more.
-	MaxKeys int32
+	MaxKeys *int32
 
 	// Specifies the optional fields that you want returned in the response. Fields
 	// that you do not specify are not returned.
@@ -104,6 +114,7 @@ type ListObjectsInput struct {
 
 func (in *ListObjectsInput) bindEndpointParams(p *EndpointParameters) {
 	p.Bucket = in.Bucket
+	p.Prefix = in.Prefix
 
 }
 
@@ -135,14 +146,14 @@ type ListObjectsOutput struct {
 
 	// A flag that indicates whether Amazon S3 returned all of the results that
 	// satisfied the search criteria.
-	IsTruncated bool
+	IsTruncated *bool
 
 	// Indicates where in the bucket listing begins. Marker is included in the
 	// response if it was sent with the request.
 	Marker *string
 
 	// The maximum number of keys returned in the response body.
-	MaxKeys int32
+	MaxKeys *int32
 
 	// The bucket name.
 	Name *string
@@ -161,7 +172,7 @@ type ListObjectsOutput struct {
 	Prefix *string
 
 	// If present, indicates that the requester was successfully charged for the
-	// request.
+	// request. This functionality is not supported for directory buckets.
 	RequestCharged types.RequestCharged
 
 	// Metadata pertaining to the operation's result.
@@ -223,6 +234,9 @@ func (c *Client) addOperationListObjectsMiddlewares(stack *middleware.Stack, opt
 		return err
 	}
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addPutBucketContextMiddleware(stack); err != nil {
 		return err
 	}
 	if err = addOpListObjectsValidationMiddleware(stack); err != nil {

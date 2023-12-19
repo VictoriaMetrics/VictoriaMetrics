@@ -10,13 +10,15 @@ import (
 	s3cust "github.com/aws/aws-sdk-go-v2/service/s3/internal/customizations"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/smithy-go/middleware"
+	"github.com/aws/smithy-go/ptr"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Returns the tag set associated with the bucket. To use this operation, you must
-// have permission to perform the s3:GetBucketTagging action. By default, the
-// bucket owner has this permission and can grant this permission to others.
-// GetBucketTagging has the following special error:
+// This operation is not supported by directory buckets. Returns the tag set
+// associated with the bucket. To use this operation, you must have permission to
+// perform the s3:GetBucketTagging action. By default, the bucket owner has this
+// permission and can grant this permission to others. GetBucketTagging has the
+// following special error:
 //   - Error code: NoSuchTagSet
 //   - Description: There is no tag set associated with the bucket.
 //
@@ -45,9 +47,9 @@ type GetBucketTaggingInput struct {
 	// This member is required.
 	Bucket *string
 
-	// The account ID of the expected bucket owner. If the bucket is owned by a
-	// different account, the request fails with the HTTP status code 403 Forbidden
-	// (access denied).
+	// The account ID of the expected bucket owner. If the account ID that you provide
+	// does not match the actual owner of the bucket, the request fails with the HTTP
+	// status code 403 Forbidden (access denied).
 	ExpectedBucketOwner *string
 
 	noSmithyDocumentSerde
@@ -55,7 +57,7 @@ type GetBucketTaggingInput struct {
 
 func (in *GetBucketTaggingInput) bindEndpointParams(p *EndpointParameters) {
 	p.Bucket = in.Bucket
-
+	p.UseS3ExpressControlEndpoint = ptr.Bool(true)
 }
 
 type GetBucketTaggingOutput struct {
@@ -124,6 +126,9 @@ func (c *Client) addOperationGetBucketTaggingMiddlewares(stack *middleware.Stack
 		return err
 	}
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addPutBucketContextMiddleware(stack); err != nil {
 		return err
 	}
 	if err = addOpGetBucketTaggingValidationMiddleware(stack); err != nil {

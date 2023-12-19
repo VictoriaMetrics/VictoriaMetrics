@@ -45,15 +45,23 @@ type RemoteFS interface {
 	// UploadPart must upload part p from r to RemoteFS.
 	UploadPart(p Part, r io.Reader) error
 
-	// DeleteFile deletes filePath at RemoteFS
+	// DeleteFile deletes filePath at RemoteFS.
+	//
+	// filePath must use / as directory delimiters.
 	DeleteFile(filePath string) error
 
 	// CreateFile creates filePath at RemoteFS and puts data into it.
+	//
+	// filePath must use / as directory delimiters.
 	CreateFile(filePath string, data []byte) error
 
 	// HasFile returns true if filePath exists at RemoteFS.
+	//
+	// filePath must use / as directory delimiters.
 	HasFile(filePath string) (bool, error)
 
 	// ReadFile returns file contents at the given filePath.
+	//
+	// filePath must use / as directory delimiters.
 	ReadFile(filePath string) ([]byte, error)
 }

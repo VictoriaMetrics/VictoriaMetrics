@@ -47,9 +47,17 @@ func (s *Set) WritePrometheus(w io.Writer) {
 	sa := append([]*namedMetric(nil), s.a...)
 	s.mu.Unlock()
 
-	// Call marshalTo without the global lock, since certain metric types such as Gauge
-	// can call a callback, which, in turn, can try calling s.mu.Lock again.
+	prevMetricFamily := ""
 	for _, nm := range sa {
+		metricFamily := getMetricFamily(nm.name)
+		if metricFamily != prevMetricFamily {
+			// write meta info only once per metric family
+			metricType := nm.metric.metricType()
+			WriteMetadataIfNeeded(&bb, nm.name, metricType)
+			prevMetricFamily = metricFamily
+		}
+		// Call marshalTo without the global lock, since certain metric types such as Gauge
+		// can call a callback, which, in turn, can try calling s.mu.Lock again.
 		nm.metric.marshalTo(nm.name, &bb)
 	}
 	w.Write(bb.Bytes())

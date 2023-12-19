@@ -197,6 +197,12 @@ It is also possible to provide the public keys directly via the `-auth.publicKey
 Create a new Prometheus datasource in Grafana with the following URL `http://<vmgateway>:8431`.
 URL should point to the vmgateway instance.
 
+In the "Type and version" section it is recommended to set the type to "Prometheus" and the version to at least "2.24.x":
+
+<img src="grafana-vmgateway-openid-configuration/grafana-datasource-prometheus.webp" alt="Grafana datasource" />
+
+This allows Grafana to use a more efficient API to get label values.
+
 You can also use VictoriaMetrics [Grafana datasource](https://github.com/VictoriaMetrics/grafana-datasource) plugin.
 See installation instructions [here](https://github.com/VictoriaMetrics/grafana-datasource#installation).
 

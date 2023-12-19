@@ -11,15 +11,17 @@ import (
 	s3cust "github.com/aws/aws-sdk-go-v2/service/s3/internal/customizations"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/smithy-go/middleware"
+	"github.com/aws/smithy-go/ptr"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Sets the versioning state of an existing bucket. You can set the versioning
-// state with one of the following values: Enabled—Enables versioning for the
-// objects in the bucket. All objects added to the bucket receive a unique version
-// ID. Suspended—Disables versioning for the objects in the bucket. All objects
-// added to the bucket receive the version ID null. If the versioning state has
-// never been set on a bucket, it has no versioning state; a GetBucketVersioning (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketVersioning.html)
+// This operation is not supported by directory buckets. Sets the versioning state
+// of an existing bucket. You can set the versioning state with one of the
+// following values: Enabled—Enables versioning for the objects in the bucket. All
+// objects added to the bucket receive a unique version ID. Suspended—Disables
+// versioning for the objects in the bucket. All objects added to the bucket
+// receive the version ID null. If the versioning state has never been set on a
+// bucket, it has no versioning state; a GetBucketVersioning (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketVersioning.html)
 // request does not return a versioning state value. In order to enable MFA Delete,
 // you must be the bucket owner. If you are the bucket owner and want to enable MFA
 // Delete in the bucket versioning configuration, you must include the x-amz-mfa
@@ -62,12 +64,12 @@ type PutBucketVersioningInput struct {
 	// This member is required.
 	VersioningConfiguration *types.VersioningConfiguration
 
-	// Indicates the algorithm used to create the checksum for the object when using
-	// the SDK. This header will not provide any additional functionality if not using
-	// the SDK. When sending this header, there must be a corresponding x-amz-checksum
-	// or x-amz-trailer header sent. Otherwise, Amazon S3 fails the request with the
-	// HTTP status code 400 Bad Request . For more information, see Checking object
-	// integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
+	// Indicates the algorithm used to create the checksum for the object when you use
+	// the SDK. This header will not provide any additional functionality if you don't
+	// use the SDK. When you send this header, there must be a corresponding
+	// x-amz-checksum or x-amz-trailer header sent. Otherwise, Amazon S3 fails the
+	// request with the HTTP status code 400 Bad Request . For more information, see
+	// Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
 	// in the Amazon S3 User Guide. If you provide an individual checksum, Amazon S3
 	// ignores any provided ChecksumAlgorithm parameter.
 	ChecksumAlgorithm types.ChecksumAlgorithm
@@ -79,9 +81,9 @@ type PutBucketVersioningInput struct {
 	// or Amazon Web Services SDKs, this field is calculated automatically.
 	ContentMD5 *string
 
-	// The account ID of the expected bucket owner. If the bucket is owned by a
-	// different account, the request fails with the HTTP status code 403 Forbidden
-	// (access denied).
+	// The account ID of the expected bucket owner. If the account ID that you provide
+	// does not match the actual owner of the bucket, the request fails with the HTTP
+	// status code 403 Forbidden (access denied).
 	ExpectedBucketOwner *string
 
 	// The concatenation of the authentication device's serial number, a space, and
@@ -93,7 +95,7 @@ type PutBucketVersioningInput struct {
 
 func (in *PutBucketVersioningInput) bindEndpointParams(p *EndpointParameters) {
 	p.Bucket = in.Bucket
-
+	p.UseS3ExpressControlEndpoint = ptr.Bool(true)
 }
 
 type PutBucketVersioningOutput struct {
@@ -158,6 +160,9 @@ func (c *Client) addOperationPutBucketVersioningMiddlewares(stack *middleware.St
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addPutBucketContextMiddleware(stack); err != nil {
+		return err
+	}
 	if err = addOpPutBucketVersioningValidationMiddleware(stack); err != nil {
 		return err
 	}
@@ -192,6 +197,9 @@ func (c *Client) addOperationPutBucketVersioningMiddlewares(stack *middleware.St
 		return err
 	}
 	if err = addSerializeImmutableHostnameBucketMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = s3cust.AddExpressDefaultChecksumMiddleware(stack); err != nil {
 		return err
 	}
 	return nil

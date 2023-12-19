@@ -52,6 +52,7 @@ export enum ErrorTypes {
   emptyTitle = "Please enter title",
   positiveNumber = "Please enter positive number",
   validStep = "Please enter a valid step",
+  unknownType = "Unknown server response format: must have 'errorType'",
   checkServerUrl = "Server response in incorrect format. Please check if the Server URL is set correctly in Settings",
 }
 
@@ -157,4 +158,11 @@ export interface ActiveQueriesType {
   step: number;
   args?: string;
   data?: string;
+}
+
+export enum QueryContextType {
+  empty = "empty",
+  metricsql = "metricsql",
+  label = "label",
+  labelValue = "labelValue",
 }

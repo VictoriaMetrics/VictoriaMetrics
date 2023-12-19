@@ -51,6 +51,7 @@ plus the following additional features:
 - [Advanced auth and rate limiter](https://docs.victoriametrics.com/vmgateway.html).
 - [mTLS for cluster components](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection).
 - [Kafka integration](https://docs.victoriametrics.com/vmagent.html#kafka-integration).
+- [Google PubSub integration](https://docs.victoriametrics.com/vmagent.html#google-pubsub-integration).
 - [Multitenant support in vmalert](https://docs.victoriametrics.com/vmalert.html#multitenancy).
 - [Ability to read alerting and recording rules from Object Storage](https://docs.victoriametrics.com/vmalert.html#reading-rules-from-object-storage).
 - [Ability to filter incoming requests by IP at vmauth](https://docs.victoriametrics.com/vmauth.html#ip-filters).
@@ -80,7 +81,7 @@ VictoriaMetrics Enterprise components are available in the following forms:
 It is allowed to run VictoriaMetrics Enterprise components in [cases listed here](#valid-cases-for-victoriametrics-enterprise).
 
 Binary releases of VictoriaMetrics Enterprise are available [at the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-Enterprise binaries and packages have `enterprise` suffix in their names. For example, `victoria-metrics-linux-amd64-v1.95.1-enterprise.tar.gz`.
+Enterprise binaries and packages have `enterprise` suffix in their names. For example, `victoria-metrics-linux-amd64-v1.96.0-enterprise.tar.gz`.
 
 In order to run binary release of VictoriaMetrics Enterprise component, please download the `*-enterprise.tar.gz` archive for your OS and architecture
 from the [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) and unpack it. Then run the unpacked binary.
@@ -100,8 +101,8 @@ For example, the following command runs VictoriaMetrics Enterprise binary with t
 obtained at [this page](https://victoriametrics.com/products/enterprise/trial/):
 
 ```console
-wget https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.95.1/victoria-metrics-linux-amd64-v1.95.1-enterprise.tar.gz
-tar -xzf victoria-metrics-linux-amd64-v1.95.1-enterprise.tar.gz
+wget https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.96.0/victoria-metrics-linux-amd64-v1.96.0-enterprise.tar.gz
+tar -xzf victoria-metrics-linux-amd64-v1.96.0-enterprise.tar.gz
 ./victoria-metrics-prod -license=BASE64_ENCODED_LICENSE_KEY
 ```
 
@@ -116,7 +117,7 @@ Alternatively, VictoriaMetrics Enterprise license can be stored in the file and 
 It is allowed to run VictoriaMetrics Enterprise components in [cases listed here](#valid-cases-for-victoriametrics-enterprise).
 
 Docker images for VictoriaMetrics Enterprise are available [at VictoriaMetrics DockerHub](https://hub.docker.com/u/victoriametrics).
-Enterprise docker images have `enterprise` suffix in their names. For example, `victoriametrics/victoria-metrics:v1.95.1-enteprise`.
+Enterprise docker images have `enterprise` suffix in their names. For example, `victoriametrics/victoria-metrics:v1.96.0-enteprise`.
 
 In order to run Docker image of VictoriaMetrics Enterprise component, it is required to provide the license key via command-line
 flag as described [here](#binary-releases).
@@ -126,13 +127,13 @@ Enterprise license key can be obtained at [this page](https://victoriametrics.co
 For example, the following command runs VictoriaMetrics Enterprise Docker image with the specified license key:
 
 ```console
-docker run --name=victoria-metrics victoriametrics/victoria-metrics:v1.95.1-enteprise -license=BASE64_ENCODED_LICENSE_KEY
+docker run --name=victoria-metrics victoriametrics/victoria-metrics:v1.96.0-enteprise -license=BASE64_ENCODED_LICENSE_KEY
 ```
 
 Alternatively, the license code can be stored in the file and then referred via `-licenseFile` command-line flag:
 
 ```console
-docker run --name=victoria-metrics -v /vm-license:/vm-license  victoriametrics/victoria-metrics:v1.95.1-enteprise -licenseFile=/path/to/vm-license
+docker run --name=victoria-metrics -v /vm-license:/vm-license  victoriametrics/victoria-metrics:v1.96.0-enteprise -licenseFile=/path/to/vm-license
 ```
 
 Example docker-compose configuration:
@@ -141,7 +142,7 @@ version: "3.5"
 services:
   victoriametrics:
     container_name: victoriametrics
-    image: victoriametrics/victoria-metrics:v1.95.1
+    image: victoriametrics/victoria-metrics:v1.96.0
     ports:
       - 8428:8428
     volumes:
@@ -173,7 +174,7 @@ is used to provide key in plain-text:
 ```yaml
 server:
   image:
-    tag: v1.95.1-enterprise
+    tag: v1.96.0-enterprise
 
 license:
   key: {BASE64_ENCODED_LICENSE_KEY}
@@ -184,7 +185,7 @@ In order to provide key via existing secret, the following values file is used:
 ```yaml
 server:
   image:
-    tag: v1.95.1-enterprise
+    tag: v1.96.0-enterprise
 
 license:
   secret:
@@ -231,7 +232,7 @@ spec:
   license:
     key: {BASE64_ENCODED_LICENSE_KEY}
   image:
-    tag: v1.95.1-enterprise
+    tag: v1.96.0-enterprise
 ```
 
 In order to provide key via existing secret, the following custom resource is used:
@@ -248,7 +249,7 @@ spec:
       name: vm-license
       key: license
   image:
-    tag: v1.95.1-enterprise
+    tag: v1.96.0-enterprise
 ```
 
 Example secret with license key:

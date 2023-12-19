@@ -35,7 +35,7 @@ jobs:
 
       - name: Setup Go
         id: go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version: stable
           cache: false
@@ -65,7 +65,7 @@ jobs:
 
       - name: Setup Go
         id: go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version: stable
           cache: false
@@ -96,7 +96,7 @@ jobs:
 
       - name: Setup Go
         id: go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version: stable
           cache: false

@@ -1,3 +1,57 @@
+# v1.26.1 (2023-12-08)
+
+* **Bug Fix**: Correct loading of [services *] sections into shared config.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.26.0 (2023-12-07)
+
+* **Feature**: Support modeled request compression. The only algorithm supported at this time is `gzip`.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.25.12 (2023-12-06)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.25.11 (2023-12-01)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.25.10 (2023-11-30)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.25.9 (2023-11-29)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.25.8 (2023-11-28.3)
+
+* **Bug Fix**: Correct resolution of S3Express auth disable toggle.
+
+# v1.25.7 (2023-11-28.2)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.25.6 (2023-11-28)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.25.5 (2023-11-21)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.25.4 (2023-11-20)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.25.3 (2023-11-17)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.25.2 (2023-11-16)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # v1.25.1 (2023-11-15)
 
 * **Dependency Update**: Updated to the latest SDK module versions

@@ -1,5 +1,5 @@
 import React, { FC, useRef, useState } from "preact/compat";
-import { KeyboardEvent } from "react";
+import { KeyboardEvent, useEffect } from "react";
 import { ErrorTypes } from "../../../types";
 import TextField from "../../Main/TextField/TextField";
 import QueryEditorAutocomplete from "./QueryEditorAutocomplete";
@@ -7,6 +7,7 @@ import "./style.scss";
 import { QueryStats } from "../../../api/types";
 import { partialWarning, seriesFetchedWarning } from "./warningText";
 import { AutocompleteOptions } from "../../Main/Autocomplete/Autocomplete";
+import { useQueryDispatch } from "../../../state/query/QueryStateContext";
 
 export interface QueryEditorProps {
   onChange: (query: string) => void;
@@ -38,6 +39,7 @@ const QueryEditor: FC<QueryEditorProps> = ({
   const [openAutocomplete, setOpenAutocomplete] = useState(false);
   const [caretPosition, setCaretPosition] = useState([0, 0]);
   const autocompleteAnchorEl = useRef<HTMLInputElement>(null);
+  const queryDispatch = useQueryDispatch();
 
   const warning = [
     {
@@ -99,6 +101,10 @@ const QueryEditor: FC<QueryEditorProps> = ({
   const handleChangeCaret = (val: number[]) => {
     setCaretPosition(val);
   };
+
+  useEffect(() => {
+    queryDispatch({ type: "SET_AUTOCOMPLETE_QUICK", payload: false });
+  }, [value]);
 
   return (
     <div

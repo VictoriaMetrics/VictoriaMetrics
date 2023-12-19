@@ -1,3 +1,47 @@
+# v1.16.12 (2023-12-08)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.11 (2023-12-07)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.10 (2023-12-06)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.9 (2023-12-01)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.8 (2023-11-30)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.7 (2023-11-29)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.6 (2023-11-28.2)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.5 (2023-11-28)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.4 (2023-11-21)
+
+* **Bug Fix**: Don't expect error responses to have a JSON payload in the endpointcreds provider.
+
+# v1.16.3 (2023-11-20)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.2 (2023-11-17)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # v1.16.1 (2023-11-15)
 
 * **Dependency Update**: Updated to the latest SDK module versions
