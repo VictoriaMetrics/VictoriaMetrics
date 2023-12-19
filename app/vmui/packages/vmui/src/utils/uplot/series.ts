@@ -67,32 +67,24 @@ export const getSeriesItemContext = (data: MetricResult[], hideSeries: string[],
     }
 
     let points: uPlotSeries.Points = { size: 4.2, width: 1.4 };
-    switch (true) {
-      case forecast.isAnomaly:
-        points = { size: 8, width: 4, space: 0 };
-        break;
+    if (forecast.isAnomaly) {
+      points = { size: 8, width: 4, space: 0 };
     }
 
     let stroke: uPlotSeries.Stroke = colorState[label] || getColorFromString(label);
-    switch (true) {
-      case isAnomaly && forecast.isAnomaly: {
-        stroke = anomalyColors[ForecastType.anomaly];
-        break;
-      }
-      case isAnomaly && !forecast.isAnomaly && !forecast.value: {
-        // TODO add stroke for training data
-        // const hzGrad: [number, string][] = [
-        //   [time, anomalyColors[ForecastType.actual]],
-        //   [time, anomalyColors[ForecastType.training]],
-        //   [time, anomalyColors[ForecastType.actual]],
-        // ];
-        // stroke = scaleGradient("x", 0, hzGrad, true);
-        stroke = anomalyColors[ForecastType.actual];
-        break;
-      }
-      case !!forecast.value:
-        stroke = forecast.value ? anomalyColors[forecast.value] : stroke;
-        break;
+    if (isAnomaly && forecast.isAnomaly) {
+      stroke = anomalyColors[ForecastType.anomaly];
+    } else if (isAnomaly && !forecast.isAnomaly && !forecast.value) {
+      // TODO add stroke for training data
+      // const hzGrad: [number, string][] = [
+      //   [time, anomalyColors[ForecastType.actual]],
+      //   [time, anomalyColors[ForecastType.training]],
+      //   [time, anomalyColors[ForecastType.actual]],
+      // ];
+      // stroke = scaleGradient("x", 0, hzGrad, true);
+      stroke = anomalyColors[ForecastType.actual];
+    } else if (forecast.value) {
+      stroke = forecast.value ? anomalyColors[forecast.value] : stroke;
     }
 
     return {
