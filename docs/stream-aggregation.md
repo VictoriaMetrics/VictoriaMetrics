@@ -641,6 +641,17 @@ at [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-
   #
   # staleness_interval: 2m
 
+  # discard_samples_older_than defines duration for discarding samples older 
+  # than the given duration relative to the beginning of the aggregation window.
+  # By default, stream aggregation ignores timestamps associated with the input samples 
+  # and expects that the ingested samples have timestamps close to the current time.
+  # But if you use buffering in front of vmagent (i.e. chained vmagent), 
+  # then the ingested samples may have timestamps far in the past, 
+  # and it would cause anomalies in the current aggregation window. 
+  # In this case it is recommended to use this parameter, 
+  # which will help to get rid of anomalies during buffer accumulation
+  discard_samples_older_than: 10s
+
   # without is an optional list of labels, which must be removed from the output aggregation.
   # See https://docs.victoriametrics.com/stream-aggregation.html#aggregating-by-labels
   #
