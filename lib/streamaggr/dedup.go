@@ -47,6 +47,9 @@ func (d *deduplicator) run(pushSamplesAgg pushSamplesFunc) {
 }
 
 func (d *deduplicator) stop() {
+	if d == nil {
+		return
+	}
 	close(d.stopCh)
 	d.wg.Wait()
 	d.flush()
