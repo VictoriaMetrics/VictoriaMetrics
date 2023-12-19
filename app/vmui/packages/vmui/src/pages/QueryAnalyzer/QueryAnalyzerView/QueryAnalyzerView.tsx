@@ -42,8 +42,10 @@ const QueryAnalyzerView: FC<Props> = ({ data }) => {
   const columns = useMemo(() => getColumns(liveData || []).map(c => c.key), [liveData]);
 
   const tabs = useMemo(() => {
+    const hasQueryRange = data.some(d => d.data.resultType === "matrix");
     const hasInstantQuery = data.some(d => d.data.resultType === "vector");
-    if (hasInstantQuery) return displayTypeTabs;
+    if (hasInstantQuery && hasQueryRange) return displayTypeTabs;
+    if (!hasQueryRange) return displayTypeTabs.filter(t => t.value !== "chart");
     return displayTypeTabs.filter(t => t.value === "chart");
   }, [data]);
   const [displayType, setDisplayType] = useState(tabs[0].value);
