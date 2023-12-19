@@ -223,9 +223,9 @@ type aggregator struct {
 	without             []string
 	aggregateOnlyByTime bool
 
-	// dedupAggr is set to non-nil if input samples must be de-duplicated according
-	// to the dedupInterval passed to newAggregator().
-	dedupAggr *lastAggrState
+	// dedup is set to non-nil if input samples must be de-duplicated according
+	// to the interval passed to newAggregator().
+	dedup *deduplicator
 
 	// aggrStates contains aggregate states for the given outputs
 	aggrStates []aggrState
@@ -372,9 +372,9 @@ func newAggregator(cfg *Config, pushFunc PushFunc, dedupInterval time.Duration) 
 	}
 	suffix += "_"
 
-	var dedupAggr *lastAggrState
+	var dedup *deduplicator
 	if dedupInterval > 0 {
-		dedupAggr = newLastAggrState()
+		dedup = newDeduplicator(dedupInterval)
 	}
 
 	// initialize the aggregator
@@ -388,7 +388,7 @@ func newAggregator(cfg *Config, pushFunc PushFunc, dedupInterval time.Duration) 
 		without:             without,
 		aggregateOnlyByTime: aggregateOnlyByTime,
 
-		dedupAggr:  dedupAggr,
+		dedup:      dedup,
 		aggrStates: aggrStates,
 		pushFunc:   pushFunc,
 
@@ -397,12 +397,8 @@ func newAggregator(cfg *Config, pushFunc PushFunc, dedupInterval time.Duration) 
 		stopCh: make(chan struct{}),
 	}
 
-	if dedupAggr != nil {
-		a.wg.Add(1)
-		go func() {
-			a.runDedupFlusher(dedupInterval)
-			a.wg.Done()
-		}()
+	if dedup != nil {
+		dedup.run(a.pushDeduplicated)
 	}
 	a.wg.Add(1)
 	go func() {
@@ -411,25 +407,6 @@ func newAggregator(cfg *Config, pushFunc PushFunc, dedupInterval time.Duration) 
 	}()
 
 	return a, nil
-}
-
-func (a *aggregator) runDedupFlusher(interval time.Duration) {
-	t := time.NewTicker(interval)
-	defer t.Stop()
-	for {
-		select {
-		case <-a.stopCh:
-			return
-		case <-t.C:
-		}
-
-		// Globally limit the concurrency for metrics' flush
-		// in order to limit memory usage when big number of aggregators
-		// are flushed at the same time.
-		flushConcurrencyCh <- struct{}{}
-		a.dedupFlush()
-		<-flushConcurrencyCh
-	}
 }
 
 func (a *aggregator) runFlusher(interval time.Duration) {
@@ -452,14 +429,6 @@ func (a *aggregator) runFlusher(interval time.Duration) {
 }
 
 var flushConcurrencyCh = make(chan struct{}, cgroup.AvailableCPUs())
-
-func (a *aggregator) dedupFlush() {
-	ctx := &flushCtx{
-		skipAggrSuffix: true,
-	}
-	a.dedupAggr.appendSeriesForFlush(ctx)
-	a.push(ctx.tss, nil)
-}
 
 func (a *aggregator) flush() {
 	ctx := &flushCtx{
@@ -506,53 +475,14 @@ func (a *aggregator) MustStop() {
 	a.wg.Wait()
 
 	// Flush the remaining data from the last interval if needed.
+	a.dedup.stop()
 	flushConcurrencyCh <- struct{}{}
-	if a.dedupAggr != nil {
-		a.dedupFlush()
-	}
 	a.flush()
 	<-flushConcurrencyCh
 }
 
 // Push pushes tss to a.
 func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
-	if a.dedupAggr == nil {
-		// Deduplication is disabled.
-		a.push(tss, matchIdxs)
-		return
-	}
-
-	// Deduplication is enabled.
-	// push samples to dedupAggr, so later they will be pushed to the configured aggregators.
-	pushSample := a.dedupAggr.pushSample
-	inputKey := ""
-	bb := bbPool.Get()
-	labels := promutils.GetLabels()
-	for idx, ts := range tss {
-		if !a.match.Match(ts.Labels) {
-			continue
-		}
-		matchIdxs[idx] = 1
-
-		labels.Labels = append(labels.Labels[:0], ts.Labels...)
-		labels.Labels = a.inputRelabeling.Apply(labels.Labels, 0)
-		if len(labels.Labels) == 0 {
-			// The metric has been deleted by the relabeling
-			continue
-		}
-		labels.Sort()
-
-		bb.B = marshalLabelsFast(bb.B[:0], labels.Labels)
-		outputKey := bytesutil.InternBytes(bb.B)
-		for _, sample := range ts.Samples {
-			pushSample(inputKey, outputKey, sample.Value)
-		}
-	}
-	promutils.PutLabels(labels)
-	bbPool.Put(bb)
-}
-
-func (a *aggregator) push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 	labels := promutils.GetLabels()
 	tmpLabels := promutils.GetLabels()
 	bb := bbPool.Get()
@@ -575,20 +505,17 @@ func (a *aggregator) push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 			labels.Sort()
 		}
 
-		if a.aggregateOnlyByTime {
-			bb.B = marshalLabelsFast(bb.B[:0], labels.Labels)
-		} else {
-			tmpLabels.Labels = removeUnneededLabels(tmpLabels.Labels[:0], labels.Labels, a.by, a.without)
-			bb.B = marshalLabelsFast(bb.B[:0], tmpLabels.Labels)
-		}
-		outputKey := bytesutil.InternBytes(bb.B)
-		inputKey := ""
-		if !a.aggregateOnlyByTime {
-			tmpLabels.Labels = extractUnneededLabels(tmpLabels.Labels[:0], labels.Labels, a.by, a.without)
-			bb.B = marshalLabelsFast(bb.B[:0], tmpLabels.Labels)
-			inputKey = bytesutil.InternBytes(bb.B)
+		if a.dedup != nil {
+			for _, sample := range ts.Samples {
+				bb.B = marshalLabelsFast(bb.B[:0], labels.Labels)
+				key := bytesutil.InternBytes(bb.B)
+
+				a.dedup.pushSample(key, sample.Value)
+			}
+			continue
 		}
 
+		inputKey, outputKey := a.extractKeys(bb, labels, tmpLabels)
 		for _, sample := range ts.Samples {
 			a.pushSample(inputKey, outputKey, sample.Value)
 		}
@@ -596,6 +523,42 @@ func (a *aggregator) push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 	bbPool.Put(bb)
 	promutils.PutLabels(tmpLabels)
 	promutils.PutLabels(labels)
+}
+
+func (a *aggregator) pushDeduplicated(bb *bytesutil.ByteBuffer, labels *promutils.Labels, tmpLabels *promutils.Labels, key string, value float64) {
+	if a.aggregateOnlyByTime {
+		// Fast path - aggregate by time only.
+		a.pushSample("", key, value)
+		return
+	}
+
+	var err error
+	labels.Labels, err = unmarshalLabelsFast(labels.Labels[:0], bytesutil.ToUnsafeBytes(key))
+	if err != nil {
+		logger.Panicf("BUG: cannot unmarshal labels from output key: %s", err)
+	}
+
+	inputKey, outputKey := a.extractKeys(bb, labels, tmpLabels)
+	a.pushSample(inputKey, outputKey, value)
+}
+
+func (a *aggregator) extractKeys(bb *bytesutil.ByteBuffer, labels *promutils.Labels, tmpLabels *promutils.Labels) (inputKey, outputKey string) {
+	if a.aggregateOnlyByTime {
+		// Fast path - aggregate by time only.
+		bb.B = marshalLabelsFast(bb.B[:0], labels.Labels)
+		inputKey, outputKey = "", bytesutil.InternBytes(bb.B)
+		return inputKey, outputKey
+	}
+
+	tmpLabels.Labels = extractUnneededLabels(tmpLabels.Labels[:0], labels.Labels, a.by, a.without)
+	bb.B = marshalLabelsFast(bb.B[:0], tmpLabels.Labels)
+	inputKey = bytesutil.InternBytes(bb.B)
+
+	tmpLabels.Labels = removeUnneededLabels(tmpLabels.Labels[:0], labels.Labels, a.by, a.without)
+	bb.B = marshalLabelsFast(bb.B[:0], tmpLabels.Labels)
+	outputKey = bytesutil.InternBytes(bb.B)
+
+	return inputKey, outputKey
 }
 
 var bbPool bytesutil.ByteBufferPool
