@@ -33,7 +33,6 @@ func (d *deduplicator) run(pushSamplesAgg pushSamplesFunc) {
 	go func() {
 		defer d.wg.Done()
 		t := time.NewTicker(d.interval)
-		t.Stop()
 		defer t.Stop()
 		for {
 			select {
