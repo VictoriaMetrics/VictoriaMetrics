@@ -16,9 +16,9 @@ export interface ServerConfiguratorProps {
 }
 
 const fields: {label: string, type: DisplayType}[] = [
-  { label: "Graph", type: "chart" },
-  { label: "JSON", type: "code" },
-  { label: "Table", type: "table" }
+  { label: "Graph", type: DisplayType.chart },
+  { label: "JSON", type: DisplayType.code },
+  { label: "Table", type: DisplayType.table }
 ];
 
 const LimitsConfigurator: FC<ServerConfiguratorProps> = ({ limits, onChange , onEnter }) => {

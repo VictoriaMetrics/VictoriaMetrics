@@ -40,10 +40,11 @@
       border-bottom: $border-divider;
       z-index: 1;
 
-      &__left {
+      &__graph-controls {
         display: flex;
         align-items: center;
         gap: $padding-small;
+        margin: 5px 10px;
       }
     }
 
