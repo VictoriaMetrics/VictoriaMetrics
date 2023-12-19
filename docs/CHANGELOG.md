@@ -42,6 +42,7 @@ The v1.97.x line will be supported for at least 12 months since [v1.97.0](https:
 * BUGFIX: fix `runtime error: slice bounds out of range` panic, which can occur during query execution. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5733). The bug has been introduced in `v1.97.0`.
 * BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): properly handle `avg_over_time({some_filter}[d]) keep_metric_names` queries, where [`some_filter`](https://docs.victoriametrics.com/keyconcepts/#filtering) matches multiple time series with multiple names, while `d` is bigger or equal to `3h`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5556).
 * BUGFIX: dashboards/single: fix typo in query for `version` annotation which falsely produced many version change events.
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): fix high memory consumption in streaming aggregation with `streamAggr.dedupInterval` flag.
 
 ## [v1.97.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.0)
 
