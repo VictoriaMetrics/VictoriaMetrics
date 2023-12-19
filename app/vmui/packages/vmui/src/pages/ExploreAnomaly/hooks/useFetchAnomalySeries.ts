@@ -47,7 +47,7 @@ export const useFetchAnomalySeries = () => {
         }
       } catch (e) {
         if (e instanceof Error && e.name !== "AbortError") {
-          const message = e.name === "SyntaxError" ? ErrorTypes.checkServerUrl : `${e.name}: ${e.message}`;
+          const message = e.name === "SyntaxError" ? ErrorTypes.unknownType : `${e.name}: ${e.message}`;
           setError(`${message}`);
         }
       } finally {

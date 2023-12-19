@@ -53,7 +53,6 @@ export enum ErrorTypes {
   positiveNumber = "Please enter positive number",
   validStep = "Please enter a valid step",
   unknownType = "Unknown server response format: must have 'errorType'",
-  checkServerUrl = "Server response in incorrect format. Please check if the Server URL is set correctly in Settings",
 }
 
 export interface PanelSettings {
