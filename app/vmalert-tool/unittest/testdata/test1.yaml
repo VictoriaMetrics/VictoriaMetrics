@@ -66,13 +66,13 @@ tests:
         eval_time: 4m
         exp_samples:
           - value: 4
-            labels: '{__name__="t2", datacenter="dc-123", exported_datacenter="dc-123"}'
+            labels: '{__name__="t2", datacenter="dc-123"}'
       - expr: t3
         eval_time: 4m
         exp_samples:
           # t3 is 3 instead of 4 cause it's rules3 is evaluated before rules1
           - value: 3
-            labels: '{__name__="t3", datacenter="dc-123", exported_datacenter="dc-123"}'
+            labels: '{__name__="t3", datacenter="dc-123"}'
 
     alert_rule_test:
       - eval_time: 10m

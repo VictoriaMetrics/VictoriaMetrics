@@ -237,7 +237,7 @@ type labelSet struct {
 	origin map[string]string
 	// processed labels includes origin labels
 	// plus extra labels (group labels, service labels like alertNameLabel).
-	// in case of conflicts, origin labels are renamed with prefix `exported_` and extra labels are preferred.
+	// in case of key conflicts, origin labels are renamed with prefix `exported_` and extra labels are preferred.
 	// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5161
 	// used as labels attached to notifier.Alert and ALERTS series written to remote storage.
 	processed map[string]string
@@ -268,11 +268,11 @@ func (ar *AlertingRule) toLabels(m datasource.Metric, qFn templates.QueryFn) (*l
 		return nil, fmt.Errorf("failed to expand labels: %w", err)
 	}
 	for k, v := range extraLabels {
-		// if conflicted, reserve origin labels in ls.origin,
-		// add prefix `exported_` for origin labels in ls.processed.
+		// if key conflicted, reserve origin labelset in ls.origin,
+		// add extra lableset with prefix `exported_` in ls.processed when values are different.
 		if _, ok := ls.origin[k]; !ok {
 			ls.origin[k] = v
-		} else {
+		} else if ls.processed[k] != v {
 			ls.processed[fmt.Sprintf("exported_%s", k)] = ls.processed[k]
 		}
 		ls.processed[k] = v
@@ -282,7 +282,7 @@ func (ar *AlertingRule) toLabels(m datasource.Metric, qFn templates.QueryFn) (*l
 	if ar.Name != "" {
 		if _, ok := ls.origin[alertNameLabel]; !ok {
 			ls.origin[alertNameLabel] = ar.Name
-		} else {
+		} else if ls.processed[alertNameLabel] != ar.Name {
 			ls.processed[fmt.Sprintf("exported_%s", alertNameLabel)] = ls.processed[alertNameLabel]
 		}
 		ls.processed[alertNameLabel] = ar.Name
@@ -290,7 +290,7 @@ func (ar *AlertingRule) toLabels(m datasource.Metric, qFn templates.QueryFn) (*l
 	if !*disableAlertGroupLabel && ar.GroupName != "" {
 		if _, ok := ls.origin[alertGroupNameLabel]; !ok {
 			ls.origin[alertGroupNameLabel] = ar.GroupName
-		} else {
+		} else if ls.processed[alertGroupNameLabel] != ar.GroupName {
 			ls.processed[fmt.Sprintf("exported_%s", alertGroupNameLabel)] = ls.processed[alertGroupNameLabel]
 		}
 		ls.processed[alertGroupNameLabel] = ar.GroupName

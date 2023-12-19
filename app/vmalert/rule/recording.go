@@ -194,7 +194,7 @@ func (rr *RecordingRule) toTimeSeries(m datasource.Metric) prompbmarshal.TimeSer
 	labels["__name__"] = rr.Name
 	// override existing labels with configured ones
 	for k, v := range rr.Labels {
-		if _, ok := labels[k]; ok {
+		if _, ok := labels[k]; ok && labels[k] != v {
 			labels[fmt.Sprintf("exported_%s", k)] = labels[k]
 		}
 		labels[k] = v

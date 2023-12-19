@@ -901,24 +901,22 @@ func TestAlertingRule_Template(t *testing.T) {
 				metricWithValueAndLabels(t, 10, "__name__", "second", "instance", "bar", alertNameLabel, "override"),
 			},
 			map[uint64]*notifier.Alert{
-				hash(map[string]string{alertNameLabel: "override label", "exported_alertname": "override", "instance": "foo", "exported_instance": "foo"}): {
+				hash(map[string]string{alertNameLabel: "override label", "exported_alertname": "override", "instance": "foo"}): {
 					Labels: map[string]string{
 						alertNameLabel:       "override label",
 						"exported_alertname": "override",
 						"instance":           "foo",
-						"exported_instance":  "foo",
 					},
 					Annotations: map[string]string{
 						"summary":     `first: Too high connection number for "foo"`,
 						"description": `override: It is 2 connections for "foo"`,
 					},
 				},
-				hash(map[string]string{alertNameLabel: "override label", "exported_alertname": "override", "instance": "bar", "exported_instance": "bar"}): {
+				hash(map[string]string{alertNameLabel: "override label", "exported_alertname": "override", "instance": "bar"}): {
 					Labels: map[string]string{
 						alertNameLabel:       "override label",
 						"exported_alertname": "override",
 						"instance":           "bar",
-						"exported_instance":  "bar",
 					},
 					Annotations: map[string]string{
 						"summary":     `second: Too high connection number for "bar"`,
@@ -952,7 +950,6 @@ func TestAlertingRule_Template(t *testing.T) {
 					alertGroupNameLabel:   "Testing",
 					"exported_alertgroup": "originGroupname",
 					"instance":            "foo",
-					"exported_instance":   "foo",
 				}): {
 					Labels: map[string]string{
 						alertNameLabel:        "OriginLabels",
@@ -960,7 +957,6 @@ func TestAlertingRule_Template(t *testing.T) {
 						alertGroupNameLabel:   "Testing",
 						"exported_alertgroup": "originGroupname",
 						"instance":            "foo",
-						"exported_instance":   "foo",
 					},
 					Annotations: map[string]string{
 						"summary": `Alert "originAlertname(originGroupname)" for instance foo`,
