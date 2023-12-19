@@ -17,9 +17,13 @@ import (
 
 // Config represent aws access configuration.
 type Config struct {
-	client       *http.Client
-	region       string
-	roleARN      string
+	client  *http.Client
+	region  string
+	roleARN string
+	// irsa may use a different role for assume API call
+	// it can only be set via env variable
+	// https://docs.aws.amazon.com/eks/latest/userguide/pod-configuration.html
+	irsaRoleARN  string
 	webTokenPath string
 
 	ec2Endpoint string
@@ -49,6 +53,7 @@ func NewConfig(ec2Endpoint, stsEndpoint, region, roleARN, accessKey, secretKey, 
 		client:           http.DefaultClient,
 		region:           region,
 		roleARN:          roleARN,
+		irsaRoleARN:      os.Getenv("AWS_ROLE_ARN"),
 		service:          service,
 		defaultAccessKey: os.Getenv("AWS_ACCESS_KEY_ID"),
 		defaultSecretKey: os.Getenv("AWS_SECRET_ACCESS_KEY"),
@@ -69,7 +74,7 @@ func NewConfig(ec2Endpoint, stsEndpoint, region, roleARN, accessKey, secretKey, 
 		cfg.roleARN = os.Getenv("AWS_ROLE_ARN")
 	}
 	cfg.webTokenPath = os.Getenv("AWS_WEB_IDENTITY_TOKEN_FILE")
-	if cfg.webTokenPath != "" && cfg.roleARN == "" {
+	if cfg.webTokenPath != "" && cfg.irsaRoleARN == "" {
 		return nil, fmt.Errorf("roleARN is missing for AWS_WEB_IDENTITY_TOKEN_FILE=%q; set it via env var AWS_ROLE_ARN", cfg.webTokenPath)
 	}
 	// explicitly set credentials has priority over env variables
@@ -83,6 +88,7 @@ func NewConfig(ec2Endpoint, stsEndpoint, region, roleARN, accessKey, secretKey, 
 		AccessKeyID:     cfg.defaultAccessKey,
 		SecretAccessKey: cfg.defaultSecretKey,
 	}
+
 	return cfg, nil
 }
 
@@ -334,24 +340,39 @@ func getMetadataByPath(client *http.Client, apiPath string) ([]byte, error) {
 // aws IRSA for kubernetes.
 // https://aws.amazon.com/blogs/opensource/introducing-fine-grained-iam-roles-service-accounts/
 func (cfg *Config) getRoleWebIdentityCredentials(token string) (*credentials, error) {
-	data, err := cfg.getSTSAPIResponse("AssumeRoleWithWebIdentity", func(apiURL string) (*http.Request, error) {
+	data, err := cfg.getSTSAPIResponse("AssumeRoleWithWebIdentity", cfg.irsaRoleARN, func(apiURL string) (*http.Request, error) {
 		apiURL += fmt.Sprintf("&WebIdentityToken=%s", url.QueryEscape(token))
 		return http.NewRequest(http.MethodGet, apiURL, nil)
 	})
 	if err != nil {
 		return nil, err
 	}
-	return parseARNCredentials(data, "AssumeRoleWithWebIdentity")
+	creds, err := parseARNCredentials(data, "AssumeRoleWithWebIdentity")
+	if err != nil {
+		return nil, err
+	}
+	if cfg.irsaRoleARN != cfg.roleARN {
+		// need to assume a different role
+		assumeCreds, err := cfg.getRoleARNCredentials(creds)
+		if err != nil {
+			return nil, fmt.Errorf("cannot assume chained role=%q for irsaRoleARN=%q: %w", cfg.roleARN, cfg.irsaRoleARN, err)
+		}
+		if assumeCreds.Expiration.After(creds.Expiration) {
+			assumeCreds.Expiration = creds.Expiration
+		}
+		return assumeCreds, nil
+	}
+	return creds, nil
 }
 
 // getSTSAPIResponse makes request to aws sts api with the given cfg and returns temporary credentials with expiration time.
 //
 // See https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html
-func (cfg *Config) getSTSAPIResponse(action string, reqBuilder func(apiURL string) (*http.Request, error)) ([]byte, error) {
+func (cfg *Config) getSTSAPIResponse(action string, roleArn string, reqBuilder func(apiURL string) (*http.Request, error)) ([]byte, error) {
 	// See https://docs.aws.amazon.com/AWSEC2/latest/APIReference/Query-Requests.html
 	apiURL := fmt.Sprintf("%s?Action=%s", cfg.stsEndpoint, action)
 	apiURL += "&Version=2011-06-15"
-	apiURL += fmt.Sprintf("&RoleArn=%s", cfg.roleARN)
+	apiURL += fmt.Sprintf("&RoleArn=%s", roleArn)
 	// we have to provide unique session name for cloudtrail audit
 	apiURL += "&RoleSessionName=vmagent-ec2-discovery"
 	req, err := reqBuilder(apiURL)
@@ -367,7 +388,7 @@ func (cfg *Config) getSTSAPIResponse(action string, reqBuilder func(apiURL strin
 
 // getRoleARNCredentials obtains credentials for the given roleARN.
 func (cfg *Config) getRoleARNCredentials(creds *credentials) (*credentials, error) {
-	data, err := cfg.getSTSAPIResponse("AssumeRole", func(apiURL string) (*http.Request, error) {
+	data, err := cfg.getSTSAPIResponse("AssumeRole", cfg.roleARN, func(apiURL string) (*http.Request, error) {
 		return newSignedGetRequest(apiURL, "sts", cfg.region, creds)
 	})
 	if err != nil {
