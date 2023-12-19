@@ -821,7 +821,7 @@ Requests to make: 9 / 9 [██████████████████�
 ```
 
 _To disable explore phase and switch to the old way of data migration via single connection use 
-`--vm-native-disable-retries` cmd-line flag. Please note, in this mode vmctl won't be able to retry failed requests._
+`--vm-native-disable-per-metric-migration` cmd-line flag. Please note, in this mode vmctl won't be able to retry failed requests._
 
 Importing tips:
 
@@ -831,14 +831,17 @@ Importing tips:
    [here](https://docs.victoriametrics.com/#how-to-export-data-in-native-format).
    If hitting `the number of matching timeseries exceeds...` error, adjust filters to match less time series or 
    update `-search.maxSeries` command-line flag on vmselect/vmsingle;
+1. Using smaller intervals via `--vm-native-step-interval` cmd-line flag can reduce the number of matched series per-request
+   for sources with [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate).
+   See more about [step interval here](#using-time-based-chunking-of-migration).
 1. Migrating all the metrics from one VM to another may collide with existing application metrics
    (prefixed with `vm_`) at destination and lead to confusion when using
    [official Grafana dashboards](https://grafana.com/orgs/victoriametrics/dashboards).
    To avoid such situation try to filter out VM process metrics via `--vm-native-filter-match='{__name__!~"vm_.*"}'` flag.
 1. Migrating data with overlapping time range or via unstable network can produce duplicates series at destination.
    To avoid duplicates set `-dedup.minScrapeInterval=1ms` for `vmselect`/`vmstorage` at the destination.
-   This will instruct `vmselect`/`vmstorage` to ignore duplicates with identical timestamps.
-1. When migrating large volumes of data use `--vm-native-step-interval` flag to split migration [into steps](#using-time-based-chunking-of-migration).
+   This will instruct `vmselect`/`vmstorage` to ignore duplicates with identical timestamps. Ignore this recommendation
+   if you already have `-dedup.minScrapeInterval` set to 1ms or higher values at destination.
 1. When migrating data from one VM cluster to another, consider using [cluster-to-cluster mode](#cluster-to-cluster-migration-mode).
    Or manually specify addresses according to [URL format](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format):
    ```console

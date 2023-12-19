@@ -145,6 +145,12 @@ users:
   url_map:
   - src_paths: ["/foo/bar"]
 `)
+	f(`
+users:
+- username: a
+  url_map:
+  - src_hosts: ["foobar"]
+`)
 
 	// Invalid url_prefix in url_map
 	f(`
@@ -152,6 +158,13 @@ users:
 - username: a
   url_map:
   - src_paths: ["/foo/bar"]
+    url_prefix: foo.bar
+`)
+	f(`
+users:
+- username: a
+  url_map:
+  - src_hosts: ["foobar"]
     url_prefix: foo.bar
 `)
 
@@ -163,8 +176,15 @@ users:
   - src_paths: ['/foo/bar']
     url_prefix: []
 `)
+	f(`
+users:
+- username: a
+  url_map:
+  - src_phosts: ['foobar']
+    url_prefix: []
+`)
 
-	// Missing src_paths in url_map
+	// Missing src_paths and src_hosts in url_map
 	f(`
 users:
 - username: a
@@ -178,6 +198,15 @@ users:
 - username: a
   url_map:
   - src_paths: ['fo[obar']
+    url_prefix: http://foobar
+`)
+
+	// Invalid regexp in src_hosts
+	f(`
+users:
+- username: a
+  url_map:
+  - src_hosts: ['fo[obar']
     url_prefix: http://foobar
 `)
 
@@ -263,7 +292,7 @@ users:
 			TLSInsecureSkipVerify:  &insecureSkipVerifyFalse,
 			RetryStatusCodes:       []int{500, 501},
 			LoadBalancingPolicy:    "first_available",
-			DropSrcPathPrefixParts: 1,
+			DropSrcPathPrefixParts: intp(1),
 		},
 	})
 
@@ -293,6 +322,7 @@ users:
   - src_paths: ["/api/v1/query","/api/v1/query_range","/api/v1/label/[^./]+/.+"]
     url_prefix: http://vmselect/select/0/prometheus
   - src_paths: ["/api/v1/write"]
+    src_hosts: ["foo\\.bar", "baz:1234"]
     url_prefix: ["http://vminsert1/insert/0/prometheus","http://vminsert2/insert/0/prometheus"]
     headers:
     - "foo: bar"
@@ -302,11 +332,12 @@ users:
 			BearerToken: "foo",
 			URLMaps: []URLMap{
 				{
-					SrcPaths:  getSrcPaths([]string{"/api/v1/query", "/api/v1/query_range", "/api/v1/label/[^./]+/.+"}),
+					SrcPaths:  getRegexs([]string{"/api/v1/query", "/api/v1/query_range", "/api/v1/label/[^./]+/.+"}),
 					URLPrefix: mustParseURL("http://vmselect/select/0/prometheus"),
 				},
 				{
-					SrcPaths: getSrcPaths([]string{"/api/v1/write"}),
+					SrcHosts: getRegexs([]string{"foo\\.bar", "baz:1234"}),
+					SrcPaths: getRegexs([]string{"/api/v1/write"}),
 					URLPrefix: mustParseURLs([]string{
 						"http://vminsert1/insert/0/prometheus",
 						"http://vminsert2/insert/0/prometheus",
@@ -330,11 +361,12 @@ users:
 			BearerToken: "foo",
 			URLMaps: []URLMap{
 				{
-					SrcPaths:  getSrcPaths([]string{"/api/v1/query", "/api/v1/query_range", "/api/v1/label/[^./]+/.+"}),
+					SrcPaths:  getRegexs([]string{"/api/v1/query", "/api/v1/query_range", "/api/v1/label/[^./]+/.+"}),
 					URLPrefix: mustParseURL("http://vmselect/select/0/prometheus"),
 				},
 				{
-					SrcPaths: getSrcPaths([]string{"/api/v1/write"}),
+					SrcHosts: getRegexs([]string{"foo\\.bar", "baz:1234"}),
+					SrcPaths: getRegexs([]string{"/api/v1/write"}),
 					URLPrefix: mustParseURLs([]string{
 						"http://vminsert1/insert/0/prometheus",
 						"http://vminsert2/insert/0/prometheus",
@@ -396,11 +428,11 @@ users:
 			BearerToken: "foo",
 			URLMaps: []URLMap{
 				{
-					SrcPaths:  getSrcPaths([]string{"/api/v1/query", "/api/v1/query_range", "/api/v1/label/[^./]+/.+"}),
+					SrcPaths:  getRegexs([]string{"/api/v1/query", "/api/v1/query_range", "/api/v1/label/[^./]+/.+"}),
 					URLPrefix: mustParseURL("http://vmselect/select/0/prometheus"),
 				},
 				{
-					SrcPaths: getSrcPaths([]string{"/api/v1/write"}),
+					SrcPaths: getRegexs([]string{"/api/v1/write"}),
 					URLPrefix: mustParseURLs([]string{
 						"http://vminsert1/insert/0/prometheus",
 						"http://vminsert2/insert/0/prometheus",
@@ -428,11 +460,11 @@ users:
 			BearerToken: "foo",
 			URLMaps: []URLMap{
 				{
-					SrcPaths:  getSrcPaths([]string{"/api/v1/query", "/api/v1/query_range", "/api/v1/label/[^./]+/.+"}),
+					SrcPaths:  getRegexs([]string{"/api/v1/query", "/api/v1/query_range", "/api/v1/label/[^./]+/.+"}),
 					URLPrefix: mustParseURL("http://vmselect/select/0/prometheus"),
 				},
 				{
-					SrcPaths: getSrcPaths([]string{"/api/v1/write"}),
+					SrcPaths: getRegexs([]string{"/api/v1/write"}),
 					URLPrefix: mustParseURLs([]string{
 						"http://vminsert1/insert/0/prometheus",
 						"http://vminsert2/insert/0/prometheus",
@@ -501,10 +533,10 @@ func isSetBool(boolP *bool, expectedValue bool) bool {
 	return *boolP == expectedValue
 }
 
-func getSrcPaths(paths []string) []*SrcPath {
-	var sps []*SrcPath
+func getRegexs(paths []string) []*Regex {
+	var sps []*Regex
 	for _, path := range paths {
-		sps = append(sps, &SrcPath{
+		sps = append(sps, &Regex{
 			sOriginal: path,
 			re:        regexp.MustCompile("^(?:" + path + ")$"),
 		})
@@ -551,4 +583,8 @@ func mustParseURLs(us []string) *URLPrefix {
 	return &URLPrefix{
 		bus: bus,
 	}
+}
+
+func intp(n int) *int {
+	return &n
 }

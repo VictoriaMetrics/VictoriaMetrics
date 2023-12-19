@@ -326,9 +326,9 @@ const (
 	vmNativeFilterTimeReverse = "vm-native-filter-time-reverse"
 	vmNativeStepInterval      = "vm-native-step-interval"
 
-	vmNativeDisableBinaryProtocol = "vm-native-disable-binary-protocol"
-	vmNativeDisableHTTPKeepAlive  = "vm-native-disable-http-keep-alive"
-	vmNativeDisableRetries        = "vm-native-disable-retries"
+	vmNativeDisableBinaryProtocol     = "vm-native-disable-binary-protocol"
+	vmNativeDisableHTTPKeepAlive      = "vm-native-disable-http-keep-alive"
+	vmNativeDisablePerMetricMigration = "vm-native-disable-per-metric-migration"
 
 	vmNativeSrcAddr        = "vm-native-src-addr"
 	vmNativeSrcUser        = "vm-native-src-user"
@@ -454,8 +454,8 @@ var (
 			Value: 2,
 		},
 		&cli.BoolFlag{
-			Name:  vmNativeDisableRetries,
-			Usage: "Defines whether to disable retries with backoff policy for migration process",
+			Name:  vmNativeDisablePerMetricMigration,
+			Usage: "Defines whether to disable per-metric migration and migrate all data via one connection. In this mode, vmctl makes less export/import requests, but can't provide a progress bar or retry failed requests.",
 			Value: false,
 		},
 		&cli.BoolFlag{
