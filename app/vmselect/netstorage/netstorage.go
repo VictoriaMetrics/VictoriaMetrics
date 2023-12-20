@@ -1754,10 +1754,14 @@ func (snr *storageNodesRequest) collectAllResults(f func(result interface{}) err
 }
 
 func (snr *storageNodesRequest) collectResults(partialResultsCounter *metrics.Counter, f func(result interface{}) error) (bool, error) {
-	errsPartialPerGroup := make(map[*storageNodesGroup][]error)
-	resultsCollectedPerGroup := make(map[*storageNodesGroup]int)
 	sns := snr.sns
-	for i := 0; i < len(sns); i++ {
+	if len(sns) == 0 {
+		return false, nil
+	}
+	groupsCount := sns[0].group.groupsCount
+	resultsCollectedPerGroup := make(map[*storageNodesGroup]int, groupsCount)
+	errsPartialPerGroup := make(map[*storageNodesGroup][]error)
+	for range sns {
 		// There is no need in timer here, since all the goroutines executing the f function
 		// passed to startStorageNodesRequest must be finished until the deadline.
 		result := <-snr.resultsCh
@@ -1799,7 +1803,7 @@ func (snr *storageNodesRequest) collectResults(partialResultsCounter *metrics.Co
 		}
 		snr.finishQueryTracer(result.qt, "")
 		resultsCollectedPerGroup[group]++
-		if *skipSlowReplicas {
+		if *skipSlowReplicas && len(resultsCollectedPerGroup) == groupsCount {
 			canSkipSlowReplicas := true
 			for g, n := range resultsCollectedPerGroup {
 				if n <= g.nodesCount-g.replicationFactor {
@@ -1870,6 +1874,9 @@ type storageNodesGroup struct {
 
 	// the number of nodes in the group
 	nodesCount int
+
+	// groupsCount is the number of groups in the list the given group belongs to
+	groupsCount int
 }
 
 func initStorageNodeGroups(addrs []string) map[string]*storageNodesGroup {
@@ -1886,6 +1893,12 @@ func initStorageNodeGroups(addrs []string) map[string]*storageNodesGroup {
 		}
 		g.nodesCount++
 	}
+
+	groupsCount := len(m)
+	for _, g := range m {
+		g.groupsCount = groupsCount
+	}
+
 	return m
 }
 
