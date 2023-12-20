@@ -386,7 +386,7 @@ func (r *Regex) MarshalYAML() (interface{}, error) {
 var (
 	configReloads      = metrics.NewCounter(`vmauth_config_last_reload_total`)
 	configReloadErrors = metrics.NewCounter(`vmauth_config_last_reload_errors_total`)
-	configSuccess      = metrics.NewCounter(`vmauth_config_last_reload_successful`)
+	configSuccess      = metrics.NewGauge(`vmauth_config_last_reload_successful`, nil)
 	configTimestamp    = metrics.NewCounter(`vmauth_config_last_reload_success_timestamp_seconds`)
 )
 

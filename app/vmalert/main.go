@@ -194,7 +194,7 @@ func main() {
 var (
 	configReloads      = metrics.NewCounter(`vmalert_config_last_reload_total`)
 	configReloadErrors = metrics.NewCounter(`vmalert_config_last_reload_errors_total`)
-	configSuccess      = metrics.NewCounter(`vmalert_config_last_reload_successful`)
+	configSuccess      = metrics.NewGauge(`vmalert_config_last_reload_successful`, nil)
 	configTimestamp    = metrics.NewCounter(`vmalert_config_last_reload_success_timestamp_seconds`)
 )
 
