@@ -251,9 +251,6 @@ func (s *Set) GetOrCreateFloatCounter(name string) *FloatCounter {
 //
 // The returned gauge is safe to use from concurrent goroutines.
 func (s *Set) NewGauge(name string, f func() float64) *Gauge {
-	if f == nil {
-		panic(fmt.Errorf("BUG: f cannot be nil"))
-	}
 	g := &Gauge{
 		f: f,
 	}
@@ -280,9 +277,6 @@ func (s *Set) GetOrCreateGauge(name string, f func() float64) *Gauge {
 	s.mu.Unlock()
 	if nm == nil {
 		// Slow path - create and register missing gauge.
-		if f == nil {
-			panic(fmt.Errorf("BUG: f cannot be nil"))
-		}
 		if err := validateMetric(name); err != nil {
 			panic(fmt.Errorf("BUG: invalid metric name %q: %s", name, err))
 		}

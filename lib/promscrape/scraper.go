@@ -202,7 +202,7 @@ var (
 	configMetricsSet   = metrics.NewSet()
 	configReloads      = configMetricsSet.NewCounter(`vm_promscrape_config_reloads_total`)
 	configReloadErrors = configMetricsSet.NewCounter(`vm_promscrape_config_reloads_errors_total`)
-	configSuccess      = configMetricsSet.NewCounter(`vm_promscrape_config_last_reload_successful`)
+	configSuccess      = configMetricsSet.NewGauge(`vm_promscrape_config_last_reload_successful`, nil)
 	configTimestamp    = configMetricsSet.NewCounter(`vm_promscrape_config_last_reload_success_timestamp_seconds`)
 )
 
