@@ -1,6 +1,7 @@
 package flagutil
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"strconv"
@@ -97,4 +98,17 @@ func (di *DictInt) Get(key string) int {
 		}
 	}
 	return di.defaultValue
+}
+
+// ParseJSONMap parses s, which must contain JSON map of {"k1":"v1",...,"kN":"vN"}
+func ParseJSONMap(s string) (map[string]string, error) {
+	if s == "" {
+		// Special case
+		return nil, nil
+	}
+	var m map[string]string
+	if err := json.Unmarshal([]byte(s), &m); err != nil {
+		return nil, err
+	}
+	return m, nil
 }
