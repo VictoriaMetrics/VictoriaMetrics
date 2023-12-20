@@ -1922,8 +1922,8 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      Optional OAuth2 clientSecretFile to use for the corresponding -remoteWrite.url
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.oauth2.endpointParams array
-     Optional OAuth2 endpointParams to use for the corresponding -remoteWrite.url. Keys and values must be seperated by ':'.
-     Supports and array of key:value pairs seperated by comma or specified via multiple flags.
+     Optional OAuth2 endpoint parameters to use for the corresponding -remoteWrite.url . The endpoint parameters must be set in JSON format: {"param1":"value1",...,"paramN":"valueN"}
+     Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.oauth2.scopes array
      Optional OAuth2 scopes to use for the corresponding -remoteWrite.url. Scopes must be delimited by ';'
      Supports an array of values separated by comma or specified via multiple flags.
