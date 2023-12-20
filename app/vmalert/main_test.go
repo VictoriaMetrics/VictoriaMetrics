@@ -141,7 +141,7 @@ groups:
 				t.Fatalf("expected to have config error %s; got nil instead", cErr)
 			}
 			if cfgSuc != 0 {
-				t.Fatalf("expected to have metric configSuccess to be set to 0; got %d instead", cfgSuc)
+				t.Fatalf("expected to have metric configSuccess to be set to 0; got %v instead", cfgSuc)
 			}
 			return
 		}
@@ -150,7 +150,7 @@ groups:
 			t.Fatalf("unexpected config error: %s", cErr)
 		}
 		if cfgSuc != 1 {
-			t.Fatalf("expected to have metric configSuccess to be set to 1; got %d instead", cfgSuc)
+			t.Fatalf("expected to have metric configSuccess to be set to 1; got %v instead", cfgSuc)
 		}
 	}
 
