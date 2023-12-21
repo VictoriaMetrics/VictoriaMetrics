@@ -2184,7 +2184,7 @@ func rollupFirst(rfa *rollupFuncArg) float64 {
 
 var rollupDefault = rollupLast
 
-func rollupLast(rfa *rollupFuncArg) float64 {
+func rollupDefault(rfa *rollupFuncArg) float64 {
 	values := rfa.values
 	if len(values) == 0 {
 		// Do not take into account rfa.prevValue, since it may lead
