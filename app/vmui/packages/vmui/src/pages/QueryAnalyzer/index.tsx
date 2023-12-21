@@ -12,6 +12,9 @@ import "../TracePage/style.scss";
 import QueryAnalyzerView from "./QueryAnalyzerView/QueryAnalyzerView";
 import { InstantMetricResult, MetricResult, TracingData } from "../../api/types";
 import QueryAnalyzerInfo from "./QueryAnalyzerInfo/QueryAnalyzerInfo";
+import { TimeParams } from "../../types";
+import { dateFromSeconds, formatDateToUTC, humanizeSeconds } from "../../utils/time";
+import { findMostCommonStep } from "./QueryAnalyzerView/utils";
 
 export type DataAnalyzerType = {
   data: {
@@ -42,6 +45,30 @@ const QueryAnalyzer: FC = () => {
     setTrue: handleOpenModal,
     setFalse: handleCloseModal,
   } = useBoolean(false);
+
+  const period: TimeParams | undefined = useMemo(() => {
+    if (!data) return;
+    const params = data[0]?.vmui?.params;
+
+    const result = {
+      start: +(params?.start || 0),
+      end: +(params?.end || 0),
+      step: params?.step,
+      date: ""
+    };
+
+    if (!params) {
+      const dataResult = data.filter(d => d.data.resultType === "matrix").map(d => d.data.result).flat();
+      const times = dataResult.map(r => r.values ? r.values?.map(v => v[0]) : [0]).flat();
+      const uniqTimes = Array.from(new Set(times.filter(Boolean))).sort((a, b) => a - b);
+      result.start = uniqTimes[0];
+      result.end = uniqTimes[uniqTimes.length - 1];
+      result.step = humanizeSeconds(findMostCommonStep(uniqTimes));
+    }
+
+    result.date = formatDateToUTC(dateFromSeconds(result.end));
+    return result;
+  }, [data]);
 
   const isValidResponse = (response: unknown[]): boolean => {
     return response.every(element => {
@@ -106,7 +133,10 @@ const QueryAnalyzer: FC = () => {
       {hasData && (
         <div className="vm-trace-page-header">
           <div className="vm-trace-page-header-errors">
-            <QueryAnalyzerInfo data={data}/>
+            <QueryAnalyzerInfo
+              data={data}
+              period={period}
+            />
           </div>
           <div>
             <UploadJsonButtons
@@ -130,7 +160,12 @@ const QueryAnalyzer: FC = () => {
         </div>
       )}
 
-      {hasData && <QueryAnalyzerView data={data}/>}
+      {hasData && (
+        <QueryAnalyzerView
+          data={data}
+          period={period}
+        />
+      )}
 
       {!hasData && (
         <div className="vm-trace-page-preview">

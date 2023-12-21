@@ -2,7 +2,7 @@ import React, { FC, useMemo, useState, useEffect } from "preact/compat";
 import Trace from "../../../components/TraceQuery/Trace";
 import { DataAnalyzerType } from "../index";
 import classNames from "classnames";
-import { DisplayType, displayTypeTabs } from "../../CustomPanel/DisplayTypeSwitch";
+import { displayTypeTabs } from "../../CustomPanel/DisplayTypeSwitch";
 import GraphTips from "../../../components/Chart/GraphTips/GraphTips";
 import GraphSettings from "../../../components/Configurators/GraphSettings/GraphSettings";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
@@ -15,19 +15,18 @@ import GraphView from "../../../components/Views/GraphView/GraphView";
 import JsonView from "../../../components/Views/JsonView/JsonView";
 import { InstantMetricResult, MetricResult } from "../../../api/types";
 import { isHistogramData } from "../../../utils/metric";
-import { TimeParams } from "../../../types";
-import { dateFromSeconds, formatDateToUTC, humanizeSeconds } from "../../../utils/time";
-import { findMostCommonStep } from "./utils";
+import { DisplayType, TimeParams } from "../../../types";
 import TableSettings from "../../../components/Table/TableSettings/TableSettings";
 import { getColumns } from "../../../hooks/useSortedCategories";
 import { useCustomPanelDispatch, useCustomPanelState } from "../../../state/customPanel/CustomPanelStateContext";
 import TableView from "../../../components/Views/TableView/TableView";
 
 type Props = {
-  data: DataAnalyzerType[]
+  data: DataAnalyzerType[];
+  period?: TimeParams;
 }
 
-const QueryAnalyzerView: FC<Props> = ({ data }) => {
+const QueryAnalyzerView: FC<Props> = ({ data, period }) => {
   const { isMobile } = useDeviceDetect();
   const { tableCompact } = useCustomPanelState();
   const customPanelDispatch = useCustomPanelDispatch();
@@ -49,30 +48,6 @@ const QueryAnalyzerView: FC<Props> = ({ data }) => {
     return displayTypeTabs.filter(t => t.value === "chart");
   }, [data]);
   const [displayType, setDisplayType] = useState(tabs[0].value);
-
-  const period: TimeParams = useMemo(() => {
-    const params = data[0]?.vmui?.params;
-
-    const result = {
-      start: +(params?.start || 0),
-      end: +(params?.end || 0),
-      step: params?.step,
-      date: ""
-    };
-
-    if (!params) {
-      const dataResult = data.filter(d => d.data.resultType === "matrix").map(d => d.data.result).flat();
-      const times = dataResult.map(r => r.values ? r.values?.map(v => v[0]) : [0]).flat();
-      const uniqTimes = Array.from(new Set(times.filter(Boolean))).sort((a, b) => a - b);
-      const step = humanizeSeconds(findMostCommonStep(uniqTimes));
-      result.start = uniqTimes[0];
-      result.end = uniqTimes[uniqTimes.length - 1];
-      result.step = step;
-    }
-
-    result.date = formatDateToUTC(dateFromSeconds(result.end));
-    return result;
-  }, [data]);
 
   const { yaxis } = useGraphState();
   const graphDispatch = useGraphDispatch();
@@ -148,12 +123,14 @@ const QueryAnalyzerView: FC<Props> = ({ data }) => {
         })}
       >
         <div className="vm-custom-panel-body-header">
-          <Tabs
-            activeItem={displayType}
-            items={tabs}
-            onChange={handleChangeDisplayType}
-          />
-          <div className="vm-custom-panel-body-header__left">
+          <div className="vm-custom-panel-body-header__tabs">
+            <Tabs
+              activeItem={displayType}
+              items={tabs}
+              onChange={handleChangeDisplayType}
+            />
+          </div>
+          <div className="vm-custom-panel-body-header__graph-controls">
             {displayType === "chart" && <GraphTips/>}
             {displayType === "chart" && (
               <GraphSettings

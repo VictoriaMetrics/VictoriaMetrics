@@ -1,18 +1,29 @@
 import React, { FC, useMemo } from "preact/compat";
 import { DataAnalyzerType } from "../index";
 import Button from "../../../components/Main/Button/Button";
-import { InfoIcon } from "../../../components/Main/Icons";
+import { ClockIcon, InfoIcon, TimelineIcon } from "../../../components/Main/Icons";
 import useBoolean from "../../../hooks/useBoolean";
 import Modal from "../../../components/Main/Modal/Modal";
+import { TimeParams } from "../../../types";
 import "./style.scss";
+import dayjs from "dayjs";
+import { DATE_TIME_FORMAT } from "../../../constants/date";
 
 type Props = {
-  data: DataAnalyzerType[]
+  data: DataAnalyzerType[];
+  period?: TimeParams;
 }
 
-const QueryAnalyzerInfo: FC<Props> = ({ data }) => {
+const QueryAnalyzerInfo: FC<Props> = ({ data, period }) => {
   const dataWithStats = useMemo(() => data.filter(d => d.stats && d.data.resultType === "matrix"), [data]);
   const comment = useMemo(() => data.find(d => d?.vmui?.comment)?.vmui?.comment, [data]);
+
+  const timeRange = useMemo(() => {
+    if (!period) return "";
+    const start = dayjs(period.start * 1000).tz().format(DATE_TIME_FORMAT);
+    const end = dayjs(period.end * 1000).tz().format(DATE_TIME_FORMAT);
+    return `${start} - ${end}`;
+  }, [period]);
 
   const {
     value: openModal,
@@ -22,15 +33,25 @@ const QueryAnalyzerInfo: FC<Props> = ({ data }) => {
 
   return (
     <>
-      <div>
+      <div className="vm-query-analyzer-info-header">
         <Button
           startIcon={<InfoIcon/>}
           variant="outlined"
           color="warning"
           onClick={handleOpenModal}
         >
-          Show report info
+            Show report info
         </Button>
+        {period && (
+          <>
+            <div className="vm-query-analyzer-info-header__period">
+              <TimelineIcon/> step: {period.step}
+            </div>
+            <div className="vm-query-analyzer-info-header__period">
+              <ClockIcon/> {timeRange}
+            </div>
+          </>
+        )}
       </div>
 
       {openModal && (
