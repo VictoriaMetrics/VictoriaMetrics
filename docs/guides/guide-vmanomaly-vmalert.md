@@ -91,7 +91,7 @@ ______________________________
 
 ## 5. vmanomaly configuration and parameter description
 **Parameter description**:
-There are 4 main sections in config file:
+There are 4 required sections in config file:
 
 `scheduler` - defines how often to run and make inferences, as well as what timerange to use to train the model. 
 
@@ -114,9 +114,9 @@ Let's look into parameters in each section:
     Here is the previous 14 days of data to put into the model training. 
 
 * `model`
-    * `class` - what model to run. You can use your own model or choose from built-in models: Seasonal Trend Decomposition, Facebook Prophet, ZScore, Rolling Quantile, Holt-Winters and ARIMA.  Here we use Facebook Prophet (`model.prophet.ProphetModel`).
+    * `class` - what model to run. You can use your own model or choose from built-in models: Seasonal Trend Decomposition, Facebook Prophet, ZScore, Rolling Quantile, Holt-Winters, Isolation Forest and ARIMA.  Here we use Facebook Prophet (`model.prophet.ProphetModel`).
     
-    * `args` - Model specific parameters. You can put parameters that are available in FB Prophet [docs](https://facebook.github.io/prophet/docs/quick_start.html).
+    * `args` - Model specific parameters, represented as YAML dictionary in a simple `key: value` form. For example, you can use parameters that are available in [FB Prophet](https://facebook.github.io/prophet/docs/quick_start.html).
     
 * `reader`
   * `datasource_url` - Data source. An HTTP endpoint that serves `/api/v1/query_range`.
