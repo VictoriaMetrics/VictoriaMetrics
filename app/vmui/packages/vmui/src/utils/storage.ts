@@ -9,6 +9,7 @@ export type StorageKeys = "AUTOCOMPLETE"
     | "EXPLORE_METRICS_TIPS"
     | "QUERY_HISTORY"
     | "QUERY_FAVORITES"
+    | "SERVER_URL"
 
 export const saveToStorage = (key: StorageKeys, value: string | boolean | Record<string, unknown>): void => {
   if (value) {

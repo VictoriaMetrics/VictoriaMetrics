@@ -7,7 +7,11 @@ declare global {
   }
 }
 
-export type DisplayType = "table" | "chart" | "code";
+export enum DisplayType {
+  table = "table",
+  chart = "chart",
+  code = "code",
+}
 
 export interface TimeParams {
   start: number; // timestamp in seconds

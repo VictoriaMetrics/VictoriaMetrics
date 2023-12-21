@@ -18,6 +18,7 @@ interface SelectProps {
   clearable?: boolean
   searchable?: boolean
   autofocus?: boolean
+  disabled?: boolean
   onChange: (value: string) => void
 }
 
@@ -30,6 +31,7 @@ const Select: FC<SelectProps> = ({
   clearable = false,
   searchable = false,
   autofocus,
+  disabled,
   onChange
 }) => {
   const { isDarkTheme } = useAppState();
@@ -64,11 +66,12 @@ const Select: FC<SelectProps> = ({
   };
 
   const handleFocus = () => {
+    if (disabled) return;
     setOpenList(true);
   };
 
   const handleToggleList = (e: MouseEvent<HTMLDivElement>) => {
-    if (e.target instanceof HTMLInputElement) return;
+    if (e.target instanceof HTMLInputElement || disabled) return;
     setOpenList(prev => !prev);
   };
 
@@ -112,7 +115,8 @@ const Select: FC<SelectProps> = ({
     <div
       className={classNames({
         "vm-select": true,
-        "vm-select_dark": isDarkTheme
+        "vm-select_dark": isDarkTheme,
+        "vm-select_disabled": disabled
       })}
     >
       <div

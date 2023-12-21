@@ -65,7 +65,7 @@ func Init() {
 var (
 	configReloads      = metrics.NewCounter(`vm_relabel_config_reloads_total`)
 	configReloadErrors = metrics.NewCounter(`vm_relabel_config_reloads_errors_total`)
-	configSuccess      = metrics.NewCounter(`vm_relabel_config_last_reload_successful`)
+	configSuccess      = metrics.NewGauge(`vm_relabel_config_last_reload_successful`, nil)
 	configTimestamp    = metrics.NewCounter(`vm_relabel_config_last_reload_success_timestamp_seconds`)
 )
 
