@@ -211,7 +211,7 @@ docker pull us-docker.pkg.dev/victoriametrics-test/public/vmanomaly-trial:latest
 You can put a tag on it for your convinience:
 
 ```sh
-docker image tag us-docker.pkg.dev/victoriametrics-test/public/vmanomaly-trial:v1.7.2 vmanomaly
+docker image tag us-docker.pkg.dev/victoriametrics-test/public/vmanomaly-trial vmanomaly
 ```
 Here is an example of how to run *vmanomaly* docker container with [license file](#licensing):
 
