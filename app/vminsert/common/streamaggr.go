@@ -38,7 +38,7 @@ var (
 
 	saCfgReloads   = metrics.NewCounter(`vminsert_streamagg_config_reloads_total`)
 	saCfgReloadErr = metrics.NewCounter(`vminsert_streamagg_config_reloads_errors_total`)
-	saCfgSuccess   = metrics.NewCounter(`vminsert_streamagg_config_last_reload_successful`)
+	saCfgSuccess   = metrics.NewGauge(`vminsert_streamagg_config_last_reload_successful`, nil)
 	saCfgTimestamp = metrics.NewCounter(`vminsert_streamagg_config_last_reload_success_timestamp_seconds`)
 
 	sasGlobal atomic.Pointer[streamaggr.Aggregators]
