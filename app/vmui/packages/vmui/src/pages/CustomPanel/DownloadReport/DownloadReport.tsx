@@ -1,4 +1,4 @@
-import React, { FC, useCallback, useEffect, useMemo, useState } from "preact/compat";
+import React, { FC, useCallback, useEffect, useMemo, useRef, useState } from "preact/compat";
 import { DownloadIcon } from "../../../components/Main/Icons";
 import Button from "../../../components/Main/Button/Button";
 import Tooltip from "../../../components/Main/Tooltip/Tooltip";
@@ -13,13 +13,11 @@ import { useQueryState } from "../../../state/query/QueryStateContext";
 import { ErrorTypes } from "../../../types";
 import Alert from "../../../components/Main/Alert/Alert";
 import qs from "qs";
+import Popper from "../../../components/Main/Popper/Popper";
+import helperText from "./helperText";
 
 type Props = {
   fetchUrl?: string[];
-}
-
-enum SettingsReport {
-  tracing = "trace query",
 }
 
 const getDefaultReportName = () => `vmui_report_${dayjs().utc().format(DATE_FILENAME_FORMAT)}`;
@@ -29,12 +27,16 @@ const DownloadReport: FC<Props> = ({ fetchUrl }) => {
 
   const [filename, setFilename] = useState(getDefaultReportName());
   const [comment, setComment] = useState("");
+  const [trace, setTrace] = useState(true);
   const [error, setError] = useState<ErrorTypes | string>();
   const [isLoading, setIsLoading] = useState(false);
 
-  const [settings, setSettings] = useState({
-    [SettingsReport.tracing]: true,
-  });
+  const filenameRef = useRef<HTMLDivElement>(null);
+  const commentRef = useRef<HTMLDivElement>(null);
+  const traceRef = useRef<HTMLDivElement>(null);
+  const generateRef = useRef<HTMLDivElement>(null);
+  const helperRefs = [filenameRef, commentRef, traceRef, generateRef];
+  const [stepHelper, setStepHelper] = useState(0);
 
   const {
     value: openModal,
@@ -42,18 +44,20 @@ const DownloadReport: FC<Props> = ({ fetchUrl }) => {
     setFalse: handleClose,
   } = useBoolean(false);
 
+  const {
+    value: openHelper,
+    toggle: toggleHelper,
+    setFalse: handleCloseHelper,
+  } = useBoolean(false);
+
   const fetchUrlReport = useMemo(() => {
     if (!fetchUrl) return;
     return fetchUrl.map((str, i) => {
       const url = new URL(str);
-      settings[SettingsReport.tracing] ? url.searchParams.set("trace", "1") : url.searchParams.delete("trace");
+      trace ? url.searchParams.set("trace", "1") : url.searchParams.delete("trace");
       return { id: i, url: url };
     });
-  }, [fetchUrl]);
-
-  const handlerChangeSetting = (key: string) => (value: boolean) => {
-    setSettings(prev => ({ ...prev, [key]: value }));
-  };
+  }, [fetchUrl, trace]);
 
   const generateFile = useCallback((data: unknown) => {
     const json = JSON.stringify(data, null, 2);
@@ -107,59 +111,110 @@ const DownloadReport: FC<Props> = ({ fetchUrl }) => {
     }
   }, [fetchUrlReport, comment, generateFile, query]);
 
+  const handleChangeHelp = (step: number) => () => {
+    setStepHelper(prevStep => prevStep + step);
+  };
+
   useEffect(() => {
     setError("");
     setFilename(getDefaultReportName());
     setComment("");
   }, [openModal]);
 
+  useEffect(() => {
+    setStepHelper(0);
+  }, [openHelper]);
+
   return (
     <>
-      <Tooltip title={"Report query"}>
+      <Tooltip title={"Export query"}>
         <Button
           variant="text"
           startIcon={<DownloadIcon/>}
           onClick={toggleOpen}
-          ariaLabel="report query"
+          ariaLabel="export query"
         />
       </Tooltip>
       {openModal && (
         <Modal
-          title={"Report query"}
+          title={"Export query"}
           onClose={handleClose}
           isOpen={openModal}
         >
           <div className="vm-download-report">
             <div className="vm-download-report-settings">
-              <TextField
-                label="Filename"
-                value={filename}
-                onChange={setFilename}
-              />
-              <TextField
-                type="textarea"
-                label="Comment"
-                value={comment}
-                onChange={setComment}
-              />
-              {Object.entries(settings).map(([key, value]) => (
-                <Checkbox
-                  key={key}
-                  checked={value}
-                  onChange={handlerChangeSetting(key)}
-                  label={`Include ${key}`}
+              <div ref={filenameRef}>
+                <TextField
+                  label="Filename"
+                  value={filename}
+                  onChange={setFilename}
                 />
-              ))}
+              </div>
+              <div ref={commentRef}>
+                <TextField
+                  type="textarea"
+                  label="Comment"
+                  value={comment}
+                  onChange={setComment}
+                />
+              </div>
+              <div ref={traceRef}>
+                <Checkbox
+                  checked={trace}
+                  onChange={setTrace}
+                  label={"Include query trace"}
+                />
+              </div>
             </div>
             {error && <Alert variant="error">{error}</Alert>}
             <div className="vm-download-report__buttons">
               <Button
-                onClick={handleGenerateReport}
-                disabled={isLoading}
+                variant="text"
+                onClick={toggleHelper}
               >
-                {isLoading ? "Loading data..." : "Generate Report"}
+                Help
               </Button>
+              <div ref={generateRef}>
+                <Button
+                  onClick={handleGenerateReport}
+                  disabled={isLoading}
+                >
+                  {isLoading ? "Loading data..." : "Generate Report"}
+                </Button>
+              </div>
             </div>
+            <Popper
+              open={openHelper}
+              buttonRef={helperRefs[stepHelper]}
+              placement="top-left"
+              variant="dark"
+              onClose={handleCloseHelper}
+            >
+              <div className="vm-download-report-helper">
+                <div className="vm-download-report-helper__description">
+                  {helperText[stepHelper]}
+                </div>
+                <div className="vm-download-report-helper__buttons">
+                  {stepHelper !== 0 && (
+                    <Button
+                      onClick={handleChangeHelp(-1)}
+                      size="small"
+                      color={"white"}
+                    >
+                      Prev
+                    </Button>
+                  )}
+                  <Button
+                    onClick={stepHelper === helperRefs.length - 1 ? handleCloseHelper : handleChangeHelp(1)}
+                    size="small"
+                    color={"white"}
+                    variant={"text"}
+                  >
+                    {stepHelper === helperRefs.length - 1 ? "Close" : "Next"}
+                  </Button>
+                </div>
+              </div>
+            </Popper>
           </div>
         </Modal>
       )}

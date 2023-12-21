@@ -5,7 +5,7 @@ import "./style.scss";
 
 interface ButtonProps {
   variant?: "contained" | "outlined" | "text"
-  color?: "primary" | "secondary" | "success" | "error" | "gray"  | "warning"
+  color?: "primary" | "secondary" | "success" | "error" | "gray"  | "warning" | "white"
   size?: "small" | "medium" | "large"
   ariaLabel?: string // https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Attributes/aria-label
   endIcon?: ReactNode

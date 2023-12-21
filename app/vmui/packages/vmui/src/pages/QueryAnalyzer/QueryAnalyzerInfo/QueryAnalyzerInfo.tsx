@@ -56,10 +56,10 @@ const QueryAnalyzerInfo: FC<Props> = ({ data }) => {
                 <div className="vm-query-analyzer-info-item__text">
                   {Object.entries(d.stats || {}).map(([key, value]) => (
                     <div key={key}>
-                      {key}: {value}
+                      {key}: {value ?? "-"}
                     </div>
                   ))}
-                  isPartial: {String(d.isPartial)}
+                  isPartial: {String(d.isPartial ?? "-")}
                 </div>
               </div>
             ))}
