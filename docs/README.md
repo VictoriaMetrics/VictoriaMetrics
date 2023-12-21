@@ -519,10 +519,8 @@ See also [vmagent](https://docs.victoriametrics.com/vmagent.html), which can be 
 
 ## How to send data from DataDog agent
 
-VictoriaMetrics accepts data from [DataDog agent](https://docs.datadoghq.com/agent/)
-or [DogStatsD](https://docs.datadoghq.com/developers/dogstatsd/)
-via ["submit metrics" API](https://docs.datadoghq.com/api/latest/metrics/#submit-metrics)
-at `/datadog/api/v1/series` path.
+VictoriaMetrics accepts data from [DataDog agent](https://docs.datadoghq.com/agent/) or [DogStatsD](https://docs.datadoghq.com/developers/dogstatsd/)
+via ["submit metrics" API](https://docs.datadoghq.com/api/latest/metrics/#submit-metrics) at `/datadog/api/v2/series` path.
 
 ### Sending metrics to VictoriaMetrics
 
@@ -534,12 +532,11 @@ or via [configuration file](https://docs.datadoghq.com/agent/guide/agent-configu
 </p>
 
 To configure DataDog agent via ENV variable add the following prefix:
-<div class="with-copy" markdown="1">
 
+<div class="with-copy" markdown="1">
 ```
 DD_DD_URL=http://victoriametrics:8428/datadog
 ```
-
 </div>
 
 _Choose correct URL for VictoriaMetrics [here](https://docs.victoriametrics.com/url-examples.html#datadog)._
@@ -548,14 +545,12 @@ To configure DataDog agent via [configuration file](https://github.com/DataDog/d
 add the following line:
 
 <div class="with-copy" markdown="1">
-
 ```
 dd_url: http://victoriametrics:8428/datadog
 ```
-
 </div>
 
-vmagent also can accept Datadog metrics format. Depending on where vmagent will forward data, 
+[vmagent](https://docs.victoriametrics.com/vmagent.html) also can accept Datadog metrics format. Depending on where vmagent will forward data,
 pick [single-node or cluster URL](https://docs.victoriametrics.com/url-examples.html#datadog) formats.
 
 ### Sending metrics to Datadog and VictoriaMetrics
@@ -570,12 +565,10 @@ sending via ENV variable `DD_ADDITIONAL_ENDPOINTS` or via configuration file `ad
 Run DataDog using the following ENV variable with VictoriaMetrics as additional metrics receiver:
 
 <div class="with-copy" markdown="1">
-
 ```
 DD_ADDITIONAL_ENDPOINTS='{\"http://victoriametrics:8428/datadog\": [\"apikey\"]}'
 
 ```
-
 </div>
 
 _Choose correct URL for VictoriaMetrics [here](https://docs.victoriametrics.com/url-examples.html#datadog)._
@@ -585,19 +578,16 @@ To configure DataDog Dual Shipping via [configuration file](https://docs.datadog
 add the following line:
 
 <div class="with-copy" markdown="1">
-
 ```
 additional_endpoints:
   "http://victoriametrics:8428/datadog":
   - apikey
 ```
-
 </div>
 
 ### Send via cURL
 
-See how to send data to VictoriaMetrics via 
-[DataDog "submit metrics"](https://docs.victoriametrics.com/url-examples.html#datadogapiv1series) from command line.
+See how to send data to VictoriaMetrics via DataDog "submit metrics" API [here](https://docs.victoriametrics.com/url-examples.html#datadogapiv2series).
 
 The imported data can be read via [export API](https://docs.victoriametrics.com/url-examples.html#apiv1export).
 
@@ -608,7 +598,7 @@ according to [DataDog metric naming recommendations](https://docs.datadoghq.com/
 If you need accepting metric names as is without sanitizing, then pass `-datadog.sanitizeMetricName=false` command-line flag to VictoriaMetrics.
 
 Extra labels may be added to all the written time series by passing `extra_label=name=value` query args.
-For example, `/datadog/api/v1/series?extra_label=foo=bar` would add `{foo="bar"}` label to all the ingested metrics.
+For example, `/datadog/api/v2/series?extra_label=foo=bar` would add `{foo="bar"}` label to all the ingested metrics.
 
 DataDog agent sends the [configured tags](https://docs.datadoghq.com/getting_started/tagging/) to
 undocumented endpoint - `/datadog/intake`. This endpoint isn't supported by VictoriaMetrics yet.
@@ -2583,7 +2573,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -csvTrimTimestamp duration
      Trim timestamps when importing csv data to this duration. Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data (default 1ms)
   -datadog.maxInsertRequestSize size
-     The maximum size in bytes of a single DataDog POST request to /api/v1/series
+     The maximum size in bytes of a single DataDog POST request to /datadog/api/v2/series
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 67108864)
   -datadog.sanitizeMetricName
      Sanitize metric names for the ingested DataDog data to comply with DataDog behaviour described at https://docs.datadoghq.com/metrics/custom_metrics/#naming-custom-metrics (default true)

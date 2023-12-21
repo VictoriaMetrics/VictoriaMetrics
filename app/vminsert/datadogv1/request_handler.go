@@ -1,4 +1,4 @@
-package datadog
+package datadogv1
 
 import (
 	"net/http"
@@ -7,31 +7,30 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
-	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/datadog"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/datadog/stream"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/datadogutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/datadogv1"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/datadogv1/stream"
 	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
-	rowsInserted  = metrics.NewCounter(`vm_rows_inserted_total{type="datadog"}`)
-	rowsPerInsert = metrics.NewHistogram(`vm_rows_per_insert{type="datadog"}`)
+	rowsInserted  = metrics.NewCounter(`vm_rows_inserted_total{type="datadogv1"}`)
+	rowsPerInsert = metrics.NewHistogram(`vm_rows_per_insert{type="datadogv1"}`)
 )
 
 // InsertHandlerForHTTP processes remote write for DataDog POST /api/v1/series request.
-//
-// See https://docs.datadoghq.com/api/latest/metrics/#submit-metrics
 func InsertHandlerForHTTP(req *http.Request) error {
 	extraLabels, err := parserCommon.GetExtraLabels(req)
 	if err != nil {
 		return err
 	}
 	ce := req.Header.Get("Content-Encoding")
-	return stream.Parse(req.Body, ce, func(series []parser.Series) error {
+	return stream.Parse(req.Body, ce, func(series []datadogv1.Series) error {
 		return insertRows(series, extraLabels)
 	})
 }
 
-func insertRows(series []parser.Series, extraLabels []prompbmarshal.Label) error {
+func insertRows(series []datadogv1.Series, extraLabels []prompbmarshal.Label) error {
 	ctx := common.GetInsertCtx()
 	defer common.PutInsertCtx(ctx)
 
@@ -54,7 +53,7 @@ func insertRows(series []parser.Series, extraLabels []prompbmarshal.Label) error
 			ctx.AddLabel("device", ss.Device)
 		}
 		for _, tag := range ss.Tags {
-			name, value := parser.SplitTag(tag)
+			name, value := datadogutils.SplitTag(tag)
 			if name == "host" {
 				name = "exported_host"
 			}
