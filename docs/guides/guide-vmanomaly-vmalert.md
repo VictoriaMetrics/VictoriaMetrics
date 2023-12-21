@@ -266,7 +266,6 @@ Let's wrap it all up together into the `docker-compose.yml` file.
 
 <div class="with-copy" markdown="1">
 
-{% raw %}
 ``` yaml
 services:
   vmagent:
@@ -348,7 +347,7 @@ services:
     restart: always
   vmanomaly:
     container_name: vmanomaly
-    image: us-docker.pkg.dev/victoriametrics-test/public/vmanomaly-trial:v1.7.0
+    image: us-docker.pkg.dev/victoriametrics-test/public/vmanomaly-trial:v1.7.2
     depends_on:
       - "victoriametrics"
     ports:
@@ -381,7 +380,6 @@ volumes:
 networks:
   vm_net:
 ```
-{% endraw %}
 
 </div>
 
