@@ -26,15 +26,6 @@ func InsertHandler(r io.Reader) error {
 	})
 }
 
-// InsertHandlerForReader processes remote write for graphite plaintext protocol.
-//
-// See https://graphite.readthedocs.io/en/latest/feeding-carbon.html#the-plaintext-protocol
-func InsertHandlerForReader(at *auth.Token, r io.Reader, isGzipped bool) error {
-	return stream.Parse(r, isGzipped, func(rows []parser.Row) error {
-		return insertRows(at, rows)
-	})
-}
-
 func insertRows(at *auth.Token, rows []parser.Row) error {
 	ctx := common.GetPushCtx()
 	defer common.PutPushCtx(ctx)
