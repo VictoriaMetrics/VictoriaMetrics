@@ -76,11 +76,10 @@ type Series struct {
 	Metric string `json:"metric"`
 
 	// Points points for the given metric
-	Points    []Point    `json:"points"`
-	Resources []Resource `json:"resources"`
+	Points []Point `json:"points"`
 
-	// Do not decode SourceTypeName, since it isn't used by VictoriaMetrics
-	// SourceTypeName string     `json:"source_type_name"`
+	Resources      []Resource `json:"resources"`
+	SourceTypeName string     `json:"source_type_name"`
 
 	Tags []string
 
@@ -105,6 +104,8 @@ func (s *Series) reset() {
 		resources[i].reset()
 	}
 	s.Resources = resources[:0]
+
+	s.SourceTypeName = ""
 
 	tags := s.Tags
 	for i := range tags {

@@ -58,6 +58,12 @@ func insertRows(at *auth.Token, series []datadogv2.Series, extraLabels []prompbm
 				Value: rs.Name,
 			})
 		}
+		if ss.SourceTypeName != "" {
+			labels = append(labels, prompbmarshal.Label{
+				Name:  "source_type_name",
+				Value: ss.SourceTypeName,
+			})
+		}
 		for _, tag := range ss.Tags {
 			name, value := datadogutils.SplitTag(tag)
 			if name == "host" {

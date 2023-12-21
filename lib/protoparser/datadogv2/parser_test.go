@@ -50,6 +50,7 @@ func TestRequestUnmarshalJSONSuccess(t *testing.T) {
           "type": "host"
         }
       ],
+      "source_type_name": "kubernetes",
       "tags": ["environment:test"]
     }
   ]
@@ -69,6 +70,7 @@ func TestRequestUnmarshalJSONSuccess(t *testing.T) {
 					Type: "host",
 				},
 			},
+			SourceTypeName: "kubernetes",
 			Tags: []string{
 				"environment:test",
 			},

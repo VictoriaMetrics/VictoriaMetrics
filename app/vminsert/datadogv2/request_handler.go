@@ -60,6 +60,9 @@ func insertRows(at *auth.Token, series []datadogv2.Series, extraLabels []prompbm
 			}
 			ctx.AddLabel(name, value)
 		}
+		if ss.SourceTypeName != "" {
+			ctx.AddLabel("source_type_name", ss.SourceTypeName)
+		}
 		for j := range extraLabels {
 			label := &extraLabels[j]
 			ctx.AddLabel(label.Name, label.Value)
