@@ -11,7 +11,7 @@ import (
 
 var (
 	// MaxInsertRequestSize is the maximum request size is defined at https://docs.datadoghq.com/api/latest/metrics/#submit-metrics
-	MaxInsertRequestSize = flagutil.NewBytes("datadog.maxInsertRequestSize", 64*1024*1024, "The maximum size in bytes of a single DataDog POST request to /api/v2/series")
+	MaxInsertRequestSize = flagutil.NewBytes("datadog.maxInsertRequestSize", 64*1024*1024, "The maximum size in bytes of a single DataDog POST request to /datadog/api/v2/series")
 
 	// SanitizeMetricName controls sanitizing metric names ingested via DataDog protocols.
 	//
