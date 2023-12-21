@@ -1696,7 +1696,7 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -loggerWarnsPerSecondLimit int
      Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero values disable the rate limit
   -maxConcurrentInserts int
-     The maximum number of concurrent insert requests. Default value should work for most cases, since it minimizes the memory usage. The default value can be increased when clients send data over slow networks. See also -insert.maxQueueDuration (default 32)
+     The maximum number of concurrent insert requests. Default value should work for most cases, since it minimizes the memory usage. The default value can be increased when clients send data over slow networks. See also -insert.maxQueueDuration.
   -maxInsertRequestSize size
      The maximum size in bytes of a single Prometheus remote_write API request
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 33554432)
@@ -1920,6 +1920,9 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.oauth2.clientSecretFile array
      Optional OAuth2 clientSecretFile to use for the corresponding -remoteWrite.url
+     Supports an array of values separated by comma or specified via multiple flags.
+  -remoteWrite.oauth2.endpointParams array
+     Optional OAuth2 endpoint parameters to use for the corresponding -remoteWrite.url . The endpoint parameters must be set in JSON format: {"param1":"value1",...,"paramN":"valueN"}
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.oauth2.scopes array
      Optional OAuth2 scopes to use for the corresponding -remoteWrite.url. Scopes must be delimited by ';'

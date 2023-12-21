@@ -8,17 +8,20 @@ import MenuBurger from "../../../components/Main/MenuBurger/MenuBurger";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import "./style.scss";
 import useBoolean from "../../../hooks/useBoolean";
+import { AppType } from "../../../types/appType";
 
 interface SidebarHeaderProps {
   background: string
   color: string
 }
 
+const { REACT_APP_TYPE } = process.env;
+const isLogsApp = REACT_APP_TYPE === AppType.logs;
+
 const SidebarHeader: FC<SidebarHeaderProps> = ({
   background,
   color,
 }) => {
-  const { REACT_APP_LOGS } = process.env;
   const { pathname } = useLocation();
   const { isMobile } = useDeviceDetect();
 
@@ -61,7 +64,7 @@ const SidebarHeader: FC<SidebarHeaderProps> = ({
         />
       </div>
       <div className="vm-header-sidebar-menu-settings">
-        {!isMobile && !REACT_APP_LOGS && <ShortcutKeys showTitle={true}/>}
+        {!isMobile && !isLogsApp && <ShortcutKeys showTitle={true}/>}
       </div>
     </div>
   </div>;

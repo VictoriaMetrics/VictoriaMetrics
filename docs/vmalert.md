@@ -1003,11 +1003,13 @@ The shortlist of configuration flags is the following:
   -datasource.maxIdleConnections int
      Defines the number of idle (keep-alive connections) to each configured datasource. Consider setting this value equal to the value: groups_total * group.concurrency. Too low a value may result in a high number of sockets in TIME_WAIT state. (default 100)
   -datasource.oauth2.clientID string
-     Optional OAuth2 clientID to use for -datasource.url. 
+     Optional OAuth2 clientID to use for -datasource.url
   -datasource.oauth2.clientSecret string
-     Optional OAuth2 clientSecret to use for -datasource.url.
+     Optional OAuth2 clientSecret to use for -datasource.url
   -datasource.oauth2.clientSecretFile string
-     Optional OAuth2 clientSecretFile to use for -datasource.url. 
+     Optional OAuth2 clientSecretFile to use for -datasource.url
+  -datasource.oauth2.endpointParams string
+     Optional OAuth2 endpoint parameters to use for -datasource.url . The endpoint parameters must be set in JSON format: {"param1":"value1",...,"paramN":"valueN"}
   -datasource.oauth2.scopes string
      Optional OAuth2 scopes to use for -datasource.url. Scopes must be delimited by ';'
   -datasource.oauth2.tokenUrl string
@@ -1156,6 +1158,9 @@ The shortlist of configuration flags is the following:
   -notifier.oauth2.clientSecretFile array
      Optional OAuth2 clientSecretFile to use for -notifier.url. If multiple args are set, then they are applied independently for the corresponding -notifier.url
      Supports an array of values separated by comma or specified via multiple flags.
+  -notifier.oauth2.endpointParams array
+     Optional OAuth2 endpoint parameters to use for the corresponding -notifier.url . The endpoint parameters must be set in JSON format: {"param1":"value1",...,"paramN":"valueN"}
+     Supports an array of values separated by comma or specified via multiple flags.
   -notifier.oauth2.scopes array
      Optional OAuth2 scopes to use for -notifier.url. Scopes must be delimited by ';'. If multiple args are set, then they are applied independently for the corresponding -notifier.url
      Supports an array of values separated by comma or specified via multiple flags.
@@ -1233,6 +1238,8 @@ The shortlist of configuration flags is the following:
      Optional OAuth2 clientSecret to use for -remoteRead.url.
   -remoteRead.oauth2.clientSecretFile string
      Optional OAuth2 clientSecretFile to use for -remoteRead.url.
+  -remoteRead.oauth2.endpointParams string
+     Optional OAuth2 endpoint parameters to use for -remoteRead.url . The endpoint parameters must be set in JSON format: {"param1":"value1",...,"paramN":"valueN"}
   -remoteRead.oauth2.scopes string
      Optional OAuth2 scopes to use for -remoteRead.url. Scopes must be delimited by ';'.
   -remoteRead.oauth2.tokenUrl string
@@ -1274,11 +1281,13 @@ The shortlist of configuration flags is the following:
   -remoteWrite.maxQueueSize int
      Defines the max number of pending datapoints to remote write endpoint (default 100000)
   -remoteWrite.oauth2.clientID string
-     Optional OAuth2 clientID to use for -remoteWrite.url.
+     Optional OAuth2 clientID to use for -remoteWrite.url
   -remoteWrite.oauth2.clientSecret string
-     Optional OAuth2 clientSecret to use for -remoteWrite.url.
+     Optional OAuth2 clientSecret to use for -remoteWrite.url
   -remoteWrite.oauth2.clientSecretFile string
-     Optional OAuth2 clientSecretFile to use for -remoteWrite.url.
+     Optional OAuth2 clientSecretFile to use for -remoteWrite.url
+  -remoteWrite.oauth2.endpointParams string
+     Optional OAuth2 endpoint parameters to use for -remoteWrite.url . The endpoint parameters must be set in JSON format: {"param1":"value1",...,"paramN":"valueN"}
   -remoteWrite.oauth2.scopes string
      Optional OAuth2 scopes to use for -notifier.url. Scopes must be delimited by ';'.
   -remoteWrite.oauth2.tokenUrl string
