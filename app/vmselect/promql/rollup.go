@@ -2182,7 +2182,7 @@ func rollupFirst(rfa *rollupFuncArg) float64 {
 	return values[0]
 }
 
-var rollupDefault = rollupLast
+var rollupLast = rollupDefault
 
 func rollupDefault(rfa *rollupFuncArg) float64 {
 	values := rfa.values
