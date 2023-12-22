@@ -243,6 +243,24 @@ type labelSet struct {
 	processed map[string]string
 }
 
+// add adds a value v with key k to origin and processed label sets.
+// On k conflicts in processed set, the passed v is preferred.
+// On k conflicts in origin set, the original value is preferred and copied
+// to processed with `exported_%k` key. The copy happens only if passed v isn't equal to origin[k] value.
+func (ls *labelSet) add(k, v string) {
+	ls.processed[k] = v
+	ov, ok := ls.origin[k]
+	if !ok {
+		ls.origin[k] = v
+		return
+	}
+	if ov != v {
+		// copy value only if v and ov are different
+		key := fmt.Sprintf("exported_%s", k)
+		ls.processed[key] = ov
+	}
+}
+
 // toLabels converts labels from given Metric
 // to labelSet which contains original and processed labels.
 func (ar *AlertingRule) toLabels(m datasource.Metric, qFn templates.QueryFn) (*labelSet, error) {
@@ -268,32 +286,14 @@ func (ar *AlertingRule) toLabels(m datasource.Metric, qFn templates.QueryFn) (*l
 		return nil, fmt.Errorf("failed to expand labels: %w", err)
 	}
 	for k, v := range extraLabels {
-		// if key conflicted, reserve origin labelset in ls.origin,
-		// add extra lableset with prefix `exported_` in ls.processed when values are different.
-		if _, ok := ls.origin[k]; !ok {
-			ls.origin[k] = v
-		} else if ls.processed[k] != v {
-			ls.processed[fmt.Sprintf("exported_%s", k)] = ls.processed[k]
-		}
-		ls.processed[k] = v
+		ls.add(k, v)
 	}
-
 	// set additional labels to identify group and rule name
 	if ar.Name != "" {
-		if _, ok := ls.origin[alertNameLabel]; !ok {
-			ls.origin[alertNameLabel] = ar.Name
-		} else if ls.processed[alertNameLabel] != ar.Name {
-			ls.processed[fmt.Sprintf("exported_%s", alertNameLabel)] = ls.processed[alertNameLabel]
-		}
-		ls.processed[alertNameLabel] = ar.Name
+		ls.add(alertNameLabel, ar.Name)
 	}
 	if !*disableAlertGroupLabel && ar.GroupName != "" {
-		if _, ok := ls.origin[alertGroupNameLabel]; !ok {
-			ls.origin[alertGroupNameLabel] = ar.GroupName
-		} else if ls.processed[alertGroupNameLabel] != ar.GroupName {
-			ls.processed[fmt.Sprintf("exported_%s", alertGroupNameLabel)] = ls.processed[alertGroupNameLabel]
-		}
-		ls.processed[alertGroupNameLabel] = ar.GroupName
+		ls.add(alertGroupNameLabel, ar.GroupName)
 	}
 	return ls, nil
 }
