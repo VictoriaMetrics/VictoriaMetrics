@@ -19,6 +19,7 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/VictoriaMetrics/metricsql"
 	"github.com/cespare/xxhash/v2"
+	"github.com/valyala/fastrand"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -75,6 +76,7 @@ func (r *Result) reset() {
 }
 
 // Results holds results returned from ProcessSearchQuery.
+// You cannot reference packedTimeseries after PutResults call
 type Results struct {
 	tr       storage.TimeRange
 	deadline searchutils.Deadline
@@ -267,10 +269,8 @@ var defaultMaxWorkersPerQuery = func() int {
 func (rss *Results) RunParallel(qt *querytracer.Tracer, f func(rs *Result, workerID uint) error) error {
 	qt = qt.NewChild("parallel process of fetched data")
 	defer rss.closeTmpBlockFiles()
-
 	rowsProcessedTotal, err := rss.runParallel(qt, f)
 	seriesProcessedTotal := len(rss.packedTimeseries)
-	rss.packedTimeseries = rss.packedTimeseries[:0]
 
 	rowsReadPerQuery.Update(float64(rowsProcessedTotal))
 	seriesReadPerQuery.Update(float64(seriesProcessedTotal))
@@ -385,7 +385,7 @@ var (
 )
 
 type packedTimeseries struct {
-	metricName string
+	metricName []byte
 	addrs      []tmpBlockAddr
 }
 
@@ -479,7 +479,7 @@ var tmpStorageBlockPool sync.Pool
 // Unpack unpacks pts to dst.
 func (pts *packedTimeseries) Unpack(dst *Result, tbfs []*tmpBlocksFile, tr storage.TimeRange) error {
 	dst.reset()
-	if err := dst.MetricName.Unmarshal(bytesutil.ToUnsafeBytes(pts.metricName)); err != nil {
+	if err := dst.MetricName.Unmarshal(pts.metricName); err != nil {
 		return fmt.Errorf("cannot unmarshal metricName %q: %w", pts.metricName, err)
 	}
 	sbh := getSortBlocksHeap()
@@ -1135,7 +1135,8 @@ func GraphiteTagValues(qt *querytracer.Tracer, accountID, projectID uint32, deny
 //
 // It can be used for implementing https://graphite-api.readthedocs.io/en/latest/api.html#metrics-find
 func TagValueSuffixes(qt *querytracer.Tracer, accountID, projectID uint32, denyPartialResponse bool, tr storage.TimeRange, tagKey, tagValuePrefix string,
-	delimiter byte, maxSuffixes int, deadline searchutils.Deadline) ([]string, bool, error) {
+	delimiter byte, maxSuffixes int, deadline searchutils.Deadline,
+) ([]string, bool, error) {
 	qt = qt.NewChild("get tag value suffixes for tagKey=%s, tagValuePrefix=%s, maxSuffixes=%d, timeRange=%s", tagKey, tagValuePrefix, maxSuffixes, &tr)
 	defer qt.Done()
 	if deadline.Exceeded() {
@@ -1347,38 +1348,85 @@ func SeriesCount(qt *querytracer.Tracer, accountID, projectID uint32, denyPartia
 	return n, isPartial, nil
 }
 
-type tmpBlocksFileWrapper struct {
-	tbfs                []*tmpBlocksFile
-	ms                  []map[string]*blockAddrs
-	orderedMetricNamess [][]string
-}
-
 type blockAddrs struct {
-	addrsPrealloc [4]tmpBlockAddr
-	addrs         []tmpBlockAddr
+	metricName []byte
+	addrs      []tmpBlockAddr
 }
 
-func newBlockAddrs() *blockAddrs {
-	ba := &blockAddrs{}
-	ba.addrs = ba.addrsPrealloc[:0]
-	return ba
+// tmpBlocksFileWrapper wraps a tmpBlockFiles
+// each slice has a constant len with number of workerID
+// it helps to imporve cache locality and avoid lock contention
+type tmpBlocksFileWrapper struct {
+	tbfs []*tmpBlocksFile
+	// holds a index references for blockAddrs
+	// by coresponding workerID
+	blockAddrsIndexesByMetricName []map[string]int
+	blockAddrs                    [][]blockAddrs
+
+	// conditional expire pooled object
+	expireDeadlineTs uint64
 }
 
-func newTmpBlocksFileWrapper(sns []*storageNode) *tmpBlocksFileWrapper {
-	n := len(sns)
+var (
+	// do not use sync.Pool
+	// objects at this pool long-lived, gargabe collector will deleted it from std Pool
+	// And size of tbfw limited by  max concurrent search request
+	// It prevents exessive memory usage
+	tbfwPoolMu sync.Mutex
+	tbfwPool   []*tmpBlocksFileWrapper
+)
+
+func getTBFW(n int) *tmpBlocksFileWrapper {
+	tbfwPoolMu.Lock()
+	defer tbfwPoolMu.Unlock()
+	var tbfw *tmpBlocksFileWrapper
+	if len(tbfwPool) > 0 {
+		tbfw = tbfwPool[len(tbfwPool)-1]
+		tbfwPool = tbfwPool[:len(tbfwPool)-1]
+	}
+	// allocate new object only if previos not exist
+	// or object from pool doesnt have enough capacity (case for dynamic vmselect discovery)
+	if tbfw == nil || n > cap(tbfw.blockAddrs) {
+		ms := make([]map[string]int, n)
+		for i := range ms {
+			ms[i] = make(map[string]int)
+		}
+		bas := make([][]blockAddrs, n)
+		for i := range bas {
+			bas[i] = make([]blockAddrs, 0, 4)
+		}
+
+		// add jitter for expiration time
+		deadLine := 10*60*60 + fasttime.UnixTimestamp() + uint64(fastrand.Uint32n(60))
+		tbfw = &tmpBlocksFileWrapper{
+			blockAddrsIndexesByMetricName: ms,
+			blockAddrs:                    bas,
+
+			expireDeadlineTs: deadLine,
+		}
+	}
 	tbfs := make([]*tmpBlocksFile, n)
 	for i := range tbfs {
 		tbfs[i] = getTmpBlocksFile()
 	}
-	ms := make([]map[string]*blockAddrs, n)
-	for i := range ms {
-		ms[i] = make(map[string]*blockAddrs)
+	tbfw.tbfs = tbfs
+	tbfw.blockAddrs = tbfw.blockAddrs[:n]
+	tbfw.blockAddrsIndexesByMetricName = tbfw.blockAddrsIndexesByMetricName[:n]
+	return tbfw
+}
+
+func putTBFW(tbfw *tmpBlocksFileWrapper) {
+	if fasttime.UnixTimestamp() > tbfw.expireDeadlineTs {
+		return
 	}
-	return &tmpBlocksFileWrapper{
-		tbfs:                tbfs,
-		ms:                  ms,
-		orderedMetricNamess: make([][]string, n),
+	for i := range tbfw.blockAddrs {
+		tbfw.blockAddrs[i] = tbfw.blockAddrs[i][:0]
+		tbfw.blockAddrsIndexesByMetricName[i] = make(map[string]int, len(tbfw.blockAddrsIndexesByMetricName[i]))
 	}
+	tbfw.tbfs = nil
+	tbfwPoolMu.Lock()
+	tbfwPool = append(tbfwPool, tbfw)
+	tbfwPoolMu.Unlock()
 }
 
 func (tbfw *tmpBlocksFileWrapper) RegisterAndWriteBlock(mb *storage.MetricBlock, workerID uint) error {
@@ -1392,47 +1440,76 @@ func (tbfw *tmpBlocksFileWrapper) RegisterAndWriteBlock(mb *storage.MetricBlock,
 	// Do not intern mb.MetricName, since it leads to increased memory usage.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3692
 	metricName := mb.MetricName
-	m := tbfw.ms[workerID]
-	addrs := m[string(metricName)]
-	if addrs == nil {
-		addrs = newBlockAddrs()
+	m := tbfw.blockAddrsIndexesByMetricName[workerID]
+	blockAddrsIdx, ok := m[string(metricName)]
+	if ok {
+		// fast path
+		addrs := &tbfw.blockAddrs[workerID][blockAddrsIdx]
+		addrs.addrs = append(addrs.addrs, addr)
+		return nil
 	}
-	addrs.addrs = append(addrs.addrs, addr)
-	if len(addrs.addrs) == 1 {
-		// An optimization for big number of time series with long names: store only a single copy of metricNameStr
-		// in both tbfw.orderedMetricNamess and tbfw.ms.
-		orderedMetricNames := tbfw.orderedMetricNamess[workerID]
-		metricNameStr := string(metricName)
-		orderedMetricNames = append(orderedMetricNames, metricNameStr)
-		m[metricNameStr] = addrs
-		tbfw.orderedMetricNamess[workerID] = orderedMetricNames
+	// first time met this metricName
+
+	blockAddrss := tbfw.blockAddrs[workerID]
+
+	dstLenB := len(blockAddrss) + 1
+	blockAddrss = bytesutil.ResizeWithCopyMayOverallocate(blockAddrss, dstLenB)
+	addrs := &blockAddrss[len(blockAddrss)-1]
+	// pre-allocate memory for tmpBlockAddrs
+	if cap(addrs.addrs) == 0 {
+		addrs.addrs = make([]tmpBlockAddr, 0, 4)
 	}
+	addrs.addrs = append(addrs.addrs[:0], addr)
+	// An optimization for big number of time series with long names: store only a single copy of metricNameStr
+	// in both tbfw.orderedMetricNamess and tbfw.ms.
+	addrs.metricName = bytesutil.ResizeNoCopyMayOverallocate(addrs.metricName, len(metricName))
+	copy(addrs.metricName, metricName)
+
+	metricNameStr := bytesutil.ToUnsafeString(addrs.metricName)
+	// point index to the top of the buffer
+	m[metricNameStr] = len(blockAddrss) - 1
+	tbfw.blockAddrs[workerID] = blockAddrss
+
 	return nil
 }
 
-func (tbfw *tmpBlocksFileWrapper) Finalize() ([]string, map[string]*blockAddrs, uint64, error) {
+// FinalizeTo writes timeseries into given buffer
+func (tbfw *tmpBlocksFileWrapper) FinalizeTo(dst []packedTimeseries) ([]packedTimeseries, uint64, error) {
 	var bytesTotal uint64
 	for i, tbf := range tbfw.tbfs {
 		if err := tbf.Finalize(); err != nil {
 			closeTmpBlockFiles(tbfw.tbfs)
-			return nil, nil, 0, fmt.Errorf("cannot finalize temporary blocks file with %d series: %w", len(tbfw.ms[i]), err)
+			return nil, 0, fmt.Errorf("cannot finalize temporary blocks file with %d series: %w", len(tbfw.blockAddrsIndexesByMetricName[i]), err)
 		}
 		bytesTotal += tbf.Len()
 	}
-	orderedMetricNames := tbfw.orderedMetricNamess[0]
-	addrsByMetricName := tbfw.ms[0]
-	for i, m := range tbfw.ms[1:] {
-		for _, metricName := range tbfw.orderedMetricNamess[i+1] {
-			dstAddrs, ok := addrsByMetricName[metricName]
-			if !ok {
-				orderedMetricNames = append(orderedMetricNames, metricName)
-				dstAddrs = newBlockAddrs()
-				addrsByMetricName[metricName] = dstAddrs
+
+	dst = bytesutil.ResizeNoCopyMayOverallocate(dst, len(tbfw.blockAddrs[0]))[:0]
+	ptsIndexByMetricName := make(map[string]int, len(tbfw.blockAddrsIndexesByMetricName[0]))
+	for i := range tbfw.blockAddrsIndexesByMetricName {
+		for j := range tbfw.blockAddrs[i] {
+			blockAddrss := &tbfw.blockAddrs[i][j]
+			// it's safe to use a metricName for local index map
+			dstAddrsIdx, ok := ptsIndexByMetricName[string(blockAddrss.metricName)]
+			if ok {
+				// fast path
+				pts := &dst[dstAddrsIdx]
+				pts.addrs = append(pts.addrs, blockAddrss.addrs...)
+				continue
 			}
-			dstAddrs.addrs = append(dstAddrs.addrs, m[metricName].addrs...)
+			dstLen := len(dst) + 1
+			dst = bytesutil.ResizeWithCopyMayOverallocate(dst, dstLen)
+			pts := &dst[len(dst)-1]
+			// copy metricName
+			pts.metricName = bytesutil.ResizeNoCopyMayOverallocate(pts.metricName, len(blockAddrss.metricName))
+			copy(pts.metricName, blockAddrss.metricName)
+			// point added metricName to the end of dst timeseries slice
+			metricName := bytesutil.ToUnsafeString(pts.metricName)
+			ptsIndexByMetricName[metricName] = len(dst) - 1
+			pts.addrs = append(pts.addrs[:0], blockAddrss.addrs...)
 		}
 	}
-	return orderedMetricNames, addrsByMetricName, bytesTotal, nil
+	return dst, bytesTotal, nil
 }
 
 var metricNamePool = &sync.Pool{
@@ -1447,7 +1524,8 @@ var metricNamePool = &sync.Pool{
 // It is the responsibility of f to call b.UnmarshalData before reading timestamps and values from the block.
 // It is the responsibility of f to filter blocks according to the given tr.
 func ExportBlocks(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline searchutils.Deadline,
-	f func(mn *storage.MetricName, b *storage.Block, tr storage.TimeRange, workerID uint) error) error {
+	f func(mn *storage.MetricName, b *storage.Block, tr storage.TimeRange, workerID uint) error,
+) error {
 	qt = qt.NewChild("export blocks: %s", sq)
 	defer qt.Done()
 	if deadline.Exceeded() {
@@ -1563,7 +1641,8 @@ func ProcessSearchQuery(qt *querytracer.Tracer, denyPartialResponse bool, sq *st
 		MaxTimestamp: sq.MaxTimestamp,
 	}
 	sns := getStorageNodes()
-	tbfw := newTmpBlocksFileWrapper(sns)
+	tbfw := getTBFW(len(sns))
+	defer putTBFW(tbfw)
 	blocksRead := newPerNodeCounter(sns)
 	samples := newPerNodeCounter(sns)
 	maxSamplesPerWorker := uint64(*maxSamplesPerQuery) / uint64(len(sns))
@@ -1587,36 +1666,33 @@ func ProcessSearchQuery(qt *querytracer.Tracer, denyPartialResponse bool, sq *st
 		closeTmpBlockFiles(tbfw.tbfs)
 		return nil, false, fmt.Errorf("error occured during search: %w", err)
 	}
-	orderedMetricNames, addrsByMetricName, bytesTotal, err := tbfw.Finalize()
+	rss := Results{
+		tr:       tr,
+		deadline: deadline,
+	}
+	var bytesTotal uint64
+
+	rss.packedTimeseries, bytesTotal, err = tbfw.FinalizeTo(rss.packedTimeseries[:0])
 	if err != nil {
 		return nil, false, fmt.Errorf("cannot finalize temporary blocks files: %w", err)
 	}
-	qt.Printf("fetch unique series=%d, blocks=%d, samples=%d, bytes=%d", len(addrsByMetricName), blocksRead.GetTotal(), samples.GetTotal(), bytesTotal)
+	qt.Printf("fetch unique series=%d, blocks=%d, samples=%d, bytes=%d", len(rss.packedTimeseries), blocksRead.GetTotal(), samples.GetTotal(), bytesTotal)
 
-	var rss Results
-	rss.tr = tr
-	rss.deadline = deadline
 	rss.tbfs = tbfw.tbfs
-	pts := make([]packedTimeseries, len(orderedMetricNames))
-	for i, metricName := range orderedMetricNames {
-		pts[i] = packedTimeseries{
-			metricName: metricName,
-			addrs:      addrsByMetricName[metricName].addrs,
-		}
-	}
-	rss.packedTimeseries = pts
 	return &rss, isPartial, nil
 }
 
 // ProcessBlocks calls processBlock per each block matching the given sq.
 func ProcessBlocks(qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.SearchQuery,
-	processBlock func(mb *storage.MetricBlock, workerID uint) error, deadline searchutils.Deadline) (bool, error) {
+	processBlock func(mb *storage.MetricBlock, workerID uint) error, deadline searchutils.Deadline,
+) (bool, error) {
 	sns := getStorageNodes()
 	return processBlocks(qt, sns, denyPartialResponse, sq, processBlock, deadline)
 }
 
 func processBlocks(qt *querytracer.Tracer, sns []*storageNode, denyPartialResponse bool, sq *storage.SearchQuery,
-	processBlock func(mb *storage.MetricBlock, workerID uint) error, deadline searchutils.Deadline) (bool, error) {
+	processBlock func(mb *storage.MetricBlock, workerID uint) error, deadline searchutils.Deadline,
+) (bool, error) {
 	requestData := sq.Marshal(nil)
 
 	// Make sure that processBlock is no longer called after the exit from processBlocks() function.
@@ -1699,7 +1775,8 @@ type rpcResult struct {
 }
 
 func startStorageNodesRequest(qt *querytracer.Tracer, sns []*storageNode, denyPartialResponse bool,
-	f func(qt *querytracer.Tracer, workerID uint, sn *storageNode) interface{}) *storageNodesRequest {
+	f func(qt *querytracer.Tracer, workerID uint, sn *storageNode) interface{},
+) *storageNodesRequest {
 	resultsCh := make(chan rpcResult, len(sns))
 	qts := make(map[*querytracer.Tracer]struct{}, len(sns))
 	for idx, sn := range sns {
@@ -2054,7 +2131,8 @@ func (sn *storageNode) getTenants(qt *querytracer.Tracer, tr storage.TimeRange, 
 }
 
 func (sn *storageNode) getTagValueSuffixes(qt *querytracer.Tracer, accountID, projectID uint32, tr storage.TimeRange, tagKey, tagValuePrefix string,
-	delimiter byte, maxSuffixes int, deadline searchutils.Deadline) ([]string, error) {
+	delimiter byte, maxSuffixes int, deadline searchutils.Deadline,
+) ([]string, error) {
 	var suffixes []string
 	f := func(bc *handshake.BufferedConn) error {
 		ss, err := sn.getTagValueSuffixesOnConn(bc, accountID, projectID, tr, tagKey, tagValuePrefix, delimiter, maxSuffixes)
@@ -2119,7 +2197,8 @@ func (sn *storageNode) processSearchMetricNames(qt *querytracer.Tracer, requestD
 }
 
 func (sn *storageNode) processSearchQuery(qt *querytracer.Tracer, requestData []byte, processBlock func(mb *storage.MetricBlock, workerID uint) error,
-	workerID uint, deadline searchutils.Deadline) error {
+	workerID uint, deadline searchutils.Deadline,
+) error {
 	f := func(bc *handshake.BufferedConn) error {
 		return sn.processSearchQueryOnConn(bc, requestData, processBlock, workerID)
 	}
@@ -2358,8 +2437,10 @@ func (sn *storageNode) getLabelNamesOnConn(bc *handshake.BufferedConn, requestDa
 	}
 }
 
-const maxLabelValueSize = 16 * 1024 * 1024
-const maxTenantValueSize = 16 * 1024 * 1024 // TODO: calc 'uint32:uint32'
+const (
+	maxLabelValueSize  = 16 * 1024 * 1024
+	maxTenantValueSize = 16 * 1024 * 1024 // TODO: calc 'uint32:uint32'
+)
 
 func (sn *storageNode) getLabelValuesOnConn(bc *handshake.BufferedConn, labelName string, requestData []byte, maxLabelValues int) ([]string, error) {
 	// Send the request to sn.
@@ -2443,7 +2524,8 @@ func (sn *storageNode) getTenantsOnConn(bc *handshake.BufferedConn, tr storage.T
 }
 
 func (sn *storageNode) getTagValueSuffixesOnConn(bc *handshake.BufferedConn, accountID, projectID uint32,
-	tr storage.TimeRange, tagKey, tagValuePrefix string, delimiter byte, maxSuffixes int) ([]string, error) {
+	tr storage.TimeRange, tagKey, tagValuePrefix string, delimiter byte, maxSuffixes int,
+) ([]string, error) {
 	// Send the request to sn.
 	if err := sendAccountIDProjectID(bc, accountID, projectID); err != nil {
 		return nil, err
@@ -2657,7 +2739,8 @@ func (sn *storageNode) processSearchMetricNamesOnConn(bc *handshake.BufferedConn
 const maxMetricNameSize = 64 * 1024
 
 func (sn *storageNode) processSearchQueryOnConn(bc *handshake.BufferedConn, requestData []byte,
-	processBlock func(mb *storage.MetricBlock, workerID uint) error, workerID uint) error {
+	processBlock func(mb *storage.MetricBlock, workerID uint) error, workerID uint,
+) error {
 	// Send the request to sn.
 	if err := writeBytes(bc, requestData); err != nil {
 		return fmt.Errorf("cannot write requestData: %w", err)

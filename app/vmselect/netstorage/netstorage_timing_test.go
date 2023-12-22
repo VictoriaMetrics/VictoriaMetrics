@@ -3,6 +3,8 @@ package netstorage
 import (
 	"fmt"
 	"testing"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
 func BenchmarkMergeSortBlocks(b *testing.B) {
@@ -102,6 +104,62 @@ func benchmarkMergeSortBlocks(b *testing.B, blocks []*sortBlock) {
 			}
 			sbh.sbs = sbs
 			mergeSortBlocks(&result, sbh, dedupInterval)
+		}
+	})
+}
+
+func BenchmarkTmpFileWrapper(b *testing.B) {
+	sns := []*storageNode{
+		{},
+	}
+	maxBlocks := 20
+	var mbs []storage.MetricBlock
+	for i := 0; i < maxBlocks; i++ {
+		mn := storage.MetricName{
+			AccountID: 0 + uint32(i),
+			ProjectID: 0 + uint32(i),
+			Tags: []storage.Tag{
+				{
+					Key:   []byte(`key`),
+					Value: []byte(fmt.Sprintf(`value-%d`, i)),
+				},
+			},
+		}
+		mnB := mn.Marshal(nil)
+		for j := 0; j < 10; j++ {
+			var block storage.Block
+			var tsid storage.TSID
+			ts := make([]int64, 0, 64*i)
+			block.Init(&tsid, ts, ts, 0, 0)
+			mb := storage.MetricBlock{
+				MetricName: mnB,
+				Block:      block,
+			}
+			mbs = append(mbs, mb)
+		}
+
+	}
+	b.ReportAllocs()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			tbfw := getTBFW(len(sns))
+			for i := range mbs {
+				mb := &mbs[i]
+				if err := tbfw.RegisterAndWriteBlock(mb, 0); err != nil {
+					b.Fatalf("not expected error: %s", err)
+				}
+			}
+			var err error
+			var pts []packedTimeseries
+			pts, _, err = tbfw.FinalizeTo(pts)
+			if err != nil {
+				b.Fatalf("not expected finalize error: %s", err)
+			}
+			if len(pts) != maxBlocks {
+				b.Fatalf("not expected number of series, want=%d, got=%d", maxBlocks, len(pts))
+			}
+			closeTmpBlockFiles(tbfw.tbfs)
+			putTBFW(tbfw)
 		}
 	})
 }
