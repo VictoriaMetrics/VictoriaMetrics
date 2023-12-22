@@ -649,16 +649,16 @@ func newAggrFuncTopK(isReverse bool) aggrFunc {
 		if err != nil {
 			return nil, err
 		}
+		lt := lessWithNaNs
+		if isReverse {
+			lt = lessWithNaNsReversed
+		}
 		afe := func(tss []*timeseries, modififer *metricsql.ModifierExpr) []*timeseries {
 			for n := range tss[0].Values {
 				sort.Slice(tss, func(i, j int) bool {
 					a := tss[i].Values[n]
 					b := tss[j].Values[n]
-					if isReverse {
-						return lessWithNaNsReversed(a, b)
-					} else {
-						return lessWithNaNs(a, b)
-					}
+					return lt(a, b)
 				})
 				fillNaNsAtIdx(n, ks[n], tss)
 			}
