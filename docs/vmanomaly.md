@@ -126,9 +126,9 @@ optionally preserving labels).
 
  
 ## Usage
-> Starting from v1.5.0 vmanomaly requires a license key to run. You can obtain a trial license key [here](https://victoriametrics.com/products/enterprise/trial/).
+> Starting from v1.5.0, vmanomaly requires a license key to run. You can obtain a trial license key [here](https://victoriametrics.com/products/enterprise/trial/).
 
-> You can find the Getting started with vmanomaly guide [here](./guides/guide-vmanomaly-vmalert.md)
+> See [Getting started guide](https://docs.victoriametrics.com/guides/guide-vmanomaly-vmalert.html).
 
 ### Config file
 There are 4 required sections in config file:
