@@ -28,11 +28,11 @@ func NewGauge(name string, f func() float64) *Gauge {
 
 // Gauge is a float64 gauge.
 type Gauge struct {
-	// f is a callback, which is called for returning the gauge value.
-	f func() float64
-
 	// valueBits contains uint64 representation of float64 passed to Gauge.Set.
 	valueBits uint64
+
+	// f is a callback, which is called for returning the gauge value.
+	f func() float64
 }
 
 // Get returns the current value for g.
