@@ -711,14 +711,12 @@ func getRangeTopKTimeseries(tss []*timeseries, modifier *metricsql.ModifierExpr,
 			value: value,
 		}
 	}
+	lt := lessWithNaNs
+	if isReverse {
+		lt = lessWithNaNsReversed
+	}
 	sort.Slice(maxs, func(i, j int) bool {
-		a := maxs[i].value
-		b := maxs[j].value
-		if isReverse {
-			return lessWithNaNsReversed(a, b)
-		} else {
-			return lessWithNaNs(a, b)
-		}
+		return lt(maxs[i].value, maxs[j].value)
 	})
 	for i := range maxs {
 		tss[i] = maxs[i].ts
