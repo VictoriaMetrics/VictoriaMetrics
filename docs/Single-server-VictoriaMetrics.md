@@ -374,6 +374,8 @@ See more in [description](https://github.com/VictoriaMetrics/grafana-datasource#
 Creating a datasource may require [specific permissions](https://grafana.com/docs/grafana/latest/administration/data-source-management/).
 If you don't see an option to create a data source - try contacting system administrator.
 
+Grafana playground is available for viewing at our [sandbox](https://play-grafana.victoriametrics.com).
+
 ## How to upgrade VictoriaMetrics
 
 VictoriaMetrics is developed at a fast pace, so it is recommended periodically checking [the CHANGELOG page](https://docs.victoriametrics.com/CHANGELOG.html) and performing regular upgrades.
