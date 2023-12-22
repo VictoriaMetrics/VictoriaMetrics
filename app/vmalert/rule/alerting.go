@@ -237,9 +237,28 @@ type labelSet struct {
 	origin map[string]string
 	// processed labels includes origin labels
 	// plus extra labels (group labels, service labels like alertNameLabel).
-	// in case of conflicts, extra labels are preferred.
+	// in case of key conflicts, origin labels are renamed with prefix `exported_` and extra labels are preferred.
+	// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5161
 	// used as labels attached to notifier.Alert and ALERTS series written to remote storage.
 	processed map[string]string
+}
+
+// add adds a value v with key k to origin and processed label sets.
+// On k conflicts in processed set, the passed v is preferred.
+// On k conflicts in origin set, the original value is preferred and copied
+// to processed with `exported_%k` key. The copy happens only if passed v isn't equal to origin[k] value.
+func (ls *labelSet) add(k, v string) {
+	ls.processed[k] = v
+	ov, ok := ls.origin[k]
+	if !ok {
+		ls.origin[k] = v
+		return
+	}
+	if ov != v {
+		// copy value only if v and ov are different
+		key := fmt.Sprintf("exported_%s", k)
+		ls.processed[key] = ov
+	}
 }
 
 // toLabels converts labels from given Metric
@@ -267,24 +286,14 @@ func (ar *AlertingRule) toLabels(m datasource.Metric, qFn templates.QueryFn) (*l
 		return nil, fmt.Errorf("failed to expand labels: %w", err)
 	}
 	for k, v := range extraLabels {
-		ls.processed[k] = v
-		if _, ok := ls.origin[k]; !ok {
-			ls.origin[k] = v
-		}
+		ls.add(k, v)
 	}
-
 	// set additional labels to identify group and rule name
 	if ar.Name != "" {
-		ls.processed[alertNameLabel] = ar.Name
-		if _, ok := ls.origin[alertNameLabel]; !ok {
-			ls.origin[alertNameLabel] = ar.Name
-		}
+		ls.add(alertNameLabel, ar.Name)
 	}
 	if !*disableAlertGroupLabel && ar.GroupName != "" {
-		ls.processed[alertGroupNameLabel] = ar.GroupName
-		if _, ok := ls.origin[alertGroupNameLabel]; !ok {
-			ls.origin[alertGroupNameLabel] = ar.GroupName
-		}
+		ls.add(alertGroupNameLabel, ar.GroupName)
 	}
 	return ls, nil
 }
@@ -414,8 +423,7 @@ func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int) ([]pr
 		}
 		h := hash(ls.processed)
 		if _, ok := updated[h]; ok {
-			// duplicate may be caused by extra labels
-			// conflicting with the metric labels
+			// duplicate may be caused the removal of `__name__` label
 			curState.Err = fmt.Errorf("labels %v: %w", ls.processed, errDuplicate)
 			return nil, curState.Err
 		}
