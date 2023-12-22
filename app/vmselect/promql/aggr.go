@@ -655,7 +655,7 @@ func newAggrFuncTopK(isReverse bool) aggrFunc {
 					a := tss[i].Values[n]
 					b := tss[j].Values[n]
 					if isReverse {
-						return !lessWithNaNs(a, b)
+						return lessWithNaNsReversed(a, b)
 					} else {
 						return lessWithNaNs(a, b)
 					}
@@ -715,7 +715,7 @@ func getRangeTopKTimeseries(tss []*timeseries, modifier *metricsql.ModifierExpr,
 		a := maxs[i].value
 		b := maxs[j].value
 		if isReverse {
-			return !lessWithNaNs(a, b)
+			return lessWithNaNsReversed(a, b)
 		} else {
 			return lessWithNaNs(a, b)
 		}
@@ -1259,6 +1259,13 @@ func lessWithNaNs(a, b float64) bool {
 		return !math.IsNaN(b)
 	}
 	return a < b
+}
+
+func lessWithNaNsReversed(a, b float64) bool {
+	if math.IsNaN(a) {
+		return true;
+	}
+	return a > b
 }
 
 func floatToIntBounded(f float64) int {
