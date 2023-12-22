@@ -1,28 +1,13 @@
-package datadog
+package datadogv1
 
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 )
 
-// SplitTag splits DataDog tag into tag name and value.
-//
-// See https://docs.datadoghq.com/getting_started/tagging/#define-tags
-func SplitTag(tag string) (string, string) {
-	n := strings.IndexByte(tag, ':')
-	if n < 0 {
-		// No tag value.
-		return tag, "no_label_value"
-	}
-	return tag[:n], tag[n+1:]
-}
-
 // Request represents DataDog POST request to /api/v1/series
-//
-// See https://docs.datadoghq.com/api/latest/metrics/#submit-metrics
 type Request struct {
 	Series []Series `json:"series"`
 }
@@ -40,8 +25,6 @@ func (req *Request) reset() {
 }
 
 // Unmarshal unmarshals DataDog /api/v1/series request body from b to req.
-//
-// See https://docs.datadoghq.com/api/latest/metrics/#submit-metrics
 //
 // b shouldn't be modified when req is in use.
 func (req *Request) Unmarshal(b []byte) error {
@@ -64,8 +47,6 @@ func (req *Request) Unmarshal(b []byte) error {
 }
 
 // Series represents a series item from DataDog POST request to /api/v1/series
-//
-// See https://docs.datadoghq.com/api/latest/metrics/#submit-metrics
 type Series struct {
 	Metric string `json:"metric"`
 	Host   string `json:"host"`
