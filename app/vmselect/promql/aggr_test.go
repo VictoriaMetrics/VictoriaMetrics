@@ -76,21 +76,21 @@ func TestTopK(t *testing.T) {
 	f := func (all [][]*timeseries, expected []*timeseries, k int, reversed bool) {
 		t.Helper()
 		topKFunc := newAggrFuncTopK(reversed)
-		if actual, err := topKFunc(&aggrFuncArg {
+		actual, err := topKFunc(&aggrFuncArg {
 			args: all,
 			ae: &metricsql.AggrFuncExpr{
 				Limit: 1,
 				Modifier: metricsql.ModifierExpr{
 				},
 			},
-			ec: nil,
-		}); err != nil {
+			ec: nil, 
+		})
+		if err != nil {
 			log.Fatalf("failed to call topK, err=%v", err)
-		} else {
-			for i := range actual {
-				if ! eq(expected[i], actual[i]) {
-					t.Fatalf("unexpected result: i:%v got:\n%v; want:\n%v", i, actual[i], expected[i])
-				}
+		} 
+		for i := range actual {
+			if ! eq(expected[i], actual[i]) {
+				t.Fatalf("unexpected result: i:%v got:\n%v; want:\n%v", i, actual[i], expected[i])
 			}
 		}
 	}
