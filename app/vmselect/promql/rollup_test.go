@@ -1472,7 +1472,7 @@ func TestRollupDelta(t *testing.T) {
 	f(nan, nan, nan, nil, nan)
 
 	// Small initial value
-	f(nan, nan, nan, []float64{1}, 1)
+	f(nan, nan, nan, []float64{1}, 0)
 	f(nan, nan, nan, []float64{10}, 0)
 	f(nan, nan, nan, []float64{100}, 0)
 	f(nan, nan, nan, []float64{1, 2, 3}, 3)
@@ -1506,4 +1506,7 @@ func TestRollupDelta(t *testing.T) {
 	// Empty values
 	f(1, nan, nan, nil, 0)
 	f(100, nan, nan, nil, 0)
+
+	// Heuristics only work if the indicator value changes
+	f(nan, nan, nan, []float64{10, 10}, 0)
 }

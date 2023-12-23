@@ -1713,7 +1713,7 @@ func rollupDelta(rfa *rollupFuncArg) float64 {
 		} else if !math.IsNaN(rfa.realNextValue) {
 			d = rfa.realNextValue - values[0]
 		}
-		if math.Abs(values[0]) < 10*(math.Abs(d)+1) {
+		if d != 0 && math.Abs(values[0]) < 10*(math.Abs(d)+1) {
 			prevValue = 0
 		} else {
 			prevValue = values[0]
