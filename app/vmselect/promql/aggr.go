@@ -1261,7 +1261,7 @@ func lessWithNaNs(a, b float64) bool {
 
 func lessWithNaNsReversed(a, b float64) bool {
 	if math.IsNaN(a) {
-		return true;
+		return true
 	}
 	return a > b
 }
