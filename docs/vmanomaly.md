@@ -126,43 +126,67 @@ optionally preserving labels).
 
  
 ## Usage
-The vmanomaly accepts only one parameter -- config file path:
+> Starting from v1.5.0, vmanomaly requires a license key to run. You can obtain a trial license key [here](https://victoriametrics.com/products/enterprise/trial/).
 
-```sh
-python3 vmanomaly.py config_zscore.yaml
-```
-or
-```sh
-python3 -m vmanomaly config_zscore.yaml
-```
+> See [Getting started guide](https://docs.victoriametrics.com/guides/guide-vmanomaly-vmalert.html).
 
-It is also possible to split up config into multiple files, just list them all in the command line:
+### Config file
+There are 4 required sections in config file:
 
-```sh
-python3 -m vmanomaly model_prophet.yaml io_csv.yaml scheduler_oneoff.yaml
+* `scheduler` - defines how often to run and make inferences, as well as what timerange to use to train the model. 
+* `model` - specific model parameters and configurations, 
+* `reader` - how to read data and where it is located
+* `writer` - where and how to write the generated output.
+
+[`monitoring`](#monitoring) - defines how to monitor work of *vmanomaly* service. This config section is *optional*.
+
+#### Config example
+Here is an example of config file that will run FB Prophet model, that will be retrained every 2 hours on 14 days of previous data. It will generate inference (including `anomaly_score` metric) every 1 minute.
+
+
+You need to put your datasource urls to use it:
+
+```yaml
+scheduler:
+  infer_every: "1m"
+  fit_every: "2h"
+  fit_window: "14d"
+
+model:
+  class: "model.prophet.ProphetModel"
+  args:
+    interval_width: 0.98
+
+reader:
+  datasource_url: [YOUR_DATASOURCE_URL] #Example: "http://victoriametrics:8428/"
+  queries:
+    cache: "sum(rate(vm_cache_entries))"
+
+writer:
+  datasource_url: [YOUR_DATASOURCE_URL] # Example: "http://victoriametrics:8428/"
 ```
 
 ### Monitoring
 
-vmanomaly can be monitored by using push or pull approach.
+*vmanomaly* can be monitored by using push or pull approach.
 It can push metrics to VictoriaMetrics or expose metrics in Prometheus exposition format.
 
 #### Push approach
 
-vmanomaly can push metrics to VictoriaMetrics single-node or cluster version.
+*vmanomaly* can push metrics to VictoriaMetrics single-node or cluster version.
 In order to enable push approach, specify `push` section in config file:
 
 ```yaml
 monitoring:
    push:
-      url: "http://victoriametrics:8428/"
+      url: [YOUR_DATASOURCE_URL] #Example: "http://victoriametrics:8428/"
       extra_labels:
          job: "vmanomaly-push"
 ```
 
 #### Pull approach
 
-vmanomaly can export internal metrics in Prometheus exposition format at `/metrics` page.
+*vmanomaly* can export internal metrics in Prometheus exposition format at `/metrics` page.
 These metrics can be scraped via [vmagent](https://docs.victoriametrics.com/vmagent.html) or Prometheus.
 
 In order to enable pull approach, specify `pull` section in config file:
@@ -176,10 +200,30 @@ monitoring:
 
 This will expose metrics at `http://0.0.0.0:8080/metrics` page.
 
-### Licensing
+### Run vmanomaly Docker Container
 
-Starting from v1.5.0 vmanomaly requires a license key to run. You can obtain a trial license
-key [here](https://victoriametrics.com/products/enterprise/trial/).
+To use *vmanomaly* you need to pull docker image:
+
+```sh
+docker pull us-docker.pkg.dev/victoriametrics-test/public/vmanomaly-trial:latest
+```
+
+You can put a tag on it for your convinience:
+
+```sh
+docker image tag us-docker.pkg.dev/victoriametrics-test/public/vmanomaly-trial vmanomaly
+```
+Here is an example of how to run *vmanomaly* docker container with [license file](#licensing):
+
+```sh
+docker run -it --net [YOUR_NETWORK] \
+               -v [YOUR_LICENSE_FILE_PATH]:/license.txt \
+               -v [YOUR_CONFIG_FILE_PATH]:/config.yml \
+               vmanomaly /config.yml \
+               --license-file=/license.txt
+```
+
+### Licensing
 
 The license key can be passed via the following command-line flags:
 ```
@@ -194,10 +238,7 @@ The license key can be passed via the following command-line flags:
                         verification offline.
 ```
 
-Usage example:
-```
-python3 -m vmanomaly --license-file /path/to/license_file.yaml config.yaml
-```
+
 
 In order to make it easier to monitor the license expiration date, the following metrics are exposed(see
 [Monitoring](#monitoring) section for details on how to scrape them):
@@ -212,7 +253,7 @@ vm_license_expires_in_seconds 4.886608e+06
 ```
 
 Example alerts for [vmalert](https://docs.victoriametrics.com/vmalert.html):
-{% raw %}
+
 ```yaml
 groups:
   - name: vm-license
@@ -236,4 +277,4 @@ groups:
           description: "{{ $labels.instance }} of job {{ $labels.job }} license expires in {{ $value | humanizeDuration }}. 
             Please make sure to update the license before it expires."
 ```
-{% endraw %}
+
