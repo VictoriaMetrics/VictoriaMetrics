@@ -30,6 +30,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/ec2"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/eureka"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/gce"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/hetzner"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/http"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/kubernetes"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/kuma"
@@ -313,6 +314,7 @@ type ScrapeConfig struct {
 	OpenStackSDConfigs    []openstack.SDConfig    `yaml:"openstack_sd_configs,omitempty"`
 	StaticConfigs         []StaticConfig          `yaml:"static_configs,omitempty"`
 	YandexCloudSDConfigs  []yandexcloud.SDConfig  `yaml:"yandexcloud_sd_configs,omitempty"`
+	HetznerSDConfigs      []hetzner.SDConfig      `yaml:"hetzner_sd_configs,omitempty"`
 
 	// These options are supported only by lib/promscrape.
 	DisableCompression  bool                       `yaml:"disable_compression,omitempty"`
@@ -734,6 +736,16 @@ func (cfg *Config) getYandexCloudSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork 
 		}
 	}
 	return cfg.getScrapeWorkGeneric(visitConfigs, "yandexcloud_sd_config", prev)
+}
+
+// getHetznerSDScrapeWork returns `hetzner_sd_configs` ScrapeWork from cfg.
+func (cfg *Config) getHetznerSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
+	visitConfigs := func(sc *ScrapeConfig, visitor func(sdc targetLabelsGetter)) {
+		for i := range sc.HetznerSDConfigs {
+			visitor(&sc.HetznerSDConfigs[i])
+		}
+	}
+	return cfg.getScrapeWorkGeneric(visitConfigs, "hetzner_sd_config", prev)
 }
 
 type targetLabelsGetter interface {
