@@ -88,7 +88,7 @@ func TestTopK(t *testing.T) {
 		}
 		for i := range actual {
 			if !eq(expected[i], actual[i]) {
-				t.Fatalf("unexpected result: i:%v got:\n%v; want:\n%v", i, actual[i], expected[i])
+				t.Fatalf("unexpected result: i:%v got:\n%v; want:\t%v", i, actual[i], expected[i])
 			}
 		}
 	}
