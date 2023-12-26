@@ -2,39 +2,24 @@ package stream
 
 import (
 	"bufio"
-	"flag"
 	"fmt"
 	"io"
-	"regexp"
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/datadog"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/datadogutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/datadogv1"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
-)
-
-var (
-	// The maximum request size is defined at https://docs.datadoghq.com/api/latest/metrics/#submit-metrics
-	maxInsertRequestSize = flagutil.NewBytes("datadog.maxInsertRequestSize", 64*1024*1024, "The maximum size in bytes of a single DataDog POST request to /api/v1/series")
-
-	// If all metrics in Datadog have the same naming schema as custom metrics, then the following rules apply:
-	// https://docs.datadoghq.com/metrics/custom_metrics/#naming-custom-metrics
-	// But there's some hidden behaviour. In addition to what it states in the docs, the following is also done:
-	// - Consecutive underscores are replaced with just one underscore
-	// - Underscore immediately before or after a dot are removed
-	sanitizeMetricName = flag.Bool("datadog.sanitizeMetricName", true, "Sanitize metric names for the ingested DataDog data to comply with DataDog behaviour described at "+
-		"https://docs.datadoghq.com/metrics/custom_metrics/#naming-custom-metrics")
 )
 
 // Parse parses DataDog POST request for /api/v1/series from reader and calls callback for the parsed request.
 //
 // callback shouldn't hold series after returning.
-func Parse(r io.Reader, contentEncoding string, callback func(series []datadog.Series) error) error {
+func Parse(r io.Reader, contentEncoding string, callback func(series []datadogv1.Series) error) error {
 	wcr := writeconcurrencylimiter.GetReader(r)
 	defer writeconcurrencylimiter.PutReader(wcr)
 	r = wcr
@@ -70,8 +55,8 @@ func Parse(r io.Reader, contentEncoding string, callback func(series []datadog.S
 	series := req.Series
 	for i := range series {
 		rows += len(series[i].Points)
-		if *sanitizeMetricName {
-			series[i].Metric = sanitizeName(series[i].Metric)
+		if *datadogutils.SanitizeMetricName {
+			series[i].Metric = datadogutils.SanitizeName(series[i].Metric)
 		}
 	}
 	rowsRead.Add(rows)
@@ -94,25 +79,25 @@ func (ctx *pushCtx) reset() {
 
 func (ctx *pushCtx) Read() error {
 	readCalls.Inc()
-	lr := io.LimitReader(ctx.br, int64(maxInsertRequestSize.N)+1)
+	lr := io.LimitReader(ctx.br, int64(datadogutils.MaxInsertRequestSize.N)+1)
 	startTime := fasttime.UnixTimestamp()
 	reqLen, err := ctx.reqBuf.ReadFrom(lr)
 	if err != nil {
 		readErrors.Inc()
 		return fmt.Errorf("cannot read request in %d seconds: %w", fasttime.UnixTimestamp()-startTime, err)
 	}
-	if reqLen > int64(maxInsertRequestSize.N) {
+	if reqLen > int64(datadogutils.MaxInsertRequestSize.N) {
 		readErrors.Inc()
-		return fmt.Errorf("too big request; mustn't exceed -datadog.maxInsertRequestSize=%d bytes", maxInsertRequestSize.N)
+		return fmt.Errorf("too big request; mustn't exceed -datadog.maxInsertRequestSize=%d bytes", datadogutils.MaxInsertRequestSize.N)
 	}
 	return nil
 }
 
 var (
-	readCalls       = metrics.NewCounter(`vm_protoparser_read_calls_total{type="datadog"}`)
-	readErrors      = metrics.NewCounter(`vm_protoparser_read_errors_total{type="datadog"}`)
-	rowsRead        = metrics.NewCounter(`vm_protoparser_rows_read_total{type="datadog"}`)
-	unmarshalErrors = metrics.NewCounter(`vm_protoparser_unmarshal_errors_total{type="datadog"}`)
+	readCalls       = metrics.NewCounter(`vm_protoparser_read_calls_total{type="datadogv1"}`)
+	readErrors      = metrics.NewCounter(`vm_protoparser_read_errors_total{type="datadogv1"}`)
+	rowsRead        = metrics.NewCounter(`vm_protoparser_rows_read_total{type="datadogv1"}`)
+	unmarshalErrors = metrics.NewCounter(`vm_protoparser_unmarshal_errors_total{type="datadogv1"}`)
 )
 
 func getPushCtx(r io.Reader) *pushCtx {
@@ -144,36 +129,16 @@ func putPushCtx(ctx *pushCtx) {
 var pushCtxPool sync.Pool
 var pushCtxPoolCh = make(chan *pushCtx, cgroup.AvailableCPUs())
 
-func getRequest() *datadog.Request {
+func getRequest() *datadogv1.Request {
 	v := requestPool.Get()
 	if v == nil {
-		return &datadog.Request{}
+		return &datadogv1.Request{}
 	}
-	return v.(*datadog.Request)
+	return v.(*datadogv1.Request)
 }
 
-func putRequest(req *datadog.Request) {
+func putRequest(req *datadogv1.Request) {
 	requestPool.Put(req)
 }
 
 var requestPool sync.Pool
-
-// sanitizeName performs DataDog-compatible sanitizing for metric names
-//
-// See https://docs.datadoghq.com/metrics/custom_metrics/#naming-custom-metrics
-func sanitizeName(name string) string {
-	return namesSanitizer.Transform(name)
-}
-
-var namesSanitizer = bytesutil.NewFastStringTransformer(func(s string) string {
-	s = unsupportedDatadogChars.ReplaceAllString(s, "_")
-	s = multiUnderscores.ReplaceAllString(s, "_")
-	s = underscoresWithDots.ReplaceAllString(s, ".")
-	return s
-})
-
-var (
-	unsupportedDatadogChars = regexp.MustCompile(`[^0-9a-zA-Z_\.]+`)
-	multiUnderscores        = regexp.MustCompile(`_+`)
-	underscoresWithDots     = regexp.MustCompile(`_?\._?`)
-)

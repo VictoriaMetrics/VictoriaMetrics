@@ -1,4 +1,4 @@
-package datadog
+package datadogv1
 
 import (
 	"fmt"
@@ -12,10 +12,10 @@ func BenchmarkRequestUnmarshal(b *testing.B) {
       "host": "test.example.com",
       "interval": 20,
       "metric": "system.load.1",
-      "points": [
+      "points": [[
         1575317847,
         0.5
-      ],
+      ]],
       "tags": [
         "environment:test"
       ],
