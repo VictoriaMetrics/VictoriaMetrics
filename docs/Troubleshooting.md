@@ -154,6 +154,8 @@ If you see unexpected or unreliable query results from VictoriaMetrics, then try
    - By passing `nocache=1` query arg to every request to `/api/v1/query` and `/api/v1/query_range`.
      If you use Grafana, then this query arg can be specified in `Custom Query Parameters` field
      at Prometheus datasource settings - see [these docs](https://grafana.com/docs/grafana/latest/datasources/prometheus/) for details.
+    
+    If the problem was in the cache, try resetting it via [resetRollupCache handler](https://docs.victoriametrics.com/url-examples.html#internalresetrollupresultcache).
 
 1. If you use cluster version of VictoriaMetrics, then it may return partial responses by default
    when some of `vmstorage` nodes are temporarily unavailable - see [cluster availability docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#cluster-availability)
@@ -415,7 +417,7 @@ The most common sources of cluster instability are:
   see [replication and data safety docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#replication-and-data-safety)
   for details.
 
-- Time series sharding. Received time series [are consistently sharded](https://docs.victoriametrics.com/vmalert.html#rules-backfilling)
+- Time series sharding. Received time series [are consistently sharded](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#architecture-overview)
   by `vminsert` between configured `vmstorage` nodes. As a sharding key `vminsert` is using time series name and labels,
   respecting their order. If the order of labels in time series is constantly changing, this could cause wrong sharding
   calculation and result in un-even and sub-optimal time series distribution across available vmstorages. It is expected

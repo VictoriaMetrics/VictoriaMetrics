@@ -23,7 +23,7 @@ var (
 		"It is hidden by default, since it can contain sensitive info such as auth key")
 	blackHole = flag.Bool("notifier.blackhole", false, "Whether to blackhole alerting notifications. "+
 		"Enable this flag if you want vmalert to evaluate alerting rules without sending any notifications to external receivers (eg. alertmanager). "+
-		"`-notifier.url`, `-notifier.config` and `-notifier.blackhole` are mutually exclusive.")
+		"-notifier.url, -notifier.config and -notifier.blackhole are mutually exclusive.")
 
 	basicAuthUsername     = flagutil.NewArrayString("notifier.basicAuth.username", "Optional basic auth username for -notifier.url")
 	basicAuthPassword     = flagutil.NewArrayString("notifier.basicAuth.password", "Optional basic auth password for -notifier.url")
@@ -46,6 +46,8 @@ var (
 		"If multiple args are set, then they are applied independently for the corresponding -notifier.url")
 	oauth2ClientSecretFile = flagutil.NewArrayString("notifier.oauth2.clientSecretFile", "Optional OAuth2 clientSecretFile to use for -notifier.url. "+
 		"If multiple args are set, then they are applied independently for the corresponding -notifier.url")
+	oauth2EndpointParams = flagutil.NewArrayString("notifier.oauth2.endpointParams", "Optional OAuth2 endpoint parameters to use for the corresponding -notifier.url . "+
+		`The endpoint parameters must be set in JSON format: {"param1":"value1",...,"paramN":"valueN"}`)
 	oauth2TokenURL = flagutil.NewArrayString("notifier.oauth2.tokenUrl", "Optional OAuth2 tokenURL to use for -notifier.url. "+
 		"If multiple args are set, then they are applied independently for the corresponding -notifier.url")
 	oauth2Scopes = flagutil.NewArrayString("notifier.oauth2.scopes", "Optional OAuth2 scopes to use for -notifier.url. Scopes must be delimited by ';'. "+
@@ -141,6 +143,11 @@ func InitSecretFlags() {
 func notifiersFromFlags(gen AlertURLGenerator) ([]Notifier, error) {
 	var notifiers []Notifier
 	for i, addr := range *addrs {
+		endpointParamsJSON := oauth2EndpointParams.GetOptionalArg(i)
+		endpointParams, err := flagutil.ParseJSONMap(endpointParamsJSON)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse JSON for -notifier.oauth2.endpointParams=%s: %w", endpointParamsJSON, err)
+		}
 		authCfg := promauth.HTTPClientConfig{
 			TLSConfig: &promauth.TLSConfig{
 				CAFile:             tlsCAFile.GetOptionalArg(i),
@@ -160,6 +167,7 @@ func notifiersFromFlags(gen AlertURLGenerator) ([]Notifier, error) {
 				ClientID:         oauth2ClientID.GetOptionalArg(i),
 				ClientSecret:     promauth.NewSecret(oauth2ClientSecret.GetOptionalArg(i)),
 				ClientSecretFile: oauth2ClientSecretFile.GetOptionalArg(i),
+				EndpointParams:   endpointParams,
 				Scopes:           strings.Split(oauth2Scopes.GetOptionalArg(i), ";"),
 				TokenURL:         oauth2TokenURL.GetOptionalArg(i),
 			},

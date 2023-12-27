@@ -13,7 +13,7 @@ aliases:
 
 This guide explains the different ways in which you can use vmalert in conjunction with Managed VictoriaMetrics
 
-<img src="alerting-vmalert-managed-victoria-metrics-setup.png">
+<img src="alerting-vmalert-managed-victoria-metrics-setup.webp">
 
 ## Preconditions 
 
@@ -33,6 +33,7 @@ An example file with one alerting rule.
 
 alerts.yml
 
+{% raw %}
 ```yaml
 groups:
   - name: common
@@ -46,6 +47,7 @@ groups:
         summary: "{{ $labels.job }} instance: {{$labels.instance }} is not up"
         description: "Job {{ $labels.job }}  instance: {{$labels.instance }} is not up for the last 1 minute"
 ```
+{% endraw %}
 
 ### Managed VictoriaMetrics access token and deployment endpoint
 
@@ -55,14 +57,14 @@ For instructions on how to create tokens, please refer to this section of the [d
 
 #### Single-Node
 
-<img src="alerting_token_created_single.png">
-<img src="alerting_copy_datasource_single.png">
+<img src="alerting_token_created_single.webp">
+<img src="alerting_copy_datasource_single.webp">
 
 #### Cluster
 
-<img src="alerting_token_created_cluster.png">
-<img src="alerting_copy_reading_datasource_cluster.png">
-<img src="alerting_copy_writing_datasource_cluster.png">
+<img src="alerting_token_created_cluster.webp">
+<img src="alerting_copy_reading_datasource_cluster.webp">
+<img src="alerting_copy_writing_datasource_cluster.webp">
 
 ### vmalert configuration 
 
@@ -88,6 +90,7 @@ docker run -it -p 8080:8080 -v $(pwd)/alerts.yml:/etc/alerts/alerts.yml victoria
 
 ##### Helm Chart
 
+{% raw %}
 ```console
 export TOKEN=81e8226e-****-****-****-************
 export MANAGED_VM_URL=https://gw-c15-1c.cloud.victoriametrics.com
@@ -125,6 +128,7 @@ server:
                description: "Job {{ $labels.job }}  instance: {{$labels.instance }} is not up for the last 1 minute"
 EOF
 ```
+{% endraw %}
 
 ##### VMalert CRD for vmoperator
 
@@ -203,6 +207,7 @@ docker run -it -p 8080:8080 -v $(pwd)/alerts.yml:/etc/alerts/alerts.yml victoria
 
 ##### Helm Chart
 
+{% raw %}
 ```console
 export TOKEN=76bc5470-****-****-****-************
 export MANAGED_VM_READ_URL=https://gw-c15-1a.cloud.victoriametrics.com/select/0/prometheus/
@@ -241,6 +246,7 @@ server:
                description: "Job {{ $labels.job }}  instance: {{$labels.instance }} is not up for the last 1 minute"
 EOF
 ```
+{% endraw %}
 
 ##### VMalert CRD for vmoperator
 

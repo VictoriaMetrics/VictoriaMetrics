@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"path"
 	"strings"
 	"time"
 
@@ -272,7 +273,7 @@ func (fs *FS) DeleteFile(filePath string) error {
 		return nil
 	}
 
-	path := fs.Dir + filePath
+	path := path.Join(fs.Dir, filePath)
 	return fs.delete(path)
 }
 
@@ -333,7 +334,7 @@ func (fs *FS) deleteObject(path string) error {
 //
 // The file is overwritten if it exists.
 func (fs *FS) CreateFile(filePath string, data []byte) error {
-	path := fs.Dir + filePath
+	path := path.Join(fs.Dir, filePath)
 	bc := fs.clientForPath(path)
 
 	ctx := context.Background()
@@ -350,8 +351,7 @@ func (fs *FS) CreateFile(filePath string, data []byte) error {
 
 // HasFile returns true if filePath exists at fs.
 func (fs *FS) HasFile(filePath string) (bool, error) {
-	path := fs.Dir + filePath
-
+	path := path.Join(fs.Dir, filePath)
 	bc := fs.clientForPath(path)
 
 	ctx := context.Background()

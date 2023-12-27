@@ -21,6 +21,12 @@
 
   &__input {
     width: 100%;
+
+    &_flex {
+      display: flex;
+      align-items: flex-start;
+      gap: $padding-global;
+    }
   }
 
   &__title {
@@ -31,6 +37,16 @@
     font-size: $font-size;
     font-weight: bold;
     margin-bottom: $padding-global;
+  }
+
+  &-url {
+    display: flex;
+    align-items: flex-start;
+    gap: $padding-small;
+
+    &__button {
+      margin-top: $padding-small;
+    }
   }
 
   &-footer {

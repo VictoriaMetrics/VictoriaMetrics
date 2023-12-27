@@ -202,7 +202,7 @@ var (
 	configMetricsSet   = metrics.NewSet()
 	configReloads      = configMetricsSet.NewCounter(`vm_promscrape_config_reloads_total`)
 	configReloadErrors = configMetricsSet.NewCounter(`vm_promscrape_config_reloads_errors_total`)
-	configSuccess      = configMetricsSet.NewCounter(`vm_promscrape_config_last_reload_successful`)
+	configSuccess      = configMetricsSet.NewGauge(`vm_promscrape_config_last_reload_successful`, nil)
 	configTimestamp    = configMetricsSet.NewCounter(`vm_promscrape_config_last_reload_success_timestamp_seconds`)
 )
 
@@ -370,7 +370,7 @@ func (sg *scraperGroup) update(sws []*ScrapeWork) {
 					"original labels for target1: %s; original labels for target2: %s",
 					sw.ScrapeURL, sw.Labels.String(), originalLabels.String(), sw.OriginalLabels.String())
 			}
-			droppedTargetsMap.Register(sw.OriginalLabels, sw.RelabelConfigs)
+			droppedTargetsMap.Register(sw.OriginalLabels, sw.RelabelConfigs, targetDropReasonDuplicate, nil)
 			continue
 		}
 		swsMap[key] = sw.OriginalLabels

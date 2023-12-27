@@ -43,26 +43,26 @@ type ruleState struct {
 // StateEntry stores rule's execution states
 type StateEntry struct {
 	// stores last moment of time rule.Exec was called
-	Time time.Time
+	Time time.Time `json:"time"`
 	// stores the timesteamp with which rule.Exec was called
-	At time.Time
+	At time.Time `json:"at"`
 	// stores the duration of the last rule.Exec call
-	Duration time.Duration
+	Duration time.Duration `json:"duration"`
 	// stores last error that happened in Exec func
 	// resets on every successful Exec
 	// may be used as Health ruleState
-	Err error
+	Err error `json:"error"`
 	// stores the number of samples returned during
 	// the last evaluation
-	Samples int
+	Samples int `json:"samples"`
 	// stores the number of time series fetched during
 	// the last evaluation.
 	// Is supported by VictoriaMetrics only, starting from v1.90.0
 	// If seriesFetched == nil, then this attribute was missing in
 	// datasource response (unsupported).
-	SeriesFetched *int
+	SeriesFetched *int `json:"series_fetched"`
 	// stores the curl command reflecting the HTTP request used during rule.Exec
-	Curl string
+	Curl string `json:"curl"`
 }
 
 // GetLastEntry returns latest stateEntry of rule

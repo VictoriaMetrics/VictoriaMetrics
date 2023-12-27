@@ -16,24 +16,26 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/VictoriaMetrics/metrics"
+	"github.com/VictoriaMetrics/metricsql"
+	"github.com/cespare/xxhash/v2"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/handshake"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
-	"github.com/VictoriaMetrics/metrics"
-	"github.com/VictoriaMetrics/metricsql"
-	"github.com/cespare/xxhash/v2"
 )
 
 var (
-	replicationFactor = flag.Int("replicationFactor", 1, "How many copies of every time series is available on the provided -storageNode nodes. "+
+	replicationFactor = flagutil.NewDictInt("replicationFactor", 1, "How many copies of every time series is available on the provided -storageNode nodes. "+
 		"vmselect continues returning full responses when up to replicationFactor-1 vmstorage nodes are temporarily unavailable during querying. "+
 		"See also -search.skipSlowReplicas")
 	skipSlowReplicas = flag.Bool("search.skipSlowReplicas", false, "Whether to skip -replicationFactor - 1 slowest vmstorage nodes during querying. "+
@@ -1619,7 +1621,7 @@ func processBlocks(qt *querytracer.Tracer, sns []*storageNode, denyPartialRespon
 
 	// Make sure that processBlock is no longer called after the exit from processBlocks() function.
 	// Use per-worker WaitGroup instead of a shared WaitGroup in order to avoid inter-CPU contention,
-	// which may siginificantly slow down the rate of processBlock calls on multi-CPU systems.
+	// which may significantly slow down the rate of processBlock calls on multi-CPU systems.
 	type wgStruct struct {
 		// mu prevents from calling processBlock when stop is set to true
 		mu sync.Mutex
@@ -1691,8 +1693,9 @@ type storageNodesRequest struct {
 }
 
 type rpcResult struct {
-	data interface{}
-	qt   *querytracer.Tracer
+	data  interface{}
+	qt    *querytracer.Tracer
+	group *storageNodesGroup
 }
 
 func startStorageNodesRequest(qt *querytracer.Tracer, sns []*storageNode, denyPartialResponse bool,
@@ -1705,8 +1708,9 @@ func startStorageNodesRequest(qt *querytracer.Tracer, sns []*storageNode, denyPa
 		go func(workerID uint, sn *storageNode) {
 			data := f(qtChild, workerID, sn)
 			resultsCh <- rpcResult{
-				data: data,
-				qt:   qtChild,
+				data:  data,
+				qt:    qtChild,
+				group: sn.group,
 			}
 		}(uint(idx), sn)
 	}
@@ -1750,13 +1754,18 @@ func (snr *storageNodesRequest) collectAllResults(f func(result interface{}) err
 }
 
 func (snr *storageNodesRequest) collectResults(partialResultsCounter *metrics.Counter, f func(result interface{}) error) (bool, error) {
-	var errsPartial []error
-	resultsCollected := 0
 	sns := snr.sns
-	for i := 0; i < len(sns); i++ {
+	if len(sns) == 0 {
+		return false, nil
+	}
+	groupsCount := sns[0].group.groupsCount
+	resultsCollectedPerGroup := make(map[*storageNodesGroup]int, groupsCount)
+	errsPartialPerGroup := make(map[*storageNodesGroup][]error)
+	for range sns {
 		// There is no need in timer here, since all the goroutines executing the f function
 		// passed to startStorageNodesRequest must be finished until the deadline.
 		result := <-snr.resultsCh
+		group := result.group
 		if err := f(result.data); err != nil {
 			snr.finishQueryTracer(result.qt, fmt.Sprintf("error: %s", err))
 			var er *errRemote
@@ -1774,12 +1783,14 @@ func (snr *storageNodesRequest) collectResults(partialResultsCounter *metrics.Co
 				snr.finishQueryTracers("cancel request because query complexity limit was exceeded")
 				return false, err
 			}
-			errsPartial = append(errsPartial, err)
-			if snr.denyPartialResponse && len(errsPartial) >= *replicationFactor {
+
+			errsPartialPerGroup[group] = append(errsPartialPerGroup[group], err)
+			if snr.denyPartialResponse && len(errsPartialPerGroup[group]) >= group.replicationFactor {
 				// Return the error to the caller if partial responses are denied
-				// and the number of partial responses reach -replicationFactor,
+				// and the number of partial responses for the given group reach its replicationFactor,
 				// since this means that the response is partial.
-				snr.finishQueryTracers("cancel request because partial responses are denied and some vmstorage nodes failed to return response")
+				snr.finishQueryTracers(fmt.Sprintf("cancel request because partial responses are denied and replicationFactor=%d vmstorage nodes at group %q failed to return response",
+					group.replicationFactor, group.name))
 
 				// Returns 503 status code for partial response, so the caller could retry it if needed.
 				err = &httpserver.ErrorWithStatusCode{
@@ -1791,47 +1802,111 @@ func (snr *storageNodesRequest) collectResults(partialResultsCounter *metrics.Co
 			continue
 		}
 		snr.finishQueryTracer(result.qt, "")
-		resultsCollected++
-		if *skipSlowReplicas && resultsCollected > len(sns)-*replicationFactor {
-			// There is no need in waiting for the remaining results,
-			// because the collected results contain all the data according to the given -replicationFactor.
-			// This should speed up responses when a part of vmstorage nodes are slow and/or temporarily unavailable.
-			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/711
-			//
-			// It is expected that cap(snr.resultsCh) == len(sns), otherwise goroutine leak is possible.
-			snr.finishQueryTracers(fmt.Sprintf("cancel request because -search.skipSlowReplicas is set and %d out of %d nodes already returned response "+
-				"according to -replicationFactor=%d", resultsCollected, len(sns), *replicationFactor))
-			return false, nil
+		resultsCollectedPerGroup[group]++
+		if *skipSlowReplicas && len(resultsCollectedPerGroup) == groupsCount {
+			canSkipSlowReplicas := true
+			for g, n := range resultsCollectedPerGroup {
+				if n <= g.nodesCount-g.replicationFactor {
+					canSkipSlowReplicas = false
+					break
+				}
+			}
+			if canSkipSlowReplicas {
+				// There is no need in waiting for the remaining results,
+				// because the collected results contain all the data according to the given per-group replicationFactor.
+				// This should speed up responses when a part of vmstorage nodes are slow and/or temporarily unavailable.
+				// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/711
+				snr.finishQueryTracers("cancel request because -search.skipSlowReplicas is set and every group returned the needed number of responses according to replicationFactor")
+				return false, nil
+			}
 		}
 	}
-	if len(errsPartial) < *replicationFactor {
+
+	// Verify whether the full result can be returned
+	isFullResponse := true
+	for g, errsPartial := range errsPartialPerGroup {
+		if len(errsPartial) >= g.replicationFactor {
+			isFullResponse = false
+			break
+		}
+	}
+	if isFullResponse {
 		// Assume that the result is full if the the number of failing vmstorage nodes
-		// is smaller than the -replicationFactor.
+		// is smaller than the replicationFactor per each group.
 		return false, nil
 	}
-	if len(errsPartial) == len(sns) {
-		// All the vmstorage nodes returned error.
-		// Return only the first error, since it has no sense in returning all errors.
-		// Returns 503 status code for partial response, so the caller could retry it if needed.
-		err := &httpserver.ErrorWithStatusCode{
-			Err:        errsPartial[0],
-			StatusCode: http.StatusServiceUnavailable,
+
+	// Verify whether there is at least a single node per each group, which successfully returned result,
+	// in order to return partial result.
+	for g, errsPartial := range errsPartialPerGroup {
+		if len(errsPartial) == g.nodesCount {
+			// All the vmstorage nodes at the given group g returned error.
+			// Return only the first error, since it has no sense in returning all errors.
+			// Returns 503 status code for partial response, so the caller could retry it if needed.
+			err := &httpserver.ErrorWithStatusCode{
+				Err:        errsPartial[0],
+				StatusCode: http.StatusServiceUnavailable,
+			}
+			return false, err
 		}
-		return false, err
+		if len(errsPartial) > 0 {
+			partialErrorsLogger.Warnf("%d out of %d vmstorage nodes at group %q were unavailable during the query; a sample error: %s", len(errsPartial), len(sns), g.name, errsPartial[0])
+		}
 	}
+
 	// Return partial results.
-	// This allows gracefully degrade vmselect in the case
+	// This allows continuing returning responses in the case
 	// if a part of vmstorage nodes are temporarily unavailable.
 	partialResultsCounter.Inc()
 	// Do not return the error, since it may spam logs on busy vmselect
 	// serving high amounts of requests.
-	partialErrorsLogger.Warnf("%d out of %d vmstorage nodes were unavailable during the query; a sample error: %s", len(errsPartial), len(sns), errsPartial[0])
 	return true, nil
 }
 
 var partialErrorsLogger = logger.WithThrottler("partialErrors", 10*time.Second)
 
+type storageNodesGroup struct {
+	// group name
+	name string
+
+	// replicationFactor for the given group
+	replicationFactor int
+
+	// the number of nodes in the group
+	nodesCount int
+
+	// groupsCount is the number of groups in the list the given group belongs to
+	groupsCount int
+}
+
+func initStorageNodeGroups(addrs []string) map[string]*storageNodesGroup {
+	m := make(map[string]*storageNodesGroup)
+	for _, addr := range addrs {
+		groupName, _ := netutil.ParseGroupAddr(addr)
+		g, ok := m[groupName]
+		if !ok {
+			g = &storageNodesGroup{
+				name:              groupName,
+				replicationFactor: replicationFactor.Get(groupName),
+			}
+			m[groupName] = g
+		}
+		g.nodesCount++
+	}
+
+	groupsCount := len(m)
+	for _, g := range m {
+		g.groupsCount = groupsCount
+	}
+
+	return m
+}
+
 type storageNode struct {
+	// The group this storageNode belongs to.
+	group *storageNodesGroup
+
+	// Connection pool for the given storageNode.
 	connPool *netutil.ConnPool
 
 	// The number of concurrent queries to storageNode.
@@ -2060,8 +2135,12 @@ func (sn *storageNode) execOnConnWithPossibleRetry(qt *querytracer.Tracer, funcN
 	}
 	var er *errRemote
 	var ne net.Error
-	if errors.As(err, &er) || errors.As(err, &ne) && ne.Timeout() {
-		// There is no sense in repeating the query on errors induced by vmstorage (errRemote) or on network timeout errors.
+	if errors.As(err, &er) || errors.As(err, &ne) && ne.Timeout() || deadline.Exceeded() {
+		// There is no sense in repeating the query on the following errors:
+		//
+		//   - induced by vmstorage (errRemote)
+		//   - network timeout errors
+		//   - request deadline exceeded errors
 		return err
 	}
 	// Repeat the query in the hope the error was temporary.
@@ -2761,6 +2840,9 @@ func initStorageNodes(addrs []string) *storageNodesBucket {
 	if len(addrs) == 0 {
 		logger.Panicf("BUG: addrs must be non-empty")
 	}
+
+	groupsMap := initStorageNodeGroups(addrs)
+
 	var snsLock sync.Mutex
 	sns := make([]*storageNode, 0, len(addrs))
 	var wg sync.WaitGroup
@@ -2769,10 +2851,14 @@ func initStorageNodes(addrs []string) *storageNodesBucket {
 	// for big number of storage nodes.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4364
 	for _, addr := range addrs {
+		var groupName string
+		groupName, addr = netutil.ParseGroupAddr(addr)
+		group := groupsMap[groupName]
+
 		wg.Add(1)
 		go func(addr string) {
 			defer wg.Done()
-			sn := newStorageNode(ms, addr)
+			sn := newStorageNode(ms, group, addr)
 			snsLock.Lock()
 			sns = append(sns, sn)
 			snsLock.Unlock()
@@ -2786,7 +2872,7 @@ func initStorageNodes(addrs []string) *storageNodesBucket {
 	}
 }
 
-func newStorageNode(ms *metrics.Set, addr string) *storageNode {
+func newStorageNode(ms *metrics.Set, group *storageNodesGroup, addr string) *storageNode {
 	if _, _, err := net.SplitHostPort(addr); err != nil {
 		// Automatically add missing port.
 		addr += ":8401"
@@ -2795,6 +2881,7 @@ func newStorageNode(ms *metrics.Set, addr string) *storageNode {
 	connPool := netutil.NewConnPool(ms, "vmselect", addr, handshake.VMSelectClient, 0, *vmstorageDialTimeout, *vmstorageUserTimeout)
 
 	sn := &storageNode{
+		group:    group,
 		connPool: connPool,
 
 		concurrentQueries: ms.NewCounter(fmt.Sprintf(`vm_concurrent_queries{name="vmselect", addr=%q}`, addr)),

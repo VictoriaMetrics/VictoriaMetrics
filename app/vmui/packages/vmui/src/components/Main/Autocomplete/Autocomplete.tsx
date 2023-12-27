@@ -26,6 +26,7 @@ interface AutocompleteProps {
   label?: string
   disabledFullScreen?: boolean
   offset?: {top: number, left: number}
+  maxDisplayResults?: {limit: number, message?: string}
   onSelect: (val: string) => void
   onOpenAutocomplete?: (val: boolean) => void
   onFoundOptions?: (val: AutocompleteOptions[]) => void
@@ -48,6 +49,7 @@ const Autocomplete: FC<AutocompleteProps> = ({
   label,
   disabledFullScreen,
   offset,
+  maxDisplayResults,
   onSelect,
   onOpenAutocomplete,
   onFoundOptions
@@ -56,6 +58,8 @@ const Autocomplete: FC<AutocompleteProps> = ({
   const wrapperEl = useRef<HTMLDivElement>(null);
 
   const [focusOption, setFocusOption] = useState<{index: number, type?: FocusType}>({ index: -1 });
+  const [showMessage, setShowMessage] = useState("");
+  const [totalFound, setTotalFound] = useState(0);
 
   const {
     value: openAutocomplete,
@@ -68,7 +72,14 @@ const Autocomplete: FC<AutocompleteProps> = ({
     try {
       const regexp = new RegExp(String(value.trim()), "i");
       const found = options.filter((item) => regexp.test(item.value));
-      return found.sort((a,b) => (a.value.match(regexp)?.index || 0) - (b.value.match(regexp)?.index || 0));
+      const sorted = found.sort((a, b) => {
+        if (a.value.toLowerCase() === value.trim().toLowerCase()) return -1;
+        if (b.value.toLowerCase() === value.trim().toLowerCase()) return 1;
+        return (a.value.match(regexp)?.index || 0) - (b.value.match(regexp)?.index || 0);
+      });
+      setTotalFound(sorted.length);
+      setShowMessage(sorted.length > Number(maxDisplayResults?.limit) ? maxDisplayResults?.message || "" : "");
+      return maxDisplayResults?.limit ? sorted.slice(0, maxDisplayResults.limit) : sorted;
     } catch (e) {
       return [];
     }
@@ -133,7 +144,7 @@ const Autocomplete: FC<AutocompleteProps> = ({
 
   useEffect(() => {
     setOpenAutocomplete(value.length >= minLength);
-  }, [value]);
+  }, [value, options]);
 
   useEventListener("keydown", handleKeyDown);
 
@@ -170,7 +181,7 @@ const Autocomplete: FC<AutocompleteProps> = ({
         ref={wrapperEl}
       >
         {displayNoOptionsText && <div className="vm-autocomplete__no-options">{noOptionsText}</div>}
-        {foundOptions.map((option, i) =>
+        {!(foundOptions.length === 1 && foundOptions[0]?.value === value) && foundOptions.map((option, i) =>
           <div
             className={classNames({
               "vm-list-item": true,
@@ -192,6 +203,11 @@ const Autocomplete: FC<AutocompleteProps> = ({
           </div>
         )}
       </div>
+      {showMessage && (
+        <div className="vm-autocomplete-message">
+          Shown {maxDisplayResults?.limit} results out of {totalFound}. {showMessage}
+        </div>
+      )}
       {foundOptions[focusOption.index]?.description && (
         <div className="vm-autocomplete-info">
           <div className="vm-autocomplete-info__type">

@@ -30,6 +30,7 @@ type AlertingRule struct {
 	Annotations   map[string]string
 	GroupID       uint64
 	GroupName     string
+	File          string
 	EvalInterval  time.Duration
 	Debug         bool
 
@@ -47,7 +48,7 @@ type AlertingRule struct {
 }
 
 type alertingRuleMetrics struct {
-	errors        *utils.Gauge
+	errors        *utils.Counter
 	pending       *utils.Gauge
 	active        *utils.Gauge
 	samples       *utils.Gauge
@@ -67,6 +68,7 @@ func NewAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule
 		Annotations:   cfg.Annotations,
 		GroupID:       group.ID(),
 		GroupName:     group.Name,
+		File:          group.File,
 		EvalInterval:  group.Interval,
 		Debug:         cfg.Debug,
 		q: qb.BuildWithParams(datasource.QuerierParams{
@@ -116,14 +118,7 @@ func NewAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule
 			}
 			return float64(num)
 		})
-	ar.metrics.errors = utils.GetOrCreateGauge(fmt.Sprintf(`vmalert_alerting_rules_error{%s}`, labels),
-		func() float64 {
-			e := ar.state.getLast()
-			if e.Err == nil {
-				return 0
-			}
-			return 1
-		})
+	ar.metrics.errors = utils.GetOrCreateCounter(fmt.Sprintf(`vmalert_alerting_rules_errors_total{%s}`, labels))
 	ar.metrics.samples = utils.GetOrCreateGauge(fmt.Sprintf(`vmalert_alerting_rules_last_evaluation_samples{%s}`, labels),
 		func() float64 {
 			e := ar.state.getLast()
@@ -242,9 +237,28 @@ type labelSet struct {
 	origin map[string]string
 	// processed labels includes origin labels
 	// plus extra labels (group labels, service labels like alertNameLabel).
-	// in case of conflicts, extra labels are preferred.
+	// in case of key conflicts, origin labels are renamed with prefix `exported_` and extra labels are preferred.
+	// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5161
 	// used as labels attached to notifier.Alert and ALERTS series written to remote storage.
 	processed map[string]string
+}
+
+// add adds a value v with key k to origin and processed label sets.
+// On k conflicts in processed set, the passed v is preferred.
+// On k conflicts in origin set, the original value is preferred and copied
+// to processed with `exported_%k` key. The copy happens only if passed v isn't equal to origin[k] value.
+func (ls *labelSet) add(k, v string) {
+	ls.processed[k] = v
+	ov, ok := ls.origin[k]
+	if !ok {
+		ls.origin[k] = v
+		return
+	}
+	if ov != v {
+		// copy value only if v and ov are different
+		key := fmt.Sprintf("exported_%s", k)
+		ls.processed[key] = ov
+	}
 }
 
 // toLabels converts labels from given Metric
@@ -272,24 +286,14 @@ func (ar *AlertingRule) toLabels(m datasource.Metric, qFn templates.QueryFn) (*l
 		return nil, fmt.Errorf("failed to expand labels: %w", err)
 	}
 	for k, v := range extraLabels {
-		ls.processed[k] = v
-		if _, ok := ls.origin[k]; !ok {
-			ls.origin[k] = v
-		}
+		ls.add(k, v)
 	}
-
 	// set additional labels to identify group and rule name
 	if ar.Name != "" {
-		ls.processed[alertNameLabel] = ar.Name
-		if _, ok := ls.origin[alertNameLabel]; !ok {
-			ls.origin[alertNameLabel] = ar.Name
-		}
+		ls.add(alertNameLabel, ar.Name)
 	}
 	if !*disableAlertGroupLabel && ar.GroupName != "" {
-		ls.processed[alertGroupNameLabel] = ar.GroupName
-		if _, ok := ls.origin[alertGroupNameLabel]; !ok {
-			ls.origin[alertGroupNameLabel] = ar.GroupName
-		}
+		ls.add(alertGroupNameLabel, ar.GroupName)
 	}
 	return ls, nil
 }
@@ -383,6 +387,9 @@ func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int) ([]pr
 
 	defer func() {
 		ar.state.add(curState)
+		if curState.Err != nil {
+			ar.metrics.errors.Inc()
+		}
 	}()
 
 	ar.alertsMu.Lock()
@@ -416,8 +423,7 @@ func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int) ([]pr
 		}
 		h := hash(ls.processed)
 		if _, ok := updated[h]; ok {
-			// duplicate may be caused by extra labels
-			// conflicting with the metric labels
+			// duplicate may be caused the removal of `__name__` label
 			curState.Err = fmt.Errorf("labels %v: %w", ls.processed, errDuplicate)
 			return nil, curState.Err
 		}

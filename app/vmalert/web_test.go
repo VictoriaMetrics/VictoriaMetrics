@@ -143,6 +143,28 @@ func TestHandler(t *testing.T) {
 			t.Errorf("expected 1 group got %d", length)
 		}
 	})
+	t.Run("/api/v1/rule?ruleID&groupID", func(t *testing.T) {
+		expRule := ruleToAPI(ar)
+		gotRule := apiRule{}
+		getResp(ts.URL+"/"+expRule.APILink(), &gotRule, 200)
+
+		if expRule.ID != gotRule.ID {
+			t.Errorf("expected to get Rule %q; got %q instead", expRule.ID, gotRule.ID)
+		}
+
+		gotRule = apiRule{}
+		getResp(ts.URL+"/vmalert/"+expRule.APILink(), &gotRule, 200)
+
+		if expRule.ID != gotRule.ID {
+			t.Errorf("expected to get Rule %q; got %q instead", expRule.ID, gotRule.ID)
+		}
+
+		gotRuleWithUpdates := apiRuleWithUpdates{}
+		getResp(ts.URL+"/"+expRule.APILink(), &gotRuleWithUpdates, 200)
+		if gotRuleWithUpdates.StateUpdates == nil || len(gotRuleWithUpdates.StateUpdates) < 1 {
+			t.Fatalf("expected %+v to have state updates field not empty", gotRuleWithUpdates.StateUpdates)
+		}
+	})
 }
 
 func TestEmptyResponse(t *testing.T) {

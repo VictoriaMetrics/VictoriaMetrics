@@ -561,9 +561,6 @@ var (
 	inf = math.Inf(1)
 )
 
-// The maximum interval without previous rows.
-const maxSilenceInterval = 5 * 60 * 1000
-
 type timeseriesMap struct {
 	origin *timeseries
 	h      metrics.Histogram
@@ -620,7 +617,7 @@ func (tsm *timeseriesMap) GetOrCreateTimeseries(labelName, labelValue string) *t
 //
 // rc.Timestamps are used as timestamps for dstValues.
 //
-// timestamps must cover time range [rc.Start - rc.Window - maxSilenceInterval ... rc.End].
+// It is expected that timestamps cover the time range [rc.Start - rc.Window ... rc.End].
 //
 // Do cannot be called from concurrent goroutines.
 func (rc *rollupConfig) Do(dstValues []float64, values []float64, timestamps []int64) ([]float64, uint64) {
@@ -955,11 +952,11 @@ func newRollupHoltWinters(args []interface{}) (rollupFunc, error) {
 			return rfa.prevValue
 		}
 		sf := sfs[rfa.idx]
-		if sf <= 0 || sf >= 1 {
+		if sf < 0 || sf > 1 {
 			return nan
 		}
 		tf := tfs[rfa.idx]
-		if tf <= 0 || tf >= 1 {
+		if tf < 0 || tf > 1 {
 			return nan
 		}
 
@@ -2185,6 +2182,8 @@ func rollupFirst(rfa *rollupFuncArg) float64 {
 	return values[0]
 }
 
+var rollupLast = rollupDefault
+
 func rollupDefault(rfa *rollupFuncArg) float64 {
 	values := rfa.values
 	if len(values) == 0 {
@@ -2195,17 +2194,6 @@ func rollupDefault(rfa *rollupFuncArg) float64 {
 	}
 	// Intentionally do not skip the possible last Prometheus staleness mark.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1526 .
-	return values[len(values)-1]
-}
-
-func rollupLast(rfa *rollupFuncArg) float64 {
-	values := rfa.values
-	if len(values) == 0 {
-		// Do not take into account rfa.prevValue, since it may lead
-		// to inconsistent results comparing to Prometheus on broken time series
-		// with irregular data points.
-		return nan
-	}
 	return values[len(values)-1]
 }
 

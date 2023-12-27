@@ -7,6 +7,9 @@ menu:
     parent: "operator"
     weight: 9
     identifier: "operator-faq"
+aliases:
+  - /operator/FAQ.html
+  - /operator/faq.html
 ---
 
 # FAQ (Frequency Asked Questions)

@@ -1,5 +1,4 @@
 //go:build aix || linux || solaris || zos
-// +build aix linux solaris zos
 
 package terminal
 

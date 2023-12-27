@@ -13,9 +13,10 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/metrics"
 	"github.com/cespare/xxhash/v2"
 )
 
@@ -88,48 +89,108 @@ type targetStatusMap struct {
 	mu       sync.Mutex
 	m        map[*scrapeWork]*targetStatus
 	jobNames []string
+
+	// the current number of `up` targets in the given jobName
+	upByJob map[string]int
+
+	// the current number of `down` targets in the given jobName
+	downByJob map[string]int
 }
 
 func newTargetStatusMap() *targetStatusMap {
 	return &targetStatusMap{
-		m: make(map[*scrapeWork]*targetStatus),
+		m:         make(map[*scrapeWork]*targetStatus),
+		upByJob:   make(map[string]int),
+		downByJob: make(map[string]int),
 	}
-}
-
-func (tsm *targetStatusMap) Reset() {
-	tsm.mu.Lock()
-	tsm.m = make(map[*scrapeWork]*targetStatus)
-	tsm.mu.Unlock()
 }
 
 func (tsm *targetStatusMap) registerJobNames(jobNames []string) {
 	tsm.mu.Lock()
+	tsm.registerJobsMetricsLocked(tsm.jobNames, jobNames)
 	tsm.jobNames = append(tsm.jobNames[:0], jobNames...)
 	tsm.mu.Unlock()
 }
 
+// registerJobsMetricsLocked registers metrics for new jobs and unregisters metrics for removed jobs
+//
+// tsm.mu must be locked when calling this function.
+func (tsm *targetStatusMap) registerJobsMetricsLocked(prevJobNames, currentJobNames []string) {
+	prevNames := make(map[string]struct{}, len(prevJobNames))
+	currentNames := make(map[string]struct{}, len(currentJobNames))
+	for _, jobName := range currentJobNames {
+		currentNames[jobName] = struct{}{}
+	}
+	for _, jobName := range prevJobNames {
+		prevNames[jobName] = struct{}{}
+		if _, ok := currentNames[jobName]; !ok {
+			metrics.UnregisterMetric(fmt.Sprintf(`vm_promscrape_scrape_pool_targets{scrape_job=%q, status="up"}`, jobName))
+			metrics.UnregisterMetric(fmt.Sprintf(`vm_promscrape_scrape_pool_targets{scrape_job=%q, status="down"}`, jobName))
+		}
+	}
+
+	for _, jobName := range currentJobNames {
+		if _, ok := prevNames[jobName]; ok {
+			continue
+		}
+		jobNameLocal := jobName
+		_ = metrics.NewGauge(fmt.Sprintf(`vm_promscrape_scrape_pool_targets{scrape_job=%q, status="up"}`, jobName), func() float64 {
+			tsm.mu.Lock()
+			n := tsm.upByJob[jobNameLocal]
+			tsm.mu.Unlock()
+			return float64(n)
+		})
+		_ = metrics.NewGauge(fmt.Sprintf(`vm_promscrape_scrape_pool_targets{scrape_job=%q, status="down"}`, jobName), func() float64 {
+			tsm.mu.Lock()
+			n := tsm.downByJob[jobNameLocal]
+			tsm.mu.Unlock()
+			return float64(n)
+		})
+	}
+}
+
 func (tsm *targetStatusMap) Register(sw *scrapeWork) {
+	jobName := sw.Config.jobNameOriginal
+
 	tsm.mu.Lock()
 	tsm.m[sw] = &targetStatus{
 		sw: sw,
 	}
+	tsm.downByJob[jobName]++
 	tsm.mu.Unlock()
 }
 
 func (tsm *targetStatusMap) Unregister(sw *scrapeWork) {
+	jobName := sw.Config.jobNameOriginal
+
 	tsm.mu.Lock()
+	ts, ok := tsm.m[sw]
+	if !ok {
+		logger.Panicf("BUG: missing Register() call for the target %q", jobName)
+	}
+	if ts.up {
+		tsm.upByJob[jobName]--
+	} else {
+		tsm.downByJob[jobName]--
+	}
 	delete(tsm.m, sw)
 	tsm.mu.Unlock()
 }
 
 func (tsm *targetStatusMap) Update(sw *scrapeWork, up bool, scrapeTime, scrapeDuration int64, samplesScraped int, err error) {
+	jobName := sw.Config.jobNameOriginal
+
 	tsm.mu.Lock()
-	ts := tsm.m[sw]
-	if ts == nil {
-		ts = &targetStatus{
-			sw: sw,
-		}
-		tsm.m[sw] = ts
+	ts, ok := tsm.m[sw]
+	if !ok {
+		logger.Panicf("BUG: missing Register() call for the target %q", jobName)
+	}
+	if up && !ts.up {
+		tsm.upByJob[jobName]++
+		tsm.downByJob[jobName]--
+	} else if !up && ts.up {
+		tsm.upByJob[jobName]--
+		tsm.downByJob[jobName]++
 	}
 	ts.up = up
 	ts.scrapeTime = scrapeTime
@@ -243,21 +304,37 @@ type targetStatus struct {
 	err            error
 }
 
-func (ts *targetStatus) getDurationFromLastScrape() time.Duration {
-	return time.Since(time.Unix(ts.scrapeTime/1000, (ts.scrapeTime%1000)*1e6))
+func (ts *targetStatus) getDurationFromLastScrape() string {
+	if ts.scrapeTime <= 0 {
+		return "never scraped"
+	}
+	d := time.Since(time.Unix(ts.scrapeTime/1000, (ts.scrapeTime%1000)*1e6))
+	return fmt.Sprintf("%.3fs ago", d.Seconds())
 }
 
 type droppedTargets struct {
-	mu              sync.Mutex
-	m               map[uint64]droppedTarget
-	lastCleanupTime uint64
+	mu sync.Mutex
+	m  map[uint64]droppedTarget
+
+	// totalTargets contains the total number of dropped targets registered via Register() call.
+	totalTargets int
 }
 
 type droppedTarget struct {
-	originalLabels *promutils.Labels
-	relabelConfigs *promrelabel.ParsedConfigs
-	deadline       uint64
+	originalLabels    *promutils.Labels
+	relabelConfigs    *promrelabel.ParsedConfigs
+	dropReason        targetDropReason
+	clusterMemberNums []int
 }
+
+type targetDropReason string
+
+const (
+	targetDropReasonRelabeling       = targetDropReason("relabeling")         // target dropped because of relabeling
+	targetDropReasonMissingScrapeURL = targetDropReason("missing scrape URL") // target dropped because of missing scrape URL
+	targetDropReasonDuplicate        = targetDropReason("duplicate")          // target with the given set of labels already exists
+	targetDropReasonSharding         = targetDropReason("sharding")           // target is dropped becase of sharding https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets
+)
 
 func (dt *droppedTargets) getTargetsList() []droppedTarget {
 	dt.mu.Lock()
@@ -275,32 +352,43 @@ func (dt *droppedTargets) getTargetsList() []droppedTarget {
 	return dts
 }
 
-func (dt *droppedTargets) Register(originalLabels *promutils.Labels, relabelConfigs *promrelabel.ParsedConfigs) {
-	if *dropOriginalLabels {
-		// The originalLabels must be dropped, so do not register it.
+// Register registers dropped target with the given originalLabels.
+//
+// The relabelConfigs must contain relabel configs, which were applied to originalLabels.
+// The reason must contain the reason why the target has been dropped.
+func (dt *droppedTargets) Register(originalLabels *promutils.Labels, relabelConfigs *promrelabel.ParsedConfigs, reason targetDropReason, clusterMemberNums []int) {
+	if originalLabels == nil {
+		// Do not register target without originalLabels. This is the case when *dropOriginalLabels is set to true.
 		return
 	}
 	// It is better to have hash collisions instead of spending additional CPU on originalLabels.String() call.
 	key := labelsHash(originalLabels)
-	currentTime := fasttime.UnixTimestamp()
 	dt.mu.Lock()
-	_, ok := dt.m[key]
-	if ok || len(dt.m) < *maxDroppedTargets {
-		dt.m[key] = droppedTarget{
-			originalLabels: originalLabels,
-			relabelConfigs: relabelConfigs,
-			deadline:       currentTime + 10*60,
-		}
+	if _, ok := dt.m[key]; !ok {
+		dt.totalTargets++
 	}
-	if currentTime-dt.lastCleanupTime > 60 {
-		for k, v := range dt.m {
-			if currentTime > v.deadline {
-				delete(dt.m, k)
+	dt.m[key] = droppedTarget{
+		originalLabels:    originalLabels,
+		relabelConfigs:    relabelConfigs,
+		dropReason:        reason,
+		clusterMemberNums: clusterMemberNums,
+	}
+	if len(dt.m) > *maxDroppedTargets {
+		for k := range dt.m {
+			delete(dt.m, k)
+			if len(dt.m) <= *maxDroppedTargets {
+				break
 			}
 		}
-		dt.lastCleanupTime = currentTime
 	}
 	dt.mu.Unlock()
+}
+
+func (dt *droppedTargets) getTotalTargets() int {
+	dt.mu.Lock()
+	n := dt.totalTargets
+	dt.mu.Unlock()
+	return n
 }
 
 func labelsHash(labels *promutils.Labels) uint64 {
@@ -352,6 +440,9 @@ func (tsm *targetStatusMap) getTargetsStatusByJob(filter *requestFilter) *target
 	tsm.mu.Lock()
 	for _, ts := range tsm.m {
 		jobName := ts.sw.Config.jobNameOriginal
+		if filter.originalJobName != "" && jobName != filter.originalJobName {
+			continue
+		}
 		byJob[jobName] = append(byJob[jobName], *ts)
 	}
 	jobNames := append([]string{}, tsm.jobNames...)
@@ -487,6 +578,7 @@ type requestFilter struct {
 	showOnlyUnhealthy  bool
 	endpointSearch     string
 	labelSearch        string
+	originalJobName    string
 }
 
 func getRequestFilter(r *http.Request) *requestFilter {
@@ -511,9 +603,11 @@ type targetsStatusResult struct {
 }
 
 type targetLabels struct {
-	up             bool
-	originalLabels *promutils.Labels
-	labels         *promutils.Labels
+	up                bool
+	originalLabels    *promutils.Labels
+	labels            *promutils.Labels
+	dropReason        targetDropReason
+	clusterMemberNums []int
 }
 type targetLabelsByJob struct {
 	jobName        string
@@ -603,7 +697,9 @@ func (tsr *targetsStatusResult) getTargetLabelsByJob() []*targetLabelsByJob {
 		}
 		m.droppedTargets++
 		m.targets = append(m.targets, targetLabels{
-			originalLabels: dt.originalLabels,
+			originalLabels:    dt.originalLabels,
+			dropReason:        dt.dropReason,
+			clusterMemberNums: dt.clusterMemberNums,
 		})
 	}
 	a := make([]*targetLabelsByJob, 0, len(byJob))

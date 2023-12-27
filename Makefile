@@ -1,5 +1,7 @@
 PKG_PREFIX := github.com/VictoriaMetrics/VictoriaMetrics
 
+MAKE_CONCURRENCY ?= $(shell cat /proc/cpuinfo | grep -c processor)
+MAKE_PARALLEL := $(MAKE) -j $(MAKE_CONCURRENCY)
 DATEINFO_TAG ?= $(shell date -u +'%Y%m%d-%H%M%S')
 BUILDINFO_TAG ?= $(shell echo $$(git describe --long --all | tr '/' '-')$$( \
 	      git diff-index --quiet HEAD -- || echo '-dirty-'$$(git diff-index -u HEAD | openssl sha1 | cut -d' ' -f2 | cut -c 1-8)))
@@ -15,6 +17,7 @@ GO_BUILDINFO = -X '$(PKG_PREFIX)/lib/buildinfo.Version=$(APP_NAME)-$(DATEINFO_TA
 .PHONY: $(MAKECMDGOALS)
 
 include app/*/Makefile
+include docs/Makefile
 include deployment/*/Makefile
 include dashboards/Makefile
 include package/release/Makefile
@@ -72,16 +75,18 @@ vmcluster-windows-amd64: \
 	vmselect-windows-amd64 \
 	vmstorage-windows-amd64
 
-vmcluster-crossbuild: \
-	vmcluster-linux-amd64 \
-	vmcluster-linux-arm64 \
-	vmcluster-linux-arm \
-	vmcluster-linux-ppc64le \
-	vmcluster-linux-386 \
-	vmcluster-freebsd-amd64 \
-	vmcluster-openbsd-amd64
+crossbuild: vmcluster-crossbuild
 
-publish: package-base \
+vmcluster-crossbuild:
+	$(MAKE_PARALLEL) vmcluster-linux-amd64 \
+		vmcluster-linux-arm64 \
+		vmcluster-linux-arm \
+		vmcluster-linux-ppc64le \
+		vmcluster-linux-386 \
+		vmcluster-freebsd-amd64 \
+		vmcluster-openbsd-amd64
+
+publish: \
 	publish-vminsert \
 	publish-vmselect \
 	publish-vmstorage
@@ -93,13 +98,13 @@ package: \
 
 publish-release:
 	rm -rf bin/*
-	git checkout $(TAG) && LATEST_TAG=stable $(MAKE) release publish && \
-		git checkout $(TAG)-cluster && LATEST_TAG=cluster-stable $(MAKE) release publish && \
-		git checkout $(TAG)-enterprise && LATEST_TAG=enterprise-stable $(MAKE) release publish && \
-		git checkout $(TAG)-enterprise-cluster && LATEST_TAG=enterprise-cluster-stable $(MAKE) release publish
+	git checkout $(TAG) && $(MAKE) release && LATEST_TAG=stable $(MAKE) publish && \
+		git checkout $(TAG)-cluster && $(MAKE) release && LATEST_TAG=cluster-stable $(MAKE) publish && \
+		git checkout $(TAG)-enterprise && $(MAKE) release && LATEST_TAG=enterprise-stable $(MAKE) publish && \
+		git checkout $(TAG)-enterprise-cluster && $(MAKE) release && LATEST_TAG=enterprise-cluster-stable $(MAKE) publish
 
-release: \
-	release-vmcluster
+release:
+	$(MAKE_PARALLEL) release-vmcluster
 
 release-vmcluster: \
 	release-vmcluster-linux-amd64 \
@@ -268,12 +273,3 @@ copy-docs:
 # The rest of docs is ordered manually.
 docs-sync:
 	SRC=README.md DST=docs/Cluster-VictoriaMetrics.md OLD_URL='/Cluster-VictoriaMetrics.html' ORDER=2 TITLE='Cluster version' $(MAKE) copy-docs
-	SRC=app/vmagent/README.md DST=docs/vmagent.md OLD_URL='/vmagent.html' ORDER=3 TITLE=vmagent $(MAKE) copy-docs
-	SRC=app/vmalert/README.md DST=docs/vmalert.md OLD_URL='/vmalert.html' ORDER=4 TITLE=vmalert $(MAKE) copy-docs
-	SRC=app/vmauth/README.md DST=docs/vmauth.md OLD_URL='/vmauth.html' ORDER=5 TITLE=vmauth $(MAKE) copy-docs
-	SRC=app/vmbackup/README.md DST=docs/vmbackup.md OLD_URL='/vmbackup.html' ORDER=6 TITLE=vmbackup $(MAKE) copy-docs
-	SRC=app/vmrestore/README.md DST=docs/vmrestore.md OLD_URL='/vmrestore.html' ORDER=7 TITLE=vmrestore $(MAKE) copy-docs
-	SRC=app/vmctl/README.md DST=docs/vmctl.md OLD_URL='/vmctl.html' ORDER=8 TITLE=vmctl $(MAKE) copy-docs
-	SRC=app/vmgateway/README.md DST=docs/vmgateway.md OLD_URL='/vmgateway.html' ORDER=9 TITLE=vmgateway $(MAKE) copy-docs
-	SRC=app/vmbackupmanager/README.md DST=docs/vmbackupmanager.md OLD_URL='/vmbackupmanager.html' ORDER=10 TITLE=vmbackupmanager $(MAKE) copy-docs
-	SRC=app/vmalert-tool/README.md DST=docs/vmalert-tool.md OLD_URL='' ORDER=12 TITLE=vmalert-tool $(MAKE) copy-docs

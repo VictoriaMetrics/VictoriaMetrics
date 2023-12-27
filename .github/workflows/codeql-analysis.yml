@@ -55,11 +55,22 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Go
-        uses: actions/setup-go@v4
+        id: go
+        uses: actions/setup-go@v5
         with:
-          go-version: 1.21.3
-          check-latest: true
-          cache: true
+          go-version: stable
+          cache: false
+        if: ${{ matrix.language == 'go' }}
+
+      - name: Cache Go artifacts
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+            ~/go/bin
+          key: go-artifacts-${{ runner.os }}-codeql-analyze-${{ steps.go.outputs.go-version }}-${{ hashFiles('go.sum', 'Makefile', 'app/**/Makefile') }}
+          restore-keys: go-artifacts-${{ runner.os }}-codeql-analyze-
         if: ${{ matrix.language == 'go' }}
 
       # Initializes the CodeQL tools for scanning.

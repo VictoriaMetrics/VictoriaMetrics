@@ -7,6 +7,8 @@ on:
     paths-ignore:
       - "docs/**"
       - "**.md"
+      - "dashboards/**"
+      - "deployment/**.yml"
   pull_request:
     branches:
       - master
@@ -14,6 +16,8 @@ on:
     paths-ignore:
       - "docs/**"
       - "**.md"
+      - "dashboards/**"
+      - "deployment/**.yml"
 permissions:
   contents: read
 
@@ -30,17 +34,54 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Go
-        uses: actions/setup-go@v4
+        id: go
+        uses: actions/setup-go@v5
         with:
-          go-version: 1.21.3
-          check-latest: true
-          cache: true
+          go-version: stable
+          cache: false
 
-      - name: Dependencies
+      - name: Cache Go artifacts
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+            ~/go/bin
+          key: go-artifacts-${{ runner.os }}-check-all-${{ steps.go.outputs.go-version }}-${{ hashFiles('go.sum', 'Makefile', 'app/**/Makefile') }}
+          restore-keys: go-artifacts-${{ runner.os }}-check-all-
+
+      - name: Run check-all
         run: |
-          make install-golangci-lint
           make check-all
           git diff --exit-code
+
+  build:
+    needs: lint
+    name: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Code checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        id: go
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+          cache: false
+
+      - name: Cache Go artifacts
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+            ~/go/bin
+          key: go-artifacts-${{ runner.os }}-crossbuild-${{ steps.go.outputs.go-version }}-${{ hashFiles('go.sum', 'Makefile', 'app/**/Makefile') }}
+          restore-keys: go-artifacts-${{ runner.os }}-crossbuild-
+
+      - name: Build
+        run: make crossbuild
 
   test:
     needs: lint
@@ -54,42 +95,26 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Go
-        uses: actions/setup-go@v4
+        id: go
+        uses: actions/setup-go@v5
         with:
-          go-version: 1.21.3
-          check-latest: true
-          cache: true
+          go-version: stable
+          cache: false
+
+      - name: Cache Go artifacts
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+            ~/go/bin
+          key: go-artifacts-${{ runner.os }}-${{ matrix.scenario }}-${{ steps.go.outputs.go-version }}-${{ hashFiles('go.sum', 'Makefile', 'app/**/Makefile') }}
+          restore-keys: go-artifacts-${{ runner.os }}-${{ matrix.scenario }}-
 
       - name: run tests
-        run: |
-          make ${{ matrix.scenario}}
+        run: make ${{ matrix.scenario}}
 
       - name: Publish coverage
         uses: codecov/codecov-action@v3
         with:
           file: ./coverage.txt
-
-  build:
-    needs: test
-    name: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Code checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Go
-        id: go
-        uses: actions/setup-go@v4
-        with:
-          go-version: 1.21.3
-          check-latest: true
-          cache: true
-
-      - uses: actions/cache@v3
-        with:
-          path: gocache-for-docker
-          key:  gocache-docker-${{ runner.os }}-${{ steps.go.outputs.go-version }}-${{ hashFiles('go.mod') }}
-
-      - name: Build
-        run: |
-          make vmcluster-crossbuild

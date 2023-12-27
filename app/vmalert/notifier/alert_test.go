@@ -237,6 +237,11 @@ func TestAlert_toPromLabels(t *testing.T) {
 		[]prompbmarshal.Label{{Name: "a", Value: "baz"}, {Name: "foo", Value: "bar"}},
 		nil,
 	)
+	fn(
+		map[string]string{"foo.bar": "baz", "service!name": "qux"},
+		[]prompbmarshal.Label{{Name: "foo_bar", Value: "baz"}, {Name: "service_name", Value: "qux"}},
+		nil,
+	)
 
 	pcs, err := promrelabel.ParseRelabelConfigsData([]byte(`
 - target_label: "foo"

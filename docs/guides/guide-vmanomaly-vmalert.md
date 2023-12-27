@@ -13,12 +13,13 @@ aliases:
 **Prerequisites**
 - *vmanomaly* is a part of enterprise package. You can get license key [here](https://victoriametrics.com/products/enterprise/trial) to try this tutorial.
 - In the tutorial, we'll be using the following VictoriaMetrics components:
-  -  [VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html) (v.1.93.2)
-  -  [vmalert](https://docs.victoriametrics.com/vmalert.html) (v.1.93.2)
-  -  [vmagent](https://docs.victoriametrics.com/vmagent.html) (v.1.93.2)
+  -  [VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html) (v.1.96.0)
+  -  [vmalert](https://docs.victoriametrics.com/vmalert.html) (v.1.96.0)
+  -  [vmagent](https://docs.victoriametrics.com/vmagent.html) (v.1.96.0)
   
   If you're unfamiliar with the listed components, please read [QuickStart](https://docs.victoriametrics.com/Quick-Start.html) first.
-- It is assumed that you are familiar with [Grafana](https://grafana.com/)(v.9.3.1) and [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/).
+- It is assumed that you are familiar with [Grafana](https://grafana.com/)(v.10.2.1) and [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/).
+
 ## 1. What is vmanomaly?
 *VictoriaMetrics Anomaly Detection* ([vmanomaly](https://docs.victoriametrics.com/vmanomaly.html)) is a service that continuously scans time series stored in VictoriaMetrics and detects unexpected changes within data patterns in real-time. It does so by utilizing user-configurable machine learning models.
 
@@ -82,7 +83,7 @@ These modes are mutually exclusive. A high _iowait_ means that you are disk or n
 
 The metric `node_cpu_seconds_total` is a [counter](https://docs.victoriametrics.com/keyConcepts.html#counter) type of metric. If we'd like to see how much time CPU spent in each of the nodes, we need to calculate the per-second values change via [rate function](https://docs.victoriametrics.com/MetricsQL.html#rate): `rate(node_cpu_seconds_total)`.
 Here is how this query may look like in Grafana:
-<img alt="node_cpu_rate_graph" src="guide-vmanomaly-node-cpu-rate-graph.png">
+<img alt="node_cpu_rate_graph" src="guide-vmanomaly-vmalert_node-cpu-rate-graph.webp">
 
 This query result will generate 8 time series per each cpu, and we will use them as an input for our VM Anomaly Detection. vmanomaly will start learning configured model type separately for each of the time series.
 
@@ -90,7 +91,7 @@ ______________________________
 
 ## 5. vmanomaly configuration and parameter description
 **Parameter description**:
-There are 4 main sections in config file:
+There are 4 required sections in config file:
 
 `scheduler` - defines how often to run and make inferences, as well as what timerange to use to train the model. 
 
@@ -113,9 +114,9 @@ Let's look into parameters in each section:
     Here is the previous 14 days of data to put into the model training. 
 
 * `model`
-    * `class` - what model to run. You can use your own model or choose from built-in models: Seasonal Trend Decomposition, Facebook Prophet, ZScore, Rolling Quantile, Holt-Winters and ARIMA.
+    * `class` - what model to run. You can use your own model or choose from built-in models: Seasonal Trend Decomposition, Facebook Prophet, ZScore, Rolling Quantile, Holt-Winters, Isolation Forest and ARIMA.  Here we use Facebook Prophet (`model.prophet.ProphetModel`).
     
-    Here we use Facebook Prophet with default parameters (`model.prophet.ProphetModel`). You can put parameters that are available in their [docs](https://facebook.github.io/prophet/docs/quick_start.html).
+    * `args` - Model specific parameters, represented as YAML dictionary in a simple `key: value` form. For example, you can use parameters that are available in [FB Prophet](https://facebook.github.io/prophet/docs/quick_start.html).
     
 * `reader`
   * `datasource_url` - Data source. An HTTP endpoint that serves `/api/v1/query_range`.
@@ -139,7 +140,8 @@ scheduler:
 
 model:
   class: "model.prophet.ProphetModel"
-  interval_width: 0.98
+  args:
+    interval_width: 0.98
 
 reader:
   datasource_url: "http://victoriametrics:8428/"
@@ -195,7 +197,7 @@ Now we are going to configure the `docker-compose.yml` file to run all needed se
 Here are all services we are going to run:
 
 <p align="center">
-  <img src="guide-vmanomaly-docker-compose.png" width="800" alt="Docker compose services">
+  <img src="guide-vmanomaly-vmalert_docker-compose.webp" width="800" alt="Docker compose services">
 </p>
 
 * victoriametrics - VictoriaMetrics Time Series Database
@@ -285,7 +287,7 @@ services:
   
   victoriametrics:
     container_name: victoriametrics
-    image: victoriametrics/victoria-metrics:v1.93.2
+    image: victoriametrics/victoria-metrics:v1.96.0
     ports:
       - 8428:8428
       - 8089:8089
@@ -308,7 +310,7 @@ services:
   
   grafana:
     container_name: grafana
-    image: grafana/grafana-oss:9.3.1
+    image: grafana/grafana-oss:10.2.1
     depends_on:
       - "victoriametrics"
     ports:
@@ -345,7 +347,7 @@ services:
     restart: always
   vmanomaly:
     container_name: vmanomaly
-    image: us-docker.pkg.dev/victoriametrics-test/public/vmanomaly-trial:v1.5.0
+    image: us-docker.pkg.dev/victoriametrics-test/public/vmanomaly-trial:v1.7.2
     depends_on:
       - "victoriametrics"
     ports:
@@ -384,7 +386,7 @@ networks:
 Before running our docker-compose make sure that your directory contains all required files:
 
 <p align="center">
-  <img src="guide-vmanomaly-files.png" width="400" alt="all files">
+  <img src="guide-vmanomaly-vmalert_files.webp" width="400" alt="all files">
 </p>
 
 This docker-compose file will pull docker images,  set up each service and run them all together with the command:
@@ -425,29 +427,29 @@ Each of these metrics will contain same labels our query `rate(node_cpu_seconds_
 ### Anomaly scores for each metric with its according labels. 
 
 Query: `anomaly_score`
-<img alt="Anomaly score graph" src="guide-vmanomaly-anomaly-score.png">
+<img alt="Anomaly score graph" src="guide-vmanomaly-vmalert_anomaly-score.webp">
 
 <br>Check out if the anomaly score is high for datapoints you think are anomalies. If not, you can try other parameters in the config file or try other model type.
 
 As you may notice a lot of data shows anomaly score greater than 1. It is expected as we just started to scrape and store data and there are not enough datapoints to train on. Just wait for some more time for gathering more data to see how well this particular model can find anomalies. In our configs we put 2 days of data required.
 ### Actual value from input query with predicted `yhat` metric. 
 Query: `yhat`
-<img alt="yhat" src="guide-vmanomaly-yhat.png">
+<img alt="yhat" src="guide-vmanomaly-vmalert_yhat.webp">
 
 <br>Here we are using one particular set of metrics for visualization. Check out the difference between model prediction and actual values. If values are very different from prediction, it can be considered as anomalous.
 
 ### Lower and upper boundaries that model predicted. 
 Queries: `yhat_lower` and `yhat_upper`
-<img alt="yhat lower and yhat upper" src="guide-vmanomaly-yhat-lower-upper.png">
+<img alt="yhat lower and yhat upper" src="guide-vmanomaly-vmalert_yhat-lower-upper.webp">
 Boundaries of 'normal' metric values according to model inference. 
 
 ### Alerting
 On the page `http://localhost:8880/vmalert/groups` you can find our configured Alerting rule:
 
-<img alt="alert rule" src="guide-vmanomaly-alert-rule.png">
+<img alt="alert rule" src="guide-vmanomaly-vmalert_alert-rule.webp">
 
 According to the rule configured for vmalert we will see Alert when anomaly score exceed 1. You will see an alert on Alert tab. `http://localhost:8880/vmalert/alerts`
-<img alt="alerts firing" src="guide-vmanomaly-alerts-firing.png">
+<img alt="alerts firing" src="guide-vmanomaly-vmalert_alerts-firing.webp">
 
 ## 10. Conclusion
 Now we know how to set up Victoria Metric Anomaly Detection tool and use it together with vmalert. We also discovered core vmanomaly generated metrics and behaviour.

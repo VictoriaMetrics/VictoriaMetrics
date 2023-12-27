@@ -2,7 +2,7 @@ import React, { FC, useMemo } from "preact/compat";
 import { useNavigate } from "react-router-dom";
 import router from "../../router";
 import { getAppModeEnable, getAppModeParams } from "../../utils/app-mode";
-import { LogoIcon, LogoLogsIcon } from "../../components/Main/Icons";
+import { LogoAnomalyIcon, LogoIcon, LogoLogsIcon } from "../../components/Main/Icons";
 import { getCssVariable } from "../../utils/theme";
 import "./style.scss";
 import classNames from "classnames";
@@ -13,13 +13,26 @@ import HeaderControls, { ControlsProps } from "./HeaderControls/HeaderControls";
 import useDeviceDetect from "../../hooks/useDeviceDetect";
 import useWindowSize from "../../hooks/useWindowSize";
 import { ComponentType } from "react";
+import { AppType } from "../../types/appType";
 
 export interface HeaderProps {
   controlsComponent: ComponentType<ControlsProps>
 }
+const { REACT_APP_TYPE } = process.env;
+const isCustomApp = REACT_APP_TYPE === AppType.logs || REACT_APP_TYPE === AppType.anomaly;
+
+const Logo = () => {
+  switch (REACT_APP_TYPE) {
+    case AppType.logs:
+      return <LogoLogsIcon/>;
+    case AppType.anomaly:
+      return <LogoAnomalyIcon/>;
+    default:
+      return <LogoIcon/>;
+  }
+};
 
 const Header: FC<HeaderProps> = ({ controlsComponent }) => {
-  const { REACT_APP_LOGS } = process.env;
   const { isMobile } = useDeviceDetect();
 
   const windowSize = useWindowSize();
@@ -70,12 +83,12 @@ const Header: FC<HeaderProps> = ({ controlsComponent }) => {
           <div
             className={classNames({
               "vm-header-logo": true,
-              "vm-header-logo_logs": REACT_APP_LOGS
+              "vm-header-logo_logs": isCustomApp
             })}
             onClick={onClickLogo}
             style={{ color }}
           >
-            {REACT_APP_LOGS ? <LogoLogsIcon/> : <LogoIcon/>}
+            {<Logo/>}
           </div>
         )}
         <HeaderNav
@@ -89,12 +102,12 @@ const Header: FC<HeaderProps> = ({ controlsComponent }) => {
         className={classNames({
           "vm-header-logo": true,
           "vm-header-logo_mobile": true,
-          "vm-header-logo_logs": REACT_APP_LOGS
+          "vm-header-logo_logs": isCustomApp
         })}
         onClick={onClickLogo}
         style={{ color }}
       >
-        {REACT_APP_LOGS ? <LogoLogsIcon/> : <LogoIcon/>}
+        {<Logo/>}
       </div>
     )}
     <HeaderControls

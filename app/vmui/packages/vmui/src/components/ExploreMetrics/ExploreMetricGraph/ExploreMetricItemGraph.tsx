@@ -6,12 +6,11 @@ import { useTimeDispatch, useTimeState } from "../../../state/time/TimeStateCont
 import { AxisRange } from "../../../state/graph/reducer";
 import Spinner from "../../Main/Spinner/Spinner";
 import Alert from "../../Main/Alert/Alert";
-import Button from "../../Main/Button/Button";
 import "./style.scss";
 import classNames from "classnames";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import { getDurationFromMilliseconds, getSecondsFromDuration, getStepFromDuration } from "../../../utils/time";
-import useBoolean from "../../../hooks/useBoolean";
+import WarningLimitSeries from "../../../pages/CustomPanel/WarningLimitSeries/WarningLimitSeries";
 
 interface ExploreMetricItemGraphProps {
   name: string,
@@ -40,12 +39,9 @@ const ExploreMetricItem: FC<ExploreMetricItemGraphProps> = ({
   const stepSeconds = getSecondsFromDuration(customStep);
   const heatmapStep = getDurationFromMilliseconds(stepSeconds * 10 * 1000);
   const [isHeatmap, setIsHeatmap] = useState(false);
+  const [showAllSeries, setShowAllSeries] = useState(false);
   const step = isHeatmap && customStep === defaultStep ? heatmapStep : customStep;
 
-  const {
-    value: showAllSeries,
-    setTrue: handleShowAll,
-  } = useBoolean(false);
 
   const query = useMemo(() => {
     const params = Object.entries({ job, instance })
@@ -70,7 +66,7 @@ with (q = ${queryBase}) (
 )`;
   }, [name, job, instance, rateEnabled, isBucket]);
 
-  const { isLoading, graphData, error, warning, isHistogram } = useFetchQuery({
+  const { isLoading, graphData, error, queryErrors, warning, isHistogram } = useFetchQuery({
     predefinedQuery: [query],
     visible: true,
     customStep: step,
@@ -98,18 +94,14 @@ with (q = ${queryBase}) (
     >
       {isLoading && <Spinner />}
       {error && <Alert variant="error">{error}</Alert>}
-      {warning && <Alert variant="warning">
-        <div className="vm-explore-metrics-graph__warning">
-          <p>{warning}</p>
-          <Button
-            color="warning"
-            variant="outlined"
-            onClick={handleShowAll}
-          >
-              Show all
-          </Button>
-        </div>
-      </Alert>}
+      {queryErrors[0] && <Alert variant="error">{queryErrors[0]}</Alert>}
+      {warning && (
+        <WarningLimitSeries
+          warning={warning}
+          query={[query]}
+          onChange={setShowAllSeries}
+        />
+      )}
       {graphData && period && (
         <GraphView
           data={graphData}

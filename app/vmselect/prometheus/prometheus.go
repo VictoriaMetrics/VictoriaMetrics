@@ -58,7 +58,8 @@ var (
 	maxSeriesLimit         = flag.Int("search.maxSeries", 30e3, "The maximum number of time series, which can be returned from /api/v1/series. This option allows limiting memory usage")
 	maxPointsPerTimeseries = flag.Int("search.maxPointsPerTimeseries", 30e3, "The maximum points per a single timeseries returned from /api/v1/query_range. "+
 		"This option doesn't limit the number of scanned raw samples in the database. The main purpose of this option is to limit the number of per-series points "+
-		"returned to graphing UI such as VMUI or Grafana. There is no sense in setting this limit to values bigger than the horizontal resolution of the graph")
+		"returned to graphing UI such as VMUI or Grafana. There is no sense in setting this limit to values bigger than the horizontal resolution of the graph. "+
+		"See also -search.maxResponseSeries")
 )
 
 // Default step used if not set.
@@ -1162,9 +1163,7 @@ func getLatencyOffsetMilliseconds(r *http.Request) (int64, error) {
 }
 
 // QueryStatsHandler returns query stats at `/api/v1/status/top_queries`
-func QueryStatsHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
-	defer queryStatsDuration.UpdateDuration(startTime)
-
+func QueryStatsHandler(at *auth.Token, w http.ResponseWriter, r *http.Request) error {
 	topN := 20
 	topNStr := r.FormValue("topN")
 	if len(topNStr) > 0 {
@@ -1192,8 +1191,6 @@ func QueryStatsHandler(startTime time.Time, at *auth.Token, w http.ResponseWrite
 	}
 	return nil
 }
-
-var queryStatsDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/status/top_queries"}`)
 
 // commonParams contains common parameters for all /api/v1/* handlers
 //

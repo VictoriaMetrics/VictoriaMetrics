@@ -17,12 +17,14 @@ import (
 // to evaluate configured Expression and
 // return TimeSeries as result.
 type RecordingRule struct {
-	Type    config.Type
-	RuleID  uint64
-	Name    string
-	Expr    string
-	Labels  map[string]string
-	GroupID uint64
+	Type      config.Type
+	RuleID    uint64
+	Name      string
+	Expr      string
+	Labels    map[string]string
+	GroupID   uint64
+	GroupName string
+	File      string
 
 	q datasource.Querier
 
@@ -34,7 +36,7 @@ type RecordingRule struct {
 }
 
 type recordingRuleMetrics struct {
-	errors  *utils.Gauge
+	errors  *utils.Counter
 	samples *utils.Gauge
 }
 
@@ -52,13 +54,15 @@ func (rr *RecordingRule) ID() uint64 {
 // NewRecordingRule creates a new RecordingRule
 func NewRecordingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule) *RecordingRule {
 	rr := &RecordingRule{
-		Type:    group.Type,
-		RuleID:  cfg.ID,
-		Name:    cfg.Record,
-		Expr:    cfg.Expr,
-		Labels:  cfg.Labels,
-		GroupID: group.ID(),
-		metrics: &recordingRuleMetrics{},
+		Type:      group.Type,
+		RuleID:    cfg.ID,
+		Name:      cfg.Record,
+		Expr:      cfg.Expr,
+		Labels:    cfg.Labels,
+		GroupID:   group.ID(),
+		GroupName: group.Name,
+		File:      group.File,
+		metrics:   &recordingRuleMetrics{},
 		q: qb.BuildWithParams(datasource.QuerierParams{
 			DataSourceType:     group.Type.String(),
 			EvaluationInterval: group.Interval,
@@ -79,14 +83,7 @@ func NewRecordingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rul
 	}
 
 	labels := fmt.Sprintf(`recording=%q, group=%q, file=%q, id="%d"`, rr.Name, group.Name, group.File, rr.ID())
-	rr.metrics.errors = utils.GetOrCreateGauge(fmt.Sprintf(`vmalert_recording_rules_error{%s}`, labels),
-		func() float64 {
-			e := rr.state.getLast()
-			if e.Err == nil {
-				return 0
-			}
-			return 1
-		})
+	rr.metrics.errors = utils.GetOrCreateCounter(fmt.Sprintf(`vmalert_recording_rules_errors_total{%s}`, labels))
 	rr.metrics.samples = utils.GetOrCreateGauge(fmt.Sprintf(`vmalert_recording_rules_last_evaluation_samples{%s}`, labels),
 		func() float64 {
 			e := rr.state.getLast()
@@ -138,6 +135,9 @@ func (rr *RecordingRule) exec(ctx context.Context, ts time.Time, limit int) ([]p
 
 	defer func() {
 		rr.state.add(curState)
+		if curState.Err != nil {
+			rr.metrics.errors.Inc()
+		}
 	}()
 
 	if err != nil {
@@ -194,6 +194,9 @@ func (rr *RecordingRule) toTimeSeries(m datasource.Metric) prompbmarshal.TimeSer
 	labels["__name__"] = rr.Name
 	// override existing labels with configured ones
 	for k, v := range rr.Labels {
+		if _, ok := labels[k]; ok && labels[k] != v {
+			labels[fmt.Sprintf("exported_%s", k)] = labels[k]
+		}
 		labels[k] = v
 	}
 	return newTimeSeries(m.Values, m.Timestamps, labels)
@@ -203,7 +206,7 @@ func (rr *RecordingRule) toTimeSeries(m datasource.Metric) prompbmarshal.TimeSer
 func (rr *RecordingRule) updateWith(r Rule) error {
 	nr, ok := r.(*RecordingRule)
 	if !ok {
-		return fmt.Errorf("BUG: attempt to update recroding rule with wrong type %#v", r)
+		return fmt.Errorf("BUG: attempt to update recording rule with wrong type %#v", r)
 	}
 	rr.Expr = nr.Expr
 	rr.Labels = nr.Labels

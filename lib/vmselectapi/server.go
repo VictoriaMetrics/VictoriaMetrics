@@ -145,7 +145,7 @@ func NewServer(addr string, api API, limits Limits, disableResponseCompression b
 		metricRowsRead:   metrics.NewCounter(fmt.Sprintf(`vm_vmselect_metric_rows_read_total{addr=%q}`, addr)),
 	}
 
-	s.connsMap.Init()
+	s.connsMap.Init("vmselect")
 	s.wg.Add(1)
 	go func() {
 		s.run()
@@ -232,7 +232,7 @@ func (s *Server) MustStop() {
 
 	// Close existing connections from vmselect, so the goroutines
 	// processing these connections are finished.
-	s.connsMap.CloseAll()
+	s.connsMap.CloseAll(0)
 
 	// Wait until all the goroutines processing vmselect conns are finished.
 	s.wg.Wait()
