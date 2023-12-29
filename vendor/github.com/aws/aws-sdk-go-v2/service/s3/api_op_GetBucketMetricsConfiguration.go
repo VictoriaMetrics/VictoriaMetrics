@@ -10,16 +10,17 @@ import (
 	s3cust "github.com/aws/aws-sdk-go-v2/service/s3/internal/customizations"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/smithy-go/middleware"
+	"github.com/aws/smithy-go/ptr"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Gets a metrics configuration (specified by the metrics configuration ID) from
-// the bucket. Note that this doesn't include the daily storage metrics. To use
-// this operation, you must have permissions to perform the
-// s3:GetMetricsConfiguration action. The bucket owner has this permission by
-// default. The bucket owner can grant this permission to others. For more
-// information about permissions, see Permissions Related to Bucket Subresource
-// Operations (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-with-s3-actions.html#using-with-s3-actions-related-to-bucket-subresources)
+// This operation is not supported by directory buckets. Gets a metrics
+// configuration (specified by the metrics configuration ID) from the bucket. Note
+// that this doesn't include the daily storage metrics. To use this operation, you
+// must have permissions to perform the s3:GetMetricsConfiguration action. The
+// bucket owner has this permission by default. The bucket owner can grant this
+// permission to others. For more information about permissions, see Permissions
+// Related to Bucket Subresource Operations (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-with-s3-actions.html#using-with-s3-actions-related-to-bucket-subresources)
 // and Managing Access Permissions to Your Amazon S3 Resources (https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-access-control.html)
 // . For information about CloudWatch request metrics for Amazon S3, see
 // Monitoring Metrics with Amazon CloudWatch (https://docs.aws.amazon.com/AmazonS3/latest/dev/cloudwatch-monitoring.html)
@@ -56,9 +57,9 @@ type GetBucketMetricsConfigurationInput struct {
 	// This member is required.
 	Id *string
 
-	// The account ID of the expected bucket owner. If the bucket is owned by a
-	// different account, the request fails with the HTTP status code 403 Forbidden
-	// (access denied).
+	// The account ID of the expected bucket owner. If the account ID that you provide
+	// does not match the actual owner of the bucket, the request fails with the HTTP
+	// status code 403 Forbidden (access denied).
 	ExpectedBucketOwner *string
 
 	noSmithyDocumentSerde
@@ -66,7 +67,7 @@ type GetBucketMetricsConfigurationInput struct {
 
 func (in *GetBucketMetricsConfigurationInput) bindEndpointParams(p *EndpointParameters) {
 	p.Bucket = in.Bucket
-
+	p.UseS3ExpressControlEndpoint = ptr.Bool(true)
 }
 
 type GetBucketMetricsConfigurationOutput struct {
@@ -133,6 +134,9 @@ func (c *Client) addOperationGetBucketMetricsConfigurationMiddlewares(stack *mid
 		return err
 	}
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addPutBucketContextMiddleware(stack); err != nil {
 		return err
 	}
 	if err = addOpGetBucketMetricsConfigurationValidationMiddleware(stack); err != nil {

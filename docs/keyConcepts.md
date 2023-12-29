@@ -80,7 +80,9 @@ See [these docs](https://docs.victoriametrics.com/FAQ.html#what-is-high-cardinal
 #### Raw samples
 
 Every unique time series may consist of an arbitrary number of `(value, timestamp)` data points (aka `raw samples`) sorted by `timestamp`.
-The `value` is a [double-precision floating-point number](https://en.wikipedia.org/wiki/Double-precision_floating-point_format).
+VictoriaMetrics stores all the `values` as [float64](https://en.wikipedia.org/wiki/Double-precision_floating-point_format) values 
+with [extra compression](https://faun.pub/victoriametrics-achieving-better-compression-for-time-series-data-than-gorilla-317bc1f95932) applied.
+This guarantees precision correctness for values with up to 12 significant decimal digits ([-2^54 ... 2^54-1]).
 The `timestamp` is a [Unix timestamp](https://en.wikipedia.org/wiki/Unix_time) with millisecond precision.
 
 Below is an example of a single raw sample

@@ -10,18 +10,20 @@ import (
 	s3cust "github.com/aws/aws-sdk-go-v2/service/s3/internal/customizations"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/smithy-go/middleware"
+	"github.com/aws/smithy-go/ptr"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Sets a metrics configuration (specified by the metrics configuration ID) for
-// the bucket. You can have up to 1,000 metrics configurations per bucket. If
-// you're updating an existing metrics configuration, note that this is a full
-// replacement of the existing metrics configuration. If you don't include the
-// elements you want to keep, they are erased. To use this operation, you must have
-// permissions to perform the s3:PutMetricsConfiguration action. The bucket owner
-// has this permission by default. The bucket owner can grant this permission to
-// others. For more information about permissions, see Permissions Related to
-// Bucket Subresource Operations (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-with-s3-actions.html#using-with-s3-actions-related-to-bucket-subresources)
+// This operation is not supported by directory buckets. Sets a metrics
+// configuration (specified by the metrics configuration ID) for the bucket. You
+// can have up to 1,000 metrics configurations per bucket. If you're updating an
+// existing metrics configuration, note that this is a full replacement of the
+// existing metrics configuration. If you don't include the elements you want to
+// keep, they are erased. To use this operation, you must have permissions to
+// perform the s3:PutMetricsConfiguration action. The bucket owner has this
+// permission by default. The bucket owner can grant this permission to others. For
+// more information about permissions, see Permissions Related to Bucket
+// Subresource Operations (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-with-s3-actions.html#using-with-s3-actions-related-to-bucket-subresources)
 // and Managing Access Permissions to Your Amazon S3 Resources (https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-access-control.html)
 // . For information about CloudWatch request metrics for Amazon S3, see
 // Monitoring Metrics with Amazon CloudWatch (https://docs.aws.amazon.com/AmazonS3/latest/dev/cloudwatch-monitoring.html)
@@ -68,9 +70,9 @@ type PutBucketMetricsConfigurationInput struct {
 	// This member is required.
 	MetricsConfiguration *types.MetricsConfiguration
 
-	// The account ID of the expected bucket owner. If the bucket is owned by a
-	// different account, the request fails with the HTTP status code 403 Forbidden
-	// (access denied).
+	// The account ID of the expected bucket owner. If the account ID that you provide
+	// does not match the actual owner of the bucket, the request fails with the HTTP
+	// status code 403 Forbidden (access denied).
 	ExpectedBucketOwner *string
 
 	noSmithyDocumentSerde
@@ -78,7 +80,7 @@ type PutBucketMetricsConfigurationInput struct {
 
 func (in *PutBucketMetricsConfigurationInput) bindEndpointParams(p *EndpointParameters) {
 	p.Bucket = in.Bucket
-
+	p.UseS3ExpressControlEndpoint = ptr.Bool(true)
 }
 
 type PutBucketMetricsConfigurationOutput struct {
@@ -141,6 +143,9 @@ func (c *Client) addOperationPutBucketMetricsConfigurationMiddlewares(stack *mid
 		return err
 	}
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addPutBucketContextMiddleware(stack); err != nil {
 		return err
 	}
 	if err = addOpPutBucketMetricsConfigurationValidationMiddleware(stack); err != nil {

@@ -11,14 +11,15 @@ import (
 	s3cust "github.com/aws/aws-sdk-go-v2/service/s3/internal/customizations"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/smithy-go/middleware"
+	"github.com/aws/smithy-go/ptr"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Sets the configuration of the website that is specified in the website
-// subresource. To configure a bucket as a website, you can add this subresource on
-// the bucket with website configuration information such as the file name of the
-// index document and any redirect rules. For more information, see Hosting
-// Websites on Amazon S3 (https://docs.aws.amazon.com/AmazonS3/latest/dev/WebsiteHosting.html)
+// This operation is not supported by directory buckets. Sets the configuration of
+// the website that is specified in the website subresource. To configure a bucket
+// as a website, you can add this subresource on the bucket with website
+// configuration information such as the file name of the index document and any
+// redirect rules. For more information, see Hosting Websites on Amazon S3 (https://docs.aws.amazon.com/AmazonS3/latest/dev/WebsiteHosting.html)
 // . This PUT action requires the S3:PutBucketWebsite permission. By default, only
 // the bucket owner can configure the website attached to a bucket; however, bucket
 // owners can allow other users to set the website configuration by writing a
@@ -84,12 +85,12 @@ type PutBucketWebsiteInput struct {
 	// This member is required.
 	WebsiteConfiguration *types.WebsiteConfiguration
 
-	// Indicates the algorithm used to create the checksum for the object when using
-	// the SDK. This header will not provide any additional functionality if not using
-	// the SDK. When sending this header, there must be a corresponding x-amz-checksum
-	// or x-amz-trailer header sent. Otherwise, Amazon S3 fails the request with the
-	// HTTP status code 400 Bad Request . For more information, see Checking object
-	// integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
+	// Indicates the algorithm used to create the checksum for the object when you use
+	// the SDK. This header will not provide any additional functionality if you don't
+	// use the SDK. When you send this header, there must be a corresponding
+	// x-amz-checksum or x-amz-trailer header sent. Otherwise, Amazon S3 fails the
+	// request with the HTTP status code 400 Bad Request . For more information, see
+	// Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
 	// in the Amazon S3 User Guide. If you provide an individual checksum, Amazon S3
 	// ignores any provided ChecksumAlgorithm parameter.
 	ChecksumAlgorithm types.ChecksumAlgorithm
@@ -101,9 +102,9 @@ type PutBucketWebsiteInput struct {
 	// or Amazon Web Services SDKs, this field is calculated automatically.
 	ContentMD5 *string
 
-	// The account ID of the expected bucket owner. If the bucket is owned by a
-	// different account, the request fails with the HTTP status code 403 Forbidden
-	// (access denied).
+	// The account ID of the expected bucket owner. If the account ID that you provide
+	// does not match the actual owner of the bucket, the request fails with the HTTP
+	// status code 403 Forbidden (access denied).
 	ExpectedBucketOwner *string
 
 	noSmithyDocumentSerde
@@ -111,7 +112,7 @@ type PutBucketWebsiteInput struct {
 
 func (in *PutBucketWebsiteInput) bindEndpointParams(p *EndpointParameters) {
 	p.Bucket = in.Bucket
-
+	p.UseS3ExpressControlEndpoint = ptr.Bool(true)
 }
 
 type PutBucketWebsiteOutput struct {
@@ -176,6 +177,9 @@ func (c *Client) addOperationPutBucketWebsiteMiddlewares(stack *middleware.Stack
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addPutBucketContextMiddleware(stack); err != nil {
+		return err
+	}
 	if err = addOpPutBucketWebsiteValidationMiddleware(stack); err != nil {
 		return err
 	}
@@ -210,6 +214,9 @@ func (c *Client) addOperationPutBucketWebsiteMiddlewares(stack *middleware.Stack
 		return err
 	}
 	if err = addSerializeImmutableHostnameBucketMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = s3cust.AddExpressDefaultChecksumMiddleware(stack); err != nil {
 		return err
 	}
 	return nil

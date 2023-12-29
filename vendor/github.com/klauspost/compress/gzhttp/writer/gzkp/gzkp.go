@@ -24,6 +24,12 @@ func init() {
 // poolIndex maps a compression level to its index into gzipWriterPools. It
 // assumes that level is a valid gzip compression level.
 func poolIndex(level int) int {
+	if level > gzip.BestCompression {
+		level = gzip.BestCompression
+	}
+	if level < gzip.StatelessCompression {
+		level = gzip.BestSpeed
+	}
 	return level - gzip.StatelessCompression
 }
 

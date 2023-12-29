@@ -13,15 +13,15 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Returns metadata about all versions of the objects in a bucket. You can also
-// use request parameters as selection criteria to return metadata about a subset
-// of all the object versions. To use this operation, you must have permission to
-// perform the s3:ListBucketVersions action. Be aware of the name difference. A
-// 200 OK response can contain valid or invalid XML. Make sure to design your
-// application to parse the contents of the response and handle it appropriately.
-// To use this operation, you must have READ access to the bucket. This action is
-// not supported by Amazon S3 on Outposts. The following operations are related to
-// ListObjectVersions :
+// This operation is not supported by directory buckets. Returns metadata about
+// all versions of the objects in a bucket. You can also use request parameters as
+// selection criteria to return metadata about a subset of all the object versions.
+// To use this operation, you must have permission to perform the
+// s3:ListBucketVersions action. Be aware of the name difference. A 200 OK
+// response can contain valid or invalid XML. Make sure to design your application
+// to parse the contents of the response and handle it appropriately. To use this
+// operation, you must have READ access to the bucket. The following operations are
+// related to ListObjectVersions :
 //   - ListObjectsV2 (https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListObjectsV2.html)
 //   - GetObject (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html)
 //   - PutObject (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObject.html)
@@ -63,9 +63,9 @@ type ListObjectVersionsInput struct {
 	// response.
 	EncodingType types.EncodingType
 
-	// The account ID of the expected bucket owner. If the bucket is owned by a
-	// different account, the request fails with the HTTP status code 403 Forbidden
-	// (access denied).
+	// The account ID of the expected bucket owner. If the account ID that you provide
+	// does not match the actual owner of the bucket, the request fails with the HTTP
+	// status code 403 Forbidden (access denied).
 	ExpectedBucketOwner *string
 
 	// Specifies the key to start with when listing objects in a bucket.
@@ -76,7 +76,7 @@ type ListObjectVersionsInput struct {
 	// will never contain more. If additional keys satisfy the search criteria, but
 	// were not returned because max-keys was exceeded, the response contains true . To
 	// return the additional keys, see key-marker and version-id-marker .
-	MaxKeys int32
+	MaxKeys *int32
 
 	// Specifies the optional fields that you want returned in the response. Fields
 	// that you do not specify are not returned.
@@ -91,11 +91,12 @@ type ListObjectVersionsInput struct {
 
 	// Confirms that the requester knows that they will be charged for the request.
 	// Bucket owners need not specify this parameter in their requests. If either the
-	// source or destination Amazon S3 bucket has Requester Pays enabled, the requester
-	// will pay for corresponding charges to copy the object. For information about
+	// source or destination S3 bucket has Requester Pays enabled, the requester will
+	// pay for corresponding charges to copy the object. For information about
 	// downloading objects from Requester Pays buckets, see Downloading Objects in
 	// Requester Pays Buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
-	// in the Amazon S3 User Guide.
+	// in the Amazon S3 User Guide. This functionality is not supported for directory
+	// buckets.
 	RequestPayer types.RequestPayer
 
 	// Specifies the object version you want to start listing from.
@@ -106,6 +107,7 @@ type ListObjectVersionsInput struct {
 
 func (in *ListObjectVersionsInput) bindEndpointParams(p *EndpointParameters) {
 	p.Bucket = in.Bucket
+	p.Prefix = in.Prefix
 
 }
 
@@ -136,13 +138,13 @@ type ListObjectVersionsOutput struct {
 	// follow-up paginated request by using the NextKeyMarker and NextVersionIdMarker
 	// response parameters as a starting place in another request to return the rest of
 	// the results.
-	IsTruncated bool
+	IsTruncated *bool
 
 	// Marks the last key returned in a truncated response.
 	KeyMarker *string
 
 	// Specifies the maximum number of objects to return.
-	MaxKeys int32
+	MaxKeys *int32
 
 	// The bucket name.
 	Name *string
@@ -162,7 +164,7 @@ type ListObjectVersionsOutput struct {
 	Prefix *string
 
 	// If present, indicates that the requester was successfully charged for the
-	// request.
+	// request. This functionality is not supported for directory buckets.
 	RequestCharged types.RequestCharged
 
 	// Marks the last version of the key returned in a truncated response.
@@ -230,6 +232,9 @@ func (c *Client) addOperationListObjectVersionsMiddlewares(stack *middleware.Sta
 		return err
 	}
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addPutBucketContextMiddleware(stack); err != nil {
 		return err
 	}
 	if err = addOpListObjectVersionsValidationMiddleware(stack); err != nil {

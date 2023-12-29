@@ -898,6 +898,8 @@ func streamdiscoveredJobTargets(qw422016 *qt422016.Writer, num int, tlj *targetL
 				for i, memberNum := range t.clusterMemberNums {
 //line lib/promscrape/targetstatus.qtpl:350
 					if *clusterMemberURLTemplate == "" {
+//line lib/promscrape/targetstatus.qtpl:350
+						qw422016.N().S(`shard-`)
 //line lib/promscrape/targetstatus.qtpl:351
 						qw422016.N().D(memberNum)
 //line lib/promscrape/targetstatus.qtpl:352
@@ -907,7 +909,7 @@ func streamdiscoveredJobTargets(qw422016 *qt422016.Writer, num int, tlj *targetL
 //line lib/promscrape/targetstatus.qtpl:353
 						qw422016.E().S(strings.ReplaceAll(*clusterMemberURLTemplate, "%d", strconv.Itoa(memberNum)))
 //line lib/promscrape/targetstatus.qtpl:353
-						qw422016.N().S(`">`)
+						qw422016.N().S(`" target="_blank">shard-`)
 //line lib/promscrape/targetstatus.qtpl:353
 						qw422016.N().D(memberNum)
 //line lib/promscrape/targetstatus.qtpl:353

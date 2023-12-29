@@ -14,8 +14,9 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Sets the supplied tag-set to an object that already exists in a bucket. A tag
-// is a key-value pair. For more information, see Object Tagging (https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-tagging.html)
+// This operation is not supported by directory buckets. Sets the supplied tag-set
+// to an object that already exists in a bucket. A tag is a key-value pair. For
+// more information, see Object Tagging (https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-tagging.html)
 // . You can associate tags with an object by sending a PUT request against the
 // tagging subresource that is associated with the object. You can retrieve tags by
 // sending a GET request. For more information, see GetObjectTagging (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectTagging.html)
@@ -59,16 +60,18 @@ func (c *Client) PutObjectTagging(ctx context.Context, params *PutObjectTaggingI
 
 type PutObjectTaggingInput struct {
 
-	// The bucket name containing the object. When using this action with an access
-	// point, you must direct requests to the access point hostname. The access point
+	// The bucket name containing the object. Access points - When you use this action
+	// with an access point, you must provide the alias of the access point in place of
+	// the bucket name or specify the access point ARN. When using the access point
+	// ARN, you must direct requests to the access point hostname. The access point
 	// hostname takes the form
 	// AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com. When using this
 	// action with an access point through the Amazon Web Services SDKs, you provide
 	// the access point ARN in place of the bucket name. For more information about
 	// access point ARNs, see Using access points (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html)
-	// in the Amazon S3 User Guide. When you use this action with Amazon S3 on
-	// Outposts, you must direct requests to the S3 on Outposts hostname. The S3 on
-	// Outposts hostname takes the form
+	// in the Amazon S3 User Guide. S3 on Outposts - When you use this action with
+	// Amazon S3 on Outposts, you must direct requests to the S3 on Outposts hostname.
+	// The S3 on Outposts hostname takes the form
 	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com . When you
 	// use this action with S3 on Outposts through the Amazon Web Services SDKs, you
 	// provide the Outposts access point ARN in place of the bucket name. For more
@@ -88,12 +91,12 @@ type PutObjectTaggingInput struct {
 	// This member is required.
 	Tagging *types.Tagging
 
-	// Indicates the algorithm used to create the checksum for the object when using
-	// the SDK. This header will not provide any additional functionality if not using
-	// the SDK. When sending this header, there must be a corresponding x-amz-checksum
-	// or x-amz-trailer header sent. Otherwise, Amazon S3 fails the request with the
-	// HTTP status code 400 Bad Request . For more information, see Checking object
-	// integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
+	// Indicates the algorithm used to create the checksum for the object when you use
+	// the SDK. This header will not provide any additional functionality if you don't
+	// use the SDK. When you send this header, there must be a corresponding
+	// x-amz-checksum or x-amz-trailer header sent. Otherwise, Amazon S3 fails the
+	// request with the HTTP status code 400 Bad Request . For more information, see
+	// Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
 	// in the Amazon S3 User Guide. If you provide an individual checksum, Amazon S3
 	// ignores any provided ChecksumAlgorithm parameter.
 	ChecksumAlgorithm types.ChecksumAlgorithm
@@ -103,18 +106,19 @@ type PutObjectTaggingInput struct {
 	// calculated automatically.
 	ContentMD5 *string
 
-	// The account ID of the expected bucket owner. If the bucket is owned by a
-	// different account, the request fails with the HTTP status code 403 Forbidden
-	// (access denied).
+	// The account ID of the expected bucket owner. If the account ID that you provide
+	// does not match the actual owner of the bucket, the request fails with the HTTP
+	// status code 403 Forbidden (access denied).
 	ExpectedBucketOwner *string
 
 	// Confirms that the requester knows that they will be charged for the request.
 	// Bucket owners need not specify this parameter in their requests. If either the
-	// source or destination Amazon S3 bucket has Requester Pays enabled, the requester
-	// will pay for corresponding charges to copy the object. For information about
+	// source or destination S3 bucket has Requester Pays enabled, the requester will
+	// pay for corresponding charges to copy the object. For information about
 	// downloading objects from Requester Pays buckets, see Downloading Objects in
 	// Requester Pays Buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
-	// in the Amazon S3 User Guide.
+	// in the Amazon S3 User Guide. This functionality is not supported for directory
+	// buckets.
 	RequestPayer types.RequestPayer
 
 	// The versionId of the object that the tag-set will be added to.
@@ -194,6 +198,9 @@ func (c *Client) addOperationPutObjectTaggingMiddlewares(stack *middleware.Stack
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addPutBucketContextMiddleware(stack); err != nil {
+		return err
+	}
 	if err = addOpPutObjectTaggingValidationMiddleware(stack); err != nil {
 		return err
 	}
@@ -228,6 +235,9 @@ func (c *Client) addOperationPutObjectTaggingMiddlewares(stack *middleware.Stack
 		return err
 	}
 	if err = addSerializeImmutableHostnameBucketMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = s3cust.AddExpressDefaultChecksumMiddleware(stack); err != nil {
 		return err
 	}
 	return nil

@@ -33,7 +33,7 @@ import (
 )
 
 var (
-	httpListenAddr   = flag.String("httpListenAddr", ":8427", "TCP address to listen for http connections. See also -httpListenAddr.useProxyProtocol")
+	httpListenAddr   = flag.String("httpListenAddr", ":8427", "TCP address to listen for http connections. See also -tls and -httpListenAddr.useProxyProtocol")
 	useProxyProtocol = flag.Bool("httpListenAddr.useProxyProtocol", false, "Whether to use proxy protocol for connections accepted at -httpListenAddr . "+
 		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . "+
 		"With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing")
@@ -164,7 +164,7 @@ func processUserRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 
 func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 	u := normalizeURL(r.URL)
-	up, hc, dropSrcPathPrefixParts := ui.getURLPrefixAndHeaders(u)
+	up, hc := ui.getURLPrefixAndHeaders(u)
 	isDefault := false
 	if up == nil {
 		if ui.DefaultURL == nil {
@@ -198,7 +198,7 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 			query.Set("request_path", u.String())
 			targetURL.RawQuery = query.Encode()
 		} else { // Update path for regular routes.
-			targetURL = mergeURLs(targetURL, u, dropSrcPathPrefixParts)
+			targetURL = mergeURLs(targetURL, u, up.dropSrcPathPrefixParts)
 		}
 		ok := tryProcessingRequest(w, r, targetURL, hc, up.retryStatusCodes, ui.httpTransport)
 		bu.put()

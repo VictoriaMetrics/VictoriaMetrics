@@ -12,11 +12,12 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/urfave/cli/v2"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/backoff"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/native"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/remoteread"
-	"github.com/urfave/cli/v2"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/influx"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/opentsdb"
@@ -150,9 +151,10 @@ func main() {
 						src: rr,
 						dst: importer,
 						filter: remoteReadFilter{
-							timeStart: c.Timestamp(remoteReadFilterTimeStart),
-							timeEnd:   c.Timestamp(remoteReadFilterTimeEnd),
-							chunk:     c.String(remoteReadStepInterval),
+							timeStart:   c.Timestamp(remoteReadFilterTimeStart),
+							timeEnd:     c.Timestamp(remoteReadFilterTimeEnd),
+							chunk:       c.String(remoteReadStepInterval),
+							timeReverse: c.Bool(remoteReadFilterTimeReverse),
 						},
 						cc:        c.Int(remoteReadConcurrency),
 						isSilent:  c.Bool(globalSilent),
@@ -234,10 +236,11 @@ func main() {
 						rateLimit:    c.Int64(vmRateLimit),
 						interCluster: c.Bool(vmInterCluster),
 						filter: native.Filter{
-							Match:     c.String(vmNativeFilterMatch),
-							TimeStart: c.String(vmNativeFilterTimeStart),
-							TimeEnd:   c.String(vmNativeFilterTimeEnd),
-							Chunk:     c.String(vmNativeStepInterval),
+							Match:       c.String(vmNativeFilterMatch),
+							TimeStart:   c.String(vmNativeFilterTimeStart),
+							TimeEnd:     c.String(vmNativeFilterTimeEnd),
+							Chunk:       c.String(vmNativeStepInterval),
+							TimeReverse: c.Bool(vmNativeFilterTimeReverse),
 						},
 						src: &native.Client{
 							AuthCfg:     srcAuthConfig,
@@ -251,11 +254,11 @@ func main() {
 							ExtraLabels: dstExtraLabels,
 							HTTPClient:  dstHTTPClient,
 						},
-						backoff:        backoff.New(),
-						cc:             c.Int(vmConcurrency),
-						disableRetries: c.Bool(vmNativeDisableRetries),
-						isSilent:       c.Bool(globalSilent),
-						isNative:       !c.Bool(vmNativeDisableBinaryProtocol),
+						backoff:                  backoff.New(),
+						cc:                       c.Int(vmConcurrency),
+						disablePerMetricRequests: c.Bool(vmNativeDisablePerMetricMigration),
+						isSilent:                 c.Bool(globalSilent),
+						isNative:                 !c.Bool(vmNativeDisableBinaryProtocol),
 					}
 					return p.run(ctx)
 				},

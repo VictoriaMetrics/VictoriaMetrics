@@ -13,12 +13,13 @@ aliases:
 **Prerequisites**
 - *vmanomaly* is a part of enterprise package. You can get license key [here](https://victoriametrics.com/products/enterprise/trial) to try this tutorial.
 - In the tutorial, we'll be using the following VictoriaMetrics components:
-  -  [VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html) (v.1.93.2)
-  -  [vmalert](https://docs.victoriametrics.com/vmalert.html) (v.1.93.2)
-  -  [vmagent](https://docs.victoriametrics.com/vmagent.html) (v.1.93.2)
+  -  [VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html) (v.1.96.0)
+  -  [vmalert](https://docs.victoriametrics.com/vmalert.html) (v.1.96.0)
+  -  [vmagent](https://docs.victoriametrics.com/vmagent.html) (v.1.96.0)
   
   If you're unfamiliar with the listed components, please read [QuickStart](https://docs.victoriametrics.com/Quick-Start.html) first.
-- It is assumed that you are familiar with [Grafana](https://grafana.com/)(v.9.3.1) and [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/).
+- It is assumed that you are familiar with [Grafana](https://grafana.com/)(v.10.2.1) and [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/).
+
 ## 1. What is vmanomaly?
 *VictoriaMetrics Anomaly Detection* ([vmanomaly](https://docs.victoriametrics.com/vmanomaly.html)) is a service that continuously scans time series stored in VictoriaMetrics and detects unexpected changes within data patterns in real-time. It does so by utilizing user-configurable machine learning models.
 
@@ -90,7 +91,7 @@ ______________________________
 
 ## 5. vmanomaly configuration and parameter description
 **Parameter description**:
-There are 4 main sections in config file:
+There are 4 required sections in config file:
 
 `scheduler` - defines how often to run and make inferences, as well as what timerange to use to train the model. 
 
@@ -113,9 +114,9 @@ Let's look into parameters in each section:
     Here is the previous 14 days of data to put into the model training. 
 
 * `model`
-    * `class` - what model to run. You can use your own model or choose from built-in models: Seasonal Trend Decomposition, Facebook Prophet, ZScore, Rolling Quantile, Holt-Winters and ARIMA.
+    * `class` - what model to run. You can use your own model or choose from built-in models: Seasonal Trend Decomposition, Facebook Prophet, ZScore, Rolling Quantile, Holt-Winters, Isolation Forest and ARIMA.  Here we use Facebook Prophet (`model.prophet.ProphetModel`).
     
-    Here we use Facebook Prophet with default parameters (`model.prophet.ProphetModel`). You can put parameters that are available in their [docs](https://facebook.github.io/prophet/docs/quick_start.html).
+    * `args` - Model specific parameters, represented as YAML dictionary in a simple `key: value` form. For example, you can use parameters that are available in [FB Prophet](https://facebook.github.io/prophet/docs/quick_start.html).
     
 * `reader`
   * `datasource_url` - Data source. An HTTP endpoint that serves `/api/v1/query_range`.
@@ -139,7 +140,8 @@ scheduler:
 
 model:
   class: "model.prophet.ProphetModel"
-  interval_width: 0.98
+  args:
+    interval_width: 0.98
 
 reader:
   datasource_url: "http://victoriametrics:8428/"
@@ -264,7 +266,6 @@ Let's wrap it all up together into the `docker-compose.yml` file.
 
 <div class="with-copy" markdown="1">
 
-{% raw %}
 ``` yaml
 services:
   vmagent:
@@ -286,7 +287,7 @@ services:
   
   victoriametrics:
     container_name: victoriametrics
-    image: victoriametrics/victoria-metrics:v1.93.2
+    image: victoriametrics/victoria-metrics:v1.96.0
     ports:
       - 8428:8428
       - 8089:8089
@@ -309,7 +310,7 @@ services:
   
   grafana:
     container_name: grafana
-    image: grafana/grafana-oss:9.3.1
+    image: grafana/grafana-oss:10.2.1
     depends_on:
       - "victoriametrics"
     ports:
@@ -346,7 +347,7 @@ services:
     restart: always
   vmanomaly:
     container_name: vmanomaly
-    image: us-docker.pkg.dev/victoriametrics-test/public/vmanomaly-trial:v1.5.0
+    image: us-docker.pkg.dev/victoriametrics-test/public/vmanomaly-trial:v1.7.2
     depends_on:
       - "victoriametrics"
     ports:
@@ -379,7 +380,6 @@ volumes:
 networks:
   vm_net:
 ```
-{% endraw %}
 
 </div>
 

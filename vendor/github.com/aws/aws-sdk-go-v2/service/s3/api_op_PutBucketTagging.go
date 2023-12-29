@@ -11,17 +11,19 @@ import (
 	s3cust "github.com/aws/aws-sdk-go-v2/service/s3/internal/customizations"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/smithy-go/middleware"
+	"github.com/aws/smithy-go/ptr"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Sets the tags for a bucket. Use tags to organize your Amazon Web Services bill
-// to reflect your own cost structure. To do this, sign up to get your Amazon Web
-// Services account bill with tag key values included. Then, to see the cost of
-// combined resources, organize your billing information according to resources
-// with the same tag key values. For example, you can tag several resources with a
-// specific application name, and then organize your billing information to see the
-// total cost of that application across several services. For more information,
-// see Cost Allocation and Tagging (https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/cost-alloc-tags.html)
+// This operation is not supported by directory buckets. Sets the tags for a
+// bucket. Use tags to organize your Amazon Web Services bill to reflect your own
+// cost structure. To do this, sign up to get your Amazon Web Services account bill
+// with tag key values included. Then, to see the cost of combined resources,
+// organize your billing information according to resources with the same tag key
+// values. For example, you can tag several resources with a specific application
+// name, and then organize your billing information to see the total cost of that
+// application across several services. For more information, see Cost Allocation
+// and Tagging (https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/cost-alloc-tags.html)
 // and Using Cost Allocation in Amazon S3 Bucket Tags (https://docs.aws.amazon.com/AmazonS3/latest/userguide/CostAllocTagging.html)
 // . When this operation sets the tags for a bucket, it will overwrite any current
 // tags the bucket already has. You cannot use this operation to add tags to an
@@ -73,12 +75,12 @@ type PutBucketTaggingInput struct {
 	// This member is required.
 	Tagging *types.Tagging
 
-	// Indicates the algorithm used to create the checksum for the object when using
-	// the SDK. This header will not provide any additional functionality if not using
-	// the SDK. When sending this header, there must be a corresponding x-amz-checksum
-	// or x-amz-trailer header sent. Otherwise, Amazon S3 fails the request with the
-	// HTTP status code 400 Bad Request . For more information, see Checking object
-	// integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
+	// Indicates the algorithm used to create the checksum for the object when you use
+	// the SDK. This header will not provide any additional functionality if you don't
+	// use the SDK. When you send this header, there must be a corresponding
+	// x-amz-checksum or x-amz-trailer header sent. Otherwise, Amazon S3 fails the
+	// request with the HTTP status code 400 Bad Request . For more information, see
+	// Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
 	// in the Amazon S3 User Guide. If you provide an individual checksum, Amazon S3
 	// ignores any provided ChecksumAlgorithm parameter.
 	ChecksumAlgorithm types.ChecksumAlgorithm
@@ -90,9 +92,9 @@ type PutBucketTaggingInput struct {
 	// or Amazon Web Services SDKs, this field is calculated automatically.
 	ContentMD5 *string
 
-	// The account ID of the expected bucket owner. If the bucket is owned by a
-	// different account, the request fails with the HTTP status code 403 Forbidden
-	// (access denied).
+	// The account ID of the expected bucket owner. If the account ID that you provide
+	// does not match the actual owner of the bucket, the request fails with the HTTP
+	// status code 403 Forbidden (access denied).
 	ExpectedBucketOwner *string
 
 	noSmithyDocumentSerde
@@ -100,7 +102,7 @@ type PutBucketTaggingInput struct {
 
 func (in *PutBucketTaggingInput) bindEndpointParams(p *EndpointParameters) {
 	p.Bucket = in.Bucket
-
+	p.UseS3ExpressControlEndpoint = ptr.Bool(true)
 }
 
 type PutBucketTaggingOutput struct {
@@ -165,6 +167,9 @@ func (c *Client) addOperationPutBucketTaggingMiddlewares(stack *middleware.Stack
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addPutBucketContextMiddleware(stack); err != nil {
+		return err
+	}
 	if err = addOpPutBucketTaggingValidationMiddleware(stack); err != nil {
 		return err
 	}
@@ -199,6 +204,9 @@ func (c *Client) addOperationPutBucketTaggingMiddlewares(stack *middleware.Stack
 		return err
 	}
 	if err = addSerializeImmutableHostnameBucketMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = s3cust.AddExpressDefaultChecksumMiddleware(stack); err != nil {
 		return err
 	}
 	return nil

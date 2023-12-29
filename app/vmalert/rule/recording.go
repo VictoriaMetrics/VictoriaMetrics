@@ -194,6 +194,9 @@ func (rr *RecordingRule) toTimeSeries(m datasource.Metric) prompbmarshal.TimeSer
 	labels["__name__"] = rr.Name
 	// override existing labels with configured ones
 	for k, v := range rr.Labels {
+		if _, ok := labels[k]; ok && labels[k] != v {
+			labels[fmt.Sprintf("exported_%s", k)] = labels[k]
+		}
 		labels[k] = v
 	}
 	return newTimeSeries(m.Values, m.Timestamps, labels)
@@ -203,7 +206,7 @@ func (rr *RecordingRule) toTimeSeries(m datasource.Metric) prompbmarshal.TimeSer
 func (rr *RecordingRule) updateWith(r Rule) error {
 	nr, ok := r.(*RecordingRule)
 	if !ok {
-		return fmt.Errorf("BUG: attempt to update recroding rule with wrong type %#v", r)
+		return fmt.Errorf("BUG: attempt to update recording rule with wrong type %#v", r)
 	}
 	rr.Expr = nr.Expr
 	rr.Labels = nr.Labels

@@ -11,13 +11,15 @@ import (
 	s3cust "github.com/aws/aws-sdk-go-v2/service/s3/internal/customizations"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/smithy-go/middleware"
+	"github.com/aws/smithy-go/ptr"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Sets the permissions on an existing bucket using access control lists (ACL).
-// For more information, see Using ACLs (https://docs.aws.amazon.com/AmazonS3/latest/dev/S3_ACLs_UsingACLs.html)
-// . To set the ACL of a bucket, you must have WRITE_ACP permission. You can use
-// one of the following two ways to set a bucket's permissions:
+// This operation is not supported by directory buckets. Sets the permissions on
+// an existing bucket using access control lists (ACL). For more information, see
+// Using ACLs (https://docs.aws.amazon.com/AmazonS3/latest/dev/S3_ACLs_UsingACLs.html)
+// . To set the ACL of a bucket, you must have the WRITE_ACP permission. You can
+// use one of the following two ways to set a bucket's permissions:
 //   - Specify the ACL in the request body
 //   - Specify permissions using request headers
 //
@@ -124,12 +126,12 @@ type PutBucketAclInput struct {
 	// Contains the elements that set the ACL permissions for an object per grantee.
 	AccessControlPolicy *types.AccessControlPolicy
 
-	// Indicates the algorithm used to create the checksum for the object when using
-	// the SDK. This header will not provide any additional functionality if not using
-	// the SDK. When sending this header, there must be a corresponding x-amz-checksum
-	// or x-amz-trailer header sent. Otherwise, Amazon S3 fails the request with the
-	// HTTP status code 400 Bad Request . For more information, see Checking object
-	// integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
+	// Indicates the algorithm used to create the checksum for the object when you use
+	// the SDK. This header will not provide any additional functionality if you don't
+	// use the SDK. When you send this header, there must be a corresponding
+	// x-amz-checksum or x-amz-trailer header sent. Otherwise, Amazon S3 fails the
+	// request with the HTTP status code 400 Bad Request . For more information, see
+	// Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
 	// in the Amazon S3 User Guide. If you provide an individual checksum, Amazon S3
 	// ignores any provided ChecksumAlgorithm parameter.
 	ChecksumAlgorithm types.ChecksumAlgorithm
@@ -141,9 +143,9 @@ type PutBucketAclInput struct {
 	// Amazon Web Services SDKs, this field is calculated automatically.
 	ContentMD5 *string
 
-	// The account ID of the expected bucket owner. If the bucket is owned by a
-	// different account, the request fails with the HTTP status code 403 Forbidden
-	// (access denied).
+	// The account ID of the expected bucket owner. If the account ID that you provide
+	// does not match the actual owner of the bucket, the request fails with the HTTP
+	// status code 403 Forbidden (access denied).
 	ExpectedBucketOwner *string
 
 	// Allows grantee the read, write, read ACP, and write ACP permissions on the
@@ -169,7 +171,7 @@ type PutBucketAclInput struct {
 
 func (in *PutBucketAclInput) bindEndpointParams(p *EndpointParameters) {
 	p.Bucket = in.Bucket
-
+	p.UseS3ExpressControlEndpoint = ptr.Bool(true)
 }
 
 type PutBucketAclOutput struct {
@@ -234,6 +236,9 @@ func (c *Client) addOperationPutBucketAclMiddlewares(stack *middleware.Stack, op
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addPutBucketContextMiddleware(stack); err != nil {
+		return err
+	}
 	if err = addOpPutBucketAclValidationMiddleware(stack); err != nil {
 		return err
 	}
@@ -268,6 +273,9 @@ func (c *Client) addOperationPutBucketAclMiddlewares(stack *middleware.Stack, op
 		return err
 	}
 	if err = addSerializeImmutableHostnameBucketMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = s3cust.AddExpressDefaultChecksumMiddleware(stack); err != nil {
 		return err
 	}
 	return nil
