@@ -1,11 +1,12 @@
 ---
 sort: 4
 title: Writer Config
-weight: 5
+weight: 4
 menu:
   docs:
     parent: "docs"
-    weight: 5
+    weight: 4
+    # sort: 4
 aliases:
   - /anomaly-detection/docs/writer.html
 ---

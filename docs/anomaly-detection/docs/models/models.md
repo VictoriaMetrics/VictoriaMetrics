@@ -1,12 +1,13 @@
 ---
-sort: 1
-weight: 2
+sort: 1.1
+weight: 1.1
 title: Built-in Models
 # disableToc: true
 menu:
   docs:
     parent: "models"
-    weight: 2
+    sort: 1.1
+    # weight: 1.1
 aliases:
   - /anomaly-detection/docs/models/models.html
 ---

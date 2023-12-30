@@ -1,12 +1,13 @@
 ---
-sort: 2
-weight: 1
+sort: 1.2
+weight: 1.2
 title: Custom Model Usage
 # disableToc: true
 menu:
   docs:
     parent: "models"
-    weight: 1
+    weight: 1.2
+    # sort: 1.2
 aliases:
   - /anomaly-detection/docs/models/custom_model.html
 ---

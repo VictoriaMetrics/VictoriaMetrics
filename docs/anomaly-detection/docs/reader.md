@@ -1,11 +1,12 @@
 ---
-sort: 3
+sort: 2
 title: Reader Config
-weight: 5
+weight: 2
 menu:
   docs:
     parent: "docs"
-    weight: 5
+    # sort: 2
+    weight: 2
 aliases:
   - /anomaly-detection/docs/reader.html
 ---

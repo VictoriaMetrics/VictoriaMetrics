@@ -28,7 +28,7 @@ Explore the integral components that configure VictoriaMetrics Anomaly Detection
 
 ## Practical Guides and Installation
 Kickstart your journey with our guides and installation instructions:
-* [Quick Start](/guides/guide-vmanomaly-vmalert.html) - Set up anomaly detection and alerting
+* [Quick Start](/anomaly-detection/guides/guide-vmanomaly-vmalert.html) - Set up anomaly detection and alerting
 * Installation Methods
     - [Docker guide](../vmanomaly.md#run-vmanomaly-docker-container)
     - [Helm charts](https://github.com/VictoriaMetrics/helm-charts/tree/master/charts/victoria-metrics-anomaly)

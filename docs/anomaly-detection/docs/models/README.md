@@ -1,13 +1,12 @@
 ---
-weight: 1
 title: Model Config
+weight: 1
 sort: 1
-# disableToc: true
 menu:
   docs:
     parent: "docs"
     weight: 1
-    sort: 1
+    # sort: 1
 aliases:
   - /anomaly-detection/docs/models.html
 ---

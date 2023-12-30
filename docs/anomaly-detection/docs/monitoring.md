@@ -6,6 +6,7 @@ menu:
   docs:
     parent: "docs"
     weight: 5
+    # sort: 5
 aliases:
   - /anomaly-detection/docs/monitoring.html
 ---

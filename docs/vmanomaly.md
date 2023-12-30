@@ -12,12 +12,13 @@ aliases:
 
 # vmanomaly
 
-**_vmanomaly is a part of [enterprise package](https://docs.victoriametrics.com/enterprise.html). You need to request a [free trial license](https://victoriametrics.com/products/enterprise/trial/) for evaluation.
-Please [contact us](https://victoriametrics.com/contact-us/) to find out more._**
+**_vmanomaly_ is a part of [enterprise package](https://docs.victoriametrics.com/enterprise.html). You need to request a [free trial license](https://victoriametrics.com/products/enterprise/trial/) for evaluation.**
+
+Please head to to [Anomaly Detection section](/anomaly-detection) to find out more.
 
 ## About
 
-**VictoriaMetrics Anomaly Detection** is a service that continuously scans VictoriaMetrics time
+**VictoriaMetrics Anomaly Detection** (or shortly, `vmanomaly`) is a service that continuously scans VictoriaMetrics time
 series and detects unexpected changes within data patterns in real-time. It does so by utilizing
 user-configurable machine learning models.
 
@@ -48,7 +49,8 @@ processes in parallel, each using its own config.
 
 ## Models
 
-Currently, vmanomaly ships with a few common models:
+Currently, vmanomaly ships with a set of built-in models:
+> For a detailed description, see [model section](/anomaly-detection/docs/models)
 
 1. **ZScore**
 
@@ -128,17 +130,19 @@ optionally preserving labels).
 ## Usage
 > Starting from v1.5.0, vmanomaly requires a license key to run. You can obtain a trial license key [here](https://victoriametrics.com/products/enterprise/trial/).
 
-> See [Getting started guide](https://docs.victoriametrics.com/guides/guide-vmanomaly-vmalert.html).
+> See [Getting started guide](anomaly-detection/guides/guide-vmanomaly-vmalert.html).
 
 ### Config file
 There are 4 required sections in config file:
 
-* `scheduler` - defines how often to run and make inferences, as well as what timerange to use to train the model. 
-* `model` - specific model parameters and configurations, 
-* `reader` - how to read data and where it is located
-* `writer` - where and how to write the generated output.
+* [`scheduler`](/anomaly-detection/docs/scheduler.html) - defines how often to run and make inferences, as well as what timerange to use to train the model. 
+* [`model`](/anomaly-detection/docs/models) - specific model parameters and configurations, 
+* [`reader`](/anomaly-detection/docs/reader.html) - how to read data and where it is located
+* [`writer`](/anomaly-detection/docs/writer.html) - where and how to write the generated output.
 
 [`monitoring`](#monitoring) - defines how to monitor work of *vmanomaly* service. This config section is *optional*.
+
+> For a detailed description, see [config sections](/anomaly-detection/docs)
 
 #### Config example
 Here is an example of config file that will run FB Prophet model, that will be retrained every 2 hours on 14 days of previous data. It will generate inference (including `anomaly_score` metric) every 1 minute.
@@ -170,6 +174,8 @@ writer:
 
 *vmanomaly* can be monitored by using push or pull approach.
 It can push metrics to VictoriaMetrics or expose metrics in Prometheus exposition format.
+
+> For a detailed description, see [monitoring section](/anomaly-detection/docs/monitoring.html)
 
 #### Push approach
 

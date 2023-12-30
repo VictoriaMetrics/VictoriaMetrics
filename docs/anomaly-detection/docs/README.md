@@ -1,12 +1,13 @@
 ---
 sort: 1
 title: Docs
-weight: 5
+weight: 1
 menu:
   docs:
     identifier: vmanomaly-docs
     parent: "anomaly-detection"
-    weight: 5
+    weight: 1
+    # sort: 1
 aliases:
   - /anomaly-detection/docs/
   - /anomaly-detection/docs/index.html

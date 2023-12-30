@@ -1,11 +1,12 @@
 ---
-sort: 2
+sort: 3
 title: Scheduler Config
-weight: 5
+weight: 3
 menu:
   docs:
     parent: "docs"
-    weight: 5
+    weight: 3
+    # sort: 3
 aliases:
   - /anomaly-detection/docs/scheduler.html
 ---
