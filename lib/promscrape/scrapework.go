@@ -833,9 +833,9 @@ func (sw *scrapeWork) sendStaleSeries(lastScrape, currScrape string, timestamp i
 	if addAutoSeries {
 		am := &autoMetrics{}
 		sw.addAutoMetrics(am, wc, timestamp)
+		setStaleMarkersForRows(wc.writeRequest.Timeseries)
+		sw.pushData(sw.Config.AuthToken, &wc.writeRequest)
 	}
-	setStaleMarkersForRows(wc.writeRequest.Timeseries)
-	sw.pushData(sw.Config.AuthToken, &wc.writeRequest)
 }
 
 func setStaleMarkersForRows(series []prompbmarshal.TimeSeries) {

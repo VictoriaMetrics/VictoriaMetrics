@@ -417,14 +417,6 @@ func (gw *groupWatcher) getObjectByRoleLocked(role, namespace, name string) obje
 }
 
 func (gw *groupWatcher) startWatchersForRole(role string, aw *apiWatcher) {
-	if role == "endpoints" || role == "endpointslice" {
-		// endpoints and endpointslice watchers query pod and service objects. So start watchers for these roles as well.
-		gw.startWatchersForRole("pod", nil)
-		gw.startWatchersForRole("service", nil)
-	}
-	if gw.attachNodeMetadata && (role == "pod" || role == "endpoints" || role == "endpointslice") {
-		gw.startWatchersForRole("node", nil)
-	}
 	paths := getAPIPathsWithNamespaces(role, gw.namespaces, gw.selectors)
 	for _, path := range paths {
 		apiURL := gw.apiServer + path
@@ -450,6 +442,14 @@ func (gw *groupWatcher) startWatchersForRole(role string, aw *apiWatcher) {
 				go uw.recreateScrapeWorks()
 			}
 		}
+	}
+	if role == "endpoints" || role == "endpointslice" {
+		// endpoints and endpointslice watchers query pod and service objects. So start watchers for these roles as well.
+		gw.startWatchersForRole("pod", nil)
+		gw.startWatchersForRole("service", nil)
+	}
+	if gw.attachNodeMetadata && (role == "pod" || role == "endpoints" || role == "endpointslice") {
+		gw.startWatchersForRole("node", nil)
 	}
 }
 
