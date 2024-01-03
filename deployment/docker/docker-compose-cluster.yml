@@ -17,7 +17,7 @@ services:
 
   grafana:
     container_name: grafana
-    image: grafana/grafana:9.2.7
+    image: grafana/grafana:9.5.15
     depends_on:
       - "vmauth"
     ports:

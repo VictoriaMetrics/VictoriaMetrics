@@ -181,25 +181,17 @@ package-via-docker-386:
 remove-docker-images:
 	docker image ls --format '{{.ID}}' | xargs docker image rm -f
 
-download-vm-datasource:
-	export LATEST_VERSION=$(shell curl -s https://api.github.com/repos/VictoriaMetrics/grafana-datasource/releases/latest | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -1); \
-	curl -L https://github.com/VictoriaMetrics/grafana-datasource/releases/download/$${LATEST_VERSION}/victoriametrics-datasource-$${LATEST_VERSION}.tar.gz -o plugin.tar.gz && \
-	tar -xf plugin.tar.gz -C deployment/docker/provisioning/plugins && \
-	rm plugin.tar.gz
-
 docker-single-up:
 	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose.yml up -d
 
 docker-single-down:
 	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose.yml down -v
 
-docker-single-vm-datasource-up: download-vm-datasource
-	export LATEST_VERSION=$(shell curl -s https://api.github.com/repos/VictoriaMetrics/grafana-datasource/releases/latest | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -1); \
-	VM_DS_VER=$$LATEST_VERSION $(DOCKER_COMPOSE) -f deployment/docker/docker-compose.yml -f deployment/docker/docker-compose-with-datasource.yml up -d
+docker-single-vm-datasource-up:
+	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose.yml -f deployment/docker/docker-compose-with-datasource.yml up -d
 
 docker-single-vm-datasource-down:
-	export LATEST_VERSION=$(shell curl -s https://api.github.com/repos/VictoriaMetrics/grafana-datasource/releases/latest | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -1); \
-	VM_DS_VER=$$LATEST_VERSION $(DOCKER_COMPOSE) -f deployment/docker/docker-compose.yml -f deployment/docker/docker-compose-with-datasource.yml down -v
+	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose.yml -f deployment/docker/docker-compose-with-datasource.yml down -v
 
 docker-cluster-up:
 	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose-cluster.yml up -d
@@ -207,10 +199,8 @@ docker-cluster-up:
 docker-cluster-down:
 	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose-cluster.yml down -v
 
-docker-cluster-vm-datasource-up: download-vm-datasource
-	export LATEST_VERSION=$(shell curl -s https://api.github.com/repos/VictoriaMetrics/grafana-datasource/releases/latest | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -1); \
-	VM_DS_VER=$$LATEST_VERSION $(DOCKER_COMPOSE) -f deployment/docker/docker-compose-cluster.yml -f deployment/docker/docker-compose-cluster-with-datasource.yml up -d
+docker-cluster-vm-datasource-up:
+	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose-cluster.yml -f deployment/docker/docker-compose-cluster-with-datasource.yml up -d
 
 docker-cluster-vm-datasource-down:
-	export LATEST_VERSION=$(shell curl -s https://api.github.com/repos/VictoriaMetrics/grafana-datasource/releases/latest | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -1); \
-	VM_DS_VER=$$LATEST_VERSION $(DOCKER_COMPOSE) -f deployment/docker/docker-compose-cluster.yml -f deployment/docker/docker-compose-cluster-with-datasource.yml down -v
+	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose-cluster.yml -f deployment/docker/docker-compose-cluster-with-datasource.yml down -v
