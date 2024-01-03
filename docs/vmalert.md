@@ -100,6 +100,8 @@ See the full list of configuration flags in [configuration](#configuration) sect
 
 If you run multiple `vmalert` services for the same datastore or AlertManager - do not forget
 to specify different `-external.label` command-line flags in order to define which `vmalert` generated rules or alerts.
+If rule result metrics have label that conflict with `-external.label`, `vmalert` will automatically rename
+it with prefix `exported_`.
 
 Configuration for [recording](https://prometheus.io/docs/prometheus/latest/configuration/recording_rules/)
 and [alerting](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/) rules is very
@@ -533,7 +535,7 @@ In case when you want to spread the load on these components - add balancers bef
 
 #### HA vmalert
 
-For HA user can run multiple identically configured `vmalert` instances.
+For High Availability(HA) user can run multiple identically configured `vmalert` instances.
 It means all of them will execute the same rules, write state and results to
 the same destinations, and send alert notifications to multiple configured
 Alertmanagers.
@@ -896,33 +898,6 @@ max(vmalert_alerting_rules_last_evaluation_series_fetched) by(group, alertname) 
 See more details [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4039).
 This feature is available only if vmalert is using VictoriaMetrics v1.90 or higher as a datasource.
 
-### Series with the same labelset
-
-vmalert can produce the following error message during rules evaluation:
-```
-result contains metrics with the same labelset after applying rule labels
-```
-
-The error means there is a collision between [time series](https://docs.victoriametrics.com/keyConcepts.html#time-series)
-after applying extra labels to result.
-
-For example, a rule with `expr: foo > 0` returns two distinct time series in response:
-```
-foo{bar="baz"} 1
-foo{bar="qux"} 2
-```
-
-If user configures `-external.label=bar=baz` cmd-line flag to enforce
-adding `bar="baz"` label-value pair, then time series won't be distinct anymore:
-```
-foo{bar="baz"} 1
-foo{bar="baz"} 2 # 'bar' label was overriden by `-external.label=bar=baz
-```
-
-The same issue can be caused by collision of configured `labels` on [Group](#groups) or [Rule](#rules) levels.
-To fix it one should avoid collisions by carefully picking label overrides in configuration.
-
-
 ## Security
 
 See general recommendations regarding security [here](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#security).
@@ -1003,11 +978,13 @@ The shortlist of configuration flags is the following:
   -datasource.maxIdleConnections int
      Defines the number of idle (keep-alive connections) to each configured datasource. Consider setting this value equal to the value: groups_total * group.concurrency. Too low a value may result in a high number of sockets in TIME_WAIT state. (default 100)
   -datasource.oauth2.clientID string
-     Optional OAuth2 clientID to use for -datasource.url. 
+     Optional OAuth2 clientID to use for -datasource.url
   -datasource.oauth2.clientSecret string
-     Optional OAuth2 clientSecret to use for -datasource.url.
+     Optional OAuth2 clientSecret to use for -datasource.url
   -datasource.oauth2.clientSecretFile string
-     Optional OAuth2 clientSecretFile to use for -datasource.url. 
+     Optional OAuth2 clientSecretFile to use for -datasource.url
+  -datasource.oauth2.endpointParams string
+     Optional OAuth2 endpoint parameters to use for -datasource.url . The endpoint parameters must be set in JSON format: {"param1":"value1",...,"paramN":"valueN"}
   -datasource.oauth2.scopes string
      Optional OAuth2 scopes to use for -datasource.url. Scopes must be delimited by ';'
   -datasource.oauth2.tokenUrl string
@@ -1086,7 +1063,7 @@ The shortlist of configuration flags is the following:
   -httpAuth.username string
      Username for HTTP server's Basic Auth. The authentication is disabled if empty. See also -httpAuth.password
   -httpListenAddr string
-     Address to listen for http connections. See also -httpListenAddr.useProxyProtocol (default ":8880")
+     Address to listen for http connections. See also -tls and -httpListenAddr.useProxyProtocol (default ":8880")
   -httpListenAddr.useProxyProtocol
      Whether to use proxy protocol for connections accepted at -httpListenAddr . See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing
   -internStringCacheExpireDuration duration
@@ -1111,6 +1088,8 @@ The shortlist of configuration flags is the following:
      Allows renaming fields in JSON formatted logs. Example: "ts:timestamp,msg:message" renames "ts" to "timestamp" and "msg" to "message". Supported fields: ts, level, caller, msg
   -loggerLevel string
      Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC (default "INFO")
+  -loggerMaxArgLen int
+     The maximum length of a single logged argument. Longer arguments are replaced with 'arg_start..arg_end', where 'arg_start' and 'arg_end' is prefix and suffix of the arg with the length not exceeding -loggerMaxArgLen / 2 (default 1000)
   -loggerOutput string
      Output for the logs. Supported values: stderr, stdout (default "stderr")
   -loggerTimezone string
@@ -1122,6 +1101,8 @@ The shortlist of configuration flags is the following:
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
   -memory.allowedPercent float
      Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache which will result in higher disk IO usage (default 60)
+  -metrics.exposeMetadata
+     Whether to expose TYPE and HELP metadata at the /metrics page, which is exposed at -httpListenAddr . The metadata may be needed when the /metrics page is consumed by systems, which require this information. For example, Managed Prometheus in Google Cloud - https://cloud.google.com/stackdriver/docs/managed-prometheus/troubleshooting#missing-metric-type
   -metricsAuthKey string
      Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -notifier.basicAuth.password array
@@ -1151,6 +1132,9 @@ The shortlist of configuration flags is the following:
      Supports an array of values separated by comma or specified via multiple flags.
   -notifier.oauth2.clientSecretFile array
      Optional OAuth2 clientSecretFile to use for -notifier.url. If multiple args are set, then they are applied independently for the corresponding -notifier.url
+     Supports an array of values separated by comma or specified via multiple flags.
+  -notifier.oauth2.endpointParams array
+     Optional OAuth2 endpoint parameters to use for the corresponding -notifier.url . The endpoint parameters must be set in JSON format: {"param1":"value1",...,"paramN":"valueN"}
      Supports an array of values separated by comma or specified via multiple flags.
   -notifier.oauth2.scopes array
      Optional OAuth2 scopes to use for -notifier.url. Scopes must be delimited by ';'. If multiple args are set, then they are applied independently for the corresponding -notifier.url
@@ -1192,11 +1176,16 @@ The shortlist of configuration flags is the following:
      The maximum duration for waiting to perform API requests if more than -promscrape.discovery.concurrency requests are simultaneously performed (default 1m0s)
   -promscrape.dnsSDCheckInterval duration
      Interval for checking for changes in dns. This works only if dns_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#dns_sd_configs for details (default 30s)
+  -pushmetrics.disableCompression
+     Whether to disable request body compression when pushing metrics to every -pushmetrics.url
   -pushmetrics.extraLabel array
-     Optional labels to add to metrics pushed to -pushmetrics.url . For example, -pushmetrics.extraLabel='instance="foo"' adds instance="foo" label to all the metrics pushed to -pushmetrics.url
+     Optional labels to add to metrics pushed to every -pushmetrics.url . For example, -pushmetrics.extraLabel='instance="foo"' adds instance="foo" label to all the metrics pushed to every -pushmetrics.url
+     Supports an array of values separated by comma or specified via multiple flags.
+  -pushmetrics.header array
+     Optional HTTP request header to send to every -pushmetrics.url . For example, -pushmetrics.header='Authorization: Basic foobar' adds 'Authorization: Basic foobar' header to every request to every -pushmetrics.url
      Supports an array of values separated by comma or specified via multiple flags.
   -pushmetrics.interval duration
-     Interval for pushing metrics to -pushmetrics.url (default 10s)
+     Interval for pushing metrics to every -pushmetrics.url (default 10s)
   -pushmetrics.url array
      Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/#push-metrics . By default, metrics exposed at /metrics page aren't pushed to any remote storage
      Supports an array of values separated by comma or specified via multiple flags.
@@ -1224,6 +1213,8 @@ The shortlist of configuration flags is the following:
      Optional OAuth2 clientSecret to use for -remoteRead.url.
   -remoteRead.oauth2.clientSecretFile string
      Optional OAuth2 clientSecretFile to use for -remoteRead.url.
+  -remoteRead.oauth2.endpointParams string
+     Optional OAuth2 endpoint parameters to use for -remoteRead.url . The endpoint parameters must be set in JSON format: {"param1":"value1",...,"paramN":"valueN"}
   -remoteRead.oauth2.scopes string
      Optional OAuth2 scopes to use for -remoteRead.url. Scopes must be delimited by ';'.
   -remoteRead.oauth2.tokenUrl string
@@ -1265,11 +1256,13 @@ The shortlist of configuration flags is the following:
   -remoteWrite.maxQueueSize int
      Defines the max number of pending datapoints to remote write endpoint (default 100000)
   -remoteWrite.oauth2.clientID string
-     Optional OAuth2 clientID to use for -remoteWrite.url.
+     Optional OAuth2 clientID to use for -remoteWrite.url
   -remoteWrite.oauth2.clientSecret string
-     Optional OAuth2 clientSecret to use for -remoteWrite.url.
+     Optional OAuth2 clientSecret to use for -remoteWrite.url
   -remoteWrite.oauth2.clientSecretFile string
-     Optional OAuth2 clientSecretFile to use for -remoteWrite.url.
+     Optional OAuth2 clientSecretFile to use for -remoteWrite.url
+  -remoteWrite.oauth2.endpointParams string
+     Optional OAuth2 endpoint parameters to use for -remoteWrite.url . The endpoint parameters must be set in JSON format: {"param1":"value1",...,"paramN":"valueN"}
   -remoteWrite.oauth2.scopes string
      Optional OAuth2 scopes to use for -notifier.url. Scopes must be delimited by ';'.
   -remoteWrite.oauth2.tokenUrl string

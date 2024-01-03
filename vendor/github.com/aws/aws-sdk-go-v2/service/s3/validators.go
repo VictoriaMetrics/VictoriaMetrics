@@ -110,6 +110,26 @@ func (m *validateOpCreateMultipartUpload) HandleInitialize(ctx context.Context, 
 	return next.HandleInitialize(ctx, in)
 }
 
+type validateOpCreateSession struct {
+}
+
+func (*validateOpCreateSession) ID() string {
+	return "OperationInputValidation"
+}
+
+func (m *validateOpCreateSession) HandleInitialize(ctx context.Context, in middleware.InitializeInput, next middleware.InitializeHandler) (
+	out middleware.InitializeOutput, metadata middleware.Metadata, err error,
+) {
+	input, ok := in.Parameters.(*CreateSessionInput)
+	if !ok {
+		return out, metadata, fmt.Errorf("unknown input parameters type %T", in.Parameters)
+	}
+	if err := validateOpCreateSessionInput(input); err != nil {
+		return out, metadata, err
+	}
+	return next.HandleInitialize(ctx, in)
+}
+
 type validateOpDeleteBucketAnalyticsConfiguration struct {
 }
 
@@ -1870,6 +1890,10 @@ func addOpCreateMultipartUploadValidationMiddleware(stack *middleware.Stack) err
 	return stack.Initialize.Add(&validateOpCreateMultipartUpload{}, middleware.After)
 }
 
+func addOpCreateSessionValidationMiddleware(stack *middleware.Stack) error {
+	return stack.Initialize.Add(&validateOpCreateSession{}, middleware.After)
+}
+
 func addOpDeleteBucketAnalyticsConfigurationValidationMiddleware(stack *middleware.Stack) error {
 	return stack.Initialize.Add(&validateOpDeleteBucketAnalyticsConfiguration{}, middleware.After)
 }
@@ -2698,6 +2722,9 @@ func validateInventoryConfiguration(v *types.InventoryConfiguration) error {
 		if err := validateInventoryDestination(v.Destination); err != nil {
 			invalidParams.AddNested("Destination", err.(smithy.InvalidParamsError))
 		}
+	}
+	if v.IsEnabled == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("IsEnabled"))
 	}
 	if v.Filter != nil {
 		if err := validateInventoryFilter(v.Filter); err != nil {
@@ -3735,6 +3762,9 @@ func validateTiering(v *types.Tiering) error {
 		return nil
 	}
 	invalidParams := smithy.InvalidParamsError{Context: "Tiering"}
+	if v.Days == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("Days"))
+	}
 	if len(v.AccessTier) == 0 {
 		invalidParams.Add(smithy.NewErrParamRequired("AccessTier"))
 	}
@@ -3917,6 +3947,21 @@ func validateOpCreateMultipartUploadInput(v *CreateMultipartUploadInput) error {
 	}
 	if v.Key == nil {
 		invalidParams.Add(smithy.NewErrParamRequired("Key"))
+	}
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	} else {
+		return nil
+	}
+}
+
+func validateOpCreateSessionInput(v *CreateSessionInput) error {
+	if v == nil {
+		return nil
+	}
+	invalidParams := smithy.InvalidParamsError{Context: "CreateSessionInput"}
+	if v.Bucket == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("Bucket"))
 	}
 	if invalidParams.Len() > 0 {
 		return invalidParams
@@ -5444,6 +5489,9 @@ func validateOpUploadPartCopyInput(v *UploadPartCopyInput) error {
 	if v.Key == nil {
 		invalidParams.Add(smithy.NewErrParamRequired("Key"))
 	}
+	if v.PartNumber == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("PartNumber"))
+	}
 	if v.UploadId == nil {
 		invalidParams.Add(smithy.NewErrParamRequired("UploadId"))
 	}
@@ -5464,6 +5512,9 @@ func validateOpUploadPartInput(v *UploadPartInput) error {
 	}
 	if v.Key == nil {
 		invalidParams.Add(smithy.NewErrParamRequired("Key"))
+	}
+	if v.PartNumber == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("PartNumber"))
 	}
 	if v.UploadId == nil {
 		invalidParams.Add(smithy.NewErrParamRequired("UploadId"))

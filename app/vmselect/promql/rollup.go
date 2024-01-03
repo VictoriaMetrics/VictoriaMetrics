@@ -2182,6 +2182,8 @@ func rollupFirst(rfa *rollupFuncArg) float64 {
 	return values[0]
 }
 
+var rollupLast = rollupDefault
+
 func rollupDefault(rfa *rollupFuncArg) float64 {
 	values := rfa.values
 	if len(values) == 0 {
@@ -2192,17 +2194,6 @@ func rollupDefault(rfa *rollupFuncArg) float64 {
 	}
 	// Intentionally do not skip the possible last Prometheus staleness mark.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1526 .
-	return values[len(values)-1]
-}
-
-func rollupLast(rfa *rollupFuncArg) float64 {
-	values := rfa.values
-	if len(values) == 0 {
-		// Do not take into account rfa.prevValue, since it may lead
-		// to inconsistent results comparing to Prometheus on broken time series
-		// with irregular data points.
-		return nan
-	}
 	return values[len(values)-1]
 }
 

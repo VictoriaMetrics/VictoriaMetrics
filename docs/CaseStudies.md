@@ -34,6 +34,7 @@ where you can chat with VictoriaMetrics users to get additional references, revi
   - [Naver](#naver)
   - [Percona](#percona)
   - [Razorpay](#razorpay)
+  - [RELEX Solutions](#relex-solutions)
   - [Roblox](#roblox)
   - [Sensedia](#sensedia)
   - [Smarkets](#smarkets)
@@ -433,6 +434,33 @@ Percona migrated from Prometheus to VictoriaMetrics in the [Percona Monitoring a
 > - Successfully ran some of the worst Grafana dashboards/queries that have historically failed to run.
 
 See [the full article](https://engineering.razorpay.com/scaling-to-trillions-of-metric-data-points-f569a5b654f2).
+
+## RELEX Solutions
+
+[RELEX Solutions](https://www.relexsolutions.com/), a global software company from Finland, is the market-leading supply chain and retail planning platform.
+
+VictoriaMetrics is used as the central metrics storage for timeseries about applications and machines hosted both in the public cloud and in the private cloud. Metrics are remote-written by Prometheus, the OpenTelemetry collector and sometimes directly by custom Prometheus exporters. 
+
+Alerts are evaluated on vmalert when necessary, either because metrics from multiple sources are needed or because the source is Prometheus in agent mode (mostly for kubernetes clusters). Prometheus Alertmanager and Grafana+Promxy combine all sources together so that the end users of dashboards (and ideally the recipients of alert notifications) don't have to worry where to look for some information.
+
+VictoriaMetrics has allowed us to extend data retention for our metrics effortlessly, while Prometheus tsdb would have required us to manage ever bigger disks or to plan aggregation and downsampling within a Prometheus hierarchical federation. It also allows for a separation of concerns: whereas alerting requires immediacy and precision in the metrics, visualizations of historical data can bear with delay and downsampling.
+
+Across our production VictoriaMetrics clusters, in a 12 months period we go beyond the following figures.
+
+- Active time series: 10M
+- Ingestion rate: 300k samples per second
+- Total number of datapoints: 4400G
+- Data size on disk: 3600 GiB
+- Available memory: 320 GiB as seen by kubernetes (160 GiB physical memory for the hosts)
+- CPU: 20 cores (AMD EPYC 7763), about 70 % idle
+- Retention period: ~1 year
+- Churn rate: 6M new time series per day (monthly average)
+- Query rate:
+  - `/api/v1/query_range`: 10 queries per second
+  - `/api/v1/query`: 10 queries per second
+- Query duration for `/api/v1/query_range` (weekly mean):
+  - 99th percentile: 700 ms
+  - median: 10 ms
 
 ## Roblox
 

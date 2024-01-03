@@ -41,8 +41,10 @@ var (
 	oauth2ClientID         = flag.String("remoteRead.oauth2.clientID", "", "Optional OAuth2 clientID to use for -remoteRead.url.")
 	oauth2ClientSecret     = flag.String("remoteRead.oauth2.clientSecret", "", "Optional OAuth2 clientSecret to use for -remoteRead.url.")
 	oauth2ClientSecretFile = flag.String("remoteRead.oauth2.clientSecretFile", "", "Optional OAuth2 clientSecretFile to use for -remoteRead.url.")
-	oauth2TokenURL         = flag.String("remoteRead.oauth2.tokenUrl", "", "Optional OAuth2 tokenURL to use for -remoteRead.url. ")
-	oauth2Scopes           = flag.String("remoteRead.oauth2.scopes", "", "Optional OAuth2 scopes to use for -remoteRead.url. Scopes must be delimited by ';'.")
+	oauth2EndpointParams   = flag.String("remoteRead.oauth2.endpointParams", "", "Optional OAuth2 endpoint parameters to use for -remoteRead.url . "+
+		`The endpoint parameters must be set in JSON format: {"param1":"value1",...,"paramN":"valueN"}`)
+	oauth2TokenURL = flag.String("remoteRead.oauth2.tokenUrl", "", "Optional OAuth2 tokenURL to use for -remoteRead.url. ")
+	oauth2Scopes   = flag.String("remoteRead.oauth2.scopes", "", "Optional OAuth2 scopes to use for -remoteRead.url. Scopes must be delimited by ';'.")
 )
 
 // InitSecretFlags must be called after flag.Parse and before any logging
@@ -63,10 +65,14 @@ func Init() (datasource.QuerierBuilder, error) {
 		return nil, fmt.Errorf("failed to create transport: %w", err)
 	}
 
+	endpointParams, err := flagutil.ParseJSONMap(*oauth2EndpointParams)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse JSON for -remoteRead.oauth2.endpointParams=%s: %w", *oauth2EndpointParams, err)
+	}
 	authCfg, err := utils.AuthConfig(
 		utils.WithBasicAuth(*basicAuthUsername, *basicAuthPassword, *basicAuthPasswordFile),
 		utils.WithBearer(*bearerToken, *bearerTokenFile),
-		utils.WithOAuth(*oauth2ClientID, *oauth2ClientSecret, *oauth2ClientSecretFile, *oauth2TokenURL, *oauth2Scopes),
+		utils.WithOAuth(*oauth2ClientID, *oauth2ClientSecret, *oauth2ClientSecretFile, *oauth2TokenURL, *oauth2Scopes, endpointParams),
 		utils.WithHeaders(*headers))
 	if err != nil {
 		return nil, fmt.Errorf("failed to configure auth: %w", err)

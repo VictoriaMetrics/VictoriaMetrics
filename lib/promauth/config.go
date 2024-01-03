@@ -582,18 +582,18 @@ func (opts *Options) NewConfig() (*Config, error) {
 			return nil, fmt.Errorf("cannot simultaneously use `authorization`, `basic_auth, `bearer_token` and `ouath2`")
 		}
 		if err := actx.initFromOAuth2Config(baseDir, opts.OAuth2); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("cannot initialize oauth2: %w", err)
 		}
 	}
 	var tctx tlsContext
 	if opts.TLSConfig != nil {
 		if err := tctx.initFromTLSConfig(baseDir, opts.TLSConfig); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("cannot initialize tls: %w", err)
 		}
 	}
 	headers, err := parseHeaders(opts.Headers)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("cannot parse headers: %w", err)
 	}
 	hd := xxhash.New()
 	for _, kv := range headers {

@@ -49,18 +49,28 @@ func dropPrefixParts(path string, parts int) string {
 	return path
 }
 
-func (ui *UserInfo) getURLPrefixAndHeaders(u *url.URL) (*URLPrefix, HeadersConf, []int, int) {
+func (ui *UserInfo) getURLPrefixAndHeaders(u *url.URL) (*URLPrefix, HeadersConf) {
 	for _, e := range ui.URLMaps {
-		for _, sp := range e.SrcPaths {
-			if sp.match(u.Path) {
-				return e.URLPrefix, e.HeadersConf, e.RetryStatusCodes, e.DropSrcPathPrefixParts
-			}
+		if matchAnyRegex(e.SrcHosts, u.Host) && matchAnyRegex(e.SrcPaths, u.Path) {
+			return e.URLPrefix, e.HeadersConf
 		}
 	}
 	if ui.URLPrefix != nil {
-		return ui.URLPrefix, ui.HeadersConf, ui.RetryStatusCodes, ui.DropSrcPathPrefixParts
+		return ui.URLPrefix, ui.HeadersConf
 	}
-	return nil, HeadersConf{}, nil, 0
+	return nil, HeadersConf{}
+}
+
+func matchAnyRegex(rs []*Regex, s string) bool {
+	if len(rs) == 0 {
+		return true
+	}
+	for _, r := range rs {
+		if r.match(s) {
+			return true
+		}
+	}
+	return false
 }
 
 func normalizeURL(uOrig *url.URL) *url.URL {

@@ -284,8 +284,18 @@
 
 {% func discoveredTargets(tsr *targetsStatusResult) %}
     {% if !tsr.hasOriginalLabels %}
-        Discovered targets are unavailable when -promscrape.dropOriginalLabels command-line flag is set
+        <div class="alert alert-warning" role="alert">
+            Discovered targets are unavailable when <b>-promscrape.dropOriginalLabels</b> command-line flag is set
+        </div>
         {% return %}
+    {% endif %}
+
+    {% if n := droppedTargetsMap.getTotalTargets(); n > *maxDroppedTargets %}
+        <div class="alert alert-warning" role="alert">
+            Dropped targets' list below is incomplete, because the number of dropped targets exceeds <b>-promscrape.maxDroppedTargets={%d *maxDroppedTargets %}</b>.<br/>
+            If you want to see the full list of dropped targets, then increase <b>-promscrape.maxDroppedTargets</b> command-line flag value to at least{% space %}<b>{%d n %}</b>.<br/>
+            Note that this may increase memory usage.
+        </div>
     {% endif %}
 
     {% code tljs := tsr.getTargetLabelsByJob() %}
@@ -338,9 +348,9 @@
                                 exists at{% space %}
                                 {% for i, memberNum := range t.clusterMemberNums %}
                                     {% if *clusterMemberURLTemplate == "" %}
-                                        {%d memberNum %}
+                                        shard-{%d memberNum %}
                                     {% else %}
-                                        <a href="{%s strings.ReplaceAll(*clusterMemberURLTemplate, "%d", strconv.Itoa(memberNum)) %}">{%d memberNum %}</a>
+                                        <a href="{%s strings.ReplaceAll(*clusterMemberURLTemplate, "%d", strconv.Itoa(memberNum)) %}" target="_blank">shard-{%d memberNum %}</a>
                                     {% endif %}
                                     {% if i+1 < len(t.clusterMemberNums) %},{% space %}{% endif %}
                                 {% endfor %}

@@ -224,7 +224,7 @@ func (a *ArrayString) GetOptionalArg(argIdx int) string {
 // Has the same api as ArrayString.
 type ArrayBool []bool
 
-// IsBoolFlag  implements flag.IsBoolFlag interface
+// IsBoolFlag implements flag.IsBoolFlag interface
 func (a *ArrayBool) IsBoolFlag() bool { return true }
 
 // String implements flag.Value interface
@@ -310,6 +310,11 @@ func (a *ArrayDuration) GetOptionalArg(argIdx int) time.Duration {
 type ArrayInt struct {
 	defaultValue int
 	a            []int
+}
+
+// Values returns all the values for a.
+func (a *ArrayInt) Values() []int {
+	return a.a
 }
 
 // String implements flag.Value interface

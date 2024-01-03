@@ -191,7 +191,7 @@ func (a Alert) toPromLabels(relabelCfg *promrelabel.ParsedConfigs) []prompbmarsh
 	var labels []prompbmarshal.Label
 	for k, v := range a.Labels {
 		labels = append(labels, prompbmarshal.Label{
-			Name:  k,
+			Name:  promrelabel.SanitizeMetricName(k),
 			Value: v,
 		})
 	}

@@ -10,14 +10,16 @@ import (
 	s3cust "github.com/aws/aws-sdk-go-v2/service/s3/internal/customizations"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/smithy-go/middleware"
+	"github.com/aws/smithy-go/ptr"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Returns the versioning state of a bucket. To retrieve the versioning state of a
-// bucket, you must be the bucket owner. This implementation also returns the MFA
-// Delete status of the versioning state. If the MFA Delete status is enabled , the
-// bucket owner must use an authentication device to change the versioning state of
-// the bucket. The following operations are related to GetBucketVersioning :
+// This operation is not supported by directory buckets. Returns the versioning
+// state of a bucket. To retrieve the versioning state of a bucket, you must be the
+// bucket owner. This implementation also returns the MFA Delete status of the
+// versioning state. If the MFA Delete status is enabled , the bucket owner must
+// use an authentication device to change the versioning state of the bucket. The
+// following operations are related to GetBucketVersioning :
 //   - GetObject (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html)
 //   - PutObject (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObject.html)
 //   - DeleteObject (https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteObject.html)
@@ -43,9 +45,9 @@ type GetBucketVersioningInput struct {
 	// This member is required.
 	Bucket *string
 
-	// The account ID of the expected bucket owner. If the bucket is owned by a
-	// different account, the request fails with the HTTP status code 403 Forbidden
-	// (access denied).
+	// The account ID of the expected bucket owner. If the account ID that you provide
+	// does not match the actual owner of the bucket, the request fails with the HTTP
+	// status code 403 Forbidden (access denied).
 	ExpectedBucketOwner *string
 
 	noSmithyDocumentSerde
@@ -53,7 +55,7 @@ type GetBucketVersioningInput struct {
 
 func (in *GetBucketVersioningInput) bindEndpointParams(p *EndpointParameters) {
 	p.Bucket = in.Bucket
-
+	p.UseS3ExpressControlEndpoint = ptr.Bool(true)
 }
 
 type GetBucketVersioningOutput struct {
@@ -125,6 +127,9 @@ func (c *Client) addOperationGetBucketVersioningMiddlewares(stack *middleware.St
 		return err
 	}
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addPutBucketContextMiddleware(stack); err != nil {
 		return err
 	}
 	if err = addOpGetBucketVersioningValidationMiddleware(stack); err != nil {

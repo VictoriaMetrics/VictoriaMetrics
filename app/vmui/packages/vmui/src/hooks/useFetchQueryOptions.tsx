@@ -5,140 +5,176 @@ import { AutocompleteOptions } from "../components/Main/Autocomplete/Autocomplet
 import { LabelIcon, MetricIcon, ValueIcon } from "../components/Main/Icons";
 import { useTimeState } from "../state/time/TimeStateContext";
 import { useCallback } from "react";
-import qs from "qs";
-import dayjs from "dayjs";
+import debounce from "lodash.debounce";
+import { useQueryDispatch, useQueryState } from "../state/query/QueryStateContext";
+import { QueryContextType } from "../types";
+import { AUTOCOMPLETE_LIMITS } from "../constants/queryAutocomplete";
+import { escapeDoubleQuotes, escapeRegexp } from "../utils/regexp";
 
 enum TypeData {
-  metric,
-  label,
-  value
+  metric = "metric",
+  label = "label",
+  labelValue = "labelValue"
 }
 
 type FetchDataArgs = {
+  value: string;
   urlSuffix: string;
   setter: StateUpdater<AutocompleteOptions[]>;
   type: TypeData;
   params?: URLSearchParams;
 }
 
+type FetchQueryArguments = {
+  valueByContext: string;
+  metric: string;
+  label: string;
+  context: QueryContextType
+}
+
 const icons = {
-  [TypeData.metric]: <MetricIcon />,
-  [TypeData.label]: <LabelIcon />,
-  [TypeData.value]: <ValueIcon />,
+  [TypeData.metric]: <MetricIcon/>,
+  [TypeData.label]: <LabelIcon/>,
+  [TypeData.labelValue]: <ValueIcon/>,
 };
 
-const QUERY_LIMIT = 1000;
-
-export const useFetchQueryOptions = ({ metric, label }: { metric: string; label: string }) => {
+export const useFetchQueryOptions = ({ valueByContext, metric, label, context }: FetchQueryArguments) => {
   const { serverUrl } = useAppState();
   const { period: { start, end } } = useTimeState();
+  const { autocompleteCache } = useQueryState();
+  const queryDispatch = useQueryDispatch();
+
+  const [loading, setLoading] = useState(false);
+  const [value, setValue] = useState(valueByContext);
+  const debouncedSetValue = debounce(setValue, 800);
+  useEffect(() => {
+    debouncedSetValue(valueByContext);
+    return debouncedSetValue.cancel;
+  }, [valueByContext, debouncedSetValue]);
 
   const [metrics, setMetrics] = useState<AutocompleteOptions[]>([]);
   const [labels, setLabels] = useState<AutocompleteOptions[]>([]);
-  const [values, setValues] = useState<AutocompleteOptions[]>([]);
+  const [labelValues, setLabelValues] = useState<AutocompleteOptions[]>([]);
 
-  const prevParams = useRef<Record<string, URLSearchParams>>({});
+  const abortControllerRef = useRef(new AbortController());
 
   const getQueryParams = useCallback((params?: Record<string, string>) => {
-    const roundedStart = dayjs(start).startOf("day").valueOf();
-    const roundedEnd = dayjs(end).endOf("day").valueOf();
-
     return new URLSearchParams({
       ...(params || {}),
-      limit: `${QUERY_LIMIT}`,
-      start: `${roundedStart}`,
-      end: `${roundedEnd}`
+      limit: `${AUTOCOMPLETE_LIMITS.queryLimit}`,
+      start: `${start}`,
+      end: `${end}`
     });
   }, [start, end]);
 
-  const isParamsEqual = (prev: URLSearchParams, next: URLSearchParams) => {
-    const queryNext = qs.parse(next.toString());
-    const queryPrev = qs.parse(prev.toString());
-    return JSON.stringify(queryPrev) === JSON.stringify(queryNext);
+  const processData = (data: string[], type: TypeData) => {
+    return data.map(l => ({
+      value: l,
+      type: `${type}`,
+      icon: icons[type]
+    }));
   };
 
-  const fetchData = async ({ urlSuffix, setter, type, params }: FetchDataArgs) => {
+  const fetchData = async ({ value, urlSuffix, setter, type, params }: FetchDataArgs) => {
+    abortControllerRef.current.abort();
+    abortControllerRef.current = new AbortController();
+    const { signal } = abortControllerRef.current;
+    const key = {
+      type,
+      value,
+      start: params?.get("start") || "",
+      end: params?.get("end") || "",
+      match: params?.get("match[]") || ""
+    };
+    setLoading(true);
     try {
-      const response = await fetch(`${serverUrl}/api/v1/${urlSuffix}?${params}`);
+      const cachedData = autocompleteCache.get(key);
+      if (cachedData) {
+        setter(processData(cachedData, type));
+        return;
+      }
+      const response = await fetch(`${serverUrl}/api/v1/${urlSuffix}?${params}`, { signal });
       if (response.ok) {
         const { data } = await response.json() as { data: string[] };
-        setter(data.map(l => ({
-          value: l,
-          type: `${type}`,
-          icon: icons[type]
-        })));
+        setter(processData(data, type));
+        queryDispatch({ type: "SET_AUTOCOMPLETE_CACHE", payload: { key, value: data } });
       }
     } catch (e) {
-      console.error(e);
+      if (e instanceof Error && e.name !== "AbortError") {
+        queryDispatch({ type: "SET_AUTOCOMPLETE_CACHE", payload: { key, value: [] } });
+        console.error(e);
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
+  // fetch metrics
   useEffect(() => {
-    if (!serverUrl) {
-      setMetrics([]);
+    const isInvalidContext = context !== QueryContextType.metricsql && context !== QueryContextType.empty;
+    if (!serverUrl || !metric || isInvalidContext) {
       return;
     }
+    setMetrics([]);
 
-    const params = getQueryParams();
-    const prev = prevParams.current.metrics || new URLSearchParams({});
-    if (isParamsEqual(params, prev)) return;
+    const metricReEscaped = escapeDoubleQuotes(escapeRegexp(metric));
 
     fetchData({
+      value,
       urlSuffix: "label/__name__/values",
       setter: setMetrics,
       type: TypeData.metric,
-      params
+      params: getQueryParams({ "match[]": `{__name__=~".*${metricReEscaped}.*"}` })
     });
 
-    prevParams.current = { ...prevParams.current, metrics: params };
-  }, [serverUrl, getQueryParams]);
+    return () => abortControllerRef.current?.abort();
+  }, [serverUrl, value, context, metric]);
 
+  // fetch labels
   useEffect(() => {
-    const notFoundMetric = !metrics.find(m => m.value === metric);
-    if (!serverUrl || notFoundMetric) {
-      setLabels([]);
+    if (!serverUrl || !metric || context !== QueryContextType.label) {
       return;
     }
+    setLabels([]);
 
-    const params = getQueryParams({ "match[]": metric });
-    const prev = prevParams.current.labels || new URLSearchParams({});
-    if (isParamsEqual(params, prev)) return;
+    const metricEscaped = escapeDoubleQuotes(metric);
 
     fetchData({
+      value,
       urlSuffix: "labels",
       setter: setLabels,
       type: TypeData.label,
-      params
+      params: getQueryParams({ "match[]": `{__name__="${metricEscaped}"}` })
     });
 
-    prevParams.current = { ...prevParams.current, labels: params };
-  }, [serverUrl, metric, getQueryParams]);
+    return () => abortControllerRef.current?.abort();
+  }, [serverUrl, value, context, metric]);
 
+  // fetch labelValues
   useEffect(() => {
-    const notFoundMetric = !metrics.find(m => m.value === metric);
-    const notFoundLabel = !labels.find(l => l.value === label);
-    if (!serverUrl || notFoundMetric || notFoundLabel) {
-      setValues([]);
+    if (!serverUrl || !metric || !label || context !== QueryContextType.labelValue) {
       return;
     }
+    setLabelValues([]);
 
-    const params = getQueryParams({ "match[]": metric });
-    const prev = prevParams.current.values || new URLSearchParams({});
-    if (isParamsEqual(params, prev)) return;
+    const metricEscaped = escapeDoubleQuotes(metric);
+    const valueReEscaped = escapeDoubleQuotes(escapeRegexp(value));
 
     fetchData({
+      value,
       urlSuffix: `label/${label}/values`,
-      setter: setValues,
-      type: TypeData.value,
-      params
+      setter: setLabelValues,
+      type: TypeData.labelValue,
+      params: getQueryParams({ "match[]": `{__name__="${metricEscaped}", ${label}=~".*${valueReEscaped}.*"}` })
     });
 
-    prevParams.current = { ...prevParams.current, values: params };
-  }, [serverUrl, metric, label, getQueryParams]);
+    return () => abortControllerRef.current?.abort();
+  }, [serverUrl, value, context, metric, label]);
 
   return {
     metrics,
     labels,
-    values,
+    labelValues,
+    loading,
   };
 };

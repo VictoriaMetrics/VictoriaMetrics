@@ -11,6 +11,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
+	"github.com/aws/aws-sdk-go-v2/aws/middleware/private/metrics"
 	v4Internal "github.com/aws/aws-sdk-go-v2/aws/signer/internal/v4"
 	internalauth "github.com/aws/aws-sdk-go-v2/internal/auth"
 	"github.com/aws/aws-sdk-go-v2/internal/sdk"
@@ -237,21 +238,32 @@ func (m *contentSHA256Header) HandleFinalize(
 	return next.HandleFinalize(ctx, in)
 }
 
-// SignHTTPRequestMiddlewareOptions is the configuration options for the SignHTTPRequestMiddleware middleware.
+// SignHTTPRequestMiddlewareOptions is the configuration options for
+// [SignHTTPRequestMiddleware].
+//
+// Deprecated: [SignHTTPRequestMiddleware] is deprecated.
 type SignHTTPRequestMiddlewareOptions struct {
 	CredentialsProvider aws.CredentialsProvider
 	Signer              HTTPSigner
 	LogSigning          bool
 }
 
-// SignHTTPRequestMiddleware is a `FinalizeMiddleware` implementation for SigV4 HTTP Signing
+// SignHTTPRequestMiddleware is a `FinalizeMiddleware` implementation for SigV4
+// HTTP Signing.
+//
+// Deprecated: AWS service clients no longer use this middleware. Signing as an
+// SDK operation is now performed through an internal per-service middleware
+// which opaquely selects and uses the signer from the resolved auth scheme.
 type SignHTTPRequestMiddleware struct {
 	credentialsProvider aws.CredentialsProvider
 	signer              HTTPSigner
 	logSigning          bool
 }
 
-// NewSignHTTPRequestMiddleware constructs a SignHTTPRequestMiddleware using the given Signer for signing requests
+// NewSignHTTPRequestMiddleware constructs a [SignHTTPRequestMiddleware] using
+// the given [Signer] for signing requests.
+//
+// Deprecated: SignHTTPRequestMiddleware is deprecated.
 func NewSignHTTPRequestMiddleware(options SignHTTPRequestMiddlewareOptions) *SignHTTPRequestMiddleware {
 	return &SignHTTPRequestMiddleware{
 		credentialsProvider: options.CredentialsProvider,
@@ -260,12 +272,17 @@ func NewSignHTTPRequestMiddleware(options SignHTTPRequestMiddlewareOptions) *Sig
 	}
 }
 
-// ID is the SignHTTPRequestMiddleware identifier
+// ID is the SignHTTPRequestMiddleware identifier.
+//
+// Deprecated: SignHTTPRequestMiddleware is deprecated.
 func (s *SignHTTPRequestMiddleware) ID() string {
 	return "Signing"
 }
 
-// HandleFinalize will take the provided input and sign the request using the SigV4 authentication scheme
+// HandleFinalize will take the provided input and sign the request using the
+// SigV4 authentication scheme.
+//
+// Deprecated: SignHTTPRequestMiddleware is deprecated.
 func (s *SignHTTPRequestMiddleware) HandleFinalize(ctx context.Context, in middleware.FinalizeInput, next middleware.FinalizeHandler) (
 	out middleware.FinalizeOutput, metadata middleware.Metadata, err error,
 ) {
@@ -284,7 +301,22 @@ func (s *SignHTTPRequestMiddleware) HandleFinalize(ctx context.Context, in middl
 		return out, metadata, &SigningError{Err: fmt.Errorf("computed payload hash missing from context")}
 	}
 
+	mctx := metrics.Context(ctx)
+
+	if mctx != nil {
+		if attempt, err := mctx.Data().LatestAttempt(); err == nil {
+			attempt.CredentialFetchStartTime = sdk.NowTime()
+		}
+	}
+
 	credentials, err := s.credentialsProvider.Retrieve(ctx)
+
+	if mctx != nil {
+		if attempt, err := mctx.Data().LatestAttempt(); err == nil {
+			attempt.CredentialFetchEndTime = sdk.NowTime()
+		}
+	}
+
 	if err != nil {
 		return out, metadata, &SigningError{Err: fmt.Errorf("failed to retrieve credentials: %w", err)}
 	}
@@ -305,7 +337,20 @@ func (s *SignHTTPRequestMiddleware) HandleFinalize(ctx context.Context, in middl
 		})
 	}
 
+	if mctx != nil {
+		if attempt, err := mctx.Data().LatestAttempt(); err == nil {
+			attempt.SignStartTime = sdk.NowTime()
+		}
+	}
+
 	err = s.signer.SignHTTP(ctx, credentials, req.Request, payloadHash, signingName, signingRegion, sdk.NowTime(), signerOptions...)
+
+	if mctx != nil {
+		if attempt, err := mctx.Data().LatestAttempt(); err == nil {
+			attempt.SignEndTime = sdk.NowTime()
+		}
+	}
+
 	if err != nil {
 		return out, metadata, &SigningError{Err: fmt.Errorf("failed to sign http request, %w", err)}
 	}
