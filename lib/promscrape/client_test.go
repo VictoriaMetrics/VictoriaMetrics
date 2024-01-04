@@ -100,7 +100,7 @@ func TestReadData_HTTPConnectPassthrough(t *testing.T) {
 
 			sr, err := client.GetStreamReader()
 			if err != nil {
-				t.Errorf("unexpected error creating stream reader: %s", err)
+				t.Fatalf("unexpected error creating stream reader: %s", err)
 			}
 
 			_, err = io.ReadAll(sr)
