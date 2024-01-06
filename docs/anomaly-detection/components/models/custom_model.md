@@ -1,15 +1,15 @@
 ---
-sort: 1.2
-weight: 1.2
-title: Custom Model Usage
+sort: 2
+weight: 2
+title: Custom Model Guide
 # disableToc: true
 menu:
   docs:
-    parent: "models"
-    weight: 1.2
-    # sort: 1.2
+    parent: "vmanomaly-models"
+    weight: 2
+    # sort: 2
 aliases:
-  - /anomaly-detection/docs/models/custom_model.html
+  - /anomaly-detection/components/models/custom_model.html
 ---
 
 # Custom Model Guide
@@ -17,7 +17,10 @@ aliases:
 
 Apart from vmanomaly predefined models, users can create their own custom models for anomaly detection.
 
-Here in this guide, we will create a file with our custom model, a file with vmanomaly configuration, and run vmanomaly.
+Here in this guide, we will 
+- Make a file containing our custom model definition
+- Define VictoriaMetrics Anomaly Detection config file to use our custom model
+- Run service
 
 **Note**: The file containing the model should be written in [Python language](https://www.python.org/) (3.11+)
 

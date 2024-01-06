@@ -1,20 +1,23 @@
 ---
-sort: 3
-weight: 3
+# sort: 4
+weight: 4
 title: CHANGELOG
 menu:
   docs:
     identifier: "vmanomaly-changelog"
     parent: "anomaly-detection"
-    weight: 3
-    # sort: 6
+    sort: 4
+    weight: 4
+    # sort: 10
 aliases:
 - /anomaly-detection/CHANGELOG.html
 ---
 
-# VictoriaMetrics Anomaly Detection Changelog
+# CHANGELOG
 
-The following `tip` changes can be tested by building VictoriaMetrics Anomaly Detection from the `latest` tag:
+Please find the changelog for VictoriaMetrics Anomaly Detection below.
+
+The following `tip` changes can be tested by building from the `latest` tag:
 ```bash
 docker pull us-docker.pkg.dev/victoriametrics-test/public/vmanomaly-trial:latest
 ```

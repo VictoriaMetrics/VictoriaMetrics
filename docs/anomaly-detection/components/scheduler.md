@@ -1,19 +1,20 @@
 ---
-sort: 3
-title: Scheduler Config
-weight: 3
+sort: 4
+title: Scheduler
+weight: 4
 menu:
   docs:
-    parent: "docs"
-    weight: 3
-    # sort: 3
+    parent: "vmanomaly-components"
+    weight: 4
+    # sort: 4
 aliases:
-  - /anomaly-detection/docs/scheduler.html
+  - /anomaly-detection/components/scheduler.html
 ---
 
 # Scheduler
 
-Scheduler is a part of config that defines how often to run and make inferences, as well as what timerange to use to train the model.
+Scheduler defines how often to run and make inferences, as well as what timerange to use to train the model.
+Is specified in `scheduler` section of a config for VictoriaMetrics Anomaly Detection.
 
 ## Parameters
 

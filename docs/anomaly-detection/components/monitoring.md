@@ -1,19 +1,19 @@
 ---
-sort: 5
-title: Monitoring Config
-weight: 5
+sort: 6
+title: Monitoring
+weight: 6
 menu:
   docs:
-    parent: "docs"
-    weight: 5
-    # sort: 5
+    parent: "vmanomaly-components"
+    weight: 6
+    # sort: 6
 aliases:
-  - /anomaly-detection/docs/monitoring.html
+  - /anomaly-detection/components/monitoring.html
 ---
 
-# Monitoring Config
+# Monitoring
 
-There are 2 models to monitor VictoriaMetrics Anomaly Detection behavior - [push](https://docs.victoriametrics.com/keyConcepts.html#push-model) and [pull](https://docs.victoriametrics.com/keyConcepts.html#pull-model). Parameters for each of them should be specified in `monitoring` section.
+There are 2 models to monitor VictoriaMetrics Anomaly Detection behavior - [push](https://docs.victoriametrics.com/keyConcepts.html#push-model) and [pull](https://docs.victoriametrics.com/keyConcepts.html#pull-model). Parameters for each of them should be specified in the config file, `monitoring` section.
 
 ## Pull Model Config parameters
 

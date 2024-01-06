@@ -1,17 +1,18 @@
 ---
-sort: 4
-title: Writer Config
-weight: 4
+sort: 5
+title: Writer
+weight: 5
 menu:
   docs:
-    parent: "docs"
-    weight: 4
-    # sort: 4
+    parent: "vmanomaly-components"
+    weight: 5
+    # sort: 5
 aliases:
-  - /anomaly-detection/docs/writer.html
+  - /anomaly-detection/components/writer.html
 ---
 
-# Writer Config
+# Writer
+
 There are 3 ways to export data from VictoriaMetrics Anomaly Detection: VictoriaMetrics, JSON file, or CSV file. Depending on the chosen option, different parameters should be specified in the config file in the `writer` section.
 
 ## VM writer
@@ -48,7 +49,7 @@ There are 3 ways to export data from VictoriaMetrics Anomaly Detection: Victoria
             <td><code>__name__: "vmanomaly_$VAR"</code></td>
             <td rowspan="4">Metrics to save the output (in metric names or labels). Must have <code>__name__</code> key. Must have a value with <code>$VAR</code> placeholder in it to distinguish between resulting metrics. Supported placeholders:
                 <ul>
-                    <li><code>$VAR</code> -- Variables that model provides, all models provide the following set: {"anomaly_score", "y", "yhat", "yhat_lower", "yhat_upper"}. Description of standard output is <a href="/anomaly-detection/docs/models/models.html#vmanomaly-output">here</a>. Depending on <a href="/anomaly-detection/docs/models/models.html">model type</a> it can provide more metrics, like "trend", "seasonality" etc.</li>
+                    <li><code>$VAR</code> -- Variables that model provides, all models provide the following set: {"anomaly_score", "y", "yhat", "yhat_lower", "yhat_upper"}. Description of standard output is <a href="/anomaly-detection/components/models/models.html#vmanomaly-output">here</a>. Depending on <a href="/anomaly-detection/components/models/models.html">model type</a> it can provide more metrics, like "trend", "seasonality" etc.</li>
                     <li><code>$QUERY_KEY</code> -- E.g. "ingestion_rate".</li>
                 </ul>
                 Other keys are supposed to be configured by the user to help identify generated metrics, e.g., specific config file name etc.
@@ -124,9 +125,9 @@ There should be 2 mandatory parameters set in `metric_format` - `__name__` and `
 __name__: PREFIX1_$VAR
 for: PREFIX2_$QUERY_KEY
 ```
-* for `__name__` parameter it will name metrics returned by models as `PREFIX1_anomaly_score`, `PREFIX1_yhat_lower`, etc. Vmanomaly output metrics names described [here](anomaly-detection/docs/models/models.html#vmanomaly-output)
+* for `__name__` parameter it will name metrics returned by models as `PREFIX1_anomaly_score`, `PREFIX1_yhat_lower`, etc. Vmanomaly output metrics names described [here](anomaly-detection/components/models/models.html#vmanomaly-output)
 
-* for `for` parameter will add labels `PREFIX2_query_name_1`, `PREFIX2_query_name_2`, etc. Query names are set as aliases in config `reader` section in [`queries`](anomaly-detection/docs/reader.html#config-parameters) parameter.
+* for `for` parameter will add labels `PREFIX2_query_name_1`, `PREFIX2_query_name_2`, etc. Query names are set as aliases in config `reader` section in [`queries`](anomaly-detection/components/reader.html#config-parameters) parameter.
 
 It is possible to specify other custom label names needed.
 For example:
@@ -135,7 +136,7 @@ custom_label_1: label_name_1
 custom_label_2: label_name_2
 ```
 
-Apart from specified labels, output metrics will return labels inherited from input metrics returned by [queries](https://github.com/VictoriaMetrics/vmanomaly/blob/master/docs/reader/reader.md#config-parameters).
+Apart from specified labels, output metrics will return labels inherited from input metrics returned by [queries](https://github.com/VictoriaMetrics/vmanomaly/blob/master/components/reader/reader.md#config-parameters).
 For example if input data contains labels such as `cpu=1, device=eth0, instance=node-exporter:9100` all these labels will be present in vmanomaly output metrics.
 
 So if metric_format section was set up like this:

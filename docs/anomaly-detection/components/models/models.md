@@ -1,15 +1,15 @@
 ---
-sort: 1.1
-weight: 1.1
+sort: 1
+weight: 1
 title: Built-in Models
 # disableToc: true
 menu:
   docs:
-    parent: "models"
-    sort: 1.1
-    # weight: 1.1
+    parent: "vmanomaly-models"
+    # sort: 1
+    weight: 1
 aliases:
-  - /anomaly-detection/docs/models/models.html
+  - /anomaly-detection/components/models/models.html
 ---
 
 # Models config parameters
@@ -17,9 +17,7 @@ aliases:
 ## Section Overview
 VM Anomaly Detection (`vmanomaly` hereinafter) models support 2 groups of parameters:
 
-- **`vmanomaly`-specific** arguments 
-  - To run wrapper (say, for `model.prophet.ProphetModel`). Defined in *Parameters specific for vmanomaly* sections for each model below.
-  - To impose fine control params. Discussed in *Default model parameters* sections.
+- **`vmanomaly`-specific** arguments - please refer to *Parameters specific for vmanomaly* and *Default model parameters* subsections for each of the models below.
 - Arguments to **inner model** (say, [Facebook's Prophet](https://facebook.github.io/prophet/docs/quick_start.html#python-api)), passed in a `args` argument as key-value pairs, that will be directly given to the model during initialization to allow granular control. Optional.
 
 **Note**: For users who may not be familiar with Python data types such as `list[dict]`, a [dictionary](https://www.w3schools.com/python/python_dictionaries.asp) in Python is a data structure that stores data values in key-value pairs. This structure allows for efficient data retrieval and management.
@@ -322,4 +320,4 @@ The default metrics produced by vmanomaly include:
 
 ## Healthcheck metrics
 
-Each model exposes [several healthchecks metrics](../monitoring.html#model-behaviour-metrics) to its `health_path` endpoint: 
+Each model exposes [several healthchecks metrics](./../monitoring.html#models-behaviour-metrics) to its `health_path` endpoint: 

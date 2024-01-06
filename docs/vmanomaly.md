@@ -50,9 +50,9 @@ processes in parallel, each using its own config.
 ## Models
 
 Currently, vmanomaly ships with a set of built-in models:
-> For a detailed description, see [model section](/anomaly-detection/docs/models)
+> For a detailed description, see [model section](/anomaly-detection/components/models)
 
-1. **ZScore**
+1. [**ZScore**](/anomaly-detection/components/models/models.html#z-score)
 
    _(useful for testing)_
 
@@ -60,7 +60,7 @@ Currently, vmanomaly ships with a set of built-in models:
    from time-series mean (straight line). Keeps only two model parameters internally:
    `mean` and `std` (standard deviation).
 
-1. **Prophet**
+1. [**Prophet**](/anomaly-detection/components/models/models.html#prophet)
 
    _(simplest in configuration, recommended for getting starting)_
 
@@ -74,33 +74,38 @@ Currently, vmanomaly ships with a set of built-in models:
 
    See [Prophet documentation](https://facebook.github.io/prophet/)
 
-1. **Holt-Winters**
+1. [**Holt-Winters**](/anomaly-detection/components/models/models.html#holt-winters)
 
    Very popular forecasting algorithm. See [statsmodels.org documentation](
    https://www.statsmodels.org/stable/generated/statsmodels.tsa.holtwinters.ExponentialSmoothing.html)
    for Holt-Winters exponential smoothing.
 
-1. **Seasonal-Trend Decomposition**
+1. [**Seasonal-Trend Decomposition**](/anomaly-detection/components/models/models.html#seasonal-trend-decomposition)
 
    Extracts three components: season, trend, and residual, that can be plotted individually for
    easier debugging. Uses LOESS (locally estimated scatterplot smoothing).
    See [statsmodels.org documentation](https://www.statsmodels.org/dev/examples/notebooks/generated/stl_decomposition.html)
    for LOESS STD.
 
-1. **ARIMA**
+1. [**ARIMA**](/anomaly-detection/components/models/models.html#arima)
 
    Commonly used forecasting model. See [statsmodels.org documentation](https://www.statsmodels.org/stable/generated/statsmodels.tsa.arima.model.ARIMA.html) for ARIMA.
 
-1. **Rolling Quantile**
+1. [**Rolling Quantile**](/anomaly-detection/components/models/models.html#rolling-quantile)
 
    A simple moving window of quantiles. Easy to use, easy to understand, but not as powerful as 
    other models.
 
-1. **Isolation Forest**
+1. [**Isolation Forest**](/anomaly-detection/components/models/models.html#isolation-forest-multivariate)
 
    Detects anomalies using binary trees. It works for both univariate and multivariate data. Be aware of [the curse of dimensionality](https://en.wikipedia.org/wiki/Curse_of_dimensionality) in the case of multivariate data - we advise against using a single model when handling multiple time series *if the number of these series significantly exceeds their average length (# of data points)*.
    
    The algorithm has a linear time complexity and a low memory requirement, which works well with high-volume data. See [scikit-learn.org documentation](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.IsolationForest.html) for Isolation Forest.
+
+
+1. [**MAD (Median Absolute Deviation)**](anomaly-detection/components/models/models.html#mad-median-absolute-deviation)
+  
+    A robust method for anomaly detection that is less sensitive to outliers in data compared to standard deviation-based models. It considers a point as an anomaly if the absolute deviation from the median is significantly large.
 
 
 ### Examples
@@ -135,10 +140,10 @@ optionally preserving labels).
 ### Config file
 There are 4 required sections in config file:
 
-* [`scheduler`](/anomaly-detection/docs/scheduler.html) - defines how often to run and make inferences, as well as what timerange to use to train the model. 
-* [`model`](/anomaly-detection/docs/models) - specific model parameters and configurations, 
-* [`reader`](/anomaly-detection/docs/reader.html) - how to read data and where it is located
-* [`writer`](/anomaly-detection/docs/writer.html) - where and how to write the generated output.
+* [`scheduler`](/anomaly-detection/components/scheduler.html) - defines how often to run and make inferences, as well as what timerange to use to train the model. 
+* [`model`](/anomaly-detection/components/models) - specific model parameters and configurations, 
+* [`reader`](/anomaly-detection/components/reader.html) - how to read data and where it is located
+* [`writer`](/anomaly-detection/components/writer.html) - where and how to write the generated output.
 
 [`monitoring`](#monitoring) - defines how to monitor work of *vmanomaly* service. This config section is *optional*.
 
@@ -175,7 +180,7 @@ writer:
 *vmanomaly* can be monitored by using push or pull approach.
 It can push metrics to VictoriaMetrics or expose metrics in Prometheus exposition format.
 
-> For a detailed description, see [monitoring section](/anomaly-detection/docs/monitoring.html)
+> For a detailed description, see [monitoring section](/anomaly-detection/components/monitoring.html)
 
 #### Push approach
 

@@ -1,13 +1,14 @@
 ---
-sort: 14
-title: Anomaly Detection
-weight: 7
+# sort: 14
+title: VictoriaMetrics Anomaly Detection
+weight: 0
 disableToc: true
 
 menu:
   docs:
     parent: 'victoriametrics'
-    weight: 7
+    sort: 0
+    weight: 0
 
 aliases:
 - /anomaly-detection.html
@@ -15,23 +16,25 @@ aliases:
 
 # VictoriaMetrics Anomaly Detection
 
-In the dynamic and complex world of system monitoring, VictoriaMetrics Anomaly Detection, being a part of our [Enterprise offering](https://victoriametrics.com/products/enterprise/), stands as a pivotal tool for achieving advanced observability. It empowers SREs and DevOps teams by automating the intricate task of identifying abnormal behavior in time-series data. This powerful feature goes beyond traditional threshold-based alerting, utilizing sophisticated machine learning techniques to not only detect anomalies but also minimize false positives, thus reducing alert fatigue. By providing simplified alerting mechanisms atop of [unified anomaly scores](/anomaly-detection/docs/models/models.html#vmanomaly-output), it enables teams to spot and address potential issues faster, ensuring system reliability and operational efficiency.
+In the dynamic and complex world of system monitoring, VictoriaMetrics Anomaly Detection, being a part of our [Enterprise offering](https://victoriametrics.com/products/enterprise/), stands as a pivotal tool for achieving advanced observability. It empowers SREs and DevOps teams by automating the intricate task of identifying abnormal behavior in time-series data. It goes beyond traditional threshold-based alerting, utilizing machine learning techniques to not only detect anomalies but also minimize false positives, thus reducing alert fatigue. By providing simplified alerting mechanisms atop of [unified anomaly scores](/anomaly-detection/components/models/models.html#vmanomaly-output), it enables teams to spot and address potential issues faster, ensuring system reliability and operational efficiency.
 
-## Key Components and Documentation
+## Key Components
 Explore the integral components that configure VictoriaMetrics Anomaly Detection:
-* [Get familiar with components](/anomaly-detection/docs)
-    - [Models](/anomaly-detection/docs/models)
-    - [Monitoring](/anomaly-detection/docs/monitoring.html)
-    - [Reader](/anomaly-detection/docs/reader.html)
-    - [Scheduler](/anomaly-detection/docs/scheduler.html)
-    - [Writer](/anomaly-detection/docs/writer.html)
+* [Get familiar with components](/anomaly-detection/components)
+    - [Models](/anomaly-detection/components/models)
+    - [Reader](/anomaly-detection/components/reader.html)
+    - [Scheduler](/anomaly-detection/components/scheduler.html)
+    - [Writer](/anomaly-detection/components/writer.html)
+    - [Monitoring](/anomaly-detection/components/monitoring.html)
 
 ## Practical Guides and Installation
-Kickstart your journey with our guides and installation instructions:
-* [Quick Start](/anomaly-detection/guides/guide-vmanomaly-vmalert.html) - Set up anomaly detection and alerting
-* Installation Methods
-    - [Docker guide](../vmanomaly.md#run-vmanomaly-docker-container)
-    - [Helm charts](https://github.com/VictoriaMetrics/helm-charts/tree/master/charts/victoria-metrics-anomaly)
+Begin your VictoriaMetrics Anomaly Detection journey with ease using our guides and installation instructions:
+
+- **Quick Start Guide**: Jumpstart your anomaly detection setup to simplify the process of integrating anomaly detection into your observability ecosystem. Get started [here](/anomaly-detection/guides/guide-vmanomaly-vmalert.html).
+
+- **Installation Options**: Choose the method that best fits your environment:
+    - **Docker Installation**: Ideal for containerized environments. Follow our [Docker guide](../vmanomaly.md#run-vmanomaly-docker-container) for a smooth setup.
+    - **Helm Chart Installation**: Perfect for Kubernetes users. Deploy using our [Helm charts](https://github.com/VictoriaMetrics/helm-charts/tree/master/charts/victoria-metrics-anomaly) for an efficient integration.
 
 ## Deep Dive into Anomaly Detection
 Enhance your knowledge with our handbook on Anomaly Detection & Root Cause Analysis and stay updated:
@@ -41,10 +44,15 @@ Enhance your knowledge with our handbook on Anomaly Detection & Root Cause Analy
     - [Techniques and Models for Anomaly Detection](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-3/)
 * Follow the [`#anomaly-detection`](https://victoriametrics.com/blog/tags/anomaly-detection/) tag in our blog
 
-## Engage with VictoriaMetrics
-Connect with us for a personalized experience:
-* [Book a Demo](https://calendly.com/fred-navruzov/)
-* [Request Trial Enterprise License](https://new.victoriametrics.com/products/enterprise/trial/), including Anomaly Detection
+## Frequently Asked Questions (FAQ)
+Got questions about VictoriaMetrics Anomaly Detection? Chances are, we've got the answers ready for you. 
+
+Dive into [our FAQ section](/anomaly-detection/FAQ.html) to find responses to common questions.
+
+## Get in Touch
+We're eager to connect with you and tailor our solutions to your specific needs. Here's how you can engage with us:
+* [Book a Demo](https://calendly.com/fred-navruzov/) to discover what our product can do.
+* Interested in exploring our [Enterprise features](https://new.victoriametrics.com/products/enterprise), including Anomaly Detection? [Request your trial license](https://new.victoriametrics.com/products/enterprise/trial/) today and take the first step towards advanced system observability.
 
 ---
-Please find [CHANGELOG here](./CHANGELOG.md)
+Our [CHANGELOG is just a click away](./CHANGELOG.md), keeping you informed about the latest updates and enhancements.
