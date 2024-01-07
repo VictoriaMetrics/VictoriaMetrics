@@ -1,12 +1,12 @@
 ---
-sort: 6
+# sort: 5
 title: Monitoring
-weight: 6
+weight: 5
 menu:
   docs:
     parent: "vmanomaly-components"
-    weight: 6
-    # sort: 6
+    weight: 5
+    # sort: 5
 aliases:
   - /anomaly-detection/components/monitoring.html
 ---
@@ -288,7 +288,7 @@ Label names [description](#labelnames)
 ### Labelnames
 <code>stage</code> - stage of model - 'fit', 'infer' or 'fit_infer' for models that do it simultaneously.
 
-<code>query_key</code> - query alias from `reader` config section.
+<code>query_key</code> - query alias from [`reader`](/anomaly-detection/components/reader.html) config section.
 
 <code>url</code> - writer or reader url endpoint.
 

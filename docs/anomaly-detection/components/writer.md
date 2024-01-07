@@ -1,19 +1,24 @@
 ---
-sort: 5
+# sort: 4
 title: Writer
-weight: 5
+weight: 4
 menu:
   docs:
     parent: "vmanomaly-components"
-    weight: 5
-    # sort: 5
+    weight: 4
+    # sort: 4
 aliases:
   - /anomaly-detection/components/writer.html
 ---
 
 # Writer
-
+<!--
 There are 3 ways to export data from VictoriaMetrics Anomaly Detection: VictoriaMetrics, JSON file, or CSV file. Depending on the chosen option, different parameters should be specified in the config file in the `writer` section.
+-->
+
+For exporting data, VictoriaMetrics Anomaly Detection (`vmanomaly`) primarily employs the [VmWriter](#vm-writer), which writes produces anomaly scores (preserving initial labelset and optionally applying additional ones) back to VictoriaMetrics. This writer is tailored for smooth data export within the VictoriaMetrics ecosystem. 
+
+Future updates will introduce additional export methods, offering users more flexibility in data handling and integration.
 
 ## VM writer
 
@@ -117,7 +122,7 @@ writer:
 
 ### Healthcheck metrics
 
-`VmWriter` exposes [several healthchecks metrics](./monitoring.html#writer-behaviour-metrics) to its `health_path` endpoint: 
+`VmWriter` exposes [several healthchecks metrics](./monitoring.html#writer-behaviour-metrics). 
 
 ### Metrics formatting
 There should be 2 mandatory parameters set in `metric_format` - `__name__` and `for`. 
@@ -136,7 +141,7 @@ custom_label_1: label_name_1
 custom_label_2: label_name_2
 ```
 
-Apart from specified labels, output metrics will return labels inherited from input metrics returned by [queries](https://github.com/VictoriaMetrics/vmanomaly/blob/master/components/reader/reader.md#config-parameters).
+Apart from specified labels, output metrics will return labels inherited from input metrics returned by [queries](/anomaly-detection/components/reader.html#config-parameters).
 For example if input data contains labels such as `cpu=1, device=eth0, instance=node-exporter:9100` all these labels will be present in vmanomaly output metrics.
 
 So if metric_format section was set up like this:
@@ -156,10 +161,12 @@ It will return metrics that will look like:
 {__name__="PREFIX1_yhat_lower", for="PREFIX2_query_name_2", custom_label_1="label_name_1", custom_label_2="label_name_2", cpu=1, device="eth0", instance="node-exporter:9100"}
 ```
 
+<!--
+# TODO: uncomment and maintain after multimodel config refactor, 2nd priority
+
 
 ## NDJSON writer
 Generates data in the same format as <code>/export</code>. 
-
 
 ### Config parameters
 <table>
@@ -171,35 +178,25 @@ Generates data in the same format as <code>/export</code>.
         </tr>
     </thead>
     <tbody>
-    <tr>
-        <td><code>class</td>
-        <td><code>"writer.ndjson.NdjsonWriter"</td>
-        <td>Name of the class needed to enable writing into JSON line format file.</td>
-    </tr>
-    <tr>
-        <td><code>path</td>
-        <td><code>"data/output.ndjson"</td>
-        <td>Path to file in JSON line format</td>
-    </tr>
-    <tr rowspan=4 >
-                <td rowspan=4><code>metric_format</td>
-                <td><code> __name__: "vmanomaly_$VAR"</code> *Mandatory </td>
-                <td rowspan=4>Metrics to save the output (in metric names or labels). Must have <code>__name__</code> key.
- Must have a value with <code>$VAR</code> placeholder in it to distinguish between resulting metrics.
- Supported placeholders:
-
-  - <code>$VAR</code> -- Variables that model provides, all models provide the following set: {"anomaly_score", "y", "yhat", "yhat_lower", "yhat_upper"}. Depending on model type it can provide more metrics, like "trend", "seasonality" etc.
--  <code>$QUERY_KEY</code> -- E.g. "ingestion_rate".
-Other keys are supposed to be configured by user to help identify generated metrics, e.g. specific config file name etc.
-</td>
-                <tr><td><code>for: "$QUERY_KEY"</code> *Mandatory</td></tr>
-                <tr><td><code>run: "test_metric_format"</td> </tr>
-                <tr><td><code>config: "io_vm_single.yaml"</td></tr>  
-            </tr>
-            <tr>
-        <td><code>override</td>
-        <td><code>True</td>
-        <td>Override file flag. Default True</td>
+        <tr>
+            <td><code>class</code></td>
+            <td><code>"writer.ndjson.NdjsonWriter"</code></td>
+            <td>Name of the class needed to enable writing into JSON line format file.</td>
+        </tr>
+        <tr>
+            <td><code>path</code></td>
+            <td><code>"data/output.ndjson"</code></td>
+            <td>Path to file in JSON line format</td>
+        </tr>
+        <tr>
+            <td><code>metric_format</code></td>
+            <td><code>__name__: "vmanomaly_$VAR"</code></td>
+            <td>Metrics to save the output (in metric names or labels). Must have <code>__name__</code> key. Must have a value with <code>$VAR</code> placeholder in it to distinguish between resulting metrics. Supported placeholders: <code>$VAR</code>, <code>$QUERY_KEY</code> and others as configured by the user.</td>
+        </tr>
+        <tr>
+            <td><code>override</code></td>
+            <td><code>True</code></td>
+            <td>Override file flag. Default True</td>
         </tr>
     </tbody>
 </table>
@@ -216,9 +213,7 @@ writer:
 ```
 
 
-
 ## CSV writer
-
 
 ### Config parameters
 <table>
@@ -232,37 +227,35 @@ writer:
     </thead>
     <tbody>
         <tr>
-        <td><code>class</td>
-        <td>str</td>
-        <td><code>writer.csv.CsvWriter</td>
-        <td>Name of the class enabling CSV writer</td>
+            <td><code>class</code></td>
+            <td>str</td>
+            <td><code>"writer.csv.CsvWriter"</code></td>
+            <td>Name of the class enabling CSV writer</td>
         </tr>
         <tr>
-        <td><code>header</td>
-        <td>bool</td>
-        <td><code>True</td>
-        <td>Whether to write header (column names). Default True</td>
-        </tr> 
-        <tr>
-        <td><code>path</td>
-        <td>str</td>
-        <td><code>"data/jumpsup.csv"</td>
-        <td>Where to save the results</td>
-        </tr> 
-        <tr>
-        <td><code>override</td>
-        <td>bool</td>
-        <td><code>True</td>
-        <td>Override file flag. Default True</td>
+            <td><code>header</code></td>
+            <td>bool</td>
+            <td><code>True</code></td>
+            <td>Whether to write header (column names). Default True</td>
         </tr>
         <tr>
-        <td><code>tz</td>
-        <td>str</td>
-        <td><code>None</td>
-        <td>Optional. Convert default timestamps in UTC to desired timezone, e.g. 'US/Pacific'. 
-            By default local timezone is used</td>
+            <td><code>path</code></td>
+            <td>str</td>
+            <td><code>"data/jumpsup.csv"</code></td>
+            <td>Where to save the results</td>
         </tr>
-        </tr> 
+        <tr>
+            <td><code>override</code></td>
+            <td>bool</td>
+            <td><code>True</code></td>
+            <td>Override file flag. Default True</td>
+        </tr>
+        <tr>
+            <td><code>tz</code></td>
+            <td>str</td>
+            <td><code>None</code></td>
+            <td>Optional. Convert default timestamps in UTC to desired timezone, e.g. 'US/Pacific'. By default local timezone is used</td>
+        </tr>
     </tbody>
 </table>
 Config example:
@@ -274,3 +267,4 @@ writer:
   header: True
   override: True
 ```
+-->

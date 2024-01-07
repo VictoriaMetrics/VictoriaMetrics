@@ -8,7 +8,6 @@ menu:
     parent: "anomaly-detection"
     sort: 4
     weight: 4
-    # sort: 10
 aliases:
 - /anomaly-detection/CHANGELOG.html
 ---

@@ -1,12 +1,12 @@
 ---
-sort: 4
+# sort: 3
 title: Scheduler
-weight: 4
+weight: 3
 menu:
   docs:
     parent: "vmanomaly-components"
-    weight: 4
-    # sort: 4
+    weight: 3
+    # sort: 3
 aliases:
   - /anomaly-detection/components/scheduler.html
 ---

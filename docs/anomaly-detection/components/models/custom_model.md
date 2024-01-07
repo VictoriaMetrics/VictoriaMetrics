@@ -1,5 +1,5 @@
 ---
-sort: 2
+# sort: 2
 weight: 2
 title: Custom Model Guide
 # disableToc: true

@@ -1,19 +1,26 @@
 ---
-sort: 3
+# sort: 2
 title: Reader
-weight: 3
+weight: 2
 menu:
   docs:
     parent: "vmanomaly-components"
-    # sort: 3
-    weight: 3
+    # sort: 2
+    weight: 2
 aliases:
   - /anomaly-detection/components/reader.html
 ---
 
 # Reader
 
+<!--
 There are 4 sources available to read data into VM Anomaly Detection from: VictoriaMetrics, (ND)JSON file, QueryRange, or CSV file. Depending on the data source, different parameters should be specified in the config file in the `reader` section.
+-->
+
+VictoriaMetrics Anomaly Detection (`vmanomaly`) primarily uses [VmReader](#vm-reader) to ingest data. This reader focuses on fetching time-series data directly from VictoriaMetrics with the help of powerful [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) expressions for aggregating, filtering and grouping your data, ensuring seamless integration and efficient data handling. 
+
+Future updates will introduce additional readers, expanding the range of data sources `vmanomaly` can work with.
+
 
 ## VM reader
 
@@ -110,8 +117,11 @@ reader:
 
 ### Healthcheck metrics
 
-`VmReader` exposes [several healthchecks metrics](./monitoring.html#reader-behaviour-metrics) to its `health_path` endpoint
+`VmReader` exposes [several healthchecks metrics](./monitoring.html#reader-behaviour-metrics).
 
+<!--
+
+# TODO: uncomment and maintain after multimodel config refactor, 2nd priority
 
 ## NDJSON reader
 Accepts data in the same format as <code>/export</code>. 
@@ -249,3 +259,4 @@ reader:
   path: "data/v1/jumpsup.csv"
   metric_name: "value"
 ```
+-->
