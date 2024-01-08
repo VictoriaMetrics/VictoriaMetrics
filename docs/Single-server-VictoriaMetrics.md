@@ -541,9 +541,11 @@ or via [configuration file](https://docs.datadoghq.com/agent/guide/agent-configu
 To configure DataDog agent via ENV variable add the following prefix:
 
 <div class="with-copy" markdown="1">
+
 ```
 DD_DD_URL=http://victoriametrics:8428/datadog
 ```
+
 </div>
 
 _Choose correct URL for VictoriaMetrics [here](https://docs.victoriametrics.com/url-examples.html#datadog)._
@@ -572,10 +574,12 @@ sending via ENV variable `DD_ADDITIONAL_ENDPOINTS` or via configuration file `ad
 Run DataDog using the following ENV variable with VictoriaMetrics as additional metrics receiver:
 
 <div class="with-copy" markdown="1">
+
 ```
 DD_ADDITIONAL_ENDPOINTS='{\"http://victoriametrics:8428/datadog\": [\"apikey\"]}'
 
 ```
+
 </div>
 
 _Choose correct URL for VictoriaMetrics [here](https://docs.victoriametrics.com/url-examples.html#datadog)._
@@ -585,11 +589,13 @@ To configure DataDog Dual Shipping via [configuration file](https://docs.datadog
 add the following line:
 
 <div class="with-copy" markdown="1">
+
 ```
 additional_endpoints:
   "http://victoriametrics:8428/datadog":
   - apikey
 ```
+
 </div>
 
 ### Send via cURL
