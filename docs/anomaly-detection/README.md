@@ -53,7 +53,7 @@ Dive into [our FAQ section](/anomaly-detection/FAQ.html) to find responses to co
 
 ## Get in Touch
 We're eager to connect with you and tailor our solutions to your specific needs. Here's how you can engage with us:
-* [Book a Demo](https://calendly.com/fred-navruzov/) to discover what our product can do.
+* [Book a Demo](https://calendly.com/victoriametrics-anomaly-detection) to discover what our product can do.
 * Interested in exploring our [Enterprise features](https://new.victoriametrics.com/products/enterprise), including Anomaly Detection? [Request your trial license](https://new.victoriametrics.com/products/enterprise/trial/) today and take the first step towards advanced system observability.
 
 ---
