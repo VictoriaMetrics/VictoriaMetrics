@@ -30,11 +30,13 @@ Explore the integral components that configure VictoriaMetrics Anomaly Detection
 ## Practical Guides and Installation
 Begin your VictoriaMetrics Anomaly Detection journey with ease using our guides and installation instructions:
 
-- **Quick Start Guide**: Jumpstart your anomaly detection setup to simplify the process of integrating anomaly detection into your observability ecosystem. Get started [here](/anomaly-detection/guides/guide-vmanomaly-vmalert.html).
+- **Quick Start Guide**: Jumpstart your anomaly detection setup to simplify the process of integrating anomaly detection into your observability ecosystem. Get started [**here**](/anomaly-detection/guides/guide-vmanomaly-vmalert.html).
 
 - **Installation Options**: Choose the method that best fits your environment:
     - **Docker Installation**: Ideal for containerized environments. Follow our [Docker guide](../vmanomaly.md#run-vmanomaly-docker-container) for a smooth setup.
     - **Helm Chart Installation**: Perfect for Kubernetes users. Deploy using our [Helm charts](https://github.com/VictoriaMetrics/helm-charts/tree/master/charts/victoria-metrics-anomaly) for an efficient integration.
+
+> Note: starting from [v1.5.0](./CHANGELOG.md#v150) `vmanomaly` requires a [license key](/vmanomaly.html#licensing) to run. You can obtain a trial license key [**here**](https://victoriametrics.com/products/enterprise/trial/index.html).
 
 ## Deep Dive into Anomaly Detection
 Enhance your knowledge with our handbook on Anomaly Detection & Root Cause Analysis and stay updated:

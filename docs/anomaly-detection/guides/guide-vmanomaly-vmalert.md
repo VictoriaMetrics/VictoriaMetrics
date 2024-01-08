@@ -1,6 +1,6 @@
 ---
 weight: 1
-# sort: 1
+~# sort: 1
 title: Getting started with vmanomaly
 menu:
   docs:

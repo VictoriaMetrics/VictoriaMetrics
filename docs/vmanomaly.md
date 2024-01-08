@@ -133,7 +133,7 @@ optionally preserving labels).
 
  
 ## Usage
-> Starting from v1.5.0, vmanomaly requires a license key to run. You can obtain a trial license key [here](https://victoriametrics.com/products/enterprise/trial/).
+> Starting from [v1.5.0](/anomaly-detection/CHANGELOG.html#v150), vmanomaly requires a license key to run. You can obtain a trial license key [here](https://victoriametrics.com/products/enterprise/trial/).
 
 > See [Getting started guide](anomaly-detection/guides/guide-vmanomaly-vmalert.html).
 
