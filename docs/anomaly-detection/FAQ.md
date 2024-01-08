@@ -1,5 +1,5 @@
 ---
-# sort: 3
+sort: 3
 weight: 3
 title: FAQ
 menu:
@@ -7,7 +7,6 @@ menu:
     identifier: "vmanomaly-faq"
     parent: "anomaly-detection"
     weight: 3
-    sort: 3
 aliases:
 - /anomaly-detection/FAQ.html
 ---
