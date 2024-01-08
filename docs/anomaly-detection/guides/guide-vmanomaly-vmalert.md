@@ -8,6 +8,8 @@ menu:
     weight: 1
 aliases:
 - /anomaly-detection/guides/guide-vmanomaly-vmalert.html
+- /guides/guide-vmanomaly-vmalert.html
+
 ---
 # Getting started with vmanomaly
 
