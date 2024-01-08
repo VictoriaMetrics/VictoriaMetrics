@@ -14,6 +14,7 @@ func BenchmarkAggregatorsPushByJobAvg(b *testing.B) {
 		"increase",
 		"count_series",
 		"count_samples",
+		"count_series_bloomfilter",
 		"sum_samples",
 		"last",
 		"min",
