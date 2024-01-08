@@ -14,3 +14,7 @@ aliases:
 # Guides
 
 This section holds guides of how to set up and use VictoriaMetrics Anomaly Detection (or simply [`vmanomaly`](/vmanomaly.html)) service, integrating it with different observability components.
+
+Guides: 
+
+* (Getting started with vmanomaly and vmalert)[https://docs.victoriametrics.com/anomaly-detection/guides/guide-vmanomaly-vmalert.html]
