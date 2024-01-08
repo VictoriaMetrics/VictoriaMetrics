@@ -564,6 +564,7 @@ sending via ENV variable `DD_ADDITIONAL_ENDPOINTS` or via configuration file `ad
 Run DataDog using the following ENV variable with VictoriaMetrics as additional metrics receiver:
 
 <div class="with-copy" markdown="1">
+
 ```
 DD_ADDITIONAL_ENDPOINTS='{\"http://victoriametrics:8428/datadog\": [\"apikey\"]}'
 
@@ -577,11 +578,13 @@ To configure DataDog Dual Shipping via [configuration file](https://docs.datadog
 add the following line:
 
 <div class="with-copy" markdown="1">
+
 ```
 additional_endpoints:
   "http://victoriametrics:8428/datadog":
   - apikey
 ```
+
 </div>
 
 ### Send via cURL
