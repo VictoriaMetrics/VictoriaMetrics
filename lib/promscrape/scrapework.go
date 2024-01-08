@@ -489,6 +489,7 @@ func (sw *scrapeWork) processScrapedData(scrapeTimestamp, realTimestamp int64, b
 		bodyString = ""
 	}
 	seriesAdded := 0
+	// cannot track the number of new time series when stale markers are disabled.
 	if !sw.Config.NoStaleMarkers && !areIdenticalSeries {
 		// The returned value for seriesAdded may be bigger than the real number of added series
 		// if some series were removed during relabeling.
@@ -629,7 +630,7 @@ func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 		scrapesFailed.Inc()
 	}
 	seriesAdded := 0
-	// cannot track the number of new time series when staleness tracking is disabled.
+	// cannot track the number of new time series when stale markers are disabled.
 	if !sw.Config.NoStaleMarkers && !areIdenticalSeries {
 		// The returned value for seriesAdded may be bigger than the real number of added series
 		// if some series were removed during relabeling.
