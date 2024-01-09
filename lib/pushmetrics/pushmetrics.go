@@ -24,12 +24,24 @@ func init() {
 	flagutil.RegisterSecretFlag("pushmetrics.url")
 }
 
+var (
+	// create a custom context for the pushmetrics module to close the metric reporting goroutine when the vmstorage process is shutdown.
+	pushMetricsCtx, cancelPushMetric = context.WithCancel(context.Background())
+)
+
 // Init must be called after logger.Init
 func Init() {
 	extraLabels := strings.Join(*pushExtraLabel, ",")
 	for _, pu := range *pushURL {
-		if err := metrics.InitPushExt(pu, *pushInterval, extraLabels, appmetrics.WritePrometheusMetrics); err != nil {
+		opts := &metrics.PushOptions{
+			ExtraLabels: extraLabels,
+		}
+		if err := metrics.InitPushExtWithOptions(pushMetricsCtx, pu, *pushInterval, appmetrics.WritePrometheusMetrics, opts); err != nil {
 			logger.Fatalf("cannot initialize pushmetrics: %s", err)
 		}
 	}
+}
+
+func StopPushMetrics() {
+	cancelPushMetric()
 }
