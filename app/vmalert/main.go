@@ -187,6 +187,7 @@ func main() {
 	if err := httpserver.Stop(*httpListenAddr); err != nil {
 		logger.Fatalf("cannot stop the webservice: %s", err)
 	}
+	pushmetrics.Stop()
 	cancel()
 	manager.close()
 }

@@ -59,6 +59,8 @@ func main() {
 	}
 	logger.Infof("successfully shut down the webservice in %.3f seconds", time.Since(startTime).Seconds())
 
+	pushmetrics.Stop()
+
 	vlinsert.Stop()
 	vlselect.Stop()
 	vlstorage.Stop()

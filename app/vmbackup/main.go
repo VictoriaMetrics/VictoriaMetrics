@@ -107,6 +107,7 @@ func main() {
 	if err := httpserver.Stop(*httpListenAddr); err != nil {
 		logger.Fatalf("cannot stop http server for metrics: %s", err)
 	}
+	pushmetrics.Stop()
 	logger.Infof("successfully shut down http server for metrics in %.3f seconds", time.Since(startTime).Seconds())
 }
 
