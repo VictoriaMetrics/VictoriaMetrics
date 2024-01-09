@@ -80,6 +80,7 @@ func main() {
 	if err := httpserver.Stop(*httpListenAddr); err != nil {
 		logger.Fatalf("cannot stop the webservice: %s", err)
 	}
+	pushmetrics.Stop()
 	logger.Infof("successfully shut down the webservice in %.3f seconds", time.Since(startTime).Seconds())
 	stopAuthConfig()
 	logger.Infof("successfully stopped vmauth in %.3f seconds", time.Since(startTime).Seconds())
