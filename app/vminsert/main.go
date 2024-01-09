@@ -158,6 +158,8 @@ func main() {
 	}
 	logger.Infof("successfully shut down http service in %.3f seconds", time.Since(startTime).Seconds())
 
+	pushmetrics.Stop()
+
 	if len(*clusternativeListenAddr) > 0 {
 		clusternativeServer.MustStop()
 	}

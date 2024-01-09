@@ -25,8 +25,7 @@ func init() {
 }
 
 var (
-	// create a custom context for the pushmetrics module to close the metric reporting goroutine when the vmstorage process is shutdown.
-	pushMetricsCtx, cancelPushMetric = context.WithCancel(context.Background())
+	pushCtx, cancelPushCtx = context.WithCancel(context.Background())
 )
 
 // Init must be called after logger.Init
@@ -36,12 +35,17 @@ func Init() {
 		opts := &metrics.PushOptions{
 			ExtraLabels: extraLabels,
 		}
-		if err := metrics.InitPushExtWithOptions(pushMetricsCtx, pu, *pushInterval, appmetrics.WritePrometheusMetrics, opts); err != nil {
+		if err := metrics.InitPushExtWithOptions(pushCtx, pu, *pushInterval, appmetrics.WritePrometheusMetrics, opts); err != nil {
 			logger.Fatalf("cannot initialize pushmetrics: %s", err)
 		}
 	}
 }
 
-func StopPushMetrics() {
-	cancelPushMetric()
+// Stop stops the periodic push of metrics.
+// It is important to stop the push of metrics before disposing resources
+// these metrics attached to. See related https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5548
+//
+// Stop must be called after Init.
+func Stop() {
+	cancelPushCtx()
 }
