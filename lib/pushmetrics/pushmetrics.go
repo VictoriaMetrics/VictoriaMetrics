@@ -28,6 +28,10 @@ func init() {
 	flagutil.RegisterSecretFlag("pushmetrics.url")
 }
 
+var (
+	pushCtx, cancelPushCtx = context.WithCancel(context.Background())
+)
+
 // Init must be called after logger.Init
 func Init() {
 	extraLabels := strings.Join(*pushExtraLabel, ",")
@@ -37,8 +41,17 @@ func Init() {
 			Headers:            *pushHeader,
 			DisableCompression: *disableCompression,
 		}
-		if err := metrics.InitPushExtWithOptions(context.Background(), pu, *pushInterval, appmetrics.WritePrometheusMetrics, opts); err != nil {
+		if err := metrics.InitPushExtWithOptions(pushCtx, pu, *pushInterval, appmetrics.WritePrometheusMetrics, opts); err != nil {
 			logger.Fatalf("cannot initialize pushmetrics: %s", err)
 		}
 	}
+}
+
+// Stop stops the periodic push of metrics.
+// It is important to stop the push of metrics before disposing resources
+// these metrics attached to. See related https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5548
+//
+// Stop must be called after Init.
+func Stop() {
+	cancelPushCtx()
 }
