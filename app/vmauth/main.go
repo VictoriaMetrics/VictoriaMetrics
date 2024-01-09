@@ -200,13 +200,14 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 		} else { // Update path for regular routes.
 			targetURL = mergeURLs(targetURL, u, up.dropSrcPathPrefixParts)
 		}
-		ok := tryProcessingRequest(w, r, targetURL, hc, up.retryStatusCodes, ui.httpTransport)
+		ok := tryProcessingRequest(w, r, targetURL, hc, up.retryStatusCodes, ui)
 		bu.put()
 		if ok {
 			return
 		}
 		bu.setBroken()
 	}
+	ui.requestErrors.Inc()
 	err := &httpserver.ErrorWithStatusCode{
 		Err:        fmt.Errorf("all the backends for the user %q are unavailable", ui.name()),
 		StatusCode: http.StatusServiceUnavailable,
@@ -214,13 +215,13 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 	httpserver.Errorf(w, r, "%s", err)
 }
 
-func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url.URL, hc HeadersConf, retryStatusCodes []int, transport *http.Transport) bool {
+func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url.URL, hc HeadersConf, retryStatusCodes []int, ui *UserInfo) bool {
 	// This code has been copied from net/http/httputil/reverseproxy.go
 	req := sanitizeRequestHeaders(r)
 	req.URL = targetURL
 	req.Host = targetURL.Host
 	updateHeadersByConfig(req.Header, hc.RequestHeaders)
-	res, err := transport.RoundTrip(req)
+	res, err := ui.httpTransport.RoundTrip(req)
 	rtb, rtbOK := req.Body.(*readTrackingBody)
 	if err != nil {
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
@@ -231,6 +232,7 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 			return true
 		}
 		if !rtbOK || !rtb.canRetry() {
+			ui.requestErrors.Inc()
 			// Request body cannot be re-sent to another backend. Return the error to the client then.
 			err = &httpserver.ErrorWithStatusCode{
 				Err:        fmt.Errorf("cannot proxy the request to %q: %w", targetURL, err),
@@ -392,8 +394,10 @@ func getTransport(insecureSkipVerifyP *bool, caFile string) (*http.Transport, er
 	return tr, nil
 }
 
-var transportMap = make(map[string]*http.Transport)
-var transportMapLock sync.Mutex
+var (
+	transportMap     = make(map[string]*http.Transport)
+	transportMapLock sync.Mutex
+)
 
 func appendTransportKey(dst []byte, insecureSkipVerify bool, caFile string) []byte {
 	dst = encoding.MarshalBool(dst, insecureSkipVerify)

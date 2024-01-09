@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -45,20 +46,21 @@ type AuthConfig struct {
 
 // UserInfo is user information read from authConfigPath
 type UserInfo struct {
-	Name                   string      `yaml:"name,omitempty"`
-	BearerToken            string      `yaml:"bearer_token,omitempty"`
-	Username               string      `yaml:"username,omitempty"`
-	Password               string      `yaml:"password,omitempty"`
-	URLPrefix              *URLPrefix  `yaml:"url_prefix,omitempty"`
-	URLMaps                []URLMap    `yaml:"url_map,omitempty"`
-	HeadersConf            HeadersConf `yaml:",inline"`
-	MaxConcurrentRequests  int         `yaml:"max_concurrent_requests,omitempty"`
-	DefaultURL             *URLPrefix  `yaml:"default_url,omitempty"`
-	RetryStatusCodes       []int       `yaml:"retry_status_codes,omitempty"`
-	LoadBalancingPolicy    string      `yaml:"load_balancing_policy,omitempty"`
-	DropSrcPathPrefixParts *int        `yaml:"drop_src_path_prefix_parts,omitempty"`
-	TLSInsecureSkipVerify  *bool       `yaml:"tls_insecure_skip_verify,omitempty"`
-	TLSCAFile              string      `yaml:"tls_ca_file,omitempty"`
+	Name                   string            `yaml:"name,omitempty"`
+	BearerToken            string            `yaml:"bearer_token,omitempty"`
+	Username               string            `yaml:"username,omitempty"`
+	Password               string            `yaml:"password,omitempty"`
+	URLPrefix              *URLPrefix        `yaml:"url_prefix,omitempty"`
+	URLMaps                []URLMap          `yaml:"url_map,omitempty"`
+	HeadersConf            HeadersConf       `yaml:",inline"`
+	MaxConcurrentRequests  int               `yaml:"max_concurrent_requests,omitempty"`
+	DefaultURL             *URLPrefix        `yaml:"default_url,omitempty"`
+	RetryStatusCodes       []int             `yaml:"retry_status_codes,omitempty"`
+	LoadBalancingPolicy    string            `yaml:"load_balancing_policy,omitempty"`
+	DropSrcPathPrefixParts *int              `yaml:"drop_src_path_prefix_parts,omitempty"`
+	TLSInsecureSkipVerify  *bool             `yaml:"tls_insecure_skip_verify,omitempty"`
+	TLSCAFile              string            `yaml:"tls_ca_file,omitempty"`
+	MetricLabels           map[string]string `yaml:"metric_labels,omitempty"`
 
 	concurrencyLimitCh      chan struct{}
 	concurrencyLimitReached *metrics.Counter
@@ -66,6 +68,7 @@ type UserInfo struct {
 	httpTransport *http.Transport
 
 	requests         *metrics.Counter
+	requestErrors    *metrics.Counter
 	requestsDuration *metrics.Summary
 }
 
@@ -462,10 +465,12 @@ func authConfigReloader(sighupCh <-chan os.Signal) {
 // authConfigData needs to be updated each time authConfig is updated.
 var authConfigData atomic.Pointer[[]byte]
 
-var authConfig atomic.Pointer[AuthConfig]
-var authUsers atomic.Pointer[map[string]*UserInfo]
-var authConfigWG sync.WaitGroup
-var stopCh chan struct{}
+var (
+	authConfig   atomic.Pointer[AuthConfig]
+	authUsers    atomic.Pointer[map[string]*UserInfo]
+	authConfigWG sync.WaitGroup
+	stopCh       chan struct{}
+)
 
 // loadAuthConfig loads and applies the config from *authConfigPath.
 // It returns bool value to identify if new config was applied.
@@ -527,14 +532,19 @@ func parseAuthConfig(data []byte) (*AuthConfig, error) {
 		if err := ui.initURLs(); err != nil {
 			return nil, err
 		}
-		ui.requests = metrics.GetOrCreateCounter(`vmauth_unauthorized_user_requests_total`)
-		ui.requestsDuration = metrics.GetOrCreateSummary(`vmauth_unauthorized_user_request_duration_seconds`)
+		formattedMetricLabels, err := ui.buildMetricLabels()
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse metricLabels for unauthorized_user section")
+		}
+		ui.requests = metrics.GetOrCreateCounter(`vmauth_unauthorized_user_requests_total` + formattedMetricLabels)
+		ui.requestErrors = metrics.GetOrCreateCounter(`vmauth_unauthorized_user_request_backend_errors_total` + formattedMetricLabels)
+		ui.requestsDuration = metrics.GetOrCreateSummary(`vmauth_unauthorized_user_request_duration_seconds` + formattedMetricLabels)
 		ui.concurrencyLimitCh = make(chan struct{}, ui.getMaxConcurrentRequests())
-		ui.concurrencyLimitReached = metrics.GetOrCreateCounter(`vmauth_unauthorized_user_concurrent_requests_limit_reached_total`)
-		_ = metrics.GetOrCreateGauge(`vmauth_unauthorized_user_concurrent_requests_capacity`, func() float64 {
+		ui.concurrencyLimitReached = metrics.GetOrCreateCounter(`vmauth_unauthorized_user_concurrent_requests_limit_reached_total` + formattedMetricLabels)
+		_ = metrics.GetOrCreateGauge(`vmauth_unauthorized_user_concurrent_requests_capacity`+formattedMetricLabels, func() float64 {
 			return float64(cap(ui.concurrencyLimitCh))
 		})
-		_ = metrics.GetOrCreateGauge(`vmauth_unauthorized_user_concurrent_requests_current`, func() float64 {
+		_ = metrics.GetOrCreateGauge(`vmauth_unauthorized_user_concurrent_requests_current`+formattedMetricLabels, func() float64 {
 			return float64(len(ui.concurrencyLimitCh))
 		})
 		tr, err := getTransport(ui.TLSInsecureSkipVerify, ui.TLSCAFile)
@@ -572,25 +582,29 @@ func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, error) {
 			return nil, err
 		}
 
-		name := ui.name()
+		formattedMetricLabels, err := ui.buildMetricLabels()
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse metric_labels for username=%q", ui.name())
+		}
 		if ui.BearerToken != "" {
 			if ui.Password != "" {
 				return nil, fmt.Errorf("password shouldn't be set for bearer_token %q", ui.BearerToken)
 			}
-			ui.requests = metrics.GetOrCreateCounter(fmt.Sprintf(`vmauth_user_requests_total{username=%q}`, name))
-			ui.requestsDuration = metrics.GetOrCreateSummary(fmt.Sprintf(`vmauth_user_request_duration_seconds{username=%q}`, name))
+			ui.requests = metrics.GetOrCreateCounter(`vmauth_user_requests_total` + formattedMetricLabels)
+			ui.requestsDuration = metrics.GetOrCreateSummary(`vmauth_user_request_duration_seconds` + formattedMetricLabels)
 		}
 		if ui.Username != "" {
-			ui.requests = metrics.GetOrCreateCounter(fmt.Sprintf(`vmauth_user_requests_total{username=%q}`, name))
-			ui.requestsDuration = metrics.GetOrCreateSummary(fmt.Sprintf(`vmauth_user_request_duration_seconds{username=%q}`, name))
+			ui.requests = metrics.GetOrCreateCounter(`vmauth_user_requests_total` + formattedMetricLabels)
+			ui.requestsDuration = metrics.GetOrCreateSummary(`vmauth_user_request_duration_seconds` + formattedMetricLabels)
 		}
+		ui.requestErrors = metrics.GetOrCreateCounter(`vmauth_user_request_backend_errors_total` + formattedMetricLabels)
 		mcr := ui.getMaxConcurrentRequests()
 		ui.concurrencyLimitCh = make(chan struct{}, mcr)
-		ui.concurrencyLimitReached = metrics.GetOrCreateCounter(fmt.Sprintf(`vmauth_user_concurrent_requests_limit_reached_total{username=%q}`, name))
-		_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vmauth_user_concurrent_requests_capacity{username=%q}`, name), func() float64 {
+		ui.concurrencyLimitReached = metrics.GetOrCreateCounter(`vmauth_user_concurrent_requests_limit_reached_total` + formattedMetricLabels)
+		_ = metrics.GetOrCreateGauge(`vmauth_user_concurrent_requests_capacity`+formattedMetricLabels, func() float64 {
 			return float64(cap(ui.concurrencyLimitCh))
 		})
-		_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vmauth_user_concurrent_requests_current{username=%q}`, name), func() float64 {
+		_ = metrics.GetOrCreateGauge(`vmauth_user_concurrent_requests_current`+formattedMetricLabels, func() float64 {
 			return float64(len(ui.concurrencyLimitCh))
 		})
 
@@ -604,6 +618,28 @@ func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, error) {
 		byAuthToken[at2] = ui
 	}
 	return byAuthToken, nil
+}
+
+var labelNameRegexp = regexp.MustCompile("^[a-zA-Z_:.][a-zA-Z0-9_:.]*$")
+
+func (ui *UserInfo) buildMetricLabels() (string, error) {
+	name := ui.name()
+	if len(name) == 0 && len(ui.MetricLabels) == 0 {
+		// fast path
+		return "", nil
+	}
+	sortedLabelValues := make([]string, 0, len(ui.MetricLabels)+1)
+	if len(name) > 0 {
+		sortedLabelValues = append(sortedLabelValues, fmt.Sprintf(`username=%q`, name))
+	}
+	for k, v := range ui.MetricLabels {
+		if !labelNameRegexp.MatchString(k) {
+			return "", fmt.Errorf("incorrect label name=%q, it must match regex=%q", k, labelNameRegexp.String())
+		}
+		sortedLabelValues = append(sortedLabelValues, fmt.Sprintf(`%s=%q`, k, v))
+	}
+	sort.Strings(sortedLabelValues)
+	return fmt.Sprintf(`{%s}`, strings.Join(sortedLabelValues, ",")), nil
 }
 
 func (ui *UserInfo) initURLs() error {

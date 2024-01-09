@@ -695,9 +695,15 @@ It is recommended protecting the following endpoints with authKeys:
 `vmauth` exports various metrics in Prometheus exposition format at `http://vmauth-host:8427/metrics` page. It is recommended setting up regular scraping of this page
 either via [vmagent](https://docs.victoriametrics.com/vmagent.html) or via Prometheus, so the exported metrics could be analyzed later.
 
-`vmauth` exports `vmauth_user_requests_total` [counter](https://docs.victoriametrics.com/keyConcepts.html#counter) metric 
-and `vmauth_user_request_duration_seconds_*` [summary](https://docs.victoriametrics.com/keyConcepts.html#summary) metric 
-with `username` label. The `username` label value equals to `username` field value set in the `-auth.config` file.
+`vmauth` exports following per user section metrics:
+* `vmauth_user_requests_total` [counter](https://docs.victoriametrics.com/keyConcepts.html#counter) metric 
+* `vmauth_user_request_duration_seconds_*` [summary](https://docs.victoriametrics.com/keyConcepts.html#summary) metric 
+* `vmauth_user_request_backend_errors_total` [counter](https://docs.victoriametrics.com/keyConcepts.html#counter) metric 
+* `vmauth_user_concurrent_requests_limit_reached_total` [counter](https://docs.victoriametrics.com/keyConcepts.html#counter) metric 
+* `vmauth_user_concurrent_requests_capacity` [gauge](https://docs.victoriametrics.com/keyConcepts.html#gauge) metric 
+* `vmauth_user_concurrent_requests_current` [gauge](https://docs.victoriametrics.com/keyConcepts.html#gauge) metric 
+
+By default, only `username` label added to it. The `username` label value equals to `username` field value set in the `-auth.config` file.
 It is possible to override or hide the value in the label by specifying `name` field. 
 For example, the following config will result in `vmauth_user_requests_total{username="foobar"}` 
 instead of `vmauth_user_requests_total{username="secret_user"}`:
@@ -706,6 +712,18 @@ instead of `vmauth_user_requests_total{username="secret_user"}`:
 users:
 - username: "secret_user"
   name: "foobar"
+  # other config options here
+```
+
+ It's possible to define additional labels with `metric_labels`:
+
+```yml
+users:
+- username: "secret_user"
+  name: "foobar"
+  metric_labels:
+   dc: eu 
+   team: dev
   # other config options here
 ```
 

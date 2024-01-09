@@ -230,6 +230,14 @@ users:
     headers:
       aaa: bbb
 `)
+	// Invalid metric label name
+	f(`
+users:
+- username: foo
+  url_prefix: http://foo.bar
+  metric_labels:
+    not-prometheus-compatible: value
+`)
 }
 
 func TestParseAuthConfigSuccess(t *testing.T) {
@@ -489,7 +497,41 @@ users:
 			}),
 		},
 	})
-
+	// With metric_labels
+	f(`
+users:
+- username: foo-same
+  password: baz
+  url_prefix: http://foo
+  metric_labels:
+    dc: eu 
+    team: dev
+- username: foo-same
+  password: bar
+  url_prefix: https://bar/x///
+  metric_labels:
+    backend_env: test 
+    team: accounting
+`, map[string]*UserInfo{
+		getAuthToken("", "foo-same", "baz"): {
+			Username:  "foo-same",
+			Password:  "baz",
+			URLPrefix: mustParseURL("http://foo"),
+			MetricLabels: map[string]string{
+				"dc":   "eu",
+				"team": "dev",
+			},
+		},
+		getAuthToken("", "foo-same", "bar"): {
+			Username:  "foo-same",
+			Password:  "bar",
+			URLPrefix: mustParseURL("https://bar/x"),
+			MetricLabels: map[string]string{
+				"backend_env": "test",
+				"team":        "accounting",
+			},
+		},
+	})
 }
 
 func TestParseAuthConfigPassesTLSVerificationConfig(t *testing.T) {
