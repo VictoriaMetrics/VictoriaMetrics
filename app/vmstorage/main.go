@@ -145,9 +145,7 @@ func main() {
 	}
 	logger.Infof("successfully shut down http service in %.3f seconds", time.Since(startTime).Seconds())
 
-	// close the metric reporting goroutine
-	pushmetrics.StopPushMetrics()
-	logger.Infof("successfully stop push metric in %.3f seconds", time.Since(startTime).Seconds())
+	pushmetrics.Stop()
 
 	logger.Infof("gracefully shutting down the service")
 	startTime = time.Now()

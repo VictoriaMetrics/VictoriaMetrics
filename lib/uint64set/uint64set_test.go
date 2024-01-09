@@ -690,6 +690,40 @@ func testSetSparseItems(t *testing.T, itemsCount int) {
 	}
 }
 
+func FuzzAddMulti(f *testing.F) {
+	rand.Seed(time.Now().UnixNano())
+
+	f.Add(uint64(10))
+	f.Fuzz(func(t *testing.T, v uint64) {
+		var s1, s2 Set
+
+		v %= 1e3
+		vs := make([]uint64, v)
+		for i := range vs {
+			vs[i] = rand.Uint64()
+		}
+
+		s1.AddMulti(vs)
+		for _, v := range vs {
+			s2.Add(v)
+		}
+		if s1.Len() != s2.Len() {
+			t.Fatalf("unexpected number of items in the set; got %d; want %d\nset:\n%d", s1.Len(), s2.Len(), s1.AppendTo(nil))
+		}
+		for _, x := range vs {
+			if !s1.Has(x) {
+				t.Fatalf("missing item %d in the set", x)
+			}
+		}
+
+		a1 := s1.AppendTo(nil)
+		a2 := s2.AppendTo(nil)
+		if !reflect.DeepEqual(a1, a2) {
+			t.Fatalf("unexpected items in the set;\ngot\n%d\nwant\n%d", a1, a2)
+		}
+	})
+}
+
 func TestAddMulti(t *testing.T) {
 	f := func(a []uint64) {
 		t.Helper()

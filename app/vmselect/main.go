@@ -143,6 +143,8 @@ func main() {
 	}
 	logger.Infof("successfully shut down http service in %.3f seconds", time.Since(startTime).Seconds())
 
+	pushmetrics.Stop()
+
 	if vmselectapiServer != nil {
 		logger.Infof("stopping vmselectapi server...")
 		vmselectapiServer.MustStop()
