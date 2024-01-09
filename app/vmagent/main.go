@@ -158,6 +158,7 @@ func main() {
 		logger.Infof("successfully shut down the webservice in %.3f seconds", time.Since(startTime).Seconds())
 	}
 
+	pushmetrics.Stop()
 	promscrape.Stop()
 
 	if len(*influxListenAddr) > 0 {

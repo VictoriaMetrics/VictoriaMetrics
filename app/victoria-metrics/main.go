@@ -89,6 +89,7 @@ func main() {
 	if err := httpserver.Stop(*httpListenAddr); err != nil {
 		logger.Fatalf("cannot stop the webservice: %s", err)
 	}
+	pushmetrics.Stop()
 	vminsert.Stop()
 	logger.Infof("successfully shut down the webservice in %.3f seconds", time.Since(startTime).Seconds())
 
