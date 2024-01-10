@@ -15,6 +15,9 @@ var SDCheckInterval = flag.Duration("promscrape.kubernetesSDCheckInterval", 30*t
 	"This works only if kubernetes_sd_configs is configured in '-promscrape.config' file. "+
 	"See https://docs.victoriametrics.com/sd_configs.html#kubernetes_sd_configs for details")
 
+// sets the attach_metadata.node to true for all the kubernetes_sd_configs
+var EnableAttachNodeMetadataAll = flag.Bool("promscrape.enableAttachNodeMetadataAll", false, "Sets the attach_metadata.node to true for all the kubernetes_sd_configs. Valid for roles: pod, endpoints, endpointslice")
+
 // SDConfig represents kubernetes-based service discovery config.
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#kubernetes_sd_config

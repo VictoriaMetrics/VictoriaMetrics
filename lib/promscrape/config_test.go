@@ -11,6 +11,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/gce"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/kubernetes"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 )
@@ -200,6 +201,26 @@ func TestLoadConfig(t *testing.T) {
 	}
 }
 
+func TestLoadConfigWithEnableNodeMetadata(t *testing.T) {
+	// set the EnableAttachNodeMetadataAll flag to true
+	*kubernetes.EnableAttachNodeMetadataAll = true
+	cfg, err := loadConfig("testdata/prometheus.yml")
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	if cfg == nil {
+		t.Fatalf("expecting non-nil config")
+	}
+	for _, scrapeConfig := range cfg.ScrapeConfigs {
+		if scrapeConfig.JobName == "service-kubernetes" {
+			// assert that attach_metadata.node is true
+			if scrapeConfig.KubernetesSDConfigs[0].AttachMetadata.Node != true {
+				t.Fatalf("expecting AttachMetadata.Node to be true, but was false ")
+			}
+		}
+
+	}
+}
 func TestAddressWithFullURL(t *testing.T) {
 	data := `
 scrape_configs:
