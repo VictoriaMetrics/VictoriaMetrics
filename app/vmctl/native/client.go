@@ -6,8 +6,13 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
+
+	"golang.org/x/sync/errgroup"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/auth"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/stepper"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/utils"
 )
 
 const (
@@ -35,39 +40,83 @@ type Response struct {
 
 // Explore finds metric names by provided filter from api/v1/label/__name__/values
 func (c *Client) Explore(ctx context.Context, f Filter, tenantID string) ([]string, error) {
-	url := fmt.Sprintf("%s/%s", c.Addr, nativeMetricNamesAddr)
-	if tenantID != "" {
-		url = fmt.Sprintf("%s/select/%s/prometheus/%s", c.Addr, tenantID, nativeMetricNamesAddr)
+	exploreChunk := f.Chunk
+	if f.Chunk == stepper.StepHour || f.Chunk == stepper.StepMinute || f.Chunk == stepper.StepDay {
+		// the minimal step wil be used for metrics explore process
+		exploreChunk = stepper.StepWeek
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+
+	start, err := utils.GetTime(f.TimeStart)
 	if err != nil {
-		return nil, fmt.Errorf("cannot create request to %q: %s", url, err)
+		return nil, fmt.Errorf("failed to parse time start in explore process: %s", err)
 	}
-
-	params := req.URL.Query()
-	if f.TimeStart != "" {
-		params.Set("start", f.TimeStart)
-	}
-	if f.TimeEnd != "" {
-		params.Set("end", f.TimeEnd)
-	}
-	params.Set("match[]", f.Match)
-	req.URL.RawQuery = params.Encode()
-
-	resp, err := c.do(req, http.StatusOK)
+	end, err := utils.GetTime(f.TimeEnd)
 	if err != nil {
-		return nil, fmt.Errorf("series request failed: %s", err)
+		return nil, fmt.Errorf("failed to parse time end in explore process: %s", err)
 	}
 
-	var response Response
-	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
-		return nil, fmt.Errorf("cannot decode series response: %s", err)
+	ranges, err := stepper.SplitDateRange(start, end, exploreChunk, false)
+	if err != nil {
+
+		return nil, fmt.Errorf("failed to create date ranges for the given time filters: %w", err)
 	}
 
-	if err := resp.Body.Close(); err != nil {
-		return nil, fmt.Errorf("cannot close series response body: %s", err)
+	var metricNames []string
+	errs, ctx := errgroup.WithContext(ctx)
+	metricNamesC := make(chan []string)
+	for _, times := range ranges {
+		errs.Go(func() error {
+			url := fmt.Sprintf("%s/%s", c.Addr, nativeMetricNamesAddr)
+			if tenantID != "" {
+				url = fmt.Sprintf("%s/select/%s/prometheus/%s", c.Addr, tenantID, nativeMetricNamesAddr)
+			}
+			req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+			if err != nil {
+				return fmt.Errorf("cannot create request to %q: %s", url, err)
+			}
+
+			params := req.URL.Query()
+			if f.TimeStart != "" {
+				params.Set("start", times[0].Format(time.RFC3339))
+			}
+			if f.TimeEnd != "" {
+				params.Set("end", times[1].Format(time.RFC3339))
+			}
+			params.Set("match[]", f.Match)
+			req.URL.RawQuery = params.Encode()
+
+			resp, err := c.do(req, http.StatusOK)
+			if err != nil {
+				return fmt.Errorf("series request failed: %s", err)
+			}
+
+			var response Response
+			if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+				return fmt.Errorf("cannot decode series response: %s", err)
+			}
+
+			if err := resp.Body.Close(); err != nil {
+				return fmt.Errorf("cannot close series response body: %s", err)
+			}
+			select {
+			case metricNamesC <- response.MetricNames:
+				return nil
+			// Close out if another error occurs.
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		})
 	}
-	return response.MetricNames, nil
+	go func() {
+		errs.Wait()
+		close(metricNamesC)
+	}()
+
+	for mn := range metricNamesC {
+		metricNames = append(metricNames, mn...)
+	}
+
+	return metricNames, nil
 }
 
 // ImportPipe uses pipe reader in request to process data

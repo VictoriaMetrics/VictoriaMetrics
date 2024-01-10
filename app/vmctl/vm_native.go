@@ -204,6 +204,7 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 			log.Println(errMsg)
 			return nil
 		}
+		metrics = removeDuplicateStr(metrics)
 		foundSeriesMsg = fmt.Sprintf("Found %d metrics to import", len(metrics))
 	}
 
@@ -368,4 +369,16 @@ func buildMatchWithFilter(filter string, metricName string) (string, error) {
 
 	match := "{" + strings.Join(filters, " or ") + "}"
 	return match, nil
+}
+
+func removeDuplicateStr(arrIn []string) []string {
+	allKeys := make(map[string]bool)
+	var arrOut []string
+	for _, item := range arrIn {
+		if _, value := allKeys[item]; !value {
+			allKeys[item] = true
+			arrOut = append(arrOut, item)
+		}
+	}
+	return arrOut
 }
