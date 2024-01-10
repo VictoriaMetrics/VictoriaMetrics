@@ -49,17 +49,17 @@ func (c *Client) Explore(ctx context.Context, f Filter, tenantID string) ([]stri
 
 	start, err := utils.GetTime(f.TimeStart)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse time start in explore process: %s", err)
+		return nil, fmt.Errorf("failed to parse time start for explore metrics: %s", err)
 	}
 	end, err := utils.GetTime(f.TimeEnd)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse time end in explore process: %s", err)
+		return nil, fmt.Errorf("failed to parse time end for explore metrics: %s", err)
 	}
 
 	ranges, err := stepper.SplitDateRange(start, end, exploreChunk, false)
 	if err != nil {
 
-		return nil, fmt.Errorf("failed to create date ranges for the given time filters: %w", err)
+		return nil, fmt.Errorf("failed to create date ranges for explore metrics: %w", err)
 	}
 
 	var metricNames []string
