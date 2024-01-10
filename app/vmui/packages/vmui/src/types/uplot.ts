@@ -6,7 +6,8 @@ export enum ForecastType {
     yhatLower = "yhat_lower",
     anomaly = "vmui_anomalies_points",
     training = "vmui_training_data",
-    actual = "actual"
+    actual = "actual",
+    anomalyScore = "anomaly_score",
 }
 
 export interface SeriesItemStatsFormatted {

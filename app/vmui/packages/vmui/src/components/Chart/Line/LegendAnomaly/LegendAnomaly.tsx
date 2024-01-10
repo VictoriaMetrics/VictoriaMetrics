@@ -7,7 +7,7 @@ type Props = {
   series: SeriesItem[];
 };
 
-const titles: Record<ForecastType, string> = {
+const titles: Partial<Record<ForecastType, string>> = {
   [ForecastType.yhat]: "yhat",
   [ForecastType.yhatLower]: "yhat_lower/_upper",
   [ForecastType.yhatUpper]: "yhat_lower/_upper",
