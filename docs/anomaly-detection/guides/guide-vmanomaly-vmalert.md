@@ -1,12 +1,15 @@
 ---
-weight: 6
+weight: 1
+~# sort: 1
 title: Getting started with vmanomaly
 menu:
   docs:
-    parent: "guides"
-    weight: 6
+    parent: "anomaly-detection-guides"
+    weight: 1
 aliases:
+- /anomaly-detection/guides/guide-vmanomaly-vmalert.html
 - /guides/guide-vmanomaly-vmalert.html
+
 ---
 # Getting started with vmanomaly
 
