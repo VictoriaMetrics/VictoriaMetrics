@@ -112,7 +112,7 @@ func (c *Client) Explore(ctx context.Context, f Filter, tenantID string) ([]stri
 	}
 	go func() {
 		if err := errs.Wait(); err != nil {
-			log.Fatalf("error on explore wait: %s", err)
+			log.Printf("error on explore wait: %s", err)
 		}
 		close(metricNamesC)
 	}()
