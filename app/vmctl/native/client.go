@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"time"
 
@@ -65,6 +66,8 @@ func (c *Client) Explore(ctx context.Context, f Filter, tenantID string) ([]stri
 	errs, ctx := errgroup.WithContext(ctx)
 	metricNamesC := make(chan []string)
 	for _, times := range ranges {
+		start := times[0].Format(time.RFC3339)
+		end := times[1].Format(time.RFC3339)
 		errs.Go(func() error {
 			url := fmt.Sprintf("%s/%s", c.Addr, nativeMetricNamesAddr)
 			if tenantID != "" {
@@ -77,10 +80,10 @@ func (c *Client) Explore(ctx context.Context, f Filter, tenantID string) ([]stri
 
 			params := req.URL.Query()
 			if f.TimeStart != "" {
-				params.Set("start", times[0].Format(time.RFC3339))
+				params.Set("start", start)
 			}
 			if f.TimeEnd != "" {
-				params.Set("end", times[1].Format(time.RFC3339))
+				params.Set("end", end)
 			}
 			params.Set("match[]", f.Match)
 			req.URL.RawQuery = params.Encode()
@@ -108,7 +111,9 @@ func (c *Client) Explore(ctx context.Context, f Filter, tenantID string) ([]stri
 		})
 	}
 	go func() {
-		errs.Wait()
+		if err := errs.Wait(); err != nil {
+			log.Fatalf("error on explore wait: %s", err)
+		}
 		close(metricNamesC)
 	}()
 
