@@ -433,6 +433,9 @@ func loadConfig(path string) (*Config, error) {
 	if err := c.parseData(data, path); err != nil {
 		return nil, fmt.Errorf("cannot parse Prometheus config from %q: %w", path, err)
 	}
+	if *kubernetes.EnableAttachNodeMetadataAll {
+		EnableAttachNodeMetaData(&c)
+	}
 	return &c, nil
 }
 
@@ -1224,3 +1227,13 @@ const (
 	defaultScrapeInterval = time.Minute
 	defaultScrapeTimeout  = 10 * time.Second
 )
+
+func EnableAttachNodeMetaData(config *Config) {
+	for i, scrapeConfig := range config.ScrapeConfigs {
+		if kubeSdConfigs := scrapeConfig.KubernetesSDConfigs; kubeSdConfigs != nil && len(kubeSdConfigs) > 0 {
+			for j, _ := range kubeSdConfigs {
+				config.ScrapeConfigs[i].KubernetesSDConfigs[j].AttachMetadata.Node = true
+			}
+		}
+	}
+}
