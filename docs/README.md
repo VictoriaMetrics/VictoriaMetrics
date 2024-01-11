@@ -533,9 +533,11 @@ or via [configuration file](https://docs.datadoghq.com/agent/guide/agent-configu
 To configure DataDog agent via ENV variable add the following prefix:
 
 <div class="with-copy" markdown="1">
+
 ```
 DD_DD_URL=http://victoriametrics:8428/datadog
 ```
+
 </div>
 
 _Choose correct URL for VictoriaMetrics [here](https://docs.victoriametrics.com/url-examples.html#datadog)._
@@ -569,6 +571,7 @@ Run DataDog using the following ENV variable with VictoriaMetrics as additional 
 DD_ADDITIONAL_ENDPOINTS='{\"http://victoriametrics:8428/datadog\": [\"apikey\"]}'
 
 ```
+
 </div>
 
 _Choose correct URL for VictoriaMetrics [here](https://docs.victoriametrics.com/url-examples.html#datadog)._
@@ -1766,6 +1769,9 @@ This aligns with the [staleness rules in Prometheus](https://prometheus.io/docs/
 
 If multiple raw samples have **the same timestamp** on the given `-dedup.minScrapeInterval` discrete interval, 
 then the sample with **the biggest value** is kept.
+
+Prometheus stale markers are respected as any other value. If raw sample with the biggest timestamp on `-dedup.minScrapeInterval`
+has a stale marker as a value - it will be kept after the deduplication.
 
 Please note, [labels](https://docs.victoriametrics.com/keyConcepts.html#labels) of raw samples should be identical
 in order to be deduplicated. For example, this is why [HA pair of vmagents](https://docs.victoriametrics.com/vmagent.html#high-availability)
