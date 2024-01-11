@@ -1212,6 +1212,7 @@ before actually deleting the metrics. By default, this query will only scan seri
 adjust `start` and `end` to a suitable range to achieve match hits.
 
 The `/api/v1/admin/tsdb/delete_series` handler may be protected with `authKey` if `-deleteAuthKey` command-line flag is set.
+Note that handler accepts any HTTP method, so sending a `GET` request to `/api/v1/admin/tsdb/delete_series` will result in deletion of time series.
 
 The delete API is intended mainly for the following cases:
 
