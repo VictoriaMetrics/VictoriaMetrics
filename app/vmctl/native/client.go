@@ -42,7 +42,10 @@ type Response struct {
 // Explore finds metric names by provided filter from api/v1/label/__name__/values
 func (c *Client) Explore(ctx context.Context, f Filter, tenantID string) ([]string, error) {
 	exploreChunk := f.Chunk
-	if f.Chunk == stepper.StepHour || f.Chunk == stepper.StepMinute || f.Chunk == stepper.StepDay || f.Chunk == "" {
+	if exploreChunk == stepper.StepHour ||
+		exploreChunk == stepper.StepMinute ||
+		exploreChunk == stepper.StepDay ||
+		exploreChunk == "" {
 		// the minimal step wil be used for metrics explore process
 		exploreChunk = stepper.StepWeek
 	}
@@ -112,7 +115,7 @@ func (c *Client) Explore(ctx context.Context, f Filter, tenantID string) ([]stri
 	}
 	go func() {
 		if err := errs.Wait(); err != nil {
-			log.Printf("error on explore wait: %s", err)
+			log.Printf("error eplore metrics: %s", err)
 		}
 		close(metricNamesC)
 	}()
