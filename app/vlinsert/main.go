@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/datadog"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/elasticsearch"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/jsonline"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/loki"
@@ -37,6 +38,9 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	case strings.HasPrefix(path, "/loki/"):
 		path = strings.TrimPrefix(path, "/loki")
 		return loki.RequestHandler(path, w, r)
+	case strings.HasPrefix(path, "/datadog/"):
+		path = strings.TrimPrefix(path, "/datadog")
+		return datadog.RequestHandler(path, w, r)
 	default:
 		return false
 	}
