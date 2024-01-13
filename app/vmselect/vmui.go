@@ -14,6 +14,8 @@ import (
 var (
 	vmuiCustomDashboardsPath = flag.String("vmui.customDashboardsPath", "", "Optional path to vmui dashboards. "+
 		"See https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/app/vmui/packages/vmui/public/dashboards")
+	vmuiDefaultTimezone = flag.String("vmui.defaultTimezone", "", "The default timezone to be used in vmui."+
+		"Timezone must be a valid IANA Time Zone. For example: America/New_York, Europe/Berlin, Etc/GMT+3 or Local")
 )
 
 // dashboardSettings represents dashboard settings file struct.
@@ -62,6 +64,13 @@ func handleVMUICustomDashboards(w http.ResponseWriter) error {
 		return fmt.Errorf("cannot collect dashboards settings by -vmui.customDashboardsPath=%q: %w", path, err)
 	}
 	writeSuccessResponse(w, settings)
+	return nil
+}
+
+func handleVMUITimezone(w http.ResponseWriter) error {
+	timezone := *vmuiDefaultTimezone
+	response := fmt.Sprintf(`{"timezone": "%s"}`, timezone)
+	writeSuccessResponse(w, []byte(response))
 	return nil
 }
 

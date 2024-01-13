@@ -425,6 +425,14 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 		}
 		return true
 	}
+	if path == "/vmui/timezone" {
+		httpserver.EnableCORS(w, r)
+		if err := handleVMUITimezone(w); err != nil {
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		return true
+	}
 	if strings.HasPrefix(path, "/vmui/") {
 		if strings.HasPrefix(path, "/vmui/static/") {
 			// Allow clients caching static contents for long period of time, since it shouldn't change over time.
