@@ -2,9 +2,7 @@ package hetzner
 
 import (
 	"fmt"
-	"os"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
 
@@ -36,15 +34,8 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 		}
 	case "hcloud":
 		apiServer = "https://api.hetzner.cloud/v1"
-		token, err := GetToken(sdc.Token)
-		if err != nil {
-			return nil, err
-		}
-		if token != "" {
-			if hcc.BearerToken != nil {
-				return nil, fmt.Errorf("cannot set both token and bearer_token configs")
-			}
-			hcc.BearerToken = promauth.NewSecret(token)
+		if hcc.Authorization == nil {
+			return nil, fmt.Errorf("authorization must be set when role is `%q`", sdc.Role)
 		}
 	default:
 		return nil, fmt.Errorf("skipping unexpected role=%q; must be one of `robot` or `hcloud`", sdc.Role)
@@ -72,21 +63,4 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 		port:   port,
 	}
 	return cfg, nil
-}
-
-// GetToken returns Hcloud token.
-func GetToken(token *promauth.Secret) (string, error) {
-	if token != nil {
-		return token.String(), nil
-	}
-	if tokenFile := os.Getenv("HCLOUD_TOKEN_FILE"); tokenFile != "" {
-		data, err := os.ReadFile(tokenFile)
-		if err != nil {
-			return "", fmt.Errorf("cannot read hcloud token file %q; probably, `token` arg is missing in `hetzner_sd_config`? error: %w", tokenFile, err)
-		}
-		return string(data), nil
-	}
-	t := os.Getenv("HCLOUD_TOKEN")
-	//to-do retrict empty token.
-	return t, nil
 }

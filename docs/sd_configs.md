@@ -34,6 +34,7 @@ aliases:
 * `openstack_sd_configs` is for discovering and scraping OpenStack targets. See [these docs](#openstack_sd_configs).
 * `static_configs` is for scraping statically defined targets. See [these docs](#static_configs).
 * `yandexcloud_sd_configs` is for discovering and scraping [Yandex Cloud](https://cloud.yandex.com/en/) targets. See [these docs](#yandexcloud_sd_configs).
+* `hetzner_sd_configs` is for discovering and scraping [Hetzner Cloud](https://www.hetzner.com/cloud) and [Hetzner Robot](https://robot.hetzner.com/) targets. See [these docs](#hetzner_sd_configs).
 
 Note that the `refresh_interval` option isn't supported for these scrape configs. Use the corresponding `-promscrape.*CheckInterval`
 command-line flag instead. For example, `-promscrape.consulSDCheckInterval=60s` sets `refresh_interval` for all the `consul_sd_configs`
@@ -1373,6 +1374,86 @@ The following meta labels are available on discovered targets during [relabeling
 * `__meta_yandexcloud_instance_public_dns_<record number>`: if configured DNS records for public IP
 
 The list of discovered Yandex Cloud targets is refreshed at the interval, which can be configured via `-promscrape.yandexcloudSDCheckInterval` command-line flag.
+
+## hetzner_sd_configs
+
+Hetzner SD configuration allows to retrieving scrape targets from [Hetzner Cloud](https://www.hetzner.com/cloud) and [Hetzner Robot](https://robot.hetzner.com/).
+
+Configuration example:
+
+```yaml
+scrape_configs:
+- job_name: hetzner
+  hetzner_sd_configs:
+    # Define the mandatory Hetzner role for entity discovery.
+    # Must be either 'robot' or 'hcloud'.
+    role: <string>
+
+    # Credentials for API server authentication.
+    # Note: `basic_auth` is required for 'robot' role.
+    # `authorization` is required for 'hcloud' role.
+    # `basic_auth` and `authorization` are mutually exclusive options.
+    # Similarly, `password` and `password_file` cannot be used together.
+    #   ...
+
+    # port is an optional port to scrape metrics from.
+    # By default, port 80 is used.
+    # port: ...
+```
+
+```yaml
+scrape_configs:
+- job_name: hcloud
+  hetzner_sd_configs:
+    - role: hcloud
+      authorization:
+        credentials: ZGI12cup........
+
+- job_name: robot
+  hetzner_sd_configs:
+    - role: robot
+      basic_auth:
+        username: hello
+        password: password-example
+```
+
+Each discovered target has an [`__address__`](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
+to the FQDN of the discovered instance.
+
+The following meta labels are available on discovered targets during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling):
+
+Hetzner Labels (Avalibaly for both `hcloud` and `robot` Roles.)
+
+* `__meta_hetzner_server_id`: the ID of the server
+* `__meta_hetzner_server_name`: the name of the server
+* `__meta_hetzner_server_status`: the status of the server
+* `__meta_hetzner_public_ipv4`: the public IPv4 address of the server
+* `__meta_hetzner_public_ipv6_network`: the public IPv6 network (/64) of the server
+* `__meta_hetzner_datacenter`: the datacenter of the server
+
+Hetzner Labels (Only whetn `hcloud` Role is set)
+
+* `__meta_hetzner_hcloud_image_name`: the image name of the server
+* `__meta_hetzner_hcloud_image_description`: the description of the server image
+* `__meta_hetzner_hcloud_image_os_flavor`: the OS flavor of the server image
+* `__meta_hetzner_hcloud_image_os_version`: the OS version of the server image
+* `__meta_hetzner_hcloud_datacenter_location`: the location of the server
+* `__meta_hetzner_hcloud_datacenter_location_network_zone`: the network zone of the server
+* `__meta_hetzner_hcloud_server_type`: the type of the server
+* `__meta_hetzner_hcloud_cpu_cores`: the CPU cores count of the server
+* `__meta_hetzner_hcloud_cpu_type`: the CPU type of the server (shared or dedicated)
+* `__meta_hetzner_hcloud_memory_size_gb`: the amount of memory of the server (in GB)
+* `__meta_hetzner_hcloud_disk_size_gb`: the disk size of the server (in GB)
+* `__meta_hetzner_hcloud_private_ipv4_<networkname>`: the private IPv4 address of the server within a given network
+* `__meta_hetzner_hcloud_label_<labelname>`: each label of the server
+* `__meta_hetzner_hcloud_labelpresent_<labelname>`: true for each label of the server
+
+Hetzner Labels (Only whetn `robot` Role is set)
+
+* `__meta_hetzner_robot_product`: the product of the server
+* `__meta_hetzner_robot_cancelled`: the server cancellation status
+
+The list of discovered Yandex Cloud targets is refreshed at the interval, which can be configured via `-promscrape.hetznerSDCheckInterval` command-line flag.
 
 ## scrape_configs
 
