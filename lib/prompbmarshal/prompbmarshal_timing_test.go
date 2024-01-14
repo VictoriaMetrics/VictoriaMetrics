@@ -1,32 +1,26 @@
-package prompb
+package prompbmarshal
 
 import (
 	"fmt"
 	"testing"
-
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 )
 
-func BenchmarkWriteRequestUnmarshalProtobuf(b *testing.B) {
-	data := benchWriteRequest.MarshalProtobuf(nil)
-
+func BenchmarkWriteRequestMarshalProtobuf(b *testing.B) {
 	b.ReportAllocs()
 	b.SetBytes(int64(len(benchWriteRequest.Timeseries)))
 	b.RunParallel(func(pb *testing.PB) {
-		var wr WriteRequest
+		var data []byte
 		for pb.Next() {
-			if err := wr.UnmarshalProtobuf(data); err != nil {
-				panic(fmt.Errorf("unexpected error: %s", err))
-			}
+			data = benchWriteRequest.MarshalProtobuf(data[:0])
 		}
 	})
 }
 
-var benchWriteRequest = func() *prompbmarshal.WriteRequest {
-	var tss []prompbmarshal.TimeSeries
-	for i := 0; i < 10_000; i++ {
-		ts := prompbmarshal.TimeSeries{
-			Labels: []prompbmarshal.Label{
+var benchWriteRequest = func() *WriteRequest {
+	var tss []TimeSeries
+	for i := 0; i < 1_000; i++ {
+		ts := TimeSeries{
+			Labels: []Label{
 				{
 					Name:  "__name__",
 					Value: "process_cpu_seconds_total",
@@ -64,7 +58,7 @@ var benchWriteRequest = func() *prompbmarshal.WriteRequest {
 					Value: fmt.Sprintf("aaa-bb-cc-dd-ee-%d", i),
 				},
 			},
-			Samples: []prompbmarshal.Sample{
+			Samples: []Sample{
 				{
 					Value:     float64(i),
 					Timestamp: 1e9 + int64(i)*1000,
@@ -73,8 +67,8 @@ var benchWriteRequest = func() *prompbmarshal.WriteRequest {
 		}
 		tss = append(tss, ts)
 	}
-	wrm := &prompbmarshal.WriteRequest{
+	wr := &WriteRequest{
 		Timeseries: tss,
 	}
-	return wrm
+	return wr
 }()

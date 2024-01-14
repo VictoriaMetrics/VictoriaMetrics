@@ -41,23 +41,20 @@ func TestWriteRequestUnmarshalProtobuf(t *testing.T) {
 				Samples: samples,
 			})
 		}
-		dataResult, err := wrm.Marshal()
-		if err != nil {
-			t.Fatalf("unexpected error: %s", err)
-		}
+		dataResult := wrm.MarshalProtobuf(nil)
 		if !bytes.Equal(dataResult, data) {
 			t.Fatalf("unexpected data obtained after marshaling\ngot\n%X\nwant\n%X", dataResult, data)
 		}
 	}
 
+	var data []byte
 	wrm := &prompbmarshal.WriteRequest{}
-	data, err := wrm.Marshal()
-	if err != nil {
-		t.Fatalf("unexpected error")
-	}
+
+	wrm.Reset()
+	data = wrm.MarshalProtobuf(data[:0])
 	f(data)
 
-	wrm = &prompbmarshal.WriteRequest{}
+	wrm.Reset()
 	wrm.Timeseries = []prompbmarshal.TimeSeries{
 		{
 			Labels: []prompbmarshal.Label{
@@ -76,13 +73,10 @@ func TestWriteRequestUnmarshalProtobuf(t *testing.T) {
 			},
 		},
 	}
-	data, err = wrm.Marshal()
-	if err != nil {
-		t.Fatalf("unexpected error")
-	}
+	data = wrm.MarshalProtobuf(data[:0])
 	f(data)
 
-	wrm = &prompbmarshal.WriteRequest{}
+	wrm.Reset()
 	wrm.Timeseries = []prompbmarshal.TimeSeries{
 		{
 			Samples: []prompbmarshal.Sample{
@@ -97,13 +91,10 @@ func TestWriteRequestUnmarshalProtobuf(t *testing.T) {
 			},
 		},
 	}
-	data, err = wrm.Marshal()
-	if err != nil {
-		t.Fatalf("unexpected error")
-	}
+	data = wrm.MarshalProtobuf(data[:0])
 	f(data)
 
-	wrm = &prompbmarshal.WriteRequest{}
+	wrm.Reset()
 	wrm.Timeseries = []prompbmarshal.TimeSeries{
 		{
 			Labels: []prompbmarshal.Label{
@@ -132,13 +123,10 @@ func TestWriteRequestUnmarshalProtobuf(t *testing.T) {
 			},
 		},
 	}
-	data, err = wrm.Marshal()
-	if err != nil {
-		t.Fatalf("unexpected error")
-	}
+	data = wrm.MarshalProtobuf(data[:0])
 	f(data)
 
-	wrm = &prompbmarshal.WriteRequest{}
+	wrm.Reset()
 	wrm.Timeseries = []prompbmarshal.TimeSeries{
 		{
 			Labels: []prompbmarshal.Label{
@@ -180,9 +168,6 @@ func TestWriteRequestUnmarshalProtobuf(t *testing.T) {
 			},
 		},
 	}
-	data, err = wrm.Marshal()
-	if err != nil {
-		t.Fatalf("unexpected error")
-	}
+	data = wrm.MarshalProtobuf(data[:0])
 	f(data)
 }
