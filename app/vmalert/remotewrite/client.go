@@ -208,15 +208,10 @@ func (c *Client) flush(ctx context.Context, wr *prompbmarshal.WriteRequest) {
 	if len(wr.Timeseries) < 1 {
 		return
 	}
-	defer prompbmarshal.ResetWriteRequest(wr)
+	defer wr.Reset()
 	defer bufferFlushDuration.UpdateDuration(time.Now())
 
-	data, err := wr.Marshal()
-	if err != nil {
-		logger.Errorf("failed to marshal WriteRequest: %s", err)
-		return
-	}
-
+	data := wr.MarshalProtobuf(nil)
 	b := snappy.Encode(nil, data)
 
 	retryInterval, maxRetryInterval := *retryMinInterval, *retryMaxTime

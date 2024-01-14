@@ -728,7 +728,7 @@ func (wc *writeRequestCtx) reset() {
 }
 
 func (wc *writeRequestCtx) resetNoRows() {
-	prompbmarshal.ResetWriteRequest(&wc.writeRequest)
+	wc.writeRequest.Reset()
 
 	labels := wc.labels
 	for i := range labels {
