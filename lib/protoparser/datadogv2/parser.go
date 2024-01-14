@@ -62,7 +62,7 @@ func UnmarshalProtobuf(req *Request, b []byte) error {
 	return req.unmarshalProtobuf(b)
 }
 
-func (req *Request) unmarshalProtobuf(src []byte) error {
+func (req *Request) unmarshalProtobuf(src []byte) (err error) {
 	// message Request {
 	//   repeated Series series = 1;
 	// }
@@ -71,7 +71,7 @@ func (req *Request) unmarshalProtobuf(src []byte) error {
 	series := req.Series
 	var fc easyproto.FieldContext
 	for len(src) > 0 {
-		tail, err := fc.NextField(src)
+		src, err = fc.NextField(src)
 		if err != nil {
 			return fmt.Errorf("cannot unmarshal next field: %w", err)
 		}
@@ -91,7 +91,6 @@ func (req *Request) unmarshalProtobuf(src []byte) error {
 				return fmt.Errorf("cannot unmarshal series: %w", err)
 			}
 		}
-		src = tail
 	}
 	req.Series = series
 	return nil
@@ -149,7 +148,7 @@ func (s *Series) reset() {
 	s.Tags = tags[:0]
 }
 
-func (s *Series) unmarshalProtobuf(src []byte) error {
+func (s *Series) unmarshalProtobuf(src []byte) (err error) {
 	// message MetricSeries {
 	//   string metric = 2;
 	//   repeated Point points = 4;
@@ -164,7 +163,7 @@ func (s *Series) unmarshalProtobuf(src []byte) error {
 	tags := s.Tags
 	var fc easyproto.FieldContext
 	for len(src) > 0 {
-		tail, err := fc.NextField(src)
+		src, err = fc.NextField(src)
 		if err != nil {
 			return fmt.Errorf("cannot unmarshal next field: %w", err)
 		}
@@ -216,7 +215,6 @@ func (s *Series) unmarshalProtobuf(src []byte) error {
 			}
 			tags = append(tags, tag)
 		}
-		src = tail
 	}
 	s.Points = points
 	s.Resources = resources
@@ -240,7 +238,7 @@ func (pt *Point) reset() {
 	pt.Value = 0
 }
 
-func (pt *Point) unmarshalProtobuf(src []byte) error {
+func (pt *Point) unmarshalProtobuf(src []byte) (err error) {
 	// message Point {
 	//   double value = 1;
 	//   int64 timestamp = 2;
@@ -249,7 +247,7 @@ func (pt *Point) unmarshalProtobuf(src []byte) error {
 	// See https://github.com/DataDog/agent-payload/blob/d7c5dcc63970d0e19678a342e7718448dd777062/proto/metrics/agent_payload.proto
 	var fc easyproto.FieldContext
 	for len(src) > 0 {
-		tail, err := fc.NextField(src)
+		src, err = fc.NextField(src)
 		if err != nil {
 			return fmt.Errorf("cannot unmarshal next field: %w", err)
 		}
@@ -267,7 +265,6 @@ func (pt *Point) unmarshalProtobuf(src []byte) error {
 			}
 			pt.Timestamp = timestamp
 		}
-		src = tail
 	}
 	return nil
 }
@@ -285,7 +282,7 @@ func (r *Resource) reset() {
 	r.Type = ""
 }
 
-func (r *Resource) unmarshalProtobuf(src []byte) error {
+func (r *Resource) unmarshalProtobuf(src []byte) (err error) {
 	// message Resource {
 	//   string type = 1;
 	//   string name = 2;
@@ -294,7 +291,7 @@ func (r *Resource) unmarshalProtobuf(src []byte) error {
 	// See https://github.com/DataDog/agent-payload/blob/d7c5dcc63970d0e19678a342e7718448dd777062/proto/metrics/agent_payload.proto
 	var fc easyproto.FieldContext
 	for len(src) > 0 {
-		tail, err := fc.NextField(src)
+		src, err = fc.NextField(src)
 		if err != nil {
 			return fmt.Errorf("cannot unmarshal next field: %w", err)
 		}
@@ -312,7 +309,6 @@ func (r *Resource) unmarshalProtobuf(src []byte) error {
 			}
 			r.Name = name
 		}
-		src = tail
 	}
 	return nil
 }
