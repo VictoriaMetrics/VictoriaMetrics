@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 	"math"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 )
 
 // Sample is a timeseries sample.
@@ -23,8 +25,8 @@ type TimeSeries struct {
 
 // Label is a timeseries label
 type Label struct {
-	Name  []byte
-	Value []byte
+	Name  string
+	Value string
 }
 
 // Unmarshal unmarshals sample from dAtA.
@@ -296,7 +298,7 @@ func (m *Label) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Name = dAtA[iNdEx:postIndex]
+			m.Name = bytesutil.ToUnsafeString(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 2:
 			if wireType != 2 {
@@ -325,7 +327,7 @@ func (m *Label) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Value = dAtA[iNdEx:postIndex]
+			m.Value = bytesutil.ToUnsafeString(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
