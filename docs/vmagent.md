@@ -1826,7 +1826,7 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -promscrape.yandexcloudSDCheckInterval duration
      Interval for checking for changes in Yandex Cloud API. This works only if yandexcloud_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#yandexcloud_sd_configs for details (default 30s)
   -promscrape.hetznerSDCheckInterval duration
-     Interval for checking for changes in Yandex Cloud API. This works only if yandexcloud_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#yandexcloud_sd_configs for details (default 30s)
+     Interval for checking for changes in Hetnzer API. This works only if hetzner_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#hetzner_sd_configs for details (default 30s)
   -pushmetrics.disableCompression
      Whether to disable request body compression when pushing metrics to every -pushmetrics.url
   -pushmetrics.extraLabel array
