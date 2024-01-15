@@ -26,6 +26,7 @@ Please find [launch instructions here](/vmanomaly.html#run-vmanomaly-docker-cont
 
 
 ## v1.8.0
+Released: 2024-01-15
 - FEATURE: Added Univariate [MAD (median absolute deviation)](https://en.wikipedia.org/wiki/Median_absolute_deviation) model support.
 - IMPROVEMENT: Update Python to 3.12.1 and all the dependencies.
 - IMPROVEMENT: Don't check /health endpoint, check the real /query_range or /import endpoints directly. Users kept getting problems with /health.
