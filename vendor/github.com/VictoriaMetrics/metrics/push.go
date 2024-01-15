@@ -39,6 +39,7 @@ type PushOptions struct {
 // InitPushWithOptions sets up periodic push for globally registered metrics to the given pushURL with the given interval.
 //
 // The periodic push is stopped when ctx is canceled.
+// It is possible to wait until the background metrics push worker is stopped on a WaitGroup passed via opts.WaitGroup.
 //
 // If pushProcessMetrics is set to true, then 'process_*' and `go_*` metrics are also pushed to pushURL.
 //
@@ -116,6 +117,7 @@ func PushMetrics(ctx context.Context, pushURL string, pushProcessMetrics bool, o
 // InitPushWithOptions sets up periodic push for metrics from s to the given pushURL with the given interval.
 //
 // The periodic push is stopped when the ctx is canceled.
+// It is possible to wait until the background metrics push worker is stopped on a WaitGroup passed via opts.WaitGroup.
 //
 // opts may contain additional configuration options if non-nil.
 //
@@ -187,6 +189,7 @@ func InitPushExt(pushURL string, interval time.Duration, extraLabels string, wri
 // See https://github.com/prometheus/docs/blob/main/content/docs/instrumenting/exposition_formats.md#text-based-format
 //
 // The periodic push is stopped when the ctx is canceled.
+// It is possible to wait until the background metrics push worker is stopped on a WaitGroup passed via opts.WaitGroup.
 //
 // opts may contain additional configuration options if non-nil.
 //
