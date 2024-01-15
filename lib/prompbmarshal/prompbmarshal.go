@@ -52,9 +52,6 @@ type Sample struct {
 
 // MarshalProtobuf appends protobuf-marshaled wr to dst and returns the result.
 func (wr *WriteRequest) MarshalProtobuf(dst []byte) []byte {
-	// message WriteRequest {
-	//    repeated TimeSeries timeseries = 1;
-	// }
 	m := mp.Get()
 	wr.appendToProtobuf(m.MessageMarshaler())
 	dst = m.Marshal(dst)
@@ -63,6 +60,9 @@ func (wr *WriteRequest) MarshalProtobuf(dst []byte) []byte {
 }
 
 func (wr *WriteRequest) appendToProtobuf(mm *easyproto.MessageMarshaler) {
+	// message WriteRequest {
+	//    repeated TimeSeries timeseries = 1;
+	// }
 	tss := wr.Timeseries
 	for i := range tss {
 		tss[i].appendToProtobuf(mm.AppendMessage(1))
