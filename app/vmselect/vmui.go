@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 )
@@ -68,8 +69,11 @@ func handleVMUICustomDashboards(w http.ResponseWriter) error {
 }
 
 func handleVMUITimezone(w http.ResponseWriter) error {
-	timezone := *vmuiDefaultTimezone
-	response := fmt.Sprintf(`{"timezone": "%s"}`, timezone)
+	tz, err := time.LoadLocation(*vmuiDefaultTimezone)
+	if err != nil {
+		return fmt.Errorf("cannot load timezone %q: %w", *vmuiDefaultTimezone, err)
+	}
+	response := fmt.Sprintf(`{"timezone": "%s"}`, tz)
 	writeSuccessResponse(w, []byte(response))
 	return nil
 }
