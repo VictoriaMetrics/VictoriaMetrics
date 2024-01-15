@@ -64,7 +64,7 @@ func (fc *FieldContext) NextField(src []byte) ([]byte, error) {
 		src = src[offset:]
 		fieldNum = tag >> 3
 		if fieldNum > math.MaxUint32 {
-			return src, fmt.Errorf("fieldNum=%d is bigger than uint32max=%d", fieldNum, math.MaxUint32)
+			return src, fmt.Errorf("fieldNum=%d is bigger than uint32max=%d", fieldNum, uint64(math.MaxUint32))
 		}
 	}
 

@@ -217,3 +217,9 @@ func GetTimeseriesName(src []byte) (name string, err error) {
 	return "", fmt.Errorf("timeseries name isn't found in the message")
 }
 ```
+
+## Users
+
+`easyproto` is used in the following projects:
+
+- [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics)
