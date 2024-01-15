@@ -30,6 +30,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
 	"github.com/VictoriaMetrics/fastcache"
 	"github.com/VictoriaMetrics/metricsql"
+	"github.com/valyala/fastrand"
 )
 
 const (
@@ -1212,10 +1213,13 @@ func (s *Storage) prefetchMetricNames(qt *querytracer.Tracer, srcMetricIDs []uin
 	// Store the pre-fetched metricIDs, so they aren't pre-fetched next time.
 	s.prefetchedMetricIDsLock.Lock()
 	var prefetchedMetricIDsNew *uint64set.Set
-	if fasttime.UnixTimestamp() < atomic.LoadUint64(&s.prefetchedMetricIDsDeadline) {
+	if fasttime.UnixTimestamp() > atomic.LoadUint64(&s.prefetchedMetricIDsDeadline) {
 		// Periodically reset the prefetchedMetricIDs in order to limit its size.
 		prefetchedMetricIDsNew = &uint64set.Set{}
-		atomic.StoreUint64(&s.prefetchedMetricIDsDeadline, fasttime.UnixTimestamp()+73*60)
+		deadlineSec := 73 * 60
+		jitterSec := fastrand.Uint32n(uint32(deadlineSec / 10))
+		metricIDsDeadline := fasttime.UnixTimestamp() + uint64(deadlineSec) + uint64(jitterSec)
+		atomic.StoreUint64(&s.prefetchedMetricIDsDeadline, metricIDsDeadline)
 	} else {
 		prefetchedMetricIDsNew = prefetchedMetricIDs.Clone()
 	}
