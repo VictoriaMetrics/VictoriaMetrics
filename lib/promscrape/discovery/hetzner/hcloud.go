@@ -26,6 +26,7 @@ type HcloudServer struct {
 	Labels     map[string]string `json:"labels"`
 }
 
+// Datacenter represents the Hetzner datacenter.
 type Datacenter struct {
 	Name     string             `json:"name"`
 	Location DatacenterLocation `json:"location"`
@@ -71,7 +72,7 @@ type IPv6 struct {
 type ServerType struct {
 	Name    string  `json:"name"`
 	Cores   int     `json:"cores"`
-	CpuType string  `json:"cpu_type"`
+	CPUType string  `json:"cpu_type"`
 	Memory  float32 `json:"memory"`
 	Disk    int     `json:"disk"`
 }
@@ -82,6 +83,7 @@ type HcloudNetwork struct {
 	ID   int    `json:"id"`
 }
 
+// HcloudNetworksList represents the hetzner cloud networks list.
 type HcloudNetworksList struct {
 	Networks []HcloudNetwork `json:"networks"`
 }
@@ -167,7 +169,7 @@ func (server *HcloudServer) appendTargetLabels(ms []*promutils.Labels, port int,
 	m.Add("__meta_hetzner_hcloud_datacenter_location_network_zone", server.Datacenter.Location.NetworkZone)
 	m.Add("__meta_hetzner_hcloud_server_type", server.ServerType.Name)
 	m.Add("__meta_hetzner_hcloud_cpu_cores", fmt.Sprintf("%d", server.ServerType.Cores))
-	m.Add("__meta_hetzner_hcloud_cpu_type", server.ServerType.CpuType)
+	m.Add("__meta_hetzner_hcloud_cpu_type", server.ServerType.CPUType)
 	m.Add("__meta_hetzner_hcloud_memory_size_gb", fmt.Sprintf("%d", int(server.ServerType.Memory)))
 	m.Add("__meta_hetzner_hcloud_disk_size_gb", fmt.Sprintf("%d", server.ServerType.Disk))
 

@@ -273,7 +273,7 @@ func TestParseHcloudServerListResponse(t *testing.T) {
 				ServerType: ServerType{
 					Name:    "cx11",
 					Cores:   1,
-					CpuType: "shared",
+					CPUType: "shared",
 					Memory:  1.0,
 					Disk:    25,
 				},
