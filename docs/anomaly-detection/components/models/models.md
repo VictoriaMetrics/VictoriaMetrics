@@ -42,7 +42,7 @@ Here we use ARIMA implementation from `statsmodels` [library](https://www.statsm
 
 * `class` (string) - model class name `"model.arima.ArimaModel"`
 
-* `z_threshold` (float, optiomal) - [standard score](https://en.wikipedia.org/wiki/Standard_score) for calculating boundaries to define anomaly score. Defaults to `2.5`.
+* `z_threshold` (float, optional) - [standard score](https://en.wikipedia.org/wiki/Standard_score) for calculating boundaries to define anomaly score. Defaults to `2.5`.
 
 * `provide_series` (list[string], optional) - List of columns to be produced and returned by the model. Defaults to `["anomaly_score", "yhat", "yhat_lower" "yhat_upper", "y"]`. Output can be **only a subset** of a given column list.
 
