@@ -95,7 +95,6 @@ func main() {
 	remotewrite.InitSecretFlags()
 	buildinfo.Init()
 	logger.Init()
-	pushmetrics.Init()
 
 	if promscrape.IsDryRun() {
 		if err := promscrape.CheckConfig(); err != nil {
@@ -146,8 +145,10 @@ func main() {
 	}
 	logger.Infof("started vmagent in %.3f seconds", time.Since(startTime).Seconds())
 
+	pushmetrics.Init()
 	sig := procutil.WaitForSigterm()
 	logger.Infof("received signal %s", sig)
+	pushmetrics.Stop()
 
 	startTime = time.Now()
 	if len(*httpListenAddr) > 0 {
@@ -158,7 +159,6 @@ func main() {
 		logger.Infof("successfully shut down the webservice in %.3f seconds", time.Since(startTime).Seconds())
 	}
 
-	pushmetrics.Stop()
 	promscrape.Stop()
 
 	if len(*influxListenAddr) > 0 {

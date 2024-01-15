@@ -104,7 +104,6 @@ func main() {
 	notifier.InitSecretFlags()
 	buildinfo.Init()
 	logger.Init()
-	pushmetrics.Init()
 
 	if !*remoteReadIgnoreRestoreErrors {
 		logger.Warnf("flag `remoteRead.ignoreRestoreErrors` is deprecated and will be removed in next releases.")
@@ -190,12 +189,14 @@ func main() {
 	rh := &requestHandler{m: manager}
 	go httpserver.Serve(*httpListenAddr, *useProxyProtocol, rh.handler)
 
+	pushmetrics.Init()
 	sig := procutil.WaitForSigterm()
 	logger.Infof("service received signal %s", sig)
+	pushmetrics.Stop()
+
 	if err := httpserver.Stop(*httpListenAddr); err != nil {
 		logger.Fatalf("cannot stop the webservice: %s", err)
 	}
-	pushmetrics.Stop()
 	cancel()
 	manager.close()
 }
