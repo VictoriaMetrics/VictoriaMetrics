@@ -15,7 +15,7 @@ aliases:
 
 **Prerequisites**:
 
-- To use *vmanomaly*, part of the enterprise package, a license key is required. Obtain your key [here](https://victoriametrics.com/products/enterprise/trial) for this tutorial or for enterprise use.
+- To use *vmanomaly*, part of the enterprise package, a license key is required. Obtain your key [here](https://victoriametrics.com/products/enterprise/trial/) for this tutorial or for enterprise use.
 - In the tutorial, we'll be using the following VictoriaMetrics components:
   -  [VictoriaMetrics Single-Node](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html) (v.1.96.0)
   -  [vmalert](https://docs.victoriametrics.com/vmalert.html) (v.1.96.0)
@@ -24,7 +24,7 @@ aliases:
 - [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/)
 - [Node exporter](https://github.com/prometheus/node_exporter#node-exporter)
 
-<img alt="vmanomaly typical setup diagramm" src="guide-vmanomaly-vmalert_overview.webp">
+<img width="800" alt="vmanomaly typical setup diagramm" src="guide-vmanomaly-vmalert_overview.webp">
 
 ## 1. What is vmanomaly?
 
