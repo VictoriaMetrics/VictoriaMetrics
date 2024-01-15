@@ -8,32 +8,25 @@ import (
 	"strconv"
 )
 
-// FormatString formats strings
-func (x *AnyValue) FormatString() string {
-	switch v := x.Value.(type) {
-	case *AnyValue_StringValue:
-		return v.StringValue
-
-	case *AnyValue_BoolValue:
-		return strconv.FormatBool(v.BoolValue)
-
-	case *AnyValue_DoubleValue:
-		return float64AsString(v.DoubleValue)
-
-	case *AnyValue_IntValue:
-		return strconv.FormatInt(v.IntValue, 10)
-
-	case *AnyValue_KvlistValue:
-		jsonStr, _ := json.Marshal(v.KvlistValue.Values)
+// FormatString returns string reperesentation for av.
+func (av *AnyValue) FormatString() string {
+	switch {
+	case av.StringValue != nil:
+		return *av.StringValue
+	case av.BoolValue != nil:
+		return strconv.FormatBool(*av.BoolValue)
+	case av.IntValue != nil:
+		return strconv.FormatInt(*av.IntValue, 10)
+	case av.DoubleValue != nil:
+		return float64AsString(*av.DoubleValue)
+	case av.ArrayValue != nil:
+		jsonStr, _ := json.Marshal(av.ArrayValue.Values)
 		return string(jsonStr)
-
-	case *AnyValue_BytesValue:
-		return base64.StdEncoding.EncodeToString(v.BytesValue)
-
-	case *AnyValue_ArrayValue:
-		jsonStr, _ := json.Marshal(v.ArrayValue.Values)
+	case av.KeyValueList != nil:
+		jsonStr, _ := json.Marshal(av.KeyValueList.Values)
 		return string(jsonStr)
-
+	case av.BytesValue != nil:
+		return base64.StdEncoding.EncodeToString(*av.BytesValue)
 	default:
 		return ""
 	}
