@@ -34,7 +34,6 @@ VM Anomaly Detection (`vmanomaly` hereinafter) models support 2 groups of parame
 * [Isolation forest (Multivariate)](#isolation-forest-multivariate)
 * [Custom model](#custom-model)
 
----
 ## [ARIMA](https://en.wikipedia.org/wiki/Autoregressive_integrated_moving_average)
 Here we use ARIMA implementation from `statsmodels` [library](https://www.statsmodels.org/dev/generated/statsmodels.tsa.arima.model.ARIMA.html)
 
@@ -68,9 +67,9 @@ model:
   args:
     trend: 'c'
 ```
+
 </div>
 
----
 ## [Holt-Winters](https://en.wikipedia.org/wiki/Exponential_smoothing)
 Here we use Holt-Winters Exponential Smoothing implementation from `statsmodels` [library](https://www.statsmodels.org/dev/generated/statsmodels.tsa.holtwinters.ExponentialSmoothing.html). All parameters from this library can be passed to the model.
 
@@ -109,11 +108,11 @@ model:
     seasonal: 'add'
     initialization_method: 'estimated'
 ```
+
 </div>
 
 Resulting metrics of the model are described [here](#vmanomaly-output).
 
----
 ## [Prophet](https://facebook.github.io/prophet/)
 Here we utilize the Facebook Prophet implementation, as detailed in their [library documentation](https://facebook.github.io/prophet/docs/quick_start.html#python-api). All parameters from this library are compatible and can be passed to the model.
 
@@ -152,11 +151,11 @@ model:
     interval_width: 0.98
     country_holidays: 'US'
 ```
+
 </div>
 
 Resulting metrics of the model are described [here](#vmanomaly-output)
 
----
 ## [Rolling Quantile](https://en.wikipedia.org/wiki/Quantile)
 
 *Parameters specific for vmanomaly*:
@@ -174,11 +173,11 @@ model:
   quantile: 0.9
   window_steps: 96
 ```
+
 </div>
 
 Resulting metrics of the model are described [here](#vmanomaly-output).
 
----
 ## [Seasonal Trend Decomposition](https://en.wikipedia.org/wiki/Seasonal_adjustment)
 Here we use Seasonal Decompose implementation from `statsmodels` [library](https://www.statsmodels.org/dev/generated/statsmodels.tsa.seasonal.seasonal_decompose.html). Parameters from this library can be passed to the model. Some parameters are specifically predefined in vmanomaly and can't be changed by user(`model`='additive', `two_sided`=False).
 
@@ -190,6 +189,7 @@ Here we use Seasonal Decompose implementation from `statsmodels` [library](https
 
 
 *Config Example*
+
 <div class="with-copy" markdown="1">
 
 ```yaml
@@ -197,6 +197,7 @@ model:
   class: "model.std.StdModel"
   period: 2
 ```
+
 </div>
 
 Resulting metrics of the model are described [here](#vmanomaly-output).
@@ -206,7 +207,6 @@ Resulting metrics of the model are described [here](#vmanomaly-output).
 * `trend` - The trend component of the data series.
 * `seasonal` - The seasonal component of the data series.
 
----
 ## [MAD (Median Absolute Deviation)](https://en.wikipedia.org/wiki/Median_absolute_deviation)
 The MAD model is a robust method for anomaly detection that is *less sensitive* to outliers in data compared to standard deviation-based models. It considers a point as an anomaly if the absolute deviation from the median is significantly large.
 
@@ -216,6 +216,7 @@ The MAD model is a robust method for anomaly detection that is *less sensitive* 
 * `threshold` (float, optional) - The threshold multiplier for the MAD to determine anomalies. Defaults to `2.5`. Higher values will identify fewer points as anomalies.
 
 *Config Example*
+
 <div class="with-copy" markdown="1">
 
 ```yaml
@@ -224,9 +225,10 @@ model:
   threshold: 2.5
 ```
 
+</div>
+
 Resulting metrics of the model are described [here](#vmanomaly-output).
 
----
 ## [Z-score](https://en.wikipedia.org/wiki/Standard_score)
 *Parameters specific for vmanomaly*:
 
@@ -234,6 +236,7 @@ Resulting metrics of the model are described [here](#vmanomaly-output).
 * `z_threshold` (float, optional) - [standard score](https://en.wikipedia.org/wiki/Standard_score) for calculation boundaries and anomaly score. Defaults to `2.5`.
 
 *Config Example*
+
 <div class="with-copy" markdown="1">
 
 ```yaml
@@ -262,6 +265,7 @@ Here we use Isolation Forest implementation from `scikit-learn` [library](https:
 * `args` (dict, optional) - Inner model args (key-value pairs). See accepted params in [model documentation](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.IsolationForest.html). Defaults to empty (not provided). Example:  {"random_state": 42, "n_estimators": 100}
 
 *Config Example*
+
 <div class="with-copy" markdown="1">
 
 ```yaml
@@ -274,11 +278,11 @@ model:
     # i.e. to assure reproducibility of produced results each time model is fit on the same input
     random_state: 42
 ```
+
 </div>
 
 Resulting metrics of the model are described [here](#vmanomaly-output).
 
----
 ## Custom model
 You can find a guide on setting up a custom model [here](./custom_model.md).
 
