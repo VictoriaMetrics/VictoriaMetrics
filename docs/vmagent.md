@@ -271,6 +271,7 @@ It is possible to force switch to VictoriaMetrics remote write protocol by speci
 command-line flag for the corresponding `-remoteWrite.url`.
 It is possible to tune the compression level for VictoriaMetrics remote write protocol with `-remoteWrite.vmProtoCompressLevel` command-line flag.
 Bigger values reduce network usage at the cost of higher CPU usage. Negative values reduce CPU usage at the cost of higher network usage.
+The default value for the compression level is `3`, and the maximum value is `22`.
 
 `vmagent` automatically switches to Prometheus remote write protocol when it sends data to old versions of VictoriaMetrics components
 or to other Prometheus-compatible remote storage systems. It is possible to force switch to Prometheus remote write protocol

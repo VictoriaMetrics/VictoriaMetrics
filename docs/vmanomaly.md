@@ -147,7 +147,7 @@ There are 4 required sections in config file:
 
 [`monitoring`](#monitoring) - defines how to monitor work of *vmanomaly* service. This config section is *optional*.
 
-> For a detailed description, see [config sections](/anomaly-detection/docs)
+> For a detailed description, see [config sections](/anomaly-detection/components)
 
 #### Config example
 Here is an example of config file that will run FB Prophet model, that will be retrained every 2 hours on 14 days of previous data. It will generate inference (including `anomaly_score` metric) every 1 minute.
@@ -216,8 +216,10 @@ This will expose metrics at `http://0.0.0.0:8080/metrics` page.
 To use *vmanomaly* you need to pull docker image:
 
 ```sh
-docker pull us-docker.pkg.dev/victoriametrics-test/public/vmanomaly-trial:latest
+docker pull us-docker.pkg.dev/victoriametrics-test/public/vmanomaly-trial:1.7.2
 ```
+
+> Note: please check what is latest release in [CHANGELOG](/anomaly-detection/CHANGELOG.html)
 
 You can put a tag on it for your convinience:
 

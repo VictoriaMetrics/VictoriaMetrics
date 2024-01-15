@@ -46,7 +46,7 @@ func insertRows(timeseries []prompb.TimeSeries, extraLabels []prompbmarshal.Labe
 		ctx.Labels = ctx.Labels[:0]
 		srcLabels := ts.Labels
 		for _, srcLabel := range srcLabels {
-			ctx.AddLabelBytes(srcLabel.Name, srcLabel.Value)
+			ctx.AddLabel(srcLabel.Name, srcLabel.Value)
 		}
 		for j := range extraLabels {
 			label := &extraLabels[j]

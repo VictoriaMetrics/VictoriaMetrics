@@ -49,10 +49,7 @@ func (c *DebugClient) Push(s prompbmarshal.TimeSeries) error {
 	c.wg.Add(1)
 	defer c.wg.Done()
 	wr := &prompbmarshal.WriteRequest{Timeseries: []prompbmarshal.TimeSeries{s}}
-	data, err := wr.Marshal()
-	if err != nil {
-		return fmt.Errorf("failed to marshal the given time series: %w", err)
-	}
+	data := wr.MarshalProtobuf(nil)
 
 	return c.send(data)
 }

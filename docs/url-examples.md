@@ -14,6 +14,8 @@ menu:
 
 **Deletes time series from VictoriaMetrics**
 
+Note that handler accepts any HTTP method, so sending a `GET` request to `/api/v1/admin/tsdb/delete_series` will result in deletion of time series.
+
 Single-node VictoriaMetrics:
 <div class="with-copy" markdown="1">
 
@@ -297,7 +299,7 @@ curl http://<vmselect>:8481/select/0/prometheus/api/v1/labels
 
 </div>
 
-By default, VictoriaMetrics returns labels seen during the last day starting at 00:00 UTC. An arbitrary time range can be set via `start` and `end` query args.
+By default, VictoriaMetrics returns labels seen during the last day starting at 00:00 UTC. An arbitrary time range can be set via [`start` and `end` query args](https://docs.victoriametrics.com/#timestamp-formats).
 The specified `start..end` time range is rounded to day granularity because of performance optimization concerns.
 
 Additional information:

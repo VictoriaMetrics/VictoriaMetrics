@@ -6,6 +6,7 @@ require (
 	cloud.google.com/go/storage v1.35.1
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.9.1
 	github.com/Azure/azure-sdk-for-go/sdk/storage/azblob v1.2.0
+	github.com/VictoriaMetrics/easyproto v0.1.3
 	github.com/VictoriaMetrics/fastcache v1.12.2
 
 	// Do not use the original github.com/valyala/fasthttp because of issues
