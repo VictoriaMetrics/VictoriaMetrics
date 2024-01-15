@@ -1,7 +1,7 @@
 ---
 # sort: 14
 title: VictoriaMetrics Anomaly Detection
-weight: 0
+weight: 01
 disableToc: true
 
 menu:
