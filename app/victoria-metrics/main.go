@@ -45,7 +45,6 @@ func main() {
 	envflag.Parse()
 	buildinfo.Init()
 	logger.Init()
-	pushmetrics.Init()
 
 	if promscrape.IsDryRun() {
 		*dryRun = true
@@ -65,13 +64,16 @@ func main() {
 	vmstorage.Init(promql.ResetRollupResultCacheIfNeeded)
 	vmselect.Init()
 	vminsert.Init()
+
 	startSelfScraper()
 
 	go httpserver.Serve(*httpListenAddr, *useProxyProtocol, requestHandler)
 	logger.Infof("started VictoriaMetrics in %.3f seconds", time.Since(startTime).Seconds())
 
+	pushmetrics.Init()
 	sig := procutil.WaitForSigterm()
 	logger.Infof("received signal %s", sig)
+	pushmetrics.Stop()
 
 	stopSelfScraper()
 
@@ -80,9 +82,8 @@ func main() {
 	if err := httpserver.Stop(*httpListenAddr); err != nil {
 		logger.Fatalf("cannot stop the webservice: %s", err)
 	}
-	pushmetrics.Stop()
-	vminsert.Stop()
 	logger.Infof("successfully shut down the webservice in %.3f seconds", time.Since(startTime).Seconds())
+	vminsert.Stop()
 
 	vmstorage.Stop()
 	vmselect.Stop()
