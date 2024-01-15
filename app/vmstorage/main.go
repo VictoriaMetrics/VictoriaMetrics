@@ -85,7 +85,6 @@ func main() {
 	envflag.Parse()
 	buildinfo.Init()
 	logger.Init()
-	pushmetrics.Init()
 
 	storage.SetDedupInterval(*minScrapeInterval)
 	storage.SetDataFlushInterval(*inmemoryDataFlushInterval)
@@ -134,8 +133,10 @@ func main() {
 		httpserver.Serve(*httpListenAddr, *useProxyProtocol, requestHandler)
 	}()
 
+	pushmetrics.Init()
 	sig := procutil.WaitForSigterm()
 	logger.Infof("service received signal %s", sig)
+	pushmetrics.Stop()
 
 	logger.Infof("gracefully shutting down http service at %q", *httpListenAddr)
 	startTime = time.Now()
@@ -143,8 +144,6 @@ func main() {
 		logger.Fatalf("cannot stop http service: %s", err)
 	}
 	logger.Infof("successfully shut down http service in %.3f seconds", time.Since(startTime).Seconds())
-
-	pushmetrics.Stop()
 
 	logger.Infof("gracefully shutting down the service")
 	startTime = time.Now()

@@ -96,7 +96,6 @@ func main() {
 	envflag.Parse()
 	buildinfo.Init()
 	logger.Init()
-	pushmetrics.Init()
 
 	logger.Infof("initializing netstorage for storageNodes %s...", *storageNodes)
 	startTime := time.Now()
@@ -151,8 +150,10 @@ func main() {
 		httpserver.Serve(*httpListenAddr, *useProxyProtocol, requestHandler)
 	}()
 
+	pushmetrics.Init()
 	sig := procutil.WaitForSigterm()
 	logger.Infof("service received signal %s", sig)
+	pushmetrics.Stop()
 
 	logger.Infof("gracefully shutting down http service at %q", *httpListenAddr)
 	startTime = time.Now()
@@ -160,8 +161,6 @@ func main() {
 		logger.Fatalf("cannot stop http service: %s", err)
 	}
 	logger.Infof("successfully shut down http service in %.3f seconds", time.Since(startTime).Seconds())
-
-	pushmetrics.Stop()
 
 	if len(*clusternativeListenAddr) > 0 {
 		clusternativeServer.MustStop()
