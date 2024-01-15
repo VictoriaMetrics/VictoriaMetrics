@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/appmetrics"
@@ -30,6 +31,7 @@ func init() {
 
 var (
 	pushCtx, cancelPushCtx = context.WithCancel(context.Background())
+	wgDone                 sync.WaitGroup
 )
 
 // Init must be called after logger.Init
@@ -40,6 +42,7 @@ func Init() {
 			ExtraLabels:        extraLabels,
 			Headers:            *pushHeader,
 			DisableCompression: *disableCompression,
+			WaitGroup:          &wgDone,
 		}
 		if err := metrics.InitPushExtWithOptions(pushCtx, pu, *pushInterval, appmetrics.WritePrometheusMetrics, opts); err != nil {
 			logger.Fatalf("cannot initialize pushmetrics: %s", err)
@@ -54,4 +57,5 @@ func Init() {
 // Stop must be called after Init.
 func Stop() {
 	cancelPushCtx()
+	wgDone.Wait()
 }

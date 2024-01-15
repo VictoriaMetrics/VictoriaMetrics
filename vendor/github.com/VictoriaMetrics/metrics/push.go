@@ -31,6 +31,9 @@ type PushOptions struct {
 	//
 	// By default the compression is enabled.
 	DisableCompression bool
+
+	// Optional WaitGroup for waiting until all the push workers created with this WaitGroup are stopped.
+	WaitGroup *sync.WaitGroup
 }
 
 // InitPushWithOptions sets up periodic push for globally registered metrics to the given pushURL with the given interval.
@@ -207,6 +210,13 @@ func InitPushExtWithOptions(ctx context.Context, pushURL string, interval time.D
 	}
 	pushMetricsSet.GetOrCreateFloatCounter(fmt.Sprintf(`metrics_push_interval_seconds{url=%q}`, pc.pushURLRedacted)).Set(interval.Seconds())
 
+	var wg *sync.WaitGroup
+	if opts != nil {
+		wg = opts.WaitGroup
+		if wg != nil {
+			wg.Add(1)
+		}
+	}
 	go func() {
 		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
@@ -221,6 +231,9 @@ func InitPushExtWithOptions(ctx context.Context, pushURL string, interval time.D
 					log.Printf("ERROR: metrics.push: %s", err)
 				}
 			case <-stopCh:
+				if wg != nil {
+					wg.Done()
+				}
 				return
 			}
 		}
