@@ -3599,6 +3599,17 @@ func groupSeriesByNodes(ss []*series, nodes []graphiteql.Expr) map[string][]*ser
 	return m
 }
 
+func getAbsoluteNodeIndex(index, size int) int {
+	// handling the negative index case
+	if index < 0 && index+size > 0 {
+		index = index + size
+	}
+	if index >= size || index < 0 {
+		return -1
+	}
+	return index
+}
+
 func getNameFromNodes(name string, tags map[string]string, nodes []graphiteql.Expr) string {
 	if len(nodes) == 0 {
 		return ""
@@ -3609,7 +3620,7 @@ func getNameFromNodes(name string, tags map[string]string, nodes []graphiteql.Ex
 	for _, node := range nodes {
 		switch t := node.(type) {
 		case *graphiteql.NumberExpr:
-			if n := int(t.N); n >= 0 && n < len(parts) {
+			if n := getAbsoluteNodeIndex(int(t.N), len(parts)); n >= 0 {
 				dstParts = append(dstParts, parts[n])
 			}
 		case *graphiteql.StringExpr:
