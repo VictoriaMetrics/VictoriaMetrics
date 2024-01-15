@@ -14,11 +14,12 @@ type robotServersList struct {
 	Servers []RobotServerResponse
 }
 
+// RobotServerResponse represents hetzner robot server response.
 type RobotServerResponse struct {
 	Server RobotServer `json:"server"`
 }
 
-// HcloudServer represents the structure of hetzner robot server data.
+// RobotServer represents the structure of hetzner robot server data.
 type RobotServer struct {
 	ServerIP     string        `json:"server_ip"`
 	ServerIPV6   string        `json:"server_ipv6_net"`
@@ -31,7 +32,7 @@ type RobotServer struct {
 	Subnet       []RobotSubnet `json:"subnet"`
 }
 
-// HcloudServer represents the structure of hetzner robot subnet data.
+// RobotSubnet represents the structure of hetzner robot subnet data.
 type RobotSubnet struct {
 	IP   string `json:"ip"`
 	Mask string `json:"mask"`

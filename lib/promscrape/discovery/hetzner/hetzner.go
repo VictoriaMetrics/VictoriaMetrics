@@ -9,13 +9,15 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
-) //
+)
 
 // SDCheckInterval defines interval for targets refresh.
 var SDCheckInterval = flag.Duration("promscrape.hetznerSDCheckInterval", time.Minute, "Interval for checking for changes in hetzner. "+
 	"This works only if hetzner_sd_configs is configured in '-promscrape.config' file. "+
 	"See https://docs.victoriametrics.com/sd_configs.html#hetzner_sd_configs for details")
 
+// SDConfig represents service discovery config for Hetzner.
+//
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#hetzner_sd_config
 type SDConfig struct {
 	Role              string                     `yaml:"role,omitempty"`
