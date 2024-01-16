@@ -24,7 +24,7 @@ const anomalySeries = [
   ForecastType.anomalyScore
 ];
 
-// maybe get from backend from config.yml?
+// Hardcoded to 1.0 for now; consider adding a UI slider for threshold adjustment in the future.
 const ANOMALY_SCORE_THRESHOLD = 1;
 
 const ExploreAnomaly: FC = () => {
