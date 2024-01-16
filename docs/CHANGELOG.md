@@ -11,6 +11,13 @@ The following `tip` changes can be tested by building VictoriaMetrics components
 
 ## v1.93.x long-time support release (LTS)
 
+## [v1.93.10](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.10)
+
+Released at 2023-01-17
+
+**v1.93.x is a line of LTS releases (e.g. long-time support). It contains important up-to-date bugfixes.
+The v1.93.x line will be supported for at least 12 months since [v1.93.0](https://docs.victoriametrics.com/CHANGELOG.html#v1930) release**
+
 * SECURITY: upgrade Go builder from Go1.21.5 to Go1.21.6. See [the list of issues addressed in Go1.21.6](https://github.com/golang/go/issues?q=milestone%3AGo1.21.6+label%3ACherryPickApproved).
 
 * BUGFIX: `vminsert`: properly accept samples via [OpenTelemetry data ingestion protocol](https://docs.victoriametrics.com/#sending-data-via-opentelemetry) when these samples have no [resource attributes](https://opentelemetry.io/docs/instrumentation/go/resources/). Previously such samples were silently skipped.
