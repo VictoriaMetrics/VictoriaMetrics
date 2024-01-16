@@ -1,6 +1,6 @@
 package filestream
 
-func (st *streamTracker) adviseDontNeed(n int, fdatasync bool) error { // nolint
+func (st *streamTracker) adviseDontNeed(n int, fdatasync bool) error {
 	return nil
 }
 
