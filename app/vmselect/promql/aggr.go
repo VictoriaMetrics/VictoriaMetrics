@@ -649,15 +649,16 @@ func newAggrFuncTopK(isReverse bool) aggrFunc {
 		if err != nil {
 			return nil, err
 		}
+		lt := lessWithNaNs
+		if isReverse {
+			lt = lessWithNaNsReversed
+		}
 		afe := func(tss []*timeseries, modififer *metricsql.ModifierExpr) []*timeseries {
 			for n := range tss[0].Values {
 				sort.Slice(tss, func(i, j int) bool {
 					a := tss[i].Values[n]
 					b := tss[j].Values[n]
-					if isReverse {
-						a, b = b, a
-					}
-					return lessWithNaNs(a, b)
+					return lt(a, b)
 				})
 				fillNaNsAtIdx(n, ks[n], tss)
 			}
@@ -710,13 +711,12 @@ func getRangeTopKTimeseries(tss []*timeseries, modifier *metricsql.ModifierExpr,
 			value: value,
 		}
 	}
+	lt := lessWithNaNs
+	if isReverse {
+		lt = lessWithNaNsReversed
+	}
 	sort.Slice(maxs, func(i, j int) bool {
-		a := maxs[i].value
-		b := maxs[j].value
-		if isReverse {
-			a, b = b, a
-		}
-		return lessWithNaNs(a, b)
+		return lt(maxs[i].value, maxs[j].value)
 	})
 	for i := range maxs {
 		tss[i] = maxs[i].ts
@@ -1257,6 +1257,13 @@ func lessWithNaNs(a, b float64) bool {
 		return !math.IsNaN(b)
 	}
 	return a < b
+}
+
+func lessWithNaNsReversed(a, b float64) bool {
+	if math.IsNaN(a) {
+		return true
+	}
+	return a > b
 }
 
 func floatToIntBounded(f float64) int {
