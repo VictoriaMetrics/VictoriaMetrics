@@ -2,8 +2,6 @@ import React, { FC, useState, useMemo } from "preact/compat";
 import TextField from "../../../components/Main/TextField/TextField";
 import "./style.scss";
 import Button from "../../../components/Main/Button/Button";
-import Trace from "../../../components/TraceQuery/Trace";
-import { ErrorTypes } from "../../../types";
 import classNames from "classnames";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 
@@ -20,10 +18,7 @@ const JsonForm: FC<JsonFormProps> = ({ onClose, onUpload }) => {
 
   const errorJson = useMemo(() => {
     try {
-      const resp = JSON.parse(json);
-      const traceData = resp.trace || resp;
-      if (!traceData.duration_msec) return ErrorTypes.traceNotFound;
-      new Trace(traceData, "");
+      JSON.parse(json);
       return "";
     } catch (e) {
       return e instanceof Error ? e.message : "Unknown error";
