@@ -34,26 +34,24 @@ VM Anomaly Detection (`vmanomaly` hereinafter) models support 2 groups of parame
 * [Isolation forest (Multivariate)](#isolation-forest-multivariate)
 * [Custom model](#custom-model)
 
----
 ## [ARIMA](https://en.wikipedia.org/wiki/Autoregressive_integrated_moving_average)
 Here we use ARIMA implementation from `statsmodels` [library](https://www.statsmodels.org/dev/generated/statsmodels.tsa.arima.model.ARIMA.html)
 
 *Parameters specific for vmanomaly*:
 
-\* - mandatory parameters.
-* `class`\* (string) - model class name `"model.arima.ArimaModel"`
+* `class` (string) - model class name `"model.arima.ArimaModel"`
 
-* `z_threshold` (float) - [standard score](https://en.wikipedia.org/wiki/Standard_score) for calculating boundaries to define anomaly score. Defaults to 2.5.
+* `z_threshold` (float, optional) - [standard score](https://en.wikipedia.org/wiki/Standard_score) for calculating boundaries to define anomaly score. Defaults to `2.5`.
 
-* `provide_series` (list[string]) - List of columns to be produced and returned by the model. Defaults to `["anomaly_score", "yhat", "yhat_lower" "yhat_upper", "y"]`. Output can be **only a subset** of a given column list.
+* `provide_series` (list[string], optional) - List of columns to be produced and returned by the model. Defaults to `["anomaly_score", "yhat", "yhat_lower" "yhat_upper", "y"]`. Output can be **only a subset** of a given column list.
 
-* `resample_freq` (string) = Frequency to resample input data into, e.g. data comes at 15 seconds resolution, and resample_freq is '1m'. Then fitting data will be downsampled to '1m' and internal model is trained at '1m' intervals. So, during inference, prediction data would be produced at '1m' intervals, but interpolated to "15s" to match with expected output, as output data must have the same timestamps.
+* `resample_freq` (string, optional) - Frequency to resample input data into, e.g. data comes at 15 seconds resolution, and resample_freq is '1m'. Then fitting data will be downsampled to '1m' and internal model is trained at '1m' intervals. So, during inference, prediction data would be produced at '1m' intervals, but interpolated to "15s" to match with expected output, as output data must have the same timestamps.
 
 *Default model parameters*:
 
-* `order`\* (list[int]) - ARIMA's (p,d,q) order of the model for the autoregressive, differences, and moving average components, respectively.
+* `order` (list[int]) - ARIMA's (p,d,q) order of the model for the autoregressive, differences, and moving average components, respectively.
     
-* `args`: (dict) - Inner model args (key-value pairs). See accepted params in [model documentation](https://www.statsmodels.org/dev/generated/statsmodels.tsa.arima.model.ARIMA.html). Defaults to empty (not provided). Example:  {"trend": "c"}
+* `args` (dict, optional) - Inner model args (key-value pairs). See accepted params in [model documentation](https://www.statsmodels.org/dev/generated/statsmodels.tsa.arima.model.ARIMA.html). Defaults to empty (not provided). Example:  {"trend": "c"}
 
 *Config Example*
 <div class="with-copy" markdown="1">
@@ -62,39 +60,31 @@ Here we use ARIMA implementation from `statsmodels` [library](https://www.statsm
 model:
   class: "model.arima.ArimaModel"
   # ARIMA's (p,d,q) order
-  order: 
-  - 1
-  - 1
-  - 0
+  order: [1, 1, 0] 
   z_threshold: 2.7
   resample_freq: '1m'
   # Inner model args (key-value pairs) accepted by statsmodels.tsa.arima.model.ARIMA
   args:
     trend: 'c'
 ```
+
 </div>
 
----
 ## [Holt-Winters](https://en.wikipedia.org/wiki/Exponential_smoothing)
 Here we use Holt-Winters Exponential Smoothing implementation from `statsmodels` [library](https://www.statsmodels.org/dev/generated/statsmodels.tsa.holtwinters.ExponentialSmoothing.html). All parameters from this library can be passed to the model.
 
 *Parameters specific for vmanomaly*:
 
-\* - mandatory parameters.
-* `class`\* (string) - model class name `"model.holtwinters.HoltWinters"`
+* `class` (string) - model class name `"model.holtwinters.HoltWinters"`
 
-* `frequency`\* (string) - Must be set equal to sampling_period. Model needs to know expected data-points frequency (e.g. '10m').
-If omitted, frequency is guessed during fitting as **the median of intervals between fitting data timestamps**. During inference, if incoming data doesn't have the same frequency, then it will be interpolated.
-        
-E.g. data comes at 15 seconds resolution, and our resample_freq is '1m'. Then fitting data will be downsampled to '1m' and internal model is trained at '1m' intervals. So, during inference, prediction data would be produced at '1m' intervals, but interpolated to "15s" to match with expected output, as output data must have the same timestamps. 
+* `frequency` (string) - Must be set equal to sampling_period. Model needs to know expected data-points frequency (e.g. '10m'). If omitted, frequency is guessed during fitting as **the median of intervals between fitting data timestamps**. During inference, if incoming data doesn't have the same frequency, then it will be interpolated.  E.g. data comes at 15 seconds resolution, and our resample_freq is '1m'. Then fitting data will be downsampled to '1m' and internal model is trained at '1m' intervals. So, during inference, prediction data would be produced at '1m' intervals, but interpolated to "15s" to match with expected output, as output data must have the same timestamps. As accepted by pandas.Timedelta (e.g. '5m').
 
-As accepted by pandas.Timedelta (e.g. '5m').
-
-* `seasonality` (string) - As accepted by pandas.Timedelta.
+* `seasonality` (string, optional) - As accepted by pandas.Timedelta.
+* 
 If `seasonal_periods` is not specified, it is calculated as `seasonality` / `frequency`
 Used to compute "seasonal_periods" param for the model (e.g. '1D' or '1W').
         
-* `z_threshold` (float) - [standard score](https://en.wikipedia.org/wiki/Standard_score) for calculating boundaries to define anomaly score. Defaults to 2.5.
+* `z_threshold` (float, optional) - [standard score](https://en.wikipedia.org/wiki/Standard_score) for calculating boundaries to define anomaly score. Defaults to 2.5.
 
 
 *Default model parameters*:
@@ -103,7 +93,7 @@ Used to compute "seasonal_periods" param for the model (e.g. '1D' or '1W').
 
 * If [parameter](https://www.statsmodels.org/dev/generated/statsmodels.tsa.holtwinters.ExponentialSmoothing.html#statsmodels.tsa.holtwinters.ExponentialSmoothing-parameters) `initialization_method` is not specified, default value will be `estimated`.
 
-* `args`: (dict) - Inner model args (key-value pairs). See accepted params in [model documentation](https://www.statsmodels.org/dev/generated/statsmodels.tsa.holtwinters.ExponentialSmoothing.html#statsmodels.tsa.holtwinters.ExponentialSmoothing-parameters). Defaults to empty (not provided). Example:  {"seasonal": "add", "initialization_method": "estimated"}
+* `args` (dict, optional) - Inner model args (key-value pairs). See accepted params in [model documentation](https://www.statsmodels.org/dev/generated/statsmodels.tsa.holtwinters.ExponentialSmoothing.html#statsmodels.tsa.holtwinters.ExponentialSmoothing-parameters). Defaults to empty (not provided). Example:  {"seasonal": "add", "initialization_method": "estimated"}
 
 *Config Example*
 <div class="with-copy" markdown="1">
@@ -118,20 +108,19 @@ model:
     seasonal: 'add'
     initialization_method: 'estimated'
 ```
+
 </div>
 
 Resulting metrics of the model are described [here](#vmanomaly-output).
 
----
 ## [Prophet](https://facebook.github.io/prophet/)
 Here we utilize the Facebook Prophet implementation, as detailed in their [library documentation](https://facebook.github.io/prophet/docs/quick_start.html#python-api). All parameters from this library are compatible and can be passed to the model.
 
 *Parameters specific for vmanomaly*:
 
-\* - mandatory parameters.
-* `class`\* (string) - model class name `"model.prophet.ProphetModel"`
-* `seasonalities` (list[dict]) - Extra seasonalities to pass to Prophet. See [`add_seasonality()`](https://facebook.github.io/prophet/docs/seasonality,_holiday_effects,_and_regressors.html#modeling-holidays-and-special-events:~:text=modeling%20the%20cycle-,Specifying,-Custom%20Seasonalities) Prophet param.
-* `provide_series` - model resulting metrics. If not specified [standard metrics](#vmanomaly-output) will be provided. 
+* `class` (string) - model class name `"model.prophet.ProphetModel"`
+* `seasonalities` (list[dict], optional) - Extra seasonalities to pass to Prophet. See [`add_seasonality()`](https://facebook.github.io/prophet/docs/seasonality,_holiday_effects,_and_regressors.html#modeling-holidays-and-special-events:~:text=modeling%20the%20cycle-,Specifying,-Custom%20Seasonalities) Prophet param.
+* `provide_series` (dict, optional) - model resulting metrics. If not specified [standard metrics](#vmanomaly-output) will be provided. 
 
 **Note**: Apart from standard vmanomaly output Prophet model can provide [additional metrics](#additional-output-metrics-produced-by-fb-prophet).
 
@@ -162,20 +151,18 @@ model:
     interval_width: 0.98
     country_holidays: 'US'
 ```
+
 </div>
 
 Resulting metrics of the model are described [here](#vmanomaly-output)
 
----
 ## [Rolling Quantile](https://en.wikipedia.org/wiki/Quantile)
 
 *Parameters specific for vmanomaly*:
 
-\* - mandatory parameters.
-
-* `class`\* (string) - model class name `"model.rolling_quantile.RollingQuantileModel"`
-* `quantile`\* (float) - quantile value, from 0.5 to 1.0. This constraint is implied by 2-sided confidence interval.
-* `window_steps`\* (integer) - size of the moving window. (see 'sampling_period') 
+* `class` (string) - model class name `"model.rolling_quantile.RollingQuantileModel"`
+* `quantile` (float) - quantile value, from 0.5 to 1.0. This constraint is implied by 2-sided confidence interval.
+* `window_steps` (integer) - size of the moving window. (see 'sampling_period') 
 
 *Config Example*
 <div class="with-copy" markdown="1">
@@ -186,23 +173,23 @@ model:
   quantile: 0.9
   window_steps: 96
 ```
+
 </div>
 
 Resulting metrics of the model are described [here](#vmanomaly-output).
 
----
 ## [Seasonal Trend Decomposition](https://en.wikipedia.org/wiki/Seasonal_adjustment)
 Here we use Seasonal Decompose implementation from `statsmodels` [library](https://www.statsmodels.org/dev/generated/statsmodels.tsa.seasonal.seasonal_decompose.html). Parameters from this library can be passed to the model. Some parameters are specifically predefined in vmanomaly and can't be changed by user(`model`='additive', `two_sided`=False).
 
 *Parameters specific for vmanomaly*:
 
-\* - mandatory parameters.
-* `class`\* (string) - model class name `"model.std.StdModel"`
-* `period`\* (integer) -  Number of datapoints in one season.
-* `z_threshold` (float) - [standard score](https://en.wikipedia.org/wiki/Standard_score) for calculating boundaries to define anomaly score. Defaults to 2.5.
+* `class` (string) - model class name `"model.std.StdModel"`
+* `period` (integer) -  Number of datapoints in one season.
+* `z_threshold` (float, optional) - [standard score](https://en.wikipedia.org/wiki/Standard_score) for calculating boundaries to define anomaly score. Defaults to `2.5`.
 
 
 *Config Example*
+
 <div class="with-copy" markdown="1">
 
 ```yaml
@@ -210,6 +197,7 @@ model:
   class: "model.std.StdModel"
   period: 2
 ```
+
 </div>
 
 Resulting metrics of the model are described [here](#vmanomaly-output).
@@ -219,17 +207,16 @@ Resulting metrics of the model are described [here](#vmanomaly-output).
 * `trend` - The trend component of the data series.
 * `seasonal` - The seasonal component of the data series.
 
----
 ## [MAD (Median Absolute Deviation)](https://en.wikipedia.org/wiki/Median_absolute_deviation)
 The MAD model is a robust method for anomaly detection that is *less sensitive* to outliers in data compared to standard deviation-based models. It considers a point as an anomaly if the absolute deviation from the median is significantly large.
 
 *Parameters specific for vmanomaly*:
 
-\* - mandatory parameters.
-* `class`\* (string) - model class name `"model.mad.MADModel"`
-* `threshold` (float) - The threshold multiplier for the MAD to determine anomalies. Defaults to 2.5. Higher values will identify fewer points as anomalies.
+* `class` (string) - model class name `"model.mad.MADModel"`
+* `threshold` (float, optional) - The threshold multiplier for the MAD to determine anomalies. Defaults to `2.5`. Higher values will identify fewer points as anomalies.
 
 *Config Example*
+
 <div class="with-copy" markdown="1">
 
 ```yaml
@@ -237,16 +224,19 @@ model:
   class: "model.mad.MADModel"
   threshold: 2.5
 ```
+
+</div>
+
 Resulting metrics of the model are described [here](#vmanomaly-output).
 
----
 ## [Z-score](https://en.wikipedia.org/wiki/Standard_score)
 *Parameters specific for vmanomaly*:
-\* - mandatory parameters.
-* `class`\* (string) - model class name `"model.zscore.ZscoreModel"`
-* `z_threshold` (float) - [standard score](https://en.wikipedia.org/wiki/Standard_score) for calculation boundaries and anomaly score. Defaults to 2.5.
+
+* `class` (string) - model class name `"model.zscore.ZscoreModel"`
+* `z_threshold` (float, optional) - [standard score](https://en.wikipedia.org/wiki/Standard_score) for calculation boundaries and anomaly score. Defaults to `2.5`.
 
 *Config Example*
+
 <div class="with-copy" markdown="1">
 
 ```yaml
@@ -254,6 +244,7 @@ model:
   class: "model.zscore.ZscoreModel"
   z_threshold: 2.5
 ```
+
 </div>
 
 Resulting metrics of the model are described [here](#vmanomaly-output).
@@ -267,14 +258,14 @@ Here we use Isolation Forest implementation from `scikit-learn` [library](https:
 
 *Parameters specific for vmanomaly*:
 
-\* - mandatory parameters.
-* `class`\* (string) - model class name `"model.isolation_forest.IsolationForestMultivariateModel"`
+* `class` (string) - model class name `"model.isolation_forest.IsolationForestMultivariateModel"`
 
-* `contamination` - The amount of contamination of the data set, i.e. the proportion of outliers in the data set. Used when fitting to define the threshold on the scores of the samples. Default value - "auto". Should be either `"auto"` or be in the range (0.0, 0.5].
+* `contamination` (float or string, optional) - The amount of contamination of the data set, i.e. the proportion of outliers in the data set. Used when fitting to define the threshold on the scores of the samples. Default value - "auto". Should be either `"auto"` or be in the range (0.0, 0.5].
 
-* `args`: (dict) - Inner model args (key-value pairs). See accepted params in [model documentation](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.IsolationForest.html). Defaults to empty (not provided). Example:  {"random_state": 42, "n_estimators": 100}
+* `args` (dict, optional) - Inner model args (key-value pairs). See accepted params in [model documentation](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.IsolationForest.html). Defaults to empty (not provided). Example:  {"random_state": 42, "n_estimators": 100}
 
 *Config Example*
+
 <div class="with-copy" markdown="1">
 
 ```yaml
@@ -287,11 +278,11 @@ model:
     # i.e. to assure reproducibility of produced results each time model is fit on the same input
     random_state: 42
 ```
+
 </div>
 
 Resulting metrics of the model are described [here](#vmanomaly-output).
 
----
 ## Custom model
 You can find a guide on setting up a custom model [here](./custom_model.md).
 

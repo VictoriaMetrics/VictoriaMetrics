@@ -47,7 +47,6 @@ func main() {
 	envflag.Parse()
 	buildinfo.Init()
 	logger.Init()
-	pushmetrics.Init()
 
 	// Storing snapshot delete function to be able to call it in case
 	// of error since logger.Fatal will exit the program without
@@ -96,18 +95,19 @@ func main() {
 
 	go httpserver.Serve(*httpListenAddr, false, nil)
 
+	pushmetrics.Init()
 	err := makeBackup()
 	deleteSnapshot()
 	if err != nil {
 		logger.Fatalf("cannot create backup: %s", err)
 	}
+	pushmetrics.Stop()
 
 	startTime := time.Now()
 	logger.Infof("gracefully shutting down http server for metrics at %q", *httpListenAddr)
 	if err := httpserver.Stop(*httpListenAddr); err != nil {
 		logger.Fatalf("cannot stop http server for metrics: %s", err)
 	}
-	pushmetrics.Stop()
 	logger.Infof("successfully shut down http server for metrics in %.3f seconds", time.Since(startTime).Seconds())
 }
 

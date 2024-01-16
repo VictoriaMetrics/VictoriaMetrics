@@ -57,7 +57,8 @@ To get the full list of supported flags please run the following command:
 
 The service creates a **full** backup each run. This means that the system can be restored fully
 from any particular backup using [vmrestore](https://docs.victoriametrics.com/vmrestore.html).
-Backup manager uploads only the data that has been changed or created since the most recent backup (incremental backup).
+Backup manager uploads only the data that has been changed or created since the most recent backup 
+([incremental backup](https://docs.victoriametrics.com/vmbackup.html#incremental-backups)).
 This reduces the consumed network traffic and the time needed for performing the backup.
 See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-series-databases-533c1a927883) for details.
 
@@ -122,6 +123,10 @@ The result on the GCS bucket
 * The latest folder
 
   <img alt="latest folder" src="vmbackupmanager_latest_folder.webp">
+
+Please note, `latest` data folder is used for [smart backups](https://docs.victoriametrics.com/vmbackup.html#smart-backups).
+It is not recommended to store `latest` data folder in storages with expensive reads or additional archiving features
+(like [S3 Glacier](https://aws.amazon.com/s3/storage-classes/glacier/)).
 
 Please, see [vmbackup docs](https://docs.victoriametrics.com/vmbackup.html#advanced-usage) for more examples of authentication with different
 storage types.

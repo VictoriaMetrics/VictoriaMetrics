@@ -37,7 +37,6 @@ func main() {
 	cgroup.SetGOGC(*gogc)
 	buildinfo.Init()
 	logger.Init()
-	pushmetrics.Init()
 
 	logger.Infof("starting VictoriaLogs at %q...", *httpListenAddr)
 	startTime := time.Now()
@@ -49,8 +48,10 @@ func main() {
 	go httpserver.Serve(*httpListenAddr, *useProxyProtocol, requestHandler)
 	logger.Infof("started VictoriaLogs in %.3f seconds; see https://docs.victoriametrics.com/VictoriaLogs/", time.Since(startTime).Seconds())
 
+	pushmetrics.Init()
 	sig := procutil.WaitForSigterm()
 	logger.Infof("received signal %s", sig)
+	pushmetrics.Stop()
 
 	logger.Infof("gracefully shutting down webservice at %q", *httpListenAddr)
 	startTime = time.Now()
@@ -58,8 +59,6 @@ func main() {
 		logger.Fatalf("cannot stop the webservice: %s", err)
 	}
 	logger.Infof("successfully shut down the webservice in %.3f seconds", time.Since(startTime).Seconds())
-
-	pushmetrics.Stop()
 
 	vlinsert.Stop()
 	vlselect.Stop()
