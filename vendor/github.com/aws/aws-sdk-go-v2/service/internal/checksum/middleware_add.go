@@ -90,6 +90,19 @@ func AddInputMiddleware(stack *middleware.Stack, options InputMiddlewareOptions)
 		return err
 	}
 
+	// If trailing checksum is not supported no need for finalize handler to be added.
+	if options.EnableTrailingChecksum {
+		trailerMiddleware := &addInputChecksumTrailer{
+			EnableTrailingChecksum:           inputChecksum.EnableTrailingChecksum,
+			RequireChecksum:                  inputChecksum.RequireChecksum,
+			EnableComputePayloadHash:         inputChecksum.EnableComputePayloadHash,
+			EnableDecodedContentLengthHeader: inputChecksum.EnableDecodedContentLengthHeader,
+		}
+		if err := stack.Finalize.Insert(trailerMiddleware, "Retry", middleware.After); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
