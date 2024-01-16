@@ -76,7 +76,6 @@ func (r *Result) reset() {
 }
 
 // Results holds results returned from ProcessSearchQuery.
-// You cannot reference packedTimeseries after PutResults call
 type Results struct {
 	tr       storage.TimeRange
 	deadline searchutils.Deadline
