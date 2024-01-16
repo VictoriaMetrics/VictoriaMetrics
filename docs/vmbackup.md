@@ -62,6 +62,10 @@ with the following command:
 ```
 
 It saves time and network bandwidth costs by performing server-side copy for the shared data from the `-origin` to `-dst`.
+Typical object storage just creates new names for already existing objects when performing server-side copy,
+so this operation should be fast and inexpensive. Unfortunately, there are object storage systems such as [S3 Glacier](https://aws.amazon.com/s3/storage-classes/glacier/),
+which make full copies for the copied objects during server-side copy. This may significantly slow down server-side copy
+and make it very expensive.
 
 ### Incremental backups
 
@@ -82,20 +86,24 @@ Smart backups mean storing full daily backups into `YYYYMMDD` folders and creati
 ./vmbackup -storageDataPath=</path/to/victoria-metrics-data> -snapshot.createURL=http://localhost:8428/snapshot/create -dst=gs://<bucket>/latest
 ```
 
-Where `<latest-snapshot>` is the latest [snapshot](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-work-with-snapshots).
-The command will upload only changed data to `gs://<bucket>/latest`.
+This command creates an [instant snapshot](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-work-with-snapshots)
+and uploads it to `gs://<bucket>/latest`. It uploads only the changed data (aka incremental backup). This saves network bandwidth costs and time
+when backing up large amounts of data.
 
 * Run the following command once a day:
 
 ```console
-./vmbackup -storageDataPath=</path/to/victoria-metrics-data> -snapshot.createURL=http://localhost:8428/snapshot/create -dst=gs://<bucket>/<YYYYMMDD> -origin=gs://<bucket>/latest
+./vmbackup -storageDataPath=</path/to/victoria-metrics-data> -origin=gs://<bucket>/latest -dst=gs://<bucket>/<YYYYMMDD>
 ```
 
-Where `<daily-snapshot>` is the snapshot for the last day `<YYYYMMDD>`.
+This command creates server-side copy of the backup from `gs://<bucket>/latest` to `gs://<bucket>/<YYYYMMDD>`, were `<YYYYMMDD>` is the current
+date like `20240125`. Server-side copy of the backup should be fast on most object storage systems, since it just creates new names for already
+existing objects. The server-side copy can be slow on some object storage systems such as [S3 Glacier](https://aws.amazon.com/s3/storage-classes/glacier/),
+since they may perform full object copy instead of creating new names for already existing objects. This may be slow and expensive.
 
-This approach saves network bandwidth costs on hourly backups (since they are incremental) and allows recovering data from either the last hour (`latest` backup)
-or from any day (`YYYYMMDD` backups). Because of this feature, it is not recommended to store `latest` data folder 
-in storages with expensive reads or additional archiving features (like [S3 Glacier](https://aws.amazon.com/s3/storage-classes/glacier/)). 
+The `smart backups` approach described above saves network bandwidth costs on hourly backups (since they are incremental)
+and allows recovering data from either the last hour (the  `latest` backup) or from any day (`YYYYMMDD` backups).
+
 Note that hourly backup shouldn't run when creating daily backup.
 
 Do not forget to remove old backups when they are no longer needed in order to save storage costs.
@@ -115,7 +123,9 @@ from `gs://bucket/foo` to `gs://bucket/bar`:
 The `-origin` and `-dst` must point to the same object storage bucket or to the same filesystem.
 
 The server-side backup copy is usually performed at much faster speed comparing to the usual backup, since backup data isn't transferred
-between the remote storage and locally running `vmbackup` tool.
+between the remote storage and locally running `vmbackup` tool. Object storage systems usually just make new names for already existing
+objects during server-side copy. Unfortunately there are systems such as [S3 Glacier](https://aws.amazon.com/s3/storage-classes/glacier/),
+which perform full object copy during server-side copying. This may be slow and expensive.
 
 If the `-dst` already contains some data, then its' contents is synced with the `-origin` data. This allows making incremental server-side copies of backups.
 
