@@ -262,6 +262,26 @@ Released at 2023-10-02
 * BUGFIX: [vminsert](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): fix ingestion via [multitenant url](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy-via-labels) for opentsdbhttp. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5061). The bug has been introduced in [v1.93.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.2).
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): fix support of legacy DataDog agent, which adds trailing slashes to urls. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5078). Thanks to @maxb for spotting the issue.
 
+## [v1.93.10](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.10)
+
+Released at 2024-01-17
+
+**v1.93.x is a line of LTS releases (e.g. long-time support). It contains important up-to-date bugfixes.
+The v1.93.x line will be supported for at least 12 months since [v1.93.0](https://docs.victoriametrics.com/CHANGELOG.html#v1930) release**
+
+* SECURITY: upgrade Go builder from Go1.21.5 to Go1.21.6. See [the list of issues addressed in Go1.21.6](https://github.com/golang/go/issues?q=milestone%3AGo1.21.6+label%3ACherryPickApproved).
+
+* BUGFIX: `vminsert`: properly accept samples via [OpenTelemetry data ingestion protocol](https://docs.victoriametrics.com/#sending-data-via-opentelemetry) when these samples have no [resource attributes](https://opentelemetry.io/docs/instrumentation/go/resources/). Previously such samples were silently skipped.
+* BUGFIX: `vmstorage`: added missing `-inmemoryDataFlushInterval` command-line flag, which was missing in [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) after implementing [this feature](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3337) in [v1.85.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.85.0).
+* BUGFIX: `vmstorage`: properly expire `storage/prefetchedMetricIDs` cache. Previously this cache was never expired, so it could grow big under [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate). This could result in increasing CPU load over time.
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): check `-external.url` schema when starting vmalert, must be `http` or `https`. Before, alertmanager could reject alert notifications if `-external.url` contained no or wrong schema.
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): properly return results from [bottomk](https://docs.victoriametrics.com/MetricsQL.html#bottomk) and `bottomk_*()` functions when some of these results contain NaN values. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5506). Thanks to @xiaozongyang for [the fix](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5509).
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): properly handle queries, which wrap [rollup functions](https://docs.victoriametrics.com/MetricsQL.html#rollup-functions) with multiple arguments without explicitly specified lookbehind window in square brackets into [aggregate functions](https://docs.victoriametrics.com/MetricsQL.html#aggregate-functions). For example, `sum(quantile_over_time(0.5, process_resident_memory_bytes))` was resulting to `expecting at least 2 args to ...; got 1 args` error. Thanks to @atykhyy for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5414).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): properly assume role with [AWS IRSA authorization](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html). Previously role chaining was not supported. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3822) for details.
+* BUGFIX: all: fix potential panic during components shutdown when [metrics push](https://docs.victoriametrics.com/#push-metrics) is configured. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5548). Thanks to @zhdd99 for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5549).
+* BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl.html): check for Error field in response from influx client during migration. Before, only network errors were checked. Thanks to @wozz for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5446).
+* BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl.html): retry on import errors in `vm-native` mode. Before, retries happened only on writes into a network connection between source and destination. But errors returned by server after all the data was transmitted were logged, but not retried.
+
 ## [v1.93.9](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.9)
 
 Released at 2023-12-10
