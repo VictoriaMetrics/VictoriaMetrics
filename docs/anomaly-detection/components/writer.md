@@ -1,12 +1,11 @@
 ---
-# sort: 4
+sort: 4
 title: Writer
 weight: 4
 menu:
   docs:
     parent: "vmanomaly-components"
     weight: 4
-    # sort: 4
 aliases:
   - /anomaly-detection/components/writer.html
 ---
