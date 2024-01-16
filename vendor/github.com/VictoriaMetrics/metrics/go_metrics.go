@@ -3,6 +3,7 @@ package metrics
 import (
 	"fmt"
 	"io"
+	"log"
 	"math"
 	"runtime"
 	runtimemetrics "runtime/metrics"
@@ -22,39 +23,58 @@ var runtimeMetrics = [][2]string{
 	{"/gc/gomemlimit:bytes", "go_memlimit_bytes"},
 }
 
+var supportedRuntimeMetrics = initSupportedRuntimeMetrics(runtimeMetrics)
+
+func initSupportedRuntimeMetrics(rms [][2]string) [][2]string {
+	exposedMetrics := make(map[string]struct{})
+	for _, d := range runtimemetrics.All() {
+		exposedMetrics[d.Name] = struct{}{}
+	}
+	var supportedMetrics [][2]string
+	for _, rm := range rms {
+		metricName := rm[0]
+		if _, ok := exposedMetrics[metricName]; ok {
+			supportedMetrics = append(supportedMetrics, rm)
+		} else {
+			log.Printf("github.com/VictoriaMetrics/metrics: do not expose %s metric, since the corresponding metric %s isn't supported in the current Go runtime", rm[1], metricName)
+		}
+	}
+	return supportedMetrics
+}
+
 func writeGoMetrics(w io.Writer) {
 	writeRuntimeMetrics(w)
 
 	var ms runtime.MemStats
 	runtime.ReadMemStats(&ms)
-	fmt.Fprintf(w, "go_memstats_alloc_bytes %d\n", ms.Alloc)
-	fmt.Fprintf(w, "go_memstats_alloc_bytes_total %d\n", ms.TotalAlloc)
-	fmt.Fprintf(w, "go_memstats_buck_hash_sys_bytes %d\n", ms.BuckHashSys)
-	fmt.Fprintf(w, "go_memstats_frees_total %d\n", ms.Frees)
-	fmt.Fprintf(w, "go_memstats_gc_cpu_fraction %g\n", ms.GCCPUFraction)
-	fmt.Fprintf(w, "go_memstats_gc_sys_bytes %d\n", ms.GCSys)
+	WriteGaugeUint64(w, "go_memstats_alloc_bytes", ms.Alloc)
+	WriteCounterUint64(w, "go_memstats_alloc_bytes_total", ms.TotalAlloc)
+	WriteGaugeUint64(w, "go_memstats_buck_hash_sys_bytes", ms.BuckHashSys)
+	WriteCounterUint64(w, "go_memstats_frees_total", ms.Frees)
+	WriteGaugeFloat64(w, "go_memstats_gc_cpu_fraction", ms.GCCPUFraction)
+	WriteGaugeUint64(w, "go_memstats_gc_sys_bytes", ms.GCSys)
 
-	fmt.Fprintf(w, "go_memstats_heap_alloc_bytes %d\n", ms.HeapAlloc)
-	fmt.Fprintf(w, "go_memstats_heap_idle_bytes %d\n", ms.HeapIdle)
-	fmt.Fprintf(w, "go_memstats_heap_inuse_bytes %d\n", ms.HeapInuse)
-	fmt.Fprintf(w, "go_memstats_heap_objects %d\n", ms.HeapObjects)
-	fmt.Fprintf(w, "go_memstats_heap_released_bytes %d\n", ms.HeapReleased)
-	fmt.Fprintf(w, "go_memstats_heap_sys_bytes %d\n", ms.HeapSys)
-	fmt.Fprintf(w, "go_memstats_last_gc_time_seconds %g\n", float64(ms.LastGC)/1e9)
-	fmt.Fprintf(w, "go_memstats_lookups_total %d\n", ms.Lookups)
-	fmt.Fprintf(w, "go_memstats_mallocs_total %d\n", ms.Mallocs)
-	fmt.Fprintf(w, "go_memstats_mcache_inuse_bytes %d\n", ms.MCacheInuse)
-	fmt.Fprintf(w, "go_memstats_mcache_sys_bytes %d\n", ms.MCacheSys)
-	fmt.Fprintf(w, "go_memstats_mspan_inuse_bytes %d\n", ms.MSpanInuse)
-	fmt.Fprintf(w, "go_memstats_mspan_sys_bytes %d\n", ms.MSpanSys)
-	fmt.Fprintf(w, "go_memstats_next_gc_bytes %d\n", ms.NextGC)
-	fmt.Fprintf(w, "go_memstats_other_sys_bytes %d\n", ms.OtherSys)
-	fmt.Fprintf(w, "go_memstats_stack_inuse_bytes %d\n", ms.StackInuse)
-	fmt.Fprintf(w, "go_memstats_stack_sys_bytes %d\n", ms.StackSys)
-	fmt.Fprintf(w, "go_memstats_sys_bytes %d\n", ms.Sys)
+	WriteGaugeUint64(w, "go_memstats_heap_alloc_bytes", ms.HeapAlloc)
+	WriteGaugeUint64(w, "go_memstats_heap_idle_bytes", ms.HeapIdle)
+	WriteGaugeUint64(w, "go_memstats_heap_inuse_bytes", ms.HeapInuse)
+	WriteGaugeUint64(w, "go_memstats_heap_objects", ms.HeapObjects)
+	WriteGaugeUint64(w, "go_memstats_heap_released_bytes", ms.HeapReleased)
+	WriteGaugeUint64(w, "go_memstats_heap_sys_bytes", ms.HeapSys)
+	WriteGaugeFloat64(w, "go_memstats_last_gc_time_seconds", float64(ms.LastGC)/1e9)
+	WriteCounterUint64(w, "go_memstats_lookups_total", ms.Lookups)
+	WriteCounterUint64(w, "go_memstats_mallocs_total", ms.Mallocs)
+	WriteGaugeUint64(w, "go_memstats_mcache_inuse_bytes", ms.MCacheInuse)
+	WriteGaugeUint64(w, "go_memstats_mcache_sys_bytes", ms.MCacheSys)
+	WriteGaugeUint64(w, "go_memstats_mspan_inuse_bytes", ms.MSpanInuse)
+	WriteGaugeUint64(w, "go_memstats_mspan_sys_bytes", ms.MSpanSys)
+	WriteGaugeUint64(w, "go_memstats_next_gc_bytes", ms.NextGC)
+	WriteGaugeUint64(w, "go_memstats_other_sys_bytes", ms.OtherSys)
+	WriteGaugeUint64(w, "go_memstats_stack_inuse_bytes", ms.StackInuse)
+	WriteGaugeUint64(w, "go_memstats_stack_sys_bytes", ms.StackSys)
+	WriteGaugeUint64(w, "go_memstats_sys_bytes", ms.Sys)
 
-	fmt.Fprintf(w, "go_cgo_calls_count %d\n", runtime.NumCgoCall())
-	fmt.Fprintf(w, "go_cpu_count %d\n", runtime.NumCPU())
+	WriteCounterUint64(w, "go_cgo_calls_count", uint64(runtime.NumCgoCall()))
+	WriteGaugeUint64(w, "go_cpu_count", uint64(runtime.NumCPU()))
 
 	gcPauses := histogram.NewFast()
 	for _, pauseNs := range ms.PauseNs[:] {
@@ -62,45 +82,64 @@ func writeGoMetrics(w io.Writer) {
 	}
 	phis := []float64{0, 0.25, 0.5, 0.75, 1}
 	quantiles := make([]float64, 0, len(phis))
+	WriteMetadataIfNeeded(w, "go_gc_duration_seconds", "summary")
 	for i, q := range gcPauses.Quantiles(quantiles[:0], phis) {
 		fmt.Fprintf(w, `go_gc_duration_seconds{quantile="%g"} %g`+"\n", phis[i], q)
 	}
-	fmt.Fprintf(w, `go_gc_duration_seconds_sum %g`+"\n", float64(ms.PauseTotalNs)/1e9)
-	fmt.Fprintf(w, `go_gc_duration_seconds_count %d`+"\n", ms.NumGC)
-	fmt.Fprintf(w, `go_gc_forced_count %d`+"\n", ms.NumForcedGC)
+	fmt.Fprintf(w, "go_gc_duration_seconds_sum %g\n", float64(ms.PauseTotalNs)/1e9)
+	fmt.Fprintf(w, "go_gc_duration_seconds_count %d\n", ms.NumGC)
 
-	fmt.Fprintf(w, `go_gomaxprocs %d`+"\n", runtime.GOMAXPROCS(0))
-	fmt.Fprintf(w, `go_goroutines %d`+"\n", runtime.NumGoroutine())
+	WriteCounterUint64(w, "go_gc_forced_count", uint64(ms.NumForcedGC))
+
+	WriteGaugeUint64(w, "go_gomaxprocs", uint64(runtime.GOMAXPROCS(0)))
+	WriteGaugeUint64(w, "go_goroutines", uint64(runtime.NumGoroutine()))
 	numThread, _ := runtime.ThreadCreateProfile(nil)
-	fmt.Fprintf(w, `go_threads %d`+"\n", numThread)
+	WriteGaugeUint64(w, "go_threads", uint64(numThread))
 
 	// Export build details.
+	WriteMetadataIfNeeded(w, "go_info", "gauge")
 	fmt.Fprintf(w, "go_info{version=%q} 1\n", runtime.Version())
+
+	WriteMetadataIfNeeded(w, "go_info_ext", "gauge")
 	fmt.Fprintf(w, "go_info_ext{compiler=%q, GOARCH=%q, GOOS=%q, GOROOT=%q} 1\n",
 		runtime.Compiler, runtime.GOARCH, runtime.GOOS, runtime.GOROOT())
 }
 
 func writeRuntimeMetrics(w io.Writer) {
-	samples := make([]runtimemetrics.Sample, len(runtimeMetrics))
-	for i, rm := range runtimeMetrics {
+	samples := make([]runtimemetrics.Sample, len(supportedRuntimeMetrics))
+	for i, rm := range supportedRuntimeMetrics {
 		samples[i].Name = rm[0]
 	}
 	runtimemetrics.Read(samples)
-	for i, rm := range runtimeMetrics {
+	for i, rm := range supportedRuntimeMetrics {
 		writeRuntimeMetric(w, rm[1], &samples[i])
 	}
 }
 
 func writeRuntimeMetric(w io.Writer, name string, sample *runtimemetrics.Sample) {
-	switch sample.Value.Kind() {
+	kind := sample.Value.Kind()
+	switch kind {
 	case runtimemetrics.KindBad:
 		panic(fmt.Errorf("BUG: unexpected runtimemetrics.KindBad for sample.Name=%q", sample.Name))
 	case runtimemetrics.KindUint64:
-		fmt.Fprintf(w, "%s %d\n", name, sample.Value.Uint64())
+		v := sample.Value.Uint64()
+		if strings.HasSuffix(name, "_total") {
+			WriteCounterUint64(w, name, v)
+		} else {
+			WriteGaugeUint64(w, name, v)
+		}
 	case runtimemetrics.KindFloat64:
-		fmt.Fprintf(w, "%s %g\n", name, sample.Value.Float64())
+		v := sample.Value.Float64()
+		if isCounterName(name) {
+			WriteCounterFloat64(w, name, v)
+		} else {
+			WriteGaugeFloat64(w, name, v)
+		}
 	case runtimemetrics.KindFloat64Histogram:
-		writeRuntimeHistogramMetric(w, name, sample.Value.Float64Histogram())
+		h := sample.Value.Float64Histogram()
+		writeRuntimeHistogramMetric(w, name, h)
+	default:
+		panic(fmt.Errorf("unexpected metric kind=%d", kind))
 	}
 }
 
@@ -126,6 +165,7 @@ func writeRuntimeHistogramMetric(w io.Writer, name string, h *runtimemetrics.Flo
 
 	totalCount := uint64(0)
 	iNext := 0.0
+	WriteMetadataIfNeeded(w, name, "histogram")
 	for i, count := range counts {
 		totalCount += count
 		if float64(i) >= iNext {
