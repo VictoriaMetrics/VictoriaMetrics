@@ -161,9 +161,9 @@ func (q QueryRange) metrics() ([]Metric, error) {
 	return result, nil
 }
 
-func (r *Query) UnmarshalJSON(b []byte) error {
+func (q *Query) UnmarshalJSON(b []byte) error {
 	type plain Query
-	return json.Unmarshal(testutil.PopulateTimeTpl(b, insertionTime), (*plain)(r))
+	return json.Unmarshal(testutil.PopulateTimeTpl(b, insertionTime), (*plain)(q))
 }
 
 func TestMain(m *testing.M) {
