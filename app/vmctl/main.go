@@ -223,7 +223,9 @@ func main() {
 					}
 					srcHTTPClient := &http.Client{Transport: &http.Transport{
 						DisableKeepAlives: disableKeepAlive,
-						TLSClientConfig:   &tls.Config{InsecureSkipVerify: srcInsecureSkipVerify},
+						TLSClientConfig: &tls.Config{
+							InsecureSkipVerify: srcInsecureSkipVerify,
+						},
 					}}
 
 					dstAddr := strings.Trim(c.String(vmNativeDstAddr), "/")
@@ -238,7 +240,9 @@ func main() {
 					}
 					dstHTTPClient := &http.Client{Transport: &http.Transport{
 						DisableKeepAlives: disableKeepAlive,
-						TLSClientConfig:   &tls.Config{InsecureSkipVerify: dstInsecureSkipVerify},
+						TLSClientConfig: &tls.Config{
+							InsecureSkipVerify: dstInsecureSkipVerify,
+						},
 					}}
 
 					p := vmNativeProcessor{
