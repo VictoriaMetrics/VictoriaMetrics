@@ -649,18 +649,26 @@ func newAggrFuncTopK(isReverse bool) aggrFunc {
 		if err != nil {
 			return nil, err
 		}
-		lt := lessWithNaNs
-		if isReverse {
-			lt = lessWithNaNsReversed
-		}
 		afe := func(tss []*timeseries, modififer *metricsql.ModifierExpr) []*timeseries {
+			var tssNoNaNs []*timeseries
 			for n := range tss[0].Values {
-				sort.Slice(tss, func(i, j int) bool {
-					a := tss[i].Values[n]
-					b := tss[j].Values[n]
-					return lt(a, b)
+				// Drop series with NaNs at Values[n] before sorting.
+				// This is needed for https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5506
+				tssNoNaNs = tssNoNaNs[:0]
+				for _, ts := range tss {
+					if !math.IsNaN(ts.Values[n]) {
+						tssNoNaNs = append(tssNoNaNs, ts)
+					}
+				}
+				sort.Slice(tssNoNaNs, func(i, j int) bool {
+					a := tssNoNaNs[i].Values[n]
+					b := tssNoNaNs[j].Values[n]
+					if isReverse {
+						a, b = b, a
+					}
+					return a < b
 				})
-				fillNaNsAtIdx(n, ks[n], tss)
+				fillNaNsAtIdx(n, ks[n], tssNoNaNs)
 			}
 			tss = removeEmptySeries(tss)
 			reverseSeries(tss)
@@ -711,16 +719,31 @@ func getRangeTopKTimeseries(tss []*timeseries, modifier *metricsql.ModifierExpr,
 			value: value,
 		}
 	}
-	lt := lessWithNaNs
-	if isReverse {
-		lt = lessWithNaNsReversed
+	// Drop maxs with NaNs before sorting.
+	// This is needed for https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5506
+	maxsNoNaNs := make([]tsWithValue, 0, len(maxs))
+	for _, tsv := range maxs {
+		if !math.IsNaN(tsv.value) {
+			maxsNoNaNs = append(maxsNoNaNs, tsv)
+		}
 	}
-	sort.Slice(maxs, func(i, j int) bool {
-		return lt(maxs[i].value, maxs[j].value)
+	sort.Slice(maxsNoNaNs, func(i, j int) bool {
+		a := maxsNoNaNs[i].value
+		b := maxsNoNaNs[j].value
+		if isReverse {
+			a, b = b, a
+		}
+		return a < b
 	})
-	for i := range maxs {
-		tss[i] = maxs[i].ts
+	for _, tsv := range maxs {
+		if math.IsNaN(tsv.value) {
+			maxsNoNaNs = append(maxsNoNaNs, tsv)
+		}
 	}
+	for i := range maxsNoNaNs {
+		tss[i] = maxsNoNaNs[i].ts
+	}
+
 	remainingSumTS := getRemainingSumTimeseries(tss, modifier, ks, remainingSumTagName)
 	for i, k := range ks {
 		fillNaNsAtIdx(i, k, tss)
@@ -1250,20 +1273,6 @@ func newAggrQuantileFunc(phis []float64) func(tss []*timeseries, modifier *metri
 		tss[0] = dst
 		return tss[:1]
 	}
-}
-
-func lessWithNaNs(a, b float64) bool {
-	if math.IsNaN(a) {
-		return !math.IsNaN(b)
-	}
-	return a < b
-}
-
-func lessWithNaNsReversed(a, b float64) bool {
-	if math.IsNaN(a) {
-		return true
-	}
-	return a > b
 }
 
 func floatToIntBounded(f float64) int {
