@@ -271,6 +271,7 @@ It is possible to force switch to VictoriaMetrics remote write protocol by speci
 command-line flag for the corresponding `-remoteWrite.url`.
 It is possible to tune the compression level for VictoriaMetrics remote write protocol with `-remoteWrite.vmProtoCompressLevel` command-line flag.
 Bigger values reduce network usage at the cost of higher CPU usage. Negative values reduce CPU usage at the cost of higher network usage.
+The default value for the compression level is `3`, and the maximum value is `22`.
 
 `vmagent` automatically switches to Prometheus remote write protocol when it sends data to old versions of VictoriaMetrics components
 or to other Prometheus-compatible remote storage systems. It is possible to force switch to Prometheus remote write protocol
@@ -1824,6 +1825,8 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      The delay for suppressing repeated scrape errors logging per each scrape targets. This may be used for reducing the number of log lines related to scrape errors. See also -promscrape.suppressScrapeErrors
   -promscrape.yandexcloudSDCheckInterval duration
      Interval for checking for changes in Yandex Cloud API. This works only if yandexcloud_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#yandexcloud_sd_configs for details (default 30s)
+  -promscrape.hetznerSDCheckInterval duration
+     Interval for checking for changes in Hetnzer API. This works only if hetzner_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#hetzner_sd_configs for details (default 30s)
   -pushmetrics.disableCompression
      Whether to disable request body compression when pushing metrics to every -pushmetrics.url
   -pushmetrics.extraLabel array

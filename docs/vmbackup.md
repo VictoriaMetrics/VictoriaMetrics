@@ -94,7 +94,9 @@ The command will upload only changed data to `gs://<bucket>/latest`.
 Where `<daily-snapshot>` is the snapshot for the last day `<YYYYMMDD>`.
 
 This approach saves network bandwidth costs on hourly backups (since they are incremental) and allows recovering data from either the last hour (`latest` backup)
-or from any day (`YYYYMMDD` backups). Note that hourly backup shouldn't run when creating daily backup.
+or from any day (`YYYYMMDD` backups). Because of this feature, it is not recommended to store `latest` data folder 
+in storages with expensive reads or additional archiving features (like [S3 Glacier](https://aws.amazon.com/s3/storage-classes/glacier/)). 
+Note that hourly backup shouldn't run when creating daily backup.
 
 Do not forget to remove old backups when they are no longer needed in order to save storage costs.
 
