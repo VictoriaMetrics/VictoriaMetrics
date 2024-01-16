@@ -3,8 +3,11 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"net/http"
+	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -182,6 +185,61 @@ func newRequestHandler(strg *storage.Storage) httpserver.RequestHandler {
 
 func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storage) bool {
 	path := r.URL.Path
+	if path == "/vmping" {
+		values, _ := url.ParseQuery(r.URL.RawQuery)
+		accountID := uint32(0)
+		projectID := uint32(0)
+		accountIDStr := values.Get("accountID")
+		projectIDStr := values.Get("projectID")
+
+		if len(accountIDStr) > 0 {
+			num, err := strconv.ParseInt(accountIDStr, 10, 32)
+			if err == nil {
+				accountID = uint32(num)
+			}
+		}
+
+		if len(projectIDStr) > 0 {
+			num, err := strconv.ParseInt(projectIDStr, 10, 32)
+			if err == nil {
+				projectID = uint32(num)
+			}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		now := time.Now().UnixNano() / 1e6
+		start := now - 5*60*1000
+		end := now
+		tr := storage.TimeRange{
+			MinTimestamp: start,
+			MaxTimestamp: end,
+		}
+		// Verify that SearchMetricNames returns correct result.
+		tfs := storage.NewTagFilters(accountID, projectID)
+		//flag built-in metric of vm ,and time series is controlled so use flag metric
+		if err := tfs.Add(nil, []byte("flag"), false, false); err != nil {
+			err = fmt.Errorf("unexpected error in TagFilters.Add: %w", err)
+			jsonResponseError(w, err)
+			return true
+		}
+		//time series with the metric flag and the given name label is search.logSlowQueryDuration (avoid too many time series):
+		if err := tfs.Add([]byte("name"), []byte("search.logSlowQueryDuration"), false, false); err != nil {
+			err = fmt.Errorf("unexpected error in TagFilters.Add: %w", err)
+			jsonResponseError(w, err)
+			return true
+		}
+		//although use maxMetrics big to query but it's not a problem
+		//flag{name="search.logSlowQueryDuration"} time series is equal vmselect instance
+		metricNames, err := strg.SearchMetricNames(nil, []*storage.TagFilters{tfs}, tr, 30000, fasttime.UnixTimestamp()+uint64(5))
+		if err != nil {
+			err = fmt.Errorf("error in SearchMetricNames: %w", err)
+			jsonResponseError(w, err)
+			return true
+		}
+
+		fmt.Fprintf(w, `{"status":"ok","count":%d}`, len(metricNames))
+		return true
+	}
 	if path == "/internal/force_merge" {
 		if !httpserver.CheckAuthFlag(w, r, *forceMergeAuthKey, "forceMergeAuthKey") {
 			return true
