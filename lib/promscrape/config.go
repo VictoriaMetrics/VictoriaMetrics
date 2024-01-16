@@ -438,7 +438,7 @@ func loadConfig(path string) (*Config, error) {
 	return &c, nil
 }
 
-func mustLoadScrapeConfigFiles(baseDir string, scrapeConfigFiles []string, isStrict bool) ([]*ScrapeConfig, error) {
+func loadScrapeConfigFiles(baseDir string, scrapeConfigFiles []string, isStrict bool) ([]*ScrapeConfig, error) {
 	var scrapeConfigs []*ScrapeConfig
 	for _, filePath := range scrapeConfigFiles {
 		filePath := fs.GetFilepath(baseDir, filePath)
@@ -466,7 +466,8 @@ func mustLoadScrapeConfigFiles(baseDir string, scrapeConfigFiles []string, isStr
 			var scs []*ScrapeConfig
 			if isStrict {
 				if err = yaml.UnmarshalStrict(data, &scs); err != nil {
-					return nil, fmt.Errorf("cannot unmarshal data from `scrape_config_files` %s: %w; pass -promscrape.config.strictParse=false command-line flag for ignoring unknown fields in yaml config", path, err)
+					return nil, fmt.Errorf("cannot unmarshal data from `scrape_config_files` %s: %w; "+
+						"pass -promscrape.config.strictParse=false command-line flag for ignoring invalid scrape_config_files", path, err)
 				}
 			} else {
 				if err = yaml.Unmarshal(data, &scs); err != nil {
@@ -498,7 +499,7 @@ func (cfg *Config) parseData(data []byte, path string) error {
 	cfg.baseDir = filepath.Dir(absPath)
 
 	// Load cfg.ScrapeConfigFiles into c.ScrapeConfigs
-	scs, err := mustLoadScrapeConfigFiles(cfg.baseDir, cfg.ScrapeConfigFiles, *strictParse)
+	scs, err := loadScrapeConfigFiles(cfg.baseDir, cfg.ScrapeConfigFiles, *strictParse)
 	if err != nil {
 		return err
 	}
