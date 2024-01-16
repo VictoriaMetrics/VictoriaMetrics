@@ -14,6 +14,10 @@ func GetDuration(r *http.Request, argKey string, defaultValue int64) (int64, err
 	if len(argValue) == 0 {
 		return defaultValue, nil
 	}
+	if argValue == "undefined" {
+		// This hack is needed for Grafana, which may send undefined value
+		return defaultValue, nil
+	}
 	secs, err := strconv.ParseFloat(argValue, 64)
 	if err != nil {
 		// Try parsing string format

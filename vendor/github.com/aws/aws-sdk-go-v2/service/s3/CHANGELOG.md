@@ -1,3 +1,19 @@
+# v1.48.0 (2024-01-05)
+
+* **Feature**: Support smithy sigv4a trait for codegen.
+
+# v1.47.8 (2024-01-04)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.47.7 (2023-12-20)
+
+* No change notes available for this release.
+
+# v1.47.6 (2023-12-18)
+
+* No change notes available for this release.
+
 # v1.47.5 (2023-12-08)
 
 * **Bug Fix**: Add non-vhostable buckets to request path when using legacy V1 endpoint resolver.
