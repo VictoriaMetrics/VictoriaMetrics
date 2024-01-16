@@ -19,7 +19,7 @@ modelerfour:
   seal-single-value-enum-by-default: true
   lenient-model-deduplication: true
 export-clients: true
-use: "@autorest/go@4.0.0-preview.49"
+use: "@autorest/go@4.0.0-preview.61"
 ```
 
 ### Updating service version to 2023-08-03
@@ -280,7 +280,9 @@ directive:
 
 ``` yaml
 directive:
-- from: zz_models.go
+- from:
+  - zz_models.go
+  - zz_options.go
   where: $
   transform: >-
     return $.
@@ -443,8 +445,8 @@ directive:
   where: $
   transform: >-
     return $.
-      replace(/if\s+!runtime\.HasStatusCode\(resp,\s+http\.StatusOK\)\s+\{\s*\n\t\treturn\s+ServiceClientSubmitBatchResponse\{\}\,\s+runtime\.NewResponseError\(resp\)\s*\n\t\}/g, 
-      `if !runtime.HasStatusCode(resp, http.StatusAccepted) {\n\t\treturn ServiceClientSubmitBatchResponse{}, runtime.NewResponseError(resp)\n\t}`);
+      replace(/if\s+!runtime\.HasStatusCode\(httpResp,\s+http\.StatusOK\)\s+\{\s+err\s+=\s+runtime\.NewResponseError\(httpResp\)\s+return ServiceClientSubmitBatchResponse\{\}\,\s+err\s+}/g, 
+      `if !runtime.HasStatusCode(httpResp, http.StatusAccepted) {\n\t\terr = runtime.NewResponseError(httpResp)\n\t\treturn ServiceClientSubmitBatchResponse{}, err\n\t}`);
 ```
 
 ### Convert time to GMT for If-Modified-Since and If-Unmodified-Since request headers

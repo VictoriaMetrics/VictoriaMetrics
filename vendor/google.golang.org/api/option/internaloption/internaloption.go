@@ -22,8 +22,27 @@ func (o defaultEndpointOption) Apply(settings *internal.DialSettings) {
 // It should only be used internally by generated clients.
 //
 // This is similar to WithEndpoint, but allows us to determine whether the user has overridden the default endpoint.
+//
+// Deprecated: WithDefaultEndpoint does not support setting the universe domain.
+// Use WithDefaultEndpointTemplate and WithDefaultUniverseDomain to compose the
+// default endpoint instead.
 func WithDefaultEndpoint(url string) option.ClientOption {
 	return defaultEndpointOption(url)
+}
+
+type defaultEndpointTemplateOption string
+
+func (o defaultEndpointTemplateOption) Apply(settings *internal.DialSettings) {
+	settings.DefaultEndpointTemplate = string(o)
+}
+
+// WithDefaultEndpointTemplate provides a template for creating the endpoint
+// using a universe domain. See also WithDefaultUniverseDomain and
+// option.WithUniverseDomain.
+//
+// It should only be used internally by generated clients.
+func WithDefaultEndpointTemplate(url string) option.ClientOption {
+	return defaultEndpointTemplateOption(url)
 }
 
 type defaultMTLSEndpointOption string
