@@ -36,7 +36,6 @@ func main() {
 	envflag.Parse()
 	buildinfo.Init()
 	logger.Init()
-	pushmetrics.Init()
 
 	go httpserver.Serve(*httpListenAddr, false, nil)
 
@@ -54,9 +53,11 @@ func main() {
 		Dst:                     dstFS,
 		SkipBackupCompleteCheck: *skipBackupCompleteCheck,
 	}
+	pushmetrics.Init()
 	if err := a.Run(); err != nil {
 		logger.Fatalf("cannot restore from backup: %s", err)
 	}
+	pushmetrics.Stop()
 	srcFS.MustStop()
 	dstFS.MustStop()
 
@@ -65,7 +66,6 @@ func main() {
 	if err := httpserver.Stop(*httpListenAddr); err != nil {
 		logger.Fatalf("cannot stop http server for metrics: %s", err)
 	}
-	pushmetrics.Stop()
 	logger.Infof("successfully shut down http server for metrics in %.3f seconds", time.Since(startTime).Seconds())
 }
 

@@ -53,7 +53,7 @@ Future updates will introduce additional readers, expanding the range of data so
         <tr>
             <td><code>tenant_id</code></td>
             <td><code>"0:0"</code></td>
-            <td>For cluster version only, tenants are identified by accountID or accountID:projectID</td>
+            <td>For VictoriaMetrics Cluster version only, tenants are identified by accountID or accountID:projectID. See VictoriaMetrics Cluster <a href="https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy">multitenancy docs</a></td>
         </tr>
         <tr>
             <td><code>sampling_period</code></td>

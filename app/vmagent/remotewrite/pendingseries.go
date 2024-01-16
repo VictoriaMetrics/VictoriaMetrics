@@ -228,7 +228,7 @@ func tryPushWriteRequest(wr *prompbmarshal.WriteRequest, tryPushBlock func(block
 		return true
 	}
 	bb := writeRequestBufPool.Get()
-	bb.B = prompbmarshal.MarshalWriteRequest(bb.B[:0], wr)
+	bb.B = wr.MarshalProtobuf(bb.B[:0])
 	if len(bb.B) <= maxUnpackedBlockSize.IntN() {
 		zb := snappyBufPool.Get()
 		if isVMRemoteWrite {
