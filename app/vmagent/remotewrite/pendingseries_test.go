@@ -43,7 +43,7 @@ func testPushWriteRequest(t *testing.T, rowsCount, expectedBlockLenProm, expecte
 	}
 
 	// Check Prometheus remote write
-	f(false, expectedBlockLenProm, 0)
+	f(false, expectedBlockLenProm, 3)
 
 	// Check VictoriaMetrics remote write
 	f(true, expectedBlockLenVM, 15)

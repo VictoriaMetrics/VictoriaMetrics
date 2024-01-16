@@ -64,7 +64,6 @@ func main() {
 	envflag.Parse()
 	buildinfo.Init()
 	logger.Init()
-	pushmetrics.Init()
 
 	logger.Infof("starting vmauth at %q...", *httpListenAddr)
 	startTime := time.Now()
@@ -72,15 +71,16 @@ func main() {
 	go httpserver.Serve(*httpListenAddr, *useProxyProtocol, requestHandler)
 	logger.Infof("started vmauth in %.3f seconds", time.Since(startTime).Seconds())
 
+	pushmetrics.Init()
 	sig := procutil.WaitForSigterm()
 	logger.Infof("received signal %s", sig)
+	pushmetrics.Stop()
 
 	startTime = time.Now()
 	logger.Infof("gracefully shutting down webservice at %q", *httpListenAddr)
 	if err := httpserver.Stop(*httpListenAddr); err != nil {
 		logger.Fatalf("cannot stop the webservice: %s", err)
 	}
-	pushmetrics.Stop()
 	logger.Infof("successfully shut down the webservice in %.3f seconds", time.Since(startTime).Seconds())
 	stopAuthConfig()
 	logger.Infof("successfully stopped vmauth in %.3f seconds", time.Since(startTime).Seconds())

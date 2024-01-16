@@ -14,6 +14,8 @@ menu:
 
 **Deletes time series from VictoriaMetrics**
 
+Note that handler accepts any HTTP method, so sending a `GET` request to `/api/v1/admin/tsdb/delete_series` will result in deletion of time series.
+
 Single-node VictoriaMetrics:
 <div class="with-copy" markdown="1">
 
