@@ -5,7 +5,7 @@ import useEventListener from "../../hooks/useEventListener";
 import "../CustomPanel/style.scss";
 import ExploreAnomalyHeader from "./ExploreAnomalyHeader/ExploreAnomalyHeader";
 import Alert from "../../components/Main/Alert/Alert";
-import { extractFields } from "../../utils/uplot";
+import { extractFields, isForecast } from "../../utils/uplot";
 import { useFetchQuery } from "../../hooks/useFetchQuery";
 import Spinner from "../../components/Main/Spinner/Spinner";
 import GraphTab from "../CustomPanel/CustomPanelTabs/GraphTab";
@@ -16,6 +16,16 @@ import { ForecastType } from "../../types";
 import { useFetchAnomalySeries } from "./hooks/useFetchAnomalySeries";
 import { useQueryDispatch } from "../../state/query/QueryStateContext";
 import { useTimeDispatch } from "../../state/time/TimeStateContext";
+
+const anomalySeries = [
+  ForecastType.yhat,
+  ForecastType.yhatUpper,
+  ForecastType.yhatLower,
+  ForecastType.anomalyScore
+];
+
+// Hardcoded to 1.0 for now; consider adding a UI slider for threshold adjustment in the future.
+const ANOMALY_SCORE_THRESHOLD = 1;
 
 const ExploreAnomaly: FC = () => {
   const { isMobile } = useDeviceDetect();
@@ -36,34 +46,31 @@ const ExploreAnomaly: FC = () => {
 
   const data = useMemo(() => {
     if (!graphData) return;
-    const group = queries.length + 1;
-    const realData = graphData.filter(d => d.group === 1);
-    const upperData = graphData.filter(d => d.group === 3);
-    const lowerData = graphData.filter(d => d.group === 4);
-    const anomalyData: MetricResult[] = realData.map((d) => ({
-      group,
-      metric: { ...d.metric, __name__: ForecastType.anomaly },
-      values: d.values.filter(([t, v]) => {
-        const id = extractFields(d.metric);
-        const upperDataByLabels = upperData.find(du => extractFields(du.metric) === id);
-        const lowerDataByLabels = lowerData.find(du => extractFields(du.metric) === id);
-        if (!upperDataByLabels || !lowerDataByLabels) return false;
-        const max = upperDataByLabels.values.find(([tMax]) => tMax === t) as [number, string];
-        const min = lowerDataByLabels.values.find(([tMin]) => tMin === t) as [number, string];
-        const num = v && promValueToNumber(v);
-        const numMin = min && promValueToNumber(min[1]);
-        const numMax = max && promValueToNumber(max[1]);
-        return num < numMin || num > numMax;
-      })
-    }));
-    return graphData.concat(anomalyData);
+    const detectedData = graphData.map(d => ({ ...isForecast(d.metric), ...d }));
+    const realData = detectedData.filter(d => d.value === null);
+    const anomalyScoreData = detectedData.filter(d => d.isAnomalyScore);
+    const anomalyData: MetricResult[] = realData.map((d) => {
+      const id = extractFields(d.metric);
+      const anomalyScoreDataByLabels = anomalyScoreData.find(du => extractFields(du.metric) === id);
+
+      return {
+        group: queries.length + 1,
+        metric: { ...d.metric, __name__: ForecastType.anomaly },
+        values: d.values.filter(([t]) => {
+          if (!anomalyScoreDataByLabels) return false;
+          const anomalyScore = anomalyScoreDataByLabels.values.find(([tMax]) => tMax === t) as [number, string];
+          return anomalyScore && promValueToNumber(anomalyScore[1]) > ANOMALY_SCORE_THRESHOLD;
+        })
+      };
+    });
+    return graphData.filter(d => d.group !== anomalyScoreData[0]?.group).concat(anomalyData);
   }, [graphData]);
 
   const onChangeFilter = (expr: Record<string, string>) => {
     const { __name__ = "", ...labelValue } = expr;
     let prefix = __name__.replace(/y|_y/, "");
     if (prefix) prefix += "_";
-    const metrics = [__name__, ForecastType.yhat, ForecastType.yhatUpper, ForecastType.yhatLower];
+    const metrics = [__name__, ...anomalySeries];
     const filters = Object.entries(labelValue).map(([key, value]) => `${key}="${value}"`).join(",");
     const queries = metrics.map((m, i) => `${i ? prefix : ""}${m}{${filters}}`);
     queryDispatch({ type: "SET_QUERY", payload: queries });

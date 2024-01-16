@@ -7,7 +7,7 @@ type Props = {
   series: SeriesItem[];
 };
 
-const titles: Record<ForecastType, string> = {
+const titles: Partial<Record<ForecastType, string>> = {
   [ForecastType.yhat]: "yhat",
   [ForecastType.yhatLower]: "yhat_lower/_upper",
   [ForecastType.yhatUpper]: "yhat_lower/_upper",
@@ -39,7 +39,6 @@ const LegendAnomaly: FC<Props> = ({ series }) => {
     return uniqSeries.map(s => ({
       ...s,
       color: typeof s.stroke === "string" ? s.stroke : anomalyColors[s.forecast || ForecastType.actual],
-      forecast: titles[s.forecast || ForecastType.actual],
     }));
   }, [series]);
 
@@ -49,7 +48,7 @@ const LegendAnomaly: FC<Props> = ({ series }) => {
   return <>
     <div className="vm-legend-anomaly">
       {/* TODO: remove .filter() after the correct training data has been added */}
-      {uniqSeriesStyles.filter(f => f.forecast !== titles[ForecastType.training]).map((s, i) => (
+      {uniqSeriesStyles.filter(f => f.forecast !== ForecastType.training).map((s, i) => (
         <div
           key={`${i}_${s.forecast}`}
           className="vm-legend-anomaly-item"
@@ -76,7 +75,7 @@ const LegendAnomaly: FC<Props> = ({ series }) => {
               />
             )}
           </svg>
-          <div className="vm-legend-anomaly-item__title">{s.forecast || "y"}</div>
+          <div className="vm-legend-anomaly-item__title">{titles[s.forecast || ForecastType.actual]}</div>
         </div>
       ))}
     </div>
