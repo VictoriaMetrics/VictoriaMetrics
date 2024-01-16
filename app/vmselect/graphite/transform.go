@@ -3600,11 +3600,11 @@ func groupSeriesByNodes(ss []*series, nodes []graphiteql.Expr) map[string][]*ser
 }
 
 func getAbsoluteNodeIndex(index, size int) int {
-	// handling the negative index case
-	if index < 0 && index+size > 0 {
-		index = index + size
+	// Handle the negative index case as Python does
+	if index < 0 {
+		index = size + index
 	}
-	if index >= size || index < 0 {
+	if index < 0 || index >= size {
 		return -1
 	}
 	return index
