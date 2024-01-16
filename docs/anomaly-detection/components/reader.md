@@ -1,11 +1,10 @@
 ---
-# sort: 2
+sort: 2
 title: Reader
 weight: 2
 menu:
   docs:
     parent: "vmanomaly-components"
-    # sort: 2
     weight: 2
 aliases:
   - /anomaly-detection/components/reader.html
