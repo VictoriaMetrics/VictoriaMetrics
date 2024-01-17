@@ -766,6 +766,14 @@ duration throughout the `-search.latencyOffset` duration:
 
 It can be overridden on per-query basis via `latency_offset` query arg.
 
+VictoriaMetrics buffers recently ingested samples in memory for up to a few seconds and then periodically flushes these samples to disk.
+This bufferring improves data ingestion performance. The buffered samples are invisible in query results, even if `-search.latencyOffset` command-line flag is set to 0,
+or if `latency_offset` query arg is set to 0.
+You can send GET request to `/internal/force_flush` http handler at single-node VictoriaMetrics
+or at `vmstorage` at [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html)
+in order to forcibly flush the buffered samples to disk, so become visible for querying. The `/internal/force_flush` handler
+is provided for debugging and testing purposes only. Do not call it in production, since this may significantly slow down data ingestion.
+
 ### MetricsQL
 
 VictoriaMetrics provide a special query language for executing read queries - [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html).
