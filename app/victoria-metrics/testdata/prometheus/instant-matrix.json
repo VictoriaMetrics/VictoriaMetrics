@@ -1,6 +1,5 @@
 {
   "name": "instant query with look-behind window",
-  "issue": "https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5553",
   "data": ["[{\"labels\":[{\"name\":\"__name__\",\"value\":\"foo\"}],\"samples\":[{\"value\":1,\"timestamp\":\"{TIME_MS-60s}\"}]}]"],
   "query": ["/api/v1/query?query=foo[5m]"],
   "result_query": {
