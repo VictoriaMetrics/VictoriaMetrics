@@ -1208,8 +1208,9 @@ func (s *Storage) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, 
 func (s *Storage) prefetchMetricNames(qt *querytracer.Tracer, accountID, projectID uint32, srcMetricIDs []uint64, deadline uint64) error {
 	qt = qt.NewChild("prefetch metric names for %d metricIDs", len(srcMetricIDs))
 	defer qt.Done()
-	if len(srcMetricIDs) == 0 {
-		qt.Printf("nothing to prefetch")
+
+	if len(srcMetricIDs) < 500 {
+		qt.Printf("skip pre-fetching metric names for low number of metric ids=%d", len(srcMetricIDs))
 		return nil
 	}
 
@@ -1227,7 +1228,7 @@ func (s *Storage) prefetchMetricNames(qt *querytracer.Tracer, accountID, project
 	qt.Printf("%d out of %d metric names must be pre-fetched", len(metricIDs), len(srcMetricIDs))
 	if len(metricIDs) < 500 {
 		// It is cheaper to skip pre-fetching and obtain metricNames inline.
-		qt.Printf("skip pre-fetching metric names for low number of metric ids=%d", len(metricIDs))
+		qt.Printf("skip pre-fetching metric names for low number of missing metric ids=%d", len(metricIDs))
 		return nil
 	}
 	atomic.AddUint64(&s.slowMetricNameLoads, uint64(len(metricIDs)))
