@@ -695,6 +695,9 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWr
 		start -= offset
 		end := start
 		start = end - window
+		if start < 0 {
+			start = 0
+		}
 		// Do not include data point with a timestamp matching the lower boundary of the window as Prometheus does.
 		start++
 		if end < start {
