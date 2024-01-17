@@ -1,7 +1,7 @@
 services:
   vmagent:
     container_name: vmagent
-    image: victoriametrics/vmagent:latest
+    image: victoriametrics/vmagent:v1.96.0
     depends_on:
       - "victoriametrics"
     ports:
@@ -49,7 +49,7 @@ services:
 
   vmalert:
     container_name: vmalert
-    image: victoriametrics/vmalert:latest
+    image: victoriametrics/vmalert:v1.96.0
     depends_on:
       - "victoriametrics"
     ports:
@@ -100,7 +100,7 @@ services:
     restart: always
 
   node-exporter:
-    image: quay.io/prometheus/node-exporter:latest
+    image: quay.io/prometheus/node-exporter:v1.7.0
     container_name: node-exporter
     ports:
       - 9100:9100

@@ -22,7 +22,7 @@ aliases:
   -  [vmagent](https://docs.victoriametrics.com/vmagent.html) (v.1.96.0)
 - [Grafana](https://grafana.com/)(v.10.2.1) 
 - [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/)
-- [Node exporter](https://github.com/prometheus/node_exporter#node-exporter) and [Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/)
+- [Node exporter](https://github.com/prometheus/node_exporter#node-exporter)(v1.7.0) and [Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/)(v0.25.0)
 
 <img width="800" alt="vmanomaly typical setup diagramm" src="guide-vmanomaly-vmalert_overview.webp">
 
@@ -158,6 +158,10 @@ reader:
 writer:
   datasource_url: "http://victoriametrics:8428/"
 
+monitoring: 
+  pull: # Enable /metrics endpoint.
+    addr: "0.0.0.0"
+    port: 8500
 ```
 
 </div>
@@ -292,7 +296,7 @@ Let's wrap it all up together into the `docker-compose.yml` file.
 services:
   vmagent:
     container_name: vmagent
-    image: victoriametrics/vmagent:latest
+    image: victoriametrics/vmagent:v1.96.0
     depends_on:
       - "victoriametrics"
     ports:
@@ -336,11 +340,11 @@ services:
     networks:
       - vm_net
     restart: always
-      
+
 
   vmalert:
     container_name: vmalert
-    image: victoriametrics/vmalert:latest
+    image: victoriametrics/vmalert:v1.96.0
     depends_on:
       - "victoriametrics"
     ports:
@@ -374,7 +378,7 @@ services:
       - ./vmanomaly_config.yml:/config.yaml
       - ./vmanomaly_license.txt:/license.txt
     platform: "linux/amd64"
-    command: 
+    command:
       - "/config.yaml"
       - "--license-file=/license.txt"
   alertmanager:
@@ -391,7 +395,7 @@ services:
     restart: always
 
   node-exporter:
-    image: quay.io/prometheus/node-exporter:latest
+    image: quay.io/prometheus/node-exporter:v1.7.0
     container_name: node-exporter
     ports:
       - 9100:9100
@@ -399,7 +403,7 @@ services:
     restart: unless-stopped
     networks:
       - vm_net
-    
+
 volumes:
   vmagentdata-guide-vmanomaly-vmalert: {}
   vmdata-guide-vmanomaly-vmalert: {}
