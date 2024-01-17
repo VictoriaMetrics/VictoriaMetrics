@@ -19,7 +19,7 @@ VictoriaMetrics Anomaly Detection, also known as `vmanomaly`, is a service for d
 Please refer to [our guide section](/anomaly-detection/#practical-guides-and-installation) to find out more.
 
 ## How does vmanomaly work?
-`vmanomaly` applies built-in (or custom) [anomaly detection algorithms](/anomaly-detection/components/models), specified in a config file. Although a single config file supports one model, running multiple instances of `vmanomaly` with different configs is possible and encouraged for parallel processing or better support for your use case (i.e. simpler model for simple metrics, more sophisticated one for metrics with trends and seasonalities).
+`vmanomaly` applies built-in (or custom) [anomaly detection algorithms](/anomaly-detection/components/models.html), specified in a config file. Although a single config file supports one model, running multiple instances of `vmanomaly` with different configs is possible and encouraged for parallel processing or better support for your use case (i.e. simpler model for simple metrics, more sophisticated one for metrics with trends and seasonalities).
 
 Please refer to [about](/vmanomaly.html#about) section to find out more.
 
@@ -48,7 +48,7 @@ While `vmanomaly` detects anomalies and produces scores, it *does not directly g
 Produced anomaly scores are designed in such a way that values from 0.0 to 1.0 indicate non-anomalous data, while a value greater than 1.0 is generally classified as an anomaly. However, there are no perfect models for anomaly detection, that's why reasonable defaults expressions like `anomaly_score > 1` may not work 100% of the time. However, anomaly scores, produced by `vmanomaly` are written back as metrics to VictoriaMetrics, where tools like [`vmalert`](/vmalert.html) can use [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) expressions to fine-tune alerting thresholds and conditions, balancing between avoiding [false negatives](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#false-negative) and reducing [false positives](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#false-positive).
 
 ## Resource consumption of vmanomaly
-`vmanomaly` itself is a lightweight service, resource usage is primarily dependent on [scheduling](/anomaly-detection/components/scheduler.html) (how often and on what data to fit/infer your models), [# and size of timeseries returned by your queries](/anomaly-detection/components/reader.html#vm-reader), and the complexity of the employed [models](anomaly-detection/components/models). Its resource usage is directly related to these factors, making it adaptable to various operational scales.
+`vmanomaly` itself is a lightweight service, resource usage is primarily dependent on [scheduling](/anomaly-detection/components/scheduler.html) (how often and on what data to fit/infer your models), [# and size of timeseries returned by your queries](/anomaly-detection/components/reader.html#vm-reader), and the complexity of the employed [models](anomaly-detection/components/models.html). Its resource usage is directly related to these factors, making it adaptable to various operational scales.
 
 ## Scaling vmanomaly
 `vmanomaly` can be scaled horizontally by launching multiple independent instances, each with its own [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) queries and [configurations](/anomaly-detection/components/). This flexibility allows it to handle varying data volumes and throughput demands efficiently.
