@@ -50,7 +50,7 @@ processes in parallel, each using its own config.
 ## Models
 
 Currently, vmanomaly ships with a set of built-in models:
-> For a detailed description, see [model section](/anomaly-detection/components/models)
+> For a detailed description, see [model section](/anomaly-detection/components/models.html)
 
 1. [**ZScore**](/anomaly-detection/components/models.html#z-score)
 
@@ -141,7 +141,7 @@ optionally preserving labels).
 There are 4 required sections in config file:
 
 * [`scheduler`](/anomaly-detection/components/scheduler.html) - defines how often to run and make inferences, as well as what timerange to use to train the model. 
-* [`model`](/anomaly-detection/components/models) - specific model parameters and configurations, 
+* [`model`](/anomaly-detection/components/models.html) - specific model parameters and configurations, 
 * [`reader`](/anomaly-detection/components/reader.html) - how to read data and where it is located
 * [`writer`](/anomaly-detection/components/writer.html) - where and how to write the generated output.
 
