@@ -50,7 +50,7 @@ processes in parallel, each using its own config.
 ## Models
 
 Currently, vmanomaly ships with a set of built-in models:
-> For a detailed description, see [model section](/anomaly-detection/components/models.html)
+> For a detailed overview, see [model section](/anomaly-detection/components/models.html)
 
 1. [**ZScore**](/anomaly-detection/components/models.html#z-score)
 
@@ -62,7 +62,7 @@ Currently, vmanomaly ships with a set of built-in models:
 
 1. [**Prophet**](/anomaly-detection/components/models.html#prophet)
 
-   _(simplest in configuration, recommended for getting starting)_
+   _(simplest in configuration, recommended for getting started)_
 
    Uses Facebook Prophet for forecasting. The _anomaly score_ is computed of how close the actual time
    series values follow the forecasted values (_yhat_), and whether it’s within forecasted bounds
@@ -216,15 +216,17 @@ This will expose metrics at `http://0.0.0.0:8080/metrics` page.
 To use *vmanomaly* you need to pull docker image:
 
 ```sh
-docker pull us-docker.pkg.dev/victoriametrics-test/public/vmanomaly-trial:1.7.2
+docker pull victoriametrics/vmanomaly:1.7.2
 ```
 
 > Note: please check what is latest release in [CHANGELOG](/anomaly-detection/CHANGELOG.html)
 
+> Note: `us-docker.pkg.dev/victoriametrics-test/public/vmanomaly-trial` is deprecated since [v1.6.0](/anomaly-detection/CHANGELOG.html#v160). Use [DockerHub repo](https://hub.docker.com/r/victoriametrics/vmanomaly/tags) instead
+
 You can put a tag on it for your convinience:
 
 ```sh
-docker image tag us-docker.pkg.dev/victoriametrics-test/public/vmanomaly-trial vmanomaly
+docker image tag victoriametrics/vmanomaly:1.7.2 vmanomaly
 ```
 Here is an example of how to run *vmanomaly* docker container with [license file](#licensing):
 

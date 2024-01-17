@@ -21,8 +21,8 @@ In the dynamic and complex world of system monitoring, VictoriaMetrics Anomaly D
 ## Practical Guides and Installation
 Begin your VictoriaMetrics Anomaly Detection journey with ease using our guides and installation instructions:
 
-- **Quick Start**: Find out what is behind `vmanomaly` [here](/vmanomaly.html)
-- **Integration**: Simplify the process of integrating anomaly detection into your observability ecosystem. Get started [**here**](/anomaly-detection/guides/guide-vmanomaly-vmalert.html).
+- **Quick Start**: Find out how `vmanomaly` service operates [here](/vmanomaly.html)
+- **Integration**: Integrate anomaly detection into your observability ecosystem. Get started [**here**](/anomaly-detection/guides/guide-vmanomaly-vmalert.html).
 
 - **Installation Options**: Choose the method that best fits your environment:
     - **Docker Installation**: Ideal for containerized environments. Follow our [Docker guide](../vmanomaly.md#run-vmanomaly-docker-container) for a smooth setup.
