@@ -130,7 +130,7 @@ __name__: PREFIX1_$VAR
 for: PREFIX2_$QUERY_KEY
 ```
 
-* for `__name__` parameter it will name metrics returned by models as `PREFIX1_anomaly_score`, `PREFIX1_yhat_lower`, etc. Vmanomaly output metrics names described [here](anomaly-detection/components/models.html#vmanomaly-output)
+* for `__name__` parameter it will name metrics returned by models as `PREFIX1_anomaly_score`, `PREFIX1_yhat_lower`, etc. Vmanomaly output metrics names described [here](/anomaly-detection/components/models.html#vmanomaly-output)
 * for `for` parameter will add labels `PREFIX2_query_name_1`, `PREFIX2_query_name_2`, etc. Query names are set as aliases in config `reader` section in [`queries`](anomaly-detection/components/reader.html#config-parameters) parameter.
 
 It is possible to specify other custom label names needed.
