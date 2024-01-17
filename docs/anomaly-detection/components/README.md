@@ -16,7 +16,7 @@ aliases:
 
 This chapter describes different components, that correspond to respective sections of a config to launch VictoriaMetrics Anomaly Detection (or simply [`vmanomaly`](/vmanomaly.html)) service:
 
-- [Model(s) section](models/README.md) - Required
+- [Model(s) section](models.html) - Required
 - [Reader section](reader.html) - Required
 - [Scheduler section](scheduler.html) - Required
 - [Writer section](writer.html) - Required
