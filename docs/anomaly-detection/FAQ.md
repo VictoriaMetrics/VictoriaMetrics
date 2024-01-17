@@ -14,7 +14,7 @@ aliases:
 # FAQ - VictoriaMetrics Anomaly Detection
 
 ## What is VictoriaMetrics Anomaly Detection (vmanomaly)?
-VictoriaMetrics Anomaly Detection, also known as `vmanomaly`, is a service for detecting unexpected changes in time series data. Utilizing machine learning models, it computes and pushes back an ["anomaly score"](/anomaly-detection/components/models/models.html#vmanomaly-output) for user-specified metrics. This hands-off approach to anomaly detection reduces the need for manual alert setup and can adapt to various metrics, improving your observability experience.
+VictoriaMetrics Anomaly Detection, also known as `vmanomaly`, is a service for detecting unexpected changes in time series data. Utilizing machine learning models, it computes and pushes back an ["anomaly score"](/anomaly-detection/components/models.html#vmanomaly-output) for user-specified metrics. This hands-off approach to anomaly detection reduces the need for manual alert setup and can adapt to various metrics, improving your observability experience.
 
 Please refer to [our guide section](/anomaly-detection/#practical-guides-and-installation) to find out more.
 
@@ -32,10 +32,10 @@ Respective config is defined in a [`reader`](/anomaly-detection/components/reade
 `vmanomaly` operates on data fetched from VictoriaMetrics using [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) queries, so the initial data quality can be fine-tuned with aggregation, grouping, and filtering to reduce noise and improve anomaly detection accuracy.
 
 ## Output produced by vmanomaly
-`vmanomaly` models generate [metrics](/anomaly-detection/components/models/models.html#vmanomaly-output) like `anomaly_score`, `yhat`, `yhat_lower`, `yhat_upper`, and `y`. These metrics provide a comprehensive view of the detected anomalies. The service also produces [health check metrics](/anomaly-detection/components/monitoring.html#metrics-generated-by-vmanomaly) for monitoring its performance.
+`vmanomaly` models generate [metrics](/anomaly-detection/components/models.html#vmanomaly-output) like `anomaly_score`, `yhat`, `yhat_lower`, `yhat_upper`, and `y`. These metrics provide a comprehensive view of the detected anomalies. The service also produces [health check metrics](/anomaly-detection/components/monitoring.html#metrics-generated-by-vmanomaly) for monitoring its performance.
 
 ## Choosing the right model for vmanomaly
-Selecting the best model for `vmanomaly` depends on the data's nature and the types of anomalies to detect. For instance, [Z-score](anomaly-detection/components/models/models.html#z-score) is suitable for data without trends or seasonality, while more complex patterns might require models like [Prophet](anomaly-detection/components/models/models.html#prophet).
+Selecting the best model for `vmanomaly` depends on the data's nature and the types of anomalies to detect. For instance, [Z-score](anomaly-detection/components/models.html#z-score) is suitable for data without trends or seasonality, while more complex patterns might require models like [Prophet](anomaly-detection/components/models.html#prophet).
 
 Please refer to [respective blogpost on anomaly types and alerting heuristics](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-2/) for more details.
 

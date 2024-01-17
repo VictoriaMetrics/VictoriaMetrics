@@ -50,7 +50,7 @@ Future updates will introduce additional export methods, offering users more fle
             <td><code>__name__: "vmanomaly_$VAR"</code></td>
             <td rowspan="4">Metrics to save the output (in metric names or labels). Must have <code>__name__</code> key. Must have a value with <code>$VAR</code> placeholder in it to distinguish between resulting metrics. Supported placeholders:
                 <ul>
-                    <li><code>$VAR</code> -- Variables that model provides, all models provide the following set: {"anomaly_score", "y", "yhat", "yhat_lower", "yhat_upper"}. Description of standard output is <a href="/anomaly-detection/components/models/models.html#vmanomaly-output">here</a>. Depending on <a href="/anomaly-detection/components/models/models.html">model type</a> it can provide more metrics, like "trend", "seasonality" etc.</li>
+                    <li><code>$VAR</code> -- Variables that model provides, all models provide the following set: {"anomaly_score", "y", "yhat", "yhat_lower", "yhat_upper"}. Description of standard output is <a href="/anomaly-detection/components/models.html#vmanomaly-output">here</a>. Depending on <a href="/anomaly-detection/components/models.html">model type</a> it can provide more metrics, like "trend", "seasonality" etc.</li>
                     <li><code>$QUERY_KEY</code> -- E.g. "ingestion_rate".</li>
                 </ul>
                 Other keys are supposed to be configured by the user to help identify generated metrics, e.g., specific config file name etc.
@@ -130,7 +130,7 @@ __name__: PREFIX1_$VAR
 for: PREFIX2_$QUERY_KEY
 ```
 
-* for `__name__` parameter it will name metrics returned by models as `PREFIX1_anomaly_score`, `PREFIX1_yhat_lower`, etc. Vmanomaly output metrics names described [here](anomaly-detection/components/models/models.html#vmanomaly-output)
+* for `__name__` parameter it will name metrics returned by models as `PREFIX1_anomaly_score`, `PREFIX1_yhat_lower`, etc. Vmanomaly output metrics names described [here](anomaly-detection/components/models.html#vmanomaly-output)
 * for `for` parameter will add labels `PREFIX2_query_name_1`, `PREFIX2_query_name_2`, etc. Query names are set as aliases in config `reader` section in [`queries`](anomaly-detection/components/reader.html#config-parameters) parameter.
 
 It is possible to specify other custom label names needed.
