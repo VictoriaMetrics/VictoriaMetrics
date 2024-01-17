@@ -71,7 +71,7 @@ services:
     restart: always
   vmanomaly:
     container_name: vmanomaly
-    image: us-docker.pkg.dev/victoriametrics-test/public/vmanomaly-trial:v1.7.2
+    image: victoriametrics/vmanomaly:v1.7.2
     depends_on:
       - "victoriametrics"
     ports:

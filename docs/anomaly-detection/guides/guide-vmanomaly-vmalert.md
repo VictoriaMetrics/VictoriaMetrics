@@ -208,20 +208,18 @@ You can find the `docker-compose.yml` and all configs in this [folder](https://g
 Now we are going to configure the `docker-compose.yml` file to run all needed services.
 Here are all services we are going to run:
 
-<p align="center">
-  <img src="guide-vmanomaly-vmalert_docker-compose.webp" width="800" alt="Docker compose services">
-</p>
-
+* vmanomaly - VictoriaMetrics Anomaly Detection service.
 * victoriametrics - VictoriaMetrics Time Series Database
 * vmagent - is an agent which helps you collect metrics from various sources, relabel and filter the collected metrics and store them in VictoriaMetrics or any other storage systems via Prometheus remote_write protocol.
 * [grafana](https://grafana.com/) - visualization tool.
 * node-exporter - Prometheus [Node Exporter](https://prometheus.io/docs/guides/node-exporter/) exposes a wide variety of hardware- and kernel-related metrics.
 * vmalert - VictoriaMetrics Alerting service.
-* vmanomaly - VictoriaMetrics Anomaly Detection service.
 * alertmanager - Notification services that handles alerts from vmalert.
 
 ### Grafana setup
 To enable VictoriaMetrics datasource as the default in Grafana we need to create a file `datasource.yml`
+
+The default username/password pair is `admin:admin`
 
 <div class="with-copy" markdown="1">
 
@@ -366,7 +364,7 @@ services:
     restart: always
   vmanomaly:
     container_name: vmanomaly
-    image: us-docker.pkg.dev/victoriametrics-test/public/vmanomaly-trial:v1.7.2
+    image: victoriametrics/vmanomaly:v1.7.2
     depends_on:
       - "victoriametrics"
     ports:

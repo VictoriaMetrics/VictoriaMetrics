@@ -20,4 +20,4 @@ docker compose up -d
 open http://127.0.0.1:3000/
 ```
 
-If you see not date, wait for a couple of minutes
+If you don't see any data, please wait a few minutes.
