@@ -1,20 +1,28 @@
 ---
-# sort: 1
+title: Models
 weight: 1
-title: Built-in Models
-# disableToc: true
+# sort: 1
 menu:
   docs:
-    parent: "vmanomaly-models"
-    # sort: 1
+    identifier: "vmanomaly-models"
+    parent: "vmanomaly-components"
     weight: 1
+    # sort: 1
 aliases:
+  - /anomaly-detection/components/models.html
+  - /anomaly-detection/components/models/custom_model.html
   - /anomaly-detection/components/models/models.html
 ---
 
-# Models config parameters
+# Models
 
-## Section Overview
+This section describes `Model` component of VictoriaMetrics Anomaly Detection (or simply [`vmanomaly`](/vmanomaly.html)) and the guide of how to define a respective section of a config to launch the service.
+vmanomaly includes various [built-in models](#built-in-models) and you can integrate your custom model with vmanomaly see [custom model](#custom-model-guide) 
+
+
+## Built-in Models 
+
+### Overview
 VM Anomaly Detection (`vmanomaly` hereinafter) models support 2 groups of parameters:
 
 - **`vmanomaly`-specific** arguments - please refer to *Parameters specific for vmanomaly* and *Default model parameters* subsections for each of the models below.
@@ -24,8 +32,9 @@ VM Anomaly Detection (`vmanomaly` hereinafter) models support 2 groups of parame
 
 
 **Models**:
+
 * [ARIMA](#arima)
-* [Holt-Winters](#holt-winters) 
+* [Holt-Winters](#holt-winters)
 * [Prophet](#prophet)
 * [Rolling Quantile](#rolling-quantile)
 * [Seasonal Trend Decomposition](#seasonal-trend-decomposition)
@@ -34,7 +43,7 @@ VM Anomaly Detection (`vmanomaly` hereinafter) models support 2 groups of parame
 * [Isolation forest (Multivariate)](#isolation-forest-multivariate)
 * [Custom model](#custom-model)
 
-## [ARIMA](https://en.wikipedia.org/wiki/Autoregressive_integrated_moving_average)
+### [ARIMA](https://en.wikipedia.org/wiki/Autoregressive_integrated_moving_average)
 Here we use ARIMA implementation from `statsmodels` [library](https://www.statsmodels.org/dev/generated/statsmodels.tsa.arima.model.ARIMA.html)
 
 *Parameters specific for vmanomaly*:
@@ -50,7 +59,7 @@ Here we use ARIMA implementation from `statsmodels` [library](https://www.statsm
 *Default model parameters*:
 
 * `order` (list[int]) - ARIMA's (p,d,q) order of the model for the autoregressive, differences, and moving average components, respectively.
-    
+
 * `args` (dict, optional) - Inner model args (key-value pairs). See accepted params in [model documentation](https://www.statsmodels.org/dev/generated/statsmodels.tsa.arima.model.ARIMA.html). Defaults to empty (not provided). Example:  {"trend": "c"}
 
 *Config Example*
@@ -70,7 +79,7 @@ model:
 
 </div>
 
-## [Holt-Winters](https://en.wikipedia.org/wiki/Exponential_smoothing)
+### [Holt-Winters](https://en.wikipedia.org/wiki/Exponential_smoothing)
 Here we use Holt-Winters Exponential Smoothing implementation from `statsmodels` [library](https://www.statsmodels.org/dev/generated/statsmodels.tsa.holtwinters.ExponentialSmoothing.html). All parameters from this library can be passed to the model.
 
 *Parameters specific for vmanomaly*:
@@ -80,10 +89,10 @@ Here we use Holt-Winters Exponential Smoothing implementation from `statsmodels`
 * `frequency` (string) - Must be set equal to sampling_period. Model needs to know expected data-points frequency (e.g. '10m'). If omitted, frequency is guessed during fitting as **the median of intervals between fitting data timestamps**. During inference, if incoming data doesn't have the same frequency, then it will be interpolated.  E.g. data comes at 15 seconds resolution, and our resample_freq is '1m'. Then fitting data will be downsampled to '1m' and internal model is trained at '1m' intervals. So, during inference, prediction data would be produced at '1m' intervals, but interpolated to "15s" to match with expected output, as output data must have the same timestamps. As accepted by pandas.Timedelta (e.g. '5m').
 
 * `seasonality` (string, optional) - As accepted by pandas.Timedelta.
-* 
-If `seasonal_periods` is not specified, it is calculated as `seasonality` / `frequency`
+
+* If `seasonal_periods` is not specified, it is calculated as `seasonality` / `frequency`
 Used to compute "seasonal_periods" param for the model (e.g. '1D' or '1W').
-        
+
 * `z_threshold` (float, optional) - [standard score](https://en.wikipedia.org/wiki/Standard_score) for calculating boundaries to define anomaly score. Defaults to 2.5.
 
 
@@ -113,19 +122,19 @@ model:
 
 Resulting metrics of the model are described [here](#vmanomaly-output).
 
-## [Prophet](https://facebook.github.io/prophet/)
+### [Prophet](https://facebook.github.io/prophet/)
 Here we utilize the Facebook Prophet implementation, as detailed in their [library documentation](https://facebook.github.io/prophet/docs/quick_start.html#python-api). All parameters from this library are compatible and can be passed to the model.
 
 *Parameters specific for vmanomaly*:
 
 * `class` (string) - model class name `"model.prophet.ProphetModel"`
 * `seasonalities` (list[dict], optional) - Extra seasonalities to pass to Prophet. See [`add_seasonality()`](https://facebook.github.io/prophet/docs/seasonality,_holiday_effects,_and_regressors.html#modeling-holidays-and-special-events:~:text=modeling%20the%20cycle-,Specifying,-Custom%20Seasonalities) Prophet param.
-* `provide_series` (dict, optional) - model resulting metrics. If not specified [standard metrics](#vmanomaly-output) will be provided. 
+* `provide_series` (dict, optional) - model resulting metrics. If not specified [standard metrics](#vmanomaly-output) will be provided.
 
 **Note**: Apart from standard vmanomaly output Prophet model can provide [additional metrics](#additional-output-metrics-produced-by-fb-prophet).
 
 **Additional output metrics produced by FB Prophet**
-Depending on chosen `seasonality` parameter FB Prophet can return additional metrics such as: 
+Depending on chosen `seasonality` parameter FB Prophet can return additional metrics such as:
 - `trend`, `trend_lower`, `trend_upper`
 - `additive_terms`, `additive_terms_lower`, `additive_terms_upper`,
 - `multiplicative_terms`, `multiplicative_terms_lower`, `multiplicative_terms_upper`,
@@ -156,13 +165,13 @@ model:
 
 Resulting metrics of the model are described [here](#vmanomaly-output)
 
-## [Rolling Quantile](https://en.wikipedia.org/wiki/Quantile)
+### [Rolling Quantile](https://en.wikipedia.org/wiki/Quantile)
 
 *Parameters specific for vmanomaly*:
 
 * `class` (string) - model class name `"model.rolling_quantile.RollingQuantileModel"`
 * `quantile` (float) - quantile value, from 0.5 to 1.0. This constraint is implied by 2-sided confidence interval.
-* `window_steps` (integer) - size of the moving window. (see 'sampling_period') 
+* `window_steps` (integer) - size of the moving window. (see 'sampling_period')
 
 *Config Example*
 <div class="with-copy" markdown="1">
@@ -178,7 +187,7 @@ model:
 
 Resulting metrics of the model are described [here](#vmanomaly-output).
 
-## [Seasonal Trend Decomposition](https://en.wikipedia.org/wiki/Seasonal_adjustment)
+### [Seasonal Trend Decomposition](https://en.wikipedia.org/wiki/Seasonal_adjustment)
 Here we use Seasonal Decompose implementation from `statsmodels` [library](https://www.statsmodels.org/dev/generated/statsmodels.tsa.seasonal.seasonal_decompose.html). Parameters from this library can be passed to the model. Some parameters are specifically predefined in vmanomaly and can't be changed by user(`model`='additive', `two_sided`=False).
 
 *Parameters specific for vmanomaly*:
@@ -207,7 +216,7 @@ Resulting metrics of the model are described [here](#vmanomaly-output).
 * `trend` - The trend component of the data series.
 * `seasonal` - The seasonal component of the data series.
 
-## [MAD (Median Absolute Deviation)](https://en.wikipedia.org/wiki/Median_absolute_deviation)
+### [MAD (Median Absolute Deviation)](https://en.wikipedia.org/wiki/Median_absolute_deviation)
 The MAD model is a robust method for anomaly detection that is *less sensitive* to outliers in data compared to standard deviation-based models. It considers a point as an anomaly if the absolute deviation from the median is significantly large.
 
 *Parameters specific for vmanomaly*:
@@ -229,7 +238,7 @@ model:
 
 Resulting metrics of the model are described [here](#vmanomaly-output).
 
-## [Z-score](https://en.wikipedia.org/wiki/Standard_score)
+### [Z-score](https://en.wikipedia.org/wiki/Standard_score)
 *Parameters specific for vmanomaly*:
 
 * `class` (string) - model class name `"model.zscore.ZscoreModel"`
@@ -249,7 +258,7 @@ model:
 
 Resulting metrics of the model are described [here](#vmanomaly-output).
 
-## [Isolation forest](https://en.wikipedia.org/wiki/Isolation_forest) (Multivariate)
+### [Isolation forest](https://en.wikipedia.org/wiki/Isolation_forest) (Multivariate)
 Detects anomalies using binary trees. The algorithm has a linear time complexity and a low memory requirement, which works well with high-volume data. It can be used on both univatiate and multivariate data, but it is more effective in multivariate case.
 
 **Important**: Be aware of [the curse of dimensionality](https://en.wikipedia.org/wiki/Curse_of_dimensionality). Don't use single multivariate model if you expect your queries to return many time series of less datapoints that the number of metrics. In such case it is hard for a model to learn meaningful dependencies from too sparse data hypercube.
@@ -283,21 +292,18 @@ model:
 
 Resulting metrics of the model are described [here](#vmanomaly-output).
 
-## Custom model
-You can find a guide on setting up a custom model [here](./custom_model.md).
-
 ## vmanomaly output
 
-When vmanomaly is executed, it generates various metrics, the specifics of which depend on the model employed. 
-These metrics can be renamed in the writer's section. 
+When vmanomaly is executed, it generates various metrics, the specifics of which depend on the model employed.
+These metrics can be renamed in the writer's section.
 
 The default metrics produced by vmanomaly include:
 
-- `anomaly_score`: This is the *primary* metric. 
-  - It is designed in such a way that values from 0.0 to 1.0 indicate non-anomalous data. 
-  - A value greater than 1.0 is generally classified as an anomaly, although this threshold can be adjusted in the alerting configuration.
-  - The decision to set the changepoint at 1 was made to ensure consistency across various models and alerting configurations, such that a score above 1 consistently signifies an anomaly.
-  
+- `anomaly_score`: This is the *primary* metric.
+    - It is designed in such a way that values from 0.0 to 1.0 indicate non-anomalous data.
+    - A value greater than 1.0 is generally classified as an anomaly, although this threshold can be adjusted in the alerting configuration.
+    - The decision to set the changepoint at 1 was made to ensure consistency across various models and alerting configurations, such that a score above 1 consistently signifies an anomaly.
+
 - `yhat`: This represents the predicted expected value.
 
 - `yhat_lower`: This indicates the predicted lower boundary.
@@ -311,4 +317,168 @@ The default metrics produced by vmanomaly include:
 
 ## Healthcheck metrics
 
-Each model exposes [several healthchecks metrics](./../monitoring.html#models-behaviour-metrics) to its `health_path` endpoint: 
+Each model exposes [several healthchecks metrics](./../monitoring.html#models-behaviour-metrics) to its `health_path` endpoint:
+
+
+## Custom Model Guide
+
+Apart from vmanomaly predefined models, users can create their own custom models for anomaly detection.
+
+Here in this guide, we will
+- Make a file containing our custom model definition
+- Define VictoriaMetrics Anomaly Detection config file to use our custom model
+- Run service
+
+**Note**: The file containing the model should be written in [Python language](https://www.python.org/) (3.11+)
+
+### 1. Custom model
+
+We'll create `custom_model.py` file with `CustomModel` class that will inherit from vmanomaly `Model` base class.
+In the `CustomModel` class there should be three required methods - `__init__`, `fit` and `infer`:
+* `__init__` method should initiate parameters for the model.
+
+  **Note**: if your model relies on configs that have `arg` [key-value pair argument](./models.md#section-overview), do not forget to use Python's `**kwargs` in method's signature and to explicitly call
+  ```python 
+  super().__init__(**kwargs)
+  ``` 
+  to initialize the base class each model derives from
+* `fit` method should contain the model training process.
+* `infer` should return Pandas.DataFrame object with model's inferences.
+
+For the sake of simplicity, the model in this example will return one of two values of `anomaly_score` - 0 or 1 depending on input parameter `percentage`.
+
+<div class="with-copy" markdown="1">
+
+```python
+import numpy as np
+import pandas as pd
+import scipy.stats as st
+import logging
+
+from model.model import Model
+logger = logging.getLogger(__name__)
+
+
+class CustomModel(Model):
+    """
+    Custom model implementation.
+    """
+
+    def __init__(self, percentage: float = 0.95, **kwargs):
+        super().__init__(**kwargs)
+        self.percentage = percentage
+        self._mean = np.nan
+        self._std = np.nan
+
+    def fit(self, df: pd.DataFrame):
+        # Model fit process: 
+        y = df['y']
+        self._mean = np.mean(y)
+        self._std = np.std(y)
+        if self._std == 0.0:
+            self._std = 1 / 65536
+
+
+    def infer(self, df: pd.DataFrame) -> np.array:
+        # Inference process:
+        y = df['y']
+        zscores = (y - self._mean) / self._std
+        anomaly_score_cdf = st.norm.cdf(np.abs(zscores))
+        df_pred = df[['timestamp', 'y']].copy()
+        df_pred['anomaly_score'] = anomaly_score_cdf > self.percentage
+        df_pred['anomaly_score'] = df_pred['anomaly_score'].astype('int32', errors='ignore')
+
+        return df_pred
+
+```
+
+</div>
+
+
+### 2. Configuration file
+
+Next, we need to create `config.yaml` file with VM Anomaly Detection configuration and model input parameters.
+In the config file `model` section we need to put our model class `model.custom.CustomModel` and all parameters used in `__init__` method.
+You can find out more about configuration parameters in vmanomaly docs.
+
+<div class="with-copy" markdown="1">
+
+```yaml
+scheduler:
+  infer_every: "1m"
+  fit_every: "1m"
+  fit_window: "1d"
+
+model:
+  # note: every custom model should implement this exact path, specified in `class` field
+  class: "model.model.CustomModel"
+  # custom model params are defined here
+  percentage: 0.9
+
+reader:
+  datasource_url: "http://localhost:8428/"
+  queries:
+    ingestion_rate: 'sum(rate(vm_rows_inserted_total)) by (type)'
+    churn_rate: 'sum(rate(vm_new_timeseries_created_total[5m]))'
+
+writer:
+  datasource_url: "http://localhost:8428/"
+  metric_format:
+    __name__: "custom_$VAR"
+    for: "$QUERY_KEY"
+    model: "custom"
+    run: "test-format"
+
+monitoring:
+  # /metrics server.
+  pull:
+    port: 8080
+  push:
+    url: "http://localhost:8428/"
+    extra_labels:
+      job: "vmanomaly-develop"
+      config: "custom.yaml"
+```
+
+</div>
+
+### 3. Running custom model
+Let's pull the docker image for vmanomaly:
+
+<div class="with-copy" markdown="1">
+
+```sh 
+docker pull us-docker.pkg.dev/victoriametrics-test/public/vmanomaly-trial:latest
+```
+
+</div>
+
+Now we can run the docker container putting as volumes both config and model file:
+
+**Note**: place the model file to `/model/custom.py` path when copying
+<div class="with-copy" markdown="1">
+
+```sh
+docker run -it \
+--net [YOUR_NETWORK] \
+-v [YOUR_LICENSE_FILE_PATH]:/license.txt \
+-v $(PWD)/custom_model.py:/vmanomaly/src/model/custom.py \
+-v $(PWD)/custom.yaml:/config.yaml \
+us-docker.pkg.dev/victoriametrics-test/public/vmanomaly-trial:latest /config.yaml \
+--license-file=/license.txt
+```
+
+</div>
+
+Please find more detailed instructions (license, etc.) [here](/vmanomaly.html#run-vmanomaly-docker-container)
+
+
+### Output
+As the result, this model will return metric with labels, configured previously in `config.yaml`.
+In this particular example, 2 metrics will be produced. Also, there will be added other metrics from input query result.
+
+```
+{__name__="custom_anomaly_score", for="ingestion_rate", model="custom", run="test-format"}
+
+{__name__="custom_anomaly_score", for="churn_rate", model="custom", run="test-format"}
+```
