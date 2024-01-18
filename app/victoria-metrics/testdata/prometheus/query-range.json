@@ -1,0 +1,18 @@
+{
+  "name": "query range",
+  "issue": "https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5553",
+  "data": ["[{\"labels\":[{\"name\":\"__name__\",\"value\":\"bar\"}],\"samples\":[{\"value\":1,\"timestamp\":\"{TIME_MS-60s}\"}, {\"value\":2,\"timestamp\":\"{TIME_MS-120s}\"}, {\"value\":1,\"timestamp\":\"{TIME_MS-180s}\"}]}]"],
+  "query": ["/api/v1/query_range?query=bar&step=30s&start={TIME_MS-180s}"],
+  "result_query": {
+      "status": "success",
+      "data":{
+        "resultType":"matrix",
+        "result":[
+          {
+            "metric":{"__name__":"bar"},
+            "values":[["{TIME_S-180s}", "1"],["{TIME_S-150s}", "1"],["{TIME_S-120s}", "2"],["{TIME_S-90s}", "2"], ["{TIME_S-60s}", "1"], ["{TIME_S-30s}", "1"], ["{TIME_S}", "1"]]
+          }
+        ]
+      }
+    }
+}

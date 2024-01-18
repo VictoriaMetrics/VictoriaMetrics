@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/appmetrics"
@@ -28,6 +29,11 @@ func init() {
 	flagutil.RegisterSecretFlag("pushmetrics.url")
 }
 
+var (
+	pushCtx, cancelPushCtx = context.WithCancel(context.Background())
+	wgDone                 sync.WaitGroup
+)
+
 // Init must be called after logger.Init
 func Init() {
 	extraLabels := strings.Join(*pushExtraLabel, ",")
@@ -36,9 +42,20 @@ func Init() {
 			ExtraLabels:        extraLabels,
 			Headers:            *pushHeader,
 			DisableCompression: *disableCompression,
+			WaitGroup:          &wgDone,
 		}
-		if err := metrics.InitPushExtWithOptions(context.Background(), pu, *pushInterval, appmetrics.WritePrometheusMetrics, opts); err != nil {
+		if err := metrics.InitPushExtWithOptions(pushCtx, pu, *pushInterval, appmetrics.WritePrometheusMetrics, opts); err != nil {
 			logger.Fatalf("cannot initialize pushmetrics: %s", err)
 		}
 	}
+}
+
+// Stop stops the periodic push of metrics.
+// It is important to stop the push of metrics before disposing resources
+// these metrics attached to. See related https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5548
+//
+// Stop must be called after Init.
+func Stop() {
+	cancelPushCtx()
+	wgDone.Wait()
 }

@@ -61,7 +61,7 @@ The following steps must be performed during the upgrade / downgrade procedure:
 * Send `SIGINT` signal to VictoriaLogs process in order to gracefully stop it.
   See [how to send signals to processes](https://stackoverflow.com/questions/33239959/send-signal-to-process-from-command-line).
 * Wait until the process stops. This can take a few seconds.
-* Start the upgraded VictoriaMetrics.
+* Start the upgraded VictoriaLogs.
 
 ## Retention
 
@@ -218,7 +218,7 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
   -loggerWarnsPerSecondLimit int
     	Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero values disable the rate limit
   -maxConcurrentInserts int
-    	The maximum number of concurrent insert requests. The default value should work for most cases, since it minimizes memory usage. The default value can be increased when clients send data over slow networks. See also -insert.maxQueueDuration (default 12)
+    	The maximum number of concurrent insert requests. The default value should work for most cases, since it minimizes memory usage. The default value can be increased when clients send data over slow networks. See also -insert.maxQueueDuration.
   -memory.allowedBytes size
     	Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache resulting in higher disk IO usage
     	Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)

@@ -13,6 +13,7 @@ import (
 	"errors"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/bloberror"
+	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/sas"
 	"io"
 	"math"
 	"os"
@@ -129,7 +130,7 @@ func (bb *Client) URL() string {
 	return bb.generated().Endpoint()
 }
 
-// BlobClient returns the embedded blob client for this AppendBlob client.
+// BlobClient returns the embedded blob client for this BlockBlob client.
 func (bb *Client) BlobClient() *blob.Client {
 	blobClient, _ := base.InnerClients((*base.CompositeClient[generated.BlobClient, generated.BlockBlobClient])(bb))
 	return (*blob.Client)(blobClient)
@@ -408,6 +409,12 @@ func (bb *Client) GetTags(ctx context.Context, o *blob.GetTagsOptions) (blob.Get
 // For more information, see https://docs.microsoft.com/en-us/rest/api/storageservices/copy-blob-from-url.
 func (bb *Client) CopyFromURL(ctx context.Context, copySource string, o *blob.CopyFromURLOptions) (blob.CopyFromURLResponse, error) {
 	return bb.BlobClient().CopyFromURL(ctx, copySource, o)
+}
+
+// GetSASURL is a convenience method for generating a SAS token for the currently pointed at block blob.
+// It can only be used if the credential supplied during creation was a SharedKeyCredential.
+func (bb *Client) GetSASURL(permissions sas.BlobPermissions, expiry time.Time, o *blob.GetSASURLOptions) (string, error) {
+	return bb.BlobClient().GetSASURL(permissions, expiry, o)
 }
 
 // Concurrent Upload Functions -----------------------------------------------------------------------------------------

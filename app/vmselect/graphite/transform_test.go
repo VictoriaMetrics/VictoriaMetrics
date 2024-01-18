@@ -79,3 +79,31 @@ func TestGraphiteToGolangRegexpReplace(t *testing.T) {
 	f(`a\d+`, `a\d+`)
 	f(`\1f\\oo\2`, `$1f\\oo$2`)
 }
+
+func TestGetAbsoluteNodeIndex(t *testing.T) {
+	f := func(index, size, expectedIndex int) {
+		t.Helper()
+		absoluteIndex := getAbsoluteNodeIndex(index, size)
+		if absoluteIndex != expectedIndex {
+			t.Fatalf("unexpected result for getAbsoluteNodeIndex(%d, %d); got %d; want %d", index, size, expectedIndex, absoluteIndex)
+		}
+	}
+	f(1, 1, -1)
+	f(0, 1, 0)
+	f(-1, 3, 2)
+	f(-3, 1, -1)
+	f(-1, 1, 0)
+	f(-2, 1, -1)
+	f(3, 2, -1)
+	f(2, 2, -1)
+	f(1, 2, 1)
+	f(0, 2, 0)
+	f(-1, 2, 1)
+	f(-2, 2, 0)
+	f(-3, 2, -1)
+	f(-5, 2, -1)
+	f(-1, 100, 99)
+	f(-99, 100, 1)
+	f(-100, 100, 0)
+	f(-101, 100, -1)
+}

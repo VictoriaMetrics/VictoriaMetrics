@@ -96,7 +96,6 @@ func main() {
 	notifier.InitSecretFlags()
 	buildinfo.Init()
 	logger.Init()
-	pushmetrics.Init()
 
 	if !*remoteReadIgnoreRestoreErrors {
 		logger.Warnf("flag `remoteRead.ignoreRestoreErrors` is deprecated and will be removed in next releases.")
@@ -182,8 +181,11 @@ func main() {
 	rh := &requestHandler{m: manager}
 	go httpserver.Serve(*httpListenAddr, *useProxyProtocol, rh.handler)
 
+	pushmetrics.Init()
 	sig := procutil.WaitForSigterm()
 	logger.Infof("service received signal %s", sig)
+	pushmetrics.Stop()
+
 	if err := httpserver.Stop(*httpListenAddr); err != nil {
 		logger.Fatalf("cannot stop the webservice: %s", err)
 	}
@@ -194,7 +196,7 @@ func main() {
 var (
 	configReloads      = metrics.NewCounter(`vmalert_config_last_reload_total`)
 	configReloadErrors = metrics.NewCounter(`vmalert_config_last_reload_errors_total`)
-	configSuccess      = metrics.NewCounter(`vmalert_config_last_reload_successful`)
+	configSuccess      = metrics.NewGauge(`vmalert_config_last_reload_successful`, nil)
 	configTimestamp    = metrics.NewCounter(`vmalert_config_last_reload_success_timestamp_seconds`)
 )
 

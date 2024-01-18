@@ -14,6 +14,8 @@ menu:
 
 **Deletes time series from VictoriaMetrics**
 
+Note that handler accepts any HTTP method, so sending a `GET` request to `/api/v1/admin/tsdb/delete_series` will result in deletion of time series.
+
 Single-node VictoriaMetrics:
 <div class="with-copy" markdown="1">
 
@@ -297,7 +299,7 @@ curl http://<vmselect>:8481/select/0/prometheus/api/v1/labels
 
 </div>
 
-By default, VictoriaMetrics returns labels seen during the last day starting at 00:00 UTC. An arbitrary time range can be set via `start` and `end` query args.
+By default, VictoriaMetrics returns labels seen during the last day starting at 00:00 UTC. An arbitrary time range can be set via [`start` and `end` query args](https://docs.victoriametrics.com/#timestamp-formats).
 The specified `start..end` time range is rounded to day granularity because of performance optimization concerns.
 
 Additional information:
@@ -473,7 +475,7 @@ http://vminsert:8480/insert/0/datadog
 
 ### /datadog/api/v1/series
 
-**Imports data in DataDog format into VictoriaMetrics**
+**Imports data in DataDog v1 format into VictoriaMetrics**
 
 Single-node VictoriaMetrics:
 <div class="with-copy" markdown="1">
@@ -531,7 +533,79 @@ echo '
 
 Additional information:
 
-* [How to send data from datadog agent](https://docs.victoriametrics.com/#how-to-send-data-from-datadog-agent)
+* [How to send data from DataDog agent](https://docs.victoriametrics.com/#how-to-send-data-from-datadog-agent)
+* [URL format for VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format)
+
+
+### /datadog/api/v2/series
+
+**Imports data in [DataDog v2](https://docs.datadoghq.com/api/latest/metrics/#submit-metrics) format into VictoriaMetrics**
+
+Single-node VictoriaMetrics:
+<div class="with-copy" markdown="1">
+
+```console
+echo '
+{
+  "series": [
+    {
+      "metric": "system.load.1",
+      "type": 0,
+      "points": [
+        {
+          "timestamp": 0,
+          "value": 0.7
+        }
+      ],
+      "resources": [
+        {
+          "name": "dummyhost",
+          "type": "host"
+        }
+      ],
+      "tags": ["environment:test"]
+    }
+  ]
+}
+' | curl -X POST -H 'Content-Type: application/json' --data-binary @- http://localhost:8428/datadog/api/v2/series
+```
+
+</div>
+
+Cluster version of VictoriaMetrics:
+<div class="with-copy" markdown="1">
+
+```console
+echo '
+{
+  "series": [
+    {
+      "metric": "system.load.1",
+      "type": 0,
+      "points": [
+        {
+          "timestamp": 0,
+          "value": 0.7
+        }
+      ],
+      "resources": [
+        {
+          "name": "dummyhost",
+          "type": "host"
+        }
+      ],
+      "tags": ["environment:test"]
+    }
+  ]
+}
+' | curl -X POST -H 'Content-Type: application/json' --data-binary @- 'http://<vminsert>:8480/insert/0/datadog/api/v2/series'
+```
+
+</div>
+
+Additional information:
+
+* [How to send data from DataDog agent](https://docs.victoriametrics.com/#how-to-send-data-from-datadog-agent)
 * [URL format for VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format)
 
 ### /federate

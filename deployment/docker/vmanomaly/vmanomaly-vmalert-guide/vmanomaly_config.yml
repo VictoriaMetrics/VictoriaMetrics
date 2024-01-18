@@ -1,0 +1,23 @@
+scheduler:
+  infer_every: "1m"
+  fit_every: "2h"
+  fit_window: "14d"
+
+model:
+  class: "model.prophet.ProphetModel"
+  args:
+    interval_width: 0.98
+
+reader:
+  datasource_url: "http://victoriametrics:8428/"
+  queries:
+    node_cpu_rate: "rate(node_cpu_seconds_total)"
+
+writer:
+  datasource_url: "http://victoriametrics:8428/"
+
+
+monitoring:
+  pull: # Enable /metrics endpoint.
+    addr: "0.0.0.0"
+    port: 8500

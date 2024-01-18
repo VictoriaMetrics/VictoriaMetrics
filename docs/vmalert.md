@@ -100,6 +100,8 @@ See the full list of configuration flags in [configuration](#configuration) sect
 
 If you run multiple `vmalert` services for the same datastore or AlertManager - do not forget
 to specify different `-external.label` command-line flags in order to define which `vmalert` generated rules or alerts.
+If rule result metrics have label that conflict with `-external.label`, `vmalert` will automatically rename
+it with prefix `exported_`.
 
 Configuration for [recording](https://prometheus.io/docs/prometheus/latest/configuration/recording_rules/)
 and [alerting](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/) rules is very
@@ -896,33 +898,6 @@ max(vmalert_alerting_rules_last_evaluation_series_fetched) by(group, alertname) 
 See more details [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4039).
 This feature is available only if vmalert is using VictoriaMetrics v1.90 or higher as a datasource.
 
-### Series with the same labelset
-
-vmalert can produce the following error message during rules evaluation:
-```
-result contains metrics with the same labelset after applying rule labels
-```
-
-The error means there is a collision between [time series](https://docs.victoriametrics.com/keyConcepts.html#time-series)
-after applying extra labels to result.
-
-For example, a rule with `expr: foo > 0` returns two distinct time series in response:
-```
-foo{bar="baz"} 1
-foo{bar="qux"} 2
-```
-
-If user configures `-external.label=bar=baz` cmd-line flag to enforce
-adding `bar="baz"` label-value pair, then time series won't be distinct anymore:
-```
-foo{bar="baz"} 1
-foo{bar="baz"} 2 # 'bar' label was overriden by `-external.label=bar=baz
-```
-
-The same issue can be caused by collision of configured `labels` on [Group](#groups) or [Rule](#rules) levels.
-To fix it one should avoid collisions by carefully picking label overrides in configuration.
-
-
 ## Security
 
 See general recommendations regarding security [here](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#security).
@@ -1003,11 +978,13 @@ The shortlist of configuration flags is the following:
   -datasource.maxIdleConnections int
      Defines the number of idle (keep-alive connections) to each configured datasource. Consider setting this value equal to the value: groups_total * group.concurrency. Too low a value may result in a high number of sockets in TIME_WAIT state. (default 100)
   -datasource.oauth2.clientID string
-     Optional OAuth2 clientID to use for -datasource.url. 
+     Optional OAuth2 clientID to use for -datasource.url
   -datasource.oauth2.clientSecret string
-     Optional OAuth2 clientSecret to use for -datasource.url.
+     Optional OAuth2 clientSecret to use for -datasource.url
   -datasource.oauth2.clientSecretFile string
-     Optional OAuth2 clientSecretFile to use for -datasource.url. 
+     Optional OAuth2 clientSecretFile to use for -datasource.url
+  -datasource.oauth2.endpointParams string
+     Optional OAuth2 endpoint parameters to use for -datasource.url . The endpoint parameters must be set in JSON format: {"param1":"value1",...,"paramN":"valueN"}
   -datasource.oauth2.scopes string
      Optional OAuth2 scopes to use for -datasource.url. Scopes must be delimited by ';'
   -datasource.oauth2.tokenUrl string
@@ -1156,6 +1133,9 @@ The shortlist of configuration flags is the following:
   -notifier.oauth2.clientSecretFile array
      Optional OAuth2 clientSecretFile to use for -notifier.url. If multiple args are set, then they are applied independently for the corresponding -notifier.url
      Supports an array of values separated by comma or specified via multiple flags.
+  -notifier.oauth2.endpointParams array
+     Optional OAuth2 endpoint parameters to use for the corresponding -notifier.url . The endpoint parameters must be set in JSON format: {"param1":"value1",...,"paramN":"valueN"}
+     Supports an array of values separated by comma or specified via multiple flags.
   -notifier.oauth2.scopes array
      Optional OAuth2 scopes to use for -notifier.url. Scopes must be delimited by ';'. If multiple args are set, then they are applied independently for the corresponding -notifier.url
      Supports an array of values separated by comma or specified via multiple flags.
@@ -1233,6 +1213,8 @@ The shortlist of configuration flags is the following:
      Optional OAuth2 clientSecret to use for -remoteRead.url.
   -remoteRead.oauth2.clientSecretFile string
      Optional OAuth2 clientSecretFile to use for -remoteRead.url.
+  -remoteRead.oauth2.endpointParams string
+     Optional OAuth2 endpoint parameters to use for -remoteRead.url . The endpoint parameters must be set in JSON format: {"param1":"value1",...,"paramN":"valueN"}
   -remoteRead.oauth2.scopes string
      Optional OAuth2 scopes to use for -remoteRead.url. Scopes must be delimited by ';'.
   -remoteRead.oauth2.tokenUrl string
@@ -1274,11 +1256,13 @@ The shortlist of configuration flags is the following:
   -remoteWrite.maxQueueSize int
      Defines the max number of pending datapoints to remote write endpoint (default 100000)
   -remoteWrite.oauth2.clientID string
-     Optional OAuth2 clientID to use for -remoteWrite.url.
+     Optional OAuth2 clientID to use for -remoteWrite.url
   -remoteWrite.oauth2.clientSecret string
-     Optional OAuth2 clientSecret to use for -remoteWrite.url.
+     Optional OAuth2 clientSecret to use for -remoteWrite.url
   -remoteWrite.oauth2.clientSecretFile string
-     Optional OAuth2 clientSecretFile to use for -remoteWrite.url.
+     Optional OAuth2 clientSecretFile to use for -remoteWrite.url
+  -remoteWrite.oauth2.endpointParams string
+     Optional OAuth2 endpoint parameters to use for -remoteWrite.url . The endpoint parameters must be set in JSON format: {"param1":"value1",...,"paramN":"valueN"}
   -remoteWrite.oauth2.scopes string
      Optional OAuth2 scopes to use for -notifier.url. Scopes must be delimited by ';'.
   -remoteWrite.oauth2.tokenUrl string

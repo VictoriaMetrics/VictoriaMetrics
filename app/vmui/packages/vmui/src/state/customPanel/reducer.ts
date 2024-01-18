@@ -1,7 +1,7 @@
-import { DisplayType, displayTypeTabs } from "../../pages/CustomPanel/DisplayTypeSwitch";
+import { displayTypeTabs } from "../../pages/CustomPanel/DisplayTypeSwitch";
 import { getQueryStringValue } from "../../utils/query-string";
 import { getFromStorage, saveToStorage } from "../../utils/storage";
-import { SeriesLimits } from "../../types";
+import { DisplayType, SeriesLimits } from "../../types";
 import { DEFAULT_MAX_SERIES } from "../../constants/graph";
 
 export interface CustomPanelState {
@@ -24,7 +24,7 @@ const displayType = displayTypeTabs.find(t => t.prometheusCode === +queryTab || 
 const limitsStorage = getFromStorage("SERIES_LIMITS") as string;
 
 export const initialCustomPanelState: CustomPanelState = {
-  displayType: (displayType?.value || "chart") as DisplayType,
+  displayType: (displayType?.value || DisplayType.chart),
   nocache: false,
   isTracingEnabled: false,
   seriesLimits: limitsStorage ? JSON.parse(limitsStorage) : DEFAULT_MAX_SERIES,

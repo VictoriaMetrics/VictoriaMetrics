@@ -651,13 +651,14 @@ func newAggrFuncTopK(isReverse bool) aggrFunc {
 		}
 		afe := func(tss []*timeseries, modififer *metricsql.ModifierExpr) []*timeseries {
 			for n := range tss[0].Values {
+				lessFunc := lessWithNaNs
+				if isReverse {
+					lessFunc = greaterWithNaNs
+				}
 				sort.Slice(tss, func(i, j int) bool {
 					a := tss[i].Values[n]
 					b := tss[j].Values[n]
-					if isReverse {
-						a, b = b, a
-					}
-					return lessWithNaNs(a, b)
+					return lessFunc(a, b)
 				})
 				fillNaNsAtIdx(n, ks[n], tss)
 			}
@@ -710,17 +711,19 @@ func getRangeTopKTimeseries(tss []*timeseries, modifier *metricsql.ModifierExpr,
 			value: value,
 		}
 	}
+	lessFunc := lessWithNaNs
+	if isReverse {
+		lessFunc = greaterWithNaNs
+	}
 	sort.Slice(maxs, func(i, j int) bool {
 		a := maxs[i].value
 		b := maxs[j].value
-		if isReverse {
-			a, b = b, a
-		}
-		return lessWithNaNs(a, b)
+		return lessFunc(a, b)
 	})
 	for i := range maxs {
 		tss[i] = maxs[i].ts
 	}
+
 	remainingSumTS := getRemainingSumTimeseries(tss, modifier, ks, remainingSumTagName)
 	for i, k := range ks {
 		fillNaNsAtIdx(i, k, tss)
@@ -1253,10 +1256,25 @@ func newAggrQuantileFunc(phis []float64) func(tss []*timeseries, modifier *metri
 }
 
 func lessWithNaNs(a, b float64) bool {
+	// consider NaNs are smaller than non-NaNs
 	if math.IsNaN(a) {
 		return !math.IsNaN(b)
 	}
+	if math.IsNaN(b) {
+		return false
+	}
 	return a < b
+}
+
+func greaterWithNaNs(a, b float64) bool {
+	// consider NaNs are bigger than non-NaNs
+	if math.IsNaN(a) {
+		return !math.IsNaN(b)
+	}
+	if math.IsNaN(b) {
+		return false
+	}
+	return a > b
 }
 
 func floatToIntBounded(f float64) int {

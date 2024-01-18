@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"sync/atomic"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
@@ -65,7 +64,7 @@ func Init() {
 var (
 	configReloads      = metrics.NewCounter(`vm_relabel_config_reloads_total`)
 	configReloadErrors = metrics.NewCounter(`vm_relabel_config_reloads_errors_total`)
-	configSuccess      = metrics.NewCounter(`vm_relabel_config_last_reload_successful`)
+	configSuccess      = metrics.NewGauge(`vm_relabel_config_last_reload_successful`, nil)
 	configTimestamp    = metrics.NewCounter(`vm_relabel_config_last_reload_success_timestamp_seconds`)
 )
 
@@ -118,11 +117,11 @@ func (ctx *Ctx) ApplyRelabeling(labels []prompb.Label) []prompb.Label {
 	// Convert labels to prompbmarshal.Label format suitable for relabeling.
 	tmpLabels := ctx.tmpLabels[:0]
 	for _, label := range labels {
-		name := bytesutil.ToUnsafeString(label.Name)
-		if len(name) == 0 {
+		name := label.Name
+		if name == "" {
 			name = "__name__"
 		}
-		value := bytesutil.ToUnsafeString(label.Value)
+		value := label.Value
 		tmpLabels = append(tmpLabels, prompbmarshal.Label{
 			Name:  name,
 			Value: value,
@@ -155,11 +154,11 @@ func (ctx *Ctx) ApplyRelabeling(labels []prompb.Label) []prompb.Label {
 	// Return back labels to the desired format.
 	dst := labels[:0]
 	for _, label := range tmpLabels {
-		name := bytesutil.ToUnsafeBytes(label.Name)
+		name := label.Name
 		if label.Name == "__name__" {
-			name = nil
+			name = ""
 		}
-		value := bytesutil.ToUnsafeBytes(label.Value)
+		value := label.Value
 		dst = append(dst, prompb.Label{
 			Name:  name,
 			Value: value,

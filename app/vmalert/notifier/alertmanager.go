@@ -144,7 +144,7 @@ func NewAlertManager(alertManagerURL string, fn AlertURLGenerator, authCfg proma
 	aCfg, err := utils.AuthConfig(
 		utils.WithBasicAuth(ba.Username, ba.Password.String(), ba.PasswordFile),
 		utils.WithBearer(authCfg.BearerToken.String(), authCfg.BearerTokenFile),
-		utils.WithOAuth(oauth.ClientID, oauth.ClientSecretFile, oauth.ClientSecretFile, oauth.TokenURL, strings.Join(oauth.Scopes, ";")))
+		utils.WithOAuth(oauth.ClientID, oauth.ClientSecretFile, oauth.ClientSecretFile, oauth.TokenURL, strings.Join(oauth.Scopes, ";"), oauth.EndpointParams))
 	if err != nil {
 		return nil, fmt.Errorf("failed to configure auth: %w", err)
 	}
