@@ -27,7 +27,7 @@ aliases:
 
 <img width="800" alt="vmanomaly typical setup diagramm" src="guide-vmanomaly-vmalert_overview.webp">
 
-Configurations used throughout this guide can be found [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/vmanomaly/vmanomaly-integration/)
+> **Note: Configurations used throughout this guide can be found [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/vmanomaly/vmanomaly-integration/)**
 
 ## 1. What is vmanomaly?
 
@@ -111,13 +111,15 @@ This query result will generate 8 time series per each cpu, and we will use them
 **Parameter description**:
 There are 4 required sections in config file:
 
-`scheduler` - defines how often to run and make inferences, as well as what timerange to use to train the model. 
+[`scheduler`](/anomaly-detection/components/scheduler.html) - defines how often to run and make inferences, as well as what timerange to use to train the model. 
 
-`model` - specific model parameters and configurations, 
+[`model`](/anomaly-detection/components/models.html) - specific model parameters and configurations, 
 
-`reader` - how to read data and where it is located
+[`reader`](/anomaly-detection/components/reader.html) - how to read data and where it is located
 
-`writer` - where and how to write the generated output.
+[`writer`](/anomaly-detection/components/writer.html) - where and how to write generated output.
+
+[`monitoring`](/anomaly-detection/components/monitoring.html) (optional) - how to expose healthckeck metrics of `vmanomaly`.
 
 Let's look into parameters in each section:
 
@@ -126,7 +128,7 @@ Let's look into parameters in each section:
   * `fit_every` - how often to retrain the models. The higher the frequency -- the fresher the model, but the more CPU it consumes. If omitted, the models will be retrained on each infer_every cycle. Format examples: 30s, 4m, 2h, 1d. Time granularity ('s' - seconds, 'm' - minutes, 'h' - hours, 'd' - days).
   * `fit_window` - what data interval to use for model training. Longer intervals capture longer historical behavior and detect seasonalities better, but is slower to adapt to permanent changes to metrics behavior. Recommended value is at least two full seasons. Format examples: 30s, 4m, 2h, 1d. Time granularity ('s' - seconds, 'm' - minutes, 'h' - hours, 'd' - days). Here is the previous 14 days of data to put into the model training.
 * `model`
-  * `class` - what model to run. You can use your own model or choose from built-in models: Seasonal Trend Decomposition, Facebook Prophet, ZScore, Rolling Quantile, Holt-Winters, Isolation Forest and ARIMA.  Here we use Facebook Prophet (`model.prophet.ProphetModel`).
+  * `class` - what model to run. You can [use your own model](/anomaly-detection/components/models.html#custom-model-guide) or choose from [built-in models](/anomaly-detection/components/models.html#built-in-models). Here we use [Facebook Prophet](/anomaly-detection/components/models.html#prophet) (`model.prophet.ProphetModel`).
   * `args` - Model specific parameters, represented as YAML dictionary in a simple `key: value` form. For example, you can use parameters that are available in [FB Prophet](https://facebook.github.io/prophet/docs/quick_start.html). 
 * `reader`
   * `datasource_url` - Data source. An HTTP endpoint that serves `/api/v1/query_range`.
