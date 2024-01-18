@@ -27,7 +27,7 @@ aliases:
 
 <img width="800" alt="vmanomaly typical setup diagramm" src="guide-vmanomaly-vmalert_overview.webp">
 
-Example of configuration can be found [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/vmanomaly/vmanomaly-vmalert-guide/)
+Configurations used throughout this guide can be found [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/vmanomaly/vmanomaly-integration/)
 
 ## 1. What is vmanomaly?
 
