@@ -18,6 +18,13 @@ VictoriaMetrics Anomaly Detection, also known as `vmanomaly`, is a service for d
 
 Please refer to [our guide section](/anomaly-detection/#practical-guides-and-installation) to find out more.
 
+## What is anomaly score?
+Among the metrics produced by `vmanomaly` (as detailed in [vmanomaly output metrics](/anomaly-detection/components/models.html#vmanomaly-output)), `anomaly_score` is a pivotal one. It is **a continuous score > 0**, calculated in such a way that **scores ranging from 0.0 to 1.0 usually represent normal data**, while **scores exceeding 1.0 are typically classified as anomalous**. However, it's important to note that the threshold for anomaly detection can be customized in the alert configuration settings.
+
+The decision to set the changepoint at `1.0` is made to ensure consistency across various models and alerting configurations, such that a score above `1.0` consistently signifies an anomaly, thus, alerting rules are maintained more easily.
+
+> Note: `anomaly_score` is a metric itself, which preserves all labels found in input data and (optionally) appends [custom labels, specified in writer](/anomaly-detection/components/writer.html#metrics-formatting) - follow the link detailed output example
+
 ## How does vmanomaly work?
 `vmanomaly` applies built-in (or custom) [anomaly detection algorithms](/anomaly-detection/components/models.html), specified in a config file. Although a single config file supports one model, running multiple instances of `vmanomaly` with different configs is possible and encouraged for parallel processing or better support for your use case (i.e. simpler model for simple metrics, more sophisticated one for metrics with trends and seasonalities).
 
