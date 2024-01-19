@@ -6,7 +6,7 @@ menu:
   docs:
     identifier: "vmanomaly-faq"
     parent: "anomaly-detection"
-    weight: 4
+    weight: 3
 aliases:
 - /anomaly-detection/FAQ.html
 ---
