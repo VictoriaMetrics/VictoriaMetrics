@@ -1,5 +1,5 @@
 ---
-title: vmanomaly overview
+title: Overview
 weight: 1
 sort: 1
 menu:
@@ -7,13 +7,12 @@ menu:
     identifier: "vmanomaly-overview"
     parent: 'anomaly-detection'
     weight: 1
-    title: Overview
 aliases:
 - /anomaly-detection.html
 ---
 
 
-# vmanomaly overview
+# Overview
 
 **_vmanomaly_ is a part of [enterprise package](https://docs.victoriametrics.com/enterprise.html). You need to request a [free trial license](https://victoriametrics.com/products/enterprise/trial/) for evaluation.**
 
