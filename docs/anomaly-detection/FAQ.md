@@ -1,12 +1,12 @@
 ---
-sort: 3
-weight: 3
+sort: 4
+weight: 4
 title: FAQ
 menu:
   docs:
     identifier: "vmanomaly-faq"
     parent: "anomaly-detection"
-    weight: 3
+    weight: 4
 aliases:
 - /anomaly-detection/FAQ.html
 ---
@@ -28,7 +28,7 @@ The decision to set the changepoint at `1.0` is made to ensure consistency acros
 ## How does vmanomaly work?
 `vmanomaly` applies built-in (or custom) [anomaly detection algorithms](/anomaly-detection/components/models.html), specified in a config file. Although a single config file supports one model, running multiple instances of `vmanomaly` with different configs is possible and encouraged for parallel processing or better support for your use case (i.e. simpler model for simple metrics, more sophisticated one for metrics with trends and seasonalities).
 
-Please refer to [about](/vmanomaly.html#about) section to find out more.
+Please refer to [about](/anomaly-detection/overview.html#about) section to find out more.
 
 ## What data does vmanomaly operate on?
 `vmanomaly` operates on data fetched from VictoriaMetrics, where you can leverage full power of [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) for data selection, sampling, and processing. Users can also [apply global filters](https://docs.victoriametrics.com/#prometheus-querying-api-enhancements) for more targeted data analysis, enhancing scope limitation and tenant visibility.

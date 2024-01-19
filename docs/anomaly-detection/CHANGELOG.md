@@ -20,7 +20,7 @@ The following `tip` changes can be tested by building from the `latest` tag:
 docker pull us-docker.pkg.dev/victoriametrics-test/public/vmanomaly-trial:latest
 ```
 
-Please find [launch instructions here](/vmanomaly.html#run-vmanomaly-docker-container).
+Please find [launch instructions here](/anomaly-detection/overview.html#run-vmanomaly-docker-container).
 
 # tip
 
