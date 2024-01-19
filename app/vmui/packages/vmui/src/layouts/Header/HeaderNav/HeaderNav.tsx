@@ -8,7 +8,8 @@ import "./style.scss";
 import NavItem from "./NavItem";
 import NavSubItem from "./NavSubItem";
 import classNames from "classnames";
-import { defaultNavigation, logsNavigation } from "../../../constants/navigation";
+import { anomalyNavigation, defaultNavigation, logsNavigation } from "../../../constants/navigation";
+import { AppType } from "../../../types/appType";
 
 interface HeaderNavProps {
   color: string
@@ -17,21 +18,29 @@ interface HeaderNavProps {
 }
 
 const HeaderNav: FC<HeaderNavProps> = ({ color, background, direction }) => {
-  const { REACT_APP_LOGS } = process.env;
   const appModeEnable = getAppModeEnable();
   const { dashboardsSettings } = useDashboardsState();
   const { pathname } = useLocation();
 
   const [activeMenu, setActiveMenu] = useState(pathname);
 
-  const menu = useMemo(() => REACT_APP_LOGS ? logsNavigation : ([
-    ...defaultNavigation,
-    {
-      label: routerOptions[router.dashboards].title,
-      value: router.dashboards,
-      hide: appModeEnable || !dashboardsSettings.length,
+  const menu = useMemo(() => {
+    switch (process.env.REACT_APP_TYPE) {
+      case AppType.logs:
+        return logsNavigation;
+      case AppType.anomaly:
+        return anomalyNavigation;
+      default:
+        return ([
+          ...defaultNavigation,
+          {
+            label: routerOptions[router.dashboards].title,
+            value: router.dashboards,
+            hide: appModeEnable || !dashboardsSettings.length,
+          }
+        ].filter(r => !r.hide));
     }
-  ].filter(r => !r.hide)), [appModeEnable, dashboardsSettings]);
+  }, [appModeEnable, dashboardsSettings]);
 
   useEffect(() => {
     setActiveMenu(pathname);

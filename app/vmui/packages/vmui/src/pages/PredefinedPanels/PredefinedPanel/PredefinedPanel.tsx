@@ -1,5 +1,5 @@
 import React, { FC, useEffect, useMemo, useRef, useState } from "preact/compat";
-import { PanelSettings } from "../../../types";
+import { DisplayType, PanelSettings } from "../../../types";
 import { AxisRange, YaxisState } from "../../../state/graph/reducer";
 import GraphView from "../../../components/Views/GraphView/GraphView";
 import { useFetchQuery } from "../../../hooks/useFetchQuery";
@@ -45,7 +45,7 @@ const PredefinedPanel: FC<PredefinedPanelsProps> = ({
 
   const { isLoading, graphData, error, warning } = useFetchQuery({
     predefinedQuery: validExpr ? expr : [],
-    display: "chart",
+    display: DisplayType.chart,
     visible,
     customStep,
   });

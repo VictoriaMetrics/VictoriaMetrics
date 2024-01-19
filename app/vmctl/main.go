@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"log"
 	"net/http"
@@ -212,6 +213,7 @@ func main() {
 
 					var srcExtraLabels []string
 					srcAddr := strings.Trim(c.String(vmNativeSrcAddr), "/")
+					srcInsecureSkipVerify := c.Bool(vmNativeSrcInsecureSkipVerify)
 					srcAuthConfig, err := auth.Generate(
 						auth.WithBasicAuth(c.String(vmNativeSrcUser), c.String(vmNativeSrcPassword)),
 						auth.WithBearer(c.String(vmNativeSrcBearerToken)),
@@ -219,10 +221,16 @@ func main() {
 					if err != nil {
 						return fmt.Errorf("error initilize auth config for source: %s", srcAddr)
 					}
-					srcHTTPClient := &http.Client{Transport: &http.Transport{DisableKeepAlives: disableKeepAlive}}
+					srcHTTPClient := &http.Client{Transport: &http.Transport{
+						DisableKeepAlives: disableKeepAlive,
+						TLSClientConfig: &tls.Config{
+							InsecureSkipVerify: srcInsecureSkipVerify,
+						},
+					}}
 
 					dstAddr := strings.Trim(c.String(vmNativeDstAddr), "/")
 					dstExtraLabels := c.StringSlice(vmExtraLabel)
+					dstInsecureSkipVerify := c.Bool(vmNativeDstInsecureSkipVerify)
 					dstAuthConfig, err := auth.Generate(
 						auth.WithBasicAuth(c.String(vmNativeDstUser), c.String(vmNativeDstPassword)),
 						auth.WithBearer(c.String(vmNativeDstBearerToken)),
@@ -230,7 +238,12 @@ func main() {
 					if err != nil {
 						return fmt.Errorf("error initilize auth config for destination: %s", dstAddr)
 					}
-					dstHTTPClient := &http.Client{Transport: &http.Transport{DisableKeepAlives: disableKeepAlive}}
+					dstHTTPClient := &http.Client{Transport: &http.Transport{
+						DisableKeepAlives: disableKeepAlive,
+						TLSClientConfig: &tls.Config{
+							InsecureSkipVerify: dstInsecureSkipVerify,
+						},
+					}}
 
 					p := vmNativeProcessor{
 						rateLimit:    c.Int64(vmRateLimit),

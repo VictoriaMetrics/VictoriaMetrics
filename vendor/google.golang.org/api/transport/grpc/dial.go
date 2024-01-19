@@ -14,6 +14,7 @@ import (
 	"net"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"cloud.google.com/go/compute/metadata"
@@ -27,6 +28,7 @@ import (
 	grpcgoogle "google.golang.org/grpc/credentials/google"
 	grpcinsecure "google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/credentials/oauth"
+	"google.golang.org/grpc/stats"
 
 	// Install grpclb, which is required for direct path.
 	_ "google.golang.org/grpc/balancer/grpclb"
@@ -46,6 +48,26 @@ var logRateLimiter = rate.Sometimes{Interval: 1 * time.Second}
 
 // Assign to var for unit test replacement
 var dialContext = grpc.DialContext
+
+// otelStatsHandler is a singleton otelgrpc.clientHandler to be used across
+// all dial connections to avoid the memory leak documented in
+// https://github.com/open-telemetry/opentelemetry-go-contrib/issues/4226
+//
+// TODO: If 4226 has been fixed in opentelemetry-go-contrib, replace this
+// singleton with inline usage for simplicity.
+var (
+	initOtelStatsHandlerOnce sync.Once
+	otelStatsHandler         stats.Handler
+)
+
+// otelGRPCStatsHandler returns singleton otelStatsHandler for reuse across all
+// dial connections.
+func otelGRPCStatsHandler() stats.Handler {
+	initOtelStatsHandlerOnce.Do(func() {
+		otelStatsHandler = otelgrpc.NewClientHandler()
+	})
+	return otelStatsHandler
+}
 
 // Dial returns a GRPC connection for use communicating with a Google cloud
 // service, configured with the given ClientOptions.
@@ -146,52 +168,56 @@ func dial(ctx context.Context, insecure bool, o *internal.DialSettings) (*grpc.C
 	// when dialing an insecure connection?
 	if !o.NoAuth && !insecure {
 		if o.APIKey != "" {
-			log.Print("API keys are not supported for gRPC APIs. Remove the WithAPIKey option from your client-creating call.")
-		}
-		creds, err := internal.Creds(ctx, o)
-		if err != nil {
-			return nil, err
-		}
-
-		grpcOpts = append(grpcOpts,
-			grpc.WithPerRPCCredentials(grpcTokenSource{
-				TokenSource:   oauth.TokenSource{creds.TokenSource},
+			grpcOpts = append(grpcOpts, grpc.WithPerRPCCredentials(grpcAPIKey{
+				apiKey:        o.APIKey,
+				requestReason: o.RequestReason,
+			}))
+		} else {
+			creds, err := internal.Creds(ctx, o)
+			if err != nil {
+				return nil, err
+			}
+			grpcOpts = append(grpcOpts, grpc.WithPerRPCCredentials(grpcTokenSource{
+				TokenSource:   oauth.TokenSource{TokenSource: creds.TokenSource},
 				quotaProject:  internal.GetQuotaProject(creds, o.QuotaProject),
 				requestReason: o.RequestReason,
-			}),
-		)
-
-		// Attempt Direct Path:
-		logRateLimiter.Do(func() {
-			logDirectPathMisconfig(endpoint, creds.TokenSource, o)
-		})
-		if isDirectPathEnabled(endpoint, o) && isTokenSourceDirectPathCompatible(creds.TokenSource, o) && metadata.OnGCE() {
-			// Overwrite all of the previously specific DialOptions, DirectPath uses its own set of credentials and certificates.
-			grpcOpts = []grpc.DialOption{
-				grpc.WithCredentialsBundle(grpcgoogle.NewDefaultCredentialsWithOptions(grpcgoogle.DefaultCredentialsOptions{oauth.TokenSource{creds.TokenSource}}))}
-			if timeoutDialerOption != nil {
-				grpcOpts = append(grpcOpts, timeoutDialerOption)
-			}
-			// Check if google-c2p resolver is enabled for DirectPath
-			if isDirectPathXdsUsed(o) {
-				// google-c2p resolver target must not have a port number
-				if addr, _, err := net.SplitHostPort(endpoint); err == nil {
-					endpoint = "google-c2p:///" + addr
+			}))
+			// Attempt Direct Path:
+			logRateLimiter.Do(func() {
+				logDirectPathMisconfig(endpoint, creds.TokenSource, o)
+			})
+			if isDirectPathEnabled(endpoint, o) && isTokenSourceDirectPathCompatible(creds.TokenSource, o) && metadata.OnGCE() {
+				// Overwrite all of the previously specific DialOptions, DirectPath uses its own set of credentials and certificates.
+				grpcOpts = []grpc.DialOption{
+					grpc.WithCredentialsBundle(grpcgoogle.NewDefaultCredentialsWithOptions(
+						grpcgoogle.DefaultCredentialsOptions{
+							PerRPCCreds: oauth.TokenSource{TokenSource: creds.TokenSource},
+						})),
+				}
+				if timeoutDialerOption != nil {
+					grpcOpts = append(grpcOpts, timeoutDialerOption)
+				}
+				// Check if google-c2p resolver is enabled for DirectPath
+				if isDirectPathXdsUsed(o) {
+					// google-c2p resolver target must not have a port number
+					if addr, _, err := net.SplitHostPort(endpoint); err == nil {
+						endpoint = "google-c2p:///" + addr
+					} else {
+						endpoint = "google-c2p:///" + endpoint
+					}
 				} else {
-					endpoint = "google-c2p:///" + endpoint
+					if !strings.HasPrefix(endpoint, "dns:///") {
+						endpoint = "dns:///" + endpoint
+					}
+					grpcOpts = append(grpcOpts,
+						// For now all DirectPath go clients will be using the following lb config, but in future
+						// when different services need different configs, then we should change this to a
+						// per-service config.
+						grpc.WithDisableServiceConfig(),
+						grpc.WithDefaultServiceConfig(`{"loadBalancingConfig":[{"grpclb":{"childPolicy":[{"pick_first":{}}]}}]}`))
 				}
-			} else {
-				if !strings.HasPrefix(endpoint, "dns:///") {
-					endpoint = "dns:///" + endpoint
-				}
-				grpcOpts = append(grpcOpts,
-					// For now all DirectPath go clients will be using the following lb config, but in future
-					// when different services need different configs, then we should change this to a
-					// per-service config.
-					grpc.WithDisableServiceConfig(),
-					grpc.WithDefaultServiceConfig(`{"loadBalancingConfig":[{"grpclb":{"childPolicy":[{"pick_first":{}}]}}]}`))
+				// TODO(cbro): add support for system parameters (quota project, request reason) via chained interceptor.
 			}
-			// TODO(cbro): add support for system parameters (quota project, request reason) via chained interceptor.
 		}
 	}
 
@@ -219,7 +245,7 @@ func addOpenTelemetryStatsHandler(opts []grpc.DialOption, settings *internal.Dia
 	if settings.TelemetryDisabled {
 		return opts
 	}
-	return append(opts, grpc.WithStatsHandler(otelgrpc.NewClientHandler()))
+	return append(opts, grpc.WithStatsHandler(otelGRPCStatsHandler()))
 }
 
 // grpcTokenSource supplies PerRPCCredentials from an oauth.TokenSource.
@@ -247,6 +273,31 @@ func (ts grpcTokenSource) GetRequestMetadata(ctx context.Context, uri ...string)
 		metadata["X-goog-request-reason"] = ts.requestReason
 	}
 	return metadata, nil
+}
+
+// grpcAPIKey supplies PerRPCCredentials from an API Key.
+type grpcAPIKey struct {
+	apiKey string
+
+	// Additional metadata attached as headers.
+	requestReason string
+}
+
+// GetRequestMetadata gets the request metadata as a map from a grpcAPIKey.
+func (ts grpcAPIKey) GetRequestMetadata(ctx context.Context, uri ...string) (
+	map[string]string, error) {
+	metadata := map[string]string{
+		"X-goog-api-key": ts.apiKey,
+	}
+	if ts.requestReason != "" {
+		metadata["X-goog-request-reason"] = ts.requestReason
+	}
+	return metadata, nil
+}
+
+// RequireTransportSecurity indicates whether the credentials requires transport security.
+func (ts grpcAPIKey) RequireTransportSecurity() bool {
+	return true
 }
 
 func isDirectPathEnabled(endpoint string, o *internal.DialSettings) bool {

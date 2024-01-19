@@ -32,9 +32,11 @@
   "scripts": {
     "prestart": "npm run copy-metricsql-docs",
     "start": "react-app-rewired start",
-    "start:logs": "cross-env REACT_APP_LOGS=true npm run start",
+    "start:logs": "cross-env REACT_APP_TYPE=logs npm run start",
+    "start:anomaly": "cross-env REACT_APP_TYPE=anomaly npm run start",
     "build": "GENERATE_SOURCEMAP=false react-app-rewired build",
-    "build:logs": "cross-env REACT_APP_LOGS=true npm run build",
+    "build:logs": "cross-env REACT_APP_TYPE=logs npm run build",
+    "build:anomaly": "cross-env REACT_APP_TYPE=anomaly npm run build",
     "lint": "eslint src --ext tsx,ts",
     "lint:fix": "eslint src --ext tsx,ts --fix",
     "analyze": "source-map-explorer 'build/static/js/*.js'",

@@ -404,9 +404,15 @@ func binaryOpDefault(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 func binaryOpOr(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 	mLeft, mRight := createTimeseriesMapByTagSet(bfa.be, bfa.left, bfa.right)
 	var rvs []*timeseries
+
 	for _, tss := range mLeft {
 		rvs = append(rvs, tss...)
 	}
+	// Sort left-hand-side series by metric name as Prometheus does.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5393
+	sortSeriesByMetricName(rvs)
+	rvsLen := len(rvs)
+
 	for k, tssRight := range mRight {
 		tssLeft := mLeft[k]
 		if tssLeft == nil {
@@ -415,6 +421,10 @@ func binaryOpOr(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 		}
 		fillLeftNaNsWithRightValues(tssLeft, tssRight)
 	}
+	// Sort the added right-hand-side series by metric name as Prometheus does.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5393
+	sortSeriesByMetricName(rvs[rvsLen:])
+
 	return rvs, nil
 }
 

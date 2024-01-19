@@ -1,4 +1,4 @@
-import { ArrayRGB } from "../types";
+import { ArrayRGB, ForecastType } from "../types";
 
 export const baseContrastColors = [
   "#e54040",
@@ -12,6 +12,24 @@ export const baseContrastColors = [
   "#da42a6",
   "#a44e0c",
 ];
+
+export const hexToRGB = (hex: string): string => {
+  if (hex.length != 7) return "0, 0, 0";
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `${r}, ${g}, ${b}`;
+};
+
+export const anomalyColors: Record<ForecastType, string> = {
+  [ForecastType.yhatUpper]: "#7126a1",
+  [ForecastType.yhatLower]: "#7126a1",
+  [ForecastType.yhat]: "#da42a6",
+  [ForecastType.anomaly]: "#da4242",
+  [ForecastType.anomalyScore]: "#7126a1",
+  [ForecastType.actual]: "#203ea9",
+  [ForecastType.training]: `rgba(${hexToRGB("#203ea9")}, 0.2)`,
+};
 
 export const getColorFromString = (text: string): string => {
   const SEED = 16777215;
@@ -34,14 +52,6 @@ export const getColorFromString = (text: string): string => {
   return `#${hex}`;
 };
 
-export const hexToRGB = (hex: string): string => {
-  if (hex.length != 7) return "0, 0, 0";
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  return `${r}, ${g}, ${b}`;
-};
-
 export const getContrastColor = (value: string) => {
   let hex = value.replace("#", "").trim();
 
@@ -55,7 +65,7 @@ export const getContrastColor = (value: string) => {
   const r = parseInt(hex.slice(0, 2), 16);
   const g = parseInt(hex.slice(2, 4), 16);
   const b = parseInt(hex.slice(4, 6), 16);
-  const yiq = ((r*299)+(g*587)+(b*114))/1000;
+  const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
   return yiq >= 128 ? "#000000" : "#FFFFFF";
 };
 
@@ -66,7 +76,7 @@ export const generateGradient = (start: ArrayRGB, end: ArrayRGB, steps: number) 
     const r = start[0] + (end[0] - start[0]) * k;
     const g = start[1] + (end[1] - start[1]) * k;
     const b = start[2] + (end[2] - start[2]) * k;
-    gradient.push([r,g,b].map(n => Math.round(n)).join(", "));
+    gradient.push([r, g, b].map(n => Math.round(n)).join(", "));
   }
   return gradient.map(c => `rgb(${c})`);
 };
