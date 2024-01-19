@@ -54,12 +54,15 @@ func (d *deduplicator) stop() {
 	d.flush()
 }
 
-func (d *deduplicator) pushSample(key string, value float64) {
+func (d *deduplicator) pushSample(key string, value float64, timestamp int64) {
 again:
 	v, ok := d.m.Load(key)
 	if !ok {
 		// The entry is missing in the map. Try creating it.
-		v = &dedupStateValue{value: value}
+		v = &dedupStateValue{
+			value:     value,
+			timestamp: timestamp,
+		}
 		vNew, loaded := d.m.LoadOrStore(key, v)
 		if !loaded {
 			// The new entry has been successfully created.
@@ -72,7 +75,11 @@ again:
 	sv.mu.Lock()
 	deleted := sv.deleted
 	if !deleted {
-		sv.value = value
+		if timestamp > sv.timestamp ||
+			(timestamp == sv.timestamp && value > sv.value) {
+			sv.value = value
+			sv.timestamp = timestamp
+		}
 	}
 	sv.mu.Unlock()
 	if deleted {
@@ -112,7 +119,8 @@ func (d *deduplicator) flush() {
 }
 
 type dedupStateValue struct {
-	mu      sync.Mutex
-	value   float64
-	deleted bool
+	mu        sync.Mutex
+	timestamp int64
+	value     float64
+	deleted   bool
 }
