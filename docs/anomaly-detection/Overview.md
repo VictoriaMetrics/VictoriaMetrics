@@ -1,5 +1,5 @@
 ---
-title: VictoriaMetrics Anomaly Overview
+title: vmanomaly overview
 weight: 4
 
 menu:
@@ -13,7 +13,7 @@ aliases:
 ---
 
 
-# VictoriaMetrics Anomaly Overivew
+# vmanomaly overview
 
 **_vmanomaly_ is a part of [enterprise package](https://docs.victoriametrics.com/enterprise.html). You need to request a [free trial license](https://victoriametrics.com/products/enterprise/trial/) for evaluation.**
 
