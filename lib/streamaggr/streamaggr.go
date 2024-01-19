@@ -550,7 +550,7 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 					a.trackDroppedSample(&ts, sample.Timestamp, minAllowedTimestamp)
 					continue
 				}
-				a.dedup.pushSample(key, sample.Value)
+				a.dedup.pushSample(key, sample.Value, sample.Timestamp)
 			}
 			continue
 		}

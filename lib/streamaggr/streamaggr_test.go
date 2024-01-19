@@ -864,11 +864,21 @@ foo{baz="qwe"} -5
 bar{baz="qwer"} 343
 bar{baz="qwer"} 344
 foo{baz="qwe"} 10
-`, `bar:1m_sum_samples{baz="qwe"} 2
+`, `bar:1m_sum_samples{baz="qwe"} 4.34
 bar:1m_sum_samples{baz="qwer"} 344
 foo:1m_sum_samples 123
 foo:1m_sum_samples{baz="qwe"} 10
 `, "11111111")
+
+	f(`
+- interval: 1m
+  outputs: [sum_samples]
+`, `
+foo 200 2
+foo 100 2
+foo 300 1
+`, `foo:1m_sum_samples 200
+`, "111")
 }
 
 func timeSeriesToString(ts prompbmarshal.TimeSeries) string {
