@@ -7,6 +7,7 @@ menu:
     identifier: "vmanomaly-overview"
     parent: 'anomaly-detection'
     weight: 1
+    title: Overview
 aliases:
 - /anomaly-detection.html
 ---

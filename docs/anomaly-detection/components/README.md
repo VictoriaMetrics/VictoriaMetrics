@@ -5,7 +5,7 @@ menu:
   docs:
     identifier: "vmanomaly-components"
     parent: "anomaly-detection"
-    sort: 2
+    weight: 2
 aliases:
   - /anomaly-detection/components/
   - /anomaly-detection/components/index.html
