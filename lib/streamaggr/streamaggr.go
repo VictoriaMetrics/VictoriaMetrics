@@ -510,7 +510,7 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 				bb.B = marshalLabelsFast(bb.B[:0], labels.Labels)
 				key := bytesutil.InternBytes(bb.B)
 
-				a.dedup.pushSample(key, sample.Value)
+				a.dedup.pushSample(key, sample.Value, sample.Timestamp)
 			}
 			continue
 		}
