@@ -25,6 +25,7 @@ In this guide we will be using [victoria-metrics-k8s-stack](https://github.com/V
 This chart will install `VMOperator`, `VMAgent`, `NodeExporter`, `kube-state-metrics`, `grafana` and some service scrape configurations to start monitoring kubernetes cluster components
 
 ## Prerequisites
+
 - Active Managed VictoriaMetrics instance. You can learn how to signup for Managed VictoriaMetrics [here](https://docs.victoriametrics.com/managed-victoriametrics/quickstart.html#how-to-register). 
 - Access to your kubernetes cluster
 - Helm binary. You can find installation [here](https://helm.sh/docs/intro/install/)
@@ -34,27 +35,33 @@ Install the Helm chart in a custom namespace
 
 1. Create a unique Kubernetes namespace, for example `monitoring`
    <div class="with-copy" markdown="1">
+
    ```bash
    kubectl create namespace monitoring
    ```
+   
    </div>
 1. Create kubernetes-secrets with token to access your dbaas deployment
    <div class="with-copy" markdown="1">
+
    ```bash
    kubectl --namespace monitoring create secret generic dbaas-write-access-token --from-literal=bearerToken=your-token
    kubectl --namespace monitoring create secret generic dbaas-read-access-token --from-literal=bearerToken=your-token
    ```
+   
    </div>
    You can find your access token on the "Access" tab of your deployment
    <img src="kubernetes_monitoring.webp" width="800">
 1. Set up a Helm repository using the following commands:
    <div class="with-copy" markdown="1">
+
    ```bash
    helm repo add grafana https://grafana.github.io/helm-charts
    helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
    helm repo add vm https://victoriametrics.github.io/helm-charts
    helm repo update
    ```
+   
    </div>
 1. Create a YAML file of Helm values called dbaas.yaml with following content
    <div class="with-copy" markdown="1">
@@ -96,12 +103,15 @@ Install the Helm chart in a custom namespace
    grafana:
      enabled: true
    ```
+   
    </div>
 1. Install VictoriaMetrics-k8s-stack helm chart
    <div class="with-copy" markdown="1">
+
    ```bash
    helm --namespace monitoring install vm vm/victoria-metrics-k8s-stack -f dbaas.yaml -n monitoring
    ```
+   
    </div>
 
 ## Connect grafana
@@ -112,15 +122,19 @@ Connect to grafana and create your datasource
 
 1. Get grafana password
    <div class="with-copy" markdown="1">
+
    ```bash
    kubectl --namespace monitoring get secret vm-grafana  -o jsonpath="{.data.admin-password}" | base64 -d
    ```
+   
    </div>
 1. Connect to grafana
    <div class="with-copy" markdown="1">
+
    ```bash
    kubectl --namespace monitoring port-forward service/vm-grafana 3000:80
    ```
+   
    </div>
 1. Open grafana in your browser [http://localhost:3000/datasources](http://localhost:3000/datasources)
    

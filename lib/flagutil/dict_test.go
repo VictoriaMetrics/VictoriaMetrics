@@ -1,8 +1,55 @@
 package flagutil
 
 import (
+	"encoding/json"
 	"testing"
 )
+
+func TestParseJSONMapSuccess(t *testing.T) {
+	f := func(s string) {
+		t.Helper()
+		m, err := ParseJSONMap(s)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		if s == "" && m == nil {
+			return
+		}
+		data, err := json.Marshal(m)
+		if err != nil {
+			t.Fatalf("cannot marshal m: %s", err)
+		}
+		if s != string(data) {
+			t.Fatalf("unexpected result; got %s; want %s", data, s)
+		}
+	}
+
+	f("")
+	f("{}")
+	f(`{"foo":"bar"}`)
+	f(`{"a":"b","c":"d"}`)
+}
+
+func TestParseJSONMapFailure(t *testing.T) {
+	f := func(s string) {
+		t.Helper()
+		m, err := ParseJSONMap(s)
+		if err == nil {
+			t.Fatalf("expecting non-nil error")
+		}
+		if m != nil {
+			t.Fatalf("expecting nil m")
+		}
+	}
+
+	f("foo")
+	f("123")
+	f("{")
+	f(`{foo:bar}`)
+	f(`{"foo":1}`)
+	f(`[]`)
+	f(`{"foo":"bar","a":[123]}`)
+}
 
 func TestDictIntSetSuccess(t *testing.T) {
 	f := func(s string) {
