@@ -1,6 +1,6 @@
 ---
-sort: 4
-weight: 4
+sort: 3
+weight: 3
 title: FAQ
 menu:
   docs:
