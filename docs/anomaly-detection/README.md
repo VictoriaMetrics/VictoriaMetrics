@@ -10,6 +10,7 @@ menu:
 
 aliases:
 - /anomaly-detection.html
+- /vmanomaly.html
 ---
 
 # VictoriaMetrics Anomaly Detection
