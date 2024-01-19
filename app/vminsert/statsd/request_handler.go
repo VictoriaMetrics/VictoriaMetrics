@@ -19,7 +19,7 @@ var (
 //
 // https://github.com/statsd/statsd/blob/master/docs/metric_types.md
 func InsertHandler(r io.Reader) error {
-	return stream.Parse(r, insertRows)
+	return stream.Parse(r, false, insertRows)
 }
 
 func insertRows(rows []parser.Row) error {

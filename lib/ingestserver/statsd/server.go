@@ -59,7 +59,7 @@ func MustStart(addr string, useProxyProtocol bool, insertHandler func(r io.Reade
 		lnTCP: lnTCP,
 		lnUDP: lnUDP,
 	}
-	s.cm.Init()
+	s.cm.Init("statsd")
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
@@ -85,7 +85,7 @@ func (s *Server) MustStop() {
 	if err := s.lnUDP.Close(); err != nil {
 		logger.Errorf("cannot close UDP Statsd server: %s", err)
 	}
-	s.cm.CloseAll()
+	s.cm.CloseAll(0)
 	s.wg.Wait()
 	logger.Infof("TCP and UDP Statsd servers at %q have been stopped", s.addr)
 }
