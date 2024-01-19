@@ -1,7 +1,6 @@
 ---
 title: Guides
 weight: 3
-sort: 3
 menu:
   docs:
     identifier: "anomaly-detection-guides"

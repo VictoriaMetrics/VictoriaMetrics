@@ -1,12 +1,12 @@
 ---
-sort: 4
-weight: 4
+sort: 3
+weight: 5
 title: CHANGELOG
 menu:
   docs:
     identifier: "vmanomaly-changelog"
     parent: "anomaly-detection"
-    weight: 4
+    weight: 5
 aliases:
 - /anomaly-detection/CHANGELOG.html
 ---

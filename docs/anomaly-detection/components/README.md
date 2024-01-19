@@ -1,5 +1,4 @@
 ---
-sort: 2
 title: Components
 weight: 2
 menu:

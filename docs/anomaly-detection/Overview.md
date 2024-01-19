@@ -1,12 +1,12 @@
 ---
-title: Overview
-weight: 4
+title: vmanomaly overview
+weight: 1
 sort: 1
 menu:
   docs:
     identifier: "vmanomaly-overview"
     parent: 'anomaly-detection'
-    weight: 0
+    weight: 1
 aliases:
 - /anomaly-detection.html
 ---
