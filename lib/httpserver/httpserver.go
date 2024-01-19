@@ -214,8 +214,10 @@ var gzipHandlerWrapper = func() func(http.Handler) http.HandlerFunc {
 	return hw
 }()
 
-var metricsHandlerDuration = metrics.NewHistogram(`vm_http_request_duration_seconds{path="/metrics"}`)
-var connTimeoutClosedConns = metrics.NewCounter(`vm_http_conn_timeout_closed_conns_total`)
+var (
+	metricsHandlerDuration = metrics.NewHistogram(`vm_http_request_duration_seconds{path="/metrics"}`)
+	connTimeoutClosedConns = metrics.NewCounter(`vm_http_conn_timeout_closed_conns_total`)
+)
 
 var hostname = func() string {
 	h, err := os.Hostname()
@@ -471,6 +473,54 @@ func GetQuotedRemoteAddr(r *http.Request) string {
 	return strconv.Quote(remoteAddr)
 }
 
+// NewResponseWriteTracker returns tracker for response body writes
+func NewResponseWriteTracker(w http.ResponseWriter) *ResponseWriteTracker {
+	return &ResponseWriteTracker{
+		w: w,
+	}
+}
+
+// ResponseWriteTracker tracks body writes
+// allows to abort streaming request and terminate connection with client
+type ResponseWriteTracker struct {
+	w               http.ResponseWriter
+	wasWriteStarted bool
+}
+
+// Write implements http.ResponseWriter interface
+func (rwt *ResponseWriteTracker) Write(data []byte) (int, error) {
+	if !rwt.wasWriteStarted {
+		rwt.wasWriteStarted = true
+	}
+	return rwt.w.Write(data)
+}
+
+// WriteHeader implements http.ResponseWriter interface
+func (rwt *ResponseWriteTracker) WriteHeader(code int) {
+	rwt.w.WriteHeader(code)
+}
+
+// Header implements http.ResponseWriter interface
+func (rwt *ResponseWriteTracker) Header() http.Header {
+	return rwt.w.Header()
+}
+
+// abort writes error directly to the connection and closes it
+// any panic must be handled by the httpserver
+func (rwt *ResponseWriteTracker) abort(errStr string) {
+	hj, ok := rwt.w.(http.Hijacker)
+	if !ok {
+		logger.Panicf("writer must implements http.Hijacker interface")
+	}
+	conn, bw, err := hj.Hijack()
+	if err != nil {
+		logger.Panicf("cannot Hijack connection: %s", err)
+	}
+	bw.WriteString(errStr)
+	bw.Flush()
+	conn.Close()
+}
+
 // Errorf writes formatted error message to w and to logger.
 func Errorf(w http.ResponseWriter, r *http.Request, format string, args ...interface{}) {
 	errStr := fmt.Sprintf(format, args...)
@@ -487,6 +537,10 @@ func Errorf(w http.ResponseWriter, r *http.Request, format string, args ...inter
 			statusCode = esc.StatusCode
 			break
 		}
+	}
+	if rwt, ok := w.(*ResponseWriteTracker); ok && rwt.wasWriteStarted {
+		rwt.abort(errStr)
+		return
 	}
 	http.Error(w, errStr, statusCode)
 }
