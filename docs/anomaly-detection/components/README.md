@@ -1,12 +1,12 @@
 ---
-sort: 1
+sort: 2
 title: Components
-weight: 1
+weight: 2
 menu:
   docs:
     identifier: "vmanomaly-components"
     parent: "anomaly-detection"
-    sort: 1
+    sort: 2
 aliases:
   - /anomaly-detection/components/
   - /anomaly-detection/components/index.html

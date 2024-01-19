@@ -1,12 +1,12 @@
 ---
 title: Guides
-weight: 2
-sort: 2
+weight: 3
+sort: 3
 menu:
   docs:
     identifier: "anomaly-detection-guides"
     parent: "anomaly-detection"
-    weight: 2
+    weight: 3
 aliases:
   - /anomaly-detection/guides.html
 ---
