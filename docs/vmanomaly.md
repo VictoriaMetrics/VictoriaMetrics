@@ -6,8 +6,6 @@ menu:
   docs:
     parent: 'victoriametrics'
     weight: 11
-aliases:
-- /vmanomaly.html
 ---
 
 vmanomaly currently has own section.

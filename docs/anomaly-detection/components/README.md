@@ -14,7 +14,7 @@ aliases:
 
 # Components
 
-This chapter describes different components, that correspond to respective sections of a config to launch VictoriaMetrics Anomaly Detection (or simply [`vmanomaly`](/vmanomaly.html)) service:
+This chapter describes different components, that correspond to respective sections of a config to launch VictoriaMetrics Anomaly Detection (or simply [`vmanomaly`](/anomaly-detection/overview.html)) service:
 
 - [Model(s) section](models.html) - Required
 - [Reader section](reader.html) - Required
