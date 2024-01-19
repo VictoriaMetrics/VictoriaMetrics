@@ -5,7 +5,7 @@ sort: 1
 menu:
   docs:
     identifier: "vmanomaly-overview"
-    parent: 'victoriametrics'
+    parent: 'anomaly-detection'
     weight: 0
 aliases:
 - /anomaly-detection.html
