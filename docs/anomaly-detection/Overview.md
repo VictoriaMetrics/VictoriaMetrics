@@ -1,13 +1,12 @@
 ---
-title: vmanomaly overview
+title: Overview
 weight: 4
-
+sort: 1
 menu:
   docs:
+    identifier: "vmanomaly-overview"
     parent: 'victoriametrics'
-    sort: 0
     weight: 0
-
 aliases:
 - /anomaly-detection.html
 ---
