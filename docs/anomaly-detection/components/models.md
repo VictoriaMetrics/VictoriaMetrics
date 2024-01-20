@@ -16,7 +16,7 @@ aliases:
 
 # Models
 
-This section describes `Model` component of VictoriaMetrics Anomaly Detection (or simply [`vmanomaly`](/vmanomaly.html)) and the guide of how to define a respective section of a config to launch the service.
+This section describes `Model` component of VictoriaMetrics Anomaly Detection (or simply [`vmanomaly`](/anomaly-detection/overview.html)) and the guide of how to define a respective section of a config to launch the service.
 vmanomaly includes various [built-in models](#built-in-models) and you can integrate your custom model with vmanomaly see [custom model](#custom-model-guide) 
 
 
@@ -471,7 +471,7 @@ us-docker.pkg.dev/victoriametrics-test/public/vmanomaly-trial:latest /config.yam
 
 </div>
 
-Please find more detailed instructions (license, etc.) [here](/vmanomaly.html#run-vmanomaly-docker-container)
+Please find more detailed instructions (license, etc.) [here](/anomaly-detection/overview.html#run-vmanomaly-docker-container)
 
 
 ### Output

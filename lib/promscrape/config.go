@@ -307,6 +307,7 @@ type ScrapeConfig struct {
 	EurekaSDConfigs       []eureka.SDConfig       `yaml:"eureka_sd_configs,omitempty"`
 	FileSDConfigs         []FileSDConfig          `yaml:"file_sd_configs,omitempty"`
 	GCESDConfigs          []gce.SDConfig          `yaml:"gce_sd_configs,omitempty"`
+	HetznerSDConfigs      []hetzner.SDConfig      `yaml:"hetzner_sd_configs,omitempty"`
 	HTTPSDConfigs         []http.SDConfig         `yaml:"http_sd_configs,omitempty"`
 	KubernetesSDConfigs   []kubernetes.SDConfig   `yaml:"kubernetes_sd_configs,omitempty"`
 	KumaSDConfigs         []kuma.SDConfig         `yaml:"kuma_sd_configs,omitempty"`
@@ -314,7 +315,6 @@ type ScrapeConfig struct {
 	OpenStackSDConfigs    []openstack.SDConfig    `yaml:"openstack_sd_configs,omitempty"`
 	StaticConfigs         []StaticConfig          `yaml:"static_configs,omitempty"`
 	YandexCloudSDConfigs  []yandexcloud.SDConfig  `yaml:"yandexcloud_sd_configs,omitempty"`
-	HetznerSDConfigs      []hetzner.SDConfig      `yaml:"hetzner_sd_configs,omitempty"`
 
 	// These options are supported only by lib/promscrape.
 	DisableCompression  bool                       `yaml:"disable_compression,omitempty"`
@@ -375,6 +375,9 @@ func (sc *ScrapeConfig) mustStop() {
 	}
 	for i := range sc.GCESDConfigs {
 		sc.GCESDConfigs[i].MustStop()
+	}
+	for i := range sc.HetznerSDConfigs {
+		sc.HetznerSDConfigs[i].MustStop()
 	}
 	for i := range sc.HTTPSDConfigs {
 		sc.HTTPSDConfigs[i].MustStop()
@@ -670,6 +673,16 @@ func (cfg *Config) getGCESDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 	return cfg.getScrapeWorkGeneric(visitConfigs, "gce_sd_config", prev)
 }
 
+// getHetznerSDScrapeWork returns `hetzner_sd_configs` ScrapeWork from cfg.
+func (cfg *Config) getHetznerSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
+	visitConfigs := func(sc *ScrapeConfig, visitor func(sdc targetLabelsGetter)) {
+		for i := range sc.HetznerSDConfigs {
+			visitor(&sc.HetznerSDConfigs[i])
+		}
+	}
+	return cfg.getScrapeWorkGeneric(visitConfigs, "hetzner_sd_config", prev)
+}
+
 // getHTTPDScrapeWork returns `http_sd_configs` ScrapeWork from cfg.
 func (cfg *Config) getHTTPDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 	visitConfigs := func(sc *ScrapeConfig, visitor func(sdc targetLabelsGetter)) {
@@ -746,16 +759,6 @@ func (cfg *Config) getYandexCloudSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork 
 		}
 	}
 	return cfg.getScrapeWorkGeneric(visitConfigs, "yandexcloud_sd_config", prev)
-}
-
-// getHetznerSDScrapeWork returns `hetzner_sd_configs` ScrapeWork from cfg.
-func (cfg *Config) getHetznerSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
-	visitConfigs := func(sc *ScrapeConfig, visitor func(sdc targetLabelsGetter)) {
-		for i := range sc.HetznerSDConfigs {
-			visitor(&sc.HetznerSDConfigs[i])
-		}
-	}
-	return cfg.getScrapeWorkGeneric(visitConfigs, "hetzner_sd_config", prev)
 }
 
 type targetLabelsGetter interface {

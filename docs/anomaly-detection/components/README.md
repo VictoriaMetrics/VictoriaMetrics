@@ -1,12 +1,11 @@
 ---
-sort: 1
 title: Components
-weight: 1
+weight: 2
 menu:
   docs:
     identifier: "vmanomaly-components"
     parent: "anomaly-detection"
-    sort: 1
+    weight: 2
 aliases:
   - /anomaly-detection/components/
   - /anomaly-detection/components/index.html
@@ -14,7 +13,7 @@ aliases:
 
 # Components
 
-This chapter describes different components, that correspond to respective sections of a config to launch VictoriaMetrics Anomaly Detection (or simply [`vmanomaly`](/vmanomaly.html)) service:
+This chapter describes different components, that correspond to respective sections of a config to launch VictoriaMetrics Anomaly Detection (or simply [`vmanomaly`](/anomaly-detection/overview.html)) service:
 
 - [Model(s) section](models.html) - Required
 - [Reader section](reader.html) - Required

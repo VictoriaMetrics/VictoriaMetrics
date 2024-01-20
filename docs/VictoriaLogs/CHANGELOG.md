@@ -7,6 +7,7 @@ menu:
     identifier: "victorialogs-changelog"
     parent: "victorialogs"
     weight: 7
+    title: CHANGELOG
 aliases:
 - /VictoriaLogs/CHANGELOG.html
 ---
