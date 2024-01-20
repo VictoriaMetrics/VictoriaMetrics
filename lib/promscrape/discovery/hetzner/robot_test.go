@@ -53,58 +53,50 @@ func TestParseRobotServerListResponse(t *testing.T) {
 		}
 	  ]
 `
-	rsl, err := parseRobotServersList([]byte(data))
+	rsl, err := parseRobotServers([]byte(data))
 	if err != nil {
 		t.Fatalf("unexpected error parseRobotServersList when parsing data: %s", err)
 	}
-	rslExpected := &robotServersList{
-		Servers: []RobotServerResponse{
-			{
-				Server: RobotServer{
-					ServerIP:     "123.123.123.123",
-					ServerIPV6:   "2a01:f48:111:4221::",
-					ServerNumber: 321,
-					ServerName:   "server1",
-					Product:      "DS 3000",
-					DC:           "NBG1-DC1",
-					Status:       "ready",
-					Canceled:     false,
-					Subnet: []RobotSubnet{
-						{
-							IP:   "2a01:4f8:111:4221::",
-							Mask: "64",
-						},
-					},
+	rslExpected := []RobotServer{
+		{
+			ServerIP:     "123.123.123.123",
+			ServerIPV6:   "2a01:f48:111:4221::",
+			ServerNumber: 321,
+			ServerName:   "server1",
+			Product:      "DS 3000",
+			DC:           "NBG1-DC1",
+			Status:       "ready",
+			Canceled:     false,
+			Subnet: []RobotSubnet{
+				{
+					IP:   "2a01:4f8:111:4221::",
+					Mask: "64",
 				},
 			},
-			{
-				Server: RobotServer{
-					ServerIP:     "123.123.123.124",
-					ServerIPV6:   "2a01:f48:111:4221::",
-					ServerNumber: 421,
-					ServerName:   "server2",
-					Product:      "X5",
-					DC:           "FSN1-DC10",
-					Status:       "ready",
-					Canceled:     false,
-					Subnet:       nil,
-				},
-			},
+		},
+		{
+			ServerIP:     "123.123.123.124",
+			ServerIPV6:   "2a01:f48:111:4221::",
+			ServerNumber: 421,
+			ServerName:   "server2",
+			Product:      "X5",
+			DC:           "FSN1-DC10",
+			Status:       "ready",
+			Canceled:     false,
+			Subnet:       nil,
 		},
 	}
 	if !reflect.DeepEqual(rsl, rslExpected) {
 		t.Fatalf("unexpected parseRobotServersList parsed;\ngot\n%+v\nwant\n%+v", rsl, rslExpected)
 	}
 
-	server := rsl.Servers[0]
-	var ms []*promutils.Labels
 	port := 123
-
-	labelss := server.appendTargetLabels(ms, port)
+	labelss := appendRobotTargetLabels(nil, &rsl[0], port)
 
 	expectedLabels := []*promutils.Labels{
 		promutils.NewLabelsFromMap(map[string]string{
 			"__address__":                        "123.123.123.123:123",
+			"__meta_hetzner_role":                "robot",
 			"__meta_hetzner_server_id":           "321",
 			"__meta_hetzner_server_name":         "server1",
 			"__meta_hetzner_server_status":       "ready",
