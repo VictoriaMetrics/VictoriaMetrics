@@ -504,13 +504,13 @@ users:
   password: baz
   url_prefix: http://foo
   metric_labels:
-    dc: eu 
+    dc: eu
     team: dev
 - username: foo-same
   password: bar
   url_prefix: https://bar/x///
   metric_labels:
-    backend_env: test 
+    backend_env: test
     team: accounting
 `, map[string]*UserInfo{
 		getAuthToken("", "foo-same", "baz"): {
@@ -566,6 +566,86 @@ unauthorized_user:
 	if !isSetBool(ac.UnauthorizedUser.TLSInsecureSkipVerify, false) || ac.UnauthorizedUser.httpTransport.TLSClientConfig.InsecureSkipVerify {
 		t.Fatalf("unexpected TLSInsecureSkipVerify value for unauthorized_user")
 	}
+}
+
+func TestUserInfoGetMetricLabels(t *testing.T) {
+	t.Run("empty-labels", func(t *testing.T) {
+		ui := &UserInfo{
+			Username: "user1",
+		}
+		labels, err := ui.getMetricLabels()
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		labelsExpected := `{username="user1"}`
+		if labels != labelsExpected {
+			t.Fatalf("unexpected labels; got %s; want %s", labels, labelsExpected)
+		}
+	})
+	t.Run("non-empty-username", func(t *testing.T) {
+		ui := &UserInfo{
+			Username: "user1",
+			MetricLabels: map[string]string{
+				"env":        "prod",
+				"datacenter": "dc1",
+			},
+		}
+		labels, err := ui.getMetricLabels()
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		labelsExpected := `{datacenter="dc1",env="prod",username="user1"}`
+		if labels != labelsExpected {
+			t.Fatalf("unexpected labels; got %s; want %s", labels, labelsExpected)
+		}
+	})
+	t.Run("non-empty-name", func(t *testing.T) {
+		ui := &UserInfo{
+			Name:        "user1",
+			BearerToken: "abc",
+			MetricLabels: map[string]string{
+				"env":        "prod",
+				"datacenter": "dc1",
+			},
+		}
+		labels, err := ui.getMetricLabels()
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		labelsExpected := `{datacenter="dc1",env="prod",username="user1"}`
+		if labels != labelsExpected {
+			t.Fatalf("unexpected labels; got %s; want %s", labels, labelsExpected)
+		}
+	})
+	t.Run("non-empty-bearer-token", func(t *testing.T) {
+		ui := &UserInfo{
+			BearerToken: "abc",
+			MetricLabels: map[string]string{
+				"env":        "prod",
+				"datacenter": "dc1",
+			},
+		}
+		labels, err := ui.getMetricLabels()
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		labelsExpected := `{datacenter="dc1",env="prod",username="bearer_token:hash:44BC2CF5AD770999"}`
+		if labels != labelsExpected {
+			t.Fatalf("unexpected labels; got %s; want %s", labels, labelsExpected)
+		}
+	})
+	t.Run("invalid-label", func(t *testing.T) {
+		ui := &UserInfo{
+			Username: "foo",
+			MetricLabels: map[string]string{
+				",{": "aaaa",
+			},
+		}
+		_, err := ui.getMetricLabels()
+		if err == nil {
+			t.Fatalf("expecting non-nil error")
+		}
+	})
 }
 
 func isSetBool(boolP *bool, expectedValue bool) bool {

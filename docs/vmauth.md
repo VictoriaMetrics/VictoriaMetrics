@@ -455,7 +455,7 @@ The following [metrics](#monitoring) related to concurrency limits are exposed b
   because of the global concurrency limit has been reached.
 - `vmauth_user_concurrent_requests_capacity{username="..."}` - the limit on the number of concurrent requests for the given `username`.
 - `vmauth_user_concurrent_requests_current{username="..."}` - the current number of concurrent requests for the given `username`.
-- `vmauth_user_concurrent_requests_limit_reached_total{username="foo"}` - the number of requests rejected with `429 Too Many Requests` error
+- `vmauth_user_concurrent_requests_limit_reached_total{username="..."}` - the number of requests rejected with `429 Too Many Requests` error
   because of the concurrency limit has been reached for the given `username`.
 - `vmauth_unauthorized_user_concurrent_requests_capacity` - the limit on the number of concurrent requests for unauthorized users (if `unauthorized_user` section is used).
 - `vmauth_unauthorized_user_concurrent_requests_current` - the current number of concurrent requests for unauthorized users (if `unauthorized_user` section is used).
@@ -465,10 +465,10 @@ The following [metrics](#monitoring) related to concurrency limits are exposed b
 ## Backend TLS setup
 
 By default `vmauth` uses system settings when performing requests to HTTPS backends specified via `url_prefix` option
-in the [`-auth.config`](https://docs.victoriametrics.com/vmauth.html#auth-config). These settings can be overridden with the following command-line flags:
+in the [`-auth.config`](#auth-config). These settings can be overridden with the following command-line flags:
 
 - `-backend.tlsInsecureSkipVerify` allows skipping TLS verification when connecting to HTTPS backends.
-  This global setting can be overridden at per-user level inside [`-auth.config`](https://docs.victoriametrics.com/vmauth.html#auth-config)
+  This global setting can be overridden at per-user level inside [`-auth.config`](#auth-config)
   via `tls_insecure_skip_verify` option. For example:
 
   ```yml
@@ -479,7 +479,7 @@ in the [`-auth.config`](https://docs.victoriametrics.com/vmauth.html#auth-config
 
 - `-backend.tlsCAFile` allows specifying the path to TLS Root CA, which will be used for TLS verification when connecting to HTTPS backends.
   The `-backend.tlsCAFile` may point either to local file or to `http` / `https` url.
-  This global setting can be overridden at per-user level inside [`-auth.config`](https://docs.victoriametrics.com/vmauth.html#auth-config)
+  This global setting can be overridden at per-user level inside [`-auth.config`](#auth-config)
   via `tls_ca_file` option. For example:
 
   ```yml
@@ -695,18 +695,21 @@ It is recommended protecting the following endpoints with authKeys:
 `vmauth` exports various metrics in Prometheus exposition format at `http://vmauth-host:8427/metrics` page. It is recommended setting up regular scraping of this page
 either via [vmagent](https://docs.victoriametrics.com/vmagent.html) or via Prometheus, so the exported metrics could be analyzed later.
 
-`vmauth` exports following per user section metrics:
-* `vmauth_user_requests_total` [counter](https://docs.victoriametrics.com/keyConcepts.html#counter) metric 
-* `vmauth_user_request_duration_seconds_*` [summary](https://docs.victoriametrics.com/keyConcepts.html#summary) metric 
-* `vmauth_user_request_backend_errors_total` [counter](https://docs.victoriametrics.com/keyConcepts.html#counter) metric 
-* `vmauth_user_concurrent_requests_limit_reached_total` [counter](https://docs.victoriametrics.com/keyConcepts.html#counter) metric 
-* `vmauth_user_concurrent_requests_capacity` [gauge](https://docs.victoriametrics.com/keyConcepts.html#gauge) metric 
-* `vmauth_user_concurrent_requests_current` [gauge](https://docs.victoriametrics.com/keyConcepts.html#gauge) metric 
+`vmauth` exports the following metrics per each defined user in [`-auth.config`](#auth-config):
 
-By default, only `username` label added to it. The `username` label value equals to `username` field value set in the `-auth.config` file.
-It is possible to override or hide the value in the label by specifying `name` field. 
-For example, the following config will result in `vmauth_user_requests_total{username="foobar"}` 
-instead of `vmauth_user_requests_total{username="secret_user"}`:
+* `vmauth_user_requests_total` [counter](https://docs.victoriametrics.com/keyConcepts.html#counter) - the number of requests served for the given `username`
+* `vmauth_user_request_backend_errors_total` [counter](https://docs.victoriametrics.com/keyConcepts.html#counter) - the number of request errors for the given `username`
+* `vmauth_user_request_duration_seconds` [summary](https://docs.victoriametrics.com/keyConcepts.html#summary) - the duration of requests for the given `username`
+* `vmauth_user_concurrent_requests_limit_reached_total` [counter](https://docs.victoriametrics.com/keyConcepts.html#counter) - the number of failed requests
+  for the given `username` because of exceeded [concurrency limits](#concurrency-limiting)
+* `vmauth_user_concurrent_requests_capacity` [gauge](https://docs.victoriametrics.com/keyConcepts.html#gauge) - the maximum number of [concurrent requests](#concurrency-limiting)
+  for the given `username`
+* `vmauth_user_concurrent_requests_current` [gauge](https://docs.victoriametrics.com/keyConcepts.html#gauge) - the current number of [concurrent requests](#concurrency-limiting)
+  for the given `username`
+
+By default, per-user metrics contain only `username` label. This label is set to `username` field value at the corresponding user section in the [`-auth.config`](#auth-config) file.
+It is possible to override the `username` label value by specifying `name` field additionally to `username` field.
+For example, the following config will result in `vmauth_user_requests_total{username="foobar"}` instead of `vmauth_user_requests_total{username="secret_user"}`:
 
 ```yml
 users:
@@ -715,22 +718,28 @@ users:
   # other config options here
 ```
 
- It's possible to define additional labels with `metric_labels`:
+Additional labels for per-user metrics can be specified via `metric_labels` section. For example, the following config
+defines `{dc="eu",team="dev"}` labels additionally to `username="foobar"` label:
 
 ```yml
 users:
-- username: "secret_user"
-  name: "foobar"
+- username: "foobar"
   metric_labels:
-   dc: eu 
+   dc: eu
    team: dev
   # other config options here
 ```
 
-For unauthorized users `vmauth` exports `vmauth_unauthorized_user_requests_total` 
-[counter](https://docs.victoriametrics.com/keyConcepts.html#counter) metric and 
-`vmauth_unauthorized_user_request_duration_seconds_*` [summary](https://docs.victoriametrics.com/keyConcepts.html#summary)
-metric without label (if `unauthorized_user` section of config is used).
+`vmauth` exports the following metrics if `unauthorized_user` section is defined in [`-auth.config`](#auth-config):
+
+* `vmauth_unauthorized_user_requests_total` [counter](https://docs.victoriametrics.com/keyConcepts.html#counter) - the number of unauthorized requests served
+* `vmauth_unauthorized_user_request_backend_errors_total` [counter](https://docs.victoriametrics.com/keyConcepts.html#counter) - the number of unauthorized request errors
+* `vmauth_unauthorized_user_request_duration_seconds` [summary](https://docs.victoriametrics.com/keyConcepts.html#summary) - the duration of unauthorized requests
+* `vmauth_unauthorized_user_concurrent_requests_limit_reached_total` [counter](https://docs.victoriametrics.com/keyConcepts.html#counter) - the number of failed unauthorized requests
+  because of exceeded [concurrency limits](#concurrency-limiting)
+* `vmauth_unauthorized_user_concurrent_requests_capacity` [gauge](https://docs.victoriametrics.com/keyConcepts.html#gauge) - the maximum number
+  of [concurrent unauthorized requests](#concurrency-limiting)
+* `vmauth_user_concurrent_requests_current` [gauge](https://docs.victoriametrics.com/keyConcepts.html#gauge) - the current number of [concurrent unauthorized requests](#concurrency-limiting)
 
 ## How to build from sources
 

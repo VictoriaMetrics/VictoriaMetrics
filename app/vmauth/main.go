@@ -150,12 +150,20 @@ func processUserRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 		if err := ui.beginConcurrencyLimit(); err != nil {
 			handleConcurrencyLimitError(w, r, err)
 			<-concurrencyLimitCh
+
+			// Requests failed because of concurrency limit must be counted as errors,
+			// since this usually means the backend cannot keep up with the current load.
+			ui.backendErrors.Inc()
 			return
 		}
 	default:
 		concurrentRequestsLimitReached.Inc()
 		err := fmt.Errorf("cannot serve more than -maxConcurrentRequests=%d concurrent requests", cap(concurrencyLimitCh))
 		handleConcurrencyLimitError(w, r, err)
+
+		// Requests failed because of concurrency limit must be counted as errors,
+		// since this usually means the backend cannot keep up with the current load.
+		ui.backendErrors.Inc()
 		return
 	}
 	processRequest(w, r, ui)
@@ -208,12 +216,12 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 		}
 		bu.setBroken()
 	}
-	ui.requestErrors.Inc()
 	err := &httpserver.ErrorWithStatusCode{
 		Err:        fmt.Errorf("all the backends for the user %q are unavailable", ui.name()),
 		StatusCode: http.StatusServiceUnavailable,
 	}
 	httpserver.Errorf(w, r, "%s", err)
+	ui.backendErrors.Inc()
 }
 
 func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url.URL, hc HeadersConf, retryStatusCodes []int, ui *UserInfo) bool {
@@ -230,16 +238,20 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 			remoteAddr := httpserver.GetQuotedRemoteAddr(r)
 			requestURI := httpserver.GetRequestURI(r)
 			logger.Warnf("remoteAddr: %s; requestURI: %s; error when proxying response body from %s: %s", remoteAddr, requestURI, targetURL, err)
+			if errors.Is(err, context.DeadlineExceeded) {
+				// Timed out request must be counted as errors, since this usually means that the backend is slow.
+				ui.backendErrors.Inc()
+			}
 			return true
 		}
 		if !rtbOK || !rtb.canRetry() {
-			ui.requestErrors.Inc()
 			// Request body cannot be re-sent to another backend. Return the error to the client then.
 			err = &httpserver.ErrorWithStatusCode{
 				Err:        fmt.Errorf("cannot proxy the request to %q: %w", targetURL, err),
 				StatusCode: http.StatusServiceUnavailable,
 			}
 			httpserver.Errorf(w, r, "%s", err)
+			ui.backendErrors.Inc()
 			return true
 		}
 		// Retry the request if its body wasn't read yet. This usually means that the backend isn't reachable.
