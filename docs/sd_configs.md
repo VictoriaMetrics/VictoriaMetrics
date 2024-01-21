@@ -961,6 +961,10 @@ scrape_configs:
     # attach_metadata is an optional metadata to attach to discovered targets.
     # When `node` is set to true, then node metadata is attached to discovered targets.
     # Valid for roles: pod, endpoints, endpointslice.
+    #
+    # Set `-promscrape.kubernetes.attachNodeMetadataAll` command-line flag
+    # for attaching `node` metadata for all the discovered targets.
+    #
     # attach_metadata:
     #   node: <boolean>
 
