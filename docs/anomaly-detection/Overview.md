@@ -14,8 +14,6 @@ aliases:
 
 # Overview
 
-**_vmanomaly_ is a part of [enterprise package](https://docs.victoriametrics.com/enterprise.html). You need to request a [free trial license](https://victoriametrics.com/products/enterprise/trial/) for evaluation.**
-
 ## About
 
 **VictoriaMetrics Anomaly Detection** (or shortly, `vmanomaly`) is a service that continuously scans VictoriaMetrics time
@@ -35,6 +33,8 @@ while anomaly detection looks for any deviations from past behavior.
 In addition to that, setting up alerting rules manually has been proven to be tedious and
 error-prone, while anomaly detection can be easier to set up, and use the same model for different
 metrics.
+
+> **Note: `vmanomaly` is a part of [enterprise package](https://docs.victoriametrics.com/enterprise.html). You need to get a [free trial license](https://victoriametrics.com/products/enterprise/trial/) for evaluation.**
 
 ## How?
 
