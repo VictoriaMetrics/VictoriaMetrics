@@ -119,6 +119,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 			{"expand-with-exprs", "WITH expressions' tutorial"},
 			{"api/v1/targets", "advanced information about discovered targets in JSON format"},
 			{"config", "-promscrape.config contents"},
+			{"stream-agg", "streaming aggregation status"},
 			{"metrics", "available service metrics"},
 			{"flags", "command-line flags"},
 			{"api/v1/status/tsdb", "tsdb status page"},

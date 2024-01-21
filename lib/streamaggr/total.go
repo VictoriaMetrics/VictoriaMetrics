@@ -3,6 +3,7 @@ package streamaggr
 import (
 	"math"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
@@ -10,16 +11,18 @@ import (
 
 // totalAggrState calculates output=total, e.g. the summary counter over input counters.
 type totalAggrState struct {
-	m sync.Map
-
+	m                   sync.Map
+	intervalSecs        uint64
 	ignoreInputDeadline uint64
 	stalenessSecs       uint64
+	lastPushTimestamp   atomic.Uint64
 }
 
 type totalStateValue struct {
 	mu             sync.Mutex
 	lastValues     map[string]*lastValueState
 	total          float64
+	samplesCount   uint64
 	deleteDeadline uint64
 	deleted        bool
 }
@@ -36,6 +39,7 @@ func newTotalAggrState(interval time.Duration, stalenessInterval time.Duration) 
 	return &totalAggrState{
 		ignoreInputDeadline: currentTime + intervalSecs,
 		stalenessSecs:       stalenessSecs,
+		intervalSecs:        intervalSecs,
 	}
 }
 
@@ -75,6 +79,7 @@ again:
 		lv.value = value
 		lv.deleteDeadline = deleteDeadline
 		sv.deleteDeadline = deleteDeadline
+		sv.samplesCount++
 	}
 	sv.mu.Unlock()
 	if deleted {
@@ -131,8 +136,36 @@ func (as *totalAggrState) appendSeriesForFlush(ctx *flushCtx) {
 		sv.mu.Unlock()
 		if !deleted {
 			key := k.(string)
-			ctx.appendSeries(key, "total", currentTimeMsec, total)
+			ctx.appendSeries(key, as.getOutputName(), currentTimeMsec, total)
 		}
 		return true
 	})
+	as.lastPushTimestamp.Store(currentTime)
+}
+
+func (as *totalAggrState) getOutputName() string {
+	return "total"
+}
+
+func (as *totalAggrState) getStateRepresentation(suffix string) aggrStateRepresentation {
+	metrics := make([]aggrStateRepresentationMetric, 0)
+	as.m.Range(func(k, v any) bool {
+		value := v.(*totalStateValue)
+		value.mu.Lock()
+		defer value.mu.Unlock()
+		if value.deleted {
+			return true
+		}
+		metrics = append(metrics, aggrStateRepresentationMetric{
+			metric:       getLabelsStringFromKey(k.(string), suffix, as.getOutputName()),
+			currentValue: value.total,
+			samplesCount: value.samplesCount,
+		})
+		return true
+	})
+	return aggrStateRepresentation{
+		intervalSecs:      as.intervalSecs,
+		lastPushTimestamp: as.lastPushTimestamp.Load(),
+		metrics:           metrics,
+	}
 }

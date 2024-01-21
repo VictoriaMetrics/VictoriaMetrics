@@ -2,23 +2,30 @@ package streamaggr
 
 import (
 	"sync"
+	"sync/atomic"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 )
 
 // lastAggrState calculates output=last, e.g. the last value over input samples.
 type lastAggrState struct {
-	m sync.Map
+	m                 sync.Map
+	intervalSecs      uint64
+	lastPushTimestamp atomic.Uint64
 }
 
 type lastStateValue struct {
-	mu      sync.Mutex
-	last    float64
-	deleted bool
+	mu           sync.Mutex
+	last         float64
+	samplesCount uint64
+	deleted      bool
 }
 
-func newLastAggrState() *lastAggrState {
-	return &lastAggrState{}
+func newLastAggrState(interval time.Duration) *lastAggrState {
+	return &lastAggrState{
+		intervalSecs: roundDurationToSecs(interval),
+	}
 }
 
 func (as *lastAggrState) pushSample(_, outputKey string, value float64) {
@@ -42,6 +49,7 @@ again:
 	deleted := sv.deleted
 	if !deleted {
 		sv.last = value
+		sv.samplesCount++
 	}
 	sv.mu.Unlock()
 	if deleted {
@@ -52,7 +60,9 @@ again:
 }
 
 func (as *lastAggrState) appendSeriesForFlush(ctx *flushCtx) {
-	currentTimeMsec := int64(fasttime.UnixTimestamp()) * 1000
+	currentTime := fasttime.UnixTimestamp()
+	currentTimeMsec := int64(currentTime) * 1000
+
 	m := &as.m
 	m.Range(func(k, v interface{}) bool {
 		// Atomically delete the entry from the map, so new entry is created for the next flush.
@@ -65,7 +75,35 @@ func (as *lastAggrState) appendSeriesForFlush(ctx *flushCtx) {
 		sv.deleted = true
 		sv.mu.Unlock()
 		key := k.(string)
-		ctx.appendSeries(key, "last", currentTimeMsec, last)
+		ctx.appendSeries(key, as.getOutputName(), currentTimeMsec, last)
 		return true
 	})
+	as.lastPushTimestamp.Store(currentTime)
+}
+
+func (as *lastAggrState) getOutputName() string {
+	return "last"
+}
+
+func (as *lastAggrState) getStateRepresentation(suffix string) aggrStateRepresentation {
+	metrics := make([]aggrStateRepresentationMetric, 0)
+	as.m.Range(func(k, v any) bool {
+		value := v.(*lastStateValue)
+		value.mu.Lock()
+		defer value.mu.Unlock()
+		if value.deleted {
+			return true
+		}
+		metrics = append(metrics, aggrStateRepresentationMetric{
+			metric:       getLabelsStringFromKey(k.(string), suffix, as.getOutputName()),
+			currentValue: value.last,
+			samplesCount: value.samplesCount,
+		})
+		return true
+	})
+	return aggrStateRepresentation{
+		intervalSecs:      as.intervalSecs,
+		lastPushTimestamp: as.lastPushTimestamp.Load(),
+		metrics:           metrics,
+	}
 }

@@ -211,3 +211,8 @@ func pushAggregateSeries(tss []prompbmarshal.TimeSeries) {
 		logger.Errorf("cannot flush aggregate series: %s", err)
 	}
 }
+
+// GetAggregators returns default aggregator for vmsingle.
+func GetAggregators() map[string]*streamaggr.Aggregators {
+	return map[string]*streamaggr.Aggregators{"default": sasGlobal.Load()}
+}

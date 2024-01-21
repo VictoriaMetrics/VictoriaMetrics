@@ -1,0 +1,246 @@
+{% import (
+    "fmt"
+    "sort"
+    "strings"
+    "time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/htmlcomponents"
+) %}
+
+{% code
+const DEFAULT_LIMIT = 1000
+%}
+
+{% stripspace %}
+
+{% func StreamAggHTML(rws map[string]*Aggregators, rwActive string) %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {%= htmlcomponents.CommonHeader() %}
+    <title>Stream aggregation</title>
+</head>
+<body>
+    {%= htmlcomponents.Navbar() %}
+    <div class="container-fluid">
+        <div class="row">
+            <main class="col-12">
+                <h1>Aggregations</h1>
+                <hr />
+                <ul class="nav nav-tabs" id="rw-tab" role="tablist">
+                    {% for rwKey := range rws  %}
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link{%if rwKey==rwActive %}{% space %}active{%endif%}" type="button" role="tab"
+                              onclick="location.href='?rw={%s rwKey %}'">
+                                {%s rwKey %}
+                            </button>
+                        </li>
+                    {% endfor %}
+                </ul>
+                <div class="tab-content">
+                    <div class="tab-pane active" role="tabpanel">
+                        <div id="aggregations" class="table-responsive">
+                          <table class="table table-striped table-hover table-bordered table-sm">
+                              <thead>
+                                  <tr>
+                                      <th scope="col" style="width: 5%">Num</th>
+                                      <th scope="col" style="width: 35%">Match</th>
+                                      <th scope="col" style="width: 10%">By</th>
+                                      <th scope="col" style="width: 10%">Without</a>
+                                      <th scope="col" style="width: 40%">Outputs</a>
+                                  </tr>
+                              </thead>
+                              <tbody>
+                              {% code aggs := rws[rwActive] %}
+                              {% for an, agg := range aggs.as %}
+                                  <tr>
+                                      <td>{%d an %}</td>
+                                      <td>
+                                          <code>{%s agg.match.String() %}</code>
+                                      </td>
+                                      <td class="labels">
+                                          {% for abn, ab := range agg.by %}
+                                              {% if abn > 0 %}
+                                                <span>, </span>
+                                              {% endif %}
+                                              <span class="badge bg-secondary">
+                                                {%s ab %}
+                                              </span>
+                                          {% endfor %}
+                                      </td>
+                                      <td class="labels">
+                                          {% for awn, aw := range agg.without %}
+                                              {% if awn > 0 %}
+                                                <span>, </span>
+                                              {% endif %}
+                                              <span class="badge bg-secondary">
+                                                {%s aw %}
+                                              </span>
+                                          {% endfor %}
+                                      </td>
+                                      <td class="labels">
+                                          {% for asn, as := range agg.aggrStates %}
+                                              {% if asn > 0 %}
+                                                  <span>, </span>
+                                              {% endif %}
+                                              <a href="?rw={%s rwActive %}&agg={%d an %}&output={%s as.getOutputName() %}&limit={%d DEFAULT_LIMIT %}">
+                                                  {%s as.getOutputName() %}
+                                              </a>
+                                          {% endfor %}
+                                      </td>
+                                  </tr>
+                              {% endfor %}
+                              </tbody>
+                          </table>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+</body>
+</html>
+{% endfunc %}
+
+{% func StreamAggOutputStateHTML(rwActive string, aggNum int, agg *aggregator, as aggrState, limit int, filter string) %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {%= htmlcomponents.CommonHeader() %}
+    <title>Stream aggregation</title>
+</head>
+<body>
+    {%= htmlcomponents.Navbar() %}
+    <div class="container-fluid">
+        <div class="row">
+            <main class="col-12">
+                {% code
+                    sr := as.getStateRepresentation(agg.suffix)
+                    if filter != "" {
+                        filter = strings.ToLower(filter)
+                        metrics := sr.metrics[:0]
+                        for _, m := range sr.metrics {
+                            if strings.Contains(strings.ToLower(m.metric), filter) {
+                                metrics = append(metrics, m)
+                            }
+                        }
+                        sr.metrics = metrics
+                    }
+                    sort.Slice(sr.metrics, func(i, j int) bool {
+                        return sr.metrics[i].metric < sr.metrics[j].metric
+                    })
+                    if len(sr.metrics) > limit {
+                        sr.metrics = sr.metrics[:limit]
+                    }
+                %}
+
+                <h1>Aggregation state</h1>
+                <h4> [ <a href="?rw={%s rwActive %}">back to aggregations</a> ] </h3>
+                <hr />
+                <h6>
+                    <div class="row container-sm">
+                        <div class="input-group input-group-sm mb-1">
+                          <span class="input-group-text" id="remote-write" style="width: 200px">Remote write:</span>
+                          <input type="text" class="form-control" aria-label="Remote write" aria-describedby="remote-write" value="{%s rwActive %}" readonly />
+                        </div>
+
+                        <div class="input-group input-group-sm mb-1">
+                          <span class="input-group-text" id="agg-num" style="width: 200px">Aggregation num:</span>
+                          <input type="number" class="form-control" aria-label="Aggregation num" aria-describedby="agg-num" value="{%d aggNum %}" readonly />
+                        </div>
+
+                        <div class="input-group input-group-sm mb-1">
+                          <span class="input-group-text" id="match" style="width: 200px">Match:</span>
+                          <input type="string" class="form-control" aria-label="Match" aria-describedby="match" value="{%s agg.match.String() %}" readonly />
+                        </div>
+
+                        {% if len(agg.by) > 0 %}
+                        <div class="input-group input-group-sm mb-1">
+                          <span class="input-group-text" id="by" style="width: 200px">By:</span>
+                          <input type="string" class="form-control" aria-label="By" aria-describedby="by" value="{%s strings.Join(agg.by, ", ") %}" readonly />
+                        </div>
+                        {% endif %}
+                        {% if len(agg.without) > 0 %}
+                        <div class="input-group input-group-sm mb-1">
+                          <span class="input-group-text" id="without" style="width: 200px">Without:</span>
+                          <input type="string" class="form-control" aria-label="Without" aria-describedby="without" value="{%s strings.Join(agg.without, ", ") %}" readonly />
+                        </div>
+                        {% endif %}
+
+                        <div class="input-group input-group-sm mb-1">
+                          <span class="input-group-text" id="interval" style="width: 200px">Interval (seconds):</span>
+                          <input type="number" class="form-control" aria-label="Interval (seconds)" aria-describedby="interval" value="{%v sr.intervalSecs %}" readonly />
+                        </div>
+
+                        <div class="input-group input-group-sm mb-1">
+                          <span class="input-group-text" id="last-push-time" style="width: 200px">Last push time:</span>
+                          <input type="string" class="form-control" aria-label="Last push time" aria-describedby="last-push-time" value="{% if sr.lastPushTimestamp == 0 %}-{% else %}{%s time.Unix(int64(sr.lastPushTimestamp), 0).Format(time.RFC3339) %}{% endif %}" readonly />
+                        </div>
+
+                        <div class="input-group input-group-sm mb-1">
+                          <span class="input-group-text" id="next-push-time" style="width: 200px">Next push time:</span>
+                          <input type="string" class="form-control" aria-label="Next push time" aria-describedby="next-push-time" value="{% if sr.lastPushTimestamp == 0 %}{%s time.Unix(int64(agg.initialTime + sr.intervalSecs), 0).Format(time.RFC3339) %}{% else %}{%s time.Unix(int64(sr.lastPushTimestamp + sr.intervalSecs), 0).Format(time.RFC3339) %}{% endif %}" readonly />
+                        </div>
+
+                        <div class="input-group input-group-sm mb-1">
+                          <span class="input-group-text" id="limit-label" style="width: 200px">Items on the page:</span>
+                          <input id="limit" type="number" class="form-control" aria-label="Limit" aria-describedby="limit-label" value="{%d limit %}" />
+                          <button type="button" class="btn btn-outline-secondary" onclick="location.href='?rw={%s rwActive %}&agg={%d aggNum %}&output={%s as.getOutputName() %}&limit='+document.querySelector(`#limit`).value+'&filter='+encodeURIComponent(document.querySelector(`#filter`).value)">apply</button>
+                        </div>
+
+                        <div class="input-group input-group-sm mb-1">
+                          <span class="input-group-text" id="filter-label" style="width: 200px">Filter:</span>
+                          <input id="filter" type="text" class="form-control" aria-label="Filter" aria-describedby="filter-label" value="{%s filter %}" />
+                          <button type="button" class="btn btn-outline-secondary" onclick="location.href='?rw={%s rwActive %}&agg={%d aggNum %}&output={%s as.getOutputName() %}&limit={%d limit %}&filter='+encodeURIComponent(document.querySelector(`#filter`).value)">apply</button>
+                        </div>
+                    </div>
+                </h6>
+                <hr />
+                <ul class="nav nav-tabs" id="rw-tab" role="tablist">
+                    {% for _, a := range agg.aggrStates  %}
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link{%if a.getOutputName()==as.getOutputName() %}{% space %}active{%endif%}" type="button" role="tab"
+                              onclick="location.href='?rw={%s rwActive %}&agg={%d aggNum %}&output={%s a.getOutputName() %}&limit={%d limit %}'">
+                                {%s a.getOutputName() %}
+                            </button>
+                        </li>
+                    {% endfor %}
+                </ul>
+                <div class="tab-content">
+                    <div class="tab-pane active" role="tabpanel">
+                        <div id="aggregation-state" class="table-responsive">
+                            <table class="table table-striped table-hover table-bordered table-sm">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">Metric</th>
+                                        <th scope="col">Current value</th>
+                                        <th scope="col">Samples count</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for _, asr := range sr.metrics %}
+                                        <tr>
+                                            <td>
+                                                <code>{%s asr.metric %}</code>
+                                            </td>
+                                            <td class="text-end">
+                                                {%f asr.currentValue %}
+                                            </td>
+                                            <td class="text-end">
+                                                {%s fmt.Sprintf("%v", asr.samplesCount) %}
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+</body>
+</html>
+{% endfunc %}
+
+{% endstripspace %}

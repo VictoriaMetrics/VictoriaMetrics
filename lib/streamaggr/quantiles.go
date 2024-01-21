@@ -3,28 +3,34 @@ package streamaggr
 import (
 	"strconv"
 	"sync"
+	"sync/atomic"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/valyala/histogram"
 )
 
 // quantilesAggrState calculates output=quantiles, e.g. the the given quantiles over the input samples.
 type quantilesAggrState struct {
-	m sync.Map
-
-	phis []float64
+	m                 sync.Map
+	phis              []float64
+	intervalSecs      uint64
+	lastPushTimestamp atomic.Uint64
 }
 
 type quantilesStateValue struct {
-	mu      sync.Mutex
-	h       *histogram.Fast
-	deleted bool
+	mu           sync.Mutex
+	h            *histogram.Fast
+	samplesCount uint64
+	deleted      bool
 }
 
-func newQuantilesAggrState(phis []float64) *quantilesAggrState {
+func newQuantilesAggrState(interval time.Duration, phis []float64) *quantilesAggrState {
 	return &quantilesAggrState{
-		phis: phis,
+		intervalSecs: roundDurationToSecs(interval),
+		phis:         phis,
 	}
 }
 
@@ -49,6 +55,7 @@ again:
 	deleted := sv.deleted
 	if !deleted {
 		sv.h.Update(value)
+		sv.samplesCount++
 	}
 	sv.mu.Unlock()
 	if deleted {
@@ -59,7 +66,9 @@ again:
 }
 
 func (as *quantilesAggrState) appendSeriesForFlush(ctx *flushCtx) {
-	currentTimeMsec := int64(fasttime.UnixTimestamp()) * 1000
+	currentTime := fasttime.UnixTimestamp()
+	currentTimeMsec := int64(currentTime) * 1000
+
 	m := &as.m
 	phis := as.phis
 	var quantiles []float64
@@ -80,8 +89,43 @@ func (as *quantilesAggrState) appendSeriesForFlush(ctx *flushCtx) {
 		for i, quantile := range quantiles {
 			b = strconv.AppendFloat(b[:0], phis[i], 'g', -1, 64)
 			phiStr := bytesutil.InternBytes(b)
-			ctx.appendSeriesWithExtraLabel(key, "quantiles", currentTimeMsec, quantile, "quantile", phiStr)
+			ctx.appendSeriesWithExtraLabel(key, as.getOutputName(), currentTimeMsec, quantile, "quantile", phiStr)
 		}
 		return true
 	})
+	as.lastPushTimestamp.Store(currentTime)
+}
+
+func (as *quantilesAggrState) getOutputName() string {
+	return "quantiles"
+}
+
+func (as *quantilesAggrState) getStateRepresentation(suffix string) aggrStateRepresentation {
+	metrics := make([]aggrStateRepresentationMetric, 0)
+	var b []byte
+	as.m.Range(func(k, v any) bool {
+		value := v.(*quantilesStateValue)
+		value.mu.Lock()
+		defer value.mu.Unlock()
+		if value.deleted {
+			return true
+		}
+		for i, quantile := range value.h.Quantiles(make([]float64, 0), as.phis) {
+			b = strconv.AppendFloat(b[:0], as.phis[i], 'g', -1, 64)
+			metrics = append(metrics, aggrStateRepresentationMetric{
+				metric: getLabelsStringFromKey(k.(string), suffix, as.getOutputName(), prompbmarshal.Label{
+					Name:  "quantile",
+					Value: bytesutil.InternBytes(b),
+				}),
+				currentValue: quantile,
+				samplesCount: value.samplesCount,
+			})
+		}
+		return true
+	})
+	return aggrStateRepresentation{
+		intervalSecs:      as.intervalSecs,
+		lastPushTimestamp: as.lastPushTimestamp.Load(),
+		metrics:           metrics,
+	}
 }

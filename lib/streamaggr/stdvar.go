@@ -2,13 +2,17 @@ package streamaggr
 
 import (
 	"sync"
+	"sync/atomic"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 )
 
 // stdvarAggrState calculates output=stdvar, e.g. the average value over input samples.
 type stdvarAggrState struct {
-	m sync.Map
+	m                 sync.Map
+	intervalSecs      uint64
+	lastPushTimestamp atomic.Uint64
 }
 
 type stdvarStateValue struct {
@@ -19,8 +23,10 @@ type stdvarStateValue struct {
 	deleted bool
 }
 
-func newStdvarAggrState() *stdvarAggrState {
-	return &stdvarAggrState{}
+func newStdvarAggrState(interval time.Duration) *stdvarAggrState {
+	return &stdvarAggrState{
+		intervalSecs: roundDurationToSecs(interval),
+	}
 }
 
 func (as *stdvarAggrState) pushSample(_, outputKey string, value float64) {
@@ -54,7 +60,9 @@ again:
 }
 
 func (as *stdvarAggrState) appendSeriesForFlush(ctx *flushCtx) {
-	currentTimeMsec := int64(fasttime.UnixTimestamp()) * 1000
+	currentTime := fasttime.UnixTimestamp()
+	currentTimeMsec := int64(currentTime) * 1000
+
 	m := &as.m
 	m.Range(func(k, v interface{}) bool {
 		// Atomically delete the entry from the map, so new entry is created for the next flush.
@@ -67,7 +75,35 @@ func (as *stdvarAggrState) appendSeriesForFlush(ctx *flushCtx) {
 		sv.deleted = true
 		sv.mu.Unlock()
 		key := k.(string)
-		ctx.appendSeries(key, "stdvar", currentTimeMsec, stdvar)
+		ctx.appendSeries(key, as.getOutputName(), currentTimeMsec, stdvar)
 		return true
 	})
+	as.lastPushTimestamp.Store(currentTime)
+}
+
+func (as *stdvarAggrState) getOutputName() string {
+	return "stdvar"
+}
+
+func (as *stdvarAggrState) getStateRepresentation(suffix string) aggrStateRepresentation {
+	metrics := make([]aggrStateRepresentationMetric, 0)
+	as.m.Range(func(k, v any) bool {
+		value := v.(*stdvarStateValue)
+		value.mu.Lock()
+		defer value.mu.Unlock()
+		if value.deleted {
+			return true
+		}
+		metrics = append(metrics, aggrStateRepresentationMetric{
+			metric:       getLabelsStringFromKey(k.(string), suffix, as.getOutputName()),
+			currentValue: value.q / value.count,
+			samplesCount: uint64(value.count),
+		})
+		return true
+	})
+	return aggrStateRepresentation{
+		intervalSecs:      as.intervalSecs,
+		lastPushTimestamp: as.lastPushTimestamp.Load(),
+		metrics:           metrics,
+	}
 }

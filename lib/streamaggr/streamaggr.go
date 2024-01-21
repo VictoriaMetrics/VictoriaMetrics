@@ -13,6 +13,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
@@ -241,11 +242,27 @@ type aggregator struct {
 
 	wg     sync.WaitGroup
 	stopCh chan struct{}
+
+	initialTime uint64
 }
 
 type aggrState interface {
 	pushSample(inputKey, outputKey string, value float64)
 	appendSeriesForFlush(ctx *flushCtx)
+	getOutputName() string
+	getStateRepresentation(suffix string) aggrStateRepresentation
+}
+
+type aggrStateRepresentation struct {
+	intervalSecs      uint64
+	lastPushTimestamp uint64
+	metrics           []aggrStateRepresentationMetric
+}
+
+type aggrStateRepresentationMetric struct {
+	metric       string
+	currentValue float64
+	samplesCount uint64
 }
 
 // PushFunc is called by Aggregators when it needs to push its state to metrics storage
@@ -328,7 +345,7 @@ func newAggregator(cfg *Config, pushFunc PushFunc, dedupInterval time.Duration) 
 				}
 				phis[j] = phi
 			}
-			aggrStates[i] = newQuantilesAggrState(phis)
+			aggrStates[i] = newQuantilesAggrState(interval, phis)
 			continue
 		}
 		switch output {
@@ -337,25 +354,25 @@ func newAggregator(cfg *Config, pushFunc PushFunc, dedupInterval time.Duration) 
 		case "increase":
 			aggrStates[i] = newIncreaseAggrState(interval, stalenessInterval)
 		case "count_series":
-			aggrStates[i] = newCountSeriesAggrState()
+			aggrStates[i] = newCountSeriesAggrState(interval)
 		case "count_samples":
-			aggrStates[i] = newCountSamplesAggrState()
+			aggrStates[i] = newCountSamplesAggrState(interval)
 		case "sum_samples":
-			aggrStates[i] = newSumSamplesAggrState()
+			aggrStates[i] = newSumSamplesAggrState(interval)
 		case "last":
-			aggrStates[i] = newLastAggrState()
+			aggrStates[i] = newLastAggrState(interval)
 		case "min":
-			aggrStates[i] = newMinAggrState()
+			aggrStates[i] = newMinAggrState(interval)
 		case "max":
-			aggrStates[i] = newMaxAggrState()
+			aggrStates[i] = newMaxAggrState(interval)
 		case "avg":
-			aggrStates[i] = newAvgAggrState()
+			aggrStates[i] = newAvgAggrState(interval)
 		case "stddev":
-			aggrStates[i] = newStddevAggrState()
+			aggrStates[i] = newStddevAggrState(interval)
 		case "stdvar":
-			aggrStates[i] = newStdvarAggrState()
+			aggrStates[i] = newStdvarAggrState(interval)
 		case "histogram_bucket":
-			aggrStates[i] = newHistogramBucketAggrState(stalenessInterval)
+			aggrStates[i] = newHistogramBucketAggrState(interval, stalenessInterval)
 		default:
 			return nil, fmt.Errorf("unsupported output=%q; supported values: %s; "+
 				"see https://docs.victoriametrics.com/stream-aggregation.html", output, supportedOutputs)
@@ -374,7 +391,7 @@ func newAggregator(cfg *Config, pushFunc PushFunc, dedupInterval time.Duration) 
 
 	var dedupAggr *lastAggrState
 	if dedupInterval > 0 {
-		dedupAggr = newLastAggrState()
+		dedupAggr = newLastAggrState(interval)
 	}
 
 	// initialize the aggregator
@@ -395,6 +412,8 @@ func newAggregator(cfg *Config, pushFunc PushFunc, dedupInterval time.Duration) 
 		suffix: suffix,
 
 		stopCh: make(chan struct{}),
+
+		initialTime: fasttime.UnixTimestamp(),
 	}
 
 	if dedupAggr != nil {
@@ -828,4 +847,22 @@ func sortAndRemoveDuplicates(a []string) []string {
 		}
 	}
 	return dst
+}
+
+func getLabelsStringFromKey(
+	key string,
+	suffix string,
+	output string,
+	extraLabels ...prompbmarshal.Label,
+) string {
+	labels := make([]prompbmarshal.Label, 0)
+	labels, _ = unmarshalLabelsFast(labels, []byte(key))
+	labels = addMetricSuffix(labels, 0, suffix, output)
+	labels = append(labels, extraLabels...)
+	a := make([]string, len(labels))
+	for i, label := range labels {
+		a[i] = fmt.Sprintf("%s=%q", label.Name, label.Value)
+	}
+	sort.Strings(a)
+	return "{" + strings.Join(a, ",") + "}"
 }

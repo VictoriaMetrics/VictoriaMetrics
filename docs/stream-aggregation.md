@@ -702,3 +702,16 @@ so every `vmagent` aggregates data into distinct set of time series. These time 
 For example, if `vmagent` instances run in Docker or Kubernetes, then you can refer `POD_NAME` or `HOSTNAME` environment variables
 as an unique label value per each `vmagent`: `-remoteWrite.label='vmagent=%{HOSTNAME}` . See [these docs](https://docs.victoriametrics.com/#environment-variables)
 on how to refer environment variables in VictoriaMetrics components.
+
+## Debugging
+
+It is possible to see the current state of streaming aggregation via `/stream-agg` page 
+of [vmagent](https://docs.victoriametrics.com/vmagent.html) and [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html).
+
+On this page you can see the list of active aggregations for each remote write:
+
+<img alt="stream aggregation -> aggregations list" src="stream-aggregation-ui-1.webp">
+
+By clicking on the output name you can see the list of time series for this output with theirs current state:
+
+<img alt="stream aggregation -> aggregation state" src="stream-aggregation-ui-2.webp">

@@ -2,13 +2,17 @@ package streamaggr
 
 import (
 	"sync"
+	"sync/atomic"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 )
 
 // countSamplesAggrState calculates output=countSamples, e.g. the count of input samples.
 type countSamplesAggrState struct {
-	m sync.Map
+	m                 sync.Map
+	intervalSecs      uint64
+	lastPushTimestamp atomic.Uint64
 }
 
 type countSamplesStateValue struct {
@@ -17,8 +21,10 @@ type countSamplesStateValue struct {
 	deleted bool
 }
 
-func newCountSamplesAggrState() *countSamplesAggrState {
-	return &countSamplesAggrState{}
+func newCountSamplesAggrState(interval time.Duration) *countSamplesAggrState {
+	return &countSamplesAggrState{
+		intervalSecs: roundDurationToSecs(interval),
+	}
 }
 
 func (as *countSamplesAggrState) pushSample(_, outputKey string, _ float64) {
@@ -52,7 +58,9 @@ again:
 }
 
 func (as *countSamplesAggrState) appendSeriesForFlush(ctx *flushCtx) {
-	currentTimeMsec := int64(fasttime.UnixTimestamp()) * 1000
+	currentTime := fasttime.UnixTimestamp()
+	currentTimeMsec := int64(currentTime) * 1000
+
 	m := &as.m
 	m.Range(func(k, v interface{}) bool {
 		// Atomically delete the entry from the map, so new entry is created for the next flush.
@@ -65,7 +73,35 @@ func (as *countSamplesAggrState) appendSeriesForFlush(ctx *flushCtx) {
 		sv.deleted = true
 		sv.mu.Unlock()
 		key := k.(string)
-		ctx.appendSeries(key, "count_samples", currentTimeMsec, float64(n))
+		ctx.appendSeries(key, as.getOutputName(), currentTimeMsec, float64(n))
 		return true
 	})
+	as.lastPushTimestamp.Store(currentTime)
+}
+
+func (as *countSamplesAggrState) getOutputName() string {
+	return "count_samples"
+}
+
+func (as *countSamplesAggrState) getStateRepresentation(suffix string) aggrStateRepresentation {
+	metrics := make([]aggrStateRepresentationMetric, 0)
+	as.m.Range(func(k, v any) bool {
+		value := v.(*countSamplesStateValue)
+		value.mu.Lock()
+		defer value.mu.Unlock()
+		if value.deleted {
+			return true
+		}
+		metrics = append(metrics, aggrStateRepresentationMetric{
+			metric:       getLabelsStringFromKey(k.(string), suffix, as.getOutputName()),
+			currentValue: float64(value.n),
+			samplesCount: value.n,
+		})
+		return true
+	})
+	return aggrStateRepresentation{
+		intervalSecs:      as.intervalSecs,
+		lastPushTimestamp: as.lastPushTimestamp.Load(),
+		metrics:           metrics,
+	}
 }

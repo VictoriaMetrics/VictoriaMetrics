@@ -3,30 +3,34 @@ package streamaggr
 import (
 	"math"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/metrics"
 )
 
 // histogramBucketAggrState calculates output=histogramBucket, e.g. VictoriaMetrics histogram over input samples.
 type histogramBucketAggrState struct {
-	m sync.Map
-
-	stalenessSecs uint64
+	m                 sync.Map
+	intervalSecs      uint64
+	stalenessSecs     uint64
+	lastPushTimestamp atomic.Uint64
 }
 
 type histogramBucketStateValue struct {
 	mu             sync.Mutex
 	h              metrics.Histogram
+	samplesCount   uint64
 	deleteDeadline uint64
 	deleted        bool
 }
 
-func newHistogramBucketAggrState(stalenessInterval time.Duration) *histogramBucketAggrState {
-	stalenessSecs := roundDurationToSecs(stalenessInterval)
+func newHistogramBucketAggrState(interval time.Duration, stalenessInterval time.Duration) *histogramBucketAggrState {
 	return &histogramBucketAggrState{
-		stalenessSecs: stalenessSecs,
+		intervalSecs:  roundDurationToSecs(interval),
+		stalenessSecs: roundDurationToSecs(stalenessInterval),
 	}
 }
 
@@ -50,6 +54,7 @@ again:
 	deleted := sv.deleted
 	if !deleted {
 		sv.h.Update(value)
+		sv.samplesCount++
 		sv.deleteDeadline = deleteDeadline
 	}
 	sv.mu.Unlock()
@@ -93,12 +98,46 @@ func (as *histogramBucketAggrState) appendSeriesForFlush(ctx *flushCtx) {
 		if !sv.deleted {
 			key := k.(string)
 			sv.h.VisitNonZeroBuckets(func(vmrange string, count uint64) {
-				ctx.appendSeriesWithExtraLabel(key, "histogram_bucket", currentTimeMsec, float64(count), "vmrange", vmrange)
+				ctx.appendSeriesWithExtraLabel(key, as.getOutputName(), currentTimeMsec, float64(count), "vmrange", vmrange)
 			})
 		}
 		sv.mu.Unlock()
 		return true
 	})
+
+	as.lastPushTimestamp.Store(currentTime)
+}
+
+func (as *histogramBucketAggrState) getOutputName() string {
+	return "histogram_bucket"
+}
+
+func (as *histogramBucketAggrState) getStateRepresentation(suffix string) aggrStateRepresentation {
+	rmetrics := make([]aggrStateRepresentationMetric, 0)
+	as.m.Range(func(k, v any) bool {
+		value := v.(*histogramBucketStateValue)
+		value.mu.Lock()
+		defer value.mu.Unlock()
+		if value.deleted {
+			return true
+		}
+		value.h.VisitNonZeroBuckets(func(vmrange string, count uint64) {
+			rmetrics = append(rmetrics, aggrStateRepresentationMetric{
+				metric: getLabelsStringFromKey(k.(string), suffix, as.getOutputName(), prompbmarshal.Label{
+					Name:  "vmrange",
+					Value: vmrange,
+				}),
+				currentValue: float64(count),
+				samplesCount: value.samplesCount,
+			})
+		})
+		return true
+	})
+	return aggrStateRepresentation{
+		intervalSecs:      as.intervalSecs,
+		lastPushTimestamp: as.lastPushTimestamp.Load(),
+		metrics:           rmetrics,
+	}
 }
 
 func roundDurationToSecs(d time.Duration) uint64 {

@@ -2,23 +2,30 @@ package streamaggr
 
 import (
 	"sync"
+	"sync/atomic"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 )
 
 // maxAggrState calculates output=max, e.g. the maximum value over input samples.
 type maxAggrState struct {
-	m sync.Map
+	m                 sync.Map
+	intervalSecs      uint64
+	lastPushTimestamp atomic.Uint64
 }
 
 type maxStateValue struct {
-	mu      sync.Mutex
-	max     float64
-	deleted bool
+	mu           sync.Mutex
+	max          float64
+	samplesCount uint64
+	deleted      bool
 }
 
-func newMaxAggrState() *maxAggrState {
-	return &maxAggrState{}
+func newMaxAggrState(interval time.Duration) *maxAggrState {
+	return &maxAggrState{
+		intervalSecs: roundDurationToSecs(interval),
+	}
 }
 
 func (as *maxAggrState) pushSample(_, outputKey string, value float64) {
@@ -44,6 +51,7 @@ again:
 		if value > sv.max {
 			sv.max = value
 		}
+		sv.samplesCount++
 	}
 	sv.mu.Unlock()
 	if deleted {
@@ -54,7 +62,9 @@ again:
 }
 
 func (as *maxAggrState) appendSeriesForFlush(ctx *flushCtx) {
-	currentTimeMsec := int64(fasttime.UnixTimestamp()) * 1000
+	currentTime := fasttime.UnixTimestamp()
+	currentTimeMsec := int64(currentTime) * 1000
+
 	m := &as.m
 	m.Range(func(k, v interface{}) bool {
 		// Atomically delete the entry from the map, so new entry is created for the next flush.
@@ -62,12 +72,41 @@ func (as *maxAggrState) appendSeriesForFlush(ctx *flushCtx) {
 
 		sv := v.(*maxStateValue)
 		sv.mu.Lock()
-		max := sv.max
+		value := sv.max
 		// Mark the entry as deleted, so it won't be updated anymore by concurrent pushSample() calls.
 		sv.deleted = true
 		sv.mu.Unlock()
 		key := k.(string)
-		ctx.appendSeries(key, "max", currentTimeMsec, max)
+		ctx.appendSeries(key, as.getOutputName(), currentTimeMsec, value)
 		return true
 	})
+
+	as.lastPushTimestamp.Store(currentTime)
+}
+
+func (as *maxAggrState) getOutputName() string {
+	return "max"
+}
+
+func (as *maxAggrState) getStateRepresentation(suffix string) aggrStateRepresentation {
+	metrics := make([]aggrStateRepresentationMetric, 0)
+	as.m.Range(func(k, v any) bool {
+		value := v.(*maxStateValue)
+		value.mu.Lock()
+		defer value.mu.Unlock()
+		if value.deleted {
+			return true
+		}
+		metrics = append(metrics, aggrStateRepresentationMetric{
+			metric:       getLabelsStringFromKey(k.(string), suffix, as.getOutputName()),
+			currentValue: value.max,
+			samplesCount: value.samplesCount,
+		})
+		return true
+	})
+	return aggrStateRepresentation{
+		intervalSecs:      as.intervalSecs,
+		lastPushTimestamp: as.lastPushTimestamp.Load(),
+		metrics:           metrics,
+	}
 }

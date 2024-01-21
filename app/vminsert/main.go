@@ -40,6 +40,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/streamaggr"
 )
 
 var (
@@ -337,6 +338,9 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		promscrapeConfigReloadRequests.Inc()
 		procutil.SelfSIGHUP()
 		w.WriteHeader(http.StatusNoContent)
+		return true
+	case "/stream-agg":
+		streamaggr.WriteHumanReadableState(w, r, vminsertCommon.GetAggregators())
 		return true
 	case "/ready":
 		if rdy := atomic.LoadInt32(&promscrape.PendingScrapeConfigs); rdy > 0 {

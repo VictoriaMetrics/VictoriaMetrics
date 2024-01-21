@@ -946,3 +946,24 @@ func CheckStreamAggrConfigs() error {
 	}
 	return nil
 }
+
+// GetAggregators returns aggregators for all the configured remote writes.
+func GetAggregators() map[string]*streamaggr.Aggregators {
+	var result = map[string]*streamaggr.Aggregators{}
+
+	if len(*remoteWriteMultitenantURLs) > 0 {
+		rwctxsMapLock.Lock()
+		for tenant, rwctxs := range rwctxsMap {
+			for rwNum, rw := range rwctxs {
+				result[fmt.Sprintf("rw %d for tenant %v:%v", rwNum, tenant.AccountID, tenant.ProjectID)] = rw.sas.Load()
+			}
+		}
+		rwctxsMapLock.Unlock()
+	} else {
+		for rwNum, rw := range rwctxsDefault {
+			result[fmt.Sprintf("remote write %d", rwNum)] = rw.sas.Load()
+		}
+	}
+
+	return result
+}
