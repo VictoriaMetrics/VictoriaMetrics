@@ -13,6 +13,7 @@ The following `tip` changes can be tested by building VictoriaMetrics components
 
 * BUGFIX: [vmselect](https://docs.victoriametrics.com/vmselect.html): properly determine time range search for instant queries with too big look-behind window like `foo[100y]`. Previously, such queries could return empty responses even if `foo` is present in database.
 * BUGFIX: properly return errors from [export APIs](https://docs.victoriametrics.com/#how-to-export-time-series). Previously these errors were silently suppressed. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5649).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): properly discover targets for `role: endpoints` and `role: endpointslice` in [kubernetes_sd_configs](https://docs.victoriametrics.com/sd_configs.html#kubernetes_sd_configs). Previously some `endpoints` and `endpointslice` targets could be left undiscovered or some targets could have missing `__meta_*` labels when performing service discovery in busy Kubernetes clusters with large number of pods. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5557).
 * BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): properly handle possible negative results caused by float operations precision error in rollup functions like rate() or increase(). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5571).
 
 ## [v1.93.10](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.10)
