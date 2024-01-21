@@ -779,6 +779,11 @@ func removeCounterResets(values []float64) {
 		}
 		prevValue = v
 		values[i] = v + correction
+		// Check again, there could be precision error in float operations,
+		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5571
+		if i > 0 && values[i] < values[i-1] {
+			values[i] = values[i-1]
+		}
 	}
 }
 
