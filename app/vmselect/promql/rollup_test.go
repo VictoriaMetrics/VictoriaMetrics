@@ -125,7 +125,7 @@ func TestRemoveCounterResets(t *testing.T) {
 	// removeCounterResets doesn't expect negative values, so it doesn't work properly with them.
 	values = []float64{-100, -200, -300, -400}
 	removeCounterResets(values)
-	valuesExpected = []float64{-100, -300, -600, -1000}
+	valuesExpected = []float64{-100, -100, -100, -100}
 	timestampsExpected := []int64{0, 1, 2, 3}
 	testRowsEqual(t, values, timestampsExpected, valuesExpected, timestampsExpected)
 
@@ -136,6 +136,17 @@ func TestRemoveCounterResets(t *testing.T) {
 	valuesExpected = []float64{100, 100, 125, 125, 145, 195}
 	timestampsExpected = []int64{0, 1, 2, 3, 4, 5}
 	testRowsEqual(t, values, timestampsExpected, valuesExpected, timestampsExpected)
+
+	// verify results always increase monotonically with possible float operations precision error
+	values = []float64{34.094223, 2.7518, 2.140669, 0.044878, 1.887095, 2.546569, 2.490149, 0.045, 0.035684, 0.062454, 0.058296}
+	removeCounterResets(values)
+	var prev float64
+	for i, v := range values {
+		if v < prev {
+			t.Fatalf("error: unexpected value keep getting bigger %d; cur %v; pre %v\n", i, v, prev)
+		}
+		prev = v
+	}
 }
 
 func TestDeltaValues(t *testing.T) {
