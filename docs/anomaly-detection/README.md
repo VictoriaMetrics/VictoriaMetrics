@@ -26,7 +26,7 @@ Begin your VictoriaMetrics Anomaly Detection journey with ease using our guides 
 
 ## Key Components
 Explore the integral components that configure VictoriaMetrics Anomaly Detection:
-* [Get familiar with components](/anomaly-detection/components)
+* [Explore components and their interation](/anomaly-detection/components)
     - [Models](/anomaly-detection/components/models.html)
     - [Reader](/anomaly-detection/components/reader.html)
     - [Scheduler](/anomaly-detection/components/scheduler.html)
