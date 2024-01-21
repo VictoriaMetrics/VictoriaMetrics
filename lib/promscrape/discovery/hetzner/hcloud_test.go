@@ -8,7 +8,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
-func TestParseHcloudNetworksList(t *testing.T) {
+func TestParseHCloudNetworksList(t *testing.T) {
 	data := `{
 		"meta": {
 		  "pagination": {
@@ -57,21 +57,25 @@ func TestParseHcloudNetworksList(t *testing.T) {
 	  }
 `
 
-	net, err := parseHcloudNetworksList([]byte(data))
+	nets, nextPage, err := parseHCloudNetworksList([]byte(data))
 	if err != nil {
 		t.Fatalf("unexpected error when parsing data: %s", err)
 	}
-	netExpected := &HcloudNetworksList{
-		Networks: []HcloudNetwork{
-			{Name: "mynet", ID: 4711},
+	netsExpected := []HCloudNetwork{
+		{
+			Name: "mynet",
+			ID:   4711,
 		},
 	}
-	if !reflect.DeepEqual(net, netExpected) {
-		t.Fatalf("unexpected parseHcloudNetworksList parsed;\ngot\n%+v\nwant\n%+v", net, netExpected)
+	if !reflect.DeepEqual(nets, netsExpected) {
+		t.Fatalf("unexpected parseHCloudNetworksList parsed;\ngot\n%+v\nwant\n%+v", nets, netsExpected)
+	}
+	if nextPage != 4 {
+		t.Fatalf("unexpected nextPage; got %d; want 4", nextPage)
 	}
 }
 
-func TestParseHcloudServerListResponse(t *testing.T) {
+func TestParseHCloudServerListResponse(t *testing.T) {
 	data := `{
 		"meta": {
 		  "pagination": {
@@ -246,71 +250,72 @@ func TestParseHcloudServerListResponse(t *testing.T) {
 		]
 	  }
 `
-	sl, err := parseHcloudServerList([]byte(data))
+	sl, nextPage, err := parseHCloudServerList([]byte(data))
 	if err != nil {
-		t.Fatalf("unexpected error parseHcloudServerList when parsing data: %s", err)
+		t.Fatalf("unexpected error parseHCloudServerList when parsing data: %s", err)
 	}
-	slExpected := &HcloudServerList{
-		Servers: []HcloudServer{
-			{
-				ID:     42,
-				Name:   "my-resource",
-				Status: "running",
-				PublicNet: PublicNet{
-					IPv4: IPv4{
-						IP: "1.2.3.4",
-					},
-					IPv6: IPv6{
-						IP: "2001:db8::/64",
-					},
+	slExpected := []HCloudServer{
+		{
+			ID:     42,
+			Name:   "my-resource",
+			Status: "running",
+			PublicNet: HCloudPublicNet{
+				IPv4: HCloudIPv4{
+					IP: "1.2.3.4",
 				},
-				PrivateNet: []PrivateNet{
-					{
-						ID: 4711,
-						IP: "10.0.0.2",
-					},
+				IPv6: HCloudIPv6{
+					IP: "2001:db8::/64",
 				},
-				ServerType: ServerType{
-					Name:    "cx11",
-					Cores:   1,
-					CPUType: "shared",
-					Memory:  1.0,
-					Disk:    25,
-				},
-				Datacenter: Datacenter{
-					Name: "fsn1-dc8",
-					Location: DatacenterLocation{
-						Name:        "fsn1",
-						NetworkZone: "eu-central",
-					},
-				},
-				Image: Image{
-					Name:        "ubuntu-20.04",
-					Description: "Ubuntu 20.04 Standard 64 bit",
-					OsFlavor:    "ubuntu",
-					OsVersion:   "20.04",
-				},
-				Labels: map[string]string{},
 			},
+			PrivateNet: []HCloudPrivateNet{
+				{
+					ID: 4711,
+					IP: "10.0.0.2",
+				},
+			},
+			ServerType: HCloudServerType{
+				Name:    "cx11",
+				Cores:   1,
+				CPUType: "shared",
+				Memory:  1.0,
+				Disk:    25,
+			},
+			Datacenter: HCloudDatacenter{
+				Name: "fsn1-dc8",
+				Location: HCloudDatacenterLocation{
+					Name:        "fsn1",
+					NetworkZone: "eu-central",
+				},
+			},
+			Image: &HCloudImage{
+				Name:        "ubuntu-20.04",
+				Description: "Ubuntu 20.04 Standard 64 bit",
+				OsFlavor:    "ubuntu",
+				OsVersion:   "20.04",
+			},
+			Labels: map[string]string{},
 		},
 	}
 	if !reflect.DeepEqual(sl, slExpected) {
-		t.Fatalf("unexpected parseHcloudServerList parsed;\ngot\n%+v\nwant\n%+v", sl, slExpected)
+		t.Fatalf("unexpected parseHCloudServerList parsed;\ngot\n%+v\nwant\n%+v", sl, slExpected)
+	}
+	if nextPage != 4 {
+		t.Fatalf("unexpected nextPage; got %d; want 4", nextPage)
 	}
 
-	server := sl.Servers[0]
-	var ms []*promutils.Labels
 	port := 123
-	networks := &HcloudNetworksList{
-		Networks: []HcloudNetwork{
-			{Name: "mynet", ID: 4711},
+	networks := []HCloudNetwork{
+		{
+			Name: "mynet",
+			ID:   4711,
 		},
 	}
-	labelss := server.appendTargetLabels(ms, port, networks)
+	labelss := appendHCloudTargetLabels(nil, &sl[0], networks, port)
 
 	expectedLabels := []*promutils.Labels{
 		promutils.NewLabelsFromMap(map[string]string{
 			"__address__":                                            "1.2.3.4:123",
+			"__meta_hetzner_role":                                    "hcloud",
 			"__meta_hetzner_server_id":                               "42",
 			"__meta_hetzner_server_name":                             "my-resource",
 			"__meta_hetzner_server_status":                           "running",

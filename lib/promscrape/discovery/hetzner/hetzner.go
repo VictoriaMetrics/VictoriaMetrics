@@ -12,7 +12,7 @@ import (
 )
 
 // SDCheckInterval defines interval for targets refresh.
-var SDCheckInterval = flag.Duration("promscrape.hetznerSDCheckInterval", time.Minute, "Interval for checking for changes in hetzner. "+
+var SDCheckInterval = flag.Duration("promscrape.hetznerSDCheckInterval", time.Minute, "Interval for checking for changes in Hetzner API. "+
 	"This works only if hetzner_sd_configs is configured in '-promscrape.config' file. "+
 	"See https://docs.victoriametrics.com/sd_configs.html#hetzner_sd_configs for details")
 
@@ -20,15 +20,14 @@ var SDCheckInterval = flag.Duration("promscrape.hetznerSDCheckInterval", time.Mi
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#hetzner_sd_config
 type SDConfig struct {
-	Role              string                     `yaml:"role,omitempty"`
+	Role              string                     `yaml:"role"`
 	Port              *int                       `yaml:"port,omitempty"`
-	Token             *promauth.Secret           `yaml:"token"`
 	HTTPClientConfig  promauth.HTTPClientConfig  `yaml:",inline"`
 	ProxyClientConfig promauth.ProxyClientConfig `yaml:",inline"`
 	ProxyURL          *proxy.URL                 `yaml:"proxy_url,omitempty"`
 }
 
-// GetLabels returns hcloud or hetzner robot labels according to sdc.
+// GetLabels returns Hetzner target labels according to sdc.
 func (sdc *SDConfig) GetLabels(baseDir string) ([]*promutils.Labels, error) {
 	cfg, err := getAPIConfig(sdc, baseDir)
 	if err != nil {
@@ -38,9 +37,10 @@ func (sdc *SDConfig) GetLabels(baseDir string) ([]*promutils.Labels, error) {
 	case "robot":
 		return getRobotServerLabels(cfg)
 	case "hcloud":
-		return getHcloudServerLabels(cfg)
+		return getHCloudServerLabels(cfg)
 	default:
-		return nil, fmt.Errorf("skipping unexpected role=%q; must be one of `robot` or `hcloud`", sdc.Role)
+		// The sdc.Role must be already verified by getAPIConfig().
+		panic(fmt.Errorf("BUG: unexpected role=%q; must be one of `robot` or `hcloud`", sdc.Role))
 	}
 }
 
