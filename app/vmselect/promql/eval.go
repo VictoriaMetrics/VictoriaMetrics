@@ -686,10 +686,7 @@ func tryGetArgRollupFuncWithMetricExpr(ae *metricsql.AggrFuncExpr) (*metricsql.F
 			return nil, nil
 		}
 		// e = rollupFunc(metricExpr)
-		return &metricsql.FuncExpr{
-			Name: fe.Name,
-			Args: []metricsql.Expr{me},
-		}, nrf
+		return fe, nrf
 	}
 	if re, ok := arg.(*metricsql.RollupExpr); ok {
 		if me, ok := re.Expr.(*metricsql.MetricExpr); !ok || me.IsEmpty() || re.ForSubquery() {
@@ -1683,9 +1680,6 @@ func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName stri
 		minTimestamp -= window
 	} else {
 		minTimestamp -= ec.Step
-	}
-	if minTimestamp < 0 {
-		minTimestamp = 0
 	}
 	sq := storage.NewSearchQuery(minTimestamp, ec.End, tfss, ec.MaxSeries)
 	rss, err := netstorage.ProcessSearchQuery(qt, sq, ec.Deadline)

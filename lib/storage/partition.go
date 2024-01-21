@@ -142,7 +142,6 @@ type partition struct {
 	partsLock sync.Mutex
 
 	// Contains inmemory parts with recently ingested data.
-	// It must be merged into either smallParts or bigParts to become visible to search.
 	inmemoryParts []*partWrapper
 
 	// Contains file-based parts with small number of items.

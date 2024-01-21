@@ -8,6 +8,7 @@ import { QueryStats } from "../../../api/types";
 import { partialWarning, seriesFetchedWarning } from "./warningText";
 import { AutocompleteOptions } from "../../Main/Autocomplete/Autocomplete";
 import { useQueryDispatch } from "../../../state/query/QueryStateContext";
+import useDeviceDetect from "../../../hooks/useDeviceDetect";
 
 export interface QueryEditorProps {
   onChange: (query: string) => void;
@@ -35,6 +36,7 @@ const QueryEditor: FC<QueryEditorProps> = ({
   label,
   disabled = false
 }) => {
+  const { isMobile } = useDeviceDetect();
 
   const [openAutocomplete, setOpenAutocomplete] = useState(false);
   const [caretPosition, setCaretPosition] = useState([0, 0]);
@@ -115,7 +117,7 @@ const QueryEditor: FC<QueryEditorProps> = ({
         value={value}
         label={label}
         type={"textarea"}
-        autofocus={!!value}
+        autofocus={!isMobile}
         error={error}
         warning={warning}
         onKeyDown={handleKeyDown}

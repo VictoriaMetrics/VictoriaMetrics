@@ -69,7 +69,7 @@ func Parse(r io.Reader, isVMRemoteWrite bool, callback func(tss []prompb.TimeSer
 	}
 	wr := getWriteRequest()
 	defer putWriteRequest(wr)
-	if err := wr.Unmarshal(bb.B); err != nil {
+	if err := wr.UnmarshalProtobuf(bb.B); err != nil {
 		unmarshalErrors.Inc()
 		return fmt.Errorf("cannot unmarshal prompb.WriteRequest with size %d bytes: %w", len(bb.B), err)
 	}

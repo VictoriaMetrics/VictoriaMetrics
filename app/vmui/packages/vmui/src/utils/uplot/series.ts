@@ -1,45 +1,104 @@
-import { MetricResult } from "../../api/types";
+import { MetricBase, MetricResult } from "../../api/types";
 import uPlot, { Series as uPlotSeries } from "uplot";
 import { getNameForMetric, promValueToNumber } from "../metric";
-import { HideSeriesArgs, BarSeriesItem, Disp, Fill, LegendItemType, Stroke, SeriesItem } from "../../types";
-import { baseContrastColors, getColorFromString } from "../color";
-import { getMedianFromArray, getMaxFromArray, getMinFromArray, getLastFromArray } from "../math";
+import { BarSeriesItem, Disp, Fill, ForecastType, HideSeriesArgs, LegendItemType, SeriesItem, Stroke } from "../../types";
+import { anomalyColors, baseContrastColors, getColorFromString } from "../color";
+import { getLastFromArray, getMaxFromArray, getMedianFromArray, getMinFromArray } from "../math";
 import { formatPrettyNumber } from "./helpers";
 
-export const getSeriesItemContext = (data: MetricResult[], hideSeries: string[], alias: string[]) => {
-  const colorState: {[key: string]: string} = {};
-  const stats = data.map(d => {
-    const values = d.values.map(v => promValueToNumber(v[1]));
-    return {
-      min: getMinFromArray(values),
-      max: getMaxFromArray(values),
-      median: getMedianFromArray(values),
-      last: getLastFromArray(values),
-    };
-  });
+// Helper function to extract freeFormFields values as a comma-separated string
+export const extractFields = (metric: MetricBase["metric"]): string => {
+  const excludeMetrics = ["__name__", "for"];
+  return Object.entries(metric)
+    .filter(([key]) => !excludeMetrics.includes(key))
+    .map(([key, value]) => `${key}: ${value}`).join(",");
+};
 
-  const maxColors = Math.min(data.length, baseContrastColors.length);
+export const isForecast = (metric: MetricBase["metric"]) => {
+  const metricName = metric?.__name__ || "";
+  const forecastRegex = new RegExp(`(${Object.values(ForecastType).join("|")})$`);
+  const match = metricName.match(forecastRegex);
+  const value = match && match[0] as ForecastType;
+  return {
+    value,
+    isUpper: value === ForecastType.yhatUpper,
+    isLower: value === ForecastType.yhatLower,
+    isYhat: value === ForecastType.yhat,
+    isAnomaly: value === ForecastType.anomaly,
+    isAnomalyScore: value === ForecastType.anomalyScore,
+    group: extractFields(metric)
+  };
+};
+
+export const getSeriesItemContext = (data: MetricResult[], hideSeries: string[], alias: string[], isAnomaly?: boolean) => {
+  const colorState: {[key: string]: string} = {};
+  const maxColors = isAnomaly ? 0 : Math.min(data.length, baseContrastColors.length);
+
   for (let i = 0; i < maxColors; i++) {
     const label = getNameForMetric(data[i], alias[data[i].group - 1]);
     colorState[label] = baseContrastColors[i];
   }
 
   return (d: MetricResult, i: number): SeriesItem => {
-    const label = getNameForMetric(d, alias[d.group - 1]);
-    const color = colorState[label] || getColorFromString(label);
-    const { min, max, median, last } = stats[i];
+    const forecast = isForecast(data[i].metric);
+    const label = isAnomaly ? forecast.group : getNameForMetric(d, alias[d.group - 1]);
+
+    const values = d.values.map(v => promValueToNumber(v[1]));
+    const { min, max, median, last } = {
+      min: getMinFromArray(values),
+      max: getMaxFromArray(values),
+      median: getMedianFromArray(values),
+      last: getLastFromArray(values),
+    };
+
+    let dash: number[] = [];
+    if (forecast.isLower || forecast.isUpper) {
+      dash = [10, 5];
+    } else if (forecast.isYhat) {
+      dash = [10, 2];
+    }
+
+    let width = 1.4;
+    if (forecast.isUpper || forecast.isLower) {
+      width = 0.7;
+    } else if (forecast.isYhat) {
+      width = 1;
+    } else if (forecast.isAnomaly) {
+      width = 0;
+    }
+
+    let points: uPlotSeries.Points = { size: 4.2, width: 1.4 };
+    if (forecast.isAnomaly) {
+      points = { size: 8, width: 4, space: 0 };
+    }
+
+    let stroke: uPlotSeries.Stroke = colorState[label] || getColorFromString(label);
+    if (isAnomaly && forecast.isAnomaly) {
+      stroke = anomalyColors[ForecastType.anomaly];
+    } else if (isAnomaly && !forecast.isAnomaly && !forecast.value) {
+      // TODO add stroke for training data
+      // const hzGrad: [number, string][] = [
+      //   [time, anomalyColors[ForecastType.actual]],
+      //   [time, anomalyColors[ForecastType.training]],
+      //   [time, anomalyColors[ForecastType.actual]],
+      // ];
+      // stroke = scaleGradient("x", 0, hzGrad, true);
+      stroke = anomalyColors[ForecastType.actual];
+    } else if (forecast.value) {
+      stroke = forecast.value ? anomalyColors[forecast.value] : stroke;
+    }
 
     return {
       label,
+      dash,
+      width,
+      stroke,
+      points,
+      forecast: forecast.value,
+      forecastGroup: forecast.group,
       freeFormFields: d.metric,
-      width: 1.4,
-      stroke: color,
       show: !includesHideSeries(label, hideSeries),
       scale: "1",
-      points: {
-        size: 4.2,
-        width: 1.4
-      },
       statsFormatted: {
         min: formatPrettyNumber(min, min, max),
         max: formatPrettyNumber(max, min, max),

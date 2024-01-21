@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -54,15 +55,14 @@ var (
 )
 
 type test struct {
-	Name             string     `json:"name"`
-	Data             []string   `json:"data"`
-	InsertQuery      string     `json:"insert_query"`
-	Query            []string   `json:"query"`
-	ResultMetrics    []Metric   `json:"result_metrics"`
-	ResultSeries     Series     `json:"result_series"`
-	ResultQuery      Query      `json:"result_query"`
-	ResultQueryRange QueryRange `json:"result_query_range"`
-	Issue            string     `json:"issue"`
+	Name          string   `json:"name"`
+	Data          []string `json:"data"`
+	InsertQuery   string   `json:"insert_query"`
+	Query         []string `json:"query"`
+	ResultMetrics []Metric `json:"result_metrics"`
+	ResultSeries  Series   `json:"result_series"`
+	ResultQuery   Query    `json:"result_query"`
+	Issue         string   `json:"issue"`
 }
 
 type Metric struct {
@@ -80,42 +80,90 @@ type Series struct {
 	Status string              `json:"status"`
 	Data   []map[string]string `json:"data"`
 }
+
 type Query struct {
-	Status string    `json:"status"`
-	Data   QueryData `json:"data"`
-}
-type QueryData struct {
-	ResultType string            `json:"resultType"`
-	Result     []QueryDataResult `json:"result"`
-}
-
-type QueryDataResult struct {
-	Metric map[string]string `json:"metric"`
-	Value  []interface{}     `json:"value"`
+	Status string `json:"status"`
+	Data   struct {
+		ResultType string          `json:"resultType"`
+		Result     json.RawMessage `json:"result"`
+	} `json:"data"`
 }
 
-func (r *QueryDataResult) UnmarshalJSON(b []byte) error {
-	type plain QueryDataResult
-	return json.Unmarshal(testutil.PopulateTimeTpl(b, insertionTime), (*plain)(r))
+const rtVector, rtMatrix = "vector", "matrix"
+
+func (q *Query) metrics() ([]Metric, error) {
+	switch q.Data.ResultType {
+	case rtVector:
+		var r QueryInstant
+		if err := json.Unmarshal(q.Data.Result, &r.Result); err != nil {
+			return nil, err
+		}
+		return r.metrics()
+	case rtMatrix:
+		var r QueryRange
+		if err := json.Unmarshal(q.Data.Result, &r.Result); err != nil {
+			return nil, err
+		}
+		return r.metrics()
+	default:
+		return nil, fmt.Errorf("unknown result type %q", q.Data.ResultType)
+	}
+}
+
+type QueryInstant struct {
+	Result []struct {
+		Labels map[string]string `json:"metric"`
+		TV     [2]interface{}    `json:"value"`
+	} `json:"result"`
+}
+
+func (q QueryInstant) metrics() ([]Metric, error) {
+	result := make([]Metric, len(q.Result))
+	for i, res := range q.Result {
+		f, err := strconv.ParseFloat(res.TV[1].(string), 64)
+		if err != nil {
+			return nil, fmt.Errorf("metric %v, unable to parse float64 from %s: %w", res, res.TV[1], err)
+		}
+		var m Metric
+		m.Metric = res.Labels
+		m.Timestamps = append(m.Timestamps, int64(res.TV[0].(float64)))
+		m.Values = append(m.Values, f)
+		result[i] = m
+	}
+	return result, nil
 }
 
 type QueryRange struct {
-	Status string         `json:"status"`
-	Data   QueryRangeData `json:"data"`
-}
-type QueryRangeData struct {
-	ResultType string                 `json:"resultType"`
-	Result     []QueryRangeDataResult `json:"result"`
+	Result []struct {
+		Metric map[string]string `json:"metric"`
+		Values [][]interface{}   `json:"values"`
+	} `json:"result"`
 }
 
-type QueryRangeDataResult struct {
-	Metric map[string]string `json:"metric"`
-	Values [][]interface{}   `json:"values"`
+func (q QueryRange) metrics() ([]Metric, error) {
+	var result []Metric
+	for i, res := range q.Result {
+		var m Metric
+		for _, tv := range res.Values {
+			f, err := strconv.ParseFloat(tv[1].(string), 64)
+			if err != nil {
+				return nil, fmt.Errorf("metric %v, unable to parse float64 from %s: %w", res, tv[1], err)
+			}
+			m.Values = append(m.Values, f)
+			m.Timestamps = append(m.Timestamps, int64(tv[0].(float64)))
+		}
+		if len(m.Values) < 1 || len(m.Timestamps) < 1 {
+			return nil, fmt.Errorf("metric %v contains no values", res)
+		}
+		m.Metric = q.Result[i].Metric
+		result = append(result, m)
+	}
+	return result, nil
 }
 
-func (r *QueryRangeDataResult) UnmarshalJSON(b []byte) error {
-	type plain QueryRangeDataResult
-	return json.Unmarshal(testutil.PopulateTimeTpl(b, insertionTime), (*plain)(r))
+func (q *Query) UnmarshalJSON(b []byte) error {
+	type plain Query
+	return json.Unmarshal(testutil.PopulateTimeTpl(b, insertionTime), (*plain)(q))
 }
 
 func TestMain(m *testing.M) {
@@ -197,6 +245,9 @@ func TestWriteRead(t *testing.T) {
 func testWrite(t *testing.T) {
 	t.Run("prometheus", func(t *testing.T) {
 		for _, test := range readIn("prometheus", t, insertionTime) {
+			if test.Data == nil {
+				continue
+			}
 			s := newSuite(t)
 			r := testutil.WriteRequest{}
 			s.noError(json.Unmarshal([]byte(strings.Join(test.Data, "\n")), &r.Timeseries))
@@ -272,17 +323,19 @@ func testRead(t *testing.T) {
 							if err := checkSeriesResult(s, test.ResultSeries); err != nil {
 								t.Fatalf("Series. %s fails with error %s.%s", q, err, test.Issue)
 							}
-						case strings.HasPrefix(q, "/api/v1/query_range"):
-							queryResult := QueryRange{}
-							httpReadStruct(t, testReadHTTPPath, q, &queryResult)
-							if err := checkQueryRangeResult(queryResult, test.ResultQueryRange); err != nil {
-								t.Fatalf("Query Range. %s fails with error %s.%s", q, err, test.Issue)
-							}
 						case strings.HasPrefix(q, "/api/v1/query"):
 							queryResult := Query{}
 							httpReadStruct(t, testReadHTTPPath, q, &queryResult)
-							if err := checkQueryResult(queryResult, test.ResultQuery); err != nil {
-								t.Fatalf("Query. %s fails with error: %s.%s", q, err, test.Issue)
+							gotMetrics, err := queryResult.metrics()
+							if err != nil {
+								t.Fatalf("failed to parse query response: %s", err)
+							}
+							expMetrics, err := test.ResultQuery.metrics()
+							if err != nil {
+								t.Fatalf("failed to parse expected response: %s", err)
+							}
+							if err := checkMetricsResult(gotMetrics, expMetrics); err != nil {
+								t.Fatalf("%q fails with error %s.%s", q, err, test.Issue)
 							}
 						default:
 							t.Fatalf("unsupported read query %s", q)
@@ -410,60 +463,6 @@ func checkSeriesResult(got, want Series) error {
 func removeIfFoundSeries(r map[string]string, contains []map[string]string) []map[string]string {
 	for i, item := range contains {
 		if reflect.DeepEqual(r, item) {
-			contains[i] = contains[len(contains)-1]
-			return contains[:len(contains)-1]
-		}
-	}
-	return contains
-}
-
-func checkQueryResult(got, want Query) error {
-	if got.Status != want.Status {
-		return fmt.Errorf("status mismatch %q - %q", want.Status, got.Status)
-	}
-	if got.Data.ResultType != want.Data.ResultType {
-		return fmt.Errorf("result type mismatch %q - %q", want.Data.ResultType, got.Data.ResultType)
-	}
-	wantData := append([]QueryDataResult(nil), want.Data.Result...)
-	for _, r := range got.Data.Result {
-		wantData = removeIfFoundQueryData(r, wantData)
-	}
-	if len(wantData) > 0 {
-		return fmt.Errorf("expected query result %+v not found in %+v", wantData, got.Data.Result)
-	}
-	return nil
-}
-
-func removeIfFoundQueryData(r QueryDataResult, contains []QueryDataResult) []QueryDataResult {
-	for i, item := range contains {
-		if reflect.DeepEqual(r.Metric, item.Metric) && reflect.DeepEqual(r.Value[0], item.Value[0]) && reflect.DeepEqual(r.Value[1], item.Value[1]) {
-			contains[i] = contains[len(contains)-1]
-			return contains[:len(contains)-1]
-		}
-	}
-	return contains
-}
-
-func checkQueryRangeResult(got, want QueryRange) error {
-	if got.Status != want.Status {
-		return fmt.Errorf("status mismatch %q - %q", want.Status, got.Status)
-	}
-	if got.Data.ResultType != want.Data.ResultType {
-		return fmt.Errorf("result type mismatch %q - %q", want.Data.ResultType, got.Data.ResultType)
-	}
-	wantData := append([]QueryRangeDataResult(nil), want.Data.Result...)
-	for _, r := range got.Data.Result {
-		wantData = removeIfFoundQueryRangeData(r, wantData)
-	}
-	if len(wantData) > 0 {
-		return fmt.Errorf("expected query range result %+v not found in %+v", wantData, got.Data.Result)
-	}
-	return nil
-}
-
-func removeIfFoundQueryRangeData(r QueryRangeDataResult, contains []QueryRangeDataResult) []QueryRangeDataResult {
-	for i, item := range contains {
-		if reflect.DeepEqual(r.Metric, item.Metric) && reflect.DeepEqual(r.Values, item.Values) {
 			contains[i] = contains[len(contains)-1]
 			return contains[:len(contains)-1]
 		}

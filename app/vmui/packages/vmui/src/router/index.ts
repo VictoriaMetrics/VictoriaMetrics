@@ -1,3 +1,5 @@
+import { AppType } from "../types/appType";
+
 const router = {
   home: "/",
   metrics: "/metrics",
@@ -9,7 +11,9 @@ const router = {
   relabel: "/relabeling",
   logs: "/logs",
   activeQueries: "/active-queries",
-  icons: "/icons"
+  icons: "/icons",
+  anomaly: "/anomaly",
+  query: "/query",
 };
 
 export interface RouterOptionsHeader {
@@ -26,14 +30,15 @@ export interface RouterOptions {
   header: RouterOptionsHeader
 }
 
-const { REACT_APP_LOGS } = process.env;
+const { REACT_APP_TYPE } = process.env;
+const isLogsApp = REACT_APP_TYPE === AppType.logs;
 
 const routerOptionsDefault = {
   header: {
     tenant: true,
-    stepControl: !REACT_APP_LOGS,
-    timeSelector: !REACT_APP_LOGS,
-    executionControls: !REACT_APP_LOGS,
+    stepControl: !isLogsApp,
+    timeSelector: !isLogsApp,
+    executionControls: !isLogsApp,
   }
 };
 
@@ -90,6 +95,14 @@ export const routerOptions: {[key: string]: RouterOptions} = {
   [router.icons]: {
     title: "Icons",
     header: {}
+  },
+  [router.anomaly]: {
+    title: "Anomaly exploration",
+    ...routerOptionsDefault
+  },
+  [router.query]: {
+    title: "Query",
+    ...routerOptionsDefault
   }
 };
 

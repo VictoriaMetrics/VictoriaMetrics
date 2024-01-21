@@ -179,6 +179,9 @@ If you see unexpected or unreliable query results from VictoriaMetrics, then try
    to the static interval for gaps filling by setting `-search.minStalenessInterval=5m` cmd-line flag (`5m` is
    the static interval used by Prometheus).
 
+1. If you observe recently written data is not immediately visible/queryable, then read more about 
+   [query latency](https://docs.victoriametrics.com/keyConcepts.html#query-latency) behavior.
+
 1. Try upgrading to the [latest available version of VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest)
    and verifying whether the issue is fixed there.
 

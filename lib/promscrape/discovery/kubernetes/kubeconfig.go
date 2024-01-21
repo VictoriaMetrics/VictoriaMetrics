@@ -7,7 +7,7 @@ import (
 
 	"gopkg.in/yaml.v2"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs/fscore"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 )
@@ -155,7 +155,7 @@ type kubeConfig struct {
 }
 
 func newKubeConfig(kubeConfigFile string) (*kubeConfig, error) {
-	data, err := fs.ReadFileOrHTTP(kubeConfigFile)
+	data, err := fscore.ReadFileOrHTTP(kubeConfigFile)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read %q: %w", kubeConfigFile, err)
 	}

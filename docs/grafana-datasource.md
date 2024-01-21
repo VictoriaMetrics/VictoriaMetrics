@@ -239,7 +239,7 @@ spec:
       allow_loading_unsigned_plugins: victoriametrics-datasource
 ```
 
-See [Grafana operator reference](https://grafana-operator.github.io/grafana-operator/docs/grafana/) to find more about
+See [Grafana operator reference](https://grafana.github.io/grafana-operator/docs/grafana/) to find more about
 Grafana operator.
 This example uses init container to download and install plugin.
 

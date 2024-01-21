@@ -31,7 +31,7 @@ type SDConfig struct {
 	ProxyURL         *proxy.URL                `yaml:"proxy_url,omitempty"`
 	Namespaces       Namespaces                `yaml:"namespaces,omitempty"`
 	Selectors        []Selector                `yaml:"selectors,omitempty"`
-	AttachMetadata   AttachMetadata            `yaml:"attach_metadata,omitempty"`
+	AttachMetadata   *AttachMetadata           `yaml:"attach_metadata,omitempty"`
 
 	cfg      *apiConfig
 	startErr error

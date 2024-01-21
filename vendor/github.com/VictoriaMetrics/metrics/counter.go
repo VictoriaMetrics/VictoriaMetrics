@@ -58,6 +58,10 @@ func (c *Counter) marshalTo(prefix string, w io.Writer) {
 	fmt.Fprintf(w, "%s %d\n", prefix, v)
 }
 
+func (c *Counter) metricType() string {
+	return "counter"
+}
+
 // GetOrCreateCounter returns registered counter with the given name
 // or creates new counter if the registry doesn't contain counter with
 // the given name.
