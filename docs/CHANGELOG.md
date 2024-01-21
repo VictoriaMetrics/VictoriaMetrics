@@ -12,6 +12,7 @@ The following `tip` changes can be tested by building VictoriaMetrics components
 ## v1.93.x long-time support release (LTS)
 
 * BUGFIX: [vmselect](https://docs.victoriametrics.com/vmselect.html): properly determine time range search for instant queries with too big look-behind window like `foo[100y]`. Previously, such queries could return empty responses even if `foo` is present in database.
+* BUGFIX: properly return errors from [export APIs](https://docs.victoriametrics.com/#how-to-export-time-series). Previously these errors were silently suppressed. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5649).
 
 ## [v1.93.10](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.10)
 
