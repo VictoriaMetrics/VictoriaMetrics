@@ -271,8 +271,10 @@ func (up *URLPrefix) getLeastLoadedBackendURL() *backendURL {
 		if bu.isBroken() {
 			continue
 		}
-		if atomic.CompareAndSwapInt32(&bu.concurrentRequests, 0, 1) {
+		if atomic.LoadInt32(&bu.concurrentRequests) == 0 {
 			// Fast path - return the backend with zero concurrently executed requests.
+			// Do not use atomic.CompareAndSwapInt32(), since it is much slower on systems with many CPU cores.
+			atomic.AddInt32(&bu.concurrentRequests, 1)
 			return bu
 		}
 	}
