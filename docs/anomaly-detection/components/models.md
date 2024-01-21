@@ -41,7 +41,7 @@ VM Anomaly Detection (`vmanomaly` hereinafter) models support 2 groups of parame
 * [Seasonal Trend Decomposition](#seasonal-trend-decomposition) - similarly to Holt-Winters, is best for **data with pronounced [seasonal](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#seasonality) and [trend](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#trend) components**
 * [ARIMA](#arima) - use when your data shows **clear patterns or autocorrelation (the degree of correlation between values of the same series at different periods)**. However, good understanding of machine learning is required to tune.
 * [Isolation forest (Multivariate)](#isolation-forest-multivariate) - useful for **metrics data interaction** (several queries/metrics -> single anomaly score) and **efficient in detecting anomalies in high-dimensional datasets**
-* [Custom model](#custom-model) - benefit from your own models and expertise to better support your **unique use case**.
+* [Custom model](#custom-model-guide) - benefit from your own models and expertise to better support your **unique use case**.
 
 
 ### [Prophet](https://facebook.github.io/prophet/)
