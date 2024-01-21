@@ -1,7 +1,7 @@
 ---
 weight: 1
 sort: 1
-title: vmanomaly integration
+title: Anomaly Detection and Alerting Setup
 menu:
   docs:
     parent: "anomaly-detection-guides"
@@ -10,9 +10,10 @@ aliases:
 - /anomaly-detection/guides/guide-vmanomaly-vmalert.html
 - /guides/guide-vmanomaly-vmalert.html
 - /gides/vmanomaly-integration.html
+- /guides/anomaly-detection-and-alerting-setup.html
 
 ---
-# vmanomaly integration
+# Anomaly Detection and Alerting Setup
 
 **Prerequisites**:
 
