@@ -23,7 +23,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs/fscore"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 )
@@ -271,8 +271,10 @@ func (up *URLPrefix) getLeastLoadedBackendURL() *backendURL {
 		if bu.isBroken() {
 			continue
 		}
-		if atomic.CompareAndSwapInt32(&bu.concurrentRequests, 0, 1) {
+		if atomic.LoadInt32(&bu.concurrentRequests) == 0 {
 			// Fast path - return the backend with zero concurrently executed requests.
+			// Do not use atomic.CompareAndSwapInt32(), since it is much slower on systems with many CPU cores.
+			atomic.AddInt32(&bu.concurrentRequests, 1)
 			return bu
 		}
 	}
@@ -479,7 +481,7 @@ var (
 // The config can be not applied if there is a parsing error
 // or if there are no changes to the current authConfig.
 func loadAuthConfig() (bool, error) {
-	data, err := fs.ReadFileOrHTTP(*authConfigPath)
+	data, err := fscore.ReadFileOrHTTP(*authConfigPath)
 	if err != nil {
 		return false, fmt.Errorf("failed to read -auth.config=%q: %w", *authConfigPath, err)
 	}

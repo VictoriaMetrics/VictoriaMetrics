@@ -16,4 +16,4 @@ This section holds guides of how to set up and use VictoriaMetrics Anomaly Detec
 
 Guides: 
 
-* [vmanomaly integration](/anomaly-detection/guides/guide-vmanomaly-vmalert.html)
+* [Anomaly Detection & Alerting Setup](/anomaly-detection/guides/guide-vmanomaly-vmalert.html)
