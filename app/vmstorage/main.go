@@ -35,9 +35,9 @@ var (
 	storageDataPath       = flag.String("storageDataPath", "vmstorage-data", "Path to storage data")
 	vminsertAddr          = flag.String("vminsertAddr", ":8400", "TCP address to accept connections from vminsert services")
 	vmselectAddr          = flag.String("vmselectAddr", ":8401", "TCP address to accept connections from vmselect services")
-	snapshotAuthKey       = flag.String("snapshotAuthKey", "", "authKey, which must be passed in query string to /snapshot* pages")
-	forceMergeAuthKey     = flag.String("forceMergeAuthKey", "", "authKey, which must be passed in query string to /internal/force_merge pages")
-	forceFlushAuthKey     = flag.String("forceFlushAuthKey", "", "authKey, which must be passed in query string to /internal/force_flush pages")
+	snapshotAuthKey       = flagutil.NewPassword("snapshotAuthKey", "authKey, which must be passed in query string to /snapshot* pages")
+	forceMergeAuthKey     = flagutil.NewPassword("forceMergeAuthKey", "authKey, which must be passed in query string to /internal/force_merge pages")
+	forceFlushAuthKey     = flagutil.NewPassword("forceFlushAuthKey", "authKey, which must be passed in query string to /internal/force_flush pages")
 	snapshotsMaxAge       = flagutil.NewDuration("snapshotsMaxAge", "0", "Automatically delete snapshots older than -snapshotsMaxAge if it is set to non-zero duration. Make sure that backup process has enough time to finish the backup before the corresponding snapshot is automatically deleted")
 	snapshotCreateTimeout = flag.Duration("snapshotCreateTimeout", 0, "The timeout for creating new snapshot. If set, make sure that timeout is lower than backup period")
 
@@ -193,7 +193,7 @@ func newRequestHandler(strg *storage.Storage) httpserver.RequestHandler {
 func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storage) bool {
 	path := r.URL.Path
 	if path == "/internal/force_merge" {
-		if !httpserver.CheckAuthFlag(w, r, *forceMergeAuthKey, "forceMergeAuthKey") {
+		if !httpserver.CheckAuthFlag(w, r, forceMergeAuthKey.Get(), "forceMergeAuthKey") {
 			return true
 		}
 		// Run force merge in background
@@ -212,7 +212,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storag
 		return true
 	}
 	if path == "/internal/force_flush" {
-		if !httpserver.CheckAuthFlag(w, r, *forceFlushAuthKey, "forceFlushAuthKey") {
+		if !httpserver.CheckAuthFlag(w, r, forceFlushAuthKey.Get(), "forceFlushAuthKey") {
 			return true
 		}
 		logger.Infof("flushing storage to make pending data available for reading")
@@ -222,7 +222,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storag
 	if !strings.HasPrefix(path, "/snapshot") {
 		return false
 	}
-	if !httpserver.CheckAuthFlag(w, r, *snapshotAuthKey, "snapshotAuthKey") {
+	if !httpserver.CheckAuthFlag(w, r, snapshotAuthKey.Get(), "snapshotAuthKey") {
 		return true
 	}
 	path = path[len("/snapshot"):]
