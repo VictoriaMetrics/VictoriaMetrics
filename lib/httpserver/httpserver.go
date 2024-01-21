@@ -360,6 +360,10 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 		if !CheckBasicAuth(w, r) {
 			return
 		}
+
+		w = &responseWriterWithAbort{
+			ResponseWriter: w,
+		}
 		if rh(w, r) {
 			return
 		}
@@ -473,52 +477,67 @@ func GetQuotedRemoteAddr(r *http.Request) string {
 	return strconv.Quote(remoteAddr)
 }
 
-// NewResponseWriteTracker returns tracker for response body writes
-func NewResponseWriteTracker(w http.ResponseWriter) *ResponseWriteTracker {
-	return &ResponseWriteTracker{
-		w: w,
+type responseWriterWithAbort struct {
+	http.ResponseWriter
+
+	sentHeaders bool
+	aborted     bool
+}
+
+func (rwa *responseWriterWithAbort) Write(data []byte) (int, error) {
+	if rwa.aborted {
+		return 0, fmt.Errorf("response connection is aborted")
 	}
-}
-
-// ResponseWriteTracker tracks body writes
-// allows to abort streaming request and terminate connection with client
-type ResponseWriteTracker struct {
-	w               http.ResponseWriter
-	wasWriteStarted bool
-}
-
-// Write implements http.ResponseWriter interface
-func (rwt *ResponseWriteTracker) Write(data []byte) (int, error) {
-	if !rwt.wasWriteStarted {
-		rwt.wasWriteStarted = true
+	if !rwa.sentHeaders {
+		rwa.sentHeaders = true
 	}
-	return rwt.w.Write(data)
+	return rwa.ResponseWriter.Write(data)
 }
 
-// WriteHeader implements http.ResponseWriter interface
-func (rwt *ResponseWriteTracker) WriteHeader(code int) {
-	rwt.w.WriteHeader(code)
+func (rwa *responseWriterWithAbort) WriteHeader(statusCode int) {
+	if rwa.aborted {
+		logger.WarnfSkipframes(1, "cannot write response headers with statusCode=%d, since the response connection has been aborted", statusCode)
+		return
+	}
+	if rwa.sentHeaders {
+		logger.WarnfSkipframes(1, "cannot write response headers with statusCode=%d, since they were already sent", statusCode)
+		return
+	}
+	rwa.ResponseWriter.WriteHeader(statusCode)
+	rwa.sentHeaders = true
 }
 
-// Header implements http.ResponseWriter interface
-func (rwt *ResponseWriteTracker) Header() http.Header {
-	return rwt.w.Header()
-}
-
-// abort writes error directly to the connection and closes it
-// any panic must be handled by the httpserver
-func (rwt *ResponseWriteTracker) abort(errStr string) {
-	hj, ok := rwt.w.(http.Hijacker)
+// abort aborts the client connection associated with rwa.
+//
+// The last http chunk in the response stream is intentionally written incorrectly,
+// so the client, which reads the response, could notice this error.
+func (rwa *responseWriterWithAbort) abort() {
+	if !rwa.sentHeaders {
+		logger.Panicf("BUG: abort can be called only after http response headers are sent")
+	}
+	if rwa.aborted {
+		logger.WarnfSkipframes(2, "cannot abort the connection, since it has been already aborted")
+		return
+	}
+	hj, ok := rwa.ResponseWriter.(http.Hijacker)
 	if !ok {
-		logger.Panicf("writer must implements http.Hijacker interface")
+		logger.Panicf("BUG: ResponseWriter must implement http.Hijacker interface")
 	}
 	conn, bw, err := hj.Hijack()
 	if err != nil {
-		logger.Panicf("cannot Hijack connection: %s", err)
+		logger.WarnfSkipframes(2, "cannot hijack response connection: %s", err)
+		return
 	}
-	bw.WriteString(errStr)
-	bw.Flush()
-	conn.Close()
+
+	// Just write an error message into the client connection as is without http chunked encoding.
+	// This is needed in order to notify the client about the aborted connection.
+	_, _ = bw.WriteString("\nthe connection has been aborted; see the last line in the response and/or in the server log for the reason\n")
+	_ = bw.Flush()
+
+	// Forcibly close the client connection in order to break http keep-alive at client side.
+	_ = conn.Close()
+
+	rwa.aborted = true
 }
 
 // Errorf writes formatted error message to w and to logger.
@@ -538,8 +557,11 @@ func Errorf(w http.ResponseWriter, r *http.Request, format string, args ...inter
 			break
 		}
 	}
-	if rwt, ok := w.(*ResponseWriteTracker); ok && rwt.wasWriteStarted {
-		rwt.abort(errStr)
+	if rwa, ok := w.(*responseWriterWithAbort); ok && rwa.sentHeaders {
+		// HTTP status code has been already sent to client, so it cannot be sent again.
+		// Just write errStr to the response and abort the client connection, so the client could notice the error.
+		fmt.Fprintf(w, "\n%s\n", errStr)
+		rwa.abort()
 		return
 	}
 	http.Error(w, errStr, statusCode)
