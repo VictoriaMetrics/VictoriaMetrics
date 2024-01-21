@@ -12,7 +12,7 @@ aliases:
 
 # Writer
 
-For exporting data, VictoriaMetrics Anomaly Detection (`vmanomaly`) primarily employs the [VmWriter](#vm-writer), which writes produces anomaly scores (preserving initial labelset and optionally applying additional ones) back to VictoriaMetrics. This writer is tailored for smooth data export within the VictoriaMetrics ecosystem. 
+For exporting data, VictoriaMetrics Anomaly Detection (`vmanomaly`) primarily employs the [VmWriter](#vm-writer), which writes produced anomaly scores **(preserving initial labelset and optionally applying additional ones)** back to VictoriaMetrics. This writer is tailored for smooth data export within the VictoriaMetrics ecosystem.
 
 Future updates will introduce additional export methods, offering users more flexibility in data handling and integration.
 
@@ -141,7 +141,7 @@ custom_label_1: label_name_1
 custom_label_2: label_name_2
 ```
 
-Apart from specified labels, output metrics will return labels inherited from input metrics returned by [queries](/anomaly-detection/components/reader.html#config-parameters).
+Apart from specified labels, output metrics will return **labels inherited from input metrics returned by [queries](/anomaly-detection/components/reader.html#config-parameters)**.
 For example if input data contains labels such as `cpu=1, device=eth0, instance=node-exporter:9100` all these labels will be present in vmanomaly output metrics.
 
 So if metric_format section was set up like this:
