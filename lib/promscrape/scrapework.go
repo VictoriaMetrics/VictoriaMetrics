@@ -337,13 +337,11 @@ func (sw *scrapeWork) run(stopCh <-chan struct{}, globalStopCh <-chan struct{}) 
 				// Do not send staleness markers on graceful shutdown as Prometheus does.
 				// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2013#issuecomment-1006994079
 			default:
-				if !sw.Config.NoStaleMarkers {
-					// Send staleness markers to all the metrics scraped last time from the target
-					// when the given target disappears as Prometheus does.
-					// Use the current real timestamp for staleness markers, so queries
-					// stop returning data just after the time the target disappears.
-					sw.sendStaleSeries(lastScrape, "", t, true)
-				}
+				// Send staleness markers to all the metrics scraped last time from the target
+				// when the given target disappears as Prometheus does.
+				// Use the current real timestamp for staleness markers, so queries
+				// stop returning data just after the time the target disappears.
+				sw.sendStaleSeries(lastScrape, "", t, true)
 			}
 			if sw.seriesLimiter != nil {
 				sw.seriesLimiter.MustStop()
@@ -489,8 +487,7 @@ func (sw *scrapeWork) processScrapedData(scrapeTimestamp, realTimestamp int64, b
 		bodyString = ""
 	}
 	seriesAdded := 0
-	// cannot track the number of new time series when stale markers are disabled.
-	if !sw.Config.NoStaleMarkers && !areIdenticalSeries {
+	if !areIdenticalSeries {
 		// The returned value for seriesAdded may be bigger than the real number of added series
 		// if some series were removed during relabeling.
 		// This is a trade-off between performance and accuracy.
@@ -520,7 +517,7 @@ func (sw *scrapeWork) processScrapedData(scrapeTimestamp, realTimestamp int64, b
 		writeRequestCtxPool.Put(wc)
 	}
 	// body must be released only after wc is released, since wc refers to body.
-	if !sw.Config.NoStaleMarkers && !areIdenticalSeries {
+	if !areIdenticalSeries {
 		// Send stale markers for disappeared metrics with the real scrape timestamp
 		// in order to guarantee that query doesn't return data after this time for the disappeared metrics.
 		sw.sendStaleSeries(lastScrape, bodyString, realTimestamp, false)
@@ -630,8 +627,7 @@ func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 		scrapesFailed.Inc()
 	}
 	seriesAdded := 0
-	// cannot track the number of new time series when stale markers are disabled.
-	if !sw.Config.NoStaleMarkers && !areIdenticalSeries {
+	if !areIdenticalSeries {
 		// The returned value for seriesAdded may be bigger than the real number of added series
 		// if some series were removed during relabeling.
 		// This is a trade-off between performance and accuracy.
@@ -651,7 +647,7 @@ func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 	sw.prevBodyLen = sbr.bodyLen
 	wc.reset()
 	writeRequestCtxPool.Put(wc)
-	if !sw.Config.NoStaleMarkers && !areIdenticalSeries {
+	if !areIdenticalSeries {
 		// Send stale markers for disappeared metrics with the real scrape timestamp
 		// in order to guarantee that query doesn't return data after this time for the disappeared metrics.
 		sw.sendStaleSeries(lastScrape, bodyString, realTimestamp, false)
@@ -790,6 +786,9 @@ func (sw *scrapeWork) sendStaleSeries(lastScrape, currScrape string, timestamp i
 	defer func() {
 		<-sendStaleSeriesConcurrencyLimitCh
 	}()
+	if sw.Config.NoStaleMarkers {
+		return
+	}
 	bodyString := lastScrape
 	if currScrape != "" {
 		bodyString = parser.GetRowsDiff(lastScrape, currScrape)
