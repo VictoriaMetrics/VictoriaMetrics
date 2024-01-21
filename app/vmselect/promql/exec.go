@@ -110,6 +110,7 @@ func maySortResults(e metricsql.Expr) bool {
 		case "sort", "sort_desc",
 			"sort_by_label", "sort_by_label_desc",
 			"sort_by_label_numeric", "sort_by_label_numeric_desc":
+			// Results already sorted
 			return false
 		}
 	case *metricsql.AggrFuncExpr:
@@ -117,6 +118,7 @@ func maySortResults(e metricsql.Expr) bool {
 		case "topk", "bottomk", "outliersk",
 			"topk_max", "topk_min", "topk_avg", "topk_median", "topk_last",
 			"bottomk_max", "bottomk_min", "bottomk_avg", "bottomk_median", "bottomk_last":
+			// Results already sorted
 			return false
 		}
 	case *metricsql.BinaryOpExpr:
@@ -131,6 +133,10 @@ func maySortResults(e metricsql.Expr) bool {
 
 func timeseriesToResult(tss []*timeseries, maySort bool) ([]netstorage.Result, error) {
 	tss = removeEmptySeries(tss)
+	if maySort {
+		sortSeriesByMetricName(tss)
+	}
+
 	result := make([]netstorage.Result, len(tss))
 	m := make(map[string]struct{}, len(tss))
 	bb := bbPool.Get()
@@ -151,13 +157,13 @@ func timeseriesToResult(tss []*timeseries, maySort bool) ([]netstorage.Result, e
 	}
 	bbPool.Put(bb)
 
-	if maySort {
-		sort.Slice(result, func(i, j int) bool {
-			return metricNameLess(&result[i].MetricName, &result[j].MetricName)
-		})
-	}
-
 	return result, nil
+}
+
+func sortSeriesByMetricName(tss []*timeseries) {
+	sort.Slice(tss, func(i, j int) bool {
+		return metricNameLess(&tss[i].MetricName, &tss[j].MetricName)
+	})
 }
 
 func metricNameLess(a, b *storage.MetricName) bool {

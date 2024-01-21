@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
+	"github.com/VictoriaMetrics/easyproto"
 )
 
 // Request represents DataDog POST request to /api/v2/series
@@ -58,8 +59,41 @@ func UnmarshalJSON(req *Request, b []byte) error {
 // b shouldn't be modified when req is in use.
 func UnmarshalProtobuf(req *Request, b []byte) error {
 	req.reset()
-	_ = b
-	return fmt.Errorf("unimplemented")
+	return req.unmarshalProtobuf(b)
+}
+
+func (req *Request) unmarshalProtobuf(src []byte) (err error) {
+	// message Request {
+	//   repeated Series series = 1;
+	// }
+	//
+	// See https://github.com/DataDog/agent-payload/blob/d7c5dcc63970d0e19678a342e7718448dd777062/proto/metrics/agent_payload.proto
+	series := req.Series
+	var fc easyproto.FieldContext
+	for len(src) > 0 {
+		src, err = fc.NextField(src)
+		if err != nil {
+			return fmt.Errorf("cannot unmarshal next field: %w", err)
+		}
+		switch fc.FieldNum {
+		case 1:
+			data, ok := fc.MessageData()
+			if !ok {
+				return fmt.Errorf("cannot read series data")
+			}
+			if len(series) < cap(series) {
+				series = series[:len(series)+1]
+			} else {
+				series = append(series, Series{})
+			}
+			s := &series[len(series)-1]
+			if err := s.unmarshalProtobuf(data); err != nil {
+				return fmt.Errorf("cannot unmarshal series: %w", err)
+			}
+		}
+	}
+	req.Series = series
+	return nil
 }
 
 // Series represents a series item from DataDog POST request to /api/v2/series
@@ -114,6 +148,80 @@ func (s *Series) reset() {
 	s.Tags = tags[:0]
 }
 
+func (s *Series) unmarshalProtobuf(src []byte) (err error) {
+	// message MetricSeries {
+	//   string metric = 2;
+	//   repeated Point points = 4;
+	//   repeated Resource resources = 1;
+	//   string source_type_name = 7;
+	//   repeated string tags = 3;
+	// }
+	//
+	// See https://github.com/DataDog/agent-payload/blob/d7c5dcc63970d0e19678a342e7718448dd777062/proto/metrics/agent_payload.proto
+	points := s.Points
+	resources := s.Resources
+	tags := s.Tags
+	var fc easyproto.FieldContext
+	for len(src) > 0 {
+		src, err = fc.NextField(src)
+		if err != nil {
+			return fmt.Errorf("cannot unmarshal next field: %w", err)
+		}
+		switch fc.FieldNum {
+		case 2:
+			metric, ok := fc.String()
+			if !ok {
+				return fmt.Errorf("cannot unmarshal metric")
+			}
+			s.Metric = metric
+		case 4:
+			data, ok := fc.MessageData()
+			if !ok {
+				return fmt.Errorf("cannot read point data")
+			}
+			if len(points) < cap(points) {
+				points = points[:len(points)+1]
+			} else {
+				points = append(points, Point{})
+			}
+			pt := &points[len(points)-1]
+			if err := pt.unmarshalProtobuf(data); err != nil {
+				return fmt.Errorf("cannot unmarshal point: %s", err)
+			}
+		case 1:
+			data, ok := fc.MessageData()
+			if !ok {
+				return fmt.Errorf("cannot read resource data")
+			}
+			if len(resources) < cap(resources) {
+				resources = resources[:len(resources)+1]
+			} else {
+				resources = append(resources, Resource{})
+			}
+			r := &resources[len(resources)-1]
+			if err := r.unmarshalProtobuf(data); err != nil {
+				return fmt.Errorf("cannot unmarshal resource: %w", err)
+			}
+		case 7:
+			sourceTypeName, ok := fc.String()
+			if !ok {
+				return fmt.Errorf("cannot unmarshal source_type_name")
+			}
+			s.SourceTypeName = sourceTypeName
+		case 3:
+			tag, ok := fc.String()
+			if !ok {
+				return fmt.Errorf("cannot unmarshal tag")
+			}
+			tags = append(tags, tag)
+		}
+	}
+	s.Points = points
+	s.Resources = resources
+	s.Tags = tags
+	return nil
+}
+
 // Point represents a point from DataDog POST request to /api/v2/series
 //
 // See https://docs.datadoghq.com/api/latest/metrics/#submit-metrics
@@ -130,6 +238,37 @@ func (pt *Point) reset() {
 	pt.Value = 0
 }
 
+func (pt *Point) unmarshalProtobuf(src []byte) (err error) {
+	// message Point {
+	//   double value = 1;
+	//   int64 timestamp = 2;
+	// }
+	//
+	// See https://github.com/DataDog/agent-payload/blob/d7c5dcc63970d0e19678a342e7718448dd777062/proto/metrics/agent_payload.proto
+	var fc easyproto.FieldContext
+	for len(src) > 0 {
+		src, err = fc.NextField(src)
+		if err != nil {
+			return fmt.Errorf("cannot unmarshal next field: %w", err)
+		}
+		switch fc.FieldNum {
+		case 1:
+			value, ok := fc.Double()
+			if !ok {
+				return fmt.Errorf("cannot unmarshal value")
+			}
+			pt.Value = value
+		case 2:
+			timestamp, ok := fc.Int64()
+			if !ok {
+				return fmt.Errorf("cannot unmarshal timestamp")
+			}
+			pt.Timestamp = timestamp
+		}
+	}
+	return nil
+}
+
 // Resource is series resource from DataDog POST request to /api/v2/series
 //
 // See https://docs.datadoghq.com/api/latest/metrics/#submit-metrics
@@ -141,4 +280,35 @@ type Resource struct {
 func (r *Resource) reset() {
 	r.Name = ""
 	r.Type = ""
+}
+
+func (r *Resource) unmarshalProtobuf(src []byte) (err error) {
+	// message Resource {
+	//   string type = 1;
+	//   string name = 2;
+	// }
+	//
+	// See https://github.com/DataDog/agent-payload/blob/d7c5dcc63970d0e19678a342e7718448dd777062/proto/metrics/agent_payload.proto
+	var fc easyproto.FieldContext
+	for len(src) > 0 {
+		src, err = fc.NextField(src)
+		if err != nil {
+			return fmt.Errorf("cannot unmarshal next field: %w", err)
+		}
+		switch fc.FieldNum {
+		case 1:
+			typ, ok := fc.String()
+			if !ok {
+				return fmt.Errorf("cannot unmarshal type")
+			}
+			r.Type = typ
+		case 2:
+			name, ok := fc.String()
+			if !ok {
+				return fmt.Errorf("cannot unmarshal name")
+			}
+			r.Name = name
+		}
+	}
+	return nil
 }

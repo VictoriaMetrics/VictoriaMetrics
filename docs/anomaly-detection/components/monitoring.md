@@ -1,12 +1,12 @@
 ---
-# sort: 5
+sort: 5
 title: Monitoring
 weight: 5
 menu:
   docs:
     parent: "vmanomaly-components"
     weight: 5
-    # sort: 5
+    identifier: "vmanomaly-monitoring"
 aliases:
   - /anomaly-detection/components/monitoring.html
 ---

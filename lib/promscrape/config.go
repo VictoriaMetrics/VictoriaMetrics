@@ -30,6 +30,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/ec2"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/eureka"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/gce"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/hetzner"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/http"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/kubernetes"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/kuma"
@@ -306,6 +307,7 @@ type ScrapeConfig struct {
 	EurekaSDConfigs       []eureka.SDConfig       `yaml:"eureka_sd_configs,omitempty"`
 	FileSDConfigs         []FileSDConfig          `yaml:"file_sd_configs,omitempty"`
 	GCESDConfigs          []gce.SDConfig          `yaml:"gce_sd_configs,omitempty"`
+	HetznerSDConfigs      []hetzner.SDConfig      `yaml:"hetzner_sd_configs,omitempty"`
 	HTTPSDConfigs         []http.SDConfig         `yaml:"http_sd_configs,omitempty"`
 	KubernetesSDConfigs   []kubernetes.SDConfig   `yaml:"kubernetes_sd_configs,omitempty"`
 	KumaSDConfigs         []kuma.SDConfig         `yaml:"kuma_sd_configs,omitempty"`
@@ -374,6 +376,9 @@ func (sc *ScrapeConfig) mustStop() {
 	for i := range sc.GCESDConfigs {
 		sc.GCESDConfigs[i].MustStop()
 	}
+	for i := range sc.HetznerSDConfigs {
+		sc.HetznerSDConfigs[i].MustStop()
+	}
 	for i := range sc.HTTPSDConfigs {
 		sc.HTTPSDConfigs[i].MustStop()
 	}
@@ -436,7 +441,7 @@ func loadConfig(path string) (*Config, error) {
 	return &c, nil
 }
 
-func mustLoadScrapeConfigFiles(baseDir string, scrapeConfigFiles []string) []*ScrapeConfig {
+func loadScrapeConfigFiles(baseDir string, scrapeConfigFiles []string, isStrict bool) ([]*ScrapeConfig, error) {
 	var scrapeConfigs []*ScrapeConfig
 	for _, filePath := range scrapeConfigFiles {
 		filePath := fs.GetFilepath(baseDir, filePath)
@@ -462,14 +467,21 @@ func mustLoadScrapeConfigFiles(baseDir string, scrapeConfigFiles []string) []*Sc
 				continue
 			}
 			var scs []*ScrapeConfig
-			if err = yaml.UnmarshalStrict(data, &scs); err != nil {
-				logger.Errorf("skipping %q at `scrape_config_files` because of failure to parse it: %s", path, err)
-				continue
+			if isStrict {
+				if err = yaml.UnmarshalStrict(data, &scs); err != nil {
+					return nil, fmt.Errorf("cannot unmarshal data from `scrape_config_files` %s: %w; "+
+						"pass -promscrape.config.strictParse=false command-line flag for ignoring invalid scrape_config_files", path, err)
+				}
+			} else {
+				if err = yaml.Unmarshal(data, &scs); err != nil {
+					logger.Errorf("skipping %q at `scrape_config_files` because of failure to parse it: %s", path, err)
+					continue
+				}
 			}
 			scrapeConfigs = append(scrapeConfigs, scs...)
 		}
 	}
-	return scrapeConfigs
+	return scrapeConfigs, nil
 }
 
 // IsDryRun returns true if -promscrape.config.dryRun command-line flag is set
@@ -490,7 +502,10 @@ func (cfg *Config) parseData(data []byte, path string) error {
 	cfg.baseDir = filepath.Dir(absPath)
 
 	// Load cfg.ScrapeConfigFiles into c.ScrapeConfigs
-	scs := mustLoadScrapeConfigFiles(cfg.baseDir, cfg.ScrapeConfigFiles)
+	scs, err := loadScrapeConfigFiles(cfg.baseDir, cfg.ScrapeConfigFiles, *strictParse)
+	if err != nil {
+		return err
+	}
 	cfg.ScrapeConfigFiles = nil
 	cfg.ScrapeConfigs = append(cfg.ScrapeConfigs, scs...)
 
@@ -656,6 +671,16 @@ func (cfg *Config) getGCESDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 		}
 	}
 	return cfg.getScrapeWorkGeneric(visitConfigs, "gce_sd_config", prev)
+}
+
+// getHetznerSDScrapeWork returns `hetzner_sd_configs` ScrapeWork from cfg.
+func (cfg *Config) getHetznerSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
+	visitConfigs := func(sc *ScrapeConfig, visitor func(sdc targetLabelsGetter)) {
+		for i := range sc.HetznerSDConfigs {
+			visitor(&sc.HetznerSDConfigs[i])
+		}
+	}
+	return cfg.getScrapeWorkGeneric(visitConfigs, "hetzner_sd_config", prev)
 }
 
 // getHTTPDScrapeWork returns `http_sd_configs` ScrapeWork from cfg.
