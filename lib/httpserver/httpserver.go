@@ -42,10 +42,10 @@ var (
 		"then all the http requests will be handled on '/foo/bar/*' paths. This may be useful for proxied requests. "+
 		"See https://www.robustperception.io/using-external-urls-and-proxies-with-prometheus")
 	httpAuthUsername = flag.String("httpAuth.username", "", "Username for HTTP server's Basic Auth. The authentication is disabled if empty. See also -httpAuth.password")
-	httpAuthPassword = flag.String("httpAuth.password", "", "Password for HTTP server's Basic Auth. The authentication is disabled if -httpAuth.username is empty")
-	metricsAuthKey   = flag.String("metricsAuthKey", "", "Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings")
-	flagsAuthKey     = flag.String("flagsAuthKey", "", "Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings")
-	pprofAuthKey     = flag.String("pprofAuthKey", "", "Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides httpAuth.* settings")
+	httpAuthPassword = flagutil.NewPassword("httpAuth.password", "Password for HTTP server's Basic Auth. The authentication is disabled if -httpAuth.username is empty")
+	metricsAuthKey   = flagutil.NewPassword("metricsAuthKey", "Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings")
+	flagsAuthKey     = flagutil.NewPassword("flagsAuthKey", "Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings")
+	pprofAuthKey     = flagutil.NewPassword("pprofAuthKey", "Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides httpAuth.* settings")
 
 	disableResponseCompression  = flag.Bool("http.disableResponseCompression", false, "Disable compression of HTTP responses to save CPU resources. By default, compression is enabled to save network bandwidth")
 	maxGracefulShutdownDuration = flag.Duration("http.maxGracefulShutdownDuration", 7*time.Second, `The maximum duration for a graceful shutdown of the HTTP server. A highly loaded server may require increased value for a graceful shutdown`)
@@ -317,7 +317,7 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 		return
 	case "/metrics":
 		metricsRequests.Inc()
-		if !CheckAuthFlag(w, r, *metricsAuthKey, "metricsAuthKey") {
+		if !CheckAuthFlag(w, r, metricsAuthKey.Get(), "metricsAuthKey") {
 			return
 		}
 		startTime := time.Now()
@@ -326,7 +326,7 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 		metricsHandlerDuration.UpdateDuration(startTime)
 		return
 	case "/flags":
-		if !CheckAuthFlag(w, r, *flagsAuthKey, "flagsAuthKey") {
+		if !CheckAuthFlag(w, r, flagsAuthKey.Get(), "flagsAuthKey") {
 			return
 		}
 		h.Set("Content-Type", "text/plain; charset=utf-8")
@@ -350,7 +350,7 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 	default:
 		if strings.HasPrefix(r.URL.Path, "/debug/pprof/") {
 			pprofRequests.Inc()
-			if !CheckAuthFlag(w, r, *pprofAuthKey, "pprofAuthKey") {
+			if !CheckAuthFlag(w, r, pprofAuthKey.Get(), "pprofAuthKey") {
 				return
 			}
 			pprofHandler(r.URL.Path[len("/debug/pprof/"):], w, r)
@@ -398,7 +398,7 @@ func CheckBasicAuth(w http.ResponseWriter, r *http.Request) bool {
 	}
 	username, password, ok := r.BasicAuth()
 	if ok {
-		if username == *httpAuthUsername && password == *httpAuthPassword {
+		if username == *httpAuthUsername && password == httpAuthPassword.Get() {
 			return true
 		}
 		authBasicRequestErrors.Inc()

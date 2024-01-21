@@ -24,7 +24,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs/fscore"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
@@ -45,7 +45,7 @@ var (
 	maxConcurrentPerUserRequests = flag.Int("maxConcurrentPerUserRequests", 300, "The maximum number of concurrent requests vmauth can process per each configured user. "+
 		"Other requests are rejected with '429 Too Many Requests' http status code. See also -maxConcurrentRequests command-line option and max_concurrent_requests option "+
 		"in per-user config")
-	reloadAuthKey        = flag.String("reloadAuthKey", "", "Auth key for /-/reload http endpoint. It must be passed as authKey=...")
+	reloadAuthKey        = flagutil.NewPassword("reloadAuthKey", "Auth key for /-/reload http endpoint. It must be passed as authKey=...")
 	logInvalidAuthTokens = flag.Bool("logInvalidAuthTokens", false, "Whether to log requests with invalid auth tokens. "+
 		`Such requests are always counted at vmauth_http_request_errors_total{reason="invalid_auth_token"} metric, which is exposed at /metrics page`)
 	failTimeout               = flag.Duration("failTimeout", 3*time.Second, "Sets a delay period for load balancing to skip a malfunctioning backend")
@@ -89,7 +89,7 @@ func main() {
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	switch r.URL.Path {
 	case "/-/reload":
-		if !httpserver.CheckAuthFlag(w, r, *reloadAuthKey, "reloadAuthKey") {
+		if !httpserver.CheckAuthFlag(w, r, reloadAuthKey.Get(), "reloadAuthKey") {
 			return true
 		}
 		configReloadRequests.Inc()
@@ -438,7 +438,7 @@ func newTransport(insecureSkipVerify bool, caFile string) (*http.Transport, erro
 		tlsCfg.ClientSessionCache = tls.NewLRUClientSessionCache(0)
 		tlsCfg.InsecureSkipVerify = insecureSkipVerify
 		if caFile != "" {
-			data, err := fs.ReadFileOrHTTP(caFile)
+			data, err := fscore.ReadFileOrHTTP(caFile)
 			if err != nil {
 				return nil, fmt.Errorf("cannot read tls_ca_file: %w", err)
 			}
