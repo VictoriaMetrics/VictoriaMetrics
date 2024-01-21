@@ -1044,7 +1044,7 @@ func ExportBlocks(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline sear
 			for xw := range workCh {
 				if err := f(&xw.mn, &xw.b, tr, workerID); err != nil {
 					errGlobalLock.Lock()
-					if errGlobal != nil {
+					if errGlobal == nil {
 						errGlobal = err
 						atomic.StoreUint32(&mustStop, 1)
 					}
