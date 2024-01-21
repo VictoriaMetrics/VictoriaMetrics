@@ -26,7 +26,11 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 )
 
-var apiServerTimeout = flag.Duration("promscrape.kubernetes.apiServerTimeout", 30*time.Minute, "How frequently to reload the full state from Kubernetes API server")
+var (
+	apiServerTimeout      = flag.Duration("promscrape.kubernetes.apiServerTimeout", 30*time.Minute, "How frequently to reload the full state from Kubernetes API server")
+	attachNodeMetadataAll = flag.Bool("promscrape.kubernetes.attachNodeMetadataAll", false, "Whether to set attach_metadata.node=true for all the kubernetes_sd_configs at -promscrape.config . "+
+		"It is possible to set attach_metadata.node=false individually per each kubernetes_sd_configs . See https://docs.victoriametrics.com/sd_configs.html#kubernetes_sd_configs")
+)
 
 // WatchEvent is a watch event returned from API server endpoints if `watch=1` query arg is set.
 //
@@ -78,7 +82,10 @@ func newAPIWatcher(apiServer string, ac *promauth.Config, sdc *SDConfig, swcFunc
 		}
 	}
 	selectors := sdc.Selectors
-	attachNodeMetadata := sdc.AttachMetadata.Node
+	attachNodeMetadata := *attachNodeMetadataAll
+	if sdc.AttachMetadata != nil {
+		attachNodeMetadata = sdc.AttachMetadata.Node
+	}
 	proxyURL := sdc.ProxyURL.GetURL()
 	gw, err := getGroupWatcher(apiServer, ac, namespaces, selectors, attachNodeMetadata, proxyURL)
 	if err != nil {

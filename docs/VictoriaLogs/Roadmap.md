@@ -7,6 +7,7 @@ menu:
   docs:
     parent: "victorialogs"
     weight: 8
+    title: Roadmap
 aliases:
 - /VictoriaLogs/Roadmap.html
 ---
