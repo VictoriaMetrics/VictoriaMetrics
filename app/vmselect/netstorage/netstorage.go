@@ -5,10 +5,12 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"reflect"
 	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
+	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
@@ -1169,8 +1171,7 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 	maxSeriesCount := sr.Init(qt, vmstorage.Storage, tfss, tr, sq.MaxMetrics, deadline.Deadline())
 	indexSearchDuration.UpdateDuration(startTime)
 	type blockRefs struct {
-		brsPrealloc [4]blockRef
-		brs         []blockRef
+		brs []blockRef
 	}
 
 	blocksRead := 0
@@ -1178,7 +1179,7 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 	tbf := getTmpBlocksFile()
 	var buf []byte
 
-	// metricNamesBuf is used for holding all the loaded unique metric names.
+	// metricNamesBuf is used for holding all the loaded unique metric names at m and orderedMetricNames.
 	// It should reduce pressure on Go GC by reducing the number of string allocations
 	// when constructing metricName string from byte slice.
 	var metricNamesBuf []byte
@@ -1186,6 +1187,10 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 	// brssPool is used for holding all the blockRefs objects across all the loaded time series.
 	// It should reduce pressure on Go GC by reducing the number of blockRefs allocations.
 	brssPool := make([]blockRefs, 0, maxSeriesCount)
+
+	// brsPool is used for holding the most of blockRefs.brs slices across all the loaded time series.
+	// It should reduce pressure on Go GC by reducing the number of allocations for blockRefs.brs slices.
+	brsPool := make([]blockRef, 0, maxSeriesCount)
 
 	// m maps from metricName to the index of blockRefs inside brssPool
 	m := make(map[string]int, maxSeriesCount)
@@ -1224,14 +1229,24 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 				brssPool = append(brssPool, blockRefs{})
 			}
 			brsIdx = len(brssPool) - 1
-			brs := &brssPool[brsIdx]
-			brs.brs = brs.brsPrealloc[:0]
 		}
 		brs := &brssPool[brsIdx]
-		brs.brs = append(brs.brs, blockRef{
-			partRef: br.PartRef(),
-			addr:    addr,
-		})
+		partRef := br.PartRef()
+		if brs.brs == nil || haveSameBlockRefTails(brs.brs, brsPool) {
+			// It is safe appending blockRef to brsPool, since there are no other items added there yet.
+			brsPool = append(brsPool, blockRef{
+				partRef: partRef,
+				addr:    addr,
+			})
+			brs.brs = brsPool[len(brsPool)-len(brs.brs)-1 : len(brsPool) : len(brsPool)]
+		} else {
+			// It is unsafe appending blockRef to brsPool, since there are other items added there.
+			// So just append it to brs.brs.
+			brs.brs = append(brs.brs, blockRef{
+				partRef: partRef,
+				addr:    addr,
+			})
+		}
 		if len(brs.brs) == 1 {
 			metricNamesBufLen := len(metricNamesBuf)
 			metricNamesBuf = append(metricNamesBuf, metricName...)
@@ -1277,6 +1292,12 @@ var indexSearchDuration = metrics.NewHistogram(`vm_index_search_duration_seconds
 type blockRef struct {
 	partRef storage.PartRef
 	addr    tmpBlockAddr
+}
+
+func haveSameBlockRefTails(a, b []blockRef) bool {
+	sha := (*reflect.SliceHeader)(unsafe.Pointer(&a))
+	shb := (*reflect.SliceHeader)(unsafe.Pointer(&b))
+	return sha.Data+uintptr(sha.Len)*unsafe.Sizeof(blockRef{}) == shb.Data+uintptr(shb.Len)*unsafe.Sizeof(blockRef{})
 }
 
 func setupTfss(qt *querytracer.Tracer, tr storage.TimeRange, tagFilterss [][]storage.TagFilter, maxMetrics int, deadline searchutils.Deadline) ([]*storage.TagFilters, error) {
