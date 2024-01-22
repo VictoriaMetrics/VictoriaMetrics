@@ -15,7 +15,6 @@ func TestRetry_Do(t *testing.T) {
 		backoffFactor      float64
 		backoffMinDuration time.Duration
 		retryableFunc      retryableFunc
-		ctx                context.Context
 		cancelTimeout      time.Duration
 		want               uint64
 		wantErr            bool
@@ -25,7 +24,6 @@ func TestRetry_Do(t *testing.T) {
 			retryableFunc: func() error {
 				return ErrBadRequest
 			},
-			ctx:     context.Background(),
 			want:    0,
 			wantErr: true,
 		},
@@ -35,7 +33,6 @@ func TestRetry_Do(t *testing.T) {
 				time.Sleep(time.Millisecond * 100)
 				return nil
 			},
-			ctx:     context.Background(),
 			want:    0,
 			wantErr: true,
 		},
@@ -58,7 +55,6 @@ func TestRetry_Do(t *testing.T) {
 				}
 				return nil
 			},
-			ctx:     context.Background(),
 			want:    1,
 			wantErr: false,
 		},
@@ -75,7 +71,6 @@ func TestRetry_Do(t *testing.T) {
 				}
 				return nil
 			},
-			ctx:     context.Background(),
 			want:    5,
 			wantErr: true,
 		},
@@ -85,14 +80,8 @@ func TestRetry_Do(t *testing.T) {
 			backoffFactor:      1.7,
 			backoffMinDuration: time.Millisecond * 10,
 			retryableFunc: func() error {
-				t := time.NewTicker(time.Millisecond * 5)
-				defer t.Stop()
-				for range t.C {
-					return fmt.Errorf("got some error")
-				}
-				return nil
+				return fmt.Errorf("got some error")
 			},
-			ctx:           context.Background(),
 			cancelTimeout: time.Millisecond * 40,
 			want:          3,
 			wantErr:       true,
@@ -101,12 +90,13 @@ func TestRetry_Do(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r := &Backoff{retries: tt.backoffRetries, factor: tt.backoffFactor, minDuration: tt.backoffMinDuration}
+			ctx := context.Background()
 			if tt.cancelTimeout != 0 {
-				newCtx, cancelFn := context.WithTimeout(tt.ctx, tt.cancelTimeout)
-				tt.ctx = newCtx
+				newCtx, cancelFn := context.WithTimeout(context.Background(), tt.cancelTimeout)
+				ctx = newCtx
 				defer cancelFn()
 			}
-			got, err := r.Retry(tt.ctx, tt.retryableFunc)
+			got, err := r.Retry(ctx, tt.retryableFunc)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Retry() error = %v, wantErr %v", err, tt.wantErr)
 				return
