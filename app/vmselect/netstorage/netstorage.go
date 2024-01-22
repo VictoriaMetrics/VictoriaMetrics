@@ -1178,6 +1178,12 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 	samples := 0
 	tbf := getTmpBlocksFile()
 	var buf []byte
+
+	// metricNamesBuf is used for holding all the loaded unique metric names.
+	// It should reduce pressure on Go garbage collector by reducing
+	// the number of memory allocations when constructing metricName string from byte slice.
+	var metricNamesBuf []byte
+
 	for sr.NextMetricBlock() {
 		blocksRead++
 		if deadline.Exceeded() {
@@ -1199,8 +1205,6 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 			putStorageSearch(sr)
 			return nil, fmt.Errorf("cannot write %d bytes to temporary file: %w", len(buf), err)
 		}
-		// Do not intern mb.MetricName, since it leads to increased memory usage.
-		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3692
 		metricName := sr.MetricBlockRef.MetricName
 		brs := m[string(metricName)]
 		if brs == nil {
@@ -1212,7 +1216,10 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 			addr:    addr,
 		})
 		if len(brs.brs) == 1 {
-			metricNameStr := string(metricName)
+			metricNamesBufLen := len(metricNamesBuf)
+			metricNamesBuf = append(metricNamesBuf, metricName...)
+			metricNameStr := bytesutil.ToUnsafeString(metricNamesBuf[metricNamesBufLen:])
+
 			orderedMetricNames = append(orderedMetricNames, metricNameStr)
 			m[metricNameStr] = brs
 		}
