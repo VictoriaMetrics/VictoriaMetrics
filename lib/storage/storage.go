@@ -2206,9 +2206,14 @@ type dateMetricIDCache struct {
 	byDate atomic.Pointer[byDateMetricIDMap]
 
 	// Contains mutable map protected by mu
-	byDateMutable    *byDateMetricIDMap
-	nextSyncDeadline uint64
-	mu               sync.Mutex
+	byDateMutable *byDateMetricIDMap
+
+	// Contains the number of slow accesses to byDateMutable.
+	// Is used for deciding when to merge byDateMutable to byDate.
+	// Protected by mu.
+	slowHits int
+
+	mu sync.Mutex
 }
 
 func newDateMetricIDCache() *dateMetricIDCache {
@@ -2221,7 +2226,7 @@ func (dmc *dateMetricIDCache) resetLocked() {
 	// Do not reset syncsCount and resetsCount
 	dmc.byDate.Store(newByDateMetricIDMap())
 	dmc.byDateMutable = newByDateMetricIDMap()
-	dmc.nextSyncDeadline = 10 + fasttime.UnixTimestamp()
+	dmc.slowHits = 0
 
 	atomic.AddUint64(&dmc.resetsCount, 1)
 }
@@ -2255,9 +2260,16 @@ func (dmc *dateMetricIDCache) Has(generation, date, metricID uint64) bool {
 
 	// Slow path. Check mutable map.
 	dmc.mu.Lock()
-	v = dmc.byDateMutable.get(generation, date)
-	ok := v.Has(metricID)
-	dmc.syncLockedIfNeeded()
+	vMutable := dmc.byDateMutable.get(generation, date)
+	ok := vMutable.Has(metricID)
+	if ok {
+		dmc.slowHits++
+		if dmc.slowHits > (v.Len()+vMutable.Len())/2 {
+			// It is cheaper to merge byDateMutable into byDate than to pay inter-cpu sync costs when accessing vMutable.
+			dmc.syncLocked()
+			dmc.slowHits = 0
+		}
+	}
 	dmc.mu.Unlock()
 
 	return ok
@@ -2296,14 +2308,6 @@ func (dmc *dateMetricIDCache) Set(generation, date, metricID uint64) {
 	v := dmc.byDateMutable.getOrCreate(generation, date)
 	v.Add(metricID)
 	dmc.mu.Unlock()
-}
-
-func (dmc *dateMetricIDCache) syncLockedIfNeeded() {
-	currentTime := fasttime.UnixTimestamp()
-	if currentTime >= dmc.nextSyncDeadline {
-		dmc.nextSyncDeadline = currentTime + 10
-		dmc.syncLocked()
-	}
 }
 
 func (dmc *dateMetricIDCache) syncLocked() {
