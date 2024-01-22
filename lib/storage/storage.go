@@ -26,11 +26,11 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/snapshot"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
 	"github.com/VictoriaMetrics/fastcache"
 	"github.com/VictoriaMetrics/metricsql"
-	"github.com/valyala/fastrand"
 )
 
 const (
@@ -671,7 +671,8 @@ func (s *Storage) startFreeDiskSpaceWatcher() {
 	s.freeDiskSpaceWatcherWG.Add(1)
 	go func() {
 		defer s.freeDiskSpaceWatcherWG.Done()
-		ticker := time.NewTicker(time.Second)
+		d := timeutil.AddJitterToDuration(time.Second)
+		ticker := time.NewTicker(d)
 		defer ticker.Stop()
 		for {
 			select {
@@ -720,10 +721,9 @@ func (s *Storage) startNextDayMetricIDsUpdater() {
 	}()
 }
 
-var currHourMetricIDsUpdateInterval = time.Second * 10
-
 func (s *Storage) currHourMetricIDsUpdater() {
-	ticker := time.NewTicker(currHourMetricIDsUpdateInterval)
+	d := timeutil.AddJitterToDuration(time.Second * 10)
+	ticker := time.NewTicker(d)
 	defer ticker.Stop()
 	for {
 		select {
@@ -738,10 +738,9 @@ func (s *Storage) currHourMetricIDsUpdater() {
 	}
 }
 
-var nextDayMetricIDsUpdateInterval = time.Second * 11
-
 func (s *Storage) nextDayMetricIDsUpdater() {
-	ticker := time.NewTicker(nextDayMetricIDsUpdateInterval)
+	d := timeutil.AddJitterToDuration(time.Second * 11)
+	ticker := time.NewTicker(d)
 	defer ticker.Stop()
 	for {
 		select {
@@ -1214,9 +1213,8 @@ func (s *Storage) prefetchMetricNames(qt *querytracer.Tracer, srcMetricIDs []uin
 	if fasttime.UnixTimestamp() > atomic.LoadUint64(&s.prefetchedMetricIDsDeadline) {
 		// Periodically reset the prefetchedMetricIDs in order to limit its size.
 		s.prefetchedMetricIDs = &uint64set.Set{}
-		const deadlineSec = 20 * 60
-		jitterSec := fastrand.Uint32n(deadlineSec / 10)
-		metricIDsDeadline := fasttime.UnixTimestamp() + deadlineSec + uint64(jitterSec)
+		d := timeutil.AddJitterToDuration(time.Second * 20 * 60)
+		metricIDsDeadline := fasttime.UnixTimestamp() + uint64(d.Seconds())
 		atomic.StoreUint64(&s.prefetchedMetricIDsDeadline, metricIDsDeadline)
 	}
 	s.prefetchedMetricIDs.AddMulti(metricIDs)
@@ -2206,9 +2204,14 @@ type dateMetricIDCache struct {
 	byDate atomic.Pointer[byDateMetricIDMap]
 
 	// Contains mutable map protected by mu
-	byDateMutable    *byDateMetricIDMap
-	nextSyncDeadline uint64
-	mu               sync.Mutex
+	byDateMutable *byDateMetricIDMap
+
+	// Contains the number of slow accesses to byDateMutable.
+	// Is used for deciding when to merge byDateMutable to byDate.
+	// Protected by mu.
+	slowHits int
+
+	mu sync.Mutex
 }
 
 func newDateMetricIDCache() *dateMetricIDCache {
@@ -2221,7 +2224,7 @@ func (dmc *dateMetricIDCache) resetLocked() {
 	// Do not reset syncsCount and resetsCount
 	dmc.byDate.Store(newByDateMetricIDMap())
 	dmc.byDateMutable = newByDateMetricIDMap()
-	dmc.nextSyncDeadline = 10 + fasttime.UnixTimestamp()
+	dmc.slowHits = 0
 
 	atomic.AddUint64(&dmc.resetsCount, 1)
 }
@@ -2255,9 +2258,16 @@ func (dmc *dateMetricIDCache) Has(generation, date, metricID uint64) bool {
 
 	// Slow path. Check mutable map.
 	dmc.mu.Lock()
-	v = dmc.byDateMutable.get(generation, date)
-	ok := v.Has(metricID)
-	dmc.syncLockedIfNeeded()
+	vMutable := dmc.byDateMutable.get(generation, date)
+	ok := vMutable.Has(metricID)
+	if ok {
+		dmc.slowHits++
+		if dmc.slowHits > (v.Len()+vMutable.Len())/2 {
+			// It is cheaper to merge byDateMutable into byDate than to pay inter-cpu sync costs when accessing vMutable.
+			dmc.syncLocked()
+			dmc.slowHits = 0
+		}
+	}
 	dmc.mu.Unlock()
 
 	return ok
@@ -2296,14 +2306,6 @@ func (dmc *dateMetricIDCache) Set(generation, date, metricID uint64) {
 	v := dmc.byDateMutable.getOrCreate(generation, date)
 	v.Add(metricID)
 	dmc.mu.Unlock()
-}
-
-func (dmc *dateMetricIDCache) syncLockedIfNeeded() {
-	currentTime := fasttime.UnixTimestamp()
-	if currentTime >= dmc.nextSyncDeadline {
-		dmc.nextSyncDeadline = currentTime + 10
-		dmc.syncLocked()
-	}
 }
 
 func (dmc *dateMetricIDCache) syncLocked() {
