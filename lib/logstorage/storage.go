@@ -11,6 +11,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
 )
 
@@ -318,7 +319,8 @@ func (s *Storage) runRetentionWatcher() {
 }
 
 func (s *Storage) watchRetention() {
-	ticker := time.NewTicker(time.Hour)
+	d := timeutil.AddJitterToDuration(time.Hour)
+	ticker := time.NewTicker(d)
 	defer ticker.Stop()
 	for {
 		var ptwsToDelete []*partitionWrapper

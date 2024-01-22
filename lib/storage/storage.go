@@ -26,11 +26,11 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/snapshot"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
 	"github.com/VictoriaMetrics/fastcache"
 	"github.com/VictoriaMetrics/metricsql"
-	"github.com/valyala/fastrand"
 )
 
 const (
@@ -671,7 +671,8 @@ func (s *Storage) startFreeDiskSpaceWatcher() {
 	s.freeDiskSpaceWatcherWG.Add(1)
 	go func() {
 		defer s.freeDiskSpaceWatcherWG.Done()
-		ticker := time.NewTicker(time.Second)
+		d := timeutil.AddJitterToDuration(time.Second)
+		ticker := time.NewTicker(d)
 		defer ticker.Stop()
 		for {
 			select {
@@ -720,10 +721,9 @@ func (s *Storage) startNextDayMetricIDsUpdater() {
 	}()
 }
 
-var currHourMetricIDsUpdateInterval = time.Second * 10
-
 func (s *Storage) currHourMetricIDsUpdater() {
-	ticker := time.NewTicker(currHourMetricIDsUpdateInterval)
+	d := timeutil.AddJitterToDuration(time.Second * 10)
+	ticker := time.NewTicker(d)
 	defer ticker.Stop()
 	for {
 		select {
@@ -738,10 +738,9 @@ func (s *Storage) currHourMetricIDsUpdater() {
 	}
 }
 
-var nextDayMetricIDsUpdateInterval = time.Second * 11
-
 func (s *Storage) nextDayMetricIDsUpdater() {
-	ticker := time.NewTicker(nextDayMetricIDsUpdateInterval)
+	d := timeutil.AddJitterToDuration(time.Second * 11)
+	ticker := time.NewTicker(d)
 	defer ticker.Stop()
 	for {
 		select {
@@ -1214,9 +1213,8 @@ func (s *Storage) prefetchMetricNames(qt *querytracer.Tracer, srcMetricIDs []uin
 	if fasttime.UnixTimestamp() > atomic.LoadUint64(&s.prefetchedMetricIDsDeadline) {
 		// Periodically reset the prefetchedMetricIDs in order to limit its size.
 		s.prefetchedMetricIDs = &uint64set.Set{}
-		const deadlineSec = 20 * 60
-		jitterSec := fastrand.Uint32n(deadlineSec / 10)
-		metricIDsDeadline := fasttime.UnixTimestamp() + deadlineSec + uint64(jitterSec)
+		d := timeutil.AddJitterToDuration(time.Second * 20 * 60)
+		metricIDsDeadline := fasttime.UnixTimestamp() + uint64(d.Seconds())
 		atomic.StoreUint64(&s.prefetchedMetricIDsDeadline, metricIDsDeadline)
 	}
 	s.prefetchedMetricIDs.AddMulti(metricIDs)

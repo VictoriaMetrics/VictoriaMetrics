@@ -24,6 +24,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 )
 
 var (
@@ -581,7 +582,7 @@ func newURLWatcher(role, apiURL string, gw *groupWatcher) *urlWatcher {
 }
 
 func (uw *urlWatcher) recreateScrapeWorks() {
-	const minSleepTime = 5 * time.Second
+	minSleepTime := timeutil.AddJitterToDuration(5 * time.Second)
 	sleepTime := minSleepTime
 	gw := uw.gw
 	stopCh := gw.ctx.Done()
@@ -756,8 +757,9 @@ func (uw *urlWatcher) reloadObjects() string {
 func (uw *urlWatcher) watchForUpdates() {
 	gw := uw.gw
 	stopCh := gw.ctx.Done()
-	backoffDelay := time.Second
-	maxBackoffDelay := 30 * time.Second
+	minBackoffDelay := timeutil.AddJitterToDuration(time.Second)
+	maxBackoffDelay := timeutil.AddJitterToDuration(time.Second * 30)
+	backoffDelay := minBackoffDelay
 	backoffSleep := func() {
 		t := timerpool.Get(backoffDelay)
 		select {
@@ -802,7 +804,7 @@ func (uw *urlWatcher) watchForUpdates() {
 		if resp.StatusCode != http.StatusOK {
 			if resp.StatusCode == 410 {
 				// There is no need for sleep on 410 error. See https://kubernetes.io/docs/reference/using-api/api-concepts/#410-gone-responses
-				backoffDelay = time.Second
+				backoffDelay = minBackoffDelay
 				uw.staleResourceVersions.Inc()
 				uw.resourceVersion = ""
 			} else {
@@ -813,7 +815,7 @@ func (uw *urlWatcher) watchForUpdates() {
 			}
 			continue
 		}
-		backoffDelay = time.Second
+		backoffDelay = minBackoffDelay
 		err = uw.readObjectUpdateStream(resp.Body)
 		_ = resp.Body.Close()
 		if err != nil {
