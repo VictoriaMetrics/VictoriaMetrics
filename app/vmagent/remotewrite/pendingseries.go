@@ -15,6 +15,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/persistentqueue"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/golang/snappy"
 )
@@ -69,7 +70,8 @@ func (ps *pendingSeries) periodicFlusher() {
 	if flushSeconds <= 0 {
 		flushSeconds = 1
 	}
-	ticker := time.NewTicker(*flushInterval)
+	d := timeutil.AddJitterToDuration(*flushInterval)
+	ticker := time.NewTicker(d)
 	defer ticker.Stop()
 	for {
 		select {

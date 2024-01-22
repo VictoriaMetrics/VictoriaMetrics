@@ -20,6 +20,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/cespare/xxhash/v2"
 )
@@ -148,7 +149,8 @@ func (sn *storageNode) run(snb *storageNodesBucket, snIdx int) {
 	}()
 	defer sn.readOnlyCheckerWG.Wait()
 
-	ticker := time.NewTicker(200 * time.Millisecond)
+	d := timeutil.AddJitterToDuration(time.Millisecond * 200)
+	ticker := time.NewTicker(d)
 	defer ticker.Stop()
 	var br bufRows
 	brLastResetTime := fasttime.UnixTimestamp()
@@ -188,7 +190,8 @@ func (sn *storageNode) run(snb *storageNodesBucket, snIdx int) {
 		}
 		// Send br to replicas storage nodes starting from snIdx.
 		for !sendBufToReplicasNonblocking(snb, &br, snIdx, replicas) {
-			t := timerpool.Get(200 * time.Millisecond)
+			d := timeutil.AddJitterToDuration(time.Millisecond * 200)
+			t := timerpool.Get(d)
 			select {
 			case <-sn.stopCh:
 				timerpool.Put(t)
@@ -783,7 +786,8 @@ func (sn *storageNode) sendBufMayBlock(buf []byte) bool {
 }
 
 func (sn *storageNode) readOnlyChecker() {
-	ticker := time.NewTicker(time.Second * 30)
+	d := timeutil.AddJitterToDuration(time.Second * 30)
+	ticker := time.NewTicker(d)
 	defer ticker.Stop()
 	for {
 		select {

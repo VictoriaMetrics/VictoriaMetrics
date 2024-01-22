@@ -10,6 +10,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage/servers"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
@@ -23,7 +25,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
-	"github.com/VictoriaMetrics/metrics"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 )
 
 var (
@@ -325,7 +327,8 @@ func initStaleSnapshotsRemover(strg *storage.Storage) {
 	staleSnapshotsRemoverWG.Add(1)
 	go func() {
 		defer staleSnapshotsRemoverWG.Done()
-		t := time.NewTicker(11 * time.Second)
+		d := timeutil.AddJitterToDuration(time.Second * 11)
+		t := time.NewTicker(d)
 		defer t.Stop()
 		for {
 			select {
