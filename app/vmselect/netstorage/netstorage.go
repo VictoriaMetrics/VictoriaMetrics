@@ -1351,6 +1351,11 @@ type tmpBlocksFileWrapper struct {
 	tbfs                []*tmpBlocksFile
 	ms                  []map[string]*blockAddrs
 	orderedMetricNamess [][]string
+
+	// metricNamesBufs are per-worker bufs for holding all the loaded unique metric names.
+	// It should reduce pressure on Go garbage collector by reducing
+	// the number of memory allocations when constructing metricName string from byte slice.
+	metricNamesBufs [][]byte
 }
 
 type blockAddrs struct {
@@ -1378,6 +1383,7 @@ func newTmpBlocksFileWrapper(sns []*storageNode) *tmpBlocksFileWrapper {
 		tbfs:                tbfs,
 		ms:                  ms,
 		orderedMetricNamess: make([][]string, n),
+		metricNamesBufs:     make([][]byte, n),
 	}
 }
 
@@ -1389,8 +1395,6 @@ func (tbfw *tmpBlocksFileWrapper) RegisterAndWriteBlock(mb *storage.MetricBlock,
 	if err != nil {
 		return err
 	}
-	// Do not intern mb.MetricName, since it leads to increased memory usage.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3692
 	metricName := mb.MetricName
 	m := tbfw.ms[workerID]
 	addrs := m[string(metricName)]
@@ -1399,13 +1403,17 @@ func (tbfw *tmpBlocksFileWrapper) RegisterAndWriteBlock(mb *storage.MetricBlock,
 	}
 	addrs.addrs = append(addrs.addrs, addr)
 	if len(addrs.addrs) == 1 {
-		// An optimization for big number of time series with long names: store only a single copy of metricNameStr
-		// in both tbfw.orderedMetricNamess and tbfw.ms.
+		metricNamesBuf := tbfw.metricNamesBufs[workerID]
+		metricNamesBufLen := len(metricNamesBuf)
+		metricNamesBuf = append(metricNamesBuf, metricName...)
+		metricNameStr := bytesutil.ToUnsafeString(metricNamesBuf[metricNamesBufLen:])
+
 		orderedMetricNames := tbfw.orderedMetricNamess[workerID]
-		metricNameStr := string(metricName)
 		orderedMetricNames = append(orderedMetricNames, metricNameStr)
 		m[metricNameStr] = addrs
+
 		tbfw.orderedMetricNamess[workerID] = orderedMetricNames
+		tbfw.metricNamesBufs[workerID] = metricNamesBuf
 	}
 	return nil
 }
