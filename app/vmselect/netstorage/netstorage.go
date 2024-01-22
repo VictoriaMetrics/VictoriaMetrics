@@ -1180,9 +1180,13 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 	var buf []byte
 
 	// metricNamesBuf is used for holding all the loaded unique metric names.
-	// It should reduce pressure on Go garbage collector by reducing
-	// the number of memory allocations when constructing metricName string from byte slice.
+	// It should reduce pressure on Go GC by reducing the number of string allocations
+	// when constructing metricName string from byte slice.
 	var metricNamesBuf []byte
+
+	// brssBuf is used for holding all the blockRefs objects across all the loaded time series.
+	// It should reduce pressure on Go GC by reducing the number of blockRefs allocations.
+	var brssBuf []blockRefs
 
 	for sr.NextMetricBlock() {
 		blocksRead++
@@ -1208,7 +1212,12 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 		metricName := sr.MetricBlockRef.MetricName
 		brs := m[string(metricName)]
 		if brs == nil {
-			brs = &blockRefs{}
+			if cap(brssBuf) > len(brssBuf) {
+				brssBuf = brssBuf[:len(brssBuf)+1]
+			} else {
+				brssBuf = append(brssBuf, blockRefs{})
+			}
+			brs = &brssBuf[len(brssBuf)-1]
 			brs.brs = brs.brsPrealloc[:0]
 		}
 		brs.brs = append(brs.brs, blockRef{
