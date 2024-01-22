@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"reflect"
 	"sort"
 	"strings"
 	"sync"
@@ -1350,14 +1351,18 @@ func SeriesCount(qt *querytracer.Tracer, accountID, projectID uint32, denyPartia
 type tmpBlocksFileWrapper struct {
 	tbfs []*tmpBlocksFile
 
-	// metricNamesBufs are per-worker bufs for holding all the loaded unique metric names.
+	// metricNamesBufs are per-worker bufs for holding all the loaded unique metric names for ms and orderedMetricNamess.
 	// It should reduce pressure on Go GC by reducing the number of string allocations
 	// when constructing metricName string from byte slice.
 	metricNamesBufs [][]byte
 
-	// addrssPools are per-worker bufs for holding all the blockAddrs across all the loaded time series.
+	// addrssPools are per-worker pools for holding all the blockAddrs across all the loaded time series.
 	// It should reduce pressure on Go GC by reducing the number of blockAddrs object allocations.
 	addrssPools [][]blockAddrs
+
+	// addrsPools are per-worker pools for holding the most of blockAddrs.addrs slices
+	// It should reduce pressure on Go GC by reducing the number of blockAddrs.addrs allocations.
+	addrsPools [][]tmpBlockAddr
 
 	// ms maps metricName to the addrssPools index.
 	ms []map[string]int
@@ -1368,8 +1373,13 @@ type tmpBlocksFileWrapper struct {
 }
 
 type blockAddrs struct {
-	addrsPrealloc [4]tmpBlockAddr
-	addrs         []tmpBlockAddr
+	addrs []tmpBlockAddr
+}
+
+func haveSameBlockAddrTails(a, b []tmpBlockAddr) bool {
+	sha := (*reflect.SliceHeader)(unsafe.Pointer(&a))
+	shb := (*reflect.SliceHeader)(unsafe.Pointer(&b))
+	return sha.Data+uintptr(sha.Len)*unsafe.Sizeof(tmpBlockAddr{}) == shb.Data+uintptr(shb.Len)*unsafe.Sizeof(tmpBlockAddr{})
 }
 
 func (tbfw *tmpBlocksFileWrapper) newBlockAddrs(workerID uint) int {
@@ -1381,8 +1391,6 @@ func (tbfw *tmpBlocksFileWrapper) newBlockAddrs(workerID uint) int {
 	}
 	tbfw.addrssPools[workerID] = addrssPool
 	idx := len(addrssPool) - 1
-	addrs := &addrssPool[idx]
-	addrs.addrs = addrs.addrsPrealloc[:0]
 	return idx
 }
 
@@ -1398,10 +1406,11 @@ func newTmpBlocksFileWrapper(sns []*storageNode) *tmpBlocksFileWrapper {
 	}
 	return &tmpBlocksFileWrapper{
 		tbfs:                tbfs,
-		ms:                  ms,
-		orderedMetricNamess: make([][]string, n),
 		metricNamesBufs:     make([][]byte, n),
 		addrssPools:         make([][]blockAddrs, n),
+		addrsPools:          make([][]tmpBlockAddr, n),
+		ms:                  ms,
+		orderedMetricNamess: make([][]string, n),
 	}
 }
 
@@ -1420,7 +1429,17 @@ func (tbfw *tmpBlocksFileWrapper) RegisterAndWriteBlock(mb *storage.MetricBlock,
 		addrsIdx = tbfw.newBlockAddrs(workerID)
 	}
 	addrs := &tbfw.addrssPools[workerID][addrsIdx]
-	addrs.addrs = append(addrs.addrs, addr)
+	addrsPool := tbfw.addrsPools[workerID]
+	if addrs.addrs == nil || haveSameBlockAddrTails(addrs.addrs, addrsPool) {
+		// It is safe appending addr to addrsPool, since there are no other items added there yet.
+		addrsPool = append(addrsPool, addr)
+		tbfw.addrsPools[workerID] = addrsPool
+		addrs.addrs = addrsPool[len(addrsPool)-len(addrs.addrs)-1 : len(addrsPool) : len(addrsPool)]
+	} else {
+		// It is unsafe appending addr to addrsPool, since there are other items added there.
+		// So just append it to addrs.addrs.
+		addrs.addrs = append(addrs.addrs, addr)
+	}
 	if len(addrs.addrs) == 1 {
 		metricNamesBuf := tbfw.metricNamesBufs[workerID]
 		metricNamesBufLen := len(metricNamesBuf)
