@@ -1172,8 +1172,7 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 		brsPrealloc [4]blockRef
 		brs         []blockRef
 	}
-	m := make(map[string]*blockRefs, maxSeriesCount)
-	orderedMetricNames := make([]string, 0, maxSeriesCount)
+
 	blocksRead := 0
 	samples := 0
 	tbf := getTmpBlocksFile()
@@ -1184,9 +1183,16 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 	// when constructing metricName string from byte slice.
 	var metricNamesBuf []byte
 
-	// brssBuf is used for holding all the blockRefs objects across all the loaded time series.
+	// brssPool is used for holding all the blockRefs objects across all the loaded time series.
 	// It should reduce pressure on Go GC by reducing the number of blockRefs allocations.
-	var brssBuf []blockRefs
+	brssPool := make([]blockRefs, 0, maxSeriesCount)
+
+	// m maps from metricName to the index of blockRefs inside brssPool
+	m := make(map[string]int, maxSeriesCount)
+
+	// orderedMetricNames contains the list of loaded unique metric names
+	// in the load order. This order is important for triggering sequential data reading.
+	orderedMetricNames := make([]string, 0, maxSeriesCount)
 
 	for sr.NextMetricBlock() {
 		blocksRead++
@@ -1210,16 +1216,18 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 			return nil, fmt.Errorf("cannot write %d bytes to temporary file: %w", len(buf), err)
 		}
 		metricName := sr.MetricBlockRef.MetricName
-		brs := m[string(metricName)]
-		if brs == nil {
-			if cap(brssBuf) > len(brssBuf) {
-				brssBuf = brssBuf[:len(brssBuf)+1]
+		brsIdx, ok := m[string(metricName)]
+		if !ok {
+			if cap(brssPool) > len(brssPool) {
+				brssPool = brssPool[:len(brssPool)+1]
 			} else {
-				brssBuf = append(brssBuf, blockRefs{})
+				brssPool = append(brssPool, blockRefs{})
 			}
-			brs = &brssBuf[len(brssBuf)-1]
+			brsIdx = len(brssPool) - 1
+			brs := &brssPool[brsIdx]
 			brs.brs = brs.brsPrealloc[:0]
 		}
+		brs := &brssPool[brsIdx]
 		brs.brs = append(brs.brs, blockRef{
 			partRef: br.PartRef(),
 			addr:    addr,
@@ -1230,7 +1238,7 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 			metricNameStr := bytesutil.ToUnsafeString(metricNamesBuf[metricNamesBufLen:])
 
 			orderedMetricNames = append(orderedMetricNames, metricNameStr)
-			m[metricNameStr] = brs
+			m[metricNameStr] = brsIdx
 		}
 	}
 	if err := sr.Error(); err != nil {
@@ -1255,7 +1263,7 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 	for i, metricName := range orderedMetricNames {
 		pts[i] = packedTimeseries{
 			metricName: metricName,
-			brs:        m[metricName].brs,
+			brs:        brssPool[m[metricName]].brs,
 		}
 	}
 	rss.packedTimeseries = pts
