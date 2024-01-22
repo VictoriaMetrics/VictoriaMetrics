@@ -1375,6 +1375,12 @@ type tmpBlocksFileWrapperShard struct {
 	// orderedMetricNames contains metric names in the order of their load.
 	// This order is important for sequential read of data from tmpBlocksFile.
 	orderedMetricNames []string
+
+	// prevMetricName contains the metric name previously seen at RegisterAndWriteBlock.
+	prevMetricName []byte
+
+	// prevAddrsIdx contains the addrssPool index previously seen at RegisterAndWriteBlock.
+	prevAddrsIdx int
 }
 
 type tmpBlocksFileWrapperShardWithPadding struct {
@@ -1431,13 +1437,21 @@ func (tbfw *tmpBlocksFileWrapper) RegisterAndWriteBlock(mb *storage.MetricBlock,
 	if err != nil {
 		return err
 	}
-	metricName := mb.MetricName
+
 	m := tbfwLocal.m
-	addrsIdx, ok := m[string(metricName)]
-	if !ok {
-		addrsIdx = tbfwLocal.newBlockAddrs()
+	metricName := mb.MetricName
+	addrsIdx := tbfwLocal.prevAddrsIdx
+	if tbfwLocal.prevMetricName == nil || string(metricName) != string(tbfwLocal.prevMetricName) {
+		idx, ok := m[string(metricName)]
+		if !ok {
+			idx = tbfwLocal.newBlockAddrs()
+		}
+		addrsIdx = idx
+		tbfwLocal.prevMetricName = append(tbfwLocal.prevMetricName[:0], metricName...)
+		tbfwLocal.prevAddrsIdx = addrsIdx
 	}
 	addrs := &tbfwLocal.addrssPool[addrsIdx]
+
 	addrsPool := tbfwLocal.addrsPool
 	if addrs.addrs == nil || haveSameBlockAddrTails(addrs.addrs, addrsPool) {
 		// It is safe appending addr to addrsPool, since there are no other items added there yet.
@@ -1449,6 +1463,7 @@ func (tbfw *tmpBlocksFileWrapper) RegisterAndWriteBlock(mb *storage.MetricBlock,
 		// So just append it to addrs.addrs.
 		addrs.addrs = append(addrs.addrs, addr)
 	}
+
 	if len(addrs.addrs) == 1 {
 		metricNamesBuf := tbfwLocal.metricNamesBuf
 		metricNamesBufLen := len(metricNamesBuf)
@@ -1462,6 +1477,7 @@ func (tbfw *tmpBlocksFileWrapper) RegisterAndWriteBlock(mb *storage.MetricBlock,
 		tbfwLocal.orderedMetricNames = orderedMetricNames
 		tbfwLocal.metricNamesBuf = metricNamesBuf
 	}
+
 	return nil
 }
 
