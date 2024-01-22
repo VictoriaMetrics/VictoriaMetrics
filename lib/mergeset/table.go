@@ -738,7 +738,11 @@ func (tb *Table) flushBlocksToParts(ibs []*inmemoryBlock, isFinal bool) {
 		if isFinal {
 			tb.flushCallback()
 		} else {
-			atomic.CompareAndSwapUint32(&tb.needFlushCallbackCall, 0, 1)
+			// Use atomic.LoadUint32 in front of atomic.CompareAndSwapUint32 in order to avoid slow inter-CPU synchronization
+			// at fast path when needFlushCallbackCall is already set to 1.
+			if atomic.LoadUint32(&tb.needFlushCallbackCall) == 0 {
+				atomic.CompareAndSwapUint32(&tb.needFlushCallbackCall, 0, 1)
+			}
 		}
 	}
 }

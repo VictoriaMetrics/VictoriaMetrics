@@ -123,14 +123,12 @@ func (c *Client) Push(s prompbmarshal.TimeSeries) error {
 	case <-c.doneCh:
 		rwErrors.Inc()
 		droppedRows.Add(len(s.Samples))
-		droppedBytes.Add(s.Size())
 		return fmt.Errorf("client is closed")
 	case c.input <- s:
 		return nil
 	default:
 		rwErrors.Inc()
 		droppedRows.Add(len(s.Samples))
-		droppedBytes.Add(s.Size())
 		return fmt.Errorf("failed to push timeseries - queue is full (%d entries). "+
 			"Queue size is controlled by -remoteWrite.maxQueueSize flag",
 			c.maxQueueSize)
@@ -195,7 +193,6 @@ var (
 	sentRows            = metrics.NewCounter(`vmalert_remotewrite_sent_rows_total`)
 	sentBytes           = metrics.NewCounter(`vmalert_remotewrite_sent_bytes_total`)
 	droppedRows         = metrics.NewCounter(`vmalert_remotewrite_dropped_rows_total`)
-	droppedBytes        = metrics.NewCounter(`vmalert_remotewrite_dropped_bytes_total`)
 	sendDuration        = metrics.NewFloatCounter(`vmalert_remotewrite_send_duration_seconds_total`)
 	bufferFlushDuration = metrics.NewHistogram(`vmalert_remotewrite_flush_duration_seconds`)
 
@@ -211,15 +208,10 @@ func (c *Client) flush(ctx context.Context, wr *prompbmarshal.WriteRequest) {
 	if len(wr.Timeseries) < 1 {
 		return
 	}
-	defer prompbmarshal.ResetWriteRequest(wr)
+	defer wr.Reset()
 	defer bufferFlushDuration.UpdateDuration(time.Now())
 
-	data, err := wr.Marshal()
-	if err != nil {
-		logger.Errorf("failed to marshal WriteRequest: %s", err)
-		return
-	}
-
+	data := wr.MarshalProtobuf(nil)
 	b := snappy.Encode(nil, data)
 
 	retryInterval, maxRetryInterval := *retryMinInterval, *retryMaxTime
@@ -276,8 +268,11 @@ L:
 	}
 
 	rwErrors.Inc()
-	droppedRows.Add(len(wr.Timeseries))
-	droppedBytes.Add(len(b))
+	rows := 0
+	for _, ts := range wr.Timeseries {
+		rows += len(ts.Samples)
+	}
+	droppedRows.Add(rows)
 	logger.Errorf("attempts to send remote-write request failed - dropping %d time series",
 		len(wr.Timeseries))
 }

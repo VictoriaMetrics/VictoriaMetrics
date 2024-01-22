@@ -69,7 +69,8 @@ var (
 		"See also -opentsdbHTTPListenAddr.useProxyProtocol")
 	opentsdbHTTPUseProxyProtocol = flag.Bool("opentsdbHTTPListenAddr.useProxyProtocol", false, "Whether to use proxy protocol for connections accepted "+
 		"at -opentsdbHTTPListenAddr . See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt")
-	configAuthKey = flag.String("configAuthKey", "", "Authorization key for accessing /config page. It must be passed via authKey query arg")
+	configAuthKey = flagutil.NewPassword("configAuthKey", "Authorization key for accessing /config page. It must be passed via authKey query arg")
+	reloadAuthKey = flagutil.NewPassword("reloadAuthKey", "Auth key for /-/reload http endpoint. It must be passed as authKey=...")
 	dryRun        = flag.Bool("dryRun", false, "Whether to check config files without running vmagent. The following files are checked: "+
 		"-promscrape.config, -remoteWrite.relabelConfig, -remoteWrite.urlRelabelConfig, -remoteWrite.streamAggr.config . "+
 		"Unknown config entries aren't allowed in -promscrape.config by default. This can be changed by passing -promscrape.config.strictParse=false command-line flag")
@@ -96,7 +97,6 @@ func main() {
 	remotewrite.InitSecretFlags()
 	buildinfo.Init()
 	logger.Init()
-	pushmetrics.Init()
 
 	if promscrape.IsDryRun() {
 		if err := promscrape.CheckConfig(); err != nil {
@@ -147,8 +147,10 @@ func main() {
 	}
 	logger.Infof("started vmagent in %.3f seconds", time.Since(startTime).Seconds())
 
+	pushmetrics.Init()
 	sig := procutil.WaitForSigterm()
 	logger.Infof("received signal %s", sig)
+	pushmetrics.Stop()
 
 	startTime = time.Now()
 	if len(*httpListenAddr) > 0 {
@@ -420,7 +422,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		return true
 	case "/prometheus/config", "/config":
-		if !httpserver.CheckAuthFlag(w, r, *configAuthKey, "configAuthKey") {
+		if !httpserver.CheckAuthFlag(w, r, configAuthKey.Get(), "configAuthKey") {
 			return true
 		}
 		promscrapeConfigRequests.Inc()
@@ -429,7 +431,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/prometheus/api/v1/status/config", "/api/v1/status/config":
 		// See https://prometheus.io/docs/prometheus/latest/querying/api/#config
-		if !httpserver.CheckAuthFlag(w, r, *configAuthKey, "configAuthKey") {
+		if !httpserver.CheckAuthFlag(w, r, configAuthKey.Get(), "configAuthKey") {
 			return true
 		}
 		promscrapeStatusConfigRequests.Inc()
@@ -439,6 +441,9 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		fmt.Fprintf(w, `{"status":"success","data":{"yaml":%q}}`, bb.B)
 		return true
 	case "/prometheus/-/reload", "/-/reload":
+		if !httpserver.CheckAuthFlag(w, r, reloadAuthKey.Get(), "reloadAuthKey") {
+			return true
+		}
 		promscrapeConfigReloadRequests.Inc()
 		procutil.SelfSIGHUP()
 		w.WriteHeader(http.StatusOK)

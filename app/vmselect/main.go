@@ -18,6 +18,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
@@ -29,13 +30,13 @@ import (
 )
 
 var (
-	deleteAuthKey         = flag.String("deleteAuthKey", "", "authKey for metrics' deletion via /api/v1/admin/tsdb/delete_series and /tags/delSeries")
+	deleteAuthKey         = flagutil.NewPassword("deleteAuthKey", "authKey for metrics' deletion via /api/v1/admin/tsdb/delete_series and /tags/delSeries")
 	maxConcurrentRequests = flag.Int("search.maxConcurrentRequests", getDefaultMaxConcurrentRequests(), "The maximum number of concurrent search requests. "+
 		"It shouldn't be high, since a single request can saturate all the CPU cores, while many concurrently executed requests may require high amounts of memory. "+
 		"See also -search.maxQueueDuration and -search.maxMemoryPerQuery")
 	maxQueueDuration = flag.Duration("search.maxQueueDuration", 10*time.Second, "The maximum time the request waits for execution when -search.maxConcurrentRequests "+
 		"limit is reached; see also -search.maxQueryDuration")
-	resetCacheAuthKey    = flag.String("search.resetCacheAuthKey", "", "Optional authKey for resetting rollup cache via /internal/resetRollupResultCache call")
+	resetCacheAuthKey    = flagutil.NewPassword("search.resetCacheAuthKey", "Optional authKey for resetting rollup cache via /internal/resetRollupResultCache call")
 	logSlowQueryDuration = flag.Duration("search.logSlowQueryDuration", 5*time.Second, "Log queries with execution time exceeding this value. Zero disables slow query logging. "+
 		"See also -search.logQueryMemoryUsage")
 	vmalertProxyURL = flag.String("vmalert.proxyURL", "", "Optional URL for proxying requests to vmalert. For example, if -vmalert.proxyURL=http://vmalert:8880 , then alerting API requests such as /api/v1/rules from Grafana will be proxied to http://vmalert:8880/api/v1/rules")
@@ -170,7 +171,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	}
 
 	if path == "/internal/resetRollupResultCache" {
-		if !httpserver.CheckAuthFlag(w, r, *resetCacheAuthKey, "resetCacheAuthKey") {
+		if !httpserver.CheckAuthFlag(w, r, resetCacheAuthKey.Get(), "resetCacheAuthKey") {
 			return true
 		}
 		promql.ResetRollupResultCache()
@@ -367,7 +368,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		return true
 	case "/tags/delSeries":
-		if !httpserver.CheckAuthFlag(w, r, *deleteAuthKey, "deleteAuthKey") {
+		if !httpserver.CheckAuthFlag(w, r, deleteAuthKey.Get(), "deleteAuthKey") {
 			return true
 		}
 		graphiteTagsDelSeriesRequests.Inc()
@@ -386,7 +387,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		return true
 	case "/api/v1/admin/tsdb/delete_series":
-		if !httpserver.CheckAuthFlag(w, r, *deleteAuthKey, "deleteAuthKey") {
+		if !httpserver.CheckAuthFlag(w, r, deleteAuthKey.Get(), "deleteAuthKey") {
 			return true
 		}
 		deleteRequests.Inc()

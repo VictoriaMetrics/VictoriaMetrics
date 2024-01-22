@@ -53,8 +53,7 @@ scrape_configs:
 
 ## Visualization
 
-Visualisation of statistics can be done in Grafana using the following
-[dashboard](https://grafana.com/grafana/dashboards/16399-victoriametrics-cluster-per-tenant-statistic/).
+Use [this dashboard](https://grafana.com/grafana/dashboards/16399) for visualizing per-tenant statistics in Grafana.
 
 ## Integration with vmgateway
 

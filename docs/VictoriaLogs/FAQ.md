@@ -7,6 +7,7 @@ menu:
     identifier: "victorialogs-faq"
     parent: "victorialogs"
     weight: 6
+    title: FAQ
 aliases:
 - /VictoriaLogs/FAQ.html
 ---
