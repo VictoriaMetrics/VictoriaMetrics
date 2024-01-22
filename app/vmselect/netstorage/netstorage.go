@@ -1178,6 +1178,7 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 	samples := 0
 	tbf := getTmpBlocksFile()
 	var buf []byte
+	var metricNamePrev []byte
 
 	// metricNamesBuf is used for holding all the loaded unique metric names at m and orderedMetricNames.
 	// It should reduce pressure on Go GC by reducing the number of string allocations
@@ -1199,6 +1200,7 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 	// in the load order. This order is important for triggering sequential data reading.
 	orderedMetricNames := make([]string, 0, maxSeriesCount)
 
+	var brsIdx int
 	for sr.NextMetricBlock() {
 		blocksRead++
 		if deadline.Exceeded() {
@@ -1211,7 +1213,8 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 		if *maxSamplesPerQuery > 0 && samples > *maxSamplesPerQuery {
 			putTmpBlocksFile(tbf)
 			putStorageSearch(sr)
-			return nil, fmt.Errorf("cannot select more than -search.maxSamplesPerQuery=%d samples; possible solutions: to increase the -search.maxSamplesPerQuery; to reduce time range for the query; to use more specific label filters in order to select lower number of series", *maxSamplesPerQuery)
+			return nil, fmt.Errorf("cannot select more than -search.maxSamplesPerQuery=%d samples; possible solutions: to increase the -search.maxSamplesPerQuery; "+
+				"to reduce time range for the query; to use more specific label filters in order to select lower number of series", *maxSamplesPerQuery)
 		}
 		buf = br.Marshal(buf[:0])
 		addr, err := tbf.WriteBlockRefData(buf)
@@ -1221,14 +1224,18 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 			return nil, fmt.Errorf("cannot write %d bytes to temporary file: %w", len(buf), err)
 		}
 		metricName := sr.MetricBlockRef.MetricName
-		brsIdx, ok := m[string(metricName)]
-		if !ok {
-			if cap(brssPool) > len(brssPool) {
-				brssPool = brssPool[:len(brssPool)+1]
-			} else {
-				brssPool = append(brssPool, blockRefs{})
+		if metricNamePrev == nil || string(metricName) != string(metricNamePrev) {
+			idx, ok := m[string(metricName)]
+			if !ok {
+				if cap(brssPool) > len(brssPool) {
+					brssPool = brssPool[:len(brssPool)+1]
+				} else {
+					brssPool = append(brssPool, blockRefs{})
+				}
+				idx = len(brssPool) - 1
 			}
-			brsIdx = len(brssPool) - 1
+			brsIdx = idx
+			metricNamePrev = append(metricNamePrev[:0], metricName...)
 		}
 		brs := &brssPool[brsIdx]
 		partRef := br.PartRef()
