@@ -1353,9 +1353,13 @@ type tmpBlocksFileWrapper struct {
 	orderedMetricNamess [][]string
 
 	// metricNamesBufs are per-worker bufs for holding all the loaded unique metric names.
-	// It should reduce pressure on Go garbage collector by reducing
-	// the number of memory allocations when constructing metricName string from byte slice.
+	// It should reduce pressure on Go GC by reducing the number of string allocations
+	// when constructing metricName string from byte slice.
 	metricNamesBufs [][]byte
+
+	// addrssBufs are per-worker bufs for holding all the blockAddrs across all the loaded time series.
+	// It should reduce pressure on Go GC by reducing the number of blockAddrs object allocations.
+	addrssBufs [][]blockAddrs
 }
 
 type blockAddrs struct {
@@ -1363,10 +1367,17 @@ type blockAddrs struct {
 	addrs         []tmpBlockAddr
 }
 
-func newBlockAddrs() *blockAddrs {
-	ba := &blockAddrs{}
-	ba.addrs = ba.addrsPrealloc[:0]
-	return ba
+func (tbfw *tmpBlocksFileWrapper) newBlockAddrs(workerID uint) *blockAddrs {
+	addrssBuf := tbfw.addrssBufs[workerID]
+	if cap(addrssBuf) > len(addrssBuf) {
+		addrssBuf = addrssBuf[:len(addrssBuf)+1]
+	} else {
+		addrssBuf = append(addrssBuf, blockAddrs{})
+	}
+	addrs := &addrssBuf[len(addrssBuf)-1]
+	tbfw.addrssBufs[workerID] = addrssBuf
+	addrs.addrs = addrs.addrsPrealloc[:0]
+	return addrs
 }
 
 func newTmpBlocksFileWrapper(sns []*storageNode) *tmpBlocksFileWrapper {
@@ -1384,6 +1395,7 @@ func newTmpBlocksFileWrapper(sns []*storageNode) *tmpBlocksFileWrapper {
 		ms:                  ms,
 		orderedMetricNamess: make([][]string, n),
 		metricNamesBufs:     make([][]byte, n),
+		addrssBufs:          make([][]blockAddrs, n),
 	}
 }
 
@@ -1399,7 +1411,7 @@ func (tbfw *tmpBlocksFileWrapper) RegisterAndWriteBlock(mb *storage.MetricBlock,
 	m := tbfw.ms[workerID]
 	addrs := m[string(metricName)]
 	if addrs == nil {
-		addrs = newBlockAddrs()
+		addrs = tbfw.newBlockAddrs(workerID)
 	}
 	addrs.addrs = append(addrs.addrs, addr)
 	if len(addrs.addrs) == 1 {
@@ -1434,7 +1446,7 @@ func (tbfw *tmpBlocksFileWrapper) Finalize() ([]string, map[string]*blockAddrs, 
 			dstAddrs, ok := addrsByMetricName[metricName]
 			if !ok {
 				orderedMetricNames = append(orderedMetricNames, metricName)
-				dstAddrs = newBlockAddrs()
+				dstAddrs = tbfw.newBlockAddrs(uint(i))
 				addrsByMetricName[metricName] = dstAddrs
 			}
 			dstAddrs.addrs = append(dstAddrs.addrs, m[metricName].addrs...)
