@@ -25,6 +25,14 @@ Please find [launch instructions here](/anomaly-detection/overview.html#run-vman
 # tip
 
 
+## v1.8.0
+Released: 2024-01-15
+- FEATURE: Added Univariate [MAD (median absolute deviation)](/anomaly-detection/components/models.md#mad-median-absolute-deviation) model support.
+- IMPROVEMENT: Update Python to 3.12.1 and all the dependencies.
+- IMPROVEMENT: Don't check /health endpoint, check the real /query_range or /import endpoints directly. Users kept getting problems with /health.
+- DEPRECATION: "health_path" param is deprecated and doesn't do anything in config ([reader](/anomaly-detection/components/reader.html#vm-reader), [writer](/anomaly-detection/components/writer.html#vm-writer), [monitoring.push](/anomaly-detection/components/monitoring.html#push-config-parameters)).
+
+
 ## v1.7.2
 Released: 2023-12-21
 - FIX: fit/infer calls are now skipped if we have insufficient *valid* data to run on.

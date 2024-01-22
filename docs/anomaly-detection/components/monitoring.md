@@ -63,7 +63,7 @@ There are 2 models to monitor VictoriaMetrics Anomaly Detection behavior - [push
         <tr>
             <td><code>health_path</code></td>
             <td><code>"health"</code></td>
-            <td>Absolute, to override <code>/health</code> path</td>
+            <td>Deprecated since <a href="https://docs.victoriametrics.com/anomaly-detection/CHANGELOG.html#v180">v1.8.0</a>. Absolute, to override <code>/health</code> path</td>
         </tr>
         <tr>
             <td><code>user</code></td>
@@ -100,7 +100,6 @@ monitoring:
   push:
     url: "http://localhost:8480/"
     tenant_id: "0:0" # For cluster version only
-    health_path: "health"
     user: "USERNAME"
     password: "PASSWORD"
     timeout: "5s"
