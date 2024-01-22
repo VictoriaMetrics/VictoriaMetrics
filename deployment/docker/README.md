@@ -31,9 +31,9 @@ Optionally, environment with [VictoriaMetrics Grafana datasource](https://github
 can be started with the following commands:
 ```
 make docker-single-vm-datasource-up    # start single server
-make docker-single-vm-datasource-down  # start cluster
+make docker-single-vm-datasource-down  # shut down single server
 
-make docker-cluster-vm-datasource-up   # shut down single server
+make docker-cluster-vm-datasource-up   # start cluster
 make docker-cluster-vm-datasource-down # shutdown cluster
 ```
 
