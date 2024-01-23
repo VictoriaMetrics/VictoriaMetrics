@@ -129,8 +129,8 @@ again:
 	if bsr.currItemIdx < len(items) {
 		// An optimization, which allows skipping costly comparison for every merged item in the loop below.
 		// Thanks to @ahfuzhang for the suggestion at https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5651
-		lastItem := items[len(items)-1].Bytes(data)
-		compareEveryItem = hasNextItem && string(lastItem) > nextItem
+		lastItem := items[len(items)-1].String(data)
+		compareEveryItem = hasNextItem && lastItem > nextItem
 	}
 	for bsr.currItemIdx < len(items) {
 		item := items[bsr.currItemIdx].Bytes(data)
@@ -183,12 +183,12 @@ func (bsm *blockStreamMerger) flushIB(bsw *blockStreamWriter, ph *partHeader, it
 		}
 		// Consistency checks after prepareBlock call.
 		firstItem := items[0].String(data)
-		if firstItem != string(bsm.firstItem) {
-			logger.Panicf("BUG: prepareBlock must return first item equal to the original first item;\ngot\n%X\nwant\n%X", firstItem, bsm.firstItem)
+		if firstItem < string(bsm.firstItem) {
+			logger.Panicf("BUG: prepareBlock must return the first item bigger or equal to the original first item;\ngot\n%X\nwant\n%X", firstItem, bsm.firstItem)
 		}
 		lastItem := items[len(items)-1].String(data)
-		if lastItem != string(bsm.lastItem) {
-			logger.Panicf("BUG: prepareBlock must return last item equal to the original last item;\ngot\n%X\nwant\n%X", lastItem, bsm.lastItem)
+		if lastItem > string(bsm.lastItem) {
+			logger.Panicf("BUG: prepareBlock must return the last item smaller or equal to the original last item;\ngot\n%X\nwant\n%X", lastItem, bsm.lastItem)
 		}
 		// Verify whether the bsm.ib.items are sorted only in tests, since this
 		// can be expensive check in prod for items with long common prefix.
