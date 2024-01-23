@@ -275,7 +275,7 @@ type ScrapeConfig struct {
 	StreamParse         bool                       `yaml:"stream_parse,omitempty"`
 	ScrapeAlignInterval *promutils.Duration        `yaml:"scrape_align_interval,omitempty"`
 	ScrapeOffset        *promutils.Duration        `yaml:"scrape_offset,omitempty"`
-	SeriesLimit         int                        `yaml:"series_limit,omitempty"`
+	SeriesLimit         *int                       `yaml:"series_limit,omitempty"`
 	NoStaleMarkers      *bool                      `yaml:"no_stale_markers,omitempty"`
 	ProxyClientConfig   promauth.ProxyClientConfig `yaml:",inline"`
 
@@ -960,8 +960,8 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 		noStaleTracking = *sc.NoStaleMarkers
 	}
 	seriesLimit := *seriesLimitPerTarget
-	if sc.SeriesLimit > 0 {
-		seriesLimit = sc.SeriesLimit
+	if sc.SeriesLimit != nil {
+		seriesLimit = *sc.SeriesLimit
 	}
 	swc := &scrapeWorkConfig{
 		scrapeInterval:       scrapeInterval,
