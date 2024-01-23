@@ -3051,4 +3051,6 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      Optional URL for proxying requests to vmalert. For example, if -vmalert.proxyURL=http://vmalert:8880 , then alerting API requests such as /api/v1/rules from Grafana will be proxied to http://vmalert:8880/api/v1/rules
   -vmui.customDashboardsPath string
      Optional path to vmui dashboards. See https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/app/vmui/packages/vmui/public/dashboards
+  -vmui.defaultTimezone string
+     The default timezone to be used in vmui. Timezone must be a valid IANA Time Zone. For example: America/New_York, Europe/Berlin, Etc/GMT+3 or Local. See https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/app/vmui#timezone-configuration
 ```

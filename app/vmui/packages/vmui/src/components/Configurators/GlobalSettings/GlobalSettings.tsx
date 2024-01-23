@@ -29,7 +29,7 @@ const GlobalSettings: FC = () => {
 
   const appModeEnable = getAppModeEnable();
   const { serverUrl: stateServerUrl, theme } = useAppState();
-  const { timezone: stateTimezone } = useTimeState();
+  const { timezone: stateTimezone, defaultTimezone } = useTimeState();
   const { seriesLimits } = useCustomPanelState();
 
   const dispatch = useAppDispatch();
@@ -78,6 +78,10 @@ const GlobalSettings: FC = () => {
     setServerUrl(stateServerUrl);
   }, [stateServerUrl]);
 
+  useEffect(() => {
+    setTimezone(stateTimezone);
+  }, [stateTimezone]);
+
   const controls = [
     {
       show: !appModeEnable && !isLogsApp,
@@ -100,6 +104,7 @@ const GlobalSettings: FC = () => {
       show: true,
       component: <Timezones
         timezoneState={timezone}
+        defaultTimezone={defaultTimezone}
         onChange={setTimezone}
       />
     },

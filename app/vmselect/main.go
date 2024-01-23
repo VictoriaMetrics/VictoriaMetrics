@@ -589,6 +589,14 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 		}
 		return true
 	}
+	if p.Suffix == "vmui/timezone" {
+		httpserver.EnableCORS(w, r)
+		if err := handleVMUITimezone(w); err != nil {
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		return true
+	}
 	if strings.HasPrefix(p.Suffix, "vmui/") || strings.HasPrefix(p.Suffix, "prometheus/vmui/") {
 		// vmui access.
 		if strings.HasPrefix(p.Suffix, "vmui/static/") || strings.HasPrefix(p.Suffix, "prometheus/vmui/static/") {

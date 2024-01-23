@@ -1443,6 +1443,8 @@ Below is the output for `/path/to/vmselect -help`:
      Network timeout for RPC connections from vmselect to vmstorage (Linux only). Lower values reduce the maximum query durations when some vmstorage nodes become unavailable because of networking issues. Read more about TCP_USER_TIMEOUT at https://blog.cloudflare.com/when-tcp-sockets-refuse-to-die/ . See also -vmstorageDialTimeout (default 3s)
   -vmui.customDashboardsPath string
      Optional path to vmui dashboards. See https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/app/vmui/packages/vmui/public/dashboards
+  -vmui.defaultTimezone string
+     The default timezone to be used in vmui. Timezone must be a valid IANA Time Zone. For example: America/New_York, Europe/Berlin, Etc/GMT+3 or Local. See https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/app/vmui#timezone-configuration
 ```
 
 ### List of command-line flags for vmstorage
