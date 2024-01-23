@@ -1227,6 +1227,11 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 			})
 		}
 		if len(brs.brs) == 1 {
+			if cap(metricNamesBuf) >= maxFastAllocBlockSize && len(metricNamesBuf)+len(metricName) > cap(metricNamesBuf) {
+				// Allocate a new metricNamesBuf in order to avoid slow allocation of byte slice
+				// bigger than maxFastAllocBlockSize bytes at append() below.
+				metricNamesBuf = make([]byte, 0, maxFastAllocBlockSize)
+			}
 			metricNamesBufLen := len(metricNamesBuf)
 			metricNamesBuf = append(metricNamesBuf, metricName...)
 			metricNameStr := bytesutil.ToUnsafeString(metricNamesBuf[metricNamesBufLen:])
@@ -1235,6 +1240,7 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 			m[metricNameStr] = brsIdx
 		}
 	}
+
 	if err := sr.Error(); err != nil {
 		putTmpBlocksFile(tbf)
 		putStorageSearch(sr)
@@ -1324,3 +1330,8 @@ func applyGraphiteRegexpFilter(filter string, ss []string) ([]string, error) {
 	}
 	return dst, nil
 }
+
+// Go uses fast allocations for block sizes up to 32Kb.
+//
+// See https://github.com/golang/go/blob/704401ffa06c60e059c9e6e4048045b4ff42530a/src/runtime/malloc.go#L11
+const maxFastAllocBlockSize = 32*1024
