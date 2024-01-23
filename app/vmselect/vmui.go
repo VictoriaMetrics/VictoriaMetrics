@@ -73,7 +73,7 @@ func handleVMUITimezone(w http.ResponseWriter) error {
 	if err != nil {
 		return fmt.Errorf("cannot load timezone %q: %w", *vmuiDefaultTimezone, err)
 	}
-	response := fmt.Sprintf(`{"timezone": "%s"}`, tz)
+	response := fmt.Sprintf(`{"timezone": %q}`, tz)
 	writeSuccessResponse(w, []byte(response))
 	return nil
 }
