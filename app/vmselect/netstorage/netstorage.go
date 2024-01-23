@@ -1167,7 +1167,11 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 
 	// brsPool is used for holding the most of blockRefs.brs slices across all the loaded time series.
 	// It should reduce pressure on Go GC by reducing the number of allocations for blockRefs.brs slices.
-	brsPool := make([]blockRef, 0, maxSeriesCount)
+	brsPoolCap := uintptr(maxSeriesCount)
+	if brsPoolCap > maxFastAllocBlockSize/unsafe.Sizeof(blockRef{}) {
+		brsPoolCap = maxFastAllocBlockSize / unsafe.Sizeof(blockRef{})
+	}
+	brsPool := make([]blockRef, 0, brsPoolCap)
 
 	// m maps from metricName to the index of blockRefs inside brssPool
 	m := make(map[string]int, maxSeriesCount)
