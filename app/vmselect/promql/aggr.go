@@ -111,39 +111,46 @@ func aggrFuncExt(afe func(tss []*timeseries, modifier *metricsql.ModifierExpr) [
 	modifier *metricsql.ModifierExpr, maxSeries int, keepOriginal bool) ([]*timeseries, error) {
 	m := aggrPrepareSeries(argOrig, modifier, maxSeries, keepOriginal)
 	rvs := make([]*timeseries, 0, len(m))
-	for _, tss := range m {
-		rv := afe(tss, modifier)
+	for _, tssl := range m {
+		rv := afe(tssl.tss, modifier)
 		rvs = append(rvs, rv...)
 	}
 	return rvs, nil
 }
 
-func aggrPrepareSeries(argOrig []*timeseries, modifier *metricsql.ModifierExpr, maxSeries int, keepOriginal bool) map[string][]*timeseries {
+func aggrPrepareSeries(argOrig []*timeseries, modifier *metricsql.ModifierExpr, maxSeries int, keepOriginal bool) map[string]*tssList {
 	// Remove empty time series, e.g. series with all NaN samples,
 	// since such series are ignored by aggregate functions.
 	argOrig = removeEmptySeries(argOrig)
 	arg := copyTimeseriesMetricNames(argOrig, keepOriginal)
 
 	// Perform grouping.
-	m := make(map[string][]*timeseries)
+	m := make(map[string]*tssList)
 	bb := bbPool.Get()
 	for i, ts := range arg {
 		removeGroupTags(&ts.MetricName, modifier)
 		bb.B = marshalMetricNameSorted(bb.B[:0], &ts.MetricName)
-		k := string(bb.B)
+		k := bb.B
 		if keepOriginal {
 			ts = argOrig[i]
 		}
-		tss := m[k]
-		if tss == nil && maxSeries > 0 && len(m) >= maxSeries {
-			// We already reached time series limit after grouping. Skip other time series.
-			continue
+		tssl := m[string(k)]
+		if tssl == nil {
+			if maxSeries > 0 && len(m) >= maxSeries {
+				// We already reached time series limit after grouping. Skip other time series.
+				continue
+			}
+			tssl = &tssList{}
+			m[string(k)] = tssl
 		}
-		tss = append(tss, ts)
-		m[k] = tss
+		tssl.tss = append(tssl.tss, ts)
 	}
 	bbPool.Put(bb)
 	return m
+}
+
+type tssList struct {
+	tss []*timeseries
 }
 
 func aggrFuncAny(afa *aggrFuncArg) ([]*timeseries, error) {
@@ -626,8 +633,8 @@ func aggrFuncCountValues(afa *aggrFuncArg) ([]*timeseries, error) {
 
 	m := aggrPrepareSeries(args[1], &afa.ae.Modifier, afa.ae.Limit, false)
 	rvs := make([]*timeseries, 0, len(m))
-	for _, tss := range m {
-		rv, err := afe(tss, modifier)
+	for _, tssl := range m {
+		rv, err := afe(tssl.tss, modifier)
 		if err != nil {
 			return nil, err
 		}
