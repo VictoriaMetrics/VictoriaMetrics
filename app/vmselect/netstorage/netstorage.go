@@ -1155,7 +1155,11 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 	// metricNamesBuf is used for holding all the loaded unique metric names at m and orderedMetricNames.
 	// It should reduce pressure on Go GC by reducing the number of string allocations
 	// when constructing metricName string from byte slice.
-	var metricNamesBuf []byte
+	metricNamesBufCap := maxSeriesCount * 100
+	if metricNamesBufCap > maxFastAllocBlockSize {
+		metricNamesBufCap = maxFastAllocBlockSize
+	}
+	metricNamesBuf := make([]byte, 0, metricNamesBufCap)
 
 	// brssPool is used for holding all the blockRefs objects across all the loaded time series.
 	// It should reduce pressure on Go GC by reducing the number of blockRefs allocations.
