@@ -9,6 +9,7 @@ menu:
     weight: 1
 aliases:
 - /anomaly-detection.html
+- /anomaly-detection/overview.html
 ---
 
 
