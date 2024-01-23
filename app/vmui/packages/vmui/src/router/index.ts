@@ -11,6 +11,7 @@ const router = {
   relabel: "/relabeling",
   logs: "/logs",
   activeQueries: "/active-queries",
+  queryAnalyzer: "/query-analyzer",
   icons: "/icons",
   anomaly: "/anomaly",
   query: "/query",
@@ -70,6 +71,10 @@ export const routerOptions: {[key: string]: RouterOptions} = {
   },
   [router.trace]: {
     title: "Trace analyzer",
+    header: {}
+  },
+  [router.queryAnalyzer]: {
+    title: "Query analyzer",
     header: {}
   },
   [router.dashboards]: {
