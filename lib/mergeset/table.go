@@ -1323,10 +1323,7 @@ func getCompressLevel(itemsCount uint64) int {
 	if itemsCount <= 1<<25 {
 		return 2
 	}
-	if itemsCount <= 1<<28 {
-		return 3
-	}
-	return 4
+	return 3
 }
 
 func (tb *Table) nextMergeIdx() uint64 {
