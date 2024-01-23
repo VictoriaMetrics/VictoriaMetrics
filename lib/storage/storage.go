@@ -1139,9 +1139,11 @@ func (s *Storage) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, 
 	return metricNames, nil
 }
 
-// prefetchMetricNames pre-fetches metric names for the given metricIDs into metricID->metricName cache.
+// prefetchMetricNames pre-fetches metric names for the given srcMetricIDs into metricID->metricName cache.
 //
 // This should speed-up further searchMetricNameWithCache calls for srcMetricIDs from tsids.
+//
+// It is expected that srcMetricIDs are already sorted by the caller. Otherwise the pre-fetching may be slow.
 func (s *Storage) prefetchMetricNames(qt *querytracer.Tracer, srcMetricIDs []uint64, deadline uint64) error {
 	qt = qt.NewChild("prefetch metric names for %d metricIDs", len(srcMetricIDs))
 	defer qt.Done()
@@ -1151,7 +1153,7 @@ func (s *Storage) prefetchMetricNames(qt *querytracer.Tracer, srcMetricIDs []uin
 		return nil
 	}
 
-	var metricIDs uint64Sorter
+	var metricIDs []uint64
 	s.prefetchedMetricIDsLock.Lock()
 	prefetchedMetricIDs := s.prefetchedMetricIDs
 	for _, metricID := range srcMetricIDs {
@@ -1171,7 +1173,6 @@ func (s *Storage) prefetchMetricNames(qt *querytracer.Tracer, srcMetricIDs []uin
 	atomic.AddUint64(&s.slowMetricNameLoads, uint64(len(metricIDs)))
 
 	// Pre-fetch metricIDs.
-	sort.Sort(metricIDs)
 	var missingMetricIDs []uint64
 	var metricName []byte
 	var err error
