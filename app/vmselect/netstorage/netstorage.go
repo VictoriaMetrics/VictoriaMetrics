@@ -1438,6 +1438,11 @@ func (tbfw *tmpBlocksFileWrapper) RegisterAndWriteBlock(mb *storage.MetricBlock,
 
 	if len(addrs.addrs) == 1 {
 		metricNamesBuf := tbfwLocal.metricNamesBuf
+		if cap(metricNamesBuf) >= maxFastAllocBlockSize && len(metricNamesBuf)+len(metricName) > cap(metricNamesBuf) {
+			// Allocate a new metricNamesBuf in order to avoid slow allocation of byte slice
+			// bigger than maxFastAllocBlockSize bytes at append() below.
+			metricNamesBuf = make([]byte, 0, maxFastAllocBlockSize)
+		}
 		metricNamesBufLen := len(metricNamesBuf)
 		metricNamesBuf = append(metricNamesBuf, metricName...)
 		metricNameStr := bytesutil.ToUnsafeString(metricNamesBuf[metricNamesBufLen:])
@@ -3046,3 +3051,8 @@ func (pnc *perNodeCounter) GetTotal() uint64 {
 	}
 	return total
 }
+
+// Go uses fast allocations for block sizes up to 32Kb.
+//
+// See https://github.com/golang/go/blob/704401ffa06c60e059c9e6e4048045b4ff42530a/src/runtime/malloc.go#L11
+const maxFastAllocBlockSize = 32 * 1024
