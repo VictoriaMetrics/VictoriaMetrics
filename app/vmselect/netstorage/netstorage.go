@@ -1188,6 +1188,7 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 			return nil, fmt.Errorf("cannot select more than -search.maxSamplesPerQuery=%d samples; possible solutions: to increase the -search.maxSamplesPerQuery; "+
 				"to reduce time range for the query; to use more specific label filters in order to select lower number of series", *maxSamplesPerQuery)
 		}
+
 		buf = br.Marshal(buf[:0])
 		addr, err := tbf.WriteBlockRefData(buf)
 		if err != nil {
@@ -1195,6 +1196,7 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 			putStorageSearch(sr)
 			return nil, fmt.Errorf("cannot write %d bytes to temporary file: %w", len(buf), err)
 		}
+
 		metricName := sr.MetricBlockRef.MetricName
 		if metricNamePrev == nil || string(metricName) != string(metricNamePrev) {
 			idx, ok := m[string(metricName)]
@@ -1209,8 +1211,14 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 			brsIdx = idx
 			metricNamePrev = append(metricNamePrev[:0], metricName...)
 		}
+
 		brs := &brssPool[brsIdx]
 		partRef := br.PartRef()
+		if uintptr(cap(brsPool)) >= maxFastAllocBlockSize/unsafe.Sizeof(blockRef{}) && len(brsPool) == cap(brsPool) {
+			// Allocate a new brsPool in order to avoid slow allocation of an object
+			// bigger than maxFastAllocBlockSize bytes at append() below.
+			brsPool = make([]blockRef, 0, maxFastAllocBlockSize/unsafe.Sizeof(blockRef{}))
+		}
 		if brs.brs == nil || haveSameBlockRefTails(brs.brs, brsPool) {
 			// It is safe appending blockRef to brsPool, since there are no other items added there yet.
 			brsPool = append(brsPool, blockRef{
@@ -1334,4 +1342,4 @@ func applyGraphiteRegexpFilter(filter string, ss []string) ([]string, error) {
 // Go uses fast allocations for block sizes up to 32Kb.
 //
 // See https://github.com/golang/go/blob/704401ffa06c60e059c9e6e4048045b4ff42530a/src/runtime/malloc.go#L11
-const maxFastAllocBlockSize = 32*1024
+const maxFastAllocBlockSize = 32 * 1024
