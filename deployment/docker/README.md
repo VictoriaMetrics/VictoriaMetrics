@@ -27,6 +27,16 @@ To shut down the docker compose environment for cluster version run the followin
 make docker-cluster-down
 ```
 
+Optionally, environment with [VictoriaMetrics Grafana datasource](https://github.com/VictoriaMetrics/grafana-datasource)
+can be started with the following commands:
+```
+make docker-single-vm-datasource-up    # start single server
+make docker-single-vm-datasource-down  # shut down single server
+
+make docker-cluster-vm-datasource-up   # start cluster
+make docker-cluster-vm-datasource-down # shutdown cluster
+```
+
 ## VictoriaMetrics single server
 
 VictoriaMetrics will be accessible on the following ports:
