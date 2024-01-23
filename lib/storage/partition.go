@@ -1542,13 +1542,7 @@ func getCompressLevel(rowsPerBlock float64) int {
 	if rowsPerBlock <= 1000 {
 		return 2
 	}
-	if rowsPerBlock <= 2000 {
-		return 3
-	}
-	if rowsPerBlock <= 4000 {
-		return 4
-	}
-	return 5
+	return 3
 }
 
 func (pt *partition) nextMergeIdx() uint64 {
