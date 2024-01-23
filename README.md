@@ -585,6 +585,7 @@ Some capacity planning tips for VictoriaMetrics cluster:
 - Query latency can be reduced by increasing CPU resources per each `vmselect` node, since each incoming query is processed by a single `vmselect` node. Performance for heavy queries scales with the number of available CPU cores at `vmselect` node, since `vmselect` processes time series referred by the query on all the available CPU cores.
 - If the cluster needs to process incoming queries at a high rate, then its capacity can be increased by adding more `vmselect` nodes, so incoming queries could be spread among bigger number of `vmselect` nodes.
 - By default `vminsert` compresses the data it sends to `vmstorage` in order to reduce network bandwidth usage. The compression takes additional CPU resources at `vminsert`. If `vminsert` nodes have limited CPU, then the compression can be disabled by passing `-rpc.disableCompression` command-line flag at `vminsert` nodes.
+- By default `vmstorage` doesn't compress the data it sends to `vmselect` in order to reduce CPU usage at the cost of additional network bandwidth usage. Pass `-rpc.disableCompression=false` command-line flag at `vmstorage` in order to reduce network bandwidh usage needed for processing queries at the cost of increased CPU usage.
 
 See also [resource usage limits docs](#resource-usage-limits).
 
