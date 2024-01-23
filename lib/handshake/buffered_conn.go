@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/zstd"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 )
 
 type bufferedWriter interface {
@@ -74,13 +75,13 @@ func (bc *BufferedConn) SetWriteDeadline(t time.Time) error {
 
 // Read reads up to len(p) from bc to p.
 func (bc *BufferedConn) Read(p []byte) (int, error) {
-	startTime := time.Now()
+	startTime := fasttime.UnixTimestamp()
 	if deadlineExceeded(bc.readDeadline, startTime) {
 		return 0, os.ErrDeadlineExceeded
 	}
 	n, err := bc.br.Read(p)
 	if err != nil && err != io.EOF {
-		err = fmt.Errorf("cannot read data in %.3f seconds: %w", time.Since(startTime).Seconds(), err)
+		err = fmt.Errorf("cannot read data in %d seconds: %w", fasttime.UnixTimestamp()-startTime, err)
 	}
 	return n, err
 }
@@ -89,22 +90,22 @@ func (bc *BufferedConn) Read(p []byte) (int, error) {
 //
 // Do not forget to call Flush if needed.
 func (bc *BufferedConn) Write(p []byte) (int, error) {
-	startTime := time.Now()
+	startTime := fasttime.UnixTimestamp()
 	if deadlineExceeded(bc.writeDeadline, startTime) {
 		return 0, os.ErrDeadlineExceeded
 	}
 	n, err := bc.bw.Write(p)
 	if err != nil {
-		err = fmt.Errorf("cannot write data in %.3f seconds: %w", time.Since(startTime).Seconds(), err)
+		err = fmt.Errorf("cannot write data in %d seconds: %w", fasttime.UnixTimestamp()-startTime, err)
 	}
 	return n, err
 }
 
-func deadlineExceeded(deadline, currentTime time.Time) bool {
+func deadlineExceeded(deadline time.Time, currentTimestamp uint64) bool {
 	if deadline.IsZero() {
 		return false
 	}
-	return currentTime.After(deadline)
+	return currentTimestamp > uint64(deadline.Unix())
 }
 
 // Close closes bc.
