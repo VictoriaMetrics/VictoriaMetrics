@@ -3,7 +3,7 @@
 # and threshold calibration according to every specific setup.
 groups:
   # Alerts group for vmagent assumes that Grafana dashboard
-  # https://grafana.com/grafana/dashboards/12683-victoriametrics-vmagent/ is installed.
+  # https://grafana.com/grafana/dashboards/12683/ is installed.
   # Pls update the `dashboard` annotation according to your setup.
   - name: vmagent
     interval: 30s

@@ -26,6 +26,7 @@ export const anomalyColors: Record<ForecastType, string> = {
   [ForecastType.yhatLower]: "#7126a1",
   [ForecastType.yhat]: "#da42a6",
   [ForecastType.anomaly]: "#da4242",
+  [ForecastType.anomalyScore]: "#7126a1",
   [ForecastType.actual]: "#203ea9",
   [ForecastType.training]: `rgba(${hexToRGB("#203ea9")}, 0.2)`,
 };

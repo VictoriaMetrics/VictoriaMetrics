@@ -26,11 +26,11 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/snapshot"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
 	"github.com/VictoriaMetrics/fastcache"
 	"github.com/VictoriaMetrics/metricsql"
-	"github.com/valyala/fastrand"
 )
 
 const (
@@ -120,13 +120,11 @@ type Storage struct {
 	pendingNextDayMetricIDs     *uint64set.Set
 
 	// prefetchedMetricIDs contains metricIDs for pre-fetched metricNames in the prefetchMetricNames function.
-	prefetchedMetricIDs atomic.Pointer[uint64set.Set]
+	prefetchedMetricIDsLock sync.Mutex
+	prefetchedMetricIDs     *uint64set.Set
 
 	// prefetchedMetricIDsDeadline is used for periodic reset of prefetchedMetricIDs in order to limit its size under high rate of creating new series.
 	prefetchedMetricIDsDeadline uint64
-
-	// prefetchedMetricIDsLock is used for serializing updates of prefetchedMetricIDs from concurrent goroutines.
-	prefetchedMetricIDsLock sync.Mutex
 
 	stop chan struct{}
 
@@ -221,7 +219,7 @@ func MustOpenStorage(path string, retention time.Duration, maxHourlySeries, maxD
 
 	s.pendingNextDayMetricIDs = &uint64set.Set{}
 
-	s.prefetchedMetricIDs.Store(&uint64set.Set{})
+	s.prefetchedMetricIDs = &uint64set.Set{}
 
 	// Load metadata
 	metadataDir := filepath.Join(path, metadataDirname)
@@ -613,9 +611,11 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 	m.NextDayMetricIDCacheSize += uint64(nextDayMetricIDs.Len())
 	m.NextDayMetricIDCacheSizeBytes += nextDayMetricIDs.SizeBytes()
 
-	prefetchedMetricIDs := s.prefetchedMetricIDs.Load()
+	s.prefetchedMetricIDsLock.Lock()
+	prefetchedMetricIDs := s.prefetchedMetricIDs
 	m.PrefetchedMetricIDsSize += uint64(prefetchedMetricIDs.Len())
 	m.PrefetchedMetricIDsSizeBytes += uint64(prefetchedMetricIDs.SizeBytes())
+	s.prefetchedMetricIDsLock.Unlock()
 
 	d := s.nextRetentionSeconds()
 	if d < 0 {
@@ -650,14 +650,19 @@ func (s *Storage) startFreeDiskSpaceWatcher() {
 		freeSpaceBytes := fs.MustGetFreeSpace(s.path)
 		if freeSpaceBytes < freeDiskSpaceLimitBytes {
 			// Switch the storage to readonly mode if there is no enough free space left at s.path
-			if atomic.CompareAndSwapUint32(&s.isReadOnly, 0, 1) {
+			//
+			// Use atomic.LoadUint32 in front of atomic.CompareAndSwapUint32 in order to avoid slow inter-CPU synchronization
+			// when the storage is already in read-only mode.
+			if atomic.LoadUint32(&s.isReadOnly) == 0 && atomic.CompareAndSwapUint32(&s.isReadOnly, 0, 1) {
 				// log notification only on state change
 				logger.Warnf("switching the storage at %s to read-only mode, since it has less than -storage.minFreeDiskSpaceBytes=%d of free space: %d bytes left",
 					s.path, freeDiskSpaceLimitBytes, freeSpaceBytes)
 			}
 			return
 		}
-		if atomic.CompareAndSwapUint32(&s.isReadOnly, 1, 0) {
+		// Use atomic.LoadUint32 in front of atomic.CompareAndSwapUint32 in order to avoid slow inter-CPU synchronization
+		// when the storage isn't in read-only mode.
+		if atomic.LoadUint32(&s.isReadOnly) == 1 && atomic.CompareAndSwapUint32(&s.isReadOnly, 1, 0) {
 			logger.Warnf("enabling writing to the storage at %s, since it has more than -storage.minFreeDiskSpaceBytes=%d of free space: %d bytes left",
 				s.path, freeDiskSpaceLimitBytes, freeSpaceBytes)
 		}
@@ -666,7 +671,8 @@ func (s *Storage) startFreeDiskSpaceWatcher() {
 	s.freeDiskSpaceWatcherWG.Add(1)
 	go func() {
 		defer s.freeDiskSpaceWatcherWG.Done()
-		ticker := time.NewTicker(time.Second)
+		d := timeutil.AddJitterToDuration(time.Second)
+		ticker := time.NewTicker(d)
 		defer ticker.Stop()
 		for {
 			select {
@@ -715,10 +721,9 @@ func (s *Storage) startNextDayMetricIDsUpdater() {
 	}()
 }
 
-var currHourMetricIDsUpdateInterval = time.Second * 10
-
 func (s *Storage) currHourMetricIDsUpdater() {
-	ticker := time.NewTicker(currHourMetricIDsUpdateInterval)
+	d := timeutil.AddJitterToDuration(time.Second * 10)
+	ticker := time.NewTicker(d)
 	defer ticker.Stop()
 	for {
 		select {
@@ -733,10 +738,9 @@ func (s *Storage) currHourMetricIDsUpdater() {
 	}
 }
 
-var nextDayMetricIDsUpdateInterval = time.Second * 11
-
 func (s *Storage) nextDayMetricIDsUpdater() {
-	ticker := time.NewTicker(nextDayMetricIDsUpdateInterval)
+	d := timeutil.AddJitterToDuration(time.Second * 11)
+	ticker := time.NewTicker(d)
 	defer ticker.Stop()
 	for {
 		select {
@@ -1141,22 +1145,27 @@ func (s *Storage) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, 
 func (s *Storage) prefetchMetricNames(qt *querytracer.Tracer, srcMetricIDs []uint64, deadline uint64) error {
 	qt = qt.NewChild("prefetch metric names for %d metricIDs", len(srcMetricIDs))
 	defer qt.Done()
-	if len(srcMetricIDs) == 0 {
-		qt.Printf("nothing to prefetch")
+
+	if len(srcMetricIDs) < 500 {
+		qt.Printf("skip pre-fetching metric names for low number of metric ids=%d", len(srcMetricIDs))
 		return nil
 	}
+
 	var metricIDs uint64Sorter
-	prefetchedMetricIDs := s.prefetchedMetricIDs.Load()
+	s.prefetchedMetricIDsLock.Lock()
+	prefetchedMetricIDs := s.prefetchedMetricIDs
 	for _, metricID := range srcMetricIDs {
 		if prefetchedMetricIDs.Has(metricID) {
 			continue
 		}
 		metricIDs = append(metricIDs, metricID)
 	}
+	s.prefetchedMetricIDsLock.Unlock()
+
 	qt.Printf("%d out of %d metric names must be pre-fetched", len(metricIDs), len(srcMetricIDs))
 	if len(metricIDs) < 500 {
 		// It is cheaper to skip pre-fetching and obtain metricNames inline.
-		qt.Printf("skip pre-fetching metric names for low number of metric ids=%d", len(metricIDs))
+		qt.Printf("skip pre-fetching metric names for low number of missing metric ids=%d", len(metricIDs))
 		return nil
 	}
 	atomic.AddUint64(&s.slowMetricNameLoads, uint64(len(metricIDs)))
@@ -1201,24 +1210,16 @@ func (s *Storage) prefetchMetricNames(qt *querytracer.Tracer, srcMetricIDs []uin
 
 	// Store the pre-fetched metricIDs, so they aren't pre-fetched next time.
 	s.prefetchedMetricIDsLock.Lock()
-	var prefetchedMetricIDsNew *uint64set.Set
 	if fasttime.UnixTimestamp() > atomic.LoadUint64(&s.prefetchedMetricIDsDeadline) {
 		// Periodically reset the prefetchedMetricIDs in order to limit its size.
-		prefetchedMetricIDsNew = &uint64set.Set{}
-		deadlineSec := 73 * 60
-		jitterSec := fastrand.Uint32n(uint32(deadlineSec / 10))
-		metricIDsDeadline := fasttime.UnixTimestamp() + uint64(deadlineSec) + uint64(jitterSec)
+		s.prefetchedMetricIDs = &uint64set.Set{}
+		d := timeutil.AddJitterToDuration(time.Second * 20 * 60)
+		metricIDsDeadline := fasttime.UnixTimestamp() + uint64(d.Seconds())
 		atomic.StoreUint64(&s.prefetchedMetricIDsDeadline, metricIDsDeadline)
-	} else {
-		prefetchedMetricIDsNew = prefetchedMetricIDs.Clone()
 	}
-	prefetchedMetricIDsNew.AddMulti(metricIDs)
-	if prefetchedMetricIDsNew.SizeBytes() > uint64(memory.Allowed())/32 {
-		// Reset prefetchedMetricIDsNew if it occupies too much space.
-		prefetchedMetricIDsNew = &uint64set.Set{}
-	}
-	s.prefetchedMetricIDs.Store(prefetchedMetricIDsNew)
+	s.prefetchedMetricIDs.AddMulti(metricIDs)
 	s.prefetchedMetricIDsLock.Unlock()
+
 	qt.Printf("cache metric ids for pre-fetched metric names")
 	return nil
 }
@@ -2203,9 +2204,14 @@ type dateMetricIDCache struct {
 	byDate atomic.Pointer[byDateMetricIDMap]
 
 	// Contains mutable map protected by mu
-	byDateMutable    *byDateMetricIDMap
-	nextSyncDeadline uint64
-	mu               sync.Mutex
+	byDateMutable *byDateMetricIDMap
+
+	// Contains the number of slow accesses to byDateMutable.
+	// Is used for deciding when to merge byDateMutable to byDate.
+	// Protected by mu.
+	slowHits int
+
+	mu sync.Mutex
 }
 
 func newDateMetricIDCache() *dateMetricIDCache {
@@ -2218,7 +2224,7 @@ func (dmc *dateMetricIDCache) resetLocked() {
 	// Do not reset syncsCount and resetsCount
 	dmc.byDate.Store(newByDateMetricIDMap())
 	dmc.byDateMutable = newByDateMetricIDMap()
-	dmc.nextSyncDeadline = 10 + fasttime.UnixTimestamp()
+	dmc.slowHits = 0
 
 	atomic.AddUint64(&dmc.resetsCount, 1)
 }
@@ -2252,9 +2258,16 @@ func (dmc *dateMetricIDCache) Has(generation, date, metricID uint64) bool {
 
 	// Slow path. Check mutable map.
 	dmc.mu.Lock()
-	v = dmc.byDateMutable.get(generation, date)
-	ok := v.Has(metricID)
-	dmc.syncLockedIfNeeded()
+	vMutable := dmc.byDateMutable.get(generation, date)
+	ok := vMutable.Has(metricID)
+	if ok {
+		dmc.slowHits++
+		if dmc.slowHits > (v.Len()+vMutable.Len())/2 {
+			// It is cheaper to merge byDateMutable into byDate than to pay inter-cpu sync costs when accessing vMutable.
+			dmc.syncLocked()
+			dmc.slowHits = 0
+		}
+	}
 	dmc.mu.Unlock()
 
 	return ok
@@ -2293,14 +2306,6 @@ func (dmc *dateMetricIDCache) Set(generation, date, metricID uint64) {
 	v := dmc.byDateMutable.getOrCreate(generation, date)
 	v.Add(metricID)
 	dmc.mu.Unlock()
-}
-
-func (dmc *dateMetricIDCache) syncLockedIfNeeded() {
-	currentTime := fasttime.UnixTimestamp()
-	if currentTime >= dmc.nextSyncDeadline {
-		dmc.nextSyncDeadline = currentTime + 10
-		dmc.syncLocked()
-	}
 }
 
 func (dmc *dateMetricIDCache) syncLocked() {

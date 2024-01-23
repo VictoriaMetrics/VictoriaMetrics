@@ -20,6 +20,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/mergeset"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 )
 
 // The maximum size of big part.
@@ -142,7 +143,6 @@ type partition struct {
 	partsLock sync.Mutex
 
 	// Contains inmemory parts with recently ingested data.
-	// It must be merged into either smallParts or bigParts to become visible to search.
 	inmemoryParts []*partWrapper
 
 	// Contains file-based parts with small number of items.
@@ -816,7 +816,8 @@ func (pt *partition) startPendingRowsFlusher() {
 }
 
 func (pt *partition) inmemoryPartsFlusher() {
-	ticker := time.NewTicker(dataFlushInterval)
+	d := timeutil.AddJitterToDuration(dataFlushInterval)
+	ticker := time.NewTicker(d)
 	defer ticker.Stop()
 	for {
 		select {
@@ -829,7 +830,8 @@ func (pt *partition) inmemoryPartsFlusher() {
 }
 
 func (pt *partition) pendingRowsFlusher() {
-	ticker := time.NewTicker(pendingRowsFlushInterval)
+	d := timeutil.AddJitterToDuration(pendingRowsFlushInterval)
+	ticker := time.NewTicker(d)
 	defer ticker.Stop()
 	var rows []rawRow
 	for {
@@ -1575,7 +1577,8 @@ func (pt *partition) startStalePartsRemover() {
 }
 
 func (pt *partition) stalePartsRemover() {
-	ticker := time.NewTicker(7 * time.Minute)
+	d := timeutil.AddJitterToDuration(7 * time.Minute)
+	ticker := time.NewTicker(d)
 	defer ticker.Stop()
 	for {
 		select {
