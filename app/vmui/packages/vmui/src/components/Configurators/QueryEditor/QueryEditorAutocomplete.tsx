@@ -88,13 +88,6 @@ const QueryEditorAutocomplete: FC<QueryEditorAutocompleteProps> = ({
     const beforeValueByContext = value.substring(0, startIndexOfValueByContext);
     const afterValueByContext = value.substring(endIndexOfValueByContext);
 
-    // Add quotes around the value if the context is labelValue
-    if (context === QueryContextType.labelValue) {
-      const quote = "\"";
-      const needsQuote = !beforeValueByContext.endsWith(quote);
-      insert = `${needsQuote ? quote : ""}${insert}${quote}`;
-    }
-
     // Assemble the new value with the inserted text
     const newVal = `${beforeValueByContext}${insert}${afterValueByContext}`;
     onSelect(newVal);

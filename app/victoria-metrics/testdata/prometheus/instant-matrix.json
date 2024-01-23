@@ -1,0 +1,12 @@
+{
+  "name": "instant query with look-behind window",
+  "data": ["[{\"labels\":[{\"name\":\"__name__\",\"value\":\"foo\"}],\"samples\":[{\"value\":1,\"timestamp\":\"{TIME_MS-60s}\"}]}]"],
+  "query": ["/api/v1/query?query=foo[5m]"],
+  "result_query": {
+      "status": "success",
+      "data":{
+        "resultType":"matrix",
+        "result":[{"metric":{"__name__":"foo"},"values":[["{TIME_S-60s}", "1"]]}]
+      }
+    }
+}

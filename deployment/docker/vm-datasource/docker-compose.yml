@@ -1,0 +1,26 @@
+version: "3.5"
+services:
+  grafana:
+    container_name: grafana
+    image: grafana/grafana:9.5.15
+    depends_on:
+      - "victoriametrics"
+    ports:
+      - 3000:3000
+    entrypoint: [ "/bin/bash", "-c" ]
+    command: [ "chmod +x /download.sh && /download.sh && /run.sh" ]
+    volumes:
+      - grafanadata:/var/lib/grafana
+      - ./provisioning/datasources/victoriametrics-datasource:/etc/grafana/provisioning/datasources
+      - ./provisioning/dashboards:/etc/grafana/provisioning/dashboards
+      - ./provisioning/plugins/:/var/lib/grafana/plugins
+      - ./../../dashboards/vm/victoriametrics.json:/var/lib/grafana/dashboards/vm.json
+      - ./../../dashboards/vm/vmagent.json:/var/lib/grafana/dashboards/vmagent.json
+      - ./../../dashboards/vm/vmalert.json:/var/lib/grafana/dashboards/vmalert.json
+      - ./vm-datasource/download.sh:/download.sh
+    environment:
+      - "GF_ALLOW_LOADING_UNSIGNED_PLUGINS=victoriametrics-datasource"
+      - "GF_DEFAULT_APP_MODE=development"
+    networks:
+      - vm_net
+    restart: always

@@ -18,7 +18,7 @@ These metrics can be scraped via [vmagent](./resources/vmagent.md) or Prometheus
 
 ## Dashboard
 
-Official Grafana dashboard available for [vmoperator](https://grafana.com/grafana/dashboards/17869-victoriametrics-operator/).
+Official Grafana dashboard for vmoperator is available [here](https://grafana.com/grafana/dashboards/17869).
 
 <img src="monitoring_operator-dashboard.png" width=1200>
 

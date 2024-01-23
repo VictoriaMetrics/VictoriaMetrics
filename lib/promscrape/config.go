@@ -16,7 +16,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs/fscore"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
@@ -307,6 +307,7 @@ type ScrapeConfig struct {
 	EurekaSDConfigs       []eureka.SDConfig       `yaml:"eureka_sd_configs,omitempty"`
 	FileSDConfigs         []FileSDConfig          `yaml:"file_sd_configs,omitempty"`
 	GCESDConfigs          []gce.SDConfig          `yaml:"gce_sd_configs,omitempty"`
+	HetznerSDConfigs      []hetzner.SDConfig      `yaml:"hetzner_sd_configs,omitempty"`
 	HTTPSDConfigs         []http.SDConfig         `yaml:"http_sd_configs,omitempty"`
 	KubernetesSDConfigs   []kubernetes.SDConfig   `yaml:"kubernetes_sd_configs,omitempty"`
 	KumaSDConfigs         []kuma.SDConfig         `yaml:"kuma_sd_configs,omitempty"`
@@ -314,7 +315,6 @@ type ScrapeConfig struct {
 	OpenStackSDConfigs    []openstack.SDConfig    `yaml:"openstack_sd_configs,omitempty"`
 	StaticConfigs         []StaticConfig          `yaml:"static_configs,omitempty"`
 	YandexCloudSDConfigs  []yandexcloud.SDConfig  `yaml:"yandexcloud_sd_configs,omitempty"`
-	HetznerSDConfigs      []hetzner.SDConfig      `yaml:"hetzner_sd_configs,omitempty"`
 
 	// These options are supported only by lib/promscrape.
 	DisableCompression  bool                       `yaml:"disable_compression,omitempty"`
@@ -376,6 +376,9 @@ func (sc *ScrapeConfig) mustStop() {
 	for i := range sc.GCESDConfigs {
 		sc.GCESDConfigs[i].MustStop()
 	}
+	for i := range sc.HetznerSDConfigs {
+		sc.HetznerSDConfigs[i].MustStop()
+	}
 	for i := range sc.HTTPSDConfigs {
 		sc.HTTPSDConfigs[i].MustStop()
 	}
@@ -410,7 +413,7 @@ type StaticConfig struct {
 }
 
 func loadStaticConfigs(path string) ([]StaticConfig, error) {
-	data, err := fs.ReadFileOrHTTP(path)
+	data, err := fscore.ReadFileOrHTTP(path)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read `static_configs` from %q: %w", path, err)
 	}
@@ -427,7 +430,7 @@ func loadStaticConfigs(path string) ([]StaticConfig, error) {
 
 // loadConfig loads Prometheus config from the given path.
 func loadConfig(path string) (*Config, error) {
-	data, err := fs.ReadFileOrHTTP(path)
+	data, err := fscore.ReadFileOrHTTP(path)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read Prometheus config from %q: %w", path, err)
 	}
@@ -438,10 +441,10 @@ func loadConfig(path string) (*Config, error) {
 	return &c, nil
 }
 
-func mustLoadScrapeConfigFiles(baseDir string, scrapeConfigFiles []string, isStrict bool) ([]*ScrapeConfig, error) {
+func loadScrapeConfigFiles(baseDir string, scrapeConfigFiles []string, isStrict bool) ([]*ScrapeConfig, error) {
 	var scrapeConfigs []*ScrapeConfig
 	for _, filePath := range scrapeConfigFiles {
-		filePath := fs.GetFilepath(baseDir, filePath)
+		filePath := fscore.GetFilepath(baseDir, filePath)
 		paths := []string{filePath}
 		if strings.Contains(filePath, "*") {
 			ps, err := filepath.Glob(filePath)
@@ -453,7 +456,7 @@ func mustLoadScrapeConfigFiles(baseDir string, scrapeConfigFiles []string, isStr
 			paths = ps
 		}
 		for _, path := range paths {
-			data, err := fs.ReadFileOrHTTP(path)
+			data, err := fscore.ReadFileOrHTTP(path)
 			if err != nil {
 				logger.Errorf("skipping %q at `scrape_config_files` because of error: %s", path, err)
 				continue
@@ -466,7 +469,8 @@ func mustLoadScrapeConfigFiles(baseDir string, scrapeConfigFiles []string, isStr
 			var scs []*ScrapeConfig
 			if isStrict {
 				if err = yaml.UnmarshalStrict(data, &scs); err != nil {
-					return nil, fmt.Errorf("cannot unmarshal data from `scrape_config_files` %s: %w; pass -promscrape.config.strictParse=false command-line flag for ignoring unknown fields in yaml config", path, err)
+					return nil, fmt.Errorf("cannot unmarshal data from `scrape_config_files` %s: %w; "+
+						"pass -promscrape.config.strictParse=false command-line flag for ignoring invalid scrape_config_files", path, err)
 				}
 			} else {
 				if err = yaml.Unmarshal(data, &scs); err != nil {
@@ -498,7 +502,7 @@ func (cfg *Config) parseData(data []byte, path string) error {
 	cfg.baseDir = filepath.Dir(absPath)
 
 	// Load cfg.ScrapeConfigFiles into c.ScrapeConfigs
-	scs, err := mustLoadScrapeConfigFiles(cfg.baseDir, cfg.ScrapeConfigFiles, *strictParse)
+	scs, err := loadScrapeConfigFiles(cfg.baseDir, cfg.ScrapeConfigFiles, *strictParse)
 	if err != nil {
 		return err
 	}
@@ -669,6 +673,16 @@ func (cfg *Config) getGCESDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 	return cfg.getScrapeWorkGeneric(visitConfigs, "gce_sd_config", prev)
 }
 
+// getHetznerSDScrapeWork returns `hetzner_sd_configs` ScrapeWork from cfg.
+func (cfg *Config) getHetznerSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
+	visitConfigs := func(sc *ScrapeConfig, visitor func(sdc targetLabelsGetter)) {
+		for i := range sc.HetznerSDConfigs {
+			visitor(&sc.HetznerSDConfigs[i])
+		}
+	}
+	return cfg.getScrapeWorkGeneric(visitConfigs, "hetzner_sd_config", prev)
+}
+
 // getHTTPDScrapeWork returns `http_sd_configs` ScrapeWork from cfg.
 func (cfg *Config) getHTTPDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 	visitConfigs := func(sc *ScrapeConfig, visitor func(sdc targetLabelsGetter)) {
@@ -745,16 +759,6 @@ func (cfg *Config) getYandexCloudSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork 
 		}
 	}
 	return cfg.getScrapeWorkGeneric(visitConfigs, "yandexcloud_sd_config", prev)
-}
-
-// getHetznerSDScrapeWork returns `hetzner_sd_configs` ScrapeWork from cfg.
-func (cfg *Config) getHetznerSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
-	visitConfigs := func(sc *ScrapeConfig, visitor func(sdc targetLabelsGetter)) {
-		for i := range sc.HetznerSDConfigs {
-			visitor(&sc.HetznerSDConfigs[i])
-		}
-	}
-	return cfg.getScrapeWorkGeneric(visitConfigs, "hetzner_sd_config", prev)
 }
 
 type targetLabelsGetter interface {
@@ -980,7 +984,7 @@ func (sdc *FileSDConfig) appendScrapeWork(dst []*ScrapeWork, baseDir string, swc
 	metaLabels := promutils.GetLabels()
 	defer promutils.PutLabels(metaLabels)
 	for _, file := range sdc.Files {
-		pathPattern := fs.GetFilepath(baseDir, file)
+		pathPattern := fscore.GetFilepath(baseDir, file)
 		paths := []string{pathPattern}
 		if strings.Contains(pathPattern, "*") {
 			var err error

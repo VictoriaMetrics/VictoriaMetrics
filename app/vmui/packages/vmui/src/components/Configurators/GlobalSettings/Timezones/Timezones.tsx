@@ -12,11 +12,16 @@ import useDeviceDetect from "../../../../hooks/useDeviceDetect";
 import useBoolean from "../../../../hooks/useBoolean";
 
 interface TimezonesProps {
-  timezoneState: string
-  onChange: (val: string) => void
+  timezoneState: string;
+  defaultTimezone?: string;
+  onChange: (val: string) => void;
 }
 
-const Timezones: FC<TimezonesProps> = ({ timezoneState, onChange }) => {
+interface PinnedTimezone extends Timezone {
+  title: string
+}
+
+const Timezones: FC<TimezonesProps> = ({ timezoneState, defaultTimezone, onChange }) => {
   const { isMobile } = useDeviceDetect();
   const timezones = getTimezoneList();
 
@@ -29,6 +34,24 @@ const Timezones: FC<TimezonesProps> = ({ timezoneState, onChange }) => {
     setFalse: handleCloseList,
   } = useBoolean(false);
 
+  const pinnedTimezones = useMemo(() => [
+    {
+      title: `Default time (${defaultTimezone})`,
+      region: defaultTimezone,
+      utc: defaultTimezone ? getUTCByTimezone(defaultTimezone) : "UTC"
+    },
+    {
+      title: `Browser Time (${dayjs.tz.guess()})`,
+      region: dayjs.tz.guess(),
+      utc: getUTCByTimezone(dayjs.tz.guess())
+    },
+    {
+      title: "UTC (Coordinated Universal Time)",
+      region: "UTC",
+      utc: "UTC"
+    },
+  ].filter(t => t.region) as PinnedTimezone[], [defaultTimezone]);
+
   const searchTimezones = useMemo(() => {
     if (!search) return timezones;
     try {
@@ -39,11 +62,6 @@ const Timezones: FC<TimezonesProps> = ({ timezoneState, onChange }) => {
   }, [search, timezones]);
 
   const timezonesGroups = useMemo(() => Object.keys(searchTimezones), [searchTimezones]);
-
-  const localTimezone = useMemo(() => ({
-    region: dayjs.tz.guess(),
-    utc: getUTCByTimezone(dayjs.tz.guess())
-  }), []);
 
   const activeTimezone = useMemo(() => ({
     region: timezoneState,
@@ -108,13 +126,16 @@ const Timezones: FC<TimezonesProps> = ({ timezoneState, onChange }) => {
                 onChange={handleChangeSearch}
               />
             </div>
-            <div
-              className="vm-timezones-item vm-timezones-list-group-options__item"
-              onClick={createHandlerSetTimezone(localTimezone)}
-            >
-              <div className="vm-timezones-item__title">Browser Time ({localTimezone.region})</div>
-              <div className="vm-timezones-item__utc">{localTimezone.utc}</div>
-            </div>
+            {pinnedTimezones.map((t, i) => t && (
+              <div
+                key={`${i}_${t.region}`}
+                className="vm-timezones-item vm-timezones-list-group-options__item"
+                onClick={createHandlerSetTimezone(t)}
+              >
+                <div className="vm-timezones-item__title">{t.title}</div>
+                <div className="vm-timezones-item__utc">{t.utc}</div>
+              </div>
+            ))}
           </div>
           {timezonesGroups.map(t => (
             <div

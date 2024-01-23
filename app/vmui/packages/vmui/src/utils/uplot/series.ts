@@ -14,7 +14,7 @@ export const extractFields = (metric: MetricBase["metric"]): string => {
     .map(([key, value]) => `${key}: ${value}`).join(",");
 };
 
-const isForecast = (metric: MetricBase["metric"]) => {
+export const isForecast = (metric: MetricBase["metric"]) => {
   const metricName = metric?.__name__ || "";
   const forecastRegex = new RegExp(`(${Object.values(ForecastType).join("|")})$`);
   const match = metricName.match(forecastRegex);
@@ -25,6 +25,7 @@ const isForecast = (metric: MetricBase["metric"]) => {
     isLower: value === ForecastType.yhatLower,
     isYhat: value === ForecastType.yhat,
     isAnomaly: value === ForecastType.anomaly,
+    isAnomalyScore: value === ForecastType.anomalyScore,
     group: extractFields(metric)
   };
 };

@@ -5,7 +5,7 @@ DOCKER_NAMESPACE ?= victoriametrics
 ROOT_IMAGE ?= alpine:3.19.0
 CERTS_IMAGE := alpine:3.19.0
 
-GO_BUILDER_IMAGE := golang:1.21.5-alpine
+GO_BUILDER_IMAGE := golang:1.21.6-alpine
 BUILDER_IMAGE := local/builder:2.0.0-$(shell echo $(GO_BUILDER_IMAGE) | tr :/ __)-1
 BASE_IMAGE := local/base:1.1.4-$(shell echo $(ROOT_IMAGE) | tr :/ __)-$(shell echo $(CERTS_IMAGE) | tr :/ __)
 DOCKER ?= docker
@@ -187,8 +187,20 @@ docker-single-up:
 docker-single-down:
 	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose.yml down -v
 
+docker-single-vm-datasource-up:
+	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose.yml -f deployment/docker/vm-datasource/docker-compose.yml up -d
+
+docker-single-vm-datasource-down:
+	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose.yml -f deployment/docker/vm-datasource/docker-compose.yml down -v
+
 docker-cluster-up:
 	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose-cluster.yml up -d
 
 docker-cluster-down:
 	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose-cluster.yml down -v
+
+docker-cluster-vm-datasource-up:
+	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose-cluster.yml -f deployment/docker/vm-datasource/docker-compose-cluster.yml up -d
+
+docker-cluster-vm-datasource-down:
+	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose-cluster.yml -f deployment/docker/vm-datasource/docker-compose-cluster.yml down -v

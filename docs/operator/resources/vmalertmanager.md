@@ -25,7 +25,7 @@ When there are two or more configured replicas the Operator runs the Alertmanage
 
 ## Specification
 
-You can see the full actual specification of the `VMAlertmanager` resource in the **[API docs -> VMAlert](../api.md#vmalertmanager)**.
+You can see the full actual specification of the `VMAlertmanager` resource in the **[API docs -> VMAlertManager](../api.md#vmalertmanager)**.
 
 If you can't find necessary field in the specification of the custom resource,
 see [Extra arguments section](./README.md#extra-arguments).

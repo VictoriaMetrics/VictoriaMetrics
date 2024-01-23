@@ -19,6 +19,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/syncwg"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 )
 
 // maxInmemoryParts is the maximum number of inmemory parts in the table.
@@ -353,7 +354,8 @@ func MustOpenTable(path string, flushCallback func(), prepareBlock PrepareBlockC
 		go func() {
 			// call flushCallback once per 10 seconds in order to improve the effectiveness of caches,
 			// which are reset by the flushCallback.
-			tc := time.NewTicker(10 * time.Second)
+			d := timeutil.AddJitterToDuration(time.Second * 10)
+			tc := time.NewTicker(d)
 			for {
 				select {
 				case <-tb.stopCh:
@@ -603,7 +605,8 @@ func (tb *Table) startPendingItemsFlusher() {
 }
 
 func (tb *Table) inmemoryPartsFlusher() {
-	ticker := time.NewTicker(dataFlushInterval)
+	d := timeutil.AddJitterToDuration(dataFlushInterval)
+	ticker := time.NewTicker(d)
 	defer ticker.Stop()
 	for {
 		select {
@@ -738,7 +741,11 @@ func (tb *Table) flushBlocksToParts(ibs []*inmemoryBlock, isFinal bool) {
 		if isFinal {
 			tb.flushCallback()
 		} else {
-			atomic.CompareAndSwapUint32(&tb.needFlushCallbackCall, 0, 1)
+			// Use atomic.LoadUint32 in front of atomic.CompareAndSwapUint32 in order to avoid slow inter-CPU synchronization
+			// at fast path when needFlushCallbackCall is already set to 1.
+			if atomic.LoadUint32(&tb.needFlushCallbackCall) == 0 {
+				atomic.CompareAndSwapUint32(&tb.needFlushCallbackCall, 0, 1)
+			}
 		}
 	}
 }

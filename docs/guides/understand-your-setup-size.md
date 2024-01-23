@@ -43,7 +43,7 @@ _Note: if you have more than one Prometheus, you need to run this query across a
 
 ### Churn Rate
 
-The higher the Churn Rate, the more compute resources are needed for the efficient work of VictoriaMetrics. It is recommended to lower the churn rate as much as possible. The tolerable churn rate is less than 5% of the number of Active Time Series.
+The higher the Churn Rate, the more compute resources are needed for the efficient work of VictoriaMetrics. It is recommended to lower the churn rate as much as possible.
 
 The high Churn Rate is commonly a result of using high-volatile labels, such as `client_id`, `url`, `checksum`, `timestamp`, etc. In Kubernetes, the pod's name is also a volatile label because it changes each time pod is redeployed. For example, a service exposes 1000 time series. If we deploy 100 replicas of the service, the total amount of Active Time Series will be 1000*100 = 100000. If we redeploy the service, each replica's pod name will change, and the number of Active Time Series will double because all the time series will update the pod's name label.
 
