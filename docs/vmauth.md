@@ -455,7 +455,7 @@ The following [metrics](#monitoring) related to concurrency limits are exposed b
   because of the global concurrency limit has been reached.
 - `vmauth_user_concurrent_requests_capacity{username="..."}` - the limit on the number of concurrent requests for the given `username`.
 - `vmauth_user_concurrent_requests_current{username="..."}` - the current number of concurrent requests for the given `username`.
-- `vmauth_user_concurrent_requests_limit_reached_total{username="foo"}` - the number of requests rejected with `429 Too Many Requests` error
+- `vmauth_user_concurrent_requests_limit_reached_total{username="..."}` - the number of requests rejected with `429 Too Many Requests` error
   because of the concurrency limit has been reached for the given `username`.
 - `vmauth_unauthorized_user_concurrent_requests_capacity` - the limit on the number of concurrent requests for unauthorized users (if `unauthorized_user` section is used).
 - `vmauth_unauthorized_user_concurrent_requests_current` - the current number of concurrent requests for unauthorized users (if `unauthorized_user` section is used).
@@ -465,10 +465,10 @@ The following [metrics](#monitoring) related to concurrency limits are exposed b
 ## Backend TLS setup
 
 By default `vmauth` uses system settings when performing requests to HTTPS backends specified via `url_prefix` option
-in the [`-auth.config`](https://docs.victoriametrics.com/vmauth.html#auth-config). These settings can be overridden with the following command-line flags:
+in the [`-auth.config`](#auth-config). These settings can be overridden with the following command-line flags:
 
 - `-backend.tlsInsecureSkipVerify` allows skipping TLS verification when connecting to HTTPS backends.
-  This global setting can be overridden at per-user level inside [`-auth.config`](https://docs.victoriametrics.com/vmauth.html#auth-config)
+  This global setting can be overridden at per-user level inside [`-auth.config`](#auth-config)
   via `tls_insecure_skip_verify` option. For example:
 
   ```yml
@@ -479,7 +479,7 @@ in the [`-auth.config`](https://docs.victoriametrics.com/vmauth.html#auth-config
 
 - `-backend.tlsCAFile` allows specifying the path to TLS Root CA, which will be used for TLS verification when connecting to HTTPS backends.
   The `-backend.tlsCAFile` may point either to local file or to `http` / `https` url.
-  This global setting can be overridden at per-user level inside [`-auth.config`](https://docs.victoriametrics.com/vmauth.html#auth-config)
+  This global setting can be overridden at per-user level inside [`-auth.config`](#auth-config)
   via `tls_ca_file` option. For example:
 
   ```yml
@@ -695,12 +695,21 @@ It is recommended protecting the following endpoints with authKeys:
 `vmauth` exports various metrics in Prometheus exposition format at `http://vmauth-host:8427/metrics` page. It is recommended setting up regular scraping of this page
 either via [vmagent](https://docs.victoriametrics.com/vmagent.html) or via Prometheus, so the exported metrics could be analyzed later.
 
-`vmauth` exports `vmauth_user_requests_total` [counter](https://docs.victoriametrics.com/keyConcepts.html#counter) metric 
-and `vmauth_user_request_duration_seconds_*` [summary](https://docs.victoriametrics.com/keyConcepts.html#summary) metric 
-with `username` label. The `username` label value equals to `username` field value set in the `-auth.config` file.
-It is possible to override or hide the value in the label by specifying `name` field. 
-For example, the following config will result in `vmauth_user_requests_total{username="foobar"}` 
-instead of `vmauth_user_requests_total{username="secret_user"}`:
+`vmauth` exports the following metrics per each defined user in [`-auth.config`](#auth-config):
+
+* `vmauth_user_requests_total` [counter](https://docs.victoriametrics.com/keyConcepts.html#counter) - the number of requests served for the given `username`
+* `vmauth_user_request_backend_errors_total` [counter](https://docs.victoriametrics.com/keyConcepts.html#counter) - the number of request errors for the given `username`
+* `vmauth_user_request_duration_seconds` [summary](https://docs.victoriametrics.com/keyConcepts.html#summary) - the duration of requests for the given `username`
+* `vmauth_user_concurrent_requests_limit_reached_total` [counter](https://docs.victoriametrics.com/keyConcepts.html#counter) - the number of failed requests
+  for the given `username` because of exceeded [concurrency limits](#concurrency-limiting)
+* `vmauth_user_concurrent_requests_capacity` [gauge](https://docs.victoriametrics.com/keyConcepts.html#gauge) - the maximum number of [concurrent requests](#concurrency-limiting)
+  for the given `username`
+* `vmauth_user_concurrent_requests_current` [gauge](https://docs.victoriametrics.com/keyConcepts.html#gauge) - the current number of [concurrent requests](#concurrency-limiting)
+  for the given `username`
+
+By default, per-user metrics contain only `username` label. This label is set to `username` field value at the corresponding user section in the [`-auth.config`](#auth-config) file.
+It is possible to override the `username` label value by specifying `name` field additionally to `username` field.
+For example, the following config will result in `vmauth_user_requests_total{username="foobar"}` instead of `vmauth_user_requests_total{username="secret_user"}`:
 
 ```yml
 users:
@@ -709,10 +718,28 @@ users:
   # other config options here
 ```
 
-For unauthorized users `vmauth` exports `vmauth_unauthorized_user_requests_total` 
-[counter](https://docs.victoriametrics.com/keyConcepts.html#counter) metric and 
-`vmauth_unauthorized_user_request_duration_seconds_*` [summary](https://docs.victoriametrics.com/keyConcepts.html#summary)
-metric without label (if `unauthorized_user` section of config is used).
+Additional labels for per-user metrics can be specified via `metric_labels` section. For example, the following config
+defines `{dc="eu",team="dev"}` labels additionally to `username="foobar"` label:
+
+```yml
+users:
+- username: "foobar"
+  metric_labels:
+   dc: eu
+   team: dev
+  # other config options here
+```
+
+`vmauth` exports the following metrics if `unauthorized_user` section is defined in [`-auth.config`](#auth-config):
+
+* `vmauth_unauthorized_user_requests_total` [counter](https://docs.victoriametrics.com/keyConcepts.html#counter) - the number of unauthorized requests served
+* `vmauth_unauthorized_user_request_backend_errors_total` [counter](https://docs.victoriametrics.com/keyConcepts.html#counter) - the number of unauthorized request errors
+* `vmauth_unauthorized_user_request_duration_seconds` [summary](https://docs.victoriametrics.com/keyConcepts.html#summary) - the duration of unauthorized requests
+* `vmauth_unauthorized_user_concurrent_requests_limit_reached_total` [counter](https://docs.victoriametrics.com/keyConcepts.html#counter) - the number of failed unauthorized requests
+  because of exceeded [concurrency limits](#concurrency-limiting)
+* `vmauth_unauthorized_user_concurrent_requests_capacity` [gauge](https://docs.victoriametrics.com/keyConcepts.html#gauge) - the maximum number
+  of [concurrent unauthorized requests](#concurrency-limiting)
+* `vmauth_user_concurrent_requests_current` [gauge](https://docs.victoriametrics.com/keyConcepts.html#gauge) - the current number of [concurrent unauthorized requests](#concurrency-limiting)
 
 ## How to build from sources
 
@@ -803,8 +830,9 @@ See the docs at https://docs.victoriametrics.com/vmauth.html .
      Sets a delay period for load balancing to skip a malfunctioning backend (default 3s)
   -filestream.disableFadvise
      Whether to disable fadvise() syscall when reading large data files. The fadvise() syscall prevents from eviction of recently accessed data from OS page cache during background merges and backups. In some rare cases it is better to disable the syscall if it uses too much CPU
-  -flagsAuthKey string
+  -flagsAuthKey value
      Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
+     Flag value can be read from the given file when using -flagsAuthKey=file:///abs/path/to/file or -flagsAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -flagsAuthKey=http://host/path or -flagsAuthKey=https://host/path
   -fs.disableMmap
      Whether to use pread() instead of mmap() for reading data files. By default, mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
   -http.connTimeout duration
@@ -825,8 +853,9 @@ See the docs at https://docs.victoriametrics.com/vmauth.html .
      An optional prefix to add to all the paths handled by http server. For example, if '-http.pathPrefix=/foo/bar' is set, then all the http requests will be handled on '/foo/bar/*' paths. This may be useful for proxied requests. See https://www.robustperception.io/using-external-urls-and-proxies-with-prometheus
   -http.shutdownDelay duration
      Optional delay before http server shutdown. During this delay, the server returns non-OK responses from /health page, so load balancers can route new requests to other servers
-  -httpAuth.password string
+  -httpAuth.password value
      Password for HTTP server's Basic Auth. The authentication is disabled if -httpAuth.username is empty
+     Flag value can be read from the given file when using -httpAuth.password=file:///abs/path/to/file or -httpAuth.password=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -httpAuth.password=http://host/path or -httpAuth.password=https://host/path
   -httpAuth.username string
      Username for HTTP server's Basic Auth. The authentication is disabled if empty. See also -httpAuth.password
   -httpListenAddr string
@@ -883,10 +912,12 @@ See the docs at https://docs.victoriametrics.com/vmauth.html .
      Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache which will result in higher disk IO usage (default 60)
   -metrics.exposeMetadata
      Whether to expose TYPE and HELP metadata at the /metrics page, which is exposed at -httpListenAddr . The metadata may be needed when the /metrics page is consumed by systems, which require this information. For example, Managed Prometheus in Google Cloud - https://cloud.google.com/stackdriver/docs/managed-prometheus/troubleshooting#missing-metric-type
-  -metricsAuthKey string
+  -metricsAuthKey value
      Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
-  -pprofAuthKey string
+     Flag value can be read from the given file when using -metricsAuthKey=file:///abs/path/to/file or -metricsAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -metricsAuthKey=http://host/path or -metricsAuthKey=https://host/path
+  -pprofAuthKey value
      Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides httpAuth.* settings
+     Flag value can be read from the given file when using -pprofAuthKey=file:///abs/path/to/file or -pprofAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -pprofAuthKey=http://host/path or -pprofAuthKey=https://host/path
   -pushmetrics.disableCompression
      Whether to disable request body compression when pushing metrics to every -pushmetrics.url
   -pushmetrics.extraLabel array
@@ -900,8 +931,9 @@ See the docs at https://docs.victoriametrics.com/vmauth.html .
   -pushmetrics.url array
      Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/#push-metrics . By default, metrics exposed at /metrics page aren't pushed to any remote storage
      Supports an array of values separated by comma or specified via multiple flags.
-  -reloadAuthKey string
+  -reloadAuthKey value
      Auth key for /-/reload http endpoint. It must be passed as authKey=...
+     Flag value can be read from the given file when using -reloadAuthKey=file:///abs/path/to/file or -reloadAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -reloadAuthKey=http://host/path or -reloadAuthKey=https://host/path
   -responseTimeout duration
      The timeout for receiving a response from backend (default 5m0s)
   -retryStatusCodes array

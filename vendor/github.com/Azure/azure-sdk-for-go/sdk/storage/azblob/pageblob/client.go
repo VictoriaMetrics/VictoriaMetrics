@@ -8,6 +8,7 @@ package pageblob
 
 import (
 	"context"
+	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/sas"
 	"io"
 	"net/http"
 	"net/url"
@@ -424,6 +425,12 @@ func (pb *Client) GetTags(ctx context.Context, o *blob.GetTagsOptions) (blob.Get
 // For more information, see https://docs.microsoft.com/en-us/rest/api/storageservices/copy-blob-from-url.
 func (pb *Client) CopyFromURL(ctx context.Context, copySource string, o *blob.CopyFromURLOptions) (blob.CopyFromURLResponse, error) {
 	return pb.BlobClient().CopyFromURL(ctx, copySource, o)
+}
+
+// GetSASURL is a convenience method for generating a SAS token for the currently pointed at Page blob.
+// It can only be used if the credential supplied during creation was a SharedKeyCredential.
+func (pb *Client) GetSASURL(permissions sas.BlobPermissions, expiry time.Time, o *blob.GetSASURLOptions) (string, error) {
+	return pb.BlobClient().GetSASURL(permissions, expiry, o)
 }
 
 // Concurrent Download Functions -----------------------------------------------------------------------------------------

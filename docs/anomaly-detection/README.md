@@ -2,38 +2,32 @@
 # sort: 14
 title: VictoriaMetrics Anomaly Detection
 weight: 0
-disableToc: true
-
-menu:
-  docs:
-    parent: 'victoriametrics'
-    sort: 0
-    weight: 0
-
 aliases:
 - /anomaly-detection.html
+- /vmanomaly.html
 ---
 
 # VictoriaMetrics Anomaly Detection
 
-In the dynamic and complex world of system monitoring, VictoriaMetrics Anomaly Detection, being a part of our [Enterprise offering](https://victoriametrics.com/products/enterprise/), stands as a pivotal tool for achieving advanced observability. It empowers SREs and DevOps teams by automating the intricate task of identifying abnormal behavior in time-series data. It goes beyond traditional threshold-based alerting, utilizing machine learning techniques to not only detect anomalies but also minimize false positives, thus reducing alert fatigue. By providing simplified alerting mechanisms atop of [unified anomaly scores](/anomaly-detection/components/models/models.html#vmanomaly-output), it enables teams to spot and address potential issues faster, ensuring system reliability and operational efficiency.
+In the dynamic and complex world of system monitoring, VictoriaMetrics Anomaly Detection, being a part of our [Enterprise offering](https://victoriametrics.com/products/enterprise/), stands as a pivotal tool for achieving advanced observability. It empowers SREs and DevOps teams by automating the intricate task of identifying abnormal behavior in time-series data. It goes beyond traditional threshold-based alerting, utilizing machine learning techniques to not only detect anomalies but also minimize false positives, thus reducing alert fatigue. By providing simplified alerting mechanisms atop of [unified anomaly scores](/anomaly-detection/components/models.html#vmanomaly-output), it enables teams to spot and address potential issues faster, ensuring system reliability and operational efficiency.
 
 ## Practical Guides and Installation
 Begin your VictoriaMetrics Anomaly Detection journey with ease using our guides and installation instructions:
 
-- **Quick Start**: Find out what is behind `vmanomaly` [here](/vmanomaly.html)
-- **Integration**: Simplify the process of integrating anomaly detection into your observability ecosystem. Get started [**here**](/anomaly-detection/guides/guide-vmanomaly-vmalert.html).
+- **Overview**: Find out how `vmanomaly` service operates [here](/anomaly-detection/Overview.html)
+- **Integration**: Integrate anomaly detection into your observability ecosystem. Get started [**here**](/anomaly-detection/guides/guide-vmanomaly-vmalert.html).
 
-- **Installation Options**: Choose the method that best fits your environment:
-    - **Docker Installation**: Ideal for containerized environments. Follow our [Docker guide](../vmanomaly.md#run-vmanomaly-docker-container) for a smooth setup.
-    - **Helm Chart Installation**: Perfect for Kubernetes users. Deploy using our [Helm charts](https://github.com/VictoriaMetrics/helm-charts/tree/master/charts/victoria-metrics-anomaly) for an efficient integration.
+- **Installation Options**: Select the method that aligns with your technical requirements:
+    - **Docker Installation**: Suitable for containerized environments. See [Docker guide](/anomaly-detection/Overview.html#run-vmanomaly-docker-container).
+    - **Helm Chart Installation**: Appropriate for those using Kubernetes. See our [Helm charts](https://github.com/VictoriaMetrics/helm-charts/tree/master/charts/victoria-metrics-anomaly).
 
-> Note: starting from [v1.5.0](./CHANGELOG.md#v150) `vmanomaly` requires a [license key](/vmanomaly.html#licensing) to run. You can obtain a trial license key [**here**](https://victoriametrics.com/products/enterprise/trial/index.html).
+
+> **Note**: starting from [v1.5.0](./CHANGELOG.md#v150) `vmanomaly` requires a [license key](/anomaly-detection/Overview.html#licensing) to run. You can obtain a trial license key [**here**](https://victoriametrics.com/products/enterprise/trial/index.html).
 
 ## Key Components
 Explore the integral components that configure VictoriaMetrics Anomaly Detection:
-* [Get familiar with components](/anomaly-detection/components)
-    - [Models](/anomaly-detection/components/models)
+* [Explore components and their interation](/anomaly-detection/components)
+    - [Models](/anomaly-detection/components/models.html)
     - [Reader](/anomaly-detection/components/reader.html)
     - [Scheduler](/anomaly-detection/components/scheduler.html)
     - [Writer](/anomaly-detection/components/writer.html)

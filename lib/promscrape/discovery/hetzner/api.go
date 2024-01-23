@@ -28,17 +28,19 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 	var apiServer string
 	switch sdc.Role {
 	case "robot":
+		// See https://robot.hetzner.com/doc/webservice/en.html
 		apiServer = "https://robot-ws.your-server.de"
 		if hcc.BasicAuth == nil {
-			return nil, fmt.Errorf("basic_auth must be set when role is `%q`", sdc.Role)
+			return nil, fmt.Errorf("basic_auth must be set when role is `robot`")
 		}
 	case "hcloud":
-		apiServer = "https://api.hetzner.cloud/v1"
+		// See https://docs.hetzner.cloud/
+		apiServer = "https://api.hetzner.cloud"
 		if hcc.Authorization == nil {
-			return nil, fmt.Errorf("authorization must be set when role is `%q`", sdc.Role)
+			return nil, fmt.Errorf("authorization must be set when role is `hcloud`")
 		}
 	default:
-		return nil, fmt.Errorf("skipping unexpected role=%q; must be one of `robot` or `hcloud`", sdc.Role)
+		return nil, fmt.Errorf("unexpected role=%q; must be one of `robot` or `hcloud`", sdc.Role)
 	}
 
 	ac, err := hcc.NewConfig(baseDir)

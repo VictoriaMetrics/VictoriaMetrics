@@ -321,7 +321,9 @@ func exportHandler(qt *querytracer.Tracer, w http.ResponseWriter, cp *commonPara
 		firstLineSent := uint32(0)
 		writeLineFunc = func(xb *exportBlock, workerID uint) error {
 			bb := sw.getBuffer(workerID)
-			if atomic.CompareAndSwapUint32(&firstLineOnce, 0, 1) {
+			// Use atomic.LoadUint32() in front of atomic.CompareAndSwapUint32() in order to avoid slow inter-CPU synchronization
+			// in fast path after the first line has been already sent.
+			if atomic.LoadUint32(&firstLineOnce) == 0 && atomic.CompareAndSwapUint32(&firstLineOnce, 0, 1) {
 				// Send the first line to sw.bw
 				WriteExportPromAPILine(bb, xb)
 				_, err := sw.bw.Write(bb.B)

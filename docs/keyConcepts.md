@@ -80,9 +80,11 @@ See [these docs](https://docs.victoriametrics.com/FAQ.html#what-is-high-cardinal
 #### Raw samples
 
 Every unique time series may consist of an arbitrary number of `(value, timestamp)` data points (aka `raw samples`) sorted by `timestamp`.
-VictoriaMetrics stores all the `values` as [float64](https://en.wikipedia.org/wiki/Double-precision_floating-point_format) values 
+VictoriaMetrics stores all the `values` as [float64](https://en.wikipedia.org/wiki/Double-precision_floating-point_format)
 with [extra compression](https://faun.pub/victoriametrics-achieving-better-compression-for-time-series-data-than-gorilla-317bc1f95932) applied.
-This guarantees precision correctness for values with up to 12 significant decimal digits ([-2^54 ... 2^54-1]).
+This allows storing precise integer values with up to 12 decimal digits and any floating-point values with up to 12 significant decimal digits.
+If the value has more than 12 significant decimal digits, then the less significant digits can be lost when storing them in VictoriaMetrics.
+
 The `timestamp` is a [Unix timestamp](https://en.wikipedia.org/wiki/Unix_time) with millisecond precision.
 
 Below is an example of a single raw sample
@@ -763,6 +765,15 @@ duration throughout the `-search.latencyOffset` duration:
 <img src="keyConcepts_with_latencyOffset.webp" width="1000">
 
 It can be overridden on per-query basis via `latency_offset` query arg.
+
+VictoriaMetrics buffers recently ingested samples in memory for up to a few seconds and then periodically flushes these samples to disk.
+This bufferring improves data ingestion performance. The buffered samples are invisible in query results, even if `-search.latencyOffset` command-line flag is set to 0,
+or if `latency_offset` query arg is set to 0.
+You can send GET request to `/internal/force_flush` http handler at single-node VictoriaMetrics
+or to `vmstorage` at [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html)
+in order to forcibly flush the buffered samples to disk, so they become visible for querying. The `/internal/force_flush` handler
+is provided for debugging and testing purposes only. Do not call it in production, since this may significantly slow down data ingestion
+performance and increase resource usage.
 
 ### MetricsQL
 

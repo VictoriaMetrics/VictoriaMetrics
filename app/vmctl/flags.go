@@ -471,12 +471,12 @@ var (
 		&cli.BoolFlag{
 			Name:  vmNativeSrcInsecureSkipVerify,
 			Usage: "Whether to skip TLS certificate verification when connecting to the source address",
-			Value: true,
+			Value: false,
 		},
 		&cli.BoolFlag{
 			Name:  vmNativeDstInsecureSkipVerify,
 			Usage: "Whether to skip TLS certificate verification when connecting to the destination address",
-			Value: true,
+			Value: false,
 		},
 	}
 )

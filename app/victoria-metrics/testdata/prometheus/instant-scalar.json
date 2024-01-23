@@ -1,0 +1,11 @@
+{
+  "name": "instant scalar query",
+  "query": ["/api/v1/query?query=42&time={TIME_S}"],
+  "result_query": {
+      "status": "success",
+      "data":{
+        "resultType":"vector",
+        "result":[{"metric":{},"value":["{TIME_S}", "42"]}]
+      }
+    }
+}

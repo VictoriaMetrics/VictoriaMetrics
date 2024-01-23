@@ -22,6 +22,7 @@ groups:
               {{ . | first | value }}
             {{ end }}
           description: "It is {{ $value }} connections for {{$labels.instance}}"
+          link: http://localhost:3000/d/wNf0q_kZk?viewPanel=51&from={{($activeAt.Add (parseDurationTime "1h")).UnixMilli}}&to={{($activeAt.Add (parseDurationTime "-1h")).UnixMilli}}
       - alert: ExampleAlertAlwaysFiring
         update_entries_limit: -1
         expr: sum by(job)

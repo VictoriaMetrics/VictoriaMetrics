@@ -252,9 +252,7 @@ func (wr *writeContext) reset() {
 
 func resetLabels(labels []prompbmarshal.Label) []prompbmarshal.Label {
 	for i := range labels {
-		label := &labels[i]
-		label.Name = ""
-		label.Value = ""
+		labels[i] = prompbmarshal.Label{}
 	}
 	return labels[:0]
 }
