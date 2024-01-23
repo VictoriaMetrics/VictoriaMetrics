@@ -969,14 +969,17 @@ must be enabled on all the configured remote storage systems.
 By default, `vmagent` doesn't limit the number of time series each scrape target can expose.
 The limit can be enforced in the following places:
 
-* Via `-promscrape.seriesLimitPerTarget` command-line option. This limit is applied individually
+* Via `-promscrape.seriesLimitPerTarget` command-line flag. This limit is applied individually
   to all the scrape targets defined in the file pointed by `-promscrape.config`.
 * Via `series_limit` config option at [scrape_config](https://docs.victoriametrics.com/sd_configs.html#scrape_configs) section.
-  This limit is applied individually to all the scrape targets defined in the given `scrape_config`.
+  The `series_limit` allows overriding the `-promscrape.seriesLimitPerTarget` on a per-`scrape_config` basis.
+  If `series_limit` is set to `0` or to negative value, then it isn't applied to the given `scrape_config`,
+  even if `-promscrape.seriesLimitPerTarget` command-line flag is set.
 * Via `__series_limit__` label, which can be set with [relabeling](#relabeling) at `relabel_configs` section.
-  This limit is applied to the corresponding scrape targets. Typical use case: to set the limit
-  via [Kubernetes annotations](https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/) for targets,
-  which may expose too high number of time series.
+  The `__series_limit__` allows overriding the `series_limit` on a per-target basis.
+  If `__series_limit__` is set to `0` or to negative value, then it isn't applied to the given target.
+  Typical use case: to set the limit via [Kubernetes annotations](https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/)
+  for targets, which may expose too high number of time series.
 
 Scraped metrics are dropped for time series exceeding the given limit on the time window of 24h.
 `vmagent` creates the following additional per-target metrics for targets with non-zero series limit:
