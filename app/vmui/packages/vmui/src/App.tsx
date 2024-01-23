@@ -14,6 +14,7 @@ import PreviewIcons from "./components/Main/Icons/PreviewIcons";
 import WithTemplate from "./pages/WithTemplate";
 import Relabel from "./pages/Relabel";
 import ActiveQueries from "./pages/ActiveQueries";
+import QueryAnalyzer from "./pages/QueryAnalyzer";
 
 const App: FC = () => {
   const [loadedTheme, setLoadedTheme] = useState(false);
@@ -48,6 +49,10 @@ const App: FC = () => {
                 <Route
                   path={router.trace}
                   element={<TracePage/>}
+                />
+                <Route
+                  path={router.queryAnalyzer}
+                  element={<QueryAnalyzer/>}
                 />
                 <Route
                   path={router.dashboards}

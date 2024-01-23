@@ -1,0 +1,47 @@
+@use "src/styles/variables" as *;
+
+.vm-download-report {
+  display: grid;
+  gap: $padding-large;
+  padding-top: calc($padding-large - $padding-global);
+  min-width: 400px;
+
+  &-settings {
+    display: grid;
+    gap: $padding-global;
+
+    textarea {
+      min-height: 100px;
+    }
+  }
+
+  &__buttons {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: $padding-global;
+  }
+
+  &-helper {
+    display: grid;
+    gap: $padding-small;
+    padding: $padding-global;
+
+    &__description {
+      max-width: 400px;
+      white-space: pre-line;
+      line-height: 1.3;
+
+      p {
+        margin-bottom: calc($padding-small/2);
+      }
+    }
+
+    &__buttons {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: $padding-small;
+    }
+  }
+}
