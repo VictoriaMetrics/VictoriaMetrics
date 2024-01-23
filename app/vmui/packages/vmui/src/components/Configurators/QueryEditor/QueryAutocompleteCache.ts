@@ -24,7 +24,7 @@ export class QueryAutocompleteCache {
       const equalRange = cacheItem.start === key.start && cacheItem.end === key.end;
       const equalType = cacheItem.type === key.type;
       const isIncluded = key.value && cacheItem.value && key.value.includes(cacheItem.value);
-      const isSimilar = cacheItem.match === key.match || isIncluded;
+      const isSimilar = (cacheItem.match === key.match) || isIncluded;
       const isUnderLimit = cacheValue.length < AUTOCOMPLETE_LIMITS.queryLimit;
       if (isSimilar && equalRange && equalType && isUnderLimit) {
         return cacheValue;
