@@ -16,6 +16,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 ## v1.87.x long-time support release (LTS)
 
 * BUGFIX: properly return errors from [export APIs](https://docs.victoriametrics.com/#how-to-export-time-series). Previously these errors were silently suppressed. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5649).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): respect explicitly set `series_limit: 0` in [scrape_config](https://docs.victoriametrics.com/sd_configs.html#scrape_configs). This allows removing [`series_limit` restriction](https://docs.victoriametrics.com/vmagent.html#cardinality-limiter) on a per-`scrape_config` basis when global limit is set via `-promscrape.seriesLimitPerTarget`. Previously, `0` value was ignored in favor of `-promscrape.seriesLimitPerTarget`.
 * BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): properly process queries with too big lookbehind window such as `foo[100y]`. Previously, such queries could return empty responses even if `foo` is present in database. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5553).
 * BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): properly handle possible negative results caused by float operations precision error in rollup functions like rate() or increase(). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5571).
 
