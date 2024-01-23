@@ -114,6 +114,7 @@ For selecting rules from all namespaces you must specify it to empty value:
 
 ```yaml
 spec:
+  configSelector: {}
   configNamespaceSelector: {}
 ```
 
@@ -140,11 +141,11 @@ Here's a more visual and more detailed view:
 |---------------------------|------------------|----------------------|-------------------|------------------------------------------------------------------------------------------------------------------------|
 | undefined                 | undefined        | false                | undefined         | nothing                                                                                                                |
 | undefined                 | undefined        | **true**             | undefined         | all vmalertmaangerconfigs in the cluster                                                                               |
-| **defined**               | undefined        | any                  | undefined         | all vmalertmaangerconfigs are matching at namespaces for given `configNamespaceSelector`                               |
-| undefined                 | **defined**      | any                  | undefined         | all vmalertmaangerconfigs only at `VMAlertmanager`'s namespace are matching for given `ruleSelector`                   |
-| **defined**               | **defined**      | any                  | undefined         | all vmalertmaangerconfigs only at namespaces matched `configNamespaceSelector` for given `configSelector` are matching |
-| any                       | undefined        | any                  | **defined**       | all vmalertmaangerconfigs only at `VMAlertmanager`'s namespace                                                         |
-| any                       | **defined**      | any                  | **defined**       | all vmalertmaangerconfigs only at `VMAlertmanager`'s namespace for given `configSelector` are matching                 |
+| **defined**               | undefined        | *any*                | undefined         | all vmalertmaangerconfigs are matching at namespaces for given `configNamespaceSelector`                               |
+| undefined                 | **defined**      | *any*                | undefined         | all vmalertmaangerconfigs only at `VMAlertmanager`'s namespace are matching for given `ruleSelector`                   |
+| **defined**               | **defined**      | *any*                | undefined         | all vmalertmaangerconfigs only at namespaces matched `configNamespaceSelector` for given `configSelector` are matching |
+| *any*                     | undefined        | *any*                | **defined**       | all vmalertmaangerconfigs only at `VMAlertmanager`'s namespace                                                         |
+| *any*                     | **defined**      | *any*                | **defined**       | all vmalertmaangerconfigs only at `VMAlertmanager`'s namespace for given `configSelector` are matching                 |
 
 More details about `WATCH_NAMESPACE` variable you can read in [this doc](../configuration.md#namespaced-mode).
 
