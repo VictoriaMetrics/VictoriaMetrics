@@ -1425,6 +1425,12 @@ func (tbfw *tmpBlocksFileWrapper) RegisterAndWriteBlock(mb *storage.MetricBlock,
 	addrs := &tbfwLocal.addrssPool[addrsIdx]
 
 	addrsPool := tbfwLocal.addrsPool
+	if uintptr(cap(addrsPool)) >= maxFastAllocBlockSize/unsafe.Sizeof(tmpBlockAddr{}) && len(addrsPool) == cap(addrsPool) {
+		// Allocate a new addrsPool in order to avoid slow allocation of an object
+		// bigger than maxFastAllocBlockSize bytes at append() below.
+		addrsPool = make([]tmpBlockAddr, 0, maxFastAllocBlockSize/unsafe.Sizeof(tmpBlockAddr{}))
+		tbfwLocal.addrsPool = addrsPool
+	}
 	if addrs.addrs == nil || haveSameBlockAddrTails(addrs.addrs, addrsPool) {
 		// It is safe appending addr to addrsPool, since there are no other items added there yet.
 		addrsPool = append(addrsPool, addr)
