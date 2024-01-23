@@ -51,6 +51,12 @@ const ServerConfigurator: FC<ServerConfiguratorProps> = ({
     }
   }, [enabledStorage]);
 
+  useEffect(() => {
+    if (enabledStorage) {
+      saveToStorage("SERVER_URL", serverUrl);
+    }
+  }, [serverUrl]);
+
   return (
     <div>
       <div className="vm-server-configurator__title">
