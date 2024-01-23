@@ -125,9 +125,16 @@ again:
 	}
 	items := bsr.Block.items
 	data := bsr.Block.data
-	for bsr.currItemIdx < len(bsr.Block.items) {
+	compareEveryItem := true
+	if bsr.currItemIdx < len(items) {
+		// An optimization, which allows skipping costly comparison for every merged item in the loop below.
+		// Thanks to @ahfuzhang for the suggestion at https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5651
+		lastItem := items[len(items)-1].Bytes(data)
+		compareEveryItem = hasNextItem && string(lastItem) > nextItem
+	}
+	for bsr.currItemIdx < len(items) {
 		item := items[bsr.currItemIdx].Bytes(data)
-		if hasNextItem && string(item) > nextItem {
+		if compareEveryItem && string(item) > nextItem {
 			break
 		}
 		if !bsm.ib.Add(item) {
@@ -137,7 +144,7 @@ again:
 		}
 		bsr.currItemIdx++
 	}
-	if bsr.currItemIdx == len(bsr.Block.items) {
+	if bsr.currItemIdx == len(items) {
 		// bsr.Block is fully read. Proceed to the next block.
 		if bsr.Next() {
 			heap.Fix(&bsm.bsrHeap, 0)
