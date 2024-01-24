@@ -559,9 +559,9 @@ func (ar *AlertingRule) newAlert(m datasource.Metric, ls *labelSet, start time.T
 }
 
 const (
-	// alertMetricName is the metric name for synthetic alert timeseries.
+	// alertMetricName is the metric name for time series reflecting the alert state.
 	alertMetricName = "ALERTS"
-	// alertForStateMetricName is the metric name for 'for' state of alert.
+	// alertForStateMetricName is the metric name for time series reflecting the moment of time when alert became active.
 	alertForStateMetricName = "ALERTS_FOR_STATE"
 
 	// alertNameLabel is the label name indicating the name of an alert.
@@ -576,12 +576,10 @@ const (
 
 // alertToTimeSeries converts the given alert with the given timestamp to time series
 func (ar *AlertingRule) alertToTimeSeries(a *notifier.Alert, timestamp int64) []prompbmarshal.TimeSeries {
-	var tss []prompbmarshal.TimeSeries
-	tss = append(tss, alertToTimeSeries(a, timestamp))
-	if ar.For > 0 {
-		tss = append(tss, alertForToTimeSeries(a, timestamp))
+	return []prompbmarshal.TimeSeries{
+		alertToTimeSeries(a, timestamp),
+		alertForToTimeSeries(a, timestamp),
 	}
-	return tss
 }
 
 func alertToTimeSeries(a *notifier.Alert, timestamp int64) prompbmarshal.TimeSeries {

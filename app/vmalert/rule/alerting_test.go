@@ -28,20 +28,26 @@ func TestAlertingRule_ToTimeSeries(t *testing.T) {
 	}{
 		{
 			newTestAlertingRule("instant", 0),
-			&notifier.Alert{State: notifier.StateFiring},
+			&notifier.Alert{State: notifier.StateFiring, ActiveAt: timestamp.Add(time.Second)},
 			[]prompbmarshal.TimeSeries{
 				newTimeSeries([]float64{1}, []int64{timestamp.UnixNano()}, map[string]string{
 					"__name__":      alertMetricName,
 					alertStateLabel: notifier.StateFiring.String(),
 				}),
+				newTimeSeries([]float64{float64(timestamp.Add(time.Second).Unix())},
+					[]int64{timestamp.UnixNano()},
+					map[string]string{
+						"__name__": alertForStateMetricName,
+					}),
 			},
 		},
 		{
 			newTestAlertingRule("instant extra labels", 0),
-			&notifier.Alert{State: notifier.StateFiring, Labels: map[string]string{
-				"job":      "foo",
-				"instance": "bar",
-			}},
+			&notifier.Alert{State: notifier.StateFiring, ActiveAt: timestamp.Add(time.Second),
+				Labels: map[string]string{
+					"job":      "foo",
+					"instance": "bar",
+				}},
 			[]prompbmarshal.TimeSeries{
 				newTimeSeries([]float64{1}, []int64{timestamp.UnixNano()}, map[string]string{
 					"__name__":      alertMetricName,
@@ -49,19 +55,33 @@ func TestAlertingRule_ToTimeSeries(t *testing.T) {
 					"job":           "foo",
 					"instance":      "bar",
 				}),
+				newTimeSeries([]float64{float64(timestamp.Add(time.Second).Unix())},
+					[]int64{timestamp.UnixNano()},
+					map[string]string{
+						"__name__": alertForStateMetricName,
+						"job":      "foo",
+						"instance": "bar",
+					}),
 			},
 		},
 		{
 			newTestAlertingRule("instant labels override", 0),
-			&notifier.Alert{State: notifier.StateFiring, Labels: map[string]string{
-				alertStateLabel: "foo",
-				"__name__":      "bar",
-			}},
+			&notifier.Alert{State: notifier.StateFiring, ActiveAt: timestamp.Add(time.Second),
+				Labels: map[string]string{
+					alertStateLabel: "foo",
+					"__name__":      "bar",
+				}},
 			[]prompbmarshal.TimeSeries{
 				newTimeSeries([]float64{1}, []int64{timestamp.UnixNano()}, map[string]string{
 					"__name__":      alertMetricName,
 					alertStateLabel: notifier.StateFiring.String(),
 				}),
+				newTimeSeries([]float64{float64(timestamp.Add(time.Second).Unix())},
+					[]int64{timestamp.UnixNano()},
+					map[string]string{
+						"__name__":      alertForStateMetricName,
+						alertStateLabel: "foo",
+					}),
 			},
 		},
 		{
