@@ -29,6 +29,7 @@ Stream aggregation is configured via the following command-line flags:
 - `-streamAggr.config` at [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html).
 
 These flags must point to a file containing [stream aggregation config](#stream-aggregation-config).
+The file may contain `%{ENV_VAR}` placeholders which are substituted by the corresponding `ENV_VAR` environment variable values.
 
 By default, the following data is written to the storage when stream aggregation is enabled:
 

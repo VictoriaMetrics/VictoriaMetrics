@@ -13,6 +13,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs/fscore"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
@@ -48,20 +49,20 @@ func LoadFromFile(path string, pushFunc PushFunc, dedupInterval time.Duration) (
 	if err != nil {
 		return nil, fmt.Errorf("cannot load aggregators: %w", err)
 	}
-	as, err := NewAggregatorsFromData(data, pushFunc, dedupInterval)
+	data, err = envtemplate.ReplaceBytes(data)
+	if err != nil {
+		return nil, fmt.Errorf("cannot expand environment variables in %q: %w", path, err)
+	}
+
+	as, err := newAggregatorsFromData(data, pushFunc, dedupInterval)
 	if err != nil {
 		return nil, fmt.Errorf("cannot initialize aggregators from %q: %w", path, err)
 	}
+
 	return as, nil
 }
 
-// NewAggregatorsFromData initializes Aggregators from the given data and uses the given pushFunc for pushing the aggregated data.
-//
-// If dedupInterval > 0, then the input samples are de-duplicated before being aggregated,
-// e.g. only the last sample per each time series per each dedupInterval is aggregated.
-//
-// The returned Aggregators must be stopped with MustStop() when no longer needed.
-func NewAggregatorsFromData(data []byte, pushFunc PushFunc, dedupInterval time.Duration) (*Aggregators, error) {
+func newAggregatorsFromData(data []byte, pushFunc PushFunc, dedupInterval time.Duration) (*Aggregators, error) {
 	var cfgs []*Config
 	if err := yaml.UnmarshalStrict(data, &cfgs); err != nil {
 		return nil, fmt.Errorf("cannot parse stream aggregation config: %w", err)
