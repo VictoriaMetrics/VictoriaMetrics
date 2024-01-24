@@ -114,7 +114,7 @@ type ContainerState struct {
 	Terminated *ContainerStateTerminated
 }
 
-// ContainerState implements k8s terminated container state.
+// ContainerStateTerminated implements k8s terminated container state.
 //
 // See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.20/#containerstatus-v1-core
 type ContainerStateTerminated struct {
