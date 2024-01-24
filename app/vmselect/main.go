@@ -149,8 +149,9 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 					"are executed. Possible solutions: to reduce query load; to add more compute resources to the server; "+
 					"to increase -search.maxQueueDuration=%s; to increase -search.maxQueryDuration; to increase -search.maxConcurrentRequests",
 					d.Seconds(), *maxConcurrentRequests, maxQueueDuration),
-				StatusCode: http.StatusServiceUnavailable,
+				StatusCode: http.StatusTooManyRequests,
 			}
+			w.Header().Add("Retry-After", "10")
 			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
