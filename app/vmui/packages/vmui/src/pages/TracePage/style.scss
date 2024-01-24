@@ -9,14 +9,6 @@
     padding: $padding-medium 0;
   }
 
-  &-controls {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: $padding-global;
-    align-items: center;
-    justify-content: center;
-  }
-
   &-header {
     display: grid;
     grid-template-columns: 1fr auto;
@@ -45,6 +37,10 @@
         display: grid;
         align-items: center;
         justify-content: stretch;
+
+        &_margin-bottom {
+          margin-bottom: $padding-global;
+        }
 
         &__filename {
           min-height: 20px;

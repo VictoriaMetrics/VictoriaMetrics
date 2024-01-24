@@ -8,7 +8,7 @@
     "max_lookback_set 4 {TIME_S-150s}"
   ],
   "query": ["/api/v1/query_range?query=max_lookback_set&start={TIME_S-150s}&end={TIME_S}&step=10s&max_lookback=1s"],
-  "result_query_range": {
+  "result_query": {
     "status":"success",
     "data":{"resultType":"matrix",
       "result":[{"metric":{"__name__":"max_lookback_set"},"values":[

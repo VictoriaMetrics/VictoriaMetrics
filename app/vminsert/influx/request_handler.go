@@ -160,11 +160,9 @@ func (ctx *pushCtx) reset() {
 
 	originLabels := ctx.originLabels
 	for i := range originLabels {
-		label := &originLabels[i]
-		label.Name = nil
-		label.Value = nil
+		originLabels[i] = prompb.Label{}
 	}
-	ctx.originLabels = ctx.originLabels[:0]
+	ctx.originLabels = originLabels[:0]
 }
 
 func getPushCtx() *pushCtx {

@@ -27,12 +27,11 @@ type InsertCtx struct {
 
 // Reset resets ctx for future fill with rowsLen rows.
 func (ctx *InsertCtx) Reset(rowsLen int) {
-	for i := range ctx.Labels {
-		label := &ctx.Labels[i]
-		label.Name = nil
-		label.Value = nil
+	labels := ctx.Labels
+	for i := range labels {
+		labels[i] = prompb.Label{}
 	}
-	ctx.Labels = ctx.Labels[:0]
+	ctx.Labels = labels[:0]
 
 	mrs := ctx.mrs
 	for i := range mrs {
@@ -112,8 +111,8 @@ func (ctx *InsertCtx) AddLabelBytes(name, value []byte) {
 	ctx.Labels = append(ctx.Labels, prompb.Label{
 		// Do not copy name and value contents for performance reasons.
 		// This reduces GC overhead on the number of objects and allocations.
-		Name:  name,
-		Value: value,
+		Name:  bytesutil.ToUnsafeString(name),
+		Value: bytesutil.ToUnsafeString(value),
 	})
 }
 
@@ -130,8 +129,8 @@ func (ctx *InsertCtx) AddLabel(name, value string) {
 	ctx.Labels = append(ctx.Labels, prompb.Label{
 		// Do not copy name and value contents for performance reasons.
 		// This reduces GC overhead on the number of objects and allocations.
-		Name:  bytesutil.ToUnsafeBytes(name),
-		Value: bytesutil.ToUnsafeBytes(value),
+		Name:  name,
+		Value: value,
 	})
 }
 

@@ -256,6 +256,10 @@ func (sq *SearchQuery) GetTimeRange() TimeRange {
 
 // NewSearchQuery creates new search query for the given args.
 func NewSearchQuery(start, end int64, tagFilterss [][]TagFilter, maxMetrics int) *SearchQuery {
+	if start < 0 {
+		// This is needed for https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5553
+		start = 0
+	}
 	if maxMetrics <= 0 {
 		maxMetrics = 2e9
 	}

@@ -144,9 +144,6 @@ func ParseConnectionString(connectionString string) (ParsedConnectionString, err
 
 // SerializeBlobTags converts tags to generated.BlobTags
 func SerializeBlobTags(tagsMap map[string]string) *generated.BlobTags {
-	if len(tagsMap) == 0 {
-		return nil
-	}
 	blobTagSet := make([]*generated.BlobTag, 0)
 	for key, val := range tagsMap {
 		newKey, newVal := key, val
@@ -256,4 +253,28 @@ func IsIPEndpointStyle(host string) bool {
 		host = host[1 : len(host)-1]
 	}
 	return net.ParseIP(host) != nil
+}
+
+// ReadAtLeast reads from r into buf until it has read at least min bytes.
+// It returns the number of bytes copied and an error.
+// The EOF error is returned if no bytes were read or
+// EOF happened after reading fewer than min bytes.
+// If min is greater than the length of buf, ReadAtLeast returns ErrShortBuffer.
+// On return, n >= min if and only if err == nil.
+// If r returns an error having read at least min bytes, the error is dropped.
+// This method is same as io.ReadAtLeast except that it does not
+// return io.ErrUnexpectedEOF when fewer than min bytes are read.
+func ReadAtLeast(r io.Reader, buf []byte, min int) (n int, err error) {
+	if len(buf) < min {
+		return 0, io.ErrShortBuffer
+	}
+	for n < min && err == nil {
+		var nn int
+		nn, err = r.Read(buf[n:])
+		n += nn
+	}
+	if n >= min {
+		err = nil
+	}
+	return
 }
