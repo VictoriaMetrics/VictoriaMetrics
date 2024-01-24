@@ -128,6 +128,7 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
 
   const createHandlerChangeQuery = (i: number) => (value: string) => {
     handleChangeQuery(value, i);
+    queryDispatch({ type: "SET_AUTOCOMPLETE_QUICK", payload: false });
   };
 
   const createHandlerRemoveQuery = (i: number) => () => {

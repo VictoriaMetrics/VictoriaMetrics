@@ -19,21 +19,25 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/syncwg"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 )
 
 // maxInmemoryParts is the maximum number of inmemory parts in the table.
 //
+// This limit allows reducing CPU usage under high ingestion rate.
+// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5212
+//
 // This number may be reached when the insertion pace outreaches merger pace.
 // If this number is reached, then assisted merges are performed
 // during data ingestion.
-const maxInmemoryParts = 30
+const maxInmemoryParts = 15
 
 // maxFileParts is the maximum number of file parts in the table.
 //
 // This number may be reached when the insertion pace outreaches merger pace.
 // If this number is reached, then assisted merges are performed
 // during data ingestion.
-const maxFileParts = 64
+const maxFileParts = 30
 
 // Default number of parts to merge at once.
 //
@@ -133,6 +137,10 @@ type Table struct {
 
 	// inmemoryParts contains inmemory parts.
 	inmemoryParts []*partWrapper
+
+	// inmemoryPartsLimitCh limits the number of inmemory parts
+	// in order to prevent from data ingestion slowdown as described at https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5212
+	inmemoryPartsLimitCh chan struct{}
 
 	// fileParts contains file-backed parts.
 	fileParts []*partWrapper
@@ -254,14 +262,6 @@ func (ris *rawItemsShard) addItems(tb *Table, items [][]byte) [][]byte {
 
 	tb.flushBlocksToParts(ibsToFlush, false)
 
-	if len(ibsToFlush) > 0 {
-		// Run assisted merges if needed.
-		flushConcurrencyCh <- struct{}{}
-		tb.assistedMergeForInmemoryParts()
-		tb.assistedMergeForFileParts()
-		<-flushConcurrencyCh
-	}
-
 	return tailItems
 }
 
@@ -333,14 +333,15 @@ func MustOpenTable(path string, flushCallback func(), prepareBlock PrepareBlockC
 	pws := mustOpenParts(path)
 
 	tb := &Table{
-		path:          path,
-		flushCallback: flushCallback,
-		prepareBlock:  prepareBlock,
-		isReadOnly:    isReadOnly,
-		fileParts:     pws,
-		mergeIdx:      uint64(time.Now().UnixNano()),
-		needMergeCh:   make(chan struct{}, 1),
-		stopCh:        make(chan struct{}),
+		path:                 path,
+		flushCallback:        flushCallback,
+		prepareBlock:         prepareBlock,
+		isReadOnly:           isReadOnly,
+		inmemoryPartsLimitCh: make(chan struct{}, maxInmemoryParts),
+		fileParts:            pws,
+		mergeIdx:             uint64(time.Now().UnixNano()),
+		needMergeCh:          make(chan struct{}, 1),
+		stopCh:               make(chan struct{}),
 	}
 	tb.rawItems.init()
 	tb.startBackgroundWorkers()
@@ -353,7 +354,8 @@ func MustOpenTable(path string, flushCallback func(), prepareBlock PrepareBlockC
 		go func() {
 			// call flushCallback once per 10 seconds in order to improve the effectiveness of caches,
 			// which are reset by the flushCallback.
-			tc := time.NewTicker(10 * time.Second)
+			d := timeutil.AddJitterToDuration(time.Second * 10)
+			tc := time.NewTicker(d)
 			for {
 				select {
 				case <-tb.stopCh:
@@ -603,7 +605,8 @@ func (tb *Table) startPendingItemsFlusher() {
 }
 
 func (tb *Table) inmemoryPartsFlusher() {
-	ticker := time.NewTicker(dataFlushInterval)
+	d := timeutil.AddJitterToDuration(dataFlushInterval)
+	ticker := time.NewTicker(d)
 	defer ticker.Stop()
 	for {
 		select {
@@ -725,20 +728,36 @@ func (tb *Table) flushBlocksToParts(ibs []*inmemoryBlock, isFinal bool) {
 	wg.Wait()
 	putWaitGroup(wg)
 
-	tb.partsLock.Lock()
-	tb.inmemoryParts = append(tb.inmemoryParts, pws...)
-	for range pws {
-		if !tb.notifyBackgroundMergers() {
-			break
-		}
+	flushConcurrencyCh <- struct{}{}
+	pw := tb.mustMergeInmemoryParts(pws)
+	<-flushConcurrencyCh
+
+	select {
+	case tb.inmemoryPartsLimitCh <- struct{}{}:
+	default:
+		// Too many in-memory parts. Try assist merging them before adding pw to tb.inmemoryParts.
+		flushConcurrencyCh <- struct{}{}
+		tb.assistedMergeForInmemoryParts()
+		tb.assistedMergeForFileParts()
+		<-flushConcurrencyCh
+
+		tb.inmemoryPartsLimitCh <- struct{}{}
 	}
+
+	tb.partsLock.Lock()
+	tb.inmemoryParts = append(tb.inmemoryParts, pw)
+	tb.notifyBackgroundMergers()
 	tb.partsLock.Unlock()
 
 	if tb.flushCallback != nil {
 		if isFinal {
 			tb.flushCallback()
 		} else {
-			atomic.CompareAndSwapUint32(&tb.needFlushCallbackCall, 0, 1)
+			// Use atomic.LoadUint32 in front of atomic.CompareAndSwapUint32 in order to avoid slow inter-CPU synchronization
+			// at fast path when needFlushCallbackCall is already set to 1.
+			if atomic.LoadUint32(&tb.needFlushCallbackCall) == 0 {
+				atomic.CompareAndSwapUint32(&tb.needFlushCallbackCall, 0, 1)
+			}
 		}
 	}
 }
@@ -765,23 +784,23 @@ var flushConcurrencyLimit = func() int {
 
 var flushConcurrencyCh = make(chan struct{}, flushConcurrencyLimit)
 
-func needAssistedMerge(pws []*partWrapper, maxParts int) bool {
-	if len(pws) < maxParts {
-		return false
-	}
-	return getNotInMergePartsCount(pws) >= defaultPartsToMerge
-}
-
 func (tb *Table) assistedMergeForInmemoryParts() {
 	tb.partsLock.Lock()
-	needMerge := needAssistedMerge(tb.inmemoryParts, maxInmemoryParts)
+	needMerge := getNotInMergePartsCount(tb.inmemoryParts) >= defaultPartsToMerge
 	tb.partsLock.Unlock()
 	if !needMerge {
 		return
 	}
 
 	atomic.AddUint64(&tb.inmemoryAssistedMerges, 1)
-	err := tb.mergeInmemoryParts()
+
+	maxOutBytes := tb.getMaxFilePartSize()
+
+	tb.partsLock.Lock()
+	pws := getPartsToMerge(tb.inmemoryParts, maxOutBytes, true)
+	tb.partsLock.Unlock()
+
+	err := tb.mergeParts(pws, tb.stopCh, true)
 	if err == nil {
 		return
 	}
@@ -793,7 +812,7 @@ func (tb *Table) assistedMergeForInmemoryParts() {
 
 func (tb *Table) assistedMergeForFileParts() {
 	tb.partsLock.Lock()
-	needMerge := needAssistedMerge(tb.fileParts, maxFileParts)
+	needMerge := getNotInMergePartsCount(tb.fileParts) >= defaultPartsToMerge
 	tb.partsLock.Unlock()
 	if !needMerge {
 		return
@@ -834,12 +853,27 @@ func putWaitGroup(wg *sync.WaitGroup) {
 
 var wgPool sync.Pool
 
-func (tb *Table) createInmemoryPart(ibs []*inmemoryBlock) *partWrapper {
-	outItemsCount := uint64(0)
-	for _, ib := range ibs {
-		outItemsCount += uint64(ib.Len())
+func (tb *Table) mustMergeInmemoryParts(pws []*partWrapper) *partWrapper {
+	if len(pws) == 1 {
+		// Nothing to merge
+		return pws[0]
 	}
 
+	bsrs := make([]*blockStreamReader, 0, len(pws))
+	for _, pw := range pws {
+		if pw.mp == nil {
+			logger.Panicf("BUG: unexpected file part")
+		}
+		bsr := getBlockStreamReader()
+		bsr.MustInitFromInmemoryPart(pw.mp)
+		bsrs = append(bsrs, bsr)
+	}
+
+	flushToDiskDeadline := getFlushToDiskDeadline(pws)
+	return tb.mustMergeIntoInmemoryPart(bsrs, flushToDiskDeadline)
+}
+
+func (tb *Table) createInmemoryPart(ibs []*inmemoryBlock) *partWrapper {
 	// Prepare blockStreamReaders for source blocks.
 	bsrs := make([]*blockStreamReader, 0, len(ibs))
 	for _, ib := range ibs {
@@ -854,6 +888,7 @@ func (tb *Table) createInmemoryPart(ibs []*inmemoryBlock) *partWrapper {
 	if len(bsrs) == 0 {
 		return nil
 	}
+
 	flushToDiskDeadline := time.Now().Add(dataFlushInterval)
 	if len(bsrs) == 1 {
 		// Nothing to merge. Just return a single inmemory part.
@@ -864,7 +899,15 @@ func (tb *Table) createInmemoryPart(ibs []*inmemoryBlock) *partWrapper {
 		return newPartWrapperFromInmemoryPart(mp, flushToDiskDeadline)
 	}
 
+	return tb.mustMergeIntoInmemoryPart(bsrs, flushToDiskDeadline)
+}
+
+func (tb *Table) mustMergeIntoInmemoryPart(bsrs []*blockStreamReader, flushToDiskDeadline time.Time) *partWrapper {
 	// Prepare blockStreamWriter for destination part.
+	outItemsCount := uint64(0)
+	for _, bsr := range bsrs {
+		outItemsCount += bsr.ph.itemsCount
+	}
 	compressLevel := getCompressLevel(outItemsCount)
 	bsw := getBlockStreamWriter()
 	mpDst := &inmemoryPart{}
@@ -884,6 +927,7 @@ func (tb *Table) createInmemoryPart(ibs []*inmemoryBlock) *partWrapper {
 	for _, bsr := range bsrs {
 		putBlockStreamReader(bsr)
 	}
+
 	return newPartWrapperFromInmemoryPart(mpDst, flushToDiskDeadline)
 }
 
@@ -932,16 +976,6 @@ func (tb *Table) canBackgroundMerge() bool {
 }
 
 var errReadOnlyMode = fmt.Errorf("storage is in readonly mode")
-
-func (tb *Table) mergeInmemoryParts() error {
-	maxOutBytes := tb.getMaxFilePartSize()
-
-	tb.partsLock.Lock()
-	pws := getPartsToMerge(tb.inmemoryParts, maxOutBytes, false)
-	tb.partsLock.Unlock()
-
-	return tb.mergeParts(pws, tb.stopCh, false)
-}
 
 func (tb *Table) mergeExistingParts(isFinal bool) error {
 	if !tb.canBackgroundMerge() {
@@ -1271,6 +1305,14 @@ func (tb *Table) swapSrcWithDstParts(pws []*partWrapper, pwNew *partWrapper, dst
 
 	tb.partsLock.Unlock()
 
+	// Update inmemoryPartsLimitCh accordingly to the number of the remaining in-memory parts.
+	for i := 0; i < removedInmemoryParts; i++ {
+		<-tb.inmemoryPartsLimitCh
+	}
+	if dstPartType == partInmemory {
+		tb.inmemoryPartsLimitCh <- struct{}{}
+	}
+
 	removedParts := removedInmemoryParts + removedFileParts
 	if removedParts != len(m) {
 		logger.Panicf("BUG: unexpected number of parts removed; got %d, want %d", removedParts, len(m))
@@ -1316,10 +1358,7 @@ func getCompressLevel(itemsCount uint64) int {
 	if itemsCount <= 1<<25 {
 		return 2
 	}
-	if itemsCount <= 1<<28 {
-		return 3
-	}
-	return 4
+	return 3
 }
 
 func (tb *Table) nextMergeIdx() uint64 {

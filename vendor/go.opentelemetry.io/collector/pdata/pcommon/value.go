@@ -129,6 +129,8 @@ func (v Value) getState() *internal.State {
 	return internal.GetValueState(internal.Value(v))
 }
 
+// FromRaw sets the value from the given raw value.
+// Calling this function on zero-initialized Value will cause a panic.
 func (v Value) FromRaw(iv any) error {
 	switch tv := iv.(type) {
 	case nil:
@@ -198,37 +200,31 @@ func (v Value) Type() ValueType {
 // Str returns the string value associated with this Value.
 // The shorter name is used instead of String to avoid implementing fmt.Stringer interface.
 // If the Type() is not ValueTypeStr then returns empty string.
-// Calling this function on zero-initialized Value will cause a panic.
 func (v Value) Str() string {
 	return v.getOrig().GetStringValue()
 }
 
 // Int returns the int64 value associated with this Value.
 // If the Type() is not ValueTypeInt then returns int64(0).
-// Calling this function on zero-initialized Value will cause a panic.
 func (v Value) Int() int64 {
 	return v.getOrig().GetIntValue()
 }
 
 // Double returns the float64 value associated with this Value.
 // If the Type() is not ValueTypeDouble then returns float64(0).
-// Calling this function on zero-initialized Value will cause a panic.
 func (v Value) Double() float64 {
 	return v.getOrig().GetDoubleValue()
 }
 
 // Bool returns the bool value associated with this Value.
 // If the Type() is not ValueTypeBool then returns false.
-// Calling this function on zero-initialized Value will cause a panic.
 func (v Value) Bool() bool {
 	return v.getOrig().GetBoolValue()
 }
 
 // Map returns the map value associated with this Value.
-// If the Type() is not ValueTypeMap then returns an invalid map. Note that using
-// such map can cause panic.
-//
-// Calling this function on zero-initialized Value will cause a panic.
+// If the function is called on zero-initialized Value or if the Type() is not ValueTypeMap
+// then it returns an invalid map. Note that using such map can cause panic.
 func (v Value) Map() Map {
 	kvlist := v.getOrig().GetKvlistValue()
 	if kvlist == nil {
@@ -238,10 +234,8 @@ func (v Value) Map() Map {
 }
 
 // Slice returns the slice value associated with this Value.
-// If the Type() is not ValueTypeSlice then returns an invalid slice. Note that using
-// such slice can cause panic.
-//
-// Calling this function on zero-initialized Value will cause a panic.
+// If the function is called on zero-initialized Value or if the Type() is not ValueTypeSlice
+// then returns an invalid slice. Note that using such slice can cause panic.
 func (v Value) Slice() Slice {
 	arr := v.getOrig().GetArrayValue()
 	if arr == nil {
@@ -251,10 +245,8 @@ func (v Value) Slice() Slice {
 }
 
 // Bytes returns the ByteSlice value associated with this Value.
-// If the Type() is not ValueTypeBytes then returns an invalid ByteSlice object. Note that using
-// such slice can cause panic.
-//
-// Calling this function on zero-initialized Value will cause a panic.
+// If the function is called on zero-initialized Value or if the Type() is not ValueTypeBytes
+// then returns an invalid ByteSlice object. Note that using such slice can cause panic.
 func (v Value) Bytes() ByteSlice {
 	bv, ok := v.getOrig().GetValue().(*otlpcommon.AnyValue_BytesValue)
 	if !ok {
@@ -325,6 +317,7 @@ func (v Value) SetEmptySlice() Slice {
 }
 
 // CopyTo copies the Value instance overriding the destination.
+// Calling this function on zero-initialized Value will cause a panic.
 func (v Value) CopyTo(dest Value) {
 	dest.getState().AssertMutable()
 	destOrig := dest.getOrig()
@@ -370,6 +363,7 @@ func (v Value) CopyTo(dest Value) {
 // AsString converts an OTLP Value object of any type to its equivalent string
 // representation. This differs from Str which only returns a non-empty value
 // if the ValueType is ValueTypeStr.
+// Calling this function on zero-initialized Value will cause a panic.
 func (v Value) AsString() string {
 	switch v.Type() {
 	case ValueTypeEmpty:

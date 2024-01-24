@@ -24,7 +24,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs/fscore"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
@@ -45,7 +45,7 @@ var (
 	maxConcurrentPerUserRequests = flag.Int("maxConcurrentPerUserRequests", 300, "The maximum number of concurrent requests vmauth can process per each configured user. "+
 		"Other requests are rejected with '429 Too Many Requests' http status code. See also -maxConcurrentRequests command-line option and max_concurrent_requests option "+
 		"in per-user config")
-	reloadAuthKey        = flag.String("reloadAuthKey", "", "Auth key for /-/reload http endpoint. It must be passed as authKey=...")
+	reloadAuthKey        = flagutil.NewPassword("reloadAuthKey", "Auth key for /-/reload http endpoint. It must be passed as authKey=...")
 	logInvalidAuthTokens = flag.Bool("logInvalidAuthTokens", false, "Whether to log requests with invalid auth tokens. "+
 		`Such requests are always counted at vmauth_http_request_errors_total{reason="invalid_auth_token"} metric, which is exposed at /metrics page`)
 	failTimeout               = flag.Duration("failTimeout", 3*time.Second, "Sets a delay period for load balancing to skip a malfunctioning backend")
@@ -64,7 +64,6 @@ func main() {
 	envflag.Parse()
 	buildinfo.Init()
 	logger.Init()
-	pushmetrics.Init()
 
 	logger.Infof("starting vmauth at %q...", *httpListenAddr)
 	startTime := time.Now()
@@ -72,8 +71,10 @@ func main() {
 	go httpserver.Serve(*httpListenAddr, *useProxyProtocol, requestHandler)
 	logger.Infof("started vmauth in %.3f seconds", time.Since(startTime).Seconds())
 
+	pushmetrics.Init()
 	sig := procutil.WaitForSigterm()
 	logger.Infof("received signal %s", sig)
+	pushmetrics.Stop()
 
 	startTime = time.Now()
 	logger.Infof("gracefully shutting down webservice at %q", *httpListenAddr)
@@ -88,7 +89,7 @@ func main() {
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	switch r.URL.Path {
 	case "/-/reload":
-		if !httpserver.CheckAuthFlag(w, r, *reloadAuthKey, "reloadAuthKey") {
+		if !httpserver.CheckAuthFlag(w, r, reloadAuthKey.Get(), "reloadAuthKey") {
 			return true
 		}
 		configReloadRequests.Inc()
@@ -149,12 +150,20 @@ func processUserRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 		if err := ui.beginConcurrencyLimit(); err != nil {
 			handleConcurrencyLimitError(w, r, err)
 			<-concurrencyLimitCh
+
+			// Requests failed because of concurrency limit must be counted as errors,
+			// since this usually means the backend cannot keep up with the current load.
+			ui.backendErrors.Inc()
 			return
 		}
 	default:
 		concurrentRequestsLimitReached.Inc()
 		err := fmt.Errorf("cannot serve more than -maxConcurrentRequests=%d concurrent requests", cap(concurrencyLimitCh))
 		handleConcurrencyLimitError(w, r, err)
+
+		// Requests failed because of concurrency limit must be counted as errors,
+		// since this usually means the backend cannot keep up with the current load.
+		ui.backendErrors.Inc()
 		return
 	}
 	processRequest(w, r, ui)
@@ -200,7 +209,7 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 		} else { // Update path for regular routes.
 			targetURL = mergeURLs(targetURL, u, up.dropSrcPathPrefixParts)
 		}
-		ok := tryProcessingRequest(w, r, targetURL, hc, up.retryStatusCodes, ui.httpTransport)
+		ok := tryProcessingRequest(w, r, targetURL, hc, up.retryStatusCodes, ui)
 		bu.put()
 		if ok {
 			return
@@ -212,15 +221,16 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 		StatusCode: http.StatusServiceUnavailable,
 	}
 	httpserver.Errorf(w, r, "%s", err)
+	ui.backendErrors.Inc()
 }
 
-func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url.URL, hc HeadersConf, retryStatusCodes []int, transport *http.Transport) bool {
+func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url.URL, hc HeadersConf, retryStatusCodes []int, ui *UserInfo) bool {
 	// This code has been copied from net/http/httputil/reverseproxy.go
 	req := sanitizeRequestHeaders(r)
 	req.URL = targetURL
 	req.Host = targetURL.Host
 	updateHeadersByConfig(req.Header, hc.RequestHeaders)
-	res, err := transport.RoundTrip(req)
+	res, err := ui.httpTransport.RoundTrip(req)
 	rtb, rtbOK := req.Body.(*readTrackingBody)
 	if err != nil {
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
@@ -228,6 +238,10 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 			remoteAddr := httpserver.GetQuotedRemoteAddr(r)
 			requestURI := httpserver.GetRequestURI(r)
 			logger.Warnf("remoteAddr: %s; requestURI: %s; error when proxying response body from %s: %s", remoteAddr, requestURI, targetURL, err)
+			if errors.Is(err, context.DeadlineExceeded) {
+				// Timed out request must be counted as errors, since this usually means that the backend is slow.
+				ui.backendErrors.Inc()
+			}
 			return true
 		}
 		if !rtbOK || !rtb.canRetry() {
@@ -237,6 +251,7 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 				StatusCode: http.StatusServiceUnavailable,
 			}
 			httpserver.Errorf(w, r, "%s", err)
+			ui.backendErrors.Inc()
 			return true
 		}
 		// Retry the request if its body wasn't read yet. This usually means that the backend isn't reachable.
@@ -392,8 +407,10 @@ func getTransport(insecureSkipVerifyP *bool, caFile string) (*http.Transport, er
 	return tr, nil
 }
 
-var transportMap = make(map[string]*http.Transport)
-var transportMapLock sync.Mutex
+var (
+	transportMap     = make(map[string]*http.Transport)
+	transportMapLock sync.Mutex
+)
 
 func appendTransportKey(dst []byte, insecureSkipVerify bool, caFile string) []byte {
 	dst = encoding.MarshalBool(dst, insecureSkipVerify)
@@ -421,7 +438,7 @@ func newTransport(insecureSkipVerify bool, caFile string) (*http.Transport, erro
 		tlsCfg.ClientSessionCache = tls.NewLRUClientSessionCache(0)
 		tlsCfg.InsecureSkipVerify = insecureSkipVerify
 		if caFile != "" {
-			data, err := fs.ReadFileOrHTTP(caFile)
+			data, err := fscore.ReadFileOrHTTP(caFile)
 			if err != nil {
 				return nil, fmt.Errorf("cannot read tls_ca_file: %w", err)
 			}

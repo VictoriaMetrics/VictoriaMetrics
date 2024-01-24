@@ -133,11 +133,6 @@ var (
 
 // Read reads file contents to p.
 func (r *Reader) Read(p []byte) (int, error) {
-	startTime := time.Now()
-	defer func() {
-		d := time.Since(startTime).Seconds()
-		readDuration.Add(d)
-	}()
 	readCallsBuffered.Inc()
 	n, err := r.br.Read(p)
 	readBytesBuffered.Add(n)
@@ -155,8 +150,11 @@ type statReader struct {
 }
 
 func (sr *statReader) Read(p []byte) (int, error) {
+	startTime := time.Now()
 	readCallsReal.Inc()
 	n, err := sr.File.Read(p)
+	d := time.Since(startTime).Seconds()
+	readDuration.Add(d)
 	readBytesReal.Add(n)
 	return n, err
 }
@@ -268,11 +266,6 @@ var (
 
 // Write writes p to the underlying file.
 func (w *Writer) Write(p []byte) (int, error) {
-	startTime := time.Now()
-	defer func() {
-		d := time.Since(startTime).Seconds()
-		writeDuration.Add(d)
-	}()
 	writeCallsBuffered.Inc()
 	n, err := w.bw.Write(p)
 	writtenBytesBuffered.Add(n)
@@ -309,8 +302,11 @@ type statWriter struct {
 }
 
 func (sw *statWriter) Write(p []byte) (int, error) {
+	startTime := time.Now()
 	writeCallsReal.Inc()
 	n, err := sw.File.Write(p)
+	d := time.Since(startTime).Seconds()
+	writeDuration.Add(d)
 	writtenBytesReal.Add(n)
 	return n, err
 }

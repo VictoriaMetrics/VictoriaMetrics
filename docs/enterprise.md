@@ -55,7 +55,7 @@ plus the following additional features:
 - [Multitenant support in vmalert](https://docs.victoriametrics.com/vmalert.html#multitenancy).
 - [Ability to read alerting and recording rules from Object Storage](https://docs.victoriametrics.com/vmalert.html#reading-rules-from-object-storage).
 - [Ability to filter incoming requests by IP at vmauth](https://docs.victoriametrics.com/vmauth.html#ip-filters).
-- [Anomaly Detection Service](https://docs.victoriametrics.com/vmanomaly.html).
+- [Anomaly Detection Service](https://docs.victoriametrics.com/anomaly-detection).
 
 On top of this, Enterprise package of VictoriaMetrics includes the following important Enterprise features:
 

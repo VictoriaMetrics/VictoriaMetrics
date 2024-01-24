@@ -39,9 +39,11 @@ func TestGetQuotedRemoteAddr(t *testing.T) {
 
 func TestBasicAuthMetrics(t *testing.T) {
 	origUsername := *httpAuthUsername
-	origPasswd := *httpAuthPassword
+	origPasswd := httpAuthPassword.Get()
 	defer func() {
-		*httpAuthPassword = origPasswd
+		if err := httpAuthPassword.Set(origPasswd); err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
 		*httpAuthUsername = origUsername
 	}()
 
@@ -61,14 +63,18 @@ func TestBasicAuthMetrics(t *testing.T) {
 	}
 
 	*httpAuthUsername = "test"
-	*httpAuthPassword = "pass"
+	if err := httpAuthPassword.Set("pass"); err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
 	f("test", "pass", 200)
 	f("test", "wrong", 401)
 	f("wrong", "pass", 401)
 	f("wrong", "wrong", 401)
 
 	*httpAuthUsername = ""
-	*httpAuthPassword = ""
+	if err := httpAuthPassword.Set(""); err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
 	f("test", "pass", 200)
 	f("test", "wrong", 200)
 	f("wrong", "pass", 200)
@@ -77,9 +83,11 @@ func TestBasicAuthMetrics(t *testing.T) {
 
 func TestAuthKeyMetrics(t *testing.T) {
 	origUsername := *httpAuthUsername
-	origPasswd := *httpAuthPassword
+	origPasswd := httpAuthPassword.Get()
 	defer func() {
-		*httpAuthPassword = origPasswd
+		if err := httpAuthPassword.Set(origPasswd); err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
 		*httpAuthUsername = origUsername
 	}()
 
@@ -117,7 +125,9 @@ func TestAuthKeyMetrics(t *testing.T) {
 	}
 
 	*httpAuthUsername = "test"
-	*httpAuthPassword = "pass"
+	if err := httpAuthPassword.Set("pass"); err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
 	tstWithOutAuthKey("test", "pass", 200)
 	tstWithOutAuthKey("test", "wrong", 401)
 	tstWithOutAuthKey("wrong", "pass", 401)

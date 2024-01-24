@@ -12,9 +12,11 @@ func MarshalUint16(dst []byte, u uint16) []byte {
 }
 
 // UnmarshalUint16 returns unmarshaled uint16 from src.
+//
+// the caller must ensure that len(src) >= 2
 func UnmarshalUint16(src []byte) uint16 {
 	// This is faster than the manual conversion.
-	return binary.BigEndian.Uint16(src[:2])
+	return binary.BigEndian.Uint16(src)
 }
 
 // MarshalUint32 appends marshaled v to dst and returns the result.
@@ -23,9 +25,11 @@ func MarshalUint32(dst []byte, u uint32) []byte {
 }
 
 // UnmarshalUint32 returns unmarshaled uint32 from src.
+//
+// The caller must ensure than len(src) >= 4
 func UnmarshalUint32(src []byte) uint32 {
 	// This is faster than the manual conversion.
-	return binary.BigEndian.Uint32(src[:4])
+	return binary.BigEndian.Uint32(src)
 }
 
 // MarshalUint64 appends marshaled v to dst and returns the result.
@@ -34,9 +38,11 @@ func MarshalUint64(dst []byte, u uint64) []byte {
 }
 
 // UnmarshalUint64 returns unmarshaled uint64 from src.
+//
+// The caller must ensure that len(src) >= 8
 func UnmarshalUint64(src []byte) uint64 {
 	// This is faster than the manual conversion.
-	return binary.BigEndian.Uint64(src[:8])
+	return binary.BigEndian.Uint64(src)
 }
 
 // MarshalInt16 appends marshaled v to dst and returns the result.
@@ -48,9 +54,11 @@ func MarshalInt16(dst []byte, v int16) []byte {
 }
 
 // UnmarshalInt16 returns unmarshaled int16 from src.
+//
+// The caller must ensure that len(src) >= 2
 func UnmarshalInt16(src []byte) int16 {
 	// This is faster than the manual conversion.
-	u := binary.BigEndian.Uint16(src[:2])
+	u := binary.BigEndian.Uint16(src)
 	v := int16(u>>1) ^ (int16(u<<15) >> 15) // zig-zag decoding without branching.
 	return v
 }
@@ -64,9 +72,11 @@ func MarshalInt64(dst []byte, v int64) []byte {
 }
 
 // UnmarshalInt64 returns unmarshaled int64 from src.
+//
+// The caller must ensure that len(src) >= 8
 func UnmarshalInt64(src []byte) int64 {
 	// This is faster than the manual conversion.
-	u := binary.BigEndian.Uint64(src[:8])
+	u := binary.BigEndian.Uint64(src)
 	v := int64(u>>1) ^ (int64(u<<63) >> 63) // zig-zag decoding without branching.
 	return v
 }

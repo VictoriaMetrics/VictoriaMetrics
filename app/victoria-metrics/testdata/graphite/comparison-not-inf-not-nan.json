@@ -7,7 +7,7 @@
     "not_nan_not_inf;item=y 3 {TIME_S-1m}",
     "not_nan_not_inf;item=y 1 {TIME_S-2m}"],
   "query": ["/api/v1/query_range?query=1/(not_nan_not_inf-1)!=inf!=nan&start={TIME_S-3m}&end={TIME_S}&step=60"],
-  "result_query_range": {
+  "result_query": {
     "status":"success",
     "data":{"resultType":"matrix",
       "result":[

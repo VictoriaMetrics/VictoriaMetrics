@@ -10,6 +10,11 @@ users:
 - bearer_token: "XXXX"
   url_prefix: "http://localhost:8428"
 
+  # Adds labels to the exported metrics for given user section
+  # label name must be prometheus compatible and match regex: `^[a-zA-Z_:.][a-zA-Z0-9_:.]*$`
+  metric_labels:
+    backend_dc: eu
+    access_team: dev
   # Requests with the 'Authorization: Bearer YYY' header are proxied to http://localhost:8428 ,
   # The `X-Scope-OrgID: foobar` http header is added to every proxied request.
   # The `X-Server-Hostname:` http header is removed from the proxied response.

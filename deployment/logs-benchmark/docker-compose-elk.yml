@@ -18,7 +18,7 @@ services:
       - vlogs
 
   generator:
-    image: golang:1.21.5-alpine
+    image: golang:1.21.6-alpine
     restart: always
     working_dir: /go/src/app
     volumes:
