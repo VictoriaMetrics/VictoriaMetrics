@@ -26,7 +26,7 @@ var (
 	maxQueueDuration = flag.Duration("search.maxQueueDuration", 10*time.Second, "The maximum time the incoming vmselect request waits for execution "+
 		"when -search.maxConcurrentRequests limit is reached")
 
-	disableRPCCompression = flag.Bool("rpc.disableCompression", true, "Whether to disable compression of the data sent from vmstorage to vmselect. "+
+	disableRPCCompression = flag.Bool("rpc.disableCompression", false, "Whether to disable compression of the data sent from vmstorage to vmselect. "+
 		"This reduces CPU usage at the cost of higher network bandwidth usage")
 	denyQueriesOutsideRetention = flag.Bool("denyQueriesOutsideRetention", false, "Whether to deny queries outside of the configured -retentionPeriod. "+
 		"When set, then /api/v1/query_range would return '503 Service Unavailable' error for queries with 'from' value outside -retentionPeriod. "+

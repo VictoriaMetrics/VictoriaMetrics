@@ -25,7 +25,7 @@ var (
 	maxQueueDuration = flag.Duration("clusternative.maxQueueDuration", 10*time.Second, "The maximum time the incoming query to -clusternativeListenAddr waits for execution "+
 		"when -clusternative.maxConcurrentRequests limit is reached")
 
-	disableRPCCompression = flag.Bool("clusternative.disableCompression", true, "Whether to disable compression of the data sent to vmselect via -clusternativeListenAddr. "+
+	disableRPCCompression = flag.Bool("clusternative.disableCompression", false, "Whether to disable compression of the data sent to vmselect via -clusternativeListenAddr. "+
 		"This reduces CPU usage at the cost of higher network bandwidth usage")
 )
 
