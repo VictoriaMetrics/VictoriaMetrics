@@ -49,28 +49,24 @@ func CalibrateScale(a []int64, ae int16, b []int64, be int16) (e int16) {
 		}
 	}
 	upExp -= downExp
-	for i, v := range a {
-		if isSpecialValue(v) {
-			// Do not take into account special values.
-			continue
+	if upExp > 0 {
+		times := table[upExp-1]
+		for i, v := range a {
+			if isSpecialValue(v) {
+				// Do not take into account special values.
+				continue
+			}
+			a[i] = v * times
 		}
-		adjExp := upExp
-		if adjExp > 0 {
-			v *= table[adjExp-1]
-		}
-		a[i] = v
 	}
 	if downExp > 0 {
+		times := table[downExp-1]
 		for i, v := range b {
 			if isSpecialValue(v) {
 				// Do not take into account special values.
 				continue
 			}
-			adjExp := downExp
-			if adjExp > 0 {
-				v /= table[adjExp-1]
-			}
-			b[i] = v
+			b[i] = v / times
 		}
 	}
 	return be + downExp
