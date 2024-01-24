@@ -110,8 +110,8 @@ type Table struct {
 	inmemoryItemsMerged uint64
 	fileItemsMerged     uint64
 
-	inmemoryAssistedMerges uint64
-	fileAssistedMerges     uint64
+	inmemoryAssistedMergesCount uint64
+	fileAssistedMergesCount     uint64
 
 	itemsAdded          uint64
 	itemsAddedSizeBytes uint64
@@ -422,8 +422,8 @@ type TableMetrics struct {
 	InmemoryItemsMerged uint64
 	FileItemsMerged     uint64
 
-	InmemoryAssistedMerges uint64
-	FileAssistedMerges     uint64
+	InmemoryAssistedMergesCount uint64
+	FileAssistedMergesCount     uint64
 
 	ItemsAdded          uint64
 	ItemsAddedSizeBytes uint64
@@ -473,8 +473,8 @@ func (tb *Table) UpdateMetrics(m *TableMetrics) {
 	m.InmemoryItemsMerged += atomic.LoadUint64(&tb.inmemoryItemsMerged)
 	m.FileItemsMerged += atomic.LoadUint64(&tb.fileItemsMerged)
 
-	m.InmemoryAssistedMerges += atomic.LoadUint64(&tb.inmemoryAssistedMerges)
-	m.FileAssistedMerges += atomic.LoadUint64(&tb.fileAssistedMerges)
+	m.InmemoryAssistedMergesCount += atomic.LoadUint64(&tb.inmemoryAssistedMergesCount)
+	m.FileAssistedMergesCount += atomic.LoadUint64(&tb.fileAssistedMergesCount)
 
 	m.ItemsAdded += atomic.LoadUint64(&tb.itemsAdded)
 	m.ItemsAddedSizeBytes += atomic.LoadUint64(&tb.itemsAddedSizeBytes)
@@ -792,7 +792,7 @@ func (tb *Table) assistedMergeForInmemoryParts() {
 		return
 	}
 
-	atomic.AddUint64(&tb.inmemoryAssistedMerges, 1)
+	atomic.AddUint64(&tb.inmemoryAssistedMergesCount, 1)
 
 	maxOutBytes := tb.getMaxFilePartSize()
 
@@ -812,13 +812,13 @@ func (tb *Table) assistedMergeForInmemoryParts() {
 
 func (tb *Table) assistedMergeForFileParts() {
 	tb.partsLock.Lock()
-	needMerge := getNotInMergePartsCount(tb.fileParts) >= defaultPartsToMerge
+	needMerge := len(tb.fileParts) > maxFileParts && getNotInMergePartsCount(tb.fileParts) >= defaultPartsToMerge
 	tb.partsLock.Unlock()
 	if !needMerge {
 		return
 	}
 
-	atomic.AddUint64(&tb.fileAssistedMerges, 1)
+	atomic.AddUint64(&tb.fileAssistedMergesCount, 1)
 	err := tb.mergeExistingParts(false)
 	if err == nil {
 		return
