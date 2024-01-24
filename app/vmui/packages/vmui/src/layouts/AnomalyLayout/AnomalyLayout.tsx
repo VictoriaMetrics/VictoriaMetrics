@@ -7,7 +7,7 @@ import { getAppModeEnable } from "../../utils/app-mode";
 import classNames from "classnames";
 import Footer from "../Footer/Footer";
 import { routerOptions } from "../../router";
-import { useFetchDashboards } from "../../pages/PredefinedPanels/hooks/useFetchDashboards";
+import useFetchDefaultTimezone from "../../hooks/useFetchDefaultTimezone";
 import useDeviceDetect from "../../hooks/useDeviceDetect";
 import ControlsAnomalyLayout from "./ControlsAnomalyLayout";
 
@@ -17,7 +17,7 @@ const AnomalyLayout: FC = () => {
   const { pathname } = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  useFetchDashboards();
+  useFetchDefaultTimezone();
 
   const setDocumentTitle = () => {
     const defaultTitle = "vmui for vmanomaly";

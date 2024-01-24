@@ -10,6 +10,7 @@ import { useQueryDispatch, useQueryState } from "../state/query/QueryStateContex
 import { QueryContextType } from "../types";
 import { AUTOCOMPLETE_LIMITS } from "../constants/queryAutocomplete";
 import { escapeDoubleQuotes, escapeRegexp } from "../utils/regexp";
+import dayjs from "dayjs";
 
 enum TypeData {
   metric = "metric",
@@ -59,11 +60,14 @@ export const useFetchQueryOptions = ({ valueByContext, metric, label, context }:
   const abortControllerRef = useRef(new AbortController());
 
   const getQueryParams = useCallback((params?: Record<string, string>) => {
+    const startDay = dayjs(start * 1000).startOf("day").valueOf() / 1000;
+    const endDay = dayjs(end * 1000).endOf("day").valueOf() / 1000;
+
     return new URLSearchParams({
       ...(params || {}),
       limit: `${AUTOCOMPLETE_LIMITS.queryLimit}`,
-      start: `${start}`,
-      end: `${end}`
+      start: `${startDay}`,
+      end: `${endDay}`
     });
   }, [start, end]);
 
@@ -76,6 +80,7 @@ export const useFetchQueryOptions = ({ valueByContext, metric, label, context }:
   };
 
   const fetchData = async ({ value, urlSuffix, setter, type, params }: FetchDataArgs) => {
+    if (!value) return;
     abortControllerRef.current.abort();
     abortControllerRef.current = new AbortController();
     const { signal } = abortControllerRef.current;

@@ -330,17 +330,19 @@ const (
 	vmNativeDisableHTTPKeepAlive      = "vm-native-disable-http-keep-alive"
 	vmNativeDisablePerMetricMigration = "vm-native-disable-per-metric-migration"
 
-	vmNativeSrcAddr        = "vm-native-src-addr"
-	vmNativeSrcUser        = "vm-native-src-user"
-	vmNativeSrcPassword    = "vm-native-src-password"
-	vmNativeSrcHeaders     = "vm-native-src-headers"
-	vmNativeSrcBearerToken = "vm-native-src-bearer-token"
+	vmNativeSrcAddr               = "vm-native-src-addr"
+	vmNativeSrcUser               = "vm-native-src-user"
+	vmNativeSrcPassword           = "vm-native-src-password"
+	vmNativeSrcHeaders            = "vm-native-src-headers"
+	vmNativeSrcBearerToken        = "vm-native-src-bearer-token"
+	vmNativeSrcInsecureSkipVerify = "vm-native-src-insecure-skip-verify"
 
-	vmNativeDstAddr        = "vm-native-dst-addr"
-	vmNativeDstUser        = "vm-native-dst-user"
-	vmNativeDstPassword    = "vm-native-dst-password"
-	vmNativeDstHeaders     = "vm-native-dst-headers"
-	vmNativeDstBearerToken = "vm-native-dst-bearer-token"
+	vmNativeDstAddr               = "vm-native-dst-addr"
+	vmNativeDstUser               = "vm-native-dst-user"
+	vmNativeDstPassword           = "vm-native-dst-password"
+	vmNativeDstHeaders            = "vm-native-dst-headers"
+	vmNativeDstBearerToken        = "vm-native-dst-bearer-token"
+	vmNativeDstInsecureSkipVerify = "vm-native-dst-insecure-skip-verify"
 )
 
 var (
@@ -464,6 +466,16 @@ var (
 				"instead of https://docs.victoriametrics.com/#how-to-export-data-in-native-format API." +
 				"Binary export/import API protocol implies less network and resource usage, as it transfers compressed binary data blocks." +
 				"Non-binary export/import API is less efficient, but supports deduplication if it is configured on vm-native-src-addr side.",
+			Value: false,
+		},
+		&cli.BoolFlag{
+			Name:  vmNativeSrcInsecureSkipVerify,
+			Usage: "Whether to skip TLS certificate verification when connecting to the source address",
+			Value: false,
+		},
+		&cli.BoolFlag{
+			Name:  vmNativeDstInsecureSkipVerify,
+			Usage: "Whether to skip TLS certificate verification when connecting to the destination address",
 			Value: false,
 		},
 	}

@@ -96,7 +96,6 @@ func main() {
 	envflag.Parse()
 	buildinfo.Init()
 	logger.Init()
-	pushmetrics.Init()
 
 	logger.Infof("initializing netstorage for storageNodes %s...", *storageNodes)
 	startTime := time.Now()
@@ -151,8 +150,10 @@ func main() {
 		httpserver.Serve(*httpListenAddr, *useProxyProtocol, requestHandler)
 	}()
 
+	pushmetrics.Init()
 	sig := procutil.WaitForSigterm()
 	logger.Infof("service received signal %s", sig)
+	pushmetrics.Stop()
 
 	logger.Infof("gracefully shutting down http service at %q", *httpListenAddr)
 	startTime = time.Now()

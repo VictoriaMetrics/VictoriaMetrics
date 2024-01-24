@@ -6,6 +6,7 @@ menu:
   docs:
     parent: "victorialogs"
     weight: 2
+    title: Key concepts
 aliases:
 - /VictoriaLogs/keyConcepts.html
 ---

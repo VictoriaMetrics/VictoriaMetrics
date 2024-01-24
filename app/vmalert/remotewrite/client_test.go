@@ -140,7 +140,7 @@ func (rw *rwServer) handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	wr := &prompb.WriteRequest{}
-	if err := wr.Unmarshal(b); err != nil {
+	if err := wr.UnmarshalProtobuf(b); err != nil {
 		rw.err(w, fmt.Errorf("unmarhsal err: %w", err))
 		return
 	}

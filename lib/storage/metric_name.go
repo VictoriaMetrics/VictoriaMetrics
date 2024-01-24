@@ -578,7 +578,7 @@ func MarshalMetricNameRaw(dst []byte, accountID, projectID uint32, labels []prom
 	dstSize := dstLen + 8
 	for i := range labels {
 		if i >= maxLabelsPerTimeseries {
-			trackDroppedLabels(labels, labels[i:])
+			trackDroppedLabels(labels, labels[i:], accountID, projectID)
 			break
 		}
 		label := &labels[i]
@@ -587,7 +587,7 @@ func MarshalMetricNameRaw(dst []byte, accountID, projectID uint32, labels []prom
 			label.Name = label.Name[:maxLabelNameLen]
 		}
 		if len(label.Value) > maxLabelValueLen {
-			trackTruncatedLabels(labels, label)
+			trackTruncatedLabels(labels, label, accountID, projectID)
 			label.Value = label.Value[:maxLabelValueLen]
 		}
 		if len(label.Value) == 0 {
@@ -615,8 +615,8 @@ func MarshalMetricNameRaw(dst []byte, accountID, projectID uint32, labels []prom
 			// Skip labels without values, since they have no sense in prometheus.
 			continue
 		}
-		dst = marshalBytesFast(dst, label.Name)
-		dst = marshalBytesFast(dst, label.Value)
+		dst = marshalStringFast(dst, label.Name)
+		dst = marshalStringFast(dst, label.Value)
 	}
 	return dst
 }
@@ -632,28 +632,28 @@ var (
 	TooLongLabelValues uint64
 )
 
-func trackDroppedLabels(labels, droppedLabels []prompb.Label) {
+func trackDroppedLabels(labels, droppedLabels []prompb.Label, accountID, projectID uint32) {
 	atomic.AddUint64(&MetricsWithDroppedLabels, 1)
 	select {
 	case <-droppedLabelsLogTicker.C:
 		// Do not call logger.WithThrottler() here, since this will result in increased CPU usage
 		// because labelsToString() will be called with each trackDroppedLabels call.
-		logger.Warnf("dropping %d labels for %s; dropped labels: %s; either reduce the number of labels for this metric "+
+		logger.Warnf("dropping %d labels for %s; dropped labels: %s; tenant: %d:%d; either reduce the number of labels for this metric "+
 			"or increase -maxLabelsPerTimeseries=%d command-line flag value",
-			len(droppedLabels), labelsToString(labels), labelsToString(droppedLabels), maxLabelsPerTimeseries)
+			len(droppedLabels), labelsToString(labels), labelsToString(droppedLabels), accountID, projectID, maxLabelsPerTimeseries)
 	default:
 	}
 }
 
-func trackTruncatedLabels(labels []prompb.Label, truncated *prompb.Label) {
+func trackTruncatedLabels(labels []prompb.Label, truncated *prompb.Label, accountID, projectID uint32) {
 	atomic.AddUint64(&TooLongLabelValues, 1)
 	select {
 	case <-truncatedLabelsLogTicker.C:
 		// Do not call logger.WithThrottler() here, since this will result in increased CPU usage
 		// because labelsToString() will be called with each trackTruncatedLabels call.
 		logger.Warnf("truncated label value as it exceeds configured maximal label value length: max %d, actual %d;"+
-			" truncated label: %s; original labels: %s; either reduce the label value length or increase -maxLabelValueLen=%d;",
-			maxLabelValueLen, len(truncated.Value), truncated.Name, labelsToString(labels), maxLabelValueLen)
+			" truncated label: %s; original labels: %s; tenant: %d:%d; either reduce the label value length or increase -maxLabelValueLen=%d;",
+			maxLabelValueLen, len(truncated.Value), truncated.Name, labelsToString(labels), accountID, projectID, maxLabelValueLen)
 	default:
 	}
 }
@@ -686,8 +686,8 @@ func labelsToString(labels []prompb.Label) string {
 
 // MarshalMetricLabelRaw marshals label to dst.
 func MarshalMetricLabelRaw(dst []byte, label *prompb.Label) []byte {
-	dst = marshalBytesFast(dst, label.Name)
-	dst = marshalBytesFast(dst, label.Value)
+	dst = marshalStringFast(dst, label.Name)
+	dst = marshalStringFast(dst, label.Value)
 	return dst
 }
 
@@ -745,6 +745,12 @@ func (mn *MetricName) UnmarshalRaw(src []byte) error {
 		}
 	}
 	return nil
+}
+
+func marshalStringFast(dst []byte, s string) []byte {
+	dst = encoding.MarshalUint16(dst, uint16(len(s)))
+	dst = append(dst, s...)
+	return dst
 }
 
 func marshalBytesFast(dst []byte, s []byte) []byte {

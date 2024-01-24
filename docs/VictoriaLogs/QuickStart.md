@@ -6,6 +6,7 @@ menu:
   docs:
     parent: "victorialogs"
     weight: 1
+    title: Quick Start
 aliases:
 - /VictoriaLogs/QuickStart.html
 ---

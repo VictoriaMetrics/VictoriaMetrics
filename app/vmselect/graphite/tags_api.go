@@ -122,13 +122,13 @@ func registerMetrics(startTime time.Time, at *auth.Token, w http.ResponseWriter,
 
 		// Convert parsed metric and tags to labels.
 		labels = append(labels[:0], prompb.Label{
-			Name:  []byte("__name__"),
-			Value: []byte(row.Metric),
+			Name:  "__name__",
+			Value: row.Metric,
 		})
 		for _, tag := range row.Tags {
 			labels = append(labels, prompb.Label{
-				Name:  []byte(tag.Key),
-				Value: []byte(tag.Value),
+				Name:  tag.Key,
+				Value: tag.Value,
 			})
 		}
 

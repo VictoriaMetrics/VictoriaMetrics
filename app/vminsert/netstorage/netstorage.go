@@ -20,12 +20,13 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/cespare/xxhash/v2"
 )
 
 var (
-	disableRPCCompression = flag.Bool(`rpc.disableCompression`, false, "Whether to disable compression for the data sent from vminsert to vmstorage. This reduces CPU usage at the cost of higher network bandwidth usage")
+	disableRPCCompression = flag.Bool("rpc.disableCompression", false, "Whether to disable compression for the data sent from vminsert to vmstorage. This reduces CPU usage at the cost of higher network bandwidth usage")
 	replicationFactor     = flag.Int("replicationFactor", 1, "Replication factor for the ingested data, i.e. how many copies to make among distinct -storageNode instances. "+
 		"Note that vmselect must run with -dedup.minScrapeInterval=1ms for data de-duplication when replicationFactor is greater than 1. "+
 		"Higher values for -dedup.minScrapeInterval at vmselect is OK")
@@ -148,7 +149,8 @@ func (sn *storageNode) run(snb *storageNodesBucket, snIdx int) {
 	}()
 	defer sn.readOnlyCheckerWG.Wait()
 
-	ticker := time.NewTicker(200 * time.Millisecond)
+	d := timeutil.AddJitterToDuration(time.Millisecond * 200)
+	ticker := time.NewTicker(d)
 	defer ticker.Stop()
 	var br bufRows
 	brLastResetTime := fasttime.UnixTimestamp()
@@ -188,7 +190,8 @@ func (sn *storageNode) run(snb *storageNodesBucket, snIdx int) {
 		}
 		// Send br to replicas storage nodes starting from snIdx.
 		for !sendBufToReplicasNonblocking(snb, &br, snIdx, replicas) {
-			t := timerpool.Get(200 * time.Millisecond)
+			d := timeutil.AddJitterToDuration(time.Millisecond * 200)
+			t := timerpool.Get(d)
 			select {
 			case <-sn.stopCh:
 				timerpool.Put(t)
@@ -783,7 +786,8 @@ func (sn *storageNode) sendBufMayBlock(buf []byte) bool {
 }
 
 func (sn *storageNode) readOnlyChecker() {
-	ticker := time.NewTicker(time.Second * 30)
+	d := timeutil.AddJitterToDuration(time.Second * 30)
+	ticker := time.NewTicker(d)
 	defer ticker.Stop()
 	for {
 		select {

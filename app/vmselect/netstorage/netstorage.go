@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"reflect"
 	"sort"
 	"strings"
 	"sync"
@@ -114,30 +115,6 @@ type timeseriesWork struct {
 
 	rowsProcessed int
 }
-
-func (tsw *timeseriesWork) reset() {
-	tsw.mustStop = nil
-	tsw.rss = nil
-	tsw.pts = nil
-	tsw.f = nil
-	tsw.err = nil
-	tsw.rowsProcessed = 0
-}
-
-func getTimeseriesWork() *timeseriesWork {
-	v := tswPool.Get()
-	if v == nil {
-		v = &timeseriesWork{}
-	}
-	return v.(*timeseriesWork)
-}
-
-func putTimeseriesWork(tsw *timeseriesWork) {
-	tsw.reset()
-	tswPool.Put(tsw)
-}
-
-var tswPool sync.Pool
 
 func (tsw *timeseriesWork) do(r *Result, workerID uint) error {
 	if atomic.LoadUint32(tsw.mustStop) != 0 {
@@ -297,22 +274,20 @@ func (rss *Results) runParallel(qt *querytracer.Tracer, f func(rs *Result, worke
 	maxWorkers := MaxWorkers()
 	if maxWorkers == 1 || tswsLen == 1 {
 		// It is faster to process time series in the current goroutine.
-		tsw := getTimeseriesWork()
+		var tsw timeseriesWork
 		tmpResult := getTmpResult()
 		rowsProcessedTotal := 0
 		var err error
 		for i := range rss.packedTimeseries {
-			initTimeseriesWork(tsw, &rss.packedTimeseries[i])
+			initTimeseriesWork(&tsw, &rss.packedTimeseries[i])
 			err = tsw.do(&tmpResult.rs, 0)
 			rowsReadPerSeries.Update(float64(tsw.rowsProcessed))
 			rowsProcessedTotal += tsw.rowsProcessed
 			if err != nil {
 				break
 			}
-			tsw.reset()
 		}
 		putTmpResult(tmpResult)
-		putTimeseriesWork(tsw)
 
 		return rowsProcessedTotal, err
 	}
@@ -322,11 +297,9 @@ func (rss *Results) runParallel(qt *querytracer.Tracer, f func(rs *Result, worke
 	// which reduces the scalability on systems with many CPU cores.
 
 	// Prepare the work for workers.
-	tsws := make([]*timeseriesWork, len(rss.packedTimeseries))
+	tsws := make([]timeseriesWork, len(rss.packedTimeseries))
 	for i := range rss.packedTimeseries {
-		tsw := getTimeseriesWork()
-		initTimeseriesWork(tsw, &rss.packedTimeseries[i])
-		tsws[i] = tsw
+		initTimeseriesWork(&tsws[i], &rss.packedTimeseries[i])
 	}
 
 	// Prepare worker channels.
@@ -341,9 +314,9 @@ func (rss *Results) runParallel(qt *querytracer.Tracer, f func(rs *Result, worke
 	}
 
 	// Spread work among workers.
-	for i, tsw := range tsws {
+	for i := range tsws {
 		idx := i % len(workChs)
-		workChs[idx] <- tsw
+		workChs[idx] <- &tsws[i]
 	}
 	// Mark worker channels as closed.
 	for _, workCh := range workChs {
@@ -366,14 +339,14 @@ func (rss *Results) runParallel(qt *querytracer.Tracer, f func(rs *Result, worke
 	// Collect results.
 	var firstErr error
 	rowsProcessedTotal := 0
-	for _, tsw := range tsws {
+	for i := range tsws {
+		tsw := &tsws[i]
 		if tsw.err != nil && firstErr == nil {
 			// Return just the first error, since other errors are likely duplicate the first error.
 			firstErr = tsw.err
 		}
 		rowsReadPerSeries.Update(float64(tsw.rowsProcessed))
 		rowsProcessedTotal += tsw.rowsProcessed
-		putTimeseriesWork(tsw)
 	}
 	return rowsProcessedTotal, firstErr
 }
@@ -1348,91 +1321,199 @@ func SeriesCount(qt *querytracer.Tracer, accountID, projectID uint32, denyPartia
 }
 
 type tmpBlocksFileWrapper struct {
-	tbfs                []*tmpBlocksFile
-	ms                  []map[string]*blockAddrs
-	orderedMetricNamess [][]string
+	shards []tmpBlocksFileWrapperShardWithPadding
+}
+
+type tmpBlocksFileWrapperShard struct {
+	// tbf is a file where temporary blocks are stored from the read time series.
+	tbf *tmpBlocksFile
+
+	// metricNamesBuf is a buf for holding all the loaded unique metric names for m and orderedMetricNames.
+	// It should reduce pressure on Go GC by reducing the number of string allocations
+	// when constructing metricName string from byte slice.
+	metricNamesBuf []byte
+
+	// addrssPool is a pool for holding all the blockAddrs objects across all the loaded time series.
+	// It should reduce pressure on Go GC by reducing the number of blockAddrs object allocations.
+	addrssPool []blockAddrs
+
+	// addrsPool is a pool for holding the most of blockAddrs.addrs slices.
+	// It should reduce pressure on Go GC by reducing the number of blockAddrs.addrs allocations.
+	addrsPool []tmpBlockAddr
+
+	// m maps metricName to the addrssPool index.
+	m map[string]int
+
+	// orderedMetricNames contains metric names in the order of their load.
+	// This order is important for sequential read of data from tmpBlocksFile.
+	orderedMetricNames []string
+
+	// prevMetricName contains the metric name previously seen at RegisterAndWriteBlock.
+	prevMetricName []byte
+
+	// prevAddrsIdx contains the addrssPool index previously seen at RegisterAndWriteBlock.
+	prevAddrsIdx int
+}
+
+type tmpBlocksFileWrapperShardWithPadding struct {
+	tmpBlocksFileWrapperShard
+
+	// The padding prevents false sharing on widespread platforms with
+	// 128 mod (cache line size) = 0 .
+	_ [128 - unsafe.Sizeof(tmpBlocksFileWrapperShard{})%128]byte
 }
 
 type blockAddrs struct {
-	addrsPrealloc [4]tmpBlockAddr
-	addrs         []tmpBlockAddr
+	addrs []tmpBlockAddr
 }
 
-func newBlockAddrs() *blockAddrs {
-	ba := &blockAddrs{}
-	ba.addrs = ba.addrsPrealloc[:0]
-	return ba
+func haveSameBlockAddrTails(a, b []tmpBlockAddr) bool {
+	sha := (*reflect.SliceHeader)(unsafe.Pointer(&a))
+	shb := (*reflect.SliceHeader)(unsafe.Pointer(&b))
+	return sha.Data+uintptr(sha.Len)*unsafe.Sizeof(tmpBlockAddr{}) == shb.Data+uintptr(shb.Len)*unsafe.Sizeof(tmpBlockAddr{})
+}
+
+func (tbfwLocal *tmpBlocksFileWrapperShard) newBlockAddrs() int {
+	addrssPool := tbfwLocal.addrssPool
+	if cap(addrssPool) > len(addrssPool) {
+		addrssPool = addrssPool[:len(addrssPool)+1]
+	} else {
+		addrssPool = append(addrssPool, blockAddrs{})
+	}
+	tbfwLocal.addrssPool = addrssPool
+	idx := len(addrssPool) - 1
+	return idx
 }
 
 func newTmpBlocksFileWrapper(sns []*storageNode) *tmpBlocksFileWrapper {
 	n := len(sns)
-	tbfs := make([]*tmpBlocksFile, n)
-	for i := range tbfs {
-		tbfs[i] = getTmpBlocksFile()
-	}
-	ms := make([]map[string]*blockAddrs, n)
-	for i := range ms {
-		ms[i] = make(map[string]*blockAddrs)
+	shards := make([]tmpBlocksFileWrapperShardWithPadding, n)
+	for i := range shards {
+		shard := &shards[i]
+		shard.tbf = getTmpBlocksFile()
+		shard.m = make(map[string]int)
 	}
 	return &tmpBlocksFileWrapper{
-		tbfs:                tbfs,
-		ms:                  ms,
-		orderedMetricNamess: make([][]string, n),
+		shards: shards,
 	}
 }
 
 func (tbfw *tmpBlocksFileWrapper) RegisterAndWriteBlock(mb *storage.MetricBlock, workerID uint) error {
+	tbfwLocal := &tbfw.shards[workerID]
+
 	bb := tmpBufPool.Get()
 	bb.B = storage.MarshalBlock(bb.B[:0], &mb.Block)
-	addr, err := tbfw.tbfs[workerID].WriteBlockData(bb.B, workerID)
+
+	addr, err := tbfwLocal.tbf.WriteBlockData(bb.B, workerID)
 	tmpBufPool.Put(bb)
 	if err != nil {
 		return err
 	}
-	// Do not intern mb.MetricName, since it leads to increased memory usage.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3692
+
+	m := tbfwLocal.m
 	metricName := mb.MetricName
-	m := tbfw.ms[workerID]
-	addrs := m[string(metricName)]
-	if addrs == nil {
-		addrs = newBlockAddrs()
+	addrsIdx := tbfwLocal.prevAddrsIdx
+	if tbfwLocal.prevMetricName == nil || string(metricName) != string(tbfwLocal.prevMetricName) {
+		idx, ok := m[string(metricName)]
+		if !ok {
+			idx = tbfwLocal.newBlockAddrs()
+		}
+		addrsIdx = idx
+		tbfwLocal.prevMetricName = append(tbfwLocal.prevMetricName[:0], metricName...)
+		tbfwLocal.prevAddrsIdx = addrsIdx
 	}
-	addrs.addrs = append(addrs.addrs, addr)
+	addrs := &tbfwLocal.addrssPool[addrsIdx]
+
+	addrsPool := tbfwLocal.addrsPool
+	if uintptr(cap(addrsPool)) >= maxFastAllocBlockSize/unsafe.Sizeof(tmpBlockAddr{}) && len(addrsPool) == cap(addrsPool) {
+		// Allocate a new addrsPool in order to avoid slow allocation of an object
+		// bigger than maxFastAllocBlockSize bytes at append() below.
+		addrsPool = make([]tmpBlockAddr, 0, maxFastAllocBlockSize/unsafe.Sizeof(tmpBlockAddr{}))
+		tbfwLocal.addrsPool = addrsPool
+	}
+	if addrs.addrs == nil || haveSameBlockAddrTails(addrs.addrs, addrsPool) {
+		// It is safe appending addr to addrsPool, since there are no other items added there yet.
+		addrsPool = append(addrsPool, addr)
+		tbfwLocal.addrsPool = addrsPool
+		addrs.addrs = addrsPool[len(addrsPool)-len(addrs.addrs)-1 : len(addrsPool) : len(addrsPool)]
+	} else {
+		// It is unsafe appending addr to addrsPool, since there are other items added there.
+		// So just append it to addrs.addrs.
+		addrs.addrs = append(addrs.addrs, addr)
+	}
+
 	if len(addrs.addrs) == 1 {
-		// An optimization for big number of time series with long names: store only a single copy of metricNameStr
-		// in both tbfw.orderedMetricNamess and tbfw.ms.
-		orderedMetricNames := tbfw.orderedMetricNamess[workerID]
-		metricNameStr := string(metricName)
+		metricNamesBuf := tbfwLocal.metricNamesBuf
+		if cap(metricNamesBuf) >= maxFastAllocBlockSize && len(metricNamesBuf)+len(metricName) > cap(metricNamesBuf) {
+			// Allocate a new metricNamesBuf in order to avoid slow allocation of byte slice
+			// bigger than maxFastAllocBlockSize bytes at append() below.
+			metricNamesBuf = make([]byte, 0, maxFastAllocBlockSize)
+		}
+		metricNamesBufLen := len(metricNamesBuf)
+		metricNamesBuf = append(metricNamesBuf, metricName...)
+		metricNameStr := bytesutil.ToUnsafeString(metricNamesBuf[metricNamesBufLen:])
+
+		orderedMetricNames := tbfwLocal.orderedMetricNames
 		orderedMetricNames = append(orderedMetricNames, metricNameStr)
-		m[metricNameStr] = addrs
-		tbfw.orderedMetricNamess[workerID] = orderedMetricNames
+		m[metricNameStr] = addrsIdx
+
+		tbfwLocal.orderedMetricNames = orderedMetricNames
+		tbfwLocal.metricNamesBuf = metricNamesBuf
 	}
+
 	return nil
 }
 
-func (tbfw *tmpBlocksFileWrapper) Finalize() ([]string, map[string]*blockAddrs, uint64, error) {
+func (tbfw *tmpBlocksFileWrapper) Finalize() ([]string, []blockAddrs, map[string]int, uint64, error) {
+	shards := tbfw.shards
+
 	var bytesTotal uint64
-	for i, tbf := range tbfw.tbfs {
+	for i := range shards {
+		tbf := shards[i].tbf
 		if err := tbf.Finalize(); err != nil {
-			closeTmpBlockFiles(tbfw.tbfs)
-			return nil, nil, 0, fmt.Errorf("cannot finalize temporary blocks file with %d series: %w", len(tbfw.ms[i]), err)
+			tbfw.closeTmpBlockFiles()
+			return nil, nil, nil, 0, fmt.Errorf("cannot finalize temporary blocks file with %d series: %w", len(shards[i].m), err)
 		}
 		bytesTotal += tbf.Len()
 	}
-	orderedMetricNames := tbfw.orderedMetricNamess[0]
-	addrsByMetricName := tbfw.ms[0]
-	for i, m := range tbfw.ms[1:] {
-		for _, metricName := range tbfw.orderedMetricNamess[i+1] {
-			dstAddrs, ok := addrsByMetricName[metricName]
+
+	// merge data collected from all the shards
+	tbfwFirst := &shards[0]
+	orderedMetricNames := tbfwFirst.orderedMetricNames
+	addrsByMetricName := tbfwFirst.m
+	for i := 1; i < len(shards); i++ {
+		tbfwLocal := &shards[i]
+
+		m := tbfwLocal.m
+		addrssPool := tbfwLocal.addrssPool
+		for _, metricName := range tbfwLocal.orderedMetricNames {
+			dstAddrsIdx, ok := addrsByMetricName[metricName]
 			if !ok {
 				orderedMetricNames = append(orderedMetricNames, metricName)
-				dstAddrs = newBlockAddrs()
-				addrsByMetricName[metricName] = dstAddrs
+				dstAddrsIdx = tbfwFirst.newBlockAddrs()
+				addrsByMetricName[metricName] = dstAddrsIdx
 			}
-			dstAddrs.addrs = append(dstAddrs.addrs, m[metricName].addrs...)
+			dstAddrs := &tbfwFirst.addrssPool[dstAddrsIdx]
+			dstAddrs.addrs = append(dstAddrs.addrs, addrssPool[m[metricName]].addrs...)
 		}
 	}
-	return orderedMetricNames, addrsByMetricName, bytesTotal, nil
+
+	return orderedMetricNames, tbfwFirst.addrssPool, addrsByMetricName, bytesTotal, nil
+}
+
+func (tbfw *tmpBlocksFileWrapper) closeTmpBlockFiles() {
+	tbfs := tbfw.getTmpBlockFiles()
+	closeTmpBlockFiles(tbfs)
+}
+
+func (tbfw *tmpBlocksFileWrapper) getTmpBlockFiles() []*tmpBlocksFile {
+	shards := tbfw.shards
+
+	tbfs := make([]*tmpBlocksFile, len(shards))
+	for i := range shards {
+		tbfs[i] = shards[i].tbf
+	}
+	return tbfs
 }
 
 var metricNamePool = &sync.Pool{
@@ -1584,24 +1665,24 @@ func ProcessSearchQuery(qt *querytracer.Tracer, denyPartialResponse bool, sq *st
 	}
 	isPartial, err := processBlocks(qt, sns, denyPartialResponse, sq, processBlock, deadline)
 	if err != nil {
-		closeTmpBlockFiles(tbfw.tbfs)
+		tbfw.closeTmpBlockFiles()
 		return nil, false, fmt.Errorf("error occured during search: %w", err)
 	}
-	orderedMetricNames, addrsByMetricName, bytesTotal, err := tbfw.Finalize()
+	orderedMetricNames, addrssPool, m, bytesTotal, err := tbfw.Finalize()
 	if err != nil {
 		return nil, false, fmt.Errorf("cannot finalize temporary blocks files: %w", err)
 	}
-	qt.Printf("fetch unique series=%d, blocks=%d, samples=%d, bytes=%d", len(addrsByMetricName), blocksRead.GetTotal(), samples.GetTotal(), bytesTotal)
+	qt.Printf("fetch unique series=%d, blocks=%d, samples=%d, bytes=%d", len(m), blocksRead.GetTotal(), samples.GetTotal(), bytesTotal)
 
 	var rss Results
 	rss.tr = tr
 	rss.deadline = deadline
-	rss.tbfs = tbfw.tbfs
+	rss.tbfs = tbfw.getTmpBlockFiles()
 	pts := make([]packedTimeseries, len(orderedMetricNames))
 	for i, metricName := range orderedMetricNames {
 		pts[i] = packedTimeseries{
 			metricName: metricName,
-			addrs:      addrsByMetricName[metricName].addrs,
+			addrs:      addrssPool[m[metricName]].addrs,
 		}
 	}
 	rss.packedTimeseries = pts
@@ -2976,3 +3057,8 @@ func (pnc *perNodeCounter) GetTotal() uint64 {
 	}
 	return total
 }
+
+// Go uses fast allocations for block sizes up to 32Kb.
+//
+// See https://github.com/golang/go/blob/704401ffa06c60e059c9e6e4048045b4ff42530a/src/runtime/malloc.go#L11
+const maxFastAllocBlockSize = 32 * 1024

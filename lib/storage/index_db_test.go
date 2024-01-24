@@ -24,18 +24,44 @@ import (
 func TestMarshalUnmarshalMetricIDs(t *testing.T) {
 	f := func(metricIDs []uint64) {
 		t.Helper()
+
+		// Try marshaling and unmarshaling to an empty dst
 		data := marshalMetricIDs(nil, metricIDs)
-		result, err := unmarshalMetricIDs(nil, data)
-		if err != nil {
-			t.Fatalf("unexpected error: %s", err)
-		}
+		result := mustUnmarshalMetricIDs(nil, data)
 		if !reflect.DeepEqual(result, metricIDs) {
 			t.Fatalf("unexpected metricIDs after unmarshaling;\ngot\n%d\nwant\n%d", result, metricIDs)
 		}
+
+		// Try marshaling and unmarshaling to non-empty dst
+		dataPrefix := []byte("prefix")
+		data = marshalMetricIDs(dataPrefix, metricIDs)
+		if len(data) < len(dataPrefix) {
+			t.Fatalf("too short len(data)=%d; must be at least len(dataPrefix)=%d", len(data), len(dataPrefix))
+		}
+		if string(data[:len(dataPrefix)]) != string(dataPrefix) {
+			t.Fatalf("unexpected prefix; got %q; want %q", data[:len(dataPrefix)], dataPrefix)
+		}
+		data = data[len(dataPrefix):]
+
+		resultPrefix := []uint64{889432422, 89243, 9823}
+		result = mustUnmarshalMetricIDs(resultPrefix, data)
+		if len(result) < len(resultPrefix) {
+			t.Fatalf("too short result returned; len(result)=%d; must be at least len(resultPrefix)=%d", len(result), len(resultPrefix))
+		}
+		if !reflect.DeepEqual(result[:len(resultPrefix)], resultPrefix) {
+			t.Fatalf("unexpected result prefix; got %d; want %d", result[:len(resultPrefix)], resultPrefix)
+		}
+		result = result[len(resultPrefix):]
+		if (len(metricIDs) > 0 || len(result) > 0) && !reflect.DeepEqual(result, metricIDs) {
+			t.Fatalf("unexpected metricIDs after unmarshaling from prefix;\ngot\n%d\nwant\n%d", result, metricIDs)
+		}
 	}
+
 	f(nil)
+	f([]uint64{0})
 	f([]uint64{1})
 	f([]uint64{1234, 678932943, 843289893843})
+	f([]uint64{1, 2, 3, 4, 5, 6, 8989898, 823849234, 1<<64 - 1, 1<<32 - 1, 0})
 }
 
 func TestMergeSortedMetricIDs(t *testing.T) {

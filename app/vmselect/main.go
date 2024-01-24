@@ -51,7 +51,8 @@ var (
 		"limit is reached; see also -search.maxQueryDuration")
 	minScrapeInterval = flag.Duration("dedup.minScrapeInterval", 0, "Leave only the last sample in every time series per each discrete interval "+
 		"equal to -dedup.minScrapeInterval > 0. See https://docs.victoriametrics.com/#deduplication for details")
-	resetCacheAuthKey    = flag.String("search.resetCacheAuthKey", "", "Optional authKey for resetting rollup cache via /internal/resetRollupResultCache call")
+	deleteAuthKey        = flagutil.NewPassword("deleteAuthKey", "authKey for metrics' deletion via /prometheus/api/v1/admin/tsdb/delete_series and /graphite/tags/delSeries")
+	resetCacheAuthKey    = flagutil.NewPassword("search.resetCacheAuthKey", "Optional authKey for resetting rollup cache via /internal/resetRollupResultCache call")
 	logSlowQueryDuration = flag.Duration("search.logSlowQueryDuration", 5*time.Second, "Log queries with execution time exceeding this value. Zero disables slow query logging. "+
 		"See also -search.logQueryMemoryUsage")
 	vmalertProxyURL = flag.String("vmalert.proxyURL", "", "Optional URL for proxying requests to vmalert. For example, if -vmalert.proxyURL=http://vmalert:8880 , then alerting API requests such as /api/v1/rules from Grafana will be proxied to http://vmalert:8880/api/v1/rules")
@@ -91,7 +92,6 @@ func main() {
 	envflag.Parse()
 	buildinfo.Init()
 	logger.Init()
-	pushmetrics.Init()
 
 	logger.Infof("starting netstorage at storageNodes %s", *storageNodes)
 	startTime := time.Now()
@@ -135,8 +135,10 @@ func main() {
 		httpserver.Serve(*httpListenAddr, *useProxyProtocol, requestHandler)
 	}()
 
+	pushmetrics.Init()
 	sig := procutil.WaitForSigterm()
 	logger.Infof("service received signal %s", sig)
+	pushmetrics.Stop()
 
 	logger.Infof("gracefully shutting down http service at %q", *httpListenAddr)
 	startTime = time.Now()
@@ -245,7 +247,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	}
 
 	if path == "/internal/resetRollupResultCache" {
-		if !httpserver.CheckAuthFlag(w, r, *resetCacheAuthKey, "resetCacheAuthKey") {
+		if !httpserver.CheckAuthFlag(w, r, resetCacheAuthKey.Get(), "resetCacheAuthKey") {
 			return true
 		}
 		promql.ResetRollupResultCache()
@@ -483,6 +485,9 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		}
 		return true
 	case "graphite/tags/delSeries":
+		if !httpserver.CheckAuthFlag(w, r, deleteAuthKey.Get(), "deleteAuthKey") {
+			return true
+		}
 		graphiteTagsDelSeriesRequests.Inc()
 		if err := graphite.TagsDelSeriesHandler(startTime, at, w, r); err != nil {
 			graphiteTagsDelSeriesErrors.Inc()
@@ -579,6 +584,14 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 	}
 	if p.Suffix == "vmui/custom-dashboards" || p.Suffix == "prometheus/vmui/custom-dashboards" {
 		if err := handleVMUICustomDashboards(w); err != nil {
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		return true
+	}
+	if p.Suffix == "vmui/timezone" {
+		httpserver.EnableCORS(w, r)
+		if err := handleVMUITimezone(w); err != nil {
 			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
@@ -729,6 +742,9 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 func deleteHandler(startTime time.Time, w http.ResponseWriter, r *http.Request, p *httpserver.Path, at *auth.Token) bool {
 	switch p.Suffix {
 	case "prometheus/api/v1/admin/tsdb/delete_series":
+		if !httpserver.CheckAuthFlag(w, r, deleteAuthKey.Get(), "deleteAuthKey") {
+			return true
+		}
 		deleteRequests.Inc()
 		if err := prometheus.DeleteHandler(startTime, at, r); err != nil {
 			deleteErrors.Inc()
