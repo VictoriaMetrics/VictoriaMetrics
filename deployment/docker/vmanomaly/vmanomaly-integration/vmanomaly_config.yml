@@ -10,8 +10,9 @@ model:
 
 reader:
   datasource_url: "http://victoriametrics:8428/"
+  sampling_period: "60s" 
   queries:
-    node_cpu_rate: "rate(node_cpu_seconds_total)"
+    node_cpu_rate: "quantile by (mode) (0.5, rate(node_cpu_seconds_total[5m]))"
 
 writer:
   datasource_url: "http://victoriametrics:8428/"

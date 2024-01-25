@@ -101,7 +101,7 @@ node_cpu_seconds_total{cpu="1",mode="iowait"} 51.22
 Here, metric `node_cpu_seconds_total` tells us how many seconds each CPU spent in different modes: _user_, _system_, _iowait_, _idle_, _irq&softirq_, _guest_, or _steal_.
 These modes are mutually exclusive. A high _iowait_ means that you are disk or network bound, high _user_ or _system_ means that you are CPU bound.
 
-The metric `node_cpu_seconds_total` is a [counter](https://docs.victoriametrics.com/keyConcepts.html#counter) type of metric. If we'd like to see how much time CPU spent in each of the nodes, we need to calculate the per-second values change via [rate function](https://docs.victoriametrics.com/MetricsQL.html#rate): `rate(node_cpu_seconds_total)`.
+The metric `node_cpu_seconds_total` is a [counter](https://docs.victoriametrics.com/keyConcepts.html#counter) type of metric. If we'd like to see how much time CPU spent in each of the nodes, we need to calculate the per-second values change via [rate function](https://docs.victoriametrics.com/MetricsQL.html#rate): `rate(node_cpu_seconds_total)`. To aggregate data by mode we'll use median or 50% quantile function. Resulting query will look likt this: `quantile by (mode) (0.5, rate(node_cpu_seconds_total[5m])`
 Here is how this query may look like in Grafana:
 <img max-width="1000" alt="node_cpu_rate_graph" src="guide-vmanomaly-vmalert_node-cpu-rate-graph.webp">
 
@@ -157,7 +157,7 @@ model:
 reader:
   datasource_url: "http://victoriametrics:8428/"
   queries:
-    node_cpu_rate: "rate(node_cpu_seconds_total)"
+    node_cpu_rate: "quantile by (mode) (0.5, rate(node_cpu_seconds_total[5m])"
 
 writer:
   datasource_url: "http://victoriametrics:8428/"
@@ -483,13 +483,13 @@ To look at model results we need to go to grafana on the `localhost:3000`. Data
 vmanomaly need some time to generate more data to visualize.
 Let's investigate model output visualization in Grafana.
 On the Grafana Dashboard `Vmanomaly Guide`you can choose `cpu` and for each mode of CPU you can investigate:
-* initial query result - `rate(node_cpu_seconds_total)`
+* initial query result - `quantile by (mode) (0.5, rate(node_cpu_seconds_total[5m]))`
 * `anomaly_score` 
 * `yhat` - Predicted value
 * `yhat_lower` - Predicted lower boundary
 * `yhat_upper` - Predicted upper boundary
 
-Each of these metrics will contain same labels our query `rate(node_cpu_seconds_total)` returns.
+Each of these metrics will contain same labels our query `quantile by (mode) (0.5, rate(node_cpu_seconds_total[5m]))` returns.
 
 ### Anomaly scores for each metric with its according labels. 
 

@@ -1,41 +1,4 @@
 {
-  "__inputs": [
-    {
-      "name": "DS_VICTORIAMETRICS",
-      "label": "VictoriaMetrics",
-      "description": "",
-      "type": "datasource",
-      "pluginId": "prometheus",
-      "pluginName": "Prometheus"
-    }
-  ],
-  "__elements": {},
-  "__requires": [
-    {
-      "type": "grafana",
-      "id": "grafana",
-      "name": "Grafana",
-      "version": "10.2.1"
-    },
-    {
-      "type": "datasource",
-      "id": "prometheus",
-      "name": "Prometheus",
-      "version": "1.0.0"
-    },
-    {
-      "type": "panel",
-      "id": "text",
-      "name": "Text",
-      "version": ""
-    },
-    {
-      "type": "panel",
-      "id": "timeseries",
-      "name": "Time series",
-      "version": ""
-    }
-  ],
   "annotations": {
     "list": [
       {
@@ -55,7 +18,6 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
-  "id": null,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -78,7 +40,7 @@
           "showLineNumbers": false,
           "showMiniMap": false
         },
-        "content": "If you don't see any data, please wait a few minutes. \n\nYou will see a lot of false positive anomalies when you run the guide for the first time. \nThe prediction must be more accurate if you provide vmanomaly 2w of data.\n\nEvery row represents information for one of the CPUs in one specific mode. \nThe query for anomaly detection is `rate(node_cpu_seconds_total)`\n",
+        "content": "If you don't see any data, please wait a few minutes. \n\nYou will see a lot of false positive anomalies when you run the guide for the first time. \nThe prediction must be more accurate if you provide vmanomaly 2w of data.\n\nEvery row represents information for one specific mode. \nThe query for anomaly detection is `quantile by (mode) (0.5, rate(node_cpu_seconds_total[5m]))`\nThis is a median (or 50% quantileof `rate` function over `node_cpu_seconds_total`)",
         "mode": "markdown"
       },
       "pluginVersion": "10.2.1",
@@ -105,7 +67,7 @@
         "type": "prometheus",
         "uid": "VictoriaMetrics"
       },
-      "description": "rate(node_cpu_seconds_total)",
+      "description": "quantile by (mode) (0.5, rate(node_cpu_seconds_total[5m]))",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -215,14 +177,14 @@
             "uid": "VictoriaMetrics"
           },
           "editorMode": "code",
-          "expr": "rate(node_cpu_seconds_total{cpu=~\"$cpu\", mode=~\"$mode\"})",
+          "expr": "quantile by (mode, instance,job) (0.5, rate(node_cpu_seconds_total{mode=~\"$mode\"}[5m]))",
           "instant": false,
-          "legendFormat": "Instance: {{instance}}, Job: {{job}}",
+          "legendFormat": "Instance: {{instance}}, Job {{job}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "CPU Rate for CPU-$cpu  in $mode mode",
+      "title": "CPU median for $mode mode",
       "type": "timeseries"
     },
     {
@@ -314,14 +276,14 @@
             "uid": "VictoriaMetrics"
           },
           "editorMode": "code",
-          "expr": "anomaly_score{cpu=~\"$cpu\", mode=~\"$mode\"}",
+          "expr": "anomaly_score{mode=~\"$mode\"}",
           "instant": false,
           "legendFormat": "Instance: {{instance}}, Job: {{job}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Anomaly Scores for CPU-$cpu in $mode mode",
+      "title": "Anomaly Scores for $mode mode",
       "type": "timeseries"
     },
     {
@@ -434,7 +396,7 @@
             "uid": "VictoriaMetrics"
           },
           "editorMode": "code",
-          "expr": "yhat{cpu=~\"$cpu\", mode=~\"$mode\"}",
+          "expr": "yhat{mode=~\"$mode\"}",
           "instant": false,
           "legendFormat": "Predicted Value: yhat",
           "range": true,
@@ -446,7 +408,7 @@
             "uid": "VictoriaMetrics"
           },
           "editorMode": "code",
-          "expr": "yhat_lower{cpu=~\"$cpu\", mode=~\"$mode\"}",
+          "expr": "yhat_lower{mode=~\"$mode\"}",
           "hide": false,
           "instant": false,
           "legendFormat": "Predicted Lower Boundary",
@@ -459,7 +421,7 @@
             "uid": "VictoriaMetrics"
           },
           "editorMode": "code",
-          "expr": "yhat_upper{cpu=~\"$cpu\", mode=~\"$mode\"}",
+          "expr": "yhat_upper{mode=~\"$mode\"}",
           "hide": false,
           "instant": false,
           "legendFormat": "Predicted Upper Boundary",
@@ -467,7 +429,7 @@
           "refId": "C"
         }
       ],
-      "title": "Predicted Value and Boundaries for CPU-$cpu in $mode mode",
+      "title": "Predicted Value and Boundaries for $mode mode",
       "type": "timeseries"
     }
   ],
@@ -477,32 +439,12 @@
   "templating": {
     "list": [
       {
-        "current": {},
-        "datasource": {
-          "type": "prometheus",
-          "uid": "VictoriaMetrics"
-        },
-        "definition": "label_values(node_cpu_seconds_total,cpu)",
-        "hide": 0,
-        "includeAll": false,
-        "label": "CPU",
-        "multi": false,
-        "name": "cpu",
-        "options": [],
-        "query": {
-          "qryType": 1,
-          "query": "label_values(node_cpu_seconds_total,cpu)",
-          "refId": "PrometheusVariableQueryEditor-VariableQuery"
-        },
-        "refresh": 1,
-        "regex": "",
-        "skipUrlSync": false,
-        "sort": 3,
-        "type": "query"
-      },
-      {
         "allValue": ".*",
-        "current": {},
+        "current": {
+          "selected": false,
+          "text": "All",
+          "value": "$__all"
+        },
         "datasource": {
           "type": "prometheus",
           "uid": "VictoriaMetrics"
@@ -535,6 +477,6 @@
   "timezone": "",
   "title": "Vmanomaly Guide",
   "uid": "cfa61e6a-6074-4626-8e54-ea33e08746b9",
-  "version": 1,
+  "version": 2,
   "weekStart": ""
 }
