@@ -117,8 +117,8 @@ type partition struct {
 	smallRowsDeleted    uint64
 	bigRowsDeleted      uint64
 
-	inmemoryAssistedMerges uint64
-	smallAssistedMerges    uint64
+	inmemoryAssistedMergesCount uint64
+	smallAssistedMergesCount    uint64
 
 	mergeIdx uint64
 
@@ -350,8 +350,8 @@ type partitionMetrics struct {
 	SmallPartsRefCount    uint64
 	BigPartsRefCount      uint64
 
-	InmemoryAssistedMerges uint64
-	SmallAssistedMerges    uint64
+	InmemoryAssistedMergesCount uint64
+	SmallAssistedMergesCount    uint64
 }
 
 // TotalRowsCount returns total number of rows in tm.
@@ -415,8 +415,8 @@ func (pt *partition) UpdateMetrics(m *partitionMetrics) {
 	m.SmallRowsDeleted += atomic.LoadUint64(&pt.smallRowsDeleted)
 	m.BigRowsDeleted += atomic.LoadUint64(&pt.bigRowsDeleted)
 
-	m.InmemoryAssistedMerges += atomic.LoadUint64(&pt.inmemoryAssistedMerges)
-	m.SmallAssistedMerges += atomic.LoadUint64(&pt.smallAssistedMerges)
+	m.InmemoryAssistedMergesCount += atomic.LoadUint64(&pt.inmemoryAssistedMergesCount)
+	m.SmallAssistedMergesCount += atomic.LoadUint64(&pt.smallAssistedMergesCount)
 }
 
 // AddRows adds the given rows to the partition pt.
@@ -641,7 +641,7 @@ func (pt *partition) assistedMergeForInmemoryParts() {
 		return
 	}
 
-	atomic.AddUint64(&pt.inmemoryAssistedMerges, 1)
+	atomic.AddUint64(&pt.inmemoryAssistedMergesCount, 1)
 	err := pt.mergeInmemoryParts()
 	if err == nil {
 		return
@@ -660,7 +660,7 @@ func (pt *partition) assistedMergeForSmallParts() {
 		return
 	}
 
-	atomic.AddUint64(&pt.smallAssistedMerges, 1)
+	atomic.AddUint64(&pt.smallAssistedMergesCount, 1)
 	err := pt.mergeExistingParts(false)
 	if err == nil {
 		return

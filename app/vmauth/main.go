@@ -261,15 +261,20 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 		logger.Warnf("remoteAddr: %s; requestURI: %s; retrying the request to %s because of response error: %s", remoteAddr, req.URL, targetURL, err)
 		return false
 	}
-	if (rtbOK && rtb.canRetry()) && hasInt(retryStatusCodes, res.StatusCode) {
-		// Retry requests at other backends if it matches retryStatusCodes.
-		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4893
-		remoteAddr := httpserver.GetQuotedRemoteAddr(r)
-		// NOTE: do not use httpserver.GetRequestURI
-		// it explicitly reads request body, which may fail retries.
-		logger.Warnf("remoteAddr: %s; requestURI: %s; retrying the request to %s because response status code=%d belongs to retry_status_codes=%d",
-			remoteAddr, req.URL, targetURL, res.StatusCode, retryStatusCodes)
-		return false
+	if hasInt(retryStatusCodes, res.StatusCode) {
+		if rtbOK && rtb.canRetry() {
+			// Retry requests at other backends if it matches retryStatusCodes.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4893
+			remoteAddr := httpserver.GetQuotedRemoteAddr(r)
+			// NOTE: do not use httpserver.GetRequestURI
+			// it explicitly reads request body, which may fail retries.
+			logger.Warnf("remoteAddr: %s; requestURI: %s; retrying the request to %s because response status code=%d belongs to retry_status_codes=%d",
+				remoteAddr, req.URL, targetURL, res.StatusCode, retryStatusCodes)
+			return false
+		}
+		// if we get an error from the retry_status_codes list, but cannot execute retry,
+		// we consider such a request an error as well
+		ui.backendErrors.Inc()
 	}
 	removeHopHeaders(res.Header)
 	copyHeader(w.Header(), res.Header)
