@@ -421,8 +421,8 @@ func writeStorageMetrics(w io.Writer, strg *storage.Storage) {
 	metrics.WriteCounterUint64(w, `vm_composite_filter_success_conversions_total`, idbm.CompositeFilterSuccessConversions)
 	metrics.WriteCounterUint64(w, `vm_composite_filter_missing_conversions_total`, idbm.CompositeFilterMissingConversions)
 
-	metrics.WriteCounterUint64(w, `vm_assisted_merges_total{type="storage/inmemory"}`, tm.InmemoryAssistedMerges)
-	metrics.WriteCounterUint64(w, `vm_assisted_merges_total{type="storage/small"}`, tm.SmallAssistedMerges)
+	metrics.WriteCounterUint64(w, `vm_assisted_merges_total{type="storage/inmemory"}`, tm.InmemoryAssistedMergesCount)
+	metrics.WriteCounterUint64(w, `vm_assisted_merges_total{type="storage/small"}`, tm.SmallAssistedMergesCount)
 
 	metrics.WriteCounterUint64(w, `vm_assisted_merges_total{type="indexdb/inmemory"}`, idbm.InmemoryAssistedMergesCount)
 	metrics.WriteCounterUint64(w, `vm_assisted_merges_total{type="indexdb/file"}`, idbm.FileAssistedMergesCount)
