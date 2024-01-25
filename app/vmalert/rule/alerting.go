@@ -324,16 +324,6 @@ func (ar *AlertingRule) execRange(ctx context.Context, start, end time.Time) ([]
 			return nil, fmt.Errorf("failed to create alert: %w", err)
 		}
 
-		// if alert is instant, For: 0
-		if ar.For == 0 {
-			a.State = notifier.StateFiring
-			for i := range s.Values {
-				result = append(result, ar.alertToTimeSeries(a, s.Timestamps[i])...)
-			}
-			continue
-		}
-
-		// if alert with For > 0
 		prevT := time.Time{}
 		for i := range s.Values {
 			at := time.Unix(s.Timestamps[i], 0)
@@ -354,6 +344,10 @@ func (ar *AlertingRule) execRange(ctx context.Context, start, end time.Time) ([]
 				a.Start = at
 			}
 			prevT = at
+			if ar.For == 0 {
+				// rules with `for: 0` are always firing when they have Value
+				a.State = notifier.StateFiring
+			}
 			result = append(result, ar.alertToTimeSeries(a, s.Timestamps[i])...)
 
 			// save alert's state on last iteration, so it can be used on the next execRange call
