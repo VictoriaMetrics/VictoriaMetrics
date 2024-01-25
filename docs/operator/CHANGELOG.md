@@ -16,11 +16,14 @@ aliases:
 
 ## Next release
 
+<a name="v0.40.0"></a>
+## [v0.40.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.40.0) - 23 Jan 2024
+
 - [vmalertmanager](./api.html#vmalertmanagerconfig): fix `VMAlertmanagerConfig` discovery according to [the docs](https://docs.victoriametrics.com/operator/resources/vmalertmanager.html#using-vmalertmanagerconfig).
 - [vmoperator](./README.md): add alerting rules for operator itself. See [this issue](https://github.com/VictoriaMetrics/operator/issues/526) for details.
 - [vmoperator](./README.md): add `revisionHistoryLimitCount` field for victoriametrics workload CRDs. See [this issue](https://github.com/VictoriaMetrics/operator/pull/834) for details. Thanks [@gidesh](https://github.com/gidesh)
-- [vmuser](./api.md#vmuser): add new fields to VMUser: `drop_src_path_prefix_parts`, `tls_insecure_skip_verify`, `metric_labels` and `load_balancing_policy`. See [specifications](https://docs.victoriametrics.com/operator/api.html#vmuserspec) and [vmauth docs](https://docs.victoriametrics.com/vmauth.htm) for more details.
-- [vmoperator](./README.md): add CRD support for discord_configs, msteams_configs, sns_configs and webex_configs receiver types in VMAlertmanagerConfig. See [this issue](https://github.com/VictoriaMetrics/operator/issues/808)
+- [vmuser](./api.md#vmuser): add new fields to VMUser: `drop_src_path_prefix_parts`, `tls_insecure_skip_verify`, `metric_labels` and `load_balancing_policy`. See [specifications](https://docs.victoriametrics.com/operator/api.html#vmuserspec) and [vmauth docs](https://docs.victoriametrics.com/vmauth.htm) for more details. **Field `metric_labels` will work only with VMAuth version >= v1.97.0!**
+- [vmoperator](./README.md): add CRD support for `discord_configs`, `msteams_configs`, `sns_configs` and `webex_configs` receiver types in [VMAlertmanagerConfig](https://docs.victoriametrics.com/operator/resources/vmalertmanagerconfig.html). See [this issue](https://github.com/VictoriaMetrics/operator/issues/808)
 
 <a name="v0.39.4"></a>
 ## [v0.39.4](https://github.com/VictoriaMetrics/operator/releases/tag/v0.39.4) - 13 Dec 2023
