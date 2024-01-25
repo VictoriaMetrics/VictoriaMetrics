@@ -156,6 +156,15 @@ func TestAggregatorsEqual(t *testing.T) {
 - outputs: [total]
   interval: 5m
 `, false)
+	f(`
+- outputs: [total]
+  interval: 5m
+  flush_on_shutdown: true  
+`, `
+- outputs: [total]
+  interval: 5m
+  flush_on_shutdown: false
+`, false)
 }
 
 func TestAggregatorsSuccess(t *testing.T) {
@@ -180,6 +189,11 @@ func TestAggregatorsSuccess(t *testing.T) {
 		a, err := newAggregatorsFromData([]byte(config), pushFunc, 0)
 		if err != nil {
 			t.Fatalf("cannot initialize aggregators: %s", err)
+		}
+		for _, ag := range a.as {
+			// explicitly set flushOnShutdown, so aggregations results
+			// are immediately available after a.MustStop() call.
+			ag.flushOnShutdown = true
 		}
 
 		// Push the inputMetrics to Aggregators
