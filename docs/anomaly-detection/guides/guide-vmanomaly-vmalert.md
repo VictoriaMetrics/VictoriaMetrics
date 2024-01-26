@@ -26,7 +26,7 @@ aliases:
 - [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/)
 - [Node exporter](https://github.com/prometheus/node_exporter#node-exporter)(v1.7.0) and [Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/)(v0.25.0)
 
-<img max-width="1000" alt="vmanomaly typical setup diagramm" src="guide-vmanomaly-vmalert_overview.webp">
+<img max-width="1000" alt="vmanomaly typical setup diagramm" src="guide-vmanomaly-vmalert/guide-vmanomaly-vmalert_overview.webp">
 
 > **Note: Configurations used throughout this guide can be found [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/vmanomaly/vmanomaly-integration/)**
 
@@ -452,7 +452,7 @@ networks:
 Before running our docker-compose make sure that your directory contains all required files:
 
 <p align="center">
-  <img src="guide-vmanomaly-vmalert_files.webp" max-width="1000" alt="all files">
+  <img src="guide-vmanomaly-vmalert/guide-vmanomaly-vmalert_files.webp" max-width="1000" alt="all files">
 </p>
 
 This docker-compose file will pull docker images,  set up each service and run them all together with the command:
@@ -505,7 +505,7 @@ As you may notice a lot of data shows anomaly score greater than 1. It is expect
 
 Queries: `yhat_lower`, `yhat_upper` and `yhat`
 
-<img max-width="1000" alt="yhat lower and yhat upper" src="guide-vmanomaly-vmalert-boundaries.webp">
+<img max-width="1000" alt="yhat lower and yhat upper" src="guide-vmanomaly-vmalert/guide-vmanomaly-vmalert-boundaries.webp">
 
 Boundaries of 'normal' metric values according to model inference. 
 
@@ -513,7 +513,7 @@ Boundaries of 'normal' metric values according to model inference.
 
 On the page `http://localhost:8880/vmalert/groups` you can find our configured Alerting rule:
 
-<img max-width="1000" alt="alert rule" src="guide-vmanomaly-vmalert_alert-rule.webp">
+<img max-width="1000" alt="alert rule" src="guide-vmanomaly-vmalert/guide-vmanomaly-vmalert_alert-rule.webp">
 
 According to the rule configured for vmalert we will see Alert when anomaly score exceed 1. You will see an alert on Alert tab. `http://localhost:8880/vmalert/alerts`:
 <img max-width="1000" alt="alerts firing" src="guide-vmanomaly-vmalert_alerts-firing.webp">
