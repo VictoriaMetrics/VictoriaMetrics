@@ -648,7 +648,6 @@ func (ar *AlertingRule) restore(ctx context.Context, q datasource.Querier, ts ti
 		}
 		a.ActiveAt = time.Unix(int64(series.Values[0]), 0)
 		a.Restored = true
-
 		logger.Infof("alert %q (%d) restored to state at %v", a.Name, a.ID, a.ActiveAt)
 	}
 	return nil
