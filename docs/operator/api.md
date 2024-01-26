@@ -2131,6 +2131,7 @@ TargetRef describes target for user traffic forwarding. one of target types can 
 | crd | CRD describes exist operator&#39;s CRD object, operator generates access url based on CRD params. | *[CRDRef](#crdref) | false |
 | static | Static - user defined url for traffic forward, for instance http://vmsingle:8429 | *[StaticRef](#staticref) | false |
 | paths | Paths - matched path to route. | []string | false |
+| hosts |  | []string | false |
 | target_path_suffix | QueryParams []string `json:\&#34;queryParams,omitempty\&#34;` TargetPathSuffix allows to add some suffix to the target path It allows to hide tenant configuration from user with crd as ref. it also may contain any url encoded params. | string | false |
 | headers | Headers represent additional http headers, that vmauth uses in form of [\&#34;header_key: header_value\&#34;] multiple values for header key: [\&#34;header_key: value1,value2\&#34;] it&#39;s available since 1.68.0 version of vmauth | []string | false |
 | response_headers | ResponseHeaders represent additional http headers, that vmauth adds for request response in form of [\&#34;header_key: header_value\&#34;] multiple values for header key: [\&#34;header_key: value1,value2\&#34;] it&#39;s available since 1.93.0 version of vmauth | []string | false |
@@ -2308,6 +2309,12 @@ VMAuthUnauthorizedPath defines url_map for unauthorized access
 | src_paths | Paths src request paths | []string | false |
 | url_prefix | URLs defines url_prefix for dst routing | []string | false |
 | ip_filters | IPFilters defines filter for src ip address enterprise only | [VMUserIPFilters](#vmuseripfilters) | false |
+| src_hosts | SrcHosts is the list of regular expressions, which match the request hostname. | []string | false |
+| headers | Headers represent additional http headers, that vmauth uses in form of [\&#34;header_key: header_value\&#34;] multiple values for header key: [\&#34;header_key: value1,value2\&#34;] it&#39;s available since 1.68.0 version of vmauth | []string | false |
+| response_headers | ResponseHeaders represent additional http headers, that vmauth adds for request response in form of [\&#34;header_key: header_value\&#34;] multiple values for header key: [\&#34;header_key: value1,value2\&#34;] it&#39;s available since 1.93.0 version of vmauth | []string | false |
+| retry_status_codes | RetryStatusCodes defines http status codes in numeric format for request retries e.g. [429,503] | []int | false |
+| load_balancing_policy | LoadBalancingPolicy defines load balancing policy to use for backend urls. Supported policies: least_loaded, first_available. See https://docs.victoriametrics.com/vmauth.html#load-balancing for more details (default \&#34;least_loaded\&#34;) | *string | false |
+| drop_src_path_prefix_parts | DropSrcPathPrefixParts is the number of `/`-delimited request path prefix parts to drop before proxying the request to backend. See https://docs.victoriametrics.com/vmauth.html#dropping-request-path-prefix for more details. | *int | false |
 
 [Back to TOC](#table-of-contents)
 
