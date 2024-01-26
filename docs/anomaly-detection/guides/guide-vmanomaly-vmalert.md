@@ -26,7 +26,7 @@ aliases:
 - [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/)
 - [Node exporter](https://github.com/prometheus/node_exporter#node-exporter)(v1.7.0) and [Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/)(v0.25.0)
 
-<img width="800" alt="vmanomaly typical setup diagramm" src="guide-vmanomaly-vmalert_overview.webp">
+<img max-width="1000" alt="vmanomaly typical setup diagramm" src="guide-vmanomaly-vmalert_overview.webp">
 
 > **Note: Configurations used throughout this guide can be found [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/vmanomaly/vmanomaly-integration/)**
 
@@ -101,9 +101,9 @@ node_cpu_seconds_total{cpu="1",mode="iowait"} 51.22
 Here, metric `node_cpu_seconds_total` tells us how many seconds each CPU spent in different modes: _user_, _system_, _iowait_, _idle_, _irq&softirq_, _guest_, or _steal_.
 These modes are mutually exclusive. A high _iowait_ means that you are disk or network bound, high _user_ or _system_ means that you are CPU bound.
 
-The metric `node_cpu_seconds_total` is a [counter](https://docs.victoriametrics.com/keyConcepts.html#counter) type of metric. If we'd like to see how much time CPU spent in each of the nodes, we need to calculate the per-second values change via [rate function](https://docs.victoriametrics.com/MetricsQL.html#rate): `rate(node_cpu_seconds_total)`.
+The metric `node_cpu_seconds_total` is a [counter](https://docs.victoriametrics.com/keyConcepts.html#counter) type of metric. If we'd like to see how much time CPU spent in each of the nodes, we need to calculate the per-second values change via [rate function](https://docs.victoriametrics.com/MetricsQL.html#rate): `rate(node_cpu_seconds_total)`. To aggregate data by mode we'll use median or 50% quantile function. Resulting query will look likt this: `quantile by (mode) (0.5, rate(node_cpu_seconds_total[5m])`
 Here is how this query may look like in Grafana:
-<img alt="node_cpu_rate_graph" src="guide-vmanomaly-vmalert_node-cpu-rate-graph.webp">
+<img max-width="1000" alt="node_cpu_rate_graph" src="guide-vmanomaly-vmalert-query.webp">
 
 This query result will generate 8 time series per each cpu, and we will use them as an input for our VM Anomaly Detection. vmanomaly will start learning configured model type separately for each of the time series.
 
@@ -146,7 +146,7 @@ Here is an example of the config file `vmanomaly_config.yml`.
 ``` yaml
 scheduler:
   infer_every: "1m"
-  fit_every: "2h"
+  fit_every: "2m"
   fit_window: "14d"
 
 model:
@@ -157,15 +157,16 @@ model:
 reader:
   datasource_url: "http://victoriametrics:8428/"
   queries:
-    node_cpu_rate: "rate(node_cpu_seconds_total)"
+    node_cpu_rate: "quantile by (mode) (0.5, rate(node_cpu_seconds_total[5m])"
 
 writer:
   datasource_url: "http://victoriametrics:8428/"
 
-monitoring: 
+
+monitoring:
   pull: # Enable /metrics endpoint.
     addr: "0.0.0.0"
-    port: 8500
+    port: 8490
 ```
 
 </div>
@@ -221,9 +222,12 @@ Here are all services we are going to run:
 * alertmanager - Notification services that handles alerts from vmalert.
 
 ### Grafana setup
-To enable VictoriaMetrics datasource as the default in Grafana we need to create a file `datasource.yml`
 
-The default username/password pair is `admin:admin`
+#### Create a data source manifest
+In the `provisioning/datasources/` directory, create a file called `datasource.yml` with the following content:
+
+
+> The default username/password pair is `admin:admin`
 
 <div class="with-copy" markdown="1">
 
@@ -236,10 +240,34 @@ datasources:
       access: proxy
       url: http://victoriametrics:8428
       isDefault: true
+      jsonData:
+        prometheusType: Prometheus
+        prometheusVersion: 2.24.0
 
 ```
 
 </div>
+
+#### Define a dashboard provider
+In the` provisioning/dashboards/` directory, create a file called `dashboard.yml` with the following content:
+
+<div class="with-copy" markdown="1">
+
+``` yaml
+apiVersion: 1
+
+providers:
+- name: Prometheus
+  orgId: 1
+  folder: ''
+  type: file
+  options:
+    path: /var/lib/grafana/dashboards
+
+```
+
+</div>
+
 
 ### Scrape config
 
@@ -266,14 +294,14 @@ scrape_configs:
       - targets: ['node-exporter:9100']
   - job_name: 'vmanomaly'
     static_configs:
-      - targets: [ 'vmanomaly:8500' ]
+      - targets: [ 'vmanomaly:8490' ]
 ```
 
 </div>
 
 ### vmanomaly licensing
 
-We will utilize the license key stored locally in the file `vmanomaly_license.txt`.
+We will utilize the license key stored locally in the file `vmanomaly_license`.
 
 For additional licensing options, please refer to the [VictoriaMetrics Anomaly Detection documentation on licensing](https://docs.victoriametrics.com/anomaly-detection/Overview#licensing).
 
@@ -340,7 +368,9 @@ services:
       - 3000:3000
     volumes:
       - grafanadata-guide-vmanomaly-vmalert:/var/lib/grafana
-      - ./datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml
+      - ./provisioning/datasources:/etc/grafana/provisioning/datasources
+      - ./provisioning/dashboards:/etc/grafana/provisioning/dashboards
+      - ./vmanomaly_guide_dashboard.json:/var/lib/grafana/dashboards/vmanomaly_guide_dashboard.json
     networks:
       - vm_net
     restart: always
@@ -370,21 +400,21 @@ services:
     restart: always
   vmanomaly:
     container_name: vmanomaly
-    image: victoriametrics/vmanomaly:v1.7.2
+    image: victoriametrics/vmanomaly:v1.8.0
     depends_on:
       - "victoriametrics"
     ports:
-      - "8500:8500"
+      - "8490:8490"
     networks:
       - vm_net
     restart: always
     volumes:
       - ./vmanomaly_config.yml:/config.yaml
-      - ./vmanomaly_license.txt:/license.txt
+      - ./vmanomaly_license:/license
     platform: "linux/amd64"
     command:
       - "/config.yaml"
-      - "--license-file=/license.txt"
+      - "--license-file=/license"
   alertmanager:
     container_name: alertmanager
     image: prom/alertmanager:v0.25.0
@@ -414,6 +444,7 @@ volumes:
   grafanadata-guide-vmanomaly-vmalert: {}
 networks:
   vm_net:
+
 ```
 
 </div>
@@ -421,7 +452,7 @@ networks:
 Before running our docker-compose make sure that your directory contains all required files:
 
 <p align="center">
-  <img src="guide-vmanomaly-vmalert_files.webp" width="400" alt="all files">
+  <img src="guide-vmanomaly-vmalert_files.webp" max-width="1000" alt="all files">
 </p>
 
 This docker-compose file will pull docker images,  set up each service and run them all together with the command:
@@ -451,36 +482,30 @@ docker logs vmanomaly
 To look at model results we need to go to grafana on the `localhost:3000`. Data
 vmanomaly need some time to generate more data to visualize.
 Let's investigate model output visualization in Grafana.
-In the Grafana Explore tab enter queries:
+On the Grafana Dashboard `Vmanomaly Guide` for each mode of CPU you can investigate:
+* initial query result - `quantile by (mode) (0.5, rate(node_cpu_seconds_total[5m]))`
 * `anomaly_score` 
-* `yhat`
-* `yhat_lower`
-* `yhat_upper`
+* `yhat` - Predicted value
+* `yhat_lower` - Predicted lower boundary
+* `yhat_upper` - Predicted upper boundary
 
-Each of these metrics will contain same labels our query `rate(node_cpu_seconds_total)` returns.
+Each of these metrics will contain same labels our query `quantile by (mode) (0.5, rate(node_cpu_seconds_total[5m]))` returns.
 
 ### Anomaly scores for each metric with its according labels. 
 
 Query: `anomaly_score`
-<img alt="Anomaly score graph" src="guide-vmanomaly-vmalert_anomaly-score.webp">
+<img max-width="1000" alt="Anomaly score graph" src="guide-vmanomaly-vmalert-anomaly-score.webp">
 
 <br>Check out if the anomaly score is high for datapoints you think are anomalies. If not, you can try other parameters in the config file or try other model type.
 
-As you may notice a lot of data shows anomaly score greater than 1. It is expected as we just started to scrape and store data and there are not enough datapoints to train on. Just wait for some more time for gathering more data to see how well this particular model can find anomalies. In our configs we put 2 days of data required.
+As you may notice a lot of data shows anomaly score greater than 1. It is expected as we just started to scrape and store data and there are not enough datapoints to train on. Just wait for some more time for gathering more data to see how well this particular model can find anomalies. In our configs we put 2 weeks of data needed to fit the model properly.
 
-### Actual value from input query with predicted `yhat` metric. 
 
-Query: `yhat`
+### Lower and upper boundaries and predicted values. 
 
-<img alt="yhat" src="guide-vmanomaly-vmalert_yhat.webp">
+Queries: `yhat_lower`, `yhat_upper` and `yhat`
 
-Here we are using one particular set of metrics for visualization. Check out the difference between model prediction and actual values. If values are very different from prediction, it can be considered as anomalous.
-
-### Lower and upper boundaries that model predicted. 
-
-Queries: `yhat_lower` and `yhat_upper`
-
-<img alt="yhat lower and yhat upper" src="guide-vmanomaly-vmalert_yhat-lower-upper.webp">
+<img max-width="1000" alt="yhat lower and yhat upper" src="guide-vmanomaly-vmalert-boundaries.webp">
 
 Boundaries of 'normal' metric values according to model inference. 
 
@@ -488,10 +513,10 @@ Boundaries of 'normal' metric values according to model inference.
 
 On the page `http://localhost:8880/vmalert/groups` you can find our configured Alerting rule:
 
-<img alt="alert rule" src="guide-vmanomaly-vmalert_alert-rule.webp">
+<img max-width="1000" alt="alert rule" src="guide-vmanomaly-vmalert_alert-rule.webp">
 
-According to the rule configured for vmalert we will see Alert when anomaly score exceed 1. You will see an alert on Alert tab. `http://localhost:8880/vmalert/alerts`
-<img alt="alerts firing" src="guide-vmanomaly-vmalert_alerts-firing.webp">
+According to the rule configured for vmalert we will see Alert when anomaly score exceed 1. You will see an alert on Alert tab. `http://localhost:8880/vmalert/alerts`:
+<img max-width="1000" alt="alerts firing" src="guide-vmanomaly-vmalert_alerts-firing.webp">
 
 ## 10. Conclusion
 
