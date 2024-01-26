@@ -182,15 +182,12 @@ func (p *PresignHTTPRequestMiddleware) HandleFinalize(
 
 	switch signerVersion {
 	case "aws.auth#sigv4a":
-		v4aCredentialProvider, ok := p.credentialsProvider.(v4a.CredentialsProvider)
-		if !ok {
-			return out, metadata, fmt.Errorf("invalid credential-provider provided for sigV4a Signer")
-		}
-
 		mw := v4a.NewPresignHTTPRequestMiddleware(v4a.PresignHTTPRequestMiddlewareOptions{
-			CredentialsProvider: v4aCredentialProvider,
-			Presigner:           p.v4aSigner,
-			LogSigning:          p.logSigning,
+			CredentialsProvider: &v4a.SymmetricCredentialAdaptor{
+				SymmetricProvider: p.credentialsProvider,
+			},
+			Presigner:  p.v4aSigner,
+			LogSigning: p.logSigning,
 		})
 		return mw.HandleFinalize(ctx, in, next)
 	case "aws.auth#sigv4":
