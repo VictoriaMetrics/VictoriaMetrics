@@ -233,7 +233,7 @@ func (ris *rawItemsShard) addItems(tb *Table, items [][]byte) [][]byte {
 	ris.mu.Lock()
 	ibs := ris.ibs
 	if len(ibs) == 0 {
-		ib := getInmemoryBlock()
+		ib := &nmemoryBlock{}
 		ibs = append(ibs, ib)
 		ris.ibs = ibs
 	}
@@ -249,12 +249,11 @@ func (ris *rawItemsShard) addItems(tb *Table, items [][]byte) [][]byte {
 			atomic.StoreUint64(&ris.lastFlushTime, fasttime.UnixTimestamp())
 			break
 		}
-		ib = getInmemoryBlock()
+		ib = &nmemoryBlock{}
 		if ib.Add(item) {
 			ibs = append(ibs, ib)
 			continue
 		}
-		putInmemoryBlock(ib)
 		logger.Panicf("BUG: cannot insert too big item into an empty inmemoryBlock len(item)=%d; the caller should be responsible for avoiding too big items", len(item))
 	}
 	ris.ibs = ibs
@@ -882,7 +881,6 @@ func (tb *Table) createInmemoryPart(ibs []*inmemoryBlock) *partWrapper {
 		}
 		bsr := getBlockStreamReader()
 		bsr.MustInitFromInmemoryBlock(ib)
-		putInmemoryBlock(ib)
 		bsrs = append(bsrs, bsr)
 	}
 	if len(bsrs) == 0 {
