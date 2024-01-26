@@ -26,9 +26,7 @@ We will use:
 * [Helm 3 ](https://helm.sh/docs/intro/install)
 * [kubectl 1.21](https://kubernetes.io/docs/tasks/tools/install-kubectl)
 
-<p align="center">
-  <img src="k8s-monitoring-via-vm-single_k8s-scheme.webp" width="800" alt="VictoriaMetrics Single on Kubernetes cluster">
-</p>
+<img src="k8s-monitoring-via-vm-single_k8s-scheme.webp" width="800" alt="VictoriaMetrics Single on Kubernetes cluster">
 
 ## 1. VictoriaMetrics Helm repository
 
@@ -340,19 +338,15 @@ Now Grafana should be accessible on the [http://127.0.0.1:3000](http://127.0.0.1
 
 To check that VictoriaMetrics has collects metrics from the k8s cluster open in browser [http://127.0.0.1:3000/dashboards](http://127.0.0.1:3000/dashboards) and choose `Kubernetes Cluster Monitoring (via Prometheus)` dashboard. Use `admin` for login and `password` that you previously obtained from kubectl. 
 
-<p align="center">
-  <img src="k8s-monitoring-via-vm-single_grafana-dashboards.webp" width="800" alt="">
-</p>
+<img src="k8s-monitoring-via-vm-single_grafana-dashboards.webp" width="800" alt="">
 
 You will see something like this:
-<p align="center">
-  <img src="k8s-monitoring-via-vm-single_grafana-k8s-dashboard.webp" width="800" alt="">
-</p>
+
+<img src="k8s-monitoring-via-vm-single_grafana-k8s-dashboard.webp" width="800" alt="">
 
 VictoriaMetrics dashboard also available to use:
-<p align="center">
-  <img src="k8s-monitoring-via-vm-single_grafana.webp" width="800" alt="">
-</p>
+
+<img src="k8s-monitoring-via-vm-single_grafana.webp" width="800" alt="">
 
 ## 5. Final thoughts
 

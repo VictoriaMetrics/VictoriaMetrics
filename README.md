@@ -45,9 +45,7 @@ Each service may scale independently and may run on the most suitable hardware.
 This is a [shared nothing architecture](https://en.wikipedia.org/wiki/Shared-nothing_architecture).
 It increases cluster availability, and simplifies cluster maintenance as well as cluster scaling.
 
-<p align="center">
-  <img src="docs/Cluster-VictoriaMetrics_cluster-scheme.webp" width="800">
-</p>
+<img src="docs/Cluster-VictoriaMetrics_cluster-scheme.webp" width="800">
 
 ## Multitenancy
 
