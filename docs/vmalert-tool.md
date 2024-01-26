@@ -254,7 +254,6 @@ tests:
 
 #### `alerts.yaml`
 
-{% raw %}
 ```yaml
 # This is the rules file.
 
@@ -279,4 +278,3 @@ groups:
       - record: suquery_interval_test
         expr: count_over_time(up[5m:])
 ```
-{% endraw %}

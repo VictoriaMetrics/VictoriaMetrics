@@ -310,7 +310,6 @@ with [extraArgs](./README.md#extra-arguments)
 and specify `tenant` field for groups 
 in [VMRule](./vmrule.md#enterprise-features):
 
-{% raw %}
 ```yaml
 apiVersion: operator.victoriametrics.com/v1beta1
 kind: VMAlert
@@ -356,7 +355,6 @@ spec:
             value: "{{ $value }}"
             description: 'error reloading vmalert config, reload count for 5 min {{ $value }}'
 ```
-{% endraw %}
 
 ## Examples
 

@@ -33,7 +33,6 @@ An example file with one alerting rule.
 
 alerts.yml
 
-{% raw %}
 ```yaml
 groups:
   - name: common
@@ -47,7 +46,6 @@ groups:
         summary: "{{ $labels.job }} instance: {{$labels.instance }} is not up"
         description: "Job {{ $labels.job }}  instance: {{$labels.instance }} is not up for the last 1 minute"
 ```
-{% endraw %}
 
 ### Managed VictoriaMetrics access token and deployment endpoint
 
@@ -90,7 +88,6 @@ docker run -it -p 8080:8080 -v $(pwd)/alerts.yml:/etc/alerts/alerts.yml victoria
 
 ##### Helm Chart
 
-{% raw %}
 ```console
 export TOKEN=81e8226e-****-****-****-************
 export MANAGED_VM_URL=https://gw-c15-1c.cloud.victoriametrics.com
@@ -128,7 +125,6 @@ server:
                description: "Job {{ $labels.job }}  instance: {{$labels.instance }} is not up for the last 1 minute"
 EOF
 ```
-{% endraw %}
 
 ##### VMalert CRD for vmoperator
 
@@ -207,7 +203,6 @@ docker run -it -p 8080:8080 -v $(pwd)/alerts.yml:/etc/alerts/alerts.yml victoria
 
 ##### Helm Chart
 
-{% raw %}
 ```console
 export TOKEN=76bc5470-****-****-****-************
 export MANAGED_VM_READ_URL=https://gw-c15-1a.cloud.victoriametrics.com/select/0/prometheus/
@@ -246,7 +241,6 @@ server:
                description: "Job {{ $labels.job }}  instance: {{$labels.instance }} is not up for the last 1 minute"
 EOF
 ```
-{% endraw %}
 
 ##### VMalert CRD for vmoperator
 

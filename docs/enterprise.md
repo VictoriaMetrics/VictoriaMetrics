@@ -280,7 +280,6 @@ All the VictoriaMetrics Enterprise components expose the following metrics at th
 
 Example alerts for [vmalert](https://docs.victoriametrics.com/vmalert.html) based on these metrics:
 
-{% raw %}
 ```yaml
 groups:
   - name: vm-license
@@ -304,4 +303,3 @@ groups:
           description: "{{ $labels.instance }} of job {{ $labels.job }} license expires in {{ $value | humanizeDuration }}. 
             Please make sure to update the license before it expires."
 ```
-{% endraw %}

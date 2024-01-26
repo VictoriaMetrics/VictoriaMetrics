@@ -586,7 +586,6 @@ code vmrule.yaml
 
 with the following content:
 
-{% raw %}
 ```yaml
 apiVersion: operator.victoriametrics.com/v1beta1
 kind: VMRule
@@ -606,7 +605,6 @@ spec:
             value: "{{ $value }}"
             description: 'error reloading vmalert config, reload count for 5 min {{ $value }}'
 ```
-{% endraw %}
 
 After that you can deploy `vmrule` resource to the kubernetes cluster:
 

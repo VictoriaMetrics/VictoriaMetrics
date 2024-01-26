@@ -181,7 +181,6 @@ spec:
 
 - `spec.templates` - list of keys in `ConfigMaps`, that contains template files for `alertmanager`, e.g.:
 
-  {% raw %}
   ```yaml
   apiVersion: operator.victoriametrics.com/v1beta1
   kind: VMAlertmanager
@@ -206,7 +205,6 @@ spec:
           {{- end }}
       my-template-2.tmpl: """
   ```
-  {% endraw %}
 
 These templates will be automatically added to `VMAlertmanager` configuration and will be automatically reloaded on changes in source `ConfigMap`.
 - `spec.configMaps` - list of `ConfigMap` names (in the same namespace) that will be mounted at `VMAlertmanager`

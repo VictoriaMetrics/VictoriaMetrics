@@ -559,16 +559,14 @@ The following articles contain useful information about Prometheus relabeling:
 
 `vmagent` provides the following enhancements on top of Prometheus-compatible relabeling:
 
-* The `replacement` option can refer arbitrary labels via {% raw %}`{{label_name}}`{% endraw %} placeholders.
+* The `replacement` option can refer arbitrary labels via `{{label_name}}` placeholders.
   Such placeholders are substituted with the corresponding label value. For example, the following relabeling rule
   sets `instance-job` label value to `host123-foo` when applied to the metric with `{instance="host123",job="foo"}` labels:
 
-  {% raw %}
   ```yaml
   - target_label: "instance-job"
     replacement: "{{instance}}-{{job}}"
   ```
-  {% endraw %}
 
 * An optional `if` filter can be used for conditional relabeling. The `if` filter may contain
   arbitrary [time series selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
