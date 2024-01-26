@@ -451,9 +451,7 @@ networks:
 
 Before running our docker-compose make sure that your directory contains all required files:
 
-<p align="center">
-  <img src="guide-vmanomaly-vmalert/guide-vmanomaly-vmalert_files.webp" max-width="1000" alt="all files">
-</p>
+<img src="guide-vmanomaly-vmalert/guide-vmanomaly-vmalert_files.webp" width="800" alt="all files">
 
 This docker-compose file will pull docker images,  set up each service and run them all together with the command:
 

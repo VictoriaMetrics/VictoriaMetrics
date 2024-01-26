@@ -377,21 +377,15 @@ The expected result of the query `count(up{kubernetes_pod_name=~".*vmselect.*"})
 To test via Grafana, we need to install it first. [Install and connect Grafana to VictoriaMetrics](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-cluster.html#4-install-and-connect-grafana-to-victoriametrics-with-helm), login into Grafana and open the metrics [Explore](http://127.0.0.1:3000/explore) page.
 
 
-<p align="center">
-  <img src="k8s-ha-monitoring-via-vm-cluster_explore.webp" width="800" alt="grafana explore">
-</p>
+<img src="k8s-ha-monitoring-via-vm-cluster_explore.webp" width="800" alt="grafana explore">
 
 Choose `victoriametrics` from the list of datasources and enter `count(up{kubernetes_pod_name=~".*vmselect.*"})` to the **Metric browser** field as shown on the screenshot, then press **Run query** button:
 
-<p align="center">
-  <img src="k8s-ha-monitoring-via-vm-cluster_explore-count-up.webp" width="800" alt="">
-</p>
+<img src="k8s-ha-monitoring-via-vm-cluster_explore-count-up.webp" width="800" alt="">
 
 The expected output is:
 
-<p align="center">
-  <img src="k8s-ha-monitoring-via-vm-cluster_explore-count-up-graph.webp" width="800" alt="">
-</p>
+<img src="k8s-ha-monitoring-via-vm-cluster_explore-count-up-graph.webp" width="800" alt="">
 
 ## 5. High Availability
 
@@ -423,17 +417,13 @@ Return to Grafana Explore and press the  **Run query** button again.
 
 The expected output is:
 
-<p align="center">
-  <img src="k8s-ha-monitoring-via-vm-cluster_explore-count-up-graph.webp" width="800" alt="">
-</p>
+<img src="k8s-ha-monitoring-via-vm-cluster_explore-count-up-graph.webp" width="800" alt="">
 
 As you can see, after we scaled down the `vmstorage` replicas number from three to two pods, metrics are still available and correct. The response is not partial as it was before scaling. Also we see that query `count(up{kubernetes_pod_name=~".*vmselect.*"})` returns the same value as before.
 
 To confirm that the number of `vmstorage` pods is equivalent to two, execute the following request in Grafana Explore:
 
-<p align="center">
-  <img src="k8s-ha-monitoring-via-vm-cluster_explore-count-up-graph2.webp" width="800" alt="">
-</p>
+<img src="k8s-ha-monitoring-via-vm-cluster_explore-count-up-graph2.webp" width="800" alt="">
 
 
 ## 6. Final thoughts

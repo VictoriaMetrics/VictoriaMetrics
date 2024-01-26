@@ -26,9 +26,7 @@ We will use:
 * [Helm 3 ](https://helm.sh/docs/intro/install)
 * [kubectl 1.21](https://kubernetes.io/docs/tasks/tools/install-kubectl)
 
-<p align="center">
-  <img src="k8s-monitoring-via-vm-cluster_scheme.webp" width="800" alt="VictoriaMetrics Cluster on Kubernetes cluster">
-</p>
+<img src="k8s-monitoring-via-vm-cluster_scheme.webp" width="800" alt="VictoriaMetrics Cluster on Kubernetes cluster">
 
 ## 1. VictoriaMetrics Helm repository
 
@@ -535,24 +533,19 @@ kubectl --namespace default port-forward $POD_NAME 3000
 
 To check that [VictoriaMetrics](https://victoriametrics.com) collects metrics from k8s cluster open in browser [http://127.0.0.1:3000/dashboards](http://127.0.0.1:3000/dashboards) and choose the `Kubernetes Cluster Monitoring (via Prometheus)` dashboard. Use `admin` for login and `password` that you previously got from kubectl. 
 
-<p align="center">
-  <img src="k8s-monitoring-via-vm-cluster_dashes-agent.webp" width="800" alt="grafana dashboards">
-</p>
+<img src="k8s-monitoring-via-vm-cluster_dashes-agent.webp" width="800" alt="grafana dashboards">
 
 You will see something like this:
-<p align="center">
-  <img src="k8s-monitoring-via-vm-cluster_dashboard.webp" width="800" alt="Kubernetes metrics provided by vmcluster">
-</p>
+
+<img src="k8s-monitoring-via-vm-cluster_dashboard.webp" width="800" alt="Kubernetes metrics provided by vmcluster">
 
 The VictoriaMetrics dashboard is also available to use:
-<p align="center">
-  <img src="k8s-monitoring-via-vm-cluster_grafana-dash.webp" width="800" alt="VictoriaMetrics cluster dashboard">
-</p>
+
+<img src="k8s-monitoring-via-vm-cluster_grafana-dash.webp" width="800" alt="VictoriaMetrics cluster dashboard">
 
 vmagent has its own dashboard:
-<p align="center">
-  <img src="k8s-monitoring-via-vm-cluster_vmagent-grafana-dash.webp" width="800" alt="vmagent dashboard">
-</p>
+
+<img src="k8s-monitoring-via-vm-cluster_vmagent-grafana-dash.webp" width="800" alt="vmagent dashboard">
 
 ## 6. Final thoughts
 
