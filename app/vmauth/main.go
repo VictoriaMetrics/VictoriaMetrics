@@ -247,7 +247,7 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 		if !rtbOK || !rtb.canRetry() {
 			// Request body cannot be re-sent to another backend. Return the error to the client then.
 			err = &httpserver.ErrorWithStatusCode{
-				Err:        fmt.Errorf("cannot proxy the request to %q: %w", targetURL, err),
+				Err:        fmt.Errorf("cannot proxy the request to %s: %w", targetURL, err),
 				StatusCode: http.StatusServiceUnavailable,
 			}
 			httpserver.Errorf(w, r, "%s", err)
@@ -262,19 +262,27 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 		return false
 	}
 	if hasInt(retryStatusCodes, res.StatusCode) {
-		if rtbOK && rtb.canRetry() {
-			// Retry requests at other backends if it matches retryStatusCodes.
-			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4893
-			remoteAddr := httpserver.GetQuotedRemoteAddr(r)
-			// NOTE: do not use httpserver.GetRequestURI
-			// it explicitly reads request body, which may fail retries.
-			logger.Warnf("remoteAddr: %s; requestURI: %s; retrying the request to %s because response status code=%d belongs to retry_status_codes=%d",
-				remoteAddr, req.URL, targetURL, res.StatusCode, retryStatusCodes)
-			return false
+		_ = res.Body.Close()
+		if !rtbOK || !rtb.canRetry() {
+			// If we get an error from the retry_status_codes list, but cannot execute retry,
+			// we consider such a request an error as well.
+			err := &httpserver.ErrorWithStatusCode{
+				Err: fmt.Errorf("got response status code=%d from %s, but cannot retry the request on another backend, because the request has been already consumed",
+					res.StatusCode, targetURL),
+				StatusCode: http.StatusServiceUnavailable,
+			}
+			httpserver.Errorf(w, r, "%s", err)
+			ui.backendErrors.Inc()
+			return true
 		}
-		// if we get an error from the retry_status_codes list, but cannot execute retry,
-		// we consider such a request an error as well
-		ui.backendErrors.Inc()
+		// Retry requests at other backends if it matches retryStatusCodes.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4893
+		remoteAddr := httpserver.GetQuotedRemoteAddr(r)
+		// NOTE: do not use httpserver.GetRequestURI
+		// it explicitly reads request body, which may fail retries.
+		logger.Warnf("remoteAddr: %s; requestURI: %s; retrying the request to %s because response status code=%d belongs to retry_status_codes=%d",
+			remoteAddr, req.URL, targetURL, res.StatusCode, retryStatusCodes)
+		return false
 	}
 	removeHopHeaders(res.Header)
 	copyHeader(w.Header(), res.Header)
@@ -285,6 +293,7 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 	copyBuf.B = bytesutil.ResizeNoCopyNoOverallocate(copyBuf.B, 16*1024)
 	_, err = io.CopyBuffer(w, res.Body, copyBuf.B)
 	copyBufPool.Put(copyBuf)
+	_ = res.Body.Close()
 	if err != nil && !netutil.IsTrivialNetworkError(err) {
 		remoteAddr := httpserver.GetQuotedRemoteAddr(r)
 		requestURI := httpserver.GetRequestURI(r)
