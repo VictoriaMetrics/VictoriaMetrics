@@ -7,20 +7,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fastnum"
 )
 
-const tableLen = 32767
-
-var table = func() []int64 {
-	out := make([]int64, 0, tableLen)
-	var cur int64 = 10
-	for i := 1; i <= tableLen; i++ {
-		out = append(out, cur)
-		if cur*10 > 0 {
-			cur *= 10
-		}
-	}
-	return out
-}()
-
 // CalibrateScale calibrates a and b with the corresponding exponents ae, be
 // and returns the resulting exponent e.
 func CalibrateScale(a []int64, ae int16, b []int64, be int16) (e int16) {
@@ -49,28 +35,48 @@ func CalibrateScale(a []int64, ae int16, b []int64, be int16) (e int16) {
 		}
 	}
 	upExp -= downExp
+
 	if upExp > 0 {
-		times := table[upExp-1]
+		m := getDecimalMultiplier(uint16(upExp))
 		for i, v := range a {
 			if isSpecialValue(v) {
 				// Do not take into account special values.
 				continue
 			}
-			a[i] = v * times
+			a[i] = v * m
 		}
 	}
 	if downExp > 0 {
-		times := table[downExp-1]
-		for i, v := range b {
-			if isSpecialValue(v) {
-				// Do not take into account special values.
-				continue
+		if downExp > 18 {
+			for i, v := range b {
+				if isSpecialValue(v) {
+					// Do not take into account special values.
+					continue
+				}
+				b[i] = 0
 			}
-			b[i] = v / times
+		} else {
+			m := getDecimalMultiplier(uint16(downExp))
+			for i, v := range b {
+				if isSpecialValue(v) {
+					// Do not take into account special values.
+					continue
+				}
+				b[i] = v / m
+			}
 		}
 	}
 	return be + downExp
 }
+
+func getDecimalMultiplier(exp uint16) int64 {
+	if exp >= uint16(len(decimalMultipliers)) {
+		return 1
+	}
+	return decimalMultipliers[exp]
+}
+
+var decimalMultipliers = []int64{1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9, 1e10, 1e11, 1e12, 1e13, 1e14, 1e15, 1e16, 1e17, 1e18}
 
 // ExtendFloat64sCapacity extends dst capacity to hold additionalItems
 // and returns the extended dst.
