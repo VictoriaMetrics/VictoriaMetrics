@@ -860,17 +860,14 @@ All the cluster components provide the following handlers for [profiling](https:
 
 Example command for collecting cpu profile from `vmstorage` (replace `0.0.0.0` with `vmstorage` hostname if needed):
 
-<div class="with-copy" markdown="1">
 
 ```console
 curl http://0.0.0.0:8482/debug/pprof/profile > cpu.pprof
 ```
 
-</div>
 
 Example command for collecting memory profile from `vminsert` (replace `0.0.0.0` with `vminsert` hostname if needed):
 
-<div class="with-copy" markdown="1">
 
 ```console
 curl http://0.0.0.0:8480/debug/pprof/heap > mem.pprof
@@ -878,7 +875,6 @@ curl http://0.0.0.0:8480/debug/pprof/heap > mem.pprof
 
 It is safe sharing the collected profiles from security point of view, since they do not contain sensitive information.
 
-</div>
 
 ## vmalert
 

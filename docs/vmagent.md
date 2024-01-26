@@ -1482,23 +1482,19 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 
 * Memory profile can be collected with the following command (replace `0.0.0.0` with hostname if needed):
 
-<div class="with-copy" markdown="1">
 
 ```bash
 curl http://0.0.0.0:8429/debug/pprof/heap > mem.pprof
 ```
 
-</div>
 
 * CPU profile can be collected with the following command (replace `0.0.0.0` with hostname if needed):
 
-<div class="with-copy" markdown="1">
 
 ```bash
 curl http://0.0.0.0:8429/debug/pprof/profile > cpu.pprof
 ```
 
-</div>
 
 The command for collecting CPU profile waits for 30 seconds before returning.
 
