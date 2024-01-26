@@ -776,23 +776,19 @@ ROOT_IMAGE=scratch make package-vmauth
 
 * Memory profile. It can be collected with the following command (replace `0.0.0.0` with hostname if needed):
 
-<div class="with-copy" markdown="1">
 
 ```console
 curl http://0.0.0.0:8427/debug/pprof/heap > mem.pprof
 ```
 
-</div>
 
 * CPU profile. It can be collected with the following command (replace `0.0.0.0` with hostname if needed):
 
-<div class="with-copy" markdown="1">
 
 ```console
 curl http://0.0.0.0:8427/debug/pprof/profile > cpu.pprof
 ```
 
-</div>
 
 The command for collecting CPU profile waits for 30 seconds before returning.
 
