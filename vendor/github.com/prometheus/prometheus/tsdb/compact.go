@@ -151,7 +151,7 @@ func NewLeveledCompactor(ctx context.Context, r prometheus.Registerer, l log.Log
 
 func NewLeveledCompactorWithChunkSize(ctx context.Context, r prometheus.Registerer, l log.Logger, ranges []int64, pool chunkenc.Pool, maxBlockChunkSegmentSize int64, mergeFunc storage.VerticalChunkSeriesMergeFunc) (*LeveledCompactor, error) {
 	if len(ranges) == 0 {
-		return nil, errors.Errorf("at least one range must be provided")
+		return nil, fmt.Errorf("at least one range must be provided")
 	}
 	if pool == nil {
 		pool = chunkenc.NewPool()
@@ -201,7 +201,14 @@ func (c *LeveledCompactor) Plan(dir string) ([]string, error) {
 
 func (c *LeveledCompactor) plan(dms []dirMeta) ([]string, error) {
 	slices.SortFunc(dms, func(a, b dirMeta) int {
-		return int(a.meta.MinTime - b.meta.MinTime)
+		switch {
+		case a.meta.MinTime < b.meta.MinTime:
+			return -1
+		case a.meta.MinTime > b.meta.MinTime:
+			return 1
+		default:
+			return 0
+		}
 	})
 
 	res := c.selectOverlappingDirs(dms)
