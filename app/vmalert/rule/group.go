@@ -278,16 +278,18 @@ func (g *Group) updateWith(newGroup *Group) error {
 	return nil
 }
 
-// InterruptEval interrupts in-flight rules evaluations
-// within the group. It is expected that g.evalCancel
-// will be repopulated after the call.
-func (g *Group) InterruptEval() {
+// EvalCancelFn returns the cancel function which would
+// stop the current evaluation of rules in this group.
+// Always returns non-nil result.
+func (g *Group) EvalCancelFn() context.CancelFunc {
 	g.mu.RLock()
 	defer g.mu.RUnlock()
 
+	cancelFn := func() {}
 	if g.evalCancel != nil {
-		g.evalCancel()
+		cancelFn = g.evalCancel
 	}
+	return cancelFn
 }
 
 // Close stops the group and it's rules, unregisters group metrics
@@ -296,7 +298,8 @@ func (g *Group) Close() {
 		return
 	}
 	close(g.doneCh)
-	g.InterruptEval()
+	cancel := g.EvalCancelFn()
+	cancel()
 	<-g.finishedCh
 
 	g.metrics.iterationDuration.Unregister()
