@@ -7,6 +7,20 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fastnum"
 )
 
+const tableLen = 32767
+
+var table = func() []int64 {
+	out := make([]int64, 0, tableLen)
+	var cur int64 = 10
+	for i := 1; i <= tableLen; i++ {
+		out = append(out, cur)
+		if cur*10 > 0 {
+			cur *= 10
+		}
+	}
+	return out
+}()
+
 // CalibrateScale calibrates a and b with the corresponding exponents ae, be
 // and returns the resulting exponent e.
 func CalibrateScale(a []int64, ae int16, b []int64, be int16) (e int16) {
@@ -35,30 +49,24 @@ func CalibrateScale(a []int64, ae int16, b []int64, be int16) (e int16) {
 		}
 	}
 	upExp -= downExp
-	for i, v := range a {
-		if isSpecialValue(v) {
-			// Do not take into account special values.
-			continue
+	if upExp > 0 {
+		times := table[upExp-1]
+		for i, v := range a {
+			if isSpecialValue(v) {
+				// Do not take into account special values.
+				continue
+			}
+			a[i] = v * times
 		}
-		adjExp := upExp
-		for adjExp > 0 {
-			v *= 10
-			adjExp--
-		}
-		a[i] = v
 	}
 	if downExp > 0 {
+		times := table[downExp-1]
 		for i, v := range b {
 			if isSpecialValue(v) {
 				// Do not take into account special values.
 				continue
 			}
-			adjExp := downExp
-			for adjExp > 0 {
-				v /= 10
-				adjExp--
-			}
-			b[i] = v
+			b[i] = v / times
 		}
 	}
 	return be + downExp
