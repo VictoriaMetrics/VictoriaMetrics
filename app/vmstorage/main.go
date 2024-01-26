@@ -43,13 +43,10 @@ var (
 	snapshotsMaxAge       = flagutil.NewDuration("snapshotsMaxAge", "0", "Automatically delete snapshots older than -snapshotsMaxAge if it is set to non-zero duration. Make sure that backup process has enough time to finish the backup before the corresponding snapshot is automatically deleted")
 	snapshotCreateTimeout = flag.Duration("snapshotCreateTimeout", 0, "The timeout for creating new snapshot. If set, make sure that timeout is lower than backup period")
 
-	finalMergeDelay = flag.Duration("finalMergeDelay", 0, "The delay before starting final merge for per-month partition after no new data is ingested into it. "+
-		"Final merge may require additional disk IO and CPU resources. Final merge may increase query speed and reduce disk space usage in some cases. "+
-		"Zero value disables final merge")
-	_ = flag.Int("bigMergeConcurrency", 0, "Deprecated: this flag does nothing. Please use -smallMergeConcurrency "+
-		"for controlling the concurrency of background merges. See https://docs.victoriametrics.com/#storage")
-	smallMergeConcurrency = flag.Int("smallMergeConcurrency", 0, "The maximum number of workers for background merges. See https://docs.victoriametrics.com/#storage . "+
-		"It isn't recommended tuning this flag in general case, since this may lead to uncontrolled increase in the number of parts and increased CPU usage during queries")
+	_ = flag.Duration("finalMergeDelay", 0, "Deprecated: this flag does nothing")
+	_ = flag.Int("bigMergeConcurrency", 0, "Deprecated: this flag does nothing")
+	_ = flag.Int("smallMergeConcurrency", 0, "Deprecated: this flag does nothing")
+
 	retentionTimezoneOffset = flag.Duration("retentionTimezoneOffset", 0, "The offset for performing indexdb rotation. "+
 		"If set to 0, then the indexdb rotation is performed at 4am UTC time per each -retentionPeriod. "+
 		"If set to 2h, then the indexdb rotation is performed at 4am EET time (the timezone with +2h offset)")
@@ -92,8 +89,6 @@ func main() {
 	storage.SetDedupInterval(*minScrapeInterval)
 	storage.SetDataFlushInterval(*inmemoryDataFlushInterval)
 	storage.SetLogNewSeries(*logNewSeries)
-	storage.SetFinalMergeDelay(*finalMergeDelay)
-	storage.SetMergeWorkersCount(*smallMergeConcurrency)
 	storage.SetRetentionTimezoneOffset(*retentionTimezoneOffset)
 	storage.SetFreeDiskSpaceLimit(minFreeDiskSpaceBytes.N)
 	storage.SetTSIDCacheSize(cacheSizeStorageTSID.IntN())
@@ -421,11 +416,8 @@ func writeStorageMetrics(w io.Writer, strg *storage.Storage) {
 	metrics.WriteCounterUint64(w, `vm_composite_filter_success_conversions_total`, idbm.CompositeFilterSuccessConversions)
 	metrics.WriteCounterUint64(w, `vm_composite_filter_missing_conversions_total`, idbm.CompositeFilterMissingConversions)
 
-	metrics.WriteCounterUint64(w, `vm_assisted_merges_total{type="storage/inmemory"}`, tm.InmemoryAssistedMergesCount)
-	metrics.WriteCounterUint64(w, `vm_assisted_merges_total{type="storage/small"}`, tm.SmallAssistedMergesCount)
-
-	metrics.WriteCounterUint64(w, `vm_assisted_merges_total{type="indexdb/inmemory"}`, idbm.InmemoryAssistedMergesCount)
-	metrics.WriteCounterUint64(w, `vm_assisted_merges_total{type="indexdb/file"}`, idbm.FileAssistedMergesCount)
+	// vm_assisted_merges_total name is used for backwards compatibility.
+	metrics.WriteCounterUint64(w, `vm_assisted_merges_total{type="indexdb/inmemory"}`, idbm.InmemoryPartsLimitReachedCount)
 
 	metrics.WriteCounterUint64(w, `vm_indexdb_items_added_total`, idbm.ItemsAdded)
 	metrics.WriteCounterUint64(w, `vm_indexdb_items_added_size_bytes_total`, idbm.ItemsAddedSizeBytes)
