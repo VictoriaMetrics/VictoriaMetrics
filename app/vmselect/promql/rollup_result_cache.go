@@ -43,6 +43,11 @@ func ResetRollupResultCacheIfNeeded(mrs []storage.MetricRow) {
 		rollupResultResetMetricRowSample.Store(&storage.MetricRow{})
 		go checkRollupResultCacheReset()
 	})
+	if atomic.LoadUint32(&needRollupResultCacheReset) != 0 {
+		// The cache has been already instructed to reset.
+		return
+	}
+
 	minTimestamp := int64(fasttime.UnixTimestamp()*1000) - cacheTimestampOffset.Milliseconds() + checkRollupResultCacheResetInterval.Milliseconds()
 	needCacheReset := false
 	for i := range mrs {
