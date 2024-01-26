@@ -15,7 +15,8 @@ aliases:
 # CHANGELOG
 
 ## Next release
-
+- [vmauth](./api.html#vmauth): add new fields for `unauthorized_user` like `src_hosts`, `headers`, `retry_status_codes` and `load_balancing_policy`. See [vmauth docs](https://docs.victoriametrics.com/vmauth.htm) for more details.
+ 
 <a name="v0.40.0"></a>
 ## [v0.40.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.40.0) - 23 Jan 2024
 
