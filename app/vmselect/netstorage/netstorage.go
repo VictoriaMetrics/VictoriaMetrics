@@ -1325,6 +1325,12 @@ type tmpBlocksFileWrapper struct {
 }
 
 type tmpBlocksFileWrapperShard struct {
+	// once is needed for one-time initialization of the tmpBlocksFileWrapperShard.
+	//
+	// The initialization must be performed at the goroutine, which then works with this struct.
+	// This improves CPU cache locality.
+	once sync.Once
+
 	// tbf is a file where temporary blocks are stored from the read time series.
 	tbf *tmpBlocksFile
 
@@ -1353,6 +1359,15 @@ type tmpBlocksFileWrapperShard struct {
 
 	// prevAddrsIdx contains the addrssPool index previously seen at RegisterAndWriteBlock.
 	prevAddrsIdx int
+}
+
+func (tbfwLocal *tmpBlocksFileWrapperShard) initIfNeeded() {
+	tbfwLocal.once.Do(tbfwLocal.init)
+}
+
+func (tbfwLocal *tmpBlocksFileWrapperShard) init() {
+	tbfwLocal.tbf = getTmpBlocksFile()
+	tbfwLocal.m = make(map[string]int)
 }
 
 type tmpBlocksFileWrapperShardWithPadding struct {
@@ -1388,11 +1403,6 @@ func (tbfwLocal *tmpBlocksFileWrapperShard) newBlockAddrs() int {
 func newTmpBlocksFileWrapper(sns []*storageNode) *tmpBlocksFileWrapper {
 	n := len(sns)
 	shards := make([]tmpBlocksFileWrapperShardWithPadding, n)
-	for i := range shards {
-		shard := &shards[i]
-		shard.tbf = getTmpBlocksFile()
-		shard.m = make(map[string]int)
-	}
 	return &tmpBlocksFileWrapper{
 		shards: shards,
 	}
@@ -1400,6 +1410,7 @@ func newTmpBlocksFileWrapper(sns []*storageNode) *tmpBlocksFileWrapper {
 
 func (tbfw *tmpBlocksFileWrapper) RegisterAndWriteBlock(mb *storage.MetricBlock, workerID uint) error {
 	tbfwLocal := &tbfw.shards[workerID]
+	tbfwLocal.initIfNeeded()
 
 	bb := tmpBufPool.Get()
 	bb.B = storage.MarshalBlock(bb.B[:0], &mb.Block)
@@ -1469,12 +1480,13 @@ func (tbfw *tmpBlocksFileWrapper) Finalize() ([]string, []blockAddrs, map[string
 
 	var bytesTotal uint64
 	for i := range shards {
-		tbf := shards[i].tbf
-		if err := tbf.Finalize(); err != nil {
+		shard := &shards[i]
+		shard.initIfNeeded()
+		if err := shard.tbf.Finalize(); err != nil {
 			tbfw.closeTmpBlockFiles()
-			return nil, nil, nil, 0, fmt.Errorf("cannot finalize temporary blocks file with %d series: %w", len(shards[i].m), err)
+			return nil, nil, nil, 0, fmt.Errorf("cannot finalize temporary blocks file with %d series: %w", len(shard.m), err)
 		}
-		bytesTotal += tbf.Len()
+		bytesTotal += shard.tbf.Len()
 	}
 
 	// merge data collected from all the shards
@@ -1511,7 +1523,9 @@ func (tbfw *tmpBlocksFileWrapper) getTmpBlockFiles() []*tmpBlocksFile {
 
 	tbfs := make([]*tmpBlocksFile, len(shards))
 	for i := range shards {
-		tbfs[i] = shards[i].tbf
+		shard := &shards[i]
+		shard.initIfNeeded()
+		tbfs[i] = shard.tbf
 	}
 	return tbfs
 }
