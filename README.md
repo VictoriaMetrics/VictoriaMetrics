@@ -270,25 +270,21 @@ See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3781)
 
 Add the following lines to Prometheus config file (it is usually located at `/etc/prometheus/prometheus.yml`) in order to send data to VictoriaMetrics:
 
-<div class="with-copy" markdown="1">
 
 ```yml
 remote_write:
   - url: http://<victoriametrics-addr>:8428/api/v1/write
 ```
 
-</div>
 
 Substitute `<victoriametrics-addr>` with hostname or IP address of VictoriaMetrics.
 Then apply new config via the following command:
 
-<div class="with-copy" markdown="1">
 
 ```console
 kill -HUP `pidof prometheus`
 ```
 
-</div>
 
 Prometheus writes incoming data to local storage and replicates it to remote storage in parallel.
 This means that data remains available in local storage for `--storage.tsdb.retention.time` duration
@@ -309,7 +305,6 @@ across Prometheus instances, so time series could be filtered and grouped by thi
 
 For highly loaded Prometheus instances (200k+ samples per second) the following tuning may be applied:
 
-<div class="with-copy" markdown="1">
 
 ```yaml
 remote_write:
@@ -320,7 +315,6 @@ remote_write:
       max_shards: 30
 ```
 
-</div>
 
 Using remote write increases memory usage for Prometheus by up to ~25%. If you are experiencing issues with
 too high memory consumption of Prometheus, then try to lower `max_samples_per_send` and `capacity` params. 
@@ -529,24 +523,20 @@ or via [configuration file](https://docs.datadoghq.com/agent/guide/agent-configu
 
 To configure DataDog agent via ENV variable add the following prefix:
 
-<div class="with-copy" markdown="1">
 
 ```
 DD_DD_URL=http://victoriametrics:8428/datadog
 ```
 
-</div>
 
 _Choose correct URL for VictoriaMetrics [here](https://docs.victoriametrics.com/url-examples.html#datadog)._
 
 To configure DataDog agent via [configuration file](https://github.com/DataDog/datadog-agent/blob/878600ef7a55c5ef0efb41ed0915f020cf7e3bd0/pkg/config/config_template.yaml#L33)
 add the following line:
 
-<div class="with-copy" markdown="1">
 ```
 dd_url: http://victoriametrics:8428/datadog
 ```
-</div>
 
 [vmagent](https://docs.victoriametrics.com/vmagent.html) also can accept Datadog metrics format. Depending on where vmagent will forward data,
 pick [single-node or cluster URL](https://docs.victoriametrics.com/url-examples.html#datadog) formats.
@@ -562,14 +552,12 @@ sending via ENV variable `DD_ADDITIONAL_ENDPOINTS` or via configuration file `ad
  
 Run DataDog using the following ENV variable with VictoriaMetrics as additional metrics receiver:
 
-<div class="with-copy" markdown="1">
 
 ```
 DD_ADDITIONAL_ENDPOINTS='{\"http://victoriametrics:8428/datadog\": [\"apikey\"]}'
 
 ```
 
-</div>
 
 _Choose correct URL for VictoriaMetrics [here](https://docs.victoriametrics.com/url-examples.html#datadog)._
 
@@ -577,7 +565,6 @@ _Choose correct URL for VictoriaMetrics [here](https://docs.victoriametrics.com/
 To configure DataDog Dual Shipping via [configuration file](https://docs.datadoghq.com/agent/guide/agent-configuration-files)
 add the following line:
 
-<div class="with-copy" markdown="1">
 
 ```
 additional_endpoints:
@@ -585,7 +572,6 @@ additional_endpoints:
   - apikey
 ```
 
-</div>
 
 ### Send via cURL
 
@@ -654,24 +640,20 @@ foo_field2{tag1="value1", tag2="value2"} 40
 Example for writing data with [InfluxDB line protocol](https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/)
 to local VictoriaMetrics using `curl`:
 
-<div class="with-copy" markdown="1">
 
 ```console
 curl -d 'measurement,tag1=value1,tag2=value2 field1=123,field2=1.23' -X POST 'http://localhost:8428/write'
 ```
 
-</div>
 
 An arbitrary number of lines delimited by '\n' (aka newline char) can be sent in a single request.
 After that the data may be read via [/api/v1/export](#how-to-export-data-in-json-line-format) endpoint:
 
-<div class="with-copy" markdown="1">
 
 ```console
 curl -G 'http://localhost:8428/api/v1/export' -d 'match={__name__=~"measurement_.*"}'
 ```
 
-</div>
 
 The `/api/v1/export` endpoint should return the following response:
 
@@ -698,13 +680,11 @@ VictoriaMetrics exposes endpoint for InfluxDB v2 HTTP API at `/influx/api/v2/wri
 
 In order to write data with InfluxDB line protocol to local VictoriaMetrics using `curl`:
 
-<div class="with-copy" markdown="1">
 
 ```console
 curl -d 'measurement,tag1=value1,tag2=value2 field1=123,field2=1.23' -X POST 'http://localhost:8428/api/v2/write'
 ```
 
-</div>
 
 The `/api/v1/export` endpoint should return the following response:
 
@@ -735,13 +715,11 @@ VictoriaMetrics sets the current time if the timestamp is omitted.
 An arbitrary number of lines delimited by `\n` (aka newline char) can be sent in one go.
 After that the data may be read via [/api/v1/export](#how-to-export-data-in-json-line-format) endpoint:
 
-<div class="with-copy" markdown="1">
 
 ```console
 curl -G 'http://localhost:8428/api/v1/export' -d 'match=foo.bar.baz'
 ```
 
-</div>
 
 The `/api/v1/export` endpoint should return the following response:
 
@@ -786,24 +764,20 @@ Send data to the given address from OpenTSDB-compatible agents.
 
 Example for writing data with OpenTSDB protocol to local VictoriaMetrics using `nc`:
 
-<div class="with-copy" markdown="1">
 
 ```console
 echo "put foo.bar.baz `date +%s` 123 tag1=value1 tag2=value2" | nc -N localhost 4242
 ```
 
-</div>
 
 An arbitrary number of lines delimited by `\n` (aka newline char) can be sent in one go.
 After that the data may be read via [/api/v1/export](#how-to-export-data-in-json-line-format) endpoint:
 
-<div class="with-copy" markdown="1">
 
 ```console
 curl -G 'http://localhost:8428/api/v1/export' -d 'match=foo.bar.baz'
 ```
 
-</div>
 
 The `/api/v1/export` endpoint should return the following response:
 
@@ -824,33 +798,26 @@ Send data to the given address from OpenTSDB-compatible agents.
 
 Example for writing a single data point:
 
-<div class="with-copy" markdown="1">
 
 ```console
 curl -H 'Content-Type: application/json' -d '{"metric":"x.y.z","value":45.34,"tags":{"t1":"v1","t2":"v2"}}' http://localhost:4242/api/put
 ```
 
-</div>
 
 Example for writing multiple data points in a single request:
-
-<div class="with-copy" markdown="1">
 
 ```console
 curl -H 'Content-Type: application/json' -d '[{"metric":"foo","value":45.34},{"metric":"bar","value":43}]' http://localhost:4242/api/put
 ```
 
-</div>
 
 After that the data may be read via [/api/v1/export](#how-to-export-data-in-json-line-format) endpoint:
 
-<div class="with-copy" markdown="1">
 
 ```console
 curl -G 'http://localhost:8428/api/v1/export' -d 'match[]=x.y.z' -d 'match[]=foo' -d 'match[]=bar'
 ```
 
-</div>
 
 The `/api/v1/export` endpoint should return the following response:
 
@@ -1286,13 +1253,11 @@ In this case the output may contain multiple lines with samples for the same tim
 Pass `Accept-Encoding: gzip` HTTP header in the request to `/api/v1/export` in order to reduce network bandwidth during exporting big amounts
 of time series data. This enables gzip compression for the exported data. Example for exporting gzipped data:
 
-<div class="with-copy" markdown="1">
 
 ```console
 curl -H 'Accept-Encoding: gzip' http://localhost:8428/api/v1/export -d 'match[]={__name__!=""}' > data.jsonl.gz
 ```
 
-</div>
 
 The maximum duration for each request to `/api/v1/export` is limited by `-search.maxExportDuration` command-line flag.
 
@@ -1506,23 +1471,19 @@ and in [Pushgateway format](https://github.com/prometheus/pushgateway#url) via `
 
 For example, the following command imports a single line in Prometheus exposition format into VictoriaMetrics:
 
-<div class="with-copy" markdown="1">
 
 ```console
 curl -d 'foo{bar="baz"} 123' -X POST 'http://localhost:8428/api/v1/import/prometheus'
 ```
 
-</div>
 
 The following command may be used for verifying the imported data:
 
-<div class="with-copy" markdown="1">
 
 ```console
 curl -G 'http://localhost:8428/api/v1/export' -d 'match={__name__=~"foo"}'
 ```
 
-</div>
 
 It should return something like the following:
 
@@ -1532,24 +1493,20 @@ It should return something like the following:
 
 The following command imports a single metric via [Pushgateway format](https://github.com/prometheus/pushgateway#url) with `{job="my_app",instance="host123"}` labels:
 
-<div class="with-copy" markdown="1">
 
 ```console
 curl -d 'metric{label="abc"} 123' -X POST 'http://localhost:8428/api/v1/import/prometheus/metrics/job/my_app/instance/host123'
 ```
 
-</div>
 
 Pass `Content-Encoding: gzip` HTTP request header to `/api/v1/import/prometheus` for importing gzipped data:
 
-<div class="with-copy" markdown="1">
 
 ```console
 # Import gzipped data to <destination-victoriametrics>:
 curl -X POST -H 'Content-Encoding: gzip' http://destination-victoriametrics:8428/api/v1/import/prometheus -T prometheus_data.gz
 ```
 
-</div>
 
 Extra labels may be added to all the imported metrics either via [Pushgateway format](https://github.com/prometheus/pushgateway#url)
 or by passing `extra_label=name=value` query args. For example, `/api/v1/import/prometheus?extra_label=foo=bar` would add `{foo="bar"}` label to all the imported metrics.
@@ -2446,23 +2403,19 @@ VictoriaMetrics provides handlers for collecting the following [Go profiles](htt
 
 * Memory profile. It can be collected with the following command (replace `0.0.0.0` with hostname if needed):
 
-<div class="with-copy" markdown="1">
 
 ```console
 curl http://0.0.0.0:8428/debug/pprof/heap > mem.pprof
 ```
 
-</div>
 
 * CPU profile. It can be collected with the following command (replace `0.0.0.0` with hostname if needed):
 
-<div class="with-copy" markdown="1">
 
 ```console
 curl http://0.0.0.0:8428/debug/pprof/profile > cpu.pprof
 ```
 
-</div>
 
 The command for collecting CPU profile waits for 30 seconds before returning.
 
