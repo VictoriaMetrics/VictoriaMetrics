@@ -410,10 +410,14 @@ For example, the following config removes the `:1m_sum_samples` suffix added [to
 ## Aggregation outputs
 
 The aggregations are calculated during the `interval` specified in the [config](#stream-aggregation-config)
-and then sent to the storage.
+and then sent to the storage once per `interval`.
 
 If `by` and `without` lists are specified in the [config](#stream-aggregation-config),
 then the [aggregation by labels](#aggregating-by-labels) is performed additionally to aggregation by `interval`.
+
+On vmagent shutdown or [configuration reload](#configuration-update) unfinished aggregated states are discarded,
+as they might produce lower values than user expects. It is possible to specify `flush_on_shutdown: true` setting in 
+aggregation config to make vmagent to send unfinished states to the remote storage.
 
 Below are aggregation functions that can be put in the `outputs` list at [stream aggregation config](#stream-aggregation-config).
 
@@ -641,6 +645,12 @@ at [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-
   # The parameter is only relevant for outputs: total, increase and histogram_bucket.
   #
   # staleness_interval: 2m
+  
+  # flush_on_shutdown defines whether to flush the unfinished aggregation states on process restarts
+  # or config reloads. It is not recommended changing this setting, unless unfinished aggregations states
+  # are preferred to missing data points.
+  # Is `false` by default.
+  # flush_on_shutdown: false
 
   # without is an optional list of labels, which must be removed from the output aggregation.
   # See https://docs.victoriametrics.com/stream-aggregation.html#aggregating-by-labels
