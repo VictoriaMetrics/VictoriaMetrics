@@ -131,6 +131,10 @@ type Config struct {
 	// OutputRelabelConfigs is an optional relabeling rules, which are applied
 	// on the aggregated output before being sent to remote storage.
 	OutputRelabelConfigs []promrelabel.RelabelConfig `yaml:"output_relabel_configs,omitempty"`
+
+	// FlushOnShutdown defines whether to flush the aggregation state on process termination
+	// or config reload. Is `false` by default.
+	FlushOnShutdown bool `yaml:"flush_on_shutdown,omitempty"`
 }
 
 // Aggregators aggregates metrics passed to Push and calls pushFunc for aggregate data.
@@ -239,6 +243,10 @@ type aggregator struct {
 	// For example, foo_bar metric name is transformed to foo_bar:1m_by_job
 	// for `interval: 1m`, `by: [job]`
 	suffix string
+
+	// flushOnShutdown defines whether to flush the state of aggregation
+	// on MustStop call.
+	flushOnShutdown bool
 
 	wg     sync.WaitGroup
 	stopCh chan struct{}
@@ -393,7 +401,8 @@ func newAggregator(cfg *Config, pushFunc PushFunc, dedupInterval time.Duration) 
 		aggrStates: aggrStates,
 		pushFunc:   pushFunc,
 
-		suffix: suffix,
+		suffix:          suffix,
+		flushOnShutdown: cfg.FlushOnShutdown,
 
 		stopCh: make(chan struct{}),
 	}
@@ -505,6 +514,10 @@ func (a *aggregator) flush() {
 func (a *aggregator) MustStop() {
 	close(a.stopCh)
 	a.wg.Wait()
+
+	if !a.flushOnShutdown {
+		return
+	}
 
 	// Flush the remaining data from the last interval if needed.
 	flushConcurrencyCh <- struct{}{}
