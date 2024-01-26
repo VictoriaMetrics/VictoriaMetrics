@@ -173,7 +173,7 @@ Once updated, run the following commands:
 
 1. Commit and push changes to `master`.
 1. Run "Release" action on Github:
-   ![image](Release-Guide_helm-release.webp)
+   <img src="Release-Guide_helm-release.webp" alt="release helm charts"> 
 1. Merge new PRs *"Automatic update CHANGELOGs and READMEs"* and *"Synchronize docs"* after pipelines are complete.
 
 ## Ansible Roles 
