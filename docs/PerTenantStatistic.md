@@ -67,7 +67,6 @@ to prevent limits exhaustion.
 
 Here is an alert example for high churn rate by the tenant:
 
-{% raw  %}
 ```yaml
 
 - alert: TooHighChurnRate
@@ -87,4 +86,3 @@ Here is an alert example for high churn rate by the tenant:
             High Churn Rate is tightly connected with database performance and may
             result in unexpected OOM's or slow queries."
 ```
-{% endraw %}
