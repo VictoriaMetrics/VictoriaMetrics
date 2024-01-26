@@ -231,9 +231,7 @@ Forwarding from [::1]:8429 -> 8429
 To check that `VMAgent` collects metrics from the k8s cluster open in the browser [http://127.0.0.1:8429/targets](http://127.0.0.1:8429/targets) .
 You will see something like this:
 
-<p align="center">
-  <img src="getting-started-with-vm-operator_vmcluster.webp" width="800" alt="">
-</p>
+<img src="getting-started-with-vm-operator_vmcluster.webp" width="800" alt="">
 
 `VMAgent` connects to [kubernetes service discovery](https://kubernetes.io/docs/concepts/services-networking/service/) and gets targets which needs to be scraped. This service discovery is controlled by [VictoriaMetrics Operator](https://github.com/VictoriaMetrics/operator)
 
@@ -311,15 +309,11 @@ EOF
 
 To check that [VictoriaMetrics](https://victoriametrics.com) collecting metrics from the k8s cluster open in your browser [http://127.0.0.1:3000/dashboards](http://127.0.0.1:3000/dashboards) and choose the `VictoriaMetrics - cluster` dashboard. Use `admin` for login and the `password` that you previously got from kubectl.
 
-<p align="center">
-  <img src="getting-started-with-vm-operator_vmcluster-grafana1.webp" width="800" alt="grafana dashboards">
-</p>
+<img src="getting-started-with-vm-operator_vmcluster-grafana1.webp" width="800" alt="grafana dashboards">
 
 The expected output is:
 
-<p align="center">
-  <img src="getting-started-with-vm-operator_vmcluster-grafana2.webp" width="800" alt="grafana dashboards">
-</p>
+<img src="getting-started-with-vm-operator_vmcluster-grafana2.webp" width="800" alt="grafana dashboards">
 
 ## 6. Summary
 
