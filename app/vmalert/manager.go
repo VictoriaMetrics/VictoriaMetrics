@@ -156,14 +156,11 @@ func (m *manager) update(ctx context.Context, groupsCfg []config.Group, restore 
 		var wg sync.WaitGroup
 		for _, item := range toUpdate {
 			wg.Add(1)
-			// cache the cancel func before updating the Group, as it might change during the Update
-			evalCancel := item.old.EvalCancelFn
 			go func(old *rule.Group, new *rule.Group) {
 				old.UpdateWith(new)
 				wg.Done()
 			}(item.old, item.new)
-			// cancel current group evaluation to update Group as fast as possible
-			evalCancel()
+			item.old.InterruptEval()
 		}
 		wg.Wait()
 	}
