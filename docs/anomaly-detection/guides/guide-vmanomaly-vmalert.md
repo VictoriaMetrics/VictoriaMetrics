@@ -103,7 +103,7 @@ These modes are mutually exclusive. A high _iowait_ means that you are disk or n
 
 The metric `node_cpu_seconds_total` is a [counter](https://docs.victoriametrics.com/keyConcepts.html#counter) type of metric. If we'd like to see how much time CPU spent in each of the nodes, we need to calculate the per-second values change via [rate function](https://docs.victoriametrics.com/MetricsQL.html#rate): `rate(node_cpu_seconds_total)`. To aggregate data by mode we'll use median or 50% quantile function. Resulting query will look likt this: `quantile by (mode) (0.5, rate(node_cpu_seconds_total[5m])`
 Here is how this query may look like in Grafana:
-<img max-width="1000" alt="node_cpu_rate_graph" src="guide-vmanomaly-vmalert_node-cpu-rate-graph.webp">
+<img max-width="1000" alt="node_cpu_rate_graph" src="guide-vmanomaly-vmalert-query.webp">
 
 This query result will generate 8 time series per each cpu, and we will use them as an input for our VM Anomaly Detection. vmanomaly will start learning configured model type separately for each of the time series.
 
@@ -301,7 +301,7 @@ scrape_configs:
 
 ### vmanomaly licensing
 
-We will utilize the license key stored locally in the file `vmanomaly_license.txt`.
+We will utilize the license key stored locally in the file `vmanomaly_license`.
 
 For additional licensing options, please refer to the [VictoriaMetrics Anomaly Detection documentation on licensing](https://docs.victoriametrics.com/anomaly-detection/Overview#licensing).
 
@@ -482,7 +482,7 @@ docker logs vmanomaly
 To look at model results we need to go to grafana on the `localhost:3000`. Data
 vmanomaly need some time to generate more data to visualize.
 Let's investigate model output visualization in Grafana.
-On the Grafana Dashboard `Vmanomaly Guide`you can choose `cpu` and for each mode of CPU you can investigate:
+On the Grafana Dashboard `Vmanomaly Guide` for each mode of CPU you can investigate:
 * initial query result - `quantile by (mode) (0.5, rate(node_cpu_seconds_total[5m]))`
 * `anomaly_score` 
 * `yhat` - Predicted value
@@ -494,25 +494,18 @@ Each of these metrics will contain same labels our query `quantile by (mode) (0.
 ### Anomaly scores for each metric with its according labels. 
 
 Query: `anomaly_score`
-<img max-width="1000" alt="Anomaly score graph" src="guide-vmanomaly-vmalert_anomaly-score.webp">
+<img max-width="1000" alt="Anomaly score graph" src="guide-vmanomaly-vmalert-anomaly-score.webp">
 
 <br>Check out if the anomaly score is high for datapoints you think are anomalies. If not, you can try other parameters in the config file or try other model type.
 
-As you may notice a lot of data shows anomaly score greater than 1. It is expected as we just started to scrape and store data and there are not enough datapoints to train on. Just wait for some more time for gathering more data to see how well this particular model can find anomalies. In our configs we put 2 days of data required.
+As you may notice a lot of data shows anomaly score greater than 1. It is expected as we just started to scrape and store data and there are not enough datapoints to train on. Just wait for some more time for gathering more data to see how well this particular model can find anomalies. In our configs we put 2 weeks of data needed to fit the model properly.
 
-### Actual value from input query with predicted `yhat` metric. 
 
-Query: `yhat`
+### Lower and upper boundaries and predicted values. 
 
-<img max-width="1000" alt="yhat" src="guide-vmanomaly-vmalert_yhat.webp">
+Queries: `yhat_lower`, `yhat_upper` and `yhat`
 
-Here we are using one particular set of metrics for visualization. Check out the difference between model prediction and actual values. If values are very different from prediction, it can be considered as anomalous.
-
-### Lower and upper boundaries that model predicted. 
-
-Queries: `yhat_lower` and `yhat_upper`
-
-<img max-width="1000" alt="yhat lower and yhat upper" src="guide-vmanomaly-vmalert_yhat-lower-upper.webp">
+<img max-width="1000" alt="yhat lower and yhat upper" src="guide-vmanomaly-vmalert-boundaries.webp">
 
 Boundaries of 'normal' metric values according to model inference. 
 
@@ -522,7 +515,7 @@ On the page `http://localhost:8880/vmalert/groups` you can find our configured A
 
 <img max-width="1000" alt="alert rule" src="guide-vmanomaly-vmalert_alert-rule.webp">
 
-According to the rule configured for vmalert we will see Alert when anomaly score exceed 1. You will see an alert on Alert tab. `http://localhost:8880/vmalert/alerts`
+According to the rule configured for vmalert we will see Alert when anomaly score exceed 1. You will see an alert on Alert tab. `http://localhost:8880/vmalert/alerts`:
 <img max-width="1000" alt="alerts firing" src="guide-vmanomaly-vmalert_alerts-firing.webp">
 
 ## 10. Conclusion
