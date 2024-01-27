@@ -26,7 +26,7 @@ We will use:
 * [Helm 3 ](https://helm.sh/docs/intro/install)
 * [kubectl 1.21](https://kubernetes.io/docs/tasks/tools/install-kubectl)
 
-<img src="k8s-monitoring-via-vm-cluster_scheme.webp" width="800" alt="VictoriaMetrics Cluster on Kubernetes cluster">
+<img src="k8s-monitoring-via-vm-cluster_scheme.webp"  alt="VictoriaMetrics Cluster on Kubernetes cluster">
 
 ## 1. VictoriaMetrics Helm repository
 
@@ -81,7 +81,7 @@ Run this command in your terminal:
 
 <div class="with-copy" markdown="1">
 
-```yaml
+```sh
 cat <<EOF | helm install vmcluster vm/victoria-metrics-cluster -f -
 vmselect:
   podAnnotations:
@@ -460,7 +460,7 @@ To install the chart with the release name `my-grafana`, add the VictoriaMetrics
 
 <div class="with-copy" markdown="1">
 
-```yaml
+```sh
 cat <<EOF | helm install my-grafana grafana/grafana -f -
   datasources:
     datasources.yaml:
@@ -533,19 +533,19 @@ kubectl --namespace default port-forward $POD_NAME 3000
 
 To check that [VictoriaMetrics](https://victoriametrics.com) collects metrics from k8s cluster open in browser [http://127.0.0.1:3000/dashboards](http://127.0.0.1:3000/dashboards) and choose the `Kubernetes Cluster Monitoring (via Prometheus)` dashboard. Use `admin` for login and `password` that you previously got from kubectl. 
 
-<img src="k8s-monitoring-via-vm-cluster_dashes-agent.webp" width="800" alt="grafana dashboards">
+<img src="k8s-monitoring-via-vm-cluster_dashes-agent.webp"  alt="grafana dashboards">
 
 You will see something like this:
 
-<img src="k8s-monitoring-via-vm-cluster_dashboard.webp" width="800" alt="Kubernetes metrics provided by vmcluster">
+<img src="k8s-monitoring-via-vm-cluster_dashboard.webp"  alt="Kubernetes metrics provided by vmcluster">
 
 The VictoriaMetrics dashboard is also available to use:
 
-<img src="k8s-monitoring-via-vm-cluster_grafana-dash.webp" width="800" alt="VictoriaMetrics cluster dashboard">
+<img src="k8s-monitoring-via-vm-cluster_grafana-dash.webp"  alt="VictoriaMetrics cluster dashboard">
 
 vmagent has its own dashboard:
 
-<img src="k8s-monitoring-via-vm-cluster_vmagent-grafana-dash.webp" width="800" alt="vmagent dashboard">
+<img src="k8s-monitoring-via-vm-cluster_vmagent-grafana-dash.webp"  alt="vmagent dashboard">
 
 ## 6. Final thoughts
 

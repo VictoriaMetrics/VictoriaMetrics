@@ -231,7 +231,7 @@ Forwarding from [::1]:8429 -> 8429
 To check that `VMAgent` collects metrics from the k8s cluster open in the browser [http://127.0.0.1:8429/targets](http://127.0.0.1:8429/targets) .
 You will see something like this:
 
-<img src="getting-started-with-vm-operator_vmcluster.webp" width="800" alt="">
+<img src="getting-started-with-vm-operator_vmcluster.webp">
 
 `VMAgent` connects to [kubernetes service discovery](https://kubernetes.io/docs/concepts/services-networking/service/) and gets targets which needs to be scraped. This service discovery is controlled by [VictoriaMetrics Operator](https://github.com/VictoriaMetrics/operator)
 
@@ -241,12 +241,10 @@ See [how to install and connect Grafana to VictoriaMetrics](https://docs.victori
 
 To get the new service name, please run the following command:
 
-<div class="with-copy" markdown="1" id="services">
 
 ```console
 kubectl get svc | grep vmselect
 ```
-</div>
 
 The expected output:
 
@@ -256,9 +254,8 @@ vmselect-example-vmcluster-persistent    ClusterIP   None             <none>    
 
 The final config will look like this:
 
-<div class="with-copy" markdown="1">
 
-```yaml
+```sh
 cat <<EOF | helm install my-grafana grafana/grafana -f -
   datasources:
     datasources.yaml:
@@ -302,18 +299,17 @@ cat <<EOF | helm install my-grafana grafana/grafana -f -
         datasource: victoriametrics
 EOF
 ```
-</div>
 
 
 ## 5. Check the result you obtained in your browser
 
 To check that [VictoriaMetrics](https://victoriametrics.com) collecting metrics from the k8s cluster open in your browser [http://127.0.0.1:3000/dashboards](http://127.0.0.1:3000/dashboards) and choose the `VictoriaMetrics - cluster` dashboard. Use `admin` for login and the `password` that you previously got from kubectl.
 
-<img src="getting-started-with-vm-operator_vmcluster-grafana1.webp" width="800" alt="grafana dashboards">
+<img src="getting-started-with-vm-operator_vmcluster-grafana1.webp" alt="grafana dashboards">
 
 The expected output is:
 
-<img src="getting-started-with-vm-operator_vmcluster-grafana2.webp" width="800" alt="grafana dashboards">
+<img src="getting-started-with-vm-operator_vmcluster-grafana2.webp" alt="grafana dashboards">
 
 ## 6. Summary
 
