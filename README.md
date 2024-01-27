@@ -196,7 +196,7 @@ Snap package for VictoriaMetrics is available [here](https://snapcraft.io/victor
 
 Command-line flags for Snap package can be set with following command:
 
-```text
+```sh
 echo 'FLAGS="-selfScrapeInterval=10s -search.logSlowQueryDuration=20s"' > $SNAP_DATA/var/snap/victoriametrics/current/extra_flags
 snap restart victoriametrics
 ```
@@ -205,7 +205,7 @@ Do not change value for `-storageDataPath` flag, because snap package has limite
 
 Changing scrape configuration is possible with text editor:
 
-```text
+```sh
 vi $SNAP_DATA/var/snap/victoriametrics/current/etc/victoriametrics-scrape-config.yaml
 ```
 
