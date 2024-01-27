@@ -199,7 +199,7 @@ Snap package for VictoriaMetrics is available [here](https://snapcraft.io/victor
 
 Command-line flags for Snap package can be set with following command:
 
-```text
+```sh
 echo 'FLAGS="-selfScrapeInterval=10s -search.logSlowQueryDuration=20s"' > $SNAP_DATA/var/snap/victoriametrics/current/extra_flags
 snap restart victoriametrics
 ```
@@ -208,7 +208,7 @@ Do not change value for `-storageDataPath` flag, because snap package has limite
 
 Changing scrape configuration is possible with text editor:
 
-```text
+```sh
 vi $SNAP_DATA/var/snap/victoriametrics/current/etc/victoriametrics-scrape-config.yaml
 ```
 
@@ -525,7 +525,7 @@ or via [configuration file](https://docs.datadoghq.com/agent/guide/agent-configu
 To configure DataDog agent via ENV variable add the following prefix:
 
 
-```text
+```sh
 DD_DD_URL=http://victoriametrics:8428/datadog
 ```
 
@@ -535,7 +535,7 @@ _Choose correct URL for VictoriaMetrics [here](https://docs.victoriametrics.com/
 To configure DataDog agent via [configuration file](https://github.com/DataDog/datadog-agent/blob/878600ef7a55c5ef0efb41ed0915f020cf7e3bd0/pkg/config/config_template.yaml#L33)
 add the following line:
 
-```text
+```yaml
 dd_url: http://victoriametrics:8428/datadog
 ```
 
@@ -547,12 +547,12 @@ pick [single-node or cluster URL](https://docs.victoriametrics.com/url-examples.
 DataDog allows configuring [Dual Shipping](https://docs.datadoghq.com/agent/guide/dual-shipping/) for metrics 
 sending via ENV variable `DD_ADDITIONAL_ENDPOINTS` or via configuration file `additional_endpoints`.
  
-<img src="Single-server-VictoriaMetrics-sending_DD_metrics_to_VM_and_DD.webp" >
+<img src="Single-server-VictoriaMetrics-sending_DD_metrics_to_VM_and_DD.webp">
  
 Run DataDog using the following ENV variable with VictoriaMetrics as additional metrics receiver:
 
 
-```text
+```
 DD_ADDITIONAL_ENDPOINTS='{\"http://victoriametrics:8428/datadog\": [\"apikey\"]}'
 
 ```
@@ -565,7 +565,7 @@ To configure DataDog Dual Shipping via [configuration file](https://docs.datadog
 add the following line:
 
 
-```yaml
+```
 additional_endpoints:
   "http://victoriametrics:8428/datadog":
   - apikey
@@ -804,7 +804,6 @@ curl -H 'Content-Type: application/json' -d '{"metric":"x.y.z","value":45.34,"ta
 
 
 Example for writing multiple data points in a single request:
-
 
 ```console
 curl -H 'Content-Type: application/json' -d '[{"metric":"foo","value":45.34},{"metric":"bar","value":43}]' http://localhost:4242/api/put

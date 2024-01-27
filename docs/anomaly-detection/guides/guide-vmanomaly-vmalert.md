@@ -26,7 +26,7 @@ aliases:
 - [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/)
 - [Node exporter](https://github.com/prometheus/node_exporter#node-exporter)(v1.7.0) and [Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/)(v0.25.0)
 
-<img  alt="vmanomaly typical setup diagramm" src="guide-vmanomaly-vmalert/guide-vmanomaly-vmalert_overview.webp">
+<img alt="vmanomaly typical setup diagramm" src="guide-vmanomaly-vmalert/guide-vmanomaly-vmalert_overview.webp">
 
 > **Note: Configurations used throughout this guide can be found [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/vmanomaly/vmanomaly-integration/)**
 
@@ -103,7 +103,7 @@ These modes are mutually exclusive. A high _iowait_ means that you are disk or n
 
 The metric `node_cpu_seconds_total` is a [counter](https://docs.victoriametrics.com/keyConcepts.html#counter) type of metric. If we'd like to see how much time CPU spent in each of the nodes, we need to calculate the per-second values change via [rate function](https://docs.victoriametrics.com/MetricsQL.html#rate): `rate(node_cpu_seconds_total)`. To aggregate data by mode we'll use median or 50% quantile function. Resulting query will look likt this: `quantile by (mode) (0.5, rate(node_cpu_seconds_total[5m])`
 Here is how this query may look like in Grafana:
-<img  alt="node_cpu_rate_graph" src="guide-vmanomaly-vmalert-query.webp">
+<img alt="node_cpu_rate_graph" src="guide-vmanomaly-vmalert-query.webp">
 
 This query result will generate 8 time series per each cpu, and we will use them as an input for our VM Anomaly Detection. vmanomaly will start learning configured model type separately for each of the time series.
 
@@ -476,7 +476,7 @@ Each of these metrics will contain same labels our query `quantile by (mode) (0.
 ### Anomaly scores for each metric with its according labels. 
 
 Query: `anomaly_score`
-<img  alt="Anomaly score graph" src="guide-vmanomaly-vmalert-anomaly-score.webp">
+<img alt="Anomaly score graph" src="guide-vmanomaly-vmalert-anomaly-score.webp">
 
 <br>Check out if the anomaly score is high for datapoints you think are anomalies. If not, you can try other parameters in the config file or try other model type.
 
@@ -487,7 +487,7 @@ As you may notice a lot of data shows anomaly score greater than 1. It is expect
 
 Queries: `yhat_lower`, `yhat_upper` and `yhat`
 
-<img  alt="yhat lower and yhat upper" src="guide-vmanomaly-vmalert/guide-vmanomaly-vmalert-boundaries.webp">
+<img alt="yhat lower and yhat upper" src="guide-vmanomaly-vmalert/guide-vmanomaly-vmalert-boundaries.webp">
 
 Boundaries of 'normal' metric values according to model inference. 
 
@@ -495,10 +495,10 @@ Boundaries of 'normal' metric values according to model inference.
 
 On the page `http://localhost:8880/vmalert/groups` you can find our configured Alerting rule:
 
-<img  alt="alert rule" src="guide-vmanomaly-vmalert/guide-vmanomaly-vmalert_alert-rule.webp">
+<img alt="alert rule" src="guide-vmanomaly-vmalert/guide-vmanomaly-vmalert_alert-rule.webp">
 
 According to the rule configured for vmalert we will see Alert when anomaly score exceed 1. You will see an alert on Alert tab. `http://localhost:8880/vmalert/alerts`:
-<img  alt="alerts firing" src="guide-vmanomaly-vmalert_alerts-firing.webp">
+<img alt="alerts firing" src="guide-vmanomaly-vmalert_alerts-firing.webp">
 
 ## 10. Conclusion
 
