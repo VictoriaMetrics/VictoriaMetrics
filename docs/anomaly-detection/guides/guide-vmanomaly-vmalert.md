@@ -300,7 +300,7 @@ For additional licensing options, please refer to the [VictoriaMetrics Anomaly D
 
 Let's create `alertmanager.yml` file for `alertmanager` configuration.
 
-```yml
+```yaml
 route:
   receiver: blackhole
 

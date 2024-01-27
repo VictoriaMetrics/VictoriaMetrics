@@ -131,7 +131,7 @@ If you see unexpected or unreliable query results from VictoriaMetrics, then try
    of raw unprocessed samples for this query via [/api/v1/export](https://docs.victoriametrics.com/#how-to-export-data-in-json-line-format)
    on the given `[start..end]` time range and check whether they are expected:
 
-   ```console
+   ```sh
    single-node: curl http://victoriametrics:8428/api/v1/export -d 'match[]=http_requests_total' -d 'start=...' -d 'end=...'
    
    cluster: curl http://<vmselect>:8481/select/<tenantID>/prometheus/api/v1/export -d 'match[]=http_requests_total' -d 'start=...' -d 'end=...'

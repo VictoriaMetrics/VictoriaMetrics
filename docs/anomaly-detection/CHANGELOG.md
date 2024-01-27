@@ -16,7 +16,7 @@ aliases:
 Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
 The following `tip` changes can be tested by building from the `latest` tag:
-```bash
+```sh
 docker pull us-docker.pkg.dev/victoriametrics-test/public/vmanomaly-trial:latest
 ```
 

@@ -22,7 +22,7 @@ The `-auth.config` can point to either local file or to http url.
 Just download `vmutils-*` archive from [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest), unpack it
 and pass the following flag to `vmauth` binary in order to start authorizing and proxying requests:
 
-```console
+```sh
 /path/to/vmauth -auth.config=/path/to/auth/config.yml
 ```
 
@@ -65,7 +65,7 @@ accounting and rate limiting such as [vmgateway](https://docs.victoriametrics.co
 The following [`-auth.config`](#auth-config) instructs `vmauth` to proxy all the incoming requests to the given backend.
 For example, requests to `http://vmauth:8427/foo/bar` are proxied to `http://backend/foo/bar`:
 
-```yml
+```yaml
 unauthorized_user:
   url_prefix: "http://backend/"
 ```
@@ -84,7 +84,7 @@ For example, the following [`-auth.config`](#auth-config) instructs `vmauth` to 
 - Other requests are proxied to `http://some-backend/404-page.html`, while the requested path is passed via `request_path` query arg.
   For example, the request to `http://vmauth:8427/foo/bar?baz=qwe` is proxied to `http://some-backend/404-page.html?request_path=%2Ffoo%2Fbar%3Fbaz%3Dqwe`.
 
-```yml
+```yaml
 unauthorized_user:
   url_map:
   - src_paths:
@@ -100,7 +100,7 @@ unauthorized_user:
 
 The following config routes requests to host `app1.my-host.com` to `http://app1-backend`, while routing requests to `app2.my-host.com` to `http://app2-backend`:
 
-```yml
+```yaml
 unauthorized_user:
   url_map:
   - src_hosts:
@@ -121,7 +121,7 @@ in the corresponding lists.
 `vmauth` can balance load among multiple HTTP backends in least-loaded round-robin mode.
 For example, the following [`-auth.config`](#auth-config) instructs `vmauth` to spread load load among multiple application instances:
 
-```yml
+```yaml
 unauthorized_user:
   url_prefix:
   - "http://app-instance-1/"
@@ -137,7 +137,7 @@ If [vmagent](https://docs.victoriametrics.com/vmagent.html) is used for processi
 then it is possible to scale the performance of data processing at `vmagent` by spreading load among multiple identically configured `vmagent` instances.
 This can be done with the following [config](#auth-config) for `vmagent`:
 
-```yml
+```yaml
 unauthorized_user:
   url_map:
   - src_paths:
@@ -159,7 +159,7 @@ See [load balancing docs](#load-balancing) for more details.
 and processes incoming requests via `vmselect` nodes according to [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#architecture-overview).
 `vmauth` can be used for balancing both `insert` and `select` requests among `vminsert` and `vmselect` nodes, when the following [`-auth.config`](#auth-config) is used:
 
-```yml
+```yaml
 unauthorized_user:
   url_map:
   - src_paths:
@@ -185,7 +185,7 @@ of [`-auth.config`](#auth-config) via `load_balancing_policy` option. For exampl
 If this backend becomes unavailable, then `vmauth` starts proxying requests to `http://victoria-metrics-standby1:8428/`.
 If this backend becomes also unavailable, then requests are proxied to the last specified backend - `http://victoria-metrics-standby2:8428/`:
 
-```yml
+```yaml
 unauthorized_user:
   url_prefix:
   - "http://victoria-metrics-main:8428/"
@@ -215,7 +215,7 @@ See [load-balancing docs](#load-balancing) for more details.
 For example, the following [config](#auth-config) proxies requests to [single-node VictoriaMetrics](https://docs.victoriametrics.com/)
 if they contain Basic Auth header with the given `username` and `password`:
 
-```yml
+```yaml
 users:
 - username: foo
   password: bar
@@ -230,7 +230,7 @@ See also [security docs](#security).
 For example, the following [config](#auth-config) proxies requests to [single-node VictoriaMetrics](https://docs.victoriametrics.com/)
 if they contain the given `bearer_token`:
 
-```yml
+```yaml
 users:
 - bearer_token: ABCDEF
   url_prefix: "http://victoria-metrics:8428/"
@@ -244,7 +244,7 @@ The following [`-auth.config`](#auth-config) instructs proxying `insert` and `se
 user `tenant1` to the [tenant](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy) `1`,
 while requests from the user `tenant2` are sent to tenant `2`:
 
-```yml
+```yaml
 users:
 - username: tenant1
   password: "***"
@@ -280,7 +280,7 @@ users:
 For example, the following [config](#auth-config) adds [`extra_label`](https://docs.victoriametrics.com/#prometheus-querying-api-enhancements)
 to all the requests, which are proxied to [single-node VictoriaMetrics](https://docs.victoriametrics.com/):
 
-```yml
+```yaml
 unauthorized_user:
   url_prefix: "http://victoria-metrics:8428/?extra_label=foo=bar"
 ```
@@ -295,7 +295,7 @@ For example, if you need to serve requests to [vmalert](https://docs.victoriamet
 while serving requests to [vmagent](https://docs.victoriametrics.com/vmagent.html) at `/vmagent/` path prefix for a particular user,
 then the following [-auth.config](#auth-config) can be used:
 
-```yml
+```yaml
 users:
 - username: foo
   url_map:
@@ -323,7 +323,7 @@ Each `url_prefix` in the [-auth.config](#auth-config) can be specified in the fo
 
 - A single url. For example:
 
-  ```yml
+  ```yaml
   unauthorized_user:
     url_prefix: 'http://vminsert:8480/insert/0/prometheus/`
   ```
@@ -332,7 +332,7 @@ Each `url_prefix` in the [-auth.config](#auth-config) can be specified in the fo
 
 - A list of urls. For example:
 
-  ```yml
+  ```yaml
   unauthorized_user:
     url_prefix:
     - 'http://vminsert-1:8480/insert/0/prometheus/'
@@ -351,7 +351,7 @@ Each `url_prefix` in the [-auth.config](#auth-config) can be specified in the fo
   It is possible to customize the list of http response status codes to retry via `retry_status_codes` list at `user` and `url_map` level of [`-auth.config`](#auth-config).
   For example, the following config re-tries requests on other backends if the current backend returns response with `500` or `502` HTTP status code:
 
-  ```yml
+  ```yaml
   unauthorized_user:
     url_prefix:
     - http://vmselect1:8481/
@@ -367,7 +367,7 @@ Each `url_prefix` in the [-auth.config](#auth-config) can be specified in the fo
   It is possible to customize the load balancing policy at the `user` and `url_map` level.
   For example, the following config specifies `first_available` load balancing policy for unauthorized requests:
 
-  ```yml
+  ```yaml
   unauthorized_user:
     url_prefix:
     - http://victoria-metrics-main:8428/
@@ -381,7 +381,7 @@ Load balancing feature can be used in the following cases:
   The following [`-auth.config`](#auth-config) can be used for spreading incoming requests among 3 vmselect nodes and re-trying failed requests
   or requests with 500 and 502 response status codes:
 
-  ```yml
+  ```yaml
   unauthorized_user:
     url_prefix:
     - http://vmselect1:8481/
@@ -396,7 +396,7 @@ Load balancing feature can be used in the following cases:
   See [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#cluster-availability) for details about `deny_partial_response` query arg,
   which is added to requests before they are proxied to backends.
 
-  ```yml
+  ```yaml
   unauthorized_user:
     url_prefix:
     - https://vmselect-az1/?deny_partial_response=1
@@ -414,7 +414,7 @@ This is done via `headers` option. For example, the following [`-auth.config`](#
 to requests proxied to `http://backend:1234/`. It also overrides `X-Forwarded-For` request header with an empty value. This effectively
 removes the `X-Forwarded-For` header from requests proxied to `http://backend:1234/`:
 
-```yml
+```yaml
 unauthorized_user:
   url_prefix: "http://backend:1234/"
   headers:
@@ -426,7 +426,7 @@ unauthorized_user:
 This is done via `response_headers` option. For example, the following [`-auth.config`](#auth-config) adds `Foo: bar` response header
 and removes `Server` response header before returning the response to client:
 
-```yml
+```yaml
 unauthorized_user:
   url_prefix: "http://backend:1234/"
   response_headers:
@@ -471,7 +471,7 @@ in the [`-auth.config`](#auth-config). These settings can be overridden with the
   This global setting can be overridden at per-user level inside [`-auth.config`](#auth-config)
   via `tls_insecure_skip_verify` option. For example:
 
-  ```yml
+  ```yaml
   - username: "foo"
     url_prefix: "https://localhost"
     tls_insecure_skip_verify: true
@@ -482,7 +482,7 @@ in the [`-auth.config`](#auth-config). These settings can be overridden with the
   This global setting can be overridden at per-user level inside [`-auth.config`](#auth-config)
   via `tls_ca_file` option. For example:
 
-  ```yml
+  ```yaml
   - username: "foo"
     url_prefix: "https://localhost"
     tls_ca_file: "/path/to/tls/root/ca"
@@ -494,7 +494,7 @@ in the [`-auth.config`](#auth-config). These settings can be overridden with the
 
 For example, the following config allows requests to `vmauth` from `10.0.0.0/24` network and from `1.2.3.4` IP address, while denying requests from `10.0.0.42` IP address:
 
-```yml
+```yaml
 users:
 # User configs here
 
@@ -507,7 +507,7 @@ ip_filters:
 
 The following config allows requests for the user 'foobar' only from the IP `127.0.0.1`:
 
-```yml
+```yaml
 users:
 - username: "foobar"
   password: "***"
@@ -522,7 +522,7 @@ See config example of using IP filters [here](https://github.com/VictoriaMetrics
 
 `-auth.config` is represented in the following simple `yml` format:
 
-```yml
+```yaml
 # Arbitrary number of usernames may be put here.
 # It is possible to set multiple identical usernames with different passwords.
 # Such usernames can be differentiated by `name` option.
@@ -671,7 +671,7 @@ It is expected that all the backend services protected by `vmauth` are located i
 
 Do not transfer Basic Auth headers in plaintext over untrusted networks. Enable https at `-httpListenAddr`. This can be done by passing the following `-tls*` command-line flags to `vmauth`:
 
-```console
+```sh
   -tls
      Whether to enable TLS for incoming HTTP requests at -httpListenAddr (aka https). -tlsCertFile and -tlsKeyFile must be set if -tls is set
   -tlsCertFile string
@@ -711,7 +711,7 @@ By default, per-user metrics contain only `username` label. This label is set to
 It is possible to override the `username` label value by specifying `name` field additionally to `username` field.
 For example, the following config will result in `vmauth_user_requests_total{username="foobar"}` instead of `vmauth_user_requests_total{username="secret_user"}`:
 
-```yml
+```yaml
 users:
 - username: "secret_user"
   name: "foobar"
@@ -721,7 +721,7 @@ users:
 Additional labels for per-user metrics can be specified via `metric_labels` section. For example, the following config
 defines `{dc="eu",team="dev"}` labels additionally to `username="foobar"` label:
 
-```yml
+```yaml
 users:
 - username: "foobar"
   metric_labels:
@@ -766,7 +766,7 @@ The `<PKG_TAG>` may be manually set via `PKG_TAG=foobar make package-vmauth`.
 The base docker image is [alpine](https://hub.docker.com/_/alpine) but it is possible to use any other base image
 by setting it via `<ROOT_IMAGE>` environment variable. For example, the following command builds the image on top of [scratch](https://hub.docker.com/_/scratch) image:
 
-```console
+```sh
 ROOT_IMAGE=scratch make package-vmauth
 ```
 
@@ -777,7 +777,7 @@ ROOT_IMAGE=scratch make package-vmauth
 * Memory profile. It can be collected with the following command (replace `0.0.0.0` with hostname if needed):
 
 
-```console
+```sh
 curl http://0.0.0.0:8427/debug/pprof/heap > mem.pprof
 ```
 
@@ -785,7 +785,7 @@ curl http://0.0.0.0:8427/debug/pprof/heap > mem.pprof
 * CPU profile. It can be collected with the following command (replace `0.0.0.0` with hostname if needed):
 
 
-```console
+```sh
 curl http://0.0.0.0:8427/debug/pprof/profile > cpu.pprof
 ```
 
@@ -799,7 +799,7 @@ It is safe sharing the collected profiles from security point of view, since the
 
 Pass `-help` command-line arg to `vmauth` in order to see all the configuration options:
 
-```console
+```sh
 ./vmauth -help
 
 vmauth authenticates and authorizes incoming requests and proxies them to VictoriaMetrics.

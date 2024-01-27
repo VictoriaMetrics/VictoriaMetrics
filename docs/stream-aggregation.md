@@ -215,7 +215,7 @@ For example, if an advertising server generates `hits{some="labels} N` and `clic
 at irregular intervals, then the following [stream aggregation config](#stream-aggregation-config)
 can be used for summing these metrics per every minute:
 
-```yml
+```yaml
 - match: '{__name__=~"hits|clicks"}'
   interval: 1m
   outputs: [sum_samples]
@@ -694,7 +694,7 @@ support the following approaches for hot reloading stream aggregation configs fr
 
 * By sending `SIGHUP` signal to `vmagent` or `victoria-metrics` process:
 
-  ```bash
+  ```sh
   kill -SIGHUP `pidof vmagent`
   ```
 

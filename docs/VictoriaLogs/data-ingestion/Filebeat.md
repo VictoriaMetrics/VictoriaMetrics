@@ -15,7 +15,7 @@ aliases:
 Specify [`output.elasicsearch`](https://www.elastic.co/guide/en/beats/filebeat/current/elasticsearch-output.html) section in the `filebeat.yml`
 for sending the collected logs to [VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/):
 
-```yml
+```yaml
 output.elasticsearch:
   hosts: ["http://localhost:9428/insert/elasticsearch/"]
   parameters:
@@ -33,7 +33,7 @@ and uses the correct [stream fields](https://docs.victoriametrics.com/VictoriaLo
 This can be done by specifying `debug` [parameter](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/#http-parameters)
 and inspecting VictoriaLogs logs then:
 
-```yml
+```yaml
 output.elasticsearch:
   hosts: ["http://localhost:9428/insert/elasticsearch/"]
   parameters:
@@ -47,7 +47,7 @@ If some [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.h
 during data ingestion, then they can be put into `ignore_fields` [parameter](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/#http-parameters).
 For example, the following config instructs VictoriaLogs to ignore `log.offset` and `event.original` fields in the ingested logs:
 
-```yml
+```yaml
 output.elasticsearch:
   hosts: ["http://localhost:9428/insert/elasticsearch/"]
   parameters:
@@ -60,7 +60,7 @@ output.elasticsearch:
 When Filebeat ingests logs into VictoriaLogs at a high rate, then it may be needed to tune `worker` and `bulk_max_size` options.
 For example, the following config is optimized for higher than usual ingestion rate:
 
-```yml
+```yaml
 output.elasticsearch:
   hosts: ["http://localhost:9428/insert/elasticsearch/"]
   parameters:
@@ -74,7 +74,7 @@ output.elasticsearch:
 If the Filebeat sends logs to VictoriaLogs in another datacenter, then it may be useful enabling data compression via `compression_level` option.
 This usually allows saving network bandwidth and costs by up to 5 times:
 
-```yml
+```yaml
 output.elasticsearch:
   hosts: ["http://localhost:9428/insert/elasticsearch/"]
   parameters:
@@ -88,7 +88,7 @@ By default, the ingested logs are stored in the `(AccountID=0, ProjectID=0)` [te
 If you need storing logs in other tenant, then specify the needed tenant via `headers` at `output.elasticsearch` section.
 For example, the following `filebeat.yml` config instructs Filebeat to store the data to `(AccountID=12, ProjectID=34)` tenant:
 
-```yml
+```yaml
 output.elasticsearch:
   hosts: ["http://localhost:9428/insert/elasticsearch/"]
   headers:
@@ -103,7 +103,7 @@ output.elasticsearch:
 Filebeat checks a version of ElasticSearch on startup and refuses to start sending logs if the version is not compatible.
 In order to bypass this check please add `allow_older_versions: true` into `output.elasticsearch` section:
 
-```yml
+```yaml
 output.elasticsearch:
   hosts: [ "http://localhost:9428/insert/elasticsearch/" ]
   parameters:

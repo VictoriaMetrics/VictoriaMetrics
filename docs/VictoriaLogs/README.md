@@ -72,7 +72,7 @@ for the supported duration formats.
 
 For example, the following command starts VictoriaLogs with the retention of 8 weeks:
 
-```bash
+```sh
 /path/to/victoria-logs -retentionPeriod=8w
 ```
 
@@ -96,7 +96,7 @@ for the supported duration formats.
 
 For example, the following command starts VictoriaLogs, which accepts logs with timestamps up to a year in the future:
 
-```bash
+```sh
 /path/to/victoria-logs -futureRetention=1y
 ```
 
@@ -105,7 +105,7 @@ For example, the following command starts VictoriaLogs, which accepts logs with 
 VictoriaLogs stores all its data in a single directory - `victoria-logs-data`. The path to the directory can be changed via `-storageDataPath` command-line flag.
 For example, the following command starts VictoriaLogs, which stores the data at `/var/lib/victoria-logs`:
 
-```bash
+```sh
 /path/to/victoria-logs -storageDataPath=/var/lib/victoria-logs
 ```
 

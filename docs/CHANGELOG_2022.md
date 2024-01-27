@@ -34,7 +34,7 @@ Released at 2022-12-19
 * FEATURE: allow changing field names in JSON logs if VictoriaMetrics components are started with `-loggerFormat=json` command-line flags. The field names can be changed with the `-loggerJSONFields` command-line flag. For example `-loggerJSONFields=ts:timestamp,msg:message` would rename `ts` and `msg` fields on the output JSON to `timestamp` and `message` fields. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2348). Thanks to @michal-kralik for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3488).
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): expose `__meta_consul_tag_<tagname>` and `__meta_consul_tagpresent_<tagname>` labels for targets discovered via [consul_sd_configs](https://docs.victoriametrics.com/sd_configs.html#consul_sd_configs). This simplifies converting [Consul service tags](https://developer.hashicorp.com/consul/docs/services/discovery/dns-overview) to target labels with a simple [relabeling rule](https://docs.victoriametrics.com/vmagent.html#relabeling):
 
-  ```yml
+  ```yaml
   - action: labelmap
     regex: __meta_consul_tag_(.+)
   ```
@@ -194,7 +194,7 @@ Released at 2022-10-29
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): improve the performance for metric-level [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling), which can be applied via `metric_relabel_configs` section at [scrape_configs](https://docs.victoriametrics.com/sd_configs.html#scrape_configs), via `-remoteWrite.relabelConfig` or via `-remoteWrite.urlRelabelConfig` command-line options.
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): allow specifying full url in scrape target addresses (aka `__address__` label). This makes valid the following `-promscrape.config`:
 
-  ```yml
+  ```yaml
   scrape_configs:
   - job_name: abc
     metrics_path: /foo/bar
@@ -652,7 +652,7 @@ scrape_configs:
 * BUGFIX: consistently name binaries at [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) in the form `$(APP_NAME)-$(GOOS)-$(GOARCH)-$(VERSION).tar.gz`. For example, `victoria-metrics-linux-amd64-v1.79.0.tar.gz`. Previously the `$(GOOS)` part was missing in binaries for Linux.
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): allow using `__name__` label (aka [metric name](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors)) in alerting annotations. For example:
 
-```console
+```sh
 {{ $labels.__name__ }}: Too high connection number for "{{ $labels.instance }}
 ```
 
@@ -885,14 +885,14 @@ Released at 2022-03-03
 
 * FEATURE: add support for conditional relabeling via `if` filter. The `if` filter can contain arbitrary [series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). For example, the following rule drops targets matching `foo{bar="baz"}` series selector:
 
-```yml
+```yaml
 - action: drop
   if: 'foo{bar="baz"}'
 ```
 
 This rule is equivalent to less clear traditional one:
 
-```yml
+```yaml
 - action: drop
   source_labels: [__name__, bar]
   regex: 'foo;baz'
