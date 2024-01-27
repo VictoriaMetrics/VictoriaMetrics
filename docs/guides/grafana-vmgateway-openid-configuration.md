@@ -107,7 +107,7 @@ After restarting Grafana with the new config you should be able to log in using 
 Now starting vmgateway with enabled authentication is as simple as adding the `-enable.auth=true` flag.
 In order to enable multi-tenant access, you must also specify the `-clusterMode=true` flag.
 
-```console
+```sh
 ./bin/vmgateway -eula \
     -enable.auth=true \
     -clusterMode=true \
@@ -132,7 +132,7 @@ For example, if the JWT token contains the following `vm_access` claim:
 
 Then vmgateway will proxy request to an endpoint with the following path:
 
-```console
+```sh
 http://localhost:8480/select/0:0/
 ```
 
@@ -173,7 +173,7 @@ It is also possible to enable [JWT token signature verification](https://docs.vi
 vmgateway.
 To do this by using OpenID Connect discovery endpoint you need to specify the `-auth.oidcDiscoveryEndpoints` flag. For example:
 
-```console
+```sh
 ./bin/vmgateway -eula \
     -enable.auth=true \
     -clusterMode=true \
@@ -184,7 +184,7 @@ To do this by using OpenID Connect discovery endpoint you need to specify the `-
 
 Now vmgateway will print the following message on startup:
 
-```console
+```sh
 2023-03-13T14:45:31.552Z        info    VictoriaMetrics/app/vmgateway/main.go:154  using 2 keys for JWT token signature verification
 ```
 

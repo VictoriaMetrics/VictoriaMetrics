@@ -151,7 +151,7 @@ For us it’s important to remember the url for the datasource (copy lines from 
 Verify that [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) pods are up and running by executing the following command:
 
 
-```console
+```sh
 kubectl get pods
 ```
 

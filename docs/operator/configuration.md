@@ -20,7 +20,7 @@ It defines default configuration options, like images for components, timeouts, 
 In addition, the operator has a special startup mode for outputting all variables, their types and default values.
 For instance, with this mode you can know versions of VM components, which are used by default: 
 
-```console
+```sh
 ./operator --printDefaults
 
 # This application is configured via the environment. The following environment variables can be used:
@@ -38,7 +38,7 @@ For instance, with this mode you can know versions of VM components, which are u
 
 You can choose output format for variables with `--printFormat` flag, possible values: `json`, `yaml`, `list` and `table` (default):
 
-```console
+```sh
 .operator --printDefaults --printFormat=json
 
 # {
@@ -239,7 +239,7 @@ This should reduce errors and simplify debugging.
 
 Validation hooks at operator side must be enabled with flags:
 
-```console
+```sh
 ./operator
     --webhook.enable
     # optional configuration for certDir and tls names.
@@ -251,7 +251,7 @@ Validation hooks at operator side must be enabled with flags:
 You have to mount correct certificates at give directory.
 It can be simplified with cert-manager and kustomize command:
 
-```console
+```sh
 kustomize build config/deployments/webhook/
 ```
 

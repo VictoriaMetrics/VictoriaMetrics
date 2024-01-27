@@ -31,14 +31,14 @@ See how to work with a [VictoriaMetrics Helm repository in previous guide](https
 ## 2. Install the VM Operator from the Helm chart
 
 
-```console
+```sh
 helm install vmoperator vm/victoria-metrics-operator
 ```
 
 
 The expected output is:
 
-```console
+```sh
 NAME: vmoperator
 LAST DEPLOYED: Thu Sep 30 17:30:30 2021
 NAMESPACE: default
@@ -56,12 +56,12 @@ See "Getting started guide for VM Operator" on https://docs.victoriametrics.com/
 Run the following command to check that VM Operator is up and running:
 
 
-```console
+```sh
 kubectl --namespace default get pods -l "app.kubernetes.io/instance=vmoperator"
 ```
 
 The expected output:
-```console
+```sh
 NAME                                                    READY   STATUS    RESTARTS   AGE
 vmoperator-victoria-metrics-operator-67cff44cd6-s47n6   1/1     Running   0          77s
 ```
@@ -74,7 +74,7 @@ Run the following command to install [VictoriaMetrics Cluster](https://docs.vict
 
 <p id="example-cluster-config"></p>
 
-```console
+```sh
 cat << EOF | kubectl apply -f -
 apiVersion: operator.victoriametrics.com/v1beta1
 kind: VMCluster
@@ -94,7 +94,7 @@ EOF
 
 The expected output:
 
-```console
+```sh
 vmcluster.operator.victoriametrics.com/example-vmcluster-persistent created
 ```
 
@@ -143,7 +143,7 @@ kubectl get svc | grep vminsert
 
 The expected output:
 
-```console
+```sh
 vminsert-example-vmcluster-persistent    ClusterIP   10.107.47.136   <none>        8480/TCP                     5m58s
 ```
 
@@ -226,13 +226,13 @@ See [how to install and connect Grafana to VictoriaMetrics](https://docs.victori
 To get the new service name, please run the following command:
 
 
-```console
+```sh
 kubectl get svc | grep vmselect
 ```
 
 The expected output:
 
-```console
+```sh
 vmselect-example-vmcluster-persistent    ClusterIP   None             <none>        8481/TCP                     7m
 ```
 
