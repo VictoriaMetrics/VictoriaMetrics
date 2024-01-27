@@ -66,7 +66,6 @@ Depending on chosen `seasonality` parameter FB Prophet can return additional met
 - and a number of columns for each holiday if `holidays` param is set
 
 *Config Example*
-<div class="with-copy" markdown="1">
 
 ```yaml
 model:
@@ -83,7 +82,6 @@ model:
     country_holidays: 'US'
 ```
 
-</div>
 
 Resulting metrics of the model are described [here](#vmanomaly-output)
 
@@ -95,7 +93,6 @@ Resulting metrics of the model are described [here](#vmanomaly-output)
 
 *Config Example*
 
-<div class="with-copy" markdown="1">
 
 ```yaml
 model:
@@ -103,7 +100,6 @@ model:
   z_threshold: 2.5
 ```
 
-</div>
 
 Resulting metrics of the model are described [here](#vmanomaly-output).
 
@@ -133,7 +129,6 @@ Used to compute "seasonal_periods" param for the model (e.g. '1D' or '1W').
 * `args` (dict, optional) - Inner model args (key-value pairs). See accepted params in [model documentation](https://www.statsmodels.org/dev/generated/statsmodels.tsa.holtwinters.ExponentialSmoothing.html#statsmodels.tsa.holtwinters.ExponentialSmoothing-parameters). Defaults to empty (not provided). Example:  {"seasonal": "add", "initialization_method": "estimated"}
 
 *Config Example*
-<div class="with-copy" markdown="1">
 
 ```yaml
 model:
@@ -146,7 +141,6 @@ model:
     initialization_method: 'estimated'
 ```
 
-</div>
 
 Resulting metrics of the model are described [here](#vmanomaly-output).
 
@@ -160,7 +154,6 @@ The MAD model is a robust method for anomaly detection that is *less sensitive* 
 
 *Config Example*
 
-<div class="with-copy" markdown="1">
 
 ```yaml
 model:
@@ -168,7 +161,6 @@ model:
   threshold: 2.5
 ```
 
-</div>
 
 Resulting metrics of the model are described [here](#vmanomaly-output).
 
@@ -181,7 +173,6 @@ Resulting metrics of the model are described [here](#vmanomaly-output).
 * `window_steps` (integer) - size of the moving window. (see 'sampling_period')
 
 *Config Example*
-<div class="with-copy" markdown="1">
 
 ```yaml
 model:
@@ -190,7 +181,6 @@ model:
   window_steps: 96
 ```
 
-</div>
 
 Resulting metrics of the model are described [here](#vmanomaly-output).
 
@@ -206,7 +196,6 @@ Here we use Seasonal Decompose implementation from `statsmodels` [library](https
 
 *Config Example*
 
-<div class="with-copy" markdown="1">
 
 ```yaml
 model:
@@ -214,7 +203,6 @@ model:
   period: 2
 ```
 
-</div>
 
 Resulting metrics of the model are described [here](#vmanomaly-output).
 
@@ -243,7 +231,6 @@ Here we use ARIMA implementation from `statsmodels` [library](https://www.statsm
 * `args` (dict, optional) - Inner model args (key-value pairs). See accepted params in [model documentation](https://www.statsmodels.org/dev/generated/statsmodels.tsa.arima.model.ARIMA.html). Defaults to empty (not provided). Example:  {"trend": "c"}
 
 *Config Example*
-<div class="with-copy" markdown="1">
 
 ```yaml
 model:
@@ -257,7 +244,6 @@ model:
     trend: 'c'
 ```
 
-</div>
 
 ### [Isolation forest](https://en.wikipedia.org/wiki/Isolation_forest) (Multivariate)
 Detects anomalies using binary trees. The algorithm has a linear time complexity and a low memory requirement, which works well with high-volume data. It can be used on both univatiate and multivariate data, but it is more effective in multivariate case.
@@ -276,7 +262,6 @@ Here we use Isolation Forest implementation from `scikit-learn` [library](https:
 
 *Config Example*
 
-<div class="with-copy" markdown="1">
 
 ```yaml
 model:
@@ -289,7 +274,6 @@ model:
     random_state: 42
 ```
 
-</div>
 
 Resulting metrics of the model are described [here](#vmanomaly-output).
 
@@ -348,7 +332,6 @@ In the `CustomModel` class there should be three required methods - `__init__`, 
 
 For the sake of simplicity, the model in this example will return one of two values of `anomaly_score` - 0 or 1 depending on input parameter `percentage`.
 
-<div class="with-copy" markdown="1">
 
 ```python
 import numpy as np
@@ -393,7 +376,6 @@ class CustomModel(Model):
 
 ```
 
-</div>
 
 
 ### 2. Configuration file
@@ -402,7 +384,6 @@ Next, we need to create `config.yaml` file with VM Anomaly Detection configurati
 In the config file `model` section we need to put our model class `model.custom.CustomModel` and all parameters used in `__init__` method.
 You can find out more about configuration parameters in vmanomaly docs.
 
-<div class="with-copy" markdown="1">
 
 ```yaml
 scheduler:
@@ -441,23 +422,19 @@ monitoring:
       config: "custom.yaml"
 ```
 
-</div>
 
 ### 3. Running custom model
 Let's pull the docker image for vmanomaly:
 
-<div class="with-copy" markdown="1">
 
 ```sh 
 docker pull us-docker.pkg.dev/victoriametrics-test/public/vmanomaly-trial:latest
 ```
 
-</div>
 
 Now we can run the docker container putting as volumes both config and model file:
 
 **Note**: place the model file to `/model/custom.py` path when copying
-<div class="with-copy" markdown="1">
 
 ```sh
 docker run -it \
@@ -469,7 +446,6 @@ us-docker.pkg.dev/victoriametrics-test/public/vmanomaly-trial:latest /config.yam
 --license-file=/license.txt
 ```
 
-</div>
 
 Please find more detailed instructions (license, etc.) [here](/anomaly-detection/overview.html#run-vmanomaly-docker-container)
 
