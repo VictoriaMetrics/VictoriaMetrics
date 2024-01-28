@@ -15,14 +15,20 @@ aliases:
 
 Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
-The following `tip` changes can be tested by building from the `latest` tag:
-```sh
-docker pull us-docker.pkg.dev/victoriametrics-test/public/vmanomaly-trial:latest
-```
+> **Important note: Users are strongly encouraged to upgrade to `vmanomaly` [v1.9.1](https://hub.docker.com/repository/docker/victoriametrics/vmanomaly/tags?page=1&ordering=name) or later versions for optimal performance and accuracy. This recommendation is crucial for configurations with a low `infer_every` parameter [in your scheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#parameters-1), and in scenarios where data exhibits significant high-order seasonality patterns (such as hourly or daily cycles). Previous versions from v1.5.1 to v1.8.0 were identified to contain a critical issue impacting model training, where models were inadvertently trained on limited data subsets, leading to suboptimal fits, affecting the accuracy of anomaly detection. Upgrading to v1.9.1 addresses this issue, ensuring proper model training and enhanced reliability. For users utilizing Helm charts, it is recommended to temporarily revert to version [0.5.0](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-anomaly/CHANGELOG.md#050). This action is advised until an updated version, encompassing the necessary bug fixes, becomes available.**
 
-Please find [launch instructions here](/anomaly-detection/Overview.html#run-vmanomaly-docker-container).
 
-# tip
+## v1.9.1
+Released: 2024-01-27
+- IMPROVEMENT: Updated the offline license verification backbone to mitigate a critical vulnerability identified in the [`ecdsa`](https://pypi.org/project/ecdsa/) library, ensuring enhanced security despite initial non-impact.
+- IMPROVEMENT: bump 3rd-party dependencies for Python 3.12.1
+
+
+## v1.9.0
+Released: 2024-01-26
+- BUGFIX: The `query_from_last_seen_timestamp` internal logic in [VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader.html#vm-reader), first introduced in [v1.5.1](https://docs.victoriametrics.com/anomaly-detection/CHANGELOG.html#v151), now functions correctly. This fix ensures that the input data shape remains consistent for subsequent `fit`-based model calls in the service.
+- BREAKING CHANGE: The `sampling_period` parameter is now mandatory in [VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader.html#vm-reader). This change aims to clarify and standardize the frequency of input/output in `vmanomaly`, thereby reducing uncertainty and aligning with user expectations.
+> **Note**: The majority of users, who have been proactively specifying the `sampling_period` parameter in their configurations, will experience no disruption from this update. This transition formalizes a practice that was already prevalent and expected among our user base.
 
 
 ## v1.8.0

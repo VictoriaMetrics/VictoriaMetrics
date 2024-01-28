@@ -1,7 +1,7 @@
 scheduler:
   infer_every: "1m"
   fit_every: "2m"
-  fit_window: "14d"
+  fit_window: "3h"
 
 model:
   class: "model.prophet.ProphetModel"

@@ -57,7 +57,7 @@ Future updates will introduce additional readers, expanding the range of data so
         <tr>
             <td><code>sampling_period</code></td>
             <td><code>"1h"</code></td>
-            <td>Optional. Frequency of the points returned. Will be converted to <code>"/query_range?step=%s"</code> param (in seconds).</td>
+            <td>Frequency of the points returned. Will be converted to <code>"/query_range?step=%s"</code> param (in seconds). **Required** since <a href="https://docs.victoriametrics.com/anomaly-detection/changelog/#v190">1.9.0</a>.</td>
         </tr>
         <tr>
             <td><code>query_range_path</code></td>
