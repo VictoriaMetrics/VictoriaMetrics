@@ -574,7 +574,8 @@ requested timestamp, VictoriaMetrics will try to locate the closest sample befor
 <img src="keyConcepts_instant_query.webp" width="500">
 
 The time range in which VictoriaMetrics will try to locate a replacement for a missing data sample is equal to `5m`
-by default and can be overridden via the `step` parameter.
+by default and can be overridden via the `step` parameter. NOTE: the timestamp of the sample is the provided `time`
+parameter (default now), not the actual timestamp of the located sample.
 
 Instant queries can return multiple time series, but always only one data sample per series. Instant queries are used in
 the following scenarios:
