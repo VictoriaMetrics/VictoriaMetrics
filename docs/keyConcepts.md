@@ -732,7 +732,8 @@ useful in the following scenarios:
 * Correlate changes between multiple metrics on the time interval;
 * Observe trends and dynamics of the metric change.
 
-If you need to export raw samples from VictoriaMetrics, then take a look at [export APIs](https://docs.victoriametrics.com/#how-to-export-time-series).
+NOTE: the timestamps of the real samples may be different from those of the actual raw samples. If you need to export raw
+samples from VictoriaMetrics, take a look at the [export APIs](https://docs.victoriametrics.com/#how-to-export-time-series).
 
 ### Query latency
 
