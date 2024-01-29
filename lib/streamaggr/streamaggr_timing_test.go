@@ -44,7 +44,7 @@ func benchmarkAggregatorsPush(b *testing.B, output string) {
 			panic(fmt.Errorf("pushFunc is expected to be called exactly once at MustStop"))
 		}
 	}
-	a, err := NewAggregatorsFromData([]byte(config), pushFunc, 0)
+	a, err := newAggregatorsFromData([]byte(config), pushFunc, 0)
 	if err != nil {
 		b.Fatalf("unexpected error when initializing aggregators: %s", err)
 	}

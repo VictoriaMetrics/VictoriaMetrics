@@ -67,7 +67,7 @@ Where:
 
 Start the single version of VictoriaMetrics
 
-```console
+```sh
 # single
 # start node
 ./bin/victoria-metrics --selfScrapeInterval=10s
@@ -75,19 +75,19 @@ Start the single version of VictoriaMetrics
 
 Start vmgateway
 
-```console
+```sh
 ./bin/vmgateway -eula -enable.auth -read.url http://localhost:8428 --write.url http://localhost:8428
 ```
 
 Retrieve data from the database
 
-```console
+```sh
 curl 'http://localhost:8431/api/v1/series/count' -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ2bV9hY2Nlc3MiOnsidGVuYW50X2lkIjp7fSwicm9sZSI6MX0sImV4cCI6MTkzOTM0NjIxMH0.5WUxEfdcV9hKo4CtQdtuZYOGpGXWwaqM9VuVivMMrVg'
 ```
 
 A request with an incorrect token or without any token will be rejected:
 
-```console
+```sh
 curl 'http://localhost:8431/api/v1/series/count'
 
 curl 'http://localhost:8431/api/v1/series/count' -H 'Authorization: Bearer incorrect-token'
@@ -137,7 +137,7 @@ limits:
 
 cluster version of VictoriaMetrics is required for rate limiting.
 
-```console
+```sh
 # start datasource for cluster metrics
 
 cat << EOF > cluster.yaml
@@ -199,7 +199,7 @@ The following flags are used to specify keys:
 Note that both flags support passing multiple keys and also can be used together.
 
 Example usage:
-```console
+```sh
 ./bin/vmgateway -eula \
   -enable.auth \
   -write.url=http://localhost:8480 \
@@ -227,7 +227,7 @@ In order to enable [OpenID discovery](https://openid.net/specs/openid-connect-di
 When `auth.oidcDiscoveryEndpoints` is specified `vmageteway` will fetch JWKS keys from the specified endpoint and use them for JWT signature verification.
 
 Example usage for tokens issued by Azure Active Directory:
-```console
+```sh
 /bin/vmgateway -eula \
   -enable.auth \
   -write.url=http://localhost:8480 \
@@ -236,7 +236,7 @@ Example usage for tokens issued by Azure Active Directory:
 ```
 
 Example usage for tokens issued by Google:
-```console
+```sh
 /bin/vmgateway -eula \
   -enable.auth \
   -write.url=http://localhost:8480 \
@@ -252,7 +252,7 @@ In order to enable JWKS endpoint for JWT signature verification, you need to spe
 When `auth.jwksEndpoints` is specified `vmageteway` will fetch public keys from the specified endpoint and use them for JWT signature verification.
 
 Example usage for tokens issued by Azure Active Directory:
-```console
+```sh
 /bin/vmgateway -eula \
   -enable.auth \
   -write.url=http://localhost:8480 \
@@ -261,7 +261,7 @@ Example usage for tokens issued by Azure Active Directory:
 ```
 
 Example usage for tokens issued by Google:
-```console
+```sh
 /bin/vmgateway -eula \
   -enable.auth \
   -write.url=http://localhost:8480 \
@@ -273,7 +273,7 @@ Example usage for tokens issued by Google:
 
 The shortlist of configuration flags include the following:
 
-```console
+```sh
   -auth.httpHeader string
      HTTP header name to look for JWT authorization token (default "Authorization")
   -auth.jwksEndpoints array

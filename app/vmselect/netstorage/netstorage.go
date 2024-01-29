@@ -1155,7 +1155,11 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 	// metricNamesBuf is used for holding all the loaded unique metric names at m and orderedMetricNames.
 	// It should reduce pressure on Go GC by reducing the number of string allocations
 	// when constructing metricName string from byte slice.
-	var metricNamesBuf []byte
+	metricNamesBufCap := maxSeriesCount * 100
+	if metricNamesBufCap > maxFastAllocBlockSize {
+		metricNamesBufCap = maxFastAllocBlockSize
+	}
+	metricNamesBuf := make([]byte, 0, metricNamesBufCap)
 
 	// brssPool is used for holding all the blockRefs objects across all the loaded time series.
 	// It should reduce pressure on Go GC by reducing the number of blockRefs allocations.
@@ -1163,7 +1167,11 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 
 	// brsPool is used for holding the most of blockRefs.brs slices across all the loaded time series.
 	// It should reduce pressure on Go GC by reducing the number of allocations for blockRefs.brs slices.
-	brsPool := make([]blockRef, 0, maxSeriesCount)
+	brsPoolCap := uintptr(maxSeriesCount)
+	if brsPoolCap > maxFastAllocBlockSize/unsafe.Sizeof(blockRef{}) {
+		brsPoolCap = maxFastAllocBlockSize / unsafe.Sizeof(blockRef{})
+	}
+	brsPool := make([]blockRef, 0, brsPoolCap)
 
 	// m maps from metricName to the index of blockRefs inside brssPool
 	m := make(map[string]int, maxSeriesCount)
@@ -1188,6 +1196,7 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 			return nil, fmt.Errorf("cannot select more than -search.maxSamplesPerQuery=%d samples; possible solutions: to increase the -search.maxSamplesPerQuery; "+
 				"to reduce time range for the query; to use more specific label filters in order to select lower number of series", *maxSamplesPerQuery)
 		}
+
 		buf = br.Marshal(buf[:0])
 		addr, err := tbf.WriteBlockRefData(buf)
 		if err != nil {
@@ -1195,6 +1204,7 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 			putStorageSearch(sr)
 			return nil, fmt.Errorf("cannot write %d bytes to temporary file: %w", len(buf), err)
 		}
+
 		metricName := sr.MetricBlockRef.MetricName
 		if metricNamePrev == nil || string(metricName) != string(metricNamePrev) {
 			idx, ok := m[string(metricName)]
@@ -1209,8 +1219,14 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 			brsIdx = idx
 			metricNamePrev = append(metricNamePrev[:0], metricName...)
 		}
+
 		brs := &brssPool[brsIdx]
 		partRef := br.PartRef()
+		if uintptr(cap(brsPool)) >= maxFastAllocBlockSize/unsafe.Sizeof(blockRef{}) && len(brsPool) == cap(brsPool) {
+			// Allocate a new brsPool in order to avoid slow allocation of an object
+			// bigger than maxFastAllocBlockSize bytes at append() below.
+			brsPool = make([]blockRef, 0, maxFastAllocBlockSize/unsafe.Sizeof(blockRef{}))
+		}
 		if brs.brs == nil || haveSameBlockRefTails(brs.brs, brsPool) {
 			// It is safe appending blockRef to brsPool, since there are no other items added there yet.
 			brsPool = append(brsPool, blockRef{
@@ -1227,6 +1243,11 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 			})
 		}
 		if len(brs.brs) == 1 {
+			if cap(metricNamesBuf) >= maxFastAllocBlockSize && len(metricNamesBuf)+len(metricName) > cap(metricNamesBuf) {
+				// Allocate a new metricNamesBuf in order to avoid slow allocation of byte slice
+				// bigger than maxFastAllocBlockSize bytes at append() below.
+				metricNamesBuf = make([]byte, 0, maxFastAllocBlockSize)
+			}
 			metricNamesBufLen := len(metricNamesBuf)
 			metricNamesBuf = append(metricNamesBuf, metricName...)
 			metricNameStr := bytesutil.ToUnsafeString(metricNamesBuf[metricNamesBufLen:])
@@ -1235,6 +1256,7 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 			m[metricNameStr] = brsIdx
 		}
 	}
+
 	if err := sr.Error(); err != nil {
 		putTmpBlocksFile(tbf)
 		putStorageSearch(sr)
@@ -1324,3 +1346,8 @@ func applyGraphiteRegexpFilter(filter string, ss []string) ([]string, error) {
 	}
 	return dst, nil
 }
+
+// Go uses fast allocations for block sizes up to 32Kb.
+//
+// See https://github.com/golang/go/blob/704401ffa06c60e059c9e6e4048045b4ff42530a/src/runtime/malloc.go#L11
+const maxFastAllocBlockSize = 32 * 1024

@@ -33,7 +33,6 @@ An example file with one alerting rule.
 
 alerts.yml
 
-{% raw %}
 ```yaml
 groups:
   - name: common
@@ -47,7 +46,6 @@ groups:
         summary: "{{ $labels.job }} instance: {{$labels.instance }} is not up"
         description: "Job {{ $labels.job }}  instance: {{$labels.instance }} is not up for the last 1 minute"
 ```
-{% endraw %}
 
 ### Managed VictoriaMetrics access token and deployment endpoint
 
@@ -72,7 +70,7 @@ For instructions on how to create tokens, please refer to this section of the [d
 
 ##### Binary 
 
-```console
+```sh
 export TOKEN=81e8226e-****-****-****-************ 
 export MANAGED_VM_URL=https://gw-c15-1c.cloud.victoriametrics.com
 export ALERTMANAGER_URL=http://localhost:9093 
@@ -81,7 +79,7 @@ export ALERTMANAGER_URL=http://localhost:9093
 
 ##### Docker 
 
-```console
+```sh
 export TOKEN=81e8226e-****-****-****-************ 
 export MANAGED_VM_URL=https://gw-c15-1c.cloud.victoriametrics.com
 export ALERTMANAGER_URL=http://alertmanager:9093 
@@ -90,8 +88,7 @@ docker run -it -p 8080:8080 -v $(pwd)/alerts.yml:/etc/alerts/alerts.yml victoria
 
 ##### Helm Chart
 
-{% raw %}
-```console
+```sh
 export TOKEN=81e8226e-****-****-****-************
 export MANAGED_VM_URL=https://gw-c15-1c.cloud.victoriametrics.com
 export ALERTMANAGER=http://alertmanager:9093
@@ -128,11 +125,10 @@ server:
                description: "Job {{ $labels.job }}  instance: {{$labels.instance }} is not up for the last 1 minute"
 EOF
 ```
-{% endraw %}
 
 ##### VMalert CRD for vmoperator
 
-```console
+```sh
 export TOKEN=81e8226e-****-****-****-************
 export MANAGED_VM_URL=https://gw-c15-1c.cloud.victoriametrics.com
 export ALERTMANAGER=http://alertmanager:9093
@@ -177,7 +173,7 @@ EOF
 
 You can ingest metric that will raise an alert 
 
-```console
+```sh
 export TOKEN=81e8226e-****-****-****-*************
 export MANAGED_VM_URL=https://gw-c15-1c.cloud.victoriametrics.com/
 curl -H "Authorization: Bearer $TOKEN" -X POST "$MANAGED_VM_URLapi/v1/import/prometheus" -d 'up{job="vmalert-test", instance="localhost"} 0'
@@ -187,7 +183,7 @@ curl -H "Authorization: Bearer $TOKEN" -X POST "$MANAGED_VM_URLapi/v1/import/pro
 
 ##### Binary
 
-```console
+```sh
 export TOKEN=76bc5470-****-****-****-************
 export MANAGED_VM_READ_URL=https://gw-c15-1a.cloud.victoriametrics.com/select/0/prometheus/
 export MANAGED_VM_WRITE_URL=https://gw-c15-1a.cloud.victoriametrics.com/insert/0/prometheus/
@@ -197,7 +193,7 @@ export ALERTMANAGER_URL=http://localhost:9093
 
 ##### Docker
 
-```console
+```sh
 export TOKEN=76bc5470-****-****-****-************
 export MANAGED_VM_READ_URL=https://gw-c15-1a.cloud.victoriametrics.com/select/0/prometheus/
 export MANAGED_VM_WRITE_URL=https://gw-c15-1a.cloud.victoriametrics.com/insert/0/prometheus/
@@ -207,8 +203,7 @@ docker run -it -p 8080:8080 -v $(pwd)/alerts.yml:/etc/alerts/alerts.yml victoria
 
 ##### Helm Chart
 
-{% raw %}
-```console
+```sh
 export TOKEN=76bc5470-****-****-****-************
 export MANAGED_VM_READ_URL=https://gw-c15-1a.cloud.victoriametrics.com/select/0/prometheus/
 export MANAGED_VM_WRITE_URL=https://gw-c15-1a.cloud.victoriametrics.com/insert/0/prometheus/
@@ -246,11 +241,10 @@ server:
                description: "Job {{ $labels.job }}  instance: {{$labels.instance }} is not up for the last 1 minute"
 EOF
 ```
-{% endraw %}
 
 ##### VMalert CRD for vmoperator
 
-```console
+```sh
 export TOKEN=76bc5470-****-****-****-************
 export MANAGED_VM_READ_URL=https://gw-c15-1a.cloud.victoriametrics.com/select/0/prometheus/
 export MANAGED_VM_WRITE_URL=https://gw-c15-1a.cloud.victoriametrics.com/insert/0/prometheus/
@@ -296,7 +290,7 @@ EOF
 
 You can ingest metric that will raise an alert
 
-```console
+```sh
 export TOKEN=76bc5470-****-****-****-************
 export MANAGED_VM_WRITE_URL=https://gw-c15-1a.cloud.victoriametrics.com/insert/0/prometheus/
 curl -H "Authorization: Bearer $TOKEN" -X POST "$MANAGED_VM_WRITE_URLapi/v1/import/prometheus" -d 'up{job="vmalert-test", instance="localhost"} 0'

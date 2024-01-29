@@ -16,12 +16,7 @@ Let's cover the case. You have multiple regions with workloads and want to colle
 
 The monitoring setup is in the dedicated regions as shown below:
 
-<p align="center">
-  <img 
-        src="multi-regional-setup-dedicated-regions.webp" 
-        width="800" 
-        alt="Multi-regional setup with VictoriaMetrics: Dedicated regions for monitoring">
-</p>
+<img src="multi-regional-setup-dedicated-regions.webp" alt="Multi-regional setup with VictoriaMetrics: Dedicated regions for monitoring">
 
 Every workload region (Earth, Mars, Venus) has a vmagent that sends data to multiple regions with a monitoring setup. 
 The monitoring setup (Ground Control 1,2) contains VictoriaMetrics Time Series Database(TSDB) cluster or single.
@@ -38,7 +33,7 @@ Using this schema, you can achieve:
 
 * You need to pass two `-remoteWrite.url` command-line options to `vmagent`:
 
-```console
+```sh
 /path/to/vmagent-prod \
   -remoteWrite.url=<ground-control-1-remote-write> \
   -remoteWrite.url=<ground-control-2-remote-write>

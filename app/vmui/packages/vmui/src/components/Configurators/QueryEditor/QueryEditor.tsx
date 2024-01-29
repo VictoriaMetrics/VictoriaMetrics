@@ -1,4 +1,4 @@
-import React, { FC, useRef, useState } from "preact/compat";
+import React, { FC, useCallback, useEffect, useRef, useState } from "preact/compat";
 import { KeyboardEvent } from "react";
 import { ErrorTypes } from "../../../types";
 import TextField from "../../Main/TextField/TextField";
@@ -7,8 +7,8 @@ import "./style.scss";
 import { QueryStats } from "../../../api/types";
 import { partialWarning, seriesFetchedWarning } from "./warningText";
 import { AutocompleteOptions } from "../../Main/Autocomplete/Autocomplete";
-import { useQueryDispatch } from "../../../state/query/QueryStateContext";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
+import { useQueryState } from "../../../state/query/QueryStateContext";
 
 export interface QueryEditorProps {
   onChange: (query: string) => void;
@@ -36,6 +36,7 @@ const QueryEditor: FC<QueryEditorProps> = ({
   label,
   disabled = false
 }) => {
+  const { autocompleteQuick } = useQueryState();
   const { isMobile } = useDeviceDetect();
 
   const [openAutocomplete, setOpenAutocomplete] = useState(false);
@@ -61,7 +62,7 @@ const QueryEditor: FC<QueryEditorProps> = ({
     onChange(val);
   };
 
-  const handleKeyDown = (e: KeyboardEvent) => {
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
     const { key, ctrlKey, metaKey, shiftKey } = e;
 
     const value = (e.target as HTMLTextAreaElement).value || "";
@@ -93,7 +94,7 @@ const QueryEditor: FC<QueryEditorProps> = ({
       e.preventDefault();
       onEnter();
     }
-  };
+  }, [openAutocomplete]);
 
   const handleChangeFoundOptions = (val: AutocompleteOptions[]) => {
     setOpenAutocomplete(!!val.length);
@@ -102,6 +103,10 @@ const QueryEditor: FC<QueryEditorProps> = ({
   const handleChangeCaret = (val: number[]) => {
     setCaretPosition(val);
   };
+
+  useEffect(() => {
+    setOpenAutocomplete(autocomplete);
+  }, [autocompleteQuick]);
 
   return (
     <div

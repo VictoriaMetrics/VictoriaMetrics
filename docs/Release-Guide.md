@@ -26,14 +26,14 @@ git remote add enterprise <url>
 ### For MacOS users
 
 Make sure you have GNU version of utilities `zip`, `tar`, `sha256sum`. To install them run the following commands:
-```bash
+```sh
 brew install coreutils
 brew install gnu-tar
 export PATH="/usr/local/opt/coreutils/libexec/gnubin:$PATH"
 ```
 
 Docker may need additional configuration changes:
-```bash 
+```sh 
 docker buildx create --use --name=qemu
 docker buildx inspect --bootstrap  
 ```
@@ -173,7 +173,7 @@ Once updated, run the following commands:
 
 1. Commit and push changes to `master`.
 1. Run "Release" action on Github:
-   ![image](Release-Guide_helm-release.webp)
+   <img src="Release-Guide_helm-release.webp" alt="release helm charts"> 
 1. Merge new PRs *"Automatic update CHANGELOGs and READMEs"* and *"Synchronize docs"* after pipelines are complete.
 
 ## Ansible Roles 

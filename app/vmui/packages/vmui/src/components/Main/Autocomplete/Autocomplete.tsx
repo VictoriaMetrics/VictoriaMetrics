@@ -85,6 +85,10 @@ const Autocomplete: FC<AutocompleteProps> = ({
     }
   }, [openAutocomplete, options, value]);
 
+  const hideFoundedOptions = useMemo(() => {
+    return foundOptions.length === 1 && foundOptions[0]?.value === value;
+  }, [foundOptions]);
+
   const displayNoOptionsText = useMemo(() => {
     return noOptionsText && !foundOptions.length;
   }, [noOptionsText,foundOptions]);
@@ -159,8 +163,8 @@ const Autocomplete: FC<AutocompleteProps> = ({
   }, [openAutocomplete]);
 
   useEffect(() => {
-    onFoundOptions && onFoundOptions(foundOptions);
-  }, [foundOptions]);
+    onFoundOptions && onFoundOptions(hideFoundedOptions ? [] : foundOptions);
+  }, [foundOptions, hideFoundedOptions]);
 
   return (
     <Popper
@@ -181,7 +185,7 @@ const Autocomplete: FC<AutocompleteProps> = ({
         ref={wrapperEl}
       >
         {displayNoOptionsText && <div className="vm-autocomplete__no-options">{noOptionsText}</div>}
-        {!(foundOptions.length === 1 && foundOptions[0]?.value === value) && foundOptions.map((option, i) =>
+        {!hideFoundedOptions && foundOptions.map((option, i) =>
           <div
             className={classNames({
               "vm-list-item": true,

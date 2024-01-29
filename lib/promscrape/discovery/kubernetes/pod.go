@@ -104,19 +104,51 @@ type PodCondition struct {
 type ContainerStatus struct {
 	Name        string
 	ContainerID string
+	State       ContainerState
+}
+
+// ContainerState implements k8s container state.
+//
+// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.20/#containerstatus-v1-core
+type ContainerState struct {
+	Terminated *ContainerStateTerminated
+}
+
+// ContainerStateTerminated implements k8s terminated container state.
+//
+// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.20/#containerstatus-v1-core
+type ContainerStateTerminated struct {
+	ExitCode int
 }
 
 func getContainerID(p *Pod, containerName string, isInit bool) string {
+	cs := p.getContainerStatus(containerName, isInit)
+	if cs == nil {
+		return ""
+	}
+	return cs.ContainerID
+}
+
+func isContainerTerminated(p *Pod, containerName string, isInit bool) bool {
+	cs := p.getContainerStatus(containerName, isInit)
+	if cs == nil {
+		return false
+	}
+	return cs.State.Terminated != nil
+}
+
+func (p *Pod) getContainerStatus(containerName string, isInit bool) *ContainerStatus {
 	css := p.Status.ContainerStatuses
 	if isInit {
 		css = p.Status.InitContainerStatuses
 	}
-	for _, cs := range css {
+	for i := range css {
+		cs := &css[i]
 		if cs.Name == containerName {
-			return cs.ContainerID
+			return cs
 		}
 	}
-	return ""
+	return nil
 }
 
 // getTargetLabels returns labels for each port of the given p.
@@ -124,28 +156,42 @@ func getContainerID(p *Pod, containerName string, isInit bool) string {
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#pod
 func (p *Pod) getTargetLabels(gw *groupWatcher) []*promutils.Labels {
 	if len(p.Status.PodIP) == 0 {
-		// Skip pod without IP
+		// Skip pod without IP, since such pods cannnot be scraped.
 		return nil
 	}
+	if isPodPhaseFinished(p.Status.Phase) {
+		// Skip already stopped pod, since it cannot be scraped.
+		return nil
+	}
+
 	var ms []*promutils.Labels
 	ms = appendPodLabels(ms, gw, p, p.Spec.Containers, false)
 	ms = appendPodLabels(ms, gw, p, p.Spec.InitContainers, true)
 	return ms
 }
 
+func isPodPhaseFinished(phase string) bool {
+	// See https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-phase
+	return phase == "Succeeded" || phase == "Failed"
+
+}
 func appendPodLabels(ms []*promutils.Labels, gw *groupWatcher, p *Pod, cs []Container, isInit bool) []*promutils.Labels {
 	for _, c := range cs {
+		if isContainerTerminated(p, c.Name, isInit) {
+			// Skip terminated containers
+			continue
+		}
 		for _, cp := range c.Ports {
-			ms = appendPodLabelsInternal(ms, gw, p, c, &cp, isInit)
+			ms = appendPodLabelsInternal(ms, gw, p, &c, &cp, isInit)
 		}
 		if len(c.Ports) == 0 {
-			ms = appendPodLabelsInternal(ms, gw, p, c, nil, isInit)
+			ms = appendPodLabelsInternal(ms, gw, p, &c, nil, isInit)
 		}
 	}
 	return ms
 }
 
-func appendPodLabelsInternal(ms []*promutils.Labels, gw *groupWatcher, p *Pod, c Container, cp *ContainerPort, isInit bool) []*promutils.Labels {
+func appendPodLabelsInternal(ms []*promutils.Labels, gw *groupWatcher, p *Pod, c *Container, cp *ContainerPort, isInit bool) []*promutils.Labels {
 	addr := p.Status.PodIP
 	if cp != nil {
 		addr = discoveryutils.JoinHostPort(addr, cp.ContainerPort)
@@ -168,7 +214,7 @@ func appendPodLabelsInternal(ms []*promutils.Labels, gw *groupWatcher, p *Pod, c
 	return append(ms, m)
 }
 
-func (p *Pod) appendContainerLabels(m *promutils.Labels, c Container, cp *ContainerPort) {
+func (p *Pod) appendContainerLabels(m *promutils.Labels, c *Container, cp *ContainerPort) {
 	m.Add("__meta_kubernetes_pod_container_image", c.Image)
 	m.Add("__meta_kubernetes_pod_container_name", c.Name)
 	if cp != nil {
