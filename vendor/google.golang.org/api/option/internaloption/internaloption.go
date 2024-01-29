@@ -22,8 +22,30 @@ func (o defaultEndpointOption) Apply(settings *internal.DialSettings) {
 // It should only be used internally by generated clients.
 //
 // This is similar to WithEndpoint, but allows us to determine whether the user has overridden the default endpoint.
+//
+// Deprecated: WithDefaultEndpoint does not support setting the universe domain.
+// Use WithDefaultEndpointTemplate and WithDefaultUniverseDomain to compose the
+// default endpoint instead.
 func WithDefaultEndpoint(url string) option.ClientOption {
 	return defaultEndpointOption(url)
+}
+
+type defaultEndpointTemplateOption string
+
+func (o defaultEndpointTemplateOption) Apply(settings *internal.DialSettings) {
+	settings.DefaultEndpointTemplate = string(o)
+}
+
+// WithDefaultEndpointTemplate provides a template for creating the endpoint
+// using a universe domain. See also WithDefaultUniverseDomain and
+// option.WithUniverseDomain. The placeholder UNIVERSE_DOMAIN should be used
+// instead of a concrete universe domain such as "googleapis.com".
+//
+// Example: WithDefaultEndpointTemplate("https://logging.UNIVERSE_DOMAIN/")
+//
+// It should only be used internally by generated clients.
+func WithDefaultEndpointTemplate(url string) option.ClientOption {
+	return defaultEndpointTemplateOption(url)
 }
 
 type defaultMTLSEndpointOption string
@@ -144,6 +166,11 @@ func (w withDefaultUniverseDomain) Apply(o *internal.DialSettings) {
 
 // EnableJwtWithScope returns a ClientOption that specifies if scope can be used
 // with self-signed JWT.
+//
+// EnableJwtWithScope is ignored when option.WithUniverseDomain is set
+// to a value other than the Google Default Universe (GDU) of "googleapis.com".
+// For non-GDU domains, token exchange is impossible and services must
+// support self-signed JWTs with scopes.
 func EnableJwtWithScope() option.ClientOption {
 	return enableJwtWithScope(true)
 }

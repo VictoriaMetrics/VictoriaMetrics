@@ -10,7 +10,7 @@ import Modal from "../../components/Main/Modal/Modal";
 import JsonForm from "./JsonForm/JsonForm";
 import { ErrorTypes } from "../../types";
 import useDropzone from "../../hooks/useDropzone";
-import TraceUploadButtons from "./TraceUploadButtons/TraceUploadButtons";
+import UploadJsonButtons from "../../components/UploadJsonButtons/UploadJsonButtons";
 import useBoolean from "../../hooks/useBoolean";
 
 const TracePage: FC = () => {
@@ -106,7 +106,7 @@ const TracePage: FC = () => {
         </div>
         <div>
           {hasTraces && (
-            <TraceUploadButtons
+            <UploadJsonButtons
               onOpenModal={handleOpenModal}
               onChange={handleChange}
             />
@@ -145,7 +145,7 @@ const TracePage: FC = () => {
             {"\n"}
             Attach files by dragging & dropping, selecting or pasting them.
           </p>
-          <TraceUploadButtons
+          <UploadJsonButtons
             onOpenModal={handleOpenModal}
             onChange={handleChange}
           />

@@ -266,10 +266,16 @@ func fillStorage(series []vm.TimeSeries) error {
 	for _, series := range series {
 		var labels []prompb.Label
 		for _, lp := range series.LabelPairs {
-			labels = append(labels, prompb.Label{Name: []byte(lp.Name), Value: []byte(lp.Value)})
+			labels = append(labels, prompb.Label{
+				Name:  lp.Name,
+				Value: lp.Value,
+			})
 		}
 		if series.Name != "" {
-			labels = append(labels, prompb.Label{Name: []byte("__name__"), Value: []byte(series.Name)})
+			labels = append(labels, prompb.Label{
+				Name:  "__name__",
+				Value: series.Name,
+			})
 		}
 		mr := storage.MetricRow{}
 		mr.MetricNameRaw = storage.MarshalMetricNameRaw(mr.MetricNameRaw[:0], labels)

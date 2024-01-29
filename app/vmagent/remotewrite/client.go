@@ -18,6 +18,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -395,7 +396,8 @@ func (c *client) newRequest(url string, body []byte) (*http.Request, error) {
 // Otherwise it tries sending the block to remote storage indefinitely.
 func (c *client) sendBlockHTTP(block []byte) bool {
 	c.rl.register(len(block), c.stopCh)
-	retryDuration := time.Second
+	maxRetryDuration := timeutil.AddJitterToDuration(time.Minute)
+	retryDuration := timeutil.AddJitterToDuration(time.Second)
 	retriesCount := 0
 
 again:
@@ -405,8 +407,8 @@ again:
 	if err != nil {
 		c.errorsCount.Inc()
 		retryDuration *= 2
-		if retryDuration > time.Minute {
-			retryDuration = time.Minute
+		if retryDuration > maxRetryDuration {
+			retryDuration = maxRetryDuration
 		}
 		logger.Warnf("couldn't send a block with size %d bytes to %q: %s; re-sending the block in %.3f seconds",
 			len(block), c.sanitizedURL, err, retryDuration.Seconds())
@@ -452,8 +454,8 @@ again:
 	// Unexpected status code returned
 	retriesCount++
 	retryDuration *= 2
-	if retryDuration > time.Minute {
-		retryDuration = time.Minute
+	if retryDuration > maxRetryDuration {
+		retryDuration = maxRetryDuration
 	}
 	body, err := io.ReadAll(resp.Body)
 	_ = resp.Body.Close()

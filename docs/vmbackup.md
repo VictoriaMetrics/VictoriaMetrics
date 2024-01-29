@@ -42,7 +42,7 @@ creation of hourly, daily, weekly and monthly backups.
 
 Regular backup can be performed with the following command:
 
-```console
+```sh
 ./vmbackup -storageDataPath=</path/to/victoria-metrics-data> -snapshot.createURL=http://localhost:8428/snapshot/create -dst=gs://<bucket>/<path/to/new/backup>
 ```
 
@@ -57,18 +57,22 @@ Regular backup can be performed with the following command:
 If the destination GCS bucket already contains the previous backup at `-origin` path, then new backup can be sped up
 with the following command:
 
-```console
+```sh
 ./vmbackup -storageDataPath=</path/to/victoria-metrics-data> -snapshot.createURL=http://localhost:8428/snapshot/create -dst=gs://<bucket>/<path/to/new/backup> -origin=gs://<bucket>/<path/to/existing/backup>
 ```
 
 It saves time and network bandwidth costs by performing server-side copy for the shared data from the `-origin` to `-dst`.
+Typical object storage just creates new names for already existing objects when performing server-side copy,
+so this operation should be fast and inexpensive. Unfortunately, there are object storage systems such as [S3 Glacier](https://aws.amazon.com/s3/storage-classes/glacier/),
+which make full copies for the copied objects during server-side copy. This may significantly slow down server-side copy
+and make it very expensive.
 
 ### Incremental backups
 
 Incremental backups are performed if `-dst` points to an already existing backup. In this case only new data is uploaded to remote storage.
 It saves time and network bandwidth costs when working with big backups:
 
-```console
+```sh
 ./vmbackup -storageDataPath=</path/to/victoria-metrics-data> -snapshot.createURL=http://localhost:8428/snapshot/create -dst=gs://<bucket>/<path/to/existing/backup>
 ```
 
@@ -78,23 +82,29 @@ Smart backups mean storing full daily backups into `YYYYMMDD` folders and creati
 
 * Run the following command every hour:
 
-```console
+```sh
 ./vmbackup -storageDataPath=</path/to/victoria-metrics-data> -snapshot.createURL=http://localhost:8428/snapshot/create -dst=gs://<bucket>/latest
 ```
 
-Where `<latest-snapshot>` is the latest [snapshot](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-work-with-snapshots).
-The command will upload only changed data to `gs://<bucket>/latest`.
+This command creates an [instant snapshot](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-work-with-snapshots)
+and uploads it to `gs://<bucket>/latest`. It uploads only the changed data (aka incremental backup). This saves network bandwidth costs and time
+when backing up large amounts of data.
 
 * Run the following command once a day:
 
-```console
-./vmbackup -storageDataPath=</path/to/victoria-metrics-data> -snapshot.createURL=http://localhost:8428/snapshot/create -dst=gs://<bucket>/<YYYYMMDD> -origin=gs://<bucket>/latest
+```sh
+./vmbackup -storageDataPath=</path/to/victoria-metrics-data> -origin=gs://<bucket>/latest -dst=gs://<bucket>/<YYYYMMDD>
 ```
 
-Where `<daily-snapshot>` is the snapshot for the last day `<YYYYMMDD>`.
+This command creates server-side copy of the backup from `gs://<bucket>/latest` to `gs://<bucket>/<YYYYMMDD>`, were `<YYYYMMDD>` is the current
+date like `20240125`. Server-side copy of the backup should be fast on most object storage systems, since it just creates new names for already
+existing objects. The server-side copy can be slow on some object storage systems such as [S3 Glacier](https://aws.amazon.com/s3/storage-classes/glacier/),
+since they may perform full object copy instead of creating new names for already existing objects. This may be slow and expensive.
 
-This approach saves network bandwidth costs on hourly backups (since they are incremental) and allows recovering data from either the last hour (`latest` backup)
-or from any day (`YYYYMMDD` backups). Note that hourly backup shouldn't run when creating daily backup.
+The `smart backups` approach described above saves network bandwidth costs on hourly backups (since they are incremental)
+and allows recovering data from either the last hour (the  `latest` backup) or from any day (`YYYYMMDD` backups).
+
+Note that hourly backup shouldn't run when creating daily backup.
 
 Do not forget to remove old backups when they are no longer needed in order to save storage costs.
 
@@ -106,14 +116,16 @@ Sometimes it is needed to make server-side copy of the existing backup. This can
 while the destination path for backup copy must be specified via `-dst` command-line flag. For example, the following command copies backup
 from `gs://bucket/foo` to `gs://bucket/bar`:
 
-```console
+```sh
 ./vmbackup -origin=gs://bucket/foo -dst=gs://bucket/bar
 ```
 
 The `-origin` and `-dst` must point to the same object storage bucket or to the same filesystem.
 
 The server-side backup copy is usually performed at much faster speed comparing to the usual backup, since backup data isn't transferred
-between the remote storage and locally running `vmbackup` tool.
+between the remote storage and locally running `vmbackup` tool. Object storage systems usually just make new names for already existing
+objects during server-side copy. Unfortunately there are systems such as [S3 Glacier](https://aws.amazon.com/s3/storage-classes/glacier/),
+which perform full object copy during server-side copying. This may be slow and expensive.
 
 If the `-dst` already contains some data, then its' contents is synced with the `-origin` data. This allows making incremental server-side copies of backups.
 
@@ -164,7 +176,7 @@ Add flag `-credsFilePath=/etc/credentials` with the following content:
 
 - for S3 (AWS, MinIO or other S3 compatible storages):
     
-     ```console
+     ```sh
      [default]
      aws_access_key_id=theaccesskey
      aws_secret_access_key=thesecretaccesskeyvalue
@@ -267,12 +279,12 @@ Usage with s3 custom url endpoint. It is possible to use `vmbackup` with s3 comp
 You have to add a custom url endpoint via flag:
 
 - for MinIO
-    ```console
+    ```sh
       -customS3Endpoint=http://localhost:9000
     ```
 
 - for aws gov region
-    ```console
+    ```sh
       -customS3Endpoint=https://s3-fips.us-gov-west-1.amazonaws.com
     ```
 
@@ -291,7 +303,7 @@ Refer to the respective documentation for your object storage provider for more 
 
 Run `vmbackup -help` in order to see all the available options:
 
-```console
+```sh
   -concurrency int
      The number of concurrent workers. Higher concurrency may reduce backup duration (default 10)
   -configFilePath string
@@ -319,8 +331,9 @@ Run `vmbackup -help` in order to see all the available options:
      Deprecated, please use -license or -licenseFile flags instead. By specifying this flag, you confirm that you have an enterprise license and accept the ESA https://victoriametrics.com/legal/esa/ . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
   -filestream.disableFadvise
      Whether to disable fadvise() syscall when reading large data files. The fadvise() syscall prevents from eviction of recently accessed data from OS page cache during background merges and backups. In some rare cases it is better to disable the syscall if it uses too much CPU
-  -flagsAuthKey string
+  -flagsAuthKey value
      Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
+     Flag value can be read from the given file when using -flagsAuthKey=file:///abs/path/to/file or -flagsAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -flagsAuthKey=http://host/path or -flagsAuthKey=https://host/path
   -fs.disableMmap
      Whether to use pread() instead of mmap() for reading data files. By default, mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
   -http.connTimeout duration
@@ -341,8 +354,9 @@ Run `vmbackup -help` in order to see all the available options:
      An optional prefix to add to all the paths handled by http server. For example, if '-http.pathPrefix=/foo/bar' is set, then all the http requests will be handled on '/foo/bar/*' paths. This may be useful for proxied requests. See https://www.robustperception.io/using-external-urls-and-proxies-with-prometheus
   -http.shutdownDelay duration
      Optional delay before http server shutdown. During this delay, the server returns non-OK responses from /health page, so load balancers can route new requests to other servers
-  -httpAuth.password string
+  -httpAuth.password value
      Password for HTTP server's Basic Auth. The authentication is disabled if -httpAuth.username is empty
+     Flag value can be read from the given file when using -httpAuth.password=file:///abs/path/to/file or -httpAuth.password=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -httpAuth.password=http://host/path or -httpAuth.password=https://host/path
   -httpAuth.username string
      Username for HTTP server's Basic Auth. The authentication is disabled if empty. See also -httpAuth.password
   -httpListenAddr string
@@ -387,12 +401,14 @@ Run `vmbackup -help` in order to see all the available options:
      Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache which will result in higher disk IO usage (default 60)
   -metrics.exposeMetadata
      Whether to expose TYPE and HELP metadata at the /metrics page, which is exposed at -httpListenAddr . The metadata may be needed when the /metrics page is consumed by systems, which require this information. For example, Managed Prometheus in Google Cloud - https://cloud.google.com/stackdriver/docs/managed-prometheus/troubleshooting#missing-metric-type
-  -metricsAuthKey string
+  -metricsAuthKey value
      Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
+     Flag value can be read from the given file when using -metricsAuthKey=file:///abs/path/to/file or -metricsAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -metricsAuthKey=http://host/path or -metricsAuthKey=https://host/path
   -origin string
      Optional origin directory on the remote storage with old backup for server-side copying when performing full backup. This speeds up full backups
-  -pprofAuthKey string
+  -pprofAuthKey value
      Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides httpAuth.* settings
+     Flag value can be read from the given file when using -pprofAuthKey=file:///abs/path/to/file or -pprofAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -pprofAuthKey=http://host/path or -pprofAuthKey=https://host/path
   -pushmetrics.disableCompression
      Whether to disable request body compression when pushing metrics to every -pushmetrics.url
   -pushmetrics.extraLabel array
@@ -459,6 +475,6 @@ The `<PKG_TAG>` may be manually set via `PKG_TAG=foobar make package-vmbackup`.
 The base docker image is [alpine](https://hub.docker.com/_/alpine) but it is possible to use any other base image
 by setting it via `<ROOT_IMAGE>` environment variable. For example, the following command builds the image on top of [scratch](https://hub.docker.com/_/scratch) image:
 
-```console
+```sh
 ROOT_IMAGE=scratch make package-vmbackup
 ```

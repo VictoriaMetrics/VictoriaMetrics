@@ -324,16 +324,6 @@ func (ar *AlertingRule) execRange(ctx context.Context, start, end time.Time) ([]
 			return nil, fmt.Errorf("failed to create alert: %w", err)
 		}
 
-		// if alert is instant, For: 0
-		if ar.For == 0 {
-			a.State = notifier.StateFiring
-			for i := range s.Values {
-				result = append(result, ar.alertToTimeSeries(a, s.Timestamps[i])...)
-			}
-			continue
-		}
-
-		// if alert with For > 0
 		prevT := time.Time{}
 		for i := range s.Values {
 			at := time.Unix(s.Timestamps[i], 0)
@@ -354,6 +344,10 @@ func (ar *AlertingRule) execRange(ctx context.Context, start, end time.Time) ([]
 				a.Start = at
 			}
 			prevT = at
+			if ar.For == 0 {
+				// rules with `for: 0` are always firing when they have Value
+				a.State = notifier.StateFiring
+			}
 			result = append(result, ar.alertToTimeSeries(a, s.Timestamps[i])...)
 
 			// save alert's state on last iteration, so it can be used on the next execRange call
@@ -559,9 +553,9 @@ func (ar *AlertingRule) newAlert(m datasource.Metric, ls *labelSet, start time.T
 }
 
 const (
-	// alertMetricName is the metric name for synthetic alert timeseries.
+	// alertMetricName is the metric name for time series reflecting the alert state.
 	alertMetricName = "ALERTS"
-	// alertForStateMetricName is the metric name for 'for' state of alert.
+	// alertForStateMetricName is the metric name for time series reflecting the moment of time when alert became active.
 	alertForStateMetricName = "ALERTS_FOR_STATE"
 
 	// alertNameLabel is the label name indicating the name of an alert.
@@ -576,12 +570,10 @@ const (
 
 // alertToTimeSeries converts the given alert with the given timestamp to time series
 func (ar *AlertingRule) alertToTimeSeries(a *notifier.Alert, timestamp int64) []prompbmarshal.TimeSeries {
-	var tss []prompbmarshal.TimeSeries
-	tss = append(tss, alertToTimeSeries(a, timestamp))
-	if ar.For > 0 {
-		tss = append(tss, alertForToTimeSeries(a, timestamp))
+	return []prompbmarshal.TimeSeries{
+		alertToTimeSeries(a, timestamp),
+		alertForToTimeSeries(a, timestamp),
 	}
-	return tss
 }
 
 func alertToTimeSeries(a *notifier.Alert, timestamp int64) prompbmarshal.TimeSeries {

@@ -10,6 +10,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 	"github.com/cespare/xxhash/v2"
 )
 
@@ -138,9 +139,12 @@ func (c *Cache) Misses() uint64 {
 }
 
 func (c *Cache) cleaner() {
-	ticker := time.NewTicker(57 * time.Second)
+	d := timeutil.AddJitterToDuration(time.Minute)
+	ticker := time.NewTicker(d)
 	defer ticker.Stop()
-	perKeyMissesTicker := time.NewTicker(3 * time.Minute)
+
+	d = timeutil.AddJitterToDuration(time.Minute * 3)
+	perKeyMissesTicker := time.NewTicker(d)
 	defer perKeyMissesTicker.Stop()
 	for {
 		select {

@@ -728,15 +728,13 @@ func (wc *writeRequestCtx) reset() {
 }
 
 func (wc *writeRequestCtx) resetNoRows() {
-	prompbmarshal.ResetWriteRequest(&wc.writeRequest)
+	wc.writeRequest.Reset()
 
 	labels := wc.labels
 	for i := range labels {
-		label := &labels[i]
-		label.Name = ""
-		label.Value = ""
+		labels[i] = prompbmarshal.Label{}
 	}
-	wc.labels = wc.labels[:0]
+	wc.labels = labels[:0]
 
 	wc.samples = wc.samples[:0]
 }
@@ -833,9 +831,9 @@ func (sw *scrapeWork) sendStaleSeries(lastScrape, currScrape string, timestamp i
 	if addAutoSeries {
 		am := &autoMetrics{}
 		sw.addAutoMetrics(am, wc, timestamp)
+		setStaleMarkersForRows(wc.writeRequest.Timeseries)
+		sw.pushData(sw.Config.AuthToken, &wc.writeRequest)
 	}
-	setStaleMarkersForRows(wc.writeRequest.Timeseries)
-	sw.pushData(sw.Config.AuthToken, &wc.writeRequest)
 }
 
 func setStaleMarkersForRows(series []prompbmarshal.TimeSeries) {

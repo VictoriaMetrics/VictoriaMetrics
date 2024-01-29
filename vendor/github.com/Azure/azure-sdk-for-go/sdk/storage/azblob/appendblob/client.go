@@ -10,6 +10,7 @@ import (
 	"context"
 	"errors"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
+	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/sas"
 	"io"
 	"os"
 	"time"
@@ -336,6 +337,12 @@ func (ab *Client) GetTags(ctx context.Context, o *blob.GetTagsOptions) (blob.Get
 // Deprecated: CopyFromURL works only with block blob
 func (ab *Client) CopyFromURL(ctx context.Context, copySource string, o *blob.CopyFromURLOptions) (blob.CopyFromURLResponse, error) {
 	return blob.CopyFromURLResponse{}, errors.New("operation will not work on this blob type. CopyFromURL works only with block blob")
+}
+
+// GetSASURL is a convenience method for generating a SAS token for the currently pointed at append blob.
+// It can only be used if the credential supplied during creation was a SharedKeyCredential.
+func (ab *Client) GetSASURL(permissions sas.BlobPermissions, expiry time.Time, o *blob.GetSASURLOptions) (string, error) {
+	return ab.BlobClient().GetSASURL(permissions, expiry, o)
 }
 
 // Concurrent Download Functions -----------------------------------------------------------------------------------------

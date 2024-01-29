@@ -71,7 +71,7 @@ const ExploreMetricsHeader: FC<ExploreMetricsHeaderProps> = ({
             label="Job"
             placeholder="Please select job"
             onChange={onChangeJob}
-            autofocus={!job}
+            autofocus={!job && !!jobs.length && !isMobile}
             searchable
           />
         </div>

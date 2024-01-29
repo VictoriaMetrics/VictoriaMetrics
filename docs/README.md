@@ -199,7 +199,7 @@ Snap package for VictoriaMetrics is available [here](https://snapcraft.io/victor
 
 Command-line flags for Snap package can be set with following command:
 
-```text
+```sh
 echo 'FLAGS="-selfScrapeInterval=10s -search.logSlowQueryDuration=20s"' > $SNAP_DATA/var/snap/victoriametrics/current/extra_flags
 snap restart victoriametrics
 ```
@@ -208,7 +208,7 @@ Do not change value for `-storageDataPath` flag, because snap package has limite
 
 Changing scrape configuration is possible with text editor:
 
-```text
+```sh
 vi $SNAP_DATA/var/snap/victoriametrics/current/etc/victoriametrics-scrape-config.yaml
 ```
 
@@ -261,7 +261,7 @@ and then install it as a service according to the following guide:
 
 1. Install VictoriaMetrics as a service by running the following from elevated PowerShell:
 
-    ```console
+    ```sh
     winsw install VictoriaMetrics.xml
     Get-Service VictoriaMetrics | Start-Service
     ```
@@ -273,25 +273,21 @@ See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3781)
 
 Add the following lines to Prometheus config file (it is usually located at `/etc/prometheus/prometheus.yml`) in order to send data to VictoriaMetrics:
 
-<div class="with-copy" markdown="1">
 
-```yml
+```yaml
 remote_write:
   - url: http://<victoriametrics-addr>:8428/api/v1/write
 ```
 
-</div>
 
 Substitute `<victoriametrics-addr>` with hostname or IP address of VictoriaMetrics.
 Then apply new config via the following command:
 
-<div class="with-copy" markdown="1">
 
-```console
+```sh
 kill -HUP `pidof prometheus`
 ```
 
-</div>
 
 Prometheus writes incoming data to local storage and replicates it to remote storage in parallel.
 This means that data remains available in local storage for `--storage.tsdb.retention.time` duration
@@ -300,7 +296,7 @@ even if remote storage is unavailable.
 If you plan sending data to VictoriaMetrics from multiple Prometheus instances, then add the following lines into `global` section
 of [Prometheus config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#configuration-file):
 
-```yml
+```yaml
 global:
   external_labels:
     datacenter: dc-123
@@ -312,7 +308,6 @@ across Prometheus instances, so time series could be filtered and grouped by thi
 
 For highly loaded Prometheus instances (200k+ samples per second) the following tuning may be applied:
 
-<div class="with-copy" markdown="1">
 
 ```yaml
 remote_write:
@@ -323,7 +318,6 @@ remote_write:
       max_shards: 30
 ```
 
-</div>
 
 Using remote write increases memory usage for Prometheus by up to ~25%. If you are experiencing issues with
 too high memory consumption of Prometheus, then try to lower `max_samples_per_send` and `capacity` params. 
@@ -526,28 +520,24 @@ via ["submit metrics" API](https://docs.datadoghq.com/api/latest/metrics/#submit
 DataDog agent allows configuring destinations for metrics sending via ENV variable `DD_DD_URL` 
 or via [configuration file](https://docs.datadoghq.com/agent/guide/agent-configuration-files/) in section `dd_url`.
 
-<p align="center">
-  <img src="Single-server-VictoriaMetrics-sending_DD_metrics_to_VM.webp" width="800">
-</p>
+<img src="Single-server-VictoriaMetrics-sending_DD_metrics_to_VM.webp">
 
 To configure DataDog agent via ENV variable add the following prefix:
 
-<div class="with-copy" markdown="1">
-```
+
+```sh
 DD_DD_URL=http://victoriametrics:8428/datadog
 ```
-</div>
+
 
 _Choose correct URL for VictoriaMetrics [here](https://docs.victoriametrics.com/url-examples.html#datadog)._
 
 To configure DataDog agent via [configuration file](https://github.com/DataDog/datadog-agent/blob/878600ef7a55c5ef0efb41ed0915f020cf7e3bd0/pkg/config/config_template.yaml#L33)
 add the following line:
 
-<div class="with-copy" markdown="1">
-```
+```yaml
 dd_url: http://victoriametrics:8428/datadog
 ```
-</div>
 
 [vmagent](https://docs.victoriametrics.com/vmagent.html) also can accept Datadog metrics format. Depending on where vmagent will forward data,
 pick [single-node or cluster URL](https://docs.victoriametrics.com/url-examples.html#datadog) formats.
@@ -557,18 +547,13 @@ pick [single-node or cluster URL](https://docs.victoriametrics.com/url-examples.
 DataDog allows configuring [Dual Shipping](https://docs.datadoghq.com/agent/guide/dual-shipping/) for metrics 
 sending via ENV variable `DD_ADDITIONAL_ENDPOINTS` or via configuration file `additional_endpoints`.
  
-<p align="center">
-  <img src="Single-server-VictoriaMetrics-sending_DD_metrics_to_VM_and_DD.webp" width="800">
-</p>
+<img src="Single-server-VictoriaMetrics-sending_DD_metrics_to_VM_and_DD.webp">
  
 Run DataDog using the following ENV variable with VictoriaMetrics as additional metrics receiver:
 
-<div class="with-copy" markdown="1">
-```
+```sh
 DD_ADDITIONAL_ENDPOINTS='{\"http://victoriametrics:8428/datadog\": [\"apikey\"]}'
-
 ```
-</div>
 
 _Choose correct URL for VictoriaMetrics [here](https://docs.victoriametrics.com/url-examples.html#datadog)._
 
@@ -576,13 +561,12 @@ _Choose correct URL for VictoriaMetrics [here](https://docs.victoriametrics.com/
 To configure DataDog Dual Shipping via [configuration file](https://docs.datadoghq.com/agent/guide/agent-configuration-files)
 add the following line:
 
-<div class="with-copy" markdown="1">
-```
+```yaml
 additional_endpoints:
   "http://victoriametrics:8428/datadog":
   - apikey
 ```
-</div>
+
 
 ### Send via cURL
 
@@ -651,24 +635,20 @@ foo_field2{tag1="value1", tag2="value2"} 40
 Example for writing data with [InfluxDB line protocol](https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/)
 to local VictoriaMetrics using `curl`:
 
-<div class="with-copy" markdown="1">
 
-```console
+```sh
 curl -d 'measurement,tag1=value1,tag2=value2 field1=123,field2=1.23' -X POST 'http://localhost:8428/write'
 ```
 
-</div>
 
 An arbitrary number of lines delimited by '\n' (aka newline char) can be sent in a single request.
 After that the data may be read via [/api/v1/export](#how-to-export-data-in-json-line-format) endpoint:
 
-<div class="with-copy" markdown="1">
 
-```console
+```sh
 curl -G 'http://localhost:8428/api/v1/export' -d 'match={__name__=~"measurement_.*"}'
 ```
 
-</div>
 
 The `/api/v1/export` endpoint should return the following response:
 
@@ -695,13 +675,11 @@ VictoriaMetrics exposes endpoint for InfluxDB v2 HTTP API at `/influx/api/v2/wri
 
 In order to write data with InfluxDB line protocol to local VictoriaMetrics using `curl`:
 
-<div class="with-copy" markdown="1">
 
-```console
+```sh
 curl -d 'measurement,tag1=value1,tag2=value2 field1=123,field2=1.23' -X POST 'http://localhost:8428/api/v2/write'
 ```
 
-</div>
 
 The `/api/v1/export` endpoint should return the following response:
 
@@ -715,7 +693,7 @@ The `/api/v1/export` endpoint should return the following response:
 Enable Graphite receiver in VictoriaMetrics by setting `-graphiteListenAddr` command line flag. For instance,
 the following command will enable Graphite receiver in VictoriaMetrics on TCP and UDP port `2003`:
 
-```console
+```sh
 /path/to/victoria-metrics-prod -graphiteListenAddr=:2003
 ```
 
@@ -724,7 +702,7 @@ to the VictoriaMetrics host in `StatsD` configs.
 
 Example for writing data with Graphite plaintext protocol to local VictoriaMetrics using `nc`:
 
-```console
+```sh
 echo "foo.bar.baz;tag1=value1;tag2=value2 123 `date +%s`" | nc -N localhost 2003
 ```
 
@@ -732,13 +710,11 @@ VictoriaMetrics sets the current time if the timestamp is omitted.
 An arbitrary number of lines delimited by `\n` (aka newline char) can be sent in one go.
 After that the data may be read via [/api/v1/export](#how-to-export-data-in-json-line-format) endpoint:
 
-<div class="with-copy" markdown="1">
 
-```console
+```sh
 curl -G 'http://localhost:8428/api/v1/export' -d 'match=foo.bar.baz'
 ```
 
-</div>
 
 The `/api/v1/export` endpoint should return the following response:
 
@@ -775,7 +751,7 @@ The same protocol is used for [ingesting data in KairosDB](https://kairosdb.gith
 Enable OpenTSDB receiver in VictoriaMetrics by setting `-opentsdbListenAddr` command line flag. For instance,
 the following command enables OpenTSDB receiver in VictoriaMetrics on TCP and UDP port `4242`:
 
-```console
+```sh
 /path/to/victoria-metrics-prod -opentsdbListenAddr=:4242
 ```
 
@@ -783,24 +759,20 @@ Send data to the given address from OpenTSDB-compatible agents.
 
 Example for writing data with OpenTSDB protocol to local VictoriaMetrics using `nc`:
 
-<div class="with-copy" markdown="1">
 
-```console
+```sh
 echo "put foo.bar.baz `date +%s` 123 tag1=value1 tag2=value2" | nc -N localhost 4242
 ```
 
-</div>
 
 An arbitrary number of lines delimited by `\n` (aka newline char) can be sent in one go.
 After that the data may be read via [/api/v1/export](#how-to-export-data-in-json-line-format) endpoint:
 
-<div class="with-copy" markdown="1">
 
-```console
+```sh
 curl -G 'http://localhost:8428/api/v1/export' -d 'match=foo.bar.baz'
 ```
 
-</div>
 
 The `/api/v1/export` endpoint should return the following response:
 
@@ -813,7 +785,7 @@ The `/api/v1/export` endpoint should return the following response:
 Enable HTTP server for OpenTSDB `/api/put` requests by setting `-opentsdbHTTPListenAddr` command line flag. For instance,
 the following command enables OpenTSDB HTTP server on port `4242`:
 
-```console
+```sh
 /path/to/victoria-metrics-prod -opentsdbHTTPListenAddr=:4242
 ```
 
@@ -821,33 +793,26 @@ Send data to the given address from OpenTSDB-compatible agents.
 
 Example for writing a single data point:
 
-<div class="with-copy" markdown="1">
 
-```console
+```sh
 curl -H 'Content-Type: application/json' -d '{"metric":"x.y.z","value":45.34,"tags":{"t1":"v1","t2":"v2"}}' http://localhost:4242/api/put
 ```
 
-</div>
 
 Example for writing multiple data points in a single request:
 
-<div class="with-copy" markdown="1">
-
-```console
+```sh
 curl -H 'Content-Type: application/json' -d '[{"metric":"foo","value":45.34},{"metric":"bar","value":43}]' http://localhost:4242/api/put
 ```
 
-</div>
 
 After that the data may be read via [/api/v1/export](#how-to-export-data-in-json-line-format) endpoint:
 
-<div class="with-copy" markdown="1">
 
-```console
+```sh
 curl -G 'http://localhost:8428/api/v1/export' -d 'match[]=x.y.z' -d 'match[]=foo' -d 'match[]=bar'
 ```
 
-</div>
 
 The `/api/v1/export` endpoint should return the following response:
 
@@ -873,7 +838,7 @@ The `COLLECTOR_URL` must point to `/newrelic` HTTP endpoint at VictoriaMetrics, 
 which can be obtained [here](https://newrelic.com/signup).
 For example, if VictoriaMetrics runs at `localhost:8428`, then the following command can be used for running NewRelic infrastructure agent:
 
-```console
+```sh
 COLLECTOR_URL="http://localhost:8428/newrelic" NRIA_LICENSE_KEY="NEWRELIC_LICENSE_KEY" ./newrelic-infra
 ```
 
@@ -914,13 +879,13 @@ For example, let's import the following NewRelic Events request to VictoriaMetri
 
 Save this JSON into `newrelic.json` file and then use the following command in order to import it into VictoriaMetrics:
 
-```console
+```sh
 curl -X POST -H 'Content-Type: application/json' --data-binary @newrelic.json http://localhost:8428/newrelic/infra/v2/metrics/events/bulk
 ```
 
 Let's fetch the ingested data via [data export API](#how-to-export-data-in-json-line-format):
 
-```console
+```sh
 curl http://localhost:8428/api/v1/export -d 'match={eventType="SystemSample"}'
 {"metric":{"__name__":"cpuStealPercent","entityKey":"macbook-pro.local","eventType":"SystemSample"},"values":[0],"timestamps":[1697407970000]}
 {"metric":{"__name__":"loadAverageFiveMinute","entityKey":"macbook-pro.local","eventType":"SystemSample"},"values":[4.099609375],"timestamps":[1697407970000]}
@@ -1128,7 +1093,7 @@ The base docker image is [alpine](https://hub.docker.com/_/alpine) but it is pos
 by setting it via `<ROOT_IMAGE>` environment variable.
 For example, the following command builds the image on top of [scratch](https://hub.docker.com/_/scratch) image:
 
-```console
+```sh
 ROOT_IMAGE=scratch make package-victoria-metrics
 ```
 
@@ -1209,6 +1174,7 @@ before actually deleting the metrics. By default, this query will only scan seri
 adjust `start` and `end` to a suitable range to achieve match hits.
 
 The `/api/v1/admin/tsdb/delete_series` handler may be protected with `authKey` if `-deleteAuthKey` command-line flag is set.
+Note that handler accepts any HTTP method, so sending a `GET` request to `/api/v1/admin/tsdb/delete_series` will result in deletion of time series.
 
 The delete API is intended mainly for the following cases:
 
@@ -1270,7 +1236,7 @@ Optional `start` and `end` args may be added to the request in order to limit th
 See [allowed formats](#timestamp-formats) for these args.
 
 For example:
-```console
+```sh
 curl http://<victoriametrics-addr>:8428/api/v1/export -d 'match[]=<timeseries_selector_for_export>' -d 'start=1654543486' -d 'end=1654543486'
 curl http://<victoriametrics-addr>:8428/api/v1/export -d 'match[]=<timeseries_selector_for_export>' -d 'start=2022-06-06T19:25:48' -d 'end=2022-06-06T19:29:07'
 ```
@@ -1282,13 +1248,11 @@ In this case the output may contain multiple lines with samples for the same tim
 Pass `Accept-Encoding: gzip` HTTP header in the request to `/api/v1/export` in order to reduce network bandwidth during exporting big amounts
 of time series data. This enables gzip compression for the exported data. Example for exporting gzipped data:
 
-<div class="with-copy" markdown="1">
 
-```console
+```sh
 curl -H 'Accept-Encoding: gzip' http://localhost:8428/api/v1/export -d 'match[]={__name__!=""}' > data.jsonl.gz
 ```
 
-</div>
 
 The maximum duration for each request to `/api/v1/export` is limited by `-search.maxExportDuration` command-line flag.
 
@@ -1319,7 +1283,7 @@ Optional `start` and `end` args may be added to the request in order to limit th
 See [allowed formats](#timestamp-formats) for these args.
 
 For example:
-```console
+```sh
 curl http://<victoriametrics-addr>:8428/api/v1/export/csv -d 'format=<format>' -d 'match[]=<timeseries_selector_for_export>' -d 'start=1654543486' -d 'end=1654543486'
 curl http://<victoriametrics-addr>:8428/api/v1/export/csv -d 'format=<format>' -d 'match[]=<timeseries_selector_for_export>' -d 'start=2022-06-06T19:25:48' -d 'end=2022-06-06T19:29:07'
 ```
@@ -1336,7 +1300,7 @@ for metrics to export. Use `{__name__=~".*"}` selector for fetching all the time
 
 On large databases you may experience problems with limit on the number of time series, which can be exported. In this case you need to adjust `-search.maxExportSeries` command-line flag:
 
-```console
+```sh
 # count unique time series in database
 wget -O- -q 'http://your_victoriametrics_instance:8428/api/v1/series/count' | jq '.data[0]'
 
@@ -1347,7 +1311,7 @@ Optional `start` and `end` args may be added to the request in order to limit th
 See [allowed formats](#timestamp-formats) for these args.
 
 For example:
-```console
+```sh
 curl http://<victoriametrics-addr>:8428/api/v1/export/native -d 'match[]=<timeseries_selector_for_export>' -d 'start=1654543486' -d 'end=1654543486'
 curl http://<victoriametrics-addr>:8428/api/v1/export/native -d 'match[]=<timeseries_selector_for_export>' -d 'start=2022-06-06T19:25:48' -d 'end=2022-06-06T19:29:07'
 ```
@@ -1392,7 +1356,7 @@ VictoriaMetrics accepts metrics data in JSON line format at `/api/v1/import` end
 
 Example for importing data obtained via [/api/v1/export](#how-to-export-data-in-json-line-format):
 
-```console
+```sh
 # Export the data from <source-victoriametrics>:
 curl http://source-victoriametrics:8428/api/v1/export -d 'match={__name__!=""}' > exported_data.jsonl
 
@@ -1402,7 +1366,7 @@ curl -X POST http://destination-victoriametrics:8428/api/v1/import -T exported_d
 
 Pass `Content-Encoding: gzip` HTTP request header to `/api/v1/import` for importing gzipped data:
 
-```console
+```sh
 # Export gzipped data from <source-victoriametrics>:
 curl -H 'Accept-Encoding: gzip' http://source-victoriametrics:8428/api/v1/export -d 'match={__name__!=""}' > exported_data.jsonl.gz
 
@@ -1428,7 +1392,7 @@ The specification of VictoriaMetrics' native format may yet change and is not fo
 
 If you have a native format file obtained via [/api/v1/export/native](#how-to-export-data-in-native-format) however this is the most efficient protocol for importing data in.
 
-```console
+```sh
 # Export the data from <source-victoriametrics>:
 curl http://source-victoriametrics:8428/api/v1/export/native -d 'match={__name__!=""}' > exported_data.bin
 
@@ -1446,7 +1410,7 @@ Note that it could be required to flush response cache after importing historica
 Arbitrary CSV data can be imported via `/api/v1/import/csv`. The CSV data is imported according to the provided `format` query arg.
 The `format` query arg must contain comma-separated list of parsing rules for CSV fields. Each rule consists of three parts delimited by a colon:
 
-```
+```text
 <column_pos>:<type>:<context>
 ```
 
@@ -1469,14 +1433,14 @@ Each request to `/api/v1/import/csv` may contain arbitrary number of CSV lines.
 
 Example for importing CSV data via `/api/v1/import/csv`:
 
-```console
+```sh
 curl -d "GOOG,1.23,4.56,NYSE" 'http://localhost:8428/api/v1/import/csv?format=2:metric:ask,3:metric:bid,1:label:ticker,4:label:market'
 curl -d "MSFT,3.21,1.67,NASDAQ" 'http://localhost:8428/api/v1/import/csv?format=2:metric:ask,3:metric:bid,1:label:ticker,4:label:market'
 ```
 
 After that the data may be read via [/api/v1/export](#how-to-export-data-in-json-line-format) endpoint:
 
-```console
+```sh
 curl -G 'http://localhost:8428/api/v1/export' -d 'match[]={ticker!=""}'
 ```
 
@@ -1502,23 +1466,19 @@ and in [Pushgateway format](https://github.com/prometheus/pushgateway#url) via `
 
 For example, the following command imports a single line in Prometheus exposition format into VictoriaMetrics:
 
-<div class="with-copy" markdown="1">
 
-```console
+```sh
 curl -d 'foo{bar="baz"} 123' -X POST 'http://localhost:8428/api/v1/import/prometheus'
 ```
 
-</div>
 
 The following command may be used for verifying the imported data:
 
-<div class="with-copy" markdown="1">
 
-```console
+```sh
 curl -G 'http://localhost:8428/api/v1/export' -d 'match={__name__=~"foo"}'
 ```
 
-</div>
 
 It should return something like the following:
 
@@ -1528,24 +1488,20 @@ It should return something like the following:
 
 The following command imports a single metric via [Pushgateway format](https://github.com/prometheus/pushgateway#url) with `{job="my_app",instance="host123"}` labels:
 
-<div class="with-copy" markdown="1">
 
-```console
+```sh
 curl -d 'metric{label="abc"} 123' -X POST 'http://localhost:8428/api/v1/import/prometheus/metrics/job/my_app/instance/host123'
 ```
 
-</div>
 
 Pass `Content-Encoding: gzip` HTTP request header to `/api/v1/import/prometheus` for importing gzipped data:
 
-<div class="with-copy" markdown="1">
 
-```console
+```sh
 # Import gzipped data to <destination-victoriametrics>:
 curl -X POST -H 'Content-Encoding: gzip' http://destination-victoriametrics:8428/api/v1/import/prometheus -T prometheus_data.gz
 ```
 
-</div>
 
 Extra labels may be added to all the imported metrics either via [Pushgateway format](https://github.com/prometheus/pushgateway#url)
 or by passing `extra_label=name=value` query args. For example, `/api/v1/import/prometheus?extra_label=foo=bar` would add `{foo="bar"}` label to all the imported metrics.
@@ -1573,7 +1529,7 @@ and exports data in this format at [/api/v1/export](#how-to-export-data-in-json-
 
 The format follows [JSON streaming concept](http://ndjson.org/), e.g. each line contains JSON object with metrics data in the following format:
 
-```
+```json
 {
   // metric contans metric name plus labels for a particular time series
   "metric":{
@@ -1625,7 +1581,7 @@ The `-relabelConfig` files can contain special placeholders in the form `%{ENV_V
 
 Example contents for `-relabelConfig` file:
 
-```yml
+```yaml
 # Add {cluster="dev"} label.
 - target_label: cluster
   replacement: dev
@@ -1653,7 +1609,7 @@ Optional `start` and `end` args may be added to the request in order to scrape t
 See [allowed formats](#timestamp-formats) for these args.
 
 For example:
-```console
+```sh
 curl http://<victoriametrics-addr>:8428/federate -d 'match[]=<timeseries_selector_for_export>' -d 'start=1654543486' -d 'end=1654543486'
 curl http://<victoriametrics-addr>:8428/federate -d 'match[]=<timeseries_selector_for_export>' -d 'start=2022-06-06T19:25:48' -d 'end=2022-06-06T19:29:07'
 ```
@@ -1730,7 +1686,7 @@ then it can be configured with multiple `-remoteWrite.url` command-line flags, w
 instance in a particular availability zone, in order to replicate the collected data to all the VictoriaMetrics instances.
 For example, the following command instructs `vmagent` to replicate data to `vm-az1` and `vm-az2` instances of VictoriaMetrics:
 
-```console
+```sh
 /path/to/vmagent \
   -remoteWrite.url=http://<vm-az1>:8428/api/v1/write \
   -remoteWrite.url=http://<vm-az2>:8428/api/v1/write
@@ -1740,7 +1696,7 @@ If you use Prometheus for collecting and writing the data to VictoriaMetrics,
 then the following [`remote_write`](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write) section
 in Prometheus config can be used for replicating the collected data to `vm-az1` and `vm-az2` VictoriaMetrics instances:
 
-```yml
+```yaml
 remote_write:
   - url: http://<vm-az1>:8428/api/v1/write
   - url: http://<vm-az2>:8428/api/v1/write
@@ -1763,6 +1719,10 @@ This aligns with the [staleness rules in Prometheus](https://prometheus.io/docs/
 
 If multiple raw samples have **the same timestamp** on the given `-dedup.minScrapeInterval` discrete interval, 
 then the sample with **the biggest value** is kept.
+
+[Prometheus stalenes markers](https://docs.victoriametrics.com/vmagent.html#prometheus-staleness-markers) are processed as any other value during de-duplication.
+If raw sample with the biggest timestamp on `-dedup.minScrapeInterval` contains a stale marker, then it is kept after the deduplication.
+This allows properly preserving staleness markers during the de-duplication.
 
 Please note, [labels](https://docs.victoriametrics.com/keyConcepts.html#labels) of raw samples should be identical
 in order to be deduplicated. For example, this is why [HA pair of vmagents](https://docs.victoriametrics.com/vmagent.html#high-availability)
@@ -1847,8 +1807,8 @@ This increases overhead during data querying, since VictoriaMetrics needs to rea
 bigger number of parts per each request. That's why it is recommended to have at least 20%
 of free disk space under directory pointed by `-storageDataPath` command-line flag.
 
-Information about merging process is available in [the dashboard for single-node VictoriaMetrics](https://grafana.com/grafana/dashboards/10229-victoriametrics/)
-and [the dashboard for VictoriaMetrics cluster](https://grafana.com/grafana/dashboards/11176-victoriametrics-cluster/).
+Information about merging process is available in [the dashboard for single-node VictoriaMetrics](https://grafana.com/grafana/dashboards/10229)
+and [the dashboard for VictoriaMetrics cluster](https://grafana.com/grafana/dashboards/11176).
 See more details in [monitoring docs](#monitoring).
 
 See [this article](https://valyala.medium.com/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282) for more details.
@@ -1910,7 +1870,7 @@ command-line flag is applied to it. If series matches multiple configured retent
 For example, the following config sets 3 days retention for time series with `team="juniors"` label,
 30 days retention for time series with `env="dev"` or `env="staging"` label and 1 year retention for the remaining time series:
 
-```
+```sh
 -retentionFilter='{team="juniors"}:3d' -retentionFilter='{env=~"dev|staging"}:30d' -retentionPeriod=1y
 ```
 
@@ -2005,8 +1965,10 @@ VictoriaMetrics provides the following security-related command-line flags:
   with [HTTP Basic Authentication](https://en.wikipedia.org/wiki/Basic_access_authentication).
 * `-deleteAuthKey` for protecting `/api/v1/admin/tsdb/delete_series` endpoint. See [how to delete time series](#how-to-delete-time-series).
 * `-snapshotAuthKey` for protecting `/snapshot*` endpoints. See [how to work with snapshots](#how-to-work-with-snapshots).
+* `-forceFlushAuthKey` for protecting `/internal/force_flush` endpoint. See [these docs](#troubleshooting).
 * `-forceMergeAuthKey` for protecting `/internal/force_merge` endpoint. See [force merge docs](#forced-merge).
 * `-search.resetCacheAuthKey` for protecting `/internal/resetRollupResultCache` endpoint. See [backfilling](#backfilling) for more details.
+* `-reloadAuthKey` for protecting `/-/reload` endpoint, which is used for force reloading of [`-promscrape.config`](#how-to-scrape-prometheus-exporters-such-as-node-exporter).
 * `-configAuthKey` for protecting `/config` endpoint, since it may contain sensitive information such as passwords.
 * `-flagsAuthKey` for protecting `/flags` endpoint.
 * `-pprofAuthKey` for protecting `/debug/pprof/*` endpoints, which can be used for [profiling](#profiling).
@@ -2036,7 +1998,7 @@ and [the general security page at VictoriaMetrics website](https://victoriametri
   If you plan to store more than 1TB of data on `ext4` partition or plan extending it to more than 16TB,
   then the following options are recommended to pass to `mkfs.ext4`:
 
-```console
+```sh
 mkfs.ext4 ... -O 64bit,huge_file,extent -T huge
 ```
 
@@ -2050,9 +2012,9 @@ with 10 seconds interval.
 
 _Please note, never use loadbalancer address for scraping metrics. All monitored components should be scraped directly by their address._
 
-Official Grafana dashboards available for [single-node](https://grafana.com/grafana/dashboards/10229-victoriametrics/) 
-and [clustered](https://grafana.com/grafana/dashboards/11176-victoriametrics-cluster/) VictoriaMetrics. 
-See an [alternative dashboard for clustered VictoriaMetrics](https://grafana.com/grafana/dashboards/11831) 
+Official Grafana dashboards available for [single-node](https://grafana.com/grafana/dashboards/10229)
+and [clustered](https://grafana.com/grafana/dashboards/11176) VictoriaMetrics.
+See an [alternative dashboard for clustered VictoriaMetrics](https://grafana.com/grafana/dashboards/11831)
 created by community.
 
 Graphs on the dashboards contain useful hints - hover the `i` icon in the top left corner of each graph to read it.
@@ -2094,7 +2056,7 @@ In this case VictoriaMetrics puts query trace into `trace` field in the output J
 
 For example, the following command:
 
-```console
+```sh
 curl http://localhost:8428/api/v1/query_range -d 'query=2*rand()' -d 'start=-1h' -d 'step=1m' -d 'trace=1' | jq '.trace'
 ```
 
@@ -2293,7 +2255,7 @@ For example, the following command instructs VictoriaMetrics to push metrics fro
 with `user:pass` [Basic auth](https://en.wikipedia.org/wiki/Basic_access_authentication). The `instance="foobar"` and `job="vm"` labels
 are added to all the metrics before sending them to the remote storage:
 
-```console
+```sh
 /path/to/victoria-metrics \
   -pushmetrics.url=https://user:pass@maas.victoriametrics.com/api/v1/import/prometheus \
   -pushmetrics.extraLabel='instance="foobar"' \
@@ -2321,8 +2283,8 @@ The following metrics for each type of cache are exported at [`/metrics` page](#
 * `vm_cache_misses_total` - the number of cache misses
 * `vm_cache_entries` - the number of entries in the cache
 
-Both Grafana dashboards for [single-node VictoriaMetrics](https://grafana.com/grafana/dashboards/10229-victoriametrics/)
-and [clustered VictoriaMetrics](https://grafana.com/grafana/dashboards/11176-victoriametrics-cluster/)
+Both Grafana dashboards for [single-node VictoriaMetrics](https://grafana.com/grafana/dashboards/10229)
+and [clustered VictoriaMetrics](https://grafana.com/grafana/dashboards/11176)
 contain `Caches` section with cache metrics visualized. The panels show the current
 memory usage by each type of cache, and also a cache hit rate. If hit rate is close to 100%
 then cache efficiency is already very high and does not need any tuning.
@@ -2436,23 +2398,19 @@ VictoriaMetrics provides handlers for collecting the following [Go profiles](htt
 
 * Memory profile. It can be collected with the following command (replace `0.0.0.0` with hostname if needed):
 
-<div class="with-copy" markdown="1">
 
-```console
+```sh
 curl http://0.0.0.0:8428/debug/pprof/heap > mem.pprof
 ```
 
-</div>
 
 * CPU profile. It can be collected with the following command (replace `0.0.0.0` with hostname if needed):
 
-<div class="with-copy" markdown="1">
 
-```console
+```sh
 curl http://0.0.0.0:8428/debug/pprof/profile > cpu.pprof
 ```
 
-</div>
 
 The command for collecting CPU profile waits for 30 seconds before returning.
 
@@ -2520,7 +2478,7 @@ If the page needs to have many images, consider using WEB-optimized image format
 When adding a new doc with many images use `webp` format right away. Or use a Makefile command below to
 convert already existing images at `docs` folder automatically to `web` format:
 
-```console
+```sh
 make docs-images-to-webp
 ```
 
@@ -2560,15 +2518,16 @@ Files included in each folder:
 
 Pass `-help` to VictoriaMetrics in order to see the list of supported command-line flags with their description:
 
-```
+```sh
   -bigMergeConcurrency int
-     Deprecated: this flag does nothing. Please use -smallMergeConcurrency for controlling the concurrency of background merges. See https://docs.victoriametrics.com/#storage
+     Deprecated: this flag does nothing
   -blockcache.missesBeforeCaching int
      The number of cache misses before putting the block into cache. Higher values may reduce indexdb/dataBlocks cache size at the cost of higher CPU and disk read usage (default 2)
   -cacheExpireDuration duration
      Items are removed from in-memory caches after they aren't accessed for this duration. Lower values may reduce memory usage at the cost of higher CPU usage. See also -prevCacheRemovalPercent (default 30m0s)
-  -configAuthKey string
+  -configAuthKey value
      Authorization key for accessing /config page. It must be passed via authKey query arg
+     Flag value can be read from the given file when using -configAuthKey=file:///abs/path/to/file or -configAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -configAuthKey=http://host/path or -configAuthKey=https://host/path
   -csvTrimTimestamp duration
      Trim timestamps when importing csv data to this duration. Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data (default 1ms)
   -datadog.maxInsertRequestSize size
@@ -2578,8 +2537,9 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      Sanitize metric names for the ingested DataDog data to comply with DataDog behaviour described at https://docs.datadoghq.com/metrics/custom_metrics/#naming-custom-metrics (default true)
   -dedup.minScrapeInterval duration
      Leave only the last sample in every time series per each discrete interval equal to -dedup.minScrapeInterval > 0. See https://docs.victoriametrics.com/#deduplication and https://docs.victoriametrics.com/#downsampling
-  -deleteAuthKey string
+  -deleteAuthKey value
      authKey for metrics' deletion via /api/v1/admin/tsdb/delete_series and /tags/delSeries
+     Flag value can be read from the given file when using -deleteAuthKey=file:///abs/path/to/file or -deleteAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -deleteAuthKey=http://host/path or -deleteAuthKey=https://host/path
   -denyQueriesOutsideRetention
      Whether to deny queries outside the configured -retentionPeriod. When set, then /api/v1/query_range would return '503 Service Unavailable' error for queries with 'from' value outside -retentionPeriod. This may be useful when multiple data sources with distinct retentions are hidden behind query-tee
   -denyQueryTracing
@@ -2600,13 +2560,16 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -filestream.disableFadvise
      Whether to disable fadvise() syscall when reading large data files. The fadvise() syscall prevents from eviction of recently accessed data from OS page cache during background merges and backups. In some rare cases it is better to disable the syscall if it uses too much CPU
   -finalMergeDelay duration
-     The delay before starting final merge for per-month partition after no new data is ingested into it. Final merge may require additional disk IO and CPU resources. Final merge may increase query speed and reduce disk space usage in some cases. Zero value disables final merge
-  -flagsAuthKey string
+     Deprecated: this flag does nothing
+  -flagsAuthKey value
      Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
-  -forceFlushAuthKey string
+     Flag value can be read from the given file when using -flagsAuthKey=file:///abs/path/to/file or -flagsAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -flagsAuthKey=http://host/path or -flagsAuthKey=https://host/path
+  -forceFlushAuthKey value
      authKey, which must be passed in query string to /internal/force_flush pages
-  -forceMergeAuthKey string
+     Flag value can be read from the given file when using -forceFlushAuthKey=file:///abs/path/to/file or -forceFlushAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -forceFlushAuthKey=http://host/path or -forceFlushAuthKey=https://host/path
+  -forceMergeAuthKey value
      authKey, which must be passed in query string to /internal/force_merge pages
+     Flag value can be read from the given file when using -forceMergeAuthKey=file:///abs/path/to/file or -forceMergeAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -forceMergeAuthKey=http://host/path or -forceMergeAuthKey=https://host/path
   -fs.disableMmap
      Whether to use pread() instead of mmap() for reading data files. By default, mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
   -graphiteListenAddr string
@@ -2633,8 +2596,9 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      An optional prefix to add to all the paths handled by http server. For example, if '-http.pathPrefix=/foo/bar' is set, then all the http requests will be handled on '/foo/bar/*' paths. This may be useful for proxied requests. See https://www.robustperception.io/using-external-urls-and-proxies-with-prometheus
   -http.shutdownDelay duration
      Optional delay before http server shutdown. During this delay, the server returns non-OK responses from /health page, so load balancers can route new requests to other servers
-  -httpAuth.password string
+  -httpAuth.password value
      Password for HTTP server's Basic Auth. The authentication is disabled if -httpAuth.username is empty
+     Flag value can be read from the given file when using -httpAuth.password=file:///abs/path/to/file or -httpAuth.password=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -httpAuth.password=http://host/path or -httpAuth.password=https://host/path
   -httpAuth.username string
      Username for HTTP server's Basic Auth. The authentication is disabled if empty. See also -httpAuth.password
   -httpListenAddr string
@@ -2716,8 +2680,9 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache which will result in higher disk IO usage (default 60)
   -metrics.exposeMetadata
      Whether to expose TYPE and HELP metadata at the /metrics page, which is exposed at -httpListenAddr . The metadata may be needed when the /metrics page is consumed by systems, which require this information. For example, Managed Prometheus in Google Cloud - https://cloud.google.com/stackdriver/docs/managed-prometheus/troubleshooting#missing-metric-type
-  -metricsAuthKey string
+  -metricsAuthKey value
      Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
+     Flag value can be read from the given file when using -metricsAuthKey=file:///abs/path/to/file or -metricsAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -metricsAuthKey=http://host/path or -metricsAuthKey=https://host/path
   -newrelic.maxInsertRequestSize size
      The maximum size in bytes of a single NewRelic request to /newrelic/infra/v2/metrics/events/bulk
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 67108864)
@@ -2736,8 +2701,9 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 33554432)
   -opentsdbhttpTrimTimestamp duration
      Trim timestamps for OpenTSDB HTTP data to this duration. Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data (default 1ms)
-  -pprofAuthKey string
+  -pprofAuthKey value
      Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides httpAuth.* settings
+     Flag value can be read from the given file when using -pprofAuthKey=file:///abs/path/to/file or -pprofAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -pprofAuthKey=http://host/path or -pprofAuthKey=https://host/path
   -precisionBits int
      The number of precision bits to store per each value. Lower precision bits improves data compression at the cost of precision loss (default 64)
   -prevCacheRemovalPercent float
@@ -2800,6 +2766,8 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      Interval for checking for changes in http endpoint service discovery. This works only if http_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#http_sd_configs for details (default 1m0s)
   -promscrape.kubernetes.apiServerTimeout duration
      How frequently to reload the full state from Kubernetes API server (default 30m0s)
+  -promscrape.kubernetes.attachNodeMetadataAll
+     Whether to set attach_metadata.node=true for all the kubernetes_sd_configs at -promscrape.config . It is possible to set attach_metadata.node=false individually per each kubernetes_sd_configs . See https://docs.victoriametrics.com/sd_configs.html#kubernetes_sd_configs
   -promscrape.kubernetesSDCheckInterval duration
      Interval for checking for changes in Kubernetes API server. This works only if kubernetes_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#kubernetes_sd_configs for details (default 30s)
   -promscrape.kumaSDCheckInterval duration
@@ -2850,6 +2818,9 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      Supports an array of values separated by comma or specified via multiple flags.
   -relabelConfig string
      Optional path to a file with relabeling rules, which are applied to all the ingested metrics. The path can point either to local file or to http url. See https://docs.victoriametrics.com/#relabeling for details. The config is reloaded on SIGHUP signal
+ -reloadAuthKey value
+     Auth key for /-/reload http endpoint. It must be passed as authKey=...
+     Flag value can be read from the given file when using -reloadAuthKey=file:///abs/path/to/file or -reloadAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -reloadAuthKey=http://host/path or -reloadAuthKey=https://host/path
   -retentionFilter array
      Retention filter in the format 'filter:retention'. For example, '{env="dev"}:3d' configures the retention for time series with env="dev" label to 3 days. See https://docs.victoriametrics.com/#retention-filters for details. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
      Supports an array of values separated by comma or specified via multiple flags.
@@ -2944,8 +2915,9 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      Query stats for /api/v1/status/top_queries is tracked on this number of last queries. Zero value disables query stats tracking (default 20000)
   -search.queryStats.minQueryDuration duration
      The minimum duration for queries to track in query stats at /api/v1/status/top_queries. Queries with lower duration are ignored in query stats (default 1ms)
-  -search.resetCacheAuthKey string
+  -search.resetCacheAuthKey value
      Optional authKey for resetting rollup cache via /internal/resetRollupResultCache call
+     Flag value can be read from the given file when using -search.resetCacheAuthKey=file:///abs/path/to/file or -search.resetCacheAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -search.resetCacheAuthKey=http://host/path or -search.resetCacheAuthKey=https://host/path
   -search.setLookbackToStep
      Whether to fix lookback interval to 'step' query arg value. If set to true, the query model becomes closer to InfluxDB data model. If set to true, then -search.maxLookback and -search.maxStalenessInterval are ignored
   -search.treatDotsAsIsInRegexps
@@ -2957,9 +2929,10 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -selfScrapeJob string
      Value for 'job' label, which is added to self-scraped metrics (default "victoria-metrics")
   -smallMergeConcurrency int
-     The maximum number of workers for background merges. See https://docs.victoriametrics.com/#storage . It isn't recommended tuning this flag in general case, since this may lead to uncontrolled increase in the number of parts and increased CPU usage during queries
-  -snapshotAuthKey string
+     Deprecated: this flag does nothing
+  -snapshotAuthKey value
      authKey, which must be passed in query string to /snapshot* pages
+     Flag value can be read from the given file when using -snapshotAuthKey=file:///abs/path/to/file or -snapshotAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -snapshotAuthKey=http://host/path or -snapshotAuthKey=https://host/path
   -snapshotCreateTimeout duration
      The timeout for creating new snapshot. If set, make sure that timeout is lower than backup period
   -snapshotsMaxAge value
@@ -3015,4 +2988,6 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      Optional URL for proxying requests to vmalert. For example, if -vmalert.proxyURL=http://vmalert:8880 , then alerting API requests such as /api/v1/rules from Grafana will be proxied to http://vmalert:8880/api/v1/rules
   -vmui.customDashboardsPath string
      Optional path to vmui dashboards. See https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/app/vmui/packages/vmui/public/dashboards
+  -vmui.defaultTimezone string
+     The default timezone to be used in vmui. Timezone must be a valid IANA Time Zone. For example: America/New_York, Europe/Berlin, Etc/GMT+3 or Local. See https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/app/vmui#timezone-configuration
 ```

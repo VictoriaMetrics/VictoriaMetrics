@@ -6,6 +6,7 @@ menu:
   docs:
     parent: "victorialogs"
     weight: 1
+    title: Quick Start
 aliases:
 - /VictoriaLogs/QuickStart.html
 ---
@@ -32,7 +33,7 @@ Just download archive for the needed Operating system and architecture, unpack i
 
 For example, the following commands download VictoriaLogs archive for Linux/amd64, unpack and run it:
 
-```bash
+```sh
 curl -L -O https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v0.4.2-victorialogs/victoria-logs-linux-amd64-v0.4.2-victorialogs.tar.gz
 tar xzf victoria-logs-linux-amd64-v0.4.2-victorialogs.tar.gz
 ./victoria-logs-prod
@@ -56,7 +57,7 @@ See also:
 You can run VictoriaLogs in a Docker container. It is the easiest way to start using VictoriaLogs.
 Here is the command to run VictoriaLogs in a Docker container:
 
-```bash
+```sh
 docker run --rm -it -p 9428:9428 -v ./victoria-logs-data:/victoria-logs-data \
   docker.io/victoriametrics/victoria-logs:v0.4.2-victorialogs
 ```
@@ -78,20 +79,20 @@ Follow the following steps in order to build VictoriaLogs from source code:
 
 - Checkout VictoriaLogs source code. It is located in the VictoriaMetrics repository:
 
-  ```bash
+  ```sh
   git clone https://github.com/VictoriaMetrics/VictoriaMetrics
   cd VictoriaMetrics
   ```
 
 - Build VictoriaLogs. The build command requires [Go 1.20](https://golang.org/doc/install).
 
-  ```bash
+  ```sh
   make victoria-logs
   ```
 
 - Run the built binary:
 
-  ```bash
+  ```sh
   bin/victoria-logs
   ```
 
@@ -116,7 +117,7 @@ without additional configuration.
 
 Pass `-help` to VictoriaLogs in order to see the list of supported command-line flags with their description and default values:
 
-```bash
+```sh
 /path/to/victoria-logs -help
 ```
 

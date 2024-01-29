@@ -51,13 +51,14 @@ The backup manager creates the following directory hierarchy at **-dst**:
 
 To get the full list of supported flags please run the following command:
 
-```console
+```sh
 ./vmbackupmanager --help
 ```
 
 The service creates a **full** backup each run. This means that the system can be restored fully
 from any particular backup using [vmrestore](https://docs.victoriametrics.com/vmrestore.html).
-Backup manager uploads only the data that has been changed or created since the most recent backup (incremental backup).
+Backup manager uploads only the data that has been changed or created since the most recent backup 
+([incremental backup](https://docs.victoriametrics.com/vmbackup.html#incremental-backups)).
 This reduces the consumed network traffic and the time needed for performing the backup.
 See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-series-databases-533c1a927883) for details.
 
@@ -92,7 +93,7 @@ credentials.json
 
 Backup manager launched with the following configuration:
 
-```console
+```sh
 export NODE_IP=192.168.0.10
 export VMSTORAGE_ENDPOINT=http://127.0.0.1:8428
 ./vmbackupmanager -dst=gs://vmstorage-data/$NODE_IP -credsFilePath=credentials.json -storageDataPath=/vmstorage-data -snapshot.createURL=$VMSTORAGE_ENDPOINT/snapshot/create -eula
@@ -100,14 +101,14 @@ export VMSTORAGE_ENDPOINT=http://127.0.0.1:8428
 
 Expected logs in vmbackupmanager:
 
-```console
+```sh
 info    lib/backup/actions/backup.go:131    server-side copied 81 out of 81 parts from GCS{bucket: "vmstorage-data", dir: "192.168.0.10//latest/"} to GCS{bucket: "vmstorage-data", dir: "192.168.0.10//weekly/2020-34/"} in 2.549833008s
 info    lib/backup/actions/backup.go:169    backed up 853315 bytes in 2.882 seconds; deleted 0 bytes; server-side copied 853315 bytes; uploaded 0 bytes
 ```
 
 Expected logs in vmstorage:
 
-```console
+```sh
 info    VictoriaMetrics/lib/storage/table.go:146    creating table snapshot of "/vmstorage-data/data"...
 info    VictoriaMetrics/lib/storage/storage.go:311    deleting snapshot "/vmstorage-data/snapshots/20200818201959-162C760149895DDA"...
 info    VictoriaMetrics/lib/storage/storage.go:319    deleted snapshot "/vmstorage-data/snapshots/20200818201959-162C760149895DDA" in 0.169 seconds
@@ -122,6 +123,12 @@ The result on the GCS bucket
 * The latest folder
 
   <img alt="latest folder" src="vmbackupmanager_latest_folder.webp">
+
+`vmbackupmanager` uses [smart backups](https://docs.victoriametrics.com/vmbackup.html#smart-backups) technique in order
+to speed up backups and save both data transfer costs and data copying costs. This includes server-side copy of already existing
+objects. Typical object storage systems implement server-side copy by creating new names for already existing objects.
+This is very fast and efficient. Unfortunately there are systems such as [S3 Glacier](https://aws.amazon.com/s3/storage-classes/glacier/),
+which perform full object copy during server-side copying. This may be slow and expensive.
 
 Please, see [vmbackup docs](https://docs.victoriametrics.com/vmbackup.html#advanced-usage) for more examples of authentication with different
 storage types.
@@ -145,7 +152,7 @@ Let’s assume we have a backup manager collecting daily backups for the past 10
 
 We enable backup retention policy for backup manager by using following configuration:
 
-```console
+```sh
 export NODE_IP=192.168.0.10
 export VMSTORAGE_ENDPOINT=http://127.0.0.1:8428
 ./vmbackupmanager -dst=gs://vmstorage-data/$NODE_IP -credsFilePath=credentials.json -storageDataPath=/vmstorage-data -snapshot.createURL=$VMSTORAGE_ENDPOINT/snapshot/create
@@ -154,13 +161,13 @@ export VMSTORAGE_ENDPOINT=http://127.0.0.1:8428
 
 Expected logs in backup manager on start:
 
-```console
+```sh
 info    lib/logger/flag.go:20    flag "keepLastDaily" = "3"
 ```
 
 Expected logs in backup manager during retention cycle:
 
-```console
+```sh
 info    app/vmbackupmanager/retention.go:106    daily backups to delete [daily/2021-02-13 daily/2021-02-12 daily/2021-02-11 daily/2021-02-10 daily/2021-02-09 daily/2021-02-08 daily/2021-02-07]
 ```
 
@@ -174,14 +181,14 @@ You can protect any backup against deletion by retention policy with the `vmback
 
 For instance:
 
-```console
+```sh
 ./vmbackupmanager backup lock daily/2021-02-13 -dst=<DST_PATH> -storageDataPath=/vmstorage-data -eula
 ```
 
 After that the backup won't be deleted by retention policy.
 You can view the `locked` attribute in backup list:
 
-```console
+```sh
 ./vmbackupmanager backup list -dst=<DST_PATH> -storageDataPath=/vmstorage-data -eula
 ```
 
@@ -189,7 +196,7 @@ To remove protection, you can use the command `vmbackupmanager backups unlock`.
 
 For example:
 
-```console
+```sh
 ./vmbackupmanager backup unlock daily/2021-02-13 -dst=<DST_PATH> -storageDataPath=/vmstorage-data -eula
 ```
 
@@ -239,7 +246,7 @@ For example:
 `vmbackupmanager` exposes CLI commands to work with [API methods](#api-methods) without external dependencies.
 
 Supported commands:
-```console
+```sh
 vmbackupmanager backup 
 
   vmbackupmanager backup list 
@@ -274,7 +281,7 @@ It can be changed by using flag:
 ### Backup commands
 
 `vmbackupmanager backup list` lists backups in remote storage:
-```console
+```sh
 $ ./vmbackupmanager backup list
 [{"name":"daily/2023-04-07","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:07+00:00"},{"name":"hourly/2023-04-07:11","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:06+00:00"},{"name":"latest","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:04+00:00"},{"name":"monthly/2023-04","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:10+00:00"},{"name":"weekly/2023-14","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:09+00:00"}]
 ```
@@ -286,23 +293,23 @@ Restore mark is used by `vmbackupmanager` to store backup name to restore when r
 
 
 Create restore mark:
-```console
+```sh
 $ ./vmbackupmanager restore create daily/2022-10-06
 ```
 
 Get restore mark if it exists:
-```console
+```sh
 $ ./vmbackupmanager restore get
 {"backup":"daily/2022-10-06"}
 ```
 
 Delete restore mark if it exists:
-```console
+```sh
 $ ./vmbackupmanager restore delete
 ```
 
 Perform restore:
-```console
+```sh
 $ /vmbackupmanager-prod restore -dst=gs://vmstorage-data/$NODE_IP -credsFilePath=credentials.json -storageDataPath=/vmstorage-data
 ```
 Note that `vmsingle` or `vmstorage` should be stopped before performing restore.
@@ -312,22 +319,22 @@ If restore mark doesn't exist at `storageDataPath`(restore wasn't requested) `vm
 ### How to restore backup via CLI
 
 1. Run `vmbackupmanager backup list` to get list of available backups:
-  ```console
+  ```sh
   $ /vmbackupmanager-prod backup list
   [{"name":"daily/2023-04-07","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:07+00:00"},{"name":"hourly/2023-04-07:11","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:06+00:00"},{"name":"latest","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:04+00:00"},{"name":"monthly/2023-04","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:10+00:00"},{"name":"weekly/2023-14","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:09+00:00"}]
   ```
 1. Run `vmbackupmanager restore create` to create restore mark:
    - Use relative path to backup to restore from currently used remote storage:
-     ```console
+     ```sh
      $ /vmbackupmanager-prod restore create daily/2023-04-07
      ```
    - Use full path to backup to restore from any remote storage:
-     ```console
+     ```sh
      $ /vmbackupmanager-prod restore create azblob://test1/vmbackupmanager/daily/2023-04-07
      ```
 1. Stop `vmstorage` or `vmsingle` node
 1. Run `vmbackupmanager restore` to restore backup:
-  ```console
+  ```sh
   $ /vmbackupmanager-prod restore -credsFilePath=credentials.json -storageDataPath=/vmstorage-data
   ```
 1. Start `vmstorage` or `vmsingle` node
@@ -346,17 +353,17 @@ If restore mark doesn't exist at `storageDataPath`(restore wasn't requested) `vm
    See operator `VMStorage` schema [here](https://docs.victoriametrics.com/operator/api.html#vmstorage) and `VMSingle` [here](https://docs.victoriametrics.com/operator/api.html#vmsinglespec).
 1. Enter container running `vmbackupmanager`
 1. Use `vmbackupmanager backup list` to get list of available backups:
-  ```console
+  ```sh
   $ /vmbackupmanager-prod backup list
   [{"name":"daily/2023-04-07","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:07+00:00"},{"name":"hourly/2023-04-07:11","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:06+00:00"},{"name":"latest","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:04+00:00"},{"name":"monthly/2023-04","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:10+00:00"},{"name":"weekly/2023-14","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:09+00:00"}]
   ```
 1. Use `vmbackupmanager restore create` to create restore mark:
   - Use relative path to backup to restore from currently used remote storage:
-    ```console
+    ```sh
     $ /vmbackupmanager-prod restore create daily/2023-04-07
     ```
   - Use full path to backup to restore from any remote storage:
-    ```console
+    ```sh
     $ /vmbackupmanager-prod restore create azblob://test1/vmbackupmanager/daily/2023-04-07
     ```
 1. Restart pod
@@ -378,14 +385,14 @@ Clusters here are referred to as `source` and `destination`.
    > Important! Use different `-dst` for *destination* cluster to avoid overwriting backup data of the *source* cluster.
 1. Enter container running `vmbackupmanager` in *source* cluster
 1. Use `vmbackupmanager backup list` to get list of available backups:
-  ```console
+  ```sh
   $ /vmbackupmanager-prod backup list
   [{"name":"daily/2023-04-07","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:07+00:00"},{"name":"hourly/2023-04-07:11","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:06+00:00"},{"name":"latest","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:04+00:00"},{"name":"monthly/2023-04","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:10+00:00"},{"name":"weekly/2023-14","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:09+00:00"}]
   ```
 1. Use `vmbackupmanager restore create` to create restore mark at each pod of the *destination* cluster.
    Each pod in *destination* cluster should be restored from backup of respective pod in *source* cluster.
    For example: `vmstorage-source-0` in *source* cluster should be restored from `vmstorage-destination-0` in *destination* cluster.
-  ```console
+  ```sh
   $ /vmbackupmanager-prod restore create s3://source_cluster/vmstorage-source-0/daily/2023-04-07
   ```
 1. Restart `vmstorage` pods of *destination* cluster. On pod start `vmbackupmanager` will restore data from the specified backup.
@@ -395,7 +402,7 @@ Clusters here are referred to as `source` and `destination`.
 `vmbackupmanager` exports various metrics in Prometheus exposition format at `http://vmbackupmanager:8300/metrics` page. It is recommended setting up regular scraping of this page
 either via [vmagent](https://docs.victoriametrics.com/vmagent.html) or via Prometheus, so the exported metrics could be analyzed later.
 
-Use the official [Grafana dashboard](https://grafana.com/grafana/dashboards/17798-victoriametrics-backupmanager/) for `vmbackupmanager` overview.
+Use the official [Grafana dashboard](https://grafana.com/grafana/dashboards/17798) for `vmbackupmanager` overview.
 Graphs on this dashboard contain useful hints - hover the `i` icon in the top left corner of each graph in order to read it.
 If you have suggestions for improvements or have found a bug - please open an issue on github or add
 a review to the dashboard.
@@ -453,8 +460,9 @@ command-line flags:
      Deprecated, please use -license or -licenseFile flags instead. By specifying this flag, you confirm that you have an enterprise license and accept the ESA https://victoriametrics.com/legal/esa/ . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
   -filestream.disableFadvise
      Whether to disable fadvise() syscall when reading large data files. The fadvise() syscall prevents from eviction of recently accessed data from OS page cache during background merges and backups. In some rare cases it is better to disable the syscall if it uses too much CPU
-  -flagsAuthKey string
+  -flagsAuthKey value
      Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
+     Flag value can be read from the given file when using -flagsAuthKey=file:///abs/path/to/file or -flagsAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -flagsAuthKey=http://host/path or -flagsAuthKey=https://host/path
   -fs.disableMmap
      Whether to use pread() instead of mmap() for reading data files. By default, mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
   -http.connTimeout duration
@@ -475,8 +483,9 @@ command-line flags:
      An optional prefix to add to all the paths handled by http server. For example, if '-http.pathPrefix=/foo/bar' is set, then all the http requests will be handled on '/foo/bar/*' paths. This may be useful for proxied requests. See https://www.robustperception.io/using-external-urls-and-proxies-with-prometheus
   -http.shutdownDelay duration
      Optional delay before http server shutdown. During this delay, the server returns non-OK responses from /health page, so load balancers can route new requests to other servers
-  -httpAuth.password string
+  -httpAuth.password value
      Password for HTTP server's Basic Auth. The authentication is disabled if -httpAuth.username is empty
+     Flag value can be read from the given file when using -httpAuth.password=file:///abs/path/to/file or -httpAuth.password=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -httpAuth.password=http://host/path or -httpAuth.password=https://host/path
   -httpAuth.username string
      Username for HTTP server's Basic Auth. The authentication is disabled if empty. See also -httpAuth.password
   -httpListenAddr string
@@ -528,10 +537,12 @@ command-line flags:
      Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache which will result in higher disk IO usage (default 60)
   -metrics.exposeMetadata
      Whether to expose TYPE and HELP metadata at the /metrics page, which is exposed at -httpListenAddr . The metadata may be needed when the /metrics page is consumed by systems, which require this information. For example, Managed Prometheus in Google Cloud - https://cloud.google.com/stackdriver/docs/managed-prometheus/troubleshooting#missing-metric-type
-  -metricsAuthKey string
+  -metricsAuthKey value
      Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
-  -pprofAuthKey string
+     Flag value can be read from the given file when using -metricsAuthKey=file:///abs/path/to/file or -metricsAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -metricsAuthKey=http://host/path or -metricsAuthKey=https://host/path
+  -pprofAuthKey value
      Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides httpAuth.* settings
+     Flag value can be read from the given file when using -pprofAuthKey=file:///abs/path/to/file or -pprofAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -pprofAuthKey=http://host/path or -pprofAuthKey=https://host/path
   -pushmetrics.disableCompression
      Whether to disable request body compression when pushing metrics to every -pushmetrics.url
   -pushmetrics.extraLabel array

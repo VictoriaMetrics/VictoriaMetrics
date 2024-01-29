@@ -131,7 +131,7 @@ If you see unexpected or unreliable query results from VictoriaMetrics, then try
    of raw unprocessed samples for this query via [/api/v1/export](https://docs.victoriametrics.com/#how-to-export-data-in-json-line-format)
    on the given `[start..end]` time range and check whether they are expected:
 
-   ```console
+   ```sh
    single-node: curl http://victoriametrics:8428/api/v1/export -d 'match[]=http_requests_total' -d 'start=...' -d 'end=...'
    
    cluster: curl http://<vmselect>:8481/select/<tenantID>/prometheus/api/v1/export -d 'match[]=http_requests_total' -d 'start=...' -d 'end=...'
@@ -178,6 +178,9 @@ If you see unexpected or unreliable query results from VictoriaMetrics, then try
    This might work incorrect for irregular data as median will be skewed. In this case it is recommended to switch
    to the static interval for gaps filling by setting `-search.minStalenessInterval=5m` cmd-line flag (`5m` is
    the static interval used by Prometheus).
+
+1. If you observe recently written data is not immediately visible/queryable, then read more about 
+   [query latency](https://docs.victoriametrics.com/keyConcepts.html#query-latency) behavior.
 
 1. Try upgrading to the [latest available version of VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest)
    and verifying whether the issue is fixed there.

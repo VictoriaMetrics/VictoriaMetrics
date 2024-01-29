@@ -21,10 +21,7 @@ func BenchmarkParseStream(b *testing.B) {
 		pbRequest := pb.ExportMetricsServiceRequest{
 			ResourceMetrics: []*pb.ResourceMetrics{generateOTLPSamples(samples)},
 		}
-		data, err := pbRequest.MarshalVT()
-		if err != nil {
-			b.Fatalf("cannot marshal data: %s", err)
-		}
+		data := pbRequest.MarshalProtobuf(nil)
 
 		for p.Next() {
 			err := ParseStream(bytes.NewBuffer(data), false, func(tss []prompbmarshal.TimeSeries) error {

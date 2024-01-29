@@ -55,7 +55,7 @@ plus the following additional features:
 - [Multitenant support in vmalert](https://docs.victoriametrics.com/vmalert.html#multitenancy).
 - [Ability to read alerting and recording rules from Object Storage](https://docs.victoriametrics.com/vmalert.html#reading-rules-from-object-storage).
 - [Ability to filter incoming requests by IP at vmauth](https://docs.victoriametrics.com/vmauth.html#ip-filters).
-- [Anomaly Detection Service](https://docs.victoriametrics.com/vmanomaly.html).
+- [Anomaly Detection Service](https://docs.victoriametrics.com/anomaly-detection).
 
 On top of this, Enterprise package of VictoriaMetrics includes the following important Enterprise features:
 
@@ -100,7 +100,7 @@ The `-eula` command-line flag is deprecated starting from `v1.94.0` release in f
 For example, the following command runs VictoriaMetrics Enterprise binary with the Enterprise license
 obtained at [this page](https://victoriametrics.com/products/enterprise/trial/):
 
-```console
+```sh
 wget https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.96.0/victoria-metrics-linux-amd64-v1.96.0-enterprise.tar.gz
 tar -xzf victoria-metrics-linux-amd64-v1.96.0-enterprise.tar.gz
 ./victoria-metrics-prod -license=BASE64_ENCODED_LICENSE_KEY
@@ -108,7 +108,7 @@ tar -xzf victoria-metrics-linux-amd64-v1.96.0-enterprise.tar.gz
 
 Alternatively, VictoriaMetrics Enterprise license can be stored in the file and then referred via `-licenseFile` command-line flag:
 
-```console
+```sh
 ./victoria-metrics-prod -licenseFile=/path/to/vm-license
 ```
 
@@ -126,13 +126,13 @@ Enterprise license key can be obtained at [this page](https://victoriametrics.co
 
 For example, the following command runs VictoriaMetrics Enterprise Docker image with the specified license key:
 
-```console
+```sh
 docker run --name=victoria-metrics victoriametrics/victoria-metrics:v1.96.0-enteprise -license=BASE64_ENCODED_LICENSE_KEY
 ```
 
 Alternatively, the license code can be stored in the file and then referred via `-licenseFile` command-line flag:
 
-```console
+```sh
 docker run --name=victoria-metrics -v /vm-license:/vm-license  victoriametrics/victoria-metrics:v1.96.0-enteprise -licenseFile=/path/to/vm-license
 ```
 
@@ -206,7 +206,7 @@ data:
 ```
 
 Or create secret via `kubectl`:
-```console
+```sh
 kubectl create secret generic vm-license --from-literal=license={BASE64_ENCODED_LICENSE_KEY}
 ```
 
@@ -265,7 +265,7 @@ data:
 ```
 
 Or create secret via `kubectl`:
-```console
+```sh
 kubectl create secret generic vm-license --from-literal=license={BASE64_ENCODED_LICENSE_KEY}
 ```
 
@@ -280,7 +280,6 @@ All the VictoriaMetrics Enterprise components expose the following metrics at th
 
 Example alerts for [vmalert](https://docs.victoriametrics.com/vmalert.html) based on these metrics:
 
-{% raw %}
 ```yaml
 groups:
   - name: vm-license
@@ -304,4 +303,3 @@ groups:
           description: "{{ $labels.instance }} of job {{ $labels.job }} license expires in {{ $value | humanizeDuration }}. 
             Please make sure to update the license before it expires."
 ```
-{% endraw %}

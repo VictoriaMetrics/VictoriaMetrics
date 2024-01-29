@@ -98,7 +98,7 @@ func addLabel(dst []prompb.Label, key, value string) []prompb.Label {
 		dst = append(dst, prompb.Label{})
 	}
 	lb := &dst[len(dst)-1]
-	lb.Name = bytesutil.ToUnsafeBytes(key)
-	lb.Value = bytesutil.ToUnsafeBytes(value)
+	lb.Name = key
+	lb.Value = value
 	return dst
 }

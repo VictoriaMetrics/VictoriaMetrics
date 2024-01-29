@@ -10,6 +10,7 @@ import { routerOptions } from "../../router";
 import { useFetchDashboards } from "../../pages/PredefinedPanels/hooks/useFetchDashboards";
 import useDeviceDetect from "../../hooks/useDeviceDetect";
 import ControlsMainLayout from "./ControlsMainLayout";
+import useFetchDefaultTimezone from "../../hooks/useFetchDefaultTimezone";
 
 const MainLayout: FC = () => {
   const appModeEnable = getAppModeEnable();
@@ -18,6 +19,7 @@ const MainLayout: FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   useFetchDashboards();
+  useFetchDefaultTimezone();
 
   const setDocumentTitle = () => {
     const defaultTitle = "vmui";

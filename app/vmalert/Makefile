@@ -68,6 +68,7 @@ publish-vmalert:
 
 test-vmalert:
 	go test -v -race -cover ./app/vmalert -loggerLevel=ERROR
+	go test -v -race -cover ./app/vmalert/rule
 	go test -v -race -cover ./app/vmalert/templates
 	go test -v -race -cover ./app/vmalert/datasource
 	go test -v -race -cover ./app/vmalert/notifier

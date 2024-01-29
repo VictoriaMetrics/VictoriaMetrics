@@ -345,6 +345,8 @@ spec:
   namespaceSelector: 
     matchNames:
       - vm
+  endpoints:
+  - port: http
 ```
 
 After that you can deploy `vmservicescrape` resource to the kubernetes cluster:
@@ -377,6 +379,7 @@ kind: VMAuth
 metadata:
   name: demo
 spec:
+  selectAllByDefault: true
   userNamespaceSelector: {}
   userSelector: {}
   ingress:
@@ -423,6 +426,7 @@ spec:
           - "/prometheus/api/v1/query"
           - "/prometheus/api/v1/query_range"
           - "/prometheus/api/v1/series"
+          - "/prometheus/api/v1/status/.*"
           - "/prometheus/api/v1/label/"
           - "/prometheus/api/v1/label/[^/]+/values"
 ```
@@ -469,10 +473,10 @@ The remaining components will be needed for alerting.
 
 Let's start with [`vmalertmanager`](./resources/vmalertmanager.md).
 
-Create file `vmuser.yaml`
+Create file `vmalertmanager.yaml`
 
 ```shell
-code vmuser.yaml
+code vmalertmanager.yaml
 ```
 
 with the following content:
@@ -582,7 +586,6 @@ code vmrule.yaml
 
 with the following content:
 
-{% raw %}
 ```yaml
 apiVersion: operator.victoriametrics.com/v1beta1
 kind: VMRule
@@ -602,7 +605,6 @@ spec:
             value: "{{ $value }}"
             description: 'error reloading vmalert config, reload count for 5 min {{ $value }}'
 ```
-{% endraw %}
 
 After that you can deploy `vmrule` resource to the kubernetes cluster:
 
@@ -642,6 +644,7 @@ spec:
         - "/prometheus/api/v1/query"
         - "/prometheus/api/v1/query_range"
         - "/prometheus/api/v1/series"
+        - "/prometheus/api/v1/status/.*"
         - "/prometheus/api/v1/label/"
         - "/prometheus/api/v1/label/[^/]+/values"
     # vmalert

@@ -18,6 +18,7 @@ import CustomPanelTraces from "./CustomPanelTraces/CustomPanelTraces";
 import WarningLimitSeries from "./WarningLimitSeries/WarningLimitSeries";
 import CustomPanelTabs from "./CustomPanelTabs";
 import { DisplayType } from "../../types";
+import DownloadReport from "./DownloadReport/DownloadReport";
 
 const CustomPanel: FC = () => {
   useSetQueryParams();
@@ -35,6 +36,7 @@ const CustomPanel: FC = () => {
   const controlsRef = useRef<HTMLDivElement>(null);
 
   const {
+    fetchUrl,
     isLoading,
     liveData,
     graphData,
@@ -111,7 +113,10 @@ const CustomPanel: FC = () => {
           className="vm-custom-panel-body-header"
           ref={controlsRef}
         >
-          {<DisplayTypeSwitch/>}
+          <div className="vm-custom-panel-body-header__tabs">
+            <DisplayTypeSwitch/>
+          </div>
+          {(graphData || liveData) && <DownloadReport fetchUrl={fetchUrl}/>}
         </div>
         <CustomPanelTabs
           graphData={graphData}

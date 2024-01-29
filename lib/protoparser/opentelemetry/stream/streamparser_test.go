@@ -60,10 +60,7 @@ func TestParseStream(t *testing.T) {
 		}
 
 		// Verify protobuf parsing
-		pbData, err := req.MarshalVT()
-		if err != nil {
-			t.Fatalf("cannot marshal to protobuf: %s", err)
-		}
+		pbData := req.MarshalProtobuf(nil)
 		if err := checkParseStream(pbData, checkSeries); err != nil {
 			t.Fatalf("cannot parse protobuf: %s", err)
 		}
@@ -149,28 +146,25 @@ func attributesFromKV(k, v string) []*pb.KeyValue {
 		{
 			Key: k,
 			Value: &pb.AnyValue{
-				Value: &pb.AnyValue_StringValue{
-					StringValue: v,
-				},
+				StringValue: &v,
 			},
 		},
 	}
 }
 
 func generateGauge(name string) *pb.Metric {
+	n := int64(15)
 	points := []*pb.NumberDataPoint{
 		{
 			Attributes:   attributesFromKV("label1", "value1"),
-			Value:        &pb.NumberDataPoint_AsInt{AsInt: 15},
+			IntValue:     &n,
 			TimeUnixNano: uint64(15 * time.Second),
 		},
 	}
 	return &pb.Metric{
 		Name: name,
-		Data: &pb.Metric_Gauge{
-			Gauge: &pb.Gauge{
-				DataPoints: points,
-			},
+		Gauge: &pb.Gauge{
+			DataPoints: points,
 		},
 	}
 }
@@ -189,30 +183,27 @@ func generateHistogram(name string) *pb.Metric {
 	}
 	return &pb.Metric{
 		Name: name,
-		Data: &pb.Metric_Histogram{
-			Histogram: &pb.Histogram{
-				AggregationTemporality: pb.AggregationTemporality_AGGREGATION_TEMPORALITY_CUMULATIVE,
-				DataPoints:             points,
-			},
+		Histogram: &pb.Histogram{
+			AggregationTemporality: pb.AggregationTemporalityCumulative,
+			DataPoints:             points,
 		},
 	}
 }
 
 func generateSum(name string) *pb.Metric {
+	d := float64(15.5)
 	points := []*pb.NumberDataPoint{
 		{
 			Attributes:   attributesFromKV("label5", "value5"),
-			Value:        &pb.NumberDataPoint_AsDouble{AsDouble: 15.5},
+			DoubleValue:  &d,
 			TimeUnixNano: uint64(150 * time.Second),
 		},
 	}
 	return &pb.Metric{
 		Name: name,
-		Data: &pb.Metric_Sum{
-			Sum: &pb.Sum{
-				AggregationTemporality: pb.AggregationTemporality_AGGREGATION_TEMPORALITY_CUMULATIVE,
-				DataPoints:             points,
-			},
+		Sum: &pb.Sum{
+			AggregationTemporality: pb.AggregationTemporalityCumulative,
+			DataPoints:             points,
 		},
 	}
 }
@@ -224,7 +215,7 @@ func generateSummary(name string) *pb.Metric {
 			TimeUnixNano: uint64(35 * time.Second),
 			Sum:          32.5,
 			Count:        5,
-			QuantileValues: []*pb.SummaryDataPoint_ValueAtQuantile{
+			QuantileValues: []*pb.ValueAtQuantile{
 				{
 					Quantile: 0.1,
 					Value:    7.5,
@@ -242,10 +233,8 @@ func generateSummary(name string) *pb.Metric {
 	}
 	return &pb.Metric{
 		Name: name,
-		Data: &pb.Metric_Summary{
-			Summary: &pb.Summary{
-				DataPoints: points,
-			},
+		Summary: &pb.Summary{
+			DataPoints: points,
 		},
 	}
 }

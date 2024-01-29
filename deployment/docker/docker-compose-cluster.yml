@@ -17,7 +17,7 @@ services:
 
   grafana:
     container_name: grafana
-    image: grafana/grafana:9.2.7
+    image: grafana/grafana:9.5.15
     depends_on:
       - "vmauth"
     ports:
@@ -25,7 +25,8 @@ services:
     restart: always
     volumes:
       - grafanadata:/var/lib/grafana
-      - ./provisioning/:/etc/grafana/provisioning/
+      - ./provisioning/datasources/prometheus-datasource:/etc/grafana/provisioning/datasources
+      - ./provisioning/dashboards:/etc/grafana/provisioning/dashboards
       - ./../../dashboards/victoriametrics-cluster.json:/var/lib/grafana/dashboards/vm.json
       - ./../../dashboards/vmagent.json:/var/lib/grafana/dashboards/vmagent.json
       - ./../../dashboards/vmalert.json:/var/lib/grafana/dashboards/vmalert.json

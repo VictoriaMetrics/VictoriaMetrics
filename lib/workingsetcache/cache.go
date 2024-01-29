@@ -8,6 +8,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 	"github.com/VictoriaMetrics/fastcache"
 )
 
@@ -132,7 +133,7 @@ func (c *Cache) runWatchers(expireDuration time.Duration) {
 }
 
 func (c *Cache) expirationWatcher(expireDuration time.Duration) {
-	expireDuration += timeJitter(expireDuration / 10)
+	expireDuration = timeutil.AddJitterToDuration(expireDuration)
 	t := time.NewTicker(expireDuration)
 	defer t.Stop()
 	for {
@@ -170,8 +171,7 @@ func (c *Cache) prevCacheWatcher() {
 
 	// Watch for the usage of the prev cache and drop it whenever it receives
 	// less than prevCacheRemovalPercent requests comparing to the curr cache during the last 60 seconds.
-	checkInterval := 60 * time.Second
-	checkInterval += timeJitter(checkInterval / 10)
+	checkInterval := timeutil.AddJitterToDuration(time.Second * 60)
 	t := time.NewTicker(checkInterval)
 	defer t.Stop()
 	prevGetCalls := uint64(0)
@@ -216,8 +216,7 @@ func (c *Cache) prevCacheWatcher() {
 }
 
 func (c *Cache) cacheSizeWatcher() {
-	checkInterval := 1500 * time.Millisecond
-	checkInterval += timeJitter(checkInterval / 10)
+	checkInterval := timeutil.AddJitterToDuration(time.Millisecond * 1500)
 	t := time.NewTicker(checkInterval)
 	defer t.Stop()
 
@@ -450,9 +449,4 @@ func (c *Cache) GetBig(dst, key []byte) []byte {
 func (c *Cache) SetBig(key, value []byte) {
 	curr := c.curr.Load()
 	curr.SetBig(key, value)
-}
-
-func timeJitter(d time.Duration) time.Duration {
-	n := float64(time.Now().UnixNano()%1e9) / 1e9
-	return time.Duration(float64(d) * n)
 }
