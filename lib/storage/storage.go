@@ -1173,8 +1173,14 @@ func nextRetentionDeadlineSeconds(atSecs, retentionSecs, offsetSecs int64) int64
 //
 // The marshaled metric names must be unmarshaled via MetricName.UnmarshalString().
 func (s *Storage) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]string, error) {
+	labelAPIConcurrencyCh <- struct{}{}
+	defer func() {
+		<-labelAPIConcurrencyCh
+	}()
+
 	qt = qt.NewChild("search for matching metric names: filters=%s, timeRange=%s", tfss, &tr)
 	defer qt.Done()
+
 	metricIDs, err := s.idb().searchMetricIDs(qt, tfss, tr, maxMetrics, deadline)
 	if err != nil {
 		return nil, err
@@ -1326,6 +1332,10 @@ func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters) (int,
 func (s *Storage) SearchLabelNamesWithFiltersOnTimeRange(qt *querytracer.Tracer, accountID, projectID uint32, tfss []*TagFilters, tr TimeRange,
 	maxLabelNames, maxMetrics int, deadline uint64,
 ) ([]string, error) {
+	labelAPIConcurrencyCh <- struct{}{}
+	defer func() {
+		<-labelAPIConcurrencyCh
+	}()
 	return s.idb().SearchLabelNamesWithFiltersOnTimeRange(qt, accountID, projectID, tfss, tr, maxLabelNames, maxMetrics, deadline)
 }
 
@@ -1333,8 +1343,21 @@ func (s *Storage) SearchLabelNamesWithFiltersOnTimeRange(qt *querytracer.Tracer,
 func (s *Storage) SearchLabelValuesWithFiltersOnTimeRange(qt *querytracer.Tracer, accountID, projectID uint32, labelName string, tfss []*TagFilters,
 	tr TimeRange, maxLabelValues, maxMetrics int, deadline uint64,
 ) ([]string, error) {
+	labelAPIConcurrencyCh <- struct{}{}
+	defer func() {
+		<-labelAPIConcurrencyCh
+	}()
 	return s.idb().SearchLabelValuesWithFiltersOnTimeRange(qt, accountID, projectID, labelName, tfss, tr, maxLabelValues, maxMetrics, deadline)
 }
+
+// This channel limits the concurrency of apis, which return label names and label values.
+//
+// For example, /api/v1/labels or /api/v1/label/<labelName>/values
+//
+// These APIs are used infrequently (e.g. on Grafana dashboard load or when editing a query),
+// so it is better limiting their concurrency in order to reduce the maximum memory usage and CPU usage
+// when the database contains big number of time series.
+var labelAPIConcurrencyCh = make(chan struct{}, 1)
 
 // SearchTagValueSuffixes returns all the tag value suffixes for the given tagKey and tagValuePrefix on the given tr.
 //
