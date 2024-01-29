@@ -3,12 +3,14 @@ package main
 import (
 	"flag"
 	"fmt"
+	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/actions"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fslocal"
@@ -36,6 +38,12 @@ var (
 	origin            = flag.String("origin", "", "Optional origin directory on the remote storage with old backup for server-side copying when performing full backup. This speeds up full backups")
 	concurrency       = flag.Int("concurrency", 10, "The number of concurrent workers. Higher concurrency may reduce backup duration")
 	maxBytesPerSecond = flagutil.NewBytes("maxBytesPerSecond", 0, "The maximum upload speed. There is no limit if it is set to 0")
+
+	tlsInsecureSkipVerify = flag.Bool("clienttlsInsecureSkipVerify", false, "Whether to skip tls verification when connecting to -snapshotCreateURL")
+	tlsCertFile           = flag.String("clientCertFile", "", "Optional path to client-side TLS certificate file to use when connecting to -snapshotCreateURL")
+	tlsKeyFile            = flag.String("clienttlsKeyFile", "", "Optional path to client-side TLS certificate key to use when connecting to -snapshotCreateURL")
+	tlsCAFile             = flag.String("clienttlsCAFile", "", `Optional path to TLS CA file to use for verifying connections to -snapshotCreateURL. By default, system CA is used`)
+	tlsServerName         = flag.String("clienttlsServerName", "", `Optional TLS server name to use for connections to -snapshotCreateURL. By default, the server name from -snapshotCreateURL is used`)
 )
 
 func main() {
@@ -77,7 +85,14 @@ func main() {
 		}
 		logger.Infof("Snapshot delete url %s", deleteURL.Redacted())
 
-		name, err := snapshot.Create(createURL.String())
+		// create Transport
+		tr, err := utils.Transport(*snapshotCreateURL, *tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify)
+		if err != nil {
+			logger.Fatalf("failed to create transport: %s", err)
+		}
+		hc := &http.Client{Transport: tr}
+
+		name, err := snapshot.Create(createURL.String(), hc) // added extra param to snapshot function
 		if err != nil {
 			logger.Fatalf("cannot create snapshot: %s", err)
 		}
@@ -86,8 +101,15 @@ func main() {
 			logger.Fatalf("cannot set snapshotName flag: %v", err)
 		}
 
+		// create Transport
+		trd, err := utils.Transport(*snapshotDeleteURL, *tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify)
+		if err != nil {
+			logger.Fatalf("failed to create transport: %s", err)
+		}
+		hcd := &http.Client{Transport: trd}
+
 		deleteSnapshot = func() {
-			err := snapshot.Delete(deleteURL.String(), name)
+			err := snapshot.Delete(deleteURL.String(), name, hcd) // should add extra param to delete snapshot url
 			if err != nil {
 				logger.Fatalf("cannot delete snapshot: %s", err)
 			}

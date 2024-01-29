@@ -24,13 +24,13 @@ type snapshot struct {
 }
 
 // Create creates a snapshot via the provided api endpoint and returns the snapshot name
-func Create(createSnapshotURL string) (string, error) {
+func Create(createSnapshotURL string, hc *http.Client) (string, error) {
 	logger.Infof("Creating snapshot")
 	u, err := url.Parse(createSnapshotURL)
 	if err != nil {
 		return "", err
 	}
-	resp, err := http.Get(u.String())
+	resp, err := hc.Get(u.String())
 	if err != nil {
 		return "", err
 	}
@@ -59,7 +59,7 @@ func Create(createSnapshotURL string) (string, error) {
 }
 
 // Delete deletes a snapshot via the provided api endpoint
-func Delete(deleteSnapshotURL string, snapshotName string) error {
+func Delete(deleteSnapshotURL string, snapshotName string, hc *http.Client) error {
 	logger.Infof("Deleting snapshot %s", snapshotName)
 	formData := url.Values{
 		"snapshot": {snapshotName},
@@ -68,7 +68,7 @@ func Delete(deleteSnapshotURL string, snapshotName string) error {
 	if err != nil {
 		return err
 	}
-	resp, err := http.PostForm(u.String(), formData)
+	resp, err := hc.PostForm(u.String(), formData)
 	if err != nil {
 		return err
 	}
