@@ -26,7 +26,7 @@ aliases:
 - [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/)
 - [Node exporter](https://github.com/prometheus/node_exporter#node-exporter)(v1.7.0) and [Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/)(v0.25.0)
 
-<img alt="vmanomaly typical setup diagramm" src="guide-vmanomaly-vmalert/guide-vmanomaly-vmalert_overview.webp">
+<img src="guide-vmanomaly-vmalert_overview.webp" alt="vmanomaly typical setup diagramm">
 
 > **Note: Configurations used throughout this guide can be found [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/vmanomaly/vmanomaly-integration/)**
 
@@ -36,7 +36,7 @@ aliases:
 
 All the service parameters are defined in a config file.
 
-> **Note**: As of the time of writing, in the [1.9.1](https://docs.victoriametrics.com/anomaly-detection/changelog/#v191) release and earlier versions, each `vmanomaly` configuration file is limited to supporting only one model type. To utilize *different models* on your data, it is necessary to run multiple instances of the `vmanomaly` process. Each instance should operate with its own configuration file, differing in the `model` section.
+> **Note**: As of the time of writing, in the [1.9.2](https://docs.victoriametrics.com/anomaly-detection/changelog/#v191) release and earlier versions, each `vmanomaly` configuration file is limited to supporting only one model type. To utilize *different models* on your data, it is necessary to run multiple instances of the `vmanomaly` process. Each instance should operate with its own configuration file, differing in the `model` section.
 
 
 **vmanomaly** does the following:
@@ -394,7 +394,7 @@ services:
     restart: always
   vmanomaly:
     container_name: vmanomaly
-    image: victoriametrics/vmanomaly:v1.9.1
+    image: victoriametrics/vmanomaly:v1.9.2
     depends_on:
       - "victoriametrics"
     ports:
@@ -444,7 +444,7 @@ networks:
 
 Before running our docker-compose make sure that your directory contains all required files:
 
-<img src="guide-vmanomaly-vmalert/guide-vmanomaly-vmalert_files.webp" alt="all files">
+<img src="guide-vmanomaly-vmalert_files.webp" alt="all files">
 
 This docker-compose file will pull docker images,  set up each service and run them all together with the command:
 
@@ -481,7 +481,7 @@ Each of these metrics will contain same labels our query `quantile by (mode) (0.
 ### Anomaly scores for each metric with its according labels. 
 
 Query: `anomaly_score`
-<img alt="Anomaly score graph" src="guide-vmanomaly-vmalert-anomaly-score.webp">
+<img alt="Anomaly score graph" src="guide-vmanomaly-vmalert_anomaly-score.webp">
 
 <br>Check out if the anomaly score is high for datapoints you think are anomalies. If not, you can try other parameters in the config file or try other model type.
 
@@ -492,7 +492,7 @@ As you may notice a lot of data shows anomaly score greater than 1. It is expect
 
 Queries: `yhat_lower`, `yhat_upper` and `yhat`
 
-<img alt="yhat lower and yhat upper" src="guide-vmanomaly-vmalert/guide-vmanomaly-vmalert-boundaries.webp">
+<img alt="yhat lower and yhat upper" src="guide-vmanomaly-vmalert-boundaries.webp">
 
 Boundaries of 'normal' metric values according to model inference. 
 
@@ -500,7 +500,7 @@ Boundaries of 'normal' metric values according to model inference.
 
 On the page `http://localhost:8880/vmalert/groups` you can find our configured Alerting rule:
 
-<img alt="alert rule" src="guide-vmanomaly-vmalert/guide-vmanomaly-vmalert_alert-rule.webp">
+<img alt="alert rule" src="guide-vmanomaly-vmalert_alert-rule.webp">
 
 According to the rule configured for vmalert we will see Alert when anomaly score exceed 1. You will see an alert on Alert tab. `http://localhost:8880/vmalert/alerts`:
 <img alt="alerts firing" src="guide-vmanomaly-vmalert_alerts-firing.webp">
