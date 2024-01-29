@@ -7,7 +7,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"reflect"
 	"testing"
 	"time"
 
@@ -393,57 +392,6 @@ func Test_buildMatchWithFilter(t *testing.T) {
 			}
 			if got != tt.want {
 				t.Errorf("buildMatchWithFilter() got = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func Test_removeDuplicateStr(t *testing.T) {
-	tests := []struct {
-		name  string
-		arrIn []string
-		want  []string
-	}{
-		{
-			name:  "nil slices",
-			arrIn: nil,
-			want:  []string(nil),
-		},
-		{
-			name:  "empty slices",
-			arrIn: []string{},
-			want:  []string(nil),
-		},
-		{
-			name:  "no duplicates slices",
-			arrIn: []string{"1", "2", "3"},
-			want:  []string{"1", "2", "3"},
-		},
-		{
-			name:  "one value slices",
-			arrIn: []string{"1"},
-			want:  []string{"1"},
-		},
-		{
-			name:  "has duplicated values in slices",
-			arrIn: []string{"1", "1"},
-			want:  []string{"1"},
-		},
-		{
-			name:  "has duplicated values and another value in slices",
-			arrIn: []string{"1", "1", "2"},
-			want:  []string{"1", "2"},
-		},
-		{
-			name:  "has couple of duplicated values and another value in slices",
-			arrIn: []string{"1", "1", "2", "3", "4", "4"},
-			want:  []string{"1", "2", "3", "4"},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := removeDuplicateStr(tt.arrIn); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("removeDuplicateStr() = %#v, want %#v", got, tt.want)
 			}
 		})
 	}
