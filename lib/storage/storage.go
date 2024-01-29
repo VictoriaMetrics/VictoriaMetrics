@@ -2471,6 +2471,8 @@ func (dmc *dateMetricIDCache) syncLocked() {
 	// Merge data from byDate into byDateMutable and then atomically replace byDate with the merged data.
 	byDate := dmc.byDate.Load()
 	byDateMutable := dmc.byDateMutable
+	byDateMutable.hotEntry.Store(&byDateMetricIDEntry{})
+
 	for k, e := range byDateMutable.m {
 		v := byDate.get(k.generation, k.date)
 		if v == nil {
@@ -2484,11 +2486,8 @@ func (dmc *dateMetricIDCache) syncLocked() {
 			v: *v,
 		}
 		byDateMutable.m[k] = dme
-		he := byDateMutable.hotEntry.Load()
-		if he.k == k {
-			byDateMutable.hotEntry.Store(dme)
-		}
 	}
+
 	// Copy entries from byDate, which are missing in byDateMutable
 	for k, e := range byDate.m {
 		v := byDateMutable.get(k.generation, k.date)
@@ -2496,6 +2495,24 @@ func (dmc *dateMetricIDCache) syncLocked() {
 			continue
 		}
 		byDateMutable.m[k] = e
+	}
+
+	if len(byDateMutable.m) > 2 {
+		// Keep only entries for the last two dates - these are usually
+		// the current date and the next date.
+		dates := make([]uint64, 0, len(byDateMutable.m))
+		for k := range byDateMutable.m {
+			dates = append(dates, k.date)
+		}
+		sort.Slice(dates, func(i, j int) bool {
+			return dates[i] < dates[j]
+		})
+		maxDate := dates[len(dates)-2]
+		for k := range byDateMutable.m {
+			if k.date < maxDate {
+				delete(byDateMutable.m, k)
+			}
+		}
 	}
 
 	// Atomically replace byDate with byDateMutable
