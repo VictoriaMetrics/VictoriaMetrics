@@ -3,6 +3,7 @@ package snapshot
 import (
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"net/http"
@@ -12,10 +13,18 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
-var snapshotNameRegexp = regexp.MustCompile(`^[0-9]{14}-[0-9A-Fa-f]+$`)
+var (
+	snapshotNameRegexp    = regexp.MustCompile(`^[0-9]{14}-[0-9A-Fa-f]+$`)
+	tlsInsecureSkipVerify = flag.Bool("snapshot.tlsInsecureSkipVerify", false, "Whether to skip tls verification when connecting to -snapshotCreateURL")
+	tlsCertFile           = flag.String("snapshot.tlsCertFile", "", "Optional path to client-side TLS certificate file to use when connecting to -snapshotCreateURL")
+	tlsKeyFile            = flag.String("snapshot.tlsKeyFile", "", "Optional path to client-side TLS certificate key to use when connecting to -snapshotCreateURL")
+	tlsCAFile             = flag.String("snapshot.tlsCAFile", "", `Optional path to TLS CA file to use for verifying connections to -snapshotCreateURL. By default, system CA is used`)
+	tlsServerName         = flag.String("snapshot.tlsServerName", "", `Optional TLS server name to use for connections to -snapshotCreateURL. By default, the server name from -snapshotCreateURL is used`)
+)
 
 type snapshot struct {
 	Status   string `json:"status"`
@@ -24,12 +33,20 @@ type snapshot struct {
 }
 
 // Create creates a snapshot via the provided api endpoint and returns the snapshot name
-func Create(createSnapshotURL string, hc *http.Client) (string, error) {
+func Create(createSnapshotURL string) (string, error) {
 	logger.Infof("Creating snapshot")
 	u, err := url.Parse(createSnapshotURL)
 	if err != nil {
 		return "", err
 	}
+
+	// create Transport
+	tr, err := utils.Transport(createSnapshotURL, *tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify)
+	if err != nil {
+		logger.Fatalf("failed to create transport: %s", err)
+	}
+	hc := &http.Client{Transport: tr}
+
 	resp, err := hc.Get(u.String())
 	if err != nil {
 		return "", err
@@ -59,7 +76,7 @@ func Create(createSnapshotURL string, hc *http.Client) (string, error) {
 }
 
 // Delete deletes a snapshot via the provided api endpoint
-func Delete(deleteSnapshotURL string, snapshotName string, hc *http.Client) error {
+func Delete(deleteSnapshotURL string, snapshotName string) error {
 	logger.Infof("Deleting snapshot %s", snapshotName)
 	formData := url.Values{
 		"snapshot": {snapshotName},
@@ -68,6 +85,12 @@ func Delete(deleteSnapshotURL string, snapshotName string, hc *http.Client) erro
 	if err != nil {
 		return err
 	}
+	// create Transport
+	tr, err := utils.Transport(deleteSnapshotURL, *tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify)
+	if err != nil {
+		logger.Fatalf("failed to create transport: %s", err)
+	}
+	hc := &http.Client{Transport: tr}
 	resp, err := hc.PostForm(u.String(), formData)
 	if err != nil {
 		return err
