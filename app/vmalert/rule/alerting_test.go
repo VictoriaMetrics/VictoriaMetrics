@@ -328,14 +328,17 @@ func TestAlertingRule_Exec(t *testing.T) {
 			fq := &datasource.FakeQuerier{}
 			tc.rule.q = fq
 			tc.rule.GroupID = fakeGroup.ID()
+			ts := time.Now()
 			for i, step := range tc.steps {
 				fq.Reset()
 				fq.Add(step...)
-				if _, err := tc.rule.exec(context.TODO(), time.Now(), 0); err != nil {
+				if _, err := tc.rule.exec(context.TODO(), ts, 0); err != nil {
 					t.Fatalf("unexpected err: %s", err)
 				}
-				// artificial delay between applying steps
-				time.Sleep(defaultStep)
+
+				// shift the execution timestamp before the next iteration
+				ts = ts.Add(defaultStep)
+
 				if _, ok := tc.expAlerts[i]; !ok {
 					continue
 				}
