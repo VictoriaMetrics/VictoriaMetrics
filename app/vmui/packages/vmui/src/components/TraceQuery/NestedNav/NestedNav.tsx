@@ -14,13 +14,14 @@ interface RecursiveProps {
   isRoot?: boolean;
   trace: Trace;
   totalMsec: number;
+  isExpandedAll? : boolean;
 }
 
 interface OpenLevels {
   [x: number]: boolean
 }
 
-const NestedNav: FC<RecursiveProps> = ({ isRoot, trace, totalMsec })  => {
+const NestedNav: FC<RecursiveProps> = ({ isRoot, trace, totalMsec, isExpandedAll })  => {
   const { isDarkTheme } = useAppState();
   const { isMobile } = useDeviceDetect();
   const [openLevels, setOpenLevels] = useState({} as OpenLevels);
@@ -52,6 +53,26 @@ const NestedNav: FC<RecursiveProps> = ({ isRoot, trace, totalMsec })  => {
       return { ...prevState, [level]: !prevState[level] };
     });
   };
+
+  const getIdsFromChildren = (tracingData: Trace) => {
+    const ids = [tracingData.idValue];
+    tracingData?.children?.forEach((child) => {
+      ids.push(...getIdsFromChildren(child));
+    });
+    return ids;
+  };
+
+  useEffect(() => {
+    if (!isExpandedAll) {
+      setOpenLevels([]);
+      return;
+    }
+
+    const allIds = getIdsFromChildren(trace);
+    const openLevels = {} as OpenLevels;
+    allIds.forEach(id => { openLevels[id] = true; });
+    setOpenLevels(openLevels);
+  }, [isExpandedAll]);
 
   return (
     <div
@@ -106,13 +127,14 @@ const NestedNav: FC<RecursiveProps> = ({ isRoot, trace, totalMsec })  => {
           )}
         </div>
       </div>
-      {openLevels[trace.idValue] && (
+      {(openLevels[trace.idValue]) && (
         <div className="vm-nested-nav__childrens">
           {hasChildren && trace.children.map((trace) => (
             <NestedNav
               key={trace.duration}
               trace={trace}
               totalMsec={totalMsec}
+              isExpandedAll={isExpandedAll}
             />
           ))}
         </div>
