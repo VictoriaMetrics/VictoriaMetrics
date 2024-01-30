@@ -11,6 +11,8 @@ The following `tip` changes can be tested by building VictoriaMetrics components
 
 ## v1.93.x long-time support release (LTS)
 
+* SECURITY: upgrade base docker image (Alpine) from 3.19.0 to 3.19.1. See [alpine 3.19.1 release notes](https://www.alpinelinux.org/posts/Alpine-3.19.1-released.html).
+
 * BUGFIX: properly return errors from [export APIs](https://docs.victoriametrics.com/#how-to-export-time-series). Previously these errors were silently suppressed. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5649).
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): properly discover targets for `role: endpoints` and `role: endpointslice` in [kubernetes_sd_configs](https://docs.victoriametrics.com/sd_configs.html#kubernetes_sd_configs). Previously some `endpoints` and `endpointslice` targets could be left undiscovered or some targets could have missing `__meta_*` labels when performing service discovery in busy Kubernetes clusters with large number of pods. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5557).
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): respect explicitly set `series_limit: 0` in [scrape_config](https://docs.victoriametrics.com/sd_configs.html#scrape_configs). This allows removing [`series_limit` restriction](https://docs.victoriametrics.com/vmagent.html#cardinality-limiter) on a per-`scrape_config` basis when global limit is set via `-promscrape.seriesLimitPerTarget`. Previously, `0` value was ignored in favor of `-promscrape.seriesLimitPerTarget`.
