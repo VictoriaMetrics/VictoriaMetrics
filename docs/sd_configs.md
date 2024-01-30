@@ -821,6 +821,7 @@ scrape_configs:
     #
     # basic_auth:
     #  username: "..."
+    #  username_file: "..."  # is mutually-exclusive with username
     #  password: "..."
     #  password_file: "..."  # is mutually-exclusive with password
 
@@ -1625,8 +1626,9 @@ and in the majority of [supported service discovery configs](#supported-service-
     # basic_auth is an optional HTTP basic authentication configuration.
     # basic_auth:
     #   username: "..."
+    #   username_file: "..."  # is mutually-exclusive with username
     #   password: "..."
-    #   password_file: "..."
+    #   password_file: "..."  # is mutually-exclusive with password
 
     # bearer_token is an optional Bearer token to send in every HTTP API request during service discovery.
     # bearer_token: "..."
@@ -1663,8 +1665,9 @@ and in the majority of [supported service discovery configs](#supported-service-
     # proxy_basic_auth is an optional HTTP basic authentication configuration for the proxy_url.
     # proxy_basic_auth:
     #   username: "..."
+    #   username_file: "..."  # is mutually-exclusive with username
     #   password: "..."
-    #   password_file: "..."
+    #   password_file: "..."  # is mutually-exclusive with password
 
     # proxy_bearer_token is an optional Bearer token to send to proxy_url.
     # proxy_bearer_token: "..."
