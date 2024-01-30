@@ -669,7 +669,7 @@ func (actx *authContext) initFromBasicAuthConfig(baseDir string, ba *BasicAuthCo
 	if ba.Username != "" && ba.UsernameFile != "" {
 		return fmt.Errorf("both `username`=%q and `username_file`=%q are set in `basic_auth` section", ba.Username, ba.UsernameFile)
 	}
-	if ba.Password == nil && ba.PasswordFile == "" {
+	if ba.Password != nil && ba.PasswordFile != "" {
 		return fmt.Errorf("both `password`=%q and `password_file`=%q are set in `basic_auth` section", ba.Password, ba.PasswordFile)
 	}
 	actx.getAuthHeader, actx.authHeaderDigest = fetchBasicAuthHeaderAndDigest(baseDir, ba)
