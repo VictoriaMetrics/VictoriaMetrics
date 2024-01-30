@@ -8,10 +8,6 @@ require (
 	github.com/Azure/azure-sdk-for-go/sdk/storage/azblob v1.2.1
 	github.com/VictoriaMetrics/easyproto v0.1.4
 	github.com/VictoriaMetrics/fastcache v1.12.2
-
-	// Do not use the original github.com/valyala/fasthttp because of issues
-	// like https://github.com/valyala/fasthttp/commit/996610f021ff45fdc98c2ce7884d5fa4e7f9199b
-	github.com/VictoriaMetrics/fasthttp v1.2.0
 	github.com/VictoriaMetrics/metrics v1.31.0
 	github.com/VictoriaMetrics/metricsql v0.70.0
 	github.com/aws/aws-sdk-go-v2 v1.24.1
@@ -34,7 +30,7 @@ require (
 	github.com/valyala/gozstd v1.20.1
 	github.com/valyala/histogram v1.2.0
 	github.com/valyala/quicktemplate v1.7.0
-	golang.org/x/net v0.20.0
+	golang.org/x/net v0.20.0 // indirect
 	golang.org/x/oauth2 v0.16.0
 	golang.org/x/sys v0.16.0
 	google.golang.org/api v0.159.0
