@@ -2,6 +2,8 @@
 
 $color-base-nested-nav: $color-tropical-blue;
 $color-base-nested-nav-dark: $color-background-body;
+$width-line: 2px;
+$left-position: calc(-1 * $padding-small);
 
 .vm-nested-nav {
   position: relative;
@@ -48,19 +50,19 @@ $color-base-nested-nav-dark: $color-background-body;
       content: "";
       position: absolute;
       top: calc(50% - 1px);
-      height: 2px;
+      height: $width-line;
       width: $padding-small;
       background-color: $color-base-nested-nav;
-      left: calc(-1 * $padding-small);
+      left: $left-position;
     }
 
     &:before {
       content: "";
       position: absolute;
       bottom: 50%;
-      left: calc(-1 * $padding-small);
+      left: $left-position;
       height: calc(50% + $padding-small);
-      width: 2px;
+      width: $width-line;
       background-color: $color-base-nested-nav;
     }
 
@@ -122,9 +124,9 @@ $color-base-nested-nav-dark: $color-background-body;
       content: "";
       position: absolute;
       top: 0;
-      left: calc(-1 * $padding-small);
+      left: $left-position;
       height: 100%;
-      width: 2px;
+      width: $width-line;
       background-color: $color-base-nested-nav;
     }
   }
