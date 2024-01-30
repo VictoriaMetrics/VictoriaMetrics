@@ -135,6 +135,9 @@ type ProxyClientConfig struct {
 
 	// Headers contains optional HTTP headers, which must be sent in the request to the proxy
 	Headers []string `yaml:"proxy_headers,omitempty"`
+
+	// Use to force the connection to HTTP CONNECT Passthrough, even for non-TLS destinations.
+	ForceHTTPConnect *bool `yaml:"proxy_force_http_connect,omitempty"`
 }
 
 // OAuth2Config represent OAuth2 configuration

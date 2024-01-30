@@ -107,6 +107,9 @@ type ScrapeWork struct {
 	// ProxyURL HTTP proxy url
 	ProxyURL *proxy.URL
 
+	// ProxyForceHTTPConnect forces HTTP Connect Passthrough when proxying to non TLS, HTTP targets.
+	ProxyForceHTTPConnect bool
+
 	// Auth config for ProxyUR:
 	ProxyAuthConfig *promauth.Config
 

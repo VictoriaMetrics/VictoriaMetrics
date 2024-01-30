@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
@@ -143,9 +142,11 @@ func (u *URL) UnmarshalYAML(unmarshal func(interface{}) error) error {
 }
 
 // NewDialFunc returns dial func for the given u and ac.
-func (u *URL) NewDialFunc(ac *promauth.Config) (fasthttp.DialFunc, error) {
+func (u *URL) NewDialFunc(ac *promauth.Config, dialer *net.Dialer) (fasthttp.DialFunc, error) {
 	if u == nil || u.URL == nil {
-		return defaultDialFunc, nil
+		return func(addr string) (net.Conn, error) {
+			return dialer.Dial(netutil.GetTCPNetwork(), addr)
+		}, nil
 	}
 	pu := u.URL
 	if !isURLSchemeValid(pu.Scheme) {
@@ -168,7 +169,7 @@ func (u *URL) NewDialFunc(ac *promauth.Config) (fasthttp.DialFunc, error) {
 		return socks5DialFunc(proxyAddr, pu, tlsCfg)
 	}
 	dialFunc := func(addr string) (net.Conn, error) {
-		proxyConn, err := defaultDialFunc(proxyAddr)
+		proxyConn, err := dialer.Dial(netutil.GetTCPNetwork(), proxyAddr)
 		if err != nil {
 			return nil, fmt.Errorf("cannot connect to proxy %q: %w", pu.Redacted(), err)
 		}
@@ -237,12 +238,6 @@ func tlsServerName(addr string) string {
 		return addr
 	}
 	return host
-}
-
-func defaultDialFunc(addr string) (net.Conn, error) {
-	network := netutil.GetTCPNetwork()
-	// Do not use fasthttp.Dial because of https://github.com/VictoriaMetrics/VictoriaMetrics/issues/987
-	return net.DialTimeout(network, addr, 5*time.Second)
 }
 
 // sendConnectRequest sends CONNECT request to proxyConn for the given addr and authHeader and returns the established connection to dstAddr.
