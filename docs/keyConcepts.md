@@ -8,6 +8,7 @@ menu:
     weight: 34
 aliases:
 - /keyConcepts.html
+- /keyсoncepts.html
 ---
 
 # Key concepts
