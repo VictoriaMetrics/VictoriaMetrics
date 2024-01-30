@@ -7,7 +7,7 @@ menu:
     parent: victoriametrics
     weight: 38
 aliases:
-- /grafana-datasource.html"
+- /grafana-datasource.html
 ---
 
 # VictoriaMetrics datasource for Grafana
@@ -147,7 +147,7 @@ docker-compose -f docker-compose.yaml up
 
 When Grafana starts successfully datasources should be present on the datasources tab
 
-<img src="provision_datasources.webp" alt="Configuration">
+<img src="provision_datasources.webp" width="800" alt="Configuration">
 
 ### Install in Kubernetes
 

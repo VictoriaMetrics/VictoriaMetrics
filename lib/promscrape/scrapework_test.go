@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
@@ -89,9 +90,9 @@ func TestScrapeWorkScrapeInternalFailure(t *testing.T) {
 	}
 
 	readDataCalls := 0
-	sw.ReadData = func(dst []byte) ([]byte, error) {
+	sw.ReadData = func(dst *bytesutil.ByteBuffer) error {
 		readDataCalls++
-		return dst, fmt.Errorf("error when reading data")
+		return fmt.Errorf("error when reading data")
 	}
 
 	pushDataCalls := 0
@@ -130,10 +131,10 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		sw.Config = cfg
 
 		readDataCalls := 0
-		sw.ReadData = func(dst []byte) ([]byte, error) {
+		sw.ReadData = func(dst *bytesutil.ByteBuffer) error {
 			readDataCalls++
-			dst = append(dst, data...)
-			return dst, nil
+			dst.B = append(dst.B, data...)
+			return nil
 		}
 
 		pushDataCalls := 0

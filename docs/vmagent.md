@@ -771,12 +771,13 @@ e.g. it sets `scrape_series_added` metric to zero. See [these docs](#automatical
 
 ## Stream parsing mode
 
-By default, `vmagent` reads the full response body from scrape target into memory, then parses it, applies [relabeling](#relabeling)
-and then pushes the resulting metrics to the configured `-remoteWrite.url`. This mode works good for the majority of cases
-when the scrape target exposes small number of metrics (e.g. less than 10 thousand). But this mode may take big amounts of memory
-when the scrape target exposes big number of metrics. In this case it is recommended enabling stream parsing mode.
-When this mode is enabled, then `vmagent` reads response from scrape target in chunks, then immediately processes every chunk
-and pushes the processed metrics to remote storage. This allows saving memory when scraping targets that expose millions of metrics.
+By default, `vmagent` parses the full response from the scrape target, applies [relabeling](#relabeling)
+and then pushes the resulting metrics to the configured `-remoteWrite.url` in one go. This mode works good for the majority of cases
+when the scrape target exposes small number of metrics (e.g. less than 10K). But this mode may take big amounts of memory
+when the scrape target exposes big number of metrics (for example, when `vmagent` scrapes [`kube-state-metrics`](https://github.com/kubernetes/kube-state-metrics)
+in large Kubernetes cluster). It is recommended enabling stream parsing mode for such targets.
+When this mode is enabled, `vmagent` processes the response from the scrape target in chunks.
+This allows saving memory when scraping targets that expose millions of metrics.
 
 Stream parsing mode is automatically enabled for scrape targets returning response bodies with sizes bigger than
 the `-promscrape.minResponseSizeForStreamParse` command-line flag value. Additionally,

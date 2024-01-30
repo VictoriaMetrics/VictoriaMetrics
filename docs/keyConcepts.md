@@ -8,6 +8,7 @@ menu:
     weight: 34
 aliases:
 - /keyConcepts.html
+- /keyсoncepts.html
 ---
 
 # Key concepts
@@ -517,8 +518,8 @@ Params:
   in the interval between `now()` and `now()-1m`. If omitted, `step` is set to `5m` (5 minutes).
 
 The result of Instant query is a list of [time series](https://docs.victoriametrics.com/keyConcepts.html#time-series)
-matching the filter in `query` expression. Each series will have exactly one [raw sample](https://docs.victoriametrics.com/keyConcepts.html#raw-samples),
-where value will contain result of `query` expression, and timestamp - the requested `time`. 
+matching the filter in `query` expression. Each returned series contains exactly one `(timestamp, value)` entry,
+where `timestamp` equals to the `time` query arg, while the `value` contains `query` result at the requested `time`.
 
 To understand how instant queries work, let's begin with a data sample:
 
@@ -590,7 +591,7 @@ the following scenarios:
 
 ### Range query
 
-Range query executes the `query` expression at the given `time` range with the given `step`:
+Range query executes the `query` expression at the given [`start`...`end`] time range with the given `step`:
 
 ```
 GET | POST /api/v1/query_range?query=...&start=...&end=...&step=...
@@ -609,9 +610,9 @@ Params:
   If the `step` isn't set, then it default to `5m` (5 minutes).
 
 The result of Range query is a list of [time series](https://docs.victoriametrics.com/keyConcepts.html#time-series)
-matching the filter in `query` expression. Each series will have arbitrary number of [raw samples](https://docs.victoriametrics.com/keyConcepts.html#raw-samples),
-where value containing result of `query` expression, and timestamp contains the moment in time at which the expression was executed.
-In other words, Range query is an [Instant query](#instant-query) executed `(end-start) / step` times.
+matching the filter in `query` expression. Each returned series contains `(timestamp, value)` results for the `query` executed
+at `start`, `start+step`, `start+2*step`, ..., `end` timestamps. In other words, Range query is an [Instant query](#instant-query)
+executed independently at `start`, `start+step`, ..., `end` timestamps.
 
 For example, to get the values of `foo_bar` during the time range from `2022-05-10 09:59:00` to `2022-05-10 10:17:00`,
 we need to issue a range query:
