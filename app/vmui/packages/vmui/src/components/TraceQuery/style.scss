@@ -21,6 +21,20 @@
           font-weight: bold;
         }
       }
+
+      &__expand-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 20px;
+        transition: transform 200ms ease-in-out;
+        transform: rotate(-90deg);
+        color: $color-text-secondary;
+
+        &_open {
+          transform: rotate(0);
+        }
+      }
     }
 
     &__nav {

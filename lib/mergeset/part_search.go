@@ -325,7 +325,7 @@ func (ps *partSearch) readInmemoryBlock(bh *blockHeader) (*inmemoryBlock, error)
 	ps.sb.lensData = bytesutil.ResizeNoCopyMayOverallocate(ps.sb.lensData, int(bh.lensBlockSize))
 	ps.p.lensFile.MustReadAt(ps.sb.lensData, int64(bh.lensBlockOffset))
 
-	ib := getInmemoryBlock()
+	ib := &inmemoryBlock{}
 	if err := ib.UnmarshalData(&ps.sb, bh.firstItem, bh.commonPrefix, bh.itemsCount, bh.marshalType); err != nil {
 		return nil, fmt.Errorf("cannot unmarshal storage block with %d items: %w", bh.itemsCount, err)
 	}

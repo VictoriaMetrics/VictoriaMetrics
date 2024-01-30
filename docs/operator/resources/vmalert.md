@@ -72,11 +72,11 @@ Here's a more visual and more detailed view:
 |-------------------------|----------------|----------------------|-------------------|------------------------------------------------------------------------------------------------------|
 | undefined               | undefined      | false                | undefined         | nothing                                                                                              |
 | undefined               | undefined      | **true**             | undefined         | all vmrules in the cluster                                                                           |
-| **defined**             | undefined      | any                  | undefined         | all vmrules are matching at namespaces for given `ruleNamespaceSelector`                             |
-| undefined               | **defined**    | any                  | undefined         | all vmrules only at `VMAlert`'s namespace are matching for given `ruleSelector`                      |
-| **defined**             | **defined**    | any                  | undefined         | all vmrules only at namespaces matched `ruleNamespaceSelector` for given `ruleSelector` are matching |
-| any                     | undefined      | any                  | **defined**       | all vmrules only at `VMAlert`'s namespace                                                            |
-| any                     | **defined**    | any                  | **defined**       | all vmrules only at `VMAlert`'s namespace for given `ruleSelector` are matching                      |
+| **defined**             | undefined      | *any*                | undefined         | all vmrules are matching at namespaces for given `ruleNamespaceSelector`                             |
+| undefined               | **defined**    | *any*                | undefined         | all vmrules only at `VMAlert`'s namespace are matching for given `ruleSelector`                      |
+| **defined**             | **defined**    | *any*                | undefined         | all vmrules only at namespaces matched `ruleNamespaceSelector` for given `ruleSelector` are matching |
+| *any*                   | undefined      | *any*                | **defined**       | all vmrules only at `VMAlert`'s namespace                                                            |
+| *any*                   | **defined**    | *any*                | **defined**       | all vmrules only at `VMAlert`'s namespace for given `ruleSelector` are matching                      |
 
 More details about `WATCH_NAMESPACE` variable you can read in [this doc](../configuration.md#namespaced-mode).
 
@@ -310,7 +310,6 @@ with [extraArgs](./README.md#extra-arguments)
 and specify `tenant` field for groups 
 in [VMRule](./vmrule.md#enterprise-features):
 
-{% raw %}
 ```yaml
 apiVersion: operator.victoriametrics.com/v1beta1
 kind: VMAlert
@@ -356,7 +355,6 @@ spec:
             value: "{{ $value }}"
             description: 'error reloading vmalert config, reload count for 5 min {{ $value }}'
 ```
-{% endraw %}
 
 ## Examples
 

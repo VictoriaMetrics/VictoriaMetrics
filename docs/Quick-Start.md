@@ -48,14 +48,12 @@ The following commands download the latest available
 and start it at port 8428, while storing the ingested data at `victoria-metrics-data` subdirectory
 under the current directory:
 
-<div class="with-copy" markdown="1">
 
-```console
+```sh
 docker pull victoriametrics/victoria-metrics:latest
 docker run -it --rm -v `pwd`/victoria-metrics-data:/victoria-metrics-data -p 8428:8428 victoriametrics/victoria-metrics:latest
 ```
 
-</div>
 
 Open <a href="http://localhost:8428">http://localhost:8428</a> in web browser
 and read [these docs](https://docs.victoriametrics.com/#operation).
@@ -71,14 +69,12 @@ and start the docker container via 'make docker-cluster-up'. Further customizati
 the [docker-compose-cluster.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/docker-compose-cluster.yml)
 file.
 
-<div class="with-copy" markdown="1">
 
-```console
+```sh
 git clone https://github.com/VictoriaMetrics/VictoriaMetrics && cd VictoriaMetrics
 make docker-cluster-up
 ```
 
-</div>
 
 See more details [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#readme).
 

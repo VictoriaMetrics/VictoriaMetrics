@@ -1,3 +1,7 @@
+# v1.48.1 (2024-01-24)
+
+* No change notes available for this release.
+
 # v1.48.0 (2024-01-05)
 
 * **Feature**: Support smithy sigv4a trait for codegen.

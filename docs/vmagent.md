@@ -71,7 +71,7 @@ and sending the data to the Prometheus-compatible remote storage:
 Example command for writing the data received via [supported push-based protocols](#how-to-push-data-to-vmagent)
 to [single-node VictoriaMetrics](https://docs.victoriametrics.com/) located at `victoria-metrics-host:8428`:
 
-```bash
+```sh
 /path/to/vmagent -remoteWrite.url=https://victoria-metrics-host:8428/api/v1/write
 ```
 
@@ -80,7 +80,7 @@ the data to [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-V
 
 Example command for scraping Prometheus targets and writing the data to single-node VictoriaMetrics:
 
-```bash
+```sh
 /path/to/vmagent -promscrape.config=/path/to/prometheus.yml -remoteWrite.url=https://victoria-metrics-host:8428/api/v1/write
 ```
 
@@ -122,7 +122,7 @@ additionally to pull-based Prometheus-compatible targets' scraping:
 
 * Sending `SIGHUP` signal to `vmagent` process:
 
-  ```bash
+  ```sh
   kill -SIGHUP `pidof vmagent`
   ```
 
@@ -223,7 +223,7 @@ To route metrics `env=dev` to destination `dev` and metrics with `env=prod` to d
 ```
 1. Configure `vmagent` with 2 `-remoteWrite.url` flags pointing to destinations `dev` and `prod` with corresponding
 `-remoteWrite.urlRelabelConfig` configs:
-```console
+```sh
 ./vmagent \
   -remoteWrite.url=http://<dev-url> -remoteWrite.urlRelabelConfig=relabelDev.yml \
   -remoteWrite.url=http://<prod-url> -remoteWrite.urlRelabelConfig=relabelProd.yml 
@@ -407,7 +407,7 @@ Extra labels can be added to metrics collected by `vmagent` via the following me
   For example, the following command starts `vmagent`, which adds `{datacenter="foobar"}` label to all the metrics pushed
   to all the configured remote storage systems (all the `-remoteWrite.url` flag values):
 
-  ```bash
+  ```sh
   /path/to/vmagent -remoteWrite.label=datacenter=foobar ...
   ```
 
@@ -559,16 +559,14 @@ The following articles contain useful information about Prometheus relabeling:
 
 `vmagent` provides the following enhancements on top of Prometheus-compatible relabeling:
 
-* The `replacement` option can refer arbitrary labels via {% raw %}`{{label_name}}`{% endraw %} placeholders.
+* The `replacement` option can refer arbitrary labels via `{{label_name}}` placeholders.
   Such placeholders are substituted with the corresponding label value. For example, the following relabeling rule
   sets `instance-job` label value to `host123-foo` when applied to the metric with `{instance="host123",job="foo"}` labels:
 
-  {% raw %}
   ```yaml
   - target_label: "instance-job"
     replacement: "{{instance}}-{{job}}"
   ```
-  {% endraw %}
 
 * An optional `if` filter can be used for conditional relabeling. The `if` filter may contain
   arbitrary [time series selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
@@ -773,12 +771,13 @@ e.g. it sets `scrape_series_added` metric to zero. See [these docs](#automatical
 
 ## Stream parsing mode
 
-By default, `vmagent` reads the full response body from scrape target into memory, then parses it, applies [relabeling](#relabeling)
-and then pushes the resulting metrics to the configured `-remoteWrite.url`. This mode works good for the majority of cases
-when the scrape target exposes small number of metrics (e.g. less than 10 thousand). But this mode may take big amounts of memory
-when the scrape target exposes big number of metrics. In this case it is recommended enabling stream parsing mode.
-When this mode is enabled, then `vmagent` reads response from scrape target in chunks, then immediately processes every chunk
-and pushes the processed metrics to remote storage. This allows saving memory when scraping targets that expose millions of metrics.
+By default, `vmagent` parses the full response from the scrape target, applies [relabeling](#relabeling)
+and then pushes the resulting metrics to the configured `-remoteWrite.url` in one go. This mode works good for the majority of cases
+when the scrape target exposes small number of metrics (e.g. less than 10K). But this mode may take big amounts of memory
+when the scrape target exposes big number of metrics (for example, when `vmagent` scrapes [`kube-state-metrics`](https://github.com/kubernetes/kube-state-metrics)
+in large Kubernetes cluster). It is recommended enabling stream parsing mode for such targets.
+When this mode is enabled, `vmagent` processes the response from the scrape target in chunks.
+This allows saving memory when scraping targets that expose millions of metrics.
 
 Stream parsing mode is automatically enabled for scrape targets returning response bodies with sizes bigger than
 the `-promscrape.minResponseSizeForStreamParse` command-line flag value. Additionally,
@@ -822,7 +821,7 @@ Each `vmagent` instance in the cluster must use identical `-promscrape.config` f
 in the range `0 ... N-1`, where `N` is the number of `vmagent` instances in the cluster specified via `-promscrape.cluster.membersCount`.
 For example, the following commands spread scrape targets among a cluster of two `vmagent` instances:
 
-```text
+```sh
 /path/to/vmagent -promscrape.cluster.membersCount=2 -promscrape.cluster.memberNum=0 -promscrape.config=/path/to/config.yml ...
 /path/to/vmagent -promscrape.cluster.membersCount=2 -promscrape.cluster.memberNum=1 -promscrape.config=/path/to/config.yml ...
 ```
@@ -834,7 +833,7 @@ By default, each scrape target is scraped only by a single `vmagent` instance in
 then `-promscrape.cluster.replicationFactor` command-line flag must be set to the desired number of replicas. For example, the following commands
 start a cluster of three `vmagent` instances, where each target is scraped by two `vmagent` instances:
 
-```text
+```sh
 /path/to/vmagent -promscrape.cluster.membersCount=3 -promscrape.cluster.replicationFactor=2 -promscrape.cluster.memberNum=0 -promscrape.config=/path/to/config.yml ...
 /path/to/vmagent -promscrape.cluster.membersCount=3 -promscrape.cluster.replicationFactor=2 -promscrape.cluster.memberNum=1 -promscrape.config=/path/to/config.yml ...
 /path/to/vmagent -promscrape.cluster.membersCount=3 -promscrape.cluster.replicationFactor=2 -promscrape.cluster.memberNum=2 -promscrape.config=/path/to/config.yml ...
@@ -861,7 +860,7 @@ The `-promscrape.cluster.memberLabel` command-line flag allows specifying a name
 The value of the `member num` label is set to `-promscrape.cluster.memberNum`. For example, the following config instructs adding `vmagent_instance="0"` label
 to all the metrics scraped by the given `vmagent` instance:
 
-```text
+```sh
 /path/to/vmagent -promscrape.cluster.membersCount=2 -promscrape.cluster.memberNum=0 -promscrape.cluster.memberLabel=vmagent_instance
 ```
 
@@ -1163,7 +1162,7 @@ take into account the following attributes:
    For example, if `vmagent` should be able to buffer the data for at least 6 hours, then the following query
    can be used for estimating the needed amounts of disk space in gigabytes:
 
-   ```
+   ```metricsql
    sum(rate(vmagent_remotewrite_bytes_sent_total[1h])) by(instance,url) * 6h / 1Gi
    ```
 
@@ -1206,7 +1205,7 @@ Multiple topics can be specified by passing multiple `-gcp.pubsub.subscribe.topi
 For example, the following command starts `vmagent`, which reads metrics in [InfluxDB line protocol format](https://docs.influxdata.com/influxdb/cloud/reference/syntax/line-protocol/)
 from PubSub `projects/victoriametrics-vmagent-pub-sub-test/subscriptions/telegraf-testing` and sends them to remote storage at `http://localhost:8428/api/v1/write`:
 
-```bash
+```sh
 ./bin/vmagent -remoteWrite.url=http://localhost:8428/api/v1/write \
        -gcp.pubsub.subscribe.topicSubscription=projects/victoriametrics-vmagent-pub-sub-test/subscriptions/telegraf-testing \
        -gcp.pubsub.subscribe.topicSubscription.messageFormat=influx
@@ -1234,7 +1233,7 @@ See also [how to write metrics to multiple distinct tenants](https://docs.victor
 [Influx](https://docs.influxdata.com/influxdb/cloud/reference/syntax/line-protocol/) messages from `telegraf-testing` topic
 and gzipp'ed [JSON line](https://docs.victoriametrics.com/#json-line-format) messages from `json-line-testing` topic:
 
-```bash
+```sh
 ./bin/vmagent -remoteWrite.url=http://localhost:8428/api/v1/write \
        -gcp.pubsub.subscribe.topicSubscription=projects/victoriametrics-vmagent-pub-sub-test/subscriptions/telegraf-testing \
        -gcp.pubsub.subscribe.topicSubscription.messageFormat=influx \
@@ -1250,7 +1249,7 @@ These command-line flags are available only in [enterprise](https://docs.victori
 which can be downloaded for evaluation from [releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) page
 (see `vmutils-...-enterprise.tar.gz` archives) and from [docker images](https://hub.docker.com/r/victoriametrics/vmagent/tags) with tags containing `enterprise` suffix.
 
-```text
+```sh
   -gcp.pubsub.subscribe.credentialsFile string
         Path to file with GCP credentials to use for PubSub client. If not set, default credentials are used (see Workload Identity for K8S or https://cloud.google.com/docs/authentication/application-default-credentials ). See https://docs.victoriametrics.com/vmagent.html#reading-metrics-from-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
   -gcp.pubsub.subscribe.defaultMessageFormat string
@@ -1284,7 +1283,7 @@ These command-line flags are available only in [enterprise](https://docs.victori
 which can be downloaded for evaluation from [releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) page
 (see `vmutils-...-enterprise.tar.gz` archives) and from [docker images](https://hub.docker.com/r/victoriametrics/vmagent/tags) with tags containing `enterprise` suffix.
 
-```text
+```sh
   -gcp.pubsub.publish.byteThreshold int
         Publish a batch when its size in bytes reaches this value. See https://docs.victoriametrics.com/vmagent.html#writing-metrics-to-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html (default 1000000)
   -gcp.pubsub.publish.countThreshold int
@@ -1339,7 +1338,7 @@ For example, `-kafka.consumer.topic.brokers='host1:9092;host2:9092'`.
 The following command starts `vmagent`, which reads metrics in InfluxDB line protocol format from Kafka broker at `localhost:9092`
 from the topic `metrics-by-telegraf` and sends them to remote storage at `http://localhost:8428/api/v1/write`:
 
-```bash
+```sh
 ./bin/vmagent -remoteWrite.url=http://localhost:8428/api/v1/write \
        -kafka.consumer.topic.brokers=localhost:9092 \
        -kafka.consumer.topic.format=influx \
@@ -1368,7 +1367,7 @@ These command-line flags are available only in [enterprise](https://docs.victori
 which can be downloaded for evaluation from [releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) page
 (see `vmutils-...-enterprise.tar.gz` archives) and from [docker images](https://hub.docker.com/r/victoriametrics/vmagent/tags) with tags containing `enterprise` suffix.
 
-```text
+```sh
   -kafka.consumer.topic array
         Kafka topic names for data consumption. See https://docs.victoriametrics.com/vmagent.html#reading-metrics-from-kafka . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
         Supports an array of values separated by comma or specified via multiple flags.
@@ -1416,7 +1415,7 @@ Two types of auth are supported:
 
 * sasl with username and password:
 
-```bash
+```sh
 ./bin/vmagent -remoteWrite.url='kafka://localhost:9092/?topic=prom-rw&security.protocol=SASL_SSL&sasl.mechanisms=PLAIN' \
     -remoteWrite.basicAuth.username=user \
     -remoteWrite.basicAuth.password=password
@@ -1424,7 +1423,7 @@ Two types of auth are supported:
 
 * tls certificates:
 
-```bash
+```sh
 ./bin/vmagent -remoteWrite.url='kafka://localhost:9092/?topic=prom-rw&security.protocol=SSL' \
     -remoteWrite.tlsCAFile=/opt/ca.pem \
     -remoteWrite.tlsCertFile=/opt/cert.pem \
@@ -1458,7 +1457,7 @@ The `<PKG_TAG>` may be manually set via `PKG_TAG=foobar make package-vmagent`.
 The base docker image is [alpine](https://hub.docker.com/_/alpine) but it is possible to use any other base image
 by setting it via `<ROOT_IMAGE>` environment variable. For example, the following command builds the image on top of [scratch](https://hub.docker.com/_/scratch) image:
 
-```bash
+```sh
 ROOT_IMAGE=scratch make package-vmagent
 ```
 
@@ -1484,23 +1483,19 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 
 * Memory profile can be collected with the following command (replace `0.0.0.0` with hostname if needed):
 
-<div class="with-copy" markdown="1">
 
-```bash
+```sh
 curl http://0.0.0.0:8429/debug/pprof/heap > mem.pprof
 ```
 
-</div>
 
 * CPU profile can be collected with the following command (replace `0.0.0.0` with hostname if needed):
 
-<div class="with-copy" markdown="1">
 
-```bash
+```sh
 curl http://0.0.0.0:8429/debug/pprof/profile > cpu.pprof
 ```
 
-</div>
 
 The command for collecting CPU profile waits for 30 seconds before returning.
 
@@ -1512,7 +1507,7 @@ It is safe sharing the collected profiles from security point of view, since the
 
 `vmagent` can be fine-tuned with various command-line flags. Run `./vmagent -help` in order to see the full list of these flags with their descriptions and default values:
 
-```text
+```sh
 ./vmagent -help
 
 vmagent collects metrics data via popular data ingestion protocols and routes them to VictoriaMetrics.

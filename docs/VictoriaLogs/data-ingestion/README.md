@@ -48,7 +48,7 @@ at `http://localhost:9428/insert/elasticsearch/_bulk` endpoint.
 
 The following command pushes a single log line to VictoriaLogs:
 
-```bash
+```sh
 echo '{"create":{}}
 {"_msg":"cannot open file","_time":"0","host.name":"host123"}
 ' | curl -X POST -H 'Content-Type: application/json' --data-binary @- http://localhost:9428/insert/elasticsearch/_bulk
@@ -69,13 +69,13 @@ The API accepts various http parameters, which can change the data ingestion beh
 
 The following command verifies that the data has been successfully ingested to VictoriaLogs by [querying](https://docs.victoriametrics.com/VictoriaLogs/querying/) it:
 
-```bash
+```sh
 curl http://localhost:9428/select/logsql/query -d 'query=host.name:host123'
 ```
 
 The command should return the following response:
 
-```bash
+```sh
 {"_msg":"cannot open file","_stream":"{}","_time":"2023-06-21T04:24:24Z","host.name":"host123"}
 ```
 
@@ -98,7 +98,7 @@ VictoriaLogs accepts JSON line stream aka [ndjson](http://ndjson.org/) at `http:
 
 The following command pushes multiple log lines to VictoriaLogs:
 
- ```bash
+ ```sh
 echo '{ "log": { "level": "info", "message": "hello world" }, "date": "0", "stream": "stream1" }
 { "log": { "level": "error", "message": "oh no!" }, "date": "0", "stream": "stream1" }
 { "log": { "level": "info", "message": "hello world" }, "date": "0", "stream": "stream2" }
@@ -121,13 +121,13 @@ The API accepts various http parameters, which can change the data ingestion beh
 
 The following command verifies that the data has been successfully ingested into VictoriaLogs by [querying](https://docs.victoriametrics.com/VictoriaLogs/querying/) it:
 
-```bash
+```sh
 curl http://localhost:9428/select/logsql/query -d 'query=log.level:*'
 ```
 
 The command should return the following response:
 
-```bash
+```sh
 {"_msg":"hello world","_stream":"{stream=\"stream2\"}","_time":"2023-06-20T13:35:11.56789Z","log.level":"info"}
 {"_msg":"hello world","_stream":"{stream=\"stream1\"}","_time":"2023-06-20T15:31:23Z","log.level":"info"}
 {"_msg":"oh no!","_stream":"{stream=\"stream1\"}","_time":"2023-06-20T15:32:10.567Z","log.level":"error"}
@@ -152,7 +152,7 @@ VictoriaLogs accepts logs in [Loki JSON API](https://grafana.com/docs/loki/lates
 
 The following command pushes a single log line to Loki JSON API at VictoriaLogs:
 
-```bash
+```sh
 curl -H "Content-Type: application/json" -XPOST "http://localhost:9428/insert/loki/api/v1/push?_stream_fields=instance,job" --data-raw \
   '{"streams": [{ "stream": { "instance": "host123", "job": "app42" }, "values": [ [ "0", "foo fizzbuzz bar" ] ] }]}'
 ```
@@ -164,13 +164,13 @@ There is no need in specifying `_msg_field` and `_time_field` query args, since 
 
 The following command verifies that the data has been successfully ingested into VictoriaLogs by [querying](https://docs.victoriametrics.com/VictoriaLogs/querying/) it:
 
-```bash
+```sh
 curl http://localhost:9428/select/logsql/query -d 'query=fizzbuzz'
 ```
 
 The command should return the following response:
 
-```bash
+```sh
 {"_msg":"foo fizzbuzz bar","_stream":"{instance=\"host123\",job=\"app42\"}","_time":"2023-07-20T23:01:19.288676497Z"}
 ```
 
@@ -223,7 +223,7 @@ These headers may contain the needed tenant to ingest data to. See [multitenancy
 
 The following command can be used for verifying whether the data is successfully ingested into VictoriaLogs:
 
-```bash
+```sh
 curl http://localhost:9428/select/logsql/query -d 'query=*' | head
 ```
 

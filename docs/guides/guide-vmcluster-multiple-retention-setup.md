@@ -34,9 +34,7 @@ The [-retentionPeriod](https://docs.victoriametrics.com/#retention) sets how lon
 
 The diagram below shows a proposed solution
 
-<p align="center">
-  <img src="guide-vmcluster-multiple-retention-setup.webp" width="800">
-</p>
+<img src="guide-vmcluster-multiple-retention-setup.webp">
 
 **Implementation Details**
 

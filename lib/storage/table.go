@@ -205,6 +205,14 @@ func (tb *table) flushPendingRows() {
 	}
 }
 
+func (tb *table) NotifyReadWriteMode() {
+	tb.ptwsLock.Lock()
+	for _, ptw := range tb.ptws {
+		ptw.pt.NotifyReadWriteMode()
+	}
+	tb.ptwsLock.Unlock()
+}
+
 // TableMetrics contains essential metrics for the table.
 type TableMetrics struct {
 	partitionMetrics

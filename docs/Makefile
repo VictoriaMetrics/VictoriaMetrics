@@ -1,3 +1,5 @@
+# These commands must be run from the VictoriaMetrics repository root
+
 # run local server for documentation website at http://127.0.0.1:4000/
 docs-up:
 	docker run --rm -it \
