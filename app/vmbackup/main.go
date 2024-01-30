@@ -82,7 +82,7 @@ func main() {
 		}
 		logger.Infof("Snapshot delete url %s", deleteURL.Redacted())
 
-		name, err := snapshot.Create(createURL.String()) // added extra param to snapshot function
+		name, err := snapshot.Create(createURL.String())
 		if err != nil {
 			logger.Fatalf("cannot create snapshot: %s", err)
 		}
@@ -92,7 +92,7 @@ func main() {
 		}
 
 		deleteSnapshot = func() {
-			err := snapshot.Delete(deleteURL.String(), name) // should add extra param to delete snapshot url
+			err := snapshot.Delete(deleteURL.String(), name)
 			if err != nil {
 				logger.Fatalf("cannot delete snapshot: %s", err)
 			}
