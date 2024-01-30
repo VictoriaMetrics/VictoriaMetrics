@@ -97,14 +97,13 @@ func TestQueryStats_addSeriesFetched(t *testing.T) {
 	}
 }
 
-func Test_getSumInstantValues(t *testing.T) {
-	f := func(cached, start, end, exp []*timeseries) {
+func TestGetSumInstantValues(t *testing.T) {
+	f := func(cached, start, end []*timeseries, timestamp int64, expectedResult []*timeseries) {
 		t.Helper()
-		got := getSumInstantValues(nil, cached, start, end)
 
-		equal := reflect.DeepEqual(got, exp)
-		if !equal {
-			t.Errorf("expected to get:\n%v;\n got instead:\n%v", exp, got)
+		result := getSumInstantValues(nil, cached, start, end, timestamp)
+		if !reflect.DeepEqual(result, expectedResult) {
+			t.Errorf("unexpected result; got\n%v\nwant\n%v", result, expectedResult)
 		}
 	}
 	ts := func(name string, timestamp int64, value float64) *timeseries {
@@ -120,8 +119,9 @@ func Test_getSumInstantValues(t *testing.T) {
 	// start - end + cached = 1
 	f(
 		nil,
-		[]*timeseries{ts("foo", 100, 1)},
+		[]*timeseries{ts("foo", 42, 1)},
 		nil,
+		100,
 		[]*timeseries{ts("foo", 100, 1)},
 	)
 
@@ -130,6 +130,7 @@ func Test_getSumInstantValues(t *testing.T) {
 		nil,
 		[]*timeseries{ts("foo", 100, 1)},
 		[]*timeseries{ts("foo", 10, 1)},
+		100,
 		[]*timeseries{ts("foo", 100, 0)},
 	)
 
@@ -138,6 +139,7 @@ func Test_getSumInstantValues(t *testing.T) {
 		[]*timeseries{ts("foo", 10, 1)},
 		[]*timeseries{ts("foo", 100, 1)},
 		nil,
+		100,
 		[]*timeseries{ts("foo", 100, 2)},
 	)
 
@@ -146,7 +148,17 @@ func Test_getSumInstantValues(t *testing.T) {
 		[]*timeseries{ts("foo", 50, 1)},
 		[]*timeseries{ts("foo", 100, 1)},
 		[]*timeseries{ts("foo", 10, 1)},
+		100,
 		[]*timeseries{ts("foo", 100, 1)},
+	)
+
+	// start - end + cached = 0
+	f(
+		[]*timeseries{ts("foo", 50, 1)},
+		nil,
+		[]*timeseries{ts("foo", 10, 1)},
+		100,
+		[]*timeseries{ts("foo", 100, 0)},
 	)
 
 	// start - end + cached = 1
@@ -154,6 +166,7 @@ func Test_getSumInstantValues(t *testing.T) {
 		[]*timeseries{ts("foo", 50, 1)},
 		nil,
 		nil,
-		[]*timeseries{ts("foo", 50, 1)},
+		100,
+		[]*timeseries{ts("foo", 100, 1)},
 	)
 }
