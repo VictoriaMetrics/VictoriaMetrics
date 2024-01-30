@@ -15,6 +15,8 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## v1.87.x long-time support release (LTS)
 
+* SECURITY: upgrade base docker image (Alpine) from 3.19.0 to 3.19.1. See [alpine 3.19.1 release notes](https://www.alpinelinux.org/posts/Alpine-3.19.1-released.html).
+
 * BUGFIX: properly return errors from [export APIs](https://docs.victoriametrics.com/#how-to-export-time-series). Previously these errors were silently suppressed. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5649).
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): respect explicitly set `series_limit: 0` in [scrape_config](https://docs.victoriametrics.com/sd_configs.html#scrape_configs). This allows removing [`series_limit` restriction](https://docs.victoriametrics.com/vmagent.html#cardinality-limiter) on a per-`scrape_config` basis when global limit is set via `-promscrape.seriesLimitPerTarget`. Previously, `0` value was ignored in favor of `-promscrape.seriesLimitPerTarget`.
 * BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): properly process queries with too big lookbehind window such as `foo[100y]`. Previously, such queries could return empty responses even if `foo` is present in database. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5553).
