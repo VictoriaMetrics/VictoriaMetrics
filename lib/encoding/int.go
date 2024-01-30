@@ -3,6 +3,7 @@ package encoding
 import (
 	"encoding/binary"
 	"fmt"
+	"math/bits"
 	"sync"
 )
 
@@ -91,21 +92,31 @@ func MarshalVarInt64(dst []byte, v int64) []byte {
 // MarshalVarInt64s appends marshaled vs to dst and returns the result.
 func MarshalVarInt64s(dst []byte, vs []int64) []byte {
 	for _, v := range vs {
-		if v < 0x40 && v > -0x40 {
-			// Fast path
-			c := int8(v)
-			v := (c << 1) ^ (c >> 7) // zig-zag encoding without branching.
-			dst = append(dst, byte(v))
-			continue
+		n := uint64((v << 1) ^ (v >> 63))
+		switch (64 - bits.LeadingZeros64(n>>1)) / 7 {
+		case 0:
+			dst = append(dst, byte(n))
+		case 1:
+			dst = append(dst, byte(n|0x80), byte(n>>7))
+		case 2:
+			dst = append(dst, byte(n|0x80), byte((n>>7)|0x80), byte(n>>14))
+		case 3:
+			dst = append(dst, byte(n|0x80), byte((n>>7)|0x80), byte((n>>14)|0x80), byte(n>>21))
+		case 4:
+			dst = append(dst, byte(n|0x80), byte((n>>7)|0x80), byte((n>>14)|0x80), byte((n>>21)|0x80), byte(n>>28))
+		case 5:
+			dst = append(dst, byte(n|0x80), byte((n>>7)|0x80), byte((n>>14)|0x80), byte((n>>21)|0x80), byte(n>>28|0x80), byte(n>>35))
+		case 6:
+			dst = append(dst, byte(n|0x80), byte((n>>7)|0x80), byte((n>>14)|0x80), byte((n>>21)|0x80), byte(n>>28|0x80), byte(n>>35|0x80), byte(n>>42))
+		case 7:
+			dst = append(dst, byte(n|0x80), byte((n>>7)|0x80), byte((n>>14)|0x80), byte((n>>21)|0x80), byte(n>>28|0x80), byte(n>>35|0x80), byte(n>>42|0x80), byte(n>>49))
+		case 8:
+			dst = append(dst, byte(n|0x80), byte((n>>7)|0x80), byte((n>>14)|0x80), byte((n>>21)|0x80), byte(n>>28|0x80), byte(n>>35|0x80), byte(n>>42|0x80), byte(n>>49|0x80), byte(n>>56))
+		case 9:
+			fallthrough
+		default:
+			dst = append(dst, byte(n|0x80), byte((n>>7)|0x80), byte((n>>14)|0x80), byte((n>>21)|0x80), byte(n>>28|0x80), byte(n>>35|0x80), byte(n>>42|0x80), byte(n>>49|0x80), byte(n>>56|0x80), byte(n>>63))
 		}
-
-		v = (v << 1) ^ (v >> 63) // zig-zag encoding without branching.
-		u := uint64(v)
-		for u > 0x7f {
-			dst = append(dst, 0x80|byte(u))
-			u >>= 7
-		}
-		dst = append(dst, byte(u))
 	}
 	return dst
 }
