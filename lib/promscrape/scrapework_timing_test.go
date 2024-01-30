@@ -83,6 +83,7 @@ vm_tcplistener_write_calls_total{name="https", addr=":443"} 132356
 		sw.Config = &ScrapeWork{}
 		sw.ReadData = readDataFunc
 		sw.PushData = func(at *auth.Token, wr *prompbmarshal.WriteRequest) {}
+		tsmGlobal.Register(&sw)
 		timestamp := int64(0)
 		for pb.Next() {
 			if err := sw.scrapeInternal(timestamp, timestamp); err != nil {
@@ -90,5 +91,6 @@ vm_tcplistener_write_calls_total{name="https", addr=":443"} 132356
 			}
 			timestamp++
 		}
+		tsmGlobal.Unregister(&sw)
 	})
 }
