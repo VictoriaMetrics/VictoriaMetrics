@@ -14,10 +14,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
-	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
@@ -106,42 +107,46 @@ func NewClient(apiServer string, ac *promauth.Config, proxyURL *proxy.URL, proxy
 		}
 	}
 
-	isTLS := u.Scheme == "https"
-	var tlsCfg *tls.Config
-	if isTLS {
-		var err error
-		tlsCfg, err = ac.NewTLSConfig()
-		if err != nil {
-			return nil, fmt.Errorf("cannot initialize tls config: %w", err)
-		}
-	}
-
 	var proxyURLFunc func(*http.Request) (*url.URL, error)
 	if pu := proxyURL.GetURL(); pu != nil {
 		proxyURLFunc = http.ProxyURL(pu)
 	}
 
-	client := &http.Client{
-		Timeout: DefaultClientReadTimeout,
-		Transport: &http.Transport{
+	tr, err := ac.NewRoundTripper(func(tlsCfg *tls.Config) (http.RoundTripper, error) {
+		return &http.Transport{
 			TLSClientConfig:       tlsCfg,
 			Proxy:                 proxyURLFunc,
 			TLSHandshakeTimeout:   10 * time.Second,
 			MaxIdleConnsPerHost:   *maxConcurrency,
 			ResponseHeaderTimeout: DefaultClientReadTimeout,
 			DialContext:           dialFunc,
-		},
+		}, nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("cannot initialize tls config: %w", err)
 	}
-	blockingClient := &http.Client{
-		Timeout: BlockingClientReadTimeout,
-		Transport: &http.Transport{
+
+	blockingTR, err := ac.NewRoundTripper(func(tlsCfg *tls.Config) (http.RoundTripper, error) {
+		return &http.Transport{
 			TLSClientConfig:       tlsCfg,
 			Proxy:                 proxyURLFunc,
 			TLSHandshakeTimeout:   10 * time.Second,
 			MaxIdleConnsPerHost:   1000,
 			ResponseHeaderTimeout: BlockingClientReadTimeout,
 			DialContext:           dialFunc,
-		},
+		}, nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("cannot initialize tls config: %w", err)
+	}
+
+	client := &http.Client{
+		Timeout:   DefaultClientReadTimeout,
+		Transport: tr,
+	}
+	blockingClient := &http.Client{
+		Timeout:   BlockingClientReadTimeout,
+		Transport: blockingTR,
 	}
 
 	setHTTPHeaders := func(req *http.Request) error { return nil }

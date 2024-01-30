@@ -2,6 +2,7 @@ package kubernetes
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -251,19 +252,23 @@ func newGroupWatcher(apiServer string, ac *promauth.Config, namespaces []string,
 	if proxyURL != nil {
 		proxy = http.ProxyURL(proxyURL)
 	}
-	tlsConfig, err := ac.NewTLSConfig()
-	if err != nil {
-		return nil, fmt.Errorf("cannot initialize tls config: %w", err)
-	}
-	client := &http.Client{
-		Transport: &http.Transport{
+	tr, err := ac.NewRoundTripper(func(tlsConfig *tls.Config) (http.RoundTripper, error) {
+		return &http.Transport{
 			TLSClientConfig:     tlsConfig,
 			Proxy:               proxy,
 			TLSHandshakeTimeout: 10 * time.Second,
 			IdleConnTimeout:     *apiServerTimeout,
 			MaxIdleConnsPerHost: 100,
-		},
-		Timeout: *apiServerTimeout,
+		}, nil
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("cannot initialize tls config: %w", err)
+	}
+
+	client := &http.Client{
+		Transport: tr,
+		Timeout:   *apiServerTimeout,
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	gw := &groupWatcher{

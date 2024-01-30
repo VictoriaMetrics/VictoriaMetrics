@@ -11,9 +11,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
-	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
@@ -43,20 +44,13 @@ type client struct {
 
 func newClient(ctx context.Context, sw *ScrapeWork) (*client, error) {
 	isTLS := strings.HasPrefix(sw.ScrapeURL, "https://")
-	var tlsCfg *tls.Config
-	if isTLS {
-		var err error
-		tlsCfg, err = sw.AuthConfig.NewTLSConfig()
-		if err != nil {
-			return nil, fmt.Errorf("cannot initialize tls config: %w", err)
-		}
-	}
 	setHeaders := func(req *http.Request) error {
 		return sw.AuthConfig.SetHeaders(req, true)
 	}
 	setProxyHeaders := func(req *http.Request) error {
 		return nil
 	}
+	var tlsCfg *tls.Config
 	proxyURL := sw.ProxyURL
 	if !isTLS && proxyURL.IsHTTPOrHTTPS() {
 		pu := proxyURL.GetURL()
@@ -75,9 +69,13 @@ func newClient(ctx context.Context, sw *ScrapeWork) (*client, error) {
 	if pu := sw.ProxyURL.GetURL(); pu != nil {
 		proxyURLFunc = http.ProxyURL(pu)
 	}
-	hc := &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig:        tlsCfg,
+
+	rt, err := sw.AuthConfig.NewRoundTripper(func(tlsConfig *tls.Config) (http.RoundTripper, error) {
+		if !isTLS && proxyURL.IsHTTPOrHTTPS() {
+			tlsConfig = tlsCfg
+		}
+		return &http.Transport{
+			TLSClientConfig:        tlsConfig,
 			Proxy:                  proxyURLFunc,
 			TLSHandshakeTimeout:    10 * time.Second,
 			IdleConnTimeout:        2 * sw.ScrapeInterval,
@@ -86,9 +84,16 @@ func newClient(ctx context.Context, sw *ScrapeWork) (*client, error) {
 			DialContext:            statStdDial,
 			MaxIdleConnsPerHost:    100,
 			MaxResponseHeaderBytes: int64(maxResponseHeadersSize.N),
-		},
-		Timeout: sw.ScrapeTimeout,
+		}, nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("cannot initialize tls config: %w", err)
 	}
+
+	hc := &http.Client{
+		Transport: rt,
+	}
+
 	if sw.DenyRedirects {
 		hc.CheckRedirect = func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse

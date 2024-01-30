@@ -30,6 +30,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## tip
 
+* BUGFIX: properly reload root CA certificates from files for [service discovery](https://docs.victoriametrics.com/sd_configs/) and [scraping requests in stream parsing mode](https://docs.victoriametrics.com/vmagent/?highlight=stream&highlight=parse#stream-parsing-mode). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5526).
 
 ## [v1.99.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.99.0)
 

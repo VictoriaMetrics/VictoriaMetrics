@@ -1,9 +1,20 @@
 package promauth
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
+	"math/big"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"os"
 	"testing"
+	"time"
 
 	"gopkg.in/yaml.v2"
 )
@@ -592,4 +603,148 @@ func TestConfigHeaders(t *testing.T) {
 	f(nil, "")
 	f([]string{"foo: bar"}, "foo: bar\r\n")
 	f([]string{"Foo-Bar: Baz s:sdf", "A:b", "X-Forwarded-For: A-B:c"}, "Foo-Bar: Baz s:sdf\r\nA: b\r\nX-Forwarded-For: A-B:c\r\n")
+}
+
+func TestTLSConfigWithCertificatesFilesUpdate(t *testing.T) {
+	// Generate and save a self-signed CA certificate and a certificate signed by the CA
+	caPEM, certPEM, keyPEM := generateCertificates(t)
+	_ = os.WriteFile("testdata/ca.pem", caPEM, 0644)
+	_ = os.WriteFile("testdata/cert.pem", certPEM, 0644)
+	_ = os.WriteFile("testdata/key.pem", keyPEM, 0644)
+
+	defer func() {
+		for _, p := range []string{
+			"testdata/ca.pem",
+			"testdata/cert.pem",
+			"testdata/key.pem",
+		} {
+			_ = os.Remove(p)
+		}
+	}()
+
+	cert, err := tls.LoadX509KeyPair("testdata/cert.pem", "testdata/key.pem")
+	if err != nil {
+		t.Fatalf("cannot load generated certificate: %s", err)
+	}
+
+	tlsConfig := &tls.Config{}
+	tlsConfig.Certificates = []tls.Certificate{cert}
+
+	s := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	s.TLS = tlsConfig
+	s.StartTLS()
+	serverURL, _ := url.Parse(s.URL)
+
+	opts := Options{
+		TLSConfig: &TLSConfig{
+			CAFile: "testdata/ca.pem",
+		},
+	}
+	ac, err := opts.NewConfig()
+	if err != nil {
+		t.Fatalf("unexpected error when parsing config: %s", err)
+	}
+	tr, err := ac.NewRoundTripper(func(tlsConfig *tls.Config) (http.RoundTripper, error) {
+		return &http.Transport{
+			TLSClientConfig: tlsConfig,
+		}, nil
+	})
+	if err != nil {
+		t.Fatalf("unexpected error when creating roundtripper: %s", err)
+	}
+
+	client := http.Client{
+		Transport: tr,
+	}
+
+	resp, err := client.Do(&http.Request{
+		Method: http.MethodGet,
+		URL:    serverURL,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error when making request: %s", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status code %d; got %d", http.StatusOK, resp.StatusCode)
+	}
+
+	// Update CA file with new CA and get config
+	ca2PEM, _, _ := generateCertificates(t)
+	_ = os.WriteFile("testdata/ca.pem", ca2PEM, 0644)
+
+	// Wait for cert cache expiration
+	time.Sleep(2 * tlsCertsCacheSeconds * time.Second)
+
+	_, err = client.Do(&http.Request{
+		Method: http.MethodGet,
+		URL:    serverURL,
+	})
+	if err == nil {
+		t.Fatal("expected TLS verification error, got nil")
+	}
+}
+
+func generateCertificates(t *testing.T) ([]byte, []byte, []byte) {
+	// Small key size for faster tests
+	const testCertificateBits = 1024
+
+	ca := &x509.Certificate{
+		SerialNumber: big.NewInt(2024),
+		Subject: pkix.Name{
+			Organization: []string{"Test CA"},
+		},
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().AddDate(10, 0, 0),
+		IsCA:                  true,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
+		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
+		BasicConstraintsValid: true,
+	}
+	caPrivKey, err := rsa.GenerateKey(rand.Reader, testCertificateBits)
+	if err != nil {
+		t.Fatal(err)
+	}
+	caBytes, err := x509.CreateCertificate(rand.Reader, ca, ca, &caPrivKey.PublicKey, caPrivKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	caPEM := pem.EncodeToMemory(&pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: caBytes,
+	})
+
+	cert := &x509.Certificate{
+		SerialNumber: big.NewInt(2020),
+		Subject: pkix.Name{
+			Organization: []string{"Test Cert"},
+		},
+		IPAddresses:           []net.IP{net.ParseIP("127.0.0.1")},
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().AddDate(10, 0, 0),
+		IsCA:                  false,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
+		KeyUsage:              x509.KeyUsageDigitalSignature,
+		BasicConstraintsValid: true,
+	}
+	key, err := rsa.GenerateKey(rand.Reader, testCertificateBits)
+	if err != nil {
+		t.Fatal(err)
+	}
+	certBytes, err := x509.CreateCertificate(rand.Reader, cert, ca, &key.PublicKey, caPrivKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	certPEM := pem.EncodeToMemory(&pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: certBytes,
+	})
+	keyPEM := pem.EncodeToMemory(&pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: x509.MarshalPKCS1PrivateKey(key),
+	})
+
+	return caPEM, certPEM, keyPEM
 }
