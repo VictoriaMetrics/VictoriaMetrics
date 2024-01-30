@@ -6,6 +6,9 @@ menu:
   docs:
     parent: 'victoriametrics'
     weight: 33
+
+aliases:
+  -/url-examples.html
 ---
 
 # VictoriaMetrics API examples
