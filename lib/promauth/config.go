@@ -677,8 +677,8 @@ func (actx *authContext) initFromBasicAuthConfig(baseDir string, ba *BasicAuthCo
 }
 
 func fetchBasicAuthHeaderAndDigest(baseDir string, ba *BasicAuthConfig) (func() (string, error), string) {
-	if ba.Username != "" {
-		if ba.Password != nil {
+	if ba.UsernameFile == "" {
+		if ba.PasswordFile == "" {
 			token64 := generateBasicAuthEncodedToken(ba.Username, ba.Password.String())
 			ah := "Basic " + token64
 			authHeader := func() (string, error) {
@@ -686,51 +686,48 @@ func fetchBasicAuthHeaderAndDigest(baseDir string, ba *BasicAuthConfig) (func() 
 			}
 			authHeaderDigest := fmt.Sprintf("basic(username=%q, password=%q)", ba.Username, ba.Password)
 			return authHeader, authHeaderDigest
-		} else {
-			passwordFilePath := fscore.GetFilepath(baseDir, ba.PasswordFile)
-			authHeader := func() (string, error) {
-				password, err := fscore.ReadPasswordFromFileOrHTTP(passwordFilePath)
-				if err != nil {
-					return "", fmt.Errorf("cannot read password from `password_file`=%q set in `basic_auth` section: %w", ba.PasswordFile, err)
-				}
-				token64 := generateBasicAuthEncodedToken(ba.Username, password)
-				return "Basic " + token64, nil
-			}
-			authHeaderDigest := fmt.Sprintf("basic(username=%q, passwordFile=%q)", ba.Username, passwordFilePath)
-			return authHeader, authHeaderDigest
 		}
-	} else {
-		if ba.Password != nil {
-			usernameFilePath := fscore.GetFilepath(baseDir, ba.UsernameFile)
-			authHeader := func() (string, error) {
-				username, err := fscore.ReadPasswordFromFileOrHTTP(usernameFilePath)
-				if err != nil {
-					return "", fmt.Errorf("cannot read username from `username_file`=%q set in `basic_auth` section: %w", ba.UsernameFile, err)
-				}
-				token64 := generateBasicAuthEncodedToken(username, ba.Password.String())
-				return "Basic " + token64, nil
+		passwordFilePath := fscore.GetFilepath(baseDir, ba.PasswordFile)
+		authHeader := func() (string, error) {
+			password, err := fscore.ReadPasswordFromFileOrHTTP(passwordFilePath)
+			if err != nil {
+				return "", fmt.Errorf("cannot read password from `password_file`=%q set in `basic_auth` section: %w", ba.PasswordFile, err)
 			}
-			authHeaderDigest := fmt.Sprintf("basic(usernameFile=%q, password=%q)", usernameFilePath, ba.Password)
-			return authHeader, authHeaderDigest
-		} else {
-			usernameFilePath := fscore.GetFilepath(baseDir, ba.UsernameFile)
-			passwordFilePath := fscore.GetFilepath(baseDir, ba.PasswordFile)
-			authHeader := func() (string, error) {
-				username, err := fscore.ReadPasswordFromFileOrHTTP(usernameFilePath)
-				if err != nil {
-					return "", fmt.Errorf("cannot read username from `username_file`=%q set in `basic_auth` section: %w", ba.UsernameFile, err)
-				}
-				password, err := fscore.ReadPasswordFromFileOrHTTP(passwordFilePath)
-				if err != nil {
-					return "", fmt.Errorf("cannot read password from `password_file`=%q set in `basic_auth` section: %w", ba.PasswordFile, err)
-				}
-				token64 := generateBasicAuthEncodedToken(username, password)
-				return "Basic " + token64, nil
-			}
-			authHeaderDigest := fmt.Sprintf("basic(usernameFile=%q, passwordFile=%q)", usernameFilePath, passwordFilePath)
-			return authHeader, authHeaderDigest
+			token64 := generateBasicAuthEncodedToken(ba.Username, password)
+			return "Basic " + token64, nil
 		}
+		authHeaderDigest := fmt.Sprintf("basic(username=%q, passwordFile=%q)", ba.Username, passwordFilePath)
+		return authHeader, authHeaderDigest
 	}
+	if ba.PasswordFile == "" {
+		usernameFilePath := fscore.GetFilepath(baseDir, ba.UsernameFile)
+		authHeader := func() (string, error) {
+			username, err := fscore.ReadPasswordFromFileOrHTTP(usernameFilePath)
+			if err != nil {
+				return "", fmt.Errorf("cannot read username from `username_file`=%q set in `basic_auth` section: %w", ba.UsernameFile, err)
+			}
+			token64 := generateBasicAuthEncodedToken(username, ba.Password.String())
+			return "Basic " + token64, nil
+		}
+		authHeaderDigest := fmt.Sprintf("basic(usernameFile=%q, password=%q)", usernameFilePath, ba.Password)
+		return authHeader, authHeaderDigest
+	}
+	usernameFilePath := fscore.GetFilepath(baseDir, ba.UsernameFile)
+	passwordFilePath := fscore.GetFilepath(baseDir, ba.PasswordFile)
+	authHeader := func() (string, error) {
+		username, err := fscore.ReadPasswordFromFileOrHTTP(usernameFilePath)
+		if err != nil {
+			return "", fmt.Errorf("cannot read username from `username_file`=%q set in `basic_auth` section: %w", ba.UsernameFile, err)
+		}
+		password, err := fscore.ReadPasswordFromFileOrHTTP(passwordFilePath)
+		if err != nil {
+			return "", fmt.Errorf("cannot read password from `password_file`=%q set in `basic_auth` section: %w", ba.PasswordFile, err)
+		}
+		token64 := generateBasicAuthEncodedToken(username, password)
+		return "Basic " + token64, nil
+	}
+	authHeaderDigest := fmt.Sprintf("basic(usernameFile=%q, passwordFile=%q)", usernameFilePath, passwordFilePath)
+	return authHeader, authHeaderDigest
 }
 
 func generateBasicAuthEncodedToken(username string, password string) string {
