@@ -1,6 +1,7 @@
 package promql
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
@@ -94,4 +95,65 @@ func TestQueryStats_addSeriesFetched(t *testing.T) {
 	if qs.SeriesFetched != 4 {
 		t.Fatalf("expected to get 4; got %d instead", qs.SeriesFetched)
 	}
+}
+
+func Test_getSumInstantValues(t *testing.T) {
+	f := func(cached, start, end, exp []*timeseries) {
+		t.Helper()
+		got := getSumInstantValues(nil, cached, start, end)
+
+		equal := reflect.DeepEqual(got, exp)
+		if !equal {
+			t.Errorf("expected to get:\n%v;\n got instead:\n%v", exp, got)
+		}
+	}
+	ts := func(name string, timestamp int64, value float64) *timeseries {
+		return &timeseries{
+			MetricName: storage.MetricName{
+				MetricGroup: []byte(name),
+			},
+			Timestamps: []int64{timestamp},
+			Values:     []float64{value},
+		}
+	}
+
+	// start - end + cached = 1
+	f(
+		nil,
+		[]*timeseries{ts("foo", 100, 1)},
+		nil,
+		[]*timeseries{ts("foo", 100, 1)},
+	)
+
+	// start - end + cached = 0
+	f(
+		nil,
+		[]*timeseries{ts("foo", 100, 1)},
+		[]*timeseries{ts("foo", 10, 1)},
+		[]*timeseries{ts("foo", 100, 0)},
+	)
+
+	// start - end + cached = 2
+	f(
+		[]*timeseries{ts("foo", 10, 1)},
+		[]*timeseries{ts("foo", 100, 1)},
+		nil,
+		[]*timeseries{ts("foo", 100, 2)},
+	)
+
+	// start - end + cached = 1
+	f(
+		[]*timeseries{ts("foo", 50, 1)},
+		[]*timeseries{ts("foo", 100, 1)},
+		[]*timeseries{ts("foo", 10, 1)},
+		[]*timeseries{ts("foo", 100, 1)},
+	)
+
+	// start - end + cached = 1
+	f(
+		[]*timeseries{ts("foo", 50, 1)},
+		nil,
+		nil,
+		[]*timeseries{ts("foo", 50, 1)},
+	)
 }

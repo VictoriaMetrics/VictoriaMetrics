@@ -1503,7 +1503,9 @@ func getMinMaxInstantValues(tssCached, tssStart, tssEnd []*timeseries, f func(a,
 	return rvs, true
 }
 
-// getSumInstantValues calculates tssCached + tssStart - tssEnd
+// getSumInstantValues aggregates tssCached, tssStart, tssEnd time series
+// into a new time series with value = tssCached + tssStart - tssEnd
+// and timestamp = tssStart, or tssCached if tssStart==nil
 func getSumInstantValues(qt *querytracer.Tracer, tssCached, tssStart, tssEnd []*timeseries) []*timeseries {
 	qt = qt.NewChild("calculate the sum for instant values across series; cached=%d, start=%d, end=%d", len(tssCached), len(tssStart), len(tssEnd))
 	defer qt.Done()
@@ -1530,6 +1532,7 @@ func getSumInstantValues(qt *querytracer.Tracer, tssCached, tssStart, tssEnd []*
 		if tsCached != nil && !math.IsNaN(tsCached.Values[0]) {
 			if !math.IsNaN(ts.Values[0]) {
 				tsCached.Values[0] += ts.Values[0]
+				tsCached.Timestamps = ts.Timestamps
 			}
 		} else {
 			m[string(bb.B)] = ts
