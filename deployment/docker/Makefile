@@ -2,9 +2,8 @@
 
 DOCKER_NAMESPACE ?= victoriametrics
 
-
-ROOT_IMAGE ?= alpine:3.19.0
-CERTS_IMAGE := alpine:3.19.0
+ROOT_IMAGE ?= alpine:3.19.1
+CERTS_IMAGE := alpine:3.19.1
 
 GO_BUILDER_IMAGE := golang:1.21.5-alpine
 
