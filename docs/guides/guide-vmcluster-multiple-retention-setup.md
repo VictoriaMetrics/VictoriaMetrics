@@ -10,7 +10,6 @@ aliases:
 ---
 # Multi Retention Setup within VictoriaMetrics Cluster
 
-
 **Objective**
 
 Setup Victoria Metrics Cluster with support of multiple retention periods within one installation.
@@ -29,13 +28,13 @@ A multi-retention setup can be implemented by dividing a [victoriametrics cluste
 
 Example:
 Setup should handle 3 different retention groups 3months, 1year and 3 years.
-Solution contains 3 groups of vmstorages + vminserts and one group of vmselects. Routing is done by [vmagent](https://docs.victoriametrics.com/vmagent.html) and [relabeling configuration](https://docs.victoriametrics.com/vmagent.html#relabeling). The [-retentionPeriod](https://docs.victoriametrics.com/#retention) sets how long to keep the metrics.
+Solution contains 3 groups of vmstorages + vminserts and one group of vmselects. Routing is done by [vmagent](https://docs.victoriametrics.com/vmagent.html)
+by [splitting data streams](https://docs.victoriametrics.com/vmagent.html#splitting-data-streams-among-multiple-systems). 
+The [-retentionPeriod](https://docs.victoriametrics.com/#retention) sets how long to keep the metrics.
 
 The diagram below shows a proposed solution
 
-<p align="center">
-  <img src="guide-vmcluster-multiple-retention-setup.webp" width="800">
-</p>
+<img src="guide-vmcluster-multiple-retention-setup.webp">
 
 **Implementation Details**
 

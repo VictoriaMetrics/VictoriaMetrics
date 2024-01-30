@@ -30,7 +30,7 @@ Features:
 To see the full list of supported modes
 run the following command:
 
-```console
+```sh
 $ ./vmctl --help
 NAME:
    vmctl - VictoriaMetrics command-line tool
@@ -325,7 +325,7 @@ To migrate historical data from Promscale to VictoriaMetrics we recommend using 
 in [remote-read](https://docs.victoriametrics.com/vmctl.html#migrating-data-by-remote-read-protocol) mode.
 
 See the example of migration command below:
-```console
+```sh
 ./vmctl remote-read --remote-read-src-addr=http://<promscale>:9201/read \
                     --remote-read-step-interval=day \
                     --remote-read-use-stream=false \ # promscale doesn't support streaming
@@ -821,7 +821,7 @@ Requests to make: 9 / 9 [██████████████████�
 ```
 
 _To disable explore phase and switch to the old way of data migration via single connection use 
-`--vm-native-disable-retries` cmd-line flag. Please note, in this mode vmctl won't be able to retry failed requests._
+`--vm-native-disable-per-metric-migration` cmd-line flag. Please note, in this mode vmctl won't be able to retry failed requests._
 
 Importing tips:
 
@@ -831,17 +831,20 @@ Importing tips:
    [here](https://docs.victoriametrics.com/#how-to-export-data-in-native-format).
    If hitting `the number of matching timeseries exceeds...` error, adjust filters to match less time series or 
    update `-search.maxSeries` command-line flag on vmselect/vmsingle;
+1. Using smaller intervals via `--vm-native-step-interval` cmd-line flag can reduce the number of matched series per-request
+   for sources with [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate).
+   See more about [step interval here](#using-time-based-chunking-of-migration).
 1. Migrating all the metrics from one VM to another may collide with existing application metrics
    (prefixed with `vm_`) at destination and lead to confusion when using
    [official Grafana dashboards](https://grafana.com/orgs/victoriametrics/dashboards).
    To avoid such situation try to filter out VM process metrics via `--vm-native-filter-match='{__name__!~"vm_.*"}'` flag.
 1. Migrating data with overlapping time range or via unstable network can produce duplicates series at destination.
    To avoid duplicates set `-dedup.minScrapeInterval=1ms` for `vmselect`/`vmstorage` at the destination.
-   This will instruct `vmselect`/`vmstorage` to ignore duplicates with identical timestamps.
-1. When migrating large volumes of data use `--vm-native-step-interval` flag to split migration [into steps](#using-time-based-chunking-of-migration).
+   This will instruct `vmselect`/`vmstorage` to ignore duplicates with identical timestamps. Ignore this recommendation
+   if you already have `-dedup.minScrapeInterval` set to 1ms or higher values at destination.
 1. When migrating data from one VM cluster to another, consider using [cluster-to-cluster mode](#cluster-to-cluster-migration-mode).
    Or manually specify addresses according to [URL format](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format):
-   ```console
+   ```sh
    # Migrating from cluster specific tenantID to single
    --vm-native-src-addr=http://<src-vmselect>:8481/select/0/prometheus
    --vm-native-dst-addr=http://<dst-vmsingle>:8428
@@ -888,7 +891,7 @@ It is recommended using default `month` step when migrating the data over the lo
 limits on `--vm-native-src-addr` and can't or don't want to change them, try lowering the step interval to `week`, `day` or `hour`.
 
 Usage example:
-```console
+```sh
 ./vmctl vm-native \
     --vm-native-src-addr=http://127.0.0.1:8481/select/0/prometheus \ 
     --vm-native-dst-addr=http://localhost:8428 \
@@ -922,7 +925,7 @@ Cluster-to-cluster uses `/admin/tenants` endpoint (available starting from [v1.8
 
 To use this mode you need to set `--vm-intercluster` flag to `true`, `--vm-native-src-addr` flag to 'http://vmselect:8481/' and `--vm-native-dst-addr` value to http://vminsert:8480/:
 
-```console
+```sh
   ./vmctl vm-native --vm-native-src-addr=http://127.0.0.1:8481/ \
   --vm-native-dst-addr=http://127.0.0.1:8480/ \
   --vm-native-filter-match='{__name__="vm_app_uptime_seconds"}' \
@@ -967,7 +970,7 @@ In this mode, `vmctl` allows verifying correctness and integrity of data exporte
 from VictoriaMetrics.
 You can verify exported data at disk before uploading it by `vmctl verify-block` command:
 
-```console
+```sh
 # export blocks from VictoriaMetrics
 curl localhost:8428/api/v1/export/native -g -d 'match[]={__name__!=""}' -o exported_data_block
 # verify block content
@@ -1091,7 +1094,7 @@ The `<PKG_TAG>` may be manually set via `PKG_TAG=foobar make package-vmctl`.
 The base docker image is [alpine](https://hub.docker.com/_/alpine) but it is possible to use any other base image
 by setting it via `<ROOT_IMAGE>` environment variable. For example, the following command builds the image on top of [scratch](https://hub.docker.com/_/scratch) image:
 
-```console
+```sh
 ROOT_IMAGE=scratch make package-vmctl
 ```
 

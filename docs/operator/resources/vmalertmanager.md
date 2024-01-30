@@ -25,7 +25,7 @@ When there are two or more configured replicas the Operator runs the Alertmanage
 
 ## Specification
 
-You can see the full actual specification of the `VMAlertmanager` resource in the **[API docs -> VMAlert](../api.md#vmalertmanager)**.
+You can see the full actual specification of the `VMAlertmanager` resource in the **[API docs -> VMAlertManager](../api.md#vmalertmanager)**.
 
 If you can't find necessary field in the specification of the custom resource,
 see [Extra arguments section](./README.md#extra-arguments).
@@ -114,6 +114,7 @@ For selecting rules from all namespaces you must specify it to empty value:
 
 ```yaml
 spec:
+  configSelector: {}
   configNamespaceSelector: {}
 ```
 
@@ -140,11 +141,11 @@ Here's a more visual and more detailed view:
 |---------------------------|------------------|----------------------|-------------------|------------------------------------------------------------------------------------------------------------------------|
 | undefined                 | undefined        | false                | undefined         | nothing                                                                                                                |
 | undefined                 | undefined        | **true**             | undefined         | all vmalertmaangerconfigs in the cluster                                                                               |
-| **defined**               | undefined        | any                  | undefined         | all vmalertmaangerconfigs are matching at namespaces for given `configNamespaceSelector`                               |
-| undefined                 | **defined**      | any                  | undefined         | all vmalertmaangerconfigs only at `VMAlertmanager`'s namespace are matching for given `ruleSelector`                   |
-| **defined**               | **defined**      | any                  | undefined         | all vmalertmaangerconfigs only at namespaces matched `configNamespaceSelector` for given `configSelector` are matching |
-| any                       | undefined        | any                  | **defined**       | all vmalertmaangerconfigs only at `VMAlertmanager`'s namespace                                                         |
-| any                       | **defined**      | any                  | **defined**       | all vmalertmaangerconfigs only at `VMAlertmanager`'s namespace for given `configSelector` are matching                 |
+| **defined**               | undefined        | *any*                | undefined         | all vmalertmaangerconfigs are matching at namespaces for given `configNamespaceSelector`                               |
+| undefined                 | **defined**      | *any*                | undefined         | all vmalertmaangerconfigs only at `VMAlertmanager`'s namespace are matching for given `ruleSelector`                   |
+| **defined**               | **defined**      | *any*                | undefined         | all vmalertmaangerconfigs only at namespaces matched `configNamespaceSelector` for given `configSelector` are matching |
+| *any*                     | undefined        | *any*                | **defined**       | all vmalertmaangerconfigs only at `VMAlertmanager`'s namespace                                                         |
+| *any*                     | **defined**      | *any*                | **defined**       | all vmalertmaangerconfigs only at `VMAlertmanager`'s namespace for given `configSelector` are matching                 |
 
 More details about `WATCH_NAMESPACE` variable you can read in [this doc](../configuration.md#namespaced-mode).
 
@@ -180,7 +181,6 @@ spec:
 
 - `spec.templates` - list of keys in `ConfigMaps`, that contains template files for `alertmanager`, e.g.:
 
-  {% raw %}
   ```yaml
   apiVersion: operator.victoriametrics.com/v1beta1
   kind: VMAlertmanager
@@ -205,7 +205,6 @@ spec:
           {{- end }}
       my-template-2.tmpl: """
   ```
-  {% endraw %}
 
 These templates will be automatically added to `VMAlertmanager` configuration and will be automatically reloaded on changes in source `ConfigMap`.
 - `spec.configMaps` - list of `ConfigMap` names (in the same namespace) that will be mounted at `VMAlertmanager`

@@ -18,6 +18,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -58,8 +59,10 @@ var (
 	oauth2ClientID         = flagutil.NewArrayString("remoteWrite.oauth2.clientID", "Optional OAuth2 clientID to use for the corresponding -remoteWrite.url")
 	oauth2ClientSecret     = flagutil.NewArrayString("remoteWrite.oauth2.clientSecret", "Optional OAuth2 clientSecret to use for the corresponding -remoteWrite.url")
 	oauth2ClientSecretFile = flagutil.NewArrayString("remoteWrite.oauth2.clientSecretFile", "Optional OAuth2 clientSecretFile to use for the corresponding -remoteWrite.url")
-	oauth2TokenURL         = flagutil.NewArrayString("remoteWrite.oauth2.tokenUrl", "Optional OAuth2 tokenURL to use for the corresponding -remoteWrite.url")
-	oauth2Scopes           = flagutil.NewArrayString("remoteWrite.oauth2.scopes", "Optional OAuth2 scopes to use for the corresponding -remoteWrite.url. Scopes must be delimited by ';'")
+	oauth2EndpointParams   = flagutil.NewArrayString("remoteWrite.oauth2.endpointParams", "Optional OAuth2 endpoint parameters to use for the corresponding -remoteWrite.url . "+
+		`The endpoint parameters must be set in JSON format: {"param1":"value1",...,"paramN":"valueN"}`)
+	oauth2TokenURL = flagutil.NewArrayString("remoteWrite.oauth2.tokenUrl", "Optional OAuth2 tokenURL to use for the corresponding -remoteWrite.url")
+	oauth2Scopes   = flagutil.NewArrayString("remoteWrite.oauth2.scopes", "Optional OAuth2 scopes to use for the corresponding -remoteWrite.url. Scopes must be delimited by ';'")
 
 	awsUseSigv4 = flagutil.NewArrayBool("remoteWrite.aws.useSigv4", "Enables SigV4 request signing for the corresponding -remoteWrite.url. "+
 		"It is expected that other -remoteWrite.aws.* command-line flags are set if sigv4 request signing is enabled")
@@ -234,10 +237,16 @@ func getAuthConfig(argIdx int) (*promauth.Config, error) {
 	clientSecret := oauth2ClientSecret.GetOptionalArg(argIdx)
 	clientSecretFile := oauth2ClientSecretFile.GetOptionalArg(argIdx)
 	if clientSecretFile != "" || clientSecret != "" {
+		endpointParamsJSON := oauth2EndpointParams.GetOptionalArg(argIdx)
+		endpointParams, err := flagutil.ParseJSONMap(endpointParamsJSON)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse JSON for -remoteWrite.oauth2.endpointParams=%s: %w", endpointParamsJSON, err)
+		}
 		oauth2Cfg = &promauth.OAuth2Config{
 			ClientID:         oauth2ClientID.GetOptionalArg(argIdx),
 			ClientSecret:     promauth.NewSecret(clientSecret),
 			ClientSecretFile: clientSecretFile,
+			EndpointParams:   endpointParams,
 			TokenURL:         oauth2TokenURL.GetOptionalArg(argIdx),
 			Scopes:           strings.Split(oauth2Scopes.GetOptionalArg(argIdx), ";"),
 		}
@@ -387,7 +396,8 @@ func (c *client) newRequest(url string, body []byte) (*http.Request, error) {
 // Otherwise it tries sending the block to remote storage indefinitely.
 func (c *client) sendBlockHTTP(block []byte) bool {
 	c.rl.register(len(block), c.stopCh)
-	retryDuration := time.Second
+	maxRetryDuration := timeutil.AddJitterToDuration(time.Minute)
+	retryDuration := timeutil.AddJitterToDuration(time.Second)
 	retriesCount := 0
 
 again:
@@ -397,8 +407,8 @@ again:
 	if err != nil {
 		c.errorsCount.Inc()
 		retryDuration *= 2
-		if retryDuration > time.Minute {
-			retryDuration = time.Minute
+		if retryDuration > maxRetryDuration {
+			retryDuration = maxRetryDuration
 		}
 		logger.Warnf("couldn't send a block with size %d bytes to %q: %s; re-sending the block in %.3f seconds",
 			len(block), c.sanitizedURL, err, retryDuration.Seconds())
@@ -444,8 +454,8 @@ again:
 	// Unexpected status code returned
 	retriesCount++
 	retryDuration *= 2
-	if retryDuration > time.Minute {
-		retryDuration = time.Minute
+	if retryDuration > maxRetryDuration {
+		retryDuration = maxRetryDuration
 	}
 	body, err := io.ReadAll(resp.Body)
 	_ = resp.Body.Close()

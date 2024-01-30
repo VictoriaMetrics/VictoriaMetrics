@@ -13,7 +13,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs/fscore"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
@@ -44,24 +45,24 @@ var supportedOutputs = []string{
 //
 // The returned Aggregators must be stopped with MustStop() when no longer needed.
 func LoadFromFile(path string, pushFunc PushFunc, dedupInterval time.Duration) (*Aggregators, error) {
-	data, err := fs.ReadFileOrHTTP(path)
+	data, err := fscore.ReadFileOrHTTP(path)
 	if err != nil {
 		return nil, fmt.Errorf("cannot load aggregators: %w", err)
 	}
-	as, err := NewAggregatorsFromData(data, pushFunc, dedupInterval)
+	data, err = envtemplate.ReplaceBytes(data)
+	if err != nil {
+		return nil, fmt.Errorf("cannot expand environment variables in %q: %w", path, err)
+	}
+
+	as, err := newAggregatorsFromData(data, pushFunc, dedupInterval)
 	if err != nil {
 		return nil, fmt.Errorf("cannot initialize aggregators from %q: %w", path, err)
 	}
+
 	return as, nil
 }
 
-// NewAggregatorsFromData initializes Aggregators from the given data and uses the given pushFunc for pushing the aggregated data.
-//
-// If dedupInterval > 0, then the input samples are de-duplicated before being aggregated,
-// e.g. only the last sample per each time series per each dedupInterval is aggregated.
-//
-// The returned Aggregators must be stopped with MustStop() when no longer needed.
-func NewAggregatorsFromData(data []byte, pushFunc PushFunc, dedupInterval time.Duration) (*Aggregators, error) {
+func newAggregatorsFromData(data []byte, pushFunc PushFunc, dedupInterval time.Duration) (*Aggregators, error) {
 	var cfgs []*Config
 	if err := yaml.UnmarshalStrict(data, &cfgs); err != nil {
 		return nil, fmt.Errorf("cannot parse stream aggregation config: %w", err)
@@ -130,6 +131,10 @@ type Config struct {
 	// OutputRelabelConfigs is an optional relabeling rules, which are applied
 	// on the aggregated output before being sent to remote storage.
 	OutputRelabelConfigs []promrelabel.RelabelConfig `yaml:"output_relabel_configs,omitempty"`
+
+	// FlushOnShutdown defines whether to flush the aggregation state on process termination
+	// or config reload. Is `false` by default.
+	FlushOnShutdown bool `yaml:"flush_on_shutdown,omitempty"`
 }
 
 // Aggregators aggregates metrics passed to Push and calls pushFunc for aggregate data.
@@ -239,6 +244,10 @@ type aggregator struct {
 	// for `interval: 1m`, `by: [job]`
 	suffix string
 
+	// flushOnShutdown defines whether to flush the state of aggregation
+	// on MustStop call.
+	flushOnShutdown bool
+
 	wg     sync.WaitGroup
 	stopCh chan struct{}
 }
@@ -264,7 +273,7 @@ func newAggregator(cfg *Config, pushFunc PushFunc, dedupInterval time.Duration) 
 		return nil, fmt.Errorf("cannot parse `interval: %q`: %w", cfg.Interval, err)
 	}
 	if interval <= time.Second {
-		return nil, fmt.Errorf("the minimum supported aggregation interval is 1s; got %s", interval)
+		return nil, fmt.Errorf("aggregation interval should be higher than 1s; got %s", interval)
 	}
 
 	// check cfg.StalenessInterval
@@ -392,7 +401,8 @@ func newAggregator(cfg *Config, pushFunc PushFunc, dedupInterval time.Duration) 
 		aggrStates: aggrStates,
 		pushFunc:   pushFunc,
 
-		suffix: suffix,
+		suffix:          suffix,
+		flushOnShutdown: cfg.FlushOnShutdown,
 
 		stopCh: make(chan struct{}),
 	}
@@ -504,6 +514,10 @@ func (a *aggregator) flush() {
 func (a *aggregator) MustStop() {
 	close(a.stopCh)
 	a.wg.Wait()
+
+	if !a.flushOnShutdown {
+		return
+	}
 
 	// Flush the remaining data from the last interval if needed.
 	flushConcurrencyCh <- struct{}{}

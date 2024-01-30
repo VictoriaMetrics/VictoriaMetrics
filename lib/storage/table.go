@@ -11,6 +11,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 )
 
 // table represents a single table with time series data.
@@ -204,6 +205,14 @@ func (tb *table) flushPendingRows() {
 	}
 }
 
+func (tb *table) NotifyReadWriteMode() {
+	tb.ptwsLock.Lock()
+	for _, ptw := range tb.ptws {
+		ptw.pt.NotifyReadWriteMode()
+	}
+	tb.ptwsLock.Unlock()
+}
+
 // TableMetrics contains essential metrics for the table.
 type TableMetrics struct {
 	partitionMetrics
@@ -366,7 +375,8 @@ func (tb *table) startRetentionWatcher() {
 }
 
 func (tb *table) retentionWatcher() {
-	ticker := time.NewTicker(time.Minute)
+	d := timeutil.AddJitterToDuration(time.Minute)
+	ticker := time.NewTicker(d)
 	defer ticker.Stop()
 	for {
 		select {
@@ -433,7 +443,8 @@ func (tb *table) finalDedupWatcher() {
 			}
 		}
 	}
-	t := time.NewTicker(time.Hour)
+	d := timeutil.AddJitterToDuration(time.Hour)
+	t := time.NewTicker(d)
 	defer t.Stop()
 	for {
 		select {

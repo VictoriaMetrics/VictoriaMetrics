@@ -24,7 +24,9 @@ Official Grafana dashboard available for [vmoperator](https://grafana.com/grafan
 
 Graphs on the dashboards contain useful hints - hover the `i` icon in the top left corner of each graph to read it.
 
-<!-- TODO: alerts for operator -->
+## Alerting rules
+
+Alerting rules for VictoriaMetrics operator are available [here](https://github.com/VictoriaMetrics/operator/blob/master/config/alerting/vmoperator-rules.yaml).
 
 ## Configuration
 
@@ -32,7 +34,7 @@ Graphs on the dashboards contain useful hints - hover the `i` icon in the top le
 
 In [victoria-metrics-k8s-stack](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-k8s-stack/README.md) helm-chart operator self-scrapes metrics by default.
 
-This helm-chart also includes [official grafana dashboard for operator](#dashboard).
+This helm-chart also includes [official grafana dashboard for operator](#dashboard) and [official alerting rules for operator](#alerting-rules).
 
 ### Helm-chart victoria-metrics-operator
 

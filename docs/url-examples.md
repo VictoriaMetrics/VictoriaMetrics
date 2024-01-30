@@ -6,6 +6,9 @@ menu:
   docs:
     parent: 'victoriametrics'
     weight: 33
+
+aliases:
+  -/url-examples.html
 ---
 
 # VictoriaMetrics API examples
@@ -14,20 +17,19 @@ menu:
 
 **Deletes time series from VictoriaMetrics**
 
-Single-node VictoriaMetrics:
-<div class="with-copy" markdown="1">
+Note that handler accepts any HTTP method, so sending a `GET` request to `/api/v1/admin/tsdb/delete_series` will result in deletion of time series.
 
-```console
+Single-node VictoriaMetrics:
+
+```sh
 curl -v http://localhost:8428/api/v1/admin/tsdb/delete_series -d 'match[]=vm_http_request_errors_total'
 ```
 
-</div>
 
 The expected output should return [HTTP Status 204](https://datatracker.ietf.org/doc/html/rfc7231#page-53) and will look like:
 
-<div class="with-copy" markdown="1">
 
-```console
+```sh
 *   Trying 127.0.0.1:8428...
 * Connected to 127.0.0.1 (127.0.0.1) port 8428 (#0)
 > GET /api/v1/admin/tsdb/delete_series?match[]=vm_http_request_errors_total HTTP/1.1
@@ -43,22 +45,18 @@ The expected output should return [HTTP Status 204](https://datatracker.ietf.org
 * Connection #0 to host 127.0.0.1 left intact
 ```
 
-</div>
 
 Cluster version of VictoriaMetrics:
-<div class="with-copy" markdown="1">
 
-```console
+```sh
 curl -v http://<vmselect>:8481/delete/0/prometheus/api/v1/admin/tsdb/delete_series -d 'match[]=vm_http_request_errors_total'
 ```
 
-</div>
 
 The expected output should return [HTTP Status 204](https://datatracker.ietf.org/doc/html/rfc7231#page-53) and will look like:
 
-<div class="with-copy" markdown="1">
 
-```console
+```sh
 *   Trying 127.0.0.1:8481...
 * Connected to 127.0.0.1 (127.0.0.1) port 8481 (#0)
 > GET /delete/0/prometheus/api/v1/admin/tsdb/delete_series?match[]=vm_http_request_errors_total HTTP/1.1
@@ -74,7 +72,6 @@ The expected output should return [HTTP Status 204](https://datatracker.ietf.org
 * Connection #0 to host 127.0.0.1 left intact
 ```
 
-</div>
 
 Additional information:
 
@@ -86,22 +83,18 @@ Additional information:
 **Exports raw samples from VictoriaMetrics in JSON line format**
 
 Single-node VictoriaMetrics:
-<div class="with-copy" markdown="1">
 
-```console
+```sh
 curl http://localhost:8428/api/v1/export -d 'match[]=vm_http_request_errors_total' > filename.json
 ```
 
-</div>
 
 Cluster version of VictoriaMetrics:
-<div class="with-copy" markdown="1">
 
-```console
+```sh
 curl http://<vmselect>:8481/select/0/prometheus/api/v1/export -d 'match[]=vm_http_request_errors_total' > filename.json
 ```
 
-</div>
 
 Additional information:
 
@@ -115,22 +108,18 @@ Additional information:
 **Exports raw samples from VictoriaMetrics in CSV format**
 
 Single-node VictoriaMetrics:
-<div class="with-copy" markdown="1">
 
-```console
+```sh
 curl http://localhost:8428/api/v1/export/csv -d 'format=__name__,__value__,__timestamp__:unix_s' -d 'match[]=vm_http_request_errors_total' > filename.csv
 ```
 
-</div>
 
 Cluster version of VictoriaMetrics:
-<div class="with-copy" markdown="1">
 
-```console
+```sh
 curl http://<vmselect>:8481/select/0/prometheus/api/v1/export/csv -d 'format=__name__,__value__,__timestamp__:unix_s' -d 'match[]=vm_http_request_errors_total' > filename.csv
 ```
 
-</div>
 
 Additional information:
 
@@ -143,22 +132,18 @@ Additional information:
 **Exports raw samples from VictoriaMetrics in native format**
 
 Single-node VictoriaMetrics:
-<div class="with-copy" markdown="1">
 
-```console
+```sh
 curl http://localhost:8428/api/v1/export/native -d 'match[]=vm_http_request_errors_total' > filename.bin
 ```
 
-</div>
 
 Cluster version of VictoriaMetrics:
-<div class="with-copy" markdown="1">
 
-```console
+```sh
 curl http://<vmselect>:8481/select/0/prometheus/api/v1/export/native -d 'match[]=vm_http_request_errors_total' > filename.bin
 ```
 
-</div>
 
 More information:
 
@@ -171,22 +156,18 @@ More information:
 **Imports data to VictoriaMetrics in JSON line format**
 
 Single-node VictoriaMetrics:
-<div class="with-copy" markdown="1">
 
-```console
+```sh
 curl -H 'Content-Type: application/json' --data-binary "@filename.json" -X POST http://localhost:8428/api/v1/import
 ```
 
-</div>
 
 Cluster version of VictoriaMetrics:
-<div class="with-copy" markdown="1">
 
-```console
+```sh
 curl -H 'Content-Type: application/json' --data-binary "@filename.json" -X POST http://<vminsert>:8480/insert/0/prometheus/api/v1/import
 ```
 
-</div>
 
 More information:
 
@@ -199,22 +180,18 @@ More information:
 **Imports CSV data to VictoriaMetrics**
 
 Single-node VictoriaMetrics:
-<div class="with-copy" markdown="1">
 
-```console
+```sh
 curl -d "GOOG,1.23,4.56,NYSE" 'http://localhost:8428/api/v1/import/csv?format=2:metric:ask,3:metric:bid,1:label:ticker,4:label:market'
 ```
 
-</div>
 
 Cluster version of VictoriaMetrics:
-<div class="with-copy" markdown="1">
 
-```console
+```sh
 curl -d "GOOG,1.23,4.56,NYSE" 'http://<vminsert>:8480/insert/0/prometheus/api/v1/import/csv?format=2:metric:ask,3:metric:bid,1:label:ticker,4:label:market'
 ```
 
-</div>
 
 Additional information:
 
@@ -227,20 +204,16 @@ Additional information:
 **Imports data to VictoriaMetrics in native format**
 
 Single-node VictoriaMetrics:
-<div class="with-copy" markdown="1">
 
-```console
+```sh
 curl -X POST http://localhost:8428/api/v1/import/native -T filename.bin
 ```
-</div>
 
 Cluster version of VictoriaMetrics:
-<div class="with-copy" markdown="1">
 
-```console
+```sh
 curl -X POST http://<vminsert>:8480/insert/0/prometheus/api/v1/import/native -T filename.bin
 ```
-</div>
 
 Additional information:
 
@@ -253,21 +226,17 @@ Additional information:
 **Imports data to VictoriaMetrics in Prometheus text exposition format**
 
 Single-node VictoriaMetrics:
-<div class="with-copy" markdown="1">
 
-```console
+```sh
 curl -d 'metric_name{foo="bar"} 123' -X POST http://localhost:8428/api/v1/import/prometheus
 ```
 
-</div>
 
 Cluster version of VictoriaMetrics:
-<div class="with-copy" markdown="1">
 
-```console
+```sh
 curl -d 'metric_name{foo="bar"} 123' -X POST http://<vminsert>:8480/insert/0/prometheus/api/v1/import/prometheus
 ```
-</div>
 
 Additional information:
 
@@ -280,24 +249,20 @@ Additional information:
 **Get a list of label names at the given time range**
 
 Single-node VictoriaMetrics:
-<div class="with-copy" markdown="1">
 
-```console
+```sh
 curl http://localhost:8428/prometheus/api/v1/labels
 ```
 
-</div>
 
 Cluster version of VictoriaMetrics:
-<div class="with-copy" markdown="1">
 
-```console
+```sh
 curl http://<vmselect>:8481/select/0/prometheus/api/v1/labels
 ```
 
-</div>
 
-By default, VictoriaMetrics returns labels seen during the last day starting at 00:00 UTC. An arbitrary time range can be set via `start` and `end` query args.
+By default, VictoriaMetrics returns labels seen during the last day starting at 00:00 UTC. An arbitrary time range can be set via [`start` and `end` query args](https://docs.victoriametrics.com/#timestamp-formats).
 The specified `start..end` time range is rounded to day granularity because of performance optimization concerns.
 
 Additional information:
@@ -310,22 +275,18 @@ Additional information:
 **Get a list of values for a particular label on the given time range**
 
 Single-node VictoriaMetrics:
-<div class="with-copy" markdown="1">
 
-```console
+```sh
 curl http://localhost:8428/prometheus/api/v1/label/job/values
 ```
 
-</div>
 
 Cluster version of VictoriaMetrics:
-<div class="with-copy" markdown="1">
 
-```console
+```sh
 curl http://<vmselect>:8481/select/0/prometheus/api/v1/label/job/values
 ```
 
-</div>
 
 By default, VictoriaMetrics returns labels values seen during the last day starting at 00:00 UTC. An arbitrary time range can be set via `start` and `end` query args.
 The specified `start..end` time range is rounded to day granularity because of performance optimization concerns.
@@ -340,22 +301,18 @@ Additional information:
 **Performs PromQL/MetricsQL instant query**
 
 Single-node VictoriaMetrics:
-<div class="with-copy" markdown="1">
 
-```console
+```sh
 curl http://localhost:8428/prometheus/api/v1/query -d 'query=vm_http_request_errors_total'
 ```
 
-</div>
 
 Cluster version of VictoriaMetrics:
-<div class="with-copy" markdown="1">
 
-```console
+```sh
 curl http://<vmselect>:8481/select/0/prometheus/api/v1/query -d 'query=vm_http_request_errors_total'
 ```
 
-</div>
 
 Additional information:
 * [Prometheus querying API usage](https://docs.victoriametrics.com/#prometheus-querying-api-usage)
@@ -368,22 +325,18 @@ Additional information:
 **Performs PromQL/MetricsQL range query**
 
 Single-node VictoriaMetrics:
-<div class="with-copy" markdown="1">
 
-```console
+```sh
 curl http://localhost:8428/prometheus/api/v1/query_range -d 'query=sum(increase(vm_http_request_errors_total{job="foo"}[5m]))' -d 'start=-1d' -d 'step=1h'
 ```
 
-</div>
 
 Cluster version of VictoriaMetrics:
-<div class="with-copy" markdown="1">
 
-```console
+```sh
 curl http://<vmselect>:8481/select/0/prometheus/api/v1/query_range -d 'query=sum(increase(vm_http_request_errors_total{job="foo"}[5m]))' -d 'start=-1d' -d 'step=1h'
 ```
 
-</div>
 
 Additional information:
 * [Prometheus querying API usage](https://docs.victoriametrics.com/#prometheus-querying-api-usage)
@@ -396,22 +349,18 @@ Additional information:
 **Returns series names with their labels on the given time range**
 
 Single-node VictoriaMetrics:
-<div class="with-copy" markdown="1">
 
-```console
+```sh
 curl http://localhost:8428/prometheus/api/v1/series -d 'match[]=vm_http_request_errors_total'
 ```
 
-</div>
 
 Cluster version of VictoriaMetrics:
-<div class="with-copy" markdown="1">
 
-```console
+```sh
 curl http://<vmselect>:8481/select/0/prometheus/api/v1/series -d 'match[]=vm_http_request_errors_total'
 ```
 
-</div>
 
 By default, VictoriaMetrics returns time series seen during the last day starting at 00:00 UTC. An arbitrary time range can be set via `start` and `end` query args.
 The specified `start..end` time range is rounded to day granularity because of performance optimization concerns.
@@ -427,22 +376,18 @@ VictoriaMetrics accepts `limit` query arg for `/api/v1/series` handlers for limi
 **Cardinality statistics**
 
 Single-node VictoriaMetrics:
-<div class="with-copy" markdown="1">
 
-```console
+```sh
 curl http://localhost:8428/prometheus/api/v1/status/tsdb
 ```
 
-</div>
 
 Cluster version of VictoriaMetrics:
-<div class="with-copy" markdown="1">
 
-```console
+```sh
 curl http://<vmselect>:8481/select/0/prometheus/api/v1/status/tsdb
 ```
 
-</div>
 
 Additional information:
 * [Prometheus querying API usage](https://docs.victoriametrics.com/#prometheus-querying-api-usage)
@@ -453,32 +398,27 @@ Additional information:
 
 **DataDog URL for Single-node VictoriaMetrics**
 
-<div class="with-copy" markdown="1">
 
 ```
 http://victoriametrics:8428/datadog
 ```
 
-</div>
 
 **DataDog URL for Cluster version of VictoriaMetrics**
 
-<div class="with-copy" markdown="1">
 
 ```
 http://vminsert:8480/insert/0/datadog
 ```
 
-</div>
 
 ### /datadog/api/v1/series
 
-**Imports data in DataDog format into VictoriaMetrics**
+**Imports data in DataDog v1 format into VictoriaMetrics**
 
 Single-node VictoriaMetrics:
-<div class="with-copy" markdown="1">
 
-```console
+```sh
 echo '
 {
   "series": [
@@ -500,12 +440,10 @@ echo '
 ' | curl -X POST -H 'Content-Type: application/json' --data-binary @- http://localhost:8428/datadog/api/v1/series
 ```
 
-</div>
 
 Cluster version of VictoriaMetrics:
-<div class="with-copy" markdown="1">
 
-```console
+```sh
 echo '
 {
   "series": [
@@ -527,11 +465,78 @@ echo '
 ' | curl -X POST -H 'Content-Type: application/json' --data-binary @- 'http://<vminsert>:8480/insert/0/datadog/api/v1/series'
 ```
 
-</div>
 
 Additional information:
 
-* [How to send data from datadog agent](https://docs.victoriametrics.com/#how-to-send-data-from-datadog-agent)
+* [How to send data from DataDog agent](https://docs.victoriametrics.com/#how-to-send-data-from-datadog-agent)
+* [URL format for VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format)
+
+
+### /datadog/api/v2/series
+
+**Imports data in [DataDog v2](https://docs.datadoghq.com/api/latest/metrics/#submit-metrics) format into VictoriaMetrics**
+
+Single-node VictoriaMetrics:
+
+```sh
+echo '
+{
+  "series": [
+    {
+      "metric": "system.load.1",
+      "type": 0,
+      "points": [
+        {
+          "timestamp": 0,
+          "value": 0.7
+        }
+      ],
+      "resources": [
+        {
+          "name": "dummyhost",
+          "type": "host"
+        }
+      ],
+      "tags": ["environment:test"]
+    }
+  ]
+}
+' | curl -X POST -H 'Content-Type: application/json' --data-binary @- http://localhost:8428/datadog/api/v2/series
+```
+
+
+Cluster version of VictoriaMetrics:
+
+```sh
+echo '
+{
+  "series": [
+    {
+      "metric": "system.load.1",
+      "type": 0,
+      "points": [
+        {
+          "timestamp": 0,
+          "value": 0.7
+        }
+      ],
+      "resources": [
+        {
+          "name": "dummyhost",
+          "type": "host"
+        }
+      ],
+      "tags": ["environment:test"]
+    }
+  ]
+}
+' | curl -X POST -H 'Content-Type: application/json' --data-binary @- 'http://<vminsert>:8480/insert/0/datadog/api/v2/series'
+```
+
+
+Additional information:
+
+* [How to send data from DataDog agent](https://docs.victoriametrics.com/#how-to-send-data-from-datadog-agent)
 * [URL format for VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format)
 
 ### /federate
@@ -539,22 +544,18 @@ Additional information:
 **Returns federated metrics**
 
 Single-node VictoriaMetrics:
-<div class="with-copy" markdown="1">
 
-```console
+```sh
 curl http://localhost:8428/federate -d 'match[]=vm_http_request_errors_total'
 ```
 
-</div>
 
 Cluster version of VictoriaMetrics:
-<div class="with-copy" markdown="1">
 
-```console
+```sh
 curl http://<vmselect>:8481/select/0/prometheus/federate -d 'match[]=vm_http_request_errors_total'
 ```
 
-</div>
 
 Additional information:
 
@@ -567,22 +568,18 @@ Additional information:
 **Searches Graphite metrics in VictoriaMetrics**
 
 Single-node VictoriaMetrics:
-<div class="with-copy" markdown="1">
 
-```console
+```sh
 curl http://localhost:8428/graphite/metrics/find -d 'query=vm_http_request_errors_total'
 ```
 
-</div>
 
 Cluster version of VictoriaMetrics:
-<div class="with-copy" markdown="1">
 
-```console
+```sh
 curl http://<vmselect>:8481/select/0/graphite/metrics/find -d 'query=vm_http_request_errors_total'
 ```
 
-</div>
 
 Additional information:
 
@@ -596,22 +593,18 @@ Additional information:
 **Writes data with InfluxDB line protocol to VictoriaMetrics**
 
 Single-node VictoriaMetrics:
-<div class="with-copy" markdown="1">
 
-```console
+```sh
 curl -d 'measurement,tag1=value1,tag2=value2 field1=123,field2=1.23' -X POST http://localhost:8428/write
 ```
 
-</div>
 
 Cluster version of VictoriaMetrics:
-<div class="with-copy" markdown="1">
 
-```console
+```sh
 curl -d 'measurement,tag1=value1,tag2=value2 field1=123,field2=1.23' -X POST http://<vminsert>:8480/insert/0/influx/write
 ```
 
-</div>
 
 Additional information:
 
@@ -623,19 +616,16 @@ Additional information:
 **Resets the response cache for previously served queries. It is recommended to invoke after [backfilling](https://docs.victoriametrics.com/#backfilling) procedure.**
 
 Single-node VictoriaMetrics:
-<div class="with-copy" markdown="1">
 
-```console
+```sh
 curl -Is http://localhost:8428/internal/resetRollupResultCache
 ```
 
-</div>
 
 Cluster version of VictoriaMetrics:
 
-<div class="with-copy" markdown="1">
 
-```console
+```sh
 curl -Is http://<vmselect>:8481/select/internal/resetRollupResultCache
 ```
 
@@ -643,7 +633,6 @@ vmselect will propagate this call to the rest of the vmselects listed in its `-s
 flag isn't set, then cache need to be purged from each vmselect individually.
 
 
-</div>
 
 ### TCP and UDP
 
@@ -653,42 +642,34 @@ Turned off by default. Enable OpenTSDB receiver in VictoriaMetrics by setting `-
 *If run from docker, '-opentsdbListenAddr' port should be exposed*
 
 Single-node VictoriaMetrics:
-<div class="with-copy" markdown="1">
 
-```console
+```sh
 echo "put foo.bar.baz `date +%s` 123 tag1=value1 tag2=value2" | nc -N localhost 4242
 ```
 
-</div>
 
 Cluster version of VictoriaMetrics:
-<div class="with-copy" markdown="1">
 
-```console
+```sh
 echo "put foo.bar.baz `date +%s` 123  tag1=value1 tag2=value2" | nc -N http://<vminsert> 4242
 ```
 
-</div>
 
 Enable HTTP server for OpenTSDB /api/put requests by setting `-opentsdbHTTPListenAddr` command-line flag.
 
 Single-node VictoriaMetrics:
-<div class="with-copy" markdown="1">
 
-```console
+```sh
 curl -H 'Content-Type: application/json' -d '[{"metric":"foo","value":45.34},{"metric":"bar","value":43}]' http://localhost:4242/api/put
 ```
 
-</div>
 
 Cluster version of VictoriaMetrics:
-<div class="with-copy" markdown="1">
 
-```console
+```sh
 curl -H 'Content-Type: application/json' -d '[{"metric":"foo","value":45.34},{"metric":"bar","value":43}]' http://<vminsert>:8480/insert/42/opentsdb/api/put
 ```
 
-</div>
 
 Additional information:
 
@@ -700,22 +681,18 @@ Additional information:
 Enable Graphite receiver in VictoriaMetrics by setting `-graphiteListenAddr` command-line flag.
 
 Single-node VictoriaMetrics:
-<div class="with-copy" markdown="1">
 
-```console
+```sh
 echo "foo.bar.baz;tag1=value1;tag2=value2 123 `date +%s`" | nc -N localhost 2003
 ```
 
-</div>
 
 Cluster version of VictoriaMetrics:
-<div class="with-copy" markdown="1">
 
-```console
+```sh
 echo "foo.bar.baz;tag1=value1;tag2=value2 123 `date +%s`" | nc -N http://<vminsert> 2003
 ```
 
-</div>
 
 Additional information:
 

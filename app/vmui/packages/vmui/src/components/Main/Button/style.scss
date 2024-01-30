@@ -9,7 +9,7 @@ $button-radius: 6px;
   justify-content: center;
   padding: 6px 14px;
   font-size: $font-size-small;
-  line-height: 1.3;
+  line-height: calc($font-size + 1px);
   font-weight: normal;
   min-height: 31px;
   border-radius: $button-radius;
@@ -56,7 +56,7 @@ $button-radius: 6px;
     transform: translateZ(1px);
 
     svg {
-      width: 15px;
+      width: calc($font-size + 1px);
     }
   }
 
@@ -180,6 +180,10 @@ $button-radius: 6px;
     color: $color-text-secondary;
   }
 
+  &_text_white {
+    color: $color-white;
+  }
+
   &_text_warning {
     color: $color-warning;
   }
@@ -209,6 +213,11 @@ $button-radius: 6px;
   &_outlined_gray {
     border: 1px solid $color-text-secondary;
     color: $color-text-secondary;
+  }
+
+  &_outlined_white {
+    border: 1px solid $color-white;
+    color: $color-white;
   }
 
   &_outlined_warning {

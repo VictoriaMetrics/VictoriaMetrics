@@ -4,9 +4,8 @@ import { getQueryRangeUrl, getQueryUrl } from "../api/query-range";
 import { useAppState } from "../state/common/StateContext";
 import { InstantMetricResult, MetricBase, MetricResult, QueryStats } from "../api/types";
 import { isValidHttpUrl } from "../utils/url";
-import { ErrorTypes, SeriesLimits } from "../types";
+import { DisplayType, ErrorTypes, SeriesLimits } from "../types";
 import debounce from "lodash.debounce";
-import { DisplayType } from "../pages/CustomPanel/DisplayTypeSwitch";
 import Trace from "../components/TraceQuery/Trace";
 import { useQueryState } from "../state/query/QueryStateContext";
 import { useTimeState } from "../state/time/TimeStateContext";
@@ -90,7 +89,7 @@ export const useFetchQuery = ({
     const controller = new AbortController();
     setFetchQueue([...fetchQueue, controller]);
     try {
-      const isDisplayChart = displayType === "chart";
+      const isDisplayChart = displayType === DisplayType.chart;
       const defaultLimit = showAllSeries ? Infinity : (+stateSeriesLimits[displayType] || Infinity);
       let seriesLimit = defaultLimit;
       const tempData: MetricBase[] = [];
@@ -136,7 +135,11 @@ export const useFetchQuery = ({
           totalLength += resp.data.result.length;
         } else {
           tempData.push({ metric: {}, values: [], group: counter } as MetricBase);
-          setQueryErrors(prev => [...prev, `${resp.errorType}\r\n${resp?.error}`]);
+          const errorType = resp.errorType || ErrorTypes.unknownType;
+          const errorMessage = resp?.error || resp?.message || "see console for more details";
+          const error = [errorType, errorMessage].join(",\r\n");
+          setQueryErrors(prev => [...prev, `${error}`]);
+          console.error(`Fetch query error: ${errorType}`, resp);
         }
         counter++;
       }
@@ -161,7 +164,7 @@ export const useFetchQuery = ({
     setQueryErrors([]);
     setQueryStats([]);
     const expr = predefinedQuery ?? query;
-    const displayChart = (display || displayType) === "chart";
+    const displayChart = (display || displayType) === DisplayType.chart;
     if (!period) return;
     if (!serverUrl) {
       setError(ErrorTypes.emptyServer);
@@ -209,5 +212,17 @@ export const useFetchQuery = ({
     if (defaultStep === customStep) setGraphData([]);
   }, [isHistogram]);
 
-  return { fetchUrl, isLoading, graphData, liveData, error, queryErrors, setQueryErrors, queryStats, warning, traces, isHistogram };
+  return {
+    fetchUrl,
+    isLoading,
+    graphData,
+    liveData,
+    error,
+    queryErrors,
+    setQueryErrors,
+    queryStats,
+    warning,
+    traces,
+    isHistogram
+  };
 };

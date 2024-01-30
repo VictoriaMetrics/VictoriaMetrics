@@ -45,13 +45,14 @@ func WithBearer(token, tokenFile string) AuthConfigOptions {
 }
 
 // WithOAuth returns AuthConfigOptions and set OAuth params based on given params
-func WithOAuth(clientID, clientSecret, clientSecretFile, tokenURL, scopes string) AuthConfigOptions {
+func WithOAuth(clientID, clientSecret, clientSecretFile, tokenURL, scopes string, endpointParams map[string]string) AuthConfigOptions {
 	return func(config *promauth.HTTPClientConfig) {
 		if clientSecretFile != "" || clientSecret != "" {
 			config.OAuth2 = &promauth.OAuth2Config{
 				ClientID:         clientID,
 				ClientSecret:     promauth.NewSecret(clientSecret),
 				ClientSecretFile: clientSecretFile,
+				EndpointParams:   endpointParams,
 				TokenURL:         tokenURL,
 				Scopes:           strings.Split(scopes, ";"),
 			}

@@ -18,6 +18,10 @@ import (
 	msal "github.com/AzureAD/microsoft-authentication-library-for-go/apps/errors"
 )
 
+// errAuthenticationRequired indicates a credential's Authenticate method must be called to acquire a token
+// because user interaction is required and the credential is configured not to automatically prompt the user.
+var errAuthenticationRequired error = &credentialUnavailableError{"can't acquire a token without user interaction. Call Authenticate to interactively authenticate a user"}
+
 // getResponseFromError retrieves the response carried by
 // an AuthenticationFailedError or MSAL CallErr, if any
 func getResponseFromError(err error) *http.Response {
@@ -53,7 +57,13 @@ func (e *AuthenticationFailedError) Error() string {
 	}
 	msg := &bytes.Buffer{}
 	fmt.Fprintf(msg, e.credType+" authentication failed\n")
-	fmt.Fprintf(msg, "%s %s://%s%s\n", e.RawResponse.Request.Method, e.RawResponse.Request.URL.Scheme, e.RawResponse.Request.URL.Host, e.RawResponse.Request.URL.Path)
+	if e.RawResponse.Request != nil {
+		fmt.Fprintf(msg, "%s %s://%s%s\n", e.RawResponse.Request.Method, e.RawResponse.Request.URL.Scheme, e.RawResponse.Request.URL.Host, e.RawResponse.Request.URL.Path)
+	} else {
+		// this happens when the response is created from a custom HTTP transporter,
+		// which doesn't guarantee to bind the original request to the response
+		fmt.Fprintln(msg, "Request information not available")
+	}
 	fmt.Fprintln(msg, "--------------------------------------------------------------------------------")
 	fmt.Fprintf(msg, "RESPONSE %s\n", e.RawResponse.Status)
 	fmt.Fprintln(msg, "--------------------------------------------------------------------------------")
@@ -74,6 +84,8 @@ func (e *AuthenticationFailedError) Error() string {
 	switch e.credType {
 	case credNameAzureCLI:
 		anchor = "azure-cli"
+	case credNameAzureDeveloperCLI:
+		anchor = "azd"
 	case credNameCert:
 		anchor = "client-cert"
 	case credNameSecret:

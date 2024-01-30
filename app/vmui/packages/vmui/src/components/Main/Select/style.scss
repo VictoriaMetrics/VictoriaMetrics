@@ -126,4 +126,18 @@
       max-height: calc(($vh * 100) - 70px);
     }
   }
+
+  &_disabled {
+    * {
+      cursor: not-allowed;
+    }
+
+    .vm-select-input {
+      &-content {
+        input {
+          color: $color-text-disabled;
+        }
+      }
+    }
+  }
 }

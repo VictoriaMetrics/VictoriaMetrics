@@ -28,20 +28,26 @@ func TestAlertingRule_ToTimeSeries(t *testing.T) {
 	}{
 		{
 			newTestAlertingRule("instant", 0),
-			&notifier.Alert{State: notifier.StateFiring},
+			&notifier.Alert{State: notifier.StateFiring, ActiveAt: timestamp.Add(time.Second)},
 			[]prompbmarshal.TimeSeries{
 				newTimeSeries([]float64{1}, []int64{timestamp.UnixNano()}, map[string]string{
 					"__name__":      alertMetricName,
 					alertStateLabel: notifier.StateFiring.String(),
 				}),
+				newTimeSeries([]float64{float64(timestamp.Add(time.Second).Unix())},
+					[]int64{timestamp.UnixNano()},
+					map[string]string{
+						"__name__": alertForStateMetricName,
+					}),
 			},
 		},
 		{
 			newTestAlertingRule("instant extra labels", 0),
-			&notifier.Alert{State: notifier.StateFiring, Labels: map[string]string{
-				"job":      "foo",
-				"instance": "bar",
-			}},
+			&notifier.Alert{State: notifier.StateFiring, ActiveAt: timestamp.Add(time.Second),
+				Labels: map[string]string{
+					"job":      "foo",
+					"instance": "bar",
+				}},
 			[]prompbmarshal.TimeSeries{
 				newTimeSeries([]float64{1}, []int64{timestamp.UnixNano()}, map[string]string{
 					"__name__":      alertMetricName,
@@ -49,19 +55,33 @@ func TestAlertingRule_ToTimeSeries(t *testing.T) {
 					"job":           "foo",
 					"instance":      "bar",
 				}),
+				newTimeSeries([]float64{float64(timestamp.Add(time.Second).Unix())},
+					[]int64{timestamp.UnixNano()},
+					map[string]string{
+						"__name__": alertForStateMetricName,
+						"job":      "foo",
+						"instance": "bar",
+					}),
 			},
 		},
 		{
 			newTestAlertingRule("instant labels override", 0),
-			&notifier.Alert{State: notifier.StateFiring, Labels: map[string]string{
-				alertStateLabel: "foo",
-				"__name__":      "bar",
-			}},
+			&notifier.Alert{State: notifier.StateFiring, ActiveAt: timestamp.Add(time.Second),
+				Labels: map[string]string{
+					alertStateLabel: "foo",
+					"__name__":      "bar",
+				}},
 			[]prompbmarshal.TimeSeries{
 				newTimeSeries([]float64{1}, []int64{timestamp.UnixNano()}, map[string]string{
 					"__name__":      alertMetricName,
 					alertStateLabel: notifier.StateFiring.String(),
 				}),
+				newTimeSeries([]float64{float64(timestamp.Add(time.Second).Unix())},
+					[]int64{timestamp.UnixNano()},
+					map[string]string{
+						"__name__":      alertForStateMetricName,
+						alertStateLabel: "foo",
+					}),
 			},
 		},
 		{
@@ -308,14 +328,17 @@ func TestAlertingRule_Exec(t *testing.T) {
 			fq := &datasource.FakeQuerier{}
 			tc.rule.q = fq
 			tc.rule.GroupID = fakeGroup.ID()
+			ts := time.Now()
 			for i, step := range tc.steps {
 				fq.Reset()
 				fq.Add(step...)
-				if _, err := tc.rule.exec(context.TODO(), time.Now(), 0); err != nil {
+				if _, err := tc.rule.exec(context.TODO(), ts, 0); err != nil {
 					t.Fatalf("unexpected err: %s", err)
 				}
-				// artificial delay between applying steps
-				time.Sleep(defaultStep)
+
+				// shift the execution timestamp before the next iteration
+				ts = ts.Add(defaultStep)
+
 				if _, ok := tc.expAlerts[i]; !ok {
 					continue
 				}
@@ -367,7 +390,7 @@ func TestAlertingRule_ExecRange(t *testing.T) {
 				{Values: []float64{1}, Timestamps: []int64{1}},
 			},
 			[]*notifier.Alert{
-				{State: notifier.StateFiring},
+				{State: notifier.StateFiring, ActiveAt: time.Unix(1, 0)},
 			},
 			nil,
 		},
@@ -378,8 +401,9 @@ func TestAlertingRule_ExecRange(t *testing.T) {
 			},
 			[]*notifier.Alert{
 				{
-					Labels: map[string]string{"name": "foo"},
-					State:  notifier.StateFiring,
+					Labels:   map[string]string{"name": "foo"},
+					State:    notifier.StateFiring,
+					ActiveAt: time.Unix(1, 0),
 				},
 			},
 			nil,
@@ -390,9 +414,9 @@ func TestAlertingRule_ExecRange(t *testing.T) {
 				{Values: []float64{1, 1, 1}, Timestamps: []int64{1e3, 2e3, 3e3}},
 			},
 			[]*notifier.Alert{
-				{State: notifier.StateFiring},
-				{State: notifier.StateFiring},
-				{State: notifier.StateFiring},
+				{State: notifier.StateFiring, ActiveAt: time.Unix(1e3, 0)},
+				{State: notifier.StateFiring, ActiveAt: time.Unix(2e3, 0)},
+				{State: notifier.StateFiring, ActiveAt: time.Unix(3e3, 0)},
 			},
 			nil,
 		},
@@ -459,6 +483,20 @@ func TestAlertingRule_ExecRange(t *testing.T) {
 				Value:       1,
 				For:         time.Second,
 			}},
+		},
+		{
+			newTestAlertingRuleWithEvalInterval("firing=>inactive=>inactive=>firing=>firing", 0, time.Second),
+			[]datasource.Metric{
+				{Values: []float64{1, 1, 1, 1}, Timestamps: []int64{1, 4, 5, 6}},
+			},
+			[]*notifier.Alert{
+				{State: notifier.StateFiring, ActiveAt: time.Unix(1, 0)},
+				// It is expected for ActiveAT to remain the same while rule continues to fire in each iteration
+				{State: notifier.StateFiring, ActiveAt: time.Unix(4, 0)},
+				{State: notifier.StateFiring, ActiveAt: time.Unix(4, 0)},
+				{State: notifier.StateFiring, ActiveAt: time.Unix(4, 0)},
+			},
+			nil,
 		},
 		{
 			newTestAlertingRule("for=>pending=>firing=>pending=>firing=>pending", time.Second),
@@ -534,21 +572,25 @@ func TestAlertingRule_ExecRange(t *testing.T) {
 				},
 			},
 			[]*notifier.Alert{
-				{State: notifier.StateFiring, Labels: map[string]string{
-					"source": "vm",
-				}},
-				{State: notifier.StateFiring, Labels: map[string]string{
-					"source": "vm",
-				}},
+				{State: notifier.StateFiring, ActiveAt: time.Unix(1, 0),
+					Labels: map[string]string{
+						"source": "vm",
+					}},
+				{State: notifier.StateFiring, ActiveAt: time.Unix(100, 0),
+					Labels: map[string]string{
+						"source": "vm",
+					}},
 				//
-				{State: notifier.StateFiring, Labels: map[string]string{
-					"foo":    "bar",
-					"source": "vm",
-				}},
-				{State: notifier.StateFiring, Labels: map[string]string{
-					"foo":    "bar",
-					"source": "vm",
-				}},
+				{State: notifier.StateFiring, ActiveAt: time.Unix(1, 0),
+					Labels: map[string]string{
+						"foo":    "bar",
+						"source": "vm",
+					}},
+				{State: notifier.StateFiring, ActiveAt: time.Unix(5, 0),
+					Labels: map[string]string{
+						"foo":    "bar",
+						"source": "vm",
+					}},
 			},
 			nil,
 		},
@@ -768,14 +810,16 @@ func TestAlertingRule_Exec_Negative(t *testing.T) {
 	ar.q = fq
 
 	// successful attempt
+	// label `job` will be overridden by rule extra label, the original value will be reserved by "exported_job"
 	fq.Add(metricWithValueAndLabels(t, 1, "__name__", "foo", "job", "bar"))
+	fq.Add(metricWithValueAndLabels(t, 1, "__name__", "foo", "job", "baz"))
 	_, err := ar.exec(context.TODO(), time.Now(), 0)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// label `job` will collide with rule extra label and will make both time series equal
-	fq.Add(metricWithValueAndLabels(t, 1, "__name__", "foo", "job", "baz"))
+	// label `__name__` will be omitted and get duplicated results here
+	fq.Add(metricWithValueAndLabels(t, 1, "__name__", "foo_1", "job", "bar"))
 	_, err = ar.exec(context.TODO(), time.Now(), 0)
 	if !errors.Is(err, errDuplicate) {
 		t.Fatalf("expected to have %s error; got %s", errDuplicate, err)
@@ -899,20 +943,22 @@ func TestAlertingRule_Template(t *testing.T) {
 				metricWithValueAndLabels(t, 10, "__name__", "second", "instance", "bar", alertNameLabel, "override"),
 			},
 			map[uint64]*notifier.Alert{
-				hash(map[string]string{alertNameLabel: "override label", "instance": "foo"}): {
+				hash(map[string]string{alertNameLabel: "override label", "exported_alertname": "override", "instance": "foo"}): {
 					Labels: map[string]string{
-						alertNameLabel: "override label",
-						"instance":     "foo",
+						alertNameLabel:       "override label",
+						"exported_alertname": "override",
+						"instance":           "foo",
 					},
 					Annotations: map[string]string{
 						"summary":     `first: Too high connection number for "foo"`,
 						"description": `override: It is 2 connections for "foo"`,
 					},
 				},
-				hash(map[string]string{alertNameLabel: "override label", "instance": "bar"}): {
+				hash(map[string]string{alertNameLabel: "override label", "exported_alertname": "override", "instance": "bar"}): {
 					Labels: map[string]string{
-						alertNameLabel: "override label",
-						"instance":     "bar",
+						alertNameLabel:       "override label",
+						"exported_alertname": "override",
+						"instance":           "bar",
 					},
 					Annotations: map[string]string{
 						"summary":     `second: Too high connection number for "bar"`,
@@ -941,14 +987,18 @@ func TestAlertingRule_Template(t *testing.T) {
 			},
 			map[uint64]*notifier.Alert{
 				hash(map[string]string{
-					alertNameLabel:      "OriginLabels",
-					alertGroupNameLabel: "Testing",
-					"instance":          "foo",
+					alertNameLabel:        "OriginLabels",
+					"exported_alertname":  "originAlertname",
+					alertGroupNameLabel:   "Testing",
+					"exported_alertgroup": "originGroupname",
+					"instance":            "foo",
 				}): {
 					Labels: map[string]string{
-						alertNameLabel:      "OriginLabels",
-						alertGroupNameLabel: "Testing",
-						"instance":          "foo",
+						alertNameLabel:        "OriginLabels",
+						"exported_alertname":  "originAlertname",
+						alertGroupNameLabel:   "Testing",
+						"exported_alertgroup": "originGroupname",
+						"instance":            "foo",
 					},
 					Annotations: map[string]string{
 						"summary": `Alert "originAlertname(originGroupname)" for instance foo`,
@@ -1087,8 +1137,65 @@ func newTestAlertingRule(name string, waitFor time.Duration) *AlertingRule {
 	return &rule
 }
 
+func newTestAlertingRuleWithEvalInterval(name string, waitFor, evalInterval time.Duration) *AlertingRule {
+	rule := newTestAlertingRule(name, waitFor)
+	rule.EvalInterval = evalInterval
+	return rule
+}
+
 func newTestAlertingRuleWithKeepFiring(name string, waitFor, keepFiringFor time.Duration) *AlertingRule {
 	rule := newTestAlertingRule(name, waitFor)
 	rule.KeepFiringFor = keepFiringFor
 	return rule
+}
+
+func TestAlertingRule_ToLabels(t *testing.T) {
+	metric := datasource.Metric{
+		Labels: []datasource.Label{
+			{Name: "instance", Value: "0.0.0.0:8800"},
+			{Name: "group", Value: "vmalert"},
+			{Name: "alertname", Value: "ConfigurationReloadFailure"},
+		},
+		Values:     []float64{1},
+		Timestamps: []int64{time.Now().UnixNano()},
+	}
+
+	ar := &AlertingRule{
+		Labels: map[string]string{
+			"instance": "override", // this should override instance with new value
+			"group":    "vmalert",  // this shouldn't have effect since value in metric is equal
+		},
+		Expr:      "sum(vmalert_alerting_rules_error) by(instance, group, alertname) > 0",
+		Name:      "AlertingRulesError",
+		GroupName: "vmalert",
+	}
+
+	expectedOriginLabels := map[string]string{
+		"instance":   "0.0.0.0:8800",
+		"group":      "vmalert",
+		"alertname":  "ConfigurationReloadFailure",
+		"alertgroup": "vmalert",
+	}
+
+	expectedProcessedLabels := map[string]string{
+		"instance":           "override",
+		"exported_instance":  "0.0.0.0:8800",
+		"alertname":          "AlertingRulesError",
+		"exported_alertname": "ConfigurationReloadFailure",
+		"group":              "vmalert",
+		"alertgroup":         "vmalert",
+	}
+
+	ls, err := ar.toLabels(metric, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	if !reflect.DeepEqual(ls.origin, expectedOriginLabels) {
+		t.Errorf("origin labels mismatch, got: %v, want: %v", ls.origin, expectedOriginLabels)
+	}
+
+	if !reflect.DeepEqual(ls.processed, expectedProcessedLabels) {
+		t.Errorf("processed labels mismatch, got: %v, want: %v", ls.processed, expectedProcessedLabels)
+	}
 }

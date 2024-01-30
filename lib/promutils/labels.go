@@ -282,9 +282,7 @@ func (x *Labels) RemoveLabelsWithDoubleUnderscorePrefix() {
 
 func cleanLabels(labels []prompbmarshal.Label) {
 	for i := range labels {
-		label := &labels[i]
-		label.Name = ""
-		label.Value = ""
+		labels[i] = prompbmarshal.Label{}
 	}
 }
 

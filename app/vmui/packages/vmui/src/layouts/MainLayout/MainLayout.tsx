@@ -6,23 +6,24 @@ import "./style.scss";
 import { getAppModeEnable } from "../../utils/app-mode";
 import classNames from "classnames";
 import Footer from "../Footer/Footer";
-import router, { routerOptions } from "../../router";
+import { routerOptions } from "../../router";
 import { useFetchDashboards } from "../../pages/PredefinedPanels/hooks/useFetchDashboards";
 import useDeviceDetect from "../../hooks/useDeviceDetect";
 import ControlsMainLayout from "./ControlsMainLayout";
+import useFetchDefaultTimezone from "../../hooks/useFetchDefaultTimezone";
 
 const MainLayout: FC = () => {
-  const { REACT_APP_LOGS } = process.env;
   const appModeEnable = getAppModeEnable();
   const { isMobile } = useDeviceDetect();
   const { pathname } = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
 
   useFetchDashboards();
+  useFetchDefaultTimezone();
 
   const setDocumentTitle = () => {
     const defaultTitle = "vmui";
-    const routeTitle = REACT_APP_LOGS ? routerOptions[router.logs]?.title : routerOptions[pathname]?.title;
+    const routeTitle = routerOptions[pathname]?.title;
     document.title = routeTitle ? `${routeTitle} - ${defaultTitle}` : defaultTitle;
   };
 

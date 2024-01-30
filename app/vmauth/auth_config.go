@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -16,12 +17,13 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/metrics"
+	"github.com/cespare/xxhash/v2"
 	"gopkg.in/yaml.v2"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs/fscore"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 )
@@ -56,9 +58,11 @@ type UserInfo struct {
 	DefaultURL             *URLPrefix  `yaml:"default_url,omitempty"`
 	RetryStatusCodes       []int       `yaml:"retry_status_codes,omitempty"`
 	LoadBalancingPolicy    string      `yaml:"load_balancing_policy,omitempty"`
-	DropSrcPathPrefixParts int         `yaml:"drop_src_path_prefix_parts,omitempty"`
+	DropSrcPathPrefixParts *int        `yaml:"drop_src_path_prefix_parts,omitempty"`
 	TLSInsecureSkipVerify  *bool       `yaml:"tls_insecure_skip_verify,omitempty"`
 	TLSCAFile              string      `yaml:"tls_ca_file,omitempty"`
+
+	MetricLabels map[string]string `yaml:"metric_labels,omitempty"`
 
 	concurrencyLimitCh      chan struct{}
 	concurrencyLimitReached *metrics.Counter
@@ -66,6 +70,7 @@ type UserInfo struct {
 	httpTransport *http.Transport
 
 	requests         *metrics.Counter
+	backendErrors    *metrics.Counter
 	requestsDuration *metrics.Summary
 }
 
@@ -126,16 +131,30 @@ func (h *Header) MarshalYAML() (interface{}, error) {
 
 // URLMap is a mapping from source paths to target urls.
 type URLMap struct {
-	SrcPaths               []*SrcPath  `yaml:"src_paths,omitempty"`
-	URLPrefix              *URLPrefix  `yaml:"url_prefix,omitempty"`
-	HeadersConf            HeadersConf `yaml:",inline"`
-	RetryStatusCodes       []int       `yaml:"retry_status_codes,omitempty"`
-	LoadBalancingPolicy    string      `yaml:"load_balancing_policy,omitempty"`
-	DropSrcPathPrefixParts int         `yaml:"drop_src_path_prefix_parts,omitempty"`
+	// SrcHosts is the list of regular expressions, which match the request hostname.
+	SrcHosts []*Regex `yaml:"src_hosts,omitempty"`
+
+	// SrcPaths is the list of regular expressions, which match the request path.
+	SrcPaths []*Regex `yaml:"src_paths,omitempty"`
+
+	// UrlPrefix contains backend url prefixes for the proxied request url.
+	URLPrefix *URLPrefix `yaml:"url_prefix,omitempty"`
+
+	// HeadersConf is the config for augumenting request and response headers.
+	HeadersConf HeadersConf `yaml:",inline"`
+
+	// RetryStatusCodes is the list of response status codes used for retrying requests.
+	RetryStatusCodes []int `yaml:"retry_status_codes,omitempty"`
+
+	// LoadBalancingPolicy is load balancing policy among UrlPrefix backends.
+	LoadBalancingPolicy string `yaml:"load_balancing_policy,omitempty"`
+
+	// DropSrcPathPrefixParts is the number of `/`-delimited request path prefix parts to drop before proxying the request to backend.
+	DropSrcPathPrefixParts *int `yaml:"drop_src_path_prefix_parts,omitempty"`
 }
 
-// SrcPath represents an src path
-type SrcPath struct {
+// Regex represents a regex
+type Regex struct {
 	sOriginal string
 	re        *regexp.Regexp
 }
@@ -152,6 +171,9 @@ type URLPrefix struct {
 
 	// load balancing policy used
 	loadBalancingPolicy string
+
+	// how many request path prefix parts to drop before routing the request to backendURL.
+	dropSrcPathPrefixParts int
 }
 
 func (up *URLPrefix) setLoadBalancingPolicy(loadBalancingPolicy string) error {
@@ -249,8 +271,10 @@ func (up *URLPrefix) getLeastLoadedBackendURL() *backendURL {
 		if bu.isBroken() {
 			continue
 		}
-		if atomic.CompareAndSwapInt32(&bu.concurrentRequests, 0, 1) {
+		if atomic.LoadInt32(&bu.concurrentRequests) == 0 {
 			// Fast path - return the backend with zero concurrently executed requests.
+			// Do not use atomic.CompareAndSwapInt32(), since it is much slower on systems with many CPU cores.
+			atomic.AddInt32(&bu.concurrentRequests, 1)
 			return bu
 		}
 	}
@@ -333,8 +357,8 @@ func (up *URLPrefix) MarshalYAML() (interface{}, error) {
 	return string(b), nil
 }
 
-func (sp *SrcPath) match(s string) bool {
-	prefix, ok := sp.re.LiteralPrefix()
+func (r *Regex) match(s string) bool {
+	prefix, ok := r.re.LiteralPrefix()
 	if ok {
 		// Fast path - literal match
 		return s == prefix
@@ -342,11 +366,11 @@ func (sp *SrcPath) match(s string) bool {
 	if !strings.HasPrefix(s, prefix) {
 		return false
 	}
-	return sp.re.MatchString(s)
+	return r.re.MatchString(s)
 }
 
 // UnmarshalYAML implements yaml.Unmarshaler
-func (sp *SrcPath) UnmarshalYAML(f func(interface{}) error) error {
+func (r *Regex) UnmarshalYAML(f func(interface{}) error) error {
 	var s string
 	if err := f(&s); err != nil {
 		return err
@@ -356,20 +380,20 @@ func (sp *SrcPath) UnmarshalYAML(f func(interface{}) error) error {
 	if err != nil {
 		return fmt.Errorf("cannot build regexp from %q: %w", s, err)
 	}
-	sp.sOriginal = s
-	sp.re = re
+	r.sOriginal = s
+	r.re = re
 	return nil
 }
 
 // MarshalYAML implements yaml.Marshaler.
-func (sp *SrcPath) MarshalYAML() (interface{}, error) {
-	return sp.sOriginal, nil
+func (r *Regex) MarshalYAML() (interface{}, error) {
+	return r.sOriginal, nil
 }
 
 var (
 	configReloads      = metrics.NewCounter(`vmauth_config_last_reload_total`)
 	configReloadErrors = metrics.NewCounter(`vmauth_config_last_reload_errors_total`)
-	configSuccess      = metrics.NewCounter(`vmauth_config_last_reload_successful`)
+	configSuccess      = metrics.NewGauge(`vmauth_config_last_reload_successful`, nil)
 	configTimestamp    = metrics.NewCounter(`vmauth_config_last_reload_success_timestamp_seconds`)
 )
 
@@ -445,17 +469,19 @@ func authConfigReloader(sighupCh <-chan os.Signal) {
 // authConfigData needs to be updated each time authConfig is updated.
 var authConfigData atomic.Pointer[[]byte]
 
-var authConfig atomic.Pointer[AuthConfig]
-var authUsers atomic.Pointer[map[string]*UserInfo]
-var authConfigWG sync.WaitGroup
-var stopCh chan struct{}
+var (
+	authConfig   atomic.Pointer[AuthConfig]
+	authUsers    atomic.Pointer[map[string]*UserInfo]
+	authConfigWG sync.WaitGroup
+	stopCh       chan struct{}
+)
 
 // loadAuthConfig loads and applies the config from *authConfigPath.
 // It returns bool value to identify if new config was applied.
 // The config can be not applied if there is a parsing error
 // or if there are no changes to the current authConfig.
 func loadAuthConfig() (bool, error) {
-	data, err := fs.ReadFileOrHTTP(*authConfigPath)
+	data, err := fscore.ReadFileOrHTTP(*authConfigPath)
 	if err != nil {
 		return false, fmt.Errorf("failed to read -auth.config=%q: %w", *authConfigPath, err)
 	}
@@ -510,16 +536,23 @@ func parseAuthConfig(data []byte) (*AuthConfig, error) {
 		if err := ui.initURLs(); err != nil {
 			return nil, err
 		}
-		ui.requests = metrics.GetOrCreateCounter(`vmauth_unauthorized_user_requests_total`)
-		ui.requestsDuration = metrics.GetOrCreateSummary(`vmauth_unauthorized_user_request_duration_seconds`)
+
+		metricLabels, err := ui.getMetricLabels()
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse metric_labels for unauthorized_user: %w", err)
+		}
+		ui.requests = metrics.GetOrCreateCounter(`vmauth_unauthorized_user_requests_total` + metricLabels)
+		ui.backendErrors = metrics.GetOrCreateCounter(`vmauth_unauthorized_user_request_backend_errors_total` + metricLabels)
+		ui.requestsDuration = metrics.GetOrCreateSummary(`vmauth_unauthorized_user_request_duration_seconds` + metricLabels)
 		ui.concurrencyLimitCh = make(chan struct{}, ui.getMaxConcurrentRequests())
-		ui.concurrencyLimitReached = metrics.GetOrCreateCounter(`vmauth_unauthorized_user_concurrent_requests_limit_reached_total`)
-		_ = metrics.GetOrCreateGauge(`vmauth_unauthorized_user_concurrent_requests_capacity`, func() float64 {
+		ui.concurrencyLimitReached = metrics.GetOrCreateCounter(`vmauth_unauthorized_user_concurrent_requests_limit_reached_total` + metricLabels)
+		_ = metrics.GetOrCreateGauge(`vmauth_unauthorized_user_concurrent_requests_capacity`+metricLabels, func() float64 {
 			return float64(cap(ui.concurrencyLimitCh))
 		})
-		_ = metrics.GetOrCreateGauge(`vmauth_unauthorized_user_concurrent_requests_current`, func() float64 {
+		_ = metrics.GetOrCreateGauge(`vmauth_unauthorized_user_concurrent_requests_current`+metricLabels, func() float64 {
 			return float64(len(ui.concurrencyLimitCh))
 		})
+
 		tr, err := getTransport(ui.TLSInsecureSkipVerify, ui.TLSCAFile)
 		if err != nil {
 			return nil, fmt.Errorf("cannot initialize HTTP transport: %w", err)
@@ -555,25 +588,24 @@ func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, error) {
 			return nil, err
 		}
 
-		name := ui.name()
-		if ui.BearerToken != "" {
-			if ui.Password != "" {
-				return nil, fmt.Errorf("password shouldn't be set for bearer_token %q", ui.BearerToken)
-			}
-			ui.requests = metrics.GetOrCreateCounter(fmt.Sprintf(`vmauth_user_requests_total{username=%q}`, name))
-			ui.requestsDuration = metrics.GetOrCreateSummary(fmt.Sprintf(`vmauth_user_request_duration_seconds{username=%q}`, name))
+		if ui.BearerToken != "" && ui.Password != "" {
+			return nil, fmt.Errorf("password shouldn't be set for bearer_token %q", ui.BearerToken)
 		}
-		if ui.Username != "" {
-			ui.requests = metrics.GetOrCreateCounter(fmt.Sprintf(`vmauth_user_requests_total{username=%q}`, name))
-			ui.requestsDuration = metrics.GetOrCreateSummary(fmt.Sprintf(`vmauth_user_request_duration_seconds{username=%q}`, name))
+
+		metricLabels, err := ui.getMetricLabels()
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse metric_labels: %w", err)
 		}
+		ui.requests = metrics.GetOrCreateCounter(`vmauth_user_requests_total` + metricLabels)
+		ui.backendErrors = metrics.GetOrCreateCounter(`vmauth_user_request_backend_errors_total` + metricLabels)
+		ui.requestsDuration = metrics.GetOrCreateSummary(`vmauth_user_request_duration_seconds` + metricLabels)
 		mcr := ui.getMaxConcurrentRequests()
 		ui.concurrencyLimitCh = make(chan struct{}, mcr)
-		ui.concurrencyLimitReached = metrics.GetOrCreateCounter(fmt.Sprintf(`vmauth_user_concurrent_requests_limit_reached_total{username=%q}`, name))
-		_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vmauth_user_concurrent_requests_capacity{username=%q}`, name), func() float64 {
+		ui.concurrencyLimitReached = metrics.GetOrCreateCounter(`vmauth_user_concurrent_requests_limit_reached_total` + metricLabels)
+		_ = metrics.GetOrCreateGauge(`vmauth_user_concurrent_requests_capacity`+metricLabels, func() float64 {
 			return float64(cap(ui.concurrencyLimitCh))
 		})
-		_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vmauth_user_concurrent_requests_current{username=%q}`, name), func() float64 {
+		_ = metrics.GetOrCreateGauge(`vmauth_user_concurrent_requests_current`+metricLabels, func() float64 {
 			return float64(len(ui.concurrencyLimitCh))
 		})
 
@@ -589,20 +621,48 @@ func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, error) {
 	return byAuthToken, nil
 }
 
+var labelNameRegexp = regexp.MustCompile("^[a-zA-Z_:.][a-zA-Z0-9_:.]*$")
+
+func (ui *UserInfo) getMetricLabels() (string, error) {
+	name := ui.name()
+	if len(name) == 0 && len(ui.MetricLabels) == 0 {
+		// fast path
+		return "", nil
+	}
+	labels := make([]string, 0, len(ui.MetricLabels)+1)
+	if len(name) > 0 {
+		labels = append(labels, fmt.Sprintf(`username=%q`, name))
+	}
+	for k, v := range ui.MetricLabels {
+		if !labelNameRegexp.MatchString(k) {
+			return "", fmt.Errorf("incorrect label name=%q, it must match regex=%q for user=%q", k, labelNameRegexp, name)
+		}
+		labels = append(labels, fmt.Sprintf(`%s=%q`, k, v))
+	}
+	sort.Strings(labels)
+	labelsStr := "{" + strings.Join(labels, ",") + "}"
+	return labelsStr, nil
+}
+
 func (ui *UserInfo) initURLs() error {
 	retryStatusCodes := defaultRetryStatusCodes.Values()
 	loadBalancingPolicy := *defaultLoadBalancingPolicy
+	dropSrcPathPrefixParts := 0
 	if ui.URLPrefix != nil {
 		if err := ui.URLPrefix.sanitize(); err != nil {
 			return err
 		}
-		if len(ui.RetryStatusCodes) > 0 {
+		if ui.RetryStatusCodes != nil {
 			retryStatusCodes = ui.RetryStatusCodes
 		}
 		if ui.LoadBalancingPolicy != "" {
 			loadBalancingPolicy = ui.LoadBalancingPolicy
 		}
+		if ui.DropSrcPathPrefixParts != nil {
+			dropSrcPathPrefixParts = *ui.DropSrcPathPrefixParts
+		}
 		ui.URLPrefix.retryStatusCodes = retryStatusCodes
+		ui.URLPrefix.dropSrcPathPrefixParts = dropSrcPathPrefixParts
 		if err := ui.URLPrefix.setLoadBalancingPolicy(loadBalancingPolicy); err != nil {
 			return err
 		}
@@ -613,8 +673,8 @@ func (ui *UserInfo) initURLs() error {
 		}
 	}
 	for _, e := range ui.URLMaps {
-		if len(e.SrcPaths) == 0 {
-			return fmt.Errorf("missing `src_paths` in `url_map`")
+		if len(e.SrcPaths) == 0 && len(e.SrcHosts) == 0 {
+			return fmt.Errorf("missing `src_paths` and `src_hosts` in `url_map`")
 		}
 		if e.URLPrefix == nil {
 			return fmt.Errorf("missing `url_prefix` in `url_map`")
@@ -624,16 +684,21 @@ func (ui *UserInfo) initURLs() error {
 		}
 		rscs := retryStatusCodes
 		lbp := loadBalancingPolicy
-		if len(e.RetryStatusCodes) > 0 {
+		dsp := dropSrcPathPrefixParts
+		if e.RetryStatusCodes != nil {
 			rscs = e.RetryStatusCodes
 		}
 		if e.LoadBalancingPolicy != "" {
 			lbp = e.LoadBalancingPolicy
 		}
+		if e.DropSrcPathPrefixParts != nil {
+			dsp = *e.DropSrcPathPrefixParts
+		}
 		e.URLPrefix.retryStatusCodes = rscs
 		if err := e.URLPrefix.setLoadBalancingPolicy(lbp); err != nil {
 			return err
 		}
+		e.URLPrefix.dropSrcPathPrefixParts = dsp
 	}
 	if len(ui.URLMaps) == 0 && ui.URLPrefix == nil {
 		return fmt.Errorf("missing `url_prefix`")
@@ -649,7 +714,8 @@ func (ui *UserInfo) name() string {
 		return ui.Username
 	}
 	if ui.BearerToken != "" {
-		return "bearer_token"
+		h := xxhash.Sum64([]byte(ui.BearerToken))
+		return fmt.Sprintf("bearer_token:hash:%016X", h)
 	}
 	return ""
 }

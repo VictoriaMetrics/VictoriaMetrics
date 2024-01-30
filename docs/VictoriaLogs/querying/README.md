@@ -27,7 +27,7 @@ VictoriaLogs can be queried at the `/select/logsql/query` HTTP endpoint.
 The [LogsQL](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html) query must be passed via `query` argument.
 For example, the following query returns all the log entries with the `error` word:
 
-```bash
+```sh
 curl http://localhost:9428/select/logsql/query -d 'query=error'
 ```
 
@@ -69,7 +69,7 @@ By default the `(AccountID=0, ProjectID=0)` [tenant](https://docs.victoriametric
 If you need querying other tenant, then specify the needed tenant via http request headers. For example, the following query searches
 for log messages at `(AccountID=12, ProjectID=34)` tenant:
 
-```bash
+```sh
 curl http://localhost:9428/select/logsql/query -H 'AccountID: 12' -H 'ProjectID: 34' -d 'query=error'
 ```
 
@@ -81,7 +81,7 @@ with `vl_http_requests_total{path="/select/logsql/query"}` metric.
 VictoriaLogs provides a simple Web UI for logs [querying](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html) and exploration
 at `http://localhost:9428/select/vmui`. The UI allows exploring query results:
 
-<img src="vmui.webp" width="800" />
+<img src="vmui.webp" />
 
 There are three modes of displaying query results:
 
@@ -119,7 +119,7 @@ without the risk of high resource usage (CPU, RAM, disk IO) at VictoriaLogs serv
 For example, the following query can return very big number of matching log entries (e.g. billions) if VictoriaLogs contains
 many log messages with the `error` [word](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html#word):
 
-```bash
+```sh
 curl http://localhost:9428/select/logsql/query -d 'query=error'
 ```
 
@@ -128,7 +128,7 @@ VictoriaLogs notices that the response stream is closed, so it cancels the query
 
 Then just use `head` command for investigating the returned log messages and narrowing down the query:
 
-```bash
+```sh
 curl http://localhost:9428/select/logsql/query -d 'query=error' | head -10
 ```
 
@@ -137,7 +137,7 @@ This automatically cancels the query at VictoriaLogs side, so it stops consuming
 
 Sometimes it may be more convenient to use `less` command instead of `head` during the investigation of the returned response:
 
-```bash
+```sh
 curl http://localhost:9428/select/logsql/query -d 'query=error' | less
 ```
 
@@ -152,7 +152,7 @@ Then the query can be narrowed down to `error AND "cannot open file"`
 (see [these docs](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html#logical-filter) about `AND` operator).
 Then run the updated command in order to continue the investigation:
 
-```bash
+```sh
 curl http://localhost:9428/select/logsql/query -d 'query=error AND "cannot open file"' | head
 ```
 
@@ -170,7 +170,7 @@ with the `error` [word](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.htm
 received from [streams](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#stream-fields) with `app="nginx"` field
 during the last 5 minutes:
 
-```bash
+```sh
 curl http://localhost:9428/select/logsql/query -d 'query=_stream:{app="nginx"} AND _time:5m AND error' | wc -l
 ```
 
@@ -180,7 +180,7 @@ and [these docs](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html#logic
 
 The following example shows how to sort query results by the [`_time` field](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#time-field):
 
-```bash
+```sh
 curl http://localhost:9428/select/logsql/query -d 'query=error' | jq -r '._time + " " + ._msg' | sort | less
 ```
 
@@ -196,7 +196,7 @@ on how to narrow down query results.
 The following example calculates stats on the number of log messages received during the last 5 minutes
 grouped by `log.level` [field](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model):
 
-```bash
+```sh
 curl http://localhost:9428/select/logsql/query -d 'query=_time:5m log.level:*' | jq -r '."log.level"' | sort | uniq -c 
 ```
 

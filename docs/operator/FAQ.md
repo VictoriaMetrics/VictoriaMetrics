@@ -81,6 +81,10 @@ or [CHANGELOG](https://github.com/VictoriaMetrics/operator/blob/master/docs/CHAN
 
 See this document for details: [Configuration -> Namespaced mode](./configuration.md#namespaced-mode).
 
+## How to configure VMAgent and VMServiceScrape for using with [Istio Service Mesh](https://istio.io/) and its mTLS?
+
+See this example in operator repository: https://github.com/VictoriaMetrics/operator/blob/master/config/examples/vmagent-istio.yaml
+
 ## What versions of Kubernetes is the operator compatible with?
 
 Operator tested at kubernetes versions from 1.16 to 1.27.

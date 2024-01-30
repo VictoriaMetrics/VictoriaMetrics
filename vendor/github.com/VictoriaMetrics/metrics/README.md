@@ -73,8 +73,11 @@ http.HandleFunc("/metrics", func(w http.ResponseWriter, req *http.Request) {
 metrics.InitPush("http://victoria-metrics:8428/api/v1/import/prometheus", 10*time.Second, `instance="foobar"`, true)
 ```
 
-See [docs](http://godoc.org/github.com/VictoriaMetrics/metrics) for more info.
+By default, exposed metrics [do not have](https://github.com/VictoriaMetrics/metrics/issues/48#issuecomment-1620765811)
+`TYPE` or `HELP` meta information. Call [`ExposeMetadata(true)`](https://pkg.go.dev/github.com/VictoriaMetrics/metrics#ExposeMetadata)
+in order to generate `TYPE` and `HELP` meta information per each metric.
 
+See [docs](https://pkg.go.dev/github.com/VictoriaMetrics/metrics) for more info.
 
 ### Users
 

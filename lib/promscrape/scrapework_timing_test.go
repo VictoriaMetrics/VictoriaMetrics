@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 )
 
@@ -73,8 +74,9 @@ vm_tcplistener_read_timeouts_total{name="https", addr=":443"} 12353
 vm_tcplistener_write_calls_total{name="http", addr=":80"} 3996
 vm_tcplistener_write_calls_total{name="https", addr=":443"} 132356
 `
-	readDataFunc := func(dst []byte) ([]byte, error) {
-		return append(dst, data...), nil
+	readDataFunc := func(dst *bytesutil.ByteBuffer) error {
+		dst.B = append(dst.B, data...)
+		return nil
 	}
 	b.ReportAllocs()
 	b.SetBytes(int64(len(data)))
@@ -83,6 +85,7 @@ vm_tcplistener_write_calls_total{name="https", addr=":443"} 132356
 		sw.Config = &ScrapeWork{}
 		sw.ReadData = readDataFunc
 		sw.PushData = func(at *auth.Token, wr *prompbmarshal.WriteRequest) {}
+		tsmGlobal.Register(&sw)
 		timestamp := int64(0)
 		for pb.Next() {
 			if err := sw.scrapeInternal(timestamp, timestamp); err != nil {
@@ -90,5 +93,6 @@ vm_tcplistener_write_calls_total{name="https", addr=":443"} 132356
 			}
 			timestamp++
 		}
+		tsmGlobal.Unregister(&sw)
 	})
 }

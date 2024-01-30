@@ -4,11 +4,13 @@ export type StorageKeys = "AUTOCOMPLETE"
     | "SERIES_LIMITS"
     | "TABLE_COMPACT"
     | "TIMEZONE"
+    | "DISABLED_DEFAULT_TIMEZONE"
     | "THEME"
     | "LOGS_LIMIT"
     | "EXPLORE_METRICS_TIPS"
     | "QUERY_HISTORY"
     | "QUERY_FAVORITES"
+    | "SERVER_URL"
 
 export const saveToStorage = (key: StorageKeys, value: string | boolean | Record<string, unknown>): void => {
   if (value) {
