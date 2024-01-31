@@ -55,6 +55,14 @@ basic_auth:
   password_file: testdata/test_secretfile.txt
 `)
 
+	// basic_auth: username and username_file are set
+	f(`
+basic_auth:
+  username: user
+  username_file: testdata/test_secretfile.txt
+  password: pass
+`)
+
 	// bearer_token: both authorization and bearer_token are set
 	f(`
 authorization:
@@ -345,11 +353,18 @@ oauth2:
     ca_file: non-existing-file
 `)
 
-	// basic auth via non-existing file
+	// basic auth via non-existing password_file
 	f(`
 basic_auth:
   username: user
   password_file: non-existing-file
+`)
+
+	// basic auth via non-existing username_file
+	f(`
+basic_auth:
+  username_file: non-existing-file
+  password: pass
 `)
 
 	// bearer token via non-existing file
@@ -470,6 +485,20 @@ basic_auth:
   username: user
   password_file: testdata/test_secretfile.txt
 `, "Basic dXNlcjpzZWNyZXQtY29udGVudA==")
+
+	// basic auth username via file
+	f(`
+   basic_auth:
+     username_file: testdata/test_secretfile.txt
+     password: password
+   `, "Basic c2VjcmV0LWNvbnRlbnQ6cGFzc3dvcmQ=")
+
+	// basic auth username and password via file
+	f(`
+   basic_auth:
+     username_file: testdata/test_secretfile.txt
+     password_file: testdata/test_secretfile.txt
+`, "Basic c2VjcmV0LWNvbnRlbnQ6c2VjcmV0LWNvbnRlbnQ=")
 
 	// inline authorization config
 	f(`
