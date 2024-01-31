@@ -36,12 +36,6 @@ var (
 	origin            = flag.String("origin", "", "Optional origin directory on the remote storage with old backup for server-side copying when performing full backup. This speeds up full backups")
 	concurrency       = flag.Int("concurrency", 10, "The number of concurrent workers. Higher concurrency may reduce backup duration")
 	maxBytesPerSecond = flagutil.NewBytes("maxBytesPerSecond", 0, "The maximum upload speed. There is no limit if it is set to 0")
-
-	// tlsInsecureSkipVerify = flag.Bool("clienttlsInsecureSkipVerify", false, "Whether to skip tls verification when connecting to -snapshotCreateURL")
-	// tlsCertFile           = flag.String("clientCertFile", "", "Optional path to client-side TLS certificate file to use when connecting to -snapshotCreateURL")
-	// tlsKeyFile            = flag.String("clienttlsKeyFile", "", "Optional path to client-side TLS certificate key to use when connecting to -snapshotCreateURL")
-	// tlsCAFile             = flag.String("clienttlsCAFile", "", `Optional path to TLS CA file to use for verifying connections to -snapshotCreateURL. By default, system CA is used`)
-	// tlsServerName         = flag.String("clienttlsServerName", "", `Optional TLS server name to use for connections to -snapshotCreateURL. By default, the server name from -snapshotCreateURL is used`)
 )
 
 func main() {
