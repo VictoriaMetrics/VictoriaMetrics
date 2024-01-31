@@ -93,6 +93,10 @@ func MarshalVarInt64(dst []byte, v int64) []byte {
 func MarshalVarInt64s(dst []byte, vs []int64) []byte {
 	for _, v := range vs {
 		n := uint64((v << 1) ^ (v >> 63))
+		if n < (1 << 7) {
+			dst = append(dst, byte(n))
+			continue
+		}
 		switch (64 - bits.LeadingZeros64(n>>1)) / 7 {
 		case 0:
 			dst = append(dst, byte(n))
