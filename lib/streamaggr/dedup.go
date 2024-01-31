@@ -4,11 +4,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
-type pushSamplesFunc func(bb *bytesutil.ByteBuffer, labels *promutils.Labels, tmpLabels *promutils.Labels, key string, value float64)
+type pushSamplesFunc func(b []byte, labels *promutils.Labels, tmpLabels *promutils.Labels, value float64)
 
 type deduplicator struct {
 	interval       time.Duration
@@ -109,7 +108,15 @@ func (d *deduplicator) flush() {
 		sv.deleted = true
 		sv.mu.Unlock()
 
-		d.pushSamplesAgg(bb, labels, tmpLabels, k.(string), value)
+		labels.Labels = labels.Labels[:0]
+		labels = decompress(labels, k.(string))
+
+		//key, err := zstdDecoder.DecodeAll([]byte(k.(string)), nil)
+		//if err != nil {
+		//	panic(err)
+		//}
+
+		d.pushSamplesAgg(bb.B[:0], labels, tmpLabels, value)
 		return true
 	})
 

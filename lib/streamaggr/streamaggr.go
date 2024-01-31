@@ -19,6 +19,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/klauspost/compress/zstd"
 	"gopkg.in/yaml.v2"
 )
 
@@ -495,12 +496,34 @@ func (a *aggregator) MustStop() {
 	<-flushConcurrencyCh
 }
 
+var (
+	zstdEncoder *zstd.Encoder
+	zstdDecoder *zstd.Decoder
+)
+
+func init() {
+	e, err := zstd.NewWriter(nil,
+		zstd.WithEncoderCRC(false), // Disable CRC for performance reasons.
+	)
+	if err != nil {
+		logger.Panicf("BUG: failed to create ZSTD writer: %s", err)
+	}
+	zstdEncoder = e
+
+	zstdDecoder, err = zstd.NewReader(nil)
+	if err != nil {
+		logger.Panicf("BUG: failed to create ZSTD reader: %s", err)
+	}
+
+}
+
 // Push pushes tss to a.
 func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 	labels := promutils.GetLabels()
 	tmpLabels := promutils.GetLabels()
 	bb := bbPool.Get()
 	applyFilters := matchIdxs != nil
+
 	for idx, ts := range tss {
 		if applyFilters {
 			if !a.match.Match(ts.Labels) {
@@ -516,20 +539,21 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 				// The metric has been deleted by the relabeling
 				continue
 			}
-			labels.Sort()
 		}
+		// sort labels so they can be comparable during deduplication
+		labels.Sort()
 
 		if a.dedup != nil {
 			for _, sample := range ts.Samples {
-				bb.B = marshalLabelsFast(bb.B[:0], labels.Labels)
-				key := bytesutil.ToUnsafeString(bb.B)
-
+				//bb.B = marshalLabelsFast(bb.B[:0], labels.Labels)
+				bb.B = compress(bb.B[:0], labels.Labels)
+				key := string(bb.B)
 				a.dedup.pushSample(key, sample.Value, sample.Timestamp)
 			}
 			continue
 		}
 
-		inputKey, outputKey := a.extractKeys(bb, labels, tmpLabels)
+		inputKey, outputKey := a.extractKeys(bb.B[:0], labels, tmpLabels)
 		for _, sample := range ts.Samples {
 			a.pushSample(inputKey, outputKey, sample.Value)
 		}
@@ -539,38 +563,26 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 	promutils.PutLabels(labels)
 }
 
-func (a *aggregator) pushDeduplicated(bb *bytesutil.ByteBuffer, labels *promutils.Labels, tmpLabels *promutils.Labels, key string, value float64) {
-	if a.aggregateOnlyByTime {
-		// Fast path - aggregate by time only.
-		a.pushSample("", key, value)
-		return
-	}
-
-	var err error
-	labels.Labels, err = unmarshalLabelsFast(labels.Labels[:0], bytesutil.ToUnsafeBytes(key))
-	if err != nil {
-		logger.Panicf("BUG: cannot unmarshal labels from output key: %s", err)
-	}
-
-	inputKey, outputKey := a.extractKeys(bb, labels, tmpLabels)
+func (a *aggregator) pushDeduplicated(b []byte, labels *promutils.Labels, tmpLabels *promutils.Labels, value float64) {
+	inputKey, outputKey := a.extractKeys(b, labels, tmpLabels)
 	a.pushSample(inputKey, outputKey, value)
 }
 
-func (a *aggregator) extractKeys(bb *bytesutil.ByteBuffer, labels *promutils.Labels, tmpLabels *promutils.Labels) (inputKey, outputKey string) {
+func (a *aggregator) extractKeys(b []byte, labels *promutils.Labels, tmpLabels *promutils.Labels) (inputKey, outputKey string) {
 	if a.aggregateOnlyByTime {
 		// Fast path - aggregate by time only.
-		bb.B = marshalLabelsFast(bb.B[:0], labels.Labels)
-		inputKey, outputKey = "", bytesutil.InternBytes(bb.B)
+		b = marshalLabelsFast(b, labels.Labels)
+		inputKey, outputKey = "", bytesutil.InternBytes(b)
 		return inputKey, outputKey
 	}
 
 	tmpLabels.Labels = extractUnneededLabels(tmpLabels.Labels[:0], labels.Labels, a.by, a.without)
-	bb.B = marshalLabelsFast(bb.B[:0], tmpLabels.Labels)
-	inputKey = bytesutil.InternBytes(bb.B)
+	b = marshalLabelsFast(b[:0], tmpLabels.Labels)
+	inputKey = bytesutil.InternBytes(b)
 
 	tmpLabels.Labels = removeUnneededLabels(tmpLabels.Labels[:0], labels.Labels, a.by, a.without)
-	bb.B = marshalLabelsFast(bb.B[:0], tmpLabels.Labels)
-	outputKey = bytesutil.InternBytes(bb.B)
+	b = marshalLabelsFast(b[:0], tmpLabels.Labels)
+	outputKey = bytesutil.InternBytes(b)
 
 	return inputKey, outputKey
 }
@@ -628,6 +640,11 @@ func hasInArray(name string, a []string) bool {
 		}
 	}
 	return false
+}
+
+func marshalLabelsFastZSTD(dst []byte, labels []prompbmarshal.Label) []byte {
+	src := marshalLabelsFast(dst, labels)
+	return zstdEncoder.EncodeAll(src, dst[:0])
 }
 
 func marshalLabelsFast(dst []byte, labels []prompbmarshal.Label) []byte {
