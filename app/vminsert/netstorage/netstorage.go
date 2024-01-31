@@ -39,7 +39,7 @@ var (
 		"Read more about TCP_USER_TIMEOUT at https://blog.cloudflare.com/when-tcp-sockets-refuse-to-die/ . "+
 		"See also -vmstorageDialTimeout")
 	disableReroutingOnUnavailable = flag.Bool("disableReroutingOnUnavailable", false, "Whether to disable re-routing when some of vmstorage nodes are unavailable. "+
-		"Disabled re-routing stops ingestion when some storage nodes are unavailable. "+
+		"Disabled re-routing stops ingestion when some storage nodes are unavailable. "+ 
 		"On the other side, disabled re-routing minimizes the number of active time series in the cluster "+
 		"during rolling restarts and during spikes in series churn rate.")
 )
