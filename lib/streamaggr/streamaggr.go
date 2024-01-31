@@ -522,7 +522,7 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 		if a.dedup != nil {
 			for _, sample := range ts.Samples {
 				bb.B = marshalLabelsFast(bb.B[:0], labels.Labels)
-				key := bytesutil.InternBytes(bb.B)
+				key := bytesutil.ToUnsafeString(bb.B)
 
 				a.dedup.pushSample(key, sample.Value, sample.Timestamp)
 			}
