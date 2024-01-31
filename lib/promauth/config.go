@@ -14,7 +14,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs/fscore"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
-	"github.com/VictoriaMetrics/fasthttp"
 	"github.com/cespare/xxhash/v2"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
@@ -328,24 +327,6 @@ func (ac *Config) HeadersNoAuthString() string {
 // SetHeaders sets the configured ac headers to req.
 func (ac *Config) SetHeaders(req *http.Request, setAuthHeader bool) error {
 	reqHeaders := req.Header
-	for _, h := range ac.headers {
-		reqHeaders.Set(h.key, h.value)
-	}
-	if setAuthHeader {
-		ah, err := ac.GetAuthHeader()
-		if err != nil {
-			return fmt.Errorf("failed to obtain Authorization request header: %w", err)
-		}
-		if ah != "" {
-			reqHeaders.Set("Authorization", ah)
-		}
-	}
-	return nil
-}
-
-// SetFasthttpHeaders sets the configured ac headers to req.
-func (ac *Config) SetFasthttpHeaders(req *fasthttp.Request, setAuthHeader bool) error {
-	reqHeaders := &req.Header
 	for _, h := range ac.headers {
 		reqHeaders.Set(h.key, h.value)
 	}

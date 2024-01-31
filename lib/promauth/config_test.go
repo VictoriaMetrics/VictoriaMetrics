@@ -5,7 +5,6 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/VictoriaMetrics/fasthttp"
 	"gopkg.in/yaml.v2"
 )
 
@@ -307,12 +306,6 @@ func TestConfigGetAuthHeaderFailure(t *testing.T) {
 			t.Fatalf("expecting non-nil error from SetHeaders()")
 		}
 
-		// Verify that cfg.SetFasthttpHeaders() returns error
-		var fhreq fasthttp.Request
-		if err := cfg.SetFasthttpHeaders(&fhreq, true); err == nil {
-			t.Fatalf("expecting non-nil error from SetFasthttpHeaders()")
-		}
-
 		// Verify that the tls cert cannot be loaded properly if it exists
 		if f := cfg.getTLSCertCached; f != nil {
 			cert, err := f(nil)
@@ -420,16 +413,6 @@ func TestConfigGetAuthHeaderSuccess(t *testing.T) {
 		ah = req.Header.Get("Authorization")
 		if ah != ahExpected {
 			t.Fatalf("unexpected auth header from net/http request; got %q; want %q", ah, ahExpected)
-		}
-
-		// Make sure that cfg.SetFasthttpHeaders() properly set Authorization header
-		var fhreq fasthttp.Request
-		if err := cfg.SetFasthttpHeaders(&fhreq, true); err != nil {
-			t.Fatalf("unexpected error in SetFasthttpHeaders(): %s", err)
-		}
-		ahb := fhreq.Header.Peek("Authorization")
-		if string(ahb) != ahExpected {
-			t.Fatalf("unexpected auth header from fasthttp request; got %q; want %q", ahb, ahExpected)
 		}
 	}
 
@@ -576,16 +559,6 @@ func TestConfigHeaders(t *testing.T) {
 			v := req.Header.Get(h.key)
 			if v != h.value {
 				t.Fatalf("unexpected value for net/http header %q; got %q; want %q", h.key, v, h.value)
-			}
-		}
-		var fhreq fasthttp.Request
-		if err := c.SetFasthttpHeaders(&fhreq, false); err != nil {
-			t.Fatalf("unexpected error in SetFasthttpHeaders(): %s", err)
-		}
-		for _, h := range headersParsed {
-			v := fhreq.Header.Peek(h.key)
-			if string(v) != h.value {
-				t.Fatalf("unexpected value for fasthttp header %q; got %q; want %q", h.key, v, h.value)
 			}
 		}
 	}

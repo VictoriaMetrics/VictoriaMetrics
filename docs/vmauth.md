@@ -106,7 +106,7 @@ unauthorized_user:
   - src_hosts:
     - "app1\\.my-host\\.com"
     url_prefix: "http://app1-backend/"
-  - src_paths:
+  - src_hosts:
     - "app2\\.my-host\\.com"
     url_prefix: "http://app2-backend/"
 ```
