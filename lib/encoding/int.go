@@ -156,7 +156,6 @@ func UnmarshalVarInt64s(dst []int64, src []byte) ([]byte, error) {
 			idx++
 			continue
 		}
-		// 查找结束位置
 		j := idx + 1
 		for ; j < uint(len(src)); j++ { // find end loc
 			if src[j] < 0x80 {
