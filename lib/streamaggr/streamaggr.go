@@ -273,7 +273,7 @@ func newAggregator(cfg *Config, pushFunc PushFunc, dedupInterval time.Duration) 
 		return nil, fmt.Errorf("cannot parse `interval: %q`: %w", cfg.Interval, err)
 	}
 	if interval <= time.Second {
-		return nil, fmt.Errorf("the minimum supported aggregation interval is 1s; got %s", interval)
+		return nil, fmt.Errorf("aggregation interval should be higher than 1s; got %s", interval)
 	}
 
 	// check cfg.StalenessInterval

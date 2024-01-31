@@ -56,7 +56,7 @@ Use this feature for the following cases:
 
 To build `vmalert` from sources:
 
-```console
+```sh
 git clone https://github.com/VictoriaMetrics/VictoriaMetrics
 cd VictoriaMetrics
 make vmalert
@@ -78,7 +78,7 @@ To start using `vmalert` you will need the following things:
 
 Then configure `vmalert` accordingly:
 
-```console
+```sh
 ./bin/vmalert -rule=alert.rules \            # Path to the file with rules configuration. Supports wildcard
     -datasource.url=http://localhost:8428 \  # Prometheus HTTP API compatible datasource
     -notifier.url=http://localhost:9093 \    # AlertManager URL (required if alerting rules are used)
@@ -915,7 +915,7 @@ To disable stripping of such info pass `-datasource.showURL` cmd-line flag to vm
 * Memory profile. It can be collected with the following command (replace `0.0.0.0` with hostname if needed):
 
 
-```console
+```sh
 curl http://0.0.0.0:8880/debug/pprof/heap > mem.pprof
 ```
 
@@ -923,7 +923,7 @@ curl http://0.0.0.0:8880/debug/pprof/heap > mem.pprof
 * CPU profile. It can be collected with the following command (replace `0.0.0.0` with hostname if needed):
 
 
-```console
+```sh
 curl http://0.0.0.0:8880/debug/pprof/profile > cpu.pprof
 ```
 
@@ -942,7 +942,7 @@ command-line flags with their descriptions.
 
 The shortlist of configuration flags is the following:
 
-```console
+```sh
   -clusterMode
      If clusterMode is enabled, then vmalert automatically adds the tenant specified in config groups to -datasource.url, -remoteWrite.url and -remoteRead.url. See https://docs.victoriametrics.com/vmalert.html#multitenancy . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
   -configCheckInterval duration
@@ -1547,7 +1547,7 @@ It is recommended using
 
 You can build `vmalert` docker image from source and push it to your own docker repository.
 Run the following commands from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics):
-```console
+```sh
 make package-vmalert
 docker tag victoria-metrics/vmalert:version my-repo:my-version-name
 docker push my-repo:my-version-name

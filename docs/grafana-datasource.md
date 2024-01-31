@@ -7,7 +7,7 @@ menu:
     parent: victoriametrics
     weight: 38
 aliases:
-- /grafana-datasource.html"
+- /grafana-datasource.html
 ---
 
 # VictoriaMetrics datasource for Grafana

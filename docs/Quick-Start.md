@@ -49,7 +49,7 @@ and start it at port 8428, while storing the ingested data at `victoria-metrics-
 under the current directory:
 
 
-```console
+```sh
 docker pull victoriametrics/victoria-metrics:latest
 docker run -it --rm -v `pwd`/victoria-metrics-data:/victoria-metrics-data -p 8428:8428 victoriametrics/victoria-metrics:latest
 ```
@@ -70,7 +70,7 @@ the [docker-compose-cluster.yml](https://github.com/VictoriaMetrics/VictoriaMetr
 file.
 
 
-```console
+```sh
 git clone https://github.com/VictoriaMetrics/VictoriaMetrics && cd VictoriaMetrics
 make docker-cluster-up
 ```

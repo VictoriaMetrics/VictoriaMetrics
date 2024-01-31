@@ -8,10 +8,6 @@ require (
 	github.com/Azure/azure-sdk-for-go/sdk/storage/azblob v1.2.1
 	github.com/VictoriaMetrics/easyproto v0.1.4
 	github.com/VictoriaMetrics/fastcache v1.12.2
-
-	// Do not use the original github.com/valyala/fasthttp because of issues
-	// like https://github.com/valyala/fasthttp/commit/996610f021ff45fdc98c2ce7884d5fa4e7f9199b
-	github.com/VictoriaMetrics/fasthttp v1.2.0
 	github.com/VictoriaMetrics/metrics v1.31.0
 	github.com/VictoriaMetrics/metricsql v0.70.0
 	github.com/aws/aws-sdk-go-v2 v1.24.1
@@ -34,10 +30,10 @@ require (
 	github.com/valyala/gozstd v1.20.1
 	github.com/valyala/histogram v1.2.0
 	github.com/valyala/quicktemplate v1.7.0
-	golang.org/x/net v0.20.0
+	golang.org/x/net v0.20.0 // indirect
 	golang.org/x/oauth2 v0.16.0
 	golang.org/x/sys v0.16.0
-	google.golang.org/api v0.159.0
+	google.golang.org/api v0.160.0
 	gopkg.in/yaml.v2 v2.4.0
 )
 
@@ -51,7 +47,7 @@ require (
 	github.com/AzureAD/microsoft-authentication-library-for-go v1.2.1 // indirect
 	github.com/VividCortex/ewma v1.2.0 // indirect
 	github.com/alecthomas/units v0.0.0-20231202071711-9a357b53e9c9 // indirect
-	github.com/aws/aws-sdk-go v1.50.5 // indirect
+	github.com/aws/aws-sdk-go v1.50.6 // indirect
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.5.4 // indirect
 	github.com/aws/aws-sdk-go-v2/credentials v1.16.16 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.14.11 // indirect
@@ -104,7 +100,7 @@ require (
 	github.com/prometheus/common v0.46.0 // indirect
 	github.com/prometheus/common/sigv4 v0.1.0 // indirect
 	github.com/prometheus/procfs v0.12.0 // indirect
-	github.com/rivo/uniseg v0.4.4 // indirect
+	github.com/rivo/uniseg v0.4.6 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/stretchr/testify v1.8.4 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect

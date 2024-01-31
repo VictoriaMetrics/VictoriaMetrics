@@ -1382,10 +1382,23 @@ type blockAddrs struct {
 	addrs []tmpBlockAddr
 }
 
-func haveSameBlockAddrTails(a, b []tmpBlockAddr) bool {
-	sha := (*reflect.SliceHeader)(unsafe.Pointer(&a))
-	shb := (*reflect.SliceHeader)(unsafe.Pointer(&b))
-	return sha.Data+uintptr(sha.Len)*unsafe.Sizeof(tmpBlockAddr{}) == shb.Data+uintptr(shb.Len)*unsafe.Sizeof(tmpBlockAddr{})
+// canAppendToBlockAddrPool returns true if a points to the pool and the last item in a is the last item in the pool.
+//
+// In this case it is safe appending an item to the pool and then updating the a, so it refers to the extended slice.
+//
+// True is also returned if a is nil, since in this case it is safe appending an item to the pool and pointing a
+// to the last item in the pool.
+func canAppendToBlockAddrPool(pool, a []tmpBlockAddr) bool {
+	if a == nil {
+		return true
+	}
+	if len(a) > len(pool) {
+		// a doesn't belong to pool
+		return false
+	}
+	shPool := (*reflect.SliceHeader)(unsafe.Pointer(&pool))
+	shA := (*reflect.SliceHeader)(unsafe.Pointer(&a))
+	return shPool.Data+uintptr(shPool.Len)*unsafe.Sizeof(tmpBlockAddr{}) == shA.Data+uintptr(shA.Len)*unsafe.Sizeof(tmpBlockAddr{})
 }
 
 func (tbfwLocal *tmpBlocksFileWrapperShard) newBlockAddrs() int {
@@ -1442,7 +1455,7 @@ func (tbfw *tmpBlocksFileWrapper) RegisterAndWriteBlock(mb *storage.MetricBlock,
 		addrsPool = make([]tmpBlockAddr, 0, maxFastAllocBlockSize/unsafe.Sizeof(tmpBlockAddr{}))
 		tbfwLocal.addrsPool = addrsPool
 	}
-	if addrs.addrs == nil || haveSameBlockAddrTails(addrs.addrs, addrsPool) {
+	if canAppendToBlockAddrPool(addrsPool, addrs.addrs) {
 		// It is safe appending addr to addrsPool, since there are no other items added there yet.
 		addrsPool = append(addrsPool, addr)
 		tbfwLocal.addrsPool = addrsPool

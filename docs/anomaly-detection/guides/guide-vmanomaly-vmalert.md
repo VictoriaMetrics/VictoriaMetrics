@@ -19,14 +19,14 @@ aliases:
 
 - To use *vmanomaly*, part of the enterprise package, a license key is required. Obtain your key [here](https://victoriametrics.com/products/enterprise/trial/) for this tutorial or for enterprise use.
 - In the tutorial, we'll be using the following VictoriaMetrics components:
-  -  [VictoriaMetrics Single-Node](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html) (v.1.96.0)
-  -  [vmalert](https://docs.victoriametrics.com/vmalert.html) (v.1.96.0)
-  -  [vmagent](https://docs.victoriametrics.com/vmagent.html) (v.1.96.0)
+  -  [VictoriaMetrics Single-Node](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html) (v.1.97.0)
+  -  [vmalert](https://docs.victoriametrics.com/vmalert.html) (v.1.97.0)
+  -  [vmagent](https://docs.victoriametrics.com/vmagent.html) (v.1.97.0)
 - [Grafana](https://grafana.com/)(v.10.2.1) 
 - [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/)
 - [Node exporter](https://github.com/prometheus/node_exporter#node-exporter)(v1.7.0) and [Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/)(v0.25.0)
 
-<img max-width="1000" alt="vmanomaly typical setup diagramm" src="guide-vmanomaly-vmalert/guide-vmanomaly-vmalert_overview.webp">
+<img src="guide-vmanomaly-vmalert_overview.webp" alt="vmanomaly typical setup diagramm">
 
 > **Note: Configurations used throughout this guide can be found [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/vmanomaly/vmanomaly-integration/)**
 
@@ -36,7 +36,8 @@ aliases:
 
 All the service parameters are defined in a config file.
 
-A single config file supports only one model. It is ok to run multiple vmanomaly processes, each using its own config.
+> **Note**: As of the time of writing, in the [1.9.2](https://docs.victoriametrics.com/anomaly-detection/changelog/#v191) release and earlier versions, each `vmanomaly` configuration file is limited to supporting only one model type. To utilize *different models* on your data, it is necessary to run multiple instances of the `vmanomaly` process. Each instance should operate with its own configuration file, differing in the `model` section.
+
 
 **vmanomaly** does the following:
 - periodically queries user-specified metrics
@@ -98,56 +99,58 @@ node_cpu_seconds_total{cpu="1",mode="iowait"} 51.22
 ...
 ```
 
-Here, metric `node_cpu_seconds_total` tells us how many seconds each CPU spent in different modes: _user_, _system_, _iowait_, _idle_, _irq&softirq_, _guest_, or _steal_.
-These modes are mutually exclusive. A high _iowait_ means that you are disk or network bound, high _user_ or _system_ means that you are CPU bound.
+In this context, the metric `node_cpu_seconds_total` provides a comprehensive breakdown of the time each CPU core has spent in various operational modes. These modes include: _user_, _system_, _iowait_, _idle_, _irq&softirq_, _guest_, and _steal_. Each of these eight modes is mutually exclusive, offering distinct insights into CPU activity. For instance, a predominant _iowait_ suggests disk or network bottlenecks, while elevated levels in _user_ or _system_ indicate significant CPU utilization.
 
-The metric `node_cpu_seconds_total` is a [counter](https://docs.victoriametrics.com/keyConcepts.html#counter) type of metric. If we'd like to see how much time CPU spent in each of the nodes, we need to calculate the per-second values change via [rate function](https://docs.victoriametrics.com/MetricsQL.html#rate): `rate(node_cpu_seconds_total)`. To aggregate data by mode we'll use median or 50% quantile function. Resulting query will look likt this: `quantile by (mode) (0.5, rate(node_cpu_seconds_total[5m])`
-Here is how this query may look like in Grafana:
-<img max-width="1000" alt="node_cpu_rate_graph" src="guide-vmanomaly-vmalert-query.webp">
+The `node_cpu_seconds_total` metric is classified as a [counter](https://docs.victoriametrics.com/keyConcepts.html#counter) type. To analyze the duration each CPU core spends in these modes, it is necessary to compute the rate of change per second using the [rate function](https://docs.victoriametrics.com/MetricsQL.html#rate): `rate(node_cpu_seconds_total)`. For a more refined and smoother aggregation of data by mode, we apply the median function, or the 50% quantile. The resulting query is formulated as follows: `quantile by (mode) (0.5, rate(node_cpu_seconds_total[5m]))`.
 
-This query result will generate 8 time series per each cpu, and we will use them as an input for our VM Anomaly Detection. vmanomaly will start learning configured model type separately for each of the time series.
+Below is an illustrative example of how this query might be visualized in Grafana:
+<img alt="node_cpu_rate_graph" src="guide-vmanomaly-vmalert-query.webp">
+
+This query will yield a total of eight time series, each corresponding to a CPU mode. The number of series is unaffected by the number of CPU cores, due to the `by` aggregation applied. These series serve as the input for `vmanomaly`, where the service independently fits a separate instance of the configured model type to each of time series.
+
+
 
 ## 5. vmanomaly configuration and parameter description
 
 **Parameter description**:
-There are 4 required sections in config file:
+The configuration file for `vmanomaly` comprises 4 essential sections:
 
-[`scheduler`](/anomaly-detection/components/scheduler.html) - defines how often to run and make inferences, as well as what timerange to use to train the model. 
+1. [`scheduler`](/anomaly-detection/components/scheduler.html) - This section determines the frequency of model inferences and training, including the time range for model training.
 
-[`model`](/anomaly-detection/components/models.html) - specific model parameters and configurations, 
+2. [`model`](/anomaly-detection/components/models.html) - Here, you define specific parameters and configurations for the model being used for anomaly detection.
 
-[`reader`](/anomaly-detection/components/reader.html) - how to read data and where it is located
+3. [`reader`](/anomaly-detection/components/reader.html) - This section outlines the methodology for data reading, including the data source location.
 
-[`writer`](/anomaly-detection/components/writer.html) - where and how to write generated output.
+4. [`writer`](/anomaly-detection/components/writer.html) - Specifies the destination and method for writing the generated output.
 
-[`monitoring`](/anomaly-detection/components/monitoring.html) (optional) - how to expose healthckeck metrics of `vmanomaly`.
+5. [`monitoring`](/anomaly-detection/components/monitoring.html) (optional) - Describes how to monitor and expose health check metrics of `vmanomaly`.
 
-Let's look into parameters in each section:
+Detailed parameters in each section:
 
 * `scheduler`
-  * `infer_every` - how often trained models will make inferences on new data. Basically, how often to generate new datapoints for anomaly_score. Format examples: 30s, 4m, 2h, 1d. Time granularity ('s' - seconds, 'm' - minutes, 'h' - hours, 'd' - days). You can look at this as how often a model will write its conclusions on newly added data. Here in example we are asking every 1 minute: based on the previous data, do these new datapoints look abnormal? 
-  * `fit_every` - how often to retrain the models. The higher the frequency -- the fresher the model, but the more CPU it consumes. If omitted, the models will be retrained on each infer_every cycle. Format examples: 30s, 4m, 2h, 1d. Time granularity ('s' - seconds, 'm' - minutes, 'h' - hours, 'd' - days).
-  * `fit_window` - what data interval to use for model training. Longer intervals capture longer historical behavior and detect seasonalities better, but is slower to adapt to permanent changes to metrics behavior. Recommended value is at least two full seasons. Format examples: 30s, 4m, 2h, 1d. Time granularity ('s' - seconds, 'm' - minutes, 'h' - hours, 'd' - days). Here is the previous 14 days of data to put into the model training.
+  * `infer_every` - Specifies the frequency at which the trained models perform inferences on new data, essentially determining how often new anomaly score data points are generated. Format examples: 30s, 4m, 2h, 1d (time units: 's' for seconds, 'm' for minutes, 'h' for hours, 'd' for days). This parameter essentially asks, at regular intervals (e.g., every 1 minute), whether the latest data points appear abnormal based on historical data.
+  * `fit_every` - Sets the frequency for retraining the models. A higher frequency ensures more updated models but requires more CPU resources. If omitted, models are retrained in each `infer_every` cycle. Format is similar to `infer_every`.
+  * `fit_window` - Defines the data interval for training the models. Longer intervals allow for capturing extensive historical behavior and better seasonal pattern detection but may slow down the model's response to permanent metric changes and increase resource consumption. A minimum of two full seasonal cycles is recommended. Example format: 3h for three hours of data.
+
 * `model`
-  * `class` - what model to run. You can [use your own model](/anomaly-detection/components/models.html#custom-model-guide) or choose from [built-in models](/anomaly-detection/components/models.html#built-in-models). Here we use [Facebook Prophet](/anomaly-detection/components/models.html#prophet) (`model.prophet.ProphetModel`).
-  * `args` - Model specific parameters, represented as YAML dictionary in a simple `key: value` form. For example, you can use parameters that are available in [FB Prophet](https://facebook.github.io/prophet/docs/quick_start.html). 
+  * `class` - Specifies the model to be used. Options include custom models ([guide here](/anomaly-detection/components/models.html#custom-model-guide)) or a selection from [built-in models](/anomaly-detection/components/models.html#built-in-models), such as the [Facebook Prophet](/anomaly-detection/components/models.html#prophet) (`model.prophet.ProphetModel`).
+  * `args` - Model-specific parameters, formatted as a YAML dictionary in the `key: value` structure. Parameters available in [FB Prophet](https://facebook.github.io/prophet/docs/quick_start.html) can be used as an example.
+
 * `reader`
-  * `datasource_url` - Data source. An HTTP endpoint that serves `/api/v1/query_range`.
-  * `queries`: - MetricsQL (extension of PromQL) expressions,  where you want to find anomalies.
-    You can put several queries in a form:
-    `<QUERY_ALIAS>: "QUERY"`. QUERY_ALIAS will be used as a `for` label in generated metrics and anomaly scores.
+  * `datasource_url` - The URL for the data source, typically an HTTP endpoint serving `/api/v1/query_range`.
+  * `queries` - MetricsQL (an extension of PromQL) expressions for anomaly detection. Multiple queries can be formatted as `<QUERY_ALIAS>: "QUERY"`, where QUERY_ALIAS is used as a label in the generated metrics and anomaly scores.
+
 * `writer`
-    * `datasource_url` - Output destination. An HTTP endpoint that serves `/api/v1/import`.
+  * `datasource_url` - Specifies the endpoint for output data, typically an HTTP endpoint serving `/api/v1/import`.
 
-Here is an example of the config file `vmanomaly_config.yml`.
+Below is an illustrative example of a `vmanomaly_config.yml` configuration file.
 
-<div class="with-copy" markdown="1">
 
 ``` yaml
 scheduler:
   infer_every: "1m"
   fit_every: "2m"
-  fit_window: "14d"
+  fit_window: "3h"
 
 model:
   class: "model.prophet.ProphetModel"
@@ -169,7 +172,6 @@ monitoring:
     port: 8490
 ```
 
-</div>
 
 ## 6. vmanomaly output
 
@@ -181,13 +183,12 @@ As the result of running vmanomaly, it produces the following metrics:
 - `y` - initial query result value.
 
 Here is an example of how output metric will be written into VictoriaMetrics:
-`anomaly_score{for="node_cpu_rate", cpu="0", instance="node-xporter:9100", job="node-exporter", mode="idle"} 0.85`
+`anomaly_score{for="node_cpu_rate", instance="node-xporter:9100", job="node-exporter", mode="idle"} 0.85`
 
 
 ## 7. vmalert configuration
 Here we provide an example of the config for vmalert `vmalert_config.yml`.
 
-<div class="with-copy" markdown="1">
 
 ``` yaml
 groups:
@@ -201,10 +202,10 @@ groups:
       summary: Anomaly Score exceeded 1.0. `rate(node_cpu_seconds_total)` is showing abnormal behavior. 
 ```
 
-</div>
+In the query expression `expr`, it's crucial to establish a criterion based on the generated anomaly scores. Typically, an [anomaly score](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score) ranging from 0.0 to 1.0 indicates that the analyzed value falls within normal behavior. Scores exceeding 1.0 signal increasing confidence from our model that the observed value is anomalous.
 
-In the query expression we need to put a condition on the generated anomaly scores. Usually if the anomaly score is between 0.0 and 1.0, the analyzed value is not abnormal. The more anomaly score exceeded 1 the more our model is sure that value is an anomaly.
-You can choose your threshold value that you consider reasonable based on the anomaly score metric, generated by vmanomaly. One of the best ways is to estimate it visually, by plotting the `anomaly_score` metric, along with predicted "expected" range of `yhat_lower` and `yhat_upper`. Later in this tutorial we will show an example
+Selecting an appropriate threshold for the anomaly score depends on your specific requirements and the context of the data. One effective method for determining this threshold is through visual analysis. By plotting the `anomaly_score` metric in conjunction with the predicted 'expected' range, delineated by `yhat_lower` and `yhat_upper`, you can make a more informed decision. Later in this tutorial, we will demonstrate this process with a practical example.
+
 
 ## 8. Docker Compose configuration
 
@@ -229,7 +230,6 @@ In the `provisioning/datasources/` directory, create a file called `datasource.y
 
 > The default username/password pair is `admin:admin`
 
-<div class="with-copy" markdown="1">
 
 ``` yaml
 apiVersion: 1
@@ -246,12 +246,10 @@ datasources:
 
 ```
 
-</div>
 
 #### Define a dashboard provider
 In the` provisioning/dashboards/` directory, create a file called `dashboard.yml` with the following content:
 
-<div class="with-copy" markdown="1">
 
 ``` yaml
 apiVersion: 1
@@ -266,14 +264,12 @@ providers:
 
 ```
 
-</div>
 
 
 ### Scrape config
 
 Let's create `prometheus.yml` file for `vmagent` configuration.
 
-<div class="with-copy" markdown="1">
 
 ``` yaml
 global:
@@ -297,7 +293,6 @@ scrape_configs:
       - targets: [ 'vmanomaly:8490' ]
 ```
 
-</div>
 
 ### vmanomaly licensing
 
@@ -310,7 +305,7 @@ For additional licensing options, please refer to the [VictoriaMetrics Anomaly D
 
 Let's create `alertmanager.yml` file for `alertmanager` configuration.
 
-```yml
+```yaml
 route:
   receiver: blackhole
 
@@ -322,13 +317,12 @@ receivers:
 
 Let's wrap it all up together into the `docker-compose.yml` file.
 
-<div class="with-copy" markdown="1">
 
 ``` yaml
 services:
   vmagent:
     container_name: vmagent
-    image: victoriametrics/vmagent:v1.96.0
+    image: victoriametrics/vmagent:v1.97.0
     depends_on:
       - "victoriametrics"
     ports:
@@ -345,7 +339,7 @@ services:
 
   victoriametrics:
     container_name: victoriametrics
-    image: victoriametrics/victoria-metrics:v1.96.0
+    image: victoriametrics/victoria-metrics:v1.97.0
     ports:
       - 8428:8428
     volumes:
@@ -378,7 +372,7 @@ services:
 
   vmalert:
     container_name: vmalert
-    image: victoriametrics/vmalert:v1.96.0
+    image: victoriametrics/vmalert:v1.97.0
     depends_on:
       - "victoriametrics"
     ports:
@@ -400,7 +394,7 @@ services:
     restart: always
   vmanomaly:
     container_name: vmanomaly
-    image: victoriametrics/vmanomaly:v1.8.0
+    image: victoriametrics/vmanomaly:v1.9.2
     depends_on:
       - "victoriametrics"
     ports:
@@ -447,32 +441,27 @@ networks:
 
 ```
 
-</div>
 
 Before running our docker-compose make sure that your directory contains all required files:
 
-<img src="guide-vmanomaly-vmalert/guide-vmanomaly-vmalert_files.webp" width="800" alt="all files">
+<img src="guide-vmanomaly-vmalert_files.webp" alt="all files">
 
 This docker-compose file will pull docker images,  set up each service and run them all together with the command:
 
-<div class="with-copy" markdown="1">
 
-```
+```sh
 docker-compose up -d
 ```
 
-</div>
 
 
 To check if vmanomaly is up and running you can check docker logs:
 
-<div class="with-copy" markdown="1">
 
-```
-docker logs vmanomaly
+```sh
+docker logs vmanomaly -f
 ```
 
-</div>
 
 
 ## 9. Model results
@@ -492,7 +481,7 @@ Each of these metrics will contain same labels our query `quantile by (mode) (0.
 ### Anomaly scores for each metric with its according labels. 
 
 Query: `anomaly_score`
-<img max-width="1000" alt="Anomaly score graph" src="guide-vmanomaly-vmalert-anomaly-score.webp">
+<img alt="Anomaly score graph" src="guide-vmanomaly-vmalert_anomaly-score.webp">
 
 <br>Check out if the anomaly score is high for datapoints you think are anomalies. If not, you can try other parameters in the config file or try other model type.
 
@@ -503,7 +492,7 @@ As you may notice a lot of data shows anomaly score greater than 1. It is expect
 
 Queries: `yhat_lower`, `yhat_upper` and `yhat`
 
-<img max-width="1000" alt="yhat lower and yhat upper" src="guide-vmanomaly-vmalert/guide-vmanomaly-vmalert-boundaries.webp">
+<img alt="yhat lower and yhat upper" src="guide-vmanomaly-vmalert-boundaries.webp">
 
 Boundaries of 'normal' metric values according to model inference. 
 
@@ -511,10 +500,10 @@ Boundaries of 'normal' metric values according to model inference.
 
 On the page `http://localhost:8880/vmalert/groups` you can find our configured Alerting rule:
 
-<img max-width="1000" alt="alert rule" src="guide-vmanomaly-vmalert/guide-vmanomaly-vmalert_alert-rule.webp">
+<img alt="alert rule" src="guide-vmanomaly-vmalert_alert-rule.webp">
 
 According to the rule configured for vmalert we will see Alert when anomaly score exceed 1. You will see an alert on Alert tab. `http://localhost:8880/vmalert/alerts`:
-<img max-width="1000" alt="alerts firing" src="guide-vmanomaly-vmalert_alerts-firing.webp">
+<img alt="alerts firing" src="guide-vmanomaly-vmalert_alerts-firing.webp">
 
 ## 10. Conclusion
 

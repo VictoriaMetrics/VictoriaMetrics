@@ -49,7 +49,7 @@ i.e. creates resources of VictoriaMetrics similar to Prometheus resources in the
 
 You can control this behaviour by setting env variable for operator:
 
-```console
+```sh
 # disable convertion for each object
 VM_ENABLEDPROMETHEUSCONVERTER_PODMONITOR=false
 VM_ENABLEDPROMETHEUSCONVERTER_SERVICESCRAPE=false
@@ -80,7 +80,7 @@ For more information about the operator's workflow, see [this doc](./README.md).
 By default, the operator doesn't make converted objects disappear after original ones are deleted. To change this behaviour
 configure adding `OwnerReferences` to converted objects with following [operator parameter](./setup.md#settings):
 
-```console
+```sh
 VM_ENABLEDPROMETHEUSCONVERTEROWNERREFERENCES=true
 ```
 
@@ -177,7 +177,7 @@ and [VMNodeScrape](./resources/vmnodescrape.md) because these objects are not cr
 You can filter labels for syncing 
 with [operator parameter](./setup.md#settings) `VM_FILTERPROMETHEUSCONVERTERLABELPREFIXES`:
 
-```console
+```sh
 # it excludes all labels that start with "helm.sh" or "argoproj.io" from synchronization
 VM_FILTERPROMETHEUSCONVERTERLABELPREFIXES=helm.sh,argoproj.io
 ```
@@ -185,7 +185,7 @@ VM_FILTERPROMETHEUSCONVERTERLABELPREFIXES=helm.sh,argoproj.io
 In the same way, annotations with specified prefixes can be excluded from synchronization 
 with [operator parameter](./setup.md#settings) `VM_FILTERPROMETHEUSCONVERTERANNOTATIONPREFIXES`:
 
-```console
+```sh
 # it excludes all annotations that start with "helm.sh" or "argoproj.io" from synchronization
 VM_FILTERPROMETHEUSCONVERTERANNOTATIONPREFIXES=helm.sh,argoproj.io
 ```
@@ -197,7 +197,7 @@ with [operator parameter](./setup.md#settings) `VM_PROMETHEUSCONVERTERADDARGOCDI
 
 It helps to properly use converter with ArgoCD and should help prevent out-of-sync issues with argo-cd based deployments:
 
-```console
+```sh
 # adds compare-options and sync-options for prometheus objects converted by operator 
 VM_PROMETHEUSCONVERTERADDARGOCDIGNOREANNOTATIONS=true
 ```

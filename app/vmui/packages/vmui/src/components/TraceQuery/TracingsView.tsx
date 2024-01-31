@@ -1,7 +1,7 @@
 import React, { FC, useState } from "preact/compat";
 import Trace from "./Trace";
 import Button from "../Main/Button/Button";
-import { CodeIcon, DeleteIcon } from "../Main/Icons";
+import { ArrowDownIcon, CodeIcon, DeleteIcon, DownloadIcon } from "../Main/Icons";
 import "./style.scss";
 import NestedNav from "./NestedNav/NestedNav";
 import Alert from "../Main/Alert/Alert";
@@ -20,6 +20,7 @@ interface TraceViewProps {
 const TracingsView: FC<TraceViewProps> = ({ traces, jsonEditor = false, onDeleteClick }) => {
   const { isMobile } = useDeviceDetect();
   const [openTrace, setOpenTrace] = useState<Trace | null>(null);
+  const [expandedTraces, setExpandedTraces] = useState<number[]>([]);
 
   const handleCloseJson = () => {
     setOpenTrace(null);
@@ -52,6 +53,27 @@ const TracingsView: FC<TraceViewProps> = ({ traces, jsonEditor = false, onDelete
     setOpenTrace(tracingData);
   };
 
+  const handleSaveToFile = (tracingData: Trace) => () => {
+    const blob = new Blob([tracingData.originalJSON], { type: "application/json" });
+    const href = URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = href;
+    link.download = `vmui_trace_${tracingData.queryValue}.json`;
+    document.body.appendChild(link);
+    link.click();
+
+    document.body.removeChild(link);
+    URL.revokeObjectURL(href);
+  };
+
+  const handleExpandAll = (tracingData: Trace) => () => {
+    setExpandedTraces(prev => prev.includes(tracingData.idValue)
+      ? prev.filter(n => n !== tracingData.idValue)
+      : [...prev, tracingData.idValue]
+    );
+  };
+
   return (
     <>
       <div className="vm-tracings-view">
@@ -64,6 +86,28 @@ const TracingsView: FC<TraceViewProps> = ({ traces, jsonEditor = false, onDelete
               <h3 className="vm-tracings-view-trace-header-title">
               Trace for <b className="vm-tracings-view-trace-header-title__query">{trace.queryValue}</b>
               </h3>
+              <Tooltip title={expandedTraces.includes(trace.idValue) ? "Collapse All" : "Expand All"}>
+                <Button
+                  variant="text"
+                  startIcon={(
+                    <div
+                      className={classNames({
+                        "vm-tracings-view-trace-header__expand-icon": true,
+                        "vm-tracings-view-trace-header__expand-icon_open": expandedTraces.includes(trace.idValue) })}
+                    ><ArrowDownIcon/></div>
+                  )}
+                  onClick={handleExpandAll(trace)}
+                  ariaLabel={expandedTraces.includes(trace.idValue) ? "Collapse All" : "Expand All"}
+                />
+              </Tooltip>
+              <Tooltip title={"Save Trace to JSON"}>
+                <Button
+                  variant="text"
+                  startIcon={<DownloadIcon/>}
+                  onClick={handleSaveToFile(trace)}
+                  ariaLabel="Save trace to JSON"
+                />
+              </Tooltip>
               <Tooltip title={"Open JSON"}>
                 <Button
                   variant="text"
@@ -92,6 +136,7 @@ const TracingsView: FC<TraceViewProps> = ({ traces, jsonEditor = false, onDelete
                 isRoot
                 trace={trace}
                 totalMsec={trace.duration}
+                isExpandedAll={expandedTraces.includes(trace.idValue)}
               />
             </nav>
           </div>

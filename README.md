@@ -45,7 +45,7 @@ Each service may scale independently and may run on the most suitable hardware.
 This is a [shared nothing architecture](https://en.wikipedia.org/wiki/Shared-nothing_architecture).
 It increases cluster availability, and simplifies cluster maintenance as well as cluster scaling.
 
-<img src="docs/Cluster-VictoriaMetrics_cluster-scheme.webp" width="800">
+<img src="docs/Cluster-VictoriaMetrics_cluster-scheme.webp">
 
 ## Multitenancy
 
@@ -163,7 +163,7 @@ By default, images are built on top of [alpine](https://hub.docker.com/_/scratch
 It is possible to build an image on top of any other base image by setting it via `<ROOT_IMAGE>` environment variable.
 For example, the following command builds images on top of [scratch](https://hub.docker.com/_/scratch) image:
 
-```console
+```sh
 ROOT_IMAGE=scratch make package
 ```
 
@@ -848,7 +848,7 @@ All the cluster components provide the following handlers for [profiling](https:
 Example command for collecting cpu profile from `vmstorage` (replace `0.0.0.0` with `vmstorage` hostname if needed):
 
 
-```console
+```sh
 curl http://0.0.0.0:8482/debug/pprof/profile > cpu.pprof
 ```
 
@@ -856,7 +856,7 @@ curl http://0.0.0.0:8482/debug/pprof/profile > cpu.pprof
 Example command for collecting memory profile from `vminsert` (replace `0.0.0.0` with `vminsert` hostname if needed):
 
 
-```console
+```sh
 curl http://0.0.0.0:8480/debug/pprof/heap > mem.pprof
 ```
 

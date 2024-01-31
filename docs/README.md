@@ -199,7 +199,7 @@ Snap package for VictoriaMetrics is available [here](https://snapcraft.io/victor
 
 Command-line flags for Snap package can be set with following command:
 
-```text
+```sh
 echo 'FLAGS="-selfScrapeInterval=10s -search.logSlowQueryDuration=20s"' > $SNAP_DATA/var/snap/victoriametrics/current/extra_flags
 snap restart victoriametrics
 ```
@@ -208,7 +208,7 @@ Do not change value for `-storageDataPath` flag, because snap package has limite
 
 Changing scrape configuration is possible with text editor:
 
-```text
+```sh
 vi $SNAP_DATA/var/snap/victoriametrics/current/etc/victoriametrics-scrape-config.yaml
 ```
 
@@ -261,7 +261,7 @@ and then install it as a service according to the following guide:
 
 1. Install VictoriaMetrics as a service by running the following from elevated PowerShell:
 
-    ```console
+    ```sh
     winsw install VictoriaMetrics.xml
     Get-Service VictoriaMetrics | Start-Service
     ```
@@ -274,7 +274,7 @@ See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3781)
 Add the following lines to Prometheus config file (it is usually located at `/etc/prometheus/prometheus.yml`) in order to send data to VictoriaMetrics:
 
 
-```yml
+```yaml
 remote_write:
   - url: http://<victoriametrics-addr>:8428/api/v1/write
 ```
@@ -284,7 +284,7 @@ Substitute `<victoriametrics-addr>` with hostname or IP address of VictoriaMetri
 Then apply new config via the following command:
 
 
-```console
+```sh
 kill -HUP `pidof prometheus`
 ```
 
@@ -296,7 +296,7 @@ even if remote storage is unavailable.
 If you plan sending data to VictoriaMetrics from multiple Prometheus instances, then add the following lines into `global` section
 of [Prometheus config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#configuration-file):
 
-```yml
+```yaml
 global:
   external_labels:
     datacenter: dc-123
@@ -520,12 +520,12 @@ via ["submit metrics" API](https://docs.datadoghq.com/api/latest/metrics/#submit
 DataDog agent allows configuring destinations for metrics sending via ENV variable `DD_DD_URL` 
 or via [configuration file](https://docs.datadoghq.com/agent/guide/agent-configuration-files/) in section `dd_url`.
 
-<img src="Single-server-VictoriaMetrics-sending_DD_metrics_to_VM.webp" width="800">
+<img src="Single-server-VictoriaMetrics-sending_DD_metrics_to_VM.webp">
 
 To configure DataDog agent via ENV variable add the following prefix:
 
 
-```
+```sh
 DD_DD_URL=http://victoriametrics:8428/datadog
 ```
 
@@ -535,7 +535,7 @@ _Choose correct URL for VictoriaMetrics [here](https://docs.victoriametrics.com/
 To configure DataDog agent via [configuration file](https://github.com/DataDog/datadog-agent/blob/878600ef7a55c5ef0efb41ed0915f020cf7e3bd0/pkg/config/config_template.yaml#L33)
 add the following line:
 
-```
+```yaml
 dd_url: http://victoriametrics:8428/datadog
 ```
 
@@ -547,16 +547,13 @@ pick [single-node or cluster URL](https://docs.victoriametrics.com/url-examples.
 DataDog allows configuring [Dual Shipping](https://docs.datadoghq.com/agent/guide/dual-shipping/) for metrics 
 sending via ENV variable `DD_ADDITIONAL_ENDPOINTS` or via configuration file `additional_endpoints`.
  
-<img src="Single-server-VictoriaMetrics-sending_DD_metrics_to_VM_and_DD.webp" width="800">
+<img src="Single-server-VictoriaMetrics-sending_DD_metrics_to_VM_and_DD.webp">
  
 Run DataDog using the following ENV variable with VictoriaMetrics as additional metrics receiver:
 
-
-```
+```sh
 DD_ADDITIONAL_ENDPOINTS='{\"http://victoriametrics:8428/datadog\": [\"apikey\"]}'
-
 ```
-
 
 _Choose correct URL for VictoriaMetrics [here](https://docs.victoriametrics.com/url-examples.html#datadog)._
 
@@ -564,8 +561,7 @@ _Choose correct URL for VictoriaMetrics [here](https://docs.victoriametrics.com/
 To configure DataDog Dual Shipping via [configuration file](https://docs.datadoghq.com/agent/guide/agent-configuration-files)
 add the following line:
 
-
-```
+```yaml
 additional_endpoints:
   "http://victoriametrics:8428/datadog":
   - apikey
@@ -640,7 +636,7 @@ Example for writing data with [InfluxDB line protocol](https://docs.influxdata.c
 to local VictoriaMetrics using `curl`:
 
 
-```console
+```sh
 curl -d 'measurement,tag1=value1,tag2=value2 field1=123,field2=1.23' -X POST 'http://localhost:8428/write'
 ```
 
@@ -649,7 +645,7 @@ An arbitrary number of lines delimited by '\n' (aka newline char) can be sent in
 After that the data may be read via [/api/v1/export](#how-to-export-data-in-json-line-format) endpoint:
 
 
-```console
+```sh
 curl -G 'http://localhost:8428/api/v1/export' -d 'match={__name__=~"measurement_.*"}'
 ```
 
@@ -680,7 +676,7 @@ VictoriaMetrics exposes endpoint for InfluxDB v2 HTTP API at `/influx/api/v2/wri
 In order to write data with InfluxDB line protocol to local VictoriaMetrics using `curl`:
 
 
-```console
+```sh
 curl -d 'measurement,tag1=value1,tag2=value2 field1=123,field2=1.23' -X POST 'http://localhost:8428/api/v2/write'
 ```
 
@@ -697,7 +693,7 @@ The `/api/v1/export` endpoint should return the following response:
 Enable Graphite receiver in VictoriaMetrics by setting `-graphiteListenAddr` command line flag. For instance,
 the following command will enable Graphite receiver in VictoriaMetrics on TCP and UDP port `2003`:
 
-```console
+```sh
 /path/to/victoria-metrics-prod -graphiteListenAddr=:2003
 ```
 
@@ -706,7 +702,7 @@ to the VictoriaMetrics host in `StatsD` configs.
 
 Example for writing data with Graphite plaintext protocol to local VictoriaMetrics using `nc`:
 
-```console
+```sh
 echo "foo.bar.baz;tag1=value1;tag2=value2 123 `date +%s`" | nc -N localhost 2003
 ```
 
@@ -715,7 +711,7 @@ An arbitrary number of lines delimited by `\n` (aka newline char) can be sent in
 After that the data may be read via [/api/v1/export](#how-to-export-data-in-json-line-format) endpoint:
 
 
-```console
+```sh
 curl -G 'http://localhost:8428/api/v1/export' -d 'match=foo.bar.baz'
 ```
 
@@ -755,7 +751,7 @@ The same protocol is used for [ingesting data in KairosDB](https://kairosdb.gith
 Enable OpenTSDB receiver in VictoriaMetrics by setting `-opentsdbListenAddr` command line flag. For instance,
 the following command enables OpenTSDB receiver in VictoriaMetrics on TCP and UDP port `4242`:
 
-```console
+```sh
 /path/to/victoria-metrics-prod -opentsdbListenAddr=:4242
 ```
 
@@ -764,7 +760,7 @@ Send data to the given address from OpenTSDB-compatible agents.
 Example for writing data with OpenTSDB protocol to local VictoriaMetrics using `nc`:
 
 
-```console
+```sh
 echo "put foo.bar.baz `date +%s` 123 tag1=value1 tag2=value2" | nc -N localhost 4242
 ```
 
@@ -773,7 +769,7 @@ An arbitrary number of lines delimited by `\n` (aka newline char) can be sent in
 After that the data may be read via [/api/v1/export](#how-to-export-data-in-json-line-format) endpoint:
 
 
-```console
+```sh
 curl -G 'http://localhost:8428/api/v1/export' -d 'match=foo.bar.baz'
 ```
 
@@ -789,7 +785,7 @@ The `/api/v1/export` endpoint should return the following response:
 Enable HTTP server for OpenTSDB `/api/put` requests by setting `-opentsdbHTTPListenAddr` command line flag. For instance,
 the following command enables OpenTSDB HTTP server on port `4242`:
 
-```console
+```sh
 /path/to/victoria-metrics-prod -opentsdbHTTPListenAddr=:4242
 ```
 
@@ -798,15 +794,14 @@ Send data to the given address from OpenTSDB-compatible agents.
 Example for writing a single data point:
 
 
-```console
+```sh
 curl -H 'Content-Type: application/json' -d '{"metric":"x.y.z","value":45.34,"tags":{"t1":"v1","t2":"v2"}}' http://localhost:4242/api/put
 ```
 
 
 Example for writing multiple data points in a single request:
 
-
-```console
+```sh
 curl -H 'Content-Type: application/json' -d '[{"metric":"foo","value":45.34},{"metric":"bar","value":43}]' http://localhost:4242/api/put
 ```
 
@@ -814,7 +809,7 @@ curl -H 'Content-Type: application/json' -d '[{"metric":"foo","value":45.34},{"m
 After that the data may be read via [/api/v1/export](#how-to-export-data-in-json-line-format) endpoint:
 
 
-```console
+```sh
 curl -G 'http://localhost:8428/api/v1/export' -d 'match[]=x.y.z' -d 'match[]=foo' -d 'match[]=bar'
 ```
 
@@ -843,7 +838,7 @@ The `COLLECTOR_URL` must point to `/newrelic` HTTP endpoint at VictoriaMetrics, 
 which can be obtained [here](https://newrelic.com/signup).
 For example, if VictoriaMetrics runs at `localhost:8428`, then the following command can be used for running NewRelic infrastructure agent:
 
-```console
+```sh
 COLLECTOR_URL="http://localhost:8428/newrelic" NRIA_LICENSE_KEY="NEWRELIC_LICENSE_KEY" ./newrelic-infra
 ```
 
@@ -884,13 +879,13 @@ For example, let's import the following NewRelic Events request to VictoriaMetri
 
 Save this JSON into `newrelic.json` file and then use the following command in order to import it into VictoriaMetrics:
 
-```console
+```sh
 curl -X POST -H 'Content-Type: application/json' --data-binary @newrelic.json http://localhost:8428/newrelic/infra/v2/metrics/events/bulk
 ```
 
 Let's fetch the ingested data via [data export API](#how-to-export-data-in-json-line-format):
 
-```console
+```sh
 curl http://localhost:8428/api/v1/export -d 'match={eventType="SystemSample"}'
 {"metric":{"__name__":"cpuStealPercent","entityKey":"macbook-pro.local","eventType":"SystemSample"},"values":[0],"timestamps":[1697407970000]}
 {"metric":{"__name__":"loadAverageFiveMinute","entityKey":"macbook-pro.local","eventType":"SystemSample"},"values":[4.099609375],"timestamps":[1697407970000]}
@@ -1098,7 +1093,7 @@ The base docker image is [alpine](https://hub.docker.com/_/alpine) but it is pos
 by setting it via `<ROOT_IMAGE>` environment variable.
 For example, the following command builds the image on top of [scratch](https://hub.docker.com/_/scratch) image:
 
-```console
+```sh
 ROOT_IMAGE=scratch make package-victoria-metrics
 ```
 
@@ -1241,7 +1236,7 @@ Optional `start` and `end` args may be added to the request in order to limit th
 See [allowed formats](#timestamp-formats) for these args.
 
 For example:
-```console
+```sh
 curl http://<victoriametrics-addr>:8428/api/v1/export -d 'match[]=<timeseries_selector_for_export>' -d 'start=1654543486' -d 'end=1654543486'
 curl http://<victoriametrics-addr>:8428/api/v1/export -d 'match[]=<timeseries_selector_for_export>' -d 'start=2022-06-06T19:25:48' -d 'end=2022-06-06T19:29:07'
 ```
@@ -1254,7 +1249,7 @@ Pass `Accept-Encoding: gzip` HTTP header in the request to `/api/v1/export` in o
 of time series data. This enables gzip compression for the exported data. Example for exporting gzipped data:
 
 
-```console
+```sh
 curl -H 'Accept-Encoding: gzip' http://localhost:8428/api/v1/export -d 'match[]={__name__!=""}' > data.jsonl.gz
 ```
 
@@ -1288,7 +1283,7 @@ Optional `start` and `end` args may be added to the request in order to limit th
 See [allowed formats](#timestamp-formats) for these args.
 
 For example:
-```console
+```sh
 curl http://<victoriametrics-addr>:8428/api/v1/export/csv -d 'format=<format>' -d 'match[]=<timeseries_selector_for_export>' -d 'start=1654543486' -d 'end=1654543486'
 curl http://<victoriametrics-addr>:8428/api/v1/export/csv -d 'format=<format>' -d 'match[]=<timeseries_selector_for_export>' -d 'start=2022-06-06T19:25:48' -d 'end=2022-06-06T19:29:07'
 ```
@@ -1305,7 +1300,7 @@ for metrics to export. Use `{__name__=~".*"}` selector for fetching all the time
 
 On large databases you may experience problems with limit on the number of time series, which can be exported. In this case you need to adjust `-search.maxExportSeries` command-line flag:
 
-```console
+```sh
 # count unique time series in database
 wget -O- -q 'http://your_victoriametrics_instance:8428/api/v1/series/count' | jq '.data[0]'
 
@@ -1316,7 +1311,7 @@ Optional `start` and `end` args may be added to the request in order to limit th
 See [allowed formats](#timestamp-formats) for these args.
 
 For example:
-```console
+```sh
 curl http://<victoriametrics-addr>:8428/api/v1/export/native -d 'match[]=<timeseries_selector_for_export>' -d 'start=1654543486' -d 'end=1654543486'
 curl http://<victoriametrics-addr>:8428/api/v1/export/native -d 'match[]=<timeseries_selector_for_export>' -d 'start=2022-06-06T19:25:48' -d 'end=2022-06-06T19:29:07'
 ```
@@ -1361,7 +1356,7 @@ VictoriaMetrics accepts metrics data in JSON line format at `/api/v1/import` end
 
 Example for importing data obtained via [/api/v1/export](#how-to-export-data-in-json-line-format):
 
-```console
+```sh
 # Export the data from <source-victoriametrics>:
 curl http://source-victoriametrics:8428/api/v1/export -d 'match={__name__!=""}' > exported_data.jsonl
 
@@ -1371,7 +1366,7 @@ curl -X POST http://destination-victoriametrics:8428/api/v1/import -T exported_d
 
 Pass `Content-Encoding: gzip` HTTP request header to `/api/v1/import` for importing gzipped data:
 
-```console
+```sh
 # Export gzipped data from <source-victoriametrics>:
 curl -H 'Accept-Encoding: gzip' http://source-victoriametrics:8428/api/v1/export -d 'match={__name__!=""}' > exported_data.jsonl.gz
 
@@ -1397,7 +1392,7 @@ The specification of VictoriaMetrics' native format may yet change and is not fo
 
 If you have a native format file obtained via [/api/v1/export/native](#how-to-export-data-in-native-format) however this is the most efficient protocol for importing data in.
 
-```console
+```sh
 # Export the data from <source-victoriametrics>:
 curl http://source-victoriametrics:8428/api/v1/export/native -d 'match={__name__!=""}' > exported_data.bin
 
@@ -1415,7 +1410,7 @@ Note that it could be required to flush response cache after importing historica
 Arbitrary CSV data can be imported via `/api/v1/import/csv`. The CSV data is imported according to the provided `format` query arg.
 The `format` query arg must contain comma-separated list of parsing rules for CSV fields. Each rule consists of three parts delimited by a colon:
 
-```
+```text
 <column_pos>:<type>:<context>
 ```
 
@@ -1438,14 +1433,14 @@ Each request to `/api/v1/import/csv` may contain arbitrary number of CSV lines.
 
 Example for importing CSV data via `/api/v1/import/csv`:
 
-```console
+```sh
 curl -d "GOOG,1.23,4.56,NYSE" 'http://localhost:8428/api/v1/import/csv?format=2:metric:ask,3:metric:bid,1:label:ticker,4:label:market'
 curl -d "MSFT,3.21,1.67,NASDAQ" 'http://localhost:8428/api/v1/import/csv?format=2:metric:ask,3:metric:bid,1:label:ticker,4:label:market'
 ```
 
 After that the data may be read via [/api/v1/export](#how-to-export-data-in-json-line-format) endpoint:
 
-```console
+```sh
 curl -G 'http://localhost:8428/api/v1/export' -d 'match[]={ticker!=""}'
 ```
 
@@ -1472,7 +1467,7 @@ and in [Pushgateway format](https://github.com/prometheus/pushgateway#url) via `
 For example, the following command imports a single line in Prometheus exposition format into VictoriaMetrics:
 
 
-```console
+```sh
 curl -d 'foo{bar="baz"} 123' -X POST 'http://localhost:8428/api/v1/import/prometheus'
 ```
 
@@ -1480,7 +1475,7 @@ curl -d 'foo{bar="baz"} 123' -X POST 'http://localhost:8428/api/v1/import/promet
 The following command may be used for verifying the imported data:
 
 
-```console
+```sh
 curl -G 'http://localhost:8428/api/v1/export' -d 'match={__name__=~"foo"}'
 ```
 
@@ -1494,7 +1489,7 @@ It should return something like the following:
 The following command imports a single metric via [Pushgateway format](https://github.com/prometheus/pushgateway#url) with `{job="my_app",instance="host123"}` labels:
 
 
-```console
+```sh
 curl -d 'metric{label="abc"} 123' -X POST 'http://localhost:8428/api/v1/import/prometheus/metrics/job/my_app/instance/host123'
 ```
 
@@ -1502,7 +1497,7 @@ curl -d 'metric{label="abc"} 123' -X POST 'http://localhost:8428/api/v1/import/p
 Pass `Content-Encoding: gzip` HTTP request header to `/api/v1/import/prometheus` for importing gzipped data:
 
 
-```console
+```sh
 # Import gzipped data to <destination-victoriametrics>:
 curl -X POST -H 'Content-Encoding: gzip' http://destination-victoriametrics:8428/api/v1/import/prometheus -T prometheus_data.gz
 ```
@@ -1534,7 +1529,7 @@ and exports data in this format at [/api/v1/export](#how-to-export-data-in-json-
 
 The format follows [JSON streaming concept](http://ndjson.org/), e.g. each line contains JSON object with metrics data in the following format:
 
-```
+```json
 {
   // metric contans metric name plus labels for a particular time series
   "metric":{
@@ -1586,7 +1581,7 @@ The `-relabelConfig` files can contain special placeholders in the form `%{ENV_V
 
 Example contents for `-relabelConfig` file:
 
-```yml
+```yaml
 # Add {cluster="dev"} label.
 - target_label: cluster
   replacement: dev
@@ -1614,7 +1609,7 @@ Optional `start` and `end` args may be added to the request in order to scrape t
 See [allowed formats](#timestamp-formats) for these args.
 
 For example:
-```console
+```sh
 curl http://<victoriametrics-addr>:8428/federate -d 'match[]=<timeseries_selector_for_export>' -d 'start=1654543486' -d 'end=1654543486'
 curl http://<victoriametrics-addr>:8428/federate -d 'match[]=<timeseries_selector_for_export>' -d 'start=2022-06-06T19:25:48' -d 'end=2022-06-06T19:29:07'
 ```
@@ -1691,7 +1686,7 @@ then it can be configured with multiple `-remoteWrite.url` command-line flags, w
 instance in a particular availability zone, in order to replicate the collected data to all the VictoriaMetrics instances.
 For example, the following command instructs `vmagent` to replicate data to `vm-az1` and `vm-az2` instances of VictoriaMetrics:
 
-```console
+```sh
 /path/to/vmagent \
   -remoteWrite.url=http://<vm-az1>:8428/api/v1/write \
   -remoteWrite.url=http://<vm-az2>:8428/api/v1/write
@@ -1701,7 +1696,7 @@ If you use Prometheus for collecting and writing the data to VictoriaMetrics,
 then the following [`remote_write`](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write) section
 in Prometheus config can be used for replicating the collected data to `vm-az1` and `vm-az2` VictoriaMetrics instances:
 
-```yml
+```yaml
 remote_write:
   - url: http://<vm-az1>:8428/api/v1/write
   - url: http://<vm-az2>:8428/api/v1/write
@@ -1875,7 +1870,7 @@ command-line flag is applied to it. If series matches multiple configured retent
 For example, the following config sets 3 days retention for time series with `team="juniors"` label,
 30 days retention for time series with `env="dev"` or `env="staging"` label and 1 year retention for the remaining time series:
 
-```
+```sh
 -retentionFilter='{team="juniors"}:3d' -retentionFilter='{env=~"dev|staging"}:30d' -retentionPeriod=1y
 ```
 
@@ -2003,7 +1998,7 @@ and [the general security page at VictoriaMetrics website](https://victoriametri
   If you plan to store more than 1TB of data on `ext4` partition or plan extending it to more than 16TB,
   then the following options are recommended to pass to `mkfs.ext4`:
 
-```console
+```sh
 mkfs.ext4 ... -O 64bit,huge_file,extent -T huge
 ```
 
@@ -2061,7 +2056,7 @@ In this case VictoriaMetrics puts query trace into `trace` field in the output J
 
 For example, the following command:
 
-```console
+```sh
 curl http://localhost:8428/api/v1/query_range -d 'query=2*rand()' -d 'start=-1h' -d 'step=1m' -d 'trace=1' | jq '.trace'
 ```
 
@@ -2260,7 +2255,7 @@ For example, the following command instructs VictoriaMetrics to push metrics fro
 with `user:pass` [Basic auth](https://en.wikipedia.org/wiki/Basic_access_authentication). The `instance="foobar"` and `job="vm"` labels
 are added to all the metrics before sending them to the remote storage:
 
-```console
+```sh
 /path/to/victoria-metrics \
   -pushmetrics.url=https://user:pass@maas.victoriametrics.com/api/v1/import/prometheus \
   -pushmetrics.extraLabel='instance="foobar"' \
@@ -2404,7 +2399,7 @@ VictoriaMetrics provides handlers for collecting the following [Go profiles](htt
 * Memory profile. It can be collected with the following command (replace `0.0.0.0` with hostname if needed):
 
 
-```console
+```sh
 curl http://0.0.0.0:8428/debug/pprof/heap > mem.pprof
 ```
 
@@ -2412,7 +2407,7 @@ curl http://0.0.0.0:8428/debug/pprof/heap > mem.pprof
 * CPU profile. It can be collected with the following command (replace `0.0.0.0` with hostname if needed):
 
 
-```console
+```sh
 curl http://0.0.0.0:8428/debug/pprof/profile > cpu.pprof
 ```
 
@@ -2483,7 +2478,7 @@ If the page needs to have many images, consider using WEB-optimized image format
 When adding a new doc with many images use `webp` format right away. Or use a Makefile command below to
 convert already existing images at `docs` folder automatically to `web` format:
 
-```console
+```sh
 make docs-images-to-webp
 ```
 
@@ -2523,7 +2518,7 @@ Files included in each folder:
 
 Pass `-help` to VictoriaMetrics in order to see the list of supported command-line flags with their description:
 
-```
+```sh
   -bigMergeConcurrency int
      Deprecated: this flag does nothing
   -blockcache.missesBeforeCaching int
