@@ -53,7 +53,7 @@ var (
 	connTimeout                 = flag.Duration("http.connTimeout", 2*time.Minute, `Incoming http connections are closed after the configured timeout. This may help to spread the incoming load among a cluster of services behind a load balancer. Please note that the real timeout may be bigger by up to 10% as a protection against the thundering herd problem`)
 
 	headerHSTS         = flag.String("http.header.hsts", "", "Value for 'Strict-Transport-Security' header, recommended: `max-age=31536000; includeSubDomains`")
-	headerFrameOptions = flag.String("http.header.frameOptions", "SAMEORIGIN", "Value for 'X-Frame-Options' header")
+	headerFrameOptions = flag.String("http.header.frameOptions", "", "Value for 'X-Frame-Options' header")
 	headerCSP          = flag.String("http.header.csp", "", "Value for 'Content-Security-Policy' header, recommended: `default-src 'self'`")
 )
 
