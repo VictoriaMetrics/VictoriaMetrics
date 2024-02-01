@@ -15,7 +15,7 @@ aliases:
 It is available for download and evaluation at [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 See how to request a free trial license [here](https://victoriametrics.com/products/enterprise/trial/).***
 
-<img alt="vmgateway" src="vmgateway-overview.jpeg">
+<img alt="vmgateway" src="vmgateway-overview.webp">
 
 `vmgateway` is a proxy for the VictoriaMetrics Time Series Database (TSDB). It provides the following features:
 
@@ -30,7 +30,7 @@ See how to request a free trial license [here](https://victoriametrics.com/produ
 
 ## Access Control
 
-<img alt="vmgateway-ac" src="vmgateway-access-control.jpg">
+<img alt="vmgateway-ac" src="vmgateway-access-control.webp">
 
 `vmgateway` supports jwt based authentication. With jwt payload can be configured to give access to specific tenants and labels as well as to read/write.
 
@@ -67,7 +67,7 @@ Where:
 
 Start the single version of VictoriaMetrics
 
-```console
+```sh
 # single
 # start node
 ./bin/victoria-metrics --selfScrapeInterval=10s
@@ -75,19 +75,19 @@ Start the single version of VictoriaMetrics
 
 Start vmgateway
 
-```console
+```sh
 ./bin/vmgateway -eula -enable.auth -read.url http://localhost:8428 --write.url http://localhost:8428
 ```
 
 Retrieve data from the database
 
-```console
+```sh
 curl 'http://localhost:8431/api/v1/series/count' -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ2bV9hY2Nlc3MiOnsidGVuYW50X2lkIjp7fSwicm9sZSI6MX0sImV4cCI6MTkzOTM0NjIxMH0.5WUxEfdcV9hKo4CtQdtuZYOGpGXWwaqM9VuVivMMrVg'
 ```
 
 A request with an incorrect token or without any token will be rejected:
 
-```console
+```sh
 curl 'http://localhost:8431/api/v1/series/count'
 
 curl 'http://localhost:8431/api/v1/series/count' -H 'Authorization: Bearer incorrect-token'
@@ -95,7 +95,7 @@ curl 'http://localhost:8431/api/v1/series/count' -H 'Authorization: Bearer incor
 
 ## Rate Limiter
 
-<img alt="vmgateway-rl" src="vmgateway-rate-limiting.jpg">
+<img alt="vmgateway-rl" src="vmgateway-rate-limiting.webp">
 
 Limits incoming requests by given, pre-configured limits. It supports read and write limiting by tenant.
 
@@ -137,7 +137,7 @@ limits:
 
 cluster version of VictoriaMetrics is required for rate limiting.
 
-```console
+```sh
 # start datasource for cluster metrics
 
 cat << EOF > cluster.yaml
@@ -199,7 +199,7 @@ The following flags are used to specify keys:
 Note that both flags support passing multiple keys and also can be used together.
 
 Example usage:
-```console
+```sh
 ./bin/vmgateway -eula \
   -enable.auth \
   -write.url=http://localhost:8480 \
@@ -227,7 +227,7 @@ In order to enable [OpenID discovery](https://openid.net/specs/openid-connect-di
 When `auth.oidcDiscoveryEndpoints` is specified `vmageteway` will fetch JWKS keys from the specified endpoint and use them for JWT signature verification.
 
 Example usage for tokens issued by Azure Active Directory:
-```console
+```sh
 /bin/vmgateway -eula \
   -enable.auth \
   -write.url=http://localhost:8480 \
@@ -236,7 +236,7 @@ Example usage for tokens issued by Azure Active Directory:
 ```
 
 Example usage for tokens issued by Google:
-```console
+```sh
 /bin/vmgateway -eula \
   -enable.auth \
   -write.url=http://localhost:8480 \
@@ -252,7 +252,7 @@ In order to enable JWKS endpoint for JWT signature verification, you need to spe
 When `auth.jwksEndpoints` is specified `vmageteway` will fetch public keys from the specified endpoint and use them for JWT signature verification.
 
 Example usage for tokens issued by Azure Active Directory:
-```console
+```sh
 /bin/vmgateway -eula \
   -enable.auth \
   -write.url=http://localhost:8480 \
@@ -261,7 +261,7 @@ Example usage for tokens issued by Azure Active Directory:
 ```
 
 Example usage for tokens issued by Google:
-```console
+```sh
 /bin/vmgateway -eula \
   -enable.auth \
   -write.url=http://localhost:8480 \
@@ -273,7 +273,7 @@ Example usage for tokens issued by Google:
 
 The shortlist of configuration flags include the following:
 
-```console
+```sh
   -auth.httpHeader string
      HTTP header name to look for JWT authorization token (default "Authorization")
   -auth.jwksEndpoints array
@@ -309,7 +309,7 @@ The shortlist of configuration flags include the following:
   -datasource.headers string
      Optional HTTP extraHeaders to send with each request to the corresponding -datasource.url. For example, -datasource.headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding -datasource.url. Multiple headers must be delimited by '^^': -datasource.headers='header1:value1^^header2:value2'
   -datasource.lookback duration
-     Lookback defines how far into the past to look when evaluating queries. For example, if the datasource.lookback=5m then param "time" with value now()-5m will be added to every query.
+     Will be deprecated soon, please adjust "-search.latencyOffset"  at datasource side or specify "latency_offset" in rule group's params. Lookback defines how far into the past to look when evaluating queries. For example, if the datasource.lookback=5m then param "time" with value now()-5m will be added to every query.
   -datasource.maxIdleConnections int
      Defines the number of idle (keep-alive connections) to each configured datasource. Consider setting this value equal to the value: groups_total * group.concurrency. Too low a value may result in a high number of sockets in TIME_WAIT state. (default 100)
   -datasource.oauth2.clientID string
@@ -356,8 +356,9 @@ The shortlist of configuration flags include the following:
      Deprecated, please use -license or -licenseFile flags instead. By specifying this flag, you confirm that you have an enterprise license and accept the ESA https://victoriametrics.com/legal/esa/ . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
   -filestream.disableFadvise
      Whether to disable fadvise() syscall when reading large data files. The fadvise() syscall prevents from eviction of recently accessed data from OS page cache during background merges and backups. In some rare cases it is better to disable the syscall if it uses too much CPU
-  -flagsAuthKey string
+  -flagsAuthKey value
      Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
+     Flag value can be read from the given file when using -flagsAuthKey=file:///abs/path/to/file or -flagsAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -flagsAuthKey=http://host/path or -flagsAuthKey=https://host/path
   -fs.disableMmap
      Whether to use pread() instead of mmap() for reading data files. By default, mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
   -http.connTimeout duration
@@ -378,8 +379,9 @@ The shortlist of configuration flags include the following:
      An optional prefix to add to all the paths handled by http server. For example, if '-http.pathPrefix=/foo/bar' is set, then all the http requests will be handled on '/foo/bar/*' paths. This may be useful for proxied requests. See https://www.robustperception.io/using-external-urls-and-proxies-with-prometheus
   -http.shutdownDelay duration
      Optional delay before http server shutdown. During this delay, the server returns non-OK responses from /health page, so load balancers can route new requests to other servers
-  -httpAuth.password string
+  -httpAuth.password value
      Password for HTTP server's Basic Auth. The authentication is disabled if -httpAuth.username is empty
+     Flag value can be read from the given file when using -httpAuth.password=file:///abs/path/to/file or -httpAuth.password=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -httpAuth.password=http://host/path or -httpAuth.password=https://host/path
   -httpAuth.username string
      Username for HTTP server's Basic Auth. The authentication is disabled if empty. See also -httpAuth.password
   -httpListenAddr string
@@ -408,6 +410,8 @@ The shortlist of configuration flags include the following:
      Allows renaming fields in JSON formatted logs. Example: "ts:timestamp,msg:message" renames "ts" to "timestamp" and "msg" to "message". Supported fields: ts, level, caller, msg
   -loggerLevel string
      Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC (default "INFO")
+  -loggerMaxArgLen int
+     The maximum length of a single logged argument. Longer arguments are replaced with 'arg_start..arg_end', where 'arg_start' and 'arg_end' is prefix and suffix of the arg with the length not exceeding -loggerMaxArgLen / 2 (default 1000)
   -loggerOutput string
      Output for the logs. Supported values: stderr, stdout (default "stderr")
   -loggerTimezone string
@@ -419,15 +423,24 @@ The shortlist of configuration flags include the following:
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
   -memory.allowedPercent float
      Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache which will result in higher disk IO usage (default 60)
-  -metricsAuthKey string
+  -metrics.exposeMetadata
+     Whether to expose TYPE and HELP metadata at the /metrics page, which is exposed at -httpListenAddr . The metadata may be needed when the /metrics page is consumed by systems, which require this information. For example, Managed Prometheus in Google Cloud - https://cloud.google.com/stackdriver/docs/managed-prometheus/troubleshooting#missing-metric-type
+  -metricsAuthKey value
      Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
-  -pprofAuthKey string
+     Flag value can be read from the given file when using -metricsAuthKey=file:///abs/path/to/file or -metricsAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -metricsAuthKey=http://host/path or -metricsAuthKey=https://host/path
+  -pprofAuthKey value
      Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides httpAuth.* settings
+     Flag value can be read from the given file when using -pprofAuthKey=file:///abs/path/to/file or -pprofAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -pprofAuthKey=http://host/path or -pprofAuthKey=https://host/path
+  -pushmetrics.disableCompression
+     Whether to disable request body compression when pushing metrics to every -pushmetrics.url
   -pushmetrics.extraLabel array
-     Optional labels to add to metrics pushed to -pushmetrics.url . For example, -pushmetrics.extraLabel='instance="foo"' adds instance="foo" label to all the metrics pushed to -pushmetrics.url
+     Optional labels to add to metrics pushed to every -pushmetrics.url . For example, -pushmetrics.extraLabel='instance="foo"' adds instance="foo" label to all the metrics pushed to every -pushmetrics.url
+     Supports an array of values separated by comma or specified via multiple flags.
+  -pushmetrics.header array
+     Optional HTTP request header to send to every -pushmetrics.url . For example, -pushmetrics.header='Authorization: Basic foobar' adds 'Authorization: Basic foobar' header to every request to every -pushmetrics.url
      Supports an array of values separated by comma or specified via multiple flags.
   -pushmetrics.interval duration
-     Interval for pushing metrics to -pushmetrics.url (default 10s)
+     Interval for pushing metrics to every -pushmetrics.url (default 10s)
   -pushmetrics.url array
      Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/#push-metrics . By default, metrics exposed at /metrics page aren't pushed to any remote storage
      Supports an array of values separated by comma or specified via multiple flags.

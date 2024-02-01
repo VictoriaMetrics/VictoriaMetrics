@@ -6,6 +6,8 @@ menu:
   docs:
     parent: "operator-custom-resources"
     weight: 5
+aliases:
+  - /operator/resources/vmauth.html
 ---
 
 # VMAuth
@@ -52,11 +54,11 @@ Here's a more visual and more detailed view:
 |-------------------------|----------------|----------------------|-------------------|------------------------------------------------------------------------------------------------------|
 | undefined               | undefined      | false                | undefined         | nothing                                                                                              |
 | undefined               | undefined      | **true**             | undefined         | all vmusers in the cluster                                                                           |
-| **defined**             | undefined      | any                  | undefined         | all vmusers are matching at namespaces for given `userNamespaceSelector`                             |
-| undefined               | **defined**    | any                  | undefined         | all vmusers only at `VMAuth`'s namespace are matching for given `userSelector`                       |
-| **defined**             | **defined**    | any                  | undefined         | all vmusers only at namespaces matched `userNamespaceSelector` for given `userSelector` are matching |
-| any                     | undefined      | any                  | **defined**       | all vmusers only at `VMAuth`'s namespace                                                             |
-| any                     | **defined**    | any                  | **defined**       | all vmusers only at `VMAuth`'s namespace for given `userSelector` are matching                       |
+| **defined**             | undefined      | *any*                | undefined         | all vmusers are matching at namespaces for given `userNamespaceSelector`                             |
+| undefined               | **defined**    | *any*                | undefined         | all vmusers only at `VMAuth`'s namespace are matching for given `userSelector`                       |
+| **defined**             | **defined**    | *any*                | undefined         | all vmusers only at namespaces matched `userNamespaceSelector` for given `userSelector` are matching |
+| *any*                   | undefined      | *any*                | **defined**       | all vmusers only at `VMAuth`'s namespace                                                             |
+| *any*                   | **defined**    | *any*                | **defined**       | all vmusers only at `VMAuth`'s namespace for given `userSelector` are matching                       |
 
 More details about `WATCH_NAMESPACE` variable you can read in [this doc](../configuration.md#namespaced-mode).
 
@@ -134,7 +136,7 @@ metadata:
   name: example-vmauth
 spec:
   image:
-    repository: victoriametrics/victoria-metrics
+    repository: victoriametrics/vmauth
     tag: v1.93.4
     pullPolicy: Always
   # ...
@@ -149,7 +151,7 @@ metadata:
   name: example-vmauth
 spec:
   image:
-    repository: victoriametrics/victoria-metrics
+    repository: victoriametrics/vmauth
     tag: v1.93.4
     pullPolicy: Always
   imagePullSecrets:

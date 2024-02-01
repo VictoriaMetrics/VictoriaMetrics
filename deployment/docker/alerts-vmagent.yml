@@ -3,14 +3,14 @@
 # and threshold calibration according to every specific setup.
 groups:
   # Alerts group for vmagent assumes that Grafana dashboard
-  # https://grafana.com/grafana/dashboards/12683-victoriametrics-vmagent/ is installed.
+  # https://grafana.com/grafana/dashboards/12683/ is installed.
   # Pls update the `dashboard` annotation according to your setup.
   - name: vmagent
     interval: 30s
     concurrency: 2
     rules:
       - alert: PersistentQueueIsDroppingData
-        expr: sum(increase(vm_persistentqueue_bytes_dropped_total[5m])) by (job, instance) > 0
+        expr: sum(increase(vm_persistentqueue_bytes_dropped_total[5m])) without (path) > 0
         for: 10m
         labels:
           severity: critical
@@ -21,7 +21,7 @@ groups:
               on instance {{ $labels.instance }} for the last 10m."
 
       - alert: RejectedRemoteWriteDataBlocksAreDropped
-        expr: sum(increase(vmagent_remotewrite_packets_dropped_total[5m])) by (job, instance) > 0
+        expr: sum(increase(vmagent_remotewrite_packets_dropped_total[5m])) without (url) > 0
         for: 15m
         labels:
           severity: warning
@@ -31,7 +31,7 @@ groups:
           remote-write server data blocks. Check the logs to find the reason for rejects."
 
       - alert: TooManyScrapeErrors
-        expr: sum(increase(vm_promscrape_scrapes_failed_total[5m])) by (job, instance) > 0
+        expr: increase(vm_promscrape_scrapes_failed_total[5m]) > 0
         for: 15m
         labels:
           severity: warning
@@ -41,9 +41,9 @@ groups:
 
       - alert: TooManyWriteErrors
         expr: |
-          (sum(increase(vm_ingestserver_request_errors_total[5m])) by (job, instance)
+          (sum(increase(vm_ingestserver_request_errors_total[5m])) without (name,net,type)
           +
-          sum(increase(vmagent_http_request_errors_total[5m])) by (job, instance)) > 0
+          sum(increase(vmagent_http_request_errors_total[5m])) without (path,protocol)) > 0
         for: 15m
         labels:
           severity: warning
@@ -52,7 +52,7 @@ groups:
           summary: "Job \"{{ $labels.job }}\" on instance {{ $labels.instance }} responds with errors to write requests for last 15m."
 
       - alert: TooManyRemoteWriteErrors
-        expr: sum(rate(vmagent_remotewrite_retries_count_total[5m])) by(job, instance, url) > 0
+        expr: rate(vmagent_remotewrite_retries_count_total[5m]) > 0
         for: 15m
         labels:
           severity: warning
@@ -65,9 +65,9 @@ groups:
       - alert: RemoteWriteConnectionIsSaturated
         expr: |
           (
-           sum(rate(vmagent_remotewrite_send_duration_seconds_total[5m])) by(job, instance, url) 
+           rate(vmagent_remotewrite_send_duration_seconds_total[5m])
            / 
-           max(vmagent_remotewrite_queues) by(job, instance, url)
+           vmagent_remotewrite_queues
           ) > 0.9
         for: 15m
         labels:

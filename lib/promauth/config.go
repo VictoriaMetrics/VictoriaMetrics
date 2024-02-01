@@ -12,9 +12,8 @@ import (
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs/fscore"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
-	"github.com/VictoriaMetrics/fasthttp"
 	"github.com/cespare/xxhash/v2"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
@@ -93,7 +92,8 @@ type Authorization struct {
 
 // BasicAuthConfig represents basic auth config.
 type BasicAuthConfig struct {
-	Username     string  `yaml:"username"`
+	Username     string  `yaml:"username,omitempty"`
+	UsernameFile string  `yaml:"username_file,omitempty"`
 	Password     *Secret `yaml:"password,omitempty"`
 	PasswordFile string  `yaml:"password_file,omitempty"`
 }
@@ -199,7 +199,7 @@ func newOAuth2ConfigInternal(baseDir string, o *OAuth2Config) (*oauth2ConfigInte
 		},
 	}
 	if o.ClientSecretFile != "" {
-		oi.clientSecretFile = fs.GetFilepath(baseDir, o.ClientSecretFile)
+		oi.clientSecretFile = fscore.GetFilepath(baseDir, o.ClientSecretFile)
 		// There is no need in reading oi.clientSecretFile now, since it may be missing right now.
 		// It is read later before performing oauth2 request to server.
 	}
@@ -260,7 +260,7 @@ func (oi *oauth2ConfigInternal) getTokenSource() (oauth2.TokenSource, error) {
 	if oi.clientSecretFile == "" {
 		return oi.tokenSource, nil
 	}
-	newSecret, err := readPasswordFromFile(oi.clientSecretFile)
+	newSecret, err := fscore.ReadPasswordFromFileOrHTTP(oi.clientSecretFile)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read OAuth2 secret from %q: %w", oi.clientSecretFile, err)
 	}
@@ -328,24 +328,6 @@ func (ac *Config) HeadersNoAuthString() string {
 // SetHeaders sets the configured ac headers to req.
 func (ac *Config) SetHeaders(req *http.Request, setAuthHeader bool) error {
 	reqHeaders := req.Header
-	for _, h := range ac.headers {
-		reqHeaders.Set(h.key, h.value)
-	}
-	if setAuthHeader {
-		ah, err := ac.GetAuthHeader()
-		if err != nil {
-			return fmt.Errorf("failed to obtain Authorization request header: %w", err)
-		}
-		if ah != "" {
-			reqHeaders.Set("Authorization", ah)
-		}
-	}
-	return nil
-}
-
-// SetFasthttpHeaders sets the configured ac headers to req.
-func (ac *Config) SetFasthttpHeaders(req *fasthttp.Request, setAuthHeader bool) error {
-	reqHeaders := &req.Header
 	for _, h := range ac.headers {
 		reqHeaders.Set(h.key, h.value)
 	}
@@ -582,18 +564,18 @@ func (opts *Options) NewConfig() (*Config, error) {
 			return nil, fmt.Errorf("cannot simultaneously use `authorization`, `basic_auth, `bearer_token` and `ouath2`")
 		}
 		if err := actx.initFromOAuth2Config(baseDir, opts.OAuth2); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("cannot initialize oauth2: %w", err)
 		}
 	}
 	var tctx tlsContext
 	if opts.TLSConfig != nil {
 		if err := tctx.initFromTLSConfig(baseDir, opts.TLSConfig); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("cannot initialize tls: %w", err)
 		}
 	}
 	headers, err := parseHeaders(opts.Headers)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("cannot parse headers: %w", err)
 	}
 	hd := xxhash.New()
 	for _, kv := range headers {
@@ -649,9 +631,9 @@ func (actx *authContext) initFromAuthorization(baseDir string, az *Authorization
 	if az.Credentials != nil {
 		return fmt.Errorf("both `credentials`=%q and `credentials_file`=%q are set", az.Credentials, az.CredentialsFile)
 	}
-	filePath := fs.GetFilepath(baseDir, az.CredentialsFile)
+	filePath := fscore.GetFilepath(baseDir, az.CredentialsFile)
 	actx.getAuthHeader = func() (string, error) {
-		token, err := readPasswordFromFile(filePath)
+		token, err := fscore.ReadPasswordFromFileOrHTTP(filePath)
 		if err != nil {
 			return "", fmt.Errorf("cannot read credentials from `credentials_file`=%q: %w", az.CredentialsFile, err)
 		}
@@ -662,42 +644,61 @@ func (actx *authContext) initFromAuthorization(baseDir string, az *Authorization
 }
 
 func (actx *authContext) initFromBasicAuthConfig(baseDir string, ba *BasicAuthConfig) error {
-	if ba.Username == "" {
-		return fmt.Errorf("missing `username` in `basic_auth` section")
-	}
-	if ba.PasswordFile == "" {
-		// See https://en.wikipedia.org/wiki/Basic_access_authentication
-		token := ba.Username + ":" + ba.Password.String()
-		token64 := base64.StdEncoding.EncodeToString([]byte(token))
-		ah := "Basic " + token64
-		actx.getAuthHeader = func() (string, error) {
-			return ah, nil
-		}
-		actx.authHeaderDigest = fmt.Sprintf("basic(username=%q, password=%q)", ba.Username, ba.Password)
-		return nil
-	}
+	username := ba.Username
+	usernameFile := ba.UsernameFile
+	password := ""
 	if ba.Password != nil {
-		return fmt.Errorf("both `password`=%q and `password_file`=%q are set in `basic_auth` section", ba.Password, ba.PasswordFile)
+		password = ba.Password.S
 	}
-	filePath := fs.GetFilepath(baseDir, ba.PasswordFile)
+	passwordFile := ba.PasswordFile
+	if username == "" && usernameFile == "" {
+		return fmt.Errorf("missing `username` and `username_file` in `basic_auth` section; please specify one; " +
+			"see https://docs.victoriametrics.com/sd_configs.html#http-api-client-options")
+	}
+	if username != "" && usernameFile != "" {
+		return fmt.Errorf("both `username` and `username_file` are set in `basic_auth` section; please specify only one; " +
+			"see https://docs.victoriametrics.com/sd_configs.html#http-api-client-options")
+	}
+	if password != "" && passwordFile != "" {
+		return fmt.Errorf("both `password` and `password_file` are set in `basic_auth` section; please specify only one; " +
+			"see https://docs.victoriametrics.com/sd_configs.html#http-api-client-options")
+	}
+	if usernameFile != "" {
+		usernameFile = fscore.GetFilepath(baseDir, usernameFile)
+	}
+	if passwordFile != "" {
+		passwordFile = fscore.GetFilepath(baseDir, passwordFile)
+	}
 	actx.getAuthHeader = func() (string, error) {
-		password, err := readPasswordFromFile(filePath)
-		if err != nil {
-			return "", fmt.Errorf("cannot read password from `password_file`=%q set in `basic_auth` section: %w", ba.PasswordFile, err)
+		usernameLocal := username
+		if usernameFile != "" {
+			s, err := fscore.ReadPasswordFromFileOrHTTP(usernameFile)
+			if err != nil {
+				return "", fmt.Errorf("cannot read username from `username_file`=%q: %w", usernameFile, err)
+			}
+			usernameLocal = s
+		}
+		passwordLocal := password
+		if passwordFile != "" {
+			s, err := fscore.ReadPasswordFromFileOrHTTP(passwordFile)
+			if err != nil {
+				return "", fmt.Errorf("cannot read password from `password_file`=%q: %w", passwordFile, err)
+			}
+			passwordLocal = s
 		}
 		// See https://en.wikipedia.org/wiki/Basic_access_authentication
-		token := ba.Username + ":" + password
+		token := usernameLocal + ":" + passwordLocal
 		token64 := base64.StdEncoding.EncodeToString([]byte(token))
 		return "Basic " + token64, nil
 	}
-	actx.authHeaderDigest = fmt.Sprintf("basic(username=%q, passwordFile=%q)", ba.Username, filePath)
+	actx.authHeaderDigest = fmt.Sprintf("basic(username=%q, usernameFile=%q, password=%q, passwordFile=%q)", username, usernameFile, password, passwordFile)
 	return nil
 }
 
 func (actx *authContext) mustInitFromBearerTokenFile(baseDir string, bearerTokenFile string) {
-	filePath := fs.GetFilepath(baseDir, bearerTokenFile)
+	filePath := fscore.GetFilepath(baseDir, bearerTokenFile)
 	actx.getAuthHeader = func() (string, error) {
-		token, err := readPasswordFromFile(filePath)
+		token, err := fscore.ReadPasswordFromFileOrHTTP(filePath)
 		if err != nil {
 			return "", fmt.Errorf("cannot read bearer token from `bearer_token_file`=%q: %w", bearerTokenFile, err)
 		}
@@ -760,15 +761,15 @@ func (tctx *tlsContext) initFromTLSConfig(baseDir string, tc *TLSConfig) error {
 		h := xxhash.Sum64([]byte(tc.Key)) ^ xxhash.Sum64([]byte(tc.Cert))
 		tctx.tlsCertDigest = fmt.Sprintf("digest(key+cert)=%d", h)
 	} else if tc.CertFile != "" || tc.KeyFile != "" {
-		certPath := fs.GetFilepath(baseDir, tc.CertFile)
-		keyPath := fs.GetFilepath(baseDir, tc.KeyFile)
+		certPath := fscore.GetFilepath(baseDir, tc.CertFile)
+		keyPath := fscore.GetFilepath(baseDir, tc.KeyFile)
 		tctx.getTLSCert = func(*tls.CertificateRequestInfo) (*tls.Certificate, error) {
 			// Re-read TLS certificate from disk. This is needed for https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1420
-			certData, err := fs.ReadFileOrHTTP(certPath)
+			certData, err := fscore.ReadFileOrHTTP(certPath)
 			if err != nil {
 				return nil, fmt.Errorf("cannot read TLS certificate from %q: %w", certPath, err)
 			}
-			keyData, err := fs.ReadFileOrHTTP(keyPath)
+			keyData, err := fscore.ReadFileOrHTTP(keyPath)
 			if err != nil {
 				return nil, fmt.Errorf("cannot read TLS key from %q: %w", keyPath, err)
 			}
@@ -791,9 +792,9 @@ func (tctx *tlsContext) initFromTLSConfig(baseDir string, tc *TLSConfig) error {
 		h := xxhash.Sum64([]byte(tc.CA))
 		tctx.tlsRootCADigest = fmt.Sprintf("digest(CA)=%d", h)
 	} else if tc.CAFile != "" {
-		path := fs.GetFilepath(baseDir, tc.CAFile)
+		path := fscore.GetFilepath(baseDir, tc.CAFile)
 		tctx.getTLSRootCA = func() (*x509.CertPool, error) {
-			data, err := fs.ReadFileOrHTTP(path)
+			data, err := fscore.ReadFileOrHTTP(path)
 			if err != nil {
 				return nil, fmt.Errorf("cannot read `ca_file`: %w", err)
 			}
@@ -806,7 +807,7 @@ func (tctx *tlsContext) initFromTLSConfig(baseDir string, tc *TLSConfig) error {
 		// The Config.NewTLSConfig() is called only once per each scrape target initialization.
 		// So, the tlsRootCADigest must contain the hash of CAFile contents additionally to CAFile itself,
 		// in order to properly reload scrape target configs when CAFile contents changes.
-		data, err := fs.ReadFileOrHTTP(path)
+		data, err := fscore.ReadFileOrHTTP(path)
 		if err != nil {
 			// Do not return the error to the caller, since this may result in fatal error.
 			// The CAFile contents can become available on the next check of scrape configs.

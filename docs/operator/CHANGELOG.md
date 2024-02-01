@@ -7,13 +7,53 @@ menu:
     parent: "operator"
     weight: 10
     identifier: "operator-changelog"
+aliases:
+  - /operator/CHANGELOG.html
+  - /operator/changelog.html
 ---
 
 # CHANGELOG
 
 ## Next release
+- [vmauth](./api.html#vmauth): add new fields for `unauthorized_user` like `src_hosts`, `headers`, `retry_status_codes` and `load_balancing_policy`. See [vmauth docs](https://docs.victoriametrics.com/vmauth.htm) for more details.
+ 
+<a name="v0.40.0"></a>
+## [v0.40.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.40.0) - 23 Jan 2024
 
-- TODO
+- [vmalertmanager](./api.html#vmalertmanagerconfig): fix `VMAlertmanagerConfig` discovery according to [the docs](https://docs.victoriametrics.com/operator/resources/vmalertmanager.html#using-vmalertmanagerconfig).
+- [vmoperator](./README.md): add alerting rules for operator itself. See [this issue](https://github.com/VictoriaMetrics/operator/issues/526) for details.
+- [vmoperator](./README.md): add `revisionHistoryLimitCount` field for victoriametrics workload CRDs. See [this issue](https://github.com/VictoriaMetrics/operator/pull/834) for details. Thanks [@gidesh](https://github.com/gidesh)
+- [vmuser](./api.md#vmuser): add new fields to VMUser: `drop_src_path_prefix_parts`, `tls_insecure_skip_verify`, `metric_labels` and `load_balancing_policy`. See [specifications](https://docs.victoriametrics.com/operator/api.html#vmuserspec) and [vmauth docs](https://docs.victoriametrics.com/vmauth.htm) for more details. **Field `metric_labels` will work only with VMAuth version >= v1.97.0!**
+- [vmoperator](./README.md): add CRD support for `discord_configs`, `msteams_configs`, `sns_configs` and `webex_configs` receiver types in [VMAlertmanagerConfig](https://docs.victoriametrics.com/operator/resources/vmalertmanagerconfig.html). See [this issue](https://github.com/VictoriaMetrics/operator/issues/808)
+- [vmoperator](./README.md): add MinReadySeconds param for all CRDs. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/608) and [this PR](https://github.com/VictoriaMetrics/operator/pull/846).
+
+<a name="v0.39.4"></a>
+## [v0.39.4](https://github.com/VictoriaMetrics/operator/releases/tag/v0.39.4) - 13 Dec 2023
+
+- update VictoriaMetrics image tags to [v1.96.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.96.0).
+- [vmalertmanagerconfig](./api.html#vmalertmanagerconfig): add fields `entity`, `actions` and `update_alerts` for opsgenie_configs according to https://prometheus.io/docs/alerting/latest/configuration/#opsgenie_config.
+- [vmoperator](./README.md): remove vmalert notifier null check, since `-notifier.url` is optional and is needed only if there are alerting rules.
+
+<a name="v0.39.3"></a>
+## [v0.39.3](https://github.com/VictoriaMetrics/operator/releases/tag/v0.39.3) - 16 Nov 2023
+
+- update VictoriaMetrics image tags to [v1.95.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.95.1).
+
+<a name="v0.39.2"></a>
+## [v0.39.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.39.2) - 15 Nov 2023
+
+### Features
+
+- [vmoperator](./README.md): properly compare difference for `statefulSet` claimTemplate metadata. See [this commit](https://github.com/VictoriaMetrics/operator/commit/49f9c72b504582b06f72eda94055fd964a11d342) for details.
+- [vmoperator](./README.md): sort `statefulSet` pods by id for rolling update order. See [this commit](https://github.com/VictoriaMetrics/operator/commit/e73b03acd073ec3eda34231083a48c6f79a6757b) for details.
+- [vmoperator](./README.md): optimize statefulset update logic, that should reduce some unneeded operations. See [this PR](https://github.com/VictoriaMetrics/operator/pull/801) for details.
+
+<a name="v0.39.1"></a>
+## [v0.39.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.39.1) - 1 Nov 2023
+
+- [vmuser](./api.md#vmuser):  adds new paths for vminsert/vmselect routing with enabled dynamic discovery feature for `VMUser`. See [this PR](https://github.com/VictoriaMetrics/operator/pull/791) for details.
+- [vmcluster](./api.md#vmcluster): from now on operator passes `-replicationFactor` (if it set in `vmcluster`) for `vmselect`. See [this issue](https://github.com/VictoriaMetrics/operator/issues/778).
+- [vmagent](./api.md#vmagent): updated dependency for properly parsing chained `if` expressions in validation webhook. 
 
 <a name="v0.38.0"></a>
 ## [v0.39.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.39.0) - 4 Oct 2023

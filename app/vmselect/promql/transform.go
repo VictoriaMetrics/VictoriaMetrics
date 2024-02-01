@@ -42,6 +42,7 @@ var transformFuncs = map[string]transformFunc{
 	"cosh":                       newTransformFuncOneArg(transformCosh),
 	"day_of_month":               newTransformFuncDateTime(transformDayOfMonth),
 	"day_of_week":                newTransformFuncDateTime(transformDayOfWeek),
+	"day_of_year":                newTransformFuncDateTime(transformDayOfYear),
 	"days_in_month":              newTransformFuncDateTime(transformDaysInMonth),
 	"deg":                        newTransformFuncOneArg(transformDeg),
 	"drop_common_labels":         transformDropCommonLabels,
@@ -351,6 +352,10 @@ func newTransformFuncDateTime(f func(t time.Time) int) transformFunc {
 		}
 		return doTransformValues(arg, tf, tfa.fe)
 	}
+}
+
+func transformDayOfYear(t time.Time) int {
+	return t.YearDay()
 }
 
 func transformDayOfMonth(t time.Time) int {
@@ -2743,14 +2748,15 @@ func copyTimeseriesMetricNames(tss []*timeseries, makeCopy bool) []*timeseries {
 	return rvs
 }
 
-// copyTimeseriesShallow returns a copy of arg with shallow copies of MetricNames,
-// Timestamps and Values.
-func copyTimeseriesShallow(arg []*timeseries) []*timeseries {
-	rvs := make([]*timeseries, len(arg))
-	for i, src := range arg {
-		var dst timeseries
-		dst.CopyShallow(src)
-		rvs[i] = &dst
+// copyTimeseriesShallow returns a copy of src with shallow copies of MetricNames, Timestamps and Values.
+func copyTimeseriesShallow(src []*timeseries) []*timeseries {
+	tss := make([]timeseries, len(src))
+	for i, src := range src {
+		tss[i].CopyShallow(src)
+	}
+	rvs := make([]*timeseries, len(tss))
+	for i := range tss {
+		rvs[i] = &tss[i]
 	}
 	return rvs
 }

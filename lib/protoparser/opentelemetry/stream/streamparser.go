@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
@@ -14,7 +16,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/pb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
-	"github.com/VictoriaMetrics/metrics"
 )
 
 // ParseStream parses OpenTelemetry protobuf or json data from r and calls callback for the parsed rows.
@@ -55,34 +56,34 @@ func (wr *writeContext) appendSamplesFromScopeMetrics(sc *pb.ScopeMetrics) {
 			// skip metrics without names
 			continue
 		}
-		switch t := m.Data.(type) {
-		case *pb.Metric_Gauge:
-			for _, p := range t.Gauge.DataPoints {
+		switch {
+		case m.Gauge != nil:
+			for _, p := range m.Gauge.DataPoints {
 				wr.appendSampleFromNumericPoint(m.Name, p)
 			}
-		case *pb.Metric_Sum:
-			if t.Sum.AggregationTemporality != pb.AggregationTemporality_AGGREGATION_TEMPORALITY_CUMULATIVE {
+		case m.Sum != nil:
+			if m.Sum.AggregationTemporality != pb.AggregationTemporalityCumulative {
 				rowsDroppedUnsupportedSum.Inc()
 				continue
 			}
-			for _, p := range t.Sum.DataPoints {
+			for _, p := range m.Sum.DataPoints {
 				wr.appendSampleFromNumericPoint(m.Name, p)
 			}
-		case *pb.Metric_Summary:
-			for _, p := range t.Summary.DataPoints {
+		case m.Summary != nil:
+			for _, p := range m.Summary.DataPoints {
 				wr.appendSamplesFromSummary(m.Name, p)
 			}
-		case *pb.Metric_Histogram:
-			if t.Histogram.AggregationTemporality != pb.AggregationTemporality_AGGREGATION_TEMPORALITY_CUMULATIVE {
+		case m.Histogram != nil:
+			if m.Histogram.AggregationTemporality != pb.AggregationTemporalityCumulative {
 				rowsDroppedUnsupportedHistogram.Inc()
 				continue
 			}
-			for _, p := range t.Histogram.DataPoints {
+			for _, p := range m.Histogram.DataPoints {
 				wr.appendSamplesFromHistogram(m.Name, p)
 			}
 		default:
 			rowsDroppedUnsupportedMetricType.Inc()
-			logger.Warnf("unsupported type %T for metric %q", t, m.Name)
+			logger.Warnf("unsupported type for metric %q", m.Name)
 		}
 	}
 }
@@ -90,11 +91,11 @@ func (wr *writeContext) appendSamplesFromScopeMetrics(sc *pb.ScopeMetrics) {
 // appendSampleFromNumericPoint appends p to wr.tss
 func (wr *writeContext) appendSampleFromNumericPoint(metricName string, p *pb.NumberDataPoint) {
 	var v float64
-	switch t := p.Value.(type) {
-	case *pb.NumberDataPoint_AsInt:
-		v = float64(t.AsInt)
-	case *pb.NumberDataPoint_AsDouble:
-		v = t.AsDouble
+	switch {
+	case p.IntValue != nil:
+		v = float64(*p.IntValue)
+	case p.DoubleValue != nil:
+		v = *p.DoubleValue
 	}
 
 	t := int64(p.TimeUnixNano / 1e6)
@@ -251,9 +252,7 @@ func (wr *writeContext) reset() {
 
 func resetLabels(labels []prompbmarshal.Label) []prompbmarshal.Label {
 	for i := range labels {
-		label := &labels[i]
-		label.Name = ""
-		label.Value = ""
+		labels[i] = prompbmarshal.Label{}
 	}
 	return labels[:0]
 }
@@ -263,7 +262,7 @@ func (wr *writeContext) readAndUnpackRequest(r io.Reader) (*pb.ExportMetricsServ
 		return nil, fmt.Errorf("cannot read request: %w", err)
 	}
 	var req pb.ExportMetricsServiceRequest
-	if err := req.UnmarshalVT(wr.bb.B); err != nil {
+	if err := req.UnmarshalProtobuf(wr.bb.B); err != nil {
 		return nil, fmt.Errorf("cannot unmarshal request from %d bytes: %w", len(wr.bb.B), err)
 	}
 	return &req, nil
@@ -271,11 +270,11 @@ func (wr *writeContext) readAndUnpackRequest(r io.Reader) (*pb.ExportMetricsServ
 
 func (wr *writeContext) parseRequestToTss(req *pb.ExportMetricsServiceRequest) {
 	for _, rm := range req.ResourceMetrics {
-		if rm.Resource == nil {
-			// skip metrics without resource part.
-			continue
+		var attributes []*pb.KeyValue
+		if rm.Resource != nil {
+			attributes = rm.Resource.Attributes
 		}
-		wr.baseLabels = appendAttributesToPromLabels(wr.baseLabels[:0], rm.Resource.Attributes)
+		wr.baseLabels = appendAttributesToPromLabels(wr.baseLabels[:0], attributes)
 		for _, sc := range rm.ScopeMetrics {
 			wr.appendSamplesFromScopeMetrics(sc)
 		}

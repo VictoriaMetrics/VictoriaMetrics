@@ -15,7 +15,8 @@ aliases:
 [vmagent](https://docs.victoriametrics.com/vmagent.html) and [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html)
 can aggregate incoming [samples](https://docs.victoriametrics.com/keyConcepts.html#raw-samples) in streaming mode by time and by labels before data is written to remote storage.
 The aggregation is applied to all the metrics received via any [supported data ingestion protocol](https://docs.victoriametrics.com/#how-to-import-time-series-data)
-and/or scraped from [Prometheus-compatible targets](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter).
+and/or scraped from [Prometheus-compatible targets](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter)
+after applying all the configured [relabeling stages](https://docs.victoriametrics.com/vmagent.html#relabeling).
 
 Stream aggregation ignores timestamps associated with the input [samples](https://docs.victoriametrics.com/keyConcepts.html#raw-samples).
 It expects that the ingested samples have timestamps close to the current time.
@@ -28,6 +29,7 @@ Stream aggregation is configured via the following command-line flags:
 - `-streamAggr.config` at [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html).
 
 These flags must point to a file containing [stream aggregation config](#stream-aggregation-config).
+The file may contain `%{ENV_VAR}` placeholders which are substituted by the corresponding `ENV_VAR` environment variable values.
 
 By default, the following data is written to the storage when stream aggregation is enabled:
 
@@ -137,7 +139,7 @@ to one sample per 5 minutes per each input time series (this operation is also k
 
 The aggregated output metrics have the following names according to [output metric naming](#output-metric-names):
 
-```
+```text
 # For input metrics ending with _total
 some_metric_total:5m_total
 
@@ -169,7 +171,7 @@ See [these docs](#aggregating-by-labels) for more details.
 
 The aggregated output metric has the following name according to [output metric naming](#output-metric-names):
 
-```
+```text
 http_requests_total:30s_without_path_user_total
 ```
 
@@ -185,7 +187,7 @@ For example, if an advertising server generates `hits{some="labels"} 1` and `cli
 per each incoming hit and click, then the following [stream aggregation config](#stream-aggregation-config)
 can be used for counting these metrics per every 30 second interval:
 
-```yml
+```yaml
 - match: '{__name__=~"hits|clicks"}'
   interval: 30s
   outputs: [count_samples]
@@ -194,7 +196,7 @@ can be used for counting these metrics per every 30 second interval:
 This config generates the following output metrics for `hits` and `clicks` input metrics
 according to [output metric naming](#output-metric-names):
 
-```
+```text
 hits:30s_count_samples count1
 clicks:30s_count_samples count2
 ```
@@ -213,7 +215,7 @@ For example, if an advertising server generates `hits{some="labels} N` and `clic
 at irregular intervals, then the following [stream aggregation config](#stream-aggregation-config)
 can be used for summing these metrics per every minute:
 
-```yml
+```yaml
 - match: '{__name__=~"hits|clicks"}'
   interval: 1m
   outputs: [sum_samples]
@@ -221,7 +223,7 @@ can be used for summing these metrics per every minute:
 
 This config generates the following output metrics according to [output metric naming](#output-metric-names):
 
-```
+```text
 hits:1m_sum_samples sum1
 clicks:1m_sum_samples sum2
 ```
@@ -249,7 +251,7 @@ can be used for calculating 50th and 99th percentiles for these metrics every 30
 
 This config generates the following output metrics according to [output metric naming](#output-metric-names):
 
-```
+```text
 request_duration_seconds:30s_quantiles{quantile="0.50"} value1
 request_duration_seconds:30s_quantiles{quantile="0.99"} value2
 
@@ -280,7 +282,7 @@ for these metrics every 60 seconds:
 
 This config generates the following output metrics according to [output metric naming](#output-metric-names).
 
-```
+```text
 request_duration_seconds:60s_histogram_bucket{vmrange="start1...end1"} count1
 request_duration_seconds:60s_histogram_bucket{vmrange="start2...end2"} count2
 ...
@@ -326,6 +328,7 @@ See also [quantiles over input metrics](#quantiles-over-input-metrics) and [aggr
 [Histogram](https://docs.victoriametrics.com/keyConcepts.html#histogram) is a set of [counter](https://docs.victoriametrics.com/keyConcepts.html#counter)
 metrics with different `vmrange` or `le` labels. As they're counters, the applicable aggregation output is 
 [total](https://docs.victoriametrics.com/stream-aggregation.html#total):
+
 ```yaml
 - match: 'http_request_duration_seconds_bucket'
   interval: 1m
@@ -337,7 +340,8 @@ metrics with different `vmrange` or `le` labels. As they're counters, the applic
 ```
 
 This config generates the following output metrics according to [output metric naming](#output-metric-names):
-```
+
+```text
 http_request_duration_seconds_bucket:1m_without_instance_total{le="0.1"} value1
 http_request_duration_seconds_bucket:1m_without_instance_total{le="0.2"} value2
 http_request_duration_seconds_bucket:1m_without_instance_total{le="0.4"} value3
@@ -368,7 +372,7 @@ See also [histograms over input metrics](#histograms-over-input-metrics) and [qu
 
 Output metric names for stream aggregation are constructed according to the following pattern:
 
-```
+```text
 <metric_name>:<interval>[_by_<by_labels>][_without_<without_labels>]_<output>
 ```
 
@@ -387,11 +391,14 @@ Both input and output metric names can be modified if needed via relabeling acco
 ## Relabeling
 
 It is possible to apply [arbitrary relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling) to input and output metrics
-during stream aggregation via `input_relabel_configs` and `output_relabel_config` options in [stream aggregation config](#stream-aggregation-config).
+during stream aggregation via `input_relabel_configs` and `output_relabel_configs` options in [stream aggregation config](#stream-aggregation-config).
+
+Relabeling rules inside `input_relabel_configs` are applied to samples matching the `match` filters.
+Relabeling rules inside `output_relabel_configs` are applied to aggregated samples before sending them to the remote storage.
 
 For example, the following config removes the `:1m_sum_samples` suffix added [to the output metric name](#output-metric-names):
 
-```yml
+```yaml
 - interval: 1m
   outputs: [sum_samples]
   output_relabel_configs:
@@ -403,10 +410,14 @@ For example, the following config removes the `:1m_sum_samples` suffix added [to
 ## Aggregation outputs
 
 The aggregations are calculated during the `interval` specified in the [config](#stream-aggregation-config)
-and then sent to the storage.
+and then sent to the storage once per `interval`.
 
 If `by` and `without` lists are specified in the [config](#stream-aggregation-config),
 then the [aggregation by labels](#aggregating-by-labels) is performed additionally to aggregation by `interval`.
+
+On vmagent shutdown or [configuration reload](#configuration-update) unfinished aggregated states are discarded,
+as they might produce lower values than user expects. It is possible to specify `flush_on_shutdown: true` setting in 
+aggregation config to make vmagent to send unfinished states to the remote storage.
 
 Below are aggregation functions that can be put in the `outputs` list at [stream aggregation config](#stream-aggregation-config).
 
@@ -419,7 +430,7 @@ The results of `total` is equal to the `sum(some_counter)` query.
 
 For example, see below time series produced by config with aggregation interval `1m` and `by: ["instance"]` and  the regular query:
 
-<img alt="total aggregation" src="stream-aggregation-check-total.png">
+<img alt="total aggregation" src="stream-aggregation-check-total.webp">
 
 `total` is not affected by [counter resets](https://docs.victoriametrics.com/keyConcepts.html#counter) - 
 it continues to increase monotonically with respect to the previous value.
@@ -427,7 +438,7 @@ The counters are most often reset when the application is restarted.
 
 For example: 
 
-<img alt="total aggregation counter reset" src="stream-aggregation-check-total-reset.png">
+<img alt="total aggregation counter reset" src="stream-aggregation-check-total-reset.webp">
 
 The same behavior will occur when creating or deleting new series in an aggregation group -
 `total` will increase monotonically considering the values of the series set.  
@@ -446,7 +457,7 @@ The results of `increase` with aggregation interval of `1m` is equal to the `inc
 
 For example, see below time series produced by config with aggregation interval `1m` and `by: ["instance"]` and  the regular query:
 
-<img alt="increase aggregation" src="stream-aggregation-check-increase.png">
+<img alt="increase aggregation" src="stream-aggregation-check-increase.webp">
 
 `increase` can be used as an alternative for [rate](https://docs.victoriametrics.com/MetricsQL.html#rate) function.
 For example, if we have `increase` with `interval` of `5m` for a counter `some_counter`, then to get `rate` we should divide
@@ -478,7 +489,7 @@ The results of `sum_samples` with aggregation interval of `1m` is equal to the `
 
 For example, see below time series produced by config with aggregation interval `1m` and the regular query:
 
-<img alt="sum_samples aggregation" src="stream-aggregation-check-sum-samples.png">
+<img alt="sum_samples aggregation" src="stream-aggregation-check-sum-samples.webp">
 
 ### last
 
@@ -497,7 +508,7 @@ The results of `min` with aggregation interval of `1m` is equal to the `min_over
 
 For example, see below time series produced by config with aggregation interval `1m` and the regular query:
 
-<img alt="min aggregation" src="stream-aggregation-check-min.png">
+<img alt="min aggregation" src="stream-aggregation-check-min.webp">
 
 ### max
 
@@ -507,7 +518,7 @@ The results of `max` with aggregation interval of `1m` is equal to the `max_over
 
 For example, see below time series produced by config with aggregation interval `1m` and the regular query:
 
-<img alt="total aggregation" src="stream-aggregation-check-max.png">
+<img alt="total aggregation" src="stream-aggregation-check-max.webp">
 
 ### avg
 
@@ -517,7 +528,7 @@ The results of `avg` with aggregation interval of `1m` is equal to the `avg_over
 
 For example, see below time series produced by config with aggregation interval `1m` and `by: ["instance"]` and  the regular query:
 
-<img alt="avg aggregation" src="stream-aggregation-check-avg.png">
+<img alt="avg aggregation" src="stream-aggregation-check-avg.webp">
 
 ### stddev
 
@@ -535,7 +546,7 @@ The results of `stdvar` with aggregation interval of `1m` is equal to the `stdva
 
 For example, see below time series produced by config with aggregation interval `1m` and the regular query:
 
-<img alt="stdvar aggregation" src="stream-aggregation-check-stdvar.png">
+<img alt="stdvar aggregation" src="stream-aggregation-check-stdvar.webp">
 
 ### histogram_bucket
 
@@ -634,6 +645,12 @@ at [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-
   # The parameter is only relevant for outputs: total, increase and histogram_bucket.
   #
   # staleness_interval: 2m
+  
+  # flush_on_shutdown defines whether to flush the unfinished aggregation states on process restarts
+  # or config reloads. It is not recommended changing this setting, unless unfinished aggregations states
+  # are preferred to missing data points.
+  # Is `false` by default.
+  # flush_on_shutdown: false
 
   # without is an optional list of labels, which must be removed from the output aggregation.
   # See https://docs.victoriametrics.com/stream-aggregation.html#aggregating-by-labels
@@ -677,7 +694,7 @@ support the following approaches for hot reloading stream aggregation configs fr
 
 * By sending `SIGHUP` signal to `vmagent` or `victoria-metrics` process:
 
-  ```console
+  ```sh
   kill -SIGHUP `pidof vmagent`
   ```
 

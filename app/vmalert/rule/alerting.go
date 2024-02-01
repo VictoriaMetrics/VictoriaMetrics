@@ -30,6 +30,7 @@ type AlertingRule struct {
 	Annotations   map[string]string
 	GroupID       uint64
 	GroupName     string
+	File          string
 	EvalInterval  time.Duration
 	Debug         bool
 
@@ -47,7 +48,7 @@ type AlertingRule struct {
 }
 
 type alertingRuleMetrics struct {
-	errors        *utils.Gauge
+	errors        *utils.Counter
 	pending       *utils.Gauge
 	active        *utils.Gauge
 	samples       *utils.Gauge
@@ -67,6 +68,7 @@ func NewAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule
 		Annotations:   cfg.Annotations,
 		GroupID:       group.ID(),
 		GroupName:     group.Name,
+		File:          group.File,
 		EvalInterval:  group.Interval,
 		Debug:         cfg.Debug,
 		q: qb.BuildWithParams(datasource.QuerierParams{
@@ -91,7 +93,7 @@ func NewAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule
 		entries: make([]StateEntry, entrySize),
 	}
 
-	labels := fmt.Sprintf(`alertname=%q, group=%q, id="%d"`, ar.Name, group.Name, ar.ID())
+	labels := fmt.Sprintf(`alertname=%q, group=%q, file=%q, id="%d"`, ar.Name, group.Name, group.File, ar.ID())
 	ar.metrics.pending = utils.GetOrCreateGauge(fmt.Sprintf(`vmalert_alerts_pending{%s}`, labels),
 		func() float64 {
 			ar.alertsMu.RLock()
@@ -116,14 +118,7 @@ func NewAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule
 			}
 			return float64(num)
 		})
-	ar.metrics.errors = utils.GetOrCreateGauge(fmt.Sprintf(`vmalert_alerting_rules_error{%s}`, labels),
-		func() float64 {
-			e := ar.state.getLast()
-			if e.Err == nil {
-				return 0
-			}
-			return 1
-		})
+	ar.metrics.errors = utils.GetOrCreateCounter(fmt.Sprintf(`vmalert_alerting_rules_errors_total{%s}`, labels))
 	ar.metrics.samples = utils.GetOrCreateGauge(fmt.Sprintf(`vmalert_alerting_rules_last_evaluation_samples{%s}`, labels),
 		func() float64 {
 			e := ar.state.getLast()
@@ -242,9 +237,28 @@ type labelSet struct {
 	origin map[string]string
 	// processed labels includes origin labels
 	// plus extra labels (group labels, service labels like alertNameLabel).
-	// in case of conflicts, extra labels are preferred.
+	// in case of key conflicts, origin labels are renamed with prefix `exported_` and extra labels are preferred.
+	// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5161
 	// used as labels attached to notifier.Alert and ALERTS series written to remote storage.
 	processed map[string]string
+}
+
+// add adds a value v with key k to origin and processed label sets.
+// On k conflicts in processed set, the passed v is preferred.
+// On k conflicts in origin set, the original value is preferred and copied
+// to processed with `exported_%k` key. The copy happens only if passed v isn't equal to origin[k] value.
+func (ls *labelSet) add(k, v string) {
+	ls.processed[k] = v
+	ov, ok := ls.origin[k]
+	if !ok {
+		ls.origin[k] = v
+		return
+	}
+	if ov != v {
+		// copy value only if v and ov are different
+		key := fmt.Sprintf("exported_%s", k)
+		ls.processed[key] = ov
+	}
 }
 
 // toLabels converts labels from given Metric
@@ -272,24 +286,14 @@ func (ar *AlertingRule) toLabels(m datasource.Metric, qFn templates.QueryFn) (*l
 		return nil, fmt.Errorf("failed to expand labels: %w", err)
 	}
 	for k, v := range extraLabels {
-		ls.processed[k] = v
-		if _, ok := ls.origin[k]; !ok {
-			ls.origin[k] = v
-		}
+		ls.add(k, v)
 	}
-
 	// set additional labels to identify group and rule name
 	if ar.Name != "" {
-		ls.processed[alertNameLabel] = ar.Name
-		if _, ok := ls.origin[alertNameLabel]; !ok {
-			ls.origin[alertNameLabel] = ar.Name
-		}
+		ls.add(alertNameLabel, ar.Name)
 	}
 	if !*disableAlertGroupLabel && ar.GroupName != "" {
-		ls.processed[alertGroupNameLabel] = ar.GroupName
-		if _, ok := ls.origin[alertGroupNameLabel]; !ok {
-			ls.origin[alertGroupNameLabel] = ar.GroupName
-		}
+		ls.add(alertGroupNameLabel, ar.GroupName)
 	}
 	return ls, nil
 }
@@ -320,16 +324,6 @@ func (ar *AlertingRule) execRange(ctx context.Context, start, end time.Time) ([]
 			return nil, fmt.Errorf("failed to create alert: %w", err)
 		}
 
-		// if alert is instant, For: 0
-		if ar.For == 0 {
-			a.State = notifier.StateFiring
-			for i := range s.Values {
-				result = append(result, ar.alertToTimeSeries(a, s.Timestamps[i])...)
-			}
-			continue
-		}
-
-		// if alert with For > 0
 		prevT := time.Time{}
 		for i := range s.Values {
 			at := time.Unix(s.Timestamps[i], 0)
@@ -350,6 +344,10 @@ func (ar *AlertingRule) execRange(ctx context.Context, start, end time.Time) ([]
 				a.Start = at
 			}
 			prevT = at
+			if ar.For == 0 {
+				// rules with `for: 0` are always firing when they have Value
+				a.State = notifier.StateFiring
+			}
 			result = append(result, ar.alertToTimeSeries(a, s.Timestamps[i])...)
 
 			// save alert's state on last iteration, so it can be used on the next execRange call
@@ -383,6 +381,9 @@ func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int) ([]pr
 
 	defer func() {
 		ar.state.add(curState)
+		if curState.Err != nil {
+			ar.metrics.errors.Inc()
+		}
 	}()
 
 	ar.alertsMu.Lock()
@@ -416,8 +417,7 @@ func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int) ([]pr
 		}
 		h := hash(ls.processed)
 		if _, ok := updated[h]; ok {
-			// duplicate may be caused by extra labels
-			// conflicting with the metric labels
+			// duplicate may be caused the removal of `__name__` label
 			curState.Err = fmt.Errorf("labels %v: %w", ls.processed, errDuplicate)
 			return nil, curState.Err
 		}
@@ -440,14 +440,13 @@ func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int) ([]pr
 			a.KeepFiringSince = time.Time{}
 			continue
 		}
-		a, err := ar.newAlert(m, ls, start, qFn)
+		a, err := ar.newAlert(m, ls, ts, qFn)
 		if err != nil {
 			curState.Err = fmt.Errorf("failed to create alert: %w", err)
 			return nil, curState.Err
 		}
 		a.ID = h
 		a.State = notifier.StatePending
-		a.ActiveAt = ts
 		ar.alerts[h] = a
 		ar.logDebugf(ts, a, "created in state PENDING")
 	}
@@ -473,7 +472,7 @@ func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int) ([]pr
 				}
 				// alerts with ar.KeepFiringFor>0 may remain FIRING
 				// even if their expression isn't true anymore
-				if ts.Sub(a.KeepFiringSince) > ar.KeepFiringFor {
+				if ts.Sub(a.KeepFiringSince) >= ar.KeepFiringFor {
 					a.State = notifier.StateInactive
 					a.ResolvedAt = ts
 					ar.logDebugf(ts, a, "FIRING => INACTIVE: is absent in current evaluation round")
@@ -553,9 +552,9 @@ func (ar *AlertingRule) newAlert(m datasource.Metric, ls *labelSet, start time.T
 }
 
 const (
-	// alertMetricName is the metric name for synthetic alert timeseries.
+	// alertMetricName is the metric name for time series reflecting the alert state.
 	alertMetricName = "ALERTS"
-	// alertForStateMetricName is the metric name for 'for' state of alert.
+	// alertForStateMetricName is the metric name for time series reflecting the moment of time when alert became active.
 	alertForStateMetricName = "ALERTS_FOR_STATE"
 
 	// alertNameLabel is the label name indicating the name of an alert.
@@ -570,12 +569,10 @@ const (
 
 // alertToTimeSeries converts the given alert with the given timestamp to time series
 func (ar *AlertingRule) alertToTimeSeries(a *notifier.Alert, timestamp int64) []prompbmarshal.TimeSeries {
-	var tss []prompbmarshal.TimeSeries
-	tss = append(tss, alertToTimeSeries(a, timestamp))
-	if ar.For > 0 {
-		tss = append(tss, alertForToTimeSeries(a, timestamp))
+	return []prompbmarshal.TimeSeries{
+		alertToTimeSeries(a, timestamp),
+		alertForToTimeSeries(a, timestamp),
 	}
-	return tss
 }
 
 func alertToTimeSeries(a *notifier.Alert, timestamp int64) prompbmarshal.TimeSeries {
@@ -614,44 +611,41 @@ func (ar *AlertingRule) restore(ctx context.Context, q datasource.Querier, ts ti
 		return nil
 	}
 
-	for _, a := range ar.alerts {
+	nameStr := fmt.Sprintf("%s=%q", alertNameLabel, ar.Name)
+	if !*disableAlertGroupLabel {
+		nameStr = fmt.Sprintf("%s=%q,%s=%q", alertGroupNameLabel, ar.GroupName, alertNameLabel, ar.Name)
+	}
+	var labelsFilter string
+	for k, v := range ar.Labels {
+		labelsFilter += fmt.Sprintf(",%s=%q", k, v)
+	}
+	expr := fmt.Sprintf("last_over_time(%s{%s%s}[%ds])",
+		alertForStateMetricName, nameStr, labelsFilter, int(lookback.Seconds()))
+
+	res, _, err := q.Query(ctx, expr, ts)
+	if err != nil {
+		return fmt.Errorf("failed to execute restore query %q: %w ", expr, err)
+	}
+
+	if len(res.Data) < 1 {
+		ar.logDebugf(ts, nil, "no response was received from restore query")
+		return nil
+	}
+	for _, series := range res.Data {
+		series.DelLabel("__name__")
+		labelSet := make(map[string]string, len(series.Labels))
+		for _, v := range series.Labels {
+			labelSet[v.Name] = v.Value
+		}
+		id := hash(labelSet)
+		a, ok := ar.alerts[id]
+		if !ok {
+			continue
+		}
 		if a.Restored || a.State != notifier.StatePending {
 			continue
 		}
-
-		var labelsFilter []string
-		for k, v := range a.Labels {
-			labelsFilter = append(labelsFilter, fmt.Sprintf("%s=%q", k, v))
-		}
-		sort.Strings(labelsFilter)
-		expr := fmt.Sprintf("last_over_time(%s{%s}[%ds])",
-			alertForStateMetricName, strings.Join(labelsFilter, ","), int(lookback.Seconds()))
-
-		ar.logDebugf(ts, nil, "restoring alert state via query %q", expr)
-
-		res, _, err := q.Query(ctx, expr, ts)
-		if err != nil {
-			return err
-		}
-
-		qMetrics := res.Data
-		if len(qMetrics) < 1 {
-			ar.logDebugf(ts, nil, "no response was received from restore query")
-			continue
-		}
-
-		// only one series expected in response
-		m := qMetrics[0]
-		// __name__ supposed to be alertForStateMetricName
-		m.DelLabel("__name__")
-
-		// we assume that restore query contains all label matchers,
-		// so all received labels will match anyway if their number is equal.
-		if len(m.Labels) != len(a.Labels) {
-			ar.logDebugf(ts, nil, "state restore query returned not expected label-set %v", m.Labels)
-			continue
-		}
-		a.ActiveAt = time.Unix(int64(m.Values[0]), 0)
+		a.ActiveAt = time.Unix(int64(series.Values[0]), 0)
 		a.Restored = true
 		logger.Infof("alert %q (%d) restored to state at %v", a.Name, a.ID, a.ActiveAt)
 	}

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -23,6 +24,8 @@ var (
 	loggerTimezone = flag.String("loggerTimezone", "UTC", "Timezone to use for timestamps in logs. Timezone must be a valid IANA Time Zone. "+
 		"For example: America/New_York, Europe/Berlin, Etc/GMT+3 or Local")
 	disableTimestamps = flag.Bool("loggerDisableTimestamps", false, "Whether to disable writing timestamps in logs")
+	maxLogArgLen      = flag.Int("loggerMaxArgLen", 1000, "The maximum length of a single logged argument. Longer arguments are replaced with 'arg_start..arg_end', "+
+		"where 'arg_start' and 'arg_end' is prefix and suffix of the arg with the length not exceeding -loggerMaxArgLen / 2")
 
 	errorsPerSecondLimit = flag.Int("loggerErrorsPerSecondLimit", 0, `Per-second limit on the number of ERROR messages. If more than the given number of errors are emitted per second, the remaining errors are suppressed. Zero values disable the rate limit`)
 	warnsPerSecondLimit  = flag.Int("loggerWarnsPerSecondLimit", 0, `Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero values disable the rate limit`)
@@ -134,7 +137,7 @@ func logLevelSkipframes(skipframes int, level, format string, args []interface{}
 	if shouldSkipLog(level) {
 		return
 	}
-	msg := formatLogMessage(500, format, args)
+	msg := formatLogMessage(*maxLogArgLen, format, args)
 	logMessage(level, msg, 3+skipframes)
 }
 
@@ -149,21 +152,10 @@ func formatLogMessage(maxArgLen int, format string, args []interface{}) string {
 		x = x[n+1:]
 		if strings.HasPrefix(x, "s") || strings.HasPrefix(x, "q") {
 			s := fmt.Sprintf("%s", args[i])
-			args[i] = limitStringLength(maxArgLen, s)
+			args[i] = stringsutil.LimitStringLen(s, maxArgLen)
 		}
 	}
 	return fmt.Sprintf(format, args...)
-}
-
-func limitStringLength(maxLen int, s string) string {
-	if len(s) <= maxLen {
-		return s
-	}
-	n := (maxLen / 2) - 1
-	if n < 0 {
-		n = 0
-	}
-	return s[:n] + ".." + s[len(s)-n:]
 }
 
 func logLimiterCleaner() {

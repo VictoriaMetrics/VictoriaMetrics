@@ -1,5 +1,38 @@
 # Release History
 
+## 1.5.1 (2024-01-17)
+
+### Bugs Fixed
+* `InteractiveBrowserCredential` handles `AdditionallyAllowedTenants` correctly
+
+## 1.5.0 (2024-01-16)
+
+### Breaking Changes
+> These changes affect only code written against a beta version such as v1.5.0-beta.1
+* Removed persistent token caching. It will return in v1.6.0-beta.1
+
+### Bugs Fixed
+* Credentials now preserve MSAL headers e.g. X-Client-Sku
+
+### Other Changes
+* Upgraded dependencies
+
+## 1.5.0-beta.2 (2023-11-07)
+
+### Features Added
+* `DefaultAzureCredential` and `ManagedIdentityCredential` support Azure ML managed identity
+* Added spans for distributed tracing.
+
+## 1.5.0-beta.1 (2023-10-10)
+
+### Features Added
+* Optional persistent token caching for most credentials. Set `TokenCachePersistenceOptions`
+  on a credential's options to enable and configure this. See the package documentation for
+  this version and [TOKEN_CACHING.md](https://aka.ms/azsdk/go/identity/caching) for more
+  details.
+* `AzureDeveloperCLICredential` authenticates with the Azure Developer CLI (`azd`). This
+  credential is also part of the `DefaultAzureCredential` authentication flow.
+
 ## 1.4.0 (2023-10-10)
 
 ### Bugs Fixed
@@ -94,14 +127,14 @@
 ### Features Added
 * By default, credentials set client capability "CP1" to enable support for
   [Continuous Access Evaluation (CAE)](https://docs.microsoft.com/azure/active-directory/develop/app-resilience-continuous-access-evaluation).
-  This indicates to Azure Active Directory that your application can handle CAE claims challenges.
+  This indicates to Microsoft Entra ID that your application can handle CAE claims challenges.
   You can disable this behavior by setting the environment variable "AZURE_IDENTITY_DISABLE_CP1" to "true".
 * `InteractiveBrowserCredentialOptions.LoginHint` enables pre-populating the login
   prompt with a username ([#15599](https://github.com/Azure/azure-sdk-for-go/pull/15599))
 * Service principal and user credentials support ADFS authentication on Azure Stack.
   Specify "adfs" as the credential's tenant.
 * Applications running in private or disconnected clouds can prevent credentials from
-  requesting Azure AD instance metadata by setting the `DisableInstanceDiscovery`
+  requesting Microsoft Entra instance metadata by setting the `DisableInstanceDiscovery`
   field on credential options.
 * Many credentials can now be configured to authenticate in multiple tenants. The
   options types for these credentials have an `AdditionallyAllowedTenants` field
@@ -454,4 +487,4 @@
 
 ## 0.1.0 (2020-07-23)
 ### Features Added
-* Initial Release. Azure Identity library that provides Azure Active Directory token authentication support for the SDK.
+* Initial Release. Azure Identity library that provides Microsoft Entra token authentication support for the SDK.

@@ -12,10 +12,13 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/rule"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/tpl"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 )
+
+var reloadAuthKey = flagutil.NewPassword("reloadAuthKey", "Auth key for /-/reload http endpoint. It must be passed as authKey=...")
 
 var (
 	apiLinks = [][2]string{
@@ -132,7 +135,28 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		w.Header().Set("Content-Type", "application/json")
 		w.Write(data)
 		return true
+	case "/vmalert/api/v1/rule", "/api/v1/rule":
+		rule, err := rh.getRule(r)
+		if err != nil {
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		rwu := apiRuleWithUpdates{
+			apiRule:      rule,
+			StateUpdates: rule.Updates,
+		}
+		data, err := json.Marshal(rwu)
+		if err != nil {
+			httpserver.Errorf(w, r, "failed to marshal rule: %s", err)
+			return true
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(data)
+		return true
 	case "/-/reload":
+		if !httpserver.CheckAuthFlag(w, r, reloadAuthKey.Get(), "reloadAuthKey") {
+			return true
+		}
 		logger.Infof("api config reload was called, sending sighup")
 		procutil.SelfSIGHUP()
 		w.WriteHeader(http.StatusOK)

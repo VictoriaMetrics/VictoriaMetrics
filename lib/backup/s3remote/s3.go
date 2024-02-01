@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"path"
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -53,7 +54,7 @@ type FS struct {
 	// Path to S3 configs file.
 	ConfigFilePath string
 
-	// GCS bucket to use.
+	// S3 bucket to use.
 	Bucket string
 
 	// Directory in the bucket to write to.
@@ -182,7 +183,7 @@ func (fs *FS) ListParts() ([]common.Part, error) {
 				continue
 			}
 
-			p.ActualSize = uint64(o.Size)
+			p.ActualSize = uint64(*o.Size)
 			parts = append(parts, p)
 		}
 
@@ -292,7 +293,7 @@ func (fs *FS) DeleteFile(filePath string) error {
 		return nil
 	}
 
-	path := fs.Dir + filePath
+	path := path.Join(fs.Dir, filePath)
 	return fs.delete(path)
 }
 
@@ -344,7 +345,7 @@ func (fs *FS) deleteObjectWithVersions(path string) error {
 //
 // The file is overwritten if it already exists.
 func (fs *FS) CreateFile(filePath string, data []byte) error {
-	path := fs.Dir + filePath
+	path := path.Join(fs.Dir, filePath)
 	sr := &statReader{
 		r: bytes.NewReader(data),
 	}
@@ -367,7 +368,7 @@ func (fs *FS) CreateFile(filePath string, data []byte) error {
 
 // HasFile returns true if filePath exists at fs.
 func (fs *FS) HasFile(filePath string) (bool, error) {
-	path := fs.Dir + filePath
+	path := path.Join(fs.Dir, filePath)
 	input := &s3.GetObjectInput{
 		Bucket: aws.String(fs.Bucket),
 		Key:    aws.String(path),
@@ -387,7 +388,7 @@ func (fs *FS) HasFile(filePath string) (bool, error) {
 
 // ReadFile returns the content of filePath at fs.
 func (fs *FS) ReadFile(filePath string) ([]byte, error) {
-	p := fs.Dir + filePath
+	p := path.Join(fs.Dir, filePath)
 	input := &s3.GetObjectInput{
 		Bucket: aws.String(fs.Bucket),
 		Key:    aws.String(p),

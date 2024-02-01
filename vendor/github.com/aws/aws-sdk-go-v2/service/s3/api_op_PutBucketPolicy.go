@@ -4,37 +4,57 @@ package s3
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"github.com/aws/aws-sdk-go-v2/aws"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
 	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
-	internalauth "github.com/aws/aws-sdk-go-v2/internal/auth"
-	"github.com/aws/aws-sdk-go-v2/internal/v4a"
 	internalChecksum "github.com/aws/aws-sdk-go-v2/service/internal/checksum"
 	s3cust "github.com/aws/aws-sdk-go-v2/service/s3/internal/customizations"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
-	smithyendpoints "github.com/aws/smithy-go/endpoints"
 	"github.com/aws/smithy-go/middleware"
+	"github.com/aws/smithy-go/ptr"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Applies an Amazon S3 bucket policy to an Amazon S3 bucket. If you are using an
-// identity other than the root user of the Amazon Web Services account that owns
-// the bucket, the calling identity must have the PutBucketPolicy permissions on
-// the specified bucket and belong to the bucket owner's account in order to use
-// this operation. If you don't have PutBucketPolicy permissions, Amazon S3
-// returns a 403 Access Denied error. If you have the correct permissions, but
-// you're not using an identity that belongs to the bucket owner's account, Amazon
-// S3 returns a 405 Method Not Allowed error. To ensure that bucket owners don't
+// Applies an Amazon S3 bucket policy to an Amazon S3 bucket. Directory buckets -
+// For directory buckets, you must make requests for this API operation to the
+// Regional endpoint. These endpoints support path-style requests in the format
+// https://s3express-control.region_code.amazonaws.com/bucket-name .
+// Virtual-hosted-style requests aren't supported. For more information, see
+// Regional and Zonal endpoints (https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-Regions-and-Zones.html)
+// in the Amazon S3 User Guide. Permissions If you are using an identity other than
+// the root user of the Amazon Web Services account that owns the bucket, the
+// calling identity must both have the PutBucketPolicy permissions on the
+// specified bucket and belong to the bucket owner's account in order to use this
+// operation. If you don't have PutBucketPolicy permissions, Amazon S3 returns a
+// 403 Access Denied error. If you have the correct permissions, but you're not
+// using an identity that belongs to the bucket owner's account, Amazon S3 returns
+// a 405 Method Not Allowed error. To ensure that bucket owners don't
 // inadvertently lock themselves out of their own buckets, the root principal in a
 // bucket owner's Amazon Web Services account can perform the GetBucketPolicy ,
 // PutBucketPolicy , and DeleteBucketPolicy API actions, even if their bucket
 // policy explicitly denies the root principal's access. Bucket owner root
 // principals can only be blocked from performing these API actions by VPC endpoint
-// policies and Amazon Web Services Organizations policies. For more information,
-// see Bucket policy examples (https://docs.aws.amazon.com/AmazonS3/latest/userguide/example-bucket-policies.html)
-// . The following operations are related to PutBucketPolicy :
+// policies and Amazon Web Services Organizations policies.
+//   - General purpose bucket permissions - The s3:PutBucketPolicy permission is
+//     required in a policy. For more information about general purpose buckets bucket
+//     policies, see Using Bucket Policies and User Policies (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-iam-policies.html)
+//     in the Amazon S3 User Guide.
+//   - Directory bucket permissions - To grant access to this API operation, you
+//     must have the s3express:PutBucketPolicy permission in an IAM identity-based
+//     policy instead of a bucket policy. Cross-account access to this API operation
+//     isn't supported. This operation can only be performed by the Amazon Web Services
+//     account that owns the resource. For more information about directory bucket
+//     policies and permissions, see Amazon Web Services Identity and Access
+//     Management (IAM) for S3 Express One Zone (https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-security-iam.html)
+//     in the Amazon S3 User Guide.
+//
+// Example bucket policies General purpose buckets example bucket policies - See
+// Bucket policy examples (https://docs.aws.amazon.com/AmazonS3/latest/userguide/example-bucket-policies.html)
+// in the Amazon S3 User Guide. Directory bucket example bucket policies - See
+// Example bucket policies for S3 Express One Zone (https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-security-iam-example-bucket-policies.html)
+// in the Amazon S3 User Guide. HTTP Host header syntax Directory buckets - The
+// HTTP Host header syntax is s3express-control.region.amazonaws.com . The
+// following operations are related to PutBucketPolicy :
 //   - CreateBucket (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateBucket.html)
 //   - DeleteBucket (https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteBucket.html)
 func (c *Client) PutBucketPolicy(ctx context.Context, params *PutBucketPolicyInput, optFns ...func(*Options)) (*PutBucketPolicyOutput, error) {
@@ -54,41 +74,70 @@ func (c *Client) PutBucketPolicy(ctx context.Context, params *PutBucketPolicyInp
 
 type PutBucketPolicyInput struct {
 
-	// The name of the bucket.
+	// The name of the bucket. Directory buckets - When you use this operation with a
+	// directory bucket, you must use path-style requests in the format
+	// https://s3express-control.region_code.amazonaws.com/bucket-name .
+	// Virtual-hosted-style requests aren't supported. Directory bucket names must be
+	// unique in the chosen Availability Zone. Bucket names must also follow the format
+	// bucket_base_name--az_id--x-s3 (for example,  DOC-EXAMPLE-BUCKET--usw2-az2--x-s3
+	// ). For information about bucket naming restrictions, see Directory bucket
+	// naming rules (https://docs.aws.amazon.com/AmazonS3/latest/userguide/directory-bucket-naming-rules.html)
+	// in the Amazon S3 User Guide
 	//
 	// This member is required.
 	Bucket *string
 
-	// The bucket policy as a JSON document.
+	// The bucket policy as a JSON document. For directory buckets, the only IAM
+	// action supported in the bucket policy is s3express:CreateSession .
 	//
 	// This member is required.
 	Policy *string
 
-	// Indicates the algorithm used to create the checksum for the object when using
-	// the SDK. This header will not provide any additional functionality if not using
-	// the SDK. When sending this header, there must be a corresponding x-amz-checksum
-	// or x-amz-trailer header sent. Otherwise, Amazon S3 fails the request with the
-	// HTTP status code 400 Bad Request . For more information, see Checking object
-	// integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
-	// in the Amazon S3 User Guide. If you provide an individual checksum, Amazon S3
-	// ignores any provided ChecksumAlgorithm parameter.
+	// Indicates the algorithm used to create the checksum for the object when you use
+	// the SDK. This header will not provide any additional functionality if you don't
+	// use the SDK. When you send this header, there must be a corresponding
+	// x-amz-checksum-algorithm or x-amz-trailer header sent. Otherwise, Amazon S3
+	// fails the request with the HTTP status code 400 Bad Request . For the
+	// x-amz-checksum-algorithm header, replace  algorithm  with the supported
+	// algorithm from the following list:
+	//   - CRC32
+	//   - CRC32C
+	//   - SHA1
+	//   - SHA256
+	// For more information, see Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
+	// in the Amazon S3 User Guide. If the individual checksum value you provide
+	// through x-amz-checksum-algorithm  doesn't match the checksum algorithm you set
+	// through x-amz-sdk-checksum-algorithm , Amazon S3 ignores any provided
+	// ChecksumAlgorithm parameter and uses the checksum algorithm that matches the
+	// provided value in x-amz-checksum-algorithm . For directory buckets, when you
+	// use Amazon Web Services SDKs, CRC32 is the default checksum algorithm that's
+	// used for performance.
 	ChecksumAlgorithm types.ChecksumAlgorithm
 
 	// Set this parameter to true to confirm that you want to remove your permissions
-	// to change this bucket policy in the future.
-	ConfirmRemoveSelfBucketAccess bool
+	// to change this bucket policy in the future. This functionality is not supported
+	// for directory buckets.
+	ConfirmRemoveSelfBucketAccess *bool
 
 	// The MD5 hash of the request body. For requests made using the Amazon Web
 	// Services Command Line Interface (CLI) or Amazon Web Services SDKs, this field is
-	// calculated automatically.
+	// calculated automatically. This functionality is not supported for directory
+	// buckets.
 	ContentMD5 *string
 
-	// The account ID of the expected bucket owner. If the bucket is owned by a
-	// different account, the request fails with the HTTP status code 403 Forbidden
-	// (access denied).
+	// The account ID of the expected bucket owner. If the account ID that you provide
+	// does not match the actual owner of the bucket, the request fails with the HTTP
+	// status code 403 Forbidden (access denied). For directory buckets, this header
+	// is not supported in this API operation. If you specify this header, the request
+	// fails with the HTTP status code 501 Not Implemented .
 	ExpectedBucketOwner *string
 
 	noSmithyDocumentSerde
+}
+
+func (in *PutBucketPolicyInput) bindEndpointParams(p *EndpointParameters) {
+	p.Bucket = in.Bucket
+	p.UseS3ExpressControlEndpoint = ptr.Bool(true)
 }
 
 type PutBucketPolicyOutput struct {
@@ -99,6 +148,9 @@ type PutBucketPolicyOutput struct {
 }
 
 func (c *Client) addOperationPutBucketPolicyMiddlewares(stack *middleware.Stack, options Options) (err error) {
+	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
+		return err
+	}
 	err = stack.Serialize.Add(&awsRestxml_serializeOpPutBucketPolicy{}, middleware.After)
 	if err != nil {
 		return err
@@ -107,6 +159,10 @@ func (c *Client) addOperationPutBucketPolicyMiddlewares(stack *middleware.Stack,
 	if err != nil {
 		return err
 	}
+	if err := addProtocolFinalizerMiddlewares(stack, options, "PutBucketPolicy"); err != nil {
+		return fmt.Errorf("add protocol finalizers: %v", err)
+	}
+
 	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
 		return err
 	}
@@ -128,9 +184,6 @@ func (c *Client) addOperationPutBucketPolicyMiddlewares(stack *middleware.Stack,
 	if err = addRetryMiddlewares(stack, options); err != nil {
 		return err
 	}
-	if err = addHTTPSignerV4Middleware(stack, options); err != nil {
-		return err
-	}
 	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
 		return err
 	}
@@ -146,10 +199,10 @@ func (c *Client) addOperationPutBucketPolicyMiddlewares(stack *middleware.Stack,
 	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
 		return err
 	}
-	if err = swapWithCustomHTTPSignerMiddleware(stack, options); err != nil {
+	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
 		return err
 	}
-	if err = addPutBucketPolicyResolveEndpointMiddleware(stack, options); err != nil {
+	if err = addPutBucketContextMiddleware(stack); err != nil {
 		return err
 	}
 	if err = addOpPutBucketPolicyValidationMiddleware(stack); err != nil {
@@ -182,10 +235,13 @@ func (c *Client) addOperationPutBucketPolicyMiddlewares(stack *middleware.Stack,
 	if err = addRequestResponseLogging(stack, options); err != nil {
 		return err
 	}
-	if err = addendpointDisableHTTPSMiddleware(stack, options); err != nil {
+	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
 	if err = addSerializeImmutableHostnameBucketMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = s3cust.AddExpressDefaultChecksumMiddleware(stack); err != nil {
 		return err
 	}
 	return nil
@@ -202,7 +258,6 @@ func newServiceMetadataMiddleware_opPutBucketPolicy(region string) *awsmiddlewar
 	return &awsmiddleware.RegisterServiceMetadata{
 		Region:        region,
 		ServiceID:     ServiceID,
-		SigningName:   "s3",
 		OperationName: "PutBucketPolicy",
 	}
 }
@@ -251,140 +306,4 @@ func addPutBucketPolicyUpdateEndpoint(stack *middleware.Stack, options Options) 
 		UseARNRegion:                   options.UseARNRegion,
 		DisableMultiRegionAccessPoints: options.DisableMultiRegionAccessPoints,
 	})
-}
-
-type opPutBucketPolicyResolveEndpointMiddleware struct {
-	EndpointResolver EndpointResolverV2
-	BuiltInResolver  builtInParameterResolver
-}
-
-func (*opPutBucketPolicyResolveEndpointMiddleware) ID() string {
-	return "ResolveEndpointV2"
-}
-
-func (m *opPutBucketPolicyResolveEndpointMiddleware) HandleSerialize(ctx context.Context, in middleware.SerializeInput, next middleware.SerializeHandler) (
-	out middleware.SerializeOutput, metadata middleware.Metadata, err error,
-) {
-	if awsmiddleware.GetRequiresLegacyEndpoints(ctx) {
-		return next.HandleSerialize(ctx, in)
-	}
-
-	req, ok := in.Request.(*smithyhttp.Request)
-	if !ok {
-		return out, metadata, fmt.Errorf("unknown transport type %T", in.Request)
-	}
-
-	input, ok := in.Parameters.(*PutBucketPolicyInput)
-	if !ok {
-		return out, metadata, fmt.Errorf("unknown transport type %T", in.Request)
-	}
-
-	if m.EndpointResolver == nil {
-		return out, metadata, fmt.Errorf("expected endpoint resolver to not be nil")
-	}
-
-	params := EndpointParameters{}
-
-	m.BuiltInResolver.ResolveBuiltIns(&params)
-
-	params.Bucket = input.Bucket
-
-	var resolvedEndpoint smithyendpoints.Endpoint
-	resolvedEndpoint, err = m.EndpointResolver.ResolveEndpoint(ctx, params)
-	if err != nil {
-		return out, metadata, fmt.Errorf("failed to resolve service endpoint, %w", err)
-	}
-
-	req.URL = &resolvedEndpoint.URI
-
-	for k := range resolvedEndpoint.Headers {
-		req.Header.Set(
-			k,
-			resolvedEndpoint.Headers.Get(k),
-		)
-	}
-
-	authSchemes, err := internalauth.GetAuthenticationSchemes(&resolvedEndpoint.Properties)
-	if err != nil {
-		var nfe *internalauth.NoAuthenticationSchemesFoundError
-		if errors.As(err, &nfe) {
-			// if no auth scheme is found, default to sigv4
-			signingName := "s3"
-			signingRegion := m.BuiltInResolver.(*builtInResolver).Region
-			ctx = awsmiddleware.SetSigningName(ctx, signingName)
-			ctx = awsmiddleware.SetSigningRegion(ctx, signingRegion)
-			ctx = s3cust.SetSignerVersion(ctx, internalauth.SigV4)
-		}
-		var ue *internalauth.UnSupportedAuthenticationSchemeSpecifiedError
-		if errors.As(err, &ue) {
-			return out, metadata, fmt.Errorf(
-				"This operation requests signer version(s) %v but the client only supports %v",
-				ue.UnsupportedSchemes,
-				internalauth.SupportedSchemes,
-			)
-		}
-	}
-
-	for _, authScheme := range authSchemes {
-		switch authScheme.(type) {
-		case *internalauth.AuthenticationSchemeV4:
-			v4Scheme, _ := authScheme.(*internalauth.AuthenticationSchemeV4)
-			var signingName, signingRegion string
-			if v4Scheme.SigningName == nil {
-				signingName = "s3"
-			} else {
-				signingName = *v4Scheme.SigningName
-			}
-			if v4Scheme.SigningRegion == nil {
-				signingRegion = m.BuiltInResolver.(*builtInResolver).Region
-			} else {
-				signingRegion = *v4Scheme.SigningRegion
-			}
-			if v4Scheme.DisableDoubleEncoding != nil {
-				// The signer sets an equivalent value at client initialization time.
-				// Setting this context value will cause the signer to extract it
-				// and override the value set at client initialization time.
-				ctx = internalauth.SetDisableDoubleEncoding(ctx, *v4Scheme.DisableDoubleEncoding)
-			}
-			ctx = awsmiddleware.SetSigningName(ctx, signingName)
-			ctx = awsmiddleware.SetSigningRegion(ctx, signingRegion)
-			ctx = s3cust.SetSignerVersion(ctx, v4Scheme.Name)
-			break
-		case *internalauth.AuthenticationSchemeV4A:
-			v4aScheme, _ := authScheme.(*internalauth.AuthenticationSchemeV4A)
-			if v4aScheme.SigningName == nil {
-				v4aScheme.SigningName = aws.String("s3")
-			}
-			if v4aScheme.DisableDoubleEncoding != nil {
-				// The signer sets an equivalent value at client initialization time.
-				// Setting this context value will cause the signer to extract it
-				// and override the value set at client initialization time.
-				ctx = internalauth.SetDisableDoubleEncoding(ctx, *v4aScheme.DisableDoubleEncoding)
-			}
-			ctx = awsmiddleware.SetSigningName(ctx, *v4aScheme.SigningName)
-			ctx = awsmiddleware.SetSigningRegion(ctx, v4aScheme.SigningRegionSet[0])
-			ctx = s3cust.SetSignerVersion(ctx, v4a.Version)
-			break
-		case *internalauth.AuthenticationSchemeNone:
-			break
-		}
-	}
-
-	return next.HandleSerialize(ctx, in)
-}
-
-func addPutBucketPolicyResolveEndpointMiddleware(stack *middleware.Stack, options Options) error {
-	return stack.Serialize.Insert(&opPutBucketPolicyResolveEndpointMiddleware{
-		EndpointResolver: options.EndpointResolverV2,
-		BuiltInResolver: &builtInResolver{
-			Region:                         options.Region,
-			UseFIPS:                        options.EndpointOptions.UseFIPSEndpoint,
-			UseDualStack:                   options.EndpointOptions.UseDualStackEndpoint,
-			Endpoint:                       options.BaseEndpoint,
-			ForcePathStyle:                 options.UsePathStyle,
-			Accelerate:                     options.UseAccelerate,
-			DisableMultiRegionAccessPoints: options.DisableMultiRegionAccessPoints,
-			UseArnRegion:                   options.UseARNRegion,
-		},
-	}, "ResolveEndpoint", middleware.After)
 }

@@ -17,16 +17,19 @@ import ThemeControl from "../ThemeControl/ThemeControl";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import useBoolean from "../../../hooks/useBoolean";
 import { getTenantIdFromUrl } from "../../../utils/tenants";
+import { AppType } from "../../../types/appType";
 
 const title = "Settings";
 
+const { REACT_APP_TYPE } = process.env;
+const isLogsApp = REACT_APP_TYPE === AppType.logs;
+
 const GlobalSettings: FC = () => {
-  const { REACT_APP_LOGS } = process.env;
   const { isMobile } = useDeviceDetect();
 
   const appModeEnable = getAppModeEnable();
   const { serverUrl: stateServerUrl, theme } = useAppState();
-  const { timezone: stateTimezone } = useTimeState();
+  const { timezone: stateTimezone, defaultTimezone } = useTimeState();
   const { seriesLimits } = useCustomPanelState();
 
   const dispatch = useAppDispatch();
@@ -75,9 +78,13 @@ const GlobalSettings: FC = () => {
     setServerUrl(stateServerUrl);
   }, [stateServerUrl]);
 
+  useEffect(() => {
+    setTimezone(stateTimezone);
+  }, [stateTimezone]);
+
   const controls = [
     {
-      show: !appModeEnable && !REACT_APP_LOGS,
+      show: !appModeEnable && !isLogsApp,
       component: <ServerConfigurator
         stateServerUrl={stateServerUrl}
         serverUrl={serverUrl}
@@ -86,7 +93,7 @@ const GlobalSettings: FC = () => {
       />
     },
     {
-      show: !REACT_APP_LOGS,
+      show: !isLogsApp,
       component: <LimitsConfigurator
         limits={limits}
         onChange={setLimits}
@@ -97,6 +104,7 @@ const GlobalSettings: FC = () => {
       show: true,
       component: <Timezones
         timezoneState={timezone}
+        defaultTimezone={defaultTimezone}
         onChange={setTimezone}
       />
     },

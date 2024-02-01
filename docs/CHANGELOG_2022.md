@@ -1,13 +1,13 @@
 ---
-sort: 26
-weight: 26
+sort: 103
+weight: 103
 title: CHANGELOG for the year 2022
 menu:
   docs:
     parent: 'victoriametrics'
-    weight: 26
+    weight: 103
 aliases:
-- /CHANGELOG.html
+- /CHANGELOG_2022.html
 ---
 
 # CHANGELOG for the year 2022
@@ -34,7 +34,7 @@ Released at 2022-12-19
 * FEATURE: allow changing field names in JSON logs if VictoriaMetrics components are started with `-loggerFormat=json` command-line flags. The field names can be changed with the `-loggerJSONFields` command-line flag. For example `-loggerJSONFields=ts:timestamp,msg:message` would rename `ts` and `msg` fields on the output JSON to `timestamp` and `message` fields. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2348). Thanks to @michal-kralik for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3488).
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): expose `__meta_consul_tag_<tagname>` and `__meta_consul_tagpresent_<tagname>` labels for targets discovered via [consul_sd_configs](https://docs.victoriametrics.com/sd_configs.html#consul_sd_configs). This simplifies converting [Consul service tags](https://developer.hashicorp.com/consul/docs/services/discovery/dns-overview) to target labels with a simple [relabeling rule](https://docs.victoriametrics.com/vmagent.html#relabeling):
 
-  ```yml
+  ```yaml
   - action: labelmap
     regex: __meta_consul_tag_(.+)
   ```
@@ -194,7 +194,7 @@ Released at 2022-10-29
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): improve the performance for metric-level [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling), which can be applied via `metric_relabel_configs` section at [scrape_configs](https://docs.victoriametrics.com/sd_configs.html#scrape_configs), via `-remoteWrite.relabelConfig` or via `-remoteWrite.urlRelabelConfig` command-line options.
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): allow specifying full url in scrape target addresses (aka `__address__` label). This makes valid the following `-promscrape.config`:
 
-  ```yml
+  ```yaml
   scrape_configs:
   - job_name: abc
     metrics_path: /foo/bar
@@ -276,7 +276,7 @@ See [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#m
 * FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): add experimental feature for displaying last 10 states of the rule (recording or alerting) evaluation. The state is available on the Rule page, which can be opened by clicking on `Details` link next to Rule's name on the `/groups` page.
 * FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): allow using extra labels in annotiations. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3013).
 * FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): allow configuring authorization params per list of targets in vmalert's notifier config for `static_configs`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2690).
-* FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): allow using {% raw %}`{{$labels}}`{% endraw %} for templating in command-line flag `-external.alert.source`. The change supposed to provide additional flexibility for generating alert's source link based on labels values.
+* FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): allow using `{{$labels}}` for templating in command-line flag `-external.alert.source`. The change supposed to provide additional flexibility for generating alert's source link based on labels values.
 * FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): add `vm_account_id` and `vm_project_id` labels to results of alerting and recording rules if `-clusterMode` is enabled. This improves [multitenant support in vmalert](https://docs.victoriametrics.com/vmalert.html#multitenancy).
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): minimize the time needed for reading large responses from scrape targets in [stream parsing mode](https://docs.victoriametrics.com/vmagent.html#stream-parsing-mode). This should reduce scrape durations for such targets as [kube-state-metrics](https://github.com/kubernetes/kube-state-metrics) running in a big Kubernetes cluster.
 * FEATURE: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): add [sort_by_label_numeric](https://docs.victoriametrics.com/MetricsQL.html#sort_by_label_numeric) and [sort_by_label_numeric_desc](https://docs.victoriametrics.com/MetricsQL.html#sort_by_label_numeric_desc) functions for [numeric sort](https://www.gnu.org/software/coreutils/manual/html_node/Version-sort-is-not-the-same-as-numeric-sort.html) of input time series by the specified labels. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2938).
@@ -331,7 +331,7 @@ Released at 2022-08-31
 
 **Update note 1:** [vmalert](https://docs.victoriametrics.com/vmalert.html) by default hides values of `-remoteWrite.url`, `-remoteRead.url` and `-datasource.url` in logs and at `http://vmalert:8880/flags` for security reasons. See the corresponding SECURITY change in the Chagelog below for additional info.
 
-**Update note 2:** [vmalert](https://docs.victoriametrics.com/vmalert.html) by default points alert source url to `/vmalert/alert?...` aka [web UI](https://docs.victoriametrics.com/vmalert.html#web) instead of `/vmalert/api/v1/alert?...` aka JSON handler. The old behavior can be achieved by setting {% raw %}`-external.alert.source=vmalert/api/v1/alert?group_id={{.GroupID}}&alert_id={{.AlertID}}`{% endraw %} command-line flag.
+**Update note 2:** [vmalert](https://docs.victoriametrics.com/vmalert.html) by default points alert source url to `/vmalert/alert?...` aka [web UI](https://docs.victoriametrics.com/vmalert.html#web) instead of `/vmalert/api/v1/alert?...` aka JSON handler. The old behavior can be achieved by setting `-external.alert.source=vmalert/api/v1/alert?group_id={{.GroupID}}&alert_id={{.AlertID}}` command-line flag.
 
 * SECURITY: [vmalert](https://docs.victoriametrics.com/vmalert.html): do not expose `-remoteWrite.url`, `-remoteRead.url` and `-datasource.url` command-line flag values in logs and at `http://vmalert:8880/flags` page by default, since they may contain sensitive data such as auth keys. This aligns `vmalert` behaviour with [vmagent](https://docs.victoriametrics.com/vmagent.html), which doesn't expose `-remoteWrite.url` command-line flag value in logs and at `http://vmagent:8429/flags` page by default. Specify `-remoteWrite.showURL`, `-remoteRead.showURL` and `-datasource.showURL` command-line flags for showing values for the corresponding `-*.url` flags in logs. Thanks to @mble for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2965).
 * SECURITY: upgrade base docker image (alpine) from 3.16.1 to 3.16.2. See [alpine 3.16.2 release notes](https://alpinelinux.org/posts/Alpine-3.13.12-3.14.8-3.15.6-3.16.2-released.html).
@@ -344,7 +344,7 @@ Released at 2022-08-31
 * FEATURE: [monitoring](https://docs.victoriametrics.com/#monitoring): expose `vm_hourly_series_limit_max_series`, `vm_hourly_series_limit_current_series`, `vm_daily_series_limit_max_series` and `vm_daily_series_limit_current_series` metrics when `-search.maxHourlySeries` or `-search.maxDailySeries` limits are set. This allows alerting when the number of unique series reaches the configured limits. See [these docs](https://docs.victoriametrics.com/#cardinality-limiter) for details.
 * FEATURE: [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): reduce the amounts of logging at `vmstorage` when `vmselect` connects/disconnects to `vmstorage`.
 * FEATURE: [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): improve performance for heavy queries on systems with many CPU cores.
-* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): add ability to use {% raw %}`{{label_name}}`{% endraw %} placeholders in the `replacement` option of relabeling rules. This simplifies constructing label values from multiple existing label values. See [these docs](https://docs.victoriametrics.com/vmagent.html#relabeling-enhancements) for details.
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): add ability to use `{{label_name}}` placeholders in the `replacement` option of relabeling rules. This simplifies constructing label values from multiple existing label values. See [these docs](https://docs.victoriametrics.com/vmagent.html#relabeling-enhancements) for details.
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): generate additional per-target metrics - `scrape_series_limit`, `scrape_series_current` and `scrape_series_limit_samples_dropped` if series limit is set according to [these docs](https://docs.victoriametrics.com/vmagent.html#cardinality-limiter). This simplifies alerting on targets with the exceeded series limit. See [these docs](https://docs.victoriametrics.com/vmagent.html#automatically-generated-metrics) for details on these metrics.
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): add support for MX record types in [dns_sd_configs](https://docs.victoriametrics.com/sd_configs.html#dns_sd_configs) in the same way as Prometheus 2.38 [does](https://github.com/prometheus/prometheus/pull/10099).
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): add `__meta_kubernetes_service_port_number` meta-label for `role: service` in [kubernetes_sd_configs](https://docs.victoriametrics.com/sd_configs.html#kubernetes_sd_configs) in the same way as Prometheus 2.38 [does](https://github.com/prometheus/prometheus/pull/11002).
@@ -354,7 +354,7 @@ Released at 2022-08-31
 * FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): add `toTime()` template function in the same way as Prometheus 2.38 [does](https://github.com/prometheus/prometheus/pull/10993). See [these docs](https://prometheus.io/docs/prometheus/latest/configuration/template_reference/#numbers).
 * FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): add `$alertID` and `$groupID` template variables. These variables may be used for templating annotations or `-external.alert.source` command-line flag. See the full list of supported variables [here](https://docs.victoriametrics.com/vmalert.html#templating).
 * FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): add `$activeAt` template variable. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2999). See the full list of supported variables [here](https://docs.victoriametrics.com/vmalert.html#templating). Thanks to @laixintao for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3000).
-* FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): point alert source to [vmalert's UI](https://docs.victoriametrics.com/vmalert.html#web) at `/vmalert/alert?...` instead of JSON handler at `/vmalert/api/v1/alert?...`. This improves user experience. The old behavior can be achieved by setting {% raw %}`-external.alert.source=vmalert/api/v1/alert?group_id={{.GroupID}}&alert_id={{.AlertID}}`{% endraw %} command-line flag.
+* FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): point alert source to [vmalert's UI](https://docs.victoriametrics.com/vmalert.html#web) at `/vmalert/alert?...` instead of JSON handler at `/vmalert/api/v1/alert?...`. This improves user experience. The old behavior can be achieved by setting `-external.alert.source=vmalert/api/v1/alert?group_id={{.GroupID}}&alert_id={{.AlertID}}` command-line flag.
 
 * BUGFIX: prevent from excess CPU usage when the storage enters [read-only mode](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#readonly-mode).
 * BUGFIX: improve performance for requests to [/api/v1/labels](https://docs.victoriametrics.com/url-examples.html#apiv1labels) and [/api/v1/label/.../values](https://docs.victoriametrics.com/url-examples.html#apiv1labelvalues) when the filter in the `match[]` query arg matches small number of time series. The performance for this case has been reduced in [v1.78.0](https://docs.victoriametrics.com/CHANGELOG.html#v1780). See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2978) and [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1533) issues.
@@ -652,11 +652,9 @@ scrape_configs:
 * BUGFIX: consistently name binaries at [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) in the form `$(APP_NAME)-$(GOOS)-$(GOARCH)-$(VERSION).tar.gz`. For example, `victoria-metrics-linux-amd64-v1.79.0.tar.gz`. Previously the `$(GOOS)` part was missing in binaries for Linux.
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): allow using `__name__` label (aka [metric name](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors)) in alerting annotations. For example:
 
-{% raw %}
-```console
+```sh
 {{ $labels.__name__ }}: Too high connection number for "{{ $labels.instance }}
 ```
-{% endraw %}
 
 * BUGFIX: limit max memory occupied by the cache, which stores parsed regular expressions. Previously too long regular expressions passed in [MetricsQL queries](https://docs.victoriametrics.com/MetricsQL.html) could result in big amounts of used memory (e.g. multiple of gigabytes). Now the max cache size for parsed regexps is limited to a a few megabytes.
 * BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): properly handle partial counter resets when calculating [rate](https://docs.victoriametrics.com/MetricsQL.html#rate), [irate](https://docs.victoriametrics.com/MetricsQL.html#irate) and [increase](https://docs.victoriametrics.com/MetricsQL.html#increase) functions. Previously these functions could return zero values after partial counter resets until the counter increases to the last value before partial counter reset. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2787).
@@ -887,14 +885,14 @@ Released at 2022-03-03
 
 * FEATURE: add support for conditional relabeling via `if` filter. The `if` filter can contain arbitrary [series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). For example, the following rule drops targets matching `foo{bar="baz"}` series selector:
 
-```yml
+```yaml
 - action: drop
   if: 'foo{bar="baz"}'
 ```
 
 This rule is equivalent to less clear traditional one:
 
-```yml
+```yaml
 - action: drop
   source_labels: [__name__, bar]
   regex: 'foo;baz'

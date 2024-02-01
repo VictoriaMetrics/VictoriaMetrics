@@ -33,17 +33,24 @@
       position: relative;
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      justify-content: flex-start;
       font-size: $font-size-small;
       margin: -$padding-medium 0-$padding-medium $padding-medium;
       padding: 0 $padding-medium;
       border-bottom: $border-divider;
       z-index: 1;
 
-      &__left {
+      &__tabs {
+        display: flex;
+        justify-content: flex-start;
+        flex-grow: 1;
+      }
+
+      &__graph-controls {
         display: flex;
         align-items: center;
         gap: $padding-small;
+        margin: 5px 10px;
       }
     }
 

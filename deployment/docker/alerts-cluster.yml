@@ -3,7 +3,7 @@
 # and threshold calibration according to every specific setup.
 groups:
   # Alerts group for VM cluster assumes that Grafana dashboard
-  # https://grafana.com/grafana/dashboards/11176-victoriametrics-cluster/ is installed.
+  # https://grafana.com/grafana/dashboards/11176/ is installed.
   # Please, update the `dashboard` annotation according to your setup.
   - name: vmcluster
     interval: 30s
@@ -34,17 +34,17 @@ groups:
 
       - alert: DiskRunsOutOfSpace
         expr: |
-          sum(vm_data_size_bytes) by(instance) /
+          sum(vm_data_size_bytes) by(job, instance) /
           (
-           sum(vm_free_disk_space_bytes) by(instance) +
-           sum(vm_data_size_bytes) by(instance)
+           sum(vm_free_disk_space_bytes) by(job, instance) +
+           sum(vm_data_size_bytes) by(job, instance)
           ) > 0.8
         for: 30m
         labels:
           severity: critical
         annotations:
           dashboard: http://localhost:3000/d/oS7Bi_0Wz?viewPanel=200&var-instance={{ $labels.instance }}"
-          summary: "Instance {{ $labels.instance }} will run out of disk space soon"
+          summary: "Instance {{ $labels.instance }} (job={{ $labels.job }}) will run out of disk space soon"
           description: "Disk utilisation on instance {{ $labels.instance }} is more than 80%.\n
             Having less than 20% of free disk space could cripple merges processes and overall performance.
             Consider to limit the ingestion rate, decrease retention or scale the disk space if possible."
@@ -81,7 +81,7 @@ groups:
             Possible reasons for errors are misconfiguration, overload, network blips or unreachable components."
 
       - alert: RowsRejectedOnIngestion
-        expr: sum(rate(vm_rows_ignored_total[5m])) by (instance, reason) > 0
+        expr: rate(vm_rows_ignored_total[5m]) > 0
         for: 15m
         labels:
           severity: warning
@@ -113,7 +113,7 @@ groups:
         expr: |
           sum(increase(vm_new_timeseries_created_total[24h]))
           >
-          (sum(vm_cache_entries{type="storage/hour_metric_ids"})* 3)
+          (sum(vm_cache_entries{type="storage/hour_metric_ids"}) * 3)
         for: 15m
         labels:
           severity: warning
@@ -155,7 +155,7 @@ groups:
           Consider to increase the limit as fast as possible."
 
       - alert: LabelsLimitExceededOnIngestion
-        expr: sum(increase(vm_metrics_with_dropped_labels_total[5m])) by (instance) > 0
+        expr: increase(vm_metrics_with_dropped_labels_total[5m]) > 0
         for: 15m
         labels:
           severity: warning

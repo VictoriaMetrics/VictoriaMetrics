@@ -8,7 +8,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs/fscore"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/regexutil"
 	"gopkg.in/yaml.v2"
@@ -156,7 +156,7 @@ func (pcs *ParsedConfigs) String() string {
 
 // LoadRelabelConfigs loads relabel configs from the given path.
 func LoadRelabelConfigs(path string) (*ParsedConfigs, error) {
-	data, err := fs.ReadFileOrHTTP(path)
+	data, err := fscore.ReadFileOrHTTP(path)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read `relabel_configs` from %q: %w", path, err)
 	}
@@ -290,6 +290,26 @@ func parseRelabelConfig(rc *RelabelConfig) (*parsedRelabelConfig, error) {
 		}
 		if targetLabel == "" {
 			return nil, fmt.Errorf("missing `target_label` for `action=replace_all`")
+		}
+	case "keep_if_contains":
+		if targetLabel == "" {
+			return nil, fmt.Errorf("`target_label` must be set for `action=keep_if_containes`")
+		}
+		if len(sourceLabels) == 0 {
+			return nil, fmt.Errorf("`source_labels` must contain at least a single entry for `action=keep_if_contains`")
+		}
+		if rc.Regex != nil {
+			return nil, fmt.Errorf("`regex` cannot be used for `action=keep_if_contains`")
+		}
+	case "drop_if_contains":
+		if targetLabel == "" {
+			return nil, fmt.Errorf("`target_label` must be set for `action=drop_if_containes`")
+		}
+		if len(sourceLabels) == 0 {
+			return nil, fmt.Errorf("`source_labels` must contain at least a single entry for `action=drop_if_contains`")
+		}
+		if rc.Regex != nil {
+			return nil, fmt.Errorf("`regex` cannot be used for `action=drop_if_contains`")
 		}
 	case "keep_if_equal":
 		if len(sourceLabels) < 2 {

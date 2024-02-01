@@ -384,6 +384,104 @@ func TestParsedRelabelConfigsApply(t *testing.T) {
   replacement: "foobar"
 `, `{}`, true, `{foo="foobar"}`)
 	})
+	t.Run("keep_if_contains-non-existing-target-and-source", func(t *testing.T) {
+		f(`
+- action: keep_if_contains
+  target_label: foo
+  source_labels: [bar]
+`, `{x="y"}`, true, `{x="y"}`)
+	})
+	t.Run("keep_if_contains-non-existing-target", func(t *testing.T) {
+		f(`
+- action: keep_if_contains
+  target_label: foo
+  source_labels: [bar]
+`, `{bar="aaa"}`, true, `{}`)
+	})
+	t.Run("keep_if_contains-non-existing-source", func(t *testing.T) {
+		f(`
+- action: keep_if_contains
+  target_label: foo
+  source_labels: [bar]
+`, `{foo="aaa"}`, true, `{foo="aaa"}`)
+	})
+	t.Run("keep_if_contains-matching-source-target", func(t *testing.T) {
+		f(`
+- action: keep_if_contains
+  target_label: foo
+  source_labels: [bar]
+`, `{bar="aaa",foo="aaa"}`, true, `{bar="aaa",foo="aaa"}`)
+	})
+	t.Run("keep_if_contains-matching-sources-target", func(t *testing.T) {
+		f(`
+- action: keep_if_contains
+  target_label: foo
+  source_labels: [bar, baz]
+`, `{bar="aaa",foo="aaa",baz="aaa"}`, true, `{bar="aaa",baz="aaa",foo="aaa"}`)
+	})
+	t.Run("keep_if_contains-mismatching-source-target", func(t *testing.T) {
+		f(`
+- action: keep_if_contains
+  target_label: foo
+  source_labels: [bar]
+`, `{bar="aaa",foo="bbb"}`, true, `{}`)
+	})
+	t.Run("keep_if_contains-mismatching-sources-target", func(t *testing.T) {
+		f(`
+- action: keep_if_contains
+  target_label: foo
+  source_labels: [bar, baz]
+`, `{bar="aaa",foo="aaa",baz="bbb"}`, true, `{}`)
+	})
+	t.Run("drop_if_contains-non-existing-target-and-source", func(t *testing.T) {
+		f(`
+- action: drop_if_contains
+  target_label: foo
+  source_labels: [bar]
+`, `{x="y"}`, true, `{}`)
+	})
+	t.Run("drop_if_contains-non-existing-target", func(t *testing.T) {
+		f(`
+- action: drop_if_contains
+  target_label: foo
+  source_labels: [bar]
+`, `{bar="aaa"}`, true, `{bar="aaa"}`)
+	})
+	t.Run("drop_if_contains-non-existing-source", func(t *testing.T) {
+		f(`
+- action: drop_if_contains
+  target_label: foo
+  source_labels: [bar]
+`, `{foo="aaa"}`, true, `{}`)
+	})
+	t.Run("drop_if_contains-matching-source-target", func(t *testing.T) {
+		f(`
+- action: drop_if_contains
+  target_label: foo
+  source_labels: [bar]
+`, `{bar="aaa",foo="aaa"}`, true, `{}`)
+	})
+	t.Run("drop_if_contains-matching-sources-target", func(t *testing.T) {
+		f(`
+- action: drop_if_contains
+  target_label: foo
+  source_labels: [bar, baz]
+`, `{bar="aaa",foo="aaa",baz="aaa"}`, true, `{}`)
+	})
+	t.Run("drop_if_contains-mismatching-source-target", func(t *testing.T) {
+		f(`
+- action: drop_if_contains
+  target_label: foo
+  source_labels: [bar]
+`, `{bar="aaa",foo="bbb"}`, true, `{bar="aaa",foo="bbb"}`)
+	})
+	t.Run("drop_if_contains-mismatching-sources-target", func(t *testing.T) {
+		f(`
+- action: drop_if_contains
+  target_label: foo
+  source_labels: [bar, baz]
+`, `{bar="aaa",foo="aaa",baz="bbb"}`, true, `{bar="aaa",baz="bbb",foo="aaa"}`)
+	})
 	t.Run("keep_if_equal-miss", func(t *testing.T) {
 		f(`
 - action: keep_if_equal

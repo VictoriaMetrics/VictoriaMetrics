@@ -6,12 +6,13 @@ import (
 	"strings"
 )
 
-func mergeURLs(uiURL, requestURI *url.URL) *url.URL {
+func mergeURLs(uiURL, requestURI *url.URL, dropSrcPathPrefixParts int) *url.URL {
 	targetURL := *uiURL
-	if strings.HasPrefix(requestURI.Path, "/") {
+	srcPath := dropPrefixParts(requestURI.Path, dropSrcPathPrefixParts)
+	if strings.HasPrefix(srcPath, "/") {
 		targetURL.Path = strings.TrimSuffix(targetURL.Path, "/")
 	}
-	targetURL.Path += requestURI.Path
+	targetURL.Path += srcPath
 	requestParams := requestURI.Query()
 	// fast path
 	if len(requestParams) == 0 {
@@ -32,18 +33,44 @@ func mergeURLs(uiURL, requestURI *url.URL) *url.URL {
 	return &targetURL
 }
 
-func (ui *UserInfo) getURLPrefixAndHeaders(u *url.URL) (*URLPrefix, HeadersConf, []int) {
+func dropPrefixParts(path string, parts int) string {
+	if parts <= 0 {
+		return path
+	}
+	for parts > 0 {
+		path = strings.TrimPrefix(path, "/")
+		n := strings.IndexByte(path, '/')
+		if n < 0 {
+			return ""
+		}
+		path = path[n:]
+		parts--
+	}
+	return path
+}
+
+func (ui *UserInfo) getURLPrefixAndHeaders(u *url.URL) (*URLPrefix, HeadersConf) {
 	for _, e := range ui.URLMaps {
-		for _, sp := range e.SrcPaths {
-			if sp.match(u.Path) {
-				return e.URLPrefix, e.HeadersConf, e.RetryStatusCodes
-			}
+		if matchAnyRegex(e.SrcHosts, u.Host) && matchAnyRegex(e.SrcPaths, u.Path) {
+			return e.URLPrefix, e.HeadersConf
 		}
 	}
 	if ui.URLPrefix != nil {
-		return ui.URLPrefix, ui.HeadersConf, ui.RetryStatusCodes
+		return ui.URLPrefix, ui.HeadersConf
 	}
-	return nil, HeadersConf{}, nil
+	return nil, HeadersConf{}
+}
+
+func matchAnyRegex(rs []*Regex, s string) bool {
+	if len(rs) == 0 {
+		return true
+	}
+	for _, r := range rs {
+		if r.match(s) {
+			return true
+		}
+	}
+	return false
 }
 
 func normalizeURL(uOrig *url.URL) *url.URL {

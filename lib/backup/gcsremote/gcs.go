@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"path"
 	"strings"
 	"time"
 
@@ -211,7 +212,7 @@ func (fs *FS) object(p common.Part) *storage.ObjectHandle {
 //
 // The function does nothing if the filePath doesn't exists.
 func (fs *FS) DeleteFile(filePath string) error {
-	path := fs.Dir + filePath
+	path := path.Join(fs.Dir, filePath)
 	return fs.delete(path)
 }
 
@@ -265,7 +266,7 @@ func (fs *FS) deleteObject(path string) error {
 //
 // The file is overwritten if it exists.
 func (fs *FS) CreateFile(filePath string, data []byte) error {
-	path := fs.Dir + filePath
+	path := path.Join(fs.Dir, filePath)
 	o := fs.bkt.Object(path)
 	ctx := context.Background()
 	w := o.NewWriter(ctx)
@@ -286,7 +287,7 @@ func (fs *FS) CreateFile(filePath string, data []byte) error {
 
 // HasFile returns ture if filePath exists at fs.
 func (fs *FS) HasFile(filePath string) (bool, error) {
-	path := fs.Dir + filePath
+	path := path.Join(fs.Dir, filePath)
 	o := fs.bkt.Object(path)
 	ctx := context.Background()
 	_, err := o.Attrs(ctx)
@@ -301,7 +302,8 @@ func (fs *FS) HasFile(filePath string) (bool, error) {
 
 // ReadFile returns the content of filePath at fs.
 func (fs *FS) ReadFile(filePath string) ([]byte, error) {
-	o := fs.bkt.Object(fs.Dir + filePath)
+	path := path.Join(fs.Dir, filePath)
+	o := fs.bkt.Object(path)
 	ctx := context.Background()
 	r, err := o.NewReader(ctx)
 	if err != nil {

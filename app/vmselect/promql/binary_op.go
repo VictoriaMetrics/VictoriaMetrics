@@ -257,7 +257,7 @@ func groupJoin(singleTimeseriesSide string, be *metricsql.BinaryOpExpr, rvsLeft,
 			var tsCopy timeseries
 			tsCopy.CopyFromShallowTimestamps(tsLeft)
 			tsCopy.MetricName.SetTags(joinTags, joinPrefix, skipTags, &tsRight.MetricName)
-			bb.B = marshalMetricTagsSorted(bb.B[:0], &tsCopy.MetricName)
+			bb.B = marshalMetricNameSorted(bb.B[:0], &tsCopy.MetricName)
 			pair, ok := m[string(bb.B)]
 			if !ok {
 				m[string(bb.B)] = &tsPair{
@@ -404,9 +404,15 @@ func binaryOpDefault(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 func binaryOpOr(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 	mLeft, mRight := createTimeseriesMapByTagSet(bfa.be, bfa.left, bfa.right)
 	var rvs []*timeseries
+
 	for _, tss := range mLeft {
 		rvs = append(rvs, tss...)
 	}
+	// Sort left-hand-side series by metric name as Prometheus does.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5393
+	sortSeriesByMetricName(rvs)
+	rvsLen := len(rvs)
+
 	for k, tssRight := range mRight {
 		tssLeft := mLeft[k]
 		if tssLeft == nil {
@@ -415,6 +421,10 @@ func binaryOpOr(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 		}
 		fillLeftNaNsWithRightValues(tssLeft, tssRight)
 	}
+	// Sort the added right-hand-side series by metric name as Prometheus does.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5393
+	sortSeriesByMetricName(rvs[rvsLen:])
+
 	return rvs, nil
 }
 
@@ -512,7 +522,9 @@ func createTimeseriesMapByTagSet(be *metricsql.BinaryOpExpr, left, right []*time
 		mn := storage.GetMetricName()
 		for _, ts := range arg {
 			mn.CopyFrom(&ts.MetricName)
-			mn.ResetMetricGroup()
+			if !be.KeepMetricNames {
+				mn.ResetMetricGroup()
+			}
 			switch groupOp {
 			case "on":
 				mn.RemoveTagsOn(groupTags)
@@ -521,7 +533,7 @@ func createTimeseriesMapByTagSet(be *metricsql.BinaryOpExpr, left, right []*time
 			default:
 				logger.Panicf("BUG: unexpected binary op modifier %q", groupOp)
 			}
-			bb.B = marshalMetricTagsSorted(bb.B[:0], mn)
+			bb.B = marshalMetricNameSorted(bb.B[:0], mn)
 			k := string(bb.B)
 			m[k] = append(m[k], ts)
 		}

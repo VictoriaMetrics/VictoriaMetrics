@@ -34,17 +34,17 @@ groups:
 
       - alert: DiskRunsOutOfSpace
         expr: |
-          sum(vm_data_size_bytes) by(instance) /
+          sum(vm_data_size_bytes) by(job, instance) /
           (
-           sum(vm_free_disk_space_bytes) by(instance) +
-           sum(vm_data_size_bytes) by(instance)
+           sum(vm_free_disk_space_bytes) by(job, instance) +
+           sum(vm_data_size_bytes) by(job, instance)
           ) > 0.8
         for: 30m
         labels:
           severity: critical
         annotations:
           dashboard: "http://localhost:3000/d/wNf0q_kZk?viewPanel=53&var-instance={{ $labels.instance }}"
-          summary: "Instance {{ $labels.instance }} will run out of disk space soon"
+          summary: "Instance {{ $labels.instance }} (job={{ $labels.job }}) will run out of disk space soon"
           description: "Disk utilisation on instance {{ $labels.instance }} is more than 80%.\n
             Having less than 20% of free disk space could cripple merges processes and overall performance.
             Consider to limit the ingestion rate, decrease retention or scale the disk space if possible."
@@ -61,7 +61,7 @@ groups:
             Please verify if clients are sending correct requests."
 
       - alert: RowsRejectedOnIngestion
-        expr: sum(rate(vm_rows_ignored_total[5m])) by (instance, reason) > 0
+        expr: rate(vm_rows_ignored_total[5m]) > 0
         for: 15m
         labels:
           severity: warning
@@ -124,7 +124,7 @@ groups:
             See also https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3976#issuecomment-1476883183"
 
       - alert: LabelsLimitExceededOnIngestion
-        expr: sum(increase(vm_metrics_with_dropped_labels_total[5m])) by (instance) > 0
+        expr: increase(vm_metrics_with_dropped_labels_total[5m]) > 0
         for: 15m
         labels:
           severity: warning

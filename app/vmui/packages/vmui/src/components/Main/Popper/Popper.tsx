@@ -23,6 +23,7 @@ interface PopperProps {
   fullWidth?: boolean
   title?: string
   disabledFullScreen?: boolean
+  variant?: "default" | "dark"
 }
 
 const Popper: FC<PopperProps> = ({
@@ -35,7 +36,8 @@ const Popper: FC<PopperProps> = ({
   clickOutside = true,
   fullWidth,
   title,
-  disabledFullScreen
+  disabledFullScreen,
+  variant
 }) => {
   const { isMobile } = useDeviceDetect();
   const navigate = useNavigate();
@@ -52,18 +54,16 @@ const Popper: FC<PopperProps> = ({
 
   useEffect(() => {
     setIsOpen(open);
-  }, [open]);
 
-  useEffect(() => {
-    if (!isOpen && onClose) onClose();
-    if (isOpen && isMobile && !disabledFullScreen) {
+    if (!open && onClose) onClose();
+    if (open && isMobile && !disabledFullScreen) {
       document.body.style.overflow = "hidden";
     }
 
     return () => {
       document.body.style.overflow = "auto";
     };
-  }, [isOpen]);
+  }, [open]);
 
   useEffect(() => {
     setPopperSize({
@@ -149,6 +149,7 @@ const Popper: FC<PopperProps> = ({
         <div
           className={classNames({
             "vm-popper": true,
+            [`vm-popper_${variant}`]: variant,
             "vm-popper_mobile": isMobile && !disabledFullScreen,
             "vm-popper_open": (isMobile || Object.keys(popperStyle).length) && isOpen,
           })}
@@ -160,6 +161,7 @@ const Popper: FC<PopperProps> = ({
               <p className="vm-popper-header__title">{title}</p>
               <Button
                 variant="text"
+                color={variant === "dark" ? "white" : "primary"}
                 size="small"
                 onClick={handleClickClose}
                 ariaLabel="close"

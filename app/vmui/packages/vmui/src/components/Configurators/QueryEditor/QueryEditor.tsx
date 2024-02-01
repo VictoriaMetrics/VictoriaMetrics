@@ -1,4 +1,4 @@
-import React, { FC, useRef, useState } from "preact/compat";
+import React, { FC, useEffect, useRef, useState } from "preact/compat";
 import { KeyboardEvent } from "react";
 import { ErrorTypes } from "../../../types";
 import TextField from "../../Main/TextField/TextField";
@@ -7,6 +7,8 @@ import "./style.scss";
 import { QueryStats } from "../../../api/types";
 import { partialWarning, seriesFetchedWarning } from "./warningText";
 import { AutocompleteOptions } from "../../Main/Autocomplete/Autocomplete";
+import useDeviceDetect from "../../../hooks/useDeviceDetect";
+import { useQueryState } from "../../../state/query/QueryStateContext";
 
 export interface QueryEditorProps {
   onChange: (query: string) => void;
@@ -34,6 +36,8 @@ const QueryEditor: FC<QueryEditorProps> = ({
   label,
   disabled = false
 }) => {
+  const { autocompleteQuick } = useQueryState();
+  const { isMobile } = useDeviceDetect();
 
   const [openAutocomplete, setOpenAutocomplete] = useState(false);
   const [caretPosition, setCaretPosition] = useState([0, 0]);
@@ -49,6 +53,10 @@ const QueryEditor: FC<QueryEditorProps> = ({
       text: partialWarning
     }
   ].filter((w) => w.show).map(w => w.text).join("");
+
+  if (stats) {
+    label = `${label} (${stats.executionTimeMsec || 0}ms)`;
+  }
 
   const handleSelect = (val: string) => {
     onChange(val);
@@ -96,6 +104,10 @@ const QueryEditor: FC<QueryEditorProps> = ({
     setCaretPosition(val);
   };
 
+  useEffect(() => {
+    setOpenAutocomplete(autocomplete);
+  }, [autocompleteQuick]);
+
   return (
     <div
       className="vm-query-editor"
@@ -105,7 +117,7 @@ const QueryEditor: FC<QueryEditorProps> = ({
         value={value}
         label={label}
         type={"textarea"}
-        autofocus={!!value}
+        autofocus={!isMobile}
         error={error}
         warning={warning}
         onKeyDown={handleKeyDown}

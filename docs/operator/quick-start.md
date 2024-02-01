@@ -6,6 +6,8 @@ menu:
   docs:
     parent: "operator"
     weight: 1
+aliases:
+- /operator/quick-start.html
 ---
 
 # VictoriaMetrics Operator QuickStart
@@ -343,6 +345,8 @@ spec:
   namespaceSelector: 
     matchNames:
       - vm
+  endpoints:
+  - port: http
 ```
 
 After that you can deploy `vmservicescrape` resource to the kubernetes cluster:
@@ -375,6 +379,7 @@ kind: VMAuth
 metadata:
   name: demo
 spec:
+  selectAllByDefault: true
   userNamespaceSelector: {}
   userSelector: {}
   ingress:
@@ -421,6 +426,7 @@ spec:
           - "/prometheus/api/v1/query"
           - "/prometheus/api/v1/query_range"
           - "/prometheus/api/v1/series"
+          - "/prometheus/api/v1/status/.*"
           - "/prometheus/api/v1/label/"
           - "/prometheus/api/v1/label/[^/]+/values"
 ```
@@ -467,10 +473,10 @@ The remaining components will be needed for alerting.
 
 Let's start with [`vmalertmanager`](./resources/vmalertmanager.md).
 
-Create file `vmuser.yaml`
+Create file `vmalertmanager.yaml`
 
 ```shell
-code vmuser.yaml
+code vmalertmanager.yaml
 ```
 
 with the following content:
@@ -638,6 +644,7 @@ spec:
         - "/prometheus/api/v1/query"
         - "/prometheus/api/v1/query_range"
         - "/prometheus/api/v1/series"
+        - "/prometheus/api/v1/status/.*"
         - "/prometheus/api/v1/label/"
         - "/prometheus/api/v1/label/[^/]+/values"
     # vmalert

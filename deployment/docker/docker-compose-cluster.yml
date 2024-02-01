@@ -2,7 +2,7 @@ version: '3.5'
 services:
   vmagent:
     container_name: vmagent
-    image: victoriametrics/vmagent:v1.94.0
+    image: victoriametrics/vmagent:v1.97.0
     depends_on:
       - "vminsert"
     ports:
@@ -17,7 +17,7 @@ services:
 
   grafana:
     container_name: grafana
-    image: grafana/grafana:9.2.7
+    image: grafana/grafana:9.5.15
     depends_on:
       - "vmauth"
     ports:
@@ -25,14 +25,15 @@ services:
     restart: always
     volumes:
       - grafanadata:/var/lib/grafana
-      - ./provisioning/:/etc/grafana/provisioning/
+      - ./provisioning/datasources/prometheus-datasource:/etc/grafana/provisioning/datasources
+      - ./provisioning/dashboards:/etc/grafana/provisioning/dashboards
       - ./../../dashboards/victoriametrics-cluster.json:/var/lib/grafana/dashboards/vm.json
       - ./../../dashboards/vmagent.json:/var/lib/grafana/dashboards/vmagent.json
       - ./../../dashboards/vmalert.json:/var/lib/grafana/dashboards/vmalert.json
 
   vmstorage-1:
     container_name: vmstorage-1
-    image: victoriametrics/vmstorage:v1.94.0-cluster
+    image: victoriametrics/vmstorage:v1.97.0-cluster
     ports:
       - 8482
       - 8400
@@ -44,7 +45,7 @@ services:
     restart: always
   vmstorage-2:
     container_name: vmstorage-2
-    image: victoriametrics/vmstorage:v1.94.0-cluster
+    image: victoriametrics/vmstorage:v1.97.0-cluster
     ports:
       - 8482
       - 8400
@@ -57,7 +58,7 @@ services:
 
   vminsert:
     container_name: vminsert
-    image: victoriametrics/vminsert:v1.94.0-cluster
+    image: victoriametrics/vminsert:v1.97.0-cluster
     depends_on:
       - "vmstorage-1"
       - "vmstorage-2"
@@ -70,7 +71,7 @@ services:
 
   vmselect-1:
     container_name: vmselect-1
-    image: victoriametrics/vmselect:v1.94.0-cluster
+    image: victoriametrics/vmselect:v1.97.0-cluster
     depends_on:
       - "vmstorage-1"
       - "vmstorage-2"
@@ -84,7 +85,7 @@ services:
 
   vmselect-2:
     container_name: vmselect-2
-    image: victoriametrics/vmselect:v1.94.0-cluster
+    image: victoriametrics/vmselect:v1.97.0-cluster
     depends_on:
       - "vmstorage-1"
       - "vmstorage-2"
@@ -98,7 +99,7 @@ services:
 
   vmauth:
     container_name: vmauth
-    image: victoriametrics/vmauth:v1.94.0
+    image: victoriametrics/vmauth:v1.97.0
     depends_on:
       - "vmselect-1"
       - "vmselect-2"
@@ -113,7 +114,7 @@ services:
 
   vmalert:
     container_name: vmalert
-    image: victoriametrics/vmalert:v1.94.0
+    image: victoriametrics/vmalert:v1.97.0
     depends_on:
       - "vmauth"
     ports:

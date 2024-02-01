@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/url"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -15,7 +16,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs/fscore"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
@@ -29,6 +30,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/ec2"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/eureka"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/gce"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/hetzner"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/http"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/kubernetes"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/kuma"
@@ -63,6 +65,10 @@ var (
 		"See also -promscrape.cluster.memberLabel . See https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets for more info")
 	clusterMemberLabel = flag.String("promscrape.cluster.memberLabel", "", "If non-empty, then the label with this name and the -promscrape.cluster.memberNum value "+
 		"is added to all the scraped metrics. See https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets for more info")
+	clusterMemberURLTemplate = flag.String("promscrape.cluster.memberURLTemplate", "", "An optional template for URL to access vmagent instance with the given -promscrape.cluster.memberNum value. "+
+		"Every %d occurrence in the template is substituted with -promscrape.cluster.memberNum at urls to vmagent instances responsible for scraping the given target "+
+		"at /service-discovery page. For example -promscrape.cluster.memberURLTemplate='http://vmagent-%d:8429/targets'. "+
+		"See https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets for more details")
 	clusterReplicationFactor = flag.Int("promscrape.cluster.replicationFactor", 1, "The number of members in the cluster, which scrape the same targets. "+
 		"If the replication factor is greater than 1, then the deduplication must be enabled at remote storage side. "+
 		"See https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets for more info")
@@ -218,7 +224,6 @@ func areEqualScrapeConfigs(a, b *ScrapeConfig) bool {
 		return false
 	}
 	return true
-
 }
 
 func (sc *ScrapeConfig) unmarshalJSON(data []byte) error {
@@ -302,6 +307,7 @@ type ScrapeConfig struct {
 	EurekaSDConfigs       []eureka.SDConfig       `yaml:"eureka_sd_configs,omitempty"`
 	FileSDConfigs         []FileSDConfig          `yaml:"file_sd_configs,omitempty"`
 	GCESDConfigs          []gce.SDConfig          `yaml:"gce_sd_configs,omitempty"`
+	HetznerSDConfigs      []hetzner.SDConfig      `yaml:"hetzner_sd_configs,omitempty"`
 	HTTPSDConfigs         []http.SDConfig         `yaml:"http_sd_configs,omitempty"`
 	KubernetesSDConfigs   []kubernetes.SDConfig   `yaml:"kubernetes_sd_configs,omitempty"`
 	KumaSDConfigs         []kuma.SDConfig         `yaml:"kuma_sd_configs,omitempty"`
@@ -316,7 +322,7 @@ type ScrapeConfig struct {
 	StreamParse         bool                       `yaml:"stream_parse,omitempty"`
 	ScrapeAlignInterval *promutils.Duration        `yaml:"scrape_align_interval,omitempty"`
 	ScrapeOffset        *promutils.Duration        `yaml:"scrape_offset,omitempty"`
-	SeriesLimit         int                        `yaml:"series_limit,omitempty"`
+	SeriesLimit         *int                       `yaml:"series_limit,omitempty"`
 	NoStaleMarkers      *bool                      `yaml:"no_stale_markers,omitempty"`
 	ProxyClientConfig   promauth.ProxyClientConfig `yaml:",inline"`
 
@@ -370,6 +376,9 @@ func (sc *ScrapeConfig) mustStop() {
 	for i := range sc.GCESDConfigs {
 		sc.GCESDConfigs[i].MustStop()
 	}
+	for i := range sc.HetznerSDConfigs {
+		sc.HetznerSDConfigs[i].MustStop()
+	}
 	for i := range sc.HTTPSDConfigs {
 		sc.HTTPSDConfigs[i].MustStop()
 	}
@@ -404,7 +413,7 @@ type StaticConfig struct {
 }
 
 func loadStaticConfigs(path string) ([]StaticConfig, error) {
-	data, err := fs.ReadFileOrHTTP(path)
+	data, err := fscore.ReadFileOrHTTP(path)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read `static_configs` from %q: %w", path, err)
 	}
@@ -421,7 +430,7 @@ func loadStaticConfigs(path string) ([]StaticConfig, error) {
 
 // loadConfig loads Prometheus config from the given path.
 func loadConfig(path string) (*Config, error) {
-	data, err := fs.ReadFileOrHTTP(path)
+	data, err := fscore.ReadFileOrHTTP(path)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read Prometheus config from %q: %w", path, err)
 	}
@@ -432,10 +441,10 @@ func loadConfig(path string) (*Config, error) {
 	return &c, nil
 }
 
-func mustLoadScrapeConfigFiles(baseDir string, scrapeConfigFiles []string) []*ScrapeConfig {
+func loadScrapeConfigFiles(baseDir string, scrapeConfigFiles []string, isStrict bool) ([]*ScrapeConfig, error) {
 	var scrapeConfigs []*ScrapeConfig
 	for _, filePath := range scrapeConfigFiles {
-		filePath := fs.GetFilepath(baseDir, filePath)
+		filePath := fscore.GetFilepath(baseDir, filePath)
 		paths := []string{filePath}
 		if strings.Contains(filePath, "*") {
 			ps, err := filepath.Glob(filePath)
@@ -447,7 +456,7 @@ func mustLoadScrapeConfigFiles(baseDir string, scrapeConfigFiles []string) []*Sc
 			paths = ps
 		}
 		for _, path := range paths {
-			data, err := fs.ReadFileOrHTTP(path)
+			data, err := fscore.ReadFileOrHTTP(path)
 			if err != nil {
 				logger.Errorf("skipping %q at `scrape_config_files` because of error: %s", path, err)
 				continue
@@ -458,14 +467,21 @@ func mustLoadScrapeConfigFiles(baseDir string, scrapeConfigFiles []string) []*Sc
 				continue
 			}
 			var scs []*ScrapeConfig
-			if err = yaml.UnmarshalStrict(data, &scs); err != nil {
-				logger.Errorf("skipping %q at `scrape_config_files` because of failure to parse it: %s", path, err)
-				continue
+			if isStrict {
+				if err = yaml.UnmarshalStrict(data, &scs); err != nil {
+					return nil, fmt.Errorf("cannot unmarshal data from `scrape_config_files` %s: %w; "+
+						"pass -promscrape.config.strictParse=false command-line flag for ignoring invalid scrape_config_files", path, err)
+				}
+			} else {
+				if err = yaml.Unmarshal(data, &scs); err != nil {
+					logger.Errorf("skipping %q at `scrape_config_files` because of failure to parse it: %s", path, err)
+					continue
+				}
 			}
 			scrapeConfigs = append(scrapeConfigs, scs...)
 		}
 	}
-	return scrapeConfigs
+	return scrapeConfigs, nil
 }
 
 // IsDryRun returns true if -promscrape.config.dryRun command-line flag is set
@@ -486,7 +502,10 @@ func (cfg *Config) parseData(data []byte, path string) error {
 	cfg.baseDir = filepath.Dir(absPath)
 
 	// Load cfg.ScrapeConfigFiles into c.ScrapeConfigs
-	scs := mustLoadScrapeConfigFiles(cfg.baseDir, cfg.ScrapeConfigFiles)
+	scs, err := loadScrapeConfigFiles(cfg.baseDir, cfg.ScrapeConfigFiles, *strictParse)
+	if err != nil {
+		return err
+	}
 	cfg.ScrapeConfigFiles = nil
 	cfg.ScrapeConfigs = append(cfg.ScrapeConfigs, scs...)
 
@@ -652,6 +671,16 @@ func (cfg *Config) getGCESDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 		}
 	}
 	return cfg.getScrapeWorkGeneric(visitConfigs, "gce_sd_config", prev)
+}
+
+// getHetznerSDScrapeWork returns `hetzner_sd_configs` ScrapeWork from cfg.
+func (cfg *Config) getHetznerSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
+	visitConfigs := func(sc *ScrapeConfig, visitor func(sdc targetLabelsGetter)) {
+		for i := range sc.HetznerSDConfigs {
+			visitor(&sc.HetznerSDConfigs[i])
+		}
+	}
+	return cfg.getScrapeWorkGeneric(visitConfigs, "hetzner_sd_config", prev)
 }
 
 // getHTTPDScrapeWork returns `http_sd_configs` ScrapeWork from cfg.
@@ -847,8 +876,8 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 		noStaleTracking = *sc.NoStaleMarkers
 	}
 	seriesLimit := *seriesLimitPerTarget
-	if sc.SeriesLimit > 0 {
-		seriesLimit = sc.SeriesLimit
+	if sc.SeriesLimit != nil {
+		seriesLimit = *sc.SeriesLimit
 	}
 	swc := &scrapeWorkConfig{
 		scrapeInterval:       scrapeInterval,
@@ -955,7 +984,7 @@ func (sdc *FileSDConfig) appendScrapeWork(dst []*ScrapeWork, baseDir string, swc
 	metaLabels := promutils.GetLabels()
 	defer promutils.PutLabels(metaLabels)
 	for _, file := range sdc.Files {
-		pathPattern := fs.GetFilepath(baseDir, file)
+		pathPattern := fscore.GetFilepath(baseDir, file)
 		paths := []string{pathPattern}
 		if strings.Contains(pathPattern, "*") {
 			var err error
@@ -1021,25 +1050,24 @@ func appendScrapeWorkKey(dst []byte, labels *promutils.Labels) []byte {
 	return dst
 }
 
-func needSkipScrapeWork(key string, membersCount, replicasCount, memberNum int) bool {
+func getClusterMemberNumsForScrapeWork(key string, membersCount, replicasCount int) []int {
 	if membersCount <= 1 {
-		return false
+		return []int{0}
 	}
 	h := xxhash.Sum64(bytesutil.ToUnsafeBytes(key))
 	idx := int(h % uint64(membersCount))
 	if replicasCount < 1 {
 		replicasCount = 1
 	}
+	memberNums := make([]int, replicasCount)
 	for i := 0; i < replicasCount; i++ {
-		if idx == memberNum {
-			return false
-		}
+		memberNums[i] = idx
 		idx++
 		if idx >= membersCount {
 			idx = 0
 		}
 	}
-	return true
+	return memberNums
 }
 
 var scrapeWorkKeyBufPool bytesutil.ByteBufferPool
@@ -1049,13 +1077,17 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 	defer promutils.PutLabels(labels)
 
 	mergeLabels(labels, swc, target, extraLabels, metaLabels)
-	var originalLabels *promutils.Labels
-	if !*dropOriginalLabels {
-		originalLabels = labels.Clone()
-	}
+	originalLabels := labels.Clone()
 	labels.Labels = swc.relabelConfigs.Apply(labels.Labels, 0)
 	// Remove labels starting from "__meta_" prefix according to https://www.robustperception.io/life-of-a-label/
 	labels.RemoveMetaLabels()
+
+	if labels.Len() == 0 {
+		// Drop target without labels.
+		originalLabels = sortOriginalLabelsIfNeeded(originalLabels)
+		droppedTargetsMap.Register(originalLabels, swc.relabelConfigs, targetDropReasonRelabeling, nil)
+		return nil, nil
+	}
 
 	// Verify whether the scrape work must be skipped because of `-promscrape.cluster.*` configs.
 	// Perform the verification on labels after the relabeling in order to guarantee that targets with the same set of labels
@@ -1064,26 +1096,19 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 	if *clusterMembersCount > 1 {
 		bb := scrapeWorkKeyBufPool.Get()
 		bb.B = appendScrapeWorkKey(bb.B[:0], labels)
-		needSkip := needSkipScrapeWork(bytesutil.ToUnsafeString(bb.B), *clusterMembersCount, *clusterReplicationFactor, clusterMemberID)
+		memberNums := getClusterMemberNumsForScrapeWork(bytesutil.ToUnsafeString(bb.B), *clusterMembersCount, *clusterReplicationFactor)
 		scrapeWorkKeyBufPool.Put(bb)
-		if needSkip {
+		if !slices.Contains(memberNums, clusterMemberID) {
+			originalLabels = sortOriginalLabelsIfNeeded(originalLabels)
+			droppedTargetsMap.Register(originalLabels, swc.relabelConfigs, targetDropReasonSharding, memberNums)
 			return nil, nil
 		}
-	}
-	if !*dropOriginalLabels {
-		originalLabels.Sort()
-		// Reduce memory usage by interning all the strings in originalLabels.
-		originalLabels.InternStrings()
-	}
-	if labels.Len() == 0 {
-		// Drop target without labels.
-		droppedTargetsMap.Register(originalLabels, swc.relabelConfigs)
-		return nil, nil
 	}
 	scrapeURL, address := promrelabel.GetScrapeURL(labels, swc.params)
 	if scrapeURL == "" {
 		// Drop target without URL.
-		droppedTargetsMap.Register(originalLabels, swc.relabelConfigs)
+		originalLabels = sortOriginalLabelsIfNeeded(originalLabels)
+		droppedTargetsMap.Register(originalLabels, swc.relabelConfigs, targetDropReasonMissingScrapeURL, nil)
 		return nil, nil
 	}
 	if _, err := url.Parse(scrapeURL); err != nil {
@@ -1155,6 +1180,7 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 	// Reduce memory usage by interning all the strings in labels.
 	labelsCopy.InternStrings()
 
+	originalLabels = sortOriginalLabelsIfNeeded(originalLabels)
 	sw := &ScrapeWork{
 		ScrapeURL:            scrapeURL,
 		ScrapeInterval:       scrapeInterval,
@@ -1183,6 +1209,16 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		jobNameOriginal: swc.jobName,
 	}
 	return sw, nil
+}
+
+func sortOriginalLabelsIfNeeded(originalLabels *promutils.Labels) *promutils.Labels {
+	if *dropOriginalLabels {
+		return nil
+	}
+	originalLabels.Sort()
+	// Reduce memory usage by interning all the strings in originalLabels.
+	originalLabels.InternStrings()
+	return originalLabels
 }
 
 func mergeLabels(dst *promutils.Labels, swc *scrapeWorkConfig, target string, extraLabels, metaLabels *promutils.Labels) {

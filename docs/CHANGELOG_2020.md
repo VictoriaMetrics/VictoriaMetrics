@@ -1,13 +1,13 @@
 ---
-sort: 28
-weight: 28
+sort: 101
+weight: 101
 title: CHANGELOG for the year 2020
 menu:
   docs:
     parent: 'victoriametrics'
-    weight: 28
+    weight: 101
 aliases:
-- /CHANGELOG.html
+- /CHANGELOG_2020.html
 ---
 
 # CHANGELOG for the year 2020
@@ -96,7 +96,7 @@ Released at 2020-11-26
 
 * FEATURE: added [Snap package for single-node VictoriaMetrics](https://snapcraft.io/victoriametrics). This simplifies installation under Ubuntu to a single command:
 
-  ```console
+  ```sh
   snap install victoriametrics
   ```
 

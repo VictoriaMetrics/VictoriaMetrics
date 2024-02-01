@@ -23,8 +23,8 @@ var (
 		fmt.Sprintf("See %s", appActionDeprecationURL), 2)
 	ignoreFlagPrefix = "test." // this is to ignore test flags when adding flags from other packages
 
-	SuggestFlag               SuggestFlagFunc    = suggestFlag
-	SuggestCommand            SuggestCommandFunc = suggestCommand
+	SuggestFlag               SuggestFlagFunc    = nil // initialized in suggestions.go unless built with urfave_cli_no_suggest
+	SuggestCommand            SuggestCommandFunc = nil // initialized in suggestions.go unless built with urfave_cli_no_suggest
 	SuggestDidYouMeanTemplate string             = suggestDidYouMeanTemplate
 )
 
@@ -39,6 +39,8 @@ type App struct {
 	Usage string
 	// Text to override the USAGE section of help
 	UsageText string
+	// Whether this command supports arguments
+	Args bool
 	// Description of the program argument format.
 	ArgsUsage string
 	// Version of the program
@@ -329,6 +331,9 @@ func (a *App) RunContext(ctx context.Context, arguments []string) (err error) {
 	a.rootCommand = a.newRootCommand()
 	cCtx.Command = a.rootCommand
 
+	if err := checkDuplicatedCmds(a.rootCommand); err != nil {
+		return err
+	}
 	return a.rootCommand.Run(cCtx, arguments...)
 }
 
@@ -363,6 +368,9 @@ func (a *App) suggestFlagFromError(err error, command string) (string, error) {
 		hideHelp = hideHelp || cmd.HideHelp
 	}
 
+	if SuggestFlag == nil {
+		return "", err
+	}
 	suggestion := SuggestFlag(flags, flag, hideHelp)
 	if len(suggestion) == 0 {
 		return "", err
@@ -453,30 +461,6 @@ func (a *App) handleExitCoder(cCtx *Context, err error) {
 	} else {
 		HandleExitCoder(err)
 	}
-}
-
-func (a *App) commandNames() []string {
-	var cmdNames []string
-
-	for _, cmd := range a.Commands {
-		cmdNames = append(cmdNames, cmd.Names()...)
-	}
-
-	return cmdNames
-}
-
-func (a *App) validCommandName(checkCmdName string) bool {
-	valid := false
-	allCommandNames := a.commandNames()
-
-	for _, cmdName := range allCommandNames {
-		if checkCmdName == cmdName {
-			valid = true
-			break
-		}
-	}
-
-	return valid
 }
 
 func (a *App) argsWithDefaultCommand(oldArgs Args) Args {

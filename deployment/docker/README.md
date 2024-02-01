@@ -7,24 +7,28 @@ and [Grafana](https://grafana.com/).
 For starting the docker-compose environment ensure you have docker installed and running and access to the Internet.
 **All commands should be executed from the root directory of [the repo](https://github.com/VictoriaMetrics/VictoriaMetrics).**
 
-To spin-up environment for single server VictoriaMetrics run the following command:
+To spin-up environment with VictoriaMetrics components run one of the following commands:
 ```
-make docker-single-up
-```
-
-To shut down the docker-compose environment for single server run the following command:
-```
-make docker-single-down
+make docker-single-up  # start single server VictoriaMetrics 
+ or
+make docker-cluster-up # start cluster VictoriaMetrics 
 ```
 
-For cluster version the command will be the following:
+To shut down the docker-compose environment run one the following commands:
 ```
-make docker-cluster-up
+make docker-single-down # shutdown single server VictoriaMetrics 
+ or
+make docker-cluster-down # shutdown cluster VictoriaMetrics 
 ```
 
-To shut down the docker compose environment for cluster version run the following command:
+Optionally, environment with [VictoriaMetrics Grafana datasource](https://github.com/VictoriaMetrics/grafana-datasource)
+can be started with the following commands:
 ```
-make docker-cluster-down
+make docker-single-vm-datasource-up    # start single server
+make docker-single-vm-datasource-down  # shut down single server
+
+make docker-cluster-vm-datasource-up   # start cluster
+make docker-cluster-vm-datasource-down # shutdown cluster
 ```
 
 ## VictoriaMetrics single server
@@ -122,6 +126,10 @@ Grafana is provisioned by default with following entities:
 * `VictoriaMetrics - vmalert` dashboard
 
 Remember to pick `VictoriaMetrics - cluster` datasource when viewing `VictoriaMetrics - cluster` dashboard.
+
+If environment was started via `docker-single-vm-datasource-up` or `docker-cluster-vm-datasource-up`, then
+Grafana will have [VictoriaMetrics Grafana datasource](https://github.com/VictoriaMetrics/grafana-datasource)
+installed by default.
 
 ## Alerts
 

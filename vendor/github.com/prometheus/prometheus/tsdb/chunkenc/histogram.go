@@ -114,7 +114,7 @@ func (c *HistogramChunk) Appender() (Appender, error) {
 	// To get an appender, we must know the state it would have if we had
 	// appended all existing data from scratch. We iterate through the end
 	// and populate via the iterator's state.
-	for it.Next() == ValHistogram { // nolint:revive
+	for it.Next() == ValHistogram {
 	}
 	if err := it.Err(); err != nil {
 		return nil, err
@@ -251,6 +251,11 @@ func (a *HistogramAppender) appendable(h *histogram.Histogram) (
 	okToAppend, counterReset bool,
 ) {
 	if a.NumSamples() > 0 && a.GetCounterResetHeader() == GaugeType {
+		return
+	}
+	if h.CounterResetHint == histogram.CounterReset {
+		// Always honor the explicit counter reset hint.
+		counterReset = true
 		return
 	}
 	if value.IsStaleNaN(h.Sum) {
@@ -614,7 +619,11 @@ func (a *HistogramAppender) AppendHistogram(prev *HistogramAppender, t int64, h 
 			return nil, false, a, nil
 		}
 
-		if prev != nil && h.CounterResetHint != histogram.CounterReset {
+		switch {
+		case h.CounterResetHint == histogram.CounterReset:
+			// Always honor the explicit counter reset hint.
+			a.setCounterResetHeader(CounterReset)
+		case prev != nil:
 			// This is a new chunk, but continued from a previous one. We need to calculate the reset header unless already set.
 			_, _, _, counterReset := prev.appendable(h)
 			if counterReset {
@@ -622,9 +631,6 @@ func (a *HistogramAppender) AppendHistogram(prev *HistogramAppender, t int64, h 
 			} else {
 				a.setCounterResetHeader(NotCounterReset)
 			}
-		} else {
-			// Honor the explicit counter reset hint.
-			a.setCounterResetHeader(CounterResetHeader(h.CounterResetHint))
 		}
 		return nil, false, a, nil
 	}
@@ -634,10 +640,10 @@ func (a *HistogramAppender) AppendHistogram(prev *HistogramAppender, t int64, h 
 		pForwardInserts, nForwardInserts, okToAppend, counterReset := a.appendable(h)
 		if !okToAppend || counterReset {
 			if appendOnly {
-				if !okToAppend {
-					return nil, false, a, fmt.Errorf("histogram schema change")
+				if counterReset {
+					return nil, false, a, fmt.Errorf("histogram counter reset")
 				}
-				return nil, false, a, fmt.Errorf("histogram counter reset")
+				return nil, false, a, fmt.Errorf("histogram schema change")
 			}
 			newChunk := NewHistogramChunk()
 			app, err := newChunk.Appender()

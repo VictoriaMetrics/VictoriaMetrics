@@ -156,11 +156,14 @@ func (m *manager) update(ctx context.Context, groupsCfg []config.Group, restore 
 		var wg sync.WaitGroup
 		for _, item := range toUpdate {
 			wg.Add(1)
+			// cancel evaluation so the Update will be applied as fast as possible.
+			// it is important to call InterruptEval before the update, because cancel fn
+			// can be re-assigned during the update.
+			item.old.InterruptEval()
 			go func(old *rule.Group, new *rule.Group) {
 				old.UpdateWith(new)
 				wg.Done()
 			}(item.old, item.new)
-			item.old.InterruptEval()
 		}
 		wg.Wait()
 	}

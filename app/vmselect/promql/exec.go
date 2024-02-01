@@ -20,6 +20,8 @@ import (
 )
 
 var (
+	maxResponseSeries = flag.Int("search.maxResponseSeries", 0, "The maximum number of time series which can be returned from /api/v1/query and /api/v1/query_range . "+
+		"The limit is disabled if it equals to 0. See also -search.maxPointsPerTimeseries and -search.maxUniqueTimeseries")
 	treatDotsAsIsInRegexps = flag.Bool("search.treatDotsAsIsInRegexps", false, "Whether to treat dots as is in regexp label filters used in queries. "+
 		`For example, foo{bar=~"a.b.c"} will be automatically converted to foo{bar=~"a\\.b\\.c"}, i.e. all the dots in regexp filters will be automatically escaped `+
 		`in order to match only dot char instead of matching any char. Dots in ".+", ".*" and ".{n}" regexps aren't escaped. `+
@@ -48,7 +50,10 @@ func (ure *UserReadableError) Error() string {
 func Exec(qt *querytracer.Tracer, ec *EvalConfig, q string, isFirstPointOnly bool) ([]netstorage.Result, error) {
 	if querystats.Enabled() {
 		startTime := time.Now()
-		defer querystats.RegisterQuery(q, ec.End-ec.Start, startTime)
+		defer func() {
+			querystats.RegisterQuery(q, ec.End-ec.Start, startTime)
+			ec.QueryStats.addExecutionTimeMsec(startTime)
+		}()
 	}
 
 	ec.validate()
@@ -74,6 +79,10 @@ func Exec(qt *querytracer.Tracer, ec *EvalConfig, q string, isFirstPointOnly boo
 	}
 	maySort := maySortResults(e)
 	result, err := timeseriesToResult(rv, maySort)
+	if *maxResponseSeries > 0 && len(result) > *maxResponseSeries {
+		return nil, fmt.Errorf("the response contains more than -search.maxResponseSeries=%d time series: %d series; either increase -search.maxResponseSeries "+
+			"or change the query in order to return smaller number of series", *maxResponseSeries, len(result))
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -101,6 +110,7 @@ func maySortResults(e metricsql.Expr) bool {
 		case "sort", "sort_desc",
 			"sort_by_label", "sort_by_label_desc",
 			"sort_by_label_numeric", "sort_by_label_numeric_desc":
+			// Results already sorted
 			return false
 		}
 	case *metricsql.AggrFuncExpr:
@@ -108,6 +118,7 @@ func maySortResults(e metricsql.Expr) bool {
 		case "topk", "bottomk", "outliersk",
 			"topk_max", "topk_min", "topk_avg", "topk_median", "topk_last",
 			"bottomk_max", "bottomk_min", "bottomk_avg", "bottomk_median", "bottomk_last":
+			// Results already sorted
 			return false
 		}
 	case *metricsql.BinaryOpExpr:
@@ -122,6 +133,10 @@ func maySortResults(e metricsql.Expr) bool {
 
 func timeseriesToResult(tss []*timeseries, maySort bool) ([]netstorage.Result, error) {
 	tss = removeEmptySeries(tss)
+	if maySort {
+		sortSeriesByMetricName(tss)
+	}
+
 	result := make([]netstorage.Result, len(tss))
 	m := make(map[string]struct{}, len(tss))
 	bb := bbPool.Get()
@@ -142,13 +157,13 @@ func timeseriesToResult(tss []*timeseries, maySort bool) ([]netstorage.Result, e
 	}
 	bbPool.Put(bb)
 
-	if maySort {
-		sort.Slice(result, func(i, j int) bool {
-			return metricNameLess(&result[i].MetricName, &result[j].MetricName)
-		})
-	}
-
 	return result, nil
+}
+
+func sortSeriesByMetricName(tss []*timeseries) {
+	sort.Slice(tss, func(i, j int) bool {
+		return metricNameLess(&tss[i].MetricName, &tss[j].MetricName)
+	})
 }
 
 func metricNameLess(a, b *storage.MetricName) bool {

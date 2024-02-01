@@ -58,13 +58,17 @@ and send data to multiple remote storage systems, vmagent has the following addi
 * vmagent may accept, relabel and filter data obtained via multiple data ingestion protocols in addition to data scraped from Prometheus targets.
   That means it supports both `pull` and `push` protocols for data ingestion.
   See [these docs](https://docs.victoriametrics.com/vmagent.html#features) for details.
-* vmagent may be used in different use cases:
+* vmagent may be used in different [use cases](https://docs.victoriametrics.com/vmagent.html#use-cases):
   * [IoT and edge monitoring](https://docs.victoriametrics.com/vmagent.html#iot-and-edge-monitoring)
   * [Drop-in replacement for Prometheus](https://docs.victoriametrics.com/vmagent.html#drop-in-replacement-for-prometheus)
-  * [Replication and High Availability](https://docs.victoriametrics.com/vmagent.html#replication-and-high-availability)
-  * [Relabeling and Filtering](https://docs.victoriametrics.com/vmagent.html#relabeling-and-filtering)
+  * [Statsd alternative](https://docs.victoriametrics.com/vmagent.html#statsd-alternative)
+  * [Flexible metrics relay](https://docs.victoriametrics.com/vmagent.html#flexible-metrics-relay)
+  * [Replication and high availability](https://docs.victoriametrics.com/vmagent.html#replication-and-high-availability)
+  * [Sharding among remote storages](https://docs.victoriametrics.com/vmagent.html#sharding-among-remote-storages)
+  * [Relabeling and filtering](https://docs.victoriametrics.com/vmagent.html#relabeling-and-filtering)
   * [Splitting data streams among multiple systems](https://docs.victoriametrics.com/vmagent.html#splitting-data-streams-among-multiple-systems)
   * [Prometheus remote_write proxy](https://docs.victoriametrics.com/vmagent.html#prometheus-remote_write-proxy)
+  * [remote_write for clustered version](https://docs.victoriametrics.com/vmagent.html#remote_write-for-clustered-version)
 
 ## What is the difference between vmagent and Prometheus agent?
 
@@ -309,7 +313,9 @@ Yes. See [these docs](https://docs.victoriametrics.com/#graphite-api-usage).
 
 ## What is an active time series?
 
-A time series is uniquely identified by its name plus a set of its labels. For example, `temperature{city="NY",country="US"}` and `temperature{city="SF",country="US"}` are two distinct series, since they differ by the `city` label. A time series is considered active if it receives at least a single new sample during the last hour.
+A time series is uniquely identified by its name plus a set of its labels. For example, `temperature{city="NY",country="US"}` and `temperature{city="SF",country="US"}`
+are two distinct series, since they differ by the `city` label. A time series is considered active if it receives at least a single new sample during the last hour.
+The number of active time series is displayed on the official Grafana dashboard for VictoriaMetrics - see [these docs](https://docs.victoriametrics.com/#monitoring) for details.
 
 ## What is high churn rate?
 
@@ -322,19 +328,42 @@ If old time series are constantly substituted by new time series at a high rate,
 The main reason for high churn rate is a metric label with frequently changed value. Examples of such labels:
 
 * `queryid`, which changes with each query at `postgres_exporter`.
-* `app_name` or `deployment_id`, which changes with each new deployment in Kubernetes.
+* `pod`, which changes with each new deployment in Kubernetes.
 * A label derived from the current time such as `timestamp`, `minute` or `hour`.
 * A `hash` or `uuid` label, which changes frequently.
 
-The solution against high churn rate is to identify and eliminate labels with frequently changed values. [Cardinality explorer](https://docs.victoriametrics.com/#cardinality-explorer) can help determining these labels.
+The solution against high churn rate is to identify and eliminate labels with frequently changed values.
+[Cardinality explorer](https://docs.victoriametrics.com/#cardinality-explorer) can help determining these labels.
+
+The official Grafana dashboards for VictoriaMetrics contain graphs for churn rate - see [these docs](https://docs.victoriametrics.com/#monitoring) for details.
 
 ## What is high cardinality?
 
-High cardinality usually means a high number of [active time series](#what-is-an-active-time-series). High cardinality may lead to high memory usage and/or to a high percentage of [slow inserts](#what-is-a-slow-insert). The source of high cardinality is usually a label with a large number of unique values, which presents a big share of the ingested time series. The solution is to identify and remove the source of high cardinality with the help of [cardinality explorer](https://docs.victoriametrics.com/#cardinality-explorer).
+High cardinality usually means a high number of [active time series](#what-is-an-active-time-series). High cardinality may lead to high memory usage
+and/or to a high percentage of [slow inserts](#what-is-a-slow-insert). The source of high cardinality is usually a label with
+a large number of unique values, which presents a big share of the ingested time series. Examples of such labels:
+
+* `user_id`
+* `url`
+* `ip`
+
+The solution is to identify and remove the source of high cardinality with the help of [cardinality explorer](https://docs.victoriametrics.com/#cardinality-explorer).
+
+The official Grafana dashboards for VictoriaMetrics contain graphs, which show the number of active time series -
+see [these docs](https://docs.victoriametrics.com/#monitoring) for details.
 
 ## What is a slow insert?
 
-VictoriaMetrics maintains in-memory cache for mapping of [active time series](#what-is-an-active-time-series) into internal series ids. The cache size depends on the available memory for VictoriaMetrics in the host system. If the information about all the active time series doesn't fit the cache, then VictoriaMetrics needs to read and unpack the information from disk on every incoming sample for time series missing in the cache. This operation is much slower than the cache lookup, so such an insert is named a `slow insert`. A high percentage of slow inserts on the [official dashboard for VictoriaMetrics](https://docs.victoriametrics.com/#monitoring) indicates a memory shortage for the current number of [active time series](#what-is-an-active-time-series). Such a condition usually leads to a significant slowdown for data ingestion and to significantly increased disk IO and CPU usage. The solution is to add more memory or to reduce the number of [active time series](#what-is-an-active-time-series). [Cardinality explorer](https://docs.victoriametrics.com/#cardinality-explorer) can be helpful for locating the source of high number of active time series.
+VictoriaMetrics maintains in-memory cache for mapping of [active time series](#what-is-an-active-time-series) into internal series ids.
+The cache size depends on the available memory for VictoriaMetrics in the host system. If the information about all the active time series doesn't fit the cache,
+then VictoriaMetrics needs to read and unpack the information from disk on every incoming sample for time series missing in the cache.
+This operation is much slower than the cache lookup, so such an insert is named a `slow insert`.
+A high percentage of slow inserts on the [official dashboard for VictoriaMetrics](https://docs.victoriametrics.com/#monitoring) indicates
+a memory shortage for the current number of [active time series](#what-is-an-active-time-series). Such a condition usually leads
+to a significant slowdown for data ingestion and to significantly increased disk IO and CPU usage.
+The solution is to add more memory or to reduce the number of [active time series](#what-is-an-active-time-series).
+
+[Cardinality explorer](https://docs.victoriametrics.com/#cardinality-explorer) can be helpful for locating the source of high number of active time series.
 
 ## How to optimize MetricsQL query?
 

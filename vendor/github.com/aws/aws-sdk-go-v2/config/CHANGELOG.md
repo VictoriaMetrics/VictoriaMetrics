@@ -1,3 +1,132 @@
+# v1.26.6 (2024-01-22)
+
+* **Bug Fix**: Remove invalid escaping of shared config values. All values in the shared config file will now be interpreted literally, save for fully-quoted strings which are unwrapped for legacy reasons.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.26.5 (2024-01-18)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.26.4 (2024-01-16)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.26.3 (2024-01-04)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.26.2 (2023-12-20)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.26.1 (2023-12-08)
+
+* **Bug Fix**: Correct loading of [services *] sections into shared config.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.26.0 (2023-12-07)
+
+* **Feature**: Support modeled request compression. The only algorithm supported at this time is `gzip`.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.25.12 (2023-12-06)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.25.11 (2023-12-01)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.25.10 (2023-11-30)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.25.9 (2023-11-29)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.25.8 (2023-11-28.3)
+
+* **Bug Fix**: Correct resolution of S3Express auth disable toggle.
+
+# v1.25.7 (2023-11-28.2)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.25.6 (2023-11-28)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.25.5 (2023-11-21)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.25.4 (2023-11-20)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.25.3 (2023-11-17)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.25.2 (2023-11-16)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.25.1 (2023-11-15)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.25.0 (2023-11-14)
+
+* **Feature**: Add support for dynamic auth token from file and EKS container host in absolute/relative URIs in the HTTP credential provider.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.24.0 (2023-11-13)
+
+* **Feature**: Replace the legacy config parser with a modern, less-strict implementation. Parsing failures within a section will now simply ignore the invalid line rather than silently drop the entire section.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.23.0 (2023-11-09.2)
+
+* **Feature**: BREAKFIX: In order to support subproperty parsing, invalid property definitions must not be ignored
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.22.3 (2023-11-09)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.22.2 (2023-11-07)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.22.1 (2023-11-06)
+
+* No change notes available for this release.
+
+# v1.22.0 (2023-11-02)
+
+* **Feature**: Add env and shared config settings for disabling IMDSv1 fallback.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.21.0 (2023-11-01)
+
+* **Feature**: Adds support for configured endpoints via environment variables and the AWS shared configuration file.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.20.0 (2023-10-31)
+
+* **Feature**: **BREAKING CHANGE**: Bump minimum go version to 1.19 per the revised [go version support policy](https://aws.amazon.com/blogs/developer/aws-sdk-for-go-aligns-with-go-release-policy-on-supported-runtimes/).
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.19.1 (2023-10-24)
+
+* No change notes available for this release.
+
+# v1.19.0 (2023-10-16)
+
+* **Feature**: Modify logic of retrieving user agent appID from env config
+
 # v1.18.45 (2023-10-12)
 
 * **Bug Fix**: Fail to load config if an explicitly provided profile doesn't exist.

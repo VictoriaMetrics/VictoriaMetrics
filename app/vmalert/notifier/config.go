@@ -3,13 +3,14 @@ package notifier
 import (
 	"crypto/md5"
 	"fmt"
-	"gopkg.in/yaml.v2"
 	"net/url"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"gopkg.in/yaml.v2"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
@@ -142,26 +143,23 @@ func parseLabels(target string, metaLabels *promutils.Labels, cfg *Config) (stri
 	if labels.Len() == 0 {
 		return "", nil, nil
 	}
-	schemeRelabeled := labels.Get("__scheme__")
-	if len(schemeRelabeled) == 0 {
-		schemeRelabeled = "http"
+	scheme := labels.Get("__scheme__")
+	if len(scheme) == 0 {
+		scheme = "http"
 	}
-	addressRelabeled := labels.Get("__address__")
-	if len(addressRelabeled) == 0 {
+	alertsPath := labels.Get("__alerts_path__")
+	if !strings.HasPrefix(alertsPath, "/") {
+		alertsPath = "/" + alertsPath
+	}
+	address := labels.Get("__address__")
+	if len(address) == 0 {
 		return "", nil, nil
 	}
-	if strings.Contains(addressRelabeled, "/") {
-		return "", nil, nil
-	}
-	addressRelabeled = addMissingPort(schemeRelabeled, addressRelabeled)
-	alertsPathRelabeled := labels.Get("__alerts_path__")
-	if !strings.HasPrefix(alertsPathRelabeled, "/") {
-		alertsPathRelabeled = "/" + alertsPathRelabeled
-	}
-	u := fmt.Sprintf("%s://%s%s", schemeRelabeled, addressRelabeled, alertsPathRelabeled)
+	address = addMissingPort(scheme, address)
+	u := fmt.Sprintf("%s://%s%s", scheme, address, alertsPath)
 	if _, err := url.Parse(u); err != nil {
 		return "", nil, fmt.Errorf("invalid url %q for scheme=%q (%q), target=%q, metrics_path=%q (%q): %w",
-			u, cfg.Scheme, schemeRelabeled, target, addressRelabeled, alertsPathRelabeled, err)
+			u, cfg.Scheme, scheme, target, address, alertsPath, err)
 	}
 	return u, labels, nil
 }
@@ -181,9 +179,24 @@ func addMissingPort(scheme, target string) string {
 func mergeLabels(target string, metaLabels *promutils.Labels, cfg *Config) *promutils.Labels {
 	// See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config
 	m := promutils.NewLabels(3 + metaLabels.Len())
-	m.Add("__address__", target)
-	m.Add("__scheme__", cfg.Scheme)
-	m.Add("__alerts_path__", path.Join("/", cfg.PathPrefix, alertManagerPath))
+	address := target
+	scheme := cfg.Scheme
+	alertsPath := path.Join("/", cfg.PathPrefix, alertManagerPath)
+	// try to extract optional scheme and alertsPath from __address__.
+	if strings.HasPrefix(address, "http://") {
+		scheme = "http"
+		address = address[len("http://"):]
+	} else if strings.HasPrefix(address, "https://") {
+		scheme = "https"
+		address = address[len("https://"):]
+	}
+	if n := strings.IndexByte(address, '/'); n >= 0 {
+		alertsPath = address[n:]
+		address = address[:n]
+	}
+	m.Add("__address__", address)
+	m.Add("__scheme__", scheme)
+	m.Add("__alerts_path__", alertsPath)
 	m.AddFrom(metaLabels)
 	return m
 }

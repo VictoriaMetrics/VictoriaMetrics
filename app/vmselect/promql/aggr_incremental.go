@@ -79,6 +79,13 @@ type incrementalAggrFuncContext struct {
 	callbacks *incrementalAggrFuncCallbacks
 }
 
+func (iafc *incrementalAggrFuncContext) resetState() {
+	byWorkerID := iafc.byWorkerID
+	for i := range byWorkerID {
+		byWorkerID[i].m = make(map[string]*incrementalAggrContext, len(byWorkerID[i].m))
+	}
+}
+
 func newIncrementalAggrFuncContext(ae *metricsql.AggrFuncExpr, callbacks *incrementalAggrFuncCallbacks) *incrementalAggrFuncContext {
 	return &incrementalAggrFuncContext{
 		ae:         ae,
@@ -104,8 +111,8 @@ func (iafc *incrementalAggrFuncContext) updateTimeseries(tsOrig *timeseries, wor
 	removeGroupTags(&ts.MetricName, &iafc.ae.Modifier)
 	bb := bbPool.Get()
 	bb.B = marshalMetricNameSorted(bb.B[:0], &ts.MetricName)
-	k := string(bb.B)
-	iac := m[k]
+	k := bb.B
+	iac := m[string(k)]
 	if iac == nil {
 		if iafc.ae.Limit > 0 && len(m) >= iafc.ae.Limit {
 			// Skip this time series, since the limit on the number of output time series has been already reached.
@@ -124,7 +131,7 @@ func (iafc *incrementalAggrFuncContext) updateTimeseries(tsOrig *timeseries, wor
 			ts:     tsAggr,
 			values: make([]float64, len(ts.Values)),
 		}
-		m[k] = iac
+		m[string(k)] = iac
 	}
 	bbPool.Put(bb)
 	iafc.callbacks.updateAggrFunc(iac, ts.Values)
@@ -154,6 +161,8 @@ func (iafc *incrementalAggrFuncContext) finalizeTimeseries() []*timeseries {
 		finalizeAggrFunc(iac)
 		tss = append(tss, iac.ts)
 	}
+	// reset iafc state, so it could be re-used
+	iafc.resetState()
 	return tss
 }
 

@@ -8,22 +8,7 @@ import (
 )
 
 type WriteRequest struct {
-	Timeseries []TimeSeries `protobuf:"bytes,1,rep,name=timeseries,proto3" json:"timeseries"`
-}
-
-func (m *WriteRequest) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *WriteRequest) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
+	Timeseries []TimeSeries
 }
 
 func (m *WriteRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
@@ -39,7 +24,7 @@ func (m *WriteRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 					return 0, err
 				}
 				i -= size
-				i = encodeVarintRemote(dAtA, i, uint64(size))
+				i = encodeVarint(dAtA, i, uint64(size))
 			}
 			i--
 			dAtA[i] = 0xa
@@ -48,8 +33,8 @@ func (m *WriteRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
-func encodeVarintRemote(dAtA []byte, offset int, v uint64) int {
-	offset -= sovRemote(v)
+func encodeVarint(dAtA []byte, offset int, v uint64) int {
+	offset -= sov(v)
 	base := offset
 	for v >= 1<<7 {
 		dAtA[offset] = uint8(v&0x7f | 0x80)
@@ -68,12 +53,12 @@ func (m *WriteRequest) Size() (n int) {
 	if len(m.Timeseries) > 0 {
 		for _, e := range m.Timeseries {
 			l = e.Size()
-			n += 1 + l + sovRemote(uint64(l))
+			n += 1 + l + sov(uint64(l))
 		}
 	}
 	return n
 }
 
-func sovRemote(x uint64) (n int) {
+func sov(x uint64) (n int) {
 	return (math_bits.Len64(x|1) + 6) / 7
 }

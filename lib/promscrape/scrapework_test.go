@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
@@ -89,9 +90,9 @@ func TestScrapeWorkScrapeInternalFailure(t *testing.T) {
 	}
 
 	readDataCalls := 0
-	sw.ReadData = func(dst []byte) ([]byte, error) {
+	sw.ReadData = func(dst *bytesutil.ByteBuffer) error {
 		readDataCalls++
-		return dst, fmt.Errorf("error when reading data")
+		return fmt.Errorf("error when reading data")
 	}
 
 	pushDataCalls := 0
@@ -104,9 +105,11 @@ func TestScrapeWorkScrapeInternalFailure(t *testing.T) {
 	}
 
 	timestamp := int64(123000)
+	tsmGlobal.Register(&sw)
 	if err := sw.scrapeInternal(timestamp, timestamp); err == nil {
 		t.Fatalf("expecting non-nil error")
 	}
+	tsmGlobal.Unregister(&sw)
 	if pushDataErr != nil {
 		t.Fatalf("unexpected error: %s", pushDataErr)
 	}
@@ -128,10 +131,10 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		sw.Config = cfg
 
 		readDataCalls := 0
-		sw.ReadData = func(dst []byte) ([]byte, error) {
+		sw.ReadData = func(dst *bytesutil.ByteBuffer) error {
 			readDataCalls++
-			dst = append(dst, data...)
-			return dst, nil
+			dst.B = append(dst.B, data...)
+			return nil
 		}
 
 		pushDataCalls := 0
@@ -152,11 +155,13 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		}
 
 		timestamp := int64(123000)
+		tsmGlobal.Register(&sw)
 		if err := sw.scrapeInternal(timestamp, timestamp); err != nil {
 			if !strings.Contains(err.Error(), "sample_limit") {
 				t.Fatalf("unexpected error: %s", err)
 			}
 		}
+		tsmGlobal.Unregister(&sw)
 		if pushDataErr != nil {
 			t.Fatalf("unexpected error: %s", pushDataErr)
 		}

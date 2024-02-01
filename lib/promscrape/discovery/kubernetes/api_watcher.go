@@ -24,9 +24,14 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 )
 
-var apiServerTimeout = flag.Duration("promscrape.kubernetes.apiServerTimeout", 30*time.Minute, "How frequently to reload the full state from Kubernetes API server")
+var (
+	apiServerTimeout      = flag.Duration("promscrape.kubernetes.apiServerTimeout", 30*time.Minute, "How frequently to reload the full state from Kubernetes API server")
+	attachNodeMetadataAll = flag.Bool("promscrape.kubernetes.attachNodeMetadataAll", false, "Whether to set attach_metadata.node=true for all the kubernetes_sd_configs at -promscrape.config . "+
+		"It is possible to set attach_metadata.node=false individually per each kubernetes_sd_configs . See https://docs.victoriametrics.com/sd_configs.html#kubernetes_sd_configs")
+)
 
 // WatchEvent is a watch event returned from API server endpoints if `watch=1` query arg is set.
 //
@@ -78,7 +83,10 @@ func newAPIWatcher(apiServer string, ac *promauth.Config, sdc *SDConfig, swcFunc
 		}
 	}
 	selectors := sdc.Selectors
-	attachNodeMetadata := sdc.AttachMetadata.Node
+	attachNodeMetadata := *attachNodeMetadataAll
+	if sdc.AttachMetadata != nil {
+		attachNodeMetadata = sdc.AttachMetadata.Node
+	}
 	proxyURL := sdc.ProxyURL.GetURL()
 	gw, err := getGroupWatcher(apiServer, ac, namespaces, selectors, attachNodeMetadata, proxyURL)
 	if err != nil {
@@ -96,7 +104,9 @@ func newAPIWatcher(apiServer string, ac *promauth.Config, sdc *SDConfig, swcFunc
 }
 
 func (aw *apiWatcher) mustStart() {
+	atomic.AddInt32(&aw.gw.apiWatcherInflightStartCalls, 1)
 	aw.gw.startWatchersForRole(aw.role, aw)
+	atomic.AddInt32(&aw.gw.apiWatcherInflightStartCalls, -1)
 }
 
 func (aw *apiWatcher) updateSwosCount(multiplier int, swosByKey map[string][]interface{}) {
@@ -202,6 +212,10 @@ func (aw *apiWatcher) getScrapeWorkObjects() []interface{} {
 // groupWatcher watches for Kubernetes objects on the given apiServer with the given namespaces,
 // selectors and attachNodeMetadata using the given client.
 type groupWatcher struct {
+	// The number of in-flight apiWatcher.mustStart() calls for the given groupWatcher.
+	// This field is used by groupWatchersCleaner() in order to determine when the given groupWatcher can be stopped.
+	apiWatcherInflightStartCalls int32
+
 	// Old Kubernetes doesn't support /apis/networking.k8s.io/v1/, so /apis/networking.k8s.io/v1beta1/ must be used instead.
 	// This flag is used for automatic substitution of v1 API path with v1beta1 API path during requests to apiServer.
 	useNetworkingV1Beta1 uint32
@@ -302,11 +316,7 @@ func selectorsKey(selectors []Selector) string {
 
 var (
 	groupWatchersLock sync.Mutex
-	groupWatchers     = func() map[string]*groupWatcher {
-		gws := make(map[string]*groupWatcher)
-		go groupWatchersCleaner(gws)
-		return gws
-	}()
+	groupWatchers     map[string]*groupWatcher
 
 	_ = metrics.NewGauge(`vm_promscrape_discovery_kubernetes_group_watchers`, func() float64 {
 		groupWatchersLock.Lock()
@@ -316,11 +326,16 @@ var (
 	})
 )
 
-func groupWatchersCleaner(gws map[string]*groupWatcher) {
+func init() {
+	groupWatchers = make(map[string]*groupWatcher)
+	go groupWatchersCleaner()
+}
+
+func groupWatchersCleaner() {
 	for {
 		time.Sleep(7 * time.Second)
 		groupWatchersLock.Lock()
-		for key, gw := range gws {
+		for key, gw := range groupWatchers {
 			gw.mu.Lock()
 			// Calculate the number of apiWatcher instances subscribed to gw.
 			awsTotal := 0
@@ -328,14 +343,14 @@ func groupWatchersCleaner(gws map[string]*groupWatcher) {
 				awsTotal += len(uw.aws) + len(uw.awsPending)
 			}
 
-			if awsTotal == 0 {
-				// There are no API watchers subscribed to gw.
-				// Stop all the urlWatcher instances at gw and drop gw from gws in this case,
+			if awsTotal == 0 && atomic.LoadInt32(&gw.apiWatcherInflightStartCalls) == 0 {
+				// There are no API watchers subscribed to gw and there are no in-flight apiWatcher.mustStart() calls.
+				// Stop all the urlWatcher instances at gw and drop gw from groupWatchers in this case,
 				// but do it only on the second iteration in order to reduce urlWatcher churn
 				// during scrape config reloads.
 				if gw.noAPIWatchers {
 					gw.cancel()
-					delete(gws, key)
+					delete(groupWatchers, key)
 				} else {
 					gw.noAPIWatchers = true
 				}
@@ -425,6 +440,7 @@ func (gw *groupWatcher) startWatchersForRole(role string, aw *apiWatcher) {
 	if gw.attachNodeMetadata && (role == "pod" || role == "endpoints" || role == "endpointslice") {
 		gw.startWatchersForRole("node", nil)
 	}
+
 	paths := getAPIPathsWithNamespaces(role, gw.namespaces, gw.selectors)
 	for _, path := range paths {
 		apiURL := gw.apiServer + path
@@ -566,7 +582,7 @@ func newURLWatcher(role, apiURL string, gw *groupWatcher) *urlWatcher {
 }
 
 func (uw *urlWatcher) recreateScrapeWorks() {
-	const minSleepTime = 5 * time.Second
+	minSleepTime := timeutil.AddJitterToDuration(5 * time.Second)
 	sleepTime := minSleepTime
 	gw := uw.gw
 	stopCh := gw.ctx.Done()
@@ -741,8 +757,9 @@ func (uw *urlWatcher) reloadObjects() string {
 func (uw *urlWatcher) watchForUpdates() {
 	gw := uw.gw
 	stopCh := gw.ctx.Done()
-	backoffDelay := time.Second
-	maxBackoffDelay := 30 * time.Second
+	minBackoffDelay := timeutil.AddJitterToDuration(time.Second)
+	maxBackoffDelay := timeutil.AddJitterToDuration(time.Second * 30)
+	backoffDelay := minBackoffDelay
 	backoffSleep := func() {
 		t := timerpool.Get(backoffDelay)
 		select {
@@ -787,7 +804,7 @@ func (uw *urlWatcher) watchForUpdates() {
 		if resp.StatusCode != http.StatusOK {
 			if resp.StatusCode == 410 {
 				// There is no need for sleep on 410 error. See https://kubernetes.io/docs/reference/using-api/api-concepts/#410-gone-responses
-				backoffDelay = time.Second
+				backoffDelay = minBackoffDelay
 				uw.staleResourceVersions.Inc()
 				uw.resourceVersion = ""
 			} else {
@@ -798,7 +815,7 @@ func (uw *urlWatcher) watchForUpdates() {
 			}
 			continue
 		}
-		backoffDelay = time.Second
+		backoffDelay = minBackoffDelay
 		err = uw.readObjectUpdateStream(resp.Body)
 		_ = resp.Body.Close()
 		if err != nil {

@@ -27,6 +27,7 @@ aliases:
 * `eureka_sd_configs` is for discovering and scraping targets registered in [Netflix Eureka](https://github.com/Netflix/eureka). See [these docs](#eureka_sd_configs).
 * `file_sd_configs` is for scraping targets defined in external files (aka file-based service discovery). See [these docs](#file_sd_configs).
 * `gce_sd_configs` is for discovering and scraping [Google Compute Engine](https://cloud.google.com/compute) targets. See [these docs](#gce_sd_configs).
+* `hetzner_sd_configs` is for discovering and scraping [Hetzner Cloud](https://www.hetzner.com/cloud) and [Hetzner Robot](https://docs.hetzner.com/robot) targets. See [these docs](#hetzner_sd_configs).
 * `http_sd_configs` is for discovering and scraping targets provided by external http-based service discovery. See [these docs](#http_sd_configs).
 * `kubernetes_sd_configs` is for discovering and scraping [Kubernetes](https://kubernetes.io/) targets. See [these docs](#kubernetes_sd_configs).
 * `kuma_sd_configs` is for discovering and scraping [Kuma](https://kuma.io) targets. See [these docs](#kuma_sd_configs).
@@ -796,6 +797,81 @@ The following meta labels are available on discovered targets during [relabeling
 
 The list of discovered GCE targets is refreshed at the interval, which can be configured via `-promscrape.gceSDCheckInterval` command-line flag.
 
+## hetzner_sd_configs
+
+Hetzner SD configuration allows retrieving scrape targets from [Hetzner Cloud](https://www.hetzner.com/cloud) and [Hetzner Robot](https://docs.hetzner.com/robot).
+
+Configuration example:
+
+```yaml
+scrape_configs:
+- job_name: hetzner
+  hetzner_sd_configs:
+    # The mandatory Hetzner role for entity discovery.
+    # Must be either 'robot' or 'hcloud'.
+    role: "hcloud"
+
+    # Required credentials for API server authentication for 'hcloud' role.
+    authorization:
+      credentials: "..."
+      # type: "..."  # default: Bearer
+      # credentials_file: "..."  # is mutually-exclusive with credentials
+
+    # Required credentials for API server authentication for 'robot' role.
+    #
+    # basic_auth:
+    #  username: "..."
+    #  username_file: "..."  # is mutually-exclusive with username
+    #  password: "..."
+    #  password_file: "..."  # is mutually-exclusive with password
+
+    # port is an optional port to scrape metrics from.
+    # By default, port 80 is used.
+    # port: ...
+
+    # Additional HTTP API client options can be specified here.
+    # See https://docs.victoriametrics.com/sd_configs.html#http-api-client-options
+```
+
+Each discovered target has an [`__address__`](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
+to `<FQDN>:<port>`, where FQDN is discovered instance address and `<port>` is the port from the `hetzner_sd_configs` (default port is `80`).
+
+The following meta labels are available on discovered targets during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling):
+
+Common labels for both `hcloud` and `robot` roles:
+
+* `__meta_hetzner_datacenter`: the datacenter of the server
+* `__meta_hetzner_public_ipv4`: the public IPv4 address of the server
+* `__meta_hetzner_public_ipv6_network`: the public IPv6 network (/64) of the server
+* `__meta_hetzner_role`: the current role `hcloud` or `robot`
+* `__meta_hetzner_server_id`: the ID of the server
+* `__meta_hetzner_server_name`: the name of the server
+* `__meta_hetzner_server_status`: the status of the server
+
+Additional labels for `role: hcloud`:
+
+* `__meta_hetzner_hcloud_datacenter_location`: the location of the server
+* `__meta_hetzner_hcloud_datacenter_location_network_zone`: the network zone of the server
+* `__meta_hetzner_hcloud_cpu_cores`: the CPU cores count of the server
+* `__meta_hetzner_hcloud_cpu_type`: the CPU type of the server (shared or dedicated)
+* `__meta_hetzner_hcloud_disk_size_gb`: the disk size of the server (in GB)
+* `__meta_hetzner_hcloud_image_description`: the description of the server image
+* `__meta_hetzner_hcloud_image_name`: the image name of the server
+* `__meta_hetzner_hcloud_image_os_flavor`: the OS flavor of the server image
+* `__meta_hetzner_hcloud_image_os_version`: the OS version of the server image
+* `__meta_hetzner_hcloud_label_<labelname>`: each label of the server
+* `__meta_hetzner_hcloud_labelpresent_<labelname>`: true for each label of the server
+* `__meta_hetzner_hcloud_memory_size_gb`: the amount of memory of the server (in GB)
+* `__meta_hetzner_hcloud_private_ipv4_<networkname>`: the private IPv4 address of the server within a given network
+* `__meta_hetzner_hcloud_server_type`: the type of the server
+
+Additional labels for `role: robot`:
+
+* `__meta_hetzner_robot_cancelled`: the server cancellation status
+* `__meta_hetzner_robot_product`: the product of the server
+
+The list of discovered Hetzner targets is refreshed at the interval, which can be configured via `-promscrape.hetznerSDCheckInterval` command-line flag.
+
 ## http_sd_configs
 
 HTTP-based service discovery fetches targets from the specified `url`.
@@ -886,6 +962,10 @@ scrape_configs:
     # attach_metadata is an optional metadata to attach to discovered targets.
     # When `node` is set to true, then node metadata is attached to discovered targets.
     # Valid for roles: pod, endpoints, endpointslice.
+    #
+    # Set `-promscrape.kubernetes.attachNodeMetadataAll` command-line flag
+    # for attaching `node` metadata for all the discovered targets.
+    #
     # attach_metadata:
     #   node: <boolean>
 
@@ -1546,8 +1626,9 @@ and in the majority of [supported service discovery configs](#supported-service-
     # basic_auth is an optional HTTP basic authentication configuration.
     # basic_auth:
     #   username: "..."
+    #   username_file: "..."  # is mutually-exclusive with username
     #   password: "..."
-    #   password_file: "..."
+    #   password_file: "..."  # is mutually-exclusive with password
 
     # bearer_token is an optional Bearer token to send in every HTTP API request during service discovery.
     # bearer_token: "..."
@@ -1584,8 +1665,9 @@ and in the majority of [supported service discovery configs](#supported-service-
     # proxy_basic_auth is an optional HTTP basic authentication configuration for the proxy_url.
     # proxy_basic_auth:
     #   username: "..."
+    #   username_file: "..."  # is mutually-exclusive with username
     #   password: "..."
-    #   password_file: "..."
+    #   password_file: "..."  # is mutually-exclusive with password
 
     # proxy_bearer_token is an optional Bearer token to send to proxy_url.
     # proxy_bearer_token: "..."

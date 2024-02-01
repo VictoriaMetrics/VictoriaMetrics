@@ -14,7 +14,7 @@ aliases:
 
 ***The per-tenant statistic is a part of [enterprise package](https://docs.victoriametrics.com/enterprise.html). It is available for download and evaluation at [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest). You need to request a [free trial license](https://victoriametrics.com/products/enterprise/trial/) for evaluation.***
 
-<img alt="cluster-per-tenant-stat" src="PerTenantStatistic-stats.jpg">
+<img alt="cluster-per-tenant-stat" src="PerTenantStatistic-stats.webp">
 
 VictoriaMetrics cluster for enterprise provides various metrics and statistics usage per tenant:
 
@@ -53,8 +53,7 @@ scrape_configs:
 
 ## Visualization
 
-Visualisation of statistics can be done in Grafana using the following
-[dashboard](https://grafana.com/grafana/dashboards/16399-victoriametrics-cluster-per-tenant-statistic/).
+Use [this dashboard](https://grafana.com/grafana/dashboards/16399) for visualizing per-tenant statistics in Grafana.
 
 ## Integration with vmgateway
 
@@ -68,7 +67,6 @@ to prevent limits exhaustion.
 
 Here is an alert example for high churn rate by the tenant:
 
-{% raw  %}
 ```yaml
 
 - alert: TooHighChurnRate
@@ -88,4 +86,3 @@ Here is an alert example for high churn rate by the tenant:
             High Churn Rate is tightly connected with database performance and may
             result in unexpected OOM's or slow queries."
 ```
-{% endraw %}

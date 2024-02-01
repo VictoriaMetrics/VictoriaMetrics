@@ -11,6 +11,7 @@ import (
 // NewArrayString returns new ArrayString with the given name and description.
 func NewArrayString(name, description string) *ArrayString {
 	description += "\nSupports an `array` of values separated by comma or specified via multiple flags."
+	description += "\nValue can contain comma inside single-quoted or double-quoted string, {}, [] and () braces."
 	var a ArrayString
 	flag.Var(&a, name, description)
 	return &a
@@ -224,7 +225,7 @@ func (a *ArrayString) GetOptionalArg(argIdx int) string {
 // Has the same api as ArrayString.
 type ArrayBool []bool
 
-// IsBoolFlag  implements flag.IsBoolFlag interface
+// IsBoolFlag implements flag.IsBoolFlag interface
 func (a *ArrayBool) IsBoolFlag() bool { return true }
 
 // String implements flag.Value interface
@@ -310,6 +311,11 @@ func (a *ArrayDuration) GetOptionalArg(argIdx int) time.Duration {
 type ArrayInt struct {
 	defaultValue int
 	a            []int
+}
+
+// Values returns all the values for a.
+func (a *ArrayInt) Values() []int {
+	return a.a
 }
 
 // String implements flag.Value interface

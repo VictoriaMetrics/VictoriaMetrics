@@ -21,6 +21,11 @@ tests:
         groupname: group2
         alertname: SameAlertNameWithDifferentGroup
         exp_alerts: []
+      - eval_time: 150s
+        groupname: group1
+        alertname: SameAlertNameWithDifferentGroup
+        exp_alerts:
+          - {}
       - eval_time: 6m
         groupname: group1
         alertname: SameAlertNameWithDifferentGroup

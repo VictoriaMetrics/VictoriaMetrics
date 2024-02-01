@@ -7,7 +7,8 @@ on:
       - 'docs/**'
   workflow_dispatch: {}
 env:
-  PAGEFIND_VERSION: "1.0.3"
+  PAGEFIND_VERSION: "1.0.4"
+  HUGO_VERSION: "latest"
 permissions:
   contents: read  # This is required for actions/checkout and to commit back image update
   deployments: write
@@ -28,7 +29,7 @@ jobs:
           path: docs
       - uses: peaceiris/actions-hugo@v2
         with:
-          hugo-version: 'latest'
+          hugo-version: ${{env.HUGO_VERSION}}
           extended: true
       - name: Install PageFind #install the static search engine for index build
         uses: supplypike/setup-bin@v3

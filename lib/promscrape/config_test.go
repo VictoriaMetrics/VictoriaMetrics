@@ -110,31 +110,30 @@ scrape_configs:
 `)
 }
 
-func TestNeedSkipScrapeWork(t *testing.T) {
-	f := func(key string, membersCount, replicationFactor, memberNum int, needSkipExpected bool) {
+func TestGetClusterMemberNumsForScrapeWork(t *testing.T) {
+	f := func(key string, membersCount, replicationFactor int, expectedMemberNums []int) {
 		t.Helper()
-		needSkip := needSkipScrapeWork(key, membersCount, replicationFactor, memberNum)
-		if needSkip != needSkipExpected {
-			t.Fatalf("unexpected needSkipScrapeWork(key=%q, membersCount=%d, replicationFactor=%d, memberNum=%d); got %v; want %v",
-				key, membersCount, replicationFactor, memberNum, needSkip, needSkipExpected)
+		memberNums := getClusterMemberNumsForScrapeWork(key, membersCount, replicationFactor)
+		if !reflect.DeepEqual(memberNums, expectedMemberNums) {
+			t.Fatalf("unexpected memberNums; got %d; want %d", memberNums, expectedMemberNums)
 		}
 	}
 	// Disabled clustering
-	f("foo", 0, 0, 0, false)
-	f("foo", 0, 0, 1, false)
+	f("foo", 0, 0, []int{0})
+	f("foo", 0, 0, []int{0})
 
 	// A cluster with 2 nodes with disabled replication
-	f("foo", 2, 0, 0, true)
-	f("foo", 2, 0, 1, false)
+	f("baz", 2, 0, []int{0})
+	f("foo", 2, 0, []int{1})
 
 	// A cluster with 2 nodes with replicationFactor=2
-	f("foo", 2, 2, 0, false)
-	f("foo", 2, 2, 1, false)
+	f("baz", 2, 2, []int{0, 1})
+	f("foo", 2, 2, []int{1, 0})
 
 	// A cluster with 3 nodes with replicationFactor=2
-	f("foo", 3, 2, 0, false)
-	f("foo", 3, 2, 1, true)
-	f("foo", 3, 2, 2, false)
+	f("abc", 3, 2, []int{0, 1})
+	f("bar", 3, 2, []int{1, 2})
+	f("foo", 3, 2, []int{2, 0})
 }
 
 func TestLoadStaticConfigs(t *testing.T) {
@@ -1191,6 +1190,29 @@ scrape_configs:
 			jobNameOriginal: "foo",
 		},
 	})
+
+	defaultSeriesLimitPerTarget := *seriesLimitPerTarget
+	*seriesLimitPerTarget = 1e3
+	f(`
+scrape_configs:
+- job_name: foo
+  series_limit: 0
+  static_configs:
+  - targets: ["foo.bar:1234"]
+`, []*ScrapeWork{
+		{
+			ScrapeURL:       "http://foo.bar:1234/metrics",
+			ScrapeInterval:  defaultScrapeInterval,
+			ScrapeTimeout:   defaultScrapeTimeout,
+			jobNameOriginal: "foo",
+			Labels: promutils.NewLabelsFromMap(map[string]string{
+				"instance": "foo.bar:1234",
+				"job":      "foo",
+			}),
+			SeriesLimit: 0,
+		},
+	})
+	*seriesLimitPerTarget = defaultSeriesLimitPerTarget
 }
 
 func equalStaticConfigForScrapeWorks(a, b []*ScrapeWork) bool {

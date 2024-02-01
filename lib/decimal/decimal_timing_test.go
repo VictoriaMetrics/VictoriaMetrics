@@ -7,6 +7,28 @@ import (
 	"testing"
 )
 
+func BenchmarkCalbirateScale(b *testing.B) {
+	aSrc := []int64{1, 2, 3, 4, 5, 67, 8, 9, 12, 324, 29, -34, -94, -84, -34, 0, 2, 3}
+	bSrc := []int64{2, 3, 4, 5, 67, 8, 9, 12, 324, 29, -34, -94, -84, -34, 0, 2, 3, 1}
+	const aScale = 1
+	const bScale = 2
+	const scaleExpected = 1
+
+	b.ReportAllocs()
+	b.SetBytes(int64(len(aSrc)))
+	b.RunParallel(func(pb *testing.PB) {
+		var a, b []int64
+		for pb.Next() {
+			a = append(a[:0], aSrc...)
+			b = append(b[:0], bSrc...)
+			scale := CalibrateScale(a, aScale, b, bScale)
+			if scale != scaleExpected {
+				panic(fmt.Errorf("unexpected scale; got %d; want %d", scale, scaleExpected))
+			}
+		}
+	})
+}
+
 func BenchmarkAppendDecimalToFloat(b *testing.B) {
 	b.Run("RealFloat", func(b *testing.B) {
 		benchmarkAppendDecimalToFloat(b, testVA, vaScale)

@@ -8,6 +8,7 @@ menu:
     weight: 34
 aliases:
 - /keyConcepts.html
+- /keyсoncepts.html
 ---
 
 # Key concepts
@@ -80,7 +81,11 @@ See [these docs](https://docs.victoriametrics.com/FAQ.html#what-is-high-cardinal
 #### Raw samples
 
 Every unique time series may consist of an arbitrary number of `(value, timestamp)` data points (aka `raw samples`) sorted by `timestamp`.
-The `value` is a [double-precision floating-point number](https://en.wikipedia.org/wiki/Double-precision_floating-point_format).
+VictoriaMetrics stores all the `values` as [float64](https://en.wikipedia.org/wiki/Double-precision_floating-point_format)
+with [extra compression](https://faun.pub/victoriametrics-achieving-better-compression-for-time-series-data-than-gorilla-317bc1f95932) applied.
+This allows storing precise integer values with up to 12 decimal digits and any floating-point values with up to 12 significant decimal digits.
+If the value has more than 12 significant decimal digits, then the less significant digits can be lost when storing them in VictoriaMetrics.
+
 The `timestamp` is a [Unix timestamp](https://en.wikipedia.org/wiki/Unix_time) with millisecond precision.
 
 Below is an example of a single raw sample
@@ -133,7 +138,7 @@ So, the `counter` metric shows the number of observed events since the service s
 
 In programming, `counter` is a variable that you **increment** each time something happens.
 
-<img src="keyConcepts_counter.png">
+<img src="keyConcepts_counter.webp">
 
 `vm_http_requests_total` is a typical example of a counter. The interpretation of a graph
 above is that time series `vm_http_requests_total{instance="localhost:8428", job="victoriametrics", path="api/v1/query_range"}`
@@ -159,7 +164,7 @@ by humans from other metric types.
 
 Gauge is used for measuring a value that can go up and down:
 
-<img src="keyConcepts_gauge.png">
+<img src="keyConcepts_gauge.webp">
 
 The metric `process_resident_memory_anon_bytes` on the graph shows the memory usage of the application at every given time.
 It is changing frequently, going up and down showing how the process allocates and frees the memory.
@@ -257,7 +262,7 @@ Such a combination of `counter` metrics allows
 plotting [Heatmaps in Grafana](https://grafana.com/docs/grafana/latest/visualizations/heatmap/)
 and calculating [quantiles](https://prometheus.io/docs/practices/histograms/#quantiles):
 
-<img src="keyConcepts_histogram.png">
+<img src="keyConcepts_histogram.webp">
 
 Grafana doesn't understand buckets with `vmrange` labels, so the [prometheus_buckets](https://docs.victoriametrics.com/MetricsQL.html#prometheus_buckets)
 function must be used for converting buckets with `vmrange` labels to buckets with `le` labels before building heatmaps in Grafana.
@@ -299,7 +304,7 @@ go_gc_duration_seconds_count 83
 
 The visualisation of summaries is pretty straightforward:
 
-<img src="keyConcepts_summary.png">
+<img src="keyConcepts_summary.webp">
 
 Such an approach makes summaries easier to use but also puts significant limitations compared to [histograms](#histogram):
 
@@ -370,7 +375,7 @@ VictoriaMetrics supports both models used in modern monitoring applications: [pu
 
 Client regularly sends the collected metrics to the server in the push model:
 
-<img src="keyConcepts_push_model.png">
+<img src="keyConcepts_push_model.webp">
 
 The client (application) decides when and where to send its metrics. VictoriaMetrics supports the following protocols
 for data ingestion (aka `push protocols`):
@@ -382,6 +387,8 @@ for data ingestion (aka `push protocols`):
   over HTTP, TCP and UDP.
 * [Graphite plaintext protocol](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-graphite-compatible-agents-such-as-statsd)
   with [tags](https://graphite.readthedocs.io/en/latest/tags.html#carbon).
+* [OpenTelemetry http API](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#sending-data-via-opentelemetry).
+* [NewRelic API](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-newrelic-agent).
 * [OpenTSDB put message](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#sending-data-via-telnet-put-protocol).
 * [HTTP OpenTSDB /api/put requests](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#sending-opentsdb-data-via-http-apiput-requests).
 * [JSON line format](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-import-data-in-json-line-format).
@@ -396,7 +403,7 @@ for [InfluxDB line protocol](https://docs.victoriametrics.com/Single-server-Vict
 
 Creating custom clients or instrumenting the application for metrics writing is as easy as sending a POST request:
 
-```console
+```sh
 curl -d '{"metric":{"__name__":"foo","job":"node_exporter"},"values":[0,1,2],"timestamps":[1549891472010,1549891487724,1549891503438]}' -X POST 'http://localhost:8428/api/v1/import'
 ```
 
@@ -428,7 +435,7 @@ The cons of push protocol:
 Pull model is an approach popularized by [Prometheus](https://prometheus.io/), where the monitoring system decides when
 and where to pull metrics from:
 
-<img src="keyConcepts_pull_model.png">
+<img src="keyConcepts_pull_model.webp">
 
 In pull model, the monitoring system needs to be aware of all the applications it needs to monitor. The metrics are
 scraped (pulled) from the known applications (aka `scrape targets`) via HTTP protocol on a regular basis (aka `scrape_interval`).
@@ -459,7 +466,7 @@ models for data collection. Many installations use exclusively one of these mode
 
 The most common approach for data collection is using both models:
 
-<img src="keyConcepts_data_collection.png">
+<img src="keyConcepts_data_collection.webp">
 
 In this approach the additional component is used - [vmagent](https://docs.victoriametrics.com/vmagent.html). Vmagent is
 a lightweight agent whose main purpose is to collect, filter, relabel and deliver metrics to VictoriaMetrics.
@@ -469,12 +476,12 @@ The basic monitoring setup of VictoriaMetrics and vmagent is described
 in the [example docker-compose manifest](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker).
 In this example vmagent [scrapes a list of targets](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/prometheus.yml)
 and [forwards collected data to VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/9d7da130b5a873be334b38c8d8dec702c9e8fac5/deployment/docker/docker-compose.yml#L15).
-VictoriaMetrics is then used as a [datasource for Grafana](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/provisioning/datasources/datasource.yml)
+VictoriaMetrics is then used as a [datasource for Grafana](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/provisioning/datasources)
 installation for querying collected data.
 
 VictoriaMetrics components allow building more advanced topologies. For example, vmagents can push metrics from separate datacenters to the central VictoriaMetrics:
 
-<img src="keyConcepts_two_dcs.png">
+<img src="keyConcepts_two_dcs.webp">
 
 VictoriaMetrics in this example may be either [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html)
 or [VictoriaMetrics Cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html). Vmagent also allows
@@ -493,7 +500,7 @@ The API consists of two main handlers for serving [instant queries](#instant-que
 
 ### Instant query
 
-Instant query executes the query expression at the given timestamp:
+Instant query executes the `query` expression at the given `time`:
 
 ```
 GET | POST /api/v1/query?query=...&time=...&step=...
@@ -505,10 +512,14 @@ Params:
 * `time` - optional, [timestamp](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#timestamp-formats)
   in second precision to evaluate the `query` at. If omitted, `time` is set to `now()` (current timestamp).
   The `time` param can be specified in [multiple allowed formats](https://docs.victoriametrics.com/#timestamp-formats).
-* `step` - optional, the max [interval](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-durations)
-  for searching for raw samples in the past when executing the `query`. 
-  For example, request `/api/v1/query?query=up&step=1m` will look for the last written raw sample for metric `up`
-  on interval between `now()` and `now()-1m`. If omitted, `step` is set to `5m` (5 minutes).
+* `step` - optional, the maximum [interval](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-durations)
+  for searching for raw samples in the past when executing the `query` (used when a sample is missing at the specified instant).
+  For example, the request `/api/v1/query?query=up&step=1m` will look for the last written raw sample for the metric `up`
+  in the interval between `now()` and `now()-1m`. If omitted, `step` is set to `5m` (5 minutes).
+
+The result of Instant query is a list of [time series](https://docs.victoriametrics.com/keyConcepts.html#time-series)
+matching the filter in `query` expression. Each returned series contains exactly one `(timestamp, value)` entry,
+where `timestamp` equals to the `time` query arg, while the `value` contains `query` result at the requested `time`.
 
 To understand how instant queries work, let's begin with a data sample:
 
@@ -528,19 +539,15 @@ foo_bar 1.00 1652170500000 # 2022-05-10 10:15:00
 foo_bar 4.00 1652170560000 # 2022-05-10 10:16:00
 ```
 
-The data sample contains a list of samples for `foo_bar` time series with time intervals between samples from 1m to 3m. If we
-plot this data sample on the graph, it will have the following form:
+The data above contains a list of samples for the `foo_bar` time series with time intervals between samples
+ranging from 1m to 3m. If we plot this data sample on the graph, it will have the following form:
 
-<p style="text-align: center">
-    <a href="keyConcepts_data_samples.png" target="_blank">
-        <img src="keyConcepts_data_samples.png" width="500">
-    </a>
-</p>
-
-To get the value of `foo_bar` metric at some specific moment of time, for example `2022-05-10 10:03:00`, in
+<img src="keyConcepts_data_samples.webp" width="500">
+    
+To get the value of the `foo_bar` series at some specific moment of time, for example `2022-05-10 10:03:00`, in
 VictoriaMetrics we need to issue an **instant query**:
 
-```console
+```sh
 curl "http://<victoria-metrics-addr>/api/v1/query?query=foo_bar&time=2022-05-10T10:03:00.000Z"
 ```
 
@@ -555,7 +562,7 @@ curl "http://<victoria-metrics-addr>/api/v1/query?query=foo_bar&time=2022-05-10T
           "__name__": "foo_bar"
         },
         "value": [
-          1652169780,
+          1652169780, // 2022-05-10 10:03:00
           "3"
         ]
       }
@@ -565,30 +572,26 @@ curl "http://<victoria-metrics-addr>/api/v1/query?query=foo_bar&time=2022-05-10T
 ```
 
 In response, VictoriaMetrics returns a single sample-timestamp pair with a value of `3` for the series
-`foo_bar` at the given moment of time `2022-05-10 10:03`. But, if we take a look at the original data sample again,
-we'll see that there is no raw sample at `2022-05-10 10:03`. What happens here if there is no raw sample at the
-requested timestamp - VictoriaMetrics will try to locate the closest sample on the left to the requested timestamp:
+`foo_bar` at the given moment in time `2022-05-10 10:03`. But, if we take a look at the original data sample again,
+we'll see that there is no raw sample at `2022-05-10 10:03`. When there is no raw sample at the
+requested timestamp, VictoriaMetrics will try to locate the closest sample before the requested timestamp:
 
-<p style="text-align: center">
-    <a href="keyConcepts_instant_query.png" target="_blank">
-        <img src="keyConcepts_instant_query.png" width="500">
-    </a>
-</p>
+<img src="keyConcepts_instant_query.webp" width="500">
 
+The time range in which VictoriaMetrics will try to locate a replacement for a missing data sample is equal to `5m`
+by default and can be overridden via the `step` parameter.
 
-The time range at which VictoriaMetrics will try to locate a missing data sample is equal to `5m`
-by default and can be overridden via `step` parameter.
-
-Instant query can return multiple time series, but always only one data sample per series. Instant queries are used in
+Instant queries can return multiple time series, but always only one data sample per series. Instant queries are used in
 the following scenarios:
 
 * Getting the last recorded value;
+* For [rollup functions](https://docs.victoriametrics.com/MetricsQL.html#rollup-functions) such as `count_over_time`;
 * For alerts and recording rules evaluation;
 * Plotting Stat or Table panels in Grafana.
 
 ### Range query
 
-Range query executes the query expression at the given time range with the given step:
+Range query executes the `query` expression at the given [`start`...`end`] time range with the given `step`:
 
 ```
 GET | POST /api/v1/query_range?query=...&start=...&end=...&step=...
@@ -604,12 +607,17 @@ Params:
 * `step` - the [interval](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-durations) 
   between data points, which must be returned from the range query.
   The `query` is executed at `start`, `start+step`, `start+2*step`, ..., `end` timestamps.
-  If the `step` isn't set, then it is automatically set to `5m` (5 minutes).
+  If the `step` isn't set, then it default to `5m` (5 minutes).
 
-To get the values of `foo_bar` on the time range from `2022-05-10 09:59:00` to `2022-05-10 10:17:00`
-in VictoriaMetrics we need to issue a range query:
+The result of Range query is a list of [time series](https://docs.victoriametrics.com/keyConcepts.html#time-series)
+matching the filter in `query` expression. Each returned series contains `(timestamp, value)` results for the `query` executed
+at `start`, `start+step`, `start+2*step`, ..., `end` timestamps. In other words, Range query is an [Instant query](#instant-query)
+executed independently at `start`, `start+step`, ..., `end` timestamps.
 
-```console
+For example, to get the values of `foo_bar` during the time range from `2022-05-10 09:59:00` to `2022-05-10 10:17:00`,
+we need to issue a range query:
+
+```sh
 curl "http://<victoria-metrics-addr>/api/v1/query_range?query=foo_bar&step=1m&start=2022-05-10T09:59:00.000Z&end=2022-05-10T10:17:00.000Z"
 ```
 
@@ -700,20 +708,16 @@ curl "http://<victoria-metrics-addr>/api/v1/query_range?query=foo_bar&step=1m&st
 ```
 
 In response, VictoriaMetrics returns `17` sample-timestamp pairs for the series `foo_bar` at the given time range
-from  `2022-05-10 09:59:00` to `2022-05-10 10:17:00`. But, if we take a look at the original data sample again, we'll
+from `2022-05-10 09:59:00` to `2022-05-10 10:17:00`. But, if we take a look at the original data sample again, we'll
 see that it contains only 13 raw samples. What happens here is that the range query is actually
 an [instant query](#instant-query) executed `1 + (start-end)/step` times on the time range from `start` to `end`. If we plot
 this request in VictoriaMetrics the graph will be shown as the following:
 
-<p style="text-align: center">
-    <a href="keyConcepts_range_query.png" target="_blank">
-        <img src="keyConcepts_range_query.png" width="500">
-    </a>
-</p>
+<img src="keyConcepts_range_query.webp" width="500">
 
-The blue dotted lines on the pic are the moments when the instant query was executed. Since instant query retains the
-ability to locate the missing point, the graph contains two types of points: `real` and `ephemeral` data
-points. `ephemeral` data point always repeats the left closest raw sample (see red arrow on the pic above).
+The blue dotted lines in the figure are the moments when the instant query was executed. Since the instant query retains the
+ability to return replacements for missing points, the graph contains two types of data points: `real` and `ephemeral`.
+`ephemeral` data points always repeat the closest raw sample that occurred before (see red arrow on the pic above).
 
 This behavior of adding ephemeral data points comes from the specifics of the [pull model](#pull-model):
 
@@ -734,7 +738,7 @@ window to fill gaps and detect stale series at the same time.
 Range queries are mostly used for plotting time series data over specified time ranges. These queries are extremely
 useful in the following scenarios:
 
-* Track the state of a metric on the time interval;
+* Track the state of a metric on the given time interval;
 * Correlate changes between multiple metrics on the time interval;
 * Observe trends and dynamics of the metric change.
 
@@ -750,14 +754,23 @@ This flag prevents from non-consistent results due to the fact that only part of
 
 Here is an illustration of a potential problem when `-search.latencyOffset` is set to zero:
 
-<img src="keyConcepts_without_latencyOffset.png" width="1000">
+<img src="keyConcepts_without_latencyOffset.webp" width="1000">
 
 When this flag is set, the VM will return the last metric value collected before the `-search.latencyOffset`
 duration throughout the `-search.latencyOffset` duration:
 
-<img src="keyConcepts_with_latencyOffset.png" width="1000">
+<img src="keyConcepts_with_latencyOffset.webp" width="1000">
 
 It can be overridden on per-query basis via `latency_offset` query arg.
+
+VictoriaMetrics buffers recently ingested samples in memory for up to a few seconds and then periodically flushes these samples to disk.
+This bufferring improves data ingestion performance. The buffered samples are invisible in query results, even if `-search.latencyOffset` command-line flag is set to 0,
+or if `latency_offset` query arg is set to 0.
+You can send GET request to `/internal/force_flush` http handler at single-node VictoriaMetrics
+or to `vmstorage` at [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html)
+in order to forcibly flush the buffered samples to disk, so they become visible for querying. The `/internal/force_flush` handler
+is provided for debugging and testing purposes only. Do not call it in production, since this may significantly slow down data ingestion
+performance and increase resource usage.
 
 ### MetricsQL
 
@@ -944,7 +957,7 @@ VictoriaMetrics has a built-in graphical User Interface for querying and visuali
 [VMUI](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#vmui).
 Open `http://victoriametrics:8428/vmui` page, type the query and see the results:
 
-<img src="keyConcepts_vmui.png">
+<img src="keyConcepts_vmui.webp">
 
 VictoriaMetrics supports [Prometheus HTTP API](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#prometheus-querying-api-usage)
 which makes it possible to [query it with Grafana](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#grafana-setup)

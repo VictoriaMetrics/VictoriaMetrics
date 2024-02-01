@@ -320,26 +320,29 @@ var (
 )
 
 const (
-	vmNativeFilterMatch     = "vm-native-filter-match"
-	vmNativeFilterTimeStart = "vm-native-filter-time-start"
-	vmNativeFilterTimeEnd   = "vm-native-filter-time-end"
-	vmNativeStepInterval    = "vm-native-step-interval"
+	vmNativeFilterMatch       = "vm-native-filter-match"
+	vmNativeFilterTimeStart   = "vm-native-filter-time-start"
+	vmNativeFilterTimeEnd     = "vm-native-filter-time-end"
+	vmNativeFilterTimeReverse = "vm-native-filter-time-reverse"
+	vmNativeStepInterval      = "vm-native-step-interval"
 
-	vmNativeDisableBinaryProtocol = "vm-native-disable-binary-protocol"
-	vmNativeDisableHTTPKeepAlive  = "vm-native-disable-http-keep-alive"
-	vmNativeDisableRetries        = "vm-native-disable-retries"
+	vmNativeDisableBinaryProtocol     = "vm-native-disable-binary-protocol"
+	vmNativeDisableHTTPKeepAlive      = "vm-native-disable-http-keep-alive"
+	vmNativeDisablePerMetricMigration = "vm-native-disable-per-metric-migration"
 
-	vmNativeSrcAddr        = "vm-native-src-addr"
-	vmNativeSrcUser        = "vm-native-src-user"
-	vmNativeSrcPassword    = "vm-native-src-password"
-	vmNativeSrcHeaders     = "vm-native-src-headers"
-	vmNativeSrcBearerToken = "vm-native-src-bearer-token"
+	vmNativeSrcAddr               = "vm-native-src-addr"
+	vmNativeSrcUser               = "vm-native-src-user"
+	vmNativeSrcPassword           = "vm-native-src-password"
+	vmNativeSrcHeaders            = "vm-native-src-headers"
+	vmNativeSrcBearerToken        = "vm-native-src-bearer-token"
+	vmNativeSrcInsecureSkipVerify = "vm-native-src-insecure-skip-verify"
 
-	vmNativeDstAddr        = "vm-native-dst-addr"
-	vmNativeDstUser        = "vm-native-dst-user"
-	vmNativeDstPassword    = "vm-native-dst-password"
-	vmNativeDstHeaders     = "vm-native-dst-headers"
-	vmNativeDstBearerToken = "vm-native-dst-bearer-token"
+	vmNativeDstAddr               = "vm-native-dst-addr"
+	vmNativeDstUser               = "vm-native-dst-user"
+	vmNativeDstPassword           = "vm-native-dst-password"
+	vmNativeDstHeaders            = "vm-native-dst-headers"
+	vmNativeDstBearerToken        = "vm-native-dst-bearer-token"
+	vmNativeDstInsecureSkipVerify = "vm-native-dst-insecure-skip-verify"
 )
 
 var (
@@ -362,9 +365,14 @@ var (
 		},
 		&cli.StringFlag{
 			Name: vmNativeStepInterval,
-			Usage: fmt.Sprintf("Split export data into chunks. Requires setting --%s. Valid values are '%s','%s','%s','%s','%s'.", vmNativeFilterTimeStart,
-				stepper.StepMonth, stepper.StepWeek, stepper.StepDay, stepper.StepHour, stepper.StepMinute),
+			Usage: fmt.Sprintf("The time interval to split the migration into steps. For example, to migrate 1y of data with '--%s=month' vmctl will execute it in 12 separate requests from the beginning of the time range to its end. To reverse the order use '--%s'. Requires setting '--%s'. Valid values are '%s','%s','%s','%s','%s'.",
+				vmNativeStepInterval, vmNativeFilterTimeReverse, vmNativeFilterTimeStart, stepper.StepMonth, stepper.StepWeek, stepper.StepDay, stepper.StepHour, stepper.StepMinute),
 			Value: stepper.StepMonth,
+		},
+		&cli.BoolFlag{
+			Name:  vmNativeFilterTimeReverse,
+			Usage: fmt.Sprintf("Whether to reverse the order of time intervals split by '--%s' cmd-line flag. When set, the migration will start from the newest to the oldest data.", vmNativeStepInterval),
+			Value: false,
 		},
 		&cli.BoolFlag{
 			Name:  vmNativeDisableHTTPKeepAlive,
@@ -448,8 +456,8 @@ var (
 			Value: 2,
 		},
 		&cli.BoolFlag{
-			Name:  vmNativeDisableRetries,
-			Usage: "Defines whether to disable retries with backoff policy for migration process",
+			Name:  vmNativeDisablePerMetricMigration,
+			Usage: "Defines whether to disable per-metric migration and migrate all data via one connection. In this mode, vmctl makes less export/import requests, but can't provide a progress bar or retry failed requests.",
 			Value: false,
 		},
 		&cli.BoolFlag{
@@ -458,6 +466,16 @@ var (
 				"instead of https://docs.victoriametrics.com/#how-to-export-data-in-native-format API." +
 				"Binary export/import API protocol implies less network and resource usage, as it transfers compressed binary data blocks." +
 				"Non-binary export/import API is less efficient, but supports deduplication if it is configured on vm-native-src-addr side.",
+			Value: false,
+		},
+		&cli.BoolFlag{
+			Name:  vmNativeSrcInsecureSkipVerify,
+			Usage: "Whether to skip TLS certificate verification when connecting to the source address",
+			Value: false,
+		},
+		&cli.BoolFlag{
+			Name:  vmNativeDstInsecureSkipVerify,
+			Usage: "Whether to skip TLS certificate verification when connecting to the destination address",
 			Value: false,
 		},
 	}
@@ -469,6 +487,7 @@ const (
 	remoteReadConcurrency        = "remote-read-concurrency"
 	remoteReadFilterTimeStart    = "remote-read-filter-time-start"
 	remoteReadFilterTimeEnd      = "remote-read-filter-time-end"
+	remoteReadFilterTimeReverse  = "remote-read-filter-time-reverse"
 	remoteReadFilterLabel        = "remote-read-filter-label"
 	remoteReadFilterLabelValue   = "remote-read-filter-label-value"
 	remoteReadStepInterval       = "remote-read-step-interval"
@@ -520,9 +539,14 @@ var (
 			Value: false,
 		},
 		&cli.StringFlag{
-			Name:     remoteReadStepInterval,
-			Usage:    fmt.Sprintf("Split export data into chunks. Requires setting --%s. Valid values are %q,%q,%q,%q.", remoteReadFilterTimeStart, stepper.StepMonth, stepper.StepDay, stepper.StepHour, stepper.StepMinute),
-			Required: true,
+			Name: remoteReadStepInterval,
+			Usage: fmt.Sprintf("The time interval to split the migration into steps. For example, to migrate 1y of data with '--%s=month' vmctl will execute it in 12 separate requests from the beginning of the time range to its end. To reverse the order use '--%s'. Requires setting '--%s'. Valid values are '%s','%s','%s','%s','%s'.",
+				remoteReadStepInterval, remoteReadFilterTimeReverse, remoteReadFilterTimeStart, stepper.StepMonth, stepper.StepWeek, stepper.StepDay, stepper.StepHour, stepper.StepMinute), Required: true,
+		},
+		&cli.BoolFlag{
+			Name:  remoteReadFilterTimeReverse,
+			Usage: fmt.Sprintf("Whether to reverse the order of time intervals split by '--%s' cmd-line flag. When set, the migration will start from the newest to the oldest data.", remoteReadStepInterval),
+			Value: false,
 		},
 		&cli.StringFlag{
 			Name:     remoteReadSrcAddr,

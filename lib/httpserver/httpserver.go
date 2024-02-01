@@ -3,6 +3,7 @@ package httpserver
 import (
 	"context"
 	"crypto/tls"
+	_ "embed"
 	"errors"
 	"flag"
 	"fmt"
@@ -41,10 +42,10 @@ var (
 		"then all the http requests will be handled on '/foo/bar/*' paths. This may be useful for proxied requests. "+
 		"See https://www.robustperception.io/using-external-urls-and-proxies-with-prometheus")
 	httpAuthUsername = flag.String("httpAuth.username", "", "Username for HTTP server's Basic Auth. The authentication is disabled if empty. See also -httpAuth.password")
-	httpAuthPassword = flag.String("httpAuth.password", "", "Password for HTTP server's Basic Auth. The authentication is disabled if -httpAuth.username is empty")
-	metricsAuthKey   = flag.String("metricsAuthKey", "", "Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings")
-	flagsAuthKey     = flag.String("flagsAuthKey", "", "Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings")
-	pprofAuthKey     = flag.String("pprofAuthKey", "", "Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides httpAuth.* settings")
+	httpAuthPassword = flagutil.NewPassword("httpAuth.password", "Password for HTTP server's Basic Auth. The authentication is disabled if -httpAuth.username is empty")
+	metricsAuthKey   = flagutil.NewPassword("metricsAuthKey", "Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings")
+	flagsAuthKey     = flagutil.NewPassword("flagsAuthKey", "Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings")
+	pprofAuthKey     = flagutil.NewPassword("pprofAuthKey", "Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides httpAuth.* settings")
 
 	disableResponseCompression  = flag.Bool("http.disableResponseCompression", false, "Disable compression of HTTP responses to save CPU resources. By default, compression is enabled to save network bandwidth")
 	maxGracefulShutdownDuration = flag.Duration("http.maxGracefulShutdownDuration", 7*time.Second, `The maximum duration for a graceful shutdown of the HTTP server. A highly loaded server may require increased value for a graceful shutdown`)
@@ -213,8 +214,10 @@ var gzipHandlerWrapper = func() func(http.Handler) http.HandlerFunc {
 	return hw
 }()
 
-var metricsHandlerDuration = metrics.NewHistogram(`vm_http_request_duration_seconds{path="/metrics"}`)
-var connTimeoutClosedConns = metrics.NewCounter(`vm_http_conn_timeout_closed_conns_total`)
+var (
+	metricsHandlerDuration = metrics.NewHistogram(`vm_http_request_duration_seconds{path="/metrics"}`)
+	connTimeoutClosedConns = metrics.NewCounter(`vm_http_conn_timeout_closed_conns_total`)
+)
 
 var hostname = func() string {
 	h, err := os.Hostname()
@@ -242,22 +245,29 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 		}
 	}()
 
+	h := w.Header()
 	if *headerHSTS != "" {
-		w.Header().Add("Strict-Transport-Security", *headerHSTS)
+		h.Add("Strict-Transport-Security", *headerHSTS)
 	}
 	if *headerFrameOptions != "" {
-		w.Header().Add("X-Frame-Options", *headerFrameOptions)
+		h.Add("X-Frame-Options", *headerFrameOptions)
 	}
 	if *headerCSP != "" {
-		w.Header().Add("Content-Security-Policy", *headerCSP)
+		h.Add("Content-Security-Policy", *headerCSP)
 	}
-	w.Header().Add("X-Server-Hostname", hostname)
+	h.Add("X-Server-Hostname", hostname)
 	requestsTotal.Inc()
 	if whetherToCloseConn(r) {
 		connTimeoutClosedConns.Inc()
-		w.Header().Set("Connection", "close")
+		h.Set("Connection", "close")
 	}
 	path := r.URL.Path
+	if strings.HasSuffix(path, "/favicon.ico") {
+		w.Header().Set("Cache-Control", "max-age=3600")
+		faviconRequests.Inc()
+		w.Write(faviconData)
+		return
+	}
 	prefix := GetPathPrefix()
 	if prefix != "" {
 		// Trim -http.pathPrefix from path
@@ -280,7 +290,7 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 	}
 	switch r.URL.Path {
 	case "/health":
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		h.Set("Content-Type", "text/plain; charset=utf-8")
 		deadline := atomic.LoadInt64(&s.shutdownDelayDeadline)
 		if deadline <= 0 {
 			w.Write([]byte("OK"))
@@ -305,25 +315,21 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 		}
 		w.WriteHeader(status)
 		return
-	case "/favicon.ico":
-		faviconRequests.Inc()
-		w.WriteHeader(http.StatusNoContent)
-		return
 	case "/metrics":
 		metricsRequests.Inc()
-		if !CheckAuthFlag(w, r, *metricsAuthKey, "metricsAuthKey") {
+		if !CheckAuthFlag(w, r, metricsAuthKey.Get(), "metricsAuthKey") {
 			return
 		}
 		startTime := time.Now()
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		h.Set("Content-Type", "text/plain; charset=utf-8")
 		appmetrics.WritePrometheusMetrics(w)
 		metricsHandlerDuration.UpdateDuration(startTime)
 		return
 	case "/flags":
-		if !CheckAuthFlag(w, r, *flagsAuthKey, "flagsAuthKey") {
+		if !CheckAuthFlag(w, r, flagsAuthKey.Get(), "flagsAuthKey") {
 			return
 		}
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		h.Set("Content-Type", "text/plain; charset=utf-8")
 		flagutil.WriteFlags(w)
 		return
 	case "/-/healthy":
@@ -344,7 +350,7 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 	default:
 		if strings.HasPrefix(r.URL.Path, "/debug/pprof/") {
 			pprofRequests.Inc()
-			if !CheckAuthFlag(w, r, *pprofAuthKey, "pprofAuthKey") {
+			if !CheckAuthFlag(w, r, pprofAuthKey.Get(), "pprofAuthKey") {
 				return
 			}
 			pprofHandler(r.URL.Path[len("/debug/pprof/"):], w, r)
@@ -353,6 +359,10 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 
 		if !CheckBasicAuth(w, r) {
 			return
+		}
+
+		w = &responseWriterWithAbort{
+			ResponseWriter: w,
 		}
 		if rh(w, r) {
 			return
@@ -388,7 +398,7 @@ func CheckBasicAuth(w http.ResponseWriter, r *http.Request) bool {
 	}
 	username, password, ok := r.BasicAuth()
 	if ok {
-		if username == *httpAuthUsername && password == *httpAuthPassword {
+		if username == *httpAuthUsername && password == httpAuthPassword.Get() {
 			return true
 		}
 		authBasicRequestErrors.Inc()
@@ -445,14 +455,17 @@ var (
 	pprofTraceRequests   = metrics.NewCounter(`vm_http_requests_total{path="/debug/pprof/trace"}`)
 	pprofMutexRequests   = metrics.NewCounter(`vm_http_requests_total{path="/debug/pprof/mutex"}`)
 	pprofDefaultRequests = metrics.NewCounter(`vm_http_requests_total{path="/debug/pprof/default"}`)
-	faviconRequests      = metrics.NewCounter(`vm_http_requests_total{path="/favicon.ico"}`)
+	faviconRequests      = metrics.NewCounter(`vm_http_requests_total{path="*/favicon.ico"}`)
 
-	authBasicRequestErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="*", reason="wrong basic auth creds"}`)
-	authKeyRequestErrors     = metrics.NewCounter(`vm_http_request_errors_total{path="*", reason="wrong auth key"}`)
+	authBasicRequestErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="*", reason="wrong_basic_auth"}`)
+	authKeyRequestErrors     = metrics.NewCounter(`vm_http_request_errors_total{path="*", reason="wrong_auth_key"}`)
 	unsupportedRequestErrors = metrics.NewCounter(`vm_http_request_errors_total{path="*", reason="unsupported"}`)
 
 	requestsTotal = metrics.NewCounter(`vm_http_requests_all_total`)
 )
+
+//go:embed favicon.ico
+var faviconData []byte
 
 // GetQuotedRemoteAddr returns quoted remote address.
 func GetQuotedRemoteAddr(r *http.Request) string {
@@ -462,6 +475,69 @@ func GetQuotedRemoteAddr(r *http.Request) string {
 	}
 	// quote remoteAddr and X-Forwarded-For, since they may contain untrusted input
 	return strconv.Quote(remoteAddr)
+}
+
+type responseWriterWithAbort struct {
+	http.ResponseWriter
+
+	sentHeaders bool
+	aborted     bool
+}
+
+func (rwa *responseWriterWithAbort) Write(data []byte) (int, error) {
+	if rwa.aborted {
+		return 0, fmt.Errorf("response connection is aborted")
+	}
+	if !rwa.sentHeaders {
+		rwa.sentHeaders = true
+	}
+	return rwa.ResponseWriter.Write(data)
+}
+
+func (rwa *responseWriterWithAbort) WriteHeader(statusCode int) {
+	if rwa.aborted {
+		logger.WarnfSkipframes(1, "cannot write response headers with statusCode=%d, since the response connection has been aborted", statusCode)
+		return
+	}
+	if rwa.sentHeaders {
+		logger.WarnfSkipframes(1, "cannot write response headers with statusCode=%d, since they were already sent", statusCode)
+		return
+	}
+	rwa.ResponseWriter.WriteHeader(statusCode)
+	rwa.sentHeaders = true
+}
+
+// abort aborts the client connection associated with rwa.
+//
+// The last http chunk in the response stream is intentionally written incorrectly,
+// so the client, which reads the response, could notice this error.
+func (rwa *responseWriterWithAbort) abort() {
+	if !rwa.sentHeaders {
+		logger.Panicf("BUG: abort can be called only after http response headers are sent")
+	}
+	if rwa.aborted {
+		logger.WarnfSkipframes(2, "cannot abort the connection, since it has been already aborted")
+		return
+	}
+	hj, ok := rwa.ResponseWriter.(http.Hijacker)
+	if !ok {
+		logger.Panicf("BUG: ResponseWriter must implement http.Hijacker interface")
+	}
+	conn, bw, err := hj.Hijack()
+	if err != nil {
+		logger.WarnfSkipframes(2, "cannot hijack response connection: %s", err)
+		return
+	}
+
+	// Just write an error message into the client connection as is without http chunked encoding.
+	// This is needed in order to notify the client about the aborted connection.
+	_, _ = bw.WriteString("\nthe connection has been aborted; see the last line in the response and/or in the server log for the reason\n")
+	_ = bw.Flush()
+
+	// Forcibly close the client connection in order to break http keep-alive at client side.
+	_ = conn.Close()
+
+	rwa.aborted = true
 }
 
 // Errorf writes formatted error message to w and to logger.
@@ -480,6 +556,13 @@ func Errorf(w http.ResponseWriter, r *http.Request, format string, args ...inter
 			statusCode = esc.StatusCode
 			break
 		}
+	}
+	if rwa, ok := w.(*responseWriterWithAbort); ok && rwa.sentHeaders {
+		// HTTP status code has been already sent to client, so it cannot be sent again.
+		// Just write errStr to the response and abort the client connection, so the client could notice the error.
+		fmt.Fprintf(w, "\n%s\n", errStr)
+		rwa.abort()
+		return
 	}
 	http.Error(w, errStr, statusCode)
 }

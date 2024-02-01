@@ -8,11 +8,12 @@ import QueryEditor from "../../../components/Configurators/QueryEditor/QueryEdit
 
 export interface ExploreLogHeaderProps {
   query: string;
+  error?: string;
   onChange: (val: string) => void;
   onRun: () => void;
 }
 
-const ExploreLogsHeader: FC<ExploreLogHeaderProps> = ({ query, onChange, onRun }) => {
+const ExploreLogsHeader: FC<ExploreLogHeaderProps> = ({ query, error, onChange, onRun }) => {
   const { isMobile } = useDeviceDetect();
 
   return (
@@ -32,6 +33,7 @@ const ExploreLogsHeader: FC<ExploreLogHeaderProps> = ({ query, onChange, onRun }
           onEnter={onRun}
           onChange={onChange}
           label={"Log query"}
+          error={error}
         />
       </div>
       <div className="vm-explore-logs-header-bottom">

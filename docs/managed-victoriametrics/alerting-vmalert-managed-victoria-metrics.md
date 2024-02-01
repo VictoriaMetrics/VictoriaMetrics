@@ -13,7 +13,7 @@ aliases:
 
 This guide explains the different ways in which you can use vmalert in conjunction with Managed VictoriaMetrics
 
-<img src="alerting-vmalert-managed-victoria-metrics-setup.png">
+<img src="alerting-vmalert-managed-victoria-metrics-setup.webp">
 
 ## Preconditions 
 
@@ -55,14 +55,14 @@ For instructions on how to create tokens, please refer to this section of the [d
 
 #### Single-Node
 
-<img src="alerting_token_created_single.png">
-<img src="alerting_copy_datasource_single.png">
+<img src="alerting_token_created_single.webp">
+<img src="alerting_copy_datasource_single.webp">
 
 #### Cluster
 
-<img src="alerting_token_created_cluster.png">
-<img src="alerting_copy_reading_datasource_cluster.png">
-<img src="alerting_copy_writing_datasource_cluster.png">
+<img src="alerting_token_created_cluster.webp">
+<img src="alerting_copy_reading_datasource_cluster.webp">
+<img src="alerting_copy_writing_datasource_cluster.webp">
 
 ### vmalert configuration 
 
@@ -70,7 +70,7 @@ For instructions on how to create tokens, please refer to this section of the [d
 
 ##### Binary 
 
-```console
+```sh
 export TOKEN=81e8226e-****-****-****-************ 
 export MANAGED_VM_URL=https://gw-c15-1c.cloud.victoriametrics.com
 export ALERTMANAGER_URL=http://localhost:9093 
@@ -79,7 +79,7 @@ export ALERTMANAGER_URL=http://localhost:9093
 
 ##### Docker 
 
-```console
+```sh
 export TOKEN=81e8226e-****-****-****-************ 
 export MANAGED_VM_URL=https://gw-c15-1c.cloud.victoriametrics.com
 export ALERTMANAGER_URL=http://alertmanager:9093 
@@ -88,7 +88,7 @@ docker run -it -p 8080:8080 -v $(pwd)/alerts.yml:/etc/alerts/alerts.yml victoria
 
 ##### Helm Chart
 
-```console
+```sh
 export TOKEN=81e8226e-****-****-****-************
 export MANAGED_VM_URL=https://gw-c15-1c.cloud.victoriametrics.com
 export ALERTMANAGER=http://alertmanager:9093
@@ -128,7 +128,7 @@ EOF
 
 ##### VMalert CRD for vmoperator
 
-```console
+```sh
 export TOKEN=81e8226e-****-****-****-************
 export MANAGED_VM_URL=https://gw-c15-1c.cloud.victoriametrics.com
 export ALERTMANAGER=http://alertmanager:9093
@@ -173,7 +173,7 @@ EOF
 
 You can ingest metric that will raise an alert 
 
-```console
+```sh
 export TOKEN=81e8226e-****-****-****-*************
 export MANAGED_VM_URL=https://gw-c15-1c.cloud.victoriametrics.com/
 curl -H "Authorization: Bearer $TOKEN" -X POST "$MANAGED_VM_URLapi/v1/import/prometheus" -d 'up{job="vmalert-test", instance="localhost"} 0'
@@ -183,7 +183,7 @@ curl -H "Authorization: Bearer $TOKEN" -X POST "$MANAGED_VM_URLapi/v1/import/pro
 
 ##### Binary
 
-```console
+```sh
 export TOKEN=76bc5470-****-****-****-************
 export MANAGED_VM_READ_URL=https://gw-c15-1a.cloud.victoriametrics.com/select/0/prometheus/
 export MANAGED_VM_WRITE_URL=https://gw-c15-1a.cloud.victoriametrics.com/insert/0/prometheus/
@@ -193,7 +193,7 @@ export ALERTMANAGER_URL=http://localhost:9093
 
 ##### Docker
 
-```console
+```sh
 export TOKEN=76bc5470-****-****-****-************
 export MANAGED_VM_READ_URL=https://gw-c15-1a.cloud.victoriametrics.com/select/0/prometheus/
 export MANAGED_VM_WRITE_URL=https://gw-c15-1a.cloud.victoriametrics.com/insert/0/prometheus/
@@ -203,7 +203,7 @@ docker run -it -p 8080:8080 -v $(pwd)/alerts.yml:/etc/alerts/alerts.yml victoria
 
 ##### Helm Chart
 
-```console
+```sh
 export TOKEN=76bc5470-****-****-****-************
 export MANAGED_VM_READ_URL=https://gw-c15-1a.cloud.victoriametrics.com/select/0/prometheus/
 export MANAGED_VM_WRITE_URL=https://gw-c15-1a.cloud.victoriametrics.com/insert/0/prometheus/
@@ -244,7 +244,7 @@ EOF
 
 ##### VMalert CRD for vmoperator
 
-```console
+```sh
 export TOKEN=76bc5470-****-****-****-************
 export MANAGED_VM_READ_URL=https://gw-c15-1a.cloud.victoriametrics.com/select/0/prometheus/
 export MANAGED_VM_WRITE_URL=https://gw-c15-1a.cloud.victoriametrics.com/insert/0/prometheus/
@@ -290,7 +290,7 @@ EOF
 
 You can ingest metric that will raise an alert
 
-```console
+```sh
 export TOKEN=76bc5470-****-****-****-************
 export MANAGED_VM_WRITE_URL=https://gw-c15-1a.cloud.victoriametrics.com/insert/0/prometheus/
 curl -H "Authorization: Bearer $TOKEN" -X POST "$MANAGED_VM_WRITE_URLapi/v1/import/prometheus" -d 'up{job="vmalert-test", instance="localhost"} 0'

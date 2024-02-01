@@ -70,11 +70,15 @@ func (prc *parsedRelabelConfig) String() string {
 //
 // It returns DebugStep list - one entry per each applied relabeling step.
 func (pcs *ParsedConfigs) ApplyDebug(labels []prompbmarshal.Label) ([]prompbmarshal.Label, []DebugStep) {
-	labels, dss := pcs.applyInternal(labels, 0, true)
+	// Protect from overwriting labels between len(labels) and cap(labels) by limiting labels capacity to its length.
+	labels, dss := pcs.applyInternal(labels[:len(labels):len(labels)], 0, true)
 	return labels, dss
 }
 
 // Apply applies pcs to labels starting from the labelsOffset.
+//
+// Apply() may add additional labels after the len(labels), so make sure it doesn't corrupt in-use labels
+// stored between len(labels) and cap(labels).
 func (pcs *ParsedConfigs) Apply(labels []prompbmarshal.Label, labelsOffset int) []prompbmarshal.Label {
 	labels, _ = pcs.applyInternal(labels, labelsOffset, false)
 	return labels
@@ -250,6 +254,32 @@ func (prc *parsedRelabelConfig) apply(labels []prompbmarshal.Label, labelsOffset
 		valueStr := prc.replaceStringSubmatchesFast(sourceStr)
 		if valueStr != sourceStr {
 			labels = setLabelValue(labels, labelsOffset, prc.TargetLabel, valueStr)
+		}
+		return labels
+	case "keep_if_contains":
+		// Keep the entry if target_label contains all the label values listed in source_labels.
+		// For example, the following relabeling rule would leave the entry if __meta_consul_tags
+		// contains values of __meta_required_tag1 and __meta_required_tag2:
+		//
+		//   - action: keep_if_contains
+		//     target_label: __meta_consul_tags
+		//     source_labels: [__meta_required_tag1, __meta_required_tag2]
+		//
+		if containsAllLabelValues(src, prc.TargetLabel, prc.SourceLabels) {
+			return labels
+		}
+		return labels[:labelsOffset]
+	case "drop_if_contains":
+		// Drop the entry if target_label contains all the label values listed in source_labels.
+		// For example, the following relabeling rule would drop the entry if __meta_consul_tags
+		// contains values of __meta_required_tag1 and __meta_required_tag2:
+		//
+		//   - action: drop_if_contains
+		//     target_label: __meta_consul_tags
+		//     source_labels: [__meta_required_tag1, __meta_required_tag2]
+		//
+		if containsAllLabelValues(src, prc.TargetLabel, prc.SourceLabels) {
+			return labels[:labelsOffset]
 		}
 		return labels
 	case "keep_if_equal":
@@ -485,6 +515,17 @@ func (prc *parsedRelabelConfig) expandCaptureGroups(template, source string, mat
 
 var relabelBufPool bytesutil.ByteBufferPool
 
+func containsAllLabelValues(labels []prompbmarshal.Label, targetLabel string, sourceLabels []string) bool {
+	targetLabelValue := getLabelValue(labels, targetLabel)
+	for _, sourceLabel := range sourceLabels {
+		v := getLabelValue(labels, sourceLabel)
+		if !strings.Contains(targetLabelValue, v) {
+			return false
+		}
+	}
+	return true
+}
+
 func areEqualLabelValues(labels []prompbmarshal.Label, labelNames []string) bool {
 	if len(labelNames) < 2 {
 		logger.Panicf("BUG: expecting at least 2 labelNames; got %d", len(labelNames))
@@ -551,9 +592,7 @@ func GetLabelByName(labels []prompbmarshal.Label, name string) *prompbmarshal.La
 // This should help GC cleaning up label.Name and label.Value strings.
 func CleanLabels(labels []prompbmarshal.Label) {
 	for i := range labels {
-		label := &labels[i]
-		label.Name = ""
-		label.Value = ""
+		labels[i] = prompbmarshal.Label{}
 	}
 }
 

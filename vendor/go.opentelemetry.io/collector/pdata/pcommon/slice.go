@@ -137,7 +137,6 @@ func (es Slice) RemoveIf(f func(Value) bool) {
 		(*es.getOrig())[newLen] = (*es.getOrig())[i]
 		newLen++
 	}
-	// TODO: Prevent memory leak by erasing truncated values.
 	*es.getOrig() = (*es.getOrig())[:newLen]
 }
 

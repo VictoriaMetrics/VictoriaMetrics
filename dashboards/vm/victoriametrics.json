@@ -66,7 +66,7 @@
           "uid": "$ds"
         },
         "enable": true,
-        "expr": "sum(ALERTS{alertgroup=\"vmsingle\",alertstate=\"firing\",show_at=\"dashboard\"}) by(alertname)",
+        "expr": "sum(ALERTS{job=~\"$job\", instance=~\"$instance\", alertgroup=\"vmsingle\",alertstate=\"firing\",show_at=\"dashboard\"}) by(alertname)",
         "iconColor": "red",
         "name": "alerts",
         "titleFormat": "{{alertname}}"
@@ -77,16 +77,16 @@
           "uid": "$ds"
         },
         "enable": true,
-        "expr": "sum(vm_app_version{job=~\"$job\", instance=~\"$instance\"}) by(short_version) unless (sum(vm_app_version{job=~\"$job\", instance=~\"$instance\"} offset 20m) by(short_version))",
+        "expr": "sum(vm_app_version{job=~\"$job\", instance=~\"$instance\"}) by(version) unless (sum(vm_app_version{job=~\"$job\", instance=~\"$instance\"} offset 20m) by(version))",
         "hide": true,
         "iconColor": "dark-blue",
         "name": "version",
-        "textFormat": "{{short_version}}",
+        "textFormat": "{{version}}",
         "titleFormat": "Version change"
       }
     ]
   },
-  "description": "Overview for single node VictoriaMetrics v1.83.0 or higher",
+  "description": "Overview for single-node VictoriaMetrics v1.83.0 or higher",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "gnetId": 10229,
@@ -1036,7 +1036,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(rate(vm_http_requests_total{job=~\"$job\", instance=~\"$instance\", path!~\"/favicon.ico\"}[$__rate_interval])) by (path) > 0",
+          "expr": "sum(rate(vm_http_requests_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (path) > 0",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 1,
@@ -1486,7 +1486,7 @@
             "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
-          "description": "Percentage of used memory (resident).\nThe application's performance will significantly degrade when memory usage is close to 100%.",
+          "description": "Percentage of used RSS memory (resident).\nThe RSS memory shows the amount of memory recently accessed by the application. It includes anonymous memory and data from recently accessed files (aka page cache).\nThe application's performance will significantly degrade when memory usage is close to 100%.\n\nClick on the line and choose Drilldown to show memory usage per instance",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -1748,7 +1748,7 @@
             "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
-          "description": "Share for memory allocated by the process itself. When memory usage reaches 100% it will be likely OOM-killed.\nSafe memory usage % considered to be below 80%",
+          "description": "Share for memory allocated by the process itself. When memory usage reaches 100% it will be likely OOM-killed.\nSafe memory usage % considered to be below 80%\n\nClick on the line and choose Drilldown to show memory usage per instance",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -3701,7 +3701,7 @@
             "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
-          "description": "VictoriaMetrics limits the number of labels per each metric with `-maxLabelsPerTimeseries` command-line flag.\n\nThis prevents from ingesting metrics with too many labels. The value of `maxLabelsPerTimeseries` must be adjusted for your workload.\n\nWhen limit is exceeded (graph is > 0) - extra labels are dropped, which could result in unexpected identical time series.",
+          "description": "VictoriaMetrics limits the number of labels per each metric with `-maxLabelsPerTimeseries` command-line flag.\n\nThis prevents from ingesting metrics with too many labels. The value of `maxLabelsPerTimeseries` must be adjusted for your workload.\n\nWhen limit is exceeded (graph is > 0) - extra labels are dropped, which could result in unexpected identical time series. See more details about dropped labels in logs.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -5581,7 +5581,7 @@
     ]
   },
   "timezone": "",
-  "title": "VictoriaMetrics (VM)",
+  "title": "VictoriaMetrics - single-node (VM)",
   "uid": "wNf0q_kZk_vm",
   "version": 1,
   "weekStart": ""

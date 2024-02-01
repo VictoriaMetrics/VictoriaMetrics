@@ -3,6 +3,7 @@ package remotewrite
 import (
 	"bytes"
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -117,12 +118,17 @@ func NewClient(ctx context.Context, cfg Config) (*Client, error) {
 // Push adds timeseries into queue for writing into remote storage.
 // Push returns and error if client is stopped or if queue is full.
 func (c *Client) Push(s prompbmarshal.TimeSeries) error {
+	rwTotal.Inc()
 	select {
 	case <-c.doneCh:
+		rwErrors.Inc()
+		droppedRows.Add(len(s.Samples))
 		return fmt.Errorf("client is closed")
 	case c.input <- s:
 		return nil
 	default:
+		rwErrors.Inc()
+		droppedRows.Add(len(s.Samples))
 		return fmt.Errorf("failed to push timeseries - queue is full (%d entries). "+
 			"Queue size is controlled by -remoteWrite.maxQueueSize flag",
 			c.maxQueueSize)
@@ -181,11 +187,13 @@ func (c *Client) run(ctx context.Context) {
 }
 
 var (
+	rwErrors = metrics.NewCounter(`vmalert_remotewrite_errors_total`)
+	rwTotal  = metrics.NewCounter(`vmalert_remotewrite_total`)
+
 	sentRows            = metrics.NewCounter(`vmalert_remotewrite_sent_rows_total`)
 	sentBytes           = metrics.NewCounter(`vmalert_remotewrite_sent_bytes_total`)
-	sendDuration        = metrics.NewFloatCounter(`vmalert_remotewrite_send_duration_seconds_total`)
 	droppedRows         = metrics.NewCounter(`vmalert_remotewrite_dropped_rows_total`)
-	droppedBytes        = metrics.NewCounter(`vmalert_remotewrite_dropped_bytes_total`)
+	sendDuration        = metrics.NewFloatCounter(`vmalert_remotewrite_send_duration_seconds_total`)
 	bufferFlushDuration = metrics.NewHistogram(`vmalert_remotewrite_flush_duration_seconds`)
 
 	_ = metrics.NewGauge(`vmalert_remotewrite_concurrency`, func() float64 {
@@ -200,15 +208,10 @@ func (c *Client) flush(ctx context.Context, wr *prompbmarshal.WriteRequest) {
 	if len(wr.Timeseries) < 1 {
 		return
 	}
-	defer prompbmarshal.ResetWriteRequest(wr)
+	defer wr.Reset()
 	defer bufferFlushDuration.UpdateDuration(time.Now())
 
-	data, err := wr.Marshal()
-	if err != nil {
-		logger.Errorf("failed to marshal WriteRequest: %s", err)
-		return
-	}
-
+	data := wr.MarshalProtobuf(nil)
 	b := snappy.Encode(nil, data)
 
 	retryInterval, maxRetryInterval := *retryMinInterval, *retryMaxTime
@@ -222,6 +225,11 @@ func (c *Client) flush(ctx context.Context, wr *prompbmarshal.WriteRequest) {
 L:
 	for attempts := 0; ; attempts++ {
 		err := c.send(ctx, b)
+		if errors.Is(err, io.EOF) {
+			// Something in the middle between client and destination might be closing
+			// the connection. So we do a one more attempt in hope request will succeed.
+			err = c.send(ctx, b)
+		}
 		if err == nil {
 			sentRows.Add(len(wr.Timeseries))
 			sentBytes.Add(len(b))
@@ -259,8 +267,12 @@ L:
 
 	}
 
-	droppedRows.Add(len(wr.Timeseries))
-	droppedBytes.Add(len(b))
+	rwErrors.Inc()
+	rows := 0
+	for _, ts := range wr.Timeseries {
+		rows += len(ts.Samples)
+	}
+	droppedRows.Add(rows)
 	logger.Errorf("attempts to send remote-write request failed - dropping %d time series",
 		len(wr.Timeseries))
 }
@@ -303,7 +315,7 @@ func (c *Client) send(ctx context.Context, data []byte) error {
 	// Prometheus remote Write compatible receivers MUST
 	switch resp.StatusCode / 100 {
 	case 2:
-		// respond with a HTTP 2xx status code when the write is successful.
+		// respond with HTTP 2xx status code when write is successful.
 		return nil
 	case 4:
 		if resp.StatusCode != http.StatusTooManyRequests {

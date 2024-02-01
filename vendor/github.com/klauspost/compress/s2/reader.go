@@ -104,12 +104,14 @@ func ReaderIgnoreStreamIdentifier() ReaderOption {
 // For each chunk with the ID, the callback is called with the content.
 // Any returned non-nil error will abort decompression.
 // Only one callback per ID is supported, latest sent will be used.
+// You can peek the stream, triggering the callback, by doing a Read with a 0
+// byte buffer.
 func ReaderSkippableCB(id uint8, fn func(r io.Reader) error) ReaderOption {
 	return func(r *Reader) error {
 		if id < 0x80 || id > 0xfd {
 			return fmt.Errorf("ReaderSkippableCB: Invalid id provided, must be 0x80-0xfd (inclusive)")
 		}
-		r.skippableCB[id] = fn
+		r.skippableCB[id-0x80] = fn
 		return nil
 	}
 }
@@ -128,7 +130,7 @@ type Reader struct {
 	err         error
 	decoded     []byte
 	buf         []byte
-	skippableCB [0x80]func(r io.Reader) error
+	skippableCB [0xff - 0x80]func(r io.Reader) error
 	blockStart  int64 // Uncompressed offset at start of current.
 	index       *Index
 
@@ -201,7 +203,7 @@ func (r *Reader) readFull(p []byte, allowEOF bool) (ok bool) {
 // The supplied slice does not need to be the size of the read.
 func (r *Reader) skippable(tmp []byte, n int, allowEOF bool, id uint8) (ok bool) {
 	if id < 0x80 {
-		r.err = fmt.Errorf("interbal error: skippable id < 0x80")
+		r.err = fmt.Errorf("internal error: skippable id < 0x80")
 		return false
 	}
 	if fn := r.skippableCB[id-0x80]; fn != nil {
@@ -1048,15 +1050,17 @@ func (r *Reader) ReadByte() (byte, error) {
 }
 
 // SkippableCB will register a callback for chunks with the specified ID.
-// ID must be a Reserved skippable chunks ID, 0x80-0xfe (inclusive).
+// ID must be a Reserved skippable chunks ID, 0x80-0xfd (inclusive).
 // For each chunk with the ID, the callback is called with the content.
 // Any returned non-nil error will abort decompression.
 // Only one callback per ID is supported, latest sent will be used.
 // Sending a nil function will disable previous callbacks.
+// You can peek the stream, triggering the callback, by doing a Read with a 0
+// byte buffer.
 func (r *Reader) SkippableCB(id uint8, fn func(r io.Reader) error) error {
-	if id < 0x80 || id > chunkTypePadding {
+	if id < 0x80 || id >= chunkTypePadding {
 		return fmt.Errorf("ReaderSkippableCB: Invalid id provided, must be 0x80-0xfe (inclusive)")
 	}
-	r.skippableCB[id] = fn
+	r.skippableCB[id-0x80] = fn
 	return nil
 }

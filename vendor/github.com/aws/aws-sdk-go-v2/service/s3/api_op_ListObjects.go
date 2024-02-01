@@ -4,26 +4,21 @@ package s3
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"github.com/aws/aws-sdk-go-v2/aws"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
 	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
-	internalauth "github.com/aws/aws-sdk-go-v2/internal/auth"
-	"github.com/aws/aws-sdk-go-v2/internal/v4a"
 	s3cust "github.com/aws/aws-sdk-go-v2/service/s3/internal/customizations"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
-	smithyendpoints "github.com/aws/smithy-go/endpoints"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Returns some or all (up to 1,000) of the objects in a bucket. You can use the
-// request parameters as selection criteria to return a subset of the objects in a
-// bucket. A 200 OK response can contain valid or invalid XML. Be sure to design
-// your application to parse the contents of the response and handle it
-// appropriately. This action has been revised. We recommend that you use the newer
-// version, ListObjectsV2 (https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListObjectsV2.html)
+// This operation is not supported by directory buckets. Returns some or all (up
+// to 1,000) of the objects in a bucket. You can use the request parameters as
+// selection criteria to return a subset of the objects in a bucket. A 200 OK
+// response can contain valid or invalid XML. Be sure to design your application to
+// parse the contents of the response and handle it appropriately. This action has
+// been revised. We recommend that you use the newer version, ListObjectsV2 (https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListObjectsV2.html)
 // , when developing applications. For backward compatibility, Amazon S3 continues
 // to support ListObjects . The following operations are related to ListObjects :
 //   - ListObjectsV2 (https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListObjectsV2.html)
@@ -48,16 +43,26 @@ func (c *Client) ListObjects(ctx context.Context, params *ListObjectsInput, optF
 
 type ListObjectsInput struct {
 
-	// The name of the bucket containing the objects. When using this action with an
-	// access point, you must direct requests to the access point hostname. The access
-	// point hostname takes the form
-	// AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com. When using this
-	// action with an access point through the Amazon Web Services SDKs, you provide
-	// the access point ARN in place of the bucket name. For more information about
-	// access point ARNs, see Using access points (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html)
-	// in the Amazon S3 User Guide. When you use this action with Amazon S3 on
-	// Outposts, you must direct requests to the S3 on Outposts hostname. The S3 on
-	// Outposts hostname takes the form
+	// The name of the bucket containing the objects. Directory buckets - When you use
+	// this operation with a directory bucket, you must use virtual-hosted-style
+	// requests in the format Bucket_name.s3express-az_id.region.amazonaws.com .
+	// Path-style requests are not supported. Directory bucket names must be unique in
+	// the chosen Availability Zone. Bucket names must follow the format
+	// bucket_base_name--az-id--x-s3 (for example,  DOC-EXAMPLE-BUCKET--usw2-az2--x-s3
+	// ). For information about bucket naming restrictions, see Directory bucket
+	// naming rules (https://docs.aws.amazon.com/AmazonS3/latest/userguide/directory-bucket-naming-rules.html)
+	// in the Amazon S3 User Guide. Access points - When you use this action with an
+	// access point, you must provide the alias of the access point in place of the
+	// bucket name or specify the access point ARN. When using the access point ARN,
+	// you must direct requests to the access point hostname. The access point hostname
+	// takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
+	// When using this action with an access point through the Amazon Web Services
+	// SDKs, you provide the access point ARN in place of the bucket name. For more
+	// information about access point ARNs, see Using access points (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html)
+	// in the Amazon S3 User Guide. Access points and Object Lambda access points are
+	// not supported by directory buckets. S3 on Outposts - When you use this action
+	// with Amazon S3 on Outposts, you must direct requests to the S3 on Outposts
+	// hostname. The S3 on Outposts hostname takes the form
 	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com . When you
 	// use this action with S3 on Outposts through the Amazon Web Services SDKs, you
 	// provide the Outposts access point ARN in place of the bucket name. For more
@@ -78,9 +83,9 @@ type ListObjectsInput struct {
 	// response.
 	EncodingType types.EncodingType
 
-	// The account ID of the expected bucket owner. If the bucket is owned by a
-	// different account, the request fails with the HTTP status code 403 Forbidden
-	// (access denied).
+	// The account ID of the expected bucket owner. If the account ID that you provide
+	// does not match the actual owner of the bucket, the request fails with the HTTP
+	// status code 403 Forbidden (access denied).
 	ExpectedBucketOwner *string
 
 	// Marker is where you want Amazon S3 to start listing from. Amazon S3 starts
@@ -90,7 +95,7 @@ type ListObjectsInput struct {
 	// Sets the maximum number of keys returned in the response. By default, the
 	// action returns up to 1,000 key names. The response might contain fewer keys but
 	// will never contain more.
-	MaxKeys int32
+	MaxKeys *int32
 
 	// Specifies the optional fields that you want returned in the response. Fields
 	// that you do not specify are not returned.
@@ -105,6 +110,12 @@ type ListObjectsInput struct {
 	RequestPayer types.RequestPayer
 
 	noSmithyDocumentSerde
+}
+
+func (in *ListObjectsInput) bindEndpointParams(p *EndpointParameters) {
+	p.Bucket = in.Bucket
+	p.Prefix = in.Prefix
+
 }
 
 type ListObjectsOutput struct {
@@ -135,14 +146,14 @@ type ListObjectsOutput struct {
 
 	// A flag that indicates whether Amazon S3 returned all of the results that
 	// satisfied the search criteria.
-	IsTruncated bool
+	IsTruncated *bool
 
 	// Indicates where in the bucket listing begins. Marker is included in the
 	// response if it was sent with the request.
 	Marker *string
 
 	// The maximum number of keys returned in the response body.
-	MaxKeys int32
+	MaxKeys *int32
 
 	// The bucket name.
 	Name *string
@@ -161,7 +172,7 @@ type ListObjectsOutput struct {
 	Prefix *string
 
 	// If present, indicates that the requester was successfully charged for the
-	// request.
+	// request. This functionality is not supported for directory buckets.
 	RequestCharged types.RequestCharged
 
 	// Metadata pertaining to the operation's result.
@@ -171,6 +182,9 @@ type ListObjectsOutput struct {
 }
 
 func (c *Client) addOperationListObjectsMiddlewares(stack *middleware.Stack, options Options) (err error) {
+	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
+		return err
+	}
 	err = stack.Serialize.Add(&awsRestxml_serializeOpListObjects{}, middleware.After)
 	if err != nil {
 		return err
@@ -179,6 +193,10 @@ func (c *Client) addOperationListObjectsMiddlewares(stack *middleware.Stack, opt
 	if err != nil {
 		return err
 	}
+	if err := addProtocolFinalizerMiddlewares(stack, options, "ListObjects"); err != nil {
+		return fmt.Errorf("add protocol finalizers: %v", err)
+	}
+
 	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
 		return err
 	}
@@ -200,9 +218,6 @@ func (c *Client) addOperationListObjectsMiddlewares(stack *middleware.Stack, opt
 	if err = addRetryMiddlewares(stack, options); err != nil {
 		return err
 	}
-	if err = addHTTPSignerV4Middleware(stack, options); err != nil {
-		return err
-	}
 	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
 		return err
 	}
@@ -218,10 +233,10 @@ func (c *Client) addOperationListObjectsMiddlewares(stack *middleware.Stack, opt
 	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
 		return err
 	}
-	if err = swapWithCustomHTTPSignerMiddleware(stack, options); err != nil {
+	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
 		return err
 	}
-	if err = addListObjectsResolveEndpointMiddleware(stack, options); err != nil {
+	if err = addPutBucketContextMiddleware(stack); err != nil {
 		return err
 	}
 	if err = addOpListObjectsValidationMiddleware(stack); err != nil {
@@ -251,7 +266,7 @@ func (c *Client) addOperationListObjectsMiddlewares(stack *middleware.Stack, opt
 	if err = addRequestResponseLogging(stack, options); err != nil {
 		return err
 	}
-	if err = addendpointDisableHTTPSMiddleware(stack, options); err != nil {
+	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
 	if err = addSerializeImmutableHostnameBucketMiddleware(stack, options); err != nil {
@@ -271,7 +286,6 @@ func newServiceMetadataMiddleware_opListObjects(region string) *awsmiddleware.Re
 	return &awsmiddleware.RegisterServiceMetadata{
 		Region:        region,
 		ServiceID:     ServiceID,
-		SigningName:   "s3",
 		OperationName: "ListObjects",
 	}
 }
@@ -300,140 +314,4 @@ func addListObjectsUpdateEndpoint(stack *middleware.Stack, options Options) erro
 		UseARNRegion:                   options.UseARNRegion,
 		DisableMultiRegionAccessPoints: options.DisableMultiRegionAccessPoints,
 	})
-}
-
-type opListObjectsResolveEndpointMiddleware struct {
-	EndpointResolver EndpointResolverV2
-	BuiltInResolver  builtInParameterResolver
-}
-
-func (*opListObjectsResolveEndpointMiddleware) ID() string {
-	return "ResolveEndpointV2"
-}
-
-func (m *opListObjectsResolveEndpointMiddleware) HandleSerialize(ctx context.Context, in middleware.SerializeInput, next middleware.SerializeHandler) (
-	out middleware.SerializeOutput, metadata middleware.Metadata, err error,
-) {
-	if awsmiddleware.GetRequiresLegacyEndpoints(ctx) {
-		return next.HandleSerialize(ctx, in)
-	}
-
-	req, ok := in.Request.(*smithyhttp.Request)
-	if !ok {
-		return out, metadata, fmt.Errorf("unknown transport type %T", in.Request)
-	}
-
-	input, ok := in.Parameters.(*ListObjectsInput)
-	if !ok {
-		return out, metadata, fmt.Errorf("unknown transport type %T", in.Request)
-	}
-
-	if m.EndpointResolver == nil {
-		return out, metadata, fmt.Errorf("expected endpoint resolver to not be nil")
-	}
-
-	params := EndpointParameters{}
-
-	m.BuiltInResolver.ResolveBuiltIns(&params)
-
-	params.Bucket = input.Bucket
-
-	var resolvedEndpoint smithyendpoints.Endpoint
-	resolvedEndpoint, err = m.EndpointResolver.ResolveEndpoint(ctx, params)
-	if err != nil {
-		return out, metadata, fmt.Errorf("failed to resolve service endpoint, %w", err)
-	}
-
-	req.URL = &resolvedEndpoint.URI
-
-	for k := range resolvedEndpoint.Headers {
-		req.Header.Set(
-			k,
-			resolvedEndpoint.Headers.Get(k),
-		)
-	}
-
-	authSchemes, err := internalauth.GetAuthenticationSchemes(&resolvedEndpoint.Properties)
-	if err != nil {
-		var nfe *internalauth.NoAuthenticationSchemesFoundError
-		if errors.As(err, &nfe) {
-			// if no auth scheme is found, default to sigv4
-			signingName := "s3"
-			signingRegion := m.BuiltInResolver.(*builtInResolver).Region
-			ctx = awsmiddleware.SetSigningName(ctx, signingName)
-			ctx = awsmiddleware.SetSigningRegion(ctx, signingRegion)
-			ctx = s3cust.SetSignerVersion(ctx, internalauth.SigV4)
-		}
-		var ue *internalauth.UnSupportedAuthenticationSchemeSpecifiedError
-		if errors.As(err, &ue) {
-			return out, metadata, fmt.Errorf(
-				"This operation requests signer version(s) %v but the client only supports %v",
-				ue.UnsupportedSchemes,
-				internalauth.SupportedSchemes,
-			)
-		}
-	}
-
-	for _, authScheme := range authSchemes {
-		switch authScheme.(type) {
-		case *internalauth.AuthenticationSchemeV4:
-			v4Scheme, _ := authScheme.(*internalauth.AuthenticationSchemeV4)
-			var signingName, signingRegion string
-			if v4Scheme.SigningName == nil {
-				signingName = "s3"
-			} else {
-				signingName = *v4Scheme.SigningName
-			}
-			if v4Scheme.SigningRegion == nil {
-				signingRegion = m.BuiltInResolver.(*builtInResolver).Region
-			} else {
-				signingRegion = *v4Scheme.SigningRegion
-			}
-			if v4Scheme.DisableDoubleEncoding != nil {
-				// The signer sets an equivalent value at client initialization time.
-				// Setting this context value will cause the signer to extract it
-				// and override the value set at client initialization time.
-				ctx = internalauth.SetDisableDoubleEncoding(ctx, *v4Scheme.DisableDoubleEncoding)
-			}
-			ctx = awsmiddleware.SetSigningName(ctx, signingName)
-			ctx = awsmiddleware.SetSigningRegion(ctx, signingRegion)
-			ctx = s3cust.SetSignerVersion(ctx, v4Scheme.Name)
-			break
-		case *internalauth.AuthenticationSchemeV4A:
-			v4aScheme, _ := authScheme.(*internalauth.AuthenticationSchemeV4A)
-			if v4aScheme.SigningName == nil {
-				v4aScheme.SigningName = aws.String("s3")
-			}
-			if v4aScheme.DisableDoubleEncoding != nil {
-				// The signer sets an equivalent value at client initialization time.
-				// Setting this context value will cause the signer to extract it
-				// and override the value set at client initialization time.
-				ctx = internalauth.SetDisableDoubleEncoding(ctx, *v4aScheme.DisableDoubleEncoding)
-			}
-			ctx = awsmiddleware.SetSigningName(ctx, *v4aScheme.SigningName)
-			ctx = awsmiddleware.SetSigningRegion(ctx, v4aScheme.SigningRegionSet[0])
-			ctx = s3cust.SetSignerVersion(ctx, v4a.Version)
-			break
-		case *internalauth.AuthenticationSchemeNone:
-			break
-		}
-	}
-
-	return next.HandleSerialize(ctx, in)
-}
-
-func addListObjectsResolveEndpointMiddleware(stack *middleware.Stack, options Options) error {
-	return stack.Serialize.Insert(&opListObjectsResolveEndpointMiddleware{
-		EndpointResolver: options.EndpointResolverV2,
-		BuiltInResolver: &builtInResolver{
-			Region:                         options.Region,
-			UseFIPS:                        options.EndpointOptions.UseFIPSEndpoint,
-			UseDualStack:                   options.EndpointOptions.UseDualStackEndpoint,
-			Endpoint:                       options.BaseEndpoint,
-			ForcePathStyle:                 options.UsePathStyle,
-			Accelerate:                     options.UseAccelerate,
-			DisableMultiRegionAccessPoints: options.DisableMultiRegionAccessPoints,
-			UseArnRegion:                   options.UseARNRegion,
-		},
-	}, "ResolveEndpoint", middleware.After)
 }

@@ -6,7 +6,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
@@ -48,8 +47,8 @@ func insertRows(at *auth.Token, timeseries []prompb.TimeSeries, extraLabels []pr
 		for i := range ts.Labels {
 			label := &ts.Labels[i]
 			labels = append(labels, prompbmarshal.Label{
-				Name:  bytesutil.ToUnsafeString(label.Name),
-				Value: bytesutil.ToUnsafeString(label.Value),
+				Name:  label.Name,
+				Value: label.Value,
 			})
 		}
 		labels = append(labels, extraLabels...)
@@ -69,7 +68,9 @@ func insertRows(at *auth.Token, timeseries []prompb.TimeSeries, extraLabels []pr
 	ctx.WriteRequest.Timeseries = tssDst
 	ctx.Labels = labels
 	ctx.Samples = samples
-	remotewrite.Push(at, &ctx.WriteRequest)
+	if !remotewrite.TryPush(at, &ctx.WriteRequest) {
+		return remotewrite.ErrQueueFullHTTPRetry
+	}
 	rowsInserted.Add(rowsTotal)
 	if at != nil {
 		rowsTenantInserted.Get(at).Add(rowsTotal)

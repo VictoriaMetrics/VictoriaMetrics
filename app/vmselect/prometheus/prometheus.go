@@ -54,7 +54,8 @@ var (
 	maxSeriesLimit         = flag.Int("search.maxSeries", 30e3, "The maximum number of time series, which can be returned from /api/v1/series. This option allows limiting memory usage")
 	maxPointsPerTimeseries = flag.Int("search.maxPointsPerTimeseries", 30e3, "The maximum points per a single timeseries returned from /api/v1/query_range. "+
 		"This option doesn't limit the number of scanned raw samples in the database. The main purpose of this option is to limit the number of per-series points "+
-		"returned to graphing UI such as VMUI or Grafana. There is no sense in setting this limit to values bigger than the horizontal resolution of the graph")
+		"returned to graphing UI such as VMUI or Grafana. There is no sense in setting this limit to values bigger than the horizontal resolution of the graph. "+
+		"See also -search.maxResponseSeries")
 )
 
 // Default step used if not set.
@@ -320,7 +321,9 @@ func exportHandler(qt *querytracer.Tracer, w http.ResponseWriter, cp *commonPara
 		firstLineSent := uint32(0)
 		writeLineFunc = func(xb *exportBlock, workerID uint) error {
 			bb := sw.getBuffer(workerID)
-			if atomic.CompareAndSwapUint32(&firstLineOnce, 0, 1) {
+			// Use atomic.LoadUint32() in front of atomic.CompareAndSwapUint32() in order to avoid slow inter-CPU synchronization
+			// in fast path after the first line has been already sent.
+			if atomic.LoadUint32(&firstLineOnce) == 0 && atomic.CompareAndSwapUint32(&firstLineOnce, 0, 1) {
 				// Send the first line to sw.bw
 				WriteExportPromAPILine(bb, xb)
 				_, err := sw.bw.Write(bb.B)
@@ -496,7 +499,10 @@ func LabelValuesHandler(qt *querytracer.Tracer, startTime time.Time, labelName s
 	if err != nil {
 		return err
 	}
-	sq := storage.NewSearchQuery(cp.start, cp.end, cp.filterss, *maxUniqueTimeseries)
+	// Do not limit the number of unique time series, which could be scanned
+	// during the search for matching label values, since users expect this API
+	// must always work.
+	sq := storage.NewSearchQuery(cp.start, cp.end, cp.filterss, -1)
 	labelValues, err := netstorage.LabelValues(qt, labelName, sq, limit, cp.deadline)
 	if err != nil {
 		return fmt.Errorf("cannot obtain values for label %q: %w", labelName, err)
@@ -593,7 +599,10 @@ func LabelsHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 	if err != nil {
 		return err
 	}
-	sq := storage.NewSearchQuery(cp.start, cp.end, cp.filterss, *maxUniqueTimeseries)
+	// Do not limit the number of unique time series, which could be scanned
+	// during the search for matching label values, since users expect this API
+	// must always work.
+	sq := storage.NewSearchQuery(cp.start, cp.end, cp.filterss, -1)
 	labels, err := netstorage.LabelNames(qt, sq, limit, cp.deadline)
 	if err != nil {
 		return fmt.Errorf("cannot obtain labels: %w", err)
@@ -1063,9 +1072,7 @@ func getLatencyOffsetMilliseconds(r *http.Request) (int64, error) {
 }
 
 // QueryStatsHandler returns query stats at `/api/v1/status/top_queries`
-func QueryStatsHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
-	defer queryStatsDuration.UpdateDuration(startTime)
-
+func QueryStatsHandler(w http.ResponseWriter, r *http.Request) error {
 	topN := 20
 	topNStr := r.FormValue("topN")
 	if len(topNStr) > 0 {
@@ -1089,8 +1096,6 @@ func QueryStatsHandler(startTime time.Time, w http.ResponseWriter, r *http.Reque
 	}
 	return nil
 }
-
-var queryStatsDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/status/top_queries"}`)
 
 // commonParams contains common parameters for all /api/v1/* handlers
 //

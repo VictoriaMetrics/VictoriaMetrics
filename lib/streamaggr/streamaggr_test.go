@@ -20,7 +20,7 @@ func TestAggregatorsFailure(t *testing.T) {
 		pushFunc := func(tss []prompbmarshal.TimeSeries) {
 			panic(fmt.Errorf("pushFunc shouldn't be called"))
 		}
-		a, err := NewAggregatorsFromData([]byte(config), pushFunc, 0)
+		a, err := newAggregatorsFromData([]byte(config), pushFunc, 0)
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
@@ -124,11 +124,11 @@ func TestAggregatorsEqual(t *testing.T) {
 		t.Helper()
 
 		pushFunc := func(tss []prompbmarshal.TimeSeries) {}
-		aa, err := NewAggregatorsFromData([]byte(a), pushFunc, 0)
+		aa, err := newAggregatorsFromData([]byte(a), pushFunc, 0)
 		if err != nil {
 			t.Fatalf("cannot initialize aggregators: %s", err)
 		}
-		ab, err := NewAggregatorsFromData([]byte(b), pushFunc, 0)
+		ab, err := newAggregatorsFromData([]byte(b), pushFunc, 0)
 		if err != nil {
 			t.Fatalf("cannot initialize aggregators: %s", err)
 		}
@@ -156,6 +156,15 @@ func TestAggregatorsEqual(t *testing.T) {
 - outputs: [total]
   interval: 5m
 `, false)
+	f(`
+- outputs: [total]
+  interval: 5m
+  flush_on_shutdown: true  
+`, `
+- outputs: [total]
+  interval: 5m
+  flush_on_shutdown: false
+`, false)
 }
 
 func TestAggregatorsSuccess(t *testing.T) {
@@ -177,9 +186,14 @@ func TestAggregatorsSuccess(t *testing.T) {
 			}
 			tssOutputLock.Unlock()
 		}
-		a, err := NewAggregatorsFromData([]byte(config), pushFunc, 0)
+		a, err := newAggregatorsFromData([]byte(config), pushFunc, 0)
 		if err != nil {
 			t.Fatalf("cannot initialize aggregators: %s", err)
+		}
+		for _, ag := range a.as {
+			// explicitly set flushOnShutdown, so aggregations results
+			// are immediately available after a.MustStop() call.
+			ag.flushOnShutdown = true
 		}
 
 		// Push the inputMetrics to Aggregators
@@ -686,6 +700,35 @@ cpu_usage{cpu="2"} 90
 cpu_usage:1m_without_cpu_quantiles{quantile="0.5"} 13.3
 cpu_usage:1m_without_cpu_quantiles{quantile="1"} 90
 `, "1111111")
+
+	// append additional label
+	f(`
+- interval: 1m
+  without: [abc]
+  outputs: [count_samples, sum_samples, count_series]
+  output_relabel_configs:
+  - action: replace_all
+    source_labels: [__name__]
+    regex: ":|_"
+    replacement: "-"
+    target_label: __name__
+  - action: drop
+    source_labels: [de]
+    regex: fg
+  - target_label: new_label
+    replacement: must_keep_metric_name
+`, `
+foo{abc="123"} 4
+bar 5
+foo{abc="123"} 8.5
+foo{abc="456",de="fg"} 8
+`, `bar-1m-without-abc-count-samples{new_label="must_keep_metric_name"} 1
+bar-1m-without-abc-count-series{new_label="must_keep_metric_name"} 1
+bar-1m-without-abc-sum-samples{new_label="must_keep_metric_name"} 5
+foo-1m-without-abc-count-samples{new_label="must_keep_metric_name"} 2
+foo-1m-without-abc-count-series{new_label="must_keep_metric_name"} 1
+foo-1m-without-abc-sum-samples{new_label="must_keep_metric_name"} 12.5
+`, "1111")
 }
 
 func TestAggregatorsWithDedupInterval(t *testing.T) {
@@ -708,7 +751,7 @@ func TestAggregatorsWithDedupInterval(t *testing.T) {
 			tssOutputLock.Unlock()
 		}
 		const dedupInterval = time.Hour
-		a, err := NewAggregatorsFromData([]byte(config), pushFunc, dedupInterval)
+		a, err := newAggregatorsFromData([]byte(config), pushFunc, dedupInterval)
 		if err != nil {
 			t.Fatalf("cannot initialize aggregators: %s", err)
 		}

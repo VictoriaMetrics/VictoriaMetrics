@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"log"
 	"net/http"
@@ -12,11 +13,12 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/urfave/cli/v2"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/backoff"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/native"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/remoteread"
-	"github.com/urfave/cli/v2"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/influx"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/opentsdb"
@@ -150,9 +152,10 @@ func main() {
 						src: rr,
 						dst: importer,
 						filter: remoteReadFilter{
-							timeStart: c.Timestamp(remoteReadFilterTimeStart),
-							timeEnd:   c.Timestamp(remoteReadFilterTimeEnd),
-							chunk:     c.String(remoteReadStepInterval),
+							timeStart:   c.Timestamp(remoteReadFilterTimeStart),
+							timeEnd:     c.Timestamp(remoteReadFilterTimeEnd),
+							chunk:       c.String(remoteReadStepInterval),
+							timeReverse: c.Bool(remoteReadFilterTimeReverse),
 						},
 						cc:        c.Int(remoteReadConcurrency),
 						isSilent:  c.Bool(globalSilent),
@@ -210,6 +213,7 @@ func main() {
 
 					var srcExtraLabels []string
 					srcAddr := strings.Trim(c.String(vmNativeSrcAddr), "/")
+					srcInsecureSkipVerify := c.Bool(vmNativeSrcInsecureSkipVerify)
 					srcAuthConfig, err := auth.Generate(
 						auth.WithBasicAuth(c.String(vmNativeSrcUser), c.String(vmNativeSrcPassword)),
 						auth.WithBearer(c.String(vmNativeSrcBearerToken)),
@@ -217,10 +221,16 @@ func main() {
 					if err != nil {
 						return fmt.Errorf("error initilize auth config for source: %s", srcAddr)
 					}
-					srcHTTPClient := &http.Client{Transport: &http.Transport{DisableKeepAlives: disableKeepAlive}}
+					srcHTTPClient := &http.Client{Transport: &http.Transport{
+						DisableKeepAlives: disableKeepAlive,
+						TLSClientConfig: &tls.Config{
+							InsecureSkipVerify: srcInsecureSkipVerify,
+						},
+					}}
 
 					dstAddr := strings.Trim(c.String(vmNativeDstAddr), "/")
 					dstExtraLabels := c.StringSlice(vmExtraLabel)
+					dstInsecureSkipVerify := c.Bool(vmNativeDstInsecureSkipVerify)
 					dstAuthConfig, err := auth.Generate(
 						auth.WithBasicAuth(c.String(vmNativeDstUser), c.String(vmNativeDstPassword)),
 						auth.WithBearer(c.String(vmNativeDstBearerToken)),
@@ -228,16 +238,22 @@ func main() {
 					if err != nil {
 						return fmt.Errorf("error initilize auth config for destination: %s", dstAddr)
 					}
-					dstHTTPClient := &http.Client{Transport: &http.Transport{DisableKeepAlives: disableKeepAlive}}
+					dstHTTPClient := &http.Client{Transport: &http.Transport{
+						DisableKeepAlives: disableKeepAlive,
+						TLSClientConfig: &tls.Config{
+							InsecureSkipVerify: dstInsecureSkipVerify,
+						},
+					}}
 
 					p := vmNativeProcessor{
 						rateLimit:    c.Int64(vmRateLimit),
 						interCluster: c.Bool(vmInterCluster),
 						filter: native.Filter{
-							Match:     c.String(vmNativeFilterMatch),
-							TimeStart: c.String(vmNativeFilterTimeStart),
-							TimeEnd:   c.String(vmNativeFilterTimeEnd),
-							Chunk:     c.String(vmNativeStepInterval),
+							Match:       c.String(vmNativeFilterMatch),
+							TimeStart:   c.String(vmNativeFilterTimeStart),
+							TimeEnd:     c.String(vmNativeFilterTimeEnd),
+							Chunk:       c.String(vmNativeStepInterval),
+							TimeReverse: c.Bool(vmNativeFilterTimeReverse),
 						},
 						src: &native.Client{
 							AuthCfg:     srcAuthConfig,
@@ -251,11 +267,11 @@ func main() {
 							ExtraLabels: dstExtraLabels,
 							HTTPClient:  dstHTTPClient,
 						},
-						backoff:        backoff.New(),
-						cc:             c.Int(vmConcurrency),
-						disableRetries: c.Bool(vmNativeDisableRetries),
-						isSilent:       c.Bool(globalSilent),
-						isNative:       !c.Bool(vmNativeDisableBinaryProtocol),
+						backoff:                  backoff.New(),
+						cc:                       c.Int(vmConcurrency),
+						disablePerMetricRequests: c.Bool(vmNativeDisablePerMetricMigration),
+						isSilent:                 c.Bool(globalSilent),
+						isNative:                 !c.Bool(vmNativeDisableBinaryProtocol),
 					}
 					return p.run(ctx)
 				},

@@ -7,6 +7,9 @@ menu:
     parent: "operator"
     weight: 9
     identifier: "operator-faq"
+aliases:
+  - /operator/FAQ.html
+  - /operator/faq.html
 ---
 
 # FAQ (Frequency Asked Questions)
@@ -77,6 +80,10 @@ or [CHANGELOG](https://github.com/VictoriaMetrics/operator/blob/master/docs/CHAN
 ## How to run VictoriaMetrics operator with permissions for one namespace only?
 
 See this document for details: [Configuration -> Namespaced mode](./configuration.md#namespaced-mode).
+
+## How to configure VMAgent and VMServiceScrape for using with [Istio Service Mesh](https://istio.io/) and its mTLS?
+
+See this example in operator repository: https://github.com/VictoriaMetrics/operator/blob/master/config/examples/vmagent-istio.yaml
 
 ## What versions of Kubernetes is the operator compatible with?
 

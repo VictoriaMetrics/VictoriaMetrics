@@ -3,8 +3,6 @@ package fs
 import (
 	"fmt"
 	"io"
-	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -190,24 +188,6 @@ func mustSyncParentDirIfExists(path string) {
 	MustSyncPath(parentDirPath)
 }
 
-// IsEmptyDir returns true if path points to empty directory.
-func IsEmptyDir(path string) bool {
-	// See https://stackoverflow.com/a/30708914/274937
-	f, err := os.Open(path)
-	if err != nil {
-		logger.Panicf("FATAL: cannot open dir: %s", err)
-	}
-	_, err = f.Readdirnames(1)
-	MustClose(f)
-	if err != nil {
-		if err == io.EOF {
-			return true
-		}
-		logger.Panicf("FATAL: unexpected error when reading directory %q: %s", path, err)
-	}
-	return false
-}
-
 // MustRemoveDirAtomic removes the given dir atomically.
 //
 // It uses the following algorithm:
@@ -276,11 +256,6 @@ func MustHardLinkFiles(srcDir, dstDir string) {
 	}
 
 	MustSyncPath(dstDir)
-}
-
-// IsDirOrSymlink returns true if de is directory or symlink.
-func IsDirOrSymlink(de os.DirEntry) bool {
-	return de.IsDir() || (de.Type()&os.ModeSymlink == os.ModeSymlink)
 }
 
 // MustSymlinkRelative creates relative symlink for srcPath in dstPath.
@@ -401,50 +376,12 @@ type freeSpaceEntry struct {
 	freeSpace  uint64
 }
 
-// ReadFileOrHTTP reads path either from local filesystem or from http if path starts with http or https.
-func ReadFileOrHTTP(path string) ([]byte, error) {
-	if isHTTPURL(path) {
-		// reads remote file via http or https, if url is given
-		resp, err := http.Get(path)
-		if err != nil {
-			return nil, fmt.Errorf("cannot fetch %q: %w", path, err)
-		}
-		data, err := io.ReadAll(resp.Body)
-		_ = resp.Body.Close()
-		if resp.StatusCode != http.StatusOK {
-			if len(data) > 4*1024 {
-				data = data[:4*1024]
-			}
-			return nil, fmt.Errorf("unexpected status code when fetching %q: %d, expecting %d; response: %q", path, resp.StatusCode, http.StatusOK, data)
-		}
-		if err != nil {
-			return nil, fmt.Errorf("cannot read %q: %w", path, err)
-		}
-		return data, nil
-	}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("cannot read %q: %w", path, err)
-	}
-	return data, nil
-}
-
-// GetFilepath returns full path to file for the given baseDir and path.
-func GetFilepath(baseDir, path string) string {
-	if filepath.IsAbs(path) || isHTTPURL(path) {
-		return path
-	}
-	return filepath.Join(baseDir, path)
-}
-
-// isHTTPURL checks if a given targetURL is valid and contains a valid http scheme
-func isHTTPURL(targetURL string) bool {
-	parsed, err := url.Parse(targetURL)
-	return err == nil && (parsed.Scheme == "http" || parsed.Scheme == "https") && parsed.Host != ""
-
-}
-
 // IsScheduledForRemoval returns true if the filename contains .must-remove. substring
 func IsScheduledForRemoval(filename string) bool {
 	return strings.Contains(filename, ".must-remove.")
+}
+
+// IsDirOrSymlink returns true if de is directory or symlink.
+func IsDirOrSymlink(de os.DirEntry) bool {
+	return de.IsDir() || (de.Type()&os.ModeSymlink == os.ModeSymlink)
 }

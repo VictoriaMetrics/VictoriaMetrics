@@ -1,3 +1,48 @@
+# v1.16.10 (2024-01-04)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.9 (2023-12-07)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.8 (2023-12-01)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.7 (2023-11-30)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.6 (2023-11-29)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.5 (2023-11-28.2)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.4 (2023-11-20)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.3 (2023-11-15)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.2 (2023-11-09)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.1 (2023-11-01)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.0 (2023-10-31)
+
+* **Feature**: **BREAKING CHANGE**: Bump minimum go version to 1.19 per the revised [go version support policy](https://aws.amazon.com/blogs/developer/aws-sdk-for-go-aligns-with-go-release-policy-on-supported-runtimes/).
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # v1.15.6 (2023-10-12)
 
 * **Dependency Update**: Updated to the latest SDK module versions

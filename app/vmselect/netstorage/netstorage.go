@@ -5,10 +5,12 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"reflect"
 	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
+	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
@@ -87,30 +89,6 @@ type timeseriesWork struct {
 
 	rowsProcessed int
 }
-
-func (tsw *timeseriesWork) reset() {
-	tsw.mustStop = nil
-	tsw.rss = nil
-	tsw.pts = nil
-	tsw.f = nil
-	tsw.err = nil
-	tsw.rowsProcessed = 0
-}
-
-func getTimeseriesWork() *timeseriesWork {
-	v := tswPool.Get()
-	if v == nil {
-		v = &timeseriesWork{}
-	}
-	return v.(*timeseriesWork)
-}
-
-func putTimeseriesWork(tsw *timeseriesWork) {
-	tsw.reset()
-	tswPool.Put(tsw)
-}
-
-var tswPool sync.Pool
 
 func (tsw *timeseriesWork) do(r *Result, workerID uint) error {
 	if atomic.LoadUint32(tsw.mustStop) != 0 {
@@ -270,22 +248,20 @@ func (rss *Results) runParallel(qt *querytracer.Tracer, f func(rs *Result, worke
 	maxWorkers := MaxWorkers()
 	if maxWorkers == 1 || tswsLen == 1 {
 		// It is faster to process time series in the current goroutine.
-		tsw := getTimeseriesWork()
+		var tsw timeseriesWork
 		tmpResult := getTmpResult()
 		rowsProcessedTotal := 0
 		var err error
 		for i := range rss.packedTimeseries {
-			initTimeseriesWork(tsw, &rss.packedTimeseries[i])
+			initTimeseriesWork(&tsw, &rss.packedTimeseries[i])
 			err = tsw.do(&tmpResult.rs, 0)
 			rowsReadPerSeries.Update(float64(tsw.rowsProcessed))
 			rowsProcessedTotal += tsw.rowsProcessed
 			if err != nil {
 				break
 			}
-			tsw.reset()
 		}
 		putTmpResult(tmpResult)
-		putTimeseriesWork(tsw)
 
 		return rowsProcessedTotal, err
 	}
@@ -295,11 +271,9 @@ func (rss *Results) runParallel(qt *querytracer.Tracer, f func(rs *Result, worke
 	// which reduces the scalability on systems with many CPU cores.
 
 	// Prepare the work for workers.
-	tsws := make([]*timeseriesWork, len(rss.packedTimeseries))
+	tsws := make([]timeseriesWork, len(rss.packedTimeseries))
 	for i := range rss.packedTimeseries {
-		tsw := getTimeseriesWork()
-		initTimeseriesWork(tsw, &rss.packedTimeseries[i])
-		tsws[i] = tsw
+		initTimeseriesWork(&tsws[i], &rss.packedTimeseries[i])
 	}
 
 	// Prepare worker channels.
@@ -314,9 +288,9 @@ func (rss *Results) runParallel(qt *querytracer.Tracer, f func(rs *Result, worke
 	}
 
 	// Spread work among workers.
-	for i, tsw := range tsws {
+	for i := range tsws {
 		idx := i % len(workChs)
-		workChs[idx] <- tsw
+		workChs[idx] <- &tsws[i]
 	}
 	// Mark worker channels as closed.
 	for _, workCh := range workChs {
@@ -339,14 +313,14 @@ func (rss *Results) runParallel(qt *querytracer.Tracer, f func(rs *Result, worke
 	// Collect results.
 	var firstErr error
 	rowsProcessedTotal := 0
-	for _, tsw := range tsws {
+	for i := range tsws {
+		tsw := &tsws[i]
 		if tsw.err != nil && firstErr == nil {
 			// Return just the first error, since other errors are likely duplicate the first error.
 			firstErr = tsw.err
 		}
 		rowsReadPerSeries.Update(float64(tsw.rowsProcessed))
 		rowsProcessedTotal += tsw.rowsProcessed
-		putTimeseriesWork(tsw)
 	}
 	return rowsProcessedTotal, firstErr
 }
@@ -1044,7 +1018,7 @@ func ExportBlocks(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline sear
 			for xw := range workCh {
 				if err := f(&xw.mn, &xw.b, tr, workerID); err != nil {
 					errGlobalLock.Lock()
-					if errGlobal != nil {
+					if errGlobal == nil {
 						errGlobal = err
 						atomic.StoreUint32(&mustStop, 1)
 					}
@@ -1169,15 +1143,44 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 	maxSeriesCount := sr.Init(qt, vmstorage.Storage, tfss, tr, sq.MaxMetrics, deadline.Deadline())
 	indexSearchDuration.UpdateDuration(startTime)
 	type blockRefs struct {
-		brsPrealloc [4]blockRef
-		brs         []blockRef
+		brs []blockRef
 	}
-	m := make(map[string]*blockRefs, maxSeriesCount)
-	orderedMetricNames := make([]string, 0, maxSeriesCount)
+
 	blocksRead := 0
 	samples := 0
 	tbf := getTmpBlocksFile()
 	var buf []byte
+	var metricNamePrev []byte
+
+	// metricNamesBuf is used for holding all the loaded unique metric names at m and orderedMetricNames.
+	// It should reduce pressure on Go GC by reducing the number of string allocations
+	// when constructing metricName string from byte slice.
+	metricNamesBufCap := maxSeriesCount * 100
+	if metricNamesBufCap > maxFastAllocBlockSize {
+		metricNamesBufCap = maxFastAllocBlockSize
+	}
+	metricNamesBuf := make([]byte, 0, metricNamesBufCap)
+
+	// brssPool is used for holding all the blockRefs objects across all the loaded time series.
+	// It should reduce pressure on Go GC by reducing the number of blockRefs allocations.
+	brssPool := make([]blockRefs, 0, maxSeriesCount)
+
+	// brsPool is used for holding the most of blockRefs.brs slices across all the loaded time series.
+	// It should reduce pressure on Go GC by reducing the number of allocations for blockRefs.brs slices.
+	brsPoolCap := uintptr(maxSeriesCount)
+	if brsPoolCap > maxFastAllocBlockSize/unsafe.Sizeof(blockRef{}) {
+		brsPoolCap = maxFastAllocBlockSize / unsafe.Sizeof(blockRef{})
+	}
+	brsPool := make([]blockRef, 0, brsPoolCap)
+
+	// m maps from metricName to the index of blockRefs inside brssPool
+	m := make(map[string]int, maxSeriesCount)
+
+	// orderedMetricNames contains the list of loaded unique metric names
+	// in the load order. This order is important for triggering sequential data reading.
+	orderedMetricNames := make([]string, 0, maxSeriesCount)
+
+	var brsIdx int
 	for sr.NextMetricBlock() {
 		blocksRead++
 		if deadline.Exceeded() {
@@ -1190,8 +1193,10 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 		if *maxSamplesPerQuery > 0 && samples > *maxSamplesPerQuery {
 			putTmpBlocksFile(tbf)
 			putStorageSearch(sr)
-			return nil, fmt.Errorf("cannot select more than -search.maxSamplesPerQuery=%d samples; possible solutions: to increase the -search.maxSamplesPerQuery; to reduce time range for the query; to use more specific label filters in order to select lower number of series", *maxSamplesPerQuery)
+			return nil, fmt.Errorf("cannot select more than -search.maxSamplesPerQuery=%d samples; possible solutions: to increase the -search.maxSamplesPerQuery; "+
+				"to reduce time range for the query; to use more specific label filters in order to select lower number of series", *maxSamplesPerQuery)
 		}
+
 		buf = br.Marshal(buf[:0])
 		addr, err := tbf.WriteBlockRefData(buf)
 		if err != nil {
@@ -1199,24 +1204,59 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 			putStorageSearch(sr)
 			return nil, fmt.Errorf("cannot write %d bytes to temporary file: %w", len(buf), err)
 		}
-		// Do not intern mb.MetricName, since it leads to increased memory usage.
-		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3692
+
 		metricName := sr.MetricBlockRef.MetricName
-		brs := m[string(metricName)]
-		if brs == nil {
-			brs = &blockRefs{}
-			brs.brs = brs.brsPrealloc[:0]
+		if metricNamePrev == nil || string(metricName) != string(metricNamePrev) {
+			idx, ok := m[string(metricName)]
+			if !ok {
+				if cap(brssPool) > len(brssPool) {
+					brssPool = brssPool[:len(brssPool)+1]
+				} else {
+					brssPool = append(brssPool, blockRefs{})
+				}
+				idx = len(brssPool) - 1
+			}
+			brsIdx = idx
+			metricNamePrev = append(metricNamePrev[:0], metricName...)
 		}
-		brs.brs = append(brs.brs, blockRef{
-			partRef: br.PartRef(),
-			addr:    addr,
-		})
+
+		brs := &brssPool[brsIdx]
+		partRef := br.PartRef()
+		if uintptr(cap(brsPool)) >= maxFastAllocBlockSize/unsafe.Sizeof(blockRef{}) && len(brsPool) == cap(brsPool) {
+			// Allocate a new brsPool in order to avoid slow allocation of an object
+			// bigger than maxFastAllocBlockSize bytes at append() below.
+			brsPool = make([]blockRef, 0, maxFastAllocBlockSize/unsafe.Sizeof(blockRef{}))
+		}
+		if canAppendToBlockRefPool(brsPool, brs.brs) {
+			// It is safe appending blockRef to brsPool, since there are no other items added there yet.
+			brsPool = append(brsPool, blockRef{
+				partRef: partRef,
+				addr:    addr,
+			})
+			brs.brs = brsPool[len(brsPool)-len(brs.brs)-1 : len(brsPool) : len(brsPool)]
+		} else {
+			// It is unsafe appending blockRef to brsPool, since there are other items added there.
+			// So just append it to brs.brs.
+			brs.brs = append(brs.brs, blockRef{
+				partRef: partRef,
+				addr:    addr,
+			})
+		}
 		if len(brs.brs) == 1 {
-			metricNameStr := string(metricName)
+			if cap(metricNamesBuf) >= maxFastAllocBlockSize && len(metricNamesBuf)+len(metricName) > cap(metricNamesBuf) {
+				// Allocate a new metricNamesBuf in order to avoid slow allocation of byte slice
+				// bigger than maxFastAllocBlockSize bytes at append() below.
+				metricNamesBuf = make([]byte, 0, maxFastAllocBlockSize)
+			}
+			metricNamesBufLen := len(metricNamesBuf)
+			metricNamesBuf = append(metricNamesBuf, metricName...)
+			metricNameStr := bytesutil.ToUnsafeString(metricNamesBuf[metricNamesBufLen:])
+
 			orderedMetricNames = append(orderedMetricNames, metricNameStr)
-			m[metricNameStr] = brs
+			m[metricNameStr] = brsIdx
 		}
 	}
+
 	if err := sr.Error(); err != nil {
 		putTmpBlocksFile(tbf)
 		putStorageSearch(sr)
@@ -1239,7 +1279,7 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 	for i, metricName := range orderedMetricNames {
 		pts[i] = packedTimeseries{
 			metricName: metricName,
-			brs:        m[metricName].brs,
+			brs:        brssPool[m[metricName]].brs,
 		}
 	}
 	rss.packedTimeseries = pts
@@ -1253,6 +1293,25 @@ var indexSearchDuration = metrics.NewHistogram(`vm_index_search_duration_seconds
 type blockRef struct {
 	partRef storage.PartRef
 	addr    tmpBlockAddr
+}
+
+// canAppendToBlockRefPool returns true if a points to the pool and the last item in a is the last item in the pool.
+//
+// In this case it is safe appending an item to the pool and then updating the a, so it refers to the extended slice.
+//
+// True is also returned if a is nil, since in this case it is safe appending an item to the pool and pointing a
+// to the last item in the pool.
+func canAppendToBlockRefPool(pool, a []blockRef) bool {
+	if a == nil {
+		return true
+	}
+	if len(a) > len(pool) {
+		// a doesn't belong to pool
+		return false
+	}
+	shPool := (*reflect.SliceHeader)(unsafe.Pointer(&pool))
+	shA := (*reflect.SliceHeader)(unsafe.Pointer(&a))
+	return shPool.Data+uintptr(shPool.Len)*unsafe.Sizeof(blockRef{}) == shA.Data+uintptr(shA.Len)*unsafe.Sizeof(blockRef{})
 }
 
 func setupTfss(qt *querytracer.Tracer, tr storage.TimeRange, tagFilterss [][]storage.TagFilter, maxMetrics int, deadline searchutils.Deadline) ([]*storage.TagFilters, error) {
@@ -1300,3 +1359,8 @@ func applyGraphiteRegexpFilter(filter string, ss []string) ([]string, error) {
 	}
 	return dst, nil
 }
+
+// Go uses fast allocations for block sizes up to 32Kb.
+//
+// See https://github.com/golang/go/blob/704401ffa06c60e059c9e6e4048045b4ff42530a/src/runtime/malloc.go#L11
+const maxFastAllocBlockSize = 32 * 1024

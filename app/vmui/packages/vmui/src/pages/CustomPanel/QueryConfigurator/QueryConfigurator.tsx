@@ -45,7 +45,7 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
 
   const { isMobile } = useDeviceDetect();
 
-  const { query, queryHistory, autocomplete } = useQueryState();
+  const { query, queryHistory, autocomplete, autocompleteQuick } = useQueryState();
   const queryDispatch = useQueryDispatch();
   const timeDispatch = useTimeDispatch();
 
@@ -128,6 +128,7 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
 
   const createHandlerChangeQuery = (i: number) => (value: string) => {
     handleChangeQuery(value, i);
+    queryDispatch({ type: "SET_AUTOCOMPLETE_QUICK", payload: false });
   };
 
   const createHandlerRemoveQuery = (i: number) => () => {
@@ -187,7 +188,7 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
         >
           <QueryEditor
             value={stateQuery[i]}
-            autocomplete={autocomplete}
+            autocomplete={autocomplete || autocompleteQuick}
             error={queryErrors[i]}
             stats={stats[i]}
             onArrowUp={createHandlerArrow(-1, i)}

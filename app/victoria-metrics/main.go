@@ -26,7 +26,7 @@ import (
 )
 
 var (
-	httpListenAddr   = flag.String("httpListenAddr", ":8428", "TCP address to listen for http connections. See also -httpListenAddr.useProxyProtocol")
+	httpListenAddr   = flag.String("httpListenAddr", ":8428", "TCP address to listen for http connections. See also -tls and -httpListenAddr.useProxyProtocol")
 	useProxyProtocol = flag.Bool("httpListenAddr.useProxyProtocol", false, "Whether to use proxy protocol for connections accepted at -httpListenAddr . "+
 		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . "+
 		"With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing")
@@ -48,7 +48,6 @@ func main() {
 	envflag.Parse()
 	buildinfo.Init()
 	logger.Init()
-	pushmetrics.Init()
 
 	if promscrape.IsDryRun() {
 		*dryRun = true
@@ -74,13 +73,16 @@ func main() {
 	vmstorage.Init(promql.ResetRollupResultCacheIfNeeded)
 	vmselect.Init()
 	vminsert.Init()
+
 	startSelfScraper()
 
 	go httpserver.Serve(*httpListenAddr, *useProxyProtocol, requestHandler)
 	logger.Infof("started VictoriaMetrics in %.3f seconds", time.Since(startTime).Seconds())
 
+	pushmetrics.Init()
 	sig := procutil.WaitForSigterm()
 	logger.Infof("received signal %s", sig)
+	pushmetrics.Stop()
 
 	stopSelfScraper()
 
@@ -89,8 +91,8 @@ func main() {
 	if err := httpserver.Stop(*httpListenAddr); err != nil {
 		logger.Fatalf("cannot stop the webservice: %s", err)
 	}
-	vminsert.Stop()
 	logger.Infof("successfully shut down the webservice in %.3f seconds", time.Since(startTime).Seconds())
+	vminsert.Stop()
 
 	vmstorage.Stop()
 	vmselect.Stop()

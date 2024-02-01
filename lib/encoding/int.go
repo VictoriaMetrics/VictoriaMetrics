@@ -12,9 +12,11 @@ func MarshalUint16(dst []byte, u uint16) []byte {
 }
 
 // UnmarshalUint16 returns unmarshaled uint16 from src.
+//
+// the caller must ensure that len(src) >= 2
 func UnmarshalUint16(src []byte) uint16 {
 	// This is faster than the manual conversion.
-	return binary.BigEndian.Uint16(src[:2])
+	return binary.BigEndian.Uint16(src)
 }
 
 // MarshalUint32 appends marshaled v to dst and returns the result.
@@ -23,9 +25,11 @@ func MarshalUint32(dst []byte, u uint32) []byte {
 }
 
 // UnmarshalUint32 returns unmarshaled uint32 from src.
+//
+// The caller must ensure than len(src) >= 4
 func UnmarshalUint32(src []byte) uint32 {
 	// This is faster than the manual conversion.
-	return binary.BigEndian.Uint32(src[:4])
+	return binary.BigEndian.Uint32(src)
 }
 
 // MarshalUint64 appends marshaled v to dst and returns the result.
@@ -34,9 +38,11 @@ func MarshalUint64(dst []byte, u uint64) []byte {
 }
 
 // UnmarshalUint64 returns unmarshaled uint64 from src.
+//
+// The caller must ensure that len(src) >= 8
 func UnmarshalUint64(src []byte) uint64 {
 	// This is faster than the manual conversion.
-	return binary.BigEndian.Uint64(src[:8])
+	return binary.BigEndian.Uint64(src)
 }
 
 // MarshalInt16 appends marshaled v to dst and returns the result.
@@ -48,9 +54,11 @@ func MarshalInt16(dst []byte, v int16) []byte {
 }
 
 // UnmarshalInt16 returns unmarshaled int16 from src.
+//
+// The caller must ensure that len(src) >= 2
 func UnmarshalInt16(src []byte) int16 {
 	// This is faster than the manual conversion.
-	u := binary.BigEndian.Uint16(src[:2])
+	u := binary.BigEndian.Uint16(src)
 	v := int16(u>>1) ^ (int16(u<<15) >> 15) // zig-zag decoding without branching.
 	return v
 }
@@ -64,9 +72,11 @@ func MarshalInt64(dst []byte, v int64) []byte {
 }
 
 // UnmarshalInt64 returns unmarshaled int64 from src.
+//
+// The caller must ensure that len(src) >= 8
 func UnmarshalInt64(src []byte) int64 {
 	// This is faster than the manual conversion.
-	u := binary.BigEndian.Uint64(src[:8])
+	u := binary.BigEndian.Uint64(src)
 	v := int64(u>>1) ^ (int64(u<<63) >> 63) // zig-zag decoding without branching.
 	return v
 }
@@ -80,22 +90,64 @@ func MarshalVarInt64(dst []byte, v int64) []byte {
 
 // MarshalVarInt64s appends marshaled vs to dst and returns the result.
 func MarshalVarInt64s(dst []byte, vs []int64) []byte {
+	dstLen := len(dst)
 	for _, v := range vs {
-		if v < 0x40 && v > -0x40 {
-			// Fast path
-			c := int8(v)
-			v := (c << 1) ^ (c >> 7) // zig-zag encoding without branching.
-			dst = append(dst, byte(v))
+		if v >= (1<<6) || v <= (-1<<6) {
+			return marshalVarInt64sSlow(dst[:dstLen], vs)
+		}
+		u := uint64((v << 1) ^ (v >> 63))
+		dst = append(dst, byte(u))
+	}
+	return dst
+}
+
+func marshalVarInt64sSlow(dst []byte, vs []int64) []byte {
+	for _, v := range vs {
+		u := uint64((v << 1) ^ (v >> 63))
+
+		// Cases below are sorted in the descending order of frequency on real data
+		if u < (1 << 7) {
+			dst = append(dst, byte(u))
+			continue
+		}
+		if u < (1 << (2 * 7)) {
+			dst = append(dst, byte(u|0x80), byte(u>>7))
+			continue
+		}
+		if u < (1 << (3 * 7)) {
+			dst = append(dst, byte(u|0x80), byte((u>>7)|0x80), byte(u>>(2*7)))
 			continue
 		}
 
-		v = (v << 1) ^ (v >> 63) // zig-zag encoding without branching.
-		u := uint64(v)
-		for u > 0x7f {
-			dst = append(dst, 0x80|byte(u))
-			u >>= 7
+		if u >= (1 << (8 * 7)) {
+			if u < (1 << (9 * 7)) {
+				dst = append(dst, byte(u|0x80), byte((u>>7)|0x80), byte((u>>(2*7))|0x80), byte((u>>(3*7))|0x80), byte((u>>(4*7))|0x80),
+					byte((u>>(5*7))|0x80), byte((u>>(6*7))|0x80), byte((u>>(7*7))|0x80), byte(u>>(8*7)))
+				continue
+			}
+			dst = append(dst, byte(u|0x80), byte((u>>7)|0x80), byte((u>>(2*7))|0x80), byte((u>>(3*7))|0x80), byte((u>>(4*7))|0x80),
+				byte((u>>(5*7))|0x80), byte((u>>(6*7))|0x80), byte((u>>(7*7))|0x80), byte((u>>(8*7))|0x80), 1)
+			continue
 		}
-		dst = append(dst, byte(u))
+
+		if u < (1 << (4 * 7)) {
+			dst = append(dst, byte(u|0x80), byte((u>>7)|0x80), byte((u>>(2*7))|0x80), byte(u>>(3*7)))
+			continue
+		}
+		if u < (1 << (5 * 7)) {
+			dst = append(dst, byte(u|0x80), byte((u>>7)|0x80), byte((u>>(2*7))|0x80), byte((u>>(3*7))|0x80), byte(u>>(4*7)))
+			continue
+		}
+		if u < (1 << (6 * 7)) {
+			dst = append(dst, byte(u|0x80), byte((u>>7)|0x80), byte((u>>(2*7))|0x80), byte((u>>(3*7))|0x80), byte((u>>(4*7))|0x80), byte(u>>(5*7)))
+			continue
+		}
+		if u < (1 << (7 * 7)) {
+			dst = append(dst, byte(u|0x80), byte((u>>7)|0x80), byte((u>>(2*7))|0x80), byte((u>>(3*7))|0x80), byte((u>>(4*7))|0x80), byte((u>>(5*7))|0x80), byte(u>>(6*7)))
+			continue
+		}
+		dst = append(dst, byte(u|0x80), byte((u>>7)|0x80), byte((u>>(2*7))|0x80), byte((u>>(3*7))|0x80), byte((u>>(4*7))|0x80),
+			byte((u>>(5*7))|0x80), byte((u>>(6*7))|0x80), byte(u>>(7*7)))
 	}
 	return dst
 }
@@ -111,6 +163,20 @@ func UnmarshalVarInt64(src []byte) ([]byte, int64, error) {
 // UnmarshalVarInt64s unmarshals len(dst) int64 values from src to dst
 // and returns the remaining tail from src.
 func UnmarshalVarInt64s(dst []int64, src []byte) ([]byte, error) {
+	if len(src) < len(dst) {
+		return src, fmt.Errorf("too small len(src)=%d; it must be bigger or equal to len(dst)=%d", len(src), len(dst))
+	}
+	for i := range dst {
+		c := src[i]
+		if c >= 0x80 {
+			return unmarshalVarInt64sSlow(dst, src)
+		}
+		dst[i] = int64(int8(c>>1) ^ (int8(c<<7) >> 7))
+	}
+	return src[len(dst):], nil
+}
+
+func unmarshalVarInt64sSlow(dst []int64, src []byte) ([]byte, error) {
 	idx := uint(0)
 	for i := range dst {
 		if idx >= uint(len(src)) {
@@ -119,31 +185,83 @@ func UnmarshalVarInt64s(dst []int64, src []byte) ([]byte, error) {
 		c := src[idx]
 		idx++
 		if c < 0x80 {
-			// Fast path
-			v := int8(c>>1) ^ (int8(c<<7) >> 7) // zig-zag decoding without branching.
-			dst[i] = int64(v)
+			// Fast path for 1 byte
+			dst[i] = int64(int8(c>>1) ^ (int8(c<<7) >> 7))
 			continue
 		}
 
-		// Slow path
-		u := uint64(c & 0x7f)
-		startIdx := idx - 1
-		shift := uint8(0)
-		for c >= 0x80 {
-			if idx >= uint(len(src)) {
-				return nil, fmt.Errorf("unexpected end of encoded varint at byte %d; src=%x", idx-startIdx, src[startIdx:])
-			}
-			if idx-startIdx > 9 {
-				return src[idx:], fmt.Errorf("too long encoded varint; the maximum allowed length is 10 bytes; got %d bytes; src=%x",
-					(idx-startIdx)+1, src[startIdx:])
-			}
-			c = src[idx]
-			idx++
-			shift += 7
-			u |= uint64(c&0x7f) << shift
+		if idx >= uint(len(src)) {
+			return nil, fmt.Errorf("unexpected end of encoded varint at byte 1; src=%x", src[idx-1:])
 		}
-		v := int64(u>>1) ^ (int64(u<<63) >> 63) // zig-zag decoding without branching.
-		dst[i] = v
+		d := src[idx]
+		idx++
+		if d < 0x80 {
+			// Fast path for 2 bytes
+			u := uint64(c&0x7f) | (uint64(d) << 7)
+			dst[i] = int64(u>>1) ^ (int64(u<<63) >> 63)
+			continue
+		}
+
+		if idx >= uint(len(src)) {
+			return nil, fmt.Errorf("unexpected end of encoded varint at byte 2; src=%x", src[idx-2:])
+		}
+		e := src[idx]
+		idx++
+		if e < 0x80 {
+			// Fast path for 3 bytes
+			u := uint64(c&0x7f) | (uint64(d&0x7f) << 7) | (uint64(e) << (2 * 7))
+			dst[i] = int64(u>>1) ^ (int64(u<<63) >> 63)
+			continue
+		}
+
+		u := uint64(c&0x7f) | (uint64(d&0x7f) << 7) | (uint64(e&0x7f) << (2 * 7))
+
+		// Slow path
+		j := idx
+		for {
+			if idx >= uint(len(src)) {
+				return nil, fmt.Errorf("unexpected end of encoded varint; src=%x", src[j-3:])
+			}
+			c := src[idx]
+			idx++
+			if c < 0x80 {
+				break
+			}
+		}
+
+		// These are the most common cases
+		switch idx - j {
+		case 1:
+			u |= (uint64(src[j]) << (3 * 7))
+		case 2:
+			b := src[j : j+2 : j+2]
+			u |= (uint64(b[0]&0x7f) << (3 * 7)) | (uint64(b[1]) << (4 * 7))
+		case 3:
+			b := src[j : j+3 : j+3]
+			u |= (uint64(b[0]&0x7f) << (3 * 7)) | (uint64(b[1]&0x7f) << (4 * 7)) | (uint64(b[2]) << (5 * 7))
+		case 4:
+			b := src[j : j+4 : j+4]
+			u |= (uint64(b[0]&0x7f) << (3 * 7)) | (uint64(b[1]&0x7f) << (4 * 7)) | (uint64(b[2]&0x7f) << (5 * 7)) | (uint64(b[3]) << (6 * 7))
+		case 5:
+			b := src[j : j+5 : j+5]
+			u |= (uint64(b[0]&0x7f) << (3 * 7)) | (uint64(b[1]&0x7f) << (4 * 7)) | (uint64(b[2]&0x7f) << (5 * 7)) | (uint64(b[3]&0x7f) << (6 * 7)) |
+				(uint64(b[4]) << (7 * 7))
+		case 6:
+			b := src[j : j+6 : j+6]
+			u |= (uint64(b[0]&0x7f) << (3 * 7)) | (uint64(b[1]&0x7f) << (4 * 7)) | (uint64(b[2]&0x7f) << (5 * 7)) | (uint64(b[3]&0x7f) << (6 * 7)) |
+				(uint64(b[4]&0x7f) << (7 * 7)) | (uint64(b[5]) << (8 * 7))
+		case 7:
+			b := src[j : j+7 : j+7]
+			if b[6] > 1 {
+				return src[idx:], fmt.Errorf("too big encoded varint; src=%x", src[j-3:])
+			}
+			u |= (uint64(b[0]&0x7f) << (3 * 7)) | (uint64(b[1]&0x7f) << (4 * 7)) | (uint64(b[2]&0x7f) << (5 * 7)) | (uint64(b[3]&0x7f) << (6 * 7)) |
+				(uint64(b[4]&0x7f) << (7 * 7)) | (uint64(b[5]&0x7f) << (8 * 7)) | (1 << (9 * 7))
+		default:
+			return src[idx:], fmt.Errorf("too long encoded varint; the maximum allowed length is 10 bytes; got %d bytes; src=%x", idx-j+3, src[j-3:])
+		}
+
+		dst[i] = int64(u>>1) ^ (int64(u<<63) >> 63)
 	}
 	return src[idx:], nil
 }
@@ -157,17 +275,61 @@ func MarshalVarUint64(dst []byte, u uint64) []byte {
 
 // MarshalVarUint64s appends marshaled us to dst and returns the result.
 func MarshalVarUint64s(dst []byte, us []uint64) []byte {
+	dstLen := len(dst)
 	for _, u := range us {
-		if u < 0x80 {
-			// Fast path
+		if u >= (1 << 7) {
+			return marshalVarUint64sSlow(dst[:dstLen], us)
+		}
+		dst = append(dst, byte(u))
+	}
+	return dst
+}
+
+func marshalVarUint64sSlow(dst []byte, us []uint64) []byte {
+	for _, u := range us {
+		// Cases below are sorted in the descending order of frequency on real data
+		if u < (1 << 7) {
 			dst = append(dst, byte(u))
 			continue
 		}
-		for u > 0x7f {
-			dst = append(dst, 0x80|byte(u))
-			u >>= 7
+		if u < (1 << (2 * 7)) {
+			dst = append(dst, byte(u|0x80), byte(u>>7))
+			continue
 		}
-		dst = append(dst, byte(u))
+		if u < (1 << (3 * 7)) {
+			dst = append(dst, byte(u|0x80), byte((u>>7)|0x80), byte(u>>(2*7)))
+			continue
+		}
+
+		if u >= (1 << (8 * 7)) {
+			if u < (1 << (9 * 7)) {
+				dst = append(dst, byte(u|0x80), byte((u>>7)|0x80), byte((u>>(2*7))|0x80), byte((u>>(3*7))|0x80), byte((u>>(4*7))|0x80),
+					byte((u>>(5*7))|0x80), byte((u>>(6*7))|0x80), byte((u>>(7*7))|0x80), byte(u>>(8*7)))
+				continue
+			}
+			dst = append(dst, byte(u|0x80), byte((u>>7)|0x80), byte((u>>(2*7))|0x80), byte((u>>(3*7))|0x80), byte((u>>(4*7))|0x80),
+				byte((u>>(5*7))|0x80), byte((u>>(6*7))|0x80), byte((u>>(7*7))|0x80), byte((u>>(8*7))|0x80), 1)
+			continue
+		}
+
+		if u < (1 << (4 * 7)) {
+			dst = append(dst, byte(u|0x80), byte((u>>7)|0x80), byte((u>>(2*7))|0x80), byte(u>>(3*7)))
+			continue
+		}
+		if u < (1 << (5 * 7)) {
+			dst = append(dst, byte(u|0x80), byte((u>>7)|0x80), byte((u>>(2*7))|0x80), byte((u>>(3*7))|0x80), byte(u>>(4*7)))
+			continue
+		}
+		if u < (1 << (6 * 7)) {
+			dst = append(dst, byte(u|0x80), byte((u>>7)|0x80), byte((u>>(2*7))|0x80), byte((u>>(3*7))|0x80), byte((u>>(4*7))|0x80), byte(u>>(5*7)))
+			continue
+		}
+		if u < (1 << (7 * 7)) {
+			dst = append(dst, byte(u|0x80), byte((u>>7)|0x80), byte((u>>(2*7))|0x80), byte((u>>(3*7))|0x80), byte((u>>(4*7))|0x80), byte((u>>(5*7))|0x80), byte(u>>(6*7)))
+			continue
+		}
+		dst = append(dst, byte(u|0x80), byte((u>>7)|0x80), byte((u>>(2*7))|0x80), byte((u>>(3*7))|0x80), byte((u>>(4*7))|0x80),
+			byte((u>>(5*7))|0x80), byte((u>>(6*7))|0x80), byte(u>>(7*7)))
 	}
 	return dst
 }
@@ -183,6 +345,20 @@ func UnmarshalVarUint64(src []byte) ([]byte, uint64, error) {
 // UnmarshalVarUint64s unmarshals len(dst) uint64 values from src to dst
 // and returns the remaining tail from src.
 func UnmarshalVarUint64s(dst []uint64, src []byte) ([]byte, error) {
+	if len(src) < len(dst) {
+		return src, fmt.Errorf("too small len(src)=%d; it must be bigger or equal to len(dst)=%d", len(src), len(dst))
+	}
+	for i := range dst {
+		c := src[i]
+		if c >= 0x80 {
+			return unmarshalVarUint64sSlow(dst, src)
+		}
+		dst[i] = uint64(c)
+	}
+	return src[len(dst):], nil
+}
+
+func unmarshalVarUint64sSlow(dst []uint64, src []byte) ([]byte, error) {
 	idx := uint(0)
 	for i := range dst {
 		if idx >= uint(len(src)) {
@@ -191,28 +367,80 @@ func UnmarshalVarUint64s(dst []uint64, src []byte) ([]byte, error) {
 		c := src[idx]
 		idx++
 		if c < 0x80 {
-			// Fast path
+			// Fast path for 1 byte
 			dst[i] = uint64(c)
 			continue
 		}
 
-		// Slow path
-		u := uint64(c & 0x7f)
-		startIdx := idx - 1
-		shift := uint8(0)
-		for c >= 0x80 {
-			if idx >= uint(len(src)) {
-				return nil, fmt.Errorf("unexpected end of encoded varint at byte %d; src=%x", idx-startIdx, src[startIdx:])
-			}
-			if idx-startIdx > 9 {
-				return src[idx:], fmt.Errorf("too long encoded varint; the maximum allowed length is 10 bytes; got %d bytes; src=%x",
-					(idx-startIdx)+1, src[startIdx:])
-			}
-			c = src[idx]
-			idx++
-			shift += 7
-			u |= uint64(c&0x7f) << shift
+		if idx >= uint(len(src)) {
+			return nil, fmt.Errorf("unexpected end of encoded varuint at byte 1; src=%x", src[idx-1:])
 		}
+		d := src[idx]
+		idx++
+		if d < 0x80 {
+			// Fast path for 2 bytes
+			dst[i] = uint64(c&0x7f) | (uint64(d) << 7)
+			continue
+		}
+
+		if idx >= uint(len(src)) {
+			return nil, fmt.Errorf("unexpected end of encoded varuint at byte 2; src=%x", src[idx-2:])
+		}
+		e := src[idx]
+		idx++
+		if e < 0x80 {
+			// Fast path for 3 bytes
+			dst[i] = uint64(c&0x7f) | (uint64(d&0x7f) << 7) | (uint64(e) << (2 * 7))
+			continue
+		}
+
+		u := uint64(c&0x7f) | (uint64(d&0x7f) << 7) | (uint64(e&0x7f) << (2 * 7))
+
+		// Slow path
+		j := idx
+		for {
+			if idx >= uint(len(src)) {
+				return nil, fmt.Errorf("unexpected end of encoded varint; src=%x", src[j-3:])
+			}
+			c := src[idx]
+			idx++
+			if c < 0x80 {
+				break
+			}
+		}
+
+		// These are the most common cases
+		switch idx - j {
+		case 1:
+			u |= (uint64(src[j]) << (3 * 7))
+		case 2:
+			b := src[j : j+2 : j+2]
+			u |= (uint64(b[0]&0x7f) << (3 * 7)) | (uint64(b[1]) << (4 * 7))
+		case 3:
+			b := src[j : j+3 : j+3]
+			u |= (uint64(b[0]&0x7f) << (3 * 7)) | (uint64(b[1]&0x7f) << (4 * 7)) | (uint64(b[2]) << (5 * 7))
+		case 4:
+			b := src[j : j+4 : j+4]
+			u |= (uint64(b[0]&0x7f) << (3 * 7)) | (uint64(b[1]&0x7f) << (4 * 7)) | (uint64(b[2]&0x7f) << (5 * 7)) | (uint64(b[3]) << (6 * 7))
+		case 5:
+			b := src[j : j+5 : j+5]
+			u |= (uint64(b[0]&0x7f) << (3 * 7)) | (uint64(b[1]&0x7f) << (4 * 7)) | (uint64(b[2]&0x7f) << (5 * 7)) | (uint64(b[3]&0x7f) << (6 * 7)) |
+				(uint64(b[4]) << (7 * 7))
+		case 6:
+			b := src[j : j+6 : j+6]
+			u |= (uint64(b[0]&0x7f) << (3 * 7)) | (uint64(b[1]&0x7f) << (4 * 7)) | (uint64(b[2]&0x7f) << (5 * 7)) | (uint64(b[3]&0x7f) << (6 * 7)) |
+				(uint64(b[4]&0x7f) << (7 * 7)) | (uint64(b[5]) << (8 * 7))
+		case 7:
+			b := src[j : j+7 : j+7]
+			if b[6] > 1 {
+				return src[idx:], fmt.Errorf("too big encoded varuint; src=%x", src[j-3:])
+			}
+			u |= (uint64(b[0]&0x7f) << (3 * 7)) | (uint64(b[1]&0x7f) << (4 * 7)) | (uint64(b[2]&0x7f) << (5 * 7)) | (uint64(b[3]&0x7f) << (6 * 7)) |
+				(uint64(b[4]&0x7f) << (7 * 7)) | (uint64(b[5]&0x7f) << (8 * 7)) | (1 << (9 * 7))
+		default:
+			return src[idx:], fmt.Errorf("too long encoded varuint; the maximum allowed length is 10 bytes; got %d bytes; src=%x", idx-j+3, src[j-3:])
+		}
+
 		dst[i] = u
 	}
 	return src[idx:], nil

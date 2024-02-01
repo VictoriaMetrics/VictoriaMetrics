@@ -34,6 +34,14 @@ func NewSASCredentialPolicy(cred *exported.SASCredential, header string, options
 
 // Do implementes the Do method on the [policy.Polilcy] interface.
 func (k *SASCredentialPolicy) Do(req *policy.Request) (*http.Response, error) {
-	req.Raw().Header.Add(k.header, exported.SASCredentialGet(k.cred))
+	// skip adding the authorization header if no SASCredential was provided.
+	// this prevents a panic that might be hard to diagnose and allows testing
+	// against http endpoints that don't require authentication.
+	if k.cred != nil {
+		if err := checkHTTPSForAuth(req); err != nil {
+			return nil, err
+		}
+		req.Raw().Header.Add(k.header, exported.SASCredentialGet(k.cred))
+	}
 	return req.Next()
 }

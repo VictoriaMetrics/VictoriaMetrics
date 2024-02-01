@@ -7,6 +7,7 @@ Web UI for VictoriaMetrics
 * [Updating vmui embedded into VictoriaMetrics](#updating-vmui-embedded-into-victoriametrics)
 * [Predefined dashboards](#predefined-dashboards)
 * [App mode config options](#app-mode-config-options)
+* [Timezone configuration](#timezone-configuration)
 
 ----
 
@@ -246,3 +247,39 @@ vmui can be used to paste into other applications
 ```html
 <div id="root" data-params='{"serverURL":"http://localhost:8428","useTenantID":true,"headerStyles":{"background":"#FFFFFF","color":"#538DE8"},"palette":{"primary":"#538DE8","secondary":"#F76F8E","error":"#FD151B","warning":"#FFB30F","success":"#7BE622","info":"#0F5BFF"}}'></div>
 ```
+
+----
+
+## Timezone configuration
+
+vmui's timezone setting offers flexibility in displaying time data. It can be set through a configuration flag and is adjustable within the vmui interface. This feature caters to various user preferences and time zones.
+
+### Default Timezone Setting
+
+#### Via Configuration Flag
+
+- Set the default timezone using the `--vmui.defaultTimezone` flag.
+- Accepts a valid IANA Time Zone string (e.g., `America/New_York`, `Europe/Berlin`, `Etc/GMT+3`).
+- If the flag is unset or invalid, vmui defaults to the browser's local timezone.
+
+#### User Interface Adjustments
+
+- Users can change the timezone in the vmui interface.
+- Any changed setting in the interface overrides the flag's default, persisting for the user.
+- The timezone specified in the `--vmui.defaultTimezone` flag is included in the vmui's timezone selection dropdown, aiding user choice.
+
+### Key Points
+
+- **Fallback to Browser's Local Timezone**: If the flag is not set or an invalid timezone is specified, vmui uses the local timezone of the user's browser.
+- **User Preference Priority**: User-selected timezones in vmui take precedence over the default set by the flag.
+- **Cluster Consistency**: Ensure uniform timezone settings across cluster nodes, but individual user interface selections will always override these defaults.
+
+### Examples
+
+Setting a default timezone, with user options to change:
+
+```
+./victoria-metrics --vmui.defaultTimezone="America/New_York"
+```
+
+In this scenario, if a user in Berlin accesses vmui without changing settings, it will default to their browser's local timezone (CET). If they select a different timezone in vmui, this choice will override the `"America/New_York"` setting for that user.
