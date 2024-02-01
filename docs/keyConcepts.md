@@ -8,6 +8,7 @@ menu:
     weight: 34
 aliases:
 - /keyConcepts.html
+- /keyсoncepts.html
 ---
 
 # Key concepts
@@ -402,7 +403,7 @@ for [InfluxDB line protocol](https://docs.victoriametrics.com/Single-server-Vict
 
 Creating custom clients or instrumenting the application for metrics writing is as easy as sending a POST request:
 
-```console
+```sh
 curl -d '{"metric":{"__name__":"foo","job":"node_exporter"},"values":[0,1,2],"timestamps":[1549891472010,1549891487724,1549891503438]}' -X POST 'http://localhost:8428/api/v1/import'
 ```
 
@@ -475,7 +476,7 @@ The basic monitoring setup of VictoriaMetrics and vmagent is described
 in the [example docker-compose manifest](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker).
 In this example vmagent [scrapes a list of targets](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/prometheus.yml)
 and [forwards collected data to VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/9d7da130b5a873be334b38c8d8dec702c9e8fac5/deployment/docker/docker-compose.yml#L15).
-VictoriaMetrics is then used as a [datasource for Grafana](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/provisioning/datasources/datasource.yml)
+VictoriaMetrics is then used as a [datasource for Grafana](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/provisioning/datasources)
 installation for querying collected data.
 
 VictoriaMetrics components allow building more advanced topologies. For example, vmagents can push metrics from separate datacenters to the central VictoriaMetrics:
@@ -499,7 +500,7 @@ The API consists of two main handlers for serving [instant queries](#instant-que
 
 ### Instant query
 
-Instant query executes the query expression at the given timestamp:
+Instant query executes the `query` expression at the given `time`:
 
 ```
 GET | POST /api/v1/query?query=...&time=...&step=...
@@ -515,6 +516,10 @@ Params:
   for searching for raw samples in the past when executing the `query` (used when a sample is missing at the specified instant).
   For example, the request `/api/v1/query?query=up&step=1m` will look for the last written raw sample for the metric `up`
   in the interval between `now()` and `now()-1m`. If omitted, `step` is set to `5m` (5 minutes).
+
+The result of Instant query is a list of [time series](https://docs.victoriametrics.com/keyConcepts.html#time-series)
+matching the filter in `query` expression. Each returned series contains exactly one `(timestamp, value)` entry,
+where `timestamp` equals to the `time` query arg, while the `value` contains `query` result at the requested `time`.
 
 To understand how instant queries work, let's begin with a data sample:
 
@@ -537,16 +542,12 @@ foo_bar 4.00 1652170560000 # 2022-05-10 10:16:00
 The data above contains a list of samples for the `foo_bar` time series with time intervals between samples
 ranging from 1m to 3m. If we plot this data sample on the graph, it will have the following form:
 
-<p style="text-align: center">
-    <a href="keyConcepts_data_samples.webp" target="_blank">
-        <img src="keyConcepts_data_samples.webp" width="500">
-    </a>
-</p>
-
+<img src="keyConcepts_data_samples.webp" width="500">
+    
 To get the value of the `foo_bar` series at some specific moment of time, for example `2022-05-10 10:03:00`, in
 VictoriaMetrics we need to issue an **instant query**:
 
-```console
+```sh
 curl "http://<victoria-metrics-addr>/api/v1/query?query=foo_bar&time=2022-05-10T10:03:00.000Z"
 ```
 
@@ -561,7 +562,7 @@ curl "http://<victoria-metrics-addr>/api/v1/query?query=foo_bar&time=2022-05-10T
           "__name__": "foo_bar"
         },
         "value": [
-          1652169780,
+          1652169780, // 2022-05-10 10:03:00
           "3"
         ]
       }
@@ -575,12 +576,7 @@ In response, VictoriaMetrics returns a single sample-timestamp pair with a value
 we'll see that there is no raw sample at `2022-05-10 10:03`. When there is no raw sample at the
 requested timestamp, VictoriaMetrics will try to locate the closest sample before the requested timestamp:
 
-<p style="text-align: center">
-    <a href="keyConcepts_instant_query.webp" target="_blank">
-        <img src="keyConcepts_instant_query.webp" width="500">
-    </a>
-</p>
-
+<img src="keyConcepts_instant_query.webp" width="500">
 
 The time range in which VictoriaMetrics will try to locate a replacement for a missing data sample is equal to `5m`
 by default and can be overridden via the `step` parameter.
@@ -595,7 +591,7 @@ the following scenarios:
 
 ### Range query
 
-Range query executes the query expression at the given time range with the given step:
+Range query executes the `query` expression at the given [`start`...`end`] time range with the given `step`:
 
 ```
 GET | POST /api/v1/query_range?query=...&start=...&end=...&step=...
@@ -613,10 +609,15 @@ Params:
   The `query` is executed at `start`, `start+step`, `start+2*step`, ..., `end` timestamps.
   If the `step` isn't set, then it default to `5m` (5 minutes).
 
+The result of Range query is a list of [time series](https://docs.victoriametrics.com/keyConcepts.html#time-series)
+matching the filter in `query` expression. Each returned series contains `(timestamp, value)` results for the `query` executed
+at `start`, `start+step`, `start+2*step`, ..., `end` timestamps. In other words, Range query is an [Instant query](#instant-query)
+executed independently at `start`, `start+step`, ..., `end` timestamps.
+
 For example, to get the values of `foo_bar` during the time range from `2022-05-10 09:59:00` to `2022-05-10 10:17:00`,
 we need to issue a range query:
 
-```console
+```sh
 curl "http://<victoria-metrics-addr>/api/v1/query_range?query=foo_bar&step=1m&start=2022-05-10T09:59:00.000Z&end=2022-05-10T10:17:00.000Z"
 ```
 
@@ -712,11 +713,7 @@ see that it contains only 13 raw samples. What happens here is that the range qu
 an [instant query](#instant-query) executed `1 + (start-end)/step` times on the time range from `start` to `end`. If we plot
 this request in VictoriaMetrics the graph will be shown as the following:
 
-<p style="text-align: center">
-    <a href="keyConcepts_range_query.webp" target="_blank">
-        <img src="keyConcepts_range_query.webp" width="500">
-    </a>
-</p>
+<img src="keyConcepts_range_query.webp" width="500">
 
 The blue dotted lines in the figure are the moments when the instant query was executed. Since the instant query retains the
 ability to return replacements for missing points, the graph contains two types of data points: `real` and `ephemeral`.

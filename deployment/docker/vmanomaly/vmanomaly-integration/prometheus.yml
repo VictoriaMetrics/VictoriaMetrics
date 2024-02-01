@@ -16,4 +16,4 @@ scrape_configs:
       - targets: ['node-exporter:9100']
   - job_name: 'vmanomaly'
     static_configs:
-      - targets: [ 'vmanomaly:8500' ]
+      - targets: [ 'vmanomaly:8490' ]

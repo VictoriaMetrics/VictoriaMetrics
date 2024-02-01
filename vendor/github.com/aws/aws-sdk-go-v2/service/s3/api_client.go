@@ -56,9 +56,9 @@ func New(options Options, optFns ...func(*Options)) *Client {
 
 	resolveHTTPSignerV4(&options)
 
-	resolveHTTPSignerV4a(&options)
-
 	resolveEndpointResolverV2(&options)
+
+	resolveHTTPSignerV4a(&options)
 
 	resolveAuthSchemeResolver(&options)
 
@@ -67,8 +67,6 @@ func New(options Options, optFns ...func(*Options)) *Client {
 	}
 
 	finalizeRetryMaxAttempts(&options)
-
-	resolveCredentialProvider(&options)
 
 	ignoreAnonymousAuth(&options)
 
@@ -110,8 +108,6 @@ func (c *Client) invokeOperation(ctx context.Context, opID string, params interf
 	finalizeOperationRetryMaxAttempts(&options, *c)
 
 	finalizeClientEndpointResolverOptions(&options)
-
-	resolveCredentialProvider(&options)
 
 	finalizeOperationExpressCredentials(&options, *c)
 
@@ -496,33 +492,6 @@ func resolveUseFIPSEndpoint(cfg aws.Config, o *Options) error {
 	return nil
 }
 
-func resolveCredentialProvider(o *Options) {
-	if o.Credentials == nil {
-		return
-	}
-
-	if _, ok := o.Credentials.(v4a.CredentialsProvider); ok {
-		return
-	}
-
-	if aws.IsCredentialsProvider(o.Credentials, (*aws.AnonymousCredentials)(nil)) {
-		return
-	}
-
-	o.Credentials = &v4a.SymmetricCredentialAdaptor{SymmetricProvider: o.Credentials}
-}
-
-func swapWithCustomHTTPSignerMiddleware(stack *middleware.Stack, o Options) error {
-	mw := s3cust.NewSignHTTPRequestMiddleware(s3cust.SignHTTPRequestMiddlewareOptions{
-		CredentialsProvider: o.Credentials,
-		V4Signer:            o.HTTPSignerV4,
-		V4aSigner:           o.httpSignerV4a,
-		LogSigning:          o.ClientLogMode.IsSigning(),
-	})
-
-	return s3cust.RegisterSigningMiddleware(stack, mw)
-}
-
 type httpSignerV4a interface {
 	SignHTTP(ctx context.Context, credentials v4a.Credentials, r *http.Request, payloadHash,
 		service string, regionSet []string, signingTime time.Time,
@@ -540,7 +509,6 @@ func newDefaultV4aSigner(o Options) *v4a.Signer {
 	return v4a.NewSigner(func(so *v4a.SignerOptions) {
 		so.Logger = o.Logger
 		so.LogSigning = o.ClientLogMode.IsSigning()
-		so.DisableURIPathEscaping = true
 	})
 }
 

@@ -14,7 +14,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs/fscore"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
-	"github.com/VictoriaMetrics/fasthttp"
 	"github.com/cespare/xxhash/v2"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
@@ -93,7 +92,8 @@ type Authorization struct {
 
 // BasicAuthConfig represents basic auth config.
 type BasicAuthConfig struct {
-	Username     string  `yaml:"username"`
+	Username     string  `yaml:"username,omitempty"`
+	UsernameFile string  `yaml:"username_file,omitempty"`
 	Password     *Secret `yaml:"password,omitempty"`
 	PasswordFile string  `yaml:"password_file,omitempty"`
 }
@@ -328,24 +328,6 @@ func (ac *Config) HeadersNoAuthString() string {
 // SetHeaders sets the configured ac headers to req.
 func (ac *Config) SetHeaders(req *http.Request, setAuthHeader bool) error {
 	reqHeaders := req.Header
-	for _, h := range ac.headers {
-		reqHeaders.Set(h.key, h.value)
-	}
-	if setAuthHeader {
-		ah, err := ac.GetAuthHeader()
-		if err != nil {
-			return fmt.Errorf("failed to obtain Authorization request header: %w", err)
-		}
-		if ah != "" {
-			reqHeaders.Set("Authorization", ah)
-		}
-	}
-	return nil
-}
-
-// SetFasthttpHeaders sets the configured ac headers to req.
-func (ac *Config) SetFasthttpHeaders(req *fasthttp.Request, setAuthHeader bool) error {
-	reqHeaders := &req.Header
 	for _, h := range ac.headers {
 		reqHeaders.Set(h.key, h.value)
 	}
@@ -662,35 +644,54 @@ func (actx *authContext) initFromAuthorization(baseDir string, az *Authorization
 }
 
 func (actx *authContext) initFromBasicAuthConfig(baseDir string, ba *BasicAuthConfig) error {
-	if ba.Username == "" {
-		return fmt.Errorf("missing `username` in `basic_auth` section")
-	}
-	if ba.PasswordFile == "" {
-		// See https://en.wikipedia.org/wiki/Basic_access_authentication
-		token := ba.Username + ":" + ba.Password.String()
-		token64 := base64.StdEncoding.EncodeToString([]byte(token))
-		ah := "Basic " + token64
-		actx.getAuthHeader = func() (string, error) {
-			return ah, nil
-		}
-		actx.authHeaderDigest = fmt.Sprintf("basic(username=%q, password=%q)", ba.Username, ba.Password)
-		return nil
-	}
+	username := ba.Username
+	usernameFile := ba.UsernameFile
+	password := ""
 	if ba.Password != nil {
-		return fmt.Errorf("both `password`=%q and `password_file`=%q are set in `basic_auth` section", ba.Password, ba.PasswordFile)
+		password = ba.Password.S
 	}
-	filePath := fscore.GetFilepath(baseDir, ba.PasswordFile)
+	passwordFile := ba.PasswordFile
+	if username == "" && usernameFile == "" {
+		return fmt.Errorf("missing `username` and `username_file` in `basic_auth` section; please specify one; " +
+			"see https://docs.victoriametrics.com/sd_configs.html#http-api-client-options")
+	}
+	if username != "" && usernameFile != "" {
+		return fmt.Errorf("both `username` and `username_file` are set in `basic_auth` section; please specify only one; " +
+			"see https://docs.victoriametrics.com/sd_configs.html#http-api-client-options")
+	}
+	if password != "" && passwordFile != "" {
+		return fmt.Errorf("both `password` and `password_file` are set in `basic_auth` section; please specify only one; " +
+			"see https://docs.victoriametrics.com/sd_configs.html#http-api-client-options")
+	}
+	if usernameFile != "" {
+		usernameFile = fscore.GetFilepath(baseDir, usernameFile)
+	}
+	if passwordFile != "" {
+		passwordFile = fscore.GetFilepath(baseDir, passwordFile)
+	}
 	actx.getAuthHeader = func() (string, error) {
-		password, err := fscore.ReadPasswordFromFileOrHTTP(filePath)
-		if err != nil {
-			return "", fmt.Errorf("cannot read password from `password_file`=%q set in `basic_auth` section: %w", ba.PasswordFile, err)
+		usernameLocal := username
+		if usernameFile != "" {
+			s, err := fscore.ReadPasswordFromFileOrHTTP(usernameFile)
+			if err != nil {
+				return "", fmt.Errorf("cannot read username from `username_file`=%q: %w", usernameFile, err)
+			}
+			usernameLocal = s
+		}
+		passwordLocal := password
+		if passwordFile != "" {
+			s, err := fscore.ReadPasswordFromFileOrHTTP(passwordFile)
+			if err != nil {
+				return "", fmt.Errorf("cannot read password from `password_file`=%q: %w", passwordFile, err)
+			}
+			passwordLocal = s
 		}
 		// See https://en.wikipedia.org/wiki/Basic_access_authentication
-		token := ba.Username + ":" + password
+		token := usernameLocal + ":" + passwordLocal
 		token64 := base64.StdEncoding.EncodeToString([]byte(token))
 		return "Basic " + token64, nil
 	}
-	actx.authHeaderDigest = fmt.Sprintf("basic(username=%q, passwordFile=%q)", ba.Username, filePath)
+	actx.authHeaderDigest = fmt.Sprintf("basic(username=%q, usernameFile=%q, password=%q, passwordFile=%q)", username, usernameFile, password, passwordFile)
 	return nil
 }
 

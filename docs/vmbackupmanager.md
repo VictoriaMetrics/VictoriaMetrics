@@ -51,7 +51,7 @@ The backup manager creates the following directory hierarchy at **-dst**:
 
 To get the full list of supported flags please run the following command:
 
-```console
+```sh
 ./vmbackupmanager --help
 ```
 
@@ -93,7 +93,7 @@ credentials.json
 
 Backup manager launched with the following configuration:
 
-```console
+```sh
 export NODE_IP=192.168.0.10
 export VMSTORAGE_ENDPOINT=http://127.0.0.1:8428
 ./vmbackupmanager -dst=gs://vmstorage-data/$NODE_IP -credsFilePath=credentials.json -storageDataPath=/vmstorage-data -snapshot.createURL=$VMSTORAGE_ENDPOINT/snapshot/create -eula
@@ -101,14 +101,14 @@ export VMSTORAGE_ENDPOINT=http://127.0.0.1:8428
 
 Expected logs in vmbackupmanager:
 
-```console
+```sh
 info    lib/backup/actions/backup.go:131    server-side copied 81 out of 81 parts from GCS{bucket: "vmstorage-data", dir: "192.168.0.10//latest/"} to GCS{bucket: "vmstorage-data", dir: "192.168.0.10//weekly/2020-34/"} in 2.549833008s
 info    lib/backup/actions/backup.go:169    backed up 853315 bytes in 2.882 seconds; deleted 0 bytes; server-side copied 853315 bytes; uploaded 0 bytes
 ```
 
 Expected logs in vmstorage:
 
-```console
+```sh
 info    VictoriaMetrics/lib/storage/table.go:146    creating table snapshot of "/vmstorage-data/data"...
 info    VictoriaMetrics/lib/storage/storage.go:311    deleting snapshot "/vmstorage-data/snapshots/20200818201959-162C760149895DDA"...
 info    VictoriaMetrics/lib/storage/storage.go:319    deleted snapshot "/vmstorage-data/snapshots/20200818201959-162C760149895DDA" in 0.169 seconds
@@ -152,7 +152,7 @@ Let’s assume we have a backup manager collecting daily backups for the past 10
 
 We enable backup retention policy for backup manager by using following configuration:
 
-```console
+```sh
 export NODE_IP=192.168.0.10
 export VMSTORAGE_ENDPOINT=http://127.0.0.1:8428
 ./vmbackupmanager -dst=gs://vmstorage-data/$NODE_IP -credsFilePath=credentials.json -storageDataPath=/vmstorage-data -snapshot.createURL=$VMSTORAGE_ENDPOINT/snapshot/create
@@ -161,13 +161,13 @@ export VMSTORAGE_ENDPOINT=http://127.0.0.1:8428
 
 Expected logs in backup manager on start:
 
-```console
+```sh
 info    lib/logger/flag.go:20    flag "keepLastDaily" = "3"
 ```
 
 Expected logs in backup manager during retention cycle:
 
-```console
+```sh
 info    app/vmbackupmanager/retention.go:106    daily backups to delete [daily/2021-02-13 daily/2021-02-12 daily/2021-02-11 daily/2021-02-10 daily/2021-02-09 daily/2021-02-08 daily/2021-02-07]
 ```
 
@@ -181,14 +181,14 @@ You can protect any backup against deletion by retention policy with the `vmback
 
 For instance:
 
-```console
+```sh
 ./vmbackupmanager backup lock daily/2021-02-13 -dst=<DST_PATH> -storageDataPath=/vmstorage-data -eula
 ```
 
 After that the backup won't be deleted by retention policy.
 You can view the `locked` attribute in backup list:
 
-```console
+```sh
 ./vmbackupmanager backup list -dst=<DST_PATH> -storageDataPath=/vmstorage-data -eula
 ```
 
@@ -196,7 +196,7 @@ To remove protection, you can use the command `vmbackupmanager backups unlock`.
 
 For example:
 
-```console
+```sh
 ./vmbackupmanager backup unlock daily/2021-02-13 -dst=<DST_PATH> -storageDataPath=/vmstorage-data -eula
 ```
 
@@ -246,7 +246,7 @@ For example:
 `vmbackupmanager` exposes CLI commands to work with [API methods](#api-methods) without external dependencies.
 
 Supported commands:
-```console
+```sh
 vmbackupmanager backup 
 
   vmbackupmanager backup list 
@@ -281,7 +281,7 @@ It can be changed by using flag:
 ### Backup commands
 
 `vmbackupmanager backup list` lists backups in remote storage:
-```console
+```sh
 $ ./vmbackupmanager backup list
 [{"name":"daily/2023-04-07","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:07+00:00"},{"name":"hourly/2023-04-07:11","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:06+00:00"},{"name":"latest","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:04+00:00"},{"name":"monthly/2023-04","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:10+00:00"},{"name":"weekly/2023-14","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:09+00:00"}]
 ```
@@ -293,23 +293,23 @@ Restore mark is used by `vmbackupmanager` to store backup name to restore when r
 
 
 Create restore mark:
-```console
+```sh
 $ ./vmbackupmanager restore create daily/2022-10-06
 ```
 
 Get restore mark if it exists:
-```console
+```sh
 $ ./vmbackupmanager restore get
 {"backup":"daily/2022-10-06"}
 ```
 
 Delete restore mark if it exists:
-```console
+```sh
 $ ./vmbackupmanager restore delete
 ```
 
 Perform restore:
-```console
+```sh
 $ /vmbackupmanager-prod restore -dst=gs://vmstorage-data/$NODE_IP -credsFilePath=credentials.json -storageDataPath=/vmstorage-data
 ```
 Note that `vmsingle` or `vmstorage` should be stopped before performing restore.
@@ -319,22 +319,22 @@ If restore mark doesn't exist at `storageDataPath`(restore wasn't requested) `vm
 ### How to restore backup via CLI
 
 1. Run `vmbackupmanager backup list` to get list of available backups:
-  ```console
+  ```sh
   $ /vmbackupmanager-prod backup list
   [{"name":"daily/2023-04-07","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:07+00:00"},{"name":"hourly/2023-04-07:11","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:06+00:00"},{"name":"latest","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:04+00:00"},{"name":"monthly/2023-04","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:10+00:00"},{"name":"weekly/2023-14","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:09+00:00"}]
   ```
 1. Run `vmbackupmanager restore create` to create restore mark:
    - Use relative path to backup to restore from currently used remote storage:
-     ```console
+     ```sh
      $ /vmbackupmanager-prod restore create daily/2023-04-07
      ```
    - Use full path to backup to restore from any remote storage:
-     ```console
+     ```sh
      $ /vmbackupmanager-prod restore create azblob://test1/vmbackupmanager/daily/2023-04-07
      ```
 1. Stop `vmstorage` or `vmsingle` node
 1. Run `vmbackupmanager restore` to restore backup:
-  ```console
+  ```sh
   $ /vmbackupmanager-prod restore -credsFilePath=credentials.json -storageDataPath=/vmstorage-data
   ```
 1. Start `vmstorage` or `vmsingle` node
@@ -353,17 +353,17 @@ If restore mark doesn't exist at `storageDataPath`(restore wasn't requested) `vm
    See operator `VMStorage` schema [here](https://docs.victoriametrics.com/operator/api.html#vmstorage) and `VMSingle` [here](https://docs.victoriametrics.com/operator/api.html#vmsinglespec).
 1. Enter container running `vmbackupmanager`
 1. Use `vmbackupmanager backup list` to get list of available backups:
-  ```console
+  ```sh
   $ /vmbackupmanager-prod backup list
   [{"name":"daily/2023-04-07","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:07+00:00"},{"name":"hourly/2023-04-07:11","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:06+00:00"},{"name":"latest","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:04+00:00"},{"name":"monthly/2023-04","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:10+00:00"},{"name":"weekly/2023-14","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:09+00:00"}]
   ```
 1. Use `vmbackupmanager restore create` to create restore mark:
   - Use relative path to backup to restore from currently used remote storage:
-    ```console
+    ```sh
     $ /vmbackupmanager-prod restore create daily/2023-04-07
     ```
   - Use full path to backup to restore from any remote storage:
-    ```console
+    ```sh
     $ /vmbackupmanager-prod restore create azblob://test1/vmbackupmanager/daily/2023-04-07
     ```
 1. Restart pod
@@ -385,14 +385,14 @@ Clusters here are referred to as `source` and `destination`.
    > Important! Use different `-dst` for *destination* cluster to avoid overwriting backup data of the *source* cluster.
 1. Enter container running `vmbackupmanager` in *source* cluster
 1. Use `vmbackupmanager backup list` to get list of available backups:
-  ```console
+  ```sh
   $ /vmbackupmanager-prod backup list
   [{"name":"daily/2023-04-07","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:07+00:00"},{"name":"hourly/2023-04-07:11","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:06+00:00"},{"name":"latest","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:04+00:00"},{"name":"monthly/2023-04","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:10+00:00"},{"name":"weekly/2023-14","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:09+00:00"}]
   ```
 1. Use `vmbackupmanager restore create` to create restore mark at each pod of the *destination* cluster.
    Each pod in *destination* cluster should be restored from backup of respective pod in *source* cluster.
    For example: `vmstorage-source-0` in *source* cluster should be restored from `vmstorage-destination-0` in *destination* cluster.
-  ```console
+  ```sh
   $ /vmbackupmanager-prod restore create s3://source_cluster/vmstorage-source-0/daily/2023-04-07
   ```
 1. Restart `vmstorage` pods of *destination* cluster. On pod start `vmbackupmanager` will restore data from the specified backup.

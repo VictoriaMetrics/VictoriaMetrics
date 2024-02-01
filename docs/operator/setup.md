@@ -34,7 +34,7 @@ Obtain release from releases page:
 
 We suggest use the latest release.
 
-```console
+```sh
 # Get latest release version from https://github.com/VictoriaMetrics/operator/releases/latest
 export VM_VERSION=`basename $(curl -fs -o/dev/null -w %{redirect_url} https://github.com/VictoriaMetrics/operator/releases/latest)`
 wget https://github.com/VictoriaMetrics/operator/releases/download/$VM_VERSION/bundle_crd.zip
@@ -43,13 +43,13 @@ unzip  bundle_crd.zip
 
 Operator use `monitoring-system` namespace, but you can install it to specific namespace with command:
 
-```console
+```sh
 sed -i "s/namespace: monitoring-system/namespace: YOUR_NAMESPACE/g" release/operator/*
 ```
 
 First of all, you  have to create [custom resource definitions](https://github.com/VictoriaMetrics/operator):
 
-```console
+```sh
 kubectl apply -f release/crds
 ```
 
@@ -58,13 +58,13 @@ Then you need RBAC for operator, relevant configuration for the release can be f
 Change configuration for operator at `release/operator/manager.yaml`, possible settings: [operator-settings](/operator/vars.html)
 and apply it:
 
-```console
+```sh
 kubectl apply -f release/operator/
 ```
 
 Check the status of operator
 
-```console
+```sh
 kubectl get pods -n monitoring-system
 
 #NAME                           READY   STATUS    RESTARTS   AGE
@@ -75,7 +75,7 @@ kubectl get pods -n monitoring-system
 
 You can install operator using [Kustomize](https://kustomize.io/) by pointing to the remote kustomization file.
 
-```console
+```sh
 # Get latest release version from https://github.com/VictoriaMetrics/operator/releases/latest
 export VM_VERSION=`basename $(curl -fs -o/dev/null -w %{redirect_url} https://github.com/VictoriaMetrics/operator/releases/latest)`
 
@@ -95,19 +95,19 @@ You can change [operator configuration](#configuring), or use your custom namesp
 
 Build template
 
-```console
+```sh
 kustomize build . -o monitoring.yaml
 ```
 
 Apply manifests
 
-```console
+```sh
 kubectl apply -f monitoring.yaml
 ```
 
 Check the status of operator
 
-```console
+```sh
 kubectl get pods -n monitoring-system
 
 #NAME                           READY   STATUS    RESTARTS   AGE

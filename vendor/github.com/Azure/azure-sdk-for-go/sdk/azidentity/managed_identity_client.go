@@ -28,12 +28,14 @@ import (
 
 const (
 	arcIMDSEndpoint          = "IMDS_ENDPOINT"
+	defaultIdentityClientID  = "DEFAULT_IDENTITY_CLIENT_ID"
 	identityEndpoint         = "IDENTITY_ENDPOINT"
 	identityHeader           = "IDENTITY_HEADER"
 	identityServerThumbprint = "IDENTITY_SERVER_THUMBPRINT"
 	headerMetadata           = "Metadata"
 	imdsEndpoint             = "http://169.254.169.254/metadata/identity/oauth2/token"
 	msiEndpoint              = "MSI_ENDPOINT"
+	msiSecret                = "MSI_SECRET"
 	imdsAPIVersion           = "2018-02-01"
 	azureArcAPIVersion       = "2019-08-15"
 	serviceFabricAPIVersion  = "2019-07-01-preview"
@@ -47,6 +49,7 @@ type msiType int
 const (
 	msiTypeAppService msiType = iota
 	msiTypeAzureArc
+	msiTypeAzureML
 	msiTypeCloudShell
 	msiTypeIMDS
 	msiTypeServiceFabric
@@ -55,7 +58,7 @@ const (
 // managedIdentityClient provides the base for authenticating in managed identity environments
 // This type includes an runtime.Pipeline and TokenCredentialOptions.
 type managedIdentityClient struct {
-	pipeline runtime.Pipeline
+	azClient *azcore.Client
 	msiType  msiType
 	endpoint string
 	id       ManagedIDKind
@@ -135,13 +138,27 @@ func newManagedIdentityClient(options *ManagedIdentityCredentialOptions) (*manag
 			c.msiType = msiTypeAzureArc
 		}
 	} else if endpoint, ok := os.LookupEnv(msiEndpoint); ok {
-		env = "Cloud Shell"
 		c.endpoint = endpoint
-		c.msiType = msiTypeCloudShell
+		if _, ok := os.LookupEnv(msiSecret); ok {
+			env = "Azure ML"
+			c.msiType = msiTypeAzureML
+		} else {
+			env = "Cloud Shell"
+			c.msiType = msiTypeCloudShell
+		}
 	} else {
 		setIMDSRetryOptionDefaults(&cp.Retry)
 	}
-	c.pipeline = runtime.NewPipeline(component, version, runtime.PipelineOptions{}, &cp)
+
+	client, err := azcore.NewClient(module, version, runtime.PipelineOptions{
+		Tracing: runtime.TracingOptions{
+			Namespace: traceNamespace,
+		},
+	}, &cp)
+	if err != nil {
+		return nil, err
+	}
+	c.azClient = client
 
 	if log.Should(EventAuthentication) {
 		log.Writef(EventAuthentication, "Managed Identity Credential will use %s managed identity", env)
@@ -168,7 +185,7 @@ func (c *managedIdentityClient) authenticate(ctx context.Context, id ManagedIDKi
 		return azcore.AccessToken{}, err
 	}
 
-	resp, err := c.pipeline.Do(msg)
+	resp, err := c.azClient.Pipeline().Do(msg)
 	if err != nil {
 		return azcore.AccessToken{}, newAuthenticationFailedError(credNameManagedIdentity, err.Error(), nil, err)
 	}
@@ -247,6 +264,8 @@ func (c *managedIdentityClient) createAuthRequest(ctx context.Context, id Manage
 			return nil, newAuthenticationFailedError(credNameManagedIdentity, msg, nil, err)
 		}
 		return c.createAzureArcAuthRequest(ctx, id, scopes, key)
+	case msiTypeAzureML:
+		return c.createAzureMLAuthRequest(ctx, id, scopes)
 	case msiTypeServiceFabric:
 		return c.createServiceFabricAuthRequest(ctx, id, scopes)
 	case msiTypeCloudShell:
@@ -296,6 +315,29 @@ func (c *managedIdentityClient) createAppServiceAuthRequest(ctx context.Context,
 	return request, nil
 }
 
+func (c *managedIdentityClient) createAzureMLAuthRequest(ctx context.Context, id ManagedIDKind, scopes []string) (*policy.Request, error) {
+	request, err := runtime.NewRequest(ctx, http.MethodGet, c.endpoint)
+	if err != nil {
+		return nil, err
+	}
+	request.Raw().Header.Set("secret", os.Getenv(msiSecret))
+	q := request.Raw().URL.Query()
+	q.Add("api-version", "2017-09-01")
+	q.Add("resource", strings.Join(scopes, " "))
+	q.Add("clientid", os.Getenv(defaultIdentityClientID))
+	if id != nil {
+		if id.idKind() == miResourceID {
+			log.Write(EventAuthentication, "WARNING: Azure ML doesn't support specifying a managed identity by resource ID")
+			q.Set("clientid", "")
+			q.Set(qpResID, id.String())
+		} else {
+			q.Set("clientid", id.String())
+		}
+	}
+	request.Raw().URL.RawQuery = q.Encode()
+	return request, nil
+}
+
 func (c *managedIdentityClient) createServiceFabricAuthRequest(ctx context.Context, id ManagedIDKind, scopes []string) (*policy.Request, error) {
 	request, err := runtime.NewRequest(ctx, http.MethodGet, c.endpoint)
 	if err != nil {
@@ -330,7 +372,7 @@ func (c *managedIdentityClient) getAzureArcSecretKey(ctx context.Context, resour
 	q.Add("resource", strings.Join(resources, " "))
 	request.Raw().URL.RawQuery = q.Encode()
 	// send the initial request to get the short-lived secret key
-	response, err := c.pipeline.Do(request)
+	response, err := c.azClient.Pipeline().Do(request)
 	if err != nil {
 		return "", err
 	}

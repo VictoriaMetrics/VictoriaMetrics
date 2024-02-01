@@ -1,7 +1,7 @@
 scheduler:
   infer_every: "1m"
-  fit_every: "2h"
-  fit_window: "14d"
+  fit_every: "2m"
+  fit_window: "3h"
 
 model:
   class: "model.prophet.ProphetModel"
@@ -10,8 +10,9 @@ model:
 
 reader:
   datasource_url: "http://victoriametrics:8428/"
+  sampling_period: "60s" 
   queries:
-    node_cpu_rate: "rate(node_cpu_seconds_total)"
+    node_cpu_rate: "quantile by (mode) (0.5, rate(node_cpu_seconds_total[5m]))"
 
 writer:
   datasource_url: "http://victoriametrics:8428/"
@@ -20,4 +21,4 @@ writer:
 monitoring:
   pull: # Enable /metrics endpoint.
     addr: "0.0.0.0"
-    port: 8500
+    port: 8490

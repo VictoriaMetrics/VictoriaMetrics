@@ -42,7 +42,7 @@ creation of hourly, daily, weekly and monthly backups.
 
 Regular backup can be performed with the following command:
 
-```console
+```sh
 ./vmbackup -storageDataPath=</path/to/victoria-metrics-data> -snapshot.createURL=http://localhost:8428/snapshot/create -dst=gs://<bucket>/<path/to/new/backup>
 ```
 
@@ -57,7 +57,7 @@ Regular backup can be performed with the following command:
 If the destination GCS bucket already contains the previous backup at `-origin` path, then new backup can be sped up
 with the following command:
 
-```console
+```sh
 ./vmbackup -storageDataPath=</path/to/victoria-metrics-data> -snapshot.createURL=http://localhost:8428/snapshot/create -dst=gs://<bucket>/<path/to/new/backup> -origin=gs://<bucket>/<path/to/existing/backup>
 ```
 
@@ -72,7 +72,7 @@ and make it very expensive.
 Incremental backups are performed if `-dst` points to an already existing backup. In this case only new data is uploaded to remote storage.
 It saves time and network bandwidth costs when working with big backups:
 
-```console
+```sh
 ./vmbackup -storageDataPath=</path/to/victoria-metrics-data> -snapshot.createURL=http://localhost:8428/snapshot/create -dst=gs://<bucket>/<path/to/existing/backup>
 ```
 
@@ -82,7 +82,7 @@ Smart backups mean storing full daily backups into `YYYYMMDD` folders and creati
 
 * Run the following command every hour:
 
-```console
+```sh
 ./vmbackup -storageDataPath=</path/to/victoria-metrics-data> -snapshot.createURL=http://localhost:8428/snapshot/create -dst=gs://<bucket>/latest
 ```
 
@@ -92,7 +92,7 @@ when backing up large amounts of data.
 
 * Run the following command once a day:
 
-```console
+```sh
 ./vmbackup -storageDataPath=</path/to/victoria-metrics-data> -origin=gs://<bucket>/latest -dst=gs://<bucket>/<YYYYMMDD>
 ```
 
@@ -116,7 +116,7 @@ Sometimes it is needed to make server-side copy of the existing backup. This can
 while the destination path for backup copy must be specified via `-dst` command-line flag. For example, the following command copies backup
 from `gs://bucket/foo` to `gs://bucket/bar`:
 
-```console
+```sh
 ./vmbackup -origin=gs://bucket/foo -dst=gs://bucket/bar
 ```
 
@@ -176,7 +176,7 @@ Add flag `-credsFilePath=/etc/credentials` with the following content:
 
 - for S3 (AWS, MinIO or other S3 compatible storages):
     
-     ```console
+     ```sh
      [default]
      aws_access_key_id=theaccesskey
      aws_secret_access_key=thesecretaccesskeyvalue
@@ -279,12 +279,12 @@ Usage with s3 custom url endpoint. It is possible to use `vmbackup` with s3 comp
 You have to add a custom url endpoint via flag:
 
 - for MinIO
-    ```console
+    ```sh
       -customS3Endpoint=http://localhost:9000
     ```
 
 - for aws gov region
-    ```console
+    ```sh
       -customS3Endpoint=https://s3-fips.us-gov-west-1.amazonaws.com
     ```
 
@@ -303,7 +303,7 @@ Refer to the respective documentation for your object storage provider for more 
 
 Run `vmbackup -help` in order to see all the available options:
 
-```console
+```sh
   -concurrency int
      The number of concurrent workers. Higher concurrency may reduce backup duration (default 10)
   -configFilePath string
@@ -475,6 +475,6 @@ The `<PKG_TAG>` may be manually set via `PKG_TAG=foobar make package-vmbackup`.
 The base docker image is [alpine](https://hub.docker.com/_/alpine) but it is possible to use any other base image
 by setting it via `<ROOT_IMAGE>` environment variable. For example, the following command builds the image on top of [scratch](https://hub.docker.com/_/scratch) image:
 
-```console
+```sh
 ROOT_IMAGE=scratch make package-vmbackup
 ```

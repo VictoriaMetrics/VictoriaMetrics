@@ -663,7 +663,8 @@ func (s *Storage) startFreeDiskSpaceWatcher() {
 		// Use atomic.LoadUint32 in front of atomic.CompareAndSwapUint32 in order to avoid slow inter-CPU synchronization
 		// when the storage isn't in read-only mode.
 		if atomic.LoadUint32(&s.isReadOnly) == 1 && atomic.CompareAndSwapUint32(&s.isReadOnly, 1, 0) {
-			logger.Warnf("enabling writing to the storage at %s, since it has more than -storage.minFreeDiskSpaceBytes=%d of free space: %d bytes left",
+			s.notifyReadWriteMode()
+			logger.Warnf("switching the storage at %s to read-write mode, since it has more than -storage.minFreeDiskSpaceBytes=%d of free space: %d bytes left",
 				s.path, freeDiskSpaceLimitBytes, freeSpaceBytes)
 		}
 	}
@@ -683,6 +684,16 @@ func (s *Storage) startFreeDiskSpaceWatcher() {
 			}
 		}
 	}()
+}
+
+func (s *Storage) notifyReadWriteMode() {
+	s.tb.NotifyReadWriteMode()
+
+	idb := s.idb()
+	idb.tb.NotifyReadWriteMode()
+	idb.doExtDB(func(extDB *indexDB) {
+		extDB.tb.NotifyReadWriteMode()
+	})
 }
 
 func (s *Storage) startRetentionWatcher() {
@@ -1099,8 +1110,14 @@ func nextRetentionDeadlineSeconds(atSecs, retentionSecs, offsetSecs int64) int64
 //
 // The marshaled metric names must be unmarshaled via MetricName.UnmarshalString().
 func (s *Storage) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]string, error) {
+	labelAPIConcurrencyCh <- struct{}{}
+	defer func() {
+		<-labelAPIConcurrencyCh
+	}()
+
 	qt = qt.NewChild("search for matching metric names: filters=%s, timeRange=%s", tfss, &tr)
 	defer qt.Done()
+
 	metricIDs, err := s.idb().searchMetricIDs(qt, tfss, tr, maxMetrics, deadline)
 	if err != nil {
 		return nil, err
@@ -1247,6 +1264,10 @@ func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters) (int,
 // SearchLabelNamesWithFiltersOnTimeRange searches for label names matching the given tfss on tr.
 func (s *Storage) SearchLabelNamesWithFiltersOnTimeRange(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxLabelNames, maxMetrics int, deadline uint64,
 ) ([]string, error) {
+	labelAPIConcurrencyCh <- struct{}{}
+	defer func() {
+		<-labelAPIConcurrencyCh
+	}()
 	return s.idb().SearchLabelNamesWithFiltersOnTimeRange(qt, tfss, tr, maxLabelNames, maxMetrics, deadline)
 }
 
@@ -1254,8 +1275,21 @@ func (s *Storage) SearchLabelNamesWithFiltersOnTimeRange(qt *querytracer.Tracer,
 func (s *Storage) SearchLabelValuesWithFiltersOnTimeRange(qt *querytracer.Tracer, labelName string, tfss []*TagFilters,
 	tr TimeRange, maxLabelValues, maxMetrics int, deadline uint64,
 ) ([]string, error) {
+	labelAPIConcurrencyCh <- struct{}{}
+	defer func() {
+		<-labelAPIConcurrencyCh
+	}()
 	return s.idb().SearchLabelValuesWithFiltersOnTimeRange(qt, labelName, tfss, tr, maxLabelValues, maxMetrics, deadline)
 }
+
+// This channel limits the concurrency of apis, which return label names and label values.
+//
+// For example, /api/v1/labels or /api/v1/label/<labelName>/values
+//
+// These APIs are used infrequently (e.g. on Grafana dashboard load or when editing a query),
+// so it is better limiting their concurrency in order to reduce the maximum memory usage and CPU usage
+// when the database contains big number of time series.
+var labelAPIConcurrencyCh = make(chan struct{}, 1)
 
 // SearchTagValueSuffixes returns all the tag value suffixes for the given tagKey and tagValuePrefix on the given tr.
 //
@@ -2318,6 +2352,8 @@ func (dmc *dateMetricIDCache) syncLocked() {
 	// Merge data from byDate into byDateMutable and then atomically replace byDate with the merged data.
 	byDate := dmc.byDate.Load()
 	byDateMutable := dmc.byDateMutable
+	byDateMutable.hotEntry.Store(&byDateMetricIDEntry{})
+
 	for k, e := range byDateMutable.m {
 		v := byDate.get(k.generation, k.date)
 		if v == nil {
@@ -2331,11 +2367,8 @@ func (dmc *dateMetricIDCache) syncLocked() {
 			v: *v,
 		}
 		byDateMutable.m[k] = dme
-		he := byDateMutable.hotEntry.Load()
-		if he.k == k {
-			byDateMutable.hotEntry.Store(dme)
-		}
 	}
+
 	// Copy entries from byDate, which are missing in byDateMutable
 	for k, e := range byDate.m {
 		v := byDateMutable.get(k.generation, k.date)
@@ -2343,6 +2376,24 @@ func (dmc *dateMetricIDCache) syncLocked() {
 			continue
 		}
 		byDateMutable.m[k] = e
+	}
+
+	if len(byDateMutable.m) > 2 {
+		// Keep only entries for the last two dates - these are usually
+		// the current date and the next date.
+		dates := make([]uint64, 0, len(byDateMutable.m))
+		for k := range byDateMutable.m {
+			dates = append(dates, k.date)
+		}
+		sort.Slice(dates, func(i, j int) bool {
+			return dates[i] < dates[j]
+		})
+		maxDate := dates[len(dates)-2]
+		for k := range byDateMutable.m {
+			if k.date < maxDate {
+				delete(byDateMutable.m, k)
+			}
+		}
 	}
 
 	// Atomically replace byDate with byDateMutable

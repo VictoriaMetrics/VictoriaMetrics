@@ -133,7 +133,7 @@ func (eps *Endpoints) getTargetLabels(gw *groupWatcher) []*promutils.Labels {
 				m := promutils.GetLabels()
 				m.Add("__address__", addr)
 				p.appendCommonLabels(m, gw)
-				p.appendContainerLabels(m, c, &cp)
+				p.appendContainerLabels(m, &c, &cp)
 
 				// Prometheus sets endpoints_name and namespace labels for all endpoints
 				// Even if port is not matching service port.
@@ -189,7 +189,7 @@ func getEndpointLabelsForAddressAndPort(gw *groupWatcher, podPortsSeen map[*Pod]
 		for _, cp := range c.Ports {
 			if cp.ContainerPort == epp.Port {
 				podPortsSeen[p] = append(podPortsSeen[p], cp.ContainerPort)
-				p.appendContainerLabels(m, c, &cp)
+				p.appendContainerLabels(m, &c, &cp)
 				break
 			}
 		}
