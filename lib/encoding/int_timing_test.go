@@ -60,6 +60,46 @@ func BenchmarkUnmarshalInt64(b *testing.B) {
 	})
 }
 
+func BenchmarkMarshalVarUint64s(b *testing.B) {
+	b.Run("up-to-(1<<7)-1", func(b *testing.B) {
+		benchmarkMarshalVarUint64s(b, (1<<7)-1)
+	})
+	b.Run("up-to-(1<<14)-1", func(b *testing.B) {
+		benchmarkMarshalVarUint64s(b, (1<<14)-1)
+	})
+	b.Run("up-to-(1<<28)-1", func(b *testing.B) {
+		benchmarkMarshalVarUint64s(b, (1<<28)-1)
+	})
+	b.Run("up-to-(1<<64)-1", func(b *testing.B) {
+		benchmarkMarshalVarUint64s(b, (1<<64)-1)
+	})
+}
+
+func benchmarkMarshalVarUint64s(b *testing.B, maxValue uint64) {
+	const numsCount = 8000
+	var data []uint64
+	n := maxValue
+	for i := 0; i < numsCount; i++ {
+		if n <= 0 {
+			n = maxValue
+		}
+		data = append(data, n)
+		n--
+	}
+	b.ResetTimer()
+	b.ReportAllocs()
+	b.SetBytes(numsCount)
+	b.RunParallel(func(pb *testing.PB) {
+		var sink uint64
+		var dst []byte
+		for pb.Next() {
+			dst = MarshalVarUint64s(dst[:0], data)
+			sink += uint64(len(dst))
+		}
+		atomic.AddUint64(&Sink, sink)
+	})
+}
+
 func BenchmarkMarshalVarInt64s(b *testing.B) {
 	b.Run("up-to-(1<<6)-1", func(b *testing.B) {
 		benchmarkMarshalVarInt64s(b, (1<<6)-1)
@@ -94,6 +134,52 @@ func benchmarkMarshalVarInt64s(b *testing.B, maxValue int64) {
 		var dst []byte
 		for pb.Next() {
 			dst = MarshalVarInt64s(dst[:0], data)
+			sink += uint64(len(dst))
+		}
+		atomic.AddUint64(&Sink, sink)
+	})
+}
+
+func BenchmarkUnmarshalVarUint64s(b *testing.B) {
+	b.Run("up-to-(1<<7)-1", func(b *testing.B) {
+		benchmarkUnmarshalVarUint64s(b, (1<<7)-1)
+	})
+	b.Run("up-to-(1<<14)-1", func(b *testing.B) {
+		benchmarkUnmarshalVarUint64s(b, (1<<14)-1)
+	})
+	b.Run("up-to-(1<<28)-1", func(b *testing.B) {
+		benchmarkUnmarshalVarUint64s(b, (1<<28)-1)
+	})
+	b.Run("up-to-(1<<64)-1", func(b *testing.B) {
+		benchmarkUnmarshalVarUint64s(b, (1<<64)-1)
+	})
+}
+
+func benchmarkUnmarshalVarUint64s(b *testing.B, maxValue uint64) {
+	const numsCount = 8000
+	var data []byte
+	n := maxValue
+	for i := 0; i < numsCount; i++ {
+		if n <= 0 {
+			n = maxValue
+		}
+		data = MarshalVarUint64(data, n)
+		n--
+	}
+	b.ResetTimer()
+	b.ReportAllocs()
+	b.SetBytes(numsCount)
+	b.RunParallel(func(pb *testing.PB) {
+		var sink uint64
+		dst := make([]uint64, numsCount)
+		for pb.Next() {
+			tail, err := UnmarshalVarUint64s(dst, data)
+			if err != nil {
+				panic(fmt.Errorf("unexpected error: %w", err))
+			}
+			if len(tail) > 0 {
+				panic(fmt.Errorf("unexpected non-empty tail with len=%d: %X", len(tail), tail))
+			}
 			sink += uint64(len(dst))
 		}
 		atomic.AddUint64(&Sink, sink)
