@@ -15,6 +15,13 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## v1.87.x long-time support release (LTS)
 
+## [v1.87.14](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.87.14)
+
+Released at 2024-02-01
+
+**v1.87.x is a line of LTS releases (e.g. long-time support). It contains important up-to-date bugfixes.
+The v1.87.x line will be supported for at least 12 months since [v1.87.0](https://docs.victoriametrics.com/CHANGELOG.html#v1870) release**
+
 * SECURITY: upgrade base docker image (Alpine) from 3.19.0 to 3.19.1. See [alpine 3.19.1 release notes](https://www.alpinelinux.org/posts/Alpine-3.19.1-released.html).
 
 * BUGFIX: properly return errors from [export APIs](https://docs.victoriametrics.com/#how-to-export-time-series). Previously these errors were silently suppressed. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5649).
