@@ -448,6 +448,17 @@ Run `vmbackup -help` in order to see all the available options:
      Optional minimum TLS version to use for incoming requests over HTTPS if -tls is set. Supported values: TLS10, TLS11, TLS12, TLS13
   -version
      Show VictoriaMetrics version
+  -snapshot.tlsInsecureSkipVerify 
+      Optional Whether to skip tls verification when connecting to -snapshotCreateURL
+  -snapshot.tlsCertFile
+      Optional path to client-side TLS certificate file to use when connecting to -snapshotCreateURL
+  -snapshot.tlsKeyFile
+      Optional path to client-side TLS certificate key to use when connecting to -snapshotCreateURL
+  -snapshot.tlsCAFile 
+      Optional path to client-side TLS CA file to use when connecting to -snapshotCreateURL
+  -snapshot.tlsServerName
+      Optional path to client-side TLS tlsServerName to use when connecting to -snapshotCreateURL
+ 
 ```
 
 ## How to build from sources
