@@ -250,9 +250,9 @@ func (rh *requestHandler) filterGroups(ruleType string) []apiGroup {
 			}
 		}
 		if len(filteredRules) > 0 {
-			groupApi := groupToAPI(g)
-			groupApi.Rules = filteredRules
-			groups = append(groups, groupApi)
+			groupAPI := groupToAPI(g)
+			groupAPI.Rules = filteredRules
+			groups = append(groups, groupAPI)
 		}
 	}
 
