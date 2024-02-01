@@ -15,7 +15,7 @@ import (
 var (
 	vmuiCustomDashboardsPath = flag.String("vmui.customDashboardsPath", "", "Optional path to vmui dashboards. "+
 		"See https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/app/vmui/packages/vmui/public/dashboards")
-	vmuiDefaultTimezone = flag.String("vmui.defaultTimezone", "", "The default timezone to be used in vmui."+
+	vmuiDefaultTimezone = flag.String("vmui.defaultTimezone", "", "The default timezone to be used in vmui. "+
 		"Timezone must be a valid IANA Time Zone. For example: America/New_York, Europe/Berlin, Etc/GMT+3 or Local")
 )
 
