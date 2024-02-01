@@ -241,6 +241,20 @@ See changes [here](https://docs.victoriametrics.com/CHANGELOG_2023.html#v1881)
 
 See changes [here](https://docs.victoriametrics.com/CHANGELOG_2023.html#v1880)
 
+## [v1.87.14](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.87.14)
+
+Released at 2024-02-01
+
+**v1.87.x is a line of LTS releases (e.g. long-time support). It contains important up-to-date bugfixes.
+The v1.87.x line will be supported for at least 12 months since [v1.87.0](https://docs.victoriametrics.com/CHANGELOG.html#v1870) release**
+
+* SECURITY: upgrade base docker image (Alpine) from 3.19.0 to 3.19.1. See [alpine 3.19.1 release notes](https://www.alpinelinux.org/posts/Alpine-3.19.1-released.html).
+
+* BUGFIX: properly return errors from [export APIs](https://docs.victoriametrics.com/#how-to-export-time-series). Previously these errors were silently suppressed. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5649).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): respect explicitly set `series_limit: 0` in [scrape_config](https://docs.victoriametrics.com/sd_configs.html#scrape_configs). This allows removing [`series_limit` restriction](https://docs.victoriametrics.com/vmagent.html#cardinality-limiter) on a per-`scrape_config` basis when global limit is set via `-promscrape.seriesLimitPerTarget`. Previously, `0` value was ignored in favor of `-promscrape.seriesLimitPerTarget`.
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): properly process queries with too big lookbehind window such as `foo[100y]`. Previously, such queries could return empty responses even if `foo` is present in database. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5553).
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): properly handle possible negative results caused by float operations precision error in rollup functions like rate() or increase(). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5571).
+
 ## [v1.87.13](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.87.13)
 
 Released at 2024-01-17
