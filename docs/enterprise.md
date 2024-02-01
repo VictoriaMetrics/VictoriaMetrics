@@ -40,6 +40,7 @@ See [these docs](#running-victoriametrics-enterprise) for details on how to run 
 VictoriaMetrics Enterprise includes [all the features of the community edition](https://docs.victoriametrics.com/#prominent-features),
 plus the following additional features:
 
+- Long-term support stable releases with improtant bugfixes. See, for example, [v1.97.x LTS release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.1).
 - [Downsampling](https://docs.victoriametrics.com/#downsampling) - this feature allows reducing storage costs
   and increasing performance for queries over historical data.
 - [Multiple retentions](https://docs.victoriametrics.com/#retention-filters) - this feature allows reducing storage costs
