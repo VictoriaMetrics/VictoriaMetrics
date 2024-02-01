@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// nolint:revive // Many unsued function arguments in this file by design.
 package tsdb
 
 import (
@@ -526,14 +525,14 @@ func (w *SegmentWAL) openSegmentFile(name string) (*os.File, error) {
 	case err != nil:
 		return nil, errors.Wrapf(err, "validate meta %q", f.Name())
 	case n != 8:
-		return nil, errors.Errorf("invalid header size %d in %q", n, f.Name())
+		return nil, fmt.Errorf("invalid header size %d in %q", n, f.Name())
 	}
 
 	if m := binary.BigEndian.Uint32(metab[:4]); m != WALMagic {
-		return nil, errors.Errorf("invalid magic header %x in %q", m, f.Name())
+		return nil, fmt.Errorf("invalid magic header %x in %q", m, f.Name())
 	}
 	if metab[4] != WALFormatDefault {
-		return nil, errors.Errorf("unknown WAL segment format %d in %q", metab[4], f.Name())
+		return nil, fmt.Errorf("unknown WAL segment format %d in %q", metab[4], f.Name())
 	}
 	hasError = false
 	return f, nil
@@ -1053,7 +1052,7 @@ func (e walCorruptionErr) Error() string {
 
 func (r *walReader) corruptionErr(s string, args ...interface{}) error {
 	return walCorruptionErr{
-		err:        errors.Errorf(s, args...),
+		err:        fmt.Errorf(s, args...),
 		file:       r.cur,
 		lastOffset: r.lastOffset,
 	}
@@ -1125,7 +1124,7 @@ func (r *walReader) decodeSeries(flag byte, b []byte, res *[]record.RefSeries) e
 		return dec.Err()
 	}
 	if len(dec.B) > 0 {
-		return errors.Errorf("unexpected %d bytes left in entry", len(dec.B))
+		return fmt.Errorf("unexpected %d bytes left in entry", len(dec.B))
 	}
 	return nil
 }
@@ -1157,7 +1156,7 @@ func (r *walReader) decodeSamples(flag byte, b []byte, res *[]record.RefSample) 
 		return errors.Wrapf(dec.Err(), "decode error after %d samples", len(*res))
 	}
 	if len(dec.B) > 0 {
-		return errors.Errorf("unexpected %d bytes left in entry", len(dec.B))
+		return fmt.Errorf("unexpected %d bytes left in entry", len(dec.B))
 	}
 	return nil
 }
@@ -1177,7 +1176,7 @@ func (r *walReader) decodeDeletes(flag byte, b []byte, res *[]tombstones.Stone) 
 		return dec.Err()
 	}
 	if len(dec.B) > 0 {
-		return errors.Errorf("unexpected %d bytes left in entry", len(dec.B))
+		return fmt.Errorf("unexpected %d bytes left in entry", len(dec.B))
 	}
 	return nil
 }

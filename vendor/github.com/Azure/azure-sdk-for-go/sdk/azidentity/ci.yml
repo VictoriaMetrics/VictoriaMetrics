@@ -25,6 +25,7 @@ stages:
 - template: /eng/pipelines/templates/jobs/archetype-sdk-client.yml
   parameters:
     RunLiveTests: true
+    UsePipelineProxy: false
     ServiceDirectory: 'azidentity'
     CloudConfig:
       Public:
