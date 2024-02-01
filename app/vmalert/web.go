@@ -101,7 +101,7 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		WriteListGroups(w, r, rh.groups())
 		return true
 
-	case "/vmalert/api/v1/rules", "/api/v1/rules":
+	case "/vmalert/api/v1/rules":
 		// path used by Grafana for ng alerting
 		data, err := rh.listGroups()
 		if err != nil {
@@ -111,6 +111,27 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		w.Header().Set("Content-Type", "application/json")
 		w.Write(data)
 		return true
+
+	case "/api/v1/rules":
+		// path used by Grafana for ng alerting
+		var data []byte
+		var err error
+
+		ruleType := r.URL.Query().Get("type")
+		if ruleType == "alert" || ruleType == "record" {
+			data, err = rh.listFilterGroups(ruleType)
+		} else {
+			data, err = rh.listGroups()
+		}
+
+		if err != nil {
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(data)
+		return true
+
 	case "/vmalert/api/v1/alerts", "/api/v1/alerts":
 		// path used by Grafana for ng alerting
 		data, err := rh.listAlerts()
@@ -207,6 +228,42 @@ type listGroupsResponse struct {
 	} `json:"data"`
 }
 
+func (rh *requestHandler) filterGroups(ruleType string) []apiGroup {
+	rh.m.groupsMu.RLock()
+	defer rh.m.groupsMu.RUnlock()
+	var filteredRules []apiRule
+
+	var vmRuleType string
+	if ruleType == "alert" {
+		vmRuleType = "alerting"
+	} else if ruleType == "record" {
+		vmRuleType = "recording"
+	}
+
+	groups := make([]apiGroup, 0)
+	for _, g := range rh.m.groups {
+		filteredRules = make([]apiRule, 0)
+		for _, r := range g.Rules {
+			rule, _ := rh.m.ruleAPI(g.ID(), r.ID())
+			if rule.Type == vmRuleType {
+				filteredRules = append(filteredRules, rule)
+			}
+		}
+		if len(filteredRules) > 0 {
+			groupApi := groupToAPI(g)
+			groupApi.Rules = filteredRules
+			groups = append(groups, groupApi)
+		}
+	}
+
+	// sort list of alerts for deterministic output
+	sort.Slice(groups, func(i, j int) bool {
+		return groups[i].Name < groups[j].Name
+	})
+
+	return groups
+}
+
 func (rh *requestHandler) groups() []apiGroup {
 	rh.m.groupsMu.RLock()
 	defer rh.m.groupsMu.RUnlock()
@@ -227,6 +284,19 @@ func (rh *requestHandler) groups() []apiGroup {
 func (rh *requestHandler) listGroups() ([]byte, error) {
 	lr := listGroupsResponse{Status: "success"}
 	lr.Data.Groups = rh.groups()
+	b, err := json.Marshal(lr)
+	if err != nil {
+		return nil, &httpserver.ErrorWithStatusCode{
+			Err:        fmt.Errorf(`error encoding list of active alerts: %w`, err),
+			StatusCode: http.StatusInternalServerError,
+		}
+	}
+	return b, nil
+}
+
+func (rh *requestHandler) listFilterGroups(ruleType string) ([]byte, error) {
+	lr := listGroupsResponse{Status: "success"}
+	lr.Data.Groups = rh.filterGroups(ruleType)
 	b, err := json.Marshal(lr)
 	if err != nil {
 		return nil, &httpserver.ErrorWithStatusCode{
