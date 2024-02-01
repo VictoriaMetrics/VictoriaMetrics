@@ -1,4 +1,4 @@
-import React, { FC, useCallback, useEffect, useRef, useState } from "preact/compat";
+import React, { FC, useEffect, useRef, useState } from "preact/compat";
 import { KeyboardEvent } from "react";
 import { ErrorTypes } from "../../../types";
 import TextField from "../../Main/TextField/TextField";
@@ -62,7 +62,7 @@ const QueryEditor: FC<QueryEditorProps> = ({
     onChange(val);
   };
 
-  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+  const handleKeyDown = (e: KeyboardEvent) => {
     const { key, ctrlKey, metaKey, shiftKey } = e;
 
     const value = (e.target as HTMLTextAreaElement).value || "";
@@ -94,7 +94,7 @@ const QueryEditor: FC<QueryEditorProps> = ({
       e.preventDefault();
       onEnter();
     }
-  }, [openAutocomplete]);
+  };
 
   const handleChangeFoundOptions = (val: AutocompleteOptions[]) => {
     setOpenAutocomplete(!!val.length);

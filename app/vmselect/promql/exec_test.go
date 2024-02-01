@@ -3706,7 +3706,7 @@ func TestExecSuccess(t *testing.T) {
 		q := `(
 		  (label_set(time(), "t1", "v1", "__name__", "q1") or label_set(10, "t2", "v2", "__name__", "q2"))
 		    +
-		  (label_set(100, "t1", "v1", "__name__", "q3") or label_set(time(), "t2", "v3"))
+		  (label_set(100, "t1", "v1", "__name__", "q1") or label_set(time(), "t2", "v3"))
 		) keep_metric_names`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,

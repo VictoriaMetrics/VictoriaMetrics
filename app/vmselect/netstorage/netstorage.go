@@ -1227,7 +1227,7 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 			// bigger than maxFastAllocBlockSize bytes at append() below.
 			brsPool = make([]blockRef, 0, maxFastAllocBlockSize/unsafe.Sizeof(blockRef{}))
 		}
-		if brs.brs == nil || haveSameBlockRefTails(brs.brs, brsPool) {
+		if canAppendToBlockRefPool(brsPool, brs.brs) {
 			// It is safe appending blockRef to brsPool, since there are no other items added there yet.
 			brsPool = append(brsPool, blockRef{
 				partRef: partRef,
@@ -1295,10 +1295,23 @@ type blockRef struct {
 	addr    tmpBlockAddr
 }
 
-func haveSameBlockRefTails(a, b []blockRef) bool {
-	sha := (*reflect.SliceHeader)(unsafe.Pointer(&a))
-	shb := (*reflect.SliceHeader)(unsafe.Pointer(&b))
-	return sha.Data+uintptr(sha.Len)*unsafe.Sizeof(blockRef{}) == shb.Data+uintptr(shb.Len)*unsafe.Sizeof(blockRef{})
+// canAppendToBlockRefPool returns true if a points to the pool and the last item in a is the last item in the pool.
+//
+// In this case it is safe appending an item to the pool and then updating the a, so it refers to the extended slice.
+//
+// True is also returned if a is nil, since in this case it is safe appending an item to the pool and pointing a
+// to the last item in the pool.
+func canAppendToBlockRefPool(pool, a []blockRef) bool {
+	if a == nil {
+		return true
+	}
+	if len(a) > len(pool) {
+		// a doesn't belong to pool
+		return false
+	}
+	shPool := (*reflect.SliceHeader)(unsafe.Pointer(&pool))
+	shA := (*reflect.SliceHeader)(unsafe.Pointer(&a))
+	return shPool.Data+uintptr(shPool.Len)*unsafe.Sizeof(blockRef{}) == shA.Data+uintptr(shA.Len)*unsafe.Sizeof(blockRef{})
 }
 
 func setupTfss(qt *querytracer.Tracer, tr storage.TimeRange, tagFilterss [][]storage.TagFilter, maxMetrics int, deadline searchutils.Deadline) ([]*storage.TagFilters, error) {
