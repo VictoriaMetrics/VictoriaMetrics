@@ -78,6 +78,7 @@ const Select: FC<SelectProps> = ({
   };
 
   const handleSelected = (val: string) => {
+    setSearch("");
     onChange(val);
     if (!isMultiple) handleCloseList();
     if (isMultiple && inputRef.current) inputRef.current.focus();
