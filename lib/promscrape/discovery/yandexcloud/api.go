@@ -2,7 +2,6 @@ package yandexcloud
 
 import (
 	"bytes"
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -60,10 +59,8 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse TLS config: %w", err)
 		}
-		transport, err = ac.NewRoundTripper(func(tls *tls.Config) (http.RoundTripper, error) {
-			return &http.Transport{
-				MaxIdleConnsPerHost: 100,
-			}, nil
+		transport, err = ac.NewRoundTripper(func(tr *http.Transport) {
+			tr.MaxIdleConnsPerHost = 100
 		})
 		if err != nil {
 			return nil, fmt.Errorf("cannot initialize TLS config: %w", err)

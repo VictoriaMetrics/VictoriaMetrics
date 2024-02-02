@@ -2,7 +2,6 @@ package discoveryutils
 
 import (
 	"context"
-	"crypto/tls"
 	"errors"
 	"flag"
 	"fmt"
@@ -112,29 +111,23 @@ func NewClient(apiServer string, ac *promauth.Config, proxyURL *proxy.URL, proxy
 		proxyURLFunc = http.ProxyURL(pu)
 	}
 
-	tr, err := ac.NewRoundTripper(func(tlsCfg *tls.Config) (http.RoundTripper, error) {
-		return &http.Transport{
-			TLSClientConfig:       tlsCfg,
-			Proxy:                 proxyURLFunc,
-			TLSHandshakeTimeout:   10 * time.Second,
-			MaxIdleConnsPerHost:   *maxConcurrency,
-			ResponseHeaderTimeout: DefaultClientReadTimeout,
-			DialContext:           dialFunc,
-		}, nil
+	tr, err := ac.NewRoundTripper(func(tr *http.Transport) {
+		tr.Proxy = proxyURLFunc
+		tr.TLSHandshakeTimeout = 10 * time.Second
+		tr.MaxIdleConnsPerHost = *maxConcurrency
+		tr.ResponseHeaderTimeout = DefaultClientReadTimeout
+		tr.DialContext = dialFunc
 	})
 	if err != nil {
 		return nil, fmt.Errorf("cannot initialize tls config: %w", err)
 	}
 
-	blockingTR, err := ac.NewRoundTripper(func(tlsCfg *tls.Config) (http.RoundTripper, error) {
-		return &http.Transport{
-			TLSClientConfig:       tlsCfg,
-			Proxy:                 proxyURLFunc,
-			TLSHandshakeTimeout:   10 * time.Second,
-			MaxIdleConnsPerHost:   1000,
-			ResponseHeaderTimeout: BlockingClientReadTimeout,
-			DialContext:           dialFunc,
-		}, nil
+	blockingTR, err := ac.NewRoundTripper(func(tr *http.Transport) {
+		tr.Proxy = proxyURLFunc
+		tr.TLSHandshakeTimeout = 10 * time.Second
+		tr.MaxIdleConnsPerHost = 1000
+		tr.ResponseHeaderTimeout = BlockingClientReadTimeout
+		tr.DialContext = dialFunc
 	})
 	if err != nil {
 		return nil, fmt.Errorf("cannot initialize tls config: %w", err)

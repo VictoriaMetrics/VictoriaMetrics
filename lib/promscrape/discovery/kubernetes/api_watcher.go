@@ -2,7 +2,6 @@ package kubernetes
 
 import (
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -252,14 +251,11 @@ func newGroupWatcher(apiServer string, ac *promauth.Config, namespaces []string,
 	if proxyURL != nil {
 		proxy = http.ProxyURL(proxyURL)
 	}
-	tr, err := ac.NewRoundTripper(func(tlsConfig *tls.Config) (http.RoundTripper, error) {
-		return &http.Transport{
-			TLSClientConfig:     tlsConfig,
-			Proxy:               proxy,
-			TLSHandshakeTimeout: 10 * time.Second,
-			IdleConnTimeout:     *apiServerTimeout,
-			MaxIdleConnsPerHost: 100,
-		}, nil
+	tr, err := ac.NewRoundTripper(func(tr *http.Transport) {
+		tr.Proxy = proxy
+		tr.TLSHandshakeTimeout = 10 * time.Second
+		tr.IdleConnTimeout = *apiServerTimeout
+		tr.MaxIdleConnsPerHost = 100
 	})
 
 	if err != nil {

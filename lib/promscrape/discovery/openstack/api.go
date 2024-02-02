@@ -2,7 +2,6 @@ package openstack
 
 import (
 	"bytes"
-	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -95,11 +94,8 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 			cfg.client.CloseIdleConnections()
 			return nil, fmt.Errorf("cannot parse TLS config: %w", err)
 		}
-		tr, err := ac.NewRoundTripper(func(tlsConfig *tls.Config) (http.RoundTripper, error) {
-			return &http.Transport{
-				TLSClientConfig:     tlsConfig,
-				MaxIdleConnsPerHost: 100,
-			}, nil
+		tr, err := ac.NewRoundTripper(func(tr *http.Transport) {
+			tr.MaxIdleConnsPerHost = 100
 		})
 		if err != nil {
 			cfg.client.CloseIdleConnections()

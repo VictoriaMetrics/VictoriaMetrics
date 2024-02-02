@@ -70,21 +70,19 @@ func newClient(ctx context.Context, sw *ScrapeWork) (*client, error) {
 		proxyURLFunc = http.ProxyURL(pu)
 	}
 
-	rt, err := sw.AuthConfig.NewRoundTripper(func(tlsConfig *tls.Config) (http.RoundTripper, error) {
+	rt, err := sw.AuthConfig.NewRoundTripper(func(tr *http.Transport) {
 		if !isTLS && proxyURL.IsHTTPOrHTTPS() {
-			tlsConfig = tlsCfg
+			tr.TLSClientConfig = tlsCfg
 		}
-		return &http.Transport{
-			TLSClientConfig:        tlsConfig,
-			Proxy:                  proxyURLFunc,
-			TLSHandshakeTimeout:    10 * time.Second,
-			IdleConnTimeout:        2 * sw.ScrapeInterval,
-			DisableCompression:     *disableCompression || sw.DisableCompression,
-			DisableKeepAlives:      *disableKeepAlive || sw.DisableKeepAlive,
-			DialContext:            statStdDial,
-			MaxIdleConnsPerHost:    100,
-			MaxResponseHeaderBytes: int64(maxResponseHeadersSize.N),
-		}, nil
+
+		tr.Proxy = proxyURLFunc
+		tr.TLSHandshakeTimeout = 10 * time.Second
+		tr.IdleConnTimeout = 2 * sw.ScrapeInterval
+		tr.DisableCompression = *disableCompression || sw.DisableCompression
+		tr.DisableKeepAlives = *disableKeepAlive || sw.DisableKeepAlive
+		tr.DialContext = statStdDial
+		tr.MaxIdleConnsPerHost = 100
+		tr.MaxResponseHeaderBytes = int64(maxResponseHeadersSize.N)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("cannot initialize tls config: %w", err)

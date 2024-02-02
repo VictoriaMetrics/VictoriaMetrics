@@ -646,11 +646,7 @@ func TestTLSConfigWithCertificatesFilesUpdate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error when parsing config: %s", err)
 	}
-	tr, err := ac.NewRoundTripper(func(tlsConfig *tls.Config) (http.RoundTripper, error) {
-		return &http.Transport{
-			TLSClientConfig: tlsConfig,
-		}, nil
-	})
+	tr, err := ac.NewRoundTripper(func(tr *http.Transport) {})
 	if err != nil {
 		t.Fatalf("unexpected error when creating roundtripper: %s", err)
 	}
