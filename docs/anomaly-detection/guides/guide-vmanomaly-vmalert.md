@@ -36,7 +36,7 @@ aliases:
 
 All the service parameters are defined in a config file.
 
-> **Note**: As of the time of writing, in the [1.9.2](https://docs.victoriametrics.com/anomaly-detection/changelog/#v191) release and earlier versions, each `vmanomaly` configuration file is limited to supporting only one model type. To utilize *different models* on your data, it is necessary to run multiple instances of the `vmanomaly` process. Each instance should operate with its own configuration file, differing in the `model` section.
+> **Note**: As of the time of writing, in the [1.9.2](https://docs.victoriametrics.com/anomaly-detection/changelog/#v192) release and earlier versions, each `vmanomaly` configuration file is limited to supporting only one model type. To utilize *different models* on your data, it is necessary to run multiple instances of the `vmanomaly` process. Each instance should operate with its own configuration file, differing in the `model` section.
 
 
 **vmanomaly** does the following:
