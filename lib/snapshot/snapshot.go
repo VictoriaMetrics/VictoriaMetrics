@@ -17,8 +17,9 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
+var snapshotNameRegexp = regexp.MustCompile(`^[0-9]{14}-[0-9A-Fa-f]+$`)
+
 var (
-	snapshotNameRegexp    = regexp.MustCompile(`^[0-9]{14}-[0-9A-Fa-f]+$`)
 	tlsInsecureSkipVerify = flag.Bool("snapshot.tlsInsecureSkipVerify", false, "Whether to skip tls verification when connecting to -snapshotCreateURL")
 	tlsCertFile           = flag.String("snapshot.tlsCertFile", "", "Optional path to client-side TLS certificate file to use when connecting to -snapshotCreateURL")
 	tlsKeyFile            = flag.String("snapshot.tlsKeyFile", "", "Optional path to client-side TLS certificate key to use when connecting to -snapshotCreateURL")
@@ -43,7 +44,7 @@ func Create(createSnapshotURL string) (string, error) {
 	// create Transport
 	tr, err := httputils.Transport(createSnapshotURL, *tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify)
 	if err != nil {
-		logger.Fatalf("failed to create transport: %s", err)
+		return "", err
 	}
 	hc := &http.Client{Transport: tr}
 
@@ -88,7 +89,7 @@ func Delete(deleteSnapshotURL string, snapshotName string) error {
 	// create Transport
 	tr, err := httputils.Transport(deleteSnapshotURL, *tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify)
 	if err != nil {
-		logger.Fatalf("failed to create transport: %s", err)
+		return err
 	}
 	hc := &http.Client{Transport: tr}
 	resp, err := hc.PostForm(u.String(), formData)
