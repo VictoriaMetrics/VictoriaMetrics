@@ -51,6 +51,9 @@ var (
 	shardByURLLabels = flagutil.NewArrayString("remoteWrite.shardByURL.labels", "Optional list of labels, which must be used for sharding outgoing samples "+
 		"among remote storage systems if -remoteWrite.shardByURL command-line flag is set. By default all the labels are used for sharding in order to gain "+
 		"even distribution of series over the specified -remoteWrite.url systems")
+	shardByURLExcludeLabels = flagutil.NewArrayString("remoteWrite.shardByURL.excludeLabels", "Optional list of labels to exclude, which must be used for sharding outgoing samples "+
+		"among remote storage systems if -remoteWrite.shardByURL command-line flag is set. By default all the labels are used for sharding in order to gain "+
+		"even distribution of series over the specified -remoteWrite.url systems")
 	tmpDataPath = flag.String("remoteWrite.tmpDataPath", "vmagent-remotewrite-data", "Path to directory for storing pending data, which isn't sent to the configured -remoteWrite.url . "+
 		"See also -remoteWrite.maxDiskUsagePerURL and -remoteWrite.disableOnDiskQueue")
 	keepDanglingQueues = flag.Bool("remoteWrite.keepDanglingQueues", false, "Keep persistent queues contents at -remoteWrite.tmpDataPath in case there are no matching -remoteWrite.url. "+
@@ -149,6 +152,7 @@ func InitSecretFlags() {
 }
 
 var shardByURLLabelsMap map[string]struct{}
+var shardByURLExcludeLabelsMap map[string]struct{}
 
 // Init initializes remotewrite.
 //
@@ -198,6 +202,13 @@ func Init() {
 			m[label] = struct{}{}
 		}
 		shardByURLLabelsMap = m
+	}
+	if len(*shardByURLExcludeLabels) > 0 {
+		m := make(map[string]struct{}, len(*shardByURLExcludeLabels))
+		for _, label := range *shardByURLExcludeLabels {
+			m[label] = struct{}{}
+		}
+		shardByURLExcludeLabelsMap = m
 	}
 	initLabelsGlobal()
 
@@ -543,6 +554,14 @@ func tryPushBlockToRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []prompbmar
 				hashLabels = tmpLabels.Labels[:0]
 				for _, label := range ts.Labels {
 					if _, ok := shardByURLLabelsMap[label.Name]; ok {
+						hashLabels = append(hashLabels, label)
+					}
+				}
+			}
+			if len(shardByURLExcludeLabelsMap) > 0 {
+				hashLabels = tmpLabels.Labels[:0]
+				for _, label := range ts.Labels {
+					if _, ok := shardByURLExcludeLabelsMap[label.Name]; !ok {
 						hashLabels = append(hashLabels, label)
 					}
 				}
