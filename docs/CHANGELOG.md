@@ -38,7 +38,7 @@ The v1.97.x line will be supported for at least 12 months since [v1.97.0](https:
 
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): add support for `username_file` option at `basic_auth` section in [`scrape_configs`](https://docs.victoriametrics.com/sd_configs/#http-api-client-options). See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5511). Thanks to @wasim-nihal for [the initial implementation](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5720).
 * FEATURE: [dashboards/vmagent](https://grafana.com/grafana/dashboards/12683): add `Targets scraped/s` stat panel showing the number of targets scraped by the vmagent per-second.
-* FEATURE: dashboards/all: add new panel `CPU spent on GC`. It should help identifying cases when too much CPU is spent on garbage collection, and advice users on how this can be addressed.
+* FEATURE: [dashboards/all](https://grafana.com/orgs/victoriametrics): add new panel `CPU spent on GC`. It should help identifying cases when too much CPU is spent on garbage collection, and advice users on how this can be addressed.
 
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): fix the increased CPU usage when sending the data to remote storage. The issue has been introduced in [v1.97.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.0).
 * BUGFIX: fix `runtime error: slice bounds out of range` panic, which can occur during query execution. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5733). The bug has been introduced in `v1.97.0`.
