@@ -693,7 +693,11 @@ It is recommended protecting the following endpoints with authKeys:
 ## Monitoring
 
 `vmauth` exports various metrics in Prometheus exposition format at `http://vmauth-host:8427/metrics` page. It is recommended setting up regular scraping of this page
-either via [vmagent](https://docs.victoriametrics.com/vmagent.html) or via Prometheus, so the exported metrics could be analyzed later.
+either via [vmagent](https://docs.victoriametrics.com/vmagent.html) or via Prometheus-compatible scraper, so the exported metrics could be analyzed later.
+
+If you use Google Cloud Managed Prometheus for scraping metrics from VictoriaMetrics components, then pass `-metrics.exposeMetadata`
+command-line to them, so they add `TYPE` and `HELP` comments per each exposed metric at `/metrics` page.
+See [these docs](https://cloud.google.com/stackdriver/docs/managed-prometheus/troubleshooting#missing-metric-type) for details.
 
 `vmauth` exports the following metrics per each defined user in [`-auth.config`](#auth-config):
 

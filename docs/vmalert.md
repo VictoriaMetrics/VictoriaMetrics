@@ -790,8 +790,12 @@ See more details [here](https://docs.victoriametrics.com/vmalert-tool.html#Unit-
 
 `vmalert` exports various metrics in Prometheus exposition format at `http://vmalert-host:8880/metrics` page.
 The default list of alerting rules for these metric can be found [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker).
-We recommend setting up regular scraping of this page either through `vmagent` or by Prometheus so that the exported
-metrics may be analyzed later.
+We recommend setting up regular scraping of this page either through [vmagent](https://docs.victoriametrics.com/vmagent.html) or by Prometheus-compatible scraper,
+so that the exported metrics may be analyzed later.
+
+If you use Google Cloud Managed Prometheus for scraping metrics from VictoriaMetrics components, then pass `-metrics.exposeMetadata`
+command-line to them, so they add `TYPE` and `HELP` comments per each exposed metric at `/metrics` page.
+See [these docs](https://cloud.google.com/stackdriver/docs/managed-prometheus/troubleshooting#missing-metric-type) for details.
 
 Use the official [Grafana dashboard](https://grafana.com/grafana/dashboards/14950) for `vmalert` overview.
 Graphs on this dashboard contain useful hints - hover the `i` icon in the top left corner of each graph in order to read it.

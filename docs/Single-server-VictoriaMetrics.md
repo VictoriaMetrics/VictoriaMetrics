@@ -2020,12 +2020,17 @@ mkfs.ext4 ... -O 64bit,huge_file,extent -T huge
 ## Monitoring
 
 VictoriaMetrics exports internal metrics in Prometheus exposition format at `/metrics` page.
-These metrics can be scraped via [vmagent](https://docs.victoriametrics.com/vmagent.html) or Prometheus.
+These metrics can be scraped via [vmagent](https://docs.victoriametrics.com/vmagent.html) or any other Prometheus-compatible scraper.
+
+If you use Google Cloud Managed Prometheus for scraping metrics from VictoriaMetrics components, then pass `-metrics.exposeMetadata`
+command-line to them, so they add `TYPE` and `HELP` comments per each exposed metric at `/metrics` page.
+See [these docs](https://cloud.google.com/stackdriver/docs/managed-prometheus/troubleshooting#missing-metric-type) for details.
+
 Alternatively, single-node VictoriaMetrics can self-scrape the metrics when `-selfScrapeInterval` command-line flag is 
 set to duration greater than 0. For example, `-selfScrapeInterval=10s` would enable self-scraping of `/metrics` page 
 with 10 seconds interval.
 
-_Please note, never use loadbalancer address for scraping metrics. All monitored components should be scraped directly by their address._
+_Please note, never use loadbalancer address for scraping metrics. All the monitored components should be scraped directly by their address._
 
 Official Grafana dashboards available for [single-node](https://grafana.com/grafana/dashboards/10229)
 and [clustered](https://grafana.com/grafana/dashboards/11176) VictoriaMetrics.

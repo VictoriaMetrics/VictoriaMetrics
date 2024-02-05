@@ -1023,8 +1023,12 @@ See also [cardinality explorer docs](https://docs.victoriametrics.com/#cardinali
 ## Monitoring
 
 `vmagent` exports various metrics in Prometheus exposition format at `http://vmagent-host:8429/metrics` page.
-We recommend setting up regular scraping of this page either through `vmagent` itself or by Prometheus
+We recommend setting up regular scraping of this page either through `vmagent` itself or by Prometheus-compatible scraper,
 so that the exported metrics may be analyzed later.
+
+If you use Google Cloud Managed Prometheus for scraping metrics from VictoriaMetrics components, then pass `-metrics.exposeMetadata`
+command-line to them, so they add `TYPE` and `HELP` comments per each exposed metric at `/metrics` page.
+See [these docs](https://cloud.google.com/stackdriver/docs/managed-prometheus/troubleshooting#missing-metric-type) for details.
 
 Use official [Grafana dashboard](https://grafana.com/grafana/dashboards/12683) for `vmagent` state overview.
 Graphs on this dashboard contain useful hints - hover the `i` icon at the top left corner of each graph in order to read it.
