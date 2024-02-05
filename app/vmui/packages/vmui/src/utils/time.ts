@@ -241,7 +241,7 @@ export const getBrowserTimezone = () => {
   const timezone = dayjs.tz.guess();
   const isValid = isValidTimezone(timezone);
   return  {
-    isInvalid: !isValid,
+    isValid,
     title: isValid ? `Browser Time (${timezone})` : "Browser timezone (UTC)",
     region: isValid ? timezone : "UTC",
   };

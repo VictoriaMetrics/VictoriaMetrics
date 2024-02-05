@@ -47,7 +47,7 @@ const Timezones: FC<TimezonesProps> = ({ timezoneState, defaultTimezone, onChang
       title: browserTimezone.title,
       region: browserTimezone.region,
       utc: getUTCByTimezone(browserTimezone.region),
-      isInvalid: browserTimezone.isInvalid
+      isInvalid: !browserTimezone.isValid
     },
     {
       title: "UTC (Coordinated Universal Time)",
