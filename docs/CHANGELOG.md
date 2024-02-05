@@ -36,6 +36,7 @@ Released at 2024-02-01
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/CHANGELOG.html#v1970) release**
 
+* FEATURE: [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): add `-disableReroutingOnUnavailable` command-line flag, which can be used for reducing resource usage spikes at `vmstorage` nodes during rolling restart. Thanks to @Muxa1L for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5713).
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): add support for `username_file` option at `basic_auth` section in [`scrape_configs`](https://docs.victoriametrics.com/sd_configs/#http-api-client-options). See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5511). Thanks to @wasim-nihal for [the initial implementation](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5720).
 * FEATURE: [dashboards/vmagent](https://grafana.com/grafana/dashboards/12683): add `Targets scraped/s` stat panel showing the number of targets scraped by the vmagent per-second.
 * FEATURE: [dashboards/all](https://grafana.com/orgs/victoriametrics): add new panel `CPU spent on GC`. It should help identifying cases when too much CPU is spent on garbage collection, and advice users on how this can be addressed.
