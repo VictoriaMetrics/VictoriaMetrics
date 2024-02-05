@@ -87,7 +87,14 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		WriteRuleDetails(w, r, rule)
 		return true
 	case "/vmalert/groups":
-		WriteListGroups(w, r, rh.groups())
+		var data []apiGroup
+		ruleType := r.URL.Query().Get("type")
+		if ruleType == "alert" || ruleType == "record" {
+			data = rh.filterGroups(ruleType)
+		} else {
+			data = rh.groups()
+		}
+		WriteListGroups(w, r, data)
 		return true
 	case "/vmalert/notifiers":
 		WriteListTargets(w, r, notifier.GetTargets())
@@ -98,7 +105,14 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 	case "/rules":
 		// Grafana makes an extra request to `/rules`
 		// handler in addition to `/api/v1/rules` calls in alerts UI,
-		WriteListGroups(w, r, rh.groups())
+		var data []apiGroup
+		ruleType := r.URL.Query().Get("type")
+		if ruleType == "alert" || ruleType == "record" {
+			data = rh.filterGroups(ruleType)
+		} else {
+			data = rh.groups()
+		}
+		WriteListGroups(w, r, data)
 		return true
 
 	case "/vmalert/api/v1/rules", "/api/v1/rules":
