@@ -38,6 +38,10 @@ var (
 		"Lower values speed up re-rerouting recovery when some of vmstorage nodes become unavailable because of networking issues. "+
 		"Read more about TCP_USER_TIMEOUT at https://blog.cloudflare.com/when-tcp-sockets-refuse-to-die/ . "+
 		"See also -vmstorageDialTimeout")
+	disableReroutingOnUnavailable = flag.Bool("disableReroutingOnUnavailable", false, "Whether to disable re-routing when some of vmstorage nodes are unavailable. "+
+		"Disabled re-routing stops ingestion when some storage nodes are unavailable. "+
+		"On the other side, disabled re-routing minimizes the number of active time series in the cluster "+
+		"during rolling restarts and during spikes in series churn rate.")
 )
 
 var errStorageReadOnly = errors.New("storage node is read only")
@@ -93,6 +97,11 @@ again:
 	if !sn.isReady() {
 		if len(sns) == 1 {
 			// There are no other storage nodes to re-route to. So wait until the current node becomes healthy.
+			sn.brCond.Wait()
+			goto again
+		}
+		if *disableReroutingOnUnavailable {
+			// We should not send timeseries from currently unavailable storage to alive storage nodes
 			sn.brCond.Wait()
 			goto again
 		}
