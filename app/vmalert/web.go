@@ -101,18 +101,7 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		WriteListGroups(w, r, rh.groups())
 		return true
 
-	case "/vmalert/api/v1/rules":
-		// path used by Grafana for ng alerting
-		data, err := rh.listGroups()
-		if err != nil {
-			httpserver.Errorf(w, r, "%s", err)
-			return true
-		}
-		w.Header().Set("Content-Type", "application/json")
-		w.Write(data)
-		return true
-
-	case "/api/v1/rules":
+	case "/vmalert/api/v1/rules", "/api/v1/rules":
 		// path used by Grafana for ng alerting
 		var data []byte
 		var err error
