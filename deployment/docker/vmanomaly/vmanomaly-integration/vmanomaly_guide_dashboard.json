@@ -40,7 +40,7 @@
           "showLineNumbers": false,
           "showMiniMap": false
         },
-        "content": "If you don't see any data, please wait a few minutes. \n\nYou will see a lot of false positive anomalies when you run the guide for the first time. \nThe prediction must be more accurate if you provide vmanomaly 2w of data.\n\nEvery row represents information for one specific mode. \nThe query for anomaly detection is `sum(rate(node_cpu_seconds_total)) by (mode)`\n",
+        "content": "If you don't observe any data initially, please wait a few minutes for it to appear. \n\nUpon the first running the guide (if there is not enough node_exporter monitoring data collected in your system), you may notice a significant number of false positive anomalies found. The predictions will become more accurate with at least two weeks' (full `fit_window`) worth of data provided to vmanomaly.\n\nEach row displays information for a distinct mode. The query used for anomaly detection is `sum(rate(node_cpu_seconds_total)) by (mode, instance, job)`.\n",
         "mode": "markdown"
       },
       "pluginVersion": "10.2.1",
@@ -189,7 +189,7 @@
           "refId": "A"
         }
       ],
-      "title": "CPU median for $mode mode",
+      "title": "CPU rate sum for $mode mode",
       "type": "timeseries"
     },
     {
