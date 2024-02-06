@@ -20,7 +20,7 @@ const useReadyChart = (setPlotScale: SetMinMax) => {
   const onReadyChart = (u: uPlot): void => {
     const handleInteractionStart = (e: MouseEvent | TouchEvent) => {
       const dragByMouse = e instanceof MouseEvent && isLiftClickWithMeta(e);
-      const dragByTouch = e instanceof TouchEvent && e.touches.length > 1;
+      const dragByTouch = window.TouchEvent && e instanceof TouchEvent && e.touches.length > 1;
       if (dragByMouse || dragByTouch) {
         dragChart({ u, e });
       }
