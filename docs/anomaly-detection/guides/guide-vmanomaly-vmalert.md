@@ -101,7 +101,7 @@ node_cpu_seconds_total{cpu="1",mode="iowait"} 51.22
 
 In this context, the metric `node_cpu_seconds_total` provides a comprehensive breakdown of the time each CPU core has spent in various operational modes. These modes include: _user_, _system_, _iowait_, _idle_, _irq&softirq_, _guest_, and _steal_. Each of these eight modes is mutually exclusive, offering distinct insights into CPU activity. For instance, a predominant _iowait_ suggests disk or network bottlenecks, while elevated levels in _user_ or _system_ indicate significant CPU utilization.
 
-The `node_cpu_seconds_total` metric is classified as a [counter](https://docs.victoriametrics.com/keyConcepts.html#counter) type. To analyze the duration each CPU core spends in these modes, it is necessary to compute the rate of change per second using the [rate function](https://docs.victoriametrics.com/MetricsQL.html#rate): `rate(node_cpu_seconds_total)`. For a more refined and smoother aggregation of data by mode, we apply the median function, or the 50% quantile. The resulting query is formulated as follows: `quantile by (mode) (0.5, rate(node_cpu_seconds_total[5m]))`.
+The `node_cpu_seconds_total` metric is classified as a [counter](https://docs.victoriametrics.com/keyConcepts.html#counter) type. To analyze the duration each CPU core spends in these modes, it is necessary to compute the rate of change per second using the [rate function](https://docs.victoriametrics.com/MetricsQL.html#rate): `rate(node_cpu_seconds_total)`. For a more refined and smoother aggregation of data by mode, we apply the sum function. The resulting query is formulated as follows: `sum(rate(node_cpu_seconds_total[5m])) by (mode, instance, job)`.
 
 Below is an illustrative example of how this query might be visualized in Grafana:
 <img alt="node_cpu_rate_graph" src="guide-vmanomaly-vmalert-query.webp">
@@ -160,7 +160,7 @@ model:
 reader:
   datasource_url: "http://victoriametrics:8428/"
   queries:
-    node_cpu_rate: "quantile by (mode) (0.5, rate(node_cpu_seconds_total[5m])"
+    node_cpu_rate: "sum(rate(node_cpu_seconds_total[5m])) by (mode, instance, job)"
 
 writer:
   datasource_url: "http://victoriametrics:8428/"
@@ -199,7 +199,7 @@ groups:
     labels:
       severity: warning
     annotations:
-      summary: Anomaly Score exceeded 1.0. `rate(node_cpu_seconds_total)` is showing abnormal behavior. 
+      summary: Anomaly Score exceeded 1.0. `sum(rate(node_cpu_seconds_total))` is showing abnormal behavior. 
 ```
 
 In the query expression `expr`, it's crucial to establish a criterion based on the generated anomaly scores. Typically, an [anomaly score](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score) ranging from 0.0 to 1.0 indicates that the analyzed value falls within normal behavior. Scores exceeding 1.0 signal increasing confidence from our model that the observed value is anomalous.
@@ -470,13 +470,13 @@ To look at model results we need to go to grafana on the `localhost:3000`. Data
 vmanomaly need some time to generate more data to visualize.
 Let's investigate model output visualization in Grafana.
 On the Grafana Dashboard `Vmanomaly Guide` for each mode of CPU you can investigate:
-* initial query result - `quantile by (mode) (0.5, rate(node_cpu_seconds_total[5m]))`
+* initial query result - `sum(rate(node_cpu_seconds_total[5m])) by (mode, instance, job)`
 * `anomaly_score` 
 * `yhat` - Predicted value
 * `yhat_lower` - Predicted lower boundary
 * `yhat_upper` - Predicted upper boundary
 
-Each of these metrics will contain same labels our query `quantile by (mode) (0.5, rate(node_cpu_seconds_total[5m]))` returns.
+Each of these metrics will contain same labels our query `sum(rate(node_cpu_seconds_total[5m])) by (mode, instance, job)` returns.
 
 ### Anomaly scores for each metric with its according labels. 
 
