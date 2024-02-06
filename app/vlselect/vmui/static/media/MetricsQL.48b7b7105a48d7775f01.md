@@ -810,7 +810,7 @@ Metric names are stripped from the resulting rollups. Add [keep_metric_names](#k
 
 #### timestamp
 
-`timestamp(series_selector[d])` is a [rollup function](#rollup-functions), which returns the timestamp in seconds for the last raw sample
+`timestamp(series_selector[d])` is a [rollup function](#rollup-functions), which returns the timestamp in seconds with millisecond precision for the last raw sample
 on the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
@@ -819,7 +819,7 @@ This function is supported by PromQL. See also [timestamp_with_name](#timestamp_
 
 #### timestamp_with_name
 
-`timestamp_with_name(series_selector[d])` is a [rollup function](#rollup-functions), which returns the timestamp in seconds for the last raw sample
+`timestamp_with_name(series_selector[d])` is a [rollup function](#rollup-functions), which returns the timestamp in seconds with millisecond precision for the last raw sample
 on the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
 
 Metric names are preserved in the resulting rollups.
@@ -828,7 +828,7 @@ See also [timestamp](#timestamp).
 
 #### tfirst_over_time
 
-`tfirst_over_time(series_selector[d])` is a [rollup function](#rollup-functions), which returns the timestamp in seconds for the first raw sample
+`tfirst_over_time(series_selector[d])` is a [rollup function](#rollup-functions), which returns the timestamp in seconds with millisecond precision for the first raw sample
 on the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
@@ -837,7 +837,7 @@ See also [first_over_time](#first_over_time).
 
 #### tlast_change_over_time
 
-`tlast_change_over_time(series_selector[d])` is a [rollup function](#rollup-functions), which returns the timestamp in seconds for the last change
+`tlast_change_over_time(series_selector[d])` is a [rollup function](#rollup-functions), which returns the timestamp in seconds with millisecond precision for the last change
 per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering) on the given lookbehind window `d`.
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
@@ -852,7 +852,7 @@ See also [tlast_change_over_time](#tlast_change_over_time).
 
 #### tmax_over_time
 
-`tmax_over_time(series_selector[d])` is a [rollup function](#rollup-functions), which returns the timestamp in seconds for the raw sample
+`tmax_over_time(series_selector[d])` is a [rollup function](#rollup-functions), which returns the timestamp in seconds with millisecond precision for the raw sample
 with the maximum value on the given lookbehind window `d`. It is calculated independently per each time series returned
 from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
 
@@ -862,7 +862,7 @@ See also [max_over_time](#max_over_time).
 
 #### tmin_over_time
 
-`tmin_over_time(series_selector[d])` is a [rollup function](#rollup-functions), which returns the timestamp in seconds for the raw sample
+`tmin_over_time(series_selector[d])` is a [rollup function](#rollup-functions), which returns the timestamp in seconds with millisecond precision for the raw sample
 with the minimum value on the given lookbehind window `d`. It is calculated independently per each time series returned
 from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
 
@@ -1029,7 +1029,7 @@ for every point of every time series returned by `q`.
 
 Metric names are stripped from the resulting series. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
-This function is supported by PromQL. This function is supported by PromQL. See also [acosh](#acosh).
+This function is supported by PromQL. See also [acosh](#acosh).
 
 #### day_of_month
 
@@ -1044,6 +1044,15 @@ This function is supported by PromQL.
 
 `day_of_week(q)` is a [transform function](#transform-functions), which returns the day of week for every point of every time series returned by `q`.
 It is expected that `q` returns unix timestamps. The returned values are in the range `[0...6]`, where `0` means Sunday and `6` means Saturday.
+
+Metric names are stripped from the resulting series. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
+
+This function is supported by PromQL.
+
+#### day_of_year
+
+`day_of_year(q)` is a [transform function](#transform-functions), which returns the day of year for every point of every time series returned by `q`.
+It is expected that `q` returns unix timestamps. The returned values are in the range `[1...365]` for non-leap years, and `[1 to 366]` in leap years.
 
 Metric names are stripped from the resulting series. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
