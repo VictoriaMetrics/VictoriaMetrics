@@ -121,7 +121,7 @@ func (r *ReaderAt) MustFadviseSequentialRead(prefetch bool) {
 	}
 }
 
-// MustOpenReaderAt opens ReaderAt for reading from filename.
+// MustOpenReaderAt opens ReaderAt for reading from the file located at path.
 //
 // MustClose must be called on the returned ReaderAt when it is no longer needed.
 func MustOpenReaderAt(path string) *ReaderAt {
@@ -129,17 +129,28 @@ func MustOpenReaderAt(path string) *ReaderAt {
 	if err != nil {
 		logger.Panicf("FATAL: cannot open file for reading: %s", err)
 	}
+	return NewReaderAt(f)
+}
+
+// NewReaderAt returns ReaderAt for reading from f.
+//
+// NewReaderAt takes ownership for f, so it shouldn't be closed by the caller.
+//
+// MustClose must be called on the returned ReaderAt when it is no longer needed.
+func NewReaderAt(f *os.File) *ReaderAt {
 	var r ReaderAt
 	r.f = f
 	if !*disableMmap {
 		fi, err := f.Stat()
 		if err != nil {
+			path := f.Name()
 			MustClose(f)
 			logger.Panicf("FATAL: error in fstat(%q): %s", path, err)
 		}
 		size := fi.Size()
 		data, err := mmapFile(f, size)
 		if err != nil {
+			path := f.Name()
 			MustClose(f)
 			logger.Panicf("FATAL: cannot mmap %q: %s", path, err)
 		}

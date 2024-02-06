@@ -409,7 +409,9 @@ func (p *part) searchByTenantIDs(so *searchOptions, bhss *blockHeaders, workCh c
 				if so.minTimestamp > th.maxTimestamp || so.maxTimestamp < th.minTimestamp {
 					continue
 				}
-				scheduleBlockSearch(bh)
+				if !scheduleBlockSearch(bh) {
+					return
+				}
 			}
 			if len(bhs) == 0 {
 				break
