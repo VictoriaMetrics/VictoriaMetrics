@@ -118,6 +118,7 @@ func (rrm *rawRowsMarshaler) marshalToInmemoryPart(mp *inmemoryPart, rows []rawR
 
 		rrm.auxValues, scale = decimal.AppendFloatToDecimal(rrm.auxValues[:0], rrm.auxFloatValues)
 		tmpBlock.Init(tsid, rrm.auxTimestamps, rrm.auxValues, scale, precisionBits)
+		tmpBlock.fixupTimestamps()
 		rrm.bsw.WriteExternalBlock(tmpBlock, ph, &rowsMerged)
 
 		tsid = &r.TSID
@@ -128,6 +129,7 @@ func (rrm *rawRowsMarshaler) marshalToInmemoryPart(mp *inmemoryPart, rows []rawR
 
 	rrm.auxValues, scale = decimal.AppendFloatToDecimal(rrm.auxValues[:0], rrm.auxFloatValues)
 	tmpBlock.Init(tsid, rrm.auxTimestamps, rrm.auxValues, scale, precisionBits)
+	tmpBlock.fixupTimestamps()
 	rrm.bsw.WriteExternalBlock(tmpBlock, ph, &rowsMerged)
 	if rowsMerged != uint64(len(rows)) {
 		logger.Panicf("BUG: unexpected rowsMerged; got %d; want %d", rowsMerged, len(rows))
