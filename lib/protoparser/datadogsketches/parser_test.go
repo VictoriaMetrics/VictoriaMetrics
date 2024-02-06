@@ -1,16 +1,17 @@
 package datadogsketches
 
 import (
+	"math"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
 )
 
 func TestPointsForQuantile(t *testing.T) {
-	f := func(d *Dogsketch, quantile float64, expected float64) {
+	f := func(d *Dogsketch, q float64, vExpected float64) {
 		t.Helper()
-		point := d.pointForQuantile(quantile)
-		assert.InDelta(t, point, expected, 0.5)
+		v := d.valueForQuantile(q)
+		if math.Abs(v-vExpected) > 0.4 {
+			t.Fatalf("unexpected value; got %v; want %v", v, vExpected)
+		}
 	}
 	sketches := &Dogsketch{
 		Min: 8.0,
