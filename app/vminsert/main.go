@@ -15,6 +15,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/clusternative"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/csvimport"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/datadogsketches"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/datadogv1"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/datadogv2"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/graphite"
@@ -349,6 +350,15 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		w.WriteHeader(202)
 		fmt.Fprintf(w, `{"status":"ok"}`)
 		return true
+	case "datadog/api/beta/sketches":
+		datadogsketchesWriteRequests.Inc()
+		if err := datadogsketches.InsertHandlerForHTTP(r); err != nil {
+			datadogsketchesWriteErrors.Inc()
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		w.WriteHeader(202)
+		return true
 	case "datadog/api/v1/validate":
 		datadogValidateRequests.Inc()
 		// See https://docs.datadoghq.com/api/latest/authentication/#validate-api-key
@@ -421,6 +431,9 @@ var (
 
 	datadogv2WriteRequests = metrics.NewCounter(`vm_http_requests_total{path="/insert/{}/datadog/api/v2/series", protocol="datadog"}`)
 	datadogv2WriteErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/insert/{}/datadog/api/v2/series", protocol="datadog"}`)
+
+	datadogsketchesWriteRequests = metrics.NewCounter(`vm_http_requests_total{path="/insert/{}/datadog/api/beta/sketches", protocol="datadog"}`)
+	datadogsketchesWriteErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/insert/{}/datadog/api/beta/sketches", protocol="datadog"}`)
 
 	datadogValidateRequests = metrics.NewCounter(`vm_http_requests_total{path="/insert/{}/datadog/api/v1/validate", protocol="datadog"}`)
 	datadogCheckRunRequests = metrics.NewCounter(`vm_http_requests_total{path="/insert/{}/datadog/api/v1/check_run", protocol="datadog"}`)
