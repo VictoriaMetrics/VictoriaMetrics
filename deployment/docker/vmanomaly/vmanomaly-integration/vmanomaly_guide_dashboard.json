@@ -40,7 +40,7 @@
           "showLineNumbers": false,
           "showMiniMap": false
         },
-        "content": "If you don't observe any data initially, please wait a few minutes for it to appear. \n\nUpon the first running the guide (if there is not enough node_exporter monitoring data collected in your system), you may notice a significant number of false positive anomalies found. The predictions will become more accurate with at least two weeks' (full `fit_window`) worth of data provided to vmanomaly.\n\nEach row displays information for a distinct mode. The query used for anomaly detection is `sum(rate(node_cpu_seconds_total)) by (mode, instance, job)`.\n",
+        "content": "If you don't observe any data initially, please wait a few minutes for it to appear. \n\nUpon the first running the guide (if there is not enough node_exporter monitoring data collected in your system), you may notice a significant number of false positive anomalies found. The predictions will become more accurate with at least two weeks' (full `fit_window`) worth of data provided to vmanomaly.\n\nEach row displays information for a distinct mode. The query used for anomaly detection is `sum(rate(node_cpu_seconds_total[5m])) by (mode, instance, job)`.\n",
         "mode": "markdown"
       },
       "pluginVersion": "10.2.1",
