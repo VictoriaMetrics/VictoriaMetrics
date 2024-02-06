@@ -4,6 +4,7 @@ import { useAppState } from "../state/common/StateContext";
 import { useTimeDispatch } from "../state/time/TimeStateContext";
 import { getFromStorage } from "../utils/storage";
 import dayjs from "dayjs";
+import { getBrowserTimezone } from "../utils/time";
 
 const disabledDefaultTimezone = Boolean(getFromStorage("DISABLED_DEFAULT_TIMEZONE"));
 
@@ -15,7 +16,7 @@ const useFetchDefaultTimezone = () => {
   const [error, setError] = useState<ErrorTypes | string>("");
 
   const setTimezone = (timezoneStr: string) => {
-    const timezone = timezoneStr.toLowerCase() === "local" ?  dayjs.tz.guess() : timezoneStr;
+    const timezone = timezoneStr.toLowerCase() === "local" ? getBrowserTimezone().region : timezoneStr;
     try {
       dayjs().tz(timezone).isValid();
       timeDispatch({ type: "SET_DEFAULT_TIMEZONE", payload: timezone });

@@ -1,15 +1,15 @@
 import React, { FC, useMemo, useRef, useState } from "preact/compat";
-import { getTimezoneList, getUTCByTimezone } from "../../../../utils/time";
+import { getBrowserTimezone, getTimezoneList, getUTCByTimezone } from "../../../../utils/time";
 import { ArrowDropDownIcon } from "../../../Main/Icons";
 import classNames from "classnames";
 import Popper from "../../../Main/Popper/Popper";
 import Accordion from "../../../Main/Accordion/Accordion";
-import dayjs from "dayjs";
 import TextField from "../../../Main/TextField/TextField";
 import { Timezone } from "../../../../types";
 import "./style.scss";
 import useDeviceDetect from "../../../../hooks/useDeviceDetect";
 import useBoolean from "../../../../hooks/useBoolean";
+import WarningTimezone from "./WarningTimezone";
 
 interface TimezonesProps {
   timezoneState: string;
@@ -18,8 +18,11 @@ interface TimezonesProps {
 }
 
 interface PinnedTimezone extends Timezone {
-  title: string
+  title: string;
+  isInvalid?: boolean;
 }
+
+const browserTimezone = getBrowserTimezone();
 
 const Timezones: FC<TimezonesProps> = ({ timezoneState, defaultTimezone, onChange }) => {
   const { isMobile } = useDeviceDetect();
@@ -41,9 +44,10 @@ const Timezones: FC<TimezonesProps> = ({ timezoneState, defaultTimezone, onChang
       utc: defaultTimezone ? getUTCByTimezone(defaultTimezone) : "UTC"
     },
     {
-      title: `Browser Time (${dayjs.tz.guess()})`,
-      region: dayjs.tz.guess(),
-      utc: getUTCByTimezone(dayjs.tz.guess())
+      title: browserTimezone.title,
+      region: browserTimezone.region,
+      utc: getUTCByTimezone(browserTimezone.region),
+      isInvalid: !browserTimezone.isValid
     },
     {
       title: "UTC (Coordinated Universal Time)",
@@ -132,7 +136,7 @@ const Timezones: FC<TimezonesProps> = ({ timezoneState, defaultTimezone, onChang
                 className="vm-timezones-item vm-timezones-list-group-options__item"
                 onClick={createHandlerSetTimezone(t)}
               >
-                <div className="vm-timezones-item__title">{t.title}</div>
+                <div className="vm-timezones-item__title">{t.title}{t.isInvalid && <WarningTimezone/>}</div>
                 <div className="vm-timezones-item__utc">{t.utc}</div>
               </div>
             ))}

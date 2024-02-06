@@ -227,3 +227,22 @@ export const getTimezoneList = (search = "") => {
 export const setTimezone = (timezone: string) => {
   dayjs.tz.setDefault(timezone);
 };
+
+const isValidTimezone = (timezone: string) => {
+  try {
+    dayjs().tz(timezone);
+    return true;
+  } catch (e) {
+    return false;
+  }
+};
+
+export const getBrowserTimezone = () => {
+  const timezone = dayjs.tz.guess();
+  const isValid = isValidTimezone(timezone);
+  return  {
+    isValid,
+    title: isValid ? `Browser Time (${timezone})` : "Browser timezone (UTC)",
+    region: isValid ? timezone : "UTC",
+  };
+};
