@@ -139,9 +139,10 @@ name: <string>
 # See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5155 and https://docs.victoriametrics.com/keyConcepts.html#query-latency.
 [ eval_delay: <duration> ]
 
-# Limit the number of alerts an alerting rule and series a recording
-# rule can produce. 0 is no limit.
-[ limit: <int> | default = 0 ]
+# Limit limits the number of alerts or recording results the rule within this group can produce.
+# On exceeding the limit, rule will be marked with an error and all its results will be discarded.
+# 0 is no limit.
+[ limit: <integer> | default 0]
 
 # How many rules execute at once within a group. Increasing concurrency may speed
 # up group's evaluation duration (exposed via `vmalert_iteration_duration_seconds` metric).
@@ -250,11 +251,6 @@ expr: <string>
 # Is applicable to alerting rules only.
 # Available starting from https://docs.victoriametrics.com/CHANGELOG.html#v1820
 [ debug: <bool> | default = false ]
-
-# Limit limits the number of alerts or recording rule results the rule can produce.
-# On exceeding the limit, rule will be marked with an error and all its results will be discarded.
-# 0 is no limit.
-[ limit: <integer> | default 0]
 
 # Defines the number of rule's updates entries stored in memory
 # and available for view on rule's Details page.
