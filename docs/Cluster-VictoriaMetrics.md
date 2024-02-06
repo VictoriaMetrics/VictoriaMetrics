@@ -281,6 +281,20 @@ and [the general security page at VictoriaMetrics website](https://victoriametri
 
 ## mTLS protection
 
+By default `vminsert` and `vmselect` nodes accept http requests at `8480` and `8481` ports accordingly (these ports can be changed via `-httpListenAddr` command-line flags),
+since it is expected that [vmauth](https://docs.victoriametrics.com/vmauth.html) is used for authorization and [TLS termination](https://en.wikipedia.org/wiki/TLS_termination_proxy)
+in front of `vminsert` and `vmselect`.
+[Enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/enterprise.html) supports the ability to accept [mTLS](https://en.wikipedia.org/wiki/Mutual_authentication)
+requests at `8480` and `8481` ports for `vminsert` and `vmselect` nodes, by specifying `-tls` and `-mtls` command-line flags.
+For example, the following command runs `vmselect`, which accepts only mTLS requests at port `8481`:
+
+```
+./vmselect -tls -mtls
+```
+
+By default system-wide [TLS Root CA](https://en.wikipedia.org/wiki/Root_certificate) is used for verifying client certificates if `-mtls` command-line flag is specified.
+It is possible to specify custom TLS Root CA via `-mtlsCAFile` command-line flag.
+
 By default `vminsert` and `vmselect` nodes use unencrypted connections to `vmstorage` nodes, since it is assumed that all the cluster components [run in a protected environment](#security). [Enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/enterprise.html) provides optional support for [mTLS connections](https://en.wikipedia.org/wiki/Mutual_authentication#mTLS) between cluster components. Pass `-cluster.tls=true` command-line flag to `vminsert`, `vmselect` and `vmstorage` nodes in order to enable mTLS protection. Additionally, `vminsert`, `vmselect` and `vmstorage` must be configured with mTLS certificates via `-cluster.tlsCertFile`, `-cluster.tlsKeyFile` command-line options. These certificates are mutually verified when `vminsert` and `vmselect` dial `vmstorage`.
 
 The following optional command-line flags related to mTLS are supported:
@@ -308,7 +322,12 @@ By default, the following TCP ports are used:
 It is recommended setting up [vmagent](https://docs.victoriametrics.com/vmagent.html)
 or Prometheus to scrape `/metrics` pages from all the cluster components, so they can be monitored and analyzed
 with [the official Grafana dashboard for VictoriaMetrics cluster](https://grafana.com/grafana/dashboards/11176)
-or [an alternative dashboard for VictoriaMetrics cluster](https://grafana.com/grafana/dashboards/11831). Graphs on these dashboards contain useful hints - hover the `i` icon at the top left corner of each graph in order to read it.
+or [an alternative dashboard for VictoriaMetrics cluster](https://grafana.com/grafana/dashboards/11831).
+Graphs on these dashboards contain useful hints - hover the `i` icon at the top left corner of each graph in order to read it.
+
+If you use Google Cloud Managed Prometheus for scraping metrics from VictoriaMetrics components, then pass `-metrics.exposeMetadata`
+command-line to them, so they add `TYPE` and `HELP` comments per each exposed metric at `/metrics` page.
+See [these docs](https://cloud.google.com/stackdriver/docs/managed-prometheus/troubleshooting#missing-metric-type) for details.
 
 It is recommended setting up alerts in [vmalert](https://docs.victoriametrics.com/vmalert.html) or in Prometheus from [this list](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#alerts).
 See more details in the article [VictoriaMetrics Monitoring](https://victoriametrics.com/blog/victoriametrics-monitoring/).
@@ -481,20 +500,6 @@ This strategy allows upgrading the cluster without downtime if the following con
 If at least a single condition isn't met, then the rolling restart may result in cluster unavailability
 during the config update / version upgrade. In this case the following strategy is recommended.
 
-#### Improving re-routing performance during restart
-
-`vmstorage` nodes may experience increased usage for CPU, RAM and disk IO during
-[rolling restarts](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#no-downtime-strategy),
-since they need to process higher load when some of `vmstorage` nodes are temporarily unavailable in the cluster.
-It is possible to reduce resource usage spikes by running more `vminsert` nodes and by passing bigger values
-to `-storage.vminsertConnsShutdownDuration` (available from [v1.95.0](https://docs.victoriametrics.com/CHANGELOG.html#v1950))
-command-line flag at `vmstorage` nodes.
-In this case `vmstorage` increases the interval between gradual closing of `vminsert` connections during graceful shutdown.
-This reduces data ingestion slowdown during rollout restarts.
-
-Make sure that the `-storage.vminsertConnsShutdownDuration` is smaller than the graceful shutdown timeout configured at the system which manages `vmstorage`
-(e.g. Docker, Kubernetes, systemd, etc.). Otherwise the system may kill `vmstorage` node before it finishes gradual closing of `vminsert` connections.
-
 ### Minimum downtime strategy
 
 1. Gracefully stop all the `vminsert` and `vmselect` nodes in parallel.
@@ -512,6 +517,29 @@ The `minimum downtime` strategy has the following benefits comparing to `no down
   for rolling upgrade.
 - It allows minimizing the duration of config update / version upgrade for clusters with big number of nodes
   of for clusters with big `vmstorage` nodes, which may take long time for graceful restart.
+
+## Improving re-routing performance during restart
+
+`vmstorage` nodes may experience increased usage for CPU, RAM and disk IO during
+[rolling restarts](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#no-downtime-strategy),
+since they need to process higher load when some of `vmstorage` nodes are temporarily unavailable in the cluster.
+
+The following approaches can be used for reducing resource usage at `vmstorage` nodes during rolling restart:
+
+- To pass `-disableReroutingOnUnavailable` command-line flag to `vminsert` nodes, so they pause data ingestion when `vmstorage` nodes are restarted
+  instead of re-routing the ingested data to other available `vmstorage` nodes.
+  Note that the `-disableReroutingOnUnavailable` flag may pause data ingestion for long time when some `vmstorage` nodes are unavailable
+  for long time.
+
+- To pass bigger values to `-storage.vminsertConnsShutdownDuration` (available from [v1.95.0](https://docs.victoriametrics.com/CHANGELOG.html#v1950))
+  command-line flag at `vmstorage` nodes.In this case `vmstorage` increases the interval between gradual closing of `vminsert` connections during graceful shutdown.
+  This reduces data ingestion slowdown during rollout restarts.
+
+  Make sure that the `-storage.vminsertConnsShutdownDuration` is smaller than the graceful shutdown timeout configured at the system which manages `vmstorage`
+  (e.g. Docker, Kubernetes, systemd, etc.). Otherwise the system may kill `vmstorage` node before it finishes gradual closing of `vminsert` connections.
+
+See also [minimum downtime strategy](#minimum-downtime-strategy).
+
 
 ## Cluster availability
 
@@ -962,7 +990,9 @@ Below is the output for `/path/to/vminsert -help`:
   -denyQueryTracing
      Whether to disable the ability to trace queries. See https://docs.victoriametrics.com/#query-tracing
   -disableRerouting
-     Whether to disable re-routing when some of vmstorage nodes accept incoming data at slower speed compared to other storage nodes. Disabled re-routing limits the ingestion rate by the slowest vmstorage node. On the other side, disabled re-routing minimizes the number of active time series in the cluster during rolling restarts and during spikes in series churn rate. See also -dropSamplesOnOverload (default true)
+     Whether to disable re-routing when some of vmstorage nodes accept incoming data at slower speed compared to other storage nodes. Disabled re-routing limits the ingestion rate by the slowest vmstorage node. On the other side, disabled re-routing minimizes the number of active time series in the cluster during rolling restarts and during spikes in series churn rate. See also -disableReroutingOnUnavailable and -dropSamplesOnOverload (default true)
+  -disableReroutingOnUnavailable
+     Whether to disable re-routing when some of vmstorage nodes are unavailable. Disabled re-routing stops ingestion when some storage nodes are unavailable. On the other side, disabled re-routing minimizes the number of active time series in the cluster during rolling restarts and during spikes in series churn rate. See also -disableRerouting
   -dropSamplesOnOverload
      Whether to drop incoming samples if the destination vmstorage node is overloaded and/or unavailable. This prioritizes cluster availability over consistency, e.g. the cluster continues accepting all the ingested samples, but some of them may be dropped if vmstorage nodes are temporarily unavailable and/or overloaded. The drop of samples happens before the replication, so it's not recommended to use this flag with -replicationFactor enabled.
   -enableTCP6
@@ -1088,6 +1118,10 @@ Below is the output for `/path/to/vminsert -help`:
   -metricsAuthKey value
      Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
      Flag value can be read from the given file when using -metricsAuthKey=file:///abs/path/to/file or -metricsAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -metricsAuthKey=http://host/path or -metricsAuthKey=https://host/path
+  -mtls
+     Whether to require valid client certificate for https requests to -httpListenAddr . This flag works only if -tls flag is set. See also -mtlsCAFile . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
+  -mtlsCAFile string
+     Optional path to TLS Root CA for verifying client certificates when -mtls is enabled. By default the host system TLS Root CA is used for client certificate verification. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
   -newrelic.maxInsertRequestSize size
      The maximum size in bytes of a single NewRelic request to /newrelic/infra/v2/metrics/events/bulk
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 67108864)
@@ -1144,7 +1178,7 @@ Below is the output for `/path/to/vminsert -help`:
   -storageNode.filter string
      An optional regexp filter for discovered -storageNode addresses according to https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#automatic-vmstorage-discovery. Discovered addresses matching the filter are retained, while other addresses are ignored. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
   -tls
-     Whether to enable TLS for incoming HTTP requests at -httpListenAddr (aka https). -tlsCertFile and -tlsKeyFile must be set if -tls is set
+     Whether to enable TLS for incoming HTTP requests at -httpListenAddr (aka https). -tlsCertFile and -tlsKeyFile must be set if -tls is set. See also -mtls
   -tlsCertFile string
      Path to file with TLS certificate if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated
   -tlsCipherSuites array
@@ -1307,6 +1341,10 @@ Below is the output for `/path/to/vmselect -help`:
   -metricsAuthKey value
      Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
      Flag value can be read from the given file when using -metricsAuthKey=file:///abs/path/to/file or -metricsAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -metricsAuthKey=http://host/path or -metricsAuthKey=https://host/path
+  -mtls
+     Whether to require valid client certificate for https requests to -httpListenAddr . This flag works only if -tls flag is set. See also -mtlsCAFile . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
+  -mtlsCAFile string
+     Optional path to TLS Root CA for verifying client certificates when -mtls is enabled. By default the host system TLS Root CA is used for client certificate verification. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
   -pprofAuthKey value
      Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides httpAuth.* settings
      Flag value can be read from the given file when using -pprofAuthKey=file:///abs/path/to/file or -pprofAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -pprofAuthKey=http://host/path or -pprofAuthKey=https://host/path
@@ -1435,7 +1473,7 @@ Below is the output for `/path/to/vmselect -help`:
   -storageNode.filter string
      An optional regexp filter for discovered -storageNode addresses according to https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#automatic-vmstorage-discovery. Discovered addresses matching the filter are retained, while other addresses are ignored. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
   -tls
-     Whether to enable TLS for incoming HTTP requests at -httpListenAddr (aka https). -tlsCertFile and -tlsKeyFile must be set if -tls is set
+     Whether to enable TLS for incoming HTTP requests at -httpListenAddr (aka https). -tlsCertFile and -tlsKeyFile must be set if -tls is set. See also -mtls
   -tlsCertFile string
      Path to file with TLS certificate if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated
   -tlsCipherSuites array
@@ -1593,6 +1631,10 @@ Below is the output for `/path/to/vmstorage -help`:
   -metricsAuthKey value
      Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
      Flag value can be read from the given file when using -metricsAuthKey=file:///abs/path/to/file or -metricsAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -metricsAuthKey=http://host/path or -metricsAuthKey=https://host/path
+  -mtls
+     Whether to require valid client certificate for https requests to -httpListenAddr . This flag works only if -tls flag is set. See also -mtlsCAFile . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
+  -mtlsCAFile string
+     Optional path to TLS Root CA for verifying client certificates when -mtls is enabled. By default the host system TLS Root CA is used for client certificate verification. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
   -pprofAuthKey value
      Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides httpAuth.* settings
      Flag value can be read from the given file when using -pprofAuthKey=file:///abs/path/to/file or -pprofAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -pprofAuthKey=http://host/path or -pprofAuthKey=https://host/path
@@ -1673,7 +1715,7 @@ Below is the output for `/path/to/vmstorage -help`:
   -storageDataPath string
      Path to storage data (default "vmstorage-data")
   -tls
-     Whether to enable TLS for incoming HTTP requests at -httpListenAddr (aka https). -tlsCertFile and -tlsKeyFile must be set if -tls is set
+     Whether to enable TLS for incoming HTTP requests at -httpListenAddr (aka https). -tlsCertFile and -tlsKeyFile must be set if -tls is set. See also -mtls
   -tlsCertFile string
      Path to file with TLS certificate if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated
   -tlsCipherSuites array
