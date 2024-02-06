@@ -46,7 +46,7 @@ services:
       - '--config=/config.yml'
 
   vmsingle:
-    image: victoriametrics/victoria-metrics:v1.96.0
+    image: victoriametrics/victoria-metrics:v1.97.1
     ports:
       - '8428:8428'
     command:

@@ -30,6 +30,7 @@ interface AutocompleteProps {
   onSelect: (val: string) => void
   onOpenAutocomplete?: (val: boolean) => void
   onFoundOptions?: (val: AutocompleteOptions[]) => void
+  onChangeWrapperRef?: (elementRef: Ref<HTMLDivElement>) => void
 }
 
 enum FocusType {
@@ -52,7 +53,8 @@ const Autocomplete: FC<AutocompleteProps> = ({
   maxDisplayResults,
   onSelect,
   onOpenAutocomplete,
-  onFoundOptions
+  onFoundOptions,
+  onChangeWrapperRef
 }) => {
   const { isMobile } = useDeviceDetect();
   const wrapperEl = useRef<HTMLDivElement>(null);
@@ -165,6 +167,10 @@ const Autocomplete: FC<AutocompleteProps> = ({
   useEffect(() => {
     onFoundOptions && onFoundOptions(hideFoundedOptions ? [] : foundOptions);
   }, [foundOptions, hideFoundedOptions]);
+
+  useEffect(() => {
+    onChangeWrapperRef && onChangeWrapperRef(wrapperEl);
+  }, [wrapperEl]);
 
   return (
     <Popper

@@ -88,7 +88,16 @@ func getCommonLabelFilters(e Expr) []LabelFilter {
 		}
 		return getCommonLabelFilters(arg)
 	case *AggrFuncExpr:
-		arg := getFuncArgForOptimization(t.Name, t.Args)
+		args := t.Args
+		if len(args) > 0 && canAcceptMultipleArgsForAggrFunc(t.Name) {
+			lfs := getCommonLabelFilters(args[0])
+			for _, arg := range args[1:] {
+				lfsNext := getCommonLabelFilters(arg)
+				lfs = intersectLabelFilters(lfs, lfsNext)
+			}
+			return trimFiltersByAggrModifier(lfs, t)
+		}
+		arg := getFuncArgForOptimization(t.Name, args)
 		if arg == nil {
 			return nil
 		}
@@ -242,9 +251,16 @@ func pushdownBinaryOpFiltersInplace(e Expr, lfs []LabelFilter) {
 		}
 	case *AggrFuncExpr:
 		lfs = trimFiltersByAggrModifier(lfs, t)
-		arg := getFuncArgForOptimization(t.Name, t.Args)
-		if arg != nil {
-			pushdownBinaryOpFiltersInplace(arg, lfs)
+		args := t.Args
+		if len(args) > 0 && canAcceptMultipleArgsForAggrFunc(t.Name) {
+			for _, arg := range args {
+				pushdownBinaryOpFiltersInplace(arg, lfs)
+			}
+		} else {
+			arg := getFuncArgForOptimization(t.Name, args)
+			if arg != nil {
+				pushdownBinaryOpFiltersInplace(arg, lfs)
+			}
 		}
 	case *BinaryOpExpr:
 		lfs = TrimFiltersByGroupModifier(lfs, t)
@@ -379,7 +395,20 @@ func getAggrArgIdxForOptimization(funcName string, args []Expr) int {
 	case "quantiles":
 		return len(args) - 1
 	default:
+		if len(args) > 1 && canAcceptMultipleArgsForAggrFunc(funcName) {
+			panic(fmt.Errorf("BUG: %d > 1 args passed to aggregate function %q; this case must be already handled", len(args), funcName))
+		}
 		return 0
+	}
+}
+
+func canAcceptMultipleArgsForAggrFunc(funcName string) bool {
+	switch strings.ToLower(funcName) {
+	case "any", "avg", "count", "distinct", "geomean", "group", "histogram", "mad", "max",
+		"median", "min", "mode", "share", "stddev", "stdvar", "sum", "sum2", "zscore":
+		return true
+	default:
+		return false
 	}
 }
 

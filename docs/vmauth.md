@@ -106,7 +106,7 @@ unauthorized_user:
   - src_hosts:
     - "app1\\.my-host\\.com"
     url_prefix: "http://app1-backend/"
-  - src_paths:
+  - src_hosts:
     - "app2\\.my-host\\.com"
     url_prefix: "http://app2-backend/"
 ```
@@ -665,6 +665,19 @@ This may be useful for passing secrets to the config.
 Please note, vmauth doesn't follow redirects. If destination redirects request to a new location, make sure this 
 location is supported in vmauth `url_map` config.
 
+## mTLS protection
+
+By default `vmauth` accepts http requests at `8427` port (this port can be changed via `-httpListenAddr` command-line flags).
+[Enterprise version of vmauth](https://docs.victoriametrics.com/enterprise.html) supports the ability to accept [mTLS](https://en.wikipedia.org/wiki/Mutual_authentication)
+requests at this port, by specifying `-tls` and `-mtls` command-line flags. For example, the following command runs `vmauth`, which accepts only mTLS requests at port `8427`:
+
+```
+./vmauth -tls -mtls -auth.config=...
+```
+
+By default system-wide [TLS Root CA](https://en.wikipedia.org/wiki/Root_certificate) is used for verifying client certificates if `-mtls` command-line flag is specified.
+It is possible to specify custom TLS Root CA via `-mtlsCAFile` command-line flag.
+
 ## Security
 
 It is expected that all the backend services protected by `vmauth` are located in an isolated private network, so they can be accessed by external users only via `vmauth`.
@@ -680,7 +693,9 @@ Do not transfer Basic Auth headers in plaintext over untrusted networks. Enable 
      Path to file with TLS key. Used only if -tls is set
 ```
 
-Alternatively, [https termination proxy](https://en.wikipedia.org/wiki/TLS_termination_proxy) may be put in front of `vmauth`.
+See [these docs](#mtls-protection) on how to enable [mTLS](https://en.wikipedia.org/wiki/Mutual_authentication) protection at `vmauth`.
+
+Alternatively, [TLS termination proxy](https://en.wikipedia.org/wiki/TLS_termination_proxy) may be put in front of `vmauth`.
 
 It is recommended protecting the following endpoints with authKeys:
 * `/-/reload` with `-reloadAuthKey` command-line flag, so external users couldn't trigger config reload.
@@ -693,7 +708,11 @@ It is recommended protecting the following endpoints with authKeys:
 ## Monitoring
 
 `vmauth` exports various metrics in Prometheus exposition format at `http://vmauth-host:8427/metrics` page. It is recommended setting up regular scraping of this page
-either via [vmagent](https://docs.victoriametrics.com/vmagent.html) or via Prometheus, so the exported metrics could be analyzed later.
+either via [vmagent](https://docs.victoriametrics.com/vmagent.html) or via Prometheus-compatible scraper, so the exported metrics could be analyzed later.
+
+If you use Google Cloud Managed Prometheus for scraping metrics from VictoriaMetrics components, then pass `-metrics.exposeMetadata`
+command-line to them, so they add `TYPE` and `HELP` comments per each exposed metric at `/metrics` page.
+See [these docs](https://cloud.google.com/stackdriver/docs/managed-prometheus/troubleshooting#missing-metric-type) for details.
 
 `vmauth` exports the following metrics per each defined user in [`-auth.config`](#auth-config):
 
@@ -835,12 +854,12 @@ See the docs at https://docs.victoriametrics.com/vmauth.html .
      Incoming http connections are closed after the configured timeout. This may help to spread the incoming load among a cluster of services behind a load balancer. Please note that the real timeout may be bigger by up to 10% as a protection against the thundering herd problem (default 2m0s)
   -http.disableResponseCompression
      Disable compression of HTTP responses to save CPU resources. By default, compression is enabled to save network bandwidth
-  -http.header.csp string
-     Value for 'Content-Security-Policy' header
+  -http.header.csp default-src 'self'
+     Value for 'Content-Security-Policy' header, recommended: default-src 'self'
   -http.header.frameOptions string
      Value for 'X-Frame-Options' header
-  -http.header.hsts string
-     Value for 'Strict-Transport-Security' header
+  -http.header.hsts max-age=31536000; includeSubDomains
+     Value for 'Strict-Transport-Security' header, recommended: max-age=31536000; includeSubDomains
   -http.idleConnTimeout duration
      Timeout for incoming idle http connections (default 1m0s)
   -http.maxGracefulShutdownDuration duration
@@ -911,6 +930,10 @@ See the docs at https://docs.victoriametrics.com/vmauth.html .
   -metricsAuthKey value
      Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
      Flag value can be read from the given file when using -metricsAuthKey=file:///abs/path/to/file or -metricsAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -metricsAuthKey=http://host/path or -metricsAuthKey=https://host/path
+  -mtls
+     Whether to require valid client certificate for https requests to -httpListenAddr . This flag works only if -tls flag is set. See also -mtlsCAFile . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
+  -mtlsCAFile string
+     Optional path to TLS Root CA for verifying client certificates when -mtls is enabled. By default the host system TLS Root CA is used for client certificate verification. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
   -pprofAuthKey value
      Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides httpAuth.* settings
      Flag value can be read from the given file when using -pprofAuthKey=file:///abs/path/to/file or -pprofAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -pprofAuthKey=http://host/path or -pprofAuthKey=https://host/path
@@ -919,14 +942,17 @@ See the docs at https://docs.victoriametrics.com/vmauth.html .
   -pushmetrics.extraLabel array
      Optional labels to add to metrics pushed to every -pushmetrics.url . For example, -pushmetrics.extraLabel='instance="foo"' adds instance="foo" label to all the metrics pushed to every -pushmetrics.url
      Supports an array of values separated by comma or specified via multiple flags.
+     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -pushmetrics.header array
      Optional HTTP request header to send to every -pushmetrics.url . For example, -pushmetrics.header='Authorization: Basic foobar' adds 'Authorization: Basic foobar' header to every request to every -pushmetrics.url
      Supports an array of values separated by comma or specified via multiple flags.
+     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -pushmetrics.interval duration
      Interval for pushing metrics to every -pushmetrics.url (default 10s)
   -pushmetrics.url array
      Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/#push-metrics . By default, metrics exposed at /metrics page aren't pushed to any remote storage
      Supports an array of values separated by comma or specified via multiple flags.
+     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -reloadAuthKey value
      Auth key for /-/reload http endpoint. It must be passed as authKey=...
      Flag value can be read from the given file when using -reloadAuthKey=file:///abs/path/to/file or -reloadAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -reloadAuthKey=http://host/path or -reloadAuthKey=https://host/path
@@ -936,12 +962,13 @@ See the docs at https://docs.victoriametrics.com/vmauth.html .
      Comma-separated list of default HTTP response status codes when vmauth re-tries the request on other backends. See https://docs.victoriametrics.com/vmauth.html#load-balancing for details (default 0)
      Supports array of values separated by comma or specified via multiple flags.
   -tls
-     Whether to enable TLS for incoming HTTP requests at -httpListenAddr (aka https). -tlsCertFile and -tlsKeyFile must be set if -tls is set
+     Whether to enable TLS for incoming HTTP requests at -httpListenAddr (aka https). -tlsCertFile and -tlsKeyFile must be set if -tls is set. See also -mtls
   -tlsCertFile string
      Path to file with TLS certificate if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated
   -tlsCipherSuites array
      Optional list of TLS cipher suites for incoming requests over HTTPS if -tls is set. See the list of supported cipher suites at https://pkg.go.dev/crypto/tls#pkg-constants
      Supports an array of values separated by comma or specified via multiple flags.
+     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -tlsKeyFile string
      Path to file with TLS key if -tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated
   -tlsMinVersion string

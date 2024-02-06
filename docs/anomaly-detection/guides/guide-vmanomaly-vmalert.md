@@ -19,9 +19,9 @@ aliases:
 
 - To use *vmanomaly*, part of the enterprise package, a license key is required. Obtain your key [here](https://victoriametrics.com/products/enterprise/trial/) for this tutorial or for enterprise use.
 - In the tutorial, we'll be using the following VictoriaMetrics components:
-  -  [VictoriaMetrics Single-Node](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html) (v.1.96.0)
-  -  [vmalert](https://docs.victoriametrics.com/vmalert.html) (v.1.96.0)
-  -  [vmagent](https://docs.victoriametrics.com/vmagent.html) (v.1.96.0)
+  -  [VictoriaMetrics Single-Node](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html) (v.1.97.1)
+  -  [vmalert](https://docs.victoriametrics.com/vmalert.html) (v.1.97.1)
+  -  [vmagent](https://docs.victoriametrics.com/vmagent.html) (v.1.97.1)
 - [Grafana](https://grafana.com/)(v.10.2.1) 
 - [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/)
 - [Node exporter](https://github.com/prometheus/node_exporter#node-exporter)(v1.7.0) and [Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/)(v0.25.0)
@@ -36,7 +36,7 @@ aliases:
 
 All the service parameters are defined in a config file.
 
-> **Note**: As of the time of writing, in the [1.9.2](https://docs.victoriametrics.com/anomaly-detection/changelog/#v191) release and earlier versions, each `vmanomaly` configuration file is limited to supporting only one model type. To utilize *different models* on your data, it is necessary to run multiple instances of the `vmanomaly` process. Each instance should operate with its own configuration file, differing in the `model` section.
+> **Note**: As of the time of writing, in the [1.9.2](https://docs.victoriametrics.com/anomaly-detection/changelog/#v192) release and earlier versions, each `vmanomaly` configuration file is limited to supporting only one model type. To utilize *different models* on your data, it is necessary to run multiple instances of the `vmanomaly` process. Each instance should operate with its own configuration file, differing in the `model` section.
 
 
 **vmanomaly** does the following:
@@ -322,7 +322,7 @@ Let's wrap it all up together into the `docker-compose.yml` file.
 services:
   vmagent:
     container_name: vmagent
-    image: victoriametrics/vmagent:v1.96.0
+    image: victoriametrics/vmagent:v1.97.1
     depends_on:
       - "victoriametrics"
     ports:
@@ -339,7 +339,7 @@ services:
 
   victoriametrics:
     container_name: victoriametrics
-    image: victoriametrics/victoria-metrics:v1.96.0
+    image: victoriametrics/victoria-metrics:v1.97.1
     ports:
       - 8428:8428
     volumes:
@@ -372,7 +372,7 @@ services:
 
   vmalert:
     container_name: vmalert
-    image: victoriametrics/vmalert:v1.96.0
+    image: victoriametrics/vmalert:v1.97.1
     depends_on:
       - "victoriametrics"
     ports:
