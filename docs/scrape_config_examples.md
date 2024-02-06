@@ -60,10 +60,14 @@ scrape_configs:
 - job_name: victoriametrics
   static_configs:
   - targets:
-    - localhost:8428
+    - http://localhost:8428/metrics
 ```
 
-Then send `SIGHUP` signal `victoria-metrics-prod` process, so it [reloads the updated `scrape.yaml`](https://docs.victoriametrics.com/vmagent.html#configuration-update):
+Note that the last specified target contains the full url instead of host and port.
+This is an extension supported by VictoriaMetrics and [vmagent](https://docs.victoriametrics.com/vmagent.html) - you can use both `host:port`
+and full urls in scrape target lists.
+
+Send `SIGHUP` signal `victoria-metrics-prod` process, so it [reloads the updated `scrape.yaml`](https://docs.victoriametrics.com/vmagent.html#configuration-update):
 
 ```
 kill -HUP `pidof victoria-metrics-prod`
@@ -88,7 +92,7 @@ scrape_configs:
 - job_name: victoriametrics
   static_configs:
   - targets:
-    - localhost:8428
+    - http://localhost:8428/metrics
 ```
 
 The [`scrape_configs`](https://docs.victoriametrics.com/sd_configs.html#scrape_configs) section contains a list of scrape configs.
@@ -160,10 +164,14 @@ Now let's add more targets to `node_exporter_targets.json`:
 ```json
 [
   {
-    "targets": ["host1:9100", "host2:9100", "host3:9100", "host4:9100"]
+    "targets": ["host1:9100", "host2:9100", "http://host3:9100/metrics", "http://host4:9100/metrics"]
   }
 ]
 ```
+
+Note that the added targets contains full urls instead of host and port.
+This is an extension supported by VictoriaMetrics and [vmagent](https://docs.victoriametrics.com/vmagent.html) - you can use both `host:port`
+and full urls in scrape target lists.
 
 Save the updated `node_exporter_targets.json`, wait for 30 seconds and then refresh the `http://localhost:8428/targets` page.
 Now this page must contain all the targets defined in the updated `node_exporter_targets.json`.
@@ -191,7 +199,7 @@ scrape_configs:
     - 'http://central-config-server/targets?type=node-exporter'
 ```
 
-It is possible directories with `*` wildcards for distinct sets of targets at `file_sd_configs`.
+It is possible to specify directories with `*` wildcards for distinct sets of targets at `file_sd_configs`.
 See [these docs](https://docs.victoriametrics.com/sd_configs.html#file_sd_configs) for details.
 
 [vmagent](https://docs.victoriametrics.com/vmagent.html) and [single-node VictoriaMetrics](https://docs.victoriametrics.com/)
