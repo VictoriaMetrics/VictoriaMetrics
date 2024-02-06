@@ -514,6 +514,8 @@ The following approaches can be used for reducing resource usage at `vmstorage` 
 
 - To pass `-disableReroutingOnUnavailable` command-line flag to `vminsert` nodes, so they pause data ingestion when `vmstorage` nodes are restarted
   instead of re-routing the ingested data to other available `vmstorage` nodes.
+  Note that the `-disableReroutingOnUnavailable` flag may pause data ingestion for long time when some `vmstorage` nodes are unavailable
+  for long time.
 
 - To pass bigger values to `-storage.vminsertConnsShutdownDuration` (available from [v1.95.0](https://docs.victoriametrics.com/CHANGELOG.html#v1950))
   command-line flag at `vmstorage` nodes.In this case `vmstorage` increases the interval between gradual closing of `vminsert` connections during graceful shutdown.
