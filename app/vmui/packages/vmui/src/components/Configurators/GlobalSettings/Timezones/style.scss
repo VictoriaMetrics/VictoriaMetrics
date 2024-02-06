@@ -16,7 +16,15 @@
     }
 
     &__title {
+      display: flex;
+      align-items: center;
+      gap: $padding-small;
       text-transform: capitalize;
+
+      svg {
+        width: 14px;
+        color: $color-warning;
+      }
     }
 
     &__utc {

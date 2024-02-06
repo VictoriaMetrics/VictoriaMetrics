@@ -139,9 +139,10 @@ name: <string>
 # See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5155 and https://docs.victoriametrics.com/keyConcepts.html#query-latency.
 [ eval_delay: <duration> ]
 
-# Limit the number of alerts an alerting rule and series a recording
-# rule can produce. 0 is no limit.
-[ limit: <int> | default = 0 ]
+# Limit limits the number of alerts or recording results the rule within this group can produce.
+# On exceeding the limit, rule will be marked with an error and all its results will be discarded.
+# 0 is no limit.
+[ limit: <integer> | default 0]
 
 # How many rules execute at once within a group. Increasing concurrency may speed
 # up group's evaluation duration (exposed via `vmalert_iteration_duration_seconds` metric).
@@ -790,8 +791,12 @@ See more details [here](https://docs.victoriametrics.com/vmalert-tool.html#Unit-
 
 `vmalert` exports various metrics in Prometheus exposition format at `http://vmalert-host:8880/metrics` page.
 The default list of alerting rules for these metric can be found [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker).
-We recommend setting up regular scraping of this page either through `vmagent` or by Prometheus so that the exported
-metrics may be analyzed later.
+We recommend setting up regular scraping of this page either through [vmagent](https://docs.victoriametrics.com/vmagent.html) or by Prometheus-compatible scraper,
+so that the exported metrics may be analyzed later.
+
+If you use Google Cloud Managed Prometheus for scraping metrics from VictoriaMetrics components, then pass `-metrics.exposeMetadata`
+command-line to them, so they add `TYPE` and `HELP` comments per each exposed metric at `/metrics` page.
+See [these docs](https://cloud.google.com/stackdriver/docs/managed-prometheus/troubleshooting#missing-metric-type) for details.
 
 Use the official [Grafana dashboard](https://grafana.com/grafana/dashboards/14950) for `vmalert` overview.
 Graphs on this dashboard contain useful hints - hover the `i` icon in the top left corner of each graph in order to read it.
@@ -894,6 +899,20 @@ max(vmalert_alerting_rules_last_evaluation_series_fetched) by(group, alertname) 
 See more details [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4039).
 This feature is available only if vmalert is using VictoriaMetrics v1.90 or higher as a datasource.
 
+## mTLS protection
+
+By default `vmalert` accepts http requests at `8880` port (this port can be changed via `-httpListenAddr` command-line flags),
+since it is expected it runs in an isolated trusted network.
+[Enterprise version of vmagent](https://docs.victoriametrics.com/enterprise.html) supports the ability to accept [mTLS](https://en.wikipedia.org/wiki/Mutual_authentication)
+requests at this port, by specifying `-tls` and `-mtls` command-line flags. For example, the following command runs `vmalert`, which accepts only mTLS requests at port `8880`:
+
+```
+./vmalert -tls -mtls -remoteWrite.url=...
+```
+
+By default system-wide [TLS Root CA](https://en.wikipedia.org/wiki/Root_certificate) is used for verifying client certificates if `-mtls` command-line flag is specified.
+It is possible to specify custom TLS Root CA via `-mtlsCAFile` command-line flag.
+
 ## Security
 
 See general recommendations regarding security [here](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#security).
@@ -907,6 +926,7 @@ to the web UI or `/metrics` page if this information is sensitive.
 datasource URL, GET params and headers. Sensitive information such as passwords or auth tokens is stripped by default.
 To disable stripping of such info pass `-datasource.showURL` cmd-line flag to vmalert.
 
+See also [mTLS protection docs](#mtls-protection).
 
 ## Profiling
 
@@ -1101,6 +1121,10 @@ The shortlist of configuration flags is the following:
   -metricsAuthKey value
      Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
      Flag value can be read from the given file when using -metricsAuthKey=file:///abs/path/to/file or -metricsAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -metricsAuthKey=http://host/path or -metricsAuthKey=https://host/path
+  -mtls
+     Whether to require valid client certificate for https requests to -httpListenAddr . This flag works only if -tls flag is set. See also -mtlsCAFile . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
+  -mtlsCAFile string
+     Optional path to TLS Root CA for verifying client certificates when -mtls is enabled. By default the host system TLS Root CA is used for client certificate verification. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
   -notifier.basicAuth.password array
      Optional basic auth password for -notifier.url
      Supports an array of values separated by comma or specified via multiple flags.
@@ -1373,7 +1397,7 @@ The shortlist of configuration flags is the following:
   -s3.forcePathStyle
      Prefixing endpoint with bucket name when set false, true by default. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html (default true)
   -tls
-     Whether to enable TLS for incoming HTTP requests at -httpListenAddr (aka https). -tlsCertFile and -tlsKeyFile must be set if -tls is set
+     Whether to enable TLS for incoming HTTP requests at -httpListenAddr (aka https). -tlsCertFile and -tlsKeyFile must be set if -tls is set. See also -mtls
   -tlsCertFile string
      Path to file with TLS certificate if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated
   -tlsCipherSuites array

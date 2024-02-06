@@ -8,7 +8,7 @@ menu:
     weight: 33
 
 aliases:
-  -/url-examples.html
+  - /url-examples.html
 ---
 
 # VictoriaMetrics API examples
