@@ -191,7 +191,7 @@ scrape_configs:
     - 'http://central-config-server/targets?type=node-exporter'
 ```
 
-It is possible directories with `*` wildcards for distinct sets of targets at `file_sd_configs`.
+It is possible to specify directories with `*` wildcards for distinct sets of targets at `file_sd_configs`.
 See [these docs](https://docs.victoriametrics.com/sd_configs.html#file_sd_configs) for details.
 
 [vmagent](https://docs.victoriametrics.com/vmagent.html) and [single-node VictoriaMetrics](https://docs.victoriametrics.com/)
