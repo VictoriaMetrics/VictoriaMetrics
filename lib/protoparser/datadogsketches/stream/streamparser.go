@@ -20,7 +20,6 @@ import (
 //
 // callback shouldn't hold series after returning.
 func Parse(r io.Reader, contentEncoding string, callback func(series []*datadogsketches.Sketch) error) error {
-	var err error
 	wcr := writeconcurrencylimiter.GetReader(r)
 	defer writeconcurrencylimiter.PutReader(wcr)
 	r = wcr
@@ -50,18 +49,17 @@ func Parse(r io.Reader, contentEncoding string, callback func(series []*datadogs
 	req := getRequest()
 	defer putRequest(req)
 
-	err = req.UnmarshalProtobuf(ctx.reqBuf.B)
-	if err != nil {
+	if err := req.UnmarshalProtobuf(ctx.reqBuf.B); err != nil {
 		unmarshalErrors.Inc()
-		return fmt.Errorf("cannot unmarshal DataDog request with size %d bytes: %w", len(ctx.reqBuf.B), err)
+		return fmt.Errorf("cannot unmarshal DataDog Sketches request with size %d bytes: %w", len(ctx.reqBuf.B), err)
 	}
 
 	rows := 0
 	sketches := req.Sketches
-	for i := range sketches {
-		rows += len(sketches[i].Dogsketches)
+	for _, sketch := range sketches {
+		rows += sketch.RowsCount()
 		if *datadogutils.SanitizeMetricName {
-			sketches[i].Metric = datadogutils.SanitizeName(sketches[i].Metric)
+			sketch.Metric = datadogutils.SanitizeName(sketch.Metric)
 		}
 	}
 	rowsRead.Add(rows)

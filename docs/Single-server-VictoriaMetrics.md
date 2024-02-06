@@ -520,8 +520,9 @@ See also [vmagent](https://docs.victoriametrics.com/vmagent.html), which can be 
 
 ## How to send data from DataDog agent
 
-VictoriaMetrics accepts data from [DataDog agent](https://docs.datadoghq.com/agent/), [DogStatsD](https://docs.datadoghq.com/developers/dogstatsd/) or [DataDog Lambda Extension](https://docs.datadoghq.com/serverless/libraries_integrations/extension/)
-via ["submit metrics" API](https://docs.datadoghq.com/api/latest/metrics/#submit-metrics) at `/datadog/api/v2/series` path or via "sketches" API at `/datadog/api/beta/sketches`.
+VictoriaMetrics accepts data from [DataDog agent](https://docs.datadoghq.com/agent/), [DogStatsD](https://docs.datadoghq.com/developers/dogstatsd/) and
+[DataDog Lambda Extension](https://docs.datadoghq.com/serverless/libraries_integrations/extension/)
+via ["submit metrics" API](https://docs.datadoghq.com/api/latest/metrics/#submit-metrics) at `/datadog/api/v2/series` or via "sketches" API at `/datadog/api/beta/sketches`.
 
 ### Sending metrics to VictoriaMetrics
 
@@ -551,7 +552,7 @@ dd_url: http://victoriametrics:8428/datadog
 pick [single-node or cluster URL](https://docs.victoriametrics.com/url-examples.html#datadog) formats.
 
 ### Sending metrics to DataDog and VictoriaMetrics
- 
+
 DataDog allows configuring [Dual Shipping](https://docs.datadoghq.com/agent/guide/dual-shipping/) for metrics 
 sending via ENV variable `DD_ADDITIONAL_ENDPOINTS` or via configuration file `additional_endpoints`.
  
@@ -575,10 +576,10 @@ additional_endpoints:
   - apikey
 ```
 
+### Send metrics via Serverless DataDog plugin
 
-### Send via Serverless DataDog plugin
+Disable logs (logs ingestion is not supported by VictoriaMetrics) and set a custom endpoint in `serverless.yaml`:
 
-Disable logs (logs ingestion is not supported by Victoria Metrics) and set a custom endpoint in serverless.yaml
 ```
 custom:
   datadog:
@@ -586,7 +587,7 @@ custom:
     apiKey: fakekey                 # Set any key, otherwise plugin fails
 provider:
   environment:
-    DD_DD_URL: <<vm-url>>/datadog   # Victoria Metrics endpoint for DataDog
+    DD_DD_URL: <<vm-url>>/datadog   # VictoriaMetrics endpoint for DataDog
 ```
 
 ### Send via cURL
