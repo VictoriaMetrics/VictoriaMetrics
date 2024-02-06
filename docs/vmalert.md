@@ -251,6 +251,11 @@ expr: <string>
 # Available starting from https://docs.victoriametrics.com/CHANGELOG.html#v1820
 [ debug: <bool> | default = false ]
 
+# Limit limits the number of alerts or recording rule results the rule can produce.
+# On exceeding the limit, rule will be marked with an error and all its results will be discarded.
+# 0 is no limit.
+[ limit: <integer> | default 0]
+
 # Defines the number of rule's updates entries stored in memory
 # and available for view on rule's Details page.
 # Overrides `rule.updateEntriesLimit` value for this specific rule.
