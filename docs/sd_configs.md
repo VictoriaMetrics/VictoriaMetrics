@@ -752,12 +752,17 @@ scrape_configs:
     # files must contain a list of file patterns for files with scrape targets.
     # The last path segment can contain `*`, which matches any number of chars in file name.
     #
+    # files may contain http/https urls additionally to local files. These urls cannot contain `*`.
+    #
   - files:
     - "my/path/*.yaml"
     - "another/path.json"
+    - "http://central-config-server/targets?type=foobar"
 ```
 
-Files must contain a list of static configs in one of the following formats:
+See [these examples](https://docs.victoriametrics.com/scrape_config_examples.html#file-based-target-discovery) on how to configure file-based target discovery.
+
+The referred files and urls must contain a list of static configs in one of the following formats:
 
 * JSON:
 
@@ -960,6 +965,8 @@ scrape_configs:
     # See https://docs.victoriametrics.com/sd_configs.html#http-api-client-options
 ```
 
+See [these examples](https://docs.victoriametrics.com/scrape_config_examples.html#http-based-target-discovery) on how to configure http-based target discovery.
+
 The service at `url` must return JSON response in the following format:
 
 ```json
@@ -1049,6 +1056,8 @@ scrape_configs:
     # See https://docs.victoriametrics.com/sd_configs.html#http-api-client-options
 ```
 
+See [these examples](https://docs.victoriametrics.com/scrape_config_examples.html#kubernetes-target-discovery) on how to discover and scrape Kubernetes targets.
+
 One of the following `role` types can be configured to discover targets:
 
 * `role: node`
@@ -1132,6 +1141,7 @@ One of the following `role` types can be configured to discover targets:
   * `__meta_kubernetes_pod_controller_kind`: Object kind of the pod controller.
   * `__meta_kubernetes_pod_controller_name`: Name of the pod controller.
 
+
 * `role: endpoints`
 
   The `role: endpoints` discovers targets from listed endpoints of a service.
@@ -1172,7 +1182,7 @@ One of the following `role` types can be configured to discover targets:
 
   Available meta labels for `role: endpointslice` during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling):
 
-  * `__meta_kubernetes_namespace`: The namespace of the endpoints object.
+  * `__meta_kubernetes_namespace`: The namespace of the endpointslice object.
   * `__meta_kubernetes_endpointslice_name`: The name of endpointslice object.
 
   For all targets discovered directly from the endpointslice list (those not additionally inferred from underlying pods), the following labels are attached:
@@ -1479,6 +1489,8 @@ scrape_configs:
     #   ...
     #   <labelnameN>: "<labelvalueN>"
 ```
+
+See [these examples](https://docs.victoriametrics.com/scrape_config_examples.html#static-configs) on how to configure scraping for static targets.
 
 ## yandexcloud_sd_configs
 
