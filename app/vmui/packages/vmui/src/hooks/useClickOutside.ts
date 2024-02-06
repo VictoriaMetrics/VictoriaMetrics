@@ -7,7 +7,7 @@ type Event = MouseEvent | TouchEvent;
 const useClickOutside = <T extends HTMLElement = HTMLElement>(
   ref: RefObject<T>,
   handler: (event: Event) => void,
-  preventRef?: RefObject<T>
+  preventRef?: RefObject<T> | null
 ) => {
   const listener = useCallback((event: Event) => {
     const el = ref?.current;

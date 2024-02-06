@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useMemo, useRef, useState,  } from "preact/compat";
+import React, { FC, Ref, useEffect, useMemo, useRef, useState, } from "preact/compat";
 import classNames from "classnames";
 import { ArrowDropDownIcon, CloseIcon } from "../Icons";
 import { FormEvent, MouseEvent } from "react";
@@ -8,6 +8,7 @@ import "./style.scss";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import MultipleSelectedValue from "./MultipleSelectedValue/MultipleSelectedValue";
 import useEventListener from "../../../hooks/useEventListener";
+import useClickOutside from "../../../hooks/useClickOutside";
 
 interface SelectProps {
   value: string | string[]
@@ -39,6 +40,7 @@ const Select: FC<SelectProps> = ({
 
   const [search, setSearch] = useState("");
   const autocompleteAnchorEl = useRef<HTMLDivElement>(null);
+  const [wrapperRef, setWrapperRef] = useState<Ref<HTMLDivElement> | null>(null);
   const [openList, setOpenList] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
@@ -76,6 +78,7 @@ const Select: FC<SelectProps> = ({
   };
 
   const handleSelected = (val: string) => {
+    setSearch("");
     onChange(val);
     if (!isMultiple) handleCloseList();
     if (isMultiple && inputRef.current) inputRef.current.focus();
@@ -110,6 +113,7 @@ const Select: FC<SelectProps> = ({
   }, [autofocus, inputRef]);
 
   useEventListener("keyup", handleKeyUp);
+  useClickOutside(autocompleteAnchorEl, handleCloseList, wrapperRef);
 
   return (
     <div
@@ -172,6 +176,7 @@ const Select: FC<SelectProps> = ({
         noOptionsText={noOptionsText}
         onSelect={handleSelected}
         onOpenAutocomplete={setOpenList}
+        onChangeWrapperRef={setWrapperRef}
       />
     </div>
   );
