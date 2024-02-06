@@ -12,7 +12,7 @@ reader:
   datasource_url: "http://victoriametrics:8428/"
   sampling_period: "60s" 
   queries:
-    node_cpu_rate: "quantile by (mode) (0.5, rate(node_cpu_seconds_total[5m]))"
+    node_cpu_rate: "sum(rate(node_cpu_seconds_total[5m])) by (mode, instance, job)"
 
 writer:
   datasource_url: "http://victoriametrics:8428/"

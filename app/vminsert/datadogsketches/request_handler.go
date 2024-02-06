@@ -35,23 +35,18 @@ func insertRows(sketches []*datadogsketches.Sketch, extraLabels []prompbmarshal.
 	defer common.PutInsertCtx(ctx)
 
 	rowsLen := 0
-	for i := range sketches {
-		sketch := sketches[i]
+	for _, sketch := range sketches {
 		rowsLen += sketch.RowsCount()
 	}
 	ctx.Reset(rowsLen)
 	rowsTotal := 0
 	hasRelabeling := relabel.HasRelabeling()
-	for i := range sketches {
-		sketch := sketches[i]
-		metrics := sketch.ToHistogram()
-		rowsTotal += sketch.RowsCount()
-		for m := range metrics {
-			metric := metrics[m]
+	for _, sketch := range sketches {
+		ms := sketch.ToSummary()
+		for _, m := range ms {
 			ctx.Labels = ctx.Labels[:0]
-			ctx.AddLabel("", metric.Name)
-			for l := range metric.Labels {
-				label := metric.Labels[l]
+			ctx.AddLabel("", m.Name)
+			for _, label := range m.Labels {
 				ctx.AddLabel(label.Name, label.Value)
 			}
 			for _, tag := range sketch.Tags {
@@ -75,14 +70,13 @@ func insertRows(sketches []*datadogsketches.Sketch, extraLabels []prompbmarshal.
 			ctx.SortLabelsIfNeeded()
 			var metricNameRaw []byte
 			var err error
-			for p := range metric.Points {
-				value := metric.Points[p]
-				timestamp := sketch.Dogsketches[p].Ts * 1000
-				metricNameRaw, err = ctx.WriteDataPointExt(metricNameRaw, ctx.Labels, timestamp, value)
+			for _, p := range m.Points {
+				metricNameRaw, err = ctx.WriteDataPointExt(metricNameRaw, ctx.Labels, p.Timestamp, p.Value)
 				if err != nil {
 					return err
 				}
 			}
+			rowsTotal += len(m.Points)
 		}
 	}
 	rowsInserted.Add(rowsTotal)

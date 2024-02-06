@@ -40,6 +40,7 @@ func Parse(r io.Reader, contentEncoding string, callback func(series []datadogv1
 		defer common.PutZlibReader(zlr)
 		r = zlr
 	}
+
 	ctx := getPushCtx(r)
 	defer putPushCtx(ctx)
 	if err := ctx.Read(); err != nil {
@@ -47,10 +48,12 @@ func Parse(r io.Reader, contentEncoding string, callback func(series []datadogv1
 	}
 	req := getRequest()
 	defer putRequest(req)
+
 	if err := req.Unmarshal(ctx.reqBuf.B); err != nil {
 		unmarshalErrors.Inc()
 		return fmt.Errorf("cannot unmarshal DataDog POST request with size %d bytes: %w", len(ctx.reqBuf.B), err)
 	}
+
 	rows := 0
 	series := req.Series
 	for i := range series {

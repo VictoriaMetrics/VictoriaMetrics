@@ -41,19 +41,15 @@ func insertRows(at *auth.Token, sketches []*datadogsketches.Sketch, extraLabels 
 	tssDst := ctx.WriteRequest.Timeseries[:0]
 	labels := ctx.Labels[:0]
 	samples := ctx.Samples[:0]
-	for i := range sketches {
-		sketch := sketches[i]
-		metrics := sketch.ToHistogram()
-		rowsTotal += sketch.RowsCount()
-		for m := range metrics {
-			metric := metrics[m]
+	for _, sketch := range sketches {
+		ms := sketch.ToSummary()
+		for _, m := range ms {
 			labelsLen := len(labels)
 			labels = append(labels, prompbmarshal.Label{
 				Name:  "__name__",
-				Value: metric.Name,
+				Value: m.Name,
 			})
-			for l := range metric.Labels {
-				label := metric.Labels[l]
+			for _, label := range m.Labels {
 				labels = append(labels, prompbmarshal.Label{
 					Name:  label.Name,
 					Value: label.Value,
@@ -71,13 +67,13 @@ func insertRows(at *auth.Token, sketches []*datadogsketches.Sketch, extraLabels 
 			}
 			labels = append(labels, extraLabels...)
 			samplesLen := len(samples)
-			for p := range metric.Points {
-				point := metric.Points[p]
+			for _, p := range m.Points {
 				samples = append(samples, prompbmarshal.Sample{
-					Timestamp: sketch.Dogsketches[p].Ts * 1000,
-					Value:     point,
+					Timestamp: p.Timestamp,
+					Value:     p.Value,
 				})
 			}
+			rowsTotal += len(m.Points)
 			tssDst = append(tssDst, prompbmarshal.TimeSeries{
 				Labels:  labels[labelsLen:],
 				Samples: samples[samplesLen:],

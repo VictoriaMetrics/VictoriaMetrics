@@ -9,6 +9,7 @@ import (
 )
 
 var (
+	// TODO: @AndrewChubatiuk, please provide a permalink for the original source code where these constants were extracted
 	epsillon   = 1.0 / 128
 	gamma      = 1 + 2*epsillon
 	gammaLn    = math.Log(gamma)
@@ -17,7 +18,16 @@ var (
 	quantiles  = []float64{0.5, 0.75, 0.9, 0.95, 0.99}
 )
 
-type label struct {
+var quantilesStr = func() []string {
+	a := make([]string, len(quantiles))
+	for i, q := range quantiles {
+		a[i] = strconv.FormatFloat(q, 'g', 3, 64)
+	}
+	return a
+}()
+
+// Label is a single label for Metric
+type Label struct {
 	Name  string
 	Value string
 }
@@ -25,8 +35,14 @@ type label struct {
 // Metric stores metrics extracted from sketches
 type Metric struct {
 	Name   string
-	Labels []label
-	Points []float64
+	Labels []Label
+	Points []Point
+}
+
+// Point stores a single point extracted from sketches
+type Point struct {
+	Value     float64
+	Timestamp int64
 }
 
 // SketchPayload stores sketches extracted from /api/beta/sketches endpoint
@@ -34,13 +50,15 @@ type Metric struct {
 //	message SketchPayload {
 //		 repeated Sketch sketches = 1
 //	}
+//
+// See https://github.com/DataDog/agent-payload/blob/38db68d9641c8a0bd2e1eac53b9d54793448850f/proto/metrics/agent_payload.proto#L90
 type SketchPayload struct {
 	Sketches []*Sketch
 }
 
-// UnmarshalProtobuf decodes byte array to SketchPayload struct
+// UnmarshalProtobuf decodes src to SketchPayload struct
 func (sp *SketchPayload) UnmarshalProtobuf(src []byte) (err error) {
-	sp.Sketches = sp.Sketches[:0]
+	sp.Sketches = nil
 	var fc easyproto.FieldContext
 	for len(src) > 0 {
 		src, err = fc.NextField(src)
@@ -51,13 +69,13 @@ func (sp *SketchPayload) UnmarshalProtobuf(src []byte) (err error) {
 		case 1:
 			data, ok := fc.MessageData()
 			if !ok {
-				return fmt.Errorf("cannot read SketchPayload sketches data")
+				return fmt.Errorf("cannot read Sketch data")
 			}
-			sp.Sketches = append(sp.Sketches, &Sketch{})
-			s := sp.Sketches[len(sp.Sketches)-1]
+			var s Sketch
 			if err := s.unmarshalProtobuf(data); err != nil {
-				return fmt.Errorf("cannot unmarshal sketch: %w", err)
+				return fmt.Errorf("cannot unmarshal Sketch: %w", err)
 			}
+			sp.Sketches = append(sp.Sketches, &s)
 		}
 	}
 	return nil
@@ -71,6 +89,8 @@ func (sp *SketchPayload) UnmarshalProtobuf(src []byte) (err error) {
 //	  repeated string tags = 4;
 //	  repeated Dogsketch dogsketches = 7
 //	}
+//
+// See https://github.com/DataDog/agent-payload/blob/38db68d9641c8a0bd2e1eac53b9d54793448850f/proto/metrics/agent_payload.proto#L91
 type Sketch struct {
 	Metric      string
 	Host        string
@@ -78,12 +98,12 @@ type Sketch struct {
 	Dogsketches []*Dogsketch
 }
 
-// unmarshalProtobuf decodes byte array to Sketch struct
+// unmarshalProtobuf decodes src to Sketch struct
 func (s *Sketch) unmarshalProtobuf(src []byte) (err error) {
 	s.Metric = ""
 	s.Host = ""
-	s.Tags = s.Tags[:0]
-	s.Dogsketches = s.Dogsketches[:0]
+	s.Tags = nil
+	s.Dogsketches = nil
 
 	var fc easyproto.FieldContext
 	for len(src) > 0 {
@@ -95,78 +115,87 @@ func (s *Sketch) unmarshalProtobuf(src []byte) (err error) {
 		case 1:
 			metric, ok := fc.String()
 			if !ok {
-				return fmt.Errorf("cannot read Sketch metric")
+				return fmt.Errorf("cannot read metric")
 			}
 			s.Metric = metric
 		case 2:
 			host, ok := fc.String()
 			if !ok {
-				return fmt.Errorf("cannot read Sketch host")
+				return fmt.Errorf("cannot read host")
 			}
 			s.Host = host
 		case 4:
 			tag, ok := fc.String()
 			if !ok {
-				return fmt.Errorf("cannot read Sketch tag")
+				return fmt.Errorf("cannot read tag")
 			}
 			s.Tags = append(s.Tags, tag)
 		case 7:
 			data, ok := fc.MessageData()
 			if !ok {
-				return fmt.Errorf("cannot read Sketch dogsketches data")
+				return fmt.Errorf("cannot read Dogsketch data")
 			}
-			s.Dogsketches = append(s.Dogsketches, &Dogsketch{})
-			d := s.Dogsketches[len(s.Dogsketches)-1]
+			var d Dogsketch
 			if err := d.unmarshalProtobuf(data); err != nil {
-				return fmt.Errorf("cannot unmarshal dogsketch: %w", err)
+				return fmt.Errorf("cannot unmarshal Dogsketch: %w", err)
 			}
+			s.Dogsketches = append(s.Dogsketches, &d)
 		}
 	}
 	return nil
 }
 
-// RowsCount calculates generated rows num from sketch
+// RowsCount returns the number of samples s generates.
 func (s *Sketch) RowsCount() int {
-	return (len(quantiles) + len(s.extractAggr())) * len(s.Dogsketches)
+	// The sketch contains len(quantiles) plus *_sum and *_count metrics
+	// per each Dogsketch in s.Dogsketches.
+	return (len(quantiles) + 2) * len(s.Dogsketches)
 }
 
-func (s *Sketch) extractAggr() []*Metric {
-	return []*Metric{
-		{
-			Name:   s.Metric + "_sum",
-			Labels: []label{},
-			Points: make([]float64, len(s.Dogsketches)),
-		}, {
-			Name:   s.Metric + "_count",
-			Labels: []label{},
-			Points: make([]float64, len(s.Dogsketches)),
-		},
-	}
-}
-
-// ToHistogram generates histogram metrics
-func (s *Sketch) ToHistogram() []*Metric {
+// ToSummary generates Prometheus summary from the given s.
+func (s *Sketch) ToSummary() []*Metric {
+	metrics := make([]*Metric, len(quantiles)+2)
 	dogsketches := s.Dogsketches
-	aggr := s.extractAggr()
-	metrics := make([]*Metric, len(quantiles))
-	for q := range quantiles {
-		quantile := quantiles[q]
-		metrics[q] = &Metric{
-			Name: s.Metric,
-			Labels: []label{{
-				Name:  "quantile",
-				Value: strconv.FormatFloat(quantile, 'g', 3, 64),
-			}},
-			Points: make([]float64, len(dogsketches)),
+
+	sumPoints := make([]Point, len(dogsketches))
+	countPoints := make([]Point, len(dogsketches))
+	metrics[len(metrics)-2] = &Metric{
+		Name:   s.Metric + "_sum",
+		Points: sumPoints,
+	}
+	metrics[len(metrics)-1] = &Metric{
+		Name:   s.Metric + "_count",
+		Points: countPoints,
+	}
+
+	for i, q := range quantiles {
+		points := make([]Point, len(dogsketches))
+		for j, d := range dogsketches {
+			timestamp := d.Ts * 1000
+			points[j] = Point{
+				Timestamp: timestamp,
+				Value:     d.valueForQuantile(q),
+			}
+			sumPoints[j] = Point{
+				Timestamp: timestamp,
+				Value:     d.Sum,
+			}
+			countPoints[j] = Point{
+				Timestamp: timestamp,
+				Value:     float64(d.Cnt),
+			}
 		}
-		for d := range dogsketches {
-			dogsketch := dogsketches[d]
-			aggr[0].Points[d] = dogsketch.Sum
-			aggr[1].Points[d] = float64(dogsketch.Cnt)
-			metrics[q].Points[d] = dogsketch.pointForQuantile(quantile)
+		metrics[i] = &Metric{
+			Name: s.Metric,
+			Labels: []Label{{
+				Name:  "quantile",
+				Value: quantilesStr[i],
+			}},
+			Points: points,
 		}
 	}
-	return append(metrics, aggr...)
+
+	return metrics
 }
 
 // Dogsketch proto struct
@@ -180,6 +209,8 @@ func (s *Sketch) ToHistogram() []*Metric {
 //	  repeated sint32 k = 7;
 //	  repeated uint32 n = 8;
 //	}
+//
+// See https://github.com/DataDog/agent-payload/blob/38db68d9641c8a0bd2e1eac53b9d54793448850f/proto/metrics/agent_payload.proto#L104
 type Dogsketch struct {
 	Ts  int64
 	Cnt int64
@@ -190,91 +221,102 @@ type Dogsketch struct {
 	N   []uint32
 }
 
-// unmarshalProtobuf decodes byte array to Dogsketch struct
+// unmarshalProtobuf decodes src to Dogsketch struct
 func (d *Dogsketch) unmarshalProtobuf(src []byte) (err error) {
 	d.Ts = 0
 	d.Cnt = 0
 	d.Min = 0.0
 	d.Max = 0.0
 	d.Sum = 0.0
-	d.K = d.K[:0]
-	d.N = d.N[:0]
+	d.K = nil
+	d.N = nil
+
 	var fc easyproto.FieldContext
 	for len(src) > 0 {
 		src, err = fc.NextField(src)
 		if err != nil {
-			return fmt.Errorf("cannot read next field in Dogsketch message, %w", err)
+			return fmt.Errorf("cannot read next field in Dogsketch message: %w", err)
 		}
 		switch fc.FieldNum {
 		case 1:
 			ts, ok := fc.Int64()
 			if !ok {
-				return fmt.Errorf("cannot read Dogsketch timestamp")
+				return fmt.Errorf("cannot read timestamp")
 			}
 			d.Ts = ts
 		case 2:
 			cnt, ok := fc.Int64()
 			if !ok {
-				return fmt.Errorf("cannot read Dogsketch count")
+				return fmt.Errorf("cannot read count")
 			}
 			d.Cnt = cnt
 		case 3:
 			min, ok := fc.Double()
 			if !ok {
-				return fmt.Errorf("cannot read Dogsketch min")
+				return fmt.Errorf("cannot read min")
 			}
 			d.Min = min
 		case 4:
 			max, ok := fc.Double()
 			if !ok {
-				return fmt.Errorf("cannot read Dogsketch max")
+				return fmt.Errorf("cannot read max")
 			}
 			d.Max = max
 		case 6:
 			sum, ok := fc.Double()
 			if !ok {
-				return fmt.Errorf("cannot read Dogsketch sum")
+				return fmt.Errorf("cannot read sum")
 			}
 			d.Sum = sum
 		case 7:
 			var ok bool
 			d.K, ok = fc.UnpackSint32s(d.K)
 			if !ok {
-				return fmt.Errorf("cannot read Dogsketch k")
+				return fmt.Errorf("cannot read k")
 			}
 		case 8:
 			var ok bool
 			d.N, ok = fc.UnpackUint32s(d.N)
 			if !ok {
-				return fmt.Errorf("cannot read Dogsketch n")
+				return fmt.Errorf("cannot read n")
 			}
 		}
 	}
 	return nil
 }
 
-func (d *Dogsketch) pointForQuantile(quantile float64) float64 {
+func (d *Dogsketch) valueForQuantile(q float64) float64 {
 	switch {
 	case d.Cnt == 0:
 		return 0
-	case quantile <= 0:
+	case q <= 0:
 		return d.Min
-	case quantile >= 1:
+	case q >= 1:
 		return d.Max
 	}
 
-	rank := quantile * float64(d.Cnt-1)
-	nLen := len(d.N)
-	for cnt, i := 0.0, 0; i < nLen; i++ {
-		cnt += float64(d.N[i])
+	ns := d.N
+	ks := d.K
+	if len(ns) != len(ks) {
+		// Avoid index out of range panic in the loop below.
+		return 0
+	}
+
+	rank := q * float64(d.Cnt-1)
+	cnt := float64(0)
+	for i, n := range ns {
+		cnt += float64(n)
 		if cnt <= rank {
 			continue
 		}
-		weight := (cnt - rank) / float64(d.N[i])
-		vLow := f64(d.K[i])
+		weight := (cnt - rank) / float64(n)
+		vLow := f64(ks[i])
 		vHigh := vLow * gamma
 		switch i {
-		case nLen:
+		// TODO: I'm unsure this code is correct. i cannot equal len(ns) in this loop.
+		// @AndrewChubatiuk, please add a permalink to the original source code, which was used
+		// for writing this code, in the comments to this function.
+		case len(ns):
 			vHigh = d.Max
 		case 0:
 			vLow = d.Min
@@ -288,6 +330,8 @@ func f64(k int32) float64 {
 	switch {
 	case k < 0:
 		return -f64(-k)
+	// TODO: I'm unsure this logic is correct, since k can be smaller than math.MinInt16 and bigger than math.MaxInt16
+	// @AndrewChubatiuk, please add a permalink to the original source code, which was used for writing this code.
 	case k == math.MaxInt16 || k == math.MinInt16:
 		return math.Inf(int(k))
 	case k == 0:

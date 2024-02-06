@@ -1,5 +1,5 @@
 {
-  "annotations": {
+    "annotations": {
     "list": [
       {
         "builtIn": 1,
@@ -18,7 +18,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
-  "links": [],
+    "links": [],
   "liveNow": false,
   "panels": [
     {
@@ -40,7 +40,7 @@
           "showLineNumbers": false,
           "showMiniMap": false
         },
-        "content": "If you don't see any data, please wait a few minutes. \n\nYou will see a lot of false positive anomalies when you run the guide for the first time. \nThe prediction must be more accurate if you provide vmanomaly 2w of data.\n\nEvery row represents information for one specific mode. \nThe query for anomaly detection is `quantile by (mode) (0.5, rate(node_cpu_seconds_total[5m]))`\nThis is a median (or 50% quantileof `rate` function over `node_cpu_seconds_total`)",
+        "content": "If you don't observe any data initially, please wait a few minutes for it to appear. \n\nUpon the first running the guide (if there is not enough node_exporter monitoring data collected in your system), you may notice a significant number of false positive anomalies found. The predictions will become more accurate with at least two weeks' (full `fit_window`) worth of data provided to vmanomaly.\n\nEach row displays information for a distinct mode. The query used for anomaly detection is `sum(rate(node_cpu_seconds_total[5m])) by (mode, instance, job)`.\n",
         "mode": "markdown"
       },
       "pluginVersion": "10.2.1",
@@ -67,7 +67,7 @@
         "type": "prometheus",
         "uid": "VictoriaMetrics"
       },
-      "description": "quantile by (mode) (0.5, rate(node_cpu_seconds_total[5m]))",
+      "description": "sum(rate(node_cpu_seconds_total{mode=~\"$mode\"}[5m])) by (mode, instance,job)",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -90,12 +90,15 @@
             },
             "insertNulls": false,
             "lineInterpolation": "linear",
+            "lineStyle": {
+              "fill": "solid"
+            },
             "lineWidth": 1,
-            "pointSize": 5,
+            "pointSize": 1,
             "scaleDistribution": {
               "type": "linear"
             },
-            "showPoints": "auto",
+            "showPoints": "never",
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -106,6 +109,7 @@
             }
           },
           "mappings": [],
+          "min": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -118,7 +122,8 @@
                 "value": 80
               }
             ]
-          }
+          },
+          "unit": "none"
         },
         "overrides": [
           {
@@ -166,7 +171,7 @@
           "showLegend": true
         },
         "tooltip": {
-          "mode": "single",
+          "mode": "multi",
           "sort": "none"
         }
       },
@@ -177,14 +182,14 @@
             "uid": "VictoriaMetrics"
           },
           "editorMode": "code",
-          "expr": "quantile by (mode, instance,job) (0.5, rate(node_cpu_seconds_total{mode=~\"$mode\"}[5m]))",
+          "expr": "sum(rate(node_cpu_seconds_total{mode=~\"$mode\"}[5m])) by (mode, instance,job)",
           "instant": false,
           "legendFormat": "Instance: {{instance}}, Job {{job}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "CPU median for $mode mode",
+      "title": "CPU rate sum for $mode mode",
       "type": "timeseries"
     },
     {
@@ -219,7 +224,7 @@
             "scaleDistribution": {
               "type": "linear"
             },
-            "showPoints": "auto",
+            "showPoints": "never",
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -236,15 +241,27 @@
               {
                 "color": "green",
                 "value": null
-              },
-              {
-                "color": "red",
-                "value": 1
               }
             ]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "threshold"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 8,
@@ -281,6 +298,19 @@
           "legendFormat": "Instance: {{instance}}, Job: {{job}}",
           "range": true,
           "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "VictoriaMetrics"
+          },
+          "editorMode": "code",
+          "expr": "vector(1)",
+          "hide": false,
+          "instant": false,
+          "legendFormat": "threshold",
+          "range": true,
+          "refId": "B"
         }
       ],
       "title": "Anomaly Scores for $mode mode",
@@ -318,7 +348,7 @@
             "scaleDistribution": {
               "type": "linear"
             },
-            "showPoints": "auto",
+            "showPoints": "never",
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -347,24 +377,12 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "Predicted Value: yhat"
-            },
-            "properties": [
-              {
-                "id": "custom.fillBelowTo",
-                "value": "yhat_lower"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
               "options": "Predicted Upper Boundary"
             },
             "properties": [
               {
                 "id": "custom.fillBelowTo",
-                "value": "yhat"
+                "value": "Predicted Lower Boundary"
               }
             ]
           }
@@ -381,11 +399,11 @@
         "legend": {
           "calcs": [],
           "displayMode": "table",
-          "placement": "right",
+          "placement": "bottom",
           "showLegend": true
         },
         "tooltip": {
-          "mode": "single",
+          "mode": "multi",
           "sort": "none"
         }
       },
@@ -427,6 +445,19 @@
           "legendFormat": "Predicted Upper Boundary",
           "range": true,
           "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "VictoriaMetrics"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(node_cpu_seconds_total{mode=~\"$mode\"}[5m])) by (mode, instance,job)",
+          "hide": false,
+          "instant": false,
+          "legendFormat": "Value",
+          "range": true,
+          "refId": "D"
         }
       ],
       "title": "Predicted Value and Boundaries for $mode mode",
@@ -440,11 +471,7 @@
     "list": [
       {
         "allValue": ".*",
-        "current": {
-          "selected": false,
-          "text": "All",
-          "value": "$__all"
-        },
+        "current": {},
         "datasource": {
           "type": "prometheus",
           "uid": "VictoriaMetrics"
@@ -464,19 +491,19 @@
         "refresh": 2,
         "regex": "",
         "skipUrlSync": false,
-        "sort": 1,
+        "sort": 2,
         "type": "query"
       }
     ]
   },
   "time": {
-    "from": "now-30m",
+    "from": "now-3h",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "",
   "title": "Vmanomaly Guide",
   "uid": "cfa61e6a-6074-4626-8e54-ea33e08746b9",
-  "version": 2,
+  "version": 3,
   "weekStart": ""
 }

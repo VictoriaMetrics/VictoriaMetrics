@@ -613,6 +613,15 @@ func processMultitenantRequest(w http.ResponseWriter, r *http.Request, path stri
 		w.WriteHeader(202)
 		fmt.Fprintf(w, `{"status":"ok"}`)
 		return true
+	case "datadog/api/beta/sketches":
+		datadogsketchesWriteRequests.Inc()
+		if err := datadogsketches.InsertHandlerForHTTP(at, r); err != nil {
+			datadogsketchesWriteErrors.Inc()
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		w.WriteHeader(202)
+		return true
 	case "datadog/api/v1/validate":
 		datadogValidateRequests.Inc()
 		// See https://docs.datadoghq.com/api/latest/authentication/#validate-api-key

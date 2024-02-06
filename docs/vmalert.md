@@ -155,8 +155,11 @@ name: <string>
 # Optional
 # The evaluation timestamp will be aligned with group's interval, 
 # instead of using the actual timestamp that evaluation happens at.
-# By default, it's enabled to get more predictable results 
-# and to visually align with results plotted via Grafana or vmui.
+#
+# It is enabled by default to get more predictable results 
+# and to visually align with graphs plotted via Grafana or vmui.
+# When comparing with raw queries, remember to use `step` equal to evaluation interval.
+#
 # See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5049 
 # Available starting from v1.95
 [ eval_alignment: <bool> | default true]
