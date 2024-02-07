@@ -7,7 +7,7 @@
       "type": "grafana",
       "id": "grafana",
       "name": "Grafana",
-      "version": "9.2.7"
+      "version": "10.3.1"
     },
     {
       "type": "datasource",
@@ -179,7 +179,8 @@
                 "value": null
               }
             ]
-          }
+          },
+          "unitScale": true
         },
         "overrides": []
       },
@@ -202,10 +203,12 @@
           "fields": "",
           "values": false
         },
+        "showPercentChange": false,
         "text": {},
-        "textMode": "auto"
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "pluginVersion": "9.2.7",
+      "pluginVersion": "10.3.1",
       "targets": [
         {
           "datasource": {
@@ -239,7 +242,8 @@
                 "value": null
               }
             ]
-          }
+          },
+          "unitScale": true
         },
         "overrides": []
       },
@@ -262,10 +266,12 @@
           "fields": "",
           "values": false
         },
+        "showPercentChange": false,
         "text": {},
-        "textMode": "auto"
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "pluginVersion": "9.2.7",
+      "pluginVersion": "10.3.1",
       "targets": [
         {
           "datasource": {
@@ -299,7 +305,8 @@
                 "value": null
               }
             ]
-          }
+          },
+          "unitScale": true
         },
         "overrides": []
       },
@@ -322,10 +329,12 @@
           "fields": "",
           "values": false
         },
+        "showPercentChange": false,
         "text": {},
-        "textMode": "auto"
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "pluginVersion": "9.2.7",
+      "pluginVersion": "10.3.1",
       "targets": [
         {
           "datasource": {
@@ -363,7 +372,8 @@
                 "value": 1
               }
             ]
-          }
+          },
+          "unitScale": true
         },
         "overrides": []
       },
@@ -386,10 +396,12 @@
           "fields": "",
           "values": false
         },
+        "showPercentChange": false,
         "text": {},
-        "textMode": "auto"
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "pluginVersion": "9.2.7",
+      "pluginVersion": "10.3.1",
       "targets": [
         {
           "datasource": {
@@ -427,7 +439,8 @@
                 "value": 1
               }
             ]
-          }
+          },
+          "unitScale": true
         },
         "overrides": []
       },
@@ -450,10 +463,12 @@
           "fields": "",
           "values": false
         },
+        "showPercentChange": false,
         "text": {},
-        "textMode": "auto"
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "pluginVersion": "9.2.7",
+      "pluginVersion": "10.3.1",
       "targets": [
         {
           "datasource": {
@@ -484,7 +499,9 @@
           },
           "custom": {
             "align": "auto",
-            "displayMode": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
             "inspect": false,
             "minWidth": 50
           },
@@ -501,7 +518,8 @@
                 "value": 80
               }
             ]
-          }
+          },
+          "unitScale": true
         },
         "overrides": [
           {
@@ -538,7 +556,9 @@
       },
       "id": 45,
       "options": {
+        "cellHeight": "sm",
         "footer": {
+          "countRows": false,
           "fields": "",
           "reducer": [
             "sum"
@@ -547,7 +567,7 @@
         },
         "showHeader": true
       },
-      "pluginVersion": "9.2.7",
+      "pluginVersion": "10.3.1",
       "targets": [
         {
           "datasource": {
@@ -576,6 +596,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -589,6 +610,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "stepAfter",
             "lineWidth": 1,
             "pointSize": 5,
@@ -622,7 +644,8 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "short",
+          "unitScale": true
         },
         "overrides": []
       },
@@ -707,6 +730,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -720,6 +744,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -750,7 +775,8 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "short",
+          "unitScale": true
         },
         "overrides": []
       },
@@ -810,6 +836,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -823,6 +850,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -853,7 +881,8 @@
               }
             ]
           },
-          "unit": "s"
+          "unit": "s",
+          "unitScale": true
         },
         "overrides": []
       },
@@ -913,6 +942,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -926,6 +956,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -956,7 +987,8 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "short",
+          "unitScale": true
         },
         "overrides": []
       },
@@ -1014,6 +1046,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -1027,6 +1060,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -1057,7 +1091,8 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "short",
+          "unitScale": true
         },
         "overrides": []
       },
@@ -1115,7 +1150,9 @@
           },
           "custom": {
             "align": "auto",
-            "displayMode": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
             "inspect": false
           },
           "mappings": [],
@@ -1123,8 +1160,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1276,8 +1312,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1357,6 +1392,7 @@
                 "mode": "palette-classic"
               },
               "custom": {
+                "axisBorderShow": false,
                 "axisCenteredZero": false,
                 "axisColorMode": "text",
                 "axisLabel": "",
@@ -1370,6 +1406,7 @@
                   "tooltip": false,
                   "viz": false
                 },
+                "insertNulls": false,
                 "lineInterpolation": "linear",
                 "lineWidth": 1,
                 "pointSize": 5,
@@ -1393,7 +1430,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -1401,7 +1439,8 @@
                   }
                 ]
               },
-              "unit": "percentunit"
+              "unit": "percentunit",
+              "unitScale": true
             },
             "overrides": []
           },
@@ -1409,7 +1448,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 33
+            "y": 3
           },
           "id": 37,
           "links": [
@@ -1468,6 +1507,7 @@
                 "mode": "palette-classic"
               },
               "custom": {
+                "axisBorderShow": false,
                 "axisCenteredZero": false,
                 "axisColorMode": "text",
                 "axisLabel": "",
@@ -1481,6 +1521,7 @@
                   "tooltip": false,
                   "viz": false
                 },
+                "insertNulls": false,
                 "lineInterpolation": "linear",
                 "lineWidth": 1,
                 "pointSize": 5,
@@ -1504,7 +1545,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -1512,7 +1554,8 @@
                   }
                 ]
               },
-              "unit": "bytes"
+              "unit": "bytes",
+              "unitScale": true
             },
             "overrides": []
           },
@@ -1520,7 +1563,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 33
+            "y": 3
           },
           "id": 57,
           "links": [
@@ -1579,6 +1622,7 @@
                 "mode": "palette-classic"
               },
               "custom": {
+                "axisBorderShow": false,
                 "axisCenteredZero": false,
                 "axisColorMode": "text",
                 "axisLabel": "",
@@ -1592,6 +1636,7 @@
                   "tooltip": false,
                   "viz": false
                 },
+                "insertNulls": false,
                 "lineInterpolation": "linear",
                 "lineWidth": 1,
                 "pointSize": 5,
@@ -1615,7 +1660,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -1623,7 +1669,8 @@
                   }
                 ]
               },
-              "unit": "percentunit"
+              "unit": "percentunit",
+              "unitScale": true
             },
             "overrides": []
           },
@@ -1631,7 +1678,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 41
+            "y": 11
           },
           "id": 35,
           "links": [
@@ -1692,6 +1739,7 @@
                 "mode": "palette-classic"
               },
               "custom": {
+                "axisBorderShow": false,
                 "axisCenteredZero": false,
                 "axisColorMode": "text",
                 "axisLabel": "",
@@ -1705,6 +1753,7 @@
                   "tooltip": false,
                   "viz": false
                 },
+                "insertNulls": false,
                 "lineInterpolation": "linear",
                 "lineWidth": 1,
                 "pointSize": 5,
@@ -1728,7 +1777,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -1736,7 +1786,8 @@
                   }
                 ]
               },
-              "unit": "short"
+              "unit": "short",
+              "unitScale": true
             },
             "overrides": []
           },
@@ -1744,7 +1795,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 41
+            "y": 11
           },
           "id": 56,
           "links": [
@@ -1821,6 +1872,7 @@
                 "mode": "palette-classic"
               },
               "custom": {
+                "axisBorderShow": false,
                 "axisCenteredZero": false,
                 "axisColorMode": "text",
                 "axisLabel": "",
@@ -1834,6 +1886,7 @@
                   "tooltip": false,
                   "viz": false
                 },
+                "insertNulls": false,
                 "lineInterpolation": "linear",
                 "lineWidth": 1,
                 "pointSize": 5,
@@ -1858,7 +1911,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -1866,7 +1920,8 @@
                   }
                 ]
               },
-              "unit": "percentunit"
+              "unit": "percentunit",
+              "unitScale": true
             },
             "overrides": []
           },
@@ -1874,7 +1929,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 49
+            "y": 19
           },
           "id": 39,
           "links": [],
@@ -1926,6 +1981,7 @@
                 "mode": "palette-classic"
               },
               "custom": {
+                "axisBorderShow": false,
                 "axisCenteredZero": false,
                 "axisColorMode": "text",
                 "axisLabel": "",
@@ -1939,6 +1995,7 @@
                   "tooltip": false,
                   "viz": false
                 },
+                "insertNulls": false,
                 "lineInterpolation": "linear",
                 "lineWidth": 1,
                 "pointSize": 5,
@@ -1963,7 +2020,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -1971,7 +2029,8 @@
                   }
                 ]
               },
-              "unit": "short"
+              "unit": "short",
+              "unitScale": true
             },
             "overrides": []
           },
@@ -1979,7 +2038,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 49
+            "y": 19
           },
           "id": 41,
           "links": [],
@@ -2017,6 +2076,115 @@
             }
           ],
           "title": "Goroutines ($instance)",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-datasource",
+            "uid": "$ds"
+          },
+          "description": "Shows the percent of CPU spent on garbage collection.\n\nIf % is high, then CPU usage can be decreased by changing GOGC to higher values. Increasing GOGC value will increase memory usage, and decrease CPU usage.\n\nTry searching for keyword `GOGC` at https://docs.victoriametrics.com/troubleshooting/ ",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "decimals": 0,
+              "links": [],
+              "mappings": [],
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "percentunit",
+              "unitScale": true
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 27
+          },
+          "id": 59,
+          "links": [],
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "9.2.6",
+          "targets": [
+            {
+              "datasource": {
+                "type": "victoriametrics-datasource",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "max(\n  rate(go_gc_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]) \n / rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n ) by(job)",
+              "format": "time_series",
+              "interval": "",
+              "intervalFactor": 2,
+              "legendFormat": "__auto",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "CPU spent on GC ($instance)",
           "type": "timeseries"
         }
       ],
@@ -2108,7 +2276,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 28
+            "y": 36
           },
           "id": 14,
           "options": {
@@ -2210,7 +2378,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 28
+            "y": 36
           },
           "id": 13,
           "options": {
@@ -2312,7 +2480,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 36
+            "y": 44
           },
           "id": 20,
           "options": {
@@ -2415,7 +2583,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 36
+            "y": 44
           },
           "id": 32,
           "options": {
@@ -2514,7 +2682,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 44
+            "y": 52
           },
           "id": 26,
           "options": {
@@ -2641,7 +2809,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 43
+            "y": 51
           },
           "id": 31,
           "options": {
@@ -2743,7 +2911,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 43
+            "y": 51
           },
           "id": 33,
           "options": {
@@ -2844,7 +3012,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 51
+            "y": 59
           },
           "id": 30,
           "options": {
@@ -2965,7 +3133,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 9
+            "y": 17
           },
           "id": 52,
           "options": {
@@ -3057,7 +3225,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 9
+            "y": 17
           },
           "id": 53,
           "options": {
@@ -3093,9 +3261,8 @@
       "type": "row"
     }
   ],
-  "refresh": false,
-  "schemaVersion": 37,
-  "style": "dark",
+  "refresh": "",
+  "schemaVersion": 39,
   "tags": [
     "victoriametrics",
     "vmalert"
@@ -3104,9 +3271,9 @@
     "list": [
       {
         "current": {
-          "selected": false,
-          "text": "VictoriaMetrics - cluster",
-          "value": "VictoriaMetrics - cluster"
+          "selected": true,
+          "text": "VictoriaMetrics",
+          "value": "P4169E866C3094E38"
         },
         "hide": 0,
         "includeAll": false,

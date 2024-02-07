@@ -1,4 +1,32 @@
 {
+  "__inputs": [],
+  "__elements": {},
+  "__requires": [
+    {
+      "type": "grafana",
+      "id": "grafana",
+      "name": "Grafana",
+      "version": "10.3.1"
+    },
+    {
+      "type": "datasource",
+      "id": "prometheus",
+      "name": "Prometheus",
+      "version": "1.0.0"
+    },
+    {
+      "type": "panel",
+      "id": "stat",
+      "name": "Stat",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "timeseries",
+      "name": "Time series",
+      "version": ""
+    }
+  ],
   "annotations": {
     "list": [
       {
@@ -22,7 +50,7 @@
       {
         "datasource": {
           "type": "prometheus",
-          "uid": "${ds}"
+          "uid": "$ds"
         },
         "enable": true,
         "expr": "sum(vm_app_version{job=~\"$job\", instance=~\"$instance\"}) by(short_version) unless (sum(vm_app_version{job=~\"$job\", instance=~\"$instance\"} offset 20m) by(short_version))",
@@ -35,7 +63,7 @@
       {
         "datasource": {
           "type": "prometheus",
-          "uid": "${ds}"
+          "uid": "$ds"
         },
         "enable": true,
         "expr": "sum(changes(vm_app_start_timestamp{job=~\"$job\", instance=~\"$instance\"})) by(job)",
@@ -49,6 +77,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
+  "id": null,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -68,7 +97,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "${ds}"
+        "uid": "$ds"
       },
       "description": "How many log entries are in storage",
       "fieldConfig": {
@@ -86,7 +115,8 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "short",
+          "unitScale": true
         },
         "overrides": []
       },
@@ -111,15 +141,17 @@
           "fields": "",
           "values": false
         },
+        "showPercentChange": false,
         "text": {},
-        "textMode": "auto"
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "pluginVersion": "9.2.7",
+      "pluginVersion": "10.3.1",
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${ds}"
+            "uid": "$ds"
           },
           "editorMode": "code",
           "exemplar": false,
@@ -138,7 +170,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "${ds}"
+        "uid": "$ds"
       },
       "description": "Shows the datapoints ingestion rate.",
       "fieldConfig": {
@@ -156,7 +188,8 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "short",
+          "unitScale": true
         },
         "overrides": []
       },
@@ -181,15 +214,17 @@
           "fields": "",
           "values": false
         },
+        "showPercentChange": false,
         "text": {},
-        "textMode": "auto"
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "pluginVersion": "9.2.7",
+      "pluginVersion": "10.3.1",
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${ds}"
+            "uid": "$ds"
           },
           "editorMode": "code",
           "exemplar": false,
@@ -208,7 +243,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "${ds}"
+        "uid": "$ds"
       },
       "description": "The ratio of original data size and compressed data stored on disk",
       "fieldConfig": {
@@ -226,7 +261,8 @@
               }
             ]
           },
-          "unit": "none"
+          "unit": "none",
+          "unitScale": true
         },
         "overrides": []
       },
@@ -251,15 +287,17 @@
           "fields": "",
           "values": false
         },
+        "showPercentChange": false,
         "text": {},
-        "textMode": "auto"
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "pluginVersion": "9.2.7",
+      "pluginVersion": "10.3.1",
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${ds}"
+            "uid": "$ds"
           },
           "editorMode": "code",
           "exemplar": false,
@@ -300,7 +338,8 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "short",
+          "unitScale": true
         },
         "overrides": []
       },
@@ -325,10 +364,12 @@
           "fields": "",
           "values": false
         },
+        "showPercentChange": false,
         "text": {},
-        "textMode": "auto"
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "pluginVersion": "9.2.7",
+      "pluginVersion": "10.3.1",
       "targets": [
         {
           "datasource": {
@@ -373,7 +414,8 @@
               }
             ]
           },
-          "unit": "s"
+          "unit": "s",
+          "unitScale": true
         },
         "overrides": []
       },
@@ -396,10 +438,12 @@
           "fields": "",
           "values": false
         },
+        "showPercentChange": false,
         "text": {},
-        "textMode": "auto"
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "pluginVersion": "9.2.7",
+      "pluginVersion": "10.3.1",
       "targets": [
         {
           "datasource": {
@@ -421,7 +465,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "${ds}"
+        "uid": "$ds"
       },
       "description": "Total amount of used disk space",
       "fieldConfig": {
@@ -439,7 +483,8 @@
               }
             ]
           },
-          "unit": "bytes"
+          "unit": "bytes",
+          "unitScale": true
         },
         "overrides": []
       },
@@ -464,15 +509,17 @@
           "fields": "",
           "values": false
         },
+        "showPercentChange": false,
         "text": {},
-        "textMode": "auto"
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "pluginVersion": "9.2.7",
+      "pluginVersion": "10.3.1",
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${ds}"
+            "uid": "$ds"
           },
           "editorMode": "code",
           "exemplar": false,
@@ -509,7 +556,8 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "short",
+          "unitScale": true
         },
         "overrides": []
       },
@@ -534,10 +582,12 @@
           "fields": "",
           "values": false
         },
+        "showPercentChange": false,
         "text": {},
-        "textMode": "auto"
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "pluginVersion": "9.2.7",
+      "pluginVersion": "10.3.1",
       "targets": [
         {
           "datasource": {
@@ -579,7 +629,8 @@
               }
             ]
           },
-          "unit": "bytes"
+          "unit": "bytes",
+          "unitScale": true
         },
         "overrides": []
       },
@@ -604,10 +655,12 @@
           "fields": "",
           "values": false
         },
+        "showPercentChange": false,
         "text": {},
-        "textMode": "auto"
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "pluginVersion": "9.2.7",
+      "pluginVersion": "10.3.1",
       "targets": [
         {
           "datasource": {
@@ -642,7 +695,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "${ds}"
+        "uid": "$ds"
       },
       "description": "How many datapoints are inserted into storage per second",
       "fieldConfig": {
@@ -651,6 +704,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -664,6 +718,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -696,7 +751,8 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "short",
+          "unitScale": true
         },
         "overrides": []
       },
@@ -730,7 +786,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${ds}"
+            "uid": "$ds"
           },
           "editorMode": "code",
           "expr": "sum(rate(vl_rows_ingested_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (type) > 0",
@@ -748,7 +804,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "${ds}"
+        "uid": "$ds"
       },
       "description": "* `*` - unsupported query path\n* `/insert` - insert into VM\n* `/metrics` - query VL system metrics\n* `/query` - read the data",
       "fieldConfig": {
@@ -757,6 +813,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -770,6 +827,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -802,7 +860,8 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "short",
+          "unitScale": true
         },
         "overrides": []
       },
@@ -837,7 +896,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${ds}"
+            "uid": "$ds"
           },
           "editorMode": "code",
           "expr": "sum(rate(vl_http_requests_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (path) > 0",
@@ -855,7 +914,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "${ds}"
+        "uid": "$ds"
       },
       "description": "Shows the amount of on-disk space occupied by data before and after compressiom",
       "fieldConfig": {
@@ -864,6 +923,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -877,6 +937,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -909,7 +970,8 @@
               }
             ]
           },
-          "unit": "bytes"
+          "unit": "bytes",
+          "unitScale": true
         },
         "overrides": []
       },
@@ -944,7 +1006,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${ds}"
+            "uid": "$ds"
           },
           "editorMode": "code",
           "expr": "sum(vl_compressed_data_size_bytes{job=~\"$job\", instance=~\"$instance\"})",
@@ -962,7 +1024,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "${ds}"
+        "uid": "$ds"
       },
       "description": "The number of the new log streams created over the last 24h",
       "fieldConfig": {
@@ -971,6 +1033,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -984,6 +1047,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -1016,7 +1080,8 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "short",
+          "unitScale": true
         },
         "overrides": []
       },
@@ -1051,7 +1116,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${ds}"
+            "uid": "$ds"
           },
           "editorMode": "code",
           "expr": "increase(vl_streams_created_total{job=~\"$job\", instance=~\"$instance\"}[1d])",
@@ -1091,6 +1156,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -1104,6 +1170,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -1136,7 +1203,8 @@
               }
             ]
           },
-          "unit": "percentunit"
+          "unit": "percentunit",
+          "unitScale": true
         },
         "overrides": []
       },
@@ -1197,6 +1265,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -1210,6 +1279,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -1242,7 +1312,8 @@
               }
             ]
           },
-          "unit": "bytes"
+          "unit": "bytes",
+          "unitScale": true
         },
         "overrides": []
       },
@@ -1353,6 +1424,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -1366,6 +1438,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -1398,7 +1471,8 @@
               }
             ]
           },
-          "unit": "percentunit"
+          "unit": "percentunit",
+          "unitScale": true
         },
         "overrides": []
       },
@@ -1458,6 +1532,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -1471,6 +1546,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -1503,7 +1579,8 @@
               }
             ]
           },
-          "unit": "percentunit"
+          "unit": "percentunit",
+          "unitScale": true
         },
         "overrides": []
       },
@@ -1566,6 +1643,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -1579,6 +1657,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -1612,7 +1691,8 @@
               }
             ]
           },
-          "unit": "percentunit"
+          "unit": "percentunit",
+          "unitScale": true
         },
         "overrides": [
           {
@@ -1691,6 +1771,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -1704,6 +1785,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -1736,7 +1818,8 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "short",
+          "unitScale": true
         },
         "overrides": [
           {
@@ -1827,6 +1910,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -1840,6 +1924,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -1873,7 +1958,8 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "short",
+          "unitScale": true
         },
         "overrides": []
       },
@@ -1934,6 +2020,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -1947,6 +2034,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -1978,7 +2066,8 @@
               }
             ]
           },
-          "unit": "bytes"
+          "unit": "bytes",
+          "unitScale": true
         },
         "overrides": [
           {
@@ -2064,6 +2153,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -2077,6 +2167,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -2101,7 +2192,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -2109,7 +2201,8 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "short",
+          "unitScale": true
         },
         "overrides": []
       },
@@ -2170,6 +2263,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -2183,6 +2277,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -2205,7 +2300,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -2213,7 +2309,8 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "short",
+          "unitScale": true
         },
         "overrides": [
           {
@@ -2304,6 +2401,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -2317,6 +2415,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -2340,7 +2439,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -2348,7 +2448,8 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "short",
+          "unitScale": true
         },
         "overrides": []
       },
@@ -2410,6 +2511,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -2423,6 +2525,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -2446,7 +2549,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -2454,7 +2558,8 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "short",
+          "unitScale": true
         },
         "overrides": []
       },
@@ -2505,16 +2610,16 @@
       "type": "timeseries"
     }
   ],
-  "schemaVersion": 37,
-  "style": "dark",
+  "refresh": "",
+  "schemaVersion": 39,
   "tags": [],
   "templating": {
     "list": [
       {
         "current": {
           "selected": true,
-          "text": "default",
-          "value": "default"
+          "text": "VictoriaMetrics",
+          "value": "P4169E866C3094E38"
         },
         "hide": 0,
         "includeAll": false,
@@ -2529,14 +2634,10 @@
         "type": "datasource"
       },
       {
-        "current": {
-          "selected": false,
-          "text": "victorialogs",
-          "value": "victorialogs"
-        },
+        "current": {},
         "datasource": {
           "type": "prometheus",
-          "uid": "${ds}"
+          "uid": "$ds"
         },
         "definition": "label_values(vm_app_version{version=~\"victoria-logs-.*\"}, job)",
         "hide": 0,
@@ -2555,14 +2656,10 @@
         "type": "query"
       },
       {
-        "current": {
-          "selected": false,
-          "text": "victorialogs:9428",
-          "value": "victorialogs:9428"
-        },
+        "current": {},
         "datasource": {
           "type": "prometheus",
-          "uid": "${ds}"
+          "uid": "$ds"
         },
         "definition": "label_values(vm_app_version{job=~\"$job\"}, instance)",
         "hide": 0,
@@ -2601,6 +2698,6 @@
   "timezone": "",
   "title": "VictoriaLogs",
   "uid": "OqPIZTX4z",
-  "version": 3,
+  "version": 1,
   "weekStart": ""
 }

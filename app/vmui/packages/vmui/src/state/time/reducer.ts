@@ -6,10 +6,10 @@ import {
   getDurationFromPeriod,
   getTimeperiodForDuration,
   getRelativeTime,
-  setTimezone
+  setTimezone,
+  getBrowserTimezone
 } from "../../utils/time";
 import { getQueryStringValue } from "../../utils/query-string";
-import dayjs from "dayjs";
 import { getFromStorage, saveToStorage } from "../../utils/storage";
 
 export interface TimeState {
@@ -29,7 +29,7 @@ export type TimeAction =
   | { type: "SET_TIMEZONE", payload: string }
   | { type: "SET_DEFAULT_TIMEZONE", payload: string }
 
-const timezone = getFromStorage("TIMEZONE") as string || dayjs.tz.guess();
+const timezone = getFromStorage("TIMEZONE") as string || getBrowserTimezone().region;
 setTimezone(timezone);
 
 const defaultDuration = getQueryStringValue("g0.range_input") as string;

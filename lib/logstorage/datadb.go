@@ -578,7 +578,7 @@ func (ddb *datadb) needAssistedMergeForInmemoryPartsLocked() bool {
 	}
 	n := 0
 	for _, pw := range ddb.inmemoryParts {
-		if pw.isInMerge {
+		if !pw.isInMerge {
 			n++
 		}
 	}
