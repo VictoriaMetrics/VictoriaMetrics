@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	// TODO: @AndrewChubatiuk, please provide a permalink for the original source code where these constants were extracted
+	// https://github.com/DataDog/opentelemetry-mapping-go/blob/48d52eeea60d28da2e14c154a24557c4d290c6e2/pkg/quantile/config.go
 	epsillon   = 1.0 / 128
 	gamma      = 1 + 2*epsillon
 	gammaLn    = math.Log(gamma)
@@ -313,9 +313,6 @@ func (d *Dogsketch) valueForQuantile(q float64) float64 {
 		vLow := f64(ks[i])
 		vHigh := vLow * gamma
 		switch i {
-		// TODO: I'm unsure this code is correct. i cannot equal len(ns) in this loop.
-		// @AndrewChubatiuk, please add a permalink to the original source code, which was used
-		// for writing this code, in the comments to this function.
 		case len(ns):
 			vHigh = d.Max
 		case 0:
@@ -330,8 +327,6 @@ func f64(k int32) float64 {
 	switch {
 	case k < 0:
 		return -f64(-k)
-	// TODO: I'm unsure this logic is correct, since k can be smaller than math.MinInt16 and bigger than math.MaxInt16
-	// @AndrewChubatiuk, please add a permalink to the original source code, which was used for writing this code.
 	case k == math.MaxInt16 || k == math.MinInt16:
 		return math.Inf(int(k))
 	case k == 0:
