@@ -12,7 +12,6 @@ func TestBytesSetFailure(t *testing.T) {
 			t.Fatalf("expecting non-nil error in b.Set(%q)", value)
 		}
 	}
-	f("")
 	f("foobar")
 	f("5foobar")
 	f("aKB")
@@ -39,6 +38,7 @@ func TestBytesSetSuccess(t *testing.T) {
 			t.Fatalf("unexpected valueString; got %q; want %q", valueString, valueExpected)
 		}
 	}
+	f("", 0)
 	f("0", 0)
 	f("1", 1)
 	f("-1234", -1234)
