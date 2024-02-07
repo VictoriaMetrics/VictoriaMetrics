@@ -113,11 +113,7 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		var err error
 
 		ruleType := r.URL.Query().Get("type")
-		if ruleType == "alert" || ruleType == "record" {
-			data, err = rh.listFilterGroups(ruleType)
-		} else {
-			data, err = rh.listGroups()
-		}
+		data, err = rh.listGroups(ruleType)
 
 		if err != nil {
 			httpserver.Errorf(w, r, "%s", err)
@@ -256,20 +252,7 @@ func (rh *requestHandler) groups(ruleType string) []apiGroup {
 	return groups
 }
 
-func (rh *requestHandler) listGroups() ([]byte, error) {
-	lr := listGroupsResponse{Status: "success"}
-	lr.Data.Groups = rh.groups("")
-	b, err := json.Marshal(lr)
-	if err != nil {
-		return nil, &httpserver.ErrorWithStatusCode{
-			Err:        fmt.Errorf(`error encoding list of active alerts: %w`, err),
-			StatusCode: http.StatusInternalServerError,
-		}
-	}
-	return b, nil
-}
-
-func (rh *requestHandler) listFilterGroups(ruleType string) ([]byte, error) {
+func (rh *requestHandler) listGroups(ruleType string) ([]byte, error) {
 	lr := listGroupsResponse{Status: "success"}
 	lr.Data.Groups = rh.groups(ruleType)
 	b, err := json.Marshal(lr)
