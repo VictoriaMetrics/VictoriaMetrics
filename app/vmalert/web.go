@@ -89,11 +89,7 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 	case "/vmalert/groups":
 		var data []apiGroup
 		ruleType := r.URL.Query().Get("type")
-		if ruleType == "alert" || ruleType == "record" {
-			data = rh.filterGroups(ruleType)
-		} else {
-			data = rh.groups()
-		}
+		data = rh.groups(ruleType)
 		WriteListGroups(w, r, data)
 		return true
 	case "/vmalert/notifiers":
@@ -107,11 +103,7 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		// handler in addition to `/api/v1/rules` calls in alerts UI,
 		var data []apiGroup
 		ruleType := r.URL.Query().Get("type")
-		if ruleType == "alert" || ruleType == "record" {
-			data = rh.filterGroups(ruleType)
-		} else {
-			data = rh.groups()
-		}
+		data = rh.groups(ruleType)
 		WriteListGroups(w, r, data)
 		return true
 
@@ -231,48 +223,28 @@ type listGroupsResponse struct {
 	} `json:"data"`
 }
 
-func (rh *requestHandler) filterGroups(ruleType string) []apiGroup {
+func (rh *requestHandler) groups(ruleType string) []apiGroup {
 	rh.m.groupsMu.RLock()
 	defer rh.m.groupsMu.RUnlock()
-	var filteredRules []apiRule
-
-	var vmRuleType string
-	if ruleType == "alert" {
-		vmRuleType = "alerting"
-	} else if ruleType == "record" {
-		vmRuleType = "recording"
-	}
 
 	groups := make([]apiGroup, 0)
 	for _, g := range rh.m.groups {
-		filteredRules = make([]apiRule, 0)
-		for _, r := range g.Rules {
-			rule, _ := rh.m.ruleAPI(g.ID(), r.ID())
-			if rule.Type == vmRuleType {
-				filteredRules = append(filteredRules, rule)
+		g = g.DeepCopy()
+		var matchedRules []rule.Rule
+		if ruleType == "alert" || ruleType == "record" {
+			for _, r := range g.Rules {
+				if _, ok := r.(*rule.AlertingRule); ok && ruleType == "alert" {
+					matchedRules = append(matchedRules, r)
+				}
+				if _, ok := r.(*rule.RecordingRule); ok && ruleType == "record" {
+					matchedRules = append(matchedRules, r)
+				}
 			}
+			if len(matchedRules) == 0 {
+				continue
+			}
+			g.Rules = matchedRules
 		}
-		if len(filteredRules) > 0 {
-			groupAPI := groupToAPI(g)
-			groupAPI.Rules = filteredRules
-			groups = append(groups, groupAPI)
-		}
-	}
-
-	// sort list of alerts for deterministic output
-	sort.Slice(groups, func(i, j int) bool {
-		return groups[i].Name < groups[j].Name
-	})
-
-	return groups
-}
-
-func (rh *requestHandler) groups() []apiGroup {
-	rh.m.groupsMu.RLock()
-	defer rh.m.groupsMu.RUnlock()
-
-	groups := make([]apiGroup, 0)
-	for _, g := range rh.m.groups {
 		groups = append(groups, groupToAPI(g))
 	}
 
@@ -286,7 +258,7 @@ func (rh *requestHandler) groups() []apiGroup {
 
 func (rh *requestHandler) listGroups() ([]byte, error) {
 	lr := listGroupsResponse{Status: "success"}
-	lr.Data.Groups = rh.groups()
+	lr.Data.Groups = rh.groups("")
 	b, err := json.Marshal(lr)
 	if err != nil {
 		return nil, &httpserver.ErrorWithStatusCode{
@@ -299,7 +271,7 @@ func (rh *requestHandler) listGroups() ([]byte, error) {
 
 func (rh *requestHandler) listFilterGroups(ruleType string) ([]byte, error) {
 	lr := listGroupsResponse{Status: "success"}
-	lr.Data.Groups = rh.filterGroups(ruleType)
+	lr.Data.Groups = rh.groups(ruleType)
 	b, err := json.Marshal(lr)
 	if err != nil {
 		return nil, &httpserver.ErrorWithStatusCode{
