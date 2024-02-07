@@ -5,10 +5,10 @@ import (
 	"testing"
 )
 
-func TestPointsForQuantile(t *testing.T) {
+func TestDogsketchQuantile(t *testing.T) {
 	f := func(d *Dogsketch, q float64, vExpected float64) {
 		t.Helper()
-		v := d.valueForQuantile(q)
+		v := d.quantile(q)
 		if math.Abs(v-vExpected) > 0.4 {
 			t.Fatalf("unexpected value; got %v; want %v", v, vExpected)
 		}
