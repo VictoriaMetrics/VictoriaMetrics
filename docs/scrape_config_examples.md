@@ -303,6 +303,46 @@ See [`kubernetes_sd_configs` docs](https://docs.victoriametrics.com/sd_configs.h
 
 See [relabeling docs](https://docs.victoriametrics.com/vmagent.html#relabeling) for details on `relabel_configs`.
 
+### Discovering and scraping metrics from `cadvisor`
+
+[cadvisor](https://github.com/google/cadvisor) exposes resource usage metrics for every container in Kubernetes.
+The following [`-promscrape.config`](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter)
+can be used for collecting `cadvisor` metrics in Kubernetes:
+
+```yaml
+scrape_configs:
+- job_name: cadvisor
+  kubernetes_sd_configs:
+    # Cadvisor is installed on every Kubernetes node, so use `role: node` service discovery
+    #
+  - role: node
+
+  # This is needed for scraping cadvisor metrics from Kubernetes API server proxy.
+  # See relabel_configs below.
+  #
+  bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+  tls_config:
+    ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+
+  relabel_configs:
+    # Cadvisor metrics are better to scrape from Kubernetes API server proxy.
+    # There is no need to add container, pod and node labels to the scraped metrics,
+    # since cadvisor adds these labels on itself.
+    #
+  - source_labels: [__meta_kubernetes_node_name]
+    target_label: __address__
+    regex: '(.+)'
+    replacement: https://kubernetes.default.svc/api/v1/nodes/$1/proxy/metrics/cadvisor
+  - source_labels: [__meta_kubernetes_node_name]
+    target_label: instance
+```
+
+See [`kubernetes_sd_configs` docs](https://docs.victoriametrics.com/sd_configs.html#kubernetes_sd_configs) for more details.
+
+See [relabeling docs](https://docs.victoriametrics.com/vmagent.html#relabeling) for details on `relabel_configs`.
+
+See [these docs](https://docs.victoriametrics.com/sd_configs/#http-api-client-options) for details on `bearer_token_file` and `tls_config` options.
+
 ### Discovering and scraping metrics for a particular container in Kubernetes
 
 The following [`-promscrape.config`](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter)
