@@ -40,7 +40,15 @@ See [these docs](#running-victoriametrics-enterprise) for details on how to run 
 VictoriaMetrics Enterprise includes [all the features of the community edition](https://docs.victoriametrics.com/#prominent-features),
 plus the following additional features:
 
-- Long-term support stable releases with improtant bugfixes. See, for example, [v1.97.x LTS release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.1).
+- Stable releases with long-term support, which contains important bugfixes. See, for example, [v1.97.x LTS release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.1).
+- First-class consulting and technical support provided by the core VictoriaMetrics dev team.
+- [Monitoring of monitoring](https://victoriametrics.com/products/mom/) - this feature allows forecasting
+  and preventing possible issues in VictoriaMetrics setups.
+- [Enterprise security compliance](https://victoriametrics.com/security/).
+- Prioritizing of feature requests from Enterprise customers.
+
+On top of this, Enterprise package of VictoriaMetrics includes the following Enterprise features:
+
 - [Downsampling](https://docs.victoriametrics.com/#downsampling) - this feature allows reducing storage costs
   and increasing performance for queries over historical data.
 - [Multiple retentions](https://docs.victoriametrics.com/#retention-filters) - this feature allows reducing storage costs
@@ -50,21 +58,14 @@ plus the following additional features:
 - [Backup automation](https://docs.victoriametrics.com/vmbackupmanager.html).
 - [Advanced per-tenant stats](https://docs.victoriametrics.com/PerTenantStatistic.html).
 - [Advanced auth and rate limiter](https://docs.victoriametrics.com/vmgateway.html).
-- [mTLS for cluster components](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection).
+- [mTLS for all the VictoriaMetrics components](https://docs.victoriametrics.com/#mtls-protection).
+- [mTLS for communications between cluster components](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection).
 - [Kafka integration](https://docs.victoriametrics.com/vmagent.html#kafka-integration).
 - [Google PubSub integration](https://docs.victoriametrics.com/vmagent.html#google-pubsub-integration).
 - [Multitenant support in vmalert](https://docs.victoriametrics.com/vmalert.html#multitenancy).
 - [Ability to read alerting and recording rules from Object Storage](https://docs.victoriametrics.com/vmalert.html#reading-rules-from-object-storage).
 - [Ability to filter incoming requests by IP at vmauth](https://docs.victoriametrics.com/vmauth.html#ip-filters).
 - [Anomaly Detection Service](https://docs.victoriametrics.com/anomaly-detection).
-
-On top of this, Enterprise package of VictoriaMetrics includes the following important Enterprise features:
-
-- First-class consulting and technical support provided by the core VictoriaMetrics dev team.
-- [Monitoring of monitoring](https://victoriametrics.com/products/mom/) - this feature allows forecasting
-  and preventing possible issues in VictoriaMetrics setups.
-- [Enterprise security compliance](https://victoriametrics.com/security/).
-- Prioritizing of feature requests from Enterprise customers.
 
 Contact us via [this page](https://victoriametrics.com/products/enterprise/) if you are interested in VictoriaMetrics Enterprise.
 

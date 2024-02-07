@@ -1023,8 +1023,12 @@ See also [cardinality explorer docs](https://docs.victoriametrics.com/#cardinali
 ## Monitoring
 
 `vmagent` exports various metrics in Prometheus exposition format at `http://vmagent-host:8429/metrics` page.
-We recommend setting up regular scraping of this page either through `vmagent` itself or by Prometheus
+We recommend setting up regular scraping of this page either through `vmagent` itself or by Prometheus-compatible scraper,
 so that the exported metrics may be analyzed later.
+
+If you use Google Cloud Managed Prometheus for scraping metrics from VictoriaMetrics components, then pass `-metrics.exposeMetadata`
+command-line to them, so they add `TYPE` and `HELP` comments per each exposed metric at `/metrics` page.
+See [these docs](https://cloud.google.com/stackdriver/docs/managed-prometheus/troubleshooting#missing-metric-type) for details.
 
 Use official [Grafana dashboard](https://grafana.com/grafana/dashboards/12683) for `vmagent` state overview.
 Graphs on this dashboard contain useful hints - hover the `i` icon at the top left corner of each graph in order to read it.
@@ -1430,6 +1434,26 @@ Two types of auth are supported:
     -remoteWrite.tlsKeyFile=/opt/key.pem
 ```
 
+## mTLS protection
+
+By default `vmagent` accepts http requests at `8429` port (this port can be changed via `-httpListenAddr` command-line flags),
+since it is expected it runs in an isolated trusted network.
+[Enterprise version of vmagent](https://docs.victoriametrics.com/enterprise.html) supports the ability to accept [mTLS](https://en.wikipedia.org/wiki/Mutual_authentication)
+requests at this port, by specifying `-tls` and `-mtls` command-line flags. For example, the following command runs `vmagent`, which accepts only mTLS requests at port `8429`:
+
+```
+./vmagent -tls -mtls -remoteWrite.url=...
+```
+
+By default system-wide [TLS Root CA](https://en.wikipedia.org/wiki/Root_certificate) is used for verifying client certificates if `-mtls` command-line flag is specified.
+It is possible to specify custom TLS Root CA via `-mtlsCAFile` command-line flag.
+
+## Security
+
+See general recommendations regarding security [here](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#security).
+
+See also [mTLS protection docs](#mtls-protection).
+
 ## How to build from sources
 
 We recommend using [official binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) - `vmagent` is located in the `vmutils-...` archives.
@@ -1723,6 +1747,10 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -metricsAuthKey value
      Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
      Flag value can be read from the given file when using -metricsAuthKey=file:///abs/path/to/file or -metricsAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -metricsAuthKey=http://host/path or -metricsAuthKey=https://host/path
+  -mtls
+     Whether to require valid client certificate for https requests to -httpListenAddr . This flag works only if -tls flag is set. See also -mtlsCAFile . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
+  -mtlsCAFile string
+     Optional path to TLS Root CA for verifying client certificates when -mtls is enabled. By default the host system TLS Root CA is used for client certificate verification. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
   -newrelic.maxInsertRequestSize size
      The maximum size in bytes of a single NewRelic request to /newrelic/infra/v2/metrics/events/bulk
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 67108864)
@@ -2051,7 +2079,7 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -sortLabels
      Whether to sort labels for incoming samples before writing them to all the configured remote storage systems. This may be needed for reducing memory usage at remote storage when the order of labels in incoming samples is random. For example, if m{k1="v1",k2="v2"} may be sent as m{k2="v2",k1="v1"}Enabled sorting for labels can slow down ingestion performance a bit
   -tls
-     Whether to enable TLS for incoming HTTP requests at -httpListenAddr (aka https). -tlsCertFile and -tlsKeyFile must be set if -tls is set
+     Whether to enable TLS for incoming HTTP requests at -httpListenAddr (aka https). -tlsCertFile and -tlsKeyFile must be set if -tls is set. See also -mtls
   -tlsCertFile string
      Path to file with TLS certificate if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated
   -tlsCipherSuites array
