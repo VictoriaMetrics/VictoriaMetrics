@@ -9,11 +9,11 @@ import (
 )
 
 var (
-	// https://github.com/DataDog/opentelemetry-mapping-go/blob/48d52eeea60d28da2e14c154a24557c4d290c6e2/pkg/quantile/config.go
-	epsillon   = 1.0 / 128
-	gamma      = 1 + 2*epsillon
-	gammaLn    = math.Log(gamma)
-	defaultMin = 0.981e-9
+	// These constants were obtained from https://github.com/DataDog/opentelemetry-mapping-go/blob/48d52eeea60d28da2e14c154a24557c4d290c6e2/pkg/quantile/config.go
+	eps        = 1.0 / 128
+	gamma      = 1 + 2*eps
+	gammaLn    = math.Log1p(2 * eps)
+	defaultMin = 1e-9
 	bias       = 1 - int(math.Floor(math.Log(defaultMin)/gammaLn))
 	quantiles  = []float64{0.5, 0.75, 0.9, 0.95, 0.99}
 )
@@ -174,7 +174,7 @@ func (s *Sketch) ToSummary() []*Metric {
 			timestamp := d.Ts * 1000
 			points[j] = Point{
 				Timestamp: timestamp,
-				Value:     d.valueForQuantile(q),
+				Value:     d.quantile(q),
 			}
 			sumPoints[j] = Point{
 				Timestamp: timestamp,
@@ -285,7 +285,8 @@ func (d *Dogsketch) unmarshalProtobuf(src []byte) (err error) {
 	return nil
 }
 
-func (d *Dogsketch) valueForQuantile(q float64) float64 {
+// This function has been copied from https://github.com/DataDog/opentelemetry-mapping-go/blob/48d52eeea60d28da2e14c154a24557c4d290c6e2/pkg/quantile/sparse.go#L92
+func (d *Dogsketch) quantile(q float64) float64 {
 	switch {
 	case d.Cnt == 0:
 		return 0
@@ -312,10 +313,7 @@ func (d *Dogsketch) valueForQuantile(q float64) float64 {
 		weight := (cnt - rank) / float64(n)
 		vLow := f64(ks[i])
 		vHigh := vLow * gamma
-		switch i {
-		case len(ns):
-			vHigh = d.Max
-		case 0:
+		if i == 0 {
 			vLow = d.Min
 		}
 		return vLow*weight + vHigh*(1-weight)
@@ -323,15 +321,22 @@ func (d *Dogsketch) valueForQuantile(q float64) float64 {
 	return d.Max
 }
 
+// This function has been copied from https://github.com/DataDog/opentelemetry-mapping-go/blob/48d52eeea60d28da2e14c154a24557c4d290c6e2/pkg/quantile/config.go#L54
 func f64(k int32) float64 {
-	switch {
-	case k < 0:
-		return -f64(-k)
-	case k == math.MaxInt16 || k == math.MinInt16:
-		return math.Inf(int(k))
-	case k == 0:
+	// See https://github.com/DataDog/opentelemetry-mapping-go/blob/48d52eeea60d28da2e14c154a24557c4d290c6e2/pkg/quantile/key.go#L14
+	if k <= -((1 << 15) - 1) {
+		return math.Inf(-1)
+	}
+	if k >= ((1 << 15) - 1) {
+		return math.Inf(1)
+	}
+	if k == 0 {
 		return 0
 	}
+	if k < 0 {
+		return -f64(-k)
+	}
+
 	exp := float64(int(k) - bias)
 	return math.Pow(gamma, exp)
 }
