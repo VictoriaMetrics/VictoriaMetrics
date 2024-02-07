@@ -159,7 +159,7 @@ func TestAggregatorsEqual(t *testing.T) {
 	f(`
 - outputs: [total]
   interval: 5m
-  flush_on_shutdown: true  
+  flush_on_shutdown: true
 `, `
 - outputs: [total]
   interval: 5m

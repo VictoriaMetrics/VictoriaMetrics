@@ -19,11 +19,12 @@ func BenchmarkLabelsCompressDecompress(b *testing.B) {
 		}
 	}
 
+	bm := &bimap{}
 	bb := make([]byte, 0)
 	tmpLs := promutils.GetLabels()
 	b.Run(fmt.Sprintf("compress-decompress=%d", len(labels)), func(b *testing.B) {
-		s := string(compress(bb[:0], labels))
+		s := string(bm.compress(bb[:0], labels))
 		tmpLs.Labels = tmpLs.Labels[:0]
-		decompress(tmpLs, s)
+		bm.decompress(tmpLs, s)
 	})
 }

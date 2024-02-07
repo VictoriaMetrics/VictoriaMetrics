@@ -2,8 +2,10 @@ package streamaggr
 
 import (
 	"sync"
+	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
@@ -15,15 +17,18 @@ type deduplicator struct {
 	stopCh         chan struct{}
 	m              sync.Map
 	pushSamplesAgg pushSamplesFunc
+	bm             atomic.Pointer[bimap]
 }
 
 func newDeduplicator(
 	dedupInterval time.Duration,
 ) *deduplicator {
-	return &deduplicator{
+	d := &deduplicator{
 		interval: dedupInterval,
 		stopCh:   make(chan struct{}),
 	}
+	d.bm.Store(bm.Load())
+	return d
 }
 
 func (d *deduplicator) run(pushSamplesAgg pushSamplesFunc) {
@@ -51,6 +56,14 @@ func (d *deduplicator) stop() {
 	close(d.stopCh)
 	d.wg.Wait()
 	d.flush()
+}
+
+func (d *deduplicator) pushSamples(key []byte, labels []prompbmarshal.Label, ts prompbmarshal.TimeSeries) {
+	b := d.bm.Load()
+	for _, sample := range ts.Samples {
+		key = b.compress(key[:0], labels)
+		d.pushSample(string(key), sample.Value, sample.Timestamp)
+	}
 }
 
 func (d *deduplicator) pushSample(key string, value float64, timestamp int64) {
@@ -97,6 +110,7 @@ func (d *deduplicator) flush() {
 	tmpLabels := promutils.GetLabels()
 	bb := bbPool.Get()
 
+	obm := d.bm.Swap(bm.Load())
 	d.m.Range(func(k, v interface{}) bool {
 		// Atomically delete the entry from the map, so new entry is created for the next flush.
 		d.m.Delete(k)
@@ -109,7 +123,7 @@ func (d *deduplicator) flush() {
 		sv.mu.Unlock()
 
 		labels.Labels = labels.Labels[:0]
-		labels = decompress(labels, k.(string))
+		labels = obm.decompress(labels, k.(string))
 
 		//key, err := zstdDecoder.DecodeAll([]byte(k.(string)), nil)
 		//if err != nil {

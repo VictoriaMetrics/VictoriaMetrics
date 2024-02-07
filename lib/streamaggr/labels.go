@@ -1,10 +1,11 @@
 package streamaggr
 
 import (
-	"hash"
-	"hash/fnv"
+	"encoding/binary"
 	"strings"
 	"sync"
+	"sync/atomic"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
@@ -12,21 +13,34 @@ import (
 )
 
 type bimap struct {
+	n atomic.Uint32
 	// map[prompbmarshal.Label]string
 	labelToHash sync.Map
 	// map[string]prompbmarshal.Label
 	hashToLabel sync.Map
 }
 
-func (bm *bimap) getHash(l prompbmarshal.Label) string {
-	key, ok := bm.labelToHash.Load(l)
-	if !ok {
-		return ""
-	}
-	return key.(string)
+var bm atomic.Pointer[bimap]
+
+func init() {
+	bm.Store(&bimap{})
+	t := time.NewTicker(5 * time.Minute)
+	go func() {
+		for range t.C {
+			bm.Store(&bimap{})
+		}
+	}()
 }
 
-func (bm *bimap) getLabel(k string) prompbmarshal.Label {
+func (bm *bimap) getHash(l prompbmarshal.Label) uint32 {
+	key, ok := bm.labelToHash.Load(l)
+	if !ok {
+		return 0
+	}
+	return key.(uint32)
+}
+
+func (bm *bimap) getLabel(k uint32) prompbmarshal.Label {
 	l, ok := bm.hashToLabel.Load(k)
 	if !ok {
 		return prompbmarshal.Label{}
@@ -34,44 +48,37 @@ func (bm *bimap) getLabel(k string) prompbmarshal.Label {
 	return l.(prompbmarshal.Label)
 }
 
-func (bm *bimap) set(k string, l prompbmarshal.Label) {
+func (bm *bimap) set(k uint32, l prompbmarshal.Label) {
 	bm.labelToHash.Store(l, k)
 	bm.hashToLabel.Store(k, l)
 }
 
-var bm bimap
-
-func compress(bb []byte, lss []prompbmarshal.Label) []byte {
-	var h hash.Hash32
-	labelToKey := func(l prompbmarshal.Label) []byte {
-		h.Reset()
-		h.Write([]byte(l.Name))
-		h.Write([]byte("="))
-		h.Write([]byte(l.Value))
-		return h.Sum(nil)
+func (bm *bimap) compress(bb []byte, lss []prompbmarshal.Label) []byte {
+	n := len(lss) * 4
+	if cap(bb)-len(bb) < n {
+		bb = append(make([]byte, 0, len(bb)+n), bb...)
 	}
-
 	for _, ls := range lss {
 		k := bm.getHash(ls)
-		if k == "" {
-			if h == nil {
-				h = fnv.New32a()
-			}
-			k = string(labelToKey(ls))
-			name, value := strings.Clone(ls.Name), strings.Clone(ls.Value)
-			bm.set(k, prompbmarshal.Label{Name: name, Value: value})
+		if k == 0 {
+			k = bm.n.Add(1)
+			bm.set(k, prompbmarshal.Label{
+				Name:  strings.Clone(ls.Name),
+				Value: strings.Clone(ls.Value),
+			})
 		}
-		bb = append(bb, k...)
+		binary.LittleEndian.AppendUint32(bb, k)
+		bb = bb[:len(bb)+4]
 	}
 	return bb
 }
 
-func decompress(labels *promutils.Labels, s string) *promutils.Labels {
+func (bm *bimap) decompress(labels *promutils.Labels, s string) *promutils.Labels {
 	bb := bytesutil.ToUnsafeBytes(s)
 	for len(bb) != 0 {
-		key := bb[:4]
+		k := binary.LittleEndian.Uint32(bb)
 		bb = bb[4:]
-		l := bm.getLabel(bytesutil.ToUnsafeString(key))
+		l := bm.getLabel(k)
 		if l.Name == "" || l.Value == "" {
 			panic("got empty label")
 		}

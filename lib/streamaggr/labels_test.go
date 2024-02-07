@@ -9,6 +9,7 @@ import (
 )
 
 func TestCompress(t *testing.T) {
+	bm := &bimap{}
 	fn := func(metrics, series int) {
 		labels := make([]prompbmarshal.Label, 0)
 		for i := 0; i < metrics; i++ {
@@ -21,14 +22,14 @@ func TestCompress(t *testing.T) {
 			}
 		}
 		bb := make([]byte, 0)
-		s := string(compress(bb, labels))
+		s := string(bm.compress(bb, labels))
 		fmt.Println("-------- cardinality", metrics*series)
 		newK, regK := len(s), len(marshalLabelsFast(nil, labels))
 		fmt.Println("compressed key len", newK)
 		fmt.Println("regular key len", regK)
 		fmt.Println("ratio", float64(newK)/float64(regK))
 		tmpLs := promutils.GetLabels()
-		got := decompress(tmpLs, s)
+		got := bm.decompress(tmpLs, s)
 		if !reflect.DeepEqual(labels, got.Labels) {
 			fmt.Println(labels)
 			fmt.Println(got.Labels)

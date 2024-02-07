@@ -19,7 +19,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
-	"github.com/klauspost/compress/zstd"
 	"gopkg.in/yaml.v2"
 )
 
@@ -496,26 +495,26 @@ func (a *aggregator) MustStop() {
 	<-flushConcurrencyCh
 }
 
-var (
-	zstdEncoder *zstd.Encoder
-	zstdDecoder *zstd.Decoder
-)
-
-func init() {
-	e, err := zstd.NewWriter(nil,
-		zstd.WithEncoderCRC(false), // Disable CRC for performance reasons.
-	)
-	if err != nil {
-		logger.Panicf("BUG: failed to create ZSTD writer: %s", err)
-	}
-	zstdEncoder = e
-
-	zstdDecoder, err = zstd.NewReader(nil)
-	if err != nil {
-		logger.Panicf("BUG: failed to create ZSTD reader: %s", err)
-	}
-
-}
+//var (
+//	zstdEncoder *zstd.Encoder
+//	zstdDecoder *zstd.Decoder
+//)
+//
+//func init() {
+//	e, err := zstd.NewWriter(nil,
+//		zstd.WithEncoderCRC(false), // Disable CRC for performance reasons.
+//	)
+//	if err != nil {
+//		logger.Panicf("BUG: failed to create ZSTD writer: %s", err)
+//	}
+//	zstdEncoder = e
+//
+//	zstdDecoder, err = zstd.NewReader(nil)
+//	if err != nil {
+//		logger.Panicf("BUG: failed to create ZSTD reader: %s", err)
+//	}
+//
+//}
 
 // Push pushes tss to a.
 func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
@@ -544,12 +543,7 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 		labels.Sort()
 
 		if a.dedup != nil {
-			for _, sample := range ts.Samples {
-				//bb.B = marshalLabelsFast(bb.B[:0], labels.Labels)
-				bb.B = compress(bb.B[:0], labels.Labels)
-				key := string(bb.B)
-				a.dedup.pushSample(key, sample.Value, sample.Timestamp)
-			}
+			a.dedup.pushSamples(bb.B, labels.Labels, ts)
 			continue
 		}
 
@@ -642,10 +636,10 @@ func hasInArray(name string, a []string) bool {
 	return false
 }
 
-func marshalLabelsFastZSTD(dst []byte, labels []prompbmarshal.Label) []byte {
-	src := marshalLabelsFast(dst, labels)
-	return zstdEncoder.EncodeAll(src, dst[:0])
-}
+//func marshalLabelsFastZSTD(dst []byte, labels []prompbmarshal.Label) []byte {
+//	src := marshalLabelsFast(dst, labels)
+//	return zstdEncoder.EncodeAll(src, dst[:0])
+//}
 
 func marshalLabelsFast(dst []byte, labels []prompbmarshal.Label) []byte {
 	dst = encoding.MarshalUint32(dst, uint32(len(labels)))
