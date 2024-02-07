@@ -303,7 +303,7 @@ func (d *Dogsketch) quantile(q float64) float64 {
 		return 0
 	}
 
-	rank := q * float64(d.Cnt-1)
+	rank := math.RoundToEven(q * float64(d.Cnt-1))
 	cnt := float64(0)
 	for i, n := range ns {
 		cnt += float64(n)
