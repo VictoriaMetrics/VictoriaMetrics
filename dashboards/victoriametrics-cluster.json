@@ -4857,7 +4857,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Shows the approx time needed to reach 100% of disk capacity for at least one vmstorage node based on the following params:\n* free disk space;\n* row ingestion rate;\n* dedup rate;\n* compression.\n\nUse this panel for capacity planning in order to estimate the time remaining for running out of the disk space.",
+          "description": "Shows the approx time needed to reach 100% of disk capacity for at least one vmstorage node based on the following params:\n* free disk space;\n* row ingestion rate;\n* compression.\n\nnote: this panel doesn't count deduplication operations which could release disk and increase the time.\n\nUse this panel for capacity planning in order to estimate the time remaining for running out of the disk space.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -9050,7 +9050,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Shows the approx time needed to reach 100% of disk capacity based on the following params:\n* free disk space;\n* row ingestion rate;\n* dedup rate;\n* compression.\n\nUse this panel for capacity planning in order to estimate the time remaining for running out of the disk space.",
+          "description": "Shows the approx time needed to reach 100% of disk capacity based on the following params:\n* free disk space;\n* row ingestion rate;\n* compression.\n\nnote: this panel doesn't count deduplication operations which could release disk and increase the time.\n\nUse this panel for capacity planning in order to estimate the time remaining for running out of the disk space.",
           "fieldConfig": {
             "defaults": {
               "color": {
