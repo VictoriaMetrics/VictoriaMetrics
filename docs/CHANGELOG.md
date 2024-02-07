@@ -11,6 +11,8 @@ The following `tip` changes can be tested by building VictoriaMetrics components
 
 ## v1.93.x long-time support release (LTS)
 
+* SECURITY: upgrade Go builder from Go1.21.6 to Go1.21.7. See [the list of issues addressed in Go1.21.7](https://github.com/golang/go/issues?q=milestone%3AGo1.21.7+label%3ACherryPickApproved).
+
 * BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): properly propagate [label filters](https://docs.victoriametrics.com/keyconcepts/#filtering) from multiple arguments passed to [aggregate functions](https://docs.victoriametrics.com/metricsql/#aggregate-functions). For example, `sum({job="foo"}, {job="bar"}) by (job) + a` was improperly optimized to `sum({job="foo"}, {job="bar"}) by (job) + a{job="foo"}` before being executed. This could lead to unexpected results. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5604).
 
 ## [v1.93.11](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.11)
