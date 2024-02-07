@@ -352,7 +352,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "datadog/api/beta/sketches":
 		datadogsketchesWriteRequests.Inc()
-		if err := datadogsketches.InsertHandlerForHTTP(r); err != nil {
+		if err := datadogsketches.InsertHandlerForHTTP(at, r); err != nil {
 			datadogsketchesWriteErrors.Inc()
 			httpserver.Errorf(w, r, "%s", err)
 			return true

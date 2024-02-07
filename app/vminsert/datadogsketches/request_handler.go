@@ -3,43 +3,44 @@ package datadogsketches
 import (
 	"net/http"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/common"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/datadogsketches"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/datadogsketches/stream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/datadogutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
 	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
-	rowsInserted  = metrics.NewCounter(`vm_rows_inserted_total{type="datadogsketches"}`)
-	rowsPerInsert = metrics.NewHistogram(`vm_rows_per_insert{type="datadogsketches"}`)
+	rowsInserted       = metrics.NewCounter(`vm_rows_inserted_total{type="datadogsketches"}`)
+	rowsTenantInserted = tenantmetrics.NewCounterMap(`vm_tenant_inserted_rows_total{type="datadogsketches"}`)
+	rowsPerInsert      = metrics.NewHistogram(`vm_rows_per_insert{type="datadogsketches"}`)
 )
 
 // InsertHandlerForHTTP processes remote write for DataDog POST /api/beta/sketches request.
-func InsertHandlerForHTTP(req *http.Request) error {
+func InsertHandlerForHTTP(at *auth.Token, req *http.Request) error {
 	extraLabels, err := parserCommon.GetExtraLabels(req)
 	if err != nil {
 		return err
 	}
 	ce := req.Header.Get("Content-Encoding")
 	return stream.Parse(req.Body, ce, func(sketches []*datadogsketches.Sketch) error {
-		return insertRows(sketches, extraLabels)
+		return insertRows(at, sketches, extraLabels)
 	})
 }
 
-func insertRows(sketches []*datadogsketches.Sketch, extraLabels []prompbmarshal.Label) error {
-	ctx := common.GetInsertCtx()
-	defer common.PutInsertCtx(ctx)
+func insertRows(at *auth.Token, sketches []*datadogsketches.Sketch, extraLabels []prompbmarshal.Label) error {
+	ctx := netstorage.GetInsertCtx()
+	defer netstorage.PutInsertCtx(ctx)
 
-	rowsLen := 0
-	for _, sketch := range sketches {
-		rowsLen += sketch.RowsCount()
-	}
-	ctx.Reset(rowsLen)
+	ctx.Reset()
 	rowsTotal := 0
+	perTenantRows := make(map[auth.Token]int)
 	hasRelabeling := relabel.HasRelabeling()
 	for _, sketch := range sketches {
 		ms := sketch.ToSummary()
@@ -68,18 +69,20 @@ func insertRows(sketches []*datadogsketches.Sketch, extraLabels []prompbmarshal.
 				continue
 			}
 			ctx.SortLabelsIfNeeded()
-			var metricNameRaw []byte
-			var err error
+			atLocal := ctx.GetLocalAuthToken(at)
+			ctx.MetricNameBuf = storage.MarshalMetricNameRaw(ctx.MetricNameBuf[:0], atLocal.AccountID, atLocal.ProjectID, ctx.Labels)
+			storageNodeIdx := ctx.GetStorageNodeIdx(atLocal, ctx.Labels)
 			for _, p := range m.Points {
-				metricNameRaw, err = ctx.WriteDataPointExt(metricNameRaw, ctx.Labels, p.Timestamp, p.Value)
-				if err != nil {
+				if err := ctx.WriteDataPointExt(storageNodeIdx, ctx.MetricNameBuf, p.Timestamp, p.Value); err != nil {
 					return err
 				}
 			}
 			rowsTotal += len(m.Points)
+			perTenantRows[*atLocal] += len(m.Points)
 		}
 	}
 	rowsInserted.Add(rowsTotal)
+	rowsTenantInserted.MultiAdd(perTenantRows)
 	rowsPerInsert.Update(float64(rowsTotal))
 	return ctx.FlushBufs()
 }
