@@ -217,7 +217,7 @@ This will expose metrics at `http://0.0.0.0:8080/metrics` page.
 To use *vmanomaly* you need to pull docker image:
 
 ```sh
-docker pull victoriametrics/vmanomaly:1.9.2
+docker pull victoriametrics/vmanomaly:v1.9.2
 ```
 
 > Note: please check what is latest release in [CHANGELOG](/anomaly-detection/CHANGELOG.html)
@@ -227,7 +227,7 @@ docker pull victoriametrics/vmanomaly:1.9.2
 You can put a tag on it for your convinience:
 
 ```sh
-docker image tag victoriametrics/vmanomaly:1.9.2 vmanomaly
+docker image tag victoriametrics/vmanomaly:v1.9.2 vmanomaly
 ```
 Here is an example of how to run *vmanomaly* docker container with [license file](#licensing):
 
