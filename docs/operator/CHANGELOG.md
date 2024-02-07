@@ -16,7 +16,7 @@ aliases:
 
 ## Next release
 
-- TODO
+- Remove deprecated autoscaling/v2beta1 HPA objects, previously operator still use it for k8s 1.25. See [this issue](https://github.com/VictoriaMetrics/operator/issues/864) for details.
 
 <a name="v0.41.1"></a>
 ## [v0.41.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.41.1) - 1 Feb 2024
