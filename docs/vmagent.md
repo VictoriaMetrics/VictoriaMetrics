@@ -729,7 +729,7 @@ Additionally, the `action: graphite` relabeling rules usually work much faster t
 
 ## Relabel debug
 
-`vmagent` and [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html)
+`vmagent` and [single-node VictoriaMetrics](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter)
 provide the following tools for debugging target-level and metric-level relabeling:
 
 - Target-level debugging (e.g. `relabel_configs` section at [scrape_configs](https://docs.victoriametrics.com/sd_configs.html#scrape_configs))
@@ -750,6 +750,45 @@ provide the following tools for debugging target-level and metric-level relabeli
   and clicking the `debug metrics relabeling` link at the target, which must be debugged.
   The link is unavailable if `vmagent` runs with `-promscrape.dropOriginalLabels` command-line flag.
   The opened page shows step-by-step results for the actual metric relabeling rules applied to the given target labels.
+
+See also [debugging scrape targets](#debugging-scrape-targets).
+
+## Debugging scrape targets
+
+`vmagent` and [single-node VictoriaMetrics](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter)
+provide the following tools for debugging scrape targets:
+
+- `http://vmagent:8429/targets` page, which contains information about all the targets, which are scraped at the moment.
+  This page helps answering the following questions:
+  - **Why some targets cannot be scraped?** The `last error` column contains the reason why the given target cannot be scraped.
+    You can also click the `endpoint` link in order open the target url in your browser.
+    You can also click the `response` link in order to open the target url on behalf of `vmagent`. This may be helpful when `vmagent`
+    is located in some isolated network.
+  - **Which labels the particular target has?** The `labels` column shows per-target labels. These labels are attached to all the metrics
+    scraped from the given target. You can also click on the target labels in order to see the original labels of the target
+    before applying the [relabeling](#relabeling). The original labels are unavailable if `vmagent` runs with `-promscrape.dropOriginalLabels` command-line flag.
+  - **Why the given target has the given set of labels?** Click the `target` link at `debug relabeling` column for the particular target in order to see step-by-step
+    execution of [target relabeling rules](#relabeling) applied to the original labels. This link is unavailable if `vmagent` runs
+    with `-promscrape.dropOriginalLabels` command-line flag.
+  - **How the given metrics relabeling rules are applied to scraped metrics?** Click the `metrics` link at `debug relabeling` column
+    for the particular target in order to see step-by-step execution of [metric relabeling rules](#relabeling) applied to the scraped metrics.
+  - **How many failed scrapes were for the particular target?** The `errors` column shows this value.
+  - **How many metrics the given target exposes?** The `samples` column shows the number of metrics scraped per each target during the last scrape.
+  - **How long does it take to scrape the given target?** The `duration` column shows last scrape duration per each target.
+  - **When was the last scrape for the given target?** The `last scrape` column shows the last time the given target was scraped.
+  - **How many times the given target was scraped?** The `scrapes` column shows this infromation.
+  - **What is the current state of the particular target?** The `state` column shows the current state of the particular target.
+
+- `http://vmagent:8429/service-discovery` page, which contains infromation about all the [discovered targets](https://docs.victoriametrics.com/sd_configs/).
+  This page doesn't work if `vmagent` runs with `-promscrape.dropOriginalLabels` command-line flag.
+  This pages helps answering the following questions:
+  - **Why some targets are dropped during service discovery?** Click `debug` link at `debug relabeling` on the dropped target in order to see step-by-step
+    execution of [target relabeling rules](#relabeling) applied to the original labels of discovered target.
+  - **Why some targets contain unexpected labels?** Click `debug` link at `debug relabeling` on the dropped target in order to see step-by-step
+    execution of [target relabeling rules](#relabeling) applied to the original labels of discovered target.
+  - **What were the original labels before relabeling for a particular target?** The `discovered labels` column contains the original labels per each discovered target.
+
+See also [relabel debug](#relabel-debug).
 
 ## Prometheus staleness markers
 
@@ -1144,7 +1183,11 @@ If you have suggestions for improvements or have found a bug - please open an is
     regex: true
   ```
 
-See also [general troubleshooting docs](https://docs.victoriametrics.com/Troubleshooting.html).
+See also:
+
+- [debugging scrape targets](#debugging-scrape-targets)
+- [relabel debug](#relabel-debug)
+- [general troubleshooting docs](https://docs.victoriametrics.com/Troubleshooting.html)
 
 ## Calculating disk space for persistence queue
 
