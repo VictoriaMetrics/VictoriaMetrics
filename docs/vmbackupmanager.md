@@ -417,13 +417,6 @@ command-line flags with their descriptions.
 The shortlist of configuration flags is the following:
 
 ```
-vmbackupmanager performs regular backups according to the provided configs.
-
-subcommands:
- backup: provides auxiliary backup-related commands
- restore: restores backup specified by restore mark if it exists
-
-command-line flags:
   -apiURL string
      vmbackupmanager address to perform API requests (default "http://127.0.0.1:8300")
   -concurrency int
@@ -570,6 +563,16 @@ command-line flags:
      VictoriaMetrics create snapshot url. When this is given a snapshot will automatically be created during backup.Example: http://victoriametrics:8428/snapshot/create
   -snapshot.deleteURL string
      VictoriaMetrics delete snapshot url. Optional. Will be generated from snapshot.createURL if not provided. All created snaphosts will be automatically deleted.Example: http://victoriametrics:8428/snapshot/delete
+  -snapshot.tlsInsecureSkipVerify 
+     Optional Whether to skip tls verification when connecting to -snapshotCreateURL
+  -snapshot.tlsCertFile
+     Optional path to client-side TLS certificate file to use when connecting to -snapshotCreateURL
+  -snapshot.tlsKeyFile
+     Optional path to client-side TLS certificate key to use when connecting to -snapshotCreateURL
+  -snapshot.tlsCAFile 
+     Optional path to client-side TLS CA file to use when connecting to -snapshotCreateURL
+  -snapshot.tlsServerName
+     Optional path to client-side TLS tlsServerName to use when connecting to -snapshotCreateURL
   -storageDataPath string
      Path to VictoriaMetrics data. Must match -storageDataPath from VictoriaMetrics or vmstorage (default "victoria-metrics-data")
   -tls
