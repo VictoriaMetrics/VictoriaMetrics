@@ -417,6 +417,13 @@ command-line flags with their descriptions.
 The shortlist of configuration flags is the following:
 
 ```
+vmbackupmanager performs regular backups according to the provided configs.
+
+subcommands:
+ backup: provides auxiliary backup-related commands
+ restore: restores backup specified by restore mark if it exists
+
+command-line flags:
   -apiURL string
      vmbackupmanager address to perform API requests (default "http://127.0.0.1:8300")
   -concurrency int
