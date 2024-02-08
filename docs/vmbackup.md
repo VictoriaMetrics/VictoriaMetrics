@@ -436,6 +436,16 @@ Run `vmbackup -help` in order to see all the available options:
      VictoriaMetrics delete snapshot url. Optional. Will be generated from -snapshot.createURL if not provided. All created snapshots will be automatically deleted. Example: http://victoriametrics:8428/snapshot/delete
   -snapshotName string
      Name for the snapshot to backup. See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-work-with-snapshots. There is no need in setting -snapshotName if -snapshot.createURL is set
+  -snapshot.tlsInsecureSkipVerify 
+     Optional Whether to skip tls verification when connecting to -snapshotCreateURL
+  -snapshot.tlsCertFile
+     Optional path to client-side TLS certificate file to use when connecting to -snapshotCreateURL
+  -snapshot.tlsKeyFile
+     Optional path to client-side TLS certificate key to use when connecting to -snapshotCreateURL
+  -snapshot.tlsCAFile 
+     Optional path to client-side TLS CA file to use when connecting to -snapshotCreateURL
+  -snapshot.tlsServerName
+     Optional path to client-side TLS tlsServerName to use when connecting to -snapshotCreateURL
   -storageDataPath string
      Path to VictoriaMetrics data. Must match -storageDataPath from VictoriaMetrics or vmstorage (default "victoria-metrics-data")
   -tls
@@ -452,17 +462,6 @@ Run `vmbackup -help` in order to see all the available options:
      Optional minimum TLS version to use for incoming requests over HTTPS if -tls is set. Supported values: TLS10, TLS11, TLS12, TLS13
   -version
      Show VictoriaMetrics version
-  -snapshot.tlsInsecureSkipVerify 
-      Optional Whether to skip tls verification when connecting to -snapshotCreateURL
-  -snapshot.tlsCertFile
-      Optional path to client-side TLS certificate file to use when connecting to -snapshotCreateURL
-  -snapshot.tlsKeyFile
-      Optional path to client-side TLS certificate key to use when connecting to -snapshotCreateURL
-  -snapshot.tlsCAFile 
-      Optional path to client-side TLS CA file to use when connecting to -snapshotCreateURL
-  -snapshot.tlsServerName
-      Optional path to client-side TLS tlsServerName to use when connecting to -snapshotCreateURL
- 
 ```
 
 ## How to build from sources
