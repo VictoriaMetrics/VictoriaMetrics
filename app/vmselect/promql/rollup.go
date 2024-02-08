@@ -1916,6 +1916,10 @@ func rollupChangesPrometheus(rfa *rollupFuncArg) float64 {
 	n := 0
 	for _, v := range values[1:] {
 		if v != prevValue {
+			if math.Abs(v-prevValue) < 1e-12*math.Abs(v) {
+				// This may be precision error. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/767#issuecomment-1650932203
+				continue
+			}
 			n++
 			prevValue = v
 		}
@@ -1939,6 +1943,10 @@ func rollupChanges(rfa *rollupFuncArg) float64 {
 	}
 	for _, v := range values {
 		if v != prevValue {
+			if math.Abs(v-prevValue) < 1e-12*math.Abs(v) {
+				// This may be precision error. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/767#issuecomment-1650932203
+				continue
+			}
 			n++
 			prevValue = v
 		}
@@ -1967,6 +1975,10 @@ func rollupIncreases(rfa *rollupFuncArg) float64 {
 	n := 0
 	for _, v := range values {
 		if v > prevValue {
+			if math.Abs(v-prevValue) < 1e-12*math.Abs(v) {
+				// This may be precision error. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/767#issuecomment-1650932203
+				continue
+			}
 			n++
 		}
 		prevValue = v
@@ -1998,6 +2010,10 @@ func rollupResets(rfa *rollupFuncArg) float64 {
 	n := 0
 	for _, v := range values {
 		if v < prevValue {
+			if math.Abs(v-prevValue) < 1e-12*math.Abs(v) {
+				// This may be precision error. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/767#issuecomment-1650932203
+				continue
+			}
 			n++
 		}
 		prevValue = v
