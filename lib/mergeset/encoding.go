@@ -104,17 +104,18 @@ func (ib *inmemoryBlock) Reset() {
 }
 
 func (ib *inmemoryBlock) updateCommonPrefixSorted() {
-	ib.commonPrefix = ib.commonPrefix[:0]
 	items := ib.items
-	if len(items) == 0 {
+	if len(items) <= 1 {
+		// There is no sense in duplicating a single item or zero items into commonPrefix,
+		// since this only can increase blockHeader size without any benefits.
+		ib.commonPrefix = ib.commonPrefix[:0]
 		return
 	}
+
 	data := ib.data
 	cp := items[0].Bytes(data)
-	if len(items) > 1 {
-		cpLen := commonPrefixLen(cp, items[len(items)-1].Bytes(data))
-		cp = cp[:cpLen]
-	}
+	cpLen := commonPrefixLen(cp, items[len(items)-1].Bytes(data))
+	cp = cp[:cpLen]
 	ib.commonPrefix = append(ib.commonPrefix[:0], cp...)
 }
 
