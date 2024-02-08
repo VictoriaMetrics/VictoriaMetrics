@@ -124,6 +124,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 			{"api/v1/status/tsdb", "tsdb status page"},
 			{"api/v1/status/top_queries", "top queries"},
 			{"api/v1/status/active_queries", "active queries"},
+			{"-/reload", "reload configuration"},
 		})
 		return true
 	}

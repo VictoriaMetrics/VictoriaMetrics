@@ -13,10 +13,7 @@ groups:
         expr: |
           vm_free_disk_space_bytes / ignoring(path)
           (
-             (
-              rate(vm_rows_added_to_storage_total[1d]) -
-              ignoring(type) rate(vm_deduplicated_samples_total{type="merge"}[1d])
-             )
+            rate(vm_rows_added_to_storage_total[1d])
             * scalar(
               sum(vm_data_size_bytes{type!~"indexdb.*"}) /
               sum(vm_rows{type!~"indexdb.*"})

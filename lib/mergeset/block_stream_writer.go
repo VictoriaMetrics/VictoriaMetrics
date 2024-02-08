@@ -148,12 +148,15 @@ func (bsw *blockStreamWriter) WriteBlock(ib *inmemoryBlock) {
 	bsw.lensBlockOffset += uint64(bsw.bh.lensBlockSize)
 
 	// Write blockHeader
+	unpackedIndexBlockBufLen := len(bsw.unpackedIndexBlockBuf)
 	bsw.unpackedIndexBlockBuf = bsw.bh.Marshal(bsw.unpackedIndexBlockBuf)
+	if len(bsw.unpackedIndexBlockBuf) > maxIndexBlockSize {
+		bsw.unpackedIndexBlockBuf = bsw.unpackedIndexBlockBuf[:unpackedIndexBlockBufLen]
+		bsw.flushIndexData()
+		bsw.unpackedIndexBlockBuf = bsw.bh.Marshal(bsw.unpackedIndexBlockBuf)
+	}
 	bsw.bh.Reset()
 	bsw.mr.blockHeadersCount++
-	if len(bsw.unpackedIndexBlockBuf) >= maxIndexBlockSize {
-		bsw.flushIndexData()
-	}
 }
 
 // The maximum size of index block with multiple blockHeaders.
