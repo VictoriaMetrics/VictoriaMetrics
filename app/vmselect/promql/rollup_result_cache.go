@@ -29,7 +29,8 @@ var (
 	cacheTimestampOffset = flag.Duration("search.cacheTimestampOffset", 5*time.Minute, "The maximum duration since the current time for response data, "+
 		"which is always queried from the original raw data, without using the response cache. Increase this value if you see gaps in responses "+
 		"due to time synchronization issues between VictoriaMetrics and data sources")
-	resetRollupResultCacheOnStartup = flag.Bool("search.resetRollupResultCacheOnStartup", false, "Whether to reset rollup result cache on startup")
+	resetRollupResultCacheOnStartup = flag.Bool("search.resetRollupResultCacheOnStartup", false, "Whether to reset rollup result cache on startup. "+
+		"See https://docs.victoriametrics.com/#rollup-result-cache . See also -search.disableCache")
 )
 
 var rollupResultCacheV = &rollupResultCache{
