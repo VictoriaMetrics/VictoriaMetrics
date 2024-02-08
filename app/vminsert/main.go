@@ -351,7 +351,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		promscrapeConfigReloadRequests.Inc()
 		procutil.SelfSIGHUP()
-		w.WriteHeader(http.StatusNoContent)
+		w.WriteHeader(http.StatusOK)
 		return true
 	case "/ready":
 		if rdy := atomic.LoadInt32(&promscrape.PendingScrapeConfigs); rdy > 0 {

@@ -47,6 +47,11 @@ func (b *Bytes) String() string {
 
 // Set implements flag.Value interface
 func (b *Bytes) Set(value string) error {
+	if value == "" {
+		b.N = 0
+		b.valueString = ""
+		return nil
+	}
 	value = normalizeBytesString(value)
 	switch {
 	case strings.HasSuffix(value, "KB"):

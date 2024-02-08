@@ -28,6 +28,9 @@ The relabeling is mostly used for the following tasks:
 * Removing prefixes from target label names. See [how to remove prefixes from target label names](#how-to-remove-prefixes-from-target-label-names).
 * Removing some labels from discovered targets. See [how to remove labels from targets](#how-to-remove-labels-from-targets).
 * Dropping some metrics during scape. See [how to drop metrics during scrape](#how-to-drop-metrics-during-scrape).
+* Renaming scraped metrics. See [how to rename scraped metrics](#how-to-rename-scraped-metrics).
+* Adding labels to scraped metrics. See [how to add labels to scraped metrics](#how-to-add-labels-to-scraped-metrics).
+* Changing label values in scraped metrics. See [how to change label values in scraped metrics](#how-to-change-label-values-in-scraped-metrics).
 * Removing some labels from scraped metrics. See [how to remove labels from scraped metrics](#how-to-remove-labels-from-scraped-metrics).
 * Removing some labels from metrics matching some [series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors).
   See [how to remove labels from metrics subset](#how-to-remove-labels-from-metrics-subset).
@@ -54,7 +57,125 @@ scrape_configs:
     regex: "foo_.*"
 ```
 
-See also [how to remove labels from scraped metrics](#how-to-remove-labels-from-scraped-metrics).
+See also:
+
+- [how to remove labels from scraped metrics](#how-to-remove-labels-from-scraped-metrics)
+- [useful tips for metric relabeling](#useful-tips-for-metric-relabeling)
+
+
+## How to rename scraped metrics
+
+Metric name is a regular label with special name - `__name__` (see [these docs](https://docs.victoriametrics.com/keyconcepts/#labels)).
+So renaming of metric name is performed in the same way as changing label value.
+
+Let's look at a few examples.
+
+The following config renames `foo` metric to `bar` across all the scraped metrics, while leaving other metric names as is:
+
+```yaml
+scrape_configs:
+- job_name: test
+  static_configs:
+  - targets: [host123]
+  metric_relabel_configs:
+  - if: 'foo'
+    replacement: bar
+    target_label: __name__
+```
+
+The following config renames metrics starting from `foo_` to metrics starting from `bar_` across all the scraped metrics. For example, `foo_count` is renamed to `bar_count`:
+
+```yaml
+scrape_configs:
+- job_name: test
+  static_configs:
+  - targets: [host123]
+  metric_relabel_configs:
+  - source_labels: [__name__]
+    regex: 'foo_(.*)'
+    replacement: bar_$1
+    target_label: __name__
+```
+
+The following config replaces all the `-` chars in metric names with `_` chars across all the scraped metrics. For example, `foo-bar-baz` is renamed to `foo_bar_baz`:
+
+```yaml
+scrape_configs:
+- job_name: test
+  static_configs:
+  - targets: [host123]
+  metric_relabel_configs:
+  - source_labels: [__name__]
+    action: replace_all
+    regex: '-'
+    replacement: '_'
+    target_label: __name__
+```
+
+See also [useful tips for metric relabeling](#useful-tips-for-metric-relabeling).
+
+
+## How to add labels to scraped metrics
+
+The following config sets `foo="bar"` [label](https://docs.victoriametrics.com/keyconcepts/#labels) across all the scraped metrics:
+
+```yaml
+scrape_configs:
+- job_name: test
+  static_configs:
+  - targets: [host123]
+  metric_relabel_configs:
+  - target_label: foo
+    replacement: bar
+```
+
+The following config sets `foo="bar"` label only for metrics matching `{job=~"my-app-.*",env!="dev"}` [series selector](https://docs.victoriametrics.com/keyconcepts/#filtering):
+
+```yaml
+scrape_configs:
+- job_name: test
+  static_configs:
+  - targets: [host123]
+  metric_relabel_configs:
+  - if: '{job=~"my-app-.*",env!="dev"}'
+    target_label: foo
+    replacement: bar
+```
+
+See also [useful tips for metric relabeling](#useful-tips-for-metric-relabeling).
+
+
+## How to change label values in scraped metrics
+
+The following config adds `foo_` prefix to all the values of `job` label across all the scraped metrics:
+
+```yaml
+scrape_configs:
+- job_name: test
+  static_configs:
+  - targets: [host123]
+  metric_relabel_configs:
+  - source_labels: [job]
+    target_label: job
+    replacement: foo_$1
+```
+
+The following config adds `foo_` prefix to `job` label values only for metrics
+matching `{job=~"my-app-.*",env!="dev"}` [series selector](https://docs.victoriametrics.com/keyconcepts/#filtering):
+
+```yaml
+scrape_configs:
+- job_name: test
+  static_configs:
+  - targets: [host123]
+  metric_relabel_configs:
+  - if: '{job=~"my-app-.*",env!="dev"}'
+    source_labels: [job]
+    target_label: job
+    replacement: foo_$1
+```
+
+See also [useful tips for metric relabeling](#useful-tips-for-metric-relabeling).
 
 
 ## How to remove labels from scraped metrics

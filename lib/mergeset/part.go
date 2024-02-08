@@ -15,7 +15,7 @@ import (
 var idxbCache = blockcache.NewCache(getMaxIndexBlocksCacheSize)
 var ibCache = blockcache.NewCache(getMaxInmemoryBlocksCacheSize)
 
-// SetIndexBlocksCacheSize overrides the default size of indexdb/indexBlock cache
+// SetIndexBlocksCacheSize overrides the default size of indexdb/indexBlocks cache
 func SetIndexBlocksCacheSize(size int) {
 	maxIndexBlockCacheSize = size
 }

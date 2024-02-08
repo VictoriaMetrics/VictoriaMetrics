@@ -44,7 +44,7 @@ See [LogsQL docs](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html) for
 The `query` arg must be properly encoded with [percent encoding](https://en.wikipedia.org/wiki/URL_encoding) when passing it to `curl`
 or similar tools.
 
-The `/select/logsql/query` endpoint returns [a stream of JSON lines](http://ndjson.org/),
+The `/select/logsql/query` endpoint returns [a stream of JSON lines](https://jsonlines.org/),
 where each line contains JSON-encoded log entry in the form `{field1="value1",...,fieldN="valueN"}`.
 Example response:
 

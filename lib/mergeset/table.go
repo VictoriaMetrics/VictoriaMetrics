@@ -244,6 +244,7 @@ func (ris *rawItemsShard) addItems(tb *Table, items [][]byte) [][]byte {
 			ibs = append(ibs, ib)
 			continue
 		}
+		ris.mu.Unlock()
 		logger.Panicf("BUG: cannot insert too big item into an empty inmemoryBlock; len(item)=%d; the caller should be responsible for avoiding too big items", len(item))
 	}
 	ris.ibs = ibs

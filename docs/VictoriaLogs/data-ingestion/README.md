@@ -35,7 +35,7 @@ See also:
 VictoriaLogs supports the following data ingestion HTTP APIs:
 
 - Elasticsearch bulk API. See [these docs](#elasticsearch-bulk-api).
-- JSON stream API aka [ndjson](http://ndjson.org/). See [these docs](#json-stream-api).
+- JSON stream API aka [ndjson](https://jsonlines.org/). See [these docs](#json-stream-api).
 - Loki JSON API. See [these docs](#loki-json-api).
 
 VictoriaLogs accepts optional [HTTP parameters](#http-parameters) at data ingestion HTTP APIs.
@@ -94,7 +94,7 @@ See also:
 
 ### JSON stream API
 
-VictoriaLogs accepts JSON line stream aka [ndjson](http://ndjson.org/) at `http://localhost:9428/insert/jsonline` endpoint.
+VictoriaLogs accepts JSON line stream aka [ndjson](https://jsonlines.org/) at `http://localhost:9428/insert/jsonline` endpoint.
 
 The following command pushes multiple log lines to VictoriaLogs:
 
