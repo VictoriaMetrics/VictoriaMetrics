@@ -14,7 +14,8 @@ aliases:
 
 # Supported service discovery configs
 
-[vmagent](https://docs.victoriametrics.com/vmagent.html) and [single-node VictoriaMetrics](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter) supports the following Prometheus-compatible service discovery options for Prometheus-compatible scrape targets in the file pointed by `-promscrape.config` command-line flag.
+[vmagent](https://docs.victoriametrics.com/vmagent.html) and [single-node VictoriaMetrics](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter)
+supports the following Prometheus-compatible service discovery options for Prometheus-compatible scrape targets in the file pointed by `-promscrape.config` command-line flag:
 
 * `azure_sd_configs` is for scraping the targets registered in [Azure Cloud](https://azure.microsoft.com/en-us/). See [these docs](#azure_sd_configs).
 * `consul_sd_configs` is for discovering and scraping targets registered in [Consul](https://www.consul.io/). See [these docs](#consul_sd_configs).
@@ -40,7 +41,8 @@ Note that the `refresh_interval` option isn't supported for these scrape configs
 command-line flag instead. For example, `-promscrape.consulSDCheckInterval=60s` sets `refresh_interval` for all the `consul_sd_configs`
 entries to 60s. Run `vmagent -help` or `victoria-metrics -help` in order to see default values for the `-promscrape.*CheckInterval` flags.
 
-Please file feature requests to [our issue tracker](https://github.com/VictoriaMetrics/VictoriaMetrics/issues) if you need other service discovery mechanisms to be supported by VictoriaMetrics and `vmagent`.
+Please file feature requests to [our issue tracker](https://github.com/VictoriaMetrics/VictoriaMetrics/issues) if you need other service discovery mechanisms
+to be supported by VictoriaMetrics and `vmagent`.
 
 ## azure_sd_configs
 
@@ -54,30 +56,38 @@ scrape_configs:
   azure_sd_configs:
 
     # subscription_id is a mandatory subscription ID.
+    #
   - subscription_id: "..."
 
     # environment is an optional Azure environment. By default "AzurePublicCloud" is used.
+    #
     # environment: "..."
 
     # authentication_method is an optional authentication method, either OAuth or ManagedIdentity.
     # See https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/overview
     # By default OAuth is used.
+    #
     # authentication_method: "..."
 
     # tenant_id is an optional tenant ID. Only required with authentication_method OAuth.
+    #
     # tenant_id: "..."
 
     # client_id is an optional client ID. Only required with authentication_method OAuth.
+    #
     # client_id: "..."
 
     # client_secret is an optional client secret. Only required with authentication_method OAuth.
+    #
     # client_secret: "..."
 
     # resource_group is an optional resource group name. Limits discovery to this resource group. 
+    #
     # resource_group: "..."
 
     # port is an optional port to scrape metrics from.
     # Port 80 is used by default.
+    #
     # port: ...
 
     # Additional HTTP API client options can be specified here.
@@ -118,50 +128,60 @@ scrape_configs:
   consul_sd_configs:
 
     # server is an optional Consul server to connect to. By default, localhost:8500 is used
+    #
   - server: "localhost:8500"
 
     # token is an optional Consul API token.
     # If the token isn't specified, then it is read from a file pointed by CONSUL_HTTP_TOKEN_FILE
     # environment var or from the CONSUL_HTTP_TOKEN environment var.
+    #
     # token: "..."
 
     # datacenter is an optional Consul API datacenter.
     # If the datacenter isn't specified, then it is read from Consul server.
     # See https://www.consul.io/api-docs/agent#read-configuration
+    #
     # datacenter: "..."
 
     # namespace is an optional Consul namespace.
     # See https://developer.hashicorp.com/consul/docs/enterprise/namespaces
     # If the namespace isn't specified, then it is read from CONSUL_NAMESPACE environment var.
+    #
     # namespace: "..."
 
     # partition is an optional Consul partition.
     # See https://developer.hashicorp.com/consul/docs/enterprise/admin-partitions
     # If partition isn't specified, then the default partition is used.
+    #
     # partition: "..."
 
     # scheme is an optional scheme (http or https) to use for connecting to Consul server.
     # By default, http scheme is used.
+    #
     # scheme: "..."
 
     # services is an optional list of services for which targets are retrieved.
     # If omitted, all services are scraped.
     # See https://www.consul.io/api-docs/catalog#list-nodes-for-service .
+    #
     # services: ["...", "..."]
 
     # tags is an optional list of tags used to filter nodes for a given service.
     # Services must contain all tags in the list.
     # Deprecated: use filter instead with ServiceTags selector.
+    #
     # tags: ["...", "..."]
 
     # node_meta is an optional node metadata key/value pairs to filter nodes for a given service.
     # Deprecated: use filter instead with NodeMeta selector.
+    #
     # node_meta:
     #   "...": "..."
 
     # tag_separator is an optional string by which Consul tags are joined into the __meta_consul_tags label.
     # By default, "," is used as a tag separator.
     # Individual tags are also available via __meta_consul_tag_<tagname> labels - see below.
+    #
     # tag_separator: "..."
 
     # filter is an optional filter for service discovery.
@@ -169,11 +189,13 @@ scrape_configs:
     # Consul supports it since 1.14 version.
     # See the list of supported filters at https://developer.hashicorp.com/consul/api-docs/catalog#filtering-1
     # See filter examples at https://developer.hashicorp.com/consul/api-docs/features/filtering
+    #
     # filter: "..."
 
     # allow_stale is an optional config, which allows stale Consul results.
     # See https://www.consul.io/api/features/consistency.html
     # Reduce load on Consul if set to true. By default, it is set to true.
+    #
     # allow_stale: ...
 
     # Additional HTTP API client options can be specified here.
@@ -222,35 +244,42 @@ scrape_configs:
   consulagent_sd_configs:
 
     # server is an optional Consul Agent to connect to. By default, localhost:8500 is used
+    #
   - server: "localhost:8500"
 
     # token is an optional Consul API token.
     # If the token isn't specified, then it is read from a file pointed by CONSUL_HTTP_TOKEN_FILE
     # environment var or from the CONSUL_HTTP_TOKEN environment var.
+    #
     # token: "..."
 
     # datacenter is an optional Consul API datacenter.
     # If the datacenter isn't specified, then it is read from Consul server.
     # See https://www.consul.io/api-docs/agent#read-configuration
+    #
     # datacenter: "..."
 
     # namespace is an optional Consul namespace.
     # See https://developer.hashicorp.com/consul/docs/enterprise/namespaces
     # If the namespace isn't specified, then it is read from CONSUL_NAMESPACE environment var.
+    #
     # namespace: "..."
 
     # scheme is an optional scheme (http or https) to use for connecting to Consul server.
     # By default, http scheme is used.
+    #
     # scheme: "..."
 
     # services is an optional list of services for which targets are retrieved.
     # If omitted, all services are scraped.
     # See https://www.consul.io/api-docs/catalog#list-nodes-for-service .
+    #
     # services: ["...", "..."]
 
     # tag_separator is an optional string by which Consul tags are joined into the __meta_consul_tags label.
     # By default, "," is used as a tag separator.
     # Individual tags are also available via __meta_consul_tag_<tagname> labels - see below.
+    #
     # tag_separator: "..."
 
     # filter is optional filter for service nodes discovery request.
@@ -258,6 +287,7 @@ scrape_configs:
     # consul supports it since 1.14 version
     # list of supported filters https://developer.hashicorp.com/consul/api-docs/catalog#filtering-1
     # syntax examples https://developer.hashicorp.com/consul/api-docs/features/filtering
+    #
     # filter: "..."
 
     # Additional HTTP API client options can be specified here.
@@ -298,11 +328,14 @@ Configuration example:
 scrape_configs:
 - job_name: digitalocean
   digitalocean_sd_configs:
+
     # server is an optional DigitalOcean API server to query.
     # By default, https://api.digitalocean.com is used.
+    #
   - server: "https://api.digitalocean.com"
 
     # port is an optional port to scrape metrics from. By default, port 80 is used.
+    #
     # port: ...
 
     # Additional HTTP API client options can be specified here.
@@ -342,15 +375,19 @@ Configuration example:
 scrape_configs:
 - job_name: dns
   dns_sd_configs:
+
     # names must contain a list of DNS names to query.
+    #
   - names: ["...", "..."]
 
     # type is an optional type of DNS query to perform.
     # Supported values are: SRV, A, AAAA or MX.
     # By default, SRV is used.
+    #
     # type: ...
 
     # port is a port number to use if the query type is not SRV.
+    #
     # port: ...
 ```
 
@@ -379,18 +416,22 @@ scrape_configs:
   docker_sd_configs:
 
     # host must contain the address of the Docker daemon.
+    #
   - host: "..."
 
     # port is an optional port to scrape metrics from.
     # By default, port 80 is used.
+    #
     # port: ...
 
     # host_networking_host is an optional host to use if the container is in host networking mode.
     # By default, localhost is used.
+    #
     # host_networking_host: "..."
 
     # filters is an optional filters to limit the discovery process to a subset of available resources.
     # See https://docs.docker.com/engine/api/v1.40/#operation/ContainerList
+    #
     # filters:
     # - name: "..."
     #   values: ["...", "..."]
@@ -435,14 +476,17 @@ scrape_configs:
   dockerswarm_sd_configs:
 
     # host must contain the address of the Docker daemon.
+    #
   - host: "..."
 
     # role must contain `services`, `tasks` or `nodes` as described below.
+    #
     role: ...
 
     # port is an optional port to scrape metrics from, when `role` is nodes, and for discovered
     # tasks and services that don't have published ports.
     # By default, port 80 is used.
+    #
     # port: ...
 
     # filters is an optional filters to limit the discovery process to a subset of available resources.
@@ -450,6 +494,7 @@ scrape_configs:
     # Services: https://docs.docker.com/engine/api/v1.40/#operation/ServiceList
     # Tasks: https://docs.docker.com/engine/api/v1.40/#operation/TaskList
     # Nodes: https://docs.docker.com/engine/api/v1.40/#operation/NodeList
+    #
     # filters:
     # - name: "..."
     #   values: ["...", "..."]
@@ -563,37 +608,46 @@ Configuration example:
 scrape_configs:
 - job_name: ec2
   ec2_sd_configs:
+
     # region is an optional config for AWS region.
     # By default, the region from the instance metadata is used.
+    #
   - region: "..."
 
     # endpoint is an optional custom AWS API endpoint to use.
     # By default, the standard endpoint for the given region is used.
+    #
     # endpoint: "..."
 
     # sts_endpoint is an optional custom STS API endpoint to use.
     # By default, the standard endpoint for the given region is used.
+    #
     # sts_endpoint: "..."
 
     # access_key is an optional AWS API access key.
     # By default, the access key is loaded from AWS_ACCESS_KEY_ID environment var.
+    #
     # access_key: "..."
 
     # secret_key is an optional AWS API secret key.
     # By default, the secret key is loaded from AWS_SECRET_ACCESS_KEY environment var.
+    #
     # secret_key: "..."
 
     # role_arn is an optional AWS Role ARN, an alternative to using AWS API keys.
+    #
     # role_arn: "..."
 
     # port is an optional port to scrape metrics from.
     # By default, port 80 is used.
+    #
     # port: ...
 
     # filters is an optional filters for the instance list.
     # Available filter criteria can be found here:
     # https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstances.html
     # Filter API documentation: https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_Filter.html
+    #
     # filters:
     # - name: "..."
     #   values: ["...", "..."]
@@ -602,6 +656,7 @@ scrape_configs:
     # Available filter criteria can be found here:
     # https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeAvailabilityZones.html
     # Filter API documentation: https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_Filter.html
+    #
     # az_filters:
     # - name: "..."
     #   values: ["...", "..."]
@@ -646,8 +701,10 @@ Configuration example:
 scrape_configs:
 - job_name: eureka
   eureka_sd_configs:
+
     # server is an optional URL to connect to the Eureka server.
     # By default, the http://localhost:8080/eureka/v2 is used.
+    #
   - server: "..."
 
     # Additional HTTP API client options can be specified here.
@@ -691,14 +748,21 @@ Configuration example:
 scrape_configs:
 - job_name: file
   file_sd_configs:
+
     # files must contain a list of file patterns for files with scrape targets.
     # The last path segment can contain `*`, which matches any number of chars in file name.
+    #
+    # files may contain http/https urls additionally to local files. These urls cannot contain `*`.
+    #
   - files:
     - "my/path/*.yaml"
     - "another/path.json"
+    - "http://central-config-server/targets?type=foobar"
 ```
 
-Files must contain a list of static configs in one of the following formats:
+See [these examples](https://docs.victoriametrics.com/scrape_config_examples.html#file-based-target-discovery) on how to configure file-based target discovery.
+
+The referred files and urls must contain a list of static configs in one of the following formats:
 
 * JSON:
 
@@ -746,26 +810,32 @@ Configuration example:
 scrape_configs:
 - job_name: gce
   gce_sd_configs:
+
     # project is an optional GCE project where targets must be discovered.
     # By default, the local project is used.
+    #
   - project: "..."
 
     # zone is an optional zone where targets must be discovered.
     # By default, the local zone is used.
     # If zone equals to '*', then targets in all the zones for the given project are discovered.
     # The zone may contain a list of zones: zone["us-east1-a", "us-east1-b"]
+    #
     # zone: "..."
 
     # filter is an optional filter for the instance list.
     # See https://cloud.google.com/compute/docs/reference/latest/instances/list
+    #
     # filter: "..."
 
     # port is an optional port to scrape metrics from.
     # By default, port 80 is used.
+    #
     # port: ...
 
     # tag_separator is an optional separator for tags in `__meta_gce_tags` label.
     # By default, "," is used.
+    #
     # tag_separator: "..."
 ```
 
@@ -807,11 +877,14 @@ Configuration example:
 scrape_configs:
 - job_name: hetzner
   hetzner_sd_configs:
+
     # The mandatory Hetzner role for entity discovery.
     # Must be either 'robot' or 'hcloud'.
+    #
     role: "hcloud"
 
     # Required credentials for API server authentication for 'hcloud' role.
+    #
     authorization:
       credentials: "..."
       # type: "..."  # default: Bearer
@@ -821,11 +894,13 @@ scrape_configs:
     #
     # basic_auth:
     #  username: "..."
+    #  username_file: "..."  # is mutually-exclusive with username
     #  password: "..."
     #  password_file: "..."  # is mutually-exclusive with password
 
     # port is an optional port to scrape metrics from.
     # By default, port 80 is used.
+    #
     # port: ...
 
     # Additional HTTP API client options can be specified here.
@@ -881,12 +956,16 @@ Configuration example:
 scrape_configs:
 - job_name: http
   http_sd_configs:
+
     # url must contain the URL from which the targets are fetched.
+    #
   - url: "http://..."
 
     # Additional HTTP API client options can be specified here.
     # See https://docs.victoriametrics.com/sd_configs.html#http-api-client-options
 ```
+
+See [these examples](https://docs.victoriametrics.com/scrape_config_examples.html#http-based-target-discovery) on how to configure http-based target discovery.
 
 The service at `url` must return JSON response in the following format:
 
@@ -930,19 +1009,23 @@ scrape_configs:
     # It must have one of the following values:
     # endpoints, endpointslice, service, pod, node or ingress.
     # See docs below about each particular role.
+    #
   - role: "..."
 
     # api_server is an optional url for Kubernetes API server.
     # By default, it is read from /var/run/secrets/kubernetes.io/serviceaccount/
+    #
     # api_server: "..."
 
     # kubeconfig_file is an optional path to a kubeconfig file.
     # Note that api_server and kubeconfig_file are mutually exclusive.
+    #
     # kubeconfig_file: "..."
 
     # namespaces is an optional namespace for service discovery.
     # By default, all namespaces are used.
     # If own_namespace is set to true, then the current namespace is used for service discovery.
+    #
     # namespaces:
     #   own_namespace: <boolean>
     #   names: ["...", "..."]
@@ -953,6 +1036,7 @@ scrape_configs:
     # The `role: endpoints` supports pod, service and endpoints selectors.
     # The `role: pod` supports node selectors when configured with `attach_metadata: {node: true}`.
     # Other roles only support selectors matching the role itself (e.g. node role can only contain node selectors).
+    #
     # selectors:
     # - role: "..."
     #   label: "..."
@@ -971,6 +1055,8 @@ scrape_configs:
     # Additional HTTP API client options can be specified here.
     # See https://docs.victoriametrics.com/sd_configs.html#http-api-client-options
 ```
+
+See [these examples](https://docs.victoriametrics.com/scrape_config_examples.html#kubernetes-target-discovery) on how to discover and scrape Kubernetes targets.
 
 One of the following `role` types can be configured to discover targets:
 
@@ -1055,6 +1141,7 @@ One of the following `role` types can be configured to discover targets:
   * `__meta_kubernetes_pod_controller_kind`: Object kind of the pod controller.
   * `__meta_kubernetes_pod_controller_name`: Name of the pod controller.
 
+
 * `role: endpoints`
 
   The `role: endpoints` discovers targets from listed endpoints of a service.
@@ -1095,7 +1182,7 @@ One of the following `role` types can be configured to discover targets:
 
   Available meta labels for `role: endpointslice` during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling):
 
-  * `__meta_kubernetes_namespace`: The namespace of the endpoints object.
+  * `__meta_kubernetes_namespace`: The namespace of the endpointslice object.
   * `__meta_kubernetes_endpointslice_name`: The name of endpointslice object.
 
   For all targets discovered directly from the endpointslice list (those not additionally inferred from underlying pods), the following labels are attached:
@@ -1151,7 +1238,9 @@ Configuration example:
 scrape_configs:
 - job_name: kuma
   kuma_sd_configs:
+
     # server must contain the URL of Kuma Control Plane's MADS xDS server.
+    #
   - server: "http://localhost:5676"
 
     # Additional HTTP API client options can be specified here.
@@ -1187,25 +1276,30 @@ scrape_configs:
     # server is an optional Nomad server to connect to.
     # If the server isn't specified, then it is read from NOMAD_ADDR environment var.
     # If the NOMAD_ADDR environment var isn't set, then localhost:4646 is used.
+    #
   - server: "localhost:4646"
 
     # namespace is an optional Nomad namespace.
     # If the namespace isn't specified, then it is read from NOMAD_NAMESPACE environment var.
+    #
     # namespace: "..."
 
     # region is an optional Nomad region.
     # If the region isn't specified, then it is read from NOMAD_REGION environment var.
     # If NOMAD_REGION environment var isn't set, then "global" region is used
+    #
     # region: "..."
 
     # tag_separator is an optional string by which Nomad tags are joined into the __meta_nomad_tags label.
     # By default, "," is used as a tag separator.
     # Individual tags are also available via __meta_nomad_tag_<tagname> labels - see below.
+    #
     # tag_separator: "..."
 
     # allow_stale is an optional config, which allows stale Nomad results.
     # See https://developer.hashicorp.com/nomad/api-docs#consistency-modes
     # Reduces load on Nomad if set to true. By default, it is set to true.
+    #
     # allow_stale: ...
 
     # Additional HTTP API client options can be specified here.
@@ -1248,29 +1342,36 @@ scrape_configs:
 
     # role must contain either `hypervisor` or `instance`.
     # See docs below for details.
+    #
   - role: "..."
 
     # region must contain OpenStack region for targets' discovery.
+    #
     region: "..."
 
     # identity_endpoint is an optional HTTP Identity API endpoint.
     # By default, it is read from OS_AUTH_URL environment variable.
+    #
     # identity_endpoint: "..."
 
     # username is an optional username to query Identity API.
     # By default, it is read from OS_USERNAME environment variable.
+    #
     # username: "..."
 
     # userid is an optional userid to query Identity API.
     # By default, it is read from OS_USERID environment variable.
+    #
     # userid: "..."
 
     # password is an optional password to query Identity API.
     # By default, it is read from OS_PASSWORD environment variable.
+    #
     # password: "..."
 
     # At most one of domain_id and domain_name must be provided.
     # By default, they are read from OS_DOMAIN_NAME and OS_DOMAIN_ID environment variables.
+    #
     # domain_name: "..."
     # domain_id: "..."
 
@@ -1278,32 +1379,39 @@ scrape_configs:
     # By default, it is read from OS_PROJECT_NAME and OS_PROJECT_ID environment variables.
     # If these vars are empty, then the options are read
     # from OS_TENANT_NAME and OS_TENANT_ID environment variables.
+    #
     # project_name: "..."
     # project_id: "..."
 
     # By default, these fields are read from OS_APPLICATION_CREDENTIAL_NAME
     # and OS_APPLICATION_CREDENTIAL_ID environment variables
+    #
     # application_credential_name: "..."
     # application_credential_id: "..."
 
     # By default, this field is read from OS_APPLICATION_CREDENTIAL_SECRET
+    #
     # application_credential_secret: "..."
 
     # all_tenants can be set to true if all instances in all projects must be discovered.
     # It is only relevant for the 'role: instance' and usually requires admin permissions.
+    #
     # all_tenants: ...
 
     # port is an optional port to scrape metrics from.
     # Port 80 is used by default.
+    #
     # port: ...
 
     # availability is the availability of the endpoint to connect to.
     # Must be one of public, admin or internal.
     # By default, it is set to public
+    #
     # availability: "..."
 
     # tls_config is an optional tls config.
     # See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#tls_config
+    #
     # tls_config:
     #   ...
 ```
@@ -1369,16 +1477,20 @@ scrape_configs:
     # See https://docs.victoriametrics.com/vmagent.html#relabeling .
     #
     # It is also possible specifying full target urls here, e.g. "http://host:port/metrics/path?query_args"
+    #
   - targets:
     - "vmsingle1:8428"
     - "vmsingleN:8428"
 
     # labels is an optional labels to add to all the targets.
+    #
     # labels:
     #   <labelname1>: "<labelvalue1>"
     #   ...
     #   <labelnameN>: "<labelvalueN>"
 ```
+
+See [these examples](https://docs.victoriametrics.com/scrape_config_examples.html#static-configs) on how to configure scraping for static targets.
 
 ## yandexcloud_sd_configs
 
@@ -1390,20 +1502,25 @@ Configuration example:
 scrape_configs:
 - job_name: yandexcloud
   yandexcloud_sd_configs:
+
     # service is a mandatory option for yandexcloud service discovery
     # currently only "compute" service is supported
+    #
   - service: compute
 
     # api_endpoint is an optional API endpoint for service discovery
     # The https://api.cloud.yandex.net endpoint is used by default.
+    #
     # api_endpoint: "https://api.cloud.yandex.net"
 
     # yandex_passport_oauth_token is an optional OAuth token
     # for querying yandexcloud API. See https://cloud.yandex.com/en-ru/docs/iam/concepts/authorization/oauth-token
+    #
     # yandex_passport_oauth_token: "..."
 
     # tls_config is an optional tls config.
     # See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#tls_config
+    #
     # tls_config:
     #   ...
 ```
@@ -1463,6 +1580,7 @@ scrape_configs:
   # job_name must contain value for `job` label, which is added
   # to all the metrics collected from the configured and discovered scrape targets.
   # See https://prometheus.io/docs/concepts/jobs_instances/ .
+  #
 - job_name: "..."
 
   # scrape_interval is an optional interval to scrape targets.
@@ -1476,6 +1594,7 @@ scrape_configs:
   # The scrape_interval can be set on a per-target basis by specifying `__scrape_interval__`
   # label during target relabeling phase.
   # See https://docs.victoriametrics.com/vmagent.html#relabeling
+  #
   # scrape_interval: <duration>
 
   # scrape_timeout is an optional timeout when scraping the targets.
@@ -1490,10 +1609,12 @@ scrape_configs:
   # The scrape_timeout can be set on a per-target basis by specifying `__scrape_timeout__`
   # label during target relabeling phase.
   # See https://docs.victoriametrics.com/vmagent.html#relabeling
+  #
   # scrape_timeout: <duration>
 
   # metrics_path is the path to fetch metrics from targets.
   # By default, metrics are fetched from "/metrics" path.
+  #
   # metrics_path: "..."
 
   # honor_labels controls how to handle conflicts between labels that are
@@ -1514,6 +1635,7 @@ scrape_configs:
   # preserved.
   #
   # By default, honor_labels is set to false for security and consistency reasons.
+  #
   # honor_labels: <boolean>
 
   # honor_timestamps controls whether to respect the timestamps present in scraped data.
@@ -1526,14 +1648,17 @@ scrape_configs:
   #
   # By default, honor_timestamps is set to false.
   # See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4697#issuecomment-1656540535 for details.
+  #
   # honor_timestamps: <boolean>
 
   # scheme configures the protocol scheme used for requests.
   # Supported values: http and https.
   # By default, http is used.
+  #
   # scheme: "..."
 
   # Optional query arg parameters to add to scrape url.
+  #
   # params:
   #   "param_name1": ["value1", ..., "valueN"]
   #   ...
@@ -1542,12 +1667,14 @@ scrape_configs:
   # relabel_configs is an optional relabeling configurations
   # for the specified and discovered scrape targets.
   # See https://docs.victoriametrics.com/vmagent.html#relabeling
+  #
   # relabel_configs:
   # - <relabel_config> ...
 
   # metric_relabel_configs is an optional relabeling configs
   # for the collected metrics from active scrape targets.
   # See https://docs.victoriametrics.com/vmagent.html#relabeling
+  #
   # metric_relabel_configs:
   # - <relabel_config> ...
 
@@ -1556,18 +1683,21 @@ scrape_configs:
   # If more than this number of samples are present after metric relabeling
   # the entire scrape will be treated as failed.
   # By default, the limit is disabled.
+  #
   # sample_limit: <int>
 
   # disable_compression allows disabling HTTP compression for responses received from scrape targets.
   # By default, scrape targets are queried with `Accept-Encoding: gzip` http request header,
   # so targets could send compressed responses in order to save network bandwidth.
   # See https://docs.victoriametrics.com/vmagent.html#scrape_config-enhancements
+  #
   # disable_compression: <boolean>
 
   # disable_keepalive allows disabling HTTP keep-alive when scraping targets.
   # By default, HTTP keep-alive is enabled, so TCP connections to scrape targets
   # could be re-used.
   # See https://docs.victoriametrics.com/vmagent.html#scrape_config-enhancements
+  #
   # disable_keepalive: <boolean>
 
   # stream_parse allows enabling stream parsing mode when scraping targets.
@@ -1576,6 +1706,7 @@ scrape_configs:
   # The stream_parse can be set on a per-target basis by specifying `__stream_parse__`
   # label during target relabeling phase.
   # See https://docs.victoriametrics.com/vmagent.html#relabeling
+  #
   # stream_parse: <boolean>
 
   # scrape_align_interval allows aligning scrapes to the given interval.
@@ -1583,6 +1714,7 @@ scrape_configs:
   # - "5m" - align scrapes to every 5 minutes.
   # - "1h" - align scrapes to every hour.
   # See https://docs.victoriametrics.com/vmagent.html#scrape_config-enhancements
+  #
   # scrape_align_interval: <duration>
 
   # scrape_offset allows specifying the exact offset for scrapes.
@@ -1590,6 +1722,7 @@ scrape_configs:
   # - "5m" - align scrapes to every 5 minutes.
   # - "1h" - align scrapes to every hour.
   # See https://docs.victoriametrics.com/vmagent.html#scrape_config-enhancements
+  #
   # scrape_offset: <duration>
 
   # series_limit is an optional limit on the number of unique time series
@@ -1599,11 +1732,13 @@ scrape_configs:
   # The series_limit can be set on a per-target basis by specifying `__series_limit__`
   # label during target relabeling phase.
   # See https://docs.victoriametrics.com/vmagent.html#relabeling
+  #
   # series_limit: ...
 
   # no_stale_markers allows disabling staleness tracking.
   # By default, staleness tracking is enabled for all the discovered scrape targets.
   # See https://docs.victoriametrics.com/vmagent.html#prometheus-staleness-markers
+  #
   # no_stale_markers: <boolean>
 
   # Additional HTTP client options for target scraping can be specified here.
@@ -1617,78 +1752,96 @@ and in the majority of [supported service discovery configs](#supported-service-
 
 ```yaml
     # authorization is an optional `Authorization` header configuration.
+    #
     # authorization:
     #   type: "..."  # default: Bearer
     #   credentials: "..."
     #   credentials_file: "..."
 
     # basic_auth is an optional HTTP basic authentication configuration.
+    #
     # basic_auth:
     #   username: "..."
+    #   username_file: "..."  # is mutually-exclusive with username
     #   password: "..."
-    #   password_file: "..."
+    #   password_file: "..."  # is mutually-exclusive with password
 
     # bearer_token is an optional Bearer token to send in every HTTP API request during service discovery.
+    #
     # bearer_token: "..."
 
     # bearer_token_file is an optional path to file with Bearer token to send
     # in every HTTP API request during service discovery.
     # The file is re-read every second, so its contents can be updated without the need to restart the service discovery.
+    #
     # bearer_token_file: "..."
 
     # oauth2 is an optional OAuth 2.0 configuration.
     # See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#oauth2
+    #
     # oauth2:
     #   ...
 
     # tls_config is an optional TLS configuration.
     # See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#tls_config
+    #
     # tls_config:
     #   ...
 
     # headers is an optional HTTP headers to pass with each request.
+    #
     # headers:
     # - "HeaderName1: HeaderValue"
     # - "HeaderNameN: HeaderValueN"
 
     # proxy_url is an optional URL for the proxy to use for HTTP API queries during service discovery.
+    #
     # proxy_url: "..."
 
     # proxy_authorization is an optional `Authorization` header config for the proxy_url.
+    #
     # proxy_authorization:
     #   type: "..."  # default: Bearer
     #   credentials: "..."
     #   credentials_file: "..."
 
     # proxy_basic_auth is an optional HTTP basic authentication configuration for the proxy_url.
+    #
     # proxy_basic_auth:
     #   username: "..."
+    #   username_file: "..."  # is mutually-exclusive with username
     #   password: "..."
-    #   password_file: "..."
+    #   password_file: "..."  # is mutually-exclusive with password
 
     # proxy_bearer_token is an optional Bearer token to send to proxy_url.
+    #
     # proxy_bearer_token: "..."
 
     # proxy_bearer_token_file is an optional path to file with Bearer token to send to proxy_url.
     # The file is re-read every second, so its contents can be updated without the need to restart the service discovery.
+    #
     # proxy_bearer_token_file: "..."
 
     # proxy_oauth2 is an optional OAuth 2.0 configuration for the proxy_url.
     # See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#oauth2
+    #
     # proxy_oauth2:
     #   ...
 
     # proxy_tls_config is an optional TLS configuration for the proxy_url.
     # See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#tls_config
+    #
     # proxy_tls_config:
     #   ...
 
     # proxy_headers is an optional HTTP headers to pass to the proxy_url.
+    #
     # proxy_headers:
     # - "HeaderName1: HeaderValue"
     # - "HeaderNameN: HeaderValueN"
 
     # follow_redirects can be used for disallowing HTTP redirects.
     # By default HTTP redirects are followed.
+    #
     # follow_redirects: false
 ```
