@@ -7,31 +7,23 @@ and [Grafana](https://grafana.com/).
 For starting the docker-compose environment ensure you have docker installed and running and access to the Internet.
 **All commands should be executed from the root directory of [the repo](https://github.com/VictoriaMetrics/VictoriaMetrics).**
 
-To spin-up environment with VictoriaMetrics components run one of the following commands:
-```
-make docker-single-up  # start single server VictoriaMetrics 
- or
-make docker-cluster-up # start cluster VictoriaMetrics 
-```
+* [VictoriaMetrics single server](#victoriametrics-single-server)
+* [VictoriaMetrics cluster](#victoriametrics-cluster)
+* [vmagent](#vmagent)
+* [vmauth](#vmauth)
+* [vmalert](#vmalert)
+* [alertmanager](#alertmanager)
+* [Alerts](#alerts)
+* [Grafana](#grafana)
+* [VictoriaLogs](#victoriaLogs-server)
 
-To shut down the docker-compose environment run one the following commands:
-```
-make docker-single-down # shutdown single server VictoriaMetrics 
- or
-make docker-cluster-down # shutdown cluster VictoriaMetrics 
-```
-
-Optionally, environment with [VictoriaMetrics Grafana datasource](https://github.com/VictoriaMetrics/grafana-datasource)
-can be started with the following commands:
-```
-make docker-single-vm-datasource-up    # start single server
-make docker-single-vm-datasource-down  # shut down single server
-
-make docker-cluster-vm-datasource-up   # start cluster
-make docker-cluster-vm-datasource-down # shutdown cluster
-```
 
 ## VictoriaMetrics single server
+
+To spin-up environment with VictoriaMetrics single server run the following command:
+```
+make docker-single-up 
+```
 
 VictoriaMetrics will be accessible on the following ports:
 
@@ -53,8 +45,18 @@ use link [http://localhost:8428/vmui](http://localhost:8428/vmui).
 
 To access `vmalert` use link [http://localhost:8428/vmalert](http://localhost:8428/vmalert/).
 
+To shutdown environment execute the following command:
+```
+make docker-single-down
+```
+
 
 ## VictoriaMetrics cluster
+
+To spin-up environment with VictoriaMetrics cluster run the following command:
+```
+make docker-cluster-up
+```
 
 VictoriaMetrics cluster environment consists of `vminsert`, `vmstorage` and `vmselect` components.
 `vminsert` has exposed port `:8480`, access to `vmselect` components goes through `vmauth` on port `:8427`,
@@ -76,6 +78,11 @@ To access [vmui](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.
 use link [http://localhost:8427/select/0/prometheus/vmui/](http://localhost:8427/select/0/prometheus/vmui/).
 
 To access `vmalert` use link [http://localhost:8427/select/0/prometheus/vmalert/](http://localhost:8427/select/0/prometheus/vmalert/).
+
+To shutdown environment execute the following command:
+```
+make docker-cluster-down
+```
 
 ## vmagent
 
@@ -127,9 +134,15 @@ Grafana is provisioned by default with following entities:
 
 Remember to pick `VictoriaMetrics - cluster` datasource when viewing `VictoriaMetrics - cluster` dashboard.
 
-If environment was started via `docker-single-vm-datasource-up` or `docker-cluster-vm-datasource-up`, then
-Grafana will have [VictoriaMetrics Grafana datasource](https://github.com/VictoriaMetrics/grafana-datasource)
-installed by default.
+Optionally, environment with [VictoriaMetrics Grafana datasource](https://github.com/VictoriaMetrics/grafana-datasource)
+can be started with the following commands:
+```
+make docker-single-vm-datasource-up    # start single server
+make docker-single-vm-datasource-down  # shut down single server
+
+make docker-cluster-vm-datasource-up   # start cluster
+make docker-cluster-vm-datasource-down # shutdown cluster
+```
 
 ## Alerts
 
