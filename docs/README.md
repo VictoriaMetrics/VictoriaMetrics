@@ -1541,7 +1541,7 @@ Set HTTP request header `Content-Encoding: gzip` when sending gzip-compressed da
 VictoriaMetrics accepts data in JSON line format at [/api/v1/import](#how-to-import-data-in-json-line-format)
 and exports data in this format at [/api/v1/export](#how-to-export-data-in-json-line-format).
 
-The format follows [JSON streaming concept](http://ndjson.org/), e.g. each line contains JSON object with metrics data in the following format:
+The format follows [JSON streaming concept](https://jsonlines.org/), e.g. each line contains JSON object with metrics data in the following format:
 
 ```json
 {
