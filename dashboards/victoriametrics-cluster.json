@@ -4857,7 +4857,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Shows the approx time needed to reach 100% of disk capacity for at least one vmstorage node based on the following params:\n* free disk space;\n* row ingestion rate;\n* dedup rate;\n* compression.\n\nUse this panel for capacity planning in order to estimate the time remaining for running out of the disk space.",
+          "description": "Shows the approx time needed to reach 100% of disk capacity for at least one vmstorage node based on the following params:\n* free disk space;\n* row ingestion rate;\n* compression.\n\nnote: this panel doesn't count deduplication operations which could release disk and increase the time.\n\nUse this panel for capacity planning in order to estimate the time remaining for running out of the disk space.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -4952,7 +4952,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "min(vm_free_disk_space_bytes{job=~\"$job_storage\", instance=~\"$instance\"} \n/ \nignoring(path) (\n    (\n        rate(vm_rows_added_to_storage_total{job=~\"$job_storage\", instance=~\"$instance\"}[1d])\n        - \n        ignoring(type) rate(vm_deduplicated_samples_total{job=~\"$job_storage\", instance=~\"$instance\", type=\"merge\"}[1d])\n    ) * scalar(\n            sum(vm_data_size_bytes{job=~\"$job_storage\", instance=~\"$instance\", type!~\"indexdb.*\"})\n            / \n            sum(vm_rows{job=~\"$job_storage\", instance=~\"$instance\", type!~\"indexdb.*\"})\n            )\n))",
+              "expr": "min(vm_free_disk_space_bytes{job=~\"$job_storage\", instance=~\"$instance\"} \n/ \nignoring(path) (\n    rate(vm_rows_added_to_storage_total{job=~\"$job_storage\", instance=~\"$instance\"}[1d])\n    * scalar(\n            sum(vm_data_size_bytes{job=~\"$job_storage\", instance=~\"$instance\", type!~\"indexdb.*\"})\n            / \n            sum(vm_rows{job=~\"$job_storage\", instance=~\"$instance\", type!~\"indexdb.*\"})\n            )\n))",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
@@ -9050,7 +9050,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Shows the approx time needed to reach 100% of disk capacity based on the following params:\n* free disk space;\n* row ingestion rate;\n* dedup rate;\n* compression.\n\nUse this panel for capacity planning in order to estimate the time remaining for running out of the disk space.",
+          "description": "Shows the approx time needed to reach 100% of disk capacity based on the following params:\n* free disk space;\n* row ingestion rate;\n* compression.\n\nnote: this panel doesn't count deduplication operations which could release disk and increase the time.\n\nUse this panel for capacity planning in order to estimate the time remaining for running out of the disk space.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -9139,7 +9139,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "vm_free_disk_space_bytes{job=~\"$job_storage\", instance=~\"$instance\"} \n/ \nignoring(path) (\n    (\n        rate(vm_rows_added_to_storage_total{job=~\"$job_storage\", instance=~\"$instance\"}[1d])\n        - \n        ignoring(type) rate(vm_deduplicated_samples_total{job=~\"$job_storage\", instance=~\"$instance\", type=\"merge\"}[1d])\n    ) * scalar(\n            sum(vm_data_size_bytes{job=~\"$job_storage\", instance=~\"$instance\", type!~\"indexdb.*\"})\n            / \n            sum(vm_rows{job=~\"$job_storage\", instance=~\"$instance\", type!~\"indexdb.*\"})\n            )\n)",
+              "expr": "vm_free_disk_space_bytes{job=~\"$job_storage\", instance=~\"$instance\"} \n/ \nignoring(path) (\n    rate(vm_rows_added_to_storage_total{job=~\"$job_storage\", instance=~\"$instance\"}[1d])\n    * scalar(\n            sum(vm_data_size_bytes{job=~\"$job_storage\", instance=~\"$instance\", type!~\"indexdb.*\"})\n            / \n            sum(vm_rows{job=~\"$job_storage\", instance=~\"$instance\", type!~\"indexdb.*\"})\n            )\n)",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
