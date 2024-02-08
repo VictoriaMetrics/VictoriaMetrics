@@ -15,7 +15,7 @@ The following `tip` changes can be tested by building VictoriaMetrics components
 
 * BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): properly propagate [label filters](https://docs.victoriametrics.com/keyconcepts/#filtering) from multiple arguments passed to [aggregate functions](https://docs.victoriametrics.com/metricsql/#aggregate-functions). For example, `sum({job="foo"}, {job="bar"}) by (job) + a` was improperly optimized to `sum({job="foo"}, {job="bar"}) by (job) + a{job="foo"}` before being executed. This could lead to unexpected results. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5604).
 * BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): properly handle precision errors when calculating [changes](https://docs.victoriametrics.com/metricsql/#changes), [changes_prometheus](https://docs.victoriametrics.com/metricsql/#changes_prometheus), [increases_over_time](https://docs.victoriametrics.com/metricsql/#increases_over_time) and [resets](https://docs.victoriametrics.com/metricsql/#resets) functions. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/767).
-* BUGFIX: prevent from possible `too big indexBlockSize` panic.
+* BUGFIX: prevent from possible `too big indexBlockSize` panic when samples with too long label values (~64Kb) are ingested into VictoriaMetrics.
 
 ## [v1.93.11](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.11)
 
