@@ -33,6 +33,27 @@ func TestTableOpenClose(t *testing.T) {
 	}
 }
 
+func TestTableAddItemsTooLongItem(t *testing.T) {
+	const path = "TestTableAddItemsTooLongItem"
+	if err := os.RemoveAll(path); err != nil {
+		t.Fatalf("cannot remove %q: %s", path, err)
+	}
+
+	var isReadOnly uint32
+	tb := MustOpenTable(path, nil, nil, &isReadOnly)
+	func() {
+		defer func() {
+			if r := recover(); r == nil {
+				t.Fatalf("expecting panic")
+			}
+		}()
+		tb.AddItems([][]byte{make([]byte, maxInmemoryBlockSize+1)})
+	}()
+	t.Logf("foobar")
+	tb.MustClose()
+	_ = os.RemoveAll(path)
+}
+
 func TestTableAddItemsSerial(t *testing.T) {
 	r := rand.New(rand.NewSource(1))
 	const path = "TestTableAddItemsSerial"
