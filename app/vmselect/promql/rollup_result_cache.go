@@ -30,6 +30,7 @@ var (
 		"due to time synchronization issues between VictoriaMetrics and data sources. See also -search.disableAutoCacheReset")
 	disableAutoCacheReset = flag.Bool("search.disableAutoCacheReset", false, "Whether to disable automatic response cache reset if a sample with timestamp "+
 		"outside -search.cacheTimestampOffset is inserted into VictoriaMetrics")
+	resetRollupResultCacheOnStartup = flag.Bool("search.resetRollupResultCacheOnStartup", false, "Whether to reset rollup result cache on startup")
 )
 
 // ResetRollupResultCacheIfNeeded resets rollup result cache if mrs contains timestamps outside `now - search.cacheTimestampOffset`.
@@ -117,7 +118,12 @@ func InitRollupResultCache(cachePath string) {
 	cacheSize := getRollupResultCacheSize()
 	var c *workingsetcache.Cache
 	if len(rollupResultCachePath) > 0 {
-		logger.Infof("loading rollupResult cache from %q...", rollupResultCachePath)
+		if *resetRollupResultCacheOnStartup {
+			logger.Infof("removing rollupResult cache at %q becasue -search.resetRollupResultCacheOnStartup command-line flag is set", rollupResultCachePath)
+			fs.MustRemoveAll(rollupResultCachePath)
+		} else {
+			logger.Infof("loading rollupResult cache from %q...", rollupResultCachePath)
+		}
 		c = workingsetcache.Load(rollupResultCachePath, cacheSize)
 		mustLoadRollupResultCacheKeyPrefix(rollupResultCachePath)
 	} else {

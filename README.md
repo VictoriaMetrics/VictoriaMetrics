@@ -2310,6 +2310,21 @@ Sometimes it is needed to remove such caches on the next startup. This can be do
   In this case VictoriaMetrics will automatically remove all the caches on the next start.
   See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1447) for details.
 
+It is also possible removing [rollup result cache](#rollup-result-cache) on startup by passing `-search.resetRollupResultCacheOnStartup` command-line flag to VictoriaMetrics.
+
+## Rollup result cache
+
+VictoriaMetrics caches query reponses by default. This allows increasing performance for repated queries
+to [`/api/v1/query`](https://docs.victoriametrics.com/keyconcepts/#instant-query) and [`/api/v1/query_range`](https://docs.victoriametrics.com/keyconcepts/#range-query)
+with the increasing `time`, `start` and `end` query args.
+
+This cache may work incorrectly when ingesting historical data into VictoriaMetrics. See [these docs](#backfilling) for details.
+
+The rollup cache can be disabled either globally by running VictoriaMetrics with `-search.disableCache` command-line flag
+or on a per-query basis by passing `nocache=1` query arg to `/api/v1/query` and `/api/v1/query_range`.
+
+See also [cache removal docs](#cache-removal).
+
 ## Cache tuning
 
 VictoriaMetrics uses various in-memory caches for faster data ingestion and query performance.
@@ -2374,11 +2389,12 @@ VictoriaMetrics accepts historical data in arbitrary order of time via [any supp
 See [how to backfill data with recording rules in vmalert](https://docs.victoriametrics.com/vmalert.html#rules-backfilling).
 Make sure that configured `-retentionPeriod` covers timestamps for the backfilled data.
 
-It is recommended disabling query cache with `-search.disableCache` command-line flag when writing
+It is recommended disabling [query cache](#rollup-result-cache) with `-search.disableCache` command-line flag when writing
 historical data with timestamps from the past, since the cache assumes that the data is written with
 the current timestamps. Query cache can be enabled after the backfilling is complete.
 
-An alternative solution is to query [/internal/resetRollupResultCache](https://docs.victoriametrics.com/url-examples.html#internalresetrollupresultcache) handler after the backfilling is complete. This will reset the query cache, which could contain incomplete data cached during the backfilling.
+An alternative solution is to query [/internal/resetRollupResultCache](https://docs.victoriametrics.com/url-examples.html#internalresetrollupresultcache)
+after the backfilling is complete. This will reset the [query cache](#rollup-result-cache), which could contain incomplete data cached during the backfilling.
 
 Yet another solution is to increase `-search.cacheTimestampOffset` flag value in order to disable caching
 for data with timestamps close to the current time. Single-node VictoriaMetrics automatically resets response
