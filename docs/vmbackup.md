@@ -450,16 +450,6 @@ Run `vmbackup -help` in order to see all the available options:
      Optional TLS server name to use for connections to -snapshotCreateURL. By default, the server name from -snapshotCreateURL is used
   -snapshotName string
      Name for the snapshot to backup. See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-work-with-snapshots. There is no need in setting -snapshotName if -snapshot.createURL is set
-  -snapshot.tlsInsecureSkipVerify 
-     Optional Whether to skip tls verification when connecting to -snapshotCreateURL
-  -snapshot.tlsCertFile
-     Optional path to client-side TLS certificate file to use when connecting to -snapshotCreateURL
-  -snapshot.tlsKeyFile
-     Optional path to client-side TLS certificate key to use when connecting to -snapshotCreateURL
-  -snapshot.tlsCAFile 
-     Optional path to client-side TLS CA file to use when connecting to -snapshotCreateURL
-  -snapshot.tlsServerName
-     Optional path to client-side TLS tlsServerName to use when connecting to -snapshotCreateURL
   -storageDataPath string
      Path to VictoriaMetrics data. Must match -storageDataPath from VictoriaMetrics or vmstorage (default "victoria-metrics-data")
   -tls
