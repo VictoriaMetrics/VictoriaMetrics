@@ -1420,9 +1420,8 @@ The shortlist of configuration flags is the following:
 `vmalert` supports "hot" config reload via the following methods:
 
 * send SIGHUP signal to `vmalert` process;
-* send GET request to `/-/reload` endpoint;
-* configure `-configCheckInterval` flag for periodic reload
-  on config change.
+* send GET request to `/-/reload` endpoint (this endpoint can be protected with `-reloadAuthKey` command-line flag);
+* configure `-configCheckInterval` flag for periodic reload on config change.
 
 ### URL params
 

@@ -126,7 +126,7 @@ additionally to pull-based Prometheus-compatible targets' scraping:
   kill -SIGHUP `pidof vmagent`
   ```
 
-* Sending HTTP request to `http://vmagent:8429/-/reload` endpoint.
+* Sending HTTP request to `http://vmagent:8429/-/reload` endpoint. This endpoint can be protected with `-reloadAuthKey` command-line flag.
 
 There is also `-promscrape.configCheckInterval` command-line option, which can be used for automatic reloading configs from updated `-promscrape.config` file.
 
