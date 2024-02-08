@@ -143,11 +143,14 @@ func (bsw *blockStreamWriter) WriteExternalBlock(b *Block, ph *partHeader, rowsM
 		atomic.AddUint64(&timestampsBlocksMerged, 1)
 		atomic.AddUint64(&timestampsBytesSaved, uint64(len(timestampsData)))
 	}
+	indexDataLen := len(bsw.indexData)
 	bsw.indexData = append(bsw.indexData, headerData...)
-	bsw.mr.RegisterBlockHeader(&b.bh)
-	if len(bsw.indexData) >= maxBlockSize {
+	if len(bsw.indexData) > maxBlockSize {
+		bsw.indexData = bsw.indexData[:indexDataLen]
 		bsw.flushIndexData()
+		bsw.indexData = append(bsw.indexData, headerData...)
 	}
+	bsw.mr.RegisterBlockHeader(&b.bh)
 	if !usePrevTimestamps {
 		bsw.prevTimestampsData = append(bsw.prevTimestampsData[:0], timestampsData...)
 		bsw.prevTimestampsBlockOffset = bsw.timestampsBlockOffset
