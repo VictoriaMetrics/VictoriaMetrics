@@ -2749,6 +2749,10 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -metricsAuthKey value
      Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
      Flag value can be read from the given file when using -metricsAuthKey=file:///abs/path/to/file or -metricsAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -metricsAuthKey=http://host/path or -metricsAuthKey=https://host/path
+  -mtls
+     Whether to require valid client certificate for https requests to -httpListenAddr . This flag works only if -tls flag is set. See also -mtlsCAFile . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
+  -mtlsCAFile string
+     Optional path to TLS Root CA for verifying client certificates when -mtls is enabled. By default the host system TLS Root CA is used for client certificate verification. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
   -newrelic.maxInsertRequestSize size
      The maximum size in bytes of a single NewRelic request to /newrelic/infra/v2/metrics/events/bulk
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 67108864)
@@ -2906,7 +2910,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -search.disableAutoCacheReset
      Whether to disable automatic response cache reset if a sample with timestamp outside -search.cacheTimestampOffset is inserted into VictoriaMetrics
   -search.disableCache
-     Whether to disable response caching. This may be useful during data backfilling
+     Whether to disable response caching. This may be useful when ingesting historical data. See https://docs.victoriametrics.com/#backfilling . See also -search.resetRollupResultCacheOnStartup
   -search.graphiteMaxPointsPerSeries int
      The maximum number of points per series Graphite render API can return (default 1000000)
   -search.graphiteStorageStep duration
@@ -2990,6 +2994,8 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -search.resetCacheAuthKey value
      Optional authKey for resetting rollup cache via /internal/resetRollupResultCache call
      Flag value can be read from the given file when using -search.resetCacheAuthKey=file:///abs/path/to/file or -search.resetCacheAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -search.resetCacheAuthKey=http://host/path or -search.resetCacheAuthKey=https://host/path
+  -search.resetRollupResultCacheOnStartup
+     Whether to reset rollup result cache on startup. See https://docs.victoriametrics.com/#rollup-result-cache . See also -search.disableCache
   -search.setLookbackToStep
      Whether to fix lookback interval to 'step' query arg value. If set to true, the query model becomes closer to InfluxDB data model. If set to true, then -search.maxLookback and -search.maxStalenessInterval are ignored
   -search.treatDotsAsIsInRegexps
@@ -3042,7 +3048,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -streamAggr.keepInput
      Whether to keep all the input samples after the aggregation with -streamAggr.config. By default, only aggregated samples are dropped, while the remaining samples are stored in the database. See also -streamAggr.dropInput and https://docs.victoriametrics.com/stream-aggregation.html
   -tls
-     Whether to enable TLS for incoming HTTP requests at -httpListenAddr (aka https). -tlsCertFile and -tlsKeyFile must be set if -tls is set
+     Whether to enable TLS for incoming HTTP requests at -httpListenAddr (aka https). -tlsCertFile and -tlsKeyFile must be set if -tls is set. See also -mtls
   -tlsCertFile string
      Path to file with TLS certificate if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated
   -tlsCipherSuites array

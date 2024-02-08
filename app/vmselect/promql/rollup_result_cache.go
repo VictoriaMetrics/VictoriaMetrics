@@ -30,7 +30,8 @@ var (
 		"due to time synchronization issues between VictoriaMetrics and data sources. See also -search.disableAutoCacheReset")
 	disableAutoCacheReset = flag.Bool("search.disableAutoCacheReset", false, "Whether to disable automatic response cache reset if a sample with timestamp "+
 		"outside -search.cacheTimestampOffset is inserted into VictoriaMetrics")
-	resetRollupResultCacheOnStartup = flag.Bool("search.resetRollupResultCacheOnStartup", false, "Whether to reset rollup result cache on startup")
+	resetRollupResultCacheOnStartup = flag.Bool("search.resetRollupResultCacheOnStartup", false, "Whether to reset rollup result cache on startup. "+
+		"See https://docs.victoriametrics.com/#rollup-result-cache . See also -search.disableCache")
 )
 
 // ResetRollupResultCacheIfNeeded resets rollup result cache if mrs contains timestamps outside `now - search.cacheTimestampOffset`.
