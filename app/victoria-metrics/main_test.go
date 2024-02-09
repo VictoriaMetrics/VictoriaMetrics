@@ -180,7 +180,7 @@ func setUp() {
 	vmstorage.Init(promql.ResetRollupResultCacheIfNeeded)
 	vmselect.Init()
 	vminsert.Init()
-	go httpserver.Serve(*httpListenAddr, false, requestHandler)
+	go httpserver.Serve(*httpListenAddrs, useProxyProtocol, requestHandler)
 	readyStorageCheckFunc := func() bool {
 		resp, err := http.Get(testHealthHTTPPath)
 		if err != nil {
@@ -226,7 +226,7 @@ func waitFor(timeout time.Duration, f func() bool) error {
 }
 
 func tearDown() {
-	if err := httpserver.Stop(*httpListenAddr); err != nil {
+	if err := httpserver.Stop(*httpListenAddrs); err != nil {
 		log.Printf("cannot stop the webservice: %s", err)
 	}
 	vminsert.Stop()

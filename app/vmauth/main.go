@@ -33,8 +33,8 @@ import (
 )
 
 var (
-	httpListenAddr   = flag.String("httpListenAddr", ":8427", "TCP address to listen for http connections. See also -tls and -httpListenAddr.useProxyProtocol")
-	useProxyProtocol = flag.Bool("httpListenAddr.useProxyProtocol", false, "Whether to use proxy protocol for connections accepted at -httpListenAddr . "+
+	httpListenAddrs  = flagutil.NewArrayString("httpListenAddr", "TCP address to listen for incoming http requests. See also -tls and -httpListenAddr.useProxyProtocol")
+	useProxyProtocol = flagutil.NewArrayBool("httpListenAddr.useProxyProtocol", "Whether to use proxy protocol for connections accepted at the corresponding -httpListenAddr . "+
 		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . "+
 		"With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing")
 	maxIdleConnsPerBackend = flag.Int("maxIdleConnsPerBackend", 100, "The maximum number of idle connections vmauth can open per each backend host. "+
@@ -65,10 +65,14 @@ func main() {
 	buildinfo.Init()
 	logger.Init()
 
-	logger.Infof("starting vmauth at %q...", *httpListenAddr)
+	listenAddrs := *httpListenAddrs
+	if len(listenAddrs) == 0 {
+		listenAddrs = []string{":8427"}
+	}
+	logger.Infof("starting vmauth at %q...", listenAddrs)
 	startTime := time.Now()
 	initAuthConfig()
-	go httpserver.Serve(*httpListenAddr, *useProxyProtocol, requestHandler)
+	go httpserver.Serve(listenAddrs, useProxyProtocol, requestHandler)
 	logger.Infof("started vmauth in %.3f seconds", time.Since(startTime).Seconds())
 
 	pushmetrics.Init()
@@ -77,8 +81,8 @@ func main() {
 	pushmetrics.Stop()
 
 	startTime = time.Now()
-	logger.Infof("gracefully shutting down webservice at %q", *httpListenAddr)
-	if err := httpserver.Stop(*httpListenAddr); err != nil {
+	logger.Infof("gracefully shutting down webservice at %q", listenAddrs)
+	if err := httpserver.Stop(listenAddrs); err != nil {
 		logger.Fatalf("cannot stop the webservice: %s", err)
 	}
 	logger.Infof("successfully shut down the webservice in %.3f seconds", time.Since(startTime).Seconds())
