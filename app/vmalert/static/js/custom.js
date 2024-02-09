@@ -17,16 +17,28 @@ function toggleByID(id) {
     }
 }
 
-function filter(){
-    if($('#groups').is(':checked')){
-        filterGroups();
-    }else{
-        filterRules();
-    }
-}
+//http://davidwalsh.name/javascript-debounce-function
+function debounce(func, wait, immediate) {
+    var timeout;
+    return function() {
+        var context = this, args = arguments;
+        var later = function() {
+            timeout = null;
+            if (!immediate) func.apply(context, args);
+        };
+        var callNow = immediate && !timeout;
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+        if (callNow) func.apply(context, args);
+    };
+};
 
-function filterGroups(){
-    $(".group-heading").show()
+$('#filter').on("keyup", (debounce(function(){
+    console.log("type")
+    filter();
+},500)));
+
+function filter(){
     $(".rule-table").removeClass('show');
     $(".rule").show();
     
@@ -35,52 +47,61 @@ function filterGroups(){
         return
     }
 
+    $(".group-heading").hide()
+
+    filterRuleByName();
+    filterRuleByLabels();
+    filterGroupsByName();
+}
+
+function filterGroupsByName(){
     $( ".group-heading" ).each(function() {
         var groupName = $(this).attr('data-group-name');
         var filter = $("#filter").val()
 
-        if (groupName.indexOf(filter) < 0){
-            let id = $(this).attr('data-bs-target')
-            $("div[id='"+id+"'").removeClass('show');
-            $(this).hide();
-        }else{
+        if (groupName.indexOf(filter) >= 0){
+            let target = $(this).attr("data-bs-target");
+            
             $(this).show();
+            $("div[id='"+target+"'] .rule").show();
         }
     });
 }
 
-function filterRules(){
-    $(".group-heading").show()
-    $(".rule-table").removeClass('show');
-    $(".rule").show();
-
-    if($("#filter").val().length === 0){
-        return
-    }
-
+function filterRuleByName(){
     $( ".rule" ).each(function() {
         var ruleName = $(this).attr("data-rule-name");
         var filter = $("#filter").val()
-        let target = $(this).attr('data-bs-target')
-
+        
         if (ruleName.indexOf(filter) < 0){
             $(this).hide();
         }else{
+            let target = $(this).attr('data-bs-target')
+
             $("div[id='rules-"+target+"'").addClass('show');
+            $("div[data-bs-target='rules-"+target+"'").show();
             $(this).show();
         }
-    });
+    });  
+}
 
-    $( ".rule-table" ).each(function() {
-        let c = $( ".row", this ).filter(function() {
-            return $(this).is(":visible")
-        }).length;
-        if (c === 0) {
-            let target = $(this).attr('id')
-            $("div[data-bs-target='"+target+"'").removeClass('show');
-            $("div[data-bs-target='"+target+"'").hide()
+function filterRuleByLabels(){
+    $( ".rule" ).each(function() {
+        let filter = $("#filter").val()
+        
+        let matches = $( ".label", this ).filter(function() {
+            let label = $(this).text();
+            return label.indexOf(filter) >= 0;
+        }).length; 
+
+        if (matches > 0){
+            let target = $(this).attr('data-bs-target')
+
+            $("div[id='rules-"+target+"'").addClass('show');
+            $("div[data-bs-target='rules-"+target+"'").show();
+            $(this).show();
         }
-    });
+    }); 
 }
 
 $(document).ready(function () {

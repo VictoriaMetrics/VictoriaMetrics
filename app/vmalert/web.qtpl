@@ -75,14 +75,7 @@ btn-primary
          <a class="btn btn-primary" role="button" onclick="expandAll()">Expand All</a>
          <a class="btn {%= buttonActive(filter, "unhealthy") %}" role="button" onclick="location.href='?filter=unhealthy'" title="Show only rules with errors">Unhealthy</a>
          <a class="btn {%= buttonActive(filter, "noMatch") %}" role="button" onclick="location.href='?filter=noMatch'" title="Show only rules matching no time series during last evaluation">NoMatch</a>
-         <p>
-          <input id="filter" class="input-group" role="input"></input>
-            <a class="btn btn-primary" role="button" onclick="filter()">Filter</a>
-            <form>
-              <input type="radio" name="filterType" id="groups" role="input" checked>By Group Name</input>
-              <input type="radio" name="filterType" id="rules" role="input">By Rule Name</input>
-            </form>
-        </p>
+         <input id="filter" class="input-group" role="input"></input>
         {%  if len(groups) > 0 %}
             {% for _, g := range groups  %}
                   <div
@@ -142,7 +135,7 @@ btn-primary
                                         <div class="col-12 mb-2">
                                             {% if len(r.Labels) > 0 %} <b>Labels:</b>{% endif %}
                                             {% for k, v := range r.Labels %}
-                                                    <span class="ms-1 badge bg-primary">{%s k %}={%s v %}</span>
+                                                    <span class="ms-1 badge bg-primary label">{%s k %}={%s v %}</span>
                                             {% endfor %}
                                         </div>
                                         {% if r.LastError != "" %}
