@@ -23,6 +23,7 @@ func TestHandler(t *testing.T) {
 	})
 	g := &rule.Group{
 		Name:        "group",
+		File:        "rules.yaml",
 		Concurrency: 1,
 	}
 	ar := rule.NewAlertingRule(fq, g, config.Rule{ID: 0, Alert: "alert"})
@@ -143,103 +144,6 @@ func TestHandler(t *testing.T) {
 			t.Errorf("expected 1 group got %d", length)
 		}
 	})
-
-	t.Run("/api/v1/rules?type=alert", func(t *testing.T) {
-		vmRuleType := "alerting"
-		lr := listGroupsResponse{}
-		getResp(ts.URL+"/api/v1/rules?type=alert", &lr, 200)
-		if length := len(lr.Data.Groups); length != 1 {
-			t.Errorf("expected 1 group got %d", length)
-		}
-
-		for _, g := range lr.Data.Groups {
-			if length := len(g.Rules); length != 1 {
-				t.Errorf("expected 1 valid alert got %d", length)
-			}
-			for _, r := range g.Rules {
-				if r.Type != vmRuleType {
-					t.Errorf("expected only alerts here got %s", r.Type)
-				}
-			}
-		}
-	})
-
-	t.Run("/api/v1/rules?type=record", func(t *testing.T) {
-		vmRuleType := "recording"
-		lr := listGroupsResponse{}
-		getResp(ts.URL+"/api/v1/rules?type=record", &lr, 200)
-		if length := len(lr.Data.Groups); length != 1 {
-			t.Errorf("expected 1 group got %d", length)
-		}
-
-		for _, g := range lr.Data.Groups {
-			if length := len(g.Rules); length != 1 {
-				t.Errorf("expected 1 valid recording got %d", length)
-			}
-			for _, r := range g.Rules {
-				if r.Type != vmRuleType {
-					t.Errorf("expected only records here got %s", r.Type)
-				}
-			}
-		}
-	})
-
-	t.Run("ignore bad params /api/v1/rules?type=badParam", func(t *testing.T) {
-		lr := listGroupsResponse{}
-		getResp(ts.URL+"/api/v1/rules?type=badParam", &lr, 200)
-		if length := len(lr.Data.Groups); length != 1 {
-			t.Errorf("expected 1 group got %d", length)
-		}
-	})
-
-	t.Run("/vmalert/api/v1/rules?type=alert", func(t *testing.T) {
-		vmRuleType := "alerting"
-		lr := listGroupsResponse{}
-		getResp(ts.URL+"/vmalert/api/v1/rules?type=alert", &lr, 200)
-		if length := len(lr.Data.Groups); length != 1 {
-			t.Errorf("expected 1 group got %d", length)
-		}
-
-		for _, g := range lr.Data.Groups {
-			if length := len(g.Rules); length != 1 {
-				t.Errorf("expected 1 valid alert got %d", length)
-			}
-			for _, r := range g.Rules {
-				if r.Type != vmRuleType {
-					t.Errorf("expected only alerts here got %s", r.Type)
-				}
-			}
-		}
-	})
-
-	t.Run("/vmalert/api/v1/rules?type=record", func(t *testing.T) {
-		vmRuleType := "recording"
-		lr := listGroupsResponse{}
-		getResp(ts.URL+"/vmalert/api/v1/rules?type=record", &lr, 200)
-		if length := len(lr.Data.Groups); length != 1 {
-			t.Errorf("expected 1 group got %d", length)
-		}
-
-		for _, g := range lr.Data.Groups {
-			if length := len(g.Rules); length != 1 {
-				t.Errorf("expected 1 valid recording got %d", length)
-			}
-			for _, r := range g.Rules {
-				if r.Type != vmRuleType {
-					t.Errorf("expected only records here got %s", r.Type)
-				}
-			}
-		}
-	})
-
-	t.Run("ignore bad params /vmalert/api/v1/rules?type=badParam", func(t *testing.T) {
-		lr := listGroupsResponse{}
-		getResp(ts.URL+"/vmalert/api/v1/rules?type=badParam", &lr, 200)
-		if length := len(lr.Data.Groups); length != 1 {
-			t.Errorf("expected 1 group got %d", length)
-		}
-	})
-
 	t.Run("/api/v1/rule?ruleID&groupID", func(t *testing.T) {
 		expRule := ruleToAPI(ar)
 		gotRule := apiRule{}
@@ -260,6 +164,74 @@ func TestHandler(t *testing.T) {
 		getResp(ts.URL+"/"+expRule.APILink(), &gotRuleWithUpdates, 200)
 		if gotRuleWithUpdates.StateUpdates == nil || len(gotRuleWithUpdates.StateUpdates) < 1 {
 			t.Fatalf("expected %+v to have state updates field not empty", gotRuleWithUpdates.StateUpdates)
+		}
+	})
+
+	t.Run("/api/v1/rules&filters", func(t *testing.T) {
+		check := func(url string, expGroups, expRules int) {
+			t.Helper()
+			lr := listGroupsResponse{}
+			getResp(ts.URL+url, &lr, 200)
+			if length := len(lr.Data.Groups); length != expGroups {
+				t.Errorf("expected %d groups got %d", expGroups, length)
+			}
+			if len(lr.Data.Groups) < 1 {
+				return
+			}
+			var rulesN int
+			for _, gr := range lr.Data.Groups {
+				rulesN += len(gr.Rules)
+			}
+			if rulesN != expRules {
+				t.Errorf("expected %d rules got %d", expRules, rulesN)
+			}
+		}
+
+		check("/api/v1/rules?type=alert", 1, 1)
+		check("/api/v1/rules?type=record", 1, 1)
+
+		check("/vmalert/api/v1/rules?type=alert", 1, 1)
+		check("/vmalert/api/v1/rules?type=record", 1, 1)
+
+		// no filtering expected due to bad params
+		check("/api/v1/rules?type=badParam", 1, 2)
+		check("/api/v1/rules?foo=bar", 1, 2)
+
+		check("/api/v1/rules?rule_group[]=foo&rule_group[]=bar", 0, 0)
+		check("/api/v1/rules?rule_group[]=foo&rule_group[]=group&rule_group[]=bar", 1, 2)
+
+		check("/api/v1/rules?rule_group[]=group&file[]=foo", 0, 0)
+		check("/api/v1/rules?rule_group[]=group&file[]=rules.yaml", 1, 2)
+
+		check("/api/v1/rules?rule_group[]=group&file[]=rules.yaml&rule_name[]=foo", 1, 0)
+		check("/api/v1/rules?rule_group[]=group&file[]=rules.yaml&rule_name[]=alert", 1, 1)
+		check("/api/v1/rules?rule_group[]=group&file[]=rules.yaml&rule_name[]=alert&rule_name[]=record", 1, 2)
+	})
+	t.Run("/api/v1/rules&exclude_alerts=true", func(t *testing.T) {
+		// check if response returns active alerts by default
+		lr := listGroupsResponse{}
+		getResp(ts.URL+"/api/v1/rules?rule_group[]=group&file[]=rules.yaml", &lr, 200)
+		activeAlerts := 0
+		for _, gr := range lr.Data.Groups {
+			for _, r := range gr.Rules {
+				activeAlerts += len(r.Alerts)
+			}
+		}
+		if activeAlerts == 0 {
+			t.Fatalf("expected at least 1 active alert in response; got 0")
+		}
+
+		// disable returning alerts via param
+		lr = listGroupsResponse{}
+		getResp(ts.URL+"/api/v1/rules?rule_group[]=group&file[]=rules.yaml&exclude_alerts=true", &lr, 200)
+		activeAlerts = 0
+		for _, gr := range lr.Data.Groups {
+			for _, r := range gr.Rules {
+				activeAlerts += len(r.Alerts)
+			}
+		}
+		if activeAlerts != 0 {
+			t.Fatalf("expected to get 0 active alert in response; got %d", activeAlerts)
 		}
 	})
 }
