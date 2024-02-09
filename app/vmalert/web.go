@@ -87,7 +87,10 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		WriteRuleDetails(w, r, rule)
 		return true
 	case "/vmalert/groups":
-		WriteListGroups(w, r, rh.groups())
+		var data []apiGroup
+		ruleType := r.URL.Query().Get("type")
+		data = rh.groups(ruleType)
+		WriteListGroups(w, r, data)
 		return true
 	case "/vmalert/notifiers":
 		WriteListTargets(w, r, notifier.GetTargets())
@@ -98,12 +101,20 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 	case "/rules":
 		// Grafana makes an extra request to `/rules`
 		// handler in addition to `/api/v1/rules` calls in alerts UI,
-		WriteListGroups(w, r, rh.groups())
+		var data []apiGroup
+		ruleType := r.URL.Query().Get("type")
+		data = rh.groups(ruleType)
+		WriteListGroups(w, r, data)
 		return true
 
 	case "/vmalert/api/v1/rules", "/api/v1/rules":
 		// path used by Grafana for ng alerting
-		data, err := rh.listGroups()
+		var data []byte
+		var err error
+
+		ruleType := r.URL.Query().Get("type")
+		data, err = rh.listGroups(ruleType)
+
 		if err != nil {
 			httpserver.Errorf(w, r, "%s", err)
 			return true
@@ -111,6 +122,7 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		w.Header().Set("Content-Type", "application/json")
 		w.Write(data)
 		return true
+
 	case "/vmalert/api/v1/alerts", "/api/v1/alerts":
 		// path used by Grafana for ng alerting
 		data, err := rh.listAlerts()
@@ -207,12 +219,28 @@ type listGroupsResponse struct {
 	} `json:"data"`
 }
 
-func (rh *requestHandler) groups() []apiGroup {
+func (rh *requestHandler) groups(ruleType string) []apiGroup {
 	rh.m.groupsMu.RLock()
 	defer rh.m.groupsMu.RUnlock()
 
 	groups := make([]apiGroup, 0)
 	for _, g := range rh.m.groups {
+		g = g.DeepCopy()
+		var matchedRules []rule.Rule
+		if ruleType == "alert" || ruleType == "record" {
+			for _, r := range g.Rules {
+				if _, ok := r.(*rule.AlertingRule); ok && ruleType == "alert" {
+					matchedRules = append(matchedRules, r)
+				}
+				if _, ok := r.(*rule.RecordingRule); ok && ruleType == "record" {
+					matchedRules = append(matchedRules, r)
+				}
+			}
+			if len(matchedRules) == 0 {
+				continue
+			}
+			g.Rules = matchedRules
+		}
 		groups = append(groups, groupToAPI(g))
 	}
 
@@ -224,9 +252,9 @@ func (rh *requestHandler) groups() []apiGroup {
 	return groups
 }
 
-func (rh *requestHandler) listGroups() ([]byte, error) {
+func (rh *requestHandler) listGroups(ruleType string) ([]byte, error) {
 	lr := listGroupsResponse{Status: "success"}
-	lr.Data.Groups = rh.groups()
+	lr.Data.Groups = rh.groups(ruleType)
 	b, err := json.Marshal(lr)
 	if err != nil {
 		return nil, &httpserver.ErrorWithStatusCode{
