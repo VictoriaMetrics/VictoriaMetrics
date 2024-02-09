@@ -30,8 +30,8 @@ import (
 
 var (
 	retentionPeriod  = flagutil.NewDuration("retentionPeriod", "1", "Data with timestamps outside the retentionPeriod is automatically deleted. The minimum retentionPeriod is 24h or 1d. See also -retentionFilter")
-	httpListenAddr   = flag.String("httpListenAddr", ":8482", "Address to listen for http connections. See also -httpListenAddr.useProxyProtocol")
-	useProxyProtocol = flag.Bool("httpListenAddr.useProxyProtocol", false, "Whether to use proxy protocol for connections accepted at -httpListenAddr . "+
+	httpListenAddrs  = flagutil.NewArrayString("httpListenAddr", "Address to listen for incoming http requests. See also -httpListenAddr.useProxyProtocol")
+	useProxyProtocol = flagutil.NewArrayBool("httpListenAddr.useProxyProtocol", "Whether to use proxy protocol for connections accepted at the given -httpListenAddr . "+
 		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . "+
 		"With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing")
 	storageDataPath       = flag.String("storageDataPath", "vmstorage-data", "Path to storage data")
@@ -131,19 +131,21 @@ func main() {
 		logger.Fatalf("cannot create a server with -vmselectAddr=%s: %s", *vmselectAddr, err)
 	}
 
+	listenAddrs := *httpListenAddrs
+	if len(listenAddrs) == 0 {
+		listenAddrs = []string{":8482"}
+	}
 	requestHandler := newRequestHandler(strg)
-	go func() {
-		httpserver.Serve(*httpListenAddr, *useProxyProtocol, requestHandler)
-	}()
+	go httpserver.Serve(listenAddrs, useProxyProtocol, requestHandler)
 
 	pushmetrics.Init()
 	sig := procutil.WaitForSigterm()
 	logger.Infof("service received signal %s", sig)
 	pushmetrics.Stop()
 
-	logger.Infof("gracefully shutting down http service at %q", *httpListenAddr)
+	logger.Infof("gracefully shutting down http service at %q", listenAddrs)
 	startTime = time.Now()
-	if err := httpserver.Stop(*httpListenAddr); err != nil {
+	if err := httpserver.Stop(listenAddrs); err != nil {
 		logger.Fatalf("cannot stop http service: %s", err)
 	}
 	logger.Infof("successfully shut down http service in %.3f seconds", time.Since(startTime).Seconds())

@@ -37,7 +37,8 @@ func main() {
 	buildinfo.Init()
 	logger.Init()
 
-	go httpserver.Serve(*httpListenAddr, false, nil)
+	listenAddrs := []string{*httpListenAddr}
+	go httpserver.Serve(listenAddrs, nil, nil)
 
 	srcFS, err := newSrcFS()
 	if err != nil {
@@ -62,8 +63,8 @@ func main() {
 	dstFS.MustStop()
 
 	startTime := time.Now()
-	logger.Infof("gracefully shutting down http server for metrics at %q", *httpListenAddr)
-	if err := httpserver.Stop(*httpListenAddr); err != nil {
+	logger.Infof("gracefully shutting down http server for metrics at %q", listenAddrs)
+	if err := httpserver.Stop(listenAddrs); err != nil {
 		logger.Fatalf("cannot stop http server for metrics: %s", err)
 	}
 	logger.Infof("successfully shut down http server for metrics in %.3f seconds", time.Since(startTime).Seconds())

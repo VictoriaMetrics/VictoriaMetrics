@@ -59,8 +59,8 @@ absolute path to all .tpl files in root.
 	configCheckInterval = flag.Duration("configCheckInterval", 0, "Interval for checking for changes in '-rule' or '-notifier.config' files. "+
 		"By default, the checking is disabled. Send SIGHUP signal in order to force config check for changes.")
 
-	httpListenAddr   = flag.String("httpListenAddr", ":8880", "Address to listen for http connections. See also -tls and -httpListenAddr.useProxyProtocol")
-	useProxyProtocol = flag.Bool("httpListenAddr.useProxyProtocol", false, "Whether to use proxy protocol for connections accepted at -httpListenAddr . "+
+	httpListenAddrs  = flagutil.NewArrayString("httpListenAddr", "Address to listen for incoming http requests. See also -tls and -httpListenAddr.useProxyProtocol")
+	useProxyProtocol = flagutil.NewArrayBool("httpListenAddr.useProxyProtocol", "Whether to use proxy protocol for connections accepted at the corresponding -httpListenAddr . "+
 		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . "+
 		"With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing")
 	evaluationInterval = flag.Duration("evaluationInterval", time.Minute, "How often to evaluate the rules")
@@ -178,15 +178,19 @@ func main() {
 
 	go configReload(ctx, manager, groupsCfg, sighupCh)
 
+	listenAddrs := *httpListenAddrs
+	if len(listenAddrs) == 0 {
+		listenAddrs = []string{":8880"}
+	}
 	rh := &requestHandler{m: manager}
-	go httpserver.Serve(*httpListenAddr, *useProxyProtocol, rh.handler)
+	go httpserver.Serve(listenAddrs, useProxyProtocol, rh.handler)
 
 	pushmetrics.Init()
 	sig := procutil.WaitForSigterm()
 	logger.Infof("service received signal %s", sig)
 	pushmetrics.Stop()
 
-	if err := httpserver.Stop(*httpListenAddr); err != nil {
+	if err := httpserver.Stop(listenAddrs); err != nil {
 		logger.Fatalf("cannot stop the webservice: %s", err)
 	}
 	cancel()
@@ -248,7 +252,13 @@ func newManager(ctx context.Context) (*manager, error) {
 func getExternalURL(customURL string) (*url.URL, error) {
 	if customURL == "" {
 		// use local hostname as external URL
-		return getHostnameAsExternalURL(*httpListenAddr, httpserver.IsTLS())
+		listenAddr := ":8880"
+		if len(*httpListenAddrs) > 0 {
+			listenAddr = (*httpListenAddrs)[0]
+		}
+		isTLS := httpserver.IsTLS(0)
+
+		return getHostnameAsExternalURL(listenAddr, isTLS)
 	}
 	u, err := url.Parse(customURL)
 	if err != nil {
@@ -260,13 +270,13 @@ func getExternalURL(customURL string) (*url.URL, error) {
 	return u, nil
 }
 
-func getHostnameAsExternalURL(httpListenAddr string, isSecure bool) (*url.URL, error) {
+func getHostnameAsExternalURL(addr string, isSecure bool) (*url.URL, error) {
 	hname, err := os.Hostname()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get hostname: %w", err)
 	}
 	port := ""
-	if ipport := strings.Split(httpListenAddr, ":"); len(ipport) > 1 {
+	if ipport := strings.Split(addr, ":"); len(ipport) > 1 {
 		port = ":" + ipport[1]
 	}
 	schema := "http://"
