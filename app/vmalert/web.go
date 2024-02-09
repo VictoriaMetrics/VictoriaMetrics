@@ -244,16 +244,9 @@ func extractRulesFilter(r *http.Request) rulesFilter {
 	rf.ruleType = ruleType
 
 	rf.excludeAlerts = httputils.GetBool(r, "exclude_alerts")
-	for _, names := range r.Form["rule_name[]"] {
-		rf.ruleNames = append(rf.ruleNames, names)
-	}
-	for _, groups := range r.Form["rule_group[]"] {
-		rf.groupNames = append(rf.groupNames, groups)
-	}
-	for _, files := range r.Form["file[]"] {
-		rf.files = append(rf.files, files)
-	}
-
+	rf.ruleNames = append([]string{}, r.Form["rule_name[]"]...)
+	rf.groupNames = append([]string{}, r.Form["rule_group[]"]...)
+	rf.files = append([]string{}, r.Form["file[]"]...)
 	return rf
 }
 
