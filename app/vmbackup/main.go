@@ -20,6 +20,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/snapshot"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/snapshot/snapshotutil"
 )
 
 var (
@@ -169,7 +170,7 @@ See the docs at https://docs.victoriametrics.com/vmbackup.html .
 }
 
 func newSrcFS() (*fslocal.FS, error) {
-	if err := snapshot.Validate(*snapshotName); err != nil {
+	if err := snapshotutil.Validate(*snapshotName); err != nil {
 		return nil, fmt.Errorf("invalid -snapshotName=%q: %w", *snapshotName, err)
 	}
 	snapshotPath := filepath.Join(*storageDataPath, "snapshots", *snapshotName)
