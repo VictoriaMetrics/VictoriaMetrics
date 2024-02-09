@@ -189,10 +189,10 @@ spec:
   spec:
     replicaCount: 2
     templates:
-      - Name: alertmanager-templates
-        Key: my-template-1.tmpl
-      - Name: alertmanager-templates
-        Key: my-template-2.tmpl
+      - name: alertmanager-templates
+        key: my-template-1.tmpl
+      - name: alertmanager-templates
+        key: my-template-2.tmpl
   ---
   apiVersion: v1
   kind: ConfigMap
