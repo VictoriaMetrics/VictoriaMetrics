@@ -701,7 +701,7 @@ requests at this port, by specifying `-tls` and `-mtls` command-line flags. For 
 By default system-wide [TLS Root CA](https://en.wikipedia.org/wiki/Root_certificate) is used for verifying client certificates if `-mtls` command-line flag is specified.
 It is possible to specify custom TLS Root CA via `-mtlsCAFile` command-line flag.
 
-See also [mTLS-based request routing](#mtls-based-request-routing)
+See also [mTLS-based request routing](#mtls-based-request-routing).
 
 ## Security
 
