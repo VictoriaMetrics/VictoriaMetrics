@@ -582,9 +582,9 @@ func trackTruncatedLabels(labels []prompb.Label, truncated *prompb.Label) {
 	case <-truncatedLabelsLogTicker.C:
 		// Do not call logger.WithThrottler() here, since this will result in increased CPU usage
 		// because labelsToString() will be called with each trackTruncatedLabels call.
-		logger.Warnf("truncated label value as it exceeds configured maximal label value length: max %d, actual %d;"+
-			" truncated label: %s; original labels: %s; either reduce the label value length or increase -maxLabelValueLen=%d;",
-			maxLabelValueLen, len(truncated.Value), truncated.Name, labelsToString(labels), maxLabelValueLen)
+		logger.Warnf("truncate value for label %s because its length=%d exceeds -maxLabelValueLen=%d; "+
+			"original labels: %s; either reduce the label value length or increase -maxLabelValueLen command-line flag value",
+			truncated.Name, len(truncated.Value), maxLabelValueLen, labelsToString(labels))
 	default:
 	}
 }
