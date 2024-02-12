@@ -21,7 +21,7 @@ before you start working with `vmanomaly`.
 
 >`vmanomaly` is a part of VictoriaMetrics Enterprise version. You can get a license key [**here**](https://victoriametrics.com/products/enterprise/trial/index.html).
 
-There are the following options exist:
+The following options are available:
 
 - [To run Docker image](#docker-image)
 - [To run in Kubernetes with Helm charts](#helm-charts)
