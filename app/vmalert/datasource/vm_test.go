@@ -640,7 +640,10 @@ func TestRequestParams(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			req := tc.vm.newRequest()
+			req, err := tc.vm.newRequestPOST()
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			}
 			switch tc.vm.dataSourceType {
 			case "", datasourcePrometheus:
 				if tc.queryRange {
@@ -735,7 +738,10 @@ func TestHeaders(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			vm := tt.vmFn()
-			req := vm.newQueryRequest("foo", time.Now())
+			req, err := vm.newRequestPOST()
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			}
 			tt.checkFn(t, req)
 		})
 	}
