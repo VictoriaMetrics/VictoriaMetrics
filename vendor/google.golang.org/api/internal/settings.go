@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"time"
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -186,4 +187,42 @@ func (ds *DialSettings) GetUniverseDomain() string {
 
 func (ds *DialSettings) IsUniverseDomainGDU() bool {
 	return ds.GetUniverseDomain() == ds.GetDefaultUniverseDomain()
+}
+
+// GetUniverseDomain returns the default service domain for a given Cloud
+// universe, from google.Credentials, for comparison with the value returned by
+// (*DialSettings).GetUniverseDomain. This wrapper function should be removed
+// to close [TODO(chrisdsmith): issue link here]. See details below.
+func GetUniverseDomain(creds *google.Credentials) (string, error) {
+	timer := time.NewTimer(time.Second)
+	defer timer.Stop()
+	errors := make(chan error)
+	results := make(chan string)
+
+	go func() {
+		result, err := creds.GetUniverseDomain()
+		if err != nil {
+			errors <- err
+			return
+		}
+		results <- result
+	}()
+
+	select {
+	case err := <-errors:
+		// An error that is returned before the timer expires is legitimate.
+		return "", err
+	case res := <-results:
+		return res, nil
+	case <-timer.C: // Timer is expired.
+		// If err or res was not returned, it means that creds.GetUniverseDomain()
+		// did not complete in 1s. Assume that MDS is likely never responding to
+		// the endpoint and will timeout. This is the source of issues such as
+		// https://github.com/googleapis/google-cloud-go/issues/9350.
+		// Temporarily (2024-02-02) return the GDU domain. Restore the original
+		// calls to creds.GetUniverseDomain() in grpc/dial.go and http/dial.go
+		// and remove this method to close
+		// https://github.com/googleapis/google-api-go-client/issues/2399.
+		return universeDomainDefault, nil
+	}
 }

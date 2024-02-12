@@ -45,11 +45,12 @@ type Client base.CompositeClient[generated.BlobClient, generated.BlockBlobClient
 //   - cred - an Azure AD credential, typically obtained via the azidentity module
 //   - options - client options; pass nil to accept the default values
 func NewClient(blobURL string, cred azcore.TokenCredential, options *ClientOptions) (*Client, error) {
-	authPolicy := shared.NewStorageChallengePolicy(cred)
+	audience := base.GetAudience((*base.ClientOptions)(options))
+	authPolicy := shared.NewStorageChallengePolicy(cred, audience)
 	conOptions := shared.GetClientOptions(options)
 	plOpts := runtime.PipelineOptions{PerRetry: []policy.Policy{authPolicy}}
 
-	azClient, err := azcore.NewClient(shared.BlockBlobClient, exported.ModuleVersion, plOpts, &conOptions.ClientOptions)
+	azClient, err := azcore.NewClient(exported.ModuleName, exported.ModuleVersion, plOpts, &conOptions.ClientOptions)
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +64,7 @@ func NewClient(blobURL string, cred azcore.TokenCredential, options *ClientOptio
 func NewClientWithNoCredential(blobURL string, options *ClientOptions) (*Client, error) {
 	conOptions := shared.GetClientOptions(options)
 
-	azClient, err := azcore.NewClient(shared.BlockBlobClient, exported.ModuleVersion, runtime.PipelineOptions{}, &conOptions.ClientOptions)
+	azClient, err := azcore.NewClient(exported.ModuleName, exported.ModuleVersion, runtime.PipelineOptions{}, &conOptions.ClientOptions)
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +81,7 @@ func NewClientWithSharedKeyCredential(blobURL string, cred *blob.SharedKeyCreden
 	conOptions := shared.GetClientOptions(options)
 	plOpts := runtime.PipelineOptions{PerRetry: []policy.Policy{authPolicy}}
 
-	azClient, err := azcore.NewClient(shared.BlockBlobClient, exported.ModuleVersion, plOpts, &conOptions.ClientOptions)
+	azClient, err := azcore.NewClient(exported.ModuleName, exported.ModuleVersion, plOpts, &conOptions.ClientOptions)
 	if err != nil {
 		return nil, err
 	}
