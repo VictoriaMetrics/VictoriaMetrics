@@ -3,6 +3,7 @@ package netutil
 import (
 	"crypto/tls"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -53,16 +54,29 @@ func cipherSuitesFromNames(cipherSuiteNames []string) ([]uint16, error) {
 	if len(cipherSuiteNames) == 0 {
 		return nil, nil
 	}
+
 	css := tls.CipherSuites()
-	cssMap := make(map[string]uint16, len(css))
+
+	cssByName := make(map[string]uint16, len(css))
 	for _, cs := range css {
-		cssMap[strings.ToLower(cs.Name)] = cs.ID
+		cssByName[strings.ToLower(cs.Name)] = cs.ID
 	}
+
+	cssByID := make(map[uint16]bool, len(css))
+	for _, cs := range css {
+		cssByID[cs.ID] = true
+	}
+
 	cipherSuites := make([]uint16, 0, len(cipherSuiteNames))
 	for _, name := range cipherSuiteNames {
-		id, ok := cssMap[strings.ToLower(name)]
+		id, ok := cssByName[strings.ToLower(name)]
 		if !ok {
-			return nil, fmt.Errorf("unsupported TLS cipher suite name: %s", name)
+			// Try searching by ID
+			idKey, err := strconv.ParseUint(name, 0, 16)
+			if err != nil || !cssByID[uint16(idKey)] {
+				return nil, fmt.Errorf("unsupported TLS cipher suite name: %s", name)
+			}
+			id = uint16(idKey)
 		}
 		cipherSuites = append(cipherSuites, id)
 	}
