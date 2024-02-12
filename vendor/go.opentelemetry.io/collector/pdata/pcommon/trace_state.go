@@ -8,6 +8,9 @@ import (
 )
 
 // TraceState represents the trace state from the w3c-trace-context.
+//
+// Must use NewTraceState function to create new instances.
+// Important: zero-initialized instance is not valid for use.
 type TraceState internal.TraceState
 
 func NewTraceState() TraceState {

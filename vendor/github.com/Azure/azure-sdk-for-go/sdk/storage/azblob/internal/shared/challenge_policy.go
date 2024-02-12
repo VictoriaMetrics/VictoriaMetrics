@@ -20,9 +20,9 @@ type storageAuthorizer struct {
 	tenantID string
 }
 
-func NewStorageChallengePolicy(cred azcore.TokenCredential) policy.Policy {
-	s := storageAuthorizer{scopes: []string{TokenScope}}
-	return runtime.NewBearerTokenPolicy(cred, []string{TokenScope}, &policy.BearerTokenOptions{
+func NewStorageChallengePolicy(cred azcore.TokenCredential, audience string) policy.Policy {
+	s := storageAuthorizer{scopes: []string{audience}}
+	return runtime.NewBearerTokenPolicy(cred, []string{audience}, &policy.BearerTokenOptions{
 		AuthorizationHandler: policy.AuthorizationHandler{
 			OnRequest:   s.onRequest,
 			OnChallenge: s.onChallenge,

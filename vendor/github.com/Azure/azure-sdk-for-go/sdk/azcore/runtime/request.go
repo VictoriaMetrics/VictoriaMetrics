@@ -97,7 +97,8 @@ func EncodeByteArray(v []byte, format Base64Encoding) string {
 func MarshalAsByteArray(req *policy.Request, v []byte, format Base64Encoding) error {
 	// send as a JSON string
 	encode := fmt.Sprintf("\"%s\"", EncodeByteArray(v, format))
-	return req.SetBody(exported.NopCloser(strings.NewReader(encode)), shared.ContentTypeAppJSON)
+	// tsp generated code can set Content-Type so we must prefer that
+	return exported.SetBody(req, exported.NopCloser(strings.NewReader(encode)), shared.ContentTypeAppJSON, false)
 }
 
 // MarshalAsJSON calls json.Marshal() to get the JSON encoding of v then calls SetBody.
@@ -106,7 +107,8 @@ func MarshalAsJSON(req *policy.Request, v interface{}) error {
 	if err != nil {
 		return fmt.Errorf("error marshalling type %T: %s", v, err)
 	}
-	return req.SetBody(exported.NopCloser(bytes.NewReader(b)), shared.ContentTypeAppJSON)
+	// tsp generated code can set Content-Type so we must prefer that
+	return exported.SetBody(req, exported.NopCloser(bytes.NewReader(b)), shared.ContentTypeAppJSON, false)
 }
 
 // MarshalAsXML calls xml.Marshal() to get the XML encoding of v then calls SetBody.

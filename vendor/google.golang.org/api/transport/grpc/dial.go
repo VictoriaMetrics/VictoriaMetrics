@@ -177,7 +177,7 @@ func dial(ctx context.Context, insecure bool, o *internal.DialSettings) (*grpc.C
 			if err != nil {
 				return nil, err
 			}
-			credsUniverseDomain, err := creds.GetUniverseDomain()
+			credsUniverseDomain, err := internal.GetUniverseDomain(creds)
 			if err != nil {
 				return nil, err
 			}
