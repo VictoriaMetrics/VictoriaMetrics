@@ -89,7 +89,7 @@ See also:
 
 - [Config components](https://docs.victoriametrics.com/anomaly-detection/components/)
 - [Models](https://docs.victoriametrics.com/anomaly-detection/components/models/)
-- [MetricsQl](https://docs.victoriametrics.com/metricsql/)
+- [MetricsQL](https://docs.victoriametrics.com/metricsql/)
 
 
 ## Other assets
