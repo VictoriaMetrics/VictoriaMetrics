@@ -47,7 +47,7 @@ plus the following additional features:
 - [Enterprise security compliance](https://victoriametrics.com/security/).
 - Prioritizing of feature requests from Enterprise customers.
 
-On top of this, Enterprise package of VictoriaMetrics includes the following Enterprise features:
+On top of this, Enterprise package of VictoriaMetrics includes the following features:
 
 - [Downsampling](https://docs.victoriametrics.com/#downsampling) - this feature allows reducing storage costs
   and increasing performance for queries over historical data.
