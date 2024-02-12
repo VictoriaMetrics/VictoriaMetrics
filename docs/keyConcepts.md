@@ -834,7 +834,7 @@ The query above returns series for two metrics: `requests_error_total` and `requ
 
 [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) supports selecting time series, which match at least one of multiple "or" filters.
 Such filters must be delimited by `or` inside curly braces. For example, the following query selects time series with
-either `{job="app1",env="prod"}` or `{job="app2",env="dev"}` labels:
+`{job="app1",env="prod"}` or `{job="app2",env="dev"}` labels:
 
 ```metricsql
 {job="app1",env="prod" or job="app2",env="dev"}
