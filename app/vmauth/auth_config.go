@@ -570,18 +570,23 @@ func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, error) {
 	byAuthToken := make(map[string]*UserInfo, len(uis))
 	for i := range uis {
 		ui := &uis[i]
-		if ui.BearerToken == "" && ui.Username == "" {
-			return nil, fmt.Errorf("either bearer_token or username must be set")
+		if ui.Username != "" && ui.Password == "" {
+			// Do not allow setting username without password if there are other auth configs exist.
+			// This should prevent from typical mis-configuration when access by username without password
+			// remains open if other authorization schemes are defined.
+			if ui.BearerToken != "" {
+				return nil, fmt.Errorf("bearer_token=%q and username=%q cannot be set simultaneously", ui.BearerToken, ui.Username)
+			}
 		}
-		if ui.BearerToken != "" && ui.Username != "" {
-			return nil, fmt.Errorf("bearer_token=%q and username=%q cannot be set simultaneously", ui.BearerToken, ui.Username)
+		ats := getAuthTokens(ui.BearerToken, ui.Username, ui.Password)
+		if len(ats) == 0 {
+			return nil, fmt.Errorf("one of bearer_token, username or mtls must be set")
 		}
-		at1, at2 := getAuthTokens(ui.BearerToken, ui.Username, ui.Password)
-		if byAuthToken[at1] != nil {
-			return nil, fmt.Errorf("duplicate auth token found for bearer_token=%q, username=%q: %q", ui.BearerToken, ui.Username, at1)
-		}
-		if byAuthToken[at2] != nil {
-			return nil, fmt.Errorf("duplicate auth token found for bearer_token=%q, username=%q: %q", ui.BearerToken, ui.Username, at2)
+		for _, at := range ats {
+			if uiOld := byAuthToken[at]; uiOld != nil {
+				return nil, fmt.Errorf("duplicate auth token=%q found for username=%q, name=%q; the previous one is set for username=%q, name=%q",
+					at, ui.Username, ui.Name, uiOld.Username, uiOld.Name)
+			}
 		}
 
 		if err := ui.initURLs(); err != nil {
@@ -615,8 +620,9 @@ func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, error) {
 		}
 		ui.httpTransport = tr
 
-		byAuthToken[at1] = ui
-		byAuthToken[at2] = ui
+		for _, at := range ats {
+			byAuthToken[at] = ui
+		}
 	}
 	return byAuthToken, nil
 }
@@ -720,24 +726,45 @@ func (ui *UserInfo) name() string {
 	return ""
 }
 
-func getAuthTokens(bearerToken, username, password string) (string, string) {
+func getAuthTokens(bearerToken, username, password string) []string {
+	var ats []string
 	if bearerToken != "" {
 		// Accept the bearerToken as Basic Auth username with empty password
-		at1 := getAuthToken(bearerToken, "", "")
-		at2 := getAuthToken("", bearerToken, "")
-		return at1, at2
+		at1 := getHTTPAuthBearerToken(bearerToken)
+		at2 := getHTTPAuthBasicToken(bearerToken, "")
+		ats = append(ats, at1, at2)
+	} else if username != "" {
+		at := getHTTPAuthBasicToken(username, password)
+		ats = append(ats, at)
 	}
-	at := getAuthToken("", username, password)
-	return at, at
+	return ats
 }
 
-func getAuthToken(bearerToken, username, password string) string {
-	if bearerToken != "" {
-		return "Bearer " + bearerToken
-	}
+func getHTTPAuthBearerToken(bearerToken string) string {
+	return "http_auth:Bearer " + bearerToken
+}
+
+func getHTTPAuthBasicToken(username, password string) string {
 	token := username + ":" + password
 	token64 := base64.StdEncoding.EncodeToString([]byte(token))
-	return "Basic " + token64
+	return "http_auth:Basic " + token64
+}
+
+func getAuthTokensFromRequest(r *http.Request) []string {
+	var ats []string
+
+	ah := r.Header.Get("Authorization")
+	if ah == "" {
+		return ats
+	}
+	if strings.HasPrefix(ah, "Token ") {
+		// Handle InfluxDB's proprietary token authentication scheme as a bearer token authentication
+		// See https://docs.influxdata.com/influxdb/v2.0/api/
+		ah = strings.Replace(ah, "Token", "Bearer", 1)
+	}
+	at := "http_auth:" + ah
+	ats = append(ats, at)
+	return ats
 }
 
 func (up *URLPrefix) sanitize() error {

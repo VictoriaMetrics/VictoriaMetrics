@@ -60,6 +60,7 @@ On top of this, Enterprise package of VictoriaMetrics includes the following fea
 - [Advanced auth and rate limiter](https://docs.victoriametrics.com/vmgateway.html).
 - [mTLS for all the VictoriaMetrics components](https://docs.victoriametrics.com/#mtls-protection).
 - [mTLS for communications between cluster components](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection).
+- [mTLS-based request routing](https://docs.victoriametrics.com/vmauth.html#mtls-based-request-routing).
 - [Kafka integration](https://docs.victoriametrics.com/vmagent.html#kafka-integration).
 - [Google PubSub integration](https://docs.victoriametrics.com/vmagent.html#google-pubsub-integration).
 - [Multitenant support in vmalert](https://docs.victoriametrics.com/vmalert.html#multitenancy).
