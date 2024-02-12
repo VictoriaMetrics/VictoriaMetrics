@@ -13,7 +13,7 @@ aliases:
 
 # `vmanomaly` Quick Start
 
-It is recommended to read [README](https://docs.victoriametrics.com//vmanomaly.html/)
+It is recommended to read [README](https://docs.victoriametrics.com/anomaly-detection/)
 and [Overview](https://docs.victoriametrics.com/anomaly-detection/overview.html)
 before you start working with `vmanomaly`.
 
