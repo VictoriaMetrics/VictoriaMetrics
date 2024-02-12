@@ -1308,7 +1308,9 @@ scrape_configs:
 				"instance": "foo.bar:1234",
 				"job":      "foo",
 			}),
-			SeriesLimit: 0,
+			AuthConfig:      &promauth.Config{},
+			ProxyAuthConfig: &promauth.Config{},
+			SeriesLimit:     0,
 		},
 	})
 	*seriesLimitPerTarget = defaultSeriesLimitPerTarget
