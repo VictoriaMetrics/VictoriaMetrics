@@ -1310,7 +1310,7 @@ scrape_configs:
 			}),
 			AuthConfig:      &promauth.Config{},
 			ProxyAuthConfig: &promauth.Config{},
-			SeriesLimit: 0,
+			SeriesLimit:     0,
 		},
 	})
 	*seriesLimitPerTarget = defaultSeriesLimitPerTarget
