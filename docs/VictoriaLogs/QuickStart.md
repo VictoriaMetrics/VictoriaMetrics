@@ -83,7 +83,7 @@ Follow the following steps in order to build VictoriaLogs from source code:
   cd VictoriaMetrics
   ```
 
-- Build VictoriaLogs. The build command requires [Go 1.20](https://golang.org/doc/install).
+- Build VictoriaLogs. The build command requires [Go 1.22](https://golang.org/doc/install).
 
   ```bash
   make victoria-logs
