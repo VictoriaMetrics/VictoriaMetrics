@@ -123,15 +123,20 @@ var (
 )
 
 const (
-	otsdbAddr        = "otsdb-addr"
-	otsdbConcurrency = "otsdb-concurrency"
-	otsdbQueryLimit  = "otsdb-query-limit"
-	otsdbOffsetDays  = "otsdb-offset-days"
-	otsdbHardTSStart = "otsdb-hard-ts-start"
-	otsdbRetentions  = "otsdb-retentions"
-	otsdbFilters     = "otsdb-filters"
-	otsdbNormalize   = "otsdb-normalize"
-	otsdbMsecsTime   = "otsdb-msecstime"
+	otsdbAddr               = "otsdb-addr"
+	otsdbConcurrency        = "otsdb-concurrency"
+	otsdbQueryLimit         = "otsdb-query-limit"
+	otsdbOffsetDays         = "otsdb-offset-days"
+	otsdbHardTSStart        = "otsdb-hard-ts-start"
+	otsdbRetentions         = "otsdb-retentions"
+	otsdbFilters            = "otsdb-filters"
+	otsdbNormalize          = "otsdb-normalize"
+	otsdbMsecsTime          = "otsdb-msecstime"
+	otsdbCertFile           = "otsdb-cert-file"
+	otsdbKeyFile            = "otsdb-key-file"
+	otsdbCAFile             = "otsdb-CA-file"
+	otsdbServerName         = "otsdb-server-name"
+	otsdbInsecureSkipVerify = "otsdb-insecure-skip-verify"
 )
 
 var (
@@ -190,6 +195,27 @@ var (
 			Name:  otsdbNormalize,
 			Value: false,
 			Usage: "Whether to normalize all data received to lower case before forwarding to VictoriaMetrics",
+		},
+		&cli.StringFlag{
+			Name:  otsdbCertFile,
+			Usage: "Optional path to client-side TLS certificate file to use when connecting to otsdbAddr",
+		},
+		&cli.StringFlag{
+			Name:  otsdbKeyFile,
+			Usage: "Optional path to client-side TLS key to use when connecting to otsdbAddr",
+		},
+		&cli.StringFlag{
+			Name:  otsdbCAFile,
+			Usage: "Optional path to TLS CA file to use for verifying connections to otsdbAddr. By default, system CA is used",
+		},
+		&cli.StringFlag{
+			Name:  otsdbServerName,
+			Usage: "Optional TLS server name to use for connections to otsdbAddr. By default, the server name from otsdbAddr is used",
+		},
+		&cli.BoolFlag{
+			Name:  otsdbInsecureSkipVerify,
+			Usage: "Whether to skip tls verification when connecting to infuxAddr",
+			Value: false,
 		},
 	}
 )
