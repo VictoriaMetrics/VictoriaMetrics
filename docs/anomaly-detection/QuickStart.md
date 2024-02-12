@@ -11,7 +11,7 @@ aliases:
 - /anomaly-detection/QuickStart.html
 ---
 
-# `vmanomaly` Quick Start
+# VictoriaMetrics Anomaly Detection Quick Start
 
 It is recommended to read [README](https://docs.victoriametrics.com/anomaly-detection/)
 and [Overview](https://docs.victoriametrics.com/anomaly-detection/overview.html)
@@ -37,6 +37,7 @@ You can put a tag on it for your convinience:
 ```sh
 docker image tag victoriametrics/vmanomaly:latest vmanomaly
 ```
+
 Here is an example of how to run *vmanomaly* docker container with *license file*. 
 
 ```sh
@@ -49,7 +50,7 @@ docker run -it --net [YOUR_NETWORK] \
 
 See also:
 
-- [All license parameters](https://docs.victoriametrics.com/anomaly-detection/overview/#licensing).
+- [All license parameters options](https://docs.victoriametrics.com/anomaly-detection/overview/#licensing).
 - [How to configure `vmanomaly`](#how-to-configure-vmanomaly)
 
 ### Helm charts
@@ -87,9 +88,9 @@ writer:
 
 See also:
 
-- [Config components](https://docs.victoriametrics.com/anomaly-detection/components/)
-- [Models](https://docs.victoriametrics.com/anomaly-detection/components/models/)
-- [MetricsQL](https://docs.victoriametrics.com/metricsql/)
+- Modify configuration [parameters](https://docs.victoriametrics.com/anomaly-detection/components/)
+- Built-in [models and their parameters](https://docs.victoriametrics.com/anomaly-detection/components/models/)
+- To define queries for input data use [MetricsQL](https://docs.victoriametrics.com/metricsql/)
 
 
 ## Other assets
