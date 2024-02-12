@@ -13,7 +13,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
-type pushSamplesFunc func(b []byte, labels *promutils.Labels, tmpLabels *promutils.Labels, value float64)
+type pushSamplesFunc func(b []byte, labels *promutils.Labels, tmpLabels *promutils.Labels, value float64, ts int64)
 
 type deduplicator struct {
 	interval       time.Duration
@@ -108,6 +108,7 @@ func (d *deduplicator) flush() {
 	obm := d.bm.Swap(bm.Load())
 	d.m.rangeAndDelete(func(k string, v *dedupStateValue) bool {
 		value := v.value
+		ts := v.timestamp
 		labels.Labels = labels.Labels[:0]
 		labels = obm.decompress(labels, k)
 
@@ -116,7 +117,7 @@ func (d *deduplicator) flush() {
 		//	panic(err)
 		//}
 
-		d.pushSamplesAgg(bb.B[:0], labels, tmpLabels, value)
+		d.pushSamplesAgg(bb.B[:0], labels, tmpLabels, value, ts)
 		return true
 	})
 

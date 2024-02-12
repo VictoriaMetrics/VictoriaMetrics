@@ -2,6 +2,7 @@ package streamaggr
 
 import (
 	"encoding/binary"
+	"flag"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -11,6 +12,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
+
+var streamAggrDedupCacheCleanInterval = flag.Duration("remoteWrite.streamAggr.dedupCacheCleanInterval", 5*time.Minute, "TODO")
 
 type bimap struct {
 	n atomic.Uint32
@@ -24,7 +27,7 @@ var bm atomic.Pointer[bimap]
 
 func init() {
 	bm.Store(&bimap{})
-	t := time.NewTicker(5 * time.Minute)
+	t := time.NewTicker(*streamAggrDedupCacheCleanInterval)
 	go func() {
 		for range t.C {
 			bm.Store(&bimap{})
