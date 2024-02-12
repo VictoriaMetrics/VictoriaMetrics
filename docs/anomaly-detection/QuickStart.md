@@ -29,20 +29,18 @@ The following options are available:
 
 ### Docker image
 
-You can run `vmanomaly` in a Docker container. It is the easiest way to start using `vmanomaly`.
-Here is the command to run `vmanomaly` in a Docker container:
+The simplest and quickest method to deploy `vmanomaly` is through Docker. Below are the steps to get `vmanomaly` up and running inside a Docker container.
 
-You can put a tag on it for your convinience:
+First, you can (optionally) tag the `vmanomaly` Docker image for convenience using the following command:
 
 ```sh
 docker image tag victoriametrics/vmanomaly:latest vmanomaly
 ```
-
-Here is an example of how to run *vmanomaly* docker container with *license file*. 
+Second, start the `vmanomaly` Docker container with a *license file*, use the command below.
+Make sure to replace `[YOUR_LICENSE_FILE_PATH]`, and `[YOUR_CONFIG_FILE_PATH]` with your specific details:
 
 ```sh
-docker run -it --net [YOUR_NETWORK] \
-               -v [YOUR_LICENSE_FILE_PATH]:/license \
+docker run -it -v [YOUR_LICENSE_FILE_PATH]:/license \
                -v [YOUR_CONFIG_FILE_PATH]:/config.yml \
                vmanomaly /config.yml \
                --license-file=/license
@@ -78,7 +76,9 @@ model:
 
 reader:
   datasource_url: "http://victoriametrics:8428/" # [YOUR_DATASOURCE_URL]
-  queries:
+  sampling_period: "1m"
+  queries: 
+    # define your queries with MetricsQL - https://docs.victoriametrics.com/metricsql/
     cache: "sum(rate(vm_cache_entries))"
 
 writer:
