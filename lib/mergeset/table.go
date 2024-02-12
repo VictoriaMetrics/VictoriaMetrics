@@ -244,8 +244,13 @@ func (ris *rawItemsShard) addItems(tb *Table, items [][]byte) [][]byte {
 			ibs = append(ibs, ib)
 			continue
 		}
-		ris.mu.Unlock()
-		logger.Panicf("BUG: cannot insert too big item into an empty inmemoryBlock; len(item)=%d; the caller should be responsible for avoiding too big items", len(item))
+
+		// Skip too long item
+		itemPrefix := item
+		if len(itemPrefix) > 128 {
+			itemPrefix = itemPrefix[:128]
+		}
+		tooLongItemLogger.Errorf("skipping adding too long item to indexdb: len(item)=%d; it souldn't exceed %d bytes; item prefix=%q", len(item), maxInmemoryBlockSize, itemPrefix)
 	}
 	ris.ibs = ibs
 	ris.mu.Unlock()
@@ -254,6 +259,8 @@ func (ris *rawItemsShard) addItems(tb *Table, items [][]byte) [][]byte {
 
 	return tailItems
 }
+
+var tooLongItemLogger = logger.WithThrottler("tooLongItem", 5*time.Second)
 
 type partWrapper struct {
 	p *part
@@ -600,8 +607,8 @@ func (tb *Table) UpdateMetrics(m *TableMetrics) {
 
 // AddItems adds the given items to the tb.
 //
-// The function panics when items contains an item with length exceeding maxInmemoryBlockSize.
-// It is caller's responsibility to make sure there are no too long items.
+// The function ignores items with length exceeding maxInmemoryBlockSize.
+// It logs the ignored items, so users could notice and fix the issue.
 func (tb *Table) AddItems(items [][]byte) {
 	tb.rawItems.addItems(tb, items)
 	atomic.AddUint64(&tb.itemsAdded, uint64(len(items)))
