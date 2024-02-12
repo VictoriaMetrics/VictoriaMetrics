@@ -207,6 +207,18 @@ http://opentsdb:4242/api/query?start=721h-ago&end=720h-ago&m=sum:1m-avg-none:<se
 
 Chunking the data like this means each individual query returns faster, so we can start populating data into VictoriaMetrics quicker.
 
+### Configuration
+
+The configuration flags should contain self-explanatory descriptions.
+
+```sh
+-otsdb-cert-file value                    Optional path to client-side TLS certificate file to use when connecting to otsdbAddr
+-otsdb-key-file value                     Optional path to client-side TLS key to use when connecting to otsdbAddr
+-otsdb-CA-file value                      Optional path to TLS CA file to use for verifying connections to otsdbAddr. By default, system CA is used
+-otsdb-server-name value                  Optional TLS server name to use for connections to otsdbAddr. By default, the server name from otsdbAddr is used
+-otsdb-insecure-skip-verify               Whether to skip tls verification when connecting to infuxAddr (default: false)
+```
+
 ### Restarting OpenTSDB migrations
 
 One important note for OpenTSDB migration: Queries/HBase scans can "get stuck" within OpenTSDB itself. This can cause instability and performance issues within an OpenTSDB cluster, so stopping the migrator to deal with it may be necessary. Because of this, we provide the timestamp we started collecting data from at the beginning of the run. You can stop and restart the importer using this "hard timestamp" to ensure you collect data from the same time range over multiple runs.
