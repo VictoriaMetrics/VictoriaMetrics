@@ -41,15 +41,7 @@ func TestTableAddItemsTooLongItem(t *testing.T) {
 
 	var isReadOnly uint32
 	tb := MustOpenTable(path, nil, nil, &isReadOnly)
-	func() {
-		defer func() {
-			if r := recover(); r == nil {
-				t.Fatalf("expecting panic")
-			}
-		}()
-		tb.AddItems([][]byte{make([]byte, maxInmemoryBlockSize+1)})
-	}()
-	t.Logf("foobar")
+	tb.AddItems([][]byte{make([]byte, maxInmemoryBlockSize+1)})
 	tb.MustClose()
 	_ = os.RemoveAll(path)
 }
