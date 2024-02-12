@@ -144,6 +144,10 @@ type Aggregators struct {
 	// configData contains marshaled configs passed to NewAggregators().
 	// It is used in Equal() for comparing Aggregators.
 	configData []byte
+
+	// dedup is set to non-nil if input samples must be de-duplicated according
+	// to the interval passed to newAggregator().
+	dedup *deduplicator
 }
 
 // NewAggregators creates Aggregators from the given cfgs.
@@ -157,7 +161,7 @@ type Aggregators struct {
 func NewAggregators(cfgs []*Config, pushFunc PushFunc, dedupInterval time.Duration) (*Aggregators, error) {
 	as := make([]*aggregator, len(cfgs))
 	for i, cfg := range cfgs {
-		a, err := newAggregator(cfg, pushFunc, dedupInterval)
+		a, err := newAggregator(cfg, pushFunc)
 		if err != nil {
 			// Stop already initialized aggregators before returning the error.
 			for _, a := range as[:i] {
@@ -171,10 +175,23 @@ func NewAggregators(cfgs []*Config, pushFunc PushFunc, dedupInterval time.Durati
 	if err != nil {
 		logger.Panicf("BUG: cannot marshal the provided configs: %s", err)
 	}
-	return &Aggregators{
+
+	var dedup *deduplicator
+	if dedupInterval > 0 {
+		dedup = newDeduplicator(dedupInterval)
+	}
+
+	a := &Aggregators{
 		as:         as,
 		configData: configData,
-	}, nil
+		dedup:      dedup,
+	}
+
+	if dedup != nil {
+		dedup.run(a.pushDeduplicated)
+	}
+
+	return a, nil
 }
 
 // MustStop stops a.
@@ -182,6 +199,7 @@ func (a *Aggregators) MustStop() {
 	if a == nil {
 		return
 	}
+	a.dedup.stop()
 	for _, aggr := range a.as {
 		aggr.MustStop()
 	}
@@ -209,12 +227,43 @@ func (a *Aggregators) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) []b
 		matchIdxs[i] = 0
 	}
 
+	if a != nil && a.dedup != nil {
+		bb := bbPool.Get()
+		for idx, ts := range tss {
+			matched := false
+			for _, aggr := range a.as {
+				if aggr.match.Match(ts.Labels) {
+					matched = true
+					break
+				}
+			}
+			if !matched {
+				continue
+			}
+			matchIdxs[idx] = 1
+			a.dedup.pushSamples(bb.B, ts.Labels, ts)
+		}
+		bbPool.Put(bb)
+		return matchIdxs
+	}
+
 	if a != nil {
 		for _, aggr := range a.as {
 			aggr.Push(tss, matchIdxs)
 		}
 	}
+
 	return matchIdxs
+}
+
+func (a *Aggregators) pushDeduplicated(b []byte, labels *promutils.Labels, tmpLabels *promutils.Labels, value float64) {
+	if a == nil {
+		return
+	}
+
+	for _, aggr := range a.as {
+		aggr.pushDeduplicated(b, labels, tmpLabels, value)
+	}
 }
 
 // aggregator aggregates input series according to the config passed to NewAggregator
@@ -227,10 +276,6 @@ type aggregator struct {
 	by                  []string
 	without             []string
 	aggregateOnlyByTime bool
-
-	// dedup is set to non-nil if input samples must be de-duplicated according
-	// to the interval passed to newAggregator().
-	dedup *deduplicator
 
 	// aggrStates contains aggregate states for the given outputs
 	aggrStates []aggrState
@@ -266,7 +311,7 @@ type PushFunc func(tss []prompbmarshal.TimeSeries)
 // e.g. only the last sample per each time series per each dedupInterval is aggregated.
 //
 // The returned aggregator must be stopped when no longer needed by calling MustStop().
-func newAggregator(cfg *Config, pushFunc PushFunc, dedupInterval time.Duration) (*aggregator, error) {
+func newAggregator(cfg *Config, pushFunc PushFunc) (*aggregator, error) {
 	// check cfg.Interval
 	interval, err := time.ParseDuration(cfg.Interval)
 	if err != nil {
@@ -381,11 +426,6 @@ func newAggregator(cfg *Config, pushFunc PushFunc, dedupInterval time.Duration) 
 	}
 	suffix += "_"
 
-	var dedup *deduplicator
-	if dedupInterval > 0 {
-		dedup = newDeduplicator(dedupInterval)
-	}
-
 	// initialize the aggregator
 	a := &aggregator{
 		match: cfg.Match,
@@ -397,7 +437,6 @@ func newAggregator(cfg *Config, pushFunc PushFunc, dedupInterval time.Duration) 
 		without:             without,
 		aggregateOnlyByTime: aggregateOnlyByTime,
 
-		dedup:      dedup,
 		aggrStates: aggrStates,
 		pushFunc:   pushFunc,
 
@@ -407,9 +446,6 @@ func newAggregator(cfg *Config, pushFunc PushFunc, dedupInterval time.Duration) 
 		stopCh: make(chan struct{}),
 	}
 
-	if dedup != nil {
-		dedup.run(a.pushDeduplicated)
-	}
 	a.wg.Add(1)
 	go func() {
 		a.runFlusher(interval)
@@ -489,7 +525,6 @@ func (a *aggregator) MustStop() {
 	}
 
 	// Flush the remaining data from the last interval if needed.
-	a.dedup.stop()
 	flushConcurrencyCh <- struct{}{}
 	a.flush()
 	<-flushConcurrencyCh
@@ -542,11 +577,6 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 		// sort labels so they can be comparable during deduplication
 		labels.Sort()
 
-		if a.dedup != nil {
-			a.dedup.pushSamples(bb.B, labels.Labels, ts)
-			continue
-		}
-
 		inputKey, outputKey := a.extractKeys(bb.B[:0], labels, tmpLabels)
 		for _, sample := range ts.Samples {
 			a.pushSample(inputKey, outputKey, sample.Value)
@@ -558,6 +588,18 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 }
 
 func (a *aggregator) pushDeduplicated(b []byte, labels *promutils.Labels, tmpLabels *promutils.Labels, value float64) {
+	if !a.match.Match(labels.Labels) {
+		return
+	}
+
+	labels.Labels = a.inputRelabeling.Apply(labels.Labels, 0)
+	if len(labels.Labels) == 0 {
+		// The metric has been deleted by the relabeling
+		return
+	}
+	// sort labels so they can be comparable during deduplication
+	labels.Sort()
+
 	inputKey, outputKey := a.extractKeys(b, labels, tmpLabels)
 	a.pushSample(inputKey, outputKey, value)
 }
