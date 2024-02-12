@@ -134,6 +134,10 @@ func main() {
 						Headers:            c.String(remoteReadHeaders),
 						LabelName:          c.String(remoteReadFilterLabel),
 						LabelValue:         c.String(remoteReadFilterLabelValue),
+						CertFile:           c.String(remoteReadCertFile),
+						KeyFile:            c.String(remoteReadKeyFile),
+						CAFile:             c.String(remoteReadCAFile),
+						ServerName:         c.String(remoteReadServerName),
 						InsecureSkipVerify: c.Bool(remoteReadInsecureSkipVerify),
 						DisablePathAppend:  c.Bool(remoteReadDisablePathAppend),
 					})
