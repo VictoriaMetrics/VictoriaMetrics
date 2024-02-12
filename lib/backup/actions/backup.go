@@ -13,7 +13,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fslocal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fsnil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/snapshot"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/snapshot/snapshotutil"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -87,7 +87,7 @@ func (b *Backup) Run() error {
 
 func storeMetadata(src *fslocal.FS, dst common.RemoteFS) error {
 	snapshotName := filepath.Base(src.Dir)
-	snapshotTime, err := snapshot.Time(snapshotName)
+	snapshotTime, err := snapshotutil.Time(snapshotName)
 	if err != nil {
 		return fmt.Errorf("cannot decode snapshot name %q: %w", snapshotName, err)
 	}

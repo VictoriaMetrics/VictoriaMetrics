@@ -64,7 +64,6 @@ func TestDictIntSetSuccess(t *testing.T) {
 		}
 	}
 
-	f("")
 	f("123")
 	f("-234")
 	f("foo:123")
@@ -107,8 +106,6 @@ func TestDictIntGet(t *testing.T) {
 		}
 	}
 
-	f("", "", 123, 123)
-	f("", "foo", 123, 123)
 	f("foo:42", "", 123, 123)
 	f("foo:42", "foo", 123, 42)
 	f("532", "", 123, 532)

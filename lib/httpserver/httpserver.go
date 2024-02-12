@@ -31,12 +31,14 @@ import (
 )
 
 var (
-	tlsEnable = flag.Bool("tls", false, "Whether to enable TLS for incoming HTTP requests at -httpListenAddr (aka https). -tlsCertFile and -tlsKeyFile must be set if -tls is set. "+
+	tlsEnable = flagutil.NewArrayBool("tls", "Whether to enable TLS for incoming HTTP requests at the given -httpListenAddr (aka https). -tlsCertFile and -tlsKeyFile must be set if -tls is set. "+
 		"See also -mtls")
-	tlsCertFile     = flag.String("tlsCertFile", "", "Path to file with TLS certificate if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated")
-	tlsKeyFile      = flag.String("tlsKeyFile", "", "Path to file with TLS key if -tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated")
+	tlsCertFile = flagutil.NewArrayString("tlsCertFile", "Path to file with TLS certificate for the corresponding -httpListenAddr if -tls is set. "+
+		"Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated")
+	tlsKeyFile = flagutil.NewArrayString("tlsKeyFile", "Path to file with TLS key for the corresponding -httpListenAddr if -tls is set. "+
+		"The provided key file is automatically re-read every second, so it can be dynamically updated")
 	tlsCipherSuites = flagutil.NewArrayString("tlsCipherSuites", "Optional list of TLS cipher suites for incoming requests over HTTPS if -tls is set. See the list of supported cipher suites at https://pkg.go.dev/crypto/tls#pkg-constants")
-	tlsMinVersion   = flag.String("tlsMinVersion", "", "Optional minimum TLS version to use for incoming requests over HTTPS if -tls is set. "+
+	tlsMinVersion   = flagutil.NewArrayString("tlsMinVersion", "Optional minimum TLS version to use for the corresponding -httpListenAddr if -tls is set. "+
 		"Supported values: TLS10, TLS11, TLS12, TLS13")
 
 	pathPrefix = flag.String("http.pathPrefix", "", "An optional prefix to add to all the paths handled by http server. For example, if '-http.pathPrefix=/foo/bar' is set, "+
@@ -52,7 +54,7 @@ var (
 	maxGracefulShutdownDuration = flag.Duration("http.maxGracefulShutdownDuration", 7*time.Second, `The maximum duration for a graceful shutdown of the HTTP server. A highly loaded server may require increased value for a graceful shutdown`)
 	shutdownDelay               = flag.Duration("http.shutdownDelay", 0, `Optional delay before http server shutdown. During this delay, the server returns non-OK responses from /health page, so load balancers can route new requests to other servers`)
 	idleConnTimeout             = flag.Duration("http.idleConnTimeout", time.Minute, "Timeout for incoming idle http connections")
-	connTimeout                 = flag.Duration("http.connTimeout", 2*time.Minute, `Incoming http connections are closed after the configured timeout. This may help to spread the incoming load among a cluster of services behind a load balancer. Please note that the real timeout may be bigger by up to 10% as a protection against the thundering herd problem`)
+	connTimeout                 = flag.Duration("http.connTimeout", 0, `Incoming http connections are closed after the configured timeout. This may help to spread the incoming load among a cluster of services behind a load balancer. Please note that the real timeout may be bigger by up to 10% as a protection against the thundering herd problem`)
 
 	headerHSTS         = flag.String("http.header.hsts", "", "Value for 'Strict-Transport-Security' header, recommended: `max-age=31536000; includeSubDomains`")
 	headerFrameOptions = flag.String("http.header.frameOptions", "", "Value for 'X-Frame-Options' header")
@@ -77,35 +79,51 @@ type server struct {
 // In such cases the caller must serve the request.
 type RequestHandler func(w http.ResponseWriter, r *http.Request) bool
 
-// Serve starts an http server on the given addr with the given optional rh.
+// Serve starts an http server on the given addrs with the given optional rh.
 //
 // By default all the responses are transparently compressed, since egress traffic is usually expensive.
 //
-// The compression is also disabled if -http.disableResponseCompression flag is set.
+// The compression can be disabled by specifying -http.disableResponseCompression command-line flag.
 //
-// If useProxyProtocol is set to true, then the incoming connections are accepted via proxy protocol.
+// If useProxyProtocol is set to true for the corresponding addr, then the incoming connections are accepted via proxy protocol.
 // See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt
-func Serve(addr string, useProxyProtocol bool, rh RequestHandler) {
+func Serve(addrs []string, useProxyProtocol *flagutil.ArrayBool, rh RequestHandler) {
 	if rh == nil {
 		rh = func(w http.ResponseWriter, r *http.Request) bool {
 			return false
 		}
 	}
+	for idx, addr := range addrs {
+		if addr == "" {
+			continue
+		}
+		useProxyProto := false
+		if useProxyProtocol != nil {
+			useProxyProto = useProxyProtocol.GetOptionalArg(idx)
+		}
+		go serve(addr, useProxyProto, rh, idx)
+	}
+}
+
+func serve(addr string, useProxyProtocol bool, rh RequestHandler, idx int) {
 	scheme := "http"
-	if *tlsEnable {
+	if tlsEnable.GetOptionalArg(idx) {
 		scheme = "https"
 	}
 	hostAddr := addr
 	if strings.HasPrefix(hostAddr, ":") {
 		hostAddr = "127.0.0.1" + hostAddr
 	}
-	logger.Infof("starting http server at %s://%s/", scheme, hostAddr)
+	logger.Infof("starting server at %s://%s/", scheme, hostAddr)
 	logger.Infof("pprof handlers are exposed at %s://%s/debug/pprof/", scheme, hostAddr)
 	var tlsConfig *tls.Config
-	if *tlsEnable {
-		tc, err := netutil.GetServerTLSConfig(*tlsCertFile, *tlsKeyFile, *tlsMinVersion, *tlsCipherSuites)
+	if tlsEnable.GetOptionalArg(idx) {
+		certFile := tlsCertFile.GetOptionalArg(idx)
+		keyFile := tlsKeyFile.GetOptionalArg(idx)
+		minVersion := tlsMinVersion.GetOptionalArg(idx)
+		tc, err := netutil.GetServerTLSConfig(certFile, keyFile, minVersion, *tlsCipherSuites)
 		if err != nil {
-			logger.Fatalf("cannot load TLS cert from -tlsCertFile=%q, -tlsKeyFile=%q, -tlsMinVersion=%q: %s", *tlsCertFile, *tlsKeyFile, *tlsMinVersion, err)
+			logger.Fatalf("cannot load TLS cert from -tlsCertFile=%q, -tlsKeyFile=%q, -tlsMinVersion=%q, -tlsCipherSuites=%q: %s", certFile, keyFile, minVersion, *tlsCipherSuites, err)
 		}
 		tlsConfig = tc
 	}
@@ -131,8 +149,9 @@ func serveWithListener(addr string, ln net.Listener, rh RequestHandler) {
 		// since these timeouts must be controlled by request handlers.
 
 		ErrorLog: logger.StdErrorLogger(),
-
-		ConnContext: func(ctx context.Context, c net.Conn) context.Context {
+	}
+	if *connTimeout > 0 {
+		s.s.ConnContext = func(ctx context.Context, c net.Conn) context.Context {
 			timeoutSec := connTimeout.Seconds()
 			// Add a jitter for connection timeout in order to prevent Thundering herd problem
 			// when all the connections are established at the same time.
@@ -140,8 +159,9 @@ func serveWithListener(addr string, ln net.Listener, rh RequestHandler) {
 			jitterSec := fastrand.Uint32n(uint32(timeoutSec / 10))
 			deadline := fasttime.UnixTimestamp() + uint64(timeoutSec) + uint64(jitterSec)
 			return context.WithValue(ctx, connDeadlineTimeKey, &deadline)
-		},
+		}
 	}
+
 	serversLock.Lock()
 	servers[addr] = &s
 	serversLock.Unlock()
@@ -155,6 +175,9 @@ func serveWithListener(addr string, ln net.Listener, rh RequestHandler) {
 }
 
 func whetherToCloseConn(r *http.Request) bool {
+	if *connTimeout <= 0 {
+		return false
+	}
 	ctx := r.Context()
 	v := ctx.Value(connDeadlineTimeKey)
 	deadline, ok := v.(*uint64)
@@ -163,15 +186,38 @@ func whetherToCloseConn(r *http.Request) bool {
 
 var connDeadlineTimeKey = interface{}("connDeadlineSecs")
 
-// Stop stops the http server on the given addr, which has been started
-// via Serve func.
-func Stop(addr string) error {
+// Stop stops the http server on the given addrs, which has been started via Serve func.
+func Stop(addrs []string) error {
+	var errGlobalLock sync.Mutex
+	var errGlobal error
+
+	var wg sync.WaitGroup
+	for _, addr := range addrs {
+		if addr == "" {
+			continue
+		}
+		wg.Add(1)
+		go func(addr string) {
+			if err := stop(addr); err != nil {
+				errGlobalLock.Lock()
+				errGlobal = err
+				errGlobalLock.Unlock()
+			}
+			wg.Done()
+		}(addr)
+	}
+	wg.Wait()
+
+	return errGlobal
+}
+
+func stop(addr string) error {
 	serversLock.Lock()
 	s := servers[addr]
 	delete(servers, addr)
 	serversLock.Unlock()
 	if s == nil {
-		err := fmt.Errorf("BUG: there is no http server at %q", addr)
+		err := fmt.Errorf("BUG: there is no server at %q", addr)
 		logger.Panicf("%s", err)
 		// The return is needed for golangci-lint: SA5011(related information): this check suggests that the pointer can be nil
 		return err
@@ -588,9 +634,9 @@ func (e *ErrorWithStatusCode) Error() string {
 	return e.Err.Error()
 }
 
-// IsTLS indicates is tls enabled or not
-func IsTLS() bool {
-	return *tlsEnable
+// IsTLS indicates is tls enabled or not for -httpListenAddr at the given idx.
+func IsTLS(idx int) bool {
+	return tlsEnable.GetOptionalArg(idx)
 }
 
 // GetPathPrefix - returns http server path prefix.
