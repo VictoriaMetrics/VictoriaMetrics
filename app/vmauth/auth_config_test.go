@@ -267,7 +267,7 @@ users:
   max_concurrent_requests: 5
   tls_insecure_skip_verify: true
 `, map[string]*UserInfo{
-		getAuthToken("", "foo", "bar"): {
+		getHTTPAuthBasicToken("foo", "bar"): {
 			Username:              "foo",
 			Password:              "bar",
 			URLPrefix:             mustParseURL("http://aaa:343/bbb"),
@@ -290,7 +290,7 @@ users:
   load_balancing_policy: first_available
   drop_src_path_prefix_parts: 1
 `, map[string]*UserInfo{
-		getAuthToken("", "foo", "bar"): {
+		getHTTPAuthBasicToken("foo", "bar"): {
 			Username: "foo",
 			Password: "bar",
 			URLPrefix: mustParseURLs([]string{
@@ -312,11 +312,11 @@ users:
 - username: bar
   url_prefix: https://bar/x///
 `, map[string]*UserInfo{
-		getAuthToken("", "foo", ""): {
+		getHTTPAuthBasicToken("foo", ""): {
 			Username:  "foo",
 			URLPrefix: mustParseURL("http://foo"),
 		},
-		getAuthToken("", "bar", ""): {
+		getHTTPAuthBasicToken("bar", ""): {
 			Username:  "bar",
 			URLPrefix: mustParseURL("https://bar/x"),
 		},
@@ -336,7 +336,7 @@ users:
     - "foo: bar"
     - "xxx: y"
 `, map[string]*UserInfo{
-		getAuthToken("foo", "", ""): {
+		getHTTPAuthBearerToken("foo"): {
 			BearerToken: "foo",
 			URLMaps: []URLMap{
 				{
@@ -365,7 +365,7 @@ users:
 				},
 			},
 		},
-		getAuthToken("", "foo", ""): {
+		getHTTPAuthBasicToken("foo", ""): {
 			BearerToken: "foo",
 			URLMaps: []URLMap{
 				{
@@ -395,7 +395,7 @@ users:
 			},
 		},
 	})
-	// Multiple users with the same name
+	// Multiple users with the same name - this should work, since these users have different passwords
 	f(`
 users:
 - username: foo-same
@@ -405,17 +405,18 @@ users:
   password: bar
   url_prefix: https://bar/x///
 `, map[string]*UserInfo{
-		getAuthToken("", "foo-same", "baz"): {
+		getHTTPAuthBasicToken("foo-same", "baz"): {
 			Username:  "foo-same",
 			Password:  "baz",
 			URLPrefix: mustParseURL("http://foo"),
 		},
-		getAuthToken("", "foo-same", "bar"): {
+		getHTTPAuthBasicToken("foo-same", "bar"): {
 			Username:  "foo-same",
 			Password:  "bar",
 			URLPrefix: mustParseURL("https://bar/x"),
 		},
 	})
+
 	// with default url
 	f(`
 users:
@@ -432,7 +433,7 @@ users:
   - http://default1/select/0/prometheus
   - http://default2/select/0/prometheus
 `, map[string]*UserInfo{
-		getAuthToken("foo", "", ""): {
+		getHTTPAuthBearerToken("foo"): {
 			BearerToken: "foo",
 			URLMaps: []URLMap{
 				{
@@ -464,7 +465,7 @@ users:
 				"http://default2/select/0/prometheus",
 			}),
 		},
-		getAuthToken("", "foo", ""): {
+		getHTTPAuthBasicToken("foo", ""): {
 			BearerToken: "foo",
 			URLMaps: []URLMap{
 				{
@@ -513,7 +514,7 @@ users:
     backend_env: test
     team: accounting
 `, map[string]*UserInfo{
-		getAuthToken("", "foo-same", "baz"): {
+		getHTTPAuthBasicToken("foo-same", "baz"): {
 			Username:  "foo-same",
 			Password:  "baz",
 			URLPrefix: mustParseURL("http://foo"),
@@ -522,7 +523,7 @@ users:
 				"team": "dev",
 			},
 		},
-		getAuthToken("", "foo-same", "bar"): {
+		getHTTPAuthBasicToken("foo-same", "bar"): {
 			Username:  "foo-same",
 			Password:  "bar",
 			URLPrefix: mustParseURL("https://bar/x"),
@@ -558,7 +559,7 @@ unauthorized_user:
 		t.Fatalf("unexpected error: %s", err)
 	}
 
-	ui := m[getAuthToken("", "foo", "bar")]
+	ui := m[getHTTPAuthBasicToken("foo", "bar")]
 	if !isSetBool(ui.TLSInsecureSkipVerify, true) || !ui.httpTransport.TLSClientConfig.InsecureSkipVerify {
 		t.Fatalf("unexpected TLSInsecureSkipVerify value for user foo")
 	}
