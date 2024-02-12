@@ -3,9 +3,7 @@ import { getLogsUrl } from "../../../api/logs";
 import { ErrorTypes } from "../../../types";
 import { Logs } from "../../../api/types";
 
-const MAX_LINES = 1000;
-
-export const useFetchLogs = (server: string, query: string) => {
+export const useFetchLogs = (server: string, query: string, limit: number) => {
   const [logs, setLogs] = useState<Logs[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<ErrorTypes | string>();
@@ -14,14 +12,14 @@ export const useFetchLogs = (server: string, query: string) => {
 
   const options = useMemo(() => ({
     method: "POST",
-    headers: {
-      "Accept": "application/stream+json; charset=utf-8",
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: `query=${encodeURIComponent(query.trim())}`
-  }), [query]);
+    body: new URLSearchParams({
+      query: encodeURIComponent(query.trim()),
+      limit: `${limit}`
+    })
+  }), [query, limit]);
 
   const fetchLogs = useCallback(async () => {
+    const limit = Number(options.body.get("limit")) + 1;
     setIsLoading(true);
     setError(undefined);
     try {
@@ -34,6 +32,7 @@ export const useFetchLogs = (server: string, query: string) => {
         setIsLoading(false);
         return;
       }
+
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder("utf-8");
@@ -50,12 +49,12 @@ export const useFetchLogs = (server: string, query: string) => {
         const lines = decoder.decode(value, { stream: true }).split("\n");
         result.push(...lines);
 
-        // Trim result to MAX_LINES
-        if (result.length > MAX_LINES) {
-          result.splice(0, result.length - MAX_LINES);
+        // Trim result to limit
+        if (result.length > limit) {
+          result.splice(0, result.length - limit);
         }
 
-        if (result.length >= MAX_LINES) {
+        if (result.length >= limit) {
           // Reached the maximum line limit
           reader.cancel();
           break;
