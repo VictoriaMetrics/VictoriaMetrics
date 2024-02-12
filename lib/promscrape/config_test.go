@@ -1308,6 +1308,8 @@ scrape_configs:
 				"instance": "foo.bar:1234",
 				"job":      "foo",
 			}),
+			AuthConfig:      &promauth.Config{},
+			ProxyAuthConfig: &promauth.Config{},
 			SeriesLimit: 0,
 		},
 	})
