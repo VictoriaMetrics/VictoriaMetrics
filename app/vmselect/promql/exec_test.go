@@ -6108,6 +6108,39 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`sum_gt_over_time`, func(t *testing.T) {
+		t.Parallel()
+		q := `round(sum_gt_over_time(rand(0)[200s:10s], 0.7), 0.1)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{5.9, 5.2, 8.5, 5.1, 4.9, 4.5},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`sum_le_over_time`, func(t *testing.T) {
+		t.Parallel()
+		q := `round(sum_le_over_time(rand(0)[200s:10s], 0.7), 0.1)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{4.2, 4.9, 3.2, 5.8, 4.1, 5.3},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`sum_eq_over_time`, func(t *testing.T) {
+		t.Parallel()
+		q := `round(sum_eq_over_time(rand(0)[200s:10s], 0.7), 0.1)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{0, 0, 0, 0, 0, 0},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`increases_over_time`, func(t *testing.T) {
 		t.Parallel()
 		q := `increases_over_time(rand(0)[200s:10s])`
