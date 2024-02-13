@@ -70,7 +70,7 @@ The list of MetricsQL features on top of PromQL:
   It is equivalent to `rate(node_network_receive_bytes_total[$__interval])` when used in Grafana.
 * Numeric values can contain `_` delimiters for better readability. For example, `1_234_567_890` can be used in queries instead of `1234567890`.
 * [Series selectors](https://docs.victoriametrics.com/keyConcepts.html#filtering) accept multiple `or` filters. For example, `{env="prod",job="a" or env="dev",job="b"}`
-  selects series with either `{env="prod",job="a"}` or `{env="dev",job="b"}` labels.
+  selects series with `{env="prod",job="a"}` or `{env="dev",job="b"}` labels.
   See [these docs](https://docs.victoriametrics.com/keyConcepts.html#filtering-by-multiple-or-filters) for details.
 * Support for `group_left(*)` and `group_right(*)` for copying all the labels from time series on the `one` side
   of [many-to-one operations](https://prometheus.io/docs/prometheus/latest/querying/operators/#many-to-one-and-one-to-many-vector-matches).

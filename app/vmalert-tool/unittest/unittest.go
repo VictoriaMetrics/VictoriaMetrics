@@ -25,6 +25,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/promql"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -184,7 +185,8 @@ func processFlags() {
 
 func setUp() {
 	vmstorage.Init(promql.ResetRollupResultCacheIfNeeded)
-	go httpserver.Serve(httpListenAddr, false, func(w http.ResponseWriter, r *http.Request) bool {
+	var ab flagutil.ArrayBool
+	go httpserver.Serve([]string{httpListenAddr}, &ab, func(w http.ResponseWriter, r *http.Request) bool {
 		switch r.URL.Path {
 		case "/prometheus/api/v1/query":
 			if err := prometheus.QueryHandler(nil, time.Now(), w, r); err != nil {
@@ -225,7 +227,7 @@ checkCheck:
 }
 
 func tearDown() {
-	if err := httpserver.Stop(httpListenAddr); err != nil {
+	if err := httpserver.Stop([]string{httpListenAddr}); err != nil {
 		logger.Errorf("cannot stop the webservice: %s", err)
 	}
 	vmstorage.Stop()

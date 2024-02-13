@@ -33,7 +33,7 @@
       "location": "me-central2"
     }
   ],
-  "etag": "\"3136323232353032373039383637313835303036\"",
+  "etag": "\"3136303536373738333537393834303934353433\"",
   "icons": {
     "x16": "https://www.google.com/images/icons/product/cloud_storage-16.png",
     "x32": "https://www.google.com/images/icons/product/cloud_storage-32.png"
@@ -1632,6 +1632,11 @@
             "managedFolder"
           ],
           "parameters": {
+            "allowNonEmpty": {
+              "description": "Allows the deletion of a managed folder even if it is not empty. A managed folder is empty if there are no objects or managed folders that it applies to. Callers must have storage.managedFolders.setIamPolicy permission.",
+              "location": "query",
+              "type": "boolean"
+            },
             "bucket": {
               "description": "Name of the bucket containing the managed folder.",
               "location": "path",
@@ -4040,7 +4045,7 @@
       }
     }
   },
-  "revision": "20240105",
+  "revision": "20240205",
   "rootUrl": "https://storage.googleapis.com/",
   "schemas": {
     "AnywhereCache": {
@@ -4861,14 +4866,6 @@
           "default": "storage#folder",
           "description": "The kind of item this is. For folders, this is always storage#folder.",
           "type": "string"
-        },
-        "metadata": {
-          "additionalProperties": {
-            "description": "An individual metadata entry.",
-            "type": "string"
-          },
-          "description": "User-provided metadata, in key/value pairs.",
-          "type": "object"
         },
         "metageneration": {
           "description": "The version of the metadata for this folder. Used for preconditions and for detecting changes in metadata.",

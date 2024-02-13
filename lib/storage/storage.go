@@ -25,7 +25,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/snapshot"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/snapshot/snapshotutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
@@ -342,7 +342,7 @@ func (s *Storage) CreateSnapshot(deadline uint64) (string, error) {
 		}
 	}()
 
-	snapshotName := snapshot.NewName()
+	snapshotName := snapshotutil.NewName()
 	srcDir := s.path
 	dstDir := filepath.Join(srcDir, snapshotsDirname, snapshotName)
 	fs.MustMkdirFailIfExist(dstDir)
@@ -409,7 +409,7 @@ func (s *Storage) ListSnapshots() ([]string, error) {
 	}
 	snapshotNames := make([]string, 0, len(fnames))
 	for _, fname := range fnames {
-		if err := snapshot.Validate(fname); err != nil {
+		if err := snapshotutil.Validate(fname); err != nil {
 			continue
 		}
 		snapshotNames = append(snapshotNames, fname)
@@ -420,7 +420,7 @@ func (s *Storage) ListSnapshots() ([]string, error) {
 
 // DeleteSnapshot deletes the given snapshot.
 func (s *Storage) DeleteSnapshot(snapshotName string) error {
-	if err := snapshot.Validate(snapshotName); err != nil {
+	if err := snapshotutil.Validate(snapshotName); err != nil {
 		return fmt.Errorf("invalid snapshotName %q: %w", snapshotName, err)
 	}
 	snapshotPath := filepath.Join(s.path, snapshotsDirname, snapshotName)
@@ -446,7 +446,7 @@ func (s *Storage) DeleteStaleSnapshots(maxAge time.Duration) error {
 	}
 	expireDeadline := time.Now().UTC().Add(-maxAge)
 	for _, snapshotName := range list {
-		t, err := snapshot.Time(snapshotName)
+		t, err := snapshotutil.Time(snapshotName)
 		if err != nil {
 			return fmt.Errorf("cannot parse snapshot date from %q: %w", snapshotName, err)
 		}

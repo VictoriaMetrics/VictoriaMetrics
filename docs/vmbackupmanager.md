@@ -11,7 +11,7 @@ aliases:
 ---
 # vmbackupmanager
 
-***vmbackupmanager is a part of [enterprise package](https://docs.victoriametrics.com/enterprise.html). 
+***vmbackupmanager is a part of [enterprise package](https://docs.victoriametrics.com/enterprise.html).
 It is available for download and evaluation at [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 See how to request a free trial license [here](https://victoriametrics.com/products/enterprise/trial/).***
 
@@ -57,7 +57,7 @@ To get the full list of supported flags please run the following command:
 
 The service creates a **full** backup each run. This means that the system can be restored fully
 from any particular backup using [vmrestore](https://docs.victoriametrics.com/vmrestore.html).
-Backup manager uploads only the data that has been changed or created since the most recent backup 
+Backup manager uploads only the data that has been changed or created since the most recent backup
 ([incremental backup](https://docs.victoriametrics.com/vmbackup.html#incremental-backups)).
 This reduces the consumed network traffic and the time needed for performing the backup.
 See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-series-databases-533c1a927883) for details.
@@ -324,14 +324,14 @@ If restore mark doesn't exist at `storageDataPath`(restore wasn't requested) `vm
   [{"name":"daily/2023-04-07","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:07+00:00"},{"name":"hourly/2023-04-07:11","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:06+00:00"},{"name":"latest","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:04+00:00"},{"name":"monthly/2023-04","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:10+00:00"},{"name":"weekly/2023-14","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:09+00:00"}]
   ```
 1. Run `vmbackupmanager restore create` to create restore mark:
-   - Use relative path to backup to restore from currently used remote storage:
-     ```sh
-     $ /vmbackupmanager-prod restore create daily/2023-04-07
-     ```
-   - Use full path to backup to restore from any remote storage:
-     ```sh
-     $ /vmbackupmanager-prod restore create azblob://test1/vmbackupmanager/daily/2023-04-07
-     ```
+    - Use relative path to backup to restore from currently used remote storage:
+      ```sh
+      $ /vmbackupmanager-prod restore create daily/2023-04-07
+      ```
+    - Use full path to backup to restore from any remote storage:
+      ```sh
+      $ /vmbackupmanager-prod restore create azblob://test1/vmbackupmanager/daily/2023-04-07
+      ```
 1. Stop `vmstorage` or `vmsingle` node
 1. Run `vmbackupmanager restore` to restore backup:
   ```sh
@@ -358,14 +358,14 @@ If restore mark doesn't exist at `storageDataPath`(restore wasn't requested) `vm
   [{"name":"daily/2023-04-07","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:07+00:00"},{"name":"hourly/2023-04-07:11","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:06+00:00"},{"name":"latest","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:04+00:00"},{"name":"monthly/2023-04","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:10+00:00"},{"name":"weekly/2023-14","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:09+00:00"}]
   ```
 1. Use `vmbackupmanager restore create` to create restore mark:
-  - Use relative path to backup to restore from currently used remote storage:
-    ```sh
-    $ /vmbackupmanager-prod restore create daily/2023-04-07
-    ```
-  - Use full path to backup to restore from any remote storage:
-    ```sh
-    $ /vmbackupmanager-prod restore create azblob://test1/vmbackupmanager/daily/2023-04-07
-    ```
+- Use relative path to backup to restore from currently used remote storage:
+  ```sh
+  $ /vmbackupmanager-prod restore create daily/2023-04-07
+  ```
+- Use full path to backup to restore from any remote storage:
+  ```sh
+  $ /vmbackupmanager-prod restore create azblob://test1/vmbackupmanager/daily/2023-04-07
+  ```
 1. Restart pod
 
 #### Restore cluster into another cluster
@@ -416,7 +416,7 @@ command-line flags with their descriptions.
 
 The shortlist of configuration flags is the following:
 
-```
+```text
 vmbackupmanager performs regular backups according to the provided configs.
 
 subcommands:
