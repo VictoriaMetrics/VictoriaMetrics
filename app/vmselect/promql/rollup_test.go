@@ -407,6 +407,75 @@ func TestRollupCountNEOverTime(t *testing.T) {
 	f(12, 11)
 }
 
+func TestRollupSumLEOverTime(t *testing.T) {
+	f := func(le, vExpected float64) {
+		t.Helper()
+		les := []*timeseries{{
+			Values:     []float64{le},
+			Timestamps: []int64{123},
+		}}
+		var me metricsql.MetricExpr
+		args := []interface{}{&metricsql.RollupExpr{Expr: &me}, les}
+		testRollupFunc(t, "sum_le_over_time", args, vExpected)
+	}
+
+	f(-123, 0)
+	f(0, 0)
+	f(10, 0)
+	f(12, 12)
+	f(30, 33)
+	f(50, 289)
+	f(100, 442)
+	f(123, 565)
+	f(1000, 565)
+}
+
+func TestRollupSumGTOverTime(t *testing.T) {
+	f := func(le, vExpected float64) {
+		t.Helper()
+		les := []*timeseries{{
+			Values:     []float64{le},
+			Timestamps: []int64{123},
+		}}
+		var me metricsql.MetricExpr
+		args := []interface{}{&metricsql.RollupExpr{Expr: &me}, les}
+		testRollupFunc(t, "sum_gt_over_time", args, vExpected)
+	}
+
+	f(-123, 565)
+	f(0, 565)
+	f(10, 565)
+	f(12, 553)
+	f(30, 532)
+	f(50, 276)
+	f(100, 123)
+	f(123, 0)
+	f(1000, 0)
+}
+
+func TestRollupSumEQOverTime(t *testing.T) {
+	f := func(le, vExpected float64) {
+		t.Helper()
+		les := []*timeseries{{
+			Values:     []float64{le},
+			Timestamps: []int64{123},
+		}}
+		var me metricsql.MetricExpr
+		args := []interface{}{&metricsql.RollupExpr{Expr: &me}, les}
+		testRollupFunc(t, "sum_eq_over_time", args, vExpected)
+	}
+
+	f(-123, 0)
+	f(0, 0)
+	f(10, 0)
+	f(12, 12)
+	f(30, 0)
+	f(50, 0)
+	f(100, 0)
+	f(123, 123)
+	f(1000, 0)
+}
+
 func TestRollupQuantileOverTime(t *testing.T) {
 	f := func(phi, vExpected float64) {
 		t.Helper()
