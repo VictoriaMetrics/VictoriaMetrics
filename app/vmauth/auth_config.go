@@ -43,7 +43,9 @@ var (
 type AuthConfig struct {
 	Users            []UserInfo `yaml:"users,omitempty"`
 	UnauthorizedUser *UserInfo  `yaml:"unauthorized_user,omitempty"`
-	ms               *metrics.Set
+
+	// ms holds all the metrics for the given AuthConfig
+	ms *metrics.Set
 }
 
 // UserInfo is user information read from authConfigPath
@@ -521,12 +523,13 @@ func parseAuthConfig(data []byte) (*AuthConfig, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot expand environment vars: %w", err)
 	}
-	ac := AuthConfig{
+	ac := &AuthConfig{
 		ms: metrics.NewSet(),
 	}
-	if err = yaml.UnmarshalStrict(data, &ac); err != nil {
+	if err = yaml.UnmarshalStrict(data, ac); err != nil {
 		return nil, fmt.Errorf("cannot unmarshal AuthConfig data: %w", err)
 	}
+
 	ui := ac.UnauthorizedUser
 	if ui != nil {
 		if ui.Username != "" {
@@ -553,7 +556,7 @@ func parseAuthConfig(data []byte) (*AuthConfig, error) {
 		ui.backendErrors = ac.ms.NewCounter(`vmauth_unauthorized_user_request_backend_errors_total` + metricLabels)
 		ui.requestsDuration = ac.ms.NewSummary(`vmauth_unauthorized_user_request_duration_seconds` + metricLabels)
 		ui.concurrencyLimitCh = make(chan struct{}, ui.getMaxConcurrentRequests())
-		ui.concurrencyLimitReached = metrics.NewCounter(`vmauth_unauthorized_user_concurrent_requests_limit_reached_total` + metricLabels)
+		ui.concurrencyLimitReached = ac.ms.NewCounter(`vmauth_unauthorized_user_concurrent_requests_limit_reached_total` + metricLabels)
 		_ = ac.ms.NewGauge(`vmauth_unauthorized_user_concurrent_requests_capacity`+metricLabels, func() float64 {
 			return float64(cap(ui.concurrencyLimitCh))
 		})
@@ -567,7 +570,7 @@ func parseAuthConfig(data []byte) (*AuthConfig, error) {
 		}
 		ui.httpTransport = tr
 	}
-	return &ac, nil
+	return ac, nil
 }
 
 func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, error) {

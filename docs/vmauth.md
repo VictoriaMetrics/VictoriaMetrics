@@ -457,6 +457,17 @@ unauthorized_user:
   - "Server:"
 ```
 
+## Config reload
+
+`vmauth` supports dynamic reload of [`-auth.config`](#auth-config) via the following ways:
+
+- By sending `SIGHUP` signal to `vmauth` process:
+  ```
+  kill -HUP `pidof vmauth`
+  ```
+- By querying `/-/reload` endpoint. It is recommended protecting it with `-reloadAuthKey`. See [security docs](#security) for details.
+- By passing the interval for config check to `-configCheckInterval` command-line flag.
+
 ## Concurrency limiting
 
 `vmauth` limits the number of concurrent requests it can proxy according to the following command-line flags:
