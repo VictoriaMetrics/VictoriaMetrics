@@ -4,9 +4,8 @@ import { useFetchQueryOptions } from "../../../hooks/useFetchQueryOptions";
 import { getTextWidth } from "../../../utils/uplot";
 import { escapeRegexp } from "../../../utils/regexp";
 import useGetMetricsQL from "../../../hooks/useGetMetricsQL";
-import { RefreshIcon } from "../../Main/Icons";
 import { QueryContextType } from "../../../types";
-import { AUTOCOMPLETE_LIMITS, AUTOCOMPLETE_MIN_SYMBOLS } from "../../../constants/queryAutocomplete";
+import { AUTOCOMPLETE_LIMITS } from "../../../constants/queryAutocomplete";
 
 interface QueryEditorAutocompleteProps {
   value: string;
@@ -26,22 +25,27 @@ const QueryEditorAutocomplete: FC<QueryEditorAutocompleteProps> = ({
   const [leftOffset, setLeftOffset] = useState(0);
   const metricsqlFunctions = useGetMetricsQL();
 
+  const exprLastPart = useMemo(() => {
+    const parts = value.split("}");
+    return parts[parts.length - 1];
+  }, [value]);
+
   const metric = useMemo(() => {
     const regexp = /\b[^{}(),\s]+(?={|$)/g;
-    const match = value.match(regexp);
+    const match = exprLastPart.match(regexp);
     return match ? match[0] : "";
-  }, [value]);
+  }, [exprLastPart]);
 
   const label = useMemo(() => {
     const regexp = /[a-z_:-][\w\-.:/]*\b(?=\s*(=|!=|=~|!~))/g;
-    const match = value.match(regexp);
+    const match = exprLastPart.match(regexp);
     return match ? match[match.length - 1] : "";
-  }, [value]);
+  }, [exprLastPart]);
 
   const context = useMemo(() => {
-    if (!value) return QueryContextType.empty;
+    if (!value || value.endsWith("}")) return QueryContextType.empty;
 
-    const labelRegexp = /\{[^}]*?(\w+)$/gm;
+    const labelRegexp = /\{[^}]*?(\w+)*$/gm;
     const labelValueRegexp = new RegExp(`(${escapeRegexp(metric)})?{?.+${escapeRegexp(label)}(=|!=|=~|!~)"?([^"]*)$`, "g");
 
     switch (true) {
@@ -88,6 +92,13 @@ const QueryEditorAutocomplete: FC<QueryEditorAutocompleteProps> = ({
     const beforeValueByContext = value.substring(0, startIndexOfValueByContext);
     const afterValueByContext = value.substring(endIndexOfValueByContext);
 
+    // Add quotes around the value if the context is labelValue
+    if (context === QueryContextType.labelValue) {
+      const quote = "\"";
+      const needsQuote = /(?:=|!=|=~|!~)$/.test(beforeValueByContext);
+      insert = `${needsQuote ? quote : ""}${insert}`;
+    }
+
     // Assemble the new value with the inserted text
     const newVal = `${beforeValueByContext}${insert}${afterValueByContext}`;
     onSelect(newVal);
@@ -109,11 +120,12 @@ const QueryEditorAutocomplete: FC<QueryEditorAutocompleteProps> = ({
   return (
     <>
       <Autocomplete
+        loading={loading}
         disabledFullScreen
         value={valueByContext}
-        options={options?.length < AUTOCOMPLETE_LIMITS.queryLimit ? options : []}
+        options={options}
         anchor={anchorEl}
-        minLength={AUTOCOMPLETE_MIN_SYMBOLS[context]}
+        minLength={0}
         offset={{ top: 0, left: leftOffset }}
         onSelect={handleSelect}
         onFoundOptions={onFoundOptions}
@@ -122,7 +134,6 @@ const QueryEditorAutocomplete: FC<QueryEditorAutocompleteProps> = ({
           message: "Please, specify the query more precisely."
         }}
       />
-      {loading && <div className="vm-query-editor-autocomplete"><RefreshIcon/></div>}
     </>
   );
 };
