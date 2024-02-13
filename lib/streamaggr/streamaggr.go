@@ -582,27 +582,6 @@ func (a *aggregator) MustStop() {
 	<-flushConcurrencyCh
 }
 
-//var (
-//	zstdEncoder *zstd.Encoder
-//	zstdDecoder *zstd.Decoder
-//)
-//
-//func init() {
-//	e, err := zstd.NewWriter(nil,
-//		zstd.WithEncoderCRC(false), // Disable CRC for performance reasons.
-//	)
-//	if err != nil {
-//		logger.Panicf("BUG: failed to create ZSTD writer: %s", err)
-//	}
-//	zstdEncoder = e
-//
-//	zstdDecoder, err = zstd.NewReader(nil)
-//	if err != nil {
-//		logger.Panicf("BUG: failed to create ZSTD reader: %s", err)
-//	}
-//
-//}
-
 // Push pushes tss to a.
 func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 	labels := promutils.GetLabels()

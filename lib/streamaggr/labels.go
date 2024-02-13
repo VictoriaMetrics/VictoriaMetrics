@@ -3,6 +3,7 @@ package streamaggr
 import (
 	"encoding/binary"
 	"flag"
+	"fmt"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -82,7 +83,7 @@ func (bm *bimap) decompress(labels *promutils.Labels, s string) *promutils.Label
 		bb = bb[4:]
 		l := bm.getLabel(k)
 		if l.Name == "" || l.Value == "" {
-			panic("got empty label")
+			panic(fmt.Sprintf("got empty label for key: %d", k))
 		}
 		labels.Labels = append(labels.Labels, l)
 	}
