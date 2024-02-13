@@ -2119,6 +2119,10 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      Optional path to client-side TLS certificate file to use when connecting to the corresponding -remoteWrite.url
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -remoteWrite.tlsHandshakeTimeout array
+     The timeout for estabilishing tls connections to the corresponding -remoteWrite.url (default 20s)
+     Supports array of values separated by comma or specified via multiple flags.
+     Empty values are set to default value.
   -remoteWrite.tlsInsecureSkipVerify array
      Whether to skip tls verification when connecting to the corresponding -remoteWrite.url
      Supports array of values separated by comma or specified via multiple flags.
