@@ -12,11 +12,22 @@ export const useFetchLogs = (server: string, query: string, limit: number) => {
 
   const options = useMemo(() => ({
     method: "POST",
+    headers: {
+      "Accept": "application/stream+json",
+    },
     body: new URLSearchParams({
       query: encodeURIComponent(query.trim()),
       limit: `${limit}`
     })
   }), [query, limit]);
+
+  const parseLineToJSON = (line: string): Logs | null => {
+    try {
+      return JSON.parse(line);
+    } catch (e) {
+      return null;
+    }
+  };
 
   const fetchLogs = useCallback(async () => {
     const limit = Number(options.body.get("limit")) + 1;
@@ -50,6 +61,8 @@ export const useFetchLogs = (server: string, query: string, limit: number) => {
         result.push(...lines);
 
         // Trim result to limit
+        // This will lose its meaning with these changes:
+        // https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5778
         if (result.length > limit) {
           result.splice(0, result.length - limit);
         }
@@ -60,18 +73,8 @@ export const useFetchLogs = (server: string, query: string, limit: number) => {
           break;
         }
       }
-      const data = result
-        .map((line) => {
-          try {
-            return JSON.parse(line);
-          } catch (e) {
-            return "";
-          }
-        })
-        .filter(line => line);
-
+      const data = result.map(parseLineToJSON).filter(line => line) as Logs[];
       setLogs(data);
-
     } catch (e) {
       console.error(e);
       setLogs([]);
