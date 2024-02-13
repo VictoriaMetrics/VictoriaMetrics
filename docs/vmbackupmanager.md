@@ -23,31 +23,30 @@ which represent the backup intervals (hourly, daily, weekly and monthly)
 
 The required flags for running the service are as follows:
 
-* -eula - should be true and means that you have the legal right to run a backup manager. That can either be a signed contract or an email
-  with confirmation to run the service in a trial period.
-* -storageDataPath - path to VictoriaMetrics or vmstorage data path to make backup from.
-* -snapshot.createURL - VictoriaMetrics creates snapshot URL which will automatically be created during backup. Example: <http://victoriametrics:8428/snapshot/create>
-* -dst - backup destination at [the supported storage types](https://docs.victoriametrics.com/vmbackup.html#supported-storage-types).
-* -credsFilePath - path to file with GCS or S3 credentials. Credentials are loaded from default locations if not set.
+* `-license` or `-licenseFile` . See [these docs](https://docs.victoriametrics.com/enterprise/#running-victoriametrics-enterprise).
+* `-storageDataPath` - path to VictoriaMetrics or vmstorage data path to make backup from.
+* `-snapshot.createURL` - VictoriaMetrics creates snapshot URL which will automatically be created during backup. Example: <http://victoriametrics:8428/snapshot/create>
+* `-dst` - backup destination at [the supported storage types](https://docs.victoriametrics.com/vmbackup.html#supported-storage-types).
+* `-credsFilePath` - path to file with GCS or S3 credentials. Credentials are loaded from default locations if not set.
   See [https://cloud.google.com/iam/docs/creating-managing-service-account-keys](https://cloud.google.com/iam/docs/creating-managing-service-account-keys)
   and [https://docs.aws.amazon.com/general/latest/gr/aws-security-credentials.html](https://docs.aws.amazon.com/general/latest/gr/aws-security-credentials.html).
 
 Backup schedule is controlled by the following flags:
 
-* -disableHourly - disable hourly run. Default false
-* -disableDaily - disable daily run. Default false
-* -disableWeekly - disable weekly run. Default false
-* -disableMonthly - disable monthly run. Default false
+* `-disableHourly` - disable hourly run. Default false
+* `-disableDaily` - disable daily run. Default false
+* `-disableWeekly` - disable weekly run. Default false
+* `-disableMonthly` - disable monthly run. Default false
 
 By default, all flags are turned on and Backup Manager backups data every hour for every interval (hourly, daily, weekly and monthly).
 
-The backup manager creates the following directory hierarchy at **-dst**:
+The backup manager creates the following directory hierarchy at `-dst`:
 
-* /latest/ - contains the latest backup
-* /hourly/ - contains hourly backups. Each backup is named as *YYYY-MM-DD:HH*
-* /daily/ - contains daily backups. Each backup is named as *YYYY-MM-DD*
-* /weekly/ - contains weekly backups. Each backup is named as *YYYY-WW*
-* /monthly/ - contains monthly backups. Each backup is named as *YYYY-MM*
+* `/latest/` - contains the latest backup
+* `/hourly/` - contains hourly backups. Each backup is named as `YYYY-MM-DD:HH`
+* `/daily/` - contains daily backups. Each backup is named as `YYYY-MM-DD`
+* `/weekly/` - contains weekly backups. Each backup is named as `YYYY-WW`
+* `/monthly/` - contains monthly backups. Each backup is named as `YYYY-MM`
 
 To get the full list of supported flags please run the following command:
 
@@ -66,8 +65,8 @@ See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-
 
 There are two flags which could help with performance tuning:
 
-* -maxBytesPerSecond - the maximum upload speed. There is no limit if it is set to 0
-* -concurrency - The number of concurrent workers. Higher concurrency may improve upload speed (default 10)
+* `-maxBytesPerSecond` - the maximum upload speed. There is no limit if it is set to 0
+* `-concurrency` - The number of concurrent workers. Higher concurrency may improve upload speed (default 10)
 
 ## Example of Usage
 
@@ -137,10 +136,10 @@ storage types.
 
 Backup retention policy is controlled by:
 
-* -keepLastHourly - keep the last N hourly backups. Disabled by default
-* -keepLastDaily - keep the last N daily backups. Disabled by default
-* -keepLastWeekly - keep the last N weekly backups. Disabled by default
-* -keepLastMonthly - keep the last N monthly backups. Disabled by default
+* `-keepLastHourly` - keep the last N hourly backups. Disabled by default
+* `-keepLastDaily` - keep the last N daily backups. Disabled by default
+* `-keepLastWeekly` - keep the last N weekly backups. Disabled by default
+* `-keepLastMonthly` - keep the last N monthly backups. Disabled by default
 
 > *Note*: 0 value in every keepLast flag results into deletion of ALL backups for particular type (hourly, daily, weekly and monthly)
 
