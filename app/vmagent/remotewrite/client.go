@@ -367,6 +367,9 @@ func (c *client) newRequest(url string, body []byte) (*http.Request, error) {
 	if err != nil {
 		logger.Panicf("BUG: unexpected error from http.NewRequest(%q): %s", url, err)
 	}
+	if tlsCfg, err := c.authCfg.NewTLSConfig(); err == nil && tlsCfg != nil {
+		req.Host = tlsCfg.ServerName
+	}
 	err = c.authCfg.SetHeaders(req, true)
 	if err != nil {
 		return nil, err
