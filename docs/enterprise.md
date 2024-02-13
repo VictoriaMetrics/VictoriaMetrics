@@ -89,10 +89,7 @@ Enterprise binaries and packages have `enterprise` suffix in their names. For ex
 In order to run binary release of VictoriaMetrics Enterprise component, please download the `*-enterprise.tar.gz` archive for your OS and architecture
 from the [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) and unpack it. Then run the unpacked binary.
 
-All the VictoriaMetrics Enterprise components prior `v1.94.0` release require `-eula` command-line flag to be passed to them.
-This flag acknowledges that your usage fits one of the cases listed [here](#valid-cases-for-victoriametrics-enterprise).
-
-The `-eula` command-line flag is deprecated starting from `v1.94.0` release in favor of new command-line flags:
+All the VictoriaMetrics Enterprise components require specifying the following command-line flags:
 
 * `-license` - this flag accepts VictoriaMetrics Enterprise license key, which can be obtained at [this page](https://victoriametrics.com/products/enterprise/trial/)
 * `-licenseFile` - this flag accepts a path to file with VictoriaMetrics Enterprise license key,
