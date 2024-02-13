@@ -70,8 +70,7 @@ func (bm *bimap) compress(bb []byte, lss []prompbmarshal.Label) []byte {
 				Value: strings.Clone(ls.Value),
 			})
 		}
-		binary.LittleEndian.AppendUint32(bb, k)
-		bb = bb[:len(bb)+4]
+		bb = binary.LittleEndian.AppendUint32(bb, k)
 	}
 	return bb
 }
