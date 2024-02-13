@@ -72,8 +72,11 @@ func (mr *metaindexRow) Unmarshal(src []byte) ([]byte, error) {
 	if mr.blockHeadersCount <= 0 {
 		return src, fmt.Errorf("blockHeadersCount must be bigger than 0; got %d", mr.blockHeadersCount)
 	}
-	if mr.indexBlockSize > 2*maxIndexBlockSize {
-		return src, fmt.Errorf("too big indexBlockSize: %d; cannot exceed %d", mr.indexBlockSize, 2*maxIndexBlockSize)
+	if mr.indexBlockSize > 4*maxIndexBlockSize {
+		// The index block size can exceed maxIndexBlockSize by up to 4x,
+		// since it can contain commonPrefix and firstItem at blockHeader
+		// with the maximum length of maxIndexBlockSize per each field.
+		return src, fmt.Errorf("too big indexBlockSize: %d; cannot exceed %d", mr.indexBlockSize, 4*maxIndexBlockSize)
 	}
 
 	return src, nil

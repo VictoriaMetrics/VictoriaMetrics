@@ -46,10 +46,10 @@ import (
 )
 
 var (
-	httpListenAddr = flag.String("httpListenAddr", ":8429", "TCP address to listen for http connections. "+
+	httpListenAddrs = flagutil.NewArrayString("httpListenAddr", "TCP address to listen for incoming http requests. "+
 		"Set this flag to empty value in order to disable listening on any port. This mode may be useful for running multiple vmagent instances on the same server. "+
 		"Note that /targets and /metrics pages aren't available if -httpListenAddr=''. See also -tls and -httpListenAddr.useProxyProtocol")
-	useProxyProtocol = flag.Bool("httpListenAddr.useProxyProtocol", false, "Whether to use proxy protocol for connections accepted at -httpListenAddr . "+
+	useProxyProtocol = flagutil.NewArrayBool("httpListenAddr.useProxyProtocol", "Whether to use proxy protocol for connections accepted at the corresponding -httpListenAddr . "+
 		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . "+
 		"With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing")
 	influxListenAddr = flag.String("influxListenAddr", "", "TCP and UDP address to listen for InfluxDB line protocol data. Usually :8089 must be set. Doesn't work if empty. "+
@@ -120,7 +120,11 @@ func main() {
 		return
 	}
 
-	logger.Infof("starting vmagent at %q...", *httpListenAddr)
+	listenAddrs := *httpListenAddrs
+	if len(listenAddrs) == 0 {
+		listenAddrs = []string{":8429"}
+	}
+	logger.Infof("starting vmagent at %q...", listenAddrs)
 	startTime := time.Now()
 	remotewrite.Init()
 	common.StartUnmarshalWorkers()
@@ -143,9 +147,7 @@ func main() {
 
 	promscrape.Init(remotewrite.PushDropSamplesOnFailure)
 
-	if len(*httpListenAddr) > 0 {
-		go httpserver.Serve(*httpListenAddr, *useProxyProtocol, requestHandler)
-	}
+	go httpserver.Serve(listenAddrs, useProxyProtocol, requestHandler)
 	logger.Infof("started vmagent in %.3f seconds", time.Since(startTime).Seconds())
 
 	pushmetrics.Init()
@@ -154,13 +156,11 @@ func main() {
 	pushmetrics.Stop()
 
 	startTime = time.Now()
-	if len(*httpListenAddr) > 0 {
-		logger.Infof("gracefully shutting down webservice at %q", *httpListenAddr)
-		if err := httpserver.Stop(*httpListenAddr); err != nil {
-			logger.Fatalf("cannot stop the webservice: %s", err)
-		}
-		logger.Infof("successfully shut down the webservice in %.3f seconds", time.Since(startTime).Seconds())
+	logger.Infof("gracefully shutting down webservice at %q", listenAddrs)
+	if err := httpserver.Stop(listenAddrs); err != nil {
+		logger.Fatalf("cannot stop the webservice: %s", err)
 	}
+	logger.Infof("successfully shut down the webservice in %.3f seconds", time.Since(startTime).Seconds())
 
 	promscrape.Stop()
 
