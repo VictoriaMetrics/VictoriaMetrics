@@ -106,7 +106,7 @@ func (d *deduplicator) flush() {
 	bb := bbPool.Get()
 
 	obm := d.bm.Swap(bm.Load())
-	d.m.rangeAndDelete(func(k string, v *dedupStateValue) bool {
+	d.m.rangeAndDelete(func(k string, v *dedupStateValue) {
 		value := v.value
 		ts := v.timestamp
 		labels.Labels = labels.Labels[:0]
@@ -118,7 +118,6 @@ func (d *deduplicator) flush() {
 		//}
 
 		d.pushSamplesAgg(bb.B[:0], labels, tmpLabels, value, ts)
-		return true
 	})
 
 	bbPool.Put(bb)
@@ -154,7 +153,7 @@ func newShardedMap() *shardedMap {
 	shards := make([]*shard, shardsCount)
 	for i := range shards {
 		shards[i] = &shard{
-			data: make(map[string]*dedupStateValue, 0),
+			data: make(map[string]*dedupStateValue),
 		}
 	}
 	return &shardedMap{shards: shards}
@@ -184,7 +183,7 @@ func (sm *shardedMap) delete(key string) {
 	s.delete(key)
 }
 
-func (sm *shardedMap) rangeAndDelete(f func(k string, v *dedupStateValue) bool) {
+func (sm *shardedMap) rangeAndDelete(f func(k string, v *dedupStateValue)) {
 	for _, s := range sm.shards {
 		s.rangeAndDelete(f)
 	}
@@ -214,17 +213,14 @@ func (s *shard) delete(k string) {
 	delete(s.data, k)
 }
 
-func (s *shard) rangeAndDelete(f func(k string, v *dedupStateValue) bool) {
+func (s *shard) rangeAndDelete(f func(k string, v *dedupStateValue)) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-	for k, v := range s.data {
-		v.mu.Lock()
-		delete(s.data, k)
-		if !f(k, v) {
-			v.mu.Unlock()
-			return
-		}
-		v.mu.Unlock()
+	oldData := s.data
+	s.data = make(map[string]*dedupStateValue, len(oldData))
+	s.mu.Unlock()
+
+	for k, v := range oldData {
+		f(k, v)
 	}
 }
 
