@@ -9,7 +9,7 @@ require (
 	github.com/VictoriaMetrics/easyproto v0.1.4
 	github.com/VictoriaMetrics/fastcache v1.12.2
 	github.com/VictoriaMetrics/metrics v1.31.0
-	github.com/VictoriaMetrics/metricsql v0.70.1
+	github.com/VictoriaMetrics/metricsql v0.71.0
 	github.com/aws/aws-sdk-go-v2 v1.24.1
 	github.com/aws/aws-sdk-go-v2/config v1.26.6
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.15.15
