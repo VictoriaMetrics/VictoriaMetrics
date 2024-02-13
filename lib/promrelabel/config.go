@@ -439,5 +439,5 @@ func isDefaultRegex(expr string) bool {
 	if prefix != "" {
 		return false
 	}
-	return suffix == ".*"
+	return suffix == "(?-s:.*)"
 }

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math/rand"
 	"net"
 	"net/http"
 	"os"
@@ -413,6 +414,7 @@ func httpReadMetrics(t *testing.T, address, query string) []Metric {
 	}
 	return rows
 }
+
 func httpReadStruct(t *testing.T, address, query string, dst interface{}) {
 	t.Helper()
 	s := newSuite(t)
@@ -496,4 +498,74 @@ func (s *suite) greaterThan(a, b int) {
 		s.t.Errorf("%d less or equal then %d", a, b)
 		s.t.FailNow()
 	}
+}
+
+func TestImportJSONLines(t *testing.T) {
+	f := func(labelsCount, labelLen int) {
+		t.Helper()
+
+		reqURL := fmt.Sprintf("http://localhost%s/api/v1/import", testHTTPListenAddr)
+		line := generateJSONLine(labelsCount, labelLen)
+		req, err := http.NewRequest("POST", reqURL, bytes.NewBufferString(line))
+		if err != nil {
+			t.Fatalf("cannot create request: %s", err)
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatalf("cannot perform request for labelsCount=%d, labelLen=%d: %s", labelsCount, labelLen, err)
+		}
+		if resp.StatusCode != 204 {
+			t.Fatalf("unexpected statusCode for labelsCount=%d, labelLen=%d; got %d; want 204", labelsCount, labelLen, resp.StatusCode)
+		}
+	}
+
+	// labels with various lengths
+	for i := 0; i < 500; i++ {
+		f(10, i*5)
+	}
+
+	// Too many labels
+	f(1000, 100)
+
+	// Too long labels
+	f(1, 100_000)
+	f(10, 100_000)
+	f(10, 10_000)
+}
+
+func generateJSONLine(labelsCount, labelLen int) string {
+	m := make(map[string]string, labelsCount)
+	m["__name__"] = generateSizedRandomString(labelLen)
+	for j := 1; j < labelsCount; j++ {
+		labelName := generateSizedRandomString(labelLen)
+		labelValue := generateSizedRandomString(labelLen)
+		m[labelName] = labelValue
+	}
+
+	type jsonLine struct {
+		Metric     map[string]string `json:"metric"`
+		Values     []float64         `json:"values"`
+		Timestamps []int64           `json:"timestamps"`
+	}
+	line := &jsonLine{
+		Metric:     m,
+		Values:     []float64{1.34},
+		Timestamps: []int64{time.Now().UnixNano() / 1e6},
+	}
+	data, err := json.Marshal(&line)
+	if err != nil {
+		panic(fmt.Errorf("cannot marshal JSON: %w", err))
+	}
+	data = append(data, '\n')
+	return string(data)
+}
+
+const alphabetSample = `qwertyuiopasdfghjklzxcvbnm`
+
+func generateSizedRandomString(size int) string {
+	dst := make([]byte, size)
+	for i := range dst {
+		dst[i] = alphabetSample[rand.Intn(len(alphabetSample))]
+	}
+	return string(dst)
 }

@@ -15,6 +15,7 @@ title: VictoriaMetrics
 <img src="logo.webp" width="300" alt="VictoriaMetrics logo">
 
 VictoriaMetrics is a fast, cost-effective and scalable monitoring solution and time series database.
+See [case studies for VictoriaMetrics](https://docs.victoriametrics.com/CaseStudies.html).
 
 VictoriaMetrics is available in [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest),
 [Docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/), [Snap packages](https://snapcraft.io/victoriametrics)
@@ -102,40 +103,7 @@ VictoriaMetrics has the following prominent features:
 * It can store data on [NFS-based storages](https://en.wikipedia.org/wiki/Network_File_System) such as [Amazon EFS](https://aws.amazon.com/efs/)
   and [Google Filestore](https://cloud.google.com/filestore).
 
-See also [various Articles about VictoriaMetrics](https://docs.victoriametrics.com/Articles.html).
-
-## Case studies and talks
-
-Case studies:
-
-* [AbiosGaming](https://docs.victoriametrics.com/CaseStudies.html#abiosgaming)
-* [adidas](https://docs.victoriametrics.com/CaseStudies.html#adidas)
-* [Adsterra](https://docs.victoriametrics.com/CaseStudies.html#adsterra)
-* [ARNES](https://docs.victoriametrics.com/CaseStudies.html#arnes)
-* [Brandwatch](https://docs.victoriametrics.com/CaseStudies.html#brandwatch)
-* [CERN](https://docs.victoriametrics.com/CaseStudies.html#cern)
-* [COLOPL](https://docs.victoriametrics.com/CaseStudies.html#colopl)
-* [Criteo](https://docs.victoriametrics.com/CaseStudies.html#criteo)
-* [Dig Security](https://docs.victoriametrics.com/CaseStudies.html#dig-security)
-* [Fly.io](https://docs.victoriametrics.com/CaseStudies.html#flyio)
-* [German Research Center for Artificial Intelligence](https://docs.victoriametrics.com/CaseStudies.html#german-research-center-for-artificial-intelligence)
-* [Grammarly](https://docs.victoriametrics.com/CaseStudies.html#grammarly)
-* [Groove X](https://docs.victoriametrics.com/CaseStudies.html#groove-x)
-* [Idealo.de](https://docs.victoriametrics.com/CaseStudies.html#idealode)
-* [MHI Vestas Offshore Wind](https://docs.victoriametrics.com/CaseStudies.html#mhi-vestas-offshore-wind)
-* [Naver](https://docs.victoriametrics.com/CaseStudies.html#naver)
-* [Razorpay](https://docs.victoriametrics.com/CaseStudies.html#razorpay)
-* [Percona](https://docs.victoriametrics.com/CaseStudies.html#percona)
-* [Roblox](https://docs.victoriametrics.com/CaseStudies.html#roblox)
-* [Sensedia](https://docs.victoriametrics.com/CaseStudies.html#sensedia)
-* [Smarkets](https://docs.victoriametrics.com/CaseStudies.html#smarkets)
-* [Synthesio](https://docs.victoriametrics.com/CaseStudies.html#synthesio)
-* [Wedos.com](https://docs.victoriametrics.com/CaseStudies.html#wedoscom)
-* [Wix.com](https://docs.victoriametrics.com/CaseStudies.html#wixcom)
-* [Zerodha](https://docs.victoriametrics.com/CaseStudies.html#zerodha)
-* [zhihu](https://docs.victoriametrics.com/CaseStudies.html#zhihu)
-
-See also [articles and slides about VictoriaMetrics from our users](https://docs.victoriametrics.com/Articles.html#third-party-articles-and-slides-about-victoriametrics)
+See [case studies for VictoriaMetrics](https://docs.victoriametrics.com/CaseStudies.html) and [various Articles about VictoriaMetrics](https://docs.victoriametrics.com/Articles.html).
 
 ## Operation
 
@@ -1063,7 +1031,7 @@ to your needs or when testing bugfixes.
 
 ### Development build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.20.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.22.
 1. Run `make victoria-metrics` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `victoria-metrics` binary and puts it into the `bin` folder.
 
@@ -1079,7 +1047,7 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 
 ### Development ARM build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.20.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.22.
 1. Run `make victoria-metrics-linux-arm` or `make victoria-metrics-linux-arm64` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `victoria-metrics-linux-arm` or `victoria-metrics-linux-arm64` binary respectively and puts it into the `bin` folder.
 
@@ -1093,7 +1061,7 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 
 `Pure Go` mode builds only Go code without [cgo](https://golang.org/cmd/cgo/) dependencies.
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.20.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.22.
 1. Run `make victoria-metrics-pure` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `victoria-metrics-pure` binary and puts it into the `bin` folder.
 

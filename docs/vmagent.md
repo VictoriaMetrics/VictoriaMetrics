@@ -1505,7 +1505,7 @@ It may be needed to build `vmagent` from source code when developing or testing 
 
 ### Development build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.20.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.22.
 1. Run `make vmagent` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds the `vmagent` binary and puts it into the `bin` folder.
 
@@ -1534,7 +1534,7 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 
 ### Development ARM build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.20.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.22.
 1. Run `make vmagent-linux-arm` or `make vmagent-linux-arm64` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics)
    It builds `vmagent-linux-arm` or `vmagent-linux-arm64` binary respectively and puts it into the `bin` folder.
 
@@ -2119,6 +2119,10 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      Optional path to client-side TLS certificate file to use when connecting to the corresponding -remoteWrite.url
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -remoteWrite.tlsHandshakeTimeout array
+     The timeout for estabilishing tls connections to the corresponding -remoteWrite.url (default 20s)
+     Supports array of values separated by comma or specified via multiple flags.
+     Empty values are set to default value.
   -remoteWrite.tlsInsecureSkipVerify array
      Whether to skip tls verification when connecting to the corresponding -remoteWrite.url
      Supports array of values separated by comma or specified via multiple flags.

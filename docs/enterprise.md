@@ -47,7 +47,7 @@ plus the following additional features:
 - [Enterprise security compliance](https://victoriametrics.com/security/).
 - Prioritizing of feature requests from Enterprise customers.
 
-On top of this, Enterprise package of VictoriaMetrics includes the following Enterprise features:
+On top of this, Enterprise package of VictoriaMetrics includes the following features:
 
 - [Downsampling](https://docs.victoriametrics.com/#downsampling) - this feature allows reducing storage costs
   and increasing performance for queries over historical data.
@@ -60,6 +60,7 @@ On top of this, Enterprise package of VictoriaMetrics includes the following Ent
 - [Advanced auth and rate limiter](https://docs.victoriametrics.com/vmgateway.html).
 - [mTLS for all the VictoriaMetrics components](https://docs.victoriametrics.com/#mtls-protection).
 - [mTLS for communications between cluster components](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection).
+- [mTLS-based request routing](https://docs.victoriametrics.com/vmauth.html#mtls-based-request-routing).
 - [Kafka integration](https://docs.victoriametrics.com/vmagent.html#kafka-integration).
 - [Google PubSub integration](https://docs.victoriametrics.com/vmagent.html#google-pubsub-integration).
 - [Multitenant support in vmalert](https://docs.victoriametrics.com/vmalert.html#multitenancy).

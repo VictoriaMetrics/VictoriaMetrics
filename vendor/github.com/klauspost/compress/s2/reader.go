@@ -452,6 +452,12 @@ func (r *Reader) DecodeConcurrent(w io.Writer, concurrent int) (written int64, e
 		for toWrite := range queue {
 			entry := <-toWrite
 			reUse <- toWrite
+			if hasErr() || entry == nil {
+				if entry != nil {
+					writtenBlocks <- entry
+				}
+				continue
+			}
 			if hasErr() {
 				writtenBlocks <- entry
 				continue
@@ -471,13 +477,13 @@ func (r *Reader) DecodeConcurrent(w io.Writer, concurrent int) (written int64, e
 		}
 	}()
 
-	// Reader
 	defer func() {
-		close(queue)
 		if r.err != nil {
-			err = r.err
 			setErr(r.err)
+		} else if err != nil {
+			setErr(err)
 		}
+		close(queue)
 		wg.Wait()
 		if err == nil {
 			err = aErr
@@ -485,6 +491,7 @@ func (r *Reader) DecodeConcurrent(w io.Writer, concurrent int) (written int64, e
 		written = aWritten
 	}()
 
+	// Reader
 	for !hasErr() {
 		if !r.readFull(r.buf[:4], true) {
 			if r.err == io.EOF {
@@ -553,11 +560,13 @@ func (r *Reader) DecodeConcurrent(w io.Writer, concurrent int) (written int64, e
 				if err != nil {
 					writtenBlocks <- decoded
 					setErr(err)
+					entry <- nil
 					return
 				}
 				if !r.ignoreCRC && crc(decoded) != checksum {
 					writtenBlocks <- decoded
 					setErr(ErrCRC)
+					entry <- nil
 					return
 				}
 				entry <- decoded

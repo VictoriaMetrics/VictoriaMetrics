@@ -10,16 +10,24 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/internal/exported"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/internal/generated"
+	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/internal/shared"
+	"strings"
 )
 
 // ClientOptions contains the optional parameters when creating a Client.
 type ClientOptions struct {
 	azcore.ClientOptions
+
+	// Audience to use when requesting tokens for Azure Active Directory authentication.
+	// Only has an effect when credential is of type TokenCredential. The value could be
+	// https://storage.azure.com/ (default) or https://<account>.blob.core.windows.net.
+	Audience string
 }
 
 type Client[T any] struct {
 	inner      *T
 	credential any
+	options    *ClientOptions
 }
 
 func InnerClient[T any](client *Client[T]) *T {
@@ -39,28 +47,43 @@ func Credential[T any](client *Client[T]) any {
 	return client.credential
 }
 
+func GetClientOptions[T any](client *Client[T]) *ClientOptions {
+	return client.options
+}
+
+func GetAudience(clOpts *ClientOptions) string {
+	if clOpts == nil || len(strings.TrimSpace(clOpts.Audience)) == 0 {
+		return shared.TokenScope
+	} else {
+		return strings.TrimRight(clOpts.Audience, "/") + "/.default"
+	}
+}
+
 func NewClient[T any](inner *T) *Client[T] {
 	return &Client[T]{inner: inner}
 }
 
-func NewServiceClient(containerURL string, azClient *azcore.Client, credential any) *Client[generated.ServiceClient] {
+func NewServiceClient(containerURL string, azClient *azcore.Client, credential any, options *ClientOptions) *Client[generated.ServiceClient] {
 	return &Client[generated.ServiceClient]{
 		inner:      generated.NewServiceClient(containerURL, azClient),
 		credential: credential,
+		options:    options,
 	}
 }
 
-func NewContainerClient(containerURL string, azClient *azcore.Client, credential any) *Client[generated.ContainerClient] {
+func NewContainerClient(containerURL string, azClient *azcore.Client, credential any, options *ClientOptions) *Client[generated.ContainerClient] {
 	return &Client[generated.ContainerClient]{
 		inner:      generated.NewContainerClient(containerURL, azClient),
 		credential: credential,
+		options:    options,
 	}
 }
 
-func NewBlobClient(blobURL string, azClient *azcore.Client, credential any) *Client[generated.BlobClient] {
+func NewBlobClient(blobURL string, azClient *azcore.Client, credential any, options *ClientOptions) *Client[generated.BlobClient] {
 	return &Client[generated.BlobClient]{
 		inner:      generated.NewBlobClient(blobURL, azClient),
 		credential: credential,
+		options:    options,
 	}
 }
 

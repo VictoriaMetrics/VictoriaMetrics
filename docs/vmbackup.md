@@ -93,13 +93,14 @@ when backing up large amounts of data.
 * Run the following command once a day:
 
 ```sh
-./vmbackup -storageDataPath=</path/to/victoria-metrics-data> -origin=gs://<bucket>/latest -dst=gs://<bucket>/<YYYYMMDD>
+./vmbackup -origin=gs://<bucket>/latest -dst=gs://<bucket>/<YYYYMMDD>
 ```
 
-This command creates server-side copy of the backup from `gs://<bucket>/latest` to `gs://<bucket>/<YYYYMMDD>`, were `<YYYYMMDD>` is the current
-date like `20240125`. Server-side copy of the backup should be fast on most object storage systems, since it just creates new names for already
-existing objects. The server-side copy can be slow on some object storage systems such as [S3 Glacier](https://aws.amazon.com/s3/storage-classes/glacier/),
-since they may perform full object copy instead of creating new names for already existing objects. This may be slow and expensive.
+This command makes [server-side copy](#server-side-copy-of-the-existing-backup) of the backup from `gs://<bucket>/latest` to `gs://<bucket>/<YYYYMMDD>`,
+were `<YYYYMMDD>` is the current date like `20240125`. Server-side copy of the backup should be fast on most object storage systems,
+since it just creates new names for already existing objects. The server-side copy can be slow on some object storage systems
+such as [S3 Glacier](https://aws.amazon.com/s3/storage-classes/glacier/), since they may perform full object copy instead of creating
+new names for already existing objects. This may be slow and expensive.
 
 The `smart backups` approach described above saves network bandwidth costs on hourly backups (since they are incremental)
 and allows recovering data from either the last hour (the  `latest` backup) or from any day (`YYYYMMDD` backups).
@@ -486,7 +487,7 @@ It is recommended using [binary releases](https://github.com/VictoriaMetrics/Vic
 
 ### Development build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.20.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.22.
 1. Run `make vmbackup` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `vmbackup` binary and puts it into the `bin` folder.
 

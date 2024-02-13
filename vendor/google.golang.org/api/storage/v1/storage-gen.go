@@ -1860,9 +1860,6 @@ type Folder struct {
 	// storage#folder.
 	Kind string `json:"kind,omitempty"`
 
-	// Metadata: User-provided metadata, in key/value pairs.
-	Metadata map[string]string `json:"metadata,omitempty"`
-
 	// Metageneration: The version of the metadata for this folder. Used for
 	// preconditions and for detecting changes in metadata.
 	Metageneration int64 `json:"metageneration,omitempty,string"`
@@ -9455,6 +9452,16 @@ func (r *ManagedFoldersService) Delete(bucket string, managedFolder string) *Man
 	return c
 }
 
+// AllowNonEmpty sets the optional parameter "allowNonEmpty": Allows the
+// deletion of a managed folder even if it is not empty. A managed
+// folder is empty if there are no objects or managed folders that it
+// applies to. Callers must have storage.managedFolders.setIamPolicy
+// permission.
+func (c *ManagedFoldersDeleteCall) AllowNonEmpty(allowNonEmpty bool) *ManagedFoldersDeleteCall {
+	c.urlParams_.Set("allowNonEmpty", fmt.Sprint(allowNonEmpty))
+	return c
+}
+
 // IfMetagenerationMatch sets the optional parameter
 // "ifMetagenerationMatch": If set, only deletes the managed folder if
 // its metageneration matches this value.
@@ -9541,6 +9548,11 @@ func (c *ManagedFoldersDeleteCall) Do(opts ...googleapi.CallOption) error {
 	//     "managedFolder"
 	//   ],
 	//   "parameters": {
+	//     "allowNonEmpty": {
+	//       "description": "Allows the deletion of a managed folder even if it is not empty. A managed folder is empty if there are no objects or managed folders that it applies to. Callers must have storage.managedFolders.setIamPolicy permission.",
+	//       "location": "query",
+	//       "type": "boolean"
+	//     },
 	//     "bucket": {
 	//       "description": "Name of the bucket containing the managed folder.",
 	//       "location": "path",

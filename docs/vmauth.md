@@ -58,6 +58,7 @@ accounting and rate limiting such as [vmgateway](https://docs.victoriametrics.co
 * [Basic Auth proxy](#basic-auth-proxy)
 * [Bearer Token auth proxy](#bearer-token-auth-proxy)
 * [Per-tenant authorization](#per-tenant-authorization)
+* [mTLS-based request routing](#mtls-based-request-routing)
 * [Enforcing query args](#enforcing-query-args)
 
 ### Simple HTTP proxy
@@ -273,6 +274,28 @@ users:
     - "/api/v1/label/.+/values"
     url_prefix: "http://vmselect-backend:8481/select/2/prometheus/"
 ```
+
+### mTLS-based request routing
+
+[Enterprise version of `vmauth`](https://docs.victoriametrics.com/enterprise.html) can be configured for routing requests
+to different backends depending on the following [subject fields](https://en.wikipedia.org/wiki/Public_key_certificate#Common_fields) in the TLS certificate provided by client:
+
+* `organizational_unit` aka `OU`
+* `organization` aka `O`
+* `common_name` aka `CN`
+
+For example, the following [`-auth.config`](#auth-config) routes requests from clients with `organizational_unit: finance` TLS certificates
+to `http://victoriametrics-finance:8428` backend:
+
+```yaml
+users:
+- mtls:
+    organizational_unit: finance
+  url_prefix: "http://victoriametrics-finance:8428"
+```
+
+[mTLS protection](#mtls-protection) must be enabled for mTLS-based routing.
+
 
 ### Enforcing query args
 
@@ -678,6 +701,8 @@ requests at this port, by specifying `-tls` and `-mtls` command-line flags. For 
 By default system-wide [TLS Root CA](https://en.wikipedia.org/wiki/Root_certificate) is used for verifying client certificates if `-mtls` command-line flag is specified.
 It is possible to specify custom TLS Root CA via `-mtlsCAFile` command-line flag.
 
+See also [mTLS-based request routing](#mtls-based-request-routing).
+
 ## Security
 
 It is expected that all the backend services protected by `vmauth` are located in an isolated private network, so they can be accessed by external users only via `vmauth`.
@@ -766,7 +791,7 @@ It is recommended using [binary releases](https://github.com/VictoriaMetrics/Vic
 
 ### Development build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.20.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.22.
 1. Run `make vmauth` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `vmauth` binary and puts it into the `bin` folder.
 
