@@ -13,15 +13,15 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
-type pushSamplesFunc func(b []byte, labels *promutils.Labels, tmpLabels *promutils.Labels, value float64, ts int64)
-
 type deduplicator struct {
+	// list of aggregators where to flush data after deduplication
+	// once per interval
+	as       []*aggregator
 	interval time.Duration
 	wg       sync.WaitGroup
 	stopCh   chan struct{}
 
-	pushSamplesAgg pushSamplesFunc
-	ddr            atomic.Pointer[dedupRegistry]
+	ddr atomic.Pointer[dedupRegistry]
 }
 
 type dedupRegistry struct {
@@ -29,10 +29,9 @@ type dedupRegistry struct {
 	bm *bimap
 }
 
-func newDeduplicator(
-	dedupInterval time.Duration,
-) *deduplicator {
+func newDeduplicator(as []*aggregator, dedupInterval time.Duration) *deduplicator {
 	d := &deduplicator{
+		as:       as,
 		interval: dedupInterval,
 		stopCh:   make(chan struct{}),
 	}
@@ -44,8 +43,7 @@ func newDeduplicator(
 	return d
 }
 
-func (d *deduplicator) run(pushSamplesAgg pushSamplesFunc) {
-	d.pushSamplesAgg = pushSamplesAgg
+func (d *deduplicator) run() {
 	d.wg.Add(1)
 	go func() {
 		defer d.wg.Done()
@@ -71,32 +69,38 @@ func (d *deduplicator) stop() {
 	d.flush()
 }
 
-func (d *deduplicator) pushSamples(key []byte, labels []prompbmarshal.Label, ts prompbmarshal.TimeSeries) {
-	for _, sample := range ts.Samples {
-		ddr := d.ddr.Load()
-		key = ddr.bm.compress(key[:0], labels)
-		sKey := string(key)
-
-		s := ddr.sm.getShard(sKey)
-		s.mu.Lock()
-
-		sv, ok := s.data[sKey]
-		if !ok {
-			// The entry is missing in the map. Try creating it.
-			sv = dedupStateValue{
-				value:     sample.Value,
-				timestamp: sample.Timestamp,
-			}
+func (d *deduplicator) pushSamples(key []byte, ts prompbmarshal.TimeSeries) {
+	lastSample := ts.Samples[0]
+	// find the most recent sample, since previous samples need to be deduplicated
+	for i, sample := range ts.Samples {
+		if sample.Timestamp > lastSample.Timestamp ||
+			(sample.Timestamp == lastSample.Timestamp && sample.Value > lastSample.Value) {
+			lastSample = ts.Samples[i]
 		}
-		if sample.Timestamp > sv.timestamp ||
-			(sample.Timestamp == sv.timestamp && sample.Value > sv.value) {
-			sv.value = sample.Value
-			sv.timestamp = sample.Timestamp
-		}
-		s.data[sKey] = sv
-
-		s.mu.Unlock()
 	}
+
+	ddr := d.ddr.Load()
+	key = ddr.bm.compress(key[:0], ts.Labels)
+	sKey := string(key)
+
+	s := ddr.sm.getShard(sKey)
+	s.mu.Lock()
+	dsv, ok := s.data[sKey]
+	if !ok {
+		// The entry is missing in the map. Try creating it.
+		dsv = dedupStateValue{
+			value:     lastSample.Value,
+			timestamp: lastSample.Timestamp,
+		}
+	}
+	// verify if new sample is newer than currently saved sample
+	if lastSample.Timestamp > dsv.timestamp ||
+		(lastSample.Timestamp == dsv.timestamp && lastSample.Value > dsv.value) {
+		dsv.value = lastSample.Value
+		dsv.timestamp = lastSample.Timestamp
+	}
+	s.data[sKey] = dsv
+	s.mu.Unlock()
 }
 
 func (d *deduplicator) flush() {
@@ -104,28 +108,57 @@ func (d *deduplicator) flush() {
 		return
 	}
 
+	newDdr := &dedupRegistry{
+		sm: newShardedMap(),
+		bm: bm.Load(),
+	}
+	ddr := d.ddr.Swap(newDdr)
+
 	labels := promutils.GetLabels()
 	tmpLabels := promutils.GetLabels()
 	bb := bbPool.Get()
 
-	ddr := &dedupRegistry{
-		sm: newShardedMap(),
-		bm: bm.Load(),
+	type sample struct {
+		key string
+		dsv dedupStateValue
 	}
-	oddr := d.ddr.Swap(ddr)
-	for _, sh := range oddr.sm.shards {
+	samples := make([]sample, 0)
+	for _, sh := range ddr.sm.shards {
+		samples = samples[:0]
+
 		sh.mu.Lock()
+		// collect data before processing to release the lock ASAP
 		for k, v := range sh.data {
-			value := v.value
-			ts := v.timestamp
-
-			labels.Labels = labels.Labels[:0]
-			labels = oddr.bm.decompress(labels, k)
-
-			d.pushSamplesAgg(bb.B[:0], labels, tmpLabels, value, ts)
+			samples = append(samples, sample{
+				key: k,
+				dsv: v,
+			})
 		}
 		sh.mu.Unlock()
+
+		for _, s := range samples {
+			labels.Labels = labels.Labels[:0]
+			labels = ddr.bm.decompress(labels, s.key)
+			for _, a := range d.as {
+				if !a.match.Match(labels.Labels) {
+					return
+				}
+
+				// TODO: this mutates labels, need to make sure it doesn't corrupt for other a
+				labels.Labels = a.inputRelabeling.Apply(labels.Labels, 0)
+				if len(labels.Labels) == 0 {
+					// The metric has been deleted by the relabeling
+					return
+				}
+				// sort labels so they can be comparable during deduplication
+				labels.Sort()
+
+				inputKey, outputKey := a.extractKeys(bb.B[:0], labels, tmpLabels)
+				a.pushSample(inputKey, outputKey, s.dsv.value)
+			}
+		}
 	}
+
 	bbPool.Put(bb)
 	promutils.PutLabels(tmpLabels)
 	promutils.PutLabels(labels)

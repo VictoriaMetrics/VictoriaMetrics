@@ -187,7 +187,7 @@ func NewAggregators(cfgs []*Config, pushFunc PushFunc, dedupInterval time.Durati
 
 	var dedup *deduplicator
 	if dedupInterval > 0 {
-		dedup = newDeduplicator(dedupInterval)
+		dedup = newDeduplicator(as, dedupInterval)
 	}
 
 	a := &Aggregators{
@@ -197,7 +197,7 @@ func NewAggregators(cfgs []*Config, pushFunc PushFunc, dedupInterval time.Durati
 	}
 
 	if dedup != nil {
-		dedup.run(a.pushDeduplicated)
+		dedup.run()
 	}
 
 	return a, nil
@@ -222,21 +222,25 @@ func (a *Aggregators) Equal(b *Aggregators) bool {
 	return string(a.configData) == string(b.configData)
 }
 
-// Push pushes tss to a.
+// Push pushes tss to Aggregators.
 //
 // Push sets matchIdxs[idx] to 1 if the corresponding tss[idx] was used in aggregations.
-// Otherwise matchIdxs[idx] is set to 0.
+// Otherwise ,matchIdxs[idx] is set to 0.
 //
 // Push returns matchIdxs with len equal to len(tss).
 // It re-uses the matchIdxs if it has enough capacity to hold len(tss) items.
-// Otherwise it allocates new matchIdxs.
+// Otherwise, it allocates new matchIdxs.
 func (a *Aggregators) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) []byte {
+	if a == nil {
+		return nil
+	}
+
 	matchIdxs = bytesutil.ResizeNoCopyMayOverallocate(matchIdxs, len(tss))
 	for i := 0; i < len(matchIdxs); i++ {
 		matchIdxs[i] = 0
 	}
 
-	if a != nil && a.dedup != nil {
+	if a.dedup != nil {
 		bb := bbPool.Get()
 		for idx, ts := range tss {
 			matched := false
@@ -250,38 +254,17 @@ func (a *Aggregators) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) []b
 				continue
 			}
 			matchIdxs[idx] = 1
-			a.dedup.pushSamples(bb.B, ts.Labels, ts)
+			a.dedup.pushSamples(bb.B, ts)
 		}
 		bbPool.Put(bb)
 		return matchIdxs
 	}
 
-	if a != nil {
-		for _, aggr := range a.as {
-			aggr.Push(tss, matchIdxs)
-		}
+	for _, aggr := range a.as {
+		aggr.Push(tss, matchIdxs)
 	}
 
 	return matchIdxs
-}
-
-func (a *Aggregators) pushDeduplicated(b []byte, labels *promutils.Labels, tmpLabels *promutils.Labels, value float64, ts int64) {
-	if a == nil {
-		return
-	}
-
-	tsCur := float64(fasttime.UnixTimestamp())
-	for _, aggr := range a.as {
-		if aggr.discardSamplesOlderThan != nil {
-			minAllowedTimestamp := int64(1000 * (tsCur - aggr.interval.Seconds() - aggr.discardSamplesOlderThan.Seconds()))
-			if ts < minAllowedTimestamp {
-				// Skip too old samples.
-				aggr.trackDroppedSample(labels.Labels, ts, minAllowedTimestamp)
-				continue
-			}
-		}
-		aggr.pushDeduplicated(b, labels, tmpLabels, value)
-	}
 }
 
 // aggregator aggregates input series according to the config passed to NewAggregator
@@ -626,23 +609,6 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 	bbPool.Put(bb)
 	promutils.PutLabels(tmpLabels)
 	promutils.PutLabels(labels)
-}
-
-func (a *aggregator) pushDeduplicated(b []byte, labels *promutils.Labels, tmpLabels *promutils.Labels, value float64) {
-	if !a.match.Match(labels.Labels) {
-		return
-	}
-
-	labels.Labels = a.inputRelabeling.Apply(labels.Labels, 0)
-	if len(labels.Labels) == 0 {
-		// The metric has been deleted by the relabeling
-		return
-	}
-	// sort labels so they can be comparable during deduplication
-	labels.Sort()
-
-	inputKey, outputKey := a.extractKeys(b, labels, tmpLabels)
-	a.pushSample(inputKey, outputKey, value)
 }
 
 func (a *aggregator) extractKeys(b []byte, labels *promutils.Labels, tmpLabels *promutils.Labels) (inputKey, outputKey string) {
