@@ -80,37 +80,23 @@ func (d *deduplicator) pushSamples(key []byte, labels []prompbmarshal.Label, ts 
 }
 
 func (d *deduplicator) pushSample(ddr *dedupRegistry, key string, timestamp int64, value float64) {
-again:
-	sv, ok := ddr.sm.load(key)
+	s := ddr.sm.getShard(key)
+	s.mu.Lock()
+	sv, ok := s.data[key]
 	if !ok {
 		// The entry is missing in the map. Try creating it.
-		sv = &dedupStateValue{
+		sv = dedupStateValue{
 			value:     value,
 			timestamp: timestamp,
 		}
-		vNew, loaded := ddr.sm.loadOrStore(string(key), sv)
-		if !loaded {
-			// The new entry has been successfully created.
-			return
-		}
-		// Use the entry created by a concurrent goroutine.
-		sv = vNew
 	}
-	sv.mu.Lock()
-	deleted := sv.deleted
-	if !deleted {
-		if timestamp > sv.timestamp ||
-			(timestamp == sv.timestamp && value > sv.value) {
-			sv.value = value
-			sv.timestamp = timestamp
-		}
+	if timestamp > sv.timestamp ||
+		(timestamp == sv.timestamp && value > sv.value) {
+		sv.value = value
+		sv.timestamp = timestamp
 	}
-	sv.mu.Unlock()
-	if deleted {
-		// The entry has been deleted by the concurrent call to appendSeriesForFlush
-		// Try obtaining and updating the entry again.
-		goto again
-	}
+	s.data[key] = sv
+	s.mu.Unlock()
 }
 
 func (d *deduplicator) flush() {
@@ -127,20 +113,18 @@ func (d *deduplicator) flush() {
 		bm: bm.Load(),
 	}
 	oddr := d.ddr.Swap(ddr)
-	for _, shards := range oddr.sm.shards {
-		for k, v := range shards.data {
-			v.mu.Lock()
+	for _, sh := range oddr.sm.shards {
+		sh.mu.Lock()
+		for k, v := range sh.data {
 			value := v.value
 			ts := v.timestamp
-			// Mark the entry as deleted, so it won't be updated anymore by concurrent pushSample() calls.
-			v.deleted = true
-			v.mu.Unlock()
 
 			labels.Labels = labels.Labels[:0]
 			labels = oddr.bm.decompress(labels, k)
 
 			d.pushSamplesAgg(bb.B[:0], labels, tmpLabels, value, ts)
 		}
+		sh.mu.Unlock()
 	}
 	bbPool.Put(bb)
 	promutils.PutLabels(tmpLabels)
@@ -148,10 +132,8 @@ func (d *deduplicator) flush() {
 }
 
 type dedupStateValue struct {
-	mu        sync.Mutex
 	timestamp int64
 	value     float64
-	deleted   bool
 }
 
 type shardedMap struct {
@@ -160,7 +142,7 @@ type shardedMap struct {
 
 type shard struct {
 	mu   sync.Mutex
-	data map[string]*dedupStateValue
+	data map[string]dedupStateValue
 }
 
 func newShardedMap() *shardedMap {
@@ -176,7 +158,7 @@ func newShardedMap() *shardedMap {
 	shards := make([]*shard, shardsCount)
 	for i := range shards {
 		shards[i] = &shard{
-			data: make(map[string]*dedupStateValue),
+			data: make(map[string]dedupStateValue),
 		}
 	}
 	return &shardedMap{shards: shards}
@@ -189,51 +171,6 @@ func (sm *shardedMap) getShard(key string) *shard {
 		idx = h % uint64(len(sm.shards))
 	}
 	return sm.shards[idx]
-}
-
-func (sm *shardedMap) load(key string) (*dedupStateValue, bool) {
-	s := sm.getShard(key)
-	return s.getValue(key)
-}
-
-func (sm *shardedMap) loadOrStore(key string, value *dedupStateValue) (*dedupStateValue, bool) {
-	s := sm.getShard(key)
-	return s.loadOrStore(key, value)
-}
-
-func (sm *shardedMap) rangeAndDelete(f func(k string, v *dedupStateValue)) {
-	for _, s := range sm.shards {
-		s.rangeAndDelete(f)
-	}
-}
-
-func (s *shard) getValue(k string) (*dedupStateValue, bool) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	v, ok := s.data[k]
-	return v, ok
-}
-
-func (s *shard) loadOrStore(k string, v *dedupStateValue) (*dedupStateValue, bool) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	vv, ok := s.data[k]
-	if ok {
-		return vv, true
-	}
-	s.data[k] = v
-	return v, false
-}
-
-func (s *shard) rangeAndDelete(f func(k string, v *dedupStateValue)) {
-	s.mu.Lock()
-	oldData := s.data
-	s.data = make(map[string]*dedupStateValue, len(oldData))
-	s.mu.Unlock()
-
-	for k, v := range oldData {
-		f(k, v)
-	}
 }
 
 func hashUint64(s string) uint64 {
