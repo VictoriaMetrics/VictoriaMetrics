@@ -279,7 +279,6 @@ func (a *Aggregators) pushDeduplicated(b []byte, labels *promutils.Labels, tmpLa
 				aggr.trackDroppedSample(labels.Labels, ts, minAllowedTimestamp)
 				continue
 			}
-
 		}
 		aggr.pushDeduplicated(b, labels, tmpLabels, value)
 	}

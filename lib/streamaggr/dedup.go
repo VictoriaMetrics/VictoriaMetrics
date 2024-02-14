@@ -75,28 +75,41 @@ func (d *deduplicator) pushSamples(key []byte, labels []prompbmarshal.Label, ts 
 	ddr := d.ddr.Load()
 	for _, sample := range ts.Samples {
 		key = ddr.bm.compress(key[:0], labels)
-		sv, ok := ddr.sm.load(string(key))
-		if !ok {
-			// The entry is missing in the map. Try creating it.
-			sv = &dedupStateValue{
-				value:     sample.Value,
-				timestamp: sample.Timestamp,
-			}
-			vNew, loaded := ddr.sm.loadOrStore(string(key), sv)
-			if !loaded {
-				// The new entry has been successfully created.
-				return
-			}
-			// Use the entry created by a concurrent goroutine.
-			sv = vNew
+		d.pushSample(ddr, string(key), sample.Timestamp, sample.Value)
+	}
+}
+
+func (d *deduplicator) pushSample(ddr *dedupRegistry, key string, timestamp int64, value float64) {
+again:
+	sv, ok := ddr.sm.load(key)
+	if !ok {
+		// The entry is missing in the map. Try creating it.
+		sv = &dedupStateValue{
+			value:     value,
+			timestamp: timestamp,
 		}
-		sv.mu.Lock()
-		if sample.Timestamp > sv.timestamp ||
-			(sample.Timestamp == sv.timestamp && sample.Value > sv.value) {
-			sv.value = sample.Value
-			sv.timestamp = sample.Timestamp
+		vNew, loaded := ddr.sm.loadOrStore(string(key), sv)
+		if !loaded {
+			// The new entry has been successfully created.
+			return
 		}
-		sv.mu.Unlock()
+		// Use the entry created by a concurrent goroutine.
+		sv = vNew
+	}
+	sv.mu.Lock()
+	deleted := sv.deleted
+	if !deleted {
+		if timestamp > sv.timestamp ||
+			(timestamp == sv.timestamp && value > sv.value) {
+			sv.value = value
+			sv.timestamp = timestamp
+		}
+	}
+	sv.mu.Unlock()
+	if deleted {
+		// The entry has been deleted by the concurrent call to appendSeriesForFlush
+		// Try obtaining and updating the entry again.
+		goto again
 	}
 }
 
@@ -119,6 +132,8 @@ func (d *deduplicator) flush() {
 			v.mu.Lock()
 			value := v.value
 			ts := v.timestamp
+			// Mark the entry as deleted, so it won't be updated anymore by concurrent pushSample() calls.
+			v.deleted = true
 			v.mu.Unlock()
 
 			labels.Labels = labels.Labels[:0]
@@ -136,6 +151,7 @@ type dedupStateValue struct {
 	mu        sync.Mutex
 	timestamp int64
 	value     float64
+	deleted   bool
 }
 
 type shardedMap struct {
