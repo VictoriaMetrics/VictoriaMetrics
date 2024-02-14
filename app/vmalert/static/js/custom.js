@@ -33,10 +33,7 @@ function debounce(func, wait, immediate) {
     };
 };
 
-$('#filter').on("keyup", (debounce(function(){
-    console.log("type")
-    filter();
-},500)));
+$('#filter').on("keyup", debounce(filter, 500));
 
 function filter(){
     $(".rule-table").removeClass('show');
