@@ -72,31 +72,31 @@ func (d *deduplicator) stop() {
 }
 
 func (d *deduplicator) pushSamples(key []byte, labels []prompbmarshal.Label, ts prompbmarshal.TimeSeries) {
-	ddr := d.ddr.Load()
 	for _, sample := range ts.Samples {
+		ddr := d.ddr.Load()
 		key = ddr.bm.compress(key[:0], labels)
-		d.pushSample(ddr, string(key), sample.Timestamp, sample.Value)
-	}
-}
+		sKey := string(key)
 
-func (d *deduplicator) pushSample(ddr *dedupRegistry, key string, timestamp int64, value float64) {
-	s := ddr.sm.getShard(key)
-	s.mu.Lock()
-	sv, ok := s.data[key]
-	if !ok {
-		// The entry is missing in the map. Try creating it.
-		sv = dedupStateValue{
-			value:     value,
-			timestamp: timestamp,
+		s := ddr.sm.getShard(sKey)
+		s.mu.Lock()
+
+		sv, ok := s.data[sKey]
+		if !ok {
+			// The entry is missing in the map. Try creating it.
+			sv = dedupStateValue{
+				value:     sample.Value,
+				timestamp: sample.Timestamp,
+			}
 		}
+		if sample.Timestamp > sv.timestamp ||
+			(sample.Timestamp == sv.timestamp && sample.Value > sv.value) {
+			sv.value = sample.Value
+			sv.timestamp = sample.Timestamp
+		}
+		s.data[sKey] = sv
+
+		s.mu.Unlock()
 	}
-	if timestamp > sv.timestamp ||
-		(timestamp == sv.timestamp && value > sv.value) {
-		sv.value = value
-		sv.timestamp = timestamp
-	}
-	s.data[key] = sv
-	s.mu.Unlock()
 }
 
 func (d *deduplicator) flush() {
