@@ -629,9 +629,10 @@ func LabelsToString(labels []prompbmarshal.Label) string {
 // SortLabels sorts labels in alphabetical order.
 func SortLabels(labels []prompbmarshal.Label) {
 	x := promutils.GetLabels()
+	labelsOrig := x.Labels
 	x.Labels = labels
 	x.Sort()
-	x.Labels = nil
+	x.Labels = labelsOrig
 	promutils.PutLabels(x)
 }
 
