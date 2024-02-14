@@ -60,7 +60,7 @@ function filterGroupsByName(){
             let target = $(this).attr("data-bs-target");
             
             $(this).show();
-            $("div[id='"+target+"'] .rule").show();
+            $(`div[id="${target}"] .rule`).show();
         }
     });
 }
