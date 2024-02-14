@@ -17,21 +17,15 @@ function toggleByID(id) {
     }
 }
 
-//http://davidwalsh.name/javascript-debounce-function
-function debounce(func, wait, immediate) {
-    var timeout;
-    return function() {
-        var context = this, args = arguments;
-        var later = function() {
-            timeout = null;
-            if (!immediate) func.apply(context, args);
-        };
-        var callNow = immediate && !timeout;
-        clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
-        if (callNow) func.apply(context, args);
+function debounce(func, delay) {
+    let timer;
+    return function(...args) {
+        clearTimeout(timer);
+        timer = setTimeout(() => {
+            func.apply(this, args);
+        }, delay);
     };
-};
+}
 
 $('#filter').on("keyup", debounce(filter, 500));
 
