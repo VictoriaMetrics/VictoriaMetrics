@@ -592,7 +592,7 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 		}
 		return true
 	}
-	if p.Suffix == "vmui/timezone" {
+	if p.Suffix == "vmui/timezone" || p.Suffix == "prometheus/vmui/timezone" {
 		httpserver.EnableCORS(w, r)
 		if err := handleVMUITimezone(w); err != nil {
 			httpserver.Errorf(w, r, "%s", err)
