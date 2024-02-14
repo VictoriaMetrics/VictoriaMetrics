@@ -82,6 +82,9 @@ func getCommonLabelFilters(e Expr) []LabelFilter {
 	case *RollupExpr:
 		return getCommonLabelFilters(t.Expr)
 	case *FuncExpr:
+		if strings.ToLower(t.Name) == "label_set" {
+			return getCommonLabelFiltersForLabelSet(t.Args)
+		}
 		arg := getFuncArgForOptimization(t.Name, t.Args)
 		if arg == nil {
 			return nil
@@ -159,6 +162,46 @@ func getCommonLabelFilters(e Expr) []LabelFilter {
 	default:
 		return nil
 	}
+}
+
+func getCommonLabelFiltersForLabelSet(args []Expr) []LabelFilter {
+	if len(args) == 0 {
+		return nil
+	}
+	lfs := getCommonLabelFilters(args[0])
+	args = args[1:]
+	for i := 0; i < len(args); i += 2 {
+		labelName := args[i]
+		if i+1 >= len(args) {
+			return nil
+		}
+		labelValue := args[i+1]
+
+		seLabelName, ok := labelName.(*StringExpr)
+		if !ok {
+			return nil
+		}
+		seLabelValue, ok := labelValue.(*StringExpr)
+		if !ok {
+			return nil
+		}
+
+		if seLabelName.S == "__name__" {
+			continue
+		}
+
+		lfsDst := lfs[:0]
+		for _, lf := range lfs {
+			if lf.Label != seLabelName.S {
+				lfsDst = append(lfsDst, lf)
+			}
+		}
+		lfs = append(lfsDst, LabelFilter{
+			Label: seLabelName.S,
+			Value: seLabelValue.S,
+		})
+	}
+	return lfs
 }
 
 func trimFiltersByAggrModifier(lfs []LabelFilter, afe *AggrFuncExpr) []LabelFilter {
@@ -245,9 +288,15 @@ func pushdownBinaryOpFiltersInplace(e Expr, lfs []LabelFilter) {
 	case *RollupExpr:
 		pushdownBinaryOpFiltersInplace(t.Expr, lfs)
 	case *FuncExpr:
-		arg := getFuncArgForOptimization(t.Name, t.Args)
-		if arg != nil {
+		if strings.ToLower(t.Name) == "label_set" && len(t.Args) > 0 {
+			arg := t.Args[0]
+			lfs = getPushdownLabelFiltersForLabelSet(t.Args[1:], lfs)
 			pushdownBinaryOpFiltersInplace(arg, lfs)
+		} else {
+			arg := getFuncArgForOptimization(t.Name, t.Args)
+			if arg != nil {
+				pushdownBinaryOpFiltersInplace(arg, lfs)
+			}
 		}
 	case *AggrFuncExpr:
 		lfs = trimFiltersByAggrModifier(lfs, t)
@@ -267,6 +316,26 @@ func pushdownBinaryOpFiltersInplace(e Expr, lfs []LabelFilter) {
 		pushdownBinaryOpFiltersInplace(t.Left, lfs)
 		pushdownBinaryOpFiltersInplace(t.Right, lfs)
 	}
+}
+
+func getPushdownLabelFiltersForLabelSet(args []Expr, lfs []LabelFilter) []LabelFilter {
+	m := make(map[string]struct{})
+	for i := 0; i < len(args); i += 2 {
+		labelName := args[i]
+		seLabelName, ok := labelName.(*StringExpr)
+		if !ok {
+			return nil
+		}
+		m[seLabelName.S] = struct{}{}
+	}
+
+	var lfsDst []LabelFilter
+	for _, lf := range lfs {
+		if _, ok := m[lf.Label]; !ok {
+			lfsDst = append(lfsDst, lf)
+		}
+	}
+	return lfsDst
 }
 
 func intersectLabelFilters(lfsA, lfsB []LabelFilter) []LabelFilter {
@@ -428,11 +497,7 @@ func getRollupArgIdxForOptimization(funcName string, args []Expr) int {
 }
 
 func getTransformArgIdxForOptimization(funcName string, args []Expr) int {
-	funcName = strings.ToLower(funcName)
-	if isLabelManipulationFunc(funcName) {
-		return -1
-	}
-	switch funcName {
+	switch strings.ToLower(funcName) {
 	case "", "absent", "scalar", "union", "vector", "range_normalize":
 		return -1
 	case "end", "now", "pi", "ru", "start", "step", "time":
@@ -444,20 +509,10 @@ func getTransformArgIdxForOptimization(funcName string, args []Expr) int {
 		return 1
 	case "histogram_quantiles":
 		return len(args) - 1
+	case "drop_common_labels", "label_copy", "label_del", "label_graphite_group", "label_join", "label_keep", "label_lowercase",
+		"label_map", "label_move", "label_replace", "label_set", "label_transform", "label_uppercase":
+		return -1
 	default:
 		return 0
-	}
-}
-
-func isLabelManipulationFunc(funcName string) bool {
-	switch strings.ToLower(funcName) {
-	case "alias", "drop_common_labels", "label_copy", "label_del", "label_graphite_group", "label_join", "label_keep", "label_lowercase",
-		"label_map", "label_move", "label_replace", "label_set", "label_transform", "label_uppercase":
-		return true
-	case "label_match", "label_mismatch", "label_value", "labels_equal":
-		// These functions aren't really label manipulation functions, since they do not change labels for the input series.
-		return false
-	default:
-		return false
 	}
 }
