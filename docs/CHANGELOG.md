@@ -11,8 +11,14 @@ The following `tip` changes can be tested by building VictoriaMetrics components
 
 ## v1.93.x long-time support release (LTS)
 
-* SECURITY: upgrade Go builder from Go1.21.6 to Go1.22.0. See [the list of issues addressed in Go1.21.7](https://github.com/golang/go/issues?q=milestone%3AGo1.21.7+label%3ACherryPickApproved),
-  plus [the changelog for Go1.22.0](https://go.dev/doc/go1.22).
+## [v1.93.12](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.12)
+
+Released at 2024-02-14
+
+**v1.93.x is a line of LTS releases (e.g. long-time support). It contains important up-to-date bugfixes.
+The v1.93.x line will be supported for at least 12 months since [v1.93.0](https://docs.victoriametrics.com/CHANGELOG.html#v1930) release**
+
+* SECURITY: upgrade Go builder from Go1.21.6 to Go1.22.0. See [the list of issues addressed in Go1.21.7](https://github.com/golang/go/issues?q=milestone%3AGo1.21.7+label%3ACherryPickApproved), plus [the changelog for Go1.22.0](https://go.dev/doc/go1.22).
 
 * BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): properly propagate [label filters](https://docs.victoriametrics.com/keyconcepts/#filtering) from multiple arguments passed to [aggregate functions](https://docs.victoriametrics.com/metricsql/#aggregate-functions). For example, `sum({job="foo"}, {job="bar"}) by (job) + a` was improperly optimized to `sum({job="foo"}, {job="bar"}) by (job) + a{job="foo"}` before being executed. This could lead to unexpected results. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5604).
 * BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): properly handle precision errors when calculating [changes](https://docs.victoriametrics.com/metricsql/#changes), [changes_prometheus](https://docs.victoriametrics.com/metricsql/#changes_prometheus), [increases_over_time](https://docs.victoriametrics.com/metricsql/#increases_over_time) and [resets](https://docs.victoriametrics.com/metricsql/#resets) functions. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/767).
