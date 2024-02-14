@@ -47,7 +47,7 @@ export const useFetchQueryOptions = ({ valueByContext, metric, label, context }:
 
   const [loading, setLoading] = useState(false);
   const [value, setValue] = useState(valueByContext);
-  const debouncedSetValue = debounce(setValue, 800);
+  const debouncedSetValue = debounce(setValue, 500);
   useEffect(() => {
     debouncedSetValue(valueByContext);
     return debouncedSetValue.cancel;
@@ -80,7 +80,7 @@ export const useFetchQueryOptions = ({ valueByContext, metric, label, context }:
   };
 
   const fetchData = async ({ value, urlSuffix, setter, type, params }: FetchDataArgs) => {
-    if (!value) return;
+    if (!value && type === TypeData.metric) return;
     abortControllerRef.current.abort();
     abortControllerRef.current = new AbortController();
     const { signal } = abortControllerRef.current;

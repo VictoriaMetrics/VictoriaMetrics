@@ -2,7 +2,7 @@ import React, { FC, Ref, useCallback, useEffect, useMemo, useRef, useState, JSX 
 import classNames from "classnames";
 import Popper from "../Popper/Popper";
 import "./style.scss";
-import { DoneIcon } from "../Icons";
+import { DoneIcon, RefreshIcon } from "../Icons";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import useBoolean from "../../../hooks/useBoolean";
 import useEventListener from "../../../hooks/useEventListener";
@@ -27,6 +27,7 @@ interface AutocompleteProps {
   disabledFullScreen?: boolean
   offset?: {top: number, left: number}
   maxDisplayResults?: {limit: number, message?: string}
+  loading?: boolean;
   onSelect: (val: string) => void
   onOpenAutocomplete?: (val: boolean) => void
   onFoundOptions?: (val: AutocompleteOptions[]) => void
@@ -51,6 +52,7 @@ const Autocomplete: FC<AutocompleteProps> = ({
   disabledFullScreen,
   offset,
   maxDisplayResults,
+  loading,
   onSelect,
   onOpenAutocomplete,
   onFoundOptions,
@@ -190,6 +192,7 @@ const Autocomplete: FC<AutocompleteProps> = ({
         })}
         ref={wrapperEl}
       >
+        {loading && <div className="vm-autocomplete__loader"><RefreshIcon/><span>Loading...</span></div>}
         {displayNoOptionsText && <div className="vm-autocomplete__no-options">{noOptionsText}</div>}
         {!hideFoundedOptions && foundOptions.map((option, i) =>
           <div
