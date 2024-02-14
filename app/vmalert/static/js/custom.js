@@ -94,8 +94,8 @@ function filterRuleByLabels(){
         if (matches > 0){
             let target = $(this).attr('data-bs-target')
 
-            $("div[id='rules-"+target+"'").addClass('show');
-            $("div[data-bs-target='rules-"+target+"'").show();
+            $(`#rules-${target}`).addClass('show');
+            $(`div[data-bs-target='rules-${target}']`).show();
             $(this).show();
         }
     }); 
