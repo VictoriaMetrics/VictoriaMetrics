@@ -125,46 +125,11 @@ func (req *Request) OperationValue(value interface{}) bool {
 
 // SetBody sets the specified ReadSeekCloser as the HTTP request body, and sets Content-Type and Content-Length
 // accordingly. If the ReadSeekCloser is nil or empty, Content-Length won't be set. If contentType is "",
-// Content-Type won't be set.
+// Content-Type won't be set, and if it was set, will be deleted.
 // Use streaming.NopCloser to turn an io.ReadSeeker into an io.ReadSeekCloser.
 func (req *Request) SetBody(body io.ReadSeekCloser, contentType string) error {
-	var err error
-	var size int64
-	if body != nil {
-		size, err = body.Seek(0, io.SeekEnd) // Seek to the end to get the stream's size
-		if err != nil {
-			return err
-		}
-	}
-	if size == 0 {
-		// treat an empty stream the same as a nil one: assign req a nil body
-		body = nil
-		// RFC 9110 specifies a client shouldn't set Content-Length on a request containing no content
-		// (Del is a no-op when the header has no value)
-		req.req.Header.Del(shared.HeaderContentLength)
-	} else {
-		_, err = body.Seek(0, io.SeekStart)
-		if err != nil {
-			return err
-		}
-		req.req.Header.Set(shared.HeaderContentLength, strconv.FormatInt(size, 10))
-		req.Raw().GetBody = func() (io.ReadCloser, error) {
-			_, err := body.Seek(0, io.SeekStart) // Seek back to the beginning of the stream
-			return body, err
-		}
-	}
-	// keep a copy of the body argument.  this is to handle cases
-	// where req.Body is replaced, e.g. httputil.DumpRequest and friends.
-	req.body = body
-	req.req.Body = body
-	req.req.ContentLength = size
-	if contentType == "" {
-		// Del is a no-op when the header has no value
-		req.req.Header.Del(shared.HeaderContentType)
-	} else {
-		req.req.Header.Set(shared.HeaderContentType, contentType)
-	}
-	return nil
+	// clobber the existing Content-Type to preserve behavior
+	return SetBody(req, body, contentType, true)
 }
 
 // RewindBody seeks the request's Body stream back to the beginning so it can be resent when retrying an operation.
@@ -210,4 +175,49 @@ type PolicyFunc func(*Request) (*http.Response, error)
 // Do implements the Policy interface on policyFunc.
 func (pf PolicyFunc) Do(req *Request) (*http.Response, error) {
 	return pf(req)
+}
+
+// SetBody sets the specified ReadSeekCloser as the HTTP request body, and sets Content-Type and Content-Length accordingly.
+//   - req is the request to modify
+//   - body is the request body; if nil or empty, Content-Length won't be set
+//   - contentType is the value for the Content-Type header; if empty, Content-Type will be deleted
+//   - clobberContentType when true, will overwrite the existing value of Content-Type with contentType
+func SetBody(req *Request, body io.ReadSeekCloser, contentType string, clobberContentType bool) error {
+	var err error
+	var size int64
+	if body != nil {
+		size, err = body.Seek(0, io.SeekEnd) // Seek to the end to get the stream's size
+		if err != nil {
+			return err
+		}
+	}
+	if size == 0 {
+		// treat an empty stream the same as a nil one: assign req a nil body
+		body = nil
+		// RFC 9110 specifies a client shouldn't set Content-Length on a request containing no content
+		// (Del is a no-op when the header has no value)
+		req.req.Header.Del(shared.HeaderContentLength)
+	} else {
+		_, err = body.Seek(0, io.SeekStart)
+		if err != nil {
+			return err
+		}
+		req.req.Header.Set(shared.HeaderContentLength, strconv.FormatInt(size, 10))
+		req.Raw().GetBody = func() (io.ReadCloser, error) {
+			_, err := body.Seek(0, io.SeekStart) // Seek back to the beginning of the stream
+			return body, err
+		}
+	}
+	// keep a copy of the body argument.  this is to handle cases
+	// where req.Body is replaced, e.g. httputil.DumpRequest and friends.
+	req.body = body
+	req.req.Body = body
+	req.req.ContentLength = size
+	if contentType == "" {
+		// Del is a no-op when the header has no value
+		req.req.Header.Del(shared.HeaderContentType)
+	} else if req.req.Header.Get(shared.HeaderContentType) == "" || clobberContentType {
+		req.req.Header.Set(shared.HeaderContentType, contentType)
+	}
+	return nil
 }
