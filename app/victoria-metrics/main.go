@@ -26,8 +26,8 @@ import (
 )
 
 var (
-	httpListenAddr   = flag.String("httpListenAddr", ":8428", "TCP address to listen for http connections. See also -tls and -httpListenAddr.useProxyProtocol")
-	useProxyProtocol = flag.Bool("httpListenAddr.useProxyProtocol", false, "Whether to use proxy protocol for connections accepted at -httpListenAddr . "+
+	httpListenAddrs  = flagutil.NewArrayString("httpListenAddr", "TCP addresses to listen for incoming http requests. See also -tls and -httpListenAddr.useProxyProtocol")
+	useProxyProtocol = flagutil.NewArrayBool("httpListenAddr.useProxyProtocol", "Whether to use proxy protocol for connections accepted at the corresponding -httpListenAddr . "+
 		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . "+
 		"With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing")
 	minScrapeInterval = flag.Duration("dedup.minScrapeInterval", 0, "Leave only the last sample in every time series per each discrete interval "+
@@ -74,7 +74,11 @@ func main() {
 		return
 	}
 
-	logger.Infof("starting VictoriaMetrics at %q...", *httpListenAddr)
+	listenAddrs := *httpListenAddrs
+	if len(listenAddrs) == 0 {
+		listenAddrs = []string{":8428"}
+	}
+	logger.Infof("starting VictoriaMetrics at %q...", listenAddrs)
 	startTime := time.Now()
 	err := storage.SetDownsamplingPeriods(*downsamplingPeriods, *minScrapeInterval)
 	if err != nil {
@@ -87,7 +91,7 @@ func main() {
 
 	startSelfScraper()
 
-	go httpserver.Serve(*httpListenAddr, *useProxyProtocol, requestHandler)
+	go httpserver.Serve(listenAddrs, useProxyProtocol, requestHandler)
 	logger.Infof("started VictoriaMetrics in %.3f seconds", time.Since(startTime).Seconds())
 
 	pushmetrics.Init()
@@ -97,9 +101,9 @@ func main() {
 
 	stopSelfScraper()
 
-	logger.Infof("gracefully shutting down webservice at %q", *httpListenAddr)
+	logger.Infof("gracefully shutting down webservice at %q", listenAddrs)
 	startTime = time.Now()
-	if err := httpserver.Stop(*httpListenAddr); err != nil {
+	if err := httpserver.Stop(listenAddrs); err != nil {
 		logger.Fatalf("cannot stop the webservice: %s", err)
 	}
 	logger.Infof("successfully shut down the webservice in %.3f seconds", time.Since(startTime).Seconds())
@@ -135,6 +139,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 			{"api/v1/status/tsdb", "tsdb status page"},
 			{"api/v1/status/top_queries", "top queries"},
 			{"api/v1/status/active_queries", "active queries"},
+			{"-/reload", "reload configuration"},
 		})
 		for _, p := range customAPIPathList {
 			p, doc := p[0], p[1]

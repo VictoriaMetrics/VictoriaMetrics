@@ -14,7 +14,6 @@ func TestDurationSetFailure(t *testing.T) {
 			t.Fatalf("expecting non-nil error in d.Set(%q)", value)
 		}
 	}
-	f("")
 	f("foobar")
 	f("5foobar")
 	f("ah")
@@ -51,6 +50,7 @@ func TestDurationSetSuccess(t *testing.T) {
 			t.Fatalf("unexpected valueString; got %q; want %q", valueString, valueExpected)
 		}
 	}
+	f("", 0)
 	f("0", 0)
 	f("1", msecsPer31Days)
 	f("123.456", 123.456*msecsPer31Days)

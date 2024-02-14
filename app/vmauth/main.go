@@ -33,8 +33,8 @@ import (
 )
 
 var (
-	httpListenAddr   = flag.String("httpListenAddr", ":8427", "TCP address to listen for http connections. See also -tls and -httpListenAddr.useProxyProtocol")
-	useProxyProtocol = flag.Bool("httpListenAddr.useProxyProtocol", false, "Whether to use proxy protocol for connections accepted at -httpListenAddr . "+
+	httpListenAddrs  = flagutil.NewArrayString("httpListenAddr", "TCP address to listen for incoming http requests. See also -tls and -httpListenAddr.useProxyProtocol")
+	useProxyProtocol = flagutil.NewArrayBool("httpListenAddr.useProxyProtocol", "Whether to use proxy protocol for connections accepted at the corresponding -httpListenAddr . "+
 		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . "+
 		"With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing")
 	maxIdleConnsPerBackend = flag.Int("maxIdleConnsPerBackend", 100, "The maximum number of idle connections vmauth can open per each backend host. "+
@@ -65,10 +65,14 @@ func main() {
 	buildinfo.Init()
 	logger.Init()
 
-	logger.Infof("starting vmauth at %q...", *httpListenAddr)
+	listenAddrs := *httpListenAddrs
+	if len(listenAddrs) == 0 {
+		listenAddrs = []string{":8427"}
+	}
+	logger.Infof("starting vmauth at %q...", listenAddrs)
 	startTime := time.Now()
 	initAuthConfig()
-	go httpserver.Serve(*httpListenAddr, *useProxyProtocol, requestHandler)
+	go httpserver.Serve(listenAddrs, useProxyProtocol, requestHandler)
 	logger.Infof("started vmauth in %.3f seconds", time.Since(startTime).Seconds())
 
 	pushmetrics.Init()
@@ -77,8 +81,8 @@ func main() {
 	pushmetrics.Stop()
 
 	startTime = time.Now()
-	logger.Infof("gracefully shutting down webservice at %q", *httpListenAddr)
-	if err := httpserver.Stop(*httpListenAddr); err != nil {
+	logger.Infof("gracefully shutting down webservice at %q", listenAddrs)
+	if err := httpserver.Stop(listenAddrs); err != nil {
 		logger.Fatalf("cannot stop the webservice: %s", err)
 	}
 	logger.Infof("successfully shut down the webservice in %.3f seconds", time.Since(startTime).Seconds())
@@ -97,8 +101,9 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		w.WriteHeader(http.StatusOK)
 		return true
 	}
-	authToken := r.Header.Get("Authorization")
-	if authToken == "" {
+
+	ats := getAuthTokensFromRequest(r)
+	if len(ats) == 0 {
 		// Process requests for unauthorized users
 		ui := authConfig.Load().UnauthorizedUser
 		if ui != nil {
@@ -110,18 +115,12 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		http.Error(w, "missing `Authorization` request header", http.StatusUnauthorized)
 		return true
 	}
-	if strings.HasPrefix(authToken, "Token ") {
-		// Handle InfluxDB's proprietary token authentication scheme as a bearer token authentication
-		// See https://docs.influxdata.com/influxdb/v2.0/api/
-		authToken = strings.Replace(authToken, "Token", "Bearer", 1)
-	}
 
-	ac := *authUsers.Load()
-	ui := ac[authToken]
+	ui := getUserInfoByAuthTokens(ats)
 	if ui == nil {
 		invalidAuthTokenRequests.Inc()
 		if *logInvalidAuthTokens {
-			err := fmt.Errorf("cannot find the provided auth token %q in config", authToken)
+			err := fmt.Errorf("cannot authorize request with auth tokens %q", ats)
 			err = &httpserver.ErrorWithStatusCode{
 				Err:        err,
 				StatusCode: http.StatusUnauthorized,
@@ -135,6 +134,17 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 
 	processUserRequest(w, r, ui)
 	return true
+}
+
+func getUserInfoByAuthTokens(ats []string) *UserInfo {
+	ac := *authUsers.Load()
+	for _, at := range ats {
+		ui := ac[at]
+		if ui != nil {
+			return ui
+		}
+	}
+	return nil
 }
 
 func processUserRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {

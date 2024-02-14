@@ -20,6 +20,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/snapshot"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/snapshot/snapshotutil"
 )
 
 var (
@@ -93,7 +94,8 @@ func main() {
 		}
 	}
 
-	go httpserver.Serve(*httpListenAddr, false, nil)
+	listenAddrs := []string{*httpListenAddr}
+	go httpserver.Serve(listenAddrs, nil, nil)
 
 	pushmetrics.Init()
 	err := makeBackup()
@@ -104,8 +106,8 @@ func main() {
 	pushmetrics.Stop()
 
 	startTime := time.Now()
-	logger.Infof("gracefully shutting down http server for metrics at %q", *httpListenAddr)
-	if err := httpserver.Stop(*httpListenAddr); err != nil {
+	logger.Infof("gracefully shutting down http server for metrics at %q", listenAddrs)
+	if err := httpserver.Stop(listenAddrs); err != nil {
 		logger.Fatalf("cannot stop http server for metrics: %s", err)
 	}
 	logger.Infof("successfully shut down http server for metrics in %.3f seconds", time.Since(startTime).Seconds())
@@ -168,7 +170,7 @@ See the docs at https://docs.victoriametrics.com/vmbackup.html .
 }
 
 func newSrcFS() (*fslocal.FS, error) {
-	if err := snapshot.Validate(*snapshotName); err != nil {
+	if err := snapshotutil.Validate(*snapshotName); err != nil {
 		return nil, fmt.Errorf("invalid -snapshotName=%q: %w", *snapshotName, err)
 	}
 	snapshotPath := filepath.Join(*storageDataPath, "snapshots", *snapshotName)

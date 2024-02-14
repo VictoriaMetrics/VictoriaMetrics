@@ -11,7 +11,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlselect"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
@@ -22,11 +21,10 @@ import (
 )
 
 var (
-	httpListenAddr   = flag.String("httpListenAddr", ":9428", "TCP address to listen for http connections. See also -httpListenAddr.useProxyProtocol")
-	useProxyProtocol = flag.Bool("httpListenAddr.useProxyProtocol", false, "Whether to use proxy protocol for connections accepted at -httpListenAddr . "+
+	httpListenAddrs  = flagutil.NewArrayString("httpListenAddr", "TCP address to listen for incoming http requests. See also -httpListenAddr.useProxyProtocol")
+	useProxyProtocol = flagutil.NewArrayBool("httpListenAddr.useProxyProtocol", "Whether to use proxy protocol for connections accepted at the given -httpListenAddr . "+
 		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . "+
 		"With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing")
-	gogc = flag.Int("gogc", 100, "GOGC to use. See https://tip.golang.org/doc/gc-guide")
 )
 
 func main() {
@@ -34,18 +32,21 @@ func main() {
 	flag.CommandLine.SetOutput(os.Stdout)
 	flag.Usage = usage
 	envflag.Parse()
-	cgroup.SetGOGC(*gogc)
 	buildinfo.Init()
 	logger.Init()
 
-	logger.Infof("starting VictoriaLogs at %q...", *httpListenAddr)
+	listenAddrs := *httpListenAddrs
+	if len(listenAddrs) == 0 {
+		listenAddrs = []string{":9428"}
+	}
+	logger.Infof("starting VictoriaLogs at %q...", listenAddrs)
 	startTime := time.Now()
 
 	vlstorage.Init()
 	vlselect.Init()
 	vlinsert.Init()
 
-	go httpserver.Serve(*httpListenAddr, *useProxyProtocol, requestHandler)
+	go httpserver.Serve(listenAddrs, useProxyProtocol, requestHandler)
 	logger.Infof("started VictoriaLogs in %.3f seconds; see https://docs.victoriametrics.com/VictoriaLogs/", time.Since(startTime).Seconds())
 
 	pushmetrics.Init()
@@ -53,9 +54,9 @@ func main() {
 	logger.Infof("received signal %s", sig)
 	pushmetrics.Stop()
 
-	logger.Infof("gracefully shutting down webservice at %q", *httpListenAddr)
+	logger.Infof("gracefully shutting down webservice at %q", listenAddrs)
 	startTime = time.Now()
-	if err := httpserver.Stop(*httpListenAddr); err != nil {
+	if err := httpserver.Stop(listenAddrs); err != nil {
 		logger.Fatalf("cannot stop the webservice: %s", err)
 	}
 	logger.Infof("successfully shut down the webservice in %.3f seconds", time.Since(startTime).Seconds())

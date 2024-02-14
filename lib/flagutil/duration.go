@@ -49,6 +49,11 @@ func (d *Duration) String() string {
 
 // Set implements flag.Value interface
 func (d *Duration) Set(value string) error {
+	if value == "" {
+		d.msecs = 0
+		d.valueString = ""
+		return nil
+	}
 	// An attempt to parse value in months.
 	months, err := strconv.ParseFloat(value, 64)
 	if err == nil {

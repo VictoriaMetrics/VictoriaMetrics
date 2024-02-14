@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.12.1](https://github.com/googleapis/gax-go/compare/v2.12.0...v2.12.1) (2024-02-13)
+
+
+### Bug Fixes
+
+* add XGoogFieldMaskHeader constant ([#321](https://github.com/googleapis/gax-go/issues/321)) ([666ee08](https://github.com/googleapis/gax-go/commit/666ee08931041b7fed56bed7132649785b2d3dfe))
+
 ## [2.12.0](https://github.com/googleapis/gax-go/compare/v2.11.0...v2.12.0) (2023-06-26)
 
 

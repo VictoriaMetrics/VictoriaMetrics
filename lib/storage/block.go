@@ -95,6 +95,9 @@ func (b *Block) Init(tsid *TSID, timestamps, values []int64, scale int16, precis
 	b.bh.PrecisionBits = precisionBits
 	b.timestamps = append(b.timestamps[:0], timestamps...)
 	b.values = append(b.values[:0], values...)
+	if len(b.timestamps) > 0 {
+		b.fixupTimestamps()
+	}
 }
 
 // nextRow advances to the next row.

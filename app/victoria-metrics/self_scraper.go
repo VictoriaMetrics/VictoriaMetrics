@@ -8,6 +8,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/appmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
@@ -49,16 +50,8 @@ func selfScraper(scrapeInterval time.Duration) {
 	var mrs []storage.MetricRow
 	var labels []prompb.Label
 	t := time.NewTicker(scrapeInterval)
-	var currentTimestamp int64
-	for {
-		select {
-		case <-selfScraperStopCh:
-			t.Stop()
-			logger.Infof("stopped self-scraping `/metrics` page")
-			return
-		case currentTime := <-t.C:
-			currentTimestamp = currentTime.UnixNano() / 1e6
-		}
+	f := func(currentTime time.Time, sendStaleMarkers bool) {
+		currentTimestamp := currentTime.UnixNano() / 1e6
 		bb.Reset()
 		appmetrics.WritePrometheusMetrics(&bb)
 		s := bytesutil.ToUnsafeString(bb.B)
@@ -83,10 +76,25 @@ func selfScraper(scrapeInterval time.Duration) {
 			mr := &mrs[len(mrs)-1]
 			mr.MetricNameRaw = storage.MarshalMetricNameRaw(mr.MetricNameRaw[:0], labels)
 			mr.Timestamp = currentTimestamp
-			mr.Value = r.Value
+			if sendStaleMarkers {
+				mr.Value = decimal.StaleNaN
+			} else {
+				mr.Value = r.Value
+			}
 		}
 		if err := vmstorage.AddRows(mrs); err != nil {
 			logger.Errorf("cannot store self-scraped metrics: %s", err)
+		}
+	}
+	for {
+		select {
+		case <-selfScraperStopCh:
+			f(time.Now(), true)
+			t.Stop()
+			logger.Infof("stopped self-scraping `/metrics` page")
+			return
+		case currentTime := <-t.C:
+			f(currentTime, false)
 		}
 	}
 }
