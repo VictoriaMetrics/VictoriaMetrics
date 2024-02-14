@@ -1,3 +1,7 @@
+# v1.6.0 (2024-02-13)
+
+* **Feature**: Bump minimum Go version to 1.20 per our language support policy.
+
 # v1.5.4 (2023-12-07)
 
 * No change notes available for this release.

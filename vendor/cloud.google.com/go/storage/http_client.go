@@ -74,9 +74,10 @@ func newHTTPStorageClient(ctx context.Context, opts ...storageOption) (storageCl
 		// Prepend default options to avoid overriding options passed by the user.
 		o = append([]option.ClientOption{option.WithScopes(ScopeFullControl, "https://www.googleapis.com/auth/cloud-platform"), option.WithUserAgent(userAgent)}, o...)
 
-		o = append(o, internaloption.WithDefaultEndpoint("https://storage.googleapis.com/storage/v1/"))
-		o = append(o, internaloption.WithDefaultMTLSEndpoint("https://storage.mtls.googleapis.com/storage/v1/"))
-
+		o = append(o, internaloption.WithDefaultEndpointTemplate("https://storage.UNIVERSE_DOMAIN/storage/v1/"),
+			internaloption.WithDefaultMTLSEndpoint("https://storage.mtls.googleapis.com/storage/v1/"),
+			internaloption.WithDefaultUniverseDomain("googleapis.com"),
+		)
 		// Don't error out here. The user may have passed in their own HTTP
 		// client which does not auth with ADC or other common conventions.
 		c, err := transport.Creds(ctx, o...)
