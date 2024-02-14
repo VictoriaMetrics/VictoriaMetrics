@@ -66,6 +66,25 @@ Released at 2024-02-14
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): improve the operation of the context for autocomplete. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5736), [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5737) and [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5739) issues.
 * BUGFIX: [dashboards](https://grafana.com/orgs/victoriametrics): update `Storage full ETA` panels for Single-node and Cluster dashboards to prevent them from showing negative or blank results caused by increase of deduplicated samples. Deduplicated samples were part of the expression to provide a better estimate for disk usage, but due to sporadic nature of [deduplication](https://docs.victoriametrics.com/#deduplication) in VictoriaMetrics it rather produced skewed results. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5747).
 
+# [v1.97.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.2)
+
+Released at 2024-02-14
+
+**v1.97.x is a line of LTS releases (e.g. long-time support). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/CHANGELOG.html#v1970) release**
+
+* SECURITY: upgrade Go builder from Go1.21.6 to Go1.22.0. See [the list of issues addressed in Go1.21.7](https://github.com/golang/go/issues?q=milestone%3AGo1.21.7+label%3ACherryPickApproved),
+  plus [the changelog for Go1.22.0](https://go.dev/doc/go1.22).
+
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): reduce CPU usage when `-promscrape.dropOriginalLabels` command-line flag is set. This issue has been introduced in [v1.96.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.96.0) when addressing [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5389).
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth.html): properly release memory during config reload. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4690).
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth.html): properly expose `vmauth_unauthorized_user_concurrent_requests_capacity`, `vmauth_unauthorized_user_concurrent_requests_current`, `vmauth_user_concurrent_requests_capacity` and `vmauth_user_concurrent_requests_current` [metrics](https://docs.victoriametrics.com/vmauth.html#monitoring) after [config reload](https://docs.victoriametrics.com/vmauth.html#config-reload). Previously these metrics didn't work after config reload.
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): properly propagate [label filters](https://docs.victoriametrics.com/keyconcepts/#filtering) from multiple arguments passed to [aggregate functions](https://docs.victoriametrics.com/metricsql/#aggregate-functions). For example, `sum({job="foo"}, {job="bar"}) by (job) + a` was improperly optimized to `sum({job="foo"}, {job="bar"}) by (job) + a{job="foo"}` before being executed. This could lead to unexpected results. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5604).
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): properly handle precision errors when calculating [changes](https://docs.victoriametrics.com/metricsql/#changes), [changes_prometheus](https://docs.victoriametrics.com/metricsql/#changes_prometheus), [increases_over_time](https://docs.victoriametrics.com/metricsql/#increases_over_time) and [resets](https://docs.victoriametrics.com/metricsql/#resets) functions. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/767).
+* BUGFIX: properly store [staleness markers](https://docs.victoriametrics.com/vmagent/#prometheus-staleness-markers) for [self-scraped metrics](https://docs.victoriametrics.com/#monitoring) on single-node VictoriaMetrics shutdown. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/943).
+* BUGFIX: prevent from possible `too big indexBlockSize` panic when samples with too long label values (~64Kb) are ingested into VictoriaMetrics.
+
 ## [v1.97.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.1)
 
 Released at 2024-02-01
