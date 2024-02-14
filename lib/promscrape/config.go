@@ -1077,7 +1077,10 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 	defer promutils.PutLabels(labels)
 
 	mergeLabels(labels, swc, target, extraLabels, metaLabels)
-	originalLabels := labels.Clone()
+	var originalLabels *promutils.Labels
+	if !*dropOriginalLabels {
+		originalLabels = labels.Clone()
+	}
 	labels.Labels = swc.relabelConfigs.Apply(labels.Labels, 0)
 	// Remove labels starting from "__meta_" prefix according to https://www.robustperception.io/life-of-a-label/
 	labels.RemoveMetaLabels()
@@ -1212,7 +1215,7 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 }
 
 func sortOriginalLabelsIfNeeded(originalLabels *promutils.Labels) *promutils.Labels {
-	if *dropOriginalLabels {
+	if originalLabels == nil {
 		return nil
 	}
 	originalLabels.Sort()
