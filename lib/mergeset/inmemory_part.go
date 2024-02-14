@@ -6,6 +6,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 type inmemoryPart struct {
@@ -84,6 +85,10 @@ func (mp *inmemoryPart) Init(ib *inmemoryBlock) {
 
 	bb := inmemoryPartBytePool.Get()
 	bb.B = mp.bh.Marshal(bb.B[:0])
+	if len(bb.B) > 3*maxIndexBlockSize {
+		// marshaled blockHeader can exceed indexBlockSize when firstItem and commonPrefix sizes are close to indexBlockSize
+		logger.Panicf("BUG: too big index block: %d bytes; mustn't exceed %d bytes", len(bb.B), 3*maxIndexBlockSize)
+	}
 	mp.indexData.B = encoding.CompressZSTDLevel(mp.indexData.B[:0], bb.B, compressLevel)
 
 	mp.mr.firstItem = append(mp.mr.firstItem[:0], mp.bh.firstItem...)

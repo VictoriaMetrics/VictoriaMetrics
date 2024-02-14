@@ -178,7 +178,8 @@ victoria-metrics-crossbuild: \
 	victoria-metrics-darwin-amd64 \
 	victoria-metrics-darwin-arm64 \
 	victoria-metrics-freebsd-amd64 \
-	victoria-metrics-openbsd-amd64
+	victoria-metrics-openbsd-amd64 \
+	victoria-metrics-windows-amd64
 
 vmutils-crossbuild: \
 	vmutils-linux-386 \
@@ -465,7 +466,7 @@ benchmark-pure:
 vendor-update:
 	go get -u -d ./lib/...
 	go get -u -d ./app/...
-	go mod tidy -compat=1.20
+	go mod tidy -compat=1.22
 	go mod vendor
 
 app-local:

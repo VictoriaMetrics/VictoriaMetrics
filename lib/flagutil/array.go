@@ -21,6 +21,7 @@ func NewArrayString(name, description string) *ArrayString {
 func NewArrayDuration(name string, defaultValue time.Duration, description string) *ArrayDuration {
 	description += fmt.Sprintf(" (default %s)", defaultValue)
 	description += "\nSupports `array` of values separated by comma or specified via multiple flags."
+	description += "\nEmpty values are set to default value."
 	a := &ArrayDuration{
 		defaultValue: defaultValue,
 	}
@@ -31,6 +32,7 @@ func NewArrayDuration(name string, defaultValue time.Duration, description strin
 // NewArrayBool returns new ArrayBool with the given name and description.
 func NewArrayBool(name, description string) *ArrayBool {
 	description += "\nSupports `array` of values separated by comma or specified via multiple flags."
+	description += "\nEmpty values are set to false."
 	var a ArrayBool
 	flag.Var(&a, name, description)
 	return &a
@@ -40,6 +42,7 @@ func NewArrayBool(name, description string) *ArrayBool {
 func NewArrayInt(name string, defaultValue int, description string) *ArrayInt {
 	description += fmt.Sprintf(" (default %d)", defaultValue)
 	description += "\nSupports `array` of values separated by comma or specified via multiple flags."
+	description += "\nEmpty values are set to default value."
 	a := &ArrayInt{
 		defaultValue: defaultValue,
 	}
@@ -52,6 +55,7 @@ func NewArrayBytes(name string, defaultValue int64, description string) *ArrayBy
 	description += "\nSupports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB."
 	description += fmt.Sprintf(" (default %d)", defaultValue)
 	description += "\nSupports `array` of values separated by comma or specified via multiple flags."
+	description += "\nEmpty values are set to default value."
 	a := &ArrayBytes{
 		defaultValue: defaultValue,
 	}
@@ -97,8 +101,8 @@ func (a *ArrayString) Set(value string) error {
 }
 
 func parseArrayValues(s string) []string {
-	if len(s) == 0 {
-		return nil
+	if s == "" {
+		return []string{""}
 	}
 	var values []string
 	for {
@@ -241,6 +245,9 @@ func (a *ArrayBool) String() string {
 func (a *ArrayBool) Set(value string) error {
 	values := parseArrayValues(value)
 	for _, v := range values {
+		if v == "" {
+			v = "false"
+		}
 		b, err := strconv.ParseBool(v)
 		if err != nil {
 			return err
@@ -284,6 +291,9 @@ func (a *ArrayDuration) String() string {
 func (a *ArrayDuration) Set(value string) error {
 	values := parseArrayValues(value)
 	for _, v := range values {
+		if v == "" {
+			v = a.defaultValue.String()
+		}
 		b, err := time.ParseDuration(v)
 		if err != nil {
 			return err
@@ -332,6 +342,9 @@ func (a *ArrayInt) String() string {
 func (a *ArrayInt) Set(value string) error {
 	values := parseArrayValues(value)
 	for _, v := range values {
+		if v == "" {
+			v = fmt.Sprintf("%d", a.defaultValue)
+		}
 		n, err := strconv.Atoi(v)
 		if err != nil {
 			return err
@@ -376,6 +389,9 @@ func (a *ArrayBytes) Set(value string) error {
 	values := parseArrayValues(value)
 	for _, v := range values {
 		var b Bytes
+		if v == "" {
+			v = fmt.Sprintf("%d", a.defaultValue)
+		}
 		if err := b.Set(v); err != nil {
 			return err
 		}

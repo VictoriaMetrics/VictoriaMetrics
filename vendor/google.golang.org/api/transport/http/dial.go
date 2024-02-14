@@ -88,7 +88,7 @@ func newTransport(ctx context.Context, base http.RoundTripper, settings *interna
 		if err != nil {
 			return nil, err
 		}
-		credsUniverseDomain, err := creds.GetUniverseDomain()
+		credsUniverseDomain, err := internal.GetUniverseDomain(creds)
 		if err != nil {
 			return nil, err
 		}

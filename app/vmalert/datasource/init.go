@@ -10,6 +10,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
@@ -93,7 +94,7 @@ func Init(extraParams url.Values) (QuerierBuilder, error) {
 		logger.Warnf("flag `-datasource.lookback` will be deprecated soon. Please use `-rule.evalDelay` command-line flag instead. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5155 for details.")
 	}
 
-	tr, err := utils.Transport(*addr, *tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify)
+	tr, err := httputils.Transport(*addr, *tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transport: %w", err)
 	}

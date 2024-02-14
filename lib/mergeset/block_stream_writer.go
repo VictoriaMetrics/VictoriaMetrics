@@ -130,11 +130,6 @@ func (bsw *blockStreamWriter) MustClose() {
 func (bsw *blockStreamWriter) WriteBlock(ib *inmemoryBlock) {
 	bsw.bh.firstItem, bsw.bh.commonPrefix, bsw.bh.itemsCount, bsw.bh.marshalType = ib.MarshalSortedData(&bsw.sb, bsw.bh.firstItem[:0], bsw.bh.commonPrefix[:0], bsw.compressLevel)
 
-	if !bsw.mrFirstItemCaught {
-		bsw.mr.firstItem = append(bsw.mr.firstItem[:0], bsw.bh.firstItem...)
-		bsw.mrFirstItemCaught = true
-	}
-
 	// Write itemsData
 	fs.MustWriteData(bsw.itemsWriter, bsw.sb.itemsData)
 	bsw.bh.itemsBlockSize = uint32(len(bsw.sb.itemsData))
@@ -148,12 +143,20 @@ func (bsw *blockStreamWriter) WriteBlock(ib *inmemoryBlock) {
 	bsw.lensBlockOffset += uint64(bsw.bh.lensBlockSize)
 
 	// Write blockHeader
+	unpackedIndexBlockBufLen := len(bsw.unpackedIndexBlockBuf)
 	bsw.unpackedIndexBlockBuf = bsw.bh.Marshal(bsw.unpackedIndexBlockBuf)
+	if len(bsw.unpackedIndexBlockBuf) > maxIndexBlockSize {
+		bsw.unpackedIndexBlockBuf = bsw.unpackedIndexBlockBuf[:unpackedIndexBlockBufLen]
+		bsw.flushIndexData()
+		bsw.unpackedIndexBlockBuf = bsw.bh.Marshal(bsw.unpackedIndexBlockBuf)
+	}
+
+	if !bsw.mrFirstItemCaught {
+		bsw.mr.firstItem = append(bsw.mr.firstItem[:0], bsw.bh.firstItem...)
+		bsw.mrFirstItemCaught = true
+	}
 	bsw.bh.Reset()
 	bsw.mr.blockHeadersCount++
-	if len(bsw.unpackedIndexBlockBuf) >= maxIndexBlockSize {
-		bsw.flushIndexData()
-	}
 }
 
 // The maximum size of index block with multiple blockHeaders.

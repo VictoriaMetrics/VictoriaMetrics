@@ -11,6 +11,9 @@ import (
 )
 
 // Map stores a map of string keys to elements of Value type.
+//
+// Must use NewMap function to create new instances.
+// Important: zero-initialized instance is not valid for use.
 type Map internal.Map
 
 // NewMap creates a Map with 0 elements.
@@ -55,8 +58,8 @@ func (m Map) EnsureCapacity(capacity int) {
 // It is allowed to modify the returned value using Value.Set* functions.
 // Such modification will be applied to the value stored in this map.
 //
-// If the key does not exist returns an invalid instance of the KeyValue and false.
-// Calling any functions on the returned invalid instance will cause a panic.
+// If the key does not exist returns a zero-initialized KeyValue and false.
+// Calling any functions on the returned invalid instance may cause a panic.
 func (m Map) Get(key string) (Value, bool) {
 	for i := range *m.getOrig() {
 		akv := &(*m.getOrig())[i]

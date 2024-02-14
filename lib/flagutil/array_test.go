@@ -165,6 +165,7 @@ func TestArrayDuration_Set(t *testing.T) {
 	f := func(s, expectedResult string) {
 		t.Helper()
 		var a ArrayDuration
+		a.defaultValue = 42 * time.Second
 		if err := a.Set(s); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
@@ -173,9 +174,10 @@ func TestArrayDuration_Set(t *testing.T) {
 			t.Fatalf("unexpected values parsed;\ngot\n%q\nwant\n%q", result, expectedResult)
 		}
 	}
-	f("", "")
+	f("", "42s")
 	f(`1m`, `1m0s`)
 	f(`5m,1s,1h`, `5m0s,1s,1h0m0s`)
+	f(`5m,,1h`, `5m0s,42s,1h0m0s`)
 }
 
 func TestArrayDuration_GetOptionalArg(t *testing.T) {
@@ -209,7 +211,6 @@ func TestArrayDuration_String(t *testing.T) {
 			t.Fatalf("unexpected string;\ngot\n%s\nwant\n%s", result, s)
 		}
 	}
-	f("")
 	f("10s,1m0s")
 	f("5m0s,1s")
 }
@@ -235,9 +236,10 @@ func TestArrayBool_Set(t *testing.T) {
 			t.Fatalf("unexpected values parsed;\ngot\n%v\nwant\n%v", result, expectedResult)
 		}
 	}
-	f("", "")
+	f("", "false")
 	f(`true`, `true`)
 	f(`false,True,False`, `false,true,false`)
+	f(`1,,False`, `true,false,false`)
 }
 
 func TestArrayBool_GetOptionalArg(t *testing.T) {
@@ -270,7 +272,6 @@ func TestArrayBool_String(t *testing.T) {
 			t.Fatalf("unexpected string;\ngot\n%s\nwant\n%s", result, s)
 		}
 	}
-	f("")
 	f("true")
 	f("true,false")
 	f("false,true")
@@ -289,6 +290,7 @@ func TestArrayInt_Set(t *testing.T) {
 	f := func(s, expectedResult string, expectedValues []int) {
 		t.Helper()
 		var a ArrayInt
+		a.defaultValue = 42
 		if err := a.Set(s); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
@@ -301,9 +303,10 @@ func TestArrayInt_Set(t *testing.T) {
 			t.Fatalf("unexpected values;\ngot\n%d\nwant\n%d", values, expectedValues)
 		}
 	}
-	f("", "", nil)
+	f("", "42", []int{42})
 	f(`1`, `1`, []int{1})
 	f(`-2,3,-64`, `-2,3,-64`, []int{-2, 3, -64})
+	f(`,,-64,`, `42,42,-64,42`, []int{42, 42, -64, 42})
 }
 
 func TestArrayInt_GetOptionalArg(t *testing.T) {
@@ -337,7 +340,6 @@ func TestArrayInt_String(t *testing.T) {
 			t.Fatalf("unexpected string;\ngot\n%s\nwant\n%s", result, s)
 		}
 	}
-	f("")
 	f("10,1")
 	f("-5,1,123")
 }
@@ -357,6 +359,7 @@ func TestArrayBytes_Set(t *testing.T) {
 	f := func(s, expectedResult string) {
 		t.Helper()
 		var a ArrayBytes
+		a.defaultValue = 42
 		if err := a.Set(s); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
@@ -365,9 +368,10 @@ func TestArrayBytes_Set(t *testing.T) {
 			t.Fatalf("unexpected values parsed;\ngot\n%s\nwant\n%s", result, expectedResult)
 		}
 	}
-	f("", "")
+	f("", "42")
 	f(`1`, `1`)
 	f(`-2,3,10kb`, `-2,3,10KB`)
+	f(`,,10kb`, `42,42,10KB`)
 }
 
 func TestArrayBytes_GetOptionalArg(t *testing.T) {
@@ -402,7 +406,6 @@ func TestArrayBytes_String(t *testing.T) {
 			t.Fatalf("unexpected string;\ngot\n%s\nwant\n%s", result, s)
 		}
 	}
-	f("")
 	f("10.5KiB,1")
 	f("-5,1,123MB")
 }

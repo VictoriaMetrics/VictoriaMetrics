@@ -47,7 +47,7 @@ plus the following additional features:
 - [Enterprise security compliance](https://victoriametrics.com/security/).
 - Prioritizing of feature requests from Enterprise customers.
 
-On top of this, Enterprise package of VictoriaMetrics includes the following Enterprise features:
+On top of this, Enterprise package of VictoriaMetrics includes the following features:
 
 - [Downsampling](https://docs.victoriametrics.com/#downsampling) - this feature allows reducing storage costs
   and increasing performance for queries over historical data.
@@ -60,6 +60,7 @@ On top of this, Enterprise package of VictoriaMetrics includes the following Ent
 - [Advanced auth and rate limiter](https://docs.victoriametrics.com/vmgateway.html).
 - [mTLS for all the VictoriaMetrics components](https://docs.victoriametrics.com/#mtls-protection).
 - [mTLS for communications between cluster components](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection).
+- [mTLS-based request routing](https://docs.victoriametrics.com/vmauth.html#mtls-based-request-routing).
 - [Kafka integration](https://docs.victoriametrics.com/vmagent.html#kafka-integration).
 - [Google PubSub integration](https://docs.victoriametrics.com/vmagent.html#google-pubsub-integration).
 - [Multitenant support in vmalert](https://docs.victoriametrics.com/vmalert.html#multitenancy).
@@ -88,10 +89,7 @@ Enterprise binaries and packages have `enterprise` suffix in their names. For ex
 In order to run binary release of VictoriaMetrics Enterprise component, please download the `*-enterprise.tar.gz` archive for your OS and architecture
 from the [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) and unpack it. Then run the unpacked binary.
 
-All the VictoriaMetrics Enterprise components prior `v1.94.0` release require `-eula` command-line flag to be passed to them.
-This flag acknowledges that your usage fits one of the cases listed [here](#valid-cases-for-victoriametrics-enterprise).
-
-The `-eula` command-line flag is deprecated starting from `v1.94.0` release in favor of new command-line flags:
+All the VictoriaMetrics Enterprise components require specifying the following command-line flags:
 
 * `-license` - this flag accepts VictoriaMetrics Enterprise license key, which can be obtained at [this page](https://victoriametrics.com/products/enterprise/trial/)
 * `-licenseFile` - this flag accepts a path to file with VictoriaMetrics Enterprise license key,

@@ -12,6 +12,7 @@
 <img src="docs/logo.webp" width="300" alt="VictoriaMetrics logo">
 
 VictoriaMetrics is a fast, cost-effective and scalable monitoring solution and time series database.
+See [case studies for VictoriaMetrics](https://docs.victoriametrics.com/CaseStudies.html).
 
 VictoriaMetrics is available in [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest),
 [Docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/), [Snap packages](https://snapcraft.io/victoriametrics)
@@ -99,40 +100,7 @@ VictoriaMetrics has the following prominent features:
 * It can store data on [NFS-based storages](https://en.wikipedia.org/wiki/Network_File_System) such as [Amazon EFS](https://aws.amazon.com/efs/)
   and [Google Filestore](https://cloud.google.com/filestore).
 
-See also [various Articles about VictoriaMetrics](https://docs.victoriametrics.com/Articles.html).
-
-## Case studies and talks
-
-Case studies:
-
-* [AbiosGaming](https://docs.victoriametrics.com/CaseStudies.html#abiosgaming)
-* [adidas](https://docs.victoriametrics.com/CaseStudies.html#adidas)
-* [Adsterra](https://docs.victoriametrics.com/CaseStudies.html#adsterra)
-* [ARNES](https://docs.victoriametrics.com/CaseStudies.html#arnes)
-* [Brandwatch](https://docs.victoriametrics.com/CaseStudies.html#brandwatch)
-* [CERN](https://docs.victoriametrics.com/CaseStudies.html#cern)
-* [COLOPL](https://docs.victoriametrics.com/CaseStudies.html#colopl)
-* [Criteo](https://docs.victoriametrics.com/CaseStudies.html#criteo)
-* [Dig Security](https://docs.victoriametrics.com/CaseStudies.html#dig-security)
-* [Fly.io](https://docs.victoriametrics.com/CaseStudies.html#flyio)
-* [German Research Center for Artificial Intelligence](https://docs.victoriametrics.com/CaseStudies.html#german-research-center-for-artificial-intelligence)
-* [Grammarly](https://docs.victoriametrics.com/CaseStudies.html#grammarly)
-* [Groove X](https://docs.victoriametrics.com/CaseStudies.html#groove-x)
-* [Idealo.de](https://docs.victoriametrics.com/CaseStudies.html#idealode)
-* [MHI Vestas Offshore Wind](https://docs.victoriametrics.com/CaseStudies.html#mhi-vestas-offshore-wind)
-* [Naver](https://docs.victoriametrics.com/CaseStudies.html#naver)
-* [Razorpay](https://docs.victoriametrics.com/CaseStudies.html#razorpay)
-* [Percona](https://docs.victoriametrics.com/CaseStudies.html#percona)
-* [Roblox](https://docs.victoriametrics.com/CaseStudies.html#roblox)
-* [Sensedia](https://docs.victoriametrics.com/CaseStudies.html#sensedia)
-* [Smarkets](https://docs.victoriametrics.com/CaseStudies.html#smarkets)
-* [Synthesio](https://docs.victoriametrics.com/CaseStudies.html#synthesio)
-* [Wedos.com](https://docs.victoriametrics.com/CaseStudies.html#wedoscom)
-* [Wix.com](https://docs.victoriametrics.com/CaseStudies.html#wixcom)
-* [Zerodha](https://docs.victoriametrics.com/CaseStudies.html#zerodha)
-* [zhihu](https://docs.victoriametrics.com/CaseStudies.html#zhihu)
-
-See also [articles and slides about VictoriaMetrics from our users](https://docs.victoriametrics.com/Articles.html#third-party-articles-and-slides-about-victoriametrics)
+See [case studies for VictoriaMetrics](https://docs.victoriametrics.com/CaseStudies.html) and [various Articles about VictoriaMetrics](https://docs.victoriametrics.com/Articles.html).
 
 ## Operation
 
@@ -497,11 +465,18 @@ Prometheus doesn't drop data during VictoriaMetrics restart. See [this article](
 
 ## How to scrape Prometheus exporters such as [node-exporter](https://github.com/prometheus/node_exporter)
 
-VictoriaMetrics can be used as drop-in replacement for Prometheus for scraping targets configured in `prometheus.yml` config file according to [the specification](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#configuration-file). Just set `-promscrape.config` command-line flag to the path to `prometheus.yml` config - and VictoriaMetrics should start scraping the configured targets. If the provided configuration file contains [unsupported options](https://docs.victoriametrics.com/vmagent.html#unsupported-prometheus-config-sections), then either delete them from the file or just pass `-promscrape.config.strictParse=false` command-line flag to VictoriaMetrics, so it will ignore unsupported options.
+VictoriaMetrics can be used as drop-in replacement for Prometheus for scraping targets configured in `prometheus.yml` config file
+according to [the specification](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#configuration-file).
+Just set `-promscrape.config` command-line flag to the path to `prometheus.yml` config - and VictoriaMetrics should start scraping the configured targets.
+If the provided configuration file contains [unsupported options](https://docs.victoriametrics.com/vmagent.html#unsupported-prometheus-config-sections),
+then either delete them from the file or just pass `-promscrape.config.strictParse=false` command-line flag to VictoriaMetrics, so it will ignore unsupported options.
 
 The file pointed by `-promscrape.config` may contain `%{ENV_VAR}` placeholders, which are substituted by the corresponding `ENV_VAR` environment variable values.
 
-See [the list of supported service discovery types for Prometheus scrape targets](https://docs.victoriametrics.com/sd_configs.html).
+See also:
+
+- [scrape config examples](https://docs.victoriametrics.com/scrape_config_examples/)
+- [the list of supported service discovery types for Prometheus scrape targets](https://docs.victoriametrics.com/sd_configs.html)
 
 VictoriaMetrics also supports [importing data in Prometheus exposition format](#how-to-import-data-in-prometheus-exposition-format).
 
@@ -1060,7 +1035,7 @@ to your needs or when testing bugfixes.
 
 ### Development build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.20.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.22.
 1. Run `make victoria-metrics` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `victoria-metrics` binary and puts it into the `bin` folder.
 
@@ -1076,7 +1051,7 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 
 ### Development ARM build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.20.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.22.
 1. Run `make victoria-metrics-linux-arm` or `make victoria-metrics-linux-arm64` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `victoria-metrics-linux-arm` or `victoria-metrics-linux-arm64` binary respectively and puts it into the `bin` folder.
 
@@ -1090,7 +1065,7 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 
 `Pure Go` mode builds only Go code without [cgo](https://golang.org/cmd/cgo/) dependencies.
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.20.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.22.
 1. Run `make victoria-metrics-pure` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `victoria-metrics-pure` binary and puts it into the `bin` folder.
 
@@ -1538,7 +1513,7 @@ Set HTTP request header `Content-Encoding: gzip` when sending gzip-compressed da
 VictoriaMetrics accepts data in JSON line format at [/api/v1/import](#how-to-import-data-in-json-line-format)
 and exports data in this format at [/api/v1/export](#how-to-export-data-in-json-line-format).
 
-The format follows [JSON streaming concept](http://ndjson.org/), e.g. each line contains JSON object with metrics data in the following format:
+The format follows [JSON streaming concept](https://jsonlines.org/), e.g. each line contains JSON object with metrics data in the following format:
 
 ```json
 {
@@ -2310,6 +2285,21 @@ Sometimes it is needed to remove such caches on the next startup. This can be do
   In this case VictoriaMetrics will automatically remove all the caches on the next start.
   See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1447) for details.
 
+It is also possible removing [rollup result cache](#rollup-result-cache) on startup by passing `-search.resetRollupResultCacheOnStartup` command-line flag to VictoriaMetrics.
+
+## Rollup result cache
+
+VictoriaMetrics caches query reponses by default. This allows increasing performance for repated queries
+to [`/api/v1/query`](https://docs.victoriametrics.com/keyconcepts/#instant-query) and [`/api/v1/query_range`](https://docs.victoriametrics.com/keyconcepts/#range-query)
+with the increasing `time`, `start` and `end` query args.
+
+This cache may work incorrectly when ingesting historical data into VictoriaMetrics. See [these docs](#backfilling) for details.
+
+The rollup cache can be disabled either globally by running VictoriaMetrics with `-search.disableCache` command-line flag
+or on a per-query basis by passing `nocache=1` query arg to `/api/v1/query` and `/api/v1/query_range`.
+
+See also [cache removal docs](#cache-removal).
+
 ## Cache tuning
 
 VictoriaMetrics uses various in-memory caches for faster data ingestion and query performance.
@@ -2374,11 +2364,12 @@ VictoriaMetrics accepts historical data in arbitrary order of time via [any supp
 See [how to backfill data with recording rules in vmalert](https://docs.victoriametrics.com/vmalert.html#rules-backfilling).
 Make sure that configured `-retentionPeriod` covers timestamps for the backfilled data.
 
-It is recommended disabling query cache with `-search.disableCache` command-line flag when writing
+It is recommended disabling [query cache](#rollup-result-cache) with `-search.disableCache` command-line flag when writing
 historical data with timestamps from the past, since the cache assumes that the data is written with
 the current timestamps. Query cache can be enabled after the backfilling is complete.
 
-An alternative solution is to query [/internal/resetRollupResultCache](https://docs.victoriametrics.com/url-examples.html#internalresetrollupresultcache) handler after the backfilling is complete. This will reset the query cache, which could contain incomplete data cached during the backfilling.
+An alternative solution is to query [/internal/resetRollupResultCache](https://docs.victoriametrics.com/url-examples.html#internalresetrollupresultcache)
+after the backfilling is complete. This will reset the [query cache](#rollup-result-cache), which could contain incomplete data cached during the backfilling.
 
 Yet another solution is to increase `-search.cacheTimestampOffset` flag value in order to disable caching
 for data with timestamps close to the current time. Single-node VictoriaMetrics automatically resets response
@@ -2617,7 +2608,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -graphiteTrimTimestamp duration
      Trim timestamps for Graphite data to this duration. Minimum practical duration is 1s. Higher duration (i.e. 1m) may be used for reducing disk space usage for timestamp data (default 1s)
   -http.connTimeout duration
-     Incoming http connections are closed after the configured timeout. This may help to spread the incoming load among a cluster of services behind a load balancer. Please note that the real timeout may be bigger by up to 10% as a protection against the thundering herd problem (default 2m0s)
+     Incoming http connections are closed after the configured timeout. This may help to spread the incoming load among a cluster of services behind a load balancer. Please note that the real timeout may be bigger by up to 10% as a protection against the thundering herd problem
   -http.disableResponseCompression
      Disable compression of HTTP responses to save CPU resources. By default, compression is enabled to save network bandwidth
   -http.header.csp default-src 'self'
@@ -2639,10 +2630,14 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      Flag value can be read from the given file when using -httpAuth.password=file:///abs/path/to/file or -httpAuth.password=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -httpAuth.password=http://host/path or -httpAuth.password=https://host/path
   -httpAuth.username string
      Username for HTTP server's Basic Auth. The authentication is disabled if empty. See also -httpAuth.password
-  -httpListenAddr string
-     TCP address to listen for http connections. See also -tls and -httpListenAddr.useProxyProtocol (default ":8428")
-  -httpListenAddr.useProxyProtocol
-     Whether to use proxy protocol for connections accepted at -httpListenAddr . See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing
+  -httpListenAddr array
+     TCP addresses to listen for incoming http requests. See also -tls and -httpListenAddr.useProxyProtocol
+     Supports an array of values separated by comma or specified via multiple flags.
+     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -httpListenAddr.useProxyProtocol array
+     Whether to use proxy protocol for connections accepted at the corresponding -httpListenAddr . See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing
+     Supports array of values separated by comma or specified via multiple flags.
+     Empty values are set to false.
   -import.maxLineLen size
      The maximum length in bytes of a single line accepted by /api/v1/import; the line length can be limited with 'max_rows_per_line' query arg passed to /api/v1/export
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 10485760)
@@ -2722,6 +2717,14 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -metricsAuthKey value
      Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
      Flag value can be read from the given file when using -metricsAuthKey=file:///abs/path/to/file or -metricsAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -metricsAuthKey=http://host/path or -metricsAuthKey=https://host/path
+  -mtls array
+     Whether to require valid client certificate for https requests to the corresponding -httpListenAddr . This flag works only if -tls flag is set. See also -mtlsCAFile . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
+     Supports array of values separated by comma or specified via multiple flags.
+     Empty values are set to false.
+  -mtlsCAFile array
+     Optional path to TLS Root CA for verifying client certificates at the corresponding -httpListenAddr when -mtls is enabled. By default the host system TLS Root CA is used for client certificate verification. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
+     Supports an array of values separated by comma or specified via multiple flags.
+     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -newrelic.maxInsertRequestSize size
      The maximum size in bytes of a single NewRelic request to /newrelic/infra/v2/metrics/events/bulk
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 67108864)
@@ -2879,7 +2882,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -search.disableAutoCacheReset
      Whether to disable automatic response cache reset if a sample with timestamp outside -search.cacheTimestampOffset is inserted into VictoriaMetrics
   -search.disableCache
-     Whether to disable response caching. This may be useful during data backfilling
+     Whether to disable response caching. This may be useful when ingesting historical data. See https://docs.victoriametrics.com/#backfilling . See also -search.resetRollupResultCacheOnStartup
   -search.graphiteMaxPointsPerSeries int
      The maximum number of points per series Graphite render API can return (default 1000000)
   -search.graphiteStorageStep duration
@@ -2963,6 +2966,8 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -search.resetCacheAuthKey value
      Optional authKey for resetting rollup cache via /internal/resetRollupResultCache call
      Flag value can be read from the given file when using -search.resetCacheAuthKey=file:///abs/path/to/file or -search.resetCacheAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -search.resetCacheAuthKey=http://host/path or -search.resetCacheAuthKey=https://host/path
+  -search.resetRollupResultCacheOnStartup
+     Whether to reset rollup result cache on startup. See https://docs.victoriametrics.com/#rollup-result-cache . See also -search.disableCache
   -search.setLookbackToStep
      Whether to fix lookback interval to 'step' query arg value. If set to true, the query model becomes closer to InfluxDB data model. If set to true, then -search.maxLookback and -search.maxStalenessInterval are ignored
   -search.treatDotsAsIsInRegexps
@@ -3014,18 +3019,26 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      Whether to drop all the input samples after the aggregation with -streamAggr.config. By default, only aggregated samples are dropped, while the remaining samples are stored in the database. See also -streamAggr.keepInput and https://docs.victoriametrics.com/stream-aggregation.html
   -streamAggr.keepInput
      Whether to keep all the input samples after the aggregation with -streamAggr.config. By default, only aggregated samples are dropped, while the remaining samples are stored in the database. See also -streamAggr.dropInput and https://docs.victoriametrics.com/stream-aggregation.html
-  -tls
-     Whether to enable TLS for incoming HTTP requests at -httpListenAddr (aka https). -tlsCertFile and -tlsKeyFile must be set if -tls is set
-  -tlsCertFile string
-     Path to file with TLS certificate if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated
+  -tls array
+     Whether to enable TLS for incoming HTTP requests at the given -httpListenAddr (aka https). -tlsCertFile and -tlsKeyFile must be set if -tls is set. See also -mtls
+     Supports array of values separated by comma or specified via multiple flags.
+     Empty values are set to false.
+  -tlsCertFile array
+     Path to file with TLS certificate for the corresponding -httpListenAddr if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated
+     Supports an array of values separated by comma or specified via multiple flags.
+     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -tlsCipherSuites array
      Optional list of TLS cipher suites for incoming requests over HTTPS if -tls is set. See the list of supported cipher suites at https://pkg.go.dev/crypto/tls#pkg-constants
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
-  -tlsKeyFile string
-     Path to file with TLS key if -tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated
-  -tlsMinVersion string
-     Optional minimum TLS version to use for incoming requests over HTTPS if -tls is set. Supported values: TLS10, TLS11, TLS12, TLS13
+  -tlsKeyFile array
+     Path to file with TLS key for the corresponding -httpListenAddr if -tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated
+     Supports an array of values separated by comma or specified via multiple flags.
+     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -tlsMinVersion array
+     Optional minimum TLS version to use for the corresponding -httpListenAddr if -tls is set. Supported values: TLS10, TLS11, TLS12, TLS13
+     Supports an array of values separated by comma or specified via multiple flags.
+     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -usePromCompatibleNaming
      Whether to replace characters unsupported by Prometheus with underscores in the ingested metric names and label names. For example, foo.bar{a.b='c'} is transformed into foo_bar{a_b='c'} during data ingestion if this flag is set. See https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels
   -version

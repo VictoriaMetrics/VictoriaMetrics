@@ -93,13 +93,14 @@ when backing up large amounts of data.
 * Run the following command once a day:
 
 ```sh
-./vmbackup -storageDataPath=</path/to/victoria-metrics-data> -origin=gs://<bucket>/latest -dst=gs://<bucket>/<YYYYMMDD>
+./vmbackup -origin=gs://<bucket>/latest -dst=gs://<bucket>/<YYYYMMDD>
 ```
 
-This command creates server-side copy of the backup from `gs://<bucket>/latest` to `gs://<bucket>/<YYYYMMDD>`, were `<YYYYMMDD>` is the current
-date like `20240125`. Server-side copy of the backup should be fast on most object storage systems, since it just creates new names for already
-existing objects. The server-side copy can be slow on some object storage systems such as [S3 Glacier](https://aws.amazon.com/s3/storage-classes/glacier/),
-since they may perform full object copy instead of creating new names for already existing objects. This may be slow and expensive.
+This command makes [server-side copy](#server-side-copy-of-the-existing-backup) of the backup from `gs://<bucket>/latest` to `gs://<bucket>/<YYYYMMDD>`,
+were `<YYYYMMDD>` is the current date like `20240125`. Server-side copy of the backup should be fast on most object storage systems,
+since it just creates new names for already existing objects. The server-side copy can be slow on some object storage systems
+such as [S3 Glacier](https://aws.amazon.com/s3/storage-classes/glacier/), since they may perform full object copy instead of creating
+new names for already existing objects. This may be slow and expensive.
 
 The `smart backups` approach described above saves network bandwidth costs on hourly backups (since they are incremental)
 and allows recovering data from either the last hour (the  `latest` backup) or from any day (`YYYYMMDD` backups).
@@ -337,7 +338,7 @@ Run `vmbackup -help` in order to see all the available options:
   -fs.disableMmap
      Whether to use pread() instead of mmap() for reading data files. By default, mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
   -http.connTimeout duration
-     Incoming http connections are closed after the configured timeout. This may help to spread the incoming load among a cluster of services behind a load balancer. Please note that the real timeout may be bigger by up to 10% as a protection against the thundering herd problem (default 2m0s)
+     Incoming http connections are closed after the configured timeout. This may help to spread the incoming load among a cluster of services behind a load balancer. Please note that the real timeout may be bigger by up to 10% as a protection against the thundering herd problem
   -http.disableResponseCompression
      Disable compression of HTTP responses to save CPU resources. By default, compression is enabled to save network bandwidth
   -http.header.csp default-src 'self'
@@ -404,6 +405,14 @@ Run `vmbackup -help` in order to see all the available options:
   -metricsAuthKey value
      Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
      Flag value can be read from the given file when using -metricsAuthKey=file:///abs/path/to/file or -metricsAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -metricsAuthKey=http://host/path or -metricsAuthKey=https://host/path
+  -mtls array
+     Whether to require valid client certificate for https requests to the corresponding -httpListenAddr . This flag works only if -tls flag is set. See also -mtlsCAFile . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
+     Supports array of values separated by comma or specified via multiple flags.
+     Empty values are set to false.
+  -mtlsCAFile array
+     Optional path to TLS Root CA for verifying client certificates at the corresponding -httpListenAddr when -mtls is enabled. By default the host system TLS Root CA is used for client certificate verification. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
+     Supports an array of values separated by comma or specified via multiple flags.
+     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -origin string
      Optional origin directory on the remote storage with old backup for server-side copying when performing full backup. This speeds up full backups
   -pprofAuthKey value
@@ -434,22 +443,40 @@ Run `vmbackup -help` in order to see all the available options:
      VictoriaMetrics create snapshot url. When this is given a snapshot will automatically be created during backup. Example: http://victoriametrics:8428/snapshot/create . There is no need in setting -snapshotName if -snapshot.createURL is set
   -snapshot.deleteURL string
      VictoriaMetrics delete snapshot url. Optional. Will be generated from -snapshot.createURL if not provided. All created snapshots will be automatically deleted. Example: http://victoriametrics:8428/snapshot/delete
+  -snapshot.tlsCAFile string
+     Optional path to TLS CA file to use for verifying connections to -snapshotCreateURL. By default, system CA is used
+  -snapshot.tlsCertFile string
+     Optional path to client-side TLS certificate file to use when connecting to -snapshotCreateURL
+  -snapshot.tlsInsecureSkipVerify
+     Whether to skip tls verification when connecting to -snapshotCreateURL
+  -snapshot.tlsKeyFile string
+     Optional path to client-side TLS certificate key to use when connecting to -snapshotCreateURL
+  -snapshot.tlsServerName string
+     Optional TLS server name to use for connections to -snapshotCreateURL. By default, the server name from -snapshotCreateURL is used
   -snapshotName string
      Name for the snapshot to backup. See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-work-with-snapshots. There is no need in setting -snapshotName if -snapshot.createURL is set
   -storageDataPath string
      Path to VictoriaMetrics data. Must match -storageDataPath from VictoriaMetrics or vmstorage (default "victoria-metrics-data")
-  -tls
-     Whether to enable TLS for incoming HTTP requests at -httpListenAddr (aka https). -tlsCertFile and -tlsKeyFile must be set if -tls is set
-  -tlsCertFile string
-     Path to file with TLS certificate if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated
+  -tls array
+     Whether to enable TLS for incoming HTTP requests at the given -httpListenAddr (aka https). -tlsCertFile and -tlsKeyFile must be set if -tls is set. See also -mtls
+     Supports array of values separated by comma or specified via multiple flags.
+     Empty values are set to false.
+  -tlsCertFile array
+     Path to file with TLS certificate for the corresponding -httpListenAddr if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated
+     Supports an array of values separated by comma or specified via multiple flags.
+     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -tlsCipherSuites array
      Optional list of TLS cipher suites for incoming requests over HTTPS if -tls is set. See the list of supported cipher suites at https://pkg.go.dev/crypto/tls#pkg-constants
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
-  -tlsKeyFile string
-     Path to file with TLS key if -tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated
-  -tlsMinVersion string
-     Optional minimum TLS version to use for incoming requests over HTTPS if -tls is set. Supported values: TLS10, TLS11, TLS12, TLS13
+  -tlsKeyFile array
+     Path to file with TLS key for the corresponding -httpListenAddr if -tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated
+     Supports an array of values separated by comma or specified via multiple flags.
+     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -tlsMinVersion array
+     Optional minimum TLS version to use for the corresponding -httpListenAddr if -tls is set. Supported values: TLS10, TLS11, TLS12, TLS13
+     Supports an array of values separated by comma or specified via multiple flags.
+     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -version
      Show VictoriaMetrics version
 ```
@@ -460,7 +487,7 @@ It is recommended using [binary releases](https://github.com/VictoriaMetrics/Vic
 
 ### Development build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.20.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.22.
 1. Run `make vmbackup` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `vmbackup` binary and puts it into the `bin` folder.
 
