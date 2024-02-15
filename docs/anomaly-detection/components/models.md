@@ -65,7 +65,7 @@ From [1.10.0](/anomaly-detection/changelog#1100), **common args**, supported by 
 
 ### Queries
 
-Introduced in [1.10.0](/anomaly-detection/changelog#1100), as a part to support multi-model configs, `queries` arg is meant to define [queries from VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader/?highlight=queries#config-parameters) it should be run on particular model should be run on (meaning, all the series returned by each of these queries will be used in such model for fitting and inferencing).
+Introduced in [1.10.0](/anomaly-detection/changelog#1100), as a part to support multi-model configs, `queries` arg is meant to define [queries from VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader/?highlight=queries#config-parameters) particular model should be run on (meaning, all the series returned by each of these queries will be used in such model for fitting and inferencing).
 
 `queries` arg is supported for all [the built-in](/anomaly-detection/components/models/#built-in-models) (as well as for [custom](/anomaly-detection/components/models/#custom-model-guide)) models.
 
@@ -103,7 +103,7 @@ Each of these models can be
 
 For a univariate type, **one separate model** is fit/used for inference per **each time series**, defined in its [queries](#queries) arg.
 
-For example, if you have some **univariate** model, defined to use 3 [MetricQL queries](https://docs.victoriametrics.com/metricsql/), each returning 5 time series, there will be 3*5=15 models created in total. Each such model produce **individual [output]**(#vmanomaly-output) for each of time series. 
+For example, if you have some **univariate** model, defined to use 3 [MetricQL queries](https://docs.victoriametrics.com/metricsql/), each returning 5 time series, there will be 3*5=15 models created in total. Each such model produce **individual [output](#vmanomaly-output)** for each of time series. 
 
 If during an inference, you got a series having **new labelset** (not present in any of fitted models), the inference will be skipped until you get a model, trained particularly for such labelset during forthcoming re-fit step.
 
@@ -117,7 +117,7 @@ If during an inference, you got a series having **new labelset** (not present in
 
 For a multivariate type, **one shared model** is fit/used for inference on **all time series** simultaneously, defined in its [queries](#queries) arg. 
 
-For example, if you have some **multivariate** model to use 3 [MetricQL queries](https://docs.victoriametrics.com/metricsql/), each returning 5 time series, there will be one shared model created in total. Once fit, this model will expect **exactly 15 time series with exact same labelsets as an input**. 
+For example, if you have some **multivariate** model to use 3 [MetricQL queries](https://docs.victoriametrics.com/metricsql/), each returning 5 time series, there will be one shared model created in total. Once fit, this model will expect **exactly 15 time series with exact same labelsets as an input**. This model will produce **one shared [output](#vmanomaly-output)**.
 
 If during an inference, you got a **different amount of series** or some series having a **new labelset** (not present in any of fitted models), the inference will be skipped until you get a model, trained particularly for such labelset during forthcoming re-fit step. 
 
