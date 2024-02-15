@@ -47,11 +47,12 @@ function filter(){
 
 function filterGroupsByName(){
     $( ".group-heading" ).each(function() {
-        var groupName = $(this).attr('data-group-name');
-        var filter = $("#filter").val()
+        const groupName = $(this).attr('data-group-name');
+        const filter = $("#filter").val()
+        const hasValue = groupName.indexOf(filter) >= 0
 
-        if (groupName.indexOf(filter) >= 0){
-            let target = $(this).attr("data-bs-target");
+        if (hasValue){
+            const target = $(this).attr("data-bs-target");
             
             $(this).show();
             $(`div[id="${target}"] .rule`).show();
@@ -61,32 +62,34 @@ function filterGroupsByName(){
 
 function filterRuleByName(){
     $( ".rule" ).each(function() {
-        var ruleName = $(this).attr("data-rule-name");
-        var filter = $("#filter").val()
-        
-        if (ruleName.indexOf(filter) < 0){
-            $(this).hide();
-        }else{
-            let target = $(this).attr('data-bs-target')
+        const ruleName = $(this).attr("data-rule-name");
+        const filter = $("#filter").val()
+        const hasValue = ruleName.indexOf(filter) >= 0
+
+        if (hasValue){
+            const target = $(this).attr('data-bs-target')
 
             $(`#rules-${target}`).addClass('show');
             $(`div[data-bs-target='rules-${target}']`).show();
             $(this).show();
+        }else{
+            $(this).hide();
         }
     });  
 }
 
 function filterRuleByLabels(){
     $( ".rule" ).each(function() {
-        let filter = $("#filter").val()
+        const filter = $("#filter").val()
         
-        let matches = $( ".label", this ).filter(function() {
-            let label = $(this).text();
-            return label.indexOf(filter) >= 0;
+        const matches = $( ".label", this ).filter(function() {
+            const label = $(this).text();
+            const hasValue = label.indexOf(filter) >= 0
+            return hasValue;
         }).length; 
 
         if (matches > 0){
-            let target = $(this).attr('data-bs-target')
+            const target = $(this).attr('data-bs-target')
 
             $(`#rules-${target}`).addClass('show');
             $(`div[data-bs-target='rules-${target}']`).show();
