@@ -1,6 +1,7 @@
 package streamaggr
 
 import (
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -11,6 +12,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/metrics"
 )
 
 type deduplicator struct {
@@ -45,6 +47,7 @@ func newDeduplicator(as []*aggregator, dedupInterval time.Duration) *deduplicato
 
 func (d *deduplicator) run() {
 	d.wg.Add(1)
+	flushDuration := metrics.GetOrCreateSummary(fmt.Sprintf(`vmagent_streamaggr_dedup_duration_seconds{interval="%s"}`, d.interval))
 	go func() {
 		defer d.wg.Done()
 		t := time.NewTicker(d.interval)
@@ -55,7 +58,9 @@ func (d *deduplicator) run() {
 				return
 			case <-t.C:
 			}
+			start := time.Now()
 			d.flush()
+			flushDuration.UpdateDuration(start)
 		}
 	}()
 }
