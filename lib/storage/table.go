@@ -217,17 +217,34 @@ func (tb *table) NotifyReadWriteMode() {
 type TableMetrics struct {
 	partitionMetrics
 
+	// LastPartition contains metrics for the last partition.
+	// These metrics are important, since the majority of data ingestion
+	// and querying goes to the last partition.
+	LastPartition partitionMetrics
+
 	PartitionsRefCount uint64
 }
 
 // UpdateMetrics updates m with metrics from tb.
 func (tb *table) UpdateMetrics(m *TableMetrics) {
-	tb.ptwsLock.Lock()
-	for _, ptw := range tb.ptws {
+	ptws := tb.GetPartitions(nil)
+	defer tb.PutPartitions(ptws)
+
+	for _, ptw := range ptws {
 		ptw.pt.UpdateMetrics(&m.partitionMetrics)
 		m.PartitionsRefCount += atomic.LoadUint64(&ptw.refCount)
 	}
-	tb.ptwsLock.Unlock()
+
+	// Collect separate metrics for the last partition.
+	if len(ptws) > 0 {
+		ptwLast := ptws[0]
+		for _, ptw := range ptws[1:] {
+			if ptw.pt.tr.MinTimestamp > ptwLast.pt.tr.MinTimestamp {
+				ptwLast = ptw
+			}
+		}
+		ptwLast.pt.UpdateMetrics(&m.LastPartition)
+	}
 }
 
 // ForceMergePartitions force-merges partitions in tb with names starting from the given partitionNamePrefix.
