@@ -71,55 +71,55 @@ func (prc *parsedRelabelConfig) String() string {
 // It returns DebugStep list - one entry per each applied relabeling step.
 func (pcs *ParsedConfigs) ApplyDebug(labels []prompbmarshal.Label) ([]prompbmarshal.Label, []DebugStep) {
 	// Protect from overwriting labels between len(labels) and cap(labels) by limiting labels capacity to its length.
-	labels, dss := pcs.applyInternal(labels[:len(labels):len(labels)], 0, true)
-	return labels, dss
-}
+	labels = labels[:len(labels):len(labels)]
 
-// Apply applies pcs to labels starting from the labelsOffset.
-//
-// Apply() may add additional labels after the len(labels), so make sure it doesn't corrupt in-use labels
-// stored between len(labels) and cap(labels).
-func (pcs *ParsedConfigs) Apply(labels []prompbmarshal.Label, labelsOffset int) []prompbmarshal.Label {
-	labels, _ = pcs.applyInternal(labels, labelsOffset, false)
-	return labels
-}
-
-func (pcs *ParsedConfigs) applyInternal(labels []prompbmarshal.Label, labelsOffset int, debug bool) ([]prompbmarshal.Label, []DebugStep) {
+	inStr := LabelsToString(labels)
 	var dss []DebugStep
-	inStr := ""
-	if debug {
-		inStr = LabelsToString(labels[labelsOffset:])
-	}
 	if pcs != nil {
 		for _, prc := range pcs.prcs {
-			labels = prc.apply(labels, labelsOffset)
-			if debug {
-				outStr := LabelsToString(labels[labelsOffset:])
-				dss = append(dss, DebugStep{
-					Rule: prc.String(),
-					In:   inStr,
-					Out:  outStr,
-				})
-				inStr = outStr
-			}
-			if len(labels) == labelsOffset {
+			labels = prc.apply(labels, 0)
+			outStr := LabelsToString(labels)
+			dss = append(dss, DebugStep{
+				Rule: prc.String(),
+				In:   inStr,
+				Out:  outStr,
+			})
+			inStr = outStr
+			if len(labels) == 0 {
 				// All the labels have been removed.
 				return labels, dss
 			}
 		}
 	}
-	labels = removeEmptyLabels(labels, labelsOffset)
-	if debug {
-		outStr := LabelsToString(labels[labelsOffset:])
-		if outStr != inStr {
-			dss = append(dss, DebugStep{
-				Rule: "remove empty labels",
-				In:   inStr,
-				Out:  outStr,
-			})
-		}
+
+	labels = removeEmptyLabels(labels, 0)
+	outStr := LabelsToString(labels)
+	if outStr != inStr {
+		dss = append(dss, DebugStep{
+			Rule: "remove empty labels",
+			In:   inStr,
+			Out:  outStr,
+		})
 	}
 	return labels, dss
+}
+
+// Apply applies pcs to labels starting from the labelsOffset.
+//
+// This function may add additional labels after the len(labels), so make sure it doesn't corrupt in-use labels
+// stored between len(labels) and cap(labels).
+func (pcs *ParsedConfigs) Apply(labels []prompbmarshal.Label, labelsOffset int) []prompbmarshal.Label {
+	if pcs != nil {
+		for _, prc := range pcs.prcs {
+			labels = prc.apply(labels, labelsOffset)
+			if len(labels) == labelsOffset {
+				// All the labels have been removed.
+				return labels
+			}
+		}
+	}
+	labels = removeEmptyLabels(labels, labelsOffset)
+	return labels
 }
 
 func removeEmptyLabels(labels []prompbmarshal.Label, labelsOffset int) []prompbmarshal.Label {
@@ -546,10 +546,8 @@ func concatLabelValues(dst []byte, labels []prompbmarshal.Label, labelNames []st
 		return dst
 	}
 	for _, labelName := range labelNames {
-		label := GetLabelByName(labels, labelName)
-		if label != nil {
-			dst = append(dst, label.Value...)
-		}
+		labelValue := getLabelValue(labels, labelName)
+		dst = append(dst, labelValue...)
 		dst = append(dst, separator...)
 	}
 	return dst[:len(dst)-len(separator)]
@@ -630,10 +628,12 @@ func LabelsToString(labels []prompbmarshal.Label) string {
 
 // SortLabels sorts labels in alphabetical order.
 func SortLabels(labels []prompbmarshal.Label) {
-	x := &promutils.Labels{
-		Labels: labels,
-	}
+	x := promutils.GetLabels()
+	labelsOrig := x.Labels
+	x.Labels = labels
 	x.Sort()
+	x.Labels = labelsOrig
+	promutils.PutLabels(x)
 }
 
 func fillLabelReferences(dst []byte, replacement string, labels []prompbmarshal.Label) []byte {

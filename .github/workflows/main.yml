@@ -41,7 +41,7 @@ jobs:
           cache: false
 
       - name: Cache Go artifacts
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cache/go-build
@@ -71,7 +71,7 @@ jobs:
           cache: false
 
       - name: Cache Go artifacts
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cache/go-build
@@ -102,7 +102,7 @@ jobs:
           cache: false
 
       - name: Cache Go artifacts
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cache/go-build

@@ -243,7 +243,7 @@ from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.ht
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
-See also [count_over_time](#count_over_time).
+See also [count_over_time](#count_over_time) and [share_eq_over_time](#share_eq_over_time).
 
 #### count_gt_over_time
 
@@ -253,7 +253,7 @@ from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.ht
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
-See also [count_over_time](#count_over_time).
+See also [count_over_time](#count_over_time) and [share_gt_over_time](#share_gt_over_time).
 
 #### count_le_over_time
 
@@ -263,7 +263,7 @@ from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.ht
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
-See also [count_over_time](#count_over_time).
+See also [count_over_time](#count_over_time) and [share_le_over_time](#share_le_over_time).
 
 #### count_ne_over_time
 
@@ -743,7 +743,7 @@ This function is useful for calculating SLI and SLO. Example: `share_gt_over_tim
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
-See also [share_le_over_time](#share_le_over_time).
+See also [share_le_over_time](#share_le_over_time) and [count_gt_over_time](#count_gt_over_time).
 
 #### share_le_over_time
 
@@ -756,7 +756,7 @@ the share of time series values for the last 24 hours when memory usage was belo
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
-See also [share_gt_over_time](#share_gt_over_time).
+See also [share_gt_over_time](#share_gt_over_time) and [count_le_over_time](#count_le_over_time).
 
 #### share_eq_over_time
 
@@ -765,6 +765,8 @@ on the given lookbehind window `d`, which are equal to `eq`. It is calculated in
 from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
+
+See also [count_eq_over_time](#count_eq_over_time).
 
 #### stale_samples_over_time
 
@@ -791,6 +793,33 @@ on the given lookbehind window `d` per each time series returned from the given 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
 This function is supported by PromQL. See also [stddev_over_time](#stddev_over_time).
+
+#### sum_eq_over_time
+
+`sum_eq_over_time(series_selector[d], eq)` is a [rollup function](#rollup-function), which calculates the sum of raw sample values equal to `eq`
+on the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
+
+Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
+
+See also [sum_over_time](#sum_over_time) and [count_eq_over_time](#count_eq_over_time).
+
+#### sum_gt_over_time
+
+`sum_gt_over_time(series_selector[d], gt)` is a [rollup function](#rollup-function), which calculates the sum of raw sample values bigger than `gt`
+on the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
+
+Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
+
+See also [sum_over_time](#sum_over_time) and [count_gt_over_time](#count_gt_over_time).
+
+#### sum_le_over_time
+
+`sum_le_over_time(series_selector[d], le)` is a [rollup function](#rollup-function), which calculates the sum of raw sample values smaller or equal to `le`
+on the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
+
+Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
+
+See also [sum_over_time](#sum_over_time) and [count_le_over_time](#count_le_over_time).
 
 #### sum_over_time
 
