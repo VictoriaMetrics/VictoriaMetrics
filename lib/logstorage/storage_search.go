@@ -140,7 +140,10 @@ func (s *Storage) search(workersCount int, so *genericSearchOptions, stopCh <-ch
 			defer putBlockSearch(bs)
 			for {
 				select {
-				case bsws := <-workCh:
+				case bsws, ok := <-workCh:
+					if !ok {
+						return
+					}
 					for _, bsw := range bsws {
 						bs.search(bsw)
 						if bs.br.RowsCount() > 0 {
@@ -191,8 +194,8 @@ func (s *Storage) search(workersCount int, so *genericSearchOptions, stopCh <-ch
 
 	// Wait until workers finish their work
 	close(workCh)
-	cancelFn()
 	wg.Wait()
+	cancelFn()
 
 	// Decrement references to parts
 	for _, pw := range pws {
