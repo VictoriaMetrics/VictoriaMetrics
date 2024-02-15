@@ -20,6 +20,145 @@ This section describes `Model` component of VictoriaMetrics Anomaly Detection (o
 vmanomaly includes various [built-in models](#built-in-models) and you can integrate your custom model with vmanomaly see [custom model](#custom-model-guide) 
 
 
+> **Note: Starting from [v1.10.0](/anomaly-detection/changelog#v1100) model section in config supports multiple models via aliasing. <br>Also, `vmanomaly` expects model section to be named `models`. Using old (flat) format with `model` key is deprecated and will be removed in future versions. Having `model` and `models` sections simultaneously in a config will result in only `models` being used:**
+
+```yaml
+models:
+  model_univariate_1:
+    class: "model.zscore.ZscoreModel"
+    z_threshold: 2.5
+    queries: ["query_alias2"]  # referencing queries defined in `reader` section
+  model_multivariate_1:
+    class: "model.isolation_forest.IsolationForestMultivariateModel"
+    contamination: "auto"
+    args:
+      n_estimators: 100
+      # i.e. to assure reproducibility of produced results each time model is fit on the same input
+      random_state: 42
+    # if there is no explicit `queries` arg, then the model will be run on ALL queries found in reader section
+```  
+
+Old-style configs (< [1.10.0](/anomaly-detection/changelog#v1100) )
+
+```yaml
+model:
+    class: "model.zscore.ZscoreModel"
+    z_threshold: 2.5
+    # no explicit `queries` arg is provided
+```
+
+will be **implicitly** converted to
+
+```yaml
+models:
+  default_model:  # default model alias, backward compatibility
+    class: "model.zscore.ZscoreModel"
+    z_threshold: 2.5
+    # queries arg is created and propagated with all query aliases found in `queries` arg of `reader` section
+    queries: ["q1", "q2", "q3"]  # i.e., if your `queries` in `reader` section has exactly q1, q2, q3 aliases
+```
+
+
+## Common args
+
+From [1.10.0](/anomaly-detection/changelog#1100), **common args**, supported by *every model (and model type)* were introduced.
+
+### Queries
+
+Introduced in [1.10.0](/anomaly-detection/changelog#1100), as a part to support multi-model configs, `queries` arg is meant to define [queries from VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader/?highlight=queries#config-parameters) it should be run on particular model should be run on (meaning, all the series returned by each of these queries will be used in such model for fitting and inferencing).
+
+`queries` arg is supported for all [the built-in](/anomaly-detection/components/models/#built-in-models) (as well as for [custom](/anomaly-detection/components/models/#custom-model-guide)) models.
+
+This arg is **backward compatible** - if there is no explicit `queries` arg, then the model, defined in a config, will be run on ALL queries found in reader section:
+
+```yaml
+models:
+  model_alias_1:
+    ...
+    # no explicit `queries` arg is provided
+```
+
+will be implicitly converted to
+
+```yaml
+models:
+  model_alias_1:
+    ...
+    # queries arg is created and propagated with all query aliases found in `queries` arg of `reader` section
+    queries: ["q1", "q2", "q3"]  # i.e., if your `queries` in `reader` section has exactly q1, q2, q3 aliases
+```
+
+## Model types
+
+There are **2 model types**, supported in `vmanomaly`, resulting in **4 possible combinations**:
+
+- [Univariate models](#univariate-models)
+- [Multivariate models](#multivariate-models)
+
+Each of these models can be
+- [rolling](#rolling-models)
+- [non-rolling](#non-rolling-models)
+
+### Univariate Models
+
+For a univariate type, **one separate model** is fit/used for inference per **each time series**, defined in its [queries](#queries) arg.
+
+For example, if you have some **univariate** model, defined to use 3 [MetricQL queries](https://docs.victoriametrics.com/metricsql/), each returning 5 time series, there will be 3*5=15 models created in total. Each such model produce **individual [output]**(#vmanomaly-output) for each of time series. 
+
+If during an inference, you got a series having **new labelset** (not present in any of fitted models), the inference will be skipped until you get a model, trained particularly for such labelset during forthcoming re-fit step.
+
+**Implications:** Univariate models are a go-to default, when your queries returns **changing** amount of **individual** time series of **different** magnitude, [trend](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#trend) or [seasonality](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#seasonality), so you won't be mixing incompatible data with different behavior within a single fit model (context isolation).
+
+**Examples:** [Prophet](#prophet), [Holt-Winters](#holt-winters)
+
+<!-- TODO: add schema -->
+
+### Multivariate Models
+
+For a multivariate type, **one shared model** is fit/used for inference on **all time series** simultaneously, defined in its [queries](#queries) arg. 
+
+For example, if you have some **multivariate** model to use 3 [MetricQL queries](https://docs.victoriametrics.com/metricsql/), each returning 5 time series, there will be one shared model created in total. Once fit, this model will expect **exactly 15 time series with exact same labelsets as an input**. 
+
+If during an inference, you got a **different amount of series** or some series having a **new labelset** (not present in any of fitted models), the inference will be skipped until you get a model, trained particularly for such labelset during forthcoming re-fit step. 
+
+**Implications:** Multivariate models are a go-to default, when your queries returns **fixed** amount of **individual** time series (say, some aggregations), to be used for adding cross-series (and cross-query) context, useful for catching [collective anomalies](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-2/index.html#collective-anomalies) or [novelties](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-2/index.html#novelties) (expanded to multi-input scenario). For example, you may set it up for anomaly detection of CPU usage in different modes (`idle`, `user`, `system`, etc.) and use its cross-dependencies to detect **unseen (in fit data)** behavior.
+
+**Examples:** [IsolationForest](#isolation-forest-multivariate)
+
+<!-- TODO: add schema -->
+
+### Rolling Models
+
+A rolling model is a model that, once trained, **cannot be (naturally) used to make inference on data, not seen during its fit phase**.
+
+An instance of rolling model is **simultaneously fit and used for inference** during its `infer` method call.
+
+As a result, such model instances are **not stored** between consecutive re-fit calls (defined by `fit_every` [arg](/anomaly-detection/components/scheduler/?highlight=fit_every#periodic-scheduler) in `PeriodicScheduler`), leading to **lower RAM** consumption.
+
+Such models put **more pressure** on your reader's source, i.e. if your model should be fit on large amount of data (say, 14 days with 1-minute resolution) and at the same time you have **frequent inference** (say, once per minute) on new chunks of data - that's because such models require (fit + infer) window of data to be fit first to be used later in each inference call.
+
+> **Note**: Rolling models require `fit_every` to be set equal to `infer_every` in your [PeriodicScheduler](/anomaly-detection/components/scheduler/?highlight=fit_every#periodic-scheduler).
+
+**Examples:** [RollingQuantile](#rolling-quantile)
+
+<!-- TODO: add schema -->
+
+### Non-Rolling Models
+
+Everything that is not classified as [rolling](#rolling-models). 
+
+Produced models can be explicitly used to **infer on data, not seen during its fit phase**, thus, it **doesn't require re-fit procedure**.
+
+Such models put **less pressure** on your reader's source, i.e. if you fit on large amount of data (say, 14 days with 1-minute resolution) but do it occasionally (say, once per day), at the same time you have **frequent inference**(say, once per minute) on new chunks of data
+
+> **Note**: However, it's still highly recommended, to keep your model up-to-date with tendencies found in your data as it evolves in time.
+
+Produced model instances are **stored in-memory** between consecutive re-fit calls (defined by `fit_every` [arg](/anomaly-detection/components/scheduler/?highlight=fit_every#periodic-scheduler) in `PeriodicScheduler`), leading to **higher RAM** consumption.
+
+**Examples:** [Prophet](#prophet)
+
+<!-- TODO: add schema -->
+
 ## Built-in Models 
 
 ### Overview
@@ -68,18 +207,19 @@ Depending on chosen `seasonality` parameter FB Prophet can return additional met
 *Config Example*
 
 ```yaml
-model:
-  class: "model.prophet.ProphetModel"
-  seasonalities:
-    - name: 'hourly'
-      period: 0.04166666666
-      fourier_order: 30
-  # Inner model args (key-value pairs) accepted by
-  # https://facebook.github.io/prophet/docs/quick_start.html#python-api
-  args:
-    # See https://facebook.github.io/prophet/docs/uncertainty_intervals.html
-    interval_width: 0.98
-    country_holidays: 'US'
+models:
+  your_desired_alias_for_a_model:
+    class: "model.prophet.ProphetModel"
+    seasonalities:
+      - name: 'hourly'
+        period: 0.04166666666
+        fourier_order: 30
+    # Inner model args (key-value pairs) accepted by
+    # https://facebook.github.io/prophet/docs/quick_start.html#python-api
+    args:
+      # See https://facebook.github.io/prophet/docs/uncertainty_intervals.html
+      interval_width: 0.98
+      country_holidays: 'US'
 ```
 
 
@@ -95,9 +235,10 @@ Resulting metrics of the model are described [here](#vmanomaly-output)
 
 
 ```yaml
-model:
-  class: "model.zscore.ZscoreModel"
-  z_threshold: 2.5
+models:
+  your_desired_alias_for_a_model:
+    class: "model.zscore.ZscoreModel"
+    z_threshold: 2.5
 ```
 
 
@@ -131,14 +272,15 @@ Used to compute "seasonal_periods" param for the model (e.g. '1D' or '1W').
 *Config Example*
 
 ```yaml
-model:
-  class: "model.holtwinters.HoltWinters"
-  seasonality: '1d'
-  frequency: '1h'
-  # Inner model args (key-value pairs) accepted by statsmodels.tsa.holtwinters.ExponentialSmoothing
-  args:
-    seasonal: 'add'
-    initialization_method: 'estimated'
+models:
+  your_desired_alias_for_a_model:
+    class: "model.holtwinters.HoltWinters"
+    seasonality: '1d'
+    frequency: '1h'
+    # Inner model args (key-value pairs) accepted by statsmodels.tsa.holtwinters.ExponentialSmoothing
+    args:
+      seasonal: 'add'
+      initialization_method: 'estimated'
 ```
 
 
@@ -156,9 +298,10 @@ The MAD model is a robust method for anomaly detection that is *less sensitive* 
 
 
 ```yaml
-model:
-  class: "model.mad.MADModel"
-  threshold: 2.5
+models:
+  your_desired_alias_for_a_model:
+    class: "model.mad.MADModel"
+    threshold: 2.5
 ```
 
 
@@ -175,12 +318,12 @@ Resulting metrics of the model are described [here](#vmanomaly-output).
 *Config Example*
 
 ```yaml
-model:
-  class: "model.rolling_quantile.RollingQuantileModel"
-  quantile: 0.9
-  window_steps: 96
+models:
+  your_desired_alias_for_a_model:
+    class: "model.rolling_quantile.RollingQuantileModel"
+    quantile: 0.9
+    window_steps: 96
 ```
-
 
 Resulting metrics of the model are described [here](#vmanomaly-output).
 
@@ -198,9 +341,10 @@ Here we use Seasonal Decompose implementation from `statsmodels` [library](https
 
 
 ```yaml
-model:
-  class: "model.std.StdModel"
-  period: 2
+models:
+  your_desired_alias_for_a_model:
+    class: "model.std.StdModel"
+    period: 2
 ```
 
 
@@ -233,15 +377,16 @@ Here we use ARIMA implementation from `statsmodels` [library](https://www.statsm
 *Config Example*
 
 ```yaml
-model:
-  class: "model.arima.ArimaModel"
-  # ARIMA's (p,d,q) order
-  order: [1, 1, 0] 
-  z_threshold: 2.7
-  resample_freq: '1m'
-  # Inner model args (key-value pairs) accepted by statsmodels.tsa.arima.model.ARIMA
-  args:
-    trend: 'c'
+models:
+  your_desired_alias_for_a_model:
+    class: "model.arima.ArimaModel"
+    # ARIMA's (p,d,q) order
+    order: [1, 1, 0] 
+    z_threshold: 2.7
+    resample_freq: '1m'
+    # Inner model args (key-value pairs) accepted by statsmodels.tsa.arima.model.ARIMA
+    args:
+      trend: 'c'
 ```
 
 
@@ -264,14 +409,15 @@ Here we use Isolation Forest implementation from `scikit-learn` [library](https:
 
 
 ```yaml
-model:
-  # To use univariate model, substitute class argument with "model.isolation_forest.IsolationForestModel".
-  class: "model.isolation_forest.IsolationForestMultivariateModel"
-  contamination: "auto"
-  args:
-    n_estimators: 100
-    # i.e. to assure reproducibility of produced results each time model is fit on the same input
-    random_state: 42
+models:
+  your_desired_alias_for_a_model:
+    # To use univariate model, substitute class argument with "model.isolation_forest.IsolationForestModel".
+    class: "model.isolation_forest.IsolationForestMultivariateModel"
+    contamination: "auto"
+    args:
+      n_estimators: 100
+      # i.e. to assure reproducibility of produced results each time model is fit on the same input
+      random_state: 42
 ```
 
 
@@ -318,6 +464,8 @@ Here in this guide, we will
 
 ### 1. Custom model
 
+> **Note**: By default, each custom model is created as [**univariate**](#univariate-models) / [**non-rolling**](#non-rolling-models) model. If you want to override this behavior, define models inherited from `RollingModel` (to get a rolling model), or having `is_multivariate` class arg set to `True` (please refer to the code example below).
+
 We'll create `custom_model.py` file with `CustomModel` class that will inherit from vmanomaly `Model` base class.
 In the `CustomModel` class there should be three required methods - `__init__`, `fit` and `infer`:
 * `__init__` method should initiate parameters for the model.
@@ -327,7 +475,7 @@ In the `CustomModel` class there should be three required methods - `__init__`, 
   super().__init__(**kwargs)
   ``` 
   to initialize the base class each model derives from
-* `fit` method should contain the model training process.
+* `fit` method should contain the model training process. Please be aware that for `RollingModel` defining `fit` method is not needed, as the whole fit/infer process should be defined completely in `infer` method.
 * `infer` should return Pandas.DataFrame object with model's inferences.
 
 For the sake of simplicity, the model in this example will return one of two values of `anomaly_score` - 0 or 1 depending on input parameter `percentage`.
@@ -340,6 +488,7 @@ import scipy.stats as st
 import logging
 
 from model.model import Model
+# from model.model import RollingModel  # inherit from it for your model to be of rolling type
 logger = logging.getLogger(__name__)
 
 
@@ -347,6 +496,10 @@ class CustomModel(Model):
     """
     Custom model implementation.
     """
+
+    # by default, each `Model` will be created as a univariate one
+    # uncomment line below for it to be of multivariate type
+    # is_multivariate = True
 
     def __init__(self, percentage: float = 0.95, **kwargs):
         super().__init__(**kwargs)
@@ -362,7 +515,6 @@ class CustomModel(Model):
         if self._std == 0.0:
             self._std = 1 / 65536
 
-
     def infer(self, df: pd.DataFrame) -> np.array:
         # Inference process:
         y = df['y']
@@ -373,7 +525,6 @@ class CustomModel(Model):
         df_pred['anomaly_score'] = df_pred['anomaly_score'].astype('int32', errors='ignore')
 
         return df_pred
-
 ```
 
 
@@ -381,8 +532,8 @@ class CustomModel(Model):
 ### 2. Configuration file
 
 Next, we need to create `config.yaml` file with VM Anomaly Detection configuration and model input parameters.
-In the config file `model` section we need to put our model class `model.custom.CustomModel` and all parameters used in `__init__` method.
-You can find out more about configuration parameters in vmanomaly docs.
+In the config file `models` section we need to put our model class `model.custom.CustomModel` and all parameters used in `__init__` method.
+You can find out more about configuration parameters in [vmanomaly config docs](/anomaly-detection/components/).
 
 
 ```yaml
@@ -391,11 +542,12 @@ scheduler:
   fit_every: "1m"
   fit_window: "1d"
 
-model:
-  # note: every custom model should implement this exact path, specified in `class` field
-  class: "model.model.CustomModel"
-  # custom model params are defined here
-  percentage: 0.9
+models:
+  your_desired_alias_for_a_model:
+    # note: every custom model should implement this exact path, specified in `class` field
+    class: "model.model.CustomModel"
+    # custom model params are defined here
+    percentage: 0.9
 
 reader:
   datasource_url: "http://localhost:8428/"
@@ -426,15 +578,13 @@ monitoring:
 ### 3. Running custom model
 Let's pull the docker image for vmanomaly:
 
-
 ```sh 
-docker pull us-docker.pkg.dev/victoriametrics-test/public/vmanomaly-trial:latest
+docker pull victoriametrics/vmanomaly:latest
 ```
-
 
 Now we can run the docker container putting as volumes both config and model file:
 
-**Note**: place the model file to `/model/custom.py` path when copying
+> **Note**: place the model file to `/model/custom.py` path when copying
 
 ```sh
 docker run -it \
@@ -442,10 +592,9 @@ docker run -it \
 -v [YOUR_LICENSE_FILE_PATH]:/license.txt \
 -v $(PWD)/custom_model.py:/vmanomaly/src/model/custom.py \
 -v $(PWD)/custom.yaml:/config.yaml \
-us-docker.pkg.dev/victoriametrics-test/public/vmanomaly-trial:latest /config.yaml \
+victoriametrics/vmanomaly:latest /config.yaml \
 --license-file=/license.txt
 ```
-
 
 Please find more detailed instructions (license, etc.) [here](/anomaly-detection/overview.html#run-vmanomaly-docker-container)
 

@@ -162,10 +162,11 @@ scheduler:
   fit_every: "2h"
   fit_window: "14d"
 
-model:
-  class: "model.prophet.ProphetModel"
-  args:
-    interval_width: 0.98
+models:
+  prophet:  # or use a model alias of your choice here
+    class: "model.prophet.ProphetModel"
+    args:
+      interval_width: 0.98
 
 reader:
   datasource_url: [YOUR_DATASOURCE_URL] #Example: "http://victoriametrics:8428/"
@@ -217,7 +218,7 @@ This will expose metrics at `http://0.0.0.0:8080/metrics` page.
 To use *vmanomaly* you need to pull docker image:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.9.2
+docker pull victoriametrics/vmanomaly:v1.10.0
 ```
 
 > Note: please check what is latest release in [CHANGELOG](/anomaly-detection/CHANGELOG.html)
@@ -227,7 +228,7 @@ docker pull victoriametrics/vmanomaly:v1.9.2
 You can put a tag on it for your convinience:
 
 ```sh
-docker image tag victoriametrics/vmanomaly:v1.9.2 vmanomaly
+docker image tag victoriametrics/vmanomaly:v1.10.0 vmanomaly
 ```
 Here is an example of how to run *vmanomaly* docker container with [license file](#licensing):
 
