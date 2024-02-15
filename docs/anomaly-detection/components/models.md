@@ -16,7 +16,7 @@ aliases:
 
 # Models
 
-This section describes `Model` component of VictoriaMetrics Anomaly Detection (or simply [`vmanomaly`](/anomaly-detection/overview.html)) and the guide of how to define a respective section of a config to launch the service.
+This section describes `Models` component of VictoriaMetrics Anomaly Detection (or simply [`vmanomaly`](/anomaly-detection/overview.html)) and the guide of how to define a respective section of a config to launch the service.
 vmanomaly includes various [built-in models](#built-in-models) and you can integrate your custom model with vmanomaly see [custom model](#custom-model-guide) 
 
 
