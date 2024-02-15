@@ -2,7 +2,7 @@ version: '3.5'
 services:
   vmagent:
     container_name: vmagent
-    image: victoriametrics/vmagent:v1.97.1
+    image: victoriametrics/vmagent:v1.98.0
     depends_on:
       - "vminsert"
     ports:
@@ -33,7 +33,7 @@ services:
 
   vmstorage-1:
     container_name: vmstorage-1
-    image: victoriametrics/vmstorage:v1.97.1-cluster
+    image: victoriametrics/vmstorage:v1.98.0-cluster
     ports:
       - 8482
       - 8400
@@ -45,7 +45,7 @@ services:
     restart: always
   vmstorage-2:
     container_name: vmstorage-2
-    image: victoriametrics/vmstorage:v1.97.1-cluster
+    image: victoriametrics/vmstorage:v1.98.0-cluster
     ports:
       - 8482
       - 8400
@@ -58,7 +58,7 @@ services:
 
   vminsert:
     container_name: vminsert
-    image: victoriametrics/vminsert:v1.97.1-cluster
+    image: victoriametrics/vminsert:v1.98.0-cluster
     depends_on:
       - "vmstorage-1"
       - "vmstorage-2"
@@ -71,7 +71,7 @@ services:
 
   vmselect-1:
     container_name: vmselect-1
-    image: victoriametrics/vmselect:v1.97.1-cluster
+    image: victoriametrics/vmselect:v1.98.0-cluster
     depends_on:
       - "vmstorage-1"
       - "vmstorage-2"
@@ -85,7 +85,7 @@ services:
 
   vmselect-2:
     container_name: vmselect-2
-    image: victoriametrics/vmselect:v1.97.1-cluster
+    image: victoriametrics/vmselect:v1.98.0-cluster
     depends_on:
       - "vmstorage-1"
       - "vmstorage-2"
@@ -99,7 +99,7 @@ services:
 
   vmauth:
     container_name: vmauth
-    image: victoriametrics/vmauth:v1.97.1
+    image: victoriametrics/vmauth:v1.98.0
     depends_on:
       - "vmselect-1"
       - "vmselect-2"
@@ -114,7 +114,7 @@ services:
 
   vmalert:
     container_name: vmalert
-    image: victoriametrics/vmalert:v1.97.1
+    image: victoriametrics/vmalert:v1.98.0
     depends_on:
       - "vmauth"
     ports:

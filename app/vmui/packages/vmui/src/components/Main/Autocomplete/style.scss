@@ -16,6 +16,22 @@
     color: $color-text-disabled;
   }
 
+  &__loader {
+    display: grid;
+    grid-template-columns: 14px auto;
+    align-items: center;
+    justify-content: center;
+    gap: $padding-small;
+    padding: $padding-global;
+    color: $color-text-secondary;
+    z-index: 2;
+    pointer-events: none;
+
+    svg {
+      animation: half-circle-spinner-animation 1s infinite linear, vm-fade 0.5s ease-in;
+    }
+  }
+
   &-info,
   &-message {
     padding: $padding-global;

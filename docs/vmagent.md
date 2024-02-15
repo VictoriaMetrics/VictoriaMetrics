@@ -63,8 +63,9 @@ unpack it and pass the following flags to the `vmagent` binary in order to start
 and sending the data to the Prometheus-compatible remote storage:
 
 * `-promscrape.config` with the path to [Prometheus config file](https://docs.victoriametrics.com/sd_configs.html) (usually located at `/etc/prometheus/prometheus.yml`).
-  The path can point either to local file or to http url. `vmagent` doesn't support some sections of Prometheus config file,
-  so you may need either to delete these sections or to run `vmagent` with `-promscrape.config.strictParse=false` command-line flag.
+  The path can point either to local file or to http url. See [scrape config examples](https://docs.victoriametrics.com/scrape_config_examples/).
+  `vmagent` doesn't support some sections of Prometheus config file, so you may need either to delete these sections or
+  to run `vmagent` with `-promscrape.config.strictParse=false` command-line flag.
   In this case `vmagent` ignores unsupported sections. See [the list of unsupported sections](#unsupported-prometheus-config-sections).
 * `-remoteWrite.url` with Prometheus-compatible remote storage endpoint such as VictoriaMetrics, where to send the data to.
 
@@ -319,7 +320,10 @@ Use `-remoteWrite.*` command-line flag instead for configuring remote write sett
 
 The file pointed by `-promscrape.config` may contain `%{ENV_VAR}` placeholders which are substituted by the corresponding `ENV_VAR` environment variable values.
 
-See [the list of supported service discovery types for Prometheus scrape targets](https://docs.victoriametrics.com/sd_configs.html).
+See also:
+
+- [scrape config examples](https://docs.victoriametrics.com/scrape_config_examples/)
+- [the list of supported service discovery types for Prometheus scrape targets](https://docs.victoriametrics.com/sd_configs.html).
 
 
 ## scrape_config enhancements

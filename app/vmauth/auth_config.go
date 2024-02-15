@@ -43,6 +43,9 @@ var (
 type AuthConfig struct {
 	Users            []UserInfo `yaml:"users,omitempty"`
 	UnauthorizedUser *UserInfo  `yaml:"unauthorized_user,omitempty"`
+
+	// ms holds all the metrics for the given AuthConfig
+	ms *metrics.Set
 }
 
 // UserInfo is user information read from authConfigPath
@@ -503,6 +506,11 @@ func loadAuthConfig() (bool, error) {
 	}
 	logger.Infof("loaded information about %d users from -auth.config=%q", len(m), *authConfigPath)
 
+	prevAc := authConfig.Load()
+	if prevAc != nil {
+		metrics.UnregisterSet(prevAc.ms)
+	}
+	metrics.RegisterSet(ac.ms)
 	authConfig.Store(ac)
 	authConfigData.Store(&data)
 	authUsers.Store(&m)
@@ -515,10 +523,13 @@ func parseAuthConfig(data []byte) (*AuthConfig, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot expand environment vars: %w", err)
 	}
-	var ac AuthConfig
-	if err = yaml.UnmarshalStrict(data, &ac); err != nil {
+	ac := &AuthConfig{
+		ms: metrics.NewSet(),
+	}
+	if err = yaml.UnmarshalStrict(data, ac); err != nil {
 		return nil, fmt.Errorf("cannot unmarshal AuthConfig data: %w", err)
 	}
+
 	ui := ac.UnauthorizedUser
 	if ui != nil {
 		if ui.Username != "" {
@@ -541,15 +552,15 @@ func parseAuthConfig(data []byte) (*AuthConfig, error) {
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse metric_labels for unauthorized_user: %w", err)
 		}
-		ui.requests = metrics.GetOrCreateCounter(`vmauth_unauthorized_user_requests_total` + metricLabels)
-		ui.backendErrors = metrics.GetOrCreateCounter(`vmauth_unauthorized_user_request_backend_errors_total` + metricLabels)
-		ui.requestsDuration = metrics.GetOrCreateSummary(`vmauth_unauthorized_user_request_duration_seconds` + metricLabels)
+		ui.requests = ac.ms.NewCounter(`vmauth_unauthorized_user_requests_total` + metricLabels)
+		ui.backendErrors = ac.ms.NewCounter(`vmauth_unauthorized_user_request_backend_errors_total` + metricLabels)
+		ui.requestsDuration = ac.ms.NewSummary(`vmauth_unauthorized_user_request_duration_seconds` + metricLabels)
 		ui.concurrencyLimitCh = make(chan struct{}, ui.getMaxConcurrentRequests())
-		ui.concurrencyLimitReached = metrics.GetOrCreateCounter(`vmauth_unauthorized_user_concurrent_requests_limit_reached_total` + metricLabels)
-		_ = metrics.GetOrCreateGauge(`vmauth_unauthorized_user_concurrent_requests_capacity`+metricLabels, func() float64 {
+		ui.concurrencyLimitReached = ac.ms.NewCounter(`vmauth_unauthorized_user_concurrent_requests_limit_reached_total` + metricLabels)
+		_ = ac.ms.NewGauge(`vmauth_unauthorized_user_concurrent_requests_capacity`+metricLabels, func() float64 {
 			return float64(cap(ui.concurrencyLimitCh))
 		})
-		_ = metrics.GetOrCreateGauge(`vmauth_unauthorized_user_concurrent_requests_current`+metricLabels, func() float64 {
+		_ = ac.ms.NewGauge(`vmauth_unauthorized_user_concurrent_requests_current`+metricLabels, func() float64 {
 			return float64(len(ui.concurrencyLimitCh))
 		})
 
@@ -559,7 +570,7 @@ func parseAuthConfig(data []byte) (*AuthConfig, error) {
 		}
 		ui.httpTransport = tr
 	}
-	return &ac, nil
+	return ac, nil
 }
 
 func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, error) {
@@ -601,16 +612,16 @@ func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, error) {
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse metric_labels: %w", err)
 		}
-		ui.requests = metrics.GetOrCreateCounter(`vmauth_user_requests_total` + metricLabels)
-		ui.backendErrors = metrics.GetOrCreateCounter(`vmauth_user_request_backend_errors_total` + metricLabels)
-		ui.requestsDuration = metrics.GetOrCreateSummary(`vmauth_user_request_duration_seconds` + metricLabels)
+		ui.requests = ac.ms.GetOrCreateCounter(`vmauth_user_requests_total` + metricLabels)
+		ui.backendErrors = ac.ms.GetOrCreateCounter(`vmauth_user_request_backend_errors_total` + metricLabels)
+		ui.requestsDuration = ac.ms.GetOrCreateSummary(`vmauth_user_request_duration_seconds` + metricLabels)
 		mcr := ui.getMaxConcurrentRequests()
 		ui.concurrencyLimitCh = make(chan struct{}, mcr)
-		ui.concurrencyLimitReached = metrics.GetOrCreateCounter(`vmauth_user_concurrent_requests_limit_reached_total` + metricLabels)
-		_ = metrics.GetOrCreateGauge(`vmauth_user_concurrent_requests_capacity`+metricLabels, func() float64 {
+		ui.concurrencyLimitReached = ac.ms.GetOrCreateCounter(`vmauth_user_concurrent_requests_limit_reached_total` + metricLabels)
+		_ = ac.ms.GetOrCreateGauge(`vmauth_user_concurrent_requests_capacity`+metricLabels, func() float64 {
 			return float64(cap(ui.concurrencyLimitCh))
 		})
-		_ = metrics.GetOrCreateGauge(`vmauth_user_concurrent_requests_current`+metricLabels, func() float64 {
+		_ = ac.ms.GetOrCreateGauge(`vmauth_user_concurrent_requests_current`+metricLabels, func() float64 {
 			return float64(len(ui.concurrencyLimitCh))
 		})
 
