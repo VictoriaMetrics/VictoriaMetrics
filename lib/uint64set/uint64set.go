@@ -815,7 +815,7 @@ func (b *bucket16) add(x uint16) bool {
 
 func (b *bucket16) addMulti(a []uint64) int {
 	if b.bits == nil {
-		if b.smallPoolLen + len(a) > len(b.smallPool) {
+		if b.smallPoolLen+len(a) > len(b.smallPool) {
 			b.switchSmallPoolToBits()
 			goto fastPath
 		}
