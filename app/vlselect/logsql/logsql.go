@@ -18,8 +18,6 @@ var (
 		"too big value for this flag may result in high memory usage since the sorting is performed in memory")
 )
 
-const defaultRowsCount = 1000
-
 // ProcessQueryRequest handles /select/logsql/query request
 func ProcessQueryRequest(w http.ResponseWriter, r *http.Request, stopCh <-chan struct{}) {
 	// Extract tenantID
@@ -40,18 +38,15 @@ func ProcessQueryRequest(w http.ResponseWriter, r *http.Request, stopCh <-chan s
 		httpserver.Errorf(w, r, "cannot parse limit from the request: %s", err)
 		return
 	}
-	if limit <= 0 || limit > defaultRowsCount {
-		limit = defaultRowsCount
-	}
 	w.Header().Set("Content-Type", "application/stream+json; charset=utf-8")
 	sw := getSortWriter()
 	sw.Init(w, maxSortBufferSize.IntN())
 	tenantIDs := []logstorage.TenantID{tenantID}
 
 	var mx sync.Mutex
-	vlstorage.RunQuery(tenantIDs, q, stopCh, func(columns []logstorage.BlockColumn) {
+	vlstorage.RunQuery(tenantIDs, q, stopCh, func(columns []logstorage.BlockColumn) bool {
 		if len(columns) == 0 {
-			return
+			return true
 		}
 		rowsCount := len(columns[0].Values)
 		mx.Lock()
@@ -66,6 +61,8 @@ func ProcessQueryRequest(w http.ResponseWriter, r *http.Request, stopCh <-chan s
 		}
 		sw.MustWrite(bb.B)
 		blockResultPool.Put(bb)
+
+		return limit == 0
 	})
 	sw.FinalFlush()
 	putSortWriter(sw)
