@@ -3,10 +3,11 @@ scheduler:
   fit_every: "2m"
   fit_window: "3h"
 
-model:
-  class: "model.prophet.ProphetModel"
-  args:
-    interval_width: 0.98
+models:
+  prophet:
+    class: "model.prophet.ProphetModel"
+    args:
+      interval_width: 0.98
 
 reader:
   datasource_url: "http://victoriametrics:8428/"
