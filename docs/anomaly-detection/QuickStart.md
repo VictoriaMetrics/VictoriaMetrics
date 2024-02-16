@@ -19,7 +19,7 @@ before you start working with `vmanomaly`.
 
 ## How to install and run `vmanomaly`
 
->`vmanomaly` is a part of VictoriaMetrics Enterprise version. You can get a license key [**here**](https://victoriametrics.com/products/enterprise/trial/index.html).
+> To run `vmanomaly` you need to have VictoriaMetrics Enterprise license. You can get a trial license key [**here**](https://victoriametrics.com/products/enterprise/trial/index.html).
 
 The following options are available:
 
@@ -36,22 +36,25 @@ First, you can (optionally) tag the `vmanomaly` Docker image for convenience usi
 ```sh
 docker image tag victoriametrics/vmanomaly:latest vmanomaly
 ```
+
 Second, start the `vmanomaly` Docker container with a *license file*, use the command below.
-Make sure to replace `[YOUR_LICENSE_FILE_PATH]`, and `[YOUR_CONFIG_FILE_PATH]` with your specific details:
+Make sure to replace `YOUR_LICENSE_FILE_PATH`, and `YOUR_CONFIG_FILE_PATH` with your specific details:
 
 ```sh
-docker run -it -v [YOUR_LICENSE_FILE_PATH]:/license \
-               -v [YOUR_CONFIG_FILE_PATH]:/config.yml \
+export YOUR_LICENSE_FILE_PATH=path/to/license/file
+export YOUR_CONFIG_FILE_PATH=path/to/config/file
+docker run -it -v $YOUR_LICENSE_FILE_PATH:/license \
+               -v $YOUR_CONFIG_FILE_PATH:/config.yml \
                vmanomaly /config.yml \
                --license-file=/license
 ```
 
 See also:
 
-- [All license parameters options](https://docs.victoriametrics.com/anomaly-detection/overview/#licensing).
+- You can verify licence online and offline. See the details [here](https://docs.victoriametrics.com/anomaly-detection/overview/#licensing).
 - [How to configure `vmanomaly`](#how-to-configure-vmanomaly)
 
-### Helm charts
+### Kubernetes with Helm charts
 
 You can run `vmanomaly` in Kubernetes environment
 with [these Helm charts](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-anomaly/README.md).
@@ -88,12 +91,12 @@ writer:
 
 See also:
 
-- Modify configuration [parameters](https://docs.victoriametrics.com/anomaly-detection/components/)
+- You can configure `vmanomaly` schedule, model, reading and writing parameters according to your needs. See the details [here](https://docs.victoriametrics.com/anomaly-detection/components/)
 - Built-in [models and their parameters](https://docs.victoriametrics.com/anomaly-detection/components/models/)
 - To define queries for input data use [MetricsQL](https://docs.victoriametrics.com/metricsql/)
 
 
-## Other assets
+## Check also
 
 Here are other materials that you might find useful:
 
