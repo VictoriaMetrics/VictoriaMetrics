@@ -58,8 +58,14 @@ func (d *deduplicator) run() {
 				return
 			case <-t.C:
 			}
+			newDdr := &dedupRegistry{
+				sm: newShardedMap(),
+				bm: &bimap{},
+			}
+			ddr := d.ddr.Swap(newDdr)
+
 			start := time.Now()
-			d.flush()
+			d.flush(ddr)
 			flushDuration.UpdateDuration(start)
 		}
 	}()
@@ -71,7 +77,7 @@ func (d *deduplicator) stop() {
 	}
 	close(d.stopCh)
 	d.wg.Wait()
-	d.flush()
+	d.flush(d.ddr.Load())
 }
 
 func (d *deduplicator) pushSamples(key []byte, ts prompbmarshal.TimeSeries) {
@@ -114,16 +120,10 @@ again:
 	s.mu.Unlock()
 }
 
-func (d *deduplicator) flush() {
+func (d *deduplicator) flush(ddr *dedupRegistry) {
 	if d == nil {
 		return
 	}
-
-	newDdr := &dedupRegistry{
-		sm: newShardedMap(),
-		bm: &bimap{},
-	}
-	ddr := d.ddr.Swap(newDdr)
 
 	labels := promutils.GetLabels()
 	tmpLabels := promutils.GetLabels()
