@@ -39,7 +39,7 @@ func newDeduplicator(as []*aggregator, dedupInterval time.Duration) *deduplicato
 	}
 	ddr := &dedupRegistry{
 		sm: newShardedMap(),
-		bm: bm.Load(),
+		bm: &bimap{},
 	}
 	d.ddr.Store(ddr)
 	return d
@@ -76,7 +76,7 @@ func (d *deduplicator) stop() {
 
 func (d *deduplicator) pushSamples(key []byte, ts prompbmarshal.TimeSeries) {
 	lastSample := ts.Samples[0]
-	// find the most recent sample, since previous samples need to be deduplicated
+	// find the most recent sample, since previous samples will be deduplicated anyway
 	for i, sample := range ts.Samples {
 		if sample.Timestamp > lastSample.Timestamp ||
 			(sample.Timestamp == lastSample.Timestamp && sample.Value > lastSample.Value) {
@@ -84,12 +84,18 @@ func (d *deduplicator) pushSamples(key []byte, ts prompbmarshal.TimeSeries) {
 		}
 	}
 
+again:
 	ddr := d.ddr.Load()
 	key = ddr.bm.compress(key[:0], ts.Labels)
 	sKey := string(key)
 
 	s := ddr.sm.getShard(sKey)
 	s.mu.Lock()
+	if s.drained {
+		s.mu.Unlock()
+		goto again
+	}
+
 	dsv, ok := s.data[sKey]
 	if !ok {
 		// The entry is missing in the map. Try creating it.
@@ -115,7 +121,7 @@ func (d *deduplicator) flush() {
 
 	newDdr := &dedupRegistry{
 		sm: newShardedMap(),
-		bm: bm.Load(),
+		bm: &bimap{},
 	}
 	ddr := d.ddr.Swap(newDdr)
 
@@ -139,6 +145,7 @@ func (d *deduplicator) flush() {
 				dsv: v,
 			})
 		}
+		sh.drained = true
 		sh.mu.Unlock()
 
 		for _, s := range samples {
@@ -179,8 +186,9 @@ type shardedMap struct {
 }
 
 type shard struct {
-	mu   sync.Mutex
-	data map[string]dedupStateValue
+	mu      sync.Mutex
+	data    map[string]dedupStateValue
+	drained bool
 }
 
 func newShardedMap() *shardedMap {

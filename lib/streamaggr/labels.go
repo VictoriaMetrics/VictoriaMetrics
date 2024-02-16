@@ -2,19 +2,14 @@ package streamaggr
 
 import (
 	"encoding/binary"
-	"flag"
 	"fmt"
-	"strings"
-	"sync"
-	"sync/atomic"
-	"time"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"strings"
+	"sync"
+	"sync/atomic"
 )
-
-var streamAggrDedupCacheCleanInterval = flag.Duration("remoteWrite.streamAggr.dedupCacheCleanInterval", 5*time.Minute, "TODO")
 
 type bimap struct {
 	n atomic.Uint32
@@ -22,18 +17,6 @@ type bimap struct {
 	labelToHash sync.Map
 	// map[string]prompbmarshal.Label
 	hashToLabel sync.Map
-}
-
-var bm atomic.Pointer[bimap]
-
-func init() {
-	bm.Store(&bimap{})
-	t := time.NewTicker(*streamAggrDedupCacheCleanInterval)
-	go func() {
-		for range t.C {
-			bm.Store(&bimap{})
-		}
-	}()
 }
 
 func (bm *bimap) getHash(l prompbmarshal.Label) uint32 {
@@ -58,10 +41,6 @@ func (bm *bimap) set(k uint32, l prompbmarshal.Label) {
 }
 
 func (bm *bimap) compress(bb []byte, lss []prompbmarshal.Label) []byte {
-	n := len(lss) * 4
-	if cap(bb)-len(bb) < n {
-		bb = append(make([]byte, 0, len(bb)+n), bb...)
-	}
 	for _, ls := range lss {
 		k := bm.getHash(ls)
 		if k == 0 {
@@ -71,6 +50,7 @@ func (bm *bimap) compress(bb []byte, lss []prompbmarshal.Label) []byte {
 				Value: strings.Clone(ls.Value),
 			})
 		}
+		//fmt.Println(">>", k, ls)
 		bb = binary.LittleEndian.AppendUint32(bb, k)
 	}
 	return bb
@@ -82,6 +62,7 @@ func (bm *bimap) decompress(labels *promutils.Labels, s string) *promutils.Label
 		k := binary.LittleEndian.Uint32(bb)
 		bb = bb[4:]
 		l := bm.getLabel(k)
+		//fmt.Println("<<", k, l)
 		if l.Name == "" || l.Value == "" {
 			panic(fmt.Sprintf("got empty label for key: %d", k))
 		}
