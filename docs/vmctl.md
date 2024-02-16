@@ -282,6 +282,13 @@ foo_field2{tag1="value1", tag2="value2"} 40
 
 The configuration flags should contain self-explanatory descriptions.
 
+```sh
+-influx-cert-file value                    Optional path to client-side TLS certificate file to use when connecting to influxAddr
+-influx-key-file value                     Optional path to client-side TLS key to use when connecting to influxAddr
+-influx-CA-file value                      Optional path to TLS CA file to use for verifying connections to influxAddr. By default, system CA is used
+-influx-server-name value                  Optional TLS server name to use for connections to influxAddr. By default, the server name from influxAddr is used
+-influx-insecure-skip-verify               Whether to skip tls verification when connecting to infuxAddr (default: false)
+```
 ### Filtering
 
 The filtering consists of two parts: timeseries and time.
