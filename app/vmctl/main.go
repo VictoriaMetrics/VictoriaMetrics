@@ -25,6 +25,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/native/stream"
 )
@@ -84,6 +85,18 @@ func main() {
 				Action: func(c *cli.Context) error {
 					fmt.Println("InfluxDB import mode")
 
+					// create TLS config
+					influxCertFile := c.String(influxCertFile)
+					influxKeyFile := c.String(influxKeyFile)
+					influxCAFile := c.String(influxCAFile)
+					influxServerName := c.String(influxServerName)
+					influxInsecureSkipVerify := c.Bool(influxInsecureSkipVerify)
+
+					tc, err := httputils.TLSConfig(influxCertFile, influxCAFile, influxKeyFile, influxServerName, influxInsecureSkipVerify)
+					if err != nil {
+						return fmt.Errorf("failed to create TLS Config: %s", err)
+					}
+
 					iCfg := influx.Config{
 						Addr:      c.String(influxAddr),
 						Username:  c.String(influxUser),
@@ -96,7 +109,9 @@ func main() {
 							TimeEnd:   c.String(influxFilterTimeEnd),
 						},
 						ChunkSize: c.Int(influxChunkSize),
+						TLSConfig: tc,
 					}
+
 					influxClient, err := influx.NewClient(iCfg)
 					if err != nil {
 						return fmt.Errorf("failed to create influx client: %s", err)
