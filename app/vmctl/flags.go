@@ -522,6 +522,10 @@ const (
 	remoteReadPassword           = "remote-read-password"
 	remoteReadHTTPTimeout        = "remote-read-http-timeout"
 	remoteReadHeaders            = "remote-read-headers"
+	remoteReadCertFile           = "remote-read-cert-file"
+	remoteReadKeyFile            = "remote-read-key-file"
+	remoteReadCAFile             = "remote-read-CA-file"
+	remoteReadServerName         = "remote-read-server-name"
 	remoteReadInsecureSkipVerify = "remote-read-insecure-skip-verify"
 	remoteReadDisablePathAppend  = "remote-read-disable-path-append"
 )
@@ -599,6 +603,22 @@ var (
 			Usage: "Optional HTTP headers to send with each request to the corresponding remote source storage \n" +
 				"For example, --remote-read-headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding remote source storage. \n" +
 				"Multiple headers must be delimited by '^^': --remote-read-headers='header1:value1^^header2:value2'",
+		},
+		&cli.StringFlag{
+			Name:  remoteReadCertFile,
+			Usage: "Optional path to client-side TLS certificate file to use when connecting to remoteReadSrcAddr",
+		},
+		&cli.StringFlag{
+			Name:  remoteReadKeyFile,
+			Usage: "Optional path to client-side TLS key to use when connecting to remoteReadSrcAddr",
+		},
+		&cli.StringFlag{
+			Name:  remoteReadCAFile,
+			Usage: "Optional path to TLS CA file to use for verifying connections to remoteReadSrcAddr. By default, system CA is used",
+		},
+		&cli.StringFlag{
+			Name:  remoteReadServerName,
+			Usage: "Optional TLS server name to use for connections to remoteReadSrcAddr. By default, the server name from remoteReadSrcAddr is used",
 		},
 		&cli.BoolFlag{
 			Name:  remoteReadInsecureSkipVerify,
