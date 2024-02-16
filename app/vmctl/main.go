@@ -86,13 +86,13 @@ func main() {
 					fmt.Println("InfluxDB import mode")
 
 					// create TLS config
-					influxCertFile := c.String(influxCertFile)
-					influxKeyFile := c.String(influxKeyFile)
-					influxCAFile := c.String(influxCAFile)
-					influxServerName := c.String(influxServerName)
-					influxInsecureSkipVerify := c.Bool(influxInsecureSkipVerify)
+					certFile := c.String(influxCertFile)
+					keyFile := c.String(influxKeyFile)
+					caFile := c.String(influxCAFile)
+					serverName := c.String(influxServerName)
+					insecureSkipVerify := c.Bool(influxInsecureSkipVerify)
 
-					tc, err := httputils.TLSConfig(influxCertFile, influxCAFile, influxKeyFile, influxServerName, influxInsecureSkipVerify)
+					tc, err := httputils.TLSConfig(certFile, caFile, keyFile, serverName, insecureSkipVerify)
 					if err != nil {
 						return fmt.Errorf("failed to create TLS Config: %s", err)
 					}
