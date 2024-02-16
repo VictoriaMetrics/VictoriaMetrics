@@ -65,7 +65,7 @@ type Config struct {
 	// Is optional.
 	LabelName, LabelValue string
 
-	// Optional cert file, key file, CA file and server name for client side TLS condiguration
+	// Optional cert file, key file, CA file and server name for client side TLS configuration
 	CertFile   string
 	KeyFile    string
 	CAFile     string
@@ -110,10 +110,9 @@ func NewClient(cfg Config) (*Client, error) {
 		}
 	}
 
-	//create Transport
 	tr, err := httputils.Transport(cfg.Addr, cfg.CertFile, cfg.KeyFile, cfg.CAFile, cfg.ServerName, cfg.InsecureSkipVerify)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create transport: %s", err)
 	}
 
 	c := &Client{

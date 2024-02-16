@@ -277,28 +277,28 @@ var (
 		},
 		&cli.BoolFlag{
 			Name:  influxPrometheusMode,
-			Usage: "Wether to restore the original timeseries name previously written from Prometheus to InfluxDB v1 via remote_write.",
+			Usage: "Whether to restore the original timeseries name previously written from Prometheus to InfluxDB v1 via remote_write.",
 			Value: false,
 		},
 		&cli.StringFlag{
 			Name:  influxCertFile,
-			Usage: "Optional path to client-side TLS certificate file to use when connecting to influxAddr",
+			Usage: "Optional path to client-side TLS certificate file to use when connecting to -influx-addr",
 		},
 		&cli.StringFlag{
 			Name:  influxKeyFile,
-			Usage: "Optional path to client-side TLS key to use when connecting to influxAddr",
+			Usage: "Optional path to client-side TLS key to use when connecting to -influx-addr",
 		},
 		&cli.StringFlag{
 			Name:  influxCAFile,
-			Usage: "Optional path to TLS CA file to use for verifying connections to influxAddr. By default, system CA is used",
+			Usage: "Optional path to TLS CA file to use for verifying connections to -influx-addr. By default, system CA is used",
 		},
 		&cli.StringFlag{
 			Name:  influxServerName,
-			Usage: "Optional TLS server name to use for connections to influxAddr. By default, the server name from influxAddr is used",
+			Usage: "Optional TLS server name to use for connections to -influx-addr. By default, the server name from -influx-addr is used",
 		},
 		&cli.BoolFlag{
 			Name:  influxInsecureSkipVerify,
-			Usage: "Whether to skip tls verification when connecting to infuxAddr",
+			Usage: "Whether to skip tls verification when connecting to -influx-addr",
 			Value: false,
 		},
 	}
@@ -606,19 +606,19 @@ var (
 		},
 		&cli.StringFlag{
 			Name:  remoteReadCertFile,
-			Usage: "Optional path to client-side TLS certificate file to use when connecting to remoteReadSrcAddr",
+			Usage: "Optional path to client-side TLS certificate file to use when connecting to -remote-read-src-addr",
 		},
 		&cli.StringFlag{
 			Name:  remoteReadKeyFile,
-			Usage: "Optional path to client-side TLS key to use when connecting to remoteReadSrcAddr",
+			Usage: "Optional path to client-side TLS key to use when connecting to -remote-read-src-addr",
 		},
 		&cli.StringFlag{
 			Name:  remoteReadCAFile,
-			Usage: "Optional path to TLS CA file to use for verifying connections to remoteReadSrcAddr. By default, system CA is used",
+			Usage: "Optional path to TLS CA file to use for verifying connections to -remote-read-src-addr. By default, system CA is used",
 		},
 		&cli.StringFlag{
 			Name:  remoteReadServerName,
-			Usage: "Optional TLS server name to use for connections to remoteReadSrcAddr. By default, the server name from remoteReadSrcAddr is used",
+			Usage: "Optional TLS server name to use for connections to remoteReadSrcAddr. By default, the server name from -remote-read-src-addr is used",
 		},
 		&cli.BoolFlag{
 			Name:  remoteReadInsecureSkipVerify,
