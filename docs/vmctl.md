@@ -280,15 +280,12 @@ foo_field2{tag1="value1", tag2="value2"} 40
 
 ### Configuration
 
-The configuration flags should contain self-explanatory descriptions.
-
+Run the following command to get all configuration options:
 ```sh
--influx-cert-file value                    Optional path to client-side TLS certificate file to use when connecting to influxAddr
--influx-key-file value                     Optional path to client-side TLS key to use when connecting to influxAddr
--influx-CA-file value                      Optional path to TLS CA file to use for verifying connections to influxAddr. By default, system CA is used
--influx-server-name value                  Optional TLS server name to use for connections to influxAddr. By default, the server name from influxAddr is used
--influx-insecure-skip-verify               Whether to skip tls verification when connecting to infuxAddr (default: false)
+./vmctl influx --help
 ```
+
+
 ### Filtering
 
 The filtering consists of two parts: timeseries and time.
@@ -428,7 +425,11 @@ So no data changes will be applied.
 
 ### Configuration
 
-The configuration flags should contain self-explanatory descriptions.
+Run the following command to get all configuration options:
+```sh
+./vmctl prometheus --help
+```
+
 
 ### Filtering
 
