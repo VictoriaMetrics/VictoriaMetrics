@@ -40,7 +40,7 @@ See [these docs](#running-victoriametrics-enterprise) for details on how to run 
 VictoriaMetrics Enterprise includes [all the features of the community edition](https://docs.victoriametrics.com/#prominent-features),
 plus the following additional features:
 
-- Stable releases with long-term support, which contains important bugfixes. See, for example, [v1.97.x LTS release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.1).
+- Stable releases with long-term support, which contains important bugfixes and security fixes. See [these docs](https://docs.victoriametrics.com/LTS-releases.html).
 - First-class consulting and technical support provided by the core VictoriaMetrics dev team.
 - [Monitoring of monitoring](https://victoriametrics.com/products/mom/) - this feature allows forecasting
   and preventing possible issues in VictoriaMetrics setups.
