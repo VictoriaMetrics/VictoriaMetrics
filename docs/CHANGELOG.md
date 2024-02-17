@@ -11,6 +11,9 @@ The following `tip` changes can be tested by building VictoriaMetrics components
 
 ## v1.93.x long-time support release (LTS)
 
+* BUGFIX: fix the misleading error `0ms is out of allowed range [0 ...` when passing `step=0` to [/api/v1/query](https://docs.victoriametrics.com/keyconcepts/#instant-query)
+  or [/api/v1/query_range](https://docs.victoriametrics.com/keyconcepts/#range-query). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5795).
+
 ## [v1.93.12](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.12)
 
 Released at 2024-02-14
