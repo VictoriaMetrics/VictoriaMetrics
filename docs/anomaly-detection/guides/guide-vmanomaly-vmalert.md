@@ -36,7 +36,7 @@ aliases:
 
 All the service parameters are defined in a config file.
 
-> **Note**: As of the time of writing, in the [1.9.2](https://docs.victoriametrics.com/anomaly-detection/changelog/#v192) release and earlier versions, each `vmanomaly` configuration file is limited to supporting only one model type. To utilize *different models* on your data, it is necessary to run multiple instances of the `vmanomaly` process. Each instance should operate with its own configuration file, differing in the `model` section.
+> **Note**: Starting from [1.10.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1100), each `vmanomaly` configuration file can support more that one model type. To utilize *different models* on your data, it is no longer necessary to run multiple instances of the `vmanomaly` process. Please refer to [model](/anomaly-detection/models/) config section for more details.
 
 
 **vmanomaly** does the following:
@@ -117,7 +117,7 @@ The configuration file for `vmanomaly` comprises 4 essential sections:
 
 1. [`scheduler`](/anomaly-detection/components/scheduler.html) - This section determines the frequency of model inferences and training, including the time range for model training.
 
-2. [`model`](/anomaly-detection/components/models.html) - Here, you define specific parameters and configurations for the model being used for anomaly detection.
+2. [`models`](/anomaly-detection/components/models.html) - Here, you define specific parameters and configurations for the models being used for anomaly detection.
 
 3. [`reader`](/anomaly-detection/components/reader.html) - This section outlines the methodology for data reading, including the data source location.
 
@@ -132,7 +132,7 @@ Detailed parameters in each section:
   * `fit_every` - Sets the frequency for retraining the models. A higher frequency ensures more updated models but requires more CPU resources. If omitted, models are retrained in each `infer_every` cycle. Format is similar to `infer_every`.
   * `fit_window` - Defines the data interval for training the models. Longer intervals allow for capturing extensive historical behavior and better seasonal pattern detection but may slow down the model's response to permanent metric changes and increase resource consumption. A minimum of two full seasonal cycles is recommended. Example format: 3h for three hours of data.
 
-* `model`
+* `models`
   * `class` - Specifies the model to be used. Options include custom models ([guide here](/anomaly-detection/components/models.html#custom-model-guide)) or a selection from [built-in models](/anomaly-detection/components/models.html#built-in-models), such as the [Facebook Prophet](/anomaly-detection/components/models.html#prophet) (`model.prophet.ProphetModel`).
   * `args` - Model-specific parameters, formatted as a YAML dictionary in the `key: value` structure. Parameters available in [FB Prophet](https://facebook.github.io/prophet/docs/quick_start.html) can be used as an example.
 
@@ -152,10 +152,11 @@ scheduler:
   fit_every: "2m"
   fit_window: "3h"
 
-model:
-  class: "model.prophet.ProphetModel"
-  args:
-    interval_width: 0.98
+models:
+  prophet:
+    class: "model.prophet.ProphetModel"
+    args:
+      interval_width: 0.98
 
 reader:
   datasource_url: "http://victoriametrics:8428/"

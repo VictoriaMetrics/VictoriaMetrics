@@ -280,7 +280,11 @@ foo_field2{tag1="value1", tag2="value2"} 40
 
 ### Configuration
 
-The configuration flags should contain self-explanatory descriptions.
+Run the following command to get all configuration options:
+```sh
+./vmctl influx --help
+```
+
 
 ### Filtering
 
@@ -421,7 +425,11 @@ So no data changes will be applied.
 
 ### Configuration
 
-The configuration flags should contain self-explanatory descriptions.
+Run the following command to get all configuration options:
+```sh
+./vmctl prometheus --help
+```
+
 
 ### Filtering
 

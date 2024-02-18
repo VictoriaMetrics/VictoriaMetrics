@@ -21,24 +21,27 @@ VictoriaMetrics is available in [binary releases](https://github.com/VictoriaMet
 [Docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/), [Snap packages](https://snapcraft.io/victoriametrics)
 and [source code](https://github.com/VictoriaMetrics/VictoriaMetrics). 
 
-The cluster version of VictoriaMetrics is available [here](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html).
+Documentation for the cluster version of VictoriaMetrics is available [here](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html).
 
 Learn more about [key concepts](https://docs.victoriametrics.com/keyConcepts.html) of VictoriaMetrics and follow the 
 [quick start guide](https://docs.victoriametrics.com/Quick-Start.html) for a better experience.
 
-There is also a user-friendly database for logs - [VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/).
-
 If you have questions about VictoriaMetrics, then feel free asking them in the [VictoriaMetrics community Slack chat](https://slack.victoriametrics.com/).
 
-[Contact us](mailto:info@victoriametrics.com) if you need enterprise support for VictoriaMetrics. 
+[Contact us](mailto:info@victoriametrics.com) if you need enterprise support for VictoriaMetrics.
 See [features available in enterprise package](https://docs.victoriametrics.com/enterprise.html).
-Enterprise binaries can be downloaded and evaluated for free 
+Enterprise binaries can be downloaded and evaluated for free
 from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 You can also [request a free trial license](https://victoriametrics.com/products/enterprise/trial/).
 
-VictoriaMetrics is developed at a fast pace, so it is recommended to check the [CHANGELOG](https://docs.victoriametrics.com/CHANGELOG.html) periodically, and to perform [regular upgrades](#how-to-upgrade-victoriametrics).
+VictoriaMetrics is developed at a fast pace, so it is recommended to check the [CHANGELOG](https://docs.victoriametrics.com/CHANGELOG.html) periodically,
+and to perform [regular upgrades](#how-to-upgrade-victoriametrics).
 
-VictoriaMetrics has achieved security certifications for Database Software Development and Software-Based Monitoring Services. We apply strict security measures in everything we do. See our [Security page](https://victoriametrics.com/security/) for more details.
+[VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise/) provides long-term support lines of releases (LTS releases) -
+see [these docs](https://docs.victoriametrics.com/LTS-releases.md).
+
+VictoriaMetrics has achieved security certifications for Database Software Development and Software-Based Monitoring Services.
+We apply strict security measures in everything we do. See [Security page](https://victoriametrics.com/security/) for more details.
 
 ## Prominent features
 
@@ -104,6 +107,23 @@ VictoriaMetrics has the following prominent features:
   and [Google Filestore](https://cloud.google.com/filestore).
 
 See [case studies for VictoriaMetrics](https://docs.victoriametrics.com/CaseStudies.html) and [various Articles about VictoriaMetrics](https://docs.victoriametrics.com/Articles.html).
+
+## Components
+
+VictoriaMetrics ecosystem contains the following components additionally to [single-node VictoriaMetrics](https://docs.victoriametrics.com/):
+
+- [vmagent](https://docs.victoriametrics.com/vmagent/) - lightweight agent for receiving metrics via [pull-based](https://docs.victoriametrics.com/vmagent/#how-to-collect-metrics-in-prometheus-format)
+  and [push-based](https://docs.victoriametrics.com/vmagent/#how-to-push-data-to-vmagent) protocols, transforming and sending them to the configured Prometheus-compatible
+  remote storage systems such as VictoriaMetrics.
+- [vmalert](https://docs.victoriametrics.com/vmalert/) - a service for processing Prometheus-compatible alerting and recording rules.
+- [vmalert-tool](https://docs.victoriametrics.com/vmalert-tool/) -  a tool for validating alerting and recording rules.
+- [vmauth](https://docs.victoriametrics.com/vmauth/) - authorization proxy and load balancer optimized for VictoriaMetrics products.
+- [vmgateway](https://docs.victoriametrics.com/vmgateway/) - auhtorization proxy with per-[tenant](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy) rate limiting cababilities.
+- [vmctl](https://docs.victoriametrics.com/vmctl/) - a tool for migrating and copying data between different storage systems for metrics.
+- [vmbackup](https://docs.victoriametrics.com/vmbackup/), [vmrestore](https://docs.victoriametrics.com/vmrestore/) and [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/) -
+  tools for creating backups and restoring from backups for VictoriaMetrics data.
+- `vminsert`, `vmselect` and `vmstorage` - components of [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html).
+- [VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/) - user-friendly cost-efficient database for logs.
 
 ## Operation
 
