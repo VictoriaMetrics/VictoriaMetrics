@@ -24,7 +24,7 @@ func ParseTime(s string) (float64, error) {
 // It returns unix timestamp in milliseconds.
 func ParseTimeMs(s string) (float64, error) {
 	currentTimestampMs := float64(time.Now().UnixNano()) / 1e6
-	return ParseTimeMsAt(s, currentTimestampMs)
+	return parseTimeMsAt(s, currentTimestampMs)
 }
 
 const (
@@ -42,15 +42,19 @@ func ParseTimeAt(s string, currentTimestamp float64) (float64, error) {
 	if s == "now" {
 		return currentTimestamp, nil
 	}
-	return ParseTimeMsAt(s, currentTimestamp*1e3)
+	ms, err := parseTimeMsAt(s, currentTimestamp*1e3)
+	if err != nil {
+		return 0, err
+	}
+	return ms / 1e3, nil
 }
 
-// ParseTimeMsAt parses time s in different formats, assuming the given currentTimestamp.
+// parseTimeMsAt parses time s in different formats, assuming the given currentTimestamp.
 //
 // See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#timestamp-formats
 //
 // It returns unix timestamp in milliseconds.
-func ParseTimeMsAt(s string, currentTimestampMs float64) (float64, error) {
+func parseTimeMsAt(s string, currentTimestampMs float64) (float64, error) {
 	if s == "now" {
 		return currentTimestampMs, nil
 	}
