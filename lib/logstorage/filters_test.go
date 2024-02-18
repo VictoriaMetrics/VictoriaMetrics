@@ -9226,7 +9226,7 @@ func testFilterMatchForStorage(t *testing.T, s *Storage, tenantID TenantID, f fi
 		resultColumnNames: []string{resultColumnName},
 	}
 	workersCount := 3
-	s.search(workersCount, so, nil, func(workerID uint, br *blockResult) bool {
+	s.search(workersCount, so, nil, func(workerID uint, br *blockResult) {
 		// Verify tenantID
 		if !br.streamID.tenantID.equal(&tenantID) {
 			t.Fatalf("unexpected tenantID in blockResult; got %s; want %s", &br.streamID.tenantID, &tenantID)
@@ -9248,7 +9248,6 @@ func testFilterMatchForStorage(t *testing.T, s *Storage, tenantID TenantID, f fi
 		if !reflect.DeepEqual(br.timestamps, expectedTimestamps) {
 			t.Fatalf("unexpected timestamps;\ngot\n%d\nwant\n%d", br.timestamps, expectedTimestamps)
 		}
-		return false
 	})
 }
 

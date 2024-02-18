@@ -36,8 +36,12 @@ var sortWriterPool sync.Pool
 // If the buf isn't empty at FinalFlush() call, then the buffered data
 // is sorted by _time field.
 type sortWriter struct {
-	mu         sync.Mutex
-	w          io.Writer
+	mu sync.Mutex
+	w  io.Writer
+
+	maxLines     int
+	linesWritten int
+
 	maxBufLen  int
 	buf        []byte
 	bufFlushed bool
@@ -47,58 +51,121 @@ type sortWriter struct {
 
 func (sw *sortWriter) reset() {
 	sw.w = nil
+
+	sw.maxLines = 0
+	sw.linesWritten = 0
+
 	sw.maxBufLen = 0
 	sw.buf = sw.buf[:0]
 	sw.bufFlushed = false
 	sw.hasErr = false
 }
 
-func (sw *sortWriter) Init(w io.Writer, maxBufLen int) {
+// Init initializes sw.
+//
+// If maxLines is set to positive value, then sw accepts up to maxLines
+// and then rejects all the other lines by returning false from TryWrite.
+func (sw *sortWriter) Init(w io.Writer, maxBufLen, maxLines int) {
 	sw.reset()
 
 	sw.w = w
 	sw.maxBufLen = maxBufLen
+	sw.maxLines = maxLines
 }
 
-func (sw *sortWriter) MustWrite(p []byte) {
+// TryWrite writes p to sw.
+//
+// True is returned on successful write, false otherwise.
+//
+// Unsuccessful write may occur on underlying write error or when maxLines lines are already written to sw.
+func (sw *sortWriter) TryWrite(p []byte) bool {
 	sw.mu.Lock()
 	defer sw.mu.Unlock()
 
 	if sw.hasErr {
-		return
+		return false
 	}
 
 	if sw.bufFlushed {
-		if _, err := sw.w.Write(p); err != nil {
+		if !sw.writeToUnderlyingWriterLocked(p) {
 			sw.hasErr = true
+			return false
 		}
-		return
+		return true
 	}
+
 	if len(sw.buf)+len(p) < sw.maxBufLen {
 		sw.buf = append(sw.buf, p...)
-		return
+		return true
 	}
+
 	sw.bufFlushed = true
-	if len(sw.buf) > 0 {
-		if _, err := sw.w.Write(sw.buf); err != nil {
-			sw.hasErr = true
-			return
+	if !sw.writeToUnderlyingWriterLocked(sw.buf) {
+		sw.hasErr = true
+		return false
+	}
+	sw.buf = sw.buf[:0]
+
+	if !sw.writeToUnderlyingWriterLocked(p) {
+		sw.hasErr = true
+		return false
+	}
+	return true
+}
+
+func (sw *sortWriter) writeToUnderlyingWriterLocked(p []byte) bool {
+	if len(p) == 0 {
+		return true
+	}
+	if sw.maxLines > 0 {
+		if sw.linesWritten >= sw.maxLines {
+			return false
 		}
-		sw.buf = sw.buf[:0]
+		var linesLeft int
+		p, linesLeft = trimLines(p, sw.maxLines-sw.linesWritten)
+		println("DEBUG: end trimLines", string(p), linesLeft)
+		sw.linesWritten += linesLeft
 	}
 	if _, err := sw.w.Write(p); err != nil {
-		sw.hasErr = true
+		return false
 	}
+	return true
 }
+
+func trimLines(p []byte, maxLines int) ([]byte, int) {
+	println("DEBUG: start trimLines", string(p), maxLines)
+	if maxLines <= 0 {
+		return nil, 0
+	}
+	n := bytes.Count(p, newline)
+	if n < maxLines {
+		return p, n
+	}
+	for n >= maxLines {
+		idx := bytes.LastIndexByte(p, '\n')
+		p = p[:idx]
+		n--
+	}
+	return p[:len(p)+1], maxLines
+}
+
+var newline = []byte("\n")
 
 func (sw *sortWriter) FinalFlush() {
 	if sw.hasErr || sw.bufFlushed {
 		return
 	}
+
 	rs := getRowsSorter()
 	rs.parseRows(sw.buf)
 	rs.sort()
-	WriteJSONRows(sw.w, rs.rows)
+
+	rows := rs.rows
+	if sw.maxLines > 0 && len(rows) > sw.maxLines {
+		rows = rows[:sw.maxLines]
+	}
+	WriteJSONRows(sw.w, rows)
+
 	putRowsSorter(rs)
 }
 
