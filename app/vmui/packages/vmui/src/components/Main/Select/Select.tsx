@@ -166,6 +166,7 @@ const Select: FC<SelectProps> = ({
         </div>
       </div>
       <Autocomplete
+        isSelect
         label={label}
         value={autocompleteValue}
         options={list.map(el => ({ value: el }))}

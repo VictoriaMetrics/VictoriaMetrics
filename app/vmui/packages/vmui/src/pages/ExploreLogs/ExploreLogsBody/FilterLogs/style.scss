@@ -1,0 +1,40 @@
+@use "src/styles/variables" as *;
+
+.vm-explore-logs-filter {
+  display: grid;
+  margin: $padding-global 0;
+
+  &-list {
+    display: grid;
+    gap: $padding-global;
+  }
+
+  &-builder {
+    display: flex;
+    gap: $padding-global;
+
+    &__item {
+      flex-grow: 0.2;
+
+      &_values {
+        flex-grow: 2;
+      }
+    }
+  }
+
+  &-controls {
+    display: flex;
+    justify-content: flex-end;
+    padding-top: $padding-global;
+
+    &__operator {
+      display: flex;
+      align-items: center;
+      gap: $padding-small;
+      justify-content: flex-start;
+      min-width: 220px;
+      margin-right: auto;
+      margin-left: 0;
+    }
+  }
+}

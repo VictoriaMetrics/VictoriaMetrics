@@ -32,6 +32,7 @@ const GroupLogs: FC<TableLogsProps> = ({ logs, columns }) => {
                 {item.keys.map((key) => (
                   <div
                     className="vm-explore-logs-body-content-group-keys__key"
+                    onClick={(e) => e.stopPropagation()}
                     key={key}
                   >
                     {key}

@@ -1,6 +1,6 @@
-import React, { FC, useState, useMemo } from "preact/compat";
+import React, { FC, useState, useMemo, useEffect } from "preact/compat";
 import JsonView from "../../../components/Views/JsonView/JsonView";
-import { CodeIcon, ListIcon, TableIcon } from "../../../components/Main/Icons";
+import { CodeIcon, FilterIcon, ListIcon, TableIcon } from "../../../components/Main/Icons";
 import Tabs from "../../../components/Main/Tabs/Tabs";
 import "./style.scss";
 import classNames from "classnames";
@@ -16,6 +16,11 @@ import TableSettings from "../../../components/Table/TableSettings/TableSettings
 import useBoolean from "../../../hooks/useBoolean";
 import TableLogs from "./TableLogs";
 import GroupLogs from "./GroupLogs";
+import FilterLogs, { FilterObj } from "./FilterLogs/FilterLogs";
+import Button from "../../../components/Main/Button/Button";
+import Tooltip from "../../../components/Main/Tooltip/Tooltip";
+import { useSearchParams } from "react-router-dom";
+import qs from "qs";
 
 export interface ExploreLogBodyProps {
   data: Logs[];
@@ -29,12 +34,13 @@ enum DisplayType {
 }
 
 const tabs = [
-  { label: "Group", value: DisplayType.group, icon: <ListIcon /> },
-  { label: "Table", value: DisplayType.table, icon: <TableIcon /> },
-  { label: "JSON", value: DisplayType.json, icon: <CodeIcon /> },
+  { label: "Group", value: DisplayType.group, icon: <ListIcon/> },
+  { label: "Table", value: DisplayType.table, icon: <TableIcon/> },
+  { label: "JSON", value: DisplayType.json, icon: <CodeIcon/> },
 ];
 
 const ExploreLogsBody: FC<ExploreLogBodyProps> = ({ data, loaded }) => {
+  const [searchParams] = useSearchParams();
   const { isMobile } = useDeviceDetect();
   const { timezone } = useTimeState();
   const { setSearchParamsFromKeys } = useSearchParamsFromObject();
@@ -43,6 +49,18 @@ const ExploreLogsBody: FC<ExploreLogBodyProps> = ({ data, loaded }) => {
   const [activeTab, setActiveTab] = useStateSearchParams(DisplayType.group, "view");
   const [displayColumns, setDisplayColumns] = useState<string[]>([]);
   const { value: tableCompact, toggle: toggleTableCompact } = useBoolean(false);
+  const { value: showFilters, toggle: toggleShowFilters, setTrue: handleOpenFilters } = useBoolean(false);
+
+  const [filteredLogs, setFilteredLogs] = useState<Logs[]>([]);
+
+  const filtersFromParams = useMemo(() => {
+    const stringParams = searchParams.get("filters") || "";
+    const params = qs.parse(stringParams, { allowDots: true });
+    const result = Object.values(params).map((f, i) => typeof f === "object" ? ({ ...f, id: i }) : null);
+    return result.filter(Boolean) as FilterObj[];
+  }, [searchParams]);
+
+  const hasFilters = useMemo(() => !!filtersFromParams.length, [filtersFromParams]);
 
   const logs = useMemo(() => data.map((item) => ({
     time: dayjs(item._time).tz().format("MMM DD, YYYY \nHH:mm:ss.SSS"),
@@ -73,11 +91,25 @@ const ExploreLogsBody: FC<ExploreLogBodyProps> = ({ data, loaded }) => {
     saveToStorage("LOGS_LIMIT", `${limit}`);
   };
 
+  const handleChangeFilteredLogs = (logs: Logs[]) => {
+    setFilteredLogs(logs);
+  };
+
+  useEffect(() => {
+    setFilteredLogs(logs);
+  }, [logs]);
+
+  useEffect(() => {
+    if (filtersFromParams.length) {
+      handleOpenFilters();
+    }
+  }, [filtersFromParams]);
+
   return (
     <div
       className={classNames({
         "vm-explore-logs-body": true,
-        "vm-block":  true,
+        "vm-block": true,
         "vm-block_mobile": isMobile,
       })}
     >
@@ -95,6 +127,24 @@ const ExploreLogsBody: FC<ExploreLogBodyProps> = ({ data, loaded }) => {
             onChange={handleChangeTab}
           />
         </div>
+        {activeTab === DisplayType.group && (
+          <Tooltip title={"Filters"}>
+            <Button
+              variant="text"
+              color={showFilters ? "primary" : "gray"}
+              startIcon={(
+                <span
+                  className={classNames({
+                    "vm-section-header__filter-icon": true,
+                    "vm-section-header__filter-icon_active": hasFilters
+                  })}
+                ><FilterIcon/></span>
+              )}
+              onClick={toggleShowFilters}
+              ariaLabel={"filters"}
+            />
+          </Tooltip>
+        )}
         {activeTab === DisplayType.table && (
           <div className="vm-explore-logs-body-header__settings">
             <SelectLimit
@@ -118,6 +168,13 @@ const ExploreLogsBody: FC<ExploreLogBodyProps> = ({ data, loaded }) => {
           "vm-explore-logs-body__table_mobile": isMobile,
         })}
       >
+        {showFilters && (
+          <FilterLogs
+            logs={logs}
+            filtersFromParams={filtersFromParams}
+            onChange={handleChangeFilteredLogs}
+          />
+        )}
         {!data.length && (
           <div className="vm-explore-logs-body__empty">
             {loaded ? "No logs found" : "Run query to see logs"}
@@ -127,7 +184,7 @@ const ExploreLogsBody: FC<ExploreLogBodyProps> = ({ data, loaded }) => {
           <>
             {activeTab === DisplayType.table && (
               <TableLogs
-                logs={logs}
+                logs={filteredLogs}
                 limitRows={+limitRows}
                 displayColumns={displayColumns}
                 tableCompact={tableCompact}
@@ -136,12 +193,12 @@ const ExploreLogsBody: FC<ExploreLogBodyProps> = ({ data, loaded }) => {
             )}
             {activeTab === DisplayType.group && (
               <GroupLogs
-                logs={logs}
+                logs={filteredLogs}
                 columns={columns}
               />
             )}
             {activeTab === DisplayType.json && (
-              <JsonView data={data} />
+              <JsonView data={data}/>
             )}
           </>
         )}
