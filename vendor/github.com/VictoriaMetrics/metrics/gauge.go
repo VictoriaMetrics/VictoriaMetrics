@@ -17,7 +17,7 @@ import (
 //   - foo{bar="baz",aaa="b"}
 //
 // f must be safe for concurrent calls.
-// if f is nil, then it is expected that the gauge value is changed via Gauge.Set() call.
+// if f is nil, then it is expected that the gauge value is changed via Set(), Inc(), Dec() and Add() calls.
 //
 // The returned gauge is safe to use from concurrent goroutines.
 //
@@ -53,6 +53,38 @@ func (g *Gauge) Set(v float64) {
 	}
 	n := math.Float64bits(v)
 	atomic.StoreUint64(&g.valueBits, n)
+}
+
+// Inc increments g by 1.
+//
+// The g must be created with nil callback in order to be able to call this function.
+func (g *Gauge) Inc() {
+	g.Add(1)
+}
+
+// Dec decrements g by 1.
+//
+// The g must be created with nil callback in order to be able to call this function.
+func (g *Gauge) Dec() {
+	g.Add(-1)
+}
+
+// Add adds fAdd to g. fAdd may be positive and negative.
+//
+// The g must be created with nil callback in order to be able to call this function.
+func (g *Gauge) Add(fAdd float64) {
+	if g.f != nil {
+		panic(fmt.Errorf("cannot call Set on gauge created with non-nil callback"))
+	}
+	for {
+		n := atomic.LoadUint64(&g.valueBits)
+		f := math.Float64frombits(n)
+		fNew := f + fAdd
+		nNew := math.Float64bits(fNew)
+		if atomic.CompareAndSwapUint64(&g.valueBits, n, nNew) {
+			break
+		}
+	}
 }
 
 func (g *Gauge) marshalTo(prefix string, w io.Writer) {
