@@ -1,7 +1,6 @@
 package logstorage
 
 import (
-	"context"
 	"math"
 	"sort"
 	"sync"
@@ -44,7 +43,7 @@ type searchOptions struct {
 }
 
 // RunQuery runs the given q and calls processBlock for results
-func (s *Storage) RunQuery(tenantIDs []TenantID, q *Query, stopCh <-chan struct{}, processBlock func(columns []BlockColumn) bool) {
+func (s *Storage) RunQuery(tenantIDs []TenantID, q *Query, stopCh <-chan struct{}, processBlock func(columns []BlockColumn)) {
 	resultColumnNames := q.getResultColumnNames()
 	so := &genericSearchOptions{
 		tenantIDs:         tenantIDs,
@@ -52,7 +51,7 @@ func (s *Storage) RunQuery(tenantIDs []TenantID, q *Query, stopCh <-chan struct{
 		resultColumnNames: resultColumnNames,
 	}
 	workersCount := cgroup.AvailableCPUs()
-	s.search(workersCount, so, stopCh, func(workerID uint, br *blockResult) bool {
+	s.search(workersCount, so, stopCh, func(workerID uint, br *blockResult) {
 		brs := getBlockRows()
 		cs := brs.cs
 
@@ -62,11 +61,10 @@ func (s *Storage) RunQuery(tenantIDs []TenantID, q *Query, stopCh <-chan struct{
 				Values: br.getColumnValues(i),
 			})
 		}
-		limitReached := processBlock(cs)
+		processBlock(cs)
 
 		brs.cs = cs
 		putBlockRows(brs)
-		return limitReached
 	})
 }
 
@@ -120,7 +118,7 @@ const blockSearchWorksPerBatch = 64
 // searchResultFunc must process sr.
 //
 // The callback is called at the worker with the given workerID.
-type searchResultFunc func(workerID uint, br *blockResult) bool
+type searchResultFunc func(workerID uint, br *blockResult)
 
 // search searches for the matching rows according to so.
 //
@@ -130,34 +128,19 @@ func (s *Storage) search(workersCount int, so *genericSearchOptions, stopCh <-ch
 	var wg sync.WaitGroup
 	workCh := make(chan []*blockSearchWork, workersCount)
 	wg.Add(workersCount)
-
-	ctx, cancelFn := context.WithCancel(context.Background())
-
 	for i := 0; i < workersCount; i++ {
 		go func(workerID uint) {
-			defer wg.Done()
 			bs := getBlockSearch()
-			defer putBlockSearch(bs)
-			for {
-				select {
-				case bsws, ok := <-workCh:
-					if !ok {
-						return
+			for bsws := range workCh {
+				for _, bsw := range bsws {
+					bs.search(bsw)
+					if bs.br.RowsCount() > 0 {
+						processBlockResult(workerID, &bs.br)
 					}
-					for _, bsw := range bsws {
-						bs.search(bsw)
-						if bs.br.RowsCount() > 0 {
-							limitReached := processBlockResult(workerID, &bs.br)
-							if limitReached {
-								cancelFn()
-								return
-							}
-						}
-					}
-				case <-ctx.Done():
-					return
 				}
 			}
+			putBlockSearch(bs)
+			wg.Done()
 		}(uint(i))
 	}
 
@@ -195,7 +178,6 @@ func (s *Storage) search(workersCount int, so *genericSearchOptions, stopCh <-ch
 	// Wait until workers finish their work
 	close(workCh)
 	wg.Wait()
-	cancelFn()
 
 	// Decrement references to parts
 	for _, pw := range pws {
