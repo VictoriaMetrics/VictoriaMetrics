@@ -193,10 +193,15 @@ func ruleToAPI(r interface{}) apiRule {
 	return apiRule{}
 }
 
+const (
+	ruleTypeRecording = "recording"
+	ruleTypeAlerting  = "alerting"
+)
+
 func recordingToAPI(rr *rule.RecordingRule) apiRule {
 	lastState := rule.GetLastEntry(rr)
 	r := apiRule{
-		Type:              "recording",
+		Type:              ruleTypeRecording,
 		DatasourceType:    rr.Type.String(),
 		Name:              rr.Name,
 		Query:             rr.Expr,
@@ -224,7 +229,7 @@ func recordingToAPI(rr *rule.RecordingRule) apiRule {
 func alertingToAPI(ar *rule.AlertingRule) apiRule {
 	lastState := rule.GetLastEntry(ar)
 	r := apiRule{
-		Type:              "alerting",
+		Type:              ruleTypeAlerting,
 		DatasourceType:    ar.Type.String(),
 		Name:              ar.Name,
 		Query:             ar.Expr,

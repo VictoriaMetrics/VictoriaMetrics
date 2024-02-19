@@ -296,6 +296,12 @@ type ScrapeConfig struct {
 	MetricRelabelConfigs []promrelabel.RelabelConfig `yaml:"metric_relabel_configs,omitempty"`
 	SampleLimit          int                         `yaml:"sample_limit,omitempty"`
 
+	// This silly option is needed for compatibility with Prometheus.
+	// vmagent was supporting disable_compression option since the beginning, while Prometheus developers
+	// decided adding enable_compression option in https://github.com/prometheus/prometheus/pull/13166
+	// That's why it needs to be supported too :(
+	EnableCompression *bool `yaml:"enable_compression,omitempty"`
+
 	AzureSDConfigs        []azure.SDConfig        `yaml:"azure_sd_configs,omitempty"`
 	ConsulSDConfigs       []consul.SDConfig       `yaml:"consul_sd_configs,omitempty"`
 	ConsulAgentSDConfigs  []consulagent.SDConfig  `yaml:"consulagent_sd_configs,omitempty"`
@@ -879,6 +885,10 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 	if sc.SeriesLimit != nil {
 		seriesLimit = *sc.SeriesLimit
 	}
+	disableCompression := sc.DisableCompression
+	if sc.EnableCompression != nil {
+		disableCompression = !*sc.EnableCompression
+	}
 	swc := &scrapeWorkConfig{
 		scrapeInterval:       scrapeInterval,
 		scrapeIntervalString: scrapeInterval.String(),
@@ -898,7 +908,7 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 		relabelConfigs:       relabelConfigs,
 		metricRelabelConfigs: metricRelabelConfigs,
 		sampleLimit:          sc.SampleLimit,
-		disableCompression:   sc.DisableCompression,
+		disableCompression:   disableCompression,
 		disableKeepAlive:     sc.DisableKeepAlive,
 		streamParse:          sc.StreamParse,
 		scrapeAlignInterval:  sc.ScrapeAlignInterval.Duration(),
@@ -1077,7 +1087,10 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 	defer promutils.PutLabels(labels)
 
 	mergeLabels(labels, swc, target, extraLabels, metaLabels)
-	originalLabels := labels.Clone()
+	var originalLabels *promutils.Labels
+	if !*dropOriginalLabels {
+		originalLabels = labels.Clone()
+	}
 	labels.Labels = swc.relabelConfigs.Apply(labels.Labels, 0)
 	// Remove labels starting from "__meta_" prefix according to https://www.robustperception.io/life-of-a-label/
 	labels.RemoveMetaLabels()
@@ -1212,7 +1225,7 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 }
 
 func sortOriginalLabelsIfNeeded(originalLabels *promutils.Labels) *promutils.Labels {
-	if *dropOriginalLabels {
+	if originalLabels == nil {
 		return nil
 	}
 	originalLabels.Sort()

@@ -26,12 +26,18 @@ and introduction into [basic querying via MetricsQL](https://docs.victoriametric
 
 The following functionality is implemented differently in MetricsQL compared to PromQL. This improves user experience:
 
-* MetricsQL takes into account the previous point before the window in square brackets for range functions such as [rate](#rate) and [increase](#increase).
-  This allows returning the exact results users expect for `increase(metric[$__interval])` queries instead of incomplete results Prometheus returns for such queries.
-* MetricsQL doesn't extrapolate range function results. This addresses [this issue from Prometheus](https://github.com/prometheus/prometheus/issues/3746).
+* MetricsQL takes into account the last [raw sample](https://docs.victoriametrics.com/keyconcepts/#raw-samples) before the lookbehind window
+  in square brackets for [increase](#increase) and [rate](#rate) functions. This allows returning the exact results users expect for `increase(metric[$__interval])` queries
+  instead of incomplete results Prometheus returns for such queries. Prometheus misses the increase between the last sample before the lookbehind window
+  and the first sample inside the lookbehind window.
+* MetricsQL doesn't extrapolate [rate](#rate) and [increase](#increase) function results, so it always returns the expected results. For example, it returns
+  integer results from `increase()` over slow-changing integer counter. Prometheus in this case returns unexpected fractional results,
+  which may significantly differ from the expected results. This addresses [this issue from Prometheus](https://github.com/prometheus/prometheus/issues/3746).
   See technical details about VictoriaMetrics and Prometheus calculations for [rate](#rate)
   and [increase](#increase) [in this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1215#issuecomment-850305711).
-* MetricsQL returns the expected non-empty responses for [rate](#rate) with `step` values smaller than scrape interval.
+* MetricsQL returns the expected non-empty responses for [rate](#rate) function when Grafana or [vmui](https://docs.victoriametrics.com/#vmui)
+  passes `step` values smaller than the interval between [raw samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples)
+  to [/api/v1/query_range](https://docs.victoriametrics.com/keyconcepts/#range-query).
   This addresses [this issue from Grafana](https://github.com/grafana/grafana/issues/11451).
   See also [this blog post](https://www.percona.com/blog/2020/02/28/better-prometheus-rate-function-with-victoriametrics/).
 * MetricsQL treats `scalar` type the same as `instant vector` without labels, since subtle differences between these types usually confuse users.
@@ -61,16 +67,17 @@ The list of MetricsQL features on top of PromQL:
 
 * Graphite-compatible filters can be passed via `{__graphite__="foo.*.bar"}` syntax.
   See [these docs](https://docs.victoriametrics.com/#selecting-graphite-metrics).
-  VictoriaMetrics also can be used as Graphite datasource in Grafana.
-  See [these docs](https://docs.victoriametrics.com/#graphite-api-usage) for details.
+  VictoriaMetrics can be used as Graphite datasource in Grafana. See [these docs](https://docs.victoriametrics.com/#graphite-api-usage) for details.
   See also [label_graphite_group](#label_graphite_group) function, which can be used for extracting the given groups from Graphite metric name.
-* Lookbehind window in square brackets may be omitted. VictoriaMetrics automatically selects the lookbehind window
-  depending on the current step used for building the graph (e.g. `step` query arg passed to [/api/v1/query_range](https://docs.victoriametrics.com/keyConcepts.html#range-query)).
+* Lookbehind window in square brackets for [rollup functions](#rollup-functions) may be omitted. VictoriaMetrics automatically selects the lookbehind window
+  depending on the `step` query arg passed to [/api/v1/query_range](https://docs.victoriametrics.com/keyConcepts.html#range-query)
+  and the real interval between [raw samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) (aka `scrape_interval`).
   For instance, the following query is valid in VictoriaMetrics: `rate(node_network_receive_bytes_total)`.
-  It is equivalent to `rate(node_network_receive_bytes_total[$__interval])` when used in Grafana.
+  It is roughly equivalent to `rate(node_network_receive_bytes_total[$__interval])` when used in Grafana.
+  The difference is documented in [rate() docs](#rate).
 * Numeric values can contain `_` delimiters for better readability. For example, `1_234_567_890` can be used in queries instead of `1234567890`.
 * [Series selectors](https://docs.victoriametrics.com/keyConcepts.html#filtering) accept multiple `or` filters. For example, `{env="prod",job="a" or env="dev",job="b"}`
-  selects series with either `{env="prod",job="a"}` or `{env="dev",job="b"}` labels.
+  selects series with `{env="prod",job="a"}` or `{env="dev",job="b"}` labels.
   See [these docs](https://docs.victoriametrics.com/keyConcepts.html#filtering-by-multiple-or-filters) for details.
 * Support for `group_left(*)` and `group_right(*)` for copying all the labels from time series on the `one` side
   of [many-to-one operations](https://prometheus.io/docs/prometheus/latest/querying/operators/#many-to-one-and-one-to-many-vector-matches).
@@ -117,7 +124,8 @@ The list of MetricsQL features on top of PromQL:
   Go to [WITH templates playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/expand-with-exprs) and try it.
 * String literals may be concatenated. This is useful with `WITH` templates:
   `WITH (commonPrefix="long_metric_prefix_") {__name__=commonPrefix+"suffix1"} / {__name__=commonPrefix+"suffix2"}`.
-* `keep_metric_names` modifier can be applied to all the [rollup functions](#rollup-functions), [transform functions](#transform-functions) and [binary operators](https://prometheus.io/docs/prometheus/latest/querying/operators/#binary-operators).
+* `keep_metric_names` modifier can be applied to all the [rollup functions](#rollup-functions), [transform functions](#transform-functions)
+  and [binary operators](https://prometheus.io/docs/prometheus/latest/querying/operators/#binary-operators).
   This modifier prevents from dropping metric names in function results. See [these docs](#keep_metric_names).
 
 ## keep_metric_names
@@ -155,14 +163,15 @@ Additional details:
   The interval between points is set as `step` query arg passed by Grafana to [/api/v1/query_range](https://docs.victoriametrics.com/keyConcepts.html#range-query).
 * If the given [series selector](https://docs.victoriametrics.com/keyConcepts.html#filtering) returns multiple time series,
   then rollups are calculated individually per each returned series.
-* If lookbehind window in square brackets is missing, then MetricsQL automatically sets the lookbehind window
-  to the interval between points on the graph (aka `step` query arg at [/api/v1/query_range](https://docs.victoriametrics.com/keyConcepts.html#range-query),
-  `$__interval` value from Grafana or `1i` duration in MetricsQL).
-  For example, `rate(http_requests_total)` is equivalent to `rate(http_requests_total[$__interval])` in Grafana.
-  It is also equivalent to `rate(http_requests_total[1i])`.
+* If lookbehind window in square brackets is missing, then it is automatically set to the following value:
+  - To `step` value passed to [/api/v1/query_range](https://docs.victoriametrics.com/keyConcepts.html#range-query) or [/api/v1/query](https://docs.victoriametrics.com/keyconcepts/#instant-query)
+    for all the [rollup functions](#rollup-functions) except of [default_rollup](#default_rollup) and [rate](#rate). This value is known as `$__interval` in Grafana or `1i` in MetricsQL.
+    For example, `avg_over_time(temperature)` is automatically transformed to `avg_over_time(temperature[1i])`.
+  - To the `max(step, scrape_interval)`, where `scrape_interval` is the interval between [raw samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples)
+    for [default_rollup](#default_rollup) and [rate](#rate) functions. This allows avoiding unexpected gaps on the graph when `step` is smaller than `scrape_interval`.
 * Every [series selector](https://docs.victoriametrics.com/keyConcepts.html#filtering) in MetricsQL must be wrapped into a rollup function.
   Otherwise, it is automatically wrapped into [default_rollup](#default_rollup). For example, `foo{bar="baz"}`
-  is automatically converted to `default_rollup(foo{bar="baz"}[1i])` before performing the calculations.
+  is automatically converted to `default_rollup(foo{bar="baz"})` before performing the calculations.
 * If something other than [series selector](https://docs.victoriametrics.com/keyConcepts.html#filtering) is passed to rollup function,
   then the inner arg is automatically converted to a [subquery](#subqueries).
 * All the rollup functions accept optional `keep_metric_names` modifier. If it is set, then the function keeps metric names in results.
@@ -243,7 +252,7 @@ from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.ht
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
-See also [count_over_time](#count_over_time).
+See also [count_over_time](#count_over_time) and [share_eq_over_time](#share_eq_over_time).
 
 #### count_gt_over_time
 
@@ -253,7 +262,7 @@ from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.ht
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
-See also [count_over_time](#count_over_time).
+See also [count_over_time](#count_over_time) and [share_gt_over_time](#share_gt_over_time).
 
 #### count_le_over_time
 
@@ -263,7 +272,7 @@ from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.ht
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
-See also [count_over_time](#count_over_time).
+See also [count_over_time](#count_over_time) and [share_le_over_time](#share_le_over_time).
 
 #### count_ne_over_time
 
@@ -298,6 +307,11 @@ See also [increases_over_time](#increases_over_time).
 
 `default_rollup(series_selector[d])` is a [rollup function](#rollup-functions), which returns the last raw sample value on the given lookbehind window `d`
 per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
+
+If the lookbehind window is skipped in square brackets, then it is automatically calculated as `max(step, scrape_interval)`, where `step` is the query arg value
+passed to [/api/v1/query_range](https://docs.victoriametrics.com/keyconcepts/#range-query) or [/api/v1/query](https://docs.victoriametrics.com/keyconcepts/#instant-query),
+while `scrape_interval` is the interval between [raw samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) for the selected time series.
+This allows avoiding unexpected gaps on the graph when `step` is smaller than the `scrape_interval`.
 
 #### delta
 
@@ -622,6 +636,11 @@ Metric names are stripped from the resulting rollups. Add [keep_metric_names](#k
 over the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
 It is expected that the `series_selector` returns time series of [counter type](https://docs.victoriametrics.com/keyConcepts.html#counter).
 
+If the lookbehind window is skipped in square brackets, then it is automatically calculated as `max(step, scrape_interval)`, where `step` is the query arg value
+passed to [/api/v1/query_range](https://docs.victoriametrics.com/keyconcepts/#range-query) or [/api/v1/query](https://docs.victoriametrics.com/keyconcepts/#instant-query),
+while `scrape_interval` is the interval between [raw samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) for the selected time series.
+This allows avoiding unexpected gaps on the graph when `step` is smaller than the `scrape_interval`.
+
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
 This function is supported by PromQL. See also [irate](#irate) and [rollup_rate](#rollup_rate).
@@ -743,7 +762,7 @@ This function is useful for calculating SLI and SLO. Example: `share_gt_over_tim
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
-See also [share_le_over_time](#share_le_over_time).
+See also [share_le_over_time](#share_le_over_time) and [count_gt_over_time](#count_gt_over_time).
 
 #### share_le_over_time
 
@@ -756,7 +775,7 @@ the share of time series values for the last 24 hours when memory usage was belo
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
-See also [share_gt_over_time](#share_gt_over_time).
+See also [share_gt_over_time](#share_gt_over_time) and [count_le_over_time](#count_le_over_time).
 
 #### share_eq_over_time
 
@@ -765,6 +784,8 @@ on the given lookbehind window `d`, which are equal to `eq`. It is calculated in
 from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
+
+See also [count_eq_over_time](#count_eq_over_time).
 
 #### stale_samples_over_time
 
@@ -791,6 +812,33 @@ on the given lookbehind window `d` per each time series returned from the given 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
 This function is supported by PromQL. See also [stddev_over_time](#stddev_over_time).
+
+#### sum_eq_over_time
+
+`sum_eq_over_time(series_selector[d], eq)` is a [rollup function](#rollup-function), which calculates the sum of raw sample values equal to `eq`
+on the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
+
+Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
+
+See also [sum_over_time](#sum_over_time) and [count_eq_over_time](#count_eq_over_time).
+
+#### sum_gt_over_time
+
+`sum_gt_over_time(series_selector[d], gt)` is a [rollup function](#rollup-function), which calculates the sum of raw sample values bigger than `gt`
+on the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
+
+Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
+
+See also [sum_over_time](#sum_over_time) and [count_gt_over_time](#count_gt_over_time).
+
+#### sum_le_over_time
+
+`sum_le_over_time(series_selector[d], le)` is a [rollup function](#rollup-function), which calculates the sum of raw sample values smaller or equal to `le`
+on the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
+
+Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
+
+See also [sum_over_time](#sum_over_time) and [count_le_over_time](#count_le_over_time).
 
 #### sum_over_time
 
@@ -891,7 +939,7 @@ Additional details:
 
 * If transform function is applied directly to a [series selector](https://docs.victoriametrics.com/keyConcepts.html#filtering),
   then the [default_rollup()](#default_rollup) function is automatically applied before calculating the transformations.
-  For example, `abs(temperature)` is implicitly transformed to `abs(default_rollup(temperature[1i]))`.
+  For example, `abs(temperature)` is implicitly transformed to `abs(default_rollup(temperature))`.
 * All the transform functions accept optional `keep_metric_names` modifier. If it is set,
   then the function doesn't drop metric names from the resulting time series. See [these docs](#keep_metric_names).
 
@@ -1551,7 +1599,7 @@ Additional details:
 
 * If label manipulation function is applied directly to a [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering),
   then the [default_rollup()](#default_rollup) function is automatically applied before performing the label transformation.
-  For example, `alias(temperature, "foo")` is implicitly transformed to `alias(default_rollup(temperature[1i]), "foo")`.
+  For example, `alias(temperature, "foo")` is implicitly transformed to `alias(default_rollup(temperature), "foo")`.
 
 See also [implicit query conversions](#implicit-query-conversions).
 
@@ -1728,7 +1776,7 @@ Additional details:
   Multiple labels can be put in `by` and `without` modifiers.
 * If the aggregate function is applied directly to a [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering),
   then the [default_rollup()](#default_rollup) function is automatically applied before calculating the aggregate.
-  For example, `count(up)` is implicitly transformed to `count(default_rollup(up[1i]))`.
+  For example, `count(up)` is implicitly transformed to `count(default_rollup(up))`.
 * Aggregate functions accept arbitrary number of args. For example, `avg(q1, q2, q3)` would return the average values for every point
   across time series returned by `q1`, `q2` and `q3`.
 * Aggregate functions support optional `limit N` suffix, which can be used for limiting the number of output groups.
@@ -2032,7 +2080,7 @@ See also [zscore_over_time](#zscore_over_time), [range_trim_zscore](#range_trim_
 MetricsQL supports and extends PromQL subqueries. See [this article](https://valyala.medium.com/prometheus-subqueries-in-victoriametrics-9b1492b720b3) for details.
 Any [rollup function](#rollup-functions) for something other than [series selector](https://docs.victoriametrics.com/keyConcepts.html#filtering) form a subquery.
 Nested rollup functions can be implicit thanks to the [implicit query conversions](#implicit-query-conversions).
-For example, `delta(sum(m))` is implicitly converted to `delta(sum(default_rollup(m[1i]))[1i:1i])`, so it becomes a subquery,
+For example, `delta(sum(m))` is implicitly converted to `delta(sum(default_rollup(m))[1i:1i])`, so it becomes a subquery,
 since it contains [default_rollup](#default_rollup) nested into [delta](#delta).
 
 VictoriaMetrics performs subqueries in the following way:
@@ -2047,21 +2095,23 @@ VictoriaMetrics performs subqueries in the following way:
 
 VictoriaMetrics performs the following implicit conversions for incoming queries before starting the calculations:
 
-* If lookbehind window in square brackets is missing inside [rollup function](#rollup-functions),
-  then `[1i]` is automatically added there. The `[1i]` means one `step` value, which is passed
-  to [/api/v1/query_range](https://docs.victoriametrics.com/keyConcepts.html#range-query).
-  It is also known as `$__interval` in Grafana. For example, `rate(http_requests_count)` is automatically transformed to `rate(http_requests_count[1i])`.
+* If lookbehind window in square brackets is missing inside [rollup function](#rollup-functions), then it is automatically set to the following value:
+  - To `step` value passed to [/api/v1/query_range](https://docs.victoriametrics.com/keyConcepts.html#range-query) or [/api/v1/query](https://docs.victoriametrics.com/keyconcepts/#instant-query)
+    for all the [rollup functions](#rollup-functions) except of [default_rollup](#default_rollup) and [rate](#rate). This value is known as `$__interval` in Grafana or `1i` in MetricsQL.
+    For example, `avg_over_time(temperature)` is automatically transformed to `avg_over_time(temperature[1i])`.
+  - To the `max(step, scrape_interval)`, where `scrape_interval` is the interval between [raw samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples)
+    for [default_rollup](#default_rollup) and [rate](#rate) functions. This allows avoiding unexpected gaps on the graph when `step` is smaller than `scrape_interval`.
 * All the [series selectors](https://docs.victoriametrics.com/keyConcepts.html#filtering),
   which aren't wrapped into [rollup functions](#rollup-functions), are automatically wrapped into [default_rollup](#default_rollup) function.
   Examples:
-  * `foo` is transformed to `default_rollup(foo[1i])`
-  * `foo + bar` is transformed to `default_rollup(foo[1i]) + default_rollup(bar[1i])`
-  * `count(up)` is transformed to `count(default_rollup(up[1i]))`, because [count](#count) isn't a [rollup function](#rollup-functions) -
+  * `foo` is transformed to `default_rollup(foo)`
+  * `foo + bar` is transformed to `default_rollup(foo) + default_rollup(bar)`
+  * `count(up)` is transformed to `count(default_rollup(up))`, because [count](#count) isn't a [rollup function](#rollup-functions) -
     it is [aggregate function](#aggregate-functions)
-  * `abs(temperature)` is transformed to `abs(default_rollup(temperature[1i]))`, because [abs](#abs) isn't a [rollup function](#rollup-functions) -
+  * `abs(temperature)` is transformed to `abs(default_rollup(temperature))`, because [abs](#abs) isn't a [rollup function](#rollup-functions) -
     it is [transform function](#transform-functions)
 * If `step` in square brackets is missing inside [subquery](#subqueries), then `1i` step is automatically added there.
   For example, `avg_over_time(rate(http_requests_total[5m])[1h])` is automatically converted to `avg_over_time(rate(http_requests_total[5m])[1h:1i])`.
 * If something other than [series selector](https://docs.victoriametrics.com/keyConcepts.html#filtering)
   is passed to [rollup function](#rollup-functions), then a [subquery](#subqueries) with `1i` lookbehind window and `1i` step is automatically formed.
-  For example, `rate(sum(up))` is automatically converted to `rate((sum(default_rollup(up[1i])))[1i:1i])`.
+  For example, `rate(sum(up))` is automatically converted to `rate((sum(default_rollup(up)))[1i:1i])`.

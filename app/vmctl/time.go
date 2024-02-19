@@ -1,4 +1,4 @@
-package utils
+package main
 
 import (
 	"fmt"
@@ -13,8 +13,7 @@ const (
 	maxTimeMsecs = int64(1<<63-1) / 1e6
 )
 
-// GetTime  returns time from the given string.
-func GetTime(s string) (time.Time, error) {
+func parseTime(s string) (time.Time, error) {
 	secs, err := promutils.ParseTime(s)
 	if err != nil {
 		return time.Time{}, fmt.Errorf("cannot parse %s: %w", s, err)

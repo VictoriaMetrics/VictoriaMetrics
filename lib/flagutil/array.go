@@ -101,8 +101,8 @@ func (a *ArrayString) Set(value string) error {
 }
 
 func parseArrayValues(s string) []string {
-	if len(s) == 0 {
-		return nil
+	if s == "" {
+		return []string{""}
 	}
 	var values []string
 	for {

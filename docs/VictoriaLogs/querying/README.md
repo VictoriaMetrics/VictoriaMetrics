@@ -44,6 +44,15 @@ See [LogsQL docs](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html) for
 The `query` arg must be properly encoded with [percent encoding](https://en.wikipedia.org/wiki/URL_encoding) when passing it to `curl`
 or similar tools.
 
+By default the `/select/logsql/query` returns all the log entries matching the given `query`. The response size can be limited in the following ways:
+
+- By closing the response stream at any time. In this case VictoriaLogs stops query execution and frees all the resources occupied by the request.
+- By specifying the maximum number of log entries, which can be returned in the response via `limit` query arg. For example, the following request returns
+  up to 10 matching log entries:
+  ```sh
+  curl http://localhost:9428/select/logsql/query -d 'query=error' -d 'limit=10'
+  ```
+
 The `/select/logsql/query` endpoint returns [a stream of JSON lines](https://jsonlines.org/),
 where each line contains JSON-encoded log entry in the form `{field1="value1",...,fieldN="valueN"}`.
 Example response:

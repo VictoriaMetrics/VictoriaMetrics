@@ -98,6 +98,18 @@ func main() {
 				Action: func(c *cli.Context) error {
 					fmt.Println("InfluxDB import mode")
 
+					// create TLS config
+					certFile := c.String(influxCertFile)
+					keyFile := c.String(influxKeyFile)
+					caFile := c.String(influxCAFile)
+					serverName := c.String(influxServerName)
+					insecureSkipVerify := c.Bool(influxInsecureSkipVerify)
+
+					tc, err := httputils.TLSConfig(certFile, caFile, keyFile, serverName, insecureSkipVerify)
+					if err != nil {
+						return fmt.Errorf("failed to create TLS Config: %s", err)
+					}
+
 					iCfg := influx.Config{
 						Addr:      c.String(influxAddr),
 						Username:  c.String(influxUser),
@@ -110,7 +122,9 @@ func main() {
 							TimeEnd:   c.String(influxFilterTimeEnd),
 						},
 						ChunkSize: c.Int(influxChunkSize),
+						TLSConfig: tc,
 					}
+
 					influxClient, err := influx.NewClient(iCfg)
 					if err != nil {
 						return fmt.Errorf("failed to create influx client: %s", err)
@@ -148,6 +162,10 @@ func main() {
 						Headers:            c.String(remoteReadHeaders),
 						LabelName:          c.String(remoteReadFilterLabel),
 						LabelValue:         c.String(remoteReadFilterLabelValue),
+						CertFile:           c.String(remoteReadCertFile),
+						KeyFile:            c.String(remoteReadKeyFile),
+						CAFile:             c.String(remoteReadCAFile),
+						ServerName:         c.String(remoteReadServerName),
 						InsecureSkipVerify: c.Bool(remoteReadInsecureSkipVerify),
 						DisablePathAppend:  c.Bool(remoteReadDisablePathAppend),
 					})
