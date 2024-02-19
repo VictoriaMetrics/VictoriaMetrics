@@ -42,6 +42,7 @@ See also [LTS releases](https://docs.victoriametrics.com/LTS-releases.html).
   or [/api/v1/query_range](https://docs.victoriametrics.com/keyconcepts/#range-query). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5795).
 
 ## [v1.98.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.98.0)
+* FEATURE: [vmctl](https://docs.victoriametrics.com/vmctl.html): support client-side and server side TLS configuration for [VM native protocol](https://new.docs.victoriametrics.com/vmctl/#migrating-data-from-victoriametrics). See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5748).
 
 Released at 2024-02-14
 

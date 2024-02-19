@@ -361,6 +361,10 @@ const (
 	vmNativeSrcPassword           = "vm-native-src-password"
 	vmNativeSrcHeaders            = "vm-native-src-headers"
 	vmNativeSrcBearerToken        = "vm-native-src-bearer-token"
+	vmNativeSrcCertFile           = "vm-native-src-cert-file"
+	vmNativeSrcKeyFile            = "vm-native-src-key-file"
+	vmNativeSrcCAFile             = "vm-native-src-ca-file"
+	vmNativeSrcServerName         = "vm-native-src-server-name"
 	vmNativeSrcInsecureSkipVerify = "vm-native-src-insecure-skip-verify"
 
 	vmNativeDstAddr               = "vm-native-dst-addr"
@@ -368,6 +372,10 @@ const (
 	vmNativeDstPassword           = "vm-native-dst-password"
 	vmNativeDstHeaders            = "vm-native-dst-headers"
 	vmNativeDstBearerToken        = "vm-native-dst-bearer-token"
+	vmNativeDstCertFile           = "vm-native-dst-cert-file"
+	vmNativeDstKeyFile            = "vm-native-dst-key-file"
+	vmNativeDstCAFile             = "vm-native-dst-ca-file"
+	vmNativeDstServerName         = "vm-native-dst-server-name"
 	vmNativeDstInsecureSkipVerify = "vm-native-dst-insecure-skip-verify"
 )
 
@@ -493,6 +501,38 @@ var (
 				"Binary export/import API protocol implies less network and resource usage, as it transfers compressed binary data blocks." +
 				"Non-binary export/import API is less efficient, but supports deduplication if it is configured on vm-native-src-addr side.",
 			Value: false,
+		},
+		&cli.StringFlag{
+			Name:  vmNativeSrcCertFile,
+			Usage: "Optional path to client-side TLS certificate file to use when connecting to vmNativeSrcAddr",
+		},
+		&cli.StringFlag{
+			Name:  vmNativeDstCertFile,
+			Usage: "Optional path to client-side TLS certificate file to use when connecting to vmNativeDstAddr",
+		},
+		&cli.StringFlag{
+			Name:  vmNativeSrcKeyFile,
+			Usage: "Optional path to client-side TLS key to use when connecting to vmNativeSrcAddr",
+		},
+		&cli.StringFlag{
+			Name:  vmNativeDstKeyFile,
+			Usage: "Optional path to client-side TLS key to use when connecting to vmNativeDstAddr",
+		},
+		&cli.StringFlag{
+			Name:  vmNativeSrcCAFile,
+			Usage: "Optional path to TLS CA file to use for verifying connections to vmNativeSrcAddr. By default, system CA is used",
+		},
+		&cli.StringFlag{
+			Name:  vmNativeDstCAFile,
+			Usage: "Optional path to TLS CA file to use for verifying connections to vmNativeDstAddr. By default, system CA is used",
+		},
+		&cli.StringFlag{
+			Name:  vmNativeSrcServerName,
+			Usage: "Optional TLS server name to use for connections to influxAddr. By default, the server name from vmNativeSrcAddr is used",
+		},
+		&cli.StringFlag{
+			Name:  vmNativeDstServerName,
+			Usage: "Optional TLS server name to use for connections to influxAddr. By default, the server name from vmNativeDstAddr is used",
 		},
 		&cli.BoolFlag{
 			Name:  vmNativeSrcInsecureSkipVerify,
