@@ -13,8 +13,8 @@ aliases:
 
 # VictoriaMetrics Anomaly Detection Quick Start
 
-It is recommended to read [README](https://docs.victoriametrics.com/anomaly-detection/) with service introduction
-and [Overview](https://docs.victoriametrics.com/anomaly-detection/overview.html) of how `vmanomaly` service works.
+For service introduction visit [README](https://docs.victoriametrics.com/anomaly-detection/) page
+and [Overview](https://docs.victoriametrics.com/anomaly-detection/overview.html) of how `vmanomaly` works.
 
 ## How to install and run `vmanomaly`
 
@@ -26,7 +26,7 @@ The following options are available:
 - [To run in Kubernetes with Helm charts](#helm-charts)
 
 
-### Docker image
+### Docker
 > To run `vmanomaly` you need to have a VictoriaMetrics Enterprise [licence](https://victoriametrics.com/products/enterprise/) or request a trial [here](https://victoriametrics.com/products/enterprise/trial/index.html).
 
 Below are the steps to get `vmanomaly` up and running inside a Docker container:
@@ -97,7 +97,7 @@ writer:
 
 
 Next steps:
-- Define how often to run and make inferences, as well as what timerange to use to train the model in the[scheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/) section of a config file.
+- Define how often to run and make inferences in the [scheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/) section of a config file.
 - Setup the datasource to read data from in the [reader](https://docs.victoriametrics.com/anomaly-detection/components/reader/) section.
 - Specify where and how to store anomaly detection metrics in the [writer](https://docs.victoriametrics.com/anomaly-detection/components/writer/) section.
 - Configure built-in models parameters according to your needs in the [models](https://docs.victoriametrics.com/anomaly-detection/components/models/) section.
