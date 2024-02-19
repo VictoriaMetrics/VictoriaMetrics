@@ -35,9 +35,14 @@ func (bm *bimap) getLabel(k uint32) prompbmarshal.Label {
 	return l.(prompbmarshal.Label)
 }
 
-func (bm *bimap) set(k uint32, l prompbmarshal.Label) {
-	bm.labelToHash.Store(l, k)
+func (bm *bimap) loadOrStore(k uint32, l prompbmarshal.Label) uint32 {
+	key, loaded := bm.labelToHash.LoadOrStore(l, k)
+	if loaded {
+		// key could have been already created by concurrent goroutine - use it instead
+		k = key.(uint32)
+	}
 	bm.hashToLabel.Store(k, l)
+	return k
 }
 
 func (bm *bimap) compress(bb []byte, lss []prompbmarshal.Label) []byte {
@@ -45,12 +50,11 @@ func (bm *bimap) compress(bb []byte, lss []prompbmarshal.Label) []byte {
 		k := bm.getHash(ls)
 		if k == 0 {
 			k = bm.n.Add(1)
-			bm.set(k, prompbmarshal.Label{
+			k = bm.loadOrStore(k, prompbmarshal.Label{
 				Name:  strings.Clone(ls.Name),
 				Value: strings.Clone(ls.Value),
 			})
 		}
-		//fmt.Println(">>", k, ls)
 		bb = binary.LittleEndian.AppendUint32(bb, k)
 	}
 	return bb
@@ -62,7 +66,6 @@ func (bm *bimap) decompress(labels *promutils.Labels, s string) *promutils.Label
 		k := binary.LittleEndian.Uint32(bb)
 		bb = bb[4:]
 		l := bm.getLabel(k)
-		//fmt.Println("<<", k, l)
 		if l.Name == "" || l.Value == "" {
 			panic(fmt.Sprintf("got empty label for key: %d", k))
 		}
