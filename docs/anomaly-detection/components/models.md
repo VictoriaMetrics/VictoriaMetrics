@@ -300,9 +300,9 @@ The default metrics produced by vmanomaly include:
 **Important**: Be aware that if `NaN` (Not a Number) or `Inf` (Infinity) values are present in the input data during `infer` model calls, the model will produce `NaN` as the `anomaly_score` for these particular instances.
 
 
-## Healthcheck metrics
+## `vmanomaly` self-monitoring metrics
 
-Each model exposes [several healthchecks metrics](/anomaly-detection/components/monitoring.html#models-behaviour-metrics) to its `health_path` endpoint:
+Each model exposes [several self-monitoring metrics](/anomaly-detection/components/monitoring.html#models-behaviour-metrics) to its `health_path` endpoint:
 
 
 ## Custom Model Guide

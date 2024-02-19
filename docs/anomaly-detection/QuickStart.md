@@ -93,7 +93,7 @@ writer:
 See also:
 
 - You can configure `vmanomaly` schedule, model, reading and writing parameters according to your needs. See the details [here](https://docs.victoriametrics.com/anomaly-detection/components/)
-- Built-in [models and their parameters](https://docs.victoriametrics.com/anomaly-detection/components/models/)
+- How to define `models` section of a config to launch the service: It includes various [built-in models](https://docs.victoriametrics.com/anomaly-detection/components/models/) and you can integrate your custom model with `vmanomaly`. See [custom model](https://docs.victoriametrics.com/anomaly-detection/components/models/#custom-model-guide)
 - To define queries for input data use [MetricsQL](https://docs.victoriametrics.com/metricsql/)
 
 
