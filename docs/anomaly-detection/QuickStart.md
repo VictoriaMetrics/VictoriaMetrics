@@ -13,9 +13,8 @@ aliases:
 
 # VictoriaMetrics Anomaly Detection Quick Start
 
-It is recommended to read [README](https://docs.victoriametrics.com/anomaly-detection/)
-and [Overview](https://docs.victoriametrics.com/anomaly-detection/overview.html)
-before you start working with `vmanomaly`.
+It is recommended to read [README](https://docs.victoriametrics.com/anomaly-detection/) with service introduction
+and [Overview](https://docs.victoriametrics.com/anomaly-detection/overview.html) of how `vmanomaly` service works.
 
 ## How to install and run `vmanomaly`
 
@@ -28,17 +27,24 @@ The following options are available:
 
 
 ### Docker image
+> To run `vmanomaly` you need to have a VictoriaMetrics Enterprise [licence](https://victoriametrics.com/products/enterprise/) or request a trial [here](https://victoriametrics.com/products/enterprise/trial/index.html).
 
-The simplest and quickest method to deploy `vmanomaly` is through Docker. Below are the steps to get `vmanomaly` up and running inside a Docker container.
+Below are the steps to get `vmanomaly` up and running inside a Docker container:
 
-First, you can (optionally) tag the `vmanomaly` Docker image for convenience using the following command:
+1. Pull Docker image:
+
+```sh
+docker pull victoriametrics/vmanomaly:latest
+```
+
+2. (Optional step) tag the `vmanomaly` Docker image:
 
 ```sh
 docker image tag victoriametrics/vmanomaly:latest vmanomaly
 ```
 
-Second, start the `vmanomaly` Docker container with a *license file*, use the command below.
-Make sure to replace `YOUR_LICENSE_FILE_PATH`, and `YOUR_CONFIG_FILE_PATH` with your specific details:
+3. Start the `vmanomaly` Docker container with a *license file*, use the command below.
+**Make sure to replace `YOUR_LICENSE_FILE_PATH`, and `YOUR_CONFIG_FILE_PATH` with your specific details**:
 
 ```sh
 export YOUR_LICENSE_FILE_PATH=path/to/license/file
@@ -63,7 +69,7 @@ with [these Helm charts](https://github.com/VictoriaMetrics/helm-charts/blob/mas
 ## How to configure vmanomaly
 To run `vmanomaly` you need to set up configuration file in `yaml` format.
 
-Here is an example of config file that will run FB Prophet model, that will be retrained every 2 hours on 14 days of previous data. It will generate inference (including `anomaly_score` metric) every 1 minute.
+Here is an example of config file that will run [Facebook Prophet](https://facebook.github.io/prophet/) model, that will be retrained every 2 hours on 14 days of previous data. It will generate inference (including `anomaly_score` metric) every 1 minute.
 
 
 ```yaml
@@ -90,11 +96,13 @@ writer:
 ```
 
 
-See also:
-
-- You can configure `vmanomaly` schedule, model, reading and writing parameters according to your needs. See the details [here](https://docs.victoriametrics.com/anomaly-detection/components/)
-- How to define `models` section of a config to launch the service: It includes various [built-in models](https://docs.victoriametrics.com/anomaly-detection/components/models/) and you can integrate your custom model with `vmanomaly`. See [custom model](https://docs.victoriametrics.com/anomaly-detection/components/models/#custom-model-guide)
-- To define queries for input data use [MetricsQL](https://docs.victoriametrics.com/metricsql/)
+Next steps:
+- Define how often to run and make inferences, as well as what timerange to use to train the model in the[scheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/) section of a config file.
+- Setup the datasource to read data from in the [reader](https://docs.victoriametrics.com/anomaly-detection/components/reader/) section.
+- Specify where and how to store anomaly detection metrics in the [writer](https://docs.victoriametrics.com/anomaly-detection/components/writer/) section.
+- Configure built-in models parameters according to your needs in the [models](https://docs.victoriametrics.com/anomaly-detection/components/models/) section.
+- Integrate your [custom models]((https://docs.victoriametrics.com/anomaly-detection/components/models/#custom-model-guide)) with `vmanomaly`.
+- Define queries for input data use [MetricsQL](https://docs.victoriametrics.com/metricsql/).
 
 
 ## Check also

@@ -229,16 +229,18 @@ docker pull victoriametrics/vmanomaly:v1.9.2
 You can put a tag on it for your convinience:
 
 ```sh
-docker image tag victoriametrics/vmanomaly:v1.9.2 vmanomaly
+docker image tag victoriametrics/vmanomaly:latest vmanomaly
 ```
 Here is an example of how to run *vmanomaly* docker container with [license file](#licensing):
 
 ```sh
+export YOUR_LICENSE_FILE_PATH=path/to/license/file
+export YOUR_CONFIG_FILE_PATH=path/to/config/file
 docker run -it --net [YOUR_NETWORK] \
-               -v [YOUR_LICENSE_FILE_PATH]:/license.txt \
-               -v [YOUR_CONFIG_FILE_PATH]:/config.yml \
+               -v YOUR_LICENSE_FILE_PATH:/license \
+               -v YOUR_CONFIG_FILE_PATH:/config.yml \
                vmanomaly /config.yml \
-               --license-file=/license.txt
+               --license-file=/license
 ```
 
 ### Licensing
