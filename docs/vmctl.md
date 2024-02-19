@@ -209,14 +209,10 @@ Chunking the data like this means each individual query returns faster, so we ca
 
 ### Configuration
 
-The configuration flags should contain self-explanatory descriptions.
+Run the following command to get all configuration options:
 
 ```sh
--otsdb-cert-file value                    Optional path to client-side TLS certificate file to use when connecting to otsdbAddr
--otsdb-key-file value                     Optional path to client-side TLS key to use when connecting to otsdbAddr
--otsdb-CA-file value                      Optional path to TLS CA file to use for verifying connections to otsdbAddr. By default, system CA is used
--otsdb-server-name value                  Optional TLS server name to use for connections to otsdbAddr. By default, the server name from otsdbAddr is used
--otsdb-insecure-skip-verify               Whether to skip tls verification when connecting to infuxAddr (default: false)
+./vmctl influx --help
 ```
 
 ### Restarting OpenTSDB migrations

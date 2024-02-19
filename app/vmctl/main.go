@@ -55,10 +55,10 @@ func main() {
 					otsdbKeyFile := c.String(otsdbKeyFile)
 					otsdbCAFile := c.String(otsdbCAFile)
 					otsdbServerName := c.String(otsdbServerName)
-					otsdbInsecureSkipVerify := c.Bool(otsdbInsecureSkipVerify)
+					insecureSkipVerify := c.Bool(otsdbInsecureSkipVerify)
 					otsdbAddr := c.String(otsdbAddr)
 
-					tr, err := httputils.Transport(otsdbAddr, otsdbCertFile, otsdbCAFile, otsdbKeyFile, otsdbServerName, otsdbInsecureSkipVerify)
+					tr, err := httputils.Transport(otsdbAddr, otsdbCertFile, otsdbCAFile, otsdbKeyFile, otsdbServerName, insecureSkipVerify)
 					if err != nil {
 						return fmt.Errorf("failed to create Transport: %s", err)
 					}
