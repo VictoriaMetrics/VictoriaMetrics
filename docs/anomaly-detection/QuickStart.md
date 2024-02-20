@@ -13,8 +13,8 @@ aliases:
 
 # VictoriaMetrics Anomaly Detection Quick Start
 
-For service introduction visit [README](https://docs.victoriametrics.com/anomaly-detection/) page
-and [Overview](https://docs.victoriametrics.com/anomaly-detection/overview.html) of how `vmanomaly` works.
+For service introduction visit [README](/anomaly-detection/) page
+and [Overview](/anomaly-detection/overview.html) of how `vmanomaly` works.
 
 ## How to install and run `vmanomaly`
 
@@ -57,7 +57,7 @@ docker run -it -v $YOUR_LICENSE_FILE_PATH:/license \
 
 See also:
 
-- You can verify licence online and offline. See the details [here](https://docs.victoriametrics.com/anomaly-detection/overview/#licensing).
+- You can verify licence online and offline. See the details [here](/anomaly-detection/overview/#licensing).
 - [How to configure `vmanomaly`](#how-to-configure-vmanomaly)
 
 ### Kubernetes with Helm charts
@@ -97,19 +97,19 @@ writer:
 
 
 Next steps:
-- Define how often to run and make inferences in the [scheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/) section of a config file.
-- Setup the datasource to read data from in the [reader](https://docs.victoriametrics.com/anomaly-detection/components/reader/) section.
-- Specify where and how to store anomaly detection metrics in the [writer](https://docs.victoriametrics.com/anomaly-detection/components/writer/) section.
-- Configure built-in models parameters according to your needs in the [models](https://docs.victoriametrics.com/anomaly-detection/components/models/) section.
-- Integrate your [custom models]((https://docs.victoriametrics.com/anomaly-detection/components/models/#custom-model-guide)) with `vmanomaly`.
-- Define queries for input data use [MetricsQL](https://docs.victoriametrics.com/metricsql/).
+- Define how often to run and make inferences in the [scheduler](/anomaly-detection/components/scheduler/) section of a config file.
+- Setup the datasource to read data from in the [reader](/anomaly-detection/components/reader/) section.
+- Specify where and how to store anomaly detection metrics in the [writer](/anomaly-detection/components/writer/) section.
+- Configure built-in models parameters according to your needs in the [models](/anomaly-detection/components/models/) section.
+- Integrate your [custom models](/anomaly-detection/components/models/#custom-model-guide) with `vmanomaly`.
+- Define queries for input data using [MetricsQL](https://docs.victoriametrics.com/metricsql/).
 
 
 ## Check also
 
 Here are other materials that you might find useful:
 
-- [Guide: Anomaly Detection and Alerting Setup](https://docs.victoriametrics.com/anomaly-detection/guides/guide-vmanomaly-vmalert/)
-- [FAQ](https://docs.victoriametrics.com/anomaly-detection/faq/)
-- [Changelog](https://docs.victoriametrics.com/anomaly-detection/changelog/)
+- [Guide: Anomaly Detection and Alerting Setup](/anomaly-detection/guides/guide-vmanomaly-vmalert/)
+- [FAQ](/anomaly-detection/faq/)
+- [Changelog](/anomaly-detection/changelog/)
 - [Anomaly Detection Blog](https://victoriametrics.com/blog/tags/anomaly-detection/)
