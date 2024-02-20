@@ -37,9 +37,11 @@ See also [LTS releases](https://docs.victoriametrics.com/LTS-releases.html).
 * FEATURE: [vmctl](https://docs.victoriametrics.com/vmctl.html): support client-side TLS configuration for [InfluxDB](https://docs.victoriametrics.com/vmctl/#migrating-data-from-influxdb-1x). See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5748). Thanks to @khushijain21 for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5783).
 * FEATURE: [vmctl](https://docs.victoriametrics.com/vmctl.html): support client-side TLS configuration for [Remote Read protocol](https://docs.victoriametrics.com/vmctl/#migrating-data-by-remote-read-protocol). See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5748). Thanks to @khushijain21 for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5798).
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): preserve [`WITH` templates](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/expand-with-exprs) when clicking the `prettify query` button at the right side of query input field. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5383).
+* FEATURE: [vmalert](https://docs.victoriametrics.com/#vmalert): support filtering by group, rule or labels in [vmalert's UI](https://docs.victoriametrics.com/vmalert/#web) for `/groups` and `/alerts` pages. See [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5791) by @victoramsantos.
 
 * BUGFIX: fix the misleading error `0ms is out of allowed range [0 ...` when passing `step=0` to [/api/v1/query](https://docs.victoriametrics.com/keyconcepts/#instant-query)
   or [/api/v1/query_range](https://docs.victoriametrics.com/keyconcepts/#range-query). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5795).
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/#vmalert): consistently sort groups by name and filename on `/groups` page in UI. This should prevent non-deterministic sorting for groups with identical names.
 
 ## [v1.98.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.98.0)
 
@@ -62,7 +64,6 @@ Released at 2024-02-14
 * FEATURE: [dashboards/vmagent](https://grafana.com/grafana/dashboards/12683): add `Targets scraped/s` stat panel showing the number of targets scraped by the vmagent per-second.
 * FEATURE: [dashboards/all](https://grafana.com/orgs/victoriametrics): add new panel `CPU spent on GC`. It should help identifying cases when too much CPU is spent on garbage collection, and advice users on how this can be addressed.
 * FEATURE: [vmalert](https://docs.victoriametrics.com/#vmalert): support [filtering](https://prometheus.io/docs/prometheus/2.49/querying/api/#rules) for `/api/v1/rules` API. See [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5749) by @victoramsantos.
-* FEATURE: [vmalert](https://docs.victoriametrics.com/#vmalert): support filtering by group, rule or labels in [vmalert's UI](https://docs.victoriametrics.com/vmalert/#web) for `/groups` and `/alerts` pages. See [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5791) by @victoramsantos.
 * FEATURE: [vmbackup](https://docs.victoriametrics.com/vmbackup.html): support client-side TLS configuration for creating and deleting snapshots via `-snapshot.tls*` cmd-line flags. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5724). Thanks to @khushijain21 for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5738).
 
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): reduce CPU usage when `-promscrape.dropOriginalLabels` command-line flag is set. This issue has been introduced in [v1.96.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.96.0) when addressing [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5389).
@@ -79,8 +80,6 @@ Released at 2024-02-14
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): clear entered text in select after selecting a value. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5727).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): improve the operation of the context for autocomplete. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5736), [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5737) and [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5739) issues.
 * BUGFIX: [dashboards](https://grafana.com/orgs/victoriametrics): update `Storage full ETA` panels for Single-node and Cluster dashboards to prevent them from showing negative or blank results caused by increase of deduplicated samples. Deduplicated samples were part of the expression to provide a better estimate for disk usage, but due to sporadic nature of [deduplication](https://docs.victoriametrics.com/#deduplication) in VictoriaMetrics it rather produced skewed results. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5747).
-* BUGFIX: [vmalert](https://docs.victoriametrics.com/#vmalert): consistently sort groups by name and filename on `/groups` page in UI. This should prevent non-deterministic sorting for groups with identical names.
-
 
 # [v1.97.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.2)
 
