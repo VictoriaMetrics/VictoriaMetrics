@@ -64,69 +64,72 @@ func (c *Client) Explore(ctx context.Context, f Filter, tenantID string, concurr
 
 	var mx sync.Mutex
 	var firstError error
+	limiter := make(chan struct{}, concurrency)
 	metricNames := make(map[string]struct{})
 
+	var wg sync.WaitGroup
 	for _, times := range ranges {
-		var wg sync.WaitGroup
-		for i := 0; i < concurrency; i++ {
-			wg.Add(1)
-			go func(times []time.Time) {
-				defer wg.Done()
-				start := times[0].Format(time.RFC3339)
-				end := times[1].Format(time.RFC3339)
+		limiter <- struct{}{}
+		wg.Add(1)
+		go func(times []time.Time) {
+			defer func() {
+				wg.Done()
+				<-limiter
+			}()
+			start := times[0].Format(time.RFC3339)
+			end := times[1].Format(time.RFC3339)
 
-				url := fmt.Sprintf("%s/%s", c.Addr, nativeMetricNamesAddr)
-				if tenantID != "" {
-					url = fmt.Sprintf("%s/select/%s/prometheus/%s", c.Addr, tenantID, nativeMetricNamesAddr)
+			url := fmt.Sprintf("%s/%s", c.Addr, nativeMetricNamesAddr)
+			if tenantID != "" {
+				url = fmt.Sprintf("%s/select/%s/prometheus/%s", c.Addr, tenantID, nativeMetricNamesAddr)
+			}
+			req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+			if err != nil {
+				if firstError == nil {
+					firstError = fmt.Errorf("cannot create request to %q: %s", url, err)
 				}
-				req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-				if err != nil {
-					if firstError == nil {
-						firstError = fmt.Errorf("cannot create request to %q: %s", url, err)
-					}
-					return
+				return
+			}
+
+			params := req.URL.Query()
+
+			params.Set("start", start)
+			params.Set("end", end)
+			params.Set("match[]", f.Match)
+
+			req.URL.RawQuery = params.Encode()
+
+			resp, err := c.do(req, http.StatusOK)
+			if err != nil {
+				if firstError == nil {
+					firstError = fmt.Errorf("series request failed: %s", err)
 				}
+				return
+			}
 
-				params := req.URL.Query()
-
-				params.Set("start", start)
-				params.Set("end", end)
-				params.Set("match[]", f.Match)
-
-				req.URL.RawQuery = params.Encode()
-
-				resp, err := c.do(req, http.StatusOK)
-				if err != nil {
-					if firstError == nil {
-						firstError = fmt.Errorf("series request failed: %s", err)
-					}
-					return
+			var response Response
+			if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+				if firstError == nil {
+					firstError = fmt.Errorf("cannot decode series response: %s", err)
 				}
+				return
+			}
 
-				var response Response
-				if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
-					if firstError == nil {
-						firstError = fmt.Errorf("cannot decode series response: %s", err)
-					}
-					return
+			if err := resp.Body.Close(); err != nil {
+				if firstError == nil {
+					firstError = fmt.Errorf("cannot close series response body: %s", err)
 				}
+				return
+			}
 
-				if err := resp.Body.Close(); err != nil {
-					if firstError == nil {
-						firstError = fmt.Errorf("cannot close series response body: %s", err)
-					}
-					return
-				}
-
-				mx.Lock()
-				for _, metricName := range response.MetricNames {
-					metricNames[metricName] = struct{}{}
-				}
-				mx.Unlock()
-			}(times)
-		}
-		wg.Wait()
+			mx.Lock()
+			for _, metricName := range response.MetricNames {
+				metricNames[metricName] = struct{}{}
+			}
+			mx.Unlock()
+		}(times)
 	}
+	wg.Wait()
 
 	if firstError != nil {
 		return nil, fmt.Errorf("explore process failed: %s", firstError)
