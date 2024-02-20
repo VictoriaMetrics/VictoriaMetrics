@@ -71,7 +71,7 @@ them below in corresponding sections.
 For the destination flags see the full description by running the following command:
 
 ```
-$ ./vmctl opentsdb --help
+$ ./vmctl influx --help | grep vm-
 ```
 
 Some flags like [--vm-extra-label](#adding-extra-labels) or [--vm-significant-figures](#significant-figures)
@@ -212,7 +212,7 @@ Chunking the data like this means each individual query returns faster, so we ca
 Run the following command to get all configuration options:
 
 ```sh
-./vmctl influx --help
+./vmctl opentsdb --help
 ```
 
 ### Restarting OpenTSDB migrations
