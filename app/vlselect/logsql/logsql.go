@@ -7,6 +7,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 )
 
@@ -17,9 +18,14 @@ var (
 )
 
 // ProcessQueryRequest handles /select/logsql/query request
-func ProcessQueryRequest(w http.ResponseWriter, r *http.Request, stopCh <-chan struct{}) {
+func ProcessQueryRequest(w http.ResponseWriter, r *http.Request, stopCh <-chan struct{}, cancel func()) {
 	// Extract tenantID
 	tenantID, err := logstorage.GetTenantIDFromRequest(r)
+	if err != nil {
+		httpserver.Errorf(w, r, "%s", err)
+		return
+	}
+	limit, err := httputils.GetInt(r, "limit")
 	if err != nil {
 		httpserver.Errorf(w, r, "%s", err)
 		return
@@ -34,7 +40,7 @@ func ProcessQueryRequest(w http.ResponseWriter, r *http.Request, stopCh <-chan s
 	w.Header().Set("Content-Type", "application/stream+json; charset=utf-8")
 
 	sw := getSortWriter()
-	sw.Init(w, maxSortBufferSize.IntN())
+	sw.Init(w, maxSortBufferSize.IntN(), limit)
 	tenantIDs := []logstorage.TenantID{tenantID}
 	vlstorage.RunQuery(tenantIDs, q, stopCh, func(columns []logstorage.BlockColumn) {
 		if len(columns) == 0 {
@@ -46,7 +52,11 @@ func ProcessQueryRequest(w http.ResponseWriter, r *http.Request, stopCh <-chan s
 		for rowIdx := 0; rowIdx < rowsCount; rowIdx++ {
 			WriteJSONRow(bb, columns, rowIdx)
 		}
-		sw.MustWrite(bb.B)
+
+		if !sw.TryWrite(bb.B) {
+			cancel()
+		}
+
 		blockResultPool.Put(bb)
 	})
 	sw.FinalFlush()
