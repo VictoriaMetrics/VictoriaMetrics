@@ -17,16 +17,6 @@ func ParseTime(s string) (float64, error) {
 	return ParseTimeAt(s, currentTimestamp)
 }
 
-// ParseTimeMs parses time s in different formats.
-//
-// See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#timestamp-formats
-//
-// It returns unix timestamp in milliseconds.
-func ParseTimeMs(s string) (float64, error) {
-	currentTimestampMs := float64(time.Now().UnixNano()) / 1e6
-	return ParseTimeMsAt(s, currentTimestampMs)
-}
-
 const (
 	// time.UnixNano can only store maxInt64, which is 2262
 	maxValidYear = 2262
@@ -41,18 +31,6 @@ const (
 func ParseTimeAt(s string, currentTimestamp float64) (float64, error) {
 	if s == "now" {
 		return currentTimestamp, nil
-	}
-	return ParseTimeMsAt(s, currentTimestamp*1e3)
-}
-
-// ParseTimeMsAt parses time s in different formats, assuming the given currentTimestamp.
-//
-// See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#timestamp-formats
-//
-// It returns unix timestamp in milliseconds.
-func ParseTimeMsAt(s string, currentTimestampMs float64) (float64, error) {
-	if s == "now" {
-		return currentTimestampMs, nil
 	}
 	sOrig := s
 	tzOffset := float64(0)
@@ -69,7 +47,7 @@ func ParseTimeMsAt(s string, currentTimestampMs float64) (float64, error) {
 			if err != nil {
 				return 0, fmt.Errorf("cannot parse minute from timezone offset %q: %w", tz, err)
 			}
-			tzOffset = float64(1000 * (hour*3600 + minute*60))
+			tzOffset = float64(hour*3600 + minute*60)
 			if isPlus {
 				tzOffset = -tzOffset
 			}
@@ -87,7 +65,7 @@ func ParseTimeMsAt(s string, currentTimestampMs float64) (float64, error) {
 		if d > 0 {
 			d = -d
 		}
-		return currentTimestampMs + float64(d)/1e6, nil
+		return currentTimestamp + float64(d)/1e9, nil
 	}
 	if len(s) == 4 {
 		// Parse YYYY
@@ -99,7 +77,7 @@ func ParseTimeMsAt(s string, currentTimestampMs float64) (float64, error) {
 		if y > maxValidYear || y < minValidYear {
 			return 0, fmt.Errorf("cannot parse year from %q: year must in range [%d, %d]", s, minValidYear, maxValidYear)
 		}
-		return tzOffset + float64(t.UnixNano())/1e6, nil
+		return tzOffset + float64(t.UnixNano())/1e9, nil
 	}
 	if !strings.Contains(sOrig, "-") {
 		// Parse the timestamp in seconds or in milliseconds
@@ -107,9 +85,9 @@ func ParseTimeMsAt(s string, currentTimestampMs float64) (float64, error) {
 		if err != nil {
 			return 0, err
 		}
-		if ts < (1 << 32) {
-			// The timestamp is in seconds. Convert it to milliseconds.
-			ts *= 1000
+		if ts >= (1 << 32) {
+			// The timestamp is in milliseconds. Convert it to seconds.
+			ts /= 1000
 		}
 		return ts, nil
 	}
@@ -119,7 +97,7 @@ func ParseTimeMsAt(s string, currentTimestampMs float64) (float64, error) {
 		if err != nil {
 			return 0, err
 		}
-		return tzOffset + float64(t.UnixNano())/1e6, nil
+		return tzOffset + float64(t.UnixNano())/1e9, nil
 	}
 	if len(s) == 10 {
 		// Parse YYYY-MM-DD
@@ -127,7 +105,7 @@ func ParseTimeMsAt(s string, currentTimestampMs float64) (float64, error) {
 		if err != nil {
 			return 0, err
 		}
-		return tzOffset + float64(t.UnixNano())/1e6, nil
+		return tzOffset + float64(t.UnixNano())/1e9, nil
 	}
 	if len(s) == 13 {
 		// Parse YYYY-MM-DDTHH
@@ -135,7 +113,7 @@ func ParseTimeMsAt(s string, currentTimestampMs float64) (float64, error) {
 		if err != nil {
 			return 0, err
 		}
-		return tzOffset + float64(t.UnixNano())/1e6, nil
+		return tzOffset + float64(t.UnixNano())/1e9, nil
 	}
 	if len(s) == 16 {
 		// Parse YYYY-MM-DDTHH:MM
@@ -143,7 +121,7 @@ func ParseTimeMsAt(s string, currentTimestampMs float64) (float64, error) {
 		if err != nil {
 			return 0, err
 		}
-		return tzOffset + float64(t.UnixNano())/1e6, nil
+		return tzOffset + float64(t.UnixNano())/1e9, nil
 	}
 	if len(s) == 19 {
 		// Parse YYYY-MM-DDTHH:MM:SS
@@ -151,12 +129,12 @@ func ParseTimeMsAt(s string, currentTimestampMs float64) (float64, error) {
 		if err != nil {
 			return 0, err
 		}
-		return tzOffset + float64(t.UnixNano())/1e6, nil
+		return tzOffset + float64(t.UnixNano())/1e9, nil
 	}
 	// Parse RFC3339
 	t, err := time.Parse(time.RFC3339, sOrig)
 	if err != nil {
 		return 0, err
 	}
-	return float64(t.UnixNano()) / 1e6, nil
+	return float64(t.UnixNano()) / 1e9, nil
 }
