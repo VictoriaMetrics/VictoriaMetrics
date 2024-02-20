@@ -136,7 +136,9 @@ optionally preserving labels).
 ## Usage
 > Starting from [v1.5.0](/anomaly-detection/CHANGELOG.html#v150), vmanomaly requires a license key to run. You can obtain a trial license key [here](https://victoriametrics.com/products/enterprise/trial/).
 
-> See [Getting started guide](anomaly-detection/guides/guide-vmanomaly-vmalert.html).
+> See [Quickstart](/anomaly-detection/QuickStart.html).
+
+> See [Integration guide: vmanomaly and vmalert](anomaly-detection/guides/guide-vmanomaly-vmalert.html).
 
 ### Config file
 There are 4 required sections in config file:
@@ -218,7 +220,7 @@ This will expose metrics at `http://0.0.0.0:8080/metrics` page.
 To use *vmanomaly* you need to pull docker image:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.10.0
+docker pull victoriametrics/vmanomaly:latest
 ```
 
 > Note: please check what is latest release in [CHANGELOG](/anomaly-detection/CHANGELOG.html)
@@ -228,16 +230,18 @@ docker pull victoriametrics/vmanomaly:v1.10.0
 You can put a tag on it for your convinience:
 
 ```sh
-docker image tag victoriametrics/vmanomaly:v1.10.0 vmanomaly
+docker image tag victoriametrics/vmanomaly:latest vmanomaly
 ```
 Here is an example of how to run *vmanomaly* docker container with [license file](#licensing):
 
 ```sh
+export YOUR_LICENSE_FILE_PATH=path/to/license/file
+export YOUR_CONFIG_FILE_PATH=path/to/config/file
 docker run -it --net [YOUR_NETWORK] \
-               -v [YOUR_LICENSE_FILE_PATH]:/license.txt \
-               -v [YOUR_CONFIG_FILE_PATH]:/config.yml \
+               -v YOUR_LICENSE_FILE_PATH:/license \
+               -v YOUR_CONFIG_FILE_PATH:/config.yml \
                vmanomaly /config.yml \
-               --license-file=/license.txt
+               --license-file=/license
 ```
 
 ### Licensing
