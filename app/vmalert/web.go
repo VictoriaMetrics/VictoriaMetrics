@@ -199,7 +199,11 @@ func (rh *requestHandler) groups() []APIGroup {
 
 	// sort list of alerts for deterministic output
 	sort.Slice(groups, func(i, j int) bool {
-		return groups[i].Name < groups[j].Name
+		a, b := groups[i], groups[j]
+		if a.Name != b.Name {
+			return a.Name < b.Name
+		}
+		return a.File < b.File
 	})
 
 	return groups
