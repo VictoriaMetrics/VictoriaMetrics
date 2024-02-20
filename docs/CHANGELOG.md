@@ -40,6 +40,7 @@ See also [LTS releases](https://docs.victoriametrics.com/LTS-releases.html).
 
 * BUGFIX: fix the misleading error `0ms is out of allowed range [0 ...` when passing `step=0` to [/api/v1/query](https://docs.victoriametrics.com/keyconcepts/#instant-query)
   or [/api/v1/query_range](https://docs.victoriametrics.com/keyconcepts/#range-query). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5795).
+* BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): fixed floating-point error when parsing time in RFC3339 format. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5801) for details.
 
 ## [v1.98.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.98.0)
 
