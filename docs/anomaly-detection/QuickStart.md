@@ -102,7 +102,7 @@ Next steps:
 - Specify where and how to store anomaly detection metrics in the [writer](/anomaly-detection/components/writer/) section.
 - Configure built-in models parameters according to your needs in the [models](/anomaly-detection/components/models/) section.
 - Integrate your [custom models](/anomaly-detection/components/models/#custom-model-guide) with `vmanomaly`.
-- Define queries for input data use [MetricsQL](https://docs.victoriametrics.com/metricsql/).
+- Define queries for input data using [MetricsQL](https://docs.victoriametrics.com/metricsql/).
 
 
 ## Check also
