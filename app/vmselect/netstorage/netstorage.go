@@ -1681,8 +1681,8 @@ func ProcessSearchQuery(qt *querytracer.Tracer, denyPartialResponse bool, sq *st
 		if *maxSamplesPerQuery > 0 && n > maxSamplesPerWorker && samples.GetTotal() > uint64(*maxSamplesPerQuery) {
 			return &limitExceededErr{
 				err: fmt.Errorf("cannot select more than -search.maxSamplesPerQuery=%d samples; possible solutions: "+
-					"to increase the -search.maxSamplesPerQuery; to reduce time range for the query; "+
-					"to use more specific label filters in order to select lower number of series", *maxSamplesPerQuery),
+					"increase the -search.maxSamplesPerQuery; reduce time range for the query; "+
+					"use more specific label filters in order to select fewer series", *maxSamplesPerQuery),
 			}
 		}
 		if err := tbfw.RegisterAndWriteBlock(mb, workerID); err != nil {
