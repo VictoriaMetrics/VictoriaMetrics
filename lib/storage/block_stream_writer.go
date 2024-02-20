@@ -135,6 +135,7 @@ func (bsw *blockStreamWriter) WriteExternalBlock(b *Block, ph *partHeader, rowsM
 	atomic.AddUint64(rowsMerged, uint64(b.rowsCount()))
 	b.deduplicateSamplesDuringMerge()
 	headerData, timestampsData, valuesData := b.MarshalData(bsw.timestampsBlockOffset, bsw.valuesBlockOffset)
+
 	usePrevTimestamps := len(bsw.prevTimestampsData) > 0 && bytes.Equal(timestampsData, bsw.prevTimestampsData)
 	if usePrevTimestamps {
 		// The current timestamps block equals to the previous timestamps block.
@@ -143,14 +144,13 @@ func (bsw *blockStreamWriter) WriteExternalBlock(b *Block, ph *partHeader, rowsM
 		atomic.AddUint64(&timestampsBlocksMerged, 1)
 		atomic.AddUint64(&timestampsBytesSaved, uint64(len(timestampsData)))
 	}
-	indexDataLen := len(bsw.indexData)
-	bsw.indexData = append(bsw.indexData, headerData...)
-	if len(bsw.indexData) > maxBlockSize {
-		bsw.indexData = bsw.indexData[:indexDataLen]
+
+	if len(bsw.indexData)+len(headerData) > maxBlockSize {
 		bsw.flushIndexData()
-		bsw.indexData = append(bsw.indexData, headerData...)
 	}
+	bsw.indexData = append(bsw.indexData, headerData...)
 	bsw.mr.RegisterBlockHeader(&b.bh)
+
 	if !usePrevTimestamps {
 		bsw.prevTimestampsData = append(bsw.prevTimestampsData[:0], timestampsData...)
 		bsw.prevTimestampsBlockOffset = bsw.timestampsBlockOffset

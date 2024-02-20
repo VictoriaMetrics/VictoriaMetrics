@@ -66,7 +66,7 @@ func TestSimplify(t *testing.T) {
 	f("^foo|^bar$|baz", "", "foo|ba[rz]")
 	f("^(foo$|^bar)$", "", "foo|bar")
 	f("^a(foo$|bar)$", "a", "foo|bar")
-	f("^a(^foo|bar$)z$", "a", "(?:\\Afoo|bar$)z")
+	f("^a(^foo|bar$)z$", "a", "(?-m:(?:\\Afoo|bar$)z)")
 	f("foobar", "foobar", "")
 	f("foo$|^foobar", "foo", "|bar")
 	f("^(foo$|^foobar)$", "foo", "|bar")
@@ -77,10 +77,10 @@ func TestSimplify(t *testing.T) {
 	f("^foobar|foobaz", "fooba", "[rz]")
 	f("^foobar|^foobaz$", "fooba", "[rz]")
 	f("foobar|foobaz", "fooba", "[rz]")
-	f("(?:^foobar|^foobaz)aa.*", "fooba", "[rz]aa.*")
-	f("foo[bar]+", "foo", "[a-br]+")
+	f("(?:^foobar|^foobaz)aa.*", "fooba", "(?-s:[rz]aa.*)")
+	f("foo[bar]+", "foo", "[abr]+")
 	f("foo[a-z]+", "foo", "[a-z]+")
-	f("foo[bar]*", "foo", "[a-br]*")
+	f("foo[bar]*", "foo", "[abr]*")
 	f("foo[a-z]*", "foo", "[a-z]*")
 	f("foo[x]+", "foo", "x+")
 	f("foo[^x]+", "foo", "[^x]+")
@@ -88,13 +88,13 @@ func TestSimplify(t *testing.T) {
 	f("foo[^x]*", "foo", "[^x]*")
 	f("foo[x]*bar", "foo", "x*bar")
 	f("fo\\Bo[x]*bar?", "fo", "\\Box*bar?")
-	f("foo.+bar", "foo", ".+bar")
-	f("a(b|c.*).+", "a", "(?:b|c.*).+")
-	f("ab|ac", "a", "[b-c]")
+	f("foo.+bar", "foo", "(?-s:.+bar)")
+	f("a(b|c.*).+", "a", "(?-s:(?:b|c.*).+)")
+	f("ab|ac", "a", "[bc]")
 	f("(?i)xyz", "", "(?i:XYZ)")
-	f("(?i)foo|bar", "", "(?i:FOO)|(?i:BAR)")
-	f("(?i)up.+x", "", "(?i:UP).+(?i:X)")
-	f("(?smi)xy.*z$", "", "(?i:XY)(?s:.)*(?i:Z)(?m:$)")
+	f("(?i)foo|bar", "", "(?i:FOO|BAR)")
+	f("(?i)up.+x", "", "(?i-s:UP.+X)")
+	f("(?smi)xy.*z$", "", "(?ims:XY.*Z$)")
 
 	// test invalid regexps
 	f("a(", "a(", "")
@@ -108,15 +108,15 @@ func TestSimplify(t *testing.T) {
 	f("a?(^ba|c)", "", "a?(?:\\Aba|c)")
 
 	// The transformed regexp mustn't match barx
-	f("(foo|bar$)x*", "", "(?:foo|bar$)x*")
+	f("(foo|bar$)x*", "", "(?-m:(?:foo|bar$)x*)")
 
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5297
-	f(".+;|;.+", "", ".+;|;.+")
-	f("^(.+);|;(.+)$", "", ".+;|;.+")
-	f("^(.+);$|^;(.+)$", "", ".+;|;.+")
-	f(".*;|;.*", "", ".*;|;.*")
-	f("^(.*);|;(.*)$", "", ".*;|;.*")
-	f("^(.*);$|^;(.*)$", "", ".*;|;.*")
+	f(".+;|;.+", "", "(?-s:.+;|;.+)")
+	f("^(.+);|;(.+)$", "", "(?-s:.+;|;.+)")
+	f("^(.+);$|^;(.+)$", "", "(?-s:.+;|;.+)")
+	f(".*;|;.*", "", "(?-s:.*;|;.*)")
+	f("^(.*);|;(.*)$", "", "(?-s:.*;|;.*)")
+	f("^(.*);$|^;(.*)$", "", "(?-s:.*;|;.*)")
 }
 
 func TestRemoveStartEndAnchors(t *testing.T) {

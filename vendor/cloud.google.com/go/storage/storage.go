@@ -146,8 +146,10 @@ func NewClient(ctx context.Context, opts ...option.ClientOption) (*Client, error
 		// Prepend default options to avoid overriding options passed by the user.
 		opts = append([]option.ClientOption{option.WithScopes(ScopeFullControl, "https://www.googleapis.com/auth/cloud-platform"), option.WithUserAgent(userAgent)}, opts...)
 
-		opts = append(opts, internaloption.WithDefaultEndpoint("https://storage.googleapis.com/storage/v1/"))
-		opts = append(opts, internaloption.WithDefaultMTLSEndpoint("https://storage.mtls.googleapis.com/storage/v1/"))
+		opts = append(opts, internaloption.WithDefaultEndpointTemplate("https://storage.UNIVERSE_DOMAIN/storage/v1/"),
+			internaloption.WithDefaultMTLSEndpoint("https://storage.mtls.googleapis.com/storage/v1/"),
+			internaloption.WithDefaultUniverseDomain("googleapis.com"),
+		)
 
 		// Don't error out here. The user may have passed in their own HTTP
 		// client which does not auth with ADC or other common conventions.
@@ -217,6 +219,8 @@ func NewClient(ctx context.Context, opts ...option.ClientOption) (*Client, error
 // NewGRPCClient creates a new Storage client using the gRPC transport and API.
 // Client methods which have not been implemented in gRPC will return an error.
 // In particular, methods for Cloud Pub/Sub notifications are not supported.
+// Using a non-default universe domain is also not supported with the Storage
+// gRPC client.
 //
 // The storage gRPC API is still in preview and not yet publicly available.
 // If you would like to use the API, please first contact your GCP account rep to
@@ -299,7 +303,11 @@ func (s pathStyle) host(hostname, bucket string) string {
 	return "storage.googleapis.com"
 }
 
-func (s virtualHostedStyle) host(_, bucket string) string {
+func (s virtualHostedStyle) host(hostname, bucket string) string {
+	if hostname != "" {
+		return bucket + "." + stripScheme(hostname)
+	}
+
 	if host := os.Getenv("STORAGE_EMULATOR_HOST"); host != "" {
 		return bucket + "." + stripScheme(host)
 	}
@@ -455,7 +463,7 @@ type SignedURLOptions struct {
 
 	// Hostname sets the host of the signed URL. This field overrides any
 	// endpoint set on a storage Client or through STORAGE_EMULATOR_HOST.
-	// Only compatible with PathStyle URLStyle.
+	// Only compatible with PathStyle and VirtualHostedStyle URLStyles.
 	// Optional.
 	Hostname string
 }
@@ -743,7 +751,7 @@ func signedURLV4(bucket, name string, opts *SignedURLOptions, now time.Time) (st
 	}
 
 	var headersWithValue []string
-	headersWithValue = append(headersWithValue, "host:"+u.Host)
+	headersWithValue = append(headersWithValue, "host:"+u.Hostname())
 	headersWithValue = append(headersWithValue, opts.Headers...)
 	if opts.ContentType != "" {
 		headersWithValue = append(headersWithValue, "content-type:"+opts.ContentType)

@@ -466,7 +466,7 @@ benchmark-pure:
 vendor-update:
 	go get -u -d ./lib/...
 	go get -u -d ./app/...
-	go mod tidy -compat=1.20
+	go mod tidy -compat=1.22
 	go mod vendor
 
 app-local:

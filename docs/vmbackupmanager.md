@@ -11,7 +11,7 @@ aliases:
 ---
 # vmbackupmanager
 
-***vmbackupmanager is a part of [enterprise package](https://docs.victoriametrics.com/enterprise.html). 
+***vmbackupmanager is a part of [enterprise package](https://docs.victoriametrics.com/enterprise.html).
 It is available for download and evaluation at [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 See how to request a free trial license [here](https://victoriametrics.com/products/enterprise/trial/).***
 
@@ -23,31 +23,30 @@ which represent the backup intervals (hourly, daily, weekly and monthly)
 
 The required flags for running the service are as follows:
 
-* -eula - should be true and means that you have the legal right to run a backup manager. That can either be a signed contract or an email
-  with confirmation to run the service in a trial period.
-* -storageDataPath - path to VictoriaMetrics or vmstorage data path to make backup from.
-* -snapshot.createURL - VictoriaMetrics creates snapshot URL which will automatically be created during backup. Example: <http://victoriametrics:8428/snapshot/create>
-* -dst - backup destination at [the supported storage types](https://docs.victoriametrics.com/vmbackup.html#supported-storage-types).
-* -credsFilePath - path to file with GCS or S3 credentials. Credentials are loaded from default locations if not set.
+* `-license` or `-licenseFile` . See [these docs](https://docs.victoriametrics.com/enterprise/#running-victoriametrics-enterprise).
+* `-storageDataPath` - path to VictoriaMetrics or vmstorage data path to make backup from.
+* `-snapshot.createURL` - VictoriaMetrics creates snapshot URL which will automatically be created during backup. Example: <http://victoriametrics:8428/snapshot/create>
+* `-dst` - backup destination at [the supported storage types](https://docs.victoriametrics.com/vmbackup.html#supported-storage-types).
+* `-credsFilePath` - path to file with GCS or S3 credentials. Credentials are loaded from default locations if not set.
   See [https://cloud.google.com/iam/docs/creating-managing-service-account-keys](https://cloud.google.com/iam/docs/creating-managing-service-account-keys)
   and [https://docs.aws.amazon.com/general/latest/gr/aws-security-credentials.html](https://docs.aws.amazon.com/general/latest/gr/aws-security-credentials.html).
 
 Backup schedule is controlled by the following flags:
 
-* -disableHourly - disable hourly run. Default false
-* -disableDaily - disable daily run. Default false
-* -disableWeekly - disable weekly run. Default false
-* -disableMonthly - disable monthly run. Default false
+* `-disableHourly` - disable hourly run. Default false
+* `-disableDaily` - disable daily run. Default false
+* `-disableWeekly` - disable weekly run. Default false
+* `-disableMonthly` - disable monthly run. Default false
 
 By default, all flags are turned on and Backup Manager backups data every hour for every interval (hourly, daily, weekly and monthly).
 
-The backup manager creates the following directory hierarchy at **-dst**:
+The backup manager creates the following directory hierarchy at `-dst`:
 
-* /latest/ - contains the latest backup
-* /hourly/ - contains hourly backups. Each backup is named as *YYYY-MM-DD:HH*
-* /daily/ - contains daily backups. Each backup is named as *YYYY-MM-DD*
-* /weekly/ - contains weekly backups. Each backup is named as *YYYY-WW*
-* /monthly/ - contains monthly backups. Each backup is named as *YYYY-MM*
+* `/latest/` - contains the latest backup
+* `/hourly/` - contains hourly backups. Each backup is named as `YYYY-MM-DD:HH`
+* `/daily/` - contains daily backups. Each backup is named as `YYYY-MM-DD`
+* `/weekly/` - contains weekly backups. Each backup is named as `YYYY-WW`
+* `/monthly/` - contains monthly backups. Each backup is named as `YYYY-MM`
 
 To get the full list of supported flags please run the following command:
 
@@ -57,7 +56,7 @@ To get the full list of supported flags please run the following command:
 
 The service creates a **full** backup each run. This means that the system can be restored fully
 from any particular backup using [vmrestore](https://docs.victoriametrics.com/vmrestore.html).
-Backup manager uploads only the data that has been changed or created since the most recent backup 
+Backup manager uploads only the data that has been changed or created since the most recent backup
 ([incremental backup](https://docs.victoriametrics.com/vmbackup.html#incremental-backups)).
 This reduces the consumed network traffic and the time needed for performing the backup.
 See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-series-databases-533c1a927883) for details.
@@ -66,8 +65,8 @@ See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-
 
 There are two flags which could help with performance tuning:
 
-* -maxBytesPerSecond - the maximum upload speed. There is no limit if it is set to 0
-* -concurrency - The number of concurrent workers. Higher concurrency may improve upload speed (default 10)
+* `-maxBytesPerSecond` - the maximum upload speed. There is no limit if it is set to 0
+* `-concurrency` - The number of concurrent workers. Higher concurrency may improve upload speed (default 10)
 
 ## Example of Usage
 
@@ -137,10 +136,10 @@ storage types.
 
 Backup retention policy is controlled by:
 
-* -keepLastHourly - keep the last N hourly backups. Disabled by default
-* -keepLastDaily - keep the last N daily backups. Disabled by default
-* -keepLastWeekly - keep the last N weekly backups. Disabled by default
-* -keepLastMonthly - keep the last N monthly backups. Disabled by default
+* `-keepLastHourly` - keep the last N hourly backups. Disabled by default
+* `-keepLastDaily` - keep the last N daily backups. Disabled by default
+* `-keepLastWeekly` - keep the last N weekly backups. Disabled by default
+* `-keepLastMonthly` - keep the last N monthly backups. Disabled by default
 
 > *Note*: 0 value in every keepLast flag results into deletion of ALL backups for particular type (hourly, daily, weekly and monthly)
 
@@ -324,14 +323,14 @@ If restore mark doesn't exist at `storageDataPath`(restore wasn't requested) `vm
   [{"name":"daily/2023-04-07","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:07+00:00"},{"name":"hourly/2023-04-07:11","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:06+00:00"},{"name":"latest","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:04+00:00"},{"name":"monthly/2023-04","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:10+00:00"},{"name":"weekly/2023-14","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:09+00:00"}]
   ```
 1. Run `vmbackupmanager restore create` to create restore mark:
-   - Use relative path to backup to restore from currently used remote storage:
-     ```sh
-     $ /vmbackupmanager-prod restore create daily/2023-04-07
-     ```
-   - Use full path to backup to restore from any remote storage:
-     ```sh
-     $ /vmbackupmanager-prod restore create azblob://test1/vmbackupmanager/daily/2023-04-07
-     ```
+    - Use relative path to backup to restore from currently used remote storage:
+      ```sh
+      $ /vmbackupmanager-prod restore create daily/2023-04-07
+      ```
+    - Use full path to backup to restore from any remote storage:
+      ```sh
+      $ /vmbackupmanager-prod restore create azblob://test1/vmbackupmanager/daily/2023-04-07
+      ```
 1. Stop `vmstorage` or `vmsingle` node
 1. Run `vmbackupmanager restore` to restore backup:
   ```sh
@@ -358,14 +357,14 @@ If restore mark doesn't exist at `storageDataPath`(restore wasn't requested) `vm
   [{"name":"daily/2023-04-07","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:07+00:00"},{"name":"hourly/2023-04-07:11","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:06+00:00"},{"name":"latest","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:04+00:00"},{"name":"monthly/2023-04","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:10+00:00"},{"name":"weekly/2023-14","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:09+00:00"}]
   ```
 1. Use `vmbackupmanager restore create` to create restore mark:
-  - Use relative path to backup to restore from currently used remote storage:
-    ```sh
-    $ /vmbackupmanager-prod restore create daily/2023-04-07
-    ```
-  - Use full path to backup to restore from any remote storage:
-    ```sh
-    $ /vmbackupmanager-prod restore create azblob://test1/vmbackupmanager/daily/2023-04-07
-    ```
+- Use relative path to backup to restore from currently used remote storage:
+  ```sh
+  $ /vmbackupmanager-prod restore create daily/2023-04-07
+  ```
+- Use full path to backup to restore from any remote storage:
+  ```sh
+  $ /vmbackupmanager-prod restore create azblob://test1/vmbackupmanager/daily/2023-04-07
+  ```
 1. Restart pod
 
 #### Restore cluster into another cluster
@@ -416,7 +415,7 @@ command-line flags with their descriptions.
 
 The shortlist of configuration flags is the following:
 
-```
+```text
 vmbackupmanager performs regular backups according to the provided configs.
 
 subcommands:
@@ -466,7 +465,7 @@ command-line flags:
   -fs.disableMmap
      Whether to use pread() instead of mmap() for reading data files. By default, mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
   -http.connTimeout duration
-     Incoming http connections are closed after the configured timeout. This may help to spread the incoming load among a cluster of services behind a load balancer. Please note that the real timeout may be bigger by up to 10% as a protection against the thundering herd problem
+     Incoming http connections are closed after the configured timeout. This may help to spread the incoming load among a cluster of services behind a load balancer. Please note that the real timeout may be bigger by up to 10% as a protection against the thundering herd problem (default 2m0s)
   -http.disableResponseCompression
      Disable compression of HTTP responses to save CPU resources. By default, compression is enabled to save network bandwidth
   -http.header.csp default-src 'self'
@@ -488,10 +487,8 @@ command-line flags:
      Flag value can be read from the given file when using -httpAuth.password=file:///abs/path/to/file or -httpAuth.password=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -httpAuth.password=http://host/path or -httpAuth.password=https://host/path
   -httpAuth.username string
      Username for HTTP server's Basic Auth. The authentication is disabled if empty. See also -httpAuth.password
-  -httpListenAddr array
-     Address to listen for incoming http requests
-     Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -httpListenAddr string
+     Address to listen for http connections (default ":8300")
   -internStringCacheExpireDuration duration
      The expiry duration for caches for interned strings. See https://en.wikipedia.org/wiki/String_interning . See also -internStringMaxLen and -internStringDisableCache (default 6m0s)
   -internStringDisableCache
@@ -542,14 +539,10 @@ command-line flags:
   -metricsAuthKey value
      Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
      Flag value can be read from the given file when using -metricsAuthKey=file:///abs/path/to/file or -metricsAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -metricsAuthKey=http://host/path or -metricsAuthKey=https://host/path
-  -mtls array
-     Whether to require valid client certificate for https requests to the corresponding -httpListenAddr . This flag works only if -tls flag is set. See also -mtlsCAFile . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
-     Supports array of values separated by comma or specified via multiple flags.
-     Empty values are set to false.
-  -mtlsCAFile array
-     Optional path to TLS Root CA for verifying client certificates at the corresponding -httpListenAddr when -mtls is enabled. By default the host system TLS Root CA is used for client certificate verification. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
-     Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -mtls
+     Whether to require valid client certificate for https requests to -httpListenAddr . This flag works only if -tls flag is set. See also -mtlsCAFile . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
+  -mtlsCAFile string
+     Optional path to TLS Root CA for verifying client certificates when -mtls is enabled. By default the host system TLS Root CA is used for client certificate verification. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
   -pprofAuthKey value
      Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides httpAuth.* settings
      Flag value can be read from the given file when using -pprofAuthKey=file:///abs/path/to/file or -pprofAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -pprofAuthKey=http://host/path or -pprofAuthKey=https://host/path
@@ -580,28 +573,30 @@ command-line flags:
      VictoriaMetrics create snapshot url. When this is given a snapshot will automatically be created during backup.Example: http://victoriametrics:8428/snapshot/create
   -snapshot.deleteURL string
      VictoriaMetrics delete snapshot url. Optional. Will be generated from snapshot.createURL if not provided. All created snaphosts will be automatically deleted.Example: http://victoriametrics:8428/snapshot/delete
+  -snapshot.tlsCAFile string
+     Optional path to TLS CA file to use for verifying connections to -snapshotCreateURL. By default, system CA is used
+  -snapshot.tlsCertFile string
+     Optional path to client-side TLS certificate file to use when connecting to -snapshotCreateURL
+  -snapshot.tlsInsecureSkipVerify
+     Whether to skip tls verification when connecting to -snapshotCreateURL
+  -snapshot.tlsKeyFile string
+     Optional path to client-side TLS certificate key to use when connecting to -snapshotCreateURL
+  -snapshot.tlsServerName string
+     Optional TLS server name to use for connections to -snapshotCreateURL. By default, the server name from -snapshotCreateURL is used
   -storageDataPath string
      Path to VictoriaMetrics data. Must match -storageDataPath from VictoriaMetrics or vmstorage (default "victoria-metrics-data")
-  -tls array
-     Whether to enable TLS for incoming HTTP requests at the given -httpListenAddr (aka https). -tlsCertFile and -tlsKeyFile must be set if -tls is set. See also -mtls
-     Supports array of values separated by comma or specified via multiple flags.
-     Empty values are set to false.
-  -tlsCertFile array
-     Path to file with TLS certificate for the corresponding -httpListenAddr if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated
-     Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -tls
+     Whether to enable TLS for incoming HTTP requests at -httpListenAddr (aka https). -tlsCertFile and -tlsKeyFile must be set if -tls is set. See also -mtls
+  -tlsCertFile string
+     Path to file with TLS certificate if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated
   -tlsCipherSuites array
      Optional list of TLS cipher suites for incoming requests over HTTPS if -tls is set. See the list of supported cipher suites at https://pkg.go.dev/crypto/tls#pkg-constants
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
-  -tlsKeyFile array
-     Path to file with TLS key for the corresponding -httpListenAddr if -tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated
-     Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
-  -tlsMinVersion array
-     Optional minimum TLS version to use for the corresponding -httpListenAddr if -tls is set. Supported values: TLS10, TLS11, TLS12, TLS13
-     Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -tlsKeyFile string
+     Path to file with TLS key if -tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated
+  -tlsMinVersion string
+     Optional minimum TLS version to use for incoming requests over HTTPS if -tls is set. Supported values: TLS10, TLS11, TLS12, TLS13
   -version
      Show VictoriaMetrics version
 ```

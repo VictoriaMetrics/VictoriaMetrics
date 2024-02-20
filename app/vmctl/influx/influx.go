@@ -1,6 +1,7 @@
 package influx
 
 import (
+	"crypto/tls"
 	"fmt"
 	"io"
 	"log"
@@ -33,7 +34,8 @@ type Config struct {
 	Retention string
 	ChunkSize int
 
-	Filter Filter
+	Filter    Filter
+	TLSConfig *tls.Config
 }
 
 // Filter contains configuration for filtering
@@ -86,10 +88,10 @@ type LabelPair struct {
 // configured with passed Config
 func NewClient(cfg Config) (*Client, error) {
 	c := influx.HTTPConfig{
-		Addr:               cfg.Addr,
-		Username:           cfg.Username,
-		Password:           cfg.Password,
-		InsecureSkipVerify: true,
+		Addr:      cfg.Addr,
+		Username:  cfg.Username,
+		Password:  cfg.Password,
+		TLSConfig: cfg.TLSConfig,
 	}
 	hc, err := influx.NewHTTPClient(c)
 	if err != nil {

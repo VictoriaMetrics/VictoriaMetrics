@@ -1243,6 +1243,12 @@ scrape_configs:
     #
   - server: "http://localhost:5676"
 
+    # client_id is an optional client ID to send to Kuma Control Plane.
+    # The hostname of the server where vmagent runs is used if it isn't set.
+    # If the hostname is empty, then "vmagent" string is used as client_id.
+    #
+    # client_id: "..."
+
     # Additional HTTP API client options can be specified here.
     # See https://docs.victoriametrics.com/sd_configs.html#http-api-client-options
 ```
