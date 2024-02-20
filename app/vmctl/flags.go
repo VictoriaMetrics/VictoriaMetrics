@@ -198,23 +198,23 @@ var (
 		},
 		&cli.StringFlag{
 			Name:  otsdbCertFile,
-			Usage: "Optional path to client-side TLS certificate file to use when connecting to otsdbAddr",
+			Usage: "Optional path to client-side TLS certificate file to use when connecting to -otsdb-addr",
 		},
 		&cli.StringFlag{
 			Name:  otsdbKeyFile,
-			Usage: "Optional path to client-side TLS key to use when connecting to otsdbAddr",
+			Usage: "Optional path to client-side TLS key to use when connecting to -otsdb-addr",
 		},
 		&cli.StringFlag{
 			Name:  otsdbCAFile,
-			Usage: "Optional path to TLS CA file to use for verifying connections to otsdbAddr. By default, system CA is used",
+			Usage: "Optional path to TLS CA file to use for verifying connections to -otsdb-addr. By default, system CA is used",
 		},
 		&cli.StringFlag{
 			Name:  otsdbServerName,
-			Usage: "Optional TLS server name to use for connections to otsdbAddr. By default, the server name from otsdbAddr is used",
+			Usage: "Optional TLS server name to use for connections to -otsdb-addr. By default, the server name from otsdbAddr is used",
 		},
 		&cli.BoolFlag{
 			Name:  otsdbInsecureSkipVerify,
-			Usage: "Whether to skip tls verification when connecting to infuxAddr",
+			Usage: "Whether to skip tls verification when connecting to -otsdb-addr",
 			Value: false,
 		},
 	}

@@ -51,19 +51,19 @@ func main() {
 					fmt.Println("OpenTSDB import mode")
 
 					// create Transport with given TLS config
-					otsdbCertFile := c.String(otsdbCertFile)
-					otsdbKeyFile := c.String(otsdbKeyFile)
-					otsdbCAFile := c.String(otsdbCAFile)
-					otsdbServerName := c.String(otsdbServerName)
+					certFile := c.String(otsdbCertFile)
+					keyFile := c.String(otsdbKeyFile)
+					caFile := c.String(otsdbCAFile)
+					serverName := c.String(otsdbServerName)
 					insecureSkipVerify := c.Bool(otsdbInsecureSkipVerify)
-					otsdbAddr := c.String(otsdbAddr)
+					addr := c.String(otsdbAddr)
 
-					tr, err := httputils.Transport(otsdbAddr, otsdbCertFile, otsdbCAFile, otsdbKeyFile, otsdbServerName, insecureSkipVerify)
+					tr, err := httputils.Transport(addr, certFile, caFile, keyFile, serverName, insecureSkipVerify)
 					if err != nil {
 						return fmt.Errorf("failed to create Transport: %s", err)
 					}
 					oCfg := opentsdb.Config{
-						Addr:       c.String(otsdbAddr),
+						Addr:       addr,
 						Limit:      c.Int(otsdbQueryLimit),
 						Offset:     c.Int64(otsdbOffsetDays),
 						HardTS:     c.Int64(otsdbHardTSStart),
@@ -71,7 +71,7 @@ func main() {
 						Filters:    c.StringSlice(otsdbFilters),
 						Normalize:  c.Bool(otsdbNormalize),
 						MsecsTime:  c.Bool(otsdbMsecsTime),
-						HttpClient: &http.Client{Transport: tr},
+						Transport:  tr,
 					}
 					otsdbClient, err := opentsdb.NewClient(oCfg)
 					if err != nil {

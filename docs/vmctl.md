@@ -71,7 +71,7 @@ them below in corresponding sections.
 For the destination flags see the full description by running the following command:
 
 ```
-$ ./vmctl influx --help | grep vm-
+$ ./vmctl opentsdb --help
 ```
 
 Some flags like [--vm-extra-label](#adding-extra-labels) or [--vm-significant-figures](#significant-figures)
