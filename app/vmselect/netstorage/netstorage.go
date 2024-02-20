@@ -1193,8 +1193,8 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 		if *maxSamplesPerQuery > 0 && samples > *maxSamplesPerQuery {
 			putTmpBlocksFile(tbf)
 			putStorageSearch(sr)
-			return nil, fmt.Errorf("cannot select more than -search.maxSamplesPerQuery=%d samples; possible solutions: to increase the -search.maxSamplesPerQuery; "+
-				"to reduce time range for the query; to use more specific label filters in order to select lower number of series", *maxSamplesPerQuery)
+			return nil, fmt.Errorf("cannot select more than -search.maxSamplesPerQuery=%d samples; possible solutions: increase the -search.maxSamplesPerQuery; "+
+				"reduce time range for the query; use more specific label filters in order to select fewer series", *maxSamplesPerQuery)
 		}
 
 		buf = br.Marshal(buf[:0])
