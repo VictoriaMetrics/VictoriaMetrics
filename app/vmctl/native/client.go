@@ -9,9 +9,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/utils"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/stepper"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/utils"
 )
 
 const (
@@ -40,14 +41,14 @@ type Response struct {
 // Explore finds metric names by provided filter from api/v1/label/__name__/values
 func (c *Client) Explore(ctx context.Context, f Filter, tenantID string, concurrency int) (map[string]struct{}, error) {
 
-	start, err := utils.GetTime(f.TimeStart)
+	start, err := utils.ParseTime(f.TimeStart)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse time start for explore metrics: %s", err)
 	}
 
 	end := time.Now().In(start.Location())
 	if f.TimeEnd != "" {
-		end, err = utils.GetTime(f.TimeEnd)
+		end, err = utils.ParseTime(f.TimeEnd)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse time end for explore metrics: %s", err)
 		}

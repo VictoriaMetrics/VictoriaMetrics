@@ -1,4 +1,4 @@
-package main
+package utils
 
 import (
 	"fmt"
@@ -13,7 +13,7 @@ const (
 	maxTimeMsecs = int64(1<<63-1) / 1e6
 )
 
-func parseTime(s string) (time.Time, error) {
+func ParseTime(s string) (time.Time, error) {
 	msecs, err := promutils.ParseTimeMsec(s)
 	if err != nil {
 		return time.Time{}, fmt.Errorf("cannot parse %s: %w", s, err)
