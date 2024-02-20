@@ -47,6 +47,8 @@ type Client struct {
 	Normalize  bool
 	HardTS     int64
 	MsecsTime  bool
+
+	c *http.Client
 }
 
 // Config contains fields required
@@ -60,6 +62,7 @@ type Config struct {
 	Filters    []string
 	Normalize  bool
 	MsecsTime  bool
+	Transport  *http.Transport
 }
 
 // TimeRange contains data about time ranges to query
@@ -107,7 +110,8 @@ type Metric struct {
 // FindMetrics discovers all metrics that OpenTSDB knows about (given a filter)
 // e.g. /api/suggest?type=metrics&q=system&max=100000
 func (c Client) FindMetrics(q string) ([]string, error) {
-	resp, err := http.Get(q)
+
+	resp, err := c.c.Get(q)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send GET request to %q: %s", q, err)
 	}
@@ -131,7 +135,7 @@ func (c Client) FindMetrics(q string) ([]string, error) {
 // e.g. /api/search/lookup?m=system.load5&limit=1000000
 func (c Client) FindSeries(metric string) ([]Meta, error) {
 	q := fmt.Sprintf("%s/api/search/lookup?m=%s&limit=%d", c.Addr, metric, c.Limit)
-	resp, err := http.Get(q)
+	resp, err := c.c.Get(q)
 	if err != nil {
 		return nil, fmt.Errorf("failed to set GET request to %q: %s", q, err)
 	}
@@ -184,7 +188,7 @@ func (c Client) GetData(series Meta, rt RetentionMeta, start int64, end int64, m
 		series.Metric, tagStr)
 
 	q := fmt.Sprintf("%s/api/query?%s", c.Addr, queryStr)
-	resp, err := http.Get(q)
+	resp, err := c.c.Get(q)
 	if err != nil {
 		return Metric{}, fmt.Errorf("failed to send GET request to %q: %s", q, err)
 	}
@@ -325,6 +329,7 @@ func NewClient(cfg Config) (*Client, error) {
 		Normalize:  cfg.Normalize,
 		HardTS:     cfg.HardTS,
 		MsecsTime:  cfg.MsecsTime,
+		c:          &http.Client{Transport: cfg.Transport},
 	}
 	return client, nil
 }
