@@ -815,12 +815,12 @@ Migration in `vm-native` mode takes two steps:
     --vm-native-src-addr=http://127.0.0.1:8481/select/0/prometheus \ # migrate from
     --vm-native-dst-addr=http://localhost:8428 \                     # migrate to
     --vm-native-filter-time-start='2022-11-20T00:00:00Z' \           # starting from
-    --vm-native-filter-match='{__name__=~"vm_cache_.*"}'             # only metrics matching the selector
+    --vm-native-filter-match='{__name__!~"vm_cache_.*"}'             # filter out metrics matching the selector
 VictoriaMetrics Native import mode
 
 2023/03/02 09:22:02 Initing import process from "http://127.0.0.1:8481/select/0/prometheus/api/v1/export/native" 
                     to "http://localhost:8428/api/v1/import/native" with filter 
-        filter: match[]={__name__=~"vm_cache_.*"}
+        filter: match[]={__name__!~"vm_cache_.*"}
         start: 2022-11-20T00:00:00Z
 2023/03/02 09:22:02 Exploring metrics...
 Found 9 metrics to import. Continue? [Y/n] 
