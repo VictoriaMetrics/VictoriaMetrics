@@ -13,6 +13,8 @@ const (
 	maxTimeMsecs = int64(1<<63-1) / 1e6
 )
 
+// ParseTime parses time in s string and returns time.Time object
+// if parse correctly or error if not
 func ParseTime(s string) (time.Time, error) {
 	msecs, err := promutils.ParseTimeMsec(s)
 	if err != nil {
