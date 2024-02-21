@@ -103,6 +103,42 @@ var rollupFuncs = map[string]newRollupFunc{
 	"zscore_over_time":       newRollupFuncOneArg(rollupZScoreOverTime),
 }
 
+// Functions, which need the previous sample before the lookbehind window for proper calculations.
+//
+// All the rollup functions, which do not rely on the previous sample
+// before the lookbehind window (aka prevValue and realPrevValue), do not need silence interval.
+var needSilenceIntervalForRollupFunc = map[string]bool{
+	"ascent_over_time":    true,
+	"changes":             true,
+	"decreases_over_time": true,
+	// The default_rollup implicitly relies on the previous samples in order to fill gaps.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5388
+	"default_rollup":         true,
+	"delta":                  true,
+	"deriv_fast":             true,
+	"descent_over_time":      true,
+	"idelta":                 true,
+	"ideriv":                 true,
+	"increase":               true,
+	"increase_pure":          true,
+	"increases_over_time":    true,
+	"integrate":              true,
+	"irate":                  true,
+	"lag":                    true,
+	"lifetime":               true,
+	"rate":                   true,
+	"resets":                 true,
+	"rollup":                 true,
+	"rollup_candlestick":     true,
+	"rollup_delta":           true,
+	"rollup_deriv":           true,
+	"rollup_increase":        true,
+	"rollup_rate":            true,
+	"rollup_scrape_interval": true,
+	"scrape_interval":        true,
+	"tlast_change_over_time": true,
+}
+
 // rollupAggrFuncs are functions that can be passed to `aggr_over_time()`
 var rollupAggrFuncs = map[string]rollupFunc{
 	"absent_over_time":        rollupAbsent,
@@ -957,7 +993,7 @@ func newRollupHoltWinters(args []interface{}) (rollupFunc, error) {
 		// before calling rollup funcs.
 		values := rfa.values
 		if len(values) == 0 {
-			return rfa.prevValue
+			return nan
 		}
 		sf := sfs[rfa.idx]
 		if sf < 0 || sf > 1 {
@@ -1586,11 +1622,7 @@ func rollupRateOverSum(rfa *rollupFuncArg) float64 {
 	// before calling rollup funcs.
 	timestamps := rfa.timestamps
 	if len(timestamps) == 0 {
-		if math.IsNaN(rfa.prevValue) {
-			return nan
-		}
-		// Assume that the value didn't change since rfa.prevValue.
-		return 0
+		return nan
 	}
 	sum := float64(0)
 	for _, v := range rfa.values {
@@ -1610,7 +1642,7 @@ func rollupSum2(rfa *rollupFuncArg) float64 {
 	// before calling rollup funcs.
 	values := rfa.values
 	if len(values) == 0 {
-		return rfa.prevValue * rfa.prevValue
+		return nan
 	}
 	var sum2 float64
 	for _, v := range values {
@@ -1624,7 +1656,7 @@ func rollupGeomean(rfa *rollupFuncArg) float64 {
 	// before calling rollup funcs.
 	values := rfa.values
 	if len(values) == 0 {
-		return rfa.prevValue
+		return nan
 	}
 	p := 1.0
 	for _, v := range values {
@@ -2268,10 +2300,7 @@ func rollupDistinct(rfa *rollupFuncArg) float64 {
 	// before calling rollup funcs.
 	values := rfa.values
 	if len(values) == 0 {
-		if math.IsNaN(rfa.prevValue) {
-			return nan
-		}
-		return 0
+		return nan
 	}
 	m := make(map[float64]struct{})
 	for _, v := range values {

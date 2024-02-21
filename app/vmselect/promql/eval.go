@@ -1687,7 +1687,7 @@ func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName stri
 	tfss := searchutils.ToTagFilterss(me.LabelFilterss)
 	tfss = searchutils.JoinTagFilterss(tfss, ec.EnforcedTagFilterss)
 	minTimestamp := ec.Start
-	if needSilenceIntervalForRollupFunc(funcName) {
+	if needSilenceIntervalForRollupFunc[funcName] {
 		minTimestamp -= maxSilenceInterval()
 	}
 	if window > ec.Step {
@@ -1786,56 +1786,6 @@ func maxSilenceInterval() int64 {
 		d = 5 * 60 * 1000
 	}
 	return d
-}
-
-func needSilenceIntervalForRollupFunc(funcName string) bool {
-	// All the rollup functions, which do not rely on the previous sample
-	// before the lookbehind window (aka prevValue and realPrevValue), do not need silence interval.
-	switch strings.ToLower(funcName) {
-	case "default_rollup":
-		// The default_rollup implicitly relies on the previous samples in order to fill gaps.
-		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5388
-		return true
-	case
-		"absent_over_time",
-		"avg_over_time",
-		"count_eq_over_time",
-		"count_gt_over_time",
-		"count_le_over_time",
-		"count_ne_over_time",
-		"count_over_time",
-		"first_over_time",
-		"histogram_over_time",
-		"hoeffding_bound_lower",
-		"hoeffding_bound_upper",
-		"last_over_time",
-		"mad_over_time",
-		"max_over_time",
-		"median_over_time",
-		"min_over_time",
-		"predict_linear",
-		"present_over_time",
-		"quantile_over_time",
-		"quantiles_over_time",
-		"range_over_time",
-		"share_gt_over_time",
-		"share_le_over_time",
-		"share_eq_over_time",
-		"stale_samples_over_time",
-		"stddev_over_time",
-		"stdvar_over_time",
-		"sum_over_time",
-		"tfirst_over_time",
-		"timestamp",
-		"timestamp_with_name",
-		"tlast_over_time",
-		"tmax_over_time",
-		"tmin_over_time",
-		"zscore_over_time":
-		return false
-	default:
-		return true
-	}
 }
 
 func evalRollupWithIncrementalAggregate(qt *querytracer.Tracer, funcName string, keepMetricNames bool,
