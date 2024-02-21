@@ -2,7 +2,6 @@ package streamaggr
 
 import (
 	"encoding/json"
-	"flag"
 	"fmt"
 	"math"
 	"sort"
@@ -15,7 +14,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs/fscore"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
@@ -24,8 +22,6 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 	"gopkg.in/yaml.v2"
 )
-
-var streamAggrDefaultDiscardSamplesInterval = flag.Duration("remoteWrite.streamAggr.discardSamplesOlderThan", 0, "Streaming aggregation: default duration for discarding samples older than the given duration relative to the beginning of the aggregation window.")
 
 var supportedOutputs = []string{
 	"total",
@@ -140,10 +136,6 @@ type Config struct {
 	// FlushOnShutdown defines whether to flush the aggregation state on process termination
 	// or config reload. Is `false` by default.
 	FlushOnShutdown bool `yaml:"flush_on_shutdown,omitempty"`
-
-	// DiscardSamplesOlderThan is an optional duration for discarding samples older
-	// than the given duration relative to the beginning of the aggregation window.
-	DiscardSamplesOlderThan string `yaml:"discard_samples_older_than,omitempty"`
 }
 
 // Aggregators aggregates metrics passed to Push and calls pushFunc for aggregate data.
@@ -281,10 +273,6 @@ type aggregator struct {
 	// interval is the interval for aggregating input samples
 	interval time.Duration
 
-	// discardSamplesOlderThan is an optional duration for discarding samples older
-	// than the given duration relative to the beginning of the aggregation window.
-	discardSamplesOlderThan *time.Duration `yaml:"pass_samples_older_than,omitempty"`
-
 	// aggrStates contains aggregate states for the given outputs
 	aggrStates []aggrState
 
@@ -343,23 +331,6 @@ func newAggregator(cfg *Config, pushFunc PushFunc) (*aggregator, error) {
 		if stalenessInterval < interval {
 			return nil, fmt.Errorf("staleness_interval cannot be less than interval (%s); got %s", cfg.Interval, cfg.StalenessInterval)
 		}
-	}
-
-	// check cfg.DiscardSamplesOlderThan
-	var discardSamplesOlderThan *time.Duration
-	if cfg.DiscardSamplesOlderThan != "" {
-		d, err := time.ParseDuration(cfg.DiscardSamplesOlderThan)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse `discard_samples_older_than: %q`: %w", cfg.DiscardSamplesOlderThan, err)
-		}
-		discardSamplesOlderThan = &d
-	} else if *streamAggrDefaultDiscardSamplesInterval != 0 {
-		discardSamplesOlderThan = streamAggrDefaultDiscardSamplesInterval
-	}
-	if discardSamplesOlderThan != nil {
-		logger.Infof("- Discarding samples older than %s is enabled", *discardSamplesOlderThan)
-	} else {
-		logger.Infof("- Discarding old samples is disabled")
 	}
 
 	// initialize input_relabel_configs and output_relabel_configs
@@ -466,9 +437,7 @@ func newAggregator(cfg *Config, pushFunc PushFunc) (*aggregator, error) {
 		without:             without,
 		aggregateOnlyByTime: aggregateOnlyByTime,
 
-		interval:                interval,
-		discardSamplesOlderThan: discardSamplesOlderThan,
-
+		interval:   interval,
 		aggrStates: aggrStates,
 		pushFunc:   pushFunc,
 
@@ -476,8 +445,6 @@ func newAggregator(cfg *Config, pushFunc PushFunc) (*aggregator, error) {
 		flushOnShutdown: cfg.FlushOnShutdown,
 
 		stopCh: make(chan struct{}),
-
-		tooOldSamplesDroppedTotal: metrics.GetOrCreateCounter(`vmagent_streamaggr_samples_dropped_total{reason="too_old"}`),
 	}
 
 	a.wg.Add(1)
@@ -571,11 +538,6 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 	bb := bbPool.Get()
 	applyFilters := matchIdxs != nil
 
-	var minAllowedTimestamp int64
-	if a.discardSamplesOlderThan != nil {
-		minAllowedTimestamp = int64(1000 * (float64(fasttime.UnixTimestamp()) - a.interval.Seconds() - a.discardSamplesOlderThan.Seconds()))
-	}
-
 	for idx, ts := range tss {
 		if applyFilters {
 			if !a.match.Match(ts.Labels) {
@@ -597,12 +559,6 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 
 		inputKey, outputKey := a.extractKeys(bb.B[:0], labels, tmpLabels)
 		for _, sample := range ts.Samples {
-			if a.discardSamplesOlderThan != nil && sample.Timestamp < minAllowedTimestamp {
-				// Skip too old samples.
-				a.trackDroppedSample(ts.Labels, sample.Timestamp, minAllowedTimestamp)
-				continue
-			}
-
 			a.pushSample(inputKey, outputKey, sample.Value)
 		}
 	}
@@ -629,21 +585,6 @@ func (a *aggregator) extractKeys(b []byte, labels *promutils.Labels, tmpLabels *
 
 	return inputKey, outputKey
 }
-
-func (a *aggregator) trackDroppedSample(labels []prompbmarshal.Label, actualTs, minTs int64) {
-	select {
-	case <-droppedSamplesLogTicker.C:
-		// Do not call logger.WithThrottler() here, since this will result in increased CPU usage
-		// because LabelsToString() will be called with each trackDroppedSample call.
-		lbs := promrelabel.LabelsToString(labels)
-		logger.Warnf("skipping a sample for metric %s at streaming aggregation: timestamp too old: %d; minimal accepted timestamp: %d", lbs, actualTs, minTs)
-	default:
-	}
-
-	a.tooOldSamplesDroppedTotal.Inc()
-}
-
-var droppedSamplesLogTicker = time.NewTicker(5 * time.Second)
 
 var bbPool bytesutil.ByteBufferPool
 

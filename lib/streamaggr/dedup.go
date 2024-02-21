@@ -6,6 +6,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/cespare/xxhash/v2"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -75,9 +76,14 @@ func (d *deduplicator) stop() {
 }
 
 func (d *deduplicator) pushSamples(key []byte, ts prompbmarshal.TimeSeries) {
+	if len(ts.Samples) == 0 {
+		logger.Infof("debug: time series with 0 samples: %v", ts)
+		return
+	}
+
 	lastSample := ts.Samples[0]
 	// find the most recent sample, since previous samples will be deduplicated anyway
-	for i, sample := range ts.Samples {
+	for i, sample := range ts.Samples[1:] {
 		if sample.Timestamp > lastSample.Timestamp ||
 			(sample.Timestamp == lastSample.Timestamp && sample.Value > lastSample.Value) {
 			lastSample = ts.Samples[i]
