@@ -41,6 +41,8 @@ See also [LTS releases](https://docs.victoriametrics.com/LTS-releases.html).
 * BUGFIX: fix the misleading error `0ms is out of allowed range [0 ...` when passing `step=0` to [/api/v1/query](https://docs.victoriametrics.com/keyconcepts/#instant-query)
   or [/api/v1/query_range](https://docs.victoriametrics.com/keyconcepts/#range-query). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5795).
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/#vmalert): consistently sort groups by name and filename on `/groups` page in UI. This should prevent non-deterministic sorting for groups with identical names.
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/#vmagent): properly ingest samples with `remoteWrite.shardByURL` enabled. See this [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5833) for details.
+
 
 ## [v1.98.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.98.0)
 

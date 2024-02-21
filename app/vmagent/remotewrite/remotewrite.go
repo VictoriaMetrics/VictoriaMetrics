@@ -333,8 +333,10 @@ func newRemoteWriteCtxs(at *auth.Token, urls []string) []*remoteWriteCtx {
 	return rwctxs
 }
 
-var configReloaderStopCh = make(chan struct{})
-var configReloaderWG sync.WaitGroup
+var (
+	configReloaderStopCh = make(chan struct{})
+	configReloaderWG     sync.WaitGroup
+)
 
 // Stop stops remotewrite.
 //
@@ -536,13 +538,13 @@ func tryPushBlockToRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []prompbmar
 		// Push sharded data to remote storages in parallel in order to reduce
 		// the time needed for sending the data to multiple remote storage systems.
 		var wg sync.WaitGroup
-		wg.Add(len(rwctxs))
 		var anyPushFailed uint64
 		for i, rwctx := range rwctxs {
 			tssShard := tssByURL[i]
 			if len(tssShard) == 0 {
 				continue
 			}
+			wg.Add(1)
 			go func(rwctx *remoteWriteCtx, tss []prompbmarshal.TimeSeries) {
 				defer wg.Done()
 				if !rwctx.TryPush(tss) {
