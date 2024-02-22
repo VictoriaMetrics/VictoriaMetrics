@@ -1,0 +1,14 @@
+{
+  "name": "csv export",
+  "data": [
+    "rfc3339,4,{TIME_MS}",
+    "rfc3339milli,6,{TIME_MS}",
+    "ts,8,{TIME_MS}",
+    "tsms,10,{TIME_MS},"
+  ],
+  "insert_query": "?format=1:label:tfmt,2:metric:test_csv,3:time:unix_ms",
+  "query": [
+    "/api/v1/export/csv?format=__name__,tfmt,__value__,__timestamp__:rfc3339&match[]={__name__=\"test_csv\"}&step=30s&start={TIME_MS-180s}"
+  ],
+  "expected_result_lines_count": 4
+}
