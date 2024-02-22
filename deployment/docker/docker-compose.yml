@@ -1,5 +1,8 @@
 version: "3.5"
 services:
+  #  Metrics collector.
+  #  It scrapes targets defined in --promscrape.config
+  #  And forward them to --remoteWrite.url
   vmagent:
     container_name: vmagent
     image: victoriametrics/vmagent:v1.98.0
@@ -16,6 +19,8 @@ services:
     networks:
       - vm_net
     restart: always
+  # VictoriaMetrics instance, a single process responsible for
+  # storing metrics and serve read requests.
   victoriametrics:
     container_name: victoriametrics
     image: victoriametrics/victoria-metrics:v1.98.0
@@ -38,6 +43,8 @@ services:
     networks:
       - vm_net
     restart: always
+
+  # Grafana instance configured with VictoriaMetrics as datasource
   grafana:
     container_name: grafana
     image: grafana/grafana:10.3.1
@@ -56,6 +63,8 @@ services:
     networks:
       - vm_net
     restart: always
+
+  # vmalert executes alerting and recording rules
   vmalert:
     container_name: vmalert
     image: victoriametrics/vmalert:v1.98.0
@@ -82,6 +91,9 @@ services:
     networks:
       - vm_net
     restart: always
+
+  # alertmanager receives alerting notifications from vmalert
+  # and distributes them according to --config.file.
   alertmanager:
     container_name: alertmanager
     image: prom/alertmanager:v0.25.0
@@ -94,6 +106,9 @@ services:
     networks:
       - vm_net
     restart: always
+
+  # fluentbit is logs collector. It collects logs according to fluent-bit.conf
+  # and forwards them to VictoriaLogs
   fluentbit:
     container_name: fluentbit
     image: cr.fluentbit.io/fluent/fluent-bit:2.1.4
@@ -105,6 +120,9 @@ services:
       - "5140:5140"
     networks:
       - vm_net
+
+#  VictoriaLogs instance, a single process responsible for
+#  storing logs and serving read queries.
   victorialogs:
     container_name: victorialogs
     image: docker.io/victoriametrics/victoria-logs:v0.4.2-victorialogs
