@@ -11,6 +11,7 @@ The following `tip` changes can be tested by building VictoriaMetrics components
 
 ## v1.93.x long-time support release (LTS)
 
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): fix possible deadlock when [sharding among remote storages](https://docs.victoriametrics.com/vmagent/#sharding-among-remote-storages) is enabled with `-remoteWrite.shardByURL` command-line flag. Thanks to @penguinlav for [the fix](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5834) for [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5833).
 * BUGFIX: fix the misleading error `0ms is out of allowed range [0 ...` when passing `step=0` to [/api/v1/query](https://docs.victoriametrics.com/keyconcepts/#instant-query)
   or [/api/v1/query_range](https://docs.victoriametrics.com/keyconcepts/#range-query). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5795).
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): fixed floating-point error when parsing time in RFC3339 format. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5801) for details.
