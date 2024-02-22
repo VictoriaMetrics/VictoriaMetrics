@@ -409,6 +409,14 @@ func (s *Storage) CreateSnapshot(deadline uint64) (string, error) {
 	return snapshotName, nil
 }
 
+func (s *Storage) mustGetSnapshotsCount() int {
+	snapshotNames, err := s.ListSnapshots()
+	if err != nil {
+		logger.Panicf("FATAL: cannot list snapshots: %s", err)
+	}
+	return len(snapshotNames)
+}
+
 // ListSnapshots returns sorted list of existing snapshots for s.
 func (s *Storage) ListSnapshots() ([]string, error) {
 	snapshotsPath := filepath.Join(s.path, snapshotsDirname)
@@ -482,6 +490,7 @@ func (s *Storage) idb() *indexDB {
 type Metrics struct {
 	RowsAddedTotal    uint64
 	DedupsDuringMerge uint64
+	SnapshotsCount    uint64
 
 	TooSmallTimestampRows uint64
 	TooBigTimestampRows   uint64
@@ -554,6 +563,7 @@ func (m *Metrics) Reset() {
 func (s *Storage) UpdateMetrics(m *Metrics) {
 	m.RowsAddedTotal = atomic.LoadUint64(&rowsAddedTotal)
 	m.DedupsDuringMerge = atomic.LoadUint64(&dedupsDuringMerge)
+	m.SnapshotsCount += uint64(s.mustGetSnapshotsCount())
 
 	m.TooSmallTimestampRows += atomic.LoadUint64(&s.tooSmallTimestampRows)
 	m.TooBigTimestampRows += atomic.LoadUint64(&s.tooBigTimestampRows)
