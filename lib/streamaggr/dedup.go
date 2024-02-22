@@ -200,6 +200,9 @@ func (d *deduplicator) flush() {
 		s.mu.Unlock()
 
 		d.callback(tss, nil)
+
+		// slice header could have changed, so we update it before returning to pool
+		*ptr = tss
 		putTimeSeries(ptr)
 	}
 
