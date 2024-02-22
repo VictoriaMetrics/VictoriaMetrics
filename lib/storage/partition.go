@@ -421,10 +421,16 @@ func (pt *partition) AddRows(rows []rawRow) {
 var isDebug = false
 
 type rawRowsShards struct {
+	// Put flushDeadlineMs to the top in order to avoid unaligned memory access on 32-bit architectures:w
+	flushDeadlineMs int64
+
 	shardIdx uint32
 
 	// Shards reduce lock contention when adding rows on multi-CPU systems.
 	shards []rawRowsShard
+
+	rowssToFlushLock sync.Mutex
+	rowssToFlush     [][]rawRow
 }
 
 func (rrss *rawRowsShards) init() {
@@ -437,8 +443,31 @@ func (rrss *rawRowsShards) addRows(pt *partition, rows []rawRow) {
 	for len(rows) > 0 {
 		n := atomic.AddUint32(&rrss.shardIdx, 1)
 		idx := n % shardsLen
-		rows = shards[idx].addRows(pt, rows)
+		tailRows, rowsToFlush := shards[idx].addRows(rows)
+		rrss.addRowsToFlush(pt, rowsToFlush)
+		rows = tailRows
 	}
+}
+
+func (rrss *rawRowsShards) addRowsToFlush(pt *partition, rowsToFlush []rawRow) {
+	if len(rowsToFlush) == 0 {
+		return
+	}
+
+	var rowssToMerge [][]rawRow
+
+	rrss.rowssToFlushLock.Lock()
+	if len(rrss.rowssToFlush) == 0 {
+		rrss.updateFlushDeadline()
+	}
+	rrss.rowssToFlush = append(rrss.rowssToFlush, rowsToFlush)
+	if len(rrss.rowssToFlush) >= defaultPartsToMerge {
+		rowssToMerge = rrss.rowssToFlush
+		rrss.rowssToFlush = nil
+	}
+	rrss.rowssToFlushLock.Unlock()
+
+	pt.flushRowssToInmemoryParts(rowssToMerge)
 }
 
 func (rrss *rawRowsShards) Len() int {
@@ -446,12 +475,23 @@ func (rrss *rawRowsShards) Len() int {
 	for i := range rrss.shards[:] {
 		n += rrss.shards[i].Len()
 	}
+
+	rrss.rowssToFlushLock.Lock()
+	for _, rows := range rrss.rowssToFlush {
+		n += len(rows)
+	}
+	rrss.rowssToFlushLock.Unlock()
+
 	return n
 }
 
+func (rrss *rawRowsShards) updateFlushDeadline() {
+	atomic.StoreInt64(&rrss.flushDeadlineMs, time.Now().Add(pendingRowsFlushInterval).UnixMilli())
+}
+
 type rawRowsShardNopad struct {
-	// Put lastFlushTimeMs to the top in order to avoid unaligned memory access on 32-bit architectures
-	lastFlushTimeMs int64
+	// Put flushDeadlineMs to the top in order to avoid unaligned memory access on 32-bit architectures
+	flushDeadlineMs int64
 
 	mu   sync.Mutex
 	rows []rawRow
@@ -472,12 +512,15 @@ func (rrs *rawRowsShard) Len() int {
 	return n
 }
 
-func (rrs *rawRowsShard) addRows(pt *partition, rows []rawRow) []rawRow {
+func (rrs *rawRowsShard) addRows(rows []rawRow) ([]rawRow, []rawRow) {
 	var rowsToFlush []rawRow
 
 	rrs.mu.Lock()
 	if cap(rrs.rows) == 0 {
 		rrs.rows = newRawRows()
+	}
+	if len(rrs.rows) == 0 {
+		rrs.updateFlushDeadline()
 	}
 	n := copy(rrs.rows[len(rrs.rows):cap(rrs.rows)], rows)
 	rrs.rows = rrs.rows[:len(rrs.rows)+n]
@@ -485,46 +528,30 @@ func (rrs *rawRowsShard) addRows(pt *partition, rows []rawRow) []rawRow {
 	if len(rows) > 0 {
 		rowsToFlush = rrs.rows
 		rrs.rows = newRawRows()
+		rrs.updateFlushDeadline()
 		n = copy(rrs.rows[:cap(rrs.rows)], rows)
 		rrs.rows = rrs.rows[:n]
 		rows = rows[n:]
-		atomic.StoreInt64(&rrs.lastFlushTimeMs, time.Now().UnixMilli())
 	}
 	rrs.mu.Unlock()
 
-	pt.flushRowsToInmemoryParts(rowsToFlush)
-
-	return rows
+	return rows, rowsToFlush
 }
 
 func newRawRows() []rawRow {
 	return make([]rawRow, 0, maxRawRowsPerShard)
 }
 
-func (pt *partition) flushRowsToInmemoryParts(rows []rawRow) {
-	if len(rows) == 0 {
+func (pt *partition) flushRowssToInmemoryParts(rowss [][]rawRow) {
+	if len(rowss) == 0 {
 		return
 	}
 
-	maxRows := maxRawRowsPerShard
-	if len(rows) <= maxRows {
-		// Common case - convert rows to a single in-memory part
-		pw := pt.createInmemoryPart(rows)
-		if pw != nil {
-			pt.addToInmemoryParts(pw)
-		}
-		return
-	}
-
-	// Merge rows into in-memory parts.
+	// Convert rowss into in-memory parts.
 	var pwsLock sync.Mutex
-	pws := make([]*partWrapper, 0, (len(rows)+maxRows-1)/maxRows)
+	pws := make([]*partWrapper, 0, len(rowss))
 	wg := getWaitGroup()
-	for len(rows) > 0 {
-		n := maxRows
-		if n > len(rows) {
-			n = len(rows)
-		}
+	for _, rows := range rowss {
 		wg.Add(1)
 		inmemoryPartsConcurrencyCh <- struct{}{}
 		go func(rowsChunk []rawRow) {
@@ -539,8 +566,7 @@ func (pt *partition) flushRowsToInmemoryParts(rows []rawRow) {
 				pws = append(pws, pw)
 				pwsLock.Unlock()
 			}
-		}(rows[:n])
-		rows = rows[n:]
+		}(rows)
 	}
 	wg.Wait()
 	putWaitGroup(wg)
@@ -1066,26 +1092,62 @@ func (pt *partition) flushInmemoryPartsToFiles(isFinal bool) {
 }
 
 func (rrss *rawRowsShards) flush(pt *partition, isFinal bool) {
-	var dst []rawRow
-	for i := range rrss.shards {
-		dst = rrss.shards[i].appendRawRowsToFlush(dst, isFinal)
+	var dst [][]rawRow
+
+	currentTimeMs := time.Now().UnixMilli()
+	flushDeadlineMs := atomic.LoadInt64(&rrss.flushDeadlineMs)
+	if isFinal || currentTimeMs >= flushDeadlineMs {
+		rrss.rowssToFlushLock.Lock()
+		dst = rrss.rowssToFlush
+		rrss.rowssToFlush = nil
+		rrss.rowssToFlushLock.Unlock()
 	}
-	pt.flushRowsToInmemoryParts(dst)
+
+	for i := range rrss.shards {
+		dst = rrss.shards[i].appendRawRowsToFlush(dst, currentTimeMs, isFinal)
+	}
+
+	pt.flushRowssToInmemoryParts(dst)
 }
 
-func (rrs *rawRowsShard) appendRawRowsToFlush(dst []rawRow, isFinal bool) []rawRow {
-	currentTime := time.Now().UnixMilli()
-	lastFlushTime := atomic.LoadInt64(&rrs.lastFlushTimeMs)
-	if !isFinal && currentTime < lastFlushTime+pendingRowsFlushInterval.Milliseconds() {
+func (rrs *rawRowsShard) appendRawRowsToFlush(dst [][]rawRow, currentTimeMs int64, isFinal bool) [][]rawRow {
+	flushDeadlineMs := atomic.LoadInt64(&rrs.flushDeadlineMs)
+	if !isFinal && currentTimeMs < flushDeadlineMs {
 		// Fast path - nothing to flush
 		return dst
 	}
+
 	// Slow path - move rrs.rows to dst.
 	rrs.mu.Lock()
-	dst = append(dst, rrs.rows...)
+	dst = appendRawRowss(dst, rrs.rows)
 	rrs.rows = rrs.rows[:0]
-	atomic.StoreInt64(&rrs.lastFlushTimeMs, currentTime)
 	rrs.mu.Unlock()
+
+	return dst
+}
+
+func (rrs *rawRowsShard) updateFlushDeadline() {
+	atomic.StoreInt64(&rrs.flushDeadlineMs, time.Now().Add(pendingRowsFlushInterval).UnixMilli())
+}
+
+func appendRawRowss(dst [][]rawRow, src []rawRow) [][]rawRow {
+	if len(src) == 0 {
+		return dst
+	}
+	if len(dst) == 0 {
+		dst = append(dst, newRawRows())
+	}
+	prows := &dst[len(dst)-1]
+	n := copy((*prows)[len(*prows):cap(*prows)], src)
+	*prows = (*prows)[:len(*prows)+n]
+	src = src[n:]
+	for len(src) > 0 {
+		rows := newRawRows()
+		n := copy(rows[:cap(rows)], src)
+		rows = rows[:len(rows)+n]
+		src = src[n:]
+		dst = append(dst, rows)
+	}
 	return dst
 }
 
