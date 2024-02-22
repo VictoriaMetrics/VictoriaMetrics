@@ -16,6 +16,7 @@ var rollupFuncs = map[string]bool{
 	"count_le_over_time":      true,
 	"count_ne_over_time":      true,
 	"count_over_time":         true,
+	"count_values_over_time":  true,
 	"decreases_over_time":     true,
 	"default_rollup":          true,
 	"delta":                   true,
