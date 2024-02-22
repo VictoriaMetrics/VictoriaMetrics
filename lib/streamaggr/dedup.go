@@ -168,7 +168,8 @@ func (d *deduplicator) flush() {
 			<-syncCh
 		}()
 
-		tss := getTimeSeries()
+		ptr := getTimeSeries()
+		tss := *ptr
 
 		s.mu.Lock()
 		if cap(tss) < len(s.data) {
@@ -199,7 +200,7 @@ func (d *deduplicator) flush() {
 		s.mu.Unlock()
 
 		d.callback(tss, nil)
-		putTimeSeries(tss)
+		putTimeSeries(ptr)
 	}
 
 	wg := sync.WaitGroup{}
@@ -215,15 +216,16 @@ func (d *deduplicator) flush() {
 
 var timeSeriesPool sync.Pool
 
-func getTimeSeries() []prompbmarshal.TimeSeries {
+func getTimeSeries() *[]prompbmarshal.TimeSeries {
 	v := timeSeriesPool.Get()
 	if v == nil {
-		return make([]prompbmarshal.TimeSeries, 0)
+		s := make([]prompbmarshal.TimeSeries, 0)
+		return &s
 	}
-	return v.([]prompbmarshal.TimeSeries)
+	return v.(*[]prompbmarshal.TimeSeries)
 }
 
-func putTimeSeries(tss []prompbmarshal.TimeSeries) {
+func putTimeSeries(tss *[]prompbmarshal.TimeSeries) {
 	timeSeriesPool.Put(tss)
 }
 

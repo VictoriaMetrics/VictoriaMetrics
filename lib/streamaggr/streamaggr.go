@@ -503,7 +503,7 @@ func (a *aggregator) MustStop() {
 	// Flush the remaining data from the last interval if needed.
 	flushConcurrencyCh <- struct{}{}
 	if a.dedup != nil {
-		a.dedup.flush()
+		a.dedup.stop()
 	}
 	a.flush()
 	<-flushConcurrencyCh
