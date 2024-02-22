@@ -506,8 +506,17 @@ func (pt *partition) flushRowsToInmemoryParts(rows []rawRow) {
 		return
 	}
 
-	// Merge rows into in-memory parts.
 	maxRows := maxRawRowsPerShard
+	if len(rows) <= maxRows {
+		// Common case - convert rows to a single in-memory part
+		pw := pt.createInmemoryPart(rows)
+		if pw != nil {
+			pt.addToInmemoryParts(pw)
+		}
+		return
+	}
+
+	// Merge rows into in-memory parts.
 	var pwsLock sync.Mutex
 	pws := make([]*partWrapper, 0, (len(rows)+maxRows-1)/maxRows)
 	wg := getWaitGroup()
