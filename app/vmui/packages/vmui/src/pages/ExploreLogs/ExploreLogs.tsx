@@ -8,16 +8,16 @@ import Spinner from "../../components/Main/Spinner/Spinner";
 import Alert from "../../components/Main/Alert/Alert";
 import ExploreLogsHeader from "./ExploreLogsHeader/ExploreLogsHeader";
 import "./style.scss";
-import usePrevious from "../../hooks/usePrevious";
 import { ErrorTypes } from "../../types";
 import { useState } from "react";
+import { useTimeState } from "../../state/time/TimeStateContext";
 
 const ExploreLogs: FC = () => {
   const { serverUrl } = useAppState();
+  const { duration, relativeTime, period } = useTimeState();
   const { setSearchParamsFromKeys } = useSearchParamsFromObject();
 
   const [query, setQuery] = useStateSearchParams("", "query");
-  const prevQuery = usePrevious(query);
   const { logs, isLoading, error, fetchLogs } = useFetchLogs(serverUrl, query);
   const [queryError, setQueryError] = useState<ErrorTypes | string>("");
   const [loaded, isLoaded] = useState(false);
@@ -31,14 +31,18 @@ const ExploreLogs: FC = () => {
     fetchLogs().then(() => {
       isLoaded(true);
     });
-    const changedQuery = prevQuery && query !== prevQuery;
-    const params: Record<string, string | number> = changedQuery ? { query, page: 1 } : { query };
-    setSearchParamsFromKeys(params);
+
+    setSearchParamsFromKeys( {
+      query,
+      "g0.range_input": duration,
+      "g0.end_input": period.date,
+      "g0.relative_time": relativeTime || "none",
+    });
   };
 
   useEffect(() => {
     if (query) handleRunQuery();
-  }, []);
+  }, [period]);
 
   useEffect(() => {
     setQueryError("");
