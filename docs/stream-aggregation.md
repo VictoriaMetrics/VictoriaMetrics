@@ -57,6 +57,8 @@ before aggregation in this case:
   This allows setting different de-duplication intervals per each configured remote storage.
 - `-streamAggr.dedupInterval` at [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html).
 
+Deduplication can be enabled per each aggregation via `dedup_interval` field in [stream aggregation config](#stream-aggregation-config).
+
 ## Use cases
 
 Stream aggregation can be used in the following cases:
@@ -634,6 +636,13 @@ at [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-
   # The aggregated stats is sent to remote storage once per interval.
   #
   interval: 1m
+
+  #  dedup_interval defines deduplication interval for incoming samples of this aggregation,
+  #  by ensuring that only one data sample per time series will be pushed to aggregation
+  #  on the configured dedup_interval.
+  #  Make sure that `dedup_interval` is equal or lower than `interval`.
+  #  dedup_interval has priority over `-remoteWrite.streamAggr.dedupInterval` or `-streamAggr.dedupInterval`.
+  #  dedup_interval: 1m
 
   # staleness_interval defines an interval after which the series state will be reset if no samples have been sent during it.
   # It means that:

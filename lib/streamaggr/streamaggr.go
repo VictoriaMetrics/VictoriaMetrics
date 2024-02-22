@@ -135,6 +135,11 @@ type Config struct {
 	// FlushOnShutdown defines whether to flush the aggregation state on process termination
 	// or config reload. Is `false` by default.
 	FlushOnShutdown bool `yaml:"flush_on_shutdown,omitempty"`
+
+	// DedupInterval defines deduplication interval for incoming samples of this aggregator.
+	// Make sure that DedupInterval is equal or lower than Interval.
+	// DedupInterval has priority over  `-remoteWrite.streamAggr.dedupInterval` or `-streamAggr.dedupInterval`.
+	DedupInterval string `yaml:"dedup_interval,omitempty"`
 }
 
 // Aggregators aggregates metrics passed to Push and calls pushFunc for aggregate data.
@@ -198,11 +203,11 @@ func (a *Aggregators) Equal(b *Aggregators) bool {
 // Push pushes tss to a.
 //
 // Push sets matchIdxs[idx] to 1 if the corresponding tss[idx] was used in aggregations.
-// Otherwise matchIdxs[idx] is set to 0.
+// Otherwise, matchIdxs[idx] is set to 0.
 //
 // Push returns matchIdxs with len equal to len(tss).
 // It re-uses the matchIdxs if it has enough capacity to hold len(tss) items.
-// Otherwise it allocates new matchIdxs.
+// Otherwise, it allocates new matchIdxs.
 func (a *Aggregators) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) []byte {
 	matchIdxs = bytesutil.ResizeNoCopyMayOverallocate(matchIdxs, len(tss))
 	for i := 0; i < len(matchIdxs); i++ {
@@ -228,9 +233,10 @@ type aggregator struct {
 	without             []string
 	aggregateOnlyByTime bool
 
-	// dedupAggr is set to non-nil if input samples must be de-duplicated according
-	// to the dedupInterval passed to newAggregator().
-	dedupAggr *lastAggrState
+	// dedup contains deduplicator object. If not empty, all calls to
+	// aggregator.push will be processed by deduplicator. Once per
+	// deduplicator.interval pre-processed samples will be pushed to aggregator.
+	dedup *deduplicator
 
 	// aggrStates contains aggregate states for the given outputs
 	aggrStates []aggrState
@@ -274,6 +280,16 @@ func newAggregator(cfg *Config, pushFunc PushFunc, dedupInterval time.Duration) 
 	}
 	if interval <= time.Second {
 		return nil, fmt.Errorf("aggregation interval should be higher than 1s; got %s", interval)
+	}
+
+	if cfg.DedupInterval != "" {
+		dedupInterval, err = time.ParseDuration(cfg.DedupInterval)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse `dedup_interval: %q`: %w", cfg.DedupInterval, err)
+		}
+		if dedupInterval > interval {
+			return nil, fmt.Errorf("`dedup_interval` %q should be equal or lower than `interval` %q", cfg.DedupInterval, cfg.Interval)
+		}
 	}
 
 	// check cfg.StalenessInterval
@@ -381,11 +397,6 @@ func newAggregator(cfg *Config, pushFunc PushFunc, dedupInterval time.Duration) 
 	}
 	suffix += "_"
 
-	var dedupAggr *lastAggrState
-	if dedupInterval > 0 {
-		dedupAggr = newLastAggrState()
-	}
-
 	// initialize the aggregator
 	a := &aggregator{
 		match: cfg.Match,
@@ -397,7 +408,6 @@ func newAggregator(cfg *Config, pushFunc PushFunc, dedupInterval time.Duration) 
 		without:             without,
 		aggregateOnlyByTime: aggregateOnlyByTime,
 
-		dedupAggr:  dedupAggr,
 		aggrStates: aggrStates,
 		pushFunc:   pushFunc,
 
@@ -407,13 +417,11 @@ func newAggregator(cfg *Config, pushFunc PushFunc, dedupInterval time.Duration) 
 		stopCh: make(chan struct{}),
 	}
 
-	if dedupAggr != nil {
-		a.wg.Add(1)
-		go func() {
-			a.runDedupFlusher(dedupInterval)
-			a.wg.Done()
-		}()
+	if dedupInterval > 0 {
+		a.dedup = newDeduplicator(dedupInterval, a.push)
+		a.dedup.run()
 	}
+
 	a.wg.Add(1)
 	go func() {
 		a.runFlusher(interval)
@@ -421,25 +429,6 @@ func newAggregator(cfg *Config, pushFunc PushFunc, dedupInterval time.Duration) 
 	}()
 
 	return a, nil
-}
-
-func (a *aggregator) runDedupFlusher(interval time.Duration) {
-	t := time.NewTicker(interval)
-	defer t.Stop()
-	for {
-		select {
-		case <-a.stopCh:
-			return
-		case <-t.C:
-		}
-
-		// Globally limit the concurrency for metrics' flush
-		// in order to limit memory usage when big number of aggregators
-		// are flushed at the same time.
-		flushConcurrencyCh <- struct{}{}
-		a.dedupFlush()
-		<-flushConcurrencyCh
-	}
 }
 
 func (a *aggregator) runFlusher(interval time.Duration) {
@@ -462,14 +451,6 @@ func (a *aggregator) runFlusher(interval time.Duration) {
 }
 
 var flushConcurrencyCh = make(chan struct{}, cgroup.AvailableCPUs())
-
-func (a *aggregator) dedupFlush() {
-	ctx := &flushCtx{
-		skipAggrSuffix: true,
-	}
-	a.dedupAggr.appendSeriesForFlush(ctx)
-	a.push(ctx.tss, nil)
-}
 
 func (a *aggregator) flush() {
 	ctx := &flushCtx{
@@ -521,16 +502,16 @@ func (a *aggregator) MustStop() {
 
 	// Flush the remaining data from the last interval if needed.
 	flushConcurrencyCh <- struct{}{}
-	if a.dedupAggr != nil {
-		a.dedupFlush()
+	if a.dedup != nil {
+		a.dedup.flush()
 	}
 	a.flush()
 	<-flushConcurrencyCh
 }
 
-// Push pushes tss to a.
+// Push pushes tss to aggregator.
 func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
-	if a.dedupAggr == nil {
+	if a.dedup == nil {
 		// Deduplication is disabled.
 		a.push(tss, matchIdxs)
 		return
@@ -538,33 +519,16 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 
 	// Deduplication is enabled.
 	// push samples to dedupAggr, so later they will be pushed to the configured aggregators.
-	pushSample := a.dedupAggr.pushSample
-	inputKey := ""
-	bb := bbPool.Get()
-	labels := promutils.GetLabels()
 	for idx, ts := range tss {
 		if !a.match.Match(ts.Labels) {
 			continue
 		}
 		matchIdxs[idx] = 1
-
-		labels.Labels = append(labels.Labels[:0], ts.Labels...)
-		labels.Labels = a.inputRelabeling.Apply(labels.Labels, 0)
-		if len(labels.Labels) == 0 {
-			// The metric has been deleted by the relabeling
-			continue
-		}
-		labels.Sort()
-
-		bb.B = marshalLabelsFast(bb.B[:0], labels.Labels)
-		outputKey := bytesutil.InternBytes(bb.B)
-		for _, sample := range ts.Samples {
-			pushSample(inputKey, outputKey, sample.Value)
-		}
+		a.dedup.push(ts)
 	}
-	promutils.PutLabels(labels)
-	bbPool.Put(bb)
 }
+
+type pushAggrFn func(tss []prompbmarshal.TimeSeries, matchIdxs []byte)
 
 func (a *aggregator) push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 	labels := promutils.GetLabels()
