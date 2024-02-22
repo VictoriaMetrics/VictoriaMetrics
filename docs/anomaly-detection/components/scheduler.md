@@ -15,6 +15,46 @@ aliases:
 Scheduler defines how often to run and make inferences, as well as what timerange to use to train the model.
 Is specified in `scheduler` section of a config for VictoriaMetrics Anomaly Detection.
 
+> **Note: Starting from [v1.11.0](/anomaly-detection/changelog#v1110) scheduler section in config supports multiple schedulers via aliasing. <br>Also, `vmanomaly` expects scheduler section to be named `schedulers`. Using old (flat) format with `scheduler` key is deprecated and will be removed in future versions.**
+
+```yaml
+schedulers:
+  scheduler_periodic_1m:
+    # class: "scheduler.periodic.PeriodicScheduler"
+    infer_every: "1m"
+    fit_every: "2m"
+    fit_window: "3h"
+  scheduler_periodic_5m:
+    # class: "scheduler.periodic.PeriodicScheduler"
+    infer_every: "5m"
+    fit_every: "10m"
+    fit_window: "3h"
+...
+```  
+
+Old-style configs (< [1.11.0](/anomaly-detection/changelog#v1110))
+
+```yaml
+scheduler:
+  # class: "scheduler.periodic.PeriodicScheduler"
+  infer_every: "1m"
+  fit_every: "2m"
+  fit_window: "3h"
+...
+```
+
+will be **implicitly** converted to
+
+```yaml
+schedulers:
+  default_scheduler:  # default scheduler alias, backward compatibility
+    # class: "scheduler.periodic.PeriodicScheduler"
+    infer_every: "1m"
+    fit_every: "2m"
+    fit_window: "3h"
+...
+```
+
 ## Parameters
 
 `class`: str, default=`"scheduler.periodic.PeriodicScheduler"`,
