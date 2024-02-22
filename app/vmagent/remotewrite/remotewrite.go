@@ -436,12 +436,12 @@ func pushBlockToRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []prompbmarsha
 		// Push sharded data to remote storages in parallel in order to reduce
 		// the time needed for sending the data to multiple remote storage systems.
 		var wg sync.WaitGroup
-		wg.Add(len(rwctxs))
 		for i, rwctx := range rwctxs {
 			tssShard := tssByURL[i]
 			if len(tssShard) == 0 {
 				continue
 			}
+			wg.Add(1)
 			go func(rwctx *remoteWriteCtx, tss []prompbmarshal.TimeSeries) {
 				defer wg.Done()
 				rwctx.Push(tss)
