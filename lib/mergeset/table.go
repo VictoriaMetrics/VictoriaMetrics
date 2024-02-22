@@ -255,7 +255,9 @@ func (ris *rawItemsShard) addItems(tb *Table, items [][]byte) [][]byte {
 	ris.ibs = ibs
 	ris.mu.Unlock()
 
-	tb.flushBlocksToInmemoryParts(ibsToFlush, false)
+	if len(ibsToFlush) > 0 {
+		tb.flushBlocksToInmemoryParts(ibsToFlush, false)
+	}
 
 	return tailItems
 }
@@ -689,7 +691,7 @@ func (tb *Table) mergeInmemoryPartsToFiles(pws []*partWrapper) error {
 // This function is for debugging and testing purposes only,
 // since it may slow down data ingestion when used frequently.
 func (tb *Table) DebugFlush() {
-	tb.flushPendingItems(nil, true)
+	tb.flushPendingItems(true)
 
 	// Wait for background flushers to finish.
 	tb.flushPendingItemsWG.Wait()
@@ -699,13 +701,12 @@ func (tb *Table) pendingItemsFlusher() {
 	d := timeutil.AddJitterToDuration(pendingItemsFlushInterval)
 	ticker := time.NewTicker(d)
 	defer ticker.Stop()
-	var ibs []*inmemoryBlock
 	for {
 		select {
 		case <-tb.stopCh:
 			return
 		case <-ticker.C:
-			ibs = tb.flushPendingItems(ibs[:0], false)
+			tb.flushPendingItems(false)
 		}
 	}
 }
@@ -724,15 +725,14 @@ func (tb *Table) inmemoryPartsFlusher() {
 	}
 }
 
-func (tb *Table) flushPendingItems(dst []*inmemoryBlock, isFinal bool) []*inmemoryBlock {
+func (tb *Table) flushPendingItems(isFinal bool) {
 	tb.flushPendingItemsWG.Add(1)
-	dst = tb.rawItems.flush(tb, dst, isFinal)
+	tb.rawItems.flush(tb, isFinal)
 	tb.flushPendingItemsWG.Done()
-	return dst
 }
 
 func (tb *Table) flushInmemoryItemsToFiles() {
-	tb.flushPendingItems(nil, true)
+	tb.flushPendingItems(true)
 	tb.flushInmemoryPartsToFiles(true)
 }
 
@@ -754,12 +754,12 @@ func (tb *Table) flushInmemoryPartsToFiles(isFinal bool) {
 	}
 }
 
-func (riss *rawItemsShards) flush(tb *Table, dst []*inmemoryBlock, isFinal bool) []*inmemoryBlock {
+func (riss *rawItemsShards) flush(tb *Table, isFinal bool) {
+	var dst []*inmemoryBlock
 	for i := range riss.shards {
 		dst = riss.shards[i].appendBlocksToFlush(dst, isFinal)
 	}
 	tb.flushBlocksToInmemoryParts(dst, isFinal)
-	return dst
 }
 
 func (ris *rawItemsShard) appendBlocksToFlush(dst []*inmemoryBlock, isFinal bool) []*inmemoryBlock {

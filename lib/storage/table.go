@@ -199,9 +199,8 @@ func (tb *table) flushPendingRows() {
 	ptws := tb.GetPartitions(nil)
 	defer tb.PutPartitions(ptws)
 
-	var rows []rawRow
 	for _, ptw := range ptws {
-		rows = ptw.pt.flushPendingRows(rows[:0], true)
+		ptw.pt.flushPendingRows(true)
 	}
 }
 
