@@ -255,9 +255,7 @@ func (ris *rawItemsShard) addItems(tb *Table, items [][]byte) [][]byte {
 	ris.ibs = ibs
 	ris.mu.Unlock()
 
-	if len(ibsToFlush) > 0 {
-		tb.flushBlocksToInmemoryParts(ibsToFlush, false)
-	}
+	tb.flushBlocksToInmemoryParts(ibsToFlush, false)
 
 	return tailItems
 }

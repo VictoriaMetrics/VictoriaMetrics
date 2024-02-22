@@ -489,7 +489,7 @@ func (rrs *rawRowsShard) Len() int {
 }
 
 func (rrs *rawRowsShard) addRows(pt *partition, rows []rawRow) []rawRow {
-	var rrb *rawRowsBlock
+	var rowsToFlush []rawRow
 
 	rrs.mu.Lock()
 	if cap(rrs.rows) == 0 {
@@ -499,8 +499,8 @@ func (rrs *rawRowsShard) addRows(pt *partition, rows []rawRow) []rawRow {
 	rrs.rows = rrs.rows[:len(rrs.rows)+n]
 	rows = rows[n:]
 	if len(rows) > 0 {
-		rrb = getRawRowsBlock()
-		rrb.rows, rrs.rows = rrs.rows, rrb.rows
+		rowsToFlush = rrs.rows
+		rrs.rows = newRawRows()
 		n = copy(rrs.rows[:cap(rrs.rows)], rows)
 		rrs.rows = rrs.rows[:n]
 		rows = rows[n:]
@@ -508,39 +508,15 @@ func (rrs *rawRowsShard) addRows(pt *partition, rows []rawRow) []rawRow {
 	}
 	rrs.mu.Unlock()
 
-	if rrb != nil {
-		pt.flushRowsToInmemoryParts(rrb.rows)
-		putRawRowsBlock(rrb)
-	}
+	pt.flushRowsToInmemoryParts(rowsToFlush)
 
 	return rows
-}
-
-type rawRowsBlock struct {
-	rows []rawRow
 }
 
 func newRawRows() []rawRow {
 	n := getMaxRawRowsPerShard()
 	return make([]rawRow, 0, n)
 }
-
-func getRawRowsBlock() *rawRowsBlock {
-	v := rawRowsBlockPool.Get()
-	if v == nil {
-		return &rawRowsBlock{
-			rows: newRawRows(),
-		}
-	}
-	return v.(*rawRowsBlock)
-}
-
-func putRawRowsBlock(rrb *rawRowsBlock) {
-	rrb.rows = rrb.rows[:0]
-	rawRowsBlockPool.Put(rrb)
-}
-
-var rawRowsBlockPool sync.Pool
 
 func (pt *partition) flushRowsToInmemoryParts(rows []rawRow) {
 	if len(rows) == 0 {
