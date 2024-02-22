@@ -45,6 +45,7 @@ See also [LTS releases](https://docs.victoriametrics.com/LTS-releases.html).
   or [/api/v1/query_range](https://docs.victoriametrics.com/keyconcepts/#range-query). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5795).
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): fixed floating-point error when parsing time in RFC3339 format. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5801) for details.
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/#vmalert): consistently sort groups by name and filename on `/groups` page in UI. This should prevent non-deterministic sorting for groups with identical names.
+* BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix Popper display issues. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5842).
 * BUGFIX: [vmselect](https://docs.victoriametrics.com/): format time with milliseconds precision when `__timestamp__:rfc3339` is specified for [/api/v1/export/csv](https://docs.victoriametrics.com/#how-to-export-csv-data) API response. See this [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5837) for details.
 
 
