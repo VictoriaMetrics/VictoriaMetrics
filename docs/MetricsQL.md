@@ -186,7 +186,9 @@ The list of supported rollup functions:
 `absent_over_time(series_selector[d])` is a [rollup function](#rollup-functions), which returns 1
 if the given lookbehind window `d` doesn't contain raw samples. Otherwise, it returns an empty result.
 
-This function is supported by PromQL. See also [present_over_time](#present_over_time).
+This function is supported by PromQL.
+
+See also [present_over_time](#present_over_time).
 
 #### aggr_over_time
 
@@ -216,7 +218,9 @@ See also [descent_over_time](#descent_over_time).
 over raw samples on the given lookbehind window `d` per each time series returned
 from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
 
-This function is supported by PromQL. See also [median_over_time](#median_over_time).
+This function is supported by PromQL.
+
+See also [median_over_time](#median_over_time).
 
 #### changes
 
@@ -229,7 +233,9 @@ See [this article](https://medium.com/@romanhavronenko/victoriametrics-promql-co
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
-This function is supported by PromQL. See also [changes_prometheus](#changes_prometheus).
+This function is supported by PromQL.
+
+See also [changes_prometheus](#changes_prometheus).
 
 #### changes_prometheus
 
@@ -242,7 +248,9 @@ See [this article](https://medium.com/@romanhavronenko/victoriametrics-promql-co
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
-This function is supported by PromQL. See also [changes](#changes).
+This function is supported by PromQL.
+
+See also [changes](#changes).
 
 #### count_eq_over_time
 
@@ -252,7 +260,7 @@ from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.ht
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
-See also [count_over_time](#count_over_time) and [share_eq_over_time](#share_eq_over_time).
+See also [count_over_time](#count_over_time), [share_eq_over_time](#share_eq_over_time) and [count_values_over_time](#count_values_over_time).
 
 #### count_gt_over_time
 
@@ -291,8 +299,19 @@ on the given lookbehind window `d` per each time series returned from the given 
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
-This function is supported by PromQL. See also [count_le_over_time](#count_le_over_time), [count_gt_over_time](#count_gt_over_time),
-[count_eq_over_time](#count_eq_over_time) and [count_ne_over_time](#count_ne_over_time).
+This function is supported by PromQL.
+
+See also [count_le_over_time](#count_le_over_time), [count_gt_over_time](#count_gt_over_time), [count_eq_over_time](#count_eq_over_time) and [count_ne_over_time](#count_ne_over_time).
+
+#### count_values_over_time
+
+`count_values_over_time("label", series_selector[d])` is a [rollup function](#rollup-functions), which counts the number of raw samples
+with the same value over the given lookbehind window and stores the counts in a time series with an additional `label`, which contains each initial value.
+The results are calculated independently per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
+
+Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
+
+See also [count_eq_over_time](#count_eq_over_time), [count_values](#count_values) and [distinct_over_time](#distinct_over_time) and [label_match](#label_match).
 
 #### decreases_over_time
 
@@ -324,7 +343,9 @@ See [this article](https://medium.com/@romanhavronenko/victoriametrics-promql-co
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
-This function is supported by PromQL. See also [increase](#increase) and [delta_prometheus](#delta_prometheus).
+This function is supported by PromQL.
+
+See also [increase](#increase) and [delta_prometheus](#delta_prometheus).
 
 #### delta_prometheus
 
@@ -347,7 +368,9 @@ The derivative is calculated using linear regression.
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
-This function is supported by PromQL. See also [deriv_fast](#deriv_fast) and [ideriv](#ideriv).
+This function is supported by PromQL.
+
+See also [deriv_fast](#deriv_fast) and [ideriv](#ideriv).
 
 #### deriv_fast
 
@@ -377,6 +400,8 @@ See also [ascent_over_time](#ascent_over_time).
 on the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
+
+See also [count_values_over_time](#count_values_over_time).
 
 #### duration_over_time
 
@@ -437,7 +462,9 @@ over the given lookbehind window `d` using the given smoothing factor `sf` and t
 Both `sf` and `tf` must be in the range `[0...1]`. It is expected that the [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering)
 returns time series of [gauge type](https://docs.victoriametrics.com/keyConcepts.html#gauge).
 
-This function is supported by PromQL. See also [range_linear_regression](#range_linear_regression).
+This function is supported by PromQL.
+
+See also [range_linear_regression](#range_linear_regression).
 
 #### idelta
 
@@ -446,7 +473,9 @@ on the given lookbehind window `d` per each time series returned from the given 
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
-This function is supported by PromQL. See also [delta](#delta).
+This function is supported by PromQL.
+
+See also [delta](#delta).
 
 #### ideriv
 
@@ -469,7 +498,9 @@ See [this article](https://medium.com/@romanhavronenko/victoriametrics-promql-co
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
-This function is supported by PromQL. See also [increase_pure](#increase_pure), [increase_prometheus](#increase_prometheus) and [delta](#delta).
+This function is supported by PromQL.
+
+See also [increase_pure](#increase_pure), [increase_prometheus](#increase_prometheus) and [delta](#delta).
 
 #### increase_prometheus
 
@@ -513,7 +544,9 @@ It is expected that the `series_selector` returns time series of [counter type](
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
-This function is supported by PromQL. See also [rate](#rate) and [rollup_rate](#rollup_rate).
+This function is supported by PromQL.
+
+See also [rate](#rate) and [rollup_rate](#rollup_rate).
 
 #### lag
 
@@ -530,7 +563,9 @@ See also [lifetime](#lifetime) and [duration_over_time](#duration_over_time).
 `last_over_time(series_selector[d])` is a [rollup function](#rollup-functions), which returns the last raw sample value on the given lookbehind window `d`
 per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
 
-This function is supported by PromQL. See also [first_over_time](#first_over_time) and [tlast_over_time](#tlast_over_time).
+This function is supported by PromQL.
+
+See also [first_over_time](#first_over_time) and [tlast_over_time](#tlast_over_time).
 
 #### lifetime
 
@@ -553,7 +588,9 @@ See also [mad](#mad), [range_mad](#range_mad) and [outlier_iqr_over_time](#outli
 `max_over_time(series_selector[d])` is a [rollup function](#rollup-functions), which calculates the maximum value over raw samples
 on the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
 
-This function is supported by PromQL. See also [tmax_over_time](#tmax_over_time).
+This function is supported by PromQL.
+
+See also [tmax_over_time](#tmax_over_time).
 
 #### median_over_time
 
@@ -568,7 +605,9 @@ See also [avg_over_time](#avg_over_time).
 `min_over_time(series_selector[d])` is a [rollup function](#rollup-functions), which calculates the minimum value over raw samples
 on the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
 
-This function is supported by PromQL. See also [tmin_over_time](#tmin_over_time).
+This function is supported by PromQL.
+
+See also [tmin_over_time](#tmin_over_time).
 
 #### mode_over_time
 
@@ -594,7 +633,9 @@ See also [outliers_iqr](#outliers_iqr).
 linear interpolation over raw samples on the given lookbehind window `d`. The predicted value is calculated individually per each time series
 returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
 
-This function is supported by PromQL. See also [range_linear_regression](#range_linear_regression).
+This function is supported by PromQL.
+
+See also [range_linear_regression](#range_linear_regression).
 
 #### present_over_time
 
@@ -611,7 +652,9 @@ This function is supported by PromQL.
 on the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
 The `phi` value must be in the range `[0...1]`.
 
-This function is supported by PromQL. See also [quantiles_over_time](#quantiles_over_time).
+This function is supported by PromQL.
+
+See also [quantiles_over_time](#quantiles_over_time).
 
 #### quantiles_over_time
 
@@ -643,7 +686,9 @@ This allows avoiding unexpected gaps on the graph when `step` is smaller than th
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
-This function is supported by PromQL. See also [irate](#irate) and [rollup_rate](#rollup_rate).
+This function is supported by PromQL.
+
+See also [irate](#irate) and [rollup_rate](#rollup_rate).
 
 #### rate_over_sum
 
@@ -671,6 +716,7 @@ on the given lookbehind window `d` and returns them in time series with `rollup=
 These values are calculated individually per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
 
 Optional 2nd argument `"min"`, `"max"` or `"avg"` can be passed to keep only one calculation result and without adding a label.
+See also [label_match](#label_match).
 
 #### rollup_candlestick
 
@@ -679,7 +725,8 @@ over raw samples on the given lookbehind window `d` and returns them in time ser
 The calculations are performed individually per each time series returned
 from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). This function is useful for financial applications.
 
-Optional 2nd argument `"min"`, `"max"` or `"avg"` can be passed to keep only one calculation result and without adding a label.
+Optional 2nd argument `"open"`, `"high"` or `"low"` or `"close"` can be passed to keep only one calculation result and without adding a label.
+See also [label_match](#label_match).
 
 #### rollup_delta
 
@@ -689,6 +736,7 @@ and returns them in time series with `rollup="min"`, `rollup="max"` and `rollup=
 The calculations are performed individually per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
 
 Optional 2nd argument `"min"`, `"max"` or `"avg"` can be passed to keep only one calculation result and without adding a label.
+See also [label_match](#label_match).
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
@@ -702,6 +750,7 @@ and returns them in time series with `rollup="min"`, `rollup="max"` and `rollup=
 The calculations are performed individually per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
 
 Optional 2nd argument `"min"`, `"max"` or `"avg"` can be passed to keep only one calculation result and without adding a label.
+See also [label_match](#label_match).
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
@@ -713,6 +762,7 @@ and returns them in time series with `rollup="min"`, `rollup="max"` and `rollup=
 The calculations are performed individually per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
 
 Optional 2nd argument `"min"`, `"max"` or `"avg"` can be passed to keep only one calculation result and without adding a label.
+See also [label_match](#label_match).
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. See also [rollup_delta](#rollup_delta).
 
@@ -726,9 +776,9 @@ See [this article](https://valyala.medium.com/why-irate-from-prometheus-doesnt-c
 when to use `rollup_rate()`.
 
 Optional 2nd argument `"min"`, `"max"` or `"avg"` can be passed to keep only one calculation result and without adding a label.
+See also [label_match](#label_match).
 
 The calculations are performed individually per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
-
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
@@ -740,6 +790,7 @@ and returns them in time series with `rollup="min"`, `rollup="max"` and `rollup=
 The calculations are performed individually per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
 
 Optional 2nd argument `"min"`, `"max"` or `"avg"` can be passed to keep only one calculation result and without adding a label.
+See also [label_match](#label_match).
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. See also [scrape_interval](#scrape_interval).
 
@@ -802,7 +853,9 @@ on the given lookbehind window `d` per each time series returned from the given 
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
-This function is supported by PromQL. See also [stdvar_over_time](#stdvar_over_time).
+This function is supported by PromQL.
+
+See also [stdvar_over_time](#stdvar_over_time).
 
 #### stdvar_over_time
 
@@ -811,7 +864,9 @@ on the given lookbehind window `d` per each time series returned from the given 
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
-This function is supported by PromQL. See also [stddev_over_time](#stddev_over_time).
+This function is supported by PromQL.
+
+See also [stddev_over_time](#stddev_over_time).
 
 #### sum_eq_over_time
 
@@ -863,7 +918,9 @@ on the given lookbehind window `d` per each time series returned from the given 
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
-This function is supported by PromQL. See also [timestamp_with_name](#timestamp_with_name).
+This function is supported by PromQL.
+
+See also [time](#time) and [now](#now).
 
 #### timestamp_with_name
 
@@ -872,7 +929,7 @@ on the given lookbehind window `d` per each time series returned from the given 
 
 Metric names are preserved in the resulting rollups.
 
-See also [timestamp](#timestamp).
+See also [timestamp](#timestamp) and [keep_metric_names](#keep_metric_names) modifier.
 
 #### tfirst_over_time
 
@@ -957,7 +1014,9 @@ This function is supported by PromQL.
 
 `absent(q)` is a [transform function](#transform-functions), which returns 1 if `q` has no points. Otherwise, returns an empty result.
 
-This function is supported by PromQL. See also [absent_over_time](#absent_over_time).
+This function is supported by PromQL.
+
+See also [absent_over_time](#absent_over_time).
 
 #### acos
 
@@ -966,7 +1025,9 @@ for every point of every time series returned by `q`.
 
 Metric names are stripped from the resulting series. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
-This function is supported by PromQL. See also [asin](#asin) and [cos](#cos).
+This function is supported by PromQL.
+
+See also [asin](#asin) and [cos](#cos).
 
 #### acosh
 
@@ -975,7 +1036,9 @@ This function is supported by PromQL. See also [asin](#asin) and [cos](#cos).
 
 Metric names are stripped from the resulting series. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
-This function is supported by PromQL. See also [sinh](#cosh).
+This function is supported by PromQL.
+
+See also [sinh](#cosh).
 
 #### asin
 
@@ -984,7 +1047,9 @@ for every point of every time series returned by `q`.
 
 Metric names are stripped from the resulting series. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
-This function is supported by PromQL. See also [acos](#acos) and [sin](#sin).
+This function is supported by PromQL.
+
+See also [acos](#acos) and [sin](#sin).
 
 #### asinh
 
@@ -993,7 +1058,9 @@ This function is supported by PromQL. See also [acos](#acos) and [sin](#sin).
 
 Metric names are stripped from the resulting series. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
-This function is supported by PromQL. See also [sinh](#sinh).
+This function is supported by PromQL.
+
+See also [sinh](#sinh).
 
 #### atan
 
@@ -1002,7 +1069,9 @@ for every point of every time series returned by `q`.
 
 Metric names are stripped from the resulting series. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
-This function is supported by PromQL. See also [tan](#tan).
+This function is supported by PromQL.
+
+See also [tan](#tan).
 
 #### atanh
 
@@ -1011,7 +1080,9 @@ This function is supported by PromQL. See also [tan](#tan).
 
 Metric names are stripped from the resulting series. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
-This function is supported by PromQL. See also [tanh](#tanh).
+This function is supported by PromQL.
+
+See also [tanh](#tanh).
 
 #### bitmap_and
 
@@ -1042,25 +1113,33 @@ See also [prometheus_buckets](#prometheus_buckets) and [histogram_quantile](#his
 
 `ceil(q)` is a [transform function](#transform-functions), which rounds every point for every time series returned by `q` to the upper nearest integer.
 
-This function is supported by PromQL. See also [floor](#floor) and [round](#round).
+This function is supported by PromQL.
+
+See also [floor](#floor) and [round](#round).
 
 #### clamp
 
 `clamp(q, min, max)` is a [transform function](#transform-functions), which clamps every point for every time series returned by `q` with the given `min` and `max` values.
 
-This function is supported by PromQL. See also [clamp_min](#clamp_min) and [clamp_max](#clamp_max).
+This function is supported by PromQL.
+
+See also [clamp_min](#clamp_min) and [clamp_max](#clamp_max).
 
 #### clamp_max
 
 `clamp_max(q, max)` is a [transform function](#transform-functions), which clamps every point for every time series returned by `q` with the given `max` value.
 
-This function is supported by PromQL. See also [clamp](#clamp) and [clamp_min](#clamp_min).
+This function is supported by PromQL.
+
+See also [clamp](#clamp) and [clamp_min](#clamp_min).
 
 #### clamp_min
 
 `clamp_min(q, min)` is a [transform function](#transform-functions), which clamps every point for every time series returned by `q` with the given `min` value.
 
-This function is supported by PromQL. See also [clamp](#clamp) and [clamp_max](#clamp_max).
+This function is supported by PromQL.
+
+See also [clamp](#clamp) and [clamp_max](#clamp_max).
 
 #### cos
 
@@ -1068,7 +1147,9 @@ This function is supported by PromQL. See also [clamp](#clamp) and [clamp_max](#
 
 Metric names are stripped from the resulting series. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
-This function is supported by PromQL. See also [sin](#sin).
+This function is supported by PromQL.
+
+See also [sin](#sin).
 
 #### cosh
 
@@ -1077,7 +1158,9 @@ for every point of every time series returned by `q`.
 
 Metric names are stripped from the resulting series. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
-This function is supported by PromQL. See also [acosh](#acosh).
+This function is supported by PromQL.
+
+See also [acosh](#acosh).
 
 #### day_of_month
 
@@ -1088,6 +1171,8 @@ Metric names are stripped from the resulting series. Add [keep_metric_names](#ke
 
 This function is supported by PromQL.
 
+See also [day_of_week](#day_of_week) and [day_of_year](#day_of_year).
+
 #### day_of_week
 
 `day_of_week(q)` is a [transform function](#transform-functions), which returns the day of week for every point of every time series returned by `q`.
@@ -1097,6 +1182,8 @@ Metric names are stripped from the resulting series. Add [keep_metric_names](#ke
 
 This function is supported by PromQL.
 
+See also [day_of_month](#day_of_month) and [day_of_year](#day_of_year).
+
 #### day_of_year
 
 `day_of_year(q)` is a [transform function](#transform-functions), which returns the day of year for every point of every time series returned by `q`.
@@ -1105,6 +1192,8 @@ It is expected that `q` returns unix timestamps. The returned values are in the 
 Metric names are stripped from the resulting series. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
 This function is supported by PromQL.
+
+See also [day_of_week](#day_of_week) and [day_of_month](#day_of_month).
 
 #### days_in_month
 
@@ -1123,7 +1212,9 @@ for every point of every time series returned by `q`.
 
 Metric names are stripped from the resulting series. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
-This function is supported by PromQL. See also [rad](#rad).
+This function is supported by PromQL.
+
+See also [rad](#rad).
 
 #### drop_empty_series
 
@@ -1149,13 +1240,17 @@ See also [start](#start), [time](#time) and [now](#now).
 
 Metric names are stripped from the resulting series. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
-This function is supported by PromQL. See also [ln](#ln).
+This function is supported by PromQL.
+
+See also [ln](#ln).
 
 #### floor
 
 `floor(q)` is a [transform function](#transform-functions), which rounds every point for every time series returned by `q` to the lower nearest integer.
 
-This function is supported by PromQL. See also [ceil](#ceil) and [round](#round).
+This function is supported by PromQL.
+
+See also [ceil](#ceil) and [round](#round).
 
 #### histogram_avg
 
@@ -1178,8 +1273,9 @@ When the [percentile](https://en.wikipedia.org/wiki/Percentile) is calculated ov
 then all the input histograms **must** have buckets with identical boundaries, e.g. they must have the same set of `le` or `vmrange` labels.
 Otherwise, the returned result may be invalid. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3231) for details.
 
-This function is supported by PromQL (except of the `boundLabel` arg). See also [histogram_quantiles](#histogram_quantiles), [histogram_share](#histogram_share)
-and [quantile](#quantile).
+This function is supported by PromQL (except of the `boundLabel` arg).
+
+See also [histogram_quantiles](#histogram_quantiles), [histogram_share](#histogram_share) and [quantile](#quantile).
 
 #### histogram_quantiles
 
@@ -1251,7 +1347,9 @@ This allows implementing simple paging for `q` time series. See also [limitk](#l
 
 Metric names are stripped from the resulting series. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
-This function is supported by PromQL. See also [exp](#exp) and [log2](#log2).
+This function is supported by PromQL.
+
+See also [exp](#exp) and [log2](#log2).
 
 #### log2
 
@@ -1259,7 +1357,9 @@ This function is supported by PromQL. See also [exp](#exp) and [log2](#log2).
 
 Metric names are stripped from the resulting series. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
-This function is supported by PromQL. See also [log10](#log10) and [ln](#ln).
+This function is supported by PromQL.
+
+See also [log10](#log10) and [ln](#ln).
 
 #### log10
 
@@ -1267,7 +1367,9 @@ This function is supported by PromQL. See also [log10](#log10) and [ln](#ln).
 
 Metric names are stripped from the resulting series. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
-This function is supported by PromQL. See also [log2](#log2) and [ln](#ln).
+This function is supported by PromQL.
+
+See also [log2](#log2) and [ln](#ln).
 
 #### minute
 
@@ -1306,7 +1408,9 @@ for every point of every time series returned by `q`.
 
 Metric names are stripped from the resulting series. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
-This function is supported by PromQL. See also [deg](#deg).
+This function is supported by PromQL.
+
+See also [deg](#deg).
 
 #### prometheus_buckets
 
@@ -1434,7 +1538,9 @@ for points returned by `q`, e.g. it is equivalent to the following query: `(q - 
 `round(q, nearest)` is a [transform function](#transform-functions), which rounds every point of every time series returned by `q` to the `nearest` multiple.
 If `nearest` is missing then the rounding is performed to the nearest integer.
 
-This function is supported by PromQL. See also [floor](#floor) and [ceil](#ceil).
+This function is supported by PromQL.
+
+See also [floor](#floor) and [ceil](#ceil).
 
 #### ru
 
@@ -1478,7 +1584,9 @@ This function is supported by PromQL.
 
 Metric names are stripped from the resulting series. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
-This function is supported by MetricsQL. See also [cos](#cos).
+This function is supported by MetricsQL.
+
+See also [cos](#cos).
 
 #### sinh
 
@@ -1487,7 +1595,9 @@ for every point of every time series returned by `q`.
 
 Metric names are stripped from the resulting series. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
-This function is supported by MetricsQL. See also [cosh](#cosh).
+This function is supported by MetricsQL.
+
+See also [cosh](#cosh).
 
 #### tan
 
@@ -1495,7 +1605,9 @@ This function is supported by MetricsQL. See also [cosh](#cosh).
 
 Metric names are stripped from the resulting series. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
-This function is supported by MetricsQL. See also [atan](#atan).
+This function is supported by MetricsQL.
+
+See also [atan](#atan).
 
 #### tanh
 
@@ -1504,7 +1616,9 @@ for every point of every time series returned by `q`.
 
 Metric names are stripped from the resulting series. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
-This function is supported by MetricsQL. See also [atanh](#atanh).
+This function is supported by MetricsQL.
+
+See also [atanh](#atanh).
 
 #### smooth_exponential
 
@@ -1515,13 +1629,17 @@ by `q` using [exponential moving average](https://en.wikipedia.org/wiki/Moving_a
 
 `sort(q)` is a [transform function](#transform-functions), which sorts series in ascending order by the last point in every time series returned by `q`.
 
-This function is supported by PromQL. See also [sort_desc](#sort_desc) and [sort_by_label](#sort_by_label).
+This function is supported by PromQL.
+
+See also [sort_desc](#sort_desc) and [sort_by_label](#sort_by_label).
 
 #### sort_desc
 
 `sort_desc(q)` is a [transform function](#transform-functions), which sorts series in descending order by the last point in every time series returned by `q`.
 
-This function is supported by PromQL. See also [sort](#sort) and [sort_by_label](#sort_by_label_desc).
+This function is supported by PromQL.
+
+See also [sort](#sort) and [sort_by_label](#sort_by_label_desc).
 
 #### sqrt
 
@@ -1550,7 +1668,9 @@ See also [start](#start) and [end](#end).
 
 `time()` is a [transform function](#transform-functions), which returns unix timestamp for every returned point.
 
-This function is supported by PromQL. See also [now](#now), [start](#start) and [end](#end).
+This function is supported by PromQL.
+
+See also [timestamp](#timestamp), [now](#now), [start](#start) and [end](#end).
 
 #### timezone_offset
 
@@ -1804,7 +1924,9 @@ This function is supported by PromQL.
 `bottomk(k, q)` is [aggregate function](#aggregate-functions), which returns up to `k` points with the smallest values across all the time series returned by `q`.
 The aggregate is calculated individually per each group of points with the same timestamp.
 
-This function is supported by PromQL. See also [topk](#topk).
+This function is supported by PromQL.
+
+See also [topk](#topk), [bottomk_min](#bottomk_min) and [#bottomk_last](#bottomk_last).
 
 #### bottomk_avg
 
@@ -1866,9 +1988,13 @@ The aggregate is calculated individually per each group of points with the same 
 
 This function is supported by PromQL.
 
+See also [count_values_over_time](#count_values_over_time) and [label_match](#label_match).
+
 #### distinct
 
 `distinct(q)` is [aggregate function](#aggregate-functions), which calculates the number of unique values per each group of points with the same timestamp.
+
+See also [distinct_over_time](#distinct_over_time).
 
 #### geomean
 
@@ -1961,7 +2087,9 @@ See also [outliers_iqr](#outliers_iqr) and [outliers_mad](#outliers_mad).
 for all the time series returned by `q`. `phi` must be in the range `[0...1]`.
 The aggregate is calculated individually per each group of points with the same timestamp.
 
-This function is supported by PromQL. See also [quantiles](#quantiles) and [histogram_quantile](#histogram_quantile).
+This function is supported by PromQL.
+
+See also [quantiles](#quantiles) and [histogram_quantile](#histogram_quantile).
 
 #### quantiles
 
@@ -2020,7 +2148,9 @@ for all the time series returned by `q`. The aggregate is calculated individuall
 `topk(k, q)` is [aggregate function](#aggregate-functions), which returns up to `k` points with the biggest values across all the time series returned by `q`.
 The aggregate is calculated individually per each group of points with the same timestamp.
 
-This function is supported by PromQL. See also [bottomk](#bottomk).
+This function is supported by PromQL.
+
+See also [bottomk](#bottomk), [topk_max](#topk_max) and [topk_last](#topk_last).
 
 #### topk_avg
 

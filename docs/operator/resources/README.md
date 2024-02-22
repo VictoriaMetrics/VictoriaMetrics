@@ -134,6 +134,17 @@ Every custom resource with deployable application has a fields for specifying ve
 - [Managing versions for VMCluster](./vmcluster.md#version-management)
 - [Managing versions for VMSingle](./vmsingle.md#version-management)
 
+## Managing resources
+
+Every custom resource with deployable application has a fields and operator parameters for specifying resources for the component:
+
+- [Managing versions for VMAgent](./vmagent.md#resource-management)
+- [Managing versions for VMAlert](./vmalert.md#resource-management)
+- [Managing versions for VMAlertmanager](./vmalertmanager.md#resource-management)
+- [Managing versions for VMAuth](./vmauth.md#resource-management)
+- [Managing versions for VMCluster](./vmcluster.md#resource-management)
+- [Managing versions for VMSingle](./vmsingle.md#resource-management)
+
 ## High availability
 
 VictoriaMetrics operator support high availability for each component of the monitoring stack:

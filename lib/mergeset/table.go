@@ -149,10 +149,16 @@ type Table struct {
 }
 
 type rawItemsShards struct {
+	// Put flushDeadlineMs to the top in order to avoid unaligned memory access on 32-bit architectures
+	flushDeadlineMs int64
+
 	shardIdx uint32
 
 	// shards reduce lock contention when adding rows on multi-CPU systems.
 	shards []rawItemsShard
+
+	ibsToFlushLock sync.Mutex
+	ibsToFlush     []*inmemoryBlock
 }
 
 // The number of shards for rawItems per table.
@@ -179,8 +185,31 @@ func (riss *rawItemsShards) addItems(tb *Table, items [][]byte) {
 	for len(items) > 0 {
 		n := atomic.AddUint32(&riss.shardIdx, 1)
 		idx := n % shardsLen
-		items = shards[idx].addItems(tb, items)
+		tailItems, ibsToFlush := shards[idx].addItems(items)
+		riss.addIbsToFlush(tb, ibsToFlush)
+		items = tailItems
 	}
+}
+
+func (riss *rawItemsShards) addIbsToFlush(tb *Table, ibsToFlush []*inmemoryBlock) {
+	if len(ibsToFlush) == 0 {
+		return
+	}
+
+	var ibsToMerge []*inmemoryBlock
+
+	riss.ibsToFlushLock.Lock()
+	if len(riss.ibsToFlush) == 0 {
+		riss.updateFlushDeadline()
+	}
+	riss.ibsToFlush = append(riss.ibsToFlush, ibsToFlush...)
+	if len(riss.ibsToFlush) >= maxBlocksPerShard*cgroup.AvailableCPUs() {
+		ibsToMerge = ibsToFlush
+		riss.ibsToFlush = nil
+	}
+	riss.ibsToFlushLock.Unlock()
+
+	tb.flushBlocksToInmemoryParts(ibsToMerge, false)
 }
 
 func (riss *rawItemsShards) Len() int {
@@ -191,9 +220,13 @@ func (riss *rawItemsShards) Len() int {
 	return n
 }
 
+func (riss *rawItemsShards) updateFlushDeadline() {
+	atomic.StoreInt64(&riss.flushDeadlineMs, time.Now().Add(pendingItemsFlushInterval).UnixMilli())
+}
+
 type rawItemsShardNopad struct {
-	// Put lastFlushTime to the top in order to avoid unaligned memory access on 32-bit architectures
-	lastFlushTime uint64
+	// Put flushDeadlineMs to the top in order to avoid unaligned memory access on 32-bit architectures
+	flushDeadlineMs int64
 
 	mu  sync.Mutex
 	ibs []*inmemoryBlock
@@ -217,7 +250,7 @@ func (ris *rawItemsShard) Len() int {
 	return n
 }
 
-func (ris *rawItemsShard) addItems(tb *Table, items [][]byte) [][]byte {
+func (ris *rawItemsShard) addItems(items [][]byte) ([][]byte, []*inmemoryBlock) {
 	var ibsToFlush []*inmemoryBlock
 	var tailItems [][]byte
 
@@ -225,6 +258,7 @@ func (ris *rawItemsShard) addItems(tb *Table, items [][]byte) [][]byte {
 	ibs := ris.ibs
 	if len(ibs) == 0 {
 		ibs = append(ibs, &inmemoryBlock{})
+		ris.updateFlushDeadline()
 		ris.ibs = ibs
 	}
 	ib := ibs[len(ibs)-1]
@@ -236,7 +270,6 @@ func (ris *rawItemsShard) addItems(tb *Table, items [][]byte) [][]byte {
 			ibsToFlush = append(ibsToFlush, ibs...)
 			ibs = make([]*inmemoryBlock, 0, maxBlocksPerShard)
 			tailItems = items[i:]
-			atomic.StoreUint64(&ris.lastFlushTime, fasttime.UnixTimestamp())
 			break
 		}
 		ib = &inmemoryBlock{}
@@ -255,9 +288,11 @@ func (ris *rawItemsShard) addItems(tb *Table, items [][]byte) [][]byte {
 	ris.ibs = ibs
 	ris.mu.Unlock()
 
-	tb.flushBlocksToInmemoryParts(ibsToFlush, false)
+	return tailItems, ibsToFlush
+}
 
-	return tailItems
+func (ris *rawItemsShard) updateFlushDeadline() {
+	atomic.StoreInt64(&ris.flushDeadlineMs, time.Now().Add(pendingItemsFlushInterval).UnixMilli())
 }
 
 var tooLongItemLogger = logger.WithThrottler("tooLongItem", 5*time.Second)
@@ -689,29 +724,30 @@ func (tb *Table) mergeInmemoryPartsToFiles(pws []*partWrapper) error {
 // This function is for debugging and testing purposes only,
 // since it may slow down data ingestion when used frequently.
 func (tb *Table) DebugFlush() {
-	tb.flushPendingItems(nil, true)
+	tb.flushPendingItems(true)
 
 	// Wait for background flushers to finish.
 	tb.flushPendingItemsWG.Wait()
 }
 
 func (tb *Table) pendingItemsFlusher() {
-	d := timeutil.AddJitterToDuration(pendingItemsFlushInterval)
+	// do not add jitter in order to guarantee flush interval
+	d := pendingItemsFlushInterval
 	ticker := time.NewTicker(d)
 	defer ticker.Stop()
-	var ibs []*inmemoryBlock
 	for {
 		select {
 		case <-tb.stopCh:
 			return
 		case <-ticker.C:
-			ibs = tb.flushPendingItems(ibs[:0], false)
+			tb.flushPendingItems(false)
 		}
 	}
 }
 
 func (tb *Table) inmemoryPartsFlusher() {
-	d := timeutil.AddJitterToDuration(dataFlushInterval)
+	// do not add jitter in order to guarantee flush interval
+	d := dataFlushInterval
 	ticker := time.NewTicker(d)
 	defer ticker.Stop()
 	for {
@@ -724,15 +760,14 @@ func (tb *Table) inmemoryPartsFlusher() {
 	}
 }
 
-func (tb *Table) flushPendingItems(dst []*inmemoryBlock, isFinal bool) []*inmemoryBlock {
+func (tb *Table) flushPendingItems(isFinal bool) {
 	tb.flushPendingItemsWG.Add(1)
-	dst = tb.rawItems.flush(tb, dst, isFinal)
+	tb.rawItems.flush(tb, isFinal)
 	tb.flushPendingItemsWG.Done()
-	return dst
 }
 
 func (tb *Table) flushInmemoryItemsToFiles() {
-	tb.flushPendingItems(nil, true)
+	tb.flushPendingItems(true)
 	tb.flushInmemoryPartsToFiles(true)
 }
 
@@ -754,25 +789,32 @@ func (tb *Table) flushInmemoryPartsToFiles(isFinal bool) {
 	}
 }
 
-func (riss *rawItemsShards) flush(tb *Table, dst []*inmemoryBlock, isFinal bool) []*inmemoryBlock {
-	for i := range riss.shards {
-		dst = riss.shards[i].appendBlocksToFlush(dst, isFinal)
+func (riss *rawItemsShards) flush(tb *Table, isFinal bool) {
+	var dst []*inmemoryBlock
+
+	currentTimeMs := time.Now().UnixMilli()
+	flushDeadlineMs := atomic.LoadInt64(&riss.flushDeadlineMs)
+	if isFinal || currentTimeMs >= flushDeadlineMs {
+		riss.ibsToFlushLock.Lock()
+		dst = riss.ibsToFlush
+		riss.ibsToFlush = nil
+		riss.ibsToFlushLock.Unlock()
 	}
+
+	for i := range riss.shards {
+		dst = riss.shards[i].appendBlocksToFlush(dst, currentTimeMs, isFinal)
+	}
+
 	tb.flushBlocksToInmemoryParts(dst, isFinal)
-	return dst
 }
 
-func (ris *rawItemsShard) appendBlocksToFlush(dst []*inmemoryBlock, isFinal bool) []*inmemoryBlock {
-	currentTime := fasttime.UnixTimestamp()
-	flushSeconds := int64(pendingItemsFlushInterval.Seconds())
-	if flushSeconds <= 0 {
-		flushSeconds = 1
-	}
-	lastFlushTime := atomic.LoadUint64(&ris.lastFlushTime)
-	if !isFinal && currentTime < lastFlushTime+uint64(flushSeconds) {
+func (ris *rawItemsShard) appendBlocksToFlush(dst []*inmemoryBlock, currentTimeMs int64, isFinal bool) []*inmemoryBlock {
+	flushDeadlineMs := atomic.LoadInt64(&ris.flushDeadlineMs)
+	if !isFinal && currentTimeMs < flushDeadlineMs {
 		// Fast path - nothing to flush
 		return dst
 	}
+
 	// Slow path - move ris.ibs to dst
 	ris.mu.Lock()
 	ibs := ris.ibs
@@ -781,8 +823,8 @@ func (ris *rawItemsShard) appendBlocksToFlush(dst []*inmemoryBlock, isFinal bool
 		ibs[i] = nil
 	}
 	ris.ibs = ibs[:0]
-	atomic.StoreUint64(&ris.lastFlushTime, currentTime)
 	ris.mu.Unlock()
+
 	return dst
 }
 

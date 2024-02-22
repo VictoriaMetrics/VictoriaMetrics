@@ -16,7 +16,13 @@ aliases:
 
 ## Next release
 
+- TODO
+
+<a name="v0.41.2"></a>
+## [v0.41.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.41.2) - 21 Feb 2024
+
 - Remove deprecated autoscaling/v2beta1 HPA objects, previously operator still use it for k8s 1.25. See [this issue](https://github.com/VictoriaMetrics/operator/issues/864) for details.
+- Update VictoriaMetrics image tags to [v1.98.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.98.0).
 
 <a name="v0.41.1"></a>
 ## [v0.41.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.41.1) - 1 Feb 2024
@@ -28,7 +34,7 @@ aliases:
 
 - update VictoriaMetrics image tags to [v1.97.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.0).
 - [vmauth](./api.html#vmauth): add new fields for `unauthorized_user` like `src_hosts`, `headers`, `retry_status_codes` and `load_balancing_policy`. See [vmauth docs](https://docs.victoriametrics.com/vmauth.htm) for more details.
- 
+
 <a name="v0.40.0"></a>
 ## [v0.40.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.40.0) - 23 Jan 2024
 
@@ -65,7 +71,7 @@ aliases:
 
 - [vmuser](./api.md#vmuser):  adds new paths for vminsert/vmselect routing with enabled dynamic discovery feature for `VMUser`. See [this PR](https://github.com/VictoriaMetrics/operator/pull/791) for details.
 - [vmcluster](./api.md#vmcluster): from now on operator passes `-replicationFactor` (if it set in `vmcluster`) for `vmselect`. See [this issue](https://github.com/VictoriaMetrics/operator/issues/778).
-- [vmagent](./api.md#vmagent): updated dependency for properly parsing chained `if` expressions in validation webhook. 
+- [vmagent](./api.md#vmagent): updated dependency for properly parsing chained `if` expressions in validation webhook.
 
 <a name="v0.38.0"></a>
 ## [v0.39.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.39.0) - 4 Oct 2023
@@ -119,7 +125,7 @@ aliases:
 
 ### Features
 
-- [vmagent](./api.md#vmagent): support [multiple if conditions](https://docs.victoriametrics.com/vmagent.html#relabeling:~:text=the%20if%20option%20may%20contain%20more%20than%20one%20filter) for relabeling. See [this issue](https://github.com/VictoriaMetrics/operator/issues/730) for details. 
+- [vmagent](./api.md#vmagent): support [multiple if conditions](https://docs.victoriametrics.com/vmagent.html#relabeling:~:text=the%20if%20option%20may%20contain%20more%20than%20one%20filter) for relabeling. See [this issue](https://github.com/VictoriaMetrics/operator/issues/730) for details.
 
 <a name="v0.36.1"></a>
 ## [v0.36.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.36.0) - 25 Aug 2023
