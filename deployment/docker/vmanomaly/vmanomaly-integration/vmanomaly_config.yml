@@ -1,7 +1,9 @@
-scheduler:
-  infer_every: "1m"
-  fit_every: "2m"
-  fit_window: "3h"
+schedulers:
+  periodic:
+    # class: "scheduler.periodic.PeriodicScheduler"
+    infer_every: "1m"
+    fit_every: "2m"
+    fit_window: "3h"
 
 models:
   prophet:
