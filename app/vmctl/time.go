@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"math"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
@@ -15,11 +14,10 @@ const (
 )
 
 func parseTime(s string) (time.Time, error) {
-	secs, err := promutils.ParseTime(s)
+	msecs, err := promutils.ParseTimeMsec(s)
 	if err != nil {
 		return time.Time{}, fmt.Errorf("cannot parse %s: %w", s, err)
 	}
-	msecs := int64(math.Round(secs * 1e3))
 	if msecs < minTimeMsecs {
 		msecs = 0
 	}
