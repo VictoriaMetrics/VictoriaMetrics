@@ -111,6 +111,11 @@ type EvalConfig struct {
 	End   int64
 	Step  int64
 
+	// RealStart contains the original start of the interval when executed in subqueries (because Start can be changed  for subqueries)
+	RealStart int64
+	// RealEnd contains the original end of the interval when executed in subqueries (because End can be changed for subqueries)
+	RealEnd int64
+
 	// MaxSeries is the maximum number of time series, which can be scanned by the query.
 	// Zero means 'no limit'
 	MaxSeries int
@@ -152,7 +157,17 @@ type EvalConfig struct {
 func copyEvalConfig(src *EvalConfig) *EvalConfig {
 	var ec EvalConfig
 	ec.Start = src.Start
+	if ec.RealStart > 0 {
+		ec.RealStart = src.RealStart
+	} else {
+		ec.RealStart = src.Start
+	}
 	ec.End = src.End
+	if ec.RealEnd > 0 {
+		ec.RealEnd = src.RealEnd
+	} else {
+		ec.RealEnd = src.End
+	}
 	ec.Step = src.Step
 	ec.MaxSeries = src.MaxSeries
 	ec.MaxPointsPerSeries = src.MaxPointsPerSeries

@@ -1248,8 +1248,13 @@ func newTransformFuncRunning(rf func(a, b float64, idx int) float64) transformFu
 			prevValue := values[0]
 			values = values[1:]
 			for i, v := range values {
-				if !math.IsNaN(v) {
-					prevValue = rf(prevValue, v, i+1)
+				if tfa.ec.RealEnd > 0 && ts.Timestamps[i] > tfa.ec.RealEnd {
+					break
+				}
+				if ts.Timestamps[i] >= tfa.ec.RealStart {
+					if !math.IsNaN(v) {
+						prevValue = rf(prevValue, v, i+1)
+					}
 				}
 				values[i] = prevValue
 			}
@@ -1265,7 +1270,7 @@ func newTransformFuncRange(rf func(a, b float64, idx int) float64) transformFunc
 		if err != nil {
 			return nil, err
 		}
-		setLastValues(rvs)
+		setLastValues(tfa, rvs)
 		return rvs, nil
 	}
 }
@@ -1539,7 +1544,7 @@ func transformRangeQuantile(tfa *transformFuncArg) ([]*timeseries, error) {
 	}
 	a.A = values
 	putFloat64s(a)
-	setLastValues(rvs)
+	setLastValues(tfa, rvs)
 	return rvs, nil
 }
 
@@ -1554,9 +1559,14 @@ func transformRangeFirst(tfa *transformFuncArg) ([]*timeseries, error) {
 		if len(values) == 0 {
 			continue
 		}
+		vFirstSet := false
 		vFirst := values[0]
 		for i, v := range values {
-			if math.IsNaN(v) {
+			if !vFirstSet && ts.Timestamps[i] >= tfa.ec.RealStart {
+				vFirst = v
+				vFirstSet = true
+			}
+			if !vFirstSet && math.IsNaN(v) {
 				continue
 			}
 			values[i] = vFirst
@@ -1571,17 +1581,28 @@ func transformRangeLast(tfa *transformFuncArg) ([]*timeseries, error) {
 		return nil, err
 	}
 	rvs := args[0]
-	setLastValues(rvs)
+	setLastValues(tfa, rvs)
 	return rvs, nil
 }
 
-func setLastValues(tss []*timeseries) {
+func setLastValues(tfa *transformFuncArg, tss []*timeseries) {
 	for _, ts := range tss {
 		values := skipTrailingNaNs(ts.Values)
 		if len(values) == 0 {
 			continue
 		}
 		vLast := values[len(values)-1]
+		if tfa.ec.RealEnd > 0 {
+			for i := len(values) - 1; i >= 0; i-- {
+				if math.IsNaN(values[i]) {
+					continue
+				}
+				if ts.Timestamps[i] > tfa.ec.RealEnd {
+					continue
+				}
+				vLast = values[i]
+			}
+		}
 		for i, v := range values {
 			if math.IsNaN(v) {
 				continue
@@ -2713,11 +2734,17 @@ func transformStep(tfa *transformFuncArg) float64 {
 }
 
 func transformStart(tfa *transformFuncArg) float64 {
-	return float64(tfa.ec.Start) / 1e3
+	if tfa.ec.RealStart == 0 {
+		return float64(tfa.ec.Start) / 1e3
+	}
+	return float64(tfa.ec.RealStart) / 1e3
 }
 
 func transformEnd(tfa *transformFuncArg) float64 {
-	return float64(tfa.ec.End) / 1e3
+	if tfa.ec.RealEnd == 0 {
+		return float64(tfa.ec.End) / 1e3
+	}
+	return float64(tfa.ec.RealEnd) / 1e3
 }
 
 // copyTimeseries returns a copy of tss.
