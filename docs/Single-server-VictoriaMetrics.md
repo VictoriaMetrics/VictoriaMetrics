@@ -1302,7 +1302,7 @@ where:
     * `unix_s` - unix seconds
     * `unix_ms` - unix milliseconds
     * `unix_ns` - unix nanoseconds
-    * `rfc3339` - [RFC3339](https://www.ietf.org/rfc/rfc3339.txt) time
+    * `rfc3339` - [RFC3339](https://www.ietf.org/rfc/rfc3339.txt) time (in the timezone of the server)
     * `custom:<layout>` - custom layout for time that is supported by [time.Format](https://golang.org/pkg/time/#Time.Format) function from Go.
 
 * `<timeseries_selector_for_export>` may contain any [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors)
