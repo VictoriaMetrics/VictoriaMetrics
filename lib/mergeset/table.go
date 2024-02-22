@@ -158,7 +158,7 @@ type rawItemsShards struct {
 	shards []rawItemsShard
 
 	ibsToFlushLock sync.Mutex
-	ibsToFlush []*inmemoryBlock
+	ibsToFlush     []*inmemoryBlock
 }
 
 // The number of shards for rawItems per table.
@@ -203,7 +203,7 @@ func (riss *rawItemsShards) addIbsToFlush(tb *Table, ibsToFlush []*inmemoryBlock
 		riss.updateFlushDeadline()
 	}
 	riss.ibsToFlush = append(riss.ibsToFlush, ibsToFlush...)
-	if len(riss.ibsToFlush) >= maxBlocksPerShard * cgroup.AvailableCPUs() {
+	if len(riss.ibsToFlush) >= maxBlocksPerShard*cgroup.AvailableCPUs() {
 		ibsToMerge = ibsToFlush
 		riss.ibsToFlush = nil
 	}
