@@ -4,12 +4,14 @@ import (
 	"flag"
 	"fmt"
 	"math"
+	"strconv"
 	"strings"
 	"sync"
 
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/VictoriaMetrics/metricsql"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
@@ -31,6 +33,7 @@ var rollupFuncs = map[string]newRollupFunc{
 	"count_le_over_time":      newRollupCountLE,
 	"count_ne_over_time":      newRollupCountNE,
 	"count_over_time":         newRollupFuncOneArg(rollupCount),
+	"count_values_over_time":  newRollupCountValues,
 	"decreases_over_time":     newRollupFuncOneArg(rollupDecreases),
 	"default_rollup":          newRollupFuncOneArg(rollupDefault), // default rollup func
 	"delta":                   newRollupFuncOneArg(rollupDelta),
@@ -609,7 +612,7 @@ type timeseriesMap struct {
 func newTimeseriesMap(funcName string, keepMetricNames bool, sharedTimestamps []int64, mnSrc *storage.MetricName) *timeseriesMap {
 	funcName = strings.ToLower(funcName)
 	switch funcName {
-	case "histogram_over_time", "quantiles_over_time":
+	case "histogram_over_time", "quantiles_over_time", "count_values_over_time":
 	default:
 		return nil
 	}
@@ -643,10 +646,16 @@ func (tsm *timeseriesMap) GetOrCreateTimeseries(labelName, labelValue string) *t
 	if ts != nil {
 		return ts
 	}
+
+	// Make a clone of labelValue in order to use it as map key, since it may point to unsafe string,
+	// which refers some other byte slice, which can change in the future.
+	labelValue = strings.Clone(labelValue)
+
 	ts = &timeseries{}
 	ts.CopyFromShallowTimestamps(tsm.origin)
 	ts.MetricName.RemoveTag(labelName)
 	ts.MetricName.AddTag(labelName, labelValue)
+
 	tsm.m[labelValue] = ts
 	return ts
 }
@@ -1434,6 +1443,42 @@ func mad(values []float64) float64 {
 	a.A = ds
 	putFloat64s(a)
 	return v
+}
+
+func newRollupCountValues(args []interface{}) (rollupFunc, error) {
+	if err := expectRollupArgsNum(args, 2); err != nil {
+		return nil, err
+	}
+	tssLabelNum, ok := args[1].([]*timeseries)
+	if !ok {
+		return nil, fmt.Errorf(`unexpected type for labelName arg; got %T; want %T`, args[1], tssLabelNum)
+	}
+	labelName, err := getString(tssLabelNum, 1)
+	if err != nil {
+		return nil, fmt.Errorf("cannot get labelName: %w", err)
+	}
+	f := func(rfa *rollupFuncArg) float64 {
+		tsm := rfa.tsm
+		idx := rfa.idx
+		bb := bbPool.Get()
+		// Note: the code below may create very big number of time series
+		// if the number of unique values in rfa.values is big.
+		for _, v := range rfa.values {
+			bb.B = strconv.AppendFloat(bb.B[:0], v, 'g', -1, 64)
+			labelValue := bytesutil.ToUnsafeString(bb.B)
+			ts := tsm.GetOrCreateTimeseries(labelName, labelValue)
+			count := ts.Values[idx]
+			if math.IsNaN(count) {
+				count = 1
+			} else {
+				count++
+			}
+			ts.Values[idx] = count
+		}
+		bbPool.Put(bb)
+		return nan
+	}
+	return f, nil
 }
 
 func rollupHistogram(rfa *rollupFuncArg) float64 {
