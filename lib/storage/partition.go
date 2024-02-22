@@ -1058,23 +1058,22 @@ func (pt *partition) pendingRowsFlusher() {
 	d := timeutil.AddJitterToDuration(pendingRowsFlushInterval)
 	ticker := time.NewTicker(d)
 	defer ticker.Stop()
-	var rows []rawRow
 	for {
 		select {
 		case <-pt.stopCh:
 			return
 		case <-ticker.C:
-			rows = pt.flushPendingRows(rows[:0], false)
+			pt.flushPendingRows(false)
 		}
 	}
 }
 
-func (pt *partition) flushPendingRows(dst []rawRow, isFinal bool) []rawRow {
-	return pt.rawRows.flush(pt, dst, isFinal)
+func (pt *partition) flushPendingRows(isFinal bool) {
+	pt.rawRows.flush(pt, isFinal)
 }
 
 func (pt *partition) flushInmemoryRowsToFiles() {
-	pt.flushPendingRows(nil, true)
+	pt.flushPendingRows(true)
 	pt.flushInmemoryPartsToFiles(true)
 }
 
@@ -1096,12 +1095,12 @@ func (pt *partition) flushInmemoryPartsToFiles(isFinal bool) {
 	}
 }
 
-func (rrss *rawRowsShards) flush(pt *partition, dst []rawRow, isFinal bool) []rawRow {
+func (rrss *rawRowsShards) flush(pt *partition, isFinal bool) {
+	var dst []rawRow
 	for i := range rrss.shards {
 		dst = rrss.shards[i].appendRawRowsToFlush(dst, isFinal)
 	}
 	pt.flushRowsToInmemoryParts(dst)
-	return dst
 }
 
 func (rrs *rawRowsShard) appendRawRowsToFlush(dst []rawRow, isFinal bool) []rawRow {
