@@ -1140,17 +1140,16 @@ as a service for your OS. A [snap package](https://snapcraft.io/victoriametrics)
 
 ## How to work with snapshots
 
-VictoriaMetrics can create [instant snapshots](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282)
-for all the data stored under `-storageDataPath` directory.
-Navigate to `http://<victoriametrics-addr>:8428/snapshot/create` in order to create an instant snapshot.
-The page will return the following JSON response:
+Send a request to `http://<victoriametrics-addr>:8428/snapshot/create` endpoint in order to create
+an [instant snapshot](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282).
+The page returns the following JSON response on successful creation of snapshot:
 
 ```json
 {"status":"ok","snapshot":"<snapshot-name>"}
 ```
 
 Snapshots are created under `<-storageDataPath>/snapshots` directory, where `<-storageDataPath>`
-is the command-line flag value. Snapshots can be archived to backup storage at any time
+is the corresponding command-line flag value. Snapshots can be archived to backup storage at any time
 with [vmbackup](https://docs.victoriametrics.com/vmbackup.html).
 
 Snapshots consist of a mix of hard-links and soft-links to various files and directories inside `-storageDataPath`.
@@ -1162,19 +1161,31 @@ for more details. This adds some restrictions on what can be done with the conte
 - Do not copy subdirectories inside `<-storageDataPath>/snapshot` with `cp`, `rsync` or similar commands, since there are high chances
   that these commands won't copy some data stored in the snapshot. Prefer using [vmbackup](https://docs.victoriametrics.com/vmbackup.html) for making copies of snapshot data.
 
-The `http://<victoriametrics-addr>:8428/snapshot/list` page contains the list of available snapshots.
+See also [snapshot troubleshooting](#snapshot-troubleshooting).
 
-Navigate to `http://<victoriametrics-addr>:8428/snapshot/delete?snapshot=<snapshot-name>` in order
-to delete `<snapshot-name>` snapshot.
+The `http://<victoriametrics-addr>:8428/snapshot/list` endpoint returns the list of available snapshots.
+
+Send a query to `http://<victoriametrics-addr>:8428/snapshot/delete?snapshot=<snapshot-name>` in order
+to delete the snapshot with `<snapshot-name>` name.
 
 Navigate to `http://<victoriametrics-addr>:8428/snapshot/delete_all` in order to delete all the snapshots.
 
-Steps for restoring from a snapshot:
+### How to restore from a snapshot
 
 1. Stop VictoriaMetrics with `kill -INT`.
 1. Restore snapshot contents from backup with [vmrestore](https://docs.victoriametrics.com/vmrestore.html)
    to the directory pointed by `-storageDataPath`.
 1. Start VictoriaMetrics.
+
+### Snapshot troubleshooting
+
+Snapshot doesn't occupy disk space just after its' creation thanks to the [used approach](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282).
+Old snapshots may start occupying additional disk space if they refer to old parts, which were already deleted during [background merge](#storage).
+That's why it is recommended deleting old snapshots after they are no longer needed in order to free up disk space used by old snapshots.
+This can be done either manually or automatically if the `-snapshotsMaxAge` command-line flag is set. Make sure that the backup process has enough time to complete
+when setting `-snapshotsMaxAge` command-line flag.
+
+VictoriaMetrics exposes the current number of available snapshots via `vm_snapshots` metric at [`/metrics`](#monitoring) page.
 
 ## How to delete time series
 
@@ -2271,7 +2282,10 @@ and [cardinality explorer docs](#cardinality-explorer).
 
 * VictoriaMetrics ignores `NaN` values during data ingestion.
 
-See also [troubleshooting docs](https://docs.victoriametrics.com/Troubleshooting.html).
+See also:
+
+- [Snapshot troubleshooting](#snapshot-troubleshooting).
+- [General troubleshooting docs](https://docs.victoriametrics.com/Troubleshooting.html).
 
 ## Push metrics
 
