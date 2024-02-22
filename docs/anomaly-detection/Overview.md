@@ -138,13 +138,13 @@ optionally preserving labels).
 
 > See [Quickstart](/anomaly-detection/QuickStart.html).
 
-> See [Integration guide: vmanomaly and vmalert](anomaly-detection/guides/guide-vmanomaly-vmalert.html).
+> See [Integration guide: vmanomaly and vmalert](/anomaly-detection/guides/guide-vmanomaly-vmalert.html).
 
 ### Config file
 There are 4 required sections in config file:
 
-* [`scheduler`](/anomaly-detection/components/scheduler.html) - defines how often to run and make inferences, as well as what timerange to use to train the model.
-* [`model`](/anomaly-detection/components/models.html) - specific model parameters and configurations,
+* [`schedulers`](/anomaly-detection/components/scheduler.html) - defines how often to run and make inferences, as well as what timerange to use to train the model.
+* [`models`](/anomaly-detection/components/models.html) - specific model parameters and configurations.
 * [`reader`](/anomaly-detection/components/reader.html) - how to read data and where it is located
 * [`writer`](/anomaly-detection/components/writer.html) - where and how to write the generated output.
 
@@ -153,16 +153,17 @@ There are 4 required sections in config file:
 > For a detailed description, see [config sections](/anomaly-detection/components)
 
 #### Config example
-Here is an example of config file that will run FB Prophet model, that will be retrained every 2 hours on 14 days of previous data. It will generate inference (including `anomaly_score` metric) every 1 minute.
+Here is an example of config file that will run [Facebook's Prophet model](/anomaly-detection/components/models.html#prophet), that will be retrained every 2 hours on 14 days of previous data. It will generate inference results (including `anomaly_score` metric) every 1 minute.
 
 
-You need to put your datasource urls to use it:
+You need to specify your datasource urls to use it:
 
 ```yaml
-scheduler:
-  infer_every: "1m"
-  fit_every: "2h"
-  fit_window: "14d"
+schedulers:
+  periodic:
+    infer_every: "1m"
+    fit_every: "2h"
+    fit_window: "14d"
 
 models:
   prophet:  # or use a model alias of your choice here
@@ -298,4 +299,3 @@ groups:
           description: "{{ $labels.instance }} of job {{ $labels.job }} license expires in {{ $value | humanizeDuration }}. 
             Please make sure to update the license before it expires."
 ```
-
