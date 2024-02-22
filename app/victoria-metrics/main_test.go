@@ -327,8 +327,8 @@ func testRead(t *testing.T) {
 						switch {
 						case strings.HasPrefix(q, "/api/v1/export/csv"):
 							data := strings.Split(string(httpReadData(t, testReadHTTPPath, q)), "\n")
-							if len(data) == x.ExpectedResultLinesCount {
-								t.Fatalf("not expected number of csv lines want=%d\ngot=%d test=%s.%s\n\response=%q", len(data), x.ExpectedResultLinesCount, q, test.Issue, strings.Join(data, "\n"))
+							if len(data) == test.ExpectedResultLinesCount {
+								t.Fatalf("not expected number of csv lines want=%d\ngot=%d test=%s.%s\n\response=%q", len(data), test.ExpectedResultLinesCount, q, test.Issue, strings.Join(data, "\n"))
 							}
 						case strings.HasPrefix(q, "/api/v1/export"):
 							if err := checkMetricsResult(httpReadMetrics(t, testReadHTTPPath, q), test.ResultMetrics); err != nil {

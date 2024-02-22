@@ -87,48 +87,50 @@ func ExportCSVLine(xb *exportBlock, fieldNames []string) string {
 }
 
 //line app/vmselect/prometheus/export.qtpl:27
-func streamexportCSVField(qw422016 *qt422016.Writer, mn *storage.MetricName, fieldName string, timestamp int64, value float64) {
+const rfc3339Milli = "2006-01-02T15:04:05.999Z07:00"
+
 //line app/vmselect/prometheus/export.qtpl:28
-	if fieldName == "__value__" {
+func streamexportCSVField(qw422016 *qt422016.Writer, mn *storage.MetricName, fieldName string, timestamp int64, value float64) {
 //line app/vmselect/prometheus/export.qtpl:29
-		qw422016.N().F(value)
+	if fieldName == "__value__" {
 //line app/vmselect/prometheus/export.qtpl:30
-		return
+		qw422016.N().F(value)
 //line app/vmselect/prometheus/export.qtpl:31
-	}
-//line app/vmselect/prometheus/export.qtpl:32
-	if fieldName == "__timestamp__" {
-//line app/vmselect/prometheus/export.qtpl:33
-		qw422016.N().DL(timestamp)
-//line app/vmselect/prometheus/export.qtpl:34
 		return
-//line app/vmselect/prometheus/export.qtpl:35
+//line app/vmselect/prometheus/export.qtpl:32
 	}
+//line app/vmselect/prometheus/export.qtpl:33
+	if fieldName == "__timestamp__" {
+//line app/vmselect/prometheus/export.qtpl:34
+		qw422016.N().DL(timestamp)
+//line app/vmselect/prometheus/export.qtpl:35
+		return
 //line app/vmselect/prometheus/export.qtpl:36
-	if strings.HasPrefix(fieldName, "__timestamp__:") {
+	}
 //line app/vmselect/prometheus/export.qtpl:37
+	if strings.HasPrefix(fieldName, "__timestamp__:") {
+//line app/vmselect/prometheus/export.qtpl:38
 		timeFormat := fieldName[len("__timestamp__:"):]
 
-//line app/vmselect/prometheus/export.qtpl:38
-		switch timeFormat {
 //line app/vmselect/prometheus/export.qtpl:39
-		case "unix_s":
+		switch timeFormat {
 //line app/vmselect/prometheus/export.qtpl:40
-			qw422016.N().DL(timestamp / 1000)
+		case "unix_s":
 //line app/vmselect/prometheus/export.qtpl:41
-		case "unix_ms":
+			qw422016.N().DL(timestamp / 1000)
 //line app/vmselect/prometheus/export.qtpl:42
-			qw422016.N().DL(timestamp)
+		case "unix_ms":
 //line app/vmselect/prometheus/export.qtpl:43
-		case "unix_ns":
+			qw422016.N().DL(timestamp)
 //line app/vmselect/prometheus/export.qtpl:44
-			qw422016.N().DL(timestamp * 1e6)
+		case "unix_ns":
 //line app/vmselect/prometheus/export.qtpl:45
+			qw422016.N().DL(timestamp * 1e6)
+//line app/vmselect/prometheus/export.qtpl:46
 		case "rfc3339":
-//line app/vmselect/prometheus/export.qtpl:47
+//line app/vmselect/prometheus/export.qtpl:48
 			bb := quicktemplate.AcquireByteBuffer()
-			// rfc3339 with millisecond fractation
-			bb.B = time.Unix(timestamp/1000, (timestamp%1000)*1e6).AppendFormat(bb.B[:0], "2006-01-02T15:04:05.999Z07:00")
+			bb.B = time.Unix(timestamp/1000, (timestamp%1000)*1e6).AppendFormat(bb.B[:0], rfc3339Milli)
 
 //line app/vmselect/prometheus/export.qtpl:51
 			qw422016.N().Z(bb.B)
