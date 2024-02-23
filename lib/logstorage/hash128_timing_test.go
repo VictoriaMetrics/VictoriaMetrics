@@ -22,8 +22,8 @@ func BenchmarkHash128(b *testing.B) {
 				n += h.lo
 			}
 		}
-		atomic.AddUint64(&GlobalSinkU64, n)
+		GlobalSinkU64.Add(n)
 	})
 }
 
-var GlobalSinkU64 uint64
+var GlobalSinkU64 atomic.Uint64

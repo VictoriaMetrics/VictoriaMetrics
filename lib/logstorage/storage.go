@@ -70,8 +70,8 @@ type StorageConfig struct {
 
 // Storage is the storage for log entries.
 type Storage struct {
-	rowsDroppedTooBigTimestamp   uint64
-	rowsDroppedTooSmallTimestamp uint64
+	rowsDroppedTooBigTimestamp   atomic.Uint64
+	rowsDroppedTooSmallTimestamp atomic.Uint64
 
 	// path is the path to the Storage directory
 	path string
@@ -442,7 +442,7 @@ func (s *Storage) MustAddRows(lr *LogRows) {
 			tooSmallTimestampLogger.Warnf("skipping log entry with too small timestamp=%s; it must be bigger than %s according "+
 				"to the configured -retentionPeriod=%dd. See https://docs.victoriametrics.com/VictoriaLogs/#retention ; "+
 				"log entry: %s", &tsf, &minAllowedTsf, durationToDays(s.retention), &rf)
-			atomic.AddUint64(&s.rowsDroppedTooSmallTimestamp, 1)
+			s.rowsDroppedTooSmallTimestamp.Add(1)
 			continue
 		}
 		if day > maxAllowedDay {
@@ -452,7 +452,7 @@ func (s *Storage) MustAddRows(lr *LogRows) {
 			tooBigTimestampLogger.Warnf("skipping log entry with too big timestamp=%s; it must be smaller than %s according "+
 				"to the configured -futureRetention=%dd; see https://docs.victoriametrics.com/VictoriaLogs/#retention ; "+
 				"log entry: %s", &tsf, &maxAllowedTsf, durationToDays(s.futureRetention), &rf)
-			atomic.AddUint64(&s.rowsDroppedTooBigTimestamp, 1)
+			s.rowsDroppedTooBigTimestamp.Add(1)
 			continue
 		}
 		lrPart := m[day]
@@ -527,8 +527,8 @@ func (s *Storage) getPartitionForDay(day int64) *partitionWrapper {
 
 // UpdateStats updates ss for the given s.
 func (s *Storage) UpdateStats(ss *StorageStats) {
-	ss.RowsDroppedTooBigTimestamp += atomic.LoadUint64(&s.rowsDroppedTooBigTimestamp)
-	ss.RowsDroppedTooSmallTimestamp += atomic.LoadUint64(&s.rowsDroppedTooSmallTimestamp)
+	ss.RowsDroppedTooBigTimestamp += s.rowsDroppedTooBigTimestamp.Load()
+	ss.RowsDroppedTooSmallTimestamp += s.rowsDroppedTooSmallTimestamp.Load()
 
 	s.partitionsLock.Lock()
 	ss.PartitionsCount += uint64(len(s.partitions))
