@@ -583,7 +583,7 @@ func MarshalMetricNameRaw(dst []byte, accountID, projectID uint32, labels []prom
 		}
 		label := &labels[i]
 		if len(label.Name) > maxLabelNameLen {
-			atomic.AddUint64(&TooLongLabelNames, 1)
+			TooLongLabelNames.Add(1)
 			label.Name = label.Name[:maxLabelNameLen]
 		}
 		if len(label.Value) > maxLabelValueLen {
@@ -623,17 +623,17 @@ func MarshalMetricNameRaw(dst []byte, accountID, projectID uint32, labels []prom
 
 var (
 	// MetricsWithDroppedLabels is the number of metrics with at least a single dropped label
-	MetricsWithDroppedLabels uint64
+	MetricsWithDroppedLabels atomic.Uint64
 
 	// TooLongLabelNames is the number of too long label names
-	TooLongLabelNames uint64
+	TooLongLabelNames atomic.Uint64
 
 	// TooLongLabelValues is the number of too long label values
-	TooLongLabelValues uint64
+	TooLongLabelValues atomic.Uint64
 )
 
 func trackDroppedLabels(labels, droppedLabels []prompb.Label, accountID, projectID uint32) {
-	atomic.AddUint64(&MetricsWithDroppedLabels, 1)
+	MetricsWithDroppedLabels.Add(1)
 	select {
 	case <-droppedLabelsLogTicker.C:
 		// Do not call logger.WithThrottler() here, since this will result in increased CPU usage
@@ -646,7 +646,7 @@ func trackDroppedLabels(labels, droppedLabels []prompb.Label, accountID, project
 }
 
 func trackTruncatedLabels(labels []prompb.Label, truncated *prompb.Label, accountID, projectID uint32) {
-	atomic.AddUint64(&TooLongLabelValues, 1)
+	TooLongLabelValues.Add(1)
 	select {
 	case <-truncatedLabelsLogTicker.C:
 		// Do not call logger.WithThrottler() here, since this will result in increased CPU usage

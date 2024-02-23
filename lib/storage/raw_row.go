@@ -3,6 +3,7 @@ package storage
 import (
 	"sort"
 	"sync"
+	"sync/atomic"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -108,7 +109,7 @@ func (rrm *rawRowsMarshaler) marshalToInmemoryPart(mp *inmemoryPart, rows []rawR
 
 	// Group rows into blocks.
 	var scale int16
-	var rowsMerged uint64
+	var rowsMerged atomic.Uint64
 	r := &rows[0]
 	tsid := &r.TSID
 	precisionBits := r.PrecisionBits
@@ -135,8 +136,8 @@ func (rrm *rawRowsMarshaler) marshalToInmemoryPart(mp *inmemoryPart, rows []rawR
 	rrm.auxValues, scale = decimal.AppendFloatToDecimal(rrm.auxValues[:0], rrm.auxFloatValues)
 	tmpBlock.Init(tsid, rrm.auxTimestamps, rrm.auxValues, scale, precisionBits)
 	rrm.bsw.WriteExternalBlock(tmpBlock, ph, &rowsMerged)
-	if rowsMerged != uint64(len(rows)) {
-		logger.Panicf("BUG: unexpected rowsMerged; got %d; want %d", rowsMerged, len(rows))
+	if n := rowsMerged.Load(); n != uint64(len(rows)) {
+		logger.Panicf("BUG: unexpected rowsMerged; got %d; want %d", n, len(rows))
 	}
 	rrm.bsw.MustClose()
 }

@@ -75,21 +75,21 @@ type indexDB struct {
 
 	// The number of missing MetricID -> TSID entries.
 	// High rate for this value means corrupted indexDB.
-	missingTSIDsForMetricID uint64
+	missingTSIDsForMetricID atomic.Uint64
 
 	// The number of calls for date range searches.
-	dateRangeSearchCalls uint64
+	dateRangeSearchCalls atomic.Uint64
 
 	// The number of hits for date range searches.
-	dateRangeSearchHits uint64
+	dateRangeSearchHits atomic.Uint64
 
 	// The number of calls for global search.
-	globalSearchCalls uint64
+	globalSearchCalls atomic.Uint64
 
 	// missingMetricNamesForMetricID is a counter of missing MetricID -> MetricName entries.
 	// High rate may mean corrupted indexDB due to unclean shutdown.
 	// The db must be automatically recovered after that.
-	missingMetricNamesForMetricID uint64
+	missingMetricNamesForMetricID atomic.Uint64
 
 	// generation identifies the index generation ID
 	// and is used for syncing items from different indexDBs
@@ -216,20 +216,20 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 	m.DeletedMetricsCount += uint64(db.s.getDeletedMetricIDs().Len())
 
 	m.IndexDBRefCount += uint64(db.refCount.Load())
-	m.MissingTSIDsForMetricID += atomic.LoadUint64(&db.missingTSIDsForMetricID)
+	m.MissingTSIDsForMetricID += db.missingTSIDsForMetricID.Load()
 
-	m.DateRangeSearchCalls += atomic.LoadUint64(&db.dateRangeSearchCalls)
-	m.DateRangeSearchHits += atomic.LoadUint64(&db.dateRangeSearchHits)
-	m.GlobalSearchCalls += atomic.LoadUint64(&db.globalSearchCalls)
+	m.DateRangeSearchCalls += db.dateRangeSearchCalls.Load()
+	m.DateRangeSearchHits += db.dateRangeSearchHits.Load()
+	m.GlobalSearchCalls += db.globalSearchCalls.Load()
 
-	m.MissingMetricNamesForMetricID += atomic.LoadUint64(&db.missingMetricNamesForMetricID)
+	m.MissingMetricNamesForMetricID += db.missingMetricNamesForMetricID.Load()
 
-	m.IndexBlocksWithMetricIDsProcessed = atomic.LoadUint64(&indexBlocksWithMetricIDsProcessed)
-	m.IndexBlocksWithMetricIDsIncorrectOrder = atomic.LoadUint64(&indexBlocksWithMetricIDsIncorrectOrder)
+	m.IndexBlocksWithMetricIDsProcessed = indexBlocksWithMetricIDsProcessed.Load()
+	m.IndexBlocksWithMetricIDsIncorrectOrder = indexBlocksWithMetricIDsIncorrectOrder.Load()
 
 	m.MinTimestampForCompositeIndex = uint64(db.s.minTimestampForCompositeIndex)
-	m.CompositeFilterSuccessConversions = atomic.LoadUint64(&compositeFilterSuccessConversions)
-	m.CompositeFilterMissingConversions = atomic.LoadUint64(&compositeFilterMissingConversions)
+	m.CompositeFilterSuccessConversions = compositeFilterSuccessConversions.Load()
+	m.CompositeFilterMissingConversions = compositeFilterMissingConversions.Load()
 
 	db.tb.UpdateMetrics(&m.TableMetrics)
 	db.doExtDB(func(extDB *indexDB) {
@@ -382,7 +382,7 @@ func marshalTagFiltersKey(dst []byte, tfss []*TagFilters, tr TimeRange, versione
 	// isn't persisted to disk (it is very volatile because of tagFiltersKeyGen).
 	prefix := ^uint64(0)
 	if versioned {
-		prefix = atomic.LoadUint64(&tagFiltersKeyGen)
+		prefix = tagFiltersKeyGen.Load()
 	}
 	// Round start and end times to per-day granularity according to per-day inverted index.
 	startDate := uint64(tr.MinTimestamp) / msecPerDay
@@ -406,10 +406,10 @@ func marshalTagFiltersKey(dst []byte, tfss []*TagFilters, tr TimeRange, versione
 
 func invalidateTagFiltersCache() {
 	// This function must be fast, since it is called each time new timeseries is added.
-	atomic.AddUint64(&tagFiltersKeyGen, 1)
+	tagFiltersKeyGen.Add(1)
 }
 
-var tagFiltersKeyGen uint64
+var tagFiltersKeyGen atomic.Uint64
 
 func marshalMetricIDs(dst []byte, metricIDs []uint64) []byte {
 	// Compress metricIDs, so they occupy less space in the cache.
@@ -1626,7 +1626,7 @@ func (db *indexDB) searchMetricNameWithCache(dst []byte, metricID uint64, accoun
 	// Cannot find MetricName for the given metricID. This may be the case
 	// when indexDB contains incomplete set of metricID -> metricName entries
 	// after a snapshot or due to unflushed entries.
-	atomic.AddUint64(&db.missingMetricNamesForMetricID, 1)
+	db.missingMetricNamesForMetricID.Add(1)
 
 	// Mark the metricID as deleted, so it will be created again when new data point
 	// for the given time series will arrive.
@@ -1908,7 +1908,7 @@ func (db *indexDB) getTSIDsFromMetricIDs(qt *querytracer.Tracer, accountID, proj
 					// This may be the case on incomplete indexDB
 					// due to snapshot or due to unflushed entries.
 					// Just increment errors counter and skip it for now.
-					atomic.AddUint64(&is.db.missingTSIDsForMetricID, 1)
+					is.db.missingTSIDsForMetricID.Add(1)
 					continue
 				}
 				is.db.putToMetricIDCache(metricID, tsid)
@@ -2360,7 +2360,7 @@ func (is *indexSearch) updateMetricIDsForTagFilters(qt *querytracer.Tracer, metr
 
 	// Slow path - fall back to search in the global inverted index.
 	qt.Printf("cannot find metric ids in per-day index; fall back to global index")
-	atomic.AddUint64(&is.db.globalSearchCalls, 1)
+	is.db.globalSearchCalls.Add(1)
 	m, err := is.getMetricIDsForDateAndFilters(qt, 0, tfs, maxMetrics)
 	if err != nil {
 		if errors.Is(err, errFallbackToGlobalSearch) {
@@ -2550,7 +2550,7 @@ var errFallbackToGlobalSearch = errors.New("fall back from per-day index search 
 const maxDaysForPerDaySearch = 40
 
 func (is *indexSearch) tryUpdatingMetricIDsForDateRange(qt *querytracer.Tracer, metricIDs *uint64set.Set, tfs *TagFilters, tr TimeRange, maxMetrics int) error {
-	atomic.AddUint64(&is.db.dateRangeSearchCalls, 1)
+	is.db.dateRangeSearchCalls.Add(1)
 	minDate := uint64(tr.MinTimestamp) / msecPerDay
 	maxDate := uint64(tr.MaxTimestamp-1) / msecPerDay
 	if minDate > maxDate || maxDate-minDate > maxDaysForPerDaySearch {
@@ -2564,7 +2564,7 @@ func (is *indexSearch) tryUpdatingMetricIDsForDateRange(qt *querytracer.Tracer, 
 			return err
 		}
 		metricIDs.UnionMayOwn(m)
-		atomic.AddUint64(&is.db.dateRangeSearchHits, 1)
+		is.db.dateRangeSearchHits.Add(1)
 		return nil
 	}
 
@@ -2606,7 +2606,7 @@ func (is *indexSearch) tryUpdatingMetricIDsForDateRange(qt *querytracer.Tracer, 
 	if errGlobal != nil {
 		return errGlobal
 	}
-	atomic.AddUint64(&is.db.dateRangeSearchHits, 1)
+	is.db.dateRangeSearchHits.Add(1)
 	return nil
 }
 
@@ -3113,13 +3113,17 @@ func generateUniqueMetricID() uint64 {
 	// It is expected that metricIDs returned from this function must be dense.
 	// If they will be sparse, then this may hurt metric_ids intersection
 	// performance with uint64set.Set.
-	return atomic.AddUint64(&nextUniqueMetricID, 1)
+	return nextUniqueMetricID.Add(1)
 }
 
 // This number mustn't go backwards on restarts, otherwise metricID
 // collisions are possible. So don't change time on the server
 // between VictoriaMetrics restarts.
-var nextUniqueMetricID = uint64(time.Now().UnixNano())
+var nextUniqueMetricID = func() *atomic.Uint64 {
+	var n atomic.Uint64
+	n.Store(uint64(time.Now().UnixNano()))
+	return &n
+}()
 
 func marshalCommonPrefix(dst []byte, nsPrefix byte, accountID, projectID uint32) []byte {
 	dst = append(dst, nsPrefix)
@@ -3396,7 +3400,7 @@ func mergeTagToMetricIDsRowsInternal(data []byte, items []mergeset.Item, nsPrefi
 		// Leave the original items unmerged, so they can be merged next time.
 		// This case should be quite rare - if multiple data points are simultaneously inserted
 		// into the same new time series from multiple concurrent goroutines.
-		atomic.AddUint64(&indexBlocksWithMetricIDsIncorrectOrder, 1)
+		indexBlocksWithMetricIDsIncorrectOrder.Add(1)
 		dstData = append(dstData[:0], tmm.dataCopy...)
 		dstItems = append(dstItems[:0], tmm.itemsCopy...)
 		if !checkItemsSorted(dstData, dstItems) {
@@ -3404,12 +3408,12 @@ func mergeTagToMetricIDsRowsInternal(data []byte, items []mergeset.Item, nsPrefi
 		}
 	}
 	putTagToMetricIDsRowsMerger(tmm)
-	atomic.AddUint64(&indexBlocksWithMetricIDsProcessed, 1)
+	indexBlocksWithMetricIDsProcessed.Add(1)
 	return dstData, dstItems
 }
 
-var indexBlocksWithMetricIDsIncorrectOrder uint64
-var indexBlocksWithMetricIDsProcessed uint64
+var indexBlocksWithMetricIDsIncorrectOrder atomic.Uint64
+var indexBlocksWithMetricIDsProcessed atomic.Uint64
 
 func checkItemsSorted(data []byte, items []mergeset.Item) bool {
 	if len(items) == 0 {
