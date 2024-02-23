@@ -421,8 +421,10 @@ func (pt *partition) AddRows(rows []rawRow) {
 var isDebug = false
 
 type rawRowsShards struct {
+	// warn: order is important for aligning of 64-bit atomic operations on 32-bit arch
 	shardIdx uint32
-	// Put flushDeadlineMs to the top in order to avoid unaligned memory access on 32-bit architectures:w
+
+	// Put flushDeadlineMs to the top in order to avoid unaligned memory access on 32-bit architectures
 	flushDeadlineMs int64
 
 	// Shards reduce lock contention when adding rows on multi-CPU systems.
