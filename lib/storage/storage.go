@@ -560,7 +560,7 @@ func (m *Metrics) Reset() {
 // UpdateMetrics updates m with metrics from s.
 func (s *Storage) UpdateMetrics(m *Metrics) {
 	m.RowsAddedTotal = atomic.LoadUint64(&rowsAddedTotal)
-	m.DedupsDuringMerge = atomic.LoadUint64(&dedupsDuringMerge)
+	m.DedupsDuringMerge = dedupsDuringMerge.Load()
 	m.SnapshotsCount += uint64(s.mustGetSnapshotsCount())
 
 	m.TooSmallTimestampRows += atomic.LoadUint64(&s.tooSmallTimestampRows)
