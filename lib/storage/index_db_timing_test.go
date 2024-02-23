@@ -46,7 +46,7 @@ func BenchmarkIndexDBAddTSIDs(b *testing.B) {
 
 	const recordsPerLoop = 1e3
 
-	var goroutineID uint32
+	var goroutineID atomic.Uint32
 
 	b.ReportAllocs()
 	b.SetBytes(recordsPerLoop)
@@ -54,7 +54,7 @@ func BenchmarkIndexDBAddTSIDs(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		var mn MetricName
 		var genTSID generationTSID
-		mn.AccountID = atomic.AddUint32(&goroutineID, 1)
+		mn.AccountID = goroutineID.Add(1)
 
 		// The most common tags.
 		mn.Tags = []Tag{

@@ -2762,8 +2762,12 @@ func (s *Storage) mustOpenIndexDBTables(path string) (next, curr, prev *indexDB)
 var indexDBTableNameRegexp = regexp.MustCompile("^[0-9A-F]{16}$")
 
 func nextIndexDBTableName() string {
-	n := atomic.AddUint64(&indexDBTableIdx, 1)
+	n := indexDBTableIdx.Add(1)
 	return fmt.Sprintf("%016X", n)
 }
 
-var indexDBTableIdx = uint64(time.Now().UnixNano())
+var indexDBTableIdx = func() *atomic.Uint64 {
+	var x atomic.Uint64
+	x.Store(uint64(time.Now().UnixNano()))
+	return &x
+}()
