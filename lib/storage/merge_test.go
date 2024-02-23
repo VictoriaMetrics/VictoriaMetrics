@@ -3,6 +3,7 @@ package storage
 import (
 	"errors"
 	"math/rand"
+	"sync/atomic"
 	"testing"
 )
 
@@ -371,18 +372,18 @@ func TestMergeForciblyStop(t *testing.T) {
 	var bsw blockStreamWriter
 	bsw.MustInitFromInmemoryPart(&mp, -5)
 	ch := make(chan struct{})
-	var rowsMerged, rowsDeleted uint64
+	var rowsMerged, rowsDeleted atomic.Uint64
 	close(ch)
 
 	strg := newTestStorage()
 	if err := mergeBlockStreams(&mp.ph, &bsw, bsrs, ch, strg, 0, &rowsMerged, &rowsDeleted); !errors.Is(err, errForciblyStopped) {
 		t.Fatalf("unexpected error in mergeBlockStreams: got %v; want %v", err, errForciblyStopped)
 	}
-	if rowsMerged != 0 {
-		t.Fatalf("unexpected rowsMerged; got %d; want %d", rowsMerged, 0)
+	if n := rowsMerged.Load(); n != 0 {
+		t.Fatalf("unexpected rowsMerged; got %d; want %d", n, 0)
 	}
-	if rowsDeleted != 0 {
-		t.Fatalf("unexpected rowsDeleted; got %d; want %d", rowsDeleted, 0)
+	if n := rowsDeleted.Load(); n != 0 {
+		t.Fatalf("unexpected rowsDeleted; got %d; want %d", n, 0)
 	}
 	stopTestStorage(strg)
 }
@@ -396,7 +397,7 @@ func testMergeBlockStreams(t *testing.T, bsrs []*blockStreamReader, expectedBloc
 	bsw.MustInitFromInmemoryPart(&mp, -5)
 
 	strg := newTestStorage()
-	var rowsMerged, rowsDeleted uint64
+	var rowsMerged, rowsDeleted atomic.Uint64
 	if err := mergeBlockStreams(&mp.ph, &bsw, bsrs, nil, strg, 0, &rowsMerged, &rowsDeleted); err != nil {
 		t.Fatalf("unexpected error in mergeBlockStreams: %s", err)
 	}
@@ -406,11 +407,11 @@ func testMergeBlockStreams(t *testing.T, bsrs []*blockStreamReader, expectedBloc
 	if mp.ph.RowsCount != uint64(expectedRowsCount) {
 		t.Fatalf("unexpected rows count in partHeader; got %d; want %d", mp.ph.RowsCount, expectedRowsCount)
 	}
-	if rowsMerged != mp.ph.RowsCount {
-		t.Fatalf("unexpected rowsMerged; got %d; want %d", rowsMerged, mp.ph.RowsCount)
+	if n := rowsMerged.Load(); n != mp.ph.RowsCount {
+		t.Fatalf("unexpected rowsMerged; got %d; want %d", n, mp.ph.RowsCount)
 	}
-	if rowsDeleted != 0 {
-		t.Fatalf("unexpected rowsDeleted; got %d; want %d", rowsDeleted, 0)
+	if n := rowsDeleted.Load(); n != 0 {
+		t.Fatalf("unexpected rowsDeleted; got %d; want %d", n, 0)
 	}
 	if mp.ph.MinTimestamp != expectedMinTimestamp {
 		t.Fatalf("unexpected MinTimestamp in partHeader; got %d; want %d", mp.ph.MinTimestamp, expectedMinTimestamp)

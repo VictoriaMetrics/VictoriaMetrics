@@ -3,6 +3,7 @@ package storage
 import (
 	"fmt"
 	"math/rand"
+	"sync/atomic"
 	"testing"
 )
 
@@ -23,7 +24,7 @@ func BenchmarkMergeBlockStreamsFourSourcesBestCase(b *testing.B) {
 }
 
 func benchmarkMergeBlockStreams(b *testing.B, mps []*inmemoryPart, rowsPerLoop int64) {
-	var rowsMerged, rowsDeleted uint64
+	var rowsMerged, rowsDeleted atomic.Uint64
 	strg := newTestStorage()
 
 	b.ReportAllocs()

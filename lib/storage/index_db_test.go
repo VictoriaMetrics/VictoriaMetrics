@@ -1480,7 +1480,7 @@ func TestIndexDBRepopulateAfterRotation(t *testing.T) {
 	}
 
 	// check new series were registered in indexDB
-	added := atomic.LoadUint64(&db.s.newTimeseriesCreated)
+	added := db.s.newTimeseriesCreated.Load()
 	if added != metricRowsN {
 		t.Fatalf("expected indexDB to contain %d rows; got %d", metricRowsN, added)
 	}

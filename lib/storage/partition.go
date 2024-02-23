@@ -75,26 +75,23 @@ const maxRawRowsPerShard = (8 << 20) / int(unsafe.Sizeof(rawRow{}))
 
 // partition represents a partition.
 type partition struct {
-	// Put atomic counters to the top of struct, so they are aligned to 8 bytes on 32-bit arch.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/212
+	activeInmemoryMerges atomic.Int64
+	activeSmallMerges    atomic.Int64
+	activeBigMerges      atomic.Int64
 
-	activeInmemoryMerges uint64
-	activeSmallMerges    uint64
-	activeBigMerges      uint64
+	inmemoryMergesCount atomic.Uint64
+	smallMergesCount    atomic.Uint64
+	bigMergesCount      atomic.Uint64
 
-	inmemoryMergesCount uint64
-	smallMergesCount    uint64
-	bigMergesCount      uint64
+	inmemoryRowsMerged atomic.Uint64
+	smallRowsMerged    atomic.Uint64
+	bigRowsMerged      atomic.Uint64
 
-	inmemoryRowsMerged uint64
-	smallRowsMerged    uint64
-	bigRowsMerged      uint64
+	inmemoryRowsDeleted atomic.Uint64
+	smallRowsDeleted    atomic.Uint64
+	bigRowsDeleted      atomic.Uint64
 
-	inmemoryRowsDeleted uint64
-	smallRowsDeleted    uint64
-	bigRowsDeleted      uint64
-
-	mergeIdx uint64
+	mergeIdx atomic.Uint64
 
 	// the path to directory with smallParts.
 	smallPartsPath string
@@ -274,12 +271,12 @@ func mustOpenPartition(smallPartsPath, bigPartsPath string, s *Storage) *partiti
 func newPartition(name, smallPartsPath, bigPartsPath string, s *Storage) *partition {
 	p := &partition{
 		name:           name,
-		mergeIdx:       uint64(time.Now().UnixNano()),
 		smallPartsPath: smallPartsPath,
 		bigPartsPath:   bigPartsPath,
 		s:              s,
 		stopCh:         make(chan struct{}),
 	}
+	p.mergeIdx.Store(uint64(time.Now().UnixNano()))
 	p.rawRows.init()
 	return p
 }
@@ -376,21 +373,21 @@ func (pt *partition) UpdateMetrics(m *partitionMetrics) {
 	m.IndexBlocksCacheRequests = ibCache.Requests()
 	m.IndexBlocksCacheMisses = ibCache.Misses()
 
-	m.ActiveInmemoryMerges += atomic.LoadUint64(&pt.activeInmemoryMerges)
-	m.ActiveSmallMerges += atomic.LoadUint64(&pt.activeSmallMerges)
-	m.ActiveBigMerges += atomic.LoadUint64(&pt.activeBigMerges)
+	m.ActiveInmemoryMerges += uint64(pt.activeInmemoryMerges.Load())
+	m.ActiveSmallMerges += uint64(pt.activeSmallMerges.Load())
+	m.ActiveBigMerges += uint64(pt.activeBigMerges.Load())
 
-	m.InmemoryMergesCount += atomic.LoadUint64(&pt.inmemoryMergesCount)
-	m.SmallMergesCount += atomic.LoadUint64(&pt.smallMergesCount)
-	m.BigMergesCount += atomic.LoadUint64(&pt.bigMergesCount)
+	m.InmemoryMergesCount += pt.inmemoryMergesCount.Load()
+	m.SmallMergesCount += pt.smallMergesCount.Load()
+	m.BigMergesCount += pt.bigMergesCount.Load()
 
-	m.InmemoryRowsMerged += atomic.LoadUint64(&pt.inmemoryRowsMerged)
-	m.SmallRowsMerged += atomic.LoadUint64(&pt.smallRowsMerged)
-	m.BigRowsMerged += atomic.LoadUint64(&pt.bigRowsMerged)
+	m.InmemoryRowsMerged += pt.inmemoryRowsMerged.Load()
+	m.SmallRowsMerged += pt.smallRowsMerged.Load()
+	m.BigRowsMerged += pt.bigRowsMerged.Load()
 
-	m.InmemoryRowsDeleted += atomic.LoadUint64(&pt.inmemoryRowsDeleted)
-	m.SmallRowsDeleted += atomic.LoadUint64(&pt.smallRowsDeleted)
-	m.BigRowsDeleted += atomic.LoadUint64(&pt.bigRowsDeleted)
+	m.InmemoryRowsDeleted += pt.inmemoryRowsDeleted.Load()
+	m.SmallRowsDeleted += pt.smallRowsDeleted.Load()
+	m.BigRowsDeleted += pt.bigRowsDeleted.Load()
 }
 
 // AddRows adds the given rows to the partition pt.
@@ -1531,10 +1528,10 @@ func mustOpenBlockStreamReaders(pws []*partWrapper) []*blockStreamReader {
 
 func (pt *partition) mergePartsInternal(dstPartPath string, bsw *blockStreamWriter, bsrs []*blockStreamReader, dstPartType partType, stopCh <-chan struct{}) (*partHeader, error) {
 	var ph partHeader
-	var rowsMerged *uint64
-	var rowsDeleted *uint64
-	var mergesCount *uint64
-	var activeMerges *uint64
+	var rowsMerged *atomic.Uint64
+	var rowsDeleted *atomic.Uint64
+	var mergesCount *atomic.Uint64
+	var activeMerges *atomic.Int64
 	switch dstPartType {
 	case partInmemory:
 		rowsMerged = &pt.inmemoryRowsMerged
@@ -1555,10 +1552,10 @@ func (pt *partition) mergePartsInternal(dstPartPath string, bsw *blockStreamWrit
 		logger.Panicf("BUG: unknown partType=%d", dstPartType)
 	}
 	retentionDeadline := timestampFromTime(time.Now()) - pt.s.retentionMsecs
-	atomic.AddUint64(activeMerges, 1)
+	activeMerges.Add(1)
 	err := mergeBlockStreams(&ph, bsw, bsrs, stopCh, pt.s, retentionDeadline, rowsMerged, rowsDeleted)
-	atomic.AddUint64(activeMerges, ^uint64(0))
-	atomic.AddUint64(mergesCount, 1)
+	activeMerges.Add(-1)
+	mergesCount.Add(1)
 	if err != nil {
 		return nil, fmt.Errorf("cannot merge %d parts to %s: %w", len(bsrs), dstPartPath, err)
 	}
@@ -1674,7 +1671,7 @@ func getCompressLevel(rowsPerBlock float64) int {
 }
 
 func (pt *partition) nextMergeIdx() uint64 {
-	return atomic.AddUint64(&pt.mergeIdx, 1)
+	return pt.mergeIdx.Add(1)
 }
 
 func removeParts(pws []*partWrapper, partsToRemove map[*partWrapper]struct{}) ([]*partWrapper, int) {
@@ -1712,21 +1709,21 @@ func (pt *partition) removeStaleParts() {
 	pt.partsLock.Lock()
 	for _, pw := range pt.inmemoryParts {
 		if !pw.isInMerge && pw.p.ph.MaxTimestamp < retentionDeadline {
-			atomic.AddUint64(&pt.inmemoryRowsDeleted, pw.p.ph.RowsCount)
+			pt.inmemoryRowsDeleted.Add(pw.p.ph.RowsCount)
 			pw.isInMerge = true
 			pws = append(pws, pw)
 		}
 	}
 	for _, pw := range pt.smallParts {
 		if !pw.isInMerge && pw.p.ph.MaxTimestamp < retentionDeadline {
-			atomic.AddUint64(&pt.smallRowsDeleted, pw.p.ph.RowsCount)
+			pt.smallRowsDeleted.Add(pw.p.ph.RowsCount)
 			pw.isInMerge = true
 			pws = append(pws, pw)
 		}
 	}
 	for _, pw := range pt.bigParts {
 		if !pw.isInMerge && pw.p.ph.MaxTimestamp < retentionDeadline {
-			atomic.AddUint64(&pt.bigRowsDeleted, pw.p.ph.RowsCount)
+			pt.bigRowsDeleted.Add(pw.p.ph.RowsCount)
 			pw.isInMerge = true
 			pws = append(pws, pw)
 		}

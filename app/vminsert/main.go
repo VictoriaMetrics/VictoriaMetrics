@@ -435,12 +435,12 @@ var (
 	promscrapeConfigReloadRequests = metrics.NewCounter(`vm_http_requests_total{path="/-/reload"}`)
 
 	_ = metrics.NewGauge(`vm_metrics_with_dropped_labels_total`, func() float64 {
-		return float64(atomic.LoadUint64(&storage.MetricsWithDroppedLabels))
+		return float64(storage.MetricsWithDroppedLabels.Load())
 	})
 	_ = metrics.NewGauge(`vm_too_long_label_names_total`, func() float64 {
-		return float64(atomic.LoadUint64(&storage.TooLongLabelNames))
+		return float64(storage.TooLongLabelNames.Load())
 	})
 	_ = metrics.NewGauge(`vm_too_long_label_values_total`, func() float64 {
-		return float64(atomic.LoadUint64(&storage.TooLongLabelValues))
+		return float64(storage.TooLongLabelValues.Load())
 	})
 )

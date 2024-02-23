@@ -40,27 +40,25 @@ const (
 
 // Storage represents TSDB storage.
 type Storage struct {
-	// Atomic counters must go at the top of the structure in order to properly align by 8 bytes on 32-bit archs.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/212 .
-	tooSmallTimestampRows uint64
-	tooBigTimestampRows   uint64
+	tooSmallTimestampRows atomic.Uint64
+	tooBigTimestampRows   atomic.Uint64
 
-	timeseriesRepopulated  uint64
-	timeseriesPreCreated   uint64
-	newTimeseriesCreated   uint64
-	slowRowInserts         uint64
-	slowPerDayIndexInserts uint64
-	slowMetricNameLoads    uint64
+	timeseriesRepopulated  atomic.Uint64
+	timeseriesPreCreated   atomic.Uint64
+	newTimeseriesCreated   atomic.Uint64
+	slowRowInserts         atomic.Uint64
+	slowPerDayIndexInserts atomic.Uint64
+	slowMetricNameLoads    atomic.Uint64
 
-	hourlySeriesLimitRowsDropped uint64
-	dailySeriesLimitRowsDropped  uint64
+	hourlySeriesLimitRowsDropped atomic.Uint64
+	dailySeriesLimitRowsDropped  atomic.Uint64
 
 	// nextRotationTimestamp is a timestamp in seconds of the next indexdb rotation.
 	//
 	// It is used for gradual pre-population of the idbNext during the last hour before the indexdb rotation.
 	// in order to reduce spikes in CPU and disk IO usage just after the rotiation.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1401
-	nextRotationTimestamp int64
+	nextRotationTimestamp atomic.Int64
 
 	path           string
 	cachePath      string
@@ -124,7 +122,7 @@ type Storage struct {
 	prefetchedMetricIDs     *uint64set.Set
 
 	// prefetchedMetricIDsDeadline is used for periodic reset of prefetchedMetricIDs in order to limit its size under high rate of creating new series.
-	prefetchedMetricIDsDeadline uint64
+	prefetchedMetricIDsDeadline atomic.Uint64
 
 	stop chan struct{}
 
@@ -245,7 +243,7 @@ func MustOpenStorage(path string, retention time.Duration, maxHourlySeries, maxD
 	nowSecs := int64(fasttime.UnixTimestamp())
 	retentionSecs := retention.Milliseconds() / 1000 // not .Seconds() because unnecessary float64 conversion
 	nextRotationTimestamp := nextRetentionDeadlineSeconds(nowSecs, retentionSecs, retentionTimezoneOffsetSecs)
-	atomic.StoreInt64(&s.nextRotationTimestamp, nextRotationTimestamp)
+	s.nextRotationTimestamp.Store(nextRotationTimestamp)
 
 	// Load nextDayMetricIDs cache
 	date := fasttime.UnixDate()
@@ -545,34 +543,34 @@ func (m *Metrics) Reset() {
 
 // UpdateMetrics updates m with metrics from s.
 func (s *Storage) UpdateMetrics(m *Metrics) {
-	m.RowsAddedTotal = atomic.LoadUint64(&rowsAddedTotal)
+	m.RowsAddedTotal = rowsAddedTotal.Load()
 	m.DedupsDuringMerge = dedupsDuringMerge.Load()
 	m.SnapshotsCount += uint64(s.mustGetSnapshotsCount())
 
-	m.TooSmallTimestampRows += atomic.LoadUint64(&s.tooSmallTimestampRows)
-	m.TooBigTimestampRows += atomic.LoadUint64(&s.tooBigTimestampRows)
+	m.TooSmallTimestampRows += s.tooSmallTimestampRows.Load()
+	m.TooBigTimestampRows += s.tooBigTimestampRows.Load()
 
-	m.TimeseriesRepopulated += atomic.LoadUint64(&s.timeseriesRepopulated)
-	m.TimeseriesPreCreated += atomic.LoadUint64(&s.timeseriesPreCreated)
-	m.NewTimeseriesCreated += atomic.LoadUint64(&s.newTimeseriesCreated)
-	m.SlowRowInserts += atomic.LoadUint64(&s.slowRowInserts)
-	m.SlowPerDayIndexInserts += atomic.LoadUint64(&s.slowPerDayIndexInserts)
-	m.SlowMetricNameLoads += atomic.LoadUint64(&s.slowMetricNameLoads)
+	m.TimeseriesRepopulated += s.timeseriesRepopulated.Load()
+	m.TimeseriesPreCreated += s.timeseriesPreCreated.Load()
+	m.NewTimeseriesCreated += s.newTimeseriesCreated.Load()
+	m.SlowRowInserts += s.slowRowInserts.Load()
+	m.SlowPerDayIndexInserts += s.slowPerDayIndexInserts.Load()
+	m.SlowMetricNameLoads += s.slowMetricNameLoads.Load()
 
 	if sl := s.hourlySeriesLimiter; sl != nil {
-		m.HourlySeriesLimitRowsDropped += atomic.LoadUint64(&s.hourlySeriesLimitRowsDropped)
+		m.HourlySeriesLimitRowsDropped += s.hourlySeriesLimitRowsDropped.Load()
 		m.HourlySeriesLimitMaxSeries += uint64(sl.MaxItems())
 		m.HourlySeriesLimitCurrentSeries += uint64(sl.CurrentItems())
 	}
 
 	if sl := s.dailySeriesLimiter; sl != nil {
-		m.DailySeriesLimitRowsDropped += atomic.LoadUint64(&s.dailySeriesLimitRowsDropped)
+		m.DailySeriesLimitRowsDropped += s.dailySeriesLimitRowsDropped.Load()
 		m.DailySeriesLimitMaxSeries += uint64(sl.MaxItems())
 		m.DailySeriesLimitCurrentSeries += uint64(sl.CurrentItems())
 	}
 
-	m.TimestampsBlocksMerged = atomic.LoadUint64(&timestampsBlocksMerged)
-	m.TimestampsBytesSaved = atomic.LoadUint64(&timestampsBytesSaved)
+	m.TimestampsBlocksMerged = timestampsBlocksMerged.Load()
+	m.TimestampsBytesSaved = timestampsBytesSaved.Load()
 
 	var cs fastcache.Stats
 	s.tsidCache.UpdateStats(&cs)
@@ -603,8 +601,8 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 
 	m.DateMetricIDCacheSize += uint64(s.dateMetricIDCache.EntriesCount())
 	m.DateMetricIDCacheSizeBytes += uint64(s.dateMetricIDCache.SizeBytes())
-	m.DateMetricIDCacheSyncsCount += atomic.LoadUint64(&s.dateMetricIDCache.syncsCount)
-	m.DateMetricIDCacheResetsCount += atomic.LoadUint64(&s.dateMetricIDCache.resetsCount)
+	m.DateMetricIDCacheSyncsCount += s.dateMetricIDCache.syncsCount.Load()
+	m.DateMetricIDCacheResetsCount += s.dateMetricIDCache.resetsCount.Load()
 
 	hmCurr := s.currHourMetricIDs.Load()
 	hmPrev := s.prevHourMetricIDs.Load()
@@ -637,7 +635,7 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 }
 
 func (s *Storage) nextRetentionSeconds() int64 {
-	return atomic.LoadInt64(&s.nextRotationTimestamp) - int64(fasttime.UnixTimestamp())
+	return s.nextRotationTimestamp.Load() - int64(fasttime.UnixTimestamp())
 }
 
 // SetFreeDiskSpaceLimit sets the minimum free disk space size of current storage path
@@ -783,7 +781,7 @@ func (s *Storage) mustRotateIndexDB(currentTime time.Time) {
 
 	// Update nextRotationTimestamp
 	nextRotationTimestamp := currentTime.Unix() + s.retentionMsecs/1000
-	atomic.StoreInt64(&s.nextRotationTimestamp, nextRotationTimestamp)
+	s.nextRotationTimestamp.Store(nextRotationTimestamp)
 
 	// Set idbNext to idbNew
 	idbNext := s.idbNext.Load()
@@ -1191,7 +1189,7 @@ func (s *Storage) prefetchMetricNames(qt *querytracer.Tracer, srcMetricIDs []uin
 		qt.Printf("skip pre-fetching metric names for low number of missing metric ids=%d", len(metricIDs))
 		return nil
 	}
-	atomic.AddUint64(&s.slowMetricNameLoads, uint64(len(metricIDs)))
+	s.slowMetricNameLoads.Add(uint64(len(metricIDs)))
 
 	// Pre-fetch metricIDs.
 	var missingMetricIDs []uint64
@@ -1232,12 +1230,12 @@ func (s *Storage) prefetchMetricNames(qt *querytracer.Tracer, srcMetricIDs []uin
 
 	// Store the pre-fetched metricIDs, so they aren't pre-fetched next time.
 	s.prefetchedMetricIDsLock.Lock()
-	if fasttime.UnixTimestamp() > atomic.LoadUint64(&s.prefetchedMetricIDsDeadline) {
+	if fasttime.UnixTimestamp() > s.prefetchedMetricIDsDeadline.Load() {
 		// Periodically reset the prefetchedMetricIDs in order to limit its size.
 		s.prefetchedMetricIDs = &uint64set.Set{}
 		d := timeutil.AddJitterToDuration(time.Second * 20 * 60)
 		metricIDsDeadline := fasttime.UnixTimestamp() + uint64(d.Seconds())
-		atomic.StoreUint64(&s.prefetchedMetricIDsDeadline, metricIDsDeadline)
+		s.prefetchedMetricIDsDeadline.Store(metricIDsDeadline)
 	}
 	s.prefetchedMetricIDs.AddMulti(metricIDs)
 	s.prefetchedMetricIDsLock.Unlock()
@@ -1547,7 +1545,7 @@ func (s *Storage) ForceMergePartitions(partitionNamePrefix string) error {
 	return s.tb.ForceMergePartitions(partitionNamePrefix)
 }
 
-var rowsAddedTotal uint64
+var rowsAddedTotal atomic.Uint64
 
 // AddRows adds the given mrs to s.
 //
@@ -1576,7 +1574,7 @@ func (s *Storage) AddRows(mrs []MetricRow, precisionBits uint8) error {
 			}
 			continue
 		}
-		atomic.AddUint64(&rowsAddedTotal, uint64(len(mrsBlock)))
+		rowsAddedTotal.Add(uint64(len(mrsBlock)))
 	}
 	putMetricRowsInsertCtx(ic)
 
@@ -1709,7 +1707,7 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 		s.putSeriesToCache(mr.MetricNameRaw, &genTSID, date)
 	}
 
-	atomic.AddUint64(&s.timeseriesRepopulated, seriesRepopulated)
+	s.timeseriesRepopulated.Add(seriesRepopulated)
 
 	// There is no need in pre-filling idbNext here, since RegisterMetricNames() is rarely called.
 	// So it is OK to register metric names in blocking manner after indexdb rotation.
@@ -1766,7 +1764,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 					"probably you need updating -retentionPeriod command-line flag; metricName: %s",
 					mr.Timestamp, minTimestamp, metricName)
 			}
-			atomic.AddUint64(&s.tooSmallTimestampRows, 1)
+			s.tooSmallTimestampRows.Add(1)
 			continue
 		}
 		if mr.Timestamp > maxTimestamp {
@@ -1776,7 +1774,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 				firstWarn = fmt.Errorf("cannot insert row with too big timestamp %d exceeding the current time; maximum allowed timestamp is %d; metricName: %s",
 					mr.Timestamp, maxTimestamp, metricName)
 			}
-			atomic.AddUint64(&s.tooBigTimestampRows, 1)
+			s.tooBigTimestampRows.Add(1)
 			continue
 		}
 		dstMrs[j] = mr
@@ -1900,9 +1898,9 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 		}
 	}
 
-	atomic.AddUint64(&s.slowRowInserts, slowInsertsCount)
-	atomic.AddUint64(&s.newTimeseriesCreated, newSeriesCount)
-	atomic.AddUint64(&s.timeseriesRepopulated, seriesRepopulated)
+	s.slowRowInserts.Add(slowInsertsCount)
+	s.newTimeseriesCreated.Add(newSeriesCount)
+	s.timeseriesRepopulated.Add(seriesRepopulated)
 
 	dstMrs = dstMrs[:j]
 	rows = rows[:j]
@@ -1956,12 +1954,12 @@ func (s *Storage) putSeriesToCache(metricNameRaw []byte, genTSID *generationTSID
 
 func (s *Storage) registerSeriesCardinality(metricID uint64, metricNameRaw []byte) bool {
 	if sl := s.hourlySeriesLimiter; sl != nil && !sl.Add(metricID) {
-		atomic.AddUint64(&s.hourlySeriesLimitRowsDropped, 1)
+		s.hourlySeriesLimitRowsDropped.Add(1)
 		logSkippedSeries(metricNameRaw, "-storage.maxHourlySeries", sl.MaxItems())
 		return false
 	}
 	if sl := s.dailySeriesLimiter; sl != nil && !sl.Add(metricID) {
-		atomic.AddUint64(&s.dailySeriesLimitRowsDropped, 1)
+		s.dailySeriesLimitRowsDropped.Add(1)
 		logSkippedSeries(metricNameRaw, "-storage.maxDailySeries", sl.MaxItems())
 		return false
 	}
@@ -2056,7 +2054,7 @@ func (s *Storage) prefillNextIndexDB(rows []rawRow, mrs []*MetricRow) error {
 		s.putSeriesToCache(metricNameRaw, &genTSID, date)
 		timeseriesPreCreated++
 	}
-	atomic.AddUint64(&s.timeseriesPreCreated, timeseriesPreCreated)
+	s.timeseriesPreCreated.Add(timeseriesPreCreated)
 
 	return firstError
 }
@@ -2163,7 +2161,7 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow) error {
 
 	// Slow path - add new (date, metricID) entries to indexDB.
 
-	atomic.AddUint64(&s.slowPerDayIndexInserts, uint64(len(pendingDateMetricIDs)))
+	s.slowPerDayIndexInserts.Add(uint64(len(pendingDateMetricIDs)))
 	// Sort pendingDateMetricIDs by (date, metricID) in order to speed up `is` search in the loop below.
 	sort.Slice(pendingDateMetricIDs, func(i, j int) bool {
 		a := pendingDateMetricIDs[i]
@@ -2218,9 +2216,8 @@ func fastHashUint64(x uint64) uint64 {
 //
 // It should be faster than map[date]*uint64set.Set on multicore systems.
 type dateMetricIDCache struct {
-	// 64-bit counters must be at the top of the structure to be properly aligned on 32-bit arches.
-	syncsCount  uint64
-	resetsCount uint64
+	syncsCount  atomic.Uint64
+	resetsCount atomic.Uint64
 
 	// Contains immutable map
 	byDate atomic.Pointer[byDateMetricIDMap]
@@ -2248,7 +2245,7 @@ func (dmc *dateMetricIDCache) resetLocked() {
 	dmc.byDateMutable = newByDateMetricIDMap()
 	dmc.slowHits = 0
 
-	atomic.AddUint64(&dmc.resetsCount, 1)
+	dmc.resetsCount.Add(1)
 }
 
 func (dmc *dateMetricIDCache) EntriesCount() int {
@@ -2395,7 +2392,7 @@ func (dmc *dateMetricIDCache) syncLocked() {
 	dmc.byDate.Store(dmc.byDateMutable)
 	dmc.byDateMutable = newByDateMetricIDMap()
 
-	atomic.AddUint64(&dmc.syncsCount, 1)
+	dmc.syncsCount.Add(1)
 
 	if dmc.SizeBytes() > uint64(memory.Allowed())/256 {
 		dmc.resetLocked()
