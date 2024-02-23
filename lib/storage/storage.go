@@ -2461,7 +2461,9 @@ func (dmc *dateMetricIDCache) syncLocked() {
 	byDateMutable := dmc.byDateMutable
 	byDateMutable.hotEntry.Store(&byDateMetricIDEntry{})
 
+	keepDatesMap := make(map[uint64]struct{}, len(byDateMutable.m))
 	for k, e := range byDateMutable.m {
+		keepDatesMap[k.date] = struct{}{}
 		v := byDate.get(k.generation, k.date)
 		if v == nil {
 			// Nothing to merge
@@ -2477,7 +2479,9 @@ func (dmc *dateMetricIDCache) syncLocked() {
 	}
 
 	// Copy entries from byDate, which are missing in byDateMutable
+	allDatesMap := make(map[uint64]struct{}, len(byDate.m))
 	for k, e := range byDate.m {
+		allDatesMap[k.date] = struct{}{}
 		v := byDateMutable.get(k.generation, k.date)
 		if v != nil {
 			continue
@@ -2486,18 +2490,22 @@ func (dmc *dateMetricIDCache) syncLocked() {
 	}
 
 	if len(byDateMutable.m) > 2 {
-		// Keep only entries for the last two dates - these are usually
-		// the current date and the next date.
-		dates := make([]uint64, 0, len(byDateMutable.m))
-		for k := range byDateMutable.m {
-			dates = append(dates, k.date)
+		// Keep only entries for the last two dates from allDatesMap plus all the entries for byDateMutable.
+		dates := make([]uint64, 0, len(allDatesMap))
+		for date := range allDatesMap {
+			dates = append(dates, date)
 		}
 		sort.Slice(dates, func(i, j int) bool {
 			return dates[i] < dates[j]
 		})
-		maxDate := dates[len(dates)-2]
+		if len(dates) > 2 {
+			dates = dates[len(dates)-2:]
+		}
+		for _, date := range dates {
+			keepDatesMap[date] = struct{}{}
+		}
 		for k := range byDateMutable.m {
-			if k.date < maxDate {
+			if _, ok := keepDatesMap[k.date]; !ok {
 				delete(byDateMutable.m, k)
 			}
 		}
