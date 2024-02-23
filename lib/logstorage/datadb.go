@@ -39,12 +39,12 @@ const maxInmemoryPartsPerPartition = 20
 // datadb represents a database with log data
 type datadb struct {
 	// mergeIdx is used for generating unique directory names for parts
-	mergeIdx uint64
+	mergeIdx atomic.Uint64
 
-	inmemoryMergesTotal  uint64
-	inmemoryActiveMerges uint64
-	fileMergesTotal      uint64
-	fileActiveMerges     uint64
+	inmemoryMergesTotal  atomic.Uint64
+	inmemoryActiveMerges atomic.Int64
+	fileMergesTotal      atomic.Uint64
+	fileActiveMerges     atomic.Int64
 
 	// pt is the partition the datadb belongs to
 	pt *partition
@@ -171,12 +171,12 @@ func mustOpenDatadb(pt *partition, path string, flushInterval time.Duration) *da
 
 	ddb := &datadb{
 		pt:            pt,
-		mergeIdx:      uint64(time.Now().UnixNano()),
 		flushInterval: flushInterval,
 		path:          path,
 		fileParts:     pws,
 		stopCh:        make(chan struct{}),
 	}
+	ddb.mergeIdx.Store(uint64(time.Now().UnixNano()))
 
 	// Start merge workers in the hope they'll merge the remaining parts
 	ddb.partsLock.Lock()
@@ -388,13 +388,13 @@ func (ddb *datadb) mustMergeParts(pws []*partWrapper, isFinal bool) {
 	}
 
 	if dstPartType == partInmemory {
-		atomic.AddUint64(&ddb.inmemoryMergesTotal, 1)
-		atomic.AddUint64(&ddb.inmemoryActiveMerges, 1)
-		defer atomic.AddUint64(&ddb.inmemoryActiveMerges, ^uint64(0))
+		ddb.inmemoryMergesTotal.Add(1)
+		ddb.inmemoryActiveMerges.Add(1)
+		defer ddb.inmemoryActiveMerges.Add(-1)
 	} else {
-		atomic.AddUint64(&ddb.fileMergesTotal, 1)
-		atomic.AddUint64(&ddb.fileActiveMerges, 1)
-		defer atomic.AddUint64(&ddb.fileActiveMerges, ^uint64(0))
+		ddb.fileMergesTotal.Add(1)
+		ddb.fileActiveMerges.Add(1)
+		defer ddb.fileActiveMerges.Add(-1)
 	}
 
 	// Initialize destination paths.
@@ -489,7 +489,7 @@ func (ddb *datadb) mustMergeParts(pws []*partWrapper, isFinal bool) {
 }
 
 func (ddb *datadb) nextMergeIdx() uint64 {
-	return atomic.AddUint64(&ddb.mergeIdx, 1)
+	return ddb.mergeIdx.Add(1)
 }
 
 type partType int
@@ -657,10 +657,10 @@ func (s *DatadbStats) RowsCount() uint64 {
 
 // updateStats updates s with ddb stats
 func (ddb *datadb) updateStats(s *DatadbStats) {
-	s.InmemoryMergesTotal += atomic.LoadUint64(&ddb.inmemoryMergesTotal)
-	s.InmemoryActiveMerges += atomic.LoadUint64(&ddb.inmemoryActiveMerges)
-	s.FileMergesTotal += atomic.LoadUint64(&ddb.fileMergesTotal)
-	s.FileActiveMerges += atomic.LoadUint64(&ddb.fileActiveMerges)
+	s.InmemoryMergesTotal += ddb.inmemoryMergesTotal.Load()
+	s.InmemoryActiveMerges += uint64(ddb.inmemoryActiveMerges.Load())
+	s.FileMergesTotal += ddb.fileMergesTotal.Load()
+	s.FileActiveMerges += uint64(ddb.fileActiveMerges.Load())
 
 	ddb.partsLock.Lock()
 
@@ -855,7 +855,7 @@ func (ddb *datadb) releasePartsToMerge(pws []*partWrapper) {
 
 func availableDiskSpace(path string) uint64 {
 	available := fs.MustGetFreeSpace(path)
-	reserved := atomic.LoadUint64(&reservedDiskSpace)
+	reserved := reservedDiskSpace.Load()
 	if available < reserved {
 		return 0
 	}
@@ -873,18 +873,18 @@ func tryReserveDiskSpace(path string, n uint64) bool {
 }
 
 func reserveDiskSpace(n uint64) uint64 {
-	return atomic.AddUint64(&reservedDiskSpace, n)
+	return reservedDiskSpace.Add(n)
 }
 
 func releaseDiskSpace(n uint64) {
-	atomic.AddUint64(&reservedDiskSpace, ^(n - 1))
+	reservedDiskSpace.Add(^(n - 1))
 }
 
 // reservedDiskSpace tracks global reserved disk space for currently executed
 // background merges across all the partitions.
 //
 // It should allow avoiding background merges when there is no free disk space.
-var reservedDiskSpace uint64
+var reservedDiskSpace atomic.Uint64
 
 func needStop(stopCh <-chan struct{}) bool {
 	select {
