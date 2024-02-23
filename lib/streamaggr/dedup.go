@@ -159,23 +159,14 @@ func (d *deduplicator) flush() {
 	// 2. empty encoder replaces the previous encoder to keep memory usage under control.
 	encoder := d.encoder.Swap(newEncoder)
 
-	// limit number of concurrently executing processShard
-	// to avoid excessive memory usage during the flush
-	syncCh := make(chan struct{}, cgroup.AvailableCPUs())
+	var tss []prompbmarshal.TimeSeries
 	processShard := func(s *shard) {
-		syncCh <- struct{}{}
-		defer func() {
-			<-syncCh
-		}()
-
-		ptr := getTimeSeries()
-		tss := *ptr
-
 		s.mu.Lock()
 		if cap(tss) < len(s.data) {
 			tss = make([]prompbmarshal.TimeSeries, 0, len(s.data))
 		}
 		tss = tss[:len(s.data)]
+
 		var i int
 		for k, v := range s.data {
 			ts := &tss[i]
@@ -200,36 +191,11 @@ func (d *deduplicator) flush() {
 		s.mu.Unlock()
 
 		d.callback(tss, nil)
-
-		// slice header could have changed, so we update it before returning to pool
-		*ptr = tss
-		putTimeSeries(ptr)
 	}
 
-	wg := sync.WaitGroup{}
 	for _, sh := range encoder.sm.shards {
-		wg.Add(1)
-		go func(s *shard) {
-			processShard(s)
-			wg.Done()
-		}(sh)
+		processShard(sh)
 	}
-	wg.Wait()
-}
-
-var timeSeriesPool sync.Pool
-
-func getTimeSeries() *[]prompbmarshal.TimeSeries {
-	v := timeSeriesPool.Get()
-	if v == nil {
-		s := make([]prompbmarshal.TimeSeries, 0)
-		return &s
-	}
-	return v.(*[]prompbmarshal.TimeSeries)
-}
-
-func putTimeSeries(tss *[]prompbmarshal.TimeSeries) {
-	timeSeriesPool.Put(tss)
 }
 
 type shardedMap struct {
