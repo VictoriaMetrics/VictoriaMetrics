@@ -92,10 +92,10 @@ type partWrapper struct {
 	// refCount is the number of references to p.
 	//
 	// When the number of references reaches zero, then p is closed.
-	refCount int32
+	refCount atomic.Int32
 
 	// The flag, which is set when the part must be deleted after refCount reaches zero.
-	mustBeDeleted uint32
+	mustDrop atomic.Bool
 
 	// p is an opened part
 	p *part
@@ -111,18 +111,18 @@ type partWrapper struct {
 }
 
 func (pw *partWrapper) incRef() {
-	atomic.AddInt32(&pw.refCount, 1)
+	pw.refCount.Add(1)
 }
 
 func (pw *partWrapper) decRef() {
-	n := atomic.AddInt32(&pw.refCount, -1)
+	n := pw.refCount.Add(-1)
 	if n > 0 {
 		return
 	}
 
 	deletePath := ""
 	if pw.mp == nil {
-		if atomic.LoadUint32(&pw.mustBeDeleted) != 0 {
+		if pw.mustDrop.Load() {
 			deletePath = pw.p.path
 		}
 	} else {
@@ -767,7 +767,7 @@ func (ddb *datadb) swapSrcWithDstParts(pws []*partWrapper, pwNew *partWrapper, d
 	// Mark old parts as must be deleted and decrement reference count,
 	// so they are eventually closed and deleted.
 	for _, pw := range pws {
-		atomic.StoreUint32(&pw.mustBeDeleted, 1)
+		pw.mustDrop.Store(true)
 		pw.decRef()
 	}
 }
@@ -917,8 +917,8 @@ func mustCloseDatadb(ddb *datadb) {
 	// close file parts
 	for _, pw := range ddb.fileParts {
 		pw.decRef()
-		if pw.refCount != 0 {
-			logger.Panicf("BUG: ther are %d references to filePart", pw.refCount)
+		if n := pw.refCount.Load(); n != 0 {
+			logger.Panicf("BUG: ther are %d references to filePart", n)
 		}
 	}
 	ddb.fileParts = nil
