@@ -67,10 +67,11 @@ const (
 
 // indexDB represents an index db.
 type indexDB struct {
-	// Atomic counters must go at the top of the structure in order to properly align by 8 bytes on 32-bit archs.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/212 .
+	// The number of references to indexDB struct.
+	refCount atomic.Int32
 
-	refCount uint64
+	// if the mustDrop is set to true, then the indexDB must be dropped after refCount reaches zero.
+	mustDrop atomic.Bool
 
 	// The number of missing MetricID -> TSID entries.
 	// High rate for this value means corrupted indexDB.
@@ -89,8 +90,6 @@ type indexDB struct {
 	// High rate may mean corrupted indexDB due to unclean shutdown.
 	// The db must be automatically recovered after that.
 	missingMetricNamesForMetricID uint64
-
-	mustDrop uint64
 
 	// generation identifies the index generation ID
 	// and is used for syncing items from different indexDBs
@@ -151,7 +150,6 @@ func mustOpenIndexDB(path string, s *Storage, isReadOnly *uint32) *indexDB {
 	tagFiltersCacheSize := getTagFiltersCacheSize()
 
 	db := &indexDB{
-		refCount:   1,
 		generation: gen,
 		tb:         tb,
 		name:       name,
@@ -160,6 +158,7 @@ func mustOpenIndexDB(path string, s *Storage, isReadOnly *uint32) *indexDB {
 		s:                          s,
 		loopsPerDateTagFilterCache: workingsetcache.New(mem / 128),
 	}
+	db.incRef()
 	return db
 }
 
@@ -199,7 +198,7 @@ type IndexDBMetrics struct {
 }
 
 func (db *indexDB) scheduleToDrop() {
-	atomic.AddUint64(&db.mustDrop, 1)
+	db.mustDrop.Store(true)
 }
 
 // UpdateMetrics updates m with metrics from the db.
@@ -216,7 +215,7 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 
 	m.DeletedMetricsCount += uint64(db.s.getDeletedMetricIDs().Len())
 
-	m.IndexDBRefCount += atomic.LoadUint64(&db.refCount)
+	m.IndexDBRefCount += uint64(db.refCount.Load())
 	m.MissingTSIDsForMetricID += atomic.LoadUint64(&db.missingTSIDsForMetricID)
 
 	m.DateRangeSearchCalls += atomic.LoadUint64(&db.dateRangeSearchCalls)
@@ -235,7 +234,7 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 	db.tb.UpdateMetrics(&m.TableMetrics)
 	db.doExtDB(func(extDB *indexDB) {
 		extDB.tb.UpdateMetrics(&m.TableMetrics)
-		m.IndexDBRefCount += atomic.LoadUint64(&extDB.refCount)
+		m.IndexDBRefCount += uint64(extDB.refCount.Load())
 	})
 }
 
@@ -274,12 +273,12 @@ func (db *indexDB) MustClose() {
 }
 
 func (db *indexDB) incRef() {
-	atomic.AddUint64(&db.refCount, 1)
+	db.refCount.Add(1)
 }
 
 func (db *indexDB) decRef() {
-	n := atomic.AddUint64(&db.refCount, ^uint64(0))
-	if int64(n) < 0 {
+	n := db.refCount.Add(-1)
+	if n < 0 {
 		logger.Panicf("BUG: negative refCount: %d", n)
 	}
 	if n > 0 {
@@ -298,7 +297,7 @@ func (db *indexDB) decRef() {
 	db.s = nil
 	db.loopsPerDateTagFilterCache = nil
 
-	if atomic.LoadUint64(&db.mustDrop) == 0 {
+	if !db.mustDrop.Load() {
 		return
 	}
 

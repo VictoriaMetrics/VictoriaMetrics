@@ -146,12 +146,12 @@ type partition struct {
 // partWrapper is a wrapper for the part.
 type partWrapper struct {
 	// The number of references to the part.
-	refCount uint32
+	refCount atomic.Int32
 
 	// The flag, which is set when the part must be deleted after refCount reaches zero.
 	// This field should be updated only after partWrapper
 	// was removed from the list of active parts.
-	mustBeDeleted uint32
+	mustDrop atomic.Bool
 
 	// The part itself.
 	p *part
@@ -167,20 +167,20 @@ type partWrapper struct {
 }
 
 func (pw *partWrapper) incRef() {
-	atomic.AddUint32(&pw.refCount, 1)
+	pw.refCount.Add(1)
 }
 
 func (pw *partWrapper) decRef() {
-	n := atomic.AddUint32(&pw.refCount, ^uint32(0))
-	if int32(n) < 0 {
-		logger.Panicf("BUG: pw.refCount must be bigger than 0; got %d", int32(n))
+	n := pw.refCount.Add(-1)
+	if n < 0 {
+		logger.Panicf("BUG: pw.refCount must be bigger than 0; got %d", n)
 	}
 	if n > 0 {
 		return
 	}
 
 	deletePath := ""
-	if pw.mp == nil && atomic.LoadUint32(&pw.mustBeDeleted) != 0 {
+	if pw.mp == nil && pw.mustDrop.Load() {
 		deletePath = pw.p.path
 	}
 	if pw.mp != nil {
@@ -347,21 +347,21 @@ func (pt *partition) UpdateMetrics(m *partitionMetrics) {
 		m.InmemoryRowsCount += p.ph.RowsCount
 		m.InmemoryBlocksCount += p.ph.BlocksCount
 		m.InmemorySizeBytes += p.size
-		m.InmemoryPartsRefCount += uint64(atomic.LoadUint32(&pw.refCount))
+		m.InmemoryPartsRefCount += uint64(pw.refCount.Load())
 	}
 	for _, pw := range pt.smallParts {
 		p := pw.p
 		m.SmallRowsCount += p.ph.RowsCount
 		m.SmallBlocksCount += p.ph.BlocksCount
 		m.SmallSizeBytes += p.size
-		m.SmallPartsRefCount += uint64(atomic.LoadUint32(&pw.refCount))
+		m.SmallPartsRefCount += uint64(pw.refCount.Load())
 	}
 	for _, pw := range pt.bigParts {
 		p := pw.p
 		m.BigRowsCount += p.ph.RowsCount
 		m.BigBlocksCount += p.ph.BlocksCount
 		m.BigSizeBytes += p.size
-		m.BigPartsRefCount += uint64(atomic.LoadUint32(&pw.refCount))
+		m.BigPartsRefCount += uint64(pw.refCount.Load())
 	}
 
 	m.InmemoryPartsCount += uint64(len(pt.inmemoryParts))
@@ -823,9 +823,9 @@ func newPartWrapperFromInmemoryPart(mp *inmemoryPart, flushToDiskDeadline time.T
 	pw := &partWrapper{
 		p:                   p,
 		mp:                  mp,
-		refCount:            1,
 		flushToDiskDeadline: flushToDiskDeadline,
 	}
+	pw.incRef()
 	return pw
 }
 
@@ -1587,9 +1587,9 @@ func (pt *partition) openCreatedPart(ph *partHeader, pws []*partWrapper, mpNew *
 	// Open the created part from disk.
 	pNew := mustOpenFilePart(dstPartPath)
 	pwNew := &partWrapper{
-		p:        pNew,
-		refCount: 1,
+		p: pNew,
 	}
+	pwNew.incRef()
 	return pwNew
 }
 
@@ -1648,7 +1648,7 @@ func (pt *partition) swapSrcWithDstParts(pws []*partWrapper, pwNew *partWrapper,
 	// Mark old parts as must be deleted and decrement reference count,
 	// so they are eventually closed and deleted.
 	for _, pw := range pws {
-		atomic.StoreUint32(&pw.mustBeDeleted, 1)
+		pw.mustDrop.Store(true)
 		pw.decRef()
 	}
 }
@@ -1942,9 +1942,9 @@ func mustOpenParts(path string, partNames []string) []*partWrapper {
 		partPath := filepath.Join(path, partName)
 		p := mustOpenFilePart(partPath)
 		pw := &partWrapper{
-			p:        p,
-			refCount: 1,
+			p: p,
 		}
+		pw.incRef()
 		pws = append(pws, pw)
 	}
 
