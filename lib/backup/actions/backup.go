@@ -170,7 +170,6 @@ func runBackup(src *fslocal.FS, dst common.RemoteFS, origin common.OriginFS, con
 			prc := 100 * float64(n) / float64(uploadSize)
 			logger.Infof("uploaded %d out of %d bytes (%.2f%%) from %s to %s in %s", n, uploadSize, prc, src, dst, elapsed)
 		})
-		bytesUploadedTotal.Add(int(bytesUploaded.Load()))
 		if err != nil {
 			return err
 		}
@@ -191,6 +190,7 @@ type statReader struct {
 func (sr *statReader) Read(p []byte) (int, error) {
 	n, err := sr.r.Read(p)
 	sr.bytesRead.Add(uint64(n))
+	bytesUploadedTotal.Add(int(n))
 	return n, err
 }
 
