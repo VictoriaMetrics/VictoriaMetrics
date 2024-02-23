@@ -17,8 +17,6 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 )
 
-var bytesUploadedTotal = metrics.NewCounter(`vm_backups_uploaded_bytes_total`)
-
 // Backup performs backup according to the provided settings.
 //
 // Note that the backup works only for VictoriaMetrics snapshots
@@ -190,9 +188,11 @@ type statReader struct {
 func (sr *statReader) Read(p []byte) (int, error) {
 	n, err := sr.r.Read(p)
 	sr.bytesRead.Add(uint64(n))
-	bytesUploadedTotal.Add(int(n))
+	bytesUploadedTotal.Add(n)
 	return n, err
 }
+
+var bytesUploadedTotal = metrics.NewCounter(`vm_backups_uploaded_bytes_total`)
 
 func deleteDstParts(dst common.RemoteFS, partsToDelete []common.Part, concurrency int) error {
 	if len(partsToDelete) == 0 {
