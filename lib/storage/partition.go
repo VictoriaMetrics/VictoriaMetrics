@@ -421,11 +421,9 @@ func (pt *partition) AddRows(rows []rawRow) {
 var isDebug = false
 
 type rawRowsShards struct {
-	// warn: order is important for aligning of 64-bit atomic operations on 32-bit arch
-	shardIdx uint32
+	flushDeadlineMs atomic.Int64
 
-	// Put flushDeadlineMs to the top in order to avoid unaligned memory access on 32-bit architectures
-	flushDeadlineMs int64
+	shardIdx atomic.Uint32
 
 	// Shards reduce lock contention when adding rows on multi-CPU systems.
 	shards []rawRowsShard
@@ -442,7 +440,7 @@ func (rrss *rawRowsShards) addRows(pt *partition, rows []rawRow) {
 	shards := rrss.shards
 	shardsLen := uint32(len(shards))
 	for len(rows) > 0 {
-		n := atomic.AddUint32(&rrss.shardIdx, 1)
+		n := rrss.shardIdx.Add(1)
 		idx := n % shardsLen
 		tailRows, rowsToFlush := shards[idx].addRows(rows)
 		rrss.addRowsToFlush(pt, rowsToFlush)
@@ -487,12 +485,11 @@ func (rrss *rawRowsShards) Len() int {
 }
 
 func (rrss *rawRowsShards) updateFlushDeadline() {
-	atomic.StoreInt64(&rrss.flushDeadlineMs, time.Now().Add(pendingRowsFlushInterval).UnixMilli())
+	rrss.flushDeadlineMs.Store(time.Now().Add(pendingRowsFlushInterval).UnixMilli())
 }
 
 type rawRowsShardNopad struct {
-	// Put flushDeadlineMs to the top in order to avoid unaligned memory access on 32-bit architectures
-	flushDeadlineMs int64
+	flushDeadlineMs atomic.Int64
 
 	mu   sync.Mutex
 	rows []rawRow
@@ -1096,7 +1093,7 @@ func (rrss *rawRowsShards) flush(pt *partition, isFinal bool) {
 	var dst [][]rawRow
 
 	currentTimeMs := time.Now().UnixMilli()
-	flushDeadlineMs := atomic.LoadInt64(&rrss.flushDeadlineMs)
+	flushDeadlineMs := rrss.flushDeadlineMs.Load()
 	if isFinal || currentTimeMs >= flushDeadlineMs {
 		rrss.rowssToFlushLock.Lock()
 		dst = rrss.rowssToFlush
@@ -1112,7 +1109,7 @@ func (rrss *rawRowsShards) flush(pt *partition, isFinal bool) {
 }
 
 func (rrs *rawRowsShard) appendRawRowsToFlush(dst [][]rawRow, currentTimeMs int64, isFinal bool) [][]rawRow {
-	flushDeadlineMs := atomic.LoadInt64(&rrs.flushDeadlineMs)
+	flushDeadlineMs := rrs.flushDeadlineMs.Load()
 	if !isFinal && currentTimeMs < flushDeadlineMs {
 		// Fast path - nothing to flush
 		return dst
@@ -1128,7 +1125,7 @@ func (rrs *rawRowsShard) appendRawRowsToFlush(dst [][]rawRow, currentTimeMs int6
 }
 
 func (rrs *rawRowsShard) updateFlushDeadline() {
-	atomic.StoreInt64(&rrs.flushDeadlineMs, time.Now().Add(pendingRowsFlushInterval).UnixMilli())
+	rrs.flushDeadlineMs.Store(time.Now().Add(pendingRowsFlushInterval).UnixMilli())
 }
 
 func appendRawRowss(dst [][]rawRow, src []rawRow) [][]rawRow {
