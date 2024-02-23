@@ -142,10 +142,10 @@ type Storage struct {
 type partitionWrapper struct {
 	// refCount is the number of active references to p.
 	// When it reaches zero, then the p is closed.
-	refCount int32
+	refCount atomic.Int32
 
 	// The flag, which is set when the partition must be deleted after refCount reaches zero.
-	mustBeDeleted uint32
+	mustDrop atomic.Bool
 
 	// day is the day for the partition in the unix timestamp divided by the number of seconds in the day.
 	day int64
@@ -164,17 +164,17 @@ func newPartitionWrapper(pt *partition, day int64) *partitionWrapper {
 }
 
 func (ptw *partitionWrapper) incRef() {
-	atomic.AddInt32(&ptw.refCount, 1)
+	ptw.refCount.Add(1)
 }
 
 func (ptw *partitionWrapper) decRef() {
-	n := atomic.AddInt32(&ptw.refCount, -1)
+	n := ptw.refCount.Add(-1)
 	if n > 0 {
 		return
 	}
 
 	deletePath := ""
-	if atomic.LoadUint32(&ptw.mustBeDeleted) != 0 {
+	if ptw.mustDrop.Load() {
 		deletePath = ptw.pt.path
 	}
 
@@ -293,7 +293,7 @@ func MustOpenStorage(path string, cfg *StorageConfig) *Storage {
 			break
 		}
 		logger.Infof("the partition %s is scheduled to be deleted because it is outside the -futureRetention=%dd", ptw.pt.path, durationToDays(s.futureRetention))
-		atomic.StoreUint32(&ptw.mustBeDeleted, 1)
+		ptw.mustDrop.Store(true)
 		ptw.decRef()
 		j--
 	}
@@ -348,7 +348,7 @@ func (s *Storage) watchRetention() {
 
 		for _, ptw := range ptwsToDelete {
 			logger.Infof("the partition %s is scheduled to be deleted because it is outside the -retentionPeriod=%dd", ptw.pt.path, durationToDays(s.retention))
-			atomic.StoreUint32(&ptw.mustBeDeleted, 1)
+			ptw.mustDrop.Store(true)
 			ptw.decRef()
 		}
 
@@ -379,8 +379,8 @@ func (s *Storage) MustClose() {
 	// Close partitions
 	for _, pw := range s.partitions {
 		pw.decRef()
-		if pw.refCount != 0 {
-			logger.Panicf("BUG: there are %d users of partition", pw.refCount)
+		if n := pw.refCount.Load(); n != 0 {
+			logger.Panicf("BUG: there are %d users of partition", n)
 		}
 	}
 	s.partitions = nil
