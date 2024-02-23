@@ -604,7 +604,7 @@ func (pt *partition) NotifyReadWriteMode() {
 
 func (pt *partition) inmemoryPartsMerger() {
 	for {
-		if atomic.LoadUint32(&pt.s.isReadOnly) != 0 {
+		if pt.s.isReadOnly.Load() {
 			return
 		}
 		maxOutBytes := pt.getMaxBigPartSize()
@@ -637,7 +637,7 @@ func (pt *partition) inmemoryPartsMerger() {
 
 func (pt *partition) smallPartsMerger() {
 	for {
-		if atomic.LoadUint32(&pt.s.isReadOnly) != 0 {
+		if pt.s.isReadOnly.Load() {
 			return
 		}
 		maxOutBytes := pt.getMaxBigPartSize()
@@ -670,7 +670,7 @@ func (pt *partition) smallPartsMerger() {
 
 func (pt *partition) bigPartsMerger() {
 	for {
-		if atomic.LoadUint32(&pt.s.isReadOnly) != 0 {
+		if pt.s.isReadOnly.Load() {
 			return
 		}
 		maxOutBytes := pt.getMaxBigPartSize()

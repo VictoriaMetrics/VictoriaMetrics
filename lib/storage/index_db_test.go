@@ -519,7 +519,7 @@ func TestIndexDBOpenClose(t *testing.T) {
 	var s Storage
 	tableName := nextIndexDBTableName()
 	for i := 0; i < 5; i++ {
-		var isReadOnly uint32
+		var isReadOnly atomic.Bool
 		db := mustOpenIndexDB(tableName, &s, &isReadOnly)
 		db.MustClose()
 	}
