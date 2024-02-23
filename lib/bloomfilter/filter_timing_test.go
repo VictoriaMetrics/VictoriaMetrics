@@ -16,7 +16,7 @@ func BenchmarkFilterAdd(b *testing.B) {
 func benchmarkFilterAdd(b *testing.B, maxItems int) {
 	b.ReportAllocs()
 	b.RunParallel(func(pb *testing.PB) {
-		f := newFilter(maxItems)
+		f := NewFilter(maxItems)
 		for pb.Next() {
 			h := uint64(0)
 			for i := 0; i < 10000; i++ {
@@ -39,7 +39,7 @@ func BenchmarkFilterHasHit(b *testing.B) {
 func benchmarkFilterHasHit(b *testing.B, maxItems int) {
 	b.ReportAllocs()
 	b.RunParallel(func(pb *testing.PB) {
-		f := newFilter(maxItems)
+		f := NewFilter(maxItems)
 		h := uint64(0)
 		for i := 0; i < 10000; i++ {
 			h += uint64(maxItems)
@@ -68,7 +68,7 @@ func BenchmarkFilterHasMiss(b *testing.B) {
 func benchmarkFilterHasMiss(b *testing.B, maxItems int) {
 	b.ReportAllocs()
 	b.RunParallel(func(pb *testing.PB) {
-		f := newFilter(maxItems)
+		f := NewFilter(maxItems)
 		for pb.Next() {
 			h := uint64(0)
 			for i := 0; i < 10000; i++ {

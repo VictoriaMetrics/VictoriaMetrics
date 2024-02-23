@@ -230,7 +230,7 @@ func TestAggregatorsSuccess(t *testing.T) {
 	// Empty by list - aggregate only by time
 	f(`
 - interval: 1m
-  outputs: [count_samples, sum_samples, count_series, last]
+  outputs: [count_samples, sum_samples, count_series, count_series_bloomfilter, last]
 `, `
 foo{abc="123"} 4
 bar 5
@@ -238,10 +238,13 @@ foo{abc="123"} 8.5
 foo{abc="456",de="fg"} 8
 `, `bar:1m_count_samples 1
 bar:1m_count_series 1
+bar:1m_count_series_bloomfilter 1
 bar:1m_last 5
 bar:1m_sum_samples 5
 foo:1m_count_samples{abc="123"} 2
 foo:1m_count_samples{abc="456",de="fg"} 1
+foo:1m_count_series_bloomfilter{abc="123"} 1
+foo:1m_count_series_bloomfilter{abc="456",de="fg"} 1
 foo:1m_count_series{abc="123"} 1
 foo:1m_count_series{abc="456",de="fg"} 1
 foo:1m_last{abc="123"} 8.5
@@ -254,7 +257,7 @@ foo:1m_sum_samples{abc="456",de="fg"} 8
 	f(`
 - interval: 1m
   by: [__name__]
-  outputs: [count_samples, sum_samples, count_series]
+  outputs: [count_samples, sum_samples, count_series, count_series_bloomfilter]
 `, `
 foo{abc="123"} 4
 bar 5
@@ -262,9 +265,11 @@ foo{abc="123"} 8.5
 foo{abc="456",de="fg"} 8
 `, `bar:1m_count_samples 1
 bar:1m_count_series 1
+bar:1m_count_series_bloomfilter 1
 bar:1m_sum_samples 5
 foo:1m_count_samples 3
 foo:1m_count_series 2
+foo:1m_count_series_bloomfilter 2
 foo:1m_sum_samples 20.5
 `, "1111")
 
@@ -272,7 +277,7 @@ foo:1m_sum_samples 20.5
 	f(`
 - interval: 1m
   by: [foo, bar]
-  outputs: [count_samples, sum_samples, count_series]
+  outputs: [count_samples, sum_samples, count_series, count_series_bloomfilter]
 `, `
 foo{abc="123"} 4
 bar 5
@@ -280,9 +285,11 @@ foo{abc="123"} 8.5
 foo{abc="456",de="fg"} 8
 `, `bar:1m_by_bar_foo_count_samples 1
 bar:1m_by_bar_foo_count_series 1
+bar:1m_by_bar_foo_count_series_bloomfilter 1
 bar:1m_by_bar_foo_sum_samples 5
 foo:1m_by_bar_foo_count_samples 3
 foo:1m_by_bar_foo_count_series 2
+foo:1m_by_bar_foo_count_series_bloomfilter 2
 foo:1m_by_bar_foo_sum_samples 20.5
 `, "1111")
 
@@ -290,7 +297,7 @@ foo:1m_by_bar_foo_sum_samples 20.5
 	f(`
 - interval: 1m
   by: [abc]
-  outputs: [count_samples, sum_samples, count_series]
+  outputs: [count_samples, sum_samples, count_series, count_series_bloomfilter]
 `, `
 foo{abc="123"} 4
 bar 5
@@ -298,9 +305,12 @@ foo{abc="123"} 8.5
 foo{abc="456",de="fg"} 8
 `, `bar:1m_by_abc_count_samples 1
 bar:1m_by_abc_count_series 1
+bar:1m_by_abc_count_series_bloomfilter 1
 bar:1m_by_abc_sum_samples 5
 foo:1m_by_abc_count_samples{abc="123"} 2
 foo:1m_by_abc_count_samples{abc="456"} 1
+foo:1m_by_abc_count_series_bloomfilter{abc="123"} 1
+foo:1m_by_abc_count_series_bloomfilter{abc="456"} 1
 foo:1m_by_abc_count_series{abc="123"} 1
 foo:1m_by_abc_count_series{abc="456"} 1
 foo:1m_by_abc_sum_samples{abc="123"} 12.5
@@ -311,7 +321,7 @@ foo:1m_by_abc_sum_samples{abc="456"} 8
 	f(`
 - interval: 1m
   by: [abc, abc]
-  outputs: [count_samples, sum_samples, count_series]
+  outputs: [count_samples, sum_samples, count_series, count_series_bloomfilter]
 `, `
 foo{abc="123"} 4
 bar 5
@@ -319,9 +329,12 @@ foo{abc="123"} 8.5
 foo{abc="456",de="fg"} 8
 `, `bar:1m_by_abc_count_samples 1
 bar:1m_by_abc_count_series 1
+bar:1m_by_abc_count_series_bloomfilter 1
 bar:1m_by_abc_sum_samples 5
 foo:1m_by_abc_count_samples{abc="123"} 2
 foo:1m_by_abc_count_samples{abc="456"} 1
+foo:1m_by_abc_count_series_bloomfilter{abc="123"} 1
+foo:1m_by_abc_count_series_bloomfilter{abc="456"} 1
 foo:1m_by_abc_count_series{abc="123"} 1
 foo:1m_by_abc_count_series{abc="456"} 1
 foo:1m_by_abc_sum_samples{abc="123"} 12.5
@@ -332,7 +345,7 @@ foo:1m_by_abc_sum_samples{abc="456"} 8
 	f(`
 - interval: 1m
   without: [foo]
-  outputs: [count_samples, sum_samples, count_series]
+  outputs: [count_samples, sum_samples, count_series, count_series_bloomfilter]
 `, `
 foo{abc="123"} 4
 bar 5
@@ -340,9 +353,12 @@ foo{abc="123"} 8.5
 foo{abc="456",de="fg"} 8
 `, `bar:1m_without_foo_count_samples 1
 bar:1m_without_foo_count_series 1
+bar:1m_without_foo_count_series_bloomfilter 1
 bar:1m_without_foo_sum_samples 5
 foo:1m_without_foo_count_samples{abc="123"} 2
 foo:1m_without_foo_count_samples{abc="456",de="fg"} 1
+foo:1m_without_foo_count_series_bloomfilter{abc="123"} 1
+foo:1m_without_foo_count_series_bloomfilter{abc="456",de="fg"} 1
 foo:1m_without_foo_count_series{abc="123"} 1
 foo:1m_without_foo_count_series{abc="456",de="fg"} 1
 foo:1m_without_foo_sum_samples{abc="123"} 12.5
@@ -353,7 +369,7 @@ foo:1m_without_foo_sum_samples{abc="456",de="fg"} 8
 	f(`
 - interval: 1m
   without: [abc]
-  outputs: [count_samples, sum_samples, count_series]
+  outputs: [count_samples, sum_samples, count_series, count_series_bloomfilter]
 `, `
 foo{abc="123"} 4
 bar 5
@@ -361,10 +377,13 @@ foo{abc="123"} 8.5
 foo{abc="456",de="fg"} 8
 `, `bar:1m_without_abc_count_samples 1
 bar:1m_without_abc_count_series 1
+bar:1m_without_abc_count_series_bloomfilter 1
 bar:1m_without_abc_sum_samples 5
 foo:1m_without_abc_count_samples 2
 foo:1m_without_abc_count_samples{de="fg"} 1
 foo:1m_without_abc_count_series 1
+foo:1m_without_abc_count_series_bloomfilter 1
+foo:1m_without_abc_count_series_bloomfilter{de="fg"} 1
 foo:1m_without_abc_count_series{de="fg"} 1
 foo:1m_without_abc_sum_samples 12.5
 foo:1m_without_abc_sum_samples{de="fg"} 8
@@ -374,7 +393,7 @@ foo:1m_without_abc_sum_samples{de="fg"} 8
 	f(`
 - interval: 1m
   without: [__name__]
-  outputs: [count_samples, sum_samples, count_series]
+  outputs: [count_samples, sum_samples, count_series, count_series_bloomfilter]
 `, `
 foo{abc="123"} 4
 bar 5
@@ -384,6 +403,9 @@ foo{abc="456",de="fg"} 8
 :1m_count_samples{abc="123"} 2
 :1m_count_samples{abc="456",de="fg"} 1
 :1m_count_series 1
+:1m_count_series_bloomfilter 1
+:1m_count_series_bloomfilter{abc="123"} 1
+:1m_count_series_bloomfilter{abc="456",de="fg"} 1
 :1m_count_series{abc="123"} 1
 :1m_count_series{abc="456",de="fg"} 1
 :1m_sum_samples 5
@@ -395,7 +417,7 @@ foo{abc="456",de="fg"} 8
 	f(`
 - interval: 1m
   without: [abc]
-  outputs: [count_samples, sum_samples, count_series]
+  outputs: [count_samples, sum_samples, count_series, count_series_bloomfilter]
   input_relabel_configs:
   - if: 'foo'
     action: drop
@@ -406,6 +428,7 @@ foo{abc="123"} 8.5
 foo{abc="456",de="fg"} 8
 `, `bar:1m_without_abc_count_samples 1
 bar:1m_without_abc_count_series 1
+bar:1m_without_abc_count_series_bloomfilter 1
 bar:1m_without_abc_sum_samples 5
 `, "1111")
 
@@ -413,7 +436,7 @@ bar:1m_without_abc_sum_samples 5
 	f(`
 - interval: 1m
   without: [abc]
-  outputs: [count_samples, sum_samples, count_series]
+  outputs: [count_samples, sum_samples, count_series, count_series_bloomfilter]
   output_relabel_configs:
   - action: replace_all
     source_labels: [__name__]
@@ -430,9 +453,11 @@ foo{abc="123"} 8.5
 foo{abc="456",de="fg"} 8
 `, `bar-1m-without-abc-count-samples 1
 bar-1m-without-abc-count-series 1
+bar-1m-without-abc-count-series-bloomfilter 1
 bar-1m-without-abc-sum-samples 5
 foo-1m-without-abc-count-samples 2
 foo-1m-without-abc-count-series 1
+foo-1m-without-abc-count-series-bloomfilter 1
 foo-1m-without-abc-sum-samples 12.5
 `, "1111")
 
@@ -440,7 +465,7 @@ foo-1m-without-abc-sum-samples 12.5
 	f(`
 - interval: 1m
   without: [abc]
-  outputs: [count_samples, sum_samples, count_series]
+  outputs: [count_samples, sum_samples, count_series, count_series_bloomfilter]
   match: '{non_existing_label!=""}'
 `, `
 foo{abc="123"} 4
@@ -453,7 +478,7 @@ foo{abc="456",de="fg"} 8
 	f(`
 - interval: 1m
   by: [abc]
-  outputs: [count_samples, sum_samples, count_series]
+  outputs: [count_samples, sum_samples, count_series, count_series_bloomfilter]
   match:
   - foo{abc=~".+"}
   - '{non_existing_label!=""}'
@@ -464,6 +489,8 @@ foo{abc="123"} 8.5
 foo{abc="456",de="fg"} 8
 `, `foo:1m_by_abc_count_samples{abc="123"} 2
 foo:1m_by_abc_count_samples{abc="456"} 1
+foo:1m_by_abc_count_series_bloomfilter{abc="123"} 1
+foo:1m_by_abc_count_series_bloomfilter{abc="456"} 1
 foo:1m_by_abc_count_series{abc="123"} 1
 foo:1m_by_abc_count_series{abc="456"} 1
 foo:1m_by_abc_sum_samples{abc="123"} 12.5
@@ -551,7 +578,7 @@ foo:1m_increase{baz="qwe"} 15
 	// multiple aggregate configs
 	f(`
 - interval: 1m
-  outputs: [count_series, sum_samples]
+  outputs: [count_series, count_series_bloomfilter, sum_samples]
 - interval: 5m
   by: [bar]
   outputs: [sum_samples]
@@ -560,6 +587,8 @@ foo 1
 foo{bar="baz"} 2
 foo 3.3
 `, `foo:1m_count_series 1
+foo:1m_count_series_bloomfilter 1
+foo:1m_count_series_bloomfilter{bar="baz"} 1
 foo:1m_count_series{bar="baz"} 1
 foo:1m_sum_samples 4.3
 foo:1m_sum_samples{bar="baz"} 2
@@ -705,7 +734,7 @@ cpu_usage:1m_without_cpu_quantiles{quantile="1"} 90
 	f(`
 - interval: 1m
   without: [abc]
-  outputs: [count_samples, sum_samples, count_series]
+  outputs: [count_samples, sum_samples, count_series, count_series_bloomfilter]
   output_relabel_configs:
   - action: replace_all
     source_labels: [__name__]
@@ -723,9 +752,11 @@ bar 5
 foo{abc="123"} 8.5
 foo{abc="456",de="fg"} 8
 `, `bar-1m-without-abc-count-samples{new_label="must_keep_metric_name"} 1
+bar-1m-without-abc-count-series-bloomfilter{new_label="must_keep_metric_name"} 1
 bar-1m-without-abc-count-series{new_label="must_keep_metric_name"} 1
 bar-1m-without-abc-sum-samples{new_label="must_keep_metric_name"} 5
 foo-1m-without-abc-count-samples{new_label="must_keep_metric_name"} 2
+foo-1m-without-abc-count-series-bloomfilter{new_label="must_keep_metric_name"} 1
 foo-1m-without-abc-count-series{new_label="must_keep_metric_name"} 1
 foo-1m-without-abc-sum-samples{new_label="must_keep_metric_name"} 12.5
 `, "1111")

@@ -84,6 +84,11 @@ type Config struct {
 	// The parameter is only relevant for outputs: total, increase and histogram_bucket.
 	StalenessInterval string `yaml:"staleness_interval,omitempty"`
 
+	// bloomfilter_max_series defines max series for bloomfilter data structure.
+	// Memory usage can be calculated by formula: (count_series_bloomfilter * 16 + 63) / 64 bytes
+	// The parameter is only relevant for outputs: count_series_bloomfilter.
+	BloomfilterMaxSeries int `yaml:"bloomfilter_max_series,omitempty"`
+
 	// Outputs is a list of output aggregate functions to produce.
 	//
 	// The following names are allowed:
@@ -91,6 +96,7 @@ type Config struct {
 	// - total - aggregates input counters
 	// - increase - counts the increase over input counters
 	// - count_series - counts the input series
+	// - count_series_bloomfilter - counts the input series via bloomfilter
 	// - count_samples - counts the input samples
 	// - sum_samples - sums the input samples
 	// - last - the last biggest sample value
@@ -288,6 +294,11 @@ func newAggregator(cfg *Config, pushFunc PushFunc, dedupInterval time.Duration) 
 		}
 	}
 
+	bloomfilterMaxSeries := 4 * 1024 * 1024
+	if cfg.BloomfilterMaxSeries > 0 {
+		bloomfilterMaxSeries = cfg.BloomfilterMaxSeries
+	}
+
 	// initialize input_relabel_configs and output_relabel_configs
 	inputRelabeling, err := promrelabel.ParseRelabelConfigs(cfg.InputRelabelConfigs)
 	if err != nil {
@@ -347,6 +358,8 @@ func newAggregator(cfg *Config, pushFunc PushFunc, dedupInterval time.Duration) 
 			aggrStates[i] = newIncreaseAggrState(interval, stalenessInterval)
 		case "count_series":
 			aggrStates[i] = newCountSeriesAggrState()
+		case "count_series_bloomfilter":
+			aggrStates[i] = newcountSeriesBloomfilterAggrState(bloomfilterMaxSeries)
 		case "count_samples":
 			aggrStates[i] = newCountSamplesAggrState()
 		case "sum_samples":

@@ -474,6 +474,14 @@ or [Cloud Functions](https://cloud.google.com/functions)) can be controlled via 
 
 The results of `count_series` is equal to the `count(some_metric)` query.
 
+### count_series_bloomfilter
+
+`count_series_bloomfilter` counts the number of unique [time series](https://docs.victoriametrics.com/keyConcepts.html#time-series)
+via [bloom filters](https://en.wikipedia.org/wiki/Bloom_filter).
+Instead of `count_series`, `count_series_bloomfilter` use constant memory (~64MiB for 4194304 uniq metrics).
+
+The results of `count_series_bloomfilter` is equal or less to the `count(some_metric)` query, but never great.
+
 ### count_samples
 
 `count_samples` counts the number of input [samples](https://docs.victoriametrics.com/keyConcepts.html#raw-samples).
@@ -652,6 +660,12 @@ at [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-
   # Is `false` by default.
   # flush_on_shutdown: false
 
+  # bloomfilter_max_series defines max series for bloomfilter data structure.
+  # Memory usage can be calculated by formula: (count_series_bloomfilter * 16 + 63) / 64 bytes
+  # The parameter is only relevant for outputs: count_series_bloomfilter.
+  #
+  # bloomfilter_max_series: 4193304
+  
   # without is an optional list of labels, which must be removed from the output aggregation.
   # See https://docs.victoriametrics.com/stream-aggregation.html#aggregating-by-labels
   #
