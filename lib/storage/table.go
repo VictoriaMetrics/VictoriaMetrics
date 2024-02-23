@@ -119,10 +119,8 @@ func mustOpenTable(path string, s *Storage) *table {
 	return tb
 }
 
-// CreateSnapshot creates tb snapshot and returns paths to small and big parts of it.
-// If deadline is reached before snapshot is created error is returned.
-// If any error occurs during snapshot created data is not removed.
-func (tb *table) CreateSnapshot(snapshotName string, deadline uint64) (string, string, error) {
+// MustCreateSnapshot creates tb snapshot and returns paths to small and big parts of it.
+func (tb *table) MustCreateSnapshot(snapshotName string) (string, string) {
 	logger.Infof("creating table snapshot of %q...", tb.path)
 	startTime := time.Now()
 
@@ -136,12 +134,6 @@ func (tb *table) CreateSnapshot(snapshotName string, deadline uint64) (string, s
 	fs.MustMkdirFailIfExist(dstBigDir)
 
 	for _, ptw := range ptws {
-		if deadline > 0 && fasttime.UnixTimestamp() > deadline {
-			fs.MustRemoveAll(dstSmallDir)
-			fs.MustRemoveAll(dstBigDir)
-			return "", "", fmt.Errorf("cannot create snapshot for %q: timeout exceeded", tb.path)
-		}
-
 		smallPath := filepath.Join(dstSmallDir, ptw.pt.name)
 		bigPath := filepath.Join(dstBigDir, ptw.pt.name)
 		ptw.pt.MustCreateSnapshotAt(smallPath, bigPath)
@@ -153,7 +145,7 @@ func (tb *table) CreateSnapshot(snapshotName string, deadline uint64) (string, s
 	fs.MustSyncPath(filepath.Dir(dstBigDir))
 
 	logger.Infof("created table snapshot for %q at (%q, %q) in %.3f seconds", tb.path, dstSmallDir, dstBigDir, time.Since(startTime).Seconds())
-	return dstSmallDir, dstBigDir, nil
+	return dstSmallDir, dstBigDir
 }
 
 // MustDeleteSnapshot deletes snapshot with the given snapshotName.

@@ -31,7 +31,7 @@ var (
 	forceMergeAuthKey     = flagutil.NewPassword("forceMergeAuthKey", "authKey, which must be passed in query string to /internal/force_merge pages")
 	forceFlushAuthKey     = flagutil.NewPassword("forceFlushAuthKey", "authKey, which must be passed in query string to /internal/force_flush pages")
 	snapshotsMaxAge       = flagutil.NewDuration("snapshotsMaxAge", "0", "Automatically delete snapshots older than -snapshotsMaxAge if it is set to non-zero duration. Make sure that backup process has enough time to finish the backup before the corresponding snapshot is automatically deleted")
-	snapshotCreateTimeout = flag.Duration("snapshotCreateTimeout", 0, "The timeout for creating new snapshot. If set, make sure that timeout is lower than backup period")
+	snapshotCreateTimeout = flag.Duration("snapshotCreateTimeout", 0, "Deprecated: this flag does nothing")
 
 	precisionBits = flag.Int("precisionBits", 64, "The number of precision bits to store per each value. Lower precision bits improves data compression at the cost of precision loss")
 
@@ -299,11 +299,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	case "/create":
 		snapshotsCreateTotal.Inc()
 		w.Header().Set("Content-Type", "application/json")
-		deadline := uint64(0)
-		if *snapshotCreateTimeout > 0 {
-			deadline = fasttime.UnixTimestamp() + uint64(snapshotCreateTimeout.Seconds())
-		}
-		snapshotPath, err := Storage.CreateSnapshot(deadline)
+		snapshotPath, err := Storage.CreateSnapshot()
 		if err != nil {
 			err = fmt.Errorf("cannot create snapshot: %w", err)
 			jsonResponseError(w, err)

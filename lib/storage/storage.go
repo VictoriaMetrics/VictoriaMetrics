@@ -328,7 +328,7 @@ func (s *Storage) DebugFlush() {
 }
 
 // CreateSnapshot creates snapshot for s and returns the snapshot name.
-func (s *Storage) CreateSnapshot(deadline uint64) (string, error) {
+func (s *Storage) CreateSnapshot() (string, error) {
 	logger.Infof("creating Storage snapshot for %q...", s.path)
 	startTime := time.Now()
 
@@ -348,10 +348,7 @@ func (s *Storage) CreateSnapshot(deadline uint64) (string, error) {
 	fs.MustMkdirFailIfExist(dstDir)
 	dirsToRemoveOnError = append(dirsToRemoveOnError, dstDir)
 
-	smallDir, bigDir, err := s.tb.CreateSnapshot(snapshotName, deadline)
-	if err != nil {
-		return "", fmt.Errorf("cannot create table snapshot: %w", err)
-	}
+	smallDir, bigDir := s.tb.MustCreateSnapshot(snapshotName)
 	dirsToRemoveOnError = append(dirsToRemoveOnError, smallDir, bigDir)
 
 	dstDataDir := filepath.Join(dstDir, dataDirname)
@@ -372,14 +369,15 @@ func (s *Storage) CreateSnapshot(deadline uint64) (string, error) {
 	idbSnapshot := filepath.Join(srcDir, indexdbDirname, snapshotsDirname, snapshotName)
 	idb := s.idb()
 	currSnapshot := filepath.Join(idbSnapshot, idb.name)
-	if err := idb.tb.CreateSnapshotAt(currSnapshot, deadline); err != nil {
+	if err := idb.tb.CreateSnapshotAt(currSnapshot); err != nil {
 		return "", fmt.Errorf("cannot create curr indexDB snapshot: %w", err)
 	}
 	dirsToRemoveOnError = append(dirsToRemoveOnError, idbSnapshot)
 
+	var err error
 	ok := idb.doExtDB(func(extDB *indexDB) {
 		prevSnapshot := filepath.Join(idbSnapshot, extDB.name)
-		err = extDB.tb.CreateSnapshotAt(prevSnapshot, deadline)
+		err = extDB.tb.CreateSnapshotAt(prevSnapshot)
 	})
 	if ok && err != nil {
 		return "", fmt.Errorf("cannot create prev indexDB snapshot: %w", err)

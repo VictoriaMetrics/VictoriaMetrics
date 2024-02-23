@@ -15,7 +15,6 @@ import (
 	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
@@ -1536,10 +1535,8 @@ func mustOpenParts(path string) []*partWrapper {
 //
 // Snapshot is created using linux hard links, so it is usually created very quickly.
 //
-// If deadline is reached before snapshot is created error is returned.
-//
 // The caller is responsible for data removal at dstDir on unsuccessful snapshot creation.
-func (tb *Table) CreateSnapshotAt(dstDir string, deadline uint64) error {
+func (tb *Table) CreateSnapshotAt(dstDir string) error {
 	logger.Infof("creating Table snapshot of %q...", tb.path)
 	startTime := time.Now()
 
@@ -1573,9 +1570,6 @@ func (tb *Table) CreateSnapshotAt(dstDir string, deadline uint64) error {
 		if pw.mp != nil {
 			// Skip in-memory parts
 			continue
-		}
-		if deadline > 0 && fasttime.UnixTimestamp() > deadline {
-			return fmt.Errorf("cannot create snapshot for %q: timeout exceeded", tb.path)
 		}
 		srcPartPath := pw.p.path
 		dstPartPath := filepath.Join(dstDir, filepath.Base(srcPartPath))
