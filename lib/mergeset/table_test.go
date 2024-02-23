@@ -126,11 +126,11 @@ func TestTableCreateSnapshotAt(t *testing.T) {
 
 	// Create multiple snapshots.
 	snapshot1 := path + "-test-snapshot1"
-	if err := tb.CreateSnapshotAt(snapshot1, 0); err != nil {
+	if err := tb.CreateSnapshotAt(snapshot1); err != nil {
 		t.Fatalf("cannot create snapshot1: %s", err)
 	}
 	snapshot2 := path + "-test-snapshot2"
-	if err := tb.CreateSnapshotAt(snapshot2, 0); err != nil {
+	if err := tb.CreateSnapshotAt(snapshot2); err != nil {
 		t.Fatalf("cannot create snapshot2: %s", err)
 	}
 
