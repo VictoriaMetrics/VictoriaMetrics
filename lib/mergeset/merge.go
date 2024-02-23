@@ -28,7 +28,7 @@ type PrepareBlockCallback func(data []byte, items []Item) ([]byte, []Item)
 //
 // It also atomically adds the number of items merged to itemsMerged.
 func mergeBlockStreams(ph *partHeader, bsw *blockStreamWriter, bsrs []*blockStreamReader, prepareBlock PrepareBlockCallback, stopCh <-chan struct{},
-	itemsMerged *uint64) error {
+	itemsMerged *atomic.Uint64) error {
 	bsm := bsmPool.Get().(*blockStreamMerger)
 	if err := bsm.Init(bsrs, prepareBlock); err != nil {
 		return fmt.Errorf("cannot initialize blockStreamMerger: %w", err)
@@ -100,7 +100,7 @@ func (bsm *blockStreamMerger) Init(bsrs []*blockStreamReader, prepareBlock Prepa
 
 var errForciblyStopped = fmt.Errorf("forcibly stopped")
 
-func (bsm *blockStreamMerger) Merge(bsw *blockStreamWriter, ph *partHeader, stopCh <-chan struct{}, itemsMerged *uint64) error {
+func (bsm *blockStreamMerger) Merge(bsw *blockStreamWriter, ph *partHeader, stopCh <-chan struct{}, itemsMerged *atomic.Uint64) error {
 again:
 	if len(bsm.bsrHeap) == 0 {
 		// Write the last (maybe incomplete) inmemoryBlock to bsw.
@@ -163,14 +163,14 @@ again:
 	goto again
 }
 
-func (bsm *blockStreamMerger) flushIB(bsw *blockStreamWriter, ph *partHeader, itemsMerged *uint64) {
+func (bsm *blockStreamMerger) flushIB(bsw *blockStreamWriter, ph *partHeader, itemsMerged *atomic.Uint64) {
 	items := bsm.ib.items
 	data := bsm.ib.data
 	if len(items) == 0 {
 		// Nothing to flush.
 		return
 	}
-	atomic.AddUint64(itemsMerged, uint64(len(items)))
+	itemsMerged.Add(uint64(len(items)))
 	if bsm.prepareBlock != nil {
 		bsm.firstItem = append(bsm.firstItem[:0], items[0].String(data)...)
 		bsm.lastItem = append(bsm.lastItem[:0], items[len(items)-1].String(data)...)

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"sync/atomic"
 	"testing"
 )
 
@@ -34,7 +35,7 @@ func benchmarkTableSearch(b *testing.B, itemsCount int) {
 
 	// Force finishing pending merges
 	tb.MustClose()
-	var isReadOnly uint32
+	var isReadOnly atomic.Bool
 	tb = MustOpenTable(path, nil, nil, &isReadOnly)
 	defer tb.MustClose()
 

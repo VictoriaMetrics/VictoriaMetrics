@@ -149,7 +149,8 @@ type Storage struct {
 	deletedMetricIDs           atomic.Pointer[uint64set.Set]
 	deletedMetricIDsUpdateLock sync.Mutex
 
-	isReadOnly uint32
+	// isReadOnly is set to true when the storage is in read-only mode.
+	isReadOnly atomic.Bool
 }
 
 type pendingHourMetricIDEntry struct {
@@ -665,7 +666,7 @@ var freeDiskSpaceLimitBytes uint64
 
 // IsReadOnly returns information is storage in read only mode
 func (s *Storage) IsReadOnly() bool {
-	return atomic.LoadUint32(&s.isReadOnly) == 1
+	return s.isReadOnly.Load()
 }
 
 func (s *Storage) startFreeDiskSpaceWatcher() {
@@ -674,18 +675,18 @@ func (s *Storage) startFreeDiskSpaceWatcher() {
 		if freeSpaceBytes < freeDiskSpaceLimitBytes {
 			// Switch the storage to readonly mode if there is no enough free space left at s.path
 			//
-			// Use atomic.LoadUint32 in front of atomic.CompareAndSwapUint32 in order to avoid slow inter-CPU synchronization
+			// Use Load in front of CompareAndSwap in order to avoid slow inter-CPU synchronization
 			// when the storage is already in read-only mode.
-			if atomic.LoadUint32(&s.isReadOnly) == 0 && atomic.CompareAndSwapUint32(&s.isReadOnly, 0, 1) {
+			if !s.isReadOnly.Load() && s.isReadOnly.CompareAndSwap(false, true) {
 				// log notification only on state change
 				logger.Warnf("switching the storage at %s to read-only mode, since it has less than -storage.minFreeDiskSpaceBytes=%d of free space: %d bytes left",
 					s.path, freeDiskSpaceLimitBytes, freeSpaceBytes)
 			}
 			return
 		}
-		// Use atomic.LoadUint32 in front of atomic.CompareAndSwapUint32 in order to avoid slow inter-CPU synchronization
+		// Use Load in front of CompareAndSwap in order to avoid slow inter-CPU synchronization
 		// when the storage isn't in read-only mode.
-		if atomic.LoadUint32(&s.isReadOnly) == 1 && atomic.CompareAndSwapUint32(&s.isReadOnly, 1, 0) {
+		if s.isReadOnly.Load() && s.isReadOnly.CompareAndSwap(true, false) {
 			s.notifyReadWriteMode()
 			logger.Warnf("switching the storage at %s to read-write mode, since it has more than -storage.minFreeDiskSpaceBytes=%d of free space: %d bytes left",
 				s.path, freeDiskSpaceLimitBytes, freeSpaceBytes)
