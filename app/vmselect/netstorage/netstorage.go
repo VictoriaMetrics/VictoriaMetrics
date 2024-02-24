@@ -84,7 +84,7 @@ func (rss *Results) mustClose() {
 }
 
 type timeseriesWork struct {
-	mustStop *uint32
+	mustStop *atomic.Bool
 	rss      *Results
 	pts      *packedTimeseries
 	f        func(rs *Result, workerID uint) error
@@ -94,22 +94,22 @@ type timeseriesWork struct {
 }
 
 func (tsw *timeseriesWork) do(r *Result, workerID uint) error {
-	if atomic.LoadUint32(tsw.mustStop) != 0 {
+	if tsw.mustStop.Load() {
 		return nil
 	}
 	rss := tsw.rss
 	if rss.deadline.Exceeded() {
-		atomic.StoreUint32(tsw.mustStop, 1)
+		tsw.mustStop.Store(true)
 		return fmt.Errorf("timeout exceeded during query execution: %s", rss.deadline.String())
 	}
 	if err := tsw.pts.Unpack(r, rss.tbf, rss.tr); err != nil {
-		atomic.StoreUint32(tsw.mustStop, 1)
+		tsw.mustStop.Store(true)
 		return fmt.Errorf("error during time series unpacking: %w", err)
 	}
 	tsw.rowsProcessed = len(r.Timestamps)
 	if len(r.Timestamps) > 0 {
 		if err := tsw.f(r, workerID); err != nil {
-			atomic.StoreUint32(tsw.mustStop, 1)
+			tsw.mustStop.Store(true)
 			return err
 		}
 	}
@@ -241,7 +241,7 @@ func (rss *Results) runParallel(qt *querytracer.Tracer, f func(rs *Result, worke
 		return 0, nil
 	}
 
-	var mustStop uint32
+	var mustStop atomic.Bool
 	initTimeseriesWork := func(tsw *timeseriesWork, pts *packedTimeseries) {
 		tsw.rss = rss
 		tsw.pts = pts
@@ -1011,7 +1011,7 @@ func ExportBlocks(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline sear
 	var (
 		errGlobal     error
 		errGlobalLock sync.Mutex
-		mustStop      uint32
+		mustStop      atomic.Bool
 	)
 	var wg sync.WaitGroup
 	wg.Add(gomaxprocs)
@@ -1023,7 +1023,7 @@ func ExportBlocks(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline sear
 					errGlobalLock.Lock()
 					if errGlobal == nil {
 						errGlobal = err
-						atomic.StoreUint32(&mustStop, 1)
+						mustStop.Store(true)
 					}
 					errGlobalLock.Unlock()
 				}
@@ -1041,7 +1041,7 @@ func ExportBlocks(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline sear
 		if deadline.Exceeded() {
 			return fmt.Errorf("timeout exceeded while fetching data block #%d from storage: %s", blocksRead, deadline.String())
 		}
-		if atomic.LoadUint32(&mustStop) != 0 {
+		if mustStop.Load() {
 			break
 		}
 		xw := exportWorkPool.Get().(*exportWork)
