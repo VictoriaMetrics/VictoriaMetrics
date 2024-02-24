@@ -11,18 +11,22 @@ func init() {
 		defer ticker.Stop()
 		for tm := range ticker.C {
 			t := uint64(tm.Unix())
-			atomic.StoreUint64(&currentTimestamp, t)
+			currentTimestamp.Store(t)
 		}
 	}()
 }
 
-var currentTimestamp = uint64(time.Now().Unix())
+var currentTimestamp = func() *atomic.Uint64 {
+	var x atomic.Uint64
+	x.Store(uint64(time.Now().Unix()))
+	return &x
+}()
 
 // UnixTimestamp returns the current unix timestamp in seconds.
 //
 // It is faster than time.Now().Unix()
 func UnixTimestamp() uint64 {
-	return atomic.LoadUint64(&currentTimestamp)
+	return currentTimestamp.Load()
 }
 
 // UnixDate returns date from the current unix timestamp.

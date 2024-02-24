@@ -2,7 +2,6 @@ package bytesutil
 
 import (
 	"strings"
-	"sync/atomic"
 	"testing"
 )
 
@@ -28,6 +27,6 @@ func benchmarkFastStringMatcher(b *testing.B, s string) {
 				n++
 			}
 		}
-		atomic.AddUint64(&GlobalSink, n)
+		GlobalSink.Add(n)
 	})
 }
