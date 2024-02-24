@@ -3842,18 +3842,18 @@ func nextSeriesConcurrentWrapper(nextSeries nextSeriesFunc, f func(s *series) (*
 		errCh <- err
 		close(errCh)
 	}()
-	var skipProcessing uint32
+	var skipProcessing atomic.Bool
 	for i := 0; i < goroutines; i++ {
 		go func() {
 			defer wg.Done()
 			for s := range seriesCh {
-				if atomic.LoadUint32(&skipProcessing) != 0 {
+				if skipProcessing.Load() {
 					continue
 				}
 				sNew, err := f(s)
 				if err != nil {
 					// Drain the rest of series and do not call f for them in order to conserve CPU time.
-					atomic.StoreUint32(&skipProcessing, 1)
+					skipProcessing.Store(true)
 					resultCh <- &result{
 						err: err,
 					}
@@ -5609,9 +5609,9 @@ func (nsf *nextSeriesFunc) peekStep(step int64) (int64, error) {
 	if s != nil {
 		step = s.step
 	}
-	calls := uint64(0)
+	var calls atomic.Uint64
 	*nsf = func() (*series, error) {
-		if atomic.AddUint64(&calls, 1) == 1 {
+		if calls.Add(1) == 1 {
 			return s, nil
 		}
 		return nextSeries()

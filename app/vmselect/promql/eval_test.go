@@ -86,14 +86,14 @@ func TestQueryStats_addSeriesFetched(t *testing.T) {
 	}
 	ec.QueryStats.addSeriesFetched(1)
 
-	if qs.SeriesFetched != 1 {
-		t.Fatalf("expected to get 1; got %d instead", qs.SeriesFetched)
+	if n := qs.SeriesFetched.Load(); n != 1 {
+		t.Fatalf("expected to get 1; got %d instead", n)
 	}
 
 	ecNew := copyEvalConfig(ec)
 	ecNew.QueryStats.addSeriesFetched(3)
-	if qs.SeriesFetched != 4 {
-		t.Fatalf("expected to get 4; got %d instead", qs.SeriesFetched)
+	if n := qs.SeriesFetched.Load(); n != 4 {
+		t.Fatalf("expected to get 4; got %d instead", n)
 	}
 }
 

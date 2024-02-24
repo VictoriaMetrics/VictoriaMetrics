@@ -24,7 +24,7 @@ func BenchmarkConsistentHash(b *testing.B) {
 				sum += idx
 			}
 		}
-		atomic.AddUint64(&BenchSink, uint64(sum))
+		BenchSink.Add(uint64(sum))
 	})
 }
 
@@ -37,4 +37,4 @@ var benchKeys = func() []uint64 {
 	return keys
 }()
 
-var BenchSink uint64
+var BenchSink atomic.Uint64

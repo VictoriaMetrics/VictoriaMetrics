@@ -331,21 +331,21 @@ func exportHandler(qt *querytracer.Tracer, at *auth.Token, w http.ResponseWriter
 		}
 	} else if format == "promapi" {
 		WriteExportPromAPIHeader(bw)
-		firstLineOnce := uint32(0)
-		firstLineSent := uint32(0)
+		var firstLineOnce atomic.Bool
+		var firstLineSent atomic.Bool
 		writeLineFunc = func(xb *exportBlock, workerID uint) error {
 			bb := sw.getBuffer(workerID)
-			// Use atomic.LoadUint32() in front of atomic.CompareAndSwapUint32() in order to avoid slow inter-CPU synchronization
+			// Use Load() in front of CompareAndSwap() in order to avoid slow inter-CPU synchronization
 			// in fast path after the first line has been already sent.
-			if atomic.LoadUint32(&firstLineOnce) == 0 && atomic.CompareAndSwapUint32(&firstLineOnce, 0, 1) {
+			if !firstLineOnce.Load() && firstLineOnce.CompareAndSwap(false, true) {
 				// Send the first line to sw.bw
 				WriteExportPromAPILine(bb, xb)
 				_, err := sw.bw.Write(bb.B)
 				bb.Reset()
-				atomic.StoreUint32(&firstLineSent, 1)
+				firstLineSent.Store(true)
 				return err
 			}
-			for atomic.LoadUint32(&firstLineSent) == 0 {
+			for !firstLineSent.Load() {
 				// Busy wait until the first line is sent to sw.bw
 				runtime.Gosched()
 			}

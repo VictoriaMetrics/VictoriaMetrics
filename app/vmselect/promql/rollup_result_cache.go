@@ -76,7 +76,7 @@ func InitRollupResultCache(cachePath string) {
 		mustLoadRollupResultCacheKeyPrefix(rollupResultCachePath)
 	} else {
 		c = workingsetcache.New(cacheSize)
-		rollupResultCacheKeyPrefix = newRollupResultCacheKeyPrefix()
+		rollupResultCacheKeyPrefix.Store(newRollupResultCacheKeyPrefix())
 	}
 	if *disableCache {
 		c.Reset()
@@ -160,7 +160,7 @@ var rollupResultCacheResets = metrics.NewCounter(`vm_cache_resets_total{type="pr
 // ResetRollupResultCache resets rollup result cache.
 func ResetRollupResultCache() {
 	rollupResultCacheResets.Inc()
-	atomic.AddUint64(&rollupResultCacheKeyPrefix, 1)
+	rollupResultCacheKeyPrefix.Add(1)
 	logger.Infof("rollupResult cache has been cleared")
 }
 
@@ -387,8 +387,8 @@ func (rrc *rollupResultCache) PutSeries(qt *querytracer.Tracer, ec *EvalConfig, 
 	}
 
 	var key rollupResultCacheKey
-	key.prefix = rollupResultCacheKeyPrefix
-	key.suffix = atomic.AddUint64(&rollupResultCacheKeySuffix, 1)
+	key.prefix = rollupResultCacheKeyPrefix.Load()
+	key.suffix = rollupResultCacheKeySuffix.Add(1)
 
 	bb := bbPool.Get()
 	bb.B = key.Marshal(bb.B[:0])
@@ -404,8 +404,12 @@ func (rrc *rollupResultCache) PutSeries(qt *querytracer.Tracer, ec *EvalConfig, 
 }
 
 var (
-	rollupResultCacheKeyPrefix uint64
-	rollupResultCacheKeySuffix = uint64(time.Now().UnixNano())
+	rollupResultCacheKeyPrefix atomic.Uint64
+	rollupResultCacheKeySuffix = func() *atomic.Uint64 {
+		var x atomic.Uint64
+		x.Store(uint64(time.Now().UnixNano()))
+		return &x
+	}()
 )
 
 func (rrc *rollupResultCache) getSeriesFromCache(qt *querytracer.Tracer, key []byte) ([]*timeseries, bool) {
@@ -466,26 +470,26 @@ func newRollupResultCacheKeyPrefix() uint64 {
 func mustLoadRollupResultCacheKeyPrefix(path string) {
 	path = path + ".key.prefix"
 	if !fs.IsPathExist(path) {
-		rollupResultCacheKeyPrefix = newRollupResultCacheKeyPrefix()
+		rollupResultCacheKeyPrefix.Store(newRollupResultCacheKeyPrefix())
 		return
 	}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		logger.Errorf("cannot load %s: %s; reset rollupResult cache", path, err)
-		rollupResultCacheKeyPrefix = newRollupResultCacheKeyPrefix()
+		rollupResultCacheKeyPrefix.Store(newRollupResultCacheKeyPrefix())
 		return
 	}
 	if len(data) != 8 {
 		logger.Errorf("unexpected size of %s; want 8 bytes; got %d bytes; reset rollupResult cache", path, len(data))
-		rollupResultCacheKeyPrefix = newRollupResultCacheKeyPrefix()
+		rollupResultCacheKeyPrefix.Store(newRollupResultCacheKeyPrefix())
 		return
 	}
-	rollupResultCacheKeyPrefix = encoding.UnmarshalUint64(data)
+	rollupResultCacheKeyPrefix.Store(encoding.UnmarshalUint64(data))
 }
 
 func mustSaveRollupResultCacheKeyPrefix(path string) {
 	path = path + ".key.prefix"
-	data := encoding.MarshalUint64(nil, rollupResultCacheKeyPrefix)
+	data := encoding.MarshalUint64(nil, rollupResultCacheKeyPrefix.Load())
 	fs.MustWriteAtomic(path, data, true)
 }
 
@@ -501,7 +505,7 @@ const (
 
 func marshalRollupResultCacheKeyForSeries(dst []byte, at *auth.Token, expr metricsql.Expr, window, step int64, etfs [][]storage.TagFilter) []byte {
 	dst = append(dst, rollupResultCacheVersion)
-	dst = encoding.MarshalUint64(dst, rollupResultCacheKeyPrefix)
+	dst = encoding.MarshalUint64(dst, rollupResultCacheKeyPrefix.Load())
 	dst = append(dst, rollupResultCacheTypeSeries)
 	dst = encoding.MarshalUint32(dst, at.AccountID)
 	dst = encoding.MarshalUint32(dst, at.ProjectID)
@@ -514,7 +518,7 @@ func marshalRollupResultCacheKeyForSeries(dst []byte, at *auth.Token, expr metri
 
 func marshalRollupResultCacheKeyForInstantValues(dst []byte, at *auth.Token, expr metricsql.Expr, window, step int64, etfs [][]storage.TagFilter) []byte {
 	dst = append(dst, rollupResultCacheVersion)
-	dst = encoding.MarshalUint64(dst, rollupResultCacheKeyPrefix)
+	dst = encoding.MarshalUint64(dst, rollupResultCacheKeyPrefix.Load())
 	dst = append(dst, rollupResultCacheTypeInstantValues)
 	dst = encoding.MarshalUint32(dst, at.AccountID)
 	dst = encoding.MarshalUint32(dst, at.ProjectID)

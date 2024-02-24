@@ -48,7 +48,7 @@ var (
 var errStorageReadOnly = errors.New("storage node is read only")
 
 func (sn *storageNode) isReady() bool {
-	return atomic.LoadUint32(&sn.broken) == 0 && atomic.LoadUint32(&sn.isReadOnly) == 0
+	return !sn.broken.Load() && !sn.isReadOnly.Load()
 }
 
 // push pushes buf to sn internal bufs.
@@ -70,7 +70,7 @@ func (sn *storageNode) push(snb *storageNodesBucket, buf []byte, rows int) error
 		// Fast path - the buffer is successfully sent to sn.
 		return nil
 	}
-	if *dropSamplesOnOverload && atomic.LoadUint32(&sn.isReadOnly) == 0 {
+	if *dropSamplesOnOverload && !sn.isReadOnly.Load() {
 		sn.rowsDroppedOnOverload.Add(rows)
 		dropSamplesOnOverloadLogger.Warnf("some rows dropped, because -dropSamplesOnOverload is set and vmstorage %s cannot accept new rows now. "+
 			"See vm_rpc_rows_dropped_on_overload_total metric at /metrics page", sn.dialer.Addr())
@@ -274,7 +274,7 @@ func (sn *storageNode) checkHealth() {
 	}
 	bc, err := sn.dial()
 	if err != nil {
-		atomic.StoreUint32(&sn.broken, 1)
+		sn.broken.Store(true)
 		sn.brCond.Broadcast()
 		if sn.lastDialErr == nil {
 			// Log the error only once.
@@ -286,7 +286,7 @@ func (sn *storageNode) checkHealth() {
 	logger.Infof("successfully dialed -storageNode=%q", sn.dialer.Addr())
 	sn.lastDialErr = nil
 	sn.bc = bc
-	atomic.StoreUint32(&sn.broken, 0)
+	sn.broken.Store(false)
 	sn.brCond.Broadcast()
 }
 
@@ -314,7 +314,7 @@ func (sn *storageNode) sendBufRowsNonblocking(br *bufRows) bool {
 	}
 	if errors.Is(err, errStorageReadOnly) {
 		// The vmstorage is transitioned to readonly mode.
-		atomic.StoreUint32(&sn.isReadOnly, 1)
+		sn.isReadOnly.Store(true)
 		sn.brCond.Broadcast()
 		// Signal the caller that the data wasn't accepted by the vmstorage,
 		// so it will be re-routed to the remaining vmstorage nodes.
@@ -327,7 +327,7 @@ func (sn *storageNode) sendBufRowsNonblocking(br *bufRows) bool {
 		cannotCloseStorageNodeConnLogger.Warnf("cannot close connection to storageNode %q: %s", sn.dialer.Addr(), err)
 	}
 	sn.bc = nil
-	atomic.StoreUint32(&sn.broken, 1)
+	sn.broken.Store(true)
 	sn.brCond.Broadcast()
 	sn.connectionErrors.Inc()
 	return false
@@ -413,13 +413,13 @@ func (sn *storageNode) dial() (*handshake.BufferedConn, error) {
 
 // storageNode is a client sending data to vmstorage node.
 type storageNode struct {
-	// broken is set to non-zero if the given vmstorage node is temporarily unhealthy.
+	// broken is set to true if the given vmstorage node is temporarily unhealthy.
 	// In this case the data is re-routed to the remaining healthy vmstorage nodes.
-	broken uint32
+	broken atomic.Bool
 
-	// isReadOnly is set to non-zero if the given vmstorage node is read only
+	// isReadOnly is set to true if the given vmstorage node is read only
 	// In this case the data is re-routed to the remaining healthy vmstorage nodes.
-	isReadOnly uint32
+	isReadOnly atomic.Bool
 
 	// brLock protects br.
 	brLock sync.Mutex
@@ -561,13 +561,16 @@ func initStorageNodes(addrs []string, hashSeed uint64) *storageNodesBucket {
 			return float64(n)
 		})
 		_ = ms.NewGauge(fmt.Sprintf(`vm_rpc_vmstorage_is_reachable{name="vminsert", addr=%q}`, addr), func() float64 {
-			if atomic.LoadUint32(&sn.broken) != 0 {
+			if sn.broken.Load() {
 				return 0
 			}
 			return 1
 		})
 		_ = ms.NewGauge(fmt.Sprintf(`vm_rpc_vmstorage_is_read_only{name="vminsert", addr=%q}`, addr), func() float64 {
-			return float64(atomic.LoadUint32(&sn.isReadOnly))
+			if sn.isReadOnly.Load() {
+				return 1
+			}
+			return 0
 		})
 		sns = append(sns, sn)
 	}
@@ -810,7 +813,7 @@ func (sn *storageNode) readOnlyChecker() {
 }
 
 func (sn *storageNode) checkReadOnlyMode() {
-	if atomic.LoadUint32(&sn.isReadOnly) == 0 {
+	if !sn.isReadOnly.Load() {
 		// fast path - the sn isn't in readonly mode
 		return
 	}
@@ -824,7 +827,7 @@ func (sn *storageNode) checkReadOnlyMode() {
 	err := sendToConn(sn.bc, nil)
 	if err == nil {
 		// The storage switched from readonly to non-readonly mode
-		atomic.StoreUint32(&sn.isReadOnly, 0)
+		sn.isReadOnly.Store(false)
 		return
 	}
 	if errors.Is(err, errStorageReadOnly) {
@@ -840,7 +843,7 @@ func (sn *storageNode) checkReadOnlyMode() {
 		cannotCloseStorageNodeConnLogger.Warnf("cannot close connection to storageNode %q: %s", sn.dialer.Addr(), err)
 	}
 	sn.bc = nil
-	atomic.StoreUint32(&sn.broken, 1)
+	sn.broken.Store(true)
 	sn.brCond.Broadcast()
 	sn.connectionErrors.Inc()
 }

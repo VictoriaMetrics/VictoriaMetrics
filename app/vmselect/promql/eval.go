@@ -182,16 +182,17 @@ func copyEvalConfig(src *EvalConfig) *EvalConfig {
 // QueryStats contains various stats for the query.
 type QueryStats struct {
 	// SeriesFetched contains the number of series fetched from storage during the query evaluation.
-	SeriesFetched int64
+	SeriesFetched atomic.Int64
+
 	// ExecutionTimeMsec contains the number of milliseconds the query took to execute.
-	ExecutionTimeMsec int64
+	ExecutionTimeMsec atomic.Int64
 }
 
 func (qs *QueryStats) addSeriesFetched(n int) {
 	if qs == nil {
 		return
 	}
-	atomic.AddInt64(&qs.SeriesFetched, int64(n))
+	qs.SeriesFetched.Add(int64(n))
 }
 
 func (qs *QueryStats) addExecutionTimeMsec(startTime time.Time) {
@@ -199,7 +200,7 @@ func (qs *QueryStats) addExecutionTimeMsec(startTime time.Time) {
 		return
 	}
 	d := time.Since(startTime).Milliseconds()
-	atomic.AddInt64(&qs.ExecutionTimeMsec, d)
+	qs.ExecutionTimeMsec.Add(d)
 }
 
 func (ec *EvalConfig) updateIsPartialResponse(isPartialResponse bool) {
@@ -966,7 +967,7 @@ func evalRollupFuncWithSubquery(qt *querytracer.Tracer, ec *EvalConfig, funcName
 		return nil, err
 	}
 
-	var samplesScannedTotal uint64
+	var samplesScannedTotal atomic.Uint64
 	keepMetricNames := getKeepMetricNames(expr)
 	tsw := getTimeseriesByWorkerID()
 	seriesByWorkerID := tsw.byWorkerID
@@ -976,13 +977,13 @@ func evalRollupFuncWithSubquery(qt *querytracer.Tracer, ec *EvalConfig, funcName
 		for _, rc := range rcs {
 			if tsm := newTimeseriesMap(funcName, keepMetricNames, sharedTimestamps, &tsSQ.MetricName); tsm != nil {
 				samplesScanned := rc.DoTimeseriesMap(tsm, values, timestamps)
-				atomic.AddUint64(&samplesScannedTotal, samplesScanned)
+				samplesScannedTotal.Add(samplesScanned)
 				seriesByWorkerID[workerID].tss = tsm.AppendTimeseriesTo(seriesByWorkerID[workerID].tss)
 				continue
 			}
 			var ts timeseries
 			samplesScanned := doRollupForTimeseries(funcName, keepMetricNames, rc, &ts, &tsSQ.MetricName, values, timestamps, sharedTimestamps)
-			atomic.AddUint64(&samplesScannedTotal, samplesScanned)
+			samplesScannedTotal.Add(samplesScanned)
 			seriesByWorkerID[workerID].tss = append(seriesByWorkerID[workerID].tss, &ts)
 		}
 		return values, timestamps
@@ -993,8 +994,8 @@ func evalRollupFuncWithSubquery(qt *querytracer.Tracer, ec *EvalConfig, funcName
 	}
 	putTimeseriesByWorkerID(tsw)
 
-	rowsScannedPerQuery.Update(float64(samplesScannedTotal))
-	qt.Printf("rollup %s() over %d series returned by subquery: series=%d, samplesScanned=%d", funcName, len(tssSQ), len(tss), samplesScannedTotal)
+	rowsScannedPerQuery.Update(float64(samplesScannedTotal.Load()))
+	qt.Printf("rollup %s() over %d series returned by subquery: series=%d, samplesScanned=%d", funcName, len(tssSQ), len(tss), samplesScannedTotal.Load())
 	return tss, nil
 }
 
@@ -1821,7 +1822,7 @@ func evalRollupWithIncrementalAggregate(qt *querytracer.Tracer, funcName string,
 	preFunc func(values []float64, timestamps []int64), sharedTimestamps []int64) ([]*timeseries, error) {
 	qt = qt.NewChild("rollup %s() with incremental aggregation %s() over %d series; rollupConfigs=%s", funcName, iafc.ae.Name, rss.Len(), rcs)
 	defer qt.Done()
-	var samplesScannedTotal uint64
+	var samplesScannedTotal atomic.Uint64
 	err := rss.RunParallel(qt, func(rs *netstorage.Result, workerID uint) error {
 		rs.Values, rs.Timestamps = dropStaleNaNs(funcName, rs.Values, rs.Timestamps)
 		preFunc(rs.Values, rs.Timestamps)
@@ -1833,12 +1834,12 @@ func evalRollupWithIncrementalAggregate(qt *querytracer.Tracer, funcName string,
 				for _, ts := range tsm.m {
 					iafc.updateTimeseries(ts, workerID)
 				}
-				atomic.AddUint64(&samplesScannedTotal, samplesScanned)
+				samplesScannedTotal.Add(samplesScanned)
 				continue
 			}
 			ts.Reset()
 			samplesScanned := doRollupForTimeseries(funcName, keepMetricNames, rc, ts, &rs.MetricName, rs.Values, rs.Timestamps, sharedTimestamps)
-			atomic.AddUint64(&samplesScannedTotal, samplesScanned)
+			samplesScannedTotal.Add(samplesScanned)
 			iafc.updateTimeseries(ts, workerID)
 
 			// ts.Timestamps points to sharedTimestamps. Zero it, so it can be re-used.
@@ -1851,8 +1852,8 @@ func evalRollupWithIncrementalAggregate(qt *querytracer.Tracer, funcName string,
 		return nil, err
 	}
 	tss := iafc.finalizeTimeseries()
-	rowsScannedPerQuery.Update(float64(samplesScannedTotal))
-	qt.Printf("series after aggregation with %s(): %d; samplesScanned=%d", iafc.ae.Name, len(tss), samplesScannedTotal)
+	rowsScannedPerQuery.Update(float64(samplesScannedTotal.Load()))
+	qt.Printf("series after aggregation with %s(): %d; samplesScanned=%d", iafc.ae.Name, len(tss), samplesScannedTotal.Load())
 	return tss, nil
 }
 
@@ -1861,7 +1862,7 @@ func evalRollupNoIncrementalAggregate(qt *querytracer.Tracer, funcName string, k
 	qt = qt.NewChild("rollup %s() over %d series; rollupConfigs=%s", funcName, rss.Len(), rcs)
 	defer qt.Done()
 
-	var samplesScannedTotal uint64
+	var samplesScannedTotal atomic.Uint64
 	tsw := getTimeseriesByWorkerID()
 	seriesByWorkerID := tsw.byWorkerID
 	seriesLen := rss.Len()
@@ -1871,13 +1872,13 @@ func evalRollupNoIncrementalAggregate(qt *querytracer.Tracer, funcName string, k
 		for _, rc := range rcs {
 			if tsm := newTimeseriesMap(funcName, keepMetricNames, sharedTimestamps, &rs.MetricName); tsm != nil {
 				samplesScanned := rc.DoTimeseriesMap(tsm, rs.Values, rs.Timestamps)
-				atomic.AddUint64(&samplesScannedTotal, samplesScanned)
+				samplesScannedTotal.Add(samplesScanned)
 				seriesByWorkerID[workerID].tss = tsm.AppendTimeseriesTo(seriesByWorkerID[workerID].tss)
 				continue
 			}
 			var ts timeseries
 			samplesScanned := doRollupForTimeseries(funcName, keepMetricNames, rc, &ts, &rs.MetricName, rs.Values, rs.Timestamps, sharedTimestamps)
-			atomic.AddUint64(&samplesScannedTotal, samplesScanned)
+			samplesScannedTotal.Add(samplesScanned)
 			seriesByWorkerID[workerID].tss = append(seriesByWorkerID[workerID].tss, &ts)
 		}
 		return nil
@@ -1891,8 +1892,8 @@ func evalRollupNoIncrementalAggregate(qt *querytracer.Tracer, funcName string, k
 	}
 	putTimeseriesByWorkerID(tsw)
 
-	rowsScannedPerQuery.Update(float64(samplesScannedTotal))
-	qt.Printf("samplesScanned=%d", samplesScannedTotal)
+	rowsScannedPerQuery.Update(float64(samplesScannedTotal.Load()))
+	qt.Printf("samplesScanned=%d", samplesScannedTotal.Load())
 	return tss, nil
 }
 

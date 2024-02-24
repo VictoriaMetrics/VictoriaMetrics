@@ -45,7 +45,7 @@ type VMInsertServer struct {
 	wg sync.WaitGroup
 
 	// stopFlag is set to true when the server needs to stop.
-	stopFlag uint32
+	stopFlag atomic.Bool
 }
 
 // NewVMInsertServer starts VMInsertServer at the given addr serving the given storage.
@@ -161,9 +161,9 @@ func (s *VMInsertServer) MustStop() {
 }
 
 func (s *VMInsertServer) setIsStopping() {
-	atomic.StoreUint32(&s.stopFlag, 1)
+	s.stopFlag.Store(true)
 }
 
 func (s *VMInsertServer) isStopping() bool {
-	return atomic.LoadUint32(&s.stopFlag) != 0
+	return s.stopFlag.Load()
 }

@@ -353,22 +353,19 @@ type parseCacheValue struct {
 }
 
 type parseCache struct {
-	// Move atomic counters to the top of struct for 8-byte alignment on 32-bit arch.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/212
-
-	requests uint64
-	misses   uint64
+	requests atomic.Uint64
+	misses   atomic.Uint64
 
 	m  map[string]*parseCacheValue
 	mu sync.RWMutex
 }
 
 func (pc *parseCache) Requests() uint64 {
-	return atomic.LoadUint64(&pc.requests)
+	return pc.requests.Load()
 }
 
 func (pc *parseCache) Misses() uint64 {
-	return atomic.LoadUint64(&pc.misses)
+	return pc.misses.Load()
 }
 
 func (pc *parseCache) Len() uint64 {
@@ -379,14 +376,14 @@ func (pc *parseCache) Len() uint64 {
 }
 
 func (pc *parseCache) Get(q string) *parseCacheValue {
-	atomic.AddUint64(&pc.requests, 1)
+	pc.requests.Add(1)
 
 	pc.mu.RLock()
 	pcv := pc.m[q]
 	pc.mu.RUnlock()
 
 	if pcv == nil {
-		atomic.AddUint64(&pc.misses, 1)
+		pc.misses.Add(1)
 	}
 	return pcv
 }

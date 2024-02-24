@@ -82,7 +82,7 @@ func (ps *pendingSeries) periodicFlusher() {
 			ps.mu.Unlock()
 			return
 		case <-ticker.C:
-			if fasttime.UnixTimestamp()-atomic.LoadUint64(&ps.wr.lastFlushTime) < uint64(flushSeconds) {
+			if fasttime.UnixTimestamp()-ps.wr.lastFlushTime.Load() < uint64(flushSeconds) {
 				continue
 			}
 		}
@@ -93,8 +93,7 @@ func (ps *pendingSeries) periodicFlusher() {
 }
 
 type writeRequest struct {
-	// Move lastFlushTime to the top of the struct in order to guarantee atomic access on 32-bit architectures.
-	lastFlushTime uint64
+	lastFlushTime atomic.Uint64
 
 	// The queue to send blocks to.
 	fq *persistentqueue.FastQueue
@@ -155,7 +154,7 @@ func (wr *writeRequest) mustWriteBlock(block []byte) bool {
 
 func (wr *writeRequest) tryFlush() bool {
 	wr.wr.Timeseries = wr.tss
-	atomic.StoreUint64(&wr.lastFlushTime, fasttime.UnixTimestamp())
+	wr.lastFlushTime.Store(fasttime.UnixTimestamp())
 	if !tryPushWriteRequest(&wr.wr, wr.fq.TryWriteBlock, wr.isVMRemoteWrite) {
 		return false
 	}
