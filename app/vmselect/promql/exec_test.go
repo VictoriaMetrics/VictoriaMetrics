@@ -5834,7 +5834,10 @@ func TestExecSuccess(t *testing.T) {
 	})
 	t.Run(`count_values_over_time`, func(t *testing.T) {
 		t.Parallel()
-		q := `sort_by_label(count_values_over_time(round(label_set(rand(0), "x", "y"), 0.4)[200s:5s], "foo"), "foo")`
+		q := `sort_by_label(
+			count_values_over_time("foo", round(label_set(rand(0), "x", "y"), 0.4)[200s:5s]),
+			"foo",
+		)`
 		r1 := netstorage.Result{
 			MetricName: metricNameExpected,
 			Values:     []float64{4, 8, 7, 6, 10, 9},
