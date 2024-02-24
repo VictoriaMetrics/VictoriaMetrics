@@ -1,3 +1,24 @@
+# v1.27.4 (2024-02-23)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.27.3 (2024-02-22)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.27.2 (2024-02-21)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.27.1 (2024-02-20)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.27.0 (2024-02-13)
+
+* **Feature**: Bump minimum Go version to 1.20 per our language support policy.
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # v1.26.6 (2024-01-22)
 
 * **Bug Fix**: Remove invalid escaping of shared config values. All values in the shared config file will now be interpreted literally, save for fully-quoted strings which are unwrapped for legacy reasons.

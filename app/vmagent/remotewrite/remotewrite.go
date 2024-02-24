@@ -536,22 +536,22 @@ func tryPushBlockToRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []prompbmar
 		// Push sharded data to remote storages in parallel in order to reduce
 		// the time needed for sending the data to multiple remote storage systems.
 		var wg sync.WaitGroup
-		wg.Add(len(rwctxs))
-		var anyPushFailed uint64
+		var anyPushFailed atomic.Bool
 		for i, rwctx := range rwctxs {
 			tssShard := tssByURL[i]
 			if len(tssShard) == 0 {
 				continue
 			}
+			wg.Add(1)
 			go func(rwctx *remoteWriteCtx, tss []prompbmarshal.TimeSeries) {
 				defer wg.Done()
 				if !rwctx.TryPush(tss) {
-					atomic.StoreUint64(&anyPushFailed, 1)
+					anyPushFailed.Store(true)
 				}
 			}(rwctx, tssShard)
 		}
 		wg.Wait()
-		return atomic.LoadUint64(&anyPushFailed) == 0
+		return !anyPushFailed.Load()
 	}
 
 	// Replicate data among rwctxs.
@@ -559,17 +559,17 @@ func tryPushBlockToRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []prompbmar
 	// the time needed for sending the data to multiple remote storage systems.
 	var wg sync.WaitGroup
 	wg.Add(len(rwctxs))
-	var anyPushFailed uint64
+	var anyPushFailed atomic.Bool
 	for _, rwctx := range rwctxs {
 		go func(rwctx *remoteWriteCtx) {
 			defer wg.Done()
 			if !rwctx.TryPush(tssBlock) {
-				atomic.StoreUint64(&anyPushFailed, 1)
+				anyPushFailed.Store(true)
 			}
 		}(rwctx)
 	}
 	wg.Wait()
-	return atomic.LoadUint64(&anyPushFailed) == 0
+	return !anyPushFailed.Load()
 }
 
 // sortLabelsIfNeeded sorts labels if -sortLabels command-line flag is set.
@@ -670,7 +670,7 @@ type remoteWriteCtx struct {
 	streamAggrDropInput bool
 
 	pss        []*pendingSeries
-	pssNextIdx uint64
+	pssNextIdx atomic.Uint64
 
 	rowsPushedAfterRelabel *metrics.Counter
 	rowsDroppedByRelabel   *metrics.Counter
@@ -872,7 +872,7 @@ func (rwctx *remoteWriteCtx) tryPushInternal(tss []prompbmarshal.TimeSeries) boo
 	}
 
 	pss := rwctx.pss
-	idx := atomic.AddUint64(&rwctx.pssNextIdx, 1) % uint64(len(pss))
+	idx := rwctx.pssNextIdx.Add(1) % uint64(len(pss))
 
 	ok := pss[idx].TryPush(tss)
 

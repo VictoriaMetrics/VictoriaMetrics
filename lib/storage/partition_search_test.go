@@ -172,12 +172,11 @@ func testPartitionSearchEx(t *testing.T, ptt int64, tr TimeRange, partsCount, ma
 	pt := mustCreatePartition(ptt, "small-table", "big-table", strg)
 	smallPartsPath := pt.smallPartsPath
 	bigPartsPath := pt.bigPartsPath
-	var tmpRows []rawRow
 	for _, rows := range rowss {
 		pt.AddRows(rows)
 
 		// Flush just added rows to a separate partitions.
-		tmpRows = pt.flushPendingRows(tmpRows[:0], true)
+		pt.flushPendingRows(true)
 	}
 	testPartitionSearch(t, pt, tsids, tr, rbsExpected, -1)
 	pt.MustClose()

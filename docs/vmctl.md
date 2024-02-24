@@ -50,7 +50,7 @@ COMMANDS:
 Each mode has its own unique set of flags specific (e.g. prefixed with `influx` for influx mode)
 to the data source and common list of flags for destination (prefixed with `vm` for VictoriaMetrics):
 
-```
+```sh
 $ ./vmctl influx --help
 OPTIONS:
    --influx-addr value              InfluxDB server addr (default: "http://localhost:8086")
@@ -118,14 +118,14 @@ OpenTSDB migration works like so:
 
 This means that we must stream data from OpenTSDB to VictoriaMetrics in chunks. This is where concurrency for OpenTSDB comes in. We can query multiple chunks at once, but we shouldn't perform too many chunks at a time to avoid overloading the OpenTSDB cluster.
 
-```
+```sh
 $ ./vmctl opentsdb --otsdb-addr http://opentsdb:4242/ --otsdb-retentions sum-1m-avg:1h:1d --otsdb-filters system --otsdb-normalize --vm-addr http://victoria:8428/
 OpenTSDB import mode
 2021/04/09 11:52:50 Will collect data starting at TS 1617990770
 2021/04/09 11:52:50 Loading all metrics from OpenTSDB for filters:  [system]
 Found 9 metrics to import. Continue? [Y/n]
 2021/04/09 11:52:51 Starting work on system.load1
-23 / 402200 [>____________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________] 0.01% 2 p/s
+23 / 402200 [>____________________________________________________________________________________________] 0.01% 2 p/s
 ```
 Where `:8428` is Prometheus port of VictoriaMetrics.
 
@@ -197,7 +197,7 @@ The time range `30d` simply means we are asking for the last 30 days of data. Th
 
 The resultant queries that will be created, based on our example retention string of `sum-1m-avg:1h:30d` look like this:
 
-```
+```sh
 http://opentsdb:4242/api/query?start=1h-ago&end=now&m=sum:1m-avg-none:<series>
 http://opentsdb:4242/api/query?start=2h-ago&end=1h-ago&m=sum:1m-avg-none:<series>
 http://opentsdb:4242/api/query?start=3h-ago&end=2h-ago&m=sum:1m-avg-none:<series>
@@ -206,6 +206,14 @@ http://opentsdb:4242/api/query?start=721h-ago&end=720h-ago&m=sum:1m-avg-none:<se
 ```
 
 Chunking the data like this means each individual query returns faster, so we can start populating data into VictoriaMetrics quicker.
+
+### Configuration
+
+Run the following command to get all configuration options:
+
+```sh
+./vmctl opentsdb --help
+```
 
 ### Restarting OpenTSDB migrations
 
@@ -232,7 +240,7 @@ VM importer then accumulates received samples in batches and sends import reques
 The importing process example for local installation of InfluxDB(`http://localhost:8086`)
 and single-node VictoriaMetrics(`http://localhost:8428`):
 
-```
+```sh
 ./vmctl influx --influx-database benchmark
 InfluxDB import mode
 2020/01/18 20:47:11 Exploring scheme for database "benchmark"
@@ -240,7 +248,7 @@ InfluxDB import mode
 2020/01/18 20:47:11 found 10 fields
 2020/01/18 20:47:11 fetching series: command: "show series "; database: "benchmark"; retention: "autogen"
 Found 40000 timeseries to import. Continue? [Y/n] y
-40000 / 40000 [-----------------------------------------------------------------------------------------------------------------------------------------------] 100.00% 21 p/s
+40000 / 40000 [----------------------------------------------------------------------------------------] 100.00% 21 p/s
 2020/01/18 21:19:00 Import finished!
 2020/01/18 21:19:00 VictoriaMetrics importer stats:
   idle duration: 13m51.461434876s;
@@ -280,7 +288,11 @@ foo_field2{tag1="value1", tag2="value2"} 40
 
 ### Configuration
 
-The configuration flags should contain self-explanatory descriptions.
+Run the following command to get all configuration options:
+```sh
+./vmctl influx --help
+```
+
 
 ### Filtering
 
@@ -289,7 +301,7 @@ The first step of application is to select all available timeseries
 for given database and retention. User may specify additional filtering
 condition via `--influx-filter-series` flag. For example:
 
-```
+```sh
 ./vmctl influx --influx-database benchmark \
   --influx-filter-series "on benchmark from cpu where hostname='host_1703'"
 InfluxDB import mode
@@ -339,7 +351,7 @@ VM worker 2:↙ 121616 samples/s
 VM worker 3:↙ 59164 samples/s                                                                                                                                                                        
 VM worker 4:↙ 59220 samples/s                                                                                                                                                                        
 VM worker 5:↙ 102072 samples/s                                                                                                                                                                       
-Processing ranges: 1 / 1 [██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████] 100.00%
+Processing ranges: 1 / 1 [████████████████████████████████████████████████████████████████████████████████████] 100.00%
 2023/08/21 16:11:55 Import finished!
 2023/08/21 16:11:55 VictoriaMetrics importer stats:
   idle duration: 0s;
@@ -386,7 +398,7 @@ The data processed in chunks and then sent to VM.
 The importing process example for local installation of Prometheus
 and single-node VictoriaMetrics(`http://localhost:8428`):
 
-```
+```sh
 ./vmctl prometheus --prom-snapshot=/path/to/snapshot \
   --vm-concurrency=1 \
   --vm-batch-size=200000 \
@@ -421,7 +433,11 @@ So no data changes will be applied.
 
 ### Configuration
 
-The configuration flags should contain self-explanatory descriptions.
+Run the following command to get all configuration options:
+```sh
+./vmctl prometheus --help
+```
+
 
 ### Filtering
 
@@ -433,7 +449,7 @@ overlapping time range.
 
 Example of applying time filter:
 
-```
+```sh
 ./vmctl prometheus --prom-snapshot=/path/to/snapshot \
   --prom-filter-time-start=2020-02-07T00:07:01Z \
   --prom-filter-time-end=2020-02-11T00:07:01Z
@@ -459,7 +475,7 @@ Filtering by timeseries is configured with following flags:
 
 For example:
 
-```
+```sh
 ./vmctl prometheus --prom-snapshot=/path/to/snapshot \
   --prom-filter-label="__name__" \
   --prom-filter-label-value="promhttp.*" \
@@ -474,7 +490,7 @@ Prometheus snapshot stats:
   samples: 1657698;
   series: 3930.
 Found 2 blocks to import. Continue? [Y/n] y
-14 / 14 [------------------------------------------------------------------------------------------------------------------------------------------------------] 100.00% ? p/s
+14 / 14 [-----------------------------------------------------------------------------------------------] 100.00% ? p/s
 2020/02/23 15:51:07 Import finished!
 2020/02/23 15:51:07 VictoriaMetrics importer stats:
   idle duration: 0s;
@@ -512,7 +528,7 @@ To start the migration process configure the following flags:
 The importing process example for local installation of Prometheus
 and single-node VictoriaMetrics(`http://localhost:8428`):
 
-```
+```sh
 ./vmctl remote-read \
 --remote-read-src-addr=http://<prometheus>:9091 \
 --remote-read-filter-time-start=2021-10-18T00:00:00Z \
@@ -527,7 +543,7 @@ VM worker 2:↘ 151606 samples/s
 VM worker 3:↘ 130765 samples/s
 VM worker 4:↘ 131904 samples/s
 VM worker 5:↘ 132693 samples/s
-Processing ranges: 8798 / 8798 [█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████] 100.00%
+Processing ranges: 8798 / 8798 [██████████████████████████████████████████████████████████████████████████████] 100.00%
 2022/10/19 16:45:37 Import finished!
 2022/10/19 16:45:37 VictoriaMetrics importer stats:
   idle duration: 6m57.793987511s;
@@ -569,7 +585,7 @@ and that you have a separate Thanos Store installation.
 1. For now, keep your Thanos Sidecar and Thanos-related Prometheus configuration, but add this to also stream
     metrics to VictoriaMetrics:
 
-    ```
+    ```yaml
     remote_write:
     - url: http://victoria-metrics:8428/api/v1/write
     ```
@@ -577,7 +593,7 @@ and that you have a separate Thanos Store installation.
 1. Make sure VM is running, of course. Now check the logs to make sure that Prometheus is sending and VM is receiving.
     In Prometheus, make sure there are no errors. On the VM side, you should see messages like this:
 
-    ```
+    ```sh
     2020-04-27T18:38:46.474Z info VictoriaMetrics/lib/storage/partition.go:207 creating a partition "2020_04" with smallPartsPath="/victoria-metrics-data/data/small/2020_04", bigPartsPath="/victoria-metrics-data/data/big/2020_04"
     2020-04-27T18:38:46.506Z info VictoriaMetrics/lib/storage/partition.go:222 partition "2020_04" has been created
     ```
@@ -618,7 +634,7 @@ When you run thanos-remote-read proxy, it exposes port to serve HTTP on `10080 b
 The importing process example for local installation of Thanos
 and single-node VictoriaMetrics(`http://localhost:8428`):
 
-```
+```sh
 ./vmctl remote-read \
 --remote-read-src-addr=http://127.0.0.1:10080 \
 --remote-read-filter-time-start=2021-10-18T00:00:00Z \
@@ -628,14 +644,14 @@ and single-node VictoriaMetrics(`http://localhost:8428`):
 ```
 
 On the [thanos-remote-read](https://github.com/G-Research/thanos-remote-read) proxy side you will see logs like:
-```
+```sh
 ts=2022-10-19T15:05:04.193916Z caller=main.go:278 level=info traceID=00000000000000000000000000000000 msg="thanos request" request="min_time:1666180800000 max_time:1666184399999 matchers:<type:RE value:\".*\" > aggregates:RAW "
 ts=2022-10-19T15:05:04.468852Z caller=main.go:278 level=info traceID=00000000000000000000000000000000 msg="thanos request" request="min_time:1666184400000 max_time:1666187999999 matchers:<type:RE value:\".*\" > aggregates:RAW "
 ts=2022-10-19T15:05:04.553914Z caller=main.go:278 level=info traceID=00000000000000000000000000000000 msg="thanos request" request="min_time:1666188000000 max_time:1666191364863 matchers:<type:RE value:\".*\" > aggregates:RAW "
 ```
 
 And when process will finish you will see:
-```
+```sh
 Split defined times into 8799 ranges to import. Continue? [Y/n]
 VM worker 0:↓ 98183 samples/s
 VM worker 1:↓ 114640 samples/s
@@ -643,7 +659,7 @@ VM worker 2:↓ 131710 samples/s
 VM worker 3:↓ 114256 samples/s
 VM worker 4:↓ 105671 samples/s
 VM worker 5:↓ 124000 samples/s
-Processing ranges: 8799 / 8799 [█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████] 100.00%
+Processing ranges: 8799 / 8799 [██████████████████████████████████████████████████████████████████████████████] 100.00%
 2022/10/19 18:05:07 Import finished!
 2022/10/19 18:05:07 VictoriaMetrics importer stats:
   idle duration: 52m13.987637229s;
@@ -681,7 +697,7 @@ When you run Cortex, it exposes a port to serve HTTP on `9009 by default`.
 The importing process example for the local installation of Cortex
 and single-node VictoriaMetrics(`http://localhost:8428`):
 
-```
+```sh
 ./vmctl remote-read \ 
 --remote-read-src-addr=http://127.0.0.1:9009/prometheus \
 --remote-read-filter-time-start=2021-10-18T00:00:00Z \
@@ -691,7 +707,7 @@ and single-node VictoriaMetrics(`http://localhost:8428`):
 ```
 And when the process finishes, you will see the following:
 
-```
+```sh
 Split defined times into 8842 ranges to import. Continue? [Y/n]
 VM worker 0:↗ 3863 samples/s
 VM worker 1:↗ 2686 samples/s
@@ -699,7 +715,7 @@ VM worker 2:↗ 2620 samples/s
 VM worker 3:↗ 2705 samples/s
 VM worker 4:↗ 2643 samples/s
 VM worker 5:↗ 2593 samples/s
-Processing ranges: 8842 / 8842 [█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████] 100.00%
+Processing ranges: 8842 / 8842 [█████████████████████████████████████████████████████████████████████████████] 100.00%
 2022/10/21 12:09:49 Import finished!
 2022/10/21 12:09:49 VictoriaMetrics importer stats:
   idle duration: 0s;
@@ -754,7 +770,7 @@ and single-node VictoriaMetrics(`http://localhost:8428`):
 
 And when the process finishes, you will see the following:
 
-```
+```sh
 Split defined times into 8847 ranges to import. Continue? [Y/n]
 VM worker 0:→ 12176 samples/s
 VM worker 1:→ 11918 samples/s
@@ -762,7 +778,7 @@ VM worker 2:→ 11261 samples/s
 VM worker 3:→ 12861 samples/s
 VM worker 4:→ 11096 samples/s
 VM worker 5:→ 11575 samples/s
-Processing ranges: 8847 / 8847 [█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████] 100.00%
+Processing ranges: 8847 / 8847 [█████████████████████████████████████████████████████████████████████████████] 100.00%
 2022/10/21 17:22:23 Import finished!
 2022/10/21 17:22:23 VictoriaMetrics importer stats:
   idle duration: 0s;
@@ -794,7 +810,7 @@ Migration in `vm-native` mode takes two steps:
 1. Explore the list of the metrics to migrate via `api/v1/label/__name__/values` API;
 1. Migrate explored metrics one-by-one.
 
-```
+```sh
 ./vmctl vm-native \
     --vm-native-src-addr=http://127.0.0.1:8481/select/0/prometheus \ # migrate from
     --vm-native-dst-addr=http://localhost:8428 \                     # migrate to
@@ -906,7 +922,7 @@ VictoriaMetrics Native import mode
 2023/03/02 09:18:05 Exploring metrics...
 Found 9 metrics to import. Continue? [Y/n] 
 2023/03/02 09:18:07 Selected time range will be split into 5 ranges according to "month" step. Requests to make: 45.
-Requests to make: 45 / 45 [█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████] 100.00%
+Requests to make: 45 / 45 [██████████████████████████████████████████████████████████████████████████████████] 100.00%
 2023/03/02 09:18:12 Import finished!
 2023/03/02 09:18:12 VictoriaMetrics importer stats:
   time spent while importing: 7.111870667s;
@@ -941,7 +957,7 @@ VictoriaMetrics Native import mode
 2023/02/28 10:41:42 Exploring metrics...
 2023/02/28 10:41:42 Found 1 metrics to import 
 2023/02/28 10:41:42 Selected time range will be split into 28 ranges according to "day" step. 
-Requests to make for tenant 0:0: 28 / 28 [███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████] 100.00%
+Requests to make for tenant 0:0: 28 / 28 [████████████████████████████████████████████████████████████████████] 100.00%
 
 2023/02/28 10:41:45 Initing import process from "http://127.0.0.1:8481/select/1:0/prometheus/api/v1/export/native" to "http://127.0.0.1:8480/insert/1:0/prometheus/api/v1/import/native" with filter 
         filter: match[]={__name__="vm_app_uptime_seconds"}
@@ -949,7 +965,7 @@ Requests to make for tenant 0:0: 28 / 28 [████████████�
 2023/02/28 10:41:45 Exploring metrics...
 2023/02/28 10:41:45 Found 1 metrics to import 
 2023/02/28 10:41:45 Selected time range will be split into 28 ranges according to "day" step. Requests to make: 28 
-Requests to make for tenant 1:0: 28 / 28 [████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████] 100.00%
+Requests to make for tenant 1:0: 28 / 28 [████████████████████████████████████████████████████████████████████] 100.00%
 
 ...
 
@@ -1075,7 +1091,7 @@ It is recommended using [binary releases](https://github.com/VictoriaMetrics/Vic
 
 ### Development build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.20.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.22.
 1. Run `make vmctl` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `vmctl` binary and puts it into the `bin` folder.
 
@@ -1104,7 +1120,7 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 
 #### Development ARM build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.20.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.22.
 1. Run `make vmctl-linux-arm` or `make vmctl-linux-arm64` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `vmctl-linux-arm` or `vmctl-linux-arm64` binary respectively and puts it into the `bin` folder.
 

@@ -1853,15 +1853,15 @@ type Folder struct {
 	// Bucket: The name of the bucket containing this folder.
 	Bucket string `json:"bucket,omitempty"`
 
+	// CreateTime: The creation time of the folder in RFC 3339 format.
+	CreateTime string `json:"createTime,omitempty"`
+
 	// Id: The ID of the folder, including the bucket name, folder name.
 	Id string `json:"id,omitempty"`
 
 	// Kind: The kind of item this is. For folders, this is always
 	// storage#folder.
 	Kind string `json:"kind,omitempty"`
-
-	// Metadata: User-provided metadata, in key/value pairs.
-	Metadata map[string]string `json:"metadata,omitempty"`
 
 	// Metageneration: The version of the metadata for this folder. Used for
 	// preconditions and for detecting changes in metadata.
@@ -1879,12 +1879,9 @@ type Folder struct {
 	// SelfLink: The link to this folder.
 	SelfLink string `json:"selfLink,omitempty"`
 
-	// TimeCreated: The creation time of the folder in RFC 3339 format.
-	TimeCreated string `json:"timeCreated,omitempty"`
-
-	// Updated: The modification time of the folder metadata in RFC 3339
+	// UpdateTime: The modification time of the folder metadata in RFC 3339
 	// format.
-	Updated string `json:"updated,omitempty"`
+	UpdateTime string `json:"updateTime,omitempty"`
 
 	// ServerResponse contains the HTTP response code and headers from the
 	// server.

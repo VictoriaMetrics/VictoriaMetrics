@@ -43,6 +43,9 @@ var (
 type AuthConfig struct {
 	Users            []UserInfo `yaml:"users,omitempty"`
 	UnauthorizedUser *UserInfo  `yaml:"unauthorized_user,omitempty"`
+
+	// ms holds all the metrics for the given AuthConfig
+	ms *metrics.Set
 }
 
 // UserInfo is user information read from authConfigPath
@@ -161,7 +164,7 @@ type Regex struct {
 
 // URLPrefix represents passed `url_prefix`
 type URLPrefix struct {
-	n uint32
+	n atomic.Uint32
 
 	// the list of backend urls
 	bus []*backendURL
@@ -189,27 +192,28 @@ func (up *URLPrefix) setLoadBalancingPolicy(loadBalancingPolicy string) error {
 }
 
 type backendURL struct {
-	brokenDeadline     uint64
-	concurrentRequests int32
-	url                *url.URL
+	brokenDeadline     atomic.Uint64
+	concurrentRequests atomic.Int32
+
+	url *url.URL
 }
 
 func (bu *backendURL) isBroken() bool {
 	ct := fasttime.UnixTimestamp()
-	return ct < atomic.LoadUint64(&bu.brokenDeadline)
+	return ct < bu.brokenDeadline.Load()
 }
 
 func (bu *backendURL) setBroken() {
 	deadline := fasttime.UnixTimestamp() + uint64((*failTimeout).Seconds())
-	atomic.StoreUint64(&bu.brokenDeadline, deadline)
+	bu.brokenDeadline.Store(deadline)
 }
 
 func (bu *backendURL) get() {
-	atomic.AddInt32(&bu.concurrentRequests, 1)
+	bu.concurrentRequests.Add(1)
 }
 
 func (bu *backendURL) put() {
-	atomic.AddInt32(&bu.concurrentRequests, -1)
+	bu.concurrentRequests.Add(-1)
 }
 
 func (up *URLPrefix) getBackendsCount() int {
@@ -263,7 +267,7 @@ func (up *URLPrefix) getLeastLoadedBackendURL() *backendURL {
 	}
 
 	// Slow path - select other backend urls.
-	n := atomic.AddUint32(&up.n, 1)
+	n := up.n.Add(1)
 
 	for i := uint32(0); i < uint32(len(bus)); i++ {
 		idx := (n + i) % uint32(len(bus))
@@ -271,22 +275,22 @@ func (up *URLPrefix) getLeastLoadedBackendURL() *backendURL {
 		if bu.isBroken() {
 			continue
 		}
-		if atomic.LoadInt32(&bu.concurrentRequests) == 0 {
+		if bu.concurrentRequests.Load() == 0 {
 			// Fast path - return the backend with zero concurrently executed requests.
-			// Do not use atomic.CompareAndSwapInt32(), since it is much slower on systems with many CPU cores.
-			atomic.AddInt32(&bu.concurrentRequests, 1)
+			// Do not use CompareAndSwap() instead of Load(), since it is much slower on systems with many CPU cores.
+			bu.concurrentRequests.Add(1)
 			return bu
 		}
 	}
 
 	// Slow path - return the backend with the minimum number of concurrently executed requests.
 	buMin := bus[n%uint32(len(bus))]
-	minRequests := atomic.LoadInt32(&buMin.concurrentRequests)
+	minRequests := buMin.concurrentRequests.Load()
 	for _, bu := range bus {
 		if bu.isBroken() {
 			continue
 		}
-		if n := atomic.LoadInt32(&bu.concurrentRequests); n < minRequests {
+		if n := bu.concurrentRequests.Load(); n < minRequests {
 			buMin = bu
 			minRequests = n
 		}
@@ -503,6 +507,11 @@ func loadAuthConfig() (bool, error) {
 	}
 	logger.Infof("loaded information about %d users from -auth.config=%q", len(m), *authConfigPath)
 
+	prevAc := authConfig.Load()
+	if prevAc != nil {
+		metrics.UnregisterSet(prevAc.ms)
+	}
+	metrics.RegisterSet(ac.ms)
 	authConfig.Store(ac)
 	authConfigData.Store(&data)
 	authUsers.Store(&m)
@@ -515,10 +524,13 @@ func parseAuthConfig(data []byte) (*AuthConfig, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot expand environment vars: %w", err)
 	}
-	var ac AuthConfig
-	if err = yaml.UnmarshalStrict(data, &ac); err != nil {
+	ac := &AuthConfig{
+		ms: metrics.NewSet(),
+	}
+	if err = yaml.UnmarshalStrict(data, ac); err != nil {
 		return nil, fmt.Errorf("cannot unmarshal AuthConfig data: %w", err)
 	}
+
 	ui := ac.UnauthorizedUser
 	if ui != nil {
 		if ui.Username != "" {
@@ -541,15 +553,15 @@ func parseAuthConfig(data []byte) (*AuthConfig, error) {
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse metric_labels for unauthorized_user: %w", err)
 		}
-		ui.requests = metrics.GetOrCreateCounter(`vmauth_unauthorized_user_requests_total` + metricLabels)
-		ui.backendErrors = metrics.GetOrCreateCounter(`vmauth_unauthorized_user_request_backend_errors_total` + metricLabels)
-		ui.requestsDuration = metrics.GetOrCreateSummary(`vmauth_unauthorized_user_request_duration_seconds` + metricLabels)
+		ui.requests = ac.ms.NewCounter(`vmauth_unauthorized_user_requests_total` + metricLabels)
+		ui.backendErrors = ac.ms.NewCounter(`vmauth_unauthorized_user_request_backend_errors_total` + metricLabels)
+		ui.requestsDuration = ac.ms.NewSummary(`vmauth_unauthorized_user_request_duration_seconds` + metricLabels)
 		ui.concurrencyLimitCh = make(chan struct{}, ui.getMaxConcurrentRequests())
-		ui.concurrencyLimitReached = metrics.GetOrCreateCounter(`vmauth_unauthorized_user_concurrent_requests_limit_reached_total` + metricLabels)
-		_ = metrics.GetOrCreateGauge(`vmauth_unauthorized_user_concurrent_requests_capacity`+metricLabels, func() float64 {
+		ui.concurrencyLimitReached = ac.ms.NewCounter(`vmauth_unauthorized_user_concurrent_requests_limit_reached_total` + metricLabels)
+		_ = ac.ms.NewGauge(`vmauth_unauthorized_user_concurrent_requests_capacity`+metricLabels, func() float64 {
 			return float64(cap(ui.concurrencyLimitCh))
 		})
-		_ = metrics.GetOrCreateGauge(`vmauth_unauthorized_user_concurrent_requests_current`+metricLabels, func() float64 {
+		_ = ac.ms.NewGauge(`vmauth_unauthorized_user_concurrent_requests_current`+metricLabels, func() float64 {
 			return float64(len(ui.concurrencyLimitCh))
 		})
 
@@ -559,7 +571,7 @@ func parseAuthConfig(data []byte) (*AuthConfig, error) {
 		}
 		ui.httpTransport = tr
 	}
-	return &ac, nil
+	return ac, nil
 }
 
 func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, error) {
@@ -570,18 +582,23 @@ func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, error) {
 	byAuthToken := make(map[string]*UserInfo, len(uis))
 	for i := range uis {
 		ui := &uis[i]
-		if ui.BearerToken == "" && ui.Username == "" {
-			return nil, fmt.Errorf("either bearer_token or username must be set")
+		if ui.Username != "" && ui.Password == "" {
+			// Do not allow setting username without password if there are other auth configs exist.
+			// This should prevent from typical mis-configuration when access by username without password
+			// remains open if other authorization schemes are defined.
+			if ui.BearerToken != "" {
+				return nil, fmt.Errorf("bearer_token=%q and username=%q cannot be set simultaneously", ui.BearerToken, ui.Username)
+			}
 		}
-		if ui.BearerToken != "" && ui.Username != "" {
-			return nil, fmt.Errorf("bearer_token=%q and username=%q cannot be set simultaneously", ui.BearerToken, ui.Username)
+		ats := getAuthTokens(ui.BearerToken, ui.Username, ui.Password)
+		if len(ats) == 0 {
+			return nil, fmt.Errorf("one of bearer_token, username or mtls must be set")
 		}
-		at1, at2 := getAuthTokens(ui.BearerToken, ui.Username, ui.Password)
-		if byAuthToken[at1] != nil {
-			return nil, fmt.Errorf("duplicate auth token found for bearer_token=%q, username=%q: %q", ui.BearerToken, ui.Username, at1)
-		}
-		if byAuthToken[at2] != nil {
-			return nil, fmt.Errorf("duplicate auth token found for bearer_token=%q, username=%q: %q", ui.BearerToken, ui.Username, at2)
+		for _, at := range ats {
+			if uiOld := byAuthToken[at]; uiOld != nil {
+				return nil, fmt.Errorf("duplicate auth token=%q found for username=%q, name=%q; the previous one is set for username=%q, name=%q",
+					at, ui.Username, ui.Name, uiOld.Username, uiOld.Name)
+			}
 		}
 
 		if err := ui.initURLs(); err != nil {
@@ -596,16 +613,16 @@ func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, error) {
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse metric_labels: %w", err)
 		}
-		ui.requests = metrics.GetOrCreateCounter(`vmauth_user_requests_total` + metricLabels)
-		ui.backendErrors = metrics.GetOrCreateCounter(`vmauth_user_request_backend_errors_total` + metricLabels)
-		ui.requestsDuration = metrics.GetOrCreateSummary(`vmauth_user_request_duration_seconds` + metricLabels)
+		ui.requests = ac.ms.GetOrCreateCounter(`vmauth_user_requests_total` + metricLabels)
+		ui.backendErrors = ac.ms.GetOrCreateCounter(`vmauth_user_request_backend_errors_total` + metricLabels)
+		ui.requestsDuration = ac.ms.GetOrCreateSummary(`vmauth_user_request_duration_seconds` + metricLabels)
 		mcr := ui.getMaxConcurrentRequests()
 		ui.concurrencyLimitCh = make(chan struct{}, mcr)
-		ui.concurrencyLimitReached = metrics.GetOrCreateCounter(`vmauth_user_concurrent_requests_limit_reached_total` + metricLabels)
-		_ = metrics.GetOrCreateGauge(`vmauth_user_concurrent_requests_capacity`+metricLabels, func() float64 {
+		ui.concurrencyLimitReached = ac.ms.GetOrCreateCounter(`vmauth_user_concurrent_requests_limit_reached_total` + metricLabels)
+		_ = ac.ms.GetOrCreateGauge(`vmauth_user_concurrent_requests_capacity`+metricLabels, func() float64 {
 			return float64(cap(ui.concurrencyLimitCh))
 		})
-		_ = metrics.GetOrCreateGauge(`vmauth_user_concurrent_requests_current`+metricLabels, func() float64 {
+		_ = ac.ms.GetOrCreateGauge(`vmauth_user_concurrent_requests_current`+metricLabels, func() float64 {
 			return float64(len(ui.concurrencyLimitCh))
 		})
 
@@ -615,8 +632,9 @@ func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, error) {
 		}
 		ui.httpTransport = tr
 
-		byAuthToken[at1] = ui
-		byAuthToken[at2] = ui
+		for _, at := range ats {
+			byAuthToken[at] = ui
+		}
 	}
 	return byAuthToken, nil
 }
@@ -720,24 +738,45 @@ func (ui *UserInfo) name() string {
 	return ""
 }
 
-func getAuthTokens(bearerToken, username, password string) (string, string) {
+func getAuthTokens(bearerToken, username, password string) []string {
+	var ats []string
 	if bearerToken != "" {
 		// Accept the bearerToken as Basic Auth username with empty password
-		at1 := getAuthToken(bearerToken, "", "")
-		at2 := getAuthToken("", bearerToken, "")
-		return at1, at2
+		at1 := getHTTPAuthBearerToken(bearerToken)
+		at2 := getHTTPAuthBasicToken(bearerToken, "")
+		ats = append(ats, at1, at2)
+	} else if username != "" {
+		at := getHTTPAuthBasicToken(username, password)
+		ats = append(ats, at)
 	}
-	at := getAuthToken("", username, password)
-	return at, at
+	return ats
 }
 
-func getAuthToken(bearerToken, username, password string) string {
-	if bearerToken != "" {
-		return "Bearer " + bearerToken
-	}
+func getHTTPAuthBearerToken(bearerToken string) string {
+	return "http_auth:Bearer " + bearerToken
+}
+
+func getHTTPAuthBasicToken(username, password string) string {
 	token := username + ":" + password
 	token64 := base64.StdEncoding.EncodeToString([]byte(token))
-	return "Basic " + token64
+	return "http_auth:Basic " + token64
+}
+
+func getAuthTokensFromRequest(r *http.Request) []string {
+	var ats []string
+
+	ah := r.Header.Get("Authorization")
+	if ah == "" {
+		return ats
+	}
+	if strings.HasPrefix(ah, "Token ") {
+		// Handle InfluxDB's proprietary token authentication scheme as a bearer token authentication
+		// See https://docs.influxdata.com/influxdb/v2.0/api/
+		ah = strings.Replace(ah, "Token", "Bearer", 1)
+	}
+	at := "http_auth:" + ah
+	ats = append(ats, at)
+	return ats
 }
 
 func (up *URLPrefix) sanitize() error {

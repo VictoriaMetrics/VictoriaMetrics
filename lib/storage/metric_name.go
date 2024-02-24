@@ -516,7 +516,7 @@ func MarshalMetricNameRaw(dst []byte, labels []prompb.Label) []byte {
 		}
 		label := &labels[i]
 		if len(label.Name) > maxLabelNameLen {
-			atomic.AddUint64(&TooLongLabelNames, 1)
+			TooLongLabelNames.Add(1)
 			label.Name = label.Name[:maxLabelNameLen]
 		}
 		if len(label.Value) > maxLabelValueLen {
@@ -554,17 +554,17 @@ func MarshalMetricNameRaw(dst []byte, labels []prompb.Label) []byte {
 
 var (
 	// MetricsWithDroppedLabels is the number of metrics with at least a single dropped label
-	MetricsWithDroppedLabels uint64
+	MetricsWithDroppedLabels atomic.Uint64
 
 	// TooLongLabelNames is the number of too long label names
-	TooLongLabelNames uint64
+	TooLongLabelNames atomic.Uint64
 
 	// TooLongLabelValues is the number of too long label values
-	TooLongLabelValues uint64
+	TooLongLabelValues atomic.Uint64
 )
 
 func trackDroppedLabels(labels, droppedLabels []prompb.Label) {
-	atomic.AddUint64(&MetricsWithDroppedLabels, 1)
+	MetricsWithDroppedLabels.Add(1)
 	select {
 	case <-droppedLabelsLogTicker.C:
 		// Do not call logger.WithThrottler() here, since this will result in increased CPU usage
@@ -577,14 +577,14 @@ func trackDroppedLabels(labels, droppedLabels []prompb.Label) {
 }
 
 func trackTruncatedLabels(labels []prompb.Label, truncated *prompb.Label) {
-	atomic.AddUint64(&TooLongLabelValues, 1)
+	TooLongLabelValues.Add(1)
 	select {
 	case <-truncatedLabelsLogTicker.C:
 		// Do not call logger.WithThrottler() here, since this will result in increased CPU usage
 		// because labelsToString() will be called with each trackTruncatedLabels call.
-		logger.Warnf("truncated label value as it exceeds configured maximal label value length: max %d, actual %d;"+
-			" truncated label: %s; original labels: %s; either reduce the label value length or increase -maxLabelValueLen=%d;",
-			maxLabelValueLen, len(truncated.Value), truncated.Name, labelsToString(labels), maxLabelValueLen)
+		logger.Warnf("truncate value for label %s because its length=%d exceeds -maxLabelValueLen=%d; "+
+			"original labels: %s; either reduce the label value length or increase -maxLabelValueLen command-line flag value",
+			truncated.Name, len(truncated.Value), maxLabelValueLen, labelsToString(labels))
 	default:
 	}
 }

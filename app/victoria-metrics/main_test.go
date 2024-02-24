@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math/rand"
 	"net"
 	"net/http"
 	"os"
@@ -38,11 +39,13 @@ const (
 )
 
 const (
-	testReadHTTPPath          = "http://127.0.0.1" + testHTTPListenAddr
-	testWriteHTTPPath         = "http://127.0.0.1" + testHTTPListenAddr + "/write"
-	testOpenTSDBWriteHTTPPath = "http://127.0.0.1" + testOpenTSDBHTTPListenAddr + "/api/put"
-	testPromWriteHTTPPath     = "http://127.0.0.1" + testHTTPListenAddr + "/api/v1/write"
-	testHealthHTTPPath        = "http://127.0.0.1" + testHTTPListenAddr + "/health"
+	testReadHTTPPath           = "http://127.0.0.1" + testHTTPListenAddr
+	testWriteHTTPPath          = "http://127.0.0.1" + testHTTPListenAddr + "/write"
+	testOpenTSDBWriteHTTPPath  = "http://127.0.0.1" + testOpenTSDBHTTPListenAddr + "/api/put"
+	testPromWriteHTTPPath      = "http://127.0.0.1" + testHTTPListenAddr + "/api/v1/write"
+	testImportCSVWriteHTTPPath = "http://127.0.0.1" + testHTTPListenAddr + "/api/v1/import/csv"
+
+	testHealthHTTPPath = "http://127.0.0.1" + testHTTPListenAddr + "/health"
 )
 
 const (
@@ -55,14 +58,15 @@ var (
 )
 
 type test struct {
-	Name          string   `json:"name"`
-	Data          []string `json:"data"`
-	InsertQuery   string   `json:"insert_query"`
-	Query         []string `json:"query"`
-	ResultMetrics []Metric `json:"result_metrics"`
-	ResultSeries  Series   `json:"result_series"`
-	ResultQuery   Query    `json:"result_query"`
-	Issue         string   `json:"issue"`
+	Name                     string   `json:"name"`
+	Data                     []string `json:"data"`
+	InsertQuery              string   `json:"insert_query"`
+	Query                    []string `json:"query"`
+	ResultMetrics            []Metric `json:"result_metrics"`
+	ResultSeries             Series   `json:"result_series"`
+	ResultQuery              Query    `json:"result_query"`
+	Issue                    string   `json:"issue"`
+	ExpectedResultLinesCount int      `json:"expected_result_lines_count"`
 }
 
 type Metric struct {
@@ -260,6 +264,14 @@ func testWrite(t *testing.T) {
 			httpWrite(t, testPromWriteHTTPPath, test.InsertQuery, bytes.NewBuffer(data))
 		}
 	})
+	t.Run("csv", func(t *testing.T) {
+		for _, test := range readIn("csv", t, insertionTime) {
+			if test.Data == nil {
+				continue
+			}
+			httpWrite(t, testImportCSVWriteHTTPPath, test.InsertQuery, bytes.NewBuffer([]byte(strings.Join(test.Data, "\n"))))
+		}
+	})
 
 	t.Run("influxdb", func(t *testing.T) {
 		for _, x := range readIn("influxdb", t, insertionTime) {
@@ -301,7 +313,7 @@ func testWrite(t *testing.T) {
 }
 
 func testRead(t *testing.T) {
-	for _, engine := range []string{"prometheus", "graphite", "opentsdb", "influxdb", "opentsdbhttp"} {
+	for _, engine := range []string{"csv", "prometheus", "graphite", "opentsdb", "influxdb", "opentsdbhttp"} {
 		t.Run(engine, func(t *testing.T) {
 			for _, x := range readIn(engine, t, insertionTime) {
 				test := x
@@ -312,7 +324,12 @@ func testRead(t *testing.T) {
 						if test.Issue != "" {
 							test.Issue = "\nRegression in " + test.Issue
 						}
-						switch true {
+						switch {
+						case strings.HasPrefix(q, "/api/v1/export/csv"):
+							data := strings.Split(string(httpReadData(t, testReadHTTPPath, q)), "\n")
+							if len(data) == test.ExpectedResultLinesCount {
+								t.Fatalf("not expected number of csv lines want=%d\ngot=%d test=%s.%s\n\response=%q", len(data), test.ExpectedResultLinesCount, q, test.Issue, strings.Join(data, "\n"))
+							}
 						case strings.HasPrefix(q, "/api/v1/export"):
 							if err := checkMetricsResult(httpReadMetrics(t, testReadHTTPPath, q), test.ResultMetrics); err != nil {
 								t.Fatalf("Export. %s fails with error %s.%s", q, err, test.Issue)
@@ -413,6 +430,7 @@ func httpReadMetrics(t *testing.T, address, query string) []Metric {
 	}
 	return rows
 }
+
 func httpReadStruct(t *testing.T, address, query string, dst interface{}) {
 	t.Helper()
 	s := newSuite(t)
@@ -423,6 +441,20 @@ func httpReadStruct(t *testing.T, address, query string, dst interface{}) {
 	}()
 	s.equalInt(resp.StatusCode, 200)
 	s.noError(json.NewDecoder(resp.Body).Decode(dst))
+}
+
+func httpReadData(t *testing.T, address, query string) []byte {
+	t.Helper()
+	s := newSuite(t)
+	resp, err := http.Get(address + query)
+	s.noError(err)
+	defer func() {
+		_ = resp.Body.Close()
+	}()
+	s.equalInt(resp.StatusCode, 200)
+	data, err := io.ReadAll(resp.Body)
+	s.noError(err)
+	return data
 }
 
 func checkMetricsResult(got, want []Metric) error {
@@ -496,4 +528,74 @@ func (s *suite) greaterThan(a, b int) {
 		s.t.Errorf("%d less or equal then %d", a, b)
 		s.t.FailNow()
 	}
+}
+
+func TestImportJSONLines(t *testing.T) {
+	f := func(labelsCount, labelLen int) {
+		t.Helper()
+
+		reqURL := fmt.Sprintf("http://localhost%s/api/v1/import", testHTTPListenAddr)
+		line := generateJSONLine(labelsCount, labelLen)
+		req, err := http.NewRequest("POST", reqURL, bytes.NewBufferString(line))
+		if err != nil {
+			t.Fatalf("cannot create request: %s", err)
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatalf("cannot perform request for labelsCount=%d, labelLen=%d: %s", labelsCount, labelLen, err)
+		}
+		if resp.StatusCode != 204 {
+			t.Fatalf("unexpected statusCode for labelsCount=%d, labelLen=%d; got %d; want 204", labelsCount, labelLen, resp.StatusCode)
+		}
+	}
+
+	// labels with various lengths
+	for i := 0; i < 500; i++ {
+		f(10, i*5)
+	}
+
+	// Too many labels
+	f(1000, 100)
+
+	// Too long labels
+	f(1, 100_000)
+	f(10, 100_000)
+	f(10, 10_000)
+}
+
+func generateJSONLine(labelsCount, labelLen int) string {
+	m := make(map[string]string, labelsCount)
+	m["__name__"] = generateSizedRandomString(labelLen)
+	for j := 1; j < labelsCount; j++ {
+		labelName := generateSizedRandomString(labelLen)
+		labelValue := generateSizedRandomString(labelLen)
+		m[labelName] = labelValue
+	}
+
+	type jsonLine struct {
+		Metric     map[string]string `json:"metric"`
+		Values     []float64         `json:"values"`
+		Timestamps []int64           `json:"timestamps"`
+	}
+	line := &jsonLine{
+		Metric:     m,
+		Values:     []float64{1.34},
+		Timestamps: []int64{time.Now().UnixNano() / 1e6},
+	}
+	data, err := json.Marshal(&line)
+	if err != nil {
+		panic(fmt.Errorf("cannot marshal JSON: %w", err))
+	}
+	data = append(data, '\n')
+	return string(data)
+}
+
+const alphabetSample = `qwertyuiopasdfghjklzxcvbnm`
+
+func generateSizedRandomString(size int) string {
+	dst := make([]byte, size)
+	for i := range dst {
+		dst[i] = alphabetSample[rand.Intn(len(alphabetSample))]
+	}
+	return string(dst)
 }

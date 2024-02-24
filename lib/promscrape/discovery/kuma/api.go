@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -23,8 +24,9 @@ import (
 var configMap = discoveryutils.NewConfigMap()
 
 type apiConfig struct {
-	client  *discoveryutils.Client
-	apiPath string
+	client   *discoveryutils.Client
+	clientID string
+	apiPath  string
 
 	// labels contains the latest discovered labels.
 	labels atomic.Pointer[[]*promutils.Labels]
@@ -65,9 +67,18 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 		return nil, fmt.Errorf("cannot create HTTP client for %q: %w", apiServer, err)
 	}
 
+	clientID := sdc.ClientID
+	if clientID == "" {
+		clientID, _ = os.Hostname()
+		if clientID == "" {
+			clientID = "vmagent"
+		}
+	}
+
 	cfg := &apiConfig{
-		client:  client,
-		apiPath: apiPath,
+		client:   client,
+		clientID: clientID,
+		apiPath:  apiPath,
 
 		fetchErrors: metrics.GetOrCreateCounter(fmt.Sprintf(`promscrape_discovery_kuma_errors_total{type="fetch",url=%q}`, sdc.Server)),
 		parseErrors: metrics.GetOrCreateCounter(fmt.Sprintf(`promscrape_discovery_kuma_errors_total{type="parse",url=%q}`, sdc.Server)),
@@ -142,7 +153,7 @@ func (cfg *apiConfig) updateTargetsLabels(ctx context.Context) error {
 	dReq := &discoveryRequest{
 		VersionInfo: cfg.latestVersion,
 		Node: discoveryRequestNode{
-			ID: "vmagent",
+			ID: cfg.clientID,
 		},
 		TypeURL:       "type.googleapis.com/kuma.observability.v1.MonitoringAssignment",
 		ResponseNonce: cfg.latestNonce,

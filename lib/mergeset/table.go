@@ -15,7 +15,6 @@ import (
 	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
@@ -84,33 +83,29 @@ func maxItemsPerCachedPart() uint64 {
 
 // Table represents mergeset table.
 type Table struct {
-	// Atomically updated counters must go first in the struct, so they are properly
-	// aligned to 8 bytes on 32-bit architectures.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/212
+	activeInmemoryMerges atomic.Int64
+	activeFileMerges     atomic.Int64
 
-	activeInmemoryMerges uint64
-	activeFileMerges     uint64
+	inmemoryMergesCount atomic.Uint64
+	fileMergesCount     atomic.Uint64
 
-	inmemoryMergesCount uint64
-	fileMergesCount     uint64
+	inmemoryItemsMerged atomic.Uint64
+	fileItemsMerged     atomic.Uint64
 
-	inmemoryItemsMerged uint64
-	fileItemsMerged     uint64
+	itemsAdded          atomic.Uint64
+	itemsAddedSizeBytes atomic.Uint64
 
-	itemsAdded          uint64
-	itemsAddedSizeBytes uint64
+	inmemoryPartsLimitReachedCount atomic.Uint64
 
-	inmemoryPartsLimitReachedCount uint64
-
-	mergeIdx uint64
+	mergeIdx atomic.Uint64
 
 	path string
 
 	flushCallback         func()
-	needFlushCallbackCall uint32
+	needFlushCallbackCall atomic.Bool
 
 	prepareBlock PrepareBlockCallback
-	isReadOnly   *uint32
+	isReadOnly   *atomic.Bool
 
 	// rawItems contains recently added items that haven't been converted to parts yet.
 	//
@@ -149,10 +144,15 @@ type Table struct {
 }
 
 type rawItemsShards struct {
-	shardIdx uint32
+	flushDeadlineMs atomic.Int64
+
+	shardIdx atomic.Uint32
 
 	// shards reduce lock contention when adding rows on multi-CPU systems.
 	shards []rawItemsShard
+
+	ibsToFlushLock sync.Mutex
+	ibsToFlush     []*inmemoryBlock
 }
 
 // The number of shards for rawItems per table.
@@ -177,10 +177,33 @@ func (riss *rawItemsShards) addItems(tb *Table, items [][]byte) {
 	shards := riss.shards
 	shardsLen := uint32(len(shards))
 	for len(items) > 0 {
-		n := atomic.AddUint32(&riss.shardIdx, 1)
+		n := riss.shardIdx.Add(1)
 		idx := n % shardsLen
-		items = shards[idx].addItems(tb, items)
+		tailItems, ibsToFlush := shards[idx].addItems(items)
+		riss.addIbsToFlush(tb, ibsToFlush)
+		items = tailItems
 	}
+}
+
+func (riss *rawItemsShards) addIbsToFlush(tb *Table, ibsToFlush []*inmemoryBlock) {
+	if len(ibsToFlush) == 0 {
+		return
+	}
+
+	var ibsToMerge []*inmemoryBlock
+
+	riss.ibsToFlushLock.Lock()
+	if len(riss.ibsToFlush) == 0 {
+		riss.updateFlushDeadline()
+	}
+	riss.ibsToFlush = append(riss.ibsToFlush, ibsToFlush...)
+	if len(riss.ibsToFlush) >= maxBlocksPerShard*cgroup.AvailableCPUs() {
+		ibsToMerge = ibsToFlush
+		riss.ibsToFlush = nil
+	}
+	riss.ibsToFlushLock.Unlock()
+
+	tb.flushBlocksToInmemoryParts(ibsToMerge, false)
 }
 
 func (riss *rawItemsShards) Len() int {
@@ -191,9 +214,12 @@ func (riss *rawItemsShards) Len() int {
 	return n
 }
 
+func (riss *rawItemsShards) updateFlushDeadline() {
+	riss.flushDeadlineMs.Store(time.Now().Add(pendingItemsFlushInterval).UnixMilli())
+}
+
 type rawItemsShardNopad struct {
-	// Put lastFlushTime to the top in order to avoid unaligned memory access on 32-bit architectures
-	lastFlushTime uint64
+	flushDeadlineMs atomic.Int64
 
 	mu  sync.Mutex
 	ibs []*inmemoryBlock
@@ -217,7 +243,7 @@ func (ris *rawItemsShard) Len() int {
 	return n
 }
 
-func (ris *rawItemsShard) addItems(tb *Table, items [][]byte) [][]byte {
+func (ris *rawItemsShard) addItems(items [][]byte) ([][]byte, []*inmemoryBlock) {
 	var ibsToFlush []*inmemoryBlock
 	var tailItems [][]byte
 
@@ -225,6 +251,7 @@ func (ris *rawItemsShard) addItems(tb *Table, items [][]byte) [][]byte {
 	ibs := ris.ibs
 	if len(ibs) == 0 {
 		ibs = append(ibs, &inmemoryBlock{})
+		ris.updateFlushDeadline()
 		ris.ibs = ibs
 	}
 	ib := ibs[len(ibs)-1]
@@ -236,7 +263,6 @@ func (ris *rawItemsShard) addItems(tb *Table, items [][]byte) [][]byte {
 			ibsToFlush = append(ibsToFlush, ibs...)
 			ibs = make([]*inmemoryBlock, 0, maxBlocksPerShard)
 			tailItems = items[i:]
-			atomic.StoreUint64(&ris.lastFlushTime, fasttime.UnixTimestamp())
 			break
 		}
 		ib = &inmemoryBlock{}
@@ -244,28 +270,38 @@ func (ris *rawItemsShard) addItems(tb *Table, items [][]byte) [][]byte {
 			ibs = append(ibs, ib)
 			continue
 		}
-		ris.mu.Unlock()
-		logger.Panicf("BUG: cannot insert too big item into an empty inmemoryBlock; len(item)=%d; the caller should be responsible for avoiding too big items", len(item))
+
+		// Skip too long item
+		itemPrefix := item
+		if len(itemPrefix) > 128 {
+			itemPrefix = itemPrefix[:128]
+		}
+		tooLongItemLogger.Errorf("skipping adding too long item to indexdb: len(item)=%d; it souldn't exceed %d bytes; item prefix=%q", len(item), maxInmemoryBlockSize, itemPrefix)
 	}
 	ris.ibs = ibs
 	ris.mu.Unlock()
 
-	tb.flushBlocksToInmemoryParts(ibsToFlush, false)
-
-	return tailItems
+	return tailItems, ibsToFlush
 }
 
+func (ris *rawItemsShard) updateFlushDeadline() {
+	ris.flushDeadlineMs.Store(time.Now().Add(pendingItemsFlushInterval).UnixMilli())
+}
+
+var tooLongItemLogger = logger.WithThrottler("tooLongItem", 5*time.Second)
+
 type partWrapper struct {
+	// refCount is the number of references to partWrapper
+	refCount atomic.Int32
+
+	// mustDrop marks partWrapper for deletion.
+	// This field should be updated only after partWrapper
+	// was removed from the list of active parts.
+	mustDrop atomic.Bool
+
 	p *part
 
 	mp *inmemoryPart
-
-	refCount uint32
-
-	// mustBeDeleted marks partWrapper for deletion.
-	// This field should be updated only after partWrapper
-	// was removed from the list of active parts.
-	mustBeDeleted uint32
 
 	isInMerge bool
 
@@ -274,20 +310,20 @@ type partWrapper struct {
 }
 
 func (pw *partWrapper) incRef() {
-	atomic.AddUint32(&pw.refCount, 1)
+	pw.refCount.Add(1)
 }
 
 func (pw *partWrapper) decRef() {
-	n := atomic.AddUint32(&pw.refCount, ^uint32(0))
-	if int32(n) < 0 {
-		logger.Panicf("BUG: pw.refCount must be bigger than 0; got %d", int32(n))
+	n := pw.refCount.Add(-1)
+	if n < 0 {
+		logger.Panicf("BUG: pw.refCount must be bigger than 0; got %d", n)
 	}
 	if n > 0 {
 		return
 	}
 
 	deletePath := ""
-	if pw.mp == nil && atomic.LoadUint32(&pw.mustBeDeleted) != 0 {
+	if pw.mp == nil && pw.mustDrop.Load() {
 		deletePath = pw.p.path
 	}
 	if pw.mp != nil {
@@ -313,7 +349,7 @@ func (pw *partWrapper) decRef() {
 // to persistent storage.
 //
 // The table is created if it doesn't exist yet.
-func MustOpenTable(path string, flushCallback func(), prepareBlock PrepareBlockCallback, isReadOnly *uint32) *Table {
+func MustOpenTable(path string, flushCallback func(), prepareBlock PrepareBlockCallback, isReadOnly *atomic.Bool) *Table {
 	path = filepath.Clean(path)
 
 	// Create a directory for the table if it doesn't exist yet.
@@ -323,7 +359,6 @@ func MustOpenTable(path string, flushCallback func(), prepareBlock PrepareBlockC
 	pws := mustOpenParts(path)
 
 	tb := &Table{
-		mergeIdx:             uint64(time.Now().UnixNano()),
 		path:                 path,
 		flushCallback:        flushCallback,
 		prepareBlock:         prepareBlock,
@@ -332,6 +367,7 @@ func MustOpenTable(path string, flushCallback func(), prepareBlock PrepareBlockC
 		inmemoryPartsLimitCh: make(chan struct{}, maxInmemoryParts),
 		stopCh:               make(chan struct{}),
 	}
+	tb.mergeIdx.Store(uint64(time.Now().UnixNano()))
 	tb.rawItems.init()
 	tb.startBackgroundWorkers()
 
@@ -424,7 +460,7 @@ func (tb *Table) startFlushCallbackWorker() {
 				tb.wg.Done()
 				return
 			case <-tc.C:
-				if atomic.CompareAndSwapUint32(&tb.needFlushCallbackCall, 1, 0) {
+				if tb.needFlushCallbackCall.CompareAndSwap(true, false) {
 					tb.flushCallback()
 				}
 			}
@@ -548,19 +584,19 @@ func (tm *TableMetrics) TotalItemsCount() uint64 {
 
 // UpdateMetrics updates m with metrics from tb.
 func (tb *Table) UpdateMetrics(m *TableMetrics) {
-	m.ActiveInmemoryMerges += atomic.LoadUint64(&tb.activeInmemoryMerges)
-	m.ActiveFileMerges += atomic.LoadUint64(&tb.activeFileMerges)
+	m.ActiveInmemoryMerges += uint64(tb.activeInmemoryMerges.Load())
+	m.ActiveFileMerges += uint64(tb.activeFileMerges.Load())
 
-	m.InmemoryMergesCount += atomic.LoadUint64(&tb.inmemoryMergesCount)
-	m.FileMergesCount += atomic.LoadUint64(&tb.fileMergesCount)
+	m.InmemoryMergesCount += tb.inmemoryMergesCount.Load()
+	m.FileMergesCount += tb.fileMergesCount.Load()
 
-	m.InmemoryItemsMerged += atomic.LoadUint64(&tb.inmemoryItemsMerged)
-	m.FileItemsMerged += atomic.LoadUint64(&tb.fileItemsMerged)
+	m.InmemoryItemsMerged += tb.inmemoryItemsMerged.Load()
+	m.FileItemsMerged += tb.fileItemsMerged.Load()
 
-	m.ItemsAdded += atomic.LoadUint64(&tb.itemsAdded)
-	m.ItemsAddedSizeBytes += atomic.LoadUint64(&tb.itemsAddedSizeBytes)
+	m.ItemsAdded += tb.itemsAdded.Load()
+	m.ItemsAddedSizeBytes += tb.itemsAddedSizeBytes.Load()
 
-	m.InmemoryPartsLimitReachedCount += atomic.LoadUint64(&tb.inmemoryPartsLimitReachedCount)
+	m.InmemoryPartsLimitReachedCount += tb.inmemoryPartsLimitReachedCount.Load()
 
 	m.PendingItems += uint64(tb.rawItems.Len())
 
@@ -572,7 +608,7 @@ func (tb *Table) UpdateMetrics(m *TableMetrics) {
 		m.InmemoryBlocksCount += p.ph.blocksCount
 		m.InmemoryItemsCount += p.ph.itemsCount
 		m.InmemorySizeBytes += p.size
-		m.PartsRefCount += uint64(atomic.LoadUint32(&pw.refCount))
+		m.PartsRefCount += uint64(pw.refCount.Load())
 	}
 
 	m.FilePartsCount += uint64(len(tb.fileParts))
@@ -581,7 +617,7 @@ func (tb *Table) UpdateMetrics(m *TableMetrics) {
 		m.FileBlocksCount += p.ph.blocksCount
 		m.FileItemsCount += p.ph.itemsCount
 		m.FileSizeBytes += p.size
-		m.PartsRefCount += uint64(atomic.LoadUint32(&pw.refCount))
+		m.PartsRefCount += uint64(pw.refCount.Load())
 	}
 	tb.partsLock.Unlock()
 
@@ -600,16 +636,16 @@ func (tb *Table) UpdateMetrics(m *TableMetrics) {
 
 // AddItems adds the given items to the tb.
 //
-// The function panics when items contains an item with length exceeding maxInmemoryBlockSize.
-// It is caller's responsibility to make sure there are no too long items.
+// The function ignores items with length exceeding maxInmemoryBlockSize.
+// It logs the ignored items, so users could notice and fix the issue.
 func (tb *Table) AddItems(items [][]byte) {
 	tb.rawItems.addItems(tb, items)
-	atomic.AddUint64(&tb.itemsAdded, uint64(len(items)))
+	tb.itemsAdded.Add(uint64(len(items)))
 	n := 0
 	for _, item := range items {
 		n += len(item)
 	}
-	atomic.AddUint64(&tb.itemsAddedSizeBytes, uint64(n))
+	tb.itemsAddedSizeBytes.Add(uint64(n))
 }
 
 // getParts appends parts snapshot to dst and returns it.
@@ -682,29 +718,30 @@ func (tb *Table) mergeInmemoryPartsToFiles(pws []*partWrapper) error {
 // This function is for debugging and testing purposes only,
 // since it may slow down data ingestion when used frequently.
 func (tb *Table) DebugFlush() {
-	tb.flushPendingItems(nil, true)
+	tb.flushPendingItems(true)
 
 	// Wait for background flushers to finish.
 	tb.flushPendingItemsWG.Wait()
 }
 
 func (tb *Table) pendingItemsFlusher() {
-	d := timeutil.AddJitterToDuration(pendingItemsFlushInterval)
+	// do not add jitter in order to guarantee flush interval
+	d := pendingItemsFlushInterval
 	ticker := time.NewTicker(d)
 	defer ticker.Stop()
-	var ibs []*inmemoryBlock
 	for {
 		select {
 		case <-tb.stopCh:
 			return
 		case <-ticker.C:
-			ibs = tb.flushPendingItems(ibs[:0], false)
+			tb.flushPendingItems(false)
 		}
 	}
 }
 
 func (tb *Table) inmemoryPartsFlusher() {
-	d := timeutil.AddJitterToDuration(dataFlushInterval)
+	// do not add jitter in order to guarantee flush interval
+	d := dataFlushInterval
 	ticker := time.NewTicker(d)
 	defer ticker.Stop()
 	for {
@@ -717,15 +754,14 @@ func (tb *Table) inmemoryPartsFlusher() {
 	}
 }
 
-func (tb *Table) flushPendingItems(dst []*inmemoryBlock, isFinal bool) []*inmemoryBlock {
+func (tb *Table) flushPendingItems(isFinal bool) {
 	tb.flushPendingItemsWG.Add(1)
-	dst = tb.rawItems.flush(tb, dst, isFinal)
+	tb.rawItems.flush(tb, isFinal)
 	tb.flushPendingItemsWG.Done()
-	return dst
 }
 
 func (tb *Table) flushInmemoryItemsToFiles() {
-	tb.flushPendingItems(nil, true)
+	tb.flushPendingItems(true)
 	tb.flushInmemoryPartsToFiles(true)
 }
 
@@ -747,25 +783,32 @@ func (tb *Table) flushInmemoryPartsToFiles(isFinal bool) {
 	}
 }
 
-func (riss *rawItemsShards) flush(tb *Table, dst []*inmemoryBlock, isFinal bool) []*inmemoryBlock {
-	for i := range riss.shards {
-		dst = riss.shards[i].appendBlocksToFlush(dst, isFinal)
+func (riss *rawItemsShards) flush(tb *Table, isFinal bool) {
+	var dst []*inmemoryBlock
+
+	currentTimeMs := time.Now().UnixMilli()
+	flushDeadlineMs := riss.flushDeadlineMs.Load()
+	if isFinal || currentTimeMs >= flushDeadlineMs {
+		riss.ibsToFlushLock.Lock()
+		dst = riss.ibsToFlush
+		riss.ibsToFlush = nil
+		riss.ibsToFlushLock.Unlock()
 	}
+
+	for i := range riss.shards {
+		dst = riss.shards[i].appendBlocksToFlush(dst, currentTimeMs, isFinal)
+	}
+
 	tb.flushBlocksToInmemoryParts(dst, isFinal)
-	return dst
 }
 
-func (ris *rawItemsShard) appendBlocksToFlush(dst []*inmemoryBlock, isFinal bool) []*inmemoryBlock {
-	currentTime := fasttime.UnixTimestamp()
-	flushSeconds := int64(pendingItemsFlushInterval.Seconds())
-	if flushSeconds <= 0 {
-		flushSeconds = 1
-	}
-	lastFlushTime := atomic.LoadUint64(&ris.lastFlushTime)
-	if !isFinal && currentTime < lastFlushTime+uint64(flushSeconds) {
+func (ris *rawItemsShard) appendBlocksToFlush(dst []*inmemoryBlock, currentTimeMs int64, isFinal bool) []*inmemoryBlock {
+	flushDeadlineMs := ris.flushDeadlineMs.Load()
+	if !isFinal && currentTimeMs < flushDeadlineMs {
 		// Fast path - nothing to flush
 		return dst
 	}
+
 	// Slow path - move ris.ibs to dst
 	ris.mu.Lock()
 	ibs := ris.ibs
@@ -774,8 +817,8 @@ func (ris *rawItemsShard) appendBlocksToFlush(dst []*inmemoryBlock, isFinal bool
 		ibs[i] = nil
 	}
 	ris.ibs = ibs[:0]
-	atomic.StoreUint64(&ris.lastFlushTime, currentTime)
 	ris.mu.Unlock()
+
 	return dst
 }
 
@@ -843,7 +886,7 @@ func (tb *Table) addToInmemoryParts(pw *partWrapper, isFinal bool) {
 	select {
 	case tb.inmemoryPartsLimitCh <- struct{}{}:
 	default:
-		atomic.AddUint64(&tb.inmemoryPartsLimitReachedCount, 1)
+		tb.inmemoryPartsLimitReachedCount.Add(1)
 		select {
 		case tb.inmemoryPartsLimitCh <- struct{}{}:
 		case <-tb.stopCh:
@@ -859,10 +902,10 @@ func (tb *Table) addToInmemoryParts(pw *partWrapper, isFinal bool) {
 		if isFinal {
 			tb.flushCallback()
 		} else {
-			// Use atomic.LoadUint32 in front of atomic.CompareAndSwapUint32 in order to avoid slow inter-CPU synchronization
-			// at fast path when needFlushCallbackCall is already set to 1.
-			if atomic.LoadUint32(&tb.needFlushCallbackCall) == 0 {
-				atomic.CompareAndSwapUint32(&tb.needFlushCallbackCall, 0, 1)
+			// Use Load in front of CompareAndSwap in order to avoid slow inter-CPU synchronization
+			// at fast path when needFlushCallbackCall is already set to true.
+			if !tb.needFlushCallbackCall.Load() {
+				tb.needFlushCallbackCall.CompareAndSwap(false, true)
 			}
 		}
 	}
@@ -989,12 +1032,13 @@ func (tb *Table) mustMergeIntoInmemoryPart(bsrs []*blockStreamReader, flushToDis
 
 func newPartWrapperFromInmemoryPart(mp *inmemoryPart, flushToDiskDeadline time.Time) *partWrapper {
 	p := mp.NewPart()
-	return &partWrapper{
+	pw := &partWrapper{
 		p:                   p,
 		mp:                  mp,
-		refCount:            1,
 		flushToDiskDeadline: flushToDiskDeadline,
 	}
+	pw.incRef()
+	return pw
 }
 
 func getMaxInmemoryPartSize() uint64 {
@@ -1024,7 +1068,7 @@ func (tb *Table) NotifyReadWriteMode() {
 
 func (tb *Table) inmemoryPartsMerger() {
 	for {
-		if atomic.LoadUint32(tb.isReadOnly) != 0 {
+		if tb.isReadOnly.Load() {
 			return
 		}
 		maxOutBytes := tb.getMaxFilePartSize()
@@ -1057,7 +1101,7 @@ func (tb *Table) inmemoryPartsMerger() {
 
 func (tb *Table) filePartsMerger() {
 	for {
-		if atomic.LoadUint32(tb.isReadOnly) != 0 {
+		if tb.isReadOnly.Load() {
 			return
 		}
 		maxOutBytes := tb.getMaxFilePartSize()
@@ -1255,9 +1299,9 @@ func mustOpenBlockStreamReaders(pws []*partWrapper) []*blockStreamReader {
 
 func (tb *Table) mergePartsInternal(dstPartPath string, bsw *blockStreamWriter, bsrs []*blockStreamReader, dstPartType partType, stopCh <-chan struct{}) (*partHeader, error) {
 	var ph partHeader
-	var itemsMerged *uint64
-	var mergesCount *uint64
-	var activeMerges *uint64
+	var itemsMerged *atomic.Uint64
+	var mergesCount *atomic.Uint64
+	var activeMerges *atomic.Int64
 	switch dstPartType {
 	case partInmemory:
 		itemsMerged = &tb.inmemoryItemsMerged
@@ -1270,10 +1314,10 @@ func (tb *Table) mergePartsInternal(dstPartPath string, bsw *blockStreamWriter, 
 	default:
 		logger.Panicf("BUG: unknown partType=%d", dstPartType)
 	}
-	atomic.AddUint64(activeMerges, 1)
+	activeMerges.Add(1)
 	err := mergeBlockStreams(&ph, bsw, bsrs, tb.prepareBlock, stopCh, itemsMerged)
-	atomic.AddUint64(activeMerges, ^uint64(0))
-	atomic.AddUint64(mergesCount, 1)
+	activeMerges.Add(-1)
+	mergesCount.Add(1)
 	if err != nil {
 		return nil, fmt.Errorf("cannot merge %d parts to %s: %w", len(bsrs), dstPartPath, err)
 	}
@@ -1294,9 +1338,9 @@ func (tb *Table) openCreatedPart(pws []*partWrapper, mpNew *inmemoryPart, dstPar
 	// Open the created part from disk.
 	pNew := mustOpenFilePart(dstPartPath)
 	pwNew := &partWrapper{
-		p:        pNew,
-		refCount: 1,
+		p: pNew,
 	}
+	pwNew.incRef()
 	return pwNew
 }
 
@@ -1362,7 +1406,7 @@ func (tb *Table) swapSrcWithDstParts(pws []*partWrapper, pwNew *partWrapper, dst
 	// Mark old parts as must be deleted and decrement reference count,
 	// so they are eventually closed and deleted.
 	for _, pw := range pws {
-		atomic.StoreUint32(&pw.mustBeDeleted, 1)
+		pw.mustDrop.Store(true)
 		pw.decRef()
 	}
 }
@@ -1414,7 +1458,7 @@ func getCompressLevel(itemsCount uint64) int {
 }
 
 func (tb *Table) nextMergeIdx() uint64 {
-	return atomic.AddUint64(&tb.mergeIdx, 1)
+	return tb.mergeIdx.Add(1)
 }
 
 func mustOpenParts(path string) []*partWrapper {
@@ -1467,9 +1511,9 @@ func mustOpenParts(path string) []*partWrapper {
 		partPath := filepath.Join(path, partName)
 		p := mustOpenFilePart(partPath)
 		pw := &partWrapper{
-			p:        p,
-			refCount: 1,
+			p: p,
 		}
+		pw.incRef()
 		pws = append(pws, pw)
 	}
 	partNamesPath := filepath.Join(path, partsFilename)
@@ -1487,10 +1531,8 @@ func mustOpenParts(path string) []*partWrapper {
 //
 // Snapshot is created using linux hard links, so it is usually created very quickly.
 //
-// If deadline is reached before snapshot is created error is returned.
-//
 // The caller is responsible for data removal at dstDir on unsuccessful snapshot creation.
-func (tb *Table) CreateSnapshotAt(dstDir string, deadline uint64) error {
+func (tb *Table) CreateSnapshotAt(dstDir string) error {
 	logger.Infof("creating Table snapshot of %q...", tb.path)
 	startTime := time.Now()
 
@@ -1524,9 +1566,6 @@ func (tb *Table) CreateSnapshotAt(dstDir string, deadline uint64) error {
 		if pw.mp != nil {
 			// Skip in-memory parts
 			continue
-		}
-		if deadline > 0 && fasttime.UnixTimestamp() > deadline {
-			return fmt.Errorf("cannot create snapshot for %q: timeout exceeded", tb.path)
 		}
 		srcPartPath := pw.p.path
 		dstPartPath := filepath.Join(dstDir, filepath.Base(srcPartPath))

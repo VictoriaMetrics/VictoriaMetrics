@@ -612,6 +612,47 @@ spec:
 # ...
 ```
 
+## Resource management
+
+You can specify resources for each `VMAgent` resource in the `spec` section of the `VMAgent` CRD.
+
+```yaml
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMAgent
+metadata:
+  name: vmagent-resources-example
+spec:
+    # ...
+    resources:
+        requests:
+          memory: "64Mi"
+          cpu: "250m"
+        limits:
+          memory: "128Mi"
+          cpu: "500m"
+    # ...
+```
+
+If these parameters are not specified, then, 
+by default all `VMAgent` pods have resource requests and limits from the default values of the following [operator parameters](../configuration.md):
+
+- `VM_VMAGENTDEFAULT_RESOURCE_LIMIT_MEM` - default memory limit for `VMAgent` pods,
+- `VM_VMAGENTDEFAULT_RESOURCE_LIMIT_CPU` - default memory limit for `VMAgent` pods,
+- `VM_VMAGENTDEFAULT_RESOURCE_REQUEST_MEM` - default memory limit for `VMAgent` pods,
+- `VM_VMAGENTDEFAULT_RESOURCE_REQUEST_CPU` - default memory limit for `VMAgent` pods.
+
+These default parameters will be used if:
+
+- `VM_VMAGENTDEFAULT_USEDEFAULTRESOURCES` is set to `true` (default value), 
+- `VMAgent` CR doesn't have `resources` field in `spec` section.
+
+Field `resources` in vmagent spec have higher priority than operator parameters.
+
+If you set `VM_VMAGENTDEFAULT_USEDEFAULTRESOURCES` to `false` and don't specify `resources` in `VMAgent` CRD,
+then `VMAgent` pods will be created without resource requests and limits.
+
+Also, you can specify requests without limits - in this case default values for limits will not be used.
+
 ## Enterprise features
 
 VMAgent supports feature [Kafka integration](https://docs.victoriametrics.com/vmagent.html#kafka-integration)

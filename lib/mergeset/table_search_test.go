@@ -41,7 +41,7 @@ func TestTableSearchSerial(t *testing.T) {
 
 	func() {
 		// Re-open the table and verify the search works.
-		var isReadOnly uint32
+		var isReadOnly atomic.Bool
 		tb := MustOpenTable(path, nil, nil, &isReadOnly)
 		defer tb.MustClose()
 		if err := testTableSearchSerial(tb, items); err != nil {
@@ -75,7 +75,7 @@ func TestTableSearchConcurrent(t *testing.T) {
 
 	// Re-open the table and verify the search works.
 	func() {
-		var isReadOnly uint32
+		var isReadOnly atomic.Bool
 		tb := MustOpenTable(path, nil, nil, &isReadOnly)
 		defer tb.MustClose()
 		if err := testTableSearchConcurrent(tb, items); err != nil {
@@ -145,11 +145,11 @@ func testTableSearchSerial(tb *Table, items []string) error {
 }
 
 func newTestTable(r *rand.Rand, path string, itemsCount int) (*Table, []string, error) {
-	var flushes uint64
+	var flushes atomic.Uint64
 	flushCallback := func() {
-		atomic.AddUint64(&flushes, 1)
+		flushes.Add(1)
 	}
-	var isReadOnly uint32
+	var isReadOnly atomic.Bool
 	tb := MustOpenTable(path, flushCallback, nil, &isReadOnly)
 	items := make([]string, itemsCount)
 	for i := 0; i < itemsCount; i++ {
@@ -158,7 +158,7 @@ func newTestTable(r *rand.Rand, path string, itemsCount int) (*Table, []string, 
 		items[i] = item
 	}
 	tb.DebugFlush()
-	if itemsCount > 0 && atomic.LoadUint64(&flushes) == 0 {
+	if itemsCount > 0 && flushes.Load() == 0 {
 		return nil, nil, fmt.Errorf("unexpeted zero flushes for itemsCount=%d", itemsCount)
 	}
 

@@ -5822,6 +5822,57 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r1, r2}
 		f(q, resultExpected)
 	})
+	t.Run(`count_values_over_time`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort_by_label(count_values_over_time(round(label_set(rand(0), "x", "y"), 0.4)[200s:5s], "foo"), "foo")`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{4, 8, 7, 6, 10, 9},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("foo"),
+				Value: []byte("0"),
+			},
+			{
+				Key:   []byte("x"),
+				Value: []byte("y"),
+			},
+		}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{20, 13, 19, 18, 14, 13},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("foo"),
+				Value: []byte("0.4"),
+			},
+			{
+				Key:   []byte("x"),
+				Value: []byte("y"),
+			},
+		}
+		r3 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{16, 19, 14, 16, 16, 18},
+			Timestamps: timestampsExpected,
+		}
+		r3.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("foo"),
+				Value: []byte("0.8"),
+			},
+			{
+				Key:   []byte("x"),
+				Value: []byte("y"),
+			},
+		}
+		resultExpected := []netstorage.Result{r1, r2, r3}
+		f(q, resultExpected)
+	})
 	t.Run(`histogram_over_time`, func(t *testing.T) {
 		t.Parallel()
 		q := `sort_by_label(histogram_over_time(alias(label_set(rand(0)*1.3+1.1, "foo", "bar"), "xxx")[200s:5s]), "vmrange")`
@@ -6103,6 +6154,39 @@ func TestExecSuccess(t *testing.T) {
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
 			Values:     []float64{18, 16, 15, 18, 14, 14},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`sum_gt_over_time`, func(t *testing.T) {
+		t.Parallel()
+		q := `round(sum_gt_over_time(rand(0)[200s:10s], 0.7), 0.1)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{5.9, 5.2, 8.5, 5.1, 4.9, 4.5},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`sum_le_over_time`, func(t *testing.T) {
+		t.Parallel()
+		q := `round(sum_le_over_time(rand(0)[200s:10s], 0.7), 0.1)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{4.2, 4.9, 3.2, 5.8, 4.1, 5.3},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`sum_eq_over_time`, func(t *testing.T) {
+		t.Parallel()
+		q := `round(sum_eq_over_time(rand(0)[200s:10s], 0.7), 0.1)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{0, 0, 0, 0, 0, 0},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r}

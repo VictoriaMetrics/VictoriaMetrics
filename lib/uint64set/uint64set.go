@@ -814,21 +814,23 @@ func (b *bucket16) add(x uint16) bool {
 }
 
 func (b *bucket16) addMulti(a []uint64) int {
-	count := 0
 	if b.bits == nil {
+		if b.smallPoolLen+len(a) > len(b.smallPool) {
+			b.switchSmallPoolToBits()
+			goto fastPath
+		}
 		// Slow path
-		for i, x := range a {
-			if b.add(uint16(x)) {
+		count := 0
+		for _, x := range a {
+			if b.addToSmallPool(uint16(x)) {
 				count++
-			}
-			if b.bits != nil {
-				a = a[i+1:]
-				goto fastPath
 			}
 		}
 		return count
 	}
+
 fastPath:
+	count := 0
 	bits := b.bits
 	for _, x := range a {
 		wordNum, bitMask := getWordNumBitMask(uint16(x))
@@ -850,14 +852,19 @@ func (b *bucket16) addToSmallPool(x uint16) bool {
 		b.smallPoolLen++
 		return true
 	}
+	b.switchSmallPoolToBits()
+	b.add(x)
+	return true
+}
+
+func (b *bucket16) switchSmallPoolToBits() {
+	smallPoolLen := b.smallPoolLen
 	b.smallPoolLen = 0
 	var bits [wordsPerBucket]uint64
 	b.bits = &bits
-	for _, v := range sp[:] {
+	for _, v := range b.smallPool[:smallPoolLen] {
 		b.add(v)
 	}
-	b.add(x)
-	return true
 }
 
 func (b *bucket16) has(x uint16) bool {

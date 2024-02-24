@@ -58,7 +58,7 @@ func convertToCompositeTagFilters(tfs *TagFilters) []*TagFilters {
 	// then it is impossible to construct composite tag filter.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2238
 	if len(names) == 0 || !hasPositiveFilter {
-		atomic.AddUint64(&compositeFilterMissingConversions, 1)
+		compositeFilterMissingConversions.Add(1)
 		return []*TagFilters{tfs}
 	}
 
@@ -117,20 +117,20 @@ func convertToCompositeTagFilters(tfs *TagFilters) []*TagFilters {
 		if compositeFilters == 0 {
 			// Cannot use tfsNew, since it doesn't contain composite filters, e.g. it may match broader set of series.
 			// Fall back to the original tfs.
-			atomic.AddUint64(&compositeFilterMissingConversions, 1)
+			compositeFilterMissingConversions.Add(1)
 			return []*TagFilters{tfs}
 		}
 		tfsCompiled := NewTagFilters()
 		tfsCompiled.tfs = tfsNew
 		tfssCompiled = append(tfssCompiled, tfsCompiled)
 	}
-	atomic.AddUint64(&compositeFilterSuccessConversions, 1)
+	compositeFilterSuccessConversions.Add(1)
 	return tfssCompiled
 }
 
 var (
-	compositeFilterSuccessConversions uint64
-	compositeFilterMissingConversions uint64
+	compositeFilterSuccessConversions atomic.Uint64
+	compositeFilterMissingConversions atomic.Uint64
 )
 
 // TagFilters represents filters used for filtering tags.

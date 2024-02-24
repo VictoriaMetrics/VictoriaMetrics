@@ -136,13 +136,15 @@ optionally preserving labels).
 ## Usage
 > Starting from [v1.5.0](/anomaly-detection/CHANGELOG.html#v150), vmanomaly requires a license key to run. You can obtain a trial license key [here](https://victoriametrics.com/products/enterprise/trial/).
 
-> See [Getting started guide](anomaly-detection/guides/guide-vmanomaly-vmalert.html).
+> See [Quickstart](/anomaly-detection/QuickStart.html).
+
+> See [Integration guide: vmanomaly and vmalert](/anomaly-detection/guides/guide-vmanomaly-vmalert.html).
 
 ### Config file
 There are 4 required sections in config file:
 
-* [`scheduler`](/anomaly-detection/components/scheduler.html) - defines how often to run and make inferences, as well as what timerange to use to train the model.
-* [`model`](/anomaly-detection/components/models.html) - specific model parameters and configurations,
+* [`schedulers`](/anomaly-detection/components/scheduler.html) - defines how often to run and make inferences, as well as what timerange to use to train the model.
+* [`models`](/anomaly-detection/components/models.html) - specific model parameters and configurations.
 * [`reader`](/anomaly-detection/components/reader.html) - how to read data and where it is located
 * [`writer`](/anomaly-detection/components/writer.html) - where and how to write the generated output.
 
@@ -151,21 +153,23 @@ There are 4 required sections in config file:
 > For a detailed description, see [config sections](/anomaly-detection/components)
 
 #### Config example
-Here is an example of config file that will run FB Prophet model, that will be retrained every 2 hours on 14 days of previous data. It will generate inference (including `anomaly_score` metric) every 1 minute.
+Here is an example of config file that will run [Facebook's Prophet model](/anomaly-detection/components/models.html#prophet), that will be retrained every 2 hours on 14 days of previous data. It will generate inference results (including `anomaly_score` metric) every 1 minute.
 
 
-You need to put your datasource urls to use it:
+You need to specify your datasource urls to use it:
 
 ```yaml
-scheduler:
-  infer_every: "1m"
-  fit_every: "2h"
-  fit_window: "14d"
+schedulers:
+  periodic:
+    infer_every: "1m"
+    fit_every: "2h"
+    fit_window: "14d"
 
-model:
-  class: "model.prophet.ProphetModel"
-  args:
-    interval_width: 0.98
+models:
+  prophet:  # or use a model alias of your choice here
+    class: "model.prophet.ProphetModel"
+    args:
+      interval_width: 0.98
 
 reader:
   datasource_url: [YOUR_DATASOURCE_URL] #Example: "http://victoriametrics:8428/"
@@ -217,7 +221,7 @@ This will expose metrics at `http://0.0.0.0:8080/metrics` page.
 To use *vmanomaly* you need to pull docker image:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.9.2
+docker pull victoriametrics/vmanomaly:latest
 ```
 
 > Note: please check what is latest release in [CHANGELOG](/anomaly-detection/CHANGELOG.html)
@@ -227,16 +231,18 @@ docker pull victoriametrics/vmanomaly:v1.9.2
 You can put a tag on it for your convinience:
 
 ```sh
-docker image tag victoriametrics/vmanomaly:v1.9.2 vmanomaly
+docker image tag victoriametrics/vmanomaly:latest vmanomaly
 ```
 Here is an example of how to run *vmanomaly* docker container with [license file](#licensing):
 
 ```sh
+export YOUR_LICENSE_FILE_PATH=path/to/license/file
+export YOUR_CONFIG_FILE_PATH=path/to/config/file
 docker run -it --net [YOUR_NETWORK] \
-               -v [YOUR_LICENSE_FILE_PATH]:/license.txt \
-               -v [YOUR_CONFIG_FILE_PATH]:/config.yml \
+               -v YOUR_LICENSE_FILE_PATH:/license \
+               -v YOUR_CONFIG_FILE_PATH:/config.yml \
                vmanomaly /config.yml \
-               --license-file=/license.txt
+               --license-file=/license
 ```
 
 ### Licensing
@@ -293,4 +299,3 @@ groups:
           description: "{{ $labels.instance }} of job {{ $labels.job }} license expires in {{ $value | humanizeDuration }}. 
             Please make sure to update the license before it expires."
 ```
-

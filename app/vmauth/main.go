@@ -101,8 +101,9 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		w.WriteHeader(http.StatusOK)
 		return true
 	}
-	authToken := r.Header.Get("Authorization")
-	if authToken == "" {
+
+	ats := getAuthTokensFromRequest(r)
+	if len(ats) == 0 {
 		// Process requests for unauthorized users
 		ui := authConfig.Load().UnauthorizedUser
 		if ui != nil {
@@ -114,18 +115,12 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		http.Error(w, "missing `Authorization` request header", http.StatusUnauthorized)
 		return true
 	}
-	if strings.HasPrefix(authToken, "Token ") {
-		// Handle InfluxDB's proprietary token authentication scheme as a bearer token authentication
-		// See https://docs.influxdata.com/influxdb/v2.0/api/
-		authToken = strings.Replace(authToken, "Token", "Bearer", 1)
-	}
 
-	ac := *authUsers.Load()
-	ui := ac[authToken]
+	ui := getUserInfoByAuthTokens(ats)
 	if ui == nil {
 		invalidAuthTokenRequests.Inc()
 		if *logInvalidAuthTokens {
-			err := fmt.Errorf("cannot find the provided auth token %q in config", authToken)
+			err := fmt.Errorf("cannot authorize request with auth tokens %q", ats)
 			err = &httpserver.ErrorWithStatusCode{
 				Err:        err,
 				StatusCode: http.StatusUnauthorized,
@@ -139,6 +134,17 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 
 	processUserRequest(w, r, ui)
 	return true
+}
+
+func getUserInfoByAuthTokens(ats []string) *UserInfo {
+	ac := *authUsers.Load()
+	for _, at := range ats {
+		ui := ac[at]
+		if ui != nil {
+			return ui
+		}
+	}
+	return nil
 }
 
 func processUserRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {

@@ -16,7 +16,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
-var tmpFileNum uint64
+var tmpFileNum atomic.Uint64
 
 // MustSyncPath syncs contents of the given path.
 func MustSyncPath(path string) {
@@ -62,7 +62,7 @@ func MustWriteAtomic(path string, data []byte, canOverwrite bool) {
 	}
 
 	// Write data to a temporary file.
-	n := atomic.AddUint64(&tmpFileNum, 1)
+	n := tmpFileNum.Add(1)
 	tmpPath := fmt.Sprintf("%s.tmp.%d", path, n)
 	MustWriteSync(tmpPath, data)
 
@@ -207,7 +207,11 @@ func MustRemoveDirAtomic(dir string) {
 	MustSyncPath(parentDir)
 }
 
-var atomicDirRemoveCounter = uint64(time.Now().UnixNano())
+var atomicDirRemoveCounter = func() *atomic.Uint64 {
+	var x atomic.Uint64
+	x.Store(uint64(time.Now().UnixNano()))
+	return &x
+}()
 
 // MustReadDir reads directory entries at the given dir.
 func MustReadDir(dir string) []os.DirEntry {

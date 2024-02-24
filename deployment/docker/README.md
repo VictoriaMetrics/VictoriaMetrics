@@ -38,6 +38,8 @@ The communication scheme between components is the following:
   and recording rules back to it;
 * [alertmanager](#alertmanager) is configured to receive notifications from `vmalert`.
 
+<img alt="VictoriaMetrics single-server deployment" width="500" src="assets/vm-single-server.png">
+
 To access Grafana use link [http://localhost:3000](http://localhost:3000).
 
 To access [vmui](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#vmui)
@@ -71,6 +73,8 @@ The communication scheme between components is the following:
 * [vmalert](#vmalert) is configured to query `vmselect`s via `vmauth` and send alerts state
   and recording rules to `vminsert`;
 * [alertmanager](#alertmanager) is configured to receive notifications from `vmalert`.
+
+<img alt="VictoriaMetrics cluster deployment" width="500" src="assets/vm-cluster.png">
 
 To access Grafana use link [http://localhost:3000](http://localhost:3000).
 

@@ -2,13 +2,27 @@ import { useCallback, useMemo, useState } from "preact/compat";
 import { getLogsUrl } from "../../../api/logs";
 import { ErrorTypes } from "../../../types";
 import { Logs } from "../../../api/types";
+import { useTimeState } from "../../../state/time/TimeStateContext";
+import dayjs from "dayjs";
 
 export const useFetchLogs = (server: string, query: string, limit: number) => {
+  const { period } = useTimeState();
   const [logs, setLogs] = useState<Logs[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<ErrorTypes | string>();
 
   const url = useMemo(() => getLogsUrl(server), [server]);
+
+  // include time range in query if not already present
+  const queryWithTime = useMemo(() => {
+    if (!/_time/.test(query)) {
+      const start = dayjs(period.start * 1000).tz().toISOString();
+      const end = dayjs(period.end * 1000).tz().toISOString();
+      const timerange = `_time:[${start}, ${end}]`;
+      return `${timerange} AND (${query})`;
+    }
+    return query;
+  }, [query, period]);
 
   const options = useMemo(() => ({
     method: "POST",
@@ -16,10 +30,10 @@ export const useFetchLogs = (server: string, query: string, limit: number) => {
       "Accept": "application/stream+json",
     },
     body: new URLSearchParams({
-      query: encodeURIComponent(query.trim()),
+      query: encodeURIComponent(queryWithTime.trim()),
       limit: `${limit}`
     })
-  }), [query, limit]);
+  }), [queryWithTime, limit]);
 
   const parseLineToJSON = (line: string): Logs | null => {
     try {
@@ -43,7 +57,6 @@ export const useFetchLogs = (server: string, query: string, limit: number) => {
         setIsLoading(false);
         return;
       }
-
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder("utf-8");

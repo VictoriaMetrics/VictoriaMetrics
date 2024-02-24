@@ -215,7 +215,7 @@ func (w *Writer) ReadFrom(r io.Reader) (n int64, err error) {
 		return 0, err
 	}
 	if len(w.ibuf) > 0 {
-		err := w.Flush()
+		err := w.AsyncFlush()
 		if err != nil {
 			return 0, err
 		}
@@ -225,7 +225,7 @@ func (w *Writer) ReadFrom(r io.Reader) (n int64, err error) {
 		if err := w.EncodeBuffer(buf); err != nil {
 			return 0, err
 		}
-		return int64(len(buf)), w.Flush()
+		return int64(len(buf)), w.AsyncFlush()
 	}
 	for {
 		inbuf := w.buffers.Get().([]byte)[:w.blockSize+obufHeaderLen]
@@ -354,7 +354,7 @@ func (w *Writer) EncodeBuffer(buf []byte) (err error) {
 	}
 	// Flush queued data first.
 	if len(w.ibuf) > 0 {
-		err := w.Flush()
+		err := w.AsyncFlush()
 		if err != nil {
 			return err
 		}
@@ -716,9 +716,9 @@ func (w *Writer) writeSync(p []byte) (nRet int, errRet error) {
 	return nRet, nil
 }
 
-// Flush flushes the Writer to its underlying io.Writer.
-// This does not apply padding.
-func (w *Writer) Flush() error {
+// AsyncFlush writes any buffered bytes to a block and starts compressing it.
+// It does not wait for the output has been written as Flush() does.
+func (w *Writer) AsyncFlush() error {
 	if err := w.err(nil); err != nil {
 		return err
 	}
@@ -737,6 +737,15 @@ func (w *Writer) Flush() error {
 				return err
 			}
 		}
+	}
+	return w.err(nil)
+}
+
+// Flush flushes the Writer to its underlying io.Writer.
+// This does not apply padding.
+func (w *Writer) Flush() error {
+	if err := w.AsyncFlush(); err != nil {
+		return err
 	}
 	if w.output == nil {
 		return w.err(nil)

@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"reflect"
 	"sort"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -27,7 +28,7 @@ func TestMultilevelMerge(t *testing.T) {
 
 	// Prepare blocks to merge.
 	bsrs, items := newTestInmemoryBlockStreamReaders(r, 10, 4000)
-	var itemsMerged uint64
+	var itemsMerged atomic.Uint64
 
 	// First level merge
 	var dstIP1 inmemoryPart
@@ -44,12 +45,12 @@ func TestMultilevelMerge(t *testing.T) {
 		t.Fatalf("cannot merge first level part 2: %s", err)
 	}
 
-	if itemsMerged != uint64(len(items)) {
-		t.Fatalf("unexpected itemsMerged; got %d; want %d", itemsMerged, len(items))
+	if n := itemsMerged.Load(); n != uint64(len(items)) {
+		t.Fatalf("unexpected itemsMerged; got %d; want %d", n, len(items))
 	}
 
 	// Second level merge (aka final merge)
-	itemsMerged = 0
+	itemsMerged.Store(0)
 	var dstIP inmemoryPart
 	var bsw blockStreamWriter
 	bsrsTop := []*blockStreamReader{
@@ -60,8 +61,8 @@ func TestMultilevelMerge(t *testing.T) {
 	if err := mergeBlockStreams(&dstIP.ph, &bsw, bsrsTop, nil, nil, &itemsMerged); err != nil {
 		t.Fatalf("cannot merge second level: %s", err)
 	}
-	if itemsMerged != uint64(len(items)) {
-		t.Fatalf("unexpected itemsMerged after final merge; got %d; want %d", itemsMerged, len(items))
+	if n := itemsMerged.Load(); n != uint64(len(items)) {
+		t.Fatalf("unexpected itemsMerged after final merge; got %d; want %d", n, len(items))
 	}
 
 	// Verify the resulting part (dstIP) contains all the items
@@ -78,13 +79,13 @@ func TestMergeForciblyStop(t *testing.T) {
 	var bsw blockStreamWriter
 	bsw.MustInitFromInmemoryPart(&dstIP, 1)
 	ch := make(chan struct{})
-	var itemsMerged uint64
+	var itemsMerged atomic.Uint64
 	close(ch)
 	if err := mergeBlockStreams(&dstIP.ph, &bsw, bsrs, nil, ch, &itemsMerged); !errors.Is(err, errForciblyStopped) {
 		t.Fatalf("unexpected error during merge: got %v; want %v", err, errForciblyStopped)
 	}
-	if itemsMerged != 0 {
-		t.Fatalf("unexpected itemsMerged; got %d; want %d", itemsMerged, 0)
+	if n := itemsMerged.Load(); n != 0 {
+		t.Fatalf("unexpected itemsMerged; got %d; want %d", n, 0)
 	}
 }
 
@@ -122,15 +123,15 @@ func testMergeBlockStreamsSerial(r *rand.Rand, blocksToMerge, maxItemsPerBlock i
 	bsrs, items := newTestInmemoryBlockStreamReaders(r, blocksToMerge, maxItemsPerBlock)
 
 	// Merge blocks.
-	var itemsMerged uint64
+	var itemsMerged atomic.Uint64
 	var dstIP inmemoryPart
 	var bsw blockStreamWriter
 	bsw.MustInitFromInmemoryPart(&dstIP, -4)
 	if err := mergeBlockStreams(&dstIP.ph, &bsw, bsrs, nil, nil, &itemsMerged); err != nil {
 		return fmt.Errorf("cannot merge block streams: %w", err)
 	}
-	if itemsMerged != uint64(len(items)) {
-		return fmt.Errorf("unexpected itemsMerged; got %d; want %d", itemsMerged, len(items))
+	if n := itemsMerged.Load(); n != uint64(len(items)) {
+		return fmt.Errorf("unexpected itemsMerged; got %d; want %d", n, len(items))
 	}
 
 	// Verify the resulting part (dstIP) contains all the items
