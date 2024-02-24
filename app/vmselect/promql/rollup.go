@@ -1449,11 +1449,11 @@ func newRollupCountValues(args []interface{}) (rollupFunc, error) {
 	if err := expectRollupArgsNum(args, 2); err != nil {
 		return nil, err
 	}
-	tssLabelNum, ok := args[1].([]*timeseries)
+	tssLabelNum, ok := args[0].([]*timeseries)
 	if !ok {
-		return nil, fmt.Errorf(`unexpected type for labelName arg; got %T; want %T`, args[1], tssLabelNum)
+		return nil, fmt.Errorf(`unexpected type for labelName arg; got %T; want %T`, args[0], tssLabelNum)
 	}
-	labelName, err := getString(tssLabelNum, 1)
+	labelName, err := getString(tssLabelNum, 0)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get labelName: %w", err)
 	}
