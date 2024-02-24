@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	smithyauth "github.com/aws/smithy-go/auth"
 )
 
@@ -18,6 +19,16 @@ func (r *endpointAuthResolver) ResolveAuthSchemes(
 ) (
 	[]*smithyauth.Option, error,
 ) {
+	if params.endpointParams.Region == nil {
+		// #2502: We're correcting the endpoint binding behavior to treat empty
+		// Region as "unset" (nil), but auth resolution technically doesn't
+		// care and someone could be using V1 or non-default V2 endpoint
+		// resolution, both of which would bypass the required-region check.
+		// They shouldn't be broken because the region is technically required
+		// by this service's endpoint-based auth resolver, so we stub it here.
+		params.endpointParams.Region = aws.String("")
+	}
+
 	opts, err := r.resolveAuthSchemes(ctx, params)
 	if err != nil {
 		return nil, err

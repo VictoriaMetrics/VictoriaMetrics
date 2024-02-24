@@ -30,7 +30,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/mwitkow/go-conntrack"
+	conntrack "github.com/mwitkow/go-conntrack"
 	"golang.org/x/net/http/httpproxy"
 	"golang.org/x/net/http2"
 	"golang.org/x/oauth2"
@@ -377,9 +377,6 @@ func (c *HTTPClientConfig) Validate() error {
 		}
 		if len(c.OAuth2.ClientID) == 0 {
 			return fmt.Errorf("oauth2 client_id must be configured")
-		}
-		if len(c.OAuth2.ClientSecret) == 0 && len(c.OAuth2.ClientSecretFile) == 0 {
-			return fmt.Errorf("either oauth2 client_secret or client_secret_file must be configured")
 		}
 		if len(c.OAuth2.TokenURL) == 0 {
 			return fmt.Errorf("oauth2 token_url must be configured")
@@ -729,13 +726,12 @@ func (rt *oauth2RoundTripper) RoundTrip(req *http.Request) (*http.Response, erro
 		rt.mtx.RLock()
 		changed = secret != rt.secret
 		rt.mtx.RUnlock()
+	} else {
+		// Either an inline secret or nothing (use an empty string) was provided.
+		secret = string(rt.config.ClientSecret)
 	}
 
 	if changed || rt.rt == nil {
-		if rt.config.ClientSecret != "" {
-			secret = string(rt.config.ClientSecret)
-		}
-
 		config := &clientcredentials.Config{
 			ClientID:       rt.config.ClientID,
 			ClientSecret:   secret,
