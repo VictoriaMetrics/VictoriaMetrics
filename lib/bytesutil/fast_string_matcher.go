@@ -13,7 +13,7 @@ import (
 // It caches string match results and returns them back on the next calls
 // without calling the matchFunc, which may be expensive.
 type FastStringMatcher struct {
-	lastCleanupTime uint64
+	lastCleanupTime atomic.Uint64
 
 	m sync.Map
 
@@ -21,7 +21,7 @@ type FastStringMatcher struct {
 }
 
 type fsmEntry struct {
-	lastAccessTime uint64
+	lastAccessTime atomic.Uint64
 	ok             bool
 }
 
@@ -29,10 +29,11 @@ type fsmEntry struct {
 //
 // matchFunc must return the same result for the same input.
 func NewFastStringMatcher(matchFunc func(s string) bool) *FastStringMatcher {
-	return &FastStringMatcher{
-		lastCleanupTime: fasttime.UnixTimestamp(),
-		matchFunc:       matchFunc,
+	fsm := &FastStringMatcher{
+		matchFunc: matchFunc,
 	}
+	fsm.lastCleanupTime.Store(fasttime.UnixTimestamp())
+	return fsm
 }
 
 // Match applies matchFunc to s and returns the result.
@@ -46,19 +47,19 @@ func (fsm *FastStringMatcher) Match(s string) bool {
 	if ok {
 		// Fast path - s match result is found in the cache.
 		e := v.(*fsmEntry)
-		if atomic.LoadUint64(&e.lastAccessTime)+10 < ct {
+		if e.lastAccessTime.Load()+10 < ct {
 			// Reduce the frequency of e.lastAccessTime update to once per 10 seconds
 			// in order to improve the fast path speed on systems with many CPU cores.
-			atomic.StoreUint64(&e.lastAccessTime, ct)
+			e.lastAccessTime.Store(ct)
 		}
 		return e.ok
 	}
 	// Slow path - run matchFunc for s and store the result in the cache.
 	b := fsm.matchFunc(s)
 	e := &fsmEntry{
-		lastAccessTime: ct,
-		ok:             b,
+		ok: b,
 	}
+	e.lastAccessTime.Store(ct)
 	// Make a copy of s in order to limit memory usage to the s length,
 	// since the s may point to bigger string.
 	// This also protects from the case when s contains unsafe string, which points to a temporary byte slice.
@@ -72,7 +73,7 @@ func (fsm *FastStringMatcher) Match(s string) bool {
 		deadline := ct - uint64(cacheExpireDuration.Seconds())
 		m.Range(func(k, v interface{}) bool {
 			e := v.(*fsmEntry)
-			if atomic.LoadUint64(&e.lastAccessTime) < deadline {
+			if e.lastAccessTime.Load() < deadline {
 				m.Delete(k)
 			}
 			return true
@@ -82,13 +83,13 @@ func (fsm *FastStringMatcher) Match(s string) bool {
 	return b
 }
 
-func needCleanup(lastCleanupTime *uint64, currentTime uint64) bool {
-	lct := atomic.LoadUint64(lastCleanupTime)
+func needCleanup(lastCleanupTime *atomic.Uint64, currentTime uint64) bool {
+	lct := lastCleanupTime.Load()
 	if lct+61 >= currentTime {
 		return false
 	}
 	// Atomically compare and swap the current time with the lastCleanupTime
 	// in order to guarantee that only a single goroutine out of multiple
 	// concurrently executing goroutines gets true from the call.
-	return atomic.CompareAndSwapUint64(lastCleanupTime, lct, currentTime)
+	return lastCleanupTime.CompareAndSwap(lct, currentTime)
 }

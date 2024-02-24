@@ -56,7 +56,7 @@ func (l *Limiter) MaxItems() int {
 // CurrentItems return the current number of items registered in l.
 func (l *Limiter) CurrentItems() int {
 	lm := l.v.Load()
-	n := atomic.LoadUint64(&lm.currentItems)
+	n := lm.currentItems.Load()
 	return int(n)
 }
 
@@ -72,7 +72,7 @@ func (l *Limiter) Add(h uint64) bool {
 }
 
 type limiter struct {
-	currentItems uint64
+	currentItems atomic.Uint64
 	f            *filter
 }
 
@@ -83,12 +83,12 @@ func newLimiter(maxItems int) *limiter {
 }
 
 func (l *limiter) Add(h uint64) bool {
-	currentItems := atomic.LoadUint64(&l.currentItems)
+	currentItems := l.currentItems.Load()
 	if currentItems >= uint64(l.f.maxItems) {
 		return l.f.Has(h)
 	}
 	if l.f.Add(h) {
-		atomic.AddUint64(&l.currentItems, 1)
+		l.currentItems.Add(1)
 	}
 	return true
 }

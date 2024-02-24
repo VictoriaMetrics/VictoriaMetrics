@@ -68,7 +68,7 @@ var (
 )
 
 type server struct {
-	shutdownDelayDeadline int64
+	shutdownDelayDeadline atomic.Int64
 	s                     *http.Server
 }
 
@@ -225,7 +225,7 @@ func stop(addr string) error {
 	}
 
 	deadline := time.Now().Add(*shutdownDelay).UnixNano()
-	atomic.StoreInt64(&s.shutdownDelayDeadline, deadline)
+	s.shutdownDelayDeadline.Store(deadline)
 	if *shutdownDelay > 0 {
 		// Sleep for a while until load balancer in front of the server
 		// notifies that "/health" endpoint returns non-OK responses.
@@ -339,7 +339,7 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 	switch r.URL.Path {
 	case "/health":
 		h.Set("Content-Type", "text/plain; charset=utf-8")
-		deadline := atomic.LoadInt64(&s.shutdownDelayDeadline)
+		deadline := s.shutdownDelayDeadline.Load()
 		if deadline <= 0 {
 			w.Write([]byte("OK"))
 			return

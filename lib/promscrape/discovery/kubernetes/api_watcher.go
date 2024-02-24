@@ -104,9 +104,9 @@ func newAPIWatcher(apiServer string, ac *promauth.Config, sdc *SDConfig, swcFunc
 }
 
 func (aw *apiWatcher) mustStart() {
-	atomic.AddInt32(&aw.gw.apiWatcherInflightStartCalls, 1)
+	aw.gw.apiWatcherInflightStartCalls.Add(1)
 	aw.gw.startWatchersForRole(aw.role, aw)
-	atomic.AddInt32(&aw.gw.apiWatcherInflightStartCalls, -1)
+	aw.gw.apiWatcherInflightStartCalls.Add(-1)
 }
 
 func (aw *apiWatcher) updateSwosCount(multiplier int, swosByKey map[string][]interface{}) {
@@ -214,15 +214,15 @@ func (aw *apiWatcher) getScrapeWorkObjects() []interface{} {
 type groupWatcher struct {
 	// The number of in-flight apiWatcher.mustStart() calls for the given groupWatcher.
 	// This field is used by groupWatchersCleaner() in order to determine when the given groupWatcher can be stopped.
-	apiWatcherInflightStartCalls int32
+	apiWatcherInflightStartCalls atomic.Int32
 
 	// Old Kubernetes doesn't support /apis/networking.k8s.io/v1/, so /apis/networking.k8s.io/v1beta1/ must be used instead.
 	// This flag is used for automatic substitution of v1 API path with v1beta1 API path during requests to apiServer.
-	useNetworkingV1Beta1 uint32
+	useNetworkingV1Beta1 atomic.Bool
 
 	// Old Kubernetes doesn't support /apis/discovery.k8s.io/v1/, so discovery.k8s.io/v1beta1/ must be used instead.
 	// This flag is used for automatic substitution of v1 API path with v1beta1 API path during requests to apiServer.
-	useDiscoveryV1Beta1 uint32
+	useDiscoveryV1Beta1 atomic.Bool
 
 	apiServer          string
 	namespaces         []string
@@ -343,7 +343,7 @@ func groupWatchersCleaner() {
 				awsTotal += len(uw.aws) + len(uw.awsPending)
 			}
 
-			if awsTotal == 0 && atomic.LoadInt32(&gw.apiWatcherInflightStartCalls) == 0 {
+			if awsTotal == 0 && gw.apiWatcherInflightStartCalls.Load() == 0 {
 				// There are no API watchers subscribed to gw and there are no in-flight apiWatcher.mustStart() calls.
 				// Stop all the urlWatcher instances at gw and drop gw from groupWatchers in this case,
 				// but do it only on the second iteration in order to reduce urlWatcher churn
@@ -471,11 +471,11 @@ func (gw *groupWatcher) startWatchersForRole(role string, aw *apiWatcher) {
 
 // doRequest performs http request to the given requestURL.
 func (gw *groupWatcher) doRequest(ctx context.Context, requestURL string) (*http.Response, error) {
-	if strings.Contains(requestURL, "/apis/networking.k8s.io/v1/") && atomic.LoadUint32(&gw.useNetworkingV1Beta1) == 1 {
+	if strings.Contains(requestURL, "/apis/networking.k8s.io/v1/") && gw.useNetworkingV1Beta1.Load() {
 		// Update networking URL for old Kubernetes API, which supports only v1beta1 path.
 		requestURL = strings.Replace(requestURL, "/apis/networking.k8s.io/v1/", "/apis/networking.k8s.io/v1beta1/", 1)
 	}
-	if strings.Contains(requestURL, "/apis/discovery.k8s.io/v1/") && atomic.LoadUint32(&gw.useDiscoveryV1Beta1) == 1 {
+	if strings.Contains(requestURL, "/apis/discovery.k8s.io/v1/") && gw.useDiscoveryV1Beta1.Load() {
 		// Update discovery URL for old Kubernetes API, which supports only v1beta1 path.
 		requestURL = strings.Replace(requestURL, "/apis/discovery.k8s.io/v1/", "/apis/discovery.k8s.io/v1beta1/", 1)
 	}
@@ -491,12 +491,12 @@ func (gw *groupWatcher) doRequest(ctx context.Context, requestURL string) (*http
 		return nil, err
 	}
 	if resp.StatusCode == http.StatusNotFound {
-		if strings.Contains(requestURL, "/apis/networking.k8s.io/v1/") && atomic.LoadUint32(&gw.useNetworkingV1Beta1) == 0 {
-			atomic.StoreUint32(&gw.useNetworkingV1Beta1, 1)
+		if strings.Contains(requestURL, "/apis/networking.k8s.io/v1/") && !gw.useNetworkingV1Beta1.Load() {
+			gw.useNetworkingV1Beta1.Store(true)
 			return gw.doRequest(ctx, requestURL)
 		}
-		if strings.Contains(requestURL, "/apis/discovery.k8s.io/v1/") && atomic.LoadUint32(&gw.useDiscoveryV1Beta1) == 0 {
-			atomic.StoreUint32(&gw.useDiscoveryV1Beta1, 1)
+		if strings.Contains(requestURL, "/apis/discovery.k8s.io/v1/") && !gw.useDiscoveryV1Beta1.Load() {
+			gw.useDiscoveryV1Beta1.Store(true)
 			return gw.doRequest(ctx, requestURL)
 		}
 	}

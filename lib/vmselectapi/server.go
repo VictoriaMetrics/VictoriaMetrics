@@ -48,7 +48,7 @@ type Server struct {
 	wg sync.WaitGroup
 
 	// stopFlag is set to true when the server needs to stop.
-	stopFlag uint32
+	stopFlag atomic.Bool
 
 	concurrencyLimitReached *metrics.Counter
 	concurrencyLimitTimeout *metrics.Counter
@@ -239,11 +239,11 @@ func (s *Server) MustStop() {
 }
 
 func (s *Server) setIsStopping() {
-	atomic.StoreUint32(&s.stopFlag, 1)
+	s.stopFlag.Store(true)
 }
 
 func (s *Server) isStopping() bool {
-	return atomic.LoadUint32(&s.stopFlag) != 0
+	return s.stopFlag.Load()
 }
 
 func (s *Server) processConn(bc *handshake.BufferedConn) error {

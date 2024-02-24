@@ -44,10 +44,7 @@ func (cm *connMetrics) init(ms *metrics.Set, group, name, addr string) {
 }
 
 type statConn struct {
-	// Move atomic counters to the top of struct in order to properly align them on 32-bit arch.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/212
-
-	closeCalls uint64
+	closeCalls atomic.Uint64
 
 	net.Conn
 
@@ -90,7 +87,7 @@ func (sc *statConn) Write(p []byte) (int, error) {
 }
 
 func (sc *statConn) Close() error {
-	n := atomic.AddUint64(&sc.closeCalls, 1)
+	n := sc.closeCalls.Add(1)
 	if n > 1 {
 		// The connection has been already closed.
 		return nil
