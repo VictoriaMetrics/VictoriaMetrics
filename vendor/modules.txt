@@ -466,7 +466,7 @@ github.com/prometheus/client_golang/prometheus/testutil/promlint/validations
 # github.com/prometheus/client_model v0.6.0
 ## explicit; go 1.19
 github.com/prometheus/client_model/go
-# github.com/prometheus/common v0.48.0
+# github.com/prometheus/common v0.48.0 => github.com/prometheus/common v0.46.0
 ## explicit; go 1.20
 github.com/prometheus/common/config
 github.com/prometheus/common/expfmt
@@ -579,8 +579,8 @@ go.opencensus.io/trace
 go.opencensus.io/trace/internal
 go.opencensus.io/trace/propagation
 go.opencensus.io/trace/tracestate
-# go.opentelemetry.io/collector/featuregate v1.2.0
-## explicit; go 1.21
+# go.opentelemetry.io/collector/featuregate v1.0.1
+## explicit; go 1.20
 go.opentelemetry.io/collector/featuregate
 # go.opentelemetry.io/collector/pdata v1.2.0
 ## explicit; go 1.21
@@ -870,3 +870,4 @@ k8s.io/klog/v2/internal/sloghandler
 # k8s.io/utils v0.0.0-20240102154912-e7106e64919e
 ## explicit; go 1.18
 k8s.io/utils/clock
+# github.com/prometheus/common => github.com/prometheus/common v0.46.0

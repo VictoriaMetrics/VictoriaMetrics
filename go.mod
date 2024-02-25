@@ -2,6 +2,10 @@ module github.com/VictoriaMetrics/VictoriaMetrics
 
 go 1.22
 
+// The github.com/prometheus/prometheus v0.50.0 depends on github.com/prometheus/common v0.46.0
+// TODO: remove this replacement for the new version of github.com/prometheus/prometheus
+replace github.com/prometheus/common => github.com/prometheus/common v0.46.0
+
 require (
 	cloud.google.com/go/storage v1.38.0
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.9.2
@@ -106,7 +110,7 @@ require (
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/xrash/smetrics v0.0.0-20231213231151-1d8dd44e695e // indirect
 	go.opencensus.io v0.24.0 // indirect
-	go.opentelemetry.io/collector/featuregate v1.2.0 // indirect
+	go.opentelemetry.io/collector/featuregate v1.0.1 // indirect
 	go.opentelemetry.io/collector/pdata v1.2.0 // indirect
 	go.opentelemetry.io/collector/semconv v0.95.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.49.0 // indirect
