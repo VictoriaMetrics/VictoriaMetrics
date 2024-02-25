@@ -38,9 +38,12 @@ func BenchmarkDedupFlush(b *testing.B) {
 		dd.encoder.Store(de)
 	}
 
-	b.SetBytes(int64(len(benchSeriesDedupFlush)))
-	for i := 0; i < b.N; i++ {
-		dd.flush()
-		reset()
-	}
+	b.Run("flush", func(b *testing.B) {
+		b.SetBytes(int64(len(benchSeriesDedupFlush)))
+		for i := 0; i < b.N; i++ {
+			dd.flush()
+			reset()
+		}
+	})
+
 }
