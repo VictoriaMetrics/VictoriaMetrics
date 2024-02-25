@@ -336,7 +336,7 @@ func (sw *scrapeWork) run(stopCh <-chan struct{}, globalStopCh <-chan struct{}) 
 				// when the given target disappears as Prometheus does.
 				// Use the current real timestamp for staleness markers, so queries
 				// stop returning data just after the time the target disappears.
-				sw.sendStaleSeries(lastScrape, "", t, true)
+				sw.sendStaleSeries(lastScrape, "", "", t, true)
 			}
 			if sw.seriesLimiter != nil {
 				sw.seriesLimiter.MustStop()
@@ -487,11 +487,12 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 		bodyString = ""
 	}
 	seriesAdded := 0
+	currDiff := ""
 	if !areIdenticalSeries {
 		// The returned value for seriesAdded may be bigger than the real number of added series
 		// if some series were removed during relabeling.
 		// This is a trade-off between performance and accuracy.
-		seriesAdded = sw.getSeriesAdded(lastScrape, bodyString)
+		currDiff, seriesAdded = sw.getSeriesAdded(lastScrape, bodyString)
 	}
 	samplesDropped := 0
 	if sw.seriesLimitExceeded || !areIdenticalSeries {
@@ -515,7 +516,7 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 	if !areIdenticalSeries {
 		// Send stale markers for disappeared metrics with the real scrape timestamp
 		// in order to guarantee that query doesn't return data after this time for the disappeared metrics.
-		sw.sendStaleSeries(lastScrape, bodyString, realTimestamp, false)
+		sw.sendStaleSeries(lastScrape, bodyString, currDiff, realTimestamp, false)
 		sw.storeLastScrape(body)
 	}
 	sw.finalizeLastScrape()
@@ -571,11 +572,12 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 		scrapesFailed.Inc()
 	}
 	seriesAdded := 0
+	currDiff := ""
 	if !areIdenticalSeries {
 		// The returned value for seriesAdded may be bigger than the real number of added series
 		// if some series were removed during relabeling.
 		// This is a trade-off between performance and accuracy.
-		seriesAdded = sw.getSeriesAdded(lastScrape, bodyString)
+		currDiff, seriesAdded = sw.getSeriesAdded(lastScrape, bodyString)
 	}
 	am := &autoMetrics{
 		up:                        up,
@@ -594,7 +596,7 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 	if !areIdenticalSeries {
 		// Send stale markers for disappeared metrics with the real scrape timestamp
 		// in order to guarantee that query doesn't return data after this time for the disappeared metrics.
-		sw.sendStaleSeries(lastScrape, bodyString, realTimestamp, false)
+		sw.sendStaleSeries(lastScrape, bodyString, currDiff, realTimestamp, false)
 		sw.storeLastScrape(body.B)
 	}
 	sw.finalizeLastScrape()
@@ -691,12 +693,12 @@ func (wc *writeRequestCtx) resetNoRows() {
 
 var writeRequestCtxPool leveledWriteRequestCtxPool
 
-func (sw *scrapeWork) getSeriesAdded(lastScrape, currScrape string) int {
+func (sw *scrapeWork) getSeriesAdded(lastScrape, currScrape string) (string, int) {
 	if currScrape == "" {
-		return 0
+		return "", 0
 	}
 	bodyString := parser.GetRowsDiff(currScrape, lastScrape)
-	return strings.Count(bodyString, "\n")
+	return bodyString, strings.Count(bodyString, "\n")
 }
 
 func (sw *scrapeWork) applySeriesLimit(wc *writeRequestCtx) int {
@@ -727,7 +729,7 @@ func (sw *scrapeWork) applySeriesLimit(wc *writeRequestCtx) int {
 
 var sendStaleSeriesConcurrencyLimitCh = make(chan struct{}, cgroup.AvailableCPUs())
 
-func (sw *scrapeWork) sendStaleSeries(lastScrape, currScrape string, timestamp int64, addAutoSeries bool) {
+func (sw *scrapeWork) sendStaleSeries(lastScrape, currScrape, currDiff string, timestamp int64, addAutoSeries bool) {
 	// This function is CPU-bound, while it may allocate big amounts of memory.
 	// That's why it is a good idea to limit the number of concurrent calls to this function
 	// in order to limit memory usage under high load without sacrificing the performance.
@@ -741,7 +743,11 @@ func (sw *scrapeWork) sendStaleSeries(lastScrape, currScrape string, timestamp i
 	}
 	bodyString := lastScrape
 	if currScrape != "" {
-		bodyString = parser.GetRowsDiff(lastScrape, currScrape)
+		if currDiff != "" {
+			bodyString = currDiff
+		} else {
+			bodyString = parser.GetRowsDiff(lastScrape, currScrape)
+		}
 	}
 	wc := writeRequestCtxPool.Get(sw.prevLabelsLen)
 	defer func() {

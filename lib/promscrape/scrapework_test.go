@@ -724,7 +724,7 @@ func TestSendStaleSeries(t *testing.T) {
 		sw.PushData = func(at *auth.Token, wr *prompbmarshal.WriteRequest) {
 			staleMarks += len(wr.Timeseries)
 		}
-		sw.sendStaleSeries(lastScrape, currScrape, 0, false)
+		sw.sendStaleSeries(lastScrape, currScrape, "", 0, false)
 		if staleMarks != staleMarksExpected {
 			t.Fatalf("unexpected number of stale marks; got %d; want %d", staleMarks, staleMarksExpected)
 		}
