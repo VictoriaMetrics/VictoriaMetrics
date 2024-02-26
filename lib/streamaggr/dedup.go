@@ -93,7 +93,6 @@ func (d *deduplicator) stop() {
 func (d *deduplicator) push(ts prompbmarshal.TimeSeries) {
 	if len(ts.Samples) == 0 {
 		return
-		//panic(fmt.Sprintf("received time series with 0 samples: %v", ts))
 	}
 
 	lastSample := ts.Samples[0]
