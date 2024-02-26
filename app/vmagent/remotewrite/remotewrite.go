@@ -478,7 +478,6 @@ func tryPush(at *auth.Token, wr *prompbmarshal.WriteRequest, dropSamplesOnFailur
 			rowsCountAfterRelabel := getRowsCount(tssBlock)
 			rowsDroppedByGlobalRelabel.Add(rowsCountBeforeRelabel - rowsCountAfterRelabel)
 		}
-		sortLabelsIfNeeded(tssBlock)
 		tssBlock = limitSeriesCardinality(tssBlock)
 		if !tryPushBlockToRemoteStorages(rwctxs, tssBlock) {
 			if !*disableOnDiskQueue {
@@ -870,6 +869,8 @@ func (rwctx *remoteWriteCtx) tryPushInternal(tss []prompbmarshal.TimeSeries) boo
 		tss = append(*v, tss...)
 		rctx.appendExtraLabels(tss, labelsGlobal)
 	}
+
+	sortLabelsIfNeeded(tss)
 
 	pss := rwctx.pss
 	idx := rwctx.pssNextIdx.Add(1) % uint64(len(pss))
