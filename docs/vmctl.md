@@ -982,7 +982,7 @@ Requests to make for tenant 1:0: 28 / 28 [████████████�
 ### Configuration
 Run the following command to get all configuration options:
 ```sh
-./vmctl influx --help
+./vmctl vm-native --help
 ```
 
 ## Tuning

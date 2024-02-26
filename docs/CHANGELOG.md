@@ -53,8 +53,6 @@ See also [LTS releases](https://docs.victoriametrics.com/LTS-releases.html).
 
 
 ## [v1.98.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.98.0)
-* FEATURE: [vmctl](https://docs.victoriametrics.com/vmctl.html): support client-side and server side TLS configuration for [VM native protocol](https://new.docs.victoriametrics.com/vmctl/#migrating-data-from-victoriametrics). See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5748).
-
 Released at 2024-02-14
 
 * SECURITY: upgrade Go builder from Go1.21.6 to Go1.22.0. See [the list of issues addressed in Go1.21.7](https://github.com/golang/go/issues?q=milestone%3AGo1.21.7+label%3ACherryPickApproved),
