@@ -16,7 +16,7 @@ services:
       - ./provisioning/datasources/victorialogs-datasource:/etc/grafana/provisioning/datasources
       - ./provisioning/dashboards:/etc/grafana/provisioning/dashboards
       - ./provisioning/plugins/:/var/lib/grafana/plugins
-      - ./../../dashboards/vm/victoriametrics.json:/var/lib/grafana/dashboards/vm.json
+      - ./../../dashboards/victoriametrics.json:/var/lib/grafana/dashboards/vm.json
       - ./../../dashboards/victorialogs.json:/var/lib/grafana/dashboards/vl.json
       - ./victorialogs/download.sh:/download.sh
     environment:
