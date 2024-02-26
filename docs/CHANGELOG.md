@@ -36,14 +36,13 @@ See also [LTS releases](https://docs.victoriametrics.com/LTS-releases.html).
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): add support for `enable_compression` option in [scrape_configs](https://docs.victoriametrics.com/sd_configs/#scrape_configs) in order to be compatible with Prometheus scrape configs. See [this pull request](https://github.com/prometheus/prometheus/pull/13166) and [this feature request](https://github.com/prometheus/prometheus/issues/12319). Note that `vmagent` was always supporting [`disable_compression` option](https://docs.victoriametrics.com/vmagent/#scrape_config-enhancements) before Prometheus added `enable_compression` option.
 * FEATURE: [vmctl](https://docs.victoriametrics.com/vmctl.html): support client-side TLS configuration for [InfluxDB](https://docs.victoriametrics.com/vmctl/#migrating-data-from-influxdb-1x). See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5748). Thanks to @khushijain21 for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5783).
 * FEATURE: [vmctl](https://docs.victoriametrics.com/vmctl.html): support client-side TLS configuration for [Remote Read protocol](https://docs.victoriametrics.com/vmctl/#migrating-data-by-remote-read-protocol). See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5748). Thanks to @khushijain21 for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5798).
+* FEATURE: [vmctl](https://docs.victoriametrics.com/vmctl.html): support client-side and server side TLS configuration for [VM native protocol](https://new.docs.victoriametrics.com/vmctl/#migrating-data-from-victoriametrics). See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5748).
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): preserve [`WITH` templates](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/expand-with-exprs) when clicking the `prettify query` button at the right side of query input field. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5383).
 
 * BUGFIX: fix the misleading error `0ms is out of allowed range [0 ...` when passing `step=0` to [/api/v1/query](https://docs.victoriametrics.com/keyconcepts/#instant-query)
   or [/api/v1/query_range](https://docs.victoriametrics.com/keyconcepts/#range-query). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5795).
 
 ## [v1.98.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.98.0)
-* FEATURE: [vmctl](https://docs.victoriametrics.com/vmctl.html): support client-side and server side TLS configuration for [VM native protocol](https://new.docs.victoriametrics.com/vmctl/#migrating-data-from-victoriametrics). See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5748).
-
 Released at 2024-02-14
 
 * SECURITY: upgrade Go builder from Go1.21.6 to Go1.22.0. See [the list of issues addressed in Go1.21.7](https://github.com/golang/go/issues?q=milestone%3AGo1.21.7+label%3ACherryPickApproved),
