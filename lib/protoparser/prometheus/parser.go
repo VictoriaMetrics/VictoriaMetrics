@@ -57,12 +57,18 @@ func (rs *Rows) UnmarshalWithErrLogger(s string, errLogger func(s string)) {
 	rs.Rows, rs.tagsPool = unmarshalRows(rs.Rows[:0], s, rs.tagsPool[:0], noEscapes, errLogger)
 }
 
+// Open Metrics Exemplar
+type Exemplar struct {
+	Tags []Tag
+}
+
 // Row is a single Prometheus row.
 type Row struct {
 	Metric    string
 	Tags      []Tag
 	Value     float64
 	Timestamp int64
+	Exemplar  Exemplar
 }
 
 func (r *Row) reset() {
@@ -109,47 +115,59 @@ func nextWhitespace(s string) int {
 	}
 	return n1
 }
-
-func (r *Row) unmarshal(s string, tagsPool []Tag, noEscapes bool) ([]Tag, error) {
-	r.reset()
-	s = skipLeadingWhitespace(s)
+func parseTags(s string, noEscapes bool) (string, []Tag, int, error) {
+	var tags []Tag
 	n := strings.IndexByte(s, '{')
 	if n >= 0 {
 		// Tags found. Parse them.
-		r.Metric = skipTrailingWhitespace(s[:n])
 		s = s[n+1:]
-		tagsStart := len(tagsPool)
 		var err error
-		s, tagsPool, err = unmarshalTags(tagsPool, s, noEscapes)
+		s, tags, err = unmarshalTags(tags, s, noEscapes)
 		if err != nil {
-			return tagsPool, fmt.Errorf("cannot unmarshal tags: %w", err)
+			return s, tags, n, fmt.Errorf("cannot unmarshal tags: %w", err)
 		}
 		if len(s) > 0 && s[0] == ' ' {
 			// Fast path - skip whitespace.
 			s = s[1:]
 		}
-		tags := tagsPool[tagsStart:]
-		r.Tags = tags[:len(tags):len(tags)]
+	}
+	return s, tags, n, nil
+
+}
+
+func (r *Row) unmarshal(s string, tagsPool []Tag, noEscapes bool) ([]Tag, error) {
+	r.reset()
+	s = skipLeadingWhitespace(s)
+	new_s, tags, n, err := parseTags(s, noEscapes)
+	if n >= 0 {
+		r.Metric = skipTrailingWhitespace(s[:n])
+		tagsPool = append(tagsPool, tags...)
+		r.Tags = tagsPool[:len(tags):len(tags)]
+		s = new_s
 	} else {
-		// Tags weren't found. Search for value after whitespace
-		n = nextWhitespace(s)
+		s = new_s
+		n := nextWhitespace(s)
 		if n < 0 {
 			return tagsPool, fmt.Errorf("missing value")
 		}
 		r.Metric = s[:n]
 		s = s[n+1:]
+
 	}
 	if len(r.Metric) == 0 {
 		return tagsPool, fmt.Errorf("metric cannot be empty")
 	}
 	s = skipLeadingWhitespace(s)
-	s = skipTrailingComment(s)
+	// Only if Exemplar doesn't exist
+	if !strings.Contains(s, "# {") {
+		s = skipTrailingComment(s)
+	}
 	if len(s) == 0 {
 		return tagsPool, fmt.Errorf("value cannot be empty")
 	}
 	n = nextWhitespace(s)
 	if n < 0 {
-		// There is no timestamp.
+		// There is no timestamp or exemplar.
 		v, err := fastfloat.Parse(s)
 		if err != nil {
 			return tagsPool, fmt.Errorf("cannot parse value %q: %w", s, err)
@@ -157,13 +175,33 @@ func (r *Row) unmarshal(s string, tagsPool []Tag, noEscapes bool) ([]Tag, error)
 		r.Value = v
 		return tagsPool, nil
 	}
-	// There is a timestamp.
+	// There is a timestamp or an exemplar.
 	v, err := fastfloat.Parse(s[:n])
 	if err != nil {
 		return tagsPool, fmt.Errorf("cannot parse value %q: %w", s[:n], err)
 	}
 	r.Value = v
 	s = skipLeadingWhitespace(s[n+1:])
+	if strings.Contains(s, "# {") {
+		n := strings.IndexByte(s, '{')
+		if n >= 0 {
+			// Tags found. Parse them.
+			s = s[n+1:]
+			tagsStart := len(tagsPool)
+			var err error
+			s, tagsPool, err = unmarshalTags(tagsPool, s, noEscapes)
+			if err != nil {
+				return tagsPool, fmt.Errorf("cannot unmarshal tags: %w", err)
+			}
+			if len(s) > 0 && s[0] == ' ' {
+				// Fast path - skip whitespace.
+				s = s[1:]
+			}
+			tags := tagsPool[tagsStart:]
+			r.Exemplar.Tags = tags[:len(tags):len(tags)]
+			return tagsPool, nil
+		}
+	}
 	if len(s) == 0 {
 		// There is no timestamp - just a whitespace after the value.
 		return tagsPool, nil

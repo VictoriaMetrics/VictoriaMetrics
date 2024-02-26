@@ -362,7 +362,6 @@ cassandra_token_ownership_ratio 78.9`, &Rows{
 			Value: 56,
 		}},
 	})
-
 	// Exemplars - see https://github.com/OpenObservability/OpenMetrics/blob/master/OpenMetrics.md#exemplars-1
 	f(`foo_bucket{le="10",a="#b"} 17 # {trace_id="oHg5SJ#YRHA0"} 9.8 1520879607.789
 	   abc 123 456 # foobar
@@ -381,6 +380,51 @@ cassandra_token_ownership_ratio 78.9`, &Rows{
 					},
 				},
 				Value: 17,
+				Exemplar: Exemplar{
+					Tags: []Tag{
+						{
+							Key:   "trace_id",
+							Value: "oHg5SJ#YRHA0",
+						},
+					},
+				},
+			},
+			{
+				Metric:    "abc",
+				Value:     123,
+				Timestamp: 456000,
+			},
+			{
+				Metric: "foo",
+				Value:  344,
+			},
+		},
+	})
+	f(`foo_bucket{le="10",a="#b"} 17 # {test_id="oHg5SJ#YRHA0"} 9.8 1520879607.789
+	   abc 123 456 # foobar
+	   foo   344#bar`, &Rows{
+		Rows: []Row{
+			{
+				Metric: "foo_bucket",
+				Tags: []Tag{
+					{
+						Key:   "le",
+						Value: "10",
+					},
+					{
+						Key:   "a",
+						Value: "#b",
+					},
+				},
+				Value: 17,
+				Exemplar: Exemplar{
+					Tags: []Tag{
+						{
+							Key:   "test_id",
+							Value: "oHg5SJ#YRHA0",
+						},
+					},
+				},
 			},
 			{
 				Metric:    "abc",
