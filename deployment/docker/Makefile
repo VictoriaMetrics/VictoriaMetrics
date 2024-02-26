@@ -204,3 +204,9 @@ docker-cluster-vm-datasource-up:
 
 docker-cluster-vm-datasource-down:
 	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose-cluster.yml -f deployment/docker/vm-datasource/docker-compose-cluster.yml down -v
+
+docker-victorialogs-up:
+	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose-victorialogs.yml up -d
+
+docker-victorialogs-down:
+	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose-victorialogs.yml down -v

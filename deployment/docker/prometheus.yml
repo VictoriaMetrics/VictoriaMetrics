@@ -17,6 +17,3 @@ scrape_configs:
   - job_name: 'vmstorage'
     static_configs:
       - targets: ['vmstorage-1:8482', 'vmstorage-2:8482']
-  - job_name: 'victorialogs'
-    static_configs:
-      - targets: ['victorialogs:9428']
