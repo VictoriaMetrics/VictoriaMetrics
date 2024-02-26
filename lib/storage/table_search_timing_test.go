@@ -69,8 +69,11 @@ func createBenchTable(b *testing.B, path string, startTimestamp int64, rowsPerIn
 	strg := newTestStorage()
 	tb := mustOpenTable(path, strg)
 
-	insertsCount := uint64((rowsCount + rowsPerInsert - 1) / rowsPerInsert)
-	timestamp := uint64(startTimestamp)
+	var insertsCount atomic.Int64
+	insertsCount.Store(int64((rowsCount + rowsPerInsert - 1) / rowsPerInsert))
+
+	var timestamp atomic.Uint64
+	timestamp.Store(uint64(startTimestamp))
 
 	var wg sync.WaitGroup
 	for k := 0; k < cgroup.AvailableCPUs(); k++ {
@@ -79,9 +82,9 @@ func createBenchTable(b *testing.B, path string, startTimestamp int64, rowsPerIn
 			rng := rand.New(rand.NewSource(int64(n)))
 			rows := make([]rawRow, rowsPerInsert)
 			value := float64(100)
-			for int(atomic.AddUint64(&insertsCount, ^uint64(0))) >= 0 {
+			for insertsCount.Add(-1) >= 0 {
 				for j := 0; j < rowsPerInsert; j++ {
-					ts := atomic.AddUint64(&timestamp, uint64(10+rng.Int63n(2)))
+					ts := timestamp.Add(uint64(10 + rng.Int63n(2)))
 					value += float64(int(rng.NormFloat64() * 5))
 
 					r := &rows[j]
@@ -103,7 +106,7 @@ func createBenchTable(b *testing.B, path string, startTimestamp int64, rowsPerIn
 
 func benchmarkTableSearch(b *testing.B, rowsCount, tsidsCount, tsidsSearch int) {
 	startTimestamp := timestampFromTime(time.Now()) - 365*24*3600*1000
-	rowsPerInsert := getMaxRawRowsPerShard()
+	rowsPerInsert := maxRawRowsPerShard
 
 	tb, strg := openBenchTable(b, startTimestamp, rowsPerInsert, rowsCount, tsidsCount)
 	tr := TimeRange{

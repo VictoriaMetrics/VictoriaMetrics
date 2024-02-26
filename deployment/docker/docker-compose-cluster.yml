@@ -1,5 +1,8 @@
 version: '3.5'
 services:
+  #  Metrics collector.
+  #  It scrapes targets defined in --promscrape.config
+  #  And forward them to --remoteWrite.url
   vmagent:
     container_name: vmagent
     image: victoriametrics/vmagent:v1.98.0
@@ -15,6 +18,7 @@ services:
       - '--remoteWrite.url=http://vminsert:8480/insert/0/prometheus/'
     restart: always
 
+  # Grafana instance configured with VictoriaMetrics as datasource
   grafana:
     container_name: grafana
     image: grafana/grafana:10.3.1
@@ -31,6 +35,8 @@ services:
       - ./../../dashboards/vmagent.json:/var/lib/grafana/dashboards/vmagent.json
       - ./../../dashboards/vmalert.json:/var/lib/grafana/dashboards/vmalert.json
 
+  # vmstorage shards. Each shard receives 1/N of all metrics sent to vminserts,
+  # where N is number of vmstorages (2 in this case).
   vmstorage-1:
     container_name: vmstorage-1
     image: victoriametrics/vmstorage:v1.98.0-cluster
@@ -56,6 +62,8 @@ services:
       - '--storageDataPath=/storage'
     restart: always
 
+  # vminsert is ingestion frontend. It receives metrics pushed by vmagent,
+  # pre-process them and distributes across configured vmstorage shards.
   vminsert:
     container_name: vminsert
     image: victoriametrics/vminsert:v1.98.0-cluster
@@ -69,6 +77,8 @@ services:
       - 8480:8480
     restart: always
 
+  # vmselect is a query fronted. It serves read queries in MetricsQL or PromQL.
+  # vmselect collects results from configured `--storageNode` shards.
   vmselect-1:
     container_name: vmselect-1
     image: victoriametrics/vmselect:v1.98.0-cluster
@@ -82,7 +92,6 @@ services:
     ports:
       - 8481
     restart: always
-
   vmselect-2:
     container_name: vmselect-2
     image: victoriametrics/vmselect:v1.98.0-cluster
@@ -97,6 +106,10 @@ services:
       - 8481
     restart: always
 
+  # vmauth is a router and balancer for HTTP requests.
+  # It is configured via --auth.config and balances
+  # read requests from Grafana, vmui, vmalert among vmselects.
+  # It can be used as an authentication proxy.
   vmauth:
     container_name: vmauth
     image: victoriametrics/vmauth:v1.98.0
@@ -105,13 +118,13 @@ services:
       - "vmselect-2"
     volumes:
       - ./auth-cluster.yml:/etc/auth.yml
-#      - /var/run/docker.sock:/var/run/docker.sock
     command:
       - '--auth.config=/etc/auth.yml'
     ports:
       - 8427:8427
     restart: always
 
+  # vmalert executes alerting and recording rules
   vmalert:
     container_name: vmalert
     image: victoriametrics/vmalert:v1.98.0
@@ -136,6 +149,8 @@ services:
       - '--external.alert.source=explore?orgId=1&left={"datasource":"VictoriaMetrics","queries":[{"expr":{{$$expr|jsonEscape|queryEscape}},"refId":"A"}],"range":{"from":"now-1h","to":"now"}}'
     restart: always
 
+  # alertmanager receives alerting notifications from vmalert
+  # and distributes them according to --config.file.
   alertmanager:
     container_name: alertmanager
     image: prom/alertmanager:v0.25.0

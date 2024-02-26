@@ -15,7 +15,7 @@ import (
 //
 // rowsMerged is atomically updated with the number of merged rows during the merge.
 func mergeBlockStreams(ph *partHeader, bsw *blockStreamWriter, bsrs []*blockStreamReader, stopCh <-chan struct{}, s *Storage, retentionDeadline int64,
-	rowsMerged, rowsDeleted *uint64) error {
+	rowsMerged, rowsDeleted *atomic.Uint64) error {
 	ph.Reset()
 
 	bsm := bsmPool.Get().(*blockStreamMerger)
@@ -38,7 +38,7 @@ var bsmPool = &sync.Pool{
 
 var errForciblyStopped = fmt.Errorf("forcibly stopped")
 
-func mergeBlockStreamsInternal(ph *partHeader, bsw *blockStreamWriter, bsm *blockStreamMerger, stopCh <-chan struct{}, s *Storage, rowsMerged, rowsDeleted *uint64) error {
+func mergeBlockStreamsInternal(ph *partHeader, bsw *blockStreamWriter, bsm *blockStreamMerger, stopCh <-chan struct{}, s *Storage, rowsMerged, rowsDeleted *atomic.Uint64) error {
 	dmis := s.getDeletedMetricIDs()
 	pendingBlockIsEmpty := true
 	pendingBlock := getBlock()
@@ -54,13 +54,13 @@ func mergeBlockStreamsInternal(ph *partHeader, bsw *blockStreamWriter, bsm *bloc
 		b := bsm.Block
 		if dmis.Has(b.bh.TSID.MetricID) {
 			// Skip blocks for deleted metrics.
-			atomic.AddUint64(rowsDeleted, uint64(b.bh.RowsCount))
+			rowsDeleted.Add(uint64(b.bh.RowsCount))
 			continue
 		}
 		retentionDeadline := bsm.getRetentionDeadline(&b.bh)
 		if b.bh.MaxTimestamp < retentionDeadline {
 			// Skip blocks out of the given retention.
-			atomic.AddUint64(rowsDeleted, uint64(b.bh.RowsCount))
+			rowsDeleted.Add(uint64(b.bh.RowsCount))
 			continue
 		}
 		if pendingBlockIsEmpty {
@@ -132,7 +132,7 @@ func mergeBlockStreamsInternal(ph *partHeader, bsw *blockStreamWriter, bsm *bloc
 }
 
 // mergeBlocks merges ib1 and ib2 to ob.
-func mergeBlocks(ob, ib1, ib2 *Block, retentionDeadline int64, rowsDeleted *uint64) {
+func mergeBlocks(ob, ib1, ib2 *Block, retentionDeadline int64, rowsDeleted *atomic.Uint64) {
 	ib1.assertMergeable(ib2)
 	ib1.assertUnmarshaled()
 	ib2.assertUnmarshaled()
@@ -177,7 +177,7 @@ func mergeBlocks(ob, ib1, ib2 *Block, retentionDeadline int64, rowsDeleted *uint
 	}
 }
 
-func skipSamplesOutsideRetention(b *Block, retentionDeadline int64, rowsDeleted *uint64) {
+func skipSamplesOutsideRetention(b *Block, retentionDeadline int64, rowsDeleted *atomic.Uint64) {
 	if b.bh.MinTimestamp >= retentionDeadline {
 		// Fast path - the block contains only samples with timestamps bigger than retentionDeadline.
 		return
@@ -189,7 +189,7 @@ func skipSamplesOutsideRetention(b *Block, retentionDeadline int64, rowsDeleted 
 		nextIdx++
 	}
 	if n := nextIdx - nextIdxOrig; n > 0 {
-		atomic.AddUint64(rowsDeleted, uint64(n))
+		rowsDeleted.Add(uint64(n))
 		b.nextIdx = nextIdx
 	}
 }

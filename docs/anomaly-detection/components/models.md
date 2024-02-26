@@ -36,15 +36,17 @@ models:
       # i.e. to assure reproducibility of produced results each time model is fit on the same input
       random_state: 42
     # if there is no explicit `queries` arg, then the model will be run on ALL queries found in reader section
+...
 ```  
 
-Old-style configs (< [1.10.0](/anomaly-detection/changelog#v1100) )
+Old-style configs (< [1.10.0](/anomaly-detection/changelog#v1100))
 
 ```yaml
 model:
     class: "model.zscore.ZscoreModel"
     z_threshold: 2.5
     # no explicit `queries` arg is provided
+...
 ```
 
 will be **implicitly** converted to
@@ -56,6 +58,7 @@ models:
     z_threshold: 2.5
     # queries arg is created and propagated with all query aliases found in `queries` arg of `reader` section
     queries: ["q1", "q2", "q3"]  # i.e., if your `queries` in `reader` section has exactly q1, q2, q3 aliases
+...
 ```
 
 
@@ -86,6 +89,31 @@ models:
     ...
     # queries arg is created and propagated with all query aliases found in `queries` arg of `reader` section
     queries: ["q1", "q2", "q3"]  # i.e., if your `queries` in `reader` section has exactly q1, q2, q3 aliases
+```
+
+### Schedulers
+
+Introduced in [1.11.0](/anomaly-detection/changelog#1110), as a part to support multi-scheduler configs, `schedulers` arg is meant to define [schedulers](/anomaly-detection/components/scheduler) particular model should be attached to.
+
+`schedulers` arg is supported for all [the built-in](/anomaly-detection/components/models/#built-in-models) (as well as for [custom](/anomaly-detection/components/models/#custom-model-guide)) models.
+
+This arg is **backward compatible** - if there is no explicit `schedulers` arg, then the model, defined in a config, will be attached to ALL the schedulers found in scheduler section:
+
+```yaml
+models:
+  model_alias_1:
+    ...
+    # no explicit `schedulers` arg is provided
+```
+
+will be implicitly converted to
+
+```yaml
+models:
+  model_alias_1:
+    ...
+    # queries arg is created and propagated with all query aliases found in `queries` arg of `reader` section
+    schedulers: ["s1", "s2", "s3"]  # i.e., if your `schedulers` section has exactly s1, s2, s3 aliases
 ```
 
 ## Model types
@@ -446,9 +474,9 @@ The default metrics produced by vmanomaly include:
 **Important**: Be aware that if `NaN` (Not a Number) or `Inf` (Infinity) values are present in the input data during `infer` model calls, the model will produce `NaN` as the `anomaly_score` for these particular instances.
 
 
-## Healthcheck metrics
+## `vmanomaly` monitoring metrics
 
-Each model exposes [several healthchecks metrics](/anomaly-detection/components/monitoring.html#models-behaviour-metrics) to its `health_path` endpoint:
+Each model exposes [several monitoring metrics](/anomaly-detection/components/monitoring.html#models-behaviour-metrics) to its `health_path` endpoint:
 
 
 ## Custom Model Guide

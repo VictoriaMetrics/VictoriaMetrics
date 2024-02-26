@@ -39,11 +39,13 @@ const (
 )
 
 const (
-	testReadHTTPPath          = "http://127.0.0.1" + testHTTPListenAddr
-	testWriteHTTPPath         = "http://127.0.0.1" + testHTTPListenAddr + "/write"
-	testOpenTSDBWriteHTTPPath = "http://127.0.0.1" + testOpenTSDBHTTPListenAddr + "/api/put"
-	testPromWriteHTTPPath     = "http://127.0.0.1" + testHTTPListenAddr + "/api/v1/write"
-	testHealthHTTPPath        = "http://127.0.0.1" + testHTTPListenAddr + "/health"
+	testReadHTTPPath           = "http://127.0.0.1" + testHTTPListenAddr
+	testWriteHTTPPath          = "http://127.0.0.1" + testHTTPListenAddr + "/write"
+	testOpenTSDBWriteHTTPPath  = "http://127.0.0.1" + testOpenTSDBHTTPListenAddr + "/api/put"
+	testPromWriteHTTPPath      = "http://127.0.0.1" + testHTTPListenAddr + "/api/v1/write"
+	testImportCSVWriteHTTPPath = "http://127.0.0.1" + testHTTPListenAddr + "/api/v1/import/csv"
+
+	testHealthHTTPPath = "http://127.0.0.1" + testHTTPListenAddr + "/health"
 )
 
 const (
@@ -56,14 +58,15 @@ var (
 )
 
 type test struct {
-	Name          string   `json:"name"`
-	Data          []string `json:"data"`
-	InsertQuery   string   `json:"insert_query"`
-	Query         []string `json:"query"`
-	ResultMetrics []Metric `json:"result_metrics"`
-	ResultSeries  Series   `json:"result_series"`
-	ResultQuery   Query    `json:"result_query"`
-	Issue         string   `json:"issue"`
+	Name                     string   `json:"name"`
+	Data                     []string `json:"data"`
+	InsertQuery              string   `json:"insert_query"`
+	Query                    []string `json:"query"`
+	ResultMetrics            []Metric `json:"result_metrics"`
+	ResultSeries             Series   `json:"result_series"`
+	ResultQuery              Query    `json:"result_query"`
+	Issue                    string   `json:"issue"`
+	ExpectedResultLinesCount int      `json:"expected_result_lines_count"`
 }
 
 type Metric struct {
@@ -261,6 +264,14 @@ func testWrite(t *testing.T) {
 			httpWrite(t, testPromWriteHTTPPath, test.InsertQuery, bytes.NewBuffer(data))
 		}
 	})
+	t.Run("csv", func(t *testing.T) {
+		for _, test := range readIn("csv", t, insertionTime) {
+			if test.Data == nil {
+				continue
+			}
+			httpWrite(t, testImportCSVWriteHTTPPath, test.InsertQuery, bytes.NewBuffer([]byte(strings.Join(test.Data, "\n"))))
+		}
+	})
 
 	t.Run("influxdb", func(t *testing.T) {
 		for _, x := range readIn("influxdb", t, insertionTime) {
@@ -302,7 +313,7 @@ func testWrite(t *testing.T) {
 }
 
 func testRead(t *testing.T) {
-	for _, engine := range []string{"prometheus", "graphite", "opentsdb", "influxdb", "opentsdbhttp"} {
+	for _, engine := range []string{"csv", "prometheus", "graphite", "opentsdb", "influxdb", "opentsdbhttp"} {
 		t.Run(engine, func(t *testing.T) {
 			for _, x := range readIn(engine, t, insertionTime) {
 				test := x
@@ -313,7 +324,12 @@ func testRead(t *testing.T) {
 						if test.Issue != "" {
 							test.Issue = "\nRegression in " + test.Issue
 						}
-						switch true {
+						switch {
+						case strings.HasPrefix(q, "/api/v1/export/csv"):
+							data := strings.Split(string(httpReadData(t, testReadHTTPPath, q)), "\n")
+							if len(data) == test.ExpectedResultLinesCount {
+								t.Fatalf("not expected number of csv lines want=%d\ngot=%d test=%s.%s\n\response=%q", len(data), test.ExpectedResultLinesCount, q, test.Issue, strings.Join(data, "\n"))
+							}
 						case strings.HasPrefix(q, "/api/v1/export"):
 							if err := checkMetricsResult(httpReadMetrics(t, testReadHTTPPath, q), test.ResultMetrics); err != nil {
 								t.Fatalf("Export. %s fails with error %s.%s", q, err, test.Issue)
@@ -425,6 +441,20 @@ func httpReadStruct(t *testing.T, address, query string, dst interface{}) {
 	}()
 	s.equalInt(resp.StatusCode, 200)
 	s.noError(json.NewDecoder(resp.Body).Decode(dst))
+}
+
+func httpReadData(t *testing.T, address, query string) []byte {
+	t.Helper()
+	s := newSuite(t)
+	resp, err := http.Get(address + query)
+	s.noError(err)
+	defer func() {
+		_ = resp.Body.Close()
+	}()
+	s.equalInt(resp.StatusCode, 200)
+	data, err := io.ReadAll(resp.Body)
+	s.noError(err)
+	return data
 }
 
 func checkMetricsResult(got, want []Metric) error {

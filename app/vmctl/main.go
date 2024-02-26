@@ -49,8 +49,20 @@ func main() {
 				Action: func(c *cli.Context) error {
 					fmt.Println("OpenTSDB import mode")
 
+					// create Transport with given TLS config
+					certFile := c.String(otsdbCertFile)
+					keyFile := c.String(otsdbKeyFile)
+					caFile := c.String(otsdbCAFile)
+					serverName := c.String(otsdbServerName)
+					insecureSkipVerify := c.Bool(otsdbInsecureSkipVerify)
+					addr := c.String(otsdbAddr)
+
+					tr, err := httputils.Transport(addr, certFile, caFile, keyFile, serverName, insecureSkipVerify)
+					if err != nil {
+						return fmt.Errorf("failed to create Transport: %s", err)
+					}
 					oCfg := opentsdb.Config{
-						Addr:       c.String(otsdbAddr),
+						Addr:       addr,
 						Limit:      c.Int(otsdbQueryLimit),
 						Offset:     c.Int64(otsdbOffsetDays),
 						HardTS:     c.Int64(otsdbHardTSStart),
@@ -58,6 +70,7 @@ func main() {
 						Filters:    c.StringSlice(otsdbFilters),
 						Normalize:  c.Bool(otsdbNormalize),
 						MsecsTime:  c.Bool(otsdbMsecsTime),
+						Transport:  tr,
 					}
 					otsdbClient, err := opentsdb.NewClient(oCfg)
 					if err != nil {
@@ -336,14 +349,14 @@ func main() {
 					if err != nil {
 						return cli.Exit(fmt.Errorf("cannot open exported block at path=%q err=%w", blockPath, err), 1)
 					}
-					var blocksCount uint64
+					var blocksCount atomic.Uint64
 					if err := stream.Parse(f, isBlockGzipped, func(block *stream.Block) error {
-						atomic.AddUint64(&blocksCount, 1)
+						blocksCount.Add(1)
 						return nil
 					}); err != nil {
-						return cli.Exit(fmt.Errorf("cannot parse block at path=%q, blocksCount=%d, err=%w", blockPath, blocksCount, err), 1)
+						return cli.Exit(fmt.Errorf("cannot parse block at path=%q, blocksCount=%d, err=%w", blockPath, blocksCount.Load(), err), 1)
 					}
-					log.Printf("successfully verified block at path=%q, blockCount=%d", blockPath, blocksCount)
+					log.Printf("successfully verified block at path=%q, blockCount=%d", blockPath, blocksCount.Load())
 					return nil
 				},
 			},

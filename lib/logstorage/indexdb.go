@@ -49,7 +49,11 @@ type IndexdbStats struct {
 
 type indexdb struct {
 	// streamsCreatedTotal is the number of log streams created since the indexdb intialization.
-	streamsCreatedTotal uint64
+	streamsCreatedTotal atomic.Uint64
+
+	// the generation of the streamFilterCache.
+	// It is updated each time new item is added to tb.
+	streamFilterCacheGeneration atomic.Uint32
 
 	// path is the path to indexdb
 	path string
@@ -62,10 +66,6 @@ type indexdb struct {
 
 	// indexSearchPool is a pool of indexSearch struct for the given indexdb
 	indexSearchPool sync.Pool
-
-	// the generation of the streamFilterCache.
-	// It is updated each time new item is added to tb.
-	streamFilterCacheGeneration uint32
 
 	// s is the storage where indexdb belongs to.
 	s *Storage
@@ -81,7 +81,7 @@ func mustOpenIndexdb(path, partitionName string, s *Storage) *indexdb {
 		partitionName: partitionName,
 		s:             s,
 	}
-	isReadOnly := uint32(0)
+	var isReadOnly atomic.Bool
 	idb.tb = mergeset.MustOpenTable(path, idb.invalidateStreamFilterCache, mergeTagToStreamIDsRows, &isReadOnly)
 	return idb
 }
@@ -99,7 +99,7 @@ func (idb *indexdb) debugFlush() {
 }
 
 func (idb *indexdb) updateStats(d *IndexdbStats) {
-	d.StreamsCreatedTotal += atomic.LoadUint64(&idb.streamsCreatedTotal)
+	d.StreamsCreatedTotal += idb.streamsCreatedTotal.Load()
 
 	var tm mergeset.TableMetrics
 	idb.tb.UpdateMetrics(&tm)
@@ -476,17 +476,17 @@ func (idb *indexdb) mustRegisterStream(streamID *streamID, streamTagsCanonical [
 	bi.items = items
 	putBatchItems(bi)
 
-	atomic.AddUint64(&idb.streamsCreatedTotal, 1)
+	idb.streamsCreatedTotal.Add(1)
 }
 
 func (idb *indexdb) invalidateStreamFilterCache() {
 	// This function must be fast, since it is called each
 	// time new indexdb entry is added.
-	atomic.AddUint32(&idb.streamFilterCacheGeneration, 1)
+	idb.streamFilterCacheGeneration.Add(1)
 }
 
 func (idb *indexdb) marshalStreamFilterCacheKey(dst []byte, tenantIDs []TenantID, sf *StreamFilter) []byte {
-	dst = encoding.MarshalUint32(dst, idb.streamFilterCacheGeneration)
+	dst = encoding.MarshalUint32(dst, idb.streamFilterCacheGeneration.Load())
 	dst = encoding.MarshalBytes(dst, bytesutil.ToUnsafeBytes(idb.partitionName))
 	dst = encoding.MarshalVarUint64(dst, uint64(len(tenantIDs)))
 	for i := range tenantIDs {

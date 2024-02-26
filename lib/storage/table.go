@@ -33,25 +33,23 @@ type table struct {
 
 // partitionWrapper provides refcounting mechanism for the partition.
 type partitionWrapper struct {
-	// Atomic counters must be at the top of struct for proper 8-byte alignment on 32-bit archs.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/212
+	// refCount is the number of open references to partitionWrapper.
+	refCount atomic.Int32
 
-	refCount uint64
-
-	// The partition must be dropped if mustDrop > 0
-	mustDrop uint64
+	// if mustDrop is true, then the partition must be dropped after refCount reaches zero.
+	mustDrop atomic.Bool
 
 	pt *partition
 }
 
 func (ptw *partitionWrapper) incRef() {
-	atomic.AddUint64(&ptw.refCount, 1)
+	ptw.refCount.Add(1)
 }
 
 func (ptw *partitionWrapper) decRef() {
-	n := atomic.AddUint64(&ptw.refCount, ^uint64(0))
-	if int64(n) < 0 {
-		logger.Panicf("BUG: pts.refCount must be positive; got %d", int64(n))
+	n := ptw.refCount.Add(-1)
+	if n < 0 {
+		logger.Panicf("BUG: pts.refCount must be positive; got %d", n)
 	}
 	if n > 0 {
 		return
@@ -60,18 +58,18 @@ func (ptw *partitionWrapper) decRef() {
 	// refCount is zero. Close the partition.
 	ptw.pt.MustClose()
 
-	if atomic.LoadUint64(&ptw.mustDrop) == 0 {
+	if !ptw.mustDrop.Load() {
 		ptw.pt = nil
 		return
 	}
 
-	// ptw.mustDrop > 0. Drop the partition.
+	// Drop the partition.
 	ptw.pt.Drop()
 	ptw.pt = nil
 }
 
 func (ptw *partitionWrapper) scheduleToDrop() {
-	atomic.AddUint64(&ptw.mustDrop, 1)
+	ptw.mustDrop.Store(true)
 }
 
 // mustOpenTable opens a table on the given path.
@@ -119,10 +117,8 @@ func mustOpenTable(path string, s *Storage) *table {
 	return tb
 }
 
-// CreateSnapshot creates tb snapshot and returns paths to small and big parts of it.
-// If deadline is reached before snapshot is created error is returned.
-// If any error occurs during snapshot created data is not removed.
-func (tb *table) CreateSnapshot(snapshotName string, deadline uint64) (string, string, error) {
+// MustCreateSnapshot creates tb snapshot and returns paths to small and big parts of it.
+func (tb *table) MustCreateSnapshot(snapshotName string) (string, string) {
 	logger.Infof("creating table snapshot of %q...", tb.path)
 	startTime := time.Now()
 
@@ -136,12 +132,6 @@ func (tb *table) CreateSnapshot(snapshotName string, deadline uint64) (string, s
 	fs.MustMkdirFailIfExist(dstBigDir)
 
 	for _, ptw := range ptws {
-		if deadline > 0 && fasttime.UnixTimestamp() > deadline {
-			fs.MustRemoveAll(dstSmallDir)
-			fs.MustRemoveAll(dstBigDir)
-			return "", "", fmt.Errorf("cannot create snapshot for %q: timeout exceeded", tb.path)
-		}
-
 		smallPath := filepath.Join(dstSmallDir, ptw.pt.name)
 		bigPath := filepath.Join(dstBigDir, ptw.pt.name)
 		ptw.pt.MustCreateSnapshotAt(smallPath, bigPath)
@@ -153,7 +143,7 @@ func (tb *table) CreateSnapshot(snapshotName string, deadline uint64) (string, s
 	fs.MustSyncPath(filepath.Dir(dstBigDir))
 
 	logger.Infof("created table snapshot for %q at (%q, %q) in %.3f seconds", tb.path, dstSmallDir, dstBigDir, time.Since(startTime).Seconds())
-	return dstSmallDir, dstBigDir, nil
+	return dstSmallDir, dstBigDir
 }
 
 // MustDeleteSnapshot deletes snapshot with the given snapshotName.
@@ -166,9 +156,9 @@ func (tb *table) MustDeleteSnapshot(snapshotName string) {
 
 func (tb *table) addPartitionNolock(pt *partition) {
 	ptw := &partitionWrapper{
-		pt:       pt,
-		refCount: 1,
+		pt: pt,
 	}
+	ptw.incRef()
 	tb.ptws = append(tb.ptws, ptw)
 }
 
@@ -185,7 +175,7 @@ func (tb *table) MustClose() {
 	tb.ptwsLock.Unlock()
 
 	for _, ptw := range ptws {
-		if n := atomic.LoadUint64(&ptw.refCount); n != 1 {
+		if n := ptw.refCount.Load(); n != 1 {
 			logger.Panicf("BUG: unexpected refCount=%d when closing the partition; probably there are pending searches", n)
 		}
 		ptw.decRef()
@@ -199,9 +189,8 @@ func (tb *table) flushPendingRows() {
 	ptws := tb.GetPartitions(nil)
 	defer tb.PutPartitions(ptws)
 
-	var rows []rawRow
 	for _, ptw := range ptws {
-		rows = ptw.pt.flushPendingRows(rows[:0], true)
+		ptw.pt.flushPendingRows(true)
 	}
 }
 
@@ -232,7 +221,7 @@ func (tb *table) UpdateMetrics(m *TableMetrics) {
 
 	for _, ptw := range ptws {
 		ptw.pt.UpdateMetrics(&m.partitionMetrics)
-		m.PartitionsRefCount += atomic.LoadUint64(&ptw.refCount)
+		m.PartitionsRefCount += uint64(ptw.refCount.Load())
 	}
 
 	// Collect separate metrics for the last partition.

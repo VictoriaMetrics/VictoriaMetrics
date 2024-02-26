@@ -164,7 +164,7 @@ type Regex struct {
 
 // URLPrefix represents passed `url_prefix`
 type URLPrefix struct {
-	n uint32
+	n atomic.Uint32
 
 	// the list of backend urls
 	bus []*backendURL
@@ -192,27 +192,28 @@ func (up *URLPrefix) setLoadBalancingPolicy(loadBalancingPolicy string) error {
 }
 
 type backendURL struct {
-	brokenDeadline     uint64
-	concurrentRequests int32
-	url                *url.URL
+	brokenDeadline     atomic.Uint64
+	concurrentRequests atomic.Int32
+
+	url *url.URL
 }
 
 func (bu *backendURL) isBroken() bool {
 	ct := fasttime.UnixTimestamp()
-	return ct < atomic.LoadUint64(&bu.brokenDeadline)
+	return ct < bu.brokenDeadline.Load()
 }
 
 func (bu *backendURL) setBroken() {
 	deadline := fasttime.UnixTimestamp() + uint64((*failTimeout).Seconds())
-	atomic.StoreUint64(&bu.brokenDeadline, deadline)
+	bu.brokenDeadline.Store(deadline)
 }
 
 func (bu *backendURL) get() {
-	atomic.AddInt32(&bu.concurrentRequests, 1)
+	bu.concurrentRequests.Add(1)
 }
 
 func (bu *backendURL) put() {
-	atomic.AddInt32(&bu.concurrentRequests, -1)
+	bu.concurrentRequests.Add(-1)
 }
 
 func (up *URLPrefix) getBackendsCount() int {
@@ -266,7 +267,7 @@ func (up *URLPrefix) getLeastLoadedBackendURL() *backendURL {
 	}
 
 	// Slow path - select other backend urls.
-	n := atomic.AddUint32(&up.n, 1)
+	n := up.n.Add(1)
 
 	for i := uint32(0); i < uint32(len(bus)); i++ {
 		idx := (n + i) % uint32(len(bus))
@@ -274,22 +275,22 @@ func (up *URLPrefix) getLeastLoadedBackendURL() *backendURL {
 		if bu.isBroken() {
 			continue
 		}
-		if atomic.LoadInt32(&bu.concurrentRequests) == 0 {
+		if bu.concurrentRequests.Load() == 0 {
 			// Fast path - return the backend with zero concurrently executed requests.
-			// Do not use atomic.CompareAndSwapInt32(), since it is much slower on systems with many CPU cores.
-			atomic.AddInt32(&bu.concurrentRequests, 1)
+			// Do not use CompareAndSwap() instead of Load(), since it is much slower on systems with many CPU cores.
+			bu.concurrentRequests.Add(1)
 			return bu
 		}
 	}
 
 	// Slow path - return the backend with the minimum number of concurrently executed requests.
 	buMin := bus[n%uint32(len(bus))]
-	minRequests := atomic.LoadInt32(&buMin.concurrentRequests)
+	minRequests := buMin.concurrentRequests.Load()
 	for _, bu := range bus {
 		if bu.isBroken() {
 			continue
 		}
-		if n := atomic.LoadInt32(&bu.concurrentRequests); n < minRequests {
+		if n := bu.concurrentRequests.Load(); n < minRequests {
 			buMin = bu
 			minRequests = n
 		}

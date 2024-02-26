@@ -132,7 +132,7 @@ Following rules are applied:
 
 - If `configNamespaceSelector` and `configSelector` both undefined, then by default select nothing. With option set - `spec.selectAllByDefault: true`, select all vmalertmanagerconfigs.
 - If `configNamespaceSelector` defined, `configSelector` undefined, then all vmalertmaangerconfigs are matching at namespaces for given `configNamespaceSelector`.
-- If `configNamespaceSelector` undefined, `configSelector` defined, then all vmalertmaangerconfigs at `VMAgent`'s namespaces are matching for given `configSelector`.
+- If `configNamespaceSelector` undefined, `configSelector` defined, then all vmalertmaangerconfigs at `VMAlertmanager`'s namespaces are matching for given `configSelector`.
 - If `configNamespaceSelector` and `configSelector` both defined, then only vmalertmaangerconfigs at namespaces matched `configNamespaceSelector` for given `configSelector` are matching.
 
 Here's a more visual and more detailed view:
@@ -258,6 +258,47 @@ spec:
     - name: my-repo-secret
 # ...
 ```
+
+## Resource management
+
+You can specify resources for each `VMAlertManager` resource in the `spec` section of the `VMAlertManager` CRD.
+
+```yaml
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMAlertManager
+metadata:
+  name: vmalertmanager-resources-example
+spec:
+    # ...
+    resources:
+        requests:
+          memory: "64Mi"
+          cpu: "250m"
+        limits:
+          memory: "128Mi"
+          cpu: "500m"
+    # ...
+```
+
+If these parameters are not specified, then,
+by default all `VMAlertManager` pods have resource requests and limits from the default values of the following [operator parameters](../configuration.md):
+
+- `VM_VMALERTMANAGER_RESOURCE_LIMIT_MEM` - default memory limit for `VMAlertManager` pods,
+- `VM_VMALERTMANAGER_RESOURCE_LIMIT_CPU` - default memory limit for `VMAlertManager` pods,
+- `VM_VMALERTMANAGER_RESOURCE_REQUEST_MEM` - default memory limit for `VMAlertManager` pods,
+- `VM_VMALERTMANAGER_RESOURCE_REQUEST_CPU` - default memory limit for `VMAlertManager` pods.
+
+These default parameters will be used if:
+
+- `VM_VMALERTMANAGER_USEDEFAULTRESOURCES` is set to `true` (default value),
+- `VMAlertManager` CR doesn't have `resources` field in `spec` section.
+
+Field `resources` in `VMAlertManager` spec have higher priority than operator parameters.
+
+If you set `VM_VMALERTMANAGER_USEDEFAULTRESOURCES` to `false` and don't specify `resources` in `VMAlertManager` CRD,
+then `VMAlertManager` pods will be created without resource requests and limits.
+
+Also, you can specify requests without limits - in this case default values for limits will not be used.
 
 ## Examples
 

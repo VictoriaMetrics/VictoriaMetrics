@@ -1,0 +1,14 @@
+{
+  "name": "csv export with extra_labels",
+  "data": [
+    "location-1,4,{TIME_MS}",
+    "location-2,6,{TIME_MS}",
+    "location-3,8,{TIME_MS}",
+    "location-4,10,{TIME_MS},"
+  ],
+  "insert_query": "?format=1:label:location,2:metric:test_csv_labels,3:time:unix_ms&extra_label=location=location-1",
+  "query": [
+    "/api/v1/export/csv?format=__name__,location,__value__,__timestamp__:unix_ms&match[]={__name__=\"test_csv\"}&step=30s&start={TIME_MS-180s}"
+  ],
+  "expected_result_lines_count": 4
+}

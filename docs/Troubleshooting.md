@@ -20,6 +20,7 @@ This document contains troubleshooting guides for most common issues when workin
 - [Slow queries](#slow-queries)
 - [Out of memory errors](#out-of-memory-errors)
 - [Cluster instability](#cluster-instability)
+- [Too much disk space used](#too-much-disk-space-used)
 - [Monitoring](#monitoring)
 
 ## General troubleshooting checklist
@@ -439,6 +440,26 @@ have enough free resources for graceful processing of the increased workload.
 See [capacity planning docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#capacity-planning)
 and [cluster resizing and scalability docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#cluster-resizing-and-scalability)
 for details.
+
+
+## Too much disk space used
+
+If too much disk space is used by a [single-node VictoriaMetrics](https://docs.victoriametrics.com/) or by `vmstorage` component
+at [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html), then please check the following:
+
+- Make sure that there are no old snapsots, since they can occupy disk space. See [how to work with snapshots](https://docs.victoriametrics.com/#how-to-work-with-snapshots)
+  and [snapshot troubleshooting](https://docs.victoriametrics.com/#snapshot-troubleshooting).
+
+- Under normal conditions the size of `<-storageDataPath>/indexdb` folder must be smaller than the size of `<-storageDataPath>/data` folder, where `-storageDataPath`
+  is the corresponding command-line flag value. This can be checked by the following query if [VictoriaMetrics monitoring](#monitoring) is properly set up:
+  ```metricsql
+  sum(vm_data_size_bytes{type=~"indexdb/.+"}) without(type)
+    /
+  sum(vm_data_size_bytes{type=~"(storage|indexdb)/.+"}) without(type)
+  ```
+  If this query returns values bigger than 0.5, then it is likely there is a [high churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate) issue,
+  which results in excess disk space usage for both `indexdb` and `data` folders under `-storageDataPath` folder.
+  The solution is to identify and fix the source of high churn rate with [cardinality explorer](https://docs.victoriametrics.com/#cardinality-explorer).
 
 
 ## Monitoring

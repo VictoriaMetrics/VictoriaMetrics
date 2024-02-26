@@ -2,7 +2,7 @@ import React, { FC } from "preact/compat";
 import classNames from "classnames";
 import GlobalSettings from "../../components/Configurators/GlobalSettings/GlobalSettings";
 import { ControlsProps } from "../Header/HeaderControls/HeaderControls";
-
+import { TimeSelector } from "../../components/Configurators/TimeRangeSettings/TimeSelector/TimeSelector";
 
 const ControlsLogsLayout: FC<ControlsProps> = ({ isMobile }) => {
 
@@ -13,6 +13,7 @@ const ControlsLogsLayout: FC<ControlsProps> = ({ isMobile }) => {
         "vm-header-controls_mobile": isMobile,
       })}
     >
+      <TimeSelector/>
       <GlobalSettings/>
     </div>
   );

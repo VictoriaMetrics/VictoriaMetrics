@@ -47,11 +47,14 @@ var (
 	maxStepForPointsAdjustment = flag.Duration("search.maxStepForPointsAdjustment", time.Minute, "The maximum step when /api/v1/query_range handler adjusts "+
 		"points with timestamps closer than -search.latencyOffset to the current time. The adjustment is needed because such points may contain incomplete data")
 
-	maxUniqueTimeseries    = flag.Int("search.maxUniqueTimeseries", 300e3, "The maximum number of unique time series, which can be selected during /api/v1/query and /api/v1/query_range queries. This option allows limiting memory usage")
-	maxFederateSeries      = flag.Int("search.maxFederateSeries", 1e6, "The maximum number of time series, which can be returned from /federate. This option allows limiting memory usage")
-	maxExportSeries        = flag.Int("search.maxExportSeries", 10e6, "The maximum number of time series, which can be returned from /api/v1/export* APIs. This option allows limiting memory usage")
-	maxTSDBStatusSeries    = flag.Int("search.maxTSDBStatusSeries", 10e6, "The maximum number of time series, which can be processed during the call to /api/v1/status/tsdb. This option allows limiting memory usage")
-	maxSeriesLimit         = flag.Int("search.maxSeries", 30e3, "The maximum number of time series, which can be returned from /api/v1/series. This option allows limiting memory usage")
+	maxUniqueTimeseries = flag.Int("search.maxUniqueTimeseries", 300e3, "The maximum number of unique time series, which can be selected during /api/v1/query and /api/v1/query_range queries. This option allows limiting memory usage")
+	maxFederateSeries   = flag.Int("search.maxFederateSeries", 1e6, "The maximum number of time series, which can be returned from /federate. This option allows limiting memory usage")
+	maxExportSeries     = flag.Int("search.maxExportSeries", 10e6, "The maximum number of time series, which can be returned from /api/v1/export* APIs. This option allows limiting memory usage")
+	maxTSDBStatusSeries = flag.Int("search.maxTSDBStatusSeries", 10e6, "The maximum number of time series, which can be processed during the call to /api/v1/status/tsdb. This option allows limiting memory usage")
+	maxSeriesLimit      = flag.Int("search.maxSeries", 30e3, "The maximum number of time series, which can be returned from /api/v1/series. This option allows limiting memory usage")
+	maxLabelsAPISeries  = flag.Int("search.maxLabelsAPISeries", 1e6, "The maximum number of time series, which could be scanned when searching for the the matching time series "+
+		"at /api/v1/labels and /api/v1/label/.../values. This option allows limiting memory usage and CPU usage. See also -search.maxLabelsAPIDuration, "+
+		"-search.maxTagKeys and -search.maxTagValues")
 	maxPointsPerTimeseries = flag.Int("search.maxPointsPerTimeseries", 30e3, "The maximum points per a single timeseries returned from /api/v1/query_range. "+
 		"This option doesn't limit the number of scanned raw samples in the database. The main purpose of this option is to limit the number of per-series points "+
 		"returned to graphing UI such as VMUI or Grafana. There is no sense in setting this limit to values bigger than the horizontal resolution of the graph. "+
@@ -317,21 +320,21 @@ func exportHandler(qt *querytracer.Tracer, w http.ResponseWriter, cp *commonPara
 		}
 	} else if format == "promapi" {
 		WriteExportPromAPIHeader(bw)
-		firstLineOnce := uint32(0)
-		firstLineSent := uint32(0)
+		var firstLineOnce atomic.Bool
+		var firstLineSent atomic.Bool
 		writeLineFunc = func(xb *exportBlock, workerID uint) error {
 			bb := sw.getBuffer(workerID)
-			// Use atomic.LoadUint32() in front of atomic.CompareAndSwapUint32() in order to avoid slow inter-CPU synchronization
+			// Use Load() in front of CompareAndSwap() in order to avoid slow inter-CPU synchronization
 			// in fast path after the first line has been already sent.
-			if atomic.LoadUint32(&firstLineOnce) == 0 && atomic.CompareAndSwapUint32(&firstLineOnce, 0, 1) {
+			if !firstLineOnce.Load() && firstLineOnce.CompareAndSwap(false, true) {
 				// Send the first line to sw.bw
 				WriteExportPromAPILine(bb, xb)
 				_, err := sw.bw.Write(bb.B)
 				bb.Reset()
-				atomic.StoreUint32(&firstLineSent, 1)
+				firstLineSent.Store(true)
 				return err
 			}
-			for atomic.LoadUint32(&firstLineSent) == 0 {
+			for !firstLineSent.Load() {
 				// Busy wait until the first line is sent to sw.bw
 				runtime.Gosched()
 			}
@@ -491,7 +494,7 @@ var deleteDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/
 func LabelValuesHandler(qt *querytracer.Tracer, startTime time.Time, labelName string, w http.ResponseWriter, r *http.Request) error {
 	defer labelValuesDuration.UpdateDuration(startTime)
 
-	cp, err := getCommonParamsWithDefaultDuration(r, startTime, false)
+	cp, err := getCommonParamsForLabelsAPI(r, startTime, false)
 	if err != nil {
 		return err
 	}
@@ -499,10 +502,7 @@ func LabelValuesHandler(qt *querytracer.Tracer, startTime time.Time, labelName s
 	if err != nil {
 		return err
 	}
-	// Do not limit the number of unique time series, which could be scanned
-	// during the search for matching label values, since users expect this API
-	// must always work.
-	sq := storage.NewSearchQuery(cp.start, cp.end, cp.filterss, -1)
+	sq := storage.NewSearchQuery(cp.start, cp.end, cp.filterss, *maxLabelsAPISeries)
 	labelValues, err := netstorage.LabelValues(qt, labelName, sq, limit, cp.deadline)
 	if err != nil {
 		return fmt.Errorf("cannot obtain values for label %q: %w", labelName, err)
@@ -591,7 +591,7 @@ var tsdbStatusDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/
 func LabelsHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWriter, r *http.Request) error {
 	defer labelsDuration.UpdateDuration(startTime)
 
-	cp, err := getCommonParamsWithDefaultDuration(r, startTime, false)
+	cp, err := getCommonParamsForLabelsAPI(r, startTime, false)
 	if err != nil {
 		return err
 	}
@@ -599,10 +599,7 @@ func LabelsHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 	if err != nil {
 		return err
 	}
-	// Do not limit the number of unique time series, which could be scanned
-	// during the search for matching label values, since users expect this API
-	// must always work.
-	sq := storage.NewSearchQuery(cp.start, cp.end, cp.filterss, -1)
+	sq := storage.NewSearchQuery(cp.start, cp.end, cp.filterss, *maxLabelsAPISeries)
 	labels, err := netstorage.LabelNames(qt, sq, limit, cp.deadline)
 	if err != nil {
 		return fmt.Errorf("cannot obtain labels: %w", err)
@@ -647,12 +644,12 @@ var seriesCountDuration = metrics.NewSummary(`vm_request_duration_seconds{path="
 func SeriesHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWriter, r *http.Request) error {
 	defer seriesDuration.UpdateDuration(startTime)
 
-	// Do not set start to searchutils.minTimeMsecs by default as Prometheus does,
+	// Do not set start to httputils.minTimeMsecs by default as Prometheus does,
 	// since this leads to fetching and scanning all the data from the storage,
 	// which can take a lot of time for big storages.
 	// It is better setting start as end-defaultStep by default.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/91
-	cp, err := getCommonParamsWithDefaultDuration(r, startTime, true)
+	cp, err := getCommonParamsForLabelsAPI(r, startTime, true)
 	if err != nil {
 		return err
 	}
@@ -1129,7 +1126,7 @@ func getExportParams(r *http.Request, startTime time.Time) (*commonParams, error
 	return cp, nil
 }
 
-func getCommonParamsWithDefaultDuration(r *http.Request, startTime time.Time, requireNonEmptyMatch bool) (*commonParams, error) {
+func getCommonParamsForLabelsAPI(r *http.Request, startTime time.Time, requireNonEmptyMatch bool) (*commonParams, error) {
 	cp, err := getCommonParams(r, startTime, requireNonEmptyMatch)
 	if err != nil {
 		return nil, err
@@ -1137,6 +1134,7 @@ func getCommonParamsWithDefaultDuration(r *http.Request, startTime time.Time, re
 	if cp.start == 0 {
 		cp.start = cp.end - defaultStep
 	}
+	cp.deadline = searchutils.GetDeadlineForExport(r, startTime)
 	return cp, nil
 }
 

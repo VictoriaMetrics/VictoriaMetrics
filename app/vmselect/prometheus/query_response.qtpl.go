@@ -78,11 +78,11 @@ func StreamQueryResponse(qw422016 *qt422016.Writer, rs []netstorage.Result, qt *
 //line app/vmselect/prometheus/query_response.qtpl:37
 	qw422016.N().S(`"seriesFetched": "`)
 //line app/vmselect/prometheus/query_response.qtpl:38
-	qw422016.N().DL(qs.SeriesFetched)
+	qw422016.N().DL(qs.SeriesFetched.Load())
 //line app/vmselect/prometheus/query_response.qtpl:38
 	qw422016.N().S(`","executionTimeMsec":`)
 //line app/vmselect/prometheus/query_response.qtpl:39
-	qw422016.N().DL(qs.ExecutionTimeMsec)
+	qw422016.N().DL(qs.ExecutionTimeMsec.Load())
 //line app/vmselect/prometheus/query_response.qtpl:39
 	qw422016.N().S(`}`)
 //line app/vmselect/prometheus/query_response.qtpl:42
