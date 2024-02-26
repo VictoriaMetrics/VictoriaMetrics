@@ -76,7 +76,7 @@ func (le *labelsEncoder) decode(dst []prompbmarshal.Label, s string) ([]prompbma
 		k := binary.LittleEndian.Uint32(bb)
 		bb = bb[4:]
 		l := le.getLabel(k)
-		if l.Name == "" || l.Value == "" {
+		if l.Name == "" {
 			return nil, fmt.Errorf("failed to decode key: %d", k)
 		}
 		dst = append(dst, l)

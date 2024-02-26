@@ -24,6 +24,9 @@ type deduplicator struct {
 
 	callback pushAggrFn
 
+	processShardDuration *metrics.Summary
+	callbackDuration     *metrics.Summary
+
 	// encoder encodes/decodes prompbmarshal.Label into a string key
 	// and vice-versa. On each flush, encoder is replaced with new empty
 	// encoder to avoid memory usage growth.
@@ -40,9 +43,11 @@ type dedupEncoder struct {
 
 func newDeduplicator(interval time.Duration, cb pushAggrFn) *deduplicator {
 	d := &deduplicator{
-		interval: interval,
-		stopCh:   make(chan struct{}),
-		callback: cb,
+		interval:             interval,
+		stopCh:               make(chan struct{}),
+		callback:             cb,
+		processShardDuration: metrics.GetOrCreateSummary(`vmagent_streamaggr_dedup_process_shard_duration`),
+		callbackDuration:     metrics.GetOrCreateSummary(`vmagent_streamaggr_dedup_callback_duration`),
 	}
 	encoder := &dedupEncoder{
 		sm: newShardedMap(),
@@ -160,7 +165,14 @@ func (d *deduplicator) flush() {
 	encoder := d.encoder.Swap(newEncoder)
 
 	var tss []prompbmarshal.TimeSeries
+	var labels []prompbmarshal.Label
+	var samples []prompbmarshal.Sample
+
 	processShard := func(s *shard) {
+		startProcess := time.Now()
+		labels = labels[:0]
+		samples = samples[:0]
+
 		s.mu.Lock()
 		if cap(tss) < len(s.data) {
 			tss = make([]prompbmarshal.TimeSeries, 0, len(s.data))
@@ -172,25 +184,31 @@ func (d *deduplicator) flush() {
 			ts := &tss[i]
 			i++
 
+			labelsLen := len(labels)
 			var err error
-			ts.Labels, err = encoder.le.decode(ts.Labels[:0], k)
+			labels, err = encoder.le.decode(labels, k)
 			if err != nil {
 				decodeErrors.Inc()
 				continue
 			}
-			if cap(ts.Samples) < 1 {
-				ts.Samples = make([]prompbmarshal.Sample, 0, 1)
-			}
-			ts.Samples = ts.Samples[:1]
-			ts.Samples[0].Value = v.value
-			ts.Samples[0].Timestamp = v.timestamp
+			ts.Labels = labels[labelsLen:]
+
+			samplesLen := len(samples)
+			samples = append(samples, prompbmarshal.Sample{})
+			sample := &samples[len(samples)-1]
+			sample.Value = v.value
+			sample.Timestamp = v.timestamp
+			ts.Samples = samples[samplesLen:]
 		}
 		// mark shard as drained, so goroutines which concurrently execute push
 		// could do a retry.
 		s.drained = true
 		s.mu.Unlock()
+		d.processShardDuration.UpdateDuration(startProcess)
 
+		start := time.Now()
 		d.callback(tss, nil)
+		d.callbackDuration.UpdateDuration(start)
 	}
 
 	for _, sh := range encoder.sm.shards {
