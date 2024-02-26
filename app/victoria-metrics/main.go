@@ -7,6 +7,8 @@ import (
 	"os"
 	"time"
 
+	_ "go.uber.org/automaxprocs"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert"
 	vminsertcommon "github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/common"
 	vminsertrelabel "github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"

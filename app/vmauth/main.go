@@ -17,7 +17,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/VictoriaMetrics/metrics"
+	_ "go.uber.org/automaxprocs"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -30,6 +30,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
+	"github.com/VictoriaMetrics/metrics"
 )
 
 var (

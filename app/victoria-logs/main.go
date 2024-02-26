@@ -7,6 +7,8 @@ import (
 	"os"
 	"time"
 
+	_ "go.uber.org/automaxprocs"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlselect"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"

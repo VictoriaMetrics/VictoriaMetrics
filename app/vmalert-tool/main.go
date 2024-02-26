@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/urfave/cli/v2"
+	_ "go.uber.org/automaxprocs"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert-tool/unittest"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"

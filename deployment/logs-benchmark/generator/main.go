@@ -13,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	_ "go.uber.org/automaxprocs"
 )
 
 var (

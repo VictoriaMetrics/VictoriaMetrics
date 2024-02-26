@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	_ "go.uber.org/automaxprocs"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/csvimport"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/datadogsketches"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/datadogv1"

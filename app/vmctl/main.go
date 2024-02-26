@@ -14,15 +14,15 @@ import (
 	"time"
 
 	"github.com/urfave/cli/v2"
+	_ "go.uber.org/automaxprocs"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/backoff"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/native"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/remoteread"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/influx"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/native"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/opentsdb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/prometheus"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/remoteread"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"

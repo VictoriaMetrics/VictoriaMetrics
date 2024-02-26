@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	_ "go.uber.org/automaxprocs"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/actions"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fslocal"

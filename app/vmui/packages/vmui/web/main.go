@@ -5,6 +5,8 @@ import (
 	"flag"
 	"log"
 	"net/http"
+
+	_ "go.uber.org/automaxprocs"
 )
 
 // specific files

@@ -34,6 +34,7 @@ require (
 	github.com/valyala/gozstd v1.20.1
 	github.com/valyala/histogram v1.2.0
 	github.com/valyala/quicktemplate v1.7.0
+	go.uber.org/automaxprocs v1.5.3
 	golang.org/x/net v0.21.0 // indirect
 	golang.org/x/oauth2 v0.17.0
 	golang.org/x/sys v0.17.0
