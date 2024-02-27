@@ -86,7 +86,7 @@ func TestVMInstantQuery(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected: %s", err)
 	}
-	s := NewVMStorage(srv.URL, authCfg, time.Minute, 0, false, srv.Client())
+	s := NewVMStorage(srv.URL, authCfg, 0, false, srv.Client())
 
 	p := datasourcePrometheus
 	pq := s.BuildWithParams(QuerierParams{DataSourceType: string(p), EvaluationInterval: 15 * time.Second})
@@ -225,7 +225,7 @@ func TestVMInstantQueryWithRetry(t *testing.T) {
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
 
-	s := NewVMStorage(srv.URL, nil, time.Minute, 0, false, srv.Client())
+	s := NewVMStorage(srv.URL, nil, 0, false, srv.Client())
 	pq := s.BuildWithParams(QuerierParams{DataSourceType: string(datasourcePrometheus)})
 
 	expErr := func(err string) {
@@ -334,7 +334,7 @@ func TestVMRangeQuery(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected: %s", err)
 	}
-	s := NewVMStorage(srv.URL, authCfg, time.Minute, *queryStep, false, srv.Client())
+	s := NewVMStorage(srv.URL, authCfg, *queryStep, false, srv.Client())
 
 	pq := s.BuildWithParams(QuerierParams{DataSourceType: string(datasourcePrometheus), EvaluationInterval: 15 * time.Second})
 
@@ -624,7 +624,7 @@ func TestRequestParams(t *testing.T) {
 					tc.vm.setPrometheusInstantReqParams(req, query, timestamp)
 				}
 			case datasourceGraphite:
-				tc.vm.setGraphiteReqParams(req, query, timestamp)
+				tc.vm.setGraphiteReqParams(req, query)
 			}
 			tc.checkFn(t, req)
 		})

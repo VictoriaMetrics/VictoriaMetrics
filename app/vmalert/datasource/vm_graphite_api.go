@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"time"
 )
 
 type graphiteResponse []graphiteResponseTarget
@@ -47,7 +46,7 @@ const (
 	graphitePrefix = "/graphite"
 )
 
-func (s *VMStorage) setGraphiteReqParams(r *http.Request, query string, timestamp time.Time) {
+func (s *VMStorage) setGraphiteReqParams(r *http.Request, query string) {
 	if s.appendTypePrefix {
 		r.URL.Path += graphitePrefix
 	}

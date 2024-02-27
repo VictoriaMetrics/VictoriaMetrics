@@ -120,7 +120,7 @@ func (s *VMStorage) BuildWithParams(params QuerierParams) Querier {
 }
 
 // NewVMStorage is a constructor for VMStorage
-func NewVMStorage(baseURL string, authCfg *promauth.Config, lookBack time.Duration, queryStep time.Duration, appendTypePrefix bool, c *http.Client) *VMStorage {
+func NewVMStorage(baseURL string, authCfg *promauth.Config, queryStep time.Duration, appendTypePrefix bool, c *http.Client) *VMStorage {
 	return &VMStorage{
 		c:                c,
 		authCfg:          authCfg,
@@ -245,7 +245,7 @@ func (s *VMStorage) newQueryRequest(ctx context.Context, query string, ts time.T
 	case "", datasourcePrometheus:
 		s.setPrometheusInstantReqParams(req, query, ts)
 	case datasourceGraphite:
-		s.setGraphiteReqParams(req, query, ts)
+		s.setGraphiteReqParams(req, query)
 	default:
 		logger.Panicf("BUG: engine not found: %q", s.dataSourceType)
 	}
