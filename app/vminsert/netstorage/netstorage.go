@@ -48,7 +48,7 @@ var (
 var errStorageReadOnly = errors.New("storage node is read only")
 
 func (sn *storageNode) isReady() bool {
-	return !sn.broken.Load() && !sn.isReadOnly.Load()
+	return !sn.isBroken.Load() && !sn.isReadOnly.Load()
 }
 
 // push pushes buf to sn internal bufs.
@@ -269,7 +269,7 @@ func (sn *storageNode) checkHealth() {
 	}
 	bc, err := sn.dial()
 	if err != nil {
-		sn.broken.Store(true)
+		sn.isBroken.Store(true)
 		sn.brCond.Broadcast()
 		if sn.lastDialErr == nil {
 			// Log the error only once.
@@ -281,7 +281,7 @@ func (sn *storageNode) checkHealth() {
 	logger.Infof("successfully dialed -storageNode=%q", sn.dialer.Addr())
 	sn.lastDialErr = nil
 	sn.bc = bc
-	sn.broken.Store(false)
+	sn.isBroken.Store(false)
 	sn.brCond.Broadcast()
 }
 
@@ -323,7 +323,7 @@ func (sn *storageNode) sendBufRowsNonblocking(br *bufRows) bool {
 		cannotCloseStorageNodeConnLogger.Warnf("cannot close connection to storageNode %q: %s", sn.dialer.Addr(), err)
 	}
 	sn.bc = nil
-	sn.broken.Store(true)
+	sn.isBroken.Store(true)
 	sn.brCond.Broadcast()
 	sn.connectionErrors.Inc()
 	return false
@@ -409,9 +409,9 @@ func (sn *storageNode) dial() (*handshake.BufferedConn, error) {
 
 // storageNode is a client sending data to vmstorage node.
 type storageNode struct {
-	// broken is set to true if the given vmstorage node is temporarily unhealthy.
+	// isBroken is set to true if the given vmstorage node is temporarily unhealthy.
 	// In this case the data is re-routed to the remaining healthy vmstorage nodes.
-	broken atomic.Bool
+	isBroken atomic.Bool
 
 	// isReadOnly is set to true if the given vmstorage node is read only
 	// In this case the data is re-routed to the remaining healthy vmstorage nodes.
@@ -557,7 +557,7 @@ func initStorageNodes(addrs []string, hashSeed uint64) *storageNodesBucket {
 			return float64(n)
 		})
 		_ = ms.NewGauge(fmt.Sprintf(`vm_rpc_vmstorage_is_reachable{name="vminsert", addr=%q}`, addr), func() float64 {
-			if sn.broken.Load() {
+			if sn.isBroken.Load() {
 				return 0
 			}
 			return 1
@@ -859,7 +859,7 @@ func (sn *storageNode) checkReadOnlyMode() {
 		cannotCloseStorageNodeConnLogger.Warnf("cannot close connection to storageNode %q: %s", sn.dialer.Addr(), err)
 	}
 	sn.bc = nil
-	sn.broken.Store(true)
+	sn.isBroken.Store(true)
 	sn.brCond.Broadcast()
 	sn.connectionErrors.Inc()
 }
