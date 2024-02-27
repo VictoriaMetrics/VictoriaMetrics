@@ -35,7 +35,6 @@ type VMStorage struct {
 	authCfg          *promauth.Config
 	datasourceURL    string
 	appendTypePrefix bool
-	lookBack         time.Duration
 	queryStep        time.Duration
 	dataSourceType   datasourceType
 
@@ -63,7 +62,6 @@ func (s *VMStorage) Clone() *VMStorage {
 		authCfg:          s.authCfg,
 		datasourceURL:    s.datasourceURL,
 		appendTypePrefix: s.appendTypePrefix,
-		lookBack:         s.lookBack,
 		queryStep:        s.queryStep,
 
 		dataSourceType:     s.dataSourceType,
@@ -128,7 +126,6 @@ func NewVMStorage(baseURL string, authCfg *promauth.Config, lookBack time.Durati
 		authCfg:          authCfg,
 		datasourceURL:    strings.TrimSuffix(baseURL, "/"),
 		appendTypePrefix: appendTypePrefix,
-		lookBack:         lookBack,
 		queryStep:        queryStep,
 		dataSourceType:   datasourcePrometheus,
 		extraParams:      url.Values{},

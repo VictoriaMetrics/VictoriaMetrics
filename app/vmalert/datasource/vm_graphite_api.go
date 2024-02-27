@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strconv"
 	"time"
 )
 
@@ -55,10 +54,6 @@ func (s *VMStorage) setGraphiteReqParams(r *http.Request, query string, timestam
 	r.URL.Path += graphitePath
 	q := r.URL.Query()
 	from := "-5min"
-	if s.lookBack > 0 {
-		lookBack := timestamp.Add(-s.lookBack)
-		from = strconv.FormatInt(lookBack.Unix(), 10)
-	}
 	q.Set("from", from)
 	q.Set("format", "json")
 	q.Set("target", query)

@@ -46,7 +46,7 @@ var (
 	oauth2TokenURL = flag.String("datasource.oauth2.tokenUrl", "", "Optional OAuth2 tokenURL to use for -datasource.url")
 	oauth2Scopes   = flag.String("datasource.oauth2.scopes", "", "Optional OAuth2 scopes to use for -datasource.url. Scopes must be delimited by ';'")
 
-	lookBack = flag.Duration("datasource.lookback", 0, `Will be deprecated soon, please adjust "-search.latencyOffset"  at datasource side `+
+	lookBack = flag.Duration("datasource.lookback", 0, `Deprecated, please adjust "-search.latencyOffset"  at datasource side `+
 		`or specify "latency_offset" in rule group's params. Lookback defines how far into the past to look when evaluating queries. `+
 		`For example, if the datasource.lookback=5m then param "time" with value now()-5m will be added to every query.`)
 	queryStep = flag.Duration("datasource.queryStep", 5*time.Minute, "How far a value can fallback to when evaluating queries. "+
@@ -91,7 +91,7 @@ func Init(extraParams url.Values) (QuerierBuilder, error) {
 		logger.Warnf("flag `-datasource.queryTimeAlignment` is deprecated and will be removed in next releases. Please use `eval_alignment` in rule group instead.")
 	}
 	if *lookBack != 0 {
-		logger.Warnf("flag `-datasource.lookback` will be deprecated soon. Please use `-rule.evalDelay` command-line flag instead. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5155 for details.")
+		logger.Warnf("flag `-datasource.lookback` is deprecated. Please adjust `-search.latencyOffset`  at datasource side or specify `latency_offset` in rule group's params. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5155 for details.")
 	}
 
 	tr, err := httputils.Transport(*addr, *tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify)
@@ -133,7 +133,6 @@ func Init(extraParams url.Values) (QuerierBuilder, error) {
 		authCfg:          authCfg,
 		datasourceURL:    strings.TrimSuffix(*addr, "/"),
 		appendTypePrefix: *appendTypePrefix,
-		lookBack:         *lookBack,
 		queryStep:        *queryStep,
 		dataSourceType:   datasourcePrometheus,
 		extraParams:      extraParams,

@@ -488,17 +488,6 @@ func TestRequestParams(t *testing.T) {
 			},
 		},
 		{
-			"lookback",
-			false,
-			&VMStorage{
-				lookBack: time.Minute,
-			},
-			func(t *testing.T, r *http.Request) {
-				exp := url.Values{"query": {query}, "time": {timestamp.Add(-time.Minute).Format(time.RFC3339)}}
-				checkEqualString(t, exp.Encode(), r.URL.RawQuery)
-			},
-		},
-		{
 			"evaluation interval",
 			false,
 			&VMStorage{
@@ -507,20 +496,6 @@ func TestRequestParams(t *testing.T) {
 			func(t *testing.T, r *http.Request) {
 				evalInterval := 15 * time.Second
 				exp := url.Values{"query": {query}, "step": {evalInterval.String()}, "time": {timestamp.Format(time.RFC3339)}}
-				checkEqualString(t, exp.Encode(), r.URL.RawQuery)
-			},
-		},
-		{
-			"lookback + evaluation interval",
-			false,
-			&VMStorage{
-				lookBack:           time.Minute,
-				evaluationInterval: 15 * time.Second,
-			},
-			func(t *testing.T, r *http.Request) {
-				evalInterval := 15 * time.Second
-				tt := timestamp.Add(-time.Minute)
-				exp := url.Values{"query": {query}, "step": {evalInterval.String()}, "time": {tt.Format(time.RFC3339)}}
 				checkEqualString(t, exp.Encode(), r.URL.RawQuery)
 			},
 		},
