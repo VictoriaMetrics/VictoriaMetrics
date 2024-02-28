@@ -19,23 +19,17 @@ To get the license key you can request a [free trial license](https://victoriame
 
 VictoriaMetrics cluster for enterprise provides various metrics and statistics usage per tenant:
 
-- `vminsert`
-  - `vm_tenant_inserted_rows_total` - total number of inserted rows. Find out which tenant
-    puts the most of the pressure on the storage.
+`vminsert`:
+  * `vm_tenant_inserted_rows_total` - total number of inserted rows. Find out which tenant puts the most of the pressure on the storage.
 
-- `vmselect`
-  - `vm_tenant_select_requests_duration_ms_total` - query latency.
-    Helps to identify tenants with the heaviest queries.
-  - `vm_tenant_select_requests_total` - total number of requests.
-    Discover which tenant sends the most of the queries and how it changes with time.
+`vmselect`:
+  * `vm_tenant_select_requests_duration_ms_total` - query latency. Helps to identify tenants with the heaviest queries.
+  * `vm_tenant_select_requests_total` - total number of requests. Discover which tenant sends the most of the queries and how it changes with time.
 
-- `vmstorage`
-  - `vm_tenant_active_timeseries` - number of active time series.
-    This metric correlates with memory usage, so can be used to find the most expensive
-    tenant in terms of memory.
-  - `vm_tenant_used_tenant_bytes` - disk space usage. Helps to track disk space usage
-    per tenant.
-  - `vm_tenant_timeseries_created_total` - number of new time series created. Helps to track
+`vmstorage`:
+  * `vm_tenant_active_timeseries` - number of active time series. This metric correlates with memory usage, so can be used to find the most expensive tenant in terms of memory.
+  * `vm_tenant_used_tenant_bytes` - disk space usage. Helps to track disk space usage per tenant.
+  * `vm_tenant_timeseries_created_total` - number of new time series created. Helps to track
     the churn rate per tenant, or identify inefficient usage of the system.
 
 Collect the metrics by any scrape agent you like (`vmagent`, `victoriametrics`, Prometheus, etc) and put into TSDB.
