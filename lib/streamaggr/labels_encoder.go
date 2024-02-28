@@ -49,7 +49,7 @@ func (le *labelsEncoder) getKey(l prompbmarshal.Label) uint32 {
 func (le *labelsEncoder) getLabel(k uint32) prompbmarshal.Label {
 	l, ok := le.hashToLabel.Load(k)
 	if !ok {
-		return prompbmarshal.Label{}
+		panic(fmt.Sprintf("failed to decode key: %d", k))
 	}
 	return l.(prompbmarshal.Label)
 }
@@ -66,8 +66,24 @@ func (le *labelsEncoder) loadOrStore(k uint32, l prompbmarshal.Label) uint32 {
 
 // encode encodes the given lss into a byte slice.
 // The resulting byte slice can be decoded back to lss via decode.
-func (le *labelsEncoder) encode(bb []byte, lss []prompbmarshal.Label) []byte {
-	for _, ls := range lss {
+func (le *labelsEncoder) encode(bb []byte, inputLabels, outputLabels []prompbmarshal.Label) []byte {
+	// encode size of the inputLabels as first value
+	bb = binary.LittleEndian.AppendUint32(bb, uint32(len(inputLabels)))
+	bb = le.encodeLabels(bb, inputLabels)
+	bb = le.encodeLabels(bb, outputLabels)
+	return bb
+}
+
+func getInputOutputKeys(encodedLabels string) (inputKey, outputKey string) {
+	bb := bytesutil.ToUnsafeBytes(encodedLabels)
+	inputKeyLength := binary.LittleEndian.Uint32(bb)
+	offset := inputKeyLength * 4
+	encodedLabels = encodedLabels[4:]
+	return encodedLabels[:offset], encodedLabels[offset:]
+}
+
+func (le *labelsEncoder) encodeLabels(bb []byte, labels []prompbmarshal.Label) []byte {
+	for _, ls := range labels {
 		k := le.getKey(ls)
 		if k == 0 {
 			k = le.n.Add(1)
@@ -83,16 +99,18 @@ func (le *labelsEncoder) encode(bb []byte, lss []prompbmarshal.Label) []byte {
 
 // decode decodes the given s into dst.
 // It is expected that s was generated via encode.
-func (le *labelsEncoder) decode(dst []prompbmarshal.Label, s string) ([]prompbmarshal.Label, error) {
+func (le *labelsEncoder) decode(dst []prompbmarshal.Label, s string) []prompbmarshal.Label {
+	// skip first 4 bytes: the length of first encoded list
+	return le.decodeList(dst, s[4:])
+}
+
+func (le *labelsEncoder) decodeList(dst []prompbmarshal.Label, s string) []prompbmarshal.Label {
 	bb := bytesutil.ToUnsafeBytes(s)
 	for len(bb) != 0 {
 		k := binary.LittleEndian.Uint32(bb)
 		bb = bb[4:]
 		l := le.getLabel(k)
-		if l.Name == "" || l.Value == "" {
-			return nil, fmt.Errorf("failed to decode key: %d", k)
-		}
 		dst = append(dst, l)
 	}
-	return dst, nil
+	return dst
 }

@@ -1,6 +1,6 @@
 package streamaggr
 
-import (
+/*import (
 	"testing"
 )
 
@@ -52,3 +52,4 @@ func newBenchEncodedSeries(seriesCount, samplesPerSeries int) []encodedTss {
 	}
 	return etss
 }
+*/

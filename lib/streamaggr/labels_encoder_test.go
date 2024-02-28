@@ -22,16 +22,13 @@ func TestEncoderEncodeDecode(t *testing.T) {
 			}
 		}
 		bb := make([]byte, 0)
-		s := string(le.encode(bb, labels))
+		s := string(le.encode(bb, nil, labels))
 		fmt.Println("-------- cardinality", metrics*series)
 		newK, regK := len(s), len(marshalLabelsFast(nil, labels))
 		fmt.Println("compressed key len", newK)
 		fmt.Println("regular key len", regK)
 		fmt.Println("ratio", float64(newK)/float64(regK))
-		got, err := le.decode(nil, s)
-		if err != nil {
-			t.Fatalf("unexpected error: %s", err)
-		}
+		got := le.decode(nil, s)
 		if !reflect.DeepEqual(labels, got) {
 			fmt.Println(labels)
 			fmt.Println(got)

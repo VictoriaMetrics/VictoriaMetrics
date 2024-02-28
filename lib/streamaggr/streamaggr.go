@@ -544,6 +544,8 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 	var etss []encodedTss
 
 	labels := promutils.GetLabels()
+	inputLabels := promutils.GetLabels()
+	outputLabels := promutils.GetLabels()
 	bb := bbPool.Get()
 
 	le := a.encoder.Load()
@@ -561,7 +563,14 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 		}
 		labels.Sort()
 
-		bb.B = le.encode(bb.B[:0], labels.Labels)
+		if !a.aggregateOnlyByTime {
+			inputLabels.Labels, outputLabels.Labels = extractInputOutputKey(inputLabels.Labels[:0], outputLabels.Labels[:0], labels.Labels, a.by, a.without)
+		} else {
+			inputLabels.Labels = inputLabels.Labels[:0]
+			outputLabels.Labels = append(outputLabels.Labels[:0], labels.Labels...)
+		}
+
+		bb.B = le.encode(bb.B[:0], inputLabels.Labels, outputLabels.Labels)
 		etss = append(etss, encodedTss{
 			labels:  bytesutil.InternBytes(bb.B),
 			samples: ts.Samples,
@@ -569,6 +578,8 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 	}
 
 	promutils.PutLabels(labels)
+	promutils.PutLabels(inputLabels)
+	promutils.PutLabels(outputLabels)
 	bbPool.Put(bb)
 
 	if a.dedup == nil {
@@ -585,34 +596,12 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 type pushAggrFn func(tss []encodedTss)
 
 func (a *aggregator) push(tss []encodedTss) {
-	le := a.encoder.Load()
-
 	bb := bbPool.Get()
 	labels := promutils.GetLabels()
 	tmpLabels := promutils.GetLabels()
 
-	var err error
 	for _, ts := range tss {
-		inputKey := ""
-		outputKey := ""
-
-		if !a.aggregateOnlyByTime {
-			labels.Labels, err = le.decode(labels.Labels[:0], ts.labels)
-			if err != nil {
-				logger.Panicf("unexpected decode error %q", ts.labels)
-			}
-
-			tmpLabels.Labels = removeUnneededLabels(tmpLabels.Labels[:0], labels.Labels, a.by, a.without)
-			bb.B = le.encode(bb.B[:0], tmpLabels.Labels)
-			outputKey = bytesutil.InternBytes(bb.B)
-
-			tmpLabels.Labels = extractUnneededLabels(tmpLabels.Labels[:0], labels.Labels, a.by, a.without)
-			bb.B = le.encode(bb.B[:0], tmpLabels.Labels)
-			inputKey = bytesutil.InternBytes(bb.B)
-		} else {
-			outputKey = ts.labels
-		}
-
+		inputKey, outputKey := getInputOutputKeys(ts.labels)
 		for _, sample := range ts.samples {
 			a.pushSample(inputKey, outputKey, sample.Value)
 		}
@@ -635,38 +624,26 @@ func (a *aggregator) pushSample(inputKey, outputKey string, value float64) {
 	}
 }
 
-func extractUnneededLabels(dst, labels []prompbmarshal.Label, by, without []string) []prompbmarshal.Label {
+func extractInputOutputKey(dstInput, dstOutput, labels []prompbmarshal.Label, by, without []string) ([]prompbmarshal.Label, []prompbmarshal.Label) {
 	if len(without) > 0 {
 		for _, label := range labels {
 			if hasInArray(label.Name, without) {
-				dst = append(dst, label)
+				dstInput = append(dstInput, label)
+			} else {
+				dstOutput = append(dstOutput, label)
 			}
 		}
 	} else {
 		for _, label := range labels {
 			if !hasInArray(label.Name, by) {
-				dst = append(dst, label)
+				dstInput = append(dstInput, label)
+			} else {
+				dstOutput = append(dstOutput, label)
 			}
 		}
 	}
-	return dst
-}
 
-func removeUnneededLabels(dst, labels []prompbmarshal.Label, by, without []string) []prompbmarshal.Label {
-	if len(without) > 0 {
-		for _, label := range labels {
-			if !hasInArray(label.Name, without) {
-				dst = append(dst, label)
-			}
-		}
-	} else {
-		for _, label := range labels {
-			if hasInArray(label.Name, by) {
-				dst = append(dst, label)
-			}
-		}
-	}
-	return dst
+	return dstInput, dstOutput
 }
 
 func hasInArray(name string, a []string) bool {
@@ -689,48 +666,6 @@ func marshalLabelsFast(dst []byte, labels []prompbmarshal.Label) []byte {
 	return dst
 }
 
-func unmarshalLabelsFast(dst []prompbmarshal.Label, src []byte) ([]prompbmarshal.Label, error) {
-	if len(src) < 4 {
-		return dst, fmt.Errorf("cannot unmarshal labels count from %d bytes; needs at least 4 bytes", len(src))
-	}
-	n := encoding.UnmarshalUint32(src)
-	src = src[4:]
-	for i := uint32(0); i < n; i++ {
-		// Unmarshal label name
-		if len(src) < 4 {
-			return dst, fmt.Errorf("cannot unmarshal label name length from %d bytes; needs at least 4 bytes", len(src))
-		}
-		labelNameLen := encoding.UnmarshalUint32(src)
-		src = src[4:]
-		if uint32(len(src)) < labelNameLen {
-			return dst, fmt.Errorf("cannot unmarshal label name from %d bytes; needs at least %d bytes", len(src), labelNameLen)
-		}
-		labelName := bytesutil.InternBytes(src[:labelNameLen])
-		src = src[labelNameLen:]
-
-		// Unmarshal label value
-		if len(src) < 4 {
-			return dst, fmt.Errorf("cannot unmarshal label value length from %d bytes; needs at least 4 bytes", len(src))
-		}
-		labelValueLen := encoding.UnmarshalUint32(src)
-		src = src[4:]
-		if uint32(len(src)) < labelValueLen {
-			return dst, fmt.Errorf("cannot unmarshal label value from %d bytes; needs at least %d bytes", len(src), labelValueLen)
-		}
-		labelValue := bytesutil.InternBytes(src[:labelValueLen])
-		src = src[labelValueLen:]
-
-		dst = append(dst, prompbmarshal.Label{
-			Name:  labelName,
-			Value: labelValue,
-		})
-	}
-	if len(src) > 0 {
-		return dst, fmt.Errorf("unexpected non-empty tail after unmarshaling labels; tail length is %d bytes", len(src))
-	}
-	return dst, nil
-}
-
 type flushCtx struct {
 	skipAggrSuffix bool
 	suffix         string
@@ -750,13 +685,9 @@ func (ctx *flushCtx) reset() {
 }
 
 func (ctx *flushCtx) appendSeries(labelsEncoded, suffix string, timestamp int64, value float64) {
-	var err error
 	labelsLen := len(ctx.labels)
 	samplesLen := len(ctx.samples)
-	ctx.labels, err = ctx.le.decode(ctx.labels, labelsEncoded)
-	if err != nil {
-		logger.Panicf("BUG: cannot decode labels from output key: %s", err)
-	}
+	ctx.labels = ctx.le.decodeList(ctx.labels, labelsEncoded)
 	if !ctx.skipAggrSuffix {
 		ctx.labels = addMetricSuffix(ctx.labels, labelsLen, ctx.suffix, suffix)
 	}
@@ -771,13 +702,9 @@ func (ctx *flushCtx) appendSeries(labelsEncoded, suffix string, timestamp int64,
 }
 
 func (ctx *flushCtx) appendSeriesWithExtraLabel(labelsEncoded, suffix string, timestamp int64, value float64, extraName, extraValue string) {
-	var err error
 	labelsLen := len(ctx.labels)
 	samplesLen := len(ctx.samples)
-	ctx.labels, err = ctx.le.decode(ctx.labels, labelsEncoded)
-	if err != nil {
-		logger.Panicf("BUG: cannot decode labels from output key: %s", err)
-	}
+	ctx.labels = ctx.le.decodeList(ctx.labels, labelsEncoded)
 	ctx.labels = addMetricSuffix(ctx.labels, labelsLen, ctx.suffix, suffix)
 	ctx.labels = append(ctx.labels, prompbmarshal.Label{
 		Name:  extraName,

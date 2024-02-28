@@ -24,10 +24,7 @@ func BenchmarkEncoderEncodeDecode(b *testing.B) {
 	bb := make([]byte, 0)
 	labelsTmp := make([]prompbmarshal.Label, 0)
 	b.Run(fmt.Sprintf("compress-decompress=%d", len(labels)), func(b *testing.B) {
-		bKey := le.encode(bb[:0], labels)
-		_, err := le.decode(labelsTmp, bytesutil.ToUnsafeString(bKey))
-		if err != nil {
-			b.Fatalf("unexpected decode err: %s", err)
-		}
+		bKey := le.encode(bb[:0], nil, labels)
+		le.decode(labelsTmp, bytesutil.ToUnsafeString(bKey))
 	})
 }
