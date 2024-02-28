@@ -41,6 +41,7 @@ where you can chat with VictoriaMetrics users to get additional references, revi
   - [Synthesio](#synthesio)
   - [Wedos.com](#wedoscom)
   - [Wix.com](#wixcom)
+  - [Xiaohongshu](#xiaohongshu)
   - [Zerodha](#zerodha)
   - [zhihu](#zhihu)
 
@@ -598,6 +599,25 @@ Numbers:
 > Optimizing for those points and our specific workload, VictoriaMetrics proved to be the best option. As icing on the cake we’ve got [PromQL extensions](https://docs.victoriametrics.com/MetricsQL.html) - `default 0` and `histogram` are my favorite ones. We really like having a lot of tsdb params easily available via config options which makes tsdb easy to tune for each specific use case. We've also found a great community in [Slack channel](https://slack.victoriametrics.com/) and responsive and helpful maintainer support.
 
 Alex Ulstein, Head of Monitoring, Wix.com
+
+
+## xiaohongshu
+
+With a mission to “inspire lives”, [Xiaohongshu](https://www.xiaohongshu.com) is a lifestyle platform that inspires people to discover and connect with a range of diverse lifestyles from China.
+In the past year, we used VictoriaMetrics to replace Prometheus. After migrating to VictoriaMetrics, we had saved more than ten thousand cpu cores, and our metrics system is more stable. 
+Now more than thirty VictoriaMetrics storage clusters are running online, including all of our key business areas, such as recommendations, search, community, advertising, infrastructure, etc.
+See [this article](https://mp.weixin.qq.com/s/uJ1t0B8WBBryzvbLWDfl5A) on how Xiaohongshu build metrics system base on VictoriaMetrics and the competing solutions.
+
+Across our production VictoriaMetrics clusters, numbers as below:
+- Cpu cores in all VictoriaMetrics clusters: almost 50000
+- Data size on disk: 2400 TB
+- Retention period: 1 month
+- Largset VictoriaMetrics cluster: 450 million samples every scrape interval (15 seconds)
+- Total scrape sample every scrape interval: 2400 million samples
+- Query rate:
+  - /api/v1/query_range: 2300 queries per second
+  - /api/v1/query: 260 queries per second
+
 
 ## Zerodha
 
