@@ -192,7 +192,7 @@ Repository [https://github.com/VictoriaMetrics/ansible-playbooks](https://github
 
 ## RPM packages
 
-### Bump the version of components (for LTS releases only)
+### Bump the version of components
 
 Repository [https://github.com/VictoriaMetrics/victoriametrics-lts-rpm](https://github.com/VictoriaMetrics/victoriametrics-lts-rpm)
 
