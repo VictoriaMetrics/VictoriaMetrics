@@ -20,6 +20,7 @@ import (
 type labelsEncoder struct {
 	n atomic.Uint32
 
+	size       atomic.Uint32
 	sizeMetric *gauge
 
 	// map[prompbmarshal.Label]string
@@ -32,48 +33,26 @@ func newLabelsEncoder(aggregator string) *labelsEncoder {
 	le := &labelsEncoder{}
 
 	le.sizeMetric = getOrCreateGauge(fmt.Sprintf(`vmagent_streamaggr_labels_encoder_size{aggregator=%q}`, aggregator), func() float64 {
-		return float64(le.n.Load())
+		return float64(le.size.Load())
 	})
 
 	return le
 }
 
-func (le *labelsEncoder) getKey(l prompbmarshal.Label) uint32 {
-	key, ok := le.labelToHash.Load(l)
-	if !ok {
-		return 0
-	}
-	return key.(uint32)
-}
-
-func (le *labelsEncoder) getLabel(k uint32) prompbmarshal.Label {
-	l, ok := le.hashToLabel.Load(k)
-	if !ok {
-		panic(fmt.Sprintf("failed to decode key: %d", k))
-	}
-	return l.(prompbmarshal.Label)
-}
-
-func (le *labelsEncoder) loadOrStore(k uint32, l prompbmarshal.Label) uint32 {
-	key, loaded := le.labelToHash.LoadOrStore(l, k)
-	if loaded {
-		// key could have been already created by concurrent goroutine - use it instead
-		k = key.(uint32)
-	}
-	le.hashToLabel.Store(k, l)
-	return k
-}
-
-// encode encodes the given lss into a byte slice.
+// encode encodes the given inputLabels and outputLabels lists into a byte slice.
 // The resulting byte slice can be decoded back to lss via decode.
 func (le *labelsEncoder) encode(bb []byte, inputLabels, outputLabels []prompbmarshal.Label) []byte {
-	// encode size of the inputLabels as first value
+	// encode size of the inputLabels as first value,
+	// so it would be easy to distinguish lists without actual decoding.
+	// see getInputOutputKeys().
 	bb = binary.LittleEndian.AppendUint32(bb, uint32(len(inputLabels)))
 	bb = le.encodeLabels(bb, inputLabels)
 	bb = le.encodeLabels(bb, outputLabels)
 	return bb
 }
 
+// getInputOutputKeys returns inputLabels and outputLabels encoded lists from encodedLabels.
+// Each list can be independently decoded via decodeList func.
 func getInputOutputKeys(encodedLabels string) (inputKey, outputKey string) {
 	bb := bytesutil.ToUnsafeBytes(encodedLabels)
 	inputKeyLength := binary.LittleEndian.Uint32(bb)
@@ -82,35 +61,48 @@ func getInputOutputKeys(encodedLabels string) (inputKey, outputKey string) {
 	return encodedLabels[:offset], encodedLabels[offset:]
 }
 
-func (le *labelsEncoder) encodeLabels(bb []byte, labels []prompbmarshal.Label) []byte {
+func (le *labelsEncoder) encodeLabels(dst []byte, labels []prompbmarshal.Label) []byte {
 	for _, ls := range labels {
-		k := le.getKey(ls)
-		if k == 0 {
+		k, ok := le.labelToHash.Load(ls)
+		if !ok {
 			k = le.n.Add(1)
-			k = le.loadOrStore(k, prompbmarshal.Label{
+			ls = prompbmarshal.Label{
 				Name:  strings.Clone(ls.Name),
 				Value: strings.Clone(ls.Value),
-			})
+			}
+			key, loaded := le.labelToHash.LoadOrStore(ls, k)
+			if loaded {
+				// key could have been already created by concurrent goroutine - use it instead
+				k = key
+			} else {
+				le.hashToLabel.Store(k, &ls)
+				le.size.Add(1)
+			}
 		}
-		bb = binary.LittleEndian.AppendUint32(bb, k)
+		dst = binary.LittleEndian.AppendUint32(dst, k.(uint32))
 	}
-	return bb
+	return dst
 }
 
 // decode decodes the given s into dst.
-// It is expected that s was generated via encode.
+// It is expected that s was encoded via encode.
 func (le *labelsEncoder) decode(dst []prompbmarshal.Label, s string) []prompbmarshal.Label {
 	// skip first 4 bytes: the length of first encoded list
 	return le.decodeList(dst, s[4:])
 }
 
+// decodeList decodes the given s into dst.
+// It is expected that s was received via getInputOutputKeys
 func (le *labelsEncoder) decodeList(dst []prompbmarshal.Label, s string) []prompbmarshal.Label {
 	bb := bytesutil.ToUnsafeBytes(s)
 	for len(bb) != 0 {
 		k := binary.LittleEndian.Uint32(bb)
 		bb = bb[4:]
-		l := le.getLabel(k)
-		dst = append(dst, l)
+		l, ok := le.hashToLabel.Load(k)
+		if !ok {
+			panic(fmt.Sprintf("failed to decode key: %d", k))
+		}
+		dst = append(dst, *(l.(*prompbmarshal.Label)))
 	}
 	return dst
 }

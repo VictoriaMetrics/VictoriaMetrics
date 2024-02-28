@@ -136,30 +136,24 @@ func (d *deduplicator) push(tss []encodedTss) {
 func (d *deduplicator) flush() {
 	sm := d.sm.Swap(newShardedMap())
 
-	var tss []encodedTss
-	var samples []prompbmarshal.Sample
-	for _, s := range sm.shards {
+	processShard := func(s *shard) {
 		startProcess := time.Now()
-		samples = samples[:0]
 
 		s.mu.Lock()
-		if cap(tss) < len(s.data) {
-			tss = make([]encodedTss, 0, len(s.data))
-		}
-		tss = tss[:len(s.data)]
+		tss := make([]encodedTss, len(s.data))
+		samples := make([]prompbmarshal.Sample, len(s.data))
 
 		var i int
 		for k, v := range s.data {
 			ts := &tss[i]
-			i++
-
 			ts.labels = k
-			samplesLen := len(samples)
-			samples = append(samples, prompbmarshal.Sample{})
-			sample := &samples[len(samples)-1]
+
+			sample := &samples[i]
 			sample.Value = v.Value
 			sample.Timestamp = v.Timestamp
-			ts.samples = samples[samplesLen:]
+			ts.samples = samples[i : i+1]
+
+			i++
 		}
 		// mark shard as drained, so goroutines which concurrently execute push
 		// could do a retry.
@@ -171,6 +165,18 @@ func (d *deduplicator) flush() {
 		d.callback(tss)
 		d.callbackDuration.UpdateDuration(start)
 	}
+
+	wg := sync.WaitGroup{}
+	for _, s := range sm.shards {
+		flushConcurrencyCh <- struct{}{}
+		wg.Add(1)
+		go func(sh *shard) {
+			processShard(sh)
+			wg.Done()
+			<-flushConcurrencyCh
+		}(s)
+	}
+	wg.Wait()
 }
 
 type shardedMap struct {
