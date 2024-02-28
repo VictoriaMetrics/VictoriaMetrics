@@ -539,14 +539,42 @@ type encodedTss struct {
 	samples []prompbmarshal.Sample
 }
 
+type pushCtx struct {
+	labels       promutils.Labels
+	inputLabels  promutils.Labels
+	outputLabels promutils.Labels
+	bb           []byte
+	etss         []encodedTss
+}
+
+func (p *pushCtx) reset() {
+	p.labels.Reset()
+	p.inputLabels.Reset()
+	p.outputLabels.Reset()
+	p.bb = p.bb[:0]
+	clear(p.etss)
+	p.etss = p.etss[:0]
+}
+
+var pushCtxPool sync.Pool
+
+func getPushCtx() *pushCtx {
+	v := pushCtxPool.Get()
+	if v == nil {
+		return &pushCtx{}
+	}
+	return v.(*pushCtx)
+}
+
+func putPushCtx(ctx *pushCtx) {
+	ctx.reset()
+	pushCtxPool.Put(ctx)
+}
+
 // Push pushes tss to aggregator.
 func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
-	var etss []encodedTss
-
-	labels := promutils.GetLabels()
-	inputLabels := promutils.GetLabels()
-	outputLabels := promutils.GetLabels()
-	bb := bbPool.Get()
+	ctx := getPushCtx()
+	defer putPushCtx(ctx)
 
 	le := a.encoder.Load()
 	for idx, ts := range tss {
@@ -555,42 +583,37 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 		}
 		matchIdxs[idx] = 1
 
-		labels.Labels = append(labels.Labels[:0], ts.Labels...)
-		labels.Labels = a.inputRelabeling.Apply(labels.Labels, 0)
-		if len(labels.Labels) == 0 {
+		ctx.labels.Labels = append(ctx.labels.Labels[:0], ts.Labels...)
+		ctx.labels.Labels = a.inputRelabeling.Apply(ctx.labels.Labels, 0)
+		if len(ctx.labels.Labels) == 0 {
 			// The metric has been deleted by the relabeling
 			continue
 		}
-		labels.Sort()
+		ctx.labels.Sort()
 
 		if !a.aggregateOnlyByTime {
-			inputLabels.Labels, outputLabels.Labels = extractInputOutputKey(inputLabels.Labels[:0], outputLabels.Labels[:0], labels.Labels, a.by, a.without)
+			ctx.inputLabels.Labels, ctx.outputLabels.Labels = extractInputOutputKey(ctx.inputLabels.Labels[:0], ctx.outputLabels.Labels[:0], ctx.labels.Labels, a.by, a.without)
 		} else {
-			inputLabels.Labels = inputLabels.Labels[:0]
-			outputLabels.Labels = append(outputLabels.Labels[:0], labels.Labels...)
+			ctx.inputLabels.Labels = ctx.inputLabels.Labels[:0]
+			ctx.outputLabels.Labels = append(ctx.outputLabels.Labels[:0], ctx.labels.Labels...)
 		}
 
-		bb.B = le.encode(bb.B[:0], inputLabels.Labels, outputLabels.Labels)
-		etss = append(etss, encodedTss{
-			labels:  bytesutil.InternBytes(bb.B),
+		ctx.bb = le.encode(ctx.bb[:0], ctx.inputLabels.Labels, ctx.outputLabels.Labels)
+		ctx.etss = append(ctx.etss, encodedTss{
+			labels:  bytesutil.InternBytes(ctx.bb),
 			samples: ts.Samples,
 		})
 	}
 
-	promutils.PutLabels(labels)
-	promutils.PutLabels(inputLabels)
-	promutils.PutLabels(outputLabels)
-	bbPool.Put(bb)
-
 	if a.dedup == nil {
 		// Deduplication is disabled.
-		a.push(etss)
+		a.push(ctx.etss)
 		return
 	}
 
 	// Deduplication is enabled.
 	// push samples to dedupAggr, so later they will be pushed to the configured aggregators.
-	a.dedup.push(etss)
+	a.dedup.push(ctx.etss)
 }
 
 type pushAggrFn func(tss []encodedTss)
