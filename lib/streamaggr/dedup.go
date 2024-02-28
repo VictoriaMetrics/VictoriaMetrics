@@ -6,7 +6,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/VictoriaMetrics/metrics"
 	"github.com/cespare/xxhash/v2"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -24,37 +23,35 @@ type deduplicator struct {
 
 	callback pushAggrFn
 
-	processShardDuration *metrics.Summary
-	callbackDuration     *metrics.Summary
+	sm atomic.Pointer[shardedMap]
 
-	// encoder encodes/decodes prompbmarshal.Label into a string key
-	// and vice-versa. On each flush, encoder is replaced with new empty
-	// encoder to avoid memory usage growth.
-	encoder atomic.Pointer[dedupEncoder]
+	processShardDuration *summary
+	callbackDuration     *summary
+	flushDuration        *summary
+	// aggregation correctness will be compromised if flush takes longer than interval
+	flushDurationExceeded *counter
 }
 
-// dedupEncoder represents a snapshot of shardedMap and associated labelsEncoder.
-// It is assumed that all entries in shardedMap object were encoded and could be decoded
-// via this specific labelsEncoder object.
-type dedupEncoder struct {
-	sm *shardedMap
-	le *labelsEncoder
-}
-
-func newDeduplicator(interval time.Duration, cb pushAggrFn) *deduplicator {
+func newDeduplicator(aggregator string, interval time.Duration, cb pushAggrFn) *deduplicator {
 	d := &deduplicator{
-		interval:             interval,
-		stopCh:               make(chan struct{}),
-		callback:             cb,
-		processShardDuration: metrics.GetOrCreateSummary(`vmagent_streamaggr_dedup_process_shard_duration`),
-		callbackDuration:     metrics.GetOrCreateSummary(`vmagent_streamaggr_dedup_callback_duration`),
+		interval: interval,
+		stopCh:   make(chan struct{}),
+		callback: cb,
+
+		processShardDuration:  getOrCreateSummary(fmt.Sprintf(`vmagent_streamaggr_dedup_process_shard_duration{aggregator=%q}`, aggregator)),
+		callbackDuration:      getOrCreateSummary(fmt.Sprintf(`vmagent_streamaggr_dedup_callback_duration{aggregator=%q}`, aggregator)),
+		flushDuration:         getOrCreateSummary(fmt.Sprintf(`vmagent_streamaggr_dedup_duration_seconds{aggregator=%q}`, aggregator)),
+		flushDurationExceeded: getOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_dedup_duration_exceeds_aggregation_interval_total{aggregator=%q}`, aggregator)),
 	}
-	encoder := &dedupEncoder{
-		sm: newShardedMap(),
-		le: &labelsEncoder{},
-	}
-	d.encoder.Store(encoder)
+	d.sm.Store(newShardedMap())
 	return d
+}
+
+func (d *deduplicator) unregisterMetrics() {
+	d.processShardDuration.unregister()
+	d.callbackDuration.unregister()
+	d.flushDuration.unregister()
+	d.flushDurationExceeded.unregister()
 }
 
 func (d *deduplicator) run() {
@@ -63,9 +60,6 @@ func (d *deduplicator) run() {
 	}
 
 	d.wg.Add(1)
-	// aggregation correctness will be compromised if flush takes longer than interval
-	flushDuration := metrics.GetOrCreateSummary(fmt.Sprintf(`vmagent_streamaggr_dedup_duration_seconds{interval="%s"}`, d.interval))
-	flushDurationExceeded := metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_dedup_duration_exceeds_aggregation_interval_total{interval="%s"}`, d.interval))
 	go func() {
 		defer d.wg.Done()
 		t := time.NewTicker(d.interval)
@@ -78,9 +72,9 @@ func (d *deduplicator) run() {
 			}
 			start := time.Now()
 			d.flush()
-			flushDuration.UpdateDuration(start)
+			d.flushDuration.UpdateDuration(start)
 			if time.Since(start) > d.interval {
-				flushDurationExceeded.Inc()
+				d.flushDurationExceeded.Inc()
 			}
 		}
 	}()
@@ -95,87 +89,62 @@ func (d *deduplicator) stop() {
 	d.flush()
 }
 
-func (d *deduplicator) push(ts prompbmarshal.TimeSeries) {
-	if len(ts.Samples) == 0 {
-		return
-	}
-
-	lastSample := ts.Samples[0]
-	// if there are more than 1 sample, then find the most recent sample
-	// as previous samples will be deduplicated anyway
-	for i, sample := range ts.Samples[1:] {
-		if sample.Timestamp > lastSample.Timestamp ||
-			(sample.Timestamp == lastSample.Timestamp && sample.Value > lastSample.Value) {
-			lastSample = ts.Samples[i]
+func (d *deduplicator) push(tss []encodedTss) {
+	for _, ts := range tss {
+		if len(ts.samples) == 0 {
+			continue
 		}
-	}
 
-	bb := bbPool.Get()
-	defer bbPool.Put(bb)
+		lastSample := ts.samples[0]
+		for i, sample := range ts.samples[1:] {
+			if sample.Timestamp > lastSample.Timestamp ||
+				(sample.Timestamp == lastSample.Timestamp && sample.Value > lastSample.Value) {
+				lastSample = ts.samples[i]
+			}
+		}
 
-again:
-	// acquire snapshot of the current encoder object
-	// to ensure we use associated versions of shardedMap and labelsEncoder.
-	// The version of shardedMap and labelsEncoder are updated on each flush call.
-	de := d.encoder.Load()
+	again:
+		// TODO: acquire snapshot of the current encoder object
+		// to ensure we use associated versions of shardedMap and labelsEncoder.
+		// The version of shardedMap and labelsEncoder are updated on each flush call.
+		key := ts.labels
+		sm := d.sm.Load()
+		s := sm.getShard(key)
 
-	bb.B = de.le.encode(bb.B[:0], ts.Labels)
-	key := bytesutil.ToUnsafeString(bb.B)
+		s.mu.Lock()
+		if s.drained {
+			// the shard was already drained and disposed during the flush,
+			// try to get a new shard instead.
+			s.mu.Unlock()
+			goto again
+		}
 
-	s := de.sm.getShard(key)
-	s.mu.Lock()
-	if s.drained {
-		// the shard was already drained and disposed during the flush,
-		// try to get a new shard instead.
+		dsv, ok := s.data[key]
+		if !ok {
+			dsv = lastSample
+		}
+		// verify if new sample is newer than currently saved sample
+		if lastSample.Timestamp > dsv.Timestamp ||
+			(lastSample.Timestamp == dsv.Timestamp && lastSample.Value > dsv.Value) {
+			dsv = lastSample
+		}
+		s.data[key] = dsv
 		s.mu.Unlock()
-		goto again
 	}
-
-	dsv, ok := s.data[key]
-	if !ok {
-		// the entry is missing in the map - try creating it
-		dsv = dedupStateValue{
-			value:     lastSample.Value,
-			timestamp: lastSample.Timestamp,
-		}
-	}
-	// verify if new sample is newer than currently saved sample
-	if lastSample.Timestamp > dsv.timestamp ||
-		(lastSample.Timestamp == dsv.timestamp && lastSample.Value > dsv.value) {
-		dsv.value = lastSample.Value
-		dsv.timestamp = lastSample.Timestamp
-	}
-	// safely convert bb.B to string, as bb can be reused by other goroutines
-	s.data[string(bb.B)] = dsv
-	s.mu.Unlock()
 }
 
-var decodeErrors = metrics.GetOrCreateCounter(`vmagent_streamaggr_dedup_decode_errors_total`)
-
 func (d *deduplicator) flush() {
-	newEncoder := &dedupEncoder{
-		sm: newShardedMap(),
-		le: &labelsEncoder{},
-	}
+	sm := d.sm.Swap(newShardedMap())
 
-	// atomically replace encoder snapshot with empty encoder:
-	// 1. acquired encoder snapshot will be used to decode labels during flush.
-	//    It shouldn't be used after this function ends.
-	// 2. empty encoder replaces the previous encoder to keep memory usage under control.
-	encoder := d.encoder.Swap(newEncoder)
-
-	var tss []prompbmarshal.TimeSeries
-	var labels []prompbmarshal.Label
+	var tss []encodedTss
 	var samples []prompbmarshal.Sample
-
-	processShard := func(s *shard) {
+	for _, s := range sm.shards {
 		startProcess := time.Now()
-		labels = labels[:0]
 		samples = samples[:0]
 
 		s.mu.Lock()
 		if cap(tss) < len(s.data) {
-			tss = make([]prompbmarshal.TimeSeries, 0, len(s.data))
+			tss = make([]encodedTss, 0, len(s.data))
 		}
 		tss = tss[:len(s.data)]
 
@@ -184,21 +153,13 @@ func (d *deduplicator) flush() {
 			ts := &tss[i]
 			i++
 
-			labelsLen := len(labels)
-			var err error
-			labels, err = encoder.le.decode(labels, k)
-			if err != nil {
-				decodeErrors.Inc()
-				continue
-			}
-			ts.Labels = labels[labelsLen:]
-
+			ts.labels = k
 			samplesLen := len(samples)
 			samples = append(samples, prompbmarshal.Sample{})
 			sample := &samples[len(samples)-1]
-			sample.Value = v.value
-			sample.Timestamp = v.timestamp
-			ts.Samples = samples[samplesLen:]
+			sample.Value = v.Value
+			sample.Timestamp = v.Timestamp
+			ts.samples = samples[samplesLen:]
 		}
 		// mark shard as drained, so goroutines which concurrently execute push
 		// could do a retry.
@@ -207,12 +168,8 @@ func (d *deduplicator) flush() {
 		d.processShardDuration.UpdateDuration(startProcess)
 
 		start := time.Now()
-		d.callback(tss, nil)
+		d.callback(tss)
 		d.callbackDuration.UpdateDuration(start)
-	}
-
-	for _, sh := range encoder.sm.shards {
-		processShard(sh)
 	}
 }
 
@@ -222,13 +179,8 @@ type shardedMap struct {
 
 type shard struct {
 	mu      sync.Mutex
-	data    map[string]dedupStateValue
+	data    map[string]prompbmarshal.Sample
 	drained bool
-}
-
-type dedupStateValue struct {
-	timestamp int64
-	value     float64
 }
 
 func newShardedMap() *shardedMap {
@@ -244,7 +196,7 @@ func newShardedMap() *shardedMap {
 	shards := make([]*shard, shardsCount)
 	for i := range shards {
 		shards[i] = &shard{
-			data: make(map[string]dedupStateValue),
+			data: make(map[string]prompbmarshal.Sample),
 		}
 	}
 	return &shardedMap{shards: shards}

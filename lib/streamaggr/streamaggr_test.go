@@ -757,7 +757,7 @@ func TestAggregatorsWithDedupInterval(t *testing.T) {
 			}
 			tssOutputLock.Unlock()
 		}
-		const dedupInterval = time.Hour
+		const dedupInterval = time.Second * 30
 		a, err := newAggregatorsFromData([]byte(config), pushFunc, dedupInterval)
 		if err != nil {
 			t.Fatalf("cannot initialize aggregators: %s", err)

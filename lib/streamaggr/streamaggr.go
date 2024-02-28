@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -238,6 +239,8 @@ type aggregator struct {
 	// deduplicator.interval pre-processed samples will be pushed to aggregator.
 	dedup *deduplicator
 
+	encoder atomic.Pointer[labelsEncoder]
+
 	// aggrStates contains aggregate states for the given outputs
 	aggrStates []aggrState
 
@@ -287,9 +290,10 @@ func newAggregator(cfg *Config, pushFunc PushFunc, dedupInterval time.Duration) 
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse `dedup_interval: %q`: %w", cfg.DedupInterval, err)
 		}
-		if dedupInterval > interval {
-			return nil, fmt.Errorf("`dedup_interval` %q should be equal or lower than `interval` %q", cfg.DedupInterval, cfg.Interval)
-		}
+	}
+
+	if dedupInterval > interval {
+		return nil, fmt.Errorf("`dedup_interval` %q should be equal or lower than `interval` %q", cfg.DedupInterval, cfg.Interval)
 	}
 
 	// check cfg.StalenessInterval
@@ -417,8 +421,10 @@ func newAggregator(cfg *Config, pushFunc PushFunc, dedupInterval time.Duration) 
 		stopCh: make(chan struct{}),
 	}
 
+	a.encoder.Store(newLabelsEncoder(a.String()))
+
 	if dedupInterval > 0 {
-		a.dedup = newDeduplicator(dedupInterval, a.push)
+		a.dedup = newDeduplicator(a.String(), dedupInterval, a.push)
 		a.dedup.run()
 	}
 
@@ -429,6 +435,10 @@ func newAggregator(cfg *Config, pushFunc PushFunc, dedupInterval time.Duration) 
 	}()
 
 	return a, nil
+}
+
+func (a *aggregator) String() string {
+	return fmt.Sprintf("%s%s", a.match, strings.TrimRight(a.suffix, "_"))
 }
 
 func (a *aggregator) runFlusher(interval time.Duration) {
@@ -455,6 +465,7 @@ var flushConcurrencyCh = make(chan struct{}, cgroup.AvailableCPUs())
 func (a *aggregator) flush() {
 	ctx := &flushCtx{
 		suffix: a.suffix,
+		le:     a.encoder.Load(),
 	}
 	for _, as := range a.aggrStates {
 		ctx.reset()
@@ -487,6 +498,7 @@ func (a *aggregator) flush() {
 		auxLabels.Labels = dstLabels
 		promutils.PutLabels(auxLabels)
 	}
+
 }
 
 // MustStop stops the aggregator.
@@ -495,6 +507,10 @@ func (a *aggregator) flush() {
 func (a *aggregator) MustStop() {
 	close(a.stopCh)
 	a.wg.Wait()
+
+	defer func() {
+		a.unregisterMetrics()
+	}()
 
 	if !a.flushOnShutdown {
 		return
@@ -509,71 +525,102 @@ func (a *aggregator) MustStop() {
 	<-flushConcurrencyCh
 }
 
+func (a *aggregator) unregisterMetrics() {
+	le := a.encoder.Load()
+	le.sizeMetric.unregister()
+
+	if a.dedup != nil {
+		a.dedup.unregisterMetrics()
+	}
+}
+
+type encodedTss struct {
+	labels  string
+	samples []prompbmarshal.Sample
+}
+
 // Push pushes tss to aggregator.
 func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
-	if a.dedup == nil {
-		// Deduplication is disabled.
-		a.push(tss, matchIdxs)
-		return
-	}
+	var etss []encodedTss
 
-	// Deduplication is enabled.
-	// push samples to dedupAggr, so later they will be pushed to the configured aggregators.
+	labels := promutils.GetLabels()
+	bb := bbPool.Get()
+
+	le := a.encoder.Load()
 	for idx, ts := range tss {
 		if !a.match.Match(ts.Labels) {
 			continue
 		}
 		matchIdxs[idx] = 1
-		a.dedup.push(ts)
-	}
-}
-
-type pushAggrFn func(tss []prompbmarshal.TimeSeries, matchIdxs []byte)
-
-func (a *aggregator) push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
-	labels := promutils.GetLabels()
-	tmpLabels := promutils.GetLabels()
-	bb := bbPool.Get()
-	applyFilters := matchIdxs != nil
-	for idx, ts := range tss {
-		if applyFilters {
-			if !a.match.Match(ts.Labels) {
-				continue
-			}
-			matchIdxs[idx] = 1
-		}
 
 		labels.Labels = append(labels.Labels[:0], ts.Labels...)
-		if applyFilters {
-			labels.Labels = a.inputRelabeling.Apply(labels.Labels, 0)
-			if len(labels.Labels) == 0 {
-				// The metric has been deleted by the relabeling
-				continue
-			}
-			labels.Sort()
+		labels.Labels = a.inputRelabeling.Apply(labels.Labels, 0)
+		if len(labels.Labels) == 0 {
+			// The metric has been deleted by the relabeling
+			continue
 		}
+		labels.Sort()
 
-		if a.aggregateOnlyByTime {
-			bb.B = marshalLabelsFast(bb.B[:0], labels.Labels)
-		} else {
-			tmpLabels.Labels = removeUnneededLabels(tmpLabels.Labels[:0], labels.Labels, a.by, a.without)
-			bb.B = marshalLabelsFast(bb.B[:0], tmpLabels.Labels)
-		}
-		outputKey := bytesutil.InternBytes(bb.B)
+		bb.B = le.encode(bb.B[:0], labels.Labels)
+		etss = append(etss, encodedTss{
+			labels:  bytesutil.InternBytes(bb.B),
+			samples: ts.Samples,
+		})
+	}
+
+	promutils.PutLabels(labels)
+	bbPool.Put(bb)
+
+	if a.dedup == nil {
+		// Deduplication is disabled.
+		a.push(etss)
+		return
+	}
+
+	// Deduplication is enabled.
+	// push samples to dedupAggr, so later they will be pushed to the configured aggregators.
+	a.dedup.push(etss)
+}
+
+type pushAggrFn func(tss []encodedTss)
+
+func (a *aggregator) push(tss []encodedTss) {
+	le := a.encoder.Load()
+
+	bb := bbPool.Get()
+	labels := promutils.GetLabels()
+	tmpLabels := promutils.GetLabels()
+
+	var err error
+	for _, ts := range tss {
 		inputKey := ""
+		outputKey := ""
+
 		if !a.aggregateOnlyByTime {
+			labels.Labels, err = le.decode(labels.Labels[:0], ts.labels)
+			if err != nil {
+				logger.Panicf("unexpected decode error %q", ts.labels)
+			}
+
+			tmpLabels.Labels = removeUnneededLabels(tmpLabels.Labels[:0], labels.Labels, a.by, a.without)
+			bb.B = le.encode(bb.B[:0], tmpLabels.Labels)
+			outputKey = bytesutil.InternBytes(bb.B)
+
 			tmpLabels.Labels = extractUnneededLabels(tmpLabels.Labels[:0], labels.Labels, a.by, a.without)
-			bb.B = marshalLabelsFast(bb.B[:0], tmpLabels.Labels)
+			bb.B = le.encode(bb.B[:0], tmpLabels.Labels)
 			inputKey = bytesutil.InternBytes(bb.B)
+		} else {
+			outputKey = ts.labels
 		}
 
-		for _, sample := range ts.Samples {
+		for _, sample := range ts.samples {
 			a.pushSample(inputKey, outputKey, sample.Value)
 		}
 	}
-	bbPool.Put(bb)
-	promutils.PutLabels(tmpLabels)
+
 	promutils.PutLabels(labels)
+	promutils.PutLabels(tmpLabels)
+	bbPool.Put(bb)
 }
 
 var bbPool bytesutil.ByteBufferPool
@@ -688,6 +735,8 @@ type flushCtx struct {
 	skipAggrSuffix bool
 	suffix         string
 
+	le *labelsEncoder
+
 	tss     []prompbmarshal.TimeSeries
 	labels  []prompbmarshal.Label
 	samples []prompbmarshal.Sample
@@ -700,13 +749,13 @@ func (ctx *flushCtx) reset() {
 	ctx.samples = ctx.samples[:0]
 }
 
-func (ctx *flushCtx) appendSeries(labelsMarshaled, suffix string, timestamp int64, value float64) {
+func (ctx *flushCtx) appendSeries(labelsEncoded, suffix string, timestamp int64, value float64) {
 	var err error
 	labelsLen := len(ctx.labels)
 	samplesLen := len(ctx.samples)
-	ctx.labels, err = unmarshalLabelsFast(ctx.labels, bytesutil.ToUnsafeBytes(labelsMarshaled))
+	ctx.labels, err = ctx.le.decode(ctx.labels, labelsEncoded)
 	if err != nil {
-		logger.Panicf("BUG: cannot unmarshal labels from output key: %s", err)
+		logger.Panicf("BUG: cannot decode labels from output key: %s", err)
 	}
 	if !ctx.skipAggrSuffix {
 		ctx.labels = addMetricSuffix(ctx.labels, labelsLen, ctx.suffix, suffix)
@@ -721,13 +770,13 @@ func (ctx *flushCtx) appendSeries(labelsMarshaled, suffix string, timestamp int6
 	})
 }
 
-func (ctx *flushCtx) appendSeriesWithExtraLabel(labelsMarshaled, suffix string, timestamp int64, value float64, extraName, extraValue string) {
+func (ctx *flushCtx) appendSeriesWithExtraLabel(labelsEncoded, suffix string, timestamp int64, value float64, extraName, extraValue string) {
 	var err error
 	labelsLen := len(ctx.labels)
 	samplesLen := len(ctx.samples)
-	ctx.labels, err = unmarshalLabelsFast(ctx.labels, bytesutil.ToUnsafeBytes(labelsMarshaled))
+	ctx.labels, err = ctx.le.decode(ctx.labels, labelsEncoded)
 	if err != nil {
-		logger.Panicf("BUG: cannot unmarshal labels from output key: %s", err)
+		logger.Panicf("BUG: cannot decode labels from output key: %s", err)
 	}
 	ctx.labels = addMetricSuffix(ctx.labels, labelsLen, ctx.suffix, suffix)
 	ctx.labels = append(ctx.labels, prompbmarshal.Label{

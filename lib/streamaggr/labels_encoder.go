@@ -19,10 +19,23 @@ import (
 // Generated hash keys are collision-free.
 type labelsEncoder struct {
 	n atomic.Uint32
+
+	sizeMetric *gauge
+
 	// map[prompbmarshal.Label]string
 	labelToHash sync.Map
 	// map[string]prompbmarshal.Label
 	hashToLabel sync.Map
+}
+
+func newLabelsEncoder(aggregator string) *labelsEncoder {
+	le := &labelsEncoder{}
+
+	le.sizeMetric = getOrCreateGauge(fmt.Sprintf(`vmagent_streamaggr_labels_encoder_size{aggregator=%q}`, aggregator), func() float64 {
+		return float64(le.n.Load())
+	})
+
+	return le
 }
 
 func (le *labelsEncoder) getKey(l prompbmarshal.Label) uint32 {
@@ -76,7 +89,7 @@ func (le *labelsEncoder) decode(dst []prompbmarshal.Label, s string) ([]prompbma
 		k := binary.LittleEndian.Uint32(bb)
 		bb = bb[4:]
 		l := le.getLabel(k)
-		if l.Name == "" {
+		if l.Name == "" || l.Value == "" {
 			return nil, fmt.Errorf("failed to decode key: %d", k)
 		}
 		dst = append(dst, l)
