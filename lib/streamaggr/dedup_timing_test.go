@@ -6,7 +6,7 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 )
 
-var benchSeriesDedupPush = newBenchEncodedSeries(10e3, 5)
+var benchSeriesDedupPush = newBenchEncodedSeries(10e3)
 
 func BenchmarkDedupPush(b *testing.B) {
 	ms := metrics.NewSet()
@@ -21,7 +21,7 @@ func BenchmarkDedupPush(b *testing.B) {
 	})
 }
 
-var benchSeriesDedupFlush = newBenchEncodedSeries(20e4, 5)
+var benchSeriesDedupFlush = newBenchEncodedSeries(20e4)
 
 func BenchmarkDedupFlush(b *testing.B) {
 	ms := metrics.NewSet()
@@ -47,8 +47,8 @@ func BenchmarkDedupFlush(b *testing.B) {
 	})
 }
 
-func newBenchEncodedSeries(seriesCount, samplesPerSeries int) []encodedTss {
-	tss := newBenchSeries(seriesCount, samplesPerSeries)
+func newBenchEncodedSeries(seriesCount int) []encodedTss {
+	tss := newBenchSeries(seriesCount)
 	etss := make([]encodedTss, len(tss))
 	le := &labelsEncoder{}
 	for i := range tss {
