@@ -1,6 +1,6 @@
 module github.com/VictoriaMetrics/VictoriaMetrics
 
-go 1.22
+go 1.21
 
 // The github.com/prometheus/prometheus v0.50.0 depends on github.com/prometheus/common v0.46.0
 // TODO: remove this replacement for the new version of github.com/prometheus/prometheus
