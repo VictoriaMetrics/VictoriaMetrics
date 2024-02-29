@@ -3,7 +3,6 @@ package fs
 import (
 	"fmt"
 	"os"
-	"reflect"
 	"sync"
 	"unsafe"
 
@@ -89,7 +88,7 @@ func mmap(fd int, length int) ([]byte, error) {
 		windows.CloseHandle(h)
 		return nil, os.NewSyscallError("MapViewOfFile", errno)
 	}
-	data := unsafe.Slice(addr, length)
+	data := unsafe.Slice((*byte)(unsafe.Pointer(addr)), length)
 
 	mmapByAddrLock.Lock()
 	mmapByAddr[addr] = h
