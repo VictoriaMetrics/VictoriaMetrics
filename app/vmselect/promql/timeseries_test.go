@@ -52,7 +52,9 @@ func TestMarshalTimeseriesFast(t *testing.T) {
 		MetricName: storage.MetricName{
 			MetricGroup: []byte{},
 		},
-		denyReuse: true,
+		Values:     []float64{},
+		Timestamps: []int64{},
+		denyReuse:  true,
 	}})
 	f([]*timeseries{{
 		MetricName: storage.MetricName{
