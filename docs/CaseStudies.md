@@ -32,6 +32,7 @@ where you can chat with VictoriaMetrics users to get additional references, revi
   - [Idealo.de](#idealode)
   - [MHI Vestas Offshore Wind](#mhi-vestas-offshore-wind)
   - [Naver](#naver)
+  - [NetEase Cloud Music](#netease-cloud-music)
   - [Percona](#percona)
   - [Razorpay](#razorpay)
   - [RELEX Solutions](#relex-solutions)
@@ -408,6 +409,19 @@ Numbers with current, limited roll out:
 fueling their greater growth around the world.
 
 See [this video](https://www.youtube.com/watch?v=OUyXPgVcdw4) and [these slides](https://deview.kr/data/deview/session/attach/%5B2B4%5DVictoriaMetrics_%E1%84%89%E1%85%B5%E1%84%80%E1%85%A8%E1%84%8B%E1%85%A7%E1%86%AF_%E1%84%83%E1%85%A6%E1%84%8B%E1%85%B5%E1%84%90%E1%85%A5_%E1%84%83%E1%85%A2%E1%84%92%E1%85%A9%E1%86%AB%E1%84%83%E1%85%A9%E1%86%AB%E1%84%8B%E1%85%B4_%E1%84%86%E1%85%A5%E1%86%AF%E1%84%90%E1%85%B5%E1%84%87%E1%85%A5%E1%84%89%E1%85%B3_Kor+Eng.pdf) on why and how Naver uses VictoriaMetrics.
+
+## NetEase Cloud Music
+
+[NetEase Cloud Music](https://music.163.com/) is a Chinese freemium music streaming service developed and owned by [NetEase, Inc](https://en.wikipedia.org/wiki/NetEase). It is one of the biggest competitors in the Chinese music streaming business, primarily competing with [Tencent](https://en.wikipedia.org/wiki/Tencent)'s QQ Music.
+
+The huge scale of services and the diverse monitoring requirements bring great challenges to timeseries database’s reliability, availability, and performance. With year’s evolution, we finally build a metrics system around VictoriaMetrics, aiming to solve following problems:
+* Weak observability on application layer: in the past, internal monitoring of the product mainly focused on machine level. Although it also provided monitoring plugins for common frameworks, there was still room for improvement in both performance and visualization effects.
+* Linking metrics to trace: metrics are the most intuitive way to discover problems, such as "getting 10 failed http requests in the past 30s", but sometimes traces are also needed to locate the root cause of the errors.
+* Performance and cost: storage cost of the old metric system is relatively high, since prometheus as a standalone application cannot support large scale of data.
+* aggregate queries: aggregate queries are often needed and could take several seconds or even tens of seconds, slowing down troubleshooting process seriously.
+* Weak visualization capabilities: monitoring data are often used in YoY comparison and multi-instance comparison to help locate problems. Neither Prometheus UI nor Grafana supports this feature.
+ 
+See [this article](https://juejin.cn/post/7322268449409744931) for details on how NetEase Cloud Music build a metrics system base on VictoriaMetrics and give solutions to above problems.
 
 ## Percona
 
