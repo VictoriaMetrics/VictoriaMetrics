@@ -3,11 +3,9 @@ package logstorage
 import (
 	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/regexutil"
 )
 
@@ -68,21 +66,11 @@ type streamTagFilter struct {
 	// value is the value
 	value string
 
-	regexpOnce sync.Once
-	regexp     *regexutil.PromRegex
+	regexp *regexutil.PromRegex
 }
 
 func (tf *streamTagFilter) getRegexp() *regexutil.PromRegex {
-	tf.regexpOnce.Do(tf.initRegexp)
 	return tf.regexp
-}
-
-func (tf *streamTagFilter) initRegexp() {
-	re, err := regexutil.NewPromRegex(tf.value)
-	if err != nil {
-		logger.Panicf("BUG: cannot parse regexp %q: %s", tf.value, err)
-	}
-	tf.regexp = re
 }
 
 func (tf *streamTagFilter) String() string {
