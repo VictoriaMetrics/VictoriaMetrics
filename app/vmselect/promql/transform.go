@@ -1940,7 +1940,7 @@ func transformLabelJoin(tfa *transformFuncArg) ([]*timeseries, error) {
 	for _, ts := range rvs {
 		mn := &ts.MetricName
 		dstValue := getDstValue(mn, dstLabel)
-		b := make([]uint8, 0, len(*dstValue))
+		var b []byte
 		for j, srcLabel := range srcLabels {
 			srcValue := mn.GetTagValue(srcLabel)
 			b = append(b, srcValue...)
