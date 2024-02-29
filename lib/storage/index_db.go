@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
-	"reflect"
 	"sort"
 	"strconv"
 	"sync"
@@ -402,14 +401,7 @@ func marshalMetricIDs(dst []byte, metricIDs []uint64) []byte {
 	// Compress metricIDs, so they occupy less space in the cache.
 	//
 	// The srcBuf is a []byte cast of metricIDs.
-	var srcBuf []byte
-	if len(metricIDs) > 0 {
-		sh := (*reflect.SliceHeader)(unsafe.Pointer(&srcBuf))
-		sh.Data = uintptr(unsafe.Pointer(&metricIDs[0]))
-		sh.Cap = 8 * len(metricIDs)
-		sh.Len = 8 * len(metricIDs)
-	}
-
+	srcBuf := unsafe.Slice((*byte)(unsafe.Pointer(unsafe.SliceData(metricIDs))), 8*len(metricIDs))
 	dst = encoding.CompressZSTDLevel(dst, srcBuf, 1)
 	return dst
 }
@@ -418,13 +410,8 @@ func mustUnmarshalMetricIDs(dst []uint64, src []byte) []uint64 {
 	// Decompress src into dstBuf.
 	//
 	// dstBuf is a []byte cast of dst.
-	var dstBuf []byte
-	if len(dst) > 0 {
-		sh := (*reflect.SliceHeader)(unsafe.Pointer(&dstBuf))
-		sh.Data = uintptr(unsafe.Pointer(&dst[0]))
-		sh.Cap = 8 * cap(dst)
-		sh.Len = 8 * len(dst)
-	}
+	dstBuf := unsafe.Slice((*byte)(unsafe.Pointer(unsafe.SliceData(dst))), 8*cap(dst))
+	dstBuf = dstBuf[:8*len(dst)]
 	dstBufLen := len(dstBuf)
 	var err error
 	dstBuf, err = encoding.DecompressZSTD(dstBuf, src)
@@ -440,10 +427,8 @@ func mustUnmarshalMetricIDs(dst []uint64, src []byte) []uint64 {
 	}
 
 	// Convert dstBuf back to dst
-	sh := (*reflect.SliceHeader)(unsafe.Pointer(&dst))
-	sh.Data = uintptr(unsafe.Pointer(&dstBuf[0]))
-	sh.Cap = cap(dstBuf) / 8
-	sh.Len = len(dstBuf) / 8
+	dst = unsafe.Slice((*uint64)(unsafe.Pointer(unsafe.SliceData(dstBuf))), cap(dstBuf)/8)
+	dst = dst[:len(dstBuf)/8]
 
 	return dst
 }
