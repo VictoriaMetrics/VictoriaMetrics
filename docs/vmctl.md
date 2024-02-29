@@ -11,11 +11,7 @@ aliases:
 ---
 # vmctl
 
-VictoriaMetrics command-line tool
-
-vmctl provides various useful actions with VictoriaMetrics components.
-
-Features:
+VictoriaMetrics command-line tool (vmctl) provides the following list of actions:
 - migrate data from [Prometheus](#migrating-data-from-prometheus) to VictoriaMetrics using snapshot API
 - migrate data from [Thanos](#migrating-data-from-thanos) to VictoriaMetrics
 - migrate data from [Cortex](#migrating-data-from-cortex) to VictoriaMetrics
@@ -27,8 +23,7 @@ Features:
 - migrate data by [Prometheus remote read protocol](#migrating-data-by-remote-read-protocol) to VictoriaMetrics
 - [verify](#verifying-exported-blocks-from-victoriametrics) exported blocks from VictoriaMetrics single or cluster version.
 
-To see the full list of supported modes
-run the following command:
+To see the full list of supported actions run the following command:
 
 ```sh
 $ ./vmctl --help
@@ -47,8 +42,8 @@ COMMANDS:
    verify-block  Verifies correctness of data blocks exported via VictoriaMetrics Native format. See https://docs.victoriametrics.com/#how-to-export-data-in-native-format
 ```
 
-Each mode has its own unique set of flags specific (e.g. prefixed with `influx` for influx mode)
-to the data source and common list of flags for destination (prefixed with `vm` for VictoriaMetrics):
+Each command has its own unique set of flags specific (e.g. prefixed with `influx-` for [influx](https://docs.victoriametrics.com/vmctl/#migrating-data-from-influxdb-1x))
+to the data source and common list of flags for destination (prefixed with `vm-` for VictoriaMetrics):
 
 ```sh
 $ ./vmctl influx --help
@@ -64,12 +59,11 @@ Please note, that vmctl performs initial readiness check for the given address b
    --vm-password value    VictoriaMetrics password for basic auth [$VM_PASSWORD]
 ```
 
-When doing a migration user needs to specify flags for source (where and how to fetch data) and for
-destination (where to migrate data). Every mode has additional details and nuances, please see
+When doing a migration user needs to specify flags for **source** (where and how to fetch data) and for
+**destination** (where to migrate data). Every command has additional details and nuances, please see
 them below in corresponding sections.
 
-For the destination flags see the full description by running the following command:
-
+For the **destination** flags see the full description by running the following command:
 ```
 $ ./vmctl influx --help | grep vm-
 ```
@@ -797,30 +791,29 @@ requires an Authentication header like `X-Scope-OrgID`. You can define it via th
 
 ## Migrating data from VictoriaMetrics
 
-The simplest way to migrate data between VM instances is to copy data.
-See more details [here](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#data-migration).
+The simplest way to migrate data between VM instances is [to copy data between instances](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#data-migration).
 
 vmctl uses [native binary protocol](https://docs.victoriametrics.com/#how-to-export-data-in-native-format)
 (available since [1.42.0 release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.42.0))
-o migrate data between VM instances: single to single, cluster to cluster, single to cluster and vice versa.
+to migrate data between VM instances: single to single, cluster to cluster, single to cluster and vice versa.
 
 See `./vmctl vm-native --help` for details and full list of flags.
 
 Migration in `vm-native` mode takes two steps:
 1. Explore the list of the metrics to migrate via `api/v1/label/__name__/values` API;
-1. Migrate explored metrics one-by-one.
+1. Migrate explored metrics one-by-one with specified `--vm-concurrency`.
 
 ```sh
 ./vmctl vm-native \
     --vm-native-src-addr=http://127.0.0.1:8481/select/0/prometheus \ # migrate from
     --vm-native-dst-addr=http://localhost:8428 \                     # migrate to
     --vm-native-filter-time-start='2022-11-20T00:00:00Z' \           # starting from
-    --vm-native-filter-match='{__name__=~"vm_cache_.*"}'             # only metrics matching the selector
+    --vm-native-filter-match='{__name__!~"vm_.*"}'                   # filter out metrics matching the selector
 VictoriaMetrics Native import mode
 
 2023/03/02 09:22:02 Initing import process from "http://127.0.0.1:8481/select/0/prometheus/api/v1/export/native" 
                     to "http://localhost:8428/api/v1/import/native" with filter 
-        filter: match[]={__name__=~"vm_cache_.*"}
+        filter: match[]={__name__!~"vm_.*"}
         start: 2022-11-20T00:00:00Z
 2023/03/02 09:22:02 Exploring metrics...
 Found 9 metrics to import. Continue? [Y/n] 
@@ -841,6 +834,8 @@ _To disable explore phase and switch to the old way of data migration via single
 
 Importing tips:
 
+1. vmctl acts as a proxy between `src` and `dst`. It doesn't use much of CPU or RAM, but network connection
+   between `src`=>vmctl=>`dst` should be as fast as possible for improving the migration speed.
 1. Migrating big volumes of data may result in reaching the safety limits on `src` side.
    Please verify that `-search.maxExportDuration` and `-search.maxExportSeries` were set with
    proper values for `src`. If hitting the limits, follow the recommendations 
@@ -892,7 +887,7 @@ Importing tips:
 1. `vmctl` supports `--vm-native-src-headers` and `--vm-native-dst-headers` to define headers sent with each request
    to the corresponding source address.
 1. `vmctl` supports `--vm-native-disable-http-keep-alive` to allow `vmctl` to use non-persistent HTTP connections to avoid
-   error `use of closed network connection` when run a longer export.
+   error `use of closed network connection` when running a heavy export requests.
 
 
 ### Using time-based chunking of migration
@@ -913,11 +908,11 @@ Usage example:
     --vm-native-dst-addr=http://localhost:8428 \
     --vm-native-filter-time-start='2022-11-20T00:00:00Z' \
     --vm-native-step-interval=month \
-    --vm-native-filter-match='{__name__=~"vm_cache_.*"}'    
+    --vm-native-filter-match='{__name__!~"vm_.*"}'    
 VictoriaMetrics Native import mode
 
 2023/03/02 09:18:05 Initing import process from "http://127.0.0.1:8481/select/0/prometheus/api/v1/export/native" to "http://localhost:8428/api/v1/import/native" with filter 
-        filter: match[]={__name__=~"vm_cache_.*"}
+        filter: match[]={__name__!~"vm_.*"}
         start: 2022-11-20T00:00:00Z
 2023/03/02 09:18:05 Exploring metrics...
 Found 9 metrics to import. Continue? [Y/n] 
@@ -1016,13 +1011,9 @@ to number of free CPU cores.
 
 ### VictoriaMetrics importer
 
-The flag `--vm-concurrency` controls the number of concurrent workers that process the input from InfluxDB query results.
+The flag `--vm-concurrency` controls the number of concurrent workers that process the import requests to **destination**.
 Please note that each import request can load up to a single vCPU core on VictoriaMetrics. So try to set it according
 to allocated CPU resources of your VictoriaMetrics installation.
-
-The flag `--vm-batch-size` controls max amount of samples collected before sending the import request.
-For example, if  `--influx-chunk-size=500` and `--vm-batch-size=2000` then importer will process not more
-than 4 chunks before sending the request.
 
 ### Importer stats
 
