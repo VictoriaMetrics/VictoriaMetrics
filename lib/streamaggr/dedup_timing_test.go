@@ -1,13 +1,18 @@
 package streamaggr
 
-/*import (
+import (
 	"testing"
+
+	"github.com/VictoriaMetrics/metrics"
 )
 
 var benchSeriesDedupPush = newBenchEncodedSeries(10e3, 5)
 
 func BenchmarkDedupPush(b *testing.B) {
-	dd := newDeduplicator("test", 0, nil)
+	ms := metrics.NewSet()
+	defer ms.UnregisterAllMetrics()
+
+	dd := newDeduplicator(ms, "test", 0, nil)
 
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
@@ -19,8 +24,11 @@ func BenchmarkDedupPush(b *testing.B) {
 var benchSeriesDedupFlush = newBenchEncodedSeries(20e4, 5)
 
 func BenchmarkDedupFlush(b *testing.B) {
+	ms := metrics.NewSet()
+	defer ms.UnregisterAllMetrics()
+
 	noOp := func(tss []encodedTss) {}
-	dd := newDeduplicator("test", 0, noOp)
+	dd := newDeduplicator(ms, "test", 0, noOp)
 	dd.push(benchSeriesDedupFlush)
 
 	sm := dd.sm.Load()
@@ -46,10 +54,9 @@ func newBenchEncodedSeries(seriesCount, samplesPerSeries int) []encodedTss {
 	for i := range tss {
 		ts := tss[i]
 		etss[i] = encodedTss{
-			labels:  string(le.encode(nil, ts.Labels)),
+			labels:  string(le.encode(nil, nil, ts.Labels)),
 			samples: ts.Samples,
 		}
 	}
 	return etss
 }
-*/

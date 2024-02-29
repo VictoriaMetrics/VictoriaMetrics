@@ -6,6 +6,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
 	"github.com/cespare/xxhash/v2"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -25,33 +26,27 @@ type deduplicator struct {
 
 	sm atomic.Pointer[shardedMap]
 
-	processShardDuration *summary
-	callbackDuration     *summary
-	flushDuration        *summary
+	processShardDuration *metrics.Summary
+	callbackDuration     *metrics.Summary
+	flushDuration        *metrics.Summary
+
 	// aggregation correctness will be compromised if flush takes longer than interval
-	flushDurationExceeded *counter
+	flushDurationExceeded *metrics.Counter
 }
 
-func newDeduplicator(aggregator string, interval time.Duration, cb pushAggrFn) *deduplicator {
+func newDeduplicator(ms *metrics.Set, aggregator string, interval time.Duration, cb pushAggrFn) *deduplicator {
 	d := &deduplicator{
 		interval: interval,
 		stopCh:   make(chan struct{}),
 		callback: cb,
 
-		processShardDuration:  getOrCreateSummary(fmt.Sprintf(`vmagent_streamaggr_dedup_process_shard_duration{aggregator=%q}`, aggregator)),
-		callbackDuration:      getOrCreateSummary(fmt.Sprintf(`vmagent_streamaggr_dedup_callback_duration{aggregator=%q}`, aggregator)),
-		flushDuration:         getOrCreateSummary(fmt.Sprintf(`vmagent_streamaggr_dedup_duration_seconds{aggregator=%q}`, aggregator)),
-		flushDurationExceeded: getOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_dedup_duration_exceeds_aggregation_interval_total{aggregator=%q}`, aggregator)),
+		processShardDuration:  ms.GetOrCreateSummary(fmt.Sprintf(`vmagent_streamaggr_dedup_process_shard_duration{aggregator=%q}`, aggregator)),
+		callbackDuration:      ms.GetOrCreateSummary(fmt.Sprintf(`vmagent_streamaggr_dedup_callback_duration{aggregator=%q}`, aggregator)),
+		flushDuration:         ms.GetOrCreateSummary(fmt.Sprintf(`vmagent_streamaggr_dedup_duration_seconds{aggregator=%q}`, aggregator)),
+		flushDurationExceeded: ms.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_dedup_duration_exceeds_aggregation_interval_total{aggregator=%q}`, aggregator)),
 	}
 	d.sm.Store(newShardedMap())
 	return d
-}
-
-func (d *deduplicator) unregisterMetrics() {
-	d.processShardDuration.unregister()
-	d.callbackDuration.unregister()
-	d.flushDuration.unregister()
-	d.flushDurationExceeded.unregister()
 }
 
 func (d *deduplicator) run() {

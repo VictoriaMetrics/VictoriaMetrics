@@ -7,6 +7,8 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 )
@@ -18,10 +20,12 @@ import (
 // This allows to have as little memory footprint for hash key as possible.
 // Generated hash keys are collision-free.
 type labelsEncoder struct {
+	// n is used as hash for prompbmarshal.Label entries.
+	// It gets incremented for each unique prompbmarshal.Label.
 	n atomic.Uint32
-
-	size       atomic.Uint32
-	sizeMetric *gauge
+	// size represents amount of records in hashToLabel map
+	// It gets incremented for each new registered prompbmarshal.Label entry.
+	size atomic.Uint32
 
 	// map[prompbmarshal.Label]string
 	labelToHash sync.Map
@@ -29,10 +33,10 @@ type labelsEncoder struct {
 	hashToLabel sync.Map
 }
 
-func newLabelsEncoder(aggregator string) *labelsEncoder {
+func newLabelsEncoder(ms *metrics.Set, aggregator string) *labelsEncoder {
 	le := &labelsEncoder{}
 
-	le.sizeMetric = getOrCreateGauge(fmt.Sprintf(`vmagent_streamaggr_labels_encoder_size{aggregator=%q}`, aggregator), func() float64 {
+	ms.GetOrCreateGauge(fmt.Sprintf(`vmagent_streamaggr_labels_encoder_size{aggregator=%q}`, aggregator), func() float64 {
 		return float64(le.size.Load())
 	})
 

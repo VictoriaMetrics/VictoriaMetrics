@@ -11,6 +11,9 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+	"gopkg.in/yaml.v2"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
@@ -20,7 +23,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
-	"gopkg.in/yaml.v2"
 )
 
 var supportedOutputs = []string{
@@ -150,6 +152,8 @@ type Aggregators struct {
 	// configData contains marshaled configs passed to NewAggregators().
 	// It is used in Equal() for comparing Aggregators.
 	configData []byte
+
+	ms *metrics.Set
 }
 
 // NewAggregators creates Aggregators from the given cfgs.
@@ -161,9 +165,12 @@ type Aggregators struct {
 //
 // MustStop must be called on the returned Aggregators when they are no longer needed.
 func NewAggregators(cfgs []*Config, pushFunc PushFunc, dedupInterval time.Duration) (*Aggregators, error) {
+	ms := metrics.NewSet()
+	metrics.RegisterSet(ms)
+
 	as := make([]*aggregator, len(cfgs))
 	for i, cfg := range cfgs {
-		a, err := newAggregator(cfg, pushFunc, dedupInterval)
+		a, err := newAggregator(cfg, pushFunc, dedupInterval, ms)
 		if err != nil {
 			// Stop already initialized aggregators before returning the error.
 			for _, a := range as[:i] {
@@ -180,6 +187,7 @@ func NewAggregators(cfgs []*Config, pushFunc PushFunc, dedupInterval time.Durati
 	return &Aggregators{
 		as:         as,
 		configData: configData,
+		ms:         ms,
 	}, nil
 }
 
@@ -191,6 +199,7 @@ func (a *Aggregators) MustStop() {
 	for _, aggr := range a.as {
 		aggr.MustStop()
 	}
+	a.ms.UnregisterAllMetrics()
 }
 
 // Equal returns true if a and b are initialized from identical configs.
@@ -275,7 +284,7 @@ type PushFunc func(tss []prompbmarshal.TimeSeries)
 // e.g. only the last sample per each time series per each dedupInterval is aggregated.
 //
 // The returned aggregator must be stopped when no longer needed by calling MustStop().
-func newAggregator(cfg *Config, pushFunc PushFunc, dedupInterval time.Duration) (*aggregator, error) {
+func newAggregator(cfg *Config, pushFunc PushFunc, dedupInterval time.Duration, ms *metrics.Set) (*aggregator, error) {
 	// check cfg.Interval
 	interval, err := time.ParseDuration(cfg.Interval)
 	if err != nil {
@@ -421,10 +430,10 @@ func newAggregator(cfg *Config, pushFunc PushFunc, dedupInterval time.Duration) 
 		stopCh: make(chan struct{}),
 	}
 
-	a.encoder.Store(newLabelsEncoder(a.String()))
+	a.encoder.Store(newLabelsEncoder(ms, a.String()))
 
 	if dedupInterval > 0 {
-		a.dedup = newDeduplicator(a.String(), dedupInterval, a.push)
+		a.dedup = newDeduplicator(ms, a.String(), dedupInterval, a.push)
 		a.dedup.run()
 	}
 
@@ -508,10 +517,6 @@ func (a *aggregator) MustStop() {
 	close(a.stopCh)
 	a.wg.Wait()
 
-	defer func() {
-		a.unregisterMetrics()
-	}()
-
 	if !a.flushOnShutdown {
 		return
 	}
@@ -523,15 +528,6 @@ func (a *aggregator) MustStop() {
 	}
 	a.flush()
 	<-flushConcurrencyCh
-}
-
-func (a *aggregator) unregisterMetrics() {
-	le := a.encoder.Load()
-	le.sizeMetric.unregister()
-
-	if a.dedup != nil {
-		a.dedup.unregisterMetrics()
-	}
 }
 
 type encodedTss struct {
