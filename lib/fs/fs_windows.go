@@ -101,7 +101,7 @@ func mmap(fd int, length int) ([]byte, error) {
 func mUnmap(data []byte) error {
 	// flush is not needed, since we perform only reading operation.
 	// In case of write, additional call FlushViewOfFile must be performed.
-	addr := uintptr(unsafe.Pointer(&data[0]))
+	addr := uintptr(unsafe.Pointer(unsafe.SliceData(data)))
 
 	mmapByAddrLock.Lock()
 	h, ok := mmapByAddr[addr]
