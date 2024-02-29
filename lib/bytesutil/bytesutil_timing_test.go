@@ -17,7 +17,7 @@ func BenchmarkToUnsafeString(b *testing.B) {
 				n += len(s)
 			}
 		}
-		atomic.AddUint64(&Sink, uint64(n))
+		Sink.Add(uint64(n))
 	})
 }
 
@@ -33,8 +33,8 @@ func BenchmarkToUnsafeBytes(b *testing.B) {
 				n += len(s)
 			}
 		}
-		atomic.AddUint64(&Sink, uint64(n))
+		Sink.Add(uint64(n))
 	})
 }
 
-var Sink uint64
+var Sink atomic.Uint64

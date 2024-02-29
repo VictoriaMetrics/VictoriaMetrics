@@ -43,7 +43,7 @@ type Cache struct {
 	// In this case using prev would result in RAM waste,
 	// it is better to use only curr cache with doubled size.
 	// After the process of switching, this flag will be set to whole.
-	mode uint32
+	mode atomic.Uint32
 
 	// The maxBytes value passed to New() or to Load().
 	maxBytes int
@@ -110,7 +110,7 @@ func newCacheInternal(curr, prev *fastcache.Cache, mode, maxBytes int) *Cache {
 	c.curr.Store(curr)
 	c.prev.Store(prev)
 	c.stopCh = make(chan struct{})
-	c.setMode(mode)
+	c.mode.Store(uint32(mode))
 	return &c
 }
 
@@ -143,7 +143,7 @@ func (c *Cache) expirationWatcher(expireDuration time.Duration) {
 		case <-t.C:
 		}
 		c.mu.Lock()
-		if atomic.LoadUint32(&c.mode) != split {
+		if c.mode.Load() != split {
 			// Stop the expirationWatcher on non-split mode.
 			c.mu.Unlock()
 			return
@@ -183,7 +183,7 @@ func (c *Cache) prevCacheWatcher() {
 		case <-t.C:
 		}
 		c.mu.Lock()
-		if atomic.LoadUint32(&c.mode) != split {
+		if c.mode.Load() != split {
 			// Do nothing in non-split mode.
 			c.mu.Unlock()
 			return
@@ -227,7 +227,7 @@ func (c *Cache) cacheSizeWatcher() {
 			return
 		case <-t.C:
 		}
-		if c.loadMode() != split {
+		if c.mode.Load() != split {
 			continue
 		}
 		var cs fastcache.Stats
@@ -252,7 +252,7 @@ func (c *Cache) cacheSizeWatcher() {
 	// 6) drop prev cache
 
 	c.mu.Lock()
-	c.setMode(switching)
+	c.mode.Store(switching)
 	prev := c.prev.Load()
 	curr := c.curr.Load()
 	c.prev.Store(curr)
@@ -280,7 +280,7 @@ func (c *Cache) cacheSizeWatcher() {
 	}
 
 	c.mu.Lock()
-	c.setMode(whole)
+	c.mode.Store(whole)
 	prev = c.prev.Load()
 	c.prev.Store(fastcache.New(1024))
 	cs.Reset()
@@ -318,15 +318,7 @@ func (c *Cache) Reset() {
 	updateCacheStatsHistory(&c.csHistory, &cs)
 	curr.Reset()
 	// Reset the mode to `split` in the hope the working set size becomes smaller after the reset.
-	c.setMode(split)
-}
-
-func (c *Cache) setMode(mode int) {
-	atomic.StoreUint32(&c.mode, uint32(mode))
-}
-
-func (c *Cache) loadMode() int {
-	return int(atomic.LoadUint32(&c.mode))
+	c.mode.Store(split)
 }
 
 // UpdateStats updates fcs with cache stats.
@@ -374,7 +366,7 @@ func (c *Cache) Get(dst, key []byte) []byte {
 		// Fast path - the entry is found in the current cache.
 		return result
 	}
-	if c.loadMode() == whole {
+	if c.mode.Load() == whole {
 		// Nothing found.
 		return result
 	}
@@ -397,7 +389,7 @@ func (c *Cache) Has(key []byte) bool {
 	if curr.Has(key) {
 		return true
 	}
-	if c.loadMode() == whole {
+	if c.mode.Load() == whole {
 		return false
 	}
 	prev := c.prev.Load()
@@ -428,7 +420,7 @@ func (c *Cache) GetBig(dst, key []byte) []byte {
 		// Fast path - the entry is found in the current cache.
 		return result
 	}
-	if c.loadMode() == whole {
+	if c.mode.Load() == whole {
 		// Nothing found.
 		return result
 	}

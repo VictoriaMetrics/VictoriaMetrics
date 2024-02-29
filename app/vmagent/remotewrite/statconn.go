@@ -50,7 +50,7 @@ var (
 )
 
 type statConn struct {
-	closed uint64
+	closed atomic.Int32
 	net.Conn
 }
 
@@ -76,7 +76,7 @@ func (sc *statConn) Write(p []byte) (int, error) {
 
 func (sc *statConn) Close() error {
 	err := sc.Conn.Close()
-	if atomic.AddUint64(&sc.closed, 1) == 1 {
+	if sc.closed.Add(1) == 1 {
 		conns.Dec()
 	}
 	return err

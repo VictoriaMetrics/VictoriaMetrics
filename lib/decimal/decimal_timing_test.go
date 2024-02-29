@@ -51,7 +51,7 @@ func benchmarkAppendDecimalToFloat(b *testing.B, a []int64, scale int16) {
 		var fa []float64
 		for pb.Next() {
 			fa = AppendDecimalToFloat(fa[:0], a, scale)
-			atomic.AddUint64(&Sink, uint64(len(fa)))
+			Sink.Add(uint64(len(fa)))
 		}
 	})
 }
@@ -101,7 +101,7 @@ func benchmarkAppendFloatToDecimal(b *testing.B, fa []float64) {
 			sink += uint64(len(da))
 			sink += uint64(e)
 		}
-		atomic.AddUint64(&Sink, sink)
+		Sink.Add(sink)
 	})
 }
 
@@ -138,10 +138,10 @@ func BenchmarkFromFloat(b *testing.B) {
 					sink += uint64(v)
 					sink += uint64(e)
 				}
-				atomic.AddUint64(&Sink, sink)
+				Sink.Add(sink)
 			})
 		})
 	}
 }
 
-var Sink uint64
+var Sink atomic.Uint64

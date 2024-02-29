@@ -268,4 +268,53 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 				Value:     60,
 			},
 		})
+	// rfc3339 with millisecond precision
+	// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5837
+	f("1:label:mytest,2:time:rfc3339,3:metric:M10,4:metric:M20,5:metric:M30,6:metric:M40,7:metric:M50,8:metric:M60",
+		`test,2022-12-25T16:57:12.000+01:00,10,20,30,,,60,70,80`, []Row{
+			{
+				Metric: "M10",
+				Tags: []Tag{
+					{
+						Key:   "mytest",
+						Value: "test",
+					},
+				},
+				Timestamp: 1671983832000,
+				Value:     10,
+			},
+			{
+				Metric: "M20",
+				Tags: []Tag{
+					{
+						Key:   "mytest",
+						Value: "test",
+					},
+				},
+				Timestamp: 1671983832000,
+				Value:     20,
+			},
+			{
+				Metric: "M30",
+				Tags: []Tag{
+					{
+						Key:   "mytest",
+						Value: "test",
+					},
+				},
+				Timestamp: 1671983832000,
+				Value:     30,
+			},
+			{
+				Metric: "M60",
+				Tags: []Tag{
+					{
+						Key:   "mytest",
+						Value: "test",
+					},
+				},
+				Timestamp: 1671983832000,
+				Value:     60,
+			},
+		})
 }

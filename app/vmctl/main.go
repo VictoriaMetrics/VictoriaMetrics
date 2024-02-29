@@ -330,14 +330,14 @@ func main() {
 					if err != nil {
 						return cli.Exit(fmt.Errorf("cannot open exported block at path=%q err=%w", blockPath, err), 1)
 					}
-					var blocksCount uint64
+					var blocksCount atomic.Uint64
 					if err := stream.Parse(f, isBlockGzipped, func(block *stream.Block) error {
-						atomic.AddUint64(&blocksCount, 1)
+						blocksCount.Add(1)
 						return nil
 					}); err != nil {
-						return cli.Exit(fmt.Errorf("cannot parse block at path=%q, blocksCount=%d, err=%w", blockPath, blocksCount, err), 1)
+						return cli.Exit(fmt.Errorf("cannot parse block at path=%q, blocksCount=%d, err=%w", blockPath, blocksCount.Load(), err), 1)
 					}
-					log.Printf("successfully verified block at path=%q, blockCount=%d", blockPath, blocksCount)
+					log.Printf("successfully verified block at path=%q, blockCount=%d", blockPath, blocksCount.Load())
 					return nil
 				},
 			},

@@ -13,7 +13,7 @@ func BenchmarkUnixTimestamp(b *testing.B) {
 		for pb.Next() {
 			ts += UnixTimestamp()
 		}
-		atomic.StoreUint64(&Sink, ts)
+		Sink.Store(ts)
 	})
 }
 
@@ -24,9 +24,9 @@ func BenchmarkTimeNowUnix(b *testing.B) {
 		for pb.Next() {
 			ts += uint64(time.Now().Unix())
 		}
-		atomic.StoreUint64(&Sink, ts)
+		Sink.Store(ts)
 	})
 }
 
 // Sink should prevent from code elimination by optimizing compiler
-var Sink uint64
+var Sink atomic.Uint64

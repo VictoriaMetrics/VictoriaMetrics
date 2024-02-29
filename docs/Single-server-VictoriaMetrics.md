@@ -1140,17 +1140,16 @@ as a service for your OS. A [snap package](https://snapcraft.io/victoriametrics)
 
 ## How to work with snapshots
 
-VictoriaMetrics can create [instant snapshots](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282)
-for all the data stored under `-storageDataPath` directory.
-Navigate to `http://<victoriametrics-addr>:8428/snapshot/create` in order to create an instant snapshot.
-The page will return the following JSON response:
+Send a request to `http://<victoriametrics-addr>:8428/snapshot/create` endpoint in order to create
+an [instant snapshot](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282).
+The page returns the following JSON response on successful creation of snapshot:
 
 ```json
 {"status":"ok","snapshot":"<snapshot-name>"}
 ```
 
 Snapshots are created under `<-storageDataPath>/snapshots` directory, where `<-storageDataPath>`
-is the command-line flag value. Snapshots can be archived to backup storage at any time
+is the corresponding command-line flag value. Snapshots can be archived to backup storage at any time
 with [vmbackup](https://docs.victoriametrics.com/vmbackup.html).
 
 Snapshots consist of a mix of hard-links and soft-links to various files and directories inside `-storageDataPath`.
@@ -1162,19 +1161,31 @@ for more details. This adds some restrictions on what can be done with the conte
 - Do not copy subdirectories inside `<-storageDataPath>/snapshot` with `cp`, `rsync` or similar commands, since there are high chances
   that these commands won't copy some data stored in the snapshot. Prefer using [vmbackup](https://docs.victoriametrics.com/vmbackup.html) for making copies of snapshot data.
 
-The `http://<victoriametrics-addr>:8428/snapshot/list` page contains the list of available snapshots.
+See also [snapshot troubleshooting](#snapshot-troubleshooting).
 
-Navigate to `http://<victoriametrics-addr>:8428/snapshot/delete?snapshot=<snapshot-name>` in order
-to delete `<snapshot-name>` snapshot.
+The `http://<victoriametrics-addr>:8428/snapshot/list` endpoint returns the list of available snapshots.
+
+Send a query to `http://<victoriametrics-addr>:8428/snapshot/delete?snapshot=<snapshot-name>` in order
+to delete the snapshot with `<snapshot-name>` name.
 
 Navigate to `http://<victoriametrics-addr>:8428/snapshot/delete_all` in order to delete all the snapshots.
 
-Steps for restoring from a snapshot:
+### How to restore from a snapshot
 
 1. Stop VictoriaMetrics with `kill -INT`.
 1. Restore snapshot contents from backup with [vmrestore](https://docs.victoriametrics.com/vmrestore.html)
    to the directory pointed by `-storageDataPath`.
 1. Start VictoriaMetrics.
+
+### Snapshot troubleshooting
+
+Snapshot doesn't occupy disk space just after its' creation thanks to the [used approach](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282).
+Old snapshots may start occupying additional disk space if they refer to old parts, which were already deleted during [background merge](#storage).
+That's why it is recommended deleting old snapshots after they are no longer needed in order to free up disk space used by old snapshots.
+This can be done either manually or automatically if the `-snapshotsMaxAge` command-line flag is set. Make sure that the backup process has enough time to complete
+when setting `-snapshotsMaxAge` command-line flag.
+
+VictoriaMetrics exposes the current number of available snapshots via `vm_snapshots` metric at [`/metrics`](#monitoring) page.
 
 ## How to delete time series
 
@@ -1291,7 +1302,7 @@ where:
     * `unix_s` - unix seconds
     * `unix_ms` - unix milliseconds
     * `unix_ns` - unix nanoseconds
-    * `rfc3339` - [RFC3339](https://www.ietf.org/rfc/rfc3339.txt) time
+    * `rfc3339` - [RFC3339](https://www.ietf.org/rfc/rfc3339.txt) time (in the timezone of the server)
     * `custom:<layout>` - custom layout for time that is supported by [time.Format](https://golang.org/pkg/time/#Time.Format) function from Go.
 
 * `<timeseries_selector_for_export>` may contain any [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors)
@@ -1663,21 +1674,68 @@ See also [resource usage limits docs](#resource-usage-limits).
 
 By default, VictoriaMetrics is tuned for an optimal resource usage under typical workloads. Some workloads may need fine-grained resource usage limits. In these cases the following command-line flags may be useful:
 
-- `-memory.allowedPercent` and `-memory.allowedBytes` limit the amounts of memory, which may be used for various internal caches at VictoriaMetrics. Note that VictoriaMetrics may use more memory, since these flags don't limit additional memory, which may be needed on a per-query basis.
-- `-search.maxMemoryPerQuery` limits the amounts of memory, which can be used for processing a single query. Queries, which need more memory, are rejected. Heavy queries, which select big number of time series, may exceed the per-query memory limit by a small percent. The total memory limit for concurrently executed queries can be estimated as `-search.maxMemoryPerQuery` multiplied by `-search.maxConcurrentRequests`.
-- `-search.maxUniqueTimeseries` limits the number of unique time series a single query can find and process. VictoriaMetrics keeps in memory some metainformation about the time series located by each query and spends some CPU time for processing the found time series. This means that the maximum memory usage and CPU usage a single query can use is proportional to `-search.maxUniqueTimeseries`.
-- `-search.maxQueryDuration` limits the duration of a single query. If the query takes longer than the given duration, then it is canceled. This allows saving CPU and RAM when executing unexpected heavy queries.
-- `-search.maxConcurrentRequests` limits the number of concurrent requests VictoriaMetrics can process. Bigger number of concurrent requests usually means bigger memory usage. For example, if a single query needs 100 MiB of additional memory during its execution, then 100 concurrent queries may need `100 * 100 MiB = 10 GiB` of additional memory. So it is better to limit the number of concurrent queries, while suspending additional incoming queries if the concurrency limit is reached. VictoriaMetrics provides `-search.maxQueueDuration` command-line flag for limiting the max wait time for suspended queries. See also `-search.maxMemoryPerQuery` command-line flag.
-- `-search.maxSamplesPerSeries` limits the number of raw samples the query can process per each time series. VictoriaMetrics sequentially processes raw samples per each found time series during the query. It unpacks raw samples on the selected time range per each time series into memory and then applies the given [rollup function](https://docs.victoriametrics.com/MetricsQL.html#rollup-functions). The `-search.maxSamplesPerSeries` command-line flag allows limiting memory usage in the case when the query is executed on a time range, which contains hundreds of millions of raw samples per each located time series.
+- `-memory.allowedPercent` and `-memory.allowedBytes` limit the amounts of memory, which may be used for various internal caches at VictoriaMetrics.
+  Note that VictoriaMetrics may use more memory, since these flags don't limit additional memory, which may be needed on a per-query basis.
+- `-search.maxMemoryPerQuery` limits the amounts of memory, which can be used for processing a single query. Queries, which need more memory, are rejected.
+  Heavy queries, which select big number of time series, may exceed the per-query memory limit by a small percent. The total memory limit
+  for concurrently executed queries can be estimated as `-search.maxMemoryPerQuery` multiplied by `-search.maxConcurrentRequests`.
+- `-search.maxUniqueTimeseries` limits the number of unique time series a single query can find and process. VictoriaMetrics keeps in memory
+  some metainformation about the time series located by each query and spends some CPU time for processing the found time series.
+  This means that the maximum memory usage and CPU usage a single query can use is proportional to `-search.maxUniqueTimeseries`.
+- `-search.maxQueryDuration` limits the duration of a single query. If the query takes longer than the given duration, then it is canceled.
+  This allows saving CPU and RAM when executing unexpected heavy queries.
+- `-search.maxConcurrentRequests` limits the number of concurrent requests VictoriaMetrics can process. Bigger number of concurrent requests usually means
+  bigger memory usage. For example, if a single query needs 100 MiB of additional memory during its execution, then 100 concurrent queries may need `100 * 100 MiB = 10 GiB`
+  of additional memory. So it is better to limit the number of concurrent queries, while suspending additional incoming queries if the concurrency limit is reached.
+  VictoriaMetrics provides `-search.maxQueueDuration` command-line flag for limiting the max wait time for suspended queries. See also `-search.maxMemoryPerQuery` command-line flag.
+- `-search.maxSamplesPerSeries` limits the number of raw samples the query can process per each time series. VictoriaMetrics sequentially processes
+  raw samples per each found time series during the query. It unpacks raw samples on the selected time range per each time series into memory
+  and then applies the given [rollup function](https://docs.victoriametrics.com/MetricsQL.html#rollup-functions). The `-search.maxSamplesPerSeries` command-line flag
+  allows limiting memory usage in the case when the query is executed on a time range, which contains hundreds of millions of raw samples per each located time series.
 - `-search.maxSamplesPerQuery` limits the number of raw samples a single query can process. This allows limiting CPU usage for heavy queries.
 - `-search.maxResponseSeries` limits the number of time series a single query can return from [`/api/v1/query`](https://docs.victoriametrics.com/keyConcepts.html#instant-query)
   and [`/api/v1/query_range`](https://docs.victoriametrics.com/keyConcepts.html#range-query).
-- `-search.maxPointsPerTimeseries` limits the number of calculated points, which can be returned per each matching time series from [range query](https://docs.victoriametrics.com/keyConcepts.html#range-query).
-- `-search.maxPointsSubqueryPerTimeseries` limits the number of calculated points, which can be generated per each matching time series during [subquery](https://docs.victoriametrics.com/MetricsQL.html#subqueries) evaluation.
-- `-search.maxSeriesPerAggrFunc` limits the number of time series, which can be generated by [MetricsQL aggregate functions](https://docs.victoriametrics.com/MetricsQL.html#aggregate-functions) in a single query.
-- `-search.maxSeries` limits the number of time series, which may be returned from [/api/v1/series](https://prometheus.io/docs/prometheus/latest/querying/api/#finding-series-by-label-matchers). This endpoint is used mostly by Grafana for auto-completion of metric names, label names and label values. Queries to this endpoint may take big amounts of CPU time and memory when the database contains big number of unique time series because of [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate). In this case it might be useful to set the `-search.maxSeries` to quite low value in order limit CPU and memory usage.
-- `-search.maxTagKeys` limits the number of items, which may be returned from [/api/v1/labels](https://prometheus.io/docs/prometheus/latest/querying/api/#getting-label-names). This endpoint is used mostly by Grafana for auto-completion of label names. Queries to this endpoint may take big amounts of CPU time and memory when the database contains big number of unique time series because of [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate). In this case it might be useful to set the `-search.maxTagKeys` to quite low value in order to limit CPU and memory usage.
-- `-search.maxTagValues` limits the number of items, which may be returned from [/api/v1/label/.../values](https://prometheus.io/docs/prometheus/latest/querying/api/#querying-label-values). This endpoint is used mostly by Grafana for auto-completion of label values. Queries to this endpoint may take big amounts of CPU time and memory when the database contains big number of unique time series because of [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate). In this case it might be useful to set the `-search.maxTagValues` to quite low value in order to limit CPU and memory usage.
+- `-search.maxPointsPerTimeseries` limits the number of calculated points, which can be returned per each matching time series
+  from [range query](https://docs.victoriametrics.com/keyConcepts.html#range-query).
+- `-search.maxPointsSubqueryPerTimeseries` limits the number of calculated points, which can be generated per each matching time series
+  during [subquery](https://docs.victoriametrics.com/MetricsQL.html#subqueries) evaluation.
+- `-search.maxSeriesPerAggrFunc` limits the number of time series, which can be generated by [MetricsQL aggregate functions](https://docs.victoriametrics.com/MetricsQL.html#aggregate-functions)
+  in a single query.
+- `-search.maxSeries` limits the number of time series, which may be returned from [/api/v1/series](https://prometheus.io/docs/prometheus/latest/querying/api/#finding-series-by-label-matchers).
+  This endpoint is used mostly by Grafana for auto-completion of metric names, label names and label values. Queries to this endpoint may take big amounts
+  of CPU time and memory when the database contains big number of unique time series because of [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate).
+  In this case it might be useful to set the `-search.maxSeries` to quite low value in order limit CPU and memory usage.
+  See also `-search.maxLabelsAPIDuration` and `-search.maxLabelsAPISeries`.
+- `-search.maxTagKeys` limits the number of items, which may be returned from [/api/v1/labels](https://prometheus.io/docs/prometheus/latest/querying/api/#getting-label-names).
+  This endpoint is used mostly by Grafana for auto-completion of label names. Queries to this endpoint may take big amounts of CPU time and memory
+  when the database contains big number of unique time series because of [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate).
+  In this case it might be useful to set the `-search.maxTagKeys` to quite low value in order to limit CPU and memory usage.
+  See also `-search.maxLabelsAPIDuration` and `-search.maxLabelsAPISeries`.
+- `-search.maxTagValues` limits the number of items, which may be returned from [/api/v1/label/.../values](https://prometheus.io/docs/prometheus/latest/querying/api/#querying-label-values).
+  This endpoint is used mostly by Grafana for auto-completion of label values. Queries to this endpoint may take big amounts of CPU time and memory
+  when the database contains big number of unique time series because of [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate).
+  In this case it might be useful to set the `-search.maxTagValues` to quite low value in order to limit CPU and memory usage.
+  See also `-search.maxLabelsAPIDuration` and `-search.maxLabelsAPISeries`.
+- `-search.maxLabelsAPISeries` limits the number of time series, which can be scanned when performing [/api/v1/labels](https://prometheus.io/docs/prometheus/latest/querying/api/#getting-label-names),
+  [/api/v1/label/.../values](https://prometheus.io/docs/prometheus/latest/querying/api/#querying-label-values)
+  or [/api/v1/series](https://prometheus.io/docs/prometheus/latest/querying/api/#finding-series-by-label-matchers) requests.
+  These endpoints are used mostly by Grafana for auto-completion of label names and label values. Queries to these endpoints may take big amounts of CPU time and memory
+  when the database contains big number of unique time series because of [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate).
+  In this case it might be useful to set the `-search.maxLabelsAPISeries` to quite low value in order to limit CPU and memory usage.
+  See also `-search.maxLabelsAPIDuration` and `-search.ignoreExtraFiltersAtLabelsAPI`.
+- `-search.maxLabelsAPIDuration` limits the duration for reuqests to [/api/v1/labels](https://prometheus.io/docs/prometheus/latest/querying/api/#getting-label-names),
+  [/api/v1/label/.../values](https://prometheus.io/docs/prometheus/latest/querying/api/#querying-label-values)
+  or [/api/v1/series](https://prometheus.io/docs/prometheus/latest/querying/api/#finding-series-by-label-matchers).
+  These endpoints are used mostly by Grafana for auto-completion of label names and label values. Queries to these endpoints may take big amounts of CPU time and memory
+  when the database contains big number of unique time series because of [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate).
+  In this case it might be useful to set the `-search.maxLabelsAPIDuration` to quite low value in order to limit CPU and memory usage.
+  See also `-search.maxLabelsAPISeries` and `-search.ignoreExtraFiltersAtLabelsAPI`.
+- `-search.ignoreExtraFiltersAtLabelsAPI` enables ignoring of [`extra_label` and `extra_filters`](https://docs.victoriametrics.com/#prometheus-querying-api-enhancements)
+  query args at [/api/v1/labels](https://prometheus.io/docs/prometheus/latest/querying/api/#getting-label-names),
+  [/api/v1/label/.../values](https://prometheus.io/docs/prometheus/latest/querying/api/#querying-label-values)
+  and [/api/v1/series](https://prometheus.io/docs/prometheus/latest/querying/api/#finding-series-by-label-matchers).
+  This may be useful for reducing the load on VictoriaMetrics if the provided extra filters match too many time series.
+  The downside is that the endpoints can return labels and series, which do not match the provided extra filters.
 - `-search.maxTagValueSuffixesPerSearch` limits the number of entries, which may be returned from `/metrics/find` endpoint. See [Graphite Metrics API usage docs](#graphite-metrics-api-usage).
 
 See also [resource usage limits at VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#resource-usage-limits),
@@ -2271,7 +2329,10 @@ and [cardinality explorer docs](#cardinality-explorer).
 
 * VictoriaMetrics ignores `NaN` values during data ingestion.
 
-See also [troubleshooting docs](https://docs.victoriametrics.com/Troubleshooting.html).
+See also:
+
+- [Snapshot troubleshooting](#snapshot-troubleshooting).
+- [General troubleshooting docs](https://docs.victoriametrics.com/Troubleshooting.html).
 
 ## Push metrics
 
@@ -2640,7 +2701,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -graphiteTrimTimestamp duration
      Trim timestamps for Graphite data to this duration. Minimum practical duration is 1s. Higher duration (i.e. 1m) may be used for reducing disk space usage for timestamp data (default 1s)
   -http.connTimeout duration
-     Incoming http connections are closed after the configured timeout. This may help to spread the incoming load among a cluster of services behind a load balancer. Please note that the real timeout may be bigger by up to 10% as a protection against the thundering herd problem
+     Incoming connections to -httpListenAddr are closed after the configured timeout. This may help evenly spreading load among a cluster of services behind TCP-level load balancer. Zero value disables closing of incoming connections (default 2m0s)
   -http.disableResponseCompression
      Disable compression of HTTP responses to save CPU resources. By default, compression is enabled to save network bandwidth
   -http.header.csp default-src 'self'
@@ -2919,6 +2980,8 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      The maximum number of points per series Graphite render API can return (default 1000000)
   -search.graphiteStorageStep duration
      The interval between datapoints stored in the database. It is used at Graphite Render API handler for normalizing the interval between datapoints in case it isn't normalized. It can be overridden by sending 'storage_step' query arg to /render API or by sending the desired interval via 'Storage-Step' http header during querying /render API (default 10s)
+  -search.ignoreExtraFiltersAtLabelsAPI
+     Whether to ignore extra_filters and extra_label query args at /api/v1/labels, /api/v1/label/.../values and /api/v1/series . This may be useful for decreasing load on VictoriaMetrics when extra filters match too many time series. The downside is that suprflouos labels or series could be returned, which do not match the extra filters. See also -search.maxLabelsAPISeries and -search.maxLabelsAPIDuration
   -search.latencyOffset duration
      The time when data points become visible in query results after the collection. It can be overridden on per-query basis via latency_offset arg. Too small value can result in incomplete last points for query results (default 30s)
   -search.logQueryMemoryUsage size
@@ -2940,6 +3003,10 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      The maximum number of tag keys returned from Graphite API, which returns tags. See https://docs.victoriametrics.com/#graphite-tags-api-usage (default 100000)
   -search.maxGraphiteTagValues int
      The maximum number of tag values returned from Graphite API, which returns tag values. See https://docs.victoriametrics.com/#graphite-tags-api-usage (default 100000)
+  -search.maxLabelsAPIDuration duration
+     The maximum duration for /api/v1/labels, /api/v1/label/.../values and /api/v1/series requests. See also -search.maxLabelsAPISeries (default 5s)
+  -search.maxLabelsAPISeries int
+     The maximum number of time series, which could be scanned when searching for the the matching time series at /api/v1/labels and /api/v1/label/.../values. This option allows limiting memory usage and CPU usage. See also -search.maxLabelsAPIDuration, -search.maxTagKeys and -search.maxTagValues (default 1000000)
   -search.maxLookback duration
      Synonym to -search.lookback-delta from Prometheus. The value is dynamically detected from interval between time series datapoints if not set. It can be overridden on per-query basis via max_lookback arg. See also '-search.maxStalenessInterval' flag, which has the same meaning due to historical reasons
   -search.maxMemoryPerQuery size

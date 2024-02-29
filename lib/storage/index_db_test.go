@@ -519,7 +519,7 @@ func TestIndexDBOpenClose(t *testing.T) {
 	var s Storage
 	tableName := nextIndexDBTableName()
 	for i := 0; i < 5; i++ {
-		var isReadOnly uint32
+		var isReadOnly atomic.Bool
 		db := mustOpenIndexDB(tableName, &s, &isReadOnly)
 		db.MustClose()
 	}
@@ -1480,7 +1480,7 @@ func TestIndexDBRepopulateAfterRotation(t *testing.T) {
 	}
 
 	// check new series were registered in indexDB
-	added := atomic.LoadUint64(&db.s.newTimeseriesCreated)
+	added := db.s.newTimeseriesCreated.Load()
 	if added != metricRowsN {
 		t.Fatalf("expected indexDB to contain %d rows; got %d", metricRowsN, added)
 	}

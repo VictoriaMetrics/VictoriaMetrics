@@ -13,6 +13,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fslocal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/metrics"
 )
 
 // Restore restores data according to the provided settings.
@@ -153,7 +154,7 @@ func (r *Restore) Run() error {
 			perPath[p.Path] = parts
 		}
 		logger.Infof("downloading %d parts from %s to %s", len(partsToCopy), src, dst)
-		bytesDownloaded := uint64(0)
+		var bytesDownloaded atomic.Uint64
 		err = runParallelPerPath(concurrency, perPath, func(parts []common.Part) error {
 			// Sort partsToCopy in order to properly grow file size during downloading
 			// and to properly resume downloading of incomplete files on the next Restore.Run call.
@@ -177,7 +178,7 @@ func (r *Restore) Run() error {
 			}
 			return nil
 		}, func(elapsed time.Duration) {
-			n := atomic.LoadUint64(&bytesDownloaded)
+			n := bytesDownloaded.Load()
 			prc := 100 * float64(n) / float64(downloadSize)
 			logger.Infof("downloaded %d out of %d bytes (%.2f%%) from %s to %s in %s", n, downloadSize, prc, src, dst, elapsed)
 		})
@@ -194,14 +195,17 @@ func (r *Restore) Run() error {
 
 type statWriter struct {
 	w            io.Writer
-	bytesWritten *uint64
+	bytesWritten *atomic.Uint64
 }
 
 func (sw *statWriter) Write(p []byte) (int, error) {
 	n, err := sw.w.Write(p)
-	atomic.AddUint64(sw.bytesWritten, uint64(n))
+	sw.bytesWritten.Add(uint64(n))
+	bytesDownloadedTotal.Add(n)
 	return n, err
 }
+
+var bytesDownloadedTotal = metrics.NewCounter(`vm_backups_downloaded_bytes_total`)
 
 func createRestoreLock(dstDir string) error {
 	lockF := path.Join(dstDir, backupnames.RestoreInProgressFilename)

@@ -172,14 +172,11 @@ func (c *Cache) cleanPerKeyMisses() {
 }
 
 type cache struct {
-	// Atomically updated fields must go first in the struct, so they are properly
-	// aligned to 8 bytes on 32-bit architectures.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/212
-	requests uint64
-	misses   uint64
+	requests atomic.Uint64
+	misses   atomic.Uint64
 
 	// sizeBytes contains an approximate size for all the blocks stored in the cache.
-	sizeBytes int64
+	sizeBytes atomic.Int64
 
 	// getMaxSizeBytes() is a callback, which returns the maximum allowed cache size in bytes.
 	getMaxSizeBytes func() int
@@ -256,7 +253,7 @@ func (c *cache) RemoveBlocksForPart(p interface{}) {
 }
 
 func (c *cache) updateSizeBytes(n int) {
-	atomic.AddInt64(&c.sizeBytes, int64(n))
+	c.sizeBytes.Add(int64(n))
 }
 
 func (c *cache) cleanPerKeyMisses() {
@@ -281,7 +278,7 @@ func (c *cache) cleanByTimeout() {
 }
 
 func (c *cache) GetBlock(k Key) Block {
-	atomic.AddUint64(&c.requests, 1)
+	c.requests.Add(1)
 	var e *cacheEntry
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -301,7 +298,7 @@ func (c *cache) GetBlock(k Key) Block {
 	}
 	// Slow path - the entry is missing in the cache.
 	c.perKeyMisses[k]++
-	atomic.AddUint64(&c.misses, 1)
+	c.misses.Add(1)
 	return nil
 }
 
@@ -367,7 +364,7 @@ func (c *cache) Len() int {
 }
 
 func (c *cache) SizeBytes() int {
-	return int(atomic.LoadInt64(&c.sizeBytes))
+	return int(c.sizeBytes.Load())
 }
 
 func (c *cache) SizeMaxBytes() int {
@@ -375,11 +372,11 @@ func (c *cache) SizeMaxBytes() int {
 }
 
 func (c *cache) Requests() uint64 {
-	return atomic.LoadUint64(&c.requests)
+	return c.requests.Load()
 }
 
 func (c *cache) Misses() uint64 {
-	return atomic.LoadUint64(&c.misses)
+	return c.misses.Load()
 }
 
 // lastAccessHeap implements heap.Interface
