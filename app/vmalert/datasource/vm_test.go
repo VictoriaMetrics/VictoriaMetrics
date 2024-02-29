@@ -637,7 +637,7 @@ func TestRequestParams(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			req, err := tc.vm.newRequest()
+			req, err := tc.vm.newRequest(ctx)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -735,7 +735,7 @@ func TestHeaders(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			vm := tt.vmFn()
-			req, err := vm.newQueryRequest("foo", time.Now())
+			req, err := vm.newQueryRequest(ctx, "foo", time.Now())
 			if err != nil {
 				t.Fatal(err)
 			}
