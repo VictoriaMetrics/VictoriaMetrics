@@ -24,14 +24,9 @@ func finalizeExpressCredentials(o *Options, c *Client) {
 }
 
 // Operation config finalizer: update the sigv4 credentials on the default
-// express provider if it changed to ensure different cache keys
+// express provider in case it changed to ensure different cache keys
 func finalizeOperationExpressCredentials(o *Options, c Client) {
-	p, ok := o.ExpressCredentials.(*defaultS3ExpressCredentialsProvider)
-	if !ok {
-		return
-	}
-
-	if c.options.Credentials != o.Credentials {
+	if p, ok := o.ExpressCredentials.(*defaultS3ExpressCredentialsProvider); ok {
 		o.ExpressCredentials = p.CloneWithBaseCredentials(o.Credentials)
 	}
 }
