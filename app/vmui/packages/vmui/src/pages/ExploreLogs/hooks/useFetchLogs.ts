@@ -5,11 +5,8 @@ import { Logs } from "../../../api/types";
 import { useTimeState } from "../../../state/time/TimeStateContext";
 import dayjs from "dayjs";
 
-const MAX_LINES = 1000;
-
-export const useFetchLogs = (server: string, query: string) => {
+export const useFetchLogs = (server: string, query: string, limit: number) => {
   const { period } = useTimeState();
-
   const [logs, setLogs] = useState<Logs[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<ErrorTypes | string>();
@@ -22,7 +19,7 @@ export const useFetchLogs = (server: string, query: string) => {
       const start = dayjs(period.start * 1000).tz().toISOString();
       const end = dayjs(period.end * 1000).tz().toISOString();
       const timerange = `_time:[${start}, ${end}]`;
-      return `${timerange} AND (${query})`;
+      return `${timerange} AND ${query}`;
     }
     return query;
   }, [query, period]);
@@ -30,13 +27,24 @@ export const useFetchLogs = (server: string, query: string) => {
   const options = useMemo(() => ({
     method: "POST",
     headers: {
-      "Accept": "application/stream+json; charset=utf-8",
-      "Content-Type": "application/x-www-form-urlencoded",
+      "Accept": "application/stream+json",
     },
-    body: `query=${encodeURIComponent(queryWithTime.trim())}`
-  }), [queryWithTime]);
+    body: new URLSearchParams({
+      query: queryWithTime.trim(),
+      limit: `${limit}`
+    })
+  }), [queryWithTime, limit]);
+
+  const parseLineToJSON = (line: string): Logs | null => {
+    try {
+      return JSON.parse(line);
+    } catch (e) {
+      return null;
+    }
+  };
 
   const fetchLogs = useCallback(async () => {
+    const limit = Number(options.body.get("limit")) + 1;
     setIsLoading(true);
     setError(undefined);
     try {
@@ -65,29 +73,21 @@ export const useFetchLogs = (server: string, query: string) => {
         const lines = decoder.decode(value, { stream: true }).split("\n");
         result.push(...lines);
 
-        // Trim result to MAX_LINES
-        if (result.length > MAX_LINES) {
-          result.splice(0, result.length - MAX_LINES);
+        // Trim result to limit
+        // This will lose its meaning with these changes:
+        // https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5778
+        if (result.length > limit) {
+          result.splice(0, result.length - limit);
         }
 
-        if (result.length >= MAX_LINES) {
+        if (result.length >= limit) {
           // Reached the maximum line limit
           reader.cancel();
           break;
         }
       }
-      const data = result
-        .map((line) => {
-          try {
-            return JSON.parse(line);
-          } catch (e) {
-            return "";
-          }
-        })
-        .filter(line => line);
-
+      const data = result.map(parseLineToJSON).filter(line => line) as Logs[];
       setLogs(data);
-
     } catch (e) {
       console.error(e);
       setLogs([]);
