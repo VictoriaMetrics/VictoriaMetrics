@@ -22,9 +22,9 @@ aliases:
   -  [VictoriaMetrics Single-Node](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html) (v.1.98.0)
   -  [vmalert](https://docs.victoriametrics.com/vmalert.html) (v.1.98.0)
   -  [vmagent](https://docs.victoriametrics.com/vmagent.html) (v.1.98.0)
-- [Grafana](https://grafana.com/)(v.10.2.1) 
+- [Grafana](https://grafana.com/) (v.10.2.1)
 - [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/)
-- [Node exporter](https://github.com/prometheus/node_exporter#node-exporter)(v1.7.0) and [Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/)(v0.25.0)
+- [Node exporter](https://github.com/prometheus/node_exporter#node-exporter) (v1.7.0) and [Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/) (v0.27.0)
 
 <img src="guide-vmanomaly-vmalert_overview.webp" alt="vmanomaly typical setup diagramm">
 
