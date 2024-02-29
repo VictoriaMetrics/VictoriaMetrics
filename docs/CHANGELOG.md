@@ -11,6 +11,7 @@ The following `tip` changes can be tested by building VictoriaMetrics components
 
 ## v1.93.x long-time support release (LTS)
 
+* BUGFIX: downgrade Go builder from `1.22.0` to `1.21.7`, since `1.22.0` contains [the bug](https://github.com/golang/go/issues/65705), which can lead to deadlocked HTTP connections to remote storage systems, scrape targets and service discovery endpoints at [vmagent](https://docs.victoriametrics.com/vmagent/). This may result in incorrect service discovery, target scraping and failed sending samples to remote storage.
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): fix possible deadlock when [sharding among remote storages](https://docs.victoriametrics.com/vmagent/#sharding-among-remote-storages) is enabled with `-remoteWrite.shardByURL` command-line flag. Thanks to @penguinlav for [the fix](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5834) for [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5833).
 * BUGFIX: fix the misleading error `0ms is out of allowed range [0 ...` when passing `step=0` to [/api/v1/query](https://docs.victoriametrics.com/keyconcepts/#instant-query)
   or [/api/v1/query_range](https://docs.victoriametrics.com/keyconcepts/#range-query). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5795).
