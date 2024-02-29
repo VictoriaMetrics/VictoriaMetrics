@@ -54,7 +54,7 @@ See also [LTS releases](https://docs.victoriametrics.com/LTS-releases.html).
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/#vmalert): consistently sort groups by name and filename on `/groups` page in UI. This should prevent non-deterministic sorting for groups with identical names.
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix Popper display issues. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5842).
 * BUGFIX: [vmselect](https://docs.victoriametrics.com/): format time with milliseconds precision when `__timestamp__:rfc3339` is specified for [/api/v1/export/csv](https://docs.victoriametrics.com/#how-to-export-csv-data) API response. See this [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5837) for details.
-
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): properly construct the destination label in [label_join](https://docs.victoriametrics.com/metricsql/#label_join) if it is used as source label. See this [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5881) for details.
 
 ## [v1.98.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.98.0)
 
