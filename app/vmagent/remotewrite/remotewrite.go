@@ -79,6 +79,8 @@ var (
 		"Excess series are logged and dropped. This can be useful for limiting series cardinality. See https://docs.victoriametrics.com/vmagent.html#cardinality-limiter")
 	maxDailySeries = flag.Int("remoteWrite.maxDailySeries", 0, "The maximum number of unique series vmagent can send to remote storage systems during the last 24 hours. "+
 		"Excess series are logged and dropped. This can be useful for limiting series churn rate. See https://docs.victoriametrics.com/vmagent.html#cardinality-limiter")
+	maxIngestionRate = flag.Int("maxIngestionRate", 0, "The maximum number of samples vmagent can receive per second. "+
+		"If the limit is exceeded, the ingestion rate will be throttled.")
 
 	streamAggrConfig = flagutil.NewArrayString("remoteWrite.streamAggr.config", "Optional path to file with stream aggregation config. "+
 		"See https://docs.victoriametrics.com/stream-aggregation.html . "+
@@ -171,6 +173,12 @@ func Init() {
 		_ = metrics.NewGauge(`vmagent_daily_series_limit_current_series`, func() float64 {
 			return float64(dailySeriesLimiter.CurrentItems())
 		})
+	}
+	if *maxIngestionRate > 0 {
+		// Start ingestion rate limiter.
+		ingestionRateLimitReached = metrics.NewCounter(`vmagent_max_ingestion_rate_limit_reached_total`)
+		ingestionRateLimiterStopCh = make(chan struct{})
+		ingestionRateLimiter = newRateLimiter(time.Second, int64(*maxIngestionRate), ingestionRateLimitReached, ingestionRateLimiterStopCh)
 	}
 	if *queues > maxQueues {
 		*queues = maxQueues
@@ -340,6 +348,7 @@ var configReloaderWG sync.WaitGroup
 //
 // It is expected that nobody calls TryPush during and after the call to this func.
 func Stop() {
+	close(ingestionRateLimiterStopCh)
 	close(configReloaderStopCh)
 	configReloaderWG.Wait()
 
@@ -462,6 +471,9 @@ func tryPush(at *auth.Token, wr *prompbmarshal.WriteRequest, dropSamplesOnFailur
 				break
 			}
 		}
+
+		ingestionRateLimiter.register(samplesCount)
+
 		tssBlock := tss
 		if i < len(tss) {
 			tssBlock = tss[:i]
@@ -606,6 +618,10 @@ func limitSeriesCardinality(tss []prompbmarshal.TimeSeries) []prompbmarshal.Time
 }
 
 var (
+	ingestionRateLimiter       *rateLimiter
+	ingestionRateLimiterStopCh chan struct{}
+	ingestionRateLimitReached  *metrics.Counter
+
 	hourlySeriesLimiter *bloomfilter.Limiter
 	dailySeriesLimiter  *bloomfilter.Limiter
 
