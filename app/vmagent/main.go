@@ -311,7 +311,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		influxQueryRequests.Inc()
 		influxutils.WriteDatabaseNames(w)
 		return true
-	case "/opentelemetry/api/v1/push":
+	case "/opentelemetry/api/v1/push", "/opentelemetry/v1/metrics":
 		opentelemetryPushRequests.Inc()
 		if err := opentelemetry.InsertHandler(nil, r); err != nil {
 			opentelemetryPushErrors.Inc()
