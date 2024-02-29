@@ -17,6 +17,7 @@ The following `tip` changes can be tested by building VictoriaMetrics components
   or [/api/v1/query_range](https://docs.victoriametrics.com/keyconcepts/#range-query). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5795).
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): fixed floating-point error when parsing time in RFC3339 format. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5801) for details.
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/#vmalert): consistently sort groups by name and filename on `/groups` page in UI. This should prevent non-deterministic sorting for groups with identical names.
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): properly construct the destination label in [label_join](https://docs.victoriametrics.com/metricsql/#label_join) if it is used as source label. See this [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5881) for details.
 
 ## [v1.93.12](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.12)
 
