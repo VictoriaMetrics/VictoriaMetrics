@@ -9,7 +9,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/firehose"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/firehose"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/stream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
 	"github.com/VictoriaMetrics/metrics"
@@ -28,7 +28,7 @@ func InsertHandler(at *auth.Token, req *http.Request) error {
 		return err
 	}
 	isGzipped := req.Header.Get("Content-Encoding") == "gzip"
-	var processBody func(*[]byte) error
+	var processBody func([]byte) ([]byte, error)
 	if req.Header.Get("Content-Type") == "application/json" {
 		if req.Header.Get("X-Amz-Firehouse-Protocol-Version") != "" {
 			processBody = firehose.ProcessRequestBody
