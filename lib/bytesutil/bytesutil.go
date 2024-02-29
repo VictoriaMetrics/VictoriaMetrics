@@ -2,7 +2,6 @@ package bytesutil
 
 import (
 	"math/bits"
-	"reflect"
 	"unsafe"
 )
 
@@ -72,10 +71,5 @@ func ToUnsafeString(b []byte) string {
 //
 // The returned byte slice is valid only until s is reachable and unmodified.
 func ToUnsafeBytes(s string) (b []byte) {
-	sh := (*reflect.StringHeader)(unsafe.Pointer(&s))
-	slh := (*reflect.SliceHeader)(unsafe.Pointer(&b))
-	slh.Data = sh.Data
-	slh.Len = sh.Len
-	slh.Cap = sh.Len
-	return b
+	return unsafe.Slice(unsafe.StringData(s), len(s))
 }
