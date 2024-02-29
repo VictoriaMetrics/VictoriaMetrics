@@ -53,7 +53,7 @@ It contains Statistic and Billing sections.
 
 ## Use cases
 
-### Data distribution between
+### Data distribution between tenants
 
 Understand the impact of every tenant on VictoriaMetrics. You can visualize the current distribution of tenants and find the outliers. This statistic also helps define tenants that harm the database in emergencies at the exact time.
 
