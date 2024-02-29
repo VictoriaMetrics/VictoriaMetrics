@@ -21,7 +21,7 @@ import (
 // ParseStream parses OpenTelemetry protobuf or json data from r and calls callback for the parsed rows.
 //
 // callback shouldn't hold tss items after returning.
-func ParseStream(r io.Reader, isGzipped bool, callback func(tss []prompbmarshal.TimeSeries) error) error {
+func ParseStream(r io.Reader, isGzipped bool, processBody func(*[]byte) error, callback func(tss []prompbmarshal.TimeSeries) error) error {
 	wcr := writeconcurrencylimiter.GetReader(r)
 	defer writeconcurrencylimiter.PutReader(wcr)
 	r = wcr
@@ -37,7 +37,7 @@ func ParseStream(r io.Reader, isGzipped bool, callback func(tss []prompbmarshal.
 
 	wr := getWriteContext()
 	defer putWriteContext(wr)
-	req, err := wr.readAndUnpackRequest(r)
+	req, err := wr.readAndUnpackRequest(r, processBody)
 	if err != nil {
 		return fmt.Errorf("cannot unpack OpenTelemetry metrics: %w", err)
 	}
@@ -257,11 +257,16 @@ func resetLabels(labels []prompbmarshal.Label) []prompbmarshal.Label {
 	return labels[:0]
 }
 
-func (wr *writeContext) readAndUnpackRequest(r io.Reader) (*pb.ExportMetricsServiceRequest, error) {
+func (wr *writeContext) readAndUnpackRequest(r io.Reader, processBody func(*[]byte) error) (*pb.ExportMetricsServiceRequest, error) {
 	if _, err := wr.bb.ReadFrom(r); err != nil {
 		return nil, fmt.Errorf("cannot read request: %w", err)
 	}
 	var req pb.ExportMetricsServiceRequest
+	if processBody != nil {
+		if err := processBody(&wr.bb.B); err != nil {
+			return nil, fmt.Errorf("cannot process request body: %w", err)
+		}
+	}
 	if err := req.UnmarshalProtobuf(wr.bb.B); err != nil {
 		return nil, fmt.Errorf("cannot unmarshal request from %d bytes: %w", len(wr.bb.B), err)
 	}

@@ -9,6 +9,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/firehose"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/stream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
@@ -28,10 +29,15 @@ func InsertHandler(at *auth.Token, req *http.Request) error {
 		return err
 	}
 	isGzipped := req.Header.Get("Content-Encoding") == "gzip"
+	var processBody func(*[]byte) error
 	if req.Header.Get("Content-Type") == "application/json" {
-		return fmt.Errorf("json encoding isn't supported for opentelemetry format. Use protobuf encoding")
+		if req.Header.Get("X-Amz-Firehose-Protocol-Version") != "" {
+			processBody = firehose.ProcessRequestBody
+		} else {
+			return fmt.Errorf("json encoding isn't supported for opentelemetry format. Use protobuf encoding")
+		}
 	}
-	return stream.ParseStream(req.Body, isGzipped, func(tss []prompbmarshal.TimeSeries) error {
+	return stream.ParseStream(req.Body, isGzipped, processBody, func(tss []prompbmarshal.TimeSeries) error {
 		return insertRows(at, tss, extraLabels)
 	})
 }
