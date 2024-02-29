@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.12.2](https://github.com/googleapis/gax-go/compare/v2.12.1...v2.12.2) (2024-02-23)
+
+
+### Bug Fixes
+
+* **v2/callctx:** fix SetHeader race by cloning header map ([#326](https://github.com/googleapis/gax-go/issues/326)) ([534311f](https://github.com/googleapis/gax-go/commit/534311f0f163d101f30657736c0e6f860e9c39dc))
+
 ## [2.12.1](https://github.com/googleapis/gax-go/compare/v2.12.0...v2.12.1) (2024-02-13)
 
 
