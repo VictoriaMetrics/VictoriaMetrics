@@ -23,9 +23,6 @@ type labelsEncoder struct {
 	// n is used as hash for prompbmarshal.Label entries.
 	// It gets incremented for each unique prompbmarshal.Label.
 	n atomic.Uint32
-	// size represents amount of records in hashToLabel map
-	// It gets incremented for each new registered prompbmarshal.Label entry.
-	size atomic.Uint32
 
 	// map[prompbmarshal.Label]string
 	labelToHash sync.Map
@@ -37,7 +34,7 @@ func newLabelsEncoder(ms *metrics.Set, aggregator string) *labelsEncoder {
 	le := &labelsEncoder{}
 
 	ms.GetOrCreateGauge(fmt.Sprintf(`vmagent_streamaggr_labels_encoder_size{aggregator=%q}`, aggregator), func() float64 {
-		return float64(le.size.Load())
+		return float64(le.n.Load())
 	})
 
 	return le
@@ -66,22 +63,16 @@ func getInputOutputKeys(encodedLabels string) (inputKey, outputKey string) {
 }
 
 func (le *labelsEncoder) encodeLabels(dst []byte, labels []prompbmarshal.Label) []byte {
-	for _, ls := range labels {
-		k, ok := le.labelToHash.Load(ls)
+	for i := range labels {
+		k, ok := le.labelToHash.Load(labels[i])
 		if !ok {
 			k = le.n.Add(1)
-			ls = prompbmarshal.Label{
-				Name:  strings.Clone(ls.Name),
-				Value: strings.Clone(ls.Value),
+			newLabel := prompbmarshal.Label{
+				Name:  strings.Clone(labels[i].Name),
+				Value: strings.Clone(labels[i].Value),
 			}
-			key, loaded := le.labelToHash.LoadOrStore(ls, k)
-			if loaded {
-				// key could have been already created by concurrent goroutine - use it instead
-				k = key
-			} else {
-				le.hashToLabel.Store(k, &ls)
-				le.size.Add(1)
-			}
+			le.hashToLabel.Store(k, &newLabel)
+			le.labelToHash.Store(newLabel, k)
 		}
 		dst = binary.LittleEndian.AppendUint32(dst, k.(uint32))
 	}

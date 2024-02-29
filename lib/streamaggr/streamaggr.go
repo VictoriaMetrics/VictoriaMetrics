@@ -608,7 +608,7 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 	}
 
 	// Deduplication is enabled.
-	// push samples to dedupAggr, so later they will be pushed to the configured aggregators.
+	// push samples to deduplicator, so later they will be pushed to the configured aggregators.
 	a.dedup.push(ctx.etss)
 }
 
