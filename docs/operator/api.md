@@ -138,6 +138,7 @@ This Document documents the types introduced by the VictoriaMetrics to be consum
 * [VMAuth](#vmauth)
 * [VMAuthList](#vmauthlist)
 * [VMAuthSpec](#vmauthspec)
+* [VMAuthStatus](#vmauthstatus)
 * [VMAuthUnauthorizedPath](#vmauthunauthorizedpath)
 * [TargetEndpoint](#targetendpoint)
 * [VMStaticScrape](#vmstaticscrape)
@@ -159,7 +160,7 @@ VMAlertmanager represents Victoria-Metrics deployment for Alertmanager.
 | ----- | ----------- | ------ | -------- |
 | metadata |  | [metav1.ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#objectmeta-v1-meta) | false |
 | spec | Specification of the desired behavior of the VMAlertmanager cluster. More info: https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#spec-and-status | [VMAlertmanagerSpec](#vmalertmanagerspec) | true |
-| status | Most recent observed status of the VMAlertmanager cluster. Operator API itself. More info: https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#spec-and-status | *[VMAlertmanagerStatus](#vmalertmanagerstatus) | false |
+| status | Most recent observed status of the VMAlertmanager cluster. Operator API itself. More info: https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#spec-and-status | [VMAlertmanagerStatus](#vmalertmanagerstatus) | false |
 
 [Back to TOC](#table-of-contents)
 
@@ -243,15 +244,12 @@ VMAlertmanagerSpec is a specification of the desired behavior of the VMAlertmana
 
 ## VMAlertmanagerStatus
 
-VMAlertmanagerStatus is the most recent observed status of the VMAlertmanager cluster Operator API itself. More info: https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#spec-and-status
+VMAlertmanagerStatus is the most recent observed status of the VMAlertmanager cluster Operator API itself. More info:
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
-| paused | Paused Represents whether any actions on the underlaying managed objects are being performed. Only delete actions will be performed. | bool | true |
-| replicas | ReplicaCount Total number of non-terminated pods targeted by this VMAlertmanager cluster (their labels match the selector). | int32 | true |
-| updatedReplicas | UpdatedReplicas Total number of non-terminated pods targeted by this VMAlertmanager cluster that have the desired version spec. | int32 | true |
-| availableReplicas | AvailableReplicas Total number of available pods (ready for at least minReadySeconds) targeted by this VMAlertmanager cluster. | int32 | true |
-| unavailableReplicas | UnavailableReplicas Total number of unavailable pods targeted by this VMAlertmanager cluster. | int32 | true |
+| updateStatus | Status defines a status of object update | UpdateStatus | false |
+| reason | Reason has non empty reason for update failure | string | false |
 
 [Back to TOC](#table-of-contents)
 
@@ -914,12 +912,14 @@ VMAgentStatus defines the observed state of VMAgent
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
-| shards | Shards represents total number of vmagent deployments with uniq scrape targets | int32 | true |
-| selector | Selector string form of label value set for autoscaling | string | true |
-| replicas | ReplicaCount Total number of pods targeted by this VMAgent | int32 | true |
-| updatedReplicas | UpdatedReplicas Total number of non-terminated pods targeted by this VMAgent cluster that have the desired version spec. | int32 | true |
-| availableReplicas | AvailableReplicas Total number of available pods (ready for at least minReadySeconds) targeted by this VMAlert cluster. | int32 | true |
-| unavailableReplicas | UnavailableReplicas Total number of unavailable pods targeted by this VMAgent cluster. | int32 | true |
+| shards | Shards represents total number of vmagent deployments with uniq scrape targets | int32 | false |
+| selector | Selector string form of label value set for autoscaling | string | false |
+| replicas | ReplicaCount Total number of pods targeted by this VMAgent | int32 | false |
+| updatedReplicas | UpdatedReplicas Total number of non-terminated pods targeted by this VMAgent cluster that have the desired version spec. | int32 | false |
+| availableReplicas | AvailableReplicas Total number of available pods (ready for at least minReadySeconds) targeted by this VMAlert cluster. | int32 | false |
+| unavailableReplicas | UnavailableReplicas Total number of unavailable pods targeted by this VMAgent cluster. | int32 | false |
+| updateStatus | UpdateStatus defines a status for update rollout, effective only for statefuleMode | UpdateStatus | false |
+| reason | Reason defines fail reason for update process, effective only for statefuleMode | string | false |
 
 [Back to TOC](#table-of-contents)
 
@@ -1282,10 +1282,12 @@ VMAlertStatus defines the observed state of VMAlert
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
-| replicas | ReplicaCount Total number of non-terminated pods targeted by this VMAlert cluster (their labels match the selector). | int32 | true |
-| updatedReplicas | UpdatedReplicas Total number of non-terminated pods targeted by this VMAlert cluster that have the desired version spec. | int32 | true |
-| availableReplicas | AvailableReplicas Total number of available pods (ready for at least minReadySeconds) targeted by this VMAlert cluster. | int32 | true |
-| unavailableReplicas | UnavailableReplicas Total number of unavailable pods targeted by this VMAlert cluster. | int32 | true |
+| replicas | ReplicaCount Total number of non-terminated pods targeted by this VMAlert cluster (their labels match the selector). | int32 | false |
+| updatedReplicas | UpdatedReplicas Total number of non-terminated pods targeted by this VMAlert cluster that have the desired version spec. | int32 | false |
+| availableReplicas | AvailableReplicas Total number of available pods (ready for at least minReadySeconds) targeted by this VMAlert cluster. | int32 | false |
+| unavailableReplicas | UnavailableReplicas Total number of unavailable pods targeted by this VMAlert cluster. | int32 | false |
+| updateStatus | UpdateStatus defines a status for update rollout, effective only for statefuleMode | UpdateStatus | false |
+| reason | Reason defines fail reason for update process, effective only for statefuleMode | string | false |
 
 [Back to TOC](#table-of-contents)
 
@@ -1379,8 +1381,8 @@ VMSingleStatus defines the observed state of VMSingle
 | updatedReplicas | UpdatedReplicas Total number of non-terminated pods targeted by this VMSingle. | int32 | true |
 | availableReplicas | AvailableReplicas Total number of available pods (ready for at least minReadySeconds) targeted by this VMSingle. | int32 | true |
 | unavailableReplicas | UnavailableReplicas Total number of unavailable pods targeted by this VMSingle. | int32 | true |
-| singleStatus |  | SingleStatus | true |
-| reason |  | string | false |
+| singleStatus | UpdateStatus defines a status of single node rollout | UpdateStatus | false |
+| reason | Reason defines a reason in case of update failure | string | false |
 
 [Back to TOC](#table-of-contents)
 
@@ -1859,7 +1861,7 @@ VMClusterStatus defines the observed state of VMCluster
 | ----- | ----------- | ------ | -------- |
 | updateFailCount | Deprecated. | int | true |
 | lastSync | Deprecated. | string | false |
-| clusterStatus |  | string | true |
+| clusterStatus |  | UpdateStatus | false |
 | reason |  | string | false |
 
 [Back to TOC](#table-of-contents)
@@ -2297,6 +2299,18 @@ VMAuthSpec defines the desired state of VMAuth
 | unauthorizedAccessConfig | UnauthorizedAccessConfig configures access for un authorized users | [][VMAuthUnauthorizedPath](#vmauthunauthorizedpath) | false |
 | useStrictSecurity | UseStrictSecurity enables strict security mode for component it restricts disk writes access uses non-root user out of the box drops not needed security permissions | *bool | false |
 | license | License allows to configure license key to be used for enterprise features. Using license key is supported starting from VictoriaMetrics v1.94.0. See: https://docs.victoriametrics.com/enterprise.html | *[License](#license) | false |
+| configSecret | ConfigSecret is the name of a Kubernetes Secret in the same namespace as the VMAuth object, which contains auth configuration for vmauth, configuration must be inside secret key: config.yaml. It must be created and managed manually. If it&#39;s defined, configuration for vmauth becomes unmanaged and operator&#39;ll not create any related secrets/config-reloaders | string | false |
+
+[Back to TOC](#table-of-contents)
+
+## VMAuthStatus
+
+VMAuthStatus defines the observed state of VMAuth
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| updateStatus | UpdateStatus defines a status for update rollout, effective only for statefuleMode | UpdateStatus | false |
+| reason | Reason defines fail reason for update process, effective only for statefuleMode | string | false |
 
 [Back to TOC](#table-of-contents)
 

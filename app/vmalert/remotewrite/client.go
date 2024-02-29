@@ -279,7 +279,7 @@ L:
 
 func (c *Client) send(ctx context.Context, data []byte) error {
 	r := bytes.NewReader(data)
-	req, err := http.NewRequest(http.MethodPost, c.addr, r)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.addr, r)
 	if err != nil {
 		return fmt.Errorf("failed to create new HTTP request: %w", err)
 	}
@@ -302,7 +302,7 @@ func (c *Client) send(ctx context.Context, data []byte) error {
 	if !*disablePathAppend {
 		req.URL.Path = path.Join(req.URL.Path, "/api/v1/write")
 	}
-	resp, err := c.c.Do(req.WithContext(ctx))
+	resp, err := c.c.Do(req)
 	if err != nil {
 		return fmt.Errorf("error while sending request to %s: %w; Data len %d(%d)",
 			req.URL.Redacted(), err, len(data), r.Size())

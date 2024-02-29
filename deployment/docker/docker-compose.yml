@@ -57,7 +57,6 @@ services:
       - ./provisioning/datasources/prometheus-datasource:/etc/grafana/provisioning/datasources
       - ./provisioning/dashboards:/etc/grafana/provisioning/dashboards
       - ./../../dashboards/victoriametrics.json:/var/lib/grafana/dashboards/vm.json
-      - ./../../dashboards/victorialogs.json:/var/lib/grafana/dashboards/vl.json
       - ./../../dashboards/vmagent.json:/var/lib/grafana/dashboards/vmagent.json
       - ./../../dashboards/vmalert.json:/var/lib/grafana/dashboards/vmalert.json
     networks:
@@ -96,7 +95,7 @@ services:
   # and distributes them according to --config.file.
   alertmanager:
     container_name: alertmanager
-    image: prom/alertmanager:v0.25.0
+    image: prom/alertmanager:v0.27.0
     volumes:
       - ./alertmanager.yml:/config/alertmanager.yml
     command:
@@ -107,38 +106,9 @@ services:
       - vm_net
     restart: always
 
-  # fluentbit is logs collector. It collects logs according to fluent-bit.conf
-  # and forwards them to VictoriaLogs
-  fluentbit:
-    container_name: fluentbit
-    image: cr.fluentbit.io/fluent/fluent-bit:2.1.4
-    volumes:
-      - /var/lib/docker/containers:/var/lib/docker/containers:ro
-      - ./fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf
-    depends_on: [victorialogs]
-    ports:
-      - "5140:5140"
-    networks:
-      - vm_net
-
-#  VictoriaLogs instance, a single process responsible for
-#  storing logs and serving read queries.
-  victorialogs:
-    container_name: victorialogs
-    image: docker.io/victoriametrics/victoria-logs:v0.4.2-victorialogs
-    command:
-      - "--storageDataPath=/vlogs"
-      - "--httpListenAddr=:9428"
-    volumes:
-      - victorialogs-fluentbit:/vlogs
-    ports:
-      - "9428:9428"
-    networks:
-      - vm_net
 volumes:
   vmagentdata: {}
   vmdata: {}
   grafanadata: {}
-  victorialogs-fluentbit: {}
 networks:
   vm_net:

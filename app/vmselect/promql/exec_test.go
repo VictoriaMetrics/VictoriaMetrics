@@ -2307,6 +2307,21 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`label_join dst_label is equal to src_label`, func(t *testing.T) {
+		t.Parallel()
+		q := `label_join(label_join(time(), "bar", "sep1", "a", "b"), "bar", "sep2", "a", "bar")`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		r.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("bar"),
+			Value: []byte("sep2sep1"),
+		}}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`label_value()`, func(t *testing.T) {
 		t.Parallel()
 		q := `with (
