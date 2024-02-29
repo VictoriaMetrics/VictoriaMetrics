@@ -16,7 +16,7 @@ aliases:
 
 ## Next release
 
-- TODO
+- [vmauth](./api.html#vmauth): adds new field `spec.configSecret`, which allows to use vmauth with external configuration stored at secret under `config.yaml` key. Configuration changes can be tracked with extraArgs: `configCheckInterval: 10s` or manually defined config-reloader container.
 
 <a name="v0.41.2"></a>
 ## [v0.41.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.41.2) - 21 Feb 2024

@@ -7,16 +7,21 @@ import Popper from "../../Main/Popper/Popper";
 import "./style.scss";
 import Tooltip from "../../Main/Tooltip/Tooltip";
 import useBoolean from "../../../hooks/useBoolean";
+import LinesConfigurator from "./LinesConfigurator/LinesConfigurator";
 
-const title = "Axes settings";
+const title = "Graph settings";
 
 interface GraphSettingsProps {
   yaxis: YaxisState,
   setYaxisLimits: (limits: AxisRange) => void,
-  toggleEnableLimits: () => void
+  toggleEnableLimits: () => void,
+  spanGaps: {
+    value: boolean,
+    onChange: (value: boolean) => void,
+  },
 }
 
-const GraphSettings: FC<GraphSettingsProps> = ({ yaxis, setYaxisLimits, toggleEnableLimits }) => {
+const GraphSettings: FC<GraphSettingsProps> = ({ yaxis, setYaxisLimits, toggleEnableLimits, spanGaps }) => {
   const popperRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLDivElement>(null);
 
@@ -54,6 +59,10 @@ const GraphSettings: FC<GraphSettingsProps> = ({ yaxis, setYaxisLimits, toggleEn
               yaxis={yaxis}
               setYaxisLimits={setYaxisLimits}
               toggleEnableLimits={toggleEnableLimits}
+            />
+            <LinesConfigurator
+              spanGaps={spanGaps.value}
+              onChange={spanGaps.onChange}
             />
           </div>
         </div>

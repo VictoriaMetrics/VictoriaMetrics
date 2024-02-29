@@ -6,14 +6,13 @@ import (
 )
 
 func BenchmarkToUnsafeString(b *testing.B) {
-	buf := []byte("foobarbaz abcde fafdsfds")
 	b.ReportAllocs()
-	b.SetBytes(int64(len(buf)))
+	b.SetBytes(int64(len(benchBytes)))
 	b.RunParallel(func(pb *testing.PB) {
 		n := 0
 		for pb.Next() {
-			for i := range buf {
-				s := ToUnsafeString(buf[:i])
+			for _, b := range benchBytes {
+				s := ToUnsafeString(b)
 				n += len(s)
 			}
 		}
@@ -22,19 +21,34 @@ func BenchmarkToUnsafeString(b *testing.B) {
 }
 
 func BenchmarkToUnsafeBytes(b *testing.B) {
-	s := "foobarbaz abcde fafdsfds"
 	b.ReportAllocs()
-	b.SetBytes(int64(len(s)))
+	b.SetBytes(int64(len(benchStrings)))
 	b.RunParallel(func(pb *testing.PB) {
 		n := 0
 		for pb.Next() {
-			for i := range s {
-				s := ToUnsafeBytes(s[:i])
-				n += len(s)
+			for _, s := range benchStrings {
+				b := ToUnsafeBytes(s)
+				n += len(b)
 			}
 		}
 		Sink.Add(uint64(n))
 	})
 }
+
+var benchBytes = func() [][]byte {
+	a := make([][]byte, 1000)
+	for i := range a {
+		a[i] = make([]byte, i)
+	}
+	return a
+}()
+
+var benchStrings = func() []string {
+	a := make([]string, 1000)
+	for i := range a {
+		a[i] = string(make([]byte, i))
+	}
+	return a
+}()
 
 var Sink atomic.Uint64

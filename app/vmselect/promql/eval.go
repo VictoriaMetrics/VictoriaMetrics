@@ -314,7 +314,7 @@ func evalExprInternal(qt *querytracer.Tracer, ec *EvalConfig, e metricsql.Expr) 
 		}
 		rf, err := nrf(args)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("cannot evaluate args for %q: %w", fe.AppendString(nil), err)
 		}
 		rv, err := evalRollupFunc(qt, ec, fe.Name, rf, e, re, nil)
 		if err != nil {
@@ -395,7 +395,7 @@ func evalAggrFunc(qt *querytracer.Tracer, ec *EvalConfig, ae *metricsql.AggrFunc
 			}
 			rf, err := nrf(args)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("cannot evaluate args for aggregate func %q: %w", ae.AppendString(nil), err)
 			}
 			iafc := newIncrementalAggrFuncContext(ae, callbacks)
 			return evalRollupFunc(qt, ec, fe.Name, rf, ae, re, iafc)

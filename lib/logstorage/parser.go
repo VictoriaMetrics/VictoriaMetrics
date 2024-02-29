@@ -12,6 +12,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/regexutil"
 )
 
 type lexer struct {
@@ -1069,6 +1070,13 @@ func parseStreamTagFilter(lex *lexer) (*streamTagFilter, error) {
 		tagName: tagName,
 		op:      op,
 		value:   value,
+	}
+	if op == "=~" || op == "!~" {
+		re, err := regexutil.NewPromRegex(value)
+		if err != nil {
+			return nil, fmt.Errorf("invalid regexp %q for stream filter: %w", value, err)
+		}
+		stf.regexp = re
 	}
 	return stf, nil
 }

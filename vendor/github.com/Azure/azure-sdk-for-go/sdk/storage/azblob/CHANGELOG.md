@@ -1,5 +1,12 @@
 # Release History
 
+## 1.3.1 (2024-02-28)
+
+### Bugs Fixed
+
+* Re-enabled `SharedKeyCredential` authentication mode for non TLS protected endpoints.
+* Use random write in `DownloadFile` method. Fixes [#22426](https://github.com/Azure/azure-sdk-for-go/issues/22426).
+
 ## 1.3.0 (2024-02-12)
 
 ### Bugs Fixed

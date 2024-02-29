@@ -104,7 +104,7 @@ func GetRollupArgIdx(fe *FuncExpr) int {
 		return -1
 	}
 	switch funcName {
-	case "quantile_over_time", "aggr_over_time",
+	case "quantile_over_time", "aggr_over_time", "count_values_over_time",
 		"hoeffding_bound_lower", "hoeffding_bound_upper":
 		return 1
 	case "quantiles_over_time":

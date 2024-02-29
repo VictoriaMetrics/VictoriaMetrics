@@ -266,8 +266,8 @@ By default, VictoriaMetrics returns labels seen during the last day starting at 
 The specified `start..end` time range is rounded to day granularity because of performance optimization concerns.
 
 Additional information:
+* [Getting label names](https://prometheus.io/docs/prometheus/latest/querying/api/#getting-label-names)
 * [Prometheus querying API usage](https://docs.victoriametrics.com/#prometheus-querying-api-usage)
-* [Querying label values](https://prometheus.io/docs/prometheus/latest/querying/api/#querying-label-values)
 * [URL format for VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format)
 
 ### /api/v1/label/.../values
@@ -292,8 +292,8 @@ By default, VictoriaMetrics returns labels values seen during the last day start
 The specified `start..end` time range is rounded to day granularity because of performance optimization concerns.
 
 Additional information:
+* [Querying label values](https://prometheus.io/docs/prometheus/latest/querying/api/#querying-label-values)
 * [Prometheus querying API usage](https://docs.victoriametrics.com/#prometheus-querying-api-usage)
-* [Getting label names](https://prometheus.io/docs/prometheus/latest/querying/api/#getting-label-names)
 * [URL format for VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format)
 
 ### /api/v1/query
@@ -315,8 +315,8 @@ curl http://<vmselect>:8481/select/0/prometheus/api/v1/query -d 'query=vm_http_r
 
 
 Additional information:
-* [Prometheus querying API usage](https://docs.victoriametrics.com/#prometheus-querying-api-usage)
 * [Instant queries](https://docs.victoriametrics.com/keyConcepts.html#instant-query)
+* [Prometheus querying API usage](https://docs.victoriametrics.com/#prometheus-querying-api-usage)
 * [Query language](https://docs.victoriametrics.com/keyConcepts.html#metricsql)
 * [URL format for VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format)
 
@@ -339,8 +339,8 @@ curl http://<vmselect>:8481/select/0/prometheus/api/v1/query_range -d 'query=sum
 
 
 Additional information:
-* [Prometheus querying API usage](https://docs.victoriametrics.com/#prometheus-querying-api-usage)
 * [Range queries](https://docs.victoriametrics.com/keyConcepts.html#range-query)
+* [Prometheus querying API usage](https://docs.victoriametrics.com/#prometheus-querying-api-usage)
 * [Query language](https://docs.victoriametrics.com/keyConcepts.html#metricsql)
 * [URL format for VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format)
 
@@ -366,8 +366,8 @@ By default, VictoriaMetrics returns time series seen during the last day startin
 The specified `start..end` time range is rounded to day granularity because of performance optimization concerns.
 
 Additional information:
-* [Prometheus querying API usage](https://docs.victoriametrics.com/#prometheus-querying-api-usage)
 * [Finding series by label matchers](https://prometheus.io/docs/prometheus/latest/querying/api/#finding-series-by-label-matchers)
+* [Prometheus querying API usage](https://docs.victoriametrics.com/#prometheus-querying-api-usage)
 * [URL format for VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format)
 VictoriaMetrics accepts `limit` query arg for `/api/v1/series` handlers for limiting the number of returned entries. For example, the query to `/api/v1/series?limit=5` returns a sample of up to 5 series, while ignoring the rest. If the provided `limit` value exceeds the corresponding `-search.maxSeries` command-line flag values, then limits specified in the command-line flags are used.
 
@@ -390,8 +390,8 @@ curl http://<vmselect>:8481/select/0/prometheus/api/v1/status/tsdb
 
 
 Additional information:
-* [Prometheus querying API usage](https://docs.victoriametrics.com/#prometheus-querying-api-usage)
 * [TSDB Stats](https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats)
+* [Prometheus querying API usage](https://docs.victoriametrics.com/#prometheus-querying-api-usage)
 * [URL format for VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format)
 
 ### /datadog

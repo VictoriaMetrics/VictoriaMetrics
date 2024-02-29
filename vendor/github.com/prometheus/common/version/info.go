@@ -35,6 +35,8 @@ var (
 	GoArch    = runtime.GOARCH
 )
 
+// Deprecated: Use github.com/prometheus/client_golang/prometheus/collectors/version.NewCollector instead.
+//
 // NewCollector returns a collector that exports metrics about current version
 // information.
 func NewCollector(program string) prometheus.Collector {
