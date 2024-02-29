@@ -1,6 +1,7 @@
 package firehose
 
 import (
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 )
@@ -32,8 +33,18 @@ func ProcessRequestBody(b []byte) ([]byte, error) {
 
 	var dst []byte
 	for _, r := range req.Records {
-		dst = append(dst, r.Data...)
+		for len(r.Data) > 0 {
+			messageLength, varIntLength := binary.Uvarint(r.Data)
+			if varIntLength > binary.MaxVarintLen32 {
+				return nil, fmt.Errorf("failed to parse OpenTelemetry message: invalid variant")
+			}
+			totalLength := varIntLength + int(messageLength)
+			if totalLength > len(r.Data) {
+				return nil, fmt.Errorf("failed to parse OpenTelementry message: insufficient length of buffer")
+			}
+			dst = append(dst, r.Data[varIntLength:totalLength]...)
+			r.Data = r.Data[totalLength:]
+		}
 	}
-
 	return dst, nil
 }
