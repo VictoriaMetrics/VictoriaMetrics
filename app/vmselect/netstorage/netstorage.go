@@ -9,7 +9,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"reflect"
 	"sort"
 	"strings"
 	"sync"
@@ -1396,9 +1395,11 @@ func canAppendToBlockAddrPool(pool, a []tmpBlockAddr) bool {
 		// a doesn't belong to pool
 		return false
 	}
-	shPool := (*reflect.SliceHeader)(unsafe.Pointer(&pool))
-	shA := (*reflect.SliceHeader)(unsafe.Pointer(&a))
-	return shPool.Data+uintptr(shPool.Len)*unsafe.Sizeof(tmpBlockAddr{}) == shA.Data+uintptr(shA.Len)*unsafe.Sizeof(tmpBlockAddr{})
+	return getBlockAddrsEnd(pool) == getBlockAddrsEnd(a)
+}
+
+func getBlockAddrsEnd(a []tmpBlockAddr) uintptr {
+	return uintptr(unsafe.Pointer(unsafe.SliceData(a))) + uintptr(len(a))*unsafe.Sizeof(tmpBlockAddr{})
 }
 
 func (tbfwLocal *tmpBlocksFileWrapperShard) newBlockAddrs() int {
