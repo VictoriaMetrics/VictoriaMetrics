@@ -41,6 +41,7 @@ export interface GraphViewProps {
   height?: number;
   isHistogram?: boolean;
   anomalyView?: boolean;
+  spanGaps?: boolean;
 }
 
 const GraphView: FC<GraphViewProps> = ({
@@ -58,6 +59,7 @@ const GraphView: FC<GraphViewProps> = ({
   height,
   isHistogram,
   anomalyView,
+  spanGaps
 }) => {
   const { isMobile } = useDeviceDetect();
   const { timezone } = useTimeState();
@@ -196,6 +198,7 @@ const GraphView: FC<GraphViewProps> = ({
           layoutSize={containerSize}
           height={height}
           anomalyView={anomalyView}
+          spanGaps={spanGaps}
         />
       )}
       {isHistogram && (
