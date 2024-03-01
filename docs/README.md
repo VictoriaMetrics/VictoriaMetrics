@@ -26,8 +26,7 @@ Documentation for the cluster version of VictoriaMetrics is available [here](htt
 Learn more about [key concepts](https://docs.victoriametrics.com/keyConcepts.html) of VictoriaMetrics and follow the 
 [quick start guide](https://docs.victoriametrics.com/Quick-Start.html) for a better experience.
 
-If you have questions about VictoriaMetrics, then feel free asking them in the [VictoriaMetrics community Slack chat](https://victoriametrics.slack.com/),
-you can join it via [Slack Inviter](https://slack.victoriametrics.com/).
+If you have questions about VictoriaMetrics, then feel free asking them in the [VictoriaMetrics community Slack chat](https://slack.victoriametrics.com/).
 
 [Contact us](mailto:info@victoriametrics.com) if you need enterprise support for VictoriaMetrics.
 See [features available in enterprise package](https://docs.victoriametrics.com/enterprise.html).
@@ -2552,7 +2551,7 @@ Contact us with any questions regarding VictoriaMetrics at [info@victoriametrics
 
 Feel free asking any questions regarding VictoriaMetrics:
 
-* [Slack Inviter](https://slack.victoriametrics.com/) and [Slack channel](https://victoriametrics.slack.com/)
+* [Slack](https://slack.victoriametrics.com/)
 * [Twitter](https://twitter.com/VictoriaMetrics/)
 * [Linkedin](https://www.linkedin.com/company/victoriametrics/)
 * [Reddit](https://www.reddit.com/r/VictoriaMetrics/)
@@ -2695,12 +2694,12 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      Incoming connections to -httpListenAddr are closed after the configured timeout. This may help evenly spreading load among a cluster of services behind TCP-level load balancer. Zero value disables closing of incoming connections (default 2m0s)
   -http.disableResponseCompression
      Disable compression of HTTP responses to save CPU resources. By default, compression is enabled to save network bandwidth
-  -http.header.csp default-src 'self'
-     Value for 'Content-Security-Policy' header, recommended: default-src 'self'
+  -http.header.csp string
+     Value for 'Content-Security-Policy' header, recommended: "default-src 'self'"
   -http.header.frameOptions string
      Value for 'X-Frame-Options' header
-  -http.header.hsts max-age=31536000; includeSubDomains
-     Value for 'Strict-Transport-Security' header, recommended: max-age=31536000; includeSubDomains
+  -http.header.hsts string
+     Value for 'Strict-Transport-Security' header, recommended: 'max-age=31536000; includeSubDomains'
   -http.idleConnTimeout duration
      Timeout for incoming idle http connections (default 1m0s)
   -http.maxGracefulShutdownDuration duration
@@ -2995,9 +2994,9 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -search.maxGraphiteTagValues int
      The maximum number of tag values returned from Graphite API, which returns tag values. See https://docs.victoriametrics.com/#graphite-tags-api-usage (default 100000)
   -search.maxLabelsAPIDuration duration
-     The maximum duration for /api/v1/labels, /api/v1/label/.../values and /api/v1/series requests. See also -search.maxLabelsAPISeries (default 5s)
+     The maximum duration for /api/v1/labels, /api/v1/label/.../values and /api/v1/series requests. See also -search.maxLabelsAPISeries and -search.ignoreExtraFiltersAtLabelsAPI (default 5s)
   -search.maxLabelsAPISeries int
-     The maximum number of time series, which could be scanned when searching for the the matching time series at /api/v1/labels and /api/v1/label/.../values. This option allows limiting memory usage and CPU usage. See also -search.maxLabelsAPIDuration, -search.maxTagKeys and -search.maxTagValues (default 1000000)
+     The maximum number of time series, which could be scanned when searching for the the matching time series at /api/v1/labels and /api/v1/label/.../values. This option allows limiting memory usage and CPU usage. See also -search.maxLabelsAPIDuration, -search.maxTagKeys, -search.maxTagValues and -search.ignoreExtraFiltersAtLabelsAPI (default 1000000)
   -search.maxLookback duration
      Synonym to -search.lookback-delta from Prometheus. The value is dynamically detected from interval between time series datapoints if not set. It can be overridden on per-query basis via max_lookback arg. See also '-search.maxStalenessInterval' flag, which has the same meaning due to historical reasons
   -search.maxMemoryPerQuery size
@@ -3033,11 +3032,11 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -search.maxTSDBStatusSeries int
      The maximum number of time series, which can be processed during the call to /api/v1/status/tsdb. This option allows limiting memory usage (default 10000000)
   -search.maxTagKeys int
-     The maximum number of tag keys returned from /api/v1/labels (default 100000)
+     The maximum number of tag keys returned from /api/v1/labels . See also -search.maxLabelsAPISeries and -search.maxLabelsAPIDuration (default 100000)
   -search.maxTagValueSuffixesPerSearch int
      The maximum number of tag value suffixes returned from /metrics/find (default 100000)
   -search.maxTagValues int
-     The maximum number of tag values returned from /api/v1/label/<label_name>/values (default 100000)
+     The maximum number of tag values returned from /api/v1/label/<label_name>/values . See also -search.maxLabelsAPISeries and -search.maxLabelsAPIDuration (default 100000)
   -search.maxUniqueTimeseries int
      The maximum number of unique time series, which can be selected during /api/v1/query and /api/v1/query_range queries. This option allows limiting memory usage (default 300000)
   -search.maxWorkersPerQuery int
@@ -3074,7 +3073,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      authKey, which must be passed in query string to /snapshot* pages
      Flag value can be read from the given file when using -snapshotAuthKey=file:///abs/path/to/file or -snapshotAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -snapshotAuthKey=http://host/path or -snapshotAuthKey=https://host/path
   -snapshotCreateTimeout duration
-     The timeout for creating new snapshot. If set, make sure that timeout is lower than backup period
+     Deprecated: this flag does nothing
   -snapshotsMaxAge value
      Automatically delete snapshots older than -snapshotsMaxAge if it is set to non-zero duration. Make sure that backup process has enough time to finish the backup before the corresponding snapshot is automatically deleted
      The following optional suffixes are supported: s (second), m (minute), h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 0)

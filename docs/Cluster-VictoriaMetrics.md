@@ -768,16 +768,16 @@ because the given `-replicationFactor=2` is applied individually per each group:
 
 ```
 /path/to/vmselect \
-	-replicationFactor=2 \
-	-storageNode=group1/host1 \
-	-storageNode=group1/host2 \
-	-storageNode=group1/host3 \
-	-storageNode=group2/host4 \
-	-storageNode=group2/host5 \
-	-storageNode=group2/host6 \
-	-storageNode=group3/host7 \
-	-storageNode=group3/host8 \
-	-storageNode=group3/host9
+ -replicationFactor=2 \
+ -storageNode=group1/host1 \
+ -storageNode=group1/host2 \
+ -storageNode=group1/host3 \
+ -storageNode=group2/host4 \
+ -storageNode=group2/host5 \
+ -storageNode=group2/host6 \
+ -storageNode=group3/host7 \
+ -storageNode=group3/host8 \
+ -storageNode=group3/host9
 ```
 
 It is possible to specify distinct `-replicationFactor` per each group via the following format - `-replicationFactor=groupName:rf`.
@@ -785,14 +785,14 @@ For example, the following command runs `vmselect`, which uses `-replicationFact
 
 ```
 /path/to/vmselect \
-	-replicationFactor=group1:3 \
-	-storageNode=group1/host1 \
-	-storageNode=group1/host2 \
-	-storageNode=group1/host3 \
-	-replicationFactor=group2:1 \
-	-storageNode=group2/host4 \
-	-storageNode=group2/host5 \
-	-storageNode=group2/host6
+ -replicationFactor=group1:3 \
+ -storageNode=group1/host1 \
+ -storageNode=group1/host2 \
+ -storageNode=group1/host3 \
+ -replicationFactor=group2:1 \
+ -storageNode=group2/host4 \
+ -storageNode=group2/host5 \
+ -storageNode=group2/host6
 ```
 
 ## Helm
@@ -1052,12 +1052,12 @@ Below is the output for `/path/to/vminsert -help`:
      Incoming connections to -httpListenAddr are closed after the configured timeout. This may help evenly spreading load among a cluster of services behind TCP-level load balancer. Zero value disables closing of incoming connections (default 2m0s)
   -http.disableResponseCompression
      Disable compression of HTTP responses to save CPU resources. By default, compression is enabled to save network bandwidth
-  -http.header.csp default-src 'self'
-     Value for 'Content-Security-Policy' header, recommended: default-src 'self'
+  -http.header.csp string
+     Value for 'Content-Security-Policy' header, recommended: "default-src 'self'"
   -http.header.frameOptions string
      Value for 'X-Frame-Options' header
-  -http.header.hsts max-age=31536000; includeSubDomains
-     Value for 'Strict-Transport-Security' header, recommended: max-age=31536000; includeSubDomains
+  -http.header.hsts string
+     Value for 'Strict-Transport-Security' header, recommended: 'max-age=31536000; includeSubDomains'
   -http.idleConnTimeout duration
      Timeout for incoming idle http connections (default 1m0s)
   -http.maxGracefulShutdownDuration duration
@@ -1326,12 +1326,12 @@ Below is the output for `/path/to/vmselect -help`:
      Incoming connections to -httpListenAddr are closed after the configured timeout. This may help evenly spreading load among a cluster of services behind TCP-level load balancer. Zero value disables closing of incoming connections (default 2m0s)
   -http.disableResponseCompression
      Disable compression of HTTP responses to save CPU resources. By default, compression is enabled to save network bandwidth
-  -http.header.csp default-src 'self'
-     Value for 'Content-Security-Policy' header, recommended: default-src 'self'
+  -http.header.csp string
+     Value for 'Content-Security-Policy' header, recommended: "default-src 'self'"
   -http.header.frameOptions string
      Value for 'X-Frame-Options' header
-  -http.header.hsts max-age=31536000; includeSubDomains
-     Value for 'Strict-Transport-Security' header, recommended: max-age=31536000; includeSubDomains
+  -http.header.hsts string
+     Value for 'Strict-Transport-Security' header, recommended: 'max-age=31536000; includeSubDomains'
   -http.idleConnTimeout duration
      Timeout for incoming idle http connections (default 1m0s)
   -http.maxGracefulShutdownDuration duration
@@ -1459,9 +1459,9 @@ Below is the output for `/path/to/vmselect -help`:
   -search.maxGraphiteTagValues int
      The maximum number of tag values returned from Graphite API, which returns tag values. See https://docs.victoriametrics.com/#graphite-tags-api-usage (default 100000)
   -search.maxLabelsAPIDuration duration
-     The maximum duration for /api/v1/labels, /api/v1/label/.../values and /api/v1/series requests. See also -search.maxLabelsAPISeries (default 5s)
+     The maximum duration for /api/v1/labels, /api/v1/label/.../values and /api/v1/series requests. See also -search.maxLabelsAPISeries and -search.ignoreExtraFiltersAtLabelsAPI (default 5s)
   -search.maxLabelsAPISeries int
-     The maximum number of time series, which could be scanned when searching for the the matching time series at /api/v1/labels and /api/v1/label/.../values. This option allows limiting memory usage and CPU usage. See also -search.maxLabelsAPIDuration, -search.maxTagKeys and -search.maxTagValues (default 1000000)
+     The maximum number of time series, which could be scanned when searching for the the matching time series at /api/v1/labels and /api/v1/label/.../values. This option allows limiting memory usage and CPU usage. See also -search.maxLabelsAPIDuration, -search.maxTagKeys, -search.maxTagValues and -search.ignoreExtraFiltersAtLabelsAPI (default 1000000)
   -search.maxLookback duration
      Synonym to -search.lookback-delta from Prometheus. The value is dynamically detected from interval between time series datapoints if not set. It can be overridden on per-query basis via max_lookback arg. See also '-search.maxStalenessInterval' flag, which has the same meaning due to historical reasons
   -search.maxMemoryPerQuery size
@@ -1632,12 +1632,12 @@ Below is the output for `/path/to/vmstorage -help`:
      Incoming connections to -httpListenAddr are closed after the configured timeout. This may help evenly spreading load among a cluster of services behind TCP-level load balancer. Zero value disables closing of incoming connections (default 2m0s)
   -http.disableResponseCompression
      Disable compression of HTTP responses to save CPU resources. By default, compression is enabled to save network bandwidth
-  -http.header.csp default-src 'self'
-     Value for 'Content-Security-Policy' header, recommended: default-src 'self'
+  -http.header.csp string
+     Value for 'Content-Security-Policy' header, recommended: "default-src 'self'"
   -http.header.frameOptions string
      Value for 'X-Frame-Options' header
-  -http.header.hsts max-age=31536000; includeSubDomains
-     Value for 'Strict-Transport-Security' header, recommended: max-age=31536000; includeSubDomains
+  -http.header.hsts string
+     Value for 'Strict-Transport-Security' header, recommended: 'max-age=31536000; includeSubDomains'
   -http.idleConnTimeout duration
      Timeout for incoming idle http connections (default 1m0s)
   -http.maxGracefulShutdownDuration duration
@@ -1754,11 +1754,11 @@ Below is the output for `/path/to/vmstorage -help`:
   -search.maxQueueDuration duration
      The maximum time the incoming vmselect request waits for execution when -search.maxConcurrentRequests limit is reached (default 10s)
   -search.maxTagKeys int
-     The maximum number of tag keys returned per search (default 100000)
+     The maximum number of tag keys returned per search. See also -search.maxLabelsAPISeries and -search.maxLabelsAPIDuration (default 100000)
   -search.maxTagValueSuffixesPerSearch int
      The maximum number of tag value suffixes returned from /metrics/find (default 100000)
   -search.maxTagValues int
-     The maximum number of tag values returned per search (default 100000)
+     The maximum number of tag values returned per search. See also -search.maxLabelsAPISeries and -search.maxLabelsAPIDuration (default 100000)
   -search.maxUniqueTimeseries int
      The maximum number of unique time series, which can be scanned during every query. This allows protecting against heavy queries, which select unexpectedly high number of series. Zero means 'no limit'. See also -search.max* command-line flags at vmselect
   -smallMergeConcurrency int
@@ -1767,7 +1767,7 @@ Below is the output for `/path/to/vmstorage -help`:
      authKey, which must be passed in query string to /snapshot* pages
      Flag value can be read from the given file when using -snapshotAuthKey=file:///abs/path/to/file or -snapshotAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -snapshotAuthKey=http://host/path or -snapshotAuthKey=https://host/path
   -snapshotCreateTimeout duration
-     The timeout for creating new snapshot. If set, make sure that timeout is lower than backup period
+     Deprecated: this flag does nothing
   -snapshotsMaxAge value
      Automatically delete snapshots older than -snapshotsMaxAge if it is set to non-zero duration. Make sure that backup process has enough time to finish the backup before the corresponding snapshot is automatically deleted
      The following optional suffixes are supported: s (second), m (minute), h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 0)
