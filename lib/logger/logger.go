@@ -1,6 +1,8 @@
 package logger
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"flag"
 	"fmt"
@@ -14,13 +16,14 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/syslog"
 	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
 	loggerLevel    = flag.String("loggerLevel", "INFO", "Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC")
 	loggerFormat   = flag.String("loggerFormat", "default", "Format for logs. Possible values: default, json")
-	loggerOutput   = flag.String("loggerOutput", "stderr", "Output for the logs. Supported values: stderr, stdout")
+	loggerOutput   = flag.String("loggerOutput", "stderr", "Output for the logs. Supported values: stderr, stdout, syslog")
 	loggerTimezone = flag.String("loggerTimezone", "UTC", "Timezone to use for timestamps in logs. Timezone must be a valid IANA Time Zone. "+
 		"For example: America/New_York, Europe/Berlin, Etc/GMT+3 or Local")
 	disableTimestamps = flag.Bool("loggerDisableTimestamps", false, "Whether to disable writing timestamps in logs")
@@ -29,6 +32,16 @@ var (
 
 	errorsPerSecondLimit = flag.Int("loggerErrorsPerSecondLimit", 0, `Per-second limit on the number of ERROR messages. If more than the given number of errors are emitted per second, the remaining errors are suppressed. Zero values disable the rate limit`)
 	warnsPerSecondLimit  = flag.Int("loggerWarnsPerSecondLimit", 0, `Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero values disable the rate limit`)
+
+	syslogNetwork = flag.String("syslog-network", "tcp", "network connection to establish. Options are TCP/UDP.")
+	syslogAddress = flag.String("syslog-address", "localhost:5143", "network address of syslog server. If empty it connects to local local syslog server.")
+	syslogTag     = flag.String("syslog-tag", "", "tag for syslog. Used os.args[0] if empty")
+
+	tlsCertFile           = flag.String("syslog.tlsCertFile", "", "Optional path to client-side TLS certificate file to use when connecting to -syslogAddress")
+	tlsKeyFile            = flag.String("syslog.tlsKeyFile", "", "Optional path to client-side TLS certificate key to use when connecting to -syslogAddress")
+	tlsCAFile             = flag.String("syslog.tlsCAFile", "", "Optional path to TLS CA file to use for verifying connections to syslogAddress. By default, system CA is used")
+	tlsServerName         = flag.String("syslog.tlsServerName", "", "Optional TLS server name to use for connections to -syslogAddress. By default, the server name from -syslogAddress is used")
+	tlsInsecureSkipVerify = flag.Bool("syslog.tlsInsecureSkipVerify", false, "Whether to skip tls verification when connecting to -syslogAddress")
 )
 
 // Init initializes the logger.
@@ -62,8 +75,33 @@ func setLoggerOutput() {
 		output = os.Stderr
 	case "stdout":
 		output = os.Stdout
+	case "syslog":
+		output = setSyslogConnection()
 	default:
 		panic(fmt.Errorf("FATAL: unsupported `loggerOutput` value: %q; supported values are: stderr, stdout", *loggerOutput))
+	}
+}
+
+func setSyslogConnection() *syslog.Writer {
+	switch *syslogNetwork {
+	case "", "tcp", "udp":
+		op, err := syslog.Dial(*syslogNetwork, *syslogAddress, syslog.LOG_LOCAL7, *syslogTag)
+		if err != nil {
+			panic(fmt.Errorf("error dialing syslog: %w", err))
+		}
+		return op
+	case "tcp+tls":
+		tc, err := TLSConfig(*tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify)
+		if err != nil {
+			panic(fmt.Errorf("error creating TLS config: %w", err))
+		}
+		op, err := syslog.DialWithTLSConfig(*syslogNetwork, *syslogAddress, syslog.LOG_LOCAL7, *syslogTag, tc)
+		if err != nil {
+			panic(fmt.Errorf("error dialing syslog: %w", err))
+		}
+		return op
+	default:
+		panic(fmt.Errorf("FATAL: unsupported `syslogNetwork` value: %q; supported values are: stderr, stdout, syslog", *syslogNetwork))
 	}
 }
 
@@ -341,3 +379,36 @@ func SetOutputForTests(writer io.Writer) { output = writer }
 
 // ResetOutputForTest set logger output to default value
 func ResetOutputForTest() { output = os.Stderr }
+
+// TLSConfig creates tls.Config object from provided arguments
+func TLSConfig(certFile, keyFile, CAFile, serverName string, insecureSkipVerify bool) (*tls.Config, error) {
+	var certs []tls.Certificate
+	if certFile != "" {
+		cert, err := tls.LoadX509KeyPair(certFile, keyFile)
+		if err != nil {
+			return nil, fmt.Errorf("cannot load TLS certificate from `cert_file`=%q, `key_file`=%q: %w", certFile, keyFile, err)
+		}
+
+		certs = []tls.Certificate{cert}
+	}
+
+	var rootCAs *x509.CertPool
+	if CAFile != "" {
+		pem, err := os.ReadFile(CAFile)
+		if err != nil {
+			return nil, fmt.Errorf("cannot read `ca_file` %q: %w", CAFile, err)
+		}
+
+		rootCAs = x509.NewCertPool()
+		if !rootCAs.AppendCertsFromPEM(pem) {
+			return nil, fmt.Errorf("cannot parse data from `ca_file` %q", CAFile)
+		}
+	}
+
+	return &tls.Config{
+		Certificates:       certs,
+		InsecureSkipVerify: insecureSkipVerify,
+		RootCAs:            rootCAs,
+		ServerName:         serverName,
+	}, nil
+}
