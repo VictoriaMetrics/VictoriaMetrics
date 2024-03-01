@@ -125,12 +125,12 @@ i.e. the end result would be similar to [rsync --delete](https://askubuntu.com/q
      Incoming connections to -httpListenAddr are closed after the configured timeout. This may help evenly spreading load among a cluster of services behind TCP-level load balancer. Zero value disables closing of incoming connections (default 2m0s)
   -http.disableResponseCompression
      Disable compression of HTTP responses to save CPU resources. By default, compression is enabled to save network bandwidth
-  -http.header.csp default-src 'self'
-     Value for 'Content-Security-Policy' header, recommended: default-src 'self'
+  -http.header.csp string
+     Value for 'Content-Security-Policy' header, recommended: "default-src 'self'"
   -http.header.frameOptions string
      Value for 'X-Frame-Options' header
-  -http.header.hsts max-age=31536000; includeSubDomains
-     Value for 'Strict-Transport-Security' header, recommended: max-age=31536000; includeSubDomains
+  -http.header.hsts string
+     Value for 'Strict-Transport-Security' header, recommended: 'max-age=31536000; includeSubDomains'
   -http.idleConnTimeout duration
      Timeout for incoming idle http connections (default 1m0s)
   -http.maxGracefulShutdownDuration duration
