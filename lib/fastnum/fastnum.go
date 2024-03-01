@@ -2,7 +2,6 @@ package fastnum
 
 import (
 	"bytes"
-	"reflect"
 	"unsafe"
 )
 
@@ -124,20 +123,12 @@ func isFloat64Data(a, data []float64) bool {
 	return true
 }
 
-func int64ToByteSlice(a []int64) (b []byte) {
-	sh := (*reflect.SliceHeader)(unsafe.Pointer(&b))
-	sh.Data = uintptr(unsafe.Pointer(&a[0]))
-	sh.Len = len(a) * int(unsafe.Sizeof(a[0]))
-	sh.Cap = sh.Len
-	return
+func int64ToByteSlice(a []int64) []byte {
+	return unsafe.Slice((*byte)(unsafe.Pointer(unsafe.SliceData(a))), len(a)*8)
 }
 
-func float64ToByteSlice(a []float64) (b []byte) {
-	sh := (*reflect.SliceHeader)(unsafe.Pointer(&b))
-	sh.Data = uintptr(unsafe.Pointer(&a[0]))
-	sh.Len = len(a) * int(unsafe.Sizeof(a[0]))
-	sh.Cap = sh.Len
-	return
+func float64ToByteSlice(a []float64) []byte {
+	return unsafe.Slice((*byte)(unsafe.Pointer(unsafe.SliceData(a))), len(a)*8)
 }
 
 var (

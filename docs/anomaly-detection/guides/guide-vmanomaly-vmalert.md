@@ -19,12 +19,12 @@ aliases:
 
 - To use *vmanomaly*, part of the enterprise package, a license key is required. Obtain your key [here](https://victoriametrics.com/products/enterprise/trial/) for this tutorial or for enterprise use.
 - In the tutorial, we'll be using the following VictoriaMetrics components:
-  -  [VictoriaMetrics Single-Node](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html) (v.1.98.0)
-  -  [vmalert](https://docs.victoriametrics.com/vmalert.html) (v.1.98.0)
-  -  [vmagent](https://docs.victoriametrics.com/vmagent.html) (v.1.98.0)
-- [Grafana](https://grafana.com/)(v.10.2.1) 
+  -  [VictoriaMetrics Single-Node](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html) (v1.99.0)
+  -  [vmalert](https://docs.victoriametrics.com/vmalert.html) (v1.99.0)
+  -  [vmagent](https://docs.victoriametrics.com/vmagent.html) (v1.99.0)
+- [Grafana](https://grafana.com/) (v.10.2.1)
 - [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/)
-- [Node exporter](https://github.com/prometheus/node_exporter#node-exporter)(v1.7.0) and [Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/)(v0.25.0)
+- [Node exporter](https://github.com/prometheus/node_exporter#node-exporter) (v1.7.0) and [Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/) (v0.27.0)
 
 <img src="guide-vmanomaly-vmalert_overview.webp" alt="vmanomaly typical setup diagramm">
 
@@ -328,7 +328,7 @@ Let's wrap it all up together into the `docker-compose.yml` file.
 services:
   vmagent:
     container_name: vmagent
-    image: victoriametrics/vmagent:v1.98.0
+    image: victoriametrics/vmagent:v1.99.0
     depends_on:
       - "victoriametrics"
     ports:
@@ -345,7 +345,7 @@ services:
 
   victoriametrics:
     container_name: victoriametrics
-    image: victoriametrics/victoria-metrics:v1.98.0
+    image: victoriametrics/victoria-metrics:v1.99.0
     ports:
       - 8428:8428
     volumes:
@@ -378,7 +378,7 @@ services:
 
   vmalert:
     container_name: vmalert
-    image: victoriametrics/vmalert:v1.98.0
+    image: victoriametrics/vmalert:v1.99.0
     depends_on:
       - "victoriametrics"
     ports:

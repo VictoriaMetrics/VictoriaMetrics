@@ -58,7 +58,7 @@ Bumping the limits may significantly improve build speed.
 1. Add `(available starting from v1.xx.y)` line to feature docs introduced in the upcoming release.
 1. Cut new version in [CHANGELOG.md](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/CHANGELOG.md)
    and make it merged. See example in this [commit](https://github.com/VictoriaMetrics/VictoriaMetrics/commit/b771152039d23b5ccd637a23ea748bc44a9511a7).
-1. Cherry-pick bug fixes relevant for LTS releases.
+1. Cherry-pick bug fixes relevant for [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 1. Make sure you get all changes fetched `git fetch --all`.
 1. Create the following release tags:
    * `git tag -s v1.xx.y` in `master` branch
@@ -192,7 +192,7 @@ Repository [https://github.com/VictoriaMetrics/ansible-playbooks](https://github
 
 ## RPM packages
 
-### Bump the version of components (for LTS releases only)
+### Bump the version of components
 
 Repository [https://github.com/VictoriaMetrics/victoriametrics-lts-rpm](https://github.com/VictoriaMetrics/victoriametrics-lts-rpm)
 

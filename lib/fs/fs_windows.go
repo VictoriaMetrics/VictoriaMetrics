@@ -3,7 +3,6 @@ package fs
 import (
 	"fmt"
 	"os"
-	"reflect"
 	"sync"
 	"unsafe"
 
@@ -89,11 +88,7 @@ func mmap(fd int, length int) ([]byte, error) {
 		windows.CloseHandle(h)
 		return nil, os.NewSyscallError("MapViewOfFile", errno)
 	}
-	data := make([]byte, 0)
-	hdr := (*reflect.SliceHeader)(unsafe.Pointer(&data))
-	hdr.Data = addr
-	hdr.Len = length
-	hdr.Cap = hdr.Len
+	data := unsafe.Slice((*byte)(unsafe.Pointer(addr)), length)
 
 	mmapByAddrLock.Lock()
 	mmapByAddr[addr] = h
@@ -105,8 +100,7 @@ func mmap(fd int, length int) ([]byte, error) {
 func mUnmap(data []byte) error {
 	// flush is not needed, since we perform only reading operation.
 	// In case of write, additional call FlushViewOfFile must be performed.
-	header := (*reflect.SliceHeader)(unsafe.Pointer(&data))
-	addr := header.Data
+	addr := uintptr(unsafe.Pointer(unsafe.SliceData(data)))
 
 	mmapByAddrLock.Lock()
 	h, ok := mmapByAddr[addr]

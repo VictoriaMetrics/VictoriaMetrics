@@ -45,7 +45,7 @@ func ResponseFormat(h http.Header) Format {
 
 	mediatype, params, err := mime.ParseMediaType(ct)
 	if err != nil {
-		return FmtUnknown
+		return fmtUnknown
 	}
 
 	const textType = "text/plain"
@@ -53,28 +53,28 @@ func ResponseFormat(h http.Header) Format {
 	switch mediatype {
 	case ProtoType:
 		if p, ok := params["proto"]; ok && p != ProtoProtocol {
-			return FmtUnknown
+			return fmtUnknown
 		}
 		if e, ok := params["encoding"]; ok && e != "delimited" {
-			return FmtUnknown
+			return fmtUnknown
 		}
-		return FmtProtoDelim
+		return fmtProtoDelim
 
 	case textType:
 		if v, ok := params["version"]; ok && v != TextVersion {
-			return FmtUnknown
+			return fmtUnknown
 		}
-		return FmtText
+		return fmtText
 	}
 
-	return FmtUnknown
+	return fmtUnknown
 }
 
 // NewDecoder returns a new decoder based on the given input format.
 // If the input format does not imply otherwise, a text format decoder is returned.
 func NewDecoder(r io.Reader, format Format) Decoder {
-	switch format {
-	case FmtProtoDelim:
+	switch format.FormatType() {
+	case TypeProtoDelim:
 		return &protoDecoder{r: r}
 	}
 	return &textDecoder{r: r}

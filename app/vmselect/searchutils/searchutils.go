@@ -18,7 +18,7 @@ var (
 	maxQueryDuration         = flag.Duration("search.maxQueryDuration", time.Second*30, "The maximum duration for query execution")
 	maxStatusRequestDuration = flag.Duration("search.maxStatusRequestDuration", time.Minute*5, "The maximum duration for /api/v1/status/* requests")
 	maxLabelsAPIDuration     = flag.Duration("search.maxLabelsAPIDuration", time.Second*5, "The maximum duration for /api/v1/labels, /api/v1/label/.../values and /api/v1/series requests. "+
-		"See also -search.maxLabelsAPISeries")
+		"See also -search.maxLabelsAPISeries and -search.ignoreExtraFiltersAtLabelsAPI")
 )
 
 // GetMaxQueryDuration returns the maximum duration for query from r.

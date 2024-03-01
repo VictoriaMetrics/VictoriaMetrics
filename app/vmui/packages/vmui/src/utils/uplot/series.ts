@@ -94,6 +94,7 @@ export const getSeriesItemContext = (data: MetricResult[], hideSeries: string[],
       width,
       stroke,
       points,
+      spanGaps: false,
       forecast: forecast.value,
       forecastGroup: forecast.group,
       freeFormFields: d.metric,
@@ -165,8 +166,9 @@ export const delSeries = (u: uPlot) => {
   }
 };
 
-export const addSeries = (u: uPlot, series: uPlotSeries[]) => {
+export const addSeries = (u: uPlot, series: uPlotSeries[], spanGaps = false) => {
   series.forEach((s) => {
+    if (s.label) s.spanGaps = spanGaps;
     u.addSeries(s);
   });
 };

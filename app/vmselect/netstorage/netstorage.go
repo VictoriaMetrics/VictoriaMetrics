@@ -5,7 +5,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"reflect"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -1312,9 +1311,11 @@ func canAppendToBlockRefPool(pool, a []blockRef) bool {
 		// a doesn't belong to pool
 		return false
 	}
-	shPool := (*reflect.SliceHeader)(unsafe.Pointer(&pool))
-	shA := (*reflect.SliceHeader)(unsafe.Pointer(&a))
-	return shPool.Data+uintptr(shPool.Len)*unsafe.Sizeof(blockRef{}) == shA.Data+uintptr(shA.Len)*unsafe.Sizeof(blockRef{})
+	return getBlockRefsEnd(pool) == getBlockRefsEnd(a)
+}
+
+func getBlockRefsEnd(a []blockRef) uintptr {
+	return uintptr(unsafe.Pointer(unsafe.SliceData(a))) + uintptr(len(a))*unsafe.Sizeof(blockRef{})
 }
 
 func setupTfss(qt *querytracer.Tracer, tr storage.TimeRange, tagFilterss [][]storage.TagFilter, maxMetrics int, deadline searchutils.Deadline) ([]*storage.TagFilters, error) {

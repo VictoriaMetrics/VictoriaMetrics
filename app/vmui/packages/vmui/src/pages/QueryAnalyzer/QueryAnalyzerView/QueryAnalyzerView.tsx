@@ -49,7 +49,7 @@ const QueryAnalyzerView: FC<Props> = ({ data, period }) => {
   }, [data]);
   const [displayType, setDisplayType] = useState(tabs[0].value);
 
-  const { yaxis } = useGraphState();
+  const { yaxis, spanGaps } = useGraphState();
   const graphDispatch = useGraphDispatch();
 
   const setYaxisLimits = (limits: AxisRange) => {
@@ -58,6 +58,10 @@ const QueryAnalyzerView: FC<Props> = ({ data, period }) => {
 
   const toggleEnableLimits = () => {
     graphDispatch({ type: "TOGGLE_ENABLE_YAXIS_LIMITS" });
+  };
+
+  const setSpanGaps = (value: boolean) => {
+    graphDispatch({ type: "SET_SPAN_GAPS", payload: value });
   };
 
   const handleChangeDisplayType = (newValue: string) => {
@@ -137,6 +141,7 @@ const QueryAnalyzerView: FC<Props> = ({ data, period }) => {
                 yaxis={yaxis}
                 setYaxisLimits={setYaxisLimits}
                 toggleEnableLimits={toggleEnableLimits}
+                spanGaps={{ value: spanGaps, onChange: setSpanGaps }}
               />
             )}
             {displayType === "table" && (
@@ -161,6 +166,7 @@ const QueryAnalyzerView: FC<Props> = ({ data, period }) => {
             setPeriod={() => null}
             height={isMobile ? window.innerHeight * 0.5 : 500}
             isHistogram={isHistogram}
+            spanGaps={spanGaps}
           />
         )}
         {liveData && (displayType === "code") && (
