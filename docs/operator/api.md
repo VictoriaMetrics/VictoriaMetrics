@@ -902,6 +902,7 @@ VMAgentSpec defines the desired state of VMAgent
 | readinessGates | ReadinessGates defines pod readiness gates | []v1.PodReadinessGate | false |
 | claimTemplates | ClaimTemplates allows adding additional VolumeClaimTemplates for VMAgent in StatefulMode | [][v1.PersistentVolumeClaim](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#persistentvolumeclaim-v1-core) | false |
 | useStrictSecurity | UseStrictSecurity enables strict security mode for component it restricts disk writes access uses non-root user out of the box drops not needed security permissions | *bool | false |
+| ingestOnlyMode | IngestOnlyMode switches vmagent into unmanaged mode it disables any config generation for scraping Currently it prevents vmagent from managing tls and auth options for remote write | bool | false |
 | license | License allows to configure license key to be used for enterprise features. Using license key is supported starting from VictoriaMetrics v1.94.0. See: https://docs.victoriametrics.com/enterprise.html | *[License](#license) | false |
 
 [Back to TOC](#table-of-contents)
