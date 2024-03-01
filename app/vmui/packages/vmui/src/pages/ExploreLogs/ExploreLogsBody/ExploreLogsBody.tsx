@@ -8,10 +8,8 @@ import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import { Logs } from "../../../api/types";
 import dayjs from "dayjs";
 import { useTimeState } from "../../../state/time/TimeStateContext";
-import SelectLimit from "../../../components/Main/Pagination/SelectLimit/SelectLimit";
 import useStateSearchParams from "../../../hooks/useStateSearchParams";
 import useSearchParamsFromObject from "../../../hooks/useSearchParamsFromObject";
-import { getFromStorage, saveToStorage } from "../../../utils/storage";
 import TableSettings from "../../../components/Table/TableSettings/TableSettings";
 import useBoolean from "../../../hooks/useBoolean";
 import TableLogs from "./TableLogs";
@@ -29,16 +27,15 @@ enum DisplayType {
 }
 
 const tabs = [
-  { label: "Group", value: DisplayType.group, icon: <ListIcon /> },
-  { label: "Table", value: DisplayType.table, icon: <TableIcon /> },
-  { label: "JSON", value: DisplayType.json, icon: <CodeIcon /> },
+  { label: "Group", value: DisplayType.group, icon: <ListIcon/> },
+  { label: "Table", value: DisplayType.table, icon: <TableIcon/> },
+  { label: "JSON", value: DisplayType.json, icon: <CodeIcon/> },
 ];
 
 const ExploreLogsBody: FC<ExploreLogBodyProps> = ({ data, loaded }) => {
   const { isMobile } = useDeviceDetect();
   const { timezone } = useTimeState();
   const { setSearchParamsFromKeys } = useSearchParamsFromObject();
-  const [limitRows, setLimitRows] = useStateSearchParams(getFromStorage("LOGS_LIMIT") || 50, "limit");
 
   const [activeTab, setActiveTab] = useStateSearchParams(DisplayType.group, "view");
   const [displayColumns, setDisplayColumns] = useState<string[]>([]);
@@ -67,17 +64,11 @@ const ExploreLogsBody: FC<ExploreLogBodyProps> = ({ data, loaded }) => {
     setSearchParamsFromKeys({ view });
   };
 
-  const handleChangeLimit = (limit: number) => {
-    setLimitRows(limit);
-    setSearchParamsFromKeys({ limit });
-    saveToStorage("LOGS_LIMIT", `${limit}`);
-  };
-
   return (
     <div
       className={classNames({
         "vm-explore-logs-body": true,
-        "vm-block":  true,
+        "vm-block": true,
         "vm-block_mobile": isMobile,
       })}
     >
@@ -97,10 +88,6 @@ const ExploreLogsBody: FC<ExploreLogBodyProps> = ({ data, loaded }) => {
         </div>
         {activeTab === DisplayType.table && (
           <div className="vm-explore-logs-body-header__settings">
-            <SelectLimit
-              limit={+limitRows}
-              onChange={handleChangeLimit}
-            />
             <TableSettings
               columns={columns}
               defaultColumns={displayColumns}
@@ -128,7 +115,6 @@ const ExploreLogsBody: FC<ExploreLogBodyProps> = ({ data, loaded }) => {
             {activeTab === DisplayType.table && (
               <TableLogs
                 logs={logs}
-                limitRows={+limitRows}
                 displayColumns={displayColumns}
                 tableCompact={tableCompact}
                 columns={columns}
@@ -141,7 +127,7 @@ const ExploreLogsBody: FC<ExploreLogBodyProps> = ({ data, loaded }) => {
               />
             )}
             {activeTab === DisplayType.json && (
-              <JsonView data={data} />
+              <JsonView data={data}/>
             )}
           </>
         )}

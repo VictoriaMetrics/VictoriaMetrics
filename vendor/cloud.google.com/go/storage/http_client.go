@@ -885,7 +885,7 @@ func (c *httpStorageClient) OpenWriter(params *openWriterParams, opts ...storage
 	mediaOpts := []googleapi.MediaOption{
 		googleapi.ChunkSize(params.chunkSize),
 	}
-	if c := attrs.ContentType; c != "" {
+	if c := attrs.ContentType; c != "" || params.forceEmptyContentType {
 		mediaOpts = append(mediaOpts, googleapi.ContentType(c))
 	}
 	if params.chunkRetryDeadline != 0 {

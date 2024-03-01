@@ -2,7 +2,6 @@ package promql
 
 import (
 	"fmt"
-	"reflect"
 	"sort"
 	"strconv"
 	"sync"
@@ -308,60 +307,32 @@ func unmarshalBytesFast(src []byte) ([]byte, []byte, error) {
 	return src[n:], src[:n], nil
 }
 
-func float64ToByteSlice(a []float64) (b []byte) {
-	if len(a) == 0 {
-		return nil
-	}
-	sh := (*reflect.SliceHeader)(unsafe.Pointer(&b))
-	sh.Data = uintptr(unsafe.Pointer(&a[0]))
-	sh.Len = len(a) * int(unsafe.Sizeof(a[0]))
-	sh.Cap = sh.Len
-	return
+func float64ToByteSlice(a []float64) []byte {
+	return unsafe.Slice((*byte)(unsafe.Pointer(unsafe.SliceData(a))), len(a)*8)
 }
 
-func int64ToByteSlice(a []int64) (b []byte) {
-	if len(a) == 0 {
-		return nil
-	}
-	sh := (*reflect.SliceHeader)(unsafe.Pointer(&b))
-	sh.Data = uintptr(unsafe.Pointer(&a[0]))
-	sh.Len = len(a) * int(unsafe.Sizeof(a[0]))
-	sh.Cap = sh.Len
-	return
+func int64ToByteSlice(a []int64) []byte {
+	return unsafe.Slice((*byte)(unsafe.Pointer(unsafe.SliceData(a))), len(a)*8)
 }
 
-func byteSliceToInt64(b []byte) (a []int64) {
-	if len(b) == 0 {
-		return nil
-	}
-	sh := (*reflect.SliceHeader)(unsafe.Pointer(&a))
-	sh.Data = uintptr(unsafe.Pointer(&b[0]))
-	sh.Len = len(b) / int(unsafe.Sizeof(a[0]))
-	sh.Cap = sh.Len
+func byteSliceToInt64(b []byte) []int64 {
 	// Make sure that the returned slice is properly aligned to 8 bytes.
 	// This prevents from SIGBUS error on arm architectures, which deny unaligned access.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3927
-	if sh.Data%8 != 0 {
+	if uintptr(unsafe.Pointer(unsafe.SliceData(b)))%8 != 0 {
 		logger.Panicf("BUG: the input byte slice b must be aligned to 8 bytes")
 	}
-	return
+	return unsafe.Slice((*int64)(unsafe.Pointer(unsafe.SliceData(b))), len(b)/8)
 }
 
-func byteSliceToFloat64(b []byte) (a []float64) {
-	if len(b) == 0 {
-		return nil
-	}
-	sh := (*reflect.SliceHeader)(unsafe.Pointer(&a))
-	sh.Data = uintptr(unsafe.Pointer(&b[0]))
-	sh.Len = len(b) / int(unsafe.Sizeof(a[0]))
-	sh.Cap = sh.Len
+func byteSliceToFloat64(b []byte) []float64 {
 	// Make sure that the returned slice is properly aligned to 8 bytes.
 	// This prevents from SIGBUS error on arm architectures, which deny unaligned access.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3927
-	if sh.Data%8 != 0 {
+	if uintptr(unsafe.Pointer(unsafe.SliceData(b)))%8 != 0 {
 		logger.Panicf("BUG: the input byte slice b must be aligned to 8 bytes")
 	}
-	return
+	return unsafe.Slice((*float64)(unsafe.Pointer(unsafe.SliceData(b))), len(b)/8)
 }
 
 func stringMetricName(mn *storage.MetricName) string {

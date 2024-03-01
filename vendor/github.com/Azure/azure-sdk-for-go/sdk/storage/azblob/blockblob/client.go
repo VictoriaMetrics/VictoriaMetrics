@@ -474,7 +474,7 @@ func (bb *Client) uploadFromReader(ctx context.Context, reader io.ReaderAt, actu
 		OperationName: "uploadFromReader",
 		TransferSize:  actualSize,
 		ChunkSize:     o.BlockSize,
-		NumChunks:     uint16(((actualSize - 1) / o.BlockSize) + 1),
+		NumChunks:     uint64(((actualSize - 1) / o.BlockSize) + 1),
 		Concurrency:   o.Concurrency,
 		Operation: func(ctx context.Context, offset int64, chunkSize int64) error {
 			// This function is called once per block.

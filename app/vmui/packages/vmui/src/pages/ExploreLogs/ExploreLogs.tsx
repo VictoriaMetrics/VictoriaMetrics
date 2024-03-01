@@ -11,14 +11,19 @@ import "./style.scss";
 import { ErrorTypes } from "../../types";
 import { useState } from "react";
 import { useTimeState } from "../../state/time/TimeStateContext";
+import { getFromStorage, saveToStorage } from "../../utils/storage";
+
+const storageLimit = Number(getFromStorage("LOGS_LIMIT"));
+const defaultLimit = isNaN(storageLimit) ? 1000 : storageLimit;
 
 const ExploreLogs: FC = () => {
   const { serverUrl } = useAppState();
   const { duration, relativeTime, period } = useTimeState();
   const { setSearchParamsFromKeys } = useSearchParamsFromObject();
 
+  const [limit, setLimit] = useStateSearchParams(defaultLimit, "limit");
   const [query, setQuery] = useStateSearchParams("", "query");
-  const { logs, isLoading, error, fetchLogs } = useFetchLogs(serverUrl, query);
+  const { logs, isLoading, error, fetchLogs } = useFetchLogs(serverUrl, query, limit);
   const [queryError, setQueryError] = useState<ErrorTypes | string>("");
   const [loaded, isLoaded] = useState(false);
 
@@ -40,6 +45,12 @@ const ExploreLogs: FC = () => {
     });
   };
 
+  const handleChangeLimit = (limit: number) => {
+    setLimit(limit);
+    setSearchParamsFromKeys({ limit });
+    saveToStorage("LOGS_LIMIT", `${limit}`);
+  };
+
   useEffect(() => {
     if (query) handleRunQuery();
   }, [period]);
@@ -53,7 +64,9 @@ const ExploreLogs: FC = () => {
       <ExploreLogsHeader
         query={query}
         error={queryError}
+        limit={limit}
         onChange={setQuery}
+        onChangeLimit={handleChangeLimit}
         onRun={handleRunQuery}
       />
       {isLoading && <Spinner />}
