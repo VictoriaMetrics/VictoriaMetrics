@@ -47,7 +47,7 @@ VictoriaMetrics is developed at a fast pace, so it is recommended to check the [
 and to perform [regular upgrades](#how-to-upgrade-victoriametrics).
 
 [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise/) provides long-term support lines of releases (LTS releases) -
-see [these docs](https://docs.victoriametrics.com/LTS-releases.md).
+see [these docs](https://docs.victoriametrics.com/lts-releases/).
 
 VictoriaMetrics has achieved security certifications for Database Software Development and Software-Based Monitoring Services.
 We apply strict security measures in everything we do. See [Security page](https://victoriametrics.com/security/) for more details.
