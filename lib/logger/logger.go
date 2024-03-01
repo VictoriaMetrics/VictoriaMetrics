@@ -67,6 +67,7 @@ func initTimezone() {
 	timezone = tz
 }
 
+// coment
 var timezone = time.UTC
 
 func setLoggerOutput() {
