@@ -35,7 +35,7 @@ func NewPassword(name, description string) *Password {
 // If the flag value is file:///path/to/file or http://host/path ,
 // then its contents is automatically re-read from the given file or url
 type Password struct {
-	nextRefreshTimestamp uint64
+	nextRefreshTimestamp atomic.Uint64
 
 	value atomic.Pointer[string]
 
@@ -62,14 +62,14 @@ func (p *Password) maybeRereadPassword() {
 		return
 	}
 	tsCurr := fasttime.UnixTimestamp()
-	tsNext := atomic.LoadUint64(&p.nextRefreshTimestamp)
+	tsNext := p.nextRefreshTimestamp.Load()
 	if tsCurr < tsNext {
 		// Fast path - nothing to re-read
 		return
 	}
 
 	// Re-read password from p.sourcePath
-	atomic.StoreUint64(&p.nextRefreshTimestamp, tsCurr+2)
+	p.nextRefreshTimestamp.Store(tsCurr + 2)
 	s, err := fscore.ReadPasswordFromFileOrHTTP(p.sourcePath)
 	if err != nil {
 		// cannot use lib/logger, since it can be uninitialized yet
@@ -86,7 +86,7 @@ func (p *Password) String() string {
 
 // Set implements flag.Value interface.
 func (p *Password) Set(value string) error {
-	atomic.StoreUint64(&p.nextRefreshTimestamp, 0)
+	p.nextRefreshTimestamp.Store(0)
 	switch {
 	case strings.HasPrefix(value, "file://"):
 		p.sourcePath = strings.TrimPrefix(value, "file://")

@@ -172,12 +172,12 @@ func (b *Block) deduplicateSamplesDuringMerge() {
 	srcValues := b.values[b.nextIdx:]
 	timestamps, values := deduplicateSamplesDuringMerge(srcTimestamps, srcValues, dedupInterval)
 	dedups := len(srcTimestamps) - len(timestamps)
-	atomic.AddUint64(&dedupsDuringMerge, uint64(dedups))
+	dedupsDuringMerge.Add(uint64(dedups))
 	b.timestamps = b.timestamps[:b.nextIdx+len(timestamps)]
 	b.values = b.values[:b.nextIdx+len(values)]
 }
 
-var dedupsDuringMerge uint64
+var dedupsDuringMerge atomic.Uint64
 
 func (b *Block) rowsCount() int {
 	if len(b.values) == 0 {

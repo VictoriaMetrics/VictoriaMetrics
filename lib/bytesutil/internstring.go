@@ -42,19 +42,19 @@ func InternString(s string) string {
 	ct := fasttime.UnixTimestamp()
 	if v, ok := internStringsMap.Load(s); ok {
 		e := v.(*ismEntry)
-		if atomic.LoadUint64(&e.lastAccessTime)+10 < ct {
+		if e.lastAccessTime.Load()+10 < ct {
 			// Reduce the frequency of e.lastAccessTime update to once per 10 seconds
 			// in order to improve the fast path speed on systems with many CPU cores.
-			atomic.StoreUint64(&e.lastAccessTime, ct)
+			e.lastAccessTime.Store(ct)
 		}
 		return e.s
 	}
 	// Make a new copy for s in order to remove references from possible bigger string s refers to.
 	sCopy := strings.Clone(s)
 	e := &ismEntry{
-		lastAccessTime: ct,
-		s:              sCopy,
+		s: sCopy,
 	}
+	e.lastAccessTime.Store(ct)
 	internStringsMap.Store(sCopy, e)
 
 	if needCleanup(&internStringsMapLastCleanupTime, ct) {
@@ -63,7 +63,7 @@ func InternString(s string) string {
 		deadline := ct - uint64(cacheExpireDuration.Seconds())
 		m.Range(func(k, v interface{}) bool {
 			e := v.(*ismEntry)
-			if atomic.LoadUint64(&e.lastAccessTime) < deadline {
+			if e.lastAccessTime.Load() < deadline {
 				m.Delete(k)
 			}
 			return true
@@ -74,11 +74,11 @@ func InternString(s string) string {
 }
 
 type ismEntry struct {
-	lastAccessTime uint64
+	lastAccessTime atomic.Uint64
 	s              string
 }
 
 var (
 	internStringsMap                sync.Map
-	internStringsMapLastCleanupTime uint64
+	internStringsMapLastCleanupTime atomic.Uint64
 )

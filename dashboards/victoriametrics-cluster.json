@@ -6210,7 +6210,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Shows network usage by vmstorage services.\n* Writes show traffic sent to vmselects.\n* Reads show traffic received from vminserts.",
+          "description": "Shows network usage by vmstorage services.\n* Writes show traffic sent to clients.\n* Reads show traffic received from clients.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -6310,10 +6310,10 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(rate(vm_tcplistener_read_bytes_total{job=~\"$job_storage\", instance=~\"$instance\"}[$__rate_interval])) * 8 > 0",
+              "expr": "sum(rate(vm_tcplistener_read_bytes_total{job=~\"$job_storage\", instance=~\"$instance\"}[$__rate_interval])) by(name) * 8 > 0",
               "format": "time_series",
               "intervalFactor": 1,
-              "legendFormat": "read",
+              "legendFormat": "read from {{name}}",
               "range": true,
               "refId": "A"
             },
@@ -6323,11 +6323,11 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(rate(vm_tcplistener_written_bytes_total{job=~\"$job_storage\", instance=~\"$instance\"}[$__rate_interval])) * 8 > 0",
+              "expr": "sum(rate(vm_tcplistener_written_bytes_total{job=~\"$job_storage\", instance=~\"$instance\"}[$__rate_interval])) by(name) * 8 > 0",
               "format": "time_series",
               "hide": false,
               "intervalFactor": 1,
-              "legendFormat": "write ",
+              "legendFormat": "write to {{name}}",
               "range": true,
               "refId": "B"
             }
@@ -7420,7 +7420,7 @@
               "expr": "sum(rate(vm_tcplistener_read_bytes_total{job=~\"$job_select\", instance=~\"$instance\"}[$__rate_interval])) * 8 > 0",
               "format": "time_series",
               "intervalFactor": 1,
-              "legendFormat": "read",
+              "legendFormat": "read from client",
               "range": true,
               "refId": "A"
             },
@@ -7434,7 +7434,7 @@
               "format": "time_series",
               "hide": false,
               "intervalFactor": 1,
-              "legendFormat": "write ",
+              "legendFormat": "write to client",
               "range": true,
               "refId": "B"
             }
@@ -7550,7 +7550,7 @@
               "expr": "sum(rate(vm_tcpdialer_read_bytes_total{job=~\"$job_select\", instance=~\"$instance\"}[$__rate_interval])) * 8 > 0",
               "format": "time_series",
               "intervalFactor": 1,
-              "legendFormat": "read",
+              "legendFormat": "read from vmstorage",
               "range": true,
               "refId": "A"
             },
@@ -7564,7 +7564,7 @@
               "format": "time_series",
               "hide": false,
               "intervalFactor": 1,
-              "legendFormat": "write ",
+              "legendFormat": "write to vmstorage",
               "range": true,
               "refId": "B"
             }
@@ -8442,7 +8442,7 @@
               "expr": "sum(rate(vm_tcplistener_read_bytes_total{job=~\"$job_insert\", instance=~\"$instance\"}[$__rate_interval])) * 8 > 0",
               "format": "time_series",
               "intervalFactor": 1,
-              "legendFormat": "read",
+              "legendFormat": "read from client",
               "range": true,
               "refId": "A"
             },
@@ -8456,7 +8456,7 @@
               "format": "time_series",
               "hide": false,
               "intervalFactor": 1,
-              "legendFormat": "write ",
+              "legendFormat": "write to client",
               "range": true,
               "refId": "B"
             }
@@ -8572,7 +8572,7 @@
               "expr": "sum(rate(vm_tcpdialer_read_bytes_total{job=~\"$job_insert\", instance=~\"$instance\"}[$__rate_interval])) * 8 > 0",
               "format": "time_series",
               "intervalFactor": 1,
-              "legendFormat": "read",
+              "legendFormat": "read from vmstorage",
               "range": true,
               "refId": "A"
             },
@@ -8586,7 +8586,7 @@
               "format": "time_series",
               "hide": false,
               "intervalFactor": 1,
-              "legendFormat": "write ",
+              "legendFormat": "write to vmstorage",
               "range": true,
               "refId": "B"
             }

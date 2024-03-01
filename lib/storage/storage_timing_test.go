@@ -25,7 +25,7 @@ func benchmarkStorageAddRows(b *testing.B, rowsPerBatch int) {
 		}
 	}()
 
-	var globalOffset uint64
+	var globalOffset atomic.Uint64
 
 	b.SetBytes(int64(rowsPerBatch))
 	b.ReportAllocs()
@@ -39,7 +39,7 @@ func benchmarkStorageAddRows(b *testing.B, rowsPerBatch int) {
 			{[]byte("instance"), []byte("1.2.3.4")},
 		}
 		for pb.Next() {
-			offset := int(atomic.AddUint64(&globalOffset, uint64(rowsPerBatch)))
+			offset := int(globalOffset.Add(uint64(rowsPerBatch)))
 			for i := 0; i < rowsPerBatch; i++ {
 				mr := &mrs[i]
 				mr.MetricNameRaw = mn.marshalRaw(mr.MetricNameRaw[:0])

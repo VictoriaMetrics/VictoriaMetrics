@@ -35,7 +35,8 @@ It isn't recommended to migrate from existing logging solutions to VictoriaLogs 
 See the [Roadmap](https://docs.victoriametrics.com/VictoriaLogs/Roadmap.html) for details.
 
 If you have questions about VictoriaLogs, then read [this FAQ](https://docs.victoriametrics.com/VictoriaLogs/FAQ.html).
-Also feel free asking any questions at [VictoriaMetrics community Slack chat](https://slack.victoriametrics.com/).
+Also feel free asking any questions at [VictoriaMetrics community Slack chat](https://victoriametrics.slack.com/), 
+you can join it via [Slack Inviter](https://slack.victoriametrics.com/).
 
 See [Quick start docs](https://docs.victoriametrics.com/VictoriaLogs/QuickStart.html) for start working with VictoriaLogs.
 
@@ -158,7 +159,7 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
   -gogc int
     	GOGC to use. See https://tip.golang.org/doc/gc-guide (default 100)
   -http.connTimeout duration
-    	Incoming http connections are closed after the configured timeout. This may help to spread the incoming load among a cluster of services behind a load balancer. Please note that the real timeout may be bigger by up to 10% as a protection against the thundering herd problem (default 2m0s)
+        Incoming connections to -httpListenAddr are closed after the configured timeout. This may help evenly spreading load among a cluster of services behind TCP-level load balancer. Zero value disables closing of incoming connections (default 2m0s)
   -http.disableResponseCompression
     	Disable compression of HTTP responses to save CPU resources. By default, compression is enabled to save network bandwidth
   -http.header.csp string

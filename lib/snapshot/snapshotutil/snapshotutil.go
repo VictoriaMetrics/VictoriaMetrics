@@ -41,7 +41,11 @@ func NewName() string {
 }
 
 func nextSnapshotIdx() uint64 {
-	return atomic.AddUint64(&snapshotIdx, 1)
+	return snapshotIdx.Add(1)
 }
 
-var snapshotIdx = uint64(time.Now().UnixNano())
+var snapshotIdx = func() *atomic.Uint64 {
+	var x atomic.Uint64
+	x.Store(uint64(time.Now().UnixNano()))
+	return &x
+}()

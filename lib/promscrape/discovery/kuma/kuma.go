@@ -19,7 +19,8 @@ var SDCheckInterval = flag.Duration("promscrape.kumaSDCheckInterval", 30*time.Se
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#kuma_sd_config
 type SDConfig struct {
-	Server string `yaml:"server"`
+	Server   string `yaml:"server"`
+	ClientID string `yaml:"client_id,omitempty"`
 
 	HTTPClientConfig  promauth.HTTPClientConfig  `yaml:",inline"`
 	ProxyURL          *proxy.URL                 `yaml:"proxy_url,omitempty"`

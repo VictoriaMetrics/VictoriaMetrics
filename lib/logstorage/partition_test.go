@@ -133,14 +133,14 @@ func TestPartitionMustAddRowsConcurrent(t *testing.T) {
 	pt := mustOpenPartition(s, path)
 
 	const workersCount = 3
-	totalRowsCount := uint64(0)
+	var totalRowsCount atomic.Uint64
 	doneCh := make(chan struct{}, workersCount)
 	for i := 0; i < cap(doneCh); i++ {
 		go func() {
 			for j := 0; j < 7; j++ {
 				lr := newTestLogRows(5, 10, int64(j))
 				pt.mustAddRows(lr)
-				atomic.AddUint64(&totalRowsCount, uint64(len(lr.timestamps)))
+				totalRowsCount.Add(uint64(len(lr.timestamps)))
 			}
 			doneCh <- struct{}{}
 		}()
@@ -157,8 +157,8 @@ func TestPartitionMustAddRowsConcurrent(t *testing.T) {
 
 	var ddbStats DatadbStats
 	pt.ddb.updateStats(&ddbStats)
-	if n := ddbStats.RowsCount(); n != totalRowsCount {
-		t.Fatalf("unexpected number of entries; got %d; want %d", n, totalRowsCount)
+	if n := ddbStats.RowsCount(); n != totalRowsCount.Load() {
+		t.Fatalf("unexpected number of entries; got %d; want %d", n, totalRowsCount.Load())
 	}
 
 	mustClosePartition(pt)

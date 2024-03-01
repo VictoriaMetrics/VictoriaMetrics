@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/metrics"
@@ -217,7 +216,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		addInfluxResponseHeaders(w)
 		influxutils.WriteDatabaseNames(w)
 		return true
-	case "/opentelemetry/api/v1/push":
+	case "/opentelemetry/api/v1/push", "/opentelemetry/v1/metrics":
 		opentelemetryPushRequests.Inc()
 		if err := opentelemetry.InsertHandler(r); err != nil {
 			opentelemetryPushErrors.Inc()
@@ -354,7 +353,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		w.WriteHeader(http.StatusOK)
 		return true
 	case "/ready":
-		if rdy := atomic.LoadInt32(&promscrape.PendingScrapeConfigs); rdy > 0 {
+		if rdy := promscrape.PendingScrapeConfigs.Load(); rdy > 0 {
 			errMsg := fmt.Sprintf("waiting for scrape config to init targets, configs left: %d", rdy)
 			http.Error(w, errMsg, http.StatusTooEarly)
 		} else {
@@ -412,8 +411,8 @@ var (
 	datadogIntakeRequests   = metrics.NewCounter(`vm_http_requests_total{path="/datadog/intake", protocol="datadog"}`)
 	datadogMetadataRequests = metrics.NewCounter(`vm_http_requests_total{path="/datadog/api/v1/metadata", protocol="datadog"}`)
 
-	opentelemetryPushRequests = metrics.NewCounter(`vm_http_requests_total{path="/opentelemetry/api/v1/push", protocol="opentelemetry"}`)
-	opentelemetryPushErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/opentelemetry/api/v1/push", protocol="opentelemetry"}`)
+	opentelemetryPushRequests = metrics.NewCounter(`vm_http_requests_total{path="/opentelemetry/v1/metrics", protocol="opentelemetry"}`)
+	opentelemetryPushErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/opentelemetry/v1/metrics", protocol="opentelemetry"}`)
 
 	newrelicWriteRequests = metrics.NewCounter(`vm_http_requests_total{path="/newrelic/infra/v2/metrics/events/bulk", protocol="newrelic"}`)
 	newrelicWriteErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/newrelic/infra/v2/metrics/events/bulk", protocol="newrelic"}`)
@@ -435,12 +434,12 @@ var (
 	promscrapeConfigReloadRequests = metrics.NewCounter(`vm_http_requests_total{path="/-/reload"}`)
 
 	_ = metrics.NewGauge(`vm_metrics_with_dropped_labels_total`, func() float64 {
-		return float64(atomic.LoadUint64(&storage.MetricsWithDroppedLabels))
+		return float64(storage.MetricsWithDroppedLabels.Load())
 	})
 	_ = metrics.NewGauge(`vm_too_long_label_names_total`, func() float64 {
-		return float64(atomic.LoadUint64(&storage.TooLongLabelNames))
+		return float64(storage.TooLongLabelNames.Load())
 	})
 	_ = metrics.NewGauge(`vm_too_long_label_values_total`, func() float64 {
-		return float64(atomic.LoadUint64(&storage.TooLongLabelValues))
+		return float64(storage.TooLongLabelValues.Load())
 	})
 )

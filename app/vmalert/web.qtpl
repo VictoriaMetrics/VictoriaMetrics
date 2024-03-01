@@ -70,15 +70,29 @@ btn-primary
                 }
             }
         %}
-         <a class="btn {%= buttonActive(filter, "") %}" role="button" onclick="window.location = window.location.pathname">All</a>
-         <a class="btn btn-primary" role="button" onclick="collapseAll()">Collapse All</a>
-         <a class="btn btn-primary" role="button" onclick="expandAll()">Expand All</a>
-         <a class="btn {%= buttonActive(filter, "unhealthy") %}" role="button" onclick="location.href='?filter=unhealthy'" title="Show only rules with errors">Unhealthy</a>
-         <a class="btn {%= buttonActive(filter, "noMatch") %}" role="button" onclick="location.href='?filter=noMatch'" title="Show only rules matching no time series during last evaluation">NoMatch</a>
+        <div class="btn-toolbar mb-3" role="toolbar">
+          <div>
+            <a class="btn {%= buttonActive(filter, "") %}" role="button" onclick="window.location = window.location.pathname">All</a>
+            <a class="btn btn-primary" role="button" onclick="collapseAll()">Collapse All</a>
+            <a class="btn btn-primary" role="button" onclick="expandAll()">Expand All</a>
+            <a class="btn {%= buttonActive(filter, "unhealthy") %}" role="button" onclick="location.href='?filter=unhealthy'" title="Show only rules with errors">Unhealthy</a>
+            <a class="btn {%= buttonActive(filter, "noMatch") %}" role="button" onclick="location.href='?filter=noMatch'" title="Show only rules matching no time series during last evaluation">NoMatch</a>
+          </div>
+          <div class="col-md-4 col-lg-5">
+            <div class="px-3 input-group">
+              <div class="input-group-prepend">
+                <span class="input-group-text">
+                  <svg fill="#000000" height="25px" width="20px" version="1.1" id="Capa_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 490.4 490.4" xml:space="preserve"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <g> <path d="M484.1,454.796l-110.5-110.6c29.8-36.3,47.6-82.8,47.6-133.4c0-116.3-94.3-210.6-210.6-210.6S0,94.496,0,210.796 s94.3,210.6,210.6,210.6c50.8,0,97.4-18,133.8-48l110.5,110.5c12.9,11.8,25,4.2,29.2,0C492.5,475.596,492.5,463.096,484.1,454.796z M41.1,210.796c0-93.6,75.9-169.5,169.5-169.5s169.6,75.9,169.6,169.5s-75.9,169.5-169.5,169.5S41.1,304.396,41.1,210.796z"></path> </g> </g></svg>
+                </span>
+              </div>
+              <input id="search" placeholder="Filter by group, rule or labels" type="text" class="form-control"/>
+            </div>
+          </div>
+        </div>
         {%  if len(groups) > 0 %}
             {% for _, g := range groups  %}
                   <div
-                    class="group-heading{% if rNotOk[g.ID] > 0 %} alert-danger{%endif%}" data-bs-target="rules-{%s g.ID %}">
+                    class="group-heading{% if rNotOk[g.ID] > 0 %} alert-danger{%endif%}" data-bs-target="rules-{%s g.ID %}" data-group-name="{%s g.Name %}">
                     <span class="anchor" id="group-{%s g.ID %}"></span>
                     <a href="#group-{%s g.ID %}">{%s g.Name %}{% if g.Type != "prometheus" %} ({%s g.Type %}){% endif %} (every {%f.0 g.Interval %}s) #</a>
                      {% if rNotOk[g.ID] > 0 %}<span class="badge bg-danger" title="Number of rules with status Error">{%d rNotOk[g.ID] %}</span> {% endif %}
@@ -100,7 +114,7 @@ btn-primary
                         </div>
                     {% endif %}
                 </div>
-                <div class="collapse" id="rules-{%s g.ID %}">
+                <div class="collapse rule-table" id="rules-{%s g.ID %}">
                     <table class="table table-striped table-hover table-sm">
                         <thead>
                             <tr>
@@ -111,7 +125,7 @@ btn-primary
                         </thead>
                         <tbody>
                         {% for _, r := range g.Rules %}
-                            <tr{% if r.LastError != "" %} class="alert-danger"{% endif %}>
+                            <tr class="rule{% if r.LastError != "" %} alert-danger{% endif %}" data-rule-name="{%s r.Name %}" data-bs-target="{%s g.ID %}">
                                 <td>
                                     <div class="row">
                                         <div class="col-12 mb-2">
@@ -134,7 +148,7 @@ btn-primary
                                         <div class="col-12 mb-2">
                                             {% if len(r.Labels) > 0 %} <b>Labels:</b>{% endif %}
                                             {% for k, v := range r.Labels %}
-                                                    <span class="ms-1 badge bg-primary">{%s k %}={%s v %}</span>
+                                                    <span class="ms-1 badge bg-primary label">{%s k %}={%s v %}</span>
                                             {% endfor %}
                                         </div>
                                         {% if r.LastError != "" %}
@@ -170,11 +184,25 @@ btn-primary
     {%code prefix := utils.Prefix(r.URL.Path) %}
     {%= tpl.Header(r, navItems, "Alerts", getLastConfigError()) %}
     {% if len(groupAlerts) > 0 %}
-         <a class="btn btn-primary" role="button" onclick="collapseAll()">Collapse All</a>
-         <a class="btn btn-primary" role="button" onclick="expandAll()">Expand All</a>
+         <div class="btn-toolbar mb-3" role="toolbar">
+              <div>
+                <a class="btn btn-primary" role="button" onclick="collapseAll()">Collapse All</a>
+                 <a class="btn btn-primary" role="button" onclick="expandAll()">Expand All</a>
+              </div>
+              <div class="col-md-4 col-lg-5">
+                <div class="px-3 input-group">
+                  <div class="input-group-prepend">
+                    <span class="input-group-text">
+                      <svg fill="#000000" height="25px" width="20px" version="1.1" id="Capa_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 490.4 490.4" xml:space="preserve"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <g> <path d="M484.1,454.796l-110.5-110.6c29.8-36.3,47.6-82.8,47.6-133.4c0-116.3-94.3-210.6-210.6-210.6S0,94.496,0,210.796 s94.3,210.6,210.6,210.6c50.8,0,97.4-18,133.8-48l110.5,110.5c12.9,11.8,25,4.2,29.2,0C492.5,475.596,492.5,463.096,484.1,454.796z M41.1,210.796c0-93.6,75.9-169.5,169.5-169.5s169.6,75.9,169.6,169.5s-75.9,169.5-169.5,169.5S41.1,304.396,41.1,210.796z"></path> </g> </g></svg>
+                    </span>
+                  </div>
+                  <input id="search" placeholder="Filter by group, rule or labels" type="text" class="form-control"/>
+                </div>
+              </div>
+          </div>
          {% for _, ga := range groupAlerts %}
             {%code g := ga.Group %}
-            <div class="group-heading alert-danger" data-bs-target="rules-{%s g.ID %}">
+            <div class="group-heading alert-danger" data-bs-target="rules-{%s g.ID %}" data-group-name="{%s g.Name %}">
                 <span class="anchor" id="group-{%s g.ID %}"></span>
                 <a href="#group-{%s g.ID %}">{%s g.Name %}{% if g.Type != "prometheus" %} ({%s g.Type %}){% endif %}</a>
                 <span class="badge bg-danger" title="Number of active alerts">{%d len(ga.Alerts) %}</span>
@@ -192,7 +220,7 @@ btn-primary
                 }
                 sort.Strings(keys)
             %}
-            <div class="collapse" id="rules-{%s g.ID %}">
+            <div class="collapse rule-table" id="rules-{%s g.ID %}">
                 {% for _, ruleID := range keys %}
                     {%code
                         defaultAR := alertsByRule[ruleID][0]
@@ -203,45 +231,46 @@ btn-primary
                         sort.Strings(labelKeys)
                     %}
                     <br>
-                    <b>alert:</b> {%s defaultAR.Name %} ({%d len(alertsByRule[ruleID]) %})
-                     | <span><a target="_blank" href="{%s defaultAR.SourceLink %}">Source</a></span>
-                    <br>
-                    <b>expr:</b><code><pre>{%s defaultAR.Expression %}</pre></code>
-                    <table class="table table-striped table-hover table-sm">
-                        <thead>
-                            <tr>
-                                <th scope="col">Labels</th>
-                                <th scope="col">State</th>
-                                <th scope="col">Active at</th>
-                                <th scope="col">Value</th>
-                                <th scope="col">Link</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                        {% for _, ar := range alertsByRule[ruleID] %}
-                            <tr>
-                                <td>
-                                    {% for _, k := range labelKeys %}
-                                        <span class="ms-1 badge bg-primary">{%s k %}={%s ar.Labels[k] %}</span>
-                                    {% endfor %}
-                                </td>
-                                <td>{%= badgeState(ar.State) %}</td>
-                                <td>
-                                    {%s ar.ActiveAt.Format("2006-01-02T15:04:05Z07:00") %}
-                                    {% if ar.Restored %}{%= badgeRestored() %}{% endif %}
-                                    {% if ar.Stabilizing %}{%= badgeStabilizing() %}{% endif %}
-                                </td>
-                                <td>{%s ar.Value %}</td>
-                                <td>
-                                    <a href="{%s prefix+ar.WebLink() %}">Details</a>
-                                </td>
-                            </tr>
-                        {% endfor %}
-                     </tbody>
-                    </table>
+                    <div class="rule" data-rule-name="{%s defaultAR.Name %}" data-bs-target="{%s g.ID %}">
+                      <b>alert:</b> {%s defaultAR.Name %} ({%d len(alertsByRule[ruleID]) %})
+                       | <span><a target="_blank" href="{%s defaultAR.SourceLink %}">Source</a></span>
+                      <br>
+                      <b>expr:</b><code><pre>{%s defaultAR.Expression %}</pre></code>
+                      <table class="table table-striped table-hover table-sm">
+                          <thead>
+                              <tr>
+                                  <th scope="col">Labels</th>
+                                  <th scope="col">State</th>
+                                  <th scope="col">Active at</th>
+                                  <th scope="col">Value</th>
+                                  <th scope="col">Link</th>
+                              </tr>
+                          </thead>
+                          <tbody>
+                          {% for _, ar := range alertsByRule[ruleID] %}
+                              <tr>
+                                  <td>
+                                      {% for _, k := range labelKeys %}
+                                          <span class="ms-1 badge bg-primary label">{%s k %}={%s ar.Labels[k] %}</span>
+                                      {% endfor %}
+                                  </td>
+                                  <td>{%= badgeState(ar.State) %}</td>
+                                  <td>
+                                      {%s ar.ActiveAt.Format("2006-01-02T15:04:05Z07:00") %}
+                                      {% if ar.Restored %}{%= badgeRestored() %}{% endif %}
+                                      {% if ar.Stabilizing %}{%= badgeStabilizing() %}{% endif %}
+                                  </td>
+                                  <td>{%s ar.Value %}</td>
+                                  <td>
+                                      <a href="{%s prefix+ar.WebLink() %}">Details</a>
+                                  </td>
+                              </tr>
+                          {% endfor %}
+                       </tbody>
+                      </table>
+                    </div>
                 {% endfor %}
             </div>
-            <br>
         {% endfor %}
 
     {% else %}

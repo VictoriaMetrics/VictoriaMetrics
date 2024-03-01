@@ -17,6 +17,8 @@ var (
 	maxExportDuration        = flag.Duration("search.maxExportDuration", time.Hour*24*30, "The maximum duration for /api/v1/export call")
 	maxQueryDuration         = flag.Duration("search.maxQueryDuration", time.Second*30, "The maximum duration for query execution")
 	maxStatusRequestDuration = flag.Duration("search.maxStatusRequestDuration", time.Minute*5, "The maximum duration for /api/v1/status/* requests")
+	maxLabelsAPIDuration     = flag.Duration("search.maxLabelsAPIDuration", time.Second*5, "The maximum duration for /api/v1/labels, /api/v1/label/.../values and /api/v1/series requests. "+
+		"See also -search.maxLabelsAPISeries and -search.ignoreExtraFiltersAtLabelsAPI")
 )
 
 // GetMaxQueryDuration returns the maximum duration for query from r.
@@ -48,6 +50,12 @@ func GetDeadlineForStatusRequest(r *http.Request, startTime time.Time) Deadline 
 func GetDeadlineForExport(r *http.Request, startTime time.Time) Deadline {
 	dMax := maxExportDuration.Milliseconds()
 	return getDeadlineWithMaxDuration(r, startTime, dMax, "-search.maxExportDuration")
+}
+
+// GetDeadlineForLabelsAPI returns deadline for the given request to /api/v1/labels, /api/v1/label/.../values or /api/v1/series
+func GetDeadlineForLabelsAPI(r *http.Request, startTime time.Time) Deadline {
+	dMax := maxLabelsAPIDuration.Milliseconds()
+	return getDeadlineWithMaxDuration(r, startTime, dMax, "-search.maxLabelsAPIDuration")
 }
 
 func getDeadlineWithMaxDuration(r *http.Request, startTime time.Time, dMax int64, flagHint string) Deadline {

@@ -5,7 +5,13 @@
   align-items: center;
   gap: $padding-global;
 
-  &__input {}
+  &-top {
+    display: grid;
+    grid-template-columns: 8fr 2fr;
+    align-items: flex-start;
+    justify-content: center;
+    gap: $padding-global;
+  }
 
   &-bottom {
     display: flex;

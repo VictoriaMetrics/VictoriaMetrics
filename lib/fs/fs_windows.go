@@ -3,9 +3,7 @@ package fs
 import (
 	"fmt"
 	"os"
-	"reflect"
 	"sync"
-	"sync/atomic"
 	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -25,7 +23,7 @@ func mustSyncPath(path string) {
 }
 
 func mustRemoveDirAtomic(dir string) {
-	n := atomic.AddUint64(&atomicDirRemoveCounter, 1)
+	n := atomicDirRemoveCounter.Add(1)
 	tmpDir := fmt.Sprintf("%s.must-remove.%d", dir, n)
 	if err := os.Rename(dir, tmpDir); err != nil {
 		logger.Panicf("FATAL: cannot move %s to %s: %s", dir, tmpDir, err)
@@ -90,11 +88,7 @@ func mmap(fd int, length int) ([]byte, error) {
 		windows.CloseHandle(h)
 		return nil, os.NewSyscallError("MapViewOfFile", errno)
 	}
-	data := make([]byte, 0)
-	hdr := (*reflect.SliceHeader)(unsafe.Pointer(&data))
-	hdr.Data = addr
-	hdr.Len = length
-	hdr.Cap = hdr.Len
+	data := unsafe.Slice((*byte)(unsafe.Pointer(addr)), length)
 
 	mmapByAddrLock.Lock()
 	mmapByAddr[addr] = h
@@ -106,8 +100,7 @@ func mmap(fd int, length int) ([]byte, error) {
 func mUnmap(data []byte) error {
 	// flush is not needed, since we perform only reading operation.
 	// In case of write, additional call FlushViewOfFile must be performed.
-	header := (*reflect.SliceHeader)(unsafe.Pointer(&data))
-	addr := header.Data
+	addr := uintptr(unsafe.Pointer(unsafe.SliceData(data)))
 
 	mmapByAddrLock.Lock()
 	h, ok := mmapByAddr[addr]

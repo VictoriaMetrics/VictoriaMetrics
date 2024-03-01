@@ -204,6 +204,74 @@ spec:
   # ...
 ```
 
+## Resource management
+
+You can specify resources for each component of `VMCluster` resource in the `spec` section of the `VMCluster` CRD.
+
+```yaml
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMCluster
+metadata:
+  name: vmcluster-resources-example
+spec:
+    # ...
+    vmstorage:
+      resources:
+          requests:
+            memory: "16Gi"
+            cpu: "4"
+          limits:
+            memory: "16Gi"
+            cpu: "4"
+    # ...
+    vmselect:
+      resources:
+        requests:
+          memory: "16Gi"
+          cpu: "4"
+        limits:
+          memory: "16Gi"
+          cpu: "4"
+    # ...
+    vminsert:
+      resources:
+        requests:
+          memory: "16Gi"
+          cpu: "4"
+        limits:
+          memory: "16Gi"
+          cpu: "4"
+  # ...
+```
+
+If these parameters are not specified, then,
+by default all `VMCluster` pods have resource requests and limits from the default values of the following [operator parameters](../configuration.md):
+
+- `VM_VMCLUSTERDEFAULT_VMSTORAGEDEFAULT_RESOURCE_LIMIT_MEM` - default memory limit for `VMCluster/vmstorage` pods,
+- `VM_VMCLUSTERDEFAULT_VMSTORAGEDEFAULT_RESOURCE_LIMIT_CPU` - default memory limit for `VMCluster/vmstorage` pods,
+- `VM_VMCLUSTERDEFAULT_VMSTORAGEDEFAULT_RESOURCE_REQUEST_MEM` - default memory limit for `VMCluster/vmstorage` pods,
+- `VM_VMCLUSTERDEFAULT_VMSTORAGEDEFAULT_RESOURCE_REQUEST_CPU` - default memory limit for `VMCluster/vmstorage` pods,
+- `VM_VMCLUSTERDEFAULT_VMSELECTDEFAULT_RESOURCE_LIMIT_MEM` - default memory limit for `VMCluster/vmselect` pods,
+- `VM_VMCLUSTERDEFAULT_VMSELECTDEFAULT_RESOURCE_LIMIT_CPU` - default memory limit for `VMCluster/vmselect` pods,
+- `VM_VMCLUSTERDEFAULT_VMSELECTDEFAULT_RESOURCE_REQUEST_MEM` - default memory limit for `VMCluster/vmselect` pods,
+- `VM_VMCLUSTERDEFAULT_VMSELECTDEFAULT_RESOURCE_REQUEST_CPU` - default memory limit for `VMCluster/vmselect` pods,
+- `VM_VMCLUSTERDEFAULT_VMINSERTDEFAULT_RESOURCE_LIMIT_MEM` - default memory limit for `VMCluster/vmselect` pods,
+- `VM_VMCLUSTERDEFAULT_VMINSERTDEFAULT_RESOURCE_LIMIT_CPU` - default memory limit for `VMCluster/vmselect` pods,
+- `VM_VMCLUSTERDEFAULT_VMINSERTDEFAULT_RESOURCE_REQUEST_MEM` - default memory limit for `VMCluster/vmselect` pods,
+- `VM_VMCLUSTERDEFAULT_VMINSERTDEFAULT_RESOURCE_REQUEST_CPU` - default memory limit for `VMCluster/vmselect` pods.
+
+These default parameters will be used if:
+
+- `VM_VMCLUSTERDEFAULT_USEDEFAULTRESOURCES` is set to `true` (default value),
+- `VMCluster/*` CR doesn't have `resources` field in `spec` section.
+
+Field `resources` in `VMCluster/*` spec have higher priority than operator parameters.
+
+If you set `VM_VMCLUSTERDEFAULT_USEDEFAULTRESOURCES` to `false` and don't specify `resources` in `VMCluster/*` CRD,
+then `VMCluste/*r` pods will be created without resource requests and limits.
+
+Also, you can specify requests without limits - in this case default values for limits will not be used.
+
 ## Enterprise features
 
 VMCluster supports following features 

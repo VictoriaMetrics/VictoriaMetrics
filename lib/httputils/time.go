@@ -28,11 +28,10 @@ func GetTime(r *http.Request, argKey string, defaultMs int64) (int64, error) {
 		return maxTimeMsecs, nil
 	}
 	// Parse argValue
-	secs, err := promutils.ParseTime(argValue)
+	msecs, err := promutils.ParseTimeMsec(argValue)
 	if err != nil {
 		return 0, fmt.Errorf("cannot parse %s=%s: %w", argKey, argValue, err)
 	}
-	msecs := int64(secs * 1e3)
 	if msecs < minTimeMsecs {
 		msecs = 0
 	}

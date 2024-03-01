@@ -123,15 +123,20 @@ var (
 )
 
 const (
-	otsdbAddr        = "otsdb-addr"
-	otsdbConcurrency = "otsdb-concurrency"
-	otsdbQueryLimit  = "otsdb-query-limit"
-	otsdbOffsetDays  = "otsdb-offset-days"
-	otsdbHardTSStart = "otsdb-hard-ts-start"
-	otsdbRetentions  = "otsdb-retentions"
-	otsdbFilters     = "otsdb-filters"
-	otsdbNormalize   = "otsdb-normalize"
-	otsdbMsecsTime   = "otsdb-msecstime"
+	otsdbAddr               = "otsdb-addr"
+	otsdbConcurrency        = "otsdb-concurrency"
+	otsdbQueryLimit         = "otsdb-query-limit"
+	otsdbOffsetDays         = "otsdb-offset-days"
+	otsdbHardTSStart        = "otsdb-hard-ts-start"
+	otsdbRetentions         = "otsdb-retentions"
+	otsdbFilters            = "otsdb-filters"
+	otsdbNormalize          = "otsdb-normalize"
+	otsdbMsecsTime          = "otsdb-msecstime"
+	otsdbCertFile           = "otsdb-cert-file"
+	otsdbKeyFile            = "otsdb-key-file"
+	otsdbCAFile             = "otsdb-CA-file"
+	otsdbServerName         = "otsdb-server-name"
+	otsdbInsecureSkipVerify = "otsdb-insecure-skip-verify"
 )
 
 var (
@@ -191,6 +196,27 @@ var (
 			Value: false,
 			Usage: "Whether to normalize all data received to lower case before forwarding to VictoriaMetrics",
 		},
+		&cli.StringFlag{
+			Name:  otsdbCertFile,
+			Usage: "Optional path to client-side TLS certificate file to use when connecting to -otsdb-addr",
+		},
+		&cli.StringFlag{
+			Name:  otsdbKeyFile,
+			Usage: "Optional path to client-side TLS key to use when connecting to -otsdb-addr",
+		},
+		&cli.StringFlag{
+			Name:  otsdbCAFile,
+			Usage: "Optional path to TLS CA file to use for verifying connections to -otsdb-addr. By default, system CA is used",
+		},
+		&cli.StringFlag{
+			Name:  otsdbServerName,
+			Usage: "Optional TLS server name to use for connections to -otsdb-addr. By default, the server name from otsdbAddr is used",
+		},
+		&cli.BoolFlag{
+			Name:  otsdbInsecureSkipVerify,
+			Usage: "Whether to skip tls verification when connecting to -otsdb-addr",
+			Value: false,
+		},
 	}
 )
 
@@ -208,6 +234,11 @@ const (
 	influxMeasurementFieldSeparator = "influx-measurement-field-separator"
 	influxSkipDatabaseLabel         = "influx-skip-database-label"
 	influxPrometheusMode            = "influx-prometheus-mode"
+	influxCertFile                  = "influx-cert-file"
+	influxKeyFile                   = "influx-key-file"
+	influxCAFile                    = "influx-CA-file"
+	influxServerName                = "influx-server-name"
+	influxInsecureSkipVerify        = "influx-insecure-skip-verify"
 )
 
 var (
@@ -272,7 +303,28 @@ var (
 		},
 		&cli.BoolFlag{
 			Name:  influxPrometheusMode,
-			Usage: "Wether to restore the original timeseries name previously written from Prometheus to InfluxDB v1 via remote_write.",
+			Usage: "Whether to restore the original timeseries name previously written from Prometheus to InfluxDB v1 via remote_write.",
+			Value: false,
+		},
+		&cli.StringFlag{
+			Name:  influxCertFile,
+			Usage: "Optional path to client-side TLS certificate file to use when connecting to -influx-addr",
+		},
+		&cli.StringFlag{
+			Name:  influxKeyFile,
+			Usage: "Optional path to client-side TLS key to use when connecting to -influx-addr",
+		},
+		&cli.StringFlag{
+			Name:  influxCAFile,
+			Usage: "Optional path to TLS CA file to use for verifying connections to -influx-addr. By default, system CA is used",
+		},
+		&cli.StringFlag{
+			Name:  influxServerName,
+			Usage: "Optional TLS server name to use for connections to -influx-addr. By default, the server name from -influx-addr is used",
+		},
+		&cli.BoolFlag{
+			Name:  influxInsecureSkipVerify,
+			Usage: "Whether to skip tls verification when connecting to -influx-addr",
 			Value: false,
 		},
 	}
@@ -496,6 +548,10 @@ const (
 	remoteReadPassword           = "remote-read-password"
 	remoteReadHTTPTimeout        = "remote-read-http-timeout"
 	remoteReadHeaders            = "remote-read-headers"
+	remoteReadCertFile           = "remote-read-cert-file"
+	remoteReadKeyFile            = "remote-read-key-file"
+	remoteReadCAFile             = "remote-read-CA-file"
+	remoteReadServerName         = "remote-read-server-name"
 	remoteReadInsecureSkipVerify = "remote-read-insecure-skip-verify"
 	remoteReadDisablePathAppend  = "remote-read-disable-path-append"
 )
@@ -573,6 +629,22 @@ var (
 			Usage: "Optional HTTP headers to send with each request to the corresponding remote source storage \n" +
 				"For example, --remote-read-headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding remote source storage. \n" +
 				"Multiple headers must be delimited by '^^': --remote-read-headers='header1:value1^^header2:value2'",
+		},
+		&cli.StringFlag{
+			Name:  remoteReadCertFile,
+			Usage: "Optional path to client-side TLS certificate file to use when connecting to -remote-read-src-addr",
+		},
+		&cli.StringFlag{
+			Name:  remoteReadKeyFile,
+			Usage: "Optional path to client-side TLS key to use when connecting to -remote-read-src-addr",
+		},
+		&cli.StringFlag{
+			Name:  remoteReadCAFile,
+			Usage: "Optional path to TLS CA file to use for verifying connections to -remote-read-src-addr. By default, system CA is used",
+		},
+		&cli.StringFlag{
+			Name:  remoteReadServerName,
+			Usage: "Optional TLS server name to use for connections to remoteReadSrcAddr. By default, the server name from -remote-read-src-addr is used",
 		},
 		&cli.BoolFlag{
 			Name:  remoteReadInsecureSkipVerify,

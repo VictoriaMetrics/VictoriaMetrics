@@ -7,7 +7,6 @@ import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import Button from "../Button/Button";
 import { CloseIcon } from "../Icons";
 import { useLocation, useNavigate } from "react-router-dom";
-import useBoolean from "../../../hooks/useBoolean";
 import useEventListener from "../../../hooks/useEventListener";
 import { useCallback } from "preact/compat";
 
@@ -43,12 +42,7 @@ const Popper: FC<PopperProps> = ({
   const navigate = useNavigate();
   const location = useLocation();
   const [popperSize, setPopperSize] = useState({ width: 0, height: 0 });
-
-  const {
-    value: isOpen,
-    setValue: setIsOpen,
-    setFalse: handleClose,
-  } = useBoolean(false);
+  const [isOpen, setIsOpen] = useState(false);
 
   const popperRef = useRef<HTMLDivElement>(null);
 
@@ -113,6 +107,7 @@ const Popper: FC<PopperProps> = ({
 
     if (fullWidth) position.width = `${buttonPos.width}px`;
     if (position.top < 0) position.top = 20;
+    if (position.left < 0) position.left = 20;
 
     return position;
   },[buttonRef, placement, isOpen, children, fullWidth]);
@@ -122,7 +117,15 @@ const Popper: FC<PopperProps> = ({
     onClose();
   };
 
-  if (clickOutside) useClickOutside(popperRef, () => setIsOpen(false), buttonRef);
+  const handleClose = () => {
+    setIsOpen(false);
+    onClose();
+  };
+
+  const handleClickOutside = () => {
+    if (!clickOutside) return;
+    handleClose();
+  };
 
   useEffect(() => {
     if (!popperRef.current || !isOpen || (isMobile && !disabledFullScreen)) return;
@@ -142,6 +145,7 @@ const Popper: FC<PopperProps> = ({
 
   useEventListener("scroll", handleClose);
   useEventListener("popstate", handlePopstate);
+  useClickOutside(popperRef, handleClickOutside, buttonRef);
 
   return (
     <>

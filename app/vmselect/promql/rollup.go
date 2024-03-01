@@ -4,12 +4,14 @@ import (
 	"flag"
 	"fmt"
 	"math"
+	"strconv"
 	"strings"
 	"sync"
 
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/VictoriaMetrics/metricsql"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
@@ -31,6 +33,7 @@ var rollupFuncs = map[string]newRollupFunc{
 	"count_le_over_time":      newRollupCountLE,
 	"count_ne_over_time":      newRollupCountNE,
 	"count_over_time":         newRollupFuncOneArg(rollupCount),
+	"count_values_over_time":  newRollupCountValues,
 	"decreases_over_time":     newRollupFuncOneArg(rollupDecreases),
 	"default_rollup":          newRollupFuncOneArg(rollupDefault), // default rollup func
 	"delta":                   newRollupFuncOneArg(rollupDelta),
@@ -101,6 +104,42 @@ var rollupFuncs = map[string]newRollupFunc{
 	"tmax_over_time":         newRollupFuncOneArg(rollupTmax),
 	"tmin_over_time":         newRollupFuncOneArg(rollupTmin),
 	"zscore_over_time":       newRollupFuncOneArg(rollupZScoreOverTime),
+}
+
+// Functions, which need the previous sample before the lookbehind window for proper calculations.
+//
+// All the rollup functions, which do not rely on the previous sample
+// before the lookbehind window (aka prevValue and realPrevValue), do not need silence interval.
+var needSilenceIntervalForRollupFunc = map[string]bool{
+	"ascent_over_time":    true,
+	"changes":             true,
+	"decreases_over_time": true,
+	// The default_rollup implicitly relies on the previous samples in order to fill gaps.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5388
+	"default_rollup":         true,
+	"delta":                  true,
+	"deriv_fast":             true,
+	"descent_over_time":      true,
+	"idelta":                 true,
+	"ideriv":                 true,
+	"increase":               true,
+	"increase_pure":          true,
+	"increases_over_time":    true,
+	"integrate":              true,
+	"irate":                  true,
+	"lag":                    true,
+	"lifetime":               true,
+	"rate":                   true,
+	"resets":                 true,
+	"rollup":                 true,
+	"rollup_candlestick":     true,
+	"rollup_delta":           true,
+	"rollup_deriv":           true,
+	"rollup_increase":        true,
+	"rollup_rate":            true,
+	"rollup_scrape_interval": true,
+	"scrape_interval":        true,
+	"tlast_change_over_time": true,
 }
 
 // rollupAggrFuncs are functions that can be passed to `aggr_over_time()`
@@ -573,7 +612,7 @@ type timeseriesMap struct {
 func newTimeseriesMap(funcName string, keepMetricNames bool, sharedTimestamps []int64, mnSrc *storage.MetricName) *timeseriesMap {
 	funcName = strings.ToLower(funcName)
 	switch funcName {
-	case "histogram_over_time", "quantiles_over_time":
+	case "histogram_over_time", "quantiles_over_time", "count_values_over_time":
 	default:
 		return nil
 	}
@@ -607,10 +646,16 @@ func (tsm *timeseriesMap) GetOrCreateTimeseries(labelName, labelValue string) *t
 	if ts != nil {
 		return ts
 	}
+
+	// Make a clone of labelValue in order to use it as map key, since it may point to unsafe string,
+	// which refers some other byte slice, which can change in the future.
+	labelValue = strings.Clone(labelValue)
+
 	ts = &timeseries{}
 	ts.CopyFromShallowTimestamps(tsm.origin)
 	ts.MetricName.RemoveTag(labelName)
 	ts.MetricName.AddTag(labelName, labelValue)
+
 	tsm.m[labelValue] = ts
 	return ts
 }
@@ -957,7 +1002,7 @@ func newRollupHoltWinters(args []interface{}) (rollupFunc, error) {
 		// before calling rollup funcs.
 		values := rfa.values
 		if len(values) == 0 {
-			return rfa.prevValue
+			return nan
 		}
 		sf := sfs[rfa.idx]
 		if sf < 0 || sf > 1 {
@@ -1400,6 +1445,42 @@ func mad(values []float64) float64 {
 	return v
 }
 
+func newRollupCountValues(args []interface{}) (rollupFunc, error) {
+	if err := expectRollupArgsNum(args, 2); err != nil {
+		return nil, err
+	}
+	tssLabelNum, ok := args[0].([]*timeseries)
+	if !ok {
+		return nil, fmt.Errorf(`unexpected type for labelName arg; got %T; want %T`, args[0], tssLabelNum)
+	}
+	labelName, err := getString(tssLabelNum, 0)
+	if err != nil {
+		return nil, fmt.Errorf("cannot get labelName: %w", err)
+	}
+	f := func(rfa *rollupFuncArg) float64 {
+		tsm := rfa.tsm
+		idx := rfa.idx
+		bb := bbPool.Get()
+		// Note: the code below may create very big number of time series
+		// if the number of unique values in rfa.values is big.
+		for _, v := range rfa.values {
+			bb.B = strconv.AppendFloat(bb.B[:0], v, 'g', -1, 64)
+			labelValue := bytesutil.ToUnsafeString(bb.B)
+			ts := tsm.GetOrCreateTimeseries(labelName, labelValue)
+			count := ts.Values[idx]
+			if math.IsNaN(count) {
+				count = 1
+			} else {
+				count++
+			}
+			ts.Values[idx] = count
+		}
+		bbPool.Put(bb)
+		return nan
+	}
+	return f, nil
+}
+
 func rollupHistogram(rfa *rollupFuncArg) float64 {
 	values := rfa.values
 	tsm := rfa.tsm
@@ -1586,11 +1667,7 @@ func rollupRateOverSum(rfa *rollupFuncArg) float64 {
 	// before calling rollup funcs.
 	timestamps := rfa.timestamps
 	if len(timestamps) == 0 {
-		if math.IsNaN(rfa.prevValue) {
-			return nan
-		}
-		// Assume that the value didn't change since rfa.prevValue.
-		return 0
+		return nan
 	}
 	sum := float64(0)
 	for _, v := range rfa.values {
@@ -1610,7 +1687,7 @@ func rollupSum2(rfa *rollupFuncArg) float64 {
 	// before calling rollup funcs.
 	values := rfa.values
 	if len(values) == 0 {
-		return rfa.prevValue * rfa.prevValue
+		return nan
 	}
 	var sum2 float64
 	for _, v := range values {
@@ -1624,7 +1701,7 @@ func rollupGeomean(rfa *rollupFuncArg) float64 {
 	// before calling rollup funcs.
 	values := rfa.values
 	if len(values) == 0 {
-		return rfa.prevValue
+		return nan
 	}
 	p := 1.0
 	for _, v := range values {
@@ -2268,10 +2345,7 @@ func rollupDistinct(rfa *rollupFuncArg) float64 {
 	// before calling rollup funcs.
 	values := rfa.values
 	if len(values) == 0 {
-		if math.IsNaN(rfa.prevValue) {
-			return nan
-		}
-		return 0
+		return nan
 	}
 	m := make(map[float64]struct{})
 	for _, v := range values {

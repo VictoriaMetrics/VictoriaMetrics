@@ -15,7 +15,6 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
@@ -51,7 +50,7 @@ const defaultPartsToMerge = 15
 var rawRowsShardsPerPartition = cgroup.AvailableCPUs()
 
 // The interval for flushing buffered rows into parts, so they become visible to search.
-const pendingRowsFlushInterval = time.Second
+const pendingRowsFlushInterval = 2 * time.Second
 
 // The interval for guaranteed flush of recently ingested data from memory to on-disk parts,
 // so they survive process crash.
@@ -69,48 +68,30 @@ func SetDataFlushInterval(d time.Duration) {
 	}
 }
 
-// getMaxRawRowsPerShard returns the maximum number of rows that haven't been converted into parts yet per earh rawRowsShard.
-func getMaxRawRowsPerShard() int {
-	maxRawRowsPerPartitionOnce.Do(func() {
-		n := memory.Allowed() / rawRowsShardsPerPartition / (100 * int(unsafe.Sizeof(rawRow{})))
-		if n < 1e4 {
-			n = 1e4
-		}
-		if n > 500e3 {
-			n = 500e3
-		}
-		maxRawRowsPerPartition = n
-	})
-	return maxRawRowsPerPartition
-}
-
-var (
-	maxRawRowsPerPartition     int
-	maxRawRowsPerPartitionOnce sync.Once
-)
+// The maximum number of rawRow items in rawRowsShard.
+//
+// Limit the maximum shard size to 8Mb, since this gives the lowest CPU usage under high ingestion rate.
+const maxRawRowsPerShard = (8 << 20) / int(unsafe.Sizeof(rawRow{}))
 
 // partition represents a partition.
 type partition struct {
-	// Put atomic counters to the top of struct, so they are aligned to 8 bytes on 32-bit arch.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/212
+	activeInmemoryMerges atomic.Int64
+	activeSmallMerges    atomic.Int64
+	activeBigMerges      atomic.Int64
 
-	activeInmemoryMerges uint64
-	activeSmallMerges    uint64
-	activeBigMerges      uint64
+	inmemoryMergesCount atomic.Uint64
+	smallMergesCount    atomic.Uint64
+	bigMergesCount      atomic.Uint64
 
-	inmemoryMergesCount uint64
-	smallMergesCount    uint64
-	bigMergesCount      uint64
+	inmemoryRowsMerged atomic.Uint64
+	smallRowsMerged    atomic.Uint64
+	bigRowsMerged      atomic.Uint64
 
-	inmemoryRowsMerged uint64
-	smallRowsMerged    uint64
-	bigRowsMerged      uint64
+	inmemoryRowsDeleted atomic.Uint64
+	smallRowsDeleted    atomic.Uint64
+	bigRowsDeleted      atomic.Uint64
 
-	inmemoryRowsDeleted uint64
-	smallRowsDeleted    uint64
-	bigRowsDeleted      uint64
-
-	mergeIdx uint64
+	mergeIdx atomic.Uint64
 
 	// the path to directory with smallParts.
 	smallPartsPath string
@@ -162,12 +143,12 @@ type partition struct {
 // partWrapper is a wrapper for the part.
 type partWrapper struct {
 	// The number of references to the part.
-	refCount uint32
+	refCount atomic.Int32
 
 	// The flag, which is set when the part must be deleted after refCount reaches zero.
 	// This field should be updated only after partWrapper
 	// was removed from the list of active parts.
-	mustBeDeleted uint32
+	mustDrop atomic.Bool
 
 	// The part itself.
 	p *part
@@ -183,20 +164,20 @@ type partWrapper struct {
 }
 
 func (pw *partWrapper) incRef() {
-	atomic.AddUint32(&pw.refCount, 1)
+	pw.refCount.Add(1)
 }
 
 func (pw *partWrapper) decRef() {
-	n := atomic.AddUint32(&pw.refCount, ^uint32(0))
-	if int32(n) < 0 {
-		logger.Panicf("BUG: pw.refCount must be bigger than 0; got %d", int32(n))
+	n := pw.refCount.Add(-1)
+	if n < 0 {
+		logger.Panicf("BUG: pw.refCount must be bigger than 0; got %d", n)
 	}
 	if n > 0 {
 		return
 	}
 
 	deletePath := ""
-	if pw.mp == nil && atomic.LoadUint32(&pw.mustBeDeleted) != 0 {
+	if pw.mp == nil && pw.mustDrop.Load() {
 		deletePath = pw.p.path
 	}
 	if pw.mp != nil {
@@ -290,12 +271,12 @@ func mustOpenPartition(smallPartsPath, bigPartsPath string, s *Storage) *partiti
 func newPartition(name, smallPartsPath, bigPartsPath string, s *Storage) *partition {
 	p := &partition{
 		name:           name,
-		mergeIdx:       uint64(time.Now().UnixNano()),
 		smallPartsPath: smallPartsPath,
 		bigPartsPath:   bigPartsPath,
 		s:              s,
 		stopCh:         make(chan struct{}),
 	}
+	p.mergeIdx.Store(uint64(time.Now().UnixNano()))
 	p.rawRows.init()
 	return p
 }
@@ -363,21 +344,21 @@ func (pt *partition) UpdateMetrics(m *partitionMetrics) {
 		m.InmemoryRowsCount += p.ph.RowsCount
 		m.InmemoryBlocksCount += p.ph.BlocksCount
 		m.InmemorySizeBytes += p.size
-		m.InmemoryPartsRefCount += uint64(atomic.LoadUint32(&pw.refCount))
+		m.InmemoryPartsRefCount += uint64(pw.refCount.Load())
 	}
 	for _, pw := range pt.smallParts {
 		p := pw.p
 		m.SmallRowsCount += p.ph.RowsCount
 		m.SmallBlocksCount += p.ph.BlocksCount
 		m.SmallSizeBytes += p.size
-		m.SmallPartsRefCount += uint64(atomic.LoadUint32(&pw.refCount))
+		m.SmallPartsRefCount += uint64(pw.refCount.Load())
 	}
 	for _, pw := range pt.bigParts {
 		p := pw.p
 		m.BigRowsCount += p.ph.RowsCount
 		m.BigBlocksCount += p.ph.BlocksCount
 		m.BigSizeBytes += p.size
-		m.BigPartsRefCount += uint64(atomic.LoadUint32(&pw.refCount))
+		m.BigPartsRefCount += uint64(pw.refCount.Load())
 	}
 
 	m.InmemoryPartsCount += uint64(len(pt.inmemoryParts))
@@ -392,21 +373,21 @@ func (pt *partition) UpdateMetrics(m *partitionMetrics) {
 	m.IndexBlocksCacheRequests = ibCache.Requests()
 	m.IndexBlocksCacheMisses = ibCache.Misses()
 
-	m.ActiveInmemoryMerges += atomic.LoadUint64(&pt.activeInmemoryMerges)
-	m.ActiveSmallMerges += atomic.LoadUint64(&pt.activeSmallMerges)
-	m.ActiveBigMerges += atomic.LoadUint64(&pt.activeBigMerges)
+	m.ActiveInmemoryMerges += uint64(pt.activeInmemoryMerges.Load())
+	m.ActiveSmallMerges += uint64(pt.activeSmallMerges.Load())
+	m.ActiveBigMerges += uint64(pt.activeBigMerges.Load())
 
-	m.InmemoryMergesCount += atomic.LoadUint64(&pt.inmemoryMergesCount)
-	m.SmallMergesCount += atomic.LoadUint64(&pt.smallMergesCount)
-	m.BigMergesCount += atomic.LoadUint64(&pt.bigMergesCount)
+	m.InmemoryMergesCount += pt.inmemoryMergesCount.Load()
+	m.SmallMergesCount += pt.smallMergesCount.Load()
+	m.BigMergesCount += pt.bigMergesCount.Load()
 
-	m.InmemoryRowsMerged += atomic.LoadUint64(&pt.inmemoryRowsMerged)
-	m.SmallRowsMerged += atomic.LoadUint64(&pt.smallRowsMerged)
-	m.BigRowsMerged += atomic.LoadUint64(&pt.bigRowsMerged)
+	m.InmemoryRowsMerged += pt.inmemoryRowsMerged.Load()
+	m.SmallRowsMerged += pt.smallRowsMerged.Load()
+	m.BigRowsMerged += pt.bigRowsMerged.Load()
 
-	m.InmemoryRowsDeleted += atomic.LoadUint64(&pt.inmemoryRowsDeleted)
-	m.SmallRowsDeleted += atomic.LoadUint64(&pt.smallRowsDeleted)
-	m.BigRowsDeleted += atomic.LoadUint64(&pt.bigRowsDeleted)
+	m.InmemoryRowsDeleted += pt.inmemoryRowsDeleted.Load()
+	m.SmallRowsDeleted += pt.smallRowsDeleted.Load()
+	m.BigRowsDeleted += pt.bigRowsDeleted.Load()
 }
 
 // AddRows adds the given rows to the partition pt.
@@ -437,10 +418,15 @@ func (pt *partition) AddRows(rows []rawRow) {
 var isDebug = false
 
 type rawRowsShards struct {
-	shardIdx uint32
+	flushDeadlineMs atomic.Int64
+
+	shardIdx atomic.Uint32
 
 	// Shards reduce lock contention when adding rows on multi-CPU systems.
 	shards []rawRowsShard
+
+	rowssToFlushLock sync.Mutex
+	rowssToFlush     [][]rawRow
 }
 
 func (rrss *rawRowsShards) init() {
@@ -451,10 +437,33 @@ func (rrss *rawRowsShards) addRows(pt *partition, rows []rawRow) {
 	shards := rrss.shards
 	shardsLen := uint32(len(shards))
 	for len(rows) > 0 {
-		n := atomic.AddUint32(&rrss.shardIdx, 1)
+		n := rrss.shardIdx.Add(1)
 		idx := n % shardsLen
-		rows = shards[idx].addRows(pt, rows)
+		tailRows, rowsToFlush := shards[idx].addRows(rows)
+		rrss.addRowsToFlush(pt, rowsToFlush)
+		rows = tailRows
 	}
+}
+
+func (rrss *rawRowsShards) addRowsToFlush(pt *partition, rowsToFlush []rawRow) {
+	if len(rowsToFlush) == 0 {
+		return
+	}
+
+	var rowssToMerge [][]rawRow
+
+	rrss.rowssToFlushLock.Lock()
+	if len(rrss.rowssToFlush) == 0 {
+		rrss.updateFlushDeadline()
+	}
+	rrss.rowssToFlush = append(rrss.rowssToFlush, rowsToFlush)
+	if len(rrss.rowssToFlush) >= defaultPartsToMerge {
+		rowssToMerge = rrss.rowssToFlush
+		rrss.rowssToFlush = nil
+	}
+	rrss.rowssToFlushLock.Unlock()
+
+	pt.flushRowssToInmemoryParts(rowssToMerge)
 }
 
 func (rrss *rawRowsShards) Len() int {
@@ -462,12 +471,22 @@ func (rrss *rawRowsShards) Len() int {
 	for i := range rrss.shards[:] {
 		n += rrss.shards[i].Len()
 	}
+
+	rrss.rowssToFlushLock.Lock()
+	for _, rows := range rrss.rowssToFlush {
+		n += len(rows)
+	}
+	rrss.rowssToFlushLock.Unlock()
+
 	return n
 }
 
+func (rrss *rawRowsShards) updateFlushDeadline() {
+	rrss.flushDeadlineMs.Store(time.Now().Add(pendingRowsFlushInterval).UnixMilli())
+}
+
 type rawRowsShardNopad struct {
-	// Put lastFlushTime to the top in order to avoid unaligned memory access on 32-bit architectures
-	lastFlushTime uint64
+	flushDeadlineMs atomic.Int64
 
 	mu   sync.Mutex
 	rows []rawRow
@@ -488,75 +507,46 @@ func (rrs *rawRowsShard) Len() int {
 	return n
 }
 
-func (rrs *rawRowsShard) addRows(pt *partition, rows []rawRow) []rawRow {
-	var rrb *rawRowsBlock
+func (rrs *rawRowsShard) addRows(rows []rawRow) ([]rawRow, []rawRow) {
+	var rowsToFlush []rawRow
 
 	rrs.mu.Lock()
 	if cap(rrs.rows) == 0 {
 		rrs.rows = newRawRows()
 	}
+	if len(rrs.rows) == 0 {
+		rrs.updateFlushDeadline()
+	}
 	n := copy(rrs.rows[len(rrs.rows):cap(rrs.rows)], rows)
 	rrs.rows = rrs.rows[:len(rrs.rows)+n]
 	rows = rows[n:]
 	if len(rows) > 0 {
-		rrb = getRawRowsBlock()
-		rrb.rows, rrs.rows = rrs.rows, rrb.rows
+		rowsToFlush = rrs.rows
+		rrs.rows = newRawRows()
+		rrs.updateFlushDeadline()
 		n = copy(rrs.rows[:cap(rrs.rows)], rows)
 		rrs.rows = rrs.rows[:n]
 		rows = rows[n:]
-		atomic.StoreUint64(&rrs.lastFlushTime, fasttime.UnixTimestamp())
 	}
 	rrs.mu.Unlock()
 
-	if rrb != nil {
-		pt.flushRowsToInmemoryParts(rrb.rows)
-		putRawRowsBlock(rrb)
-	}
-
-	return rows
-}
-
-type rawRowsBlock struct {
-	rows []rawRow
+	return rows, rowsToFlush
 }
 
 func newRawRows() []rawRow {
-	n := getMaxRawRowsPerShard()
-	return make([]rawRow, 0, n)
+	return make([]rawRow, 0, maxRawRowsPerShard)
 }
 
-func getRawRowsBlock() *rawRowsBlock {
-	v := rawRowsBlockPool.Get()
-	if v == nil {
-		return &rawRowsBlock{
-			rows: newRawRows(),
-		}
-	}
-	return v.(*rawRowsBlock)
-}
-
-func putRawRowsBlock(rrb *rawRowsBlock) {
-	rrb.rows = rrb.rows[:0]
-	rawRowsBlockPool.Put(rrb)
-}
-
-var rawRowsBlockPool sync.Pool
-
-func (pt *partition) flushRowsToInmemoryParts(rows []rawRow) {
-	if len(rows) == 0 {
+func (pt *partition) flushRowssToInmemoryParts(rowss [][]rawRow) {
+	if len(rowss) == 0 {
 		return
 	}
 
-	// Merge rows into in-memory parts.
-	maxRows := getMaxRawRowsPerShard()
+	// Convert rowss into in-memory parts.
 	var pwsLock sync.Mutex
-	pws := make([]*partWrapper, 0, (len(rows)+maxRows-1)/maxRows)
+	pws := make([]*partWrapper, 0, len(rowss))
 	wg := getWaitGroup()
-	for len(rows) > 0 {
-		n := maxRows
-		if n > len(rows) {
-			n = len(rows)
-		}
+	for _, rows := range rowss {
 		wg.Add(1)
 		inmemoryPartsConcurrencyCh <- struct{}{}
 		go func(rowsChunk []rawRow) {
@@ -571,8 +561,7 @@ func (pt *partition) flushRowsToInmemoryParts(rows []rawRow) {
 				pws = append(pws, pw)
 				pwsLock.Unlock()
 			}
-		}(rows[:n])
-		rows = rows[n:]
+		}(rows)
 	}
 	wg.Wait()
 	putWaitGroup(wg)
@@ -612,7 +601,7 @@ func (pt *partition) NotifyReadWriteMode() {
 
 func (pt *partition) inmemoryPartsMerger() {
 	for {
-		if atomic.LoadUint32(&pt.s.isReadOnly) != 0 {
+		if pt.s.isReadOnly.Load() {
 			return
 		}
 		maxOutBytes := pt.getMaxBigPartSize()
@@ -645,7 +634,7 @@ func (pt *partition) inmemoryPartsMerger() {
 
 func (pt *partition) smallPartsMerger() {
 	for {
-		if atomic.LoadUint32(&pt.s.isReadOnly) != 0 {
+		if pt.s.isReadOnly.Load() {
 			return
 		}
 		maxOutBytes := pt.getMaxBigPartSize()
@@ -678,7 +667,7 @@ func (pt *partition) smallPartsMerger() {
 
 func (pt *partition) bigPartsMerger() {
 	for {
-		if atomic.LoadUint32(&pt.s.isReadOnly) != 0 {
+		if pt.s.isReadOnly.Load() {
 			return
 		}
 		maxOutBytes := pt.getMaxBigPartSize()
@@ -831,9 +820,9 @@ func newPartWrapperFromInmemoryPart(mp *inmemoryPart, flushToDiskDeadline time.T
 	pw := &partWrapper{
 		p:                   p,
 		mp:                  mp,
-		refCount:            1,
 		flushToDiskDeadline: flushToDiskDeadline,
 	}
+	pw.incRef()
 	return pw
 }
 
@@ -1041,7 +1030,8 @@ func getBigPartsConcurrency() int {
 }
 
 func (pt *partition) inmemoryPartsFlusher() {
-	d := timeutil.AddJitterToDuration(dataFlushInterval)
+	// Do not add jitter to d in order to guarantee the flush interval
+	d := dataFlushInterval
 	ticker := time.NewTicker(d)
 	defer ticker.Stop()
 	for {
@@ -1055,26 +1045,26 @@ func (pt *partition) inmemoryPartsFlusher() {
 }
 
 func (pt *partition) pendingRowsFlusher() {
-	d := timeutil.AddJitterToDuration(pendingRowsFlushInterval)
+	// Do not add jitter to d in order to guarantee the flush interval
+	d := pendingRowsFlushInterval
 	ticker := time.NewTicker(d)
 	defer ticker.Stop()
-	var rows []rawRow
 	for {
 		select {
 		case <-pt.stopCh:
 			return
 		case <-ticker.C:
-			rows = pt.flushPendingRows(rows[:0], false)
+			pt.flushPendingRows(false)
 		}
 	}
 }
 
-func (pt *partition) flushPendingRows(dst []rawRow, isFinal bool) []rawRow {
-	return pt.rawRows.flush(pt, dst, isFinal)
+func (pt *partition) flushPendingRows(isFinal bool) {
+	pt.rawRows.flush(pt, isFinal)
 }
 
 func (pt *partition) flushInmemoryRowsToFiles() {
-	pt.flushPendingRows(nil, true)
+	pt.flushPendingRows(true)
 	pt.flushInmemoryPartsToFiles(true)
 }
 
@@ -1096,31 +1086,63 @@ func (pt *partition) flushInmemoryPartsToFiles(isFinal bool) {
 	}
 }
 
-func (rrss *rawRowsShards) flush(pt *partition, dst []rawRow, isFinal bool) []rawRow {
-	for i := range rrss.shards {
-		dst = rrss.shards[i].appendRawRowsToFlush(dst, isFinal)
+func (rrss *rawRowsShards) flush(pt *partition, isFinal bool) {
+	var dst [][]rawRow
+
+	currentTimeMs := time.Now().UnixMilli()
+	flushDeadlineMs := rrss.flushDeadlineMs.Load()
+	if isFinal || currentTimeMs >= flushDeadlineMs {
+		rrss.rowssToFlushLock.Lock()
+		dst = rrss.rowssToFlush
+		rrss.rowssToFlush = nil
+		rrss.rowssToFlushLock.Unlock()
 	}
-	pt.flushRowsToInmemoryParts(dst)
-	return dst
+
+	for i := range rrss.shards {
+		dst = rrss.shards[i].appendRawRowsToFlush(dst, currentTimeMs, isFinal)
+	}
+
+	pt.flushRowssToInmemoryParts(dst)
 }
 
-func (rrs *rawRowsShard) appendRawRowsToFlush(dst []rawRow, isFinal bool) []rawRow {
-	currentTime := fasttime.UnixTimestamp()
-	flushSeconds := int64(pendingRowsFlushInterval.Seconds())
-	if flushSeconds <= 0 {
-		flushSeconds = 1
-	}
-	lastFlushTime := atomic.LoadUint64(&rrs.lastFlushTime)
-	if !isFinal && currentTime < lastFlushTime+uint64(flushSeconds) {
+func (rrs *rawRowsShard) appendRawRowsToFlush(dst [][]rawRow, currentTimeMs int64, isFinal bool) [][]rawRow {
+	flushDeadlineMs := rrs.flushDeadlineMs.Load()
+	if !isFinal && currentTimeMs < flushDeadlineMs {
 		// Fast path - nothing to flush
 		return dst
 	}
+
 	// Slow path - move rrs.rows to dst.
 	rrs.mu.Lock()
-	dst = append(dst, rrs.rows...)
+	dst = appendRawRowss(dst, rrs.rows)
 	rrs.rows = rrs.rows[:0]
-	atomic.StoreUint64(&rrs.lastFlushTime, currentTime)
 	rrs.mu.Unlock()
+
+	return dst
+}
+
+func (rrs *rawRowsShard) updateFlushDeadline() {
+	rrs.flushDeadlineMs.Store(time.Now().Add(pendingRowsFlushInterval).UnixMilli())
+}
+
+func appendRawRowss(dst [][]rawRow, src []rawRow) [][]rawRow {
+	if len(src) == 0 {
+		return dst
+	}
+	if len(dst) == 0 {
+		dst = append(dst, newRawRows())
+	}
+	prows := &dst[len(dst)-1]
+	n := copy((*prows)[len(*prows):cap(*prows)], src)
+	*prows = (*prows)[:len(*prows)+n]
+	src = src[n:]
+	for len(src) > 0 {
+		rows := newRawRows()
+		n := copy(rows[:cap(rows)], src)
+		rows = rows[:len(rows)+n]
+		src = src[n:]
+		dst = append(dst, rows)
+	}
 	return dst
 }
 
@@ -1506,10 +1528,10 @@ func mustOpenBlockStreamReaders(pws []*partWrapper) []*blockStreamReader {
 
 func (pt *partition) mergePartsInternal(dstPartPath string, bsw *blockStreamWriter, bsrs []*blockStreamReader, dstPartType partType, stopCh <-chan struct{}) (*partHeader, error) {
 	var ph partHeader
-	var rowsMerged *uint64
-	var rowsDeleted *uint64
-	var mergesCount *uint64
-	var activeMerges *uint64
+	var rowsMerged *atomic.Uint64
+	var rowsDeleted *atomic.Uint64
+	var mergesCount *atomic.Uint64
+	var activeMerges *atomic.Int64
 	switch dstPartType {
 	case partInmemory:
 		rowsMerged = &pt.inmemoryRowsMerged
@@ -1530,10 +1552,10 @@ func (pt *partition) mergePartsInternal(dstPartPath string, bsw *blockStreamWrit
 		logger.Panicf("BUG: unknown partType=%d", dstPartType)
 	}
 	retentionDeadline := timestampFromTime(time.Now()) - pt.s.retentionMsecs
-	atomic.AddUint64(activeMerges, 1)
+	activeMerges.Add(1)
 	err := mergeBlockStreams(&ph, bsw, bsrs, stopCh, pt.s, retentionDeadline, rowsMerged, rowsDeleted)
-	atomic.AddUint64(activeMerges, ^uint64(0))
-	atomic.AddUint64(mergesCount, 1)
+	activeMerges.Add(-1)
+	mergesCount.Add(1)
 	if err != nil {
 		return nil, fmt.Errorf("cannot merge %d parts to %s: %w", len(bsrs), dstPartPath, err)
 	}
@@ -1562,9 +1584,9 @@ func (pt *partition) openCreatedPart(ph *partHeader, pws []*partWrapper, mpNew *
 	// Open the created part from disk.
 	pNew := mustOpenFilePart(dstPartPath)
 	pwNew := &partWrapper{
-		p:        pNew,
-		refCount: 1,
+		p: pNew,
 	}
+	pwNew.incRef()
 	return pwNew
 }
 
@@ -1623,7 +1645,7 @@ func (pt *partition) swapSrcWithDstParts(pws []*partWrapper, pwNew *partWrapper,
 	// Mark old parts as must be deleted and decrement reference count,
 	// so they are eventually closed and deleted.
 	for _, pw := range pws {
-		atomic.StoreUint32(&pw.mustBeDeleted, 1)
+		pw.mustDrop.Store(true)
 		pw.decRef()
 	}
 }
@@ -1649,7 +1671,7 @@ func getCompressLevel(rowsPerBlock float64) int {
 }
 
 func (pt *partition) nextMergeIdx() uint64 {
-	return atomic.AddUint64(&pt.mergeIdx, 1)
+	return pt.mergeIdx.Add(1)
 }
 
 func removeParts(pws []*partWrapper, partsToRemove map[*partWrapper]struct{}) ([]*partWrapper, int) {
@@ -1687,21 +1709,21 @@ func (pt *partition) removeStaleParts() {
 	pt.partsLock.Lock()
 	for _, pw := range pt.inmemoryParts {
 		if !pw.isInMerge && pw.p.ph.MaxTimestamp < retentionDeadline {
-			atomic.AddUint64(&pt.inmemoryRowsDeleted, pw.p.ph.RowsCount)
+			pt.inmemoryRowsDeleted.Add(pw.p.ph.RowsCount)
 			pw.isInMerge = true
 			pws = append(pws, pw)
 		}
 	}
 	for _, pw := range pt.smallParts {
 		if !pw.isInMerge && pw.p.ph.MaxTimestamp < retentionDeadline {
-			atomic.AddUint64(&pt.smallRowsDeleted, pw.p.ph.RowsCount)
+			pt.smallRowsDeleted.Add(pw.p.ph.RowsCount)
 			pw.isInMerge = true
 			pws = append(pws, pw)
 		}
 	}
 	for _, pw := range pt.bigParts {
 		if !pw.isInMerge && pw.p.ph.MaxTimestamp < retentionDeadline {
-			atomic.AddUint64(&pt.bigRowsDeleted, pw.p.ph.RowsCount)
+			pt.bigRowsDeleted.Add(pw.p.ph.RowsCount)
 			pw.isInMerge = true
 			pws = append(pws, pw)
 		}
@@ -1917,9 +1939,9 @@ func mustOpenParts(path string, partNames []string) []*partWrapper {
 		partPath := filepath.Join(path, partName)
 		p := mustOpenFilePart(partPath)
 		pw := &partWrapper{
-			p:        p,
-			refCount: 1,
+			p: p,
 		}
+		pw.incRef()
 		pws = append(pws, pw)
 	}
 

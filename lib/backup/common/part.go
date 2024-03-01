@@ -46,14 +46,14 @@ func (p *Part) key() string {
 		// so it must have an unique key in order to always copy it during
 		// backup, restore and server-side copy.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5005
-		id := atomic.AddUint64(&uniqueKeyID, 1)
+		id := uniqueKeyID.Add(1)
 		return fmt.Sprintf("unique-%016X", id)
 	}
 	// Do not use p.FileSize in the key, since it cannot be properly initialized when resuming the restore for partially restored file
 	return fmt.Sprintf("%s%016X%016X%016X", p.Path, p.Offset, p.Size, p.ActualSize)
 }
 
-var uniqueKeyID uint64
+var uniqueKeyID atomic.Uint64
 
 // String returns human-readable representation of the part.
 func (p *Part) String() string {

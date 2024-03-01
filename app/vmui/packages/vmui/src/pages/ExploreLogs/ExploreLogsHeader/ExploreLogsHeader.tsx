@@ -1,20 +1,41 @@
-import React, { FC } from "react";
+import React, { FC, useEffect, useState } from "preact/compat";
 import { InfoIcon, PlayIcon, WikiIcon } from "../../../components/Main/Icons";
 import "./style.scss";
 import classNames from "classnames";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import Button from "../../../components/Main/Button/Button";
 import QueryEditor from "../../../components/Configurators/QueryEditor/QueryEditor";
+import TextField from "../../../components/Main/TextField/TextField";
 
 export interface ExploreLogHeaderProps {
   query: string;
+  limit: number;
   error?: string;
   onChange: (val: string) => void;
+  onChangeLimit: (val: number) => void;
   onRun: () => void;
 }
 
-const ExploreLogsHeader: FC<ExploreLogHeaderProps> = ({ query, error, onChange, onRun }) => {
+const ExploreLogsHeader: FC<ExploreLogHeaderProps> = ({ query, limit, error, onChange, onChangeLimit, onRun }) => {
   const { isMobile } = useDeviceDetect();
+
+  const [errorLimit, setErrorLimit] = useState("");
+  const [limitInput, setLimitInput] = useState(limit);
+
+  const handleChangeLimit = (val: string) => {
+    const number = +val;
+    setLimitInput(number);
+    if (isNaN(number) || number < 0) {
+      setErrorLimit("Number must be bigger than zero");
+    } else {
+      setErrorLimit("");
+      onChangeLimit(number);
+    }
+  };
+
+  useEffect(() => {
+    setLimitInput(limit);
+  }, [limit]);
 
   return (
     <div
@@ -24,7 +45,7 @@ const ExploreLogsHeader: FC<ExploreLogHeaderProps> = ({ query, error, onChange, 
         "vm-block_mobile": isMobile,
       })}
     >
-      <div className="vm-explore-logs-header__input">
+      <div className="vm-explore-logs-header-top">
         <QueryEditor
           value={query}
           autocomplete={false}
@@ -34,6 +55,14 @@ const ExploreLogsHeader: FC<ExploreLogHeaderProps> = ({ query, error, onChange, 
           onChange={onChange}
           label={"Log query"}
           error={error}
+        />
+        <TextField
+          label="Limit entries"
+          type="number"
+          value={limitInput}
+          error={errorLimit}
+          onChange={handleChangeLimit}
+          onEnter={onRun}
         />
       </div>
       <div className="vm-explore-logs-header-bottom">
@@ -63,7 +92,7 @@ const ExploreLogsHeader: FC<ExploreLogHeaderProps> = ({ query, error, onChange, 
             onClick={onRun}
             fullWidth
           >
-           Execute Query
+            Execute Query
           </Button>
         </div>
       </div>

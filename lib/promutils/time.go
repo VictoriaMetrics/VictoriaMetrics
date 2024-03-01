@@ -2,19 +2,25 @@ package promutils
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"time"
 )
 
-// ParseTime parses time s in different formats.
+// ParseTimeMsec parses time s in different formats.
 //
 // See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#timestamp-formats
 //
-// It returns unix timestamp in seconds.
-func ParseTime(s string) (float64, error) {
+// It returns unix timestamp in milliseconds.
+func ParseTimeMsec(s string) (int64, error) {
 	currentTimestamp := float64(time.Now().UnixNano()) / 1e9
-	return ParseTimeAt(s, currentTimestamp)
+	secs, err := ParseTimeAt(s, currentTimestamp)
+	if err != nil {
+		return 0, err
+	}
+	msecs := int64(math.Round(secs * 1000))
+	return msecs, nil
 }
 
 const (

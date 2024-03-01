@@ -19,12 +19,12 @@ aliases:
 
 - To use *vmanomaly*, part of the enterprise package, a license key is required. Obtain your key [here](https://victoriametrics.com/products/enterprise/trial/) for this tutorial or for enterprise use.
 - In the tutorial, we'll be using the following VictoriaMetrics components:
-  -  [VictoriaMetrics Single-Node](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html) (v.1.97.1)
-  -  [vmalert](https://docs.victoriametrics.com/vmalert.html) (v.1.97.1)
-  -  [vmagent](https://docs.victoriametrics.com/vmagent.html) (v.1.97.1)
-- [Grafana](https://grafana.com/)(v.10.2.1) 
+  -  [VictoriaMetrics Single-Node](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html) (v.1.98.0)
+  -  [vmalert](https://docs.victoriametrics.com/vmalert.html) (v.1.98.0)
+  -  [vmagent](https://docs.victoriametrics.com/vmagent.html) (v.1.98.0)
+- [Grafana](https://grafana.com/) (v.10.2.1)
 - [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/)
-- [Node exporter](https://github.com/prometheus/node_exporter#node-exporter)(v1.7.0) and [Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/)(v0.25.0)
+- [Node exporter](https://github.com/prometheus/node_exporter#node-exporter) (v1.7.0) and [Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/) (v0.27.0)
 
 <img src="guide-vmanomaly-vmalert_overview.webp" alt="vmanomaly typical setup diagramm">
 
@@ -32,11 +32,13 @@ aliases:
 
 ## 1. What is vmanomaly?
 
-*VictoriaMetrics Anomaly Detection* ([vmanomaly](https://docs.victoriametrics.com/anomaly-detection/Overview.html)) is a service that continuously scans time series stored in VictoriaMetrics and detects unexpected changes within data patterns in real-time. It does so by utilizing user-configurable machine learning models.
+*VictoriaMetrics Anomaly Detection* ([vmanomaly](/anomaly-detection/Overview.html)) is a service that continuously scans time series stored in VictoriaMetrics and detects unexpected changes within data patterns in real-time. It does so by utilizing user-configurable machine learning models.
 
 All the service parameters are defined in a config file.
 
-> **Note**: As of the time of writing, in the [1.9.2](https://docs.victoriametrics.com/anomaly-detection/changelog/#v192) release and earlier versions, each `vmanomaly` configuration file is limited to supporting only one model type. To utilize *different models* on your data, it is necessary to run multiple instances of the `vmanomaly` process. Each instance should operate with its own configuration file, differing in the `model` section.
+> **Note**: Starting from [1.10.0](/anomaly-detection/changelog/#v1100), each `vmanomaly` configuration file can support more that one model type. To utilize *different models* on your data, it is no longer necessary to run multiple instances of the `vmanomaly` process. Please refer to [model](/anomaly-detection/components/models/) config section for more details.
+
+> **Note**: Starting from [1.11.0](/anomaly-detection/changelog/#v1110), each `vmanomaly` configuration file can support more that one model type, each attached to one (or more) schedulers. To utilize *different models* with *different schedulers* on your data, it is no longer necessary to run multiple instances of the `vmanomaly` process. Please refer to [model](/anomaly-detection/components/models/#schedulers) and [scheduler](/anomaly-detection/components/scheduler/) config sections for more details.
 
 
 **vmanomaly** does the following:
@@ -115,9 +117,9 @@ This query will yield a total of eight time series, each corresponding to a CPU 
 **Parameter description**:
 The configuration file for `vmanomaly` comprises 4 essential sections:
 
-1. [`scheduler`](/anomaly-detection/components/scheduler.html) - This section determines the frequency of model inferences and training, including the time range for model training.
+1. [`scheduler`](/anomaly-detection/components/scheduler.html) - This section determines the frequency of model inferences and training, including the time range for model training. Starting from [v1.11.0](/anomaly-detection/changelog/#v1110), multiple individual schedulers are supported for each model type in a single config.
 
-2. [`model`](/anomaly-detection/components/models.html) - Here, you define specific parameters and configurations for the model being used for anomaly detection.
+2. [`models`](/anomaly-detection/components/models.html) - Here, you define specific parameters and configurations for the models being used for anomaly detection. Starting from [v1.10.0](/anomaly-detection/changelog/#v1100), multiple model configurations are supported in a single config.
 
 3. [`reader`](/anomaly-detection/components/reader.html) - This section outlines the methodology for data reading, including the data source location.
 
@@ -127,12 +129,12 @@ The configuration file for `vmanomaly` comprises 4 essential sections:
 
 Detailed parameters in each section:
 
-* `scheduler`
+* `schedulers` ([PeriodicScheduler](/anomaly-detection/components/scheduler/#periodic-scheduler) is used here)
   * `infer_every` - Specifies the frequency at which the trained models perform inferences on new data, essentially determining how often new anomaly score data points are generated. Format examples: 30s, 4m, 2h, 1d (time units: 's' for seconds, 'm' for minutes, 'h' for hours, 'd' for days). This parameter essentially asks, at regular intervals (e.g., every 1 minute), whether the latest data points appear abnormal based on historical data.
   * `fit_every` - Sets the frequency for retraining the models. A higher frequency ensures more updated models but requires more CPU resources. If omitted, models are retrained in each `infer_every` cycle. Format is similar to `infer_every`.
   * `fit_window` - Defines the data interval for training the models. Longer intervals allow for capturing extensive historical behavior and better seasonal pattern detection but may slow down the model's response to permanent metric changes and increase resource consumption. A minimum of two full seasonal cycles is recommended. Example format: 3h for three hours of data.
 
-* `model`
+* `models`
   * `class` - Specifies the model to be used. Options include custom models ([guide here](/anomaly-detection/components/models.html#custom-model-guide)) or a selection from [built-in models](/anomaly-detection/components/models.html#built-in-models), such as the [Facebook Prophet](/anomaly-detection/components/models.html#prophet) (`model.prophet.ProphetModel`).
   * `args` - Model-specific parameters, formatted as a YAML dictionary in the `key: value` structure. Parameters available in [FB Prophet](https://facebook.github.io/prophet/docs/quick_start.html) can be used as an example.
 
@@ -147,18 +149,22 @@ Below is an illustrative example of a `vmanomaly_config.yml` configuration file.
 
 
 ``` yaml
-scheduler:
-  infer_every: "1m"
-  fit_every: "2m"
-  fit_window: "3h"
+schedulers:
+  periodic:
+    # class: "scheduler.periodic.PeriodicScheduler"
+    infer_every: "1m"
+    fit_every: "2m"
+    fit_window: "3h"
 
-model:
-  class: "model.prophet.ProphetModel"
-  args:
-    interval_width: 0.98
+models:
+  prophet:
+    class: "model.prophet.ProphetModel"
+    args:
+      interval_width: 0.98
 
 reader:
   datasource_url: "http://victoriametrics:8428/"
+  sampling_period: "60s" 
   queries:
     node_cpu_rate: "sum(rate(node_cpu_seconds_total[5m])) by (mode, instance, job)"
 
@@ -202,7 +208,7 @@ groups:
       summary: Anomaly Score exceeded 1.0. `sum(rate(node_cpu_seconds_total))` is showing abnormal behavior. 
 ```
 
-In the query expression `expr`, it's crucial to establish a criterion based on the generated anomaly scores. Typically, an [anomaly score](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score) ranging from 0.0 to 1.0 indicates that the analyzed value falls within normal behavior. Scores exceeding 1.0 signal increasing confidence from our model that the observed value is anomalous.
+In the query expression `expr`, it's crucial to establish a criterion based on the generated anomaly scores. Typically, an [anomaly score](/anomaly-detection/faq/#what-is-anomaly-score) ranging from 0.0 to 1.0 indicates that the analyzed value falls within normal behavior. Scores exceeding 1.0 signal increasing confidence from our model that the observed value is anomalous.
 
 Selecting an appropriate threshold for the anomaly score depends on your specific requirements and the context of the data. One effective method for determining this threshold is through visual analysis. By plotting the `anomaly_score` metric in conjunction with the predicted 'expected' range, delineated by `yhat_lower` and `yhat_upper`, you can make a more informed decision. Later in this tutorial, we will demonstrate this process with a practical example.
 
@@ -322,7 +328,7 @@ Let's wrap it all up together into the `docker-compose.yml` file.
 services:
   vmagent:
     container_name: vmagent
-    image: victoriametrics/vmagent:v1.97.1
+    image: victoriametrics/vmagent:v1.98.0
     depends_on:
       - "victoriametrics"
     ports:
@@ -339,7 +345,7 @@ services:
 
   victoriametrics:
     container_name: victoriametrics
-    image: victoriametrics/victoria-metrics:v1.97.1
+    image: victoriametrics/victoria-metrics:v1.98.0
     ports:
       - 8428:8428
     volumes:
@@ -372,7 +378,7 @@ services:
 
   vmalert:
     container_name: vmalert
-    image: victoriametrics/vmalert:v1.97.1
+    image: victoriametrics/vmalert:v1.98.0
     depends_on:
       - "victoriametrics"
     ports:
@@ -394,7 +400,7 @@ services:
     restart: always
   vmanomaly:
     container_name: vmanomaly
-    image: victoriametrics/vmanomaly:v1.9.2
+    image: victoriametrics/vmanomaly:v1.11.0
     depends_on:
       - "victoriametrics"
     ports:

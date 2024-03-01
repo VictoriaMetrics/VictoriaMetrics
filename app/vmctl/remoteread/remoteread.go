@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/utils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/snappy"
 	"github.com/prometheus/prometheus/prompb"
@@ -64,6 +64,13 @@ type Config struct {
 	// LabelName, LabelValue stands for label=~value pair used for read requests.
 	// Is optional.
 	LabelName, LabelValue string
+
+	// Optional cert file, key file, CA file and server name for client side TLS configuration
+	CertFile   string
+	KeyFile    string
+	CAFile     string
+	ServerName string
+
 	// TLSSkipVerify defines whether to skip TLS certificate verification when connecting to the remote read address.
 	InsecureSkipVerify bool
 }
@@ -103,10 +110,15 @@ func NewClient(cfg Config) (*Client, error) {
 		}
 	}
 
+	tr, err := httputils.Transport(cfg.Addr, cfg.CertFile, cfg.KeyFile, cfg.CAFile, cfg.ServerName, cfg.InsecureSkipVerify)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create transport: %s", err)
+	}
+
 	c := &Client{
 		c: &http.Client{
 			Timeout:   cfg.Timeout,
-			Transport: utils.Transport(cfg.Addr, cfg.InsecureSkipVerify),
+			Transport: tr,
 		},
 		addr:              strings.TrimSuffix(cfg.Addr, "/"),
 		disablePathAppend: cfg.DisablePathAppend,
@@ -170,7 +182,7 @@ func (c *Client) fetch(ctx context.Context, data []byte, streamCb StreamCallback
 	if c.disablePathAppend {
 		u = c.addr
 	}
-	req, err := http.NewRequest(http.MethodPost, u, r)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u, r)
 	if err != nil {
 		return fmt.Errorf("failed to create new HTTP request: %w", err)
 	}
@@ -183,7 +195,7 @@ func (c *Client) fetch(ctx context.Context, data []byte, streamCb StreamCallback
 	}
 	req.Header.Set("X-Prometheus-Remote-Read-Version", "0.1.0")
 
-	resp, err := c.do(req.WithContext(ctx))
+	resp, err := c.do(req)
 	if err != nil {
 		return fmt.Errorf("error while sending request to %s: %w; Data len %d(%d)",
 			req.URL.Redacted(), err, len(data), r.Size())

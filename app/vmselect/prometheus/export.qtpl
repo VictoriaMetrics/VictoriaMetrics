@@ -24,6 +24,7 @@
 	{% endfor %}
 {% endfunc %}
 
+{%code const rfc3339Milli = "2006-01-02T15:04:05.999Z07:00" %}
 {% func exportCSVField(mn *storage.MetricName, fieldName string, timestamp int64, value float64) %}
 	{% if fieldName == "__value__" %}
 		{%f= value %}
@@ -45,7 +46,7 @@
 		{% case "rfc3339" %}
 			{% code
 				bb := quicktemplate.AcquireByteBuffer()
-				bb.B = time.Unix(timestamp/1000, (timestamp%1000)*1e6).AppendFormat(bb.B[:0], time.RFC3339)
+				bb.B = time.Unix(timestamp/1000, (timestamp%1000)*1e6).AppendFormat(bb.B[:0], rfc3339Milli)
 			%}
 			{%z= bb.B %}
 			{% code
