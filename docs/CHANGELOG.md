@@ -227,6 +227,23 @@ See changes [here](https://docs.victoriametrics.com/CHANGELOG_2023.html#v1950)
 
 See changes [here](https://docs.victoriametrics.com/CHANGELOG_2023.html#v1940)
 
+## [v1.93.13](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.13)
+
+Released at 2024-03-01
+
+**v1.93.x is a line of LTS releases (e.g. long-time support). It contains important up-to-date bugfixes.
+The v1.93.x line will be supported for at least 12 months since [v1.93.0](https://docs.victoriametrics.com/CHANGELOG.html#v1930) release**
+
+* BUGFIX: downgrade Go builder from `1.22.0` to `1.21.7`, since `1.22.0` contains [the bug](https://github.com/golang/go/issues/65705), which can lead to deadlocked HTTP connections to remote storage systems, scrape targets and service discovery endpoints at [vmagent](https://docs.victoriametrics.com/vmagent/). This may result in incorrect service discovery, target scraping and failed sending samples to remote storage.
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): accept OpenTelemetry data at `/opentelemetry/v1/metrics`, since the `/v1/metrics` suffix is hardcoded at [OpenTelemetry protocol specification](https://opentelemetry.io/docs/specs/otlp/#otlphttp-request).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): fix possible deadlock when [sharding among remote storages](https://docs.victoriametrics.com/vmagent/#sharding-among-remote-storages) is enabled with `-remoteWrite.shardByURL` command-line flag. Thanks to @penguinlav for [the fix](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5834) for [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5833).
+
+* BUGFIX: fix the misleading error `0ms is out of allowed range [0 ...` when passing `step=0` to [/api/v1/query](https://docs.victoriametrics.com/keyconcepts/#instant-query)
+  or [/api/v1/query_range](https://docs.victoriametrics.com/keyconcepts/#range-query). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5795).
+* BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): fixed floating-point error when parsing time in RFC3339 format. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5801) for details.
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/#vmalert): consistently sort groups by name and filename on `/groups` page in UI. This should prevent non-deterministic sorting for groups with identical names.
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): properly construct the destination label in [label_join](https://docs.victoriametrics.com/metricsql/#label_join) if it is used as source label. See this [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5881) for details.
+
 ## [v1.93.12](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.12)
 
 Released at 2024-02-14
