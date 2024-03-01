@@ -589,9 +589,7 @@ func GetLabelByName(labels []prompbmarshal.Label, name string) *prompbmarshal.La
 //
 // This should help GC cleaning up label.Name and label.Value strings.
 func CleanLabels(labels []prompbmarshal.Label) {
-	for i := range labels {
-		labels[i] = prompbmarshal.Label{}
-	}
+	clear(labels)
 }
 
 // LabelsToString returns Prometheus string representation for the given labels.
