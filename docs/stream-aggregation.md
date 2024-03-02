@@ -339,9 +339,6 @@ metrics with different `vmrange` or `le` labels. As they're counters, the applic
   interval: 1m
   without: [instance]
   outputs: [total]
-  output_relabel_configs:
-    - source_labels: [__name__]
-      target_label: __name__
 ```
 
 This config generates the following output metrics according to [output metric naming](#output-metric-names):
@@ -352,15 +349,12 @@ http_request_duration_seconds_bucket:1m_without_instance_total{le="0.2"} value2
 http_request_duration_seconds_bucket:1m_without_instance_total{le="0.4"} value3
 http_request_duration_seconds_bucket:1m_without_instance_total{le="1"}   value4
 http_request_duration_seconds_bucket:1m_without_instance_total{le="3"}   value5
-http_request_duration_seconds_bucket:1m_without_instance_total{le="8"}   value6
-http_request_duration_seconds_bucket:1m_without_instance_total{le="20"}  value7
-http_request_duration_seconds_bucket:1m_without_instance_total{le="60"}  value8
-http_request_duration_seconds_bucket:1m_without_instance_total{le="120"} value9
-http_request_duration_seconds_bucket:1m_without_instance_total{le="+Inf" value10
+http_request_duration_seconds_bucket:1m_without_instance_total{le="+Inf" value6
 ```
 
-The resulting metrics can be used in [histogram_quantile](https://docs.victoriametrics.com/MetricsQL.html#histogram_quantile)
+The resulting metrics can be passed to [histogram_quantile](https://docs.victoriametrics.com/MetricsQL.html#histogram_quantile)
 function:
+
 ```metricsql
 histogram_quantile(0.9, sum(rate(http_request_duration_seconds_bucket:1m_without_instance_total[5m])) by(le))
 ```
@@ -371,7 +365,6 @@ have no such requirement.
 
 See [the list of aggregate output](#aggregation-outputs), which can be specified at `output` field.
 See also [histograms over input metrics](#histograms-over-input-metrics) and [quantiles over input metrics](#quantiles-over-input-metrics).
-
 
 ## Output metric names
 
@@ -412,6 +405,14 @@ For example, the following config removes the `:1m_sum_samples` suffix added [to
   - source_labels: [__name__]
     target_label: __name__
     regex: "(.+):.+"
+```
+
+Another option to remove the suffix, which is added by stream aggregation, is to add `keep_metric_names: true` to the config:
+
+```yaml
+- interval: 1m
+  outputs: [sum_samples]
+  keep_metric_names: true
 ```
 
 ## Aggregation outputs
