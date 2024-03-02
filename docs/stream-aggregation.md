@@ -52,7 +52,7 @@ This behaviour can be changed via the following command-line flags:
 
 By default, all the input samples are aggregated. Sometimes it is needed to de-duplicate samples for the same [time series](https://docs.victoriametrics.com/keyconcepts/#time-series)
 before the aggregation. For example, if the samples are received from replicated sources.
-The [de-duplication](https://docs.victoriametrics.com/#deduplication) can be enabled via the following options:
+In this case the [de-duplication](https://docs.victoriametrics.com/#deduplication) can be enabled via the following options:
 
 - `-remoteWrite.streamAggr.dedupInterval` command-line flag at [vmagent](https://docs.victoriametrics.com/vmagent.html).
   This flag can be specified individually per each `-remoteWrite.url`.
@@ -386,7 +386,7 @@ Output metric names for stream aggregation are constructed according to the foll
 Both input and output metric names can be modified if needed via relabeling according to [these docs](#relabeling).
 
 It is possible to leave the original metric name after the aggregation by specifying `keep_metric_names: true` option at [stream aggregation config](#stream-aggregation-config).
-The `keep_metric_names` option can be used only if only a single output is set in [`outputs` list](#aggregation-outputs).
+The `keep_metric_names` option can be used if only a single output is set in [`outputs` list](#aggregation-outputs).
 
 ## Relabeling
 
