@@ -11,9 +11,12 @@ import (
 func BenchmarkAggregatorsPushByJobAvg(b *testing.B) {
 	for _, output := range []string{
 		"total",
+		"total_prometheus",
 		"increase",
+		"increase_prometheus",
 		"count_series",
 		"count_samples",
+		"unique_samples",
 		"sum_samples",
 		"last",
 		"min",
@@ -44,7 +47,7 @@ func benchmarkAggregatorsPush(b *testing.B, output string) {
 	}
 	defer a.MustStop()
 
-	const loops = 5
+	const loops = 10
 
 	b.ReportAllocs()
 	b.SetBytes(int64(len(benchSeries) * loops))
@@ -52,7 +55,17 @@ func benchmarkAggregatorsPush(b *testing.B, output string) {
 		var matchIdxs []byte
 		for pb.Next() {
 			for i := 0; i < loops; i++ {
-				matchIdxs = a.Push(benchSeries, matchIdxs)
+				series := benchSeries
+				for len(series) > 0 {
+					chunk := series
+					if len(chunk) > 1_000 {
+						chunk = series[:1_000]
+						series = series[len(chunk):]
+					} else {
+						series = nil
+					}
+					matchIdxs = a.Push(chunk, matchIdxs)
+				}
 			}
 		}
 	})

@@ -2,6 +2,7 @@ package streamaggr
 
 import (
 	"math"
+	"strings"
 	"sync"
 	"time"
 
@@ -12,8 +13,10 @@ import (
 type totalAggrState struct {
 	m sync.Map
 
-	ignoreInputDeadline uint64
-	stalenessSecs       uint64
+	suffix            string
+	resetTotalOnFlush bool
+	keepFirstSample   bool
+	stalenessSecs     uint64
 }
 
 type totalStateValue struct {
@@ -29,58 +32,68 @@ type lastValueState struct {
 	deleteDeadline uint64
 }
 
-func newTotalAggrState(interval time.Duration, stalenessInterval time.Duration) *totalAggrState {
-	currentTime := fasttime.UnixTimestamp()
-	intervalSecs := roundDurationToSecs(interval)
+func newTotalAggrState(stalenessInterval time.Duration, resetTotalOnFlush, keepFirstSample bool) *totalAggrState {
 	stalenessSecs := roundDurationToSecs(stalenessInterval)
+	suffix := "total"
+	if resetTotalOnFlush {
+		suffix = "increase"
+	}
 	return &totalAggrState{
-		ignoreInputDeadline: currentTime + intervalSecs,
-		stalenessSecs:       stalenessSecs,
+		suffix:            suffix,
+		resetTotalOnFlush: resetTotalOnFlush,
+		keepFirstSample:   keepFirstSample,
+		stalenessSecs:     stalenessSecs,
 	}
 }
 
-func (as *totalAggrState) pushSample(inputKey, outputKey string, value float64) {
-	currentTime := fasttime.UnixTimestamp()
-	deleteDeadline := currentTime + as.stalenessSecs
+func (as *totalAggrState) pushSamples(samples []pushSample) {
+	deleteDeadline := fasttime.UnixTimestamp() + as.stalenessSecs
+	for i := range samples {
+		s := &samples[i]
+		inputKey, outputKey := getInputOutputKey(s.key)
 
-again:
-	v, ok := as.m.Load(outputKey)
-	if !ok {
-		// The entry is missing in the map. Try creating it.
-		v = &totalStateValue{
-			lastValues: make(map[string]*lastValueState),
-		}
-		vNew, loaded := as.m.LoadOrStore(outputKey, v)
-		if loaded {
-			// Use the entry created by a concurrent goroutine.
-			v = vNew
-		}
-	}
-	sv := v.(*totalStateValue)
-	sv.mu.Lock()
-	deleted := sv.deleted
-	if !deleted {
-		lv, ok := sv.lastValues[inputKey]
+	again:
+		v, ok := as.m.Load(outputKey)
 		if !ok {
-			lv = &lastValueState{}
-			sv.lastValues[inputKey] = lv
+			// The entry is missing in the map. Try creating it.
+			v = &totalStateValue{
+				lastValues: make(map[string]*lastValueState),
+			}
+			outputKey = strings.Clone(outputKey)
+			vNew, loaded := as.m.LoadOrStore(outputKey, v)
+			if loaded {
+				// Use the entry created by a concurrent goroutine.
+				v = vNew
+			}
 		}
-		d := value
-		if ok && lv.value <= value {
-			d = value - lv.value
+		sv := v.(*totalStateValue)
+		sv.mu.Lock()
+		deleted := sv.deleted
+		if !deleted {
+			lv, ok := sv.lastValues[inputKey]
+			if !ok {
+				lv = &lastValueState{}
+				inputKey = strings.Clone(inputKey)
+				sv.lastValues[inputKey] = lv
+			}
+			if ok || as.keepFirstSample {
+				if s.value >= lv.value {
+					sv.total += s.value - lv.value
+				} else {
+					// counter reset
+					sv.total += s.value
+				}
+			}
+			lv.value = s.value
+			lv.deleteDeadline = deleteDeadline
+			sv.deleteDeadline = deleteDeadline
 		}
-		if ok || currentTime > as.ignoreInputDeadline {
-			sv.total += d
+		sv.mu.Unlock()
+		if deleted {
+			// The entry has been deleted by the concurrent call to appendSeriesForFlush
+			// Try obtaining and updating the entry again.
+			goto again
 		}
-		lv.value = value
-		lv.deleteDeadline = deleteDeadline
-		sv.deleteDeadline = deleteDeadline
-	}
-	sv.mu.Unlock()
-	if deleted {
-		// The entry has been deleted by the concurrent call to appendSeriesForFlush
-		// Try obtaining and updating the entry again.
-		goto again
 	}
 }
 
@@ -123,7 +136,9 @@ func (as *totalAggrState) appendSeriesForFlush(ctx *flushCtx) {
 		sv := v.(*totalStateValue)
 		sv.mu.Lock()
 		total := sv.total
-		if math.Abs(sv.total) >= (1 << 53) {
+		if as.resetTotalOnFlush {
+			sv.total = 0
+		} else if math.Abs(sv.total) >= (1 << 53) {
 			// It is time to reset the entry, since it starts losing float64 precision
 			sv.total = 0
 		}
@@ -131,7 +146,7 @@ func (as *totalAggrState) appendSeriesForFlush(ctx *flushCtx) {
 		sv.mu.Unlock()
 		if !deleted {
 			key := k.(string)
-			ctx.appendSeries(key, "total", currentTimeMsec, total)
+			ctx.appendSeries(key, as.suffix, currentTimeMsec, total)
 		}
 		return true
 	})

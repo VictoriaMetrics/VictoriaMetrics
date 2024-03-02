@@ -56,9 +56,43 @@ func TestAggregatorsFailure(t *testing.T) {
 `)
 
 	// Negative interval
-	f(`- interval: -5m`)
+	f(`
+- outputs: [total]
+  interval: -5m
+`)
 	// Too small interval
-	f(`- interval: 10ms`)
+	f(`
+- outputs: [total]
+  interval: 10ms
+`)
+
+	// interval isn't multiple of dedup_interval
+	f(`
+- interval: 1m
+  dedup_interval: 35s
+  outputs: ["quantiles"]
+`)
+
+	// dedup_interval is bigger than dedup_interval
+	f(`
+- interval: 1m
+  dedup_interval: 1h
+  outputs: ["quantiles"]
+`)
+
+	// keep_metric_names is set for multiple inputs
+	f(`
+- interval: 1m
+  keep_metric_names: true
+  outputs: ["total", "increase"]
+`)
+
+	// keep_metric_names is set for unsupported input
+	f(`
+- interval: 1m
+  keep_metric_names: true
+  outputs: ["histogram_bucket"]
+`)
 
 	// Invalid input_relabel_configs
 	f(`
@@ -477,6 +511,17 @@ foo:1m_by_abc_sum_samples{abc="456"} 8
 `, `
 foo 123
 bar{baz="qwe"} 4.34
+`, `bar:1m_total{baz="qwe"} 4.34
+foo:1m_total 123
+`, "11")
+
+	// total_prometheus output for non-repeated series
+	f(`
+- interval: 1m
+  outputs: [total_prometheus]
+`, `
+foo 123
+bar{baz="qwe"} 4.34
 `, `bar:1m_total{baz="qwe"} 0
 foo:1m_total 0
 `, "11")
@@ -485,6 +530,25 @@ foo:1m_total 0
 	f(`
 - interval: 1m
   outputs: [total]
+`, `
+foo 123
+bar{baz="qwe"} 1.32
+bar{baz="qwe"} 4.34
+bar{baz="qwe"} 2
+foo{baz="qwe"} -5
+bar{baz="qwer"} 343
+bar{baz="qwer"} 344
+foo{baz="qwe"} 10
+`, `bar:1m_total{baz="qwe"} 6.34
+bar:1m_total{baz="qwer"} 344
+foo:1m_total 123
+foo:1m_total{baz="qwe"} 10
+`, "11111111")
+
+	// total_prometheus output for repeated series
+	f(`
+- interval: 1m
+  outputs: [total_prometheus]
 `, `
 foo 123
 bar{baz="qwe"} 1.32
@@ -514,6 +578,24 @@ foo{baz="qwe"} -5
 bar{baz="qwer"} 343
 bar{baz="qwer"} 344
 foo{baz="qwe"} 10
+`, `bar:1m_total 350.34
+foo:1m_total 133
+`, "11111111")
+
+	// total_prometheus output for repeated series with group by __name__
+	f(`
+- interval: 1m
+  by: [__name__]
+  outputs: [total_prometheus]
+`, `
+foo 123
+bar{baz="qwe"} 1.32
+bar{baz="qwe"} 4.34
+bar{baz="qwe"} 2
+foo{baz="qwe"} -5
+bar{baz="qwer"} 343
+bar{baz="qwer"} 344
+foo{baz="qwe"} 10
 `, `bar:1m_total 6.02
 foo:1m_total 15
 `, "11111111")
@@ -522,6 +604,17 @@ foo:1m_total 15
 	f(`
 - interval: 1m
   outputs: [increase]
+`, `
+foo 123
+bar{baz="qwe"} 4.34
+`, `bar:1m_increase{baz="qwe"} 4.34
+foo:1m_increase 123
+`, "11")
+
+	// increase_prometheus output for non-repeated series
+	f(`
+- interval: 1m
+  outputs: [increase_prometheus]
 `, `
 foo 123
 bar{baz="qwe"} 4.34
@@ -542,12 +635,30 @@ foo{baz="qwe"} -5
 bar{baz="qwer"} 343
 bar{baz="qwer"} 344
 foo{baz="qwe"} 10
+`, `bar:1m_increase{baz="qwe"} 6.34
+bar:1m_increase{baz="qwer"} 344
+foo:1m_increase 123
+foo:1m_increase{baz="qwe"} 10
+`, "11111111")
+
+	// increase_prometheus output for repeated series
+	f(`
+- interval: 1m
+  outputs: [increase_prometheus]
+`, `
+foo 123
+bar{baz="qwe"} 1.32
+bar{baz="qwe"} 4.34
+bar{baz="qwe"} 2
+foo{baz="qwe"} -5
+bar{baz="qwer"} 343
+bar{baz="qwer"} 344
+foo{baz="qwe"} 10
 `, `bar:1m_increase{baz="qwe"} 5.02
 bar:1m_increase{baz="qwer"} 1
 foo:1m_increase 0
 foo:1m_increase{baz="qwe"} 15
 `, "11111111")
-
 	// multiple aggregate configs
 	f(`
 - interval: 1m
@@ -750,7 +861,7 @@ func TestAggregatorsWithDedupInterval(t *testing.T) {
 			}
 			tssOutputLock.Unlock()
 		}
-		const dedupInterval = time.Hour
+		const dedupInterval = 30 * time.Second
 		a, err := newAggregatorsFromData([]byte(config), pushFunc, dedupInterval)
 		if err != nil {
 			t.Fatalf("cannot initialize aggregators: %s", err)
