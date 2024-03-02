@@ -1,6 +1,7 @@
 package streamaggr
 
 import (
+	"strings"
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
@@ -23,33 +24,39 @@ func newStdvarAggrState() *stdvarAggrState {
 	return &stdvarAggrState{}
 }
 
-func (as *stdvarAggrState) pushSample(_, outputKey string, value float64) {
-again:
-	v, ok := as.m.Load(outputKey)
-	if !ok {
-		// The entry is missing in the map. Try creating it.
-		v = &stdvarStateValue{}
-		vNew, loaded := as.m.LoadOrStore(outputKey, v)
-		if loaded {
-			// Use the entry created by a concurrent goroutine.
-			v = vNew
+func (as *stdvarAggrState) pushSamples(samples []pushSample) {
+	for i := range samples {
+		s := &samples[i]
+		outputKey := getOutputKey(s.key)
+
+	again:
+		v, ok := as.m.Load(outputKey)
+		if !ok {
+			// The entry is missing in the map. Try creating it.
+			v = &stdvarStateValue{}
+			outputKey = strings.Clone(outputKey)
+			vNew, loaded := as.m.LoadOrStore(outputKey, v)
+			if loaded {
+				// Use the entry created by a concurrent goroutine.
+				v = vNew
+			}
 		}
-	}
-	sv := v.(*stdvarStateValue)
-	sv.mu.Lock()
-	deleted := sv.deleted
-	if !deleted {
-		// See `Rapid calculation methods` at https://en.wikipedia.org/wiki/Standard_deviation
-		sv.count++
-		avg := sv.avg + (value-sv.avg)/sv.count
-		sv.q += (value - sv.avg) * (value - avg)
-		sv.avg = avg
-	}
-	sv.mu.Unlock()
-	if deleted {
-		// The entry has been deleted by the concurrent call to appendSeriesForFlush
-		// Try obtaining and updating the entry again.
-		goto again
+		sv := v.(*stdvarStateValue)
+		sv.mu.Lock()
+		deleted := sv.deleted
+		if !deleted {
+			// See `Rapid calculation methods` at https://en.wikipedia.org/wiki/Standard_deviation
+			sv.count++
+			avg := sv.avg + (s.value-sv.avg)/sv.count
+			sv.q += (s.value - sv.avg) * (s.value - avg)
+			sv.avg = avg
+		}
+		sv.mu.Unlock()
+		if deleted {
+			// The entry has been deleted by the concurrent call to appendSeriesForFlush
+			// Try obtaining and updating the entry again.
+			goto again
+		}
 	}
 }
 
