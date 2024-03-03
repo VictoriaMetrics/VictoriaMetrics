@@ -55,14 +55,14 @@ func (as *uniqueSamplesAggrState) pushSamples(samples []pushSample) {
 		}
 		sv.mu.Unlock()
 		if deleted {
-			// The entry has been deleted by the concurrent call to appendSeriesForFlush
+			// The entry has been deleted by the concurrent call to flushState
 			// Try obtaining and updating the entry again.
 			goto again
 		}
 	}
 }
 
-func (as *uniqueSamplesAggrState) appendSeriesForFlush(ctx *flushCtx) {
+func (as *uniqueSamplesAggrState) flushState(ctx *flushCtx) {
 	currentTimeMsec := int64(fasttime.UnixTimestamp()) * 1000
 	m := &as.m
 	m.Range(func(k, v interface{}) bool {

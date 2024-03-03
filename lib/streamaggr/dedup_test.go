@@ -33,11 +33,14 @@ func TestDedupAggrSerial(t *testing.T) {
 	}
 
 	flushedSamplesMap := make(map[string]pushSample)
+	var mu sync.Mutex
 	flushSamples := func(samples []pushSample) {
+		mu.Lock()
 		for _, sample := range samples {
 			sample.key = strings.Clone(sample.key)
 			flushedSamplesMap[sample.key] = sample
 		}
+		mu.Unlock()
 	}
 	da.flush(flushSamples)
 
