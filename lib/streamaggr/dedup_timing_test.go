@@ -7,7 +7,7 @@ import (
 )
 
 func BenchmarkDedupAggr(b *testing.B) {
-	for _, samplesPerPush := range []int{1, 10, 100, 1_000, 10_000, 100_000} {
+	for _, samplesPerPush := range []int{1, 10, 100, 1_000, 10_000, 100_000, 1_000_000} {
 		b.Run(fmt.Sprintf("samplesPerPush_%d", samplesPerPush), func(b *testing.B) {
 			benchmarkDedupAggr(b, samplesPerPush)
 		})
