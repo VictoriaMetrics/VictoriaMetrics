@@ -304,6 +304,7 @@ type aggregator struct {
 	// lc is used for compressing series keys before passing them to dedupAggr and aggrState.
 	lc promutils.LabelsCompressor
 
+	// pushFunc is the callback, which is called by aggrState when flushing its state.
 	pushFunc PushFunc
 
 	// suffix contains a suffix, which should be added to aggregate metric names
@@ -329,7 +330,7 @@ type aggregator struct {
 
 type aggrState interface {
 	pushSamples(samples []pushSample)
-	appendSeriesForFlush(ctx *flushCtx)
+	flushState(ctx *flushCtx)
 }
 
 // PushFunc is called by Aggregators when it needs to push its state to metrics storage
@@ -544,11 +545,7 @@ func (a *aggregator) runFlusher(interval, dedupInterval time.Duration) {
 			return
 		case <-tickerFlush.C:
 			startTime := time.Now()
-
-			flushConcurrencyCh <- struct{}{}
 			a.flush()
-			<-flushConcurrencyCh
-
 			d := time.Since(startTime)
 			a.flushDuration.Update(d.Seconds())
 			if d > interval {
@@ -559,11 +556,7 @@ func (a *aggregator) runFlusher(interval, dedupInterval time.Duration) {
 			}
 		case <-dedupTickerCh:
 			startTime := time.Now()
-
-			flushConcurrencyCh <- struct{}{}
 			a.dedupFlush()
-			<-flushConcurrencyCh
-
 			d := time.Since(startTime)
 			a.dedupFlushDuration.Update(d.Seconds())
 			if d > dedupInterval {
@@ -576,48 +569,31 @@ func (a *aggregator) runFlusher(interval, dedupInterval time.Duration) {
 	}
 }
 
-var flushConcurrencyCh = make(chan struct{}, cgroup.AvailableCPUs())
-
 func (a *aggregator) dedupFlush() {
 	a.da.flush(a.pushSamples)
 }
 
 func (a *aggregator) flush() {
-	ctx := &flushCtx{
-		a: a,
-	}
+	var wg sync.WaitGroup
 	for _, as := range a.aggrStates {
-		ctx.reset()
-		as.appendSeriesForFlush(ctx)
+		flushConcurrencyCh <- struct{}{}
+		wg.Add(1)
+		go func(as aggrState) {
+			defer func() {
+				<-flushConcurrencyCh
+				wg.Done()
+			}()
 
-		tss := ctx.tss
-
-		if a.outputRelabeling == nil {
-			// Fast path - push the output metrics.
-			a.pushFunc(tss)
-			continue
-		}
-
-		// Slower path - apply output relabeling and then push the output metrics.
-		auxLabels := promutils.GetLabels()
-		dstLabels := auxLabels.Labels[:0]
-		dst := tss[:0]
-		for _, ts := range tss {
-			dstLabelsLen := len(dstLabels)
-			dstLabels = append(dstLabels, ts.Labels...)
-			dstLabels = a.outputRelabeling.Apply(dstLabels, dstLabelsLen)
-			if len(dstLabels) == dstLabelsLen {
-				// The metric has been deleted by the relabeling
-				continue
-			}
-			ts.Labels = dstLabels[dstLabelsLen:]
-			dst = append(dst, ts)
-		}
-		a.pushFunc(dst)
-		auxLabels.Labels = dstLabels
-		promutils.PutLabels(auxLabels)
+			ctx := getFlushCtx(a)
+			as.flushState(ctx)
+			ctx.flushSeries()
+			putFlushCtx(ctx)
+		}(as)
 	}
+	wg.Wait()
 }
+
+var flushConcurrencyCh = make(chan struct{}, cgroup.AvailableCPUs())
 
 // MustStop stops the aggregator.
 //
@@ -631,12 +607,10 @@ func (a *aggregator) MustStop() {
 	}
 
 	// Flush the remaining data from the last interval if needed.
-	flushConcurrencyCh <- struct{}{}
 	if a.da != nil {
 		a.dedupFlush()
 	}
 	a.flush()
-	<-flushConcurrencyCh
 }
 
 // Push pushes tss to a.
@@ -796,6 +770,23 @@ func getInputOutputLabels(dstInput, dstOutput, labels []prompbmarshal.Label, by,
 	return dstInput, dstOutput
 }
 
+func getFlushCtx(a *aggregator) *flushCtx {
+	v := flushCtxPool.Get()
+	if v == nil {
+		v = &flushCtx{}
+	}
+	ctx := v.(*flushCtx)
+	ctx.a = a
+	return ctx
+}
+
+func putFlushCtx(ctx *flushCtx) {
+	ctx.reset()
+	flushCtxPool.Put(ctx)
+}
+
+var flushCtxPool sync.Pool
+
 type flushCtx struct {
 	a *aggregator
 
@@ -805,10 +796,53 @@ type flushCtx struct {
 }
 
 func (ctx *flushCtx) reset() {
+	ctx.a = nil
+	ctx.resetSeries()
+}
+
+func (ctx *flushCtx) resetSeries() {
 	ctx.tss = prompbmarshal.ResetTimeSeries(ctx.tss)
-	promrelabel.CleanLabels(ctx.labels)
+
+	clear(ctx.labels)
 	ctx.labels = ctx.labels[:0]
+
 	ctx.samples = ctx.samples[:0]
+}
+
+func (ctx *flushCtx) flushSeries() {
+	tss := ctx.tss
+	if len(tss) == 0 {
+		// nothing to flush
+		return
+	}
+
+	outputRelabeling := ctx.a.outputRelabeling
+	if outputRelabeling == nil {
+		// Fast path - push the output metrics.
+		ctx.a.pushFunc(tss)
+		return
+	}
+
+	// Slow path - apply output relabeling and then push the output metrics.
+	auxLabels := promutils.GetLabels()
+	dstLabels := auxLabels.Labels[:0]
+	dst := tss[:0]
+	for _, ts := range tss {
+		dstLabelsLen := len(dstLabels)
+		dstLabels = append(dstLabels, ts.Labels...)
+		dstLabels = outputRelabeling.Apply(dstLabels, dstLabelsLen)
+		if len(dstLabels) == dstLabelsLen {
+			// The metric has been deleted by the relabeling
+			continue
+		}
+		ts.Labels = dstLabels[dstLabelsLen:]
+		dst = append(dst, ts)
+	}
+	ctx.a.pushFunc(dst)
+	auxLabels.Labels = dstLabels
+	promutils.PutLabels(auxLabels)
+
+	ctx.resetSeries()
 }
 
 func (ctx *flushCtx) appendSeries(key, suffix string, timestamp int64, value float64) {
@@ -826,6 +860,11 @@ func (ctx *flushCtx) appendSeries(key, suffix string, timestamp int64, value flo
 		Labels:  ctx.labels[labelsLen:],
 		Samples: ctx.samples[samplesLen:],
 	})
+
+	// Limit the maximum length of ctx.tss in order to limit memory usage.
+	if len(ctx.tss) >= 10_000 {
+		ctx.flushSeries()
+	}
 }
 
 func (ctx *flushCtx) appendSeriesWithExtraLabel(key, suffix string, timestamp int64, value float64, extraName, extraValue string) {

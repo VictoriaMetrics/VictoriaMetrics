@@ -59,7 +59,7 @@ func (as *histogramBucketAggrState) pushSamples(samples []pushSample) {
 		}
 		sv.mu.Unlock()
 		if deleted {
-			// The entry has been deleted by the concurrent call to appendSeriesForFlush
+			// The entry has been deleted by the concurrent call to flushState
 			// Try obtaining and updating the entry again.
 			goto again
 		}
@@ -86,7 +86,7 @@ func (as *histogramBucketAggrState) removeOldEntries(currentTime uint64) {
 	})
 }
 
-func (as *histogramBucketAggrState) appendSeriesForFlush(ctx *flushCtx) {
+func (as *histogramBucketAggrState) flushState(ctx *flushCtx) {
 	currentTime := fasttime.UnixTimestamp()
 	currentTimeMsec := int64(currentTime) * 1000
 

@@ -89,6 +89,21 @@ func (da *dedupAggr) pushSamples(samples []pushSample) {
 	putPerShardSamples(pss)
 }
 
+func getDedupFlushCtx() *dedupFlushCtx {
+	v := dedupFlushCtxPool.Get()
+	if v == nil {
+		return &dedupFlushCtx{}
+	}
+	return v.(*dedupFlushCtx)
+}
+
+func putDedupFlushCtx(ctx *dedupFlushCtx) {
+	ctx.reset()
+	dedupFlushCtxPool.Put(ctx)
+}
+
+var dedupFlushCtxPool sync.Pool
+
 type dedupFlushCtx struct {
 	samples []pushSample
 }
@@ -99,12 +114,22 @@ func (ctx *dedupFlushCtx) reset() {
 }
 
 func (da *dedupAggr) flush(f func(samples []pushSample)) {
-	ctx := &dedupFlushCtx{}
-	shards := da.shards
-	for i := range shards {
-		ctx.reset()
-		shards[i].flush(ctx, f)
+	var wg sync.WaitGroup
+	for i := range da.shards {
+		flushConcurrencyCh <- struct{}{}
+		wg.Add(1)
+		go func(shard *dedupAggrShard) {
+			defer func() {
+				<-flushConcurrencyCh
+				wg.Done()
+			}()
+
+			ctx := getDedupFlushCtx()
+			shard.flush(ctx, f)
+			putDedupFlushCtx(ctx)
+		}(&da.shards[i])
 	}
+	wg.Wait()
 }
 
 type perShardSamples struct {
@@ -178,8 +203,14 @@ func (das *dedupAggrShard) flush(ctx *dedupFlushCtx, f func(samples []pushSample
 			key:   key,
 			value: s.value,
 		})
-	}
-	ctx.samples = dstSamples
 
+		// Limit the number of samples per each flush in order to limit memory usage.
+		if len(dstSamples) >= 100_000 {
+			f(dstSamples)
+			clear(dstSamples)
+			dstSamples = dstSamples[:0]
+		}
+	}
 	f(dstSamples)
+	ctx.samples = dstSamples
 }
