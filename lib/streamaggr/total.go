@@ -13,10 +13,24 @@ import (
 type totalAggrState struct {
 	m sync.Map
 
-	suffix            string
+	suffix string
+
+	// Whether to reset the output value on every flushState call.
 	resetTotalOnFlush bool
-	keepFirstSample   bool
-	stalenessSecs     uint64
+
+	// Whether to take into account the first sample in new time series when calculating the output value.
+	keepFirstSample bool
+
+	// Time series state is dropped if no new samples are received during stalenessSecs.
+	//
+	// Aslo, the first sample per each new series is ignored during stalenessSecs even if keepFirstSample is set.
+	// see ignoreFirstSampleDeadline for more details.
+	stalenessSecs uint64
+
+	// The first sample per each new series is ignored until this unix timestamp deadline in seconds even if keepFirstSample is set.
+	// This allows avoiding an initial spike of the output values at startup when new time series
+	// cannot be distinguished from already existing series. This is tracked with ignoreFirstSampleDeadline.
+	ignoreFirstSampleDeadline uint64
 }
 
 type totalStateValue struct {
@@ -34,20 +48,24 @@ type lastValueState struct {
 
 func newTotalAggrState(stalenessInterval time.Duration, resetTotalOnFlush, keepFirstSample bool) *totalAggrState {
 	stalenessSecs := roundDurationToSecs(stalenessInterval)
+	ignoreFirstSampleDeadline := fasttime.UnixTimestamp() + stalenessSecs
 	suffix := "total"
 	if resetTotalOnFlush {
 		suffix = "increase"
 	}
 	return &totalAggrState{
-		suffix:            suffix,
-		resetTotalOnFlush: resetTotalOnFlush,
-		keepFirstSample:   keepFirstSample,
-		stalenessSecs:     stalenessSecs,
+		suffix:                    suffix,
+		resetTotalOnFlush:         resetTotalOnFlush,
+		keepFirstSample:           keepFirstSample,
+		stalenessSecs:             stalenessSecs,
+		ignoreFirstSampleDeadline: ignoreFirstSampleDeadline,
 	}
 }
 
 func (as *totalAggrState) pushSamples(samples []pushSample) {
-	deleteDeadline := fasttime.UnixTimestamp() + as.stalenessSecs
+	currentTime := fasttime.UnixTimestamp()
+	deleteDeadline := currentTime + as.stalenessSecs
+	keepFirstSample := as.keepFirstSample && currentTime > as.ignoreFirstSampleDeadline
 	for i := range samples {
 		s := &samples[i]
 		inputKey, outputKey := getInputOutputKey(s.key)
@@ -76,7 +94,7 @@ func (as *totalAggrState) pushSamples(samples []pushSample) {
 				inputKey = strings.Clone(inputKey)
 				sv.lastValues[inputKey] = lv
 			}
-			if ok || as.keepFirstSample {
+			if ok || keepFirstSample {
 				if s.value >= lv.value {
 					sv.total += s.value - lv.value
 				} else {
