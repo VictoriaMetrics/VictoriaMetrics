@@ -89,9 +89,8 @@ var (
 	streamAggrDropInput = flagutil.NewArrayBool("remoteWrite.streamAggr.dropInput", "Whether to drop all the input samples after the aggregation "+
 		"with -remoteWrite.streamAggr.config. By default, only aggregates samples are dropped, while the remaining samples "+
 		"are written to the corresponding -remoteWrite.url . See also -remoteWrite.streamAggr.keepInput and https://docs.victoriametrics.com/stream-aggregation.html")
-	streamAggrDedupInterval = flagutil.NewArrayDuration("remoteWrite.streamAggr.dedupInterval", 0, "Input samples are de-duplicated with this interval before being aggregated "+
-		"by stream aggregation. Only the last sample per each time series per each interval is aggregated if the interval is greater than zero. "+
-		"See https://docs.victoriametrics.com/stream-aggregation.html")
+	streamAggrDedupInterval = flagutil.NewArrayDuration("remoteWrite.streamAggr.dedupInterval", 0, "Input samples are de-duplicated with this interval before optional aggregation "+
+		"with -remoteWrite.streamAggr.config . See also -dedup.minScrapeInterval and https://docs.victoriametrics.com/stream-aggregation.html#deduplication")
 	disableOnDiskQueue = flag.Bool("remoteWrite.disableOnDiskQueue", false, "Whether to disable storing pending data to -remoteWrite.tmpDataPath "+
 		"when the configured remote storage systems cannot keep up with the data ingestion rate. See https://docs.victoriametrics.com/vmagent.html#disabling-on-disk-persistence ."+
 		"See also -remoteWrite.dropSamplesOnOverload")
@@ -666,7 +665,9 @@ type remoteWriteCtx struct {
 	fq  *persistentqueue.FastQueue
 	c   *client
 
-	sas                 atomic.Pointer[streamaggr.Aggregators]
+	sas          atomic.Pointer[streamaggr.Aggregators]
+	deduplicator *streamaggr.Deduplicator
+
 	streamAggrKeepInput bool
 	streamAggrDropInput bool
 
@@ -739,9 +740,10 @@ func newRemoteWriteCtx(argIdx int, remoteWriteURL *url.URL, maxInmemoryBlocks in
 
 	// Initialize sas
 	sasFile := streamAggrConfig.GetOptionalArg(argIdx)
+	dedupInterval := streamAggrDedupInterval.GetOptionalArg(argIdx)
 	if sasFile != "" {
 		opts := &streamaggr.Options{
-			DedupInterval: streamAggrDedupInterval.GetOptionalArg(argIdx),
+			DedupInterval: dedupInterval,
 		}
 		sas, err := streamaggr.LoadFromFile(sasFile, rwctx.pushInternalTrackDropped, opts)
 		if err != nil {
@@ -752,16 +754,23 @@ func newRemoteWriteCtx(argIdx int, remoteWriteURL *url.URL, maxInmemoryBlocks in
 		rwctx.streamAggrDropInput = streamAggrDropInput.GetOptionalArg(argIdx)
 		metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reload_successful{path=%q}`, sasFile)).Set(1)
 		metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reload_success_timestamp_seconds{path=%q}`, sasFile)).Set(fasttime.UnixTimestamp())
+	} else if dedupInterval > 0 {
+		rwctx.deduplicator = streamaggr.NewDeduplicator(rwctx.pushInternalTrackDropped, dedupInterval)
 	}
 
 	return rwctx
 }
 
 func (rwctx *remoteWriteCtx) MustStop() {
-	// sas must be stopped before rwctx is closed
+	// sas and deduplicator must be stopped before rwctx is closed
 	// because sas can write pending series to rwctx.pss if there are any
 	sas := rwctx.sas.Swap(nil)
 	sas.MustStop()
+
+	if rwctx.deduplicator != nil {
+		rwctx.deduplicator.MustStop()
+		rwctx.deduplicator = nil
+	}
 
 	for _, ps := range rwctx.pss {
 		ps.MustStop()
@@ -801,7 +810,7 @@ func (rwctx *remoteWriteCtx) TryPush(tss []prompbmarshal.TimeSeries) bool {
 	rowsCount := getRowsCount(tss)
 	rwctx.rowsPushedAfterRelabel.Add(rowsCount)
 
-	// Apply stream aggregation if any
+	// Apply stream aggregation or deduplication if they are configured
 	sas := rwctx.sas.Load()
 	if sas != nil {
 		matchIdxs := matchIdxsPool.Get()
@@ -816,6 +825,10 @@ func (rwctx *remoteWriteCtx) TryPush(tss []prompbmarshal.TimeSeries) bool {
 			tss = dropAggregatedSeries(tss, matchIdxs.B, rwctx.streamAggrDropInput)
 		}
 		matchIdxsPool.Put(matchIdxs)
+	} else if rwctx.deduplicator != nil {
+		rwctx.deduplicator.Push(tss)
+		clear(tss)
+		tss = tss[:0]
 	}
 
 	// Try pushing the data to remote storage
@@ -844,7 +857,7 @@ func dropAggregatedSeries(src []prompbmarshal.TimeSeries, matchIdxs []byte, drop
 		}
 	}
 	tail := src[len(dst):]
-	_ = prompbmarshal.ResetTimeSeries(tail)
+	clear(tail)
 	return dst
 }
 

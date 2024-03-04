@@ -53,7 +53,7 @@ func TestDedupAggrSerial(t *testing.T) {
 	}
 }
 
-func TestDedupAggrConcurrent(t *testing.T) {
+func TestDedupAggrConcurrent(_ *testing.T) {
 	const concurrency = 5
 	const seriesCount = 10_000
 	da := newDedupAggr()
