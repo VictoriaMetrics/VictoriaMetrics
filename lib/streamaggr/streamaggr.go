@@ -361,7 +361,7 @@ type aggregator struct {
 
 type aggrState interface {
 	pushSamples(samples []pushSample)
-	flushState(ctx *flushCtx)
+	flushState(ctx *flushCtx, resetState bool)
 }
 
 // PushFunc is called by Aggregators when it needs to push its state to metrics storage
@@ -606,18 +606,18 @@ func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipInc
 		defer t.Stop()
 
 		if alignFlushToInterval && skipIncompleteFlush {
-			a.flush(nil, interval)
+			a.flush(nil, interval, true)
 		}
 
 		for tickerWait(t) {
-			a.flush(pushFunc, interval)
+			a.flush(pushFunc, interval, true)
 
 			if alignFlushToInterval {
 				select {
 				case <-t.C:
 					if skipIncompleteFlush && tickerWait(t) {
 						logger.Warnf("drop incomplete aggregation state because the previous flush took longer than interval=%s", interval)
-						a.flush(nil, interval)
+						a.flush(nil, interval, true)
 					}
 				default:
 				}
@@ -637,10 +637,10 @@ func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipInc
 			if ct.After(flushDeadline) {
 				// It is time to flush the aggregated state
 				if alignFlushToInterval && skipIncompleteFlush && !isSkippedFirstFlush {
-					a.flush(nil, interval)
+					a.flush(nil, interval, true)
 					isSkippedFirstFlush = true
 				} else {
-					a.flush(pushFunc, interval)
+					a.flush(pushFunc, interval, true)
 				}
 				for ct.After(flushDeadline) {
 					flushDeadline = flushDeadline.Add(interval)
@@ -658,7 +658,7 @@ func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipInc
 
 	if !skipIncompleteFlush {
 		a.dedupFlush(dedupInterval)
-		a.flush(pushFunc, interval)
+		a.flush(pushFunc, interval, true)
 	}
 }
 
@@ -670,7 +670,7 @@ func (a *aggregator) dedupFlush(dedupInterval time.Duration) {
 
 	startTime := time.Now()
 
-	a.da.flush(a.pushSamples)
+	a.da.flush(a.pushSamples, true)
 
 	d := time.Since(startTime)
 	a.dedupFlushDuration.Update(d.Seconds())
@@ -682,7 +682,7 @@ func (a *aggregator) dedupFlush(dedupInterval time.Duration) {
 	}
 }
 
-func (a *aggregator) flush(pushFunc PushFunc, interval time.Duration) {
+func (a *aggregator) flush(pushFunc PushFunc, interval time.Duration, resetState bool) {
 	startTime := time.Now()
 
 	var wg sync.WaitGroup
@@ -696,7 +696,7 @@ func (a *aggregator) flush(pushFunc PushFunc, interval time.Duration) {
 			}()
 
 			ctx := getFlushCtx(a, pushFunc)
-			as.flushState(ctx)
+			as.flushState(ctx, resetState)
 			ctx.flushSeries()
 			ctx.resetSeries()
 			putFlushCtx(ctx)

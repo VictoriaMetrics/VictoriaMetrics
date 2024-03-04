@@ -56,19 +56,24 @@ func (as *sumSamplesAggrState) pushSamples(samples []pushSample) {
 	}
 }
 
-func (as *sumSamplesAggrState) flushState(ctx *flushCtx) {
+func (as *sumSamplesAggrState) flushState(ctx *flushCtx, resetState bool) {
 	currentTimeMsec := int64(fasttime.UnixTimestamp()) * 1000
 	m := &as.m
 	m.Range(func(k, v interface{}) bool {
-		// Atomically delete the entry from the map, so new entry is created for the next flush.
-		m.Delete(k)
+		if resetState {
+			// Atomically delete the entry from the map, so new entry is created for the next flush.
+			m.Delete(k)
+		}
 
 		sv := v.(*sumSamplesStateValue)
 		sv.mu.Lock()
 		sum := sv.sum
-		// Mark the entry as deleted, so it won't be updated anymore by concurrent pushSample() calls.
-		sv.deleted = true
+		if resetState {
+			// Mark the entry as deleted, so it won't be updated anymore by concurrent pushSample() calls.
+			sv.deleted = true
+		}
 		sv.mu.Unlock()
+
 		key := k.(string)
 		ctx.appendSeries(key, "sum_samples", currentTimeMsec, sum)
 		return true
