@@ -9,10 +9,10 @@ import (
 // WriteRequest represents Prometheus remote write API request.
 type WriteRequest struct {
 	// Timeseries is a list of time series in the given WriteRequest
-	Timeseries []TimeSeries
-
-	labelsPool  []Label
-	samplesPool []Sample
+	Timeseries    []TimeSeries
+	labelsPool    []Label
+	samplesPool   []Sample
+	exemplarsPool []Exemplar
 }
 
 // Reset resets wr for subsequent re-use.
@@ -36,13 +36,24 @@ func (wr *WriteRequest) Reset() {
 	wr.samplesPool = samplesPool[:0]
 }
 
+type Exemplar struct {
+	// Optional, can be empty.
+	Labels []Label
+	Value  float64
+	// timestamp is in ms format, see model/timestamp/timestamp.go for
+	// conversion from time.Time to Prometheus timestamp.
+	Timestamp  int64
+	labelsPool []Label
+}
+
 // TimeSeries is a timeseries.
 type TimeSeries struct {
 	// Labels is a list of labels for the given TimeSeries
 	Labels []Label
 
 	// Samples is a list of samples for the given TimeSeries
-	Samples []Sample
+	Samples   []Sample
+	Exemplars []Exemplar
 }
 
 // Sample is a timeseries sample.
@@ -75,6 +86,8 @@ func (wr *WriteRequest) UnmarshalProtobuf(src []byte) (err error) {
 	tss := wr.Timeseries
 	labelsPool := wr.labelsPool
 	samplesPool := wr.samplesPool
+	exemplarsPool := wr.exemplarsPool
+
 	var fc easyproto.FieldContext
 	for len(src) > 0 {
 		src, err = fc.NextField(src)
@@ -93,7 +106,7 @@ func (wr *WriteRequest) UnmarshalProtobuf(src []byte) (err error) {
 				tss = append(tss, TimeSeries{})
 			}
 			ts := &tss[len(tss)-1]
-			labelsPool, samplesPool, err = ts.unmarshalProtobuf(data, labelsPool, samplesPool)
+			labelsPool, samplesPool, exemplarsPool, err = ts.unmarshalProtobuf(data, labelsPool, samplesPool, exemplarsPool)
 			if err != nil {
 				return fmt.Errorf("cannot unmarshal timeseries: %w", err)
 			}
@@ -102,28 +115,31 @@ func (wr *WriteRequest) UnmarshalProtobuf(src []byte) (err error) {
 	wr.Timeseries = tss
 	wr.labelsPool = labelsPool
 	wr.samplesPool = samplesPool
+	wr.exemplarsPool = exemplarsPool
 	return nil
 }
 
-func (ts *TimeSeries) unmarshalProtobuf(src []byte, labelsPool []Label, samplesPool []Sample) ([]Label, []Sample, error) {
+func (ts *TimeSeries) unmarshalProtobuf(src []byte, labelsPool []Label, samplesPool []Sample, exemplarsPool []Exemplar) ([]Label, []Sample, []Exemplar, error) {
 	// message TimeSeries {
 	//   repeated Label labels   = 1;
 	//   repeated Sample samples = 2;
+	// 	 repeated Exemplar exemplars = 3
 	// }
 	labelsPoolLen := len(labelsPool)
 	samplesPoolLen := len(samplesPool)
+	exemplarsPoolLen := len(exemplarsPool)
 	var fc easyproto.FieldContext
 	for len(src) > 0 {
 		var err error
 		src, err = fc.NextField(src)
 		if err != nil {
-			return labelsPool, samplesPool, fmt.Errorf("cannot read the next field: %w", err)
+			return labelsPool, samplesPool, exemplarsPool, fmt.Errorf("cannot read the next field: %w", err)
 		}
 		switch fc.FieldNum {
 		case 1:
 			data, ok := fc.MessageData()
 			if !ok {
-				return labelsPool, samplesPool, fmt.Errorf("cannot read label data")
+				return labelsPool, samplesPool, exemplarsPool, fmt.Errorf("cannot read label data")
 			}
 			if len(labelsPool) < cap(labelsPool) {
 				labelsPool = labelsPool[:len(labelsPool)+1]
@@ -132,12 +148,12 @@ func (ts *TimeSeries) unmarshalProtobuf(src []byte, labelsPool []Label, samplesP
 			}
 			label := &labelsPool[len(labelsPool)-1]
 			if err := label.unmarshalProtobuf(data); err != nil {
-				return labelsPool, samplesPool, fmt.Errorf("cannot unmarshal label: %w", err)
+				return labelsPool, samplesPool, exemplarsPool, fmt.Errorf("cannot unmarshal label: %w", err)
 			}
 		case 2:
 			data, ok := fc.MessageData()
 			if !ok {
-				return labelsPool, samplesPool, fmt.Errorf("cannot read the sample data")
+				return labelsPool, samplesPool, exemplarsPool, fmt.Errorf("cannot read the sample data")
 			}
 			if len(samplesPool) < cap(samplesPool) {
 				samplesPool = samplesPool[:len(samplesPool)+1]
@@ -146,15 +162,74 @@ func (ts *TimeSeries) unmarshalProtobuf(src []byte, labelsPool []Label, samplesP
 			}
 			sample := &samplesPool[len(samplesPool)-1]
 			if err := sample.unmarshalProtobuf(data); err != nil {
-				return labelsPool, samplesPool, fmt.Errorf("cannot unmarshal sample: %w", err)
+				return labelsPool, samplesPool, exemplarsPool, fmt.Errorf("cannot unmarshal sample: %w", err)
 			}
+		case 3:
+			data, ok := fc.MessageData()
+			if !ok {
+				return labelsPool, samplesPool, exemplarsPool, fmt.Errorf("cannot read the exemplar data")
+			}
+			if len(exemplarsPool) < cap(exemplarsPool) {
+				exemplarsPool = exemplarsPool[:len(exemplarsPool)+1]
+			} else {
+				exemplarsPool = append(exemplarsPool, Exemplar{})
+			}
+			exemplar := &exemplarsPool[len(exemplarsPool)-1]
+			if err := exemplar.unmarshalProtobuf(data); err != nil {
+				return labelsPool, samplesPool, exemplarsPool, fmt.Errorf("cannot unmarshal exemplar: %w", err)
+			}
+			exemplar.Labels = exemplar.labelsPool
 		}
 	}
 	ts.Labels = labelsPool[labelsPoolLen:]
 	ts.Samples = samplesPool[samplesPoolLen:]
-	return labelsPool, samplesPool, nil
+	ts.Exemplars = exemplarsPool[exemplarsPoolLen:]
+	return labelsPool, samplesPool, exemplarsPool, nil
 }
 
+func (exemplar *Exemplar) unmarshalProtobuf(src []byte) (err error) {
+	// message Exemplar {
+	//   repeated Label Labels  = 1;
+	//   float64 Value = 2;
+	//   int64 Timestamp = 2;
+	// }
+	var fc easyproto.FieldContext
+	for len(src) > 0 {
+		src, err = fc.NextField(src)
+		if err != nil {
+			return fmt.Errorf("cannot read the next field: %w", err)
+		}
+		switch fc.FieldNum {
+		case 1:
+			data, ok := fc.MessageData()
+			if !ok {
+				return fmt.Errorf("cannot read label data")
+			}
+			if len(exemplar.labelsPool) < cap(exemplar.labelsPool) {
+				exemplar.labelsPool = exemplar.labelsPool[:len(exemplar.labelsPool)+1]
+			} else {
+				exemplar.labelsPool = append(exemplar.labelsPool, Label{})
+			}
+			label := &exemplar.labelsPool[len(exemplar.labelsPool)-1]
+			if err := label.unmarshalProtobuf(data); err != nil {
+				return fmt.Errorf("cannot unmarshal label: %w", err)
+			}
+		case 2:
+			value, ok := fc.Double()
+			if !ok {
+				return fmt.Errorf("cannot read exemplar value")
+			}
+			exemplar.Value = value
+		case 3:
+			timestamp, ok := fc.Int64()
+			if !ok {
+				return fmt.Errorf("cannot read exemplar timestamp")
+			}
+			exemplar.Timestamp = timestamp
+		}
+	}
+	return nil
+}
 func (lbl *Label) unmarshalProtobuf(src []byte) (err error) {
 	// message Label {
 	//   string name  = 1;

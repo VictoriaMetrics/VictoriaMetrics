@@ -2,6 +2,7 @@ package prompbmarshal_test
 
 import (
 	"bytes"
+	"fmt"
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
@@ -36,6 +37,18 @@ func TestWriteRequestMarshalProtobuf(t *testing.T) {
 						Timestamp: 18939432423,
 					},
 				},
+				Exemplars: []prompbmarshal.Exemplar{
+					{
+						Labels: []prompbmarshal.Label{
+							{
+								Name:  "trace-id",
+								Value: "123456",
+							},
+						},
+						Value:     12345.6,
+						Timestamp: 456,
+					},
+				},
 			},
 		},
 	}
@@ -46,6 +59,7 @@ func TestWriteRequestMarshalProtobuf(t *testing.T) {
 	if err := wr.UnmarshalProtobuf(data); err != nil {
 		t.Fatalf("cannot unmarshal protobuf: %s", err)
 	}
+	fmt.Println(wr.Timeseries)
 
 	// Compare the unmarshaled wr with the original wrm.
 	wrm.Reset()
@@ -64,9 +78,23 @@ func TestWriteRequestMarshalProtobuf(t *testing.T) {
 				Timestamp: sample.Timestamp,
 			})
 		}
+		var exemplars []prompbmarshal.Exemplar
+		for _, exemplar := range ts.Exemplars {
+			exemplars = append(exemplars, prompbmarshal.Exemplar{
+				Labels: []prompbmarshal.Label{
+					{
+						Name:  exemplar.Labels[0].Name,
+						Value: exemplar.Labels[0].Value,
+					},
+				},
+				Value:     exemplar.Value,
+				Timestamp: exemplar.Timestamp,
+			})
+		}
 		wrm.Timeseries = append(wrm.Timeseries, prompbmarshal.TimeSeries{
-			Labels:  labels,
-			Samples: samples,
+			Labels:    labels,
+			Samples:   samples,
+			Exemplars: exemplars,
 		})
 	}
 	dataResult := wrm.MarshalProtobuf(nil)
