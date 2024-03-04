@@ -58,8 +58,12 @@ func (rs *Rows) UnmarshalWithErrLogger(s string, errLogger func(s string)) {
 }
 
 // Open Metrics Exemplar
+const exemplarPrefix = "# {"
+
 type Exemplar struct {
-	Tags []Tag
+	Tags      []Tag
+	Value     float64
+	Timestamp int64
 }
 
 // Row is a single Prometheus row.
@@ -115,102 +119,109 @@ func nextWhitespace(s string) int {
 	}
 	return n1
 }
-func parseTags(s string, noEscapes bool) (string, []Tag, int, error) {
-	var tags []Tag
-	n := strings.IndexByte(s, '{')
+
+type tagParser struct {
+	s         string
+	tags      []Tag
+	noEscapes bool
+	start     int
+	end       int
+}
+
+func NewTagParser(s string, noEscapes bool) *tagParser {
+	tp := tagParser{
+		s:         s,
+		tags:      nil,
+		noEscapes: noEscapes,
+		start:     0,
+		end:       0,
+	}
+	return &tp
+}
+func (t *tagParser) parse() error {
+	n := strings.IndexByte(t.s, '{')
+	t.start = n
 	if n >= 0 {
 		// Tags found. Parse them.
-		s = s[n+1:]
+		t.s = t.s[n+1:]
 		var err error
-		s, tags, err = unmarshalTags(tags, s, noEscapes)
+		t.s, t.tags, err = unmarshalTags(t.tags, t.s, t.noEscapes)
 		if err != nil {
-			return s, tags, n, fmt.Errorf("cannot unmarshal tags: %w", err)
+			return fmt.Errorf("cannot unmarshal tags: %w", err)
 		}
-		if len(s) > 0 && s[0] == ' ' {
+		if len(t.s) > 0 && t.s[0] == ' ' {
 			// Fast path - skip whitespace.
-			s = s[1:]
+			t.s = t.s[1:]
 		}
 	}
-	return s, tags, n, nil
+	return nil
 
 }
 
-func (r *Row) unmarshal(s string, tagsPool []Tag, noEscapes bool) ([]Tag, error) {
-	r.reset()
-	s = skipLeadingWhitespace(s)
-	new_s, tags, n, err := parseTags(s, noEscapes)
-	if n >= 0 {
-		r.Metric = skipTrailingWhitespace(s[:n])
-		tagsPool = append(tagsPool, tags...)
-		r.Tags = tagsPool[:len(tags):len(tags)]
-		s = new_s
-	} else {
-		s = new_s
-		n := nextWhitespace(s)
-		if n < 0 {
-			return tagsPool, fmt.Errorf("missing value")
-		}
-		r.Metric = s[:n]
-		s = s[n+1:]
+type TagsValueTimestamp struct {
+	Prefix    string
+	Value     float64
+	Timestamp int64
+	Tags      []Tag
+	Comments  string
+}
 
-	}
-	if len(r.Metric) == 0 {
-		return tagsPool, fmt.Errorf("metric cannot be empty")
-	}
+func parseTagsValueTimeStamp(s string, noEscapes bool) (*TagsValueTimestamp, error) {
 	s = skipLeadingWhitespace(s)
-	// Only if Exemplar doesn't exist
-	if !strings.Contains(s, "# {") {
-		s = skipTrailingComment(s)
+	tagParser := NewTagParser(s, noEscapes)
+	tagParser.parse()
+	n := tagParser.start
+	tvt := &TagsValueTimestamp{}
+	if n < 0 {
+		n = nextWhitespace(s)
+		if n >= 0 {
+			tvt.Prefix = s[:n]
+		} else {
+			tvt.Prefix = s
+		}
+		s = s[n+1:]
+	} else {
+		tagsLen := len(tagParser.tags)
+		tvt.Tags = tagParser.tags[:tagsLen:tagsLen]
+		tvt.Prefix = s[:n]
+		tvt.Prefix = skipTrailingWhitespace(tvt.Prefix)
+		s = tagParser.s
 	}
-	if len(s) == 0 {
-		return tagsPool, fmt.Errorf("value cannot be empty")
+	// log and remove the comments
+	n = strings.IndexByte(s, '#')
+	if n >= 0 {
+		tvt.Comments = s[n:]
+		s = skipTrailingComment(s)
+		s = skipLeadingWhitespace(s)
+		s = skipTrailingWhitespace(s)
 	}
 	n = nextWhitespace(s)
 	if n < 0 {
-		// There is no timestamp or exemplar.
+		// There is no timestamp.
 		v, err := fastfloat.Parse(s)
 		if err != nil {
-			return tagsPool, fmt.Errorf("cannot parse value %q: %w", s, err)
+			return tvt, fmt.Errorf("cannot parse value %q: %w", s, err)
 		}
-		r.Value = v
-		return tagsPool, nil
+		tvt.Value = v
+		return tvt, nil
 	}
-	// There is a timestamp or an exemplar.
+	s = skipTrailingWhitespace(s)
+	// There is a timestamp
 	v, err := fastfloat.Parse(s[:n])
 	if err != nil {
-		return tagsPool, fmt.Errorf("cannot parse value %q: %w", s[:n], err)
+		return tvt, fmt.Errorf("cannot parse value %q: %w", s[:n], err)
 	}
-	r.Value = v
-	s = skipLeadingWhitespace(s[n+1:])
-	if strings.Contains(s, "# {") {
-		n := strings.IndexByte(s, '{')
-		if n >= 0 {
-			// Tags found. Parse them.
-			s = s[n+1:]
-			tagsStart := len(tagsPool)
-			var err error
-			s, tagsPool, err = unmarshalTags(tagsPool, s, noEscapes)
-			if err != nil {
-				return tagsPool, fmt.Errorf("cannot unmarshal tags: %w", err)
-			}
-			if len(s) > 0 && s[0] == ' ' {
-				// Fast path - skip whitespace.
-				s = s[1:]
-			}
-			tags := tagsPool[tagsStart:]
-			r.Exemplar.Tags = tags[:len(tags):len(tags)]
-			return tagsPool, nil
-		}
-	}
-	if len(s) == 0 {
-		// There is no timestamp - just a whitespace after the value.
-		return tagsPool, nil
-	}
+	tvt.Value = v
 	// There are some whitespaces after timestamp
 	s = skipTrailingWhitespace(s)
+	if len(s) == 0 {
+		// There is no timestamp - just a whitespace after the value.
+		return tvt, nil
+	}
+	s = skipLeadingWhitespace(s[n+1:])
 	ts, err := fastfloat.Parse(s)
 	if err != nil {
-		return tagsPool, fmt.Errorf("cannot parse timestamp %q: %w", s, err)
+		return tvt, fmt.Errorf("cannot parse timestamp %q: %w", s, err)
 	}
 	if ts >= -1<<31 && ts < 1<<31 {
 		// This looks like OpenMetrics timestamp in Unix seconds.
@@ -219,7 +230,34 @@ func (r *Row) unmarshal(s string, tagsPool []Tag, noEscapes bool) ([]Tag, error)
 		// See https://github.com/OpenObservability/OpenMetrics/blob/master/specification/OpenMetrics.md#timestamps
 		ts *= 1000
 	}
-	r.Timestamp = int64(ts)
+	tvt.Timestamp = int64(ts)
+	return tvt, nil
+}
+func (r *Row) unmarshal(s string, tagsPool []Tag, noEscapes bool) ([]Tag, error) {
+	r.reset()
+	// Parse for labels, the value and the timestamp
+	// Anything before labels is saved in Prefix we can use this
+	// for the metric name
+	tvt, err := parseTagsValueTimeStamp(s, noEscapes)
+	if err != nil {
+		return nil, err
+	}
+	tagsPool = append(tagsPool, tvt.Tags...)
+	r.Metric = tvt.Prefix
+	r.Tags = tvt.Tags
+	r.Value = tvt.Value
+	r.Timestamp = tvt.Timestamp
+
+	// We can use the Comment parsed out to further parse the Exemplar
+	if strings.HasPrefix(tvt.Comments, exemplarPrefix) {
+		exemplarTVT, err := parseTagsValueTimeStamp(tvt.Comments, noEscapes)
+		if err != nil {
+			return nil, err
+		}
+		r.Exemplar.Tags = exemplarTVT.Tags
+		r.Exemplar.Value = exemplarTVT.Value
+		r.Exemplar.Timestamp = exemplarTVT.Timestamp
+	}
 	return tagsPool, nil
 }
 
