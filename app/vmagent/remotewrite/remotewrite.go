@@ -89,8 +89,9 @@ var (
 	streamAggrDropInput = flagutil.NewArrayBool("remoteWrite.streamAggr.dropInput", "Whether to drop all the input samples after the aggregation "+
 		"with -remoteWrite.streamAggr.config. By default, only aggregates samples are dropped, while the remaining samples "+
 		"are written to the corresponding -remoteWrite.url . See also -remoteWrite.streamAggr.keepInput and https://docs.victoriametrics.com/stream-aggregation.html")
-	streamAggrDedupInterval = flagutil.NewArrayDuration("remoteWrite.streamAggr.dedupInterval", 0, "Input samples are de-duplicated with this interval before being aggregated. "+
-		"Only the last sample per each time series per each interval is aggregated if the interval is greater than zero")
+	streamAggrDedupInterval = flagutil.NewArrayDuration("remoteWrite.streamAggr.dedupInterval", 0, "Input samples are de-duplicated with this interval before being aggregated "+
+		"by stream aggregation. Only the last sample per each time series per each interval is aggregated if the interval is greater than zero. "+
+		"See https://docs.victoriametrics.com/stream-aggregation.html")
 	disableOnDiskQueue = flag.Bool("remoteWrite.disableOnDiskQueue", false, "Whether to disable storing pending data to -remoteWrite.tmpDataPath "+
 		"when the configured remote storage systems cannot keep up with the data ingestion rate. See https://docs.victoriametrics.com/vmagent.html#disabling-on-disk-persistence ."+
 		"See also -remoteWrite.dropSamplesOnOverload")
@@ -739,8 +740,10 @@ func newRemoteWriteCtx(argIdx int, remoteWriteURL *url.URL, maxInmemoryBlocks in
 	// Initialize sas
 	sasFile := streamAggrConfig.GetOptionalArg(argIdx)
 	if sasFile != "" {
-		dedupInterval := streamAggrDedupInterval.GetOptionalArg(argIdx)
-		sas, err := streamaggr.LoadFromFile(sasFile, rwctx.pushInternalTrackDropped, dedupInterval)
+		opts := &streamaggr.Options{
+			DedupInterval: streamAggrDedupInterval.GetOptionalArg(argIdx),
+		}
+		sas, err := streamaggr.LoadFromFile(sasFile, rwctx.pushInternalTrackDropped, opts)
 		if err != nil {
 			logger.Fatalf("cannot initialize stream aggregators from -remoteWrite.streamAggr.config=%q: %s", sasFile, err)
 		}
@@ -894,8 +897,10 @@ func (rwctx *remoteWriteCtx) reinitStreamAggr() {
 
 	logger.Infof("reloading stream aggregation configs pointed by -remoteWrite.streamAggr.config=%q", sasFile)
 	metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reloads_total{path=%q}`, sasFile)).Inc()
-	dedupInterval := streamAggrDedupInterval.GetOptionalArg(rwctx.idx)
-	sasNew, err := streamaggr.LoadFromFile(sasFile, rwctx.pushInternalTrackDropped, dedupInterval)
+	opts := &streamaggr.Options{
+		DedupInterval: streamAggrDedupInterval.GetOptionalArg(rwctx.idx),
+	}
+	sasNew, err := streamaggr.LoadFromFile(sasFile, rwctx.pushInternalTrackDropped, opts)
 	if err != nil {
 		metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reloads_errors_total{path=%q}`, sasFile)).Inc()
 		metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reload_successful{path=%q}`, sasFile)).Set(0)
@@ -937,8 +942,10 @@ func CheckStreamAggrConfigs() error {
 		if sasFile == "" {
 			continue
 		}
-		dedupInterval := streamAggrDedupInterval.GetOptionalArg(idx)
-		sas, err := streamaggr.LoadFromFile(sasFile, pushNoop, dedupInterval)
+		opts := &streamaggr.Options{
+			DedupInterval: streamAggrDedupInterval.GetOptionalArg(idx),
+		}
+		sas, err := streamaggr.LoadFromFile(sasFile, pushNoop, opts)
 		if err != nil {
 			return fmt.Errorf("cannot load -remoteWrite.streamAggr.config=%q: %w", sasFile, err)
 		}

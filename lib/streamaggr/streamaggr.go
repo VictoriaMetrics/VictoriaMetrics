@@ -20,6 +20,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 	"github.com/VictoriaMetrics/metrics"
 	"gopkg.in/yaml.v2"
 )
@@ -45,11 +46,10 @@ var supportedOutputs = []string{
 
 // LoadFromFile loads Aggregators from the given path and uses the given pushFunc for pushing the aggregated data.
 //
-// If dedupInterval > 0, then the input samples are de-duplicated before being aggregated,
-// e.g. only the last sample per each time series per each dedupInterval is aggregated.
+// opts can contain additional options. If opts is nil, then default options are used.
 //
 // The returned Aggregators must be stopped with MustStop() when no longer needed.
-func LoadFromFile(path string, pushFunc PushFunc, dedupInterval time.Duration) (*Aggregators, error) {
+func LoadFromFile(path string, pushFunc PushFunc, opts *Options) (*Aggregators, error) {
 	data, err := fscore.ReadFileOrHTTP(path)
 	if err != nil {
 		return nil, fmt.Errorf("cannot load aggregators: %w", err)
@@ -59,7 +59,7 @@ func LoadFromFile(path string, pushFunc PushFunc, dedupInterval time.Duration) (
 		return nil, fmt.Errorf("cannot expand environment variables in %q: %w", path, err)
 	}
 
-	as, err := newAggregatorsFromData(data, pushFunc, dedupInterval)
+	as, err := newAggregatorsFromData(data, pushFunc, opts)
 	if err != nil {
 		return nil, fmt.Errorf("cannot initialize aggregators from %q: %w", path, err)
 	}
@@ -67,12 +67,40 @@ func LoadFromFile(path string, pushFunc PushFunc, dedupInterval time.Duration) (
 	return as, nil
 }
 
-func newAggregatorsFromData(data []byte, pushFunc PushFunc, dedupInterval time.Duration) (*Aggregators, error) {
+func newAggregatorsFromData(data []byte, pushFunc PushFunc, opts *Options) (*Aggregators, error) {
 	var cfgs []*Config
 	if err := yaml.UnmarshalStrict(data, &cfgs); err != nil {
 		return nil, fmt.Errorf("cannot parse stream aggregation config: %w", err)
 	}
-	return NewAggregators(cfgs, pushFunc, dedupInterval)
+	return NewAggregators(cfgs, pushFunc, opts)
+}
+
+// Options contains optional settings for the Aggregators.
+type Options struct {
+	// DedupInterval is deduplication interval for samples received for the same time series.
+	//
+	// The last sample per each series is left per each DedupInterval if DedupInterval > 0.
+	//
+	// By default deduplication is disabled.
+	DedupInterval time.Duration
+
+	// NoAlignFlushToInterval disables alignment of flushes to the aggregation interval.
+	//
+	// By default flushes are aligned to aggregation interval.
+	NoAlignFlushToInterval bool
+
+	// FlushOnShutdown enables flush of incomplete state on shutdown.
+	//
+	// By default incomplete state is dropped on shutdown.
+	FlushOnShutdown bool
+
+	// KeepMetricNames instructs to leave metric names as is for the output time series without adding any suffix.
+	//
+	// By default the following suffix is added to every output time series:
+	//
+	//     input_name:<interval>[_by_<by_labels>][_without_<without_labels>]_<output>
+	//
+	KeepMetricNames bool
 }
 
 // Config is a configuration for a single stream aggregation.
@@ -84,6 +112,16 @@ type Config struct {
 
 	// Interval is the interval between aggregations.
 	Interval string `yaml:"interval"`
+
+	// NoAlighFlushToInterval disables aligning of flushes to multiples of Interval.
+	// By default flushes are aligned to Interval.
+	//
+	// See also FlushOnShutdown.
+	NoAlignFlushToInterval *bool `yaml:"no_align_flush_to_interval,omitempty"`
+
+	// FlushOnShutdown defines whether to flush the aggregation state on process termination
+	// or config reload. By default the state is dropped on these events.
+	FlushOnShutdown *bool `yaml:"flush_on_shutdown,omitempty"`
 
 	// DedupInterval is an optional interval for deduplication.
 	DedupInterval string `yaml:"dedup_interval,omitempty"`
@@ -121,9 +159,8 @@ type Config struct {
 	//
 	Outputs []string `yaml:"outputs"`
 
-	// KeepMetricNames instructs to leave metric names as is for the output time series
-	// without adding any suffix.
-	KeepMetricNames bool `yaml:"keep_metric_names,omitempty"`
+	// KeepMetricNames instructs to leave metric names as is for the output time series without adding any suffix.
+	KeepMetricNames *bool `yaml:"keep_metric_names,omitempty"`
 
 	// By is an optional list of labels for grouping input series.
 	//
@@ -148,10 +185,6 @@ type Config struct {
 	// OutputRelabelConfigs is an optional relabeling rules, which are applied
 	// on the aggregated output before being sent to remote storage.
 	OutputRelabelConfigs []promrelabel.RelabelConfig `yaml:"output_relabel_configs,omitempty"`
-
-	// FlushOnShutdown defines whether to flush the aggregation state on process termination
-	// or config reload. Is `false` by default.
-	FlushOnShutdown bool `yaml:"flush_on_shutdown,omitempty"`
 }
 
 // Aggregators aggregates metrics passed to Push and calls pushFunc for aggregate data.
@@ -169,15 +202,14 @@ type Aggregators struct {
 //
 // pushFunc is called when the aggregated data must be flushed.
 //
-// If dedupInterval > 0, then the input samples are de-duplicated before being aggregated,
-// e.g. only the last sample per each time series per each dedupInterval is aggregated.
+// opts can contain additional options. If opts is nil, then default options are used.
 //
 // MustStop must be called on the returned Aggregators when they are no longer needed.
-func NewAggregators(cfgs []*Config, pushFunc PushFunc, dedupInterval time.Duration) (*Aggregators, error) {
+func NewAggregators(cfgs []*Config, pushFunc PushFunc, opts *Options) (*Aggregators, error) {
 	ms := metrics.NewSet()
 	as := make([]*aggregator, len(cfgs))
 	for i, cfg := range cfgs {
-		a, err := newAggregator(cfg, pushFunc, ms, dedupInterval)
+		a, err := newAggregator(cfg, pushFunc, ms, opts)
 		if err != nil {
 			// Stop already initialized aggregators before returning the error.
 			for _, a := range as[:i] {
@@ -294,18 +326,14 @@ type aggregator struct {
 	without             []string
 	aggregateOnlyByTime bool
 
-	// da is set to non-nil if input samples must be de-duplicated according
-	// to the dedupInterval passed to newAggregator().
+	// da is set to non-nil if input samples must be de-duplicated
 	da *dedupAggr
 
 	// aggrStates contains aggregate states for the given outputs
 	aggrStates []aggrState
 
-	// lc is used for compressing series keys before passing them to dedupAggr and aggrState.
+	// lc is used for compressing series keys before passing them to dedupAggr and aggrState
 	lc promutils.LabelsCompressor
-
-	// pushFunc is the callback, which is called by aggrState when flushing its state.
-	pushFunc PushFunc
 
 	// suffix contains a suffix, which should be added to aggregate metric names
 	//
@@ -313,10 +341,6 @@ type aggregator struct {
 	// For example, foo_bar metric name is transformed to foo_bar:1m_by_job
 	// for `interval: 1m`, `by: [job]`
 	suffix string
-
-	// flushOnShutdown defines whether to flush the state of aggregation
-	// on MustStop call.
-	flushOnShutdown bool
 
 	wg     sync.WaitGroup
 	stopCh chan struct{}
@@ -338,11 +362,14 @@ type PushFunc func(tss []prompbmarshal.TimeSeries)
 
 // newAggregator creates new aggregator for the given cfg, which pushes the aggregate data to pushFunc.
 //
-// If dedupInterval > 0, then the input samples are de-duplicated before being aggregated,
-// e.g. only the last sample per each time series per each dedupInterval is aggregated.
+// opts can contain additional options. If opts is nil, then default options are used.
 //
 // The returned aggregator must be stopped when no longer needed by calling MustStop().
-func newAggregator(cfg *Config, pushFunc PushFunc, ms *metrics.Set, dedupInterval time.Duration) (*aggregator, error) {
+func newAggregator(cfg *Config, pushFunc PushFunc, ms *metrics.Set, opts *Options) (*aggregator, error) {
+	if opts == nil {
+		opts = &Options{}
+	}
+
 	// check cfg.Interval
 	interval, err := time.ParseDuration(cfg.Interval)
 	if err != nil {
@@ -353,6 +380,7 @@ func newAggregator(cfg *Config, pushFunc PushFunc, ms *metrics.Set, dedupInterva
 	}
 
 	// check cfg.DedupInterval
+	dedupInterval := opts.DedupInterval
 	if cfg.DedupInterval != "" {
 		di, err := time.ParseDuration(cfg.DedupInterval)
 		if err != nil {
@@ -401,7 +429,11 @@ func newAggregator(cfg *Config, pushFunc PushFunc, ms *metrics.Set, dedupInterva
 	}
 
 	// check cfg.KeepMetricNames
-	if cfg.KeepMetricNames {
+	keepMetricNames := opts.KeepMetricNames
+	if v := cfg.KeepMetricNames; v != nil {
+		keepMetricNames = *v
+	}
+	if keepMetricNames {
 		if len(cfg.Outputs) != 1 {
 			return nil, fmt.Errorf("`ouputs` list must contain only a single entry if `keep_metric_names` is set; got %q", cfg.Outputs)
 		}
@@ -495,17 +527,15 @@ func newAggregator(cfg *Config, pushFunc PushFunc, ms *metrics.Set, dedupInterva
 		inputRelabeling:  inputRelabeling,
 		outputRelabeling: outputRelabeling,
 
-		keepMetricNames: cfg.KeepMetricNames,
+		keepMetricNames: keepMetricNames,
 
 		by:                  by,
 		without:             without,
 		aggregateOnlyByTime: aggregateOnlyByTime,
 
 		aggrStates: aggrStates,
-		pushFunc:   pushFunc,
 
-		suffix:          suffix,
-		flushOnShutdown: cfg.FlushOnShutdown,
+		suffix: suffix,
 
 		stopCh: make(chan struct{}),
 
@@ -519,33 +549,90 @@ func newAggregator(cfg *Config, pushFunc PushFunc, ms *metrics.Set, dedupInterva
 		a.da = newDedupAggr()
 	}
 
+	alignFlushToInterval := !opts.NoAlignFlushToInterval
+	if v := cfg.NoAlignFlushToInterval; v != nil {
+		alignFlushToInterval = !*v
+	}
+
+	skipIncompleteFlush := !opts.FlushOnShutdown
+	if v := cfg.FlushOnShutdown; v != nil {
+		skipIncompleteFlush = !*v
+	}
+
 	a.wg.Add(1)
 	go func() {
-		a.runFlusher(interval, dedupInterval)
+		a.runFlusher(pushFunc, alignFlushToInterval, skipIncompleteFlush, interval, dedupInterval)
 		a.wg.Done()
 	}()
 
 	return a, nil
 }
 
-func (a *aggregator) runFlusher(interval, dedupInterval time.Duration) {
-	tickerFlush := time.NewTicker(interval)
-	defer tickerFlush.Stop()
+func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipIncompleteFlush bool, interval, dedupInterval time.Duration) {
+	flushTickerCh := make(chan *time.Ticker, 1)
+	dedupFlushTickerCh := make(chan *time.Ticker, 1)
+	go func() {
+		if !alignFlushToInterval {
+			flushTickerCh <- time.NewTicker(interval)
+			if dedupInterval > 0 {
+				dedupFlushTickerCh <- time.NewTicker(dedupInterval)
+			}
+			return
+		}
 
-	var dedupTickerCh <-chan time.Time
-	if dedupInterval > 0 {
-		t := time.NewTicker(dedupInterval)
-		defer t.Stop()
-		dedupTickerCh = t.C
-	}
+		sleep := func(d time.Duration) {
+			timer := timerpool.Get(d)
+			defer timerpool.Put(timer)
+			select {
+			case <-a.stopCh:
+			case <-timer.C:
+			}
+		}
+		currentTime := time.Duration(time.Now().UnixNano())
+		if dedupInterval > 0 {
+			d := dedupInterval - (currentTime % dedupInterval)
+			if d < dedupInterval {
+				sleep(d)
+			}
+			dedupFlushTickerCh <- time.NewTicker(dedupInterval)
+			currentTime += d
+		}
+		d := interval - (currentTime % interval)
+		if d < interval {
+			sleep(d)
+		}
+		flushTickerCh <- time.NewTicker(interval)
+	}()
 
+	var flushTickerC <-chan time.Time
+	var dedupFlushTickerC <-chan time.Time
+	isFirstFlush := true
 	for {
 		select {
 		case <-a.stopCh:
+			if !skipIncompleteFlush {
+				if dedupInterval > 0 {
+					a.dedupFlush()
+				}
+				a.flush(pushFunc)
+			}
 			return
-		case <-tickerFlush.C:
+		case flushTicker := <-flushTickerCh:
+			flushTickerC = flushTicker.C
+			defer flushTicker.Stop()
+		case dedupFlushTicker := <-dedupFlushTickerCh:
+			dedupFlushTickerC = dedupFlushTicker.C
+			defer dedupFlushTicker.Stop()
+		case <-flushTickerC:
+			if isFirstFlush {
+				isFirstFlush = false
+				if alignFlushToInterval && skipIncompleteFlush {
+					a.flush(nil)
+					continue
+				}
+			}
 			startTime := time.Now()
-			a.flush()
+			a.flush(pushFunc)
 			d := time.Since(startTime)
 			a.flushDuration.Update(d.Seconds())
 			if d > interval {
@@ -554,7 +641,7 @@ func (a *aggregator) runFlusher(interval, dedupInterval time.Duration) {
 					"possible solutions: increase interval; use match filter matching smaller number of series; "+
 					"reduce samples' ingestion rate to stream aggregation", interval, d)
 			}
-		case <-dedupTickerCh:
+		case <-dedupFlushTickerC:
 			startTime := time.Now()
 			a.dedupFlush()
 			d := time.Since(startTime)
@@ -573,7 +660,7 @@ func (a *aggregator) dedupFlush() {
 	a.da.flush(a.pushSamples)
 }
 
-func (a *aggregator) flush() {
+func (a *aggregator) flush(pushFunc PushFunc) {
 	var wg sync.WaitGroup
 	for _, as := range a.aggrStates {
 		flushConcurrencyCh <- struct{}{}
@@ -584,7 +671,7 @@ func (a *aggregator) flush() {
 				wg.Done()
 			}()
 
-			ctx := getFlushCtx(a)
+			ctx := getFlushCtx(a, pushFunc)
 			as.flushState(ctx)
 			ctx.flushSeries()
 			putFlushCtx(ctx)
@@ -601,16 +688,6 @@ var flushConcurrencyCh = make(chan struct{}, cgroup.AvailableCPUs())
 func (a *aggregator) MustStop() {
 	close(a.stopCh)
 	a.wg.Wait()
-
-	if !a.flushOnShutdown {
-		return
-	}
-
-	// Flush the remaining data from the last interval if needed.
-	if a.da != nil {
-		a.dedupFlush()
-	}
-	a.flush()
 }
 
 // Push pushes tss to a.
@@ -770,13 +847,14 @@ func getInputOutputLabels(dstInput, dstOutput, labels []prompbmarshal.Label, by,
 	return dstInput, dstOutput
 }
 
-func getFlushCtx(a *aggregator) *flushCtx {
+func getFlushCtx(a *aggregator, pushFunc PushFunc) *flushCtx {
 	v := flushCtxPool.Get()
 	if v == nil {
 		v = &flushCtx{}
 	}
 	ctx := v.(*flushCtx)
 	ctx.a = a
+	ctx.pushFunc = pushFunc
 	return ctx
 }
 
@@ -788,7 +866,8 @@ func putFlushCtx(ctx *flushCtx) {
 var flushCtxPool sync.Pool
 
 type flushCtx struct {
-	a *aggregator
+	a        *aggregator
+	pushFunc PushFunc
 
 	tss     []prompbmarshal.TimeSeries
 	labels  []prompbmarshal.Label
@@ -797,6 +876,7 @@ type flushCtx struct {
 
 func (ctx *flushCtx) reset() {
 	ctx.a = nil
+	ctx.pushFunc = nil
 	ctx.resetSeries()
 }
 
@@ -819,7 +899,9 @@ func (ctx *flushCtx) flushSeries() {
 	outputRelabeling := ctx.a.outputRelabeling
 	if outputRelabeling == nil {
 		// Fast path - push the output metrics.
-		ctx.a.pushFunc(tss)
+		if ctx.pushFunc != nil {
+			ctx.pushFunc(tss)
+		}
 		return
 	}
 
@@ -838,7 +920,9 @@ func (ctx *flushCtx) flushSeries() {
 		ts.Labels = dstLabels[dstLabelsLen:]
 		dst = append(dst, ts)
 	}
-	ctx.a.pushFunc(dst)
+	if ctx.pushFunc != nil {
+		ctx.pushFunc(dst)
+	}
 	auxLabels.Labels = dstLabels
 	promutils.PutLabels(auxLabels)
 
