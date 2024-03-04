@@ -34,7 +34,7 @@ type totalAggrState struct {
 
 type totalStateValue struct {
 	mu             sync.Mutex
-	lastValues     map[string]*lastValueState
+	lastValues     map[string]lastValueState
 	total          float64
 	deleteDeadline uint64
 	deleted        bool
@@ -74,7 +74,7 @@ func (as *totalAggrState) pushSamples(samples []pushSample) {
 		if !ok {
 			// The entry is missing in the map. Try creating it.
 			v = &totalStateValue{
-				lastValues: make(map[string]*lastValueState),
+				lastValues: make(map[string]lastValueState),
 			}
 			vNew, loaded := as.m.LoadOrStore(outputKey, v)
 			if loaded {
@@ -87,10 +87,6 @@ func (as *totalAggrState) pushSamples(samples []pushSample) {
 		deleted := sv.deleted
 		if !deleted {
 			lv, ok := sv.lastValues[inputKey]
-			if !ok {
-				lv = &lastValueState{}
-				sv.lastValues[inputKey] = lv
-			}
 			if ok || keepFirstSample {
 				if s.value >= lv.value {
 					sv.total += s.value - lv.value
@@ -101,6 +97,7 @@ func (as *totalAggrState) pushSamples(samples []pushSample) {
 			}
 			lv.value = s.value
 			lv.deleteDeadline = deleteDeadline
+			sv.lastValues[inputKey] = lv
 			sv.deleteDeadline = deleteDeadline
 		}
 		sv.mu.Unlock()
