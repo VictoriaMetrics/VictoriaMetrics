@@ -113,22 +113,14 @@ func (ctx *dedupFlushCtx) reset() {
 }
 
 func (da *dedupAggr) flush(f func(samples []pushSample)) {
-	var wg sync.WaitGroup
+	// Do not flush shards in parallel, since this significantly increases CPU usage
+	// on systems with many CPU cores, while doesn't improve flush latency too much.
+	ctx := getDedupFlushCtx()
 	for i := range da.shards {
-		flushConcurrencyCh <- struct{}{}
-		wg.Add(1)
-		go func(shard *dedupAggrShard) {
-			defer func() {
-				<-flushConcurrencyCh
-				wg.Done()
-			}()
-
-			ctx := getDedupFlushCtx()
-			shard.flush(ctx, f)
-			putDedupFlushCtx(ctx)
-		}(&da.shards[i])
+		ctx.reset()
+		da.shards[i].flush(ctx, f)
 	}
-	wg.Wait()
+	putDedupFlushCtx(ctx)
 }
 
 type perShardSamples struct {
