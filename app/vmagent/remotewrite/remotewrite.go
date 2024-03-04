@@ -349,7 +349,9 @@ var configReloaderWG sync.WaitGroup
 //
 // It is expected that nobody calls TryPush during and after the call to this func.
 func Stop() {
-	close(ingestionRateLimiterStopCh)
+	if ingestionRateLimiterStopCh != nil {
+		close(ingestionRateLimiterStopCh)
+	}
 	close(configReloaderStopCh)
 	configReloaderWG.Wait()
 
