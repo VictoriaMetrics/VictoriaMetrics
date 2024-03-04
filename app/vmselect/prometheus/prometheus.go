@@ -1182,17 +1182,16 @@ func getCommonParamsInternal(r *http.Request, startTime time.Time, requireNonEmp
 		return nil, fmt.Errorf("missing `match[]` arg")
 	}
 
-	var filterss [][]storage.TagFilter
+	filterss, err := getTagFilterssFromMatches(matches)
+	if err != nil {
+		return nil, err
+	}
 	if !isLabelsAPI || !*ignoreExtraFiltersAtLabelsAPI {
-		tagFilterss, err := getTagFilterssFromMatches(matches)
-		if err != nil {
-			return nil, err
-		}
 		etfs, err := searchutils.GetExtraTagFilters(r)
 		if err != nil {
 			return nil, err
 		}
-		filterss = searchutils.JoinTagFilterss(tagFilterss, etfs)
+		filterss = searchutils.JoinTagFilterss(filterss, etfs)
 	}
 
 	cp := &commonParams{
