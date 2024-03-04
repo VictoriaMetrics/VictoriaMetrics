@@ -19,9 +19,10 @@ import (
 //
 // InsertCtx.Reset must be called before the first usage.
 type InsertCtx struct {
-	snb           *storageNodesBucket
-	Labels        sortedLabels
-	MetricNameBuf []byte
+	snb             *storageNodesBucket
+	Labels          sortedLabels
+	MetricNameBuf   []byte
+	ExemplarNameBuf []byte
 
 	bufRowss  []bufRows
 	labelsBuf []byte
@@ -122,21 +123,21 @@ func (ctx *InsertCtx) ApplyRelabeling() {
 func (ctx *InsertCtx) WriteDataPoint(at *auth.Token, labels []prompb.Label, timestamp int64, value float64) error {
 	ctx.MetricNameBuf = storage.MarshalMetricNameRaw(ctx.MetricNameBuf[:0], at.AccountID, at.ProjectID, labels)
 	storageNodeIdx := ctx.GetStorageNodeIdx(at, labels)
-	return ctx.WriteDataPointExt(storageNodeIdx, ctx.MetricNameBuf, timestamp, value)
+	return ctx.WriteDataPointExt(storageNodeIdx, ctx.MetricNameBuf, nil, timestamp, value)
 }
 
 // WriteDataPointExt writes the given metricNameRaw with (timestmap, value) to ctx buffer with the given storageNodeIdx.
-func (ctx *InsertCtx) WriteDataPointExt(storageNodeIdx int, metricNameRaw []byte, timestamp int64, value float64) error {
+func (ctx *InsertCtx) WriteDataPointExt(storageNodeIdx int, metricNameRaw []byte, exemplarNameRaw []byte, timestamp int64, value float64) error {
 	br := &ctx.bufRowss[storageNodeIdx]
 	snb := ctx.snb
 	sn := snb.sns[storageNodeIdx]
-	bufNew := storage.MarshalMetricRow(br.buf, metricNameRaw, timestamp, value)
+	bufNew := storage.MarshalMetricRow(br.buf, metricNameRaw, exemplarNameRaw, timestamp, value)
 	if len(bufNew) >= maxBufSizePerStorageNode {
 		// Send buf to sn, since it is too big.
 		if err := br.pushTo(snb, sn); err != nil {
 			return err
 		}
-		br.buf = storage.MarshalMetricRow(bufNew[:0], metricNameRaw, timestamp, value)
+		br.buf = storage.MarshalMetricRow(bufNew[:0], metricNameRaw, exemplarNameRaw, timestamp, value)
 	} else {
 		br.buf = bufNew
 	}

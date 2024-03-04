@@ -70,7 +70,18 @@ func insertRows(at *auth.Token, timeseries []prompb.TimeSeries, extraLabels []pr
 			if len(ctx.MetricNameBuf) == 0 {
 				ctx.MetricNameBuf = storage.MarshalMetricNameRaw(ctx.MetricNameBuf[:0], atLocal.AccountID, atLocal.ProjectID, ctx.Labels)
 			}
-			if err := ctx.WriteDataPointExt(storageNodeIdx, ctx.MetricNameBuf, r.Timestamp, r.Value); err != nil {
+			if err := ctx.WriteDataPointExt(storageNodeIdx, ctx.MetricNameBuf, nil, r.Timestamp, r.Value); err != nil {
+				return err
+			}
+		}
+		exemplars := ts.Exemplars
+		for i := range exemplars {
+			r := &exemplars[i]
+			if len(ctx.MetricNameBuf) == 0 {
+				ctx.MetricNameBuf = storage.MarshalMetricNameRaw(ctx.MetricNameBuf[:0], atLocal.AccountID, atLocal.ProjectID, ctx.Labels)
+			}
+			ctx.ExemplarNameBuf = storage.MarshalMetricNameRaw(ctx.ExemplarNameBuf[:0], atLocal.AccountID, atLocal.ProjectID, r.Labels)
+			if err := ctx.WriteDataPointExt(storageNodeIdx, ctx.MetricNameBuf, ctx.ExemplarNameBuf, r.Timestamp, r.Value); err != nil {
 				return err
 			}
 		}

@@ -74,7 +74,7 @@ func insertRows(at *auth.Token, rows []parser.Row, extraLabels []prompbmarshal.L
 		}
 		for j, value := range values {
 			timestamp := timestamps[j]
-			if err := ctx.WriteDataPointExt(storageNodeIdx, ctx.MetricNameBuf, timestamp, value); err != nil {
+			if err := ctx.WriteDataPointExt(storageNodeIdx, ctx.MetricNameBuf, nil, timestamp, value); err != nil {
 				return err
 			}
 		}

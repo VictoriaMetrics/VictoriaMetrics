@@ -73,7 +73,7 @@ func insertRows(at *auth.Token, sketches []*datadogsketches.Sketch, extraLabels 
 			ctx.MetricNameBuf = storage.MarshalMetricNameRaw(ctx.MetricNameBuf[:0], atLocal.AccountID, atLocal.ProjectID, ctx.Labels)
 			storageNodeIdx := ctx.GetStorageNodeIdx(atLocal, ctx.Labels)
 			for _, p := range m.Points {
-				if err := ctx.WriteDataPointExt(storageNodeIdx, ctx.MetricNameBuf, p.Timestamp, p.Value); err != nil {
+				if err := ctx.WriteDataPointExt(storageNodeIdx, ctx.MetricNameBuf, nil, p.Timestamp, p.Value); err != nil {
 					return err
 				}
 			}

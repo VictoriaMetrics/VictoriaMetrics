@@ -2,6 +2,7 @@ package storage
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -1562,7 +1563,8 @@ func (s *Storage) GetTSDBStatus(qt *querytracer.Tracer, accountID, projectID uin
 type MetricRow struct {
 	// MetricNameRaw contains raw metric name, which must be decoded
 	// with MetricName.UnmarshalRaw.
-	MetricNameRaw []byte
+	MetricNameRaw   []byte
+	ExemplarNameRaw []byte
 
 	Timestamp int64
 	Value     float64
@@ -1594,12 +1596,17 @@ func (mr *MetricRow) String() string {
 
 // Marshal appends marshaled mr to dst and returns the result.
 func (mr *MetricRow) Marshal(dst []byte) []byte {
-	return MarshalMetricRow(dst, mr.MetricNameRaw, mr.Timestamp, mr.Value)
+	return MarshalMetricRow(dst, mr.MetricNameRaw, nil, mr.Timestamp, mr.Value)
 }
 
 // MarshalMetricRow marshals MetricRow data to dst and returns the result.
-func MarshalMetricRow(dst []byte, metricNameRaw []byte, timestamp int64, value float64) []byte {
+func MarshalMetricRow(dst []byte, metricNameRaw []byte, exemplarNameRaw []byte, timestamp int64, value float64) []byte {
 	dst = encoding.MarshalBytes(dst, metricNameRaw)
+	isExemplar := exemplarNameRaw != nil
+	dst = encoding.MarshalBool(dst, isExemplar)
+	if isExemplar {
+		dst = encoding.MarshalBytes(dst, exemplarNameRaw)
+	}
 	dst = encoding.MarshalUint64(dst, uint64(timestamp))
 	dst = encoding.MarshalUint64(dst, math.Float64bits(value))
 	return dst
@@ -1620,7 +1627,12 @@ func UnmarshalMetricRows(dst []MetricRow, src []byte, maxRows int) ([]MetricRow,
 		mr := &dst[len(dst)-1]
 		tail, err := mr.UnmarshalX(src)
 		if err != nil {
-			return dst, tail, err
+			if err.Error() == "exemplar found" {
+				dst = dst[:len(dst)-1]
+				logger.Infof("Exemplar found %q", string(tail))
+			} else {
+				return dst, tail, err
+			}
 		}
 		src = tail
 		maxRows--
@@ -1637,7 +1649,19 @@ func (mr *MetricRow) UnmarshalX(src []byte) ([]byte, error) {
 		return tail, fmt.Errorf("cannot unmarshal MetricName: %w", err)
 	}
 	mr.MetricNameRaw = metricNameRaw
-
+	// Exemplar bit
+	isExemplar := encoding.UnmarshalBool(tail)
+	tail = tail[1:]
+	if isExemplar {
+		var exemplarNameRaw []byte
+		tail, exemplarNameRaw, err = encoding.UnmarshalBytes(tail)
+		if err != nil {
+			return tail, fmt.Errorf("cannot unmarshal ExemplarName: %w", err)
+		}
+		mr.ExemplarNameRaw = exemplarNameRaw
+		err = errors.New("exemplar found")
+		return exemplarNameRaw, err
+	}
 	if len(tail) < 8 {
 		return tail, fmt.Errorf("cannot unmarshal Timestamp: want %d bytes; have %d bytes", 8, len(tail))
 	}

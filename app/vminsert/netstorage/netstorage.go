@@ -300,6 +300,8 @@ func (sn *storageNode) sendBufRowsNonblocking(br *bufRows) bool {
 		return false
 	}
 	startTime := time.Now()
+	var ms []storage.MetricRow
+	ms, _, _ = storage.UnmarshalMetricRows(ms, br.buf, br.rows)
 	err := sendToConn(sn.bc, br.buf)
 	duration := time.Since(startTime)
 	sn.sendDurationSeconds.Add(duration.Seconds())

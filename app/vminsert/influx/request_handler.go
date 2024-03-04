@@ -121,7 +121,7 @@ func insertRows(at *auth.Token, db string, rows []parser.Row, extraLabels []prom
 					ic.MetricNameBuf = storage.MarshalMetricLabelRaw(ic.MetricNameBuf, &ic.Labels[i])
 				}
 				storageNodeIdx := ic.GetStorageNodeIdx(atLocal, ic.Labels)
-				if err := ic.WriteDataPointExt(storageNodeIdx, ic.MetricNameBuf, r.Timestamp, f.Value); err != nil {
+				if err := ic.WriteDataPointExt(storageNodeIdx, ic.MetricNameBuf, nil, r.Timestamp, f.Value); err != nil {
 					return err
 				}
 				perTenantRows[*atLocal]++
@@ -147,7 +147,7 @@ func insertRows(at *auth.Token, db string, rows []parser.Row, extraLabels []prom
 				ic.MetricNameBuf = ic.MetricNameBuf[:metricNameBufLen]
 				ic.MetricNameBuf = storage.MarshalMetricLabelRaw(ic.MetricNameBuf, &ic.Labels[len(ic.Labels)-1])
 				storageNodeIdx := ic.GetStorageNodeIdx(atLocal, ic.Labels)
-				if err := ic.WriteDataPointExt(storageNodeIdx, ic.MetricNameBuf, r.Timestamp, f.Value); err != nil {
+				if err := ic.WriteDataPointExt(storageNodeIdx, ic.MetricNameBuf, nil, r.Timestamp, f.Value); err != nil {
 					return err
 				}
 				perTenantRows[*atLocal]++

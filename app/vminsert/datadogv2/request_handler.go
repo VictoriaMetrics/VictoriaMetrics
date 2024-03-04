@@ -81,7 +81,7 @@ func insertRows(at *auth.Token, series []datadogv2.Series, extraLabels []prompbm
 		for _, pt := range ss.Points {
 			timestamp := pt.Timestamp * 1000
 			value := pt.Value
-			if err := ctx.WriteDataPointExt(storageNodeIdx, ctx.MetricNameBuf, timestamp, value); err != nil {
+			if err := ctx.WriteDataPointExt(storageNodeIdx, ctx.MetricNameBuf, nil, timestamp, value); err != nil {
 				return err
 			}
 		}
