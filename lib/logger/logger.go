@@ -33,9 +33,10 @@ var (
 	errorsPerSecondLimit = flag.Int("loggerErrorsPerSecondLimit", 0, `Per-second limit on the number of ERROR messages. If more than the given number of errors are emitted per second, the remaining errors are suppressed. Zero values disable the rate limit`)
 	warnsPerSecondLimit  = flag.Int("loggerWarnsPerSecondLimit", 0, `Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero values disable the rate limit`)
 
-	syslogNetwork = flag.String("syslog-network", "tcp", "network connection to establish. Options are TCP/UDP.")
-	syslogAddress = flag.String("syslog-address", "localhost:5143", "network address of syslog server. If empty it connects to local local syslog server.")
-	syslogTag     = flag.String("syslog-tag", "", "tag for syslog. Used os.args[0] if empty")
+	syslogNetwork  = flag.String("syslog-network", "tcp", "network connection to establish. Options are TCP/UDP.")
+	syslogAddress  = flag.String("syslog-address", "localhost:5143", "network address of syslog server. If empty it connects to local local syslog server.")
+	syslogTag      = flag.String("syslog-tag", "", "tag for syslog. Used os.args[0] if empty")
+	syslogFacility = flag.String("syslog-facility", "", "Syslog facility. user, daemon and local0 through local7 are valid.")
 
 	tlsCertFile           = flag.String("syslog.tlsCertFile", "", "Optional path to client-side TLS certificate file to use when connecting to -syslogAddress")
 	tlsKeyFile            = flag.String("syslog.tlsKeyFile", "", "Optional path to client-side TLS certificate key to use when connecting to -syslogAddress")
@@ -57,6 +58,23 @@ func Init() {
 	initTimezone()
 	go logLimiterCleaner()
 	logAllFlags()
+}
+
+var defaultPrioritySelector = map[string]syslog.Priority{
+	"INFO":  syslog.LOG_INFO,
+	"WARN":  syslog.LOG_WARNING,
+	"ERROR": syslog.LOG_ERR,
+	"FATAL": syslog.LOG_CRIT,
+	"PANIC": syslog.LOG_ALERT,
+}
+
+func parseFacility(prior string) syslog.Priority {
+	v, found := defaultPrioritySelector[prior]
+	if !found {
+		// default the facility level to LOG_LOCAL7
+		return syslog.LOG_INFO
+	}
+	return v
 }
 
 func initTimezone() {
@@ -84,10 +102,13 @@ func setLoggerOutput() {
 }
 
 func setSyslogConnection() *syslog.Writer {
+
+	prio := parseFacility(*loggerLevel)
 	switch *syslogNetwork {
 	case "", "tcp", "udp":
-		op, err := syslog.Dial(*syslogNetwork, *syslogAddress, syslog.LOG_LOCAL7, *syslogTag)
+		op, err := syslog.Dial(*syslogNetwork, *syslogAddress, prio, *syslogTag)
 		if err != nil {
+			defer op.Close()
 			panic(fmt.Errorf("error dialing syslog: %w", err))
 		}
 		return op
@@ -96,8 +117,9 @@ func setSyslogConnection() *syslog.Writer {
 		if err != nil {
 			panic(fmt.Errorf("error creating TLS config: %w", err))
 		}
-		op, err := syslog.DialWithTLSConfig(*syslogNetwork, *syslogAddress, syslog.LOG_LOCAL7, *syslogTag, tc)
+		op, err := syslog.DialWithTLSConfig(*syslogNetwork, *syslogAddress, prio, *syslogTag, tc)
 		if err != nil {
+			defer op.Close()
 			panic(fmt.Errorf("error dialing syslog: %w", err))
 		}
 		return op
@@ -315,7 +337,7 @@ func logMessage(level, msg string, skipframes int) {
 			)
 		}
 	default:
-		if *disableTimestamps {
+		if *disableTimestamps || *loggerOutput == "syslog" {
 			logMsg = fmt.Sprintf("%s\t%s\t%s\n", levelLowercase, location, msg)
 		} else {
 			logMsg = fmt.Sprintf("%s\t%s\t%s\t%s\n", timestamp, levelLowercase, location, msg)
