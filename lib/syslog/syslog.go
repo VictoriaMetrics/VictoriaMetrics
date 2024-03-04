@@ -210,62 +210,6 @@ func (w *Writer) Close() error {
 	return nil
 }
 
-// Emerg logs a message with severity [LOG_EMERG], ignoring the severity
-// passed to New.
-func (w *Writer) Emerg(m string) error {
-	_, err := w.writeAndRetry(LOG_EMERG, m)
-	return err
-}
-
-// Alert logs a message with severity [LOG_ALERT], ignoring the severity
-// passed to New.
-func (w *Writer) Alert(m string) error {
-	_, err := w.writeAndRetry(LOG_ALERT, m)
-	return err
-}
-
-// Crit logs a message with severity [LOG_CRIT], ignoring the severity
-// passed to New.
-func (w *Writer) Crit(m string) error {
-	_, err := w.writeAndRetry(LOG_CRIT, m)
-	return err
-}
-
-// Err logs a message with severity [LOG_ERR], ignoring the severity
-// passed to New.
-func (w *Writer) Err(m string) error {
-	_, err := w.writeAndRetry(LOG_ERR, m)
-	return err
-}
-
-// Warning logs a message with severity [LOG_WARNING], ignoring the
-// severity passed to New.
-func (w *Writer) Warning(m string) error {
-	_, err := w.writeAndRetry(LOG_WARNING, m)
-	return err
-}
-
-// Notice logs a message with severity [LOG_NOTICE], ignoring the
-// severity passed to New.
-func (w *Writer) Notice(m string) error {
-	_, err := w.writeAndRetry(LOG_NOTICE, m)
-	return err
-}
-
-// Info logs a message with severity [LOG_INFO], ignoring the severity
-// passed to New.
-func (w *Writer) Info(m string) error {
-	_, err := w.writeAndRetry(LOG_INFO, m)
-	return err
-}
-
-// Debug logs a message with severity [LOG_DEBUG], ignoring the severity
-// passed to New.
-func (w *Writer) Debug(m string) error {
-	_, err := w.writeAndRetry(LOG_DEBUG, m)
-	return err
-}
-
 func (w *Writer) writeAndRetry(p Priority, s string) (int, error) {
 	pr := (w.priority & facilityMask) | (p & severityMask)
 

@@ -33,10 +33,9 @@ var (
 	errorsPerSecondLimit = flag.Int("loggerErrorsPerSecondLimit", 0, `Per-second limit on the number of ERROR messages. If more than the given number of errors are emitted per second, the remaining errors are suppressed. Zero values disable the rate limit`)
 	warnsPerSecondLimit  = flag.Int("loggerWarnsPerSecondLimit", 0, `Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero values disable the rate limit`)
 
-	syslogNetwork  = flag.String("syslog-network", "tcp", "network connection to establish. Options are TCP/UDP.")
-	syslogAddress  = flag.String("syslog-address", "localhost:5143", "network address of syslog server. If empty it connects to local local syslog server.")
-	syslogTag      = flag.String("syslog-tag", "", "tag for syslog. Used os.args[0] if empty")
-	syslogFacility = flag.String("syslog-facility", "", "Syslog facility. user, daemon and local0 through local7 are valid.")
+	syslogNetwork = flag.String("syslog-network", "tcp", "network connection to establish. Options are TCP/UDP.")
+	syslogAddress = flag.String("syslog-address", "localhost:5143", "network address of syslog server. If empty it connects to local local syslog server.")
+	syslogTag     = flag.String("syslog-tag", "", "tag for syslog. Used os.args[0] if empty")
 
 	tlsCertFile           = flag.String("syslog.tlsCertFile", "", "Optional path to client-side TLS certificate file to use when connecting to -syslogAddress")
 	tlsKeyFile            = flag.String("syslog.tlsKeyFile", "", "Optional path to client-side TLS certificate key to use when connecting to -syslogAddress")
