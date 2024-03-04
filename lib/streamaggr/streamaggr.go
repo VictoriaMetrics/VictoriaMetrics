@@ -676,7 +676,7 @@ func (a *aggregator) dedupFlush(dedupInterval time.Duration) {
 	a.dedupFlushDuration.Update(d.Seconds())
 	if d > dedupInterval {
 		a.dedupFlushTimeouts.Inc()
-		logger.Warnf("deduplication couldn't be finished in the configured dedup_interval=%s; it took %.03f; "+
+		logger.Warnf("deduplication couldn't be finished in the configured dedup_interval=%s; it took %.03fs; "+
 			"possible solutions: increase dedup_interval; use match filter matching smaller number of series; "+
 			"reduce samples' ingestion rate to stream aggregation", dedupInterval, d.Seconds())
 	}
@@ -708,7 +708,7 @@ func (a *aggregator) flush(pushFunc PushFunc, interval time.Duration, resetState
 	a.flushDuration.Update(d.Seconds())
 	if d > interval {
 		a.flushTimeouts.Inc()
-		logger.Warnf("stream aggregation couldn't be finished in the configured interval=%s; it took %.03f; "+
+		logger.Warnf("stream aggregation couldn't be finished in the configured interval=%s; it took %.03fs; "+
 			"possible solutions: increase interval; use match filter matching smaller number of series; "+
 			"reduce samples' ingestion rate to stream aggregation", interval, d.Seconds())
 	}
