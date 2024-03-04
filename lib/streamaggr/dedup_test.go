@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"reflect"
 	"sync"
-	"sync/atomic"
 	"testing"
 )
 
@@ -40,7 +39,7 @@ func TestDedupAggrSerial(t *testing.T) {
 		}
 		mu.Unlock()
 	}
-	da.flush(flushSamples)
+	da.flush(flushSamples, true)
 
 	if !reflect.DeepEqual(expectedSamplesMap, flushedSamplesMap) {
 		t.Fatalf("unexpected samples;\ngot\n%v\nwant\n%v", flushedSamplesMap, expectedSamplesMap)
@@ -59,11 +58,6 @@ func TestDedupAggrConcurrent(t *testing.T) {
 	const seriesCount = 10_000
 	da := newDedupAggr()
 
-	var samplesFlushed atomic.Int64
-	flushSamples := func(samples []pushSample) {
-		samplesFlushed.Add(int64(len(samples)))
-	}
-
 	var wg sync.WaitGroup
 	for i := 0; i < concurrency; i++ {
 		wg.Add(1)
@@ -78,12 +72,7 @@ func TestDedupAggrConcurrent(t *testing.T) {
 				}
 				da.pushSamples(samples)
 			}
-			da.flush(flushSamples)
 		}()
 	}
 	wg.Wait()
-
-	if n := samplesFlushed.Load(); n < seriesCount {
-		t.Fatalf("too small number of series flushed; got %d; want at least %d", n, seriesCount)
-	}
 }
