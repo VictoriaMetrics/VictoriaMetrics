@@ -121,7 +121,7 @@ func TestParseStream(t *testing.T) {
 
 func checkParseStream(data []byte, checkSeries func(tss []prompbmarshal.TimeSeries) error) error {
 	// Verify parsing without compression
-	if err := ParseStream(bytes.NewBuffer(data), false, checkSeries); err != nil {
+	if err := ParseStream(bytes.NewBuffer(data), false, nil, checkSeries); err != nil {
 		return fmt.Errorf("error when parsing data: %w", err)
 	}
 
@@ -134,7 +134,7 @@ func checkParseStream(data []byte, checkSeries func(tss []prompbmarshal.TimeSeri
 	if err := zw.Close(); err != nil {
 		return fmt.Errorf("cannot close gzip writer: %w", err)
 	}
-	if err := ParseStream(&bb, true, checkSeries); err != nil {
+	if err := ParseStream(&bb, true, nil, checkSeries); err != nil {
 		return fmt.Errorf("error when parsing compressed data: %w", err)
 	}
 

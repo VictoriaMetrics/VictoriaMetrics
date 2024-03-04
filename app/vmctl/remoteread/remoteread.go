@@ -182,7 +182,7 @@ func (c *Client) fetch(ctx context.Context, data []byte, streamCb StreamCallback
 	if c.disablePathAppend {
 		u = c.addr
 	}
-	req, err := http.NewRequest(http.MethodPost, u, r)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u, r)
 	if err != nil {
 		return fmt.Errorf("failed to create new HTTP request: %w", err)
 	}
@@ -195,7 +195,7 @@ func (c *Client) fetch(ctx context.Context, data []byte, streamCb StreamCallback
 	}
 	req.Header.Set("X-Prometheus-Remote-Read-Version", "0.1.0")
 
-	resp, err := c.do(req.WithContext(ctx))
+	resp, err := c.do(req)
 	if err != nil {
 		return fmt.Errorf("error while sending request to %s: %w; Data len %d(%d)",
 			req.URL.Redacted(), err, len(data), r.Size())

@@ -137,11 +137,11 @@ func NewVMStorage(baseURL string, authCfg *promauth.Config, lookBack time.Durati
 
 // Query executes the given query and returns parsed response
 func (s *VMStorage) Query(ctx context.Context, query string, ts time.Time) (Result, *http.Request, error) {
-	req, err := s.newQueryRequest(query, ts)
+	req, err := s.newQueryRequest(ctx, query, ts)
 	if err != nil {
 		return Result{}, nil, err
 	}
-	resp, err := s.do(ctx, req)
+	resp, err := s.do(req)
 	if err != nil {
 		if !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrUnexpectedEOF) {
 			// Return unexpected error to the caller.
@@ -149,11 +149,11 @@ func (s *VMStorage) Query(ctx context.Context, query string, ts time.Time) (Resu
 		}
 		// Something in the middle between client and datasource might be closing
 		// the connection. So we do a one more attempt in hope request will succeed.
-		req, err = s.newQueryRequest(query, ts)
+		req, err = s.newQueryRequest(ctx, query, ts)
 		if err != nil {
 			return Result{}, nil, fmt.Errorf("second attempt: %w", err)
 		}
-		resp, err = s.do(ctx, req)
+		resp, err = s.do(req)
 		if err != nil {
 			return Result{}, nil, fmt.Errorf("second attempt: %w", err)
 		}
@@ -182,11 +182,11 @@ func (s *VMStorage) QueryRange(ctx context.Context, query string, start, end tim
 	if end.IsZero() {
 		return res, fmt.Errorf("end param is missing")
 	}
-	req, err := s.newQueryRangeRequest(query, start, end)
+	req, err := s.newQueryRangeRequest(ctx, query, start, end)
 	if err != nil {
 		return res, err
 	}
-	resp, err := s.do(ctx, req)
+	resp, err := s.do(req)
 	if err != nil {
 		if !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrUnexpectedEOF) {
 			// Return unexpected error to the caller.
@@ -194,11 +194,11 @@ func (s *VMStorage) QueryRange(ctx context.Context, query string, start, end tim
 		}
 		// Something in the middle between client and datasource might be closing
 		// the connection. So we do a one more attempt in hope request will succeed.
-		req, err = s.newQueryRangeRequest(query, start, end)
+		req, err = s.newQueryRangeRequest(ctx, query, start, end)
 		if err != nil {
 			return res, fmt.Errorf("second attempt: %w", err)
 		}
-		resp, err = s.do(ctx, req)
+		resp, err = s.do(req)
 		if err != nil {
 			return res, fmt.Errorf("second attempt: %w", err)
 		}
@@ -210,7 +210,7 @@ func (s *VMStorage) QueryRange(ctx context.Context, query string, start, end tim
 	return res, err
 }
 
-func (s *VMStorage) do(ctx context.Context, req *http.Request) (*http.Response, error) {
+func (s *VMStorage) do(req *http.Request) (*http.Response, error) {
 	ru := req.URL.Redacted()
 	if *showDatasourceURL {
 		ru = req.URL.String()
@@ -218,7 +218,7 @@ func (s *VMStorage) do(ctx context.Context, req *http.Request) (*http.Response, 
 	if s.debug {
 		logger.Infof("DEBUG datasource request: executing %s request with params %q", req.Method, ru)
 	}
-	resp, err := s.c.Do(req.WithContext(ctx))
+	resp, err := s.c.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("error getting response from %s: %w", ru, err)
 	}
@@ -230,8 +230,8 @@ func (s *VMStorage) do(ctx context.Context, req *http.Request) (*http.Response, 
 	return resp, nil
 }
 
-func (s *VMStorage) newQueryRangeRequest(query string, start, end time.Time) (*http.Request, error) {
-	req, err := s.newRequest()
+func (s *VMStorage) newQueryRangeRequest(ctx context.Context, query string, start, end time.Time) (*http.Request, error) {
+	req, err := s.newRequest(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create query_range request to datasource %q: %w", s.datasourceURL, err)
 	}
@@ -239,8 +239,8 @@ func (s *VMStorage) newQueryRangeRequest(query string, start, end time.Time) (*h
 	return req, nil
 }
 
-func (s *VMStorage) newQueryRequest(query string, ts time.Time) (*http.Request, error) {
-	req, err := s.newRequest()
+func (s *VMStorage) newQueryRequest(ctx context.Context, query string, ts time.Time) (*http.Request, error) {
+	req, err := s.newRequest(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create query request to datasource %q: %w", s.datasourceURL, err)
 	}
@@ -255,8 +255,8 @@ func (s *VMStorage) newQueryRequest(query string, ts time.Time) (*http.Request, 
 	return req, nil
 }
 
-func (s *VMStorage) newRequest() (*http.Request, error) {
-	req, err := http.NewRequest(http.MethodPost, s.datasourceURL, nil)
+func (s *VMStorage) newRequest(ctx context.Context) (*http.Request, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, s.datasourceURL, nil)
 	if err != nil {
 		logger.Panicf("BUG: unexpected error from http.NewRequest(%q): %s", s.datasourceURL, err)
 	}
