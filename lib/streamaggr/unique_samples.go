@@ -7,22 +7,22 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 )
 
-// sumSamplesAggrState calculates output=sum_samples, e.g. the sum over input samples.
-type sumSamplesAggrState struct {
+// uniqueSamplesAggrState calculates output=unique_samples, e.g. the number of unique sample values.
+type uniqueSamplesAggrState struct {
 	m sync.Map
 }
 
-type sumSamplesStateValue struct {
+type uniqueSamplesStateValue struct {
 	mu      sync.Mutex
-	sum     float64
+	m       map[float64]struct{}
 	deleted bool
 }
 
-func newSumSamplesAggrState() *sumSamplesAggrState {
-	return &sumSamplesAggrState{}
+func newUniqueSamplesAggrState() *uniqueSamplesAggrState {
+	return &uniqueSamplesAggrState{}
 }
 
-func (as *sumSamplesAggrState) pushSamples(samples []pushSample) {
+func (as *uniqueSamplesAggrState) pushSamples(samples []pushSample) {
 	for i := range samples {
 		s := &samples[i]
 		outputKey := getOutputKey(s.key)
@@ -31,8 +31,10 @@ func (as *sumSamplesAggrState) pushSamples(samples []pushSample) {
 		v, ok := as.m.Load(outputKey)
 		if !ok {
 			// The entry is missing in the map. Try creating it.
-			v = &sumSamplesStateValue{
-				sum: s.value,
+			v = &uniqueSamplesStateValue{
+				m: map[float64]struct{}{
+					s.value: {},
+				},
 			}
 			outputKey = strings.Clone(outputKey)
 			vNew, loaded := as.m.LoadOrStore(outputKey, v)
@@ -43,11 +45,13 @@ func (as *sumSamplesAggrState) pushSamples(samples []pushSample) {
 			// Use the entry created by a concurrent goroutine.
 			v = vNew
 		}
-		sv := v.(*sumSamplesStateValue)
+		sv := v.(*uniqueSamplesStateValue)
 		sv.mu.Lock()
 		deleted := sv.deleted
 		if !deleted {
-			sv.sum += s.value
+			if _, ok := sv.m[s.value]; !ok {
+				sv.m[s.value] = struct{}{}
+			}
 		}
 		sv.mu.Unlock()
 		if deleted {
@@ -58,21 +62,21 @@ func (as *sumSamplesAggrState) pushSamples(samples []pushSample) {
 	}
 }
 
-func (as *sumSamplesAggrState) flushState(ctx *flushCtx) {
+func (as *uniqueSamplesAggrState) flushState(ctx *flushCtx) {
 	currentTimeMsec := int64(fasttime.UnixTimestamp()) * 1000
 	m := &as.m
 	m.Range(func(k, v interface{}) bool {
 		// Atomically delete the entry from the map, so new entry is created for the next flush.
 		m.Delete(k)
 
-		sv := v.(*sumSamplesStateValue)
+		sv := v.(*uniqueSamplesStateValue)
 		sv.mu.Lock()
-		sum := sv.sum
+		n := len(sv.m)
 		// Mark the entry as deleted, so it won't be updated anymore by concurrent pushSample() calls.
 		sv.deleted = true
 		sv.mu.Unlock()
 		key := k.(string)
-		ctx.appendSeries(key, "sum_samples", currentTimeMsec, sum)
+		ctx.appendSeries(key, "unique_samples", currentTimeMsec, float64(n))
 		return true
 	})
 }
