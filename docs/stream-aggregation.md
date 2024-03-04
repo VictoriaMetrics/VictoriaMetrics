@@ -62,6 +62,20 @@ In this case the [de-duplication](https://docs.victoriametrics.com/#deduplicatio
 
 De-duplicatation is performed after performing the input relabeling with `input_relabel_configs` - see [these docs](#relabeling).
 
+## Flush time alignment
+
+By default the time for aggregated data flush is aligned by the `interval` option specified in [aggregate config](#stream-aggregation-config).
+For example:
+- if `interval: 1m` is set, then the aggregated data is flushed to the storage at the end of every minute
+- if `interval: 1h` is set, then the aggregated data is flushed to the storage at the end of every hour
+
+If you do not need such an alignment, then set `no_align_flush_to_interval: true` option in the [aggregate config](#stream-aggregation-config).
+In this case aggregated data flushes will be aligned to the `vmagent` start time or to [config reload](#configuration-update) time.
+
+The aggregated data on the first and the last interval is dropped during `vmagent` start, restart or [config reload](#configuration-update),
+since the first and the last aggregation intervals are incomplete, so they usually contain incomplete confusing data.
+If you need preserving the aggregated data on these intervals, then set `flush_on_shutdown: true` option in the [aggregate config](#stream-aggregation-config).
+
 ## Use cases
 
 Stream aggregation can be used in the following cases:
@@ -422,10 +436,6 @@ and then sent to the storage once per `interval`. The aggregated samples are nam
 
 If `by` and `without` lists are specified in the [config](#stream-aggregation-config),
 then the [aggregation by labels](#aggregating-by-labels) is performed additionally to aggregation by `interval`.
-
-On vmagent shutdown or [configuration reload](#configuration-update) unfinished aggregated states are discarded,
-as they might produce lower values than user expects. It is possible to specify `flush_on_shutdown: true` setting in 
-aggregation config to make vmagent to send unfinished states to the remote storage.
 
 Below are aggregation functions that can be put in the `outputs` list at [stream aggregation config](#stream-aggregation-config):
 
@@ -809,7 +819,8 @@ at [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-
   # Samples are de-duplicated on a per-series basis. See https://docs.victoriametrics.com/keyconcepts/#time-series
   # and https://docs.victoriametrics.com/#deduplication
   # The deduplication is performed after input_relabel_configs relabeling is applied.
-  # By default the deduplication is disabled.
+  # By default the deduplication is disabled unless -remoteWrite.streamAggr.dedupInterval or -streamAggr.dedupInterval
+  # command-line flags are set.
   #
   # dedup_interval: 30s
 
@@ -824,10 +835,17 @@ at [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-
   #
   # staleness_interval: 2m
   
-  # flush_on_shutdown defines whether to flush the unfinished aggregation states on process restarts
-  # or config reloads. It is not recommended changing this setting, unless unfinished aggregations states
-  # are preferred to missing data points.
-  # Unfinished aggregation states aren't flushed on shutdown by default.
+  # no_align_flush_to_interval disables aligning of flush times for the aggregated data to multiples of interval.
+  # By default flush times for the aggregated data is aligned to multiples of interval.
+  # For example:
+  # - if `interval: 1m` is set, then flushes happen at the end of every minute,
+  # - if `interval: 1h` is set, then flushes happen at the end of every hour
+  #
+  # no_align_flush_to_interval: false
+
+  # flush_on_shutdown instructs to flush aggregated data to the storage on the first and the last intervals
+  # during vmagent starts, restarts or configuration reloads.
+  # Incomplete aggregated data isn't flushed to the storage by default, since it is usually confusing.
   #
   # flush_on_shutdown: false
 

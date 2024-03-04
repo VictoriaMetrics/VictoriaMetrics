@@ -27,8 +27,9 @@ var (
 	streamAggrDropInput = flag.Bool("streamAggr.dropInput", false, "Whether to drop all the input samples after the aggregation with -streamAggr.config. "+
 		"By default, only aggregated samples are dropped, while the remaining samples are stored in the database. "+
 		"See also -streamAggr.keepInput and https://docs.victoriametrics.com/stream-aggregation.html")
-	streamAggrDedupInterval = flag.Duration("streamAggr.dedupInterval", 0, "Input samples are de-duplicated with this interval before being aggregated. "+
-		"Only the last sample per each time series per each interval is aggregated if the interval is greater than zero")
+	streamAggrDedupInterval = flag.Duration("streamAggr.dedupInterval", 0, "Input samples are de-duplicated with this interval before being aggregated "+
+		"by stream aggregation. Only the last sample per each time series per each interval is aggregated if the interval is greater than zero. "+
+		"See https://docs.victoriametrics.com/stream-aggregation.html")
 )
 
 var (
@@ -49,7 +50,10 @@ func CheckStreamAggrConfig() error {
 		return nil
 	}
 	pushNoop := func(tss []prompbmarshal.TimeSeries) {}
-	sas, err := streamaggr.LoadFromFile(*streamAggrConfig, pushNoop, *streamAggrDedupInterval)
+	opts := &streamaggr.Options{
+		DedupInterval: *streamAggrDedupInterval,
+	}
+	sas, err := streamaggr.LoadFromFile(*streamAggrConfig, pushNoop, opts)
 	if err != nil {
 		return fmt.Errorf("error when loading -streamAggr.config=%q: %w", *streamAggrConfig, err)
 	}
@@ -69,7 +73,10 @@ func InitStreamAggr() {
 
 	sighupCh := procutil.NewSighupChan()
 
-	sas, err := streamaggr.LoadFromFile(*streamAggrConfig, pushAggregateSeries, *streamAggrDedupInterval)
+	opts := &streamaggr.Options{
+		DedupInterval: *streamAggrDedupInterval,
+	}
+	sas, err := streamaggr.LoadFromFile(*streamAggrConfig, pushAggregateSeries, opts)
 	if err != nil {
 		logger.Fatalf("cannot load -streamAggr.config=%q: %s", *streamAggrConfig, err)
 	}
@@ -96,7 +103,10 @@ func reloadStreamAggrConfig() {
 	logger.Infof("reloading -streamAggr.config=%q", *streamAggrConfig)
 	saCfgReloads.Inc()
 
-	sasNew, err := streamaggr.LoadFromFile(*streamAggrConfig, pushAggregateSeries, *streamAggrDedupInterval)
+	opts := &streamaggr.Options{
+		DedupInterval: *streamAggrDedupInterval,
+	}
+	sasNew, err := streamaggr.LoadFromFile(*streamAggrConfig, pushAggregateSeries, opts)
 	if err != nil {
 		saCfgSuccess.Set(0)
 		saCfgReloadErr.Inc()

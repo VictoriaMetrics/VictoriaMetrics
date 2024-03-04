@@ -44,7 +44,8 @@ func BenchmarkAggregatorsFlushSerial(b *testing.B) {
 }
 
 func benchmarkAggregatorsFlushSerial(b *testing.B, output string) {
-	a := newBenchAggregators(output)
+	pushFunc := func(tss []prompbmarshal.TimeSeries) {}
+	a := newBenchAggregators(output, pushFunc)
 	defer a.MustStop()
 
 	var matchIdxs []byte
@@ -54,13 +55,14 @@ func benchmarkAggregatorsFlushSerial(b *testing.B, output string) {
 	for i := 0; i < b.N; i++ {
 		matchIdxs = a.Push(benchSeries, matchIdxs)
 		for _, aggr := range a.as {
-			aggr.flush()
+			aggr.flush(pushFunc)
 		}
 	}
 }
 
 func benchmarkAggregatorsPush(b *testing.B, output string) {
-	a := newBenchAggregators(output)
+	pushFunc := func(tss []prompbmarshal.TimeSeries) {}
+	a := newBenchAggregators(output, pushFunc)
 	defer a.MustStop()
 
 	const loops = 100
@@ -77,15 +79,14 @@ func benchmarkAggregatorsPush(b *testing.B, output string) {
 	})
 }
 
-func newBenchAggregators(output string) *Aggregators {
+func newBenchAggregators(output string, pushFunc PushFunc) *Aggregators {
 	config := fmt.Sprintf(`
 - match: http_requests_total
   interval: 24h
   without: [job]
   outputs: [%q]
 `, output)
-	pushFunc := func(tss []prompbmarshal.TimeSeries) {}
-	a, err := newAggregatorsFromData([]byte(config), pushFunc, 0)
+	a, err := newAggregatorsFromData([]byte(config), pushFunc, nil)
 	if err != nil {
 		panic(fmt.Errorf("unexpected error when initializing aggregators: %s", err))
 	}

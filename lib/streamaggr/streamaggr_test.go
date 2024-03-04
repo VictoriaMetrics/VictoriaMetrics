@@ -20,7 +20,7 @@ func TestAggregatorsFailure(t *testing.T) {
 		pushFunc := func(tss []prompbmarshal.TimeSeries) {
 			panic(fmt.Errorf("pushFunc shouldn't be called"))
 		}
-		a, err := newAggregatorsFromData([]byte(config), pushFunc, 0)
+		a, err := newAggregatorsFromData([]byte(config), pushFunc, nil)
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
@@ -158,11 +158,11 @@ func TestAggregatorsEqual(t *testing.T) {
 		t.Helper()
 
 		pushFunc := func(tss []prompbmarshal.TimeSeries) {}
-		aa, err := newAggregatorsFromData([]byte(a), pushFunc, 0)
+		aa, err := newAggregatorsFromData([]byte(a), pushFunc, nil)
 		if err != nil {
 			t.Fatalf("cannot initialize aggregators: %s", err)
 		}
-		ab, err := newAggregatorsFromData([]byte(b), pushFunc, 0)
+		ab, err := newAggregatorsFromData([]byte(b), pushFunc, nil)
 		if err != nil {
 			t.Fatalf("cannot initialize aggregators: %s", err)
 		}
@@ -220,14 +220,13 @@ func TestAggregatorsSuccess(t *testing.T) {
 			}
 			tssOutputLock.Unlock()
 		}
-		a, err := newAggregatorsFromData([]byte(config), pushFunc, 0)
+		opts := &Options{
+			FlushOnShutdown:        true,
+			NoAlignFlushToInterval: true,
+		}
+		a, err := newAggregatorsFromData([]byte(config), pushFunc, opts)
 		if err != nil {
 			t.Fatalf("cannot initialize aggregators: %s", err)
-		}
-		for _, ag := range a.as {
-			// explicitly set flushOnShutdown, so aggregations results
-			// are immediately available after a.MustStop() call.
-			ag.flushOnShutdown = true
 		}
 
 		// Push the inputMetrics to Aggregators
@@ -862,8 +861,11 @@ func TestAggregatorsWithDedupInterval(t *testing.T) {
 			}
 			tssOutputLock.Unlock()
 		}
-		const dedupInterval = 30 * time.Second
-		a, err := newAggregatorsFromData([]byte(config), pushFunc, dedupInterval)
+		opts := &Options{
+			DedupInterval:   30 * time.Second,
+			FlushOnShutdown: true,
+		}
+		a, err := newAggregatorsFromData([]byte(config), pushFunc, opts)
 		if err != nil {
 			t.Fatalf("cannot initialize aggregators: %s", err)
 		}
@@ -871,12 +873,6 @@ func TestAggregatorsWithDedupInterval(t *testing.T) {
 		// Push the inputMetrics to Aggregators
 		tssInput := mustParsePromMetrics(inputMetrics)
 		matchIdxs := a.Push(tssInput, nil)
-		if a != nil {
-			for _, aggr := range a.as {
-				aggr.dedupFlush()
-				aggr.flush()
-			}
-		}
 		a.MustStop()
 
 		// Verify matchIdxs equals to matchIdxsExpected
