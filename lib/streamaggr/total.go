@@ -2,7 +2,6 @@ package streamaggr
 
 import (
 	"math"
-	"strings"
 	"sync"
 	"time"
 
@@ -77,7 +76,6 @@ func (as *totalAggrState) pushSamples(samples []pushSample) {
 			v = &totalStateValue{
 				lastValues: make(map[string]*lastValueState),
 			}
-			outputKey = strings.Clone(outputKey)
 			vNew, loaded := as.m.LoadOrStore(outputKey, v)
 			if loaded {
 				// Use the entry created by a concurrent goroutine.
@@ -91,7 +89,6 @@ func (as *totalAggrState) pushSamples(samples []pushSample) {
 			lv, ok := sv.lastValues[inputKey]
 			if !ok {
 				lv = &lastValueState{}
-				inputKey = strings.Clone(inputKey)
 				sv.lastValues[inputKey] = lv
 			}
 			if ok || keepFirstSample {

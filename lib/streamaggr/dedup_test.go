@@ -3,7 +3,6 @@ package streamaggr
 import (
 	"fmt"
 	"reflect"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -25,8 +24,8 @@ func TestDedupAggrSerial(t *testing.T) {
 		da.pushSamples(samples)
 	}
 
-	if n := da.sizeBytes(); n > 4_200_000 {
-		t.Fatalf("too big dedupAggr state before flush: %d bytes; it shouldn't exceed 4_200_000 bytes", n)
+	if n := da.sizeBytes(); n > 3_400_000 {
+		t.Fatalf("too big dedupAggr state before flush: %d bytes; it shouldn't exceed 3_400_000 bytes", n)
 	}
 	if n := da.itemsCount(); n != seriesCount {
 		t.Fatalf("unexpected itemsCount; got %d; want %d", n, seriesCount)
@@ -37,7 +36,6 @@ func TestDedupAggrSerial(t *testing.T) {
 	flushSamples := func(samples []pushSample) {
 		mu.Lock()
 		for _, sample := range samples {
-			sample.key = strings.Clone(sample.key)
 			flushedSamplesMap[sample.key] = sample
 		}
 		mu.Unlock()

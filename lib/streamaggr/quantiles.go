@@ -2,7 +2,6 @@ package streamaggr
 
 import (
 	"strconv"
-	"strings"
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -42,7 +41,6 @@ func (as *quantilesAggrState) pushSamples(samples []pushSample) {
 			v = &quantilesStateValue{
 				h: h,
 			}
-			outputKey = strings.Clone(outputKey)
 			vNew, loaded := as.m.LoadOrStore(outputKey, v)
 			if loaded {
 				// Use the entry created by a concurrent goroutine.

@@ -757,15 +757,15 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 			outputLabels.Labels = append(outputLabels.Labels, labels.Labels...)
 		}
 
-		bufLen := len(buf)
-		buf = a.compressLabels(buf, inputLabels.Labels, outputLabels.Labels)
+		buf = a.compressLabels(buf[:0], inputLabels.Labels, outputLabels.Labels)
+		key := bytesutil.InternBytes(buf)
 		for _, sample := range ts.Samples {
 			if math.IsNaN(sample.Value) {
 				// Skip NaN values
 				continue
 			}
 			samples = append(samples, pushSample{
-				key:   bytesutil.ToUnsafeString(buf[bufLen:]),
+				key:   key,
 				value: sample.Value,
 			})
 		}
