@@ -1,7 +1,6 @@
 package streamaggr
 
 import (
-	"strings"
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
@@ -36,7 +35,6 @@ func (as *uniqueSamplesAggrState) pushSamples(samples []pushSample) {
 					s.value: {},
 				},
 			}
-			outputKey = strings.Clone(outputKey)
 			vNew, loaded := as.m.LoadOrStore(outputKey, v)
 			if !loaded {
 				// The new entry has been successfully created.
