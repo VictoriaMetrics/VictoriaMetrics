@@ -98,7 +98,7 @@ func newBenchSeries(seriesCount int) []prompbmarshal.TimeSeries {
 	a := make([]string, seriesCount)
 	for j := 0; j < seriesCount; j++ {
 		s := fmt.Sprintf(`http_requests_total{path="/foo/%d",job="foo_%d",instance="bar",pod="pod-123232312",namespace="kube-foo-bar",node="node-123-3434-443",`+
-			`some_other_label="foo-bar-baz",environment="prod",label1="value1",label2="value2",label3="value3"} %d`, j, j%100, j*1000)
+			`some_other_label="foo-bar-baz",environment="prod",label1="value1",label2="value2",label3="value3"} %d`, j, j%10, j*1000)
 		a = append(a, s)
 	}
 	metrics := strings.Join(a, "\n")
