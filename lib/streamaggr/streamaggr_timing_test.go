@@ -8,43 +8,64 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 )
 
-func BenchmarkAggregatorsPushByJobAvg(b *testing.B) {
-	for _, output := range []string{
-		"total",
-		"increase",
-		"count_series",
-		"count_samples",
-		"sum_samples",
-		"last",
-		"min",
-		"max",
-		"avg",
-		"stddev",
-		"stdvar",
-		"histogram_bucket",
-		"quantiles(0, 0.5, 1)",
-	} {
+var benchOutputs = []string{
+	"total",
+	"total_prometheus",
+	"increase",
+	"increase_prometheus",
+	"count_series",
+	"count_samples",
+	"unique_samples",
+	"sum_samples",
+	"last",
+	"min",
+	"max",
+	"avg",
+	"stddev",
+	"stdvar",
+	"histogram_bucket",
+	"quantiles(0, 0.5, 1)",
+}
+
+func BenchmarkAggregatorsPush(b *testing.B) {
+	for _, output := range benchOutputs {
 		b.Run(fmt.Sprintf("output=%s", output), func(b *testing.B) {
 			benchmarkAggregatorsPush(b, output)
 		})
 	}
 }
 
-func benchmarkAggregatorsPush(b *testing.B, output string) {
-	config := fmt.Sprintf(`
-- match: http_requests_total
-  interval: 24h
-  without: [job]
-  outputs: [%q]
-`, output)
-	pushFunc := func(tss []prompbmarshal.TimeSeries) {}
-	a, err := newAggregatorsFromData([]byte(config), pushFunc, 0)
-	if err != nil {
-		b.Fatalf("unexpected error when initializing aggregators: %s", err)
+func BenchmarkAggregatorsFlushSerial(b *testing.B) {
+	for _, output := range benchOutputs {
+		b.Run(fmt.Sprintf("output=%s", output), func(b *testing.B) {
+			benchmarkAggregatorsFlushSerial(b, output)
+		})
 	}
+}
+
+func benchmarkAggregatorsFlushSerial(b *testing.B, output string) {
+	pushFunc := func(tss []prompbmarshal.TimeSeries) {}
+	a := newBenchAggregators(output, pushFunc)
 	defer a.MustStop()
 
-	const loops = 5
+	var matchIdxs []byte
+
+	b.ReportAllocs()
+	b.SetBytes(int64(len(benchSeries)))
+	for i := 0; i < b.N; i++ {
+		matchIdxs = a.Push(benchSeries, matchIdxs)
+		for _, aggr := range a.as {
+			aggr.flush(pushFunc)
+		}
+	}
+}
+
+func benchmarkAggregatorsPush(b *testing.B, output string) {
+	pushFunc := func(tss []prompbmarshal.TimeSeries) {}
+	a := newBenchAggregators(output, pushFunc)
+	defer a.MustStop()
+
+	const loops = 100
 
 	b.ReportAllocs()
 	b.SetBytes(int64(len(benchSeries) * loops))
@@ -56,6 +77,20 @@ func benchmarkAggregatorsPush(b *testing.B, output string) {
 			}
 		}
 	})
+}
+
+func newBenchAggregators(output string, pushFunc PushFunc) *Aggregators {
+	config := fmt.Sprintf(`
+- match: http_requests_total
+  interval: 24h
+  without: [job]
+  outputs: [%q]
+`, output)
+	a, err := newAggregatorsFromData([]byte(config), pushFunc, nil)
+	if err != nil {
+		panic(fmt.Errorf("unexpected error when initializing aggregators: %s", err))
+	}
+	return a
 }
 
 func newBenchSeries(seriesCount int) []prompbmarshal.TimeSeries {
