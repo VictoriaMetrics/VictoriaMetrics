@@ -520,7 +520,7 @@ Please note, opposite to [rate](https://docs.victoriametrics.com/MetricsQL.html#
 combined safely afterwards. This is helpful when the aggregation is calculated by more than one vmagent.
 
 Aggregating irregular and sporadic metrics (received from [Lambdas](https://aws.amazon.com/lambda/)
-or [Cloud Functions](https://cloud.google.com/functions)) can be controlled via [staleness_inteval](#stream-aggregation-config).
+or [Cloud Functions](https://cloud.google.com/functions)) can be controlled via [staleness_interval](#staleness) option.
 
 See also [increase_prometheus](#increase_prometheus) and [total](#total).
 
@@ -538,6 +538,9 @@ sum(increase_prometheus(some_counter[interval]))
 `increase_prometheus` skips the first seen sample value per each [time series](https://docs.victoriametrics.com/keyconcepts/#time-series).
 If you need taking into account the first sample per time series, then take a look at [increase](#increase).
 
+Aggregating irregular and sporadic metrics (received from [Lambdas](https://aws.amazon.com/lambda/)
+or [Cloud Functions](https://cloud.google.com/functions)) can be controlled via [staleness_interval](#staleness) option.
+
 See also [increase](#increase), [total](#total) and [total_prometheus](#total_prometheus).
 
 ### histogram_bucket
@@ -548,6 +551,9 @@ See also [increase](#increase), [total](#total) and [total_prometheus](#total_pr
 See how to aggregate regular histograms [here](#aggregating-histograms).
 
 The results of `histogram_bucket` is equal to the following [MetricsQL](https://docs.victoriametrics.com/metricsql/) query:
+
+Aggregating irregular and sporadic metrics (received from [Lambdas](https://aws.amazon.com/lambda/)
+or [Cloud Functions](https://cloud.google.com/functions)) can be controlled via [staleness_interval](#staleness) option.
 
 ```metricsql
 sum(histogram_over_time(some_histogram_bucket[interval])) by (vmrange)
@@ -681,7 +687,7 @@ An example of changing a set of series can be restarting a pod in the Kubernetes
 This changes pod name label, but the `total` accounts for such a scenario and doesn't reset the state of aggregated metric.
 
 Aggregating irregular and sporadic metrics (received from [Lambdas](https://aws.amazon.com/lambda/)
-or [Cloud Functions](https://cloud.google.com/functions)) can be controlled via [staleness_inteval](#stream-aggregation-config).
+or [Cloud Functions](https://cloud.google.com/functions)) can be controlled via [staleness_interval](#staleness) option.
 
 See also [total_prometheus](#total_prometheus), [increase](#increase) and [increase_prometheus](#increase_prometheus).
 
@@ -702,6 +708,9 @@ If you need taking into account the first sample per time series, then take a lo
 `total_prometheus` is not affected by [counter resets](https://docs.victoriametrics.com/keyConcepts.html#counter) -
 it continues to increase monotonically with respect to the previous value.
 The counters are most often reset when the application is restarted.
+
+Aggregating irregular and sporadic metrics (received from [Lambdas](https://aws.amazon.com/lambda/)
+or [Cloud Functions](https://cloud.google.com/functions)) can be controlled via [staleness_interval](#staleness) option.
 
 See also [total](#total), [increase](#increase) and [increase_prometheus](#increase_prometheus).
 
@@ -804,14 +813,14 @@ at [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-
   #
   # dedup_interval: 30s
 
-  # staleness_interval is an optional interval after which the series state will be reset if no samples have been sent during it.
-  # This means that:
-  # - no data point will be written for a resulting time series if it didn't receive any updates during configured interval,
-  # - if the series receives updates after the configured interval again, then the time series will be calculated from the initial state
-  #   (it's like this series didn't exist until now).
-  # Increase this parameter if it is expected for matched metrics to be delayed or collected with irregular intervals exceeding the `interval` value.
-  # By default, it equals to x2 of the `interval` field.
-  # The parameter is only relevant for outputs: total, increase and histogram_bucket.
+  # staleness_interval is an optional interval for resetting the per-series state if no new samples
+  # are received during this interval for the following outputs:
+  # - total
+  # - total_prometheus
+  # - increase
+  # - increase_prometheus
+  # - histogram_bucket
+  # See https://docs.victoriametrics.com/stream-aggregation/#staleness for more details.
   #
   # staleness_interval: 2m
   
@@ -877,16 +886,62 @@ support the following approaches for hot reloading stream aggregation configs fr
 
 * By sending HTTP request to `/-/reload` endpoint (e.g. `http://vmagent:8429/-/reload` or `http://victoria-metrics:8428/-/reload).
 
-## Cluster mode
+
+## Troubleshooting
+
+- [Unexpected spikes for `total` or `increase` outputs](#staleness).
+- [Lower than expected values for `total_prometheus` and `increase_prometheus` outputs](#staleness).
+- [High memory usage and CPU usage](#high-resource-usage).
+- [Unexpected results in vmagent cluster mode](#cluster-mode).
+
+### Staleness
+
+The following outputs track the last seen per-series values in order to properly calculate output values:
+
+- [total](#total)
+- [total_prometheus](#total_prometheus)
+- [increase](#increase)
+- [increase_prometheus](#increase_prometheus)
+- [histogram_bucket](#histogram_bucket)
+
+The last seen per-series value is dropped if no new samples are received for the given time series during two consecutive aggregation
+intervals specified in [stream aggregation config](#stream-aggregation-config) via `interval` option.
+If a new sample for the existing time series is received after that, then it is treated as the first sample for a new time series.
+This may lead to the following issues:
+
+- Lower than expected results for [total_prometheus](#total_prometheus) and [increase_prometheus](#increase_prometheus) outputs,
+  since they ignore the first sample in a new time series.
+- Unexpected spikes for [total](#total) and [increase](#increase) outputs, since they assume that new time series start from 0.
+
+These issues can be be fixed in the following ways:
+
+- By increasing the `interval` option at [stream aggregation config](#stream-aggregation-config), so it covers the expected
+  delays in data ingestion pipelines.
+- By specifying the `staleness_interval` option at [stream aggregation config](#stream-aggregation-config), so it covers the expected
+  delays in data ingestion pipelines. By default the `staleness_interval` equals to `2 x interval`.
+
+### High resource usage
+
+The following solutions can help reducing memory usage and CPU usage durting streaming aggregation:
+
+- To use more specific `match` filters at [streaming aggregation config](#stream-aggregation-config), so only the really needed
+  [raw samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) are aggregated.
+- To increase aggregation interval by specifying bigger duration for the `interval` option at [streaming aggregation config](#stream-aggregation-config).
+- To generate lower number of output time series by using less specific [`by` list](#aggregating-by-labels) or more specific [`without` list](#aggregating-by-labels).
+- To drop unneeded long labels in input samples via [input_relabel_configs](#relabeling).
+
+### Cluster mode
 
 If you use [vmagent in cluster mode](https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets) for streaming aggregation
-(with `-promscrape.cluster.*` parameters or with `VMAgent.spec.shardCount > 1` for [vmoperator](https://docs.victoriametrics.com/operator))
-then be careful when aggregating metrics via `by`, `without` or modifying via `*_relabel_configs` parameters, since incorrect usage
-may result in duplicates and data collision. For example, if more than one `vmagent` instance calculates `increase` for metric `http_requests_total`
-with `by: [path]` directive, then all the `vmagent` instances will aggregate samples to the same set of time series with different `path` labels.
-The proper fix would be to add an unique [`-remoteWrite.label`](https://docs.victoriametrics.com/vmagent.html#adding-labels-to-metrics) per each `vmagent`,
-so every `vmagent` aggregates data into distinct set of time series. These time series then can be aggregated later as needed during querying.
+then be careful when using [`by` or `without` options](#aggregating-by-labels) or when modfying sample labels
+via [relabeling](#relabeling), since incorrect usage may result in duplicates and data collision.
 
-For example, if `vmagent` instances run in Docker or Kubernetes, then you can refer `POD_NAME` or `HOSTNAME` environment variables
-as an unique label value per each `vmagent`: `-remoteWrite.label='vmagent=%{HOSTNAME}` . See [these docs](https://docs.victoriametrics.com/#environment-variables)
-on how to refer environment variables in VictoriaMetrics components.
+For example, if more than one `vmagent` instance calculates [increase](#increase) for `http_requests_total` metric
+with `by: [path]` option, then all the `vmagent` instances will aggregate samples to the same set of time series with different `path` labels.
+The proper fix would be [adding an unique label](https://docs.victoriametrics.com/vmagent.html#adding-labels-to-metrics) for all the output samples
+produced by each `vmagent`, so they are aggregated into distinct sets of [time series](https://docs.victoriametrics.com/keyconcepts/#time-series).
+These time series then can be aggregated later as needed during querying.
+
+If `vmagent` instances run in Docker or Kubernetes, then you can refer `POD_NAME` or `HOSTNAME` environment variables
+as an unique label value per each `vmagent` via `-remoteWrite.label=vmagent=%{HOSTNAME}` command-line flag.
+See [these docs](https://docs.victoriametrics.com/#environment-variables) on how to refer environment variables in VictoriaMetrics components.
