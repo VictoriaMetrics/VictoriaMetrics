@@ -670,9 +670,7 @@ func (a *aggregator) dedupFlush(dedupInterval time.Duration) {
 
 	startTime := time.Now()
 
-	flushConcurrencyCh <- struct{}{}
 	a.da.flush(a.pushSamples)
-	<-flushConcurrencyCh
 
 	d := time.Since(startTime)
 	a.dedupFlushDuration.Update(d.Seconds())
