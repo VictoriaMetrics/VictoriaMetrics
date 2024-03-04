@@ -93,7 +93,7 @@ type Options struct {
 	// The alignment of flushes can be disabled individually per each aggregation via no_align_flush_to_interval option.
 	NoAlignFlushToInterval bool
 
-	// FlushOnShutdown enables flush of incomplete aggregation state.
+	// FlushOnShutdown enables flush of incomplete aggregation state on startup and shutdown.
 	//
 	// By default incomplete state is dropped.
 	//
@@ -126,7 +126,7 @@ type Config struct {
 	// See also FlushOnShutdown.
 	NoAlignFlushToInterval *bool `yaml:"no_align_flush_to_interval,omitempty"`
 
-	// FlushOnShutdown defines whether to flush incomplete aggregation state.
+	// FlushOnShutdown defines whether to flush incomplete aggregation state on startup and shutdown.
 	// By default incomplete aggregation state is dropped, since it may confuse users.
 	FlushOnShutdown *bool `yaml:"flush_on_shutdown,omitempty"`
 
@@ -615,10 +615,6 @@ func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipInc
 			if alignFlushToInterval {
 				select {
 				case <-t.C:
-					if skipIncompleteFlush && tickerWait(t) {
-						logger.Warnf("drop incomplete aggregation state because the previous flush took longer than interval=%s", interval)
-						a.flush(nil, interval, true)
-					}
 				default:
 				}
 			}
