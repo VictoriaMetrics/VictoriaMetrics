@@ -235,7 +235,6 @@ And to `http://<prod-url>` it will forward only metrics that have `env=prod` lab
 Please note, order of flags is important: 1st mentioned `-remoteWrite.urlRelabelConfig` will be applied to the
 1st mentioned `-remoteWrite.url`, and so on.
 
-
 ### Prometheus remote_write proxy
 
 `vmagent` can be used as a proxy for Prometheus data sent via Prometheus `remote_write` protocol. It can accept data via the `remote_write` API
@@ -250,6 +249,28 @@ writes are always performed in Prometheus remote_write protocol. Therefore, for 
 the `-remoteWrite.url` command-line flag should be configured as `<schema>://<vminsert-host>:8480/insert/<accountID>/prometheus/api/v1/write`
 according to [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format).
 There is also support for multitenant writes. See [these docs](#multitenancy).
+
+### Flexible deduplication
+
+[Deduplication at stream aggregation](https://docs.victoriametrics.com/stream-aggregation/#deduplication) allows setting up arbitrary complex de-duplication schemes
+for the collected samples. Examples:
+
+- The following command instructs `vmagent` to leave only the last sample per each seen [time series](https://docs.victoriametrics.com/keyconcepts/#time-series) per every 60 seconds:
+  ```
+  ./vmagent -remoteWrite.url=http://remote-storage/api/v1/write -remoteWrite.streamAggr.dedupInterval=60s
+  ```
+
+- The following [stream aggregation config](https://docs.victoriametrics.com/stream-aggregation/#stream-aggregation-config) instructs `vmagent` to merge
+  [time series](https://docs.victoriametrics.com/keyconcepts/#time-series) with different `replica` label values and then to leave only the last sample
+  per each merged series per ever 60 seconds:
+  ```yml
+  - input_relabel_configs:
+    - action: labeldrop
+      regex: replica
+    interval: 60s
+    keep_metric_names: true
+    outputs: [last]
+  ```
 
 ## VictoriaMetrics remote write protocol
 
@@ -908,7 +929,6 @@ to all the metrics scraped by the given `vmagent` instance:
 ```
 
 See also [how to shard data among multiple remote storage systems](#sharding-among-remote-storages).
-
 
 ## High availability
 
@@ -2104,7 +2124,7 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -remoteWrite.streamAggr.dedupInterval array
-     Input samples are de-duplicated with this interval before being aggregated. Only the last sample per each time series per each interval is aggregated if the interval is greater than zero (default 0s)
+     Input samples are de-duplicated with this interval before optional aggregation with -remoteWrite.streamAggr.config . See also -dedup.minScrapeInterval and https://docs.victoriametrics.com/stream-aggregation.html#deduplication (default 0s)
      Supports array of values separated by comma or specified via multiple flags.
      Empty values are set to default value.
   -remoteWrite.streamAggr.dropInput array

@@ -61,18 +61,10 @@ func LoadFromFile(path string, pushFunc PushFunc, opts *Options) (*Aggregators, 
 
 	as, err := newAggregatorsFromData(data, pushFunc, opts)
 	if err != nil {
-		return nil, fmt.Errorf("cannot initialize aggregators from %q: %w", path, err)
+		return nil, fmt.Errorf("cannot initialize aggregators from %q: %w; see https://docs.victoriametrics.com/stream-aggregation/#stream-aggregation-config", path, err)
 	}
 
 	return as, nil
-}
-
-func newAggregatorsFromData(data []byte, pushFunc PushFunc, opts *Options) (*Aggregators, error) {
-	var cfgs []*Config
-	if err := yaml.UnmarshalStrict(data, &cfgs); err != nil {
-		return nil, fmt.Errorf("cannot parse stream aggregation config: %w", err)
-	}
-	return NewAggregators(cfgs, pushFunc, opts)
 }
 
 // Options contains optional settings for the Aggregators.
@@ -194,25 +186,23 @@ type Config struct {
 	OutputRelabelConfigs []promrelabel.RelabelConfig `yaml:"output_relabel_configs,omitempty"`
 }
 
-// Aggregators aggregates metrics passed to Push and calls pushFunc for aggregate data.
+// Aggregators aggregates metrics passed to Push and calls pushFunc for aggregated data.
 type Aggregators struct {
 	as []*aggregator
 
-	// configData contains marshaled configs passed to NewAggregators().
+	// configData contains marshaled configs.
 	// It is used in Equal() for comparing Aggregators.
 	configData []byte
 
 	ms *metrics.Set
 }
 
-// NewAggregators creates Aggregators from the given cfgs.
-//
-// pushFunc is called when the aggregated data must be flushed.
-//
-// opts can contain additional options. If opts is nil, then default options are used.
-//
-// MustStop must be called on the returned Aggregators when they are no longer needed.
-func NewAggregators(cfgs []*Config, pushFunc PushFunc, opts *Options) (*Aggregators, error) {
+func newAggregatorsFromData(data []byte, pushFunc PushFunc, opts *Options) (*Aggregators, error) {
+	var cfgs []*Config
+	if err := yaml.UnmarshalStrict(data, &cfgs); err != nil {
+		return nil, fmt.Errorf("cannot parse stream aggregation config: %w", err)
+	}
+
 	ms := metrics.NewSet()
 	as := make([]*aggregator, len(cfgs))
 	for i, cfg := range cfgs {
@@ -306,7 +296,7 @@ func (a *Aggregators) Equal(b *Aggregators) bool {
 // Otherwise it allocates new matchIdxs.
 func (a *Aggregators) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) []byte {
 	matchIdxs = bytesutil.ResizeNoCopyMayOverallocate(matchIdxs, len(tss))
-	for i := 0; i < len(matchIdxs); i++ {
+	for i := range matchIdxs {
 		matchIdxs[i] = 0
 	}
 	if a == nil {
@@ -378,6 +368,9 @@ func newAggregator(cfg *Config, pushFunc PushFunc, ms *metrics.Set, opts *Option
 	}
 
 	// check cfg.Interval
+	if cfg.Interval == "" {
+		return nil, fmt.Errorf("missing `interval` option")
+	}
 	interval, err := time.ParseDuration(cfg.Interval)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse `interval: %q`: %w", cfg.Interval, err)
@@ -910,7 +903,8 @@ func (ctx *flushCtx) reset() {
 }
 
 func (ctx *flushCtx) resetSeries() {
-	ctx.tss = prompbmarshal.ResetTimeSeries(ctx.tss)
+	clear(ctx.tss)
+	ctx.tss = ctx.tss[:0]
 
 	clear(ctx.labels)
 	ctx.labels = ctx.labels[:0]
