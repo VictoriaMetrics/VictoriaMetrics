@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
@@ -18,7 +19,7 @@ func BenchmarkDedupAggr(b *testing.B) {
 }
 
 func BenchmarkDedupAggrFlushSerial(b *testing.B) {
-	as := newLastAggrState()
+	as := newTotalAggrState(time.Hour, true, true)
 	benchSamples := newBenchSamples(100_000)
 	da := newDedupAggr()
 
@@ -70,12 +71,16 @@ func newBenchSamples(count int) []pushSample {
 			Value: "process_cpu_seconds_total",
 		},
 	}
+	labelsLen := len(labels)
 	samples := make([]pushSample, count)
 	var keyBuf []byte
 	for i := range samples {
 		sample := &samples[i]
-		labels[0].Value = fmt.Sprintf("host-%d", i)
-		keyBuf = lc.Compress(keyBuf[:0], labels)
+		labels = append(labels[:labelsLen], prompbmarshal.Label{
+			Name: "app",
+			Value: fmt.Sprintf("app-%d", i%10),
+		})
+		keyBuf = compressLabels(keyBuf[:0], &lc, labels[:labelsLen], labels[labelsLen:])
 		sample.key = string(keyBuf)
 		sample.value = float64(i)
 	}

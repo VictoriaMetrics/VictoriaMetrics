@@ -759,7 +759,7 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 			outputLabels.Labels = append(outputLabels.Labels, labels.Labels...)
 		}
 
-		buf = a.compressLabels(buf[:0], inputLabels.Labels, outputLabels.Labels)
+		buf = compressLabels(buf[:0], &a.lc, inputLabels.Labels, outputLabels.Labels)
 		key := bytesutil.InternBytes(buf)
 		for _, sample := range ts.Samples {
 			if math.IsNaN(sample.Value) {
@@ -782,19 +782,18 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 	}
 }
 
-func (a *aggregator) compressLabels(dst []byte, inputLabels, outputLabels []prompbmarshal.Label) []byte {
+func compressLabels(dst []byte, lc *promutils.LabelsCompressor, inputLabels, outputLabels []prompbmarshal.Label) []byte {
 	bb := bbPool.Get()
-	bb.B = a.lc.Compress(bb.B, inputLabels)
+	bb.B = lc.Compress(bb.B, inputLabels)
 	dst = encoding.MarshalVarUint64(dst, uint64(len(bb.B)))
 	dst = append(dst, bb.B...)
 	bbPool.Put(bb)
-	dst = a.lc.Compress(dst, outputLabels)
+	dst = lc.Compress(dst, outputLabels)
 	return dst
 }
 
-func (a *aggregator) decompressLabels(dst []prompbmarshal.Label, key string) []prompbmarshal.Label {
-	dst = a.lc.Decompress(dst, bytesutil.ToUnsafeBytes(key))
-	return dst
+func decompressLabels(dst []prompbmarshal.Label, lc *promutils.LabelsCompressor, key string) []prompbmarshal.Label {
+	return lc.Decompress(dst, bytesutil.ToUnsafeBytes(key))
 }
 
 func getOutputKey(key string) string {
@@ -966,7 +965,7 @@ func (ctx *flushCtx) flushSeries() {
 func (ctx *flushCtx) appendSeries(key, suffix string, timestamp int64, value float64) {
 	labelsLen := len(ctx.labels)
 	samplesLen := len(ctx.samples)
-	ctx.labels = ctx.a.decompressLabels(ctx.labels, key)
+	ctx.labels = decompressLabels(ctx.labels, &ctx.a.lc, key)
 	if !ctx.a.keepMetricNames {
 		ctx.labels = addMetricSuffix(ctx.labels, labelsLen, ctx.a.suffix, suffix)
 	}
@@ -989,7 +988,7 @@ func (ctx *flushCtx) appendSeries(key, suffix string, timestamp int64, value flo
 func (ctx *flushCtx) appendSeriesWithExtraLabel(key, suffix string, timestamp int64, value float64, extraName, extraValue string) {
 	labelsLen := len(ctx.labels)
 	samplesLen := len(ctx.samples)
-	ctx.labels = ctx.a.decompressLabels(ctx.labels, key)
+	ctx.labels = decompressLabels(ctx.labels, &ctx.a.lc, key)
 	if !ctx.a.keepMetricNames {
 		ctx.labels = addMetricSuffix(ctx.labels, labelsLen, ctx.a.suffix, suffix)
 	}
