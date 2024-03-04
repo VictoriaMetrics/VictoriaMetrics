@@ -107,7 +107,9 @@ func setSyslogConnection() *syslog.Writer {
 	case "", "tcp", "udp":
 		op, err := syslog.Dial(*syslogNetwork, *syslogAddress, prio, *syslogTag)
 		if err != nil {
-			defer op.Close()
+			if e := op.Close(); e != nil {
+				panic(fmt.Errorf("failed to close log %w", e))
+			}
 			panic(fmt.Errorf("error dialing syslog: %w", err))
 		}
 		return op
@@ -118,7 +120,9 @@ func setSyslogConnection() *syslog.Writer {
 		}
 		op, err := syslog.DialWithTLSConfig(*syslogNetwork, *syslogAddress, prio, *syslogTag, tc)
 		if err != nil {
-			defer op.Close()
+			if e := op.Close(); e != nil {
+				panic(fmt.Errorf("failed to close log %w", e))
+			}
 			panic(fmt.Errorf("error dialing syslog: %w", err))
 		}
 		return op
