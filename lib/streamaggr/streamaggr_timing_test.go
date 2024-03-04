@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 )
@@ -55,7 +56,7 @@ func benchmarkAggregatorsFlushSerial(b *testing.B, output string) {
 	for i := 0; i < b.N; i++ {
 		matchIdxs = a.Push(benchSeries, matchIdxs)
 		for _, aggr := range a.as {
-			aggr.flush(pushFunc)
+			aggr.flush(pushFunc, time.Hour)
 		}
 	}
 }
