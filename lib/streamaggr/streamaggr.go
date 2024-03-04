@@ -674,6 +674,7 @@ func (a *aggregator) flush(pushFunc PushFunc) {
 			ctx := getFlushCtx(a, pushFunc)
 			as.flushState(ctx)
 			ctx.flushSeries()
+			ctx.resetSeries()
 			putFlushCtx(ctx)
 		}(as)
 	}
@@ -925,8 +926,6 @@ func (ctx *flushCtx) flushSeries() {
 	}
 	auxLabels.Labels = dstLabels
 	promutils.PutLabels(auxLabels)
-
-	ctx.resetSeries()
 }
 
 func (ctx *flushCtx) appendSeries(key, suffix string, timestamp int64, value float64) {
@@ -948,6 +947,7 @@ func (ctx *flushCtx) appendSeries(key, suffix string, timestamp int64, value flo
 	// Limit the maximum length of ctx.tss in order to limit memory usage.
 	if len(ctx.tss) >= 10_000 {
 		ctx.flushSeries()
+		ctx.resetSeries()
 	}
 }
 
