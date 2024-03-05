@@ -153,6 +153,98 @@ func TestAggregatorsFailure(t *testing.T) {
 `)
 }
 
+func TestAggregatorWithDelay(t *testing.T) {
+	config := `
+- interval: 15s
+  delay: 10s
+  without: [pod]
+  outputs: [total_prometheus]
+  staleness_interval: 1h
+`
+
+	var now uint64
+	opts := &Options{
+		FlushOnShutdown: true,
+		Now: func() uint64 {
+			return now
+		},
+	}
+	var tssOutput []prompbmarshal.TimeSeries
+	var tssOutputLock sync.Mutex
+	pushFunc := func(tss []prompbmarshal.TimeSeries) {
+		tssOutputLock.Lock()
+		tssOutput = appendClonedTimeseries(tssOutput, tss)
+		tssOutputLock.Unlock()
+	}
+	a, err := newAggregatorsFromData([]byte(config), pushFunc, opts)
+	if err != nil {
+		t.Fatalf("cannot initialize aggregators: %s", err)
+	}
+
+	push := func(inputMetrics string) {
+		tssInput := mustParsePromMetrics(inputMetrics)
+		_ = a.Push(tssInput, nil)
+	}
+
+	flush := func(outputMetricsExpected string) {
+		for _, ag := range a.as {
+			ag.flush(pushFunc, time.Duration(123*float64(time.Second)), false)
+		}
+		// Verify the tssOutput contains the expected metrics
+		outputMetrics := timeSeriessToString(tssOutput, true)
+		if outputMetrics != outputMetricsExpected {
+			t.Fatalf("unexpected output metrics;\ngot\n%s\nwant\n%s", outputMetrics, outputMetricsExpected)
+		}
+		tssOutput = nil
+	}
+
+	// windows: 1000000005, 1000000020, 1000000035, 1000000050, 1000000065, ...
+
+	// initialize
+	now = 1000000025
+	push(`
+histogram{pod="a", le="1"} 0 1000000022000
+histogram{pod="a", le="5"} 0 1000000022000
+histogram{pod="a", le="10"} 0 1000000022000
+`)
+	flush(``)
+
+	// normal case
+	now = 1000000040
+	push(`
+histogram{pod="a", le="1"} 1 1000000037000
+histogram{pod="a", le="5"} 1 1000000037000
+histogram{pod="a", le="10"} 1 1000000037000
+`)
+	flush(``)
+
+	// missed a bucket
+	now = 1000000055
+	push(`
+histogram{pod="a", le="1"} 1 1000000052000
+histogram{pod="a", le="10"} 4 1000000052000
+`)
+	flush(``)
+
+	// found it
+	now = 1000000057
+	push(`
+histogram{pod="a", le="5"} 4 1000000052000
+`)
+	now = 1000000068
+	flush(
+		`histogram:15s_without_pod_total{le="1"} 1 1000000050000
+histogram:15s_without_pod_total{le="10"} 1 1000000050000
+histogram:15s_without_pod_total{le="5"} 1 1000000050000
+`)
+	now = 1000000081
+	flush(
+		`histogram:15s_without_pod_total{le="1"} 1 1000000065000
+histogram:15s_without_pod_total{le="10"} 4 1000000065000
+histogram:15s_without_pod_total{le="5"} 4 1000000065000
+`)
+}
+
 func TestAggregatorsEqual(t *testing.T) {
 	f := func(a, b string, expectedResult bool) {
 		t.Helper()
@@ -193,7 +285,7 @@ func TestAggregatorsEqual(t *testing.T) {
 	f(`
 - outputs: [total]
   interval: 5m
-  flush_on_shutdown: true  
+  flush_on_shutdown: true
 `, `
 - outputs: [total]
   interval: 5m
@@ -237,7 +329,7 @@ func TestAggregatorsSuccess(t *testing.T) {
 		}
 
 		// Verify the tssOutput contains the expected metrics
-		outputMetrics := timeSeriessToString(tssOutput)
+		outputMetrics := timeSeriessToString(tssOutput, false)
 		if outputMetrics != outputMetricsExpected {
 			t.Fatalf("unexpected output metrics;\ngot\n%s\nwant\n%s", outputMetrics, outputMetricsExpected)
 		}
@@ -909,7 +1001,7 @@ func TestAggregatorsWithDedupInterval(t *testing.T) {
 		// Verify the tssOutput contains the expected metrics
 		tsStrings := make([]string, len(tssOutput))
 		for i, ts := range tssOutput {
-			tsStrings[i] = timeSeriesToString(ts)
+			tsStrings[i] = timeSeriesToString(ts, false)
 		}
 		sort.Strings(tsStrings)
 		outputMetrics := strings.Join(tsStrings, "")
@@ -947,19 +1039,22 @@ foo:1m_sum_samples{baz="qwe"} 10
 `, "11111111")
 }
 
-func timeSeriessToString(tss []prompbmarshal.TimeSeries) string {
+func timeSeriessToString(tss []prompbmarshal.TimeSeries, withTimestamp bool) string {
 	a := make([]string, len(tss))
 	for i, ts := range tss {
-		a[i] = timeSeriesToString(ts)
+		a[i] = timeSeriesToString(ts, withTimestamp)
 	}
 	sort.Strings(a)
 	return strings.Join(a, "")
 }
 
-func timeSeriesToString(ts prompbmarshal.TimeSeries) string {
+func timeSeriesToString(ts prompbmarshal.TimeSeries, withTimestamp bool) string {
 	labelsString := promrelabel.LabelsToString(ts.Labels)
 	if len(ts.Samples) != 1 {
 		panic(fmt.Errorf("unexpected number of samples for %s: %d; want 1", labelsString, len(ts.Samples)))
+	}
+	if withTimestamp {
+		return fmt.Sprintf("%s %v %d\n", labelsString, ts.Samples[0].Value, ts.Samples[0].Timestamp)
 	}
 	return fmt.Sprintf("%s %v\n", labelsString, ts.Samples[0].Value)
 }

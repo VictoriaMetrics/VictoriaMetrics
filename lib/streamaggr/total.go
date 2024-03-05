@@ -1,11 +1,11 @@
 package streamaggr
 
 import (
+	"github.com/VictoriaMetrics/metrics"
 	"math"
+	"slices"
 	"sync"
 	"time"
-
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 )
 
 // totalAggrState calculates output=total, e.g. the summary counter over input counters.
@@ -20,6 +20,8 @@ type totalAggrState struct {
 	// Whether to take into account the first sample in new time series when calculating the output value.
 	keepFirstSample bool
 
+	intervalSecs uint64
+
 	// Time series state is dropped if no new samples are received during stalenessSecs.
 	//
 	// Aslo, the first sample per each new series is ignored during stalenessSecs even if keepFirstSample is set.
@@ -30,11 +32,26 @@ type totalAggrState struct {
 	// This allows avoiding an initial spike of the output values at startup when new time series
 	// cannot be distinguished from already existing series. This is tracked with ignoreFirstSampleDeadline.
 	ignoreFirstSampleDeadline uint64
+
+	// If greater than zero, the number of seconds (inclusive) a sample can be delayed.
+	// In this mode, sample timestamps are taken into account and aggregated within intervals (defined by intervalSecs).
+	// Aggregated samples have timestamps aligned with the interval.
+	delaySecs uint64
+
+	// Get the current timestamp in Unix seconds. Overridden for testing.
+	nowFunc func() uint64
+
+	// Count of samples dropped due to lateness.
+	lateSamplesDropped *metrics.Counter
+
+	// Ingestion latency between sample's timestamp and current time.
+	ingestionLatency *metrics.Histogram
 }
 
 type totalStateValue struct {
 	mu             sync.Mutex
 	lastValues     map[string]lastValueState
+	deltas         map[uint64]float64
 	total          float64
 	deleteDeadline uint64
 	deleted        bool
@@ -46,28 +63,64 @@ type lastValueState struct {
 	deleteDeadline uint64
 }
 
-func newTotalAggrState(stalenessInterval time.Duration, resetTotalOnFlush, keepFirstSample bool) *totalAggrState {
+func newTotalAggrState(interval, stalenessInterval, delay time.Duration, resetTotalOnFlush, keepFirstSample bool, nowFunc func() uint64, ms *metrics.Set) *totalAggrState {
+	intervalSecs := roundDurationToSecs(interval)
 	stalenessSecs := roundDurationToSecs(stalenessInterval)
-	ignoreFirstSampleDeadline := fasttime.UnixTimestamp() + stalenessSecs
+	delaySecs := roundDurationToSecs(delay)
+	ignoreFirstSampleDeadline := nowFunc() + stalenessSecs
 	suffix := "total"
 	if resetTotalOnFlush {
 		suffix = "increase"
 	}
+	lateSamplesDropped := ms.GetOrCreateCounter(`vm_streamaggr_late_samples_dropped_total`)
+	ingestionLatency := ms.GetOrCreateHistogram(`vm_streamaggr_ingestion_latency_seconds`)
 	return &totalAggrState{
 		suffix:                    suffix,
 		resetTotalOnFlush:         resetTotalOnFlush,
 		keepFirstSample:           keepFirstSample,
+		intervalSecs:              intervalSecs,
 		stalenessSecs:             stalenessSecs,
+		delaySecs:                 delaySecs,
 		ignoreFirstSampleDeadline: ignoreFirstSampleDeadline,
+		nowFunc:                   nowFunc,
+		lateSamplesDropped:        lateSamplesDropped,
+		ingestionLatency:          ingestionLatency,
+	}
+}
+
+// alignToInterval rounds up timestamp to the nearest interval
+func alignToInterval(timestamp, interval uint64) uint64 {
+	if timestamp%interval == 0 {
+		return timestamp
+	}
+	return interval - (timestamp % interval) + timestamp
+}
+
+func (as *totalAggrState) addDelta(sv *totalStateValue, delta float64, timestampSecs uint64) {
+	if as.delaySecs == 0 {
+		sv.total += delta
+	} else {
+		intervalEnd := alignToInterval(timestampSecs, as.intervalSecs)
+		sv.deltas[intervalEnd] += delta
 	}
 }
 
 func (as *totalAggrState) pushSamples(samples []pushSample) {
-	currentTime := fasttime.UnixTimestamp()
+	currentTime := as.nowFunc()
 	deleteDeadline := currentTime + as.stalenessSecs
 	keepFirstSample := as.keepFirstSample && currentTime > as.ignoreFirstSampleDeadline
 	for i := range samples {
 		s := &samples[i]
+		timestampSecs := uint64(s.timestamp / 1000)
+		as.ingestionLatency.Update(float64(currentTime) - float64(timestampSecs))
+
+		if as.delaySecs > 0 {
+			if timestampSecs < currentTime-as.delaySecs {
+				as.lateSamplesDropped.Inc()
+				continue
+			}
+		}
+
 		inputKey, outputKey := getInputOutputKey(s.key)
 
 	again:
@@ -76,6 +129,7 @@ func (as *totalAggrState) pushSamples(samples []pushSample) {
 			// The entry is missing in the map. Try creating it.
 			v = &totalStateValue{
 				lastValues: make(map[string]lastValueState),
+				deltas:     make(map[uint64]float64),
 			}
 			vNew, loaded := as.m.LoadOrStore(outputKey, v)
 			if loaded {
@@ -95,10 +149,10 @@ func (as *totalAggrState) pushSamples(samples []pushSample) {
 					continue
 				}
 				if s.value >= lv.value {
-					sv.total += s.value - lv.value
+					as.addDelta(sv, s.value-lv.value, timestampSecs)
 				} else {
 					// counter reset
-					sv.total += s.value
+					as.addDelta(sv, s.value, timestampSecs)
 				}
 			}
 			lv.value = s.value
@@ -144,8 +198,17 @@ func (as *totalAggrState) removeOldEntries(currentTime uint64) {
 	})
 }
 
+func cmpUint64(a, b uint64) int {
+	if a < b {
+		return -1
+	} else if a > b {
+		return 1
+	}
+	return 0
+}
+
 func (as *totalAggrState) flushState(ctx *flushCtx, resetState bool) {
-	currentTime := fasttime.UnixTimestamp()
+	currentTime := as.nowFunc()
 	currentTimeMsec := int64(currentTime) * 1000
 
 	as.removeOldEntries(currentTime)
@@ -153,6 +216,7 @@ func (as *totalAggrState) flushState(ctx *flushCtx, resetState bool) {
 	m := &as.m
 	m.Range(func(k, v interface{}) bool {
 		sv := v.(*totalStateValue)
+		key := k.(string)
 		sv.mu.Lock()
 		total := sv.total
 		if resetState {
@@ -163,11 +227,37 @@ func (as *totalAggrState) flushState(ctx *flushCtx, resetState bool) {
 				sv.total = 0
 			}
 		}
-		deleted := sv.deleted
-		sv.mu.Unlock()
-		if !deleted {
-			key := k.(string)
-			ctx.appendSeries(key, as.suffix, currentTimeMsec, total)
+
+		if as.delaySecs == 0 {
+			deleted := sv.deleted
+			sv.mu.Unlock()
+			if !deleted {
+				ctx.appendSeries(key, as.suffix, currentTimeMsec, total)
+			}
+		} else {
+			flushableIntervals := make([]uint64, 0, len(sv.deltas))
+			for intervalEnd := range sv.deltas {
+				if intervalEnd < currentTime-as.delaySecs {
+					flushableIntervals = append(flushableIntervals, intervalEnd)
+				}
+			}
+			slices.SortFunc(flushableIntervals, cmpUint64)
+
+			totals := make([]float64, len(flushableIntervals))
+			for i, intervalEnd := range flushableIntervals {
+				total += sv.deltas[intervalEnd]
+				totals[i] = total
+				delete(sv.deltas, intervalEnd)
+			}
+			sv.total = total
+
+			deleted := sv.deleted
+			sv.mu.Unlock()
+			if !deleted {
+				for i, intervalEnd := range flushableIntervals {
+					ctx.appendSeries(key, as.suffix, int64(intervalEnd*1000), totals[i])
+				}
+			}
 		}
 		return true
 	})
