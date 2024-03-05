@@ -475,13 +475,13 @@ func newAggregator(cfg *Config, pushFunc PushFunc, ms *metrics.Set, opts *Option
 		}
 		switch output {
 		case "total":
-			aggrStates[i] = newTotalAggrState(stalenessInterval, false, true)
+			aggrStates[i] = newTotalAggrState(stalenessInterval, false, true, false)
 		case "total_prometheus":
-			aggrStates[i] = newTotalAggrState(stalenessInterval, false, false)
+			aggrStates[i] = newTotalAggrState(stalenessInterval, false, false, true)
 		case "increase":
-			aggrStates[i] = newTotalAggrState(stalenessInterval, true, true)
+			aggrStates[i] = newTotalAggrState(stalenessInterval, true, true, false)
 		case "increase_prometheus":
-			aggrStates[i] = newTotalAggrState(stalenessInterval, true, false)
+			aggrStates[i] = newTotalAggrState(stalenessInterval, true, false, true)
 		case "count_series":
 			aggrStates[i] = newCountSeriesAggrState()
 		case "count_samples":
@@ -754,8 +754,9 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 				continue
 			}
 			samples = append(samples, pushSample{
-				key:   key,
-				value: sample.Value,
+				key:       key,
+				value:     sample.Value,
+				timestamp: sample.Timestamp,
 			})
 		}
 	}
@@ -829,8 +830,9 @@ func (ctx *pushCtx) reset() {
 }
 
 type pushSample struct {
-	key   string
-	value float64
+	key       string
+	value     float64
+	timestamp int64
 }
 
 func getPushCtx() *pushCtx {

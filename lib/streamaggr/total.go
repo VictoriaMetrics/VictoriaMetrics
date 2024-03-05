@@ -30,6 +30,10 @@ type totalAggrState struct {
 	// This allows avoiding an initial spike of the output values at startup when new time series
 	// cannot be distinguished from already existing series. This is tracked with ignoreFirstSampleDeadline.
 	ignoreFirstSampleDeadline uint64
+
+	// Ignore samples which were older than the last seen sample. This is preferable to treating it as a
+	// counter reset.
+	ignoreOutOfOrderSamples bool
 }
 
 type totalStateValue struct {
@@ -42,10 +46,11 @@ type totalStateValue struct {
 
 type lastValueState struct {
 	value          float64
+	timestamp      int64
 	deleteDeadline uint64
 }
 
-func newTotalAggrState(stalenessInterval time.Duration, resetTotalOnFlush, keepFirstSample bool) *totalAggrState {
+func newTotalAggrState(stalenessInterval time.Duration, resetTotalOnFlush, keepFirstSample bool, ignoreOutOfOrderSamples bool) *totalAggrState {
 	stalenessSecs := roundDurationToSecs(stalenessInterval)
 	ignoreFirstSampleDeadline := fasttime.UnixTimestamp() + stalenessSecs
 	suffix := "total"
@@ -58,6 +63,7 @@ func newTotalAggrState(stalenessInterval time.Duration, resetTotalOnFlush, keepF
 		keepFirstSample:           keepFirstSample,
 		stalenessSecs:             stalenessSecs,
 		ignoreFirstSampleDeadline: ignoreFirstSampleDeadline,
+		ignoreOutOfOrderSamples:   ignoreOutOfOrderSamples,
 	}
 }
 
@@ -87,18 +93,22 @@ func (as *totalAggrState) pushSamples(samples []pushSample) {
 		deleted := sv.deleted
 		if !deleted {
 			lv, ok := sv.lastValues[inputKey]
-			if ok || keepFirstSample {
-				if s.value >= lv.value {
-					sv.total += s.value - lv.value
-				} else {
-					// counter reset
-					sv.total += s.value
+			outOfOrder := ok && lv.timestamp > s.timestamp
+			if !as.ignoreOutOfOrderSamples || !outOfOrder {
+				if ok || keepFirstSample {
+					if s.value >= lv.value {
+						sv.total += s.value - lv.value
+					} else {
+						// counter reset
+						sv.total += s.value
+					}
 				}
+				lv.value = s.value
+				lv.timestamp = s.timestamp
+				lv.deleteDeadline = deleteDeadline
+				sv.lastValues[inputKey] = lv
+				sv.deleteDeadline = deleteDeadline
 			}
-			lv.value = s.value
-			lv.deleteDeadline = deleteDeadline
-			sv.lastValues[inputKey] = lv
-			sv.deleteDeadline = deleteDeadline
 		}
 		sv.mu.Unlock()
 		if deleted {
