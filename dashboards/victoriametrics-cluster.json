@@ -152,7 +152,7 @@
         "type": "prometheus",
         "uid": "$ds"
       },
-      "description": "How many datapoints are in storage",
+      "description": "How many [data samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) are in storage",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -961,7 +961,7 @@
         "type": "prometheus",
         "uid": "$ds"
       },
-      "description": "How many datapoints are inserted into cluster per second by protocol before the replication.",
+      "description": "How many [data samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) are inserted into cluster per second by protocol before the replication. Check vminsert metrics if there are any issues with ingestion.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -5382,7 +5382,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Shows how many ongoing insertions (not API /write calls) on disk are taking place, where:\n* `max` - equal to number of CPUs;\n* `current` - current number of goroutines busy with inserting rows into underlying storage.\n\nEvery successful API /write call results into flush on disk. The `max` is an internal limit and can't be changed. It is always equal to the number of CPUs. \n\nWhen `current` hits `max` constantly, it means storage is overloaded and requires more CPU or faster disk.",
+          "description": "Shows how many ongoing insertions (not API /write calls) on disk are taking place, where:\n* `max` - equal to number of CPUs;\n* `current` - current number of goroutines busy with inserting rows into underlying storage.\n\nEvery successful API /write call results into flush on disk. The `max` is an internal limit and can't be changed. It is always equal to the number of CPUs. \n\nWhen `current` hits `max` constantly, it means storage is overloaded and requires more CPU (see CPU usage) or disks with more IOPS (see disk writes and reads panels in Resource Usage row).",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -5624,7 +5624,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "The number of rows merged per second by storage nodes.",
+          "description": "The number of rows merged per second by storage nodes. Merge speed depends on available CPU and disk IO bandwidth.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -8148,7 +8148,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Shows the saturation level of connection between vminsert and vmstorage components. If the threshold of 0.9sec is reached, then the connection is saturated by more than 90% and vminsert won't be able to keep up. This usually means that more vminsert or vmstorage nodes must be added to the cluster in order to increase the total number of vminsert -> vmstorage links.\n",
+          "description": "Shows the saturation level of connection between vminsert and vmstorage components. \n\nIf the threshold of 0.9sec is reached, then the connection is saturated by more than 90% and vminsert won't be able to keep up. This usually means that either vminsert or vmstorage nodes are struggling with the load. Verify CPU/mem saturation of both components and network saturation between them.\nIf vminsert resources are saturated - consider adding more resources or scale vminserts horizontally.\n\nIf vminsert resources and network are fine, check vmstorage metrics for anomalies.",
           "fieldConfig": {
             "defaults": {
               "color": {
