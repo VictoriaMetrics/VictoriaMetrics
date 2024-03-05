@@ -2,7 +2,6 @@ package streamaggr
 
 import (
 	"math"
-	"strings"
 	"sync"
 	"time"
 
@@ -43,7 +42,6 @@ func (as *histogramBucketAggrState) pushSamples(samples []pushSample) {
 		if !ok {
 			// The entry is missing in the map. Try creating it.
 			v = &histogramBucketStateValue{}
-			outputKey = strings.Clone(outputKey)
 			vNew, loaded := as.m.LoadOrStore(outputKey, v)
 			if loaded {
 				// Use the entry created by a concurrent goroutine.
@@ -86,7 +84,8 @@ func (as *histogramBucketAggrState) removeOldEntries(currentTime uint64) {
 	})
 }
 
-func (as *histogramBucketAggrState) flushState(ctx *flushCtx) {
+func (as *histogramBucketAggrState) flushState(ctx *flushCtx, resetState bool) {
+	_ = resetState // it isn't used here
 	currentTime := fasttime.UnixTimestamp()
 	currentTimeMsec := int64(currentTime) * 1000
 

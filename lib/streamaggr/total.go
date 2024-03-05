@@ -2,7 +2,6 @@ package streamaggr
 
 import (
 	"math"
-	"strings"
 	"sync"
 	"time"
 
@@ -35,7 +34,7 @@ type totalAggrState struct {
 
 type totalStateValue struct {
 	mu             sync.Mutex
-	lastValues     map[string]*lastValueState
+	lastValues     map[string]lastValueState
 	total          float64
 	deleteDeadline uint64
 	deleted        bool
@@ -75,9 +74,8 @@ func (as *totalAggrState) pushSamples(samples []pushSample) {
 		if !ok {
 			// The entry is missing in the map. Try creating it.
 			v = &totalStateValue{
-				lastValues: make(map[string]*lastValueState),
+				lastValues: make(map[string]lastValueState),
 			}
-			outputKey = strings.Clone(outputKey)
 			vNew, loaded := as.m.LoadOrStore(outputKey, v)
 			if loaded {
 				// Use the entry created by a concurrent goroutine.
@@ -89,11 +87,6 @@ func (as *totalAggrState) pushSamples(samples []pushSample) {
 		deleted := sv.deleted
 		if !deleted {
 			lv, ok := sv.lastValues[inputKey]
-			if !ok {
-				lv = &lastValueState{}
-				inputKey = strings.Clone(inputKey)
-				sv.lastValues[inputKey] = lv
-			}
 			if ok || keepFirstSample {
 				if s.value >= lv.value {
 					sv.total += s.value - lv.value
@@ -104,6 +97,7 @@ func (as *totalAggrState) pushSamples(samples []pushSample) {
 			}
 			lv.value = s.value
 			lv.deleteDeadline = deleteDeadline
+			sv.lastValues[inputKey] = lv
 			sv.deleteDeadline = deleteDeadline
 		}
 		sv.mu.Unlock()
@@ -143,7 +137,7 @@ func (as *totalAggrState) removeOldEntries(currentTime uint64) {
 	})
 }
 
-func (as *totalAggrState) flushState(ctx *flushCtx) {
+func (as *totalAggrState) flushState(ctx *flushCtx, resetState bool) {
 	currentTime := fasttime.UnixTimestamp()
 	currentTimeMsec := int64(currentTime) * 1000
 
@@ -154,11 +148,13 @@ func (as *totalAggrState) flushState(ctx *flushCtx) {
 		sv := v.(*totalStateValue)
 		sv.mu.Lock()
 		total := sv.total
-		if as.resetTotalOnFlush {
-			sv.total = 0
-		} else if math.Abs(sv.total) >= (1 << 53) {
-			// It is time to reset the entry, since it starts losing float64 precision
-			sv.total = 0
+		if resetState {
+			if as.resetTotalOnFlush {
+				sv.total = 0
+			} else if math.Abs(sv.total) >= (1 << 53) {
+				// It is time to reset the entry, since it starts losing float64 precision
+				sv.total = 0
+			}
 		}
 		deleted := sv.deleted
 		sv.mu.Unlock()

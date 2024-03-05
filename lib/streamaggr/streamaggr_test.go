@@ -210,14 +210,7 @@ func TestAggregatorsSuccess(t *testing.T) {
 		var tssOutputLock sync.Mutex
 		pushFunc := func(tss []prompbmarshal.TimeSeries) {
 			tssOutputLock.Lock()
-			for _, ts := range tss {
-				labelsCopy := append([]prompbmarshal.Label{}, ts.Labels...)
-				samplesCopy := append([]prompbmarshal.Sample{}, ts.Samples...)
-				tssOutput = append(tssOutput, prompbmarshal.TimeSeries{
-					Labels:  labelsCopy,
-					Samples: samplesCopy,
-				})
-			}
+			tssOutput = appendClonedTimeseries(tssOutput, tss)
 			tssOutputLock.Unlock()
 		}
 		opts := &Options{
@@ -244,12 +237,7 @@ func TestAggregatorsSuccess(t *testing.T) {
 		}
 
 		// Verify the tssOutput contains the expected metrics
-		tsStrings := make([]string, len(tssOutput))
-		for i, ts := range tssOutput {
-			tsStrings[i] = timeSeriesToString(ts)
-		}
-		sort.Strings(tsStrings)
-		outputMetrics := strings.Join(tsStrings, "")
+		outputMetrics := timeSeriessToString(tssOutput)
 		if outputMetrics != outputMetricsExpected {
 			t.Fatalf("unexpected output metrics;\ngot\n%s\nwant\n%s", outputMetrics, outputMetricsExpected)
 		}
@@ -925,6 +913,15 @@ foo:1m_sum_samples{baz="qwe"} 10
 `, "11111111")
 }
 
+func timeSeriessToString(tss []prompbmarshal.TimeSeries) string {
+	a := make([]string, len(tss))
+	for i, ts := range tss {
+		a[i] = timeSeriesToString(ts)
+	}
+	sort.Strings(a)
+	return strings.Join(a, "")
+}
+
 func timeSeriesToString(ts prompbmarshal.TimeSeries) string {
 	labelsString := promrelabel.LabelsToString(ts.Labels)
 	if len(ts.Samples) != 1 {
@@ -964,4 +961,14 @@ func mustParsePromMetrics(s string) []prompbmarshal.TimeSeries {
 		tss = append(tss, ts)
 	}
 	return tss
+}
+
+func appendClonedTimeseries(dst, src []prompbmarshal.TimeSeries) []prompbmarshal.TimeSeries {
+	for _, ts := range src {
+		dst = append(dst, prompbmarshal.TimeSeries{
+			Labels:  append(ts.Labels[:0:0], ts.Labels...),
+			Samples: append(ts.Samples[:0:0], ts.Samples...),
+		})
+	}
+	return dst
 }

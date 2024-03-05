@@ -1,7 +1,6 @@
 package streamaggr
 
 import (
-	"strings"
 	"sync"
 	"unsafe"
 
@@ -25,7 +24,7 @@ type dedupAggrShard struct {
 
 type dedupAggrShardNopad struct {
 	mu sync.Mutex
-	m  map[string]*dedupAggrSample
+	m  map[string]dedupAggrSample
 }
 
 type dedupAggrSample struct {
@@ -59,7 +58,7 @@ func (das *dedupAggrShard) sizeBytes() uint64 {
 	das.mu.Lock()
 	n := uint64(unsafe.Sizeof(*das))
 	for k, s := range das.m {
-		n += uint64(len(k)) + uint64(unsafe.Sizeof(k)+unsafe.Sizeof(s)+unsafe.Sizeof(*s))
+		n += uint64(len(k)) + uint64(unsafe.Sizeof(k)+unsafe.Sizeof(s))
 	}
 	das.mu.Unlock()
 	return n
@@ -113,7 +112,7 @@ func (ctx *dedupFlushCtx) reset() {
 	ctx.samples = ctx.samples[:0]
 }
 
-func (da *dedupAggr) flush(f func(samples []pushSample)) {
+func (da *dedupAggr) flush(f func(samples []pushSample), resetState bool) {
 	var wg sync.WaitGroup
 	for i := range da.shards {
 		flushConcurrencyCh <- struct{}{}
@@ -125,7 +124,7 @@ func (da *dedupAggr) flush(f func(samples []pushSample)) {
 			}()
 
 			ctx := getDedupFlushCtx()
-			shard.flush(ctx, f)
+			shard.flush(ctx, f, resetState)
 			putDedupFlushCtx(ctx)
 		}(&da.shards[i])
 	}
@@ -169,27 +168,23 @@ func (das *dedupAggrShard) pushSamples(samples []pushSample) {
 
 	m := das.m
 	if m == nil {
-		m = make(map[string]*dedupAggrSample, len(samples))
+		m = make(map[string]dedupAggrSample, len(samples))
 		das.m = m
 	}
 	for _, sample := range samples {
-		s, ok := m[sample.key]
-		if ok {
-			s.value = sample.value
-		} else {
-			key := strings.Clone(sample.key)
-			m[key] = &dedupAggrSample{
-				value: sample.value,
-			}
+		m[sample.key] = dedupAggrSample{
+			value: sample.value,
 		}
 	}
 }
 
-func (das *dedupAggrShard) flush(ctx *dedupFlushCtx, f func(samples []pushSample)) {
+func (das *dedupAggrShard) flush(ctx *dedupFlushCtx, f func(samples []pushSample), resetState bool) {
 	das.mu.Lock()
 
 	m := das.m
-	das.m = nil
+	if resetState && len(m) > 0 {
+		das.m = make(map[string]dedupAggrSample, len(m))
+	}
 
 	das.mu.Unlock()
 

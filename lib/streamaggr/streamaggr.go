@@ -61,18 +61,10 @@ func LoadFromFile(path string, pushFunc PushFunc, opts *Options) (*Aggregators, 
 
 	as, err := newAggregatorsFromData(data, pushFunc, opts)
 	if err != nil {
-		return nil, fmt.Errorf("cannot initialize aggregators from %q: %w", path, err)
+		return nil, fmt.Errorf("cannot initialize aggregators from %q: %w; see https://docs.victoriametrics.com/stream-aggregation/#stream-aggregation-config", path, err)
 	}
 
 	return as, nil
-}
-
-func newAggregatorsFromData(data []byte, pushFunc PushFunc, opts *Options) (*Aggregators, error) {
-	var cfgs []*Config
-	if err := yaml.UnmarshalStrict(data, &cfgs); err != nil {
-		return nil, fmt.Errorf("cannot parse stream aggregation config: %w", err)
-	}
-	return NewAggregators(cfgs, pushFunc, opts)
 }
 
 // Options contains optional settings for the Aggregators.
@@ -82,16 +74,25 @@ type Options struct {
 	// The last sample per each series is left per each DedupInterval if DedupInterval > 0.
 	//
 	// By default deduplication is disabled.
+	//
+	// The deduplication can be set up individually per each aggregation via dedup_interval option.
 	DedupInterval time.Duration
+
+	// DropInputLabels is an optional list of labels to drop from samples before de-duplication and stream aggregation.
+	DropInputLabels []string
 
 	// NoAlignFlushToInterval disables alignment of flushes to the aggregation interval.
 	//
 	// By default flushes are aligned to aggregation interval.
+	//
+	// The alignment of flushes can be disabled individually per each aggregation via no_align_flush_to_interval option.
 	NoAlignFlushToInterval bool
 
-	// FlushOnShutdown enables flush of incomplete state on shutdown.
+	// FlushOnShutdown enables flush of incomplete aggregation state on startup and shutdown.
 	//
-	// By default incomplete state is dropped on shutdown.
+	// By default incomplete state is dropped.
+	//
+	// The flush of incomplete state can be enabled individually per each aggregation via flush_on_shutdown option.
 	FlushOnShutdown bool
 
 	// KeepMetricNames instructs to leave metric names as is for the output time series without adding any suffix.
@@ -100,6 +101,7 @@ type Options struct {
 	//
 	//     input_name:<interval>[_by_<by_labels>][_without_<without_labels>]_<output>
 	//
+	// This option can be overriden individually per each aggregation via keep_metric_names option.
 	KeepMetricNames bool
 }
 
@@ -119,8 +121,8 @@ type Config struct {
 	// See also FlushOnShutdown.
 	NoAlignFlushToInterval *bool `yaml:"no_align_flush_to_interval,omitempty"`
 
-	// FlushOnShutdown defines whether to flush the aggregation state on process termination
-	// or config reload. By default the state is dropped on these events.
+	// FlushOnShutdown defines whether to flush incomplete aggregation state on startup and shutdown.
+	// By default incomplete aggregation state is dropped, since it may confuse users.
 	FlushOnShutdown *bool `yaml:"flush_on_shutdown,omitempty"`
 
 	// DedupInterval is an optional interval for deduplication.
@@ -178,6 +180,11 @@ type Config struct {
 	// individually per each input time series.
 	Without []string `yaml:"without,omitempty"`
 
+	// DropInputLabels is an optional list with labels, which must be dropped before further processing of input samples.
+	//
+	// Labels are dropped before de-duplication and aggregation.
+	DropInputLabels *[]string `yaml:"drop_input_labels,omitempty"`
+
 	// InputRelabelConfigs is an optional relabeling rules, which are applied on the input
 	// before aggregation.
 	InputRelabelConfigs []promrelabel.RelabelConfig `yaml:"input_relabel_configs,omitempty"`
@@ -187,25 +194,23 @@ type Config struct {
 	OutputRelabelConfigs []promrelabel.RelabelConfig `yaml:"output_relabel_configs,omitempty"`
 }
 
-// Aggregators aggregates metrics passed to Push and calls pushFunc for aggregate data.
+// Aggregators aggregates metrics passed to Push and calls pushFunc for aggregated data.
 type Aggregators struct {
 	as []*aggregator
 
-	// configData contains marshaled configs passed to NewAggregators().
+	// configData contains marshaled configs.
 	// It is used in Equal() for comparing Aggregators.
 	configData []byte
 
 	ms *metrics.Set
 }
 
-// NewAggregators creates Aggregators from the given cfgs.
-//
-// pushFunc is called when the aggregated data must be flushed.
-//
-// opts can contain additional options. If opts is nil, then default options are used.
-//
-// MustStop must be called on the returned Aggregators when they are no longer needed.
-func NewAggregators(cfgs []*Config, pushFunc PushFunc, opts *Options) (*Aggregators, error) {
+func newAggregatorsFromData(data []byte, pushFunc PushFunc, opts *Options) (*Aggregators, error) {
+	var cfgs []*Config
+	if err := yaml.UnmarshalStrict(data, &cfgs); err != nil {
+		return nil, fmt.Errorf("cannot parse stream aggregation config: %w", err)
+	}
+
 	ms := metrics.NewSet()
 	as := make([]*aggregator, len(cfgs))
 	for i, cfg := range cfgs {
@@ -299,7 +304,7 @@ func (a *Aggregators) Equal(b *Aggregators) bool {
 // Otherwise it allocates new matchIdxs.
 func (a *Aggregators) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) []byte {
 	matchIdxs = bytesutil.ResizeNoCopyMayOverallocate(matchIdxs, len(tss))
-	for i := 0; i < len(matchIdxs); i++ {
+	for i := range matchIdxs {
 		matchIdxs[i] = 0
 	}
 	if a == nil {
@@ -316,6 +321,8 @@ func (a *Aggregators) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) []b
 // aggregator aggregates input series according to the config passed to NewAggregator
 type aggregator struct {
 	match *promrelabel.IfExpression
+
+	dropInputLabels []string
 
 	inputRelabeling  *promrelabel.ParsedConfigs
 	outputRelabeling *promrelabel.ParsedConfigs
@@ -354,7 +361,7 @@ type aggregator struct {
 
 type aggrState interface {
 	pushSamples(samples []pushSample)
-	flushState(ctx *flushCtx)
+	flushState(ctx *flushCtx, resetState bool)
 }
 
 // PushFunc is called by Aggregators when it needs to push its state to metrics storage
@@ -371,6 +378,9 @@ func newAggregator(cfg *Config, pushFunc PushFunc, ms *metrics.Set, opts *Option
 	}
 
 	// check cfg.Interval
+	if cfg.Interval == "" {
+		return nil, fmt.Errorf("missing `interval` option")
+	}
 	interval, err := time.ParseDuration(cfg.Interval)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse `interval: %q`: %w", cfg.Interval, err)
@@ -405,6 +415,12 @@ func newAggregator(cfg *Config, pushFunc PushFunc, ms *metrics.Set, opts *Option
 		if stalenessInterval < interval {
 			return nil, fmt.Errorf("staleness_interval=%s cannot be smaller than interval=%s", cfg.StalenessInterval, cfg.Interval)
 		}
+	}
+
+	// Check cfg.DropInputLabels
+	dropInputLabels := opts.DropInputLabels
+	if v := cfg.DropInputLabels; v != nil {
+		dropInputLabels = *v
 	}
 
 	// initialize input_relabel_configs and output_relabel_configs
@@ -524,6 +540,7 @@ func newAggregator(cfg *Config, pushFunc PushFunc, ms *metrics.Set, opts *Option
 	a := &aggregator{
 		match: cfg.Match,
 
+		dropInputLabels:  dropInputLabels,
 		inputRelabeling:  inputRelabeling,
 		outputRelabeling: outputRelabeling,
 
@@ -569,98 +586,111 @@ func newAggregator(cfg *Config, pushFunc PushFunc, ms *metrics.Set, opts *Option
 }
 
 func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipIncompleteFlush bool, interval, dedupInterval time.Duration) {
-	flushTickerCh := make(chan *time.Ticker, 1)
-	dedupFlushTickerCh := make(chan *time.Ticker, 1)
-	go func() {
+	alignedSleep := func(d time.Duration) {
 		if !alignFlushToInterval {
-			flushTickerCh <- time.NewTicker(interval)
-			if dedupInterval > 0 {
-				dedupFlushTickerCh <- time.NewTicker(dedupInterval)
-			}
 			return
 		}
 
-		sleep := func(d time.Duration) {
-			timer := timerpool.Get(d)
-			defer timerpool.Put(timer)
-			select {
-			case <-a.stopCh:
-			case <-timer.C:
-			}
-		}
-		currentTime := time.Duration(time.Now().UnixNano())
-		if dedupInterval > 0 {
-			d := dedupInterval - (currentTime % dedupInterval)
-			if d < dedupInterval {
-				sleep(d)
-			}
-			dedupFlushTickerCh <- time.NewTicker(dedupInterval)
-			currentTime += d
-		}
-		d := interval - (currentTime % interval)
-		if d < interval {
-			sleep(d)
-		}
-		flushTickerCh <- time.NewTicker(interval)
-	}()
-
-	var flushTickerC <-chan time.Time
-	var dedupFlushTickerC <-chan time.Time
-	isFirstFlush := true
-	for {
+		ct := time.Duration(time.Now().UnixNano())
+		dSleep := d - (ct % d)
+		timer := timerpool.Get(dSleep)
+		defer timer.Stop()
 		select {
 		case <-a.stopCh:
-			if !skipIncompleteFlush {
-				if dedupInterval > 0 {
-					a.dedupFlush()
+		case <-timer.C:
+		}
+	}
+
+	tickerWait := func(t *time.Ticker) bool {
+		select {
+		case <-a.stopCh:
+			return false
+		case <-t.C:
+			return true
+		}
+	}
+
+	if dedupInterval <= 0 {
+		alignedSleep(interval)
+		t := time.NewTicker(interval)
+		defer t.Stop()
+
+		if alignFlushToInterval && skipIncompleteFlush {
+			a.flush(nil, interval, true)
+		}
+
+		for tickerWait(t) {
+			a.flush(pushFunc, interval, true)
+
+			if alignFlushToInterval {
+				select {
+				case <-t.C:
+				default:
 				}
-				a.flush(pushFunc)
 			}
-			return
-		case flushTicker := <-flushTickerCh:
-			flushTickerC = flushTicker.C
-			defer flushTicker.Stop()
-		case dedupFlushTicker := <-dedupFlushTickerCh:
-			dedupFlushTickerC = dedupFlushTicker.C
-			defer dedupFlushTicker.Stop()
-		case <-flushTickerC:
-			if isFirstFlush {
-				isFirstFlush = false
-				if alignFlushToInterval && skipIncompleteFlush {
-					a.flush(nil)
-					continue
+		}
+	} else {
+		alignedSleep(dedupInterval)
+		t := time.NewTicker(dedupInterval)
+		defer t.Stop()
+
+		flushDeadline := time.Now().Add(interval)
+		isSkippedFirstFlush := false
+		for tickerWait(t) {
+			a.dedupFlush(dedupInterval)
+
+			ct := time.Now()
+			if ct.After(flushDeadline) {
+				// It is time to flush the aggregated state
+				if alignFlushToInterval && skipIncompleteFlush && !isSkippedFirstFlush {
+					a.flush(nil, interval, true)
+					isSkippedFirstFlush = true
+				} else {
+					a.flush(pushFunc, interval, true)
+				}
+				for ct.After(flushDeadline) {
+					flushDeadline = flushDeadline.Add(interval)
 				}
 			}
-			startTime := time.Now()
-			a.flush(pushFunc)
-			d := time.Since(startTime)
-			a.flushDuration.Update(d.Seconds())
-			if d > interval {
-				a.flushTimeouts.Inc()
-				logger.Warnf("stream aggregation couldn't be finished in the configured interval=%s; it took %s; "+
-					"possible solutions: increase interval; use match filter matching smaller number of series; "+
-					"reduce samples' ingestion rate to stream aggregation", interval, d)
-			}
-		case <-dedupFlushTickerC:
-			startTime := time.Now()
-			a.dedupFlush()
-			d := time.Since(startTime)
-			a.dedupFlushDuration.Update(d.Seconds())
-			if d > dedupInterval {
-				a.dedupFlushTimeouts.Inc()
-				logger.Warnf("stream aggregation deduplication couldn't be finished in the configured dedup_interval=%s; it took %s; "+
-					"possible solutions: increase dedup_interval; use match filter matching smaller number of series; "+
-					"reduce samples' ingestion rate to stream aggregation", dedupInterval, d)
+
+			if alignFlushToInterval {
+				select {
+				case <-t.C:
+				default:
+				}
 			}
 		}
 	}
+
+	if !skipIncompleteFlush {
+		a.dedupFlush(dedupInterval)
+		a.flush(pushFunc, interval, true)
+	}
 }
 
-func (a *aggregator) dedupFlush() {
-	a.da.flush(a.pushSamples)
+func (a *aggregator) dedupFlush(dedupInterval time.Duration) {
+	if dedupInterval <= 0 {
+		// The de-duplication is disabled.
+		return
+	}
+
+	startTime := time.Now()
+
+	a.da.flush(a.pushSamples, true)
+
+	d := time.Since(startTime)
+	a.dedupFlushDuration.Update(d.Seconds())
+	if d > dedupInterval {
+		a.dedupFlushTimeouts.Inc()
+		logger.Warnf("deduplication couldn't be finished in the configured dedup_interval=%s; it took %.03fs; "+
+			"possible solutions: increase dedup_interval; use match filter matching smaller number of series; "+
+			"reduce samples' ingestion rate to stream aggregation", dedupInterval, d.Seconds())
+	}
 }
 
-func (a *aggregator) flush(pushFunc PushFunc) {
+func (a *aggregator) flush(pushFunc PushFunc, interval time.Duration, resetState bool) {
+	startTime := time.Now()
+
 	var wg sync.WaitGroup
 	for _, as := range a.aggrStates {
 		flushConcurrencyCh <- struct{}{}
@@ -672,13 +702,22 @@ func (a *aggregator) flush(pushFunc PushFunc) {
 			}()
 
 			ctx := getFlushCtx(a, pushFunc)
-			as.flushState(ctx)
+			as.flushState(ctx, resetState)
 			ctx.flushSeries()
 			ctx.resetSeries()
 			putFlushCtx(ctx)
 		}(as)
 	}
 	wg.Wait()
+
+	d := time.Since(startTime)
+	a.flushDuration.Update(d.Seconds())
+	if d > interval {
+		a.flushTimeouts.Inc()
+		logger.Warnf("stream aggregation couldn't be finished in the configured interval=%s; it took %.03fs; "+
+			"possible solutions: increase interval; use match filter matching smaller number of series; "+
+			"reduce samples' ingestion rate to stream aggregation", interval, d.Seconds())
+	}
 }
 
 var flushConcurrencyCh = make(chan struct{}, cgroup.AvailableCPUs())
@@ -697,18 +736,23 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 	defer putPushCtx(ctx)
 
 	samples := ctx.samples
+	buf := ctx.buf
 	labels := &ctx.labels
 	inputLabels := &ctx.inputLabels
 	outputLabels := &ctx.outputLabels
-	buf := ctx.buf
 
+	dropLabels := a.dropInputLabels
 	for idx, ts := range tss {
 		if !a.match.Match(ts.Labels) {
 			continue
 		}
 		matchIdxs[idx] = 1
 
-		labels.Labels = append(labels.Labels[:0], ts.Labels...)
+		if len(dropLabels) > 0 {
+			labels.Labels = dropSeriesLabels(labels.Labels[:0], ts.Labels, dropLabels)
+		} else {
+			labels.Labels = append(labels.Labels[:0], ts.Labels...)
+		}
 		labels.Labels = a.inputRelabeling.Apply(labels.Labels, 0)
 		if len(labels.Labels) == 0 {
 			// The metric has been deleted by the relabeling
@@ -724,15 +768,15 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 			outputLabels.Labels = append(outputLabels.Labels, labels.Labels...)
 		}
 
-		bufLen := len(buf)
-		buf = a.compressLabels(buf, inputLabels.Labels, outputLabels.Labels)
+		buf = compressLabels(buf[:0], &a.lc, inputLabels.Labels, outputLabels.Labels)
+		key := bytesutil.InternBytes(buf)
 		for _, sample := range ts.Samples {
 			if math.IsNaN(sample.Value) {
 				// Skip NaN values
 				continue
 			}
 			samples = append(samples, pushSample{
-				key:   bytesutil.ToUnsafeString(buf[bufLen:]),
+				key:   key,
 				value: sample.Value,
 			})
 		}
@@ -747,19 +791,18 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 	}
 }
 
-func (a *aggregator) compressLabels(dst []byte, inputLabels, outputLabels []prompbmarshal.Label) []byte {
+func compressLabels(dst []byte, lc *promutils.LabelsCompressor, inputLabels, outputLabels []prompbmarshal.Label) []byte {
 	bb := bbPool.Get()
-	bb.B = a.lc.Compress(bb.B, inputLabels)
+	bb.B = lc.Compress(bb.B, inputLabels)
 	dst = encoding.MarshalVarUint64(dst, uint64(len(bb.B)))
 	dst = append(dst, bb.B...)
 	bbPool.Put(bb)
-	dst = a.lc.Compress(dst, outputLabels)
+	dst = lc.Compress(dst, outputLabels)
 	return dst
 }
 
-func (a *aggregator) decompressLabels(dst []prompbmarshal.Label, key string) []prompbmarshal.Label {
-	dst = a.lc.Decompress(dst, bytesutil.ToUnsafeBytes(key))
-	return dst
+func decompressLabels(dst []prompbmarshal.Label, lc *promutils.LabelsCompressor, key string) []prompbmarshal.Label {
+	return lc.Decompress(dst, bytesutil.ToUnsafeBytes(key))
 }
 
 func getOutputKey(key string) string {
@@ -882,7 +925,8 @@ func (ctx *flushCtx) reset() {
 }
 
 func (ctx *flushCtx) resetSeries() {
-	ctx.tss = prompbmarshal.ResetTimeSeries(ctx.tss)
+	clear(ctx.tss)
+	ctx.tss = ctx.tss[:0]
 
 	clear(ctx.labels)
 	ctx.labels = ctx.labels[:0]
@@ -931,7 +975,7 @@ func (ctx *flushCtx) flushSeries() {
 func (ctx *flushCtx) appendSeries(key, suffix string, timestamp int64, value float64) {
 	labelsLen := len(ctx.labels)
 	samplesLen := len(ctx.samples)
-	ctx.labels = ctx.a.decompressLabels(ctx.labels, key)
+	ctx.labels = decompressLabels(ctx.labels, &ctx.a.lc, key)
 	if !ctx.a.keepMetricNames {
 		ctx.labels = addMetricSuffix(ctx.labels, labelsLen, ctx.a.suffix, suffix)
 	}
@@ -954,7 +998,7 @@ func (ctx *flushCtx) appendSeries(key, suffix string, timestamp int64, value flo
 func (ctx *flushCtx) appendSeriesWithExtraLabel(key, suffix string, timestamp int64, value float64, extraName, extraValue string) {
 	labelsLen := len(ctx.labels)
 	samplesLen := len(ctx.samples)
-	ctx.labels = ctx.a.decompressLabels(ctx.labels, key)
+	ctx.labels = decompressLabels(ctx.labels, &ctx.a.lc, key)
 	if !ctx.a.keepMetricNames {
 		ctx.labels = addMetricSuffix(ctx.labels, labelsLen, ctx.a.suffix, suffix)
 	}
