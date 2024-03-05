@@ -16,6 +16,11 @@ aliases:
 
 ## Next release
 
+<a name="v0.42.1"></a>
+## [v0.42.](https://github.com/VictoriaMetrics/operator/releases/tag/v0.42.1) - 5 Mar 2024
+
+- [operator](./README.md): properly watch for prometheus CRD objects. See this [issue](https://github.com/VictoriaMetrics/operator/issues/892) for details.
+
 <a name="v0.42.0"></a>
 ## [v0.42.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.42.0) - 4 Mar 2024
 
