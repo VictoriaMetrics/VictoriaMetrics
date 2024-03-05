@@ -1,10 +1,12 @@
 package streamaggr
 
 import (
+	"slices"
 	"sync"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 	"github.com/VictoriaMetrics/metrics"
@@ -15,20 +17,31 @@ type Deduplicator struct {
 	da *dedupAggr
 	lc promutils.LabelsCompressor
 
+	dropLabels []string
+
 	wg     sync.WaitGroup
 	stopCh chan struct{}
 
 	ms *metrics.Set
+
+	dedupFlushDuration *metrics.Histogram
+	dedupFlushTimeouts *metrics.Counter
 }
 
 // NewDeduplicator returns new deduplicator, which deduplicates samples per each time series.
 //
 // The de-duplicated samples are passed to pushFunc once per dedupInterval.
 //
+// An optional dropLabels list may contain label names, which must be dropped before de-duplicating samples.
+// Common case is to drop `replica`-like labels from samples received from HA datasources.
+//
 // MustStop must be called on the returned deduplicator in order to free up occupied resources.
-func NewDeduplicator(pushFunc PushFunc, dedupInterval time.Duration) *Deduplicator {
+func NewDeduplicator(pushFunc PushFunc, dedupInterval time.Duration, dropLabels []string) *Deduplicator {
 	d := &Deduplicator{
-		da:     newDedupAggr(),
+		da: newDedupAggr(),
+
+		dropLabels: dropLabels,
+
 		stopCh: make(chan struct{}),
 		ms:     metrics.NewSet(),
 	}
@@ -47,6 +60,10 @@ func NewDeduplicator(pushFunc PushFunc, dedupInterval time.Duration) *Deduplicat
 	_ = ms.NewGauge(`vm_streamaggr_labels_compressor_items_count`, func() float64 {
 		return float64(d.lc.ItemsCount())
 	})
+
+	d.dedupFlushDuration = ms.GetOrCreateHistogram(`vm_streamaggr_dedup_flush_duration_seconds`)
+	d.dedupFlushTimeouts = ms.GetOrCreateCounter(`vm_streamaggr_dedup_flush_timeouts_total`)
+
 	metrics.RegisterSet(ms)
 
 	d.wg.Add(1)
@@ -71,10 +88,22 @@ func (d *Deduplicator) MustStop() {
 func (d *Deduplicator) Push(tss []prompbmarshal.TimeSeries) {
 	ctx := getDeduplicatorPushCtx()
 	pss := ctx.pss
+	labels := &ctx.labels
 	buf := ctx.buf
 
+	dropLabels := d.dropLabels
 	for _, ts := range tss {
-		buf = d.lc.Compress(buf[:0], ts.Labels)
+		if len(dropLabels) > 0 {
+			labels.Labels = dropSeriesLabels(labels.Labels[:0], ts.Labels, dropLabels)
+		} else {
+			labels.Labels = append(labels.Labels[:0], ts.Labels...)
+		}
+		if len(labels.Labels) == 0 {
+			continue
+		}
+		labels.Sort()
+
+		buf = d.lc.Compress(buf[:0], labels.Labels)
 		key := bytesutil.InternBytes(buf)
 		for _, s := range ts.Samples {
 			pss = append(pss, pushSample{
@@ -91,6 +120,15 @@ func (d *Deduplicator) Push(tss []prompbmarshal.TimeSeries) {
 	putDeduplicatorPushCtx(ctx)
 }
 
+func dropSeriesLabels(dst, src []prompbmarshal.Label, labelNames []string) []prompbmarshal.Label {
+	for _, label := range src {
+		if !slices.Contains(labelNames, label.Name) {
+			dst = append(dst, label)
+		}
+	}
+	return dst
+}
+
 func (d *Deduplicator) runFlusher(pushFunc PushFunc, dedupInterval time.Duration) {
 	t := time.NewTicker(dedupInterval)
 	defer t.Stop()
@@ -99,13 +137,15 @@ func (d *Deduplicator) runFlusher(pushFunc PushFunc, dedupInterval time.Duration
 		case <-d.stopCh:
 			return
 		case <-t.C:
-			d.flush(pushFunc)
+			d.flush(pushFunc, dedupInterval)
 		}
 	}
 }
 
-func (d *Deduplicator) flush(pushFunc PushFunc) {
-	timestamp := time.Now().UnixMilli()
+func (d *Deduplicator) flush(pushFunc PushFunc, dedupInterval time.Duration) {
+	startTime := time.Now()
+
+	timestamp := startTime.UnixMilli()
 	d.da.flush(func(pss []pushSample) {
 		ctx := getDeduplicatorFlushCtx()
 
@@ -134,16 +174,28 @@ func (d *Deduplicator) flush(pushFunc PushFunc) {
 		ctx.samples = samples
 		putDeduplicatorFlushCtx(ctx)
 	}, true)
+
+	duration := time.Since(startTime)
+	d.dedupFlushDuration.Update(duration.Seconds())
+	if duration > dedupInterval {
+		d.dedupFlushTimeouts.Inc()
+		logger.Warnf("deduplication couldn't be finished in the configured dedupInterval=%s; it took %.03fs; "+
+			"possible solutions: increase dedupInterval; reduce samples' ingestion rate", dedupInterval, duration.Seconds())
+	}
+
 }
 
 type deduplicatorPushCtx struct {
-	pss []pushSample
-	buf []byte
+	pss    []pushSample
+	labels promutils.Labels
+	buf    []byte
 }
 
 func (ctx *deduplicatorPushCtx) reset() {
 	clear(ctx.pss)
 	ctx.pss = ctx.pss[:0]
+
+	ctx.labels.Reset()
 
 	ctx.buf = ctx.buf[:0]
 }

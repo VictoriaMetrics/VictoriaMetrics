@@ -76,6 +76,8 @@ to the configured `-remoteWrite.url`. The de-duplication can be enabled via the 
 
   - By specifying `dedup_interval` option individually per each [stream aggregation config](#stream-aggregation-config) at `-streamAggr.config`.
 
+It is possible to drop the given labels before applying the de-duplication. See [these docs](#dropping-unneeded-labels).
+
 The online de-duplication doesn't take into account timestamps associated with the de-duplicated samples - it just leaves the last seen sample
 on the configured deduplication interval. If you need taking into account timestamps during the de-duplication,
 then use [`-dedup.minScrapeInterval` command-line flag](https://docs.victoriametrics.com/#deduplication).
@@ -446,6 +448,32 @@ Another option to remove the suffix, which is added by stream aggregation, is to
   outputs: [sum_samples]
   keep_metric_names: true
 ```
+
+See also [dropping unneded labels](#dropping-unneeded-labels).
+
+
+## Dropping unneeded labels
+
+If you need dropping some labels from input samples before [input relabeling](#relabeling), [de-duplication](#deduplication)
+and [stream aggregation](#aggregation-outputs), then the following options exist:
+
+- To specify comma-separated list of label names to drop in `-streamAggr.dropInputLabels` command-line flag.
+  For example, `-streamAggr.dropInputLabels=replica,az` instructs to drop `replica` and `az` labels from input samples
+  before applying de-duplication and stream aggregation.
+
+- To specify `drop_input_labels` list with the labels to drop in [stream aggregation config](#stream-aggregation-config).
+  For example, the following config drops `replica` label from input samples with the name `process_resident_memory_bytes`
+  before calculating the average over one minute:
+
+  ```yaml
+  - match: process_resident_memory_bytes
+    interval: 1m
+    drop_input_labels: [replica]
+    outputs: [avg]
+    keep_metric_names: true
+  ```
+
+Typical use case is to drop `replica` label from samples, which are recevied from high availability replicas.
 
 ## Aggregation outputs
 
@@ -888,6 +916,13 @@ at [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-
   # See https://docs.victoriametrics.com/stream-aggregation/#output-metric-names
   #
   # keep_metric_names: false
+
+  # drop_input_labels instructs dropping the given labels from input samples.
+  # The labels' dropping is performed before input_relabel_configs are applied.
+  # This also means that the labels are dropped before de-duplication ( https://docs.victoriametrics.com/stream-aggregation.html#deduplication )
+  # and stream aggregation.
+  #
+  # drop_input_labels: [replica, availability_zone]
 
   # input_relabel_configs is an optional relabeling rules,
   # which are applied to the incoming samples after they pass the match filter
