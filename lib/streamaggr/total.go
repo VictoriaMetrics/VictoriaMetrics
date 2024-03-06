@@ -31,8 +31,9 @@ type totalAggrState struct {
 	// cannot be distinguished from already existing series. This is tracked with ignoreFirstSampleDeadline.
 	ignoreFirstSampleDeadline uint64
 
-	// Ignore samples which were older than the last seen sample. This is preferable to treating it as a
-	// counter reset.
+	// Ignore samples which were older than the last seen sample. For a given Prometheus counter,
+	// new samples are always >= old samples. It is preferable to ignore such samples rather than treat them as
+	// counter resets.
 	ignoreOutOfOrderSamples bool
 }
 
