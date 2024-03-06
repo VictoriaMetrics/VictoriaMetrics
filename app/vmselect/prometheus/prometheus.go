@@ -1181,18 +1181,21 @@ func getCommonParamsInternal(r *http.Request, startTime time.Time, requireNonEmp
 	if requireNonEmptyMatch && len(matches) == 0 {
 		return nil, fmt.Errorf("missing `match[]` arg")
 	}
+	filterss, err := getTagFilterssFromMatches(matches)
+	if err != nil {
+		return nil, err
+	}
 
-	var filterss [][]storage.TagFilter
-	if !isLabelsAPI || !*ignoreExtraFiltersAtLabelsAPI {
-		tagFilterss, err := getTagFilterssFromMatches(matches)
-		if err != nil {
-			return nil, err
-		}
+	if len(filterss) > 0 || !isLabelsAPI || !*ignoreExtraFiltersAtLabelsAPI {
+		// If matches isn't empty, then there is no sense in ignoring extra filters
+		// even if ignoreExtraLabelsAtLabelsAPI is set, since extra filters won't slow down
+		// the query - they can only improve query performance by reducing the number
+		// of matching series at the storage level.
 		etfs, err := searchutils.GetExtraTagFilters(r)
 		if err != nil {
 			return nil, err
 		}
-		filterss = searchutils.JoinTagFilterss(tagFilterss, etfs)
+		filterss = searchutils.JoinTagFilterss(filterss, etfs)
 	}
 
 	cp := &commonParams{
