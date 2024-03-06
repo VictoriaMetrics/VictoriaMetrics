@@ -13,6 +13,7 @@ import (
 	"net/textproto"
 	"net/url"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -271,7 +272,7 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 		logger.Warnf("remoteAddr: %s; requestURI: %s; retrying the request to %s because of response error: %s", remoteAddr, req.URL, targetURL, err)
 		return false
 	}
-	if hasInt(retryStatusCodes, res.StatusCode) {
+	if slices.Contains(retryStatusCodes, res.StatusCode) {
 		_ = res.Body.Close()
 		if !rtbOK || !rtb.canRetry() {
 			// If we get an error from the retry_status_codes list, but cannot execute retry,
@@ -311,15 +312,6 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 		return true
 	}
 	return true
-}
-
-func hasInt(a []int, n int) bool {
-	for _, x := range a {
-		if x == n {
-			return true
-		}
-	}
-	return false
 }
 
 var copyBufPool bytesutil.ByteBufferPool
