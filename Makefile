@@ -1,5 +1,6 @@
 PKG_PREFIX := github.com/VictoriaMetrics/VictoriaMetrics
 
+
 MAKE_CONCURRENCY ?= $(shell getconf _NPROCESSORS_ONLN)
 MAKE_PARALLEL := $(MAKE) -j $(MAKE_CONCURRENCY)
 DATEINFO_TAG ?= $(shell date -u +'%Y%m%d-%H%M%S')
