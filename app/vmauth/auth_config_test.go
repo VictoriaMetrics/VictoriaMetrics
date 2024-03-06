@@ -328,7 +328,7 @@ users:
 - username: foo
   url_prefix: http://foo
 - username: bar
-  url_prefix: https://bar/x///
+  url_prefix: https://bar/x/
 `, map[string]*UserInfo{
 		getHTTPAuthBasicToken("foo", ""): {
 			Username:  "foo",
@@ -336,7 +336,7 @@ users:
 		},
 		getHTTPAuthBasicToken("bar", ""): {
 			Username:  "bar",
-			URLPrefix: mustParseURL("https://bar/x"),
+			URLPrefix: mustParseURL("https://bar/x/"),
 		},
 	})
 
@@ -409,7 +409,7 @@ users:
   url_prefix: http://foo
 - username: foo-same
   password: bar
-  url_prefix: https://bar/x///
+  url_prefix: https://bar/x
 `, map[string]*UserInfo{
 		getHTTPAuthBasicToken("foo-same", "baz"): {
 			Username:  "foo-same",
@@ -516,7 +516,7 @@ users:
     team: dev
 - username: foo-same
   password: bar
-  url_prefix: https://bar/x///
+  url_prefix: https://bar/x
   metric_labels:
     backend_env: test
     team: accounting
@@ -710,9 +710,14 @@ func mustParseURLs(us []string) *URLPrefix {
 			url: pu,
 		}
 	}
-	return &URLPrefix{
-		bus: bus,
+	up := &URLPrefix{}
+	if len(us) == 1 {
+		up.vOriginal = us[0]
+	} else {
+		up.vOriginal = us
 	}
+	up.bus.Store(&bus)
+	return up
 }
 
 func intp(n int) *int {

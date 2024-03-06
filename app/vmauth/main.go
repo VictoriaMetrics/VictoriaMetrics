@@ -239,7 +239,14 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 	// This code has been copied from net/http/httputil/reverseproxy.go
 	req := sanitizeRequestHeaders(r)
 	req.URL = targetURL
-	req.Host = targetURL.Host
+
+	if req.URL.Scheme == "https" {
+		// Override req.Host only for https requests, since https server verifies hostnames during TLS handshake,
+		// so it expects the targetURL.Host in the request.
+		// There is no need in overriding the req.Host for http requests, since it is expected that backend server
+		// may properly process queries with the original req.Host.
+		req.Host = targetURL.Host
+	}
 	updateHeadersByConfig(req.Header, hc.RequestHeaders)
 	res, err := ui.httpTransport.RoundTrip(req)
 	rtb, rtbOK := req.Body.(*readTrackingBody)

@@ -401,6 +401,7 @@ Each `url_prefix` in the [-auth.config](#auth-config) can be specified in the fo
 
   In this case `vmauth` spreads requests among the specified urls using least-loaded round-robin policy.
   This guarantees that incoming load is shared uniformly among the specified backends.
+  See also [discovering backend IPs](#discovering-backend-ips).
 
   `vmauth` automatically detects temporarily unavailable backends and spreads incoming queries among the remaining available backends.
   This allows restarting the backends and peforming mantenance tasks on the backends without the need to remove them from the `url_prefix` list.
@@ -465,6 +466,49 @@ Load balancing feature can be used in the following cases:
   ```
 
 Load balancig can be configured independently per each `user` entry and per each `url_map` entry. See [auth config docs](#auth-config) for more details.
+
+See also [discovering backend IPs](#discovering-backend-ips).
+
+## Discovering backend IPs
+
+By default `vmauth` spreads load among the listed backends at `url_prefix` as described in [load balancing docs](#load-balancing).
+Sometimes multiple backend instances can be hidden behind a single hostname. For example, `vmselect-service` hostname
+may point to a cluster of `vmselect` instances in [VictoriaMetrics cluster setup](https://docs.victoriametrics.com/cluster-victoriametrics/#architecture-overview).
+So the following config may fail spreading load among available `vmselect` instances, since `vmauth` will send all the requests to the same url, which may end up
+to a single backend instance:
+
+```yaml
+unauthorized_user:
+  url_prefix: http://vmselect-service/select/0/prometheus/
+```
+
+There are the following solutions for this issue:
+
+- To enumerate every `vmselect` hosname or IP in the `url_prefix` list:
+
+  ```yaml
+  unauthorized_user:
+    url_prefix:
+    - http://vmselect-1:8481/select/0/prometheus/
+    - http://vmselect-2:8481/select/0/prometheus/
+    - http://vmselect-3:8481/select/0/prometheus/
+  ```
+
+  This scheme works great, but it needs manual updating of the [`-auth.config`](#auth-config) every time `vmselect` services are restarted,
+  downsaled or upscaled.
+
+- To set `discover_backend_ips: true` option, so `vmagent` automatically discovers IPs behind the given hostname and then spreads load among the discovered IPs:
+
+  ```yaml
+  unauthorized_user:
+    url_prefix: http://vmselect-service/select/0/prometheus/
+    discover_backend_ips: true
+  ```
+
+  The `discover_backend_ips` can be specified at `user` and `url_map` level in the [`-auth.config](#auth-config). It can also be enabled globally
+  via `-discoverBackendIPs` command-line flag.
+
+See also [load balancing docs](#load-balancing).
 
 ## Modifying HTTP headers
 
