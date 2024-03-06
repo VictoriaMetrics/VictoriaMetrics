@@ -163,13 +163,36 @@ type URLMap struct {
 
 // Regex represents a regex
 type Regex struct {
+	re *regexp.Regexp
+
 	sOriginal string
-	re        *regexp.Regexp
 }
 
+// QueryArg represents HTTP query arg
 type QueryArg struct {
 	Name  string `yaml:"name"`
 	Value string `yaml:"value,omitempty"`
+
+	sOriginal string
+}
+
+// UnmarshalYAML unmarshals up from yaml.
+func (qa *QueryArg) UnmarshalYAML(f func(interface{}) error) error {
+	if err := f(&qa.sOriginal); err != nil {
+		return err
+	}
+
+	n := strings.IndexByte(qa.sOriginal, '=')
+	if n >= 0 {
+		qa.Name = qa.sOriginal[:n]
+		qa.Value = qa.sOriginal[n+1:]
+	}
+	return nil
+}
+
+// MarshalYAML marshals up to yaml.
+func (qa *QueryArg) MarshalYAML() (interface{}, error) {
+	return qa.sOriginal, nil
 }
 
 // URLPrefix represents passed `url_prefix`
