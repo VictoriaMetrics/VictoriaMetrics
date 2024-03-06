@@ -75,7 +75,7 @@ unauthorized_user:
 
 ### Generic HTTP proxy for different backends
 
-`vmauth` can proxy requests to different backends depending on the requested host and/or path.
+`vmauth` can proxy requests to different backends depending on the requested host, path and [query args](https://en.wikipedia.org/wiki/Query_string).
 For example, the following [`-auth.config`](#auth-config) instructs `vmauth` to make the following:
 
 - Requests starting with `/app1/` are proxied to `http://app1-backend/`, while the `/app1/` path prefix is dropped according to [`drop_src_path_prefix_parts`](#dropping-request-path-prefix).
