@@ -949,6 +949,10 @@ See the docs at https://docs.victoriametrics.com/vmauth.html .
      Whether to skip TLS verification when connecting to backends over HTTPS. See https://docs.victoriametrics.com/vmauth.html#backend-tls-setup
   -configCheckInterval duration
      interval for config file re-read. Zero value disables config re-reading. By default, refreshing is disabled, send SIGHUP for config refresh.
+  -discoverBackendIPs
+     Whether to discover backend IPs via periodic DNS queries to hostnames specified in url_prefix. This may be useful when url_prefix points to a hostname with dynamically scaled instances behind it. See https://docs.victoriametrics.com/vmauth.html#discovering-backend-ips
+  -discoverBackendIPsInterval duration
+     The interval for re-discovering backend IPs if -discoverBackendIPs command-line flag is set. Too low value may lead to DNS errors (default 10s)
   -enableTCP6
      Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP are used
   -envflag.enable
@@ -1010,7 +1014,7 @@ See the docs at https://docs.victoriametrics.com/vmauth.html .
   -licenseFile string
      Path to file with license key for VictoriaMetrics Enterprise. See https://victoriametrics.com/products/enterprise/ . Trial Enterprise license can be obtained from https://victoriametrics.com/products/enterprise/trial/ . This flag is available only in Enterprise binaries. The license key can be also passed inline via -license command-line flag
   -loadBalancingPolicy string
-     The default load balancing policy to use for backend urls specified inside url_prefix section. Supported policies: least_loaded, first_available. See https://docs.victoriametrics.com/vmauth.html#load-balancing for more details (default "least_loaded")
+     The default load balancing policy to use for backend urls specified inside url_prefix section. Supported policies: least_loaded, first_available. See https://docs.victoriametrics.com/vmauth.html#load-balancing (default "least_loaded")
   -logInvalidAuthTokens
      Whether to log requests with invalid auth tokens. Such requests are always counted at vmauth_http_request_errors_total{reason="invalid_auth_token"} metric, which is exposed at /metrics page
   -loggerDisableTimestamps
