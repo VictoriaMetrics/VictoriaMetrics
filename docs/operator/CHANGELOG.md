@@ -16,6 +16,13 @@ aliases:
 
 ## Next release
 
+<a name="v0.42.2"></a>
+## [v0.42.](https://github.com/VictoriaMetrics/operator/releases/tag/v0.42.2) - 6 Mar 2024
+
+- [operator](./README.md): fixes alertmanager args typo.
+- [prometheus-converter](./README.md): adds new flag `controller.prometheusCRD.resyncPeriod` which allows to configure resync period of prometheus CRD objects. See this [issue](https://github.com/VictoriaMetrics/operator/issues/869) for details.
+
+
 <a name="v0.42.1"></a>
 ## [v0.42.](https://github.com/VictoriaMetrics/operator/releases/tag/v0.42.1) - 5 Mar 2024
 
