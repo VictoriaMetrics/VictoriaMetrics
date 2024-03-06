@@ -2,15 +2,17 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"flag"
 	"fmt"
+	"math"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"regexp"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -36,7 +38,11 @@ var (
 	defaultRetryStatusCodes = flagutil.NewArrayInt("retryStatusCodes", 0, "Comma-separated list of default HTTP response status codes when vmauth re-tries the request on other backends. "+
 		"See https://docs.victoriametrics.com/vmauth.html#load-balancing for details")
 	defaultLoadBalancingPolicy = flag.String("loadBalancingPolicy", "least_loaded", "The default load balancing policy to use for backend urls specified inside url_prefix section. "+
-		"Supported policies: least_loaded, first_available. See https://docs.victoriametrics.com/vmauth.html#load-balancing for more details")
+		"Supported policies: least_loaded, first_available. See https://docs.victoriametrics.com/vmauth.html#load-balancing")
+	discoverBackendIPsGlobal = flag.Bool("discoverBackendIPs", false, "Whether to discover backend IPs via periodic DNS queries to hostnames specified in url_prefix. "+
+		"This may be useful when url_prefix points to a hostname with dynamically scaled instances behind it. See https://docs.victoriametrics.com/vmauth.html#discovering-backend-ips")
+	discoverBackendIPsInterval = flag.Duration("discoverBackendIPsInterval", 10*time.Second, "The interval for re-discovering backend IPs if -discoverBackendIPs command-line flag is set. "+
+		"Too low value may lead to DNS errors")
 )
 
 // AuthConfig represents auth config.
@@ -57,6 +63,7 @@ type UserInfo struct {
 	Password    string `yaml:"password,omitempty"`
 
 	URLPrefix              *URLPrefix  `yaml:"url_prefix,omitempty"`
+	DiscoverBackendIPs     *bool       `yaml:"discover_backend_ips,omitempty"`
 	URLMaps                []URLMap    `yaml:"url_map,omitempty"`
 	HeadersConf            HeadersConf `yaml:",inline"`
 	MaxConcurrentRequests  int         `yaml:"max_concurrent_requests,omitempty"`
@@ -111,6 +118,8 @@ func (ui *UserInfo) getMaxConcurrentRequests() int {
 type Header struct {
 	Name  string
 	Value string
+
+	sOriginal string
 }
 
 // UnmarshalYAML unmarshals h from f.
@@ -119,6 +128,8 @@ func (h *Header) UnmarshalYAML(f func(interface{}) error) error {
 	if err := f(&s); err != nil {
 		return err
 	}
+	h.sOriginal = s
+
 	n := strings.IndexByte(s, ':')
 	if n < 0 {
 		return fmt.Errorf("missing speparator char ':' between Name and Value in the header %q; expected format - 'Name: Value'", s)
@@ -130,8 +141,7 @@ func (h *Header) UnmarshalYAML(f func(interface{}) error) error {
 
 // MarshalYAML marshals h to yaml.
 func (h *Header) MarshalYAML() (interface{}, error) {
-	s := fmt.Sprintf("%s: %s", h.Name, h.Value)
-	return s, nil
+	return h.sOriginal, nil
 }
 
 // URLMap is a mapping from source paths to target urls.
@@ -150,6 +160,9 @@ type URLMap struct {
 
 	// UrlPrefix contains backend url prefixes for the proxied request url.
 	URLPrefix *URLPrefix `yaml:"url_prefix,omitempty"`
+
+	// DiscoverBackendIPs instructs discovering URLPrefix backend IPs via DNS.
+	DiscoverBackendIPs *bool `yaml:"discover_backend_ips,omitempty"`
 
 	// HeadersConf is the config for augumenting request and response headers.
 	HeadersConf HeadersConf `yaml:",inline"`
@@ -181,14 +194,16 @@ type QueryArg struct {
 
 // UnmarshalYAML unmarshals up from yaml.
 func (qa *QueryArg) UnmarshalYAML(f func(interface{}) error) error {
-	if err := f(&qa.sOriginal); err != nil {
+	var s string
+	if err := f(&s); err != nil {
 		return err
 	}
+	qa.sOriginal = s
 
-	n := strings.IndexByte(qa.sOriginal, '=')
+	n := strings.IndexByte(s, '=')
 	if n >= 0 {
-		qa.Name = qa.sOriginal[:n]
-		qa.Value = qa.sOriginal[n+1:]
+		qa.Name = s[:n]
+		qa.Value = s[n+1:]
 	}
 	return nil
 }
@@ -200,19 +215,34 @@ func (qa *QueryArg) MarshalYAML() (interface{}, error) {
 
 // URLPrefix represents passed `url_prefix`
 type URLPrefix struct {
-	n atomic.Uint32
-
-	// the list of backend urls
-	bus []*backendURL
-
 	// requests are re-tried on other backend urls for these http response status codes
 	retryStatusCodes []int
 
 	// load balancing policy used
 	loadBalancingPolicy string
 
-	// how many request path prefix parts to drop before routing the request to backendURL.
+	// how many request path prefix parts to drop before routing the request to backendURL
 	dropSrcPathPrefixParts int
+
+	// busOriginal contains the original list of backends specified in yaml config.
+	busOriginal []*url.URL
+
+	// n is an atomic counter, which is used for balancing load among available backends.
+	n atomic.Uint32
+
+	// the list of backend urls
+	//
+	// the list can be dynamically updated if `discover_backend_ips` option is set.
+	bus atomic.Pointer[[]*backendURL]
+
+	// if this option is set, then backend ips for busOriginal are periodically re-discovered and put to bus.
+	discoverBackendIPs bool
+
+	// The next deadline for DNS-based discovery of backend IPs
+	nextDiscoveryDeadline atomic.Uint64
+
+	// vOriginal contains the original yaml value for URLPrefix.
+	vOriginal interface{}
 }
 
 func (up *URLPrefix) setLoadBalancingPolicy(loadBalancingPolicy string) error {
@@ -253,25 +283,121 @@ func (bu *backendURL) put() {
 }
 
 func (up *URLPrefix) getBackendsCount() int {
-	return len(up.bus)
+	pbus := up.bus.Load()
+	return len(*pbus)
 }
 
 // getBackendURL returns the backendURL depending on the load balance policy.
 //
 // backendURL.put() must be called on the returned backendURL after the request is complete.
 func (up *URLPrefix) getBackendURL() *backendURL {
+	up.discoverBackendIPsIfNeeded()
+
+	pbus := up.bus.Load()
+	bus := *pbus
 	if up.loadBalancingPolicy == "first_available" {
-		return up.getFirstAvailableBackendURL()
+		return getFirstAvailableBackendURL(bus)
 	}
-	return up.getLeastLoadedBackendURL()
+	return getLeastLoadedBackendURL(bus, &up.n)
+}
+
+func (up *URLPrefix) discoverBackendIPsIfNeeded() {
+	if !up.discoverBackendIPs {
+		// The discovery is disabled.
+		return
+	}
+
+	ct := fasttime.UnixTimestamp()
+	deadline := up.nextDiscoveryDeadline.Load()
+	if ct < deadline {
+		// There is no need in discovering backends.
+		return
+	}
+
+	intervalSec := math.Ceil(discoverBackendIPsInterval.Seconds())
+	if intervalSec <= 0 {
+		intervalSec = 1
+	}
+	nextDeadline := ct + uint64(intervalSec)
+	if !up.nextDiscoveryDeadline.CompareAndSwap(deadline, nextDeadline) {
+		// Concurrent goroutine already started the discovery.
+		return
+	}
+
+	// Discover ips for all the backendURLs
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*time.Duration(intervalSec))
+	hostToIPs := make(map[string][]string)
+	for _, bu := range up.busOriginal {
+		host := bu.Hostname()
+		if hostToIPs[host] != nil {
+			// ips for the given host have been already discovered
+			continue
+		}
+		addrs, err := resolver.LookupIPAddr(ctx, host)
+		var ips []string
+		if err != nil {
+			logger.Warnf("cannot discover backend IPs for %s: %s; use it literally", bu, err)
+			ips = []string{host}
+		} else {
+			ips = make([]string, len(addrs))
+			for i, addr := range addrs {
+				ips[i] = addr.String()
+			}
+			// sort ips, so they could be compared below in areEqualBackendURLs()
+			sort.Strings(ips)
+		}
+		hostToIPs[host] = ips
+	}
+	cancel()
+
+	// generate new backendURLs for the resolved IPs
+	var busNew []*backendURL
+	for _, bu := range up.busOriginal {
+		host := bu.Hostname()
+		port := bu.Port()
+		for _, ip := range hostToIPs[host] {
+			buCopy := *bu
+			buCopy.Host = ip
+			if port != "" {
+				buCopy.Host += ":" + port
+			}
+			busNew = append(busNew, &backendURL{
+				url: &buCopy,
+			})
+		}
+	}
+
+	pbus := up.bus.Load()
+	if areEqualBackendURLs(*pbus, busNew) {
+		return
+	}
+
+	// Store new backend urls
+	up.bus.Store(&busNew)
+}
+
+func areEqualBackendURLs(a, b []*backendURL) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i, aURL := range a {
+		bURL := b[i]
+		if aURL.url.String() != bURL.url.String() {
+			return false
+		}
+	}
+	return true
+}
+
+var resolver = &net.Resolver{
+	PreferGo:     true,
+	StrictErrors: true,
 }
 
 // getFirstAvailableBackendURL returns the first available backendURL, which isn't broken.
 //
 // backendURL.put() must be called on the returned backendURL after the request is complete.
-func (up *URLPrefix) getFirstAvailableBackendURL() *backendURL {
-	bus := up.bus
-
+func getFirstAvailableBackendURL(bus []*backendURL) *backendURL {
 	bu := bus[0]
 	if !bu.isBroken() {
 		// Fast path - send the request to the first url.
@@ -293,8 +419,7 @@ func (up *URLPrefix) getFirstAvailableBackendURL() *backendURL {
 // getLeastLoadedBackendURL returns the backendURL with the minimum number of concurrent requests.
 //
 // backendURL.put() must be called on the returned backendURL after the request is complete.
-func (up *URLPrefix) getLeastLoadedBackendURL() *backendURL {
-	bus := up.bus
+func getLeastLoadedBackendURL(bus []*backendURL, atomicCounter *atomic.Uint32) *backendURL {
 	if len(bus) == 1 {
 		// Fast path - return the only backend url.
 		bu := bus[0]
@@ -303,7 +428,7 @@ func (up *URLPrefix) getLeastLoadedBackendURL() *backendURL {
 	}
 
 	// Slow path - select other backend urls.
-	n := up.n.Add(1)
+	n := atomicCounter.Add(1)
 
 	for i := uint32(0); i < uint32(len(bus)); i++ {
 		idx := (n + i) % uint32(len(bus))
@@ -341,6 +466,7 @@ func (up *URLPrefix) UnmarshalYAML(f func(interface{}) error) error {
 	if err := f(&v); err != nil {
 		return err
 	}
+	up.vOriginal = v
 
 	var urls []string
 	switch x := v.(type) {
@@ -363,38 +489,21 @@ func (up *URLPrefix) UnmarshalYAML(f func(interface{}) error) error {
 		return fmt.Errorf("unexpected type for `url_prefix`: %T; want string or []string", v)
 	}
 
-	bus := make([]*backendURL, len(urls))
+	bus := make([]*url.URL, len(urls))
 	for i, u := range urls {
 		pu, err := url.Parse(u)
 		if err != nil {
 			return fmt.Errorf("cannot unmarshal %q into url: %w", u, err)
 		}
-		bus[i] = &backendURL{
-			url: pu,
-		}
+		bus[i] = pu
 	}
-	up.bus = bus
+	up.busOriginal = bus
 	return nil
 }
 
 // MarshalYAML marshals up to yaml.
 func (up *URLPrefix) MarshalYAML() (interface{}, error) {
-	var b []byte
-	if len(up.bus) == 1 {
-		u := up.bus[0].url.String()
-		b = strconv.AppendQuote(b, u)
-		return string(b), nil
-	}
-	b = append(b, '[')
-	for i, bu := range up.bus {
-		u := bu.url.String()
-		b = strconv.AppendQuote(b, u)
-		if i+1 < len(up.bus) {
-			b = append(b, ',')
-		}
-	}
-	b = append(b, ']')
-	return string(b), nil
+	return up.vOriginal, nil
 }
 
 func (r *Regex) match(s string) bool {
@@ -415,12 +524,13 @@ func (r *Regex) UnmarshalYAML(f func(interface{}) error) error {
 	if err := f(&s); err != nil {
 		return err
 	}
+	r.sOriginal = s
+
 	sAnchored := "^(?:" + s + ")$"
 	re, err := regexp.Compile(sAnchored)
 	if err != nil {
 		return fmt.Errorf("cannot build regexp from %q: %w", s, err)
 	}
-	r.sOriginal = s
 	r.re = re
 	return nil
 }
@@ -689,8 +799,9 @@ func (ui *UserInfo) initURLs() error {
 	retryStatusCodes := defaultRetryStatusCodes.Values()
 	loadBalancingPolicy := *defaultLoadBalancingPolicy
 	dropSrcPathPrefixParts := 0
+	discoverBackendIPs := *discoverBackendIPsGlobal
 	if ui.URLPrefix != nil {
-		if err := ui.URLPrefix.sanitize(); err != nil {
+		if err := ui.URLPrefix.sanitizeAndInitialize(); err != nil {
 			return err
 		}
 		if ui.RetryStatusCodes != nil {
@@ -702,14 +813,18 @@ func (ui *UserInfo) initURLs() error {
 		if ui.DropSrcPathPrefixParts != nil {
 			dropSrcPathPrefixParts = *ui.DropSrcPathPrefixParts
 		}
+		if ui.DiscoverBackendIPs != nil {
+			discoverBackendIPs = *ui.DiscoverBackendIPs
+		}
 		ui.URLPrefix.retryStatusCodes = retryStatusCodes
 		ui.URLPrefix.dropSrcPathPrefixParts = dropSrcPathPrefixParts
+		ui.URLPrefix.discoverBackendIPs = discoverBackendIPs
 		if err := ui.URLPrefix.setLoadBalancingPolicy(loadBalancingPolicy); err != nil {
 			return err
 		}
 	}
 	if ui.DefaultURL != nil {
-		if err := ui.DefaultURL.sanitize(); err != nil {
+		if err := ui.DefaultURL.sanitizeAndInitialize(); err != nil {
 			return err
 		}
 	}
@@ -720,12 +835,13 @@ func (ui *UserInfo) initURLs() error {
 		if e.URLPrefix == nil {
 			return fmt.Errorf("missing `url_prefix` in `url_map`")
 		}
-		if err := e.URLPrefix.sanitize(); err != nil {
+		if err := e.URLPrefix.sanitizeAndInitialize(); err != nil {
 			return err
 		}
 		rscs := retryStatusCodes
 		lbp := loadBalancingPolicy
 		dsp := dropSrcPathPrefixParts
+		dbd := discoverBackendIPs
 		if e.RetryStatusCodes != nil {
 			rscs = e.RetryStatusCodes
 		}
@@ -735,11 +851,15 @@ func (ui *UserInfo) initURLs() error {
 		if e.DropSrcPathPrefixParts != nil {
 			dsp = *e.DropSrcPathPrefixParts
 		}
+		if e.DiscoverBackendIPs != nil {
+			dbd = *e.DiscoverBackendIPs
+		}
 		e.URLPrefix.retryStatusCodes = rscs
 		if err := e.URLPrefix.setLoadBalancingPolicy(lbp); err != nil {
 			return err
 		}
 		e.URLPrefix.dropSrcPathPrefixParts = dsp
+		e.URLPrefix.discoverBackendIPs = dbd
 	}
 	if len(ui.URLMaps) == 0 && ui.URLPrefix == nil {
 		return fmt.Errorf("missing `url_prefix` or `url_map`")
@@ -805,14 +925,24 @@ func getAuthTokensFromRequest(r *http.Request) []string {
 	return ats
 }
 
-func (up *URLPrefix) sanitize() error {
-	for _, bu := range up.bus {
-		puNew, err := sanitizeURLPrefix(bu.url)
+func (up *URLPrefix) sanitizeAndInitialize() error {
+	for i, bu := range up.busOriginal {
+		puNew, err := sanitizeURLPrefix(bu)
 		if err != nil {
 			return err
 		}
-		bu.url = puNew
+		up.busOriginal[i] = puNew
 	}
+
+	// Initialize up.bus
+	bus := make([]*backendURL, len(up.busOriginal))
+	for i, bu := range up.busOriginal {
+		bus[i] = &backendURL{
+			url: bu,
+		}
+	}
+	up.bus.Store(&bus)
+
 	return nil
 }
 
