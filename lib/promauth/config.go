@@ -893,14 +893,14 @@ func (tctx *tlsContext) NewTLSRoundTripper(cfg *tls.Config, builder func(transpo
 	var rootCA []byte
 	var err error
 	getTLSDigests := func() []byte {
+		mu.Lock()
+		defer mu.Unlock()
 		if fasttime.UnixTimestamp() > deadline {
-			mu.Lock()
 			rootCA, err = tctx.getRootCAPEM()
 			if err != nil {
 				logger.Warnf("cannot load root CA: %s", err)
 			}
 			deadline = fasttime.UnixTimestamp() + tlsCertsCacheSeconds
-			mu.Unlock()
 		}
 
 		return rootCA
