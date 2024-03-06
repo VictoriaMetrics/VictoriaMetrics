@@ -495,7 +495,7 @@ There are the following solutions for this issue:
   ```
 
   This scheme works great, but it needs manual updating of the [`-auth.config`](#auth-config) every time `vmselect` services are restarted,
-  downsaled or upscaled.
+  downscaled or upscaled.
 
 - To set `discover_backend_ips: true` option, so `vmagent` automatically discovers IPs behind the given hostname and then spreads load among the discovered IPs:
 
@@ -505,7 +505,7 @@ There are the following solutions for this issue:
     discover_backend_ips: true
   ```
 
-  The `discover_backend_ips` can be specified at `user` and `url_map` level in the [`-auth.config](#auth-config). It can also be enabled globally
+  The `discover_backend_ips` can be specified at `user` and `url_map` level in the [`-auth.config`](#auth-config). It can also be enabled globally
   via `-discoverBackendIPs` command-line flag.
 
 See also [load balancing docs](#load-balancing).
