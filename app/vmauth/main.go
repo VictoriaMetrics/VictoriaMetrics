@@ -184,7 +184,7 @@ func processUserRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 
 func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 	u := normalizeURL(r.URL)
-	up, hc := ui.getURLPrefixAndHeaders(u)
+	up, hc := ui.getURLPrefixAndHeaders(u, r.Header)
 	isDefault := false
 	if up == nil {
 		if ui.DefaultURL == nil {

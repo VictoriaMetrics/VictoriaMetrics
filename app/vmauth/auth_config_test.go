@@ -219,6 +219,15 @@ users:
     url_prefix: http://foobar
 `)
 
+	// Invalid src_headers
+	f(`
+users:
+- username: a
+  url_map:
+  - src_headers: abc
+    url_prefix: http://foobar
+`)
+
 	// Invalid headers in url_map (missing ':')
 	f(`
 users:
@@ -332,6 +341,47 @@ users:
 	})
 
 	// non-empty URLMap
+	sharedUserInfo := &UserInfo{
+		BearerToken: "foo",
+		URLMaps: []URLMap{
+			{
+				SrcPaths:  getRegexs([]string{"/api/v1/query", "/api/v1/query_range", "/api/v1/label/[^./]+/.+"}),
+				URLPrefix: mustParseURL("http://vmselect/select/0/prometheus"),
+			},
+			{
+				SrcHosts: getRegexs([]string{"foo\\.bar", "baz:1234"}),
+				SrcPaths: getRegexs([]string{"/api/v1/write"}),
+				SrcQueryArgs: []QueryArg{
+					{
+						Name:  "foo",
+						Value: "bar",
+					},
+				},
+				SrcHeaders: []Header{
+					{
+						Name:  "TenantID",
+						Value: "345",
+					},
+				},
+				URLPrefix: mustParseURLs([]string{
+					"http://vminsert1/insert/0/prometheus",
+					"http://vminsert2/insert/0/prometheus",
+				}),
+				HeadersConf: HeadersConf{
+					RequestHeaders: []Header{
+						{
+							Name:  "foo",
+							Value: "bar",
+						},
+						{
+							Name:  "xxx",
+							Value: "y",
+						},
+					},
+				},
+			},
+		},
+	}
 	f(`
 users:
 - bearer_token: foo
@@ -340,83 +390,15 @@ users:
     url_prefix: http://vmselect/select/0/prometheus
   - src_paths: ["/api/v1/write"]
     src_hosts: ["foo\\.bar", "baz:1234"]
-    src_query_args:
-    - 'foo=bar'
+    src_query_args: ['foo=bar']
+    src_headers: ['TenantID: 345']
     url_prefix: ["http://vminsert1/insert/0/prometheus","http://vminsert2/insert/0/prometheus"]
     headers:
     - "foo: bar"
     - "xxx: y"
 `, map[string]*UserInfo{
-		getHTTPAuthBearerToken("foo"): {
-			BearerToken: "foo",
-			URLMaps: []URLMap{
-				{
-					SrcPaths:  getRegexs([]string{"/api/v1/query", "/api/v1/query_range", "/api/v1/label/[^./]+/.+"}),
-					URLPrefix: mustParseURL("http://vmselect/select/0/prometheus"),
-				},
-				{
-					SrcHosts: getRegexs([]string{"foo\\.bar", "baz:1234"}),
-					SrcPaths: getRegexs([]string{"/api/v1/write"}),
-					SrcQueryArgs: []QueryArg{
-						{
-							Name:  "foo",
-							Value: "bar",
-						},
-					},
-					URLPrefix: mustParseURLs([]string{
-						"http://vminsert1/insert/0/prometheus",
-						"http://vminsert2/insert/0/prometheus",
-					}),
-					HeadersConf: HeadersConf{
-						RequestHeaders: []Header{
-							{
-								Name:  "foo",
-								Value: "bar",
-							},
-							{
-								Name:  "xxx",
-								Value: "y",
-							},
-						},
-					},
-				},
-			},
-		},
-		getHTTPAuthBasicToken("foo", ""): {
-			BearerToken: "foo",
-			URLMaps: []URLMap{
-				{
-					SrcPaths:  getRegexs([]string{"/api/v1/query", "/api/v1/query_range", "/api/v1/label/[^./]+/.+"}),
-					URLPrefix: mustParseURL("http://vmselect/select/0/prometheus"),
-				},
-				{
-					SrcHosts: getRegexs([]string{"foo\\.bar", "baz:1234"}),
-					SrcPaths: getRegexs([]string{"/api/v1/write"}),
-					SrcQueryArgs: []QueryArg{
-						{
-							Name:  "foo",
-							Value: "bar",
-						},
-					},
-					URLPrefix: mustParseURLs([]string{
-						"http://vminsert1/insert/0/prometheus",
-						"http://vminsert2/insert/0/prometheus",
-					}),
-					HeadersConf: HeadersConf{
-						RequestHeaders: []Header{
-							{
-								Name:  "foo",
-								Value: "bar",
-							},
-							{
-								Name:  "xxx",
-								Value: "y",
-							},
-						},
-					},
-				},
-			},
-		},
+		getHTTPAuthBearerToken("foo"):    sharedUserInfo,
+		getHTTPAuthBasicToken("foo", ""): sharedUserInfo,
 	})
 
 	// Multiple users with the same name - this should work, since these users have different passwords
