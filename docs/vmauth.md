@@ -75,7 +75,7 @@ unauthorized_user:
 
 ### Generic HTTP proxy for different backends
 
-`vmauth` can proxy requests to different backends depending on the requested host, path and [query args](https://en.wikipedia.org/wiki/Query_string).
+`vmauth` can proxy requests to different backends depending on the requested host, path, [query args](https://en.wikipedia.org/wiki/Query_string) and any HTTP request header.
 For example, the following [`-auth.config`](#auth-config) instructs `vmauth` to make the following:
 
 - Requests starting with `/app1/` are proxied to `http://app1-backend/`, while the `/app1/` path prefix is dropped according to [`drop_src_path_prefix_parts`](#dropping-request-path-prefix).
@@ -124,18 +124,34 @@ while routing requests with `db=bar` query arg to `http://app2-backend`:
 ```yaml
 unauthorized_user:
   url_map:
-  - src_query_args:
-    - "db=foo"
+  - src_query_args: ["db=foo"]
     url_prefix: "http://app1-backend/"
-  - src_query_args:
-    - "db=bar"
+  - src_query_args: ["db=bar"]
     url_prefix: "http://app2-backend/"
 ```
 
 If `src_query_args` contains multiple entries, then it is enough to match only a single entry in order to route the request to the given `url_prefix`.
 
-If `src_hosts` and/or `src_paths` are specified together with `src_query_args`, then the request is routed to the given `url_prefix` if its host, path and query args
-match the given lists simultaneously.
+If `src_query_args` are specified together with `src_hosts`, `src_paths` or `src_headers`, then the request is routed to the given `url_prefix`
+if its query args, host, path and headers match the given lists simultaneously.
+
+An optional `src_headers` can be used for routing requests based on HTTP request headers additionally to hostname, path and [HTTP query args](https://en.wikipedia.org/wiki/Query_string).
+For example, the following config routes requests to `http://app1-backend` if `TenantID` request header equals to `42`, while routing requests to `http://app2-backend`
+if `TenantID` request header equals to `123:456`:
+
+```yaml
+unauthorized_user:
+  url_map:
+  - src_headers: ["TenantID: 42"]
+    url_prefix: "http://app1-backend/"
+  - src_headers: ["TenantID: 123:456"]
+    url_prefix: "http://app2-backend/"
+```
+
+If `src_headers` contains multiple entries, then it is enough to match only a single entry in order to route the request to the given `url_prefix`.
+
+If `src_headers` are specified together with `src_hosts`, `src_paths` or `src_query_args`, then the request is routed to the given `url_prefix`
+if its headers, host, path and query args match the given lists simultaneously.
 
 ### Generic HTTP load balancer
 
