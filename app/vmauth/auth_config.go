@@ -50,10 +50,12 @@ type AuthConfig struct {
 
 // UserInfo is user information read from authConfigPath
 type UserInfo struct {
-	Name                   string      `yaml:"name,omitempty"`
-	BearerToken            string      `yaml:"bearer_token,omitempty"`
-	Username               string      `yaml:"username,omitempty"`
-	Password               string      `yaml:"password,omitempty"`
+	Name string `yaml:"name,omitempty"`
+
+	BearerToken string `yaml:"bearer_token,omitempty"`
+	Username    string `yaml:"username,omitempty"`
+	Password    string `yaml:"password,omitempty"`
+
 	URLPrefix              *URLPrefix  `yaml:"url_prefix,omitempty"`
 	URLMaps                []URLMap    `yaml:"url_map,omitempty"`
 	HeadersConf            HeadersConf `yaml:",inline"`
@@ -582,17 +584,9 @@ func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, error) {
 	byAuthToken := make(map[string]*UserInfo, len(uis))
 	for i := range uis {
 		ui := &uis[i]
-		if ui.Username != "" && ui.Password == "" {
-			// Do not allow setting username without password if there are other auth configs exist.
-			// This should prevent from typical mis-configuration when access by username without password
-			// remains open if other authorization schemes are defined.
-			if ui.BearerToken != "" {
-				return nil, fmt.Errorf("bearer_token=%q and username=%q cannot be set simultaneously", ui.BearerToken, ui.Username)
-			}
-		}
-		ats := getAuthTokens(ui.BearerToken, ui.Username, ui.Password)
-		if len(ats) == 0 {
-			return nil, fmt.Errorf("one of bearer_token, username or mtls must be set")
+		ats, err := getAuthTokens(ui.BearerToken, ui.Username, ui.Password)
+		if err != nil {
+			return nil, err
 		}
 		for _, at := range ats {
 			if uiOld := byAuthToken[at]; uiOld != nil {
@@ -600,13 +594,8 @@ func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, error) {
 					at, ui.Username, ui.Name, uiOld.Username, uiOld.Name)
 			}
 		}
-
 		if err := ui.initURLs(); err != nil {
 			return nil, err
-		}
-
-		if ui.BearerToken != "" && ui.Password != "" {
-			return nil, fmt.Errorf("password shouldn't be set for bearer_token %q", ui.BearerToken)
 		}
 
 		metricLabels, err := ui.getMetricLabels()
@@ -719,7 +708,7 @@ func (ui *UserInfo) initURLs() error {
 		e.URLPrefix.dropSrcPathPrefixParts = dsp
 	}
 	if len(ui.URLMaps) == 0 && ui.URLPrefix == nil {
-		return fmt.Errorf("missing `url_prefix`")
+		return fmt.Errorf("missing `url_prefix` or `url_map`")
 	}
 	return nil
 }
@@ -738,18 +727,21 @@ func (ui *UserInfo) name() string {
 	return ""
 }
 
-func getAuthTokens(bearerToken, username, password string) []string {
-	var ats []string
+func getAuthTokens(bearerToken, username, password string) ([]string, error) {
 	if bearerToken != "" {
+		if username != "" || password != "" {
+			return nil, fmt.Errorf("username and password cannot be specified if bearer_token is set")
+		}
 		// Accept the bearerToken as Basic Auth username with empty password
 		at1 := getHTTPAuthBearerToken(bearerToken)
 		at2 := getHTTPAuthBasicToken(bearerToken, "")
-		ats = append(ats, at1, at2)
-	} else if username != "" {
-		at := getHTTPAuthBasicToken(username, password)
-		ats = append(ats, at)
+		return []string{at1, at2}, nil
 	}
-	return ats
+	if username != "" {
+		at := getHTTPAuthBasicToken(username, password)
+		return []string{at}, nil
+	}
+	return nil, fmt.Errorf("missing authorization options; bearer_token or username must be set")
 }
 
 func getHTTPAuthBearerToken(bearerToken string) string {
@@ -765,17 +757,17 @@ func getHTTPAuthBasicToken(username, password string) string {
 func getAuthTokensFromRequest(r *http.Request) []string {
 	var ats []string
 
-	ah := r.Header.Get("Authorization")
-	if ah == "" {
-		return ats
+	// Obtain possible auth tokens from Authorization header
+	if ah := r.Header.Get("Authorization"); ah != "" {
+		if strings.HasPrefix(ah, "Token ") {
+			// Handle InfluxDB's proprietary token authentication scheme as a bearer token authentication
+			// See https://docs.influxdata.com/influxdb/v2.0/api/
+			ah = strings.Replace(ah, "Token", "Bearer", 1)
+		}
+		at := "http_auth:" + ah
+		ats = append(ats, at)
 	}
-	if strings.HasPrefix(ah, "Token ") {
-		// Handle InfluxDB's proprietary token authentication scheme as a bearer token authentication
-		// See https://docs.influxdata.com/influxdb/v2.0/api/
-		ah = strings.Replace(ah, "Token", "Bearer", 1)
-	}
-	at := "http_auth:" + ah
-	ats = append(ats, at)
+
 	return ats
 }
 

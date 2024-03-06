@@ -17,9 +17,9 @@ func TestParseAuthConfigFailure(t *testing.T) {
 		if err != nil {
 			return
 		}
-		_, err = parseAuthConfigUsers(ac)
+		users, err := parseAuthConfigUsers(ac)
 		if err == nil {
-			t.Fatalf("expecting non-nil error")
+			t.Fatalf("expecting non-nil error; got %v", users)
 		}
 	}
 
@@ -395,6 +395,7 @@ users:
 			},
 		},
 	})
+
 	// Multiple users with the same name - this should work, since these users have different passwords
 	f(`
 users:
@@ -498,6 +499,7 @@ users:
 			}),
 		},
 	})
+
 	// With metric_labels
 	f(`
 users:
