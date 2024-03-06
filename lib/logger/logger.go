@@ -63,11 +63,11 @@ var defaultPrioritySelector = map[string]syslog.Priority{
 	"INFO":  syslog.LOG_INFO,
 	"WARN":  syslog.LOG_WARNING,
 	"ERROR": syslog.LOG_ERR,
-	"FATAL": syslog.LOG_CRIT,
-	"PANIC": syslog.LOG_ALERT,
+	"FATAL": syslog.LOG_CRIT, //
+	"PANIC": syslog.LOG_EMERG,
 }
 
-func parseFacility(prior string) syslog.Priority {
+func parsePriority(prior string) syslog.Priority {
 	v, found := defaultPrioritySelector[prior]
 	if !found {
 		// default the facility level to LOG_LOCAL7
@@ -102,14 +102,11 @@ func setLoggerOutput() {
 
 func setSyslogConnection() *syslog.Writer {
 
-	prio := parseFacility(*loggerLevel)
+	prio := parsePriority(*loggerLevel)
 	switch *syslogNetwork {
 	case "", "tcp", "udp":
 		op, err := syslog.Dial(*syslogNetwork, *syslogAddress, prio, *syslogTag)
 		if err != nil {
-			if e := op.Close(); e != nil {
-				panic(fmt.Errorf("failed to close log %w", e))
-			}
 			panic(fmt.Errorf("error dialing syslog: %w", err))
 		}
 		return op
@@ -120,9 +117,6 @@ func setSyslogConnection() *syslog.Writer {
 		}
 		op, err := syslog.DialWithTLSConfig(*syslogNetwork, *syslogAddress, prio, *syslogTag, tc)
 		if err != nil {
-			if e := op.Close(); e != nil {
-				panic(fmt.Errorf("failed to close log %w", e))
-			}
 			panic(fmt.Errorf("error dialing syslog: %w", err))
 		}
 		return op
