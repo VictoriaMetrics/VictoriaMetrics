@@ -156,7 +156,7 @@ cpu_usage{mode="irq"} 0.34432
 	b.RunParallel(func(pb *testing.PB) {
 		var rows Rows
 		for pb.Next() {
-			rows.Unmarshal(s)
+			rows.Unmarshal(s, "")
 			if len(rows.Rows) != 4 {
 				panic(fmt.Errorf("unexpected number of rows unmarshaled: got %d; want 4", len(rows.Rows)))
 			}

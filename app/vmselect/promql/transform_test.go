@@ -218,7 +218,7 @@ foo{vmrange="1...2"} 0 123`,
 
 func promMetricsToTimeseries(s string) []*timeseries {
 	var rows prometheus.Rows
-	rows.UnmarshalWithErrLogger(s, func(errStr string) {
+	rows.UnmarshalWithErrLogger(s, "", func(errStr string) {
 		panic(fmt.Errorf("cannot parse %q: %s", s, errStr))
 	})
 	var tss []*timeseries

@@ -977,7 +977,7 @@ func mustParsePromMetrics(s string) []prompbmarshal.TimeSeries {
 	errLogger := func(s string) {
 		panic(fmt.Errorf("unexpected error when parsing Prometheus metrics: %s", s))
 	}
-	rows.UnmarshalWithErrLogger(s, errLogger)
+	rows.UnmarshalWithErrLogger(s, "", errLogger)
 	var tss []prompbmarshal.TimeSeries
 	samples := make([]prompbmarshal.Sample, 0, len(rows.Rows))
 	for _, row := range rows.Rows {

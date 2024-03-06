@@ -56,7 +56,7 @@ func selfScraper(scrapeInterval time.Duration) {
 		appmetrics.WritePrometheusMetrics(&bb)
 		s := bytesutil.ToUnsafeString(bb.B)
 		rows.Reset()
-		rows.Unmarshal(s)
+		rows.Unmarshal(s, "")
 		mrs = mrs[:0]
 		for i := range rows.Rows {
 			r := &rows.Rows[i]

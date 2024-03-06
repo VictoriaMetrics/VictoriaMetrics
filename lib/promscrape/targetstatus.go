@@ -39,7 +39,7 @@ func WriteTargetResponse(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return fmt.Errorf("cannot fetch response from id=%s: %w", targetID, err)
 	}
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.Header().Set("Content-Type", sw.contentType)
 	_, err = w.Write(data)
 	return err
 }

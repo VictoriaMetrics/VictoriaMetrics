@@ -9,33 +9,33 @@ import (
 	"testing"
 )
 
-func TestReadLinesBlockFailure(t *testing.T) {
+func TestReadBlockFailure(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
 		r := bytes.NewBufferString(s)
-		if _, _, err := ReadLinesBlock(r, nil, nil); err == nil {
+		if _, _, err := ReadBlock(r, nil, nil, false); err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
 		sbr := &singleByteReader{
 			b: []byte(s),
 		}
-		if _, _, err := ReadLinesBlock(sbr, nil, nil); err == nil {
+		if _, _, err := ReadBlock(sbr, nil, nil, false); err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
 		fr := &failureReader{}
-		if _, _, err := ReadLinesBlock(fr, nil, nil); err == nil {
+		if _, _, err := ReadBlock(fr, nil, nil, false); err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
 
 		un := &unexpectedEOF{}
-		if _, _, err := ReadLinesBlock(un, nil, nil); err != nil {
+		if _, _, err := ReadBlock(un, nil, nil, false); err != nil {
 			if !errors.Is(err, io.EOF) {
 				t.Fatalf("get unexpected error, expecting io.EOF")
 			}
 		}
 
 		ef := eofErr{}
-		if _, _, err := ReadLinesBlock(ef, nil, nil); err != nil {
+		if _, _, err := ReadBlock(ef, nil, nil, false); err != nil {
 			if !errors.Is(err, io.EOF) {
 				t.Fatalf("get unexpected error, expecting io.EOF")
 			}
@@ -68,7 +68,7 @@ func (eo eofErr) Read(_ []byte) (int, error) {
 	return 0, io.EOF
 }
 
-func TestReadLinesBlockMultiLinesSingleByteReader(t *testing.T) {
+func TestReadBlockMultiLinesSingleByteReader(t *testing.T) {
 	f := func(s string, linesExpected []string) {
 		t.Helper()
 
@@ -79,12 +79,12 @@ func TestReadLinesBlockMultiLinesSingleByteReader(t *testing.T) {
 		var dstBuf, tailBuf []byte
 		var lines []string
 		for {
-			dstBuf, tailBuf, err = ReadLinesBlock(r, dstBuf, tailBuf)
+			dstBuf, tailBuf, err = ReadBlock(r, dstBuf, tailBuf, false)
 			if err != nil {
 				if err == io.EOF {
 					break
 				}
-				t.Fatalf("unexpected error in ReadLinesBlock(%q): %s", s, err)
+				t.Fatalf("unexpected error in ReadBlock(%q): %s", s, err)
 			}
 			lines = append(lines, string(dstBuf))
 		}
@@ -102,7 +102,7 @@ func TestReadLinesBlockMultiLinesSingleByteReader(t *testing.T) {
 	f("\nfoo\nbar\n\n", []string{"", "foo", "bar", ""})
 }
 
-func TestReadLinesBlockMultiLinesBytesBuffer(t *testing.T) {
+func TestReadBlockMultiLinesBytesBuffer(t *testing.T) {
 	f := func(s string, linesExpected []string) {
 		t.Helper()
 
@@ -111,12 +111,12 @@ func TestReadLinesBlockMultiLinesBytesBuffer(t *testing.T) {
 		var dstBuf, tailBuf []byte
 		var lines []string
 		for {
-			dstBuf, tailBuf, err = ReadLinesBlock(r, dstBuf, tailBuf)
+			dstBuf, tailBuf, err = ReadBlock(r, dstBuf, tailBuf, false)
 			if err != nil {
 				if err == io.EOF {
 					break
 				}
-				t.Fatalf("unexpected error in ReadLinesBlock(%q): %s", s, err)
+				t.Fatalf("unexpected error in ReadBlock(%q): %s", s, err)
 			}
 			lines = append(lines, string(dstBuf))
 		}
@@ -134,14 +134,14 @@ func TestReadLinesBlockMultiLinesBytesBuffer(t *testing.T) {
 	f("\nfoo\nbar\n\n", []string{"\nfoo\nbar\n"})
 }
 
-func TestReadLinesBlockSuccessSingleByteReader(t *testing.T) {
+func TestReadBlockSuccessSingleByteReader(t *testing.T) {
 	f := func(s, dstBufExpected, tailBufExpected string) {
 		t.Helper()
 
 		r := &singleByteReader{
 			b: []byte(s),
 		}
-		dstBuf, tailBuf, err := ReadLinesBlock(r, nil, nil)
+		dstBuf, tailBuf, err := ReadBlock(r, nil, nil, false)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
@@ -156,7 +156,7 @@ func TestReadLinesBlockSuccessSingleByteReader(t *testing.T) {
 		r = &singleByteReader{
 			b: []byte(s),
 		}
-		dstBuf, tailBuf, err = ReadLinesBlock(r, dstBuf, tailBuf[:0])
+		dstBuf, tailBuf, err = ReadBlock(r, dstBuf, tailBuf[:0], false)
 		if err != nil {
 			t.Fatalf("non-empty bufs: unexpected error: %s", err)
 		}
@@ -181,12 +181,12 @@ func TestReadLinesBlockSuccessSingleByteReader(t *testing.T) {
 	f(string(b), string(b[:maxLineSize]), "")
 }
 
-func TestReadLinesBlockSuccessBytesBuffer(t *testing.T) {
+func TestReadBlockSuccessBytesBuffer(t *testing.T) {
 	f := func(s, dstBufExpected, tailBufExpected string) {
 		t.Helper()
 
 		r := bytes.NewBufferString(s)
-		dstBuf, tailBuf, err := ReadLinesBlock(r, nil, nil)
+		dstBuf, tailBuf, err := ReadBlock(r, nil, nil, false)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
@@ -199,7 +199,7 @@ func TestReadLinesBlockSuccessBytesBuffer(t *testing.T) {
 
 		// Verify the same with non-empty dstBuf and tailBuf
 		r = bytes.NewBufferString(s)
-		dstBuf, tailBuf, err = ReadLinesBlock(r, dstBuf, tailBuf[:0])
+		dstBuf, tailBuf, err = ReadBlock(r, dstBuf, tailBuf[:0], false)
 		if err != nil {
 			t.Fatalf("non-empty bufs: unexpected error: %s", err)
 		}

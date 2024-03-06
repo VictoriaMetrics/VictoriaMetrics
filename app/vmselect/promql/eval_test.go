@@ -10,11 +10,11 @@ import (
 )
 
 func TestGetCommonLabelFilters(t *testing.T) {
-	f := func(metrics string, lfsExpected string) {
+	f := func(metrics, contentType string, lfsExpected string) {
 		t.Helper()
 		var tss []*timeseries
 		var rows prometheus.Rows
-		rows.UnmarshalWithErrLogger(metrics, func(errStr string) {
+		rows.UnmarshalWithErrLogger(metrics, contentType, func(errStr string) {
 			t.Fatalf("unexpected error when parsing %s: %s", metrics, errStr)
 		})
 		for _, row := range rows.Rows {
@@ -39,16 +39,16 @@ func TestGetCommonLabelFilters(t *testing.T) {
 			t.Fatalf("unexpected common label filters;\ngot\n%s\nwant\n%s", lfsMarshaled, lfsExpected)
 		}
 	}
-	f(``, `{}`)
-	f(`m 1`, `{}`)
-	f(`m{a="b"} 1`, `{a="b"}`)
-	f(`m{c="d",a="b"} 1`, `{a="b",c="d"}`)
+	f(``, ``, `{}`)
+	f(`m 1`, ``, `{}`)
+	f(`m{a="b"} 1`, ``, `{a="b"}`)
+	f(`m{c="d",a="b"} 1`, ``, `{a="b",c="d"}`)
 	f(`m1{a="foo"} 1
-m2{a="bar"} 1`, `{a=~"bar|foo"}`)
+m2{a="bar"} 1`, ``, `{a=~"bar|foo"}`)
 	f(`m1{a="foo"} 1
-m2{b="bar"} 1`, `{}`)
+m2{b="bar"} 1`, ``, `{}`)
 	f(`m1{a="foo",b="bar"} 1
-m2{b="bar",c="x"} 1`, `{b="bar"}`)
+m2{b="bar",c="x"} 1`, ``, `{b="bar"}`)
 }
 
 func TestValidateMaxPointsPerSeriesFailure(t *testing.T) {
