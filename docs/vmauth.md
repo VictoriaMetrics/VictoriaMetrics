@@ -125,12 +125,10 @@ while routing requests with `db=bar` query arg to `http://app2-backend`:
 unauthorized_user:
   url_map:
   - src_query_args:
-    - name: db
-      value: foo
+    - "db=foo"
     url_prefix: "http://app1-backend/"
   - src_query_args:
-    - name: db
-      value: bar
+    - "db=bar"
     url_prefix: "http://app2-backend/"
 ```
 

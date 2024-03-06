@@ -218,15 +218,6 @@ users:
   - src_query_args: abc
     url_prefix: http://foobar
 `)
-	f(`
-users:
-- username: a
-  url_map:
-  - src_query_args:
-    - name: foo
-      incorrect_value: bar
-    url_prefix: http://foobar
-`)
 
 	// Invalid headers in url_map (missing ':')
 	f(`
@@ -350,8 +341,7 @@ users:
   - src_paths: ["/api/v1/write"]
     src_hosts: ["foo\\.bar", "baz:1234"]
     src_query_args:
-    - name: foo
-      value: bar
+    - 'foo=bar'
     url_prefix: ["http://vminsert1/insert/0/prometheus","http://vminsert2/insert/0/prometheus"]
     headers:
     - "foo: bar"
