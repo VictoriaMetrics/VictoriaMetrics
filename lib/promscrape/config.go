@@ -38,6 +38,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/openstack"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/yandexcloud"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/cespare/xxhash/v2"
@@ -268,20 +269,42 @@ func (cfg *Config) getJobNames() []string {
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/
 type GlobalConfig struct {
-	ScrapeInterval *promutils.Duration `yaml:"scrape_interval,omitempty"`
-	ScrapeTimeout  *promutils.Duration `yaml:"scrape_timeout,omitempty"`
-	ExternalLabels *promutils.Labels   `yaml:"external_labels,omitempty"`
+	ScrapeInterval  *promutils.Duration `yaml:"scrape_interval,omitempty"`
+	ScrapeTimeout   *promutils.Duration `yaml:"scrape_timeout,omitempty"`
+	ScrapeProtocols []ScrapeProtocol    `yaml:"scrape_protocols,omitempty"`
+	ExternalLabels  *promutils.Labels   `yaml:"external_labels,omitempty"`
 }
+
+// ScrapeProtocol defines scrape endpoints exposition formats
+type ScrapeProtocol string
+
+var (
+	// PrometheusProto defines Prometheus protobuf exposition format
+	PrometheusProto ScrapeProtocol = "PrometheusProto"
+	// PrometheusText defines Prometheys text exposition format
+	PrometheusText ScrapeProtocol = "PrometheusText"
+
+	defaultScrapeProtocols = []ScrapeProtocol{
+		PrometheusProto,
+		PrometheusText,
+	}
+	// ScrapeProtocolsHeaders is a expodition type to Accept header mapping
+	ScrapeProtocolsHeaders = map[ScrapeProtocol]string{
+		PrometheusProto: prometheus.ProtoHeader,
+		PrometheusText:  prometheus.TextHeader,
+	}
+)
 
 // ScrapeConfig represents essential parts for `scrape_config` section of Prometheus config.
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config
 type ScrapeConfig struct {
-	JobName        string              `yaml:"job_name"`
-	ScrapeInterval *promutils.Duration `yaml:"scrape_interval,omitempty"`
-	ScrapeTimeout  *promutils.Duration `yaml:"scrape_timeout,omitempty"`
-	MetricsPath    string              `yaml:"metrics_path,omitempty"`
-	HonorLabels    bool                `yaml:"honor_labels,omitempty"`
+	JobName         string              `yaml:"job_name"`
+	ScrapeInterval  *promutils.Duration `yaml:"scrape_interval,omitempty"`
+	ScrapeTimeout   *promutils.Duration `yaml:"scrape_timeout,omitempty"`
+	MetricsPath     string              `yaml:"metrics_path,omitempty"`
+	HonorLabels     bool                `yaml:"honor_labels,omitempty"`
+	ScrapeProtocols []ScrapeProtocol    `yaml:"scrape_protocols,omitempty"`
 
 	// HonorTimestamps is set to false by default contrary to Prometheus, which sets it to true by default,
 	// because of the issue with gaps on graphs when scraping cadvisor or similar targets, which export invalid timestamps.
@@ -822,6 +845,24 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 	if jobName == "" {
 		return nil, fmt.Errorf("missing `job_name` field in `scrape_config`")
 	}
+
+	scrapeProtocols := sc.ScrapeProtocols
+	if scrapeProtocols == nil {
+		scrapeProtocols = globalCfg.ScrapeProtocols
+		if scrapeProtocols == nil {
+			scrapeProtocols = defaultScrapeProtocols
+		}
+	}
+	for _, sp := range scrapeProtocols {
+		if _, ok := ScrapeProtocolsHeaders[sp]; !ok {
+			return nil, fmt.Errorf("scrape protocol %q is not supported, supported: %v", sp, func() (ret []string) {
+				for p := range ScrapeProtocolsHeaders {
+					ret = append(ret, string(p))
+				}
+				return
+			}())
+		}
+	}
 	scrapeInterval := sc.ScrapeInterval.Duration()
 	if scrapeInterval <= 0 {
 		scrapeInterval = globalCfg.ScrapeInterval.Duration()
@@ -894,6 +935,7 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 		scrapeIntervalString: scrapeInterval.String(),
 		scrapeTimeout:        scrapeTimeout,
 		scrapeTimeoutString:  scrapeTimeout.String(),
+		scrapeProtocols:      scrapeProtocols,
 		jobName:              jobName,
 		metricsPath:          metricsPath,
 		scheme:               scheme,
@@ -924,6 +966,7 @@ type scrapeWorkConfig struct {
 	scrapeIntervalString string
 	scrapeTimeout        time.Duration
 	scrapeTimeoutString  string
+	scrapeProtocols      []ScrapeProtocol
 	jobName              string
 	metricsPath          string
 	scheme               string
@@ -1197,6 +1240,7 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 	sw := &ScrapeWork{
 		ScrapeURL:            scrapeURL,
 		ScrapeInterval:       scrapeInterval,
+		ScrapeProtocols:      swc.scrapeProtocols,
 		ScrapeTimeout:        scrapeTimeout,
 		HonorLabels:          swc.honorLabels,
 		HonorTimestamps:      swc.honorTimestamps,

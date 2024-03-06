@@ -365,6 +365,9 @@ scrape_configs:
 * `scrape_align_interval: duration` for aligning scrapes to the given interval instead of using random offset
   in the range `[0 ... scrape_interval]` for scraping each target. The random offset helps to spread scrapes evenly in time.
 * `scrape_offset: duration` for specifying the exact offset for scraping instead of using random offset in the range `[0 ... scrape_interval]`.
+* `scrape_protocols` - list of supported exposition formats. Should be specified in an order of their priority. Default value is `[PrometheusText, PrometheusProto]`. Supported valeus are:
+  * `PrometheusProto` - scrape metrics exposed in [protobuf format](https://github.com/prometheus/docs/blob/main/content/docs/instrumenting/exposition_formats.md#protobuf-format)
+  * `PrometheusText` - scrape metrics exposed in [text format](https://github.com/prometheus/docs/blob/main/content/docs/instrumenting/exposition_formats.md#text-based-format)).
 
 See [scrape_configs docs](https://docs.victoriametrics.com/sd_configs.html#scrape_configs) for more details on all the supported options.
 

@@ -24,7 +24,7 @@ func TestParse(t *testing.T) {
 		var result []prometheus.Row
 		var lock sync.Mutex
 		doneCh := make(chan struct{})
-		err := Parse(bb, defaultTimestamp, false, true, func(rows []prometheus.Row) error {
+		err := Parse(bb, "", defaultTimestamp, false, true, func(rows []prometheus.Row) error {
 			lock.Lock()
 			result = appendRowCopies(result, rows)
 			if len(result) == len(rowsExpected) {
@@ -57,7 +57,7 @@ func TestParse(t *testing.T) {
 		}
 		result = nil
 		doneCh = make(chan struct{})
-		err = Parse(bb, defaultTimestamp, true, false, func(rows []prometheus.Row) error {
+		err = Parse(bb, "", defaultTimestamp, true, false, func(rows []prometheus.Row) error {
 			lock.Lock()
 			result = appendRowCopies(result, rows)
 			if len(result) == len(rowsExpected) {

@@ -24,7 +24,7 @@ import (
 // limitConcurrency defines whether to control the number of concurrent calls to this function.
 // It is recommended setting limitConcurrency=true if the caller doesn't have concurrency limits set,
 // like /api/v1/write calls.
-func Parse(r io.Reader, defaultTimestamp int64, isGzipped, limitConcurrency bool, callback func(rows []prometheus.Row) error, errLogger func(string)) error {
+func Parse(r io.Reader, contentType string, defaultTimestamp int64, isGzipped, limitConcurrency bool, callback func(rows []prometheus.Row) error, errLogger func(string)) error {
 	if limitConcurrency {
 		wcr := writeconcurrencylimiter.GetReader(r)
 		defer writeconcurrencylimiter.PutReader(wcr)
@@ -41,13 +41,14 @@ func Parse(r io.Reader, defaultTimestamp int64, isGzipped, limitConcurrency bool
 	}
 	ctx := getStreamContext(r)
 	defer putStreamContext(ctx)
-	for ctx.Read() {
+	for ctx.Read(contentType) {
 		uw := getUnmarshalWork()
 		uw.errLogger = errLogger
 		uw.ctx = ctx
 		uw.callback = callback
 		uw.defaultTimestamp = defaultTimestamp
 		uw.reqBuf, ctx.reqBuf = ctx.reqBuf, uw.reqBuf
+		uw.contentType = contentType
 		ctx.wg.Add(1)
 		common.ScheduleUnmarshalWork(uw)
 		if wcr, ok := r.(*writeconcurrencylimiter.Reader); ok {
@@ -61,12 +62,16 @@ func Parse(r io.Reader, defaultTimestamp int64, isGzipped, limitConcurrency bool
 	return ctx.callbackErr
 }
 
-func (ctx *streamContext) Read() bool {
+func (ctx *streamContext) Read(contentType string) bool {
 	readCalls.Inc()
 	if ctx.err != nil || ctx.hasCallbackError() {
 		return false
 	}
-	ctx.reqBuf, ctx.tailBuf, ctx.err = common.ReadLinesBlock(ctx.br, ctx.reqBuf, ctx.tailBuf)
+	isBinary := false
+	if contentType == prometheus.ProtoHeader {
+		isBinary = true
+	}
+	ctx.reqBuf, ctx.tailBuf, ctx.err = common.ReadBlock(ctx.br, ctx.reqBuf, ctx.tailBuf, isBinary)
 	if ctx.err != nil {
 		if ctx.err != io.EOF {
 			readErrors.Inc()
@@ -148,6 +153,7 @@ var streamContextPoolCh = make(chan *streamContext, cgroup.AvailableCPUs())
 type unmarshalWork struct {
 	rows             prometheus.Rows
 	ctx              *streamContext
+	contentType      string
 	callback         func(rows []prometheus.Row) error
 	errLogger        func(string)
 	defaultTimestamp int64
@@ -159,6 +165,7 @@ func (uw *unmarshalWork) reset() {
 	uw.ctx = nil
 	uw.callback = nil
 	uw.errLogger = nil
+	uw.contentType = ""
 	uw.defaultTimestamp = 0
 	uw.reqBuf = uw.reqBuf[:0]
 }
@@ -178,9 +185,9 @@ func (uw *unmarshalWork) runCallback(rows []prometheus.Row) {
 // Unmarshal implements common.UnmarshalWork
 func (uw *unmarshalWork) Unmarshal() {
 	if uw.errLogger != nil {
-		uw.rows.UnmarshalWithErrLogger(bytesutil.ToUnsafeString(uw.reqBuf), uw.errLogger)
+		uw.rows.UnmarshalWithErrLogger(bytesutil.ToUnsafeString(uw.reqBuf), uw.contentType, uw.errLogger)
 	} else {
-		uw.rows.Unmarshal(bytesutil.ToUnsafeString(uw.reqBuf))
+		uw.rows.Unmarshal(bytesutil.ToUnsafeString(uw.reqBuf), uw.contentType)
 	}
 	rows := uw.rows.Rows
 	rowsRead.Add(len(rows))
