@@ -117,6 +117,28 @@ if the whole request path matches at least one `src_paths` entry. The incoming r
 If both `src_paths` and `src_hosts` lists are specified, then the request is routed to the given `url_prefix` when both request path and request host match at least one entry
 in the corresponding lists.
 
+An optional `src_query_args` can be used for routing requests based on [HTTP query args](https://en.wikipedia.org/wiki/Query_string) additionaly to hostname and path.
+For example, the following config routes requests to `http://app1-backend/` if `db=foo` query arg is present in the request,
+while routing requests with `db=bar` query arg to `http://app2-backend`:
+
+```yaml
+unauthorized_user:
+  url_map:
+  - src_query_args:
+    - name: db
+      value: foo
+    url_prefix: "http://app1-backend/"
+  - src_query_args:
+    - name: db
+      value: bar
+    url_prefix: "http://app2-backend/"
+```
+
+If `src_query_args` contains multiple entries, then it is enough to match only a single entry in order to route the request to the given `url_prefix`.
+
+If `src_hosts` and/or `src_paths` are specified together with `src_query_args`, then the request is routed to the given `url_prefix` if its host, path and query args
+match the given lists simultaneously.
+
 ### Generic HTTP load balancer
 
 `vmauth` can balance load among multiple HTTP backends in least-loaded round-robin mode.

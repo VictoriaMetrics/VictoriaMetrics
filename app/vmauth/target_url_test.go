@@ -149,8 +149,14 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 	ui := &UserInfo{
 		URLMaps: []URLMap{
 			{
-				SrcHosts:  getRegexs([]string{"host42"}),
-				SrcPaths:  getRegexs([]string{"/vmsingle/api/v1/query"}),
+				SrcHosts: getRegexs([]string{"host42"}),
+				SrcPaths: getRegexs([]string{"/vmsingle/api/v1/query"}),
+				SrcQueryArgs: []QueryArg{
+					{
+						Name:  "db",
+						Value: "foo",
+					},
+				},
 				URLPrefix: mustParseURL("http://vmselect/0/prometheus"),
 				HeadersConf: HeadersConf{
 					RequestHeaders: []Header{
@@ -195,7 +201,7 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 		RetryStatusCodes:       []int{502},
 		DropSrcPathPrefixParts: intp(2),
 	}
-	f(ui, "http://host42/vmsingle/api/v1/query?query=up", "http://vmselect/0/prometheus/api/v1/query?query=up",
+	f(ui, "http://host42/vmsingle/api/v1/query?query=up&db=foo", "http://vmselect/0/prometheus/api/v1/query?db=foo&query=up",
 		`[{"xx" "aa"} {"yy" "asdf"}]`, `[{"qwe" "rty"}]`, []int{503, 500, 501}, "first_available", 1)
 	f(ui, "http://host123/vmsingle/api/v1/query?query=up", "http://default-server/v1/query?query=up",
 		`[{"bb" "aaa"}]`, `[{"x" "y"}]`, []int{502}, "least_loaded", 2)

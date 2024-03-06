@@ -136,11 +136,14 @@ func (h *Header) MarshalYAML() (interface{}, error) {
 
 // URLMap is a mapping from source paths to target urls.
 type URLMap struct {
-	// SrcHosts is the list of regular expressions, which match the request hostname.
+	// SrcPaths is the list of regular expressions, which must match the request path.
+	SrcPaths []*Regex `yaml:"src_paths,omitempty"`
+
+	// SrcHosts is an optional list of regular expressions, which must match the request hostname.
 	SrcHosts []*Regex `yaml:"src_hosts,omitempty"`
 
-	// SrcPaths is the list of regular expressions, which match the request path.
-	SrcPaths []*Regex `yaml:"src_paths,omitempty"`
+	// SrcQueryArgs is an optional list of query args, which must match request URL query args.
+	SrcQueryArgs []QueryArg `yaml:"src_query_args,omitempty"`
 
 	// UrlPrefix contains backend url prefixes for the proxied request url.
 	URLPrefix *URLPrefix `yaml:"url_prefix,omitempty"`
@@ -162,6 +165,11 @@ type URLMap struct {
 type Regex struct {
 	sOriginal string
 	re        *regexp.Regexp
+}
+
+type QueryArg struct {
+	Name  string `yaml:"name"`
+	Value string `yaml:"value,omitempty"`
 }
 
 // URLPrefix represents passed `url_prefix`
@@ -680,8 +688,8 @@ func (ui *UserInfo) initURLs() error {
 		}
 	}
 	for _, e := range ui.URLMaps {
-		if len(e.SrcPaths) == 0 && len(e.SrcHosts) == 0 {
-			return fmt.Errorf("missing `src_paths` and `src_hosts` in `url_map`")
+		if len(e.SrcPaths) == 0 && len(e.SrcHosts) == 0 && len(e.SrcQueryArgs) == 0 {
+			return fmt.Errorf("missing `src_paths`, `src_hosts` and `src_query_args` in `url_map`")
 		}
 		if e.URLPrefix == nil {
 			return fmt.Errorf("missing `url_prefix` in `url_map`")

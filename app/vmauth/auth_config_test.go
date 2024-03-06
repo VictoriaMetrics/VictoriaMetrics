@@ -192,7 +192,7 @@ users:
   - url_prefix: http://foobar
 `)
 
-	// Invalid regexp in src_path.
+	// Invalid regexp in src_paths
 	f(`
 users:
 - username: a
@@ -207,6 +207,24 @@ users:
 - username: a
   url_map:
   - src_hosts: ['fo[obar']
+    url_prefix: http://foobar
+`)
+
+	// Invalid src_query_args
+	f(`
+users:
+- username: a
+  url_map:
+  - src_query_args: abc
+    url_prefix: http://foobar
+`)
+	f(`
+users:
+- username: a
+  url_map:
+  - src_query_args:
+    - name: foo
+      incorrect_value: bar
     url_prefix: http://foobar
 `)
 
@@ -331,6 +349,9 @@ users:
     url_prefix: http://vmselect/select/0/prometheus
   - src_paths: ["/api/v1/write"]
     src_hosts: ["foo\\.bar", "baz:1234"]
+    src_query_args:
+    - name: foo
+      value: bar
     url_prefix: ["http://vminsert1/insert/0/prometheus","http://vminsert2/insert/0/prometheus"]
     headers:
     - "foo: bar"
@@ -346,6 +367,12 @@ users:
 				{
 					SrcHosts: getRegexs([]string{"foo\\.bar", "baz:1234"}),
 					SrcPaths: getRegexs([]string{"/api/v1/write"}),
+					SrcQueryArgs: []QueryArg{
+						{
+							Name:  "foo",
+							Value: "bar",
+						},
+					},
 					URLPrefix: mustParseURLs([]string{
 						"http://vminsert1/insert/0/prometheus",
 						"http://vminsert2/insert/0/prometheus",
@@ -375,6 +402,12 @@ users:
 				{
 					SrcHosts: getRegexs([]string{"foo\\.bar", "baz:1234"}),
 					SrcPaths: getRegexs([]string{"/api/v1/write"}),
+					SrcQueryArgs: []QueryArg{
+						{
+							Name:  "foo",
+							Value: "bar",
+						},
+					},
 					URLPrefix: mustParseURLs([]string{
 						"http://vminsert1/insert/0/prometheus",
 						"http://vminsert2/insert/0/prometheus",
