@@ -5,6 +5,7 @@ weight: 0
 aliases:
 - /anomaly-detection.html
 - /vmanomaly.html
+- /vmanomaly/
 ---
 
 # VictoriaMetrics Anomaly Detection
