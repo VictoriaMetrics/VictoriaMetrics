@@ -828,6 +828,39 @@ foo-1m-without-abc-count-samples{new_label="must_keep_metric_name"} 2
 foo-1m-without-abc-count-series{new_label="must_keep_metric_name"} 1
 foo-1m-without-abc-sum-samples{new_label="must_keep_metric_name"} 12.5
 `, "1111")
+
+	// keep_metric_names
+	f(`
+- interval: 1m
+  keep_metric_names: true
+  outputs: [count_samples]
+`, `
+foo{abc="123"} 4
+bar 5
+foo{abc="123"} 8.5
+bar -34.3
+foo{abc="456",de="fg"} 8
+`, `bar 2
+foo{abc="123"} 2
+foo{abc="456",de="fg"} 1
+`, "11111")
+
+	// drop_input_labels
+	f(`
+- interval: 1m
+  drop_input_labels: [abc]
+  keep_metric_names: true
+  outputs: [count_samples]
+`, `
+foo{abc="123"} 4
+bar 5
+foo{abc="123"} 8.5
+bar -34.3
+foo{abc="456",de="fg"} 8
+`, `bar 2
+foo 2
+foo{de="fg"} 1
+`, "11111")
 }
 
 func TestAggregatorsWithDedupInterval(t *testing.T) {
