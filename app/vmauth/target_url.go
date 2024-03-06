@@ -3,6 +3,7 @@ package main
 import (
 	"net/url"
 	"path"
+	"slices"
 	"strings"
 )
 
@@ -51,7 +52,7 @@ func dropPrefixParts(path string, parts int) string {
 
 func (ui *UserInfo) getURLPrefixAndHeaders(u *url.URL) (*URLPrefix, HeadersConf) {
 	for _, e := range ui.URLMaps {
-		if matchAnyRegex(e.SrcHosts, u.Host) && matchAnyRegex(e.SrcPaths, u.Path) {
+		if matchAnyRegex(e.SrcHosts, u.Host) && matchAnyRegex(e.SrcPaths, u.Path) && matchAnyQueryArg(e.SrcQueryArgs, u.Query()) {
 			return e.URLPrefix, e.HeadersConf
 		}
 	}
@@ -67,6 +68,18 @@ func matchAnyRegex(rs []*Regex, s string) bool {
 	}
 	for _, r := range rs {
 		if r.match(s) {
+			return true
+		}
+	}
+	return false
+}
+
+func matchAnyQueryArg(qas []QueryArg, args url.Values) bool {
+	if len(qas) == 0 {
+		return true
+	}
+	for _, qa := range qas {
+		if slices.Contains(args[qa.Name], qa.Value) {
 			return true
 		}
 	}
