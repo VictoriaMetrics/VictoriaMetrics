@@ -78,6 +78,9 @@ type Options struct {
 	// The deduplication can be set up individually per each aggregation via dedup_interval option.
 	DedupInterval time.Duration
 
+	// DropInputLabels is an optional list of labels to drop from samples before de-duplication and stream aggregation.
+	DropInputLabels []string
+
 	// NoAlignFlushToInterval disables alignment of flushes to the aggregation interval.
 	//
 	// By default flushes are aligned to aggregation interval.
@@ -176,6 +179,11 @@ type Config struct {
 	// If neither By nor Without are set, then the Outputs are calculated
 	// individually per each input time series.
 	Without []string `yaml:"without,omitempty"`
+
+	// DropInputLabels is an optional list with labels, which must be dropped before further processing of input samples.
+	//
+	// Labels are dropped before de-duplication and aggregation.
+	DropInputLabels *[]string `yaml:"drop_input_labels,omitempty"`
 
 	// InputRelabelConfigs is an optional relabeling rules, which are applied on the input
 	// before aggregation.
@@ -314,6 +322,8 @@ func (a *Aggregators) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) []b
 type aggregator struct {
 	match *promrelabel.IfExpression
 
+	dropInputLabels []string
+
 	inputRelabeling  *promrelabel.ParsedConfigs
 	outputRelabeling *promrelabel.ParsedConfigs
 
@@ -405,6 +415,12 @@ func newAggregator(cfg *Config, pushFunc PushFunc, ms *metrics.Set, opts *Option
 		if stalenessInterval < interval {
 			return nil, fmt.Errorf("staleness_interval=%s cannot be smaller than interval=%s", cfg.StalenessInterval, cfg.Interval)
 		}
+	}
+
+	// Check cfg.DropInputLabels
+	dropInputLabels := opts.DropInputLabels
+	if v := cfg.DropInputLabels; v != nil {
+		dropInputLabels = *v
 	}
 
 	// initialize input_relabel_configs and output_relabel_configs
@@ -524,6 +540,7 @@ func newAggregator(cfg *Config, pushFunc PushFunc, ms *metrics.Set, opts *Option
 	a := &aggregator{
 		match: cfg.Match,
 
+		dropInputLabels:  dropInputLabels,
 		inputRelabeling:  inputRelabeling,
 		outputRelabeling: outputRelabeling,
 
@@ -719,18 +736,23 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 	defer putPushCtx(ctx)
 
 	samples := ctx.samples
+	buf := ctx.buf
 	labels := &ctx.labels
 	inputLabels := &ctx.inputLabels
 	outputLabels := &ctx.outputLabels
-	buf := ctx.buf
 
+	dropLabels := a.dropInputLabels
 	for idx, ts := range tss {
 		if !a.match.Match(ts.Labels) {
 			continue
 		}
 		matchIdxs[idx] = 1
 
-		labels.Labels = append(labels.Labels[:0], ts.Labels...)
+		if len(dropLabels) > 0 {
+			labels.Labels = dropSeriesLabels(labels.Labels[:0], ts.Labels, dropLabels)
+		} else {
+			labels.Labels = append(labels.Labels[:0], ts.Labels...)
+		}
 		labels.Labels = a.inputRelabeling.Apply(labels.Labels, 0)
 		if len(labels.Labels) == 0 {
 			// The metric has been deleted by the relabeling
