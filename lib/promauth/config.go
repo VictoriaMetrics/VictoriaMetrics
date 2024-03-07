@@ -888,13 +888,10 @@ func (tctx *tlsContext) NewTLSRoundTripper(cfg *tls.Config, builder func(transpo
 		return tr, nil
 	}
 
-	var mu sync.Mutex
 	var deadline uint64
 	var rootCA []byte
 	var err error
-	getTLSDigests := func() []byte {
-		mu.Lock()
-		defer mu.Unlock()
+	getTLSDigestsLocked := func() []byte {
 		if fasttime.UnixTimestamp() > deadline {
 			rootCA, err = tctx.getRootCAPEM()
 			if err != nil {
@@ -911,11 +908,11 @@ func (tctx *tlsContext) NewTLSRoundTripper(cfg *tls.Config, builder func(transpo
 	builder(tr)
 
 	return &TLSRoundTripper{
-		builder:        builder,
-		getRootCABytes: getTLSDigests,
-		getTLSRootCA:   newGetTLSRootCACached(tctx.getTLSRootCA),
-		config:         cfg,
-		tr:             tr,
+		builder:              builder,
+		getRootCABytesLocked: getTLSDigestsLocked,
+		getTLSRootCA:         newGetTLSRootCACached(tctx.getTLSRootCA),
+		config:               cfg,
+		tr:                   tr,
 	}, nil
 }
 
@@ -924,25 +921,25 @@ var _ http.RoundTripper = &TLSRoundTripper{}
 // TLSRoundTripper is an implementation of http.RoundTripper which automatically
 // updates RootCA in tls.Config whenever it changes.
 type TLSRoundTripper struct {
-	builder        func(*http.Transport)
-	getRootCABytes func() []byte
-	getTLSRootCA   func() (*x509.CertPool, error)
+	builder              func(*http.Transport)
+	getRootCABytesLocked func() []byte
+	getTLSRootCA         func() (*x509.CertPool, error)
 
 	config *tls.Config
 
 	tr http.RoundTripper
 
-	m           sync.RWMutex
+	m           sync.Mutex
 	rootCABytes []byte
 }
 
 // RoundTrip implements http.RoundTripper.RoundTrip.
 // It automatically updates RootCA in tls.Config whenever it changes.
 func (t *TLSRoundTripper) RoundTrip(request *http.Request) (*http.Response, error) {
-	rootCABytes := t.getRootCABytes()
-	t.m.RLock()
+	t.m.Lock()
+	rootCABytes := t.getRootCABytesLocked()
 	equal := bytes.Equal(rootCABytes, t.rootCABytes)
-	t.m.RUnlock()
+	t.m.Unlock()
 
 	if equal {
 		return t.tr.RoundTrip(request)
