@@ -939,15 +939,26 @@ func (t *TLSRoundTripper) RoundTrip(request *http.Request) (*http.Response, erro
 	t.m.Lock()
 	rootCABytes := t.getRootCABytesLocked()
 	equal := bytes.Equal(rootCABytes, t.rootCABytes)
-	t.m.Unlock()
 
 	if equal {
+		t.m.Unlock()
 		return t.tr.RoundTrip(request)
 	}
 
+	err := t.recreateRoundTripperLocked(rootCABytes)
+	t.m.Unlock()
+
+	if err != nil {
+		return nil, fmt.Errorf("cannot recreate RoundTripper: %w", err)
+	}
+
+	return t.tr.RoundTrip(request)
+}
+
+func (t *TLSRoundTripper) recreateRoundTripperLocked(rootCABytes []byte) error {
 	newRootCaPool, err := t.getTLSRootCA()
 	if err != nil {
-		return nil, fmt.Errorf("cannot load root CAs: %w", err)
+		return fmt.Errorf("cannot load root CAs: %w", err)
 	}
 	newTLSConfig := t.config.Clone()
 	newTLSConfig.RootCAs = newRootCaPool
@@ -959,18 +970,15 @@ func (t *TLSRoundTripper) RoundTrip(request *http.Request) (*http.Response, erro
 	}
 	t.builder(tr)
 
-	t.m.Lock()
 	oldRt := t.tr
 	t.tr = tr
 	t.rootCABytes = rootCABytes
 	t.config = newTLSConfig
-	t.m.Unlock()
 
 	if oldRt != nil {
 		closeIdleConnections(oldRt)
 	}
-
-	return t.tr.RoundTrip(request)
+	return nil
 }
 
 type closeIdler interface {
