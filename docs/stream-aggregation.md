@@ -50,17 +50,37 @@ This behaviour can be changed via the following command-line flags:
 
 ## Deduplication
 
-By default, all the input samples are aggregated. Sometimes it is needed to de-duplicate samples for the same [time series](https://docs.victoriametrics.com/keyconcepts/#time-series)
-before the aggregation. For example, if the samples are received from replicated sources.
-In this case the [de-duplication](https://docs.victoriametrics.com/#deduplication) can be enabled via the following options:
+[vmagent](https://docs.victoriametrics.com/vmagent.html) supports de-duplication of samples before sending them
+to the configured `-remoteWrite.url`. The de-duplication can be enabled via the following options:
 
-- `-remoteWrite.streamAggr.dedupInterval` command-line flag at [vmagent](https://docs.victoriametrics.com/vmagent.html).
-  This flag can be specified individually per each `-remoteWrite.url`.
-  This allows setting different de-duplication intervals per each configured remote storage.
-- `-streamAggr.dedupInterval` command-line flag at [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html).
-- `dedup_interval` option per each [aggregate config](#stream-aggregation-config).
+- By specifying the desired de-duplication interval via `-remoteWrite.streamAggr.dedupInterval` command-line flag for the particular `-remoteWrite.url`.
+  For example, `./vmagent -remoteWrite.url=http://remote-storage/api/v1/write -remoteWrite.streamAggr.dedupInterval=30s` instructs `vmagent` to leave
+  only the last sample per each seen [time series](https://docs.victoriametrics.com/keyconcepts/#time-series) per every 30 seconds.
+  The de-duplication is performed after applying `-remoteWrite.relabelConfig` and `-remoteWrite.urlRelabelConfig` [relabeling](https://docs.victoriametrics.com/vmagent/#relabeling).
 
-De-duplicatation is performed after performing the input relabeling with `input_relabel_configs` - see [these docs](#relabeling).
+  If the `-remoteWrite.streamAggr.config` is set, then the de-duplication is performed individually per each [stream aggregation config](#stream-aggregation-config)
+  for the matching samples after applying [input_relabel_configs](#relabeling).
+
+- By specifying `dedup_interval` option individually per each [stream aggregation config](#stream-aggregation-config) at `-remoteWrite.streamAggr.config`.
+
+[Single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html) supports two types of de-duplication:
+- After storing the duplicate samples to local storage. See [`-dedup.minScrapeInterval`](https://docs.victoriametrics.com/#deduplication) command-line option.
+- Before storing the duplicate samples to local storage. This type of de-duplication can be enabled via the following options:
+  - By specifying the desired de-duplication interval via `-streamAggr.dedupInterval` command-line flag.
+    For example, `./victoria-metrics -streamAggr.dedupInterval=30s` instructs VicotriaMetrics to leave only the last sample per each
+    seen [time series](https://docs.victoriametrics.com/keyconcepts/#time-series) per every 30 seconds.
+    The de-duplication is performed after applying `-relabelConfig` [relabeling](https://docs.victoriametrics.com/#relabeling).
+
+    If the `-streamAggr.config` is set, then the de-duplication is performed individually per each [stream aggregation config](#stream-aggregation-config)
+    for the matching samples after applying [input_relabel_configs](#relabeling).
+
+  - By specifying `dedup_interval` option individually per each [stream aggregation config](#stream-aggregation-config) at `-streamAggr.config`.
+
+It is possible to drop the given labels before applying the de-duplication. See [these docs](#dropping-unneeded-labels).
+
+The online de-duplication doesn't take into account timestamps associated with the de-duplicated samples - it just leaves the last seen sample
+on the configured deduplication interval. If you need taking into account timestamps during the de-duplication,
+then use [`-dedup.minScrapeInterval` command-line flag](https://docs.victoriametrics.com/#deduplication).
 
 ## Flush time alignment
 
@@ -407,7 +427,7 @@ The `keep_metric_names` option can be used if only a single output is set in [`o
 It is possible to apply [arbitrary relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling) to input and output metrics
 during stream aggregation via `input_relabel_configs` and `output_relabel_configs` options in [stream aggregation config](#stream-aggregation-config).
 
-Relabeling rules inside `input_relabel_configs` are applied to samples matching the `match` filters.
+Relabeling rules inside `input_relabel_configs` are applied to samples matching the `match` filters before optional [deduplication](#deduplication).
 Relabeling rules inside `output_relabel_configs` are applied to aggregated samples before sending them to the remote storage.
 
 For example, the following config removes the `:1m_sum_samples` suffix added [to the output metric name](#output-metric-names):
@@ -428,6 +448,32 @@ Another option to remove the suffix, which is added by stream aggregation, is to
   outputs: [sum_samples]
   keep_metric_names: true
 ```
+
+See also [dropping unneded labels](#dropping-unneeded-labels).
+
+
+## Dropping unneeded labels
+
+If you need dropping some labels from input samples before [input relabeling](#relabeling), [de-duplication](#deduplication)
+and [stream aggregation](#aggregation-outputs), then the following options exist:
+
+- To specify comma-separated list of label names to drop in `-streamAggr.dropInputLabels` command-line flag.
+  For example, `-streamAggr.dropInputLabels=replica,az` instructs to drop `replica` and `az` labels from input samples
+  before applying de-duplication and stream aggregation.
+
+- To specify `drop_input_labels` list with the labels to drop in [stream aggregation config](#stream-aggregation-config).
+  For example, the following config drops `replica` label from input samples with the name `process_resident_memory_bytes`
+  before calculating the average over one minute:
+
+  ```yaml
+  - match: process_resident_memory_bytes
+    interval: 1m
+    drop_input_labels: [replica]
+    outputs: [avg]
+    keep_metric_names: true
+  ```
+
+Typical use case is to drop `replica` label from samples, which are recevied from high availability replicas.
 
 ## Aggregation outputs
 
@@ -870,6 +916,13 @@ at [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-
   # See https://docs.victoriametrics.com/stream-aggregation/#output-metric-names
   #
   # keep_metric_names: false
+
+  # drop_input_labels instructs dropping the given labels from input samples.
+  # The labels' dropping is performed before input_relabel_configs are applied.
+  # This also means that the labels are dropped before de-duplication ( https://docs.victoriametrics.com/stream-aggregation.html#deduplication )
+  # and stream aggregation.
+  #
+  # drop_input_labels: [replica, availability_zone]
 
   # input_relabel_configs is an optional relabeling rules,
   # which are applied to the incoming samples after they pass the match filter
