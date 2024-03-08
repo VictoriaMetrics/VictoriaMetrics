@@ -974,6 +974,14 @@ Requests to make for tenant 1:0: 28 / 28 [████████████�
 2023/02/28 10:42:49 Total time: 1m7.147971417s
 ```
 
+### Configuration
+Run the following command to get all configuration options:
+```sh
+./vmctl vm-native --help
+```
+
+## Tuning
+
 ## Verifying exported blocks from VictoriaMetrics
 
 In this mode, `vmctl` allows verifying correctness and integrity of data exported via 
