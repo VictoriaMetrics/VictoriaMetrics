@@ -701,6 +701,7 @@ func mustParseURL(u string) *URLPrefix {
 
 func mustParseURLs(us []string) *URLPrefix {
 	bus := make([]*backendURL, len(us))
+	urls := make([]*url.URL, len(us))
 	for i, u := range us {
 		pu, err := url.Parse(u)
 		if err != nil {
@@ -709,6 +710,7 @@ func mustParseURLs(us []string) *URLPrefix {
 		bus[i] = &backendURL{
 			url: pu,
 		}
+		urls[i] = pu
 	}
 	up := &URLPrefix{}
 	if len(us) == 1 {
@@ -717,6 +719,7 @@ func mustParseURLs(us []string) *URLPrefix {
 		up.vOriginal = us
 	}
 	up.bus.Store(&bus)
+	up.busOriginal = urls
 	return up
 }
 
