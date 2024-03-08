@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
 	"log"
 	"net/http"
@@ -245,7 +244,6 @@ func main() {
 
 					var srcExtraLabels []string
 					srcAddr := strings.Trim(c.String(vmNativeSrcAddr), "/")
-					srcInsecureSkipVerify := c.Bool(vmNativeSrcInsecureSkipVerify)
 					srcAuthConfig, err := auth.Generate(
 						auth.WithBasicAuth(c.String(vmNativeSrcUser), c.String(vmNativeSrcPassword)),
 						auth.WithBearer(c.String(vmNativeSrcBearerToken)),
@@ -253,16 +251,26 @@ func main() {
 					if err != nil {
 						return fmt.Errorf("error initilize auth config for source: %s", srcAddr)
 					}
+
+					// create TLS config
+					srcCertFile := c.String(vmNativeSrcCertFile)
+					srcKeyFile := c.String(vmNativeSrcKeyFile)
+					srcCAFile := c.String(vmNativeSrcCAFile)
+					srcServerName := c.String(vmNativeSrcServerName)
+					srcInsecureSkipVerify := c.Bool(vmNativeSrcInsecureSkipVerify)
+
+					srcTC, err := httputils.TLSConfig(srcCertFile, srcCAFile, srcKeyFile, srcServerName, srcInsecureSkipVerify)
+					if err != nil {
+						return fmt.Errorf("failed to create TLS Config: %s", err)
+					}
+
 					srcHTTPClient := &http.Client{Transport: &http.Transport{
 						DisableKeepAlives: disableKeepAlive,
-						TLSClientConfig: &tls.Config{
-							InsecureSkipVerify: srcInsecureSkipVerify,
-						},
+						TLSClientConfig:   srcTC,
 					}}
 
 					dstAddr := strings.Trim(c.String(vmNativeDstAddr), "/")
 					dstExtraLabels := c.StringSlice(vmExtraLabel)
-					dstInsecureSkipVerify := c.Bool(vmNativeDstInsecureSkipVerify)
 					dstAuthConfig, err := auth.Generate(
 						auth.WithBasicAuth(c.String(vmNativeDstUser), c.String(vmNativeDstPassword)),
 						auth.WithBearer(c.String(vmNativeDstBearerToken)),
@@ -270,11 +278,22 @@ func main() {
 					if err != nil {
 						return fmt.Errorf("error initilize auth config for destination: %s", dstAddr)
 					}
+
+					// create TLS config
+					dstCertFile := c.String(vmNativeDstCertFile)
+					dstKeyFile := c.String(vmNativeDstKeyFile)
+					dstCAFile := c.String(vmNativeDstCAFile)
+					dstServerName := c.String(vmNativeDstServerName)
+					dstInsecureSkipVerify := c.Bool(vmNativeDstInsecureSkipVerify)
+
+					dstTC, err := httputils.TLSConfig(dstCertFile, dstCAFile, dstKeyFile, dstServerName, dstInsecureSkipVerify)
+					if err != nil {
+						return fmt.Errorf("failed to create TLS Config: %s", err)
+					}
+
 					dstHTTPClient := &http.Client{Transport: &http.Transport{
 						DisableKeepAlives: disableKeepAlive,
-						TLSClientConfig: &tls.Config{
-							InsecureSkipVerify: dstInsecureSkipVerify,
-						},
+						TLSClientConfig:   dstTC,
 					}}
 
 					p := vmNativeProcessor{
