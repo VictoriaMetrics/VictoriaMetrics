@@ -40,6 +40,11 @@ const (
 	vmSignificantFigures = "vm-significant-figures"
 	vmRoundDigits        = "vm-round-digits"
 	vmDisableProgressBar = "vm-disable-progress-bar"
+	vmCertFile           = "vm-cert-file"
+	vmKeyFile            = "vm-key-file"
+	vmCAFile             = "vm-CA-file"
+	vmServerName         = "vm-server-name"
+	vmInsecureSkipVerify = "vm-insecure-skip-verify"
 
 	// also used in vm-native
 	vmExtraLabel = "vm-extra-label"
@@ -118,6 +123,27 @@ var (
 		&cli.BoolFlag{
 			Name:  vmDisableProgressBar,
 			Usage: "Whether to disable progress bar per each worker during the import.",
+		},
+		&cli.StringFlag{
+			Name:  vmCertFile,
+			Usage: "Optional path to client-side TLS certificate file to use when connecting to '--vmAddr'",
+		},
+		&cli.StringFlag{
+			Name:  vmKeyFile,
+			Usage: "Optional path to client-side TLS key to use when connecting to '--vmAddr'",
+		},
+		&cli.StringFlag{
+			Name:  vmCAFile,
+			Usage: "Optional path to TLS CA file to use for verifying connections to '--vmAddr'. By default, system CA is used",
+		},
+		&cli.StringFlag{
+			Name:  vmServerName,
+			Usage: "Optional TLS server name to use for connections to '--vmAddr'. By default, the server name from '--vmAddr' is used",
+		},
+		&cli.BoolFlag{
+			Name:  vmInsecureSkipVerify,
+			Usage: "Whether to skip tls verification when connecting to '--vmAddr'",
+			Value: false,
 		},
 	}
 )
@@ -210,7 +236,7 @@ var (
 		},
 		&cli.StringFlag{
 			Name:  otsdbServerName,
-			Usage: "Optional TLS server name to use for connections to -otsdb-addr. By default, the server name from otsdbAddr is used",
+			Usage: "Optional TLS server name to use for connections to -otsdb-addr. By default, the server name from -otsdb-addr is used",
 		},
 		&cli.BoolFlag{
 			Name:  otsdbInsecureSkipVerify,
