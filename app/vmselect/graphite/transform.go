@@ -1359,7 +1359,7 @@ func transformSumSeriesLists(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSerie
 
 // See https://graphite.readthedocs.io/en/latest/functions.html#graphite.render.functions.multiplySeriesLists
 func transformMultiplySeriesLists(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeriesFunc, error) {
-	return aggregateSeriesListsGeneric(ec, fe, "sum")
+	return aggregateSeriesListsGeneric(ec, fe, "multiply")
 }
 
 // See https://graphite.readthedocs.io/en/latest/functions.html#graphite.render.functions.diffSeriesLists
