@@ -467,6 +467,28 @@ var (
 			Usage: "Optional bearer auth token to use for the corresponding `--vm-native-src-addr`",
 		},
 		&cli.StringFlag{
+			Name:  vmNativeSrcCertFile,
+			Usage: "Optional path to client-side TLS certificate file to use when connecting to `--vm-native-src-addr`",
+		},
+		&cli.StringFlag{
+			Name:  vmNativeSrcKeyFile,
+			Usage: "Optional path to client-side TLS key to use when connecting to `--vm-native-src-addr`",
+		},
+		&cli.StringFlag{
+			Name:  vmNativeSrcCAFile,
+			Usage: "Optional path to TLS CA file to use for verifying connections to `--vm-native-src-addr`. By default, system CA is used",
+		},
+		&cli.StringFlag{
+			Name:  vmNativeSrcServerName,
+			Usage: "Optional TLS server name to use for connections to `--vm-native-src-addr`. By default, the server name from `--vm-native-src-addr` is used",
+		},
+		&cli.BoolFlag{
+			Name:  vmNativeSrcInsecureSkipVerify,
+			Usage: "Whether to skip TLS certificate verification when connecting to `--vm-native-src-addr`",
+			Value: false,
+		},
+
+		&cli.StringFlag{
 			Name: vmNativeDstAddr,
 			Usage: "VictoriaMetrics address to perform import to. \n" +
 				" Should be the same as --httpListenAddr value for single-node version or vminsert component." +
@@ -493,6 +515,28 @@ var (
 			Name:  vmNativeDstBearerToken,
 			Usage: "Optional bearer auth token to use for the corresponding `--vm-native-dst-addr`",
 		},
+		&cli.StringFlag{
+			Name:  vmNativeDstCertFile,
+			Usage: "Optional path to client-side TLS certificate file to use when connecting to `--vm-native-dst-addr`",
+		},
+		&cli.StringFlag{
+			Name:  vmNativeDstKeyFile,
+			Usage: "Optional path to client-side TLS key to use when connecting to `--vm-native-dst-addr`",
+		},
+		&cli.StringFlag{
+			Name:  vmNativeDstCAFile,
+			Usage: "Optional path to TLS CA file to use for verifying connections to `--vm-native-dst-addr`. By default, system CA is used",
+		},
+		&cli.StringFlag{
+			Name:  vmNativeDstServerName,
+			Usage: "Optional TLS server name to use for connections to `--vm-native-dst-addr`. By default, the server name from `--vm-native-dst-addr` is used",
+		},
+		&cli.BoolFlag{
+			Name:  vmNativeDstInsecureSkipVerify,
+			Usage: "Whether to skip TLS certificate verification when connecting to `--vm-native-dst-addr`",
+			Value: false,
+		},
+
 		&cli.StringSliceFlag{
 			Name:  vmExtraLabel,
 			Value: nil,
@@ -526,48 +570,6 @@ var (
 				"instead of https://docs.victoriametrics.com/#how-to-export-data-in-native-format API." +
 				"Binary export/import API protocol implies less network and resource usage, as it transfers compressed binary data blocks." +
 				"Non-binary export/import API is less efficient, but supports deduplication if it is configured on vm-native-src-addr side.",
-			Value: false,
-		},
-		&cli.StringFlag{
-			Name:  vmNativeSrcCertFile,
-			Usage: "Optional path to client-side TLS certificate file to use when connecting to vmNativeSrcAddr",
-		},
-		&cli.StringFlag{
-			Name:  vmNativeDstCertFile,
-			Usage: "Optional path to client-side TLS certificate file to use when connecting to vmNativeDstAddr",
-		},
-		&cli.StringFlag{
-			Name:  vmNativeSrcKeyFile,
-			Usage: "Optional path to client-side TLS key to use when connecting to vmNativeSrcAddr",
-		},
-		&cli.StringFlag{
-			Name:  vmNativeDstKeyFile,
-			Usage: "Optional path to client-side TLS key to use when connecting to vmNativeDstAddr",
-		},
-		&cli.StringFlag{
-			Name:  vmNativeSrcCAFile,
-			Usage: "Optional path to TLS CA file to use for verifying connections to vmNativeSrcAddr. By default, system CA is used",
-		},
-		&cli.StringFlag{
-			Name:  vmNativeDstCAFile,
-			Usage: "Optional path to TLS CA file to use for verifying connections to vmNativeDstAddr. By default, system CA is used",
-		},
-		&cli.StringFlag{
-			Name:  vmNativeSrcServerName,
-			Usage: "Optional TLS server name to use for connections to influxAddr. By default, the server name from vmNativeSrcAddr is used",
-		},
-		&cli.StringFlag{
-			Name:  vmNativeDstServerName,
-			Usage: "Optional TLS server name to use for connections to influxAddr. By default, the server name from vmNativeDstAddr is used",
-		},
-		&cli.BoolFlag{
-			Name:  vmNativeSrcInsecureSkipVerify,
-			Usage: "Whether to skip TLS certificate verification when connecting to the source address",
-			Value: false,
-		},
-		&cli.BoolFlag{
-			Name:  vmNativeDstInsecureSkipVerify,
-			Usage: "Whether to skip TLS certificate verification when connecting to the destination address",
 			Value: false,
 		},
 	}
