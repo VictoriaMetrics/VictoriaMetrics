@@ -346,7 +346,7 @@ func logMessage(level, msg string, skipframes int) {
 	_, err := fmt.Fprint(output, logMsg)
 	// if error is not nil and syslog logging is enabled - print log to stderr
 	if err != nil && *loggerOutput == "syslog" {
-		fmt.Fprintf(os.Stderr, logMsg)
+		fmt.Fprint(os.Stderr, logMsg)
 	}
 	mu.Unlock()
 
