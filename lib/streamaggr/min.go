@@ -1,7 +1,6 @@
 package streamaggr
 
 import (
-	"strings"
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
@@ -34,7 +33,6 @@ func (as *minAggrState) pushSamples(samples []pushSample) {
 			v = &minStateValue{
 				min: s.value,
 			}
-			outputKey = strings.Clone(outputKey)
 			vNew, loaded := as.m.LoadOrStore(outputKey, v)
 			if !loaded {
 				// The new entry has been successfully created.
@@ -60,18 +58,22 @@ func (as *minAggrState) pushSamples(samples []pushSample) {
 	}
 }
 
-func (as *minAggrState) flushState(ctx *flushCtx) {
+func (as *minAggrState) flushState(ctx *flushCtx, resetState bool) {
 	currentTimeMsec := int64(fasttime.UnixTimestamp()) * 1000
 	m := &as.m
 	m.Range(func(k, v interface{}) bool {
-		// Atomically delete the entry from the map, so new entry is created for the next flush.
-		m.Delete(k)
+		if resetState {
+			// Atomically delete the entry from the map, so new entry is created for the next flush.
+			m.Delete(k)
+		}
 
 		sv := v.(*minStateValue)
 		sv.mu.Lock()
 		min := sv.min
-		// Mark the entry as deleted, so it won't be updated anymore by concurrent pushSample() calls.
-		sv.deleted = true
+		if resetState {
+			// Mark the entry as deleted, so it won't be updated anymore by concurrent pushSample() calls.
+			sv.deleted = true
+		}
 		sv.mu.Unlock()
 		key := k.(string)
 		ctx.appendSeries(key, "min", currentTimeMsec, min)

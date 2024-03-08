@@ -717,7 +717,7 @@ func (sw *scrapeWork) applySeriesLimit(wc *writeRequestCtx) int {
 		}
 		dstSeries = append(dstSeries, ts)
 	}
-	prompbmarshal.ResetTimeSeries(wc.writeRequest.Timeseries[len(dstSeries):])
+	clear(wc.writeRequest.Timeseries[len(dstSeries):])
 	wc.writeRequest.Timeseries = dstSeries
 	if samplesDropped > 0 && !sw.seriesLimitExceeded {
 		sw.seriesLimitExceeded = true

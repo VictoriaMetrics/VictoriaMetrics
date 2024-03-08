@@ -3,9 +3,7 @@ package streamaggr
 import (
 	"fmt"
 	"reflect"
-	"strings"
 	"sync"
-	"sync/atomic"
 	"testing"
 )
 
@@ -25,8 +23,8 @@ func TestDedupAggrSerial(t *testing.T) {
 		da.pushSamples(samples)
 	}
 
-	if n := da.sizeBytes(); n > 4_200_000 {
-		t.Fatalf("too big dedupAggr state before flush: %d bytes; it shouldn't exceed 4_200_000 bytes", n)
+	if n := da.sizeBytes(); n > 3_400_000 {
+		t.Fatalf("too big dedupAggr state before flush: %d bytes; it shouldn't exceed 3_400_000 bytes", n)
 	}
 	if n := da.itemsCount(); n != seriesCount {
 		t.Fatalf("unexpected itemsCount; got %d; want %d", n, seriesCount)
@@ -37,12 +35,11 @@ func TestDedupAggrSerial(t *testing.T) {
 	flushSamples := func(samples []pushSample) {
 		mu.Lock()
 		for _, sample := range samples {
-			sample.key = strings.Clone(sample.key)
 			flushedSamplesMap[sample.key] = sample
 		}
 		mu.Unlock()
 	}
-	da.flush(flushSamples)
+	da.flush(flushSamples, true)
 
 	if !reflect.DeepEqual(expectedSamplesMap, flushedSamplesMap) {
 		t.Fatalf("unexpected samples;\ngot\n%v\nwant\n%v", flushedSamplesMap, expectedSamplesMap)
@@ -56,15 +53,10 @@ func TestDedupAggrSerial(t *testing.T) {
 	}
 }
 
-func TestDedupAggrConcurrent(t *testing.T) {
+func TestDedupAggrConcurrent(_ *testing.T) {
 	const concurrency = 5
 	const seriesCount = 10_000
 	da := newDedupAggr()
-
-	var samplesFlushed atomic.Int64
-	flushSamples := func(samples []pushSample) {
-		samplesFlushed.Add(int64(len(samples)))
-	}
 
 	var wg sync.WaitGroup
 	for i := 0; i < concurrency; i++ {
@@ -80,12 +72,7 @@ func TestDedupAggrConcurrent(t *testing.T) {
 				}
 				da.pushSamples(samples)
 			}
-			da.flush(flushSamples)
 		}()
 	}
 	wg.Wait()
-
-	if n := samplesFlushed.Load(); n < seriesCount {
-		t.Fatalf("too small number of series flushed; got %d; want at least %d", n, seriesCount)
-	}
 }

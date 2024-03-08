@@ -9,6 +9,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
@@ -27,9 +28,10 @@ var (
 	streamAggrDropInput = flag.Bool("streamAggr.dropInput", false, "Whether to drop all the input samples after the aggregation with -streamAggr.config. "+
 		"By default, only aggregated samples are dropped, while the remaining samples are stored in the database. "+
 		"See also -streamAggr.keepInput and https://docs.victoriametrics.com/stream-aggregation.html")
-	streamAggrDedupInterval = flag.Duration("streamAggr.dedupInterval", 0, "Input samples are de-duplicated with this interval before being aggregated "+
-		"by stream aggregation. Only the last sample per each time series per each interval is aggregated if the interval is greater than zero. "+
-		"See https://docs.victoriametrics.com/stream-aggregation.html")
+	streamAggrDedupInterval = flag.Duration("streamAggr.dedupInterval", 0, "Input samples are de-duplicated with this interval before optional aggregation with -streamAggr.config . "+
+		"See also -streamAggr.dropInputLabels and -dedup.minScrapeInterval and https://docs.victoriametrics.com/stream-aggregation.html#deduplication")
+	streamAggrDropInputLabels = flagutil.NewArrayString("streamAggr.dropInputLabels", "An optional list of labels to drop from samples "+
+		"before stream de-duplication and aggregation . See https://docs.victoriametrics.com/stream-aggregation.html#dropping-unneeded-labels")
 )
 
 var (
@@ -41,7 +43,8 @@ var (
 	saCfgSuccess   = metrics.NewGauge(`vminsert_streamagg_config_last_reload_successful`, nil)
 	saCfgTimestamp = metrics.NewCounter(`vminsert_streamagg_config_last_reload_success_timestamp_seconds`)
 
-	sasGlobal atomic.Pointer[streamaggr.Aggregators]
+	sasGlobal    atomic.Pointer[streamaggr.Aggregators]
+	deduplicator *streamaggr.Deduplicator
 )
 
 // CheckStreamAggrConfig checks config pointed by -stramaggr.config
@@ -68,18 +71,23 @@ func InitStreamAggr() {
 	saCfgReloaderStopCh = make(chan struct{})
 
 	if *streamAggrConfig == "" {
+		if *streamAggrDedupInterval > 0 {
+			deduplicator = streamaggr.NewDeduplicator(pushAggregateSeries, *streamAggrDedupInterval, *streamAggrDropInputLabels)
+		}
 		return
 	}
 
 	sighupCh := procutil.NewSighupChan()
 
 	opts := &streamaggr.Options{
-		DedupInterval: *streamAggrDedupInterval,
+		DedupInterval:   *streamAggrDedupInterval,
+		DropInputLabels: *streamAggrDropInputLabels,
 	}
 	sas, err := streamaggr.LoadFromFile(*streamAggrConfig, pushAggregateSeries, opts)
 	if err != nil {
 		logger.Fatalf("cannot load -streamAggr.config=%q: %s", *streamAggrConfig, err)
 	}
+
 	sasGlobal.Store(sas)
 	saCfgSuccess.Set(1)
 	saCfgTimestamp.Set(fasttime.UnixTimestamp())
@@ -133,6 +141,11 @@ func MustStopStreamAggr() {
 
 	sas := sasGlobal.Swap(nil)
 	sas.MustStop()
+
+	if deduplicator != nil {
+		deduplicator.MustStop()
+		deduplicator = nil
+	}
 }
 
 type streamAggrCtx struct {
@@ -210,12 +223,17 @@ func (ctx *streamAggrCtx) push(mrs []storage.MetricRow, matchIdxs []byte) []byte
 	ctx.buf = buf
 
 	tss = tss[tssLen:]
-	matchIdxs = bytesutil.ResizeNoCopyMayOverallocate(matchIdxs, len(tss))
-	for i := 0; i < len(matchIdxs); i++ {
-		matchIdxs[i] = 0
-	}
+
 	sas := sasGlobal.Load()
-	matchIdxs = sas.Push(tss, matchIdxs)
+	if sas != nil {
+		matchIdxs = sas.Push(tss, matchIdxs)
+	} else if deduplicator != nil {
+		matchIdxs = bytesutil.ResizeNoCopyMayOverallocate(matchIdxs, len(tss))
+		for i := range matchIdxs {
+			matchIdxs[i] = 1
+		}
+		deduplicator.Push(tss)
+	}
 
 	ctx.Reset()
 

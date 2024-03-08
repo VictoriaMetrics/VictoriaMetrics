@@ -1,7 +1,6 @@
 package streamaggr
 
 import (
-	"strings"
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
@@ -36,7 +35,6 @@ func (as *avgAggrState) pushSamples(samples []pushSample) {
 				sum:   s.value,
 				count: 1,
 			}
-			outputKey = strings.Clone(outputKey)
 			vNew, loaded := as.m.LoadOrStore(outputKey, v)
 			if !loaded {
 				// The entry has been successfully stored
@@ -61,19 +59,24 @@ func (as *avgAggrState) pushSamples(samples []pushSample) {
 	}
 }
 
-func (as *avgAggrState) flushState(ctx *flushCtx) {
+func (as *avgAggrState) flushState(ctx *flushCtx, resetState bool) {
 	currentTimeMsec := int64(fasttime.UnixTimestamp()) * 1000
 	m := &as.m
 	m.Range(func(k, v interface{}) bool {
-		// Atomically delete the entry from the map, so new entry is created for the next flush.
-		m.Delete(k)
+		if resetState {
+			// Atomically delete the entry from the map, so new entry is created for the next flush.
+			m.Delete(k)
+		}
 
 		sv := v.(*avgStateValue)
 		sv.mu.Lock()
 		avg := sv.sum / float64(sv.count)
-		// Mark the entry as deleted, so it won't be updated anymore by concurrent pushSample() calls.
-		sv.deleted = true
+		if resetState {
+			// Mark the entry as deleted, so it won't be updated anymore by concurrent pushSample() calls.
+			sv.deleted = true
+		}
 		sv.mu.Unlock()
+
 		key := k.(string)
 		ctx.appendSeries(key, "avg", currentTimeMsec, avg)
 		return true

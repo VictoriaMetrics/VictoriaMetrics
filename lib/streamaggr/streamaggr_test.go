@@ -210,14 +210,7 @@ func TestAggregatorsSuccess(t *testing.T) {
 		var tssOutputLock sync.Mutex
 		pushFunc := func(tss []prompbmarshal.TimeSeries) {
 			tssOutputLock.Lock()
-			for _, ts := range tss {
-				labelsCopy := append([]prompbmarshal.Label{}, ts.Labels...)
-				samplesCopy := append([]prompbmarshal.Sample{}, ts.Samples...)
-				tssOutput = append(tssOutput, prompbmarshal.TimeSeries{
-					Labels:  labelsCopy,
-					Samples: samplesCopy,
-				})
-			}
+			tssOutput = appendClonedTimeseries(tssOutput, tss)
 			tssOutputLock.Unlock()
 		}
 		opts := &Options{
@@ -244,12 +237,7 @@ func TestAggregatorsSuccess(t *testing.T) {
 		}
 
 		// Verify the tssOutput contains the expected metrics
-		tsStrings := make([]string, len(tssOutput))
-		for i, ts := range tssOutput {
-			tsStrings[i] = timeSeriesToString(ts)
-		}
-		sort.Strings(tsStrings)
-		outputMetrics := strings.Join(tsStrings, "")
+		outputMetrics := timeSeriessToString(tssOutput)
 		if outputMetrics != outputMetricsExpected {
 			t.Fatalf("unexpected output metrics;\ngot\n%s\nwant\n%s", outputMetrics, outputMetricsExpected)
 		}
@@ -840,6 +828,39 @@ foo-1m-without-abc-count-samples{new_label="must_keep_metric_name"} 2
 foo-1m-without-abc-count-series{new_label="must_keep_metric_name"} 1
 foo-1m-without-abc-sum-samples{new_label="must_keep_metric_name"} 12.5
 `, "1111")
+
+	// keep_metric_names
+	f(`
+- interval: 1m
+  keep_metric_names: true
+  outputs: [count_samples]
+`, `
+foo{abc="123"} 4
+bar 5
+foo{abc="123"} 8.5
+bar -34.3
+foo{abc="456",de="fg"} 8
+`, `bar 2
+foo{abc="123"} 2
+foo{abc="456",de="fg"} 1
+`, "11111")
+
+	// drop_input_labels
+	f(`
+- interval: 1m
+  drop_input_labels: [abc]
+  keep_metric_names: true
+  outputs: [count_samples]
+`, `
+foo{abc="123"} 4
+bar 5
+foo{abc="123"} 8.5
+bar -34.3
+foo{abc="456",de="fg"} 8
+`, `bar 2
+foo 2
+foo{de="fg"} 1
+`, "11111")
 }
 
 func TestAggregatorsWithDedupInterval(t *testing.T) {
@@ -925,6 +946,15 @@ foo:1m_sum_samples{baz="qwe"} 10
 `, "11111111")
 }
 
+func timeSeriessToString(tss []prompbmarshal.TimeSeries) string {
+	a := make([]string, len(tss))
+	for i, ts := range tss {
+		a[i] = timeSeriesToString(ts)
+	}
+	sort.Strings(a)
+	return strings.Join(a, "")
+}
+
 func timeSeriesToString(ts prompbmarshal.TimeSeries) string {
 	labelsString := promrelabel.LabelsToString(ts.Labels)
 	if len(ts.Samples) != 1 {
@@ -964,4 +994,14 @@ func mustParsePromMetrics(s string) []prompbmarshal.TimeSeries {
 		tss = append(tss, ts)
 	}
 	return tss
+}
+
+func appendClonedTimeseries(dst, src []prompbmarshal.TimeSeries) []prompbmarshal.TimeSeries {
+	for _, ts := range src {
+		dst = append(dst, prompbmarshal.TimeSeries{
+			Labels:  append(ts.Labels[:0:0], ts.Labels...),
+			Samples: append(ts.Samples[:0:0], ts.Samples...),
+		})
+	}
+	return dst
 }

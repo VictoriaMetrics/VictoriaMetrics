@@ -3,11 +3,14 @@
 $color-base-nested-nav: $color-tropical-blue;
 $color-base-nested-nav-dark: $color-background-body;
 $width-line: 2px;
-$left-position: calc(-1 * $padding-small);
+$left-block-offset: $padding-large;
+$left-line-offset: calc($width-line * 2);
+$left-position: calc(-1 * ($left-block-offset - $left-line-offset));
+$gap-section: calc($padding-large * 2);
 
 .vm-nested-nav {
   position: relative;
-  margin-left: $padding-small;
+  margin-left: $left-block-offset;
   border-radius: $border-radius-small;
 
   &_dark &-header {
@@ -51,7 +54,7 @@ $left-position: calc(-1 * $padding-small);
       position: absolute;
       top: calc(50% - 1px);
       height: $width-line;
-      width: $padding-small;
+      width: calc($left-block-offset - $left-line-offset);
       background-color: $color-base-nested-nav;
       left: $left-position;
     }
@@ -125,7 +128,7 @@ $left-position: calc(-1 * $padding-small);
       position: absolute;
       top: 0;
       left: $left-position;
-      height: 100%;
+      height: calc(100% + $gap-section);
       width: $width-line;
       background-color: $color-base-nested-nav;
     }
@@ -135,5 +138,9 @@ $left-position: calc(-1 * $padding-small);
     &:before {
       background-color: $color-base-nested-nav-dark;
     }
+  }
+
+  &__childrens > .vm-nested-nav:last-child {
+    margin-bottom: $gap-section;
   }
 }

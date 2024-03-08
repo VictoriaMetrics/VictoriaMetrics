@@ -89,6 +89,7 @@ func (ds *DialSettings) HasCustomAudience() bool {
 	return len(ds.Audiences) > 0
 }
 
+// IsNewAuthLibraryEnabled returns true if the new auth library should be used.
 func (ds *DialSettings) IsNewAuthLibraryEnabled() bool {
 	if ds.EnableNewAuthLibrary {
 		return true
@@ -185,6 +186,8 @@ func (ds *DialSettings) GetUniverseDomain() string {
 	return ds.UniverseDomain
 }
 
+// IsUniverseDomainGDU returns true if the universe domain is the default Google
+// universe.
 func (ds *DialSettings) IsUniverseDomainGDU() bool {
 	return ds.GetUniverseDomain() == ds.GetDefaultUniverseDomain()
 }
