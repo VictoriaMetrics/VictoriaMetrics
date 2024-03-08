@@ -1723,7 +1723,7 @@ By default, VictoriaMetrics is tuned for an optimal resource usage under typical
   when the database contains big number of unique time series because of [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate).
   In this case it might be useful to set the `-search.maxLabelsAPISeries` to quite low value in order to limit CPU and memory usage.
   See also `-search.maxLabelsAPIDuration` and `-search.ignoreExtraFiltersAtLabelsAPI`.
-- `-search.maxLabelsAPIDuration` limits the duration for reuqests to [/api/v1/labels](https://docs.victoriametrics.com/url-examples/#apiv1labels),
+- `-search.maxLabelsAPIDuration` limits the duration for requests to [/api/v1/labels](https://docs.victoriametrics.com/url-examples/#apiv1labels),
   [/api/v1/label/.../values](https://docs.victoriametrics.com/url-examples/#apiv1labelvalues)
   or [/api/v1/series](https://docs.victoriametrics.com/url-examples/#apiv1series).
   These endpoints are used mostly by Grafana for auto-completion of label names and label values. Queries to these endpoints may take big amounts of CPU time and memory
