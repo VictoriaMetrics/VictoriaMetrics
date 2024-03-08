@@ -77,7 +77,10 @@ func main() {
 						return fmt.Errorf("failed to create opentsdb client: %s", err)
 					}
 
-					vmCfg := initConfigVM(c)
+					vmCfg, err := initConfigVM(c)
+					if err != nil {
+						return fmt.Errorf("failed to init VM configuration: %s", err)
+					}
 					// disable progress bars since openTSDB implementation
 					// does not use progress bar pool
 					vmCfg.DisableProgressBar = true
@@ -129,7 +132,10 @@ func main() {
 						return fmt.Errorf("failed to create influx client: %s", err)
 					}
 
-					vmCfg := initConfigVM(c)
+					vmCfg, err := initConfigVM(c)
+					if err != nil {
+						return fmt.Errorf("failed to init VM configuration: %s", err)
+					}
 					importer, err = vm.NewImporter(ctx, vmCfg)
 					if err != nil {
 						return fmt.Errorf("failed to create VM importer: %s", err)
@@ -172,8 +178,10 @@ func main() {
 						return fmt.Errorf("error create remote read client: %s", err)
 					}
 
-					vmCfg := initConfigVM(c)
-
+					vmCfg, err := initConfigVM(c)
+					if err != nil {
+						return fmt.Errorf("failed to init VM configuration: %s", err)
+					}
 					importer, err := vm.NewImporter(ctx, vmCfg)
 					if err != nil {
 						return fmt.Errorf("failed to create VM importer: %s", err)
@@ -202,7 +210,10 @@ func main() {
 				Action: func(c *cli.Context) error {
 					fmt.Println("Prometheus import mode")
 
-					vmCfg := initConfigVM(c)
+					vmCfg, err := initConfigVM(c)
+					if err != nil {
+						return fmt.Errorf("failed to init VM configuration: %s", err)
+					}
 					importer, err = vm.NewImporter(ctx, vmCfg)
 					if err != nil {
 						return fmt.Errorf("failed to create VM importer: %s", err)
@@ -381,9 +392,24 @@ func main() {
 	log.Printf("Total time: %v", time.Since(start))
 }
 
-func initConfigVM(c *cli.Context) vm.Config {
+func initConfigVM(c *cli.Context) (vm.Config, error) {
+	addr := c.String(vmAddr)
+
+	// create Transport with given TLS config
+	certFile := c.String(vmCertFile)
+	keyFile := c.String(vmKeyFile)
+	caFile := c.String(vmCAFile)
+	serverName := c.String(vmServerName)
+	insecureSkipVerify := c.Bool(vmInsecureSkipVerify)
+
+	tr, err := httputils.Transport(addr, certFile, caFile, keyFile, serverName, insecureSkipVerify)
+	if err != nil {
+		return vm.Config{}, fmt.Errorf("failed to create Transport: %s", err)
+	}
+
 	return vm.Config{
-		Addr:               c.String(vmAddr),
+		Addr:               addr,
+		Transport:          tr,
 		User:               c.String(vmUser),
 		Password:           c.String(vmPassword),
 		Concurrency:        uint8(c.Int(vmConcurrency)),
@@ -395,5 +421,5 @@ func initConfigVM(c *cli.Context) vm.Config {
 		ExtraLabels:        c.StringSlice(vmExtraLabel),
 		RateLimit:          c.Int64(vmRateLimit),
 		DisableProgressBar: c.Bool(vmDisableProgressBar),
-	}
+	}, nil
 }
