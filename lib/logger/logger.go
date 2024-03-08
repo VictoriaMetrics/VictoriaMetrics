@@ -33,9 +33,9 @@ var (
 	errorsPerSecondLimit = flag.Int("loggerErrorsPerSecondLimit", 0, `Per-second limit on the number of ERROR messages. If more than the given number of errors are emitted per second, the remaining errors are suppressed. Zero values disable the rate limit`)
 	warnsPerSecondLimit  = flag.Int("loggerWarnsPerSecondLimit", 0, `Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero values disable the rate limit`)
 
-	syslogNetwork = flag.String("syslog-network", "tcp", "network connection to establish. Options are TCP/UDP.")
-	syslogAddress = flag.String("syslog-address", "localhost:5143", "network address of syslog server. If empty it connects to local local syslog server.")
-	syslogTag     = flag.String("syslog-tag", "", "tag for syslog. Used os.args[0] if empty")
+	syslogNetwork = flag.String("syslogNetwork", "", "network connection to establish. Options are tcp udp tcp+tls. If network is empty, it will connect to the local syslog server")
+	syslogAddress = flag.String("syslogAddress", "localhost:5143", "Required: Network address of the syslog server.")
+	syslogTag     = flag.String("syslogTag", "", "tag for syslog. Used os.args[0] if empty")
 
 	tlsCertFile           = flag.String("syslog.tlsCertFile", "", "Optional path to client-side TLS certificate file to use when connecting to -syslogAddress")
 	tlsKeyFile            = flag.String("syslog.tlsKeyFile", "", "Optional path to client-side TLS certificate key to use when connecting to -syslogAddress")
@@ -117,7 +117,7 @@ func setSyslogConnection() *syslog.Writer {
 		}
 		op, err := syslog.DialWithTLSConfig(*syslogNetwork, *syslogAddress, prio, *syslogTag, tc)
 		if err != nil {
-			panic(fmt.Errorf("error dialing syslog: %w", err))
+			panic(fmt.Errorf("error dialing syslog with tcp+tls: %w", err))
 		}
 		return op
 	default:
@@ -343,7 +343,11 @@ func logMessage(level, msg string, skipframes int) {
 
 	// Serialize writes to log.
 	mu.Lock()
-	fmt.Fprint(output, logMsg)
+	_, err := fmt.Fprint(output, logMsg)
+	// if error is not nil and syslog logging is enabled - print log to stderr
+	if err != nil && *loggerOutput == "syslog" {
+		fmt.Fprintf(os.Stderr, logMsg)
+	}
 	mu.Unlock()
 
 	// Increment vm_log_messages_total
