@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"net/http"
 	"testing"
 	"time"
 
@@ -61,7 +62,8 @@ func TestRemoteRead(t *testing.T) {
 		{
 			name:             "step month on month time range",
 			remoteReadConfig: remoteread.Config{Addr: "", LabelName: "__name__", LabelValue: ".*"},
-			vmCfg:            vm.Config{Addr: "", Concurrency: 1, DisableProgressBar: true},
+			vmCfg: vm.Config{Addr: "", Concurrency: 1, DisableProgressBar: true,
+				Transport: http.DefaultTransport.(*http.Transport)},
 			start:            "2022-09-26T11:23:05+02:00",
 			end:              "2022-11-26T11:24:05+02:00",
 			numOfSamples:     2,

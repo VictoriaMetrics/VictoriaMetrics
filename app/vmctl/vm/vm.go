@@ -26,6 +26,8 @@ type Config struct {
 	//   --httpListenAddr value for single node version
 	//   --httpListenAddr value of vmselect  component for cluster version
 	Addr string
+	// Transport allows specifying custom http.Transport
+	Transport *http.Transport
 	// Concurrency defines number of worker
 	// performing the import requests concurrently
 	Concurrency uint8
@@ -62,6 +64,7 @@ type Config struct {
 // see https://docs.victoriametrics.com/#how-to-import-time-series-data
 type Importer struct {
 	addr       string
+	client     *http.Client
 	importPath string
 	compress   bool
 	user       string
@@ -128,8 +131,14 @@ func NewImporter(ctx context.Context, cfg Config) (*Importer, error) {
 		return nil, err
 	}
 
+	client := &http.Client{}
+	if cfg.Transport != nil {
+		client.Transport = cfg.Transport
+	}
+
 	im := &Importer{
 		addr:       addr,
+		client:     client,
 		importPath: importPath,
 		compress:   cfg.Compress,
 		user:       cfg.User,
@@ -291,7 +300,7 @@ func (im *Importer) Ping() error {
 	if im.user != "" {
 		req.SetBasicAuth(im.user, im.password)
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := im.client.Do(req)
 	if err != nil {
 		return err
 	}
@@ -321,7 +330,7 @@ func (im *Importer) Import(tsBatch []*TimeSeries) error {
 
 	errCh := make(chan error)
 	go func() {
-		errCh <- do(req)
+		errCh <- im.do(req)
 		close(errCh)
 	}()
 
@@ -375,8 +384,8 @@ func (im *Importer) Import(tsBatch []*TimeSeries) error {
 // ErrBadRequest represents bad request error.
 var ErrBadRequest = errors.New("bad request")
 
-func do(req *http.Request) error {
-	resp, err := http.DefaultClient.Do(req)
+func (im *Importer) do(req *http.Request) error {
+	resp, err := im.client.Do(req)
 	if err != nil {
 		return fmt.Errorf("unexpected error when performing request: %s", err)
 	}
