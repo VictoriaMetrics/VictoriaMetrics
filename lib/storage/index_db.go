@@ -569,6 +569,11 @@ var indexItemsPool sync.Pool
 func (db *indexDB) SearchLabelNamesWithFiltersOnTimeRange(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxLabelNames, maxMetrics int, deadline uint64) ([]string, error) {
 	qt = qt.NewChild("search for label names: filters=%s, timeRange=%s, maxLabelNames=%d, maxMetrics=%d", tfss, &tr, maxLabelNames, maxMetrics)
 	defer qt.Done()
+
+	if tr.MinTimestamp >= db.s.minTimestampForCompositeIndex {
+		tfss = convertToCompositeTagFilterss(tfss)
+	}
+
 	lns := make(map[string]struct{})
 	qtChild := qt.NewChild("search for label names in the current indexdb")
 	is := db.getIndexSearch(deadline)
@@ -759,6 +764,11 @@ func (db *indexDB) SearchLabelValuesWithFiltersOnTimeRange(qt *querytracer.Trace
 	maxLabelValues, maxMetrics int, deadline uint64) ([]string, error) {
 	qt = qt.NewChild("search for label values: labelName=%q, filters=%s, timeRange=%s, maxLabelNames=%d, maxMetrics=%d", labelName, tfss, &tr, maxLabelValues, maxMetrics)
 	defer qt.Done()
+
+	if tr.MinTimestamp >= db.s.minTimestampForCompositeIndex {
+		tfss = convertToCompositeTagFilterss(tfss)
+	}
+
 	lvs := make(map[string]struct{})
 	qtChild := qt.NewChild("search for label values in the current indexdb")
 	is := db.getIndexSearch(deadline)
@@ -1174,6 +1184,11 @@ func (is *indexSearch) getSeriesCount() (uint64, error) {
 // GetTSDBStatus returns topN entries for tsdb status for the given tfss, date and focusLabel.
 func (db *indexDB) GetTSDBStatus(qt *querytracer.Tracer, tfss []*TagFilters, date uint64, focusLabel string, topN, maxMetrics int, deadline uint64) (*TSDBStatus, error) {
 	qtChild := qt.NewChild("collect tsdb stats in the current indexdb")
+
+	if int64(date*msecPerDay) >= db.s.minTimestampForCompositeIndex {
+		tfss = convertToCompositeTagFilterss(tfss)
+	}
+
 	is := db.getIndexSearch(deadline)
 	status, err := is.getTSDBStatus(qtChild, tfss, date, focusLabel, topN, maxMetrics)
 	qtChild.Done()
@@ -1478,6 +1493,7 @@ func (db *indexDB) DeleteTSIDs(qt *querytracer.Tracer, tfss []*TagFilters) (int,
 	if len(tfss) == 0 {
 		return 0, nil
 	}
+	tfss = convertToCompositeTagFilterss(tfss)
 
 	// Obtain metricIDs to delete.
 	tr := TimeRange{
