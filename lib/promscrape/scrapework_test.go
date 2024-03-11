@@ -786,17 +786,19 @@ func parseData(data string) []prompbmarshal.TimeSeries {
 			})
 		}
 		exemplarLabels := []prompbmarshal.Label{}
-		for _, tag := range r.Exemplar.Tags {
-			exemplarLabels = append(exemplarLabels, prompbmarshal.Label{
-				Name:  tag.Key,
-				Value: tag.Value,
+		if len(r.Exemplar.Tags) > 0 {
+			for _, tag := range r.Exemplar.Tags {
+				exemplarLabels = append(exemplarLabels, prompbmarshal.Label{
+					Name:  tag.Key,
+					Value: tag.Value,
+				})
+			}
+			exemplars = append(exemplars, prompbmarshal.Exemplar{
+				Labels:    exemplarLabels,
+				Value:     r.Exemplar.Value,
+				Timestamp: r.Exemplar.Timestamp,
 			})
 		}
-		exemplars = append(exemplars, prompbmarshal.Exemplar{
-			Labels:    exemplarLabels,
-			Value:     r.Exemplar.Value,
-			Timestamp: r.Exemplar.Timestamp,
-		})
 
 		var ts prompbmarshal.TimeSeries
 		ts.Labels = labels

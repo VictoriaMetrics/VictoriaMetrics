@@ -140,6 +140,11 @@ func NewTagParser(s string, noEscapes bool) *tagParser {
 }
 func (t *tagParser) parse() error {
 	n := strings.IndexByte(t.s, '{')
+	c := strings.IndexByte(t.s, '#')
+	if c != -1 && c < n {
+		t.start = -1
+		return nil
+	}
 	t.start = n
 	if n >= 0 {
 		// Tags found. Parse them.
@@ -167,26 +172,51 @@ type TagsValueTimestamp struct {
 }
 
 func parseTagsValueTimeStamp(s string, noEscapes bool) (*TagsValueTimestamp, error) {
-	s = skipLeadingWhitespace(s)
-	tagParser := NewTagParser(s, noEscapes)
-	tagParser.parse()
-	n := tagParser.start
 	tvt := &TagsValueTimestamp{}
-	if n < 0 {
+	n := 0
+	s = skipLeadingWhitespace(s)
+	// Prefix is everything up to a tag start or a space
+	t := strings.IndexByte(s, '{')
+	// If there is no tag start process rest of string
+	mustParseTags := false
+	if t != -1 {
+		// Check to see if there is a space before tag
 		n = nextWhitespace(s)
-		if n >= 0 {
+		// If there is a space
+		if n > 0 {
+			if n < t {
+				tvt.Prefix = s[:n]
+				s = skipLeadingWhitespace(s[n:])
+				// Cover the use case where there is whitespace between the prefix and the tag
+				if len(s) > 0 && s[0] == '{' {
+					mustParseTags = true
+				}
+				// Most likely this has an exemplar
+			} else {
+				tvt.Prefix = s[:t]
+				s = s[t:]
+				mustParseTags = true
+			}
+		}
+		if mustParseTags {
+			tagParser := NewTagParser(s, noEscapes)
+			tagParser.parse()
+			n = tagParser.start
+			tagsLen := len(tagParser.tags)
+			tvt.Tags = tagParser.tags[:tagsLen:tagsLen]
+			s = tagParser.s
+		}
+	} else {
+		// Tag doesn't exist
+		n = nextWhitespace(s)
+		if n != -1 {
 			tvt.Prefix = s[:n]
+			s = s[n:]
 		} else {
 			tvt.Prefix = s
 		}
-		s = s[n+1:]
-	} else {
-		tagsLen := len(tagParser.tags)
-		tvt.Tags = tagParser.tags[:tagsLen:tagsLen]
-		tvt.Prefix = s[:n]
-		tvt.Prefix = skipTrailingWhitespace(tvt.Prefix)
-		s = tagParser.s
 	}
+	s = skipLeadingWhitespace(s)
 	// log and remove the comments
 	n = strings.IndexByte(s, '#')
 	if n >= 0 {
@@ -250,7 +280,10 @@ func (r *Row) unmarshal(s string, tagsPool []Tag, noEscapes bool) ([]Tag, error)
 
 	// We can use the Comment parsed out to further parse the Exemplar
 	if strings.HasPrefix(tvt.Comments, exemplarPrefix) {
-		exemplarTVT, err := parseTagsValueTimeStamp(tvt.Comments, noEscapes)
+		s = skipLeadingWhitespace(tvt.Comments)
+		// Skip comment
+		s = s[1:]
+		exemplarTVT, err := parseTagsValueTimeStamp(s, noEscapes)
 		if err != nil {
 			return nil, err
 		}
