@@ -404,7 +404,7 @@ cassandra_token_ownership_ratio 78.9`, &Rows{
 	})
 	f(`foo_bucket{le="10",a="#b"} 17 # {test_id="oHg5SJ#YRHA0"} 9.8 1520879607.789
 		   abc 123 456 # foobar
-		   foo   344#bar`, &Rows{
+		   foo   344# {test_id="oHg5SJ#YRHA0"} 9.8 1520879607.789`, &Rows{
 		Rows: []Row{
 			{
 				Metric: "foo_bucket",
@@ -438,6 +438,16 @@ cassandra_token_ownership_ratio 78.9`, &Rows{
 			{
 				Metric: "foo",
 				Value:  344,
+				Exemplar: Exemplar{
+					Tags: []Tag{
+						{
+							Key:   "test_id",
+							Value: "oHg5SJ#YRHA0",
+						},
+					},
+					Value:     9.8,
+					Timestamp: 1520879607789,
+				},
 			},
 		},
 	})
