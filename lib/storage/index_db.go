@@ -570,10 +570,6 @@ func (db *indexDB) SearchLabelNamesWithFiltersOnTimeRange(qt *querytracer.Tracer
 	qt = qt.NewChild("search for label names: filters=%s, timeRange=%s, maxLabelNames=%d, maxMetrics=%d", tfss, &tr, maxLabelNames, maxMetrics)
 	defer qt.Done()
 
-	if tr.MinTimestamp >= db.s.minTimestampForCompositeIndex {
-		tfss = convertToCompositeTagFilterss(tfss)
-	}
-
 	lns := make(map[string]struct{})
 	qtChild := qt.NewChild("search for label names in the current indexdb")
 	is := db.getIndexSearch(deadline)
@@ -730,7 +726,9 @@ func (is *indexSearch) searchLabelNamesWithFiltersOnDate(qt *querytracer.Tracer,
 }
 
 func (is *indexSearch) getLabelNamesForMetricIDs(qt *querytracer.Tracer, metricIDs []uint64, lns map[string]struct{}, maxLabelNames int) {
-	lns["__name__"] = struct{}{}
+	if len(metricIDs) > 0 {
+		lns["__name__"] = struct{}{}
+	}
 	var mn MetricName
 	foundLabelNames := 0
 	var buf []byte
@@ -764,10 +762,6 @@ func (db *indexDB) SearchLabelValuesWithFiltersOnTimeRange(qt *querytracer.Trace
 	maxLabelValues, maxMetrics int, deadline uint64) ([]string, error) {
 	qt = qt.NewChild("search for label values: labelName=%q, filters=%s, timeRange=%s, maxLabelNames=%d, maxMetrics=%d", labelName, tfss, &tr, maxLabelValues, maxMetrics)
 	defer qt.Done()
-
-	if tr.MinTimestamp >= db.s.minTimestampForCompositeIndex {
-		tfss = convertToCompositeTagFilterss(tfss)
-	}
 
 	lvs := make(map[string]struct{})
 	qtChild := qt.NewChild("search for label values in the current indexdb")
@@ -1185,10 +1179,6 @@ func (is *indexSearch) getSeriesCount() (uint64, error) {
 func (db *indexDB) GetTSDBStatus(qt *querytracer.Tracer, tfss []*TagFilters, date uint64, focusLabel string, topN, maxMetrics int, deadline uint64) (*TSDBStatus, error) {
 	qtChild := qt.NewChild("collect tsdb stats in the current indexdb")
 
-	if int64(date*msecPerDay) >= db.s.minTimestampForCompositeIndex {
-		tfss = convertToCompositeTagFilterss(tfss)
-	}
-
 	is := db.getIndexSearch(deadline)
 	status, err := is.getTSDBStatus(qtChild, tfss, date, focusLabel, topN, maxMetrics)
 	qtChild.Done()
@@ -1493,7 +1483,6 @@ func (db *indexDB) DeleteTSIDs(qt *querytracer.Tracer, tfss []*TagFilters) (int,
 	if len(tfss) == 0 {
 		return 0, nil
 	}
-	tfss = convertToCompositeTagFilterss(tfss)
 
 	// Obtain metricIDs to delete.
 	tr := TimeRange{
@@ -1598,9 +1587,6 @@ func (db *indexDB) searchMetricIDs(qt *querytracer.Tracer, tfss []*TagFilters, t
 
 	if len(tfss) == 0 {
 		return nil, nil
-	}
-	if tr.MinTimestamp >= db.s.minTimestampForCompositeIndex {
-		tfss = convertToCompositeTagFilterss(tfss)
 	}
 
 	qtChild := qt.NewChild("search for metricIDs in the current indexdb")
@@ -2131,14 +2117,6 @@ func (is *indexSearch) searchMetricIDsWithFiltersOnDate(qt *querytracer.Tracer, 
 //
 // The returned metricIDs are sorted.
 func (is *indexSearch) searchMetricIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int) ([]uint64, error) {
-	ok, err := is.containsTimeRange(tr)
-	if err != nil {
-		return nil, err
-	}
-	if !ok {
-		// Fast path - the index doesn't contain data for the given tr.
-		return nil, nil
-	}
 	metricIDs, err := is.searchMetricIDsInternal(qt, tfss, tr, maxMetrics)
 	if err != nil {
 		return nil, err
@@ -2170,7 +2148,23 @@ func (is *indexSearch) searchMetricIDs(qt *querytracer.Tracer, tfss []*TagFilter
 func (is *indexSearch) searchMetricIDsInternal(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int) (*uint64set.Set, error) {
 	qt = qt.NewChild("search for metric ids: filters=%s, timeRange=%s, maxMetrics=%d", tfss, &tr, maxMetrics)
 	defer qt.Done()
+
 	metricIDs := &uint64set.Set{}
+
+	ok, err := is.containsTimeRange(tr)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		qt.Printf("indexdb doesn't contain data for the given timeRange=%s", &tr)
+		return metricIDs, nil
+	}
+
+	if tr.MinTimestamp >= is.db.s.minTimestampForCompositeIndex {
+		tfss = convertToCompositeTagFilterss(tfss)
+		qt.Printf("composite filters=%s", tfss)
+	}
+
 	for _, tfs := range tfss {
 		if len(tfs.tfs) == 0 {
 			// An empty filters must be equivalent to `{__name__!=""}`
