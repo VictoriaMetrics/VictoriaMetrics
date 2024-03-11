@@ -1770,6 +1770,13 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	if err := tfs.Add([]byte("constant"), []byte("const"), false, false); err != nil {
 		t.Fatalf("cannot add filter: %s", err)
 	}
+	tfsMetricName := NewTagFilters(accountID, projectID)
+	if err := tfsMetricName.Add([]byte("constant"), []byte("const"), false, false); err != nil {
+		t.Fatalf("cannot add filter on label: %s", err)
+	}
+	if err := tfsMetricName.Add(nil, []byte("testMetric"), false, false); err != nil {
+		t.Fatalf("cannot add filter on metric name: %s", err)
+	}
 
 	// Perform a search within a day.
 	// This should return the metrics for the day
@@ -1805,6 +1812,16 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 		t.Fatalf("unexpected labelNames; got\n%s\nwant\n%s", lns, labelNames)
 	}
 
+	// Check SearchLabelNamesWithFiltersOnTimeRange with filters on metric name and time range.
+	lns, err = db.SearchLabelNamesWithFiltersOnTimeRange(nil, accountID, projectID, []*TagFilters{tfsMetricName}, tr, 10000, 1e9, noDeadline)
+	if err != nil {
+		t.Fatalf("unexpected error in SearchLabelNamesWithFiltersOnTimeRange(filters=%s, timeRange=%s): %s", tfs, &tr, err)
+	}
+	sort.Strings(lns)
+	if !reflect.DeepEqual(lns, labelNames) {
+		t.Fatalf("unexpected labelNames; got\n%s\nwant\n%s", lns, labelNames)
+	}
+
 	// Check SearchLabelValuesWithFiltersOnTimeRange with the specified filter.
 	lvs, err = db.SearchLabelValuesWithFiltersOnTimeRange(nil, accountID, projectID, "", []*TagFilters{tfs}, TimeRange{}, 10000, 1e9, noDeadline)
 	if err != nil {
@@ -1817,6 +1834,16 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 
 	// Check SearchLabelValuesWithFiltersOnTimeRange with the specified filter and time range.
 	lvs, err = db.SearchLabelValuesWithFiltersOnTimeRange(nil, accountID, projectID, "", []*TagFilters{tfs}, tr, 10000, 1e9, noDeadline)
+	if err != nil {
+		t.Fatalf("unexpected error in SearchLabelValuesWithFiltersOnTimeRange(filters=%s, timeRange=%s): %s", tfs, &tr, err)
+	}
+	sort.Strings(lvs)
+	if !reflect.DeepEqual(lvs, labelValues) {
+		t.Fatalf("unexpected labelValues; got\n%s\nwant\n%s", lvs, labelValues)
+	}
+
+	// Check SearchLabelValuesWithFiltersOnTimeRange with filters on metric name and time range.
+	lvs, err = db.SearchLabelValuesWithFiltersOnTimeRange(nil, accountID, projectID, "", []*TagFilters{tfsMetricName}, tr, 10000, 1e9, noDeadline)
 	if err != nil {
 		t.Fatalf("unexpected error in SearchLabelValuesWithFiltersOnTimeRange(filters=%s, timeRange=%s): %s", tfs, &tr, err)
 	}

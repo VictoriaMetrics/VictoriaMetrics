@@ -686,6 +686,7 @@ func (is *indexSearch) searchLabelNamesWithFiltersOnDate(qt *querytracer.Tracer,
 		is.getLabelNamesForMetricIDs(qt, metricIDs, lns, maxLabelNames)
 		return nil
 	}
+
 	var prevLabelName []byte
 	ts := &is.ts
 	kb := &is.kb
@@ -697,8 +698,18 @@ func (is *indexSearch) searchLabelNamesWithFiltersOnDate(qt *querytracer.Tracer,
 	if date == 0 {
 		nsPrefixExpected = nsPrefixTagToMetricIDs
 	}
+
+	hasCompositeLabelName := false
 	kb.B = is.marshalCommonPrefixForDate(kb.B[:0], date)
-	prefix := kb.B
+	if name := getCommonMetricNameForTagFilterss(tfss); len(name) > 0 {
+		compositeLabelName := marshalCompositeTagKey(nil, name, nil)
+		kb.B = marshalTagValue(kb.B, compositeLabelName)
+		// Drop trailing tagSeparator
+		kb.B = kb.B[:len(kb.B)-1]
+		hasCompositeLabelName = true
+	}
+	prefix := append([]byte{}, kb.B...)
+
 	ts.Seek(prefix)
 	for len(lns) < maxLabelNames && ts.NextItem() {
 		if loopsPaceLimiter&paceLimiterFastIterationsMask == 0 {
@@ -718,15 +729,15 @@ func (is *indexSearch) searchLabelNamesWithFiltersOnDate(qt *querytracer.Tracer,
 			continue
 		}
 		labelName := mp.Tag.Key
-		if len(labelName) == 0 {
+		if len(labelName) == 0 || hasCompositeLabelName {
 			underscoreNameSeen = true
 		}
-		if isArtificialTagKey(labelName) || string(labelName) == string(prevLabelName) {
+		if (!hasCompositeLabelName && isArtificialTagKey(labelName)) || string(labelName) == string(prevLabelName) {
 			// Search for the next tag key.
 			// The last char in kb.B must be tagSeparatorChar.
 			// Just increment it in order to jump to the next tag key.
 			kb.B = is.marshalCommonPrefixForDate(kb.B[:0], date)
-			if len(labelName) > 0 && labelName[0] == compositeTagKeyPrefix {
+			if !hasCompositeLabelName && len(labelName) > 0 && labelName[0] == compositeTagKeyPrefix {
 				// skip composite tag entries
 				kb.B = append(kb.B, compositeTagKeyPrefix)
 			} else {
@@ -736,7 +747,15 @@ func (is *indexSearch) searchLabelNamesWithFiltersOnDate(qt *querytracer.Tracer,
 			ts.Seek(kb.B)
 			continue
 		}
-		lns[string(labelName)] = struct{}{}
+		if !hasCompositeLabelName {
+			lns[string(labelName)] = struct{}{}
+		} else {
+			_, key, err := unmarshalCompositeTagKey(labelName)
+			if err != nil {
+				return fmt.Errorf("cannot unmarshal composite tag key: %s", err)
+			}
+			lns[string(key)] = struct{}{}
+		}
 		prevLabelName = append(prevLabelName[:0], labelName...)
 	}
 	if underscoreNameSeen {
@@ -1004,7 +1023,7 @@ func (is *indexSearch) searchLabelValuesWithFiltersOnDate(qt *querytracer.Tracer
 	if err != nil {
 		return err
 	}
-	if filter != nil && filter.Len() < 100e3 {
+	if filter != nil && filter.Len() <= 100e3 {
 		// It is faster to obtain label values by metricIDs from the filter
 		// instead of scanning the inverted index for the matching filters.
 		// This would help https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2978
@@ -1017,7 +1036,12 @@ func (is *indexSearch) searchLabelValuesWithFiltersOnDate(qt *querytracer.Tracer
 		// __name__ label is encoded as empty string in indexdb.
 		labelName = ""
 	}
+
 	labelNameBytes := bytesutil.ToUnsafeBytes(labelName)
+	if name := getCommonMetricNameForTagFilterss(tfss); len(name) > 0 && labelName != "" {
+		labelNameBytes = marshalCompositeTagKey(nil, name, labelNameBytes)
+	}
+
 	var prevLabelValue []byte
 	ts := &is.ts
 	kb := &is.kb
@@ -1030,7 +1054,7 @@ func (is *indexSearch) searchLabelValuesWithFiltersOnDate(qt *querytracer.Tracer
 	}
 	kb.B = is.marshalCommonPrefixForDate(kb.B[:0], date)
 	kb.B = marshalTagValue(kb.B, labelNameBytes)
-	prefix := kb.B
+	prefix := append([]byte{}, kb.B...)
 	ts.Seek(prefix)
 	for len(lvs) < maxLabelValues && ts.NextItem() {
 		if loopsPaceLimiter&paceLimiterFastIterationsMask == 0 {
@@ -1385,7 +1409,7 @@ func (is *indexSearch) getTSDBStatus(qt *querytracer.Tracer, tfss []*TagFilters,
 		nsPrefixExpected = nsPrefixTagToMetricIDs
 	}
 	kb.B = is.marshalCommonPrefixForDate(kb.B[:0], date)
-	prefix := kb.B
+	prefix := append([]byte{}, kb.B...)
 	ts.Seek(prefix)
 	for ts.NextItem() {
 		if loopsPaceLimiter&paceLimiterFastIterationsMask == 0 {
