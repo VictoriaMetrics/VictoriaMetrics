@@ -507,19 +507,19 @@ func tryPush(at *auth.Token, wr *prompbmarshal.WriteRequest, dropSamplesOnFailur
 
 	for len(tss) > 0 {
 		// Process big tss in smaller blocks in order to reduce the maximum memory usage
-		samplesCount := 0
+		rowsCount := 0
 		labelsCount := 0
 		i := 0
 		for i < len(tss) {
-			samplesCount += len(tss[i].Samples)
-			labelsCount += len(tss[i].Samples) * len(tss[i].Labels)
+			rowsCount += len(tss[i].Samples) + len(tss[i].Histograms)
+			labelsCount += rowsCount * len(tss[i].Labels)
 			i++
-			if samplesCount >= maxSamplesPerBlock || labelsCount >= maxLabelsPerBlock {
+			if rowsCount >= maxSamplesPerBlock || labelsCount >= maxLabelsPerBlock {
 				break
 			}
 		}
 
-		ingestionRateLimiter.Register(samplesCount)
+		ingestionRateLimiter.Register(rowsCount)
 
 		tssBlock := tss
 		if i < len(tss) {
@@ -708,13 +708,14 @@ func limitSeriesCardinality(tss []prompbmarshal.TimeSeries) []prompbmarshal.Time
 	for i := range tss {
 		labels := tss[i].Labels
 		h := getLabelsHash(labels)
+		rowsCount := len(tss[i].Samples) + len(tss[i].Histograms)
 		if hourlySeriesLimiter != nil && !hourlySeriesLimiter.Add(h) {
-			hourlySeriesLimitRowsDropped.Add(len(tss[i].Samples))
+			hourlySeriesLimitRowsDropped.Add(rowsCount)
 			logSkippedSeries(labels, "-remoteWrite.maxHourlySeries", hourlySeriesLimiter.MaxItems())
 			continue
 		}
 		if dailySeriesLimiter != nil && !dailySeriesLimiter.Add(h) {
-			dailySeriesLimitRowsDropped.Add(len(tss[i].Samples))
+			dailySeriesLimitRowsDropped.Add(rowsCount)
 			logSkippedSeries(labels, "-remoteWrite.maxDailySeries", dailySeriesLimiter.MaxItems())
 			continue
 		}
@@ -1067,7 +1068,7 @@ var tssPool = &sync.Pool{
 func getRowsCount(tss []prompbmarshal.TimeSeries) int {
 	rowsCount := 0
 	for _, ts := range tss {
-		rowsCount += len(ts.Samples)
+		rowsCount += len(ts.Samples) + len(ts.Histograms)
 	}
 	return rowsCount
 }

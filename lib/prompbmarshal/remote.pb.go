@@ -51,3 +51,7 @@ func (m *WriteRequest) Size() (n int) {
 func sov(x uint64) (n int) {
 	return (bits.Len64(x|1) + 6) / 7
 }
+
+func soz(x uint64) (n int) {
+	return sov(uint64((x << 1) ^ uint64((int64(x) >> 63))))
+}

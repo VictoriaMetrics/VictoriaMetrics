@@ -176,6 +176,12 @@ type Config struct {
 	//
 	Outputs []string `yaml:"outputs"`
 
+	// HistogramOutputs is a list of output aggregate functions to produce which only work on histogram inputs.
+	//
+	// The following names are allowed:
+	// histogram_merge
+	HistogramOutputs []string `yaml:"histogram_outputs"`
+
 	// KeepMetricNames instructs to leave metric names as is for the output time series without adding any suffix.
 	KeepMetricNames *bool `yaml:"keep_metric_names,omitempty"`
 
@@ -361,6 +367,9 @@ type aggregator struct {
 	// aggrStates contains aggregate states for the given outputs
 	aggrStates []aggrState
 
+	// histogramAggrStates is similar to aggrStates but only works for histogram inputs
+	histogramAggrStates []histogramAggrState
+
 	// lc is used for compressing series keys before passing them to dedupAggr and aggrState
 	lc promutils.LabelsCompressor
 
@@ -386,6 +395,11 @@ type aggregator struct {
 
 type aggrState interface {
 	pushSamples(samples []pushSample)
+	flushState(ctx *flushCtx, resetState bool)
+}
+
+type histogramAggrState interface {
+	pushHistograms(histograms []pushHistogram)
 	flushState(ctx *flushCtx, resetState bool)
 }
 
@@ -563,6 +577,19 @@ func newAggregator(cfg *Config, pushFunc PushFunc, ms *metrics.Set, opts *Option
 		}
 	}
 
+	histogramAggrStates := make([]histogramAggrState, len(cfg.HistogramOutputs))
+	histogramMerge := newHistogramMergeAggrState(stalenessInterval, false, true)
+	if len(cfg.HistogramOutputs) > 0 {
+		for i, output := range cfg.HistogramOutputs {
+			switch output {
+			case HistogramMerge:
+				histogramAggrStates[i] = histogramMerge
+			default:
+				return nil, fmt.Errorf("unsupported histogram_output=%q; supported values: [%s]; ",
+					output, HistogramMerge)
+			}
+		}
+	}
 	// initialize suffix to add to metric names after aggregation
 	suffix := ":" + cfg.Interval
 	if labels := removeUnderscoreName(by); len(labels) > 0 {
@@ -588,7 +615,8 @@ func newAggregator(cfg *Config, pushFunc PushFunc, ms *metrics.Set, opts *Option
 		without:             without,
 		aggregateOnlyByTime: aggregateOnlyByTime,
 
-		aggrStates: aggrStates,
+		aggrStates:          aggrStates,
+		histogramAggrStates: histogramAggrStates,
 
 		suffix: suffix,
 
@@ -600,6 +628,7 @@ func newAggregator(cfg *Config, pushFunc PushFunc, ms *metrics.Set, opts *Option
 		flushTimeouts:      ms.GetOrCreateCounter(`vm_streamaggr_flush_timeouts_total`),
 		dedupFlushTimeouts: ms.GetOrCreateCounter(`vm_streamaggr_dedup_flush_timeouts_total`),
 	}
+	histogramMerge.setLc(&a.lc)
 	if dedupInterval > 0 {
 		a.da = newDedupAggr()
 	}
@@ -760,6 +789,22 @@ func (a *aggregator) flush(pushFunc PushFunc, interval time.Duration, resetState
 			putFlushCtx(ctx)
 		}(as)
 	}
+	for _, has := range a.histogramAggrStates {
+		flushConcurrencyCh <- struct{}{}
+		wg.Add(1)
+		go func(has histogramAggrState) {
+			defer func() {
+				<-flushConcurrencyCh
+				wg.Done()
+			}()
+
+			ctx := getFlushCtx(a, pushFunc)
+			has.flushState(ctx, resetState)
+			ctx.flushSeries()
+			ctx.resetSeries()
+			putFlushCtx(ctx)
+		}(has)
+	}
 	wg.Wait()
 
 	d := time.Since(startTime)
@@ -788,6 +833,7 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 	defer putPushCtx(ctx)
 
 	samples := ctx.samples
+	histograms := ctx.histograms
 	buf := ctx.buf
 	labels := &ctx.labels
 	inputLabels := &ctx.inputLabels
@@ -839,7 +885,21 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 				timestamp: sample.Timestamp,
 			})
 		}
+
+		if len(a.histogramAggrStates) > 0 {
+			for _, histogram := range ts.Histograms {
+				if histogram.Count == 0 {
+					// Skip empty histograms
+					continue
+				}
+				histograms = append(histograms, pushHistogram{
+					key:   key,
+					value: histogram,
+				})
+			}
+		}
 	}
+	ctx.histograms = histograms
 	ctx.samples = samples
 	ctx.buf = buf
 
@@ -847,6 +907,7 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 		a.da.pushSamples(samples)
 	} else {
 		a.pushSamples(samples)
+		a.pushHistograms(histograms)
 	}
 }
 
@@ -891,8 +952,15 @@ func (a *aggregator) pushSamples(samples []pushSample) {
 	}
 }
 
+func (a *aggregator) pushHistograms(histograms []pushHistogram) {
+	for _, has := range a.histogramAggrStates {
+		has.pushHistograms(histograms)
+	}
+}
+
 type pushCtx struct {
 	samples      []pushSample
+	histograms   []pushHistogram
 	labels       promutils.Labels
 	inputLabels  promutils.Labels
 	outputLabels promutils.Labels
@@ -901,6 +969,7 @@ type pushCtx struct {
 
 func (ctx *pushCtx) reset() {
 	clear(ctx.samples)
+	ctx.histograms = ctx.histograms[:0]
 	ctx.samples = ctx.samples[:0]
 
 	ctx.labels.Reset()
@@ -913,6 +982,11 @@ type pushSample struct {
 	key       string
 	value     float64
 	timestamp int64
+}
+
+type pushHistogram struct {
+	key   string
+	value prompbmarshal.Histogram
 }
 
 func getPushCtx() *pushCtx {
@@ -973,9 +1047,10 @@ type flushCtx struct {
 	a        *aggregator
 	pushFunc PushFunc
 
-	tss     []prompbmarshal.TimeSeries
-	labels  []prompbmarshal.Label
-	samples []prompbmarshal.Sample
+	tss        []prompbmarshal.TimeSeries
+	labels     []prompbmarshal.Label
+	samples    []prompbmarshal.Sample
+	histograms []prompbmarshal.Histogram
 }
 
 func (ctx *flushCtx) reset() {
@@ -1030,6 +1105,26 @@ func (ctx *flushCtx) flushSeries() {
 	}
 	auxLabels.Labels = dstLabels
 	promutils.PutLabels(auxLabels)
+}
+
+func (ctx *flushCtx) appendHistograms(key, suffix string, value *prompbmarshal.Histogram) {
+	labelsLen := len(ctx.labels)
+	histogramsLen := len(ctx.histograms)
+	ctx.labels = decompressLabels(ctx.labels, &ctx.a.lc, key)
+	if !ctx.a.keepMetricNames {
+		ctx.labels = addMetricSuffix(ctx.labels, labelsLen, ctx.a.suffix, suffix)
+	}
+	ctx.histograms = append(ctx.histograms, *value)
+	ctx.tss = append(ctx.tss, prompbmarshal.TimeSeries{
+		Labels:     ctx.labels[labelsLen:],
+		Histograms: ctx.histograms[histogramsLen:],
+	})
+
+	// Limit the maximum length of ctx.tss in order to limit memory usage.
+	if len(ctx.tss) >= 10_000 {
+		ctx.flushSeries()
+		ctx.resetSeries()
+	}
 }
 
 func (ctx *flushCtx) appendSeries(key, suffix string, timestamp int64, value float64) {

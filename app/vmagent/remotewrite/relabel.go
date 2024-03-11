@@ -110,8 +110,9 @@ func (rctx *relabelCtx) applyRelabeling(tss []prompbmarshal.TimeSeries, pcs *pro
 			fixPromCompatibleNaming(labels[labelsLen:])
 		}
 		tssDst = append(tssDst, prompbmarshal.TimeSeries{
-			Labels:  labels[labelsLen:],
-			Samples: ts.Samples,
+			Labels:     labels[labelsLen:],
+			Samples:    ts.Samples,
+			Histograms: ts.Histograms,
 		})
 	}
 	rctx.labels = labels
