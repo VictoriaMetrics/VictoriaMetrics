@@ -54,6 +54,8 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## [v1.99.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.99.0)
 
+**12/03/2024: There's ongoing investigation of the issue [#5959](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5959) related to this release. Until the issue is addressed, please avoid updating to v1.99.0.**
+
 Released at 2024-03-01
 
 * FEATURE: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): propagate [label filters](https://docs.victoriametrics.com/keyconcepts/#filtering) via all the [label manipulation functions](https://docs.victoriametrics.com/metricsql/#label-manipulation-functions). For example, `label_del(some_metric{job="foo"}, "instance") + other_metric{pod="bar"}` is now transformed to `label_del(some_metric{job="foo",pod="bar"}, "instance") + other_metric{job="foo",pod="bar"}`. This should reduce the amounts of time series processed during query execution.
