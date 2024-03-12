@@ -939,7 +939,7 @@ foo{baz="qwe"} -5
 bar{baz="qwer"} 343
 bar{baz="qwer"} 344
 foo{baz="qwe"} 10
-`, `bar:1m_sum_samples{baz="qwe"} 2
+`, `bar:1m_sum_samples{baz="qwe"} 4.34
 bar:1m_sum_samples{baz="qwer"} 344
 foo:1m_sum_samples 123
 foo:1m_sum_samples{baz="qwe"} 10
