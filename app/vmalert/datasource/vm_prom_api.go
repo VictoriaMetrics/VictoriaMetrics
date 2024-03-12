@@ -161,9 +161,6 @@ func (s *VMStorage) setPrometheusInstantReqParams(r *http.Request, query string,
 		r.URL.Path += "/api/v1/query"
 	}
 	q := r.URL.Query()
-	if s.lookBack > 0 {
-		timestamp = timestamp.Add(-s.lookBack)
-	}
 	q.Set("time", timestamp.Format(time.RFC3339))
 	if !*disableStepParam && s.evaluationInterval > 0 { // set step as evaluationInterval by default
 		// always convert to seconds to keep compatibility with older
