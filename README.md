@@ -365,7 +365,8 @@ Prometheus doesn't drop data during VictoriaMetrics restart. See [this article](
 
 ## vmui
 
-VictoriaMetrics provides UI for query troubleshooting and exploration. The UI is available at `http://victoriametrics:8428/vmui`.
+VictoriaMetrics provides UI for query troubleshooting and exploration. The UI is available at `http://victoriametrics:8428/vmui` 
+(or at `http://<vmselect>:8481/select/<accountID>/vmui/` in [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/cluster-victoriametrics/)).
 The UI allows exploring query results via graphs and tables. It also provides the following features:
 
 - Explore:
@@ -1785,7 +1786,7 @@ This aligns with the [staleness rules in Prometheus](https://prometheus.io/docs/
 If multiple raw samples have **the same timestamp** on the given `-dedup.minScrapeInterval` discrete interval, 
 then the sample with **the biggest value** is kept.
 
-[Prometheus stalenes markers](https://docs.victoriametrics.com/vmagent.html#prometheus-staleness-markers) are processed as any other value during de-duplication.
+[Prometheus staleness markers](https://docs.victoriametrics.com/vmagent.html#prometheus-staleness-markers) are processed as any other value during de-duplication.
 If raw sample with the biggest timestamp on `-dedup.minScrapeInterval` contains a stale marker, then it is kept after the deduplication.
 This allows properly preserving staleness markers during the de-duplication.
 
