@@ -225,7 +225,7 @@ func TestAggregatorsSuccess(t *testing.T) {
 		// Push the inputMetrics to Aggregators
 		tssInput := mustParsePromMetrics(inputMetrics)
 		matchIdxs := a.Push(tssInput, nil)
-		a.MustStop()
+		a.MustStop(nil)
 
 		// Verify matchIdxs equals to matchIdxsExpected
 		matchIdxsStr := ""
@@ -861,7 +861,7 @@ func TestAggregatorsWithDedupInterval(t *testing.T) {
 		// Push the inputMetrics to Aggregators
 		tssInput := mustParsePromMetrics(inputMetrics)
 		matchIdxs := a.Push(tssInput, nil)
-		a.MustStop()
+		a.MustStop(nil)
 
 		// Verify matchIdxs equals to matchIdxsExpected
 		matchIdxsStr := ""

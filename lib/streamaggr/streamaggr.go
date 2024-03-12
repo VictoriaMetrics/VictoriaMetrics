@@ -22,6 +22,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 	"github.com/VictoriaMetrics/metrics"
+	"github.com/cespare/xxhash/v2"
 	"gopkg.in/yaml.v2"
 )
 
@@ -271,8 +272,8 @@ func newAggregatorsFromData(data []byte, pushFunc PushFunc, opts *Options) (*Agg
 	}, nil
 }
 
-// MustStop stops a.
-func (a *Aggregators) MustStop() {
+// MustStop stops a and dumps state.
+func (a *Aggregators) MustStop(cfgHashesToStop []uint64) {
 	if a == nil {
 		return
 	}
@@ -281,9 +282,42 @@ func (a *Aggregators) MustStop() {
 	a.ms = nil
 
 	for _, aggr := range a.as {
-		aggr.MustStop()
+		if cfgHashesToStop == nil {
+			aggr.MustStop()
+			continue
+		}
+		for _, cfgHashToStop := range cfgHashesToStop {
+			if aggr.configHash == cfgHashToStop {
+				aggr.MustStop()
+			}
+		}
 	}
 	a.as = nil
+}
+
+// StateFrom copies unchanged aggregators in b to a
+func (a *Aggregators) StateFrom(b *Aggregators) []uint64 {
+	if a == nil || b == nil || a.Equal(b) {
+		return nil
+	}
+	ignored := make([]uint64, len(b.as))
+	var i int
+	for bi := range b.as {
+		ignore := true
+		for ai := range a.as {
+			if b.as[bi].configHash == a.as[ai].configHash {
+				a.as[ai].MustStop()
+				ignore = false
+				a.as[ai] = b.as[bi]
+				break
+			}
+		}
+		if ignore {
+			ignored[i] = b.as[bi].configHash
+			i++
+		}
+	}
+	return ignored
 }
 
 // Equal returns true if a and b are initialized from identical configs.
@@ -347,7 +381,8 @@ type aggregator struct {
 	// It contains the interval, labels in (by, without), plus output name.
 	// For example, foo_bar metric name is transformed to foo_bar:1m_by_job
 	// for `interval: 1m`, `by: [job]`
-	suffix string
+	suffix     string
+	configHash uint64
 
 	wg     sync.WaitGroup
 	stopCh chan struct{}
@@ -536,6 +571,11 @@ func newAggregator(cfg *Config, pushFunc PushFunc, ms *metrics.Set, opts *Option
 	}
 	suffix += "_"
 
+	cfgRaw, err := yaml.Marshal(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("cannot marshal aggregator config: %w", err)
+	}
+
 	// initialize the aggregator
 	a := &aggregator{
 		match: cfg.Match,
@@ -552,7 +592,8 @@ func newAggregator(cfg *Config, pushFunc PushFunc, ms *metrics.Set, opts *Option
 
 		aggrStates: aggrStates,
 
-		suffix: suffix,
+		suffix:     suffix,
+		configHash: xxhash.Sum64(cfgRaw),
 
 		stopCh: make(chan struct{}),
 
@@ -728,6 +769,14 @@ var flushConcurrencyCh = make(chan struct{}, cgroup.AvailableCPUs())
 func (a *aggregator) MustStop() {
 	close(a.stopCh)
 	a.wg.Wait()
+}
+
+// Equal compares aggregators
+func (a *aggregator) Equal(b *aggregator) bool {
+	if a == nil || b == nil {
+		return a == nil && b == nil
+	}
+	return a.configHash == b.configHash
 }
 
 // Push pushes tss to a.

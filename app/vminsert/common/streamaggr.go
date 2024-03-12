@@ -60,7 +60,7 @@ func CheckStreamAggrConfig() error {
 	if err != nil {
 		return fmt.Errorf("error when loading -streamAggr.config=%q: %w", *streamAggrConfig, err)
 	}
-	sas.MustStop()
+	sas.MustStop(nil)
 	return nil
 }
 
@@ -123,12 +123,13 @@ func reloadStreamAggrConfig() {
 	}
 	sas := sasGlobal.Load()
 	if !sasNew.Equal(sas) {
+		aggrHashesToStop := sasNew.StateFrom(sas)
 		sasOld := sasGlobal.Swap(sasNew)
-		sasOld.MustStop()
+		sasOld.MustStop(aggrHashesToStop)
 		logger.Infof("successfully reloaded stream aggregation config at -streamAggr.config=%q", *streamAggrConfig)
 	} else {
 		logger.Infof("nothing changed in -streamAggr.config=%q", *streamAggrConfig)
-		sasNew.MustStop()
+		sasNew.MustStop(nil)
 	}
 	saCfgSuccess.Set(1)
 	saCfgTimestamp.Set(fasttime.UnixTimestamp())
@@ -140,7 +141,7 @@ func MustStopStreamAggr() {
 	saCfgReloaderWG.Wait()
 
 	sas := sasGlobal.Swap(nil)
-	sas.MustStop()
+	sas.MustStop(nil)
 
 	if deduplicator != nil {
 		deduplicator.MustStop()

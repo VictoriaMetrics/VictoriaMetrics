@@ -770,7 +770,7 @@ func (rwctx *remoteWriteCtx) MustStop() {
 	// sas and deduplicator must be stopped before rwctx is closed
 	// because sas can write pending series to rwctx.pss if there are any
 	sas := rwctx.sas.Swap(nil)
-	sas.MustStop()
+	sas.MustStop(nil)
 
 	if rwctx.deduplicator != nil {
 		rwctx.deduplicator.MustStop()
@@ -927,11 +927,12 @@ func (rwctx *remoteWriteCtx) reinitStreamAggr() {
 	}
 	sas := rwctx.sas.Load()
 	if !sasNew.Equal(sas) {
+		aggrHashesToStop := sasNew.StateFrom(sas)
 		sasOld := rwctx.sas.Swap(sasNew)
-		sasOld.MustStop()
+		sasOld.MustStop(aggrHashesToStop)
 		logger.Infof("successfully reloaded stream aggregation configs at -remoteWrite.streamAggr.config=%q", sasFile)
 	} else {
-		sasNew.MustStop()
+		sasNew.MustStop(nil)
 		logger.Infof("the config at -remoteWrite.streamAggr.config=%q wasn't changed", sasFile)
 	}
 	metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reload_successful{path=%q}`, sasFile)).Set(1)
@@ -967,7 +968,7 @@ func CheckStreamAggrConfigs() error {
 		if err != nil {
 			return fmt.Errorf("cannot load -remoteWrite.streamAggr.config=%q: %w", sasFile, err)
 		}
-		sas.MustStop()
+		sas.MustStop(nil)
 	}
 	return nil
 }
