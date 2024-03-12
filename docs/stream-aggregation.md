@@ -78,9 +78,10 @@ to the configured `-remoteWrite.url`. The de-duplication can be enabled via the 
 
 It is possible to drop the given labels before applying the de-duplication. See [these docs](#dropping-unneeded-labels).
 
-The online de-duplication doesn't take into account timestamps associated with the de-duplicated samples - it just leaves the last seen sample
-on the configured deduplication interval. If you need taking into account timestamps during the de-duplication,
-then use [`-dedup.minScrapeInterval` command-line flag](https://docs.victoriametrics.com/#deduplication).
+The online de-duplication takes into account timestamps associated with the de-duplicated samples - it keeps the sample
+with the newest timestamp on the configured deduplication interval. If multiple samples have the same timestamp on the
+configured deduplication interval, then the sample with the biggest value is kept. The logic is aligned with
+[`-dedup.minScrapeInterval` command-line flag](https://docs.victoriametrics.com/#deduplication).
 
 ## Flush time alignment
 
