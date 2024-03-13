@@ -1,6 +1,7 @@
 package snapshot
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -8,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -19,6 +21,8 @@ var (
 	tlsKeyFile            = flag.String("snapshot.tlsKeyFile", "", "Optional path to client-side TLS certificate key to use when connecting to -snapshotCreateURL")
 	tlsCAFile             = flag.String("snapshot.tlsCAFile", "", `Optional path to TLS CA file to use for verifying connections to -snapshotCreateURL. By default, system CA is used`)
 	tlsServerName         = flag.String("snapshot.tlsServerName", "", `Optional TLS server name to use for connections to -snapshotCreateURL. By default, the server name from -snapshotCreateURL is used`)
+	basicAuthUser         = flag.String("snapshot.basicAuthUsername", "", `Optional basic auth username to use for connections to -snapshotCreateURL`)
+	basicAuthPassword     = flag.String("snapshot.basicAuthPassword", "", `Optional basic auth password to use for connections to -snapshotCreateURL`)
 )
 
 type snapshot struct {
@@ -41,8 +45,17 @@ func Create(createSnapshotURL string) (string, error) {
 		return "", err
 	}
 	hc := &http.Client{Transport: tr}
-
-	resp, err := hc.Get(u.String())
+	req, err := http.NewRequest("GET", createSnapshotURL, nil)
+	if err != nil {
+		return "", err
+	}
+	if *basicAuthUser != "" {
+		auth := *basicAuthUser + ":" + *basicAuthPassword
+		authHeader := base64.StdEncoding.EncodeToString([]byte(auth))
+		req.Header.Set("Authorization", "Basic "+authHeader)
+	}
+	resp, err := hc.Do(req)
+	//resp, err := hc.Get(u.String())
 	if err != nil {
 		return "", err
 	}
@@ -86,7 +99,18 @@ func Delete(deleteSnapshotURL string, snapshotName string) error {
 		return err
 	}
 	hc := &http.Client{Transport: tr}
-	resp, err := hc.PostForm(u.String(), formData)
+	req, err := http.NewRequest("POST", deleteSnapshotURL, strings.NewReader(formData.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	if err != nil {
+		return err
+	}
+	if *basicAuthUser != "" {
+		auth := *basicAuthUser + ":" + *basicAuthPassword
+		authHeader := base64.StdEncoding.EncodeToString([]byte(auth))
+		req.Header.Set("Authorization", "Basic "+authHeader)
+	}
+	resp, err := hc.Do(req)
+	//resp, err := hc.PostForm(u.String(), formData)
 	if err != nil {
 		return err
 	}
