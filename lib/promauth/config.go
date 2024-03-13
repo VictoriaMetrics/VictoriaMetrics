@@ -346,6 +346,11 @@ func (ac *Config) SetHeaders(req *http.Request, setAuthHeader bool) error {
 			reqHeaders.Set("Authorization", ah)
 		}
 	}
+	// Headers must be set first, so we get canonical header naming
+	hostHeader := reqHeaders.Get("Host")
+	if hostHeader != "" {
+		req.Host = hostHeader
+	}
 	return nil
 }
 
