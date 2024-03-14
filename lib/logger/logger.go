@@ -32,16 +32,6 @@ var (
 
 	errorsPerSecondLimit = flag.Int("loggerErrorsPerSecondLimit", 0, `Per-second limit on the number of ERROR messages. If more than the given number of errors are emitted per second, the remaining errors are suppressed. Zero values disable the rate limit`)
 	warnsPerSecondLimit  = flag.Int("loggerWarnsPerSecondLimit", 0, `Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero values disable the rate limit`)
-
-	syslogNetwork = flag.String("syslogNetwork", "", "network connection to establish. Options are tcp udp tcp+tls. If network is empty, it will connect to the local syslog server")
-	syslogAddress = flag.String("syslogAddress", "localhost:5143", "Required: Network address of the syslog server.")
-	syslogTag     = flag.String("syslogTag", "", "tag for syslog. Used os.args[0] if empty")
-
-	tlsCertFile           = flag.String("syslog.tlsCertFile", "", "Optional path to client-side TLS certificate file to use when connecting to -syslogAddress")
-	tlsKeyFile            = flag.String("syslog.tlsKeyFile", "", "Optional path to client-side TLS certificate key to use when connecting to -syslogAddress")
-	tlsCAFile             = flag.String("syslog.tlsCAFile", "", "Optional path to TLS CA file to use for verifying connections to syslogAddress. By default, system CA is used")
-	tlsServerName         = flag.String("syslog.tlsServerName", "", "Optional TLS server name to use for connections to -syslogAddress. By default, the server name from -syslogAddress is used")
-	tlsInsecureSkipVerify = flag.Bool("syslog.tlsInsecureSkipVerify", false, "Whether to skip tls verification when connecting to -syslogAddress")
 )
 
 // Init initializes the logger.
@@ -57,23 +47,6 @@ func Init() {
 	initTimezone()
 	go logLimiterCleaner()
 	logAllFlags()
-}
-
-var defaultPrioritySelector = map[string]syslog.Priority{
-	"INFO":  syslog.LOG_INFO,
-	"WARN":  syslog.LOG_WARNING,
-	"ERROR": syslog.LOG_ERR,
-	"FATAL": syslog.LOG_CRIT, //
-	"PANIC": syslog.LOG_EMERG,
-}
-
-func parsePriority(prior string) syslog.Priority {
-	v, found := defaultPrioritySelector[prior]
-	if !found {
-		// default the facility level to LOG_LOCAL7
-		return syslog.LOG_INFO
-	}
-	return v
 }
 
 func initTimezone() {
@@ -94,34 +67,9 @@ func setLoggerOutput() {
 	case "stdout":
 		output = os.Stdout
 	case "syslog":
-		output = setSyslogConnection()
+		output = syslog.GetSyslogWriter(*loggerLevel)
 	default:
 		panic(fmt.Errorf("FATAL: unsupported `loggerOutput` value: %q; supported values are: stderr, stdout", *loggerOutput))
-	}
-}
-
-func setSyslogConnection() *syslog.Writer {
-
-	prio := parsePriority(*loggerLevel)
-	switch *syslogNetwork {
-	case "", "tcp", "udp":
-		op, err := syslog.Dial(*syslogNetwork, *syslogAddress, prio, *syslogTag)
-		if err != nil {
-			panic(fmt.Errorf("error dialing syslog: %w", err))
-		}
-		return op
-	case "tcp+tls":
-		tc, err := TLSConfig(*tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify)
-		if err != nil {
-			panic(fmt.Errorf("error creating TLS config: %w", err))
-		}
-		op, err := syslog.DialWithTLSConfig(*syslogNetwork, *syslogAddress, prio, *syslogTag, tc)
-		if err != nil {
-			panic(fmt.Errorf("error dialing syslog with tcp+tls: %w", err))
-		}
-		return op
-	default:
-		panic(fmt.Errorf("FATAL: unsupported `syslogNetwork` value: %q; supported values are: stderr, stdout, syslog", *syslogNetwork))
 	}
 }
 
