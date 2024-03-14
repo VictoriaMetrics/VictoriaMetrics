@@ -270,7 +270,7 @@ func main() {
 					srcServerName := c.String(vmNativeSrcServerName)
 					srcInsecureSkipVerify := c.Bool(vmNativeSrcInsecureSkipVerify)
 
-					srcTC, err := httputils.TLSConfig(srcCertFile, srcCAFile, srcKeyFile, srcServerName, srcInsecureSkipVerify)
+					srcTC, err := httputils.TLSConfig(srcCertFile, srcKeyFile, srcCAFile, srcServerName, srcInsecureSkipVerify)
 					if err != nil {
 						return fmt.Errorf("failed to create TLS Config: %s", err)
 					}
@@ -297,7 +297,7 @@ func main() {
 					dstServerName := c.String(vmNativeDstServerName)
 					dstInsecureSkipVerify := c.Bool(vmNativeDstInsecureSkipVerify)
 
-					dstTC, err := httputils.TLSConfig(dstCertFile, dstCAFile, dstKeyFile, dstServerName, dstInsecureSkipVerify)
+					dstTC, err := httputils.TLSConfig(dstCertFile, dstKeyFile, dstCAFile, dstServerName, dstInsecureSkipVerify)
 					if err != nil {
 						return fmt.Errorf("failed to create TLS Config: %s", err)
 					}
