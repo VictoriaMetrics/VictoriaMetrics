@@ -155,6 +155,11 @@ func (p *vmNativeProcessor) runSingle(ctx context.Context, f native.Filter, srcU
 	return <-importCh
 }
 
+type metricFilter struct {
+	name   string
+	ranges [][]time.Time
+}
+
 func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string, ranges [][]time.Time, silent bool) error {
 	exportAddr := nativeExportAddr
 	importAddr := nativeImportAddr
@@ -175,31 +180,29 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 		dstURL = fmt.Sprintf("%s/insert/%s/prometheus/%s", p.dst.Addr, tenantID, importAddr)
 	}
 
-	barPrefix := "Requests to make"
 	initMessage := "Initing import process from %q to %q with filter %s"
 	initParams := []interface{}{srcURL, dstURL, p.filter.String()}
 	if p.interCluster {
-		barPrefix = fmt.Sprintf("Requests to make for tenant %s", tenantID)
 		initMessage = "Initing import process from %q to %q with filter %s for tenant %s"
 		initParams = []interface{}{srcURL, dstURL, p.filter.String(), tenantID}
 	}
 
 	fmt.Println("") // extra line for better output formatting
 	log.Printf(initMessage, initParams...)
-
-	var foundSeriesMsg string
-
-	var metrics = map[string]struct{}{
-		p.filter.Match: {},
+	if len(ranges) > 1 {
+		log.Print(fmt.Sprintf("Selected time range will be split into %d ranges according to %q step", len(ranges), p.filter.Chunk))
 	}
 
+	var foundSeriesMsg string
+	var requestsToMake int
+	var metrics = map[string][][]time.Time{
+		"": ranges,
+	}
 	if !p.disablePerMetricRequests {
-		log.Printf("Exploring metrics...")
-		metrics, err = p.src.Explore(ctx, p.filter, tenantID, p.cc)
+		metrics, err = p.explore(ctx, p.src, tenantID, ranges, silent)
 		if err != nil {
-			return fmt.Errorf("cannot get metrics from source %s: %w", p.src.Addr, err)
+			return fmt.Errorf("failed to explore metric names: %s", err)
 		}
-
 		if len(metrics) == 0 {
 			errMsg := "no metrics found"
 			if tenantID != "" {
@@ -208,7 +211,10 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 			log.Println(errMsg)
 			return nil
 		}
-		foundSeriesMsg = fmt.Sprintf("Found %d metrics to import", len(metrics))
+		for _, m := range metrics {
+			requestsToMake += len(m)
+		}
+		foundSeriesMsg = fmt.Sprintf("Found %d unique metric names to import. Total import/export requests to make %d", len(metrics), requestsToMake)
 	}
 
 	if !p.interCluster {
@@ -222,15 +228,13 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 		log.Print(foundSeriesMsg)
 	}
 
-	processingMsg := fmt.Sprintf("Requests to make: %d", len(metrics)*len(ranges))
-	if len(ranges) > 1 {
-		processingMsg = fmt.Sprintf("Selected time range will be split into %d ranges according to %q step. %s", len(ranges), p.filter.Chunk, processingMsg)
-	}
-	log.Print(processingMsg)
-
 	var bar *pb.ProgressBar
+	barPrefix := "Requests to make"
+	if p.interCluster {
+		barPrefix = fmt.Sprintf("Requests to make for tenant %s", tenantID)
+	}
 	if !silent {
-		bar = barpool.NewSingleProgress(fmt.Sprintf(nativeWithBackoffTpl, barPrefix), len(metrics)*len(ranges))
+		bar = barpool.NewSingleProgress(fmt.Sprintf(nativeWithBackoffTpl, barPrefix), requestsToMake)
 		if p.disablePerMetricRequests {
 			bar = barpool.NewSingleProgress(nativeSingleProcessTpl, 0)
 		}
@@ -266,20 +270,19 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 	}
 
 	// any error breaks the import
-	for s := range metrics {
-
-		match, err := buildMatchWithFilter(p.filter.Match, s)
+	for mName, mRanges := range metrics {
+		match, err := buildMatchWithFilter(p.filter.Match, mName)
 		if err != nil {
-			logger.Errorf("failed to build export filters: %s", err)
+			logger.Errorf("failed to build filter %q for metric name %q: %s", p.filter.Match, mName, err)
 			continue
 		}
 
-		for _, times := range ranges {
+		for _, times := range mRanges {
 			select {
 			case <-ctx.Done():
 				return fmt.Errorf("context canceled")
 			case infErr := <-errCh:
-				return fmt.Errorf("native error: %s", infErr)
+				return fmt.Errorf("export/import error: %s", infErr)
 			case filterCh <- native.Filter{
 				Match:     match,
 				TimeStart: times[0].Format(time.RFC3339),
@@ -298,6 +301,32 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 	}
 
 	return nil
+}
+
+func (p *vmNativeProcessor) explore(ctx context.Context, src *native.Client, tenantID string, ranges [][]time.Time, silent bool) (map[string][][]time.Time, error) {
+	log.Printf("Exploring metrics...")
+
+	var bar *pb.ProgressBar
+	if !silent {
+		bar = barpool.NewSingleProgress(fmt.Sprintf(nativeWithBackoffTpl, "Explore requests to make"), len(ranges))
+		bar.Start()
+		defer bar.Finish()
+	}
+
+	metrics := make(map[string][][]time.Time)
+	for _, r := range ranges {
+		ms, err := src.Explore(ctx, p.filter, tenantID, r[0], r[1])
+		if err != nil {
+			return nil, fmt.Errorf("cannot get metrics from %s on interval %v-%v: %w", src.Addr, r[0], r[1], err)
+		}
+		for i := range ms {
+			metrics[ms[i]] = append(metrics[ms[i]], r)
+		}
+		if bar != nil {
+			bar.Increment()
+		}
+	}
+	return metrics, nil
 }
 
 // stats represents client statistic

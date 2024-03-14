@@ -6,13 +6,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"sync"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/utils"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/auth"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/stepper"
 )
 
 const (
@@ -39,104 +35,33 @@ type Response struct {
 }
 
 // Explore finds metric names by provided filter from api/v1/label/__name__/values
-func (c *Client) Explore(ctx context.Context, f Filter, tenantID string, concurrency int) (map[string]struct{}, error) {
-
-	start, err := utils.ParseTime(f.TimeStart)
+func (c *Client) Explore(ctx context.Context, f Filter, tenantID string, start, end time.Time) ([]string, error) {
+	var response Response
+	url := fmt.Sprintf("%s/%s", c.Addr, nativeMetricNamesAddr)
+	if tenantID != "" {
+		url = fmt.Sprintf("%s/select/%s/prometheus/%s", c.Addr, tenantID, nativeMetricNamesAddr)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse time start for explore metrics: %s", err)
+		return nil, fmt.Errorf("cannot create request to %q: %s", url, err)
 	}
 
-	end := time.Now().In(start.Location())
-	if f.TimeEnd != "" {
-		end, err = utils.ParseTime(f.TimeEnd)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse time end for explore metrics: %s", err)
-		}
+	params := req.URL.Query()
+	params.Set("start", start.Format(time.RFC3339))
+	params.Set("end", end.Format(time.RFC3339))
+	params.Set("match[]", f.Match)
+	req.URL.RawQuery = params.Encode()
+
+	resp, err := c.do(req, http.StatusOK)
+	if err != nil {
+		return nil, fmt.Errorf("series request failed: %s", err)
 	}
 
-	ranges := [][]time.Time{{start, end}}
-	if f.Chunk != "" {
-		ranges, err = stepper.SplitDateRange(start, end, stepper.StepDay, false)
-		if err != nil {
-
-			return nil, fmt.Errorf("failed to create date ranges for explore metrics: %w", err)
-		}
+	response.MetricNames = response.MetricNames[:0]
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		return nil, fmt.Errorf("cannot decode series response: %s", err)
 	}
-
-	var mx sync.Mutex
-	var firstError error
-	limiter := make(chan struct{}, concurrency)
-	metricNames := make(map[string]struct{})
-
-	var wg sync.WaitGroup
-	for _, times := range ranges {
-		limiter <- struct{}{}
-		wg.Add(1)
-		go func(times []time.Time) {
-			defer func() {
-				wg.Done()
-				<-limiter
-			}()
-			start := times[0].Format(time.RFC3339)
-			end := times[1].Format(time.RFC3339)
-
-			url := fmt.Sprintf("%s/%s", c.Addr, nativeMetricNamesAddr)
-			if tenantID != "" {
-				url = fmt.Sprintf("%s/select/%s/prometheus/%s", c.Addr, tenantID, nativeMetricNamesAddr)
-			}
-			req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-			if err != nil {
-				if firstError == nil {
-					firstError = fmt.Errorf("cannot create request to %q: %s", url, err)
-				}
-				return
-			}
-
-			params := req.URL.Query()
-
-			params.Set("start", start)
-			params.Set("end", end)
-			params.Set("match[]", f.Match)
-
-			req.URL.RawQuery = params.Encode()
-
-			resp, err := c.do(req, http.StatusOK)
-			if err != nil {
-				if firstError == nil {
-					firstError = fmt.Errorf("series request failed: %s", err)
-				}
-				return
-			}
-
-			var response Response
-			if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
-				if firstError == nil {
-					firstError = fmt.Errorf("cannot decode series response: %s", err)
-				}
-				return
-			}
-
-			if err := resp.Body.Close(); err != nil {
-				if firstError == nil {
-					firstError = fmt.Errorf("cannot close series response body: %s", err)
-				}
-				return
-			}
-
-			mx.Lock()
-			for _, metricName := range response.MetricNames {
-				metricNames[metricName] = struct{}{}
-			}
-			mx.Unlock()
-		}(times)
-	}
-	wg.Wait()
-
-	if firstError != nil {
-		return nil, fmt.Errorf("explore process failed: %s", firstError)
-	}
-
-	return metricNames, nil
+	return response.MetricNames, resp.Body.Close()
 }
 
 // ImportPipe uses pipe reader in request to process data
