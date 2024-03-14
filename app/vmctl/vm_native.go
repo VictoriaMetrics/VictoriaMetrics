@@ -155,11 +155,6 @@ func (p *vmNativeProcessor) runSingle(ctx context.Context, f native.Filter, srcU
 	return <-importCh
 }
 
-type metricFilter struct {
-	name   string
-	ranges [][]time.Time
-}
-
 func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string, ranges [][]time.Time, silent bool) error {
 	exportAddr := nativeExportAddr
 	importAddr := nativeImportAddr
@@ -190,7 +185,7 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 	fmt.Println("") // extra line for better output formatting
 	log.Printf(initMessage, initParams...)
 	if len(ranges) > 1 {
-		log.Print(fmt.Sprintf("Selected time range will be split into %d ranges according to %q step", len(ranges), p.filter.Chunk))
+		log.Printf("Selected time range will be split into %d ranges according to %q step", len(ranges), p.filter.Chunk)
 	}
 
 	var foundSeriesMsg string
