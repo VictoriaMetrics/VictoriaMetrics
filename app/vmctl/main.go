@@ -57,7 +57,7 @@ func main() {
 					insecureSkipVerify := c.Bool(otsdbInsecureSkipVerify)
 					addr := c.String(otsdbAddr)
 
-					tr, err := httputils.Transport(addr, certFile, caFile, keyFile, serverName, insecureSkipVerify)
+					tr, err := httputils.Transport(addr, certFile, keyFile, caFile, serverName, insecureSkipVerify)
 					if err != nil {
 						return fmt.Errorf("failed to create Transport: %s", err)
 					}
@@ -107,7 +107,7 @@ func main() {
 					serverName := c.String(influxServerName)
 					insecureSkipVerify := c.Bool(influxInsecureSkipVerify)
 
-					tc, err := httputils.TLSConfig(certFile, caFile, keyFile, serverName, insecureSkipVerify)
+					tc, err := httputils.TLSConfig(certFile, keyFile, caFile, serverName, insecureSkipVerify)
 					if err != nil {
 						return fmt.Errorf("failed to create TLS Config: %s", err)
 					}
@@ -158,21 +158,33 @@ func main() {
 				Usage: "Migrate time series via Prometheus remote-read protocol",
 				Flags: mergeFlags(globalFlags, remoteReadFlags, vmFlags),
 				Action: func(c *cli.Context) error {
+					fmt.Println("Remote-read import mode")
+
+					addr := c.String(remoteReadSrcAddr)
+
+					// create TLS config
+					certFile := c.String(remoteReadCertFile)
+					keyFile := c.String(remoteReadKeyFile)
+					caFile := c.String(remoteReadCAFile)
+					serverName := c.String(remoteReadServerName)
+					insecureSkipVerify := c.Bool(remoteReadInsecureSkipVerify)
+
+					tr, err := httputils.Transport(addr, certFile, keyFile, caFile, serverName, insecureSkipVerify)
+					if err != nil {
+						return fmt.Errorf("failed to create transport: %s", err)
+					}
+
 					rr, err := remoteread.NewClient(remoteread.Config{
-						Addr:               c.String(remoteReadSrcAddr),
-						Username:           c.String(remoteReadUser),
-						Password:           c.String(remoteReadPassword),
-						Timeout:            c.Duration(remoteReadHTTPTimeout),
-						UseStream:          c.Bool(remoteReadUseStream),
-						Headers:            c.String(remoteReadHeaders),
-						LabelName:          c.String(remoteReadFilterLabel),
-						LabelValue:         c.String(remoteReadFilterLabelValue),
-						CertFile:           c.String(remoteReadCertFile),
-						KeyFile:            c.String(remoteReadKeyFile),
-						CAFile:             c.String(remoteReadCAFile),
-						ServerName:         c.String(remoteReadServerName),
-						InsecureSkipVerify: c.Bool(remoteReadInsecureSkipVerify),
-						DisablePathAppend:  c.Bool(remoteReadDisablePathAppend),
+						Addr:              addr,
+						Transport:         tr,
+						Username:          c.String(remoteReadUser),
+						Password:          c.String(remoteReadPassword),
+						Timeout:           c.Duration(remoteReadHTTPTimeout),
+						UseStream:         c.Bool(remoteReadUseStream),
+						Headers:           c.String(remoteReadHeaders),
+						LabelName:         c.String(remoteReadFilterLabel),
+						LabelValue:        c.String(remoteReadFilterLabelValue),
+						DisablePathAppend: c.Bool(remoteReadDisablePathAppend),
 					})
 					if err != nil {
 						return fmt.Errorf("error create remote read client: %s", err)
@@ -402,7 +414,7 @@ func initConfigVM(c *cli.Context) (vm.Config, error) {
 	serverName := c.String(vmServerName)
 	insecureSkipVerify := c.Bool(vmInsecureSkipVerify)
 
-	tr, err := httputils.Transport(addr, certFile, caFile, keyFile, serverName, insecureSkipVerify)
+	tr, err := httputils.Transport(addr, certFile, keyFile, caFile, serverName, insecureSkipVerify)
 	if err != nil {
 		return vm.Config{}, fmt.Errorf("failed to create Transport: %s", err)
 	}
