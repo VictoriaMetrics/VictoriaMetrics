@@ -28,7 +28,8 @@ type dedupAggrShardNopad struct {
 }
 
 type dedupAggrSample struct {
-	value float64
+	value     float64
+	timestamp int64
 }
 
 func newDedupAggr() *dedupAggr {
@@ -172,8 +173,21 @@ func (das *dedupAggrShard) pushSamples(samples []pushSample) {
 		das.m = m
 	}
 	for _, sample := range samples {
-		m[sample.key] = dedupAggrSample{
-			value: sample.value,
+		s, ok := m[sample.key]
+		if !ok {
+			m[sample.key] = dedupAggrSample{
+				value:     sample.value,
+				timestamp: sample.timestamp,
+			}
+			continue
+		}
+		// update the existing value according to logic described in
+		// https://docs.victoriametrics.com/#deduplication
+		if sample.timestamp > s.timestamp || (sample.timestamp == s.timestamp && sample.value > s.value) {
+			m[sample.key] = dedupAggrSample{
+				value:     sample.value,
+				timestamp: sample.timestamp,
+			}
 		}
 	}
 }

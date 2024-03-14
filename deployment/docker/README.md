@@ -192,3 +192,11 @@ To shutdown environment execute the following command:
 ```
 make docker-victorialogs-down
 ```
+
+Please see more examples on integration of VictoriaLogs with other log shippers below:
+* [filebeat-docker](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/filebeat-docker) 
+* [filebeat-syslog](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/filebeat-syslog) 
+* [fluentbit-docker](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/fluentbit-docker) 
+* [logstash](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/logstash) 
+* [promtail](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/promtail) 
+* [vector-docker](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/vector-docker) 

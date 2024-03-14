@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
 	"log"
 	"net/http"
@@ -78,7 +77,10 @@ func main() {
 						return fmt.Errorf("failed to create opentsdb client: %s", err)
 					}
 
-					vmCfg := initConfigVM(c)
+					vmCfg, err := initConfigVM(c)
+					if err != nil {
+						return fmt.Errorf("failed to init VM configuration: %s", err)
+					}
 					// disable progress bars since openTSDB implementation
 					// does not use progress bar pool
 					vmCfg.DisableProgressBar = true
@@ -130,7 +132,10 @@ func main() {
 						return fmt.Errorf("failed to create influx client: %s", err)
 					}
 
-					vmCfg := initConfigVM(c)
+					vmCfg, err := initConfigVM(c)
+					if err != nil {
+						return fmt.Errorf("failed to init VM configuration: %s", err)
+					}
 					importer, err = vm.NewImporter(ctx, vmCfg)
 					if err != nil {
 						return fmt.Errorf("failed to create VM importer: %s", err)
@@ -173,8 +178,10 @@ func main() {
 						return fmt.Errorf("error create remote read client: %s", err)
 					}
 
-					vmCfg := initConfigVM(c)
-
+					vmCfg, err := initConfigVM(c)
+					if err != nil {
+						return fmt.Errorf("failed to init VM configuration: %s", err)
+					}
 					importer, err := vm.NewImporter(ctx, vmCfg)
 					if err != nil {
 						return fmt.Errorf("failed to create VM importer: %s", err)
@@ -203,7 +210,10 @@ func main() {
 				Action: func(c *cli.Context) error {
 					fmt.Println("Prometheus import mode")
 
-					vmCfg := initConfigVM(c)
+					vmCfg, err := initConfigVM(c)
+					if err != nil {
+						return fmt.Errorf("failed to init VM configuration: %s", err)
+					}
 					importer, err = vm.NewImporter(ctx, vmCfg)
 					if err != nil {
 						return fmt.Errorf("failed to create VM importer: %s", err)
@@ -245,7 +255,6 @@ func main() {
 
 					var srcExtraLabels []string
 					srcAddr := strings.Trim(c.String(vmNativeSrcAddr), "/")
-					srcInsecureSkipVerify := c.Bool(vmNativeSrcInsecureSkipVerify)
 					srcAuthConfig, err := auth.Generate(
 						auth.WithBasicAuth(c.String(vmNativeSrcUser), c.String(vmNativeSrcPassword)),
 						auth.WithBearer(c.String(vmNativeSrcBearerToken)),
@@ -253,16 +262,26 @@ func main() {
 					if err != nil {
 						return fmt.Errorf("error initilize auth config for source: %s", srcAddr)
 					}
+
+					// create TLS config
+					srcCertFile := c.String(vmNativeSrcCertFile)
+					srcKeyFile := c.String(vmNativeSrcKeyFile)
+					srcCAFile := c.String(vmNativeSrcCAFile)
+					srcServerName := c.String(vmNativeSrcServerName)
+					srcInsecureSkipVerify := c.Bool(vmNativeSrcInsecureSkipVerify)
+
+					srcTC, err := httputils.TLSConfig(srcCertFile, srcCAFile, srcKeyFile, srcServerName, srcInsecureSkipVerify)
+					if err != nil {
+						return fmt.Errorf("failed to create TLS Config: %s", err)
+					}
+
 					srcHTTPClient := &http.Client{Transport: &http.Transport{
 						DisableKeepAlives: disableKeepAlive,
-						TLSClientConfig: &tls.Config{
-							InsecureSkipVerify: srcInsecureSkipVerify,
-						},
+						TLSClientConfig:   srcTC,
 					}}
 
 					dstAddr := strings.Trim(c.String(vmNativeDstAddr), "/")
 					dstExtraLabels := c.StringSlice(vmExtraLabel)
-					dstInsecureSkipVerify := c.Bool(vmNativeDstInsecureSkipVerify)
 					dstAuthConfig, err := auth.Generate(
 						auth.WithBasicAuth(c.String(vmNativeDstUser), c.String(vmNativeDstPassword)),
 						auth.WithBearer(c.String(vmNativeDstBearerToken)),
@@ -270,11 +289,22 @@ func main() {
 					if err != nil {
 						return fmt.Errorf("error initilize auth config for destination: %s", dstAddr)
 					}
+
+					// create TLS config
+					dstCertFile := c.String(vmNativeDstCertFile)
+					dstKeyFile := c.String(vmNativeDstKeyFile)
+					dstCAFile := c.String(vmNativeDstCAFile)
+					dstServerName := c.String(vmNativeDstServerName)
+					dstInsecureSkipVerify := c.Bool(vmNativeDstInsecureSkipVerify)
+
+					dstTC, err := httputils.TLSConfig(dstCertFile, dstCAFile, dstKeyFile, dstServerName, dstInsecureSkipVerify)
+					if err != nil {
+						return fmt.Errorf("failed to create TLS Config: %s", err)
+					}
+
 					dstHTTPClient := &http.Client{Transport: &http.Transport{
 						DisableKeepAlives: disableKeepAlive,
-						TLSClientConfig: &tls.Config{
-							InsecureSkipVerify: dstInsecureSkipVerify,
-						},
+						TLSClientConfig:   dstTC,
 					}}
 
 					p := vmNativeProcessor{
@@ -362,9 +392,24 @@ func main() {
 	log.Printf("Total time: %v", time.Since(start))
 }
 
-func initConfigVM(c *cli.Context) vm.Config {
+func initConfigVM(c *cli.Context) (vm.Config, error) {
+	addr := c.String(vmAddr)
+
+	// create Transport with given TLS config
+	certFile := c.String(vmCertFile)
+	keyFile := c.String(vmKeyFile)
+	caFile := c.String(vmCAFile)
+	serverName := c.String(vmServerName)
+	insecureSkipVerify := c.Bool(vmInsecureSkipVerify)
+
+	tr, err := httputils.Transport(addr, certFile, caFile, keyFile, serverName, insecureSkipVerify)
+	if err != nil {
+		return vm.Config{}, fmt.Errorf("failed to create Transport: %s", err)
+	}
+
 	return vm.Config{
-		Addr:               c.String(vmAddr),
+		Addr:               addr,
+		Transport:          tr,
 		User:               c.String(vmUser),
 		Password:           c.String(vmPassword),
 		Concurrency:        uint8(c.Int(vmConcurrency)),
@@ -376,5 +421,5 @@ func initConfigVM(c *cli.Context) vm.Config {
 		ExtraLabels:        c.StringSlice(vmExtraLabel),
 		RateLimit:          c.Int64(vmRateLimit),
 		DisableProgressBar: c.Bool(vmDisableProgressBar),
-	}
+	}, nil
 }

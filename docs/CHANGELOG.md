@@ -30,6 +30,8 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## tip
 
+**vmalert's cmd-line flag `-datasource.lookback` was deprecated and will have no effect anymore. It will be completely removed in next releases. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5155) for more details.**
+
 * SECURITY: upgrade Go builder from Go1.21.7 to Go1.22.1. See [the list of issues addressed in Go1.22.1](https://github.com/golang/go/issues?q=milestone%3AGo1.22.1+label%3ACherryPickApproved).
 
 * FEATURE: [vmauth](https://docs.victoriametrics.com/vmauth/): allow discovering ip addresses for backend instances hidden behind a shared hostname, via `discover_backend_ips: true` option. This allows evenly spreading load among backend instances. See [these docs](https://docs.victoriametrics.com/vmauth/#discovering-backend-ips) and [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5707).
@@ -46,10 +48,16 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 * FEATURE: [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/): expose `vm_streamaggr_flush_timeouts_total` and `vm_streamaggr_dedup_flush_timeouts_total` [counters](https://docs.victoriametrics.com/keyconcepts/#counter) at [`/metrics` page](https://docs.victoriametrics.com/#monitoring), which can be used for detecting flush timeouts for stream aggregation states. Expose also `vm_streamaggr_flush_duration_seconds` and `vm_streamaggr_dedup_flush_duration_seconds` [histograms](https://docs.victoriametrics.com/keyconcepts/#histogram) for monitoring the real flush durations of stream aggregation states.
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): improve trace display for better visual separation of branches. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5926).
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): use the provided `-remoteWrite.tlsServerName` as `Host` header in requests to `-remoteWrite.url`. This allows sending data to https remote storage by IP address instead of hostname. Thanks to @minor-fixes for initial idea and [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5802).
+* FEATURE: optimize [`/api/v1/labels`](https://docs.victoriametrics.com/url-examples/#apiv1labels) and [`/api/v1/label/.../values`](https://docs.victoriametrics.com/url-examples/#apiv1labelvalues) when `match[]` filters contains metric name. For example, `/api/v1/label/instance/values?match[]=up` now works much faster than before. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5055).
+* FEATURE: [vmctl](https://docs.victoriametrics.com/vmctl.html): support client-side TLS configuration for [native protocol](https://docs.victoriametrics.com/vmctl/#migrating-data-from-victoriametrics). See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5748). Thanks to @khushijain21 for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5824).
+* FEATURE: [vmctl](https://docs.victoriametrics.com/vmctl.html): support client-side TLS configuration for VictoriaMetrics destination specified via `--vm-*` cmd-line flags used in [InfluxDB](https://docs.victoriametrics.com/vmctl/#migrating-data-from-influxdb-1x), [Remote Read protocol](https://docs.victoriametrics.com/vmctl/#migrating-data-by-remote-read-protocol), [OpenTSDB](https://docs.victoriametrics.com/vmctl/#migrating-data-from-opentsdb), [Prometheus](https://docs.victoriametrics.com/vmctl/#migrating-data-from-prometheus) and [Promscale](https://docs.victoriametrics.com/vmctl/#migrating-data-from-promscale) migration modes.
 
 * BUGFIX: do not drop `match[]` filter at [`/api/v1/series`](https://docs.victoriametrics.com/url-examples/#apiv1series) if `-search.ignoreExtraFiltersAtLabelsAPI` command-line flag is set, since missing `match[]` filter breaks `/api/v1/series` requests.
+* BUGFIX: [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/): take into account sample timestamp during [deduplication](https://docs.victoriametrics.com/stream-aggregation/#deduplication). If multiple samples have the same timestamp on the configured deduplication interval, then the sample with the biggest value is kept. The logic is aligned with [`-dedup.minScrapeInterval`](https://docs.victoriametrics.com/#deduplication).
 
 ## [v1.99.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.99.0)
+
+**12/03/2024: There's ongoing investigation of the issue [#5959](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5959) related to this release. Until the issue is addressed, please avoid updating to v1.99.0.**
 
 Released at 2024-03-01
 
@@ -137,6 +145,7 @@ The v1.97.x line will be supported for at least 12 months since [v1.97.0](https:
   or [/api/v1/query_range](https://docs.victoriametrics.com/keyconcepts/#range-query). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5795).
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): fixed floating-point error when parsing time in RFC3339 format. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5801) for details.
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/#vmalert): consistently sort groups by name and filename on `/groups` page in UI. This should prevent non-deterministic sorting for groups with identical names.
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/#vmalert): reduce memory usage for ENT version of vmalert for configurations with high number of groups with enabled multitenancy.
 * BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): properly construct the destination label in [label_join](https://docs.victoriametrics.com/metricsql/#label_join) if it is used as source label. See this [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5881) for details.
 
 ## [v1.97.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.2)
