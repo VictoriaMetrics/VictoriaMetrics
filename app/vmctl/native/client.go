@@ -36,7 +36,6 @@ type Response struct {
 
 // Explore finds metric names by provided filter from api/v1/label/__name__/values
 func (c *Client) Explore(ctx context.Context, f Filter, tenantID string, start, end time.Time) ([]string, error) {
-	var response Response
 	url := fmt.Sprintf("%s/%s", c.Addr, nativeMetricNamesAddr)
 	if tenantID != "" {
 		url = fmt.Sprintf("%s/select/%s/prometheus/%s", c.Addr, tenantID, nativeMetricNamesAddr)
@@ -57,7 +56,7 @@ func (c *Client) Explore(ctx context.Context, f Filter, tenantID string, start, 
 		return nil, fmt.Errorf("series request failed: %s", err)
 	}
 
-	response.MetricNames = response.MetricNames[:0]
+	var response Response
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
 		return nil, fmt.Errorf("cannot decode series response: %s", err)
 	}
