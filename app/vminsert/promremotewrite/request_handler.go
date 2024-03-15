@@ -118,7 +118,7 @@ func insertRows(timeseries []prompb.TimeSeries, extraLabels []prompbmarshal.Labe
 					value += float64(r.PositiveDeltas[l+s])
 					lowerBound = upperBound
 					upperBound = lowerBound * ratio
-					metrics.ConvertToVMRange(vmRanges, value, lowerBound, upperBound)
+					//metrics.ConvertToVMRange(vmRanges, value, lowerBound, upperBound)
 				}
 			}
 			for vmRange, vmValue := range vmRanges {
