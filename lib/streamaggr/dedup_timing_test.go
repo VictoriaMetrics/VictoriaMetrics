@@ -19,7 +19,7 @@ func BenchmarkDedupAggr(b *testing.B) {
 }
 
 func BenchmarkDedupAggrFlushSerial(b *testing.B) {
-	as := newTotalAggrState(time.Hour, true, true)
+	as := newTotalAggrState(time.Hour/2, time.Hour, true, true)
 	benchSamples := newBenchSamples(100_000)
 	da := newDedupAggr()
 	da.pushSamples(benchSamples)

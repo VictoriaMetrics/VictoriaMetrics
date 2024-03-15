@@ -491,13 +491,13 @@ func newAggregator(cfg *Config, pushFunc PushFunc, ms *metrics.Set, opts *Option
 		}
 		switch output {
 		case "total":
-			aggrStates[i] = newTotalAggrState(stalenessInterval, false, true)
+			aggrStates[i] = newTotalAggrState(interval, stalenessInterval, false, true)
 		case "total_prometheus":
-			aggrStates[i] = newTotalAggrState(stalenessInterval, false, false)
+			aggrStates[i] = newTotalAggrState(interval, stalenessInterval, false, false)
 		case "increase":
-			aggrStates[i] = newTotalAggrState(stalenessInterval, true, true)
+			aggrStates[i] = newTotalAggrState(interval, stalenessInterval, true, true)
 		case "increase_prometheus":
-			aggrStates[i] = newTotalAggrState(stalenessInterval, true, false)
+			aggrStates[i] = newTotalAggrState(interval, stalenessInterval, true, false)
 		case "count_series":
 			aggrStates[i] = newCountSeriesAggrState()
 		case "count_samples":

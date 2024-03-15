@@ -8,6 +8,10 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 )
 
+const (
+	intervalJitter = 0.05
+)
+
 // totalAggrState calculates output=total, e.g. the summary counter over input counters.
 type totalAggrState struct {
 	m sync.Map
@@ -23,13 +27,10 @@ type totalAggrState struct {
 	// Time series state is dropped if no new samples are received during stalenessSecs.
 	//
 	// Aslo, the first sample per each new series is ignored during stalenessSecs even if keepFirstSample is set.
-	// see ignoreFirstSampleDeadline for more details.
 	stalenessSecs uint64
 
-	// The first sample per each new series is ignored until this unix timestamp deadline in seconds even if keepFirstSample is set.
-	// This allows avoiding an initial spike of the output values at startup when new time series
-	// cannot be distinguished from already existing series. This is tracked with ignoreFirstSampleDeadline.
-	ignoreFirstSampleDeadline uint64
+	// Aggregation interval jitter
+	intervalJitter int64
 }
 
 type totalStateValue struct {
@@ -38,33 +39,34 @@ type totalStateValue struct {
 	total          float64
 	deleteDeadline uint64
 	deleted        bool
+	intervalStart  int64
 }
 
 type lastValueState struct {
 	value          float64
+	timestamp      int64
 	deleteDeadline uint64
 }
 
-func newTotalAggrState(stalenessInterval time.Duration, resetTotalOnFlush, keepFirstSample bool) *totalAggrState {
+func newTotalAggrState(interval, stalenessInterval time.Duration, resetTotalOnFlush, keepFirstSample bool) *totalAggrState {
 	stalenessSecs := roundDurationToSecs(stalenessInterval)
-	ignoreFirstSampleDeadline := fasttime.UnixTimestamp() + stalenessSecs
 	suffix := "total"
 	if resetTotalOnFlush {
 		suffix = "increase"
 	}
 	return &totalAggrState{
-		suffix:                    suffix,
-		resetTotalOnFlush:         resetTotalOnFlush,
-		keepFirstSample:           keepFirstSample,
-		stalenessSecs:             stalenessSecs,
-		ignoreFirstSampleDeadline: ignoreFirstSampleDeadline,
+		suffix:            suffix,
+		resetTotalOnFlush: resetTotalOnFlush,
+		stalenessSecs:     stalenessSecs,
+		keepFirstSample:   keepFirstSample,
+		intervalJitter:    int64(float64(interval.Milliseconds()) * intervalJitter),
 	}
 }
 
 func (as *totalAggrState) pushSamples(samples []pushSample) {
 	currentTime := fasttime.UnixTimestamp()
+	currentTimeMsec := int64(currentTime) * 1000
 	deleteDeadline := currentTime + as.stalenessSecs
-	keepFirstSample := as.keepFirstSample && currentTime > as.ignoreFirstSampleDeadline
 	for i := range samples {
 		s := &samples[i]
 		inputKey, outputKey := getInputOutputKey(s.key)
@@ -74,7 +76,8 @@ func (as *totalAggrState) pushSamples(samples []pushSample) {
 		if !ok {
 			// The entry is missing in the map. Try creating it.
 			v = &totalStateValue{
-				lastValues: make(map[string]lastValueState),
+				lastValues:    make(map[string]lastValueState),
+				intervalStart: currentTimeMsec,
 			}
 			vNew, loaded := as.m.LoadOrStore(outputKey, v)
 			if loaded {
@@ -87,18 +90,21 @@ func (as *totalAggrState) pushSamples(samples []pushSample) {
 		deleted := sv.deleted
 		if !deleted {
 			lv, ok := sv.lastValues[inputKey]
-			if ok || keepFirstSample {
-				if s.value >= lv.value {
-					sv.total += s.value - lv.value
-				} else {
-					// counter reset
-					sv.total += s.value
+			if s.timestamp >= sv.intervalStart {
+				if as.keepFirstSample || ok {
+					if s.value >= lv.value {
+						sv.total += s.value - lv.value
+					} else {
+						// counter reset
+						sv.total += s.value
+					}
 				}
+				lv.timestamp = s.timestamp
+				lv.value = s.value
+				lv.deleteDeadline = deleteDeadline
+				sv.lastValues[inputKey] = lv
+				sv.deleteDeadline = deleteDeadline
 			}
-			lv.value = s.value
-			lv.deleteDeadline = deleteDeadline
-			sv.lastValues[inputKey] = lv
-			sv.deleteDeadline = deleteDeadline
 		}
 		sv.mu.Unlock()
 		if deleted {
@@ -156,6 +162,7 @@ func (as *totalAggrState) flushState(ctx *flushCtx, resetState bool) {
 				sv.total = 0
 			}
 		}
+		sv.intervalStart = currentTimeMsec - as.intervalJitter
 		deleted := sv.deleted
 		sv.mu.Unlock()
 		if !deleted {

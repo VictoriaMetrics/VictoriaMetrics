@@ -1232,7 +1232,6 @@ func TestStorageSeriesAreNotCreatedOnStaleMarkers(t *testing.T) {
 			t.Fatalf("error in SearchLabelNamesWithFiltersOnTimeRange() at the start: %s", err)
 		}
 		if len(lns) != n {
-			fmt.Println(lns)
 			t.Fatalf("expected to find %d metric names, found %d instead", n, len(lns))
 		}
 	}

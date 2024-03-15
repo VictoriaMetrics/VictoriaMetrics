@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
@@ -498,8 +499,8 @@ foo:1m_by_abc_sum_samples{abc="456"} 8
 `, `
 foo 123
 bar{baz="qwe"} 4.34
-`, `bar:1m_total{baz="qwe"} 0
-foo:1m_total 0
+`, `bar:1m_total{baz="qwe"} 4.34
+foo:1m_total 123
 `, "11")
 
 	// total_prometheus output for non-repeated series
@@ -518,7 +519,7 @@ foo:1m_total 0
 - interval: 1m
   outputs: [total]
 `, `
-foo 123
+foo 123 
 bar{baz="qwe"} 1.32
 bar{baz="qwe"} 4.34
 bar{baz="qwe"} 2
@@ -526,10 +527,10 @@ foo{baz="qwe"} -5
 bar{baz="qwer"} 343
 bar{baz="qwer"} 344
 foo{baz="qwe"} 10
-`, `bar:1m_total{baz="qwe"} 5.02
-bar:1m_total{baz="qwer"} 1
-foo:1m_total 0
-foo:1m_total{baz="qwe"} 15
+`, `bar:1m_total{baz="qwe"} 6.34
+bar:1m_total{baz="qwer"} 344
+foo:1m_total 123
+foo:1m_total{baz="qwe"} 10
 `, "11111111")
 
 	// total_prometheus output for repeated series
@@ -565,8 +566,8 @@ foo{baz="qwe"} -5
 bar{baz="qwer"} 343
 bar{baz="qwer"} 344
 foo{baz="qwe"} 10
-`, `bar:1m_total 6.02
-foo:1m_total 15
+`, `bar:1m_total 350.34
+foo:1m_total 133
 `, "11111111")
 
 	// total_prometheus output for repeated series with group by __name__
@@ -594,8 +595,8 @@ foo:1m_total 15
 `, `
 foo 123
 bar{baz="qwe"} 4.34
-`, `bar:1m_increase{baz="qwe"} 0
-foo:1m_increase 0
+`, `bar:1m_increase{baz="qwe"} 4.34
+foo:1m_increase 123
 `, "11")
 
 	// increase_prometheus output for non-repeated series
@@ -622,10 +623,10 @@ foo{baz="qwe"} -5
 bar{baz="qwer"} 343
 bar{baz="qwer"} 344
 foo{baz="qwe"} 10
-`, `bar:1m_increase{baz="qwe"} 5.02
-bar:1m_increase{baz="qwer"} 1
-foo:1m_increase 0
-foo:1m_increase{baz="qwe"} 15
+`, `bar:1m_increase{baz="qwe"} 6.34
+bar:1m_increase{baz="qwer"} 344
+foo:1m_increase 123
+foo:1m_increase{baz="qwe"} 10
 `, "11111111")
 
 	// increase_prometheus output for repeated series
@@ -983,6 +984,7 @@ func mustParsePromMetrics(s string) []prompbmarshal.TimeSeries {
 				Value: tag.Value,
 			})
 		}
+		row.Timestamp += int64(fasttime.UnixTimestamp()) * 1000
 		samples = append(samples, prompbmarshal.Sample{
 			Value:     row.Value,
 			Timestamp: row.Timestamp,
