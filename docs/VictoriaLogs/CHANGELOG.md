@@ -19,6 +19,8 @@ according to [these docs](https://docs.victoriametrics.com/VictoriaLogs/QuickSta
 
 ## tip
 
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add the ability to filter entries on the Logs Explorer page. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5678).
+
 ## [v0.5.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.5.0-victorialogs)
 
 Released at 2024-03-01
