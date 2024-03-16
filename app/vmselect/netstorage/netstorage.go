@@ -5,7 +5,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"reflect"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -24,11 +23,14 @@ import (
 )
 
 var (
-	maxTagKeysPerSearch   = flag.Int("search.maxTagKeys", 100e3, "The maximum number of tag keys returned from /api/v1/labels")
-	maxTagValuesPerSearch = flag.Int("search.maxTagValues", 100e3, "The maximum number of tag values returned from /api/v1/label/<label_name>/values")
-	maxSamplesPerSeries   = flag.Int("search.maxSamplesPerSeries", 30e6, "The maximum number of raw samples a single query can scan per each time series. This option allows limiting memory usage")
-	maxSamplesPerQuery    = flag.Int("search.maxSamplesPerQuery", 1e9, "The maximum number of raw samples a single query can process across all time series. This protects from heavy queries, which select unexpectedly high number of raw samples. See also -search.maxSamplesPerSeries")
-	maxWorkersPerQuery    = flag.Int("search.maxWorkersPerQuery", defaultMaxWorkersPerQuery, "The maximum number of CPU cores a single query can use. "+
+	maxTagKeysPerSearch = flag.Int("search.maxTagKeys", 100e3, "The maximum number of tag keys returned from /api/v1/labels . "+
+		"See also -search.maxLabelsAPISeries and -search.maxLabelsAPIDuration")
+	maxTagValuesPerSearch = flag.Int("search.maxTagValues", 100e3, "The maximum number of tag values returned from /api/v1/label/<label_name>/values . "+
+		"See also -search.maxLabelsAPISeries and -search.maxLabelsAPIDuration")
+	maxSamplesPerSeries = flag.Int("search.maxSamplesPerSeries", 30e6, "The maximum number of raw samples a single query can scan per each time series. This option allows limiting memory usage")
+	maxSamplesPerQuery  = flag.Int("search.maxSamplesPerQuery", 1e9, "The maximum number of raw samples a single query can process across all time series. "+
+		"This protects from heavy queries, which select unexpectedly high number of raw samples. See also -search.maxSamplesPerSeries")
+	maxWorkersPerQuery = flag.Int("search.maxWorkersPerQuery", defaultMaxWorkersPerQuery, "The maximum number of CPU cores a single query can use. "+
 		"The default value should work good for most cases. "+
 		"The flag can be set to lower values for improving performance of big number of concurrently executed queries. "+
 		"The flag can be set to bigger values for improving performance of heavy queries, which scan big number of time series (>10K) and/or big number of samples (>100M). "+
@@ -81,7 +83,7 @@ func (rss *Results) mustClose() {
 }
 
 type timeseriesWork struct {
-	mustStop *uint32
+	mustStop *atomic.Bool
 	rss      *Results
 	pts      *packedTimeseries
 	f        func(rs *Result, workerID uint) error
@@ -91,22 +93,22 @@ type timeseriesWork struct {
 }
 
 func (tsw *timeseriesWork) do(r *Result, workerID uint) error {
-	if atomic.LoadUint32(tsw.mustStop) != 0 {
+	if tsw.mustStop.Load() {
 		return nil
 	}
 	rss := tsw.rss
 	if rss.deadline.Exceeded() {
-		atomic.StoreUint32(tsw.mustStop, 1)
+		tsw.mustStop.Store(true)
 		return fmt.Errorf("timeout exceeded during query execution: %s", rss.deadline.String())
 	}
 	if err := tsw.pts.Unpack(r, rss.tbf, rss.tr); err != nil {
-		atomic.StoreUint32(tsw.mustStop, 1)
+		tsw.mustStop.Store(true)
 		return fmt.Errorf("error during time series unpacking: %w", err)
 	}
 	tsw.rowsProcessed = len(r.Timestamps)
 	if len(r.Timestamps) > 0 {
 		if err := tsw.f(r, workerID); err != nil {
-			atomic.StoreUint32(tsw.mustStop, 1)
+			tsw.mustStop.Store(true)
 			return err
 		}
 	}
@@ -238,7 +240,7 @@ func (rss *Results) runParallel(qt *querytracer.Tracer, f func(rs *Result, worke
 		return 0, nil
 	}
 
-	var mustStop uint32
+	var mustStop atomic.Bool
 	initTimeseriesWork := func(tsw *timeseriesWork, pts *packedTimeseries) {
 		tsw.rss = rss
 		tsw.pts = pts
@@ -1008,7 +1010,7 @@ func ExportBlocks(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline sear
 	var (
 		errGlobal     error
 		errGlobalLock sync.Mutex
-		mustStop      uint32
+		mustStop      atomic.Bool
 	)
 	var wg sync.WaitGroup
 	wg.Add(gomaxprocs)
@@ -1020,7 +1022,7 @@ func ExportBlocks(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline sear
 					errGlobalLock.Lock()
 					if errGlobal == nil {
 						errGlobal = err
-						atomic.StoreUint32(&mustStop, 1)
+						mustStop.Store(true)
 					}
 					errGlobalLock.Unlock()
 				}
@@ -1038,7 +1040,7 @@ func ExportBlocks(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline sear
 		if deadline.Exceeded() {
 			return fmt.Errorf("timeout exceeded while fetching data block #%d from storage: %s", blocksRead, deadline.String())
 		}
-		if atomic.LoadUint32(&mustStop) != 0 {
+		if mustStop.Load() {
 			break
 		}
 		xw := exportWorkPool.Get().(*exportWork)
@@ -1193,8 +1195,8 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 		if *maxSamplesPerQuery > 0 && samples > *maxSamplesPerQuery {
 			putTmpBlocksFile(tbf)
 			putStorageSearch(sr)
-			return nil, fmt.Errorf("cannot select more than -search.maxSamplesPerQuery=%d samples; possible solutions: to increase the -search.maxSamplesPerQuery; "+
-				"to reduce time range for the query; to use more specific label filters in order to select lower number of series", *maxSamplesPerQuery)
+			return nil, fmt.Errorf("cannot select more than -search.maxSamplesPerQuery=%d samples; possible solutions: increase the -search.maxSamplesPerQuery; "+
+				"reduce time range for the query; use more specific label filters in order to select fewer series", *maxSamplesPerQuery)
 		}
 
 		buf = br.Marshal(buf[:0])
@@ -1309,9 +1311,11 @@ func canAppendToBlockRefPool(pool, a []blockRef) bool {
 		// a doesn't belong to pool
 		return false
 	}
-	shPool := (*reflect.SliceHeader)(unsafe.Pointer(&pool))
-	shA := (*reflect.SliceHeader)(unsafe.Pointer(&a))
-	return shPool.Data+uintptr(shPool.Len)*unsafe.Sizeof(blockRef{}) == shA.Data+uintptr(shA.Len)*unsafe.Sizeof(blockRef{})
+	return getBlockRefsEnd(pool) == getBlockRefsEnd(a)
+}
+
+func getBlockRefsEnd(a []blockRef) uintptr {
+	return uintptr(unsafe.Pointer(unsafe.SliceData(a))) + uintptr(len(a))*unsafe.Sizeof(blockRef{})
 }
 
 func setupTfss(qt *querytracer.Tracer, tr storage.TimeRange, tagFilterss [][]storage.TagFilter, maxMetrics int, deadline searchutils.Deadline) ([]*storage.TagFilters, error) {

@@ -19,6 +19,29 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
 
+func getCommonMetricNameForTagFilterss(tfss []*TagFilters) []byte {
+	if len(tfss) == 0 {
+		return nil
+	}
+	prevName := getMetricNameFilter(tfss[0])
+	for _, tfs := range tfss[1:] {
+		name := getMetricNameFilter(tfs)
+		if string(prevName) != string(name) {
+			return nil
+		}
+	}
+	return prevName
+}
+
+func getMetricNameFilter(tfs *TagFilters) []byte {
+	for _, tf := range tfs.tfs {
+		if len(tf.key) == 0 && !tf.isNegative && !tf.isRegexp {
+			return tf.value
+		}
+	}
+	return nil
+}
+
 // convertToCompositeTagFilterss converts tfss to composite filters.
 //
 // This converts `foo{bar="baz",x=~"a.+"}` to `{foo=bar="baz",foo=x=~"a.+"} filter.
@@ -58,7 +81,7 @@ func convertToCompositeTagFilters(tfs *TagFilters) []*TagFilters {
 	// then it is impossible to construct composite tag filter.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2238
 	if len(names) == 0 || !hasPositiveFilter {
-		atomic.AddUint64(&compositeFilterMissingConversions, 1)
+		compositeFilterMissingConversions.Add(1)
 		return []*TagFilters{tfs}
 	}
 
@@ -117,20 +140,20 @@ func convertToCompositeTagFilters(tfs *TagFilters) []*TagFilters {
 		if compositeFilters == 0 {
 			// Cannot use tfsNew, since it doesn't contain composite filters, e.g. it may match broader set of series.
 			// Fall back to the original tfs.
-			atomic.AddUint64(&compositeFilterMissingConversions, 1)
+			compositeFilterMissingConversions.Add(1)
 			return []*TagFilters{tfs}
 		}
 		tfsCompiled := NewTagFilters()
 		tfsCompiled.tfs = tfsNew
 		tfssCompiled = append(tfssCompiled, tfsCompiled)
 	}
-	atomic.AddUint64(&compositeFilterSuccessConversions, 1)
+	compositeFilterSuccessConversions.Add(1)
 	return tfssCompiled
 }
 
 var (
-	compositeFilterSuccessConversions uint64
-	compositeFilterMissingConversions uint64
+	compositeFilterSuccessConversions atomic.Uint64
+	compositeFilterMissingConversions atomic.Uint64
 )
 
 // TagFilters represents filters used for filtering tags.

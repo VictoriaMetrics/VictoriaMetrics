@@ -20,7 +20,7 @@ func TestAggregatorsFailure(t *testing.T) {
 		pushFunc := func(tss []prompbmarshal.TimeSeries) {
 			panic(fmt.Errorf("pushFunc shouldn't be called"))
 		}
-		a, err := newAggregatorsFromData([]byte(config), pushFunc, 0)
+		a, err := newAggregatorsFromData([]byte(config), pushFunc, nil)
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
@@ -56,9 +56,43 @@ func TestAggregatorsFailure(t *testing.T) {
 `)
 
 	// Negative interval
-	f(`- interval: -5m`)
+	f(`
+- outputs: [total]
+  interval: -5m
+`)
 	// Too small interval
-	f(`- interval: 10ms`)
+	f(`
+- outputs: [total]
+  interval: 10ms
+`)
+
+	// interval isn't multiple of dedup_interval
+	f(`
+- interval: 1m
+  dedup_interval: 35s
+  outputs: ["quantiles"]
+`)
+
+	// dedup_interval is bigger than dedup_interval
+	f(`
+- interval: 1m
+  dedup_interval: 1h
+  outputs: ["quantiles"]
+`)
+
+	// keep_metric_names is set for multiple inputs
+	f(`
+- interval: 1m
+  keep_metric_names: true
+  outputs: ["total", "increase"]
+`)
+
+	// keep_metric_names is set for unsupported input
+	f(`
+- interval: 1m
+  keep_metric_names: true
+  outputs: ["histogram_bucket"]
+`)
 
 	// Invalid input_relabel_configs
 	f(`
@@ -124,11 +158,11 @@ func TestAggregatorsEqual(t *testing.T) {
 		t.Helper()
 
 		pushFunc := func(tss []prompbmarshal.TimeSeries) {}
-		aa, err := newAggregatorsFromData([]byte(a), pushFunc, 0)
+		aa, err := newAggregatorsFromData([]byte(a), pushFunc, nil)
 		if err != nil {
 			t.Fatalf("cannot initialize aggregators: %s", err)
 		}
-		ab, err := newAggregatorsFromData([]byte(b), pushFunc, 0)
+		ab, err := newAggregatorsFromData([]byte(b), pushFunc, nil)
 		if err != nil {
 			t.Fatalf("cannot initialize aggregators: %s", err)
 		}
@@ -176,24 +210,16 @@ func TestAggregatorsSuccess(t *testing.T) {
 		var tssOutputLock sync.Mutex
 		pushFunc := func(tss []prompbmarshal.TimeSeries) {
 			tssOutputLock.Lock()
-			for _, ts := range tss {
-				labelsCopy := append([]prompbmarshal.Label{}, ts.Labels...)
-				samplesCopy := append([]prompbmarshal.Sample{}, ts.Samples...)
-				tssOutput = append(tssOutput, prompbmarshal.TimeSeries{
-					Labels:  labelsCopy,
-					Samples: samplesCopy,
-				})
-			}
+			tssOutput = appendClonedTimeseries(tssOutput, tss)
 			tssOutputLock.Unlock()
 		}
-		a, err := newAggregatorsFromData([]byte(config), pushFunc, 0)
+		opts := &Options{
+			FlushOnShutdown:        true,
+			NoAlignFlushToInterval: true,
+		}
+		a, err := newAggregatorsFromData([]byte(config), pushFunc, opts)
 		if err != nil {
 			t.Fatalf("cannot initialize aggregators: %s", err)
-		}
-		for _, ag := range a.as {
-			// explicitly set flushOnShutdown, so aggregations results
-			// are immediately available after a.MustStop() call.
-			ag.flushOnShutdown = true
 		}
 
 		// Push the inputMetrics to Aggregators
@@ -211,12 +237,7 @@ func TestAggregatorsSuccess(t *testing.T) {
 		}
 
 		// Verify the tssOutput contains the expected metrics
-		tsStrings := make([]string, len(tssOutput))
-		for i, ts := range tssOutput {
-			tsStrings[i] = timeSeriesToString(ts)
-		}
-		sort.Strings(tsStrings)
-		outputMetrics := strings.Join(tsStrings, "")
+		outputMetrics := timeSeriessToString(tssOutput)
 		if outputMetrics != outputMetricsExpected {
 			t.Fatalf("unexpected output metrics;\ngot\n%s\nwant\n%s", outputMetrics, outputMetricsExpected)
 		}
@@ -481,10 +502,40 @@ bar{baz="qwe"} 4.34
 foo:1m_total 0
 `, "11")
 
+	// total_prometheus output for non-repeated series
+	f(`
+- interval: 1m
+  outputs: [total_prometheus]
+`, `
+foo 123
+bar{baz="qwe"} 4.34
+`, `bar:1m_total{baz="qwe"} 0
+foo:1m_total 0
+`, "11")
+
 	// total output for repeated series
 	f(`
 - interval: 1m
   outputs: [total]
+`, `
+foo 123
+bar{baz="qwe"} 1.32
+bar{baz="qwe"} 4.34
+bar{baz="qwe"} 2
+foo{baz="qwe"} -5
+bar{baz="qwer"} 343
+bar{baz="qwer"} 344
+foo{baz="qwe"} 10
+`, `bar:1m_total{baz="qwe"} 5.02
+bar:1m_total{baz="qwer"} 1
+foo:1m_total 0
+foo:1m_total{baz="qwe"} 15
+`, "11111111")
+
+	// total_prometheus output for repeated series
+	f(`
+- interval: 1m
+  outputs: [total_prometheus]
 `, `
 foo 123
 bar{baz="qwe"} 1.32
@@ -518,6 +569,24 @@ foo{baz="qwe"} 10
 foo:1m_total 15
 `, "11111111")
 
+	// total_prometheus output for repeated series with group by __name__
+	f(`
+- interval: 1m
+  by: [__name__]
+  outputs: [total_prometheus]
+`, `
+foo 123
+bar{baz="qwe"} 1.32
+bar{baz="qwe"} 4.34
+bar{baz="qwe"} 2
+foo{baz="qwe"} -5
+bar{baz="qwer"} 343
+bar{baz="qwer"} 344
+foo{baz="qwe"} 10
+`, `bar:1m_total 6.02
+foo:1m_total 15
+`, "11111111")
+
 	// increase output for non-repeated series
 	f(`
 - interval: 1m
@@ -529,10 +598,40 @@ bar{baz="qwe"} 4.34
 foo:1m_increase 0
 `, "11")
 
+	// increase_prometheus output for non-repeated series
+	f(`
+- interval: 1m
+  outputs: [increase_prometheus]
+`, `
+foo 123
+bar{baz="qwe"} 4.34
+`, `bar:1m_increase{baz="qwe"} 0
+foo:1m_increase 0
+`, "11")
+
 	// increase output for repeated series
 	f(`
 - interval: 1m
   outputs: [increase]
+`, `
+foo 123
+bar{baz="qwe"} 1.32
+bar{baz="qwe"} 4.34
+bar{baz="qwe"} 2
+foo{baz="qwe"} -5
+bar{baz="qwer"} 343
+bar{baz="qwer"} 344
+foo{baz="qwe"} 10
+`, `bar:1m_increase{baz="qwe"} 5.02
+bar:1m_increase{baz="qwer"} 1
+foo:1m_increase 0
+foo:1m_increase{baz="qwe"} 15
+`, "11111111")
+
+	// increase_prometheus output for repeated series
+	f(`
+- interval: 1m
+  outputs: [increase_prometheus]
 `, `
 foo 123
 bar{baz="qwe"} 1.32
@@ -729,6 +828,39 @@ foo-1m-without-abc-count-samples{new_label="must_keep_metric_name"} 2
 foo-1m-without-abc-count-series{new_label="must_keep_metric_name"} 1
 foo-1m-without-abc-sum-samples{new_label="must_keep_metric_name"} 12.5
 `, "1111")
+
+	// keep_metric_names
+	f(`
+- interval: 1m
+  keep_metric_names: true
+  outputs: [count_samples]
+`, `
+foo{abc="123"} 4
+bar 5
+foo{abc="123"} 8.5
+bar -34.3
+foo{abc="456",de="fg"} 8
+`, `bar 2
+foo{abc="123"} 2
+foo{abc="456",de="fg"} 1
+`, "11111")
+
+	// drop_input_labels
+	f(`
+- interval: 1m
+  drop_input_labels: [abc]
+  keep_metric_names: true
+  outputs: [count_samples]
+`, `
+foo{abc="123"} 4
+bar 5
+foo{abc="123"} 8.5
+bar -34.3
+foo{abc="456",de="fg"} 8
+`, `bar 2
+foo 2
+foo{de="fg"} 1
+`, "11111")
 }
 
 func TestAggregatorsWithDedupInterval(t *testing.T) {
@@ -750,8 +882,11 @@ func TestAggregatorsWithDedupInterval(t *testing.T) {
 			}
 			tssOutputLock.Unlock()
 		}
-		const dedupInterval = time.Hour
-		a, err := newAggregatorsFromData([]byte(config), pushFunc, dedupInterval)
+		opts := &Options{
+			DedupInterval:   30 * time.Second,
+			FlushOnShutdown: true,
+		}
+		a, err := newAggregatorsFromData([]byte(config), pushFunc, opts)
 		if err != nil {
 			t.Fatalf("cannot initialize aggregators: %s", err)
 		}
@@ -759,12 +894,6 @@ func TestAggregatorsWithDedupInterval(t *testing.T) {
 		// Push the inputMetrics to Aggregators
 		tssInput := mustParsePromMetrics(inputMetrics)
 		matchIdxs := a.Push(tssInput, nil)
-		if a != nil {
-			for _, aggr := range a.as {
-				aggr.dedupFlush()
-				aggr.flush()
-			}
-		}
 		a.MustStop()
 
 		// Verify matchIdxs equals to matchIdxsExpected
@@ -810,11 +939,20 @@ foo{baz="qwe"} -5
 bar{baz="qwer"} 343
 bar{baz="qwer"} 344
 foo{baz="qwe"} 10
-`, `bar:1m_sum_samples{baz="qwe"} 2
+`, `bar:1m_sum_samples{baz="qwe"} 4.34
 bar:1m_sum_samples{baz="qwer"} 344
 foo:1m_sum_samples 123
 foo:1m_sum_samples{baz="qwe"} 10
 `, "11111111")
+}
+
+func timeSeriessToString(tss []prompbmarshal.TimeSeries) string {
+	a := make([]string, len(tss))
+	for i, ts := range tss {
+		a[i] = timeSeriesToString(ts)
+	}
+	sort.Strings(a)
+	return strings.Join(a, "")
 }
 
 func timeSeriesToString(ts prompbmarshal.TimeSeries) string {
@@ -856,4 +994,14 @@ func mustParsePromMetrics(s string) []prompbmarshal.TimeSeries {
 		tss = append(tss, ts)
 	}
 	return tss
+}
+
+func appendClonedTimeseries(dst, src []prompbmarshal.TimeSeries) []prompbmarshal.TimeSeries {
+	for _, ts := range src {
+		dst = append(dst, prompbmarshal.TimeSeries{
+			Labels:  append(ts.Labels[:0:0], ts.Labels...),
+			Samples: append(ts.Samples[:0:0], ts.Samples...),
+		})
+	}
+	return dst
 }

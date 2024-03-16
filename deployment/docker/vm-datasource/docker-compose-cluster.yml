@@ -19,6 +19,5 @@ services:
       - ./../../dashboards/vm/vmalert.json:/var/lib/grafana/dashboards/vmalert.json
       - ./vm-datasource/download.sh:/download.sh
     environment:
-      - "GF_ALLOW_LOADING_UNSIGNED_PLUGINS=victoriametrics-datasource"
-      - "GF_DEFAULT_APP_MODE=development"
+      - "GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS=victoriametrics-datasource"
     restart: always

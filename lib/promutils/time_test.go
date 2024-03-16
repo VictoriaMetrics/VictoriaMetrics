@@ -78,12 +78,12 @@ func TestParseTimeAtSuccess(t *testing.T) {
 	f("2023-05-20T04:57:43.123456789-02:30", now, 1.6845676631234567e+09)
 }
 
-func TestParseTimeFailure(t *testing.T) {
+func TestParseTimeMsecFailure(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
-		ts, err := ParseTime(s)
-		if ts != 0 {
-			t.Fatalf("unexpected time parsed: %f; want 0", ts)
+		msec, err := ParseTimeMsec(s)
+		if msec != 0 {
+			t.Fatalf("unexpected time parsed: %d; want 0", msec)
 		}
 		if err == nil {
 			t.Fatalf("expecting non-nil error")

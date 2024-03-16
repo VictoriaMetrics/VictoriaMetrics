@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/csvimport"
@@ -314,7 +313,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		influxQueryRequests.Inc()
 		influxutils.WriteDatabaseNames(w)
 		return true
-	case "/opentelemetry/api/v1/push":
+	case "/opentelemetry/api/v1/push", "/opentelemetry/v1/metrics":
 		opentelemetryPushRequests.Inc()
 		if err := opentelemetry.InsertHandler(nil, r); err != nil {
 			opentelemetryPushErrors.Inc()
@@ -459,7 +458,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		w.WriteHeader(http.StatusOK)
 		return true
 	case "/ready":
-		if rdy := atomic.LoadInt32(&promscrape.PendingScrapeConfigs); rdy > 0 {
+		if rdy := promscrape.PendingScrapeConfigs.Load(); rdy > 0 {
 			errMsg := fmt.Sprintf("waiting for scrapes to init, left: %d", rdy)
 			http.Error(w, errMsg, http.StatusTooEarly)
 		} else {
@@ -560,7 +559,7 @@ func processMultitenantRequest(w http.ResponseWriter, r *http.Request, path stri
 		influxQueryRequests.Inc()
 		influxutils.WriteDatabaseNames(w)
 		return true
-	case "opentelemetry/api/v1/push":
+	case "opentelemetry/api/v1/push", "opentelemetry/v1/metrics":
 		opentelemetryPushRequests.Inc()
 		if err := opentelemetry.InsertHandler(at, r); err != nil {
 			opentelemetryPushErrors.Inc()
@@ -686,8 +685,8 @@ var (
 	datadogIntakeRequests   = metrics.NewCounter(`vmagent_http_requests_total{path="/datadog/intake", protocol="datadog"}`)
 	datadogMetadataRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/datadog/api/v1/metadata", protocol="datadog"}`)
 
-	opentelemetryPushRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/opentelemetry/api/v1/push", protocol="opentelemetry"}`)
-	opentelemetryPushErrors   = metrics.NewCounter(`vmagent_http_request_errors_total{path="/opentelemetry/api/v1/push", protocol="opentelemetry"}`)
+	opentelemetryPushRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/opentelemetry/v1/metrics", protocol="opentelemetry"}`)
+	opentelemetryPushErrors   = metrics.NewCounter(`vmagent_http_request_errors_total{path="/opentelemetry/v1/metrics", protocol="opentelemetry"}`)
 
 	newrelicWriteRequests = metrics.NewCounter(`vm_http_requests_total{path="/newrelic/infra/v2/metrics/events/bulk", protocol="newrelic"}`)
 	newrelicWriteErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/newrelic/infra/v2/metrics/events/bulk", protocol="newrelic"}`)

@@ -38,6 +38,8 @@ The communication scheme between components is the following:
   and recording rules back to it;
 * [alertmanager](#alertmanager) is configured to receive notifications from `vmalert`.
 
+<img alt="VictoriaMetrics single-server deployment" width="500" src="assets/vm-single-server.png">
+
 To access Grafana use link [http://localhost:3000](http://localhost:3000).
 
 To access [vmui](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#vmui)
@@ -71,6 +73,8 @@ The communication scheme between components is the following:
 * [vmalert](#vmalert) is configured to query `vmselect`s via `vmauth` and send alerts state
   and recording rules to `vminsert`;
 * [alertmanager](#alertmanager) is configured to receive notifications from `vmalert`.
+
+<img alt="VictoriaMetrics cluster deployment" width="500" src="assets/vm-cluster.png">
 
 To access Grafana use link [http://localhost:3000](http://localhost:3000).
 
@@ -165,13 +169,34 @@ VictoriaMetrics installations.
 
 ## VictoriaLogs server
 
-VictoriaLogs will be accessible on the following port: `--httpListenAddr=:9428`
+To spin-up environment with VictoriaLogs run the following command:
+```
+make docker-victorialogs-up
+```
 
-[Fluent Bit](https://docs.fluentbit.io/manual) is used to send logs to VictoriaLogs instance.
-Fluent Bit is configured to send logs from running containers to VictoriaLogs instance.
-Additionally, it is configured to listen for syslog logs on port `5140` and send them to VictoriaLogs instance.
+VictoriaLogs will be accessible on the `--httpListenAddr=:9428` port.
+In addition to VictoriaLogs server, the docker compose contains the following componetns:
+* [fluentbit](https://docs.fluentbit.io/manual) service for collecting docker logs and sending them to VictoriaLogs;
+* VictoriaMetrics single server to collect metrics from `VictoriaLogs` and `fluentbit`;
+* [grafana](#grafana) is configured with [VictoriaLogs datasource](https://github.com/VictoriaMetrics/victorialogs-datasource).
 
-To access VictoriaLogs UI use link [http://localhost:9428/select/vmui/](http://localhost:9428/select/vmui/).
+To access Grafana use link [http://localhost:3000](http://localhost:3000).
+
+To access [VictoriaLogs UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui)
+use link [http://localhost:9428/select/vmui](http://localhost:9428/select/vmui).
 
 Please, also see [how to monitor](https://docs.victoriametrics.com/VictoriaLogs/#monitoring) 
 VictoriaLogs installations.
+
+To shutdown environment execute the following command:
+```
+make docker-victorialogs-down
+```
+
+Please see more examples on integration of VictoriaLogs with other log shippers below:
+* [filebeat-docker](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/filebeat-docker) 
+* [filebeat-syslog](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/filebeat-syslog) 
+* [fluentbit-docker](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/fluentbit-docker) 
+* [logstash](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/logstash) 
+* [promtail](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/promtail) 
+* [vector-docker](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/vector-docker) 

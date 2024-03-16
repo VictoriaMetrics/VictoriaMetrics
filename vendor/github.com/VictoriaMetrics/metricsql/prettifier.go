@@ -2,10 +2,11 @@ package metricsql
 
 // Prettify returns prettified representation of MetricsQL query q.
 func Prettify(q string) (string, error) {
-	e, err := Parse(q)
+	e, err := parseInternal(q)
 	if err != nil {
 		return "", err
 	}
+	e = removeParensExpr(e)
 	b := appendPrettifiedExpr(nil, e, 0, false)
 	return string(b), nil
 }
@@ -28,11 +29,11 @@ func appendPrettifiedExpr(dst []byte, e Expr, indent int, needParens bool) []byt
 		dst = append(dst, ')')
 	}
 	if len(dst)-dstLen <= maxPrettifiedLineLen {
-		// There is no need in splitting the e string representation, since its' length doesn't exceed.
+		// There is no need in splitting the e string representation, since its' length doesn't exceed maxPrettifiedLineLen.
 		return dst
 	}
 
-	// The e string representation exceeds maxPrettifiedLineLen. Split it into multiple lines
+	// The e string representation exceeds maxPrettifiedLineLen. Split it into multiple lines.
 	dst = dst[:dstLen]
 	if needParens {
 		dst = appendIndent(dst, indent)
@@ -40,6 +41,37 @@ func appendPrettifiedExpr(dst []byte, e Expr, indent int, needParens bool) []byt
 		indent++
 	}
 	switch t := e.(type) {
+	case *withExpr:
+		// Put every WITH expression on a separate line
+		dst = appendIndent(dst, indent)
+		dst = append(dst, "WITH (\n"...)
+		indent++
+		for _, wa := range t.Was {
+			dst = appendPrettifiedExpr(dst, wa, indent, false)
+			dst = append(dst, ",\n"...)
+		}
+		indent--
+		dst = appendIndent(dst, indent)
+		dst = append(dst, ")\n"...)
+		dst = appendPrettifiedExpr(dst, t.Expr, indent, false)
+	case *withArgExpr:
+		// Wrap long withArgExpr into `(...)`
+		dst = appendIndent(dst, indent)
+		dst = appendEscapedIdent(dst, t.Name)
+		if len(t.Args) > 0 {
+			dst = append(dst, '(')
+			dst = appendEscapedIdent(dst, t.Args[0])
+			for _, arg := range t.Args[1:] {
+				dst = append(dst, ", "...)
+				dst = appendEscapedIdent(dst, arg)
+			}
+			dst = append(dst, ')')
+		}
+		dst = append(dst, " = (\n"...)
+		dst = appendPrettifiedExpr(dst, t.Expr, indent+1, false)
+		dst = append(dst, '\n')
+		dst = appendIndent(dst, indent)
+		dst = append(dst, ')')
 	case *BinaryOpExpr:
 		// Split:
 		//
@@ -125,20 +157,24 @@ func appendPrettifiedExpr(dst []byte, e Expr, indent int, needParens bool) []byt
 		//       or
 		//     filtersN
 		//   }
+		lfss := t.labelFilterss
 		offset := 0
-		metricName := t.getMetricName()
+		metricName := getMetricNameFromLabelFilterss(lfss)
 		if metricName != "" {
 			offset = 1
 		}
 		dst = appendIndent(dst, indent)
 		dst = appendEscapedIdent(dst, metricName)
-		if !t.isOnlyMetricName() {
+		if !isOnlyMetricNameInLabelFilterss(lfss) {
 			dst = append(dst, "{\n"...)
-			lfss := t.LabelFilterss
 			for i, lfs := range lfss {
-				dst = appendPrettifiedLabelFilters(dst, indent+1, lfs[offset:])
+				lfs = lfs[offset:]
+				if len(lfs) == 0 {
+					continue
+				}
+				dst = appendPrettifiedLabelFilters(dst, indent+1, lfs)
 				dst = append(dst, '\n')
-				if i+1 < len(lfss) {
+				if i+1 < len(lfss) && len(lfss[i+1]) > offset {
 					dst = appendIndent(dst, indent+2)
 					dst = append(dst, "or\n"...)
 				}
@@ -173,12 +209,12 @@ func appendPrettifiedFuncArgs(dst []byte, indent int, args []Expr) []byte {
 	return dst
 }
 
-func appendPrettifiedLabelFilters(dst []byte, indent int, lfs []LabelFilter) []byte {
+func appendPrettifiedLabelFilters(dst []byte, indent int, lfs []*labelFilterExpr) []byte {
 	dstLen := len(dst)
 
 	// Try marshaling lfs into a single line
 	dst = appendIndent(dst, indent)
-	dst = appendLabelFilters(dst, lfs)
+	dst = appendLabelFilterExprs(dst, lfs)
 	if len(dst)-dstLen <= maxPrettifiedLineLen {
 		return dst
 	}

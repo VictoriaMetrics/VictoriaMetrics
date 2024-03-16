@@ -1,0 +1,80 @@
+version: "3.5"
+services:
+  # Grafana instance configured with VictoriaLogs as datasource
+  grafana:
+    container_name: grafana
+    image: grafana/grafana:10.3.1
+    depends_on:
+      - "victoriametrics"
+      - "victorialogs"
+    ports:
+      - 3000:3000
+    entrypoint: [ "/bin/bash", "-c" ]
+    command: [ "chmod +x /download.sh && /download.sh && /run.sh" ]
+    volumes:
+      - grafanadata:/var/lib/grafana
+      - ./provisioning/datasources/victorialogs-datasource:/etc/grafana/provisioning/datasources
+      - ./provisioning/dashboards:/etc/grafana/provisioning/dashboards
+      - ./provisioning/plugins/:/var/lib/grafana/plugins
+      - ./../../dashboards/victoriametrics.json:/var/lib/grafana/dashboards/vm.json
+      - ./../../dashboards/victorialogs.json:/var/lib/grafana/dashboards/vl.json
+      - ./victorialogs/download.sh:/download.sh
+    environment:
+      - "GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS=victorialogs-datasource"
+    networks:
+      - vm_net
+    restart: always
+
+  # fluentbit is logs collector. It collects logs according to fluent-bit.conf
+  # and forwards them to VictoriaLogs
+  fluentbit:
+    container_name: fluentbit
+    image: cr.fluentbit.io/fluent/fluent-bit:2.1.4
+    volumes:
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - ./fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf
+    depends_on: [victorialogs]
+    ports:
+      - "5140:5140"
+    networks:
+      - vm_net
+
+#  VictoriaLogs instance, a single process responsible for
+#  storing logs and serving read queries.
+  victorialogs:
+    container_name: victorialogs
+    image: docker.io/victoriametrics/victoria-logs:v0.5.0-victorialogs
+    command:
+      - "--storageDataPath=/vlogs"
+      - "--httpListenAddr=:9428"
+    volumes:
+      - vldata:/vlogs
+    ports:
+      - "9428:9428"
+    networks:
+      - vm_net
+
+  # VictoriaMetrics instance, a single process responsible for
+  # scraping, storing metrics and serve read requests.
+  victoriametrics:
+    container_name: victoriametrics
+    image: victoriametrics/victoria-metrics:v1.99.0
+    ports:
+      - 8428:8428
+    volumes:
+      - vmdata:/storage
+      - ./prometheus-victorialogs.yml:/etc/prometheus/prometheus.yml
+    command:
+      - "--storageDataPath=/storage"
+      - "--httpListenAddr=:8428"
+      - "--promscrape.config=/etc/prometheus/prometheus.yml"
+    networks:
+      - vm_net
+    restart: always
+
+volumes:
+  vmdata: {}
+  vldata: {}
+  grafanadata: {}
+networks:
+  vm_net:

@@ -1853,6 +1853,9 @@ type Folder struct {
 	// Bucket: The name of the bucket containing this folder.
 	Bucket string `json:"bucket,omitempty"`
 
+	// CreateTime: The creation time of the folder in RFC 3339 format.
+	CreateTime string `json:"createTime,omitempty"`
+
 	// Id: The ID of the folder, including the bucket name, folder name.
 	Id string `json:"id,omitempty"`
 
@@ -1876,12 +1879,9 @@ type Folder struct {
 	// SelfLink: The link to this folder.
 	SelfLink string `json:"selfLink,omitempty"`
 
-	// TimeCreated: The creation time of the folder in RFC 3339 format.
-	TimeCreated string `json:"timeCreated,omitempty"`
-
-	// Updated: The modification time of the folder metadata in RFC 3339
+	// UpdateTime: The modification time of the folder metadata in RFC 3339
 	// format.
-	Updated string `json:"updated,omitempty"`
+	UpdateTime string `json:"updateTime,omitempty"`
 
 	// ServerResponse contains the HTTP response code and headers from the
 	// server.
@@ -9452,16 +9452,6 @@ func (r *ManagedFoldersService) Delete(bucket string, managedFolder string) *Man
 	return c
 }
 
-// AllowNonEmpty sets the optional parameter "allowNonEmpty": Allows the
-// deletion of a managed folder even if it is not empty. A managed
-// folder is empty if there are no objects or managed folders that it
-// applies to. Callers must have storage.managedFolders.setIamPolicy
-// permission.
-func (c *ManagedFoldersDeleteCall) AllowNonEmpty(allowNonEmpty bool) *ManagedFoldersDeleteCall {
-	c.urlParams_.Set("allowNonEmpty", fmt.Sprint(allowNonEmpty))
-	return c
-}
-
 // IfMetagenerationMatch sets the optional parameter
 // "ifMetagenerationMatch": If set, only deletes the managed folder if
 // its metageneration matches this value.
@@ -9548,11 +9538,6 @@ func (c *ManagedFoldersDeleteCall) Do(opts ...googleapi.CallOption) error {
 	//     "managedFolder"
 	//   ],
 	//   "parameters": {
-	//     "allowNonEmpty": {
-	//       "description": "Allows the deletion of a managed folder even if it is not empty. A managed folder is empty if there are no objects or managed folders that it applies to. Callers must have storage.managedFolders.setIamPolicy permission.",
-	//       "location": "query",
-	//       "type": "boolean"
-	//     },
 	//     "bucket": {
 	//       "description": "Name of the bucket containing the managed folder.",
 	//       "location": "path",

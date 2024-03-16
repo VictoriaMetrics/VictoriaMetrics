@@ -8,10 +8,8 @@ import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import { Logs } from "../../../api/types";
 import dayjs from "dayjs";
 import { useTimeState } from "../../../state/time/TimeStateContext";
-import SelectLimit from "../../../components/Main/Pagination/SelectLimit/SelectLimit";
 import useStateSearchParams from "../../../hooks/useStateSearchParams";
 import useSearchParamsFromObject from "../../../hooks/useSearchParamsFromObject";
-import { getFromStorage, saveToStorage } from "../../../utils/storage";
 import TableSettings from "../../../components/Table/TableSettings/TableSettings";
 import useBoolean from "../../../hooks/useBoolean";
 import TableLogs from "./TableLogs";
@@ -44,7 +42,6 @@ const ExploreLogsBody: FC<ExploreLogBodyProps> = ({ data, loaded }) => {
   const { isMobile } = useDeviceDetect();
   const { timezone } = useTimeState();
   const { setSearchParamsFromKeys } = useSearchParamsFromObject();
-  const [limitRows, setLimitRows] = useStateSearchParams(getFromStorage("LOGS_LIMIT") || 50, "limit");
 
   const [activeTab, setActiveTab] = useStateSearchParams(DisplayType.group, "view");
   const [displayColumns, setDisplayColumns] = useState<string[]>([]);
@@ -83,12 +80,6 @@ const ExploreLogsBody: FC<ExploreLogBodyProps> = ({ data, loaded }) => {
   const handleChangeTab = (view: string) => {
     setActiveTab(view as DisplayType);
     setSearchParamsFromKeys({ view });
-  };
-
-  const handleChangeLimit = (limit: number) => {
-    setLimitRows(limit);
-    setSearchParamsFromKeys({ limit });
-    saveToStorage("LOGS_LIMIT", `${limit}`);
   };
 
   const handleChangeFilteredLogs = (logs: Logs[]) => {
@@ -147,10 +138,6 @@ const ExploreLogsBody: FC<ExploreLogBodyProps> = ({ data, loaded }) => {
         )}
         {activeTab === DisplayType.table && (
           <div className="vm-explore-logs-body-header__settings">
-            <SelectLimit
-              limit={+limitRows}
-              onChange={handleChangeLimit}
-            />
             <TableSettings
               columns={columns}
               defaultColumns={displayColumns}
@@ -185,7 +172,6 @@ const ExploreLogsBody: FC<ExploreLogBodyProps> = ({ data, loaded }) => {
             {activeTab === DisplayType.table && (
               <TableLogs
                 logs={filteredLogs}
-                limitRows={+limitRows}
                 displayColumns={displayColumns}
                 tableCompact={tableCompact}
                 columns={columns}

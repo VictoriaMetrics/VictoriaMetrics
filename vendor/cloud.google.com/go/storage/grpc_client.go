@@ -1529,16 +1529,17 @@ func newGRPCWriter(c *grpcStorageClient, params *openWriterParams, r io.Reader) 
 	}
 
 	return &gRPCWriter{
-		buf:           make([]byte, size),
-		c:             c,
-		ctx:           params.ctx,
-		reader:        r,
-		bucket:        params.bucket,
-		attrs:         params.attrs,
-		conds:         params.conds,
-		encryptionKey: params.encryptionKey,
-		sendCRC32C:    params.sendCRC32C,
-		chunkSize:     params.chunkSize,
+		buf:                   make([]byte, size),
+		c:                     c,
+		ctx:                   params.ctx,
+		reader:                r,
+		bucket:                params.bucket,
+		attrs:                 params.attrs,
+		conds:                 params.conds,
+		encryptionKey:         params.encryptionKey,
+		sendCRC32C:            params.sendCRC32C,
+		chunkSize:             params.chunkSize,
+		forceEmptyContentType: params.forceEmptyContentType,
 	}
 }
 
@@ -1557,8 +1558,9 @@ type gRPCWriter struct {
 	encryptionKey []byte
 	settings      *settings
 
-	sendCRC32C bool
-	chunkSize  int
+	sendCRC32C            bool
+	chunkSize             int
+	forceEmptyContentType bool
 
 	// The gRPC client-stream used for sending buffers.
 	stream storagepb.Storage_BidiWriteObjectClient
@@ -1857,9 +1859,9 @@ func (w *gRPCWriter) writeObjectSpec() (*storagepb.WriteObjectSpec, error) {
 // read copies the data in the reader to the given buffer and reports how much
 // data was read into the buffer and if there is no more data to read (EOF).
 // Furthermore, if the attrs.ContentType is unset, the first bytes of content
-// will be sniffed for a matching content type.
+// will be sniffed for a matching content type unless forceEmptyContentType is enabled.
 func (w *gRPCWriter) read() (int, bool, error) {
-	if w.attrs.ContentType == "" {
+	if w.attrs.ContentType == "" && !w.forceEmptyContentType {
 		w.reader, w.attrs.ContentType = gax.DetermineContentType(w.reader)
 	}
 	// Set n to -1 to start the Read loop.

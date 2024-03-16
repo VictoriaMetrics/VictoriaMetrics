@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
 	"log"
 	"net/http"
@@ -50,8 +49,20 @@ func main() {
 				Action: func(c *cli.Context) error {
 					fmt.Println("OpenTSDB import mode")
 
+					// create Transport with given TLS config
+					certFile := c.String(otsdbCertFile)
+					keyFile := c.String(otsdbKeyFile)
+					caFile := c.String(otsdbCAFile)
+					serverName := c.String(otsdbServerName)
+					insecureSkipVerify := c.Bool(otsdbInsecureSkipVerify)
+					addr := c.String(otsdbAddr)
+
+					tr, err := httputils.Transport(addr, certFile, keyFile, caFile, serverName, insecureSkipVerify)
+					if err != nil {
+						return fmt.Errorf("failed to create Transport: %s", err)
+					}
 					oCfg := opentsdb.Config{
-						Addr:       c.String(otsdbAddr),
+						Addr:       addr,
 						Limit:      c.Int(otsdbQueryLimit),
 						Offset:     c.Int64(otsdbOffsetDays),
 						HardTS:     c.Int64(otsdbHardTSStart),
@@ -59,13 +70,17 @@ func main() {
 						Filters:    c.StringSlice(otsdbFilters),
 						Normalize:  c.Bool(otsdbNormalize),
 						MsecsTime:  c.Bool(otsdbMsecsTime),
+						Transport:  tr,
 					}
 					otsdbClient, err := opentsdb.NewClient(oCfg)
 					if err != nil {
 						return fmt.Errorf("failed to create opentsdb client: %s", err)
 					}
 
-					vmCfg := initConfigVM(c)
+					vmCfg, err := initConfigVM(c)
+					if err != nil {
+						return fmt.Errorf("failed to init VM configuration: %s", err)
+					}
 					// disable progress bars since openTSDB implementation
 					// does not use progress bar pool
 					vmCfg.DisableProgressBar = true
@@ -92,7 +107,7 @@ func main() {
 					serverName := c.String(influxServerName)
 					insecureSkipVerify := c.Bool(influxInsecureSkipVerify)
 
-					tc, err := httputils.TLSConfig(certFile, caFile, keyFile, serverName, insecureSkipVerify)
+					tc, err := httputils.TLSConfig(certFile, keyFile, caFile, serverName, insecureSkipVerify)
 					if err != nil {
 						return fmt.Errorf("failed to create TLS Config: %s", err)
 					}
@@ -117,7 +132,10 @@ func main() {
 						return fmt.Errorf("failed to create influx client: %s", err)
 					}
 
-					vmCfg := initConfigVM(c)
+					vmCfg, err := initConfigVM(c)
+					if err != nil {
+						return fmt.Errorf("failed to init VM configuration: %s", err)
+					}
 					importer, err = vm.NewImporter(ctx, vmCfg)
 					if err != nil {
 						return fmt.Errorf("failed to create VM importer: %s", err)
@@ -140,28 +158,42 @@ func main() {
 				Usage: "Migrate time series via Prometheus remote-read protocol",
 				Flags: mergeFlags(globalFlags, remoteReadFlags, vmFlags),
 				Action: func(c *cli.Context) error {
+					fmt.Println("Remote-read import mode")
+
+					addr := c.String(remoteReadSrcAddr)
+
+					// create TLS config
+					certFile := c.String(remoteReadCertFile)
+					keyFile := c.String(remoteReadKeyFile)
+					caFile := c.String(remoteReadCAFile)
+					serverName := c.String(remoteReadServerName)
+					insecureSkipVerify := c.Bool(remoteReadInsecureSkipVerify)
+
+					tr, err := httputils.Transport(addr, certFile, keyFile, caFile, serverName, insecureSkipVerify)
+					if err != nil {
+						return fmt.Errorf("failed to create transport: %s", err)
+					}
+
 					rr, err := remoteread.NewClient(remoteread.Config{
-						Addr:               c.String(remoteReadSrcAddr),
-						Username:           c.String(remoteReadUser),
-						Password:           c.String(remoteReadPassword),
-						Timeout:            c.Duration(remoteReadHTTPTimeout),
-						UseStream:          c.Bool(remoteReadUseStream),
-						Headers:            c.String(remoteReadHeaders),
-						LabelName:          c.String(remoteReadFilterLabel),
-						LabelValue:         c.String(remoteReadFilterLabelValue),
-						CertFile:           c.String(remoteReadCertFile),
-						KeyFile:            c.String(remoteReadKeyFile),
-						CAFile:             c.String(remoteReadCAFile),
-						ServerName:         c.String(remoteReadServerName),
-						InsecureSkipVerify: c.Bool(remoteReadInsecureSkipVerify),
-						DisablePathAppend:  c.Bool(remoteReadDisablePathAppend),
+						Addr:              addr,
+						Transport:         tr,
+						Username:          c.String(remoteReadUser),
+						Password:          c.String(remoteReadPassword),
+						Timeout:           c.Duration(remoteReadHTTPTimeout),
+						UseStream:         c.Bool(remoteReadUseStream),
+						Headers:           c.String(remoteReadHeaders),
+						LabelName:         c.String(remoteReadFilterLabel),
+						LabelValue:        c.String(remoteReadFilterLabelValue),
+						DisablePathAppend: c.Bool(remoteReadDisablePathAppend),
 					})
 					if err != nil {
 						return fmt.Errorf("error create remote read client: %s", err)
 					}
 
-					vmCfg := initConfigVM(c)
-
+					vmCfg, err := initConfigVM(c)
+					if err != nil {
+						return fmt.Errorf("failed to init VM configuration: %s", err)
+					}
 					importer, err := vm.NewImporter(ctx, vmCfg)
 					if err != nil {
 						return fmt.Errorf("failed to create VM importer: %s", err)
@@ -190,7 +222,10 @@ func main() {
 				Action: func(c *cli.Context) error {
 					fmt.Println("Prometheus import mode")
 
-					vmCfg := initConfigVM(c)
+					vmCfg, err := initConfigVM(c)
+					if err != nil {
+						return fmt.Errorf("failed to init VM configuration: %s", err)
+					}
 					importer, err = vm.NewImporter(ctx, vmCfg)
 					if err != nil {
 						return fmt.Errorf("failed to create VM importer: %s", err)
@@ -232,7 +267,6 @@ func main() {
 
 					var srcExtraLabels []string
 					srcAddr := strings.Trim(c.String(vmNativeSrcAddr), "/")
-					srcInsecureSkipVerify := c.Bool(vmNativeSrcInsecureSkipVerify)
 					srcAuthConfig, err := auth.Generate(
 						auth.WithBasicAuth(c.String(vmNativeSrcUser), c.String(vmNativeSrcPassword)),
 						auth.WithBearer(c.String(vmNativeSrcBearerToken)),
@@ -240,16 +274,26 @@ func main() {
 					if err != nil {
 						return fmt.Errorf("error initilize auth config for source: %s", srcAddr)
 					}
+
+					// create TLS config
+					srcCertFile := c.String(vmNativeSrcCertFile)
+					srcKeyFile := c.String(vmNativeSrcKeyFile)
+					srcCAFile := c.String(vmNativeSrcCAFile)
+					srcServerName := c.String(vmNativeSrcServerName)
+					srcInsecureSkipVerify := c.Bool(vmNativeSrcInsecureSkipVerify)
+
+					srcTC, err := httputils.TLSConfig(srcCertFile, srcKeyFile, srcCAFile, srcServerName, srcInsecureSkipVerify)
+					if err != nil {
+						return fmt.Errorf("failed to create TLS Config: %s", err)
+					}
+
 					srcHTTPClient := &http.Client{Transport: &http.Transport{
 						DisableKeepAlives: disableKeepAlive,
-						TLSClientConfig: &tls.Config{
-							InsecureSkipVerify: srcInsecureSkipVerify,
-						},
+						TLSClientConfig:   srcTC,
 					}}
 
 					dstAddr := strings.Trim(c.String(vmNativeDstAddr), "/")
 					dstExtraLabels := c.StringSlice(vmExtraLabel)
-					dstInsecureSkipVerify := c.Bool(vmNativeDstInsecureSkipVerify)
 					dstAuthConfig, err := auth.Generate(
 						auth.WithBasicAuth(c.String(vmNativeDstUser), c.String(vmNativeDstPassword)),
 						auth.WithBearer(c.String(vmNativeDstBearerToken)),
@@ -257,11 +301,22 @@ func main() {
 					if err != nil {
 						return fmt.Errorf("error initilize auth config for destination: %s", dstAddr)
 					}
+
+					// create TLS config
+					dstCertFile := c.String(vmNativeDstCertFile)
+					dstKeyFile := c.String(vmNativeDstKeyFile)
+					dstCAFile := c.String(vmNativeDstCAFile)
+					dstServerName := c.String(vmNativeDstServerName)
+					dstInsecureSkipVerify := c.Bool(vmNativeDstInsecureSkipVerify)
+
+					dstTC, err := httputils.TLSConfig(dstCertFile, dstKeyFile, dstCAFile, dstServerName, dstInsecureSkipVerify)
+					if err != nil {
+						return fmt.Errorf("failed to create TLS Config: %s", err)
+					}
+
 					dstHTTPClient := &http.Client{Transport: &http.Transport{
 						DisableKeepAlives: disableKeepAlive,
-						TLSClientConfig: &tls.Config{
-							InsecureSkipVerify: dstInsecureSkipVerify,
-						},
+						TLSClientConfig:   dstTC,
 					}}
 
 					p := vmNativeProcessor{
@@ -317,14 +372,14 @@ func main() {
 					if err != nil {
 						return cli.Exit(fmt.Errorf("cannot open exported block at path=%q err=%w", blockPath, err), 1)
 					}
-					var blocksCount uint64
+					var blocksCount atomic.Uint64
 					if err := stream.Parse(f, isBlockGzipped, func(block *stream.Block) error {
-						atomic.AddUint64(&blocksCount, 1)
+						blocksCount.Add(1)
 						return nil
 					}); err != nil {
-						return cli.Exit(fmt.Errorf("cannot parse block at path=%q, blocksCount=%d, err=%w", blockPath, blocksCount, err), 1)
+						return cli.Exit(fmt.Errorf("cannot parse block at path=%q, blocksCount=%d, err=%w", blockPath, blocksCount.Load(), err), 1)
 					}
-					log.Printf("successfully verified block at path=%q, blockCount=%d", blockPath, blocksCount)
+					log.Printf("successfully verified block at path=%q, blockCount=%d", blockPath, blocksCount.Load())
 					return nil
 				},
 			},
@@ -349,9 +404,24 @@ func main() {
 	log.Printf("Total time: %v", time.Since(start))
 }
 
-func initConfigVM(c *cli.Context) vm.Config {
+func initConfigVM(c *cli.Context) (vm.Config, error) {
+	addr := c.String(vmAddr)
+
+	// create Transport with given TLS config
+	certFile := c.String(vmCertFile)
+	keyFile := c.String(vmKeyFile)
+	caFile := c.String(vmCAFile)
+	serverName := c.String(vmServerName)
+	insecureSkipVerify := c.Bool(vmInsecureSkipVerify)
+
+	tr, err := httputils.Transport(addr, certFile, keyFile, caFile, serverName, insecureSkipVerify)
+	if err != nil {
+		return vm.Config{}, fmt.Errorf("failed to create Transport: %s", err)
+	}
+
 	return vm.Config{
-		Addr:               c.String(vmAddr),
+		Addr:               addr,
+		Transport:          tr,
 		User:               c.String(vmUser),
 		Password:           c.String(vmPassword),
 		Concurrency:        uint8(c.Int(vmConcurrency)),
@@ -363,5 +433,5 @@ func initConfigVM(c *cli.Context) vm.Config {
 		ExtraLabels:        c.StringSlice(vmExtraLabel),
 		RateLimit:          c.Int64(vmRateLimit),
 		DisableProgressBar: c.Bool(vmDisableProgressBar),
-	}
+	}, nil
 }

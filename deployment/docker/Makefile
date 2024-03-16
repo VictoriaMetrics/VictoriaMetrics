@@ -5,7 +5,7 @@ DOCKER_NAMESPACE ?= victoriametrics
 ROOT_IMAGE ?= alpine:3.19.1
 CERTS_IMAGE := alpine:3.19.1
 
-GO_BUILDER_IMAGE := golang:1.22.0-alpine
+GO_BUILDER_IMAGE := golang:1.22.1-alpine
 BUILDER_IMAGE := local/builder:2.0.0-$(shell echo $(GO_BUILDER_IMAGE) | tr :/ __)-1
 BASE_IMAGE := local/base:1.1.4-$(shell echo $(ROOT_IMAGE) | tr :/ __)-$(shell echo $(CERTS_IMAGE) | tr :/ __)
 DOCKER ?= docker
@@ -204,3 +204,9 @@ docker-cluster-vm-datasource-up:
 
 docker-cluster-vm-datasource-down:
 	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose-cluster.yml -f deployment/docker/vm-datasource/docker-compose-cluster.yml down -v
+
+docker-victorialogs-up:
+	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose-victorialogs.yml up -d
+
+docker-victorialogs-down:
+	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose-victorialogs.yml down -v

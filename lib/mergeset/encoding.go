@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"os"
-	"reflect"
 	"sort"
 	"strings"
 	"sync"
@@ -29,21 +28,15 @@ type Item struct {
 // The returned bytes representation belongs to data.
 func (it Item) Bytes(data []byte) []byte {
 	n := int(it.End - it.Start)
-	sh := (*reflect.SliceHeader)(unsafe.Pointer(&data))
-	sh.Cap = n
-	sh.Len = n
-	sh.Data += uintptr(it.Start)
-	return data
+	return unsafe.Slice((*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(unsafe.SliceData(data)))+uintptr(it.Start))), n)
 }
 
 // String returns string representation of it obtained from data.
 //
 // The returned string representation belongs to data.
 func (it Item) String(data []byte) string {
-	sh := (*reflect.SliceHeader)(unsafe.Pointer(&data))
-	sh.Data += uintptr(it.Start)
-	sh.Len = int(it.End - it.Start)
-	return *(*string)(unsafe.Pointer(sh))
+	n := int(it.End - it.Start)
+	return unsafe.String((*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(unsafe.SliceData(data)))+uintptr(it.Start))), n)
 }
 
 func (ib *inmemoryBlock) Len() int {

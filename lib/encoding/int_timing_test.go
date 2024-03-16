@@ -2,7 +2,6 @@ package encoding
 
 import (
 	"fmt"
-	"sync/atomic"
 	"testing"
 )
 
@@ -16,7 +15,7 @@ func BenchmarkMarshalUint64(b *testing.B) {
 			dst = MarshalUint64(dst[:0], sink)
 			sink += uint64(len(dst))
 		}
-		atomic.AddUint64(&Sink, sink)
+		Sink.Add(sink)
 	})
 }
 
@@ -29,7 +28,7 @@ func BenchmarkUnmarshalUint64(b *testing.B) {
 			v := UnmarshalUint64(testMarshaledUint64Data)
 			sink += v
 		}
-		atomic.AddUint64(&Sink, sink)
+		Sink.Add(sink)
 	})
 }
 
@@ -43,7 +42,7 @@ func BenchmarkMarshalInt64(b *testing.B) {
 			dst = MarshalInt64(dst[:0], int64(sink))
 			sink += uint64(len(dst))
 		}
-		atomic.AddUint64(&Sink, sink)
+		Sink.Add(sink)
 	})
 }
 
@@ -56,7 +55,7 @@ func BenchmarkUnmarshalInt64(b *testing.B) {
 			v := UnmarshalInt64(testMarshaledInt64Data)
 			sink += uint64(v)
 		}
-		atomic.AddUint64(&Sink, sink)
+		Sink.Add(sink)
 	})
 }
 
@@ -96,7 +95,7 @@ func benchmarkMarshalVarUint64s(b *testing.B, maxValue uint64) {
 			dst = MarshalVarUint64s(dst[:0], data)
 			sink += uint64(len(dst))
 		}
-		atomic.AddUint64(&Sink, sink)
+		Sink.Add(sink)
 	})
 }
 
@@ -136,7 +135,7 @@ func benchmarkMarshalVarInt64s(b *testing.B, maxValue int64) {
 			dst = MarshalVarInt64s(dst[:0], data)
 			sink += uint64(len(dst))
 		}
-		atomic.AddUint64(&Sink, sink)
+		Sink.Add(sink)
 	})
 }
 
@@ -182,7 +181,7 @@ func benchmarkUnmarshalVarUint64s(b *testing.B, maxValue uint64) {
 			}
 			sink += uint64(len(dst))
 		}
-		atomic.AddUint64(&Sink, sink)
+		Sink.Add(sink)
 	})
 }
 
@@ -228,7 +227,7 @@ func benchmarkUnmarshalVarInt64s(b *testing.B, maxValue int64) {
 			}
 			sink += uint64(len(dst))
 		}
-		atomic.AddUint64(&Sink, sink)
+		Sink.Add(sink)
 	})
 }
 

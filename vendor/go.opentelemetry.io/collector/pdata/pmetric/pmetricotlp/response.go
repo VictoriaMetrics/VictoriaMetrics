@@ -73,7 +73,7 @@ func (ms ExportResponse) unmarshalJsoniter(iter *jsoniter.Iterator) {
 }
 
 func (ms ExportPartialSuccess) unmarshalJsoniter(iter *jsoniter.Iterator) {
-	iter.ReadObjectCB(func(iterator *jsoniter.Iterator, f string) bool {
+	iter.ReadObjectCB(func(_ *jsoniter.Iterator, f string) bool {
 		switch f {
 		case "rejected_data_points", "rejectedDataPoints":
 			ms.orig.RejectedDataPoints = json.ReadInt64(iter)

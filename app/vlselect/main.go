@@ -1,6 +1,7 @@
 package vlselect
 
 import (
+	"context"
 	"embed"
 	"flag"
 	"fmt"
@@ -101,7 +102,8 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 
 	// Limit the number of concurrent queries, which can consume big amounts of CPU.
 	startTime := time.Now()
-	stopCh := r.Context().Done()
+	ctx := r.Context()
+	stopCh := ctx.Done()
 	select {
 	case concurrencyLimitCh <- struct{}{}:
 		defer func() { <-concurrencyLimitCh }()
@@ -139,11 +141,15 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 	}
 
+	ctxWithCancel, cancel := context.WithCancel(ctx)
+	defer cancel()
+	stopCh = ctxWithCancel.Done()
+
 	switch {
 	case path == "/logsql/query":
 		logsqlQueryRequests.Inc()
 		httpserver.EnableCORS(w, r)
-		logsql.ProcessQueryRequest(w, r, stopCh)
+		logsql.ProcessQueryRequest(w, r, stopCh, cancel)
 		return true
 	default:
 		return false

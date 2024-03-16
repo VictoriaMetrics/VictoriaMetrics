@@ -13,6 +13,26 @@ import (
 //
 // MetricsQL is backwards-compatible with PromQL.
 func Parse(s string) (Expr, error) {
+	// Parse s
+	e, err := parseInternal(s)
+	if err != nil {
+		return nil, err
+	}
+
+	// Expand `WITH` expressions.
+	was := getDefaultWithArgExprs()
+	if e, err = expandWithExpr(was, e); err != nil {
+		return nil, fmt.Errorf(`cannot expand WITH expressions: %s`, err)
+	}
+	e = removeParensExpr(e)
+	e = simplifyConstants(e)
+	if err := checkSupportedFunctions(e); err != nil {
+		return nil, err
+	}
+	return e, nil
+}
+
+func parseInternal(s string) (Expr, error) {
 	var p parser
 	p.lex.Init(s)
 	if err := p.lex.Next(); err != nil {
@@ -24,15 +44,6 @@ func Parse(s string) (Expr, error) {
 	}
 	if !isEOF(p.lex.Token) {
 		return nil, fmt.Errorf(`unparsed data left: %q`, p.lex.Context())
-	}
-	was := getDefaultWithArgExprs()
-	if e, err = expandWithExpr(was, e); err != nil {
-		return nil, fmt.Errorf(`cannot expand WITH expressions: %s`, err)
-	}
-	e = removeParensExpr(e)
-	e = simplifyConstants(e)
-	if err := checkSupportedFunctions(e); err != nil {
-		return nil, err
 	}
 	return e, nil
 }
@@ -104,36 +115,33 @@ func mustParseWithArgExpr(s string) *withArgExpr {
 
 // removeParensExpr removes parensExpr for (Expr) case.
 func removeParensExpr(e Expr) Expr {
-	if re, ok := e.(*RollupExpr); ok {
-		re.Expr = removeParensExpr(re.Expr)
-		if re.At != nil {
-			re.At = removeParensExpr(re.At)
+	switch t := e.(type) {
+	case *RollupExpr:
+		t.Expr = removeParensExpr(t.Expr)
+		if t.At != nil {
+			t.At = removeParensExpr(t.At)
 		}
-		return re
-	}
-	if be, ok := e.(*BinaryOpExpr); ok {
-		be.Left = removeParensExpr(be.Left)
-		be.Right = removeParensExpr(be.Right)
-		return be
-	}
-	if ae, ok := e.(*AggrFuncExpr); ok {
-		for i, arg := range ae.Args {
-			ae.Args[i] = removeParensExpr(arg)
+		return t
+	case *BinaryOpExpr:
+		t.Left = removeParensExpr(t.Left)
+		t.Right = removeParensExpr(t.Right)
+		return t
+	case *AggrFuncExpr:
+		for i, arg := range t.Args {
+			t.Args[i] = removeParensExpr(arg)
 		}
-		return ae
-	}
-	if fe, ok := e.(*FuncExpr); ok {
-		for i, arg := range fe.Args {
-			fe.Args[i] = removeParensExpr(arg)
+		return t
+	case *FuncExpr:
+		for i, arg := range t.Args {
+			t.Args[i] = removeParensExpr(arg)
 		}
-		return fe
-	}
-	if pe, ok := e.(*parensExpr); ok {
-		args := *pe
+		return t
+	case *parensExpr:
+		args := *t
 		for i, arg := range args {
 			args[i] = removeParensExpr(arg)
 		}
-		if len(*pe) == 1 {
+		if len(*t) == 1 {
 			return args[0]
 		}
 		// Treat parensExpr as a function with empty name, i.e. union()
@@ -142,38 +150,43 @@ func removeParensExpr(e Expr) Expr {
 			Args: args,
 		}
 		return fe
+	case *withExpr:
+		for _, arg := range t.Was {
+			arg.Expr = removeParensExpr(arg.Expr)
+		}
+		t.Expr = removeParensExpr(t.Expr)
+		return t
+	default:
+		return e
 	}
-	return e
 }
 
 func simplifyConstants(e Expr) Expr {
-	if re, ok := e.(*RollupExpr); ok {
-		re.Expr = simplifyConstants(re.Expr)
-		if re.At != nil {
-			re.At = simplifyConstants(re.At)
+	switch t := e.(type) {
+	case *withExpr:
+		panic(fmt.Errorf("BUG: withExpr shouldn't be passed to simplifyConstants"))
+	case *parensExpr:
+		panic(fmt.Errorf("BUG: parensExpr shouldn't be passed to simplifyConstants"))
+	case *RollupExpr:
+		t.Expr = simplifyConstants(t.Expr)
+		if t.At != nil {
+			t.At = simplifyConstants(t.At)
 		}
-		return re
-	}
-	if ae, ok := e.(*AggrFuncExpr); ok {
-		simplifyConstantsInplace(ae.Args)
-		return ae
-	}
-	if fe, ok := e.(*FuncExpr); ok {
-		simplifyConstantsInplace(fe.Args)
-		return fe
-	}
-	if pe, ok := e.(*parensExpr); ok {
-		if len(*pe) == 1 {
-			return simplifyConstants((*pe)[0])
-		}
-		simplifyConstantsInplace(*pe)
-		return pe
-	}
-	be, ok := e.(*BinaryOpExpr)
-	if !ok {
+		return t
+	case *AggrFuncExpr:
+		simplifyConstantsInplace(t.Args)
+		return t
+	case *FuncExpr:
+		simplifyConstantsInplace(t.Args)
+		return t
+	case *BinaryOpExpr:
+		return simplifyConstantsInBinaryExpr(t)
+	default:
 		return e
 	}
+}
 
+func simplifyConstantsInBinaryExpr(be *BinaryOpExpr) Expr {
 	be.Left = simplifyConstants(be.Left)
 	be.Right = simplifyConstants(be.Right)
 
@@ -202,7 +215,7 @@ func simplifyConstants(e Expr) Expr {
 		return be
 	}
 	// Perform string comparisons.
-	ok = false
+	ok := false
 	switch be.Op {
 	case "==":
 		ok = lse.S == rse.S
@@ -1715,7 +1728,13 @@ type StringExpr struct {
 // AppendString appends string representation of se to dst and returns the result.
 func (se *StringExpr) AppendString(dst []byte) []byte {
 	if len(se.tokens) > 0 {
-		panic(fmt.Errorf("BUG: StringExpr=%q must be already parsed with expandWithExpr()", se.tokens))
+		for i, token := range se.tokens {
+			dst = append(dst, token...)
+			if i+1 < len(se.tokens) {
+				dst = append(dst, '+')
+			}
+		}
+		return dst
 	}
 	return strconv.AppendQuote(dst, se.S)
 }
@@ -2182,15 +2201,24 @@ type MetricExpr struct {
 }
 
 func appendLabelFilterss(dst []byte, lfss [][]*labelFilterExpr) []byte {
+	offset := 0
+	metricName := getMetricNameFromLabelFilterss(lfss)
+	if metricName != "" {
+		offset = 1
+		dst = appendEscapedIdent(dst, metricName)
+	}
+	if isOnlyMetricNameInLabelFilterss(lfss) {
+		return dst
+	}
+
 	dst = append(dst, '{')
 	for i, lfs := range lfss {
-		for j, lf := range lfs {
-			dst = lf.AppendString(dst)
-			if j+1 < len(lfs) {
-				dst = append(dst, ',')
-			}
+		lfs = lfs[offset:]
+		if len(lfs) == 0 {
+			continue
 		}
-		if i+1 < len(lfss) {
+		dst = appendLabelFilterExprs(dst, lfs)
+		if i+1 < len(lfss) && len(lfss[i+1]) > offset {
 			dst = append(dst, " or "...)
 		}
 	}
@@ -2198,11 +2226,59 @@ func appendLabelFilterss(dst []byte, lfss [][]*labelFilterExpr) []byte {
 	return dst
 }
 
+func appendLabelFilterExprs(dst []byte, lfs []*labelFilterExpr) []byte {
+	for i, lf := range lfs {
+		dst = lf.AppendString(dst)
+		if i+1 < len(lfs) {
+			dst = append(dst, ',')
+		}
+	}
+	return dst
+}
+
+func isOnlyMetricNameInLabelFilterss(lfss [][]*labelFilterExpr) bool {
+	if getMetricNameFromLabelFilterss(lfss) == "" {
+		return false
+	}
+	for _, lfs := range lfss {
+		if len(lfs) > 1 {
+			return false
+		}
+	}
+	return true
+}
+
+func getMetricNameFromLabelFilterss(lfss [][]*labelFilterExpr) string {
+	if len(lfss) == 0 || len(lfss[0]) == 0 || lfss[0][0].Label != "__name__" || len(lfss[0][0].Value.tokens) != 1 {
+		return ""
+	}
+	metricName := mustExtractMetricNameFromToken(lfss[0][0].Value.tokens[0])
+	for _, lfs := range lfss[1:] {
+		if len(lfs) == 0 || lfs[0].Label != "__name__" || len(lfs[0].Value.tokens) != 1 {
+			return ""
+		}
+		metricNameLocal := mustExtractMetricNameFromToken(lfs[0].Value.tokens[0])
+		if metricNameLocal != metricName {
+			return ""
+		}
+	}
+	return metricName
+}
+
+func mustExtractMetricNameFromToken(token string) string {
+	metricName, err := extractStringValue(token)
+	if err != nil {
+		panic(fmt.Errorf("BUG: cannot obtain metric name: %w", err))
+	}
+	return metricName
+}
+
 // AppendString appends string representation of me to dst and returns the result.
 func (me *MetricExpr) AppendString(dst []byte) []byte {
 	if len(me.labelFilterss) > 0 {
 		return appendLabelFilterss(dst, me.labelFilterss)
 	}
+
 	lfss := me.LabelFilterss
 	if len(lfss) == 0 {
 		dst = append(dst, "{}"...)
@@ -2214,15 +2290,19 @@ func (me *MetricExpr) AppendString(dst []byte) []byte {
 		offset = 1
 		dst = appendEscapedIdent(dst, metricName)
 	}
-	if len(lfss) == 1 && len(lfss[0]) == offset {
+	if me.isOnlyMetricName() {
 		return dst
 	}
 	dst = append(dst, '{')
-	lfs := lfss[0]
-	dst = appendLabelFilters(dst, lfs[offset:])
-	for _, lfs := range lfss[1:] {
-		dst = append(dst, " or "...)
-		dst = appendLabelFilters(dst, lfs[offset:])
+	for i, lfs := range lfss {
+		lfs = lfs[offset:]
+		if len(lfs) == 0 {
+			continue
+		}
+		dst = appendLabelFilters(dst, lfs)
+		if i+1 < len(lfss) && len(lfss[i+1]) > offset {
+			dst = append(dst, " or "...)
+		}
 	}
 	dst = append(dst, '}')
 	return dst

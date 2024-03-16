@@ -56,7 +56,8 @@ var (
 	keepDanglingQueues = flag.Bool("remoteWrite.keepDanglingQueues", false, "Keep persistent queues contents at -remoteWrite.tmpDataPath in case there are no matching -remoteWrite.url. "+
 		"Useful when -remoteWrite.url is changed temporarily and persistent queue files will be needed later on.")
 	queues = flag.Int("remoteWrite.queues", cgroup.AvailableCPUs()*2, "The number of concurrent queues to each -remoteWrite.url. Set more queues if default number of queues "+
-		"isn't enough for sending high volume of collected data to remote storage. Default value is 2 * numberOfAvailableCPUs")
+		"isn't enough for sending high volume of collected data to remote storage. "+
+		"Default value depends on the number of available CPU cores. It should work fine in most cases since it minimizes resource usage")
 	showRemoteWriteURL = flag.Bool("remoteWrite.showURL", false, "Whether to show -remoteWrite.url in the exported metrics. "+
 		"It is hidden by default, since it can contain sensitive info such as auth key")
 	maxPendingBytesPerURL = flagutil.NewArrayBytes("remoteWrite.maxDiskUsagePerURL", 0, "The maximum file-based buffer size in bytes at -remoteWrite.tmpDataPath "+
@@ -89,8 +90,11 @@ var (
 	streamAggrDropInput = flagutil.NewArrayBool("remoteWrite.streamAggr.dropInput", "Whether to drop all the input samples after the aggregation "+
 		"with -remoteWrite.streamAggr.config. By default, only aggregates samples are dropped, while the remaining samples "+
 		"are written to the corresponding -remoteWrite.url . See also -remoteWrite.streamAggr.keepInput and https://docs.victoriametrics.com/stream-aggregation.html")
-	streamAggrDedupInterval = flagutil.NewArrayDuration("remoteWrite.streamAggr.dedupInterval", 0, "Input samples are de-duplicated with this interval before being aggregated. "+
-		"Only the last sample per each time series per each interval is aggregated if the interval is greater than zero")
+	streamAggrDedupInterval = flagutil.NewArrayDuration("remoteWrite.streamAggr.dedupInterval", 0, "Input samples are de-duplicated with this interval before optional aggregation "+
+		"with -remoteWrite.streamAggr.config . See also -dedup.minScrapeInterval and https://docs.victoriametrics.com/stream-aggregation.html#deduplication")
+	streamAggrDropInputLabels = flagutil.NewArrayString("streamAggr.dropInputLabels", "An optional list of labels to drop from samples "+
+		"before stream de-duplication and aggregation . See https://docs.victoriametrics.com/stream-aggregation.html#dropping-unneeded-labels")
+
 	disableOnDiskQueue = flag.Bool("remoteWrite.disableOnDiskQueue", false, "Whether to disable storing pending data to -remoteWrite.tmpDataPath "+
 		"when the configured remote storage systems cannot keep up with the data ingestion rate. See https://docs.victoriametrics.com/vmagent.html#disabling-on-disk-persistence ."+
 		"See also -remoteWrite.dropSamplesOnOverload")
@@ -536,22 +540,22 @@ func tryPushBlockToRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []prompbmar
 		// Push sharded data to remote storages in parallel in order to reduce
 		// the time needed for sending the data to multiple remote storage systems.
 		var wg sync.WaitGroup
-		wg.Add(len(rwctxs))
-		var anyPushFailed uint64
+		var anyPushFailed atomic.Bool
 		for i, rwctx := range rwctxs {
 			tssShard := tssByURL[i]
 			if len(tssShard) == 0 {
 				continue
 			}
+			wg.Add(1)
 			go func(rwctx *remoteWriteCtx, tss []prompbmarshal.TimeSeries) {
 				defer wg.Done()
 				if !rwctx.TryPush(tss) {
-					atomic.StoreUint64(&anyPushFailed, 1)
+					anyPushFailed.Store(true)
 				}
 			}(rwctx, tssShard)
 		}
 		wg.Wait()
-		return atomic.LoadUint64(&anyPushFailed) == 0
+		return !anyPushFailed.Load()
 	}
 
 	// Replicate data among rwctxs.
@@ -559,17 +563,17 @@ func tryPushBlockToRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []prompbmar
 	// the time needed for sending the data to multiple remote storage systems.
 	var wg sync.WaitGroup
 	wg.Add(len(rwctxs))
-	var anyPushFailed uint64
+	var anyPushFailed atomic.Bool
 	for _, rwctx := range rwctxs {
 		go func(rwctx *remoteWriteCtx) {
 			defer wg.Done()
 			if !rwctx.TryPush(tssBlock) {
-				atomic.StoreUint64(&anyPushFailed, 1)
+				anyPushFailed.Store(true)
 			}
 		}(rwctx)
 	}
 	wg.Wait()
-	return atomic.LoadUint64(&anyPushFailed) == 0
+	return !anyPushFailed.Load()
 }
 
 // sortLabelsIfNeeded sorts labels if -sortLabels command-line flag is set.
@@ -665,12 +669,14 @@ type remoteWriteCtx struct {
 	fq  *persistentqueue.FastQueue
 	c   *client
 
-	sas                 atomic.Pointer[streamaggr.Aggregators]
+	sas          atomic.Pointer[streamaggr.Aggregators]
+	deduplicator *streamaggr.Deduplicator
+
 	streamAggrKeepInput bool
 	streamAggrDropInput bool
 
 	pss        []*pendingSeries
-	pssNextIdx uint64
+	pssNextIdx atomic.Uint64
 
 	rowsPushedAfterRelabel *metrics.Counter
 	rowsDroppedByRelabel   *metrics.Counter
@@ -738,9 +744,13 @@ func newRemoteWriteCtx(argIdx int, remoteWriteURL *url.URL, maxInmemoryBlocks in
 
 	// Initialize sas
 	sasFile := streamAggrConfig.GetOptionalArg(argIdx)
+	dedupInterval := streamAggrDedupInterval.GetOptionalArg(argIdx)
 	if sasFile != "" {
-		dedupInterval := streamAggrDedupInterval.GetOptionalArg(argIdx)
-		sas, err := streamaggr.LoadFromFile(sasFile, rwctx.pushInternalTrackDropped, dedupInterval)
+		opts := &streamaggr.Options{
+			DedupInterval:   dedupInterval,
+			DropInputLabels: *streamAggrDropInputLabels,
+		}
+		sas, err := streamaggr.LoadFromFile(sasFile, rwctx.pushInternalTrackDropped, opts)
 		if err != nil {
 			logger.Fatalf("cannot initialize stream aggregators from -remoteWrite.streamAggr.config=%q: %s", sasFile, err)
 		}
@@ -749,16 +759,23 @@ func newRemoteWriteCtx(argIdx int, remoteWriteURL *url.URL, maxInmemoryBlocks in
 		rwctx.streamAggrDropInput = streamAggrDropInput.GetOptionalArg(argIdx)
 		metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reload_successful{path=%q}`, sasFile)).Set(1)
 		metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reload_success_timestamp_seconds{path=%q}`, sasFile)).Set(fasttime.UnixTimestamp())
+	} else if dedupInterval > 0 {
+		rwctx.deduplicator = streamaggr.NewDeduplicator(rwctx.pushInternalTrackDropped, dedupInterval, *streamAggrDropInputLabels)
 	}
 
 	return rwctx
 }
 
 func (rwctx *remoteWriteCtx) MustStop() {
-	// sas must be stopped before rwctx is closed
+	// sas and deduplicator must be stopped before rwctx is closed
 	// because sas can write pending series to rwctx.pss if there are any
 	sas := rwctx.sas.Swap(nil)
 	sas.MustStop()
+
+	if rwctx.deduplicator != nil {
+		rwctx.deduplicator.MustStop()
+		rwctx.deduplicator = nil
+	}
 
 	for _, ps := range rwctx.pss {
 		ps.MustStop()
@@ -798,7 +815,7 @@ func (rwctx *remoteWriteCtx) TryPush(tss []prompbmarshal.TimeSeries) bool {
 	rowsCount := getRowsCount(tss)
 	rwctx.rowsPushedAfterRelabel.Add(rowsCount)
 
-	// Apply stream aggregation if any
+	// Apply stream aggregation or deduplication if they are configured
 	sas := rwctx.sas.Load()
 	if sas != nil {
 		matchIdxs := matchIdxsPool.Get()
@@ -813,6 +830,10 @@ func (rwctx *remoteWriteCtx) TryPush(tss []prompbmarshal.TimeSeries) bool {
 			tss = dropAggregatedSeries(tss, matchIdxs.B, rwctx.streamAggrDropInput)
 		}
 		matchIdxsPool.Put(matchIdxs)
+	} else if rwctx.deduplicator != nil {
+		rwctx.deduplicator.Push(tss)
+		clear(tss)
+		tss = tss[:0]
 	}
 
 	// Try pushing the data to remote storage
@@ -841,7 +862,7 @@ func dropAggregatedSeries(src []prompbmarshal.TimeSeries, matchIdxs []byte, drop
 		}
 	}
 	tail := src[len(dst):]
-	_ = prompbmarshal.ResetTimeSeries(tail)
+	clear(tail)
 	return dst
 }
 
@@ -872,7 +893,7 @@ func (rwctx *remoteWriteCtx) tryPushInternal(tss []prompbmarshal.TimeSeries) boo
 	}
 
 	pss := rwctx.pss
-	idx := atomic.AddUint64(&rwctx.pssNextIdx, 1) % uint64(len(pss))
+	idx := rwctx.pssNextIdx.Add(1) % uint64(len(pss))
 
 	ok := pss[idx].TryPush(tss)
 
@@ -894,8 +915,10 @@ func (rwctx *remoteWriteCtx) reinitStreamAggr() {
 
 	logger.Infof("reloading stream aggregation configs pointed by -remoteWrite.streamAggr.config=%q", sasFile)
 	metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reloads_total{path=%q}`, sasFile)).Inc()
-	dedupInterval := streamAggrDedupInterval.GetOptionalArg(rwctx.idx)
-	sasNew, err := streamaggr.LoadFromFile(sasFile, rwctx.pushInternalTrackDropped, dedupInterval)
+	opts := &streamaggr.Options{
+		DedupInterval: streamAggrDedupInterval.GetOptionalArg(rwctx.idx),
+	}
+	sasNew, err := streamaggr.LoadFromFile(sasFile, rwctx.pushInternalTrackDropped, opts)
 	if err != nil {
 		metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reloads_errors_total{path=%q}`, sasFile)).Inc()
 		metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reload_successful{path=%q}`, sasFile)).Set(0)
@@ -937,8 +960,10 @@ func CheckStreamAggrConfigs() error {
 		if sasFile == "" {
 			continue
 		}
-		dedupInterval := streamAggrDedupInterval.GetOptionalArg(idx)
-		sas, err := streamaggr.LoadFromFile(sasFile, pushNoop, dedupInterval)
+		opts := &streamaggr.Options{
+			DedupInterval: streamAggrDedupInterval.GetOptionalArg(idx),
+		}
+		sas, err := streamaggr.LoadFromFile(sasFile, pushNoop, opts)
 		if err != nil {
 			return fmt.Errorf("cannot load -remoteWrite.streamAggr.config=%q: %w", sasFile, err)
 		}

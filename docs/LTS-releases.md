@@ -23,5 +23,5 @@ to [the latest available releases](https://docs.victoriametrics.com/CHANGELOG.ht
 
 ## Currently supported LTS release lines
 
-- 1.97.x - the latest one is [v1.97.2 LTS release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.2)
-- 1.93.x - the latest one is [v1.93.12 LTS release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.12)
+- 1.97.x - the latest one is [v1.97.3 LTS release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.3)
+- 1.93.x - the latest one is [v1.93.13 LTS release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.13)

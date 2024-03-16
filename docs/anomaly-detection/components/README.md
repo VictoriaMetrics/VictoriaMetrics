@@ -17,7 +17,7 @@ This chapter describes different components, that correspond to respective secti
 
 - [Model(s) section](models.html) - Required
 - [Reader section](reader.html) - Required
-- [Scheduler section](scheduler.html) - Required
+- [Scheduler(s) section](scheduler.html) - Required
 - [Writer section](writer.html) - Required
 - [Monitoring section](monitoring.html) -  Optional
 

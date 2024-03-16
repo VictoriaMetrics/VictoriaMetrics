@@ -32,8 +32,8 @@ type MustReadAtCloser interface {
 
 // ReaderAt implements rand-access reader.
 type ReaderAt struct {
-	readCalls uint64
-	readBytes uint64
+	readCalls atomic.Int64
+	readBytes atomic.Int64
 
 	// path contains the path to the file for reading
 	path string
@@ -81,8 +81,8 @@ func (r *ReaderAt) MustReadAt(p []byte, off int64) {
 		copy(p, src)
 	}
 	if r.useLocalStats {
-		atomic.AddUint64(&r.readCalls, 1)
-		atomic.AddUint64(&r.readBytes, uint64(len(p)))
+		r.readCalls.Add(1)
+		r.readBytes.Add(int64(len(p)))
 	} else {
 		readCalls.Inc()
 		readBytes.Add(len(p))
@@ -119,10 +119,10 @@ func (r *ReaderAt) MustClose() {
 	}
 
 	if r.useLocalStats {
-		readCalls.Add(int(r.readCalls))
-		readBytes.Add(int(r.readBytes))
-		r.readCalls = 0
-		r.readBytes = 0
+		readCalls.AddInt64(r.readCalls.Load())
+		readBytes.AddInt64(r.readBytes.Load())
+		r.readCalls.Store(0)
+		r.readBytes.Store(0)
 		r.useLocalStats = false
 	}
 }

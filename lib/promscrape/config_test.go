@@ -1147,6 +1147,7 @@ scrape_configs:
 	f(`
 scrape_configs:
 - job_name: path wo slash
+  enable_compression: false
   static_configs: 
   - targets: ["foo.bar:1234"]
   relabel_configs:
@@ -1161,7 +1162,8 @@ scrape_configs:
 				"instance": "foo.bar:1234",
 				"job":      "path wo slash",
 			}),
-			jobNameOriginal: "path wo slash",
+			DisableCompression: true,
+			jobNameOriginal:    "path wo slash",
 		},
 	})
 	f(`
