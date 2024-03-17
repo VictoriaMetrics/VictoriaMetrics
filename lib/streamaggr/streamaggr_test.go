@@ -519,14 +519,14 @@ foo:1m_total 0
   outputs: [total]
 `, `
 foo 123
-bar{baz="qwe"} 1.32
-bar{baz="qwe"} 4.34
+bar{baz="qwe"} 1.31
+bar{baz="qwe"} 4.34 1000
 bar{baz="qwe"} 2
 foo{baz="qwe"} -5
 bar{baz="qwer"} 343
 bar{baz="qwer"} 344
 foo{baz="qwe"} 10
-`, `bar:1m_total{baz="qwe"} 5.02
+`, `bar:1m_total{baz="qwe"} 3.03
 bar:1m_total{baz="qwer"} 1
 foo:1m_total 0
 foo:1m_total{baz="qwe"} 15
