@@ -76,7 +76,7 @@ type GetBucketPolicyInput struct {
 	// format https://s3express-control.region_code.amazonaws.com/bucket-name .
 	// Virtual-hosted-style requests aren't supported. Directory bucket names must be
 	// unique in the chosen Availability Zone. Bucket names must also follow the format
-	// bucket_base_name--az_id--x-s3 (for example,  DOC-EXAMPLE-BUCKET--usw2-az2--x-s3
+	// bucket_base_name--az_id--x-s3 (for example,  DOC-EXAMPLE-BUCKET--usw2-az1--x-s3
 	// ). For information about bucket naming restrictions, see Directory bucket
 	// naming rules (https://docs.aws.amazon.com/AmazonS3/latest/userguide/directory-bucket-naming-rules.html)
 	// in the Amazon S3 User Guide Access points - When you use this API operation with

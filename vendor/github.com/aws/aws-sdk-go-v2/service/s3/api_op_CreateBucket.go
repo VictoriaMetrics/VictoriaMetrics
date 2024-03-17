@@ -55,11 +55,18 @@ import (
 //     required.
 //   - S3 Object Ownership - If your CreateBucket request includes the
 //     x-amz-object-ownership header, then the s3:PutBucketOwnershipControls
-//     permission is required. If your CreateBucket request sets BucketOwnerEnforced
-//     for Amazon S3 Object Ownership and specifies a bucket ACL that provides access
-//     to an external Amazon Web Services account, your request fails with a 400
-//     error and returns the InvalidBucketAcLWithObjectOwnership error code. For more
-//     information, see Setting Object Ownership on an existing bucket  (https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-ownership-existing-bucket.html)
+//     permission is required. To set an ACL on a bucket as part of a CreateBucket
+//     request, you must explicitly set S3 Object Ownership for the bucket to a
+//     different value than the default, BucketOwnerEnforced . Additionally, if your
+//     desired bucket ACL grants public access, you must first create the bucket
+//     (without the bucket ACL) and then explicitly disable Block Public Access on the
+//     bucket before using PutBucketAcl to set the ACL. If you try to create a bucket
+//     with a public ACL, the request will fail. For the majority of modern use cases
+//     in S3, we recommend that you keep all Block Public Access settings enabled and
+//     keep ACLs disabled. If you would like to share data with users outside of your
+//     account, you can use bucket policies as needed. For more information, see
+//     Controlling ownership of objects and disabling ACLs for your bucket  (https://docs.aws.amazon.com/AmazonS3/latest/userguide/about-object-ownership.html)
+//     and Blocking public access to your Amazon S3 storage  (https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-control-block-public-access.html)
 //     in the Amazon S3 User Guide.
 //   - S3 Block Public Access - If your specific use case requires granting public
 //     access to your S3 resources, you can disable Block Public Access. Specifically,
@@ -115,7 +122,7 @@ type CreateBucketInput struct {
 	// https://s3express-control.region_code.amazonaws.com/bucket-name .
 	// Virtual-hosted-style requests aren't supported. Directory bucket names must be
 	// unique in the chosen Availability Zone. Bucket names must also follow the format
-	// bucket_base_name--az_id--x-s3 (for example,  DOC-EXAMPLE-BUCKET--usw2-az2--x-s3
+	// bucket_base_name--az_id--x-s3 (for example,  DOC-EXAMPLE-BUCKET--usw2-az1--x-s3
 	// ). For information about bucket naming restrictions, see Directory bucket
 	// naming rules (https://docs.aws.amazon.com/AmazonS3/latest/userguide/directory-bucket-naming-rules.html)
 	// in the Amazon S3 User Guide

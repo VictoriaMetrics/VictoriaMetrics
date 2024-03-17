@@ -16,13 +16,25 @@ import (
 // Removes an object from a bucket. The behavior depends on the bucket's
 // versioning state:
 //
-//   - If versioning is enabled, the operation removes the null version (if there
-//     is one) of an object and inserts a delete marker, which becomes the latest
-//     version of the object. If there isn't a null version, Amazon S3 does not remove
-//     any objects but will still respond that the command was successful.
+//   - If bucket versioning is not enabled, the operation permanently deletes the
+//     object.
 //
-//   - If versioning is suspended or not enabled, the operation permanently
-//     deletes the object.
+//   - If bucket versioning is enabled, the operation inserts a delete marker,
+//     which becomes the current version of the object. To permanently delete an object
+//     in a versioned bucket, you must include the object’s versionId in the request.
+//     For more information about versioning-enabled buckets, see Deleting object
+//     versions from a versioning-enabled bucket (https://docs.aws.amazon.com/AmazonS3/latest/userguide/DeletingObjectVersions.html)
+//     .
+//
+//   - If bucket versioning is suspended, the operation removes the object that
+//     has a null versionId , if there is one, and inserts a delete marker that
+//     becomes the current version of the object. If there isn't an object with a null
+//     versionId , and all versions of the object have a versionId , Amazon S3 does
+//     not remove the object and only inserts a delete marker. To permanently delete an
+//     object that has a versionId , you must include the object’s versionId in the
+//     request. For more information about versioning-suspended buckets, see
+//     Deleting objects from versioning-suspended buckets (https://docs.aws.amazon.com/AmazonS3/latest/userguide/DeletingObjectsfromVersioningSuspendedBuckets.html)
+//     .
 //
 //   - Directory buckets - S3 Versioning isn't enabled and supported for directory
 //     buckets. For this API operation, only the null value of the version ID is
@@ -59,7 +71,8 @@ import (
 //   - s3:DeleteObject - To delete an object from a bucket, you must always have
 //     the s3:DeleteObject permission.
 //   - s3:DeleteObjectVersion - To delete a specific version of an object from a
-//     versiong-enabled bucket, you must have the s3:DeleteObjectVersion permission.
+//     versioning-enabled bucket, you must have the s3:DeleteObjectVersion
+//     permission.
 //   - Directory bucket permissions - To grant access to this API operation on a
 //     directory bucket, we recommend that you use the CreateSession (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateSession.html)
 //     API operation for session-based authorization. Specifically, you grant the
@@ -100,7 +113,7 @@ type DeleteObjectInput struct {
 	// Bucket_name.s3express-az_id.region.amazonaws.com . Path-style requests are not
 	// supported. Directory bucket names must be unique in the chosen Availability
 	// Zone. Bucket names must follow the format bucket_base_name--az-id--x-s3 (for
-	// example, DOC-EXAMPLE-BUCKET--usw2-az2--x-s3 ). For information about bucket
+	// example, DOC-EXAMPLE-BUCKET--usw2-az1--x-s3 ). For information about bucket
 	// naming restrictions, see Directory bucket naming rules (https://docs.aws.amazon.com/AmazonS3/latest/userguide/directory-bucket-naming-rules.html)
 	// in the Amazon S3 User Guide. Access points - When you use this action with an
 	// access point, you must provide the alias of the access point in place of the
