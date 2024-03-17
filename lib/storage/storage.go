@@ -147,6 +147,13 @@ type Storage struct {
 	deletedMetricIDs           atomic.Pointer[uint64set.Set]
 	deletedMetricIDsUpdateLock sync.Mutex
 
+	// missingMetricIDs maps metricID to the timestamp of first unsuccessful lookup
+	// of metricName by the given metricID.
+	// This is used inside searchMetricNameWithCache() for detecting permanently missing metricID->metricName entries.
+	missingMetricIDsLock          sync.Mutex
+	missingMetricIDs              map[uint64]uint64
+	missingMetricIDsResetDeadline uint64
+
 	// isReadOnly is set to true when the storage is in read-only mode.
 	isReadOnly atomic.Bool
 }
