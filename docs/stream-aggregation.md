@@ -50,8 +50,8 @@ This behaviour can be changed via the following command-line flags:
 
 ## Deduplication
 
-[vmagent](https://docs.victoriametrics.com/vmagent.html) supports de-duplication of samples before sending them
-to the configured `-remoteWrite.url`. The de-duplication can be enabled via the following options:
+[vmagent](https://docs.victoriametrics.com/vmagent.html) supports online [de-duplication](https://docs.victoriametrics.com/#deduplication) of samples
+before sending them to the configured `-remoteWrite.url`. The de-duplication can be enabled via the following options:
 
 - By specifying the desired de-duplication interval via `-remoteWrite.streamAggr.dedupInterval` command-line flag for the particular `-remoteWrite.url`.
   For example, `./vmagent -remoteWrite.url=http://remote-storage/api/v1/write -remoteWrite.streamAggr.dedupInterval=30s` instructs `vmagent` to leave
@@ -67,7 +67,7 @@ to the configured `-remoteWrite.url`. The de-duplication can be enabled via the 
 - After storing the duplicate samples to local storage. See [`-dedup.minScrapeInterval`](https://docs.victoriametrics.com/#deduplication) command-line option.
 - Before storing the duplicate samples to local storage. This type of de-duplication can be enabled via the following options:
   - By specifying the desired de-duplication interval via `-streamAggr.dedupInterval` command-line flag.
-    For example, `./victoria-metrics -streamAggr.dedupInterval=30s` instructs VicotriaMetrics to leave only the last sample per each
+    For example, `./victoria-metrics -streamAggr.dedupInterval=30s` instructs VictoriaMetrics to leave only the last sample per each
     seen [time series](https://docs.victoriametrics.com/keyconcepts/#time-series) per every 30 seconds.
     The de-duplication is performed after applying `-relabelConfig` [relabeling](https://docs.victoriametrics.com/#relabeling).
 
@@ -78,10 +78,7 @@ to the configured `-remoteWrite.url`. The de-duplication can be enabled via the 
 
 It is possible to drop the given labels before applying the de-duplication. See [these docs](#dropping-unneeded-labels).
 
-The online de-duplication takes into account timestamps associated with the de-duplicated samples - it keeps the sample
-with the newest timestamp on the configured deduplication interval. If multiple samples have the same timestamp on the
-configured deduplication interval, then the sample with the biggest value is kept. The logic is aligned with
-[`-dedup.minScrapeInterval` command-line flag](https://docs.victoriametrics.com/#deduplication).
+The online de-duplication uses the same logic as [`-dedup.minScrapeInterval` command-line flag](https://docs.victoriametrics.com/#deduplication) at VictoriaMetrics.
 
 ## Flush time alignment
 
