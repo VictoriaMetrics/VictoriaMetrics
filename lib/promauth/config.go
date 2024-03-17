@@ -307,7 +307,7 @@ func parseHeaders(headers []string) ([]keyValue, error) {
 			return nil, fmt.Errorf(`missing ':' in header %q; expecting "key: value" format`, h)
 		}
 		kv := &kvs[i]
-		kv.key = strings.TrimSpace(h[:n])
+		kv.key = http.CanonicalHeaderKey(strings.TrimSpace(h[:n]))
 		kv.value = strings.TrimSpace(h[n+1:])
 	}
 	return kvs, nil
@@ -335,7 +335,12 @@ func (ac *Config) SetHeaders(req *http.Request, setAuthHeader bool) error {
 	}
 	reqHeaders := req.Header
 	for _, h := range ac.headers {
-		reqHeaders.Set(h.key, h.value)
+		if h.key == "Host" {
+			// Host header must be set via req.Host - see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5969
+			req.Host = h.value
+		} else {
+			reqHeaders.Set(h.key, h.value)
+		}
 	}
 	if setAuthHeader {
 		ah, err := ac.GetAuthHeader()
