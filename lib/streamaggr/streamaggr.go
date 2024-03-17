@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -101,8 +102,15 @@ type Options struct {
 	//
 	//     input_name:<interval>[_by_<by_labels>][_without_<without_labels>]_<output>
 	//
-	// This option can be overriden individually per each aggregation via keep_metric_names option.
+	// This option can be overridden individually per each aggregation via keep_metric_names option.
 	KeepMetricNames bool
+
+	// IgnoreOldSamples instructs to ignore samples with timestamps older than the current aggregation interval.
+	//
+	// By default all the samples are taken into account.
+	//
+	// This option can be overridden individually per each aggregation via ignore_old_samples option.
+	IgnoreOldSamples bool
 }
 
 // Config is a configuration for a single stream aggregation.
@@ -163,6 +171,9 @@ type Config struct {
 
 	// KeepMetricNames instructs to leave metric names as is for the output time series without adding any suffix.
 	KeepMetricNames *bool `yaml:"keep_metric_names,omitempty"`
+
+	// IgnoreOldSamples instructs to ignore samples with old timestamps outside the current aggregation interval.
+	IgnoreOldSamples *bool `yaml:"ignore_old_samples,omitempty"`
 
 	// By is an optional list of labels for grouping input series.
 	//
@@ -327,7 +338,8 @@ type aggregator struct {
 	inputRelabeling  *promrelabel.ParsedConfigs
 	outputRelabeling *promrelabel.ParsedConfigs
 
-	keepMetricNames bool
+	keepMetricNames  bool
+	ignoreOldSamples bool
 
 	by                  []string
 	without             []string
@@ -341,6 +353,9 @@ type aggregator struct {
 
 	// lc is used for compressing series keys before passing them to dedupAggr and aggrState
 	lc promutils.LabelsCompressor
+
+	// minTimestamp is used for ignoring old samples when ignoreOldSamples is set
+	minTimestamp atomic.Int64
 
 	// suffix contains a suffix, which should be added to aggregate metric names
 	//
@@ -458,6 +473,12 @@ func newAggregator(cfg *Config, pushFunc PushFunc, ms *metrics.Set, opts *Option
 		}
 	}
 
+	// check cfg.IgnoreOldSamples
+	ignoreOldSamples := opts.IgnoreOldSamples
+	if v := cfg.IgnoreOldSamples; v != nil {
+		ignoreOldSamples = *v
+	}
+
 	// initialize outputs list
 	if len(cfg.Outputs) == 0 {
 		return nil, fmt.Errorf("`outputs` list must contain at least a single entry from the list %s; "+
@@ -544,7 +565,8 @@ func newAggregator(cfg *Config, pushFunc PushFunc, ms *metrics.Set, opts *Option
 		inputRelabeling:  inputRelabeling,
 		outputRelabeling: outputRelabeling,
 
-		keepMetricNames: keepMetricNames,
+		keepMetricNames:  keepMetricNames,
+		ignoreOldSamples: ignoreOldSamples,
 
 		by:                  by,
 		without:             without,
@@ -710,6 +732,8 @@ func (a *aggregator) flush(pushFunc PushFunc, interval time.Duration, resetState
 	}
 	wg.Wait()
 
+	a.minTimestamp.Store(startTime.UnixMilli() - 5_000)
+
 	d := time.Since(startTime)
 	a.flushDuration.Update(d.Seconds())
 	if d > interval {
@@ -742,6 +766,8 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 	outputLabels := &ctx.outputLabels
 
 	dropLabels := a.dropInputLabels
+	ignoreOldSamples := a.ignoreOldSamples
+	minTimestamp := a.minTimestamp.Load()
 	for idx, ts := range tss {
 		if !a.match.Match(ts.Labels) {
 			continue
@@ -773,6 +799,10 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 		for _, sample := range ts.Samples {
 			if math.IsNaN(sample.Value) {
 				// Skip NaN values
+				continue
+			}
+			if ignoreOldSamples && sample.Timestamp < minTimestamp {
+				// Skip old samples outside the current aggregation interval
 				continue
 			}
 			samples = append(samples, pushSample{

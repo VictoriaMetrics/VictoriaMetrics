@@ -92,6 +92,8 @@ var (
 		"are written to the corresponding -remoteWrite.url . See also -remoteWrite.streamAggr.keepInput and https://docs.victoriametrics.com/stream-aggregation.html")
 	streamAggrDedupInterval = flagutil.NewArrayDuration("remoteWrite.streamAggr.dedupInterval", 0, "Input samples are de-duplicated with this interval before optional aggregation "+
 		"with -remoteWrite.streamAggr.config . See also -dedup.minScrapeInterval and https://docs.victoriametrics.com/stream-aggregation.html#deduplication")
+	streamAggrIgnoreOldSamples = flagutil.NewArrayBool("remoteWrite.streamAggr.ignoreOldSamples", "Whether to ignore input samples with old timestamps outside the current aggregation interval "+
+		"for the corresponding -remoteWrite.streamAggr.config . See https://docs.victoriametrics.com/stream-aggregation.html#ignoring-old-samples")
 	streamAggrDropInputLabels = flagutil.NewArrayString("streamAggr.dropInputLabels", "An optional list of labels to drop from samples "+
 		"before stream de-duplication and aggregation . See https://docs.victoriametrics.com/stream-aggregation.html#dropping-unneeded-labels")
 
@@ -745,10 +747,12 @@ func newRemoteWriteCtx(argIdx int, remoteWriteURL *url.URL, maxInmemoryBlocks in
 	// Initialize sas
 	sasFile := streamAggrConfig.GetOptionalArg(argIdx)
 	dedupInterval := streamAggrDedupInterval.GetOptionalArg(argIdx)
+	ignoreOldSamples := streamAggrIgnoreOldSamples.GetOptionalArg(argIdx)
 	if sasFile != "" {
 		opts := &streamaggr.Options{
-			DedupInterval:   dedupInterval,
-			DropInputLabels: *streamAggrDropInputLabels,
+			DedupInterval:    dedupInterval,
+			DropInputLabels:  *streamAggrDropInputLabels,
+			IgnoreOldSamples: ignoreOldSamples,
 		}
 		sas, err := streamaggr.LoadFromFile(sasFile, rwctx.pushInternalTrackDropped, opts)
 		if err != nil {
@@ -916,7 +920,9 @@ func (rwctx *remoteWriteCtx) reinitStreamAggr() {
 	logger.Infof("reloading stream aggregation configs pointed by -remoteWrite.streamAggr.config=%q", sasFile)
 	metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reloads_total{path=%q}`, sasFile)).Inc()
 	opts := &streamaggr.Options{
-		DedupInterval: streamAggrDedupInterval.GetOptionalArg(rwctx.idx),
+		DedupInterval:    streamAggrDedupInterval.GetOptionalArg(rwctx.idx),
+		DropInputLabels:  *streamAggrDropInputLabels,
+		IgnoreOldSamples: streamAggrIgnoreOldSamples.GetOptionalArg(rwctx.idx),
 	}
 	sasNew, err := streamaggr.LoadFromFile(sasFile, rwctx.pushInternalTrackDropped, opts)
 	if err != nil {
@@ -961,7 +967,9 @@ func CheckStreamAggrConfigs() error {
 			continue
 		}
 		opts := &streamaggr.Options{
-			DedupInterval: streamAggrDedupInterval.GetOptionalArg(idx),
+			DedupInterval:    streamAggrDedupInterval.GetOptionalArg(idx),
+			DropInputLabels:  *streamAggrDropInputLabels,
+			IgnoreOldSamples: streamAggrIgnoreOldSamples.GetOptionalArg(idx),
 		}
 		sas, err := streamaggr.LoadFromFile(sasFile, pushNoop, opts)
 		if err != nil {
