@@ -80,6 +80,18 @@ It is possible to drop the given labels before applying the de-duplication. See 
 
 The online de-duplication uses the same logic as [`-dedup.minScrapeInterval` command-line flag](https://docs.victoriametrics.com/#deduplication) at VictoriaMetrics.
 
+## Ignoring old samples
+
+By default all the input samples are taken into account during stream aggregation. If samples with old timestamps outside the current [aggregation interval](#stream-aggregation-config)
+must be ignored, then the following options can be used:
+
+- To pass `-remoteWrite.streamAggr.ignoreOldSamples` command-line flag to [vmagent](https://docs.victoriametrics.com/vmagent/)
+  or `-streamAggr.ignoreOldSamples` command-line flag to [single-node VictoriaMetrics](https://docs.victoriametrics.com/).
+  This enables ignoring old samples for all the [aggregation configs](#stream-aggregation-config).
+
+- To set `ignore_old_samples: true` option at the particular [aggregation config](#stream-aggregation-config).
+  This enables ignoring old samples for that particular aggregation config.
+
 ## Flush time alignment
 
 By default the time for aggregated data flush is aligned by the `interval` option specified in [aggregate config](#stream-aggregation-config).
@@ -914,6 +926,11 @@ at [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-
   # See https://docs.victoriametrics.com/stream-aggregation/#output-metric-names
   #
   # keep_metric_names: false
+
+  # ignore_old_samples instructs ignoring input samples with old timestamps outside the current aggregation interval.
+  # See also -streamAggr.ignoreOldSamples command-line flag.
+  #
+  # ignore_old_samples: false
 
   # drop_input_labels instructs dropping the given labels from input samples.
   # The labels' dropping is performed before input_relabel_configs are applied.
