@@ -31,6 +31,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 ## tip
 
 **Update note 1: the `-datasource.lookback` command-line flag at `vmalert` is no-op starting from this release. This flag will be removed in the future, so please switch to [`eval_delay` option](https://docs.victoriametrics.com/vmalert/#groups). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5155) for more details.**
+**Update note 2: transform custom HTTP header keys specified via [`headers` option](https://docs.victoriametrics.com/sd_configs/#http-api-client-options) for scrape targets to [canonical form](https://pkg.go.dev/net/http#CanonicalHeaderKey).**
 
 * SECURITY: upgrade Go builder from Go1.21.7 to Go1.22.1. See [the list of issues addressed in Go1.22.1](https://github.com/golang/go/issues?q=milestone%3AGo1.22.1+label%3ACherryPickApproved).
 
