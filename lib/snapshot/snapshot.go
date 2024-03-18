@@ -22,9 +22,9 @@ var (
 	tlsKeyFile            = flag.String("snapshot.tlsKeyFile", "", "Optional path to client-side TLS certificate key to use when connecting to -snapshotCreateURL")
 	tlsCAFile             = flag.String("snapshot.tlsCAFile", "", `Optional path to TLS CA file to use for verifying connections to -snapshotCreateURL. By default, system CA is used`)
 	tlsServerName         = flag.String("snapshot.tlsServerName", "", `Optional TLS server name to use for connections to -snapshotCreateURL. By default, the server name from -snapshotCreateURL is used`)
-	basicAuthUser         = flagutil.NewPassword("snapshot.basicAuthUsername", `Optional basic auth username to use for connections to -snapshotCreateURL`)
-	basicAuthPassword     = flagutil.NewPassword("snapshot.basicAuthPassword", `Optional basic auth password to use for connections to -snapshotCreateURL`)
-	snapshotAuthKey       = flagutil.NewPassword("snapshot.authKey", `Optional basic auth password to use for connections to -snapshotCreateURL`)
+	basicAuthUser         = flagutil.NewPassword("snapshot.basicAuthUsername", `Optional basic auth username to use for connections to -snapshotCreateURL and -snapshot.deleteURL`)
+	basicAuthPassword     = flagutil.NewPassword("snapshot.basicAuthPassword", `Optional basic auth password to use for connections to -snapshotCreateURL and -snapshot.deleteURL`)
+	snapshotAuthKey       = flagutil.NewPassword("snapshot.authKey", `Optional authKey to be passed in query string for the connections to -snapshotCreateURL and -snapshot.deleteURL`)
 )
 
 type snapshot struct {
@@ -40,11 +40,7 @@ func Create(createSnapshotURL string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if snapshotAuthKey.Get() != "" {
-		qp := u.Query()
-		qp.Add("authKey", snapshotAuthKey.Get())
-		u.RawQuery = qp.Encode()
-	}
+	addSnapshotAuthKeyQueryParam(u)
 	// create Transport
 	tr, err := httputils.Transport(u.String(), *tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify)
 	if err != nil {
@@ -55,11 +51,7 @@ func Create(createSnapshotURL string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if basicAuthUser.Get() != "" {
-		auth := basicAuthUser.Get() + ":" + basicAuthPassword.Get()
-		authHeader := base64.StdEncoding.EncodeToString([]byte(auth))
-		req.Header.Set("Authorization", "Basic "+authHeader)
-	}
+	addBasicAuthHeader(req)
 	resp, err := hc.Do(req)
 	if err != nil {
 		return "", err
@@ -98,11 +90,7 @@ func Delete(deleteSnapshotURL string, snapshotName string) error {
 	if err != nil {
 		return err
 	}
-	if snapshotAuthKey.Get() != "" {
-		qp := u.Query()
-		qp.Add("authKey", snapshotAuthKey.Get())
-		u.RawQuery = qp.Encode()
-	}
+	addSnapshotAuthKeyQueryParam(u)
 	// create Transport
 	tr, err := httputils.Transport(u.String(), *tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify)
 	if err != nil {
@@ -114,11 +102,7 @@ func Delete(deleteSnapshotURL string, snapshotName string) error {
 	if err != nil {
 		return err
 	}
-	if basicAuthUser.Get() != "" {
-		auth := basicAuthUser.Get() + ":" + basicAuthPassword.Get()
-		authHeader := base64.StdEncoding.EncodeToString([]byte(auth))
-		req.Header.Set("Authorization", "Basic "+authHeader)
-	}
+	addBasicAuthHeader(req)
 	resp, err := hc.Do(req)
 	if err != nil {
 		return err
@@ -145,4 +129,20 @@ func Delete(deleteSnapshotURL string, snapshotName string) error {
 		return errors.New(snap.Msg)
 	}
 	return fmt.Errorf("Unkown status: %v", snap.Status)
+}
+
+func addBasicAuthHeader(req *http.Request) {
+	if basicAuthUser.Get() != "" {
+		auth := basicAuthUser.Get() + ":" + basicAuthPassword.Get()
+		authHeader := base64.StdEncoding.EncodeToString([]byte(auth))
+		req.Header.Set("Authorization", "Basic "+authHeader)
+	}
+}
+
+func addSnapshotAuthKeyQueryParam(u *url.URL) {
+	if snapshotAuthKey.Get() != "" {
+		qp := u.Query()
+		qp.Add("authKey", snapshotAuthKey.Get())
+		u.RawQuery = qp.Encode()
+	}
 }
