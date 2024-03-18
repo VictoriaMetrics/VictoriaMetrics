@@ -365,7 +365,8 @@ Prometheus doesn't drop data during VictoriaMetrics restart. See [this article](
 
 ## vmui
 
-VictoriaMetrics provides UI for query troubleshooting and exploration. The UI is available at `http://victoriametrics:8428/vmui`.
+VictoriaMetrics provides UI for query troubleshooting and exploration. The UI is available at `http://victoriametrics:8428/vmui` 
+(or at `http://<vmselect>:8481/select/<accountID>/vmui/` in [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/cluster-victoriametrics/)).
 The UI allows exploring query results via graphs and tables. It also provides the following features:
 
 - Explore:
@@ -3115,6 +3116,8 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      An optional list of labels to drop from samples before stream de-duplication and aggregation . See https://docs.victoriametrics.com/stream-aggregation.html#dropping-unneeded-labels
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -streamAggr.ignoreOldSamples
+     Whether to ignore input samples with old timestamps outside the current aggregation interval. See https://docs.victoriametrics.com/stream-aggregation.html#ignoring-old-samples
   -streamAggr.keepInput
      Whether to keep all the input samples after the aggregation with -streamAggr.config. By default, only aggregated samples are dropped, while the remaining samples are stored in the database. See also -streamAggr.dropInput and https://docs.victoriametrics.com/stream-aggregation.html
   -tls array

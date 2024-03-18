@@ -28,7 +28,8 @@ type dedupAggrShardNopad struct {
 }
 
 type dedupAggrSample struct {
-	value float64
+	value     float64
+	timestamp int64
 }
 
 func newDedupAggr() *dedupAggr {
@@ -172,8 +173,20 @@ func (das *dedupAggrShard) pushSamples(samples []pushSample) {
 		das.m = m
 	}
 	for _, sample := range samples {
-		m[sample.key] = dedupAggrSample{
-			value: sample.value,
+		s, ok := m[sample.key]
+		if !ok {
+			m[sample.key] = dedupAggrSample{
+				value:     sample.value,
+				timestamp: sample.timestamp,
+			}
+			continue
+		}
+		// Update the existing value according to logic described at https://docs.victoriametrics.com/#deduplication
+		if sample.timestamp > s.timestamp || (sample.timestamp == s.timestamp && sample.value > s.value) {
+			m[sample.key] = dedupAggrSample{
+				value:     sample.value,
+				timestamp: sample.timestamp,
+			}
 		}
 	}
 }
@@ -195,8 +208,9 @@ func (das *dedupAggrShard) flush(ctx *dedupFlushCtx, f func(samples []pushSample
 	dstSamples := ctx.samples
 	for key, s := range m {
 		dstSamples = append(dstSamples, pushSample{
-			key:   key,
-			value: s.value,
+			key:       key,
+			value:     s.value,
+			timestamp: s.timestamp,
 		})
 
 		// Limit the number of samples per each flush in order to limit memory usage.

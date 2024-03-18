@@ -1,6 +1,13 @@
 # Changes
 
 
+## [1.39.1](https://github.com/googleapis/google-cloud-go/compare/storage/v1.39.0...storage/v1.39.1) (2024-03-11)
+
+
+### Bug Fixes
+
+* **storage:** Add object validation case and test ([#9521](https://github.com/googleapis/google-cloud-go/issues/9521)) ([386bef3](https://github.com/googleapis/google-cloud-go/commit/386bef319b4678beaa926ddfe4edef190f11b68d))
+
 ## [1.39.0](https://github.com/googleapis/google-cloud-go/compare/storage/v1.38.0...storage/v1.39.0) (2024-02-29)
 
 

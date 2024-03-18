@@ -33,7 +33,7 @@
       "location": "me-central2"
     }
   ],
-  "etag": "\"3135323132313733303039343736303631393739\"",
+  "etag": "\"37303437343235343136323638383931333233\"",
   "icons": {
     "x16": "https://www.google.com/images/icons/product/cloud_storage-16.png",
     "x32": "https://www.google.com/images/icons/product/cloud_storage-32.png"
@@ -3212,9 +3212,6 @@
             }
           },
           "path": "b/{bucket}/o/{object}/restore",
-          "request": {
-            "$ref": "Object"
-          },
           "response": {
             "$ref": "Object"
           },
@@ -4040,7 +4037,7 @@
       }
     }
   },
-  "revision": "20240209",
+  "revision": "20240307",
   "rootUrl": "https://storage.googleapis.com/",
   "schemas": {
     "AnywhereCache": {

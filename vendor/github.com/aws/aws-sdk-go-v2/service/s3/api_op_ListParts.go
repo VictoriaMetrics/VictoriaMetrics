@@ -86,7 +86,7 @@ type ListPartsInput struct {
 	// Bucket_name.s3express-az_id.region.amazonaws.com . Path-style requests are not
 	// supported. Directory bucket names must be unique in the chosen Availability
 	// Zone. Bucket names must follow the format bucket_base_name--az-id--x-s3 (for
-	// example, DOC-EXAMPLE-BUCKET--usw2-az2--x-s3 ). For information about bucket
+	// example, DOC-EXAMPLE-BUCKET--usw2-az1--x-s3 ). For information about bucket
 	// naming restrictions, see Directory bucket naming rules (https://docs.aws.amazon.com/AmazonS3/latest/userguide/directory-bucket-naming-rules.html)
 	// in the Amazon S3 User Guide. Access points - When you use this action with an
 	// access point, you must provide the alias of the access point in place of the
@@ -225,9 +225,8 @@ type ListPartsOutput struct {
 	// returned as the object owner for all the parts.
 	Owner *types.Owner
 
-	// When a list is truncated, this element specifies the last part in the list, as
-	// well as the value to use for the part-number-marker request parameter in a
-	// subsequent request.
+	// Specifies the part after which listing should begin. Only parts with higher
+	// part numbers will be listed.
 	PartNumberMarker *string
 
 	// Container for elements related to a particular part. A response can contain
