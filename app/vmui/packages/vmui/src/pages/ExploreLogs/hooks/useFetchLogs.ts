@@ -19,7 +19,7 @@ export const useFetchLogs = (server: string, query: string, limit: number) => {
       const start = dayjs(period.start * 1000).tz().toISOString();
       const end = dayjs(period.end * 1000).tz().toISOString();
       const timerange = `_time:[${start}, ${end}]`;
-      return `${timerange} AND ${query}`;
+      return `${timerange} AND (${query})`;
     }
     return query;
   }, [query, period]);
