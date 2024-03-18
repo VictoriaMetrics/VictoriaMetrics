@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/auth"
 )
@@ -34,7 +35,7 @@ type Response struct {
 }
 
 // Explore finds metric names by provided filter from api/v1/label/__name__/values
-func (c *Client) Explore(ctx context.Context, f Filter, tenantID string) ([]string, error) {
+func (c *Client) Explore(ctx context.Context, f Filter, tenantID string, start, end time.Time) ([]string, error) {
 	url := fmt.Sprintf("%s/%s", c.Addr, nativeMetricNamesAddr)
 	if tenantID != "" {
 		url = fmt.Sprintf("%s/select/%s/prometheus/%s", c.Addr, tenantID, nativeMetricNamesAddr)
@@ -45,12 +46,8 @@ func (c *Client) Explore(ctx context.Context, f Filter, tenantID string) ([]stri
 	}
 
 	params := req.URL.Query()
-	if f.TimeStart != "" {
-		params.Set("start", f.TimeStart)
-	}
-	if f.TimeEnd != "" {
-		params.Set("end", f.TimeEnd)
-	}
+	params.Set("start", start.Format(time.RFC3339))
+	params.Set("end", end.Format(time.RFC3339))
 	params.Set("match[]", f.Match)
 	req.URL.RawQuery = params.Encode()
 
@@ -63,11 +60,7 @@ func (c *Client) Explore(ctx context.Context, f Filter, tenantID string) ([]stri
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
 		return nil, fmt.Errorf("cannot decode series response: %s", err)
 	}
-
-	if err := resp.Body.Close(); err != nil {
-		return nil, fmt.Errorf("cannot close series response body: %s", err)
-	}
-	return response.MetricNames, nil
+	return response.MetricNames, resp.Body.Close()
 }
 
 // ImportPipe uses pipe reader in request to process data
