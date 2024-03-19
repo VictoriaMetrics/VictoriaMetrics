@@ -196,6 +196,8 @@ If you see unexpected or unreliable query results from VictoriaMetrics, then try
 
 1. If the steps above didn't help identifying the root cause of unexpected query results,
    then [file a bugreport](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/new) with details on how to reproduce the issue.
+   Instead of sharing screenshots in the issue, consider sharing query and [trace](https://docs.victoriametrics.com/#query-tracing) 
+   results in [VMUI](https://docs.victoriametrics.com/#vmui) by clicking on `Export query` button in top right corner of the graph area.
 
 
 ## Slow data ingestion
