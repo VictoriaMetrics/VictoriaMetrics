@@ -131,6 +131,7 @@ func Delete(deleteSnapshotURL string, snapshotName string) error {
 	return fmt.Errorf("Unkown status: %v", snap.Status)
 }
 
+// addBasicAuthHeader adds basic auth header to request if snapshot.basicAuthUsername and snapshot.basicAuthPassword flags are set.
 func addBasicAuthHeader(req *http.Request) {
 	if basicAuthUser.Get() != "" {
 		auth := basicAuthUser.Get() + ":" + basicAuthPassword.Get()
@@ -139,6 +140,7 @@ func addBasicAuthHeader(req *http.Request) {
 	}
 }
 
+// addSnapshotAuthKeyQueryParam adds authKey query string to URL if snapshot.authKey flag is set.
 func addSnapshotAuthKeyQueryParam(u *url.URL) {
 	if snapshotAuthKey.Get() != "" {
 		qp := u.Query()
