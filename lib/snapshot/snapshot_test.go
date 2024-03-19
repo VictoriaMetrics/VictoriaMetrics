@@ -35,8 +35,6 @@ func TestCreateSnapshot(t *testing.T) {
 func TestCreateSnapshotWithBasicAuth(t *testing.T) {
 	origUsername := basicAuthUser.Get()
 	origPassword := basicAuthPassword.Get()
-	basicAuthUser.Set("foo")
-	basicAuthPassword.Set("bar")
 	defer func() {
 		if err := basicAuthUser.Set(origUsername); err != nil {
 			t.Fatalf("unexpected error: %s", err)
@@ -45,6 +43,12 @@ func TestCreateSnapshotWithBasicAuth(t *testing.T) {
 			t.Fatalf("unexpected error: %s", err)
 		}
 	}()
+	if err := basicAuthUser.Set("foo"); err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	if err := basicAuthPassword.Set("bar"); err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		username, password, ok := r.BasicAuth()
 		if ok {
@@ -76,12 +80,14 @@ func TestCreateSnapshotWithBasicAuth(t *testing.T) {
 
 func TestCreateSnapshotWithAuthKey(t *testing.T) {
 	origSnapshotAuthKey := snapshotAuthKey.Get()
-	snapshotAuthKey.Set("foobar")
 	defer func() {
 		if err := snapshotAuthKey.Set(origSnapshotAuthKey); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
 	}()
+	if err := snapshotAuthKey.Set("foobar"); err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.FormValue("authKey") != "foobar" {
 			http.Error(w, "The provided authKey doesn't match -foobar", http.StatusUnauthorized)
@@ -157,8 +163,6 @@ func TestDeleteSnapshot(t *testing.T) {
 func TestDeleteSnapshotWithBasicAuth(t *testing.T) {
 	origUsername := basicAuthUser.Get()
 	origPassword := basicAuthPassword.Get()
-	basicAuthUser.Set("foo")
-	basicAuthPassword.Set("bar")
 	defer func() {
 		if err := basicAuthUser.Set(origUsername); err != nil {
 			t.Fatalf("unexpected error: %s", err)
@@ -167,6 +171,12 @@ func TestDeleteSnapshotWithBasicAuth(t *testing.T) {
 			t.Fatalf("unexpected error: %s", err)
 		}
 	}()
+	if err := basicAuthUser.Set("foo"); err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	if err := basicAuthPassword.Set("bar"); err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
 	snapshotName := "mysnapshot"
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		username, password, ok := r.BasicAuth()
@@ -199,12 +209,14 @@ func TestDeleteSnapshotWithBasicAuth(t *testing.T) {
 
 func TestDeleteSnapshotWithAuthKey(t *testing.T) {
 	origSnapshotAuthKey := snapshotAuthKey.Get()
-	snapshotAuthKey.Set("foobar")
 	defer func() {
 		if err := snapshotAuthKey.Set(origSnapshotAuthKey); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
 	}()
+	if err := snapshotAuthKey.Set("foobar"); err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
 	snapshotName := "mysnapshot"
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.FormValue("authKey") != "foobar" {
