@@ -40,6 +40,7 @@ func Create(createSnapshotURL string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	cpyUrl := *u
 	addSnapshotAuthKeyQueryParam(u)
 	// create Transport
 	tr, err := httputils.Transport(u.String(), *tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify)
@@ -61,13 +62,13 @@ func Create(createSnapshotURL string) (string, error) {
 		return "", err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("unexpected status code returned from %q: %d; expecting %d; response body: %q", u.Redacted(), resp.StatusCode, http.StatusOK, body)
+		return "", fmt.Errorf("unexpected status code returned from %q: %d; expecting %d; response body: %q", cpyUrl.Redacted(), resp.StatusCode, http.StatusOK, body)
 	}
 
 	snap := snapshot{}
 	err = json.Unmarshal(body, &snap)
 	if err != nil {
-		return "", fmt.Errorf("cannot parse JSON response from %q: %w; response body: %q", u.Redacted(), err, body)
+		return "", fmt.Errorf("cannot parse JSON response from %q: %w; response body: %q", cpyUrl.Redacted(), err, body)
 	}
 
 	if snap.Status == "ok" {
@@ -90,6 +91,7 @@ func Delete(deleteSnapshotURL string, snapshotName string) error {
 	if err != nil {
 		return err
 	}
+	cpyUrl := *u
 	addSnapshotAuthKeyQueryParam(u)
 	// create Transport
 	tr, err := httputils.Transport(u.String(), *tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify)
@@ -112,13 +114,13 @@ func Delete(deleteSnapshotURL string, snapshotName string) error {
 		return err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("unexpected status code returned from %q: %d; expecting %d; response body: %q", u.Redacted(), resp.StatusCode, http.StatusOK, body)
+		return fmt.Errorf("unexpected status code returned from %q: %d; expecting %d; response body: %q", cpyUrl.Redacted(), resp.StatusCode, http.StatusOK, body)
 	}
 
 	snap := snapshot{}
 	err = json.Unmarshal(body, &snap)
 	if err != nil {
-		return fmt.Errorf("cannot parse JSON response from %q: %w; response body: %q", u.Redacted(), err, body)
+		return fmt.Errorf("cannot parse JSON response from %q: %w; response body: %q", cpyUrl.Redacted(), err, body)
 	}
 
 	if snap.Status == "ok" {
