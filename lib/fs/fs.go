@@ -351,6 +351,7 @@ func MustCreateFlockFile(dir string) *os.File {
 const FlockFilename = "flock.lock"
 
 // MustGetFreeSpace returns free space for the given directory path.
+// It tries to re-create path if it doesn't exist yet.
 func MustGetFreeSpace(path string) uint64 {
 	// Try obtaining cached value at first.
 	freeSpaceMapLock.Lock()
@@ -363,6 +364,12 @@ func MustGetFreeSpace(path string) uint64 {
 	}
 
 	// Slow path.
+
+	// The path might be not available because:
+	// 1. We forgot to create it in the code
+	// 2. OS cleaned it up
+	MustMkdirIfNotExist(path)
+
 	// Determine the amount of free space at path.
 	e.freeSpace = mustGetFreeSpace(path)
 	e.updateTime = fasttime.UnixTimestamp()
