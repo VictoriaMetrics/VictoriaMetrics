@@ -107,8 +107,9 @@ func (d *Deduplicator) Push(tss []prompbmarshal.TimeSeries) {
 		key := bytesutil.InternBytes(buf)
 		for _, s := range ts.Samples {
 			pss = append(pss, pushSample{
-				key:   key,
-				value: s.Value,
+				key:       key,
+				value:     s.Value,
+				timestamp: s.Timestamp,
 			})
 		}
 	}

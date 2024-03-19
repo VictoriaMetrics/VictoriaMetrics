@@ -1,3 +1,24 @@
+# v1.16.11 (2024-03-15)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.10 (2024-03-13)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.9 (2024-03-07)
+
+* **Bug Fix**: Remove dependency on go-cmp.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.8 (2024-03-05)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.7 (2024-03-04)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # v1.16.6 (2024-02-23)
 
 * **Dependency Update**: Updated to the latest SDK module versions

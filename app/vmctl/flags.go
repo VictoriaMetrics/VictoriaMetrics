@@ -40,6 +40,11 @@ const (
 	vmSignificantFigures = "vm-significant-figures"
 	vmRoundDigits        = "vm-round-digits"
 	vmDisableProgressBar = "vm-disable-progress-bar"
+	vmCertFile           = "vm-cert-file"
+	vmKeyFile            = "vm-key-file"
+	vmCAFile             = "vm-CA-file"
+	vmServerName         = "vm-server-name"
+	vmInsecureSkipVerify = "vm-insecure-skip-verify"
 
 	// also used in vm-native
 	vmExtraLabel = "vm-extra-label"
@@ -118,6 +123,27 @@ var (
 		&cli.BoolFlag{
 			Name:  vmDisableProgressBar,
 			Usage: "Whether to disable progress bar per each worker during the import.",
+		},
+		&cli.StringFlag{
+			Name:  vmCertFile,
+			Usage: "Optional path to client-side TLS certificate file to use when connecting to '--vmAddr'",
+		},
+		&cli.StringFlag{
+			Name:  vmKeyFile,
+			Usage: "Optional path to client-side TLS key to use when connecting to '--vmAddr'",
+		},
+		&cli.StringFlag{
+			Name:  vmCAFile,
+			Usage: "Optional path to TLS CA file to use for verifying connections to '--vmAddr'. By default, system CA is used",
+		},
+		&cli.StringFlag{
+			Name:  vmServerName,
+			Usage: "Optional TLS server name to use for connections to '--vmAddr'. By default, the server name from '--vmAddr' is used",
+		},
+		&cli.BoolFlag{
+			Name:  vmInsecureSkipVerify,
+			Usage: "Whether to skip tls verification when connecting to '--vmAddr'",
+			Value: false,
 		},
 	}
 )
@@ -210,7 +236,7 @@ var (
 		},
 		&cli.StringFlag{
 			Name:  otsdbServerName,
-			Usage: "Optional TLS server name to use for connections to -otsdb-addr. By default, the server name from otsdbAddr is used",
+			Usage: "Optional TLS server name to use for connections to -otsdb-addr. By default, the server name from -otsdb-addr is used",
 		},
 		&cli.BoolFlag{
 			Name:  otsdbInsecureSkipVerify,
@@ -387,6 +413,10 @@ const (
 	vmNativeSrcPassword           = "vm-native-src-password"
 	vmNativeSrcHeaders            = "vm-native-src-headers"
 	vmNativeSrcBearerToken        = "vm-native-src-bearer-token"
+	vmNativeSrcCertFile           = "vm-native-src-cert-file"
+	vmNativeSrcKeyFile            = "vm-native-src-key-file"
+	vmNativeSrcCAFile             = "vm-native-src-ca-file"
+	vmNativeSrcServerName         = "vm-native-src-server-name"
 	vmNativeSrcInsecureSkipVerify = "vm-native-src-insecure-skip-verify"
 
 	vmNativeDstAddr               = "vm-native-dst-addr"
@@ -394,6 +424,10 @@ const (
 	vmNativeDstPassword           = "vm-native-dst-password"
 	vmNativeDstHeaders            = "vm-native-dst-headers"
 	vmNativeDstBearerToken        = "vm-native-dst-bearer-token"
+	vmNativeDstCertFile           = "vm-native-dst-cert-file"
+	vmNativeDstKeyFile            = "vm-native-dst-key-file"
+	vmNativeDstCAFile             = "vm-native-dst-ca-file"
+	vmNativeDstServerName         = "vm-native-dst-server-name"
 	vmNativeDstInsecureSkipVerify = "vm-native-dst-insecure-skip-verify"
 )
 
@@ -459,6 +493,28 @@ var (
 			Usage: "Optional bearer auth token to use for the corresponding `--vm-native-src-addr`",
 		},
 		&cli.StringFlag{
+			Name:  vmNativeSrcCertFile,
+			Usage: "Optional path to client-side TLS certificate file to use when connecting to `--vm-native-src-addr`",
+		},
+		&cli.StringFlag{
+			Name:  vmNativeSrcKeyFile,
+			Usage: "Optional path to client-side TLS key to use when connecting to `--vm-native-src-addr`",
+		},
+		&cli.StringFlag{
+			Name:  vmNativeSrcCAFile,
+			Usage: "Optional path to TLS CA file to use for verifying connections to `--vm-native-src-addr`. By default, system CA is used",
+		},
+		&cli.StringFlag{
+			Name:  vmNativeSrcServerName,
+			Usage: "Optional TLS server name to use for connections to `--vm-native-src-addr`. By default, the server name from `--vm-native-src-addr` is used",
+		},
+		&cli.BoolFlag{
+			Name:  vmNativeSrcInsecureSkipVerify,
+			Usage: "Whether to skip TLS certificate verification when connecting to `--vm-native-src-addr`",
+			Value: false,
+		},
+
+		&cli.StringFlag{
 			Name: vmNativeDstAddr,
 			Usage: "VictoriaMetrics address to perform import to. \n" +
 				" Should be the same as --httpListenAddr value for single-node version or vminsert component." +
@@ -485,6 +541,28 @@ var (
 			Name:  vmNativeDstBearerToken,
 			Usage: "Optional bearer auth token to use for the corresponding `--vm-native-dst-addr`",
 		},
+		&cli.StringFlag{
+			Name:  vmNativeDstCertFile,
+			Usage: "Optional path to client-side TLS certificate file to use when connecting to `--vm-native-dst-addr`",
+		},
+		&cli.StringFlag{
+			Name:  vmNativeDstKeyFile,
+			Usage: "Optional path to client-side TLS key to use when connecting to `--vm-native-dst-addr`",
+		},
+		&cli.StringFlag{
+			Name:  vmNativeDstCAFile,
+			Usage: "Optional path to TLS CA file to use for verifying connections to `--vm-native-dst-addr`. By default, system CA is used",
+		},
+		&cli.StringFlag{
+			Name:  vmNativeDstServerName,
+			Usage: "Optional TLS server name to use for connections to `--vm-native-dst-addr`. By default, the server name from `--vm-native-dst-addr` is used",
+		},
+		&cli.BoolFlag{
+			Name:  vmNativeDstInsecureSkipVerify,
+			Usage: "Whether to skip TLS certificate verification when connecting to `--vm-native-dst-addr`",
+			Value: false,
+		},
+
 		&cli.StringSliceFlag{
 			Name:  vmExtraLabel,
 			Value: nil,
@@ -518,16 +596,6 @@ var (
 				"instead of https://docs.victoriametrics.com/#how-to-export-data-in-native-format API." +
 				"Binary export/import API protocol implies less network and resource usage, as it transfers compressed binary data blocks." +
 				"Non-binary export/import API is less efficient, but supports deduplication if it is configured on vm-native-src-addr side.",
-			Value: false,
-		},
-		&cli.BoolFlag{
-			Name:  vmNativeSrcInsecureSkipVerify,
-			Usage: "Whether to skip TLS certificate verification when connecting to the source address",
-			Value: false,
-		},
-		&cli.BoolFlag{
-			Name:  vmNativeDstInsecureSkipVerify,
-			Usage: "Whether to skip TLS certificate verification when connecting to the destination address",
 			Value: false,
 		},
 	}

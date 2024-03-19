@@ -35,7 +35,6 @@ type VMStorage struct {
 	authCfg          *promauth.Config
 	datasourceURL    string
 	appendTypePrefix bool
-	lookBack         time.Duration
 	queryStep        time.Duration
 	dataSourceType   datasourceType
 
@@ -63,7 +62,6 @@ func (s *VMStorage) Clone() *VMStorage {
 		authCfg:          s.authCfg,
 		datasourceURL:    s.datasourceURL,
 		appendTypePrefix: s.appendTypePrefix,
-		lookBack:         s.lookBack,
 		queryStep:        s.queryStep,
 
 		dataSourceType:     s.dataSourceType,
@@ -122,13 +120,12 @@ func (s *VMStorage) BuildWithParams(params QuerierParams) Querier {
 }
 
 // NewVMStorage is a constructor for VMStorage
-func NewVMStorage(baseURL string, authCfg *promauth.Config, lookBack time.Duration, queryStep time.Duration, appendTypePrefix bool, c *http.Client) *VMStorage {
+func NewVMStorage(baseURL string, authCfg *promauth.Config, queryStep time.Duration, appendTypePrefix bool, c *http.Client) *VMStorage {
 	return &VMStorage{
 		c:                c,
 		authCfg:          authCfg,
 		datasourceURL:    strings.TrimSuffix(baseURL, "/"),
 		appendTypePrefix: appendTypePrefix,
-		lookBack:         lookBack,
 		queryStep:        queryStep,
 		dataSourceType:   datasourcePrometheus,
 		extraParams:      url.Values{},
@@ -248,7 +245,7 @@ func (s *VMStorage) newQueryRequest(ctx context.Context, query string, ts time.T
 	case "", datasourcePrometheus:
 		s.setPrometheusInstantReqParams(req, query, ts)
 	case datasourceGraphite:
-		s.setGraphiteReqParams(req, query, ts)
+		s.setGraphiteReqParams(req, query)
 	default:
 		logger.Panicf("BUG: engine not found: %q", s.dataSourceType)
 	}

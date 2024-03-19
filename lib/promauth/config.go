@@ -307,7 +307,7 @@ func parseHeaders(headers []string) ([]keyValue, error) {
 			return nil, fmt.Errorf(`missing ':' in header %q; expecting "key: value" format`, h)
 		}
 		kv := &kvs[i]
-		kv.key = strings.TrimSpace(h[:n])
+		kv.key = http.CanonicalHeaderKey(strings.TrimSpace(h[:n]))
 		kv.value = strings.TrimSpace(h[n+1:])
 	}
 	return kvs, nil
@@ -327,9 +327,20 @@ func (ac *Config) HeadersNoAuthString() string {
 
 // SetHeaders sets the configured ac headers to req.
 func (ac *Config) SetHeaders(req *http.Request, setAuthHeader bool) error {
+	if ac.tlsServerName != "" {
+		// It tlsServerName is set, then it is likely the request is performed via IP address instead of hostname.
+		// In this case users expect that the specified tlsServerName is used as a Host header in the request to https server.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5802
+		req.Host = ac.tlsServerName
+	}
 	reqHeaders := req.Header
 	for _, h := range ac.headers {
-		reqHeaders.Set(h.key, h.value)
+		if h.key == "Host" {
+			// Host header must be set via req.Host - see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5969
+			req.Host = h.value
+		} else {
+			reqHeaders.Set(h.key, h.value)
+		}
 	}
 	if setAuthHeader {
 		ah, err := ac.GetAuthHeader()

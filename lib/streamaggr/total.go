@@ -42,6 +42,7 @@ type totalStateValue struct {
 
 type lastValueState struct {
 	value          float64
+	timestamp      int64
 	deleteDeadline uint64
 }
 
@@ -88,6 +89,11 @@ func (as *totalAggrState) pushSamples(samples []pushSample) {
 		if !deleted {
 			lv, ok := sv.lastValues[inputKey]
 			if ok || keepFirstSample {
+				if s.timestamp < lv.timestamp {
+					// Skip out of order sample
+					sv.mu.Unlock()
+					continue
+				}
 				if s.value >= lv.value {
 					sv.total += s.value - lv.value
 				} else {
@@ -96,6 +102,7 @@ func (as *totalAggrState) pushSamples(samples []pushSample) {
 				}
 			}
 			lv.value = s.value
+			lv.timestamp = s.timestamp
 			lv.deleteDeadline = deleteDeadline
 			sv.lastValues[inputKey] = lv
 			sv.deleteDeadline = deleteDeadline

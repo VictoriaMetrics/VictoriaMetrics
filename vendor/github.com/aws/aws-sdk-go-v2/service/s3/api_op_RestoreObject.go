@@ -17,7 +17,6 @@ import (
 // This operation is not supported by directory buckets. Restores an archived copy
 // of an object back into Amazon S3 This functionality is not supported for Amazon
 // S3 on Outposts. This action performs the following types of requests:
-//   - select - Perform a select query on an archived object
 //   - restore an archive - Restore an archived object
 //
 // For more information about the S3 structure in the request body, see the
@@ -27,36 +26,6 @@ import (
 //     in the Amazon S3 User Guide
 //   - Protecting Data Using Server-Side Encryption (https://docs.aws.amazon.com/AmazonS3/latest/dev/serv-side-encryption.html)
 //     in the Amazon S3 User Guide
-//
-// Define the SQL expression for the SELECT type of restoration for your query in
-// the request body's SelectParameters structure. You can use expressions like the
-// following examples.
-//   - The following expression returns all records from the specified object.
-//     SELECT * FROM Object
-//   - Assuming that you are not using any headers for data stored in the object,
-//     you can specify columns with positional headers. SELECT s._1, s._2 FROM
-//     Object s WHERE s._3 > 100
-//   - If you have headers and you set the fileHeaderInfo in the CSV structure in
-//     the request body to USE , you can specify headers in the query. (If you set
-//     the fileHeaderInfo field to IGNORE , the first row is skipped for the query.)
-//     You cannot mix ordinal positions with header column names. SELECT s.Id,
-//     s.FirstName, s.SSN FROM S3Object s
-//
-// When making a select request, you can also do the following:
-//   - To expedite your queries, specify the Expedited tier. For more information
-//     about tiers, see "Restoring Archives," later in this topic.
-//   - Specify details about the data serialization format of both the input
-//     object that is being queried and the serialization of the CSV-encoded query
-//     results.
-//
-// The following are additional important facts about the select feature:
-//   - The output results are new Amazon S3 objects. Unlike archive retrievals,
-//     they are stored until explicitly deleted-manually or through a lifecycle
-//     configuration.
-//   - You can issue more than one select request on the same Amazon S3 object.
-//     Amazon S3 doesn't duplicate requests, so avoid issuing duplicate requests.
-//   - Amazon S3 accepts a select request even if the object has already been
-//     restored. A select request doesn’t return error response 409 .
 //
 // Permissions To use this operation, you must have permissions to perform the
 // s3:RestoreObject action. The bucket owner has this permission by default and can
@@ -141,8 +110,7 @@ import (
 //
 //   - Code: RestoreAlreadyInProgress
 //
-//   - Cause: Object restore is already in progress. (This error does not apply to
-//     SELECT type requests.)
+//   - Cause: Object restore is already in progress.
 //
 //   - HTTP Status Code: 409 Conflict
 //
