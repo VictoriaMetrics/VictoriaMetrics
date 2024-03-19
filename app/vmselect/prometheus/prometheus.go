@@ -1138,7 +1138,7 @@ func getCommonParamsForLabelsAPI(r *http.Request, startTime time.Time, requireNo
 	if cp.start == 0 {
 		cp.start = cp.end - defaultStep
 	}
-	cp.deadline = searchutils.GetDeadlineForExport(r, startTime)
+	cp.deadline = searchutils.GetDeadlineForLabelsAPI(r, startTime)
 	return cp, nil
 }
 
