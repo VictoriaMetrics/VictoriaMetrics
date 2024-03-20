@@ -1,22 +1,21 @@
 ---
 title: Alertmanager and VMAlert configuration for Deployment
-aliases:
-- /managed-victoriametrics/alertmanager-configuration.html
 ---
 
 ## Alerting stack configuration and Managed VictoriaMetrics
 
- Managed VictoriaMetrics supports configuration for alerting rules and notifications for it with alertmanager.
+Managed VictoriaMetrics supports configuring alerting rules and notifications through Alertmanager and internal vmalert.
 
-## Configure alertmanager
+## Configure Alertmanager
 
- Managed VictoriaMetrics supports alertmanager with standard [configuration](https://prometheus.io/docs/alerting/latest/configuration/).
+ Managed VictoriaMetrics supports Alertmanager with standard [configuration](https://prometheus.io/docs/alerting/latest/configuration/).
 Configuration menu located at `deployment` page under `Alertmanager` section.
 
 <img src="alertmanager_location.webp">
- Configuration parameters have following limitations:
 
-### allowed receivers
+ Please check the configuration options and limitations:
+
+### Allowed receivers
 
 * `discord_configs`
 * `pagerduty_configs`
@@ -30,14 +29,13 @@ Configuration menu located at `deployment` page under `Alertmanager` section.
 * `webex_configs`
 * `msteams_configs`
 
-### forbidden keys
+### Limitation
 
- All configuration params with `_file` suffix is not allowed for security reasons.
+ All configuration params with `_file` suffix are not allowed for security reasons.
 
 ### Configuration example
 
 ```yaml
-{% raw %}
 route:
  receiver: slack-infra
  repeat_interval: 1m
@@ -95,24 +93,24 @@ receivers:
   slack_configs:
   - api_url: https://hooks.slack.com/services/valid-url
     channel: dev-alerts
-{% endraw %}
 ```
 
 ## Configure alerting rules
+
  Alerting and recording rules could be configured via API calls.
 
 ### Managed VictoriaMetrics rules API
 
- Managed VictoriaMetrics has following APIs for rules:
+Managed VictoriaMetrics has following APIs for rules:
 
 * POST: `/api/v1/deployments/{deploymentId}/rule-sets/files/{fileName}`
 * DELETE `/api/v1/deployments/{deploymentId}/rule-sets/files/{fileName}`
 
- Swagger API examples [link](https://cloud.victoriametrics.com/api-docs)
+ OpenAPI [link](https://cloud.victoriametrics.com/api-docs)
 
 ### rules creation with API
 
-Lets create a 2 simple rules for deployment at `testing-rules.yaml`
+Let's create two example rules for deployment in `testing-rules.yaml`
 
 ```yaml
 groups:
@@ -136,7 +134,7 @@ groups:
           summary: "rule must be always at firing state"
 ```
 
- Upload rules into the Managed VictoriaMetrics with following command:
+Upload rules to the Managed VictoriaMetrics using the following command:
 
 ```sh
 curl https://https://cloud.victoriametrics.com/api/v1/deployments/DEPLOYMENT_ID/rule-sets/files/testing-rules -v -H 'X-VM-Cloud-Access: CLOUD_API_TOKEN' -XPOST --data-binary '@testing-rules.yaml'
@@ -144,22 +142,19 @@ curl https://https://cloud.victoriametrics.com/api/v1/deployments/DEPLOYMENT_ID/
 
 ## Troubleshooting
 
-### rules state check
+### rules execution state
 
- Created rules state located at `rules` section for Deployment:
+The state of created rules is located in the rules section for Deployment:
 
 <img src="alertmanager_rules_state.webp">
 
-### alerts state check
-
- Alerts and silences could be found at alertmanager section.
-
-<img src="alertmanager_alerts_state.webp">
-
 ### debug
 
- It's possible to debug alerting stack with logs for `vmalert` and `alertmanager` exposed at `Logs` section of deployment.
+It's possible to debug the alerting stack with logs for vmalert and alertmanager, which are accessible in the Logs section of the deployment.
 
 <img src="alertmanager_troubleshoot_logs.webp">
 
- Alertmanager integration errors are also tracked by internal cloud monitoring system.
+### cloud monitoring
+
+ Alertmanager and vmalert errors are tracked by internal cloud monitoring system. 
+Deployment `Alerts` section has information for active incidents and incident history log.
