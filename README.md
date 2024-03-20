@@ -376,6 +376,7 @@ The UI allows exploring query results via graphs and tables. It also provides th
   - [Active queries](#active-queries) - shows currently executed queries;
 - Tools:
   - [Trace analyzer](#query-tracing) - playground for loading query traces in JSON format; 
+  - [Query analyzer](#query-tracing) - playground for loading query results and traces in JSON format. See `Export query` button below;  
   - [WITH expressions playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/expand-with-exprs) - test how WITH expressions work; 
   - [Metric relabel debugger](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/relabeling) - playground for [relabeling](#relabeling) configs.
 
@@ -410,6 +411,10 @@ Results for all the queries are displayed simultaneously on the same graph.
 Graphs for a particular query can be temporarily hidden by clicking the `eye` icon on the right side of the input field.
 When the `eye` icon is clicked while holding the `ctrl` key, then query results for the rest of queries become hidden
 except of the current query results.
+
+VMUI allows sharing query and [trace](https://docs.victoriametrics.com/#query-tracing) results by clicking on
+`Export query` button in top right corner of the graph area. The query and trace will be exported as a file that later
+can be loaded in VMUI via `Query Analyzer` tool.
 
 See the [example VMUI at VictoriaMetrics playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/?g0.expr=100%20*%20sum(rate(process_cpu_seconds_total))%20by%20(job)&g0.range_input=1d).
 
@@ -3116,6 +3121,8 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      An optional list of labels to drop from samples before stream de-duplication and aggregation . See https://docs.victoriametrics.com/stream-aggregation.html#dropping-unneeded-labels
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -streamAggr.ignoreOldSamples
+     Whether to ignore input samples with old timestamps outside the current aggregation interval. See https://docs.victoriametrics.com/stream-aggregation.html#ignoring-old-samples
   -streamAggr.keepInput
      Whether to keep all the input samples after the aggregation with -streamAggr.config. By default, only aggregated samples are dropped, while the remaining samples are stored in the database. See also -streamAggr.dropInput and https://docs.victoriametrics.com/stream-aggregation.html
   -tls array

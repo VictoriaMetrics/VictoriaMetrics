@@ -1280,8 +1280,15 @@ type ExistingObjectReplication struct {
 	noSmithyDocumentSerde
 }
 
-// Specifies the Amazon S3 object key name to filter on and whether to filter on
-// the suffix or prefix of the key name.
+// Specifies the Amazon S3 object key name to filter on. An object key name is the
+// name assigned to an object in your Amazon S3 bucket. You specify whether to
+// filter on the suffix or prefix of the object key name. A prefix is a specific
+// string of characters at the beginning of an object key name, which you can use
+// to organize objects. For example, you can start the key names of related objects
+// with a prefix, such as 2023- or engineering/ . Then, you can use FilterRule to
+// find objects in a bucket with key names that have the same prefix. A suffix is
+// similar to a prefix, but it is at the end of the object key name instead of at
+// the beginning.
 type FilterRule struct {
 
 	// The object key name prefix or suffix identifying one or more objects to which
@@ -1783,7 +1790,9 @@ type LifecycleRuleAndOperator struct {
 }
 
 // The Filter is used to identify objects that a Lifecycle Rule applies to. A
-// Filter must have exactly one of Prefix , Tag , or And specified.
+// Filter can have exactly one of Prefix , Tag , ObjectSizeGreaterThan ,
+// ObjectSizeLessThan , or And specified. If the Filter element is left empty, the
+// Lifecycle Rule applies to all objects in the bucket.
 //
 // The following types satisfy this interface:
 //
@@ -1855,8 +1864,8 @@ func (*LifecycleRuleFilterMemberTag) isLifecycleRuleFilter() {}
 type LocationInfo struct {
 
 	// The name of the location where the bucket will be created. For directory
-	// buckets, the AZ ID of the Availability Zone where the bucket will be created. An
-	// example AZ ID value is usw2-az2 .
+	// buckets, the name of the location is the AZ ID of the Availability Zone where
+	// the bucket will be created. An example AZ ID value is usw2-az1 .
 	Name *string
 
 	// The type of location where the bucket will be created.
@@ -3137,8 +3146,8 @@ type ServerSideEncryptionByDefault struct {
 
 	// Amazon Web Services Key Management Service (KMS) customer Amazon Web Services
 	// KMS key ID to use for the default encryption. This parameter is allowed if and
-	// only if SSEAlgorithm is set to aws:kms . You can specify the key ID, key alias,
-	// or the Amazon Resource Name (ARN) of the KMS key.
+	// only if SSEAlgorithm is set to aws:kms or aws:kms:dsse . You can specify the key
+	// ID, key alias, or the Amazon Resource Name (ARN) of the KMS key.
 	//   - Key ID: 1234abcd-12ab-34cd-56ef-1234567890ab
 	//   - Key ARN:
 	//   arn:aws:kms:us-east-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab
