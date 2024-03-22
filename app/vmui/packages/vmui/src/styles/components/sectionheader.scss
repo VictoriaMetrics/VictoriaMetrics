@@ -29,4 +29,21 @@
     justify-content: flex-start;
     font-size: $font-size-small;
   }
+
+  &__filter-icon {
+    position: relative;
+
+    &_active {
+      &:after {
+        content: "";
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 6px;
+        height: 6px;
+        background: $color-error;
+        border-radius: 50%;
+      }
+    }
+  }
 }

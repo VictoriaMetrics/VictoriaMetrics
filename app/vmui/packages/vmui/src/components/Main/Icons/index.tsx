@@ -520,3 +520,25 @@ export const DownloadIcon = () => (
     <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"></path>
   </svg>
 );
+
+export const FilterIcon = () => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="currentColor"
+  >
+    <path
+      d="M4.25 5.61C6.27 8.2 10 13 10 13v6c0 .55.45 1 1 1h2c.55 0 1-.45 1-1v-6s3.72-4.8 5.74-7.39c.51-.66.04-1.61-.79-1.61H5.04c-.83 0-1.3.95-.79 1.61"
+    ></path>
+  </svg>
+);
+
+export const FilterClearIcon = () => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="currentColor"
+  >
+    <path
+      d="M19.79 5.61C20.3 4.95 19.83 4 19 4H6.83l7.97 7.97zM2.81 2.81 1.39 4.22 10 13v6c0 .55.45 1 1 1h2c.55 0 1-.45 1-1v-2.17l5.78 5.78 1.41-1.41z"
+    ></path>
+  </svg>
+);

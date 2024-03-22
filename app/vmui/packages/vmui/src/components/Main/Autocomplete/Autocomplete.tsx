@@ -28,6 +28,7 @@ interface AutocompleteProps {
   offset?: {top: number, left: number}
   maxDisplayResults?: {limit: number, message?: string}
   loading?: boolean;
+  isSelect?: boolean;
   onSelect: (val: string) => void
   onOpenAutocomplete?: (val: boolean) => void
   onFoundOptions?: (val: AutocompleteOptions[]) => void
@@ -53,6 +54,7 @@ const Autocomplete: FC<AutocompleteProps> = ({
   offset,
   maxDisplayResults,
   loading,
+  isSelect,
   onSelect,
   onOpenAutocomplete,
   onFoundOptions,
@@ -90,8 +92,9 @@ const Autocomplete: FC<AutocompleteProps> = ({
   }, [openAutocomplete, options, value]);
 
   const hideFoundedOptions = useMemo(() => {
-    return foundOptions.length === 1 && foundOptions[0]?.value === value;
-  }, [foundOptions]);
+    if (isSelect) return false;
+    return foundOptions.length === 1 && (foundOptions[0]?.value === value);
+  }, [foundOptions, isSelect]);
 
   const displayNoOptionsText = useMemo(() => {
     return noOptionsText && !foundOptions.length;
