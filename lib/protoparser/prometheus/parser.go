@@ -164,6 +164,8 @@ func (t *tagParser) parse() error {
 }
 
 type TagsValueTimestamp struct {
+	s         string
+	noEscapes bool
 	Prefix    string
 	Value     float64
 	Timestamp int64
@@ -171,8 +173,13 @@ type TagsValueTimestamp struct {
 	Comments  string
 }
 
-func parseTagsValueTimeStamp(s string, noEscapes bool) (*TagsValueTimestamp, error) {
-	tvt := &TagsValueTimestamp{}
+func NewTagsValueTimestamp(s string, noEscapes bool) *TagsValueTimestamp {
+	return &TagsValueTimestamp{
+		s:         s,
+		noEscapes: true,
+	}
+}
+func (tvt *TagsValueTimestamp) parse(s string, noEscapes bool) error {
 	n := 0
 	s = skipLeadingWhitespace(s)
 	// Prefix is everything up to a tag start or a space
@@ -230,28 +237,28 @@ func parseTagsValueTimeStamp(s string, noEscapes bool) (*TagsValueTimestamp, err
 		// There is no timestamp.
 		v, err := fastfloat.Parse(s)
 		if err != nil {
-			return tvt, fmt.Errorf("cannot parse value %q: %w", s, err)
+			return fmt.Errorf("cannot parse value %q: %w", s, err)
 		}
 		tvt.Value = v
-		return tvt, nil
+		return nil
 	}
 	s = skipTrailingWhitespace(s)
 	// There is a timestamp
 	v, err := fastfloat.Parse(s[:n])
 	if err != nil {
-		return tvt, fmt.Errorf("cannot parse value %q: %w", s[:n], err)
+		return fmt.Errorf("cannot parse value %q: %w", s[:n], err)
 	}
 	tvt.Value = v
 	// There are some whitespaces after timestamp
 	s = skipTrailingWhitespace(s)
 	if len(s) == 0 {
 		// There is no timestamp - just a whitespace after the value.
-		return tvt, nil
+		return nil
 	}
 	s = skipLeadingWhitespace(s[n+1:])
 	ts, err := fastfloat.Parse(s)
 	if err != nil {
-		return tvt, fmt.Errorf("cannot parse timestamp %q: %w", s, err)
+		return fmt.Errorf("cannot parse timestamp %q: %w", s, err)
 	}
 	if ts >= -1<<31 && ts < 1<<31 {
 		// This looks like OpenMetrics timestamp in Unix seconds.
@@ -261,14 +268,15 @@ func parseTagsValueTimeStamp(s string, noEscapes bool) (*TagsValueTimestamp, err
 		ts *= 1000
 	}
 	tvt.Timestamp = int64(ts)
-	return tvt, nil
+	return nil
 }
 func (r *Row) unmarshal(s string, tagsPool []Tag, noEscapes bool) ([]Tag, error) {
 	r.reset()
 	// Parse for labels, the value and the timestamp
 	// Anything before labels is saved in Prefix we can use this
 	// for the metric name
-	tvt, err := parseTagsValueTimeStamp(s, noEscapes)
+	tvt := &TagsValueTimestamp{}
+	err := tvt.parse(s, noEscapes)
 	if err != nil {
 		return nil, err
 	}
@@ -283,7 +291,8 @@ func (r *Row) unmarshal(s string, tagsPool []Tag, noEscapes bool) ([]Tag, error)
 		s = skipLeadingWhitespace(tvt.Comments)
 		// Skip comment
 		s = s[1:]
-		exemplarTVT, err := parseTagsValueTimeStamp(s, noEscapes)
+		exemplarTVT := &TagsValueTimestamp{}
+		err := exemplarTVT.parse(s, noEscapes)
 		if err != nil {
 			return nil, err
 		}
