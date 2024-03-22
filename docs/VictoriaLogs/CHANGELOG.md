@@ -19,6 +19,7 @@ according to [these docs](https://docs.victoriametrics.com/VictoriaLogs/QuickSta
 
 ## tip
 
+* BUGFIX: removes `println` lines after 0514091948cf8e00e42f44318c0e5e5b63b6388f.
 ## [v0.5.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.5.0-victorialogs)
 
 Released at 2024-03-01

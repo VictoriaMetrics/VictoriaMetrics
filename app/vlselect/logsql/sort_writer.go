@@ -123,7 +123,6 @@ func (sw *sortWriter) writeToUnderlyingWriterLocked(p []byte) bool {
 		}
 		var linesLeft int
 		p, linesLeft = trimLines(p, sw.maxLines-sw.linesWritten)
-		println("DEBUG: end trimLines", string(p), linesLeft)
 		sw.linesWritten += linesLeft
 	}
 	if _, err := sw.w.Write(p); err != nil {
@@ -133,7 +132,6 @@ func (sw *sortWriter) writeToUnderlyingWriterLocked(p []byte) bool {
 }
 
 func trimLines(p []byte, maxLines int) ([]byte, int) {
-	println("DEBUG: start trimLines", string(p), maxLines)
 	if maxLines <= 0 {
 		return nil, 0
 	}
