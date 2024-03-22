@@ -460,7 +460,7 @@ golangci-lint: install-golangci-lint
 	golangci-lint run
 
 install-golangci-lint:
-	which golangci-lint || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.55.1
+	which golangci-lint || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.57.1
 
 govulncheck: install-govulncheck
 	govulncheck ./...
