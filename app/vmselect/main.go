@@ -726,3 +726,4 @@ func initVMAlertProxy() {
 	vmalertProxyHost = proxyURL.Host
 	vmalertProxy = httputil.NewSingleHostReverseProxy(proxyURL)
 }
+
