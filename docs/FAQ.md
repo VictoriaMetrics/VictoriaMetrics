@@ -8,6 +8,7 @@ menu:
     weight: 24
 aliases:
 - /FAQ.html
+- /faq.html
 ---
 
 # FAQ
