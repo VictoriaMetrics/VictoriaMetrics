@@ -25,6 +25,7 @@ import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import useElementSize from "../../../hooks/useElementSize";
 import { ChartTooltipProps } from "../../Chart/ChartTooltip/ChartTooltip";
 import LegendAnomaly from "../../Chart/Line/LegendAnomaly/LegendAnomaly";
+import { groupByMultipleKeys } from "../../../utils/array";
 
 export interface GraphViewProps {
   data?: MetricResult[];
@@ -83,7 +84,7 @@ const GraphView: FC<GraphViewProps> = ({
   };
 
   const onChangeLegend = (legend: LegendItemType, metaKey: boolean) => {
-    setHideSeries(getHideSeries({ hideSeries, legend, metaKey, series }));
+    setHideSeries(getHideSeries({ hideSeries, legend, metaKey, series, anomalyView }));
   };
 
   const prepareHistogramData = (data: (number | null)[][]) => {
@@ -106,6 +107,20 @@ const GraphView: FC<GraphViewProps> = ({
     const ys = new Array(xs.length).fill(0).map((n, i) => i % (values.length));
 
     return [null, [xs, ys, counts]];
+  };
+
+  const prepareAnomalyLegend = (legend: LegendItemType[]): LegendItemType[] => {
+    if (!anomalyView) return legend;
+
+    // For vmanomaly: Only select the first series per group (due to API specs) and clear __name__ in freeFormFields.
+    const grouped = groupByMultipleKeys(legend, ["group", "label"]);
+    return grouped.map((group) => {
+      const firstEl = group.values[0];
+      return {
+        ...firstEl,
+        freeFormFields: { ...firstEl.freeFormFields, __name__: "" }
+      };
+    });
   };
 
   useEffect(() => {
@@ -160,7 +175,11 @@ const GraphView: FC<GraphViewProps> = ({
     const result = isHistogram ? prepareHistogramData(timeDataSeries) : timeDataSeries;
     setDataChart(result as uPlotData);
     setSeries(tempSeries);
-    setLegend(tempLegend);
+    const legend = prepareAnomalyLegend(tempLegend);
+    setLegend(legend);
+    if (anomalyView) {
+      setHideSeries(legend.map(s => s.label || "").slice(1));
+    }
   }, [data, timezone, isHistogram]);
 
   useEffect(() => {
@@ -172,7 +191,7 @@ const GraphView: FC<GraphViewProps> = ({
       tempLegend.push(getLegendItem(seriesItem, d.group));
     });
     setSeries(tempSeries);
-    setLegend(tempLegend);
+    setLegend(prepareAnomalyLegend(tempLegend));
   }, [hideSeries]);
 
   const [containerRef, containerSize] = useElementSize();
@@ -213,10 +232,12 @@ const GraphView: FC<GraphViewProps> = ({
           onChangeLegend={setLegendValue}
         />
       )}
-      {!isHistogram && !anomalyView && showLegend && (
+      {anomalyView && showLegend && (<LegendAnomaly series={series as SeriesItem[]}/>)}
+      {!isHistogram && showLegend && (
         <Legend
           labels={legend}
           query={query}
+          anomalyView={anomalyView}
           onChange={onChangeLegend}
         />
       )}
@@ -226,11 +247,6 @@ const GraphView: FC<GraphViewProps> = ({
           min={yaxis.limits.range[1][0] || 0}
           max={yaxis.limits.range[1][1] || 0}
           legendValue={legendValue}
-        />
-      )}
-      {anomalyView && showLegend && (
-        <LegendAnomaly
-          series={series as SeriesItem[]}
         />
       )}
     </div>
