@@ -653,7 +653,9 @@ Some workloads may need fine-grained resource usage limits. In these cases the f
   by each query and spends some CPU time for processing the found time series. This means that the maximum memory usage and CPU usage
   a single query can use at `vmstorage` is proportional to `-search.maxUniqueTimeseries`.
 - `-search.maxQueryDuration` at `vmselect` limits the duration of a single query. If the query takes longer than the given duration, then it is canceled.
-  This allows saving CPU and RAM at `vmselect` and `vmstorage` when executing unexpectedly heavy queries.
+  This allows saving CPU and RAM at `vmselect` and `vmstorage` when executing unexpectedly heavy queries. This flag can be overridden via the `timeout` query argument. 
+  If value of the `timeout` query argument is bigger than `0` and lower than value of the `-search.maxQueryDuration` than query will not take longer than
+  the given duration in the `timeout` query argument.
 - `-search.maxConcurrentRequests` at `vmselect` and `vmstorage` limits the number of concurrent requests a single `vmselect` / `vmstorage` node can process.
   Bigger number of concurrent requests usually require bigger amounts of memory at both `vmselect` and `vmstorage`.
   For example, if a single query needs 100 MiB of additional memory during its execution, then 100 concurrent queries
@@ -709,11 +711,23 @@ Some workloads may need fine-grained resource usage limits. In these cases the f
   See also `-search.maxLabelsAPIDuration` and `-search.ignoreExtraFiltersAtLabelsAPI`.
 - `-search.maxLabelsAPIDuration` at `vmselect` limits the duration for requests to [/api/v1/labels](https://docs.victoriametrics.com/url-examples/#apiv1labels),
   [/api/v1/label/.../values](https://docs.victoriametrics.com/url-examples/#apiv1labelvalues)
-  or [/api/v1/series](https://docs.victoriametrics.com/url-examples/#apiv1series).
+  or [/api/v1/series](https://docs.victoriametrics.com/url-examples/#apiv1series). This flag can be overridden via the `timeout` query argument.
+  If value of the `timeout` query argument is bigger than `0` and lower than value of the `-search.maxLabelsAPIDuration` than query will not take longer than
+  the given duration in the `timeout` query argument.
   These endpoints are used mostly by Grafana for auto-completion of label names and label values. Queries to these endpoints may take big amounts of CPU time and memory
   when the database contains big number of unique time series because of [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate).
   In this case it might be useful to set the `-search.maxLabelsAPIDuration` to quite low value in order to limit CPU and memory usage.
   See also `-search.maxLabelsAPISeries` and `-search.ignoreExtraFiltersAtLabelsAPI`.
+- `-search.maxExportDuration` at `vmselect` limits the duration for requests to [/api/v1/export*](https://docs.victoriametrics.com/url-examples/?highlight=apiv1export#apiv1export). 
+  If the query takes longer than the given duration, then it is canceled.
+  This allows saving CPU and RAM at `vmselect` and `vmstorage` when executing unexpectedly heavy queries. This flag can be overridden via the `timeout` query argument.
+  If value of the `timeout` query argument is bigger than `0` and lower than value of the `-search.maxExportDuration` than query will not take longer than
+  the given duration in the `timeout` query argument.
+- `search.maxStatusRequestDuration` at `vmselect` limits the duration for requests to [/api/v1/status/tsdb](https://docs.victoriametrics.com/url-examples/?highlight=apiv1export#apiv1statustsdb).
+  If the query takes longer than the given duration, then it is canceled.
+  This allows saving CPU and RAM at `vmselect` and `vmstorage` when executing unexpectedly heavy queries. This flag can be overridden via the `timeout` query argument.
+  If value of the `timeout` query argument is bigger than `0` and lower than value of the `-search.maxStatusRequestDuration` than query will not take longer than
+  the given duration in the `timeout` query argument.
 - `-storage.maxDailySeries` at `vmstorage` can be used for limiting the number of time series seen per day aka
   [time series churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate). See [cardinality limiter docs](#cardinality-limiter).
 - `-storage.maxHourlySeries` at `vmstorage` can be used for limiting the number of [active time series](https://docs.victoriametrics.com/FAQ.html#what-is-an-active-time-series).
