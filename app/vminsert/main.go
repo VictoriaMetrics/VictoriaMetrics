@@ -298,12 +298,11 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "opentelemetry/api/v1/push", "opentelemetry/v1/metrics":
 		opentelemetryPushRequests.Inc()
-		if err := opentelemetry.InsertHandler(at, r); err != nil {
+		writeResponse, err := opentelemetry.InsertHandler(at, r)
+		if err != nil {
 			opentelemetryPushErrors.Inc()
-			httpserver.Errorf(w, r, "%s", err)
-			return true
 		}
-		w.WriteHeader(http.StatusOK)
+		writeResponse(w, startTime, err)
 		return true
 	case "newrelic":
 		newrelicCheckRequest.Inc()
