@@ -41,7 +41,7 @@ export interface GraphViewProps {
   fullWidth?: boolean;
   height?: number;
   isHistogram?: boolean;
-  anomalyView?: boolean;
+  isAnomalyView?: boolean;
   spanGaps?: boolean;
 }
 
@@ -59,7 +59,7 @@ const GraphView: FC<GraphViewProps> = ({
   fullWidth = true,
   height,
   isHistogram,
-  anomalyView,
+  isAnomalyView,
   spanGaps
 }) => {
   const { isMobile } = useDeviceDetect();
@@ -75,8 +75,8 @@ const GraphView: FC<GraphViewProps> = ({
   const [legendValue, setLegendValue] = useState<ChartTooltipProps | null>(null);
 
   const getSeriesItem = useMemo(() => {
-    return getSeriesItemContext(data, hideSeries, alias, anomalyView);
-  }, [data, hideSeries, alias, anomalyView]);
+    return getSeriesItemContext(data, hideSeries, alias, isAnomalyView);
+  }, [data, hideSeries, alias, isAnomalyView]);
 
   const setLimitsYaxis = (values: { [key: string]: number[] }) => {
     const limits = getLimitsYAxis(values, !isHistogram);
@@ -84,7 +84,7 @@ const GraphView: FC<GraphViewProps> = ({
   };
 
   const onChangeLegend = (legend: LegendItemType, metaKey: boolean) => {
-    setHideSeries(getHideSeries({ hideSeries, legend, metaKey, series, anomalyView }));
+    setHideSeries(getHideSeries({ hideSeries, legend, metaKey, series, isAnomalyView }));
   };
 
   const prepareHistogramData = (data: (number | null)[][]) => {
@@ -110,7 +110,7 @@ const GraphView: FC<GraphViewProps> = ({
   };
 
   const prepareAnomalyLegend = (legend: LegendItemType[]): LegendItemType[] => {
-    if (!anomalyView) return legend;
+    if (!isAnomalyView) return legend;
 
     // For vmanomaly: Only select the first series per group (due to API specs) and clear __name__ in freeFormFields.
     const grouped = groupByMultipleKeys(legend, ["group", "label"]);
@@ -168,7 +168,7 @@ const GraphView: FC<GraphViewProps> = ({
       const range = getMinMaxBuffer(getMinFromArray(resultAsNumber), getMaxFromArray(resultAsNumber));
       const rangeStep = Math.abs(range[1] - range[0]);
 
-      return (avg > rangeStep * 1e10) && !anomalyView ? results.map(() => avg) : results;
+      return (avg > rangeStep * 1e10) && !isAnomalyView ? results.map(() => avg) : results;
     });
     timeDataSeries.unshift(timeSeries);
     setLimitsYaxis(tempValues);
@@ -177,7 +177,7 @@ const GraphView: FC<GraphViewProps> = ({
     setSeries(tempSeries);
     const legend = prepareAnomalyLegend(tempLegend);
     setLegend(legend);
-    if (anomalyView) {
+    if (isAnomalyView) {
       setHideSeries(legend.map(s => s.label || "").slice(1));
     }
   }, [data, timezone, isHistogram]);
@@ -216,7 +216,7 @@ const GraphView: FC<GraphViewProps> = ({
           setPeriod={setPeriod}
           layoutSize={containerSize}
           height={height}
-          anomalyView={anomalyView}
+          isAnomalyView={isAnomalyView}
           spanGaps={spanGaps}
         />
       )}
@@ -232,12 +232,12 @@ const GraphView: FC<GraphViewProps> = ({
           onChangeLegend={setLegendValue}
         />
       )}
-      {anomalyView && showLegend && (<LegendAnomaly series={series as SeriesItem[]}/>)}
+      {isAnomalyView && showLegend && (<LegendAnomaly series={series as SeriesItem[]}/>)}
       {!isHistogram && showLegend && (
         <Legend
           labels={legend}
           query={query}
-          anomalyView={anomalyView}
+          isAnomalyView={isAnomalyView}
           onChange={onChangeLegend}
         />
       )}

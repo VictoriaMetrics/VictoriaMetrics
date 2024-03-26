@@ -7,11 +7,11 @@ import "./style.scss";
 interface LegendProps {
   labels: LegendItemType[];
   query: string[];
-  anomalyView?: boolean;
+  isAnomalyView?: boolean;
   onChange: (item: LegendItemType, metaKey: boolean) => void;
 }
 
-const Legend: FC<LegendProps> = ({ labels, query, anomalyView, onChange }) => {
+const Legend: FC<LegendProps> = ({ labels, query, isAnomalyView, onChange }) => {
   const groups = useMemo(() => {
     return Array.from(new Set(labels.map(l => l.group)));
   }, [labels]);
@@ -40,7 +40,7 @@ const Legend: FC<LegendProps> = ({ labels, query, anomalyView, onChange }) => {
                 <LegendItem
                   key={legendItem.label}
                   legend={legendItem}
-                  anomalyView={anomalyView}
+                  isAnomalyView={isAnomalyView}
                   onChange={onChange}
                 />
               )}

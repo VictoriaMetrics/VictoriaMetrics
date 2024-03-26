@@ -11,10 +11,10 @@ interface LegendItemProps {
   legend: LegendItemType;
   onChange?: (item: LegendItemType, metaKey: boolean) => void;
   isHeatmap?: boolean;
-  anomalyView?: boolean;
+  isAnomalyView?: boolean;
 }
 
-const LegendItem: FC<LegendItemProps> = ({ legend, onChange, isHeatmap, anomalyView }) => {
+const LegendItem: FC<LegendItemProps> = ({ legend, onChange, isHeatmap, isAnomalyView }) => {
   const copyToClipboard = useCopyToClipboard();
 
   const freeFormFields = useMemo(() => {
@@ -48,7 +48,7 @@ const LegendItem: FC<LegendItemProps> = ({ legend, onChange, isHeatmap, anomalyV
       })}
       onClick={createHandlerClick(legend)}
     >
-      {!anomalyView && !isHeatmap && (
+      {!isAnomalyView && !isHeatmap && (
         <div
           className="vm-legend-item__marker"
           style={{ backgroundColor: legend.color }}

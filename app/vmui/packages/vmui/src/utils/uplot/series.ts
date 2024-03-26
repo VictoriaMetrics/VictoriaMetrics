@@ -90,13 +90,13 @@ export const getLegendItem = (s: SeriesItem, group: number): LegendItemType => (
   median: s.median,
 });
 
-export const getHideSeries = ({ hideSeries, legend, metaKey, series, anomalyView }: HideSeriesArgs): string[] => {
+export const getHideSeries = ({ hideSeries, legend, metaKey, series, isAnomalyView }: HideSeriesArgs): string[] => {
   const { label } = legend;
   const include = includesHideSeries(label, hideSeries);
   const labels = series.map(s => s.label || "");
 
   // if anomalyView is true, always return all series except the one specified by `label`
-  if (anomalyView) {
+  if (isAnomalyView) {
     return labels.filter(l => l !== label);
   }
 

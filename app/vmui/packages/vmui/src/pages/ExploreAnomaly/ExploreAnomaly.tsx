@@ -117,7 +117,7 @@ const ExploreAnomaly: FC = () => {
             graphData={data}
             isHistogram={false}
             controlsRef={controlsRef}
-            anomalyView={true}
+            isAnomalyView={true}
           />
         )}
       </div>
