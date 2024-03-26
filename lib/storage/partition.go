@@ -1182,7 +1182,7 @@ func (pt *partition) mergePartsToFiles(pws []*partWrapper, stopCh <-chan struct{
 }
 
 // ForceMergeAllParts runs merge for all the parts in pt.
-func (pt *partition) ForceMergeAllParts() error {
+func (pt *partition) ForceMergeAllParts(stop chan struct{}) error {
 	pws := pt.getAllPartsForMerge()
 	if len(pws) == 0 {
 		// Nothing to merge.
@@ -1202,7 +1202,7 @@ func (pt *partition) ForceMergeAllParts() error {
 	// If len(pws) == 1, then the merge must run anyway.
 	// This allows applying the configured retention, removing the deleted series
 	// and performing de-duplication if needed.
-	if err := pt.mergePartsToFiles(pws, pt.stopCh, bigPartsConcurrencyCh); err != nil {
+	if err := pt.mergePartsToFiles(pws, stop, bigPartsConcurrencyCh); err != nil {
 		return fmt.Errorf("cannot force merge %d parts from partition %q: %w", len(pws), pt.name, err)
 	}
 
@@ -1316,7 +1316,7 @@ func (pt *partition) runFinalDedup() error {
 	t := time.Now()
 	logger.Infof("starting final dedup for partition %s using requiredDedupInterval=%d ms, since the partition has smaller actualDedupInterval=%d ms",
 		pt.bigPartsPath, requiredDedupInterval, actualDedupInterval)
-	if err := pt.ForceMergeAllParts(); err != nil {
+	if err := pt.ForceMergeAllParts(pt.stopCh); err != nil {
 		return fmt.Errorf("cannot perform final dedup for partition %s: %w", pt.bigPartsPath, err)
 	}
 	logger.Infof("final dedup for partition %s has been finished in %.3f seconds", pt.bigPartsPath, time.Since(t).Seconds())
