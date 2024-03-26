@@ -27,13 +27,49 @@ import (
 )
 
 var (
-	collectorEndpoint = flag.String("vm.endpoint", "localhost:8428", "VictoriaMetrics endpoint - host:port.")
-	collectorURL      = flag.String("vm.ingestPath", "/opentelemetry/api/v1/push", "url path for ingestion path.")
-	isSecure          = flag.Bool("vm.isSecure", false, "enables https connection for metrics push.")
-	pushInterval      = flag.Duration("vm.pushInterval", 10*time.Second, "how often push samples, aka scrapeInterval at pull model.")
-	jobName           = flag.String("metrics.jobName", "otlp", "job name for web-application.")
-	instanceName      = flag.String("metrics.instance", "localhost", "hostname of web-application instance.")
+	collectorEndpoint = flag.String("vm.endpoint", "localhost:8428", "VictoriaMetrics endpoint - host:port")
+	collectorURL      = flag.String("vm.ingestPath", "/opentelemetry/api/v1/push", "url path for ingestion path")
+	isSecure          = flag.Bool("vm.isSecure", false, "enables https connection for metrics push")
+	pushInterval      = flag.Duration("vm.pushInterval", 10*time.Second, "how often push samples, aka scrapeInterval at pull model")
+	jobName           = flag.String("metrics.jobName", "otlp", "job name for web-application")
+	instanceName      = flag.String("metrics.instance", "localhost", "hostname of web-application instance")
 )
+
+func main() {
+	flag.Parse()
+	log.Printf("Starting web server...")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/fast", func(writer http.ResponseWriter, request *http.Request) {
+		writer.WriteHeader(http.StatusOK)
+		writer.Write([]byte(`fast ok`))
+	})
+	mux.HandleFunc("/api/slow", func(writer http.ResponseWriter, request *http.Request) {
+		time.Sleep(time.Second * 2)
+		writer.WriteHeader(http.StatusOK)
+		writer.Write([]byte(`slow ok`))
+	})
+	mw, err := newMetricsMiddleware(ctx, mux)
+	if err != nil {
+		panic(fmt.Sprintf("cannot build metricMiddleWare: %q", err))
+	}
+	mustStop := make(chan os.Signal, 1)
+	signal.Notify(mustStop, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		http.ListenAndServe("localhost:8081", mw)
+	}()
+	log.Printf("web server started at localhost:8081.")
+	<-mustStop
+	log.Println("receive shutdown signal, stopping webserver")
+
+	if err := mw.onShutdown(ctx); err != nil {
+		log.Println("cannot shutdown metric provider ", err)
+	}
+
+	cancel()
+	log.Printf("Done!")
+}
 
 func newMetricsController(ctx context.Context) (*controller.Controller, error) {
 	options := []otlpmetrichttp.Option{
@@ -127,40 +163,4 @@ func (m *metricMiddleWare) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	m.h.ServeHTTP(w, r)
-}
-
-func main() {
-	flag.Parse()
-	log.Printf("Starting web server...")
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	mux := http.NewServeMux()
-	mux.HandleFunc("/api/fast", func(writer http.ResponseWriter, request *http.Request) {
-		writer.WriteHeader(http.StatusOK)
-		writer.Write([]byte(`fast ok`))
-	})
-	mux.HandleFunc("/api/slow", func(writer http.ResponseWriter, request *http.Request) {
-		time.Sleep(time.Second * 2)
-		writer.WriteHeader(http.StatusOK)
-		writer.Write([]byte(`slow ok`))
-	})
-	mw, err := newMetricsMiddleware(ctx, mux)
-	if err != nil {
-		panic(fmt.Sprintf("cannot build metricMiddleWare: %q", err))
-	}
-	mustStop := make(chan os.Signal, 1)
-	signal.Notify(mustStop, os.Interrupt, syscall.SIGTERM)
-	go func() {
-		http.ListenAndServe("localhost:8081", mw)
-	}()
-	log.Printf("web server started at localhost:8081.")
-	<-mustStop
-	log.Println("receive shutdown signal, stopping webserver")
-
-	if err := mw.onShutdown(ctx); err != nil {
-		log.Println("cannot shutdown metric provider ", err)
-	}
-
-	cancel()
-	log.Printf("Done!")
 }
