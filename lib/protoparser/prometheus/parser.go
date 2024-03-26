@@ -57,9 +57,17 @@ func (rs *Rows) UnmarshalWithErrLogger(s string, errLogger func(s string)) {
 	rs.Rows, rs.tagsPool = unmarshalRows(rs.Rows[:0], s, rs.tagsPool[:0], noEscapes, errLogger)
 }
 
-// Open Metrics Exemplar
 const exemplarPrefix = "# {"
 
+/*
+Exemplar Support
+
+Tags: a list of labels that uniquely identifies exemplar
+
+Value: the value of the exemplar
+
+Timestamp: the time the exemplar was recorded
+*/
 type Exemplar struct {
 	Tags      []Tag
 	Value     float64
@@ -124,24 +132,15 @@ type tagParser struct {
 	tags []Tag
 }
 
-// Given a string s parses for a list of tags
-
-func NewTagParser(s string, noEscapes bool) *tagParser {
-	tp := tagParser{
-		tags: nil,
-	}
-	return &tp
-}
-
 // Resets values to default for tagParser
 func (t *tagParser) reset() {
 	t.tags = t.tags[:0]
 }
-func (t *tagParser) parse(s string, noEscapes bool) (string, int, error) {
+func (t *tagParser) parse(s string, noEscapes bool) (string, error) {
 	n := strings.IndexByte(s, '{')
 	c := strings.IndexByte(s, '#')
 	if c != -1 && c < n {
-		return s, -1, nil
+		return s, nil
 	}
 	if n >= 0 {
 		// Tags found. Parse them.
@@ -149,28 +148,28 @@ func (t *tagParser) parse(s string, noEscapes bool) (string, int, error) {
 		var err error
 		s, t.tags, err = unmarshalTags(t.tags, s, noEscapes)
 		if err != nil {
-			return s, n, fmt.Errorf("cannot unmarshal tags: %w", err)
+			return s, fmt.Errorf("cannot unmarshal tags: %w", err)
 		}
 		if len(s) > 0 && s[0] == ' ' {
 			// Fast path - skip whitespace.
 			s = s[1:]
 		}
 	}
-	return s, n, nil
+	return s, nil
 
 }
 
 var tvtPool = sync.Pool{New: func() interface{} {
-	return &TagsValueTimestamp{}
+	return &tagsValueTimestamp{}
 }}
 var tagParserPool = sync.Pool{New: func() interface{} {
 	return &tagParser{}
 }}
 
-func getTVT() *TagsValueTimestamp {
-	return tvtPool.Get().(*TagsValueTimestamp)
+func getTVT() *tagsValueTimestamp {
+	return tvtPool.Get().(*tagsValueTimestamp)
 }
-func putTVT(tvt *TagsValueTimestamp) {
+func putTVT(tvt *tagsValueTimestamp) {
 	tvt.reset()
 	tvtPool.Put(tvt)
 }
@@ -182,7 +181,7 @@ func putTagParser(tp *tagParser) {
 	tagParserPool.Put(tp)
 }
 
-type TagsValueTimestamp struct {
+type tagsValueTimestamp struct {
 	Prefix    string
 	Value     float64
 	Timestamp int64
@@ -190,14 +189,14 @@ type TagsValueTimestamp struct {
 	Comments  string
 }
 
-func (tvt *TagsValueTimestamp) reset() {
+func (tvt *tagsValueTimestamp) reset() {
 	tvt.Prefix = ""
 	tvt.Value = 0
 	tvt.Timestamp = 0
 	tvt.Tags = tvt.Tags[:0]
 	tvt.Comments = ""
 }
-func (tvt *TagsValueTimestamp) parse(s string, noEscapes bool) error {
+func (tvt *tagsValueTimestamp) parse(s string, noEscapes bool) error {
 	n := 0
 	s = skipLeadingWhitespace(s)
 	// Prefix is everything up to a tag start or a space
@@ -226,7 +225,7 @@ func (tvt *TagsValueTimestamp) parse(s string, noEscapes bool) error {
 		if mustParseTags {
 			tagParser := getTagParser()
 			var err error
-			s, n, err = tagParser.parse(s, noEscapes)
+			s, err = tagParser.parse(s, noEscapes)
 			if err != nil {
 				return err
 			}
