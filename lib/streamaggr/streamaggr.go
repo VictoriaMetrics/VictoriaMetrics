@@ -376,6 +376,8 @@ type aggregator struct {
 	flushTimeouts      *metrics.Counter
 	dedupFlushTimeouts *metrics.Counter
 	ignoredIntervals   *metrics.Counter
+	oldSamples         *metrics.Counter
+	totalSamples       *metrics.Counter
 }
 
 type aggrState interface {
@@ -588,6 +590,8 @@ func newAggregator(cfg *Config, pushFunc PushFunc, ms *metrics.Set, opts *Option
 		flushTimeouts:      ms.GetOrCreateCounter(`vm_streamaggr_flush_timeouts_total`),
 		dedupFlushTimeouts: ms.GetOrCreateCounter(`vm_streamaggr_dedup_flush_timeouts_total`),
 		ignoredIntervals:   ms.GetOrCreateCounter(`vm_streamaggr_ignored_intervals_total`),
+		oldSamples:         ms.GetOrCreateCounter(`vm_streamaggr_samples_total{type="old"}`),
+		totalSamples:       ms.GetOrCreateCounter(`vm_streamaggr_samples_total{type="all"}`),
 	}
 	if dedupInterval > 0 {
 		a.da = newDedupAggr()
@@ -803,7 +807,7 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 
 		buf = compressLabels(buf[:0], &a.lc, inputLabels.Labels, outputLabels.Labels)
 		key := bytesutil.InternBytes(buf)
-		var oldCount int32
+		var oldCount int
 		for _, sample := range ts.Samples {
 			if minTimestamp > sample.Timestamp {
 				oldCount++
@@ -820,7 +824,9 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 			})
 		}
 		a.totalSamplesCount.Add(int32(len(ts.Samples)))
-		a.oldSamplesCount.Add(oldCount)
+		a.oldSamplesCount.Add(int32(oldCount))
+		a.totalSamples.Add(len(ts.Samples))
+		a.oldSamples.Add(oldCount)
 	}
 	ctx.samples = samples
 	ctx.buf = buf
