@@ -20,7 +20,8 @@ aliases:
 
 - [vmservicescrape&vmpodscrape](./api.md#vmservicescrape): add `attach_metadata` option under VMServiceScrapeSpec&VMPodScrapeSpec, the same way like prometheus serviceMonitor&podMonitor do. See [this issue](https://github.com/VictoriaMetrics/operator/issues/893) for details.
 - [vmalertmanagerconfig](./api.md#vmalertmanagerconfig): fix struct field tags under `Sigv4Config`.
-
+- [vmalertmanager](./api.md#vmalertmanager): bump default alertmanager version to [v0.27.0](https://github.com/prometheus/alertmanager/releases/tag/v0.27.0), which supports new receivers like `msteams_configs`.
+ 
 <a name="v0.42.3"></a>
 ## [v0.43.](https://github.com/VictoriaMetrics/operator/releases/tag/v0.42.3) - 12 Mar 2024
 
