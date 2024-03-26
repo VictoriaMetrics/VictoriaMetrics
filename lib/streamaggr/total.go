@@ -23,13 +23,7 @@ type totalAggrState struct {
 	// Time series state is dropped if no new samples are received during stalenessSecs.
 	//
 	// Aslo, the first sample per each new series is ignored during stalenessSecs even if keepFirstSample is set.
-	// see ignoreFirstSampleDeadline for more details.
 	stalenessSecs uint64
-
-	// The first sample per each new series is ignored until this unix timestamp deadline in seconds even if keepFirstSample is set.
-	// This allows avoiding an initial spike of the output values at startup when new time series
-	// cannot be distinguished from already existing series. This is tracked with ignoreFirstSampleDeadline.
-	ignoreFirstSampleDeadline uint64
 }
 
 type totalStateValue struct {
@@ -48,24 +42,22 @@ type lastValueState struct {
 
 func newTotalAggrState(stalenessInterval time.Duration, resetTotalOnFlush, keepFirstSample bool) *totalAggrState {
 	stalenessSecs := roundDurationToSecs(stalenessInterval)
-	ignoreFirstSampleDeadline := fasttime.UnixTimestamp() + stalenessSecs
 	suffix := "total"
 	if resetTotalOnFlush {
 		suffix = "increase"
 	}
 	return &totalAggrState{
-		suffix:                    suffix,
-		resetTotalOnFlush:         resetTotalOnFlush,
-		keepFirstSample:           keepFirstSample,
-		stalenessSecs:             stalenessSecs,
-		ignoreFirstSampleDeadline: ignoreFirstSampleDeadline,
+		suffix:            suffix,
+		resetTotalOnFlush: resetTotalOnFlush,
+		keepFirstSample:   keepFirstSample,
+		stalenessSecs:     stalenessSecs,
 	}
 }
 
 func (as *totalAggrState) pushSamples(samples []pushSample) {
 	currentTime := fasttime.UnixTimestamp()
 	deleteDeadline := currentTime + as.stalenessSecs
-	keepFirstSample := as.keepFirstSample && currentTime > as.ignoreFirstSampleDeadline
+	keepFirstSample := as.keepFirstSample
 	for i := range samples {
 		s := &samples[i]
 		inputKey, outputKey := getInputOutputKey(s.key)

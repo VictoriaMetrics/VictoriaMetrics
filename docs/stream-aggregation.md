@@ -20,7 +20,7 @@ and/or scraped from [Prometheus-compatible targets](https://docs.victoriametrics
 after applying all the configured [relabeling stages](https://docs.victoriametrics.com/vmagent.html#relabeling).
 
 By default stream aggregation ignores timestamps associated with the input [samples](https://docs.victoriametrics.com/keyConcepts.html#raw-samples).
-It expects that the ingested samples have timestamps close to the current time. See [how to ignore old samples](#ignoring-old-samples).
+It expects that the ingested samples have timestamps close to the current time. See [how to ignore old intervals](#ignoring-old-intervals).
 
 Stream aggregation can be configured via the following command-line flags:
 
@@ -80,17 +80,17 @@ It is possible to drop the given labels before applying the de-duplication. See 
 
 The online de-duplication uses the same logic as [`-dedup.minScrapeInterval` command-line flag](https://docs.victoriametrics.com/#deduplication) at VictoriaMetrics.
 
-## Ignoring old samples
+## Ignoring old intervals
 
-By default all the input samples are taken into account during stream aggregation. If samples with old timestamps outside the current [aggregation interval](#stream-aggregation-config)
+By default all the input samples are taken into account during stream aggregation. If intervals contains big amount of samples with old timestamps outside the current [aggregation interval](#stream-aggregation-config)
 must be ignored, then the following options can be used:
 
-- To pass `-remoteWrite.streamAggr.ignoreOldSamples` command-line flag to [vmagent](https://docs.victoriametrics.com/vmagent/)
+- To pass `-remoteWrite.streamAggr.ignoreOldIntervals` command-line flag to [vmagent](https://docs.victoriametrics.com/vmagent/)
   or `-streamAggr.ignoreOldSamples` command-line flag to [single-node VictoriaMetrics](https://docs.victoriametrics.com/).
-  This enables ignoring old samples for all the [aggregation configs](#stream-aggregation-config).
+  This enables ignoring intervals with old samples for all the [aggregation configs](#stream-aggregation-config).
 
-- To set `ignore_old_samples: true` option at the particular [aggregation config](#stream-aggregation-config).
-  This enables ignoring old samples for that particular aggregation config.
+- To set `ignore_old_intervals: true` option at the particular [aggregation config](#stream-aggregation-config).
+  This enables ignoring old intervals for that particular aggregation config.
 
 ## Flush time alignment
 
