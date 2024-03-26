@@ -36,6 +36,15 @@ func (wr *WriteRequest) Reset() {
 	wr.samplesPool = samplesPool[:0]
 }
 
+/*
+Exemplar Support
+
+Labels: a list of labels that uniquely identifies exemplar
+
+Value: the value of the exemplar
+
+Timestamp: the time the exemplar was recorded
+*/
 type Exemplar struct {
 	// Optional, can be empty.
 	Labels []Label
