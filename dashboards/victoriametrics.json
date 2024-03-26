@@ -967,7 +967,7 @@
           "refId": "A"
         }
       ],
-      "title": "Datapoints ingestion rate ($instance)",
+      "title": "Datapoints ingestion rate",
       "type": "timeseries"
     },
     {
@@ -1077,7 +1077,7 @@
           "refId": "A"
         }
       ],
-      "title": "Requests rate ($instance)",
+      "title": "Requests rate",
       "type": "timeseries"
     },
     {
@@ -1190,7 +1190,7 @@
           "refId": "A"
         }
       ],
-      "title": "Active time series ($instance)",
+      "title": "Active time series",
       "type": "timeseries"
     },
     {
@@ -1299,7 +1299,7 @@
           "refId": "A"
         }
       ],
-      "title": "Query duration 0.99 quantile ($instance)",
+      "title": "Query duration 0.99 quantile",
       "type": "timeseries"
     },
     {
@@ -1403,7 +1403,7 @@
           "refId": "A"
         }
       ],
-      "title": "Requests error rate ($instance)",
+      "title": "Requests error rate",
       "type": "timeseries"
     },
     {
@@ -1625,7 +1625,7 @@
               "refId": "A"
             }
           ],
-          "title": "RSS memory % usage ($instance)",
+          "title": "RSS memory % usage",
           "type": "timeseries"
         },
         {
@@ -1794,7 +1794,7 @@
               "refId": "E"
             }
           ],
-          "title": "Memory usage ($instance)",
+          "title": "Memory usage",
           "type": "timeseries"
         },
         {
@@ -1903,7 +1903,7 @@
               "refId": "A"
             }
           ],
-          "title": "RSS anonymous memory % usage ($instance)",
+          "title": "RSS anonymous memory % usage",
           "type": "timeseries"
         },
         {
@@ -2013,7 +2013,7 @@
               "refId": "A"
             }
           ],
-          "title": "CPU % usage ($instance)",
+          "title": "CPU % usage",
           "type": "timeseries"
         },
         {
@@ -2141,7 +2141,7 @@
               "refId": "A"
             }
           ],
-          "title": "Open FDs ($instance)",
+          "title": "Open FDs",
           "type": "timeseries"
         },
         {
@@ -2279,7 +2279,7 @@
               "refId": "B"
             }
           ],
-          "title": "CPU ($instance)",
+          "title": "CPU",
           "type": "timeseries"
         },
         {
@@ -2388,7 +2388,7 @@
               "refId": "A"
             }
           ],
-          "title": "Goroutines ($instance)",
+          "title": "Goroutines",
           "type": "timeseries"
         },
         {
@@ -2526,7 +2526,7 @@
               "refId": "B"
             }
           ],
-          "title": "Disk writes/reads ($instance)",
+          "title": "Disk writes/reads",
           "type": "timeseries"
         },
         {
@@ -2635,7 +2635,7 @@
               "refId": "A"
             }
           ],
-          "title": "Threads ($instance)",
+          "title": "Threads",
           "type": "timeseries"
         },
         {
@@ -2773,7 +2773,7 @@
               "refId": "B"
             }
           ],
-          "title": "Disk write/read calls ($instance)",
+          "title": "Disk write/read calls",
           "type": "timeseries"
         },
         {
@@ -2883,7 +2883,7 @@
               "refId": "A"
             }
           ],
-          "title": "TCP connections rate ($instance)",
+          "title": "TCP connections rate",
           "type": "timeseries"
         },
         {
@@ -2993,7 +2993,7 @@
               "refId": "A"
             }
           ],
-          "title": "TCP connections ($instance)",
+          "title": "TCP connections",
           "type": "timeseries"
         },
         {
@@ -3102,7 +3102,7 @@
               "refId": "A"
             }
           ],
-          "title": "CPU spent on GC ($instance)",
+          "title": "CPU spent on GC",
           "type": "timeseries"
         }
       ],
@@ -3244,7 +3244,7 @@
               "refId": "B"
             }
           ],
-          "title": "Churn rate ($instance)",
+          "title": "Churn rate",
           "type": "timeseries"
         },
         {
@@ -3352,7 +3352,7 @@
               "refId": "A"
             }
           ],
-          "title": "Slow inserts ($instance)",
+          "title": "Slow inserts",
           "type": "timeseries"
         },
         {
@@ -3457,7 +3457,7 @@
               "refId": "A"
             }
           ],
-          "title": "Assisted merges ($instance)",
+          "title": "Assisted merges",
           "type": "timeseries"
         },
         {
@@ -3563,7 +3563,7 @@
               "refId": "A"
             }
           ],
-          "title": "Slow queries rate ($instance)",
+          "title": "Slow queries rate",
           "type": "timeseries"
         },
         {
@@ -3665,7 +3665,7 @@
               "refId": "A"
             }
           ],
-          "title": "Cache usage % by type ($instance)",
+          "title": "Cache usage % by type",
           "type": "timeseries"
         },
         {
@@ -3774,7 +3774,7 @@
               "refId": "A"
             }
           ],
-          "title": "Cache miss ratio ($instance)",
+          "title": "Cache miss ratio",
           "type": "timeseries"
         },
         {
@@ -4004,7 +4004,7 @@
               "refId": "A"
             }
           ],
-          "title": "Labels limit exceeded ($instance)",
+          "title": "Labels limit exceeded",
           "type": "timeseries"
         }
       ],
@@ -4137,7 +4137,7 @@
               "refId": "A"
             }
           ],
-          "title": "Datapoints ingestion rate ($instance)",
+          "title": "Datapoints ingestion rate",
           "type": "timeseries"
         },
         {
@@ -4244,7 +4244,7 @@
               "refId": "A"
             }
           ],
-          "title": "Storage full ETA ($instance)",
+          "title": "Storage full ETA",
           "type": "timeseries"
         },
         {
@@ -4378,7 +4378,7 @@
               "refId": "C"
             }
           ],
-          "title": "Disk space usage - datapoints ($instance)",
+          "title": "Disk space usage - datapoints",
           "type": "timeseries"
         },
         {
@@ -4513,7 +4513,7 @@
               "refId": "B"
             }
           ],
-          "title": "Pending datapoints ($instance)",
+          "title": "Pending datapoints",
           "type": "timeseries"
         },
         {
@@ -4650,7 +4650,7 @@
               "refId": "B"
             }
           ],
-          "title": "Datapoints ($instance)",
+          "title": "Datapoints",
           "type": "timeseries"
         },
         {
@@ -4754,7 +4754,7 @@
               "refId": "A"
             }
           ],
-          "title": "LSM parts ($instance)",
+          "title": "LSM parts",
           "type": "timeseries"
         },
         {
@@ -4860,7 +4860,7 @@
               "refId": "A"
             }
           ],
-          "title": "Rows ignored for last 1h ($instance)",
+          "title": "Rows ignored for last 1h",
           "type": "timeseries"
         },
         {
@@ -4961,7 +4961,7 @@
               "refId": "A"
             }
           ],
-          "title": "Active merges ($instance)",
+          "title": "Active merges",
           "type": "timeseries"
         },
         {
@@ -5094,7 +5094,7 @@
               "refId": "B"
             }
           ],
-          "title": "Concurrent flushes on disk ($instance)",
+          "title": "Concurrent flushes on disk",
           "type": "timeseries"
         },
         {
@@ -5197,7 +5197,7 @@
               "refId": "A"
             }
           ],
-          "title": "Merge speed ($instance)",
+          "title": "Merge speed",
           "type": "timeseries"
         },
         {
@@ -5304,7 +5304,7 @@
               "refId": "A"
             }
           ],
-          "title": "Series read per query ($instance)",
+          "title": "Series read per query",
           "type": "timeseries"
         },
         {
@@ -5411,7 +5411,7 @@
               "refId": "A"
             }
           ],
-          "title": "Datapoints read per series ($instance)",
+          "title": "Datapoints read per series",
           "type": "timeseries"
         },
         {
@@ -5518,7 +5518,7 @@
               "refId": "A"
             }
           ],
-          "title": "Datapoints read per query ($instance)",
+          "title": "Datapoints read per query",
           "type": "timeseries"
         },
         {
@@ -5625,7 +5625,7 @@
               "refId": "A"
             }
           ],
-          "title": "Datapoints scanned per query ($instance)",
+          "title": "Datapoints scanned per query",
           "type": "timeseries"
         }
       ],
