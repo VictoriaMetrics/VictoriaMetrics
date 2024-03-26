@@ -29,6 +29,7 @@ type table struct {
 
 	retentionWatcherWG  sync.WaitGroup
 	finalDedupWatcherWG sync.WaitGroup
+	forceMergesWG       sync.WaitGroup
 }
 
 // partitionWrapper provides refcounting mechanism for the partition.
@@ -168,6 +169,7 @@ func (tb *table) MustClose() {
 	close(tb.stop)
 	tb.retentionWatcherWG.Wait()
 	tb.finalDedupWatcherWG.Wait()
+	tb.forceMergesWG.Wait()
 
 	tb.ptwsLock.Lock()
 	ptws := tb.ptws
@@ -242,13 +244,15 @@ func (tb *table) UpdateMetrics(m *TableMetrics) {
 func (tb *table) ForceMergePartitions(partitionNamePrefix string) error {
 	ptws := tb.GetPartitions(nil)
 	defer tb.PutPartitions(ptws)
+	tb.forceMergesWG.Add(1)
+	defer tb.forceMergesWG.Done()
 	for _, ptw := range ptws {
 		if !strings.HasPrefix(ptw.pt.name, partitionNamePrefix) {
 			continue
 		}
 		logger.Infof("starting forced merge for partition %q", ptw.pt.name)
 		startTime := time.Now()
-		if err := ptw.pt.ForceMergeAllParts(); err != nil {
+		if err := ptw.pt.ForceMergeAllParts(tb.stop); err != nil {
 			return fmt.Errorf("cannot complete forced merge for partition %q: %w", ptw.pt.name, err)
 		}
 		logger.Infof("forced merge for partition %q has been finished in %.3f seconds", ptw.pt.name, time.Since(startTime).Seconds())
