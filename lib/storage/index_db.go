@@ -528,9 +528,6 @@ func generateTSID(dst *TSID, mn *MetricName) {
 }
 
 func (is *indexSearch) createGlobalIndexes(tsid *TSID, mn *MetricName) {
-	// The order of index items is important.
-	// It guarantees index consistency.
-
 	ii := getIndexItems()
 	defer putIndexItems(ii)
 
@@ -1656,17 +1653,17 @@ func (db *indexDB) searchMetricNameWithCache(dst []byte, metricID uint64, accoun
 		db.s.missingMetricIDs = nil
 		db.s.missingMetricIDsResetDeadline = ct + 2*60
 	}
-	timestamp, ok := db.s.missingMetricIDs[metricID]
+	deleteDeadline, ok := db.s.missingMetricIDs[metricID]
 	if !ok {
 		if db.s.missingMetricIDs == nil {
 			db.s.missingMetricIDs = make(map[uint64]uint64)
 		}
-		db.s.missingMetricIDs[metricID] = ct
-		timestamp = ct
+		deleteDeadline = ct + 60
+		db.s.missingMetricIDs[metricID] = deleteDeadline
 	}
 	db.s.missingMetricIDsLock.Unlock()
 
-	if ct > timestamp+60 {
+	if ct > deleteDeadline {
 		// Cannot find the MetricName for the given metricID for the last 60 seconds.
 		// It is likely the indexDB contains incomplete set of metricID -> metricName entries
 		// after unclean shutdown or after restoring from a snapshot.

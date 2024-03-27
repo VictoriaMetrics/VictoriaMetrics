@@ -147,9 +147,11 @@ type Storage struct {
 	deletedMetricIDs           atomic.Pointer[uint64set.Set]
 	deletedMetricIDsUpdateLock sync.Mutex
 
-	// missingMetricIDs maps metricID to the timestamp of first unsuccessful lookup
-	// of metricName by the given metricID.
+	// missingMetricIDs maps metricID to the deadline in unix timestamp seconds
+	// after which all the indexdb entries for the given metricID
+	// must be deleted if metricName isn't found by the given metricID.
 	// This is used inside searchMetricNameWithCache() for detecting permanently missing metricID->metricName entries.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5959
 	missingMetricIDsLock          sync.Mutex
 	missingMetricIDs              map[uint64]uint64
 	missingMetricIDsResetDeadline uint64
@@ -1216,7 +1218,7 @@ func (s *Storage) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, 
 		metricName, ok = idb.searchMetricNameWithCache(metricName[:0], metricID, accountID, projectID)
 		if !ok {
 			// Skip missing metricName for metricID.
-			// It should be automatically fixed. See indexDB.searchMetricName for details.
+			// It should be automatically fixed. See indexDB.searchMetricNameWithCache for details.
 			continue
 		}
 		if _, ok := metricNamesSeen[string(metricName)]; ok {
