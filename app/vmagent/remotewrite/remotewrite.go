@@ -51,10 +51,8 @@ var (
 	shardByURLLabels = flagutil.NewArrayString("remoteWrite.shardByURL.labels", "Optional list of labels, which must be used for sharding outgoing samples "+
 		"among remote storage systems if -remoteWrite.shardByURL command-line flag is set. By default all the labels are used for sharding in order to gain "+
 		"even distribution of series over the specified -remoteWrite.url systems")
-	shardByURLExcludeLabels = flagutil.NewArrayString("remoteWrite.shardByURL.excludeLabels", "Optional list of labels to exclude, which must be used for sharding outgoing samples "+
-		"among remote storage systems if -remoteWrite.shardByURL command-line flag is set. By default all the labels are used for sharding in order to gain "+
-		"even distribution of series over the specified -remoteWrite.url systems")
-	tmpDataPath = flag.String("remoteWrite.tmpDataPath", "vmagent-remotewrite-data", "Path to directory for storing pending data, which isn't sent to the configured -remoteWrite.url . "+
+	shardByURLInverseLabels = flag.Bool("remoteWrite.shardByURL.inverseLabels", false, "Inverse the behavior of remoteWrite.shardByURL.labels so that series are sharded using all labels except the ones specified in remoteWrite.shardByURL.labels.")
+	tmpDataPath             = flag.String("remoteWrite.tmpDataPath", "vmagent-remotewrite-data", "Path to directory for storing pending data, which isn't sent to the configured -remoteWrite.url . "+
 		"See also -remoteWrite.maxDiskUsagePerURL and -remoteWrite.disableOnDiskQueue")
 	keepDanglingQueues = flag.Bool("remoteWrite.keepDanglingQueues", false, "Keep persistent queues contents at -remoteWrite.tmpDataPath in case there are no matching -remoteWrite.url. "+
 		"Useful when -remoteWrite.url is changed temporarily and persistent queue files will be needed later on.")
@@ -152,7 +150,6 @@ func InitSecretFlags() {
 }
 
 var shardByURLLabelsMap map[string]struct{}
-var shardByURLExcludeLabelsMap map[string]struct{}
 
 // Init initializes remotewrite.
 //
@@ -202,13 +199,6 @@ func Init() {
 			m[label] = struct{}{}
 		}
 		shardByURLLabelsMap = m
-	}
-	if len(*shardByURLExcludeLabels) > 0 {
-		m := make(map[string]struct{}, len(*shardByURLExcludeLabels))
-		for _, label := range *shardByURLExcludeLabels {
-			m[label] = struct{}{}
-		}
-		shardByURLExcludeLabelsMap = m
 	}
 	initLabelsGlobal()
 
@@ -548,20 +538,14 @@ func tryPushBlockToRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []prompbmar
 		// Shard the data among rwctxs
 		tssByURL := make([][]prompbmarshal.TimeSeries, len(rwctxs))
 		tmpLabels := promutils.GetLabels()
+		inverseLabels := *shardByURLInverseLabels
 		for _, ts := range tssBlock {
 			hashLabels := ts.Labels
 			if len(shardByURLLabelsMap) > 0 {
 				hashLabels = tmpLabels.Labels[:0]
 				for _, label := range ts.Labels {
-					if _, ok := shardByURLLabelsMap[label.Name]; ok {
-						hashLabels = append(hashLabels, label)
-					}
-				}
-			}
-			if len(shardByURLExcludeLabelsMap) > 0 {
-				hashLabels = tmpLabels.Labels[:0]
-				for _, label := range ts.Labels {
-					if _, ok := shardByURLExcludeLabelsMap[label.Name]; !ok {
+					_, ok := shardByURLLabelsMap[label.Name]
+					if ok && !inverseLabels || !ok && inverseLabels {
 						hashLabels = append(hashLabels, label)
 					}
 				}
