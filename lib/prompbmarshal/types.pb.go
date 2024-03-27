@@ -24,9 +24,6 @@ type Exemplar struct {
 
 func (m *Exemplar) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
 	if m.Timestamp != 0 {
 		i = encodeVarint(dAtA, i, uint64(m.Timestamp))
 		i--

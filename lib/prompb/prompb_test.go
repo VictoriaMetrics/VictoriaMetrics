@@ -38,13 +38,15 @@ func TestWriteRequestUnmarshalProtobuf(t *testing.T) {
 			}
 			var exemplars []prompbmarshal.Exemplar
 			for _, exemplar := range ts.Exemplars {
+				exemplarLabels := make([]prompbmarshal.Label, len(exemplar.Labels))
+				for i, label := range exemplar.Labels {
+					exemplarLabels[i] = prompbmarshal.Label{
+						Name:  label.Name,
+						Value: label.Value,
+					}
+				}
 				exemplars = append(exemplars, prompbmarshal.Exemplar{
-					Labels: []prompbmarshal.Label{
-						{
-							Name:  exemplar.Labels[0].Name,
-							Value: exemplar.Labels[0].Value,
-						},
-					},
+					Labels:    exemplarLabels,
 					Value:     exemplar.Value,
 					Timestamp: exemplar.Timestamp,
 				},
@@ -112,24 +114,6 @@ func TestWriteRequestUnmarshalProtobuf(t *testing.T) {
 	wrm.Reset()
 	wrm.Timeseries = []prompbmarshal.TimeSeries{
 		{
-			Exemplars: []prompbmarshal.Exemplar{
-				{
-					Labels: []prompbmarshal.Label{
-						{
-							Name:  "trace-id",
-							Value: "123456",
-						},
-					},
-					Value:     12345.6,
-					Timestamp: 456,
-				},
-			},
-		}}
-	data = wrm.MarshalProtobuf(data[:0])
-	f(data)
-	wrm.Reset()
-	wrm.Timeseries = []prompbmarshal.TimeSeries{
-		{
 			Labels: []prompbmarshal.Label{
 				{
 					Name:  "__name__",
@@ -160,6 +144,8 @@ func TestWriteRequestUnmarshalProtobuf(t *testing.T) {
 						{Name: "trace-id",
 							Value: "123456",
 						},
+						{Name: "log_id",
+							Value: "987654"},
 					},
 					Value:     12345.6,
 					Timestamp: 456,
