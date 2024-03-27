@@ -146,11 +146,10 @@ container_ulimits_soft{container="kube-scheduler",id="/kubelet/kubepods/burstabl
 }
 
 func BenchmarkRowsUnmarshal(b *testing.B) {
-	s := ` cpu_usage{mode="user"} 1.23 # {trace_id="2"} 2 
-cpu_usage{mode="system"} 23.344 # {trace_id="3"} 3
-cpu_usage{mode="iowait"} 3.3443 # {trace_id="4"} 4
-cpu_usage{mode="irq"} 0.34432 # {trace_id="1"} 5
-cpu_usage{mode2="irq"} 0.34432 # {trace_id="1"} 5 1
+	s := `foo_bucket{le="0.01"} 0
+			foo_bucket{le="1"} 11 # {trace_id="KOO5S4vxi0o"} 0.67
+			foo_bucket{le="10"} 17 # {trace_id="oHg5SJYRHA0"} 9.8 1520879607.789
+			foo_bucket{nospace="exemplar"} 17 #{trace_id="oHg5SJYRHA0"} 9.8 1520879607.789 
 `
 	b.SetBytes(int64(len(s)))
 	b.ReportAllocs()
@@ -158,7 +157,7 @@ cpu_usage{mode2="irq"} 0.34432 # {trace_id="1"} 5 1
 		var rows Rows
 		for pb.Next() {
 			rows.Unmarshal(s)
-			if len(rows.Rows) != 5 {
+			if len(rows.Rows) != 4 {
 				panic(fmt.Errorf("unexpected number of rows unmarshaled: got %d; want 4", len(rows.Rows)))
 			}
 		}
