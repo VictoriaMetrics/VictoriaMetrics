@@ -210,7 +210,6 @@ func (tvt *tagsValueTimestamp) reset() {
 }
 func (tvt *tagsValueTimestamp) parse(s string, tagsPool []Tag, noEscapes bool) ([]Tag, error) {
 	n := 0
-	s = skipLeadingWhitespace(s)
 	// Prefix is everything up to a tag start or a space
 	t := strings.IndexByte(s, tagsPrefix)
 	// If there is no tag start process rest of string
@@ -252,6 +251,7 @@ func (tvt *tagsValueTimestamp) parse(s string, tagsPool []Tag, noEscapes bool) (
 			s = s[n:]
 		} else {
 			tvt.Prefix = s
+			return tagsPool, fmt.Errorf("missing value")
 		}
 	}
 	s = skipLeadingWhitespace(s)
