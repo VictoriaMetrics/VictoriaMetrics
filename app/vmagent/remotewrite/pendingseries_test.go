@@ -10,8 +10,8 @@ import (
 
 func TestPushWriteRequest(t *testing.T) {
 	rowsCounts := []int{1, 10, 100, 1e3, 1e4}
-	expectedBlockLensProm := []int{230, 1952, 17433, 180381, 1861994}
-	expectedBlockLensVM := []int{138, 575, 4748, 44936, 367096}
+	expectedBlockLensProm := []int{248, 1952, 17433, 180381, 1861994}
+	expectedBlockLensVM := []int{170, 575, 4748, 44936, 367096}
 	for i, rowsCount := range rowsCounts {
 		expectedBlockLenProm := expectedBlockLensProm[i]
 		expectedBlockLenVM := expectedBlockLensVM[i]
@@ -64,6 +64,10 @@ func newTestWriteRequest(seriesCount, labelsCount int) *prompbmarshal.WriteReque
 				{
 					Name:  "trace_id",
 					Value: "123456",
+				},
+				{
+					Name:  "log_id",
+					Value: "987654",
 				},
 			},
 			Value:     float64(i),
