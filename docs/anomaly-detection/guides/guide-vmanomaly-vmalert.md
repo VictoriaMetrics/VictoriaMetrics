@@ -215,7 +215,7 @@ Selecting an appropriate threshold for the anomaly score depends on your specifi
 
 ## 8. Docker Compose configuration
 
-You can find the `docker-compose.yml` and all configs in this [folder](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/vmanomaly/vmanomaly-vmalert-guide/)
+You can find the `docker-compose.yml` and all configs in this [folder](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/vmanomaly/vmanomaly-integration/)
 
 Now we are going to configure the `docker-compose.yml` file to run all needed services.
 Here are all services we are going to run:

@@ -15052,7 +15052,6 @@ type ObjectsRestoreCall struct {
 	s          *Service
 	bucket     string
 	object     string
-	object2    *Object
 	urlParams_ gensupport.URLParams
 	ctx_       context.Context
 	header_    http.Header
@@ -15064,11 +15063,10 @@ type ObjectsRestoreCall struct {
 //   - generation: Selects a specific revision of this object.
 //   - object: Name of the object. For information about how to URL encode
 //     object names to be path safe, see Encoding URI Path Parts.
-func (r *ObjectsService) Restore(bucket string, object string, object2 *Object) *ObjectsRestoreCall {
+func (r *ObjectsService) Restore(bucket string, object string) *ObjectsRestoreCall {
 	c := &ObjectsRestoreCall{s: r.s, urlParams_: make(gensupport.URLParams)}
 	c.bucket = bucket
 	c.object = object
-	c.object2 = object2
 	return c
 }
 
@@ -15168,11 +15166,6 @@ func (c *ObjectsRestoreCall) doRequest(alt string) (*http.Response, error) {
 	}
 	reqHeaders.Set("User-Agent", c.s.userAgent())
 	var body io.Reader = nil
-	body, err := googleapi.WithoutDataWrapper.JSONReader(c.object2)
-	if err != nil {
-		return nil, err
-	}
-	reqHeaders.Set("Content-Type", "application/json")
 	c.urlParams_.Set("alt", alt)
 	c.urlParams_.Set("prettyPrint", "false")
 	urls := googleapi.ResolveRelative(c.s.BasePath, "b/{bucket}/o/{object}/restore")
@@ -15303,9 +15296,6 @@ func (c *ObjectsRestoreCall) Do(opts ...googleapi.CallOption) (*Object, error) {
 	//     }
 	//   },
 	//   "path": "b/{bucket}/o/{object}/restore",
-	//   "request": {
-	//     "$ref": "Object"
-	//   },
 	//   "response": {
 	//     "$ref": "Object"
 	//   },

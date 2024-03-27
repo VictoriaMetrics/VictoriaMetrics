@@ -80,6 +80,8 @@ var (
 		"Excess series are logged and dropped. This can be useful for limiting series cardinality. See https://docs.victoriametrics.com/vmagent.html#cardinality-limiter")
 	maxDailySeries = flag.Int("remoteWrite.maxDailySeries", 0, "The maximum number of unique series vmagent can send to remote storage systems during the last 24 hours. "+
 		"Excess series are logged and dropped. This can be useful for limiting series churn rate. See https://docs.victoriametrics.com/vmagent.html#cardinality-limiter")
+	maxIngestionRate = flag.Int("maxIngestionRate", 0, "The maximum number of samples vmagent can receive per second. "+
+		"If the limit is exceeded, the ingestion rate will be throttled.")
 
 	streamAggrConfig = flagutil.NewArrayString("remoteWrite.streamAggr.config", "Optional path to file with stream aggregation config. "+
 		"See https://docs.victoriametrics.com/stream-aggregation.html . "+
@@ -92,6 +94,8 @@ var (
 		"are written to the corresponding -remoteWrite.url . See also -remoteWrite.streamAggr.keepInput and https://docs.victoriametrics.com/stream-aggregation.html")
 	streamAggrDedupInterval = flagutil.NewArrayDuration("remoteWrite.streamAggr.dedupInterval", 0, "Input samples are de-duplicated with this interval before optional aggregation "+
 		"with -remoteWrite.streamAggr.config . See also -dedup.minScrapeInterval and https://docs.victoriametrics.com/stream-aggregation.html#deduplication")
+	streamAggrIgnoreOldSamples = flagutil.NewArrayBool("remoteWrite.streamAggr.ignoreOldSamples", "Whether to ignore input samples with old timestamps outside the current aggregation interval "+
+		"for the corresponding -remoteWrite.streamAggr.config . See https://docs.victoriametrics.com/stream-aggregation.html#ignoring-old-samples")
 	streamAggrDropInputLabels = flagutil.NewArrayString("streamAggr.dropInputLabels", "An optional list of labels to drop from samples "+
 		"before stream de-duplication and aggregation . See https://docs.victoriametrics.com/stream-aggregation.html#dropping-unneeded-labels")
 
@@ -175,6 +179,12 @@ func Init() {
 		_ = metrics.NewGauge(`vmagent_daily_series_limit_current_series`, func() float64 {
 			return float64(dailySeriesLimiter.CurrentItems())
 		})
+	}
+	if *maxIngestionRate > 0 {
+		// Start ingestion rate limiter.
+		ingestionRateLimitReached = metrics.NewCounter(`vmagent_max_ingestion_rate_limit_reached_total`)
+		ingestionRateLimiterStopCh = make(chan struct{})
+		ingestionRateLimiter = newRateLimiter(time.Second, int64(*maxIngestionRate), ingestionRateLimitReached, ingestionRateLimiterStopCh)
 	}
 	if *queues > maxQueues {
 		*queues = maxQueues
@@ -344,6 +354,9 @@ var configReloaderWG sync.WaitGroup
 //
 // It is expected that nobody calls TryPush during and after the call to this func.
 func Stop() {
+	if ingestionRateLimiterStopCh != nil {
+		close(ingestionRateLimiterStopCh)
+	}
 	close(configReloaderStopCh)
 	configReloaderWG.Wait()
 
@@ -466,6 +479,9 @@ func tryPush(at *auth.Token, wr *prompbmarshal.WriteRequest, dropSamplesOnFailur
 				break
 			}
 		}
+
+		ingestionRateLimiter.register(samplesCount)
+
 		tssBlock := tss
 		if i < len(tss) {
 			tssBlock = tss[:i]
@@ -610,6 +626,10 @@ func limitSeriesCardinality(tss []prompbmarshal.TimeSeries) []prompbmarshal.Time
 }
 
 var (
+	ingestionRateLimiter       *rateLimiter
+	ingestionRateLimiterStopCh chan struct{}
+	ingestionRateLimitReached  *metrics.Counter
+
 	hourlySeriesLimiter *bloomfilter.Limiter
 	dailySeriesLimiter  *bloomfilter.Limiter
 
@@ -745,10 +765,12 @@ func newRemoteWriteCtx(argIdx int, remoteWriteURL *url.URL, maxInmemoryBlocks in
 	// Initialize sas
 	sasFile := streamAggrConfig.GetOptionalArg(argIdx)
 	dedupInterval := streamAggrDedupInterval.GetOptionalArg(argIdx)
+	ignoreOldSamples := streamAggrIgnoreOldSamples.GetOptionalArg(argIdx)
 	if sasFile != "" {
 		opts := &streamaggr.Options{
-			DedupInterval:   dedupInterval,
-			DropInputLabels: *streamAggrDropInputLabels,
+			DedupInterval:    dedupInterval,
+			DropInputLabels:  *streamAggrDropInputLabels,
+			IgnoreOldSamples: ignoreOldSamples,
 		}
 		sas, err := streamaggr.LoadFromFile(sasFile, rwctx.pushInternalTrackDropped, opts)
 		if err != nil {
@@ -916,7 +938,9 @@ func (rwctx *remoteWriteCtx) reinitStreamAggr() {
 	logger.Infof("reloading stream aggregation configs pointed by -remoteWrite.streamAggr.config=%q", sasFile)
 	metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reloads_total{path=%q}`, sasFile)).Inc()
 	opts := &streamaggr.Options{
-		DedupInterval: streamAggrDedupInterval.GetOptionalArg(rwctx.idx),
+		DedupInterval:    streamAggrDedupInterval.GetOptionalArg(rwctx.idx),
+		DropInputLabels:  *streamAggrDropInputLabels,
+		IgnoreOldSamples: streamAggrIgnoreOldSamples.GetOptionalArg(rwctx.idx),
 	}
 	sasNew, err := streamaggr.LoadFromFile(sasFile, rwctx.pushInternalTrackDropped, opts)
 	if err != nil {
@@ -961,7 +985,9 @@ func CheckStreamAggrConfigs() error {
 			continue
 		}
 		opts := &streamaggr.Options{
-			DedupInterval: streamAggrDedupInterval.GetOptionalArg(idx),
+			DedupInterval:    streamAggrDedupInterval.GetOptionalArg(idx),
+			DropInputLabels:  *streamAggrDropInputLabels,
+			IgnoreOldSamples: streamAggrIgnoreOldSamples.GetOptionalArg(idx),
 		}
 		sas, err := streamaggr.LoadFromFile(sasFile, pushNoop, opts)
 		if err != nil {

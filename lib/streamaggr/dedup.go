@@ -181,8 +181,7 @@ func (das *dedupAggrShard) pushSamples(samples []pushSample) {
 			}
 			continue
 		}
-		// update the existing value according to logic described in
-		// https://docs.victoriametrics.com/#deduplication
+		// Update the existing value according to logic described at https://docs.victoriametrics.com/#deduplication
 		if sample.timestamp > s.timestamp || (sample.timestamp == s.timestamp && sample.value > s.value) {
 			m[sample.key] = dedupAggrSample{
 				value:     sample.value,
@@ -209,8 +208,9 @@ func (das *dedupAggrShard) flush(ctx *dedupFlushCtx, f func(samples []pushSample
 	dstSamples := ctx.samples
 	for key, s := range m {
 		dstSamples = append(dstSamples, pushSample{
-			key:   key,
-			value: s.value,
+			key:       key,
+			value:     s.value,
+			timestamp: s.timestamp,
 		})
 
 		// Limit the number of samples per each flush in order to limit memory usage.

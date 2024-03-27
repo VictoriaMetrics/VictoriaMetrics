@@ -911,15 +911,18 @@ func getHTTPAuthBasicToken(username, password string) string {
 func getAuthTokensFromRequest(r *http.Request) []string {
 	var ats []string
 
-	// Obtain possible auth tokens from Authorization header
-	if ah := r.Header.Get("Authorization"); ah != "" {
-		if strings.HasPrefix(ah, "Token ") {
-			// Handle InfluxDB's proprietary token authentication scheme as a bearer token authentication
-			// See https://docs.influxdata.com/influxdb/v2.0/api/
-			ah = strings.Replace(ah, "Token", "Bearer", 1)
+	// Obtain possible auth tokens from one of allowed auth headers
+	for _, headerName := range authHeaders {
+		if ah := r.Header.Get(headerName); ah != "" {
+			if strings.HasPrefix(ah, "Token ") {
+				// Handle InfluxDB's proprietary token authentication scheme as a bearer token authentication
+				// See https://docs.influxdata.com/influxdb/v2.0/api/
+				ah = strings.Replace(ah, "Token", "Bearer", 1)
+			}
+			at := "http_auth:" + ah
+			ats = append(ats, at)
+			break
 		}
-		at := "http_auth:" + ah
-		ats = append(ats, at)
 	}
 
 	return ats

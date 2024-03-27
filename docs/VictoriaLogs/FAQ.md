@@ -10,6 +10,7 @@ menu:
     title: FAQ
 aliases:
 - /VictoriaLogs/FAQ.html
+- /VictoriaLogs/faq.html
 ---
 
 # VictoriaLogs FAQ

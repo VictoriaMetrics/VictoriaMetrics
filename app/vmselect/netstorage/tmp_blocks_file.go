@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -107,7 +108,7 @@ func (tbf *tmpBlocksFile) WriteBlockRefData(b []byte) (tmpBlockAddr, error) {
 
 	// Slow path: flush the data from tbf.buf to file.
 	if tbf.f == nil {
-		f, err := os.CreateTemp(tmpBlocksDir, "")
+		f, err := createTemp(tmpBlocksDir)
 		if err != nil {
 			return addr, err
 		}
@@ -120,6 +121,21 @@ func (tbf *tmpBlocksFile) WriteBlockRefData(b []byte) (tmpBlockAddr, error) {
 		return addr, fmt.Errorf("cannot write block to %q: %w", tbf.f.Name(), err)
 	}
 	return addr, nil
+}
+
+// createTemp creates new temporary file in the path dir.
+// If path doesn't exist, it will try creating it.
+func createTemp(path string) (*os.File, error) {
+	f, err := os.CreateTemp(path, "")
+	if err == nil {
+		return f, nil
+	}
+	if os.IsNotExist(err) || strings.Contains(err.Error(), "no such file or directory") {
+		// try re-creating the path and trying again
+		fs.MustMkdirIfNotExist(path)
+		return os.CreateTemp(path, "")
+	}
+	return nil, err
 }
 
 // Len() returnt tbf size in bytes.

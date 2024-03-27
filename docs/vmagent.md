@@ -1803,6 +1803,8 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero values disable the rate limit
   -maxConcurrentInserts int
      The maximum number of concurrent insert requests. Default value should work for most cases, since it minimizes the memory usage. The default value can be increased when clients send data over slow networks. See also -insert.maxQueueDuration (default 32)
+  -maxIngestionRate int
+     The maximum number of samples vmagent can receive per second. If the limit is exceeded, the ingestion rate will be throttled (default 0)
   -maxInsertRequestSize size
      The maximum size in bytes of a single Prometheus remote_write API request
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 33554432)
@@ -2123,6 +2125,10 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      Empty values are set to default value.
   -remoteWrite.streamAggr.dropInput array
      Whether to drop all the input samples after the aggregation with -remoteWrite.streamAggr.config. By default, only aggregates samples are dropped, while the remaining samples are written to the corresponding -remoteWrite.url . See also -remoteWrite.streamAggr.keepInput and https://docs.victoriametrics.com/stream-aggregation.html
+     Supports array of values separated by comma or specified via multiple flags.
+     Empty values are set to false.
+  -remoteWrite.streamAggr.ignoreOldSamples array
+     Whether to ignore input samples with old timestamps outside the current aggregation interval for the corresponding -remoteWrite.streamAggr.config . See https://docs.victoriametrics.com/stream-aggregation.html#ignoring-old-samples
      Supports array of values separated by comma or specified via multiple flags.
      Empty values are set to false.
   -remoteWrite.streamAggr.keepInput array

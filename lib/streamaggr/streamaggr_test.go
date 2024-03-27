@@ -254,13 +254,14 @@ func TestAggregatorsSuccess(t *testing.T) {
   outputs: [count_samples, sum_samples, count_series, last]
 `, `
 foo{abc="123"} 4
-bar 5
+bar 5 100
+bar 34 10
 foo{abc="123"} 8.5
 foo{abc="456",de="fg"} 8
-`, `bar:1m_count_samples 1
+`, `bar:1m_count_samples 2
 bar:1m_count_series 1
 bar:1m_last 5
-bar:1m_sum_samples 5
+bar:1m_sum_samples 39
 foo:1m_count_samples{abc="123"} 2
 foo:1m_count_samples{abc="456",de="fg"} 1
 foo:1m_count_series{abc="123"} 1
@@ -269,7 +270,7 @@ foo:1m_last{abc="123"} 8.5
 foo:1m_last{abc="456",de="fg"} 8
 foo:1m_sum_samples{abc="123"} 12.5
 foo:1m_sum_samples{abc="456",de="fg"} 8
-`, "1111")
+`, "11111")
 
 	// Special case: __name__ in `by` list - this is the same as empty `by` list
 	f(`
@@ -519,14 +520,14 @@ foo:1m_total 0
   outputs: [total]
 `, `
 foo 123
-bar{baz="qwe"} 1.32
-bar{baz="qwe"} 4.34
+bar{baz="qwe"} 1.31
+bar{baz="qwe"} 4.34 1000
 bar{baz="qwe"} 2
 foo{baz="qwe"} -5
 bar{baz="qwer"} 343
 bar{baz="qwer"} 344
 foo{baz="qwe"} 10
-`, `bar:1m_total{baz="qwe"} 5.02
+`, `bar:1m_total{baz="qwe"} 3.03
 bar:1m_total{baz="qwer"} 1
 foo:1m_total 0
 foo:1m_total{baz="qwe"} 15

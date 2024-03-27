@@ -19,8 +19,6 @@ import (
 	"runtime"
 	"strings"
 	"text/template"
-
-	"github.com/prometheus/client_golang/prometheus"
 )
 
 // Build information. Populated at build-time.
@@ -34,33 +32,6 @@ var (
 	GoOS      = runtime.GOOS
 	GoArch    = runtime.GOARCH
 )
-
-// Deprecated: Use github.com/prometheus/client_golang/prometheus/collectors/version.NewCollector instead.
-//
-// NewCollector returns a collector that exports metrics about current version
-// information.
-func NewCollector(program string) prometheus.Collector {
-	return prometheus.NewGaugeFunc(
-		prometheus.GaugeOpts{
-			Namespace: program,
-			Name:      "build_info",
-			Help: fmt.Sprintf(
-				"A metric with a constant '1' value labeled by version, revision, branch, goversion from which %s was built, and the goos and goarch for the build.",
-				program,
-			),
-			ConstLabels: prometheus.Labels{
-				"version":   Version,
-				"revision":  GetRevision(),
-				"branch":    Branch,
-				"goversion": GoVersion,
-				"goos":      GoOS,
-				"goarch":    GoArch,
-				"tags":      GetTags(),
-			},
-		},
-		func() float64 { return 1 },
-	)
-}
 
 // versionInfoTmpl contains the template used by Info.
 var versionInfoTmpl = `

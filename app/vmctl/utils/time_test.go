@@ -1,4 +1,4 @@
-package main
+package utils
 
 import (
 	"testing"
@@ -165,7 +165,7 @@ func TestGetTime(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := parseTime(tt.s)
+			got, err := ParseTime(tt.s)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ParseTime() error = %v, wantErr %v", err, tt.wantErr)
 				return

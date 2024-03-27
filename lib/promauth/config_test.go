@@ -538,8 +538,8 @@ func TestParseHeadersSuccess(t *testing.T) {
 		}
 	}
 	f(nil)
-	f([]string{"foo: bar"})
-	f([]string{"Foo: bar", "A-b-c: d-e-f"})
+	f([]string{"Foo: bar"})
+	f([]string{"Foo: bar", "A-B-C: d-e-f"})
 }
 
 func TestParseHeadersFailure(t *testing.T) {
@@ -590,6 +590,6 @@ func TestConfigHeaders(t *testing.T) {
 		}
 	}
 	f(nil, "")
-	f([]string{"foo: bar"}, "foo: bar\r\n")
+	f([]string{"foo: bar"}, "Foo: bar\r\n")
 	f([]string{"Foo-Bar: Baz s:sdf", "A:b", "X-Forwarded-For: A-B:c"}, "Foo-Bar: Baz s:sdf\r\nA: b\r\nX-Forwarded-For: A-B:c\r\n")
 }

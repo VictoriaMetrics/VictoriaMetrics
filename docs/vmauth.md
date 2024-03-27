@@ -245,6 +245,7 @@ See [load-balancing docs](#load-balancing) for more details.
 * `-tls` enables accepting TLS connections at `-httpListenAddr`
 * `-tlsKeyFile` sets the path to TLS certificate key file
 * `-tlsCertFile` sets the path to TLS certificate file
+* `-extraAuthHeader` sets alternative headers for auth
 
 ### Basic Auth proxy
 
