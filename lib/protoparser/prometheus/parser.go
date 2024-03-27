@@ -57,7 +57,8 @@ func (rs *Rows) UnmarshalWithErrLogger(s string, errLogger func(s string)) {
 	rs.Rows, rs.tagsPool = unmarshalRows(rs.Rows[:0], s, rs.tagsPool[:0], noEscapes, errLogger)
 }
 
-const exemplarPrefix = "# {"
+const tagsPrefix = '{'
+const exemplarPreifx = '{'
 
 /*
 Exemplar Support
@@ -74,6 +75,13 @@ type Exemplar struct {
 	Timestamp int64
 }
 
+// Reset - resets the Exemplar object to defaults
+func (e *Exemplar) Reset() {
+	e.Tags = nil
+	e.Value = 0.
+	e.Timestamp = 0
+}
+
 // Row is a single Prometheus row.
 type Row struct {
 	Metric    string
@@ -88,6 +96,7 @@ func (r *Row) reset() {
 	r.Tags = nil
 	r.Value = 0
 	r.Timestamp = 0
+	r.Exemplar = Exemplar{}
 }
 
 func skipTrailingComment(s string) string {
@@ -136,26 +145,29 @@ type tagParser struct {
 func (t *tagParser) reset() {
 	t.tags = t.tags[:0]
 }
-func (t *tagParser) parse(s string, noEscapes bool) (string, error) {
-	n := strings.IndexByte(s, '{')
+func (t *tagParser) parse(s string, tagsPool []Tag, noEscapes bool) (string, []Tag, error) {
+	n := strings.IndexByte(s, tagsPrefix)
 	c := strings.IndexByte(s, '#')
 	if c != -1 && c < n {
-		return s, nil
+		return s, tagsPool, nil
 	}
+	s = skipLeadingWhitespace(s)
 	if n >= 0 {
 		// Tags found. Parse them.
 		s = s[n+1:]
 		var err error
-		s, t.tags, err = unmarshalTags(t.tags, s, noEscapes)
+		startTags := len(tagsPool)
+		s, tagsPool, err = unmarshalTags(tagsPool, s, noEscapes)
+		t.tags = tagsPool[startTags:]
 		if err != nil {
-			return s, fmt.Errorf("cannot unmarshal tags: %w", err)
+			return s, tagsPool, fmt.Errorf("cannot unmarshal tags: %w", err)
 		}
 		if len(s) > 0 && s[0] == ' ' {
 			// Fast path - skip whitespace.
 			s = s[1:]
 		}
 	}
-	return s, nil
+	return s, tagsPool, nil
 
 }
 
@@ -196,11 +208,11 @@ func (tvt *tagsValueTimestamp) reset() {
 	tvt.Tags = tvt.Tags[:0]
 	tvt.Comments = ""
 }
-func (tvt *tagsValueTimestamp) parse(s string, noEscapes bool) error {
+func (tvt *tagsValueTimestamp) parse(s string, tagsPool []Tag, noEscapes bool) ([]Tag, error) {
 	n := 0
 	s = skipLeadingWhitespace(s)
 	// Prefix is everything up to a tag start or a space
-	t := strings.IndexByte(s, '{')
+	t := strings.IndexByte(s, tagsPrefix)
 	// If there is no tag start process rest of string
 	mustParseTags := false
 	if t != -1 {
@@ -225,12 +237,11 @@ func (tvt *tagsValueTimestamp) parse(s string, noEscapes bool) error {
 		if mustParseTags {
 			tagParser := getTagParser()
 			var err error
-			s, err = tagParser.parse(s, noEscapes)
+			s, tagsPool, err = tagParser.parse(s, tagsPool, noEscapes)
 			if err != nil {
-				return err
+				return tagsPool, err
 			}
-			tagsLen := len(tagParser.tags)
-			tvt.Tags = tagParser.tags[:tagsLen:tagsLen]
+			tvt.Tags = tagParser.tags[0:]
 			putTagParser(tagParser)
 		}
 	} else {
@@ -248,6 +259,11 @@ func (tvt *tagsValueTimestamp) parse(s string, noEscapes bool) error {
 	n = strings.IndexByte(s, '#')
 	if n >= 0 {
 		tvt.Comments = s[n:]
+		if len(tvt.Comments) > 1 {
+			tvt.Comments = s[n+1:]
+		} else {
+			tvt.Comments = ""
+		}
 		s = skipTrailingComment(s)
 		s = skipLeadingWhitespace(s)
 		s = skipTrailingWhitespace(s)
@@ -257,16 +273,16 @@ func (tvt *tagsValueTimestamp) parse(s string, noEscapes bool) error {
 		// There is no timestamp.
 		v, err := fastfloat.Parse(s)
 		if err != nil {
-			return fmt.Errorf("cannot parse value %q: %w", s, err)
+			return tagsPool, fmt.Errorf("cannot parse value %q: %w", s, err)
 		}
 		tvt.Value = v
-		return nil
+		return tagsPool, nil
 	}
 	// There is a timestamp
 	s = skipLeadingWhitespace(s)
 	v, err := fastfloat.Parse(s[:n])
 	if err != nil {
-		return fmt.Errorf("cannot parse value %q: %w", s[:n], err)
+		return tagsPool, fmt.Errorf("cannot parse value %q: %w", s[:n], err)
 	}
 	tvt.Value = v
 	s = s[n:]
@@ -274,11 +290,12 @@ func (tvt *tagsValueTimestamp) parse(s string, noEscapes bool) error {
 	s = skipLeadingWhitespace(s)
 	if len(s) == 0 {
 		// There is no timestamp - just a whitespace after the value.
-		return nil
+		return tagsPool, nil
 	}
+	s = skipTrailingWhitespace(s)
 	ts, err := fastfloat.Parse(s)
 	if err != nil {
-		return fmt.Errorf("cannot parse timestamp %q: %w", s, err)
+		return tagsPool, fmt.Errorf("cannot parse timestamp %q: %w", s, err)
 	}
 	if ts >= -1<<31 && ts < 1<<31 {
 		// This looks like OpenMetrics timestamp in Unix seconds.
@@ -288,39 +305,61 @@ func (tvt *tagsValueTimestamp) parse(s string, noEscapes bool) error {
 		ts *= 1000
 	}
 	tvt.Timestamp = int64(ts)
-	return nil
+	return tagsPool, nil
+}
+
+// Returns possible comments that could be exemplars
+func (r *Row) unmarshalMetric(s string, tagsPool []Tag, noEscapes bool) (string, []Tag, error) {
+	tvt := getTVT()
+	defer putTVT(tvt)
+	tagsPool, err := tvt.parse(s, tagsPool, noEscapes)
+	if err != nil {
+		return "", tagsPool, err
+	}
+	r.Metric = tvt.Prefix
+	if len(tvt.Tags) > 0 {
+		r.Tags = tvt.Tags
+	}
+	r.Value = tvt.Value
+	r.Timestamp = tvt.Timestamp
+	return tvt.Comments, tagsPool, nil
+
+}
+func (e *Exemplar) unmarshal(s string, tagsPool []Tag, noEscapes bool) ([]Tag, error) {
+	// We can use the Comment parsed out to further parse the Exemplar
+	s = skipLeadingWhitespace(s)
+	// If we are a comment immediately followed by whitespace or a labelset
+	// then we are an exemplar
+	if len(s) != 0 && s[0] == exemplarPreifx {
+		tvt := getTVT()
+		defer putTVT(tvt)
+		var err error
+		tagsPool, err = tvt.parse(s, tagsPool, noEscapes)
+		if err != nil {
+			return tagsPool, err
+		}
+		if len(tvt.Tags) > 0 {
+			e.Tags = tvt.Tags
+		}
+		e.Value = tvt.Value
+		e.Timestamp = tvt.Timestamp
+		return tagsPool, nil
+	}
+	return tagsPool, nil
+
 }
 func (r *Row) unmarshal(s string, tagsPool []Tag, noEscapes bool) ([]Tag, error) {
 	r.reset()
 	// Parse for labels, the value and the timestamp
 	// Anything before labels is saved in Prefix we can use this
 	// for the metric name
-	tvt := getTVT()
-	defer putTVT(tvt)
-	err := tvt.parse(s, noEscapes)
+	comments, tagsPool, err := r.unmarshalMetric(s, tagsPool, noEscapes)
 	if err != nil {
 		return nil, err
 	}
-	tagsPool = append(tagsPool, tvt.Tags...)
-	r.Metric = tvt.Prefix
-	r.Tags = append(r.Tags, tvt.Tags...)
-	r.Value = tvt.Value
-	r.Timestamp = tvt.Timestamp
-
-	// We can use the Comment parsed out to further parse the Exemplar
-	if strings.HasPrefix(tvt.Comments, exemplarPrefix) {
-		s = skipLeadingWhitespace(tvt.Comments)
-		// Skip comment
-		s = s[1:]
-		exemplarTVT := getTVT()
-		defer putTVT(exemplarTVT)
-		err := exemplarTVT.parse(s, noEscapes)
-		if err != nil {
-			return nil, err
-		}
-		r.Exemplar.Tags = exemplarTVT.Tags
-		r.Exemplar.Value = exemplarTVT.Value
-		r.Exemplar.Timestamp = exemplarTVT.Timestamp
+	tagsPool, err = r.Exemplar.unmarshal(comments, tagsPool, noEscapes)
+	if err != nil {
+		return nil, err
 	}
 	return tagsPool, nil
 }
