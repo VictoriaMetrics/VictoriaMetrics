@@ -250,7 +250,7 @@ func (tvt *tagsValueTimestamp) parse(s string, tagsPool []Tag, noEscapes bool) (
 		}
 	}
 	s = skipLeadingWhitespace(s)
-	// log and remove the comments
+	// save and remove the comments
 	n = strings.IndexByte(s, '#')
 	if n >= 0 {
 		tvt.Comments = s[n:]
