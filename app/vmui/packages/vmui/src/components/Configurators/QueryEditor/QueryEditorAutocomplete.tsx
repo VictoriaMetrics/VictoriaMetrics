@@ -45,7 +45,7 @@ const QueryEditorAutocomplete: FC<QueryEditorAutocompleteProps> = ({
   const context = useMemo(() => {
     if (!value || value.endsWith("}")) return QueryContextType.empty;
 
-    const labelRegexp = /\{[^}]*?(\w+)*$/gm;
+    const labelRegexp = /\{[^}]*$/;
     const labelValueRegexp = new RegExp(`(${escapeRegexp(metric)})?{?.+${escapeRegexp(label)}(=|!=|=~|!~)"?([^"]*)$`, "g");
 
     switch (true) {

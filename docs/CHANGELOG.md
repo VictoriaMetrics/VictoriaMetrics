@@ -54,6 +54,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 * BUGFIX: do not drop `match[]` filter at [`/api/v1/series`](https://docs.victoriametrics.com/url-examples/#apiv1series) if `-search.ignoreExtraFiltersAtLabelsAPI` command-line flag is set, since missing `match[]` filter breaks `/api/v1/series` requests.
 * BUGFIX: [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/): take into account sample timestamp during [deduplication](https://docs.victoriametrics.com/stream-aggregation/#deduplication). If multiple samples have the same timestamp on the configured deduplication interval, then the sample with the biggest value is kept. The logic is aligned with [`-dedup.minScrapeInterval`](https://docs.victoriametrics.com/#deduplication).
+* BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix freezing when pasting a query with autocomplete enabled. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5923).
 
 ## [v1.99.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.99.0)
 
