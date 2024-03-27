@@ -910,12 +910,12 @@ func (sw *scrapeWork) addRowToTimeseries(wc *writeRequestCtx, r *parser.Row, tim
 	// Add Exemplars to Timeseries
 	exemplarsLen := len(wc.exemplars)
 	if len(r.Exemplar.Tags) > 0 {
-		exemplarLabels := []prompbmarshal.Label{}
-		for _, label := range r.Exemplar.Tags {
-			exemplarLabels = append(exemplarLabels, prompbmarshal.Label{
+		exemplarLabels := make([]prompbmarshal.Label, len(r.Exemplar.Tags))
+		for i, label := range r.Exemplar.Tags {
+			exemplarLabels[i] = prompbmarshal.Label{
 				Name:  label.Key,
 				Value: label.Value,
-			})
+			}
 		}
 		wc.exemplars = append(wc.exemplars, prompbmarshal.Exemplar{
 			Labels:    exemplarLabels,
