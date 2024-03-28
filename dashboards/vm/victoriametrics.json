@@ -959,11 +959,11 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(rate(vm_rows_inserted_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (type) > 0",
+          "expr": "sum(rate(vm_rows_inserted_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (type, instance) > 0",
           "format": "time_series",
           "hide": false,
           "intervalFactor": 1,
-          "legendFormat": "__auto",
+          "legendFormat": "{{instance}} - {{type}}",
           "range": true,
           "refId": "A"
         }
@@ -1069,11 +1069,11 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(rate(vm_http_requests_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (path) > 0",
+          "expr": "sum(rate(vm_http_requests_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (path, instance) > 0",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 1,
-          "legendFormat": "{{path}}",
+          "legendFormat": "{{instance}} - {{path}}",
           "range": true,
           "refId": "A"
         }
@@ -1182,10 +1182,12 @@
             "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
+          "editorMode": "code",
           "expr": "vm_cache_entries{job=~\"$job\", instance=~\"$instance\", type=\"storage/hour_metric_ids\"}",
           "format": "time_series",
           "intervalFactor": 1,
-          "legendFormat": "Active time series",
+          "legendFormat": "{{instance}} - Active time series",
+          "range": true,
           "refId": "A"
         }
       ],
@@ -1290,10 +1292,10 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "max(vm_request_duration_seconds{job=~\"$job\", instance=~\"$instance\", quantile=\"0.99\"}) by (path) > 0",
+          "expr": "max(vm_request_duration_seconds{job=~\"$job\", instance=~\"$instance\", quantile=\"0.99\"}) by (instance, path) > 0",
           "format": "time_series",
           "intervalFactor": 1,
-          "legendFormat": "__auto",
+          "legendFormat": "{{instance}} - {{path}}",
           "range": true,
           "refId": "A"
         }
@@ -1393,11 +1395,11 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(rate(vm_http_request_errors_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (path) > 0",
+          "expr": "sum(rate(vm_http_request_errors_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (instance, path) > 0",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 1,
-          "legendFormat": "__auto",
+          "legendFormat": "{{instance}} - {{path}}",
           "range": true,
           "refId": "A"
         }
@@ -1494,9 +1496,9 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(rate(vm_log_messages_total{job=~\"$job\", instance=~\"$instance\", level!=\"info\"}[$__rate_interval])) by (level, location) > 0",
+          "expr": "sum(rate(vm_log_messages_total{job=~\"$job\", instance=~\"$instance\", level!=\"info\"}[$__rate_interval])) by (instance, level, location) > 0",
           "interval": "5m",
-          "legendFormat": "{{level}}: {{location}}",
+          "legendFormat": "{{instance}} - {{level}}: {{location}}",
           "range": true,
           "refId": "A"
         }
@@ -1724,11 +1726,13 @@
                 "type": "victoriametrics-datasource",
                 "uid": "$ds"
               },
-              "expr": "sum(go_memstats_sys_bytes{job=~\"$job\", instance=~\"$instance\"}) + sum(vm_cache_size_bytes{job=~\"$job\", instance=~\"$instance\"})",
+              "editorMode": "code",
+              "expr": "sum(go_memstats_sys_bytes{job=~\"$job\", instance=~\"$instance\"}) by (instance) + sum(vm_cache_size_bytes{job=~\"$job\", instance=~\"$instance\"}) by (instance)",
               "format": "time_series",
               "hide": false,
               "intervalFactor": 1,
-              "legendFormat": "requested from system",
+              "legendFormat": "{{instance}} - requested from system",
+              "range": true,
               "refId": "A"
             },
             {
@@ -1736,11 +1740,13 @@
                 "type": "victoriametrics-datasource",
                 "uid": "$ds"
               },
-              "expr": "sum(go_memstats_heap_inuse_bytes{job=~\"$job\", instance=~\"$instance\"}) + sum(vm_cache_size_bytes{job=~\"$job\", instance=~\"$instance\"})",
+              "editorMode": "code",
+              "expr": "sum(go_memstats_heap_inuse_bytes{job=~\"$job\", instance=~\"$instance\"}) by (instance) + sum(vm_cache_size_bytes{job=~\"$job\", instance=~\"$instance\"}) by (instance)",
               "format": "time_series",
               "hide": false,
               "intervalFactor": 1,
-              "legendFormat": "heap inuse",
+              "legendFormat": "{{instance}} - heap inuse",
+              "range": true,
               "refId": "B"
             },
             {
@@ -1748,11 +1754,13 @@
                 "type": "victoriametrics-datasource",
                 "uid": "$ds"
               },
-              "expr": "sum(go_memstats_stack_inuse_bytes{job=~\"$job\", instance=~\"$instance\"})",
+              "editorMode": "code",
+              "expr": "sum(go_memstats_stack_inuse_bytes{job=~\"$job\", instance=~\"$instance\"}) by (instance)",
               "format": "time_series",
               "hide": false,
               "intervalFactor": 1,
-              "legendFormat": "stack inuse",
+              "legendFormat": "{{instance}} - stack inuse",
+              "range": true,
               "refId": "C"
             },
             {
@@ -1760,12 +1768,14 @@
                 "type": "victoriametrics-datasource",
                 "uid": "$ds"
               },
-              "expr": "sum(process_resident_memory_bytes{job=~\"$job\", instance=~\"$instance\"})",
+              "editorMode": "code",
+              "expr": "sum(process_resident_memory_bytes{job=~\"$job\", instance=~\"$instance\"}) by (instance)",
               "format": "time_series",
               "hide": false,
               "interval": "",
               "intervalFactor": 1,
-              "legendFormat": "resident",
+              "legendFormat": "{{instance}} - resident",
+              "range": true,
               "refId": "D"
             },
             {
@@ -1773,13 +1783,15 @@
                 "type": "victoriametrics-datasource",
                 "uid": "$ds"
               },
+              "editorMode": "code",
               "exemplar": false,
-              "expr": "sum(process_resident_memory_anon_bytes{job=~\"$job\", instance=~\"$instance\"})",
+              "expr": "sum(process_resident_memory_anon_bytes{job=~\"$job\", instance=~\"$instance\"}) by (instance)",
               "format": "time_series",
               "hide": false,
               "interval": "",
               "intervalFactor": 1,
-              "legendFormat": "resident anonymous",
+              "legendFormat": "{{instance}} - resident anonymous",
+              "range": true,
               "refId": "E"
             }
           ],
@@ -2489,12 +2501,14 @@
                 "type": "victoriametrics-datasource",
                 "uid": "$ds"
               },
-              "expr": "sum(rate(process_io_storage_read_bytes_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
+              "editorMode": "code",
+              "expr": "sum(rate(process_io_storage_read_bytes_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (instance)",
               "format": "time_series",
               "hide": false,
               "interval": "",
               "intervalFactor": 1,
-              "legendFormat": "read",
+              "legendFormat": "{{instance}} - read",
+              "range": true,
               "refId": "A"
             },
             {
@@ -2502,12 +2516,14 @@
                 "type": "victoriametrics-datasource",
                 "uid": "$ds"
               },
-              "expr": "sum(rate(process_io_storage_written_bytes_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
+              "editorMode": "code",
+              "expr": "sum(rate(process_io_storage_written_bytes_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (instance)",
               "format": "time_series",
               "hide": false,
               "interval": "",
               "intervalFactor": 1,
-              "legendFormat": "write",
+              "legendFormat": "{{instance}} - write",
+              "range": true,
               "refId": "B"
             }
           ],
@@ -2733,12 +2749,12 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(rate(process_io_read_syscalls_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
+              "expr": "sum(rate(process_io_read_syscalls_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (instance)",
               "format": "time_series",
               "hide": false,
               "interval": "",
               "intervalFactor": 1,
-              "legendFormat": "read calls",
+              "legendFormat": "{{instance}} - read calls",
               "range": true,
               "refId": "A"
             },
@@ -2748,12 +2764,12 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(rate(process_io_write_syscalls_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
+              "expr": "sum(rate(process_io_write_syscalls_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (instance)",
               "format": "time_series",
               "hide": false,
               "interval": "",
               "intervalFactor": 1,
-              "legendFormat": "write calls",
+              "legendFormat": "{{instance}} - write calls",
               "range": true,
               "refId": "B"
             }
@@ -3209,9 +3225,11 @@
                 "type": "victoriametrics-datasource",
                 "uid": "$ds"
               },
-              "expr": "sum(rate(vm_new_timeseries_created_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
+              "editorMode": "code",
+              "expr": "sum(rate(vm_new_timeseries_created_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (instance)",
               "interval": "",
-              "legendFormat": "churn rate",
+              "legendFormat": "{{instance}} - churn rate",
+              "range": true,
               "refId": "A"
             },
             {
@@ -3219,9 +3237,11 @@
                 "type": "victoriametrics-datasource",
                 "uid": "$ds"
               },
-              "expr": "sum(increase(vm_new_timeseries_created_total{job=~\"$job\", instance=~\"$instance\"}[24h]))",
+              "editorMode": "code",
+              "expr": "sum(increase(vm_new_timeseries_created_total{job=~\"$job\", instance=~\"$instance\"}[24h])) by (instance)",
               "interval": "",
-              "legendFormat": "new series over 24h",
+              "legendFormat": "{{instance}} - new series over 24h",
+              "range": true,
               "refId": "B"
             }
           ],
@@ -3323,12 +3343,12 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "max(\n    rate(vm_slow_row_inserts_total{job=~\"$job\"}[$__rate_interval]) \n    / rate(vm_rows_added_to_storage_total{job=~\"$job\"}[$__rate_interval])\n)",
+              "expr": "max(\n    rate(vm_slow_row_inserts_total{job=~\"$job\"}[$__rate_interval]) \n    / rate(vm_rows_added_to_storage_total{job=~\"$job\"}[$__rate_interval])\n) by (instance)",
               "format": "time_series",
               "hide": false,
               "interval": "",
               "intervalFactor": 1,
-              "legendFormat": "slow inserts percentage",
+              "legendFormat": "{{instance}} - slow inserts percentage",
               "range": true,
               "refId": "A"
             }
@@ -3429,11 +3449,11 @@
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "sum(increase(vm_assisted_merges_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(type) > 0",
+              "expr": "sum(increase(vm_assisted_merges_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(instance, type) > 0",
               "format": "time_series",
               "interval": "5m",
               "intervalFactor": 1,
-              "legendFormat": "__auto",
+              "legendFormat": "{{instance}} - {{type}}",
               "range": true,
               "refId": "A"
             }
@@ -3534,11 +3554,13 @@
                 "type": "victoriametrics-datasource",
                 "uid": "$ds"
               },
-              "expr": "sum(rate(vm_slow_queries_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
+              "editorMode": "code",
+              "expr": "sum(rate(vm_slow_queries_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (instance)",
               "format": "time_series",
               "hide": false,
               "intervalFactor": 1,
-              "legendFormat": "slow queries rate",
+              "legendFormat": "{{instance}} - slow queries rate",
+              "range": true,
               "refId": "A"
             }
           ],
@@ -3639,7 +3661,7 @@
               "exemplar": false,
               "expr": "vm_cache_size_bytes{job=~\"$job\", instance=~\"$instance\"} / vm_cache_size_max_bytes{job=~\"$job\", instance=~\"$instance\"}",
               "interval": "",
-              "legendFormat": "{{type}}",
+              "legendFormat": "{{instance}} - {{type}}",
               "range": true,
               "refId": "A"
             }
@@ -3748,7 +3770,7 @@
               "hide": false,
               "interval": "",
               "intervalFactor": 1,
-              "legendFormat": "{{type}}",
+              "legendFormat": "{{instance}} - {{type}}",
               "range": true,
               "refId": "A"
             }
@@ -3973,12 +3995,13 @@
                 "uid": "$ds"
               },
               "exemplar": false,
-              "expr": "sum(increase(vm_metrics_with_dropped_labels_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
+              "expr": "sum(increase(vm_metrics_with_dropped_labels_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (instance)",
               "format": "time_series",
               "hide": false,
               "interval": "",
               "intervalFactor": 1,
-              "legendFormat": "limit exceeded",
+              "legendFormat": "{{instance}} - limit exceeded",
+              "range": true,
               "refId": "A"
             }
           ],
@@ -4106,11 +4129,11 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(rate(vm_rows_inserted_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (type) > 0",
+              "expr": "sum(rate(vm_rows_inserted_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (instance, type) > 0",
               "format": "time_series",
               "hide": false,
               "intervalFactor": 1,
-              "legendFormat": "{{type}}",
+              "legendFormat": "{{instance}} - {{type}}",
               "range": true,
               "refId": "A"
             }
@@ -4319,11 +4342,11 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\", type!~\"indexdb.*\"})",
+              "expr": "sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\", type!~\"indexdb.*\"}) by (instance)",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
-              "legendFormat": "Used (datapoints)",
+              "legendFormat": "{{instance}} - Used (datapoints)",
               "range": true,
               "refId": "A"
             },
@@ -4336,7 +4359,8 @@
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
-              "legendFormat": "Free",
+              "legendFormat": "{{instance}} - Free",
+              "range": true,
               "refId": "B"
             },
             {
@@ -4345,12 +4369,12 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\", type=~\"indexdb.*\"})",
+              "expr": "sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\", type=~\"indexdb.*\"}) by (instance)",
               "format": "time_series",
               "hide": false,
               "interval": "",
               "intervalFactor": 1,
-              "legendFormat": "Used (index)",
+              "legendFormat": "{{instance}} - Used (index)",
               "range": true,
               "refId": "C"
             }
@@ -4472,7 +4496,8 @@
               "format": "time_series",
               "hide": false,
               "intervalFactor": 1,
-              "legendFormat": "pending datapoints",
+              "legendFormat": "{{instance}} - pending datapoints",
+              "range": true,
               "refId": "A"
             },
             {
@@ -4484,7 +4509,8 @@
               "format": "time_series",
               "hide": false,
               "intervalFactor": 1,
-              "legendFormat": "pending index entries",
+              "legendFormat": "{{instance}} - pending index entries",
+              "range": true,
               "refId": "B"
             }
           ],
@@ -4601,11 +4627,13 @@
                 "type": "victoriametrics-datasource",
                 "uid": "$ds"
               },
-              "expr": "sum(vm_rows{job=~\"$job\", instance=~\"$instance\", type!~\"indexdb.*\"})",
+              "editorMode": "code",
+              "expr": "sum(vm_rows{job=~\"$job\", instance=~\"$instance\", type!~\"indexdb.*\"}) by (instance)",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
-              "legendFormat": "total datapoints",
+              "legendFormat": "{{instance}} - total datapoints",
+              "range": true,
               "refId": "A"
             },
             {
@@ -4614,11 +4642,11 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\"}) \n/ sum(vm_rows{job=~\"$job\", instance=~\"$instance\", type!~\"indexdb.*\"})",
+              "expr": "sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\"}) by (instance)\n/ sum(vm_rows{job=~\"$job\", instance=~\"$instance\", type!~\"indexdb.*\"}) by (instance)",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
-              "legendFormat": "bytes-per-datapoint",
+              "legendFormat": "{{instance}} - bytes-per-datapoint",
               "range": true,
               "refId": "B"
             }
@@ -4718,10 +4746,12 @@
                 "type": "victoriametrics-datasource",
                 "uid": "$ds"
               },
-              "expr": "sum(vm_parts{job=~\"$job\", instance=~\"$instance\"}) by (type)",
+              "editorMode": "code",
+              "expr": "sum(vm_parts{job=~\"$job\", instance=~\"$instance\"}) by (instance, type)",
               "format": "time_series",
               "intervalFactor": 1,
-              "legendFormat": "{{type}}",
+              "legendFormat": "{{instance}} - {{type}}",
+              "range": true,
               "refId": "A"
             }
           ],
@@ -4821,12 +4851,12 @@
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "sum(increase(vm_rows_ignored_total{job=~\"$job\", instance=~\"$instance\"}[1h])) by (reason)",
+              "expr": "sum(increase(vm_rows_ignored_total{job=~\"$job\", instance=~\"$instance\"}[1h])) by (instance, reason)",
               "format": "time_series",
               "hide": false,
               "interval": "",
               "intervalFactor": 1,
-              "legendFormat": "{{reason}}",
+              "legendFormat": "{{instance}} - {{reason}}",
               "range": true,
               "refId": "A"
             }
@@ -4925,8 +4955,10 @@
                 "type": "victoriametrics-datasource",
                 "uid": "$ds"
               },
-              "expr": "sum(vm_active_merges{job=~\"$job\", instance=~\"$instance\"}) by(type)",
-              "legendFormat": "{{type}}",
+              "editorMode": "code",
+              "expr": "sum(vm_active_merges{job=~\"$job\", instance=~\"$instance\"}) by(instance, type)",
+              "legendFormat": "{{instance}} - {{type}}",
+              "range": true,
               "refId": "A"
             }
           ],
@@ -5045,7 +5077,7 @@
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
-              "legendFormat": "max",
+              "legendFormat": "{{instance}} - max",
               "range": true,
               "refId": "A"
             },
@@ -5054,10 +5086,12 @@
                 "type": "victoriametrics-datasource",
                 "uid": "$ds"
               },
-              "expr": "sum(vm_concurrent_insert_current{job=~\"$job\", instance=~\"$instance\"})",
+              "editorMode": "code",
+              "expr": "sum(vm_concurrent_insert_current{job=~\"$job\", instance=~\"$instance\"}) by (instance)",
               "format": "time_series",
               "intervalFactor": 1,
-              "legendFormat": "current",
+              "legendFormat": "{{instance}} - current",
+              "range": true,
               "refId": "B"
             }
           ],
@@ -5157,8 +5191,10 @@
                 "type": "victoriametrics-datasource",
                 "uid": "$ds"
               },
-              "expr": "sum(rate(vm_rows_merged_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(type)",
-              "legendFormat": "{{type}}",
+              "editorMode": "code",
+              "expr": "sum(rate(vm_rows_merged_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(instance, type)",
+              "legendFormat": "{{instance}} - {{type}}",
+              "range": true,
               "refId": "A"
             }
           ],
@@ -5684,6 +5720,7 @@
         "useTags": false
       },
       {
+        "allValue": ".*",
         "current": {},
         "datasource": {
           "type": "victoriametrics-datasource",
@@ -5691,8 +5728,8 @@
         },
         "definition": "label_values(vm_app_version{job=~\"$job\"}, instance)",
         "hide": 0,
-        "includeAll": false,
-        "multi": false,
+        "includeAll": true,
+        "multi": true,
         "name": "instance",
         "options": [],
         "query": {
