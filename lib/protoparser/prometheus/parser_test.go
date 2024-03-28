@@ -362,12 +362,87 @@ cassandra_token_ownership_ratio 78.9`, &Rows{
 			Value: 56,
 		}},
 	})
-
-	// Exemplars - see https://github.com/OpenObservability/OpenMetrics/blob/master/OpenMetrics.md#exemplars-1
-	f(`foo_bucket{le="10",a="#b"} 17 # {trace_id="oHg5SJ#YRHA0"} 9.8 1520879607.789
-	   abc 123 456 # foobar
-	   foo   344#bar`, &Rows{
+	// Support for Exemplars Open Metric Specification
+	// see: https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md#exemplars-1
+	f(`foo_bucket{le="25"} 17 # {trace_id="oHg5SJYRHA0", log_id="test_id"} 9.8 1520879607.789`, &Rows{
 		Rows: []Row{
+			{
+				Metric: "foo_bucket",
+				Tags: []Tag{
+					{
+						Key:   "le",
+						Value: "25",
+					},
+				},
+				Value: 17,
+				Exemplar: Exemplar{
+					Value: 9.8,
+					Tags: []Tag{
+						{
+							Key:   "trace_id",
+							Value: "oHg5SJYRHA0",
+						},
+						{
+							Key:   "log_id",
+							Value: "test_id",
+						},
+					},
+					Timestamp: 1520879607789,
+				},
+			},
+		}})
+	f(`foo_bucket{le="0.01"} 0
+foo_bucket{le="0.1"} 8 # {} 0.054
+foo_bucket{le="1"} 11 # {trace_id="KOO5S4vxi0o"} 0.67
+foo_bucket{le="10"} 17 # {trace_id="oHg5SJYRHA0"} 9.8 1520879607.789
+foo_bucket{le="25"} 17 # {trace_id="oHg5SJYRHA0", log_id="test_id"} 9.8 1520879607.789
+foo_bucket{nospace="exemplar"} 17 #{trace_id="oHg5SJYRHA0"} 9.8 1520879607.789
+foo_bucket{le="+Inf"} 17
+foo_count 17
+foo_sum 324789.3
+foo_created  1520430000.123`, &Rows{
+		Rows: []Row{
+			{
+				Metric: "foo_bucket",
+				Tags: []Tag{
+					{
+						Key:   "le",
+						Value: "0.01",
+					},
+				},
+			},
+			{
+				Metric: "foo_bucket",
+				Tags: []Tag{
+					{
+						Key:   "le",
+						Value: "0.1",
+					},
+				},
+				Value: 8,
+				Exemplar: Exemplar{
+					Value: 0.054,
+				},
+			},
+			{
+				Metric: "foo_bucket",
+				Tags: []Tag{
+					{
+						Key:   "le",
+						Value: "1",
+					},
+				},
+				Value: 11,
+				Exemplar: Exemplar{
+					Value: 0.67,
+					Tags: []Tag{
+						{
+							Key:   "trace_id",
+							Value: "KOO5S4vxi0o",
+						},
+					},
+				},
+			},
 			{
 				Metric: "foo_bucket",
 				Tags: []Tag{
@@ -375,21 +450,84 @@ cassandra_token_ownership_ratio 78.9`, &Rows{
 						Key:   "le",
 						Value: "10",
 					},
+				},
+				Value: 17,
+				Exemplar: Exemplar{
+					Value: 9.8,
+					Tags: []Tag{
+						{
+							Key:   "trace_id",
+							Value: "oHg5SJYRHA0",
+						},
+					},
+					Timestamp: 1520879607789,
+				},
+			},
+			{
+				Metric: "foo_bucket",
+				Tags: []Tag{
 					{
-						Key:   "a",
-						Value: "#b",
+						Key:   "le",
+						Value: "25",
+					},
+				},
+				Value: 17,
+				Exemplar: Exemplar{
+					Value: 9.8,
+					Tags: []Tag{
+						{
+							Key:   "trace_id",
+							Value: "oHg5SJYRHA0",
+						},
+						{
+							Key:   "log_id",
+							Value: "test_id",
+						},
+					},
+					Timestamp: 1520879607789,
+				},
+			},
+			{
+				Metric: "foo_bucket",
+				Tags: []Tag{
+					{
+						Key:   "nospace",
+						Value: "exemplar",
+					},
+				},
+				Value: 17,
+				Exemplar: Exemplar{
+					Value: 9.8,
+					Tags: []Tag{
+						{
+							Key:   "trace_id",
+							Value: "oHg5SJYRHA0",
+						},
+					},
+					Timestamp: 1520879607789,
+				},
+			},
+			{
+				Metric: "foo_bucket",
+				Tags: []Tag{
+					{
+						Key:   "le",
+						Value: "+Inf",
 					},
 				},
 				Value: 17,
 			},
 			{
-				Metric:    "abc",
-				Value:     123,
-				Timestamp: 456000,
+				Metric: "foo_count",
+				Value:  17,
 			},
 			{
-				Metric: "foo",
-				Value:  344,
+				Metric: "foo_sum",
+				Value:  324789.3,
+			},
+			{
+				Metric: "foo_created",
+				Value:  1520430000.123,
 			},
 		},
 	})

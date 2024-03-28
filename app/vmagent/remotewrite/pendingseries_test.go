@@ -10,8 +10,8 @@ import (
 
 func TestPushWriteRequest(t *testing.T) {
 	rowsCounts := []int{1, 10, 100, 1e3, 1e4}
-	expectedBlockLensProm := []int{216, 1848, 16424, 169882, 1757876}
-	expectedBlockLensVM := []int{138, 492, 3927, 34995, 288476}
+	expectedBlockLensProm := []int{248, 1952, 17433, 180381, 1861994}
+	expectedBlockLensVM := []int{170, 575, 4748, 44936, 367096}
 	for i, rowsCount := range rowsCounts {
 		expectedBlockLenProm := expectedBlockLensProm[i]
 		expectedBlockLenVM := expectedBlockLensVM[i]
@@ -59,6 +59,20 @@ func newTestWriteRequest(seriesCount, labelsCount int) *prompbmarshal.WriteReque
 				Value: fmt.Sprintf("value_%d_%d", i, j),
 			})
 		}
+		exemplar := prompbmarshal.Exemplar{
+			Labels: []prompbmarshal.Label{
+				{
+					Name:  "trace_id",
+					Value: "123456",
+				},
+				{
+					Name:  "log_id",
+					Value: "987654",
+				},
+			},
+			Value:     float64(i),
+			Timestamp: 1000 * int64(i),
+		}
 		wr.Timeseries = append(wr.Timeseries, prompbmarshal.TimeSeries{
 			Labels: labels,
 			Samples: []prompbmarshal.Sample{
@@ -66,6 +80,10 @@ func newTestWriteRequest(seriesCount, labelsCount int) *prompbmarshal.WriteReque
 					Value:     float64(i),
 					Timestamp: 1000 * int64(i),
 				},
+			},
+
+			Exemplars: []prompbmarshal.Exemplar{
+				exemplar,
 			},
 		})
 	}

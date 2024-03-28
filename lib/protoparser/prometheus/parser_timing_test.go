@@ -146,10 +146,10 @@ container_ulimits_soft{container="kube-scheduler",id="/kubelet/kubepods/burstabl
 }
 
 func BenchmarkRowsUnmarshal(b *testing.B) {
-	s := `cpu_usage{mode="user"} 1.23
-cpu_usage{mode="system"} 23.344
-cpu_usage{mode="iowait"} 3.3443
-cpu_usage{mode="irq"} 0.34432
+	s := `foo_bucket{le="0.01"} 0
+			foo_bucket{le="1"} 11 # {trace_id="KOO5S4vxi0o"} 0.67
+			foo_bucket{le="10"} 17 # {trace_id="oHg5SJYRHA0"} 9.8 1520879607.789
+			foo_bucket{nospace="exemplar"} 17 #{trace_id="oHg5SJYRHA0"} 9.8 1520879607.789 
 `
 	b.SetBytes(int64(len(s)))
 	b.ReportAllocs()
