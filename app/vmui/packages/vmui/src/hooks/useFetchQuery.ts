@@ -12,7 +12,8 @@ import { useTimeState } from "../state/time/TimeStateContext";
 import { useCustomPanelState } from "../state/customPanel/CustomPanelStateContext";
 import { isHistogramData } from "../utils/metric";
 import { useGraphState } from "../state/graph/GraphStateContext";
-import { getStepFromDuration } from "../utils/time";
+import { getSecondsFromDuration, getStepFromDuration } from "../utils/time";
+import { AppType } from "../types/appType";
 
 interface FetchQueryParams {
   predefinedQuery?: string[]
@@ -47,13 +48,15 @@ interface FetchDataParams {
   hideQuery?: number[]
 }
 
+const isAnomalyUI = AppType.anomaly === process.env.REACT_APP_TYPE;
+
 export const useFetchQuery = ({
   predefinedQuery,
   visible,
   display,
   customStep,
   hideQuery,
-  showAllSeries
+  showAllSeries,
 }: FetchQueryParams): FetchQueryReturn => {
   const { query } = useQueryState();
   const { period } = useTimeState();
@@ -124,7 +127,7 @@ export const useFetchQuery = ({
             tempTraces.push(trace);
           }
 
-          isHistogramResult = isDisplayChart && isHistogramData(resp.data.result);
+          isHistogramResult = !isAnomalyUI && isDisplayChart && isHistogramData(resp.data.result);
           seriesLimit = isHistogramResult ? Infinity : defaultLimit;
           const freeTempSize = seriesLimit - tempData.length;
           resp.data.result.slice(0, freeTempSize).forEach((d: MetricBase) => {
@@ -172,7 +175,7 @@ export const useFetchQuery = ({
       setQueryErrors(expr.map(() => ErrorTypes.validQuery));
     } else if (isValidHttpUrl(serverUrl)) {
       const updatedPeriod = { ...period };
-      updatedPeriod.step = customStep;
+      updatedPeriod.step = isAnomalyUI ? `${getSecondsFromDuration(customStep)*1000}ms` : customStep;
       return expr.map(q => displayChart
         ? getQueryRangeUrl(serverUrl, q, updatedPeriod, nocache, isTracingEnabled)
         : getQueryUrl(serverUrl, q, updatedPeriod, nocache, isTracingEnabled));
