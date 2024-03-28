@@ -34,6 +34,11 @@ func (wr *WriteRequest) Reset() {
 		samplesPool[i] = Sample{}
 	}
 	wr.samplesPool = samplesPool[:0]
+	exemplarsPool := wr.exemplarsPool
+	for i := range exemplarsPool {
+		exemplarsPool[i] = Exemplar{}
+	}
+	wr.exemplarsPool = exemplarsPool[:0]
 }
 
 // Exemplar Support
