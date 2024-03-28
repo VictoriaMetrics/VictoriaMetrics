@@ -45,7 +45,7 @@ func BenchmarkAggregatorsFlushSerial(b *testing.B) {
 	}
 	pushFunc := func(tss []prompbmarshal.TimeSeries) {}
 	a := newBenchAggregators(outputs, pushFunc)
-	defer a.MustStop()
+	defer a.MustStop(nil)
 	_ = a.Push(benchSeries, nil)
 
 	b.ResetTimer()
@@ -61,7 +61,7 @@ func BenchmarkAggregatorsFlushSerial(b *testing.B) {
 func benchmarkAggregatorsPush(b *testing.B, output string) {
 	pushFunc := func(tss []prompbmarshal.TimeSeries) {}
 	a := newBenchAggregators([]string{output}, pushFunc)
-	defer a.MustStop()
+	defer a.MustStop(nil)
 
 	const loops = 100
 
