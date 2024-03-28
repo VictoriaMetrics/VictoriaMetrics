@@ -55,7 +55,7 @@ func (ctx *streamContext) Read() bool {
 	if ctx.err != nil || ctx.hasCallbackError() {
 		return false
 	}
-	ctx.reqBuf, ctx.tailBuf, ctx.err = common.ReadLinesBlock(ctx.br, ctx.reqBuf, ctx.tailBuf)
+	ctx.reqBuf, ctx.tailBuf, ctx.err = common.ReadBlock(ctx.br, ctx.reqBuf, ctx.tailBuf, false)
 	if ctx.err != nil {
 		if ctx.err != io.EOF {
 			readErrors.Inc()

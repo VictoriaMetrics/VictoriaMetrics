@@ -1,6 +1,7 @@
 package promremotewrite
 
 import (
+	"math"
 	"net/http"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/common"
@@ -45,7 +46,11 @@ func insertRows(timeseries []prompb.TimeSeries, extraLabels []prompbmarshal.Labe
 		rowsTotal += len(ts.Samples)
 		ctx.Labels = ctx.Labels[:0]
 		srcLabels := ts.Labels
+		var nameIndex int
 		for _, srcLabel := range srcLabels {
+			if srcLabel.Name == "__name__" {
+				nameIndex = len(ctx.Labels)
+			}
 			ctx.AddLabel(srcLabel.Name, srcLabel.Value)
 		}
 		for j := range extraLabels {
@@ -68,6 +73,57 @@ func insertRows(timeseries []prompb.TimeSeries, extraLabels []prompbmarshal.Labe
 			metricNameRaw, err = ctx.WriteDataPointExt(metricNameRaw, ctx.Labels, r.Timestamp, r.Value)
 			if err != nil {
 				return err
+			}
+		}
+		exemplars := ts.Exemplars
+		for i := range exemplars {
+			r := &exemplars[i]
+			labels := append(ctx.Labels, r.Labels...)
+			metricNameRaw, err = ctx.WriteDataPointExt(metricNameRaw, labels, r.Timestamp, r.Value)
+			if err != nil {
+				return err
+			}
+		}
+		histograms := ts.Histograms
+		for i := range histograms {
+			r := &histograms[i]
+			count := float64(r.Count)
+			if count == 0 {
+				count = r.CountFloat
+			}
+			metricPrefix := ctx.Labels[nameIndex].Value
+			ctx.Labels[nameIndex].Value = metricPrefix + "_count"
+			_, err = ctx.WriteDataPointExt(nil, ctx.Labels, r.Timestamp, count)
+			if err != nil {
+				return err
+			}
+			ctx.Labels[nameIndex].Value = metricPrefix + "_sum"
+			_, err = ctx.WriteDataPointExt(nil, ctx.Labels, r.Timestamp, r.Sum)
+			if err != nil {
+				return err
+			}
+			ctx.Labels[nameIndex].Value = metricPrefix + "_bucket"
+			ratio := math.Pow(2, math.Pow(2, -float64(r.Schema)))
+			var lowerBound float64 = 1
+			var upperBound float64 = 1
+			var value float64
+
+			vmRangeIndex := len(ctx.Labels)
+			ctx.AddLabel("vmrange", "...")
+			vmRanges := make(map[string]float64)
+			for s := range r.PositiveSpans {
+				span := r.PositiveSpans[s]
+				upperBound = upperBound * math.Pow(ratio, float64(span.Offset-1))
+				for l := 0; l < int(span.Length); l++ {
+					value += float64(r.PositiveDeltas[l+s])
+					lowerBound = upperBound
+					upperBound = lowerBound * ratio
+					metrics.ConvertToVMRange(vmRanges, value, lowerBound, upperBound)
+				}
+			}
+			for vmRange, vmValue := range vmRanges {
+				ctx.Labels[vmRangeIndex].Value = vmRange
+				_, err = ctx.WriteDataPointExt(nil, ctx.Labels, r.Timestamp, vmValue)
 			}
 		}
 	}

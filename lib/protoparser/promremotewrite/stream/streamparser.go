@@ -78,6 +78,8 @@ func Parse(r io.Reader, isVMRemoteWrite bool, callback func(tss []prompb.TimeSer
 	tss := wr.Timeseries
 	for i := range tss {
 		rows += len(tss[i].Samples)
+		rows += len(tss[i].Exemplars)
+		rows += len(tss[i].Histograms)
 	}
 	rowsRead.Add(rows)
 
