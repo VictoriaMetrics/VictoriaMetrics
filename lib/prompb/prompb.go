@@ -41,14 +41,13 @@ func (wr *WriteRequest) Reset() {
 	wr.exemplarsPool = exemplarsPool[:0]
 }
 
-// Exemplar Support
-// Labels: a list of labels that uniquely identifies exemplar
-// Value: the value of the exemplar
-// Timestamp: the time the exemplar was recorded
+// Exemplar is an exemplar
 type Exemplar struct {
+	// Labels a list of labels that uniquely identifies exemplar
 	// Optional, can be empty.
 	Labels []Label
-	Value  float64
+	// Value: the value of the exemplar
+	Value float64
 	// timestamp is in ms format, see model/timestamp/timestamp.go for
 	// conversion from time.Time to Prometheus timestamp.
 	Timestamp  int64
@@ -132,7 +131,7 @@ func (ts *TimeSeries) unmarshalProtobuf(src []byte, labelsPool []Label, samplesP
 	// message TimeSeries {
 	//   repeated Label labels   = 1;
 	//   repeated Sample samples = 2;
-	// 	 repeated Exemplar exemplars = 3
+	//   repeated Exemplar exemplars = 3
 	// }
 	labelsPoolLen := len(labelsPool)
 	samplesPoolLen := len(samplesPool)
