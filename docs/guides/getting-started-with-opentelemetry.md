@@ -97,7 +97,7 @@ In our example, we'll create a WEB server in [Golang](https://go.dev/) and instr
 
 ### Building the Go application instrumented with metrics
 
-See the full source code of the example [here](/guides/getting-started-with-opentelemetry-app.go).
+See the full source code of the example [here](/guides/getting-started-with-opentelemetry-app.go.example).
 
 The list of OpenTelemetry dependencies for `go.mod` is the following:
 
@@ -244,7 +244,7 @@ func newMetricsController(ctx context.Context) (*controller.Controller, error) {
 
 This controller will collect and push collected metrics to VictoriaMetrics address with interval of `10s`.
 
-See the full source code of the example [here](/guides/getting-started-with-opentelemetry-app.go).
+See the full source code of the example [here](/guides/getting-started-with-opentelemetry-app.go.example).
 
 ### Test metrics ingestion
 
