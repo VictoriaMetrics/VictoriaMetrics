@@ -49,8 +49,7 @@ func TestWriteRequestUnmarshalProtobuf(t *testing.T) {
 					Labels:    exemplarLabels,
 					Value:     exemplar.Value,
 					Timestamp: exemplar.Timestamp,
-				},
-				)
+				})
 			}
 			wrm.Timeseries = append(wrm.Timeseries, prompbmarshal.TimeSeries{
 				Labels:    labels,
