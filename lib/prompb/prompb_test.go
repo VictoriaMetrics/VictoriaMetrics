@@ -145,7 +145,7 @@ func TestWriteRequestUnmarshalProtobuf(t *testing.T) {
 							Value: "123456",
 						},
 						{Name: "log_id",
-							Value: "987654"},
+							Value: "987664"},
 					},
 					Value:     12345.6,
 					Timestamp: 456,
@@ -214,6 +214,10 @@ func TestWriteRequestUnmarshalProtobuf(t *testing.T) {
 						{
 							Name:  "trace-id",
 							Value: "123456",
+						},
+						{
+							Name:  "log_id",
+							Value: "987654",
 						},
 					},
 					Value:     12345.6,
