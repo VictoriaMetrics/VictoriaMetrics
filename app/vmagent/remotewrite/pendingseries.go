@@ -277,6 +277,8 @@ func tryPushWriteRequest(wr *prompbmarshal.WriteRequest, tryPushBlock func(block
 	if len(wr.Timeseries) == 1 {
 		// A single time series left. Recursively split its samples into smaller parts if possible.
 		samples := wr.Timeseries[0].Samples
+		exemplars := wr.Timeseries[0].Exemplars
+
 		if len(samples) == 1 {
 			logger.Warnf("dropping a sample for metric with too long labels exceeding -remoteWrite.maxBlockSize=%d bytes", maxUnpackedBlockSize.N)
 			return true
@@ -288,11 +290,15 @@ func tryPushWriteRequest(wr *prompbmarshal.WriteRequest, tryPushBlock func(block
 			return false
 		}
 		wr.Timeseries[0].Samples = samples[n:]
+		// We do not want to send exemplars twice
+		wr.Timeseries[0].Exemplars = nil
+
 		if !tryPushWriteRequest(wr, tryPushBlock, isVMRemoteWrite) {
 			wr.Timeseries[0].Samples = samples
 			return false
 		}
 		wr.Timeseries[0].Samples = samples
+		wr.Timeseries[0].Exemplars = exemplars
 		return true
 	}
 	timeseries := wr.Timeseries
