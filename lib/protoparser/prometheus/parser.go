@@ -132,15 +132,7 @@ func nextWhitespace(s string) int {
 	return n1
 }
 
-type tagParser struct {
-	tags []Tag
-}
-
-// Resets values to default for tagParser
-func (t *tagParser) reset() {
-	t.tags = t.tags[:0]
-}
-func (t *tagParser) parse(s string, tagsPool []Tag, noEscapes bool) (string, []Tag, error) {
+func parseStringToTags(s string, tagsPool []Tag, noEscapes bool) (string, []Tag, error) {
 	n := strings.IndexByte(s, tagsPrefix)
 	c := strings.IndexByte(s, '#')
 	if c != -1 && c < n {
@@ -151,9 +143,7 @@ func (t *tagParser) parse(s string, tagsPool []Tag, noEscapes bool) (string, []T
 		// Tags found. Parse them.
 		s = s[n+1:]
 		var err error
-		startTags := len(tagsPool)
 		s, tagsPool, err = unmarshalTags(tagsPool, s, noEscapes)
-		t.tags = tagsPool[startTags:]
 		if err != nil {
 			return s, tagsPool, fmt.Errorf("cannot unmarshal tags: %w", err)
 		}
@@ -163,14 +153,10 @@ func (t *tagParser) parse(s string, tagsPool []Tag, noEscapes bool) (string, []T
 		}
 	}
 	return s, tagsPool, nil
-
 }
 
 var tvtPool = sync.Pool{New: func() interface{} {
 	return &tagsValueTimestamp{}
-}}
-var tagParserPool = sync.Pool{New: func() interface{} {
-	return &tagParser{}
 }}
 
 func getTVT() *tagsValueTimestamp {
@@ -179,13 +165,6 @@ func getTVT() *tagsValueTimestamp {
 func putTVT(tvt *tagsValueTimestamp) {
 	tvt.reset()
 	tvtPool.Put(tvt)
-}
-func getTagParser() *tagParser {
-	return tagParserPool.Get().(*tagParser)
-}
-func putTagParser(tp *tagParser) {
-	tp.reset()
-	tagParserPool.Put(tp)
 }
 
 type tagsValueTimestamp struct {
@@ -229,14 +208,11 @@ func (tvt *tagsValueTimestamp) parse(s string, tagsPool []Tag, noEscapes bool) (
 			}
 		}
 		if mustParseTags {
-			tagParser := getTagParser()
 			var err error
-			s, tagsPool, err = tagParser.parse(s, tagsPool, noEscapes)
+			s, tagsPool, err = parseStringToTags(s, tagsPool, noEscapes)
 			if err != nil {
 				return tagsPool, err
 			}
-			tvt.Tags = tagParser.tags[0:]
-			putTagParser(tagParser)
 		}
 	} else {
 		// Tag doesn't exist
@@ -307,13 +283,15 @@ func (tvt *tagsValueTimestamp) parse(s string, tagsPool []Tag, noEscapes bool) (
 func (r *Row) unmarshalMetric(s string, tagsPool []Tag, noEscapes bool) (string, []Tag, error) {
 	tvt := getTVT()
 	defer putTVT(tvt)
+	tagsStart := len(tagsPool)
 	tagsPool, err := tvt.parse(s, tagsPool, noEscapes)
 	if err != nil {
 		return "", tagsPool, err
 	}
 	r.Metric = tvt.Prefix
-	if len(tvt.Tags) > 0 {
-		r.Tags = tvt.Tags
+	tags := tagsPool[tagsStart:]
+	if len(tags) > 0 {
+		r.Tags = tags
 	}
 	r.Value = tvt.Value
 	r.Timestamp = tvt.Timestamp
@@ -329,12 +307,14 @@ func (e *Exemplar) unmarshal(s string, tagsPool []Tag, noEscapes bool) ([]Tag, e
 		tvt := getTVT()
 		defer putTVT(tvt)
 		var err error
+		tagsStart := len(tagsPool)
 		tagsPool, err = tvt.parse(s, tagsPool, noEscapes)
 		if err != nil {
 			return tagsPool, err
 		}
-		if len(tvt.Tags) > 0 {
-			e.Tags = tvt.Tags
+		tags := tagsPool[tagsStart:]
+		if len(tags) > 0 {
+			e.Tags = tags
 		}
 		e.Value = tvt.Value
 		e.Timestamp = tvt.Timestamp
