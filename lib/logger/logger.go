@@ -1,6 +1,8 @@
 package logger
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"flag"
 	"fmt"
@@ -14,13 +16,14 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/syslog"
 	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
 	loggerLevel    = flag.String("loggerLevel", "INFO", "Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC")
 	loggerFormat   = flag.String("loggerFormat", "default", "Format for logs. Possible values: default, json")
-	loggerOutput   = flag.String("loggerOutput", "stderr", "Output for the logs. Supported values: stderr, stdout")
+	loggerOutput   = flag.String("loggerOutput", "stderr", "Output for the logs. Supported values: stderr, stdout, syslog")
 	loggerTimezone = flag.String("loggerTimezone", "UTC", "Timezone to use for timestamps in logs. Timezone must be a valid IANA Time Zone. "+
 		"For example: America/New_York, Europe/Berlin, Etc/GMT+3 or Local")
 	disableTimestamps = flag.Bool("loggerDisableTimestamps", false, "Whether to disable writing timestamps in logs")
@@ -54,6 +57,7 @@ func initTimezone() {
 	timezone = tz
 }
 
+// coment
 var timezone = time.UTC
 
 func setLoggerOutput() {
@@ -62,6 +66,8 @@ func setLoggerOutput() {
 		output = os.Stderr
 	case "stdout":
 		output = os.Stdout
+	case "syslog":
+		output = syslog.GetSyslogWriter(*loggerLevel)
 	default:
 		panic(fmt.Errorf("FATAL: unsupported `loggerOutput` value: %q; supported values are: stderr, stdout", *loggerOutput))
 	}
@@ -276,7 +282,7 @@ func logMessage(level, msg string, skipframes int) {
 			)
 		}
 	default:
-		if *disableTimestamps {
+		if *disableTimestamps || *loggerOutput == "syslog" {
 			logMsg = fmt.Sprintf("%s\t%s\t%s\n", levelLowercase, location, msg)
 		} else {
 			logMsg = fmt.Sprintf("%s\t%s\t%s\t%s\n", timestamp, levelLowercase, location, msg)
@@ -285,7 +291,11 @@ func logMessage(level, msg string, skipframes int) {
 
 	// Serialize writes to log.
 	mu.Lock()
-	fmt.Fprint(output, logMsg)
+	_, err := fmt.Fprint(output, logMsg)
+	// if error is not nil and syslog logging is enabled - print log to stderr
+	if err != nil && *loggerOutput == "syslog" {
+		fmt.Fprint(os.Stderr, logMsg)
+	}
 	mu.Unlock()
 
 	// Increment vm_log_messages_total
@@ -341,3 +351,36 @@ func SetOutputForTests(writer io.Writer) { output = writer }
 
 // ResetOutputForTest set logger output to default value
 func ResetOutputForTest() { output = os.Stderr }
+
+// TLSConfig creates tls.Config object from provided arguments
+func TLSConfig(certFile, keyFile, CAFile, serverName string, insecureSkipVerify bool) (*tls.Config, error) {
+	var certs []tls.Certificate
+	if certFile != "" {
+		cert, err := tls.LoadX509KeyPair(certFile, keyFile)
+		if err != nil {
+			return nil, fmt.Errorf("cannot load TLS certificate from `cert_file`=%q, `key_file`=%q: %w", certFile, keyFile, err)
+		}
+
+		certs = []tls.Certificate{cert}
+	}
+
+	var rootCAs *x509.CertPool
+	if CAFile != "" {
+		pem, err := os.ReadFile(CAFile)
+		if err != nil {
+			return nil, fmt.Errorf("cannot read `ca_file` %q: %w", CAFile, err)
+		}
+
+		rootCAs = x509.NewCertPool()
+		if !rootCAs.AppendCertsFromPEM(pem) {
+			return nil, fmt.Errorf("cannot parse data from `ca_file` %q", CAFile)
+		}
+	}
+
+	return &tls.Config{
+		Certificates:       certs,
+		InsecureSkipVerify: insecureSkipVerify,
+		RootCAs:            rootCAs,
+		ServerName:         serverName,
+	}, nil
+}
