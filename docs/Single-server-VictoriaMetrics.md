@@ -1689,9 +1689,8 @@ By default, VictoriaMetrics is tuned for an optimal resource usage under typical
   some metainformation about the time series located by each query and spends some CPU time for processing the found time series.
   This means that the maximum memory usage and CPU usage a single query can use is proportional to `-search.maxUniqueTimeseries`.
 - `-search.maxQueryDuration` limits the duration of a single query. If the query takes longer than the given duration, then it is canceled.
-  This allows saving CPU and RAM when executing unexpected heavy queries. This flag can be overridden via the `timeout` query argument.
-  If value of the `timeout` query argument is bigger than `0` and lower than value of the `-search.maxQueryDuration` than query will not take longer than
-  the given duration in the `timeout` query argument.
+  This allows saving CPU and RAM when executing unexpected heavy queries.
+  The limit can be altered for each query by passing `timeout` GET parameter, but can't exceed the limit specified via cmd-line flag.
 - `-search.maxConcurrentRequests` limits the number of concurrent requests VictoriaMetrics can process. Bigger number of concurrent requests usually means
   bigger memory usage. For example, if a single query needs 100 MiB of additional memory during its execution, then 100 concurrent queries may need `100 * 100 MiB = 10 GiB`
   of additional memory. So it is better to limit the number of concurrent queries, while pausing additional incoming queries if the concurrency limit is reached.
@@ -1739,23 +1738,20 @@ By default, VictoriaMetrics is tuned for an optimal resource usage under typical
   See also `-search.maxLabelsAPIDuration` and `-search.ignoreExtraFiltersAtLabelsAPI`.
 - `-search.maxLabelsAPIDuration` limits the duration for requests to [/api/v1/labels](https://docs.victoriametrics.com/url-examples/#apiv1labels),
   [/api/v1/label/.../values](https://docs.victoriametrics.com/url-examples/#apiv1labelvalues)
-  or [/api/v1/series](https://docs.victoriametrics.com/url-examples/#apiv1series). This flag can be overridden via the `timeout` query argument.
-  If value of the `timeout` query argument is bigger than `0` and lower than value of the `-search.maxQueryDuration` than query will not take longer than
-  the given duration in the `timeout` query argument.
+  or [/api/v1/series](https://docs.victoriametrics.com/url-examples/#apiv1series).
+  The limit can be altered for each query by passing `timeout` GET parameter, but can't exceed the limit specified via cmd-line flag.
   These endpoints are used mostly by Grafana for auto-completion of label names and label values. Queries to these endpoints may take big amounts of CPU time and memory
   when the database contains big number of unique time series because of [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate).
   In this case it might be useful to set the `-search.maxLabelsAPIDuration` to quite low value in order to limit CPU and memory usage.
   See also `-search.maxLabelsAPISeries` and `-search.ignoreExtraFiltersAtLabelsAPI`.
 - `-search.maxExportDuration` limits the duration for requests to [/api/v1/export*](https://docs.victoriametrics.com/url-examples/?highlight=apiv1export#apiv1export).
   If the query takes longer than the given duration, then it is canceled.
-  This allows saving CPU and RAM when executing unexpectedly heavy queries. This flag can be overridden via the `timeout` query argument.
-  If value of the `timeout` query argument is bigger than `0` and lower than value of the `-search.maxExportDuration` than query will not take longer than
-  the given duration in the `timeout` query argument.
+  This allows saving CPU and RAM when executing unexpectedly heavy queries.
+  The limit can be altered for each query by passing `timeout` GET parameter, but can't exceed the limit specified via cmd-line flag.
 - `search.maxStatusRequestDuration` limits the duration for requests to [/api/v1/status/tsdb](https://docs.victoriametrics.com/url-examples/?highlight=apiv1export#apiv1statustsdb).
   If the query takes longer than the given duration, then it is canceled.
-  This allows saving CPU and RAM when executing unexpectedly heavy queries. This flag can be overridden via the `timeout` query argument.
-  If value of the `timeout` query argument is bigger than `0` and lower than value of the `-search.maxStatusRequestDuration` than query will not take longer than
-  the given duration in the `timeout` query argument.
+  This allows saving CPU and RAM when executing unexpectedly heavy queries.
+  The limit can be altered for each query by passing `timeout` GET parameter, but can't exceed the limit specified via cmd-line flag.
 - `-search.maxTagValueSuffixesPerSearch` limits the number of entries, which may be returned from `/metrics/find` endpoint. See [Graphite Metrics API usage docs](#graphite-metrics-api-usage).
 
 See also [resource usage limits at VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#resource-usage-limits),
