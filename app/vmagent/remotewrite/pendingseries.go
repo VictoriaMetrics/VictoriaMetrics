@@ -225,7 +225,7 @@ func (wr *writeRequest) copyTimeSeries(dst, src *prompbmarshal.TimeSeries) {
 	dst.Samples = samplesDst[len(samplesDst)-len(src.Samples):]
 
 	exemplarsDst = append(exemplarsDst, src.Exemplars...)
-	dst.Exemplars = exemplarsDst
+	dst.Exemplars = exemplarsDst[len(exemplarsDst)-len(src.Exemplars):]
 
 	wr.samples = samplesDst
 	wr.labels = labelsDst

@@ -73,7 +73,7 @@ type Exemplar struct {
 // Reset - resets the Exemplar object to defaults
 func (e *Exemplar) Reset() {
 	e.Tags = nil
-	e.Value = 0.
+	e.Value = 0
 	e.Timestamp = 0
 }
 
