@@ -1,5 +1,3 @@
-package main
-
 import (
 	"context"
 	"flag"
