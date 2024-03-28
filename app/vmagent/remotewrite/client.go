@@ -91,7 +91,7 @@ type client struct {
 	authCfg   *promauth.Config
 	awsCfg    *awsapi.Config
 
-	rl rateLimiter
+	rl *rateLimiter
 
 	bytesSent       *metrics.Counter
 	blocksSent      *metrics.Counter
@@ -177,12 +177,11 @@ func newHTTPClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persiste
 }
 
 func (c *client) init(argIdx, concurrency int, sanitizedURL string) {
+	limitReached := metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_rate_limit_reached_total{url=%q}`, c.sanitizedURL))
 	if bytesPerSec := rateLimit.GetOptionalArg(argIdx); bytesPerSec > 0 {
 		logger.Infof("applying %d bytes per second rate limit for -remoteWrite.url=%q", bytesPerSec, sanitizedURL)
-		c.rl.perSecondLimit = int64(bytesPerSec)
+		c.rl = newRateLimiter(time.Second, int64(bytesPerSec), limitReached, c.stopCh)
 	}
-	c.rl.limitReached = metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_rate_limit_reached_total{url=%q}`, c.sanitizedURL))
-
 	c.bytesSent = metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_bytes_sent_total{url=%q}`, c.sanitizedURL))
 	c.blocksSent = metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_blocks_sent_total{url=%q}`, c.sanitizedURL))
 	c.rateLimit = metrics.GetOrCreateGauge(fmt.Sprintf(`vmagent_remotewrite_rate_limit{url=%q}`, c.sanitizedURL), func() float64 {
@@ -396,7 +395,7 @@ func (c *client) newRequest(url string, body []byte) (*http.Request, error) {
 // The function returns false only if c.stopCh is closed.
 // Otherwise it tries sending the block to remote storage indefinitely.
 func (c *client) sendBlockHTTP(block []byte) bool {
-	c.rl.register(len(block), c.stopCh)
+	c.rl.register(len(block))
 	maxRetryDuration := timeutil.AddJitterToDuration(time.Minute)
 	retryDuration := timeutil.AddJitterToDuration(time.Second)
 	retriesCount := 0
@@ -481,22 +480,37 @@ again:
 var remoteWriteRejectedLogger = logger.WithThrottler("remoteWriteRejected", 5*time.Second)
 
 type rateLimiter struct {
-	perSecondLimit int64
+	interval         time.Duration
+	perIntervalLimit int64
+	stopCh           <-chan struct{}
 
 	// mu protects budget and deadline from concurrent access.
 	mu sync.Mutex
 
-	// The current budget. It is increased by perSecondLimit every second.
+	// The current budget. It is increased by perIntervalLimit every interval.
 	budget int64
 
-	// The next deadline for increasing the budget by perSecondLimit
+	// The next deadline for increasing the budget by perIntervalLimit
 	deadline time.Time
 
 	limitReached *metrics.Counter
 }
 
-func (rl *rateLimiter) register(dataLen int, stopCh <-chan struct{}) {
-	limit := rl.perSecondLimit
+func newRateLimiter(interval time.Duration, perIntervalLimit int64, limitReached *metrics.Counter, stopCh <-chan struct{}) *rateLimiter {
+	return &rateLimiter{
+		interval:         interval,
+		perIntervalLimit: perIntervalLimit,
+		stopCh:           stopCh,
+		limitReached:     limitReached,
+	}
+}
+
+func (rl *rateLimiter) register(count int) {
+	if rl == nil {
+		return
+	}
+
+	limit := rl.perIntervalLimit
 	if limit <= 0 {
 		return
 	}
@@ -509,7 +523,7 @@ func (rl *rateLimiter) register(dataLen int, stopCh <-chan struct{}) {
 			rl.limitReached.Inc()
 			t := timerpool.Get(d)
 			select {
-			case <-stopCh:
+			case <-rl.stopCh:
 				timerpool.Put(t)
 				return
 			case <-t.C:
@@ -517,7 +531,7 @@ func (rl *rateLimiter) register(dataLen int, stopCh <-chan struct{}) {
 			}
 		}
 		rl.budget += limit
-		rl.deadline = time.Now().Add(time.Second)
+		rl.deadline = time.Now().Add(rl.interval)
 	}
-	rl.budget -= int64(dataLen)
+	rl.budget -= int64(count)
 }
