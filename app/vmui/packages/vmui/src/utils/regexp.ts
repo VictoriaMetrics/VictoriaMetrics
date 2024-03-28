@@ -6,3 +6,8 @@ export const escapeRegexp = (s: string) => {
 export const escapeDoubleQuotes = (s: string) => {
   return JSON.stringify(s).slice(1,-1);
 };
+
+export const hasUnclosedQuotes = (str: string) => {
+  const matches = str.match(/"/g);
+  return matches ? matches.length % 2 !== 0 : false;
+};

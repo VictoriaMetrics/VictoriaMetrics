@@ -2,7 +2,7 @@ import React, { FC, Ref, useState, useEffect, useMemo } from "preact/compat";
 import Autocomplete, { AutocompleteOptions } from "../../Main/Autocomplete/Autocomplete";
 import { useFetchQueryOptions } from "../../../hooks/useFetchQueryOptions";
 import { getTextWidth } from "../../../utils/uplot";
-import { escapeRegexp } from "../../../utils/regexp";
+import { escapeRegexp, hasUnclosedQuotes } from "../../../utils/regexp";
 import useGetMetricsQL from "../../../hooks/useGetMetricsQL";
 import { QueryContextType } from "../../../types";
 import { AUTOCOMPLETE_LIMITS } from "../../../constants/queryAutocomplete";
@@ -42,10 +42,24 @@ const QueryEditorAutocomplete: FC<QueryEditorAutocompleteProps> = ({
     return match ? match[match.length - 1] : "";
   }, [exprLastPart]);
 
-  const context = useMemo(() => {
-    if (!value || value.endsWith("}")) return QueryContextType.empty;
+  const shouldSuppressAutoSuggestion = (value: string) => {
+    const pattern = /([(),+\-*/^]|\b(?:or|and|unless|default|ifnot|if|group_left|group_right)\b)/;
+    const parts = value.split(/\s+/);
+    const partsCount = parts.length;
+    const lastPart = parts[partsCount - 1];
+    const preLastPart = parts[partsCount - 2];
 
-    const labelRegexp = /\{[^}]*?(\w+)*$/gm;
+    const hasEmptyPartAndQuotes = !lastPart && hasUnclosedQuotes(value);
+    const suppressPreLast = (!lastPart || parts.length > 1) && !pattern.test(preLastPart);
+    return hasEmptyPartAndQuotes || suppressPreLast;
+  };
+
+  const context = useMemo(() => {
+    if (!value || value.endsWith("}") || shouldSuppressAutoSuggestion(value)) {
+      return QueryContextType.empty;
+    }
+
+    const labelRegexp = /\{[^}]*$/;
     const labelValueRegexp = new RegExp(`(${escapeRegexp(metric)})?{?.+${escapeRegexp(label)}(=|!=|=~|!~)"?([^"]*)$`, "g");
 
     switch (true) {
