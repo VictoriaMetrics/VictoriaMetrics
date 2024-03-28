@@ -2127,8 +2127,8 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      Whether to drop all the input samples after the aggregation with -remoteWrite.streamAggr.config. By default, only aggregates samples are dropped, while the remaining samples are written to the corresponding -remoteWrite.url . See also -remoteWrite.streamAggr.keepInput and https://docs.victoriametrics.com/stream-aggregation.html
      Supports array of values separated by comma or specified via multiple flags.
      Empty values are set to false.
-  -remoteWrite.streamAggr.ignoreOldSamples array
-     Whether to ignore input samples with old timestamps outside the current aggregation interval for the corresponding -remoteWrite.streamAggr.config . See https://docs.victoriametrics.com/stream-aggregation.html#ignoring-old-samples
+  -remoteWrite.streamAggr.ignoreOldIntervals array
+     Whether to ignore input intervals that contain samples with old timestamps outside the current aggregation interval for the corresponding -remoteWrite.streamAggr.config . See https://docs.victoriametrics.com/stream-aggregation.html#ignoring-old-intervals
      Supports array of values separated by comma or specified via multiple flags.
      Empty values are set to false.
   -remoteWrite.streamAggr.keepInput array

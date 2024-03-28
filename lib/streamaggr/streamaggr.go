@@ -105,12 +105,12 @@ type Options struct {
 	// This option can be overridden individually per each aggregation via keep_metric_names option.
 	KeepMetricNames bool
 
-	// IgnoreOldSamples instructs to ignore samples with timestamps older than the current aggregation interval.
+	// IgnoreOldIntervals instructs to ignore intervals with timestamps older than the current aggregation or dedup interval (if its defined).
 	//
 	// By default all the samples are taken into account.
 	//
-	// This option can be overridden individually per each aggregation via ignore_old_samples option.
-	IgnoreOldSamples bool
+	// This option can be overridden individually per each aggregation via ignore_old_intervals option.
+	IgnoreOldIntervals bool
 }
 
 // Config is a configuration for a single stream aggregation.
@@ -172,8 +172,8 @@ type Config struct {
 	// KeepMetricNames instructs to leave metric names as is for the output time series without adding any suffix.
 	KeepMetricNames *bool `yaml:"keep_metric_names,omitempty"`
 
-	// IgnoreOldSamples instructs to ignore samples with old timestamps outside the current aggregation interval.
-	IgnoreOldSamples *bool `yaml:"ignore_old_samples,omitempty"`
+	// IgnoreOldInterlvals instructs to ignore intervals with big amount of samples with old timestamps outside the current aggregation (or dedup if it's defined) interval.
+	IgnoreOldIntervals *bool `yaml:"ignore_old_intervals,omitempty"`
 
 	// By is an optional list of labels for grouping input series.
 	//
@@ -338,8 +338,8 @@ type aggregator struct {
 	inputRelabeling  *promrelabel.ParsedConfigs
 	outputRelabeling *promrelabel.ParsedConfigs
 
-	keepMetricNames  bool
-	ignoreOldSamples bool
+	keepMetricNames    bool
+	ignoreOldIntervals bool
 
 	by                  []string
 	without             []string
@@ -369,9 +369,15 @@ type aggregator struct {
 
 	flushDuration      *metrics.Histogram
 	dedupFlushDuration *metrics.Histogram
+	totalSamplesCount  atomic.Int32
+	oldSamplesCount    atomic.Int32
+	flushNext          atomic.Bool
 
 	flushTimeouts      *metrics.Counter
 	dedupFlushTimeouts *metrics.Counter
+	ignoredIntervals   *metrics.Counter
+	oldSamples         *metrics.Counter
+	totalSamples       *metrics.Counter
 }
 
 type aggrState interface {
@@ -473,10 +479,10 @@ func newAggregator(cfg *Config, pushFunc PushFunc, ms *metrics.Set, opts *Option
 		}
 	}
 
-	// check cfg.IgnoreOldSamples
-	ignoreOldSamples := opts.IgnoreOldSamples
-	if v := cfg.IgnoreOldSamples; v != nil {
-		ignoreOldSamples = *v
+	// check cfg.IgnoreOldIntervals
+	ignoreOldIntervals := opts.IgnoreOldIntervals
+	if v := cfg.IgnoreOldIntervals; v != nil {
+		ignoreOldIntervals = *v
 	}
 
 	// initialize outputs list
@@ -565,8 +571,8 @@ func newAggregator(cfg *Config, pushFunc PushFunc, ms *metrics.Set, opts *Option
 		inputRelabeling:  inputRelabeling,
 		outputRelabeling: outputRelabeling,
 
-		keepMetricNames:  keepMetricNames,
-		ignoreOldSamples: ignoreOldSamples,
+		keepMetricNames:    keepMetricNames,
+		ignoreOldIntervals: ignoreOldIntervals,
 
 		by:                  by,
 		without:             without,
@@ -583,6 +589,9 @@ func newAggregator(cfg *Config, pushFunc PushFunc, ms *metrics.Set, opts *Option
 
 		flushTimeouts:      ms.GetOrCreateCounter(`vm_streamaggr_flush_timeouts_total`),
 		dedupFlushTimeouts: ms.GetOrCreateCounter(`vm_streamaggr_dedup_flush_timeouts_total`),
+		ignoredIntervals:   ms.GetOrCreateCounter(`vm_streamaggr_ignored_intervals_total`),
+		oldSamples:         ms.GetOrCreateCounter(`vm_streamaggr_samples_total{type="old"}`),
+		totalSamples:       ms.GetOrCreateCounter(`vm_streamaggr_samples_total{type="all"}`),
 	}
 	if dedupInterval > 0 {
 		a.da = newDedupAggr()
@@ -632,54 +641,43 @@ func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipInc
 		}
 	}
 
-	if dedupInterval <= 0 {
-		alignedSleep(interval)
-		t := time.NewTicker(interval)
-		defer t.Stop()
+	startTime := time.Now()
 
-		if alignFlushToInterval && skipIncompleteFlush {
-			a.flush(nil, interval, true)
-		}
+	a.minTimestamp.Store(startTime.UnixMilli())
 
-		for tickerWait(t) {
+	alignedSleep(interval)
+
+	t := time.NewTicker(interval)
+	defer t.Stop()
+
+	if alignFlushToInterval && skipIncompleteFlush {
+		a.dedupFlush(dedupInterval)
+		a.flush(pushFunc, interval, true)
+		a.ignoredIntervals.Inc()
+	}
+
+	var flushDeadline time.Time
+	if dedupInterval > 0 {
+		flushDeadline = time.Now().Add(interval)
+	}
+
+	for tickerWait(t) {
+		a.dedupFlush(dedupInterval)
+		ct := time.Now()
+		if ct.After(flushDeadline) {
 			a.flush(pushFunc, interval, true)
+		}
 
-			if alignFlushToInterval {
-				select {
-				case <-t.C:
-				default:
-				}
+		if dedupInterval > 0 {
+			for ct.After(flushDeadline) {
+				flushDeadline = flushDeadline.Add(interval)
 			}
 		}
-	} else {
-		alignedSleep(dedupInterval)
-		t := time.NewTicker(dedupInterval)
-		defer t.Stop()
 
-		flushDeadline := time.Now().Add(interval)
-		isSkippedFirstFlush := false
-		for tickerWait(t) {
-			a.dedupFlush(dedupInterval)
-
-			ct := time.Now()
-			if ct.After(flushDeadline) {
-				// It is time to flush the aggregated state
-				if alignFlushToInterval && skipIncompleteFlush && !isSkippedFirstFlush {
-					a.flush(nil, interval, true)
-					isSkippedFirstFlush = true
-				} else {
-					a.flush(pushFunc, interval, true)
-				}
-				for ct.After(flushDeadline) {
-					flushDeadline = flushDeadline.Add(interval)
-				}
-			}
-
-			if alignFlushToInterval {
-				select {
-				case <-t.C:
-				default:
-				}
+		if alignFlushToInterval {
+			select {
+			case <-t.C:
+			default:
 			}
 		}
 	}
@@ -713,6 +711,20 @@ func (a *aggregator) dedupFlush(dedupInterval time.Duration) {
 func (a *aggregator) flush(pushFunc PushFunc, interval time.Duration, resetState bool) {
 	startTime := time.Now()
 
+	isStaleInterval := float64(a.oldSamplesCount.Load())/float64(a.totalSamplesCount.Load()) > 0.05
+	var pf PushFunc
+	if isStaleInterval && a.ignoreOldIntervals {
+		a.ignoredIntervals.Inc()
+		a.flushNext.Store(false)
+	} else if a.flushNext.Load() {
+		pf = pushFunc
+	} else {
+		a.flushNext.Store(true)
+	}
+	a.minTimestamp.Store(startTime.UnixMilli())
+	a.oldSamplesCount.Store(0)
+	a.totalSamplesCount.Store(0)
+
 	var wg sync.WaitGroup
 	for _, as := range a.aggrStates {
 		flushConcurrencyCh <- struct{}{}
@@ -723,16 +735,16 @@ func (a *aggregator) flush(pushFunc PushFunc, interval time.Duration, resetState
 				wg.Done()
 			}()
 
-			ctx := getFlushCtx(a, pushFunc)
+			ctx := getFlushCtx(a, pf)
 			as.flushState(ctx, resetState)
-			ctx.flushSeries()
+			if pf != nil {
+				ctx.flushSeries()
+			}
 			ctx.resetSeries()
 			putFlushCtx(ctx)
 		}(as)
 	}
 	wg.Wait()
-
-	a.minTimestamp.Store(startTime.UnixMilli() - 5_000)
 
 	d := time.Since(startTime)
 	a.flushDuration.Update(d.Seconds())
@@ -759,6 +771,7 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 	ctx := getPushCtx()
 	defer putPushCtx(ctx)
 
+	minTimestamp := a.minTimestamp.Load()
 	samples := ctx.samples
 	buf := ctx.buf
 	labels := &ctx.labels
@@ -766,8 +779,6 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 	outputLabels := &ctx.outputLabels
 
 	dropLabels := a.dropInputLabels
-	ignoreOldSamples := a.ignoreOldSamples
-	minTimestamp := a.minTimestamp.Load()
 	for idx, ts := range tss {
 		if !a.match.Match(ts.Labels) {
 			continue
@@ -796,21 +807,26 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 
 		buf = compressLabels(buf[:0], &a.lc, inputLabels.Labels, outputLabels.Labels)
 		key := bytesutil.InternBytes(buf)
+		var oldCount int
 		for _, sample := range ts.Samples {
+			if minTimestamp > sample.Timestamp {
+				oldCount++
+			}
 			if math.IsNaN(sample.Value) {
 				// Skip NaN values
 				continue
 			}
-			if ignoreOldSamples && sample.Timestamp < minTimestamp {
-				// Skip old samples outside the current aggregation interval
-				continue
-			}
+
 			samples = append(samples, pushSample{
 				key:       key,
 				value:     sample.Value,
 				timestamp: sample.Timestamp,
 			})
 		}
+		a.totalSamplesCount.Add(int32(len(ts.Samples)))
+		a.oldSamplesCount.Add(int32(oldCount))
+		a.totalSamples.Add(len(ts.Samples))
+		a.oldSamples.Add(oldCount)
 	}
 	ctx.samples = samples
 	ctx.buf = buf
