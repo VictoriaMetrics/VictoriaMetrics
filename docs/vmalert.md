@@ -822,27 +822,25 @@ may get empty response from the datasource and produce empty recording rules or 
 <img alt="vmalert evaluation when data is delayed" src="vmalert_ts_data_delay.gif">
 
 Try the following recommendations to reduce the chance of hitting the data delay issue:
-
 * Always configure group's `-evaluationInterval` to be bigger or at least equal to
-[time series resolution](https://docs.victoriametrics.com/keyConcepts.html#time-series-resolution);
-* Ensure that `[duration]` value is at least twice bigger than 
-[time series resolution](https://docs.victoriametrics.com/keyConcepts.html#time-series-resolution). For example,
-if expression is `rate(my_metric[2m]) > 0` then ensure that `my_metric` resolution is at least `1m` or better `30s`. 
-If you use VictoriaMetrics as datasource, `[duration]` can be omitted and VictoriaMetrics will adjust it automatically.
+  [time series resolution](https://docs.victoriametrics.com/keyConcepts.html#time-series-resolution);
+* Ensure that `[duration]` value is at least twice bigger than
+  [time series resolution](https://docs.victoriametrics.com/keyConcepts.html#time-series-resolution). For example,
+  if expression is `rate(my_metric[2m]) > 0` then ensure that `my_metric` resolution is at least `1m` or better `30s`.
 * Extend `[duration]` in expr to help tolerate the delay. For example, `max_over_time(errors_total[10m]) > 0` will be active even if there is no data in datasource for last `9m`.
 * If [time series resolution](https://docs.victoriametrics.com/keyConcepts.html#time-series-resolution)
-in datasource is inconsistent or `>=5min` - try changing vmalerts `-datasource.queryStep` command-line flag to specify
-how far search query can look back for the recent datapoint. The recommendation is to have the step 
-at least two times bigger than the resolution.
+  in datasource is inconsistent or `>=5min` - try changing vmalerts `-datasource.queryStep` command-line flag to specify
+  how far search query can look back for the recent datapoint. The recommendation is to have the step
+  at least two times bigger than the resolution.
 
 > Please note, data delay is inevitable in distributed systems. And it is better to account for it instead of ignoring.
 
 By default, recently written samples to VictoriaMetrics [aren't visible for queries](https://docs.victoriametrics.com/keyConcepts.html#query-latency)
-for up to 30s (see `-search.latencyOffset` command-line flag at vmselect or VictoriaMetrics single-node). Such delay is needed to eliminate risk of 
+for up to 30s (see `-search.latencyOffset` command-line flag at vmselect or VictoriaMetrics single-node). Such delay is needed to eliminate risk of
 incomplete data on the moment of querying, due to chance that metrics collectors won't be able to deliver that data in time.
 To compensate the latency in timestamps for produced evaluation results, `-rule.evalDelay` is also set to `30s` by default.
-If you expect data to be delayed for longer intervals (it gets buffered, queued, or just network is slow sometimes)
-- consider increasing the `-rule.evalDelay` value accordingly.
+If you expect data to be delayed for longer intervals (it gets buffered, queued, or just network is slow sometimes),
+or you changed default value of `-search.latencyOffset` - consider increasing the `-rule.evalDelay` value accordingly.
 
 ### Alerts state
 
