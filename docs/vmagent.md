@@ -191,7 +191,8 @@ among remote storage systems specified in `-remoteWrite.url`. Sometimes it may b
 set of labels for sharding. For example, it may be needed to route all the metrics with the same `instance` label
 to the same `-remoteWrite.url`. In this case you can specify comma-separated list of these labels in the `-remoteWrite.shardByURL.labels`
 command-line flag. For example, `-remoteWrite.shardByURL.labels=instance,__name__` would shard metrics with the same name and `instance`
-label to the same `-remoteWrite.url`.
+label to the same `-remoteWrite.url`. The sharding logic can be inverted by specifying `-remoteWrite.shardByURL.inverseLabels`,
+so that metrics are sharded using all labels except the ones specified in `-remoteWrite.shardByURL.labels`.
 
 See also [how to scrape big number of targets](#scraping-big-number-of-targets).
 
@@ -2105,8 +2106,10 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      Empty values are set to default value.
   -remoteWrite.shardByURL
      Whether to shard outgoing series across all the remote storage systems enumerated via -remoteWrite.url . By default the data is replicated across all the -remoteWrite.url . See https://docs.victoriametrics.com/vmagent.html#sharding-among-remote-storages
+  -remoteWrite.shardByURL.inverseLabels
+      Inverse the behavior of -remoteWrite.shardByURL.labels so that series are sharded using all labels except the ones specified in -remoteWrite.shardByURL.labels.
   -remoteWrite.shardByURL.labels array
-     Optional list of labels, which must be used for sharding outgoing samples among remote storage systems if -remoteWrite.shardByURL command-line flag is set. By default all the labels are used for sharding in order to gain even distribution of series over the specified -remoteWrite.url systems
+     Optional list of labels, which must be used for sharding outgoing samples among remote storage systems if -remoteWrite.shardByURL command-line flag is set. By default all the labels are used for sharding in order to gain even distribution of series over the specified -remoteWrite.url systems. See also -remoteWrite.shardByURL.inverseLabels.
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -remoteWrite.showURL
