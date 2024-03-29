@@ -148,30 +148,6 @@ func TestClient_run_maxBatchSizeDuringShutdown(t *testing.T) {
 	}
 }
 
-type batchCntRWServer struct {
-	*rwServer
-
-	batchCnt atomic.Int64 // accepted batch count, which also equals to request count
-}
-
-func newBatchCntRWServer() *batchCntRWServer {
-	bc := &batchCntRWServer{
-		rwServer: &rwServer{},
-	}
-
-	bc.Server = httptest.NewServer(http.HandlerFunc(bc.handler))
-	return bc
-}
-
-func (bc *batchCntRWServer) handler(w http.ResponseWriter, r *http.Request) {
-	bc.batchCnt.Add(1)
-	bc.rwServer.handler(w, r)
-}
-
-func (bc *batchCntRWServer) acceptedBatches() int {
-	return int(bc.batchCnt.Load())
-}
-
 func newRWServer() *rwServer {
 	rw := &rwServer{}
 	rw.Server = httptest.NewServer(http.HandlerFunc(rw.handler))
@@ -271,4 +247,28 @@ func (frw *faultyRWServer) handler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("server overloaded"))
 	}
+}
+
+type batchCntRWServer struct {
+	*rwServer
+
+	batchCnt atomic.Int64 // accepted batch count, which also equals to request count
+}
+
+func newBatchCntRWServer() *batchCntRWServer {
+	bc := &batchCntRWServer{
+		rwServer: &rwServer{},
+	}
+
+	bc.Server = httptest.NewServer(http.HandlerFunc(bc.handler))
+	return bc
+}
+
+func (bc *batchCntRWServer) handler(w http.ResponseWriter, r *http.Request) {
+	bc.batchCnt.Add(1)
+	bc.rwServer.handler(w, r)
+}
+
+func (bc *batchCntRWServer) acceptedBatches() int {
+	return int(bc.batchCnt.Load())
 }
