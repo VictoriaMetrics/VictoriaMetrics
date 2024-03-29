@@ -190,6 +190,7 @@ func (sm *ScopeMetrics) unmarshalProtobuf(src []byte) (err error) {
 // Metric represents the corresponding OTEL protobuf message
 type Metric struct {
 	Name      string
+	Unit      string
 	Gauge     *Gauge
 	Sum       *Sum
 	Histogram *Histogram
@@ -198,6 +199,7 @@ type Metric struct {
 
 func (m *Metric) marshalProtobuf(mm *easyproto.MessageMarshaler) {
 	mm.AppendString(1, m.Name)
+	mm.AppendString(3, m.Unit)
 	switch {
 	case m.Gauge != nil:
 		m.Gauge.marshalProtobuf(mm.AppendMessage(5))
@@ -213,6 +215,7 @@ func (m *Metric) marshalProtobuf(mm *easyproto.MessageMarshaler) {
 func (m *Metric) unmarshalProtobuf(src []byte) (err error) {
 	// message Metric {
 	//   string name = 1;
+	//   string unit = 3;
 	//   oneof data {
 	//     Gauge gauge = 5;
 	//     Sum sum = 7;
@@ -233,6 +236,12 @@ func (m *Metric) unmarshalProtobuf(src []byte) (err error) {
 				return fmt.Errorf("cannot read metric name")
 			}
 			m.Name = strings.Clone(name)
+		case 3:
+			unit, ok := fc.String()
+			if !ok {
+				return fmt.Errorf("cannot read metric unit")
+			}
+			m.Unit = strings.Clone(unit)
 		case 5:
 			data, ok := fc.MessageData()
 			if !ok {
@@ -617,6 +626,7 @@ func (ndp *NumberDataPoint) unmarshalProtobuf(src []byte) (err error) {
 type Sum struct {
 	DataPoints             []*NumberDataPoint
 	AggregationTemporality AggregationTemporality
+	IsMonotonic            bool
 }
 
 // AggregationTemporality represents the corresponding OTEL protobuf enum
@@ -636,6 +646,7 @@ func (s *Sum) marshalProtobuf(mm *easyproto.MessageMarshaler) {
 		dp.marshalProtobuf(mm.AppendMessage(1))
 	}
 	mm.AppendInt64(2, int64(s.AggregationTemporality))
+	mm.AppendBool(3, s.IsMonotonic)
 }
 
 func (s *Sum) unmarshalProtobuf(src []byte) (err error) {
@@ -666,6 +677,12 @@ func (s *Sum) unmarshalProtobuf(src []byte) (err error) {
 				return fmt.Errorf("cannot read AggregationTemporality")
 			}
 			s.AggregationTemporality = AggregationTemporality(at)
+		case 3:
+			im, ok := fc.Bool()
+			if !ok {
+				return fmt.Errorf("cannot read IsMonotonic")
+			}
+			s.IsMonotonic = im
 		}
 	}
 	return nil

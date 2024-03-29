@@ -10,10 +10,10 @@ import (
 
 func BenchmarkParseStream(b *testing.B) {
 	samples := []*pb.Metric{
-		generateGauge("my-gauge"),
-		generateHistogram("my-histogram"),
-		generateSum("my-sum"),
-		generateSummary("my-summary"),
+		generateGauge("my-gauge", ""),
+		generateHistogram("my-histogram", ""),
+		generateSum("my-sum", "", false),
+		generateSummary("my-summary", ""),
 	}
 	b.SetBytes(1)
 	b.ReportAllocs()

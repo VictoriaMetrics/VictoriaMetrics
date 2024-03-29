@@ -663,6 +663,11 @@ func SanitizeLabelName(name string) string {
 	return labelNameSanitizer.Transform(name)
 }
 
+// SanitizeLabelNameParts returns label name slice generated from metric name divided by unsupported characters
+func SanitizeLabelNameParts(name string) []string {
+	return unsupportedLabelNameChars.Split(name, -1)
+}
+
 var labelNameSanitizer = bytesutil.NewFastStringTransformer(func(s string) string {
 	return unsupportedLabelNameChars.ReplaceAllString(s, "_")
 })
