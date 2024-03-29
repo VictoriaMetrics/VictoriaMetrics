@@ -60,13 +60,13 @@ func (rs *Rows) UnmarshalWithErrLogger(s string, errLogger func(s string)) {
 const tagsPrefix = '{'
 const exemplarPreifx = '{'
 
-// Exemplar Support
-// Tags: a list of labels that uniquely identifies exemplar
-// Value: the value of the exemplar
-// Timestamp: the time the exemplar was recorded
+// Exemplar Item
 type Exemplar struct {
-	Tags      []Tag
-	Value     float64
+	// Tags: a list of labels that uniquely identifies exemplar
+	Tags []Tag
+	// Value: the value of the exemplar
+	Value float64
+	// Timestamp: the time the exemplar was recorded
 	Timestamp int64
 }
 
