@@ -16,7 +16,6 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
-	"github.com/agiledragon/gomonkey/v2"
 )
 
 func TestClient_Push(t *testing.T) {
@@ -88,40 +87,6 @@ func TestClient_Push(t *testing.T) {
 func TestClient_run_maxBatchSizeDuringShutdown(t *testing.T) {
 	batchSize := 20
 
-	newClientFunc := func() *Client {
-		rwClient, err := NewClient(context.Background(), Config{
-			MaxBatchSize: batchSize,
-
-			// Set everything to 1 to simplify the calculation.
-			Concurrency:   1,
-			MaxQueueSize:  1000,
-			FlushInterval: time.Minute,
-
-			// irrelevant configs
-			Addr: "localhost",
-		})
-		if err != nil {
-			t.Fatalf("new remote write client failed, err: %v", err)
-		}
-		return rwClient
-	}
-
-	// `batchCnt` is a global batch counter to check "how many batch is sent".
-	// reset it to 0 before using.
-	batchCnt := 0
-
-	// mock the `flush` method.
-	// it increases the batchCnt when len(wr.Timeseries) > 0.
-	patch1 := gomonkey.ApplyPrivateMethod(&Client{}, "flush", func(_ *Client, _ context.Context, wr *prompbmarshal.WriteRequest) {
-		if len(wr.Timeseries) < 1 {
-			return
-		}
-		batchCnt++
-		wr.Timeseries = wr.Timeseries[:0]
-		return
-	})
-	defer patch1.Reset()
-
 	testTable := []struct {
 		name     string // name of the test case
 		pushCnt  int    // how many time series is pushed to the client
@@ -141,30 +106,70 @@ func TestClient_run_maxBatchSizeDuringShutdown(t *testing.T) {
 
 	for _, tt := range testTable {
 		t.Run(tt.name, func(t *testing.T) {
-			// reset batchCnt
-			batchCnt = 0
+			// run new server
+			bcServer := newBatchCntRWServer()
 
 			// run new client
-			rwClient := newClientFunc()
+			rwClient, err := NewClient(context.Background(), Config{
+				MaxBatchSize: batchSize,
+
+				// Set everything to 1 to simplify the calculation.
+				Concurrency:   1,
+				MaxQueueSize:  1000,
+				FlushInterval: time.Minute,
+
+				// batch count server
+				Addr: bcServer.URL,
+			})
+			if err != nil {
+				t.Fatalf("new remote write client failed, err: %v", err)
+			}
 
 			// push time series to the client.
 			for i := 0; i < tt.pushCnt; i++ {
-				if err := rwClient.Push(prompbmarshal.TimeSeries{}); err != nil {
+				if err = rwClient.Push(prompbmarshal.TimeSeries{}); err != nil {
 					t.Fatalf("push time series to the client failed, err: %v", err)
 				}
 			}
 
 			// close the client so the rest ts will be flushed in `shutdown`
-			if err := rwClient.Close(); err != nil {
+			if err = rwClient.Close(); err != nil {
 				t.Fatalf("shutdown client failed, err: %v", err)
 			}
 
 			// finally check how many batches is sent.
-			if tt.batchCnt != batchCnt {
-				t.Errorf("client sent batch count incorrect, want: %d, get: %d", tt.batchCnt, batchCnt)
+			if tt.batchCnt != bcServer.acceptedBatches() {
+				t.Errorf("client sent batch count incorrect, want: %d, get: %d", tt.batchCnt, bcServer.acceptedBatches())
+			}
+			if tt.pushCnt != bcServer.accepted() {
+				t.Errorf("client sent time series count incorrect, want: %d, get: %d", tt.pushCnt, bcServer.accepted())
 			}
 		})
 	}
+}
+
+type batchCntRWServer struct {
+	*rwServer
+
+	batchCnt atomic.Int64 // accepted batch count, which also equals to request count
+}
+
+func newBatchCntRWServer() *batchCntRWServer {
+	bc := &batchCntRWServer{
+		rwServer: &rwServer{},
+	}
+
+	bc.Server = httptest.NewServer(http.HandlerFunc(bc.handler))
+	return bc
+}
+
+func (bc *batchCntRWServer) handler(w http.ResponseWriter, r *http.Request) {
+	bc.batchCnt.Add(1)
+	bc.rwServer.handler(w, r)
+}
+
+func (bc *batchCntRWServer) acceptedBatches() int {
+	return int(bc.batchCnt.Load())
 }
 
 func newRWServer() *rwServer {
