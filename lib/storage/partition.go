@@ -1331,28 +1331,23 @@ func (pt *partition) releasePartsToMerge(pws []*partWrapper) {
 }
 
 func (pt *partition) runFinalDedup() error {
-	requiredDedupInterval, actualDedupInterval := pt.getRequiredDedupInterval()
 	t := time.Now()
-	logger.Infof("starting final dedup for partition %s using requiredDedupInterval=%d ms, since the partition has smaller actualDedupInterval=%d ms",
-		pt.bigPartsPath, requiredDedupInterval, actualDedupInterval)
+	logger.Infof("start removing duplicate samples from partition (%s, %s)", pt.bigPartsPath, pt.smallPartsPath)
 	if err := pt.ForceMergeAllParts(pt.stopCh); err != nil {
-		return fmt.Errorf("cannot perform final dedup for partition %s: %w", pt.bigPartsPath, err)
+		return fmt.Errorf("cannot remove duplicate samples from partition (%s, %s): %w", pt.bigPartsPath, pt.smallPartsPath, err)
 	}
-	logger.Infof("final dedup for partition %s has been finished in %.3f seconds", pt.bigPartsPath, time.Since(t).Seconds())
+	logger.Infof("duplicate samples have been removed from partition (%s, %s) in %.3f seconds", pt.bigPartsPath, pt.smallPartsPath, time.Since(t).Seconds())
 	return nil
 }
 
 func (pt *partition) isFinalDedupNeeded() bool {
-	requiredDedupInterval, actualDedupInterval := pt.getRequiredDedupInterval()
-	return requiredDedupInterval > actualDedupInterval
-}
-
-func (pt *partition) getRequiredDedupInterval() (int64, int64) {
-	pws := pt.GetParts(nil, false)
-	defer pt.PutParts(pws)
 	dedupInterval := GetDedupInterval()
+
+	pws := pt.GetParts(nil, false)
 	minDedupInterval := getMinDedupInterval(pws)
-	return dedupInterval, minDedupInterval
+	pt.PutParts(pws)
+
+	return dedupInterval > minDedupInterval
 }
 
 func getMinDedupInterval(pws []*partWrapper) int64 {
