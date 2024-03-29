@@ -2,7 +2,16 @@
 
 Please provide a brief description of the changes you made. Be as specific as possible to help others understand the purpose and impact of your modifications.
 
-### Checklist (Optional for External Contributions)
+### Checklist
+
+The following checks are mandatory:
+
+- [ ] I have read the [Contributing Guidelines](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/CONTRIBUTING.md)
+- [ ] All commits are signed and include `Signed-off-by` line. Use `git commit -s` to include `Signed-off-by` your commits. See this [doc](https://git-scm.com/book/en/v2/Git-Tools-Signing-Your-Work) about how to sign your commits.
+- [ ] Tests are passing locally. Use `make test` to run all tests locally.
+- [ ] Linting is passing locally. Use `make check-all` to run all linters locally.
+
+Further checks are optional for External Contributions:
 
 - [ ] Include a link to the GitHub issue in the commit message, if issue exists.
 - [ ] Mention the change in the [Changelog](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/CHANGELOG.md). Explain what has changed and why. If there is a related issue or documentation change - link them as well.
