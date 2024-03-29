@@ -295,6 +295,7 @@ func tryPushWriteRequest(wr *prompbmarshal.WriteRequest, tryPushBlock func(block
 
 		if !tryPushWriteRequest(wr, tryPushBlock, isVMRemoteWrite) {
 			wr.Timeseries[0].Samples = samples
+			wr.Timeseries[0].Exemplars = exemplars
 			return false
 		}
 		wr.Timeseries[0].Samples = samples
