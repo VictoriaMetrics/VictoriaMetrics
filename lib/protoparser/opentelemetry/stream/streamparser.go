@@ -1,10 +1,13 @@
 package stream
 
 import (
+	"flag"
 	"fmt"
 	"io"
 	"strconv"
+	"strings"
 	"sync"
+	"unicode"
 
 	"github.com/VictoriaMetrics/metrics"
 
@@ -13,10 +16,71 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/pb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 )
+
+var (
+	// sanitizeMetrics controls sanitizing metric and label names ingested via OpenTelemetry protocol.
+	sanitizeMetrics = flag.Bool("opentelemetry.sanitizeMetrics", false, "Sanitize metric and label names for the ingested OpenTelemetry data")
+)
+
+// https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/b8655058501bed61a06bb660869051491f46840b/pkg/translator/prometheus/normalize_name.go#L19
+var unitMap = []struct {
+	prefix string
+	units  map[string]string
+}{
+	{
+		units: map[string]string{
+			// Time
+			"d":   "days",
+			"h":   "hours",
+			"min": "minutes",
+			"s":   "seconds",
+			"ms":  "milliseconds",
+			"us":  "microseconds",
+			"ns":  "nanoseconds",
+
+			// Bytes
+			"By":   "bytes",
+			"KiBy": "kibibytes",
+			"MiBy": "mebibytes",
+			"GiBy": "gibibytes",
+			"TiBy": "tibibytes",
+			"KBy":  "kilobytes",
+			"MBy":  "megabytes",
+			"GBy":  "gigabytes",
+			"TBy":  "terabytes",
+
+			// SI
+			"m": "meters",
+			"V": "volts",
+			"A": "amperes",
+			"J": "joules",
+			"W": "watts",
+			"g": "grams",
+
+			// Misc
+			"Cel": "celsius",
+			"Hz":  "hertz",
+			"1":   "",
+			"%":   "percent",
+		},
+	}, {
+		prefix: "per",
+		units: map[string]string{
+			"s":  "second",
+			"m":  "minute",
+			"h":  "hour",
+			"d":  "day",
+			"w":  "week",
+			"mo": "month",
+			"y":  "year",
+		},
+	},
+}
 
 // ParseStream parses OpenTelemetry protobuf or json data from r and calls callback for the parsed rows.
 //
@@ -58,10 +122,11 @@ func (wr *writeContext) appendSamplesFromScopeMetrics(sc *pb.ScopeMetrics) {
 			// skip metrics without names
 			continue
 		}
+		metricName := sanitizeMetricName(m)
 		switch {
 		case m.Gauge != nil:
 			for _, p := range m.Gauge.DataPoints {
-				wr.appendSampleFromNumericPoint(m.Name, p)
+				wr.appendSampleFromNumericPoint(metricName, p)
 			}
 		case m.Sum != nil:
 			if m.Sum.AggregationTemporality != pb.AggregationTemporalityCumulative {
@@ -69,11 +134,11 @@ func (wr *writeContext) appendSamplesFromScopeMetrics(sc *pb.ScopeMetrics) {
 				continue
 			}
 			for _, p := range m.Sum.DataPoints {
-				wr.appendSampleFromNumericPoint(m.Name, p)
+				wr.appendSampleFromNumericPoint(metricName, p)
 			}
 		case m.Summary != nil:
 			for _, p := range m.Summary.DataPoints {
-				wr.appendSamplesFromSummary(m.Name, p)
+				wr.appendSamplesFromSummary(metricName, p)
 			}
 		case m.Histogram != nil:
 			if m.Histogram.AggregationTemporality != pb.AggregationTemporalityCumulative {
@@ -81,11 +146,11 @@ func (wr *writeContext) appendSamplesFromScopeMetrics(sc *pb.ScopeMetrics) {
 				continue
 			}
 			for _, p := range m.Histogram.DataPoints {
-				wr.appendSamplesFromHistogram(m.Name, p)
+				wr.appendSamplesFromHistogram(metricName, p)
 			}
 		default:
 			rowsDroppedUnsupportedMetricType.Inc()
-			logger.Warnf("unsupported type for metric %q", m.Name)
+			logger.Warnf("unsupported type for metric %q", metricName)
 		}
 	}
 }
@@ -209,7 +274,7 @@ func (wr *writeContext) appendSampleWithExtraLabel(metricName, labelName, labelV
 func appendAttributesToPromLabels(dst []prompbmarshal.Label, attributes []*pb.KeyValue) []prompbmarshal.Label {
 	for _, at := range attributes {
 		dst = append(dst, prompbmarshal.Label{
-			Name:  at.Key,
+			Name:  sanitizeLabelName(at.Key),
 			Value: at.Value.FormatString(),
 		})
 	}
@@ -288,6 +353,74 @@ func (wr *writeContext) parseRequestToTss(req *pb.ExportMetricsServiceRequest) {
 			wr.appendSamplesFromScopeMetrics(sc)
 		}
 	}
+}
+
+// https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/b8655058501bed61a06bb660869051491f46840b/pkg/translator/prometheus/normalize_label.go#L26
+func sanitizeLabelName(labelName string) string {
+	if !*sanitizeMetrics {
+		return labelName
+	}
+	if len(labelName) == 0 {
+		return labelName
+	}
+	labelName = promrelabel.SanitizeLabelName(labelName)
+	if unicode.IsDigit(rune(labelName[0])) {
+		return "key_" + labelName
+	} else if strings.HasPrefix(labelName, "_") && !strings.HasPrefix(labelName, "__") {
+		return "key" + labelName
+	}
+	return labelName
+}
+
+// https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/b8655058501bed61a06bb660869051491f46840b/pkg/translator/prometheus/normalize_name.go#L83
+func sanitizeMetricName(metric *pb.Metric) string {
+	if !*sanitizeMetrics {
+		return metric.Name
+	}
+	nameTokens := promrelabel.SanitizeLabelNameParts(metric.Name)
+	unitTokens := strings.SplitN(metric.Unit, "/", len(unitMap))
+	for i, u := range unitTokens {
+		unitToken := strings.TrimSpace(u)
+		if unitToken == "" || strings.ContainsAny(unitToken, "{}") {
+			continue
+		}
+		if unit, ok := unitMap[i].units[unitToken]; ok {
+			unitToken = unit
+		}
+		if unitToken != "" && !containsToken(nameTokens, unitToken) {
+			unitPrefix := unitMap[i].prefix
+			if unitPrefix != "" {
+				nameTokens = append(nameTokens, unitPrefix, unitToken)
+			} else {
+				nameTokens = append(nameTokens, unitToken)
+			}
+		}
+	}
+	if metric.Sum != nil && metric.Sum.IsMonotonic {
+		nameTokens = moveOrAppend(nameTokens, "total")
+	} else if metric.Unit == "1" && metric.Gauge != nil {
+		nameTokens = moveOrAppend(nameTokens, "ratio")
+	}
+	return strings.Join(nameTokens, "_")
+}
+
+func containsToken(tokens []string, value string) bool {
+	for _, token := range tokens {
+		if token == value {
+			return true
+		}
+	}
+	return false
+}
+
+func moveOrAppend(tokens []string, value string) []string {
+	for t := range tokens {
+		if tokens[t] == value {
+			tokens = append(tokens[:t], tokens[t+1:]...)
+			break
+		}
+	}
+	return append(tokens, value)
 }
 
 var wrPool sync.Pool

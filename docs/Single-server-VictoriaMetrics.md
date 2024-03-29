@@ -1557,6 +1557,9 @@ VictoriaMetrics supports data ingestion via [OpenTelemetry protocol for metrics]
 VictoriaMetrics expects `protobuf`-encoded requests at `/opentelemetry/v1/metrics`.
 Set HTTP request header `Content-Encoding: gzip` when sending gzip-compressed data to `/opentelemetry/v1/metrics`.
 
+VictoriaMetrics automatically does not sanitize metric names for the data ingested via OpenTelemetry protocol
+If you need accepting metric and label names as is with sanitizing, then pass `-opentelemetry.sanitizeMetrics=true` command-line flag to VictoriaMetrics.
+
 See [How to use OpenTelemetry metrics with VictoriaMetrics](https://docs.victoriametrics.com/guides/getting-started-with-opentelemetry/).
 
 ## JSON line format
