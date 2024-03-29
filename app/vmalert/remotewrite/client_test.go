@@ -16,6 +16,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/agiledragon/gomonkey/v2"
 )
 
 func TestClient_Push(t *testing.T) {
@@ -81,6 +82,88 @@ func TestClient_Push(t *testing.T) {
 	got = faultySrv.accepted()
 	if got != sent {
 		t.Fatalf("expected to have %d series for faulty client; got %d", sent, got)
+	}
+}
+
+func TestClient_run_maxBatchSizeDuringShutdown(t *testing.T) {
+	batchSize := 20
+
+	newClientFunc := func() *Client {
+		rwClient, err := NewClient(context.Background(), Config{
+			MaxBatchSize: batchSize,
+
+			// Set everything to 1 to simplify the calculation.
+			Concurrency:   1,
+			MaxQueueSize:  1000,
+			FlushInterval: time.Minute,
+
+			// irrelevant configs
+			Addr: "localhost",
+		})
+		if err != nil {
+			t.Fatalf("new remote write client failed, err: %v", err)
+		}
+		return rwClient
+	}
+
+	// `batchCnt` is a global batch counter to check "how many batch is sent".
+	// reset it to 0 before using.
+	batchCnt := 0
+
+	// mock the `flush` method.
+	// it increases the batchCnt when len(wr.Timeseries) > 0.
+	patch1 := gomonkey.ApplyPrivateMethod(&Client{}, "flush", func(_ *Client, _ context.Context, wr *prompbmarshal.WriteRequest) {
+		if len(wr.Timeseries) < 1 {
+			return
+		}
+		batchCnt++
+		wr.Timeseries = wr.Timeseries[:0]
+		return
+	})
+	defer patch1.Reset()
+
+	testTable := []struct {
+		name     string // name of the test case
+		pushCnt  int    // how many time series is pushed to the client
+		batchCnt int    // the expected batch count sent by the client
+	}{
+		{
+			name:     "pushCnt % batchSize == 0",
+			pushCnt:  batchSize * 40,
+			batchCnt: 40,
+		},
+		{
+			name:     "pushCnt % batchSize != 0",
+			pushCnt:  batchSize*40 + 1,
+			batchCnt: 40 + 1,
+		},
+	}
+
+	for _, tt := range testTable {
+		t.Run(tt.name, func(t *testing.T) {
+			// reset batchCnt
+			batchCnt = 0
+
+			// run new client
+			rwClient := newClientFunc()
+
+			// push time series to the client.
+			for i := 0; i < tt.pushCnt; i++ {
+				if err := rwClient.Push(prompbmarshal.TimeSeries{}); err != nil {
+					t.Fatalf("push time series to the client failed, err: %v", err)
+				}
+			}
+
+			// close the client so the rest ts will be flushed in `shutdown`
+			if err := rwClient.Close(); err != nil {
+				t.Fatalf("shutdown client failed, err: %v", err)
+			}
+
+			// finally check how many batches is sent.
+			if tt.batchCnt != batchCnt {
+				t.Errorf("client sent batch count incorrect, want: %d, get: %d", tt.batchCnt, batchCnt)
+			}
+		})
 	}
 }
 
