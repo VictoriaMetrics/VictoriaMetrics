@@ -444,8 +444,12 @@ func (tb *table) finalDedupWatcher() {
 		currentPartitionName := timestampToPartitionName(timestamp)
 		var ptwsToDedup []*partitionWrapper
 		for _, ptw := range ptws {
-			if ptw.pt.name == currentPartitionName || !ptw.pt.isFinalDedupNeeded() {
+			if ptw.pt.name == currentPartitionName {
 				// Do not run final dedup for the current month.
+				continue
+			}
+			if !ptw.pt.isFinalDedupNeeded() {
+				// There is no need to run final dedup for the given partition.
 				continue
 			}
 			// mark partition with final deduplication marker
