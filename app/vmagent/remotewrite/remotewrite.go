@@ -27,6 +27,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/ratelimiter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/streamaggr"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
 	"github.com/VictoriaMetrics/metrics"
@@ -81,8 +82,8 @@ var (
 		"Excess series are logged and dropped. This can be useful for limiting series cardinality. See https://docs.victoriametrics.com/vmagent.html#cardinality-limiter")
 	maxDailySeries = flag.Int("remoteWrite.maxDailySeries", 0, "The maximum number of unique series vmagent can send to remote storage systems during the last 24 hours. "+
 		"Excess series are logged and dropped. This can be useful for limiting series churn rate. See https://docs.victoriametrics.com/vmagent.html#cardinality-limiter")
-	maxIngestionRate = flag.Int("maxIngestionRate", 0, "The maximum number of samples vmagent can receive per second. "+
-		"If the limit is exceeded, the ingestion rate will be throttled.")
+	maxIngestionRate = flag.Int("maxIngestionRate", 0, "The maximum number of samples vmagent can receive per second. Data ingestion is paused when the limit is exceeded. "+
+		"By default there are no limits on samples ingestion rate. See also -remoteWrite.rateLimit")
 
 	streamAggrConfig = flagutil.NewArrayString("remoteWrite.streamAggr.config", "Optional path to file with stream aggregation config. "+
 		"See https://docs.victoriametrics.com/stream-aggregation.html . "+
@@ -181,12 +182,7 @@ func Init() {
 			return float64(dailySeriesLimiter.CurrentItems())
 		})
 	}
-	if *maxIngestionRate > 0 {
-		// Start ingestion rate limiter.
-		ingestionRateLimitReached = metrics.NewCounter(`vmagent_max_ingestion_rate_limit_reached_total`)
-		ingestionRateLimiterStopCh = make(chan struct{})
-		ingestionRateLimiter = newRateLimiter(time.Second, int64(*maxIngestionRate), ingestionRateLimitReached, ingestionRateLimiterStopCh)
-	}
+
 	if *queues > maxQueues {
 		*queues = maxQueues
 	}
@@ -351,13 +347,39 @@ func newRemoteWriteCtxs(at *auth.Token, urls []string) []*remoteWriteCtx {
 var configReloaderStopCh = make(chan struct{})
 var configReloaderWG sync.WaitGroup
 
+// StartIngestionRateLimiter starts ingestion rate limiter.
+//
+// Ingestion rate limiter must be started before Init() call.
+//
+// StopIngestionRateLimiter must be called before Stop() call in order to unblock all the callers
+// to ingestion rate limiter. Otherwise deadlock may occur at Stop() call.
+func StartIngestionRateLimiter() {
+	if *maxIngestionRate <= 0 {
+		return
+	}
+	ingestionRateLimitReached := metrics.NewCounter(`vmagent_max_ingestion_rate_limit_reached_total`)
+	ingestionRateLimiterStopCh = make(chan struct{})
+	ingestionRateLimiter = ratelimiter.New(int64(*maxIngestionRate), ingestionRateLimitReached, ingestionRateLimiterStopCh)
+}
+
+// StopIngestionRateLimiter stops ingestion rate limiter.
+func StopIngestionRateLimiter() {
+	if ingestionRateLimiterStopCh == nil {
+		return
+	}
+	close(ingestionRateLimiterStopCh)
+	ingestionRateLimiterStopCh = nil
+}
+
+var (
+	ingestionRateLimiter       *ratelimiter.RateLimiter
+	ingestionRateLimiterStopCh chan struct{}
+)
+
 // Stop stops remotewrite.
 //
 // It is expected that nobody calls TryPush during and after the call to this func.
 func Stop() {
-	if ingestionRateLimiterStopCh != nil {
-		close(ingestionRateLimiterStopCh)
-	}
 	close(configReloaderStopCh)
 	configReloaderWG.Wait()
 
@@ -481,7 +503,7 @@ func tryPush(at *auth.Token, wr *prompbmarshal.WriteRequest, dropSamplesOnFailur
 			}
 		}
 
-		ingestionRateLimiter.register(samplesCount)
+		ingestionRateLimiter.Register(samplesCount)
 
 		tssBlock := tss
 		if i < len(tss) {
@@ -633,10 +655,6 @@ func limitSeriesCardinality(tss []prompbmarshal.TimeSeries) []prompbmarshal.Time
 }
 
 var (
-	ingestionRateLimiter       *rateLimiter
-	ingestionRateLimiterStopCh chan struct{}
-	ingestionRateLimitReached  *metrics.Counter
-
 	hourlySeriesLimiter *bloomfilter.Limiter
 	dailySeriesLimiter  *bloomfilter.Limiter
 

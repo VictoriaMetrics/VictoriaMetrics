@@ -17,6 +17,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/persistentqueue"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/ratelimiter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 	"github.com/VictoriaMetrics/metrics"
@@ -30,7 +31,7 @@ var (
 
 	rateLimit = flagutil.NewArrayInt("remoteWrite.rateLimit", 0, "Optional rate limit in bytes per second for data sent to the corresponding -remoteWrite.url. "+
 		"By default, the rate limit is disabled. It can be useful for limiting load on remote storage when big amounts of buffered data "+
-		"is sent after temporary unavailability of the remote storage")
+		"is sent after temporary unavailability of the remote storage. See also -maxIngestionRate")
 	sendTimeout = flagutil.NewArrayDuration("remoteWrite.sendTimeout", time.Minute, "Timeout for sending a single block of data to the corresponding -remoteWrite.url")
 	proxyURL    = flagutil.NewArrayString("remoteWrite.proxyURL", "Optional proxy URL for writing data to the corresponding -remoteWrite.url. "+
 		"Supported proxies: http, https, socks5. Example: -remoteWrite.proxyURL=socks5://proxy:1234")
@@ -91,7 +92,7 @@ type client struct {
 	authCfg   *promauth.Config
 	awsCfg    *awsapi.Config
 
-	rl *rateLimiter
+	rl *ratelimiter.RateLimiter
 
 	bytesSent       *metrics.Counter
 	blocksSent      *metrics.Counter
@@ -180,7 +181,7 @@ func (c *client) init(argIdx, concurrency int, sanitizedURL string) {
 	limitReached := metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_rate_limit_reached_total{url=%q}`, c.sanitizedURL))
 	if bytesPerSec := rateLimit.GetOptionalArg(argIdx); bytesPerSec > 0 {
 		logger.Infof("applying %d bytes per second rate limit for -remoteWrite.url=%q", bytesPerSec, sanitizedURL)
-		c.rl = newRateLimiter(time.Second, int64(bytesPerSec), limitReached, c.stopCh)
+		c.rl = ratelimiter.New(int64(bytesPerSec), limitReached, c.stopCh)
 	}
 	c.bytesSent = metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_bytes_sent_total{url=%q}`, c.sanitizedURL))
 	c.blocksSent = metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_blocks_sent_total{url=%q}`, c.sanitizedURL))
@@ -395,7 +396,7 @@ func (c *client) newRequest(url string, body []byte) (*http.Request, error) {
 // The function returns false only if c.stopCh is closed.
 // Otherwise it tries sending the block to remote storage indefinitely.
 func (c *client) sendBlockHTTP(block []byte) bool {
-	c.rl.register(len(block))
+	c.rl.Register(len(block))
 	maxRetryDuration := timeutil.AddJitterToDuration(time.Minute)
 	retryDuration := timeutil.AddJitterToDuration(time.Second)
 	retriesCount := 0
@@ -478,60 +479,3 @@ again:
 }
 
 var remoteWriteRejectedLogger = logger.WithThrottler("remoteWriteRejected", 5*time.Second)
-
-type rateLimiter struct {
-	interval         time.Duration
-	perIntervalLimit int64
-	stopCh           <-chan struct{}
-
-	// mu protects budget and deadline from concurrent access.
-	mu sync.Mutex
-
-	// The current budget. It is increased by perIntervalLimit every interval.
-	budget int64
-
-	// The next deadline for increasing the budget by perIntervalLimit
-	deadline time.Time
-
-	limitReached *metrics.Counter
-}
-
-func newRateLimiter(interval time.Duration, perIntervalLimit int64, limitReached *metrics.Counter, stopCh <-chan struct{}) *rateLimiter {
-	return &rateLimiter{
-		interval:         interval,
-		perIntervalLimit: perIntervalLimit,
-		stopCh:           stopCh,
-		limitReached:     limitReached,
-	}
-}
-
-func (rl *rateLimiter) register(count int) {
-	if rl == nil {
-		return
-	}
-
-	limit := rl.perIntervalLimit
-	if limit <= 0 {
-		return
-	}
-
-	rl.mu.Lock()
-	defer rl.mu.Unlock()
-
-	for rl.budget <= 0 {
-		if d := time.Until(rl.deadline); d > 0 {
-			rl.limitReached.Inc()
-			t := timerpool.Get(d)
-			select {
-			case <-rl.stopCh:
-				timerpool.Put(t)
-				return
-			case <-t.C:
-				timerpool.Put(t)
-			}
-		}
-		rl.budget += limit
-		rl.deadline = time.Now().Add(rl.interval)
-	}
-	rl.budget -= int64(count)
-}
