@@ -898,6 +898,7 @@ For example, the following config sets retention to 5 days for time series with 
 ```
 
 See also [these docs](https://docs.victoriametrics.com/#retention-filters) for additional details on retention filters.
+See also [downsampling](#downsampling).
 
 Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 See how to request a free trial license [here](https://victoriametrics.com/products/enterprise/trial/).
@@ -907,6 +908,21 @@ See how to request a free trial license [here](https://victoriametrics.com/produ
 Downsampling is available in [enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/enterprise.html).
 It is configured with `-downsampling.period` command-line flag according to [these docs](https://docs.victoriametrics.com/#downsampling).
 
+It is possible to downsample series, which belong to a particular [tenant](#multitenancy) by using [filters](https://docs.victoriametrics.com/keyConcepts.html#filtering)
+on `vm_account_id` or `vm_project_id` pseudo-labels in `-downsampling.period` command-line flag. For example, the following config leaves the last sample per each minute for samples
+older than one hour only for [tenants](#multitenancy) with accountID equal to 12 and 42, while series for other tenants aren't downsampled:
+
+```
+-downsampling.period='{vm_account_id=~"12|42"}:1h:1m'
+```
+
+It is OK to mix filters on real labels with filters on `vm_account_id` and `vm_project_id` pseudo-labels.
+For example, the following config instructs leaving the last sample per hour after 30 days for time series with `env="dev"` label from [tenant](#multitenancy) `accountID=5`:
+
+```
+-downsampling.period='{vm_account_id="5",env="dev"}:30d:1h'
+```
+
 The same flag value must be passed to both `vmstorage` and `vmselect` nodes. Configuring `vmselect` node with `-downsampling.period`
 command-line flag makes query results more consistent, because `vmselect` uses the maximum configured downsampling interval
 on the requested time range if this time range covers multiple downsampling levels.
@@ -914,6 +930,8 @@ For example, if `-downsampling.period=30d:5m` and the query requests the last 60
 downsamples all the [raw samples](https://docs.victoriametrics.com/keyConcepts.html#raw-samples) on the requested time range
 using 5 minute interval. If `-downsampling.period` command-line flag isn't set at `vmselect`,
 then query results can be less consistent because of mixing raw and downsampled data.
+
+See also [retention filters](#retention-filters).
 
 Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 See how to request a free trial license [here](https://victoriametrics.com/products/enterprise/trial/).
