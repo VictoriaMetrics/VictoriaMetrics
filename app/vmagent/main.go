@@ -125,6 +125,7 @@ func main() {
 	}
 	logger.Infof("starting vmagent at %q...", listenAddrs)
 	startTime := time.Now()
+	remotewrite.StartIngestionRateLimiter()
 	remotewrite.Init()
 	common.StartUnmarshalWorkers()
 	if len(*influxListenAddr) > 0 {
@@ -152,6 +153,7 @@ func main() {
 	pushmetrics.Init()
 	sig := procutil.WaitForSigterm()
 	logger.Infof("received signal %s", sig)
+	remotewrite.StopIngestionRateLimiter()
 	pushmetrics.Stop()
 
 	startTime = time.Now()
