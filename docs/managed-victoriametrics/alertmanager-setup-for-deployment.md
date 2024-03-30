@@ -11,7 +11,7 @@ Managed VictoriaMetrics supports configuring alerting rules and notifications th
  Managed VictoriaMetrics supports Alertmanager with standard [configuration](https://prometheus.io/docs/alerting/latest/configuration/).
 Configuration menu located at `deployment` page under `Alertmanager` section.
 
-<img src="alertmanager_location.webp">
+<img src="alertmanager-setup-for-deployment_location.webp">
 
  Please check the configuration options and limitations:
 
@@ -146,13 +146,13 @@ curl https://https://cloud.victoriametrics.com/api/v1/deployments/DEPLOYMENT_ID/
 
 The state of created rules is located in the rules section for Deployment:
 
-<img src="alertmanager_rules_state.webp">
+<img src="alertmanager-setup-for-deployment_rules_state.webp">
 
 ### debug
 
 It's possible to debug the alerting stack with logs for vmalert and alertmanager, which are accessible in the Logs section of the deployment.
 
-<img src="alertmanager_troubleshoot_logs.webp">
+<img src="alertmanager-setup-for-deployment_troubleshoot_logs.webp">
 
 ### cloud monitoring
 
