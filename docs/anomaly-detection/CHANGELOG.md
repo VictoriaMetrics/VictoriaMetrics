@@ -20,7 +20,7 @@ Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
 ## v1.12.0
 Released: 2024-03-31
-- FEATURE: Introduction of `AutoTunedModel` model class to optimize any [built-in model](/anomaly-detection/components/models/#built-in-models) on data during `fit` phase. Specify as little as `anomaly_percentage` param from `(0, 0.5)` interval and `tuned_model_class` (i.e. [`model.zscore.ZscoreModel`](/anomaly-detection/components/models/index.html#z-score)) to get it working with best settings that match your data. See details [here](#TODO: add link).
+- FEATURE: Introduction of `AutoTunedModel` model class to optimize any [built-in model](/anomaly-detection/components/models/#built-in-models) on data during `fit` phase. Specify as little as `anomaly_percentage` param from `(0, 0.5)` interval and `tuned_model_class` (i.e. [`model.zscore.ZscoreModel`](/anomaly-detection/components/models/index.html#z-score)) to get it working with best settings that match your data. See details [here](/anomaly-detection/components/models/#autotuned).
 <!--
 - FEATURE: Preset support enablement. From now users will be able to specify only a few parameters (like `datasource_url`) + a new (backward-compatible) `preset: preset_name` field in a config file and get a service run with **predefined queries, scheduling and models**. Also, now preset assets (guide, configs, dashboards) will be available at `:8490/presets` endpoint.
 -->

@@ -36,7 +36,7 @@ models:
       # i.e. to assure reproducibility of produced results each time model is fit on the same input
       random_state: 42
     # if there is no explicit `queries` arg, then the model will be run on ALL queries found in reader section
-...
+# ...
 ```  
 
 Old-style configs (< [1.10.0](/anomaly-detection/changelog#v1100))
@@ -44,9 +44,9 @@ Old-style configs (< [1.10.0](/anomaly-detection/changelog#v1100))
 ```yaml
 model:
     class: "model.zscore.ZscoreModel"
-    z_threshold: 2.5
+    z_threshold: 3.0
     # no explicit `queries` arg is provided
-...
+# ...
 ```
 
 will be **implicitly** converted to
@@ -55,10 +55,10 @@ will be **implicitly** converted to
 models:
   default_model:  # default model alias, backward compatibility
     class: "model.zscore.ZscoreModel"
-    z_threshold: 2.5
+    z_threshold: 3.0
     # queries arg is created and propagated with all query aliases found in `queries` arg of `reader` section
     queries: ['q1', 'q2', 'q3']  # i.e., if your `queries` in `reader` section has exactly q1, q2, q3 aliases
-...
+# ...
 ```
 
 
@@ -77,7 +77,7 @@ This arg is **backward compatible** - if there is no explicit `queries` arg, the
 ```yaml
 models:
   model_alias_1:
-    ...
+    # ...
     # no explicit `queries` arg is provided
 ```
 
@@ -86,7 +86,7 @@ will be implicitly converted to
 ```yaml
 models:
   model_alias_1:
-    ...
+    # ...
     # if not set, `queries` arg is created and propagated with all query aliases found in `queries` arg of `reader` section
     queries: ['q1', 'q2', 'q3']  # i.e., if your `queries` in `reader` section has exactly q1, q2, q3 aliases
 ```
@@ -102,7 +102,7 @@ This arg is **backward compatible** - if there is no explicit `schedulers` arg, 
 ```yaml
 models:
   model_alias_1:
-    ...
+    # ...
     # no explicit `schedulers` arg is provided
 ```
 
@@ -111,7 +111,7 @@ will be implicitly converted to
 ```yaml
 models:
   model_alias_1:
-    ...
+    # ...
     # if not set, `schedulers` arg is created and propagated with all scheduler aliases found in `schedulers` section
     schedulers: ['s1', 's2', 's3']  # i.e., if your `schedulers` section has exactly s1, s2, s3 aliases
 ```
@@ -123,7 +123,7 @@ Introduced in [1.12.0](/anomaly-detection/changelog#1120), `provide_series` arg 
 ```yaml
 models:
   model_alias_1:
-    ...
+    # ...
     provide_series: ['anomaly_score']  # only `anomaly_score` metric will be available for writing back to the database
 ```
 
@@ -212,7 +212,7 @@ VM Anomaly Detection (`vmanomaly` hereinafter) models support 2 groups of parame
 
 
 **Models**:
-
+* [AutoTuned](#autotuned) - designed to take the cognitive load off the user, allowing any of built-in models below to be re-tuned for best params on data seen during each `fit` phase of the algorithm. Tradeoff is between increased computational time and optimized results / simpler maintenance.
 * [Prophet](#prophet) - the most versatile one for production usage, especially for complex data ([trends](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#trend), [change points](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-2/#novelties), [multi-seasonality](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#seasonality))
 * [Z-score](#z-score) - useful for testing and for simpler data ([de-trended](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#trend) data without strict [seasonality](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#seasonality) and with anomalies of similar magnitude as your "normal" data)
 * [Holt-Winters](#holt-winters) - well-suited for **data with moderate complexity**, exhibiting distinct [trends](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#trend) and/or [seasonal patterns](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#seasonality).
@@ -223,6 +223,39 @@ VM Anomaly Detection (`vmanomaly` hereinafter) models support 2 groups of parame
 * [Custom model](#custom-model-guide) - benefit from your own models and expertise to better support your **unique use case**.
 
 
+### AutoTuned
+Tuning hyperparameters of a model can be tricky and often requires in-depth knowledge of Machine Learning. `AutoTunedModel` is designed specifically to take the cognitive load off the user - specify as little as `anomaly_percentage` param from `(0, 0.5)` interval and `tuned_model_class` (i.e. [`model.zscore.ZscoreModel`](/anomaly-detection/components/models/index.html#z-score)) to get it working with best settings that match your data.
+
+*Parameters specific for vmanomaly*:
+
+* `class` (string) - model class name `"model.auto.AutoTunedModel"`
+* `tuned_class_name` (string) - Built-in model class to tune, i.e. `model.zscore.ZscoreModel`.
+* `optimization_params` (dict) - Optimization parameters for unsupervised model tuning. Control % of found anomalies, as well as a tradeoff between time spent and the accuracy. The more `timeout` and `n_trials` are, the better model configuration can be found for `tuned_class_name`, but the longer it takes and vice versa. Set `n_jobs` to `-1` to use all the CPUs available, it makes sense if only you have a big dataset to train on during `fit` calls, otherwise overhead isn't worth it.
+  - `anomaly_percentage` (float) - expected percentage of anomalies that can be seen in training data, from (0, 0.5) interval.
+  - `seed` (int) - Random seed for reproducibility and deterministic nature of underlying optimizations.
+  - `n_splits` (int) - How many folds to create for hyperparameter tuning out of your data. The higher, the longer it takes but the better the results can be. Defaults to 3.
+  - `n_trials` (int) - How many trials to sample from hyperparameter search space. The higher, the longer it takes but the better the results can be. Defaults to 128.
+  - `timeout` (float) - How many seconds in total can be spent on each model to tune hyperparameters. The higher, the longer it takes, allowing to test more trials out of defined `n_trials`, but the better the results can be.
+
+```yaml
+# ...
+models:
+  your_desired_alias_for_a_model:
+    class: 'model.auto.AutoTunedModel'
+    tuned_class_name: 'model.zscore.ZscoreModel'
+    optimization_params:
+      anomaly_percentage: 0.004  # required. i.e. we expect <= 0.4% of anomalies to be present in training data
+      seed: 42  # fix reproducibility & determinism
+      n_splits: 4  # how much folds are created for internal cross-validation
+      n_trials: 128  # how many configurations to sample from search space during optimization
+      timeout: 10  # how many seconds to spend on optimization for each trained model during `fit` phase call
+      n_jobs: 1  # how many jobs in parallel to launch. Consider making it > 1 only if you have fit window containing > 10000 datapoints for each series
+  # ...
+```
+
+**Note**: Autotune can't be made on your [custom model](#custom-model-guide). Also, it can't be applied to itself (like `tuned_class_name: 'model.auto.AutoTunedModel'`)
+
+
 ### [Prophet](https://facebook.github.io/prophet/)
 Here we utilize the Facebook Prophet implementation, as detailed in their [library documentation](https://facebook.github.io/prophet/docs/quick_start.html#python-api). All parameters from this library are compatible and can be passed to the model.
 
@@ -230,7 +263,6 @@ Here we utilize the Facebook Prophet implementation, as detailed in their [libra
 
 * `class` (string) - model class name `"model.prophet.ProphetModel"`
 * `seasonalities` (list[dict], optional) - Extra seasonalities to pass to Prophet. See [`add_seasonality()`](https://facebook.github.io/prophet/docs/seasonality,_holiday_effects,_and_regressors.html#modeling-holidays-and-special-events:~:text=modeling%20the%20cycle-,Specifying,-Custom%20Seasonalities) Prophet param.
-* `provide_series` (dict, optional) - model resulting metrics. If not specified [standard metrics](#vmanomaly-output) will be provided.
 
 **Note**: Apart from standard vmanomaly output Prophet model can provide [additional metrics](#additional-output-metrics-produced-by-fb-prophet).
 
@@ -249,7 +281,8 @@ Depending on chosen `seasonality` parameter FB Prophet can return additional met
 ```yaml
 models:
   your_desired_alias_for_a_model:
-    class: "model.prophet.ProphetModel"
+    class: 'model.prophet.ProphetModel'
+    provide_series: ['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper', 'trend']
     seasonalities:
       - name: 'hourly'
         period: 0.04166666666
