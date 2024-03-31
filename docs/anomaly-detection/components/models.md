@@ -25,12 +25,12 @@ vmanomaly includes various [built-in models](#built-in-models) and you can integ
 ```yaml
 models:
   model_univariate_1:
-    class: "model.zscore.ZscoreModel"
+    class: 'model.zscore.ZscoreModel'
     z_threshold: 2.5
-    queries: ["query_alias2"]  # referencing queries defined in `reader` section
+    queries: ['query_alias2']  # referencing queries defined in `reader` section
   model_multivariate_1:
-    class: "model.isolation_forest.IsolationForestMultivariateModel"
-    contamination: "auto"
+    class: 'model.isolation_forest.IsolationForestMultivariateModel'
+    contamination: 'auto'
     args:
       n_estimators: 100
       # i.e. to assure reproducibility of produced results each time model is fit on the same input
@@ -57,7 +57,7 @@ models:
     class: "model.zscore.ZscoreModel"
     z_threshold: 2.5
     # queries arg is created and propagated with all query aliases found in `queries` arg of `reader` section
-    queries: ["q1", "q2", "q3"]  # i.e., if your `queries` in `reader` section has exactly q1, q2, q3 aliases
+    queries: ['q1', 'q2', 'q3']  # i.e., if your `queries` in `reader` section has exactly q1, q2, q3 aliases
 ...
 ```
 
@@ -87,8 +87,8 @@ will be implicitly converted to
 models:
   model_alias_1:
     ...
-    # queries arg is created and propagated with all query aliases found in `queries` arg of `reader` section
-    queries: ["q1", "q2", "q3"]  # i.e., if your `queries` in `reader` section has exactly q1, q2, q3 aliases
+    # if not set, `queries` arg is created and propagated with all query aliases found in `queries` arg of `reader` section
+    queries: ['q1', 'q2', 'q3']  # i.e., if your `queries` in `reader` section has exactly q1, q2, q3 aliases
 ```
 
 ### Schedulers
@@ -112,9 +112,22 @@ will be implicitly converted to
 models:
   model_alias_1:
     ...
-    # queries arg is created and propagated with all query aliases found in `queries` arg of `reader` section
-    schedulers: ["s1", "s2", "s3"]  # i.e., if your `schedulers` section has exactly s1, s2, s3 aliases
+    # if not set, `schedulers` arg is created and propagated with all scheduler aliases found in `schedulers` section
+    schedulers: ['s1', 's2', 's3']  # i.e., if your `schedulers` section has exactly s1, s2, s3 aliases
 ```
+
+### Provide Series
+
+Introduced in [1.12.0](/anomaly-detection/changelog#1120), `provide_series` arg limit the [output generated](#vmanomaly-output) by `vmanomaly` for writing. I.e. if the model produces default output series `['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper']` by specifying `provide_series` section as below, you limit the data being written to only `['anomaly_score']` for each metric received as a subject to anomaly detection.
+
+```yaml
+models:
+  model_alias_1:
+    ...
+    provide_series: ['anomaly_score']  # only `anomaly_score` metric will be available for writing back to the database
+```
+
+**Note** If `provide_series` is not specified in model config, the model will produce its default [model-dependent output](#vmanomaly-output). The output can't be less than `['anomaly_score']. Even if `timestamp` column is ommitted, it will be implicitly added to `provide_series` list, as it's required for metrics to be properly written.
 
 ## Model types
 
@@ -206,7 +219,6 @@ VM Anomaly Detection (`vmanomaly` hereinafter) models support 2 groups of parame
 * [MAD (Median Absolute Deviation)](#mad-median-absolute-deviation) - similarly to Z-score, is effective for **identifying outliers in relatively consistent data** (useful for detecting sudden, stark deviations from the median)
 * [Rolling Quantile](#rolling-quantile) - best for **data with evolving patterns**, as it adapts to changes over a rolling window.
 * [Seasonal Trend Decomposition](#seasonal-trend-decomposition) - similarly to Holt-Winters, is best for **data with pronounced [seasonal](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#seasonality) and [trend](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#trend) components**
-* [ARIMA](#arima) - use when your data shows **clear patterns or autocorrelation (the degree of correlation between values of the same series at different periods)**. However, good understanding of machine learning is required to tune.
 * [Isolation forest (Multivariate)](#isolation-forest-multivariate) - useful for **metrics data interaction** (several queries/metrics -> single anomaly score) and **efficient in detecting anomalies in high-dimensional datasets**
 * [Custom model](#custom-model-guide) - benefit from your own models and expertise to better support your **unique use case**.
 
@@ -383,40 +395,6 @@ Resulting metrics of the model are described [here](#vmanomaly-output).
 * `trend` - The trend component of the data series.
 * `seasonal` - The seasonal component of the data series.
 
-### [ARIMA](https://en.wikipedia.org/wiki/Autoregressive_integrated_moving_average)
-Here we use ARIMA implementation from `statsmodels` [library](https://www.statsmodels.org/dev/generated/statsmodels.tsa.arima.model.ARIMA.html)
-
-*Parameters specific for vmanomaly*:
-
-* `class` (string) - model class name `"model.arima.ArimaModel"`
-
-* `z_threshold` (float, optional) - [standard score](https://en.wikipedia.org/wiki/Standard_score) for calculating boundaries to define anomaly score. Defaults to `2.5`.
-
-* `provide_series` (list[string], optional) - List of columns to be produced and returned by the model. Defaults to `["anomaly_score", "yhat", "yhat_lower" "yhat_upper", "y"]`. Output can be **only a subset** of a given column list.
-
-* `resample_freq` (string, optional) - Frequency to resample input data into, e.g. data comes at 15 seconds resolution, and resample_freq is '1m'. Then fitting data will be downsampled to '1m' and internal model is trained at '1m' intervals. So, during inference, prediction data would be produced at '1m' intervals, but interpolated to "15s" to match with expected output, as output data must have the same timestamps.
-
-*Default model parameters*:
-
-* `order` (list[int]) - ARIMA's (p,d,q) order of the model for the autoregressive, differences, and moving average components, respectively.
-
-* `args` (dict, optional) - Inner model args (key-value pairs). See accepted params in [model documentation](https://www.statsmodels.org/dev/generated/statsmodels.tsa.arima.model.ARIMA.html). Defaults to empty (not provided). Example:  {"trend": "c"}
-
-*Config Example*
-
-```yaml
-models:
-  your_desired_alias_for_a_model:
-    class: "model.arima.ArimaModel"
-    # ARIMA's (p,d,q) order
-    order: [1, 1, 0] 
-    z_threshold: 2.7
-    resample_freq: '1m'
-    # Inner model args (key-value pairs) accepted by statsmodels.tsa.arima.model.ARIMA
-    args:
-      trend: 'c'
-```
-
 
 ### [Isolation forest](https://en.wikipedia.org/wiki/Isolation_forest) (Multivariate)
 Detects anomalies using binary trees. The algorithm has a linear time complexity and a low memory requirement, which works well with high-volume data. It can be used on both univatiate and multivariate data, but it is more effective in multivariate case.
@@ -431,6 +409,15 @@ Here we use Isolation Forest implementation from `scikit-learn` [library](https:
 
 * `contamination` (float or string, optional) - The amount of contamination of the data set, i.e. the proportion of outliers in the data set. Used when fitting to define the threshold on the scores of the samples. Default value - "auto". Should be either `"auto"` or be in the range (0.0, 0.5].
 
+* `seasonal_features` (list of string) - List of seasonality to encode through [cyclical encoding](https://towardsdatascience.com/cyclical-features-encoding-its-about-time-ce23581845ca), i.e. `dow` (day of week). **Introduced in [1.12.0](/anomaly-detection/CHANGELOG/#v1120)**. 
+  - Empty by default for backward compatibility.
+  - Example: `seasonal_features: ['dow', 'hod']`.
+  - Supported seasonalities:
+    - "minute" - minute of hour (0-59)
+    - "hod" - hour of day (0-23)
+    - "dow" - day of week (1-7)
+    - "month" - month of year (1-12)
+
 * `args` (dict, optional) - Inner model args (key-value pairs). See accepted params in [model documentation](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.IsolationForest.html). Defaults to empty (not provided). Example:  {"random_state": 42, "n_estimators": 100}
 
 *Config Example*
@@ -441,7 +428,9 @@ models:
   your_desired_alias_for_a_model:
     # To use univariate model, substitute class argument with "model.isolation_forest.IsolationForestModel".
     class: "model.isolation_forest.IsolationForestMultivariateModel"
-    contamination: "auto"
+    contamination: "0.01"
+    provide_series: ['anomaly_score']
+    seasonal_features: ['dow', 'hod']
     args:
       n_estimators: 100
       # i.e. to assure reproducibility of produced results each time model is fit on the same input
