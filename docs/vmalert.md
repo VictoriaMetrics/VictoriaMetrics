@@ -114,6 +114,8 @@ groups:
   [ - <rule_group> ]
 ```
 
+> Explore how to integrate `vmalert` with [VictoriaMetrics Anomaly Detection](/anomaly-detection/) in the following [guide](/anomaly-detection/guides/guide-vmanomaly-vmalert/)
+
 ### Groups
 
 Each group has the following attributes:

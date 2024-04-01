@@ -51,7 +51,7 @@ Dive into [our FAQ section](/anomaly-detection/FAQ.html) to find responses to co
 ## Get in Touch
 We're eager to connect with you and tailor our solutions to your specific needs. Here's how you can engage with us:
 * [Book a Demo](https://calendly.com/victoriametrics-anomaly-detection) to discover what our product can do.
-* Interested in exploring our [Enterprise features](https://victoriametrics.com/products/enterprise), including Anomaly Detection? [Request your trial license](https://victoriametrics.com/products/enterprise/trial/) today and take the first step towards advanced system observability.
+* Interested in exploring our [Enterprise features](https://victoriametrics.com/products/enterprise), including [Anomaly Detection](https://victoriametrics.com/products/enterprise/anomaly-detection)? [Request your trial license](https://victoriametrics.com/products/enterprise/trial/) today and take the first step towards advanced system observability.
 
 ---
 Our [CHANGELOG is just a click away](./CHANGELOG.md), keeping you informed about the latest updates and enhancements.

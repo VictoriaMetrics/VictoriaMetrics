@@ -152,7 +152,8 @@ If during an inference, you got a series having **new labelset** (not present in
 
 **Examples:** [Prophet](#prophet), [Holt-Winters](#holt-winters)
 
-<!-- TODO: add schema -->
+<p></p>
+<img alt="vmanomaly-model-type-univatiate" src="/anomaly-detection/components/model-lifecycle-univariate.webp" width="800px"/>
 
 ### Multivariate Models
 
@@ -166,7 +167,8 @@ If during an inference, you got a **different amount of series** or some series 
 
 **Examples:** [IsolationForest](#isolation-forest-multivariate)
 
-<!-- TODO: add schema -->
+<p></p>
+<img alt="vmanomaly-model-type-multivariate" src="/anomaly-detection/components/model-lifecycle-multivariate.webp" width="800px"/>
 
 ### Rolling Models
 
@@ -182,7 +184,8 @@ Such models put **more pressure** on your reader's source, i.e. if your model sh
 
 **Examples:** [RollingQuantile](#rolling-quantile)
 
-<!-- TODO: add schema -->
+<p></p>
+<img alt="vmanomaly-model-type-rolling" src="/anomaly-detection/components/model-type-rolling.webp" width="800px"/>
 
 ### Non-Rolling Models
 
@@ -198,7 +201,8 @@ Produced model instances are **stored in-memory** between consecutive re-fit cal
 
 **Examples:** [Prophet](#prophet)
 
-<!-- TODO: add schema -->
+<p></p>
+<img alt="vmanomaly-model-type-non-rolling" src="/anomaly-detection/components/model-type-non-rolling.webp" width="800px"/>
 
 ## Built-in Models 
 
@@ -236,6 +240,8 @@ Tuning hyperparameters of a model can be tricky and often requires in-depth know
   - `n_splits` (int) - How many folds to create for hyperparameter tuning out of your data. The higher, the longer it takes but the better the results can be. Defaults to 3.
   - `n_trials` (int) - How many trials to sample from hyperparameter search space. The higher, the longer it takes but the better the results can be. Defaults to 128.
   - `timeout` (float) - How many seconds in total can be spent on each model to tune hyperparameters. The higher, the longer it takes, allowing to test more trials out of defined `n_trials`, but the better the results can be.
+
+<img alt="vmanomaly-autotune-schema" src="/anomaly-detection/components/autotune.webp" width="800px"/>
 
 ```yaml
 # ...
@@ -521,6 +527,7 @@ In the `CustomModel` class there should be three required methods - `__init__`, 
 * `__init__` method should initiate parameters for the model.
 
   **Note**: if your model relies on configs that have `arg` [key-value pair argument](./models.md#section-overview), do not forget to use Python's `**kwargs` in method's signature and to explicitly call
+
   ```python 
   super().__init__(**kwargs)
   ``` 
@@ -578,7 +585,6 @@ class CustomModel(Model):
 ```
 
 
-
 ### 2. Configuration file
 
 Next, we need to create `config.yaml` file with VM Anomaly Detection configuration and model input parameters.
@@ -587,13 +593,14 @@ You can find out more about configuration parameters in [vmanomaly config docs](
 
 
 ```yaml
-scheduler:
-  infer_every: "1m"
-  fit_every: "1m"
-  fit_window: "1d"
+schedulers:
+  s1:
+    infer_every: "1m"
+    fit_every: "1m"
+    fit_window: "1d"
 
 models:
-  your_desired_alias_for_a_model:
+  custom_model:
     # note: every custom model should implement this exact path, specified in `class` field
     class: "model.model.CustomModel"
     # custom model params are defined here
@@ -610,7 +617,6 @@ writer:
   metric_format:
     __name__: "custom_$VAR"
     for: "$QUERY_KEY"
-    model: "custom"
     run: "test-format"
 
 monitoring:
@@ -653,8 +659,7 @@ Please find more detailed instructions (license, etc.) [here](/anomaly-detection
 As the result, this model will return metric with labels, configured previously in `config.yaml`.
 In this particular example, 2 metrics will be produced. Also, there will be added other metrics from input query result.
 
-```
-{__name__="custom_anomaly_score", for="ingestion_rate", model="custom", run="test-format"}
-
-{__name__="custom_anomaly_score", for="churn_rate", model="custom", run="test-format"}
+```text
+{__name__="custom_anomaly_score", for="ingestion_rate", model_alias="custom_model", scheduler_alias="s1", run="test-format"},
+{__name__="custom_anomaly_score", for="churn_rate",     model_alias="custom_model", scheduler_alias="s1", run="test-format"}
 ```

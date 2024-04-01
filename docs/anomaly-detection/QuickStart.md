@@ -16,7 +16,7 @@ aliases:
 For service introduction visit [README](/anomaly-detection/) page
 and [Overview](/anomaly-detection/overview.html) of how `vmanomaly` works.
 
-## How to install and run `vmanomaly`
+## How to install and run vmanomaly
 
 > To run `vmanomaly` you need to have VictoriaMetrics Enterprise license. You can get a trial license key [**here**](https://victoriametrics.com/products/enterprise/trial/index.html).
 
