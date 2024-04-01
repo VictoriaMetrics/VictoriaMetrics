@@ -55,6 +55,7 @@ On top of this, Enterprise package of VictoriaMetrics includes the following fea
   by specifying different retentions for different datasets.
 - [Automatic discovery of vmstorage nodes](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#automatic-vmstorage-discovery) -
   this feature allows updating the list of `vmstorage` nodes at `vminsert` and `vmselect` without the need to restart these services.
+- [Anomaly Detection Service](https://docs.victoriametrics.com/anomaly-detection) - this feature allows automation and simplification of your alerting rules, covering [complex anomalies](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-2/) found in metrics data.
 - [Backup automation](https://docs.victoriametrics.com/vmbackupmanager.html).
 - [Advanced per-tenant stats](https://docs.victoriametrics.com/PerTenantStatistic.html).
 - [Advanced auth and rate limiter](https://docs.victoriametrics.com/vmgateway.html).
@@ -66,7 +67,6 @@ On top of this, Enterprise package of VictoriaMetrics includes the following fea
 - [Multitenant support in vmalert](https://docs.victoriametrics.com/vmalert.html#multitenancy).
 - [Ability to read alerting and recording rules from Object Storage](https://docs.victoriametrics.com/vmalert.html#reading-rules-from-object-storage).
 - [Ability to filter incoming requests by IP at vmauth](https://docs.victoriametrics.com/vmauth.html#ip-filters).
-- [Anomaly Detection Service](https://docs.victoriametrics.com/anomaly-detection).
 
 Contact us via [this page](https://victoriametrics.com/products/enterprise/) if you are interested in VictoriaMetrics Enterprise.
 
